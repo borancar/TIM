@@ -3751,7 +3751,7 @@ void check_goal(void)
  * Clip to the **counter strip** and draw into the visible page.
  *
  * Full width, rows 0x1b to 0x45 - the band the three counters sit in - and
- * `DG3890.page_dst_ptr` set to 0xa000 rather than to whichever page is being built.
+ * `VMDS.page_dst_ptr` set to 0xa000 rather than to whichever page is being built.
  * The counters are drawn straight onto the screen, outside the double
  * buffering, which is what lets them roll while the machine below them is
  * still being composed.
@@ -3765,12 +3765,12 @@ void check_goal(void)
  */
 void set_clip_counter_strip(void)
 {
-    DG3890.page_dst_ptr = 0xa000;
-    DG3890.clip_enabled = 1;
-    DG3890.clip_left    = 0;
-    DG3890.clip_right   = 0x27f;
-    DG3890.clip_top     = 0x1b;
-    DG3890.clip_bottom  = 0x45;
+    VMDS.page_dst_ptr = 0xa000;
+    VMDS.clip_enabled = 1;
+    VMDS.clip_left    = 0;
+    VMDS.clip_right   = 0x27f;
+    VMDS.clip_top     = 0x1b;
+    VMDS.clip_bottom  = 0x45;
 }
 
 /*
@@ -4003,7 +4003,7 @@ void run_machine_loop(void)
 {
     clear_machine();
     DG4E67.elapsed_ticks = 0;
-    DG44EE.frame_budget = 0x2710;
+    TIMER.frame_budget = 0x2710;
 
     while (DG4E67.state == 0x2000) {
         if (((uint16_t)DG52BD.sound_request_01) != 0) DG52BD.sound_request_01 = 1;
@@ -4021,10 +4021,10 @@ void run_machine_loop(void)
         replay_shapes();
         step_and_draw_machine(0);
 
-        while ((int16_t)(0x2710 - ((uint16_t)DG44EE.frame_budget)) < 8)
+        while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
             ;
-        DG4E67.elapsed_ticks = (uint16_t)(DG4E67.elapsed_ticks + (0x2710 - ((uint16_t)DG44EE.frame_budget)));
-        DG44EE.frame_budget = 0x2710;
+        DG4E67.elapsed_ticks = (uint16_t)(DG4E67.elapsed_ticks + (0x2710 - ((uint16_t)TIMER.frame_budget)));
+        TIMER.frame_budget = 0x2710;
 
         present_frame(1);
 
@@ -5498,13 +5498,13 @@ int16_t points_within_140(const struct point16 *a, const struct point16 *b)
  * *The name is a reading.* Nothing says "reverse"; it is what swapping both
  * ends of a run of pulleys amounts to.
  */
-void reverse_link_ends(uint16_t rec)
+void reverse_link_ends(struct belt *rec)
 {
     uint16_t di, si, t;
     uint8_t b;
     struct point8 pair;
 
-    di = PART_PTR(BELT_PTR(rec)->end_a_ptr)->link_ptr[BELT_PTR(rec)->slot_a];
+    di = PART_PTR(rec->end_a_ptr)->link_ptr[rec->slot_a];
 
     while (di != 0 && PART_PTR(di)->kind == KIND_PULLEY) {
         t = PART_PTR(di)->link_ptr[0];
@@ -5542,19 +5542,19 @@ void reverse_link_ends(uint16_t rec)
         di = PART_PTR(di)->link_ptr[1];
     }
 
-    t = ((uint16_t)BELT_PTR(rec)->end_a_ptr);
-    BELT_PTR(rec)->end_a_ptr = ((uint16_t)BELT_PTR(rec)->end_b_ptr);
-    BELT_PTR(rec)->home_a_ptr = ((uint16_t)BELT_PTR(rec)->end_a_ptr);
-    BELT_PTR(rec)->end_b_ptr = t;
-    BELT_PTR(rec)->home_b_ptr = t;
+    t = ((uint16_t)rec->end_a_ptr);
+    rec->end_a_ptr = ((uint16_t)rec->end_b_ptr);
+    rec->home_a_ptr = ((uint16_t)rec->end_a_ptr);
+    rec->end_b_ptr = t;
+    rec->home_b_ptr = t;
 
-    b = BELT_PTR(rec)->slot_a;
-    BELT_PTR(rec)->slot_a = BELT_PTR(rec)->slot_b;
-    BELT_PTR(rec)->home_slot_a = BELT_PTR(rec)->slot_a;
-    BELT_PTR(rec)->slot_b = b;
-    BELT_PTR(rec)->home_slot_b = b;
+    b = rec->slot_a;
+    rec->slot_a = rec->slot_b;
+    rec->home_slot_a = rec->slot_a;
+    rec->slot_b = b;
+    rec->home_slot_b = b;
 
-    mark_part_shapes(PART_PTR(BELT_PTR(rec)->owner_ptr), 3);
+    mark_part_shapes(PART_PTR(rec->owner_ptr), 3);
 }
 
 /*
@@ -5660,7 +5660,7 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
             if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
                 && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
                 if (BELT_PTR(cur)->end_a_ptr == dg_off(dgroup, part))
-                    reverse_link_ends(cur);
+                    reverse_link_ends(BELT_PTR(cur));
                 return BELT_PTR(cur)->owner_ptr;
             }
         }
@@ -5990,9 +5990,9 @@ uint16_t part_handle_at_pointer(struct part *part)
  * bit 1 set, or the whole thing is 0. With both ends in hand it is
  * `points_within_140` on the positions at +0x1e.
  */
-int16_t rope_ends_close(uint16_t rope)
+int16_t rope_ends_close(struct rope *rope)
 {
-    uint16_t si = ROPE_PTR(rope)->end_a_ptr;
+    uint16_t si = rope->end_a_ptr;
     uint16_t di;
 
     if (si == 0) {
@@ -6005,7 +6005,7 @@ int16_t rope_ends_close(uint16_t rope)
         return 1;
     }
 
-    di = ROPE_PTR(rope)->end_b_ptr;
+    di = rope->end_b_ptr;
     if (di == 0) {
         di = find_part_from(0);
         if (di == 0)
@@ -6151,7 +6151,7 @@ void rehome_carried_part(void)
  * The comparison is between the two **absolute** differences, each the
  * branchless `cwd / xor / sub`.
  */
-void compute_link_endpoints(uint16_t link)
+void compute_link_endpoints(struct rope *link)
 {
     /*
      * **An end can be 0, and the original reads it anyway.** After the first
@@ -6162,23 +6162,23 @@ void compute_link_endpoints(uint16_t link)
      * Borland banner - and the endpoint is those bytes until the second click
      * fills the end. `PART_PTR(0)` is DS:0, so the same read is written here.
      */
-    uint16_t a = ROPE_PTR(link)->end_a_ptr;
-    uint16_t b = ROPE_PTR(link)->end_b_ptr;
+    uint16_t a = link->end_a_ptr;
+    uint16_t b = link->end_b_ptr;
     const struct part *pa = PART_PTR(a);
     const struct part *pb = PART_PTR(b);
     int16_t dx, dy;
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
     int16_t b_dx1, b_dy1, b_dx2, b_dy2;
 
-    ROPE_PTR(link)->pt[0][0].x = (int16_t)(pa->box[0].x + pa->grab.x);
-    ROPE_PTR(link)->pt[0][0].y = (int16_t)(pa->box[0].y + pa->grab.y);
-    ROPE_PTR(link)->pt[0][1].x = (int16_t)(pb->box[0].x + pb->grab.x);
-    ROPE_PTR(link)->pt[0][1].y = (int16_t)(pb->box[0].y + pb->grab.y);
+    link->pt[0][0].x = (int16_t)(pa->box[0].x + pa->grab.x);
+    link->pt[0][0].y = (int16_t)(pa->box[0].y + pa->grab.y);
+    link->pt[0][1].x = (int16_t)(pb->box[0].x + pb->grab.x);
+    link->pt[0][1].y = (int16_t)(pb->box[0].y + pb->grab.y);
 
-    dx = (int16_t)(ROPE_PTR(link)->pt[0][0].x - ROPE_PTR(link)->pt[0][1].x);
+    dx = (int16_t)(link->pt[0][0].x - link->pt[0][1].x);
     if (dx < 0)
         dx = (int16_t)-dx;
-    dy = (int16_t)(ROPE_PTR(link)->pt[0][0].y - ROPE_PTR(link)->pt[0][1].y);
+    dy = (int16_t)(link->pt[0][0].y - link->pt[0][1].y);
     if (dy < 0)
         dy = (int16_t)-dy;
 
@@ -6198,15 +6198,15 @@ void compute_link_endpoints(uint16_t link)
         b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
     }
 
-    ROPE_PTR(link)->pt[0][2].x = (int16_t)(ROPE_PTR(link)->pt[0][0].x + a_dx2);
-    ROPE_PTR(link)->pt[0][2].y = (int16_t)(ROPE_PTR(link)->pt[0][0].y + a_dy2);
-    ROPE_PTR(link)->pt[0][3].x = (int16_t)(ROPE_PTR(link)->pt[0][1].x + b_dx2);
-    ROPE_PTR(link)->pt[0][3].y = (int16_t)(ROPE_PTR(link)->pt[0][1].y + b_dy2);
+    link->pt[0][2].x = (int16_t)(link->pt[0][0].x + a_dx2);
+    link->pt[0][2].y = (int16_t)(link->pt[0][0].y + a_dy2);
+    link->pt[0][3].x = (int16_t)(link->pt[0][1].x + b_dx2);
+    link->pt[0][3].y = (int16_t)(link->pt[0][1].y + b_dy2);
 
-    ROPE_PTR(link)->pt[0][0].x   = (int16_t)(ROPE_PTR(link)->pt[0][0].x + a_dx1);
-    ROPE_PTR(link)->pt[0][0].y = (int16_t)(ROPE_PTR(link)->pt[0][0].y + a_dy1);
-    ROPE_PTR(link)->pt[0][1].x = (int16_t)(ROPE_PTR(link)->pt[0][1].x + b_dx1);
-    ROPE_PTR(link)->pt[0][1].y = (int16_t)(ROPE_PTR(link)->pt[0][1].y + b_dy1);
+    link->pt[0][0].x   = (int16_t)(link->pt[0][0].x + a_dx1);
+    link->pt[0][0].y = (int16_t)(link->pt[0][0].y + a_dy1);
+    link->pt[0][1].x = (int16_t)(link->pt[0][1].x + b_dx1);
+    link->pt[0][1].y = (int16_t)(link->pt[0][1].y + b_dy1);
 }
 
 /*
@@ -6520,8 +6520,8 @@ void mark_needs_refile(struct part *part, uint8_t n)
     rope = (int16_t)part->rope_ptr;
     if ((uint16_t)rope != 0) {
         if (((int16_t)DG4E67.state) == 0x1000) {
-            compute_link_endpoints((uint16_t)rope);
-            if (rope_ends_close((uint16_t)rope) != 0)
+            compute_link_endpoints(ROPE_PTR(rope));
+            if (rope_ends_close(ROPE_PTR(rope)) != 0)
                 PART_PTR(ROPE_PTR(rope)->owner_ptr)->byte_14 = n;
         } else {
             PART_PTR(ROPE_PTR(rope)->owner_ptr)->byte_14 = n;
@@ -7924,10 +7924,10 @@ void replay_shapes(void)
 
     set_clip_for_mode();
 
-    DG3890.clip_enabled = 1;
-    DG3890.second_colour = ((uint8_t)DG52BD.fill_colour);
-    DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.clip_enabled = 1;
+    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     prev[0] = 0;
     prev[1] = 0;
@@ -7970,17 +7970,17 @@ void replay_shapes(void)
         if (FAR8(cs, (uint16_t)(co + 4)) & 4) {
             draw_belt_segment(si, di, a, b, c);
         } else {
-            DG3890.fill_enabled = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
+            VMDS.fill_enabled = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
 
-            if (di == DG3890.clip_bottom)
+            if (di == VMDS.clip_bottom)
                 di--;
-            if (si == DG3890.clip_right)
+            if (si == VMDS.clip_right)
                 si--;
 
-            if (si < DG3890.clip_right
-                && (int16_t)(si + a) > DG3890.clip_left
-                && di < DG3890.clip_bottom
-                && (int16_t)(di + b) > DG3890.clip_top)
+            if (si < VMDS.clip_right
+                && (int16_t)(si + a) > VMDS.clip_left
+                && di < VMDS.clip_bottom
+                && (int16_t)(di + b) > VMDS.clip_top)
                 fill_rect(si, di, a, b);
         }
 
@@ -8159,7 +8159,7 @@ void mark_parts_in_dirty_rects(void)
 
             si = PART_PTR(di)->rope_ptr;
 
-            if (rope_ends_close(si) == 0)
+            if (rope_ends_close(ROPE_PTR(si)) == 0)
                 continue;
 
             if (((int16_t)DG4E67.word_4e69) == 9
@@ -8318,7 +8318,7 @@ void refile_overlapping_parts(void)
 
                     si = PART_PTR(di)->rope_ptr;
 
-                    if (rope_ends_close(si) == 0)
+                    if (rope_ends_close(ROPE_PTR(si)) == 0)
                         continue;
 
                     if (((int16_t)DG4E67.word_4e69) == 9
@@ -8612,13 +8612,13 @@ int16_t match_field_5a_5c(int16_t value, struct part *obj)
  * Both the "matched" and "did not match" paths funnel through one `jmp` to the
  * epilogue, which is why the disassembly has three jumps to reach two results.
  */
-int16_t select_field_2_or_4(int16_t key, uint16_t rec)
+int16_t select_field_2_or_4(int16_t key, struct belt *rec)
 {
-    if (rec == 0)
+    if (rec == NULL)
         return 0;
-    if ((int16_t)BELT_PTR(rec)->end_a_ptr == key)
-        return (int16_t)BELT_PTR(rec)->end_b_ptr;
-    return (int16_t)BELT_PTR(rec)->end_a_ptr;
+    if ((int16_t)rec->end_a_ptr == key)
+        return (int16_t)rec->end_b_ptr;
+    return (int16_t)rec->end_a_ptr;
 }
 
 /*
@@ -8899,7 +8899,7 @@ int16_t tension_belt(struct part *part)
 
     belt = part->belt_ptr[0];
     di = ((uint16_t)BELT_PTR(belt)->owner_ptr);
-    other = select_field_2_or_4((int16_t)dg_off(dgroup, part), belt);
+    other = select_field_2_or_4((int16_t)dg_off(dgroup, part), BELT_PTR(belt));
 
     if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
         end = 0;
@@ -8913,9 +8913,9 @@ int16_t tension_belt(struct part *part)
         slackB = ((int16_t)PART_PTR(di)->word_96);
     }
 
-    gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+    gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
                                        (uint8_t *)dy2);
-    gapA = link_endpoint_gap(belt, part, (uint8_t *)&dx1,
+    gapA = link_endpoint_gap(BELT_PTR(belt), part, (uint8_t *)&dx1,
                                        (uint8_t *)&dy1);
 
     dA = (int16_t)(gapA - slackA);
@@ -8996,7 +8996,7 @@ int16_t tension_belt(struct part *part)
         PART_PTR(other)->flags_06 &= 0xfff0;
         resolve_collisions(other);
 
-        gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+        gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
                                        (uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
@@ -9018,7 +9018,7 @@ int16_t tension_belt(struct part *part)
         PART_PTR(other)->flags_06 &= 0xfff0;
         resolve_collisions(other);
 
-        gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+        gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
                                        (uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
@@ -9204,18 +9204,18 @@ out:
  * same address for both, the second store lands on the first and the length is
  * measured from the aliased pair.
  */
-int16_t link_endpoint_gap(uint16_t link, struct part *obj,
+int16_t link_endpoint_gap(struct belt *link, struct part *obj,
                           uint8_t * out_dx, uint8_t * out_dy)
 {
     uint16_t self, other, pt;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
 
-    if (BELT_PTR(link)->end_a_ptr == dg_off(dgroup, obj)) {
+    if (link->end_a_ptr == dg_off(dgroup, obj)) {
         self = dg_off(dgroup, obj);
-        idx = ((int8_t)BELT_PTR(link)->slot_a);
+        idx = ((int8_t)link->slot_a);
     } else {
-        self = BELT_PTR(link)->end_b_ptr;
-        idx = ((int8_t)BELT_PTR(link)->slot_b);
+        self = link->end_b_ptr;
+        idx = ((int8_t)link->slot_b);
     }
 
     x1 = (int16_t)(PART_PTR(self)->box[0].x + PART_PTR(self)->attach[idx].x);
@@ -9537,7 +9537,7 @@ void reset_machine(void)
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
          si = (uint16_t)pick_for_record(si, 0x1000)) {
         if (PART_PTR(si)->kind == KIND_BELT) {
-            compute_link_endpoints(PART_PTR(si)->rope_ptr);
+            compute_link_endpoints(ROPE_PTR(PART_PTR(si)->rope_ptr));
             continue;
         }
 
@@ -9606,7 +9606,7 @@ int16_t point_in_play_area(void)
  *
  * Take the object off both pages.
  *
- * The two words it erases are the driver's own `VMDS + 0x12` and `+ 0x14` -
+ * The two words it erases are the driver's own `VMDS.page_back_ptr` and `VMDS.page_front_ptr` -
  * the page being drawn into and the page on screen. They are page segments,
  * and `erase_object` takes them as handles, so `claim_page_slot` is what maps
  * a page to the record describing what is drawn on it. There is one such
@@ -9619,8 +9619,8 @@ void erase_both_pages(void)
 {
     DG52ED.cursor_follows = 0;
     clear_flag_2d44_thunk();
-    erase_object(DG3890.page_back_ptr);
-    erase_object(DG3890.page_front_ptr);
+    erase_object(VMDS.page_back_ptr);
+    erase_object(VMDS.page_front_ptr);
 }
 
 /*
@@ -9692,9 +9692,9 @@ void update_button_state(void)
     wait_and_latch_frame();
     prev = ((int16_t)DG5768.button_left);
 
-    if (flag_bit_48ea(0))
+    if (read_mouse_button(0))
         DG5768.button_left = 1;
-    if (flag_bit_48ea(1))
+    if (read_mouse_button(1))
         DG5768.button_right = 2;
 
     if (prev == 2 && MACHINE_BUTTON_PREV.word_286e != 1) {
@@ -9751,8 +9751,8 @@ void present_back_page(void)
 {
     present_frame(1);
 
-    DG3890.page_src_ptr = DG3890.page_front_ptr;
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_src_ptr = VMDS.page_front_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
 }
@@ -9780,15 +9780,15 @@ void set_clip_for_mode(void)
 
     if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
         || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
-        DG3890.clip_left = DG52BD.saved_clip_left;
-        DG3890.clip_right = DG52BD.saved_clip_right;
-        DG3890.clip_top = DG52BD.saved_clip_top;
-        DG3890.clip_bottom = DG52BD.saved_clip_bottom;
+        VMDS.clip_left = DG52BD.saved_clip_left;
+        VMDS.clip_right = DG52BD.saved_clip_right;
+        VMDS.clip_top = DG52BD.saved_clip_top;
+        VMDS.clip_bottom = DG52BD.saved_clip_bottom;
     } else {
-        DG3890.clip_left = 0x110;
-        DG3890.clip_right = 0x20F;
-        DG3890.clip_top = 0x48;
-        DG3890.clip_bottom = 0xE7;
+        VMDS.clip_left = 0x110;
+        VMDS.clip_right = 0x20F;
+        VMDS.clip_top = 0x48;
+        VMDS.clip_bottom = 0xE7;
     }
 }
 
@@ -9801,10 +9801,10 @@ void set_clip_for_mode(void)
  */
 void set_clip_play_area(void)
 {
-    DG3890.clip_left = 0;
-    DG3890.clip_top = 0;
-    DG3890.clip_right = 0x27F;
-    DG3890.clip_bottom = 0x16F;
+    VMDS.clip_left = 0;
+    VMDS.clip_top = 0;
+    VMDS.clip_right = 0x27F;
+    VMDS.clip_bottom = 0x16F;
 }
 
 /*
@@ -9816,10 +9816,10 @@ void set_clip_play_area(void)
  */
 void set_clip_full_screen(void)
 {
-    DG3890.clip_left = 0;
-    DG3890.clip_top = 0;
-    DG3890.clip_right = 0x27F;
-    DG3890.clip_bottom = 0x18F;
+    VMDS.clip_left = 0;
+    VMDS.clip_top = 0;
+    VMDS.clip_right = 0x27F;
+    VMDS.clip_bottom = 0x18F;
 }
 
 /*
@@ -9838,8 +9838,8 @@ void set_clip_full_screen(void)
  */
 void repaint_whole_screen(void)
 {
-    DG3890.page_src_ptr = DG3890.page_front_ptr;
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_src_ptr = VMDS.page_front_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
     present_frame(1);
@@ -10216,13 +10216,13 @@ void regions_handle_pointer(uint16_t first)
             && REGION_PTR(si)->y0 <= DG5768.pointer_y
             && REGION_PTR(si)->y1 >= DG5768.pointer_y) {
             if (!far_eq(REGION_PTR(si)->hover, FAR_NULL))
-                call_region_handler(REGION_PTR(si)->hover, si);
+                call_region_handler(REGION_PTR(si)->hover, REGION_PTR(si));
 
             select_cursor((int16_t)REGION_PTR(si)->cursor);
 
             if (DG5768.button_left == 2) {
                 if (!far_eq(REGION_PTR(si)->click, FAR_NULL))
-                    call_region_handler(REGION_PTR(si)->click, si);
+                    call_region_handler(REGION_PTR(si)->click, REGION_PTR(si));
 
                 DG4E67.state = REGION_PTR(si)->code;
             }
@@ -10860,8 +10860,8 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
     if (rec == 0)
         return;
 
-    DG3890.page_src_ptr = RECTENT_PTR(rec)->page_src;
-    DG3890.page_dst_ptr = RECTENT_PTR(rec)->page_dst;
+    VMDS.page_src_ptr = RECTENT_PTR(rec)->page_src;
+    VMDS.page_dst_ptr = RECTENT_PTR(rec)->page_dst;
 
     while (rec != 0) {
         int16_t x  = (int16_t)(RECTENT_PTR(rec)->x << 3);
@@ -10980,7 +10980,7 @@ uint16_t build_rect_pool(uint16_t n)
  * are the record's fields in order, which is how the record was typed.
  *
  * A mode-4 rect (restored from `buf`) is filed under source page -1. A mode-1
- * rect (a plain copy) is first cut to the clip box when `DG3890.clip_enabled`
+ * rect (a plain copy) is first cut to the clip box when `VMDS.clip_enabled`
  * says so, or to the screen otherwise - a rect wholly outside either is
  * dropped - and then `x` and `w` become eight-pixel columns, `w` widened by
  * whatever `x` lost to the rounding. A rect with nothing left is dropped.
@@ -11012,25 +11012,25 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         return;
 
     if (mode == 1) {
-        if (DG3890.clip_enabled != 0) {
-            if (x > DG3890.clip_right
-                || (int16_t)(x + w) < DG3890.clip_left
-                || y > DG3890.clip_bottom
-                || (int16_t)(y + h) < DG3890.clip_top)
+        if (VMDS.clip_enabled != 0) {
+            if (x > VMDS.clip_right
+                || (int16_t)(x + w) < VMDS.clip_left
+                || y > VMDS.clip_bottom
+                || (int16_t)(y + h) < VMDS.clip_top)
                 return;
 
-            if (x < DG3890.clip_left) {
-                w = (int16_t)(w - (DG3890.clip_left - x));
-                x = DG3890.clip_left;
+            if (x < VMDS.clip_left) {
+                w = (int16_t)(w - (VMDS.clip_left - x));
+                x = VMDS.clip_left;
             }
-            if (y < DG3890.clip_top) {
-                h = (int16_t)(h - (DG3890.clip_top - y));
-                y = DG3890.clip_top;
+            if (y < VMDS.clip_top) {
+                h = (int16_t)(h - (VMDS.clip_top - y));
+                y = VMDS.clip_top;
             }
-            if ((int16_t)(x + w - 1) > DG3890.clip_right)
-                w = (int16_t)(DG3890.clip_right - x + 1);
-            if ((int16_t)(y + h - 1) > DG3890.clip_bottom)
-                h = (int16_t)(DG3890.clip_bottom - y + 1);
+            if ((int16_t)(x + w - 1) > VMDS.clip_right)
+                w = (int16_t)(VMDS.clip_right - x + 1);
+            if ((int16_t)(y + h - 1) > VMDS.clip_bottom)
+                h = (int16_t)(VMDS.clip_bottom - y + 1);
         } else {
             if ((int16_t)(DG3F78.screen_width - 1) < x
                 || (int16_t)(x + w) < 0
@@ -11168,8 +11168,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
  */
 void restore_saved_rect_lists(int16_t which)
 {
-    uint16_t saved_src = DG3890.page_src_ptr;
-    uint16_t saved_dst = DG3890.page_dst_ptr;
+    uint16_t saved_src = VMDS.page_src_ptr;
+    uint16_t saved_dst = VMDS.page_dst_ptr;
     uint16_t i = which != 0 ? 1 : 0;              /* the pair to start from */
 
     for (;;) {
@@ -11185,8 +11185,8 @@ void restore_saved_rect_lists(int16_t which)
             break;
     }
 
-    DG3890.page_src_ptr = saved_src;
-    DG3890.page_dst_ptr = saved_dst;
+    VMDS.page_src_ptr = saved_src;
+    VMDS.page_dst_ptr = saved_dst;
 
     if (which != 0)
         return;
@@ -11446,7 +11446,7 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
 void set_flag_2d44(void)
 {
     MACHINE_CURSOR_STATE.flag_2d44 = 1;
-    redraw_cursor(DG3890.page_front_ptr);
+    redraw_cursor(VMDS.page_front_ptr);
 }
 
 /*
@@ -11528,11 +11528,11 @@ void timer_callback(void)
 
     if (MACHINE_CURSOR_STATE.flag_2d44 != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
-        redraw_cursor(DG3890.page_front_ptr);
+        redraw_cursor(VMDS.page_front_ptr);
         isr_stack_switch(0);
     }
 
-    di = flag_bit_48ea(0);
+    di = read_mouse_button(0);
 
     si = (bit0_of_468c(SC_SPACE) != 0 || bit0_of_468c(SC_ENTER) != 0
           || bit0_of_468c(SC_KP5) != 0 || bit0_of_468c(SC_INS) != 0) ? 1 : 0;
@@ -11544,7 +11544,7 @@ void timer_callback(void)
         si = DG5768.button_accum_b;
     DG5768.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
-    di = (MACHINE_CURSOR_STATE.read_driver != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
+    di = (MACHINE_CURSOR_STATE.read_driver != 0 && read_mouse_button(1) != 0) ? 1 : 0;
     di |= bit0_of_468c(1);
 
     si = button_state(1, di);
@@ -11592,7 +11592,7 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
         DG5768.word_577e = hot_x;
     }
 
-    redraw_cursor(DG3890.page_front_ptr);
+    redraw_cursor(VMDS.page_front_ptr);
 
     DG5752.guard = saved;
 }
@@ -11670,13 +11670,13 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    DG3890.page_src_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
-    DG3890.page_dst_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
-    DG3890.clip_enabled = 1;
-    DG3890.clip_top = 0;
-    DG3890.clip_left = 0;
-    DG3890.clip_bottom = (int16_t)(DG3F78.screen_height - 1);
-    DG3890.clip_right = (int16_t)(DG3F78.screen_width - 1);
+    VMDS.page_src_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
+    VMDS.page_dst_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
+    VMDS.clip_enabled = 1;
+    VMDS.clip_top = 0;
+    VMDS.clip_left = 0;
+    VMDS.clip_bottom = (int16_t)(DG3F78.screen_height - 1);
+    VMDS.clip_right = (int16_t)(DG3F78.screen_width - 1);
 
     /* Put back what the last cursor covered. */
     if ((PAGESLOT_PTR(slot)->cursor.flags & 2) != 0) {
@@ -11729,7 +11729,7 @@ void draw_cursor(uint16_t page)
              * On adapter 8 a negative y is nudged one further up before the
              * blit, and the x argument is replaced by zero.
              */
-            if (((uint8_t)DG3890.pixel_shift) == 8 && y < 0)
+            if (((uint8_t)VMDS.pixel_shift) == 8 && y < 0)
                 draw_bitmap(BMP_PTR(PAGESLOT_PTR(slot)->word_02),
                             PAGESLOT_PTR(slot)->word_04,
                             (int16_t)(y - 1), 0);
@@ -11796,7 +11796,7 @@ void redraw_cursor(uint16_t page)
     DG5752.guard = 1;
 
     if (MACHINE_CURSOR_STATE.read_driver != 0)
-        read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
+        read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
 
     MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
     MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
@@ -11864,7 +11864,7 @@ void redraw_cursor_all(void)
         DG5768.word_577c = 0;
     }
 
-    draw_cursor(DG3890.page_back_ptr);
+    draw_cursor(VMDS.page_back_ptr);
 
     if (MACHINE_CURSOR_STATE.page != 0) {
         uint16_t quiet =
@@ -11887,27 +11887,27 @@ void redraw_cursor_all(void)
     }
 
     if (MACHINE_CURSOR_STATE.screen_disturbed == 0) {
-        erase_object(DG3890.page_back_ptr);
+        erase_object(VMDS.page_back_ptr);
     } else {
         if (MACHINE_CURSOR_STATE.page != 0) {
-            DG3890.page_src_ptr = DG3890.page_front_ptr;
-            DG3890.page_dst_ptr = DG3890.page_back_ptr;
+            VMDS.page_src_ptr = VMDS.page_front_ptr;
+            VMDS.page_dst_ptr = VMDS.page_back_ptr;
         } else {
-            DG3890.page_src_ptr = DG3890.page_back_ptr;
-            DG3890.page_dst_ptr = DG3890.page_front_ptr;
+            VMDS.page_src_ptr = VMDS.page_back_ptr;
+            VMDS.page_dst_ptr = VMDS.page_front_ptr;
         }
 
-        free_saved_rects(DG3890.unknown_10, DG3890.page_back_ptr, 0);
-        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, MACHINE_CURSOR_STATE.page);
-        free_saved_rects(DG3890.page_src_ptr, DG3890.page_dst_ptr, 0);
+        free_saved_rects(VMDS.unknown_10, VMDS.page_back_ptr, 0);
+        free_saved_rects(VMDS.unknown_10, VMDS.page_front_ptr, MACHINE_CURSOR_STATE.page);
+        free_saved_rects(VMDS.page_src_ptr, VMDS.page_dst_ptr, 0);
 
         copy_rect_thunk(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
 
         if (MACHINE_CURSOR_STATE.page != 0) {
-            restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
-            clear_object_covered(DG3890.page_back_ptr);
+            restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
+            clear_object_covered(VMDS.page_back_ptr);
         } else {
-            erase_object(DG3890.page_back_ptr);
+            erase_object(VMDS.page_back_ptr);
         }
 
         MACHINE_CURSOR_STATE.screen_disturbed = 0;
@@ -11916,28 +11916,28 @@ void redraw_cursor_all(void)
     if (MACHINE_CURSOR_STATE.page == 0) {
         uint16_t rec;
 
-        clear_object_covered(DG3890.page_front_ptr);
-        draw_cursor(DG3890.page_back_ptr);
-        swap_page_objects(DG3890.page_front_ptr, DG3890.page_back_ptr);
+        clear_object_covered(VMDS.page_front_ptr);
+        draw_cursor(VMDS.page_back_ptr);
+        swap_page_objects(VMDS.page_front_ptr, VMDS.page_back_ptr);
 
-        DG3890.page_dst_ptr = DG3890.page_front_ptr;
-        DG3890.page_src_ptr = DG3890.page_back_ptr;
+        VMDS.page_dst_ptr = VMDS.page_front_ptr;
+        VMDS.page_src_ptr = VMDS.page_back_ptr;
 
-        rec = claim_page_slot(DG3890.page_front_ptr);
+        rec = claim_page_slot(VMDS.page_front_ptr);
         if (rec != 0)
             copy_rect_thunk(((uint16_t)PAGESLOT_PTR(rec)->obj.x),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.y),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.w),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.h));
 
-        rec = claim_page_slot(DG3890.page_back_ptr);
+        rec = claim_page_slot(VMDS.page_back_ptr);
         if (rec != 0)
             copy_rect_thunk(((uint16_t)PAGESLOT_PTR(rec)->obj.x),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.y),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.w),
                             ((uint16_t)PAGESLOT_PTR(rec)->obj.h));
 
-        restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
+        restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
     }
 
     restore_saved_rect_lists(0);
@@ -11973,7 +11973,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    si = claim_page_slot(DG3890.page_src_ptr);
+    si = claim_page_slot(VMDS.page_src_ptr);
     if (si != 0 && (PAGESLOT_PTR(si)->obj.flags & 2)
         && (int16_t)(x + w) > PAGESLOT_PTR(si)->obj.x
         && (int16_t)(PAGESLOT_PTR(si)->obj.x
@@ -11983,7 +11983,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
                      + PAGESLOT_PTR(si)->obj.h) > y)
         hit_shown = 1;
 
-    si = claim_page_slot(DG3890.page_dst_ptr);
+    si = claim_page_slot(VMDS.page_dst_ptr);
     if (si != 0 && (PAGESLOT_PTR(si)->obj.flags & 2)
         && (int16_t)(x + w) > PAGESLOT_PTR(si)->obj.x
         && (int16_t)(PAGESLOT_PTR(si)->obj.x
@@ -11994,28 +11994,28 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
         hit_draw = 1;
 
     if (((int16_t)MACHINE_CURSOR_STATE.page) == 0 && hit_draw != 0) {
-        draw_cursor(DG3890.page_src_ptr);
+        draw_cursor(VMDS.page_src_ptr);
 
         if (w > 0 && h > 0)
             copy_rect_thunk((uint16_t)x, (uint16_t)y,
                             (uint16_t)w, (uint16_t)h);
 
-        erase_object(DG3890.page_src_ptr);
+        erase_object(VMDS.page_src_ptr);
     } else {
         if (hit_draw != 0)
-            erase_object(DG3890.page_dst_ptr);
+            erase_object(VMDS.page_dst_ptr);
 
         if (w > 0 && h > 0)
             copy_rect_thunk((uint16_t)x, (uint16_t)y,
                             (uint16_t)w, (uint16_t)h);
 
         if (hit_shown != 0) {
-            restore_object_backdrop(DG3890.page_src_ptr, DG3890.page_dst_ptr);
-            clear_object_covered(DG3890.page_dst_ptr);
+            restore_object_backdrop(VMDS.page_src_ptr, VMDS.page_dst_ptr);
+            clear_object_covered(VMDS.page_dst_ptr);
         }
 
         if (hit_draw != 0)
-            draw_cursor(DG3890.page_dst_ptr);
+            draw_cursor(VMDS.page_dst_ptr);
     }
 
     DG5752.guard = saved;
@@ -12061,7 +12061,7 @@ int16_t button_state(uint16_t index, int16_t down)
         }
 
         if (MACHINE_CURSOR_STATE.read_driver != 0) {
-            read_pair_4740((int16_t *)&DG5768.word_5778,
+            read_mouse_pointer((int16_t *)&DG5768.word_5778,
                            (int16_t *)&DG5768.word_5776);
         } else {
             DG5768.word_5778 = ((uint16_t)DG5768.cursor_x);
@@ -12181,13 +12181,13 @@ uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
  * the original's own silence and not a gap - a bitmap in either form is never
  * asked to be drawn scaled.
  */
-void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
+void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h, uint16_t mode)
 {
-    BMP_PTR(hdr)->data.seg = (uint16_t)(BMP_PTR(hdr)->data.seg + (BMP_PTR(hdr)->data.off >> 4));
-    BMP_PTR(hdr)->data.off = (uint16_t)(BMP_PTR(hdr)->data.off & 0x0f);
+    hdr->data.seg = (uint16_t)(hdr->data.seg + (hdr->data.off >> 4));
+    hdr->data.off = (uint16_t)(hdr->data.off & 0x0f);
 
-    switch (BMP_PTR(hdr)->mask_off) {
+    switch (hdr->mask_off) {
     case 0xfffd:
     case 0xffff:
         return;
@@ -12378,7 +12378,7 @@ FILE *game_fopen(char *name, const char *mode)
             r = di;
             goto out;
         }
-        if (DG546C.retry != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
+        if (DG546C.retry != 0 && ((uint8_t)VMDS.pixel_shift) != 0)
             not_transcribed("0x08fc3, the prompt for a missing disk");
         if (DG546C.retry == 0)
             break;
@@ -12396,7 +12396,7 @@ FILE *game_fopen(char *name, const char *mode)
         goto found;
     }
 
-    if (find_entry_for_pointer(si) == 0)
+    if (find_entry_for_pointer(GAME_FILE_PTR(si)) == 0)
         goto out;
 
     make_file_current(GAME_FILE_PTR(si)->archive);
@@ -12618,7 +12618,7 @@ int32_t hash_filename(char *name)
  * those four as **four 16-bit stores**, high half first - the port had them as
  * two `DG32`, which is byte for byte the same only because the value is zero.
  */
-int16_t find_entry_for_pointer(uint16_t out)
+int16_t find_entry_for_pointer(struct game_file *out)
 {
     uint32_t want = DG546C.name_hash;
     struct far_ptr at;
@@ -12654,17 +12654,17 @@ int16_t find_entry_for_pointer(uint16_t out)
     if (*(uint32_t *)MK_FP(at.seg, at.off) != want)
         return 0;
 
-    GAME_FILE_PTR(out)->archive = (uint16_t)idx;
+    out->archive = (uint16_t)idx;
     {
         /* The entry's base, four bytes past its key. Two 16-bit reads rather
            than one 32-bit: the record is packed and `+ 4` can be odd. */
         const uint8_t *p = MK_FP(at.seg, at.off);
 
-        GAME_FILE_PTR(out)->base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
+        out->base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
                               | *(uint16_t *)(p + 4);
     }
-    GAME_FILE_PTR(out)->pos = 0;
-    GAME_FILE_PTR(out)->size = 0;
+    out->pos = 0;
+    out->size = 0;
     return 1;
 }
 
@@ -12750,7 +12750,7 @@ void make_file_current(uint16_t index)
             a->stream = dg_off(dgroup, f);
             if (f != 0)
                 break;
-            if (((uint8_t)DG3890.pixel_shift) != 0)
+            if (((uint8_t)VMDS.pixel_shift) != 0)
                 not_transcribed("0x08fc3, the prompt for a missing disk");
         }
         DG546C.byte_5489 = 0;
@@ -12865,20 +12865,20 @@ uint16_t archive_entry_for(FILE *file)
  * at all. That spin measured at 64% of all basic block executions under an
  * emulator paced on the host clock; see STATUS.md.
  *
- * The pair at 0x5782/0x5784 is filled either from `read_pair_4740` or from the
+ * The pair at 0x5782/0x5784 is filled either from `read_mouse_pointer` or from the
  * two words at 0x576c/0x576e, and the pair at 0x5768/0x576a is moved into
  * 0x5772/0x5774 and zeroed - accumulated since the last frame, then handed
  * over and reset, which is what a frame boundary looks like.
  */
 void wait_and_latch_frame(void)
 {
-    if (DG44EE.installed != 0) {
+    if (TIMER.installed != 0) {
         while (frame_pending())
             ;
     }
 
     if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0) {
-        read_pair_4740(&DG5768.pointer_x, &DG5768.pointer_y);
+        read_mouse_pointer(&DG5768.pointer_x, &DG5768.pointer_y);
     } else {
         DG5768.pointer_x = DG5768.cursor_x;
         DG5768.pointer_y = DG5768.cursor_y;
@@ -12929,8 +12929,8 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    DG3890.page_src_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
-    DG3890.page_dst_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
+    VMDS.page_src_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
+    VMDS.page_dst_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
 
     if ((PAGESLOT_PTR(rec)->obj.flags & 2) != 0) {
         if (((int16_t)PAGESLOT_PTR(rec)->obj.buf) != 0 && PAGESLOT_PTR(rec)->obj.w > 0
@@ -12977,8 +12977,8 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 
     save_or_restore_draw_state(1);
 
-    DG3890.page_src_ptr = to_page;
-    DG3890.page_dst_ptr = to_page;
+    VMDS.page_src_ptr = to_page;
+    VMDS.page_dst_ptr = to_page;
 
     if (PAGESLOT_PTR(si)->obj.flags & 2) {
         if (PAGESLOT_PTR(si)->obj.buf != 0
@@ -13132,7 +13132,7 @@ void restage_object_rect(uint16_t handle)
     }
 
     if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0)
-        read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
+        read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
 
     x = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
     y = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
@@ -13189,13 +13189,13 @@ uint16_t claim_page_slot(uint16_t want)
     int16_t i;
 
     if (MACHINE_CURSOR_STATE.word_2d46 != 0) {
-        MACHINE_PAGE_SLOTS.slots[0].page = DG3890.page_back_ptr;
-        MACHINE_PAGE_SLOTS.slots[1].page = DG3890.page_front_ptr;
+        MACHINE_PAGE_SLOTS.slots[0].page = VMDS.page_back_ptr;
+        MACHINE_PAGE_SLOTS.slots[1].page = VMDS.page_front_ptr;
         MACHINE_CURSOR_STATE.word_2d46 = 0;
     }
 
     if (want == 0)
-        want = DG3890.page_back_ptr;
+        want = VMDS.page_back_ptr;
 
     for (i = 0; i < 2; i++) {
         if ((want & 0xA800) == ((uint16_t)MACHINE_PAGE_SLOTS.slots[i].page & 0xA800)) {
@@ -13213,28 +13213,28 @@ uint16_t claim_page_slot(uint16_t want)
  * zero restores. The state is the clip box, whether clipping is on, and the
  * two page segments - seven values, kept at DGROUP 0x5726..0x5732.
  *
- * `DG3890.clip_enabled` is a byte and is saved **zero-extended into a word**, then
+ * `VMDS.clip_enabled` is a byte and is saved **zero-extended into a word**, then
  * restored as a byte, so the high half of 0x5726 is always zero. Transcribed
  * with the same widths rather than made symmetrical.
  */
 void save_or_restore_draw_state(int16_t save)
 {
     if (save != 0) {
-        MACHINE_SAVED_DRAW_STATE.saved_a = DG3890.clip_enabled;
-        MACHINE_SAVED_DRAW_STATE.saved_b = DG3890.clip_left;
-        MACHINE_SAVED_DRAW_STATE.saved_c = DG3890.clip_right;
-        MACHINE_SAVED_DRAW_STATE.saved_d = DG3890.clip_top;
-        MACHINE_SAVED_DRAW_STATE.saved_e = DG3890.clip_bottom;
-        MACHINE_SAVED_DRAW_STATE.saved_g = DG3890.page_dst_ptr;
-        MACHINE_SAVED_DRAW_STATE.saved_f = DG3890.page_src_ptr;
+        MACHINE_SAVED_DRAW_STATE.saved_a = VMDS.clip_enabled;
+        MACHINE_SAVED_DRAW_STATE.saved_b = VMDS.clip_left;
+        MACHINE_SAVED_DRAW_STATE.saved_c = VMDS.clip_right;
+        MACHINE_SAVED_DRAW_STATE.saved_d = VMDS.clip_top;
+        MACHINE_SAVED_DRAW_STATE.saved_e = VMDS.clip_bottom;
+        MACHINE_SAVED_DRAW_STATE.saved_g = VMDS.page_dst_ptr;
+        MACHINE_SAVED_DRAW_STATE.saved_f = VMDS.page_src_ptr;
     } else {
-        DG3890.clip_enabled = ((uint8_t)MACHINE_SAVED_DRAW_STATE.saved_a);
-        DG3890.clip_left = MACHINE_SAVED_DRAW_STATE.saved_b;
-        DG3890.clip_right = MACHINE_SAVED_DRAW_STATE.saved_c;
-        DG3890.clip_top = MACHINE_SAVED_DRAW_STATE.saved_d;
-        DG3890.clip_bottom = MACHINE_SAVED_DRAW_STATE.saved_e;
-        DG3890.page_dst_ptr = MACHINE_SAVED_DRAW_STATE.saved_g;
-        DG3890.page_src_ptr = MACHINE_SAVED_DRAW_STATE.saved_f;
+        VMDS.clip_enabled = ((uint8_t)MACHINE_SAVED_DRAW_STATE.saved_a);
+        VMDS.clip_left = MACHINE_SAVED_DRAW_STATE.saved_b;
+        VMDS.clip_right = MACHINE_SAVED_DRAW_STATE.saved_c;
+        VMDS.clip_top = MACHINE_SAVED_DRAW_STATE.saved_d;
+        VMDS.clip_bottom = MACHINE_SAVED_DRAW_STATE.saved_e;
+        VMDS.page_dst_ptr = MACHINE_SAVED_DRAW_STATE.saved_g;
+        VMDS.page_src_ptr = MACHINE_SAVED_DRAW_STATE.saved_f;
     }
 }
 

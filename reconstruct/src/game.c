@@ -598,8 +598,8 @@ void game_startup(void)
         borland_exit(0);
     }
 
-    DG3890.page_front_ptr = 0xa000;
-    DG3890.page_back_ptr = 0xa820;
+    VMDS.page_front_ptr = 0xa000;
+    VMDS.page_back_ptr = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
     DG52ED.pal_tim_ptr = load_palette((char *)dg_ptr(dgroup, 0x00c1));   /* "tim.pal"    */
@@ -714,19 +714,19 @@ uint16_t game_intro(void)
     const struct intro_step *step;
     int16_t si;
 
-    DG44EE.frame_budget = 0x2710;
+    TIMER.frame_budget = 0x2710;
 
     set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
     bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
-    DG3890.page_back_ptr = 0xa000;
-    DG3890.page_front_ptr = 0xa000;
+    VMDS.page_back_ptr = 0xa000;
+    VMDS.page_front_ptr = 0xa000;
 
     for (si = 0; si < 3; si++)
         present_frame(1);
 
-    DG3890.page_back_ptr = (uint16_t)(DG3890.page_back_ptr + 0x12c);
+    VMDS.page_back_ptr = (uint16_t)(VMDS.page_back_ptr + 0x12c);
     DG4E67.state = 0x8000;
     DG52BD.music_now = -1;
 
@@ -735,12 +735,12 @@ uint16_t game_intro(void)
 
     for (;;) {
         if (stage == 0) {
-            DG3890.page_dst_ptr = DG3890.page_front_ptr;
+            VMDS.page_dst_ptr = VMDS.page_front_ptr;
             clear_flag_2d44_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
             set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
             stage = 1;
-            budget = (int16_t)(DG44EE.frame_budget + 0xff88);
+            budget = (int16_t)(TIMER.frame_budget + 0xff88);
             step = &GAME_INTRO_STEPS.step[0];
         }
 
@@ -750,17 +750,17 @@ uint16_t game_intro(void)
          * moves until DGROUP 0x44ef counts down, which is the timer's doing:
          * this is the frame pacing, not a frame counter.
          */
-        if (step->x != 0 && (int16_t)(DG44EE.frame_budget + 6) < budget) {
-            DG3890.clip_enabled = 1;
-            DG3890.clip_top = 0;
-            DG3890.clip_left = 0;
-            DG3890.clip_right = 0x27f;
-            DG3890.clip_bottom = 0x1df;
-            DG3890.fill_enabled = 1;
-            DG3890.fill_colour = 0;
-            DG3890.second_colour = 0;
+        if (step->x != 0 && (int16_t)(TIMER.frame_budget + 6) < budget) {
+            VMDS.clip_enabled = 1;
+            VMDS.clip_top = 0;
+            VMDS.clip_left = 0;
+            VMDS.clip_right = 0x27f;
+            VMDS.clip_bottom = 0x1df;
+            VMDS.fill_enabled = 1;
+            VMDS.fill_colour = 0;
+            VMDS.second_colour = 0;
 
-            DG3890.page_dst_ptr = DG3890.page_back_ptr;
+            VMDS.page_dst_ptr = VMDS.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
             draw_bitmap(BMP_PTR(BMPSET_PTR(bitmaps)->bmp[step->bitmap]),
@@ -776,11 +776,11 @@ uint16_t game_intro(void)
 
             step++;
 
-            DG3890.page_dst_ptr = DG3890.page_front_ptr;
-            DG3890.page_src_ptr = DG3890.page_back_ptr;
+            VMDS.page_dst_ptr = VMDS.page_front_ptr;
+            VMDS.page_src_ptr = VMDS.page_back_ptr;
             copy_rect_thunk(0x1c0, 0x1a9, 0xc0, 0x4b);
 
-            budget = DG44EE.frame_budget;
+            budget = TIMER.frame_budget;
 
             if (step->x == 0) {
                 play_sound(19);
@@ -814,13 +814,13 @@ uint16_t game_intro(void)
 
     set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
-    DG3890.page_front_ptr = 0xa000;
-    DG3890.page_back_ptr = 0xa820;
+    VMDS.page_front_ptr = 0xa000;
+    VMDS.page_back_ptr = 0xa820;
 
     for (si = 0; si < 3; si++)
         present_frame(1);
 
-    DG3890.page_dst_ptr = 0xa000;
+    VMDS.page_dst_ptr = 0xa000;
     vm_set_display_lines(0x18f);
     update_button_state();
 
@@ -867,19 +867,19 @@ uint16_t game_intro(void)
         clear_machine();
         set_clip_full_screen();
 
-        DG3890.page_dst_ptr = DG3890.page_back_ptr;
-        DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
-        DG3890.second_colour = ((uint8_t)DG52BD.fill_colour);
-        DG3890.fill_enabled = 1;
+        VMDS.page_dst_ptr = VMDS.page_back_ptr;
+        VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+        VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+        VMDS.fill_enabled = 1;
 
         fill_rect(0, 0, 0x280, 0x190);
 
         step_and_draw_machine(1);
-        draw_frame_corners(gkc);
+        draw_frame_corners(BMPSET_PTR(gkc));
         present_frame(1);
 
-        DG3890.page_src_ptr = DG3890.page_front_ptr;
-        DG3890.page_dst_ptr = DG3890.page_back_ptr;
+        VMDS.page_src_ptr = VMDS.page_front_ptr;
+        VMDS.page_dst_ptr = VMDS.page_back_ptr;
         copy_rect_around_cursor(0, 0, 0x280, 0x190);
 
         select_music((int16_t)((uint16_t)which == 0x8000 ? 0x3e9 : frame));
@@ -899,7 +899,7 @@ uint16_t game_intro(void)
             replay_shapes();
 
             step_and_draw_machine(0);
-            draw_frame_corners(gkc);
+            draw_frame_corners(BMPSET_PTR(gkc));
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
@@ -952,7 +952,7 @@ uint16_t game_intro(void)
     DG4E67.icons_bmp_ptr = load_bitmaps((char *)DG254A.icons_bmp);
     DG4E67.state = 0x8000;
 
-    copy_protect_screen(gkc);
+    copy_protect_screen(BMPSET_PTR(gkc));
 
     DG4E67.state = 2;
 
@@ -964,8 +964,8 @@ uint16_t game_intro(void)
     stop_music_or_effect(0);
     show_cursor_again();
 
-    DG3890.page_front_ptr = 0xa190;
-    DG3890.page_back_ptr = 0xa8c0;
+    VMDS.page_front_ptr = 0xa190;
+    VMDS.page_back_ptr = 0xa8c0;
     DG3F78.screen_height = 0x16f;
 
     vm_set_display_lines(0x1bf);
@@ -1056,7 +1056,7 @@ uint16_t game_intro(void)
  * the crack makes it do - so the measurement was of the patch, not of the
  * game.
  */
-uint16_t copy_protect_screen(uint16_t bitmaps)
+uint16_t copy_protect_screen(struct bmp_set *bitmaps)
 {
     char msg[80];              /* [bp-0x74], 0x50 bytes */
     char numbuf[22];   /* [bp-0x24] */
@@ -1071,13 +1071,13 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
 
     highlight = -1;
     slot      = 0;
-    page      = (int16_t)(DG44EE.frame_budget & 0xf);
+    page      = (int16_t)(TIMER.frame_budget & 0xf);
 
     set_clip_full_screen();
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    DG3890.fill_colour   = ((uint8_t)DG52BD.fill_colour);
-    DG3890.second_colour   = ((uint8_t)DG52BD.fill_colour);
-    DG3890.fill_enabled   = 1;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.fill_colour   = ((uint8_t)DG52BD.fill_colour);
+    VMDS.second_colour   = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_enabled   = 1;
 
     clear_flag_2d44_thunk();
     fill_rect(0, 0, 0x280, 0x190);
@@ -1113,7 +1113,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             part = 0x24;
 
         clear_flag_2d44_thunk();
-        draw_bitmap_centred(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part],
+        draw_bitmap_centred(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part]),
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -1121,8 +1121,8 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     select_music((int16_t)(page + 0x3e9));
     present_frame(1);
 
-    DG3890.page_src_ptr = DG3890.page_front_ptr;
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_src_ptr = VMDS.page_front_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
     set_palette_pointer(DG52ED.pal_tim_ptr);
     show_cursor_again();
@@ -1165,7 +1165,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
                     part = 0x24;
 
                 answers[slot] = part;
-                draw_answer_slot(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part],
+                draw_answer_slot(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part]),
                                  (uint16_t)slot);
                 slot++;
                 if (slot == 3)
@@ -1221,11 +1221,11 @@ test:
  * screen ever polled, so no click ever arrived. Restoring that one byte is what
  * made this reachable, and it aborted on the first click.
  */
-void draw_answer_slot(uint16_t bmp, uint16_t slot)
+void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
 {
     int16_t x;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     x = (int16_t)(slot * 0x60 + 0xc0);
 
@@ -1235,8 +1235,8 @@ void draw_answer_slot(uint16_t bmp, uint16_t slot)
     restore_cursor_following();
     present_frame(1);
 
-    DG3890.page_src_ptr = DG3890.page_front_ptr;
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_src_ptr = VMDS.page_front_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
 }
 
@@ -1248,14 +1248,14 @@ void draw_answer_slot(uint16_t bmp, uint16_t slot)
  * 0x175, bottom right at both. The positions are constants in the code, so the
  * frame is the same size whatever is inside it.
  */
-void draw_frame_corners(uint16_t rec)
+void draw_frame_corners(struct bmp_set *rec)
 {
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[1]), 0x262, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[2]), 0, 0x175, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[3]), 0x262, 0x175, 0);
+    draw_bitmap(BMP_PTR(rec->bmp[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(rec->bmp[1]), 0x262, 0, 0);
+    draw_bitmap(BMP_PTR(rec->bmp[2]), 0, 0x175, 0);
+    draw_bitmap(BMP_PTR(rec->bmp[3]), 0x262, 0x175, 0);
 
     restore_cursor_following();
 }
@@ -1331,10 +1331,10 @@ void game_setup(void)
     clear_flag_2d44_thunk();
     bar = load_bitmaps((char *)GAME_BUTTON_LABELS.score1_bmp);
 
-    DG3890.page_dst_ptr = 0xa000;
-    DG3890.fill_colour = 0;
-    DG3890.second_colour = 0;
-    DG3890.fill_enabled = 1;
+    VMDS.page_dst_ptr = 0xa000;
+    VMDS.fill_colour = 0;
+    VMDS.second_colour = 0;
+    VMDS.fill_enabled = 1;
 
     fill_rect(0, 0, 0x280, 0x50);
 
@@ -1517,7 +1517,7 @@ void paint_panel_frame(void)
     }
 
     set_clip_play_area();
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
     fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
@@ -1566,11 +1566,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     dg_off_t set = DG4E67.bmp_4ecb_ptr;
     int16_t  x, y;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    DG3890.clip_enabled = 0;
-    DG3890.fill_enabled = 1;
-    DG3890.fill_colour   = 0;
-    DG3890.second_colour = 0;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.clip_enabled = 0;
+    VMDS.fill_enabled = 1;
+    VMDS.fill_colour   = 0;
+    VMDS.second_colour = 0;
 
     clear_flag_2d44_thunk();
 
@@ -1585,11 +1585,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
     }
 
-    DG3890.clip_left    = x1;
-    DG3890.clip_right   = x2;
-    DG3890.clip_top     = y1;
-    DG3890.clip_bottom  = y2;
-    DG3890.clip_enabled = 1;
+    VMDS.clip_left    = x1;
+    VMDS.clip_right   = x2;
+    VMDS.clip_top     = y1;
+    VMDS.clip_bottom  = y2;
+    VMDS.clip_enabled = 1;
 
     for (y = y1; y < y2; y = (int16_t)(y + 0x40))
         for (x = x1; x < x2; x = (int16_t)(x + 0x80))
@@ -1600,7 +1600,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     else
         set_clip_play_area();
 
-    DG3890.clip_enabled = 0;
+    VMDS.clip_enabled = 0;
 
     for (x = x1; x < x2; x = (int16_t)(x + 8)) {
         draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x12]), x, (int16_t)(y1 - 4), 0);
@@ -1652,10 +1652,10 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     int16_t  n;
 
     clear_flag_2d44_thunk();
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    DG3890.fill_colour = (uint8_t)colour;
-    DG3890.second_colour = (uint8_t)colour;
+    VMDS.fill_colour = (uint8_t)colour;
+    VMDS.second_colour = (uint8_t)colour;
 
     fill_rect(x, y, w, h);
 
@@ -1715,7 +1715,7 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     uint16_t i;
     int16_t  left, top, left_at;
 
-    DG3890.unknown_02 = 1;                        /* transparent */
+    VMDS.unknown_02 = 1;                        /* transparent */
     line_height = font_line_height(0);
 
     wrap_text_to_box(str, w, h, line_height);
@@ -1723,10 +1723,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     left = (int16_t)(x + (w - GAME_PICKER_TEXT.text_width - 1) / 2);
     top  = (int16_t)(y + (h - GAME_PICKER_TEXT.text_height - 1) / 2 + 1);
 
-    DG3890.clip_left   = left;
-    DG3890.clip_right  = (int16_t)(left + w);
-    DG3890.clip_top    = top;
-    DG3890.clip_bottom = (int16_t)(top + h);
+    VMDS.clip_left   = left;
+    VMDS.clip_right  = (int16_t)(left + w);
+    VMDS.clip_top    = top;
+    VMDS.clip_bottom = (int16_t)(top + h);
 
     i       = 0;
     left_at = GAME_PICKER_TEXT.line_count;
@@ -1746,10 +1746,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 
         clear_flag_2d44_thunk();
 
-        DG3890.unknown_00 = 0x0f;
+        VMDS.unknown_00 = 0x0f;
         draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
 
-        DG3890.unknown_00 = 5;
+        VMDS.unknown_00 = 5;
         draw_string(start, left, top);
 
         restore_cursor_following();
@@ -1948,7 +1948,7 @@ void paint_panel_frame_rest(void)
     int16_t  scale;
     uint16_t rec;
 
-    DG3890.clip_enabled = 1;
+    VMDS.clip_enabled = 1;
     set_clip_for_mode();
 
     extent = (DG50AF.extent_y > DG50AF.extent_x) ? DG50AF.extent_y : DG50AF.extent_x;
@@ -1956,7 +1956,7 @@ void paint_panel_frame_rest(void)
 
     scale = (int16_t)long_divide(0x40000, (int32_t)extent);
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     rec = (uint16_t)pick_by_flag(0x3000);
     while (rec != 0) {
@@ -1986,7 +1986,7 @@ void paint_panel_frame_rest(void)
  */
 void paint_panel_a(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x10]),
@@ -2011,7 +2011,7 @@ void paint_panel_a(uint16_t frame)
  */
 void paint_panel_b(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x12]),
@@ -2036,7 +2036,7 @@ void paint_panel_b(uint16_t frame)
  */
 void paint_panel_c(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1f]),
@@ -2061,7 +2061,7 @@ void paint_panel_c(uint16_t frame)
  */
 void paint_panel_d(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x29]),
@@ -2082,7 +2082,7 @@ void paint_panel_d(uint16_t frame)
  */
 void paint_panel_free_a(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x21]),
@@ -2105,7 +2105,7 @@ void paint_panel_free_a(uint16_t frame)
  */
 void paint_panel_free_b(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x23]),
@@ -2124,7 +2124,7 @@ void paint_panel_free_b(uint16_t frame)
  */
 void paint_panel_level(uint16_t frame)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1b]),
@@ -2159,7 +2159,7 @@ void paint_panel_e(void)
     left  = (DG4E67.state == 0x4000) ? 0x26 : 0x25;
     right = (DG4E67.state == 0x2000) ? 0x28 : 0x27;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
@@ -2195,7 +2195,7 @@ void paint_panel_f(void)
 {
     int16_t at;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x7]), 0x41, 0xc8, 0);
@@ -2225,7 +2225,7 @@ void paint_panel_g(void)
 {
     int16_t at;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x8]), 0x41, 0x114, 0);
@@ -2276,10 +2276,10 @@ void paint_game_screen(uint16_t present)
     wait_cursor();
     set_clip_play_area();
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
-    DG3890.second_colour = ((uint8_t)DG52BD.fill_colour);
-    DG3890.fill_enabled = 1;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_enabled = 1;
 
     clear_flag_2d44_thunk();
     fill_rect(8, 8, 0x230, 0x160);
@@ -2752,7 +2752,7 @@ void puzzle_draw_up(void)
 {
     int16_t pressed = (DG4E67.state == 0x2000) ? 1 : 0;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
                 0x1d4, 0x46, 0);
@@ -2769,7 +2769,7 @@ void puzzle_draw_down(void)
 {
     int16_t pressed = (DG4E67.state == 0x1000) ? 1 : 0;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
                 0x1d4, 0x110, 0);
@@ -2786,7 +2786,7 @@ void puzzle_draw_down(void)
  */
 void puzzle_draw_ok(uint16_t pressed)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x10]),
                 0x200, 0x12e, 0);
@@ -2861,10 +2861,10 @@ void puzzle_draw_password(const char *text)
             string_concat(si, "*");
     }
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
 
-    DG3890.unknown_00 = 0x0f;
+    VMDS.unknown_00 = 0x0f;
 
     clear_flag_2d44_thunk();
     draw_string(si, 0x94, 0x140);
@@ -2896,7 +2896,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     int16_t  y     = 0x4c;
     int16_t  n     = first;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
@@ -2911,11 +2911,11 @@ void puzzle_draw_list(int16_t first, int16_t selected)
             string_concat(name, title);
 
             if (n == selected)
-                DG3890.unknown_00 = 0x0f;
+                VMDS.unknown_00 = 0x0f;
             else if (n <= DG4E67.furthest_level)
-                DG3890.unknown_00 = 0x0a;
+                VMDS.unknown_00 = 0x0a;
             else
-                DG3890.unknown_00 = 0x0c;
+                VMDS.unknown_00 = 0x0c;
 
             clear_flag_2d44_thunk();
             draw_string(name, 0x34, y);
@@ -3391,9 +3391,9 @@ void screen_state_0020(struct screen_loop *s)
  * All five regions stay clickable either way: the mode a region switches to is
  * at +0x10 and none of these touches it.
  */
-void region_cursor_freeform(uint16_t region)
+void region_cursor_freeform(struct region *region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0 : 0x14;
+    region->cursor = (DG4E67.freeform != 0) ? 0 : 0x14;
 }
 
 /*
@@ -3402,9 +3402,9 @@ void region_cursor_freeform(uint16_t region)
  * Load Machine's, and `region_cursor_freeform`'s twin the other way round: a
  * cursor in freeform, nothing outside it.
  */
-void region_cursor_load(uint16_t region)
+void region_cursor_load(struct region *region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x17 : 0;
+    region->cursor = (DG4E67.freeform != 0) ? 0x17 : 0;
 }
 
 /*
@@ -3412,9 +3412,9 @@ void region_cursor_load(uint16_t region)
  *
  * Save Machine's.
  */
-void region_cursor_save(uint16_t region)
+void region_cursor_save(struct region *region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x16 : 0;
+    region->cursor = (DG4E67.freeform != 0) ? 0x16 : 0;
 }
 
 /*
@@ -3422,9 +3422,9 @@ void region_cursor_save(uint16_t region)
  *
  * The gravity slider's.
  */
-void region_cursor_gravity(uint16_t region)
+void region_cursor_gravity(struct region *region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x18 : 0;
+    region->cursor = (DG4E67.freeform != 0) ? 0x18 : 0;
 }
 
 /*
@@ -3432,9 +3432,9 @@ void region_cursor_gravity(uint16_t region)
  *
  * The air-pressure slider's.
  */
-void region_cursor_air(uint16_t region)
+void region_cursor_air(struct region *region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x19 : 0;
+    region->cursor = (DG4E67.freeform != 0) ? 0x19 : 0;
 }
 
 /*
@@ -3892,7 +3892,7 @@ void move_carried_part(void)
     retension_pulleys(PART_PTR(part));
 
     si = PART_PTR(part)->rope_ptr;
-    di = (si != 0) ? (int16_t)(rope_ends_close(si) == 0) : 0;
+    di = (si != 0) ? (int16_t)(rope_ends_close(ROPE_PTR(si)) == 0) : 0;
 
     if (PART_PTR(part)->flags_0a & 1)
         rehome_carried_part();
@@ -4634,16 +4634,16 @@ void bin_scroll_forward(void)
  * callee's `retf` finds a full far return; the `nop` between is the assembler
  * padding it, and `pop cx` is the caller clearing its argument.
  */
-void region_cursor_bin_above(uint16_t region)
+void region_cursor_bin_above(struct region *region)
 {
     if (DG4E67.word_4e69 == 9) {
         region_cursor_bin(region);
-        REGION_PTR(region)->code = 0x1000;
+        region->code = 0x1000;
         return;
     }
 
-    REGION_PTR(region)->cursor = 0x1a;
-    REGION_PTR(region)->code = 0x2000;
+    region->cursor = 0x1a;
+    region->code = 0x2000;
 }
 
 /*
@@ -4663,18 +4663,18 @@ void region_cursor_bin_above(uint16_t region)
  * `bin_part_at_index` is asked for the region's own +4, and a record answers
  * cursor 2 while nothing answers 0.
  */
-void region_cursor_bin(uint16_t region)
+void region_cursor_bin(struct region *region)
 {
     if (DG4E67.word_4e69 == 9) {
         uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
 
-        REGION_PTR(region)->cursor =
+        region->cursor =
             (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
         return;
     }
 
-    REGION_PTR(region)->cursor =
-        bin_part_at_index((int16_t)REGION_PTR(region)->word_04) != 0 ? 2 : 0;
+    region->cursor =
+        bin_part_at_index((int16_t)region->word_04) != 0 ? 2 : 0;
 }
 
 /*
@@ -4708,7 +4708,7 @@ void region_cursor_bin(uint16_t region)
  * Whatever ends up in hand, a non-zero 0x50d5 selects tool 9 - which is what
  * makes `cursor_for_tool` and `region_cursor_bin` start answering by kind.
  */
-void region_click_bin(uint16_t region)
+void region_click_bin(struct region *region)
 {
     uint16_t saved;                    /* [bp-2] */
     uint16_t part, clone;
@@ -4728,7 +4728,7 @@ void region_click_bin(uint16_t region)
     DG4E67.word_4e97 = 0;
 
     part = PART_PTR(bin_part_at_index(
-                     (int16_t)REGION_PTR(region)->word_04))->next_ptr;
+                     (int16_t)region->word_04))->next_ptr;
     DG50D3.dragged_part_ptr = part;
 
     if (part == 0) {
@@ -4786,9 +4786,9 @@ void region_click_bin(uint16_t region)
  * Unlike its five siblings this one has no condition of its own - they choose
  * between two cursors on a flag, and it delegates the whole question.
  */
-void region_cursor_playfield(uint16_t region)
+void region_cursor_playfield(struct region *region)
 {
-    REGION_PTR(region)->cursor = (uint16_t)cursor_for_tool();
+    region->cursor = (uint16_t)cursor_for_tool();
 }
 
 /*
@@ -4944,7 +4944,7 @@ void game_screen_loop(void)
     uint16_t part;
 
     reset_level_state();
-    DG44EE.frame_budget = 0x2710;
+    TIMER.frame_budget = 0x2710;
 
     while (DG4E67.state != 0x2000 && DG4E67.state != 2) {
         DG52BD.band_colour = 0xffff;
@@ -4993,7 +4993,7 @@ void game_screen_loop(void)
 
         if (DG52BD.band_colour != -1) {
             clear_flag_2d44_thunk();
-            DG3890.second_colour = ((uint8_t)DG52BD.band_colour);
+            VMDS.second_colour = ((uint8_t)DG52BD.band_colour);
             clip_and_draw_line(
                 (int16_t)(((uint16_t)DG52BD.anchor_x) - ((uint16_t)DG4E67.origin_x)),
                 (int16_t)(((uint16_t)DG52BD.anchor_y) - ((uint16_t)DG4E67.origin_y)),
@@ -5009,9 +5009,9 @@ void game_screen_loop(void)
 
         seg172c_nothing();
 
-        while ((int16_t)(0x2710 - ((uint16_t)DG44EE.frame_budget)) < 8)
+        while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
             ;
-        DG44EE.frame_budget = 0x2710;
+        TIMER.frame_budget = 0x2710;
 
         present_frame(1);
         shift_all_histories();
@@ -5186,7 +5186,7 @@ void move_carried_rope(void)
 {
     uint16_t link = PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr;
     uint16_t di = ROPE_PTR(link)->end_a_ptr;
-    int16_t close = rope_ends_close(link);
+    int16_t close = rope_ends_close(ROPE_PTR(link));
     uint16_t si;
 
     if (DG5768.button_left == 2) {
@@ -5204,7 +5204,7 @@ void move_carried_rope(void)
             ROPE_PTR(link)->end_b_ptr = si;
             PART_PTR(si)->rope_ptr = link;
 
-            compute_link_endpoints(link);
+            compute_link_endpoints(ROPE_PTR(link));
             mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
             refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
             DG4E67.word_4e69 = 0;
@@ -6537,9 +6537,9 @@ void picker_draw_list(void)
 
     fill_panel_area(x, y, w, room, 0);
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    DG3890.unknown_02 = 1;                    /* transparent text */
-    DG3890.unknown_00 = 0x0f;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.unknown_02 = 1;                    /* transparent text */
+    VMDS.unknown_00 = 0x0f;
 
     if (GAME_PICKER_TEXT.entry_count > 0x0c) {
         top = GAME_PICKER_TEXT.scroll;
@@ -6853,11 +6853,11 @@ void picker_draw_name(void)
             string_concat(si, "*");
     }
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
 
-    DG3890.unknown_01 = 0;
-    DG3890.unknown_00 = 0x0f;
+    VMDS.unknown_01 = 0;
+    VMDS.unknown_00 = 0x0f;
 
     clear_flag_2d44_thunk();
     draw_string(si, 0x44, 0x5a);
@@ -6883,7 +6883,7 @@ void picker_draw_name(void)
  */
 void picker_repaint(void)
 {
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
 
@@ -6928,7 +6928,7 @@ void picker_draw_up(void)
 {
     int16_t pressed = (DG4E67.state == 0x800) ? 1 : 0;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
                 0xc4, 0x78, 0);
@@ -6946,7 +6946,7 @@ void picker_draw_down(void)
 {
     int16_t pressed = (DG4E67.state == 0x400) ? 1 : 0;
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
                 0xc4, 0xe8, 0);
@@ -7122,12 +7122,12 @@ void picker_draw_filename(void)
             string_concat(si, "*");
     }
 
-    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     draw_scroll_text("File Name:", 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
-    DG3890.unknown_01 = 0;
-    DG3890.unknown_00 = 0x0f;
+    VMDS.unknown_01 = 0;
+    VMDS.unknown_00 = 0x0f;
 
     clear_flag_2d44_thunk();
     draw_string(si, 0x94, 0x110);

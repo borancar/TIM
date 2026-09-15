@@ -20,7 +20,7 @@ argument that is an address.
                  That argument is an address, and the cast to `uint16_t` is
                  what a near pointer looks like once it has been written as
                  arithmetic. With the struct in place it reads
-                 `dg_off(&DG3890.font_table_34[si])`, which says which table.
+                 `dg_off(&VMDS.font_table_34[si])`, which says which table.
                  The bare form - a hex constant on its own, `load_bitmaps(0x25e8)`
                  - is reported separately: it is the same kind of value and a
                  much weaker signal, since a constant argument is often just a

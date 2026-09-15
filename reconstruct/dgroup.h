@@ -49,7 +49,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * original suspends the game rather than running beside it. What `volatile`
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
- * spins on a word the timer thread writes - `DG44EE.frame_budget`,
+ * spins on a word the timer thread writes - `TIMER.frame_budget`,
  * `DG5752.frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three fields are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
@@ -143,7 +143,6 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * one shared structure here, not two.
  * ---------------------------------------------------------------------------
  */
-#define VMDS 0x3890
 
 /*
  * ---------------------------------------------------------------------------
@@ -320,7 +319,7 @@ static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
  * same fact written once instead of four times.
  *
  * The font tables below are the worked example:
- * `dg_off(dgroup, &DG3890.font_table_34[si])` is what `game_fread` wants, and
+ * `dg_off(dgroup, &VMDS.font_table_34[si])` is what `game_fread` wants, and
  * it says which table where `(uint16_t)(0x38c4 + si)` did not.
  */
 static inline uint8_t *dg_ptr(void *base, uint16_t off)
@@ -371,12 +370,12 @@ static inline int dg_is_guest(const void *p)
 
 /*
  * **The screen the driver reported**, at DGROUP 0x3f78 - which is the driver
- * block's own **+0x6e8**, so this struct and `struct dg_3890` describe the
+ * block's own **+0x6e8**, so this struct and `struct vmds` describe the
  * same six bytes. They were written twice under two names: `game.c` set
  * `DG3F78.screen_height = 0x16f` in one routine and
- * `DG3890.screen_height = 0x18f` in another, and `set_full_clip` read
- * `DG3890.clip_bottom = DG3F78.screen_height - 1` with both names on one
- * line. `dg_3890` carries this as a field now, so there is one name.
+ * `VMDS.screen_height = 0x18f` in another, and `set_full_clip` read
+ * `VMDS.clip_bottom = DG3F78.screen_height - 1` with both names on one
+ * line. `vmds` carries this as a field now, so there is one name.
  */
 struct dg_3f78 {
     uint8_t   mode_kind;          /* +0x00  a byte saying which */
@@ -419,7 +418,11 @@ static inline uint16_t dg_off(const void *base, const void *p)
                       - (const uint8_t *)base);
 }
 
-struct dg_3890 {
+/*
+ * **The video driver's data**, VMDS, at DGROUP 0x3890: the driver's own state,
+ * which the game reads and writes through the fields below.
+ */
+struct vmds {
     uint8_t   unknown_00;                   /* +0x00 */
     uint8_t   unknown_01;                   /* +0x01 */
     uint8_t   unknown_02;                   /* +0x02 */
@@ -450,7 +453,7 @@ struct dg_3890 {
     /*
      * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
      * slot. The loader hands their *addresses* to `game_fread`, which takes a
-     * DGROUP offset - so the call sites read `dg_off(&DG3890.font_table_34[si])`
+     * DGROUP offset - so the call sites read `dg_off(&VMDS.font_table_34[si])`
      * rather than `0x38c4 + si`, which says the same thing and says which
      * table it is.
      */
@@ -465,7 +468,7 @@ struct dg_3890 {
      * passes: left and right out of `poly` into `work`, then top and bottom
      * back again, with `DG3A2C.clip_count` rewritten after each. The callers
      * hand the arrays' *addresses* to `poly_outline` and `poly_fill`, which
-     * take DGROUP offsets, so those sites read `dg_off(dgroup, DG3890.poly_x)`.
+     * take DGROUP offsets, so those sites read `dg_off(dgroup, VMDS.poly_x)`.
      */
     int16_t   poly_x[20];                   /* +0xac   DGROUP 0x393c */
     int16_t   poly_y[20];                   /* +0xd4   DGROUP 0x3964 */
@@ -494,7 +497,7 @@ struct dg_3890 {
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } __attribute__((packed));
 
-#define DG3890 (*(struct dg_3890 *)(dgroup + VMDS))
+#define VMDS (*(struct vmds *)(dgroup + 0x3890))
 
 #define DG_ASSERT_AT(type, field, off) \
     _Static_assert(__builtin_offsetof(type, field) == (off), \
@@ -504,42 +507,42 @@ DG_ASSERT_AT(struct dg_3f78, mode_kind,         0x00);
 DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
 DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
-DG_ASSERT_AT(struct dg_3890, clip_enabled,   0x03);
-DG_ASSERT_AT(struct dg_3890, clip_left,      0x04);
-DG_ASSERT_AT(struct dg_3890, clip_right,     0x06);
-DG_ASSERT_AT(struct dg_3890, clip_top,       0x08);
-DG_ASSERT_AT(struct dg_3890, clip_bottom,    0x0a);
-DG_ASSERT_AT(struct dg_3890, fill_enabled,   0x0c);
-DG_ASSERT_AT(struct dg_3890, fill_colour,    0x0d);
-DG_ASSERT_AT(struct dg_3890, second_colour,  0x0e);
-DG_ASSERT_AT(struct dg_3890, poly_x,         0xac);
-DG_ASSERT_AT(struct dg_3890, poly_y,         0xd4);
-DG_ASSERT_AT(struct dg_3890, work_x,         0xfc);
-DG_ASSERT_AT(struct dg_3890, work_y,        0x124);
-DG_ASSERT_AT(struct dg_3890, closed_x,      0x14c);
-DG_ASSERT_AT(struct dg_3890, closed_y,      0x174);
-DG_ASSERT_AT(struct dg_3890, page_back_ptr,  0x12);
-DG_ASSERT_AT(struct dg_3890, page_front_ptr, 0x14);
-DG_ASSERT_AT(struct dg_3890, page_src_ptr,   0x16);
-DG_ASSERT_AT(struct dg_3890, page_dst_ptr,   0x18);
-DG_ASSERT_AT(struct dg_3890, pixel_shift,    0x1d);
-DG_ASSERT_AT(struct dg_3890, adapter,        0x21);
-DG_ASSERT_AT(struct dg_3890, line_colour,    0x22);
-DG_ASSERT_AT(struct dg_3890, font_table_34,  0x34);
-DG_ASSERT_AT(struct dg_3890, font_table_48,  0x48);
-DG_ASSERT_AT(struct dg_3890, font_table_5c,  0x5c);
-DG_ASSERT_AT(struct dg_3890, font_table_70,  0x70);
-DG_ASSERT_AT(struct dg_3890, pal_copy_ptr,   0x19e);
-DG_ASSERT_AT(struct dg_3890, dda_whole,      0x6bc);
-DG_ASSERT_AT(struct dg_3890, dda_frac,       0x6be);
-DG_ASSERT_AT(struct dg_3890, dda_saved,      0x6c0);
-DG_ASSERT_AT(struct dg_3890, dda_acc,        0x6c2);
-DG_ASSERT_AT(struct dg_3890, line_mask,      0x6c4);
-DG_ASSERT_AT(struct dg_3890, screen,         0x6e8);
-DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
+DG_ASSERT_AT(struct vmds, clip_enabled,   0x03);
+DG_ASSERT_AT(struct vmds, clip_left,      0x04);
+DG_ASSERT_AT(struct vmds, clip_right,     0x06);
+DG_ASSERT_AT(struct vmds, clip_top,       0x08);
+DG_ASSERT_AT(struct vmds, clip_bottom,    0x0a);
+DG_ASSERT_AT(struct vmds, fill_enabled,   0x0c);
+DG_ASSERT_AT(struct vmds, fill_colour,    0x0d);
+DG_ASSERT_AT(struct vmds, second_colour,  0x0e);
+DG_ASSERT_AT(struct vmds, poly_x,         0xac);
+DG_ASSERT_AT(struct vmds, poly_y,         0xd4);
+DG_ASSERT_AT(struct vmds, work_x,         0xfc);
+DG_ASSERT_AT(struct vmds, work_y,        0x124);
+DG_ASSERT_AT(struct vmds, closed_x,      0x14c);
+DG_ASSERT_AT(struct vmds, closed_y,      0x174);
+DG_ASSERT_AT(struct vmds, page_back_ptr,  0x12);
+DG_ASSERT_AT(struct vmds, page_front_ptr, 0x14);
+DG_ASSERT_AT(struct vmds, page_src_ptr,   0x16);
+DG_ASSERT_AT(struct vmds, page_dst_ptr,   0x18);
+DG_ASSERT_AT(struct vmds, pixel_shift,    0x1d);
+DG_ASSERT_AT(struct vmds, adapter,        0x21);
+DG_ASSERT_AT(struct vmds, line_colour,    0x22);
+DG_ASSERT_AT(struct vmds, font_table_34,  0x34);
+DG_ASSERT_AT(struct vmds, font_table_48,  0x48);
+DG_ASSERT_AT(struct vmds, font_table_5c,  0x5c);
+DG_ASSERT_AT(struct vmds, font_table_70,  0x70);
+DG_ASSERT_AT(struct vmds, pal_copy_ptr,   0x19e);
+DG_ASSERT_AT(struct vmds, dda_whole,      0x6bc);
+DG_ASSERT_AT(struct vmds, dda_frac,       0x6be);
+DG_ASSERT_AT(struct vmds, dda_saved,      0x6c0);
+DG_ASSERT_AT(struct vmds, dda_acc,        0x6c2);
+DG_ASSERT_AT(struct vmds, line_mask,      0x6c4);
+DG_ASSERT_AT(struct vmds, screen,         0x6e8);
+DG_ASSERT_AT(struct vmds, row_offset,     0x6f2);
 
 /* The names above are the struct's fields now; there are no macros for
- * them, because a macro named for a field re-expands inside `DG3890.field`
+ * them, because a macro named for a field re-expands inside `VMDS.field`
  * and the compiler says only "expected identifier". */
 
 /*
@@ -1088,7 +1091,7 @@ DG_ASSERT_AT(struct dg_50af, flip_options,      0x0e);
 /*
  * **The timer's own state**, at DGROUP 0x44ee.
  */
-struct dg_44ee {
+struct timer {
     uint8_t   installed;          /* +0x00  the flag that says the handler is in; 0x4a8c records who */
     volatile int16_t frame_budget; /* +0x01  counts down from 0x2710; every frame spin waits on it.
                                      **volatile**: `timer_tick` writes it on the timer thread and the
@@ -1110,17 +1113,17 @@ struct dg_44ee {
     } tick[16];                   /* +0x4b  0x4539 */
 } __attribute__((packed));
 
-#define DG44EE (*(struct dg_44ee *)(dgroup + 0x44ee))
+#define TIMER (*(struct timer *)(dgroup + 0x44ee))
 
-DG_ASSERT_AT(struct dg_44ee, installed,         0x00);
-DG_ASSERT_AT(struct dg_44ee, frame_budget,      0x01);
-DG_ASSERT_AT(struct dg_44ee, word_44f1,         0x03);
-DG_ASSERT_AT(struct dg_44ee, divider_reload,    0x05);
-DG_ASSERT_AT(struct dg_44ee, divider,           0x07);
-DG_ASSERT_AT(struct dg_44ee, slot_mask,         0x09);
-DG_ASSERT_AT(struct dg_44ee, callback,          0x0b);
-DG_ASSERT_AT(struct dg_44ee, tick,              0x4b);
-_Static_assert(sizeof(struct dg_44ee) == 0x8b, "the timer state ends at 0x4579");
+DG_ASSERT_AT(struct timer, installed,         0x00);
+DG_ASSERT_AT(struct timer, frame_budget,      0x01);
+DG_ASSERT_AT(struct timer, word_44f1,         0x03);
+DG_ASSERT_AT(struct timer, divider_reload,    0x05);
+DG_ASSERT_AT(struct timer, divider,           0x07);
+DG_ASSERT_AT(struct timer, slot_mask,         0x09);
+DG_ASSERT_AT(struct timer, callback,          0x0b);
+DG_ASSERT_AT(struct timer, tick,              0x4b);
+_Static_assert(sizeof(struct timer) == 0x8b, "the timer state ends at 0x4579");
 
 /*
  * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
@@ -2359,15 +2362,6 @@ DG_ASSERT_AT(struct dg_49ba, fill_fn,           0x02);
 DG_ASSERT_AT(struct dg_49ba, plot_fn,           0x06);
 DG_ASSERT_AT(struct dg_49ba, read_fn,           0x0a);
 
-/* **The eighteen font slots and their width tables**, which is what the two
-   fields above are the first of: `load_font` writes `0x618a + 4 * slot` and
-   `0x61da + 4 * slot`, so `ENGINE_FONTS.fonts` and `FONTSLOT[0]` are one object
-   under two names, and `ENGINE_FONT_WIDTHS.widths` and `WIDTHSLOT[0]` likewise. */
-#define FONTSLOT  ((struct far_ptr *)(dgroup + 0x618a))
-#define WIDTHSLOT ((struct far_ptr *)(dgroup + 0x61da))
-
-#define MIDSLOT ((struct far_ptr *)(dgroup + 0x622a))
-
 /*
  * **Not established**, at DGROUP 0x6400.
  */
@@ -3066,8 +3060,12 @@ struct open_file {
     int16_t  word_39;          /* +0x39  how many matches to skip */
     uint32_t pos;              /* +0x3b  the position, which restore_file_record
                                          seeks back to */
-    uint32_t size;             /* +0x3f  the current chunk's size; what
-                                         file_record_size answers */
+    int32_t  size;             /* +0x3f  the current chunk's size; what
+                                         file_record_size answers. A signed
+                                         long: seek_named_chunk tests it
+                                         `< 0` with `jl`, and against the
+                                         outer bound with `jb`, where the
+                                         unsigned bound makes it unsigned */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct open_file, path,          0x02);
@@ -3079,7 +3077,6 @@ DG_ASSERT_AT(struct open_file, size,          0x3f);
 _Static_assert(sizeof(struct open_file) == 0x43,
                "an open file is what find_file_record strides by");
 
-#define OPENFILE_PTR(p) ((struct open_file *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -3973,9 +3970,9 @@ struct resource {
     uint32_t  in;              /* +0x0a  how far into the compressed input
                                          the reader is */
     uint32_t  end;             /* +0x0e  where the compressed input ends */
-    uint32_t  size;            /* +0x12  what resource_seek measures from for
+    int32_t   size;            /* +0x12  what resource_seek measures from for
                                          SEEK_END */
-    uint32_t  pos;             /* +0x16  and what it measures from for
+    int32_t   pos;             /* +0x16  and what it measures from for
                                          SEEK_CUR. Stepped with a carry by
                                          `read_resource`, subtracted from
                                          `size` with a borrow, and compared

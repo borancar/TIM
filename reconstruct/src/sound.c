@@ -2352,8 +2352,8 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (module_index != -2) {
         struct far_ptr p;
 
-        string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
-                        MODULE_TAGS[module_index]);
+        string_copy_far(CHUNK.ssm_tag + 4,
+                        (const char *)dg_ptr(dgroup, MODULE_TAGS[module_index]));
 
         p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
         DG4A82.module = p;
@@ -2394,8 +2394,8 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (device != -2) {
         struct far_ptr p;
 
-        string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
-                        DEVICE_TAGS[device]);
+        string_copy_far(CHUNK.ssm_tag + 4,
+                        (const char *)dg_ptr(dgroup, DEVICE_TAGS[device]));
 
         p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
         DG4A82.driver = p;
@@ -2535,9 +2535,9 @@ struct far_ptr load_named_chunk(char *name, const char * path,
     }
 
     if (si != 0) {
-        uint32_t p = seek_named_chunk(si, path, (int16_t)index);
+        int32_t p = seek_named_chunk(si, path, (int16_t)index);
 
-        if (p != 0xffffffffu) {
+        if (p != -1) {
             uint32_t size = file_record_size(si);
 
             r = load_resource_block(si, size, NULL, 1);
@@ -2756,7 +2756,7 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     default:   goto out;
     }
 
-    handle = open_resource(0, file, 0x4a7e, size);
+    handle = open_resource(0, file, (char *)dg_ptr(dgroup, 0x4a7e), size);
     if (handle < 0)
         goto out;
 
@@ -3294,10 +3294,10 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
     uint32_t len = 0;
     int16_t handle;
 
-    handle = open_resource(0, file, 0x4a80, size);
+    handle = open_resource(0, file, (char *)dg_ptr(dgroup, 0x4a80), size);
 
     if (handle >= 0) {
-        uint32_t sz = resource_size(handle);
+        int32_t sz = resource_size(handle);
         struct far_ptr p;
 
         len = sz;
@@ -4167,7 +4167,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     if (setup_sound_device(device, module_index, callback, handle) == 0)
         return 0;
 
-    if (si != 0 && (int16_t)(int8_t)DG44EE.installed == 0) {
+    if (si != 0 && (int16_t)(int8_t)TIMER.installed == 0) {
         timer_install(0xd);
         DG4A82.timer_taken = 1;
     }

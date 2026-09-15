@@ -52,16 +52,15 @@ _Static_assert(sizeof(struct borland_find_name) == 0x2e, "the find name's run en
  */
 struct borland_find_info {
     uint8_t   word_2d76;          /* +0x00 [1] */
-    uint16_t  word_2d77;          /* +0x01 [2] */
-    uint16_t  word_2d79;          /* +0x03 [2] */
+    uint32_t  size;               /* +0x01 [4]  the size of the entry just found, which
+                                     dos_find_to_dgroup copies out of the DTA */
     int16_t   word_2d7b;          /* +0x05 [2] */
 } __attribute__((packed));
 
 #define BORLAND_FIND_INFO (*(struct borland_find_info *)(dgroup + 0x2d76))
 _Static_assert(sizeof(struct borland_find_info) == 0x07, "DGROUP 0x2d76..0x2d7d, 0x07 bytes");
 DG_ASSERT_AT(struct borland_find_info, word_2d76, 0x00);
-DG_ASSERT_AT(struct borland_find_info, word_2d77, 0x01);
-DG_ASSERT_AT(struct borland_find_info, word_2d79, 0x03);
+DG_ASSERT_AT(struct borland_find_info, size,      0x01);
 DG_ASSERT_AT(struct borland_find_info, word_2d7b, 0x05);
 
 /*
@@ -2553,8 +2552,7 @@ void dos_find_to_dgroup(void)
     uint16_t i;
 
     BORLAND_FIND_INFO.word_2d76  = dta_attr;
-    BORLAND_FIND_INFO.word_2d77 = (uint16_t)dta_size;
-    BORLAND_FIND_INFO.word_2d79 = (uint16_t)(dta_size >> 16);
+    BORLAND_FIND_INFO.size = dta_size;
 
     for (i = 0; i < 0x0d; i++)
         BORLAND_FIND_NAME.find_name[i] = (char)dta_name[i];
@@ -2642,12 +2640,12 @@ char *dos_find_name(void)
 /*
  * 0x0b738
  *
- * The size of the entry just found, as a long in DX:AX out of the two words at
+ * The size of the entry just found, as a long in DX:AX out of the long at
  * 0x2d77.
  */
 uint32_t dos_find_size(void)
 {
-    return (uint32_t)BORLAND_FIND_INFO.word_2d77 | ((uint32_t)BORLAND_FIND_INFO.word_2d79 << 16);
+    return BORLAND_FIND_INFO.size;
 }
 
 /*

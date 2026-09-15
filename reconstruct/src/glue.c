@@ -79,10 +79,9 @@ void heap_free_far(uint8_t * p)
  * `strchr` and `fgetc` faces below; the other four are called from 8 to 56
  * sites each.
  */
-uint16_t string_concat_far(uint16_t dst, uint16_t src)
+char *string_concat_far(char *dst, const char *src)
 {
-    return dg_off(dgroup, string_concat((char *)dg_ptr(dgroup, dst),
-                                        (const char *)dg_ptr(dgroup, src)));
+    return string_concat(dst, src);
 }
 
 /*
@@ -91,11 +90,9 @@ uint16_t string_concat_far(uint16_t dst, uint16_t src)
  * The far-callable face of `strcpy`: it takes the two words off the stack and
  * hands them straight on.
  */
-uint16_t string_copy_far(uint16_t dst, uint16_t src)
+char *string_copy_far(char *dst, const char *src)
 {
-    /* the guest's two words in, and the same offset back out */
-    return dg_off(dgroup, string_copy((char *)dg_ptr(dgroup, dst),
-                                      (const char *)dg_ptr(dgroup, src)));
+    return string_copy(dst, src);
 }
 
 /*
@@ -104,9 +101,9 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
  * The far-callable face of `strchr`: the string and the character, the
  * latter pushed as a word, on to `string_chr`. Uncalled - see 0x0bb3c.
  */
-uint16_t string_chr_far(uint16_t s, uint16_t c)
+char *string_chr_far(char *s, uint16_t c)
 {
-    return dg_off(dgroup, string_chr((char *)dg_ptr(dgroup, s), (char)c));
+    return string_chr(s, (char)c);
 }
 
 /*
@@ -126,9 +123,9 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
  * The far-callable face of `fgetc`: one word, the stream, on to
  * `borland_fgetc`. Uncalled - see 0x0bb3c.
  */
-int16_t borland_fgetc_far(uint16_t file)
+int16_t borland_fgetc_far(struct file_rec *file)
 {
-    return borland_fgetc(FILEREC_PTR(file));
+    return borland_fgetc(file);
 }
 
 

@@ -134,12 +134,12 @@ void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
     else
         BITMAPS.fill_fn = (BITMAPS_FLIP_STATE.flip_y != 0) ? 0x02c4 : 0;
 
-    saved = (int16_t)(int8_t)DG3890.fill_enabled;
-    DG3890.fill_enabled = 1;
+    saved = (int16_t)(int8_t)VMDS.fill_enabled;
+    VMDS.fill_enabled = 1;
     clear_flag_2d44();
     vqt_flip_node(x, y, w, h);
     set_flag_2d44();
-    DG3890.fill_enabled = (uint8_t)saved;
+    VMDS.fill_enabled = (uint8_t)saved;
 }
 
 /*
@@ -197,7 +197,7 @@ void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
         vqt_flip_node((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
     } else {
         vqt_flip_leaf((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
-        redraw_cursor(DG3890.page_front_ptr);
+        redraw_cursor(VMDS.page_front_ptr);
     }
 
     if (code & 4)
@@ -387,8 +387,8 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
 
     if (n == 1) {
         colour = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
-        DG3890.fill_colour = colour;
-        DG3890.second_colour = colour;
+        VMDS.fill_colour = colour;
+        VMDS.second_colour = colour;
         if (colour == 0 && BITMAPS.plot_zero == 0)
             goto out;
         call_bitmap_fill_rect(DG49BA.fill_fn, x, y, w, h);
@@ -467,9 +467,9 @@ out:
  */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    uint8_t saved_second = DG3890.second_colour;    /* [bp-6] */
-    uint8_t saved_fill = DG3890.fill_colour;        /* [bp-7] */
-    uint8_t saved_clip = DG3890.clip_enabled;       /* [bp-5] */
+    uint8_t saved_second = VMDS.second_colour;    /* [bp-6] */
+    uint8_t saved_fill = VMDS.fill_colour;        /* [bp-7] */
+    uint8_t saved_clip = VMDS.clip_enabled;       /* [bp-5] */
     uint16_t seg;                                   /* [bp-0xa], [bp-2] */
     uint16_t rem;                                   /* [bp-4], never read */
     int16_t w, h;                                   /* si, di */
@@ -486,15 +486,15 @@ void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode
         w = bmp->width;
         h = bmp->height;
 
-        if (x >= DG3890.clip_left
-            && y >= DG3890.clip_top
-            && (int16_t)(x + w) <= DG3890.clip_right
-            && (int16_t)(y + h) <= DG3890.clip_bottom) {
+        if (x >= VMDS.clip_left
+            && y >= VMDS.clip_top
+            && (int16_t)(x + w) <= VMDS.clip_right
+            && (int16_t)(y + h) <= VMDS.clip_bottom) {
             DG49BA.plot_fn = DG4342.font[22];
         } else {
             DG49BA.plot_fn = (struct far_ptr){
                 0x61fd, (uint16_t)((IMAGE_BASE >> 4) + 0x1c25) };
-            DG3890.clip_enabled = 1;
+            VMDS.clip_enabled = 1;
         }
 
         BITMAPS.plot_zero = 0;
@@ -503,9 +503,9 @@ void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode
         close_bit_reader();
     }
 
-    DG3890.clip_enabled = saved_clip;
-    DG3890.second_colour = saved_second;
-    DG3890.fill_colour = saved_fill;
+    VMDS.clip_enabled = saved_clip;
+    VMDS.second_colour = saved_second;
+    VMDS.fill_colour = saved_fill;
 }
 
 /*
@@ -586,7 +586,7 @@ uint16_t load_bitmaps(char *name)
 
     copy_file_record(saved_a, di);
 
-    if (seek_named_chunk(di, CHUNK.bmp_scn, 0) != 0xffffffffu) {
+    if (seek_named_chunk(di, CHUNK.bmp_scn, 0) != -1) {
         copy_file_record(saved_b, di);
         restore_file_record_from(saved_a);
 
@@ -597,7 +597,7 @@ uint16_t load_bitmaps(char *name)
         restore_file_record_from(saved_b);
         kind = 0;
     } else {
-        if (seek_named_chunk(di, CHUNK.bmp_off, 0) == 0xffffffffu)
+        if (seek_named_chunk(di, CHUNK.bmp_off, 0) == -1)
             goto planar;
 
         game_fread((uint8_t *)kind_at, 2, 1, di);
@@ -610,7 +610,7 @@ uint16_t load_bitmaps(char *name)
 
         set_field_4_of_each(0xffff, list_at);
 
-        if (seek_named_chunk(di, CHUNK.bmp_vqt, 0) == 0xffffffffu)
+        if (seek_named_chunk(di, CHUNK.bmp_vqt, 0) == -1)
             goto fail;
     }
 
@@ -622,7 +622,7 @@ uint16_t load_bitmaps(char *name)
 
         read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
 
-        if (seek_named_chunk(di, CHUNK.bmp_off_b, 0) == 0xffffffffu) {
+        if (seek_named_chunk(di, CHUNK.bmp_off_b, 0) == -1) {
             dos_free_far(block);
             goto fail;
         }
@@ -669,7 +669,7 @@ uint16_t load_bitmaps(char *name)
                                    * BMP_PTR(si)->height));
         }
 
-        decode_vqt_list(di, dg_off(dgroup, list_at));
+        decode_vqt_list(di, list_at);
     }
     goto loaded;
 
@@ -679,10 +679,10 @@ planar:
 loaded:
     count_at = count_list(list_at);
 
-    if (seek_named_chunk(di, CHUNK.bmp_rle, 0) != 0xffffffffu)
-        compress_bitmap_list(dg_off(dgroup, list_at), 0x10);
+    if (seek_named_chunk(di, CHUNK.bmp_rle, 0) != -1)
+        compress_bitmap_list(list_at, 0x10);
 
-    if (seek_named_chunk(di, CHUNK.bmp_scl, 0) != 0xffffffffu)
+    if (seek_named_chunk(di, CHUNK.bmp_scl, 0) != -1)
         set_field_4_of_each(0xfffd, list_at);
 
     goto out;
@@ -841,7 +841,7 @@ uint16_t load_screen(char *name)
 
     copy_file_record(saved, si);
 
-    if (seek_named_chunk(si, CHUNK.scr_vqt, 0) == 0xffffffffu) {
+    if (seek_named_chunk(si, CHUNK.scr_vqt, 0) == -1) {
         restore_file_record_from(saved);
         di = load_screen_plain((char *)si);
         goto close;
@@ -1006,7 +1006,7 @@ void read_far(uint8_t far *dst, int32_t count, FILE *file)
  *
  * A **** routine.
  */
-void decode_vqt_list(FILE *file, uint16_t list)
+void decode_vqt_list(FILE *file, bmp_ptr_t *list)
 {
     /*
      * `sub sp,0x1ca`. The reader record is at the bottom of it and the named
@@ -1051,7 +1051,7 @@ void decode_vqt_list(FILE *file, uint16_t list)
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
     struct far_ptr cur;
-    bmp_ptr_t *at = BMPLIST(list);      /* [bp-2]  */
+    bmp_ptr_t *at = list;      /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
@@ -1104,7 +1104,7 @@ have_block:
     read_far(MK_FP(block.seg, block.off), (int32_t)buffer, file);
     file_left -= buffer;
 
-    at = BMPLIST(list);
+    at = list;
 
     while ((si = *at) != 0) {
         uint32_t used;
@@ -1246,7 +1246,7 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         vqt_screen_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
     } else {
         fill_screen_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
-        redraw_cursor(DG3890.page_front_ptr);
+        redraw_cursor(VMDS.page_front_ptr);
     }
 
     if (code & 4)
@@ -1279,8 +1279,8 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * byte, with a different destination: not a plane buffer but video memory,
  * one plane to a pixel.
  *
- * A pixel at x goes into the byte `DG3890.row_offset[y] + (x >> 2)` of the page
- * `DG3890.page_dst_ptr`, and the plane is chosen for each write with the
+ * A pixel at x goes into the byte `VMDS.row_offset[y] + (x >> 2)` of the page
+ * `VMDS.page_dst_ptr`, and the plane is chosen for each write with the
  * Sequencer's map mask - `mov ax,0x102 / shl ah,cl / out dx,ax` with CL the
  * low two bits of x, so plane `1 << (x & 3)`. The three places that write a
  * pixel each spell that out, and so does this.
@@ -1323,10 +1323,10 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if (w == 1 && h == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        at = (uint16_t)(DG3890.row_offset[y] + (x >> 2));
+        at = (uint16_t)(VMDS.row_offset[y] + (x >> 2));
         io_out16(PORT_SEQ_INDEX,
                  (uint16_t)(((uint16_t)(uint8_t)(1 << (x & 3)) << 8) | 0x02));
-        vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at), colour);
+        vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at), colour);
         return;
     }
 
@@ -1363,12 +1363,12 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         do {
             do {
                 colour = (uint8_t)vqt_read_bits(8);
-                at = (uint16_t)(DG3890.row_offset[(uint16_t)yi]
+                at = (uint16_t)(VMDS.row_offset[(uint16_t)yi]
                                 + ((uint16_t)xi >> 2));
                 io_out16(PORT_SEQ_INDEX,
                          (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                     | 0x02));
-                vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at),
+                vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at),
                           colour);
                 yi++;
             } while (yi < y1);
@@ -1380,11 +1380,11 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if ((uint8_t)n == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        row = DG3890.row_offset[y];                   /* di */
+        row = VMDS.row_offset[y];                   /* di */
         rows = h;                                     /* si */
         do {
             vm_span((uint16_t)((colour << 8) | colour), x, (int16_t)w,
-                    (struct far_ptr){ row, (uint16_t)DG3890.page_dst_ptr });
+                    (struct far_ptr){ row, (uint16_t)VMDS.page_dst_ptr });
             row = (uint16_t)(row + 0x50);
         } while (--rows != 0);
         return;
@@ -1401,12 +1401,12 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     do {
         do {
             colour = palette[vqt_read_bits(index_bits)];
-            at = (uint16_t)(DG3890.row_offset[(uint16_t)yi]
+            at = (uint16_t)(VMDS.row_offset[(uint16_t)yi]
                             + ((uint16_t)xi >> 2));
             io_out16(PORT_SEQ_INDEX,
                      (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                 | 0x02));
-            vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at),
+            vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at),
                       colour);
             yi++;
         } while (yi < y1);

@@ -820,7 +820,7 @@ reads and writes a good deal of shared DGROUP besides - the pointer at
 main thread with nothing between them.
 
 Two of those reads are the frame pacing, and they are spins:
-`while ((int16_t)(0x2710 - DG44EE.frame_budget) < 8)` in `game_screen_loop`,
+`while ((int16_t)(0x2710 - TIMER.frame_budget) < 8)` in `game_screen_loop`,
 and `frame_pending`, which `wait_and_latch_frame` turns on the spot. Both
 words are **volatile** - the four `DG*` accessors and 118 of the 124 macros
 over DGROUP have been since 6b30b8a, and `dgroup.h` says why - so neither
@@ -858,7 +858,7 @@ nothing else is.** Six hundred and twenty `volatile` tokens came out of the
 game's units - every `DG*` accessor, every struct and pointer macro, every
 prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
-the game has three such loops: the eight-tick spin on `DG44EE.frame_budget`,
+the game has three such loops: the eight-tick spin on `TIMER.frame_budget`,
 `wait_and_latch_frame` on `DG5752.frame_flag`, and `delay_five_ticks` on
 `SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
@@ -1650,9 +1650,9 @@ used it.
 | `match_field_5a_5c` | 0x06f43 | - | **transcribed, never called** on these screens |
 | `lookup_table_546c` | 0x11d44 | - | **transcribed, never called** on these screens |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
-| `flag_bit_48ea` | 0x2213e | 0, 4 (missed 30) | **not verified** |
+| `read_mouse_button` | 0x2213e | 0, 4 (missed 30) | **not verified** |
 | `select_field_2_or_4` | 0x06f68 | - | **transcribed, never called** on these screens |
-| `read_pair_4740` | 0x220e9 | 0 (missed 2, 15) | **not verified** |
+| `read_mouse_pointer` | 0x220e9 | 0 (missed 2, 15) | **not verified** |
 | `angle_sin` | 0x2a456 | - | **transcribed, never called** on these screens |
 | `angle_cos` | 0x2a47b | - | **transcribed, never called** on these screens |
 | `angle_to_quadrant` | 0x004d1 | - | **transcribed, never called** on these screens |
@@ -1895,7 +1895,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 89 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 97 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

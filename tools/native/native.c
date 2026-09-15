@@ -1838,7 +1838,7 @@ int main(int argc, char **argv)
              */
             fprintf(stderr, "native: %8u slices  %u frames  pace %5d btn %d  at "
                     "%04x:%04x %s+%#x\n", slices, g_frames,
-                    (int)(uint16_t)DG44EE.frame_budget, (int)DG5768.button_left, cs, ip,
+                    (int)(uint16_t)TIMER.frame_budget, (int)DG5768.button_left, cs, ip,
                     n ? n : "(overlay or untranscribed)",
                     n ? (unsigned)(at - IMAGE_BASE - start) : 0u);
         }

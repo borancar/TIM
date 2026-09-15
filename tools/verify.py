@@ -1117,11 +1117,9 @@ ROUTINES = {
         near=True,
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        # AX:DX is the pointer, BX and CX the two words - which are left as
-        # two; see the note on the routine.
+        # AX:DX is the pointer and CX:BX the count, one long.
         call=lambda lib, a: _pair(lib.huge_add_positive(
-            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2]),
-            ctypes.c_uint16(a[3]))),
+            FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]))),
     ),
     "install_divide_trap": dict(
         addr=0x22394,
@@ -1550,7 +1548,7 @@ ROUTINES = {
         # The distance is one `long`: the body adds it to the position
         # with a carry.
         call=lambda lib, a: _pair(lib.resource_seek(
-            ctypes.c_int16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            ctypes.c_int16(a[0]), ctypes.c_int32(((a[2] << 16) | a[1]) - (0x100000000 if a[2] & 0x8000 else 0)),
             ctypes.c_int16(a[3]))),
     ),
     "lzw_reset": dict(
@@ -1578,7 +1576,7 @@ ROUTINES = {
         # `end` pair, which `read_resource` subtracts from `in` with a borrow.
         call=lambda lib, a: lib.open_resource(
             ctypes.c_uint16(a[0]), dgp(lib, a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_uint32((a[4] << 16) | a[3])),
+            dgp(lib, a[2]), ctypes.c_uint32((a[4] << 16) | a[3])),
     ),
     "close_resource": dict(
         addr=0x1D798,
@@ -1676,7 +1674,7 @@ ROUTINES = {
         near=True,
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _pair(lib.restore_file_record(ctypes.c_uint16(a[0]))),
+        call=lambda lib, a: _pair(lib.restore_file_record(dgp(lib, a[0]))),
     ),
     "seek_named_chunk": dict(
         addr=0x23FC2,
@@ -1709,7 +1707,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.find_file_record(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.find_file_record(dgp(lib, a[0]))),
     ),
     "file_record_size": dict(
         addr=0x242AF,
@@ -1755,7 +1753,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.prepare_resource_slot(
-            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1])),
+            ctypes.c_int16(a[0]), dgp(lib, a[1])),
     ),
     "free_if_set": dict(
         addr=0x1C705,
@@ -1770,7 +1768,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_into_huge(farp(lib, a[0], a[1]),
+        call=lambda lib, a: lib.read_into_huge(FarPtr(a[0], a[1]),
                                               ctypes.c_uint16(a[2])),
     ),
     "next_input_byte": dict(
@@ -2179,13 +2177,13 @@ ROUTINES = {
         addr=0x114DB,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_freeform(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_freeform(dgp(lib, a[0])),
     ),
     "region_cursor_load": dict(
         addr=0x114F8,
         args=[("region", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.region_cursor_load(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_load(dgp(lib, a[0])),
     ),
     "region_cursor_save": dict(
         addr=0x11515,
@@ -2193,19 +2191,19 @@ ROUTINES = {
         # Once: the pointer is over Save Machine for the pass that opens
         # the picker, and the panel's regions are not walked after that.
         check_occurrences=[0],
-        call=lambda lib, a: lib.region_cursor_save(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_save(dgp(lib, a[0])),
     ),
     "region_cursor_gravity": dict(
         addr=0x11532,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_gravity(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_gravity(dgp(lib, a[0])),
     ),
     "region_cursor_air": dict(
         addr=0x1154F,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_air(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_air(dgp(lib, a[0])),
     ),
     "picker_repaint": dict(
         addr=0x136C9,
@@ -2742,7 +2740,7 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.string_copy_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_copy_far(dgp(lib, a[0]), dgp(lib, a[1]))),
     ),
     # The three faces nothing in the image calls: no lcall, no near call. A
     # spec so the table says "never called" rather than nothing at all.
@@ -2751,21 +2749,21 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.string_concat_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_concat_far(dgp(lib, a[0]), dgp(lib, a[1]))),
     ),
     "string_chr_far": dict(
         addr=0x0BB62,
         args=[("s", 4), ("c", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.string_chr_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_chr_far(dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
     ),
     "borland_fgetc_far": dict(
         addr=0x0BB88,
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.borland_fgetc_far(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.borland_fgetc_far(dgp(lib, a[0])),
     ),
     "string_compare_nocase": dict(
         addr=0x0DD55,
@@ -2900,7 +2898,7 @@ ROUTINES = {
         args=[("rec", 2)],
         near=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.reset_file_record(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.reset_file_record(dgp(lib, a[0])),
     ),
     "game_fclose": dict(
         addr=0x0917F,
@@ -3058,7 +3056,7 @@ ROUTINES = {
               ("w", 12), ("h", 14)],
         check_occurrences=[0, 1, 2, 3, 20, 56],
         call=lambda lib, a: lib.blit_scaled_a(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2]),
             ctypes.c_uint16(a[3]),
@@ -3575,12 +3573,12 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: lib.string_contains_r(dgp(lib, a[0])),
     ),
-    "flag_bit_48ea": dict(
+    "read_mouse_button": dict(
         addr=0x2213E,
         args=[("which", 4)],
         returns=True,
         check_occurrences=[0, 4, 30],
-        call=lambda lib, a: lib.flag_bit_48ea(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.read_mouse_button(ctypes.c_uint16(a[0])),
     ),
     "select_field_2_or_4": dict(
         addr=0x06F68,
@@ -3589,13 +3587,13 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.select_field_2_or_4(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            ctypes.c_uint16(a[1])),
+            dgp(lib, a[1])),
     ),
-    "read_pair_4740": dict(
+    "read_mouse_pointer": dict(
         addr=0x220E9,
         args=[("out_a", 4), ("out_b", 6)],
         check_occurrences=[0, 2, 15],
-        call=lambda lib, a: lib.read_pair_4740(dgp(lib, a[0]),
+        call=lambda lib, a: lib.read_mouse_pointer(dgp(lib, a[0]),
                                                dgp(lib, a[1])),
     ),
     # These take their argument with `mov bx, sp` and never set up BP, so it
@@ -3993,7 +3991,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0],
         call=lambda lib, a: _pair(lib.compress_bitmap_list(
-            *[ctypes.c_uint16(v) for v in a])),
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
     ),
     "read_far": dict(
         addr=0x2551A,
@@ -4577,14 +4575,14 @@ ROUTINES = {
         args=[("link", 4)],
         # Called a handful of times on these screens.
         check_occurrences=[0, 3, 6],
-        call=lambda lib, a: lib.compute_link_endpoints(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.compute_link_endpoints(dgp(lib, a[0])),
     ),
     "find_entry_for_pointer": dict(
         addr=0x098E0,
         args=[("out", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.find_entry_for_pointer(dgp(lib, a[0])),
     ),
     "erase_both_pages": dict(
         addr=0x080E7,
@@ -5103,7 +5101,7 @@ ROUTINES = {
         args=[("rec", 4)],
         planes=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.draw_frame_corners(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.draw_frame_corners(dgp(lib, a[0])),
     ),
     # Part loading and the part list. All far; the two that take nothing end
     # `retf` at 0x0f7f3 and 0x14132, checked rather than assumed from the
@@ -5223,7 +5221,7 @@ ROUTINES = {
         args=[("rope", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.rope_ends_close(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.rope_ends_close(dgp(lib, a[0])),
     ),
     "mark_parts_in_dirty_rects": dict(
         addr=0x06806,
@@ -5331,7 +5329,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_endpoint_gap(
-            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             dgp(lib, a[2]), dgp(lib, a[3])),
     ),
     "link_end_distance": dict(
@@ -5601,13 +5599,14 @@ def declare_restypes(lib):
                "heap_malloc_far",
                "string_reverse", "string_copy_padded",
                "borland_fopen", "borland_fopen_into", "find_free_stream",
-               "game_fopen", "open_file_record"):
+               "game_fopen", "open_file_record", "find_file_record",
+               "string_copy_far", "string_concat_far", "string_chr_far"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
     for fn in ("match_field_5a_5c", "lookup_table_546c",
-               "string_contains_r", "flag_bit_48ea",
+               "string_contains_r", "read_mouse_button",
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
     lib.angle_to_quadrant.restype = ctypes.c_int16
@@ -5638,11 +5637,11 @@ def declare_restypes(lib):
     lib.decompress_lzw.restype = ctypes.c_int16
     lib.read_input_block.restype = ctypes.c_int16
     lib.next_lzw_code.restype = ctypes.c_int16
-    lib.resource_seek.restype = ctypes.c_uint32
+    lib.resource_seek.restype = ctypes.c_int32
     lib.lzss_reset.restype = ctypes.c_int16
     lib.open_resource.restype = ctypes.c_int16
     lib.close_resource.restype = ctypes.c_int16
-    lib.resource_size.restype = ctypes.c_uint32
+    lib.resource_size.restype = ctypes.c_int32
     lib.read_resource.restype = ctypes.c_int16
     lib.resource_read.restype = ctypes.c_int16
     lib.decompress_rle.restype = ctypes.c_int16
@@ -5652,11 +5651,10 @@ def declare_restypes(lib):
     lib.close_file_record.restype = ctypes.c_int16
     lib.string_equal_upto.restype = ctypes.c_int16
     lib.copy_file_record.restype = ctypes.c_uint16
-    lib.restore_file_record.restype = ctypes.c_uint32
-    lib.seek_named_chunk.restype = ctypes.c_uint32
+    lib.restore_file_record.restype = ctypes.c_int32
+    lib.seek_named_chunk.restype = ctypes.c_int32
     lib.open_file_record.restype = ctypes.c_uint16
-    lib.find_file_record.restype = ctypes.c_uint16
-    lib.file_record_size.restype = ctypes.c_uint32
+    lib.file_record_size.restype = ctypes.c_int32
     lib.file_record_valid.restype = ctypes.c_int16
     lib.close_resource_slot.restype = ctypes.c_int16
     lib.open_resource_slot.restype = ctypes.c_int16
@@ -5693,7 +5691,6 @@ def declare_restypes(lib):
     lib.score_code_to_score.restype = ctypes.c_int32
     lib.parse_base.restype = ctypes.c_int32
     lib.to_lower.restype = ctypes.c_uint16
-    lib.string_copy_far.restype = ctypes.c_uint16
     for fn in ("tmp_number", "string_copy_end", "tmp_name_build",
                "tmp_name_unused"):
         getattr(lib, fn).restype = ctypes.c_void_p
@@ -5701,8 +5698,6 @@ def declare_restypes(lib):
                "dos_set_file_attr", "borland_unlink", "borland_eof",
                "borland_flushall", "borland_getchar", "borland_vsprintf"):
         getattr(lib, fn).restype = ctypes.c_int16
-    lib.string_concat_far.restype = ctypes.c_uint16
-    lib.string_chr_far.restype = ctypes.c_uint16
     lib.borland_fgetc_far.restype = ctypes.c_int16
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.borland_fopen.restype = ctypes.c_uint16

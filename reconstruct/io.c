@@ -1690,7 +1690,7 @@ void call_mouse_handler(struct far_ptr h)
  * cursor that does not change and a click that goes nowhere, which looks like a
  * drawing fault.
  */
-void call_region_handler(struct far_ptr h, uint16_t region)
+void call_region_handler(struct far_ptr h, struct region *region)
 {
     switch (h.off) {
     case 0x2da9:

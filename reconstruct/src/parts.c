@@ -4076,7 +4076,7 @@ uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
         if (si == 0)
             continue;
 
-        v10 = (uint16_t)select_field_2_or_4((int16_t)dg_off(dgroup, part), si);
+        v10 = (uint16_t)select_field_2_or_4((int16_t)dg_off(dgroup, part), BELT_PTR(si));
         if (v10 == from)
             continue;
 

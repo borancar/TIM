@@ -827,7 +827,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
 
     clear_machine();
     DG4E67.elapsed_ticks = 0;
-    DG44EE.frame_budget = 0x2710;
+    TIMER.frame_budget = 0x2710;
 
     while (DG4E67.state == 0x2000 && frames < max_frames) {
         step_machine();
@@ -837,7 +837,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
         step_and_draw_machine(0);
 
         DG4E67.elapsed_ticks = (uint16_t)(DG4E67.elapsed_ticks + 8);
-        DG44EE.frame_budget = 0x2710;
+        TIMER.frame_budget = 0x2710;
 
         shift_all_histories();
 
@@ -1170,18 +1170,18 @@ void dev_part_pics(void)
         bmp_ptr_t icon = BMPLIST(list)[i];
         int32_t row;
 
-        DG3890.clip_enabled = 1;
-        DG3890.clip_left = 0;
-        DG3890.clip_top = 0;
-        DG3890.clip_right = 0x27f;
-        DG3890.clip_bottom = 0x1df;
-        DG3890.fill_enabled = 1;
-        DG3890.fill_colour = 0;
-        DG3890.second_colour = 0;
+        VMDS.clip_enabled = 1;
+        VMDS.clip_left = 0;
+        VMDS.clip_top = 0;
+        VMDS.clip_right = 0x27f;
+        VMDS.clip_bottom = 0x1df;
+        VMDS.fill_enabled = 1;
+        VMDS.fill_colour = 0;
+        VMDS.second_colour = 0;
         fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
 
         if (icon != 0)
-            draw_bitmap_centred(icon, PIC_X, PIC_Y, PIC_W, PIC_H);
+            draw_bitmap_centred(BMP_PTR(icon), PIC_X, PIC_Y, PIC_W, PIC_H);
 
         vga_compose(fb, FRAME_W, FRAME_H);
 

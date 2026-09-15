@@ -76,17 +76,17 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
         (uint16_t)((data_delta >> 4) + DGROUP_SEG);
 
     DG3F78.mode_kind    = 1;
-    DG3890.adapter      = 0x10;
-    DG3890.page_front_ptr = 0xa000;
-    DG3890.page_back_ptr  = 0xa800;
-    DG3890.unknown_10     = 0xa800;
+    VMDS.adapter      = 0x10;
+    VMDS.page_front_ptr = 0xa000;
+    VMDS.page_back_ptr  = 0xa800;
+    VMDS.unknown_10     = 0xa800;
 
     switch ((uint16_t)DG3F78.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
-        DG3890.page_back_ptr = 0xa000;
-        DG3890.unknown_10    = 0xa000;
+        VMDS.page_back_ptr = 0xa000;
+        VMDS.unknown_10    = 0xa000;
         break;
     case 0x15e:
         not_transcribed("VGA:0x00b4, the 0x15e screen height");
@@ -103,7 +103,7 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
         uint16_t row = 0;
 
         for (i = 0; i < 0x1e0; i++) {
-            DG3890.row_offset[i] = row;
+            VMDS.row_offset[i] = row;
             row = (uint16_t)(row + 0x50);
         }
     }
@@ -112,8 +112,8 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
     io_out16(PORT_GC_INDEX, 0x0205);
 
     DG3F78.screen_width = 0x280;
-    DG3890.clip_right   = 0x27f;
-    DG3890.clip_bottom  = (int16_t)(DG3F78.screen_height - 1);
+    VMDS.clip_right   = 0x27f;
+    VMDS.clip_bottom  = (int16_t)(DG3F78.screen_height - 1);
 
     return 2;
 }
@@ -200,11 +200,11 @@ void vm_nothing(void)
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
-    uint16_t page   = vga_seg_offset(DG3890.page_dst_ptr);
-    uint8_t  colour = DG3890.unknown_00;
-    uint8_t  back   = DG3890.unknown_01;
-    uint8_t  style  = DG3890.unknown_02;
-    uint16_t at     = (uint16_t)(DG3890.row_offset[(uint16_t)y] + (x >> 3));
+    uint16_t page   = vga_seg_offset(VMDS.page_dst_ptr);
+    uint8_t  colour = VMDS.unknown_00;
+    uint8_t  back   = VMDS.unknown_01;
+    uint8_t  style  = VMDS.unknown_02;
+    uint16_t at     = (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3));
     uint16_t shift  = (uint16_t)(x & 7);
     uint16_t row;
 
@@ -612,7 +612,7 @@ void vm_save_rect(struct far_ptr buf,
        the cursor is the pointer. */
     uint8_t *blk  = MK_FP(buf.seg, buf.off);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(DG3890.page_src_ptr);
+    uint16_t base = vga_seg_offset(VMDS.page_src_ptr);
     uint16_t bytes, words;
     int16_t plane;
 
@@ -626,7 +626,7 @@ void vm_save_rect(struct far_ptr buf,
         words++;
 
     for (plane = 3; plane >= 0; plane--) {
-        uint16_t si = (uint16_t)(DG3890.row_offset[y] + col);
+        uint16_t si = (uint16_t)(VMDS.row_offset[y] + col);
         int16_t row;
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
@@ -703,7 +703,7 @@ void vm_restore_rect(struct far_ptr buf,
        reaching a byte `MK_FP` reaches directly. */
     const uint8_t *blk = MK_FP(buf.seg, buf.off);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t bytes, words, mask;
 
     io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
@@ -716,7 +716,7 @@ void vm_restore_rect(struct far_ptr buf,
         words++;
 
     for (mask = 8; mask != 0; mask >>= 1) {
-        uint16_t di = (uint16_t)(DG3890.row_offset[y] + col);
+        uint16_t di = (uint16_t)(VMDS.row_offset[y] + col);
         int16_t row;
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
@@ -761,8 +761,8 @@ void vm_restore_rect(struct far_ptr buf,
  */
 uint16_t vm_read_pixel(int16_t x, int16_t y)
 {
-    uint16_t base   = vga_seg_offset(DG3890.page_src_ptr);
-    uint16_t off    = (uint16_t)(DG3890.row_offset[y] + ((uint16_t)x >> 3));
+    uint16_t base   = vga_seg_offset(VMDS.page_src_ptr);
+    uint16_t off    = (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3));
     uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
     uint16_t colour = 0;
 
@@ -813,8 +813,8 @@ uint16_t vm_read_pixel(int16_t x, int16_t y)
  */
 uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
 {
-    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
-    uint16_t di   = (uint16_t)(DG3890.row_offset[y] + ((uint16_t)x >> 3));
+    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
+    uint16_t di   = (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3));
     uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
 
     io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
@@ -845,10 +845,10 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  */
 void vm_show_page(uint16_t wait_retrace)
 {
-    uint16_t shown = DG3890.page_back_ptr;
-    uint16_t other = DG3890.page_front_ptr;
-    DG3890.page_front_ptr = DG3890.page_back_ptr;
-    DG3890.page_back_ptr = other;
+    uint16_t shown = VMDS.page_back_ptr;
+    uint16_t other = VMDS.page_front_ptr;
+    VMDS.page_front_ptr = VMDS.page_back_ptr;
+    VMDS.page_back_ptr = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
     if (DG3F78.screen_height == 400)
@@ -895,9 +895,9 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
     uint16_t col   = (uint16_t)(left >> 3);
 
     uint16_t rows = height;
-    uint16_t di   = (uint16_t)(DG3890.row_offset[y] + col);
-    uint16_t src  = vga_seg_offset(DG3890.page_src_ptr);
-    uint16_t dst  = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t di   = (uint16_t)(VMDS.row_offset[y] + col);
+    uint16_t src  = vga_seg_offset(VMDS.page_src_ptr);
+    uint16_t dst  = vga_seg_offset(VMDS.page_dst_ptr);
 
     do {
         for (uint16_t i = 0; i < span; i++)
@@ -1344,8 +1344,8 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
  */
 void vm_fill_spans(const uint8_t far * spans)
 {
-    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
-    uint8_t colour = DG3890.fill_colour;
+    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
+    uint8_t colour = VMDS.fill_colour;
     uint16_t y, rows;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -1368,7 +1368,7 @@ void vm_fill_spans(const uint8_t far * spans)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint16_t di = (uint16_t)(DG3890.row_offset[y] + (x1 >> 3));
+            uint16_t di = (uint16_t)(VMDS.row_offset[y] + (x1 >> 3));
             uint16_t bit = (uint16_t)(x1 & 7);
 
             if (bit + cx < 8) {
@@ -1495,7 +1495,7 @@ static void line_mask(uint8_t mask)
  */
 void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
-    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint8_t colour;
     uint8_t mask;
     uint16_t di;
@@ -1503,11 +1503,11 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     int16_t run, rest;
 
     /* Both are *stored*, not kept in registers, exactly as the original does. */
-    DG3890.line_colour = DG3890.second_colour;
-    DG3890.line_mask = BIT_MASK[x1 & 7];
-    colour = (uint8_t)DG3890.line_colour;
-    mask = DG3890.line_mask;
-    di = (uint16_t)(DG3890.row_offset[y1] + (uint16_t)(x1 >> 3));
+    VMDS.line_colour = VMDS.second_colour;
+    VMDS.line_mask = BIT_MASK[x1 & 7];
+    colour = (uint8_t)VMDS.line_colour;
+    mask = VMDS.line_mask;
+    di = (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3));
 
     if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
         line_mask(mask);
@@ -1586,19 +1586,19 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 
         if ((uint16_t)ey < (uint16_t)ex) {          /* VGA:0x0ab2, x major */
             rest = ex;
-            DG3890.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
-            DG3890.dda_frac = (uint16_t)(
+            VMDS.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
+            VMDS.dda_frac = (uint16_t)(
                 ((uint32_t)((uint16_t)ex % (uint16_t)(ey + 1)) << 16)
                 / (uint16_t)(ey + 1));
-            DG3890.dda_acc = 0;
+            VMDS.dda_acc = 0;
             line_mask(mask);
-            run = (int16_t)(DG3890.dda_whole + 1);
+            run = (int16_t)(VMDS.dda_whole + 1);
             line_pixel(base, di, colour);
             for (;;) {
-                DG3890.dda_saved = rest;
+                VMDS.dda_saved = rest;
                 rest = (int16_t)(rest - run);
                 if (rest < 0) {
-                    run = DG3890.dda_saved;
+                    run = VMDS.dda_saved;
                     rest = 0;
                 }
                 for (;;) {
@@ -1617,28 +1617,28 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 vga_read((uint16_t)(base + di));
                 vga_write((uint16_t)(base + di), colour);
                 {
-                    uint32_t sum = (uint32_t)DG3890.dda_acc + DG3890.dda_frac;
-                    DG3890.dda_acc = (uint16_t)sum;
-                    run = (int16_t)(DG3890.dda_whole + (sum > 0xFFFF ? 1 : 0));
+                    uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
+                    VMDS.dda_acc = (uint16_t)sum;
+                    run = (int16_t)(VMDS.dda_whole + (sum > 0xFFFF ? 1 : 0));
                 }
             }
         }
 
         /* VGA:0x0b35, y major. */
         rest = ey;
-        DG3890.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
-        DG3890.dda_frac = (uint16_t)(
+        VMDS.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
+        VMDS.dda_frac = (uint16_t)(
             ((uint32_t)((uint16_t)ey % (uint16_t)(ex + 1)) << 16)
             / (uint16_t)(ex + 1));
-        DG3890.dda_acc = 0;
+        VMDS.dda_acc = 0;
         line_mask(mask);
-        run = (int16_t)(DG3890.dda_whole + 1);
+        run = (int16_t)(VMDS.dda_whole + 1);
         line_pixel(base, di, colour);
         for (;;) {
-            DG3890.dda_saved = rest;
+            VMDS.dda_saved = rest;
             rest = (int16_t)(rest - run);
             if (rest < 0) {
-                run = DG3890.dda_saved;
+                run = VMDS.dda_saved;
                 rest = 0;
             }
             for (;;) {
@@ -1665,9 +1665,9 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 line_pixel(base, di, colour);
             }
             {
-                uint32_t sum = (uint32_t)DG3890.dda_acc + DG3890.dda_frac;
-                DG3890.dda_acc = (uint16_t)sum;
-                run = (int16_t)(DG3890.dda_whole + (sum > 0xFFFF ? 1 : 0));
+                uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
+                VMDS.dda_acc = (uint16_t)sum;
+                run = (int16_t)(VMDS.dda_whole + (sum > 0xFFFF ? 1 : 0));
             }
         }
     }
@@ -1688,8 +1688,8 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(struct far_ptr pal)
 {
-    uint16_t di = DG3890.pal_copy_ptr.off;
-    uint16_t es = DG3890.pal_copy_ptr.seg;
+    uint16_t di = VMDS.pal_copy_ptr.off;
+    uint16_t es = VMDS.pal_copy_ptr.seg;
     uint16_t off = pal.off;
     int32_t i;
 
@@ -1742,8 +1742,8 @@ void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
        left as it is: the original splits it into a segment and a
        four-bit offset so a 16-bit index cannot overflow, which is its
        arithmetic and not the caller's. */
-    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
-    uint16_t di = (uint16_t)(DG3890.row_offset[y] + (uint16_t)(x >> 3));
+    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
+    uint16_t di = (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3));
     uint16_t si = (uint16_t)(src.off & 0x0f);
     uint16_t seg = (uint16_t)((src.off >> 4) + src.seg);
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
@@ -1836,7 +1836,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     int16_t  w        = bmp->width;
     int16_t  h        = bmp->height;
 
-    uint16_t base     = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t base     = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
     uint16_t planestep = (uint16_t)((mask_at - src) >> 2);  /* cs:[0x25d7] */
     int16_t  rows     = h;                           /* cs:[0x25dd] */
@@ -1848,7 +1848,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     uint8_t  cl;
     int16_t  plane;
 
-    di = (uint16_t)((y >= 0) ? DG3890.row_offset[y] : (uint16_t)(y * 80));
+    di = (uint16_t)((y >= 0) ? VMDS.row_offset[y] : (uint16_t)(y * 80));
     di = (uint16_t)(di + (uint16_t)(x >> 3));
     cl = (uint8_t)(x & 7);
 
@@ -1865,11 +1865,11 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         mask_p = (uint16_t)(mask_p + n);
     }
 
-    if (DG3890.clip_enabled != 0) {
+    if (VMDS.clip_enabled != 0) {
         int16_t over;
 
         /* off the right-hand edge */
-        over = (int16_t)(DG3890.clip_right + 1 - (x + w));
+        over = (int16_t)(VMDS.clip_right + 1 - (x + w));
         if (over <= 0) {
             over = (int16_t)(-over);
             if (over >= w)
@@ -1879,7 +1879,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the left-hand edge */
-        over = (int16_t)(x - DG3890.clip_left);
+        over = (int16_t)(x - VMDS.clip_left);
         if (over < 0) {
             int16_t bx = over;
 
@@ -1896,7 +1896,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the bottom */
-        over = (int16_t)(y + h - DG3890.clip_bottom);
+        over = (int16_t)(y + h - VMDS.clip_bottom);
         if (over > 0) {
             if (over >= h)
                 goto done;
@@ -1905,7 +1905,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the top */
-        over = (int16_t)(DG3890.clip_top - y);
+        over = (int16_t)(VMDS.clip_top - y);
         if (over >= 0) {
             uint16_t n;
 
@@ -2108,7 +2108,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
     uint16_t si        = (uint16_t)bmp->data.off;               /* [bp-8] */
     int16_t  w         = bmp->width;                            /* [bp-4] */
     int16_t  h         = bmp->height;                           /* [bp-2] */
-    uint16_t base      = vga_seg_offset((uint16_t)DG3890.page_dst_ptr);
+    uint16_t base      = vga_seg_offset((uint16_t)VMDS.page_dst_ptr);
     uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */
     uint16_t planestep = (uint16_t)((uint8_t)rowbytes * (uint8_t)h);   /* cs:[0x2adf] */
     uint8_t  cols      = (uint8_t)((uint16_t)(w + 7) >> 3);     /* DH */
@@ -2119,16 +2119,16 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
     int16_t  plane;
 
     if ((int16_t)((uint16_t)y << 1) >= 0)
-        di = DG3890.row_offset[(uint16_t)y];
+        di = VMDS.row_offset[(uint16_t)y];
     else
         di = (uint16_t)((uint16_t)y * 40u);                     /* y*8 + y*32 */
     di = (uint16_t)(di + (uint16_t)(x >> 3));
 
-    if (DG3890.clip_enabled != 0) {
+    if (VMDS.clip_enabled != 0) {
         int16_t a, b;
 
         /* off the right-hand edge */
-        a = (int16_t)(DG3890.clip_right + 1);
+        a = (int16_t)(VMDS.clip_right + 1);
         b = (int16_t)(x + w);
         if (!(a > b)) {
             a = (int16_t)(b - a);                               /* `neg` */
@@ -2139,7 +2139,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the left-hand edge */
-        a = (int16_t)(x - DG3890.clip_left);
+        a = (int16_t)(x - VMDS.clip_left);
         if (a < 0) {
             uint16_t bx;
 
@@ -2153,7 +2153,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the bottom */
-        a = (int16_t)(y + h - DG3890.clip_bottom);
+        a = (int16_t)(y + h - VMDS.clip_bottom);
         if (a >= 0) {
             if (!((int16_t)(a - h) < 0))
                 goto done;
@@ -2161,7 +2161,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the top */
-        a = (int16_t)(DG3890.clip_top - y);
+        a = (int16_t)(VMDS.clip_top - y);
         if (a >= 0) {
             if (!((int16_t)(a - h) < 0))
                 goto done;

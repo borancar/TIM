@@ -21,7 +21,7 @@ followed.
 breaking something first:
 
   a slot whose value is filed anywhere
-        `vm_init` stores its frame pointer into `ENGINE_FONTS.fonts_off`, which the
+        `vm_init` stores its frame pointer into `ENGINE_FONTS.body[0].off`, which the
         guest reads back, and `draw_compressed_bitmap` stores one slot's
         address into another. As a host address truncated to sixteen bits that
         is not a number at all. The symptom was one level in ten failing to
@@ -234,7 +234,7 @@ def convert(path, names, verbose=True, in_dgroup=False):
         # address.** `score_to_code` writes `for (si = code; DG8(si) != 0;
         # si++)`: `si` is a plain C local that never leaves the routine, which
         # is a different thing from `vm_init` storing its frame pointer into
-        # `ENGINE_FONTS.fonts_off` where the guest reads it back. The rule is strict
+        # `ENGINE_FONTS.body[0].off` where the guest reads it back. The rule is strict
         # on purpose - a cursor is accepted only when every one of its other
         # uses is a `DG*` accessor, a step, or a comparison. One appearance
         # inside a call and the routine is refused, because the callee may
