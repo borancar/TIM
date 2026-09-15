@@ -207,10 +207,6 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
  *
  * The `bitmap` header is the one record that stores the two the other way
  * round, and says so where it is declared.
- *
- * Three unions in this file spell the same two fields tag-less rather than
- * using this type, because they overlay an `int32_t` on the pair and an
- * anonymous member has to be a tag-less struct for `.off` to reach through.
  */
 struct far_ptr {
     dg_off_t  off;              /* +0x00 */
@@ -1073,11 +1069,7 @@ DG_ASSERT_AT(struct dg_52bd, pal_sierra_ptr,    0x28);
 struct dg_52ed {
     /*
      * +0x00  tim.pal: the far pointer `load_palette` answers, stored whole and
-     * read whole by `set_palette_pointer` and `free_far_block`. It was a union
-     * with an `int32_t` while `load_palette` answered a packed 32-bit value;
-     * splitting it into two words before that was a real bug - the 32-bit
-     * store landed on the offset and the segment was lost, and the intro's
-     * palette with it. Answered as a `struct far_ptr`, it is one.
+     * read whole by `set_palette_pointer` and `free_far_block`.
      */
     struct far_ptr pal_tim_ptr;
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
@@ -1409,27 +1401,25 @@ struct dg_542e {
 _Static_assert(sizeof(struct dg_542e) == 0x28, "the typed text ends at DG5456");
 
 /*
- * **The belt's far end and the goal's frame counter**, at DGROUP 0x5456.
+ * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
  */
 struct dg_5456 {
     uint16_t  belt_far_end;       /* +0x00  the far end's +0x5a, stashed while it is detached */
-    /* **Ten words, and the original reuses them.** `goal_test_puzzles_19_48` at 0x01bb4
-       does `inc word ptr [0x5458]` - a plain count of frames the goal has
-       held, and passing 0xc wins. `goal_test_puzzle_78` at 0x015bf does
-       `cmp word ptr [bx + 0x5458], 0` with `bx` twice the mouse-cage count:
-       a per-cage table of which have been set going, zeroed ten wide by
-       `clear_machine`. Both are the binary's; the counter is element 0.
-       It was declared as the one word, which is the `blocks[9]` shape. */
-    union {
-        uint16_t  goal_frames;    /* +0x02 */
-        uint16_t  cage_ran[10];   /* +0x02 .. +0x15 */
-    };
+    /* **Ten words the goal tests keep between frames**, and what each means
+       depends on the test. `goal_test_puzzles_19_48` at 0x01bb4 does
+       `inc word ptr [0x5458]` - a count of frames the goal has held, and
+       passing 0xc wins. `goal_test_puzzle_78` at 0x015bf does
+       `cmp word ptr [bx + 0x5458], 0` with `bx` twice the mouse-cage count: a
+       flag per cage. The ten is `clear_machine`'s, which zeroes them with
+       `cmp si, 0xa / jl` over a word stride; nothing yet says the table is no
+       longer than that. */
+    uint16_t  goal_condition[10]; /* +0x02 .. +0x15 */
 } __attribute__((packed));
 
 #define DG5456 (*(struct dg_5456 *)(dgroup + 0x5456))
 
 DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
-DG_ASSERT_AT(struct dg_5456, goal_frames,       0x02);
+DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
 
 /*
  * **An interrupted match, and where it resumes**, at DGROUP 0x58e0.
@@ -1870,16 +1860,12 @@ struct part {
     dg_off_t  rope_ptr;        /* +0x54 */
     struct point8 grab;        /* +0x56  the grab box */
     uint16_t  word_58;         /* +0x58 */
-    /* **Six links, and the array is the fact.** `part_setup_2068` files four
-       of them by direction and `part_setup_3de5` writes the last two, so the
-       port had them as four named words plus a separate pair - and three
+    /* **Six links in one array.** `part_setup_2068` files four of them by
+       direction and `part_setup_3de5` writes the last two, and three
        `part_step_*` routines walk `+0x5a + 2 * i` with **i from 4 to 6**,
-       which reaches 0x62 and 0x64. That is one six-word array indexed past
-       its named half, not two tables that happen to be adjacent.
-       `-Warray-bounds` is what said so, on `link_ptr[4]`, the moment the raw
-       accessor became a field. `[0]` to `[3]` are the neighbours by direction
-       - right, left, down, up - and `[4]`, `[5]` the pair `part_setup_3de5`
-       turns into form bits. */
+       which reaches 0x62 and 0x64. `[0]` to `[3]` are the neighbours by
+       direction - right, left, down, up - and `[4]`, `[5]` the pair
+       `part_setup_3de5` turns into form bits. */
     dg_off_t  link_ptr[6];     /* +0x5a */
     /* **The belt records this part is an end of**, indexed the same way as
        `link_ptr` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
@@ -2786,18 +2772,15 @@ DG_ASSERT_AT(struct dg_260a, word_260a,         0x00);
  */
 struct dg_2630 {
     uint16_t  word_2630;          /* +0x00 */
-    /* **The goal tests, one far pointer per round**, from 0x2632 up to
-       0x27ee: `check_goal` calls `[round_number]`. Entry 0 is 0000:0000 in
-       the image, and its two words are also the bin-repeat counters game.c
-       steps - the same bytes under two names, which is why this is a union
-       and not a claim that one of the readings is wrong. */
-    union {
-        struct far_ptr goal_test[111];    /* +0x02 */
-        struct {
-            uint16_t  word_2632;  /* +0x02 */
-            uint16_t  word_2634;  /* +0x04 */
-        };
-    };
+    /* The two bin-scroll repeat counters `bin_scroll_back` and its twin step.
+       `check_goal`'s `lcall [bx + 0x2632]` with `bx` four times the round
+       would make them entry 0 of the goal table, but the round is never 0 -
+       `game_setup` starts it at 1 and nothing brings it lower - so they are
+       only ever these two words, 0000:0000 in the image. */
+    uint16_t  word_2632;          /* +0x02 */
+    uint16_t  word_2634;          /* +0x04 */
+    /* **The goal tests, one far pointer per puzzle from 1**, up to 0x27ee. */
+    struct far_ptr goal_test[110];    /* +0x06 */
 } __attribute__((packed));
 
 #define DG2630 (*(struct dg_2630 *)(dgroup + 0x2630))
@@ -2805,7 +2788,7 @@ struct dg_2630 {
 DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
 DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
 DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
-DG_ASSERT_AT(struct dg_2630, goal_test,         0x02);
+DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
 _Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
 
 /*
@@ -4608,8 +4591,6 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.w
  * ---------------------------------------------------------------------------
  */
 struct region {
-  union {
-    struct {
     dg_off_t  link_ptr;        /* +0x00  the next record on this list */
     uint16_t  mask;            /* +0x02  and-ed with the state word at 0x4e6b */
     uint16_t  word_04;         /* +0x04 */
@@ -4624,11 +4605,6 @@ struct region {
     struct far_ptr hover;      /* +0x12  called whenever the pointer is
                                          inside */
     struct far_ptr click;      /* +0x16  and this one on the click itself */
-    } __attribute__((packed));
-    /* The same thirteen words as `build_screen_regions` fills them, from the
-       table it carries: word[1] is `mask`, word[12] the segment of `click`. */
-    uint16_t  word[13];
-  };
 } __attribute__((packed));
 _Static_assert(sizeof(struct region) == 0x1a, "a region record is thirteen words");
 
@@ -5679,14 +5655,10 @@ struct resource {
     dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
     struct far_ptr scratch;    /* +0x02  the far scratch block, which
                                   lzss_reset caches */
-    /* **Polymorphic, which is why this pair is not a `far_ptr`.** It is a
-       file handle on one path and the two halves of a far pointer on another,
-       and `read_resource_block` builds a `struct far_ptr` from it at the point
-       of use rather than the field claiming to be one. A union of the two -
-       `struct { uint16_t handle; }` against `struct far_ptr ptr;` - would say
-       it properly and is worth doing once which path sets which is written
-       down; until then the call sites carry the compound literal and this
-       comment carries the reason. */
+    /* **A file handle on one path and the two halves of a far pointer on
+       another**, so the pair is not declared a `far_ptr`: `read_resource_block`
+       builds a `struct far_ptr` from it where it is used. Which path sets
+       which is not written down yet. */
     uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
     uint16_t  word_08;         /* +0x08 */
     /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a

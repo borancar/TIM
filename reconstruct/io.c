@@ -1343,6 +1343,29 @@ void call_goal_test(struct far_ptr h)
         case 0x2322: goal_test_puzzle_72(); return;
         case 0x2351: goal_test_puzzle_59(); return;
         case 0x23a4: goal_test_puzzle_49(); return;
+        case 0x2467: goal_test_puzzle_88(); return;
+        case 0x2470: goal_test_puzzle_89(); return;
+        case 0x2479: goal_test_puzzle_90(); return;
+        case 0x2482: goal_test_puzzle_91(); return;
+        case 0x248b: goal_test_puzzle_92(); return;
+        case 0x2494: goal_test_puzzle_93(); return;
+        case 0x249d: goal_test_puzzle_94(); return;
+        case 0x24a6: goal_test_puzzle_95(); return;
+        case 0x24af: goal_test_puzzle_96(); return;
+        case 0x24b4: goal_test_puzzle_97(); return;
+        case 0x24b9: goal_test_puzzle_98(); return;
+        case 0x24be: goal_test_puzzle_99(); return;
+        case 0x24c3: goal_test_puzzle_100(); return;
+        case 0x24c8: goal_test_puzzle_101(); return;
+        case 0x24cd: goal_test_puzzle_102(); return;
+        case 0x24d2: goal_test_puzzle_103(); return;
+        case 0x24d7: goal_test_puzzle_104(); return;
+        case 0x24dc: goal_test_puzzle_105(); return;
+        case 0x24e1: goal_test_puzzle_106(); return;
+        case 0x24e6: goal_test_puzzle_107(); return;
+        case 0x24eb: goal_test_puzzle_108(); return;
+        case 0x24f0: goal_test_puzzle_109(); return;
+        case 0x24f5: goal_test_puzzle_110(); return;
         default: break;
         }
     }

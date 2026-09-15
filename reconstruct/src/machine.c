@@ -1639,7 +1639,7 @@ void clear_machine(void)
     DG52BD.sound_request_01 = 0;
 
     for (si = 0; si < 10; si++)
-        DG5456.cage_ran[si] = 0;
+        DG5456.goal_condition[si] = 0;
 }
 
 /*
@@ -1829,8 +1829,8 @@ void goal_test_puzzle_78(void)
         if (PART_PTR(si)->kind == KIND_MOUSE_CAGE
             && (PART_PTR(si)->flags_06 & 0x8000) != 0) {
             if (((uint16_t)PART_PTR(si)->direction) != 0)
-                DG5456.cage_ran[n] = 1;
-            else if (DG5456.cage_ran[n] == 0)
+                DG5456.goal_condition[n] = 1;
+            else if (DG5456.goal_condition[n] == 0)
                 ok = 0;
 
             n++;
@@ -2423,12 +2423,12 @@ void goal_test_puzzles_19_48(void)
     }
 
     if (ok)
-        DG5456.goal_frames++;
+        DG5456.goal_condition[0]++;
 
-    if ((int16_t)DG5456.goal_frames > 0x0c)
+    if ((int16_t)DG5456.goal_condition[0] > 0x0c)
         DG4E67.state = 0x200;
 
-    if (!ok && DG5456.goal_frames != 0)
+    if (!ok && DG5456.goal_condition[0] != 0)
         DG4E67.state = 0x200;
 }
 
@@ -2563,11 +2563,11 @@ void goal_test_puzzles_6_58(void)
     }
 
     if (ok)
-        DG5456.goal_frames++;
+        DG5456.goal_condition[0]++;
     else
-        DG5456.goal_frames = 0;
+        DG5456.goal_condition[0] = 0;
 
-    if ((int16_t)DG5456.goal_frames > 4)
+    if ((int16_t)DG5456.goal_condition[0] > 4)
         DG4E67.state = 0x200;
 }
 
@@ -2670,9 +2670,9 @@ void goal_test_puzzle_13(void)
     }
 
     if (ok)
-        DG5456.goal_frames++;
+        DG5456.goal_condition[0]++;
 
-    if ((int16_t)DG5456.goal_frames > 0x0c)
+    if ((int16_t)DG5456.goal_condition[0] > 0x0c)
         DG4E67.state = 0x200;
 }
 
@@ -2909,14 +2909,14 @@ void goal_test_puzzle_36(void)
             ok = 0;
         if (PART_PTR(si)->kind == KIND_POKEY
             && PART_PTR(si)->form != 0)
-            DG5456.goal_frames = 1;
+            DG5456.goal_condition[0] = 1;
         if (PART_PTR(si)->kind == KIND_BULLET
             && (PART_PTR(si)->flags_08 & 0x2000) == 0)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
 
-    if (ok && DG5456.goal_frames == 0)
+    if (ok && DG5456.goal_condition[0] == 0)
         DG4E67.state = 0x200;
 }
 
@@ -3187,7 +3187,8 @@ void goal_test_puzzle_40(void)
 
 /*
  * 0x0242c - a kind-0 part inside a box: 0x1d6 to 0x1fc in x, 0xc6 to 0xd0 in
- * y. The last of the goal tests in the image.
+ * y. The last of the goal tests with a body of its own; the entries for
+ * puzzles 88 to 110 below it only reuse one or do nothing.
  */
 void goal_test_puzzle_35(void)
 {
@@ -3205,22 +3206,213 @@ void goal_test_puzzle_35(void)
 }
 
 /*
+ * 0x02467 - puzzle 88's goal is `goal_test_puzzle_86`'s: `push cs` and a near call to
+ * 0x02172, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_88(void)
+{
+    goal_test_puzzle_86();
+}
+
+/*
+ * 0x02470 - puzzle 89's goal is `goal_test_puzzle_55`'s: `push cs` and a near call to
+ * 0x0197e, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_89(void)
+{
+    goal_test_puzzle_55();
+}
+
+/*
+ * 0x02479 - puzzle 90's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call to
+ * 0x017ad, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_90(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02482 - puzzle 91's goal is `goal_test_puzzles_3_8_27_30_33_45_50_62`'s: `push cs` and a near call to
+ * 0x015fa, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_91(void)
+{
+    goal_test_puzzles_3_8_27_30_33_45_50_62();
+}
+
+/*
+ * 0x0248b - puzzle 92's goal is `goal_test_puzzle_29`'s: `push cs` and a near call to
+ * 0x02010, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_92(void)
+{
+    goal_test_puzzle_29();
+}
+
+/*
+ * 0x02494 - puzzle 93's goal is `goal_test_puzzle_61`'s: `push cs` and a near call to
+ * 0x0203f, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_93(void)
+{
+    goal_test_puzzle_61();
+}
+
+/*
+ * 0x0249d - puzzle 94's goal is `goal_test_puzzles_57_74`'s: `push cs` and a near call to
+ * 0x01f77, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_94(void)
+{
+    goal_test_puzzles_57_74();
+}
+
+/*
+ * 0x024a6 - puzzle 95's goal is `goal_test_puzzle_13`'s: `push cs` and a near call to
+ * 0x01e1e, which is the far call that routine returns from.
+ */
+void goal_test_puzzle_95(void)
+{
+    goal_test_puzzle_13();
+}
+
+/*
+ * 0x024af - puzzle 96 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_96(void)
+{
+}
+
+/*
+ * 0x024b4 - puzzle 97 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_97(void)
+{
+}
+
+/*
+ * 0x024b9 - puzzle 98 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_98(void)
+{
+}
+
+/*
+ * 0x024be - puzzle 99 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_99(void)
+{
+}
+
+/*
+ * 0x024c3 - puzzle 100 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_100(void)
+{
+}
+
+/*
+ * 0x024c8 - puzzle 101 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_101(void)
+{
+}
+
+/*
+ * 0x024cd - puzzle 102 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_102(void)
+{
+}
+
+/*
+ * 0x024d2 - puzzle 103 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_103(void)
+{
+}
+
+/*
+ * 0x024d7 - puzzle 104 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_104(void)
+{
+}
+
+/*
+ * 0x024dc - puzzle 105 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_105(void)
+{
+}
+
+/*
+ * 0x024e1 - puzzle 106 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_106(void)
+{
+}
+
+/*
+ * 0x024e6 - puzzle 107 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_107(void)
+{
+}
+
+/*
+ * 0x024eb - puzzle 108 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_108(void)
+{
+}
+
+/*
+ * 0x024f0 - puzzle 109 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_109(void)
+{
+}
+
+/*
+ * 0x024f5 - puzzle 110 has no goal test: the routine sets up a frame and
+ * returns, so the state is never set to 0x200 from here.
+ */
+void goal_test_puzzle_110(void)
+{
+}
+
+/*
  * 0x01465
  *
- * Run this level's goal test. The index at DGROUP 0x4ebd is scaled by four -
- * the entries are far pointers - and called through the table at 0x2632.
+ * Run this level's goal test. The round at DGROUP 0x4ebd is scaled by four -
+ * the entries are far pointers - and called through `[bx + 0x2632]`.
  *
- * **Entry 0 of that table is not a pointer.** Its four bytes are the two
- * bin-scroll repeat counters, 0x2632 and 0x2634, which is why those two looked
- * like ordinary DGROUP words when `bin_scroll_back` was transcribed. Index 0
- * is never used, and the overlay is deliberate rather than a collision.
+ * **The round is never 0**, so what the original addresses from 0x2632 is a
+ * table that starts at 0x2636: `goal_test[0]` is puzzle 1, and the four bytes
+ * at 0x2632 are the two bin-scroll repeat counters and nothing else.
  *
  * C cannot call through a guest far pointer, so `call_goal_test` dispatches on
  * the value as every other table in this port does.
  */
 void check_goal(void)
 {
-    call_goal_test(DG2630.goal_test[(uint16_t)DG4E67.round_number]);
+    call_goal_test(DG2630.goal_test[(uint16_t)DG4E67.round_number - 1]);
 }
 
 /*
@@ -9738,11 +9930,13 @@ void regions_handle_pointer(uint16_t first)
  * **Seventeen of these words are relocations, not values**: the segment half of
  * a far function pointer, where the 0x0dff in the image is a paragraph count
  * from the load address that the loader adds the program's base to. `reloc`
- * says which, per record - *measured* from the relocation table of the
- * recovered executable, not inferred from a word looking like a segment. It has
- * to be per record and not per field: the same offset holds a real pointer in
- * one row and nothing at all in another, and adding the base to a field the
- * original never wrote puts the load segment where a zero belongs.
+ * says which of the record's two far pointers has one, per record - *measured*
+ * from the relocation table of the recovered executable, not inferred from a
+ * word looking like a segment. It has to be per record: the same offset holds a
+ * real pointer in one row and nothing at all in another, and adding the base to
+ * a field the original never wrote puts the load segment where a zero belongs.
+ * The records are copied whole; `heap_calloc_far` has zeroed what the copy
+ * writes as zero.
  */
 /* Which word of DG4E67 a record is linked into: the five list heads, and the
    two words that keep a record on their own. The table below is the
@@ -9764,49 +9958,52 @@ static dg_off_t *region_word(enum region_word w)
     }
 }
 
+/* Which far pointers in a record have a segment the loader fixes up. */
+enum { RELOC_HOVER = 1, RELOC_CLICK = 2 };
+
 static const struct {
     enum region_word head;   /* the list this record goes on */
     enum region_word also;   /* a second word that keeps it, or RW_NONE */
-    uint16_t reloc;          /* bit k: field[k] is a segment the loader fixes up */
-    uint16_t field[12];
+    uint16_t reloc;          /* RELOC_HOVER, RELOC_CLICK: measured relocations */
+    struct region region;    /* the record, link_ptr filled in when it is linked */
 } screen_regions[36] = {
-    /*      head     also   reloc     +02     +04     +06     +08     +0a     +0c     +0e     +10     +12     +14     +16     +18 */
-    { RW_PLAY, RW_NONE,    0x200, { 0x1000,    0x0,    0x0,    0x0,  0x27f,  0x16f,    0x0, 0x1000, 0x2f01,  0xdff,    0x0,    0x0 } },
-    { RW_PLAY, RW_NONE,    0x200, { 0x1000,    0x0,  0x240,    0x0,  0x278,   0x3f,   0x1a,    0x0, 0x2da9,  0xdff,    0x0,    0x0 } },
-    { RW_PLAY, RW_NONE,      0x0, { 0x1000,    0x0,  0x240,   0x43,  0x25b,   0x5a,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PLAY, RW_NONE,      0x0, { 0x1000,    0x0,  0x260,   0x43,  0x27f,   0x5a,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x0,  0x240,   0x64,  0x278,   0x90,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x1,  0x240,   0x91,  0x278,   0xc4,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x2,  0x240,   0xc5,  0x278,   0xf8,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x3,  0x240,   0xf9,  0x278,  0x12c,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x4,  0x240,  0x12d,  0x278,  0x160,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { RW_PLAY, RW_NONE,      0x0, { 0xc000,    0x0,    0x0,    0x0,  0x27f,  0x18f,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,  0x110,   0x48,  0x210,   0xe8,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x3a,   0x5b,   0x4f,   0x7e,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0xd8,   0x60,   0xf0,   0x77,   0x15, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x39,   0x86,   0x5f,   0xab,    0x0,  0x400, 0x34eb,  0xdff,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x96,   0x8c,   0xbf,   0xa4,    0x0,  0x100, 0x3508,  0xdff,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x58,   0x5d,   0x6d,   0x6d,   0x11, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x58,   0x6f,   0x6d,   0x7e,   0x11, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0xbc,   0x5c,   0xce,   0x7b,   0x12,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x6d,   0x85,   0x8c,   0xa3,   0x13,  0x200,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0xc8,   0x8c,   0xf1,   0xa4,    0x0,   0x80, 0x3525,  0xdff,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x41,   0xc8,   0xe1,   0xf8,    0x0,   0x40, 0x3542,  0xdff,    0x0,    0x0 } },
-    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x41,  0x114,   0xe1,  0x144,    0x0,   0x20, 0x355f,  0xdff,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,   0x56,   0xf8,   0x66,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,   0x7c,   0xb0,   0xf3,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x90,  0x10c,  0x100,  0x11c,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xbc,   0x74,   0xdc,   0x94,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xbc,   0xe0,   0xdc,  0x100,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,  0x130,   0x90,  0x144,    0x0,  0x200,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xc0,  0x130,  0x110,  0x144,    0x0,  0x100,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_B,    RW_KEPT_B,    0x0, { 0x8000,    0x0,   0xc8,   0xd4,   0xc8,   0xe4,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_B,    RW_KEPT_A,    0x0, { 0x8000,    0x0,  0x178,   0xd4,  0x178,   0xe4,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,   0x30,   0x4c,  0x1c0,  0x11d,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1cc,   0x42,  0x1ec,   0x62,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1cc,  0x108,  0x1ec,  0x128,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_A,    RW_NONE,      0x0, { 0x8000,    0x0,   0x90,  0x13c,  0x158,  0x14c,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1f0,  0x12c,  0x218,  0x154,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
+    /*  head      also       reloc                         link  mask   +04    x0     y0     x1     y1   cursor  code    hover             click */
+    { RW_PLAY, RW_NONE,   RELOC_HOVER,                { 0, 0x1000, 0x0,   0x0,   0x0, 0x27f, 0x16f,  0x0, 0x1000, { 0x2f01, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER,                { 0, 0x1000, 0x0, 0x240,   0x0, 0x278,  0x3f, 0x1a,    0x0, { 0x2da9, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PLAY, RW_NONE,   0,                          { 0, 0x1000, 0x0, 0x240,  0x43, 0x25b,  0x5a,  0x0,  0x800, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PLAY, RW_NONE,   0,                          { 0, 0x1000, 0x0, 0x260,  0x43, 0x27f,  0x5a,  0x0,  0x400, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER | RELOC_CLICK,  { 0, 0x1000, 0x0, 0x240,  0x64, 0x278,  0x90,  0x2, 0x1000, { 0x2dd2, 0xdff }, { 0x2e24, 0xdff } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER | RELOC_CLICK,  { 0, 0x1000, 0x1, 0x240,  0x91, 0x278,  0xc4,  0x2, 0x1000, { 0x2dd2, 0xdff }, { 0x2e24, 0xdff } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER | RELOC_CLICK,  { 0, 0x1000, 0x2, 0x240,  0xc5, 0x278,  0xf8,  0x2, 0x1000, { 0x2dd2, 0xdff }, { 0x2e24, 0xdff } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER | RELOC_CLICK,  { 0, 0x1000, 0x3, 0x240,  0xf9, 0x278, 0x12c,  0x2, 0x1000, { 0x2dd2, 0xdff }, { 0x2e24, 0xdff } } },
+    { RW_PLAY, RW_NONE,   RELOC_HOVER | RELOC_CLICK,  { 0, 0x1000, 0x4, 0x240, 0x12d, 0x278, 0x160,  0x2, 0x1000, { 0x2dd2, 0xdff }, { 0x2e24, 0xdff } } },
+    { RW_PLAY, RW_NONE,   0,                          { 0, 0xc000, 0x0,   0x0,   0x0, 0x27f, 0x18f,  0x0, 0x1000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0, 0x110,  0x48, 0x210,  0xe8, 0x10, 0x8000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0x3a,  0x5b,  0x4f,  0x7e, 0x10, 0x8000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0xd8,  0x60,  0xf0,  0x77, 0x15, 0x1000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   RELOC_HOVER,                { 0,    0x2, 0x0,  0x39,  0x86,  0x5f,  0xab,  0x0,  0x400, { 0x34eb, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   RELOC_HOVER,                { 0,    0x2, 0x0,  0x96,  0x8c,  0xbf,  0xa4,  0x0,  0x100, { 0x3508, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0x58,  0x5d,  0x6d,  0x6d, 0x11, 0x4000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0x58,  0x6f,  0x6d,  0x7e, 0x11, 0x2000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0xbc,  0x5c,  0xce,  0x7b, 0x12,  0x800, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   0,                          { 0,    0x2, 0x0,  0x6d,  0x85,  0x8c,  0xa3, 0x13,  0x200, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   RELOC_HOVER,                { 0,    0x2, 0x0,  0xc8,  0x8c,  0xf1,  0xa4,  0x0,   0x80, { 0x3525, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   RELOC_HOVER,                { 0,    0x2, 0x0,  0x41,  0xc8,  0xe1,  0xf8,  0x0,   0x40, { 0x3542, 0xdff }, {    0x0,   0x0 } } },
+    { RW_PANEL, RW_NONE,   RELOC_HOVER,                { 0,    0x2, 0x0,  0x41, 0x114,  0xe1, 0x144,  0x0,   0x20, { 0x355f, 0xdff }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0x40,  0x56,  0xf8,  0x66,  0x0, 0x4000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0x40,  0x7c,  0xb0,  0xf3,  0x0, 0x2000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0x90, 0x10c, 0x100, 0x11c,  0x0, 0x1000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0xbc,  0x74,  0xdc,  0x94,  0x0,  0x800, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0xbc,  0xe0,  0xdc, 0x100,  0x0,  0x400, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0x40, 0x130,  0x90, 0x144,  0x0,  0x200, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_C,    RW_NONE,   0,                          { 0, 0xd000, 0x0,  0xc0, 0x130, 0x110, 0x144,  0x0,  0x100, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_B,    RW_KEPT_B, 0,                          { 0, 0x8000, 0x0,  0xc8,  0xd4,  0xc8,  0xe4,  0x0, 0x4000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_B,    RW_KEPT_A, 0,                          { 0, 0x8000, 0x0, 0x178,  0xd4, 0x178,  0xe4,  0x0, 0x2000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_A,    RW_NONE,   0,                          { 0, 0x8800, 0x0,  0x30,  0x4c, 0x1c0, 0x11d,  0x0, 0x4000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_A,    RW_NONE,   0,                          { 0, 0x8800, 0x0, 0x1cc,  0x42, 0x1ec,  0x62,  0x0, 0x2000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_A,    RW_NONE,   0,                          { 0, 0x8800, 0x0, 0x1cc, 0x108, 0x1ec, 0x128,  0x0, 0x1000, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_A,    RW_NONE,   0,                          { 0, 0x8000, 0x0,  0x90, 0x13c, 0x158, 0x14c,  0x0,  0x800, {    0x0,   0x0 }, {    0x0,   0x0 } } },
+    { RW_A,    RW_NONE,   0,                          { 0, 0x8800, 0x0, 0x1f0, 0x12c, 0x218, 0x154,  0x0,  0x400, {    0x0,   0x0 }, {    0x0,   0x0 } } },
 };
 
 /*
@@ -9820,21 +10017,19 @@ void build_screen_regions(void)
 
     for (i = 0; i < 36; i++) {
         uint16_t si = heap_calloc_far(1, 0x1a);
-        uint16_t k;
+
+        struct region r = screen_regions[i].region;
 
         if (screen_regions[i].also != RW_NONE)
             *region_word(screen_regions[i].also) = si;
 
-        for (k = 0; k < 12; k++) {
-            uint16_t v = screen_regions[i].field[k];
+        if ((screen_regions[i].reloc & RELOC_HOVER) != 0)
+            r.hover.seg = (uint16_t)(r.hover.seg + (uint16_t)(IMAGE_BASE >> 4));
+        if ((screen_regions[i].reloc & RELOC_CLICK) != 0)
+            r.click.seg = (uint16_t)(r.click.seg + (uint16_t)(IMAGE_BASE >> 4));
 
-            if ((screen_regions[i].reloc & (1u << k)) != 0)
-                v = (uint16_t)(v + (uint16_t)(IMAGE_BASE >> 4));
-
-            REGION_PTR(si)->word[1 + k] = v;
-        }
-
-        REGION_PTR(si)->link_ptr = *region_word(screen_regions[i].head);
+        r.link_ptr = *region_word(screen_regions[i].head);
+        *REGION_PTR(si) = r;
         *region_word(screen_regions[i].head) = si;
     }
 }
