@@ -134,6 +134,14 @@ const char *sym_name(int32_t i);
  * added and the run costs nothing. See slots.c for what a record means and
  * `tools/native/slots.py` for reading them.
  */
+/*
+ * OURS: hand the guest to the scripting listener - see nativelua.c. The Lua
+ * state itself lives in reconstruct/devlua.c, which is the port's; this is the
+ * machine a `tim.bp` breakpoint needs, and only this runner has one.
+ */
+void     native_lua_guest(uc_engine *uc, uint32_t load_seg);
+void     native_lua_block(uc_engine *uc, uint32_t linear);
+
 void     native_slots_open(const char *path);
 void     native_slots_access(uc_engine *uc, uint32_t type, uint64_t address,
                              int32_t size, int64_t value, void *ud);

@@ -72,6 +72,15 @@ OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 DEV  := devdump.c devwav.c
 NODEV := devstub.c
 
+# **`devlua.c` is not in `DEV`, and that is the point.** `DEV` is linked into
+# `libtim.so` as well - the library `tools/verify.py` calls - and a verification
+# run has no business opening a socket or carrying a Lua interpreter. It goes
+# into `devtim` alone, and `dev_flip_dump` reaches it through a weak symbol, so
+# every other binary links with the hook absent and does nothing.
+DEVLUA     := devlua.c
+LUA_CFLAGS := $(shell pkg-config --cflags lua 2>/dev/null)
+LUA_LIBS   := $(shell pkg-config --libs lua 2>/dev/null)
+
 # **Headers count as sources.** Rules that list only the `.c` files mean a
 # change to `io.h` alone rebuilds nothing and the next run uses the old build -
 # silently, and answering with complete confidence. Raising DOS_ALLOC_PRIMED
@@ -90,7 +99,7 @@ HEADERS := $(wildcard *.h)
 # `tim` and `devtim` compile with identical flags, so they share these.
 COMMON_OBJ := $(patsubst %.c,%.o,sdl.c $(GAME) $(PORT))
 TIM_OBJ    := $(SRC)/main.o $(COMMON_OBJ) $(patsubst %.c,%.o,$(NODEV))
-DEV_OBJ    := devmain.o     $(COMMON_OBJ) $(patsubst %.c,%.o,$(DEV))
+DEV_OBJ    := devmain.o     $(COMMON_OBJ) $(patsubst %.c,%.o,$(DEV) $(DEVLUA))
 
 all: tim devtim
 
@@ -168,7 +177,11 @@ tim: $(TIM_OBJ) $(OPL_OBJ)
 # needs, and the comparison is the one that asks.
 devtim: $(DEV_OBJ) $(OPL_OBJ)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
-	    $^ $(SDL_LIBS) -lpthread -lstdc++
+	    $^ $(SDL_LIBS) $(LUA_LIBS) -lpthread -lstdc++
+
+# The one unit that needs Lua's headers, and the only one that gets them.
+devlua.o: devlua.c $(HEADERS)
+	$(CC) $(CFLAGS) $(LUA_CFLAGS) -c -o $@ $<
 
 # Two builds for chasing a fault rather than measuring anything.
 #
@@ -230,7 +243,7 @@ asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS)
 # Makefile. So it is checked rather than asserted.
 DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY_HOOKS TIM_GAMEDIR \
             TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS TIM_WAV TIM_SFXDIR TIM_SFXALL TIM_FMDIR TIM_PARTPICS TIM_LEVELSCAN TIM_DATE \
-            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN TIM_SAVEMACHINE TIM_LOADMACHINE TIM_SIMULATE
+            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN TIM_SAVEMACHINE TIM_LOADMACHINE TIM_SIMULATE TIM_LUA
 
 # **The file list is the point, not an oversight.** These are the translation
 # units where transcribed routines and ours-routines sit side by side, so a

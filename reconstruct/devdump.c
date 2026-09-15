@@ -1229,6 +1229,11 @@ void dev_flip_dump(int32_t flip)
     dev_key(flip);
     dev_autoplay(flip);
 
+    /* Only `devtim` links devlua.c; everything else links this file with the
+       weak symbol absent. See io.h. */
+    if (dev_lua_flip)
+        dev_lua_flip(flip);
+
     static const char *want = (const char *)-1;
     static int32_t at;
     FILE *f;

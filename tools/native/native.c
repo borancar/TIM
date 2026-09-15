@@ -150,6 +150,9 @@ static void native_note_block(uint32_t linear);
 
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
+    /* A script's breakpoints, watched from here - see nativelua.c. */
+    native_lua_block(uc, (uint32_t)address);
+
     uint32_t i;
 
     (void)ud;
@@ -1542,6 +1545,10 @@ int main(int argc, char **argv)
 
     native_bind_image();
 
+    /* The scripting listener's guest half - see nativelua.c. A `tim.bp` needs
+       the machine and the load segment image offsets are measured against. */
+    native_lua_guest(uc, LOAD_SEG);
+
     uc_hook_add(uc, &hh, UC_HOOK_BLOCK, (void *)on_block, NULL, 1, 0);
     uc_hook_add(uc, &hh, UC_HOOK_INTR, (void *)on_intr, NULL, 1, 0);
     uc_hook_add(uc, &hh, UC_HOOK_INSN, (void *)on_out, NULL, 1, 0,
@@ -1710,6 +1717,16 @@ int main(int argc, char **argv)
          * sharing the video driver's `bound` latch.
          */
         native_bind_sound(uc);
+
+        /*
+         * The scripting listener, polled **between slices** - the same place
+         * the tick below is driven, and for the same reason: the machine is
+         * stopped here and the port has it to itself. `devtim` polls it on the
+         * page flip instead; here the frame counter stands in for one, so
+         * `tim.wait` means the same thing on both sides.
+         */
+        if (dev_lua_flip)
+            dev_lua_flip((int32_t)g_frames);
 
         /*
          * The 8253's tick, **at the ratio the guest programmed it to**.

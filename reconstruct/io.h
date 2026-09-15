@@ -185,6 +185,14 @@ void     io_on_present(void (*fn)(void));
 void     dev_flip_dump(int32_t flip);
 
 /*
+ * OURS: reconstruct/devlua.c, the scripting listener - see that file. It is
+ * **weak** because only `devtim` links it: `libtim.so` and `covtim` link the
+ * other dev*.c files and must not carry a socket, and a weak symbol lets them
+ * link with the hook simply absent. Test it before calling it.
+ */
+void     dev_lua_flip(int32_t flip) __attribute__((weak));
+
+/*
  * OURS: a sound the game asked to play, by identifier. Called unconditionally
  * from `play_sound`, the way `dev_flip_dump` is called from the page flip, so
  * the *decision* to report is dev-only and the shipping binary gets a no-op.

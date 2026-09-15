@@ -23,7 +23,7 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter -Wno-address-of-packed-member -fno-strict-aliasing
 # see reconstruct/Makefile: DGROUP is a byte array every DG accessor reads
 # through another type, and the port relies on that being allowed
-CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS)
+CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS) $(shell pkg-config --cflags lua 2>/dev/null)
 # The OPL2 comes from the port's own build - `make -C ../../reconstruct` puts
 # the objects beside their sources - because the chip is the port's hardware
 # and this runner is the port standing in for hardware. Building a second copy
@@ -33,7 +33,7 @@ OPL_OBJ := $(REC)/src/opl_ymfm.o $(REC)/vendor/ymfm/ymfm_opl.o \
            $(REC)/vendor/ymfm/ymfm_adpcm.o $(REC)/vendor/ymfm/ymfm_pcm.o \
            $(REC)/vendor/ymfm/ymfm_ssg.o
 
-LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm -lstdc++
+LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) $(shell pkg-config --libs lua 2>/dev/null) -lpthread -lm -lstdc++
 
 # The port, exactly as reconstruct/Makefile lists it, plus its do-nothing
 # developer hooks.
@@ -52,12 +52,22 @@ GAME    := machine.c game.c machine_draw.c parts.c engine.c bitmaps.c \
            sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_adl.c sxovl_sbp.c sxovl.c \
            glue.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
-NODEV   := devstub.c devwav.c
+NODEV   := devstub.c devwav.c devlua.c
 PORTSRC := $(addprefix $(REC)/src/,$(GAME)) \
            $(addprefix $(REC)/,$(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h
 
-SRC     := native.c dispatch.c shim.c shims.c guestbt.c slots.c syms.c ovlsyms.c sha256.c
+SRC     := native.c dispatch.c shim.c shims.c guestbt.c slots.c syms.c ovlsyms.c sha256.c \
+           nativelua.c
+
+# **The scripting listener, and why the hybrid gets one.** `reconstruct/devlua.c`
+# holds the Lua state, the socket and the port's own bindings; `nativelua.c`
+# adds the half only this runner can offer, a breakpoint in the original's own
+# code. Everything behind a menu is behind a click, and the shared emulator's
+# run from the entry point still presents no page (STATUS.md), so a question
+# about the original's registers is answered by playing to it here.
+LUA_CFLAGS := $(shell pkg-config --cflags lua 2>/dev/null)
+LUA_LIBS   := $(shell pkg-config --libs lua 2>/dev/null)
 
 # The objects, and **they live under obj/ rather than beside their sources.**
 # This Makefile compiles the same reconstruct units as reconstruct/Makefile
