@@ -179,7 +179,7 @@ struct part *make_part(uint16_t kind)
     part->word_94 = PARTTMPL_PTR(kind)->init.off;
 
     if (!far_eq(PARTTMPL_PTR(kind)->init, FAR_NULL)
-        && call_part_init(PARTTMPL_PTR(kind)->init, dg_off(dgroup, part)) == 1) {
+        && call_part_init(PARTTMPL_PTR(kind)->init, part) == 1) {
         failed = 1;
         goto done;
     }

@@ -26,6 +26,7 @@
    errors. This header cannot include dgroup.h: dgroup.h is the memory model
    and io.h is the hardware boundary, and the dependency runs the other way. */
 struct far_ptr;
+struct part;
 
 /*
  * OURS: this layer's whole state, so a machine reached by playing can be
@@ -300,7 +301,7 @@ void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(struct far_ptr h);
 void     call_mouse_handler(struct far_ptr h);
-uint16_t call_part_init(struct far_ptr h, uint16_t part);
+uint16_t call_part_init(struct far_ptr h, struct part *part);
 uint16_t call_bitmap_read(uint16_t fn, uint16_t bits);
 void     call_bitmap_fill(uint16_t fn, int16_t x0, int16_t y0,
                           int16_t x1, int16_t y1);
@@ -308,10 +309,9 @@ void     call_bitmap_plot(struct far_ptr h, int16_t x, int16_t y,
                           int16_t colour);
 void     call_bitmap_fill_rect(struct far_ptr h, int16_t x, int16_t y,
                                int16_t w, int16_t hgt);
-void call_part_setup(struct far_ptr h, uint16_t part);
-uint16_t call_part_hook(struct far_ptr h, uint16_t part,
+void call_part_setup(struct far_ptr h, struct part *part);
+uint16_t call_part_hook(struct far_ptr h, struct part *part,
                         const char *what);
-struct part;
 uint16_t call_part_drive(struct far_ptr h,
                          struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7);

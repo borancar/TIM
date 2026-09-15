@@ -192,6 +192,8 @@ typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
    the whole reason `dg_off_t` exists. The typedef buys the name without
    touching the width. */
 typedef dg_off_t bmp_ptr_t;
+/* A list of these is stepped with `++`, which must be the original's `+ 2`. */
+_Static_assert(sizeof(bmp_ptr_t) == 2, "bmp_ptr_t is a near pointer, one word");
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
@@ -1663,6 +1665,11 @@ static inline struct part *PART_PTR(uint16_t p)
 {
     return (struct part *)(dgroup + p);
 }
+
+/* **The end of a part list, as a pointer.** A walk held as a `struct part *`
+   cannot end on NULL - `PART_PTR(0)` is DS:0, the Borland banner - so it ends
+   on this, which is the same address the original's `or si,si` decides on. */
+#define PART_NONE PART_PTR(0)
 
 DG_ASSERT_AT(struct part, next_ptr,       0x00);
 DG_ASSERT_AT(struct part, prev_ptr,       0x02);

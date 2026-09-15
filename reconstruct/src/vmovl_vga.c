@@ -327,18 +327,18 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(uint16_t list, uint8_t * out)
+uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
 {
     uint32_t total = 0;
 
     for (;;) {
-        uint16_t p = BMPSET_PTR(list)->bmp[0];
+        bmp_ptr_t p = *list;
 
         if (p == 0)
             break;
 
         total += (uint32_t)((uint16_t)BMP_PTR(p)->width >> 1) * (uint16_t)BMP_PTR(p)->height;
-        list = (uint16_t)(list + 2);
+        list++;
     }
 
     *(int16_t *)(out) = 0;

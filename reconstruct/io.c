@@ -1389,34 +1389,34 @@ void call_goal_test(struct far_ptr h)
  * 172c offset that is not transcribed aborts by name rather than being
  * ignored, so the first machine that needs one says which.
  */
-void call_part_flip(struct far_ptr h, uint16_t part, uint16_t which)
+void call_part_flip(struct far_ptr h, struct part *part, uint16_t which)
 {
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
         switch (h.off) {
-        case 0x27b6: part_flip_ramp(PART_PTR(part)); return;
-        case 0x2fba: part_flip_mouse_cage(PART_PTR(part)); return;
-        case 0x03d2: part_flip_bellow(PART_PTR(part)); return;
-        case 0x06c6: part_flip_boxing_glove(PART_PTR(part)); return;
-        case 0x0be9: part_flip_cannon(PART_PTR(part)); return;
-        case 0x0f3d: part_flip_pokey(PART_PTR(part)); return;
-        case 0x12fc: part_flip_dynamite(PART_PTR(part)); return;
-        case 0x149b: part_flip_motor(PART_PTR(part)); return;
-        case 0x15fc: part_flip_electric_plug(PART_PTR(part)); return;
-        case 0x19fa: part_flip_hook(PART_PTR(part)); return;
-        case 0x1bbd: part_flip_fan(PART_PTR(part)); return;
-        case 0x1da8: part_flip_flashlight(PART_PTR(part)); return;
-        case 0x2412: part_flip_gun(PART_PTR(part)); return;
-        case 0x2999: part_flip_jack_in_the_box(PART_PTR(part)); return;
-        case 0x2bc5: part_flip_light(PART_PTR(part)); return;
-        case 0x2e0c: part_flip_monkey(PART_PTR(part)); return;
-        case 0x31af: part_flip_magnifying_glass(PART_PTR(part)); return;
-        case 0x33e5: part_flip_dynamite_plunger(PART_PTR(part)); return;
-        case 0x35c7: part_flip_mort_the_mouse(PART_PTR(part)); return;
-        case 0x37e5: part_flip_corner_pipe(PART_PTR(part), which); return;
-        case 0x3944: part_flip_scissors(PART_PTR(part)); return;
-        case 0x41bb: part_flip_seesaw(PART_PTR(part)); return;
-        case 0x4a22: part_flip_windmill(PART_PTR(part)); return;
+        case 0x27b6: part_flip_ramp(part); return;
+        case 0x2fba: part_flip_mouse_cage(part); return;
+        case 0x03d2: part_flip_bellow(part); return;
+        case 0x06c6: part_flip_boxing_glove(part); return;
+        case 0x0be9: part_flip_cannon(part); return;
+        case 0x0f3d: part_flip_pokey(part); return;
+        case 0x12fc: part_flip_dynamite(part); return;
+        case 0x149b: part_flip_motor(part); return;
+        case 0x15fc: part_flip_electric_plug(part); return;
+        case 0x19fa: part_flip_hook(part); return;
+        case 0x1bbd: part_flip_fan(part); return;
+        case 0x1da8: part_flip_flashlight(part); return;
+        case 0x2412: part_flip_gun(part); return;
+        case 0x2999: part_flip_jack_in_the_box(part); return;
+        case 0x2bc5: part_flip_light(part); return;
+        case 0x2e0c: part_flip_monkey(part); return;
+        case 0x31af: part_flip_magnifying_glass(part); return;
+        case 0x33e5: part_flip_dynamite_plunger(part); return;
+        case 0x35c7: part_flip_mort_the_mouse(part); return;
+        case 0x37e5: part_flip_corner_pipe(part, which); return;
+        case 0x3944: part_flip_scissors(part); return;
+        case 0x41bb: part_flip_seesaw(part); return;
+        case 0x4a22: part_flip_windmill(part); return;
         default: break;
         }
     }
@@ -1447,7 +1447,7 @@ uint16_t call_part_drive(struct far_ptr h,
         return part_drive_172c(h.off, p1, p2, p3, p4, p5, p6, p7);
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && h.off == 0x02b5)
-        return part_hook_no(dg_off(dgroup, p1));
+        return part_hook_no(p1);
 
     {
         static char msg[64];
@@ -1464,11 +1464,11 @@ uint16_t call_part_drive(struct far_ptr h,
  * +0x22. Both live in segment 172c or are the do-nothing `retf` in segment
  * 0000, and both take the part and answer a word, so one helper serves.
  */
-uint16_t call_part_hook(struct far_ptr h, uint16_t part,
+uint16_t call_part_hook(struct far_ptr h, struct part *part,
                         const char *what)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
-        return part_hook_172c(h.off, PART_PTR(part));
+        return part_hook_172c(h.off, part);
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
         switch (h.off) {
@@ -1496,10 +1496,10 @@ uint16_t call_part_hook(struct far_ptr h, uint16_t part,
  * pointer at +0x2a of its kind's record; C cannot call one, so the dispatch is
  * by value, as everywhere else the port meets a guest function pointer.
  */
-void call_part_setup(struct far_ptr h, uint16_t part)
+void call_part_setup(struct far_ptr h, struct part *part)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
-        part_setup(h.off, PART_PTR(part));
+        part_setup(h.off, part);
         return;
     }
 
@@ -1526,14 +1526,14 @@ void call_part_setup(struct far_ptr h, uint16_t part)
  * the original reaches it through a far pointer in a table, relocated into
  * place by the loader, and the port has no way to call one.
  */
-uint16_t call_part_init(struct far_ptr h, uint16_t part)
+uint16_t call_part_init(struct far_ptr h, struct part *part)
 {
     /*
      * Every one of these is in segment 0dff, so the offset alone identifies it
      * and `part_init` finds it by its image address.
      */
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0xdff0) >> 4))
-        return part_init((uint32_t)0xdff0 + h.off, PART_PTR(part));
+        return part_init((uint32_t)0xdff0 + h.off, part);
 
     {
         static char what[64];

@@ -2438,7 +2438,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
  * ES from the first load while doing so. That is only a compiler making the
  * same address three times, not three different pointers.
  */
-uint32_t voice_playing(struct far_ptr rec)
+struct far_ptr voice_playing(struct far_ptr rec)
 {
     int16_t i;
 
@@ -2450,10 +2450,10 @@ uint32_t voice_playing(struct far_ptr rec)
             continue;
         if (v[0x158] == 0xff)
             continue;
-        return ((uint32_t)SOUND_VOICES.voice[i].seg << 16) | SOUND_VOICES.voice[i].off;
+        return SOUND_VOICES.voice[i];
     }
 
-    return 0;
+    return FAR_NULL;
 }
 
 /*
@@ -2907,13 +2907,13 @@ uint16_t free_voice_records(void)
  * Answers the voice as a far pointer, or 0 if the sequence was null or every
  * voice was busy.
  */
-uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
-                             uint16_t byte_arg)
+struct far_ptr start_on_free_voice(struct far_ptr rec, uint16_t index,
+                                   uint16_t byte_arg)
 {
     int16_t i;
 
     if (far_eq(rec, FAR_NULL))
-        return 0;
+        return FAR_NULL;
 
     for (i = 0; i < 7; i++) {
         struct far_ptr v = SOUND_VOICES.voice[i];
@@ -2943,10 +2943,10 @@ uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
         }
 
         start_sequence_far(v, 0);
-        return ((uint32_t)v.seg << 16) | v.off;
+        return v;
     }
 
-    return 0;
+    return FAR_NULL;
 }
 
 /*
@@ -3034,11 +3034,10 @@ uint16_t sound_callback(uint16_t ax, uint8_t * si)
  */
 void follow_then_tick(struct far_ptr rec, int16_t count)
 {
-    uint32_t p = follow_far_chain(rec, count);
+    struct far_ptr p = follow_far_chain(rec, count);
 
-    if (p != 0)
-        retire_and_tick_far((struct far_ptr){ (uint16_t)p,
-                                              (uint16_t)(p >> 16) });
+    if (!far_eq(p, FAR_NULL))
+        retire_and_tick_far(p);
 }
 
 /*
@@ -3344,20 +3343,19 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
  * the sequence is started with the flag set - so `start_sequence` will write 2
  * to +0x159 and mark every channel as needing its own voice.
  */
-uint32_t load_and_start_sequence(struct far_ptr rec, int16_t count,
-                                 uint16_t volume)
+struct far_ptr load_and_start_sequence(struct far_ptr rec, int16_t count,
+                                       uint16_t volume)
 {
-    uint32_t p = follow_far_chain(rec, count);
-    struct far_ptr r = { (uint16_t)p, (uint16_t)(p >> 16) };
+    struct far_ptr r = follow_far_chain(rec, count);
 
     if (far_eq(r, FAR_NULL))
-        return 0;
+        return FAR_NULL;
 
     *MK_FP(r.seg, (uint16_t)(r.off + 0x15e)) = (uint8_t)volume;
 
     start_sequence_far(r, 1);
 
-    return ((uint32_t)r.seg << 16) | r.off;
+    return r;
 }
 
 /*
@@ -3399,7 +3397,7 @@ void stop_voice_playing(struct far_ptr rec)
  * pointer is compared with zero without two compares. It answers the pointer
  * it stopped on, in DX:AX.
  */
-uint32_t follow_far_chain(struct far_ptr rec, int16_t count)
+struct far_ptr follow_far_chain(struct far_ptr rec, int16_t count)
 {
     for (;;) {
         if (far_eq(rec, FAR_NULL))
@@ -3410,7 +3408,7 @@ uint32_t follow_far_chain(struct far_ptr rec, int16_t count)
                                 FARU16(rec.seg, rec.off + 0x174) };
         count--;
     }
-    return ((uint32_t)rec.seg << 16) | rec.off;
+    return rec;
 }
 
 /*
@@ -3623,14 +3621,12 @@ uint16_t remove_and_free_records(int16_t selector)
 uint16_t stop_sequences(int16_t selector)
 {
     struct far_ptr fp;
-    uint32_t p;
 
     if (selector == -1 || selector == 0) {
-        p = next_matching_record(-1);
+        fp = next_matching_record(-1);
         for (;;) {
             uint8_t *rec;
 
-            fp = (struct far_ptr){ (uint16_t)p, (uint16_t)(p >> 16) };
             if (far_eq(fp, FAR_NULL))
                 break;
 
@@ -3651,9 +3647,9 @@ uint16_t stop_sequences(int16_t selector)
                 rec = MK_FP(fp.seg, fp.off);
                 *(uint16_t *)(rec + 0x10) = 0;
                 *(uint16_t *)(rec + 0xe) = 0;
-                p = 0;
+                fp = FAR_NULL;
             } else {
-                p = next_matching_record(-3);
+                fp = next_matching_record(-3);
             }
         }
 
@@ -3662,26 +3658,24 @@ uint16_t stop_sequences(int16_t selector)
     }
 
     if (selector == -1 || selector == 0 || selector == -2) {
-        p = next_matching_record(-2);
+        fp = next_matching_record(-2);
         for (;;) {
             uint8_t *rec;
 
-            fp = (struct far_ptr){ (uint16_t)p, (uint16_t)(p >> 16) };
             if (far_eq(fp, FAR_NULL))
                 break;
 
             rec = MK_FP(fp.seg, fp.off);
             *(uint16_t *)(rec + 0x12) &= 0xffef;
-            p = next_matching_record(-3);
+            fp = next_matching_record(-3);
         }
 
         stop_all_voices();
         return 1;
     }
 
-    p = next_matching_record(selector);
-    fp = (struct far_ptr){ (uint16_t)p, (uint16_t)(p >> 16) };
-    if (p == 0)
+    fp = next_matching_record(selector);
+    if (far_eq(fp, FAR_NULL))
         return 0;
 
     {
@@ -3810,7 +3804,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     }
 
 search:
-    if (id > 0 && next_matching_record(id) != 0) {
+    if (id > 0 && !far_eq(next_matching_record(id), FAR_NULL)) {
         r = DG4A82.file;
         goto out;
     }
@@ -4021,13 +4015,13 @@ uint16_t start_sequence_by_id(int16_t id)
             seq[0x15d] = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
             seq[0x15c] = rec[0xc];
 
-            if (load_and_start_sequence(b, 0, 0x7f) == 0)
+            if (far_eq(load_and_start_sequence(b, 0, 0x7f), FAR_NULL))
                 return 0;
             return 1;
         }
     }
 
-    if (voice_playing(*(struct far_ptr *)(rec + 4)) != 0)
+    if (!far_eq(voice_playing(*(struct far_ptr *)(rec + 4)), FAR_NULL))
         return 1;
 
     if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
@@ -4075,7 +4069,7 @@ uint16_t start_sequence_by_id(int16_t id)
  * null naturally, the identifier walk writes zeros explicitly on the paths that
  * give up early.
  */
-uint32_t next_matching_record(int16_t selector)
+struct far_ptr next_matching_record(int16_t selector)
 {
     int16_t expect = 0, mask = 1;
 
@@ -4100,7 +4094,7 @@ uint32_t next_matching_record(int16_t selector)
         /* Match on the identifier at +0xa. */
         if ((SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0) || selector == -3) {
             SOUND_TICK_WAIT.cursor = FAR_NULL;
-            return 0;
+            return FAR_NULL;
         }
 
         for (;;) {
@@ -4114,7 +4108,7 @@ uint32_t next_matching_record(int16_t selector)
             SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
             SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
         }
-        return ((uint32_t)SOUND_TICK_WAIT.cursor.seg << 16) | SOUND_TICK_WAIT.cursor.off;
+        return SOUND_TICK_WAIT.cursor;
     }
 
     while (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
@@ -4126,7 +4120,7 @@ uint32_t next_matching_record(int16_t selector)
         SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
     }
 
-    return ((uint32_t)SOUND_TICK_WAIT.cursor.seg << 16) | SOUND_TICK_WAIT.cursor.off;
+    return SOUND_TICK_WAIT.cursor;
 }
 
 /*

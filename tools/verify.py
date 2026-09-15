@@ -821,7 +821,7 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.voice_playing(FarPtr(a[0], a[1]))),
+        call=lambda lib, a: _far(lib.voice_playing(FarPtr(a[0], a[1]))),
     ),
     "follow_then_tick": dict(
         addr=0x289BA,
@@ -962,7 +962,7 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("index", 8), ("byte_arg", 10)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _pair(lib.start_on_free_voice(
+        call=lambda lib, a: _far(lib.start_on_free_voice(
             FarPtr(a[0], a[1]), ctypes.c_uint16(a[2]),
             ctypes.c_uint16(a[3]))),
     ),
@@ -1063,7 +1063,7 @@ ROUTINES = {
         args=[("adapter", 4), ("file", 6)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _pair(lib.load_video_driver(
+        call=lambda lib, a: _far(lib.load_video_driver(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
             dgp(lib, a[1]))),
     ),
@@ -1118,7 +1118,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1, 4],
         # AX:DX is the pointer and CX:BX the count, one long.
-        call=lambda lib, a: _pair(lib.huge_add_positive(
+        call=lambda lib, a: _far(lib.huge_add_positive(
             FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]))),
     ),
     "install_divide_trap": dict(
@@ -3394,7 +3394,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: _pair(lib.vm_bitmap_list_size(
-            ctypes.c_uint16(a[0]), dgp(lib, a[1]))),
+            dgp(lib, a[0]), dgp(lib, a[1]))),
     ),
     "vm_buffer_size": dict(
         overlay=0x138E,
@@ -5611,7 +5611,7 @@ def declare_restypes(lib):
         getattr(lib, fn).restype = ctypes.c_int16
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
-    lib.follow_far_chain.restype = ctypes.c_uint32
+    lib.follow_far_chain.restype = FarPtr
     lib.points_within_140.restype = ctypes.c_int16
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
@@ -5734,12 +5734,12 @@ def declare_restypes(lib):
     lib.huge_add.restype = FarPtr
     lib.huge_post_add.restype = FarPtr
     lib.vm_init.restype = ctypes.c_uint16
-    lib.load_video_driver.restype = ctypes.c_uint32
+    lib.load_video_driver.restype = FarPtr
     lib.detect_adapter.restype = ctypes.c_uint16
     lib.read_bmp_info.restype = ctypes.c_uint16
     lib.table_618a_in_use.restype = ctypes.c_uint16
     lib.mouse_move_to.restype = ctypes.c_uint16
-    lib.huge_add_positive.restype = ctypes.c_uint32
+    lib.huge_add_positive.restype = FarPtr
     lib.restore_file_record_from.restype = ctypes.c_int16
     lib.read_tim_cfg.restype = ctypes.c_uint16
     lib.string_concat.restype = ctypes.c_uint16
@@ -5760,7 +5760,7 @@ def declare_restypes(lib):
     lib.start_sequence_by_id.restype = ctypes.c_uint16
     lib.alloc_voice_records.restype = ctypes.c_uint16
     lib.stop_sequences.restype = ctypes.c_uint16
-    lib.voice_playing.restype = ctypes.c_uint32
+    lib.voice_playing.restype = FarPtr
     lib.open_sound_file.restype = ctypes.c_uint16
     lib.read_record.restype = ctypes.c_uint16
     lib.start_sound.restype = ctypes.c_uint16
@@ -5774,7 +5774,7 @@ def declare_restypes(lib):
     lib.read_sound_records.restype = FarPtr
     lib.insert_by_key.restype = FarPtr
     lib.free_voice_records.restype = ctypes.c_uint16
-    lib.start_on_free_voice.restype = ctypes.c_uint32
+    lib.start_on_free_voice.restype = FarPtr
     lib.set_master_level_ok.restype = ctypes.c_uint16
     lib.install_driver.restype = ctypes.c_uint16
     lib.configure_driver.restype = ctypes.c_uint16
@@ -5799,10 +5799,10 @@ def declare_restypes(lib):
     lib.midi_skip_event.restype = ctypes.c_uint16
     lib.skip_unknown_event.restype = ctypes.c_uint16
     lib.midi_meta_event.restype = ctypes.c_uint16
-    lib.next_matching_record.restype = ctypes.c_uint32
+    lib.next_matching_record.restype = FarPtr
     lib.alloc_for_kind.restype = FarPtr
     lib.create_sequence.restype = FarPtr
-    lib.load_and_start_sequence.restype = ctypes.c_uint32
+    lib.load_and_start_sequence.restype = FarPtr
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_bitmap_list_size.restype = ctypes.c_uint32
@@ -6224,7 +6224,7 @@ def _follow_far_chain(lib, a):
     r = lib.follow_far_chain(FarPtr(a[0], a[1]),
                              ctypes.c_int16(a[2] if a[2] < 0x8000
                                             else a[2] - 0x10000))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def _normalise_far_ptr_far(lib, a):
@@ -6247,7 +6247,7 @@ def _load_and_start_sequence(lib, a):
         FarPtr(a[0], a[1]),
         ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
         ctypes.c_uint16(a[3]))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def _signed32(v):
@@ -6300,7 +6300,7 @@ def _alloc_for_kind(lib, a):
 def _next_matching_record(lib, a):
     r = lib.next_matching_record(ctypes.c_int16(
         a[0] if a[0] < 0x8000 else a[0] - 0x10000))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def _vm_buffer_size(lib, a):

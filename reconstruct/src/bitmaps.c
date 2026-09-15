@@ -649,7 +649,7 @@ uint16_t load_bitmaps(char *name)
         struct far_ptr fp2;
 
 
-        r = vm_bitmap_list_size(dg_off(dgroup, list_at),
+        r = vm_bitmap_list_size(list_at,
                                 (uint8_t *)&size_at);
         block = dos_alloc_bytes(r, 0, 0).ptr;
         if (far_eq(block, FAR_NULL))

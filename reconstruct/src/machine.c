@@ -368,32 +368,32 @@ static int16_t abs16(int16_t v)
  * these rather than leaving the slot empty, so every dispatch through the table
  * is a real call.
  */
-uint16_t part_hook_yes(uint16_t part)
+uint16_t part_hook_yes(struct part *part)
 {
     (void)part;
     return 1;
 }
 
 /* 0x002a1 */
-void part_hook_none_2a1(uint16_t part)
+void part_hook_none_2a1(struct part *part)
 {
     (void)part;
 }
 
 /* 0x002a6 */
-void part_hook_none_2a6(uint16_t part)
+void part_hook_none_2a6(struct part *part)
 {
     (void)part;
 }
 
 /* 0x002ab */
-void part_hook_none_2ab(uint16_t part)
+void part_hook_none_2ab(struct part *part)
 {
     (void)part;
 }
 
 /* 0x002b0 */
-void part_hook_none_2b0(uint16_t part)
+void part_hook_none_2b0(struct part *part)
 {
     (void)part;
 }
@@ -403,7 +403,7 @@ void part_hook_none_2b0(uint16_t part)
  *
  * The other half of the pair: answers 0.
  */
-uint16_t part_hook_no(uint16_t part)
+uint16_t part_hook_no(struct part *part)
 {
     (void)part;
     return 0;
@@ -1922,7 +1922,7 @@ void add_mass_capped(struct part *obj, struct part *other)
  */
 void part_step(struct part *part)
 {
-    call_part_hook(PARTKIND_PTR(part->kind)->step, dg_off(dgroup, part), "step");
+    call_part_hook(PARTKIND_PTR(part->kind)->step, part, "step");
 }
 
 /*
@@ -1942,7 +1942,7 @@ uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t 
  */
 uint16_t part_hit(uint16_t kind, uint16_t part)
 {
-    return call_part_hook(PARTKIND_PTR(kind)->hit, part, "hit");
+    return call_part_hook(PARTKIND_PTR(kind)->hit, PART_PTR(part), "hit");
 }
 
 /*
@@ -5842,13 +5842,13 @@ uint16_t part_flip_options(struct part *part)
         if (DG4E67.word_4e69 == 9) {
             di |= 4;
         } else {
-            call_part_flip(kind->flip, dg_off(dgroup, part), 1);
+            call_part_flip(kind->flip, part, 1);
             part->word_94 = part->flags_08;
 
             if (object_overlaps_any(part) == 0)
                 di |= 4;
 
-            call_part_flip(kind->flip, dg_off(dgroup, part), 1);
+            call_part_flip(kind->flip, part, 1);
             part->word_94 = part->flags_08;
         }
     }
@@ -5857,13 +5857,13 @@ uint16_t part_flip_options(struct part *part)
         if (DG4E67.word_4e69 == 9) {
             di |= 8;
         } else {
-            call_part_flip(kind->flip, dg_off(dgroup, part), 2);
+            call_part_flip(kind->flip, part, 2);
             part->word_94 = part->flags_08;
 
             if (object_overlaps_any(part) == 0)
                 di |= 8;
 
-            call_part_flip(kind->flip, dg_off(dgroup, part), 2);
+            call_part_flip(kind->flip, part, 2);
             part->word_94 = part->flags_08;
         }
     }
@@ -6118,7 +6118,7 @@ void rehome_carried_part(void)
         PART_PTR(old)->link_ptr[PART_PTR(part)->byte_7e + 4] = 0;
         PART_PTR(part)->link_ptr[4] = 0;
 
-        call_part_setup(PARTKIND_PTR(PART_PTR(old)->kind)->setup, old);
+        call_part_setup(PARTKIND_PTR(PART_PTR(old)->kind)->setup, PART_PTR(old));
         PART_PTR(old)->word_90 = PART_PTR(old)->form;
     }
 
@@ -6127,7 +6127,7 @@ void rehome_carried_part(void)
         PART_PTR(part)->link_ptr[4] = di;
         PART_PTR(part)->byte_7e = slot;
 
-        call_part_setup(PARTKIND_PTR(PART_PTR(di)->kind)->setup, di);
+        call_part_setup(PARTKIND_PTR(PART_PTR(di)->kind)->setup, PART_PTR(di));
         PART_PTR(di)->word_90 = PART_PTR(di)->form;
     }
 }
@@ -6909,10 +6909,10 @@ void sub_051cb(struct part *part)
             part->link_ptr[i] = 0;
             PART_PTR(other)->link_ptr[4] = 0;
 
-            call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, other);
+            call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, PART_PTR(other));
         }
 
-        call_part_setup(PARTKIND_PTR(part->kind)->setup, dg_off(dgroup, part));
+        call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
 
         part->word_90 = part->form;
         return;
@@ -6925,9 +6925,9 @@ void sub_051cb(struct part *part)
     PART_PTR(other)->link_ptr[part->byte_7e + 4] = 0;
     part->link_ptr[4] = 0;
 
-    call_part_setup(PARTKIND_PTR(part->kind)->setup, dg_off(dgroup, part));
+    call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
 
-    call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, other);
+    call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, PART_PTR(other));
 
     PART_PTR(other)->word_90 = PART_PTR(other)->form;
 }
@@ -9531,7 +9531,7 @@ void reset_machine(void)
                     PART_PTR(si)->link_ptr[v2 + 2];
         }
 
-        call_part_setup(PARTKIND_PTR(PART_PTR(si)->kind)->setup, si);
+        call_part_setup(PARTKIND_PTR(PART_PTR(si)->kind)->setup, PART_PTR(si));
     }
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;

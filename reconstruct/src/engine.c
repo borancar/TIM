@@ -4594,7 +4594,7 @@ uint16_t load_bitmap_list(char *name)
     if (read_bmp_info(si, &count_at, &list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size(dg_off(dgroup, list_at),
+    r = vm_bitmap_list_size(list_at,
                             (uint8_t *)&size_at);
     want = r;
 
@@ -5896,7 +5896,7 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
  * two megabytes it is. Transcribed as the rotate it is rather than as the
  * multiply it stands for.
  */
-uint32_t huge_add_positive(struct far_ptr p, uint32_t delta)
+struct far_ptr huge_add_positive(struct far_ptr p, uint32_t delta)
 {
     uint16_t lo = (uint16_t)delta;              /* BX */
     uint16_t hi = (uint16_t)(delta >> 16);      /* CX */
@@ -5910,7 +5910,7 @@ uint32_t huge_add_positive(struct far_ptr p, uint32_t delta)
        the count here rather than shifted as a whole. */
     seg = (uint16_t)(seg + ((hi >> 5) | ((hi & 0xf) << 12)));
 
-    return ((uint32_t)seg << 16) | (uint16_t)sum;
+    return (struct far_ptr){ (uint16_t)sum, seg };
 }
 
 /*
@@ -6579,7 +6579,7 @@ ask_dcc:
  * The file may arrive as a handle or a name, and one this routine opened is
  * closed again; one it was handed is left alone.
  */
-uint32_t load_video_driver(int16_t adapter, char *name)
+struct far_ptr load_video_driver(int16_t adapter, char *name)
 {
     FILE *file = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
@@ -6623,7 +6623,7 @@ uint32_t load_video_driver(int16_t adapter, char *name)
     }
 
     if (di == 0)
-        return 0;
+        return FAR_NULL;
 
     /* `si` runs from 1 here, and 0x48ff is `0x4901 - 2` - the compiler
        folding that first index into the base, so entry 0 is not a tag. */
@@ -6631,7 +6631,7 @@ uint32_t load_video_driver(int16_t adapter, char *name)
                     (const char *)dg_ptr(dgroup, ADAPTER_TAGS[si]));
 
     if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == -1)
-        return 0;
+        return FAR_NULL;
 
     {
         uint32_t sz = file_record_size(di);
@@ -6640,7 +6640,7 @@ uint32_t load_video_driver(int16_t adapter, char *name)
     }
 
     if (handle < 0)
-        return 0;
+        return FAR_NULL;
 
     {
         int32_t sz = resource_size(handle);
@@ -6658,7 +6658,7 @@ uint32_t load_video_driver(int16_t adapter, char *name)
     }
 
     if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
-        return 0;
+        return FAR_NULL;
 
     read_resource(handle, MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off),
                   (uint16_t)len);
@@ -6667,7 +6667,7 @@ uint32_t load_video_driver(int16_t adapter, char *name)
     if (opened != 0)
         close_file_record(di);
 
-    return ((uint32_t)ENGINE_DRIVER_BLOCK.block.seg << 16) | ENGINE_DRIVER_BLOCK.block.off;
+    return ENGINE_DRIVER_BLOCK.block;
 }
 
 /*
@@ -6734,16 +6734,16 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.pixel_shift = (uint8_t)al;
 
     if (al != 0) {
-        uint32_t p = load_video_driver((int16_t)al, (char *)file);
+        struct far_ptr p = load_video_driver((int16_t)al, (char *)file);
 
-        if ((uint16_t)(p >> 16) == 0) {
+        /* Only DX is tested. */
+        if (p.seg == 0) {
             VMDS.pixel_shift = 0;
         } else {
             uint16_t seg;
             int16_t i;
 
-            DG48DA.driver.off = (int16_t)p;
-            DG48DA.driver.seg = (int16_t)(p >> 16);
+            DG48DA.driver = p;
 
             vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
             seg = DG48DA.driver.seg;

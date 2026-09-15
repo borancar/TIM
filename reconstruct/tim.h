@@ -105,12 +105,12 @@
  * established - see STATUS.md.
  */
 
-uint16_t part_hook_yes(uint16_t part);              /* 0x00297 */
-void     part_hook_none_2a1(uint16_t part);         /* 0x002a1 */
-void     part_hook_none_2a6(uint16_t part);         /* 0x002a6 */
-void     part_hook_none_2ab(uint16_t part);         /* 0x002ab */
-void     part_hook_none_2b0(uint16_t part);         /* 0x002b0 */
-uint16_t part_hook_no(uint16_t part);               /* 0x002b5 */
+uint16_t part_hook_yes(struct part *part);              /* 0x00297 */
+void     part_hook_none_2a1(struct part *part);         /* 0x002a1 */
+void     part_hook_none_2a6(struct part *part);         /* 0x002a6 */
+void     part_hook_none_2ab(struct part *part);         /* 0x002ab */
+void     part_hook_none_2b0(struct part *part);         /* 0x002b0 */
+uint16_t part_hook_no(struct part *part);               /* 0x002b5 */
 
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
 void sub_002be(void);                               /* 0x002be */
@@ -189,7 +189,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                             uint16_t mode);             /* 0x20185 */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                         uint16_t mode);                 /* 0x24e9a */
-uint32_t vm_bitmap_list_size(uint16_t list,
+uint32_t vm_bitmap_list_size(bmp_ptr_t *list,
                              uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
@@ -256,7 +256,7 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 void init_sequence_params(uint16_t es, uint16_t ax);  /* 0x28305 */
 
 /* Next record matching a selector, as a far pointer in DX:AX. */
-uint32_t next_matching_record(int16_t selector);    /* 0x29966 */
+struct far_ptr next_matching_record(int16_t selector);    /* 0x29966 */
 
 /* Handle one pitch bend event; answers the advanced stream cursor. */
 uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
@@ -281,8 +281,8 @@ void start_sequence_far(struct far_ptr rec,
                         uint16_t flag);             /* 0x28480 */
 
 /* Locate a sequence, set its volume, and start it. */
-uint32_t load_and_start_sequence(struct far_ptr rec, int16_t count,
-                                 uint16_t volume);  /* 0x29034 */
+struct far_ptr load_and_start_sequence(struct far_ptr rec, int16_t count,
+                                       uint16_t volume);  /* 0x29034 */
 
 /* Start a sequence: reset it, read its header, place it in the table. */
 void start_sequence(uint16_t es, uint16_t ax, uint16_t cx);  /* 0x26783 */
@@ -324,7 +324,7 @@ void set_master_level(uint8_t cl);                  /* 0x26721 */
 void retire_and_tick(struct far_ptr rec);                         /* 0x26a57 */
 
 /* The sound module's own routines over that driver, in address order. */
-uint32_t voice_playing(struct far_ptr rec);    /* 0x287ad */
+struct far_ptr voice_playing(struct far_ptr rec);    /* 0x287ad */
 uint16_t alloc_voice_records(void);                    /* 0x28800 */
 void follow_then_tick(struct far_ptr rec,
                       int16_t count);                  /* 0x289ba */
@@ -351,8 +351,8 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
 struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node);
 void stop_voice_playing(struct far_ptr rec);   /* 0x290ab */
 uint16_t free_voice_records(void);                     /* 0x29106 */
-uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
-                             uint16_t byte_arg);       /* 0x29152 */
+struct far_ptr start_on_free_voice(struct far_ptr rec, uint16_t index,
+                                   uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(struct far_ptr cb);   /* 0x2928c */
 void stop_sound(void);                                 /* 0x292f4 */
@@ -983,7 +983,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
 void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
 void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
-void free_part_list(uint16_t si);                       /* 0x14d71 */
+void free_part_list(struct part *si);                       /* 0x14d71 */
 uint16_t load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x11db4 */
 void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */
@@ -1305,7 +1305,7 @@ void goal_test_puzzle_72(void);                            /* 0x02322 */
 void goal_test_puzzle_59(void);                            /* 0x02351 */
 void goal_test_puzzle_49(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
-void call_part_flip(struct far_ptr h, uint16_t part,
+void call_part_flip(struct far_ptr h, struct part *part,
                     uint16_t which);
 uint16_t find_belt_anchor(uint8_t * out_end, uint16_t rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
@@ -1789,7 +1789,7 @@ int16_t read_into_huge(struct far_ptr dst, uint16_t count);                /* 0x
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
-uint32_t load_video_driver(int16_t adapter, char *name); /* 0x22efd */
+struct far_ptr load_video_driver(int16_t adapter, char *name); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  FILE *file);                    /* 0x22483 */
 /*
@@ -1830,8 +1830,8 @@ uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
-uint32_t huge_add_positive(struct far_ptr p,
-                           uint32_t delta);               /* 0x22190 */
+struct far_ptr huge_add_positive(struct far_ptr p,
+                                 uint32_t delta);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
@@ -1913,9 +1913,9 @@ void link_record_into_buckets(struct part *rec);        /* 0x166ef */
 /* ---------------------------------------------------------- segment 2619 */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 
-/* Follow a chain of far pointers; answers seg:off packed into 32 bits. */
-uint32_t follow_far_chain(struct far_ptr rec,
-                          int16_t count);           /* 0x2907b */
+/* Follow a chain of far pointers; answers the one it stopped on. */
+struct far_ptr follow_far_chain(struct far_ptr rec,
+                                int16_t count);           /* 0x2907b */
 
 /* Scale one byte by another and halve the range. */
 uint8_t scale_byte_pair(uint8_t cl, uint8_t dl);    /* 0x282cb */

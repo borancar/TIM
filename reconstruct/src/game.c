@@ -3684,7 +3684,7 @@ void show_message_box(const char *title, char *body)
  */
 static void carried_part_resized(struct part *part, struct part_kind *kind)
 {
-    call_part_hook(kind->settle, dg_off(dgroup, part), "settle");
+    call_part_hook(kind->settle, part, "settle");
     place_object_for_draw(part);
     mark_needs_refile(part, 2);
     mark_joined_shapes(part, 3);
@@ -4111,7 +4111,7 @@ void flip_carried_end_1(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    call_part_flip(kind->flip, part, 1);
+    call_part_flip(kind->flip, PART_PTR(part), 1);
     PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
 }
 
@@ -4127,7 +4127,7 @@ void flip_carried_end_2(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    call_part_flip(kind->flip, part, 2);
+    call_part_flip(kind->flip, PART_PTR(part), 2);
     PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
 }
 
@@ -4183,7 +4183,7 @@ void run_drag_frame(void)
         PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
         PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
 
-        call_part_hook(kind->settle, part, "settle");
+        call_part_hook(kind->settle, PART_PTR(part), "settle");
         place_object_for_draw(PART_PTR(part));
         mark_joined_shapes(PART_PTR(part), 3);
         mark_part_shapes(PART_PTR(part), 3);
@@ -4242,9 +4242,9 @@ int16_t drag_carried_part_first(void)
         PART_PTR(part)->set_size.width = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            call_part_hook(kind->settle, PART_PTR(part), "settle");
             place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, part);
+            call_part_setup(kind->setup, PART_PTR(part));
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
             PART_PTR(part)->pos[0].x =
@@ -4304,9 +4304,9 @@ int16_t settle_carried_part_first(void)
         PART_PTR(part)->set_size.width = (uint16_t)si;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            call_part_hook(kind->settle, PART_PTR(part), "settle");
             place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, part);
+            call_part_setup(kind->setup, PART_PTR(part));
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
             PART_PTR(part)->set_size.width =
@@ -4375,9 +4375,9 @@ int16_t drag_carried_part_pair(void)
         PART_PTR(part)->set_size.height = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            call_part_hook(kind->settle, PART_PTR(part), "settle");
             place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, part);
+            call_part_setup(kind->setup, PART_PTR(part));
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
             PART_PTR(part)->pos[0].y =
@@ -4452,9 +4452,9 @@ int16_t settle_carried_part(void)
         PART_PTR(part)->set_size.height = (uint16_t)y;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            call_part_hook(kind->settle, PART_PTR(part), "settle");
             place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, part);
+            call_part_setup(kind->setup, PART_PTR(part));
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
             PART_PTR(part)->set_size.height =
@@ -6064,7 +6064,7 @@ void read_record_fields(FILE *file, struct part *rec)
         rec->points_ptr =
             heap_calloc_far(rec->point_count, 4);
 
-    call_part_setup(PARTKIND_PTR(rec->kind)->setup, dg_off(dgroup, rec));
+    call_part_setup(PARTKIND_PTR(rec->kind)->setup, rec);
 }
 
 /*
@@ -7880,9 +7880,9 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(DG50D3.parts_bin.next_ptr);
-    free_part_list(DG521B.placed_parts.next_ptr);
-    free_part_list(DG5179.moving_parts.next_ptr);
+    free_part_list(PART_PTR(DG50D3.parts_bin.next_ptr));
+    free_part_list(PART_PTR(DG521B.placed_parts.next_ptr));
+    free_part_list(PART_PTR(DG5179.moving_parts.next_ptr));
 
     DG50D3.parts_bin.next_ptr = 0;
     DG5179.moving_parts.next_ptr = 0;
@@ -7896,12 +7896,14 @@ void free_all_lists(void)
  * *before* the record is freed, which is the only way to walk a list you are
  * destroying.
  */
-void free_part_list(uint16_t si)
+void free_part_list(struct part *si)
 {
-    while (si != 0) {
-        uint16_t next = PART_PTR(si)->next_ptr;
+    /* `or si,si` at 0x14d8c: the list ends on an offset of 0, which as a
+       pointer is `PART_NONE` and never NULL. */
+    while (si != PART_NONE) {
+        struct part *next = PART_PTR(si->next_ptr);
 
-        free_part(PART_PTR(si));
+        free_part(si);
         si = next;
     }
 }
