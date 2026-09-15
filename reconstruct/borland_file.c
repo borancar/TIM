@@ -142,6 +142,18 @@ _Static_assert(sizeof(struct borland_nfile) == 0x02, "DGROUP 0x4d04..0x4d06, 0x0
 DG_ASSERT_AT(struct borland_nfile, word_4d04, 0x00);
 
 /*
+ * **Borland's handle flags**, one word per DOS handle, DGROUP 0x4d06..0x4d2e,
+ * 0x28 bytes. Twenty, which is `_nfile` - `BORLAND_NFILE`, 20 in the image - and
+ * exactly the run to the open-mode word at 0x4d2e.
+ */
+struct borland_handle_flags {
+    uint16_t  flags[0x14];        /* +0x00 [0x28] */
+} __attribute__((packed));
+
+#define BORLAND_HANDLE_FLAGS (*(struct borland_handle_flags *)(dgroup + 0x4d06))
+_Static_assert(sizeof(struct borland_handle_flags) == 0x28, "twenty handles end at BORLAND_IO_MODES");
+
+/*
  * **Not established**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
  */
 struct borland_io_modes {
@@ -287,7 +299,7 @@ int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count)
 {
     int16_t got;
 
-    if ((HANDLE_FLAGS[handle] & 2) != 0) {
+    if ((BORLAND_HANDLE_FLAGS.flags[handle] & 2) != 0) {
         not_transcribed("__IOerror after a read refused by the handle flags");
         return -1;
     }
@@ -315,7 +327,7 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
 {
     int32_t pos;
 
-    HANDLE_FLAGS[handle] = (int16_t)(HANDLE_FLAGS[handle] & 0xfdff);
+    BORLAND_HANDLE_FLAGS.flags[handle] = (int16_t)(BORLAND_HANDLE_FLAGS.flags[handle] & 0xfdff);
 
     pos = io_dos_lseek(handle, (int32_t)(((uint32_t)hi << 16) | lo), whence);
     if (pos < 0) {
@@ -358,7 +370,7 @@ void setup_streams(void)
     uint16_t dx;
 
     for (dx = 5; dx < BORLAND_NFILE.word_4d04; dx++) {
-        HANDLE_FLAGS[dx] = 0;
+        BORLAND_HANDLE_FLAGS.flags[dx] = 0;
         BORLAND_STREAMS.streams[dx].fd = 0xff;
         BORLAND_STREAMS.streams[dx].token = dg_off(dgroup, &BORLAND_STREAMS.streams[dx]);
     }
@@ -566,13 +578,13 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
     }
 
     if ((uint16_t)(count + 1) < 2
-        || (HANDLE_FLAGS[handle] & 0x200) != 0)
+        || (BORLAND_HANDLE_FLAGS.flags[handle] & 0x200) != 0)
         return 0;
 
     got = dos_read(handle, dg_ptr(dgroup, buf), count);
 
     if ((uint16_t)(got + 1) < 2
-        || (HANDLE_FLAGS[handle] & 0x4000) == 0)
+        || (BORLAND_HANDLE_FLAGS.flags[handle] & 0x4000) == 0)
         return got;
 
     not_transcribed("0x0da6d's text-mode translation, which \"rb\" never uses");
@@ -932,7 +944,7 @@ int32_t borland_ftell(struct file_rec *file)
 int16_t dos_close(int16_t handle)
 {
     io_dos_close(handle);
-    HANDLE_FLAGS[handle] = 0;
+    BORLAND_HANDLE_FLAGS.flags[handle] = 0;
     return 0;
 }
 
@@ -954,7 +966,7 @@ int16_t close_handle(int16_t handle)
         return -1;
     }
 
-    HANDLE_FLAGS[handle] = 0;
+    BORLAND_HANDLE_FLAGS.flags[handle] = 0;
     return dos_close(handle);
 }
 
@@ -1114,7 +1126,7 @@ int16_t dos_open_named(const char *name, uint16_t flags)
     if (h < 0)
         return io_error(2);               /* DOS 2: file not found */
 
-    HANDLE_FLAGS[h] = (int16_t)((flags & 0xb8ff) | 0x8000);
+    BORLAND_HANDLE_FLAGS.flags[h] = (int16_t)((flags & 0xb8ff) | 0x8000);
     return h;
 }
 
@@ -1271,7 +1283,7 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
 
         handle = (int16_t)((int8_t)file->fd);
 
-        if ((HANDLE_FLAGS[handle] & 0x800) != 0)
+        if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
         if (BORLAND_FPUTC_CHAR.character == '\n' && (file->flags & 0x40) == 0) {
@@ -1357,13 +1369,13 @@ int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
     if ((uint16_t)(count + 1) < 2)
         return 0;
 
-    if ((HANDLE_FLAGS[handle] & 0x800) != 0)
+    if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
         dos_lseek(handle, 0, 0, 2);
 
-    if ((HANDLE_FLAGS[handle] & 0x4000) == 0)
+    if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x4000) == 0)
         return dos_write(handle, buf, count);
 
-    HANDLE_FLAGS[handle] &= (int16_t)0xfdff;
+    BORLAND_HANDLE_FLAGS.flags[handle] &= (int16_t)0xfdff;
 
     {
         uint8_t out[0x82];                  /* [bp-0x88]: 0x80, and the CR LF past it */
@@ -1442,7 +1454,7 @@ int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count)
 {
     int16_t n;
 
-    if ((HANDLE_FLAGS[handle] & 1) != 0)
+    if ((BORLAND_HANDLE_FLAGS.flags[handle] & 1) != 0)
         return io_error(5);             /* DOS 5: access denied */
 
     n = io_dos_write(handle, buf, count);
@@ -1450,7 +1462,7 @@ int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count)
     if (n < 0)
         return io_error(5);
 
-    HANDLE_FLAGS[handle] |= 0x1000;
+    BORLAND_HANDLE_FLAGS.flags[handle] |= 0x1000;
     return n;
 }
 
@@ -1617,7 +1629,7 @@ have_handle:
                                 | ((flags & 0x300) ? 0x1000 : 0));
 
         v |= (uint16_t)((attr & 1) ? 0 : 0x100);
-        HANDLE_FLAGS[h] = (int16_t)v;
+        BORLAND_HANDLE_FLAGS.flags[h] = (int16_t)v;
     }
 
     return h;
@@ -2342,7 +2354,7 @@ uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf)
     if ((file->flags & 0x40) != 0) {
         if (file->bsize == 0) {
             /* Unbuffered. */
-            if ((HANDLE_FLAGS[handle] & 0x800) != 0)
+            if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)
@@ -2356,7 +2368,7 @@ uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf)
             if (((uint16_t)file->level) != 0 && flush_stream(file) != 0)
                 return 0;
 
-            if ((HANDLE_FLAGS[handle] & 0x800) != 0)
+            if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)
@@ -3031,7 +3043,7 @@ int16_t borland_eof(int16_t handle)
     if ((uint16_t)handle >= BORLAND_NFILE.word_4d04)
         return io_error(6);
 
-    if ((HANDLE_FLAGS[handle] & 0x200) != 0)
+    if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x200) != 0)
         return 1;
 
     if ((io_dos_devinfo(handle) & 0x80) != 0)

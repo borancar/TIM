@@ -143,6 +143,17 @@ _Static_assert(sizeof(struct engine_page_hook) == 0x02, "DGROUP 0x3f72..0x3f74, 
 DG_ASSERT_AT(struct engine_page_hook, page_hook, 0x00);
 
 /*
+ * **The base address of each screen row**, DGROUP 0x3f82..0x4342, 0x3c0 bytes:
+ * a word per row of the 480-row screen, which is exactly the run to 0x4342.
+ */
+struct engine_row_base {
+    uint16_t  row[0x1e0];         /* +0x00 [0x3c0] */
+} __attribute__((packed));
+
+#define ENGINE_ROW_BASE (*(struct engine_row_base *)(dgroup + 0x3f82))
+_Static_assert(sizeof(struct engine_row_base) == 0x3c0, "480 rows end at 0x4342");
+
+/*
  * **Not established**, DGROUP 0x4460..0x4466, 0x06 bytes.
  */
 struct engine_pen {
@@ -369,6 +380,18 @@ DG_ASSERT_AT(struct engine_resource_flags, word_57bc, 0x02);
 DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
 
 /*
+ * **The open resource streams**, a near pointer each, DGROUP 0x57c0..0x5888,
+ * 0xc8 bytes. 0x64 is the bound `select_resource` and `open_resource_slot` test,
+ * and a hundred words run exactly to `ENGINE_STREAM` at 0x5888.
+ */
+struct engine_resource_slots {
+    dg_off_t  slot[0x64];         /* +0x00 [0xc8] */
+} __attribute__((packed));
+
+#define ENGINE_RESOURCE_SLOTS (*(struct engine_resource_slots *)(dgroup + 0x57c0))
+_Static_assert(sizeof(struct engine_resource_slots) == 0xc8, "a hundred slots end at ENGINE_STREAM");
+
+/*
  * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8, 0x30 bytes.
  *
  * From `n_bits` on it is the state of Unix `compress`'s LZW decoder, and those
@@ -503,6 +526,36 @@ DG_ASSERT_AT(struct engine_decompress_cache, cache_a,    0x00);
 DG_ASSERT_AT(struct engine_decompress_cache, cache_b,    0x04);
 DG_ASSERT_AT(struct engine_decompress_cache, cache_c,    0x08);
 DG_ASSERT_AT(struct engine_decompress_cache, lzss_ready, 0x0e);
+
+/*
+ * **The scaling table** `scale_table_delta` takes differences across,
+ * DGROUP 0x5956..0x5e56, 0x500 bytes: an entry per destination column, and
+ * `step_accumulate` writes one past the last. 640 entries run exactly to
+ * `ENGINE_ROW_OFFSETS` at 0x5e56.
+ */
+struct engine_scale_table {
+    int16_t   entry[0x280];       /* +0x00 [0x500] */
+} __attribute__((packed));
+
+#define ENGINE_SCALE_TABLE (*(struct engine_scale_table *)(dgroup + 0x5956))
+_Static_assert(sizeof(struct engine_scale_table) == 0x500, "640 columns end at ENGINE_ROW_OFFSETS");
+
+/*
+ * **One word per output row of a scaled blit**, DGROUP 0x5e56..0x6176, 0x320
+ * bytes - the source row's offset into its plane, as `blit_scaled_a` and
+ * `blit_scaled_b` work it out from the scaling table. The original also reaches
+ * it as `[bx+0x5e54]` with `bx` one entry higher, which is the same table one
+ * word lower: `ENGINE_ROW_OFFSETS.row[n - 1]`.
+ *
+ * 400 words is only the run to `ENGINE_FONT_KINDS` at 0x6176: no loop in the
+ * port bounds it.
+ */
+struct engine_row_offsets {
+    uint16_t  row[0x190];         /* +0x00 [0x320] */
+} __attribute__((packed));
+
+#define ENGINE_ROW_OFFSETS (*(struct engine_row_offsets *)(dgroup + 0x5e56))
+_Static_assert(sizeof(struct engine_row_offsets) == 0x320, "the run ends at ENGINE_FONT_KINDS");
 
 /*
  * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
@@ -1343,9 +1396,8 @@ extract:
  * kept. Without it, the data lies at a 32-bit offset from a far pointer - +6/+8
  * is the base and +0xa/+0xc the offset - and the two are added and normalised.
  * The original does that through the runtime's huge-pointer add at 0x0bf0a,
- * which folds the sum down until the offset is a single nibble; the port
- * computes the same linear address directly, and `normalise_far_ptr_far` then
- * runs over it exactly as the original's does.
+ * which folds the sum down until the offset is a single nibble, and then hands
+ * the answer to `normalise_far_ptr_far`; so does the port.
  */
 int16_t select_resource(int16_t handle)
 {
@@ -1354,7 +1406,7 @@ int16_t select_resource(int16_t handle)
     if (handle < 0 || handle >= 0x64)
         return 0;
 
-    entry = RESOURCE_SLOTS[handle];
+    entry = ENGINE_RESOURCE_SLOTS.slot[handle];
     ENGINE_STREAM.record_ptr = (int16_t)entry;
     if (entry == 0)
         return 0;
@@ -1366,22 +1418,14 @@ int16_t select_resource(int16_t handle)
     ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
     if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->word_06;
+        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->data.off;
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
 
     ENGINE_RESOURCE_FLAGS.flags = 0;
-    {
-        uint32_t linear = ((uint32_t)RESOURCE_PTR(entry)->word_08 << 4)
-                          + RESOURCE_PTR(entry)->word_06
-                          + RESOURCE_PTR(entry)->in;
-        struct far_ptr p = normalise_far_ptr_far(
-            (struct far_ptr){ (uint16_t)(linear & 0xf),
-                              (uint16_t)(linear >> 4) });
-
-        ENGINE_STREAM.in = p;
-    }
+    ENGINE_STREAM.in = normalise_far_ptr_far(huge_add(RESOURCE_PTR(entry)->data,
+                                                      (int32_t)RESOURCE_PTR(entry)->in));
     return 1;
 }
 /*
@@ -1415,9 +1459,9 @@ int16_t next_input_byte(void)
     {
         /* 0x5898 is `ENGINE_STREAM.in`, which is already a pair - the read
            cursor the decompressors walk. */
-        uint32_t p = huge_post_add(&ENGINE_STREAM.in, 1);
+        struct far_ptr p = huge_post_add(&ENGINE_STREAM.in, 1);
 
-        return (int16_t)(*MK_FP((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
+        return (int16_t)(*MK_FP(p.seg, p.off) & 0xff);
     }
 }
 
@@ -1482,7 +1526,7 @@ int16_t close_resource_slot(uint16_t slot)
 {
     uint16_t rec;
 
-    rec = RESOURCE_SLOTS[slot];
+    rec = ENGINE_RESOURCE_SLOTS.slot[slot];
     ENGINE_STREAM.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
@@ -1495,7 +1539,7 @@ int16_t close_resource_slot(uint16_t slot)
     }
 
     free_if_set(ENGINE_STREAM.record_ptr);
-    RESOURCE_SLOTS[slot] = 0;
+    ENGINE_RESOURCE_SLOTS.slot[slot] = 0;
 
     return -1;
 }
@@ -1516,7 +1560,7 @@ int16_t open_resource_slot(void)
     uint16_t rec;
 
     for (si = 0; si < 0x64; si++) {
-        if (RESOURCE_SLOTS[si] == 0)
+        if (ENGINE_RESOURCE_SLOTS.slot[si] == 0)
             break;
     }
 
@@ -1528,7 +1572,7 @@ int16_t open_resource_slot(void)
     if (rec == 0)
         return -1;
 
-    RESOURCE_SLOTS[si] = (int16_t)rec;
+    ENGINE_RESOURCE_SLOTS.slot[si] = (int16_t)rec;
     return si;
 }
 
@@ -1691,7 +1735,7 @@ int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
         return -1;
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->word_06 = (int16_t)dg_off(dgroup, file);
+    RESOURCE_PTR(rec)->data.off = dg_off(dgroup, file);
 
     pos = game_ftell(file);
     rec = ENGINE_STREAM.record_ptr;
@@ -1922,13 +1966,8 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
 
         rec = ENGINE_STREAM.record_ptr;
         {
-            /* `word_06`/`word_08` is a file handle *or* the low half of a
-               far pointer, so it is not a `far_ptr` field; on this path it is
-               the pointer. */
-            struct far_ptr p = huge_add(
-                (struct far_ptr){ RESOURCE_PTR(rec)->word_06,
-                                  RESOURCE_PTR(rec)->word_08 },
-                (int32_t)RESOURCE_PTR(rec)->in);
+            struct far_ptr p = huge_add(RESOURCE_PTR(rec)->data,
+                                        (int32_t)RESOURCE_PTR(rec)->in);
 
             p = normalise_far_ptr_far(p);
             ENGINE_STREAM.in = p;
@@ -1991,9 +2030,7 @@ int16_t restart_resource_stream(int16_t handle)
 
         game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), (int32_t)at, 0);
     } else {
-        struct far_ptr p = huge_add(
-            (struct far_ptr){ RESOURCE_PTR(rec)->word_06, RESOURCE_PTR(rec)->word_08 },
-            5);
+        struct far_ptr p = huge_add(RESOURCE_PTR(rec)->data, 5);
 
         p = normalise_far_ptr_far(p);
         ENGINE_STREAM.in = p;
@@ -2840,9 +2877,9 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
     if (vclip != 0) {
         vrowok = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (vrowok != 0)
-            vrow = (int16_t)ROW_BASE[y];
+            vrow = (int16_t)ENGINE_ROW_BASE.row[y];
     } else {
-        vrow = (int16_t)ROW_BASE[y];
+        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
     }
 
     vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
@@ -2874,9 +2911,9 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             if (vclip != 0) {
                 vrowok = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
                 if (vrowok != 0)
-                    vrow = (int16_t)ROW_BASE[y];
+                    vrow = (int16_t)ENGINE_ROW_BASE.row[y];
             } else {
-                vrow = (int16_t)ROW_BASE[y];
+                vrow = (int16_t)ENGINE_ROW_BASE.row[y];
             }
 
             if (mode & 2)
@@ -7310,8 +7347,8 @@ int16_t scale_table_delta(int16_t n)
 {
     uint16_t base = ENGINE_SCALE_STEP.base;
 
-    return (int16_t)(SCALE_TABLE[(base + n)]
-                     - SCALE_TABLE[base]);
+    return (int16_t)(ENGINE_SCALE_TABLE.entry[(base + n)]
+                     - ENGINE_SCALE_TABLE.entry[base]);
 }
 
 /*
@@ -7505,12 +7542,12 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
         if (at > w)
             at = w;
-        SCALE_TABLE[i] = at;
+        ENGINE_SCALE_TABLE.entry[i] = at;
 
         step_accumulate((uint8_t *)vstep32);
 
         while (j < at) {
-            ROW_OFFSETS[j] = (uint16_t)(i - 1);
+            ENGINE_ROW_OFFSETS.row[j] = (uint16_t)(i - 1);
             j++;
         }
         i++;
@@ -7528,9 +7565,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     if (vclip != 0) {
         vrowok = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (vrowok != 0)
-            vrow = (int16_t)ROW_BASE[y];
+            vrow = (int16_t)ENGINE_ROW_BASE.row[y];
     } else {
-        vrow = (int16_t)ROW_BASE[y];
+        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
     }
 
     vsrc[1] = (int16_t)BMP_PTR(hdr)->data.seg;              /* the segment */
@@ -7543,7 +7580,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vxrow = x;
     ENGINE_SCALE_STEP.base = 0;
     vcolrow = 0;
-    ENGINE_SCALE_STEP.word_6290 = (uint16_t)SCALE_TABLE[0];
+    ENGINE_SCALE_STEP.word_6290 = (uint16_t)ENGINE_SCALE_TABLE.entry[0];
 
     vsrcrow[0] = (int16_t)vsrc[0];
     vsrcrow[1] = (int16_t)vsrc[1];
@@ -7562,14 +7599,14 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             vn = scale_table_delta(vop);
 
             if (vop != 0) {
-                int16_t  at    = SCALE_TABLE[ENGINE_SCALE_STEP.base];
-                int16_t  first = (int16_t)ROW_OFFSETS[at];
+                int16_t  at    = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
+                int16_t  first = (int16_t)ENGINE_ROW_OFFSETS.row[at];
                 uint8_t *  out   = scratch;
                 int16_t  k     = vn;
                 int16_t  col   = at;
 
                 while (k-- > 0) {
-                    int16_t rel = (int16_t)((int16_t)ROW_OFFSETS[col] - first);
+                    int16_t rel = (int16_t)((int16_t)ENGINE_ROW_OFFSETS.row[col] - first);
                     uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
                     uint8_t  b = *MK_FP((uint16_t)vsrc[1],
                                           (uint16_t)((uint16_t)vsrc[0] + byte_at));
@@ -7866,7 +7903,7 @@ next_solid:
             break;
 
         {
-            int16_t back = SCALE_TABLE[ENGINE_SCALE_STEP.base];
+            int16_t back = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
 
             if (mode & 2)
                 back = (int16_t)-back;
@@ -7881,7 +7918,7 @@ next_solid:
                 continue;
         }
 
-        vrow = (int16_t)ROW_BASE[y];
+        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
     }
 
 done:
@@ -7962,13 +7999,13 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     compute_step((uint8_t *)rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
-        SCALE_TABLE[i] = rec[1];
+        ENGINE_SCALE_TABLE.entry[i] = rec[1];
         step_accumulate((uint8_t *)rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
-    SCALE_TABLE[i] =
-        (int16_t)(SCALE_TABLE[i] + 1);
+    ENGINE_SCALE_TABLE.entry[i] =
+        (int16_t)(ENGINE_SCALE_TABLE.entry[i] + 1);
 
     /*
      * The row table, holding each destination row's *byte offset* into the
@@ -7996,9 +8033,9 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
 
         if (mode & 1)
-            ROW_OFFSETS[bottom - j - 1] = off;   /* `[bx+0x5e54]`, one entry down */
+            ENGINE_ROW_OFFSETS.row[bottom - j - 1] = off;   /* `[bx+0x5e54]`, one entry down */
         else
-            ROW_OFFSETS[j] = off;
+            ENGINE_ROW_OFFSETS.row[j] = off;
     }
 
     /* Only now does the rectangle become screen coordinates. */
@@ -8047,11 +8084,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         for (j = top; j < bottom; j++)
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
-                &SCALE_TABLE[cut],
-                ROW_BASE[j],
+                &ENGINE_SCALE_TABLE.entry[cut],
+                ENGINE_ROW_BASE.row[j],
                 page, left, (int16_t)(right - left),
                 (struct far_ptr){
-                    (uint16_t)(ROW_OFFSETS[j - y] + src.off),
+                    (uint16_t)(ENGINE_ROW_OFFSETS.row[j - y] + src.off),
                     src.seg });
 
         restore_write_mode();

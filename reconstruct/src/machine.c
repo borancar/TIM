@@ -276,7 +276,7 @@ DG_ASSERT_AT(struct machine_saved_draw_state, saved_g, 0x0c);
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734; the buffers themselves are `RECT_BUFFER[1..4]`, the far
+ * apiece at 0x5734; the buffers themselves are `MACHINE_RECT_BUFFERS.slot[1..4]`, the far
  * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
@@ -333,6 +333,19 @@ DG_ASSERT_AT(struct button, was_down,        0x02);
 DG_ASSERT_AT(struct button, presses,         0x04);
 DG_ASSERT_AT(struct button, delay,           0x06);
 DG_ASSERT_AT(struct machine_buttons, button, 0x00);
+
+/*
+ * **A far pointer per saved rectangle**, DGROUP 0x5754..0x5768, 0x14 bytes,
+ * indexed from ONE - slots 1 to 4 are the buffers `claim_buffer_slot` hands out,
+ * and slot 0 is never handed out. Five run exactly to 0x5768.
+ */
+struct machine_rect_buffers {
+    struct far_ptr slot[5];       /* +0x00 [0x14] */
+} __attribute__((packed));
+
+#define MACHINE_RECT_BUFFERS (*(struct machine_rect_buffers *)(dgroup + 0x5754))
+_Static_assert(sizeof(struct machine_rect_buffers) == 0x14, "five slots end at 0x5768");
+
 
 
 /*
@@ -11672,7 +11685,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT_PTR(slot)->cursor.h > 0) {
                 uint16_t b = PAGESLOT_PTR(slot)->cursor.buf;
 
-                restore_rect_thunk(RECT_BUFFER[b],
+                restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[b],
                                    PAGESLOT_PTR(slot)->cursor.x,
                                    PAGESLOT_PTR(slot)->cursor.y,
                                    PAGESLOT_PTR(slot)->cursor.w,
@@ -11695,7 +11708,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT_PTR(slot)->obj.h > 0) {
                 uint16_t b = PAGESLOT_PTR(slot)->obj.buf;
 
-                save_rect_thunk(RECT_BUFFER[b],
+                save_rect_thunk(MACHINE_RECT_BUFFERS.slot[b],
                                 PAGESLOT_PTR(slot)->obj.x,
                                 PAGESLOT_PTR(slot)->obj.y,
                                 PAGESLOT_PTR(slot)->obj.w,
@@ -12923,7 +12936,7 @@ void erase_object(uint16_t handle)
         if (((int16_t)PAGESLOT_PTR(rec)->obj.buf) != 0 && PAGESLOT_PTR(rec)->obj.w > 0
             && PAGESLOT_PTR(rec)->obj.h > 0) {
             slot = PAGESLOT_PTR(rec)->obj.buf;
-            vm_restore_rect(RECT_BUFFER[slot],
+            vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot],
                             PAGESLOT_PTR(rec)->obj.x, PAGESLOT_PTR(rec)->obj.y,
                             PAGESLOT_PTR(rec)->obj.w, PAGESLOT_PTR(rec)->obj.h);
         } else {
@@ -12971,7 +12984,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (PAGESLOT_PTR(si)->obj.buf != 0
             && PAGESLOT_PTR(si)->obj.w > 0
             && PAGESLOT_PTR(si)->obj.h > 0) {
-            restore_rect_thunk(RECT_BUFFER[PAGESLOT_PTR(si)->obj.buf],
+            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[PAGESLOT_PTR(si)->obj.buf],
                                PAGESLOT_PTR(si)->obj.x,
                                PAGESLOT_PTR(si)->obj.y,
                                PAGESLOT_PTR(si)->obj.w,
@@ -13323,16 +13336,16 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if ((RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) == 0) {
+        if ((MACHINE_RECT_BUFFERS.slot[i + 1].off | MACHINE_RECT_BUFFERS.slot[i + 1].seg) == 0) {
             struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
-            RECT_BUFFER[i + 1] = p;
+            MACHINE_RECT_BUFFERS.slot[i + 1] = p;
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (MACHINE_BUFFER_USED.used[i] == 0
-            && (RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) != 0) {
+            && (MACHINE_RECT_BUFFERS.slot[i + 1].off | MACHINE_RECT_BUFFERS.slot[i + 1].seg) != 0) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return (int16_t)(i + 1);
         }

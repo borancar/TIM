@@ -223,9 +223,9 @@ struct far_ptr huge_add(struct far_ptr p, int32_t delta)
  * The old value comes out of two `xchg`s rather than a saved copy, which is why
  * there is no spare register in the routine at all.
  */
-uint32_t huge_post_add(struct far_ptr * var, uint16_t inc)
+struct far_ptr huge_post_add(struct far_ptr * var, uint16_t inc)
 {
-    struct far_ptr old = { var->off, var->seg };
+    struct far_ptr old = *var;
     uint32_t sum = (uint32_t)inc + old.off;
     uint16_t seg = (uint16_t)((uint16_t)sum >> 4);
 
@@ -233,8 +233,7 @@ uint32_t huge_post_add(struct far_ptr * var, uint16_t inc)
     if (sum > 0xffff)
         seg = (uint16_t)(seg + 0x1000);
 
-    var->off = (uint16_t)(sum & 0xf);
-    var->seg = seg;
+    *var = (struct far_ptr){ (uint16_t)(sum & 0xf), seg };
 
-    return ((uint32_t)old.seg << 16) | old.off;
+    return old;
 }

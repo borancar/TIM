@@ -1453,7 +1453,7 @@ ROUTINES = {
         # ES:BX is the *address of* a far pointer the routine steps and
         # answers the old value of - so it takes a pointer to the pair, not
         # the pair. AX is the increment.
-        call=lambda lib, a: _pair(lib.huge_post_add(
+        call=lambda lib, a: _far(lib.huge_post_add(
             farp(lib, a[0], a[1]), ctypes.c_uint16(a[2]))),
     ),
     # NOT VERIFIABLE by this harness, because it has no return to detect. The
@@ -5737,7 +5737,7 @@ def declare_restypes(lib):
     lib.heap_calloc_far.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = FarPtr
-    lib.huge_post_add.restype = ctypes.c_uint32
+    lib.huge_post_add.restype = FarPtr
     lib.vm_init.restype = ctypes.c_uint16
     lib.load_video_driver.restype = ctypes.c_uint32
     lib.detect_adapter.restype = ctypes.c_uint16

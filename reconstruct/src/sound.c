@@ -38,17 +38,17 @@ _Static_assert(sizeof(struct sound_module_name) == 0x09, "DGROUP 0x4a08..0x4a11,
 DG_ASSERT_AT(struct sound_module_name, module_name, 0x00);
 
 /*
- * **Not established**, DGROUP 0x6414..0x6418, 0x04 bytes.
+ * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
+ * 0x1c bytes. Every loop over them is `i < 7`, and seven run exactly to
+ * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
+ * test the first one's two words to tell whether the seven are allocated.
  */
-struct sound_voice_records {
-    uint16_t  word_6414;          /* +0x00 [2] */
-    uint16_t  word_6416;          /* +0x02 [2] */
+struct sound_voices {
+    struct far_ptr voice[7];      /* +0x00 [0x1c] */
 } __attribute__((packed));
 
-#define SOUND_VOICE_RECORDS (*(struct sound_voice_records *)(dgroup + 0x6414))
-_Static_assert(sizeof(struct sound_voice_records) == 0x04, "DGROUP 0x6414..0x6418, 0x04 bytes");
-DG_ASSERT_AT(struct sound_voice_records, word_6414, 0x00);
-DG_ASSERT_AT(struct sound_voice_records, word_6416, 0x02);
+#define SOUND_VOICES (*(struct sound_voices *)(dgroup + 0x6414))
+_Static_assert(sizeof(struct sound_voices) == 0x1c, "seven voices end at SOUND_TICK_WAIT");
 
 /*
  * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
@@ -2443,14 +2443,14 @@ uint32_t voice_playing(struct far_ptr rec)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        const uint8_t *v = MK_FP(VOICES[i].seg, VOICES[i].off);
+        const uint8_t *v = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
 
         /* Which record this voice is playing, at +0x166. */
         if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
             continue;
         if (v[0x158] == 0xff)
             continue;
-        return ((uint32_t)VOICES[i].seg << 16) | VOICES[i].off;
+        return ((uint32_t)SOUND_VOICES.voice[i].seg << 16) | SOUND_VOICES.voice[i].off;
     }
 
     return 0;
@@ -2475,14 +2475,14 @@ uint16_t alloc_voice_records(void)
 {
     int16_t i;
 
-    if (SOUND_VOICE_RECORDS.word_6414 != 0 || SOUND_VOICE_RECORDS.word_6416 != 0)
+    if (!far_eq(SOUND_VOICES.voice[0], FAR_NULL))
         return 0;
 
     for (i = 0; i < 7; i++) {
         struct far_ptr p = alloc_for_kind(0x17a, 2);
         uint8_t *voice;
 
-        VOICES[i] = p;
+        SOUND_VOICES.voice[i] = p;
 
         if (far_eq(p, FAR_NULL)) {
             free_voice_records();
@@ -2491,11 +2491,11 @@ uint16_t alloc_voice_records(void)
 
         /* Read back out of the table, which is where the original reads
            it - the two locals were only its halves. */
-        voice = MK_FP(VOICES[i].seg, VOICES[i].off);
+        voice = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
 
         voice[0x158] = 0xff;
-        *(uint16_t *)(voice + 0xa) = VOICES[i].seg;
-        *(uint16_t *)(voice + 8) = (uint16_t)(VOICES[i].off + 0x16a);
+        *(uint16_t *)(voice + 0xa) = SOUND_VOICES.voice[i].seg;
+        *(uint16_t *)(voice + 8) = (uint16_t)(SOUND_VOICES.voice[i].off + 0x16a);
     }
 
     return 1;
@@ -2874,11 +2874,11 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (SOUND_VOICE_RECORDS.word_6414 == 0 && SOUND_VOICE_RECORDS.word_6416 == 0)
+    if (far_eq(SOUND_VOICES.voice[0], FAR_NULL))
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = VOICES[i];
+        struct far_ptr v = SOUND_VOICES.voice[i];
 
         if (far_eq(v, FAR_NULL))
             continue;
@@ -2916,7 +2916,7 @@ uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = VOICES[i];
+        struct far_ptr v = SOUND_VOICES.voice[i];
         uint8_t *voice = MK_FP(v.seg, v.off);
         uint16_t next;
 
@@ -2962,7 +2962,7 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = VOICES[i];
+        struct far_ptr v = SOUND_VOICES.voice[i];
 
         if (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) == 0xff)
             continue;
@@ -3376,13 +3376,13 @@ void stop_voice_playing(struct far_ptr rec)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint8_t *v = MK_FP(VOICES[i].seg, VOICES[i].off);
+        uint8_t *v = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
 
         /* Which record this voice is playing, at +0x166. */
         if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
             continue;
 
-        retire_and_tick_far(VOICES[i]);
+        retire_and_tick_far(SOUND_VOICES.voice[i]);
         v[0x158] = 0xff;
         return;
     }

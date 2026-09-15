@@ -1757,8 +1757,8 @@ uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 struct far_ptr huge_add_to(struct far_ptr *var,
                            int32_t delta);      /* 0x0be82 */
 struct far_ptr huge_add(struct far_ptr p, int32_t delta);  /* 0x0bf0a */
-uint32_t huge_post_add(struct far_ptr * var,
-                       uint16_t inc);                  /* 0x0bf6a */
+struct far_ptr huge_post_add(struct far_ptr * var,
+                             uint16_t inc);                  /* 0x0bf6a */
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t resource_read(FILE *handle, uint16_t count); /* 0x1c92b */

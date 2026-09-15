@@ -590,24 +590,6 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  * arrangement, not a mistake in the transcription.
  * ---------------------------------------------------------------------------
  */
-/* 0x4d06: Borland's flags, one word per file handle */
-#define HANDLE_FLAGS   ((uint16_t *)(dgroup + 0x4d06))
-/* 0x57c0: the open resource streams, a near pointer each */
-#define RESOURCE_SLOTS ((dg_off_t *)(dgroup + 0x57c0))
-/* 0x3f82: a word per screen row, the row's base address */
-#define ROW_BASE       ((uint16_t *)(dgroup + 0x3f82))
-/* 0x5956: the scaling table `scale_step` takes differences across */
-#define SCALE_TABLE    ((int16_t *)(dgroup + 0x5956))
-/* 0x5e56: one word per output row of a scaled blit - the source row's offset
-   into its plane, as `blit_scaled_a` and `blit_scaled_b` work it out from the
-   scaling table. The original also reaches it as `[bx+0x5e54]` with `bx` one
-   entry higher, which is the same table one word lower: `ROW_OFFSETS[n - 1]`. */
-#define ROW_OFFSETS    ((uint16_t *)(dgroup + 0x5e56))
-/* 0x5754: a far pointer per saved rectangle, indexed from ONE - slots 1 to 4 are
-   the buffers `claim_buffer_slot` hands out, and slot 0 is never handed out */
-#define RECT_BUFFER    ((struct far_ptr *)(dgroup + 0x5754))
-/* 0x6414: the sequencer's seven voices, a far pointer each */
-#define VOICES         ((struct far_ptr *)(dgroup + 0x6414))
 
 /* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
 
@@ -3976,12 +3958,14 @@ struct resource {
     dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
     struct far_ptr scratch;    /* +0x02  the far scratch block, which
                                   lzss_reset caches */
-    /* **A file handle on one path and the two halves of a far pointer on
-       another**, so the pair is not declared a `far_ptr`: `read_resource_block`
-       builds a `struct far_ptr` from it where it is used. Which path sets
-       which is not written down yet. */
-    uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
-    uint16_t  word_08;         /* +0x08 */
+    /* **Where the resource's data lies.** Without bit 0x20 of `kind` it is a
+       far pointer into memory: `select_resource`, `resource_seek` and
+       `restart_resource_stream` add to it through the runtime's huge add at
+       0x0bf0a and normalise the answer. With bit 0x20 the resource is read from
+       a file and only the offset word is used - it holds the file record's
+       near pointer, which `open_resource` files there and `select_resource`
+       copies to 0x57bc. */
+    struct far_ptr data;       /* +0x06 */
     /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
        borrow and compares the two as wholes; `next_input_byte` steps `in`
        with a carry; `open_resource` splits a `uint32_t` into `end` and
@@ -4013,8 +3997,7 @@ struct resource {
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct resource, scratch,       0x02);
-DG_ASSERT_AT(struct resource, word_06,       0x06);
-DG_ASSERT_AT(struct resource, word_08,       0x08);
+DG_ASSERT_AT(struct resource, data,          0x06);
 DG_ASSERT_AT(struct resource, in,            0x0a);
 DG_ASSERT_AT(struct resource, end,           0x0e);
 DG_ASSERT_AT(struct resource, size,          0x12);
