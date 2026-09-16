@@ -435,8 +435,6 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        /* The kind table the image carries, relocated as the loader would. */
-        load_part_kinds();
 
         /*
          * A restore replaces every byte of this, so the start-up runs only to

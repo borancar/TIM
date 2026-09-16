@@ -337,10 +337,8 @@ void io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
  * the program block is cut down to DGROUP + 64 KB, the tail becomes the arena,
  * and SS:SP points at the top of DGROUP.
  */
-#define LOAD_SEG   0x0110u
 #define PSP_SEG    0x0100u
 #define MEM_TOP    0x9FFFu
-#define IMG_DGROUP 0x2D3C0u
 
 static int32_t read_file(const char *path, uint8_t **out, int32_t *len)
 {

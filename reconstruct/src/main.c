@@ -64,8 +64,6 @@ int main(void)
         return 1;
     }
 
-    /* The kind table the image carries, relocated as the loader would. */
-    load_part_kinds();
 
     /*
      * What the C runtime does between the loader and `main`: its init table at

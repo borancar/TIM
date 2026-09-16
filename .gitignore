@@ -15,6 +15,7 @@ reconstruct/timasan
 reconstruct/devtimasan
 reconstruct/covtim
 reconstruct/libtim.so
+reconstruct/guest.ld
 *.gcno
 *.gcda
 
@@ -27,6 +28,7 @@ tools/native/native
 tools/native/syms.c
 tools/native/ovlsyms.c
 tools/native/shims.c
+tools/native/guest.ld
 
 # **The game itself.** `incredible-machine/` is the original 1993 release -
 # TIM.EXE, the RESOURCE archives and the shipped .TIM machines - and it is

@@ -117,10 +117,17 @@ $(OBJDIR)/port/%.o: $(REC)/%.c $(HEADERS) shim.h | $(OBJDIR)/port
 $(OBJDIR)/%.o: %.c $(HEADERS) shim.h | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-native: $(NATIVE_OBJ) $(OPL_OBJ)
-	$(CC) $(CFLAGS) -rdynamic -o $@ $^ $(LDLIBS)
+# The guest's memory laid out by the linker, from these objects' own section
+# names - see `GUEST_LD` in reconstruct/Makefile. The hybrid still loads the
+# original's image over it, because it runs the original; the transcribed data
+# underneath is the same bytes.
+guest.ld: $(NATIVE_OBJ) $(ROOT)/tools/genld.py
+	python3 $(ROOT)/tools/genld.py -o $@ $(filter %.o,$^)
+
+native: $(NATIVE_OBJ) $(OPL_OBJ) guest.ld
+	$(CC) $(CFLAGS) -rdynamic -Wl,-T,guest.ld -o $@ $(filter-out guest.ld,$^) $(LDLIBS)
 
 clean:
-	rm -rf native syms.c ovlsyms.c shims.c $(OBJDIR)
+	rm -rf native syms.c ovlsyms.c shims.c guest.ld $(OBJDIR)
 
 .PHONY: all clean

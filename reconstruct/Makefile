@@ -103,6 +103,19 @@ DEV_OBJ    := devmain.o     $(COMMON_OBJ) $(patsubst %.c,%.o,$(DEV) $(DEVLUA))
 
 all: tim devtim
 
+# **The guest's memory is laid out by the linker.** What the image used to put
+# in `guest_mem` - DGROUP's initialised data and the sound module's tables - is
+# transcribed as C objects, each with its address in a section attribute
+# (`DGROUP_AT` in dgroup.h), and this script puts every one of them there. It
+# is written from the compiled objects rather than the sources, so it names
+# exactly the sections that exist; every link below takes it, the ones that
+# compile from source included, because their sources are the same.
+GUEST_LD := guest.ld
+LDGUEST  := -Wl,-T,$(GUEST_LD)
+
+$(GUEST_LD): $(COMMON_OBJ) $(SRC)/main.o devmain.o ../tools/genld.py
+	python3 ../tools/genld.py -o $@ $(filter %.o,$^)
+
 # **`all` stays the first target.** Adding `compile_commands` above it made it
 # the default goal, so a bare `make -C reconstruct` regenerated the database and
 # built nothing - every time, since it has no prerequisites to be up to date
@@ -166,18 +179,18 @@ compile_commands:
 # the way to an abort.
 BACKTRACE := -rdynamic
 
-tim: $(TIM_OBJ) $(OPL_OBJ)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
-	    $^ $(SDL_LIBS) -lpthread -lstdc++
+tim: $(TIM_OBJ) $(OPL_OBJ) $(GUEST_LD)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) $(LDGUEST) -o $@ \
+	    $(filter-out $(GUEST_LD),$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # devtim links sdl.c too, and opens a window by default exactly as tim does,
 # so it can be played and Shift+F2 pressed. The tools in tools/ set
 # TIM_HEADLESS=1, which is what keeps them working on a machine with no
 # display: the window is what a person needs, its absence is what a comparison
 # needs, and the comparison is the one that asks.
-devtim: $(DEV_OBJ) $(OPL_OBJ)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
-	    $^ $(SDL_LIBS) $(LUA_LIBS) -lpthread -lstdc++
+devtim: $(DEV_OBJ) $(OPL_OBJ) $(GUEST_LD)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) $(LDGUEST) -o $@ \
+	    $(filter-out $(GUEST_LD),$^) $(SDL_LIBS) $(LUA_LIBS) -lpthread -lstdc++
 
 # The one unit that needs Lua's headers, and the only one that gets them.
 devlua.o: devlua.c $(HEADERS)
@@ -195,14 +208,14 @@ devlua.o: devlua.c $(HEADERS)
 # the port down several-fold and shifts its timing, so it is for finding a
 # fault and never for taking a measurement. `asan` needs libasan and libubsan
 # installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
-debug: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
-	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 -I$(CURDIR) \
+debug: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD)
+	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 -I$(CURDIR) $(LDGUEST) \
 	    $(SDL_CFLAGS) $(BACKTRACE) -o timdbg \
 	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
-asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
+asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
-	    -std=c11 -I$(CURDIR) $(SDL_CFLAGS) $(BACKTRACE) -o timasan \
+	    -std=c11 -I$(CURDIR) $(LDGUEST) $(SDL_CFLAGS) $(BACKTRACE) -o timasan \
 	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # **And the same thing with the developer hooks**, because `timasan` is built
@@ -214,9 +227,9 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
 #   make -C reconstruct asandev
 #   TIM_HEADLESS=1 TIM_STOPFLIP=3000 ./reconstruct/devtimasan \
 #       --restore solution_snaps/level14.solution --run
-asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS)
+asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
-	    -std=c11 -I$(CURDIR) $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
+	    -std=c11 -I$(CURDIR) $(LDGUEST) $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
 	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
@@ -308,13 +321,13 @@ test: devtim tim debug
 	    uv run python tools/check_handles.py; \
 	    echo "FAIL: a typed handle is used as a boolean - run tools/check_handles.py"; exit 1; }
 	@echo "no typed handle is used as a boolean"
-	@# **The kind table is transcribed, and DGROUP must not notice.** The
-	@# 58 records at 0x0ea6 come from dgroup.c now rather than from TIM.img;
-	@# this loads the image the way the port does and compares the two, the
-	@# relocated hook segments included. Before the solutions step, for the
-	@# same reason as the one above.
-	@cd .. && uv run python tools/check_part_kinds.py || { \
-	    echo "FAIL: the kind table differs from the image - see tools/check_part_kinds.py"; exit 1; }
+	@# **The transcribed data is the image's, where the image had it.** Every
+	@# object placed with DGROUP_AT, DGROUP_BSS or SEGMENT_AT is checked for
+	@# its address and for the relocated image's bytes, so DGROUP stays
+	@# comparable with the original's. Before the solutions step, for the same
+	@# reason as the one above.
+	@cd .. && uv run python tools/check_image_data.py || { \
+	    echo "FAIL: transcribed data differs from the image - see tools/check_image_data.py"; exit 1; }
 	@# **Every solution, simulated.** `TIM_SIMULATE` runs each restored
 	@# machine through the game's own per-frame step with no clock, input
 	@# or display, and the goal test is the verdict: 34 levels in about a
@@ -364,7 +377,7 @@ test: devtim tim debug
 # `covtim` and gcov's notes were missed here for the same reason they were
 # missed in .gitignore: the list was written when there were only binaries.
 clean:
-	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda \
+	rm -f tim devtim timdbg timasan covtim libtim.so guest.ld *.gcno *.gcda \
 	      $(OPL_OBJ) $(OPL_PIC) $(TIM_OBJ) $(DEV_OBJ)
 
 .PHONY: all clean test debug asan compile_commands
@@ -376,9 +389,9 @@ clean:
 # for the original by watching blocks; this is the other half, and the two
 # together say whether the two artefacts reach the same screen along the same
 # path or merely arrive at the same pixels.
-covtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
-	$(CC) -O0 -g --coverage -std=c11 -o $@ $^ -lpthread
+covtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS) $(GUEST_LD)
+	$(CC) -O0 -g --coverage -std=c11 $(LDGUEST) -o $@ $(filter-out $(GUEST_LD),$^) -lpthread
 
-libtim.so: $(GAME) $(PORT) $(DEV) $(HEADERS) $(OPL_PIC)
-	$(CC) $(CFLAGS) -fPIC -shared -o $@ \
-	    $(filter-out $(HEADERS),$^) -lstdc++
+libtim.so: $(GAME) $(PORT) $(DEV) $(HEADERS) $(OPL_PIC) $(GUEST_LD)
+	$(CC) $(CFLAGS) -fPIC -shared $(LDGUEST) -o $@ \
+	    $(filter-out $(HEADERS) $(GUEST_LD),$^) -lstdc++

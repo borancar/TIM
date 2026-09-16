@@ -32,7 +32,41 @@
 #define GUEST_MEM_BYTES 0x100000
 #define DGROUP_BYTES    0x10000
 
+/* Defined by the linker script `tools/genld.py` writes, not in C - see below. */
 extern uint8_t  guest_mem[GUEST_MEM_BYTES];
+
+/*
+ * **Where the program sits, and what of it the port carries.** DOS loaded the
+ * image at segment 0x0110 - the PSP at 0x0100 and its 0x10 paragraphs below it,
+ * which is where the reference emulator puts it too - and DGROUP is at image
+ * offset 0x2d3c0 of that, so linear 0x2e4c0. Borland's startup zeroes DGROUP
+ * from 0x4e4e to 0x64ca (`rep stosb` at 0x000cd), so everything the image
+ * gives DGROUP is below 0x4e4e.
+ *
+ * The port does not load the image. What the game needs of it is transcribed
+ * as C objects, each marked with where it goes:
+ *
+ *   DGROUP_AT(off)       initialised DGROUP data, below DGROUP_INIT_END
+ *   DGROUP_BSS(off)      DGROUP state the startup zeroes, from DGROUP_INIT_END
+ *   SEGMENT_AT(seg, off) data a code segment keeps inside itself
+ *
+ * `tools/genld.py` reads those sections back out of the objects and writes the
+ * linker script that lays `guest_mem` out with each object at its address, so
+ * a DGROUP offset and a named object reach the same byte - which is what lets
+ * the verifier seed and compare the whole segment - and the linker refuses two
+ * that overlap. **An offset is written with four hex digits** (`0x0ea6`, not
+ * `0xea6`): it becomes the section name, and the script matches it exactly.
+ *
+ * A segment the image relocated is the load segment plus the image's own
+ * value, and is transcribed as `LOAD_SEG + 0x172c`, never as the sum.
+ */
+#define LOAD_SEG        0x0110u
+#define IMG_DGROUP      0x2D3C0u
+#define DGROUP_INIT_END 0x4e4e
+
+#define DGROUP_AT(off)       __attribute__((section(".guest.dgroup." #off), used))
+#define DGROUP_BSS(off)      __attribute__((section(".bss.guest.dgroup." #off), used))
+#define SEGMENT_AT(seg, off) __attribute__((section(".guest.seg." #seg "." #off), used))
 
 /* Declared in io.h, which this header deliberately does not include: `dg_off`
    below refuses a pointer that is not the guest's, and the refusal has to be
@@ -3855,12 +3889,10 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
  * or with the base folded into the displacement when it reads one field -
  * `[bx + 0xec6]` is `word_20` - so the index is the only thing it computes.
  *
- * Its contents are transcribed in dgroup.c and put here by `load_part_kinds`.
+ * Its contents are transcribed in dgroup.c, at that address.
  */
 #define PART_KIND_COUNT 58
-#define PART_KINDS      ((struct part_kind *)(dgroup + 0x0ea6))
-
-void load_part_kinds(void);
+extern struct part_kind PART_KINDS[PART_KIND_COUNT];
 
 /*
  * ---------------------------------------------------------------------------
