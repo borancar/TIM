@@ -703,7 +703,7 @@ uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
 int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
                   int16_t whence);                  /* 0x0c0c3 */
-int16_t read_translated(int16_t handle, uint16_t buf,
+int16_t read_translated(int16_t handle, uint8_t *buf,
                         uint16_t count);            /* 0x0da6d */
 void    flush_all_streams(void);                    /* 0x0d36d */
 int16_t refill_stream(struct file_rec *file);               /* 0x0d396 */
@@ -1331,15 +1331,15 @@ uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
 uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t lo,
                          uint16_t hi);                   /* 172c:11d2 */
-uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
+uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7);                   /* 172c:2451 */
-uint16_t part_drive_2c19(uint16_t p1, struct part *si, uint16_t p3,
+uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 172c:2c19 */
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
-uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
+uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, uint16_t b, uint16_t c); /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
 uint16_t part_step_trampoline(struct part *part);             /* 172c:3fae */
@@ -1534,7 +1534,7 @@ void puzzle_draw_list(int16_t first, int16_t selected); /* 0x0f6cc */
 void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
-uint16_t pick_file(uint16_t a, uint16_t b, uint16_t pattern); /* 0x12c26 */
+uint16_t pick_file(uint16_t a, uint16_t b, const char *pattern); /* 0x12c26 */
 uint16_t get_puzzle_title(int16_t n, char *buf);  /* 0x12a2f */
 uint16_t password_to_level(char *text);          /* 0x12ad0 */
 uint16_t is_machine_file(char *name);             /* 0x1295f */
@@ -1854,7 +1854,7 @@ char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
 int16_t borland_setbuf(struct file_rec *file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
-void checked_free(uint16_t p);                         /* 0x08510 */
+void checked_free(uint8_t *p);                         /* 0x08510 */
 void free_region_lists(void);                          /* 0x08eb5 */
 void free_archive_lists(void);                         /* 0x09784 */
 int16_t remove_keyboard(void);                         /* 0x21158 */

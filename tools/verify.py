@@ -4467,7 +4467,7 @@ ROUTINES = {
               ("p5", 12), ("p6", 14), ("p7", 16)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_drive_2451(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
+        call=lambda lib, a: lib.part_drive_2451(dgh(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
     ),
     "collect_carried": dict(
         addr=0x03972,
@@ -4735,8 +4735,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.read_translated(
-            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2])),
+            ctypes.c_int16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "dos_read": dict(
         addr=0x0C185,

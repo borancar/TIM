@@ -1142,22 +1142,22 @@ uint16_t part_init(uint32_t at, struct part *part)
  */
 void free_part(struct part *part)
 {
-    if (dg_near(dgroup, part) == 0)   /* the offset: `or si,si` at 0x14d9c */
+    if (part == PART_NONE)   /* the offset: `or si,si` at 0x14d9c */
         return;
 
     if (part->points_ptr != 0)
-        checked_free(part->points_ptr);
+        checked_free(dg_ptr(dgroup, part->points_ptr));
 
     if (part->rope_ptr != 0
         && (part->flags_08 & 1) == 0)
-        checked_free(part->rope_ptr);
+        checked_free(dg_ptr(dgroup, part->rope_ptr));
 
     if (part->belt_ptr[0] != 0
         && (part->kind == KIND_PULLEY
             || part->kind == KIND_ROPE))
-        checked_free(part->belt_ptr[0]);
+        checked_free(dg_ptr(dgroup, part->belt_ptr[0]));
 
-    checked_free(dg_near(dgroup, part));
+    checked_free((uint8_t *)part);
 }
 
 /*
@@ -2226,7 +2226,7 @@ void clear_layer_heads(void)
     int16_t i = 5;
 
     do {
-        DG50BF.layer_head[i] = 0;
+        DG50BF.layer_head_ptr[i] = 0;
         i--;
     } while (i >= 0);
 }
@@ -2262,11 +2262,11 @@ void link_record_into_buckets(struct part *rec)
 
         if (slot == 0xFF)
             continue;
-        if (dg_near(dgroup, rec) == DG50D3.dragged_part_ptr)
+        if (rec == PART_PTR(DG50D3.dragged_part_ptr))
             slot = 0;
 
-        rec->layer_next_ptr[i] = DG50BF.layer_head[slot];
-        DG50BF.layer_head[slot] = dg_near(dgroup, rec);
+        rec->layer_next_ptr[i] = DG50BF.layer_head_ptr[slot];
+        DG50BF.layer_head_ptr[slot] = dg_near(dgroup, rec);
         if (i == 0)
             rec->byte_7f = slot;
     }
@@ -2305,7 +2305,7 @@ void draw_machine(int16_t a, int16_t b)
     for (v01 = 6; v01 != 0; v01--) {
         v02 = (uint8_t)(v01 - 1);
 
-        for (si = DG50BF.layer_head[v02]; si != 0;
+        for (si = DG50BF.layer_head_ptr[v02]; si != 0;
              si = (PART_PTR(si)->byte_7f == v02
                    ? PART_PTR(si)->layer_next_ptr[0]
                    : PART_PTR(si)->layer_next_ptr[1])) {
@@ -2607,7 +2607,7 @@ void draw_belt(struct part *part, int16_t a)
 void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 {
     uint16_t v2a;   /* [bp-0x2a] the bitmap */
-    uint16_t v28;   /* [bp-0x28] the record */
+    const struct draw_step *v28;   /* [bp-0x28] the record */
     const struct part_kind *v26;   /* [bp-0x26] the kind's record */
     uint16_t v24;   /* [bp-0x24] the adjustment */
     const struct point8 *hot;
@@ -2705,9 +2705,9 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     }
 
     if (part->flags_08 & 0x1000) {
-        v28 = OFF_TABLE(v26->bitmaps2_ptr)[v04];
+        v28 = DRAWSTEP_PTR(OFF_TABLE(v26->bitmaps2_ptr)[v04]);
     } else {
-        v28 = dg_near(dgroup, &DG0124);
+        v28 = &DG0124;
         DG0124.frame[0] = (uint8_t)v04;
         DG0124.level = (uint8_t)level;
 
@@ -2720,12 +2720,12 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
         }
     }
 
-    while (v28 != 0) {
-        if (DRAWSTEP_PTR(v28)->level != (uint8_t)level
-            && dg_near(dgroup, part) != DG50D3.dragged_part_ptr)
+    while (v28 != DRAWSTEP_NONE) {
+        if (v28->level != (uint8_t)level
+            && part != PART_PTR(DG50D3.dragged_part_ptr))
             goto next;
 
-        v21 = DRAWSTEP_PTR(v28)->frame[0];
+        v21 = v28->frame[0];
 
         for (di = 0; ; di++) {
             v2a = BMPSET_PTR(v26->bitmaps_ptr)->bmp[v21];
@@ -2737,13 +2737,13 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 v08 = (int16_t)(
                     v08
                     + (part->mirror_size.width
-                       - (int8_t)DRAWSTEP_PTR(v28)->offset[di].x
+                       - (int8_t)v28->offset[di].x
                        - BMP_PTR(v2a)->width));
                 v1a = 2;
             } else {
                 v08 = (int16_t)(
                     v08
-                    + (int8_t)DRAWSTEP_PTR(v28)->offset[di].x);
+                    + (int8_t)v28->offset[di].x);
                 v1a = 0;
             }
 
@@ -2751,13 +2751,13 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 v0a = (int16_t)(
                     v0a
                     + (part->mirror_size.height
-                       - (int8_t)DRAWSTEP_PTR(v28)->offset[di].y
+                       - (int8_t)v28->offset[di].y
                        - BMP_PTR(v2a)->height));
                 v1a |= 1;
             } else {
                 v0a = (int16_t)(
                     v0a
-                    + (int8_t)DRAWSTEP_PTR(v28)->offset[di].y);
+                    + (int8_t)v28->offset[di].y);
             }
 
             if (a != 0) {
@@ -2776,14 +2776,14 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 draw_bitmap(BMP_PTR(v2a), v08, v0a, v1a);
             }
 
-            v21 = DRAWSTEP_PTR(v28)->frame[di + 1];
+            v21 = v28->frame[di + 1];
 
             if (di + 1 >= 4 || v21 == 0xff)
                 break;
         }
 
     next:
-        v28 = DRAWSTEP_PTR(v28)->next;
+        v28 = DRAWSTEP_PTR(v28->next);
     }
 
 done:

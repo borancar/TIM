@@ -3720,29 +3720,29 @@ uint16_t open_sound_file(char *name, int16_t id)
     int16_t si;
     uint16_t r = 0;
 
-    if (id != 0 && dg_near(dgroup, handle) == DG4A82.file && DG4A82.file != 0)
+    if (id != 0 && handle == FILEREC_PTR(DG4A82.file_ptr) && DG4A82.file_ptr != 0)
         goto search;
 
-    if (DG4A82.file != dg_near(dgroup, handle) && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file));
+    if (FILEREC_PTR(DG4A82.file_ptr) != handle && DG4A82.file_kind != 0)
+        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
-    DG4A82.file = 0;
+    DG4A82.file_ptr = 0;
     DG4A82.file_kind = 0;
 
     if (file_record_valid(handle) != 0) {
-        DG4A82.file = (int16_t)dg_near(dgroup, handle);
+        DG4A82.file_ptr = dg_near(dgroup, handle);
     } else {
-        DG4A82.file = (int16_t)dg_near(dgroup, open_file_record(name));
-        if (DG4A82.file == 0)
+        DG4A82.file_ptr = dg_near(dgroup, open_file_record(name));
+        if (DG4A82.file_ptr == 0)
             goto fail;
         DG4A82.file_kind = 1;
     }
 
     remove_and_free_records(0);
 
-    game_fseek(FILEREC_PTR(DG4A82.file), 0xc, 0);
+    game_fseek(FILEREC_PTR(DG4A82.file_ptr), 0xc, 0);
 
-    if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file)) != 1)
+    if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
@@ -3760,7 +3760,7 @@ uint16_t open_sound_file(char *name, int16_t id)
 
     if (fread_huge((struct far_ptr){ (uint16_t)(DG4A82.directory.off + 4),
                                      DG4A82.directory.seg },
-                   size, 1, FILEREC_PTR(DG4A82.file)) != 1)
+                   size, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
     if (*(uint16_t *)MK_FP(DG4A82.directory.seg,
@@ -3776,7 +3776,7 @@ uint16_t open_sound_file(char *name, int16_t id)
 
 search:
     if (id > 0 && !far_eq(next_matching_record(id), FAR_NULL)) {
-        r = DG4A82.file;
+        r = DG4A82.file_ptr;
         goto out;
     }
 
@@ -3806,7 +3806,7 @@ search:
         {
             uint32_t at = found + 4;
 
-            if (game_fseek(FILEREC_PTR(DG4A82.file), (int32_t)at, 0) != 0)
+            if (game_fseek(FILEREC_PTR(DG4A82.file_ptr), (int32_t)at, 0) != 0)
                 goto fail;
         }
 
@@ -3816,14 +3816,14 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file),
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr),
                              *MK_FP(DG4A82.directory.seg,
                                       (uint16_t)(DG4A82.directory.off + 8)));
             if (ok == 0)
                 goto out;
         }
 
-        r = DG4A82.file;
+        r = DG4A82.file_ptr;
         goto out;
     }
 
@@ -3840,14 +3840,14 @@ search:
                             | *(uint16_t *)(e + 2)) + 4);
 
 
-            if (game_fseek(FILEREC_PTR(DG4A82.file), (int32_t)at, 0) != 0)
+            if (game_fseek(FILEREC_PTR(DG4A82.file_ptr), (int32_t)at, 0) != 0)
                 goto fail;
         }
 
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file),
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr),
                              *MK_FP(DG4A82.directory.seg,
                                       (uint16_t)(DG4A82.directory.off + 8)));
             if (ok == 0)
@@ -3857,19 +3857,19 @@ search:
         cur.off = (uint16_t)(cur.off + 6);
     }
 
-    r = DG4A82.file;
+    r = DG4A82.file_ptr;
     goto out;
 
 fail:
-    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file));
+    if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
+        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
         free_for_kind(DG4A82.directory, 0xa);
 
     remove_and_free_records(0);
 
-    DG4A82.file = 0;
+    DG4A82.file_ptr = 0;
     DG4A82.directory = FAR_NULL;
     r = 0;
 
@@ -4181,8 +4181,8 @@ void shutdown_sound(void)
     if (!far_eq(DG4A82.directory, FAR_NULL))
         free_for_kind(DG4A82.directory, 0xa);
 
-    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file));
+    if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
+        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
     if (((int16_t)DG4A82.tick_cb.off) != 0) {
         timer_drop_callback(DG4A82.tick_cb.off);

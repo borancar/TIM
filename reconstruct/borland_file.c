@@ -168,11 +168,11 @@ struct borland_streams {
 
 struct borland_streams BORLAND_STREAMS DGROUP_AT(0x4bc4) = {
     .streams = {
-        { .flags = 0x0209, .token = 0x4bc4 },
-        { .flags = 0x020a, .fd = 0x01, .token = 0x4bd4 },
-        { .flags = 0x0202, .fd = 0x02, .token = 0x4be4 },
-        { .flags = 0x0243, .fd = 0x03, .token = 0x4bf4 },
-        { .flags = 0x0242, .fd = 0x04, .token = 0x4c04 },
+        { .flags = 0x0209, .token_ptr = 0x4bc4 },
+        { .flags = 0x020a, .fd = 0x01, .token_ptr = 0x4bd4 },
+        { .flags = 0x0202, .fd = 0x02, .token_ptr = 0x4be4 },
+        { .flags = 0x0243, .fd = 0x03, .token_ptr = 0x4bf4 },
+        { .flags = 0x0242, .fd = 0x04, .token_ptr = 0x4c04 },
     },
 };
 _Static_assert(sizeof(struct borland_streams) == 0x140, "DGROUP 0x4bc4..0x4d04, 0x140 bytes");
@@ -477,7 +477,7 @@ void setup_streams(void)
     for (dx = 5; dx < BORLAND_NFILE.word_4d04; dx++) {
         BORLAND_HANDLE_FLAGS.flags[dx] = 0;
         BORLAND_STREAMS.streams[dx].fd = 0xff;
-        BORLAND_STREAMS.streams[dx].token = dg_near(dgroup, &BORLAND_STREAMS.streams[dx]);
+        BORLAND_STREAMS.streams[dx].token_ptr = dg_near(dgroup, &BORLAND_STREAMS.streams[dx]);
     }
 
     if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[0].fd) == 0)
@@ -570,9 +570,9 @@ next_byte:
     if (file->level < 0) {
         dx = (uint16_t)borland_getc(file);
     } else {
-        uint16_t p = file->curp;
+        uint16_t p = file->curp_ptr;
 
-        file->curp = (int16_t)(p + 1);
+        file->curp_ptr = (int16_t)(p + 1);
         dx = *dg_ptr(dgroup, p);
     }
 
@@ -673,7 +673,7 @@ int16_t borland_printf(const char *fmt, const uint8_t *args)
  * and the translation is dead - transcribed as the refusal it is rather than
  * written on faith, since nothing on these screens can check it.
  */
-int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
+int16_t read_translated(int16_t handle, uint8_t *buf, uint16_t count)
 {
     int16_t got;
 
@@ -686,7 +686,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
         || (BORLAND_HANDLE_FLAGS.flags[handle] & 0x200) != 0)
         return 0;
 
-    got = dos_read(handle, dg_ptr(dgroup, buf), count);
+    got = dos_read(handle, buf, count);
 
     if ((uint16_t)(got + 1) < 2
         || (BORLAND_HANDLE_FLAGS.flags[handle] & 0x4000) == 0)
@@ -711,13 +711,13 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
  */
 void flush_all_streams(void)
 {
-    uint16_t si = dg_near(dgroup, &BORLAND_STREAMS.streams[0]);
+    struct file_rec *si = &BORLAND_STREAMS.streams[0];
     int16_t n;
 
     for (n = 0x14; n != 0; n--) {
-        if ((FILEREC_PTR(si)->flags & 0x300) == 0x300)
-            flush_stream(FILEREC_PTR(si));
-        si = (uint16_t)(si + 0x10);
+        if ((si->flags & 0x300) == 0x300)
+            flush_stream(si);
+        si++;
     }
 }
 
@@ -746,9 +746,9 @@ int16_t refill_stream(struct file_rec *file)
     if ((file->flags & 0x200) != 0)
         flush_all_streams();
 
-    file->curp = ((int16_t)file->buffer);
+    file->curp_ptr = ((int16_t)file->buffer_ptr);
 
-    got = read_translated((int16_t)file->fd, file->buffer,
+    got = read_translated((int16_t)file->fd, dg_ptr(dgroup, file->buffer_ptr),
                           file->bsize);
     file->level = got;
 
@@ -817,7 +817,7 @@ int16_t borland_fgetc(struct file_rec *file)
                     flush_all_streams();
 
                 if (read_translated((int16_t)((int8_t)file->fd),
-                                    dg_near(dgroup, &BORLAND_ATEXIT_TABLE.getc_byte), 1) == 0) {
+                                    &BORLAND_ATEXIT_TABLE.getc_byte, 1) == 0) {
                     if (borland_eof((int16_t)((int8_t)file->fd)) == 1) {
                         file->flags = (uint16_t)((file->flags & 0xfe7f) | 0x20);
                         return -1;
@@ -839,10 +839,10 @@ int16_t borland_fgetc(struct file_rec *file)
     }
 
     {
-        uint16_t p = file->curp;
+        uint16_t p = file->curp_ptr;
 
         file->level--;
-        file->curp = (int16_t)(p + 1);
+        file->curp_ptr = (int16_t)(p + 1);
         return *dg_ptr(dgroup, p);
     }
 }
@@ -895,17 +895,17 @@ int16_t flush_stream(struct file_rec *file)
     if (file == 0)
         return borland_flushall();
 
-    if (file->token != dg_near(dgroup, file))
+    if (FILEREC_PTR(file->token_ptr) != file)
         return -1;
 
     if (file->level < 0) {
         int16_t n = (int16_t)(((int16_t)file->bsize) + file->level + 1);
 
         file->level = (int16_t)(file->level - n);
-        file->curp = file->buffer;
+        file->curp_ptr = file->buffer_ptr;
 
         if (write_text((int16_t)((int8_t)file->fd),
-                       dg_ptr(dgroup, file->buffer),
+                       dg_ptr(dgroup, file->buffer_ptr),
                        (uint16_t)n) == n)
             return 0;
 
@@ -917,16 +917,16 @@ int16_t flush_stream(struct file_rec *file)
     }
 
     if ((file->flags & 8) == 0) {
-        if (file->curp != dg_near(dgroup, &file->hold))
+        if (dg_ptr(dgroup, file->curp_ptr) != &file->hold)
             return 0;
     }
 
     file->level = 0;
 
-    if (file->curp != dg_near(dgroup, &file->hold))
+    if (dg_ptr(dgroup, file->curp_ptr) != &file->hold)
         return 0;
 
-    file->curp = ((int16_t)file->buffer);
+    file->curp_ptr = ((int16_t)file->buffer_ptr);
     return 0;
 }
 
@@ -957,7 +957,7 @@ int16_t borland_fseek(struct file_rec *file, int32_t off, int16_t whence)
 
     file->flags = (int16_t)(file->flags & 0xfe5f);
     file->level = 0;
-    file->curp = ((int16_t)file->buffer);
+    file->curp_ptr = ((int16_t)file->buffer_ptr);
 
     if (dos_lseek((int8_t)file->fd, (uint16_t)off,
                   (uint16_t)((uint32_t)off >> 16), whence) == -1)
@@ -1093,7 +1093,7 @@ int16_t borland_fclose(struct file_rec *file)
 {
     int16_t si = -1;
 
-    if (file->token != dg_near(dgroup, file))
+    if (FILEREC_PTR(file->token_ptr) != file)
         return -1;
 
     if (file->bsize != 0) {
@@ -1109,7 +1109,7 @@ int16_t borland_fclose(struct file_rec *file)
             return -1;
 
         if ((file->flags & 4) != 0)
-            heap_free(file->buffer);
+            heap_free(file->buffer_ptr);
     }
 
     if ((int8_t)file->fd >= 0)
@@ -1347,8 +1347,8 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
 
     if (file->level < -1) {
         file->level++;
-        *dg_ptr(dgroup, file->curp) = BORLAND_FPUTC_CHAR.character;
-        file->curp++;
+        *dg_ptr(dgroup, file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
+        file->curp_ptr++;
 
         if ((file->flags & 8) == 0)
             return (int16_t)BORLAND_FPUTC_CHAR.character;
@@ -1373,8 +1373,8 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
                 return -1;
 
             file->level = (int16_t)(-((int16_t)file->bsize));
-            *dg_ptr(dgroup, file->curp) = BORLAND_FPUTC_CHAR.character;
-            file->curp++;
+            *dg_ptr(dgroup, file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
+            file->curp_ptr++;
 
             if ((file->flags & 8) == 0)
                 return (int16_t)BORLAND_FPUTC_CHAR.character;
@@ -1763,7 +1763,7 @@ have_handle:
  */
 int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint16_t size)
 {
-    if (file->token != dg_near(dgroup, file) || mode > 2 || size > 0x7fff)
+    if (FILEREC_PTR(file->token_ptr) != file || mode > 2 || size > 0x7fff)
         return -1;
 
     if (DG4E34.stdout_is_tty == 0 && file == &BORLAND_STREAMS.streams[1])
@@ -1775,12 +1775,12 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
         borland_fseek(file, 0, 1);
 
     if ((file->flags & 4) != 0)
-        heap_free(file->buffer);
+        heap_free(file->buffer_ptr);
 
     file->flags = (int16_t)(file->flags & 0xfff3);
     file->bsize = 0;
-    file->buffer = dg_near(dgroup, &file->hold);
-    file->curp = dg_near(dgroup, &file->hold);
+    file->buffer_ptr = dg_near(dgroup, &file->hold);
+    file->curp_ptr = dg_near(dgroup, &file->hold);
 
     if (mode == 2 || size == 0)
         return 0;
@@ -1795,8 +1795,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
         file->flags = (int16_t)(file->flags | 4);
     }
 
-    file->curp = (int16_t)buf;
-    file->buffer = (int16_t)buf;
+    file->curp_ptr = (int16_t)buf;
+    file->buffer_ptr = (int16_t)buf;
     file->bsize = (int16_t)size;
 
     if (mode == 1)
@@ -2317,20 +2317,20 @@ char *string_concat(char *dst, const char *src)
      * original aligns with one `movsb` when the source is odd, and "odd" there
      * means odd in the segment. A host address has its own parity and it is a
      * different number - the bytes copied come out the same either way, but
-     * the branch would no longer be the one the original takes. `dg_near` is
-     * what makes it the same test.
+     * the branch would no longer be the one the original takes. The distance
+     * from DGROUP's start is what makes it the same test.
      *
      * **And a source that is not the guest's has no such parity at all.**
      * Three callers hand this a C array - `count_level_files`, `load_level`
      * and `load_part_bitmap`, whose buffers stopped being DGROUP frames when
-     * the string routines took pointers - and `dg_near` on one of those is the
+     * the string routines took pointers - and the distance from DGROUP to one of those is the
      * distance between two unrelated objects, so the branch was being decided
      * by a number that means nothing. It cost nothing, because the two arms
      * copy the same bytes: the step copies one and takes one off `n`. So the
      * port asks the question only where there is an offset to ask it about,
      * and takes the even arm otherwise - the one an aligned buffer gets.
      */
-    if (dg_is_guest(src) && (dg_near(dgroup, src) & 1) != 0) {
+    if (dg_is_guest(src) && (((const uint8_t *)src - dgroup) & 1) != 0) {
         *d = *src;
         d++;
         src++;
@@ -2489,10 +2489,10 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
                 return 0;
         }
 
-        mem_copy(dg_ptr(dgroup, file->curp), buf, count);
+        mem_copy(dg_ptr(dgroup, file->curp_ptr), buf, count);
         file->level = (uint16_t)(((uint16_t)file->level) + count);
-        file->curp =
-            (uint16_t)(file->curp + count);
+        file->curp_ptr =
+            (uint16_t)(file->curp_ptr + count);
 
         return asked;
     }
@@ -2519,8 +2519,8 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
             uint8_t c = *buf;
 
             buf++;
-            *dg_ptr(dgroup, file->curp) = c;
-            file->curp++;
+            *dg_ptr(dgroup, file->curp_ptr) = c;
+            file->curp_ptr++;
             r = (int16_t)c;
         }
 
@@ -3176,15 +3176,15 @@ int16_t borland_eof(int16_t handle)
 int16_t borland_flushall(void)
 {
     int16_t  count = 0;
-    uint16_t si = dg_near(dgroup, &BORLAND_STREAMS.streams[0]);
+    struct file_rec *si = &BORLAND_STREAMS.streams[0];
     uint16_t n;
 
     for (n = BORLAND_NFILE.word_4d04; n != 0; n--) {
-        if ((FILEREC_PTR(si)->flags & 3) != 0) {
-            flush_stream(FILEREC_PTR(si));
+        if ((si->flags & 3) != 0) {
+            flush_stream(si);
             count++;
         }
-        si = (uint16_t)(si + 0x10);
+        si++;
     }
 
     return count;

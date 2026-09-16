@@ -681,7 +681,7 @@ difference and not a refactor.
 - `load_part_bitmap` **used to be here**, because `load_bitmaps` takes a
   handle *or* a filename address and tells them apart by asking
   `file_record_valid` whether the number matches an open record's
-  `file_ptr` - which a C array's `dg_off` could match by accident. The way
+  `file_ptr` - which a C array's `dg_near` could match by accident. The way
   out was to answer the original's question *exactly* rather than
   approximately: **a pointer outside guest memory cannot be a handle**, and
   `dg_is_guest` says so. That is ours and it is not a guess - it is the one
@@ -704,7 +704,7 @@ fifty-five and prints an empty sample list: a C local is not inside
 
 Worse than the failure is the shape of it. With the pair as an argument the
 compiler stops anyone passing a C local; as a pointer it accepts one and the
-damage is silent until something listens. That is the `dg_off` trap from
+damage is silent until something listens. That is the `dg_near` trap from
 in docs/lessons.md, one level higher - **a signature that accepts what the
 routine cannot handle is worse than one that refuses it** - so
 `read_resource` keeps its `seg:off`.

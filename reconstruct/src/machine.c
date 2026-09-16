@@ -8300,7 +8300,7 @@ void refile_overlapping_parts(void)
     for (v01 = 6; v01 != 0; v01--) {
         v02 = (uint8_t)(v01 - 1);
 
-        v14 = DG50BF.layer_head[v02];
+        v14 = DG50BF.layer_head_ptr[v02];
 
         while (v14 != 0) {
             v16 = &PART_KINDS[PART_PTR(v14)->kind];
@@ -10034,7 +10034,7 @@ void select_music(int16_t id)
     }
 
     if (id != -1) {
-        open_sound_file((char *)FILEREC_PTR(DG52ED.word_52f8), id);
+        open_sound_file((char *)FILEREC_PTR(DG52ED.tim_sx_ptr), id);
         play_sound(id);
     }
 
@@ -10109,10 +10109,10 @@ void stop_music_or_effect(int16_t id)
  * that hangs on a broken heap, so a free that corrupts the ring stops the game
  * at the free rather than somewhere unrelated later.
  */
-void checked_free(uint16_t p)
+void checked_free(uint8_t *p)
 {
     heap_check_or_hang();
-    heap_free_far(dg_ptr(dgroup, p));
+    heap_free_far(p);
     heap_check_or_hang();
 }
 
@@ -10141,7 +10141,7 @@ void free_region_lists(void)
         while (si != 0) {
             uint16_t next = REGION_PTR(si)->link_ptr;
 
-            checked_free(si);
+            checked_free(dg_ptr(dgroup, si));
             si = next;
         }
     }
@@ -11003,7 +11003,7 @@ uint16_t build_rect_pool(uint16_t n)
 
     RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = base;
-    GAME_TEXT_LINES.line[8] = (uint16_t)(GAME_TEXT_LINES.line[8] + n);
+    GAME_TEXT_LINES.line_ptr[8] = (uint16_t)(GAME_TEXT_LINES.line_ptr[8] + n);
     return 1;
 }
 
@@ -11352,7 +11352,7 @@ void free_rect_pool(void)
  */
 uint16_t rect_pool_count(void)
 {
-    return GAME_TEXT_LINES.line[8];
+    return GAME_TEXT_LINES.line_ptr[8];
 }
 
 /*

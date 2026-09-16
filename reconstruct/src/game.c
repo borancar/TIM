@@ -678,7 +678,7 @@ uint16_t game_teardown(int16_t really)
     remove_and_free_records(-2);
     shutdown_sound();
 
-    close_file_record(FILEREC_PTR(DG52ED.word_52f8));
+    close_file_record(FILEREC_PTR(DG52ED.tim_sx_ptr));
     free_archive_lists();
 
     remove_keyboard();
@@ -807,9 +807,9 @@ void game_startup(void)
 
     start_sound(sound_device, sound_module, 0, (FILE *)GAME_STARTUP_NAMES.sx_ovl);     /* "sx.ovl" */
 
-    DG52ED.word_52f8 = dg_near(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
+    DG52ED.tim_sx_ptr = dg_near(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
     for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)FILEREC_PTR(DG52ED.word_52f8), (int16_t)i);
+        open_sound_file((char *)FILEREC_PTR(DG52ED.tim_sx_ptr), (int16_t)i);
 
     /* A word table at DGROUP 0x116, indexed by what TIM.CFG put at 0x4ec1. */
     set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
@@ -1916,10 +1916,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     i       = 0;
     left_at = GAME_PICKER_TEXT.line_count;
 
-    while (GAME_TEXT_LINES.line[i] != 0 && *dg_ptr(dgroup, GAME_TEXT_LINES.line[i]) != 0
+    while (GAME_TEXT_LINES.line_ptr[i] != 0 && *dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i]) != 0
            && left_at-- != 0) {
-        char *start = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line[i]);
-        char *end   = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line[i + 1]) - 1;
+        char *start = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i]);
+        char *end   = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i + 1]) - 1;
         char  saved;
 
         while (end > start && (uint8_t)*end <= ' ')
@@ -1998,7 +1998,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
     GAME_PICKER_TEXT.text_width  = 0;
 
     if (*at != 0) {
-        GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
+        GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
         GAME_PICKER_TEXT.line_count++;
     }
 
@@ -2017,7 +2017,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
         if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
             run  = 0;
             used = (int16_t)(used + line_height);
-            GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
+            GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
             GAME_PICKER_TEXT.line_count++;
             if ((int16_t)(used + line_height) >= h)
                 break;
@@ -2035,7 +2035,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
             if (*at == 0x0d) {
                 run  = 0;
                 used = (int16_t)(used + line_height);
-                GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at + 1);
+                GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at + 1);
                 GAME_PICKER_TEXT.line_count++;
             } else if (*at == ' ') {
                 run = (int16_t)(run + space_w);
@@ -2051,7 +2051,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
     else
         GAME_PICKER_TEXT.text_height = (int16_t)(GAME_PICKER_TEXT.text_height + line_height);
 
-    GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
+    GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
 }
 
 /*
@@ -3372,7 +3372,7 @@ void screen_state_0100(struct screen_loop *s)
         dos_setdisk((uint8_t)GAME_DIRECTORIES.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
-    if (pick_file(0, 0, dg_near(dgroup, GAME_LEVEL_STRINGS.tim_filter_load))) {
+    if (pick_file(0, 0, GAME_LEVEL_STRINGS.tim_filter_load)) {
         round_teardown();
         load_animation((char *)DG52FE.name);
         reset_machine();
@@ -3428,7 +3428,7 @@ void screen_state_0080(struct screen_loop *s)
     while (s->file_err != 0) {
         DG4E67.state = 0x80;
 
-        if (pick_file(0, 0, dg_near(dgroup, GAME_LEVEL_STRINGS.tim_filter_save))) {
+        if (pick_file(0, 0, GAME_LEVEL_STRINGS.tim_filter_save)) {
             s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
                 show_message_box(DG1BCC.file_error, (char *)DG1BCC.disk_write_protected);
@@ -4222,7 +4222,7 @@ void pick_up_part(void)
     } else if (part->kind == KIND_ROPE) {
         rec = BELT_PTR(part->belt_ptr[0]);
         idx = ((int8_t)rec->slot_b);
-        DG5456.belt_far_end = PART_PTR(rec->end_b_ptr)->link_ptr[idx];
+        DG5456.belt_far_end_ptr = PART_PTR(rec->end_b_ptr)->link_ptr[idx];
         detach_belt(part, 0);
     } else {
         detach_part_to_bin(part);
@@ -5459,14 +5459,14 @@ void move_carried_belt(void)
 
     far_ = PART_PTR(si->end_a_ptr);
 
-    di = find_belt_anchor(&end, PART_PTR(DG2630.word_2630));
+    di = find_belt_anchor(&end, PART_PTR(DG2630.belt_anchor_ptr));
 
-    if (di == PART_PTR(DG5456.belt_far_end) && far_ != PART_NONE)
+    if (di == PART_PTR(DG5456.belt_far_end_ptr) && far_ != PART_NONE)
         di = PART_NONE;
     else if (di == far_ && far_ != PART_NONE)
         di = PART_NONE;
 
-    DG2630.word_2630 = dg_near(dgroup, di);
+    DG2630.belt_anchor_ptr = dg_near(dgroup, di);
 
     if (DG5768.button_left == 2) {
         if (di == PART_NONE) {
@@ -5482,43 +5482,43 @@ void move_carried_belt(void)
                 si->home_a_ptr = dg_near(dgroup, di);
                 si->slot_a = (uint8_t)(uint16_t)end;
                 si->home_slot_a = (uint8_t)(uint16_t)end;
-                DG5456.belt_far_end = dg_near(dgroup, di);
+                DG5456.belt_far_end_ptr = dg_near(dgroup, di);
             }
             return;
         }
 
-        if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
-            PART_PTR(DG5456.belt_far_end)->link_ptr[0] = dg_near(dgroup, di);
-            PART_PTR(DG5456.belt_far_end)->link_ptr[2] = dg_near(dgroup, di);
-            mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
-            mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
-            mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
+        if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[0] = dg_near(dgroup, di);
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[2] = dg_near(dgroup, di);
+            mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+            mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+            mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
         } else {
             idx = si->slot_a;
-            PART_PTR(DG5456.belt_far_end)->link_ptr[idx] = dg_near(dgroup, di);
-            PART_PTR(DG5456.belt_far_end)->link_ptr[idx + 2] = dg_near(dgroup, di);
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx] = dg_near(dgroup, di);
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx + 2] = dg_near(dgroup, di);
         }
 
         refresh_link_geometry(si);
         mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
 
         if (di->kind == KIND_PULLEY) {
-            di->link_ptr[1] = DG5456.belt_far_end;
-            di->link_ptr[3] = DG5456.belt_far_end;
+            di->link_ptr[1] = DG5456.belt_far_end_ptr;
+            di->link_ptr[3] = DG5456.belt_far_end_ptr;
             di->belt_ptr[1] = dg_near(dgroup, si);
-            if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
-                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
-            DG5456.belt_far_end = dg_near(dgroup, di);
+            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
+            DG5456.belt_far_end_ptr = dg_near(dgroup, di);
         } else {
-            di->link_ptr[(uint16_t)end] = DG5456.belt_far_end;
-            di->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end;
+            di->link_ptr[(uint16_t)end] = DG5456.belt_far_end_ptr;
+            di->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end_ptr;
             di->belt_ptr[(uint16_t)end] = dg_near(dgroup, si);
             si->end_b_ptr = dg_near(dgroup, di);
             si->home_b_ptr = dg_near(dgroup, di);
             si->slot_b = (uint8_t)(uint16_t)end;
             si->home_slot_b = (uint8_t)(uint16_t)end;
-            if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
-                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
+            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
             refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
@@ -5530,20 +5530,20 @@ void move_carried_belt(void)
         return;
     }
 
-    if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
+    if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
         end = 1;
-        aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
-        mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
-        mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
-        mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
+        aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
+        mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+        mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+        mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
     } else {
         end = (int16_t)si->slot_a;
     }
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos[0].x)
-                    + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos[0].y)
-                    + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].y);
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].x)
+                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].y)
+                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
@@ -6329,7 +6329,7 @@ void read_list(FILE *file, struct part *head, int16_t n)
  * picker draws, scrolls and types, and reaches a stub the moment a directory is
  * actually chosen.
  */
-uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
+uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
 {
     char pat[38];                  /* [bp-0x26], 0x26 bytes */
 
@@ -6351,7 +6351,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy(pat, (const char *)dg_ptr(dgroup, pattern));
+    string_copy(pat, pattern);
 
     DG4E4E.name_buf[0] = 0;
     GAME_PICKER_TEXT.picker_mode = DG4E67.state;
@@ -6746,7 +6746,7 @@ void picker_draw_list(void)
         struct far_ptr t = *p++;
 
         if (FAR8(t.seg, t.off) == ':')
-            t = (struct far_ptr){ dg_near(dgroup, DG1BCC.parent_dir), DGROUP_SEG };
+            t = dg_far(dgroup, DG1BCC.parent_dir);
 
         clear_flag_2d44_thunk();
         draw_string_body((const char far *)MK_FP(t.seg, t.off),

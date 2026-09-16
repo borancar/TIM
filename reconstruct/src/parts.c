@@ -2172,7 +2172,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (di == 0 && mode != 1) {
         p2->direction = drive;
 
-        di = (int16_t)drive_belts(dg_near(dgroup, p1), p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
+        di = (int16_t)drive_belts(p1, p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
 
         if ((p4 & 0x8000) != 0)
             p2->direction = was;
@@ -4038,7 +4038,7 @@ void seg172c_nothing(void)
  * marked with bit 9 of +8 answers 1 straight away, and the walk stops at the
  * first belt that answers anything at all.
  */
-uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
+uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, uint16_t b, uint16_t c)
 {
     uint16_t v10;   /* [bp-0x10] the far part */
@@ -4065,10 +4065,10 @@ uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
             continue;
 
         v10 = (uint16_t)select_field_2_or_4(part, BELT_PTR(si));
-        if (v10 == from)
+        if (PART_PTR(v10) == from)
             continue;
 
-        if (BELT_PTR(si)->end_a_ptr == dg_near(dgroup, part)) {
+        if (PART_PTR(BELT_PTR(si)->end_a_ptr) == part) {
             v06 = 0;
             v08 = BELT_PTR(si)->slot_a;
             v0a = BELT_PTR(si)->slot_b;
@@ -4107,14 +4107,14 @@ uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_
     switch (off) {
     case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
     case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2451: return part_drive_2451(dg_near(dgroup, p1), p2, p3, p4, p5, p6, p7);
+    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
     case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
     case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
     case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
     case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
     case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
     case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2c19: return part_drive_2c19(dg_near(dgroup, p1), p2, p3, p4, p5, p6, p7);
+    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
     default: break;
     }
 
@@ -4217,7 +4217,7 @@ uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
  * clear, it starts: +0x12 becomes 1 and the answer is 0 so the walk goes on
  * past it.
  */
-uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
+uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7)
 {
@@ -4266,7 +4266,7 @@ uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
  * stops the drive: it answers 1 and the caller's walk ends. Bit 2 on a part
  * that is *not* going starts it instead, with sound 0x11, and answers 0.
  */
-uint16_t part_drive_2c19(uint16_t p1, struct part *si, uint16_t p3,
+uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6, uint16_t p7)
 {
     struct belt *belt = BELT_PTR(si->belt_ptr[0]);
@@ -4334,12 +4334,12 @@ uint16_t part_step_seesaw(struct part *part)
         part->form =
             (uint16_t)(part->form
                        + ((uint16_t)part->direction));
-    } else if (drive_belts(0, part, 0x8000, 0x3e8,
+    } else if (drive_belts(PART_NONE, part, 0x8000, 0x3e8,
                            (uint16_t)part->momentum,
                            (uint16_t)((uint32_t)part->momentum >> 16)) != 0) {
         part->flags_08 |= 0x200;
     } else {
-        drive_belts(0, part, 0, 0x3e8,
+        drive_belts(PART_NONE, part, 0, 0x3e8,
                     (uint16_t)part->momentum,
                     (uint16_t)((uint32_t)part->momentum >> 16));
         part->form =
@@ -4793,7 +4793,7 @@ uint16_t part_step_balloon(struct part *part)
     if (((int16_t)k) != -1)
         link->link_ptr[k] = dg_near(dgroup, si);
 
-    if (belt->end_a_ptr == dg_near(dgroup, part)) {
+    if (PART_PTR(belt->end_a_ptr) == part) {
         belt->end_a_ptr = dg_near(dgroup, si);
         si->pos[0].x = belt->pt[0][0].x;
         si->pos[0].y = belt->pt[0][0].y;

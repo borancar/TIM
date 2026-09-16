@@ -472,16 +472,16 @@ static inline dg_near_t dg_near(const void *base, const void *p)
  * **A DGROUP object's far pointer**: DGROUP's segment and the object's near
  * pointer - what the original builds with `push ds` and an offset when a
  * routine that takes a far pointer is handed something of its own. `dg_near`'s
- * pair; a null pointer is the far null, 0000:0000. Ours, like `dg_near`.
+ * pair. The segment is DGROUP's whatever the offset is, so a null pointer is
+ * DGROUP:0000, not the far null - `push ds` does not look at the offset. Ours,
+ * like `dg_near`.
  */
 static inline struct far_ptr dg_far(const void *base, const void *p)
 {
-    struct far_ptr f = { 0, 0 };
+    struct far_ptr f;
 
-    if (p != 0) {
-        f.off = dg_near(base, p);
-        f.seg = (dg_seg_t)((uint32_t)((const uint8_t *)base - guest_mem) >> 4);
-    }
+    f.off = dg_near(base, p);
+    f.seg = (dg_seg_t)((uint32_t)((const uint8_t *)base - guest_mem) >> 4);
     return f;
 }
 
@@ -680,7 +680,7 @@ DG_ASSERT_AT(struct vmds, row_offset,     0x6f2);
  * four words between here and 0x50d3 are not read as part of it.
  */
 struct dg_50bf {
-    dg_near_t layer_head[6];      /* +0x00 */
+    dg_near_t layer_head_ptr[6];  /* +0x00 */
 } __attribute__((packed));
 
 extern struct dg_50bf DG50BF;
@@ -1020,7 +1020,7 @@ struct dg_4a82 {
        `directory.off + 4` and `+ 8`, which is a read at an offset and not
        the pointer being stepped. */
     struct far_ptr directory;     /* +0x20  the payload directory */
-    uint16_t  file;               /* +0x24  the file this module opened, if it did */
+    dg_near_t file_ptr;           /* +0x24  the file this module opened, if it did */
     uint16_t  file_kind;          /* +0x26  recorded beside the handle */
     uint16_t  module_live;        /* +0x28  the module is loaded and a callback exists */
     uint16_t  bank_choice;        /* +0x2a  chooses between load_sound_bank and its sibling */
@@ -1041,7 +1041,7 @@ DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
 DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);
 DG_ASSERT_AT(struct dg_4a82, voice_word,        0x1e);
 DG_ASSERT_AT(struct dg_4a82, directory,         0x20);
-DG_ASSERT_AT(struct dg_4a82, file,              0x24);
+DG_ASSERT_AT(struct dg_4a82, file_ptr,          0x24);
 DG_ASSERT_AT(struct dg_4a82, file_kind,         0x26);
 DG_ASSERT_AT(struct dg_4a82, module_live,       0x28);
 DG_ASSERT_AT(struct dg_4a82, bank_choice,       0x2a);
@@ -1110,7 +1110,7 @@ struct dg_52ed {
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
     dg_near_t panel_art_ptr;     /* +0x07  the art set the panel's pieces come out of */
     dg_near_t cursor_art_ptr;    /* +0x09  mouse.bmp's list */
-    uint16_t  word_52f8;          /* +0x0b */
+    dg_near_t tim_sx_ptr;         /* +0x0b  tim.sx's file record, which open_sound_file reads the sounds from */
     uint16_t  stop_requested;     /* +0x0d  game_teardown(0) raises it; the loops above read it */
     uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
 } __attribute__((packed));
@@ -1138,7 +1138,7 @@ DG_ASSERT_AT(struct dg_52ed, last_key,          0x04);
 DG_ASSERT_AT(struct dg_52ed, cursor_follows,    0x05);
 DG_ASSERT_AT(struct dg_52ed, panel_art_ptr,     0x07);
 DG_ASSERT_AT(struct dg_52ed, cursor_art_ptr,    0x09);
-DG_ASSERT_AT(struct dg_52ed, word_52f8,         0x0b);
+DG_ASSERT_AT(struct dg_52ed, tim_sx_ptr,        0x0b);
 DG_ASSERT_AT(struct dg_52ed, stop_requested,    0x0d);
 DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
 
@@ -1244,12 +1244,12 @@ _Static_assert(sizeof(struct timer) == 0x8b, "the timer state ends at 0x4579");
  * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
  */
 struct game_text_lines {
-    dg_near_t line[9];            /* +0x00 [0x12] */
+    dg_near_t line_ptr[9];        /* +0x00 [0x12] */
 } __attribute__((packed));
 
 extern struct game_text_lines GAME_TEXT_LINES;
 _Static_assert(sizeof(struct game_text_lines) == 0x12, "DGROUP 0x56a6..0x56b8, 0x12 bytes");
-DG_ASSERT_AT(struct game_text_lines, line, 0x00);
+DG_ASSERT_AT(struct game_text_lines, line_ptr, 0x00);
 
 
 
@@ -1273,7 +1273,7 @@ DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
  */
 struct dg_5456 {
-    uint16_t  belt_far_end;       /* +0x00  the far end's +0x5a, stashed while it is detached */
+    dg_near_t belt_far_end_ptr;   /* +0x00  the far end's +0x5a, stashed while it is detached */
     /* **Ten words the goal tests keep between frames**, and what each means
        depends on the test. `goal_test_puzzles_19_48` at 0x01bb4 does
        `inc word ptr [0x5458]` - a count of frames the goal has held, and
@@ -1287,7 +1287,7 @@ struct dg_5456 {
 
 extern struct dg_5456 DG5456;
 
-DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
+DG_ASSERT_AT(struct dg_5456, belt_far_end_ptr,  0x00);
 DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
 
 /*
@@ -2353,7 +2353,7 @@ _Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
  * **Not established**, at DGROUP 0x2630.
  */
 struct dg_2630 {
-    uint16_t  word_2630;          /* +0x00 */
+    dg_near_t belt_anchor_ptr;    /* +0x00  the part a belt being placed is anchored to */
     /* The two bin-scroll repeat counters `bin_scroll_back` and its twin step.
        `check_goal`'s `lcall [bx + 0x2632]` with `bx` four times the round
        would make them entry 0 of the goal table, but the round is never 0 -
@@ -2367,7 +2367,7 @@ struct dg_2630 {
 
 extern struct dg_2630 DG2630;
 
-DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
+DG_ASSERT_AT(struct dg_2630, belt_anchor_ptr,   0x00);
 DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
 DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
 DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
@@ -3162,10 +3162,10 @@ struct file_rec {
     uint8_t   fd;              /* +0x04  the DOS handle, read signed for -1 */
     uint8_t   hold;            /* +0x05  the unbuffered stream's one byte */
     uint16_t  bsize;           /* +0x06 */
-    dg_near_t buffer;          /* +0x08 */
-    dg_near_t curp;            /* +0x0a  where the next byte comes from */
+    dg_near_t buffer_ptr;      /* +0x08 */
+    dg_near_t curp_ptr;        /* +0x0a  where the next byte comes from */
     uint16_t  istemp;          /* +0x0c */
-    dg_near_t token;           /* +0x0e  the record's own offset, filed by setup_streams */
+    dg_near_t token_ptr;       /* +0x0e  the record's own offset, filed by setup_streams */
 } __attribute__((packed));
 
 /* A stream offset of 0 is NULL - the failed open, which every caller tests. */
@@ -4255,7 +4255,7 @@ DG_ASSERT_AT(struct file_rec, level,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);
 DG_ASSERT_AT(struct file_rec, fd,   0x04);
 DG_ASSERT_AT(struct file_rec, bsize, 0x06);
-DG_ASSERT_AT(struct file_rec, curp, 0x0a);
+DG_ASSERT_AT(struct file_rec, curp_ptr, 0x0a);
 
 /*
  * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
