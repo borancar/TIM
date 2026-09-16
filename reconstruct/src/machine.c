@@ -12500,11 +12500,11 @@ out:
  */
 void load_archive_map(void)
 {
-    uint8_t count[8];      /* [bp-8] */
-    uint8_t lo[4];       /* [bp-0xc] */
-    uint8_t hi[4];      /* [bp-0x10] */
+    int16_t count;               /* [bp-8] */
+    uint32_t lo;                 /* [bp-0xc] the entry's key */
+    uint32_t hi;                 /* [bp-0x10] and where its data starts */
     struct file_rec *file;
-    uint16_t di;
+    int16_t di;
 
     if (DG546C.scanned != 0) {
         return;
@@ -12521,38 +12521,37 @@ void load_archive_map(void)
     }
 
     borland_fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, file);
-    borland_fread((uint8_t *)count, 2, 1, file);
+    borland_fread((uint8_t *)&count, 2, 1, file);
 
-    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + *(int16_t *)(count));
-    di = (uint16_t)(((uint16_t)DG546C.archive_count) - *(int16_t *)(count) + 1);
+    DG546C.archive_count = (int16_t)(DG546C.archive_count + count);
+    di = (int16_t)(DG546C.archive_count - count + 1);
 
-    for (; (int16_t)di <= DG546C.archive_count; di++) {
+    for (; di <= DG546C.archive_count; di++) {
         struct archive *a = &MACHINE_ARCHIVES.slot[di];
-        struct far_ptr blk;
+        struct archive_entry *e;
 
         borland_fread((uint8_t *)a->name, 0xd, 1, file);
-        borland_fread((uint8_t *)count, 2, 1, file);
+        borland_fread((uint8_t *)&count, 2, 1, file);
 
-        blk = dos_alloc_bytes((uint16_t)((*(int16_t *)(count) + 1) << 3), 1, 0).ptr;
+        /* **Zeroed**, which is what writes the terminator: the block is one
+           entry longer than the count and the lookup stops on an all-zero key.
+           The flags are the fourth argument - `push 1`, then `push 0` for the
+           third - and the port had the two the other way round, so the block
+           was not cleared and the terminator was whatever the memory held. */
+        a->list = dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr;
+        a->index = (uint16_t)di;
 
-        a->list = blk;
-        a->index = di;
+        /* The original steps the far pointer at [bp-6] by eight, one entry. */
+        e = (struct archive_entry *)MK_FP(a->list.seg, a->list.off);
+        while (count != 0) {
+            count--;
 
-        while (*(int16_t *)(count) != 0) {
-            uint8_t *e;
+            borland_fread((uint8_t *)&lo, 4, 1, file);
+            borland_fread((uint8_t *)&hi, 4, 1, file);
 
-            *(int16_t *)(count) = (int16_t)(*(int16_t *)(count) - 1);
-
-            borland_fread((uint8_t *)lo, 4, 1, file);
-            borland_fread((uint8_t *)hi, 4, 1, file);
-
-            e = MK_FP(blk.seg, blk.off);
-            *(uint16_t *)(e + 2) = *(int16_t *)(lo + 2);
-            *(uint16_t *)e = *(int16_t *)(lo);
-            *(uint16_t *)(e + 6) = *(int16_t *)(hi + 2);
-            *(uint16_t *)(e + 4) = *(int16_t *)(hi);
-
-            blk.off = (uint16_t)(blk.off + 8);
+            e->key = lo;
+            e->base = hi;
+            e++;
         }
     }
 
@@ -12624,18 +12623,6 @@ int32_t hash_filename(char *name)
     DG546C.name_hash = acc;
     return (int32_t)acc;
 }
-
-/*
- * OURS, as a type: one entry of the archive index `scan_entry_list` walks - the
- * name's 32-bit key, then where the entry's data starts. **Packed**, because the
- * index hands back whatever offset the entry sits at and `+ 4` can be odd;
- * that is why the base used to be read as two 16-bit words. A member of a
- * packed struct is read correctly at any address, the key included.
- */
-struct archive_entry {
-    uint32_t key;     /* +0x00 */
-    uint32_t base;    /* +0x04 */
-} __attribute__((packed));
 
 /*
  * 0x098e0

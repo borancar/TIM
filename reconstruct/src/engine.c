@@ -3925,7 +3925,9 @@ uint16_t set_font(int16_t slot)
  * `far_memset` at 0x22300. The flags are the **fourth** argument, at [bp+0xc];
  * the third is pushed by every caller and never read. Reading the third as the
  * flags was an error here that verified anyway, because the callers seen so
- * far push zero into both.
+ * far push zero into both. Two callers ask for zeroing - `game_startup`'s
+ * 0x18-byte block and `load_archive_map`'s entry lists - and the second had the
+ * two swapped in the port until it was checked against the pushes.
  *
  * The DOS call itself is IO - see io.h - and is primed by the verifier with
  * what DOS actually answered, because the port has no arena of its own.

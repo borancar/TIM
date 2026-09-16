@@ -2062,6 +2062,21 @@ struct archive {
 
 #define ARCHIVE_PTR(p) ((struct archive *)(dgroup + (uint16_t)(p)))
 
+/*
+ * OURS, as a type: one entry of the archive index `archive.list` points at and
+ * `scan_entry_list` walks - the name's 32-bit key, then where the entry's data
+ * starts. `load_archive_map` fills them from RESOURCE.MAP, a `long` each, and
+ * steps its cursor by eight. **Packed**, because the index hands back whatever
+ * offset the entry sits at and `+ 4` can be odd; that is why the base used to
+ * be read as two 16-bit words. A member of a packed struct is read correctly
+ * at any address, the key included.
+ */
+struct archive_entry {
+    uint32_t key;     /* +0x00 */
+    uint32_t base;    /* +0x04 */
+} __attribute__((packed));
+_Static_assert(sizeof(struct archive_entry) == 8, "load_archive_map steps its cursor by 8");
+
 DG_ASSERT_AT(struct archive, name,              0x00);
 DG_ASSERT_AT(struct archive, index,             0x0e);
 DG_ASSERT_AT(struct archive, stream,            0x10);
