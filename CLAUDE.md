@@ -187,6 +187,7 @@ a case it does not obviously cover.
 - The hybrid's frame digests cannot be compared between two runs, and a virtual clock did not fix it in one sitting - [more](STATUS.md#the-hybrids-frame-digests-cannot-be-compared-between-two-runs-and-a-virtual-clock-did-not-fix-it-in-one-sitting)
 - An interrupt is exclusive; a thread is not - [more](STATUS.md#an-interrupt-is-exclusive-a-thread-is-not)
 - The reference run from the entry point never presents a page - [more](STATUS.md#the-reference-run-from-the-entry-point-never-presents-a-page)
+- `make test` stops at its solutions step, and the checks after it have not been running - [more](STATUS.md#make-test-stops-at-its-solutions-step-and-the-checks-after-it-have-not-been-running)
 
 ## Tools
 

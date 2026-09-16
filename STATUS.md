@@ -951,6 +951,36 @@ not are the first honest answer this tool has given about the game proper -
 and two of them, `restore_saved_rect_lists` and `find_saved_rect_slot`, are
 routines changed the same week on screen evidence alone.
 
+### `make test` stops at its solutions step, and the checks after it have not been running
+
+**Found on 2026-09-16** while adding `tools/check_handles.py` to `make test`.
+The `test` target runs `tools/check_solutions.py --simulate`, which looks for
+`solution_snaps/*.solution` - and `solution_snaps/` does not exist, so it
+exits with "no .solution snapshots", the target prints `FAIL: a solution no
+longer solves under simulation` and **stops**. Everything after that step has
+therefore not been running from `make test`: `check_printf.py`, and the
+`framify_census.py --assert` and `promote.py --assert` ratchets. The line was
+being read as "the one expected failure" rather than as a wall.
+
+Run by hand the same day all three pass - 58 of 58 printf formats agree, 5
+routines call `dg_alloca` and each has a reason, no routine holds a frame
+array - so nothing was broken behind it, but nothing would have caught a break
+either. `check_handles` was placed **before** the solutions step for exactly
+this reason.
+
+**The solutions evidence itself lives outside the repository.** The typed-handle
+conversions of 2026-09-16 were each checked against 29 machines solving -
+`solutions/S01.TIM` .. `S29.TIM`, untracked - by a scratch script that loads
+each through the game's own loader (`TIM_LOADMACHINE`), snapshots at flip 60
+and simulates. `check_solutions.py` cannot do that, because it wants the
+snapshots and not the machines.
+
+Two ways out, not yet decided: commit the machines and have
+`check_solutions.py` make its own snapshots from them, which restores a real
+regression gate; or make the step skip with a warning when there are no
+snapshots and move it last, which lets the other checks run but leaves a
+physics change unchecked.
+
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of
