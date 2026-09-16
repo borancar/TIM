@@ -5404,7 +5404,7 @@ void select_cursor(int16_t which)
         hot_x = 0;
     }
 
-    set_cursor(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si], hot_y, hot_x);
+    set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si]), hot_y, hot_x);
 }
 
 /*
@@ -7548,7 +7548,7 @@ void set_object_extent(struct part *obj)
 {
     int16_t type = ((int16_t)obj->kind);
     const struct part_kind *rec;
-    uint16_t target;
+    struct bitmap *target;
 
     if (type == 8 || type == 0xa) {
         obj->size[0].height = 0;
@@ -7573,9 +7573,9 @@ void set_object_extent(struct part *obj)
     }
 
     if (((int16_t)rec->bitmaps_ptr) != 0) {
-        target = BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form];
-        obj->size[0].width = BMP_PTR(target)->width;
-        obj->size[0].height = BMP_PTR(target)->height;
+        target = BMP_PTR(BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form]);
+        obj->size[0].width = target->width;
+        obj->size[0].height = target->height;
         return;
     }
 
@@ -11616,20 +11616,20 @@ void timer_callback(void)
  * simple flag: the value it had is *saved*, so a redraw inside a redraw leaves
  * the outer one's state alone when it finishes.
  */
-void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
+void set_cursor(struct bitmap *bitmap, int16_t hot_y, int16_t hot_x)
 {
     uint16_t saved;
 
-    if (DG5768.cursor_bitmap_ptr == bitmap && DG5768.word_5780 == hot_y
+    if (BMP_PTR(DG5768.cursor_bitmap_ptr) == bitmap && DG5768.word_5780 == hot_y
         && DG5768.word_577e == hot_x)
         return;
 
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    DG5768.cursor_bitmap_ptr = bitmap;
+    DG5768.cursor_bitmap_ptr = dg_near(dgroup, bitmap);
 
-    if (bitmap == 0) {
+    if (bitmap == BMP_NONE) {
         DG5768.word_577e = 0;
         DG5768.word_5780 = 0;
     } else {

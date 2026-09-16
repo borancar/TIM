@@ -1617,7 +1617,7 @@ void wait_cursor(void);                             /* 0x04652 */
 void restore_cursor(void);                          /* 0x0466e */
 int16_t cursor_for_tool(void);                      /* 0x046d8 */
 void select_cursor(int16_t which);                  /* 0x0467d */
-void set_cursor(uint16_t bitmap, int16_t hot_y,
+void set_cursor(struct bitmap *bitmap, int16_t hot_y,
                 int16_t hot_x);                     /* 0x0aa14 */
 void redraw_cursor(uint16_t page);                  /* 0x0acc3 */
 void set_flag_2d44(void);                           /* 0x0a78e */

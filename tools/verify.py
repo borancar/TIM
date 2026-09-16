@@ -5058,7 +5058,7 @@ ROUTINES = {
         planes=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.set_cursor(
-            ctypes.c_uint16(a[0]),
+            dgh(lib, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),

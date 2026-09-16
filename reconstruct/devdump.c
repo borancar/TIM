@@ -1167,7 +1167,7 @@ void dev_part_pics(void)
     }
 
     for (i = 0; i < n; i++) {
-        bmp_ptr_t icon = BMPLIST(list)[i];
+        struct bitmap *icon = BMP_PTR(BMPLIST(list)[i]);
         int32_t row;
 
         VMDS.clip_enabled = 1;
@@ -1180,8 +1180,8 @@ void dev_part_pics(void)
         VMDS.second_colour = 0;
         fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
 
-        if (icon != 0)
-            draw_bitmap_centred(BMP_PTR(icon), PIC_X, PIC_Y, PIC_W, PIC_H);
+        if (icon != BMP_NONE)
+            draw_bitmap_centred(icon, PIC_X, PIC_Y, PIC_W, PIC_H);
 
         vga_compose(fb, FRAME_W, FRAME_H);
 

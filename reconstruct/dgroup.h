@@ -283,6 +283,19 @@ static inline struct far_ptr far_normalise(struct far_ptr p)
     return p;
 }
 
+/*
+ * **`p + n` on a huge pointer**, as Borland emits it inline when the step is a
+ * 16-bit value: add it to the offset - the carry out of those sixteen bits is
+ * lost - then normalise. Where the step does not fit, the compiler calls
+ * `huge_add` (0x0bf0a) instead. Ours as a routine; the lines are the
+ * compiler's, as `vm_load_bitmap_list` has them at VGA:0x1097.
+ */
+static inline struct far_ptr huge_ptr_add(struct far_ptr p, uint16_t n)
+{
+    p.off = (dg_near_t)(p.off + n);
+    return far_normalise(p);
+}
+
 /* The same, for the one record that stores the pair segment-first. */
 static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
 {
@@ -3377,9 +3390,12 @@ _Static_assert(sizeof(struct bitmap) == 0xa,
    of the hundred-odd call sites casting into it. */
 #define BMP_PTR(p) ((struct bitmap *)(dgroup + (uint16_t)(p)))
 
+/* **No bitmap**, as a pointer - see `PART_NONE`. */
+#define BMP_NONE BMP_PTR(0)
+
 /* A **bitmap list**: a null-terminated array of near pointers to the above.
    `BMPSET_PTR(p)` and `BMPLIST(p)` are two views of one object - the first for a
-   set whose entries are known by number, `bmp[0x25]`, the second for a list
+   set whose entries are known by number, `bmp_ptr[0x25]`, the second for a list
    walked to its null. Same bytes, same element type, two names because the
    code reaches them two ways.
    Every loader in `bitmaps.c` answers one of these and the walks over it -

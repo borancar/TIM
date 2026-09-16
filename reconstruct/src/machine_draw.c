@@ -1623,7 +1623,7 @@ void draw_machine_layer_a(void)
     y    = 0x64;
 
     while (part != 0 && y <= 0x134) {
-        uint16_t icon;
+        struct bitmap *icon;
 
         kind = ((int16_t)PART_PTR(part)->kind);
         count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
@@ -1643,14 +1643,14 @@ void draw_machine_layer_a(void)
 
         clear_flag_2d44_thunk();
 
-        icon = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind];
-        draw_bitmap_centred(BMP_PTR(icon), 0x240, y, 0x38, 0x2a);
+        icon = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
+        draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
         int_to_string(count, digits, 10);
         text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
 
-        text_y = (int16_t)(y + BMP_PTR(icon)->height
-                           + (0x2a - BMP_PTR(icon)->height) / 2 + 1);
+        text_y = (int16_t)(y + icon->height
+                           + (0x2a - icon->height) / 2 + 1);
         if (text_y > 0x161)
             text_y = 0x161;
 
@@ -1939,23 +1939,24 @@ void draw_carried_icon(void)
 {
     struct extent16 ext;                     /* [bp-0xa], [bp-8] */
     int16_t at[3];     /* [bp-6],  [bp-4]  */
-    uint16_t kind, si;
+    uint16_t kind;
+    struct bitmap *si;
 
     set_clip_play_area();
 
     kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-    si = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind];
+    si = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(si), (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
+    draw_bitmap(si, (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
     clear_flag_2d44_thunk();
 
     at[0] = (int16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
     at[1] = (int16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
-    ext.width  = BMP_PTR(si)->width;
-    ext.height = BMP_PTR(si)->height;
+    ext.width  = si->width;
+    ext.height = si->height;
 
     alloc_shape((uint8_t *)at,
                 (uint8_t *)&ext, 1, 2, 0);
@@ -2602,7 +2603,7 @@ void draw_belt(struct part *part, int16_t a)
  */
 void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 {
-    uint16_t v2a;   /* [bp-0x2a] the bitmap */
+    struct bitmap *v2a;   /* [bp-0x2a] the bitmap */
     const struct draw_step *v28;   /* [bp-0x28] the record */
     const struct part_kind *v26;   /* [bp-0x26] the kind's record */
     uint16_t v24;   /* [bp-0x24] the adjustment */
@@ -2676,7 +2677,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 }
 
                 {
-                    uint16_t bmp = BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v1c];
+                    struct bitmap *bmp = BMP_PTR(BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v1c]);
 
                     if (a != 0) {
                         v0c = (int16_t)long_shift_right(
@@ -2688,10 +2689,10 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                         v12 = (int16_t)((int16_t)long_shift_right(
                             mul16x16(v0a, a), 10) + 0x48);
 
-                        draw_bitmap_scaled(BMP_PTR(bmp), v10, v12,
+                        draw_bitmap_scaled(bmp, v10, v12,
                                            v0c, v0e, 0);
                     } else {
-                        draw_bitmap(BMP_PTR(bmp), v08, v0a, 0);
+                        draw_bitmap(bmp, v08, v0a, 0);
                     }
                 }
             }
@@ -2724,7 +2725,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
         v21 = v28->frame[0];
 
         for (di = 0; ; di++) {
-            v2a = BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v21];
+            v2a = BMP_PTR(BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v21]);
 
             v08 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
             v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);
@@ -2734,7 +2735,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                     v08
                     + (part->mirror_size.width
                        - (int8_t)v28->offset[di].x
-                       - BMP_PTR(v2a)->width));
+                       - v2a->width));
                 v1a = 2;
             } else {
                 v08 = (int16_t)(
@@ -2748,7 +2749,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                     v0a
                     + (part->mirror_size.height
                        - (int8_t)v28->offset[di].y
-                       - BMP_PTR(v2a)->height));
+                       - v2a->height));
                 v1a |= 1;
             } else {
                 v0a = (int16_t)(
@@ -2758,18 +2759,18 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 
             if (a != 0) {
                 v0c = (int16_t)long_shift_right(
-                    mul16x16(BMP_PTR(v2a)->width, b), 10);
+                    mul16x16(v2a->width, b), 10);
                 v0e = (int16_t)long_shift_right(
-                    mul16x16(BMP_PTR(v2a)->height, b), 10);
+                    mul16x16(v2a->height, b), 10);
                 v10 = (int16_t)((int16_t)long_shift_right(
                     mul16x16(v08, a), 10) + 0x110);
                 v12 = (int16_t)((int16_t)long_shift_right(
                     mul16x16(v0a, a), 10) + 0x48);
 
-                draw_bitmap_scaled(BMP_PTR(v2a), v10, v12,
+                draw_bitmap_scaled(v2a, v10, v12,
                                    v0c, v0e, v1a);
             } else {
-                draw_bitmap(BMP_PTR(v2a), v08, v0a, v1a);
+                draw_bitmap(v2a, v08, v0a, v1a);
             }
 
             v21 = v28->frame[di + 1];

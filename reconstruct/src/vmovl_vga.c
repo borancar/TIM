@@ -354,12 +354,12 @@ uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
     uint32_t total = 0;
 
     for (;;) {
-        bmp_ptr_t p = *list;
+        struct bitmap *p = BMP_PTR(*list);
 
-        if (p == 0)
+        if (p == BMP_NONE)
             break;
 
-        total += (uint32_t)((uint16_t)BMP_PTR(p)->width >> 1) * (uint16_t)BMP_PTR(p)->height;
+        total += (uint32_t)((uint16_t)p->width >> 1) * (uint16_t)p->height;
         list++;
     }
 
@@ -403,8 +403,8 @@ uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
 void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
 {
     /* **A pair, not a pointer.** `at` is *stored* into every header as the
-       bitmap's `data`, and the step at the foot of the loop renormalises it
-       by hand - paragraphs into the segment, the remainder back into the
+       bitmap's `data`, and the step at the foot of the loop is a huge
+       pointer add - paragraphs into the segment, the remainder back into the
        offset - which is the shape a host pointer cannot carry. */
     struct far_ptr at = dst;
     uint32_t quads = count >> 2;
@@ -413,21 +413,21 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
     vm_chunky_to_planar(at, (struct far_ptr){ 0, 0xa6d6 }, (uint16_t)quads);
 
     for (;;) {
-        bmp_ptr_t si = *list;
-        uint16_t size, prod, old_off, total;
+        struct bitmap *si = BMP_PTR(*list);
+        uint16_t size, prod, old_off;
 
-        if (si == 0)
+        if (si == BMP_NONE)
             break;
 
-        prod = (uint16_t)((uint16_t)(BMP_PTR(si)->width >> 1)
-                          * (uint16_t)BMP_PTR(si)->height);
+        prod = (uint16_t)((uint16_t)(si->width >> 1)
+                          * (uint16_t)si->height);
         size = (uint16_t)(prod >> 2);
 
-        BMP_PTR(si)->data = far_to_rev(at);
+        si->data = far_to_rev(at);
 
         old_off = at.off;
         at.off = (uint16_t)(at.off + size * 4);
-        BMP_PTR(si)->mask_off = at.off;
+        si->mask_off = at.off;
 
         vm_read_four_planes((struct far_ptr){ di, 0xa6d6 },
                             (struct far_ptr){ old_off, at.seg }, size);
@@ -435,9 +435,7 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
 
         di = (uint16_t)(di + size);
 
-        total = (uint16_t)(size + at.off);
-        at.seg = (uint16_t)(at.seg + (total >> 4));
-        at.off = (uint16_t)(total & 0x0f);
+        at = huge_ptr_add(at, size);
 
         list++;
     }

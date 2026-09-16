@@ -4963,8 +4963,10 @@ done:
  */
 void free_bitmap_list(bmp_ptr_t * list)
 {
-    if (list[0] != 0)
-        heap_free_far(dg_ptr(dgroup, list[0]));
+    struct bitmap *first = BMP_PTR(list[0]);
+
+    if (first != BMP_NONE)
+        heap_free_far((uint8_t *)first);
 
     if (list != NULL && list != BMPLIST(0))
         heap_free_far((uint8_t *)list);
@@ -5026,7 +5028,7 @@ uint16_t count_list_entries(bmp_ptr_t * list)
     if (list == NULL || list == BMPLIST(0))
         return 0;
 
-    while (list[n] != 0)
+    while (BMP_PTR(list[n]) != BMP_NONE)
         n++;
 
     return n;
@@ -6625,7 +6627,7 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
        the caller's `[bp-2]`; the port hands back the array itself. */
     struct bmp_set *set = NULL;
     bmp_ptr_t *list = NULL;
-    bmp_ptr_t di;
+    struct bitmap *di;
     int16_t *a, *b;
     int16_t i;
 
@@ -6646,7 +6648,7 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
     list = set->bmp_ptr;
     *out = list;
     set->bmp_ptr[0] = dg_near(dgroup, heap_calloc_far(sizeof(struct bitmap), *count_at));
-    if (list[0] == 0)
+    if (BMP_PTR(list[0]) == BMP_NONE)
         goto cleanup;
 
     {
@@ -6670,12 +6672,12 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
        because the low bit of the size word beside it is the in-use flag. */
     a = (int16_t *)tmp;
     b = a + rows;
-    di = list[0];
+    di = BMP_PTR(list[0]);
 
     for (i = 0; *count_at > i; i++) {
-        list[i] = di;
-        BMP_PTR(di)->width = *a;
-        BMP_PTR(di)->height = *b;
+        set->bmp_ptr[i] = dg_near(dgroup, di);
+        di->width = *a;
+        di->height = *b;
 
         /* Only when there is a row per bitmap; otherwise every header takes
            the same pair, which is what `rows = 1` above means. */
@@ -6684,7 +6686,7 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
             b++;
         }
 
-        di = (bmp_ptr_t)(di + sizeof(struct bitmap));
+        di++;
     }
 
     /* The null. With `*count_at` of zero the loop does not run and this puts
@@ -6698,8 +6700,8 @@ cleanup:
         heap_free_far(tmp);
 
     if (set != NULL) {
-        if (list[0] != 0)
-            heap_free_far(dg_ptr(dgroup, list[0]));
+        if (BMP_PTR(list[0]) != BMP_NONE)
+            heap_free_far((uint8_t *)BMP_PTR(list[0]));
         heap_free_far((uint8_t *)set);
     }
 
@@ -7109,7 +7111,7 @@ void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
 int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 {
     bmp_ptr_t *si = list;
-    uint16_t first = list[0];
+    struct bitmap *first = BMP_PTR(list[0]);
     uint16_t segs;
     uint16_t over;
 
@@ -7118,11 +7120,11 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
-    ENGINE_BITMAP_COMPRESS.out_start = far_of_rev(BMP_PTR(first)->data);
+    ENGINE_BITMAP_COMPRESS.out_start = far_of_rev(first->data);
     ENGINE_BITMAP_COMPRESS.out = ENGINE_BITMAP_COMPRESS.out_start;
 
-    while (*si != 0) {
-        uint16_t hdr = *si;
+    while (BMP_PTR(*si) != BMP_NONE) {
+        struct bitmap *hdr = BMP_PTR(*si);
         uint16_t di = ENGINE_BITMAP_COMPRESS.out.off;
         struct far_ptr at;
 
@@ -7133,18 +7135,18 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
         ENGINE_BITMAP_COMPRESS.out = at;
 
         if (VMDS.unknown_1f == 0) {
-            uint16_t pixels = (uint16_t)(BMP_PTR(hdr)->width
-                                         * BMP_PTR(hdr)->height);
+            uint16_t pixels = (uint16_t)(hdr->width
+                                         * hdr->height);
             struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0).ptr;
 
 
             pixels = (uint16_t)(pixels >> 3);
 
             planes_to_chunky(MK_FP(blk.seg, blk.off),
-                             MK_FP(BMP_PTR(hdr)->data.seg, BMP_PTR(hdr)->data.off),
+                             MK_FP(hdr->data.seg, hdr->data.off),
                              pixels);
 
-            BMP_PTR(hdr)->data = far_to_rev(blk);
+            hdr->data = far_to_rev(blk);
 
             /* `push word ptr [si]` at 0x2448c and 0x244a3: the header this
                slot holds, not the slot. */
@@ -7155,9 +7157,9 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
             compress_bitmap(BMP_PTR(*si));
         }
 
-        hdr = *si;
-        BMP_PTR(hdr)->data = far_to_rev(at);
-        BMP_PTR(hdr)->mask_off = 0xfffe;
+        hdr = BMP_PTR(*si);
+        hdr->data = far_to_rev(at);
+        hdr->mask_off = 0xfffe;
 
         si++;
     }

@@ -628,7 +628,7 @@ struct bmp_set *load_bitmaps(char *name)
         }
 
         for (i = 0; i < count_at; i++) {
-            uint16_t si;
+            struct bitmap *si;
             struct far_ptr p;
 
             if (game_fread((uint8_t *)offset_at, 4, 1, di) != 1) {
@@ -640,8 +640,8 @@ struct bmp_set *load_bitmaps(char *name)
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
-            si = list_at[i];
-            BMP_PTR(si)->data = far_to_rev(p);
+            si = BMP_PTR(list_at[i]);
+            si->data = far_to_rev(p);
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -660,13 +660,13 @@ struct bmp_set *load_bitmaps(char *name)
         fp2 = block;
 
         for (i = 0; i < count_at; i++) {
-            uint16_t si = list_at[i];
+            struct bitmap *si = BMP_PTR(list_at[i]);
 
-            BMP_PTR(si)->data = far_to_rev(fp2);
+            si->data = far_to_rev(fp2);
 
             huge_add_to(&fp2,
-                        (uint16_t)(BMP_PTR(si)->width
-                                   * BMP_PTR(si)->height));
+                        (uint16_t)(si->width
+                                   * si->height));
         }
 
         decode_vqt_list(di, list_at);
@@ -711,11 +711,10 @@ out:
 void set_field_4_of_each(uint16_t value, bmp_ptr_t * list)
 {
     bmp_ptr_t *p = list;
+    struct bitmap *hdr;
 
-    while (*p != 0) {
-        bmp_ptr_t hdr = *p;
-
-        BMP_PTR(hdr)->mask_off = value;
+    while ((hdr = BMP_PTR(*p)) != BMP_NONE) {
+        hdr->mask_off = value;
         p++;
     }
 }
@@ -750,7 +749,7 @@ uint16_t count_list(bmp_ptr_t * list)
     if (list == NULL || list == BMPLIST(0))
         return 0;
 
-    while (list[n] != 0)
+    while (BMP_PTR(list[n]) != BMP_NONE)
         n++;
 
     return n;
@@ -1054,12 +1053,12 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
     struct far_ptr block = {0, 0};          /* [bp-0xe], [bp-0xc] */
     uint16_t index = 0;                     /* [bp-0x12] */
-    uint16_t si;
+    struct bitmap *si;
 
-    while (*at != 0) {
-        uint16_t hdr = *at;
-        uint32_t need = buffer_size_thunk((uint16_t)BMP_PTR(hdr)->width,
-                                          (uint16_t)BMP_PTR(hdr)->height)
+    while (BMP_PTR(*at) != BMP_NONE) {
+        struct bitmap *hdr = BMP_PTR(*at);
+        uint32_t need = buffer_size_thunk((uint16_t)hdr->width,
+                                          (uint16_t)hdr->height)
                         & 0xffffu;
 
         if (largest < need)
@@ -1103,7 +1102,7 @@ have_block:
 
     at = list;
 
-    while ((si = *at) != 0) {
+    while ((si = BMP_PTR(*at)) != BMP_NONE) {
         uint32_t used;
         /* **Stepped as a pair, on purpose.** `quarter` goes onto the offset
            and the segment stays put, without renormalising - so each of the
@@ -1116,10 +1115,10 @@ have_block:
         int16_t i;
         uint32_t quarter;
 
-        plane = far_normalise(far_of_rev(BMP_PTR(si)->data));
+        plane = far_normalise(far_of_rev(si->data));
 
-        quarter = (uint32_t)(uint16_t)((int16_t)(BMP_PTR(si)->width
-                                                 * BMP_PTR(si)->height)
+        quarter = (uint32_t)(uint16_t)((int16_t)(si->width
+                                                 * si->height)
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
@@ -1128,12 +1127,12 @@ have_block:
         }
 
         row = 0;
-        for (i = 0; BMP_PTR(si)->height > i; i++) {
+        for (i = 0; si->height > i; i++) {
             rd->row[i] = (int16_t)row;
-            row = (uint16_t)(row + BMP_PTR(si)->width);
+            row = (uint16_t)(row + si->width);
         }
 
-        vqt_node(0, 0, (uint16_t)BMP_PTR(si)->width, (uint16_t)BMP_PTR(si)->height);
+        vqt_node(0, 0, (uint16_t)si->width, (uint16_t)si->height);
 
         used = rd->pos;
         used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);
