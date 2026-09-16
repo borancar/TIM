@@ -266,18 +266,18 @@ than left looking unfinished.
 
       the writer   write_word 325, write_byte 90, part_index 62, write_record_fields 15,
                    write_part_list 3, write_part_count 3, write_level, save_machine
-      the picker   picker_repaint, sub_13a8a, sub_13c78, picker_draw_list,
+      the picker   picker_repaint, fill_file_listing, sort_file_listing, picker_draw_list,
                    picker_draw_name, picker_draw_filename, picker_draw_up,
                    picker_draw_down, draw_sunken_box, validate_filename,
                    is_machine_file, listing_to_name
-      the writes   sub_0d8ca 8, dos_write, write_text, dos_creat, dos_chdir
+      the writes   stream_put_run 8, dos_write, write_text, dos_creat, dos_chdir
       the paths    path_join, path_is_root 3, path_up
       the puzzles  puzzle_repaint, puzzle_draw_list, puzzle_draw_password,
                    puzzle_draw_up, puzzle_draw_down, puzzle_draw_ok,
                    get_puzzle_title 21, puzzle_page_of_score
       the regions  region_cursor_gravity 748, region_cursor_freeform 2,
                    region_cursor_air 2, region_cursor_load, region_cursor_save
-      the typing   sub_1156c, picker_tab, puzzle_tab, picker_type 199,
+      the typing   tab_move_pointer, picker_tab, puzzle_tab, picker_type 199,
                    force_extension, draw_button
       the codes    password_to_level, string_upper, score_code_to_score,
                    parse_base 2, string_reverse 2, game_fread_line 4
@@ -342,7 +342,7 @@ string_reverse,game_fread_line
   call to stop at and no return to detect. All of them are covered by the
   screen comparisons instead.
 
-  **Two of them found faults the screens could not.** `sub_13a8a` differed in
+  **Two of them found faults the screens could not.** `fill_file_listing` differed in
   33 places: the port was not filling the DTA at all, and it was clearing the
   find buffer before a call, so a *failed* find published a blank where DOS
   leaves the last name it found. Neither reaches a pixel.
@@ -1481,7 +1481,7 @@ used it.
 | `string_reverse` | 0x0de1e | - | **transcribed, never called** on these screens |
 | `password_to_level` | 0x12ad0 | - | **transcribed, never called** on these screens |
 | `picker_type` | 0x13490 | - | **transcribed, never called** on these screens |
-| `sub_1156c` | 0x1156c | - | **transcribed, never called** on these screens |
+| `tab_move_pointer` | 0x1156c | - | **transcribed, never called** on these screens |
 | `picker_tab` | 0x1345f | - | **transcribed, never called** on these screens |
 | `puzzle_tab` | 0x0f468 | - | **transcribed, never called** on these screens |
 | `draw_button` | 0x150db | - | **transcribed, never called** on these screens |
@@ -1505,7 +1505,7 @@ used it.
 | `dos_creat` | 0x0d584 | - | **transcribed, never called** on these screens |
 | `dos_write` | 0x0df7a | - | **transcribed, never called** on these screens |
 | `write_text` | 0x0de6e | - | **transcribed, never called** on these screens |
-| `sub_0d8ca` | 0x0d8ca | - | **transcribed, never called** on these screens |
+| `stream_put_run` | 0x0d8ca | - | **transcribed, never called** on these screens |
 | `borland_atexit` | 0x0bbfe | - | **transcribed, never called** on these screens |
 | `io_error_code` | 0x0c006 | - | **transcribed, never called** on these screens |
 | `dos_get_file_attr` | 0x0bc2b | - | **transcribed, never called** on these screens |
@@ -1532,8 +1532,8 @@ used it.
 | `picker_draw_list` | 0x139ac | - | **transcribed, never called** on these screens |
 | `picker_draw_name` | 0x13870 | - | **transcribed, never called** on these screens |
 | `picker_draw_filename` | 0x13902 | - | **transcribed, never called** on these screens |
-| `sub_13c78` | 0x13c78 | - | **transcribed, never called** on these screens |
-| `sub_13a8a` | 0x13a8a | - | **transcribed, never called** on these screens |
+| `sort_file_listing` | 0x13c78 | - | **transcribed, never called** on these screens |
+| `fill_file_listing` | 0x13a8a | - | **transcribed, never called** on these screens |
 | `write_byte` | 0x123b7 | - | **transcribed, never called** on these screens |
 | `write_word` | 0x123e4 | - | **transcribed, never called** on these screens |
 | `write_record_fields` | 0x12430 | - | **transcribed, never called** on these screens |
@@ -1895,7 +1895,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 98 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 96 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

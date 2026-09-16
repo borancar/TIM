@@ -105,7 +105,7 @@ static void resume_from_snapshot(void)
             DG4E67.round_number = (int16_t)(DG4E67.round_number + 1);
             if (DG4E67.round_number > DG4E67.furthest_level) {
                 DG4E67.furthest_level = DG4E67.round_number;
-                sub_12bed();
+                write_config();
             }
             game_round();
         }

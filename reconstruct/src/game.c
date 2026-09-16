@@ -238,7 +238,7 @@ struct game_file_names {
     char rb_password_line[3];     /* +0x48 [3] */
     char tim_cfg_read[8];         /* +0x4b [8]  read_tim_cfg */
     char rb_tim_cfg[3];           /* +0x53 [3] */
-    char tim_cfg_write[8];        /* +0x56 [8]  sub_12bed, which writes it */
+    char tim_cfg_write[8];        /* +0x56 [8]  write_config, which writes it */
     char wb_tim_cfg[3];           /* +0x5e [3] */
     uint8_t pad_28d1[1];          /* +0x61 [1] */
 } __attribute__((packed));
@@ -1293,7 +1293,7 @@ void game_play(void)
             DG4E67.round_number = (int16_t)(DG4E67.round_number + 1);
             if (DG4E67.round_number > DG4E67.furthest_level) {
                 DG4E67.furthest_level = DG4E67.round_number;
-                sub_12bed();
+                write_config();
             }
         }
     }
@@ -1946,7 +1946,7 @@ void paint_panel_frame_rest(void)
 {
     int16_t  extent;
     int16_t  scale;
-    uint16_t rec;
+    struct part *rec;
 
     VMDS.clip_enabled = 1;
     set_clip_for_mode();
@@ -1958,10 +1958,10 @@ void paint_panel_frame_rest(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    rec = (uint16_t)pick_by_flag(0x3000);
-    while (rec != 0) {
-        link_record_into_buckets(PART_PTR(rec));
-        rec = (uint16_t)pick_for_record(rec, 0x1000);
+    rec = pick_by_flag(0x3000);
+    while (rec != PART_NONE) {
+        link_record_into_buckets(rec);
+        rec = pick_for_record(rec, 0x1000);
     }
 
     draw_machine(scale, 0x200);
@@ -2472,7 +2472,7 @@ uint16_t read_level(char *name)
  * The five repaint counters and the `was` local are `pick_file`'s, and so is
  * the rule that a full repaint suppresses the partial ones.
  */
-uint16_t sub_0f0b0(void)
+uint16_t select_puzzle_screen(void)
 {
     int32_t  saved;                     /* [bp-0x14], [bp-0x12] */
     int16_t  page;                      /* [bp-0x10] */
@@ -2574,7 +2574,7 @@ uint16_t sub_0f0b0(void)
 
                     if (level > DG4E67.furthest_level) {
                         DG4E67.furthest_level = level;
-                        sub_12bed();            /* write tim.cfg */
+                        write_config();            /* write tim.cfg */
                         repaint = 1;
                     }
 
@@ -2974,7 +2974,7 @@ void screen_state_4000(struct screen_loop *s)
     } else {
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 6) {
             DG4E67.master_level++;
-            sub_12bed();
+            write_config();
             set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
@@ -2999,7 +2999,7 @@ void screen_state_2000(struct screen_loop *s)
     } else {
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 0) {
             DG4E67.master_level--;
-            sub_12bed();
+            write_config();
             set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
@@ -3118,7 +3118,7 @@ void screen_state_0400(struct screen_loop *s)
  * someone who has this moment left freeform mode and for someone who was never
  * in it. Reading the second as an `else` of the first loses that.
  *
- * The reload itself is conditional on either `sub_0f0b0` answering non-zero or
+ * The reload itself is conditional on either `select_puzzle_screen` answering non-zero or
  * `reload` being set, and clears `reload` on its way out.
  *
  * The state goes to 2 and the screen repaints whole, on every path, at 0x11321
@@ -3137,7 +3137,7 @@ void screen_state_0200(struct screen_loop *s)
     }
 
     if (DG4E67.freeform == 0) {
-        if (sub_0f0b0() != 0 || s->reload != 0) {
+        if (select_puzzle_screen() != 0 || s->reload != 0) {
             round_teardown();
             load_level(((uint16_t)DG4E67.round_number));
             reset_machine();
@@ -3458,7 +3458,7 @@ void region_cursor_air(struct region *region)
  * is 0..0x0a with 5 skipped, and outside it the cycle stops at 7 and wraps.
  * Both wrap checks run, because the increment can arrive at 0x0b from either.
  */
-void sub_1156c(void)
+void tab_move_pointer(void)
 {
     int16_t  x;
     uint16_t stop;
@@ -3816,7 +3816,7 @@ void move_carried(void)
  * is only consulted when the part is actually put down.
  *
  * Then +0xa again: bit 1 re-homes the part onto whatever it is near, bit 2
- * goes to sub_051cb instead, and neither is tried if the other matched.
+ * goes to break_second_attachment instead, and neither is tried if the other matched.
  *
  * The ending is three-way. Overlapping something sets the cursor colour at
  * 0x52c7 to 0xe and nothing else happens - you cannot drop a part inside
@@ -3897,7 +3897,7 @@ void move_carried_part(void)
     if (PART_PTR(part)->flags_0a & 1)
         rehome_carried_part();
     else if (PART_PTR(part)->flags_0a & 2)
-        sub_051cb(PART_PTR(part));
+        break_second_attachment(PART_PTR(part));
 
     if (object_overlaps_any(PART_PTR(part)) != 0) {
         DG52BD.drop_cursor = 0x0e;
@@ -4004,7 +4004,7 @@ void part_key_shortcut(void)
  *
  * The part is unmarked, then detached according to kind: a rope untied, a belt
  * detached with `how` 0 after stashing its far end's +0x5a at 0x5456, anything
- * else through sub_05704. A rope then has its link put back the other way
+ * else through detach_part_to_bin. A rope then has its link put back the other way
  * round - `di->+4 = si`, `si->+0x54 = di` - with bit 2 set in the far part's
  * +8 and +0x94 refreshed to match, so the rope is now held by the end you did
  * not grab.
@@ -4038,7 +4038,7 @@ void pick_up_part(void)
         DG5456.belt_far_end = PART_PTR(BELT_PTR(rec)->end_b_ptr)->link_ptr[idx];
         detach_belt(PART_PTR(part), 0);
     } else {
-        sub_05704(PART_PTR(part));
+        detach_part_to_bin(PART_PTR(part));
     }
 
     if (PART_PTR(part)->kind == KIND_BELT) {
@@ -4063,7 +4063,7 @@ void pick_up_part(void)
  *
  *   a rope, kind 8      untie it from both ends, then discard
  *   a belt, kind 0x0a   detach it with `how` 1, then discard
- *   anything else       sub_05704 and sub_05482
+ *   anything else       detach_part_to_bin and finish_part_removal
  *
  * The two ends of the first two are why they need untying before discarding: a
  * rope or a belt is joined to parts that outlive it, and freeing the record
@@ -4087,8 +4087,8 @@ void discard_carried_part(void)
         detach_belt(PART_PTR(part), 1);
         discard_part(PART_PTR(part));
     } else {
-        sub_05704(PART_PTR(part));
-        sub_05482();
+        detach_part_to_bin(PART_PTR(part));
+        finish_part_removal();
     }
 
     DG4E67.redraw_e = 2;
@@ -4848,7 +4848,7 @@ void game_screen(void)
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
         if ((DG52ED.last_key) == SC_TAB)
-            sub_1156c();
+            tab_move_pointer();
 
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
@@ -4935,7 +4935,7 @@ void game_screen(void)
  *
  * On the way out, a part still in hand with bit 0x800 in +6 is thrown away if
  * it is a rope or a belt that reached something, and otherwise handed to
- * sub_05482. A rope that never reached anything takes the second path, because
+ * finish_part_removal. A rope that never reached anything takes the second path, because
  * the kind test falls through to the belt test and then out.
  */
 void game_screen_loop(void)
@@ -5036,7 +5036,7 @@ void game_screen_loop(void)
         return;
     }
 
-    sub_05482();
+    finish_part_removal();
 }
 
 /*
@@ -5253,11 +5253,11 @@ void move_carried_rope(void)
  * pulley anchor takes the belt in its single socket at +0x5a and +0x5e, any
  * other part takes it at the end named by the link's +0xa **and again two
  * slots further on**, then the link is re-measured and the whole thing
- * re-filed and let go of. A pulley on the far side is passed to sub_04d4c
+ * re-filed and let go of. A pulley on the far side is passed to aim_link_at_bisector
  * either way.
  *
  * Button up is preview only, and it changes the machine anyway when the far
- * end is a pulley: sub_04d4c and three marks, before working out the line to
+ * end is a pulley: aim_link_at_bisector and three marks, before working out the line to
  * draw. 0x52c1 and 0x52c3 are the anchor point, 0x52bd and 0x52bf the pointer
  * in play-area coordinates, 0x52c5 the colour - 0xa where it would attach and
  * 0xc where it would not.
@@ -5319,7 +5319,7 @@ void move_carried_belt(void)
             PART_PTR(di)->link_ptr[3] = DG5456.belt_far_end;
             PART_PTR(di)->belt_ptr[1] = si;
             if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
-                sub_04d4c(PART_PTR(DG5456.belt_far_end));
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
             DG5456.belt_far_end = di;
         } else {
             PART_PTR(di)->link_ptr[(uint16_t)end] = DG5456.belt_far_end;
@@ -5330,7 +5330,7 @@ void move_carried_belt(void)
             BELT_PTR(si)->slot_b = (uint8_t)(uint16_t)end;
             BELT_PTR(si)->home_slot_b = (uint8_t)(uint16_t)end;
             if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
-                sub_04d4c(PART_PTR(DG5456.belt_far_end));
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
             refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
@@ -5344,7 +5344,7 @@ void move_carried_belt(void)
 
     if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
         end = 1;
-        sub_04d4c(PART_PTR(DG5456.belt_far_end));
+        aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
         mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
         mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
         mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
@@ -5471,7 +5471,8 @@ void pointer_frame(void)
  */
 void scroll_play_area(void)
 {
-    uint16_t di, y, moved = 0, si;
+    uint16_t di, y, moved = 0;
+    struct part *si;
 
     DG4E67.origin_c_x = ((uint16_t)DG4E67.origin_b_x);
     DG4E67.origin_c_y = ((uint16_t)DG4E67.origin_b_y);
@@ -5502,10 +5503,10 @@ void scroll_play_area(void)
         return;
 
     si = pick_by_flag(0x3000);
-    while (si != 0) {
-        if ((PART_PTR(si)->flags_08 & 0x2000) == 0) {
-            mark_needs_refile(PART_PTR(si), 2);
-            mark_part_shapes(PART_PTR(si), 3);
+    while (si != PART_NONE) {
+        if ((si->flags_08 & 0x2000) == 0) {
+            mark_needs_refile(si, 2);
+            mark_part_shapes(si, 3);
         }
         si = pick_for_record(si, 0x1000);
     }
@@ -5658,7 +5659,7 @@ uint16_t password_to_level(char *text)
  * the file's four bytes are in the same byte order as everything else the game
  * writes. A failed open is silently nothing - the settings just do not persist.
  */
-void sub_12bed(void)
+void write_config(void)
 {
     FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, "wb");
 
@@ -6157,7 +6158,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     uint16_t answer;
 
     /*
-     * **The pattern is the third argument, and it is copied.** `sub_13a8a`
+     * **The pattern is the third argument, and it is copied.** `fill_file_listing`
      * takes it apart to build the extension filter and `string_chr` walks it in
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
@@ -6474,7 +6475,7 @@ out:
  * can hand to `strcpy` without carrying a segment around.
  *
  * It strips exactly three things: `<`, `>` and spaces. That undoes both of the
- * shapes `sub_13a8a` writes, the angle brackets round a directory and the
+ * shapes `fill_file_listing` writes, the angle brackets round a directory and the
  * padding that lines the extensions up, with one filter rather than two.
  *
  * A `:` record does not go through the loop at all; it answers the constant
@@ -6600,7 +6601,7 @@ void picker_draw_list(void)
  * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
  * the loop starts, rather than into a filter that always matches.
  */
-void sub_13a8a(const char *pattern)
+void fill_file_listing(const char *pattern)
 {
     /* Two cursors into the one block: the array of far pointers at its
        front, and the text they point at. `ptr` walks four bytes at a time
@@ -6722,7 +6723,7 @@ void sub_13a8a(const char *pattern)
  * and the next - because a bubble pass compares a pair and there is no pair at
  * the last entry.
  */
-void sub_13c78(void)
+void sort_file_listing(void)
 {
     /* The block is an array of far pointers, one per entry. `p` walks it
        and `q` is always `p + 1`, which is what the original's `+ 4` is. */
@@ -6815,8 +6816,8 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
         GAME_PICKER_TEXT.text_start.off = (uint16_t)(GAME_PICKER_TEXT.block.off + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
     }
 
-    sub_13a8a(pattern);
-    sub_13c78();
+    fill_file_listing(pattern);
+    sort_file_listing();
     GAME_PICKER_TEXT.scroll = 0;
 }
 
@@ -7258,7 +7259,7 @@ void path_up(char *path)
  * it is in the picker's own list block, not DGROUP - and the path is near, so
  * the name is copied through a fourteen-byte local first.
  *
- * That copy is off by one at both ends, deliberately, and `sub_13a8a` is what
+ * That copy is off by one at both ends, deliberately, and `fill_file_listing` is what
  * makes it right: a directory is written into the listing as `<NAME>`. This
  * stores from the **second** byte, past the `<`, and after the join chops the
  * **last** byte, the `>`. So `<DOS>` arrives and `\\DOS` leaves.
@@ -7439,18 +7440,18 @@ void write_string(FILE *file, char *str)
  */
 uint16_t part_index(uint16_t part)
 {
-    uint16_t si;
+    struct part *si;
     uint16_t n = 0;
 
     if (part == 0)
         return 0xffff;
 
-    for (si = (uint16_t)pick_by_flag(0x3000); si != 0; ) {
-        if (si == part) {
-            si = 0;
+    for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
+        if (si == PART_PTR(part)) {
+            si = PART_NONE;
             break;
         }
-        si = (uint16_t)pick_for_record(si, 0x1000);
+        si = pick_for_record(si, 0x1000);
         n++;
     }
 
@@ -7482,7 +7483,7 @@ uint16_t part_index(uint16_t part)
  *
  * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
  * skipping 2 and 3, which are the second half of the pairs `detach_belt` and
- * `sub_05482` clear together. A file that stored them would be storing the same
+ * `finish_part_removal` clear together. A file that stored them would be storing the same
  * links twice.
  *
  * Last, and only for kind 7, the record at +0x68 - its first word as an index,

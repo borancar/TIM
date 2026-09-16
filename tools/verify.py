@@ -1993,12 +1993,12 @@ ROUTINES = {
                                             dgp(lib, a[1]),
                                             ctypes.c_int16(a[2])),
     ),
-    "sub_1156c": dict(
+    "tab_move_pointer": dict(
         addr=0x1156C,
         args=[],
         # Once per Tab: it moves the pointer one stop and that is all.
         check_occurrences=[0],
-        call=lambda lib, a: lib.sub_1156c(),
+        call=lambda lib, a: lib.tab_move_pointer(),
     ),
     "picker_tab": dict(
         addr=0x1345F,
@@ -2254,7 +2254,7 @@ ROUTINES = {
         args=[("handle", 4), ("buf", 6), ("count", 8)],
         returns=True,
         # Once per save: the whole machine goes out in one call, because
-        # sub_0d8ca flushes and hands over a run larger than the buffer.
+        # stream_put_run flushes and hands over a run larger than the buffer.
         check_occurrences=[0],
         call=lambda lib, a: lib.dos_write(ctypes.c_int16(a[0]),
                                           dgp(lib, a[1]),
@@ -2270,13 +2270,13 @@ ROUTINES = {
                                            dgp(lib, a[1]),
                                            ctypes.c_uint16(a[2])),
     ),
-    "sub_0d8ca": dict(
+    "stream_put_run": dict(
         addr=0x0D8CA,
         args=[("file", 2), ("count", 4), ("buf", 6)],
         near=True,
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sub_0d8ca(dgp(lib, a[0]),
+        call=lambda lib, a: lib.stream_put_run(dgp(lib, a[0]),
                                          ctypes.c_uint16(a[1]),
                                          dgp(lib, a[2])),
     ),
@@ -2535,18 +2535,18 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.picker_draw_filename(),
     ),
-    "sub_13c78": dict(
+    "sort_file_listing": dict(
         addr=0x13C78,
         args=[],
         # Once per opening of the picker.
         check_occurrences=[0],
-        call=lambda lib, a: lib.sub_13c78(),
+        call=lambda lib, a: lib.sort_file_listing(),
     ),
-    "sub_13a8a": dict(
+    "fill_file_listing": dict(
         addr=0x13A8A,
         args=[("pattern", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.sub_13a8a(dgp(lib, a[0])),
+        call=lambda lib, a: lib.fill_file_listing(dgp(lib, a[0])),
     ),
     "write_byte": dict(
         addr=0x123B7,
@@ -3694,7 +3694,8 @@ ROUTINES = {
         args=[("flags", 4)],
         returns=True,
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.pick_by_flag(ctypes.c_uint16(a[0])),
+        # It answers a part now; the guest gets the offset in AX either way.
+        call=lambda lib, a: dgo(lib, lib.pick_by_flag(ctypes.c_uint16(a[0]))),
     ),
     "normalise_far_ptr_far": dict(
         addr=0x22386,
@@ -3714,8 +3715,8 @@ ROUTINES = {
         args=[("rec", 4), ("flags", 6)],
         returns=True,
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.pick_for_record(ctypes.c_uint16(a[0]),
-                                                ctypes.c_uint16(a[1])),
+        call=lambda lib, a: dgo(lib, lib.pick_for_record(
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
     ),
     "set_side_flags": dict(
         addr=0x004FD,
@@ -5615,8 +5616,8 @@ def declare_restypes(lib):
     lib.points_within_140.restype = ctypes.c_int16
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
-    lib.pick_by_flag.restype = ctypes.c_int16
-    lib.pick_for_record.restype = ctypes.c_int16
+    lib.pick_by_flag.restype = ctypes.c_void_p
+    lib.pick_for_record.restype = ctypes.c_void_p
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
     lib.intersect_segments.restype = ctypes.c_int16
@@ -5674,7 +5675,7 @@ def declare_restypes(lib):
     lib.save_machine.restype = ctypes.c_uint16
     lib.dos_write.restype = ctypes.c_int16
     lib.write_text.restype = ctypes.c_int16
-    lib.sub_0d8ca.restype = ctypes.c_uint16
+    lib.stream_put_run.restype = ctypes.c_uint16
     lib.dos_chdir.restype = ctypes.c_uint16
     lib.path_is_root.restype = ctypes.c_uint16
     lib.listing_to_name.restype = ctypes.c_uint16

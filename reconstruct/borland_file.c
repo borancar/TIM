@@ -521,7 +521,7 @@ uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
     return (uint16_t)(((uint16_t)total - left) / size);
 }
 
-/* The file putter, `vprinter`'s type for `sub_0d8ca` - defined with the engine. */
+/* The file putter, `vprinter`'s type for `stream_put_run` - defined with the engine. */
 static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf);
 
 /*
@@ -2285,7 +2285,7 @@ uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
     if (total > 0xFFFF)
         return 0;
 
-    return (uint16_t)(sub_0d8ca(file, (uint16_t)total, ptr) / size);
+    return (uint16_t)(stream_put_run(file, (uint16_t)total, ptr) / size);
 }
 
 /*
@@ -2332,7 +2332,7 @@ uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
  * is not one. Recorded because this path is unreached and therefore unverified,
  * so the next person to reach it has only this note to go on.
  */
-uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf)
+uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * buf)
 {
     uint16_t asked = count;
     int16_t  handle;
@@ -2487,7 +2487,7 @@ uint16_t to_lower(uint16_t c)
  * The three fields are also written into the **DTA itself**, at the guest
  * address DOS would use, because that block is *in guest memory* and a
  * comparison against the original sees it. It is not decoration: `verify.py`
- * reported `sub_13a8a` differing in 33 places, all of them between PSP+0x80 and
+ * reported `fill_file_listing` differing in 33 places, all of them between PSP+0x80 and
  * PSP+0xaa, because the original's `findfirst` filled the block and the port
  * filled nothing. A program that read the DTA directly would have seen the
  * same nothing.
@@ -2580,7 +2580,7 @@ uint16_t dos_findfirst(const char *pattern, uint16_t attr)
      * it was - DOS does not touch it - and 0x0b6ef copies it out either way, so
      * the *previous* name is still there afterwards. Zeroing the buffer here
      * would publish a blank where the original publishes the last name it
-     * found, which `verify.py` caught as `sub_13a8a` differing on the twelve
+     * found, which `verify.py` caught as `fill_file_listing` differing on the twelve
      * bytes of "TONSOFUN.TIM" after the listing loop ran off the end.
      */
     r = io_dos_findfirst(name, attr, dta_name, &dta_attr, &dta_size);
@@ -3628,7 +3628,7 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
  */
 static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf)
 {
-    return sub_0d8ca((struct file_rec *)sink, n, buf);
+    return stream_put_run((struct file_rec *)sink, n, buf);
 }
 
 /*

@@ -732,7 +732,7 @@ char   *tmp_name_unused(int16_t *counter, char *buf);       /* 0x0c12b */
 int16_t borland_unlink(const char *name);                   /* 0x0c2bf */
 void    float_formats_missing(int16_t from_scanf);          /* 0x0c884 */
 /* The `printf` engine's putter: `(sink, count, bytes)`, answering the count
-   or 0. `sub_0d8ca` for a stream, `string_putn` for a buffer. */
+   or 0. `stream_put_run` for a stream, `string_putn` for a buffer. */
 typedef uint16_t (*putn_fn)(void *sink, uint16_t n, const uint8_t *buf);
 /* The engine's state, kept in `vprinter`'s frame in the original and reached
    by its helpers through BP; here a struct the helpers take a pointer to. */
@@ -907,10 +907,11 @@ void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out);   /* 0x004
 void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
-int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
+struct part *pick_by_flag(uint16_t flags);          /* 0x05b65 */
 
 /* Choose a value for a record: its own, or a shared slot. */
-int16_t pick_for_record(uint16_t rec, uint16_t flags);    /* 0x05ba7 */
+struct part *pick_for_record(struct part *rec,
+                             uint16_t flags);    /* 0x05ba7 */
 
 /* Add one or both of a record's two shapes. */
 void add_record_shapes(struct part *rec, uint16_t which);   /* 0x0642a */
@@ -1157,7 +1158,7 @@ void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
 void add_mass_capped(struct part *obj, struct part *other); /* 0x07c5b */
 void part_step(struct part *part);                      /* dispatch, ours */
-uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
+uint16_t part_hit(uint16_t kind, struct part *part); /* dispatch, ours */
 uint16_t part_hit_bellow(struct part *part);              /* 0x175f2 */
 void     nudge_x_add(struct part *obj, int16_t d);      /* 0x191c8 */
 void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x191e2 */
@@ -1468,7 +1469,7 @@ void paint_panel_g(void);                           /* 0x11c6b */
 void present_back_page(void);                       /* 0x081f9 */
 
 void game_screen(void);                             /* 0x10f03 */
-void sub_1156c(void);                               /* 0x1156c */
+void tab_move_pointer(void);                               /* 0x1156c */
 void show_message_box(const char *title, char *body);
 uint16_t ask_yes_no(const char *title, char *body); /* 0x1567b */
 uint16_t message_box(const char *title, char *body,
@@ -1479,13 +1480,13 @@ void draw_button(const char *str, uint16_t x, uint16_t y,
 void remove_all_parts(void);                        /* 0x057e6 */
 void untie_rope(struct part *part);                     /* 0x0527f */
 void detach_belt(struct part *part, uint16_t how);      /* 0x052f5 */
-void sub_05704(struct part *part);                      /* 0x05704 */
-void sub_05482(void);                               /* 0x05482 */
-void sub_051cb(struct part *part);                      /* 0x051cb */
-void sub_04d4c(struct part *part);                      /* 0x04d4c */
-uint16_t sub_04c0d(struct part *part, struct part *other);  /* 0x04c0d */
+void detach_part_to_bin(struct part *part);                      /* 0x05704 */
+void finish_part_removal(void);                               /* 0x05482 */
+void break_second_attachment(struct part *part);                      /* 0x051cb */
+void aim_link_at_bisector(struct part *part);                      /* 0x04d4c */
+uint16_t angle_between_parts(struct part *part, struct part *other);  /* 0x04c0d */
 void discard_part(struct part *part);                   /* 0x05457 */
-uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
+uint16_t select_puzzle_screen(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
@@ -1542,8 +1543,8 @@ void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t a, uint16_t b, const char *pattern); /* 0x13606 */
 char *listing_to_name(const char far * entry);     /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
-void sub_13a8a(const char *pattern);                   /* 0x13a8a */
-void sub_13c78(void);                               /* 0x13c78 */
+void fill_file_listing(const char *pattern);                   /* 0x13a8a */
+void sort_file_listing(void);                               /* 0x13c78 */
 void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */
 void picker_draw_filename(void);                     /* 0x13902 */
@@ -1566,7 +1567,7 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                      FILE *file);                /* 0x094fb */
 uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                    struct file_rec *file);                  /* 0x0d321 */
-uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf); /* 0x0d8ca */
+uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * buf); /* 0x0d8ca */
 int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
 int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0de6e */
@@ -1610,7 +1611,7 @@ void screen_state_0020(struct screen_loop *s);
 void game_screen_loop(void);                               /* 0x0f8c2 */
 void run_machine_loop(void);                               /* 0x012ab */
 void finish_level(void);                             /* 0x02710 */
-void sub_12bed(void);                               /* 0x12bed */
+void write_config(void);                               /* 0x12bed */
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */
 void restore_cursor(void);                          /* 0x0466e */

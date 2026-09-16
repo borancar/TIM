@@ -2183,23 +2183,23 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
  */
 void step_and_draw_machine(int16_t redraw_all)
 {
-    uint16_t si;
+    struct part *si;
 
     if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->byte_14 != 0) {
         link_record_into_buckets(PART_PTR(DG50D3.dragged_part_ptr));
         PART_PTR(DG50D3.dragged_part_ptr)->byte_14--;
     }
 
-    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
-         si = (uint16_t)pick_for_record(si, 0x1000)) {
-        if ((redraw_all != 0 || PART_PTR(si)->byte_14 != 0)
-            && si != DG50D3.dragged_part_ptr)
-            link_record_into_buckets(PART_PTR(si));
+    for (si = pick_by_flag(0x3000); si != PART_NONE;
+         si = pick_for_record(si, 0x1000)) {
+        if ((redraw_all != 0 || si->byte_14 != 0)
+            && si != PART_PTR(DG50D3.dragged_part_ptr))
+            link_record_into_buckets(si);
 
         if (redraw_all != 0)
-            PART_PTR(si)->byte_14 = 0;
-        else if (PART_PTR(si)->byte_14 != 0)
-            PART_PTR(si)->byte_14--;
+            si->byte_14 = 0;
+        else if (si->byte_14 != 0)
+            si->byte_14--;
     }
 
     refile_overlapping_parts();

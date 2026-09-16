@@ -3551,6 +3551,11 @@ _Static_assert(sizeof(struct belt) == 0x2c,
 
 #define BELT_PTR(p) ((struct belt *)(dgroup + (uint16_t)(p)))
 
+/* **No belt**, as a pointer - the same address an offset of 0 names. See
+   `PART_NONE`: every accessor here is `dgroup + off`, so a walk held as a
+   typed pointer ends on this and never on NULL. */
+#define BELT_NONE BELT_PTR(0)
+
 /*
  * ---------------------------------------------------------------------------
  * **A rope**, the 0x38-byte record a kind-8 part hangs off `rope_ptr` - not a
@@ -3591,6 +3596,9 @@ _Static_assert(sizeof(struct rope) == 0x38,
                "a rope is what clone_part makes with heap_calloc_far(1, 0x38)");
 
 #define ROPE_PTR(p) ((struct rope *)(dgroup + (uint16_t)(p)))
+
+/* **No rope**, as a pointer - see `BELT_NONE` and `PART_NONE`. */
+#define ROPE_NONE ROPE_PTR(0)
 
 /*
  * ---------------------------------------------------------------------------
