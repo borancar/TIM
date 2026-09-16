@@ -6,7 +6,9 @@ The port's handles - `struct part *`, `struct belt *`, `struct rope *`,
 `dgroup + p`, so the original's "no part", an offset of 0, is DGROUP:0 and
 **never NULL**. Every `*_NONE` sentinel exists for that reason. It follows
 that `if (p)`, `p ? ... : ...`, `!p`, `p && ...` and `... || p` on a handle
-are always true where the original tested an offset against 0 - and the
+are always true where the original tested an offset against 0, and
+`p == NULL` is always false - `select_field_2_or_4` read a belt at DGROUP:0
+where the original's `or si,si` returned 0 - and the
 compiler accepts every one of them, because a pointer in a boolean context is
 legal C.
 
@@ -53,6 +55,8 @@ def scan(path):
                         or re.search(r"(?:^|[(,?:]|&&|\|\||\breturn|(?<![=!<>])=)\s*%s\s*(?:&&|\|\|)" % V, code)
                         or re.search(r"(?:&&|\|\|)\s*!?\s*%s\s*(?:\)|&&|\|\||$)" % V, code)):
                     hits.append((i + k + 1, v, code.strip()))
+                elif re.search(r"\b%s\s*[!=]=\s*NULL\b|\bNULL\s*[!=]=\s*%s\b" % (V, V), code):
+                    hits.append((i + k + 1, v, code.strip() + "   <- compared with NULL"))
     return hits
 
 
@@ -68,11 +72,11 @@ def main():
     bad = 0
     for p in paths:
         for line, v, code in scan(p):
-            print("FAIL %s:%d: handle `%s` used as a boolean: %s"
+            print("FAIL %s:%d: handle `%s` used as a boolean or compared with NULL: %s"
                   % (os.path.relpath(p, REPO), line, v, code[:80]))
             bad += 1
     if not bad:
-        print("no typed handle is used as a boolean")
+        print("no typed handle is used as a boolean or compared with NULL")
     return 1 if bad else 0
 
 

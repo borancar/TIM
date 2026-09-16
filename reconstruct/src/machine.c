@@ -8629,7 +8629,9 @@ int16_t match_field_5a_5c(int16_t value, struct part *obj)
  */
 int16_t select_field_2_or_4(int16_t key, struct belt *rec)
 {
-    if (rec == NULL)
+    /* `or si,si` at 0x06f6f: no belt is an offset of 0, which as a pointer
+       is BELT_NONE - DGROUP:0 - and never NULL. */
+    if (rec == BELT_NONE)
         return 0;
     if ((int16_t)rec->end_a_ptr == key)
         return (int16_t)rec->end_b_ptr;

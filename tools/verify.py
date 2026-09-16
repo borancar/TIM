@@ -262,7 +262,7 @@ ROUTINES = {
         addr=0x04748,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.part_flip_options(dgp(lib, a[0])),
+        call=lambda lib, a: lib.part_flip_options(dgh(lib, a[0])),
     ),
     # What the pointer is on. `find_part_from` is asked every frame the level
     # loop runs, so occurrences are plentiful; `part_under_pointer` is its
@@ -278,7 +278,7 @@ ROUTINES = {
         args=[("exclude", 4), ("part", 6)],
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: lib.part_under_pointer(dgh(lib, a[0]),
-                                                   dgp(lib, a[1])),
+                                                   dgh(lib, a[1])),
     ),
     # The parts bin's two scroll arrows, and the search behind one of them.
     # No arguments: everything they read is DGROUP - the button at 0x5774, the
@@ -383,7 +383,7 @@ ROUTINES = {
         args=[("obj", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.resolve_collisions(dgp(lib, a[0])),
+        call=lambda lib, a: lib.resolve_collisions(dgh(lib, a[0])),
     ),
     "find_edge_contact": dict(
         addr=0x007AF,
@@ -396,33 +396,33 @@ ROUTINES = {
         addr=0x02C93,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.integrate_object(dgp(lib, a[0])),
+        call=lambda lib, a: lib.integrate_object(dgh(lib, a[0])),
     ),
     "place_object_for_draw": dict(
         addr=0x05BE4,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.place_object_for_draw(dgp(lib, a[0])),
+        call=lambda lib, a: lib.place_object_for_draw(dgh(lib, a[0])),
     ),
     "add_sub_object_shapes": dict(
         addr=0x05EF6,
         args=[("obj", 4), ("mask", 6)],
         check_occurrences=[0],
         call=lambda lib, a: lib.add_sub_object_shapes(
-            dgp(lib, a[0]), ctypes.c_int16(a[1])),
+            dgh(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "set_object_extent": dict(
         addr=0x05C77,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.set_object_extent(dgp(lib, a[0])),
+        call=lambda lib, a: lib.set_object_extent(dgh(lib, a[0])),
     ),
     "object_delta_angle": dict(
         addr=0x004AB,
         args=[("obj", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.object_delta_angle(dgp(lib, a[0])),
+        call=lambda lib, a: lib.object_delta_angle(dgh(lib, a[0])),
     ),
     "arctan_lookup": dict(
         addr=0x2A941,
@@ -435,7 +435,7 @@ ROUTINES = {
         addr=0x02DA0,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.apply_contact_friction(dgp(lib, a[0])),
+        call=lambda lib, a: lib.apply_contact_friction(dgh(lib, a[0])),
     ),
     "vm_read_pixel": dict(
         overlay=0x1453,
@@ -2191,13 +2191,13 @@ ROUTINES = {
         addr=0x114DB,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_freeform(dgp(lib, a[0])),
+        call=lambda lib, a: lib.region_cursor_freeform(dgh(lib, a[0])),
     ),
     "region_cursor_load": dict(
         addr=0x114F8,
         args=[("region", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.region_cursor_load(dgp(lib, a[0])),
+        call=lambda lib, a: lib.region_cursor_load(dgh(lib, a[0])),
     ),
     "region_cursor_save": dict(
         addr=0x11515,
@@ -2205,19 +2205,19 @@ ROUTINES = {
         # Once: the pointer is over Save Machine for the pass that opens
         # the picker, and the panel's regions are not walked after that.
         check_occurrences=[0],
-        call=lambda lib, a: lib.region_cursor_save(dgp(lib, a[0])),
+        call=lambda lib, a: lib.region_cursor_save(dgh(lib, a[0])),
     ),
     "region_cursor_gravity": dict(
         addr=0x11532,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_gravity(dgp(lib, a[0])),
+        call=lambda lib, a: lib.region_cursor_gravity(dgh(lib, a[0])),
     ),
     "region_cursor_air": dict(
         addr=0x1154F,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_air(dgp(lib, a[0])),
+        call=lambda lib, a: lib.region_cursor_air(dgh(lib, a[0])),
     ),
     "picker_repaint": dict(
         addr=0x136C9,
@@ -2580,19 +2580,19 @@ ROUTINES = {
         addr=0x12430,
         args=[("file", 4), ("part", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_record_fields(dgp(lib, a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.write_record_fields(dgp(lib, a[0]), dgh(lib, a[1])),
     ),
     "write_part_count": dict(
         addr=0x126EC,
         args=[("file", 4), ("head", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_count(dgp(lib, a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.write_part_count(dgp(lib, a[0]), dgh(lib, a[1])),
     ),
     "write_part_list": dict(
         addr=0x126B3,
         args=[("file", 4), ("head", 6), ("which", 8)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_list(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
+        call=lambda lib, a: lib.write_part_list(dgp(lib, a[0]), dgh(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "part_index": dict(
         addr=0x11D00,
@@ -3043,7 +3043,7 @@ ROUTINES = {
         addr=0x05628,
         args=[("part", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.unlink_part(dgp(lib, a[0])),
+        call=lambda lib, a: lib.unlink_part(dgh(lib, a[0])),
     ),
     # The compressed blitter: it writes planes, so the comparison is the four
     # planes plus the port trace, not memory alone.
@@ -3129,7 +3129,7 @@ ROUTINES = {
         args=[("part", 4), ("a", 6)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_rope(
-            dgp(lib, a[0]), ctypes.c_int16(a[1])),
+            dgh(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "draw_belt": dict(
         addr=0x16BAF,
@@ -3137,7 +3137,7 @@ ROUTINES = {
         args=[("part", 4), ("a", 6)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_belt(
-            dgp(lib, a[0]), ctypes.c_int16(a[1])),
+            dgh(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "draw_machine": dict(
         addr=0x1675E,
@@ -3173,7 +3173,7 @@ ROUTINES = {
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],
         check_occurrences=[0, 1, 2, 20],
-        call=lambda lib, a: lib.read_record_fields(dgp(lib, a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.read_record_fields(dgp(lib, a[0]), dgh(lib, a[1])),
     ),
     "game_fread": dict(
         addr=0x091EF,
@@ -3567,7 +3567,7 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.match_field_5a_5c(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            dgp(lib, a[1])),
+            dgh(lib, a[1])),
     ),
     "lookup_table_546c": dict(
         addr=0x11D44,
@@ -3601,7 +3601,7 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.select_field_2_or_4(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            dgp(lib, a[1])),
+            dgh(lib, a[1])),
     ),
     "read_mouse_pointer": dict(
         addr=0x220E9,
@@ -3639,7 +3639,7 @@ ROUTINES = {
         args=[("rec", 4), ("node", 6)],
         returns=True,
         check_occurrences=[0, 3, 25],
-        call=lambda lib, a: lib.chain_contains(dgp(lib, a[0]),
+        call=lambda lib, a: lib.chain_contains(dgh(lib, a[0]),
                                                ctypes.c_uint16(a[1])),
     ),
     # A near routine that takes and answers registers.
@@ -3784,7 +3784,7 @@ ROUTINES = {
         addr=0x02BCC,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.clamp_record_pair(dgp(lib, a[0])),
+        call=lambda lib, a: lib.clamp_record_pair(dgh(lib, a[0])),
     ),
     "set_clip_for_mode": dict(
         addr=0x082C3,
@@ -3796,7 +3796,7 @@ ROUTINES = {
         addr=0x166EF,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.link_record_into_buckets(dgp(lib, a[0])),
+        call=lambda lib, a: lib.link_record_into_buckets(dgh(lib, a[0])),
     ),
     "update_velocity": dict(
         addr=0x07283,
@@ -3862,7 +3862,7 @@ ROUTINES = {
         addr=0x05646,
         args=[("rec", 4), ("head", 6)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.insert_sorted(dgp(lib, a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.insert_sorted(dgh(lib, a[0]), dgh(lib, a[1])),
     ),
     "dos_alloc_bytes": dict(
         addr=0x21ABD,
@@ -3882,7 +3882,7 @@ ROUTINES = {
         addr=0x02C39,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.apply_gravity_and_speed(dgp(lib, a[0])),
+        call=lambda lib, a: lib.apply_gravity_and_speed(dgh(lib, a[0])),
     ),
     "vm_load_palette": dict(
         overlay=0x0F15,
@@ -4130,7 +4130,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 10, 60],
         budget=900_000_000,
-        call=lambda lib, a: lib.part_step_11a6(dgp(lib, a[0])),
+        call=lambda lib, a: lib.part_step_11a6(dgh(lib, a[0])),
     ),
     "part_step_12c2": dict(
         addr=0x18582,
@@ -4347,7 +4347,7 @@ ROUTINES = {
         args=[("part", 4), ("mode", 6)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_belt_shapes(dgp(lib, a[0]),
+        call=lambda lib, a: lib.mark_belt_shapes(dgh(lib, a[0]),
                                                  ctypes.c_uint16(a[1])),
     ),
     "draw_belt_segment": dict(
@@ -4372,7 +4372,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[3540, 3560, 3570, 3575, 3578, 3580],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.tension_belt(dgp(lib, a[0])),
+        call=lambda lib, a: lib.tension_belt(dgh(lib, a[0])),
     ),
     "draw_part_extra": dict(
         addr=0x171B5,
@@ -4380,7 +4380,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 40, 150, 380],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.draw_part_extra(dgp(lib, a[0])),
+        call=lambda lib, a: lib.draw_part_extra(dgh(lib, a[0])),
     ),
     "draw_polygon": dict(
         addr=0x1EDED,
@@ -4398,37 +4398,37 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.part_step_1649(dgp(lib, a[0])),
+        call=lambda lib, a: lib.part_step_1649(dgh(lib, a[0])),
     ),
     "blast_speed_for_mass": dict(
         addr=0x18A08,
         args=[("part", 4)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.blast_speed_for_mass(dgp(lib, a[0])),
+        call=lambda lib, a: lib.blast_speed_for_mass(dgh(lib, a[0])),
     ),
     "split_part_at": dict(
         addr=0x18A7C,
         args=[("part", 4), ("blast", 6)],
         check_occurrences=[0, 1, 2],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.split_part_at(dgp(lib, a[0]),
-                                              dgp(lib, a[1])),
+        call=lambda lib, a: lib.split_part_at(dgh(lib, a[0]),
+                                              dgh(lib, a[1])),
     ),
     "clone_part": dict(
         addr=0x059E4,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.clone_part(dgp(lib, a[0])),
+        call=lambda lib, a: lib.clone_part(dgh(lib, a[0])),
     ),
     "angle_between_centres": dict(
         addr=0x03DA5,
         args=[("a", 4), ("b", 6)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.angle_between_centres(dgp(lib, a[0]),
-                                                      dgp(lib, a[1])),
+        call=lambda lib, a: lib.angle_between_centres(dgh(lib, a[0]),
+                                                      dgh(lib, a[1])),
     ),
     "queue_part": dict(
         addr=0x07B6F,
@@ -4438,7 +4438,7 @@ ROUTINES = {
         # worth anything when it is taken from a count rather than guessed.
         check_occurrences=[0, 1, 2, 3, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.queue_part(dgp(lib, a[0]),
+        call=lambda lib, a: lib.queue_part(dgh(lib, a[0]),
                                            ctypes.c_uint16(a[1])),
     ),
     "bounce_pair": dict(
@@ -4448,14 +4448,14 @@ ROUTINES = {
         # that far before the first occurrence exists at all.
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.bounce_pair(dgp(lib, a[0])),
+        call=lambda lib, a: lib.bounce_pair(dgh(lib, a[0])),
     ),
     "part_step_08f1": dict(
         addr=0x17BB1,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_step_08f1(dgp(lib, a[0])),
+        call=lambda lib, a: lib.part_step_08f1(dgh(lib, a[0])),
     ),
     "part_drive_0802": dict(
         addr=0x17AC2,
@@ -4478,43 +4478,43 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.collect_carried(dgp(lib, a[0])),
+        call=lambda lib, a: lib.collect_carried(dgh(lib, a[0])),
     ),
     "add_carried_weight": dict(
         addr=0x07C3A,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.add_carried_weight(dgp(lib, a[0])),
+        call=lambda lib, a: lib.add_carried_weight(dgh(lib, a[0])),
     ),
     "add_mass_capped": dict(
         addr=0x07C5B,
         args=[("obj", 4), ("other", 6)],
         check_occurrences=[0, 20, 100],
         budget=900_000_000,
-        call=lambda lib, a: lib.add_mass_capped(dgp(lib, a[0]),
-                                                dgp(lib, a[1])),
+        call=lambda lib, a: lib.add_mass_capped(dgh(lib, a[0]),
+                                                dgh(lib, a[1])),
     ),
     "carry_riders_along": dict(
         addr=0x03A8D,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.carry_riders_along(dgp(lib, a[0])),
+        call=lambda lib, a: lib.carry_riders_along(dgh(lib, a[0])),
     ),
     "step_moving_object": dict(
         addr=0x01216,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.step_moving_object(dgp(lib, a[0])),
+        call=lambda lib, a: lib.step_moving_object(dgh(lib, a[0])),
     ),
     "bounce_off_contact": dict(
         addr=0x03046,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100],
         budget=900_000_000,
-        call=lambda lib, a: lib.bounce_off_contact(dgp(lib, a[0])),
+        call=lambda lib, a: lib.bounce_off_contact(dgh(lib, a[0])),
     ),
     "replay_shapes": dict(
         addr=0x06699,
@@ -4531,7 +4531,7 @@ ROUTINES = {
         args=[("part", 4), ("mode", 6)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_part_shapes(dgp(lib, a[0]),
+        call=lambda lib, a: lib.mark_part_shapes(dgh(lib, a[0]),
                                                  ctypes.c_uint16(a[1])),
     ),
     "part_moved": dict(
@@ -4539,14 +4539,14 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.part_moved(dgp(lib, a[0])),
+        call=lambda lib, a: lib.part_moved(dgh(lib, a[0])),
     ),
     "mark_needs_refile": dict(
         addr=0x058F3,
         args=[("part", 4), ("n", 6)],
         check_occurrences=[0, 20, 200],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_needs_refile(dgp(lib, a[0]),
+        call=lambda lib, a: lib.mark_needs_refile(dgh(lib, a[0]),
                                                   ctypes.c_uint8(a[1])),
     ),
     "mark_joined_shapes": dict(
@@ -4554,7 +4554,7 @@ ROUTINES = {
         args=[("part", 4), ("n", 6)],
         check_occurrences=[0, 20, 200],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_joined_shapes(dgp(lib, a[0]),
+        call=lambda lib, a: lib.mark_joined_shapes(dgh(lib, a[0]),
                                                    ctypes.c_uint16(a[1])),
     ),
     "step_machine": dict(
@@ -4568,7 +4568,7 @@ ROUTINES = {
         addr=0x0642A,
         args=[("rec", 4), ("which", 6)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.add_record_shapes(dgp(lib, a[0]),
+        call=lambda lib, a: lib.add_record_shapes(dgh(lib, a[0]),
                                                   ctypes.c_uint16(a[1])),
     ),
     "recompute_kind_physics": dict(
@@ -4590,7 +4590,7 @@ ROUTINES = {
         args=[("link", 4)],
         # Called a handful of times on these screens.
         check_occurrences=[0, 3, 6],
-        call=lambda lib, a: lib.compute_link_endpoints(dgp(lib, a[0])),
+        call=lambda lib, a: lib.compute_link_endpoints(dgh(lib, a[0])),
     ),
     "find_entry_for_pointer": dict(
         addr=0x098E0,
@@ -4866,7 +4866,7 @@ ROUTINES = {
         planes=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.draw_bitmap(
-            dgp(lib, a[0]),
+            dgh(lib, a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] & 0x8000 else a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2]),
             ctypes.c_uint16(a[3])),
@@ -5088,7 +5088,7 @@ ROUTINES = {
         args=[("file", 4), ("head", 6), ("n", 8)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.read_list(
-            dgp(lib, a[0]), dgp(lib, a[1]),
+            dgp(lib, a[0]), dgh(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
     "read_level": dict(
@@ -5116,7 +5116,7 @@ ROUTINES = {
         args=[("rec", 4)],
         planes=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.draw_frame_corners(dgp(lib, a[0])),
+        call=lambda lib, a: lib.draw_frame_corners(dgh(lib, a[0])),
     ),
     # Part loading and the part list. All far; the two that take nothing end
     # `retf` at 0x0f7f3 and 0x14132, checked rather than assumed from the
@@ -5229,14 +5229,14 @@ ROUTINES = {
         addr=0x03009,
         args=[("obj", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.sound_on_hard_impact(dgp(lib, a[0])),
+        call=lambda lib, a: lib.sound_on_hard_impact(dgh(lib, a[0])),
     ),
     "rope_ends_close": dict(
         addr=0x04B8F,
         args=[("rope", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.rope_ends_close(dgp(lib, a[0])),
+        call=lambda lib, a: lib.rope_ends_close(dgh(lib, a[0])),
     ),
     "mark_parts_in_dirty_rects": dict(
         addr=0x06806,
@@ -5249,7 +5249,7 @@ ROUTINES = {
         addr=0x06994,
         args=[("part", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.belt_in_dirty_rect(dgp(lib, a[0])),
+        call=lambda lib, a: lib.belt_in_dirty_rect(dgh(lib, a[0])),
     ),
     "restore_cursor_following": dict(
         addr=0x08125,
@@ -5321,7 +5321,7 @@ ROUTINES = {
         addr=0x04F7F,
         args=[("link", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.refresh_link_geometry(dgp(lib, a[0])),
+        call=lambda lib, a: lib.refresh_link_geometry(dgh(lib, a[0])),
     ),
     "set_vector_from_angle": dict(
         addr=0x07223,
@@ -5365,7 +5365,7 @@ ROUTINES = {
         addr=0x07CE3,
         args=[("obj", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.shift_state_history(dgp(lib, a[0])),
+        call=lambda lib, a: lib.shift_state_history(dgh(lib, a[0])),
     ),
     "compare_link_ends": dict(
         addr=0x06DE9,
@@ -6035,8 +6035,11 @@ def main():
             # the same place `load_sound_bank` had. So the number of pointer
             # spellings has to reach the number of pointer parameters; a
             # `dgo(` is a *return* and does not count towards the arguments.
+            # **`dgh(` is a pointer too** - a handle whose 0 stays DGROUP:0.
+            # Moving 64 handle arguments from `dgp` to it made twelve specs
+            # read as short of pointers here, and `make test` refused them.
             spelled = sum(body.count(t) for t in
-                          ("dgp(", "farp(", "FarPtr(", "byref("))
+                          ("dgp(", "dgh(", "farp(", "FarPtr(", "byref("))
             if spelled >= len(idx):
                 continue
             if "c_uint16" in body or "c_int16" in body:
