@@ -890,7 +890,7 @@ DG_ASSERT_AT(struct dg_5768, word_5786,         0x1e);
  */
 struct dg_53fc {
     int16_t   word_53fc;          /* +0x00 */
-    uint16_t  word_53fe;          /* +0x02 */
+    dg_off_t  other_ptr;          /* +0x02  the part `list_ptr` is being tested against */
     dg_off_t  list_ptr;           /* +0x04  the part the collision sweep is
                                              working on; `resolve_collisions`
                                              sets it from `pick_by_flag` and
@@ -923,7 +923,7 @@ struct dg_53fc {
 extern struct dg_53fc DG53FC;
 
 DG_ASSERT_AT(struct dg_53fc, word_53fc,         0x00);
-DG_ASSERT_AT(struct dg_53fc, word_53fe,         0x02);
+DG_ASSERT_AT(struct dg_53fc, other_ptr,         0x02);
 DG_ASSERT_AT(struct dg_53fc, list_ptr,          0x04);
 DG_ASSERT_AT(struct dg_53fc, word_5402,         0x06);
 DG_ASSERT_AT(struct dg_53fc, word_5404,         0x08);
@@ -1937,8 +1937,8 @@ struct dg_546c {
     int16_t   version;            /* +0x08  the version gate: from 0x101 the file carries more */
     uint16_t  version_out;        /* +0x0a  written out beside it */
     uint16_t  error;              /* +0x0c  every writer checks it, and a file that fails to close is deleted */
-    int16_t   cache_key;          /* +0x0e  the one-entry cache in front of find_entry_for_pointer: */
-    int16_t   cache_answer;       /* +0x10  the pointer last asked about, and the answer */
+    dg_off_t  cache_key_ptr;      /* +0x0e  the one-entry cache in front of find_entry_for_pointer: */
+    dg_off_t  cache_answer_ptr;   /* +0x10  the pointer last asked about, and the answer */
     int16_t   archive_count;      /* +0x12  how many archives, accumulated; zero means none is open */
     uint16_t  last_record;        /* +0x14  where the search starts, so record 0 is never returned */
     /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
@@ -1952,8 +1952,8 @@ struct dg_546c {
     uint8_t   retry;              /* +0x1c  the loop around the loose-file open, for removable media */
     uint8_t   byte_5489;          /* +0x1d */
     uint8_t   scanned;            /* +0x1e  the archives have been counted once */
-    int16_t   file_used;          /* +0x1f  the FILE it actually read from */
-    int16_t   file_asked;         /* +0x21  and the one it was asked about */
+    dg_off_t  file_used_ptr;      /* +0x1f  the FILE it actually read from */
+    dg_off_t  file_asked_ptr;     /* +0x21  and the one it was asked about */
 } __attribute__((packed));
 
 extern struct dg_546c DG546C;
@@ -1964,8 +1964,8 @@ DG_ASSERT_AT(struct dg_546c, is_level,          0x06);
 DG_ASSERT_AT(struct dg_546c, version,           0x08);
 DG_ASSERT_AT(struct dg_546c, version_out,       0x0a);
 DG_ASSERT_AT(struct dg_546c, error,             0x0c);
-DG_ASSERT_AT(struct dg_546c, cache_key,         0x0e);
-DG_ASSERT_AT(struct dg_546c, cache_answer,      0x10);
+DG_ASSERT_AT(struct dg_546c, cache_key_ptr,     0x0e);
+DG_ASSERT_AT(struct dg_546c, cache_answer_ptr,  0x10);
 DG_ASSERT_AT(struct dg_546c, archive_count,     0x12);
 DG_ASSERT_AT(struct dg_546c, last_record,       0x14);
 DG_ASSERT_AT(struct dg_546c, name_hash,         0x16);
@@ -1974,8 +1974,8 @@ DG_ASSERT_AT(struct dg_546c, byte_5487,         0x1b);
 DG_ASSERT_AT(struct dg_546c, retry,             0x1c);
 DG_ASSERT_AT(struct dg_546c, byte_5489,         0x1d);
 DG_ASSERT_AT(struct dg_546c, scanned,           0x1e);
-DG_ASSERT_AT(struct dg_546c, file_used,         0x1f);
-DG_ASSERT_AT(struct dg_546c, file_asked,        0x21);
+DG_ASSERT_AT(struct dg_546c, file_used_ptr,     0x1f);
+DG_ASSERT_AT(struct dg_546c, file_asked_ptr,    0x21);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2052,7 +2052,7 @@ struct archive {
                                   to `fopen` as it stands */
     uint8_t   pad_0d[1];
     uint16_t  index;           /* +0x0e  its own index, written by the loader */
-    dg_off_t  stream;          /* +0x10  open only while it is the current one */
+    dg_off_t  stream_ptr;      /* +0x10  open only while it is the current one */
     uint32_t  pos;             /* +0x12  where DOS is believed to be */
     uint8_t   pad_16[2];
     struct far_ptr list;       /* +0x18  the eight-byte entries the map read:
@@ -2079,7 +2079,7 @@ _Static_assert(sizeof(struct archive_entry) == 8, "load_archive_map steps its cu
 
 DG_ASSERT_AT(struct archive, name,              0x00);
 DG_ASSERT_AT(struct archive, index,             0x0e);
-DG_ASSERT_AT(struct archive, stream,            0x10);
+DG_ASSERT_AT(struct archive, stream_ptr,           0x10);
 DG_ASSERT_AT(struct archive, pos,               0x12);
 DG_ASSERT_AT(struct archive, list,              0x18);
 

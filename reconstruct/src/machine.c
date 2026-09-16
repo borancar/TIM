@@ -519,14 +519,14 @@ void compute_swept_bounds_5400(void)
  */
 void compute_bounds_53fe(void)
 {
-    DG53FC.word_540e = PART_PTR(DG53FC.word_53fe)->pos[0].x;
-    DG53FC.word_540a = PART_PTR(DG53FC.word_53fe)->pos[0].y;
-    DG53FC.word_540c = (int16_t)(DG53FC.word_540e + PART_PTR(DG53FC.word_53fe)->size[0].width);
-    DG53FC.word_5408 = (int16_t)(DG53FC.word_540a + PART_PTR(DG53FC.word_53fe)->size[0].height);
+    DG53FC.word_540e = PART_PTR(DG53FC.other_ptr)->pos[0].x;
+    DG53FC.word_540a = PART_PTR(DG53FC.other_ptr)->pos[0].y;
+    DG53FC.word_540c = (int16_t)(DG53FC.word_540e + PART_PTR(DG53FC.other_ptr)->size[0].width);
+    DG53FC.word_5408 = (int16_t)(DG53FC.word_540a + PART_PTR(DG53FC.other_ptr)->size[0].height);
     DG53FC.word_5406 = (int16_t)(DG53FC.word_540e
-                             + (int16_t)(PART_PTR(DG53FC.word_53fe)->size[0].width >> 1));
+                             + (int16_t)(PART_PTR(DG53FC.other_ptr)->size[0].width >> 1));
     DG53FC.word_5404 = (int16_t)(DG53FC.word_540a
-                             + (int16_t)(PART_PTR(DG53FC.word_53fe)->size[0].height >> 1));
+                             + (int16_t)(PART_PTR(DG53FC.other_ptr)->size[0].height >> 1));
 }
 
 /*
@@ -724,7 +724,7 @@ int16_t resolve_collisions(struct part *obj)
 {
     int16_t hit = 0;
 
-    DG53FC.list_ptr = (int16_t)dg_off(dgroup, obj);
+    DG53FC.list_ptr = dg_off(dgroup, obj);
     if (((int16_t)PART_PTR(DG53FC.list_ptr)->points_ptr) == 0)
         return 0;
 
@@ -742,9 +742,9 @@ int16_t resolve_collisions(struct part *obj)
 
     if (DG53FC.word_53fc != 0
         && chain_contains(PART_PTR(DG53FC.list_ptr), ((uint16_t)DG53FC.word_53fc)) == 0) {
-        DG53FC.word_53fe = DG53FC.word_53fc;
-        if (((int16_t)PART_PTR(DG53FC.word_53fe)->points_ptr) != 0
-            && (((int16_t)PART_PTR(DG53FC.word_53fe)->flags_08) & 0x2000) == 0) {
+        DG53FC.other_ptr = DG53FC.word_53fc;
+        if (((int16_t)PART_PTR(DG53FC.other_ptr)->points_ptr) != 0
+            && (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08) & 0x2000) == 0) {
             compute_bounds_53fe();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
@@ -758,16 +758,16 @@ int16_t resolve_collisions(struct part *obj)
         }
     }
 
-    DG53FC.word_53fe = dg_off(dgroup, pick_by_flag(0x3000));
+    DG53FC.other_ptr = dg_off(dgroup, pick_by_flag(0x3000));
 
-    while (((int16_t)DG53FC.word_53fe) != 0) {
-        if (chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.word_53fe) == 0
-            && ((int16_t)DG53FC.list_ptr) != ((int16_t)DG53FC.word_53fe)
-            && DG53FC.word_53fc != ((int16_t)DG53FC.word_53fe)
-            && ((int16_t)PART_PTR(DG53FC.word_53fe)->points_ptr) != 0
-            && (((int16_t)PART_PTR(DG53FC.word_53fe)->flags_08) & 0x2000) == 0
+    while (((int16_t)DG53FC.other_ptr) != 0) {
+        if (chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.other_ptr) == 0
+            && ((int16_t)DG53FC.list_ptr) != ((int16_t)DG53FC.other_ptr)
+            && DG53FC.word_53fc != ((int16_t)DG53FC.other_ptr)
+            && ((int16_t)PART_PTR(DG53FC.other_ptr)->points_ptr) != 0
+            && (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08) & 0x2000) == 0
             && !(((int16_t)PART_PTR(DG53FC.list_ptr)->kind) == 0xc
-                 && ((int16_t)PART_PTR(DG53FC.word_53fe)->kind) == 0x2a)) {
+                 && ((int16_t)PART_PTR(DG53FC.other_ptr)->kind) == 0x2a)) {
             compute_bounds_53fe();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
@@ -780,8 +780,8 @@ int16_t resolve_collisions(struct part *obj)
             }
         }
 
-        DG53FC.word_53fe = dg_off(dgroup,
-                                 pick_for_record(PART_PTR(DG53FC.word_53fe),
+        DG53FC.other_ptr = dg_off(dgroup,
+                                 pick_for_record(PART_PTR(DG53FC.other_ptr),
                                                  0x1000));
     }
 
@@ -856,7 +856,7 @@ int16_t find_edge_contact(int16_t test_only)
     int16_t x0, y0, x1, y1, fx0, fy0;
     int16_t a_ang, b_ang, quad, d, same, tx, ty;
 
-    si = ((uint16_t)PART_PTR(DG53FC.word_53fe)->points_ptr);
+    si = ((uint16_t)PART_PTR(DG53FC.other_ptr)->points_ptr);
     x0 = (int16_t)(DG53FC.word_540e + POINTS(si)[0].x);
     fx0 = x0;
     y0 = (int16_t)(DG53FC.word_540a + POINTS(si)[0].y);
@@ -958,13 +958,13 @@ int16_t find_edge_contact(int16_t test_only)
 
                             PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
                             if (((((int16_t)PART_PTR(DG53FC.list_ptr)->flags_08)
-                                  | ((int16_t)PART_PTR(DG53FC.word_53fe)->flags_08)) & 0x8000) != 0
-                                || (((int16_t)PART_PTR(DG53FC.word_53fe)->flags_06) & 0x4000) != 0)
+                                  | ((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08)) & 0x8000) != 0
+                                || (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_06) & 0x4000) != 0)
                                 PART_PTR(DG53FC.list_ptr)->flags_06 |= 2;
                             else
                                 PART_PTR(DG53FC.list_ptr)->flags_06 |= 4;
 
-                            PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.word_53fe);
+                            PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.other_ptr);
                             PART_PTR(DG53FC.list_ptr)->word_88 = a_ang;
                             PART_PTR(DG53FC.list_ptr)->word_8a = (int16_t)(i - 1);
                             set_side_flags(seg2,
@@ -989,14 +989,14 @@ int16_t find_edge_contact(int16_t test_only)
         }
 
         i++;
-        if (((int16_t)PART_PTR(DG53FC.word_53fe)->point_count) < i) {
+        if (((int16_t)PART_PTR(DG53FC.other_ptr)->point_count) < i) {
             si = 0;
         } else {
             si = (uint16_t)(si + 4);
             x0 = x1;
             y0 = y1;
             a_ang = POINTS(si)[0].angle;
-            if (((int16_t)PART_PTR(DG53FC.word_53fe)->point_count) == i) {
+            if (((int16_t)PART_PTR(DG53FC.other_ptr)->point_count) == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
@@ -1066,7 +1066,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
         d = (int16_t)(DG53FC.word_5426 + 0x8000 - a_ang + 0x4000);
 
         if (d > 0) {
-            si = ((uint16_t)PART_PTR(DG53FC.word_53fe)->points_ptr);
+            si = ((uint16_t)PART_PTR(DG53FC.other_ptr)->points_ptr);
             b_ang = POINTS(si)[0].angle;
             si = (uint16_t)(si + 4);
             j = 1;
@@ -1077,10 +1077,10 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                     d = (int16_t)(POINTS(si)[0].angle - a_ang + 0x8000);
                     if (d <= 0
                         && (DG53FC.word_5414 != 0 || DG53FC.word_5402 != 0)) {
-                        seg1[2] = (int16_t)(PART_PTR(DG53FC.word_53fe)->pos[0].x
+                        seg1[2] = (int16_t)(PART_PTR(DG53FC.other_ptr)->pos[0].x
                                                    + POINTS(si)[0].x - x0);
                         sx = seg1[2];
-                        seg1[3] = (int16_t)(PART_PTR(DG53FC.word_53fe)->pos[0].y
+                        seg1[3] = (int16_t)(PART_PTR(DG53FC.other_ptr)->pos[0].y
                                                    + POINTS(si)[0].y - y0);
                         sy = seg1[3];
                         seg1[0] = (int16_t)(seg1[2] + DG53FC.word_5414);
@@ -1155,13 +1155,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
                             if (((((int16_t)PART_PTR(DG53FC.list_ptr)->flags_08)
-                                  | ((int16_t)PART_PTR(DG53FC.word_53fe)->flags_08)) & 0x8000) != 0
-                                || (((int16_t)PART_PTR(DG53FC.word_53fe)->flags_06) & 0x4000) != 0)
+                                  | ((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08)) & 0x8000) != 0
+                                || (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_06) & 0x4000) != 0)
                                 PART_PTR(DG53FC.list_ptr)->flags_06 |= 2;
                             else
                                 PART_PTR(DG53FC.list_ptr)->flags_06 |= 4;
 
-                            PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.word_53fe);
+                            PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.other_ptr);
                             PART_PTR(DG53FC.list_ptr)->word_88 =
                                 (int16_t)(a_ang + 0x8000);
 
@@ -1184,12 +1184,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                 }
 
                 j++;
-                if (((int16_t)PART_PTR(DG53FC.word_53fe)->point_count) < j) {
+                if (((int16_t)PART_PTR(DG53FC.other_ptr)->point_count) < j) {
                     si = 0;
                 } else {
                     b_ang = POINTS(si)[0].angle;
-                    if (((int16_t)PART_PTR(DG53FC.word_53fe)->point_count) == j)
-                        si = ((uint16_t)PART_PTR(DG53FC.word_53fe)->points_ptr);
+                    if (((int16_t)PART_PTR(DG53FC.other_ptr)->point_count) == j)
+                        si = ((uint16_t)PART_PTR(DG53FC.other_ptr)->points_ptr);
                     else
                         si = (uint16_t)(si + 4);
                 }
@@ -1461,7 +1461,7 @@ void collect_carried(struct part *obj)
     int16_t  top;           /* [bp-6] */
     int16_t  right;         /* [bp-4] */
     int16_t  left;          /* [bp-2] */
-    uint16_t si;
+    struct part *si;
 
     if (obj->kind != KIND_BUCKET)
         goto out;
@@ -1473,24 +1473,24 @@ void collect_carried(struct part *obj)
     top = obj->pos[1].y;
     bottom = (int16_t)(top + (obj->size[0].height));
 
-    for (si = DG5179.moving_parts.next_ptr; si != 0; si = PART_PTR(si)->next_ptr) {
+    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
         int16_t carried = 0;
 
-        if (si == dg_off(dgroup, obj))
+        if (si == obj)
             continue;
-        if (PART_PTR(si)->flags_08 & 0x2000)
+        if (si->flags_08 & 0x2000)
             continue;
-        if (PART_PTR(si)->kind == KIND_BIRD_CAGE)
+        if (si->kind == KIND_BIRD_CAGE)
             continue;
 
-        their_mid = (int16_t)(PART_PTR(si)->pos[1].x
-                                    + ((PART_PTR(si)->size[0].width) >> 1));
-        their_bottom = (int16_t)(PART_PTR(si)->pos[1].y
-                                       + (PART_PTR(si)->size[0].height));
+        their_mid = (int16_t)(si->pos[1].x
+                                    + ((si->size[0].width) >> 1));
+        their_bottom = (int16_t)(si->pos[1].y
+                                       + (si->size[0].height));
 
-        if (PART_PTR(si)->contact_ptr != 0
-            && PART_PTR(si)->contact_ptr == dg_off(dgroup, obj)
-            && PART_PTR(si)->word_38 > 0
+        if (si->contact_ptr != 0
+            && PART_PTR(si->contact_ptr) == obj
+            && si->word_38 > 0
             && their_mid > left
             && their_mid < right)
             carried = 1;
@@ -1505,12 +1505,12 @@ void collect_carried(struct part *obj)
         if (carried == 0)
             continue;
 
-        PART_PTR(si)->next_linked_ptr = obj->next_linked_ptr;
-        obj->next_linked_ptr = si;
-        PART_PTR(si)->flags_0a |= 0x10;
+        si->next_linked_ptr = obj->next_linked_ptr;
+        obj->next_linked_ptr = dg_off(dgroup, si);
+        si->flags_0a |= 0x10;
 
-        PART_PTR(si)->word_38 = obj->word_38;
-        PART_PTR(si)->vel_x = obj->vel_x;
+        si->word_38 = obj->word_38;
+        si->vel_x = obj->vel_x;
     }
 
 out:
@@ -1603,7 +1603,7 @@ void sound_on_hard_impact(struct part *obj)
  */
 void bounce_off_contact(struct part *obj)
 {
-    int16_t hit;  /* [bp-0x14] the contact block, never read */
+    dg_off_t *hit;  /* [bp-0x14] the contact block, never read */
     struct part_kind *their;  /* [bp-0x18] their kind record */
     struct part_kind *mine;   /* [bp-0x16] my kind record */
     struct part *what;  /* [bp-0x12] what was hit */
@@ -1625,7 +1625,7 @@ void bounce_off_contact(struct part *obj)
 
     /* the slot is written because the original writes it; every read of the
        contact block below is spelled as the part's own fields */
-    hit = (int16_t)dg_off(dgroup, &obj->contact_ptr);
+    hit = &obj->contact_ptr;
     (void)hit;   /* the original stores it here and re-derives it later */
     what = PART_PTR(obj->contact_ptr);
 
@@ -6422,7 +6422,7 @@ int16_t bin_part_at_index(int16_t index)
         si = DG50D3.bin_list_ptr;
         while (dx != index) {
             di = PART_PTR(si)->kind;
-            while (si != dg_off(dgroup, &DG50D3.parts_bin) && PART_PTR(si)->kind == di)
+            while (PART_PTR(si) != &DG50D3.parts_bin && PART_PTR(si)->kind == di)
                 si = PART_PTR(si)->prev_ptr;
             dx--;
         }
@@ -6475,7 +6475,7 @@ void refile_part_list(struct part *part)
 
     insert_sorted(part, list);
 
-    if (DG50D3.bin_list_ptr != dg_off(dgroup, &DG50D3.parts_bin) && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
+    if (PART_PTR(DG50D3.bin_list_ptr) != &DG50D3.parts_bin && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
         DG50D3.bin_list_ptr = PART_PTR(DG50D3.bin_list_ptr)->prev_ptr;
 }
 
@@ -6830,7 +6830,7 @@ void detach_belt(struct part *part, uint16_t how)
             PART_PTR(other)->link_ptr[slot] = 0;
 
             if (next != 0 && how == 0) {
-                slot = match_field_5a_5c(other, PART_PTR(next));
+                slot = match_field_5a_5c(PART_PTR(other), PART_PTR(next));
                 PART_PTR(next)->link_ptr[slot + 2] = 0;
                 PART_PTR(next)->link_ptr[slot] = 0;
             }
@@ -6986,7 +6986,7 @@ uint16_t angle_between_parts(struct part *part, struct part *other)
 {
     int32_t dx, dy;
 
-    if (dg_off(dgroup, other) == 0) {   /* the offset: `or si,si` at 0x04c1b */
+    if (other == PART_NONE) {   /* the offset: `or si,si` at 0x04c1b */
         dx = (int32_t)(int16_t)(part->pos[0].x
                                 - (DG5768.pointer_x + DG4E67.origin_x));
         dy = (int32_t)(int16_t)(part->pos[0].y
@@ -6997,7 +6997,7 @@ uint16_t angle_between_parts(struct part *part, struct part *other)
         dy = (int32_t)(int16_t)(part->pos[0].y
                                 - other->pos[0].y);
     } else {
-        int16_t slot = match_field_5a_5c((int16_t)dg_off(dgroup, part), other);
+        int16_t slot = match_field_5a_5c(part, other);
 
         dx = (int32_t)(int16_t)(
                  part->pos[0].x
@@ -7124,7 +7124,7 @@ void discard_part(struct part *part)
         free_part(part);
     }
 
-    if (dg_off(dgroup, part) == DG50D3.dragged_part_ptr)
+    if (part == PART_PTR(DG50D3.dragged_part_ptr))
         DG50D3.dragged_part_ptr = 0;
 }
 
@@ -7186,9 +7186,9 @@ void finish_part_removal(void)
     if (((int16_t)p->kind) == 7) {
         next = PART_PTR(p->link_ptr[0]);
         if (next != PART_NONE) {
-            a = match_field_5a_5c((int16_t)dg_off(dgroup, p), next);
+            a = match_field_5a_5c(p, next);
             other = PART_PTR(p->link_ptr[1]);
-            b = match_field_5a_5c((int16_t)dg_off(dgroup, p), other);
+            b = match_field_5a_5c(p, other);
 
             next->link_ptr[a + 2] = dg_off(dgroup, other);
             next->link_ptr[a] = dg_off(dgroup, other);
@@ -8622,11 +8622,11 @@ out:
  * +0x5a, 1 for the one at +0x5c, and -1 for neither. The structure is reached
  * by a **** pointer - a DGROUP offset - so it is indexed off DGROUP here.
  */
-int16_t match_field_5a_5c(int16_t value, struct part *obj)
+int16_t match_field_5a_5c(struct part *value, struct part *obj)
 {
-    if (((int16_t)obj->link_ptr[0]) == value)
+    if (PART_PTR(obj->link_ptr[0]) == value)
         return 0;
-    if (((int16_t)obj->link_ptr[1]) == value)
+    if (PART_PTR(obj->link_ptr[1]) == value)
         return 1;
     return -1;
 }
@@ -8641,13 +8641,13 @@ int16_t match_field_5a_5c(int16_t value, struct part *obj)
  * Both the "matched" and "did not match" paths funnel through one `jmp` to the
  * epilogue, which is why the disassembly has three jumps to reach two results.
  */
-int16_t select_field_2_or_4(int16_t key, struct belt *rec)
+int16_t select_field_2_or_4(struct part *key, struct belt *rec)
 {
     /* `or si,si` at 0x06f6f: no belt is an offset of 0, which as a pointer
        is BELT_NONE - DGROUP:0 - and never NULL. */
     if (rec == BELT_NONE)
         return 0;
-    if ((int16_t)rec->end_a_ptr == key)
+    if (PART_PTR(rec->end_a_ptr) == key)
         return (int16_t)rec->end_b_ptr;
     return (int16_t)rec->end_a_ptr;
 }
@@ -8931,9 +8931,9 @@ int16_t tension_belt(struct part *part)
 
     belt = part->belt_ptr[0];
     di = PART_PTR(BELT_PTR(belt)->owner_ptr);
-    other = select_field_2_or_4((int16_t)dg_off(dgroup, part), BELT_PTR(belt));
+    other = select_field_2_or_4(part, BELT_PTR(belt));
 
-    if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
+    if (PART_PTR(BELT_PTR(belt)->end_a_ptr) == part) {
         end = 0;
         slot = (int16_t)BELT_PTR(belt)->slot_b;
         slackA = ((int16_t)di->word_96);
@@ -8965,7 +8965,7 @@ int16_t tension_belt(struct part *part)
                 dA = 0;
             }
 
-            if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
+            if (PART_PTR(BELT_PTR(belt)->end_a_ptr) == part) {
                 slackA = (int16_t)(gapA - dA);
                 di->word_96 = slackA;
                 slackB = (int16_t)(gapB - dB);
@@ -9020,7 +9020,7 @@ int16_t tension_belt(struct part *part)
     if (give == 0)
         goto stretched;
 
-    if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
+    if (PART_PTR(BELT_PTR(belt)->end_a_ptr) == part) {
         di->spin -= give;
         slackB = di->spin;
 
@@ -9092,7 +9092,7 @@ stretched:
             pB = PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_a];
             pC = PART_PTR(pB)->link_ptr[0];
 
-            k = match_field_5a_5c((int16_t)pB, PART_PTR(pC));
+            k = match_field_5a_5c(PART_PTR(pB), PART_PTR(pC));
 
             PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_a] =
                 pC;
@@ -9120,7 +9120,7 @@ stretched:
             pB = PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_b];
             pC = PART_PTR(pB)->link_ptr[1];
 
-            k = match_field_5a_5c((int16_t)pB, PART_PTR(pC));
+            k = match_field_5a_5c(PART_PTR(pB), PART_PTR(pC));
 
             PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_b] =
                 pC;
@@ -9239,23 +9239,24 @@ out:
 int16_t link_endpoint_gap(struct belt *link, struct part *obj,
                           uint8_t * out_dx, uint8_t * out_dy)
 {
-    uint16_t self, pt;
+    struct part *self;
+    uint16_t pt;
     struct part *other;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
 
-    if (link->end_a_ptr == dg_off(dgroup, obj)) {
-        self = dg_off(dgroup, obj);
+    if (PART_PTR(link->end_a_ptr) == obj) {
+        self = obj;
         idx = ((int8_t)link->slot_a);
     } else {
-        self = link->end_b_ptr;
+        self = PART_PTR(link->end_b_ptr);
         idx = ((int8_t)link->slot_b);
     }
 
-    x1 = (int16_t)(PART_PTR(self)->box[0].x + PART_PTR(self)->attach[idx].x);
-    y1 = (int16_t)(PART_PTR(self)->box[0].y + PART_PTR(self)->attach[idx].y);
+    x1 = (int16_t)(self->box[0].x + self->attach[idx].x);
+    y1 = (int16_t)(self->box[0].y + self->attach[idx].y);
 
-    other = PART_PTR(PART_PTR(self)->link_ptr[idx]);
-    facing = match_field_5a_5c((int16_t)self, other);
+    other = PART_PTR(self->link_ptr[idx]);
+    facing = match_field_5a_5c(self, other);
 
     if (((int16_t)other->kind) == 7) {
         pt = other->belt_ptr[0];
@@ -10631,7 +10632,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
             seek_file_to(at);
         }
 
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[di->archive].stream);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[di->archive].stream_ptr);
 
         n = borland_fread(buf, size, count, file);
 
@@ -11693,10 +11694,10 @@ void move_pointer_to(int16_t x, int16_t y)
  */
 void draw_cursor(uint16_t page)
 {
-    uint16_t slot = claim_page_slot(page);
+    struct page_slot *slot = claim_page_slot(page);
     uint16_t saved;
 
-    if (slot == 0)
+    if (slot == PAGESLOT_NONE)
         return;
 
     saved = DG5752.guard;
@@ -11705,8 +11706,8 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    VMDS.page_src_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
-    VMDS.page_dst_ptr = ((int16_t)PAGESLOT_PTR(slot)->page);
+    VMDS.page_src_ptr = ((int16_t)slot->page);
+    VMDS.page_dst_ptr = ((int16_t)slot->page);
     VMDS.clip_enabled = 1;
     VMDS.clip_top = 0;
     VMDS.clip_left = 0;
@@ -11714,87 +11715,87 @@ void draw_cursor(uint16_t page)
     VMDS.clip_right = (int16_t)(VMDS.screen.screen_width - 1);
 
     /* Put back what the last cursor covered. */
-    if ((PAGESLOT_PTR(slot)->cursor.flags & 2) != 0) {
-        if (PAGESLOT_PTR(slot)->cursor.buf != 0) {
-            if (PAGESLOT_PTR(slot)->cursor.w > 0
-                && PAGESLOT_PTR(slot)->cursor.h > 0) {
-                uint16_t b = PAGESLOT_PTR(slot)->cursor.buf;
+    if ((slot->cursor.flags & 2) != 0) {
+        if (slot->cursor.buf != 0) {
+            if (slot->cursor.w > 0
+                && slot->cursor.h > 0) {
+                uint16_t b = slot->cursor.buf;
 
                 restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
-                                   PAGESLOT_PTR(slot)->cursor.x,
-                                   PAGESLOT_PTR(slot)->cursor.y,
-                                   PAGESLOT_PTR(slot)->cursor.w,
-                                   PAGESLOT_PTR(slot)->cursor.h);
+                                   slot->cursor.x,
+                                   slot->cursor.y,
+                                   slot->cursor.w,
+                                   slot->cursor.h);
             }
         } else {
-            plot_pixel_clipped(PAGESLOT_PTR(slot)->cursor.x,
-                               PAGESLOT_PTR(slot)->cursor.y,
-                               (int16_t)PAGESLOT_PTR(slot)->cursor.pixel);
+            plot_pixel_clipped(slot->cursor.x,
+                               slot->cursor.y,
+                               (int16_t)slot->cursor.pixel);
         }
-        PAGESLOT_PTR(slot)->cursor.flags =
-            (uint8_t)(PAGESLOT_PTR(slot)->cursor.flags & 0xfd);
+        slot->cursor.flags =
+            (uint8_t)(slot->cursor.flags & 0xfd);
     }
 
     /* Save what the new one will cover. */
     if (MACHINE_CURSOR_STATE.cursor_off != 0) {
-        if (PAGESLOT_PTR(slot)->obj.buf != 0
-            && ((uint16_t)PAGESLOT_PTR(slot)->word_02) != 0) {
-            if (PAGESLOT_PTR(slot)->obj.w > 0
-                && PAGESLOT_PTR(slot)->obj.h > 0) {
-                uint16_t b = PAGESLOT_PTR(slot)->obj.buf;
+        if (slot->obj.buf != 0
+            && ((uint16_t)slot->word_02) != 0) {
+            if (slot->obj.w > 0
+                && slot->obj.h > 0) {
+                uint16_t b = slot->obj.buf;
 
                 save_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
-                                PAGESLOT_PTR(slot)->obj.x,
-                                PAGESLOT_PTR(slot)->obj.y,
-                                PAGESLOT_PTR(slot)->obj.w,
-                                PAGESLOT_PTR(slot)->obj.h);
+                                slot->obj.x,
+                                slot->obj.y,
+                                slot->obj.w,
+                                slot->obj.h);
             }
         } else {
-            PAGESLOT_PTR(slot)->obj.pixel =
-                (uint8_t)read_pixel_clipped(PAGESLOT_PTR(slot)->obj.x,
-                                            PAGESLOT_PTR(slot)->obj.y);
+            slot->obj.pixel =
+                (uint8_t)read_pixel_clipped(slot->obj.x,
+                                            slot->obj.y);
         }
 
         /* And draw it. */
-        if (((uint16_t)PAGESLOT_PTR(slot)->word_02) != 0
-            && PAGESLOT_PTR(slot)->obj.buf != 0) {
-            int16_t y = PAGESLOT_PTR(slot)->word_06;
+        if (((uint16_t)slot->word_02) != 0
+            && slot->obj.buf != 0) {
+            int16_t y = slot->word_06;
 
             /*
              * On adapter 8 a negative y is nudged one further up before the
              * blit, and the x argument is replaced by zero.
              */
             if (((uint8_t)VMDS.pixel_shift) == 8 && y < 0)
-                draw_bitmap(BMP_PTR(PAGESLOT_PTR(slot)->word_02),
-                            PAGESLOT_PTR(slot)->word_04,
+                draw_bitmap(BMP_PTR(slot->word_02),
+                            slot->word_04,
                             (int16_t)(y - 1), 0);
             else
-                draw_bitmap(BMP_PTR(PAGESLOT_PTR(slot)->word_02),
-                            PAGESLOT_PTR(slot)->word_04, y, 0);
+                draw_bitmap(BMP_PTR(slot->word_02),
+                            slot->word_04, y, 0);
         } else {
             MACHINE_PALETTE_FADE.word_573e = (int16_t)((MACHINE_PALETTE_FADE.word_573e + 1) & 0x0f);
-            plot_pixel_clipped(PAGESLOT_PTR(slot)->word_04,
-                               PAGESLOT_PTR(slot)->word_06,
+            plot_pixel_clipped(slot->word_04,
+                               slot->word_06,
                                MACHINE_PALETTE_FADE.word_573e);
         }
 
-        PAGESLOT_PTR(slot)->obj.flags =
-            (uint8_t)(PAGESLOT_PTR(slot)->obj.flags | 2);
+        slot->obj.flags =
+            (uint8_t)(slot->obj.flags | 2);
     } else {
-        PAGESLOT_PTR(slot)->obj.flags =
-            (uint8_t)(PAGESLOT_PTR(slot)->obj.flags & 0xfd);
+        slot->obj.flags =
+            (uint8_t)(slot->obj.flags & 0xfd);
     }
 
     save_or_restore_draw_state(0);
 
     /* Give back the buffer the erase used, if nothing else wants it. */
-    if ((PAGESLOT_PTR(slot)->cursor.flags & 1) != 0
-        && PAGESLOT_PTR(slot)->cursor.buf != 0
+    if ((slot->cursor.flags & 1) != 0
+        && slot->cursor.buf != 0
         && ((uint16_t)MACHINE_PALETTE_FADE.busy) == 0) {
-        clear_slot_5734((int16_t)PAGESLOT_PTR(slot)->cursor.buf);
-        PAGESLOT_PTR(slot)->cursor.buf = 0;
-        PAGESLOT_PTR(slot)->cursor.flags =
-            (uint8_t)(PAGESLOT_PTR(slot)->cursor.flags & 0xfe);
+        clear_slot_5734((int16_t)slot->cursor.buf);
+        slot->cursor.buf = 0;
+        slot->cursor.flags =
+            (uint8_t)(slot->cursor.flags & 0xfe);
     }
 
     DG5752.guard = saved;
@@ -11821,10 +11822,10 @@ void draw_cursor(uint16_t page)
  */
 void redraw_cursor(uint16_t page)
 {
-    uint16_t slot = claim_page_slot(page);
+    struct page_slot *slot = claim_page_slot(page);
     uint16_t saved;
 
-    if (slot == 0)
+    if (slot == PAGESLOT_NONE)
         return;
 
     saved = DG5752.guard;
@@ -11837,10 +11838,10 @@ void redraw_cursor(uint16_t page)
     MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
     if (DG5768.word_5770 == 0
-        || PAGESLOT_PTR(slot)->word_04 != MACHINE_RECT_FREE.word_56e2
-        || PAGESLOT_PTR(slot)->word_06 != MACHINE_RECT_FREE.word_56e4
-        || ((uint16_t)PAGESLOT_PTR(slot)->word_02) != DG5768.word_5770
-        || (PAGESLOT_PTR(slot)->obj.flags & 2) == 0)
+        || slot->word_04 != MACHINE_RECT_FREE.word_56e2
+        || slot->word_06 != MACHINE_RECT_FREE.word_56e4
+        || ((uint16_t)slot->word_02) != DG5768.word_5770
+        || (slot->obj.flags & 2) == 0)
         draw_cursor(page);
 
     DG5752.guard = saved;
@@ -11949,7 +11950,7 @@ void redraw_cursor_all(void)
     }
 
     if (MACHINE_CURSOR_STATE.page == 0) {
-        uint16_t rec;
+        struct page_slot *rec;
 
         clear_object_covered(VMDS.page_front_ptr);
         draw_cursor(VMDS.page_back_ptr);
@@ -11959,18 +11960,18 @@ void redraw_cursor_all(void)
         VMDS.page_src_ptr = VMDS.page_back_ptr;
 
         rec = claim_page_slot(VMDS.page_front_ptr);
-        if (rec != 0)
-            copy_rect_thunk(((uint16_t)PAGESLOT_PTR(rec)->obj.x),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.y),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.w),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.h));
+        if (rec != PAGESLOT_NONE)
+            copy_rect_thunk(((uint16_t)rec->obj.x),
+                            ((uint16_t)rec->obj.y),
+                            ((uint16_t)rec->obj.w),
+                            ((uint16_t)rec->obj.h));
 
         rec = claim_page_slot(VMDS.page_back_ptr);
-        if (rec != 0)
-            copy_rect_thunk(((uint16_t)PAGESLOT_PTR(rec)->obj.x),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.y),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.w),
-                            ((uint16_t)PAGESLOT_PTR(rec)->obj.h));
+        if (rec != PAGESLOT_NONE)
+            copy_rect_thunk(((uint16_t)rec->obj.x),
+                            ((uint16_t)rec->obj.y),
+                            ((uint16_t)rec->obj.w),
+                            ((uint16_t)rec->obj.h));
 
         restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
     }
@@ -12003,29 +12004,29 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 {
     uint16_t saved;                    /* [bp-0x0e] */
     uint16_t hit_draw = 0, hit_shown = 0;   /* [bp-2], [bp-4] */
-    uint16_t si;
+    struct page_slot *si;
 
     saved = DG5752.guard;
     DG5752.guard = 1;
 
     si = claim_page_slot(VMDS.page_src_ptr);
-    if (si != 0 && (PAGESLOT_PTR(si)->obj.flags & 2)
-        && (int16_t)(x + w) > PAGESLOT_PTR(si)->obj.x
-        && (int16_t)(PAGESLOT_PTR(si)->obj.x
-                     + PAGESLOT_PTR(si)->obj.w) > x
-        && (int16_t)(y + h) > PAGESLOT_PTR(si)->obj.y
-        && (int16_t)(PAGESLOT_PTR(si)->obj.y
-                     + PAGESLOT_PTR(si)->obj.h) > y)
+    if (si != PAGESLOT_NONE && (si->obj.flags & 2)
+        && (int16_t)(x + w) > si->obj.x
+        && (int16_t)(si->obj.x
+                     + si->obj.w) > x
+        && (int16_t)(y + h) > si->obj.y
+        && (int16_t)(si->obj.y
+                     + si->obj.h) > y)
         hit_shown = 1;
 
     si = claim_page_slot(VMDS.page_dst_ptr);
-    if (si != 0 && (PAGESLOT_PTR(si)->obj.flags & 2)
-        && (int16_t)(x + w) > PAGESLOT_PTR(si)->obj.x
-        && (int16_t)(PAGESLOT_PTR(si)->obj.x
-                     + PAGESLOT_PTR(si)->obj.w) > x
-        && (int16_t)(y + h) > PAGESLOT_PTR(si)->obj.y
-        && (int16_t)(PAGESLOT_PTR(si)->obj.y
-                     + PAGESLOT_PTR(si)->obj.h) > y)
+    if (si != PAGESLOT_NONE && (si->obj.flags & 2)
+        && (int16_t)(x + w) > si->obj.x
+        && (int16_t)(si->obj.x
+                     + si->obj.w) > x
+        && (int16_t)(y + h) > si->obj.y
+        && (int16_t)(si->obj.y
+                     + si->obj.h) > y)
         hit_draw = 1;
 
     if (((int16_t)MACHINE_CURSOR_STATE.page) == 0 && hit_draw != 0) {
@@ -12283,18 +12284,18 @@ int16_t game_fgetc(FILE *file)
 {
     struct game_file *si = GAME_FILE_NONE;
 
-    DG546C.file_asked = (int16_t)dg_off(dgroup, file);
+    DG546C.file_asked_ptr = dg_off(dgroup, file);
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == GAME_FILE_NONE) {
-        DG546C.file_used = (int16_t)dg_off(dgroup, file);
+        DG546C.file_used_ptr = dg_off(dgroup, file);
         return borland_fgetc(file);
     }
 
     if (si->stream_ptr != 0) {
-        DG546C.file_used = (int16_t)si->stream_ptr;
+        DG546C.file_used_ptr = si->stream_ptr;
         return borland_fgetc(FILEREC_PTR(si->stream_ptr));
     }
 
@@ -12310,8 +12311,8 @@ int16_t game_fgetc(FILE *file)
 
         seek_file_to(at);
 
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream);
-        DG546C.file_used = (int16_t)dg_off(dgroup, file);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream_ptr);
+        DG546C.file_used_ptr = dg_off(dgroup, file);
         got = borland_fgetc(file);
 
         si->pos++;
@@ -12388,8 +12389,8 @@ FILE *game_fopen(char *name, const char *mode)
         goto out;
     }
 
-    DG546C.file_used = 0;
-    DG546C.file_asked = 0;
+    DG546C.file_used_ptr = 0;
+    DG546C.file_asked_ptr = 0;
 
     si = &MACHINE_GAME_FILES.files[0];
     for (left = 0xa; left != 0; left--) {
@@ -12443,7 +12444,7 @@ FILE *game_fopen(char *name, const char *mode)
 
         seek_file_to(at);
 
-        di = FILEREC_PTR(MACHINE_ARCHIVES.slot[DG546C.last_record].stream);
+        di = FILEREC_PTR(MACHINE_ARCHIVES.slot[DG546C.last_record].stream_ptr);
 
         borland_fread((uint8_t *)hdr, 0xd, 1, di);
         borland_fread((uint8_t *)&si->size, 4, 1, di);
@@ -12760,9 +12761,9 @@ void make_file_current(uint16_t index)
         return;
 
     a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
-    if (a->stream != 0) {
-        borland_fclose(FILEREC_PTR(a->stream));
-        a->stream = 0;
+    if (a->stream_ptr != 0) {
+        borland_fclose(FILEREC_PTR(a->stream_ptr));
+        a->stream_ptr = 0;
     }
 
     DG546C.last_record = (int16_t)index;
@@ -12774,7 +12775,7 @@ void make_file_current(uint16_t index)
             struct file_rec *f = borland_fopen((const char *)a->name,
                                      MACHINE_RESOURCE_MAP_NAMES.mode_rb_c);
 
-            a->stream = dg_off(dgroup, f);
+            a->stream_ptr = dg_off(dgroup, f);
             if (f != 0)
                 break;
             if (((uint8_t)VMDS.pixel_shift) != 0)
@@ -12815,7 +12816,7 @@ void seek_file_to(uint32_t at)
     if (a->pos == at)
         return;
 
-    borland_fseek(FILEREC_PTR(a->stream), (int32_t)at, 0);
+    borland_fseek(FILEREC_PTR(a->stream_ptr), (int32_t)at, 0);
 
     a->pos = at;
 }
@@ -12852,32 +12853,32 @@ struct game_file *archive_entry_for(FILE *file)
     int16_t n;
 
     if (file == 0) {
-        DG546C.cache_key = 0;
-        DG546C.cache_answer = 0;
+        DG546C.cache_key_ptr = 0;
+        DG546C.cache_answer_ptr = 0;
         return GAME_FILE_NONE;
     }
 
     if (DG546C.archive_count == 0)
         return GAME_FILE_NONE;
 
-    if (dg_off(dgroup, file) == ((uint16_t)DG546C.cache_key))
-        return GAME_FILE_PTR(DG546C.cache_answer);
+    if (file == FILEREC_PTR(DG546C.cache_key_ptr))
+        return GAME_FILE_PTR(DG546C.cache_answer_ptr);
 
-    DG546C.cache_key = (int16_t)dg_off(dgroup, file);
+    DG546C.cache_key_ptr = dg_off(dgroup, file);
 
     si = &MACHINE_GAME_FILES.files[0];
     n = 0xa;
-    while (n != 0 && dg_off(dgroup, si) != dg_off(dgroup, file)) {
+    while (n != 0 && (FILE *)si != file) {
         si++;
         n--;
     }
 
     if (n == 0 || si->in_use == 0) {
         si = GAME_FILE_NONE;
-        DG546C.cache_key = 0;
+        DG546C.cache_key_ptr = 0;
     }
 
-    DG546C.cache_answer = (int16_t)dg_off(dgroup, si);
+    DG546C.cache_answer_ptr = dg_off(dgroup, si);
     return si;
 }
 
@@ -12944,11 +12945,12 @@ void wait_and_latch_frame(void)
  */
 void erase_object(uint16_t handle)
 {
-    uint16_t rec, slot;
+    struct page_slot *rec;
+    uint16_t slot;
     int16_t saved;
 
     rec = claim_page_slot(handle);
-    if (rec == 0)
+    if (rec == PAGESLOT_NONE)
         return;
 
     saved = ((int16_t)DG5752.guard);
@@ -12956,21 +12958,21 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    VMDS.page_src_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
-    VMDS.page_dst_ptr = ((int16_t)PAGESLOT_PTR(rec)->page);
+    VMDS.page_src_ptr = ((int16_t)rec->page);
+    VMDS.page_dst_ptr = ((int16_t)rec->page);
 
-    if ((PAGESLOT_PTR(rec)->obj.flags & 2) != 0) {
-        if (((int16_t)PAGESLOT_PTR(rec)->obj.buf) != 0 && PAGESLOT_PTR(rec)->obj.w > 0
-            && PAGESLOT_PTR(rec)->obj.h > 0) {
-            slot = PAGESLOT_PTR(rec)->obj.buf;
+    if ((rec->obj.flags & 2) != 0) {
+        if (((int16_t)rec->obj.buf) != 0 && rec->obj.w > 0
+            && rec->obj.h > 0) {
+            slot = rec->obj.buf;
             vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot - 1],
-                            PAGESLOT_PTR(rec)->obj.x, PAGESLOT_PTR(rec)->obj.y,
-                            PAGESLOT_PTR(rec)->obj.w, PAGESLOT_PTR(rec)->obj.h);
+                            rec->obj.x, rec->obj.y,
+                            rec->obj.w, rec->obj.h);
         } else {
-            plot_pixel_clipped(PAGESLOT_PTR(rec)->obj.x, PAGESLOT_PTR(rec)->obj.y,
-                               PAGESLOT_PTR(rec)->obj.pixel);
+            plot_pixel_clipped(rec->obj.x, rec->obj.y,
+                               rec->obj.pixel);
         }
-        PAGESLOT_PTR(rec)->obj.flags &= 0xfd;
+        rec->obj.flags &= 0xfd;
     }
 
     save_or_restore_draw_state(0);
@@ -12994,9 +12996,9 @@ void erase_object(uint16_t handle)
 void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 {
     int16_t saved;                        /* [bp-2] */
-    uint16_t si = claim_page_slot(from_page);
+    struct page_slot *si = claim_page_slot(from_page);
 
-    if (si == 0)
+    if (si == PAGESLOT_NONE)
         goto out;
 
     saved = (int16_t)DG5752.guard;
@@ -13007,19 +13009,19 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     VMDS.page_src_ptr = to_page;
     VMDS.page_dst_ptr = to_page;
 
-    if (PAGESLOT_PTR(si)->obj.flags & 2) {
-        if (PAGESLOT_PTR(si)->obj.buf != 0
-            && PAGESLOT_PTR(si)->obj.w > 0
-            && PAGESLOT_PTR(si)->obj.h > 0) {
-            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[PAGESLOT_PTR(si)->obj.buf - 1],
-                               PAGESLOT_PTR(si)->obj.x,
-                               PAGESLOT_PTR(si)->obj.y,
-                               PAGESLOT_PTR(si)->obj.w,
-                               PAGESLOT_PTR(si)->obj.h);
+    if (si->obj.flags & 2) {
+        if (si->obj.buf != 0
+            && si->obj.w > 0
+            && si->obj.h > 0) {
+            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1],
+                               si->obj.x,
+                               si->obj.y,
+                               si->obj.w,
+                               si->obj.h);
         } else {
-            plot_pixel_clipped(PAGESLOT_PTR(si)->obj.x,
-                               PAGESLOT_PTR(si)->obj.y,
-                               (int16_t)PAGESLOT_PTR(si)->obj.pixel);
+            plot_pixel_clipped(si->obj.x,
+                               si->obj.y,
+                               (int16_t)si->obj.pixel);
         }
     }
 
@@ -13046,24 +13048,24 @@ out:
  */
 void swap_page_objects(uint16_t page_a, uint16_t page_b)
 {
-    uint16_t slot_a = claim_page_slot(page_b);
-    uint16_t slot_b;
+    struct page_slot *slot_a = claim_page_slot(page_b);
+    struct page_slot *slot_b;
     uint16_t was;
     uint16_t head;
 
-    if (slot_a == 0)
+    if (slot_a == PAGESLOT_NONE)
         return;
 
     slot_b = claim_page_slot(page_a);
-    if (slot_b == 0)
+    if (slot_b == PAGESLOT_NONE)
         return;
 
     was = DG5752.guard;
     DG5752.guard = 1;
 
-    head = PAGESLOT_PTR(slot_a)->page;
-    PAGESLOT_PTR(slot_a)->page = PAGESLOT_PTR(slot_b)->page;
-    PAGESLOT_PTR(slot_b)->page = head;
+    head = slot_a->page;
+    slot_a->page = slot_b->page;
+    slot_b->page = head;
 
     DG5752.guard = was;
 }
@@ -13076,10 +13078,10 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
  */
 void clear_object_covered(uint16_t page)
 {
-    uint16_t si = claim_page_slot(page);
+    struct page_slot *si = claim_page_slot(page);
 
-    if (si != 0)
-        PAGESLOT_PTR(si)->obj.flags &= 0xfd;
+    if (si != PAGESLOT_NONE)
+        si->obj.flags &= 0xfd;
 }
 
 /*
@@ -13117,34 +13119,35 @@ void clear_object_covered(uint16_t page)
  */
 void restage_object_rect(uint16_t handle)
 {
-    uint16_t rec, parent;
+    struct page_slot *rec;
+    uint16_t parent;
     int16_t saved, x, y, w, h;
 
     rec = claim_page_slot(handle);
-    if (rec == 0)
+    if (rec == PAGESLOT_NONE)
         return;
 
     saved = ((int16_t)DG5752.guard);
     DG5752.guard = 1;
 
-    if ((PAGESLOT_PTR(rec)->cursor.flags & 1) != 0 && ((int16_t)PAGESLOT_PTR(rec)->cursor.buf) != 0
+    if ((rec->cursor.flags & 1) != 0 && ((int16_t)rec->cursor.buf) != 0
         && MACHINE_PALETTE_FADE.busy == 0) {
-        clear_slot_5734(((int16_t)PAGESLOT_PTR(rec)->cursor.buf));
-        PAGESLOT_PTR(rec)->cursor.buf = 0;
-        PAGESLOT_PTR(rec)->cursor.flags &= 0xfe;
+        clear_slot_5734(((int16_t)rec->cursor.buf));
+        rec->cursor.buf = 0;
+        rec->cursor.flags &= 0xfe;
     }
 
-    PAGESLOT_PTR(rec)->cursor.x = PAGESLOT_PTR(rec)->obj.x;
-    PAGESLOT_PTR(rec)->cursor.y = PAGESLOT_PTR(rec)->obj.y;
-    PAGESLOT_PTR(rec)->cursor.w = PAGESLOT_PTR(rec)->obj.w;
-    PAGESLOT_PTR(rec)->cursor.h = PAGESLOT_PTR(rec)->obj.h;
-    PAGESLOT_PTR(rec)->cursor.buf = ((int16_t)PAGESLOT_PTR(rec)->obj.buf);
-    PAGESLOT_PTR(rec)->cursor.flags = PAGESLOT_PTR(rec)->obj.flags;
-    PAGESLOT_PTR(rec)->cursor.pixel = PAGESLOT_PTR(rec)->obj.pixel;
+    rec->cursor.x = rec->obj.x;
+    rec->cursor.y = rec->obj.y;
+    rec->cursor.w = rec->obj.w;
+    rec->cursor.h = rec->obj.h;
+    rec->cursor.buf = ((int16_t)rec->obj.buf);
+    rec->cursor.flags = rec->obj.flags;
+    rec->cursor.pixel = rec->obj.pixel;
 
-    if (((uint16_t)PAGESLOT_PTR(rec)->word_02) != DG5768.word_5770 && MACHINE_PALETTE_FADE.busy == 0) {
-        PAGESLOT_PTR(rec)->cursor.flags |= 1;
-        PAGESLOT_PTR(rec)->word_02 = ((int16_t)DG5768.word_5770);
+    if (((uint16_t)rec->word_02) != DG5768.word_5770 && MACHINE_PALETTE_FADE.busy == 0) {
+        rec->cursor.flags |= 1;
+        rec->word_02 = ((int16_t)DG5768.word_5770);
 
         if (DG5768.word_5770 != 0) {
             int32_t asked;
@@ -13152,9 +13155,9 @@ void restage_object_rect(uint16_t handle)
             parent = DG5768.word_5770;
             asked = (int16_t)vm_buffer_size((uint16_t)BMP_PTR(parent)->width,
                                                       (uint16_t)BMP_PTR(parent)->height);
-            PAGESLOT_PTR(rec)->obj.buf = claim_buffer_slot(asked, 0);
+            rec->obj.buf = claim_buffer_slot(asked, 0);
         } else {
-            PAGESLOT_PTR(rec)->obj.buf = 0;
+            rec->obj.buf = 0;
         }
     }
 
@@ -13173,8 +13176,8 @@ void restage_object_rect(uint16_t handle)
         w = 1;
     }
 
-    PAGESLOT_PTR(rec)->word_04 = x;
-    PAGESLOT_PTR(rec)->word_06 = y;
+    rec->word_04 = x;
+    rec->word_06 = y;
 
     if (x < 0) {
         w = (int16_t)(w + x);
@@ -13189,10 +13192,10 @@ void restage_object_rect(uint16_t handle)
     if (y + h >= VMDS.screen.screen_height)
         h = (int16_t)(VMDS.screen.screen_height - y);
 
-    PAGESLOT_PTR(rec)->obj.x = x;
-    PAGESLOT_PTR(rec)->obj.y = y;
-    PAGESLOT_PTR(rec)->obj.w = w;
-    PAGESLOT_PTR(rec)->obj.h = h;
+    rec->obj.x = x;
+    rec->obj.y = y;
+    rec->obj.w = w;
+    rec->obj.h = h;
 
     DG5752.guard = saved;
 }
@@ -13206,12 +13209,12 @@ void restage_object_rect(uint16_t handle)
  * driver's back and front pages, once, the first time through.
  *
  * The match is on bits **0xa800** only, not on the whole word, so a slot
- * matches a page that differs from it in the low bits. Answers the slot's
- * DGROUP offset, or 0 if neither matched.
+ * matches a page that differs from it in the low bits. Answers the slot, or
+ * PAGESLOT_NONE - the original's 0 - if neither matched.
  *
  * A `want` of 0 means "the page currently being drawn into".
  */
-uint16_t claim_page_slot(uint16_t want)
+struct page_slot *claim_page_slot(uint16_t want)
 {
     int16_t i;
 
@@ -13227,10 +13230,10 @@ uint16_t claim_page_slot(uint16_t want)
     for (i = 0; i < 2; i++) {
         if ((want & 0xA800) == ((uint16_t)MACHINE_PAGE_SLOTS.slots[i].page & 0xA800)) {
             MACHINE_PAGE_SLOTS.slots[i].page = (dg_seg_t)want;
-            return dg_off(dgroup, &MACHINE_PAGE_SLOTS.slots[i]);
+            return &MACHINE_PAGE_SLOTS.slots[i];
         }
     }
-    return 0;
+    return PAGESLOT_NONE;
 }
 
 /*

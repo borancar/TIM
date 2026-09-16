@@ -3565,9 +3565,7 @@ ROUTINES = {
         args=[("value", 4), ("obj", 6)],
         returns=True,
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.match_field_5a_5c(
-            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            dgh(lib, a[1])),
+        call=lambda lib, a: lib.match_field_5a_5c(dgh(lib, a[0]), dgh(lib, a[1])),
     ),
     "lookup_table_546c": dict(
         addr=0x11D44,
@@ -3599,9 +3597,7 @@ ROUTINES = {
         args=[("key", 4), ("rec", 6)],
         returns=True,
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.select_field_2_or_4(
-            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            dgh(lib, a[1])),
+        call=lambda lib, a: lib.select_field_2_or_4(dgh(lib, a[0]), dgh(lib, a[1])),
     ),
     "read_mouse_pointer": dict(
         addr=0x220E9,
@@ -3771,7 +3767,7 @@ ROUTINES = {
         returns=True,
         # Called about a dozen times on these screens.
         check_occurrences=[0, 3, 9],
-        call=lambda lib, a: lib.claim_page_slot(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.claim_page_slot(ctypes.c_uint16(a[0]))),
     ),
     "save_or_restore_draw_state": dict(
         addr=0x0B47F,
@@ -5634,7 +5630,7 @@ def declare_restypes(lib):
     lib.find_part_from.restype = ctypes.c_void_p
     lib.part_under_pointer.restype = ctypes.c_void_p
     lib.pick_for_record.restype = ctypes.c_void_p
-    lib.claim_page_slot.restype = ctypes.c_uint16
+    lib.claim_page_slot.restype = ctypes.c_void_p
     lib.angles_same_side.restype = ctypes.c_int16
     lib.intersect_segments.restype = ctypes.c_int16
     lib.compare_link_ends.restype = ctypes.c_int16

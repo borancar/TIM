@@ -925,10 +925,10 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  int16_t width);                    /* 0x064b4 */
 
 /* Which of two structure fields matches a value. */
-int16_t match_field_5a_5c(int16_t value, struct part *obj);   /* 0x06f43 */
+int16_t match_field_5a_5c(struct part *value, struct part *obj);   /* 0x06f43 */
 
 /* Pick one of two record fields by matching the other. */
-int16_t select_field_2_or_4(int16_t key, struct belt *rec);   /* 0x06f68 */
+int16_t select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
 
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
@@ -937,7 +937,7 @@ void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 void reset_input_state(void);                       /* 0x0b4f1 */
 
 /* Claim a slot in the two-entry page table at DGROUP 0x56e6. */
-uint16_t claim_page_slot(uint16_t want);            /* 0x0b429 */
+struct page_slot *claim_page_slot(uint16_t want);            /* 0x0b429 */
 void swap_page_objects(uint16_t page_a, uint16_t page_b); /* 0x0ae8e */
 
 /* Save the driver's drawing state, or put it back. */

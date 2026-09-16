@@ -4064,7 +4064,7 @@ uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
         if (si == 0)
             continue;
 
-        v10 = (uint16_t)select_field_2_or_4((int16_t)dg_off(dgroup, part), BELT_PTR(si));
+        v10 = (uint16_t)select_field_2_or_4(part, BELT_PTR(si));
         if (v10 == from)
             continue;
 
@@ -4789,7 +4789,7 @@ uint16_t part_step_balloon(struct part *part)
     si->link_ptr[0] = part->link_ptr[0];
     link = PART_PTR(si->link_ptr[0]);
 
-    k = match_field_5a_5c((int16_t)dg_off(dgroup, part), link);
+    k = match_field_5a_5c(part, link);
     if (((int16_t)k) != -1)
         link->link_ptr[k] = dg_off(dgroup, si);
 
