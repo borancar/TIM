@@ -2589,10 +2589,10 @@ uint16_t part_hit_dynamite_plunger(struct part *part)
  */
 uint16_t part_step_monkey(struct part *part)
 {
-    uint16_t di = rope_other_end(part);
+    struct part *di = rope_other_end(part);
 
-    if (di != 0 && (PART_PTR(di)->flags_08 & 0x800) == 0)
-        PART_PTR(di)->direction = ((uint16_t)part->direction);
+    if (di != PART_NONE && (di->flags_08 & 0x800) == 0)
+        di->direction = ((uint16_t)part->direction);
 
     if (part->word_96 != 0) {
         part->word_96--;
@@ -2774,7 +2774,7 @@ uint16_t part_step_solar_panel(struct part *part)
  */
 uint16_t part_step_windmill(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
 
     part->direction = 0;
 
@@ -2785,12 +2785,12 @@ uint16_t part_step_windmill(struct part *part)
     }
 
     di = rope_other_end(part);
-    if (di != 0 && !(PART_PTR(di)->flags_08 & 0x800)) {
+    if (di != PART_NONE && !(di->flags_08 & 0x800)) {
         if (((uint16_t)part->direction) != 0)
-            PART_PTR(di)->direction =
+            di->direction =
                 (part->flags_08 & 0x10) ? 0xffff : 1;
         else
-            PART_PTR(di)->direction = 0;
+            di->direction = 0;
     }
 
     if (((uint16_t)part->direction) != 0) {
@@ -2946,7 +2946,7 @@ out:
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                             uint16_t flag)
 {
-    uint16_t v06;      /* [bp-6] the next gear */
+    struct part *v06;      /* [bp-6] the next gear */
     uint16_t v04;      /* [bp-4] how it is joined */
     uint16_t v02;      /* [bp-2] */
 
@@ -2975,16 +2975,16 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
             v06 = rope_other_end(to);
             v04 = 1;
         } else {
-            v06 = to->link_ptr[v02];
+            v06 = PART_PTR(to->link_ptr[v02]);
             v04 = 2;
         }
 
-        if (v06 == 0)
+        if (v06 == PART_NONE)
             continue;
-        if (PART_PTR(v06)->flags_08 & 0x800)
+        if (v06->flags_08 & 0x800)
             continue;
 
-        flag = spread_gear_signal(to, PART_PTR(v06), (int16_t)v04, flag);
+        flag = spread_gear_signal(to, v06, (int16_t)v04, flag);
     }
 
 out:
@@ -3018,9 +3018,9 @@ void settle_gear_signal(struct part *part, int16_t clear)
     part->direction = 0;
 
     for (v02 = 0; ((int16_t)v02) < 5; v02++) {
-        struct part *di = PART_PTR((((int16_t)v02) == 4)
+        struct part *di = (((int16_t)v02) == 4)
                       ? rope_other_end(part)
-                      : part->link_ptr[v02]);
+                      : PART_PTR(part->link_ptr[v02]);
 
         if (di == PART_NONE)
             continue;
@@ -3233,10 +3233,10 @@ void grab_distance(struct part *a, struct part *b, uint8_t * out_x, uint8_t * ou
 uint16_t part_step_conveyor(struct part *part)
 {
     if (((uint16_t)part->direction) != 0) {
-        uint16_t di = rope_other_end(part);
+        struct part *di = rope_other_end(part);
 
-        if (di != 0 && PART_PTR(di)->kind == KIND_GEAR
-            && PART_PTR(di)->word_0e == ((uint16_t)PART_PTR(di)->word_10))
+        if (di != PART_NONE && di->kind == KIND_GEAR
+            && di->word_0e == ((uint16_t)di->word_10))
             part->direction = 0;
     }
 
@@ -5396,16 +5396,14 @@ uint16_t part_hit_mouse_cage(struct part *part)
  */
 uint16_t part_step_mouse_cage(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
 
     if (((uint16_t)part->direction) == 0) {
         link_nearby_objects(part, 0x1000, -0x10, 0x10, 0, 0);
 
-        for (di = part->next_linked_ptr; di != 0;
-             di = PART_PTR(di)->next_linked_ptr) {
-            struct part *linked = PART_PTR(di);
-
-            if (linked->kind == KIND_POKEY) {
+        for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+             di = PART_PTR(di->next_linked_ptr)) {
+            if (di->kind == KIND_POKEY) {
                 part->direction = 1;
                 break;
             }
@@ -5413,8 +5411,8 @@ uint16_t part_step_mouse_cage(struct part *part)
     }
 
     di = rope_other_end(part);
-    if (di != 0 && !(PART_PTR(di)->flags_08 & 0x800))
-        PART_PTR(di)->direction = ((uint16_t)part->direction);
+    if (di != PART_NONE && !(di->flags_08 & 0x800))
+        di->direction = ((uint16_t)part->direction);
 
     if (((uint16_t)part->direction) != 0) {
         part->form ^= 1;
@@ -5436,13 +5434,13 @@ uint16_t part_step_mouse_cage(struct part *part)
  */
 uint16_t part_step_motor(struct part *part)
 {
-    uint16_t di = rope_other_end(part);
+    struct part *di = rope_other_end(part);
 
-    if (di != 0 && !(PART_PTR(di)->flags_08 & 0x800)) {
+    if (di != PART_NONE && !(di->flags_08 & 0x800)) {
         if (((uint16_t)part->direction) == 0)
-            PART_PTR(di)->direction = 0;
+            di->direction = 0;
         else
-            PART_PTR(di)->direction =
+            di->direction =
                 (part->flags_08 & 0x10) ? 1 : 0xffff;
     }
 
@@ -5532,10 +5530,10 @@ uint16_t part_step_generator(struct part *part)
     int16_t i;
 
     if (((uint16_t)part->direction) != 0) {
-        uint16_t di = rope_other_end(part);
+        struct part *di = rope_other_end(part);
 
-        if (di != 0 && PART_PTR(di)->kind == KIND_GEAR
-            && PART_PTR(di)->word_0e == ((uint16_t)PART_PTR(di)->word_10))
+        if (di != PART_NONE && di->kind == KIND_GEAR
+            && di->word_0e == ((uint16_t)di->word_10))
             part->direction = 0;
     }
 
@@ -5561,10 +5559,10 @@ uint16_t part_step_generator(struct part *part)
     }
 
     for (i = 4; i < 6; i++) {
-        uint16_t di = part->link_ptr[i];
+        struct part *di = PART_PTR(part->link_ptr[i]);
 
-        if (di != 0)
-            PART_PTR(di)->direction = ((uint16_t)part->direction);
+        if (di != PART_NONE)
+            di->direction = ((uint16_t)part->direction);
     }
 
     return 0;

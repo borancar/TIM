@@ -8404,17 +8404,17 @@ void refile_overlapping_parts(void)
  * about. A part with no rope answers 0, and so does one whose rope names it at
  * neither end - the `xor ax, ax` is reached from both.
  */
-uint16_t rope_other_end(struct part *part)
+struct part *rope_other_end(struct part *part)
 {
     struct rope *si = ROPE_PTR(part->rope_ptr);
 
     if (si == ROPE_NONE)
-        return 0;
+        return PART_NONE;
 
-    if (si->end_a_ptr == dg_off(dgroup, part))
-        return si->end_b_ptr;
+    if (PART_PTR(si->end_a_ptr) == part)
+        return PART_PTR(si->end_b_ptr);
 
-    return si->end_a_ptr;
+    return PART_PTR(si->end_a_ptr);
 }
 
 /*

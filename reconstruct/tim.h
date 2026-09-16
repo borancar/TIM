@@ -1345,7 +1345,7 @@ uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
 uint16_t part_step_trampoline(struct part *part);             /* 172c:3fae */
 uint16_t part_hit_seesaw(struct part *part);              /* 172c:3fe8 */
 uint16_t part_step_seesaw(struct part *part);             /* 172c:420f */
-uint16_t rope_other_end(struct part *part);             /* 0x06dbf */
+struct part *rope_other_end(struct part *part);             /* 0x06dbf */
 void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
