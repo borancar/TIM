@@ -2824,10 +2824,10 @@ uint16_t part_step_electric_plug(struct part *part)
     part->flags_08 |= 0x40;
 
     for (dx = 4; dx < 6; dx++) {
-        uint16_t di = part->link_ptr[dx];
+        struct part *di = PART_PTR(part->link_ptr[dx]);
 
-        if (di != 0)
-            PART_PTR(di)->direction = ((uint16_t)part->direction);
+        if (di != PART_NONE)
+            di->direction = ((uint16_t)part->direction);
     }
 
     return 0;
@@ -2905,7 +2905,7 @@ uint16_t part_step_light(struct part *part)
  */
 uint16_t part_step_gear(struct part *part)
 {
-    uint16_t v04;      /* [bp-4] */
+    struct part *v04;      /* [bp-4] */
     uint16_t v02;      /* [bp-2] */
     uint16_t di = 0;
 
@@ -2915,11 +2915,11 @@ uint16_t part_step_gear(struct part *part)
     part->flags_08 |= 0x40;
 
     for (v02 = 0; ((int16_t)v02) < 4; v02++) {
-        v04 = part->link_ptr[v02];
-        if (v04 == 0)
+        v04 = PART_PTR(part->link_ptr[v02]);
+        if (v04 == PART_NONE)
             continue;
 
-        di = spread_gear_signal(part, PART_PTR(v04), 2, di);
+        di = spread_gear_signal(part, v04, 2, di);
     }
 
     if (di != 0)
@@ -3022,22 +3022,22 @@ void settle_gear_signal(struct part *part, int16_t clear)
     part->direction = 0;
 
     for (v02 = 0; ((int16_t)v02) < 5; v02++) {
-        uint16_t di = (((int16_t)v02) == 4)
+        struct part *di = PART_PTR((((int16_t)v02) == 4)
                       ? rope_other_end(part)
-                      : part->link_ptr[v02];
+                      : part->link_ptr[v02]);
 
-        if (di == 0)
+        if (di == PART_NONE)
             continue;
-        if (PART_PTR(di)->direction == 0)
+        if (di->direction == 0)
             continue;
-        if (PART_PTR(di)->flags_08 & 0x800)
+        if (di->flags_08 & 0x800)
             continue;
 
         if (clear != 0)
-            PART_PTR(di)->direction = 0;
+            di->direction = 0;
 
-        if (PART_PTR(di)->kind == KIND_GEAR)
-            settle_gear_signal(PART_PTR(di), clear);
+        if (di->kind == KIND_GEAR)
+            settle_gear_signal(di, clear);
     }
 
 }
@@ -4771,7 +4771,7 @@ uint16_t part_hit_balloon(struct part *part)
 uint16_t part_step_balloon(struct part *part)
 {
     uint16_t belt;                     /* [bp-6] */
-    uint16_t link;     /* [bp-4] */
+    struct part *link;     /* [bp-4] */
     uint16_t k;        /* [bp-2] */
     struct part *si;
 
@@ -4802,11 +4802,11 @@ uint16_t part_step_balloon(struct part *part)
 
     si->belt_ptr[0] = belt;
     si->link_ptr[0] = part->link_ptr[0];
-    link = si->link_ptr[0];
+    link = PART_PTR(si->link_ptr[0]);
 
-    k = match_field_5a_5c((int16_t)dg_off(dgroup, part), PART_PTR(link));
+    k = match_field_5a_5c((int16_t)dg_off(dgroup, part), link);
     if (((int16_t)k) != -1)
-        PART_PTR(link)->link_ptr[k] = dg_off(dgroup, si);
+        link->link_ptr[k] = dg_off(dgroup, si);
 
     if (BELT_PTR(belt)->end_a_ptr == dg_off(dgroup, part)) {
         BELT_PTR(belt)->end_a_ptr = dg_off(dgroup, si);

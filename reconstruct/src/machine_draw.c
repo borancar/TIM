@@ -2814,20 +2814,20 @@ void draw_part_extra(struct part *part)
     int16_t corner[2];  /* [bp-0x10], [bp-0x0e] */
     int16_t y[3];  /* [bp-0x0c] .. [bp-8]  */
     int16_t x[3];  /* [bp-6] .. [bp-2]     */
-    uint16_t di = part->link_ptr[4];
+    struct part *di = PART_PTR(part->link_ptr[4]);
     int16_t edge;
 
-    if (di == 0)
+    if (di == PART_NONE)
         goto out;
 
     VMDS.fill_colour = 0x0e;
     VMDS.second_colour = 0x0e;
 
-    x[1] = (int16_t)(PART_PTR(di)->pos[0].x
-                          + PART_PTR(di)->byte_72 - DG4E67.origin_x);
+    x[1] = (int16_t)(di->pos[0].x
+                          + di->byte_72 - DG4E67.origin_x);
     y[0] = (int16_t)(part->pos[0].y + 6 - DG4E67.origin_y);
-    y[1] = (int16_t)(PART_PTR(di)->pos[0].y
-                          + PART_PTR(di)->byte_73 - DG4E67.origin_y);
+    y[1] = (int16_t)(di->pos[0].y
+                          + di->byte_73 - DG4E67.origin_y);
     y[2] = (int16_t)(part->pos[0].y + 0x10 - DG4E67.origin_y);
 
     if (part->flags_08 & 0x10)

@@ -3711,26 +3711,26 @@ static void carried_part_resized(struct part *part, struct part_kind *kind)
  */
 void carried_part_grow(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
-    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = PARTKIND_PTR(part->kind);
 
-    if ((int16_t)PART_PTR(part)->set_size.height
-            <= (int16_t)PART_PTR(part)->set_size.width
-        || PART_PTR(part)->kind == KIND_RAMP) {
+    if ((int16_t)part->set_size.height
+            <= (int16_t)part->set_size.width
+        || part->kind == KIND_RAMP) {
         if (kind->max_w
-                > (int16_t)PART_PTR(part)->set_size.width) {
-            PART_PTR(part)->set_size.width =
-                (uint16_t)(PART_PTR(part)->set_size.width + 0x10);
-            PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
-            carried_part_resized(PART_PTR(part), kind);
+                > (int16_t)part->set_size.width) {
+            part->set_size.width =
+                (uint16_t)(part->set_size.width + 0x10);
+            part->mirror_size.width = part->set_size.width;
+            carried_part_resized(part, kind);
         }
     } else {
         if (kind->max_h
-                > (int16_t)PART_PTR(part)->set_size.height) {
-            PART_PTR(part)->set_size.height =
-                (uint16_t)(PART_PTR(part)->set_size.height + 0x10);
-            PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
-            carried_part_resized(PART_PTR(part), kind);
+                > (int16_t)part->set_size.height) {
+            part->set_size.height =
+                (uint16_t)(part->set_size.height + 0x10);
+            part->mirror_size.height = part->set_size.height;
+            carried_part_resized(part, kind);
         }
     }
 }
@@ -3745,26 +3745,26 @@ void carried_part_grow(void)
  */
 void carried_part_shrink(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
-    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = PARTKIND_PTR(part->kind);
 
-    if ((int16_t)PART_PTR(part)->set_size.height
-            <= (int16_t)PART_PTR(part)->set_size.width
-        || PART_PTR(part)->kind == KIND_RAMP) {
+    if ((int16_t)part->set_size.height
+            <= (int16_t)part->set_size.width
+        || part->kind == KIND_RAMP) {
         if (kind->min_w
-                < (int16_t)PART_PTR(part)->set_size.width) {
-            PART_PTR(part)->set_size.width =
-                (uint16_t)(PART_PTR(part)->set_size.width - 0x10);
-            PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
-            carried_part_resized(PART_PTR(part), kind);
+                < (int16_t)part->set_size.width) {
+            part->set_size.width =
+                (uint16_t)(part->set_size.width - 0x10);
+            part->mirror_size.width = part->set_size.width;
+            carried_part_resized(part, kind);
         }
     } else {
         if (kind->min_h
-                < (int16_t)PART_PTR(part)->set_size.height) {
-            PART_PTR(part)->set_size.height =
-                (uint16_t)(PART_PTR(part)->set_size.height - 0x10);
-            PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
-            carried_part_resized(PART_PTR(part), kind);
+                < (int16_t)part->set_size.height) {
+            part->set_size.height =
+                (uint16_t)(part->set_size.height - 0x10);
+            part->mirror_size.height = part->set_size.height;
+            carried_part_resized(part, kind);
         }
     }
 }
@@ -3781,14 +3781,14 @@ void carried_part_shrink(void)
  */
 void move_carried(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
 
-    PART_PTR(part)->pos[0].y = -1;
-    PART_PTR(part)->pos[0].x = -1;
+    part->pos[0].y = -1;
+    part->pos[0].x = -1;
 
-    if (PART_PTR(part)->kind == KIND_BELT)
+    if (part->kind == KIND_BELT)
         move_carried_rope();
-    else if (PART_PTR(part)->kind == KIND_ROPE)
+    else if (part->kind == KIND_ROPE)
         move_carried_belt();
     else
         move_carried_part();
@@ -3830,79 +3830,79 @@ void move_carried(void)
  */
 void move_carried_part(void)
 {
-    uint16_t part;
+    struct part *part;
     uint16_t si;
     int16_t di;
 
     part_key_shortcut();
 
-    part = DG50D3.dragged_part_ptr;
+    part = PART_PTR(DG50D3.dragged_part_ptr);
 
-    if (PART_PTR(part)->flags_0a & 8) {
-        PART_PTR(part)->pos[0].x =
+    if (part->flags_0a & 8) {
+        part->pos[0].x =
             (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97 + ((uint16_t)DG4E67.origin_x));
 
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].x)
-                      + ((uint16_t)PART_PTR(part)->size[0].width))
+        if ((int16_t)(((uint16_t)part->pos[0].x)
+                      + ((uint16_t)part->size[0].width))
             <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
-            PART_PTR(part)->pos[0].x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART_PTR(part)->size[0].width)
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)part->size[0].width)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART_PTR(part)->pos[0].x)
+        if ((int16_t)((uint16_t)part->pos[0].x)
             >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
-            PART_PTR(part)->pos[0].x =
+            part->pos[0].x =
                 (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
 
-        PART_PTR(part)->pos[0].y =
+        part->pos[0].y =
             (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95 + ((uint16_t)DG4E67.origin_y));
 
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].y)
-                      + ((uint16_t)PART_PTR(part)->size[0].height))
+        if ((int16_t)(((uint16_t)part->pos[0].y)
+                      + ((uint16_t)part->size[0].height))
             <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
-            PART_PTR(part)->pos[0].y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART_PTR(part)->size[0].height)
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)part->size[0].height)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART_PTR(part)->pos[0].y)
+        if ((int16_t)((uint16_t)part->pos[0].y)
             >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
-            PART_PTR(part)->pos[0].y =
+            part->pos[0].y =
                 (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
     } else {
-        PART_PTR(part)->pos[0].x =
+        part->pos[0].x =
             (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_x));
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].x)
-                      + ((uint16_t)PART_PTR(part)->size[0].width))
+        if ((int16_t)(((uint16_t)part->pos[0].x)
+                      + ((uint16_t)part->size[0].width))
             <= (int16_t)((uint16_t)DG4E67.origin_x))
-            PART_PTR(part)->pos[0].x =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].x) + 16);
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
 
-        PART_PTR(part)->pos[0].y =
+        part->pos[0].y =
             (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_y));
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].y)
-                      + ((uint16_t)PART_PTR(part)->size[0].height))
+        if ((int16_t)(((uint16_t)part->pos[0].y)
+                      + ((uint16_t)part->size[0].height))
             <= (int16_t)((uint16_t)DG4E67.origin_y))
-            PART_PTR(part)->pos[0].y =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].y) + 16);
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
     }
 
-    place_object_for_draw(PART_PTR(part));
-    retension_pulleys(PART_PTR(part));
+    place_object_for_draw(part);
+    retension_pulleys(part);
 
-    si = PART_PTR(part)->rope_ptr;
+    si = part->rope_ptr;
     di = (si != 0) ? (int16_t)(rope_ends_close(ROPE_PTR(si)) == 0) : 0;
 
-    if (PART_PTR(part)->flags_0a & 1)
+    if (part->flags_0a & 1)
         rehome_carried_part();
-    else if (PART_PTR(part)->flags_0a & 2)
-        break_second_attachment(PART_PTR(part));
+    else if (part->flags_0a & 2)
+        break_second_attachment(part);
 
-    if (object_overlaps_any(PART_PTR(part)) != 0) {
+    if (object_overlaps_any(part) != 0) {
         DG52BD.drop_cursor = 0x0e;
     } else if (DG5768.button_left == 2) {
-        mark_joined_shapes(PART_PTR(part), 3);
+        mark_joined_shapes(part, 3);
 
         if (di != 0) {
             untie_rope(PART_PTR(ROPE_PTR(si)->owner_ptr));
@@ -3910,10 +3910,10 @@ void move_carried_part(void)
             DG4E67.redraw_e = 2;
         }
 
-        mark_needs_refile(PART_PTR(part), 2);
-        PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos[0].x);
-        PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos[0].y);
-        refile_part_list(PART_PTR(part));
+        mark_needs_refile(part, 2);
+        part->word_8c = ((uint16_t)part->pos[0].x);
+        part->word_8e = ((uint16_t)part->pos[0].y);
+        refile_part_list(part);
         DG4E67.word_4e69 = 0;
         DG50D3.dragged_part_ptr = 0;
     } else {
@@ -3921,7 +3921,7 @@ void move_carried_part(void)
     }
 
     if (DG5768.button_left != 2)
-        part_moved(PART_PTR(part));
+        part_moved(part);
 }
 
 /*
@@ -3952,7 +3952,7 @@ void move_carried_part(void)
  */
 void part_key_shortcut(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
     static const uint16_t KEYS[6] = { 12, 13, 21, 45, 74, 78 };
     uint16_t key = (DG52ED.last_key);
     int32_t i;
@@ -3966,11 +3966,11 @@ void part_key_shortcut(void)
 
     switch (KEYS[i]) {
     case 45:
-        if (PART_PTR(part)->flags_06 & 0x400)
+        if (part->flags_06 & 0x400)
             flip_carried_end_1();
         return;
     case 21:
-        if (PART_PTR(part)->flags_06 & 0x200)
+        if (part->flags_06 & 0x200)
             flip_carried_end_2();
         return;
     case 13:
@@ -4013,35 +4013,35 @@ void part_key_shortcut(void)
  */
 void pick_up_part(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
     uint16_t di, si = 0, rec, idx;
 
     DG4E67.word_4e97 = (uint16_t)(((uint16_t)DG5768.pointer_x)
-                               - ((uint16_t)PART_PTR(part)->pos[0].x)
+                               - ((uint16_t)part->pos[0].x)
                                + ((uint16_t)DG4E67.origin_x));
     DG4E67.word_4e95 = (uint16_t)(((uint16_t)DG5768.pointer_y)
-                               - ((uint16_t)PART_PTR(part)->pos[0].y)
+                               - ((uint16_t)part->pos[0].y)
                                + ((uint16_t)DG4E67.origin_y));
 
-    di = PART_PTR(part)->rope_ptr;
+    di = part->rope_ptr;
     if (di != 0)
         si = PART_PTR(di)->kind;
 
-    mark_joined_shapes(PART_PTR(part), 3);
-    mark_part_shapes(PART_PTR(part), 3);
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
 
-    if (PART_PTR(part)->kind == KIND_BELT) {
-        untie_rope(PART_PTR(part));
-    } else if (PART_PTR(part)->kind == KIND_ROPE) {
-        rec = PART_PTR(part)->belt_ptr[0];
+    if (part->kind == KIND_BELT) {
+        untie_rope(part);
+    } else if (part->kind == KIND_ROPE) {
+        rec = part->belt_ptr[0];
         idx = ((int8_t)BELT_PTR(rec)->slot_b);
         DG5456.belt_far_end = PART_PTR(BELT_PTR(rec)->end_b_ptr)->link_ptr[idx];
-        detach_belt(PART_PTR(part), 0);
+        detach_belt(part, 0);
     } else {
-        detach_part_to_bin(PART_PTR(part));
+        detach_part_to_bin(part);
     }
 
-    if (PART_PTR(part)->kind == KIND_BELT) {
+    if (part->kind == KIND_BELT) {
         PART_PTR(di)->kind = si;
         PART_PTR(si)->flags_08 |= 2;
         PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
@@ -4075,19 +4075,19 @@ void pick_up_part(void)
  */
 void discard_carried_part(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
 
-    mark_joined_shapes(PART_PTR(part), 3);
-    mark_part_shapes(PART_PTR(part), 3);
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
 
-    if (PART_PTR(part)->kind == KIND_BELT) {
-        untie_rope(PART_PTR(part));
-        discard_part(PART_PTR(part));
-    } else if (PART_PTR(part)->kind == KIND_ROPE) {
-        detach_belt(PART_PTR(part), 1);
-        discard_part(PART_PTR(part));
+    if (part->kind == KIND_BELT) {
+        untie_rope(part);
+        discard_part(part);
+    } else if (part->kind == KIND_ROPE) {
+        detach_belt(part, 1);
+        discard_part(part);
     } else {
-        detach_part_to_bin(PART_PTR(part));
+        detach_part_to_bin(part);
         finish_part_removal();
     }
 
@@ -4108,11 +4108,11 @@ void discard_carried_part(void)
  */
 void flip_carried_end_1(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
-    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = PARTKIND_PTR(part->kind);
 
-    call_part_flip(kind->flip, PART_PTR(part), 1);
-    PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
+    call_part_flip(kind->flip, part, 1);
+    part->word_94 = part->flags_08;
 }
 
 /*
@@ -4124,11 +4124,11 @@ void flip_carried_end_1(void)
  */
 void flip_carried_end_2(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
-    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = PARTKIND_PTR(part->kind);
 
-    call_part_flip(kind->flip, PART_PTR(part), 2);
-    PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
+    call_part_flip(kind->flip, part, 2);
+    part->word_94 = part->flags_08;
 }
 
 /*
@@ -4159,7 +4159,7 @@ void flip_carried_end_2(void)
 void run_drag_frame(void)
 {
     int16_t si = 0;
-    uint16_t part;
+    struct part *part;
     struct part_kind *kind;
 
     if ((DG4E67.word_4e69 & 0x8000) == 0) {
@@ -4177,17 +4177,17 @@ void run_drag_frame(void)
     }
 
     if (si != 0) {
-        part = DG50D3.dragged_part_ptr;
-        kind = PARTKIND_PTR(PART_PTR(part)->kind);
+        part = PART_PTR(DG50D3.dragged_part_ptr);
+        kind = PARTKIND_PTR(part->kind);
 
-        PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
-        PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
+        part->mirror_size.height = part->set_size.height;
+        part->mirror_size.width = part->set_size.width;
 
-        call_part_hook(kind->settle, PART_PTR(part), "settle");
-        place_object_for_draw(PART_PTR(part));
-        mark_joined_shapes(PART_PTR(part), 3);
-        mark_part_shapes(PART_PTR(part), 3);
-        mark_needs_refile(PART_PTR(part), 2);
+        call_part_hook(kind->settle, part, "settle");
+        place_object_for_draw(part);
+        mark_joined_shapes(part, 3);
+        mark_part_shapes(part, 3);
+        mark_needs_refile(part, 2);
     }
 
     if (DG5768.button_left == 2) {
@@ -4215,19 +4215,19 @@ int16_t drag_carried_part_first(void)
     uint16_t hi;    /* [bp-6] */
     uint16_t lo;    /* [bp-4] */
     uint16_t was;    /* [bp-2] */
-    uint16_t part  = DG50D3.dragged_part_ptr;
-    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind  = PARTKIND_PTR(part->kind);
     int16_t  si, di;
 
     moved = 0;
-    was = ((uint16_t)PART_PTR(part)->pos[0].x);
+    was = ((uint16_t)part->pos[0].x);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
     lo = ((uint16_t)kind->min_w);
     hi = ((uint16_t)kind->max_w);
 
-    di = (int16_t)(was - si + PART_PTR(part)->set_size.width);
+    di = (int16_t)(was - si + part->set_size.width);
 
     if (di > (int16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)hi));
@@ -4238,23 +4238,23 @@ int16_t drag_carried_part_first(void)
     }
 
     if (was != (uint16_t)si) {
-        PART_PTR(part)->pos[0].x = (uint16_t)si;
-        PART_PTR(part)->set_size.width = (uint16_t)di;
+        part->pos[0].x = (uint16_t)si;
+        part->set_size.width = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, PART_PTR(part), "settle");
-            place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, PART_PTR(part));
-            if (object_overlaps_any(PART_PTR(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
                 break;
-            PART_PTR(part)->pos[0].x =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].x) + 16);
-            PART_PTR(part)->set_size.width =
-                (uint16_t)(PART_PTR(part)->set_size.width - 0x10);
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
+            part->set_size.width =
+                (uint16_t)(part->set_size.width - 0x10);
         }
 
-        if (((uint16_t)PART_PTR(part)->pos[0].x) != was) {
-            PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos[0].x);
+        if (((uint16_t)part->pos[0].x) != was) {
+            part->word_8c = ((uint16_t)part->pos[0].x);
             moved = 1;
         }
     }
@@ -4348,19 +4348,19 @@ int16_t drag_carried_part_pair(void)
     int16_t hi;    /* [bp-6] */
     int16_t lo;    /* [bp-4] */
     int16_t was;    /* [bp-2] */
-    uint16_t part  = DG50D3.dragged_part_ptr;
-    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind  = PARTKIND_PTR(part->kind);
     int16_t  si, di;
 
     moved = 0;
-    was = (int16_t)((uint16_t)PART_PTR(part)->pos[0].y);
+    was = (int16_t)((uint16_t)part->pos[0].y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
     lo = (int16_t)((uint16_t)kind->min_h);
     hi = (int16_t)((uint16_t)kind->max_h);
 
-    di = (int16_t)((uint16_t)was - si + PART_PTR(part)->set_size.height);
+    di = (int16_t)((uint16_t)was - si + part->set_size.height);
 
     if (di > (int16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)hi));
@@ -4371,23 +4371,23 @@ int16_t drag_carried_part_pair(void)
     }
 
     if ((uint16_t)was != (uint16_t)si) {
-        PART_PTR(part)->pos[0].y = (uint16_t)si;
-        PART_PTR(part)->set_size.height = (uint16_t)di;
+        part->pos[0].y = (uint16_t)si;
+        part->set_size.height = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, PART_PTR(part), "settle");
-            place_object_for_draw(PART_PTR(part));
-            call_part_setup(kind->setup, PART_PTR(part));
-            if (object_overlaps_any(PART_PTR(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
                 break;
-            PART_PTR(part)->pos[0].y =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].y) + 16);
-            PART_PTR(part)->set_size.height =
-                (uint16_t)(PART_PTR(part)->set_size.height - 0x10);
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
+            part->set_size.height =
+                (uint16_t)(part->set_size.height - 0x10);
         }
 
-        if (((uint16_t)PART_PTR(part)->pos[0].y) != (uint16_t)was) {
-            PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos[0].y);
+        if (((uint16_t)part->pos[0].y) != (uint16_t)was) {
+            part->word_8e = ((uint16_t)part->pos[0].y);
             moved = 1;
         }
     }
@@ -4941,7 +4941,7 @@ void game_screen(void)
 void game_screen_loop(void)
 {
     int16_t si = 0;
-    uint16_t part;
+    struct part *part;
 
     reset_level_state();
     TIMER.frame_budget = 0x2710;
@@ -5020,18 +5020,18 @@ void game_screen_loop(void)
             DG4E67.state = 2;
     }
 
-    part = DG50D3.dragged_part_ptr;
-    if (part == 0 || (PART_PTR(part)->flags_06 & 0x800) == 0)
+    part = PART_PTR(DG50D3.dragged_part_ptr);
+    if (part == PART_NONE || (part->flags_06 & 0x800) == 0)
         return;
 
-    if (PART_PTR(part)->kind == KIND_BELT
-        && ROPE_PTR(PART_PTR(part)->rope_ptr)->end_a_ptr != 0) {
+    if (part->kind == KIND_BELT
+        && ROPE_PTR(part->rope_ptr)->end_a_ptr != 0) {
         discard_carried_part();
         return;
     }
 
-    if (PART_PTR(part)->kind == KIND_ROPE
-        && ((uint16_t)BELT_PTR(PART_PTR(part)->belt_ptr[0])->end_a_ptr) != 0) {
+    if (part->kind == KIND_ROPE
+        && ((uint16_t)BELT_PTR(part->belt_ptr[0])->end_a_ptr) != 0) {
         discard_carried_part();
         return;
     }

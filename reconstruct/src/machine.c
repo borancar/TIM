@@ -1592,7 +1592,7 @@ void bounce_off_contact(struct part *obj)
     int16_t hit;  /* [bp-0x14] the contact block, never read */
     struct part_kind *their;  /* [bp-0x18] their kind record */
     struct part_kind *mine;   /* [bp-0x16] my kind record */
-    uint16_t what;  /* [bp-0x12] what was hit */
+    struct part *what;  /* [bp-0x12] what was hit */
     /*
      * One 32-bit value, and the routine writes it both ways: whole through
      * `*(int32_t *)(plo) = ...`, and in halves as `phi[0] = p >> 16` with
@@ -1613,10 +1613,10 @@ void bounce_off_contact(struct part *obj)
        contact block below is spelled as the part's own fields */
     hit = (int16_t)dg_off(dgroup, &obj->contact_ptr);
     (void)hit;   /* the original stores it here and re-derives it later */
-    what = obj->contact_ptr;
+    what = PART_PTR(obj->contact_ptr);
 
     mine = PARTKIND_PTR(obj->kind);
-    their = PARTKIND_PTR(PART_PTR(what)->kind);
+    their = PARTKIND_PTR(what->kind);
 
     di = obj->word_88;
 
@@ -1734,18 +1734,18 @@ void bounce_pair(struct part *obj)
     int16_t myW;      /* [bp-6] */
     int16_t bounce;     /* [bp-4], never read */
     int16_t angle;      /* [bp-2] */
-    uint16_t di;
+    struct part *di;
     int32_t q;
 
     sound_on_hard_impact(obj);
 
-    di = obj->contact_ptr;
+    di = PART_PTR(obj->contact_ptr);
 
     obj->flags_06 |= 8;
-    PART_PTR(di)->flags_06 |= 8;
+    di->flags_06 |= 8;
 
     myKind = PARTKIND_PTR(obj->kind);
-    theirKind = PARTKIND_PTR(PART_PTR(di)->kind);
+    theirKind = PARTKIND_PTR(di->kind);
 
     bounce = (myKind->word_04
                     < theirKind->word_04)
@@ -1758,10 +1758,10 @@ void bounce_pair(struct part *obj)
 
     svx = obj->vel_x;
     svy = obj->word_38;
-    dvx = PART_PTR(di)->vel_x;
-    dvy = PART_PTR(di)->word_38;
+    dvx = di->vel_x;
+    dvy = di->word_38;
 
-    angle = (int16_t)(angle_between_centres(obj, PART_PTR(di)) - 0x4000);
+    angle = (int16_t)(angle_between_centres(obj, di) - 0x4000);
 
     rotate_point((uint8_t *)&svx, (uint8_t *)&svy, (uint16_t)angle);
     rotate_point((uint8_t *)&dvx, (uint8_t *)&dvy, (uint16_t)angle);
@@ -1788,14 +1788,14 @@ void bounce_pair(struct part *obj)
 
     obj->vel_x = (int16_t)(svx >> 1);
     obj->word_38 = (int16_t)(svy >> 1);
-    PART_PTR(di)->vel_x = (int16_t)(dvx >> 1);
-    PART_PTR(di)->word_38 = (int16_t)(dvy >> 1);
+    di->vel_x = (int16_t)(dvx >> 1);
+    di->word_38 = (int16_t)(dvy >> 1);
 
     apart = 0;
 
     {
         int16_t a = obj->vel_x;
-        int16_t b = PART_PTR(di)->vel_x;
+        int16_t b = di->vel_x;
 
         if (a < 0)
             a = (int16_t)-a;
@@ -1813,28 +1813,28 @@ void bounce_pair(struct part *obj)
     if (apart != 0) {
         myMid = (int16_t)(obj->pos[0].x
             + (int16_t)(obj->size[0].width >> 1));
-        theirMid = (int16_t)(PART_PTR(di)->pos[0].x
-            + (int16_t)(PART_PTR(di)->size[0].width >> 1));
+        theirMid = (int16_t)(di->pos[0].x
+            + (int16_t)(di->size[0].width >> 1));
 
         if (myMid < theirMid) {
             if (obj->vel_x > (int16_t)0xfe00)
                 obj->vel_x = (int16_t)0xfe00;
 
             if (!(obj->flags_0a & 0x10)
-                && PART_PTR(di)->vel_x < 0x200)
-                PART_PTR(di)->vel_x = 0x200;
+                && di->vel_x < 0x200)
+                di->vel_x = 0x200;
         } else {
             if (obj->vel_x < 0x200)
                 obj->vel_x = 0x200;
 
             if (!(obj->flags_0a & 0x10)
-                && PART_PTR(di)->vel_x > (int16_t)0xfe00)
-                PART_PTR(di)->vel_x = (int16_t)0xfe00;
+                && di->vel_x > (int16_t)0xfe00)
+                di->vel_x = (int16_t)0xfe00;
         }
     }
 
     clamp_record_pair(obj);
-    clamp_record_pair(PART_PTR(di));
+    clamp_record_pair(di);
 
     /*
      * The sixteenths, for both, and the rounding is not symmetric - the same
@@ -1853,17 +1853,17 @@ void bounce_pair(struct part *obj)
         : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(yLo) + 1), 9) - 1);
     obj->fy = q;
 
-    *(int32_t *)(xLo) = PART_PTR(di)->pos[0].x;
-    q = (PART_PTR(di)->vel_x < 0)
+    *(int32_t *)(xLo) = di->pos[0].x;
+    q = (di->vel_x < 0)
         ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(xLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(xLo) + 1), 9) - 1);
-    PART_PTR(di)->fx = q;
+    di->fx = q;
 
-    *(int32_t *)(yLo) = PART_PTR(di)->pos[0].y;
+    *(int32_t *)(yLo) = di->pos[0].y;
     q = (theirKind->gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(yLo) + 1), 9) - 1);
-    PART_PTR(di)->fy = q;
+    di->fy = q;
 }
 
 /*
@@ -2056,10 +2056,10 @@ void goal_test_puzzle_2(void)
  */
 void goal_test_puzzle_20(void)
 {
-    uint16_t si = DG5179.moving_parts.next_ptr;
+    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
 
-    if ((int16_t)((uint16_t)PART_PTR(si)->pos[0].x) > 0x1e0
-        && ((uint16_t)PART_PTR(si)->pos[0].y) == 0xc8)
+    if ((int16_t)((uint16_t)si->pos[0].x) > 0x1e0
+        && ((uint16_t)si->pos[0].y) == 0xc8)
         DG4E67.state = 0x200;
 }
 
@@ -6043,22 +6043,22 @@ int16_t rope_ends_close(struct rope *rope)
  */
 void retension_pulleys(struct part *part)
 {
-    uint16_t di = part->link_ptr[0];
-    uint16_t other = part->link_ptr[1];
+    struct part *di = PART_PTR(part->link_ptr[0]);
+    struct part *other = PART_PTR(part->link_ptr[1]);
 
     if (part->kind == KIND_PULLEY)
         aim_link_at_bisector(part);
 
-    if (di != 0 && PART_PTR(di)->kind == KIND_PULLEY) {
-        aim_link_at_bisector(PART_PTR(di));
-        mark_part_shapes(PART_PTR(di), 3);
-        mark_needs_refile(PART_PTR(di), 2);
+    if (di != PART_NONE && di->kind == KIND_PULLEY) {
+        aim_link_at_bisector(di);
+        mark_part_shapes(di, 3);
+        mark_needs_refile(di, 2);
     }
 
-    if (other != 0 && PART_PTR(other)->kind == KIND_PULLEY) {
-        aim_link_at_bisector(PART_PTR(other));
-        mark_part_shapes(PART_PTR(other), 3);
-        mark_needs_refile(PART_PTR(other), 2);
+    if (other != PART_NONE && other->kind == KIND_PULLEY) {
+        aim_link_at_bisector(other);
+        mark_part_shapes(other, 3);
+        mark_needs_refile(other, 2);
     }
 }
 
@@ -6168,9 +6168,9 @@ void compute_link_endpoints(struct rope *link)
      * fills the end. `PART_PTR(0)` is DS:0, so the same read is written here.
      */
     uint16_t a = link->end_a_ptr;
-    uint16_t b = link->end_b_ptr;
+    struct part *b = PART_PTR(link->end_b_ptr);
     const struct part *pa = PART_PTR(a);
-    const struct part *pb = PART_PTR(b);
+    const struct part *pb = b;
     int16_t dx, dy;
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
     int16_t b_dx1, b_dy1, b_dx2, b_dy2;
@@ -6245,7 +6245,7 @@ void refresh_link_geometry(struct belt *link)
 {
     struct part *a, *b, *chain;
     struct belt *pt;
-    uint16_t holder;
+    struct part *holder;
     int16_t idx, j;
 
     a = PART_PTR(link->end_a_ptr);
@@ -6279,10 +6279,10 @@ void refresh_link_geometry(struct belt *link)
     if (DG4E67.state == 0x2000)
         return;
 
-    holder = link->owner_ptr;
-    PART_PTR(holder)->word_96 = (uint16_t)link_end_distance(link, 3, 0);
-    holder = link->owner_ptr;
-    PART_PTR(holder)->spin = link_end_distance(link, 3, 1);
+    holder = PART_PTR(link->owner_ptr);
+    holder->word_96 = (uint16_t)link_end_distance(link, 3, 0);
+    holder = PART_PTR(link->owner_ptr);
+    holder->spin = link_end_distance(link, 3, 1);
 }
 
 /*
@@ -6904,19 +6904,19 @@ void detach_part_to_bin(struct part *part)
  */
 void break_second_attachment(struct part *part)
 {
-    uint16_t other;
+    struct part *other;
     int16_t  i;
 
     if (part->flags_0a & 2) {
         for (i = 4; i < 6; i++) {
-            other = part->link_ptr[i];
-            if (other == 0)
+            other = PART_PTR(part->link_ptr[i]);
+            if (other == PART_NONE)
                 continue;
 
             part->link_ptr[i] = 0;
-            PART_PTR(other)->link_ptr[4] = 0;
+            other->link_ptr[4] = 0;
 
-            call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, PART_PTR(other));
+            call_part_setup(PARTKIND_PTR(other->kind)->setup, other);
         }
 
         call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
@@ -6925,18 +6925,18 @@ void break_second_attachment(struct part *part)
         return;
     }
 
-    other = part->link_ptr[4];
-    if (other == 0)
+    other = PART_PTR(part->link_ptr[4]);
+    if (other == PART_NONE)
         return;
 
-    PART_PTR(other)->link_ptr[part->byte_7e + 4] = 0;
+    other->link_ptr[part->byte_7e + 4] = 0;
     part->link_ptr[4] = 0;
 
     call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
 
-    call_part_setup(PARTKIND_PTR(PART_PTR(other)->kind)->setup, PART_PTR(other));
+    call_part_setup(PARTKIND_PTR(other->kind)->setup, other);
 
-    PART_PTR(other)->word_90 = PART_PTR(other)->form;
+    other->word_90 = other->form;
 }
 
 /*
@@ -7027,17 +7027,18 @@ uint16_t angle_between_parts(struct part *part, struct part *other)
  */
 void aim_link_at_bisector(struct part *part)
 {
-    uint16_t after, before, a1, a2, d, mid;
+    struct part *after, *before;
+    uint16_t a1, a2, d, mid;
     int16_t  quad;
 
-    after = part->link_ptr[1];
-    if (after == 0)
+    after = PART_PTR(part->link_ptr[1]);
+    if (after == PART_NONE)
         return;
 
-    before = part->link_ptr[0];
+    before = PART_PTR(part->link_ptr[0]);
 
-    a1 = (uint16_t)(angle_between_parts(part, PART_PTR(after)) + 0x2000);
-    a2 = (uint16_t)(angle_between_parts(part, PART_PTR(before)) + 0x2000);
+    a1 = (uint16_t)(angle_between_parts(part, after) + 0x2000);
+    a2 = (uint16_t)(angle_between_parts(part, before) + 0x2000);
     d = (uint16_t)(a2 - a1);
 
     if (d < 0x8000)
