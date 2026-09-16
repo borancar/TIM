@@ -704,11 +704,11 @@ static int16_t boxes_meet(void)
  * bit 0 at +6 is set if `angles_same_side` agrees about the link's angle - the
  * flag `integrate_object` reads to decide whether gravity applies.
  */
-int16_t resolve_collisions(uint16_t obj)
+int16_t resolve_collisions(struct part *obj)
 {
     int16_t hit = 0;
 
-    DG53FC.list_ptr = (int16_t)obj;
+    DG53FC.list_ptr = (int16_t)dg_off(dgroup, obj);
     if (((int16_t)PART_PTR(DG53FC.list_ptr)->points_ptr) == 0)
         return 0;
 
@@ -1386,7 +1386,7 @@ void step_moving_object(struct part *obj)
     integrate_object(obj);
 
     obj->flags_06 &= 0xfff0;
-    resolve_collisions(dg_off(dgroup, obj));
+    resolve_collisions(obj);
 
     if (obj->belt_ptr[0] == 0)
         goto out;
@@ -1402,7 +1402,7 @@ void step_moving_object(struct part *obj)
         obj->contact_ptr = 0;
     }
 
-    resolve_collisions(dg_off(dgroup, obj));
+    resolve_collisions(obj);
 
     if (pulled != 0)
         goto out;
@@ -6241,45 +6241,47 @@ void compute_link_endpoints(struct rope *link)
  * The global at 0x4e6b holding 0x2000 skips the rest lengths entirely, leaving
  * whatever they were.
  */
-void refresh_link_geometry(uint16_t link)
+void refresh_link_geometry(struct belt *link)
 {
-    uint16_t a, b, chain, holder, pt;
+    struct part *a, *b, *chain;
+    struct belt *pt;
+    uint16_t holder;
     int16_t idx, j;
 
-    a = BELT_PTR(link)->end_a_ptr;
-    if (a == 0)
+    a = PART_PTR(link->end_a_ptr);
+    if (a == PART_NONE)
         return;
 
-    idx = ((int8_t)BELT_PTR(link)->slot_a);
-    BELT_PTR(link)->pt[0][0].x = (int16_t)(PART_PTR(a)->box[0].x + PART_PTR(a)->attach[idx].x);
-    BELT_PTR(link)->pt[0][0].y = (int16_t)(PART_PTR(a)->box[0].y + PART_PTR(a)->attach[idx].y);
+    idx = ((int8_t)link->slot_a);
+    link->pt[0][0].x = (int16_t)(a->box[0].x + a->attach[idx].x);
+    link->pt[0][0].y = (int16_t)(a->box[0].y + a->attach[idx].y);
 
-    b = BELT_PTR(link)->end_b_ptr;
-    if (b != 0) {
-        int16_t k = ((int8_t)BELT_PTR(link)->slot_b);
+    b = PART_PTR(link->end_b_ptr);
+    if (b != PART_NONE) {
+        int16_t k = ((int8_t)link->slot_b);
 
-        BELT_PTR(link)->pt[0][1].x = (int16_t)(PART_PTR(b)->box[0].x + PART_PTR(b)->attach[k].x);
-        BELT_PTR(link)->pt[0][1].y = (int16_t)(PART_PTR(b)->box[0].y + PART_PTR(b)->attach[k].y);
+        link->pt[0][1].x = (int16_t)(b->box[0].x + b->attach[k].x);
+        link->pt[0][1].y = (int16_t)(b->box[0].y + b->attach[k].y);
     }
 
-    chain = PART_PTR(a)->link_ptr[idx];
-    while (chain != 0 && ((int16_t)PART_PTR(chain)->kind) == 7) {
+    chain = PART_PTR(a->link_ptr[idx]);
+    while (chain != PART_NONE && ((int16_t)chain->kind) == 7) {
         for (j = 0; j < 2; j++) {
-            pt = PART_PTR(chain)->belt_ptr[0];
-            BELT_PTR(pt)->pt[0][j].x = (int16_t)(PART_PTR(chain)->pos[0].x
-                                             + PART_PTR(chain)->attach[j].x);
-            BELT_PTR(pt)->pt[0][j].y = (int16_t)(PART_PTR(chain)->pos[0].y
-                                             + PART_PTR(chain)->attach[j].y);
+            pt = BELT_PTR(chain->belt_ptr[0]);
+            pt->pt[0][j].x = (int16_t)(chain->pos[0].x
+                                             + chain->attach[j].x);
+            pt->pt[0][j].y = (int16_t)(chain->pos[0].y
+                                             + chain->attach[j].y);
         }
-        chain = PART_PTR(chain)->link_ptr[0];
+        chain = PART_PTR(chain->link_ptr[0]);
     }
 
     if (DG4E67.state == 0x2000)
         return;
 
-    holder = BELT_PTR(link)->owner_ptr;
+    holder = link->owner_ptr;
     PART_PTR(holder)->word_96 = (uint16_t)link_end_distance(link, 3, 0);
-    holder = BELT_PTR(link)->owner_ptr;
+    holder = link->owner_ptr;
     PART_PTR(holder)->spin = link_end_distance(link, 3, 1);
 }
 
@@ -6537,13 +6539,13 @@ void mark_needs_refile(struct part *part, uint8_t n)
         si = part->belt_ptr[0];
         if (si != 0 && PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 == 0) {
             PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-            refresh_link_geometry(si);
+            refresh_link_geometry(BELT_PTR(si));
         }
 
         si = part->belt_ptr[1];
         if (si != 0 && PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 == 0) {
             PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-            refresh_link_geometry(si);
+            refresh_link_geometry(BELT_PTR(si));
         }
         goto out;
     }
@@ -6554,7 +6556,7 @@ void mark_needs_refile(struct part *part, uint8_t n)
             continue;
 
         PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-        refresh_link_geometry(si);
+        refresh_link_geometry(BELT_PTR(si));
     }
 
 out:
@@ -7614,7 +7616,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      ? (uint16_t)(PART_PTR(v12)->belt_ptr[0] + 0x24)
                      : (uint16_t)(si + 0x28);
 
-        v02 = link_slack(PART_PTR(v10), si, 1);
+        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
         alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x24)),
                     dg_ptr(dgroup, (uint16_t)v0e), 4, 1, v02);
 
@@ -7631,7 +7633,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      ? (uint16_t)(PART_PTR(v12)->belt_ptr[0] + 0x1c)
                      : (uint16_t)(si + 0x20);
 
-        v02 = link_slack(PART_PTR(v10), si, 2);
+        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
         alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x1c)),
                     dg_ptr(dgroup, (uint16_t)v0e), 4, 2, v02);
 
@@ -7654,7 +7656,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      ? (uint16_t)(PART_PTR(v10)->belt_ptr[0] + 0x28)
                      : (uint16_t)(si + 0x24);
 
-        v02 = link_slack(PART_PTR(v10), si, 1);
+        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
         alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
                     dg_ptr(dgroup, (uint16_t)(si + 0x28)),
                     4, 1, v02);
@@ -7672,7 +7674,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      ? (uint16_t)(PART_PTR(v10)->belt_ptr[0] + 0x20)
                      : (uint16_t)(si + 0x1c);
 
-        v02 = link_slack(PART_PTR(v10), si, 2);
+        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
         alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
                     dg_ptr(dgroup, (uint16_t)(si + 0x20)),
                     4, 2, v02);
@@ -7703,7 +7705,7 @@ plain:
                                       + 0x24)
                          : (uint16_t)(si + 0x28);
 
-            v02 = link_slack(PART_PTR(v10), si, 1);
+            v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
             alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
                         dg_ptr(dgroup, (uint16_t)v0e), 4, 1, v02);
 
@@ -7737,7 +7739,7 @@ plain:
                                       + 0x1c)
                          : (uint16_t)(si + 0x20);
 
-            v02 = link_slack(PART_PTR(v10), si, 2);
+            v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
             alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
                         dg_ptr(dgroup, (uint16_t)v0e), 4, 2, v02);
 
@@ -8052,7 +8054,7 @@ void belt_in_dirty_rect(struct part *part)
     slotB = 0;
 
     si = PART_PTR(di)->link_ptr[(uint16_t)slotA];
-    slack = link_slack(PART_PTR(di), belt, 3);
+    slack = link_slack(PART_PTR(di), BELT_PTR(belt), 3);
 
     while (di != 0 && si != 0) {
         if (di != (uint16_t)endA) {
@@ -8067,7 +8069,7 @@ void belt_in_dirty_rect(struct part *part)
 
         if (si == (uint16_t)endB) {
             slotB = (int16_t)BELT_PTR(belt)->slot_b;
-            slack = link_slack(PART_PTR(di), belt, 3);
+            slack = link_slack(PART_PTR(di), BELT_PTR(belt), 3);
         }
 
         bx = (int16_t)(PART_PTR(si)->box[0].x
@@ -8439,52 +8441,53 @@ uint16_t rope_other_end(struct part *part)
  * symmetrically: the unreversed side tests strictly greater where the reversed
  * side tests greater-or-equal, so a tie goes to 4 one way and 2 the other.
  */
-int16_t compare_link_ends(uint16_t link, int16_t end, int16_t reversed)
+int16_t compare_link_ends(struct belt *link, int16_t end, int16_t reversed)
 {
     int16_t opposite = 1 - end;
-    uint16_t obj_a, obj_b, p_obj, q_obj;
+    struct part *obj_a, *obj_b;
+    struct belt *p_obj, *q_obj;
     int16_t idx_a, idx_b, bits;
-    uint16_t ent_a, ent_b;
+    struct part *ent_a, *ent_b;
 
     if (end != 0) {
-        obj_a = BELT_PTR(link)->end_b_ptr;
-        idx_a = ((int8_t)BELT_PTR(link)->slot_b);
-        obj_b = BELT_PTR(link)->end_a_ptr;
-        idx_b = ((int8_t)BELT_PTR(link)->slot_a);
+        obj_a = PART_PTR(link->end_b_ptr);
+        idx_a = ((int8_t)link->slot_b);
+        obj_b = PART_PTR(link->end_a_ptr);
+        idx_b = ((int8_t)link->slot_a);
     } else {
-        obj_a = BELT_PTR(link)->end_a_ptr;
-        idx_a = ((int8_t)BELT_PTR(link)->slot_a);
-        obj_b = BELT_PTR(link)->end_b_ptr;
-        idx_b = ((int8_t)BELT_PTR(link)->slot_b);
+        obj_a = PART_PTR(link->end_a_ptr);
+        idx_a = ((int8_t)link->slot_a);
+        obj_b = PART_PTR(link->end_b_ptr);
+        idx_b = ((int8_t)link->slot_b);
     }
 
-    ent_a = PART_PTR(obj_a)->link_ptr[idx_a];
-    ent_b = PART_PTR(obj_b)->link_ptr[idx_b];
+    ent_a = PART_PTR(obj_a->link_ptr[idx_a]);
+    ent_b = PART_PTR(obj_b->link_ptr[idx_b]);
 
     if (obj_b == ent_a) {
         p_obj = link;
         q_obj = link;
     } else {
-        p_obj = PART_PTR(ent_a)->belt_ptr[0];
-        q_obj = PART_PTR(ent_b)->belt_ptr[0];
+        p_obj = BELT_PTR(ent_a->belt_ptr[0]);
+        q_obj = BELT_PTR(ent_b->belt_ptr[0]);
     }
 
-    if (BELT_PTR(link)->pt[0][opposite].x > BELT_PTR(q_obj)->pt[0][end].x)
+    if (link->pt[0][opposite].x > q_obj->pt[0][end].x)
         bits = 8;
     else
         bits = 0x10;
 
     if (reversed == 0) {
-        if (BELT_PTR(link)->pt[0][end].y > BELT_PTR(p_obj)->pt[0][opposite].y)
+        if (link->pt[0][end].y > p_obj->pt[0][opposite].y)
             return 1;
-        if (BELT_PTR(link)->pt[0][opposite].y > BELT_PTR(q_obj)->pt[0][end].y)
+        if (link->pt[0][opposite].y > q_obj->pt[0][end].y)
             return (int16_t)(2 | bits);
         return (int16_t)(4 | bits);
     }
 
-    if (BELT_PTR(link)->pt[0][end].y < BELT_PTR(p_obj)->pt[0][opposite].y)
+    if (link->pt[0][end].y < p_obj->pt[0][opposite].y)
         return 1;
-    if (BELT_PTR(link)->pt[0][opposite].y >= BELT_PTR(q_obj)->pt[0][end].y)
+    if (link->pt[0][opposite].y >= q_obj->pt[0][end].y)
         return (int16_t)(2 | bits);
     return (int16_t)(4 | bits);
 }
@@ -8654,34 +8657,35 @@ int16_t select_field_2_or_4(int16_t key, struct belt *rec)
  * of |dx| and |dy| plus three eighths of the smaller, as `>> 2` plus `>> 3`.
  * It never divides and is within about six per cent of the true length.
  */
-int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
+int16_t link_end_distance(struct belt *link, int16_t gen, int16_t end)
 {
-    uint16_t partner, ent;
+    struct belt *partner;
+    struct part *ent;
     int16_t near_i, far_i, base, dx, dy;
 
     if (end == 0) {
         near_i = 0;
-        ent = PART_PTR(BELT_PTR(link)->end_a_ptr)->link_ptr[(int8_t)BELT_PTR(link)->slot_a];
-        if (BELT_PTR(link)->end_b_ptr == ent) {
+        ent = PART_PTR(PART_PTR(link->end_a_ptr)->link_ptr[(int8_t)link->slot_a]);
+        if (PART_PTR(link->end_b_ptr) == ent) {
             partner = link;
             far_i = 1;
         } else {
-            partner = PART_PTR(ent)->belt_ptr[0];
+            partner = BELT_PTR(ent->belt_ptr[0]);
             far_i = 0;
         }
     } else {
         near_i = 1;
-        ent = PART_PTR(BELT_PTR(link)->end_b_ptr)->link_ptr[(int8_t)BELT_PTR(link)->slot_b];
-        if (BELT_PTR(link)->end_a_ptr == ent) {
+        ent = PART_PTR(PART_PTR(link->end_b_ptr)->link_ptr[(int8_t)link->slot_b]);
+        if (PART_PTR(link->end_a_ptr) == ent) {
             partner = link;
             far_i = 0;
         } else {
-            partner = PART_PTR(ent)->belt_ptr[0];
+            partner = BELT_PTR(ent->belt_ptr[0]);
             far_i = 1;
         }
     }
 
-    if (partner == 0)
+    if (partner == BELT_NONE)
         return 0;
 
     /* the original picks a byte offset here - 0x24, 0x1c, 0x14 - which is
@@ -8693,10 +8697,10 @@ int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
     else
         base = 0;
 
-    dx = abs16((int16_t)(BELT_PTR(link)->pt[base][near_i].x
-                         - BELT_PTR(partner)->pt[base][far_i].x));
-    dy = abs16((int16_t)(BELT_PTR(link)->pt[base][near_i].y
-                         - BELT_PTR(partner)->pt[base][far_i].y));
+    dx = abs16((int16_t)(link->pt[base][near_i].x
+                         - partner->pt[base][far_i].x));
+    dy = abs16((int16_t)(link->pt[base][near_i].y
+                         - partner->pt[base][far_i].y));
 
     if (dy > dx)
         return (int16_t)(dy + (dx >> 2) + (dx >> 3));
@@ -8725,37 +8729,37 @@ int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
  * The rest lengths live on the object the link names at +0, which is neither
  * of the two ends.
  */
-int16_t link_slack(struct part *obj, uint16_t link, int16_t gen)
+int16_t link_slack(struct part *obj, struct belt *link, int16_t gen)
 {
-    uint16_t ent, holder;
+    struct part *ent, *holder;
     int16_t idx;
     int16_t rest;
 
     if (((int16_t)obj->kind) == 7)
         idx = 0;
     else
-        idx = (int8_t)BELT_PTR(link)->slot_a;
-    ent = obj->link_ptr[idx];
+        idx = (int8_t)link->slot_a;
+    ent = PART_PTR(obj->link_ptr[idx]);
 
-    holder = BELT_PTR(link)->owner_ptr;
+    holder = PART_PTR(link->owner_ptr);
 
-    if (BELT_PTR(link)->end_a_ptr == dg_off(dgroup, obj)) {
+    if (PART_PTR(link->end_a_ptr) == obj) {
         if (gen == 1)
-            rest = PART_PTR(holder)->word_9a;
+            rest = holder->word_9a;
         else if (gen == 2)
-            rest = PART_PTR(holder)->word_98;
+            rest = holder->word_98;
         else
-            rest = ((int16_t)PART_PTR(holder)->word_96);
+            rest = ((int16_t)holder->word_96);
         return (int16_t)(rest - link_end_distance(link, gen, 0));
     }
 
-    if (ent != 0 && BELT_PTR(link)->end_b_ptr == ent) {
+    if (ent != PART_NONE && PART_PTR(link->end_b_ptr) == ent) {
         if (gen == 1)
-            rest = PART_PTR(holder)->word_a0;
+            rest = holder->word_a0;
         else if (gen == 2)
-            rest = PART_PTR(holder)->word_9e;
+            rest = holder->word_9e;
         else
-            rest = PART_PTR(holder)->spin;
+            rest = holder->spin;
         return (int16_t)(rest - link_end_distance(link, gen, 1));
     }
 
@@ -9002,7 +9006,7 @@ int16_t tension_belt(struct part *part)
 
         tension_belt(PART_PTR(other));
         PART_PTR(other)->flags_06 &= 0xfff0;
-        resolve_collisions(other);
+        resolve_collisions(PART_PTR(other));
 
         gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
                                        (uint8_t *)dy2);
@@ -9024,7 +9028,7 @@ int16_t tension_belt(struct part *part)
 
         tension_belt(PART_PTR(other));
         PART_PTR(other)->flags_06 &= 0xfff0;
-        resolve_collisions(other);
+        resolve_collisions(PART_PTR(other));
 
         gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
                                        (uint8_t *)dy2);
@@ -9078,7 +9082,7 @@ stretched:
                 PART_PTR(pB)->link_ptr[(uint16_t)i] = 0;
 
             PART_PTR(BELT_PTR(belt)->owner_ptr)->word_96 =
-                (uint16_t)link_end_distance(belt, 3, 0);
+                (uint16_t)link_end_distance(BELT_PTR(belt), 3, 0);
         }
 
         PART_PTR(di)->spin += dA;
@@ -9106,7 +9110,7 @@ stretched:
                 PART_PTR(pB)->link_ptr[(uint16_t)i] = 0;
 
             PART_PTR(BELT_PTR(belt)->owner_ptr)->spin =
-                link_end_distance(belt, 3, 1);
+                link_end_distance(BELT_PTR(belt), 3, 1);
         }
 
         PART_PTR(di)->word_96 += dA;
@@ -9578,13 +9582,13 @@ void reset_machine(void)
             v8 = PART_PTR(v8)->link_ptr[0];
         }
 
-        refresh_link_geometry(di);
+        refresh_link_geometry(BELT_PTR(di));
 
-        si->word_9a = (uint16_t)link_end_distance(di, 3, 0);
+        si->word_9a = (uint16_t)link_end_distance(BELT_PTR(di), 3, 0);
         si->word_98 = ((uint16_t)si->word_9a);
         si->word_96 = ((uint16_t)si->word_9a);
 
-        si->word_a0 = (uint16_t)link_end_distance(di, 3, 1);
+        si->word_a0 = (uint16_t)link_end_distance(BELT_PTR(di), 3, 1);
         si->word_9e = ((uint16_t)si->word_a0);
         si->spin = ((uint16_t)si->word_a0);
 

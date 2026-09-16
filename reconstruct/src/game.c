@@ -5311,7 +5311,7 @@ void move_carried_belt(void)
             PART_PTR(DG5456.belt_far_end)->link_ptr[idx + 2] = di;
         }
 
-        refresh_link_geometry(si);
+        refresh_link_geometry(BELT_PTR(si));
         mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
 
         if (PART_PTR(di)->kind == KIND_PULLEY) {

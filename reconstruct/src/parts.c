@@ -4409,12 +4409,12 @@ uint16_t part_step_seesaw(struct part *part)
         if (linked->word_38 < 0) {
             linked->pos[1].y =
                 (int16_t)(linked->pos[0].y - 0x10);
-            resolve_collisions(di);
+            resolve_collisions(PART_PTR(di));
 
             linked->pos[1].y =
                 (int16_t)(linked->pos[0].y + 0x10);
             part->flags_08 |= 0x2000;
-            resolve_collisions(di);
+            resolve_collisions(PART_PTR(di));
             part->flags_08 &= 0xdfff;
 
             linked->pos[1].y = linked->pos[0].y;
@@ -4425,12 +4425,12 @@ uint16_t part_step_seesaw(struct part *part)
         } else {
             linked->pos[1].y =
                 (int16_t)(linked->pos[0].y + 0x10);
-            resolve_collisions(di);
+            resolve_collisions(PART_PTR(di));
 
             linked->pos[1].y =
                 (int16_t)(linked->pos[0].y - 0x10);
             part->flags_08 |= 0x2000;
-            resolve_collisions(di);
+            resolve_collisions(PART_PTR(di));
             part->flags_08 &= 0xdfff;
 
             linked->pos[1].y = linked->pos[0].y;
@@ -4711,7 +4711,7 @@ void cut_belts(struct part *part, uint16_t line)
 
             DG4E67.state = 0x1000;
 
-            refresh_link_geometry(belt);
+            refresh_link_geometry(BELT_PTR(belt));
             for (k = 0; k < 2; k++) {
                 BELT_PTR(belt)->pt[1][k].x = BELT_PTR(belt)->pt[0][k].x;
                 BELT_PTR(belt)->pt[1][k].y = BELT_PTR(belt)->pt[0][k].y;
@@ -4719,7 +4719,7 @@ void cut_belts(struct part *part, uint16_t line)
                 BELT_PTR(belt)->pt[2][k].y = BELT_PTR(belt)->pt[0][k].y;
             }
 
-            refresh_link_geometry(newbelt);
+            refresh_link_geometry(BELT_PTR(newbelt));
             for (k = 0; k < 2; k++) {
                 BELT_PTR(newbelt)->pt[1][k].x = BELT_PTR(newbelt)->pt[0][k].x;
                 BELT_PTR(newbelt)->pt[1][k].y = BELT_PTR(newbelt)->pt[0][k].y;

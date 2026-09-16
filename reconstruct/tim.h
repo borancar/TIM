@@ -563,7 +563,7 @@ uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
 uint16_t asb_dispatch(uint16_t fn, uint8_t * si);   /* SX.OVL ASB:0x00c8 */
 
 /* Resolve one object against everything it could be touching. */
-int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
+int16_t resolve_collisions(struct part *obj);           /* 0x00556 */
 
 /* Sweep one object's edges against another's; record the contact. */
 int16_t find_edge_contact(int16_t test_only);       /* 0x007af */
@@ -848,14 +848,14 @@ void free_if_set(uint16_t p);                       /* 0x1c705 */
 void dos_free_far(struct far_ptr block);            /* 0x21b34 */
 
 /* Recompute a link's endpoints, then the rest lengths they imply. */
-void refresh_link_geometry(uint16_t link);          /* 0x04f7f */
+void refresh_link_geometry(struct belt *link);          /* 0x04f7f */
 
 /* Set an object's vector at +0x36/+0x38 from angle and magnitude. */
 void set_vector_from_angle(struct part *obj, uint16_t angle,
                            int16_t mag);            /* 0x07223 */
 
 /* Rest length less actual separation, at one end of a link. */
-int16_t link_slack(struct part *obj, uint16_t link,
+int16_t link_slack(struct part *obj, struct belt *link,
                    int16_t gen);                    /* 0x0713d */
 
 /* The vector a link has to close, and its approximate length. */
@@ -863,7 +863,7 @@ int16_t link_endpoint_gap(struct belt *link, struct part *obj, uint8_t * out_dx,
                           uint8_t * out_dy);         /* 0x07947 */
 
 /* Distance from a link's endpoint to the endpoint it joins. */
-int16_t link_end_distance(uint16_t link, int16_t gen,
+int16_t link_end_distance(struct belt *link, int16_t gen,
                           int16_t end);             /* 0x06f8e */
 
 /* Age the state histories of everything about to be stepped. */
@@ -873,7 +873,7 @@ void shift_all_histories(void);                     /* 0x07ca2 */
 void shift_state_history(struct part *obj);             /* 0x07ce3 */
 
 /* Classify a link's endpoints against the ones they connect to. */
-int16_t compare_link_ends(uint16_t link, int16_t end,
+int16_t compare_link_ends(struct belt *link, int16_t end,
                           int16_t reversed);        /* 0x06de9 */
 
 /* Intersect two segments; answers whether the point lies on both. */

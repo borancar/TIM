@@ -2532,7 +2532,7 @@ void draw_belt(struct part *part, int16_t a)
         clear_flag_2d44_thunk();
 
         if (v0a != 0) {
-            v0c = link_slack(PART_PTR(di), v0e, 3);
+            v0c = link_slack(PART_PTR(di), BELT_PTR(v0e), 3);
             draw_belt_segment(v02, v04, v06, v08,
                               v0c);
         } else {

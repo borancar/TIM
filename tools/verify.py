@@ -369,7 +369,7 @@ ROUTINES = {
         args=[("obj", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.resolve_collisions(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.resolve_collisions(dgp(lib, a[0])),
     ),
     "find_edge_contact": dict(
         addr=0x007AF,
@@ -5307,7 +5307,7 @@ ROUTINES = {
         addr=0x04F7F,
         args=[("link", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.refresh_link_geometry(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.refresh_link_geometry(dgp(lib, a[0])),
     ),
     "set_vector_from_angle": dict(
         addr=0x07223,
@@ -5322,7 +5322,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_slack(
-            dgp(lib, a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
+            dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_int16(a[2])),
     ),
     "link_endpoint_gap": dict(
         addr=0x07947,
@@ -5339,7 +5339,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_end_distance(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
+            dgp(lib, a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
     ),
     "shift_all_histories": dict(
         addr=0x07CA2,
@@ -5359,7 +5359,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.compare_link_ends(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
+            dgp(lib, a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
     ),
     "intersect_segments": dict(
         addr=0x03BA9,

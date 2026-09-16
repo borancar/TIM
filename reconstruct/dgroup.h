@@ -1207,6 +1207,9 @@ struct heap_block {
 
 #define HEAPBLK_PTR(p) ((struct heap_block *)(dgroup + (uint16_t)(p)))
 
+/* **No heap block**, as a pointer - see `PART_NONE`. */
+#define HEAPBLK_NONE HEAPBLK_PTR(0)
+
 DG_ASSERT_AT(struct heap_block, size,           0x00);
 DG_ASSERT_AT(struct heap_block, prev_ptr,       0x02);
 DG_ASSERT_AT(struct heap_block, fwd_ptr,        0x04);
@@ -1871,6 +1874,9 @@ struct game_file {
 
 #define GAME_FILE_PTR(p) ((struct game_file *)(dgroup + (uint16_t)(p)))
 
+/* **No game file**, as a pointer - see `PART_NONE`. */
+#define GAME_FILE_NONE GAME_FILE_PTR(0)
+
 DG_ASSERT_AT(struct game_file, archive,         0x00);
 DG_ASSERT_AT(struct game_file, base,            0x02);
 DG_ASSERT_AT(struct game_file, size,            0x06);
@@ -2046,6 +2052,9 @@ struct draw_step {
 } __attribute__((packed));
 
 #define DRAWSTEP_PTR(p) ((struct draw_step *)(dgroup + (uint16_t)(p)))
+
+/* **No draw step**, as a pointer - see `PART_NONE`. */
+#define DRAWSTEP_NONE DRAWSTEP_PTR(0)
 #define DG0124 (*DRAWSTEP_PTR(0x0124))
 
 DG_ASSERT_AT(struct draw_step, level,  0x02);
@@ -2341,6 +2350,9 @@ _Static_assert(sizeof(struct page_slot) == 0x20,
                "claim_page_slot strides by 0x20");
 
 #define PAGESLOT_PTR(p) ((struct page_slot *)(dgroup + (uint16_t)(p)))
+
+/* **No page slot**, as a pointer - see `PART_NONE`. */
+#define PAGESLOT_NONE PAGESLOT_PTR(0)
 
 /*
  * **The shortest run worth encoding**, at DGROUP 0x49ba.
@@ -2944,6 +2956,9 @@ _Static_assert(sizeof(struct region) == 0x1a, "a region record is thirteen words
 
 #define REGION_PTR(p) ((struct region *)(dgroup + (uint16_t)(p)))
 
+/* **No region**, as a pointer - see `PART_NONE`. */
+#define REGION_NONE REGION_PTR(0)
+
 DG_ASSERT_AT(struct region, link_ptr,   0x00);
 DG_ASSERT_AT(struct region, mask,       0x02);
 DG_ASSERT_AT(struct region, x0,         0x06);
@@ -3113,6 +3128,9 @@ struct bmp_set {
 } __attribute__((packed));
 
 #define BMPSET_PTR(p) ((struct bmp_set *)(dgroup + (uint16_t)(p)))
+
+/* **No bitmap set**, as a pointer - see `PART_NONE`. */
+#define BMPSET_NONE BMPSET_PTR(0)
 
 /*
  * ---------------------------------------------------------------------------
@@ -3629,6 +3647,9 @@ _Static_assert(sizeof(struct part_point) == 4,
    own data, reached only from one, and the timer handler touches neither. */
 #define POINTS(p) ((struct part_point *)(dgroup + (uint16_t)(p)))
 
+/* **No point list**, as a pointer - see `PART_NONE`. */
+#define POINTS_NONE POINTS(0)
+
 /*
  * ---------------------------------------------------------------------------
  * **A part kind**, the 0x3a-byte record at DGROUP 0x0ea6 that every part of
@@ -3856,6 +3877,9 @@ _Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc
 
 #define QNODE_PTR(p) ((struct queue_node *)(dgroup + (uint16_t)(p)))
 
+/* **No queue node**, as a pointer - see `PART_NONE`. */
+#define QNODE_NONE QNODE_PTR(0)
+
 /*
  * ---------------------------------------------------------------------------
  * **A saved-rectangle list entry**, 0x1a bytes, chained through +0x18 on one
@@ -3907,6 +3931,9 @@ DG_ASSERT_AT(struct rect_list_entry, next,     0x18);
 _Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1a bytes");
 
 #define RECTENT_PTR(p) ((struct rect_list_entry *)(dgroup + (uint16_t)(p)))
+
+/* **No rect list entry**, as a pointer - see `PART_NONE`. */
+#define RECTENT_NONE RECTENT_PTR(0)
 
 /*
  * ---------------------------------------------------------------------------
@@ -4022,6 +4049,9 @@ _Static_assert(sizeof(struct resource) == 0x21,
                "a resource is what heap_calloc_far(1, 0x21) makes");
 
 #define RESOURCE_PTR(p) ((struct resource *)(dgroup + (uint16_t)(p)))
+
+/* **No resource slot**, as a pointer - see `PART_NONE`. */
+#define RESOURCE_NONE RESOURCE_PTR(0)
 
 DG_ASSERT_AT(struct file_rec, level,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);
