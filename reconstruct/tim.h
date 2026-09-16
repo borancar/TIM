@@ -1308,7 +1308,7 @@ void goal_test_puzzle_49(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(struct far_ptr h, struct part *part,
                     uint16_t which);
-uint16_t find_belt_anchor(uint8_t * out_end, struct part *rec); /* 0x045b8 */
+struct part *find_belt_anchor(int16_t *out_end, struct part *rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(struct part *part);          /* 0x04748 */

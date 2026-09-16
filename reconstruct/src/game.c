@@ -5266,69 +5266,70 @@ void move_carried_rope(void)
  */
 void move_carried_belt(void)
 {
-    int16_t far_;                     /* [bp-4] */
+    struct part *far_;                /* [bp-4] */
     int16_t end;     /* [bp-2] */
     struct belt *si = BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0]);
-    uint16_t di, idx;
+    struct part *di;
+    uint16_t idx;
 
-    far_ = (int16_t)((uint16_t)si->end_a_ptr);
+    far_ = PART_PTR(si->end_a_ptr);
 
-    di = find_belt_anchor((uint8_t *)&end, PART_PTR(DG2630.word_2630));
+    di = find_belt_anchor(&end, PART_PTR(DG2630.word_2630));
 
-    if (di == DG5456.belt_far_end && (uint16_t)far_ != 0)
-        di = 0;
-    else if (di == (uint16_t)far_ && (uint16_t)far_ != 0)
-        di = 0;
+    if (di == PART_PTR(DG5456.belt_far_end) && far_ != PART_NONE)
+        di = PART_NONE;
+    else if (di == far_ && far_ != PART_NONE)
+        di = PART_NONE;
 
-    DG2630.word_2630 = di;
+    DG2630.word_2630 = dg_off(dgroup, di);
 
     if (DG5768.button_left == 2) {
-        if (di == 0) {
-            if ((uint16_t)far_ != 0)
+        if (di == PART_NONE) {
+            if (far_ != PART_NONE)
                 discard_carried_part();
             return;
         }
 
-        if ((uint16_t)far_ == 0) {
-            if (PART_PTR(di)->kind != KIND_PULLEY) {
-                PART_PTR(di)->belt_ptr[(uint16_t)end] = dg_off(dgroup, si);
-                si->end_a_ptr = di;
-                si->home_a_ptr = di;
+        if (far_ == PART_NONE) {
+            if (di->kind != KIND_PULLEY) {
+                di->belt_ptr[(uint16_t)end] = dg_off(dgroup, si);
+                si->end_a_ptr = dg_off(dgroup, di);
+                si->home_a_ptr = dg_off(dgroup, di);
                 si->slot_a = (uint8_t)(uint16_t)end;
                 si->home_slot_a = (uint8_t)(uint16_t)end;
-                DG5456.belt_far_end = di;
+                DG5456.belt_far_end = dg_off(dgroup, di);
             }
             return;
         }
 
         if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
-            PART_PTR(DG5456.belt_far_end)->link_ptr[0] = di;
-            PART_PTR(DG5456.belt_far_end)->link_ptr[2] = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[0] = dg_off(dgroup, di);
+            PART_PTR(DG5456.belt_far_end)->link_ptr[2] = dg_off(dgroup, di);
             mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
             mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
             mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
         } else {
             idx = si->slot_a;
-            PART_PTR(DG5456.belt_far_end)->link_ptr[idx] = di;
-            PART_PTR(DG5456.belt_far_end)->link_ptr[idx + 2] = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[idx] = dg_off(dgroup, di);
+            PART_PTR(DG5456.belt_far_end)->link_ptr[idx + 2] = dg_off(dgroup, di);
         }
 
         refresh_link_geometry(si);
         mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
 
-        if (PART_PTR(di)->kind == KIND_PULLEY) {
-            PART_PTR(di)->link_ptr[1] = DG5456.belt_far_end;
-            PART_PTR(di)->link_ptr[3] = DG5456.belt_far_end;
-            PART_PTR(di)->belt_ptr[1] = dg_off(dgroup, si);
+        if (di->kind == KIND_PULLEY) {
+            di->link_ptr[1] = DG5456.belt_far_end;
+            di->link_ptr[3] = DG5456.belt_far_end;
+            di->belt_ptr[1] = dg_off(dgroup, si);
             if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
                 aim_link_at_bisector(PART_PTR(DG5456.belt_far_end));
-            DG5456.belt_far_end = di;
+            DG5456.belt_far_end = dg_off(dgroup, di);
         } else {
-            PART_PTR(di)->link_ptr[(uint16_t)end] = DG5456.belt_far_end;
-            PART_PTR(di)->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end;
-            PART_PTR(di)->belt_ptr[(uint16_t)end] = dg_off(dgroup, si);
-            si->end_b_ptr = di;
-            si->home_b_ptr = di;
+            di->link_ptr[(uint16_t)end] = DG5456.belt_far_end;
+            di->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end;
+            di->belt_ptr[(uint16_t)end] = dg_off(dgroup, si);
+            si->end_b_ptr = dg_off(dgroup, di);
+            si->home_b_ptr = dg_off(dgroup, di);
             si->slot_b = (uint8_t)(uint16_t)end;
             si->home_slot_b = (uint8_t)(uint16_t)end;
             if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
@@ -5340,7 +5341,7 @@ void move_carried_belt(void)
         return;
     }
 
-    if ((uint16_t)far_ == 0) {
+    if (far_ == PART_NONE) {
         return;
     }
 
@@ -5361,7 +5362,7 @@ void move_carried_belt(void)
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
-    DG52BD.band_colour = (di != 0) ? 0x0a : 0x0c;
+    DG52BD.band_colour = (di != PART_NONE) ? 0x0a : 0x0c;
 }
 
 /*

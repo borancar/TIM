@@ -5766,16 +5766,16 @@ struct part *find_part_from(struct part *rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-uint16_t find_belt_anchor(uint8_t * out_end, struct part *rec)
+struct part *find_belt_anchor(int16_t *out_end, struct part *rec)
 {
     struct part *si = find_part_from(rec);
     int16_t e0, e1, d0, d1;
 
     if (si == PART_NONE)
-        return 0;
+        return PART_NONE;
 
     if ((si->flags_08 & 4) == 0)
-        return 0;
+        return PART_NONE;
 
     if (si->flags_08 & 8) {
         e0 = (int16_t)(((uint16_t)si->pos[0].x) - ((uint16_t)DG4E67.origin_x)
@@ -5790,19 +5790,19 @@ uint16_t find_belt_anchor(uint8_t * out_end, struct part *rec)
         if (d1 < 0)
             d1 = (int16_t)-d1;
 
-        *(int16_t *)(out_end) = (d0 >= d1) ? 1 : 0;
+        *out_end = (d0 >= d1) ? 1 : 0;
     } else {
-        *(int16_t *)(out_end) = 0;
+        *out_end = 0;
     }
 
     if (si->kind == KIND_PULLEY) {
         if (si->link_ptr[0] != 0)
             si = PART_NONE;
-    } else if (si->belt_ptr[(uint16_t)*(int16_t *)(out_end)] != 0) {
+    } else if (si->belt_ptr[(uint16_t)*out_end] != 0) {
         si = PART_NONE;
     }
 
-    return dg_off(dgroup, si);
+    return si;
 }
 
 /*
