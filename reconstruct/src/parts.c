@@ -4574,7 +4574,7 @@ void cut_belts(struct part *part, uint16_t line)
                 + PART_PTR(next)->attach[slotB].y
                 - part->pos[0].y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (uint8_t *)seg,
+            if (intersect_segments((const int16_t *)dg_ptr(dgroup, line), seg,
                                    (uint8_t *)at) == 0) {
                 if (next == endB) {
                     next = 0;

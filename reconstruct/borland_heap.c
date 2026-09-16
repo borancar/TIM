@@ -750,9 +750,9 @@ char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
  * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
  * assumed from the family.
  */
-int16_t heapwalk(uint8_t * info)
+int16_t heapwalk(int16_t *info)
 {
-    uint16_t si = (uint16_t)*(int16_t *)(info);
+    uint16_t si = (uint16_t)info[0];
 
     if (si != 0) {
         si = (uint16_t)(si - 4);
@@ -766,9 +766,9 @@ int16_t heapwalk(uint8_t * info)
             return 1;
     }
 
-    *(int16_t *)(info) = (int16_t)si;
-    *(int16_t *)(info) = (int16_t)((uint16_t)*(int16_t *)(info) + 4);
-    *(int16_t *)(info + 2) = (int16_t)(HEAPBLK_PTR(si)->size & 0xfffe);
-    *(int16_t *)(info + 4) = (int16_t)(HEAPBLK_PTR(si)->size & 1);
+    info[0] = (int16_t)si;
+    info[0] = (int16_t)((uint16_t)info[0] + 4);
+    info[1] = (int16_t)(HEAPBLK_PTR(si)->size & 0xfffe);
+    info[2] = (int16_t)(HEAPBLK_PTR(si)->size & 1);
     return 2;
 }

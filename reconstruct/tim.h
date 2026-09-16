@@ -152,7 +152,7 @@ void clamp_record_pair(struct part *rec);               /* 0x02bcc */
 /* Rotate a point about the origin, in place. */
 /* px and py are read and written in place; the guest passes each as one
    DGROUP word, which `volatile uint8_t *` is what tells the shim generator. */
-void rotate_point(uint8_t * px, uint8_t * py, uint16_t angle); /* 0x03b17 */
+void rotate_point(int16_t *px, int16_t *py, uint16_t angle); /* 0x03b17 */
 
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(struct part *rec, uint16_t node);      /* 0x03a61 */
@@ -552,11 +552,11 @@ void     asb_int74_hook(void);                  /* SX.OVL ASB:0x0551 */
 void     asb_int09_hook(void);                  /* SX.OVL ASB:0x0564 */
 uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x0506 */
 uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x00f5 */
-void     asb_play(uint8_t * si);                 /* SX.OVL ASB:0x011e */
+void     asb_play(int16_t *si);                 /* SX.OVL ASB:0x011e */
 uint16_t asb_status(void);                      /* SX.OVL ASB:0x01be */
 void     asb_stop(void);                        /* SX.OVL ASB:0x01ce */
 uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x01d2 */
-uint16_t asb_set_rate_fn(uint8_t * si);          /* SX.OVL ASB:0x00de */
+uint16_t asb_set_rate_fn(int16_t *si);          /* SX.OVL ASB:0x00de */
 uint16_t asb_clear_49(void);                    /* SX.OVL ASB:0x00ec */
 uint16_t asb_position(uint8_t * si);             /* SX.OVL ASB:0x0435 */
 uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
@@ -877,11 +877,11 @@ int16_t compare_link_ends(struct belt *link, int16_t end,
                           int16_t reversed);        /* 0x06de9 */
 
 /* Intersect two segments; answers whether the point lies on both. */
-int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2,
+int16_t intersect_segments(const int16_t *seg1, const int16_t *seg2,
                            uint8_t * out);            /* 0x03ba9 */
 
 /* Step the second word of each pair one further from the first. */
-void step_pair_apart(uint8_t * rec);                  /* 0x03d2e */
+void step_pair_apart(int16_t *rec);                  /* 0x03d2e */
 
 /* Are two points within 140 in both axes? */
 int16_t points_within_140(const struct point16 *a,
@@ -901,7 +901,7 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 void compute_link_endpoints(struct rope *link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
-void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out);   /* 0x004fd */
+void set_side_flags(const int16_t *range, int16_t v, uint8_t * out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
 void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
@@ -1491,7 +1491,7 @@ uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
-int16_t heapwalk(uint8_t * info);                    /* 0x0ccef */
+int16_t heapwalk(int16_t *info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */

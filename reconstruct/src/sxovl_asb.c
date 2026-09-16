@@ -723,26 +723,26 @@ uint16_t asb_shutdown(void)
  *
  * Then the IRQ is hooked, the flags are cleared, and the first block goes.
  */
-void asb_play(uint8_t * si)
+void asb_play(int16_t *si)
 {
     uint32_t lin;
     uint16_t ax;
 
     asb_shutdown();
 
-    if (((uint16_t)*(int16_t *)(si) >> 8) != 0)
+    if (((uint16_t)si[0] >> 8) != 0)
         ASBS.word_0047 = 1;
     else
         ASBS.word_0047 = 0;
 
-    asb_set_rate((uint16_t)*(int16_t *)(si + 2));
+    asb_set_rate((uint16_t)si[1]);
 
-    lin = asb_linear((struct far_ptr){ (uint16_t)*(int16_t *)(si + 4),
-                                       (uint16_t)*(int16_t *)(si + 6) });
+    lin = asb_linear((struct far_ptr){ (uint16_t)si[2],
+                                       (uint16_t)si[3] });
     ASBS.word_0034  = (uint8_t)(lin >> 16);
     ASBS.word_0058 = (int16_t)lin;
 
-    ax = (uint16_t)*(int16_t *)(si + 8);
+    ax = (uint16_t)si[4];
     ASBS.word_0056 = (int16_t)ax;
 
     if ((uint32_t)ax + ASBS.word_0058 > 0xffff) {
@@ -816,10 +816,10 @@ uint16_t asb_uninstall(void)
 /*
  * SX.OVL ASB:0x00de  - function 6
  */
-uint16_t asb_set_rate_fn(uint8_t * si)
+uint16_t asb_set_rate_fn(int16_t *si)
 {
-    ASBS.word_0078 = (int16_t)*(int16_t *)(si);
-    asb_set_rate((uint16_t)*(int16_t *)(si));
+    ASBS.word_0078 = (int16_t)si[0];
+    asb_set_rate((uint16_t)si[0]);
     return 0;
 }
 
@@ -983,10 +983,10 @@ uint16_t asb_dispatch(uint16_t fn, uint8_t * si)
     switch (fn) {
     case 0:  return asb_install();
     case 2:  return asb_uninstall();
-    case 3:  asb_play(si); return 0;
+    case 3:  asb_play((int16_t *)si); return 0;
     case 4:  return asb_status();
     case 5:  asb_stop(); return 0;
-    case 6:  return asb_set_rate_fn(si);
+    case 6:  return asb_set_rate_fn((int16_t *)si);
     case 8:  return asb_clear_49();
     case 12: return asb_shutdown();
     case 13: return asb_position(si);

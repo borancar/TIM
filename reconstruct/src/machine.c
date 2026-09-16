@@ -623,22 +623,22 @@ int16_t angle_to_quadrant(int16_t angle)
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
-void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out)
+void set_side_flags(const int16_t *range, int16_t v, uint8_t * out)
 {
-    if (value_between((uint16_t)v, (uint16_t)*(int16_t *)(range),
-                      (uint16_t)*(int16_t *)(range + 4))) {
+    if (value_between((uint16_t)v, (uint16_t)range[0],
+                      (uint16_t)range[2])) {
         out[2] = 1;
         out[3] = 1;
         return;
     }
 
-    if (*(int16_t *)(range) >= *(int16_t *)(range + 4)) {
-        if (*(int16_t *)(range + 4) <= v)
+    if (range[0] >= range[2]) {
+        if (range[2] <= v)
             out[3] = 1;
         else
             out[2] = 1;
     } else {
-        if (*(int16_t *)(range) <= v)
+        if (range[0] <= v)
             out[2] = 1;
         else
             out[3] = 1;
@@ -881,9 +881,9 @@ int16_t find_edge_contact(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((uint8_t *)seg2);
+                        step_pair_apart(seg2);
 
-                        if (intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)
+                        if (intersect_segments(seg1, seg2, (uint8_t *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -899,7 +899,7 @@ int16_t find_edge_contact(int16_t test_only)
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
-                                if (!intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)) {
+                                if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
                                     PART_PTR(DG53FC.list_ptr)->pos[0].x =
                                         PART_PTR(DG53FC.list_ptr)->pos[1].x;
                                     PART_PTR(DG53FC.list_ptr)->pos[0].y =
@@ -951,7 +951,7 @@ int16_t find_edge_contact(int16_t test_only)
                             PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.word_53fe);
                             PART_PTR(DG53FC.list_ptr)->word_88 = a_ang;
                             PART_PTR(DG53FC.list_ptr)->word_8a = (int16_t)(i - 1);
-                            set_side_flags((uint8_t *)seg2,
+                            set_side_flags(seg2,
                                            (int16_t)(DG53FC.word_5418 - x0),
                                            (uint8_t *)&PART_PTR(DG53FC.list_ptr)->contact_ptr);
                             hit = 1;
@@ -1076,9 +1076,9 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((uint8_t *)seg2);
+                        step_pair_apart(seg2);
 
-                        if (intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)
+                        if (intersect_segments(seg1, seg2, (uint8_t *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -1094,7 +1094,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
-                                if (!intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)) {
+                                if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
                                     PART_PTR(DG53FC.list_ptr)->pos[0].x =
                                         PART_PTR(DG53FC.list_ptr)->pos[1].x;
                                     PART_PTR(DG53FC.list_ptr)->pos[0].y =
@@ -1628,7 +1628,7 @@ void bounce_off_contact(struct part *obj)
     vx = obj->vel_x;
     vy = obj->word_38;
 
-    rotate_point((uint8_t *)&vx, (uint8_t *)&vy,
+    rotate_point(&vx, &vy,
                  (uint16_t)di);
 
     bounce =
@@ -1657,7 +1657,7 @@ void bounce_off_contact(struct part *obj)
         vy = (t > 0) ? t : 0;
     }
 
-    rotate_point((uint8_t *)&vx, (uint8_t *)&vy,
+    rotate_point(&vx, &vy,
                  (uint16_t)(0 - di));
 
     obj->vel_x = vx;
@@ -1761,8 +1761,8 @@ void bounce_pair(struct part *obj)
 
     angle = (int16_t)(angle_between_centres(obj, di) - 0x4000);
 
-    rotate_point((uint8_t *)&svx, (uint8_t *)&svy, (uint16_t)angle);
-    rotate_point((uint8_t *)&dvx, (uint8_t *)&dvy, (uint16_t)angle);
+    rotate_point(&svx, &svy, (uint16_t)angle);
+    rotate_point(&dvx, &dvy, (uint16_t)angle);
 
     *(int32_t *)(total) = (int32_t)myW + (int32_t)theirW;
 
@@ -1779,9 +1779,9 @@ void bounce_pair(struct part *obj)
         *(int32_t *)(mine_u) + *(int32_t *)(mine_u) + *(int32_t *)(yours_v) - *(int32_t *)(mine_v),
         *(int32_t *)(total));
 
-    rotate_point((uint8_t *)&svx, (uint8_t *)&svy,
+    rotate_point(&svx, &svy,
                  (uint16_t)-angle);
-    rotate_point((uint8_t *)&dvx, (uint8_t *)&dvy,
+    rotate_point(&dvx, &dvy,
                  (uint16_t)-angle);
 
     obj->vel_x = (int16_t)(svx >> 1);
@@ -4832,7 +4832,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, uint16_t line)
             v16[3] =
                 (int16_t)(v0c - obj->pos[0].y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (const uint8_t *)v16,
+            if (intersect_segments((const int16_t *)dg_ptr(dgroup, line), v16,
                                    v1a) != 0) {
                 si->next_linked_ptr = obj->next_linked_ptr;
                 obj->next_linked_ptr = dg_off(dgroup, si);
@@ -4957,17 +4957,17 @@ int16_t chain_contains(struct part *rec, uint16_t node)
  * **old** x. Storing x first would change y, and that is exactly the kind of
  * thing a rewrite gets wrong.
  */
-void rotate_point(uint8_t * px, uint8_t * py, uint16_t angle)
+void rotate_point(int16_t *px, int16_t *py, uint16_t angle)
 {
     int16_t c = angle_cos(angle);
     int16_t s = angle_sin(angle);
     int32_t nx, ny;
 
-    nx = mul16x16(*(int16_t *)(px), c) - mul16x16(*(int16_t *)(py), s);
-    ny = mul16x16(*(int16_t *)(px), s) + mul16x16(*(int16_t *)(py), c);
+    nx = mul16x16(px[0], c) - mul16x16(py[0], s);
+    ny = mul16x16(px[0], s) + mul16x16(py[0], c);
 
-    *(int16_t *)(px) = (int16_t)(nx >> 14);
-    *(int16_t *)(py) = (int16_t)(ny >> 14);
+    px[0] = (int16_t)(nx >> 14);
+    py[0] = (int16_t)(ny >> 14);
 }
 
 /*
@@ -4995,17 +4995,17 @@ void rotate_point(uint8_t * px, uint8_t * py, uint16_t angle)
  * Finally the point has to lie within both segments in both axes, which is four
  * `value_between` calls, and any one of them failing answers 0.
  */
-int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2, uint8_t * out)
+int16_t intersect_segments(const int16_t *seg1, const int16_t *seg2, uint8_t * out)
 {
-    int16_t a1 = (int16_t)(*(int16_t *)(seg1 + 2) - *(int16_t *)(seg1 + 6));
-    int16_t b1 = (int16_t)(*(int16_t *)(seg1) - *(int16_t *)(seg1 + 4));
-    int16_t c1 = (int16_t)((int16_t)(*(int16_t *)(seg1 + 4) * a1)
-                           - (int16_t)(*(int16_t *)(seg1 + 6) * b1));
+    int16_t a1 = (int16_t)(seg1[1] - seg1[3]);
+    int16_t b1 = (int16_t)(seg1[0] - seg1[2]);
+    int16_t c1 = (int16_t)((int16_t)(seg1[2] * a1)
+                           - (int16_t)(seg1[3] * b1));
 
-    int16_t a2 = (int16_t)(*(int16_t *)(seg2 + 6) - *(int16_t *)(seg2 + 2));
-    int16_t b2 = (int16_t)(*(int16_t *)(seg2 + 4) - *(int16_t *)(seg2));
-    int16_t c2 = (int16_t)((int16_t)(*(int16_t *)(seg2) * a2)
-                           - (int16_t)(*(int16_t *)(seg2 + 2) * b2));
+    int16_t a2 = (int16_t)(seg2[3] - seg2[1]);
+    int16_t b2 = (int16_t)(seg2[2] - seg2[0]);
+    int16_t c2 = (int16_t)((int16_t)(seg2[0] * a2)
+                           - (int16_t)(seg2[1] * b2));
 
     int16_t denom = (int16_t)((int16_t)(a2 * b1) - (int16_t)(a1 * b2));
     int16_t x, y;
@@ -5017,27 +5017,27 @@ int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2, uint8_t *
         x = (int16_t)(nx / denom);
         y = (int16_t)(ny / denom);
     } else {
-        int16_t t = (int16_t)((int16_t)(*(int16_t *)(seg1) * a2)
-                              + (int16_t)(*(int16_t *)(seg1 + 2) * b2));
+        int16_t t = (int16_t)((int16_t)(seg1[0] * a2)
+                              + (int16_t)(seg1[1] * b2));
         if (t != 0) {
             x = 0;
             y = 0;
         } else {
-            x = *(int16_t *)(seg1 + 4);
-            y = *(int16_t *)(seg1 + 6);
+            x = seg1[2];
+            y = seg1[3];
         }
     }
 
     *(int16_t *)(out) = x;
     *(int16_t *)(out + 2) = y;
 
-    if (!value_between((uint16_t)x, (uint16_t)*(int16_t *)(seg1), (uint16_t)*(int16_t *)(seg1 + 4)))
+    if (!value_between((uint16_t)x, (uint16_t)seg1[0], (uint16_t)seg1[2]))
         return 0;
-    if (!value_between((uint16_t)x, (uint16_t)*(int16_t *)(seg2), (uint16_t)*(int16_t *)(seg2 + 4)))
+    if (!value_between((uint16_t)x, (uint16_t)seg2[0], (uint16_t)seg2[2]))
         return 0;
-    if (!value_between((uint16_t)y, (uint16_t)*(int16_t *)(seg1 + 2), (uint16_t)*(int16_t *)(seg1 + 6)))
+    if (!value_between((uint16_t)y, (uint16_t)seg1[1], (uint16_t)seg1[3]))
         return 0;
-    if (!value_between((uint16_t)y, (uint16_t)*(int16_t *)(seg2 + 2), (uint16_t)*(int16_t *)(seg2 + 6)))
+    if (!value_between((uint16_t)y, (uint16_t)seg2[1], (uint16_t)seg2[3]))
         return 0;
     return 1;
 }
@@ -5054,20 +5054,20 @@ int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2, uint8_t *
  * What the record is has not been established - a pair of coordinates and a
  * pair of limits would fit, but that is inference.
  */
-void step_pair_apart(uint8_t * rec)
+void step_pair_apart(int16_t *rec)
 {
-    int16_t d = (int16_t)(*(int16_t *)(rec + 4) - *(int16_t *)(rec));
+    int16_t d = (int16_t)(rec[2] - rec[0]);
 
     if (d > 0)
-        *(int16_t *)(rec + 4) = (int16_t)(*(int16_t *)(rec + 4) + 1);
+        rec[2] = (int16_t)(rec[2] + 1);
     else if (d < 0)
-        *(int16_t *)(rec + 4) = (int16_t)(*(int16_t *)(rec + 4) - 1);
+        rec[2] = (int16_t)(rec[2] - 1);
 
-    d = (int16_t)(*(int16_t *)(rec + 6) - *(int16_t *)(rec + 2));
+    d = (int16_t)(rec[3] - rec[1]);
     if (d > 0)
-        *(int16_t *)(rec + 6) = (int16_t)(*(int16_t *)(rec + 6) + 1);
+        rec[3] = (int16_t)(rec[3] + 1);
     else if (d < 0)
-        *(int16_t *)(rec + 6) = (int16_t)(*(int16_t *)(rec + 6) - 1);
+        rec[3] = (int16_t)(rec[3] - 1);
 }
 
 /*
@@ -5134,7 +5134,7 @@ int16_t outlines_cross(struct part *a, struct part *b)
         segA[1] = (int16_t)(ay1 - ay1);
         segA[2] = (int16_t)(ax2 - ax1);
         segA[3] = (int16_t)(ay2 - ay1);
-        step_pair_apart((uint8_t *)segA);
+        step_pair_apart(segA);
 
         j = 1;
         di = ((uint16_t)b->points_ptr);
@@ -5153,9 +5153,9 @@ int16_t outlines_cross(struct part *a, struct part *b)
             segB[1] = (int16_t)(by1 - ay1);
             segB[2] = (int16_t)(bx2 - ax1);
             segB[3] = (int16_t)(by2 - ay1);
-            step_pair_apart((uint8_t *)segB);
+            step_pair_apart(segB);
 
-            if (intersect_segments((const uint8_t *)segA, (const uint8_t *)segB, (uint8_t *)out) != 0
+            if (intersect_segments(segA, segB, (uint8_t *)out) != 0
                 && (out[1] != segA[3]
                     || out[0] != segA[2])) {
                 answer = 1;
@@ -7396,7 +7396,7 @@ void part_finish_angles(struct part *part)
         pair[2] = POINTS(si)[1].x;
         pair[3] = POINTS(si)[1].y;
 
-        step_pair_apart((uint8_t *)pair);
+        step_pair_apart(pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -7421,7 +7421,7 @@ void part_finish_angles(struct part *part)
         pair[2] = POINTS(first)->x;
         pair[3] = POINTS(first)->y;
 
-        step_pair_apart((uint8_t *)pair);
+        step_pair_apart(pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -9897,7 +9897,7 @@ int16_t heap_largest_free(void)
     total = 0;
     info[0] = 0;
 
-    while (heapwalk((uint8_t *)info) == 2) {
+    while (heapwalk(info) == 2) {
         total = (uint16_t)((uint16_t)info[0] + (uint16_t)info[1]);
         if ((uint16_t)info[2] != 0)
             continue;
