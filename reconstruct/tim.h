@@ -163,19 +163,19 @@ int16_t find_entry_for_pointer(struct game_file *out);       /* 0x098e0 */
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 /* Chunky 4bpp to planar, through video memory, filling a list of headers. */
-void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst,
+void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst,
                          uint32_t count);                       /* VGA:0x1015 */
-void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
+void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
                          uint16_t count);                       /* VGA:0x10b8 */
-void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
+void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x11bb */
-void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
+void vm_build_mask_plane(struct far_ptr src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
-void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
+void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VGA:0x15d0 */
-void blit_rows_thunk(struct far_ptr src, int16_t x, int16_t y,
+void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* 0x20838 */
 void blit_rows_alt_thunk(void);                     /* 0x2083c */
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
@@ -193,11 +193,11 @@ uint32_t vm_bitmap_list_size(bmp_ptr_t *list,
                              uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
-void vm_save_rect(struct far_ptr buf, int16_t x, int16_t y,
+void vm_save_rect(uint8_t far * buf, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VM.OVL VGA:0x12fb */
 
 /* Restore a rectangle from a buffer into the destination page. */
-void vm_restore_rect(struct far_ptr buf, int16_t x, int16_t y,
+void vm_restore_rect(const uint8_t far * buf, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
 /* atan2 of two longs, in the whole-turn-is-0x10000 space. */
@@ -1690,7 +1690,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
-                        struct far_ptr src);        /* VGA:0x03db */
+                        const uint8_t far * src);        /* VGA:0x03db */
 
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
 void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
@@ -1701,7 +1701,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
 void vm_fill_spans(const uint8_t far * spans);      /* VM.OVL VGA:0x0be6 */
 
 /* Load a sixteen-colour palette into the DAC and keep a copy. */
-void vm_load_palette(struct far_ptr pal);           /* VM.OVL VGA:0x0f15 */
+void vm_load_palette(const uint8_t far * pal);           /* VM.OVL VGA:0x0f15 */
 
 /* Load colours into the DAC. */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
@@ -1871,10 +1871,10 @@ void heap_free_far(uint8_t * p);                        /* 0x0bb2d */
 void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
-void save_rect_thunk(struct far_ptr buf, int16_t x,
+void save_rect_thunk(uint8_t far * buf, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
 uint32_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
-void restore_rect_thunk(struct far_ptr buf, int16_t x,
+void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
 uint16_t bios_video_kind(void);                        /* 0x22764 */
 int16_t detect_pcjr(void);                             /* 0x20be0 */

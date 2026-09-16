@@ -2928,7 +2928,7 @@ struct far_ptr set_palette_pointer(struct far_ptr h)
         return PALCHUNK.palette_ptr;
 
     PALCHUNK.palette_ptr = h;
-    vm_load_palette(h);
+    vm_load_palette(MK_FP(h.seg, h.off));
     return h;
 }
 
@@ -3506,7 +3506,7 @@ void timer_tick(void)
  *
  * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
  */
-void blit_rows_thunk(struct far_ptr src, int16_t x, int16_t y,
+void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
                      int16_t w, int16_t h)
 {
     vm_blit_rows(src, x, y, w, h);
@@ -4868,7 +4868,7 @@ struct bmp_set *load_bitmap_list(char *name)
         huge_add_to(&walk, 0x7fff);
 
     r = resource_size(di);
-    vm_load_bitmap_list(list_at, blk, r);
+    vm_load_bitmap_list(list_at, MK_FP(blk.seg, blk.off), r);
 
     close_resource(di);
     kind = 1;
@@ -5125,7 +5125,7 @@ uint16_t load_screen_plain(char *name)
     uint16_t opened = 0;                         /* [bp-4]  */
     uint16_t kind = 0;                           /* [bp-6]  */
     int16_t res = 0;                             /* [bp-2]  */
-    struct far_ptr buf = FAR_NULL;               /* [bp-0xe], [bp-0xc] */
+    uint8_t *buf = NULL;                         /* [bp-0xe], [bp-0xc] */
     uint16_t bytes;                              /* [bp-8]  */
     uint16_t half;                               /* [bp-0x14] */
     uint16_t band;                               /* [bp-0xa] */
@@ -5168,15 +5168,15 @@ uint16_t load_screen_plain(char *name)
     bytes = (uint16_t)(half << 7);
 
     do {
-        /* The offset is the heap handle the allocator answered, and the
-           segment beside it is always DGROUP's - even for a failure. */
-        buf = dg_far(dgroup, heap_malloc_far(bytes));
-        if (buf.off != 0)
+        /* The guest holds DGROUP's segment beside the heap's answer - even
+           for a failure - and tests the offset. */
+        buf = heap_malloc_far(bytes);
+        if (buf != NULL)
             break;
         bytes = (uint16_t)(bytes >> 1);
     } while (bytes >= half);
 
-    if (buf.off == 0)
+    if (buf == NULL)
         goto close_resource_only;
 
     di = 0;
@@ -5186,7 +5186,7 @@ uint16_t load_screen_plain(char *name)
         si = h_at;
 
     while (di < h_at) {
-        read_resource(res, MK_FP(buf.seg, buf.off), band);
+        read_resource(res, buf, band);
         blit_rows_thunk(buf, 0, di,
                         (int16_t)(half << 1), si);
 
@@ -5226,11 +5226,11 @@ uint16_t load_screen_plain(char *name)
         si = h_at;
 
     while (di < h_at) {
-        read_resource(res, MK_FP(buf.seg, buf.off), band);
+        read_resource(res, buf, band);
 
         if (kind == 6)
-            expand_1bpp_to_4bpp(buf,
-                                buf, band);
+            expand_1bpp_to_4bpp(dg_far(dgroup, buf),
+                                dg_far(dgroup, buf), band);
 
         blit_rows_alt_thunk();
 
@@ -5244,7 +5244,7 @@ uint16_t load_screen_plain(char *name)
     }
 
 free_buf:
-    heap_free_far(dg_ptr(dgroup, buf.off));
+    heap_free_far(buf);
 
 close_resource_only:
     close_resource(res);
@@ -6025,7 +6025,7 @@ void show_page_thunk(uint16_t wait_retrace)
  * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
  * Same arrangement as 0x2149a.
  */
-void save_rect_thunk(struct far_ptr buf, int16_t x, int16_t y,
+void save_rect_thunk(uint8_t far * buf, int16_t x, int16_t y,
                      int16_t w, int16_t h)
 {
     vm_save_rect(buf, x, y, w, h);
@@ -6048,7 +6048,7 @@ uint32_t buffer_size_thunk(uint16_t w, uint16_t h)
  * A thunk into the video driver: `ljmp [0x4362]`, which is `vm_restore_rect`.
  * Same arrangement as 0x2149a.
  */
-void restore_rect_thunk(struct far_ptr buf, int16_t x,
+void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h)
 {
     vm_restore_rect(buf, x, y, w, h);
@@ -8287,9 +8287,8 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                 &ENGINE_SCALE_TABLE.entry[cut],
                 VMDS.row_offset[j],
                 page, left, (int16_t)(right - left),
-                (struct far_ptr){
-                    (uint16_t)(ENGINE_ROW_OFFSETS.row[j - y] + src.off),
-                    src.seg });
+                MK_FP(src.seg,
+                      (uint16_t)(ENGINE_ROW_OFFSETS.row[j - y] + src.off)));
 
         restore_write_mode();
     }

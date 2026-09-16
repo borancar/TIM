@@ -65,7 +65,7 @@ REGS = {
     "vm_span":                "ax bx cx di+es",
     "vm_span_dithered":       "ax bx cx di+es",
     "vm_blit_run":            "bx cx ds:si di+es cf",
-    "vm_blit_scaled_row":     "ax bp di es dx cx si+ds",
+    "vm_blit_scaled_row":     "ax bp di es dx cx ds:si",
     "vm_blit_glyph":          "es:si ax bx dx bp",
     "vm_draw_line":           "bx cx dx si",
     "vm_fill_spans":          "es:si",

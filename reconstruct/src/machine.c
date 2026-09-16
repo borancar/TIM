@@ -10916,7 +10916,7 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
             copy_rect_thunk((uint16_t)x, (uint16_t)rec->y,
                             (uint16_t)rw, (uint16_t)rec->h);
         else if (rec->mode == 4)
-            restore_rect_thunk(rec->buf,
+            restore_rect_thunk(MK_FP(rec->buf.seg, rec->buf.off),
                                rec->x, rec->y,
                                rec->w,
                                rec->h);
@@ -11728,9 +11728,10 @@ void draw_cursor(uint16_t page)
         if (slot->cursor.buf != 0) {
             if (slot->cursor.w > 0
                 && slot->cursor.h > 0) {
-                uint16_t b = slot->cursor.buf;
+                const uint8_t *b = MK_FP(MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1].seg,
+                                 MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1].off);
 
-                restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
+                restore_rect_thunk(b,
                                    slot->cursor.x,
                                    slot->cursor.y,
                                    slot->cursor.w,
@@ -11751,9 +11752,10 @@ void draw_cursor(uint16_t page)
             && slot->bitmap_ptr != 0) {
             if (slot->obj.w > 0
                 && slot->obj.h > 0) {
-                uint16_t b = slot->obj.buf;
+                uint8_t *b = MK_FP(MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1].seg,
+                                 MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1].off);
 
-                save_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
+                save_rect_thunk(b,
                                 slot->obj.x,
                                 slot->obj.y,
                                 slot->obj.w,
@@ -12974,7 +12976,8 @@ void erase_object(uint16_t handle)
         if (((int16_t)rec->obj.buf) != 0 && rec->obj.w > 0
             && rec->obj.h > 0) {
             slot = rec->obj.buf;
-            vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot - 1],
+            vm_restore_rect(MK_FP(MACHINE_RECT_BUFFERS.slot[slot - 1].seg,
+                  MACHINE_RECT_BUFFERS.slot[slot - 1].off),
                             rec->obj.x, rec->obj.y,
                             rec->obj.w, rec->obj.h);
         } else {
@@ -13022,7 +13025,8 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (si->obj.buf != 0
             && si->obj.w > 0
             && si->obj.h > 0) {
-            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1],
+            restore_rect_thunk(MK_FP(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1].seg,
+                  MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1].off),
                                si->obj.x,
                                si->obj.y,
                                si->obj.w,

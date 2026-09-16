@@ -284,16 +284,16 @@ static inline struct far_ptr far_normalise(struct far_ptr p)
 }
 
 /*
- * **`p + n` on a huge pointer**, as Borland emits it inline when the step is a
- * 16-bit value: add it to the offset - the carry out of those sixteen bits is
- * lost - then normalise. Where the step does not fit, the compiler calls
- * `huge_add` (0x0bf0a) instead. Ours as a routine; the lines are the
- * compiler's, as `vm_load_bitmap_list` has them at VGA:0x1097.
+ * **The pair a pointer is filed as.** `FP_SEG` and `FP_OFF` as one value, for
+ * the store into a `struct far_ptr` field - the counterpart of the `MK_FP` that
+ * reads one. It is the **normalised** pair, which is what the original holds
+ * wherever it has just stepped a huge pointer; see `FP_SEG`. Ours.
  */
-static inline struct far_ptr huge_ptr_add(struct far_ptr p, uint16_t n)
+static inline struct far_ptr far_of(const uint8_t *p)
 {
-    p.off = (dg_near_t)(p.off + n);
-    return far_normalise(p);
+    struct far_ptr r = { FP_OFF(p), FP_SEG(p) };
+
+    return r;
 }
 
 /* The same, for the one record that stores the pair segment-first. */

@@ -307,30 +307,31 @@ void vm_blit_glyph(const uint8_t far * glyph,
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
-    uint16_t pal     = VMDS.palettes.blocks[0].seg;
-    uint16_t dst     = (uint16_t)(first * 3);
-    uint16_t src     = (uint16_t)(dst + 0x30);
-    uint16_t col     = (uint16_t)(0x30 + colour * 3);
-    uint16_t n       = (uint16_t)(count * 3);
-    uint8_t  channel = 0;
+    /* Only the block's segment is loaded; the offsets are from 0. */
+    uint8_t *pal           = MK_FP(VMDS.palettes.blocks[0].seg, 0);
+    uint8_t *dst           = pal + (uint16_t)(first * 3);
+    const uint8_t *src     = dst + 0x30;
+    const uint8_t *col     = pal + (uint16_t)(0x30 + colour * 3);
+    uint16_t n             = (uint16_t)(count * 3);
+    uint8_t  channel       = 0;
 
     while (n-- != 0) {
-        uint8_t a = (uint8_t)((uint16_t)(FAR8(pal, src) * weight) / 0x3F);
-        uint8_t b = (uint8_t)((uint16_t)(FAR8(pal, col)
+        uint8_t a = (uint8_t)((uint16_t)(*src * weight) / 0x3F);
+        uint8_t b = (uint8_t)((uint16_t)(*col
                                          * (uint8_t)(0x3F - weight)) / 0x3F);
 
         src++;
-        FAR8(pal, dst) = (uint8_t)(a + b);
+        *dst = (uint8_t)(a + b);
         dst++;
 
         col++;
         if (++channel == 3) {
             channel = 0;
-            col = (uint16_t)(col - 3);
+            col -= 3;
         }
     }
 
-    vm_set_palette(MK_FP(pal, (uint16_t)(first * 3)), first, count);
+    vm_set_palette(pal + (uint16_t)(first * 3), first, count);
 }
 
 /*
@@ -400,13 +401,14 @@ uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
  * why `push cs` plus a **** `ret` is used throughout this family - the
  * pushed CS is part of the frame and the caller disposes of it.
  */
-void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
+void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
 {
-    /* **A pair, not a pointer.** `at` is *stored* into every header as the
-       bitmap's `data`, and the step at the foot of the loop is a huge
-       pointer add - paragraphs into the segment, the remainder back into the
-       offset - which is the shape a host pointer cannot carry. */
-    struct far_ptr at = dst;
+    /* The step at the foot of the loop is a huge pointer's - offset plus the
+       five plane-sizes, then paragraphs into the segment - so `at` is a
+       pointer, and it is filed into each header as the normalised pair it
+       is. The first header takes the caller's block, which starts a
+       segment, so its pair is the one the original stores as well. */
+    uint8_t *at = dst;
     uint32_t quads = count >> 2;
     uint16_t di = 0;
 
@@ -414,7 +416,7 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
 
     for (;;) {
         struct bitmap *si = BMP_PTR(*list);
-        uint16_t size, prod, old_off;
+        uint16_t size, prod;
 
         if (si == BMP_NONE)
             break;
@@ -423,19 +425,17 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
                           * (uint16_t)si->height);
         size = (uint16_t)(prod >> 2);
 
-        si->data = far_to_rev(at);
+        si->data = far_to_rev(far_of(at));
+        /* The mask is kept as an offset in the planes' own segment. */
+        si->mask_off = (uint16_t)(FP_OFF(at) + size * 4);
 
-        old_off = at.off;
-        at.off = (uint16_t)(at.off + size * 4);
-        si->mask_off = at.off;
-
-        vm_read_four_planes((struct far_ptr){ di, 0xa6d6 },
-                            (struct far_ptr){ old_off, at.seg }, size);
-        vm_build_mask_plane((struct far_ptr){ di, 0xa6d6 }, at, size);
+        vm_read_four_planes((struct far_ptr){ di, 0xa6d6 }, at, size);
+        vm_build_mask_plane((struct far_ptr){ di, 0xa6d6 }, at + size * 4,
+                            size);
 
         di = (uint16_t)(di + size);
 
-        at = huge_ptr_add(at, size);
+        at += size * 5;
 
         list++;
     }
@@ -462,16 +462,16 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
  * The plane is chosen by writing 1, 2, 4 and 8 straight to the sequencer's data
  * port, the map-mask index having been left selected on the way in.
  */
-void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
+void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
                          uint16_t count)
 {
-    /* **Both ends stay pairs, for different reasons.** `src` is stepped with
-       a hand-rolled renormalise below - the offset wraps and 0x1000 goes into
-       the segment - which no host pointer can express. `dst` is a *video*
-       address: `vga_seg_offset` turns its pair into an offset into video
-       memory, which is not in `guest_mem` at all. */
-    uint16_t si = src.off;
-    uint16_t seg = src.seg;
+    /* `src` is huge, and a pointer steps it the way the carry into the
+       segment does: the one case they part is an offset that wraps on the
+       *first* `lodsw` of a pass, which the original does not catch and
+       which a source starting a segment - every caller's - cannot reach.
+       `dst` is a *video* address, which `vga_seg_offset` resolves into video
+       memory rather than `guest_mem`, so it stays the pair. */
+    const uint8_t *si = src;
     uint16_t di = (uint16_t)(vga_seg_offset(dst.seg) + dst.off);
     uint16_t n = count;
 
@@ -483,14 +483,13 @@ void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
     while (n != 0) {
         uint8_t pl[4];                    /* pl[0]=bl .. pl[3]=ch */
         uint16_t w;
-        uint16_t carry;
         int32_t k, bit;
         uint8_t b;
 
         pl[0] = pl[1] = pl[2] = pl[3] = 0;
 
-        w = FARU16(seg, si);              /* lodsw: no flags, no carry check */
-        si = (uint16_t)(si + 2);
+        w = (uint16_t)(si[0] | (si[1] << 8));   /* lodsw */
+        si += 2;
 
         for (k = 0; k < 2; k++) {
             b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
@@ -501,9 +500,8 @@ void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
             }
         }
 
-        w = FARU16(seg, si);
-        carry = ((uint16_t)(si + 2) < si) ? 0x1000 : 0;
-        si = (uint16_t)(si + 2);
+        w = (uint16_t)(si[0] | (si[1] << 8));
+        si += 2;
 
         for (k = 0; k < 2; k++) {
             b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
@@ -513,8 +511,6 @@ void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
                 pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
             }
         }
-
-        seg = (uint16_t)(seg + carry);
 
         for (k = 0; k < 4; k++) {
             io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
@@ -537,12 +533,11 @@ void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
  * around every `rep movsb` so all four passes read the same bytes; only the
  * destination advances.
  */
-void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
+void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
                          uint16_t count)
 {
     /* `src` is a video address, `dst` a block in guest memory. */
     uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
-    uint16_t di = dst.off;
     int32_t plane;
 
     for (plane = 0; plane < 4; plane++) {
@@ -551,9 +546,9 @@ void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
 
         for (k = 0; k < count; k++)
-            FAR8(dst.seg, (uint16_t)(di + k)) = vga_read((uint16_t)(at + k));
+            dst[k] = vga_read((uint16_t)(at + k));
 
-        di = (uint16_t)(di + count);
+        dst += count;
     }
 }
 
@@ -569,13 +564,12 @@ void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
  * after that, which is why the plane numbers go out as bytes rather than as the
  * usual index-and-data word.
  */
-void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
+void vm_build_mask_plane(struct far_ptr src, uint8_t far * dst,
                          uint16_t count)
 {
     /* `src` is a video address, `dst` a block in guest memory. */
     uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
     uint16_t si = 0;
-    uint16_t di = dst.off;
     uint16_t n = count;
 
     io_out16(PORT_GC_INDEX, 0x0004);      /* read map select, plane 0 */
@@ -592,9 +586,8 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
             any |= vga_read((uint16_t)(at + si));
         }
 
-        FAR8(dst.seg, di) = (uint8_t)~any;
+        *dst++ = (uint8_t)~any;
 
-        di++;
         si++;
         n--;
     }
@@ -608,7 +601,7 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
  * The buffer arrives as a far pointer and is **renormalised** first - the
  * offset's high bits are folded into the segment, leaving an offset of 0..15 -
  * so a rectangle bigger than a segment still addresses correctly as the
- * destination index runs on.
+ * destination index runs on. That is a huge pointer, and the port's is one.
  *
  * A row's width is counted in whole bytes: `((x + w) >> 3) - (x >> 3) + 1`,
  * then rounded up to a whole number of words because the copy is `rep movsw`.
@@ -624,13 +617,10 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
  * copy, and write mode 2 is put back afterwards, which is what the rest of the
  * driver expects to find.
  */
-void vm_save_rect(struct far_ptr buf,
+void vm_save_rect(uint8_t far * buf,
                   int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    /* The original normalises into a segment and a four-bit offset and
-       then indexes; `MK_FP` already gives the byte both halves name, so
-       the cursor is the pointer. */
-    uint8_t *blk  = MK_FP(buf.seg, buf.off);
+    uint8_t *blk  = buf;
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(VMDS.page_src_ptr);
     uint16_t bytes, words;
@@ -716,12 +706,10 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h)
  * all four planes enabled, which is the state the rest of the driver assumes.
  * Leaving a single plane enabled here would make every later write monochrome.
  */
-void vm_restore_rect(struct far_ptr buf,
+void vm_restore_rect(const uint8_t far * buf,
                      int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    /* As in `vm_save_rect`: the normalise is the original's way of
-       reaching a byte `MK_FP` reaches directly. */
-    const uint8_t *blk = MK_FP(buf.seg, buf.off);
+    const uint8_t *blk = buf;
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t bytes, words, mask;
@@ -976,7 +964,7 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
 {
     /* ES:DI, the video destination. A *pair* rather than a pointer because
        `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep theirs. */
+       `guest_mem` - the same reason the planar three keep their video ends. */
     uint16_t base = vga_seg_offset(dst.seg);
     uint16_t di   = dst.off;
     uint8_t  hi   = (uint8_t)((ax & 0xFF) >> 4);
@@ -1083,7 +1071,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 {
     /* ES:DI, the video destination. A *pair* rather than a pointer because
        `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep theirs. */
+       `guest_mem` - the same reason the planar three keep their video ends. */
     uint16_t base = vga_seg_offset(dst.seg);
     uint16_t di   = dst.off;
     uint8_t colour;
@@ -1181,11 +1169,11 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
-                        struct far_ptr src)
+                        const uint8_t far * src)
 {
     uint16_t base  = vga_seg_offset(page_seg);
     uint16_t di    = (uint16_t)(dest_row + (uint16_t)(x >> 3));
-    uint16_t si    = (uint16_t)(src.off + 4 * plane_size);
+    const uint8_t *si = src + 4 * plane_size;       /* the mask */
     uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
     uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */
     uint8_t  mask  = 0;                 /* cs:[0x274] */
@@ -1194,25 +1182,25 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
 
     for (;;) {
         uint16_t col = (uint16_t)*coltab;
-        uint16_t at  = (uint16_t)((col >> 3) + si);
+        const uint8_t *at = si + (col >> 3);
         uint8_t  cl  = (uint8_t)(0x80 >> (col & 7));
         uint8_t  carry;
 
-        if ((FAR8(src.seg, at) & cl) == 0) {            /* not transparent */
+        if ((*at & cl) == 0) {                          /* not transparent */
             mask = (uint8_t)(mask | ch);
 
-            at = (uint16_t)(at - plane_size);
-            if (FAR8(src.seg, at) & cl)
+            at -= plane_size;
+            if (*at & cl)
                 acc32 |= ch;
-            at = (uint16_t)(at - plane_size);
-            if (FAR8(src.seg, at) & cl)
+            at -= plane_size;
+            if (*at & cl)
                 acc32 |= (uint16_t)(ch << 8);
 
-            at = (uint16_t)(at - plane_size);
-            if (FAR8(src.seg, at) & cl)
+            at -= plane_size;
+            if (*at & cl)
                 acc10 |= ch;
-            at = (uint16_t)(at - plane_size);
-            if (FAR8(src.seg, at) & cl)
+            at -= plane_size;
+            if (*at & cl)
                 acc10 |= (uint16_t)(ch << 8);
         }
 
@@ -1309,7 +1297,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
 {
     /* ES:DI, the video destination. A *pair* rather than a pointer because
        `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep theirs. */
+       `guest_mem` - the same reason the planar three keep their video ends. */
     uint16_t base = vga_seg_offset(dst.seg);
     uint16_t di   = dst.off;
     uint16_t byte_col = (uint16_t)(bx >> 3);
@@ -1706,32 +1694,28 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  * the two `rep movsw`. Sixteen colours of three bytes is exactly 48, so the
  * destination holds two identical palettes side by side.
  */
-void vm_load_palette(struct far_ptr pal)
+void vm_load_palette(const uint8_t far * pal)
 {
-    uint16_t di = VMDS.palettes.blocks[0].off;
-    uint16_t es = VMDS.palettes.blocks[0].seg;
-    uint16_t off = pal.off;
+    uint8_t *di = MK_FP(VMDS.palettes.blocks[0].seg,
+                        VMDS.palettes.blocks[0].off);
+    const uint8_t *si = pal;
     int32_t i;
 
-    /* **The guard is on the segment alone**, so this stays a pair. A host
-       pointer cannot answer it: `MK_FP(0, 0x1234)` is not null, and `FP_SEG`
-       of it is 0x123 rather than the 0 the guest holds. */
-    if (pal.seg == 0)
+    /* **The guard is on the segment alone**: `or ax,[bp+8]` with nothing of
+       the offset. Every pair with a zero segment is below linear 0x10000,
+       which is the interrupt table and DOS and never a palette, so the
+       pointer is refused there. */
+    if (FP_LIN(pal) < 0x10000)
         return;
 
-    vm_set_palette(MK_FP(pal.seg, pal.off), 0, 0x10);
+    vm_set_palette(pal, 0, 0x10);
 
-    for (i = 0; i < 0x18; i++) {
-        FARU16(es, di) = FARU16(pal.seg, off);
-        off = (uint16_t)(off + 2);
-        di = (uint16_t)(di + 2);
-    }
-    off = (uint16_t)(off - 0x30);
-    for (i = 0; i < 0x18; i++) {
-        FARU16(es, di) = FARU16(pal.seg, off);
-        off = (uint16_t)(off + 2);
-        di = (uint16_t)(di + 2);
-    }
+    /* Two `rep movsw` of 0x18 words, the source rewound by 0x30 between. */
+    for (i = 0; i < 0x30; i++)
+        *di++ = *si++;
+    si -= 0x30;
+    for (i = 0; i < 0x30; i++)
+        *di++ = *si++;
 }
 /*
  * VM.OVL VGA:0x15d0
@@ -1755,17 +1739,15 @@ void vm_load_palette(struct far_ptr pal)
  * cs:[0x15cc]. The port keeps them in locals, for the reason `vm_blit_bitmap`
  * gives.
  */
-void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
+void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
                   int16_t w, int16_t h)
 {
-    /* The pair is joined at the boundary and the body's own normalise is
-       left as it is: the original splits it into a segment and a
-       four-bit offset so a 16-bit index cannot overflow, which is its
-       arithmetic and not the caller's. */
+    /* The original normalises the source into a segment and a four-bit
+       offset so its 16-bit index cannot overflow - a huge pointer, which
+       the port's is. */
     uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t di = (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3));
-    uint16_t si = (uint16_t)(src.off & 0x0f);
-    uint16_t seg = (uint16_t)((src.off >> 4) + src.seg);
+    const uint8_t *si = src;
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
     uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
     int16_t rows = h;                           /* cs:[0x15ce] */
@@ -1784,9 +1766,8 @@ void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
             pl[0] = pl[1] = pl[2] = pl[3] = 0;
 
             for (k = 0; k < 4; k++) {
-                uint8_t b = FAR8(seg, si);
+                uint8_t b = *si++;
 
-                si++;
                 for (bit = 7; bit >= 0; bit--) {
                     int32_t p = 3 - ((7 - bit) & 3);
 
@@ -1850,20 +1831,20 @@ void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
  */
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    uint16_t seg      = bmp->data.seg;
-    uint16_t src      = bmp->data.off;
-    uint16_t mask_at  = bmp->mask_off;
+    /* The planes and the mask, both in the segment the header names. */
+    const uint8_t *src     = MK_FP(bmp->data.seg, bmp->data.off);
+    const uint8_t *mask_at = MK_FP(bmp->data.seg, bmp->mask_off);
     int16_t  w        = bmp->width;
     int16_t  h        = bmp->height;
 
     uint16_t base     = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
-    uint16_t planestep = (uint16_t)((mask_at - src) >> 2);  /* cs:[0x25d7] */
+    uint16_t planestep = (uint16_t)((uint16_t)(mask_at - src) >> 2);  /* cs:[0x25d7] */
     int16_t  rows     = h;                           /* cs:[0x25dd] */
     uint8_t  cols     = (uint8_t)((w + 7) >> 3);     /* DH */
     uint8_t  edge_right = 0, edge_left = 0;          /* cs:[0x25e2], [0x25e3] */
-    uint16_t si       = src;
-    uint16_t mask_p   = mask_at;                     /* cs:[0x25db] */
+    const uint8_t *si     = src;
+    const uint8_t *mask_p = mask_at;                 /* cs:[0x25db] */
     uint16_t di;
     uint8_t  cl;
     int16_t  plane;
@@ -1875,14 +1856,14 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     if ((mode & 1) != 0) {
         uint16_t n = (uint16_t)((rows - 1) * rowbytes);
 
-        si = (uint16_t)(si + n);
-        mask_p = (uint16_t)(mask_p + n);
+        si += n;
+        mask_p += n;
     }
     if ((mode & 2) != 0) {
         uint16_t n = (uint16_t)(rowbytes - 1);
 
-        si = (uint16_t)(si + n);
-        mask_p = (uint16_t)(mask_p + n);
+        si += n;
+        mask_p += n;
     }
 
     if (VMDS.clip_enabled != 0) {
@@ -1911,8 +1892,8 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             di = (uint16_t)(di + bx);
             if ((mode & 2) != 0)
                 bx = (int16_t)(-bx);
-            si = (uint16_t)(si + bx);
-            mask_p = (uint16_t)(mask_p + bx);
+            si += bx;
+            mask_p += bx;
         }
 
         /* off the bottom */
@@ -1927,7 +1908,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         /* off the top */
         over = (int16_t)(VMDS.clip_top - y);
         if (over >= 0) {
-            uint16_t n;
+            int32_t n;
 
             if (over >= h)
                 goto done;
@@ -1935,9 +1916,9 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             di = (uint16_t)(di + over * 80);
             n = (uint16_t)((uint8_t)over * (uint8_t)rowbytes);
             if ((mode & 1) != 0)
-                n = (uint16_t)(-(int16_t)n);
-            si = (uint16_t)(si + n);
-            mask_p = (uint16_t)(mask_p + n);
+                n = -n;
+            si += n;
+            mask_p += n;
         }
     }
 
@@ -1947,20 +1928,21 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 
     /* ------------------------------------------------ the mask, all planes */
     {
-        uint16_t p = mask_p;
+        const uint8_t *p = mask_p;
         uint16_t d = di;
         int16_t row;
 
         io_out8(PORT_GC_INDEX, 0x08);        /* select the bit mask */
 
         for (row = rows; row != 0; row--) {
-            uint16_t sp = p, dp = d;
+            const uint8_t *sp = p;
+            uint16_t dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint8_t al;
 
             if ((edge_left & 1) != 0) {
-                ah = (uint8_t)~FAR8(seg, (uint16_t)(sp - 1));
+                ah = (uint8_t)~sp[-1];
                 if (ch == 0)
                     goto mask_spill;
             }
@@ -1968,7 +1950,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             while (ch != 0) {
                 uint16_t both;
 
-                al = (uint8_t)~FAR8(seg, sp);
+                al = (uint8_t)~*sp;
                 sp++;
                 both = (uint16_t)((ah << 8) | al);
                 both = (uint16_t)((both >> cl) | (both << (16 - cl)));
@@ -1998,7 +1980,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             }
 
         mask_next:
-            p = (uint16_t)(p + rowbytes);
+            p += rowbytes;
             d = (uint16_t)(d + 0x50);
         }
 
@@ -2010,7 +1992,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 
     /* --------------------------------------------- and then the four planes */
     for (plane = 0; plane < 4; plane++) {
-        uint16_t p = si;
+        const uint8_t *p = si;
         uint16_t d = di;
         int16_t row;
 
@@ -2018,13 +2000,14 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | ((1 << plane) << 8)));
 
         for (row = rows; row != 0; row--) {
-            uint16_t sp = p, dp = d;
+            const uint8_t *sp = p;
+            uint16_t dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint8_t al;
 
             if ((edge_left & 1) != 0) {
-                ah = FAR8(seg, (uint16_t)(sp - 1));
+                ah = sp[-1];
                 if (ch == 0)
                     goto plane_spill;
             }
@@ -2032,7 +2015,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             while (ch != 0) {
                 uint16_t both;
 
-                al = FAR8(seg, sp);
+                al = *sp;
                 sp++;
                 both = (uint16_t)((ah << 8) | al);
                 both = (uint16_t)((both >> cl) | (both << (16 - cl)));
@@ -2060,11 +2043,11 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             }
 
         plane_next:
-            p = (uint16_t)(p + rowbytes);
+            p += rowbytes;
             d = (uint16_t)(d + 0x50);
         }
 
-        si = (uint16_t)(si + planestep);
+        si += planestep;
     }
 
     /*
@@ -2124,8 +2107,8 @@ done:
  */
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 {
-    uint16_t seg       = (uint16_t)bmp->data.seg;               /* [bp-0xa] -> cs:[0x2ae1] */
-    uint16_t si        = (uint16_t)bmp->data.off;               /* [bp-8] */
+    /* [bp-0xa] -> cs:[0x2ae1] and [bp-8], the header's pair */
+    const uint8_t *si  = MK_FP(bmp->data.seg, bmp->data.off);
     int16_t  w         = bmp->width;                            /* [bp-4] */
     int16_t  h         = bmp->height;                           /* [bp-2] */
     uint16_t base      = vga_seg_offset((uint16_t)VMDS.page_dst_ptr);
@@ -2169,7 +2152,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
             bx = (uint16_t)((uint16_t)(-(uint16_t)a + 7) >> 3);
             cols = (uint8_t)(cols - (uint8_t)bx);
             di = (uint16_t)(di + bx);
-            si = (uint16_t)(si + bx);
+            si += bx;
         }
 
         /* off the bottom */
@@ -2187,7 +2170,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
                 goto done;
             rows = (uint8_t)(rows - (uint8_t)a);
             di = (uint16_t)(di + (uint16_t)a * 40u);            /* a*8 + a*32 */
-            si = (uint16_t)(si + (uint16_t)((uint8_t)a * (uint8_t)rowbytes));
+            si += (uint16_t)((uint8_t)a * (uint8_t)rowbytes);
         }
     }
 
@@ -2237,27 +2220,27 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 
     /* --------------------------------------------------- one pass a plane */
     for (plane = 0; plane < 4; plane++) {
-        uint16_t s0 = si;
+        const uint8_t *s0 = si;
         uint16_t d = di;
         uint16_t count = rows;                                  /* BP */
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(((uint16_t)1 << plane) << 8 | 0x02));
 
         do {
-            uint16_t s = s0;
+            const uint8_t *s = s0;
             uint16_t dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint32_t both;
 
             if (edge_left != 0) {
-                ah = FAR8(seg, (uint16_t)(s - 1));
+                ah = s[-1];
                 if (ch == 0)
                     goto spill;
             }
 
             do {
-                both = (uint32_t)((uint16_t)(ah << 8) | FAR8(seg, s));
+                both = (uint32_t)((uint16_t)(ah << 8) | *s);
                 s++;
                 both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
                 (void)vga_read((uint16_t)(base + dp));
@@ -2274,11 +2257,11 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
             (void)vga_read((uint16_t)(base + dp));
             vga_write((uint16_t)(base + dp), (uint8_t)both);
         next:
-            s0 = (uint16_t)(s0 + rowbytes);
+            s0 += rowbytes;
             d = (uint16_t)(d + 0x50);
         } while (--count != 0);
 
-        si = (uint16_t)(si + planestep);
+        si += planestep;
     }
 
 done:
