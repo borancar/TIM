@@ -191,6 +191,20 @@ def dgo(lib, p):
             - ctypes.c_uint32.in_dll(lib, "dgroup_base").value) & 0xFFFF
 
 
+def dgh(lib, off):
+    """A DGROUP offset as a **handle** - a part, a belt, a rope.
+
+    `dgp` answers NULL for offset 0 because an out-parameter tested with
+    `if (out != NULL)` needs it. A handle is the opposite: the port marks "no
+    part" with `PART_NONE`, which is `dgroup + 0`, never NULL, exactly as the
+    original's 0 addresses DS:0. So offset 0 stays DGROUP:0 here - the same
+    thing the hybrid's `anearptr` hands the port.
+    """
+    base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return ctypes.c_void_p(base + ctypes.c_uint32.in_dll(lib, "dgroup_base").value
+                           + (off & 0xFFFF))
+
+
 def dgp(lib, off):
     """A DGROUP offset as the host pointer the port now takes.
 
@@ -263,7 +277,7 @@ ROUTINES = {
         addr=0x042A2,
         args=[("exclude", 4), ("part", 6)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.part_under_pointer(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.part_under_pointer(dgh(lib, a[0]),
                                                    dgp(lib, a[1])),
     ),
     # The parts bin's two scroll arrows, and the search behind one of them.

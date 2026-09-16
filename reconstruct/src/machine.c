@@ -5590,19 +5590,19 @@ void reverse_link_ends(struct belt *rec)
  * +0x58 decides between +0x58 and a flat 0xa, so a short part gets a taller
  * grab area than its own half-height. Transcribed as the branch it is.
  */
-uint16_t part_under_pointer(uint16_t exclude, struct part *part)
+uint16_t part_under_pointer(struct part *exclude, struct part *part)
 {
     uint16_t px = ((uint16_t)DG5768.pointer_x), py = ((uint16_t)DG5768.pointer_y);
     uint16_t ox = (uint16_t)(((uint16_t)part->box[0].x) - ((uint16_t)DG4E67.origin_x));
     uint16_t oy = (uint16_t)(((uint16_t)part->box[0].y) - ((uint16_t)DG4E67.origin_y));
     uint16_t x0, y0, x1, y1;
     struct rope *link = ROPE_PTR(part->rope_ptr);
-    uint16_t link_end = link != ROPE_NONE ? link->owner_ptr : 0;
-    uint16_t e0 = part->belt_ptr[0];
-    uint16_t e0_part = e0 ? BELT_PTR(e0)->owner_ptr : 0;
-    uint16_t e1 = part->belt_ptr[1];
-    uint16_t e1_part = e1 ? BELT_PTR(e1)->owner_ptr : 0;
-    uint16_t cur;
+    struct part *link_end = link != ROPE_NONE ? PART_PTR(link->owner_ptr) : PART_NONE;
+    struct belt *e0 = BELT_PTR(part->belt_ptr[0]);
+    struct part *e0_part = e0 != BELT_NONE ? PART_PTR(e0->owner_ptr) : PART_NONE;
+    struct belt *e1 = BELT_PTR(part->belt_ptr[1]);
+    struct part *e1_part = e1 != BELT_NONE ? PART_PTR(e1->owner_ptr) : PART_NONE;
+    struct belt *cur;
     int16_t i;
 
     x0 = ox;
@@ -5610,8 +5610,8 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
     x1 = (uint16_t)(x0 + ((uint16_t)part->size[0].width));
     y1 = (uint16_t)(y0 + ((uint16_t)part->size[0].height));
 
-    if (exclude != 0
-        && (exclude == dg_off(dgroup, part) || exclude == link_end
+    if (exclude != PART_NONE
+        && (exclude == part || exclude == link_end
             || exclude == e0_part || exclude == e1_part)) {
         x0 = (uint16_t)(x0 - 0xb);
         y0 = (uint16_t)(y0 - 0xb);
@@ -5632,14 +5632,14 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
              ? (uint16_t)(y0 + 0xa)
              : (uint16_t)(y0 + part->word_58);
 
-        if (link->owner_ptr == exclude) {
+        if (PART_PTR(link->owner_ptr) == exclude) {
             x0 = (uint16_t)(x0 - 0xb);
             y0 = (uint16_t)(y0 - 0xb);
         }
 
         if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
             && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-            if (link->end_a_ptr == dg_off(dgroup, part)) {
+            if (PART_PTR(link->end_a_ptr) == part) {
                 link->end_a_ptr = link->end_b_ptr;
                 link->end_b_ptr = dg_off(dgroup, part);
             }
@@ -5649,23 +5649,23 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
 
     cur = e0;
     for (i = 0; i < 2; i++) {
-        if (cur != 0 && DG4E67.word_4e69 != 9
+        if (cur != BELT_NONE && DG4E67.word_4e69 != 9
             && part->kind != KIND_PULLEY) {
             x0 = (uint16_t)(ox + part->attach[i].x - 8);
             y0 = (uint16_t)(oy + part->attach[i].y - 4);
             x1 = (uint16_t)(x0 + 0x10);
             y1 = (uint16_t)(y0 + 8);
 
-            if (BELT_PTR(cur)->owner_ptr == exclude) {
+            if (PART_PTR(cur->owner_ptr) == exclude) {
                 x0 = (uint16_t)(x0 - 0xb);
                 y0 = (uint16_t)(y0 - 0xb);
             }
 
             if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
                 && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-                if (BELT_PTR(cur)->end_a_ptr == dg_off(dgroup, part))
-                    reverse_link_ends(BELT_PTR(cur));
-                return BELT_PTR(cur)->owner_ptr;
+                if (PART_PTR(cur->end_a_ptr) == part)
+                    reverse_link_ends(cur);
+                return cur->owner_ptr;
             }
         }
         cur = e1;
@@ -5701,12 +5701,12 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
  */
 uint16_t find_part_from(uint16_t rec)
 {
-    uint16_t di = rec;
+    struct part *di = PART_PTR(rec);
     uint16_t si, best;
     struct part *cur;
 
-    if (di != 0) {
-        si = part_under_pointer(di, PART_PTR(di));
+    if (di != PART_NONE) {
+        si = part_under_pointer(di, di);
         if (si != 0)
             return si;
     }
@@ -5718,9 +5718,9 @@ uint16_t find_part_from(uint16_t rec)
         si = part_under_pointer(di, cur);
 
         if (PART_PTR(si) == cur && (cur->flags_06 & 0x8000) != 0
-            && di != 0) {
+            && di != PART_NONE) {
             si = 0;
-        } else if ((PART_PTR(si)->flags_06 & 0x8000) != 0 && di != 0) {
+        } else if ((PART_PTR(si)->flags_06 & 0x8000) != 0 && di != PART_NONE) {
             si = 0;
         }
 
@@ -5741,7 +5741,7 @@ uint16_t find_part_from(uint16_t rec)
         && PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE)
         return 0;
 
-    return di;
+    return dg_off(dgroup, di);
 }
 
 /*
