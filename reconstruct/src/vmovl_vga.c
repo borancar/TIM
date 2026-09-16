@@ -26,6 +26,14 @@
 #include "dgroup.h"
 
 /*
+ * OURS: **the start of the VGA aperture**, A000:0000. Video memory is not kept
+ * in `guest_mem` - the planes are behind `vga_read` and `vga_write`, which take
+ * the offset the card decodes - so a pointer into the aperture is only ever
+ * subtracted from this, never read through.
+ */
+static const uint8_t *const vga_aperture = guest_mem + 0xA0000;
+
+/*
  * The driver's own data segment, which it loads from `cs:[0x13a]`. These are
  * NOT DGROUP - the driver is a separate module with its own data - so they are
  * named by their offset within it.
@@ -412,7 +420,7 @@ void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
     uint32_t quads = count >> 2;
     uint16_t di = 0;
 
-    vm_chunky_to_planar(at, (struct far_ptr){ 0, 0xa6d6 }, (uint16_t)quads);
+    vm_chunky_to_planar(at, MK_FP(0xa6d6, 0), (uint16_t)quads);
 
     for (;;) {
         struct bitmap *si = BMP_PTR(*list);
@@ -429,9 +437,8 @@ void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
         /* The mask is kept as an offset in the planes' own segment. */
         si->mask_off = (uint16_t)(FP_OFF(at) + size * 4);
 
-        vm_read_four_planes((struct far_ptr){ di, 0xa6d6 }, at, size);
-        vm_build_mask_plane((struct far_ptr){ di, 0xa6d6 }, at + size * 4,
-                            size);
+        vm_read_four_planes(MK_FP(0xa6d6, di), at, size);
+        vm_build_mask_plane(MK_FP(0xa6d6, di), at + size * 4, size);
 
         di = (uint16_t)(di + size);
 
@@ -462,17 +469,16 @@ void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
  * The plane is chosen by writing 1, 2, 4 and 8 straight to the sequencer's data
  * port, the map-mask index having been left selected on the way in.
  */
-void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
+void vm_chunky_to_planar(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count)
 {
     /* `src` is huge, and a pointer steps it the way the carry into the
        segment does: the one case they part is an offset that wraps on the
        *first* `lodsw` of a pass, which the original does not catch and
        which a source starting a segment - every caller's - cannot reach.
-       `dst` is a *video* address, which `vga_seg_offset` resolves into video
-       memory rather than `guest_mem`, so it stays the pair. */
+       `dst` is in the video aperture. */
     const uint8_t *si = src;
-    uint16_t di = (uint16_t)(vga_seg_offset(dst.seg) + dst.off);
+    uint8_t *di = dst;
     uint16_t n = count;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -514,7 +520,7 @@ void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
 
         for (k = 0; k < 4; k++) {
             io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
-            vga_write(di, pl[k]);
+            vga_write((uint16_t)(di - vga_aperture), pl[k]);
         }
 
         di++;
@@ -533,11 +539,10 @@ void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
  * around every `rep movsb` so all four passes read the same bytes; only the
  * destination advances.
  */
-void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
+void vm_read_four_planes(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count)
 {
-    /* `src` is a video address, `dst` a block in guest memory. */
-    uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
+    /* `src` is in the video aperture, `dst` a block in guest memory. */
     int32_t plane;
 
     for (plane = 0; plane < 4; plane++) {
@@ -546,7 +551,7 @@ void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
 
         for (k = 0; k < count; k++)
-            dst[k] = vga_read((uint16_t)(at + k));
+            dst[k] = vga_read((uint16_t)(src + k - vga_aperture));
 
         dst += count;
     }
@@ -564,12 +569,11 @@ void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
  * after that, which is why the plane numbers go out as bytes rather than as the
  * usual index-and-data word.
  */
-void vm_build_mask_plane(struct far_ptr src, uint8_t far * dst,
+void vm_build_mask_plane(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count)
 {
-    /* `src` is a video address, `dst` a block in guest memory. */
-    uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
-    uint16_t si = 0;
+    /* `src` is in the video aperture, `dst` a block in guest memory. */
+    const uint8_t *si = src;
     uint16_t n = count;
 
     io_out16(PORT_GC_INDEX, 0x0004);      /* read map select, plane 0 */
@@ -579,11 +583,11 @@ void vm_build_mask_plane(struct far_ptr src, uint8_t far * dst,
         int32_t plane;
 
         io_out8(PORT_GC_DATA, 0);
-        any = vga_read((uint16_t)(at + si));
+        any = vga_read((uint16_t)(si - vga_aperture));
 
         for (plane = 1; plane < 4; plane++) {
             io_out8(PORT_GC_DATA, (uint8_t)plane);
-            any |= vga_read((uint16_t)(at + si));
+            any |= vga_read((uint16_t)(si - vga_aperture));
         }
 
         *dst++ = (uint8_t)~any;
@@ -960,20 +964,17 @@ static const uint8_t MASK_RIGHT[8] = {
  * The masks are the same two tables `vm_span` uses, at VGA:0x254 and VGA:0x25c.
  */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
-                      struct far_ptr dst)
+                      uint8_t far * dst)
 {
-    /* ES:DI, the video destination. A *pair* rather than a pointer because
-       `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep their video ends. */
-    uint16_t base = vga_seg_offset(dst.seg);
-    uint16_t di   = dst.off;
+    /* ES:DI, the row in the video aperture. */
     uint8_t  hi   = (uint8_t)((ax & 0xFF) >> 4);
     uint8_t  lo   = (uint8_t)(ax & 0x0F);
     uint8_t  first, second;
-    uint16_t at;
+    uint8_t *at;
 
-    /* The row's parity decides which of the two goes first. */
-    if (di & 1) {
+    /* The row's parity decides which of the two goes first: `test di,1`,
+       and a segment is sixteen bytes, so the address's parity is DI's. */
+    if (((dst - vga_aperture) & 1) != 0) {
         first  = lo;
         second = hi;
     } else {
@@ -981,19 +982,19 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
         second = lo;
     }
 
-    at = (uint16_t)(di + (bx >> 3));
+    at = dst + (bx >> 3);
     bx &= 7;
 
     if ((uint16_t)(bx + cx) < 8) {
         uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), first);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), first);
 
         io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), second);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), second);
         return;
     }
 
@@ -1005,24 +1006,24 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
         cx = (int16_t)(cx - lead);
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), first);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), first);
 
         io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), second);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), second);
         at++;
 
         whole = (int16_t)((uint16_t)cx >> 3);
 
         if (whole != 0) {
             io_out8(PORT_GC_DATA, 0xAA);
-            vga_write((uint16_t)(base + at), first);
+            vga_write((uint16_t)(at - vga_aperture), first);
             io_out8(PORT_GC_DATA, 0x55);
-            (void)vga_read((uint16_t)(base + at));
+            (void)vga_read((uint16_t)(at - vga_aperture));
 
             while (whole-- > 0) {
-                vga_write((uint16_t)(base + at), second);
+                vga_write((uint16_t)(at - vga_aperture), second);
                 at++;
             }
         }
@@ -1034,12 +1035,12 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
         mask = MASK_RIGHT[bx];
 
         io_out8(PORT_GC_DATA, (uint8_t)(mask & 0xAA));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), first);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), first);
 
         io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
-        (void)vga_read((uint16_t)(base + at));
-        vga_write((uint16_t)(base + at), second);
+        (void)vga_read((uint16_t)(at - vga_aperture));
+        vga_write((uint16_t)(at - vga_aperture), second);
     }
 }
 
@@ -1067,13 +1068,10 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
  * restore it and neither does this.
  */
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
-             struct far_ptr dst)
+             uint8_t far * dst)
 {
-    /* ES:DI, the video destination. A *pair* rather than a pointer because
-       `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep their video ends. */
-    uint16_t base = vga_seg_offset(dst.seg);
-    uint16_t di   = dst.off;
+    /* ES:DI, the row in the video aperture. */
+    uint8_t *di = dst;
     uint8_t colour;
 
     if (cx <= 0)
@@ -1083,23 +1081,23 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
         return;
     }
 
-    di = (uint16_t)(di + (bx >> 3));
+    di += bx >> 3;
     bx &= 7;
     colour = (uint8_t)(ax & 0xFF);
 
     if ((uint16_t)(bx + cx) < 8) {
         uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
         io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
-        vga_read((uint16_t)(base + di));
-        vga_write((uint16_t)(base + di), colour);
+        vga_read((uint16_t)(di - vga_aperture));
+        vga_write((uint16_t)(di - vga_aperture), colour);
         return;
     }
 
     /* The first, partial byte. */
     cx = (int16_t)(cx - (int16_t)(8 - bx));
     io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (MASK_LEFT[bx] << 8)));
-    vga_read((uint16_t)(base + di));
-    vga_write((uint16_t)(base + di), colour);
+    vga_read((uint16_t)(di - vga_aperture));
+    vga_write((uint16_t)(di - vga_aperture), colour);
     di++;
 
     /* The whole bytes between the two edges. */
@@ -1109,8 +1107,8 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
         whole >>= 3;
         io_out16(PORT_GC_INDEX, 0xFF08);
         while (whole--) {
-            vga_read((uint16_t)(base + di));
-            vga_write((uint16_t)(base + di), colour);
+            vga_read((uint16_t)(di - vga_aperture));
+            vga_write((uint16_t)(di - vga_aperture), colour);
             di++;
         }
     }
@@ -1119,8 +1117,8 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
     if (remaining & 7) {
         io_out16(PORT_GC_INDEX,
                  (uint16_t)(0x08 | (MASK_RIGHT[remaining & 7] << 8)));
-        vga_read((uint16_t)(base + di));
-        vga_write((uint16_t)(base + di), colour);
+        vga_read((uint16_t)(di - vga_aperture));
+        vga_write((uint16_t)(di - vga_aperture), colour);
     }
 }
 
@@ -1293,31 +1291,25 @@ static const uint8_t BIT_MASK[8] = {
  * transcribed as written.
  */
 void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
-                 struct far_ptr dst, int32_t backwards)
+                 uint8_t far * dst, int32_t backwards)
 {
-    /* ES:DI, the video destination. A *pair* rather than a pointer because
-       `vga_seg_offset` resolves it into video memory, which is not inside
-       `guest_mem` - the same reason the planar three keep their video ends. */
-    uint16_t base = vga_seg_offset(dst.seg);
-    uint16_t di   = dst.off;
-    uint16_t byte_col = (uint16_t)(bx >> 3);
+    /* ES:DI, the row in the video aperture. */
+    uint8_t *di = dst + (bx >> 3);
     uint8_t mask = BIT_MASK[bx & 7];
-
-    di = (uint16_t)(di + byte_col);
 
     io_out8(PORT_GC_INDEX, 0x08);
     do {
         io_out8(PORT_GC_DATA, mask);
-        vga_read((uint16_t)(base + di));
-        vga_write((uint16_t)(base + di), *src++);
+        vga_read((uint16_t)(di - vga_aperture));
+        vga_write((uint16_t)(di - vga_aperture), *src++);
         if (!backwards) {
             uint8_t carry = (uint8_t)(mask & 1);
             mask = (uint8_t)((mask >> 1) | (mask << 7));
-            di = (uint16_t)(di + carry);
+            di += carry;
         } else {
             uint8_t carry = (uint8_t)((mask >> 7) & 1);
             mask = (uint8_t)((mask << 1) | (mask >> 7));
-            di = (uint16_t)(di - carry);
+            di -= carry;
         }
     } while (--cx);
 }

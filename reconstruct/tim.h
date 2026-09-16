@@ -165,11 +165,11 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 /* Chunky 4bpp to planar, through video memory, filling a list of headers. */
 void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst,
                          uint32_t count);                       /* VGA:0x1015 */
-void vm_chunky_to_planar(const uint8_t far * src, struct far_ptr dst,
+void vm_chunky_to_planar(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x10b8 */
-void vm_read_four_planes(struct far_ptr src, uint8_t far * dst,
+void vm_read_four_planes(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x11bb */
-void vm_build_mask_plane(struct far_ptr src, uint8_t far * dst,
+void vm_build_mask_plane(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
@@ -1684,7 +1684,7 @@ void vm_copy_rect(uint16_t x, uint16_t y,
 
 /* Fill a run of pixels on one scan line. Register arguments; see the source. */
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
-             struct far_ptr dst);                    /* VM.OVL VGA:0x034f */
+             uint8_t far * dst);                    /* VM.OVL VGA:0x034f */
 
 /* One row of a scaled bitmap, from the column table. Register arguments. */
 void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
@@ -1694,7 +1694,7 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
 
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
 void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
-                 struct far_ptr dst,
+                 uint8_t far * dst,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
 /* Fill a list of horizontal spans with one colour. */
@@ -1705,7 +1705,7 @@ void vm_load_palette(const uint8_t far * pal);           /* VM.OVL VGA:0x0f15 */
 
 /* Load colours into the DAC. */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
-                      struct far_ptr dst);            /* VGA:0x27a */
+                      uint8_t far * dst);            /* VGA:0x27a */
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,

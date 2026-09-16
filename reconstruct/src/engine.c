@@ -3220,7 +3220,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                 }
 
                 vm_blit_run((uint16_t)x, vn, vp,
-                            (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage }, 1);
+                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 1);
                 goto advance;
             }
 
@@ -3254,7 +3254,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             }
 
             vm_blit_run((uint16_t)x, vn, vp,
-                        (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage }, 0);
+                        MK_FP((uint16_t)vpage, (uint16_t)vrow), 0);
             goto advance;
         }
 
@@ -3294,7 +3294,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
             vm_span((uint16_t)(uint8_t)(vbase + vb2),
                     (uint16_t)(x - vop + 1), vop,
-                    (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
+                    MK_FP((uint16_t)vpage, (uint16_t)vrow));
             goto advance;
         }
 
@@ -3328,7 +3328,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
         vm_span((uint16_t)(uint8_t)(vb2 + vbase),
                 (uint16_t)x, vop,
-                (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
+                MK_FP((uint16_t)vpage, (uint16_t)vrow));
 
     advance:
         x = vx2;
@@ -7857,8 +7857,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
                             vp,
-                            (struct far_ptr){ (uint16_t)vrow,
-                                              (uint16_t)vpage }, 1);
+                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 1);
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7884,8 +7883,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
                             vp,
-                            (struct far_ptr){ (uint16_t)vrow,
-                                              (uint16_t)vpage }, 0);
+                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 0);
             }
 
 next_run:
@@ -7926,7 +7924,7 @@ next_run:
 
                 vm_span((uint16_t)(uint8_t)(vbase + vcolour),
                         (uint16_t)(x - vn + 1), vn,
-                        (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
+                        MK_FP((uint16_t)vpage, (uint16_t)vrow));
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7951,7 +7949,7 @@ next_run:
 
                 vm_span((uint16_t)(uint8_t)(vcolour + vbase),
                         (uint16_t)x, vn,
-                (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
+                MK_FP((uint16_t)vpage, (uint16_t)vrow));
             }
 
 next_solid:

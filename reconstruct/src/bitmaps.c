@@ -1380,7 +1380,7 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         rows = h;                                     /* si */
         do {
             vm_span((uint16_t)((colour << 8) | colour), x, (int16_t)w,
-                    (struct far_ptr){ row, (uint16_t)VMDS.page_dst_ptr });
+                    MK_FP((uint16_t)VMDS.page_dst_ptr, row));
             row = (uint16_t)(row + 0x50);
         } while (--rows != 0);
         return;

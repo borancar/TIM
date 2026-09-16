@@ -3368,10 +3368,8 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
-        # The destination is a *video* address - `vga_seg_offset` turns it
-        # into an offset into video memory - so it stays a pair.
         call=lambda lib, a: lib.vm_chunky_to_planar(
-            farp(lib, a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
+            farp(lib, a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_read_four_planes": dict(
         overlay=0x11BB,
@@ -3380,10 +3378,8 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
-        # The source is a *video* address - `vga_seg_offset` turns it into
-        # an offset into video memory - so it stays a pair.
         call=lambda lib, a: lib.vm_read_four_planes(
-            FarPtr(a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
+            farp(lib, a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_build_mask_plane": dict(
         overlay=0x11EE,
@@ -3392,10 +3388,8 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
-        # The source is a *video* address - `vga_seg_offset` turns it into
-        # an offset into video memory - so it stays a pair.
         call=lambda lib, a: lib.vm_build_mask_plane(
-            FarPtr(a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
+            farp(lib, a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_bitmap_list_size": dict(
         overlay=0x0FD4,
@@ -3440,7 +3434,7 @@ ROUTINES = {
                                         ctypes.c_uint16(a[1]),
                                         ctypes.c_int16(a[2] if a[2] < 0x8000
                                                        else a[2] - 0x10000),
-                                        FarPtr(a[4], a[3])),
+                                        farp(lib, a[4], a[3])),
     ),
     "vm_blit_run": dict(
         overlay=0x0938,
@@ -3455,11 +3449,10 @@ ROUTINES = {
         # flag of every call.
         check_occurrences=[0, 2, 19, 3359, 3360],
         budget=140_000_000,
-        # ES:DI is the video destination, which `vga_seg_offset` resolves -
-        # a pair, not a pointer into guest memory.
+        # ES:DI is the row in the video aperture.
         call=lambda lib, a: lib.vm_blit_run(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), a[5],
-            FarPtr(a[3], a[2]), ctypes.c_int32(a[4] & 1)),
+            farp(lib, a[3], a[2]), ctypes.c_int32(a[4] & 1)),
     ),
     "vm_fill_spans": dict(
         overlay=0x0be6,
