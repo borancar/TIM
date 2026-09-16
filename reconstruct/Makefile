@@ -298,6 +298,16 @@ test: devtim tim debug
 	@cd .. && uv run python tools/verify.py --list > /dev/null || { \
 	    echo "FAIL: tools/verify.py does not run"; exit 1; }
 	@echo "the verifier loads and its spec table parses"
+	@# **A typed handle is never NULL.** `PART_PTR(0)` is DGROUP:0, so `if (p)`,
+	@# `p ? :`, `!p` and `p &&` on a handle are always true where the original
+	@# tested an offset against 0 - and the compiler accepts them. One landed
+	@# in e8045fc past every screen and solution check; see docs/lessons.md.
+	@# It goes *before* the solutions step, because that step exits the target
+	@# when there are no snapshots and everything after it is skipped.
+	@cd .. && uv run python tools/check_handles.py > /dev/null || { \
+	    uv run python tools/check_handles.py; \
+	    echo "FAIL: a typed handle is used as a boolean - run tools/check_handles.py"; exit 1; }
+	@echo "no typed handle is used as a boolean"
 	@# **Every solution, simulated.** `TIM_SIMULATE` runs each restored
 	@# machine through the game's own per-frame step with no clock, input
 	@# or display, and the goal test is the verdict: 34 levels in about a
