@@ -674,7 +674,7 @@ struct bmp_set *load_bitmaps(char *name)
     goto loaded;
 
 planar:
-    list_at = load_bitmap_list((char *)di)->bmp;
+    list_at = load_bitmap_list((char *)di)->bmp_ptr;
 
 loaded:
     count_at = count_list(list_at);

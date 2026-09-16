@@ -39,21 +39,14 @@
  */
 uint8_t * heap_malloc_far(uint16_t bytes)
 {
-    uint16_t p = heap_malloc(bytes);
-
     /*
      * **The `far` is the call, not the pointer.** 0x0bb1e is a thunk - one
      * word pushed, `push cs`, a near call to `heap_malloc`, `retf` - and
      * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a near
-     * heap block is one 16-bit DGROUP offset, which is what makes it a
-     * `volatile uint8_t *` and not a `volatile uint8_t far *`. The verifier says the same from outside:
-     * the original answers 0x6a60 here, and the port matches over five calls
-     * once `dgo` puts the pointer back into an offset.
-     *
-     * 0 means "no room", and NULL is the pointer spelling of it - see the
-     * note on `dg_near` in dgroup.h for why 0 is the one number that can.
+     * heap block is one 16-bit DGROUP offset, which `heap_malloc` answers as
+     * the pointer it is, NULL for the original's 0.
      */
-    return p ? dg_ptr(dgroup, p) : NULL;
+    return heap_malloc(bytes);
 }
 
 
@@ -66,7 +59,7 @@ uint8_t * heap_malloc_far(uint16_t bytes)
  */
 void heap_free_far(uint8_t * p)
 {
-    heap_free(dg_near(dgroup, p));
+    heap_free(p);
 }
 
 /*
@@ -112,7 +105,7 @@ char *string_chr_far(char *s, uint16_t c)
  * The far-callable face of `calloc`: it takes the two words off the stack and
  * hands them straight on. Four instructions and a `retf`.
  */
-uint16_t heap_calloc_far(uint16_t count, uint16_t size)
+uint8_t *heap_calloc_far(uint16_t count, uint16_t size)
 {
     return heap_calloc(count, size);
 }

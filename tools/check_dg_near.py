@@ -15,7 +15,8 @@ where it is read.
 So, over a tree-sitter parse of the port's sources, a `dg_near` call must be the
 **whole right-hand side of an assignment to a struct field** - `x.f = ...` or
 `x->f = ...`, through any subscripts - and that field must be named `..._ptr`
-and declared `dg_near_t`, the type that says "a near pointer" (see dgroup.h).
+and declared `dg_near_t`, the type that says "a near pointer" (see dgroup.h),
+or a typedef of it such as `bmp_ptr_t`.
 A cast around the call is refused: a field of the right type needs none.
 
 This file is the port's own tooling; it is not a transcription. GPL-2.0.
@@ -69,6 +70,23 @@ def field_types(paths):
                 if ids:
                     types[text(src, ids[0])].add(text(src, t))
     return types
+
+
+def near_aliases(paths):
+    """typedef name -> dg_near_t, for every `typedef dg_near_t name;` - a
+    `bmp_ptr_t` field is a near pointer that says what it points at."""
+    out = {}
+    for path in paths:
+        src = open(path, "rb").read()
+        for n in walk(PARSER.parse(src).root_node):
+            if n.type != "type_definition":
+                continue
+            t = n.child_by_field_name("type")
+            d = n.child_by_field_name("declarator")
+            if t is not None and d is not None and d.type == "type_identifier" \
+                    and text(src, t) == "dg_near_t":
+                out[text(src, d)] = "dg_near_t"
+    return out
 
 
 def assigned_field(src, call):
@@ -129,6 +147,7 @@ def main():
     if not sources:
         sys.exit("check_dg_near: no sources found under reconstruct/")
     types = field_types(sources + headers)
+    aliases = near_aliases(sources + headers)
 
     bad = []
     for path in sources:
@@ -149,7 +168,7 @@ def main():
             if not field.endswith("_ptr"):
                 bad.append((where, line, f"stored into `{field}`, not a `_ptr` field",
                             text(src, n.parent)))
-            elif declared != {"dg_near_t"}:
+            elif {aliases.get(t, t) for t in declared} != {"dg_near_t"}:
                 bad.append((where, line,
                             f"stored into `{field}`, declared "
                             + (" / ".join(sorted(declared)) or "nowhere"),

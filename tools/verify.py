@@ -1192,7 +1192,7 @@ ROUTINES = {
         args=[("file", 4), ("buf", 6)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.borland_setbuf(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.borland_setbuf(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "set_holiday_flags": dict(
         addr=0x08259,
@@ -1417,21 +1417,22 @@ ROUTINES = {
         args=[("dst", 4), ("count", 6), ("value", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.near_memset(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.near_memset(dgp(lib, a[0]), ctypes.c_uint16(a[1]),
+                                           ctypes.c_uint16(a[2])),
     ),
     "heap_calloc": dict(
         addr=0x0C833,
         args=[("count", 4), ("size", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_calloc(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.heap_calloc(*[ctypes.c_uint16(v) for v in a])),
     ),
     "heap_calloc_far": dict(
         addr=0x0BB75,
         args=[("count", 4), ("size", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_calloc_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.heap_calloc_far(*[ctypes.c_uint16(v) for v in a])),
     ),
     "huge_add_to": dict(
         addr=0x0BE82,
@@ -1799,7 +1800,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.borland_setvbuf(
-            dgp(lib, a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
     ),
     "borland_fopen_into": dict(
@@ -3330,7 +3331,8 @@ ROUTINES = {
         args=[("data_delta", 4), ("params", 6), ("ds", 8)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.vm_driver_init(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.vm_driver_init(dgh(lib, a[0]), dgp(lib, a[1]),
+                                               ctypes.c_uint16(a[2])),
     ),
     "vm_reset_attributes": dict(
         overlay=0x011D,
@@ -4416,7 +4418,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 1, 2],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.clone_part(dgh(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.clone_part(dgh(lib, a[0]))),
     ),
     "angle_between_centres": dict(
         addr=0x03DA5,
@@ -4770,7 +4772,7 @@ ROUTINES = {
         regs=["bx"],
         near=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_ring_unlink(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_ring_unlink(dgh(lib, a[0])),
     ),
     "heap_ring_insert": dict(
         addr=0x0C976,
@@ -4778,7 +4780,7 @@ ROUTINES = {
         regs=["bx"],
         near=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_ring_insert(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_ring_insert(dgh(lib, a[0])),
     ),
     "heap_free_top": dict(
         addr=0x0C8E7,
@@ -4786,7 +4788,7 @@ ROUTINES = {
         regs=["bx"],
         near=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_free_top(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_free_top(dgh(lib, a[0])),
     ),
     "heap_free_middle": dict(
         addr=0x0C921,
@@ -4794,7 +4796,7 @@ ROUTINES = {
         regs=["bx"],
         near=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_free_middle(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_free_middle(dgh(lib, a[0])),
     ),
     "brk_set": dict(
         addr=0x0C7C4,
@@ -4802,7 +4804,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.brk_set(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.brk_set(dgh(lib, a[0])),
     ),
     "heap_sbrk": dict(
         addr=0x0C7E6,
@@ -4810,7 +4812,9 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_sbrk(*[ctypes.c_uint16(v) for v in a]),
+        # the port answers NULL where the original answers -1
+        call=lambda lib, a: (lambda p: 0xFFFF if not p else dgo(lib, p))(
+            lib.heap_sbrk(*[ctypes.c_uint16(v) for v in a])),
     ),
     # Occurrence 0 only: the heap is initialised **once**, at startup, and
     # asking for a second call reports NOT VERIFIED for a routine that agreed
@@ -4822,7 +4826,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.heap_init(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.heap_init(ctypes.c_uint16(a[0]))),
     ),
     "heap_grow": dict(
         addr=0x0CA39,
@@ -4831,7 +4835,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_grow(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.heap_grow(ctypes.c_uint16(a[0]))),
     ),
     "heap_split": dict(
         addr=0x0CA62,
@@ -4840,7 +4844,8 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_split(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.heap_split(dgh(lib, a[0]),
+                                                   ctypes.c_uint16(a[1]))),
     ),
     "heap_check": dict(
         addr=0x0CB45,
@@ -5147,7 +5152,7 @@ ROUTINES = {
         args=[("n", 4)],
         returns=True,
         check_occurrences=list(range(40)),
-        call=lambda lib, a: lib.make_part(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.make_part(ctypes.c_uint16(a[0]))),
     ),
     # Eight arguments in fourteen contiguous slots, bp+6 through bp+0x20 with
     # no gaps - every one of them touched, which is what makes the layout a
@@ -5203,7 +5208,7 @@ ROUTINES = {
         addr=0x095CF,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.game_setbuf(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.game_setbuf(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "restart_resource_stream": dict(
         addr=0x1DAE6,
@@ -5298,13 +5303,13 @@ ROUTINES = {
         args=[("want", 4)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.heap_malloc(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.heap_malloc(ctypes.c_uint16(a[0]))),
     ),
     "heap_free": dict(
         addr=0x0C8CA,
         args=[("p", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.heap_free(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_free(dgp(lib, a[0])),
     ),
     "dos_free_far": dict(
         addr=0x21B34,
@@ -5639,7 +5644,7 @@ def declare_restypes(lib):
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
-    lib.heap_malloc.restype = ctypes.c_uint16
+    lib.heap_malloc.restype = ctypes.c_void_p
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
     lib.decode_position.restype = ctypes.c_int16
@@ -5740,8 +5745,8 @@ def declare_restypes(lib):
     lib.game_fread.restype = ctypes.c_uint16
     lib.huge_equal.restype = ctypes.c_int16
     lib.near_memset.restype = ctypes.c_uint16
-    lib.heap_calloc.restype = ctypes.c_uint16
-    lib.heap_calloc_far.restype = ctypes.c_uint16
+    lib.heap_calloc.restype = ctypes.c_void_p
+    lib.heap_calloc_far.restype = ctypes.c_void_p
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = FarPtr
     lib.huge_post_add.restype = FarPtr
@@ -5762,7 +5767,7 @@ def declare_restypes(lib):
     lib.int_to_string.restype = ctypes.c_uint16
     lib.compute_step.restype = ctypes.c_int16
     lib.long_int_to_string.restype = ctypes.c_uint16
-    lib.heap_malloc_far.restype = ctypes.c_uint16
+    lib.heap_malloc_far.restype = ctypes.c_void_p
     lib.detect_pcjr.restype = ctypes.c_int16
     lib.timer_remove.restype = ctypes.c_int16
     lib.timer_install.restype = ctypes.c_int16
@@ -5848,6 +5853,11 @@ def declare_restypes(lib):
     lib.long_divide.restype = ctypes.c_int32
     lib.brk_set.restype = ctypes.c_int16
     lib.heap_check.restype = ctypes.c_int16
+    # the near heap answers pointers now, and so do the two routines that
+    # hand back a record straight off it
+    for fn in ("heap_sbrk", "heap_init", "heap_grow", "heap_split",
+               "clone_part", "make_part"):
+        getattr(lib, fn).restype = ctypes.c_void_p
 
 
 def main():

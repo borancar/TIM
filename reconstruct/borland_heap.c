@@ -80,13 +80,13 @@ int32_t long_divide(int32_t a, int32_t b)
  * only while the caller's frame matches the original's, and the routine is
  * called far enough below the stack that the test passes either way.
  */
-int16_t brk_set(uint16_t addr)
+int16_t brk_set(const uint8_t *addr)
 {
-    if (addr >= (uint16_t)(guest_sp - 0x200)) {
+    if (addr >= dg_ptr(dgroup, (uint16_t)(guest_sp - 0x200))) {
         DG0094.err_no = 8;
         return -1;
     }
-    DG0094.brklvl = addr;
+    DG0094.brklvl_ptr = dg_near(dgroup, addr);
     return 0;
 }
 
@@ -102,11 +102,11 @@ int16_t brk_set(uint16_t addr)
  * `brk_set` keeps, tested here both for the carry out of the addition and
  * against SP itself.
  */
-uint16_t heap_sbrk(uint16_t lo, uint16_t hi)
+uint8_t *heap_sbrk(uint16_t lo, uint16_t hi)
 {
-    uint32_t sum = (uint32_t)DG0094.brklvl + lo + ((uint32_t)hi << 16);
+    uint32_t sum = (uint32_t)DG0094.brklvl_ptr + lo + ((uint32_t)hi << 16);
     uint16_t cx = (uint16_t)sum;
-    uint16_t old;
+    uint8_t *old;
 
     if ((sum >> 16) != 0)
         goto fail;
@@ -115,13 +115,44 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi)
     if ((uint16_t)(cx + 0x200) >= guest_sp)
         goto fail;
 
-    old = DG0094.brklvl;
-    DG0094.brklvl = cx;
+    old = dg_ptr(dgroup, DG0094.brklvl_ptr);
+    DG0094.brklvl_ptr = cx;
     return old;
 
 fail:
+    /* The original answers -1; a pointer answers NULL. */
     DG0094.err_no = 8;
-    return 0xffff;
+    return NULL;
+}
+
+/*
+ * OURS: the block arithmetic the original writes on BX, spelled on block
+ * pointers. A block's successor by address is its own address plus its size
+ * (with the in-use bit masked off where the original masks it), a block's
+ * payload - what `malloc` answers and `free` is handed - is four bytes past its
+ * header, and a break or payload is turned back into the header it belongs to.
+ */
+static inline struct heap_block *heap_above(struct heap_block *b, uint16_t size)
+{
+    return (struct heap_block *)(void *)((uint8_t *)b + size);
+}
+
+/* OURS: a block's payload, four bytes past its header. */
+static inline uint8_t *heap_payload(struct heap_block *b)
+{
+    return (uint8_t *)b + 4;
+}
+
+/* OURS: the header a payload belongs to. */
+static inline struct heap_block *heap_block_of(uint8_t *payload)
+{
+    return (struct heap_block *)(void *)(payload - 4);
+}
+
+/* OURS: the block that starts at a break `heap_sbrk` answered. */
+static inline struct heap_block *heap_block_at(uint8_t *brk)
+{
+    return (struct heap_block *)(void *)brk;
 }
 
 /*
@@ -131,19 +162,19 @@ fail:
  * the only one left, and the cursor is cleared rather than pointed at a block
  * that is no longer free.
  */
-void heap_ring_unlink(uint16_t bx)
+void heap_ring_unlink(struct heap_block *bx)
 {
-    uint16_t di = HEAPBLK_PTR(bx)->back_ptr;
-    uint16_t si;
+    struct heap_block *di = HEAPBLK_PTR(bx->back_ptr);
+    struct heap_block *si;
 
     if (bx == di) {
         DG4E34.ring_cursor_ptr = 0;
         return;
     }
-    DG4E34.ring_cursor_ptr = di;
-    si = HEAPBLK_PTR(bx)->fwd_ptr;
-    HEAPBLK_PTR(di)->fwd_ptr = si;
-    HEAPBLK_PTR(si)->back_ptr = di;
+    DG4E34.ring_cursor_ptr = dg_near(dgroup, di);
+    si = HEAPBLK_PTR(bx->fwd_ptr);
+    di->fwd_ptr = dg_near(dgroup, si);
+    si->back_ptr = dg_near(dgroup, di);
 }
 
 /*
@@ -152,23 +183,23 @@ void heap_ring_unlink(uint16_t bx)
  * Put a block into the free ring, before whatever the cursor points at. An
  * empty ring makes the block point at itself both ways.
  */
-void heap_ring_insert(uint16_t bx)
+void heap_ring_insert(struct heap_block *bx)
 {
-    uint16_t si = DG4E34.ring_cursor_ptr;
-    uint16_t di;
+    struct heap_block *si = HEAPBLK_PTR(DG4E34.ring_cursor_ptr);
+    struct heap_block *di;
 
-    if (si == 0) {
-        DG4E34.ring_cursor_ptr = bx;
-        HEAPBLK_PTR(bx)->fwd_ptr = bx;
-        HEAPBLK_PTR(bx)->back_ptr = bx;
+    if (si == HEAPBLK_NONE) {
+        DG4E34.ring_cursor_ptr = dg_near(dgroup, bx);
+        bx->fwd_ptr = dg_near(dgroup, bx);
+        bx->back_ptr = dg_near(dgroup, bx);
         return;
     }
 
-    di = HEAPBLK_PTR(si)->back_ptr;
-    HEAPBLK_PTR(si)->back_ptr = bx;
-    HEAPBLK_PTR(di)->fwd_ptr = bx;
-    HEAPBLK_PTR(bx)->back_ptr = di;
-    HEAPBLK_PTR(bx)->fwd_ptr = si;
+    di = HEAPBLK_PTR(si->back_ptr);
+    si->back_ptr = dg_near(dgroup, bx);
+    di->fwd_ptr = dg_near(dgroup, bx);
+    bx->back_ptr = dg_near(dgroup, di);
+    bx->fwd_ptr = dg_near(dgroup, si);
 }
 
 /*
@@ -188,20 +219,21 @@ void heap_ring_insert(uint16_t bx)
  * which is why the routine falls straight into `heap_ring_unlink` rather than
  * calling it.
  */
-void heap_free_middle(uint16_t bx)
+void heap_free_middle(struct heap_block *bx)
 {
-    uint16_t si, di, ax;
+    struct heap_block *si, *di;
+    uint16_t ax;
 
-    HEAPBLK_PTR(bx)->size--;
+    bx->size--;
 
-    if (bx != DG4E34.first_block_ptr) {
-        si = HEAPBLK_PTR(bx)->prev_ptr;
-        ax = HEAPBLK_PTR(si)->size;
+    if (bx != HEAPBLK_PTR(DG4E34.first_block_ptr)) {
+        si = HEAPBLK_PTR(bx->prev_ptr);
+        ax = si->size;
         if ((ax & 1) == 0) {
-            ax = (uint16_t)(ax + HEAPBLK_PTR(bx)->size);
-            HEAPBLK_PTR(si)->size = ax;
-            di = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
-            HEAPBLK_PTR(di)->prev_ptr = si;
+            ax = (uint16_t)(ax + bx->size);
+            si->size = ax;
+            di = heap_above(bx, bx->size);
+            di->prev_ptr = dg_near(dgroup, si);
             bx = si;
             goto forward;
         }
@@ -209,14 +241,14 @@ void heap_free_middle(uint16_t bx)
     heap_ring_insert(bx);
 
 forward:
-    di = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
-    ax = HEAPBLK_PTR(di)->size;
+    di = heap_above(bx, bx->size);
+    ax = di->size;
     if ((ax & 1) != 0)
         return;
 
-    HEAPBLK_PTR(bx)->size = (uint16_t)(HEAPBLK_PTR(bx)->size + ax);
-    si = (uint16_t)(di + ax);
-    HEAPBLK_PTR(si)->prev_ptr = bx;
+    bx->size = (uint16_t)(bx->size + ax);
+    si = heap_above(di, ax);
+    si->prev_ptr = dg_near(dgroup, bx);
     heap_ring_unlink(di);
 }
 
@@ -230,36 +262,36 @@ forward:
  * and drops the break past both. Freeing the only block resets all three
  * globals to zero, so the next allocation starts the heap again from nothing.
  */
-void heap_free_top(uint16_t bx)
+void heap_free_top(struct heap_block *bx)
 {
-    uint16_t si;
+    struct heap_block *si;
 
-    if (DG4E34.first_block_ptr == bx)
+    if (HEAPBLK_PTR(DG4E34.first_block_ptr) == bx)
         goto reset;
 
-    si = HEAPBLK_PTR(bx)->prev_ptr;
-    if ((HEAPBLK_PTR(si)->size & 1) != 0) {
-        DG4E34.top_block_ptr = si;
-        brk_set(bx);
+    si = HEAPBLK_PTR(bx->prev_ptr);
+    if ((si->size & 1) != 0) {
+        DG4E34.top_block_ptr = dg_near(dgroup, si);
+        brk_set((uint8_t *)bx);
         return;
     }
 
-    if (si == DG4E34.first_block_ptr) {
+    if (si == HEAPBLK_PTR(DG4E34.first_block_ptr)) {
         bx = si;
         goto reset;
     }
 
     bx = si;
     heap_ring_unlink(bx);
-    DG4E34.top_block_ptr = HEAPBLK_PTR(bx)->prev_ptr;
-    brk_set(bx);
+    DG4E34.top_block_ptr = bx->prev_ptr;
+    brk_set((uint8_t *)bx);
     return;
 
 reset:
     DG4E34.first_block_ptr = 0;
     DG4E34.top_block_ptr = 0;
     DG4E34.ring_cursor_ptr = 0;
-    brk_set(bx);
+    brk_set((uint8_t *)bx);
 }
 
 /*
@@ -273,15 +305,18 @@ reset:
  * The topmost block is released differently from every other, because only it
  * can move the break.
  */
-void heap_free(uint16_t p)
+void heap_free(uint8_t *p)
 {
-    uint16_t bx;
+    struct heap_block *bx;
 
-    if (p < 4)
+    /* An offset below 4 borrows - a null pointer included - and is refused. */
+    if (p == NULL || p < dgroup + 4)
         return;
-    bx = (uint16_t)(p - 4);
+    if (!dg_is_guest(p))
+        port_abort("heap_free on a pointer outside guest memory");
+    bx = heap_block_of(p);
 
-    if (bx == DG4E34.top_block_ptr)
+    if (bx == HEAPBLK_PTR(DG4E34.top_block_ptr))
         heap_free_top(bx);
     else
         heap_free_middle(bx);
@@ -297,22 +332,25 @@ void heap_free(uint16_t p)
  * address has to be even, because the low bit of the size word is the in-use
  * flag and the arithmetic that clears it would otherwise be wrong.
  */
-uint16_t heap_init(uint16_t size)
+uint8_t *heap_init(uint16_t size)
 {
-    uint16_t bx, got;
+    struct heap_block *bx;
+    uint8_t *at, *got;
 
-    if ((heap_sbrk(0, 0) & 1) != 0)
+    /* An odd break - or a failed call, whose -1 is odd too - gets one byte. */
+    at = heap_sbrk(0, 0);
+    if (at == NULL || ((at - dgroup) & 1) != 0)
         heap_sbrk(1, 0);
 
     got = heap_sbrk(size, 0);
-    if (got == 0xffff)
-        return 0;
+    if (got == NULL)
+        return NULL;
 
-    bx = got;
-    DG4E34.first_block_ptr = bx;
-    DG4E34.top_block_ptr = bx;
-    HEAPBLK_PTR(bx)->size = (uint16_t)(size + 1);
-    return (uint16_t)(bx + 4);
+    bx = heap_block_at(got);
+    DG4E34.first_block_ptr = dg_near(dgroup, bx);
+    DG4E34.top_block_ptr = dg_near(dgroup, bx);
+    bx->size = (uint16_t)(size + 1);
+    return heap_payload(bx);
 }
 
 /*
@@ -324,17 +362,19 @@ uint16_t heap_init(uint16_t size)
  * which is what keeps the chain of previous-blocks-by-address unbroken across
  * every growth.
  */
-uint16_t heap_grow(uint16_t size)
+uint8_t *heap_grow(uint16_t size)
 {
-    uint16_t bx = heap_sbrk(size, 0);
+    uint8_t *got = heap_sbrk(size, 0);
+    struct heap_block *bx;
 
-    if (bx == 0xffff)
-        return 0;
+    if (got == NULL)
+        return NULL;
 
-    HEAPBLK_PTR(bx)->prev_ptr = DG4E34.top_block_ptr;
-    DG4E34.top_block_ptr = bx;
-    HEAPBLK_PTR(bx)->size = (uint16_t)(size + 1);
-    return (uint16_t)(bx + 4);
+    bx = heap_block_at(got);
+    bx->prev_ptr = DG4E34.top_block_ptr;
+    DG4E34.top_block_ptr = dg_near(dgroup, bx);
+    bx->size = (uint16_t)(size + 1);
+    return heap_payload(bx);
 }
 
 /*
@@ -346,18 +386,18 @@ uint16_t heap_grow(uint16_t size)
  * its address, its header and its place in the ring, and no ring surgery is
  * needed at all. Only the block above has to be told its neighbour changed.
  */
-uint16_t heap_split(uint16_t bx, uint16_t size)
+uint8_t *heap_split(struct heap_block *bx, uint16_t size)
 {
-    uint16_t si, di;
+    struct heap_block *si, *di;
 
-    HEAPBLK_PTR(bx)->size = (uint16_t)(HEAPBLK_PTR(bx)->size - size);
-    si = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
-    di = (uint16_t)(si + size);
+    bx->size = (uint16_t)(bx->size - size);
+    si = heap_above(bx, bx->size);
+    di = heap_above(si, size);
 
-    HEAPBLK_PTR(si)->size = (uint16_t)(size + 1);
-    HEAPBLK_PTR(si)->prev_ptr = bx;
-    HEAPBLK_PTR(di)->prev_ptr = si;
-    return (uint16_t)(si + 4);
+    si->size = (uint16_t)(size + 1);
+    si->prev_ptr = dg_near(dgroup, bx);
+    di->prev_ptr = dg_near(dgroup, si);
+    return heap_payload(si);
 }
 
 /*
@@ -376,14 +416,15 @@ uint16_t heap_split(uint16_t bx, uint16_t size)
  *
  * An empty heap starts one, and a walk that finds nothing grows it.
  */
-uint16_t heap_malloc(uint16_t want)
+uint8_t *heap_malloc(uint16_t want)
 {
-    uint16_t size, bx, start;
+    uint16_t size;
+    struct heap_block *bx, *start;
 
     if (want == 0)
-        return 0;
+        return NULL;
     if ((uint16_t)(want + 5) < want)
-        return 0;
+        return NULL;
 
     size = (uint16_t)((want + 5) & 0xfffe);
     if (size < 8)
@@ -392,25 +433,25 @@ uint16_t heap_malloc(uint16_t want)
     if (DG4E34.first_block_ptr == 0)
         return heap_init(size);
 
-    bx = DG4E34.ring_cursor_ptr;
-    if (bx == 0)
+    bx = HEAPBLK_PTR(DG4E34.ring_cursor_ptr);
+    if (bx == HEAPBLK_NONE)
         return heap_grow(size);
 
     start = bx;
     for (;;) {
-        if (HEAPBLK_PTR(bx)->size >= size)
+        if (bx->size >= size)
             break;
-        bx = HEAPBLK_PTR(bx)->back_ptr;
+        bx = HEAPBLK_PTR(bx->back_ptr);
         if (bx == start)
             return heap_grow(size);
     }
 
-    if (HEAPBLK_PTR(bx)->size >= (uint16_t)(size + 8))
+    if (bx->size >= (uint16_t)(size + 8))
         return heap_split(bx, size);
 
     heap_ring_unlink(bx);
-    HEAPBLK_PTR(bx)->size++;
-    return (uint16_t)(bx + 4);
+    bx->size++;
+    return heap_payload(bx);
 }
 
 /*
@@ -450,63 +491,63 @@ uint32_t long_multiply(uint32_t a, uint32_t b)
  */
 int16_t heap_check(void)
 {
-    uint16_t bx = DG4E34.first_block_ptr;
-    uint16_t si;
+    struct heap_block *bx = HEAPBLK_PTR(DG4E34.first_block_ptr);
+    struct heap_block *si;
     uint16_t free_by_chain = 0;      /* CX */
     uint16_t free_by_ring = 0;       /* DX */
 
-    if (bx == 0)
+    if (bx == HEAPBLK_NONE)
         return 1;                    /* nothing allocated yet */
 
-    si = (uint16_t)(bx + (HEAPBLK_PTR(bx)->size & 0xfffe));
+    si = heap_above(bx, bx->size & 0xfffe);
 
     for (;;) {
         /* `test byte [bx],1` in the original: bit 0 of the size word,
            which reading the word and masking answers identically. */
-        if ((HEAPBLK_PTR(bx)->size & 1) == 0) {
-            free_by_chain = (uint16_t)(free_by_chain + HEAPBLK_PTR(bx)->size);
-            if (bx == DG4E34.top_block_ptr)
+        if ((bx->size & 1) == 0) {
+            free_by_chain = (uint16_t)(free_by_chain + bx->size);
+            if (bx == HEAPBLK_PTR(DG4E34.top_block_ptr))
                 break;
-            if ((HEAPBLK_PTR(si)->size & 1) == 0)
+            if ((si->size & 1) == 0)
                 return -1;
-        } else if (bx == DG4E34.top_block_ptr) {
+        } else if (bx == HEAPBLK_PTR(DG4E34.top_block_ptr)) {
             break;
         }
 
         if (si <= bx)
             return -1;
-        if (HEAPBLK_PTR(bx)->size < 8)
+        if (bx->size < 8)
             return -1;
-        if (si <= DG4E34.first_block_ptr)
+        if (si <= HEAPBLK_PTR(DG4E34.first_block_ptr))
             return -1;
-        if (si > DG4E34.top_block_ptr)
+        if (si > HEAPBLK_PTR(DG4E34.top_block_ptr))
             return -1;
-        if (HEAPBLK_PTR(si)->prev_ptr != bx)
+        if (HEAPBLK_PTR(si->prev_ptr) != bx)
             return -1;
 
         bx = si;
-        si = (uint16_t)(bx + (HEAPBLK_PTR(bx)->size & 0xfffe));
+        si = heap_above(bx, bx->size & 0xfffe);
     }
 
-    bx = DG4E34.ring_cursor_ptr;
-    if (bx == 0)
+    bx = HEAPBLK_PTR(DG4E34.ring_cursor_ptr);
+    if (bx == HEAPBLK_NONE)
         goto totals;
 
     for (;;) {
-        uint16_t ax = HEAPBLK_PTR(bx)->size;
+        uint16_t ax = bx->size;
 
         if ((ax & 1) != 0)
             return -1;
 
         free_by_ring = (uint16_t)(free_by_ring + ax);
 
-        if (bx < DG4E34.first_block_ptr)
+        if (bx < HEAPBLK_PTR(DG4E34.first_block_ptr))
             return -1;
-        if (bx >= DG4E34.top_block_ptr)
+        if (bx >= HEAPBLK_PTR(DG4E34.top_block_ptr))
             return -1;
 
-        si = HEAPBLK_PTR(bx)->back_ptr;
-        if (si == DG4E34.ring_cursor_ptr)
+        si = HEAPBLK_PTR(bx->back_ptr);
+        if (si == HEAPBLK_PTR(DG4E34.ring_cursor_ptr))
             break;
         if (si == bx)
             return -1;
@@ -535,12 +576,12 @@ totals:
  * holding it. C's `memset` returns the pointer; this one never did, and no
  * caller reads it.
  */
-uint16_t near_memset(uint16_t dst, uint16_t count, uint16_t value)
+uint16_t near_memset(uint8_t *dst, uint16_t count, uint16_t value)
 {
     uint16_t i;
 
     for (i = 0; i < count; i++)
-        *dg_ptr(dgroup, (uint16_t)(dst + i)) = (uint8_t)value;
+        dst[i] = (uint8_t)value;
 
     return (uint16_t)((value & 0xff) * 0x0101);
 }
@@ -556,16 +597,16 @@ uint16_t near_memset(uint16_t dst, uint16_t count, uint16_t value)
  * Otherwise it is `heap_malloc` and a `memset` to zero, and a failed
  * allocation skips the clear.
  */
-uint16_t heap_calloc(uint16_t count, uint16_t size)
+uint8_t *heap_calloc(uint16_t count, uint16_t size)
 {
     uint32_t n = long_multiply(count, size);
-    uint16_t p;
+    uint8_t *p;
 
     if (n > 0xffff)
-        return 0;
+        return NULL;
 
     p = heap_malloc((uint16_t)n);
-    if (p != 0)
+    if (p != NULL)
         near_memset(p, (uint16_t)n, 0);
 
     return p;
@@ -750,25 +791,26 @@ char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
  * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
  * assumed from the family.
  */
-int16_t heapwalk(int16_t *info)
+int16_t heapwalk(struct heapinfo *info)
 {
-    uint16_t si = (uint16_t)info[0];
+    struct heap_block *si;
 
-    if (si != 0) {
-        si = (uint16_t)(si - 4);
-        if (si == DG4E34.top_block_ptr)
+    if (info->block_ptr != 0) {
+        si = heap_block_of(dg_ptr(dgroup, info->block_ptr));
+        if (si == HEAPBLK_PTR(DG4E34.top_block_ptr))
             return 5;
-        si = (uint16_t)(si + HEAPBLK_PTR(si)->size);
-        si &= 0xfffe;
+        /* `add si,[si] / and si,0xfffe`: the in-use bit in the size makes the
+           sum odd, and masking the address clears it - the same as stepping
+           by the size without the bit, since every block address is even. */
+        si = heap_above(si, si->size & 0xfffe);
     } else {
-        si = DG4E34.first_block_ptr;
-        if (si == 0)
+        si = HEAPBLK_PTR(DG4E34.first_block_ptr);
+        if (si == HEAPBLK_NONE)
             return 1;
     }
 
-    info[0] = (int16_t)si;
-    info[0] = (int16_t)((uint16_t)info[0] + 4);
-    info[1] = (int16_t)(HEAPBLK_PTR(si)->size & 0xfffe);
-    info[2] = (int16_t)(HEAPBLK_PTR(si)->size & 1);
+    info->block_ptr = dg_near(dgroup, heap_payload(si));
+    info->size = (uint16_t)(si->size & 0xfffe);
+    info->in_use = (uint16_t)(si->size & 1);
     return 2;
 }

@@ -611,7 +611,7 @@ DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
  * and a hundred words run exactly to `ENGINE_STREAM` at 0x5888.
  */
 struct engine_resource_slots {
-    dg_near_t slot[0x64];         /* +0x00 [0xc8] */
+    dg_near_t slot_ptr[0x64];     /* +0x00 [0xc8] */
 } __attribute__((packed));
 
 struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
@@ -1640,7 +1640,7 @@ int16_t select_resource(int16_t handle)
     if (handle < 0 || handle >= 0x64)
         return 0;
 
-    entry = ENGINE_RESOURCE_SLOTS.slot[handle];
+    entry = ENGINE_RESOURCE_SLOTS.slot_ptr[handle];
     ENGINE_STREAM.record_ptr = (int16_t)entry;
     if (entry == 0)
         return 0;
@@ -1739,7 +1739,7 @@ int16_t string_contains_r(const char *str)
 void free_if_set(uint16_t p)
 {
     if (p != 0)
-        io_free(p);
+        io_free(dg_ptr(dgroup, p));
 }
 /*
  * 0x1c71a
@@ -1760,7 +1760,7 @@ int16_t close_resource_slot(uint16_t slot)
 {
     uint16_t rec;
 
-    rec = ENGINE_RESOURCE_SLOTS.slot[slot];
+    rec = ENGINE_RESOURCE_SLOTS.slot_ptr[slot];
     ENGINE_STREAM.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
@@ -1773,7 +1773,7 @@ int16_t close_resource_slot(uint16_t slot)
     }
 
     free_if_set(ENGINE_STREAM.record_ptr);
-    ENGINE_RESOURCE_SLOTS.slot[slot] = 0;
+    ENGINE_RESOURCE_SLOTS.slot_ptr[slot] = 0;
 
     return -1;
 }
@@ -1791,22 +1791,22 @@ int16_t close_resource_slot(uint16_t slot)
 int16_t open_resource_slot(void)
 {
     int16_t si;
-    uint16_t rec;
+    struct resource *rec;
 
     for (si = 0; si < 0x64; si++) {
-        if (ENGINE_RESOURCE_SLOTS.slot[si] == 0)
+        if (ENGINE_RESOURCE_SLOTS.slot_ptr[si] == 0)
             break;
     }
 
     if (si == 0x64)
         return -1;
 
-    rec = heap_calloc_far(1, 0x21);
-    ENGINE_STREAM.record_ptr = (int16_t)rec;
-    if (rec == 0)
+    rec = (struct resource *)(void *)heap_calloc_far(1, 0x21);
+    ENGINE_STREAM.record_ptr = dg_near(dgroup, rec);
+    if (rec == NULL)
         return -1;
 
-    ENGINE_RESOURCE_SLOTS.slot[si] = (int16_t)rec;
+    ENGINE_RESOURCE_SLOTS.slot_ptr[si] = dg_near(dgroup, rec);
     return si;
 }
 
@@ -1847,7 +1847,7 @@ int16_t prepare_resource_slot(int16_t type, char *name)
     }
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->work_ptr = (int16_t)heap_calloc_far(1, near_size);
+    RESOURCE_PTR(rec)->work_ptr = dg_near(dgroup, heap_calloc_far(1, near_size));
     if (RESOURCE_PTR(rec)->work_ptr == 0)
         return -1;
 
@@ -6620,12 +6620,10 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
 {
     uint8_t *tmp = NULL;
     uint16_t rows;
-    /* The list this routine allocates, and a cursor along the run of headers
-       it allocates beside it. The guest keeps the list as one word in the
-       caller's `[bp-2]`; the port hands back the array itself, and `off` is
-       the near pointer the allocator answered, kept because the cleanup path
-       frees by offset. */
-    dg_near_t off = 0;
+    /* The list this routine allocates, as the set the allocator answered and
+       as the array of its entries. The guest keeps the list as one word in
+       the caller's `[bp-2]`; the port hands back the array itself. */
+    struct bmp_set *set = NULL;
     bmp_ptr_t *list = NULL;
     bmp_ptr_t di;
     int16_t *a, *b;
@@ -6639,15 +6637,15 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
     if (game_fread((uint8_t *)count_at, 2, 1, handle) != 1)
         return 0;
 
-    off = heap_calloc_far((uint16_t)((*count_at + 1) * 2), 1);
-    if (off == 0)
+    set = (struct bmp_set *)(void *)heap_calloc_far((uint16_t)((*count_at + 1) * 2), 1);
+    if (set == NULL)
         goto cleanup;
 
     /* One run of headers for the whole list, and `list[0]` is its first
        byte - which is why `free_bitmap_list` gives it back as a heap block. */
-    list = BMPLIST(off);
+    list = set->bmp_ptr;
     *out = list;
-    list[0] = heap_calloc_far(sizeof(struct bitmap), *count_at);
+    set->bmp_ptr[0] = dg_near(dgroup, heap_calloc_far(sizeof(struct bitmap), *count_at));
     if (list[0] == 0)
         goto cleanup;
 
@@ -6699,10 +6697,10 @@ cleanup:
     if (tmp != NULL)
         heap_free_far(tmp);
 
-    if (off != 0) {
+    if (set != NULL) {
         if (list[0] != 0)
             heap_free_far(dg_ptr(dgroup, list[0]));
-        heap_free_far(dg_ptr(dgroup, off));
+        heap_free_far((uint8_t *)set);
     }
 
     *out = NULL;
@@ -6968,7 +6966,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
             DG48DA.driver = p;
 
-            vm_driver_init(dg_near(dgroup, &VMDS), dg_near(dgroup, DG440E.driver_table), DGROUP_SEG);
+            vm_driver_init(&VMDS, DG440E.driver_table, DGROUP_SEG);
             seg = DG48DA.driver.seg;
 
             /* a hundred words of the driver's table, word by word, and

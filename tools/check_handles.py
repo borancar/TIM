@@ -34,11 +34,24 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HANDLE_DECL = re.compile(r"struct (?:part|belt|rope|rect_list_entry|game_file) \*\s*(\w+)")
 
 
+def fresh_from_heap(before, V):
+    """Is `V` the near heap's answer, just assigned? `heap_calloc_far` and
+    `heap_malloc_far` answer NULL when they refuse - the offset 0 the
+    original tests - so the test straight after the allocation is the one
+    place a handle is rightly compared with NULL."""
+    for s in reversed(before[-3:]):
+        if re.search(r"\b%s\s*=\s*\([^;=]*\)\s*(?:\(void \*\)\s*)?heap_(?:calloc|malloc)_far\(" % V, s):
+            return True
+    return False
+
+
 def scan(path):
     hits = []
     lines = open(path).read().split("\n")
     for i, ln in enumerate(lines):
-        if not re.match(r"^[a-z_0-9]+[ \*]+\w+\(", ln):
+        # `struct part *clone_part(` as well as `void f(`: a routine that
+        # answers a handle was read past until the heap batch found it.
+        if not re.match(r"^(?:(?:const|struct|static) )*[a-z_0-9]+[ \*]+\w+\(", ln):
             continue
         j = i
         while j < len(lines) - 1 and lines[j] != "}":
@@ -55,7 +68,8 @@ def scan(path):
                         or re.search(r"(?:^|[(,?:]|&&|\|\||\breturn|(?<![=!<>])=)\s*%s\s*(?:&&|\|\|)" % V, code)
                         or re.search(r"(?:&&|\|\|)\s*!?\s*%s\s*(?:\)|&&|\|\||$)" % V, code)):
                     hits.append((i + k + 1, v, code.strip()))
-                elif re.search(r"\b%s\s*[!=]=\s*NULL\b|\bNULL\s*[!=]=\s*%s\b" % (V, V), code):
+                elif (re.search(r"\b%s\s*[!=]=\s*NULL\b|\bNULL\s*[!=]=\s*%s\b" % (V, V), code)
+                      and not fresh_from_heap(body[:k], V)):
                     hits.append((i + k + 1, v, code.strip() + "   <- compared with NULL"))
     return hits
 

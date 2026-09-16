@@ -321,6 +321,12 @@ test: devtim tim debug
 	    uv run python tools/check_handles.py; \
 	    echo "FAIL: a typed handle is used as a boolean - run tools/check_handles.py"; exit 1; }
 	@echo "no typed handle is used as a boolean"
+	@# **A `dg_near` is only a store into a near-pointer field.** A pointer
+	@# turned back into its offset anywhere else - compared, passed, returned,
+	@# held in a local - is the conversion made too early. Before the
+	@# solutions step, for the same reason as the one above.
+	@cd .. && uv run python tools/check_dg_near.py || { \
+	    echo "FAIL: a dg_near is not a store into a _ptr field - see tools/check_dg_near.py"; exit 1; }
 	@# **The transcribed data is the image's, where the image had it.** Every
 	@# object placed with DGROUP_AT, DGROUP_BSS or SEGMENT_AT is checked for
 	@# its address and for the relocated image's bytes, so DGROUP stays

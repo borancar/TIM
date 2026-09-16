@@ -417,8 +417,8 @@ int32_t  io_load_program(const char *img_path, const char *exe_path);
  */
 void     io_start_program(void);
 void     io_dos_free(uint16_t seg);
-uint16_t io_malloc(uint16_t bytes);
-void     io_free(uint16_t off);
+uint8_t *io_malloc(uint16_t bytes);
+void     io_free(uint8_t *p);
 
 /*
  * DOS file services, served read-only from the game directory. See io.c.

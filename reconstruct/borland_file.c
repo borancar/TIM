@@ -483,12 +483,12 @@ void setup_streams(void)
     if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[0].fd) == 0)
         BORLAND_STREAMS.streams[0].flags = (uint16_t)(BORLAND_STREAMS.streams[0].flags & 0xfdff);
 
-    borland_setvbuf(&BORLAND_STREAMS.streams[0], 0, (int16_t)((BORLAND_STREAMS.streams[0].flags & 0x200) ? 1 : 0), 0x200);
+    borland_setvbuf(&BORLAND_STREAMS.streams[0], NULL, (int16_t)((BORLAND_STREAMS.streams[0].flags & 0x200) ? 1 : 0), 0x200);
 
     if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[1].fd) == 0)
         BORLAND_STREAMS.streams[1].flags = (uint16_t)(BORLAND_STREAMS.streams[1].flags & 0xfdff);
 
-    borland_setvbuf(&BORLAND_STREAMS.streams[1], 0, (int16_t)((BORLAND_STREAMS.streams[1].flags & 0x200) ? 2 : 0), 0x200);
+    borland_setvbuf(&BORLAND_STREAMS.streams[1], NULL, (int16_t)((BORLAND_STREAMS.streams[1].flags & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -1109,7 +1109,7 @@ int16_t borland_fclose(struct file_rec *file)
             return -1;
 
         if ((file->flags & 4) != 0)
-            heap_free(file->buffer_ptr);
+            heap_free(dg_ptr(dgroup, file->buffer_ptr));
     }
 
     if ((int8_t)file->fd >= 0)
@@ -1761,7 +1761,7 @@ have_handle:
  * The far pointer planted at DGROUP 0x4bb8 has the same relocated segment as
  * the one in `parse_open_mode`.
  */
-int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint16_t size)
+int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode, uint16_t size)
 {
     if (FILEREC_PTR(file->token_ptr) != file || mode > 2 || size > 0x7fff)
         return -1;
@@ -1775,7 +1775,7 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
         borland_fseek(file, 0, 1);
 
     if ((file->flags & 4) != 0)
-        heap_free(file->buffer_ptr);
+        heap_free(dg_ptr(dgroup, file->buffer_ptr));
 
     file->flags = (int16_t)(file->flags & 0xfff3);
     file->bsize = 0;
@@ -1788,15 +1788,15 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
     BORLAND_EXIT_VECTORS.exit_buf.seg = (uint16_t)(IMAGE_BASE >> 4);
     BORLAND_EXIT_VECTORS.exit_buf.off = 0xdfdc;         /* exit_flush_streams */
 
-    if (buf == 0) {
+    if (buf == NULL) {
         buf = heap_malloc(size);
-        if (buf == 0)
+        if (buf == NULL)
             return -1;
         file->flags = (int16_t)(file->flags | 4);
     }
 
-    file->curp_ptr = (int16_t)buf;
-    file->buffer_ptr = (int16_t)buf;
+    file->curp_ptr = dg_near(dgroup, buf);
+    file->buffer_ptr = dg_near(dgroup, buf);
     file->bsize = (int16_t)size;
 
     if (mode == 1)
@@ -1884,7 +1884,7 @@ struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, cons
     if (dos_isatty((int8_t)file->fd) != 0)
         file->flags = (int16_t)(file->flags | 0x200);
 
-    if (borland_setvbuf(file, 0,
+    if (borland_setvbuf(file, NULL,
                       (int16_t)((file->flags & 0x200) ? 1 : 0),
                       0x200) != 0) {
         borland_fclose(file);
@@ -2352,9 +2352,9 @@ char *string_concat(char *dst, const char *src)
  * `setbuf`: `setvbuf` with a fixed size of 0x200 and the mode chosen by whether
  * a buffer was given - 0 for full buffering with one, 2 for none without.
  */
-int16_t borland_setbuf(struct file_rec *file, uint16_t buf)
+int16_t borland_setbuf(struct file_rec *file, uint8_t *buf)
 {
-    return borland_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200);
+    return borland_setvbuf(file, buf, (int16_t)(buf != NULL ? 0 : 2), 0x200);
 }
 
 /*

@@ -110,7 +110,7 @@ void build_part_list(void)
         if (wanted != 0) {
             struct part *rec = make_part((uint16_t)si);
 
-            if (rec != 0)
+            if (rec != PART_NONE)
                 insert_sorted(rec, &DG50D3.parts_bin);
         }
     }
@@ -143,30 +143,26 @@ void build_part_list(void)
  *
  * Each part may also have an **init function** in the table, at +12 of its
  * entry, and a part that answers 1 from it is refused - the record is freed and
- * the answer is 0. The port dispatches that far pointer on its value, as it
- * does everywhere else it cannot call one.
+ * the answer is `PART_NONE`, offset 0. The port dispatches that far pointer on
+ * its value, as it does everywhere else it cannot call one.
  *
  * The heap is checked three times: before the allocation, after it, and at the
  * end.
  */
 struct part *make_part(uint16_t kind)
 {
-    struct part *part = 0;
+    struct part *part = PART_NONE;
     int16_t failed = 0;
 
     heap_check_or_hang();
 
-    /* `heap_calloc_far` answers the offset the guest holds the block as, and
-       a refusal is offset 0 - tested as the offset, `or ax,ax` at 0x14159,
-       so `part` is still 0 on the `done` path below. */
-    {
-        uint16_t off = heap_calloc_far(1, sizeof(struct part));
-
-        if (off == 0) {
-            failed = 1;
-            goto done;
-        }
-        part = PART_PTR(off);
+    /* A refusal is the offset 0 `or ax,ax` at 0x14159 tests, so `part` is
+       no part on the `done` path below. */
+    part = (struct part *)(void *)heap_calloc_far(1, sizeof(struct part));
+    if (part == NULL) {
+        part = PART_NONE;
+        failed = 1;
+        goto done;
     }
 
     heap_check_or_hang();
@@ -201,9 +197,9 @@ struct part *make_part(uint16_t kind)
 
 done:
     if (failed != 0) {
-        if (part != 0)
+        if (part != PART_NONE)
             free_part(part);
-        return 0;
+        return PART_NONE;
     }
 
     return part;
@@ -244,7 +240,7 @@ done:
 uint16_t part_init_bowling_ball(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -261,7 +257,7 @@ uint16_t part_init_14267(struct part *part)
         (uint16_t)(part->flags_08 | 0x0180);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -280,7 +276,7 @@ uint16_t part_init_ramp(struct part *part)
     part->word_90 = 0x0001;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -297,7 +293,7 @@ uint16_t part_init_seesaw(struct part *part)
         (uint16_t)(part->flags_08 | 0x000c);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -316,7 +312,7 @@ uint16_t part_init_balloon(struct part *part)
     part->attach[0].y = 47;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -337,7 +333,7 @@ uint16_t part_init_conveyor(struct part *part)
     part->word_58 = 0x000e;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -357,7 +353,7 @@ uint16_t part_init_mouse_cage(struct part *part)
     part->word_58 = 0x000c;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -375,7 +371,7 @@ uint16_t part_init_pulley(struct part *part)
     part->attach[1].x = 15;
     part->attach[1].y = 8;
 
-    part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
+    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
     if (part->belt_ptr[0] == 0)
         return 1;
     BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
@@ -385,7 +381,7 @@ uint16_t part_init_pulley(struct part *part)
 /* 0x1443d */
 uint16_t part_init_belt(struct part *part)
 {
-    part->rope_ptr = heap_calloc_far(1, 0x38);
+    part->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38));
     if (part->rope_ptr == 0)
         return 1;
     ROPE_PTR(part->rope_ptr)->owner_ptr = dg_near(dgroup, part);
@@ -396,7 +392,7 @@ uint16_t part_init_belt(struct part *part)
 uint16_t part_init_basketball(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -407,7 +403,7 @@ uint16_t part_init_basketball(struct part *part)
 /* 0x1449d */
 uint16_t part_init_rope(struct part *part)
 {
-    part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
+    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
     if (part->belt_ptr[0] == 0)
         return 1;
     BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
@@ -425,7 +421,7 @@ uint16_t part_init_bird_cage(struct part *part)
     part->attach[0].y = 2;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -442,7 +438,7 @@ uint16_t part_init_pokey(struct part *part)
         (uint16_t)(part->flags_08 | 0x8000);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -462,7 +458,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
     part->word_58 = 0x000e;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -480,7 +476,7 @@ uint16_t part_init_gear(struct part *part)
     part->word_58 = 0x0008;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -495,7 +491,7 @@ uint16_t part_init_bob_the_fish(struct part *part)
         (uint16_t)(part->flags_08 | 0x1000);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -510,7 +506,7 @@ uint16_t part_init_bellow(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -529,7 +525,7 @@ uint16_t part_init_bucket(struct part *part)
     part->attach[0].y = 0;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -548,7 +544,7 @@ uint16_t part_init_cannon(struct part *part)
         (uint16_t)(part->flags_0a | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -567,7 +563,7 @@ uint16_t part_init_dynamite(struct part *part)
         (uint16_t)(part->flags_0a | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -579,7 +575,7 @@ uint16_t part_init_dynamite(struct part *part)
 uint16_t part_init_146fc(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -598,7 +594,7 @@ uint16_t part_init_electric_plug(struct part *part)
         (uint16_t)(part->flags_0a | 0x0002);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -615,7 +611,7 @@ uint16_t part_init_dynamite_plunger(struct part *part)
         (uint16_t)(part->flags_08 | 0x1004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -646,7 +642,7 @@ uint16_t part_init_fan(struct part *part)
         (uint16_t)(part->flags_0a | 0x0001);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -661,7 +657,7 @@ uint16_t part_init_flashlight(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -678,7 +674,7 @@ uint16_t part_init_generator(struct part *part)
         (uint16_t)(part->flags_0a | 0x0002);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -695,7 +691,7 @@ uint16_t part_init_gun(struct part *part)
         (uint16_t)(part->flags_08 | 0x1004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -707,7 +703,7 @@ uint16_t part_init_gun(struct part *part)
 uint16_t part_init_baseball(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -746,7 +742,7 @@ uint16_t part_init_monkey(struct part *part)
         (uint16_t)(part->flags_08 | 0x1805);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -758,7 +754,7 @@ uint16_t part_init_monkey(struct part *part)
 uint16_t part_init_pumpkin(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -777,7 +773,7 @@ uint16_t part_init_heart_balloon(struct part *part)
     part->attach[0].y = 35;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -789,7 +785,7 @@ uint16_t part_init_heart_balloon(struct part *part)
 uint16_t part_init_christmas_tree(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -804,7 +800,7 @@ uint16_t part_init_boxing_glove(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -821,7 +817,7 @@ uint16_t part_init_rocket(struct part *part)
         (uint16_t)(part->flags_0a | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -838,7 +834,7 @@ uint16_t part_init_scissors(struct part *part)
         (uint16_t)(part->flags_08 | 0x1000);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -864,7 +860,7 @@ uint16_t part_init_trampoline(struct part *part)
         (uint16_t)(part->flags_08 | 0x1000);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -884,7 +880,7 @@ uint16_t part_init_windmill(struct part *part)
     part->word_58 = 0x0008;
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -901,7 +897,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
         (uint16_t)(part->flags_08 | 0x8000);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -913,7 +909,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
 uint16_t part_init_cannon_ball(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -925,7 +921,7 @@ uint16_t part_init_cannon_ball(struct part *part)
 uint16_t part_init_tennis_ball(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -944,7 +940,7 @@ uint16_t part_init_candle(struct part *part)
         (uint16_t)(part->flags_0a | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -959,7 +955,7 @@ uint16_t part_init_corner_pipe(struct part *part)
         (uint16_t)(part->flags_06 | 0x0600);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -989,7 +985,7 @@ uint16_t part_init_motor(struct part *part)
         (uint16_t)(part->flags_0a | 0x0001);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -1006,7 +1002,7 @@ uint16_t part_init_14ca0(struct part *part)
         (uint16_t)(part->flags_08 | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -1018,7 +1014,7 @@ uint16_t part_init_14ca0(struct part *part)
 uint16_t part_init_14cd9(struct part *part)
 {
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -1035,7 +1031,7 @@ uint16_t part_init_14d0a(struct part *part)
         (uint16_t)(part->flags_08 | 0x0004);
 
     part->points_ptr =
-        heap_calloc_far(part->point_count, 4);
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
     if (part->points_ptr == 0)
         return 1;
 
@@ -1200,13 +1196,13 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
 
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0]), x, y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), x, y, 0);
 
     for (i = (int16_t)(x + 0x18); i < (int16_t)(x + w - 0x18);
          i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1]), i, (int16_t)(y + 2), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), i, (int16_t)(y + 2), 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]),
                 (int16_t)(x + w - 0x18), y, 0);
 
     VMDS.unknown_02 = 1;                    /* transparent: no background line */
@@ -1257,14 +1253,14 @@ void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[pressed + 0x2c]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x2c]),
                 (int16_t)x, (int16_t)y, 0);
 
     for (i = (int16_t)(x + 8); i < right; i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[pressed + 0x2e]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x2e]),
                     i, (int16_t)y, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[pressed + 0x30]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x30]),
                 right, (int16_t)y, 0);
 
     VMDS.unknown_02 = 1;            /* transparent: no background line */
@@ -1315,7 +1311,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
 
     for (j = 0; j < h; j = (int16_t)(j + 0x40))
         for (i = 0; i < w; i = (int16_t)(i + 0x40))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x3a]),
+            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3a]),
                         (int16_t)(x + i), (int16_t)(y + j), 0);
 
     if (DG4E67.state == 0x8000)
@@ -1336,19 +1332,19 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
               (int16_t)(x + w), (int16_t)(y + h));
 
     for (i = (int16_t)(y + 0x13); i < (int16_t)(y + h); i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xe]), (int16_t)(x - 2), i, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]), (int16_t)(x - 2), i, 0);
 
     for (i = (int16_t)(x + 0x10); i < (int16_t)(x + w); i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xf]), i,
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]), i,
                     (int16_t)(y + h - 4), 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xa]), (int16_t)(x - 7),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), (int16_t)(x - 7),
                 (int16_t)(y - 4), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xb]), (int16_t)(x + w - 0x10),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xb]), (int16_t)(x + w - 0x10),
                 (int16_t)(y - 4), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xc]), (int16_t)(x - 7),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]), (int16_t)(x - 7),
                 (int16_t)(y + h - 0x10), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xd]), (int16_t)(x + w - 0x13),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]), (int16_t)(x + w - 0x13),
                 (int16_t)(y + h - 0xe), 0);
 
     restore_cursor_following();
@@ -1386,24 +1382,24 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 
     for (j = 8; (int16_t)(h - 8) > j; j = (int16_t)(j + 8)) {
         for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2b]),
+            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2b]),
                         (int16_t)(i + x), (int16_t)(j + y), 0);
 
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x36]), x, (int16_t)(j + y), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x37]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x36]), x, (int16_t)(j + y), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x37]),
                     (int16_t)(x + w - 8), (int16_t)(j + y), 0);
     }
 
     for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x38]), (int16_t)(i + x), y, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x39]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x38]), (int16_t)(i + x), y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x39]),
                     (int16_t)(i + x), (int16_t)(y + h - 8), 0);
     }
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x32]), x, y, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x33]), (int16_t)(x + w - 0x10), y, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x34]), x, (int16_t)(y + h - 0x10), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x35]), (int16_t)(x + w - 0x10),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x32]), x, y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x33]), (int16_t)(x + w - 0x10), y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x34]), x, (int16_t)(y + h - 0x10), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x35]), (int16_t)(x + w - 0x10),
                 (int16_t)(y + h - 0x10), 0);
 
     restore_cursor_following();
@@ -1517,12 +1513,12 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
     if (digit < 5) {
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
         clear_flag_2d44_thunk();
-        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp[0]), x, row, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[0]), x, row, 0);
     } else {
         digit = (uint8_t)(digit + 0xfb);    /* `add al, 0xfb` is `- 5` */
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
         clear_flag_2d44_thunk();
-        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp[1]), x, row, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[1]), x, row, 0);
     }
 
     restore_cursor_following();
@@ -1647,7 +1643,7 @@ void draw_machine_layer_a(void)
 
         clear_flag_2d44_thunk();
 
-        icon = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[kind];
+        icon = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind];
         draw_bitmap_centred(BMP_PTR(icon), 0x240, y, 0x38, 0x2a);
 
         int_to_string(count, digits, 10);
@@ -1692,11 +1688,11 @@ void draw_machine_layer_b(void)
 
     set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x6]), x, 0, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x6]), x, 0, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1]), 0x230, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xa]), 0x238, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), 0x230, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0, 0);
 
     restore_cursor_following();
 }
@@ -1719,10 +1715,10 @@ void draw_machine_layer_c(void)
 
     set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x7]), x, 0x168, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x7]), x, 0x168, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2]), 0, 0x160, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x3]), 0x230, 0x160, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), 0, 0x160, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x230, 0x160, 0);
 
     restore_cursor_following();
 }
@@ -1748,10 +1744,10 @@ void draw_machine_layer_d(void)
 
     set = DG4E67.bmp_4ecb_ptr;
     for (y = 8; y < 0x162; y = (int16_t)(y + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x4]), 0, y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x4]), 0, y, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2]), 0, 0x160, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), 0, 0x160, 0);
 
     restore_cursor_following();
 }
@@ -1792,28 +1788,28 @@ void draw_machine_layer_e(void)
     set = DG4E67.bmp_4ecb_ptr;
 
     for (n = 8; n < 0x162; n = (int16_t)(n + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x5]), 0x238, n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x238, n, 0);
 
     for (n = 0; n < 0x16f; n = (int16_t)(n + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x8]), 0x278, n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x8]), 0x278, n, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1]), 0x230, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x3]), 0x230, 0x160, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), 0x230, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x230, 0x160, 0);
 
     VMDS.second_colour = 0;
     clip_and_draw_line(0x238, 0, 0x27f, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xa]), 0x238, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xa]), 0x238, 0x3b, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xb]), 0x23f, 0x42, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0x3b, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xb]), 0x23f, 0x42, 0);
 
     if (DG4E67.state == 0x800)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x28]), 0x248, 0x45, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x28]), 0x248, 0x45, 0);
     else if (DG4E67.state == 0x400)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x29]), 0x25d, 0x45, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x29]), 0x25d, 0x45, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xa]), 0x238, 0x59, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x9]), 0x240, 0x168, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0x59, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x9]), 0x240, 0x168, 0);
 
     restore_cursor_following();
 }
@@ -1869,26 +1865,26 @@ void draw_machine_layer_f(void)
     clear_flag_2d44_thunk();
 
     set = DG4E67.menu_bmp_ptr;
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0]), 0x240, 0x0a, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1]), (int16_t)(0x208 + slide_a), 0x1a, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2]), (int16_t)(0x208 + slide_b), 0x20, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0x240, 0x0a, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), (int16_t)(0x208 + slide_a), 0x1a, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), (int16_t)(0x208 + slide_b), 0x20, 0);
 
     if (frame < 6) {
         /* 0x25a2 the picture, 0x25ae its x, 0x25ba its y - by frame. */
         uint16_t which = MACHINE_DRAW_MENU_ANIM.picture[frame];
 
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[which]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[which]),
                     MACHINE_DRAW_MENU_ANIM.picture_x[frame],
                     MACHINE_DRAW_MENU_ANIM.picture_y[frame], 0);
     }
 
     if (frame < 4) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x7]), 0x24a, 0x2a, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x7]), 0x24a, 0x2a, 0);
     } else {
         int16_t f = (int16_t)(frame & 3);
 
         /* 0x25c6 its x and 0x25ce its y, by the frame modulo four. */
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[f + 0x8]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[f + 0x8]),
                     MACHINE_DRAW_MENU_ANIM.sprite_x[f],
                     MACHINE_DRAW_MENU_ANIM.sprite_y[f], 0);
     }
@@ -1948,7 +1944,7 @@ void draw_carried_icon(void)
     set_clip_play_area();
 
     kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-    si = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[kind];
+    si = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind];
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
@@ -2147,20 +2143,20 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 
     DG50AF.flip_options = part_flip_options(part);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1b]), hx, hy, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1b]), hx, hy, 0);
 
     if (DG50AF.flip_options & 1) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1c]), hx, hym, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1c]), hxr, hym, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1c]), hx, hym, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1c]), hxr, hym, 0);
     }
     if (DG50AF.flip_options & 2) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1d]), hxm, hy, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1d]), hxm, hyb, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1d]), hxm, hy, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1d]), hxm, hyb, 0);
     }
     if (DG50AF.flip_options & 4)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1e]), hx, hyb, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1e]), hx, hyb, 0);
     if (DG50AF.flip_options & 8)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1f]), hxr, hyb, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1f]), hxr, hyb, 0);
 
     at[0] = (int16_t)((uint16_t)at[0] - 0x0c);
     at[1] = (int16_t)((uint16_t)at[1] - 0x0c);
@@ -2551,13 +2547,13 @@ void draw_belt(struct part *part, int16_t a)
         if (a == 0) {
             if (di->kind != KIND_ANCHOR
                 && di->kind != KIND_PULLEY)
-                draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp[0x24]),
+                draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x24]),
                             (int16_t)(v02 - 5),
                             (int16_t)(v04 - 2), 0);
 
             if (si->kind != KIND_ANCHOR
                 && si->kind != KIND_PULLEY)
-                draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp[0x24]),
+                draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x24]),
                             (int16_t)(v06 - 5),
                             (int16_t)(v08 - 2), 0);
         }
@@ -2680,7 +2676,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 }
 
                 {
-                    uint16_t bmp = BMPSET_PTR(v26->bitmaps_ptr)->bmp[v1c];
+                    uint16_t bmp = BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v1c];
 
                     if (a != 0) {
                         v0c = (int16_t)long_shift_right(
@@ -2728,7 +2724,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
         v21 = v28->frame[0];
 
         for (di = 0; ; di++) {
-            v2a = BMPSET_PTR(v26->bitmaps_ptr)->bmp[v21];
+            v2a = BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v21];
 
             v08 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
             v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);

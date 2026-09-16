@@ -4348,8 +4348,9 @@ struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
 
     if (kind == 6 || kind == 8) {
         /* The near heap takes a word: 0x29f9d pushes `[bp+6]` alone. */
-        blk.off = io_malloc((uint16_t)size);
-        blk.seg = 0;                  /* the original supplies DS here */
+        /* The pair is DS and the offset `malloc` answered, `mov [bp-2],ds`
+           at 0x29fab - so a refusal is DGROUP:0000, not FAR_NULL. */
+        blk = dg_far(dgroup, io_malloc((uint16_t)size));
     } else {
         /* **The same Borland `long`, passed straight on.** 0x29fb7 pushes
            `[bp+8]` then `[bp+6]` into `dos_alloc_bytes` without touching
@@ -4383,7 +4384,7 @@ void free_for_kind(struct far_ptr blk, uint16_t kind)
 {
     if (kind == 6 || kind == 8) {
         /* The near heap took only the offset - see `alloc_for_kind`. */
-        io_free(blk.off);
+        io_free(dg_ptr(dgroup, blk.off));
         return;
     }
     dos_free_far(blk);

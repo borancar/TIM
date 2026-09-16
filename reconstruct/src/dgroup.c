@@ -1982,7 +1982,7 @@ struct dg_48da DG48DA DGROUP_AT(0x48da) = {
 };
 struct dg_3576 DG3576 DGROUP_AT(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
-struct dg_0094 DG0094 DGROUP_AT(0x0094) = { .pad_0096 = { [4] = 0xca, [5] = 0x64 }, .brklvl = 0x64ca };
+struct dg_0094 DG0094 DGROUP_AT(0x0094) = { .pad_0096 = { [4] = 0xca, [5] = 0x64 }, .brklvl_ptr = 0x64ca };
 struct dg_1bcc DG1BCC DGROUP_AT(0x1bcc) = {
     .not_enough_free_memory = "\012\012NOT ENOUGH FREE MEMORY\012",
     .you_need_at_least = "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",

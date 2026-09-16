@@ -1333,6 +1333,18 @@ struct heap_block {
 
 #define HEAPBLK_PTR(p) ((struct heap_block *)(dgroup + (uint16_t)(p)))
 
+/*
+ * **What `heapwalk` fills in**, Borland's `struct heapinfo`: the block's payload
+ * - the pointer `malloc` answered, kept as the near pointer the original keeps -
+ * its size without the in-use bit, and that bit on its own. The walk takes the
+ * pointer back to find the next block, so a zero one starts from the first.
+ */
+struct heapinfo {
+    dg_near_t block_ptr;       /* +0x00 */
+    uint16_t  size;            /* +0x02 */
+    uint16_t  in_use;          /* +0x04 */
+} __attribute__((packed));
+
 /* **No heap block**, as a pointer - see `PART_NONE`. */
 #define HEAPBLK_NONE HEAPBLK_PTR(0)
 
@@ -1980,6 +1992,13 @@ struct dg_546c {
 
 extern struct dg_546c DG546C;
 
+/* The block `DG546C.table` points at, as the far array of near pointers it is:
+   one a part, indexed by part number, `n * 4` bytes allocated for `n`. */
+struct part_table {
+    dg_near_t part_ptr[];
+} __attribute__((packed));
+#define PART_TABLE ((struct part_table *)MK_FP(DG546C.table.seg, DG546C.table.off))
+
 DG_ASSERT_AT(struct dg_546c, table,             0x00);
 DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
 DG_ASSERT_AT(struct dg_546c, is_level,          0x06);
@@ -2205,13 +2224,13 @@ _Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
 struct dg_0094 {
     int16_t   err_no;             /* +0x00  `errno` */
     uint8_t   pad_0096[6];
-    uint16_t  brklvl;             /* +0x08  the near heap's break */
+    dg_near_t brklvl_ptr;         /* +0x08  the near heap's break */
 } __attribute__((packed));
 
 extern struct dg_0094 DG0094;
 
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
-DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
+DG_ASSERT_AT(struct dg_0094, brklvl_ptr,        0x08);
 
 /*
  * **A draw step**, the record a part's draw list is a chain of: which
@@ -3284,11 +3303,11 @@ _Static_assert(sizeof(struct open_file) == 0x43,
  * `draw_bitmap` and to nothing else.
  *
  * Entry `n` is at `+2n`, which is how a site here reads back against the
- * disassembly - `bmp[0x25]` is `[si+0x4a]`.
+ * disassembly - `bmp_ptr[0x25]` is `[si+0x4a]`.
  * ---------------------------------------------------------------------------
  */
 struct bmp_set {
-    bmp_ptr_t bmp[];
+    bmp_ptr_t bmp_ptr[];
 } __attribute__((packed));
 
 #define BMPSET_PTR(p) ((struct bmp_set *)(dgroup + (uint16_t)(p)))
@@ -4061,7 +4080,7 @@ extern struct part_kind PART_KINDS[PART_KIND_COUNT];
  * ---------------------------------------------------------------------------
  */
 struct queue_node {
-    dg_near_t next;            /* +0x00 */
+    dg_near_t next_ptr;        /* +0x00 */
     dg_near_t part;            /* +0x02  the part that asked to move */
     int32_t   momentum;        /* +0x04  the sort key: one Borland `long`,
                                          compared as `jg`/`jl` on the high
@@ -4117,14 +4136,14 @@ struct rect_list_entry {
     uint16_t  area;            /* +0x10  w * h, from the creator's imul */
     uint16_t  block_head;      /* +0x12  1 on the first record of each heap block */
     struct far_ptr buf;        /* +0x14  the saved pixels, for mode 4 */
-    dg_near_t next;            /* +0x18 */
+    dg_near_t next_ptr;        /* +0x18 */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct rect_list_entry, page_src, 0x08);
 DG_ASSERT_AT(struct rect_list_entry, mode,     0x0c);
 DG_ASSERT_AT(struct rect_list_entry, refcount,      0x0e);
 DG_ASSERT_AT(struct rect_list_entry, buf,      0x14);
-DG_ASSERT_AT(struct rect_list_entry, next,     0x18);
+DG_ASSERT_AT(struct rect_list_entry, next_ptr, 0x18);
 _Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1a bytes");
 
 #define RECTENT_PTR(p) ((struct rect_list_entry *)(dgroup + (uint16_t)(p)))

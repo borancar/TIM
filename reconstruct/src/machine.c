@@ -1254,7 +1254,7 @@ void step_machine(void)
     for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
         si->flags_08 &= 0xf9bf;
 
-    for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next) {
+    for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next_ptr) {
         si = PART_PTR(QNODE_PTR(di)->part);
         if (si->flags_08 & 0x40)
             continue;
@@ -5404,7 +5404,7 @@ void select_cursor(int16_t which)
         hot_x = 0;
     }
 
-    set_cursor(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[si], hot_y, hot_x);
+    set_cursor(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si], hot_y, hot_x);
 }
 
 /*
@@ -6600,79 +6600,82 @@ out:
  * it by a `jmp` back to one place that sets the flag - so a half-built copy
  * never escapes.
  */
-uint16_t clone_part(struct part *part)
+struct part *clone_part(struct part *part)
 {
     uint16_t failed;    /* [bp-4] */
-    uint16_t dst_pt;    /* [bp-6] */
-    uint16_t src_pt;    /* [bp-8] */
-    uint16_t si;
+    struct part_point *dst_pt;          /* [bp-6] */
+    const struct part_point *src_pt;    /* [bp-8] */
+    struct part *si;
     int16_t i;
 
     failed = 0;
 
-    si = heap_calloc_far(1, 0xa2);
-    if (si == 0)
+    si = (struct part *)(void *)heap_calloc_far(1, 0xa2);
+    if (si == NULL) {
+        /* the refusal is offset 0, which `free_part` below tests as no part */
+        si = PART_NONE;
         goto give_up;
-
-    PART_PTR(si)->kind = part->kind;
-    PART_PTR(si)->flags_06 = part->flags_06;
-    PART_PTR(si)->flags_08 = part->flags_08;
-    PART_PTR(si)->flags_0a = part->flags_0a;
-    PART_PTR(si)->form = part->form;
-    PART_PTR(si)->word_0e = part->word_0e;
-    PART_PTR(si)->word_10 = ((uint16_t)part->word_10);
-    PART_PTR(si)->direction = ((uint16_t)part->direction);
-    PART_PTR(si)->mirror_size.height = part->mirror_size.height;
-    PART_PTR(si)->mirror_size.width = part->mirror_size.width;
-    PART_PTR(si)->size[0].height = ((uint16_t)part->size[0].height);
-    PART_PTR(si)->size[0].width = ((uint16_t)part->size[0].width);
-    PART_PTR(si)->set_size.height = part->set_size.height;
-    PART_PTR(si)->set_size.width = part->set_size.width;
-
-    if (PART_PTR(si)->kind == KIND_BELT) {
-        PART_PTR(si)->rope_ptr = heap_calloc_far(1, 0x38);
-        if (PART_PTR(si)->rope_ptr == 0)
-            goto give_up;
-        ROPE_PTR(PART_PTR(si)->rope_ptr)->owner_ptr = si;
     }
 
-    PART_PTR(si)->grab = part->grab;
-    PART_PTR(si)->word_58 = part->word_58;
+    si->kind = part->kind;
+    si->flags_06 = part->flags_06;
+    si->flags_08 = part->flags_08;
+    si->flags_0a = part->flags_0a;
+    si->form = part->form;
+    si->word_0e = part->word_0e;
+    si->word_10 = ((uint16_t)part->word_10);
+    si->direction = ((uint16_t)part->direction);
+    si->mirror_size.height = part->mirror_size.height;
+    si->mirror_size.width = part->mirror_size.width;
+    si->size[0].height = ((uint16_t)part->size[0].height);
+    si->size[0].width = ((uint16_t)part->size[0].width);
+    si->set_size.height = part->set_size.height;
+    si->set_size.width = part->set_size.width;
 
-    if (PART_PTR(si)->kind == KIND_ROPE || PART_PTR(si)->kind == KIND_PULLEY) {
-        PART_PTR(si)->belt_ptr[0] = heap_calloc_far(1, 0x2c);
-        if (PART_PTR(si)->belt_ptr[0] == 0)
+    if (si->kind == KIND_BELT) {
+        si->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38));
+        if (si->rope_ptr == 0)
             goto give_up;
-        BELT_PTR(PART_PTR(si)->belt_ptr[0])->owner_ptr = si;
+        ROPE_PTR(si->rope_ptr)->owner_ptr = dg_near(dgroup, si);
     }
 
-    PART_PTR(si)->attach[0] = part->attach[0];
-    PART_PTR(si)->attach[1] = part->attach[1];
+    si->grab = part->grab;
+    si->word_58 = part->word_58;
 
-    PART_PTR(si)->point_count =
-        PART_KINDS[PART_PTR(si)->kind].point_count;
+    if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
+        si->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
+        if (si->belt_ptr[0] == 0)
+            goto give_up;
+        BELT_PTR(si->belt_ptr[0])->owner_ptr = dg_near(dgroup, si);
+    }
 
-    if (PART_PTR(si)->point_count != 0) {
-        src_pt = ((uint16_t)part->points_ptr);
+    si->attach[0] = part->attach[0];
+    si->attach[1] = part->attach[1];
 
-        PART_PTR(si)->points_ptr =
-            heap_calloc_far(PART_PTR(si)->point_count, 4);
-        dst_pt = ((uint16_t)PART_PTR(si)->points_ptr);
-        if (dst_pt == 0)
+    si->point_count =
+        PART_KINDS[si->kind].point_count;
+
+    if (si->point_count != 0) {
+        src_pt = POINTS(part->points_ptr);
+
+        si->points_ptr =
+            dg_near(dgroup, heap_calloc_far(si->point_count, 4));
+        dst_pt = POINTS(si->points_ptr);
+        if (dst_pt == POINTS_NONE)
             goto give_up;
 
-        for (i = 0; ((int16_t)PART_PTR(si)->point_count) > i; i++) {
+        for (i = 0; ((int16_t)si->point_count) > i; i++) {
             /* two word moves in the original, +2 and then +0: the same
                four bytes as one `struct part_point` */
-            POINTS(dst_pt)[0] = POINTS(src_pt)[0];
-            dst_pt += 4;
-            src_pt += 4;
+            *dst_pt = *src_pt;
+            dst_pt++;
+            src_pt++;
         }
     }
 
-    PART_PTR(si)->word_90 = part->word_90;
-    PART_PTR(si)->word_92 = part->word_92;
-    PART_PTR(si)->word_94 = part->word_94;
+    si->word_90 = part->word_90;
+    si->word_92 = part->word_92;
+    si->word_94 = part->word_94;
 
     goto out;
 
@@ -6680,18 +6683,11 @@ give_up:
     failed = 1;
 
 out:
-    {
-        uint16_t answer;
-
-        if (failed != 0) {
-            free_part(PART_PTR(si));
-            answer = 0;
-        } else {
-            answer = si;
-        }
-
-        return answer;
+    if (failed != 0) {
+        free_part(si);
+        return PART_NONE;
     }
+    return si;
 }
 
 /*
@@ -7577,7 +7573,7 @@ void set_object_extent(struct part *obj)
     }
 
     if (((int16_t)rec->bitmaps_ptr) != 0) {
-        target = BMPSET_PTR(rec->bitmaps_ptr)->bmp[obj->form];
+        target = BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form];
         obj->size[0].width = BMP_PTR(target)->width;
         obj->size[0].height = BMP_PTR(target)->height;
         return;
@@ -9297,13 +9293,13 @@ void splice_list_4e58_onto_4e56(void)
         return;
 
     last = DG4E4E.parts_queue_ptr;
-    next = QNODE_PTR(last)->next;
+    next = QNODE_PTR(last)->next_ptr;
     while (next != 0) {
         last = next;
-        next = QNODE_PTR(next)->next;
+        next = QNODE_PTR(next)->next_ptr;
     }
 
-    QNODE_PTR(last)->next = DG4E4E.parts_free_ptr;
+    QNODE_PTR(last)->next_ptr = DG4E4E.parts_free_ptr;
     DG4E4E.parts_free_ptr = DG4E4E.parts_queue_ptr;
     DG4E4E.parts_queue_ptr = 0;
 }
@@ -9337,7 +9333,7 @@ int16_t queue_part(struct part *src, uint16_t part)
        high-word `jg`/`jl` and low-word `jae`/`ja` - a signed 32-bit compare. */
     key = src->momentum;
 
-    for (si = DG4E4E.parts_queue_ptr; si != 0; si = QNODE_PTR(si)->next) {
+    for (si = DG4E4E.parts_queue_ptr; si != 0; si = QNODE_PTR(si)->next_ptr) {
         if (QNODE_PTR(si)->part != part)
             continue;
         if (QNODE_PTR(si)->momentum < key)
@@ -9350,21 +9346,21 @@ int16_t queue_part(struct part *src, uint16_t part)
     if (DG4E4E.parts_queue_ptr != 0
         && QNODE_PTR(DG4E4E.parts_queue_ptr)->momentum >= key) {
         di = DG4E4E.parts_queue_ptr;
-        si = QNODE_PTR(DG4E4E.parts_queue_ptr)->next;
+        si = QNODE_PTR(DG4E4E.parts_queue_ptr)->next_ptr;
 
         while (si != 0 && QNODE_PTR(si)->momentum > key) {
             di = si;
-            si = QNODE_PTR(si)->next;
+            si = QNODE_PTR(si)->next_ptr;
         }
 
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = QNODE_PTR(DG4E4E.parts_free_ptr)->next;
-        QNODE_PTR(si)->next = QNODE_PTR(di)->next;
-        QNODE_PTR(di)->next = si;
+        DG4E4E.parts_free_ptr = QNODE_PTR(DG4E4E.parts_free_ptr)->next_ptr;
+        QNODE_PTR(si)->next_ptr = QNODE_PTR(di)->next_ptr;
+        QNODE_PTR(di)->next_ptr = si;
     } else {
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = QNODE_PTR(DG4E4E.parts_free_ptr)->next;
-        QNODE_PTR(si)->next = DG4E4E.parts_queue_ptr;
+        DG4E4E.parts_free_ptr = QNODE_PTR(DG4E4E.parts_free_ptr)->next_ptr;
+        QNODE_PTR(si)->next_ptr = DG4E4E.parts_queue_ptr;
         DG4E4E.parts_queue_ptr = si;
     }
 
@@ -9897,27 +9893,25 @@ void repaint_whole_screen(void)
  * it to 0x800. `neg` and subtract gives the gap between them, and the answer is
  * whichever of the two is bigger.
  *
- * The record is a **guest** frame, not a C local: `heapwalk` is handed a
- * DGROUP offset and a C local has none, so this reserves through `dg_alloca`
- * the eight bytes the original's `sub sp,8` reserves. See dgroup.h.
+ * The record is the original's `[bp-6]`, the three words `heapwalk` fills.
  *
  * So a heap with no free block still answers what a fresh one would give.
  */
 int16_t heap_largest_free(void)
 {
     int16_t total;                    /* [bp-8] */
-    int16_t info[3];    /* [bp-6], the walk record */
+    struct heapinfo info;             /* [bp-6], the walk record */
     uint16_t best = 0, gap;
 
     total = 0;
-    info[0] = 0;
+    info.block_ptr = 0;
 
-    while (heapwalk(info) == 2) {
-        total = (uint16_t)((uint16_t)info[0] + (uint16_t)info[1]);
-        if ((uint16_t)info[2] != 0)
+    while (heapwalk(&info) == 2) {
+        total = (int16_t)(info.block_ptr + info.size);
+        if (info.in_use != 0)
             continue;
-        if ((uint16_t)((uint16_t)info[1] - 4) > best)
-            best = (uint16_t)((uint16_t)info[1] - 4);
+        if ((uint16_t)(info.size - 4) > best)
+            best = (uint16_t)(info.size - 4);
     }
 
     gap = (uint16_t)(-(int16_t)DG52ED.stack_floor - total);
@@ -10307,7 +10301,7 @@ void regions_handle_pointer(uint16_t first)
 enum region_word { RW_NONE, RW_A, RW_B, RW_C, RW_PANEL, RW_PLAY, RW_KEPT_A, RW_KEPT_B };
 
 /* OURS: the word an `enum region_word` names. */
-static dg_near_t *region_word(enum region_word w)
+static const dg_near_t *region_word(enum region_word w)
 {
     switch (w) {
     case RW_A:      return &DG4E67.regions_a_ptr;
@@ -10318,6 +10312,21 @@ static dg_near_t *region_word(enum region_word w)
     case RW_KEPT_A: return &DG4E67.region_kept_a_ptr;
     case RW_KEPT_B: return &DG4E67.region_kept_b_ptr;
     default:        return NULL;
+    }
+}
+
+/* OURS: file `rec` in the word an `enum region_word` names. */
+static void region_word_store(enum region_word w, const struct region *rec)
+{
+    switch (w) {
+    case RW_A:      DG4E67.regions_a_ptr = dg_near(dgroup, rec); break;
+    case RW_B:      DG4E67.regions_b_ptr = dg_near(dgroup, rec); break;
+    case RW_C:      DG4E67.regions_c_ptr = dg_near(dgroup, rec); break;
+    case RW_PANEL:  DG4E67.regions_panel_ptr = dg_near(dgroup, rec); break;
+    case RW_PLAY:   DG4E67.regions_play_ptr = dg_near(dgroup, rec); break;
+    case RW_KEPT_A: DG4E67.region_kept_a_ptr = dg_near(dgroup, rec); break;
+    case RW_KEPT_B: DG4E67.region_kept_b_ptr = dg_near(dgroup, rec); break;
+    default:        break;
     }
 }
 
@@ -10379,12 +10388,12 @@ void build_screen_regions(void)
     uint16_t i;
 
     for (i = 0; i < 36; i++) {
-        uint16_t si = heap_calloc_far(1, 0x1a);
+        struct region *si = (struct region *)(void *)heap_calloc_far(1, 0x1a);
 
         struct region r = screen_regions[i].region;
 
         if (screen_regions[i].also != RW_NONE)
-            *region_word(screen_regions[i].also) = si;
+            region_word_store(screen_regions[i].also, si);
 
         if ((screen_regions[i].reloc & RELOC_HOVER) != 0)
             r.hover.seg = (uint16_t)(r.hover.seg + (uint16_t)(IMAGE_BASE >> 4));
@@ -10392,8 +10401,8 @@ void build_screen_regions(void)
             r.click.seg = (uint16_t)(r.click.seg + (uint16_t)(IMAGE_BASE >> 4));
 
         r.link_ptr = *region_word(screen_regions[i].head);
-        *REGION_PTR(si) = r;
-        *region_word(screen_regions[i].head) = si;
+        *si = r;
+        region_word_store(screen_regions[i].head, si);
     }
 }
 
@@ -10803,7 +10812,7 @@ int16_t game_fputc(int16_t c, FILE *file)
  * DGROUP 0x547e is whether the archive is in use at all; with it clear the
  * lookup is skipped.
  */
-void game_setbuf(FILE *file, uint16_t buf)
+void game_setbuf(FILE *file, uint8_t *buf)
 {
     struct game_file *rec = GAME_FILE_NONE;
 
@@ -10913,10 +10922,10 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
                                rec->h);
 
         last = rec;
-        rec = RECTENT_PTR(rec->next);
+        rec = RECTENT_PTR(rec->next_ptr);
     }
 
-    last->next = MACHINE_RECT_FREE.rect_free_ptr;
+    last->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = *slot;
     *slot = 0;
 }
@@ -10985,24 +10994,24 @@ char far *far_strcat(char far *dst, const char far *src)
  */
 uint16_t build_rect_pool(uint16_t n)
 {
-    uint16_t base;                           /* [bp-2] */
+    struct rect_list_entry *base;            /* [bp-2] */
     uint16_t k;                              /* [bp-4] */
-    uint16_t rec;                            /* si */
+    struct rect_list_entry *rec;             /* si */
 
     n = (uint16_t)((int16_t)(n + 4) / 5 * 5);
-    base = heap_calloc_far(n, 0x1a);
-    if (base == 0)
+    base = (struct rect_list_entry *)(void *)heap_calloc_far(n, 0x1a);
+    if (base == NULL)
         return 0;
 
     rec = base;
-    RECTENT_PTR(rec)->block_head = 1;
+    rec->block_head = 1;
     for (k = 1; (int16_t)k < (int16_t)n; k++) {
-        RECTENT_PTR(rec)->next = (uint16_t)(rec + 0x1a);
-        rec = (uint16_t)(rec + 0x1a);
+        rec->next_ptr = dg_near(dgroup, rec + 1);
+        rec = rec + 1;
     }
 
-    RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
-    MACHINE_RECT_FREE.rect_free_ptr = base;
+    rec->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
+    MACHINE_RECT_FREE.rect_free_ptr = dg_near(dgroup, base);
     GAME_TEXT_LINES.line_ptr[8] = (uint16_t)(GAME_TEXT_LINES.line_ptr[8] + n);
     return 1;
 }
@@ -11099,8 +11108,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         return;
 
     rec = MACHINE_RECT_FREE.rect_free_ptr;
-    MACHINE_RECT_FREE.rect_free_ptr = RECTENT_PTR(rec)->next;
-    RECTENT_PTR(rec)->next = 0;
+    MACHINE_RECT_FREE.rect_free_ptr = RECTENT_PTR(rec)->next_ptr;
+    RECTENT_PTR(rec)->next_ptr = 0;
     RECTENT_PTR(rec)->x = x;
     RECTENT_PTR(rec)->y = y;
     RECTENT_PTR(rec)->w = w;
@@ -11121,7 +11130,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 
     body:
         stop = from;
-        after = RECTENT_PTR(other)->next;
+        after = RECTENT_PTR(other)->next_ptr;
         sum = (int16_t)(RECTENT_PTR(other)->area + RECTENT_PTR(rec)->area);
 
         ux0 = RECTENT_PTR(other)->x < RECTENT_PTR(rec)->x
@@ -11147,10 +11156,10 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         RECTENT_PTR(rec)->h = (int16_t)(uy1 - uy0);
         RECTENT_PTR(rec)->area = (uint16_t)area;
         if (prev != 0)
-            RECTENT_PTR(prev)->next = after;
+            RECTENT_PTR(prev)->next_ptr = after;
         else
             *slot = after;
-        RECTENT_PTR(other)->next = MACHINE_RECT_FREE.rect_free_ptr;
+        RECTENT_PTR(other)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
         MACHINE_RECT_FREE.rect_free_ptr = other;
         from = after;
         stop = prev;
@@ -11169,7 +11178,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
             goto body;
     }
 
-    RECTENT_PTR(rec)->next = *slot;
+    RECTENT_PTR(rec)->next_ptr = *slot;
     *slot = rec;
 }
 
@@ -11237,7 +11246,7 @@ void restore_saved_rect_lists(int16_t which)
             while (rec != 0) {
                 RECTENT_PTR(rec)->refcount =
                     (int16_t)(RECTENT_PTR(rec)->refcount - 1);
-                rec = RECTENT_PTR(rec)->next;
+                rec = RECTENT_PTR(rec)->next_ptr;
             }
 
             slot++;
@@ -11263,9 +11272,9 @@ void discard_saved_rects(void)
     while (left != 0) {
         rec = *slot;
         if (rec != 0) {
-            while (RECTENT_PTR(rec)->next != 0)
-                rec = RECTENT_PTR(rec)->next;
-            RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
+            while (RECTENT_PTR(rec)->next_ptr != 0)
+                rec = RECTENT_PTR(rec)->next_ptr;
+            RECTENT_PTR(rec)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
             MACHINE_RECT_FREE.rect_free_ptr = *slot;
             *slot = 0;
         }
@@ -11299,7 +11308,7 @@ uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
         if (rec != 0
             && RECTENT_PTR(rec)->page_dst == page_dst
             && (uint16_t)RECTENT_PTR(rec)->refcount == refcount) {
-            for (; rec != 0; rec = RECTENT_PTR(rec)->next) {
+            for (; rec != 0; rec = RECTENT_PTR(rec)->next_ptr) {
                 if (RECTENT_PTR(rec)->mode != 1)
                     continue;
                 if (RECTENT_PTR(rec)->x < (int16_t)(x + cols)
@@ -11333,7 +11342,7 @@ void free_rect_pool(void)
 
     discard_saved_rects();
 
-    for (rec = MACHINE_RECT_FREE.rect_free_ptr; rec != 0; rec = RECTENT_PTR(rec)->next) {
+    for (rec = MACHINE_RECT_FREE.rect_free_ptr; rec != 0; rec = RECTENT_PTR(rec)->next_ptr) {
         if ((RECTENT_PTR(rec)->block_head & 1) != 0) {
             RECTENT_PTR(rec)->block_head = 0;
             free_rect_pool();
@@ -11424,10 +11433,10 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
         return;
 
     last = rec;
-    while (RECTENT_PTR(last)->next != 0)
-        last = RECTENT_PTR(last)->next;
+    while (RECTENT_PTR(last)->next_ptr != 0)
+        last = RECTENT_PTR(last)->next_ptr;
 
-    RECTENT_PTR(last)->next = MACHINE_RECT_FREE.rect_free_ptr;
+    RECTENT_PTR(last)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = *slot;
     *slot = 0;
 }

@@ -654,7 +654,7 @@ uint16_t game_teardown(int16_t really)
 
     si = DG4E4E.parts_free_ptr;
     while (si != 0) {
-        uint16_t next = QNODE_PTR(si)->next;
+        uint16_t next = QNODE_PTR(si)->next_ptr;
 
         heap_free_far(dg_ptr(dgroup, si));
         si = next;
@@ -833,10 +833,10 @@ void game_startup(void)
     DG4E4E.parts_queue_ptr = 0;
     DG4E4E.parts_free_ptr = 0;
     for (i = 0; i < 0x14; i++) {
-        uint16_t p = heap_calloc_far(1, 8);
+        struct queue_node *p = (struct queue_node *)(void *)heap_calloc_far(1, 8);
 
-        QNODE_PTR(p)->next = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = p;
+        p->next_ptr = DG4E4E.parts_free_ptr;
+        DG4E4E.parts_free_ptr = dg_near(dgroup, p);
     }
 
     /*
@@ -948,7 +948,7 @@ uint16_t game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(BMP_PTR(bitmaps->bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(bitmaps->bmp_ptr[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             if (step->bitmap == 0)
@@ -956,7 +956,7 @@ uint16_t game_intro(void)
 
             step++;
 
-            draw_bitmap(BMP_PTR(bitmaps->bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(bitmaps->bmp_ptr[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             step++;
@@ -983,7 +983,7 @@ uint16_t game_intro(void)
             break;
     }
 
-    free_bitmaps_thunk(bitmaps->bmp);
+    free_bitmaps_thunk(bitmaps->bmp_ptr);
 
     DG52BD.saved_clip_left = 0;
     DG52BD.saved_clip_top = 0;
@@ -1144,7 +1144,7 @@ uint16_t game_intro(void)
     set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
     present_frame(1);
 
-    free_bitmaps_thunk(gkc->bmp);
+    free_bitmaps_thunk(gkc->bmp_ptr);
 
     stop_music_or_effect(0);
     show_cursor_again();
@@ -1277,7 +1277,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x12]), 0x24c, 0x15e, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), numbuf, 10);
@@ -1298,7 +1298,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
             part = 0x24;
 
         clear_flag_2d44_thunk();
-        draw_bitmap_centred(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part]),
+        draw_bitmap_centred(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[part]),
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -1350,7 +1350,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
                     part = 0x24;
 
                 answers[slot] = part;
-                draw_answer_slot(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part]),
+                draw_answer_slot(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[part]),
                                  (uint16_t)slot);
                 slot++;
                 if (slot == 3)
@@ -1437,10 +1437,10 @@ void draw_frame_corners(struct bmp_set *rec)
 {
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(rec->bmp[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(rec->bmp[1]), 0x262, 0, 0);
-    draw_bitmap(BMP_PTR(rec->bmp[2]), 0, 0x175, 0);
-    draw_bitmap(BMP_PTR(rec->bmp[3]), 0x262, 0x175, 0);
+    draw_bitmap(BMP_PTR(rec->bmp_ptr[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(rec->bmp_ptr[1]), 0x262, 0, 0);
+    draw_bitmap(BMP_PTR(rec->bmp_ptr[2]), 0, 0x175, 0);
+    draw_bitmap(BMP_PTR(rec->bmp_ptr[3]), 0x262, 0x175, 0);
 
     restore_cursor_following();
 }
@@ -1523,11 +1523,11 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(BMP_PTR(bar->bmp[0]), 3, 0, 0);
-    draw_bitmap(BMP_PTR(bar->bmp[1]), 0x107, 0, 0);
-    draw_bitmap(BMP_PTR(bar->bmp[2]), 0x1bb, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp_ptr[0]), 3, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp_ptr[1]), 0x107, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp_ptr[2]), 0x1bb, 0, 0);
 
-    free_bitmaps_thunk(bar->bmp);
+    free_bitmaps_thunk(bar->bmp_ptr);
 
     clear_flag_2d44_thunk();
     DG4E67.menu_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_BUTTON_LABELS.gp_menu_bmp));
@@ -1762,11 +1762,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     if (filled != 0) {
         fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
                   (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x25]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x25]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x26]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x26]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x27]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x27]),
                     (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
     }
 
@@ -1778,7 +1778,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 
     for (y = y1; y < y2; y = (int16_t)(y + 0x40))
         for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2a]), x, y, 0);
+            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2a]), x, y, 0);
 
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
@@ -1788,22 +1788,22 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     VMDS.clip_enabled = 0;
 
     for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x12]), x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x13]), x, y2, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x12]), x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x13]), x, y2, 0);
     }
 
     for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x10]), (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x11]), x2, y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x10]), (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x11]), x2, y, 0);
     }
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xc]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]),
                 (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xd]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]),
                 (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xe]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]),
                 (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xf]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]),
                 (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
@@ -1845,22 +1845,22 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     fill_rect(x, y, w, h);
 
     for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1a]), n, (int16_t)(y - 8), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1b]), n, y2, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1a]), n, (int16_t)(y - 8), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1b]), n, y2, 0);
     }
 
     for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x18]), (int16_t)(x - 8), n, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x19]), x2, n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x18]), (int16_t)(x - 8), n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x19]), x2, n, 0);
     }
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x14]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x14]),
                 (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x15]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x15]),
                 (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x16]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x16]),
                 (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x17]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x17]),
                 (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
 }
 
@@ -2174,7 +2174,7 @@ void paint_panel_a(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x10]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x10]),
                 0x3a, 0x5b, 0);
     restore_cursor_following();
 }
@@ -2199,7 +2199,7 @@ void paint_panel_b(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x12]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x12]),
                 0xd8, 0x60, 0);
     restore_cursor_following();
 }
@@ -2224,7 +2224,7 @@ void paint_panel_c(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1f]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1f]),
                 0xbc, 0x5c, 0);
     restore_cursor_following();
 }
@@ -2249,7 +2249,7 @@ void paint_panel_d(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x29]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x29]),
                 0x6d, 0x85, 0);
     restore_cursor_following();
 }
@@ -2270,9 +2270,9 @@ void paint_panel_free_a(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x21]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x21]),
                 0x96, 0x8c, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1d]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
                 0xa6, 0x8b, 0);
     restore_cursor_following();
 }
@@ -2293,9 +2293,9 @@ void paint_panel_free_b(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x23]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x23]),
                 0xc8, 0x8c, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1d]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
                 0xd8, 0x8b, 0);
     restore_cursor_following();
 }
@@ -2312,7 +2312,7 @@ void paint_panel_level(uint16_t frame)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1b]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1b]),
                 0x39, 0x86, 0);
     restore_cursor_following();
 }
@@ -2349,15 +2349,15 @@ void paint_panel_e(void)
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
         for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x2b]), si, di, 0);
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x2b]), si, di, 0);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[left]),  0x58, 0x5d, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[right]), 0x58, 0x6f, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x14]),      0x6e, 0x60, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[left]),  0x58, 0x5d, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[right]), 0x58, 0x6f, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x14]),      0x6e, 0x60, 0);
 
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[si + 0x14]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[si + 0x14]),
                     GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
         y = (int16_t)(y - 2);
     }
@@ -2383,13 +2383,13 @@ void paint_panel_f(void)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x7]), 0x41, 0xc8, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x9]), 0x3d, 0xe5, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x7]), 0x41, 0xc8, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0xe5, 0);
 
     at = (int16_t)long_divide(
              mul16x16(DG50AF.air, 0xa0), 0x200);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x6]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
                 (int16_t)(at + 0x3d), 0xe0, 0);
 
     restore_cursor_following();
@@ -2413,13 +2413,13 @@ void paint_panel_g(void)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x8]), 0x41, 0x114, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x9]), 0x3d, 0x131, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x8]), 0x41, 0x114, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0x131, 0);
 
     at = (int16_t)long_divide(
              mul16x16(DG50AF.gravity, 0xa0), 0x80);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x6]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
                 (int16_t)(at + 0x3d), 0x12c, 0);
 
     restore_cursor_following();
@@ -2492,9 +2492,9 @@ void paint_game_screen(uint16_t present)
 
     clear_flag_2d44_thunk();
     set = DG52ED.panel_art_ptr;
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x3]), 0x53, 0x42, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x5]), 0x64, 0xb2, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x4]), 0x5b, 0xfe, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x53, 0x42, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x64, 0xb2, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x4]), 0x5b, 0xfe, 0);
     restore_cursor_following();
 
     select_music(DG50AF.tune);
@@ -2575,7 +2575,7 @@ uint16_t read_level(char *name)
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
-    game_setbuf(file, buf);
+    game_setbuf(file, dg_ptr(dgroup, buf));
     game_fread_far(file, (uint8_t *)&DG546C.version_out);
 
     if (DG546C.version_out == 0xaced) {
@@ -2939,7 +2939,7 @@ void puzzle_draw_up(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -2956,7 +2956,7 @@ void puzzle_draw_down(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -2973,7 +2973,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x10]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x10]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -4897,8 +4897,8 @@ void region_cursor_bin(struct region *region)
  */
 void region_click_bin(struct region *region)
 {
-    uint16_t saved;                    /* [bp-2] */
-    uint16_t part, clone;
+    struct part *saved;                /* [bp-2] */
+    struct part *part, *clone;
 
     if (DG4E67.word_4e69 == 9) {
         uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
@@ -4914,29 +4914,29 @@ void region_click_bin(struct region *region)
     DG4E67.word_4e95 = 0;
     DG4E67.word_4e97 = 0;
 
-    part = PART_PTR(bin_part_at_index(
-                     (int16_t)region->word_04))->next_ptr;
-    DG50D3.dragged_part_ptr = part;
+    part = PART_PTR(PART_PTR(bin_part_at_index(
+                     (int16_t)region->word_04))->next_ptr);
+    DG50D3.dragged_part_ptr = dg_near(dgroup, part);
 
-    if (part == 0) {
+    if (part == PART_NONE) {
         return;
     }
 
     if (DG4E67.freeform != 0) {
         clone = clone_part(PART_PTR(DG50D3.dragged_part_ptr));
-        saved = DG50D3.dragged_part_ptr;
+        saved = PART_PTR(DG50D3.dragged_part_ptr);
         DG50D3.dragged_part_ptr = 0;
 
         if (check_room_for_part() != 0) {
-            DG50D3.dragged_part_ptr = saved;
-            PART_PTR(clone)->next_ptr = PART_PTR(DG50D3.dragged_part_ptr)->next_ptr;
-            if (PART_PTR(clone)->next_ptr != 0)
-                PART_PTR(PART_PTR(clone)->next_ptr)->prev_ptr = clone;
-            PART_PTR(clone)->prev_ptr = DG50D3.dragged_part_ptr;
-            PART_PTR(DG50D3.dragged_part_ptr)->next_ptr = clone;
-            DG50D3.dragged_part_ptr = clone;
+            DG50D3.dragged_part_ptr = dg_near(dgroup, saved);
+            clone->next_ptr = PART_PTR(DG50D3.dragged_part_ptr)->next_ptr;
+            if (clone->next_ptr != 0)
+                PART_PTR(clone->next_ptr)->prev_ptr = dg_near(dgroup, clone);
+            clone->prev_ptr = DG50D3.dragged_part_ptr;
+            PART_PTR(DG50D3.dragged_part_ptr)->next_ptr = dg_near(dgroup, clone);
+            DG50D3.dragged_part_ptr = dg_near(dgroup, clone);
         } else {
-            free_part(PART_PTR(clone));
+            free_part(clone);
         }
     }
 
@@ -5966,8 +5966,7 @@ int16_t lookup_table_546c(int16_t index)
 {
     if (index == -1)
         return 0;
-    return FAR16(DG546C.table.seg,
-                 (uint16_t)(DG546C.table.off + (uint16_t)(index * 2)));
+    return (int16_t)PART_TABLE->part_ptr[(uint16_t)index];
 }
 
 
@@ -5990,8 +5989,8 @@ void alloc_part_table(int16_t n)
     DG546C.table = dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr;
 
     for (si = 0; si < n; si++)
-        FARU16(DG546C.table.seg, (uint16_t)(DG546C.table.off + 2 * si)) =
-            heap_calloc_far(1, 0xa2);
+        PART_TABLE->part_ptr[(uint16_t)si] =
+            dg_near(dgroup, heap_calloc_far(1, 0xa2));
 }
 
 /*
@@ -6126,7 +6125,7 @@ void read_record_fields(FILE *file, struct part *rec)
     int16_t v06;       /* [bp-6] */
     int16_t v04;       /* [bp-4] */
     int16_t v02;       /* [bp-2] */
-    uint16_t di;
+    struct belt *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
     game_fread_far(file, (uint8_t *)&rec->flags_06);
@@ -6159,24 +6158,24 @@ void read_record_fields(FILE *file, struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->word_58);
 
     if (v02 != 0) {
-        uint16_t rope = heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
+        struct rope *rope = (struct rope *)(void *)heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
 
-        rec->rope_ptr = rope;
-        ROPE_PTR(rope)->owner_ptr = dg_near(dgroup, rec);
+        rec->rope_ptr = dg_near(dgroup, rope);
+        rope->owner_ptr = dg_near(dgroup, rec);
 
         game_fread_far(file, (uint8_t *)&v06);
-        ROPE_PTR(rope)->end_a_ptr =
+        rope->end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)v06);
 
         game_fread_far(file, (uint8_t *)&v06);
-        ROPE_PTR(rope)->end_b_ptr =
+        rope->end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)v06);
 
-        if (ROPE_PTR(rope)->end_a_ptr != 0)
-            PART_PTR(ROPE_PTR(rope)->end_a_ptr)->rope_ptr = rope;
+        if (rope->end_a_ptr != 0)
+            PART_PTR(rope->end_a_ptr)->rope_ptr = dg_near(dgroup, rope);
 
-        if (ROPE_PTR(rope)->end_b_ptr != 0)
-            PART_PTR(ROPE_PTR(rope)->end_b_ptr)->rope_ptr = rope;
+        if (rope->end_b_ptr != 0)
+            PART_PTR(rope->end_b_ptr)->rope_ptr = dg_near(dgroup, rope);
     }
 
     for (v0a = 0; v0a < 2; v0a++) {
@@ -6187,30 +6186,30 @@ void read_record_fields(FILE *file, struct part *rec)
         if (v04 == 0)
             continue;
 
-        di = heap_calloc_far(1, 0x2c);
-        rec->belt_ptr[(uint16_t)v0a] = di;
+        di = (struct belt *)(void *)heap_calloc_far(1, 0x2c);
+        rec->belt_ptr[(uint16_t)v0a] = dg_near(dgroup, di);
         BELT_PTR(rec->belt_ptr[(uint16_t)v0a])->owner_ptr = dg_near(dgroup, rec);
 
         game_fread_far(file, (uint8_t *)&v06);
-        BELT_PTR(di)->end_a_ptr =
+        di->end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)v06);
-        BELT_PTR(di)->home_a_ptr = BELT_PTR(di)->end_a_ptr;
+        di->home_a_ptr = di->end_a_ptr;
 
         game_fread_far(file, (uint8_t *)&v06);
-        BELT_PTR(di)->end_b_ptr =
+        di->end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)v06);
-        BELT_PTR(di)->home_b_ptr = BELT_PTR(di)->end_b_ptr;
+        di->home_b_ptr = di->end_b_ptr;
 
-        game_fread_byte(file, &BELT_PTR(di)->slot_a);
-        BELT_PTR(di)->home_slot_a = ((int8_t)BELT_PTR(di)->slot_a);
-        game_fread_byte(file, &BELT_PTR(di)->slot_b);
-        BELT_PTR(di)->home_slot_b = ((int8_t)BELT_PTR(di)->slot_b);
+        game_fread_byte(file, &di->slot_a);
+        di->home_slot_a = ((int8_t)di->slot_a);
+        game_fread_byte(file, &di->slot_b);
+        di->home_slot_b = ((int8_t)di->slot_b);
 
-        if (BELT_PTR(di)->end_a_ptr != 0)
-            PART_PTR(BELT_PTR(di)->end_a_ptr)->belt_ptr[(int8_t)BELT_PTR(di)->slot_a] = di;
+        if (di->end_a_ptr != 0)
+            PART_PTR(di->end_a_ptr)->belt_ptr[(int8_t)di->slot_a] = dg_near(dgroup, di);
 
-        if (BELT_PTR(di)->end_b_ptr != 0)
-            PART_PTR(BELT_PTR(di)->end_b_ptr)->belt_ptr[(int8_t)BELT_PTR(di)->slot_b] = di;
+        if (di->end_b_ptr != 0)
+            PART_PTR(di->end_b_ptr)->belt_ptr[(int8_t)di->slot_b] = dg_near(dgroup, di);
     }
 
     for (v0a = 0; v0a < 2; v0a++) {
@@ -6251,7 +6250,7 @@ void read_record_fields(FILE *file, struct part *rec)
 
     if (rec->point_count != 0)
         rec->points_ptr =
-            heap_calloc_far(rec->point_count, 4);
+            dg_near(dgroup, heap_calloc_far(rec->point_count, 4));
 
     call_part_setup(PART_KINDS[rec->kind].setup, rec);
 }
@@ -7119,7 +7118,7 @@ void picker_draw_up(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -7137,7 +7136,7 @@ void picker_draw_down(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }

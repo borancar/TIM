@@ -2667,7 +2667,7 @@ uint16_t part_step_dynamite_plunger(struct part *part)
         play_sound(8);
 
         si = make_part(KIND_BLAST);
-        if (si != 0) {
+        if (si != PART_NONE) {
             insert_sorted(si, &DG521B.placed_parts);
 
             si->flags_06 |= 0x10;
@@ -3534,7 +3534,7 @@ uint16_t part_step_cannon(struct part *part)
         return 0;
 
     si = make_part(KIND_CANNON_BALL);
-    if (si == 0)
+    if (si == PART_NONE)
         return 0;
 
     insert_sorted(si, &DG5179.moving_parts);
@@ -3713,7 +3713,7 @@ void split_part_at(struct part *part, struct part *blast)
     int16_t  v06;   /* [bp-6] the far line, across */
     int16_t  v04;   /* [bp-4] the near line, across */
     int16_t  v02;   /* [bp-2] the middle, across */
-    uint16_t di;
+    struct part *di;
 
     mark_part_shapes(part, 3);
 
@@ -3730,24 +3730,24 @@ void split_part_at(struct part *part, struct part *blast)
             if ((int16_t)(part->pos[0].x
                           + part->size[0].width) > v06) {
                 di = clone_part(part);
-                if (di == 0)
+                if (di == PART_NONE)
                     goto out;
 
-                insert_sorted(PART_PTR(di), &DG521B.placed_parts);
-                PART_PTR(di)->flags_06 |= 0x10;
+                insert_sorted(di, &DG521B.placed_parts);
+                di->flags_06 |= 0x10;
 
-                PART_PTR(di)->size[0].width =
+                di->size[0].width =
                     (int16_t)(part->pos[0].x
                               + part->size[0].width - v06);
-                PART_PTR(di)->pos[0].x = v06;
-                PART_PTR(di)->box[0].x = v06;
-                PART_PTR(di)->pos[0].y = part->pos[0].y;
-                PART_PTR(di)->box[0].y = part->pos[0].y;
+                di->pos[0].x = v06;
+                di->box[0].x = v06;
+                di->pos[0].y = part->pos[0].y;
+                di->box[0].y = part->pos[0].y;
 
                 part->size[0].width =
                     (int16_t)(v04 - part->pos[0].x);
 
-                part_setup(0x48ab, PART_PTR(di));
+                part_setup(0x48ab, di);
             } else if ((int16_t)(part->pos[0].x
                                  + part->size[0].width) > v04) {
                 part->size[0].width =
@@ -3781,24 +3781,24 @@ void split_part_at(struct part *part, struct part *blast)
         if ((int16_t)(part->pos[0].y
                       + part->size[0].height) > v0c) {
             di = clone_part(part);
-            if (di == 0)
+            if (di == PART_NONE)
                 goto out;
 
-            insert_sorted(PART_PTR(di), &DG521B.placed_parts);
-            PART_PTR(di)->flags_06 |= 0x10;
+            insert_sorted(di, &DG521B.placed_parts);
+            di->flags_06 |= 0x10;
 
-            PART_PTR(di)->size[0].height =
+            di->size[0].height =
                 (int16_t)(part->pos[0].y
                           + part->size[0].height - v0c);
-            PART_PTR(di)->pos[0].x = part->pos[0].x;
-            PART_PTR(di)->box[0].x = part->pos[0].x;
-            PART_PTR(di)->pos[0].y = v0c;
-            PART_PTR(di)->box[0].y = v0c;
+            di->pos[0].x = part->pos[0].x;
+            di->box[0].x = part->pos[0].x;
+            di->pos[0].y = v0c;
+            di->box[0].y = v0c;
 
             part->size[0].height =
                 (int16_t)(v0a - part->pos[0].y);
 
-            part_setup(0x48ab, PART_PTR(di));
+            part_setup(0x48ab, di);
         } else if ((int16_t)(part->pos[0].y
                              + part->size[0].height) > v0a) {
             part->size[0].height =
@@ -4591,17 +4591,17 @@ void cut_belts(struct part *part, const int16_t *line)
             DG4E67.state = saved;
 
             di = make_part(KIND_ANCHOR);
-            if (di == 0)
+            if (di == PART_NONE)
                 goto out;
 
             anchorB = make_part(KIND_ANCHOR);
-            if (anchorB == 0) {
+            if (anchorB == PART_NONE) {
                 free_part(di);
                 goto out;
             }
 
             carrier = make_part(KIND_ROPE);
-            if (carrier == 0) {
+            if (carrier == PART_NONE) {
                 free_part(anchorB);
                 free_part(di);
                 goto out;
@@ -4779,7 +4779,7 @@ uint16_t part_step_balloon(struct part *part)
         goto step;
 
     si = make_part(KIND_ANCHOR);
-    if (si == 0)
+    if (si == PART_NONE)
         goto step;
 
     insert_sorted(si, &DG5179.moving_parts);
@@ -5884,7 +5884,7 @@ uint16_t part_step_gun(struct part *part)
         return 0;
 
     si = make_part(KIND_BULLET);
-    if (si == 0)
+    if (si == PART_NONE)
         return 0;
 
     insert_sorted(si, &DG5179.moving_parts);
@@ -6077,7 +6077,7 @@ void burst_dynamite(struct part *part)
     part->form = 5;
 
     si = make_part(KIND_BLAST);
-    if (si != 0) {
+    if (si != PART_NONE) {
         play_sound(8);
 
         insert_sorted(si, &DG521B.placed_parts);

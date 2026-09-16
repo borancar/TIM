@@ -738,7 +738,7 @@ void io_dos_free(uint16_t seg)
  * refuses rather than inventing an address, and the routines that call it are
  * only verifiable on the paths that do not.
  */
-uint16_t io_malloc(uint16_t bytes)
+uint8_t *io_malloc(uint16_t bytes)
 {
     return heap_malloc(bytes);
 }
@@ -747,9 +747,9 @@ uint16_t io_malloc(uint16_t bytes)
  * Borland's own `free`, the counterpart of `io_malloc` above and refused for
  * the same reason: the port has no heap to give a block back to.
  */
-void io_free(uint16_t off)
+void io_free(uint8_t *p)
 {
-    heap_free(off);
+    heap_free(p);
 }
 
 

@@ -37,6 +37,29 @@
  */
 
 /*
+ * OURS, as a type: **the video driver's own code segment**, where
+ * `vm_driver_init` records where the driver's data is and keeps the table of
+ * hooks it is handed. The driver's data is inside DGROUP - `VMDS`, at 0x3890 -
+ * so the offset is a near pointer, and the segment beside it is DGROUP's plus
+ * that offset in paragraphs, which is how the driver addresses its data as
+ * `driverDS:0`. The rest of the segment is the driver's code.
+ */
+struct vm_cs {
+    uint8_t   pad_0000[0x13a];
+    dg_seg_t  data_seg;           /* +0x13a  DGROUP's segment + data_ptr / 16 */
+    dg_near_t data_ptr;           /* +0x13c  the driver's data, VMDS */
+    uint8_t   pad_013e[0xc8];
+    struct far_ptr hooks[19];     /* +0x206  copied from the table it is handed */
+} __attribute__((packed));
+
+#define VMCS (*(struct vm_cs *)MK_FP(DG48DA.driver.seg, 0))
+
+_Static_assert(__builtin_offsetof(struct vm_cs, data_seg) == 0x13a, "vm_cs.data_seg");
+_Static_assert(__builtin_offsetof(struct vm_cs, data_ptr) == 0x13c, "vm_cs.data_ptr");
+_Static_assert(__builtin_offsetof(struct vm_cs, hooks) == 0x206, "vm_cs.hooks");
+_Static_assert(sizeof(((struct vm_cs *)0)->hooks) == 0x4c, "the driver copies 0x4c bytes of hooks");
+
+/*
  * VM.OVL VGA:0x0000
  *
  * The driver's start-up, and the only entry `vm_init` reaches directly rather
@@ -44,10 +67,10 @@
  * DX:SI - which is how `vm_init` knows where to copy the table from.
  *
  * Its three arguments are (0x3890, 0x4412, DGROUP) and the order is the
- * opposite of how the pushes read; see docs/video-driver.md. The first is the
- * distance from DGROUP to the driver's own data, kept at `cs:0x13c` and turned
- * into a segment at `cs:0x13a`. The second is a DGROUP address it copies 76
- * bytes from into its own `cs:0x206`.
+ * opposite of how the pushes read; see docs/video-driver.md. The first is where
+ * in DGROUP the driver's own data is - `VMDS` - kept at `cs:0x13c` and turned
+ * into a segment at `cs:0x13a`. The second is the table of nineteen hooks it
+ * copies, 76 bytes, into its own `cs:0x206`.
  *
  * The screen height at `driverDS:0x6ec` - DGROUP 0x3f7c - picks the BIOS mode.
  * Only 0x1e0 is reached here, which is mode 0x12 with both pages at 0xa000;
@@ -62,18 +85,17 @@
  * controller to write mode 2, which is the mode every blit in this driver
  * assumes.
  */
-uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
+uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
+                        uint16_t ds)
 {
-    uint16_t cs = DG48DA.driver.seg;
     int16_t i;
 
     (void)ds;
 
-    far_move(dg_ptr(dgroup, params), MK_FP(cs, 0x206), 0x4c);
+    far_move((const uint8_t *)params, (uint8_t *)VMCS.hooks, sizeof VMCS.hooks);
 
-    *(uint16_t *)MK_FP(cs, 0x13c) = data_delta;
-    *(uint16_t *)MK_FP(cs, 0x13a) =
-        (uint16_t)((data_delta >> 4) + DGROUP_SEG);
+    VMCS.data_ptr = dg_near(dgroup, data);
+    VMCS.data_seg = (dg_seg_t)((VMCS.data_ptr >> 4) + DGROUP_SEG);
 
     VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;

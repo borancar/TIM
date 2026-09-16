@@ -215,8 +215,10 @@ def kind_of(param):
     # *stored*, or whose halves are stepped or compared, where `dg_far`'s host
     # pointer cannot go. Without this branch it falls through to "w" below and
     # is marshalled as a **single** word: not an abort, just half an argument
-    # and everything after it shifted.
-    if "struct far_ptr" in param:
+    # and everything after it shifted. **By value only**: a pointer *to*
+    # `struct far_ptr` - `vm_driver_init`'s table of hooks - is a near pointer
+    # like any other, and read as the pair it swallowed the next argument.
+    if "struct far_ptr" in param and "*" not in param:
         return "s"
     # Untagged and a pointer: near, one word.
     if "*" in param:

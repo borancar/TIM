@@ -572,7 +572,7 @@ int16_t find_edge_contact(int16_t test_only);       /* 0x007af */
 void integrate_object(struct part *obj);                /* 0x02c93 */
 
 /* Work out where an object is drawn, at +0x2a/+0x2c. */
-uint16_t clone_part(struct part *part);                 /* 0x059e4 */
+struct part *clone_part(struct part *part);             /* 0x059e4 */
 void place_object_for_draw(struct part *obj);           /* 0x05be4 */
 
 /* Add shape records for a sub-object's point pairs. */
@@ -591,7 +591,7 @@ int16_t arctan_lookup(uint16_t index);              /* 0x2a941 */
 void apply_contact_friction(struct part *obj);          /* 0x02da0 */
 
 /* Read one pixel's colour from the source page; no clipping. */
-uint16_t vm_driver_init(uint16_t data_delta, uint16_t params,
+uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
                         uint16_t ds);           /* VM.OVL VGA:0x0000 */
 void vm_reset_attributes(void);                     /* VM.OVL VGA:0x011d */
 uint16_t vm_read_pixel(int16_t x, int16_t y);       /* VM.OVL VGA:0x1453 */
@@ -651,16 +651,16 @@ void clear_flag_2d44(void);                         /* 0x0a7a3 */
 void clear_flag_2d44_thunk(void);                   /* 0x0811b */
 
 /* Borland's near heap - NOT part of the reconstruction, see borland_heap.c. */
-int16_t brk_set(uint16_t addr);                     /* 0x0c7c4 */
-void    heap_ring_unlink(uint16_t bx);              /* 0x0c95a */
-void    heap_ring_insert(uint16_t bx);              /* 0x0c976 */
-void    heap_free_middle(uint16_t bx);              /* 0x0c921 */
-void    heap_free_top(uint16_t bx);                 /* 0x0c8e7 */
-void    heap_free(uint16_t p);                      /* 0x0c8ca */
-uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
-uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
-uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
-uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
+int16_t brk_set(const uint8_t *addr);                     /* 0x0c7c4 */
+void    heap_ring_unlink(struct heap_block *bx);              /* 0x0c95a */
+void    heap_ring_insert(struct heap_block *bx);              /* 0x0c976 */
+void    heap_free_middle(struct heap_block *bx);              /* 0x0c921 */
+void    heap_free_top(struct heap_block *bx);                 /* 0x0c8e7 */
+void    heap_free(uint8_t *p);                      /* 0x0c8ca */
+uint8_t *heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
+uint8_t *heap_init(uint16_t size);                  /* 0x0c9f9 */
+uint8_t *heap_grow(uint16_t size);                  /* 0x0ca39 */
+uint8_t *heap_split(struct heap_block *bx, uint16_t size);    /* 0x0ca62 */
 void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
@@ -671,10 +671,10 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
 void fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
-uint16_t near_memset(uint16_t dst, uint16_t count,
+uint16_t near_memset(uint8_t *dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
-uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
-uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
+uint8_t *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
+uint8_t *heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
@@ -697,7 +697,7 @@ void step_counters(void);                           /* 0x02510 */
 char *long_to_string(uint16_t letters, uint16_t is_signed,
                         uint16_t radix, char *buf, uint16_t lo,
                         uint16_t hi);               /* 0x0c029 */
-uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
+uint8_t *heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
 int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
@@ -764,7 +764,7 @@ int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(const char *name, uint16_t flags); /* 0x0d707 */
 int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags,
                         const char *mode);             /* 0x0cf4d */
-int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode,
+int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
 struct file_rec *find_free_stream(void);                    /* 0x0d0a3 */
 struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
@@ -989,7 +989,7 @@ uint16_t load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x11db4 */
 void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */
 void read_password_line(int16_t count, char *buf); /* 0x12b60 */
-void game_setbuf(FILE *file, uint16_t buf);  /* 0x095cf */
+void game_setbuf(FILE *file, uint8_t *buf);  /* 0x095cf */
 void game_fread_string(FILE *file, char *buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
 void read_list(FILE *file, struct part *head, int16_t n);   /* 0x1221b */
@@ -1491,7 +1491,7 @@ uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
-int16_t heapwalk(int16_t *info);                    /* 0x0ccef */
+int16_t heapwalk(struct heapinfo *info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
@@ -1851,7 +1851,7 @@ char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(char *buf);                    /* 0x0b7b3 */
 char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
-int16_t borland_setbuf(struct file_rec *file, uint16_t buf);     /* 0x0c1b2 */
+int16_t borland_setbuf(struct file_rec *file, uint8_t *buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
 void checked_free(uint8_t *p);                         /* 0x08510 */
