@@ -1573,7 +1573,7 @@ int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0de6e */
 void write_part_count(FILE *file, struct part *head);       /* 0x126ec */
 void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
-uint16_t part_index(uint16_t part);                 /* 0x11d00 */
+uint16_t part_index(struct part *part);                 /* 0x11d00 */
 void write_part_list(FILE *file, struct part *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
 /*

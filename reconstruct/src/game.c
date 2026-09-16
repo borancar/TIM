@@ -7440,16 +7440,16 @@ void write_string(FILE *file, char *str)
  * rather than made to answer 0xffff, because a reload that trips over it is
  * behaviour the original has.
  */
-uint16_t part_index(uint16_t part)
+uint16_t part_index(struct part *part)
 {
     struct part *si;
     uint16_t n = 0;
 
-    if (part == 0)
+    if (part == PART_NONE)
         return 0xffff;
 
     for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
-        if (si == PART_PTR(part)) {
+        if (si == part) {
             si = PART_NONE;
             break;
         }
@@ -7525,9 +7525,9 @@ void write_record_fields(FILE *file, struct part *part)
     if ((uint16_t)vrope != 0) {
         rope = ROPE_PTR(part->rope_ptr);
 
-        vindex = (int16_t)part_index(rope->end_a_ptr);
+        vindex = (int16_t)part_index(PART_PTR(rope->end_a_ptr));
         write_word(file, (uint8_t *)&vindex);
-        vindex = (int16_t)part_index(rope->end_b_ptr);
+        vindex = (int16_t)part_index(PART_PTR(rope->end_b_ptr));
         write_word(file, (uint8_t *)&vindex);
     }
 
@@ -7544,9 +7544,9 @@ void write_record_fields(FILE *file, struct part *part)
         if ((uint16_t)vbelt != 0) {
             belt = part->belt_ptr[0];
 
-            vindex = (int16_t)part_index(BELT_PTR(belt)->end_a_ptr);
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
             write_word(file, (uint8_t *)&vindex);
-            vindex = (int16_t)part_index(BELT_PTR(belt)->end_b_ptr);
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
             write_word(file, (uint8_t *)&vindex);
 
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
@@ -7555,12 +7555,12 @@ void write_record_fields(FILE *file, struct part *part)
     }
 
     for (i = 0; i < 2; i++) {
-        vindex = (int16_t)part_index(part->link_ptr[i]);
+        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        vindex = (int16_t)part_index(part->link_ptr[i]);
+        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
         write_word(file, (uint8_t *)&vindex);
     }
 
@@ -7568,7 +7568,7 @@ void write_record_fields(FILE *file, struct part *part)
         belt = part->belt_ptr[1];
 
         if (belt != 0)
-            vindex = (int16_t)part_index(BELT_PTR(belt)->owner_ptr);
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
         else
             vindex = (int16_t)0xffff;
 

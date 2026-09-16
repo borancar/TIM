@@ -2599,7 +2599,7 @@ ROUTINES = {
         args=[("part", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.part_index(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_index(dgh(lib, a[0])),
     ),
     "path_join": dict(
         addr=0x1354C,
