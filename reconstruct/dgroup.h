@@ -1348,6 +1348,11 @@ struct heapinfo {
 /* **No heap block**, as a pointer - see `PART_NONE`. */
 #define HEAPBLK_NONE HEAPBLK_PTR(0)
 
+/* **`heap_sbrk` refused**, as a pointer: the -1 the original answers in AX,
+   `mov ax,0xffff` at 0x0c812, kept as DGROUP:FFFF rather than turned into NULL,
+   for the reason `PART_NONE` gives. */
+#define HEAP_SBRK_FAIL ((uint8_t *)(dgroup + 0xffff))
+
 DG_ASSERT_AT(struct heap_block, size,           0x00);
 DG_ASSERT_AT(struct heap_block, prev_ptr,       0x02);
 DG_ASSERT_AT(struct heap_block, fwd_ptr,        0x04);

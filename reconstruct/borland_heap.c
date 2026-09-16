@@ -120,9 +120,8 @@ uint8_t *heap_sbrk(uint16_t lo, uint16_t hi)
     return old;
 
 fail:
-    /* The original answers -1; a pointer answers NULL. */
     DG0094.err_no = 8;
-    return NULL;
+    return HEAP_SBRK_FAIL;
 }
 
 /*
@@ -337,13 +336,14 @@ uint8_t *heap_init(uint16_t size)
     struct heap_block *bx;
     uint8_t *at, *got;
 
-    /* An odd break - or a failed call, whose -1 is odd too - gets one byte. */
+    /* An odd break gets one byte - and so does a failed call, `and ax,1`
+       at 0x0ca03 reading its -1 as odd. */
     at = heap_sbrk(0, 0);
-    if (at == NULL || ((at - dgroup) & 1) != 0)
+    if (((at - dgroup) & 1) != 0)
         heap_sbrk(1, 0);
 
     got = heap_sbrk(size, 0);
-    if (got == NULL)
+    if (got == HEAP_SBRK_FAIL)
         return NULL;
 
     bx = heap_block_at(got);
@@ -367,7 +367,7 @@ uint8_t *heap_grow(uint16_t size)
     uint8_t *got = heap_sbrk(size, 0);
     struct heap_block *bx;
 
-    if (got == NULL)
+    if (got == HEAP_SBRK_FAIL)
         return NULL;
 
     bx = heap_block_at(got);

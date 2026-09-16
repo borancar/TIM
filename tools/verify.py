@@ -4812,9 +4812,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        # the port answers NULL where the original answers -1
-        call=lambda lib, a: (lambda p: 0xFFFF if not p else dgo(lib, p))(
-            lib.heap_sbrk(*[ctypes.c_uint16(v) for v in a])),
+        call=lambda lib, a: dgo(lib, lib.heap_sbrk(*[ctypes.c_uint16(v) for v in a])),
     ),
     # Occurrence 0 only: the heap is initialised **once**, at startup, and
     # asking for a second call reports NOT VERIFIED for a routine that agreed
