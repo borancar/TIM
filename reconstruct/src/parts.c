@@ -198,7 +198,7 @@ void part_setup_electric_plug(struct part *part)
  */
 void part_setup_gear(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
     int32_t i;
 
     part_setup(0x0001, part);
@@ -206,29 +206,29 @@ void part_setup_gear(struct part *part)
     for (i = 0; i < 4; i++)
         part->link_ptr[i] = 0;
 
-    for (di = DG521B.placed_parts.next_ptr; di != 0; di = ((uint16_t)PART_PTR(di)->next_ptr)) {
+    for (di = PART_PTR(DG521B.placed_parts.next_ptr); di != PART_NONE; di = PART_PTR(di->next_ptr)) {
         int16_t dx, dy;
 
-        if (PART_PTR(di) == part)
+        if (di == part)
             continue;
-        if (PART_PTR(di)->kind != KIND_GEAR)
+        if (di->kind != KIND_GEAR)
             continue;
 
         dx = (int16_t)(((int16_t)part->word_8c)
-                       - ((int16_t)PART_PTR(di)->word_8c));
+                       - ((int16_t)di->word_8c));
         dy = (int16_t)(((int16_t)part->word_8e)
-                       - ((int16_t)PART_PTR(di)->word_8e));
+                       - ((int16_t)di->word_8e));
 
         if (dy == 0) {
             if (dx == 0x20)
-                part->link_ptr[0] = di;
+                part->link_ptr[0] = dg_off(dgroup, di);
             else if (dx == -0x20)
-                part->link_ptr[1] = di;
+                part->link_ptr[1] = dg_off(dgroup, di);
         } else if (dx == 0) {
             if (dy == 0x20)
-                part->link_ptr[2] = di;
+                part->link_ptr[2] = dg_off(dgroup, di);
             else if (dy == -0x20)
-                part->link_ptr[3] = di;
+                part->link_ptr[3] = dg_off(dgroup, di);
         }
     }
 }
@@ -2224,7 +2224,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
  */
 uint16_t part_step_bellow(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
     int16_t  push = 0;
 
     part->flags_08 |= 0x40;
@@ -2242,12 +2242,10 @@ uint16_t part_step_bellow(struct part *part)
                 push = 0x0800;
             }
 
-            for (di = part->next_linked_ptr; di != 0;
-                 di = PART_PTR(di)->next_linked_ptr) {
-                struct part *linked = PART_PTR(di);
-
-                if ((linked->flags_06 & 0x1000) != 0) {
-                    int16_t  face = ((int16_t)linked->word_7a);
+            for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+                 di = PART_PTR(di->next_linked_ptr)) {
+                if ((di->flags_06 & 0x1000) != 0) {
+                    int16_t  face = ((int16_t)di->word_7a);
                     int16_t  scale;
                     int32_t  force;
 
@@ -2262,21 +2260,21 @@ uint16_t part_step_bellow(struct part *part)
                        table at 0x0ea6 reached from a base of zero - the +2 is
                        the weight. */
                     force = long_divide(force,
-                                        (int32_t)PARTKIND_PTR(linked->kind)->weight);
+                                        (int32_t)PARTKIND_PTR(di->kind)->weight);
 
-                    linked->vel_x =
-                        (int16_t)(linked->vel_x + (int16_t)force);
+                    di->vel_x =
+                        (int16_t)(di->vel_x + (int16_t)force);
 
-                    clamp_record_pair(linked);
+                    clamp_record_pair(di);
 
-                    if (((int16_t)linked->kind) == 0x2d) {
-                        linked->spin = 0;
-                        linked->direction = 0;
-                        linked->form = 0;
+                    if (((int16_t)di->kind) == 0x2d) {
+                        di->spin = 0;
+                        di->direction = 0;
+                        di->form = 0;
                     }
-                } else if (((int16_t)linked->kind) == 0x28) {
-                    linked->direction = 1;
-                    linked->spin = 0x14;
+                } else if (((int16_t)di->kind) == 0x28) {
+                    di->direction = 1;
+                    di->spin = 0x14;
                 }
             }
         }
@@ -2721,7 +2719,7 @@ uint16_t part_step_dynamite_plunger(struct part *part)
  */
 uint16_t part_step_solar_panel(struct part *part)
 {
-    uint16_t si;
+    struct part *si;
     int32_t  i;
 
     part->flags_08 |= 0x40;
@@ -2731,23 +2729,21 @@ uint16_t part_step_solar_panel(struct part *part)
 
         link_nearby_objects(part, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);
 
-        for (si = part->next_linked_ptr; si != 0;
-             si = PART_PTR(si)->next_linked_ptr) {
-            struct part *linked = PART_PTR(si);
-
-            if (((uint16_t)linked->direction) == 0)
+        for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+             si = PART_PTR(si->next_linked_ptr)) {
+            if (((uint16_t)si->direction) == 0)
                 continue;
 
-            if (linked->kind == KIND_LIGHT
-                || linked->kind == KIND_CANDLE
-                || linked->kind == KIND_BLAST) {
+            if (si->kind == KIND_LIGHT
+                || si->kind == KIND_CANDLE
+                || si->kind == KIND_BLAST) {
                 part->direction = 1;
-            } else if (linked->kind == KIND_FLASHLIGHT) {
-                if ((int16_t)linked->word_7a < 0) {
-                    if ((linked->flags_08 & 0x10) == 0)
+            } else if (si->kind == KIND_FLASHLIGHT) {
+                if ((int16_t)si->word_7a < 0) {
+                    if ((si->flags_08 & 0x10) == 0)
                         part->direction = 1;
                 } else {
-                    if ((linked->flags_08 & 0x10) != 0)
+                    if ((si->flags_08 & 0x10) != 0)
                         part->direction = 1;
                 }
             }
@@ -2755,9 +2751,9 @@ uint16_t part_step_solar_panel(struct part *part)
     }
 
     for (i = 4; i < 6; i++) {
-        si = part->link_ptr[i];
-        if (si != 0)
-            PART_PTR(si)->direction = ((uint16_t)part->direction);
+        si = PART_PTR(part->link_ptr[i]);
+        if (si != PART_NONE)
+            si->direction = ((uint16_t)part->direction);
     }
 
     return 0;
@@ -3369,7 +3365,7 @@ void part_flip_ramp(struct part *part)
  */
 uint16_t part_step_boxing_glove(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
 
     if (((uint16_t)part->direction) != 0
         && part->form != 9) {
@@ -3403,19 +3399,17 @@ uint16_t part_step_boxing_glove(struct part *part)
             PARTSHAPES.glove_reach[part->form - 2],
             0, 0, 0x1f);
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
+        if (di->flags_06 & 0x1000) {
+            int16_t v = bounce_speed_for_mass(di);
 
-        if (linked->flags_06 & 0x1000) {
-            int16_t v = bounce_speed_for_mass(PART_PTR(di));
-
-            linked->vel_x =
+            di->vel_x =
                 (part->flags_08 & 0x10) ? v : (int16_t)-v;
-        } else if (linked->kind == KIND_BOB_THE_FISH) {
-            break_bob_the_fish(linked);
-        } else if (linked->kind == KIND_MOUSE_CAGE) {
-            trigger_mouse_cage(linked);
+        } else if (di->kind == KIND_BOB_THE_FISH) {
+            break_bob_the_fish(di);
+        } else if (di->kind == KIND_MOUSE_CAGE) {
+            trigger_mouse_cage(di);
         }
     }
 
@@ -3608,7 +3602,7 @@ uint16_t part_step_1649(struct part *part)
     uint16_t v06;      /* [bp-6] the kind, for the table */
     uint16_t v04;      /* [bp-4] the angle away */
     int16_t  v02;      /* [bp-2] the speed */
-    uint16_t si;
+    struct part *si;
 
     if (part->form == 5) {
         mark_part_shapes(part, 3);
@@ -3623,32 +3617,30 @@ uint16_t part_step_1649(struct part *part)
 
     link_nearby_objects(part, 0x3000, -0x14, 0x14, -0x18, 0x18);
 
-    for (si = part->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
-
-        if (linked->flags_06 & 0x1000) {
-            if (linked->kind == KIND_BALLOON) {
-                linked->direction = 1;
-            } else if (linked->kind == KIND_DYNAMITE) {
-                burst_dynamite(linked);
+    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
+        if (si->flags_06 & 0x1000) {
+            if (si->kind == KIND_BALLOON) {
+                si->direction = 1;
+            } else if (si->kind == KIND_DYNAMITE) {
+                burst_dynamite(si);
             } else {
-                v02 = blast_speed_for_mass(linked);
-                v04 = angle_between_centres(part, PART_PTR(si));
-                set_vector_from_angle(PART_PTR(si), v04, v02);
+                v02 = blast_speed_for_mass(si);
+                v04 = angle_between_centres(part, si);
+                set_vector_from_angle(si, v04, v02);
             }
             continue;
         }
 
-        v06 = linked->kind;
+        v06 = si->kind;
 
         /* The table at 172c:1738, and its four offsets four words on. */
         if (v06 == 0x0f)
-            break_bob_the_fish(linked);                  /* 172c:170c */
+            break_bob_the_fish(si);                  /* 172c:170c */
         else if (v06 == 0x06)
-            trigger_mouse_cage(linked);                 /* 172c:1715 */
+            trigger_mouse_cage(si);                 /* 172c:1715 */
         else if (v06 == 0x01 || v06 == 0x30)
-            split_part_at(linked, part);              /* 172c:171d */
+            split_part_at(si, part);              /* 172c:171d */
     }
 
 out:
@@ -3857,7 +3849,7 @@ uint16_t part_step_fan(struct part *part)
     int16_t  v06;      /* [bp-6] how much slower */
     int16_t  v04;      /* [bp-4] the push */
     uint16_t v02;      /* [bp-2] the force */
-    uint16_t si;
+    struct part *si;
 
     if (((uint16_t)part->direction) == 0)
         goto out;
@@ -3879,29 +3871,27 @@ uint16_t part_step_fan(struct part *part)
         v02 = 0x1000;
     }
 
-    for (si = part->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
-
+    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
         int16_t speed, mass;
         int32_t p;
 
-        if (linked->flags_06 & 0x2000) {
-            if (linked->kind != KIND_WINDMILL)
+        if (si->flags_06 & 0x2000) {
+            if (si->kind != KIND_WINDMILL)
                 continue;
 
-            speed = ((int16_t)linked->word_7a);
+            speed = ((int16_t)si->word_7a);
             if (speed < 0)
                 speed = (int16_t)-speed;
             if (speed >= 0xc8)
                 continue;
 
-            linked->direction = 1;
-            linked->spin = 0x14;
+            si->direction = 1;
+            si->spin = 0x14;
             continue;
         }
 
-        speed = ((int16_t)linked->word_7a);
+        speed = ((int16_t)si->word_7a);
         if (speed < 0)
             speed = (int16_t)-speed;
         v06 = (int16_t)(0x100 - speed);
@@ -3911,21 +3901,21 @@ uint16_t part_step_fan(struct part *part)
         v08 = (int16_t)(p >> 16);
         v0a = (int16_t)p;
 
-        mass = PARTKIND_PTR((int16_t)linked->kind)->weight;
+        mass = PARTKIND_PTR((int16_t)si->kind)->weight;
 
         v04 = (int16_t)long_divide(
             (int32_t)(((uint32_t)(uint16_t)v08 << 16) | (uint16_t)v0a),
             (int32_t)mass);
 
-        linked->vel_x =
-            (int16_t)(linked->vel_x + v04);
+        si->vel_x =
+            (int16_t)(si->vel_x + v04);
 
-        clamp_record_pair(linked);
+        clamp_record_pair(si);
 
-        if (linked->kind == KIND_CANDLE) {
-            linked->spin = 0;
-            linked->direction = 0;
-            linked->form = 0;
+        if (si->kind == KIND_CANDLE) {
+            si->spin = 0;
+            si->direction = 0;
+            si->form = 0;
         }
     }
 
@@ -3974,46 +3964,44 @@ int16_t push_speed_for_mass(struct part *obj)
 void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
 {
     int16_t x = (int16_t)(part->pos[0].x + dx);
-    uint16_t si;
+    struct part *si;
 
-    for (si = part->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
+    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
+        int16_t d = (int16_t)(x - si->pos[0].x);
+        int16_t mirrored = (si->flags_08 & 0x10) != 0;
 
-        int16_t d = (int16_t)(x - linked->pos[0].x);
-        int16_t mirrored = (linked->flags_08 & 0x10) != 0;
-
-        switch (linked->kind) {
+        switch (si->kind) {
         case 0x10:
             if (mirrored ? (d >= 0x36 && d <= 0x3c) : (d >= 0 && d <= 8))
-                linked->direction = 1;
+                si->direction = 1;
             break;
 
         case 0x06:
-            trigger_mouse_cage(linked);
+            trigger_mouse_cage(si);
             break;
 
         case 0x25:
             if (mirrored ? (d >= 0x19 && d <= 0x25) : (d >= 0 && d <= 0x0c))
-                linked->direction = 1;
+                si->direction = 1;
             break;
 
         case 0x19:
             if (mode != 1)
                 break;
             if (mirrored ? (d >= 0x0d && d <= 0x18) : (d >= 5 && d <= 0x10))
-                linked->direction = 1;
+                si->direction = 1;
             break;
 
         case 0x16:
             if (mode != 1)
                 break;
             if (mirrored ? (d >= 0 && d <= 0x1f) : (d >= 0x67 && d <= 0x87))
-                linked->direction = 1;
+                si->direction = 1;
             break;
 
         case 0x0f:
-            break_bob_the_fish(linked);
+            break_bob_the_fish(si);
             break;
 
         default:
@@ -4335,7 +4323,7 @@ uint16_t part_step_seesaw(struct part *part)
     int16_t v06;   /* [bp-6] the speed */
     int16_t v04;   /* [bp-4] the other's middle */
     int16_t v02;   /* [bp-2] the shaft's middle */
-    uint16_t di;
+    struct part *di;
 
     if (((uint16_t)part->direction) == 0)
         goto tail;
@@ -4376,67 +4364,65 @@ uint16_t part_step_seesaw(struct part *part)
     link_objects_crossing(part, 0x1000,
                           (uint16_t)(0x3542 + 8 * part->form));
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
-
-        v04 = (int16_t)(linked->pos[0].x
-                              + ((linked->size[0].width) >> 1));
-        v06 = push_speed_for_mass(PART_PTR(di));
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
+        v04 = (int16_t)(di->pos[0].x
+                              + ((di->size[0].width) >> 1));
+        v06 = push_speed_for_mass(di);
 
         if (part->direction == -1) {
             if (v04 < v02) {
-                linked->word_38 = v06;
-                linked->vel_x =
+                di->word_38 = v06;
+                di->vel_x =
                     (int16_t)-(int16_t)(v06 >> 2);
             } else {
-                linked->word_38 = (int16_t)-v06;
-                linked->vel_x = (int16_t)(v06 >> 2);
+                di->word_38 = (int16_t)-v06;
+                di->vel_x = (int16_t)(v06 >> 2);
             }
         } else if (part->direction == 1) {
             if (v04 < v02) {
-                linked->word_38 = (int16_t)-v06;
-                linked->vel_x =
+                di->word_38 = (int16_t)-v06;
+                di->vel_x =
                     (int16_t)-(int16_t)(v06 >> 2);
             } else {
-                linked->word_38 = v06;
-                linked->vel_x = (int16_t)(v06 >> 2);
+                di->word_38 = v06;
+                di->vel_x = (int16_t)(v06 >> 2);
             }
         }
 
-        mark_part_shapes(linked, 3);
+        mark_part_shapes(di, 3);
 
-        if (linked->word_38 < 0) {
-            linked->pos[1].y =
-                (int16_t)(linked->pos[0].y - 0x10);
-            resolve_collisions(PART_PTR(di));
+        if (di->word_38 < 0) {
+            di->pos[1].y =
+                (int16_t)(di->pos[0].y - 0x10);
+            resolve_collisions(di);
 
-            linked->pos[1].y =
-                (int16_t)(linked->pos[0].y + 0x10);
+            di->pos[1].y =
+                (int16_t)(di->pos[0].y + 0x10);
             part->flags_08 |= 0x2000;
-            resolve_collisions(PART_PTR(di));
+            resolve_collisions(di);
             part->flags_08 &= 0xdfff;
 
-            linked->pos[1].y = linked->pos[0].y;
+            di->pos[1].y = di->pos[0].y;
 
-            *(int32_t *)(v0a) = linked->pos[0].y;
-            linked->fy =
+            *(int32_t *)(v0a) = di->pos[0].y;
+            di->fy =
                 (int32_t)long_shift_left((uint32_t)*(int32_t *)(v0a), 9);
         } else {
-            linked->pos[1].y =
-                (int16_t)(linked->pos[0].y + 0x10);
-            resolve_collisions(PART_PTR(di));
+            di->pos[1].y =
+                (int16_t)(di->pos[0].y + 0x10);
+            resolve_collisions(di);
 
-            linked->pos[1].y =
-                (int16_t)(linked->pos[0].y - 0x10);
+            di->pos[1].y =
+                (int16_t)(di->pos[0].y - 0x10);
             part->flags_08 |= 0x2000;
-            resolve_collisions(PART_PTR(di));
+            resolve_collisions(di);
             part->flags_08 &= 0xdfff;
 
-            linked->pos[1].y = linked->pos[0].y;
+            di->pos[1].y = di->pos[0].y;
 
-            *(int32_t *)(v0a) = linked->pos[0].y;
-            linked->fy =
+            *(int32_t *)(v0a) = di->pos[0].y;
+            di->fy =
                 (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(v0a) + 1), 9) - 1);
         }
     }
@@ -4534,14 +4520,14 @@ uint16_t part_step_scissors(struct part *part)
 void cut_belts(struct part *part, uint16_t line)
 {
     uint16_t newbelt;   /* [bp-0x26] */
-    uint16_t belt;   /* [bp-0x24] */
+    struct belt *belt;   /* [bp-0x24] */
     uint16_t endB;   /* [bp-0x22] */
     struct part *carrier;   /* [bp-0x1e] */
     struct part *anchorB;   /* [bp-0x1c] */
     uint16_t next;   /* [bp-0x1a] */
     uint16_t prev;   /* [bp-0x18] */
     int16_t endA;   /* [bp-0x20] */
-    uint16_t rec;   /* [bp-0x16] */
+    struct part *rec;   /* [bp-0x16] */
     int16_t seg[4];   /* [bp-0x14], four words */
     int16_t at[2];   /* [bp-0x0c], two words */
     int16_t saved;   /* [bp-8] */
@@ -4550,16 +4536,16 @@ void cut_belts(struct part *part, uint16_t line)
     struct part *di;
     int16_t k;
 
-    for (rec = DG521B.placed_parts.next_ptr; rec != 0;
-         rec = ((uint16_t)PART_PTR(rec)->next_ptr)) {
-        if (PART_PTR(rec)->kind != 0x0a)
+    for (rec = PART_PTR(DG521B.placed_parts.next_ptr); rec != PART_NONE;
+         rec = PART_PTR(rec->next_ptr)) {
+        if (rec->kind != 0x0a)
             continue;
 
-        belt = PART_PTR(rec)->belt_ptr[0];
-        endA = (int16_t)((uint16_t)BELT_PTR(belt)->end_a_ptr);
+        belt = BELT_PTR(rec->belt_ptr[0]);
+        endA = (int16_t)((uint16_t)belt->end_a_ptr);
         prev = endA;
-        endB = BELT_PTR(belt)->end_b_ptr;
-        slotA = (int16_t)BELT_PTR(belt)->slot_a;
+        endB = belt->end_b_ptr;
+        slotA = (int16_t)belt->slot_a;
         slotB = 0;
         next = PART_PTR(prev)->link_ptr[slotA];
 
@@ -4577,7 +4563,7 @@ void cut_belts(struct part *part, uint16_t line)
                 - part->pos[0].y);
 
             if (next == endB)
-                slotB = (int16_t)BELT_PTR(belt)->slot_b;
+                slotB = (int16_t)belt->slot_b;
 
             seg[2] = (int16_t)(
                 PART_PTR(next)->box[0].x
@@ -4602,7 +4588,7 @@ void cut_belts(struct part *part, uint16_t line)
 
             saved = ((int16_t)DG4E67.state);
             DG4E67.state = 0x1000;
-            mark_belt_shapes(PART_PTR(BELT_PTR(belt)->owner_ptr), 3);
+            mark_belt_shapes(PART_PTR(belt->owner_ptr), 3);
             DG4E67.state = saved;
 
             di = make_part(KIND_ANCHOR);
@@ -4645,7 +4631,7 @@ void cut_belts(struct part *part, uint16_t line)
             BELT_PTR(newbelt)->end_b_ptr = endB;
             BELT_PTR(newbelt)->slot_a = 0;
             BELT_PTR(newbelt)->slot_b =
-                BELT_PTR(belt)->slot_b;
+                belt->slot_b;
 
             anchorB->link_ptr[0] = next;
             anchorB->belt_ptr[0] = newbelt;
@@ -4661,10 +4647,10 @@ void cut_belts(struct part *part, uint16_t line)
             PART_PTR(endB)->belt_ptr[BELT_PTR(newbelt)->slot_b] =
                 newbelt;
 
-            BELT_PTR(belt)->end_b_ptr = dg_off(dgroup, di);
-            BELT_PTR(belt)->slot_b = 0;
+            belt->end_b_ptr = dg_off(dgroup, di);
+            belt->slot_b = 0;
             di->link_ptr[0] = prev;
-            di->belt_ptr[0] = belt;
+            di->belt_ptr[0] = dg_off(dgroup, belt);
 
             if (PART_PTR(prev)->kind == 7)
                 PART_PTR(prev)->link_ptr[0] = dg_off(dgroup, di);
@@ -4711,12 +4697,12 @@ void cut_belts(struct part *part, uint16_t line)
 
             DG4E67.state = 0x1000;
 
-            refresh_link_geometry(BELT_PTR(belt));
+            refresh_link_geometry(belt);
             for (k = 0; k < 2; k++) {
-                BELT_PTR(belt)->pt[1][k].x = BELT_PTR(belt)->pt[0][k].x;
-                BELT_PTR(belt)->pt[1][k].y = BELT_PTR(belt)->pt[0][k].y;
-                BELT_PTR(belt)->pt[2][k].x = BELT_PTR(belt)->pt[0][k].x;
-                BELT_PTR(belt)->pt[2][k].y = BELT_PTR(belt)->pt[0][k].y;
+                belt->pt[1][k].x = belt->pt[0][k].x;
+                belt->pt[1][k].y = belt->pt[0][k].y;
+                belt->pt[2][k].x = belt->pt[0][k].x;
+                belt->pt[2][k].y = belt->pt[0][k].y;
             }
 
             refresh_link_geometry(BELT_PTR(newbelt));
@@ -4770,7 +4756,7 @@ uint16_t part_hit_balloon(struct part *part)
  */
 uint16_t part_step_balloon(struct part *part)
 {
-    uint16_t belt;                     /* [bp-6] */
+    struct belt *belt;                     /* [bp-6] */
     struct part *link;     /* [bp-4] */
     uint16_t k;        /* [bp-2] */
     struct part *si;
@@ -4789,8 +4775,8 @@ uint16_t part_step_balloon(struct part *part)
     if (((uint16_t)part->direction) != 1)
         goto step;
 
-    belt = part->belt_ptr[0];
-    if (belt == 0)
+    belt = BELT_PTR(part->belt_ptr[0]);
+    if (belt == BELT_NONE)
         goto step;
 
     si = make_part(KIND_ANCHOR);
@@ -4800,7 +4786,7 @@ uint16_t part_step_balloon(struct part *part)
     insert_sorted(si, &DG5179.moving_parts);
     si->flags_06 |= 0x10;
 
-    si->belt_ptr[0] = belt;
+    si->belt_ptr[0] = dg_off(dgroup, belt);
     si->link_ptr[0] = part->link_ptr[0];
     link = PART_PTR(si->link_ptr[0]);
 
@@ -4808,14 +4794,14 @@ uint16_t part_step_balloon(struct part *part)
     if (((int16_t)k) != -1)
         link->link_ptr[k] = dg_off(dgroup, si);
 
-    if (BELT_PTR(belt)->end_a_ptr == dg_off(dgroup, part)) {
-        BELT_PTR(belt)->end_a_ptr = dg_off(dgroup, si);
-        si->pos[0].x = BELT_PTR(belt)->pt[0][0].x;
-        si->pos[0].y = BELT_PTR(belt)->pt[0][0].y;
+    if (belt->end_a_ptr == dg_off(dgroup, part)) {
+        belt->end_a_ptr = dg_off(dgroup, si);
+        si->pos[0].x = belt->pt[0][0].x;
+        si->pos[0].y = belt->pt[0][0].y;
     } else {
-        BELT_PTR(belt)->end_b_ptr = dg_off(dgroup, si);
-        si->pos[0].x = BELT_PTR(belt)->pt[0][1].x;
-        si->pos[0].y = BELT_PTR(belt)->pt[0][1].y;
+        belt->end_b_ptr = dg_off(dgroup, si);
+        si->pos[0].x = belt->pt[0][1].x;
+        si->pos[0].y = belt->pt[0][1].y;
     }
 
     si->fx = si->pos[0].x;
@@ -4863,7 +4849,7 @@ uint16_t part_step_mort_the_mouse(struct part *part)
 {
     int16_t  best;                     /* [bp-4] the step, then... */
     int16_t  slowest;  /* [bp-2] */
-    uint16_t di;
+    struct part *di;
 
     if (((int16_t)part->word_96) != 0) {
         part->word_96--;
@@ -4886,16 +4872,14 @@ uint16_t part_step_mort_the_mouse(struct part *part)
 
     slowest = 0x190;
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
-
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
         int16_t a, b;
 
-        if (linked->kind != KIND_POKEY)
+        if (di->kind != KIND_POKEY)
             continue;
 
-        a = ((int16_t)linked->word_7a);
+        a = ((int16_t)di->word_7a);
         if (a < 0)
             a = (int16_t)-a;
         b = slowest;
@@ -4903,7 +4887,7 @@ uint16_t part_step_mort_the_mouse(struct part *part)
             b = (int16_t)-b;
 
         if (a < b)
-            slowest = ((int16_t)linked->word_7a);
+            slowest = ((int16_t)di->word_7a);
     }
 
     if (slowest == 0x190)
@@ -4967,7 +4951,7 @@ uint16_t part_step_pokey(struct part *part)
     int16_t still; /* [bp-6] */
     int16_t dy; /* [bp-4] */
     int16_t dx; /* [bp-2] */
-    uint16_t di;
+    struct part *di;
     int16_t t;
 
     dy = (int16_t)(part->pos[0].y
@@ -5047,23 +5031,21 @@ uint16_t part_step_pokey(struct part *part)
     else
         link_nearby_objects(part, 0x3000, (int16_t)0xff10, 0, 0, 0);
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
-
-        if (linked->kind == KIND_BOB_THE_FISH) {
-            range = (((int16_t)linked->form) >= 0x0b)
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
+        if (di->kind == KIND_BOB_THE_FISH) {
+            range = (((int16_t)di->form) >= 0x0b)
                           ? 0x124 : 0x60;
-        } else if (linked->kind == KIND_MORT_THE_MOUSE) {
-            dx = (int16_t)(linked->pos[0].x
+        } else if (di->kind == KIND_MORT_THE_MOUSE) {
+            dx = (int16_t)(di->pos[0].x
                                  - part->pos[0].x + 0x10);
-            dy = (int16_t)(linked->pos[0].y
+            dy = (int16_t)(di->pos[0].y
                                  - part->pos[0].y);
 
             if (dx > 0 && dx < 0x38
                 && dy > 0 && dy < 0x28) {
-                mark_part_shapes(linked, 3);
-                linked->flags_08 |= 0x2000;
+                mark_part_shapes(di, 3);
+                di->flags_08 |= 0x2000;
                 play_sound(0x0d);
                 range = -1;
             } else {
@@ -5073,7 +5055,7 @@ uint16_t part_step_pokey(struct part *part)
             range = -1;
         }
 
-        t = ((int16_t)linked->word_7a);
+        t = ((int16_t)di->word_7a);
         if (t < 0)
             t = (int16_t)-t;
         if (t >= range)
@@ -5093,7 +5075,7 @@ uint16_t part_step_pokey(struct part *part)
             part->form = 2;
         }
 
-        di = 0;
+        di = PART_NONE;
         part->fx = part->pos[0].x;
         part->fx =
             (int32_t)long_shift_left((uint32_t)part->fx, 9);
@@ -5695,7 +5677,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
     int16_t  mid;      /* [bp-6] */
     int16_t  push;     /* [bp-4] */
     int16_t  dir;      /* [bp-2] */
-    uint16_t di;
+    struct part *di;
 
     if (((int16_t)part->form) > 7) {
         if (part->form != 0x12)
@@ -5734,27 +5716,25 @@ uint16_t part_step_jack_in_the_box(struct part *part)
                folded into the address, so the index carries the fold. */
             PARTSHAPES.jack_reach[part->form - 8], 0);
 
-        for (di = part->next_linked_ptr; di != 0;
-             di = PART_PTR(di)->next_linked_ptr) {
-            struct part *linked = PART_PTR(di);
+        for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+             di = PART_PTR(di->next_linked_ptr)) {
+            if (di->flags_06 & 0x1000) {
+                push = conveyor_speed_for_mass(di);
 
-            if (linked->flags_06 & 0x1000) {
-                push = conveyor_speed_for_mass(PART_PTR(di));
-
-                linked->vel_x =
+                di->vel_x =
                     (part->flags_08 & 0x10)
                     ? push : (int16_t)-push;
-                linked->word_38 = (int16_t)-push;
+                di->word_38 = (int16_t)-push;
                 continue;
             }
 
-            switch (linked->kind) {
-            case 0x0f: break_bob_the_fish(linked); break;
-            case 0x06: trigger_mouse_cage(linked); break;
-            case 0x03: conveyor_nudge_3(PART_PTR(di), mid); break;
-            case 0x10: conveyor_nudge_10(PART_PTR(di), mid); break;
-            case 0x15: conveyor_nudge_15(PART_PTR(di), mid); break;
-            case 0x25: conveyor_nudge_25(PART_PTR(di), mid); break;
+            switch (di->kind) {
+            case 0x0f: break_bob_the_fish(di); break;
+            case 0x06: trigger_mouse_cage(di); break;
+            case 0x03: conveyor_nudge_3(di, mid); break;
+            case 0x10: conveyor_nudge_10(di, mid); break;
+            case 0x15: conveyor_nudge_15(di, mid); break;
+            case 0x25: conveyor_nudge_25(di, mid); break;
             default: break;
             }
         }
@@ -6005,7 +5985,7 @@ uint16_t part_step_08f1(struct part *part)
  */
 uint16_t part_step_candle(struct part *part)
 {
-    uint16_t si;
+    struct part *si;
 
     if (((uint16_t)part->direction) == 0
         && part->spin > 0x14)
@@ -6023,12 +6003,10 @@ uint16_t part_step_candle(struct part *part)
 
     link_objects_at_point(part, 9, 0x12, -10, 5);
 
-    for (si = part->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
-
-        if (((uint16_t)linked->direction) == 0)
-            linked->direction = 1;
+    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
+        if (((uint16_t)si->direction) == 0)
+            si->direction = 1;
     }
 
     if (!(part->form & 1))
@@ -6036,23 +6014,21 @@ uint16_t part_step_candle(struct part *part)
 
     link_objects_in_range(part, 0x1000, 9, 0x12, -10, 5);
 
-    for (si = part->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
-
-        if (linked->kind == KIND_BALLOON) {
-            linked->direction = 1;
+    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
+        if (si->kind == KIND_BALLOON) {
+            si->direction = 1;
             continue;
         }
 
-        if (linked->kind != KIND_POKEY)
+        if (si->kind != KIND_POKEY)
             continue;
-        if (linked->form != 0)
+        if (si->form != 0)
             continue;
 
-        linked->form = 1;
-        linked->word_96 = 0;
-        place_object_for_draw(linked);
+        si->form = 1;
+        si->word_96 = 0;
+        place_object_for_draw(si);
         play_sound(7);
     }
 
@@ -6146,7 +6122,7 @@ void burst_dynamite(struct part *part)
  */
 uint16_t part_step_rocket(struct part *part)
 {
-    uint16_t di;
+    struct part *di;
 
     part->contact_ptr = 0;
 
@@ -6176,12 +6152,10 @@ uint16_t part_step_rocket(struct part *part)
 
     link_objects_at_point(part, -4, 0x12, 0x30, 0x51);
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
-
-        if (((uint16_t)linked->direction) == 0)
-            linked->direction = 1;
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
+        if (((uint16_t)di->direction) == 0)
+            di->direction = 1;
     }
 
     if (!(part->form & 1))
@@ -6189,23 +6163,21 @@ uint16_t part_step_rocket(struct part *part)
 
     link_objects_in_range(part, 0x1000, -4, 0x12, 0x30, 0x51);
 
-    for (di = part->next_linked_ptr; di != 0;
-         di = PART_PTR(di)->next_linked_ptr) {
-        struct part *linked = PART_PTR(di);
-
-        if (linked->kind == KIND_BALLOON) {
-            linked->direction = 1;
+    for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
+         di = PART_PTR(di->next_linked_ptr)) {
+        if (di->kind == KIND_BALLOON) {
+            di->direction = 1;
             continue;
         }
 
-        if (linked->kind != KIND_POKEY)
+        if (di->kind != KIND_POKEY)
             continue;
-        if (linked->form != 0)
+        if (di->form != 0)
             continue;
 
-        linked->form = 1;
-        linked->word_96 = 0;
-        place_object_for_draw(linked);
+        di->form = 1;
+        di->word_96 = 0;
+        place_object_for_draw(di);
         play_sound(7);
     }
 
