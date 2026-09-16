@@ -267,6 +267,22 @@ struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
 };
 _Static_assert(sizeof(struct game_puzzle_tabs) == 0x16, "DGROUP 0x260a..0x2620, 0x16 bytes");
 DG_ASSERT_AT(struct game_puzzle_tabs, word_260a, 0x00);
+/*
+ * **The part bitmap's name pieces**, DGROUP 0x2620..0x2630: "*", ": ",
+ * "part" and ".bmp", and a zero byte. `load_part_bitmap` builds "partNN.bmp"
+ * out of the last two; the port's transcription spells them as literals.
+ */
+struct game_part_names {
+    char      star[2];            /* +0x00  "*" */
+    char      title_sep[3];       /* +0x02  ": " */
+    char      part[5];            /* +0x05  "part" */
+    char      bmp[5];             /* +0x0a  ".bmp" */
+    uint8_t   pad_262f;           /* +0x0f */
+} __attribute__((packed));
+
+struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = { .star = "*", .title_sep = ": ", .part = "part", .bmp = ".bmp" };
+_Static_assert(sizeof(struct game_part_names) == 0x10, "DGROUP 0x2620..0x2630, 0x10 bytes");
+
 
 /*
  * **Not established**, DGROUP 0x27ee..0x2818, 0x2a bytes.
@@ -419,6 +435,59 @@ struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
 };
 _Static_assert(sizeof(struct game_picker_tabs) == 0x1e, "DGROUP 0x28fa..0x2918, 0x1e bytes");
 DG_ASSERT_AT(struct game_picker_tabs, word_28fa, 0x00);
+/*
+ * **The file dialog's strings**, DGROUP 0x2918..0x2966: the ".TIM" extension,
+ * the eleven DOS device names a typed file name must not be, the mode, and
+ * the patterns the directory scan uses. The port's transcription spells them
+ * as literals; these are the image's bytes, at the image's addresses.
+ */
+struct game_file_strings {
+    char      tim[4];             /* +0x00  "TIM" */
+    char      con[4];             /* +0x04  "con" */
+    char      aux[4];             /* +0x08  "aux" */
+    char      com1[5];            /* +0x0c  "com1" */
+    char      com2[5];            /* +0x11  "com2" */
+    char      com3[5];            /* +0x16  "com3" */
+    char      com4[5];            /* +0x1b  "com4" */
+    char      prn[4];             /* +0x20  "prn" */
+    char      lpt1[5];            /* +0x24  "lpt1" */
+    char      lpt2[5];            /* +0x29  "lpt2" */
+    char      nul[4];             /* +0x2e  "nul" */
+    char      null[5];            /* +0x32  "null" */
+    char      mode_rb[3];         /* +0x37  "rb" */
+    char      star_a[2];          /* +0x3a  "*" */
+    char      star_b[2];          /* +0x3c  "*" */
+    char      star_dot_star_a[4]; /* +0x3e  "*.*" */
+    char      dot[2];             /* +0x42  "." */
+    char      dot_dot_a[3];       /* +0x44  ".." */
+    char      star_dot_star_b[4]; /* +0x47  "*.*" */
+    char      dot_dot_b[3];       /* +0x4b  ".." */
+} __attribute__((packed));
+
+struct game_file_strings GAME_FILE_STRINGS DGROUP_AT(0x2918) = {
+    .tim = "TIM",
+    .con = "con",
+    .aux = "aux",
+    .com1 = "com1",
+    .com2 = "com2",
+    .com3 = "com3",
+    .com4 = "com4",
+    .prn = "prn",
+    .lpt1 = "lpt1",
+    .lpt2 = "lpt2",
+    .nul = "nul",
+    .null = "null",
+    .mode_rb = "rb",
+    .star_a = "*",
+    .star_b = "*",
+    .star_dot_star_a = "*.*",
+    .dot = ".",
+    .dot_dot_a = "..",
+    .star_dot_star_b = "*.*",
+    .dot_dot_b = "..",
+};
+_Static_assert(sizeof(struct game_file_strings) == 0x4e, "DGROUP 0x2918..0x2966, where the part templates start");
+
 
 /*
  * ---------------------------------------------------------------------------

@@ -410,6 +410,12 @@ void     io_dos_arena_reset(uint16_t first_free, uint16_t mem_top);
  * file could not be read. See io.c.
  */
 int32_t  io_load_program(const char *img_path, const char *exe_path);
+
+/*
+ * OURS: DGROUP's address, the stack, the arena and the BIOS bytes - everything
+ * `io_load_program` does except loading. What the port calls; see io.c.
+ */
+void     io_start_program(void);
 void     io_dos_free(uint16_t seg);
 uint16_t io_malloc(uint16_t bytes);
 void     io_free(uint16_t off);

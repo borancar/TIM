@@ -4,9 +4,9 @@
 The port does not load `TIM.img`. What the game needs of it - DGROUP's
 initialised data, and the tables the sound module keeps in its own code segment
 - is C objects, each placed by the linker at the address its `DGROUP_AT`,
-`DGROUP_BSS` or `SEGMENT_AT` names (see dgroup.h and tools/genld.py). Two things
+`DGROUP_BSS` or `SEGMENT_AT` names (see dgroup.h and tools/genld.py). Three things
 have to hold for that to be the same memory the original started with, and this
-checks both against `libtim.so`, untouched - no routine called, nothing loaded:
+checks all three against `libtim.so`, untouched - no routine called, nothing loaded:
 
 1. **Placement.** Every such object's address, less `guest_mem`'s, is the
    linear address its section names. The linker script is generated and the
@@ -18,6 +18,13 @@ checks both against `libtim.so`, untouched - no routine called, nothing loaded:
    unpacked executable's relocation table at the load segment - and every
    `DGROUP_BSS` object is zero. A far pointer transcribed without `LOAD_SEG`,
    or with it where the relocation table has no entry, differs here.
+3. **Nothing left behind.** The port no longer loads the image, so a byte the
+   game needs and no object holds would simply be zero. The whole of DGROUP's
+   initialised data - 0x0000 to 0x4e4e, where Borland's startup starts zeroing
+   - and the sound module's two data blocks inside its code segment must equal
+   the image as linked. Those are the ranges a run with every other image byte
+   wiped was measured to need: the intro, the solutions and the sequencer's
+   trace were unchanged without the rest.
 
 This file is the port's own tooling; it is not a transcription. GPL-2.0.
 """
@@ -39,6 +46,11 @@ LOAD_SEG = 0x0110
 IMG_DGROUP = 0x2d3c0
 DGROUP = (LOAD_SEG << 4) + IMG_DGROUP
 INIT_END = 0x4e4e
+# The image ranges the game reads: DGROUP's initialised data, and the sound
+# module's tables in segment 2619 - 0x0008..0x020d and 0x30f6..0x30fc.
+NEEDED = [(DGROUP, DGROUP + INIT_END),
+          ((LOAD_SEG << 4) + 0x26190 + 0x0008, (LOAD_SEG << 4) + 0x26190 + 0x020d),
+          ((LOAD_SEG << 4) + 0x26190 + 0x30f6, (LOAD_SEG << 4) + 0x26190 + 0x30fc)]
 
 DG = re.compile(r"^\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
 BSS = re.compile(r"^\.bss\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
@@ -119,7 +131,20 @@ def main():
     if bad:
         print(f"FAIL: {bad} of {len(objects)} placed objects are not the image's")
         return 1
-    print(f"{len(objects)} placed objects, each at its address and holding the image's bytes")
+
+    missing = 0
+    for lo, hi in NEEDED:
+        for at in range(lo, hi):
+            if mem[at] != image[at]:
+                if missing < 10:
+                    print(f"NOT TRANSCRIBED linear 0x{at:05x}: the image has "
+                          f"{image[at]:02x}, the port {mem[at]:02x}")
+                missing += 1
+    if missing:
+        print(f"FAIL: {missing} bytes the game reads are not in any placed object")
+        return 1
+    print(f"{len(objects)} placed objects, each at its address and holding the image's bytes, "
+          f"and nothing the game reads is left out")
     return 0
 
 

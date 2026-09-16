@@ -7,9 +7,11 @@
  * separate binary, so nothing a comparison depends on can become part of what
  * ships.
  *
- * What is here is what DOS did before the program's first instruction: put the
- * image in memory, relocate it, and give the program a stack and an arena. Then
- * `game_main`, which is the game's own `main` at image 0x0dfff.
+ * What is here is what DOS did before the program's first instruction, less
+ * the loading: give the program a stack and an arena. The image's data is
+ * already in `guest_mem`, placed there by the linker (see `DGROUP_AT` in
+ * dgroup.h), so the game needs no file but its own. Then `game_main`, which is
+ * the game's own `main` at image 0x0dfff.
  */
 #include <stdlib.h>
 #include <string.h>
@@ -18,10 +20,6 @@
 #include "io.h"
 #include "sdl.h"
 #include "tim.h"
-
-/* Where the recovered image and its relocation table are, unless TIM_DIR says
- * otherwise. They are build products of tools/unlzexe.py, not game files. */
-#define DEFAULT_OUT "out"
 
 /*
  * OURS: **Shift+F2 writes the whole machine out**, so a state reached by
@@ -46,24 +44,8 @@ static void on_hotkey(int32_t id)
  */
 int main(void)
 {
-    const char *dir = getenv("TIM_DIR");
-    char img[512], exe[512];
-
-    if (!dir)
-        dir = DEFAULT_OUT;
-
-    io_format(img, sizeof img, "%s/TIM.img", dir);
-    io_format(exe, sizeof exe, "%s/TIM.unpacked.exe", dir);
-
     io_reset();
-
-    if (!io_load_program(img, exe)) {
-        io_errorf(
-                "cannot read %s and %s - run tools/unlzexe.py first, or set "
-                "TIM_DIR\n", img, exe);
-        return 1;
-    }
-
+    io_start_program();
 
     /*
      * What the C runtime does between the loader and `main`: its init table at

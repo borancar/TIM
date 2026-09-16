@@ -30,6 +30,28 @@
  */
 
 /*
+ * DGROUP 0x0000..0x0074 - **the start of Borland's data segment**: four zero
+ * bytes the exit code sums to report a null pointer assignment, the
+ * copyright, and the three messages the runtime writes with a length rather
+ * than a terminator.
+ */
+struct borland_data_start {
+    uint8_t   null_check[4];      /* +0x00 */
+    char      copyright[43];      /* +0x04  "Borland C++ - Copyright 1991 Borland Intl." */
+    char      null_message[25] __attribute__((nonstring));   /* +0x2f  "Null pointer assignment\r\n" */
+    char      divide_message[14] __attribute__((nonstring)); /* +0x48  "Divide error\r\n" */
+    char      abort_message[30] __attribute__((nonstring));  /* +0x56  "Abnormal program termination\r\n" */
+} __attribute__((packed));
+
+struct borland_data_start BORLAND_DATA_START DGROUP_AT(0x0000) = {
+    .copyright = "Borland C++ - Copyright 1991 Borland Intl.",
+    .null_message = "Null pointer assignment\015\012",
+    .divide_message = "Divide error\015\012",
+    .abort_message = "Abnormal program termination\015\012",
+};
+_Static_assert(sizeof(struct borland_data_start) == 0x74, "DGROUP 0x0000..0x0074, 0x74 bytes");
+
+/*
  * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
  * thirteen bytes `dos_find_to_dgroup` copies out of the DTA and
  * `dos_find_name` answers. The word before it and the 0x1f bytes after, up to
@@ -261,6 +283,30 @@ DG_ASSERT_AT(struct borland_runtime_strings, s_print,     0x72);
 DG_ASSERT_AT(struct borland_runtime_strings, s_scanf,     0x77);
 DG_ASSERT_AT(struct borland_runtime_strings, s_no_floats, 0x7c);
 _Static_assert(sizeof(struct borland_runtime_strings) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
+/*
+ * DGROUP 0x4e42..0x4e4e - **two more near vectors and the init table.** The
+ * two words follow `DG4E34.realcvt_ptr` and hold the same kind of value.
+ * Then the one `_INIT_` record: call type 0, priority 2, address 0000:c1d6,
+ * which is `setup_streams` - the entry `main.c` runs before `game_main`.
+ */
+struct borland_init_table {
+    uint16_t  vector_4e42;        /* +0x00 */
+    uint16_t  vector_4e44;        /* +0x02 */
+    uint8_t   calltype;           /* +0x04  0x4e46 */
+    uint8_t   priority;           /* +0x05 */
+    struct far_ptr init;          /* +0x06  0x4e48  setup_streams */
+    uint8_t   pad_4e4c[2];        /* +0x0a */
+} __attribute__((packed));
+
+struct borland_init_table BORLAND_INIT_TABLE DGROUP_AT(0x4e42) = {
+    .vector_4e42 = 0xc889,
+    .vector_4e44 = 0xc889,
+    .calltype = 0x89,
+    .priority = 0xc8,
+    .init = { .off = 0x0200, .seg = 0xc1d6 },
+};
+_Static_assert(sizeof(struct borland_init_table) == 0x0c, "DGROUP 0x4e42..0x4e4e, 0x0c bytes");
+
 
 /*
  * **The `atexit` table and the temporary name**, DGROUP 0x6438..0x64c8, 0x90 bytes: thirty-two

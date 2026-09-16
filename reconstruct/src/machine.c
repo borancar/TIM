@@ -82,6 +82,26 @@ struct machine_hash_order {
 
 struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
 _Static_assert(sizeof(struct machine_hash_order) == 0x04, "DGROUP 0x28d2..0x28d6, 0x04 bytes");
+/*
+ * **The resource map's name and three modes**, DGROUP 0x28d6..0x28ec:
+ * "RESOURCE.MAP" and "rb" three times, one for each of the routines at
+ * 0x0964b, 0x09a7f and 0x09b02 that opens a file.
+ */
+struct machine_resource_map_names {
+    char      resource_map[13];   /* +0x00  "RESOURCE.MAP" */
+    char      mode_rb_a[3];       /* +0x0d  "rb" */
+    char      mode_rb_b[3];       /* +0x10  "rb" */
+    char      mode_rb_c[3];       /* +0x13  "rb" */
+} __attribute__((packed));
+
+struct machine_resource_map_names MACHINE_RESOURCE_MAP_NAMES DGROUP_AT(0x28d6) = {
+    .resource_map = "RESOURCE.MAP",
+    .mode_rb_a = "rb",
+    .mode_rb_b = "rb",
+    .mode_rb_c = "rb",
+};
+_Static_assert(sizeof(struct machine_resource_map_names) == 0x16, "DGROUP 0x28d6..0x28ec, 0x16 bytes");
+
 
 /*
  * **Which page pointers the saved-rect lists are restored between**, at

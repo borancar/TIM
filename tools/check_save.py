@@ -113,7 +113,7 @@ def run_port(outdir, timeout):
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
                TIM_SAVEDIR=outdir, TIM_GAMEDIR=gamedir)
     # **The port's own stderr is kept.** It says what is wrong when it cannot
-    # start - "cannot read out/TIM.img ... run tools/unlzexe.py first" - and
+    # start - a game directory it cannot read, say - and
     # discarding it turns a missing input into "the port never reached it",
     # which sends the reader to debug the port instead of running one command.
     log = open(os.path.join(outdir, "port.log"), "wb")

@@ -416,7 +416,24 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
     free(img);
     free(exe);
 
-    dgroup_base = base + IMG_DGROUP;
+    io_start_program();
+    return 1;
+}
+
+/*
+ * OURS: what DOS's loader and Borland's startup leave behind besides the
+ * image - DGROUP's address, the startup's stack, the arena and the two BIOS
+ * bytes the game reads.
+ *
+ * **The port calls this and not `io_load_program`.** Nothing the game needs
+ * comes from the image any more: DGROUP's initialised data and the sound
+ * module's tables are C objects the linker puts in `guest_mem` at the addresses
+ * the image had them (`DGROUP_AT` in dgroup.h), and the code is the port's
+ * own. Only the hybrid runner still loads the image, because it runs it.
+ */
+void io_start_program(void)
+{
+    dgroup_base = ((uint32_t)LOAD_SEG << 4) + IMG_DGROUP;
 
     /* The startup's own stack, at the top of a 64 KB DGROUP. */
     guest_sp = 0xFFFE;
@@ -431,8 +448,6 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
     /* The BIOS data area the game reads: keyboard flags and the video mode. */
     guest_mem[0x400 + 0x17] = 0;
     guest_mem[0x400 + 0x49] = 0x03;
-
-    return 1;
 }
 
 /*

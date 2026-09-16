@@ -252,7 +252,6 @@ static void usage(void)
 "  is the original's behaviour, not the port's.\n"
 "\n"
 "environment, general:\n"
-"  TIM_DIR=DIR     where TIM.img and TIM.unpacked.exe are (default out)\n"
 "  TIM_HEADLESS=1  open no window. What the tools in tools/ set, so a batch\n"
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
@@ -420,21 +419,7 @@ int main(int argc, char **argv)
                 io_set_game_dir(game);
         }
 
-        const char *dir = getenv("TIM_DIR");
-        char img[512], exe[512];
-
-        if (!dir)
-            dir = "out";
-        snprintf(img, sizeof img, "%s/TIM.img", dir);
-        snprintf(exe, sizeof exe, "%s/TIM.unpacked.exe", dir);
-
-        if (!io_load_program(img, exe)) {
-            fprintf(stderr,
-                    "cannot read %s and %s - run tools/unlzexe.py first, or "
-                    "set TIM_DIR\n", img, exe);
-            return 1;
-        }
-
+        io_start_program();
 
         /*
          * A restore replaces every byte of this, so the start-up runs only to

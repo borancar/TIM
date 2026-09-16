@@ -89,6 +89,19 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
 DG_ASSERT_AT(struct res_handler, read_off,  0x06);
 DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
 _Static_assert(sizeof(struct engine_res_handlers) == 0x38, "four handlers end at 0x35b2");
+/*
+ * **Nine bit masks**, DGROUP 0x35b2..0x35bc, `(1 << n) - 1` for n from 0 to 8
+ * - the same nine as `ENGINE_LZW_MASKS` - and a zero byte. **Not established**
+ * which routine reads these; the port's decoders read the other copy.
+ */
+struct engine_bit_masks {
+    uint8_t   mask[9];            /* +0x00 */
+    uint8_t   pad_35bb;           /* +0x09 */
+} __attribute__((packed));
+
+struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
+_Static_assert(sizeof(struct engine_bit_masks) == 0x0a, "DGROUP 0x35b2..0x35bc, 0x0a bytes");
+
 
 /*
  * **The bit reader's input window**, DGROUP 0x35bc..0x35c8, 0x0c bytes: `next_lzw_code` has
@@ -133,6 +146,32 @@ struct engine_lzw_resume {
 struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
 _Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3, 0x02 bytes");
 DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
+/*
+ * **Not established**, DGROUP 0x35d3..0x3600, 0x2d bytes: three words the
+ * image sets - 0x138b, 10000 and 1 - and two nine-byte runs that read as the
+ * left and right bit masks, 0xff down to 0 and 0 up to 0xff.
+ */
+struct engine_bit_state {
+    uint8_t   pad_35d3[3];        /* +0x00 */
+    uint16_t  word_35d6;          /* +0x03 */
+    uint8_t   pad_35d8[10];       /* +0x05 */
+    uint16_t  word_35e2;          /* +0x0f */
+    uint16_t  word_35e4;          /* +0x11 */
+    uint16_t  word_35e6;          /* +0x13 */
+    uint8_t   pad_35e8[6];        /* +0x15 */
+    uint8_t   left_mask[9];       /* +0x1b  0x35ee */
+    uint8_t   right_mask[9];      /* +0x24  0x35f7 */
+} __attribute__((packed));
+
+struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3) = {
+    .word_35d6 = 0x138b,
+    .word_35e2 = 0x2710,
+    .word_35e6 = 0x0001,
+    .left_mask = { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80 },
+    .right_mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff },
+};
+_Static_assert(sizeof(struct engine_bit_state) == 0x2d, "DGROUP 0x35d3..0x3600, 0x2d bytes");
+
 
 /*
  * **The bit buffer the decompressors read through**, DGROUP 0x3600..0x3603, 0x03 bytes.
@@ -146,6 +185,39 @@ struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
 _Static_assert(sizeof(struct engine_bit_buffer) == 0x03, "DGROUP 0x3600..0x3603, 0x03 bytes");
 DG_ASSERT_AT(struct engine_bit_buffer, bits,      0x00);
 DG_ASSERT_AT(struct engine_bit_buffer, bit_count, 0x02);
+/*
+ * **The Huffman coder's position tables**, DGROUP 0x3603..0x3686: three zero
+ * bytes, then sixty-four code lengths and sixty-four codes - the shape of
+ * LZHUF's `p_len` and `p_code`, which are the *encoder's* half, next to the
+ * decoder's `ENGINE_HUFFMAN_POSITIONS`. **Not established** that anything
+ * reads them.
+ */
+struct engine_huffman_codes {
+    uint8_t   pad_3603[3];        /* +0x00 */
+    uint8_t   len[64];            /* +0x03  0x3606 */
+    uint8_t   code[64];           /* +0x43  0x3646 */
+} __attribute__((packed));
+
+struct engine_huffman_codes ENGINE_HUFFMAN_CODES DGROUP_AT(0x3603) = {
+    .len = {
+        0x03, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+        0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+    },
+    .code = {
+        0x00, 0x20, 0x30, 0x40, 0x50, 0x58, 0x60, 0x68, 0x70, 0x78, 0x80,
+        0x88, 0x90, 0x94, 0x98, 0x9c, 0xa0, 0xa4, 0xa8, 0xac, 0xb0, 0xb4,
+        0xb8, 0xbc, 0xc0, 0xc2, 0xc4, 0xc6, 0xc8, 0xca, 0xcc, 0xce, 0xd0,
+        0xd2, 0xd4, 0xd6, 0xd8, 0xda, 0xdc, 0xde, 0xe0, 0xe2, 0xe4, 0xe6,
+        0xe8, 0xea, 0xec, 0xee, 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6,
+        0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+    },
+};
+_Static_assert(sizeof(struct engine_huffman_codes) == 0x83, "DGROUP 0x3603..0x3686, 0x83 bytes");
+
 
 /*
  * **The Huffman position tables**, DGROUP 0x3686..0x3886, 0x200 bytes: for each code byte
@@ -478,6 +550,13 @@ struct engine_driver_block ENGINE_DRIVER_BLOCK DGROUP_AT(0x48f8);
 _Static_assert(sizeof(struct engine_driver_block) == 0x04, "DGROUP 0x48f8..0x48fc, 0x04 bytes");
 DG_ASSERT_AT(struct engine_driver_block, block, 0x00);
 
+/* **The mode the font is opened with**, DGROUP 0x495a..0x495c: "r". */
+struct engine_font_mode {
+    char      mode_r[2];          /* +0x00 */
+} __attribute__((packed));
+
+struct engine_font_mode ENGINE_FONT_MODE DGROUP_AT(0x495a) = { .mode_r = "r" };
+
 /*
  * **Which chunk a font lives in**, DGROUP 0x495c..0x495e, 0x02 bytes.
  *
@@ -492,6 +571,19 @@ struct engine_font_chunk {
 struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
 _Static_assert(sizeof(struct engine_font_chunk) == 0x02, "DGROUP 0x495c..0x495e, 0x02 bytes");
 DG_ASSERT_AT(struct engine_font_chunk, font_chunk_name, 0x00);
+/*
+ * **The font chunk's name**, DGROUP 0x495e..0x4966, which `ENGINE_FONT_CHUNK`
+ * points at, and the "r" `load_font` opens with.
+ */
+struct engine_font_tag {
+    char      fnt[5];             /* +0x00  "FNT:" */
+    char      mode_r[2];          /* +0x05  0x4963  "r" */
+    uint8_t   pad_4965;           /* +0x07 */
+} __attribute__((packed));
+
+struct engine_font_tag ENGINE_FONT_TAG DGROUP_AT(0x495e) = { .fnt = "FNT:", .mode_r = "r" };
+_Static_assert(sizeof(struct engine_font_tag) == 0x08, "DGROUP 0x495e..0x4966, 0x08 bytes");
+
 
 /*
  * **The resource reader's flag bits and its handler index**, DGROUP 0x57ba..0x57bf, 0x05 bytes.
@@ -3398,7 +3490,7 @@ void timer_tick(void)
     TIMER.divider = TIMER.divider_reload;
 
     /*
-     * And chain to the vector `timer_install` displaced, at ((int16_t)S1CS.old_int8.off). That
+     * And chain to the vector `timer_install` displaced, at ((int16_t)S1C_TIMER.old_int8.off). That
      * is the BIOS's own handler, which keeps 0040:006c ticking. The port has no
      * BIOS handler to chain to and does not pretend otherwise - nothing here
      * reads the BIOS tick count.
@@ -3469,8 +3561,8 @@ uint16_t install_keyboard(int16_t hook_timer)
 {
     if (ENGINE_KEYBOARD.installed == 0) {
 
-        S1CS.old_int9 = dos_getvect(0x09);
-        S1CS.old_int1c = dos_getvect(0x1c);
+        S1C_KEYBOARD.old_int9 = dos_getvect(0x09);
+        S1C_KEYBOARD.old_int1c = dos_getvect(0x1c);
 
         dos_setvect(0x09, 0x4f46, (uint16_t)(S1C25 >> 4));
 
@@ -4356,8 +4448,8 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
 {
     /* The original's dispatch words, stored for the comparison's sake only. */
     /* Stored going up, and overwritten below if the copy has to go down. */
-    S1CS.word_5f99 = 0x5f11;
-    S1CS.word_5f9b = 0x5f86;
+    S1C_WORDS.word_5f99 = 0x5f11;
+    S1C_WORDS.word_5f9b = 0x5f86;
 
     /*
      * The original compares the two *linear* addresses, and that is a question
@@ -4368,8 +4460,8 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
      */
     if ((dg_is_guest(src) ? src : dgroup)
         < (dg_is_guest(dst) ? (const uint8_t *)dst : dgroup)) {
-        S1CS.word_5f99 = 0x5f23;
-        S1CS.word_5f9b = 0x5f6f;
+        S1C_WORDS.word_5f99 = 0x5f23;
+        S1C_WORDS.word_5f9b = 0x5f6f;
     }
 
     memmove((void *)(uintptr_t)dst, (const void *)(uintptr_t)src, count);
@@ -4575,7 +4667,7 @@ uint16_t load_font(char *name)
             game_fread((uint8_t *)size, 1, 2, di);
 
             r = file_record_size(di);
-            handle = open_resource(0xffff, di, (char *)dg_ptr(dgroup, 0x4963), r);  /* "r" */
+            handle = open_resource(0xffff, di, ENGINE_FONT_TAG.mode_r, r);
             failed = (handle < 0) ? 1 : 0;
 
             if (failed == 0)
@@ -5646,7 +5738,7 @@ int16_t timer_install(uint16_t rate)
     TIMER.slot_mask = 0;
     detect_pcjr();
 
-    S1CS.old_int8 = dos_getvect(8);
+    S1C_TIMER.old_int8 = dos_getvect(8);
 
     if (rate > 0xff || rate == 0)
         return 0;
@@ -5748,8 +5840,8 @@ int16_t remove_keyboard(void)
 
     FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
 
-    dos_setvect(0x09, S1CS.old_int9.off, S1CS.old_int9.seg);
-    dos_setvect(0x1c, S1CS.old_int1c.off, S1CS.old_int1c.seg);
+    dos_setvect(0x09, S1C_KEYBOARD.old_int9.off, S1C_KEYBOARD.old_int9.seg);
+    dos_setvect(0x1c, S1C_KEYBOARD.old_int1c.off, S1C_KEYBOARD.old_int1c.seg);
 
     return 1;
 }
@@ -5904,7 +5996,7 @@ int16_t timer_remove(void)
     io_out8(0x40, 0);
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    dos_setvect(8, (uint16_t)((int16_t)S1CS.old_int8.off), (uint16_t)((int16_t)S1CS.old_int8.seg));
+    dos_setvect(8, (uint16_t)((int16_t)S1C_TIMER.old_int8.off), (uint16_t)((int16_t)S1C_TIMER.old_int8.seg));
 
     TIMER.installed = 0;
     return 1;
@@ -6754,10 +6846,11 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     if (di == 0)
         return FAR_NULL;
 
-    /* `si` runs from 1 here, and 0x48ff is `0x4901 - 2` - the compiler
-       folding that first index into the base, so entry 0 is not a tag. */
+    /* `si` runs from 1 here, and the original's base 0x48ff is `0x4901 - 2`
+       - the compiler folding that first index into it - so entry 1 is
+       `tag[0]`. */
     string_copy_far(OVLCHUNK.ovl_tag + 4,
-                    (const char *)dg_ptr(dgroup, ADAPTER_TAGS[si]));
+                    (const char *)dg_ptr(dgroup, ADAPTER_TAGS.tag[si - 1]));
 
     if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == -1)
         return FAR_NULL;
@@ -6765,7 +6858,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     {
         uint32_t sz = file_record_size(di);
 
-        handle = open_resource(0xffff, di, (char *)dg_ptr(dgroup, 0x495a), sz);
+        handle = open_resource(0xffff, di, ENGINE_FONT_MODE.mode_r, sz);
     }
 
     if (handle < 0)

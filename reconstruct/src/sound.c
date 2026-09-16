@@ -2324,7 +2324,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         struct far_ptr p;
 
         string_copy_far(CHUNK2.ssm_tag + 4,
-                        (const char *)dg_ptr(dgroup, MODULE_TAGS[module_index]));
+                        (const char *)dg_ptr(dgroup, SOUND_TAGS.module[module_index]));
 
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.module = p;
@@ -2366,7 +2366,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         struct far_ptr p;
 
         string_copy_far(CHUNK2.ssm_tag + 4,
-                        (const char *)dg_ptr(dgroup, DEVICE_TAGS[device]));
+                        (const char *)dg_ptr(dgroup, SOUND_TAGS.device[device]));
 
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.driver = p;
@@ -2727,7 +2727,7 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     default:   goto out;
     }
 
-    handle = open_resource(0, file, (char *)dg_ptr(dgroup, 0x4a7e), size);
+    handle = open_resource(0, file, SOUND_TAGS.mode_r_a, size);
     if (handle < 0)
         goto out;
 
@@ -2954,7 +2954,7 @@ void stop_all_voices(void)
  */
 void set_sound_callback(struct far_ptr cb)
 {
-    SNDS.callback = cb;
+    SNDCALL.callback = cb;
 }
 
 /*
@@ -2990,8 +2990,8 @@ uint16_t sound_callback(uint16_t ax, uint8_t * si)
     if (((int16_t)DG4A82.module_live) != 0)
         answer = call_sound_module(ax, si);
 
-    SNDS.answer = (int16_t)answer;
-    return (uint16_t)SNDS.answer;
+    SNDCALL.answer = (int16_t)answer;
+    return (uint16_t)SNDCALL.answer;
 }
 
 /*
@@ -3264,7 +3264,7 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
     uint32_t len = 0;
     int16_t handle;
 
-    handle = open_resource(0, file, (char *)dg_ptr(dgroup, 0x4a80), size);
+    handle = open_resource(0, file, SOUND_TAGS.mode_r_b, size);
 
     if (handle >= 0) {
         int32_t sz = resource_size(handle);

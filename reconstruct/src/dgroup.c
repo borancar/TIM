@@ -73,6 +73,1058 @@ void dg_free(uint16_t bytes)
     guest_sp = (uint16_t)(guest_sp + bytes + 2);
 }
 
+/* The draw step `draw_part` fills in for a part whose kind has no table. */
+struct draw_step DG0124 DGROUP_AT(0x0124) = { .frame = { [1] = 0xff } };
+
+/*
+ * DGROUP 0x0133..0x0ea6 - **the kinds' drawing tables**, which `PART_KINDS`
+ * points into and nothing else does. A kind that draws in steps has a run of
+ * `draw_step`s, then three tables indexed by form: the first step
+ * (`bitmaps2_ptr`), the size (`word_1a`) and the hot spot (`word_18`); a kind
+ * that draws one bitmap per form has at most the last two. The boundaries are
+ * where the kind records point, and they tile the range with nothing left
+ * over. The `next` links and the table entries are near pointers, as the
+ * image has them.
+ */
+struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] DGROUP_AT(0x0133) = {
+    [0] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x02, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [1] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x03, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [2] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x04, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [3] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x05, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [4] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x06, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [5] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x07, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x08, .y = 0x09 } },
+    },
+    [6] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x08, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x09 } },
+    },
+    [7] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x09, 0xff },
+        .offset = { { .y = 0x03 }, { 0 }, { .x = 0x09, .y = 0x08 } },
+    },
+    [8] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0a, 0x02, 0xff },
+        .offset = { { .y = 0x03 }, { .y = 0xeb }, { .x = 0x09, .y = 0x09 } },
+    },
+    [9] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0b, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0x01, .y = 0xde }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [10] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0c, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfa, .y = 0xc5 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [11] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0d, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [12] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0e, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfa, .y = 0xe2 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [13] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0f, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [14] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x10, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [15] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x11, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [16] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x12, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [17] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x13, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+    [18] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x14, 0x02, 0xff },
+        .offset = {
+            { .y = 0x03 }, { .x = 0xfc, .y = 0xe7 }, { .x = 0x09, .y = 0x09 },
+        },
+    },
+};
+dg_off_t JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
+    0x0133, 0x0142, 0x0151, 0x0160, 0x016f, 0x017e, 0x018d, 0x019c, 0x01ab,
+    0x01ba, 0x01c9, 0x01d8, 0x01e7, 0x01f6, 0x0205, 0x0214, 0x0223, 0x0232,
+    0x0241,
+};
+struct point16 JACK_IN_THE_BOX_FORM_SIZES[19] DGROUP_AT(0x0276) = {
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+    { .x = 0x0023, .y = 0x0035 }, { .x = 0x0023, .y = 0x0042 },
+    { .x = 0x0027, .y = 0x005b }, { .x = 0x0024, .y = 0x0039 },
+    { .x = 0x0026, .y = 0x003e }, { .x = 0x0025, .y = 0x0039 },
+    { .x = 0x0029, .y = 0x0039 }, { .x = 0x0028, .y = 0x0039 },
+    { .x = 0x0024, .y = 0x0039 }, { .x = 0x0024, .y = 0x0039 },
+    { .x = 0x0024, .y = 0x0039 },
+};
+struct point8 JACK_IN_THE_BOX_HOT_SPOTS[19] DGROUP_AT(0x02c2) = {
+    [8] = { .y = 0xeb },
+    [9] = { .y = 0xde },
+    [10] = { .x = 0xfa, .y = 0xc4 },
+    [11] = { .x = 0xfc, .y = 0xe7 },
+    [12] = { .x = 0xfa, .y = 0xe2 },
+    [13] = { .x = 0xfc, .y = 0xe7 },
+    [14] = { .x = 0xfc, .y = 0xe7 },
+    [15] = { .x = 0xfc, .y = 0xe7 },
+    [16] = { .x = 0xfc, .y = 0xe7 },
+    [17] = { .x = 0xfc, .y = 0xe7 },
+    [18] = { .x = 0xfc, .y = 0xe7 },
+};
+struct draw_step BOB_THE_FISH_DRAW_STEPS[23] DGROUP_AT(0x02e8) = {
+    [0] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x0a, .y = 0x0b }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [1] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x02, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x0f, .y = 0x09 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [2] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x03, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x1a, .y = 0x10 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [3] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x04, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x1f, .y = 0x11 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [4] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x05, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x1a, .y = 0x10 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [5] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x06, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x0a, .y = 0x0b }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [6] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x07, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x07, .y = 0x0b }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [7] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x08, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x06, .y = 0x0a }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [8] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x09, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x07, .y = 0x10 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [9] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0a, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x08, .y = 0x10 }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [10] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0b, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x06, .y = 0x0a }, { .x = 0x0a, .y = 0x1b } },
+    },
+    [11] = {
+        .level = 0x03,
+        .frame = { 0x0d, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xf0, .y = 0x08 } },
+    },
+    [12] = {
+        .level = 0x03,
+        .frame = { 0x0e, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xed, .y = 0x0f } },
+    },
+    [13] = {
+        .level = 0x03,
+        .frame = { 0x0f, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xe7, .y = 0x13 } },
+    },
+    [14] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x11, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x27 } },
+    },
+    [15] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x12, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x1f } },
+    },
+    [16] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x13, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x03, .y = 0x1d } },
+    },
+    [17] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x14, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x1d } },
+    },
+    [18] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x15, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0xfb, .y = 0x1b } },
+    },
+    [19] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x16, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0xfb, .y = 0x16 } },
+    },
+    [20] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x17, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x01, .y = 0x1f } },
+    },
+    [21] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x18, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x24 } },
+    },
+    [22] = {
+        .level = 0x03,
+        .frame = { 0x10, 0x19, 0xff, 0xff },
+        .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x26 } },
+    },
+};
+dg_off_t BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
+    0x02e8, 0x02f7, 0x0306, 0x0315, 0x0324, 0x0333, 0x0342, 0x0351, 0x0360,
+    0x036f, 0x037e, 0x038d, 0x039c, 0x03ab, 0x03ba, 0x03c9, 0x03d8, 0x03e7,
+    0x03f6, 0x0405, 0x0414, 0x0423, 0x0432,
+};
+struct point16 BOB_THE_FISH_FORM_SIZES[23] DGROUP_AT(0x046f) = {
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0030, .y = 0x0030 },
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0030, .y = 0x0030 },
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0030, .y = 0x0030 },
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0030, .y = 0x0030 },
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0030, .y = 0x0030 },
+    { .x = 0x0030, .y = 0x0030 }, { .x = 0x0058, .y = 0x002b },
+    { .x = 0x0058, .y = 0x0026 }, { .x = 0x0060, .y = 0x0025 },
+    { .x = 0x0068, .y = 0x0020 }, { .x = 0x0068, .y = 0x0020 },
+    { .x = 0x0068, .y = 0x0020 }, { .x = 0x0068, .y = 0x0020 },
+    { .x = 0x0068, .y = 0x0020 }, { .x = 0x0068, .y = 0x0023 },
+    { .x = 0x0068, .y = 0x0020 }, { .x = 0x0068, .y = 0x0020 },
+    { .x = 0x0068, .y = 0x0020 },
+};
+struct point8 BOB_THE_FISH_HOT_SPOTS[23] DGROUP_AT(0x04cb) = {
+    [11] = { .x = 0xf0, .y = 0x08 },
+    [12] = { .x = 0xed, .y = 0x0f },
+    [13] = { .x = 0xe7, .y = 0x13 },
+    [14] = { .x = 0xe4, .y = 0x19 },
+    [15] = { .x = 0xe4, .y = 0x19 },
+    [16] = { .x = 0xe4, .y = 0x19 },
+    [17] = { .x = 0xe4, .y = 0x19 },
+    [18] = { .x = 0xe4, .y = 0x19 },
+    [19] = { .x = 0xe4, .y = 0x16 },
+    [20] = { .x = 0xe4, .y = 0x19 },
+    [21] = { .x = 0xe4, .y = 0x19 },
+    [22] = { .x = 0xe4, .y = 0x19 },
+};
+struct draw_step CANNON_DRAW_STEPS[15] DGROUP_AT(0x04f9) = {
+    [0] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x09, .y = 0x0d } },
+    },
+    [1] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0a, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .x = 0xf7, .y = 0xfa } },
+    },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0b, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .x = 0xf7, .y = 0xfa } },
+    },
+    [3] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0c, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .x = 0xfa, .y = 0xfb } },
+    },
+    [4] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0d, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .x = 0xf9, .y = 0xfd } },
+    },
+    [5] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0e, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .x = 0xfa, .y = 0xfe } },
+    },
+    [6] = {
+        .level = 0x04,
+        .frame = { 0x01, 0x09, 0xff, 0xff },
+        .offset = { { .x = 0xf9, .y = 0xf8 }, { .x = 0x09, .y = 0x0d } },
+    },
+    [7] = {
+        .level = 0x04,
+        .frame = { 0x02, 0x09, 0xff, 0xff },
+        .offset = { { .x = 0xf8, .y = 0xf5 }, { .x = 0x09, .y = 0x0d } },
+    },
+    [8] = {
+        .frame = { 0x04, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0x53, .y = 0xdf } },
+    },
+    [9] = {
+        .next = 0x0571,
+        .level = 0x04,
+        .frame = { 0x03, 0x09, 0xff, 0xff },
+        .offset = { { .x = 0xfe, .y = 0xfd }, { .x = 0x09, .y = 0x0d } },
+    },
+    [10] = {
+        .frame = { 0x06, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0x65, .y = 0xd2 } },
+    },
+    [11] = {
+        .next = 0x058f,
+        .level = 0x04,
+        .frame = { 0x05, 0x09, 0xff, 0xff },
+        .offset = { { .x = 0xfe, .y = 0xf9 }, { .x = 0x09, .y = 0x0d } },
+    },
+    [12] = {
+        .frame = { 0x08, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0x7f, .y = 0xdf } },
+    },
+    [13] = {
+        .next = 0x05ad,
+        .level = 0x04,
+        .frame = { 0x07, 0x09, 0xff, 0xff },
+        .offset = { { .x = 0xfd, .y = 0xfd }, { .x = 0x09, .y = 0x0d } },
+    },
+    [14] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x09, 0x0f, 0xff },
+        .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .y = 0x02 } },
+    },
+};
+dg_off_t CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
+    0x04f9, 0x0508, 0x0517, 0x0526, 0x0535, 0x0544, 0x0553, 0x0562, 0x0580,
+    0x059e, 0x05bc, 0x05cb,
+};
+struct point16 CANNON_FORM_SIZES[12] DGROUP_AT(0x05f2) = {
+    { .x = 0x0040, .y = 0x0034 }, { .x = 0x0049, .y = 0x003a },
+    { .x = 0x0049, .y = 0x003a }, { .x = 0x0046, .y = 0x0039 },
+    { .x = 0x0047, .y = 0x0037 }, { .x = 0x0046, .y = 0x0036 },
+    { .x = 0x0035, .y = 0x003c }, { .x = 0x003d, .y = 0x003f },
+    { .x = 0x00c2, .y = 0x0054 }, { .x = 0x00d2, .y = 0x005e },
+    { .x = 0x00c7, .y = 0x0054 }, { .x = 0x0040, .y = 0x0034 },
+};
+struct point8 CANNON_HOT_SPOTS[12] DGROUP_AT(0x0622) = {
+    { 0 }, { .x = 0xf7, .y = 0xfa }, { .x = 0xf7, .y = 0xfa },
+    { .x = 0xfa, .y = 0xfb }, { .x = 0xf9, .y = 0xfd },
+    { .x = 0xfa, .y = 0xfe }, { .x = 0xf9, .y = 0xf8 },
+    { .x = 0xf8, .y = 0xf5 }, { .x = 0xfe, .y = 0xdf },
+    { .x = 0xfe, .y = 0xd2 }, { .x = 0xfd, .y = 0xdf },
+};
+struct draw_step DYNAMITE_DRAW_STEPS[6] DGROUP_AT(0x063a) = {
+    [0] = { .level = 0x03, .frame = { 0x00, 0xff, 0xff, 0xff } },
+    [1] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x28, .y = 0x09 } },
+    },
+    [2] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x27, .y = 0x0a } },
+    },
+    [3] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x03, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x27, .y = 0x09 } },
+    },
+    [4] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x25, .y = 0x0d } },
+    },
+    [5] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x05, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x26, .y = 0x0c } },
+    },
+};
+dg_off_t DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { 0x063a, 0x0649, 0x0658, 0x0667, 0x0676, 0x0685 };
+struct point16 DYNAMITE_FORM_SIZES[6] DGROUP_AT(0x06a0) = {
+    { .x = 0x0030, .y = 0x001c }, { .x = 0x0038, .y = 0x001c },
+    { .x = 0x0038, .y = 0x001c }, { .x = 0x0038, .y = 0x001c },
+    { .x = 0x0038, .y = 0x001c }, { .x = 0x0038, .y = 0x001c },
+};
+struct point8 DYNAMITE_HOT_SPOTS[6] DGROUP_AT(0x06b8);
+struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] DGROUP_AT(0x06c4) = {
+    [0] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x08, .y = 0x08 } },
+    },
+    [1] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x03, 0xff },
+        .offset = { { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x04 } },
+    },
+    [2] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x03, 0xff },
+        .offset = { { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x12 } },
+    },
+    [3] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x03, 0x03 },
+        .offset = {
+            { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x04 },
+            { .x = 0x1d, .y = 0x12 },
+        },
+    },
+    [4] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x08, .y = 0x08 } },
+    },
+    [5] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x03, 0xff },
+        .offset = { { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x04 } },
+    },
+    [6] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x03, 0xff },
+        .offset = { { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x12 } },
+    },
+    [7] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x03, 0x03 },
+        .offset = {
+            { 0 }, { .x = 0x08, .y = 0x08 }, { .x = 0x1d, .y = 0x04 },
+            { .x = 0x1d, .y = 0x12 },
+        },
+    },
+};
+dg_off_t ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { 0x06c4, 0x06d3, 0x06e2, 0x06f1, 0x0700, 0x070f, 0x071e, 0x072d };
+struct point16 ELECTRIC_PLUG_FORM_SIZES[8] DGROUP_AT(0x074c) = {
+    { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
+    { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
+    { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
+    { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
+};
+struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] DGROUP_AT(0x076c) = {
+    [0] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x02, 0x01, 0xff },
+        .offset = { { .y = 0x13 }, { .x = 0x67 }, { .x = 0x28, .y = 0x10 } },
+    },
+    [1] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x02, 0x01, 0xff },
+        .offset = {
+            { .y = 0x13 }, { .x = 0x67, .y = 0x05 }, { .x = 0x28, .y = 0x10 },
+        },
+    },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x02, 0x01, 0xff, 0xff },
+        .offset = { { .x = 0x67, .y = 0x0a }, { .x = 0x28, .y = 0x10 } },
+    },
+};
+dg_off_t DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { 0x076c, 0x077b, 0x078a };
+struct point16 DYNAMITE_PLUNGER_FORM_SIZES[3] DGROUP_AT(0x079f) = {
+    { .x = 0x0087, .y = 0x0030 }, { .x = 0x0087, .y = 0x002e },
+    { .x = 0x0087, .y = 0x0029 },
+};
+struct point8 DYNAMITE_PLUNGER_HOT_SPOTS[3] DGROUP_AT(0x07ab);
+struct draw_step FAN_DRAW_STEPS[4] DGROUP_AT(0x07b1) = {
+    [0] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { { .y = 0x08 }, { .x = 0x10 } },
+    },
+    [1] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { { .y = 0x08 }, { .x = 0x10 } },
+    },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x03, 0xff, 0xff },
+        .offset = { { .y = 0x08 }, { .x = 0x10 } },
+    },
+    [3] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { { .y = 0x08 }, { .x = 0x10 } },
+    },
+};
+dg_off_t FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { 0x07b1, 0x07c0, 0x07cf, 0x07de };
+struct point16 FAN_FORM_SIZES[4] DGROUP_AT(0x07f5) = {
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+    { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
+};
+struct draw_step GENERATOR_DRAW_STEPS[16] DGROUP_AT(0x0805) = {
+    [0] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x15 } },
+    },
+    [1] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x15, .y = 0xfa } },
+    },
+    [2] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x03, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x15, .y = 0x01 } },
+    },
+    [3] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x15, .y = 0xfb } },
+    },
+    [4] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15 }, { .x = 0x05, .y = 0x04 } },
+    },
+    [5] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0xfa }, { .x = 0x05, .y = 0x04 } },
+    },
+    [6] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x03, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0x01 }, { .x = 0x05, .y = 0x04 } },
+    },
+    [7] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x04, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0xfb }, { .x = 0x05, .y = 0x04 } },
+    },
+    [8] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15 }, { .x = 0x05, .y = 0x12 } },
+    },
+    [9] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0xfa }, { .x = 0x05, .y = 0x12 } },
+    },
+    [10] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x03, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0x01 }, { .x = 0x05, .y = 0x12 } },
+    },
+    [11] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x04, 0x05, 0xff },
+        .offset = { { 0 }, { .x = 0x15, .y = 0xfb }, { .x = 0x05, .y = 0x12 } },
+    },
+    [12] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x05, 0x05 },
+        .offset = {
+            { 0 }, { .x = 0x15 }, { .x = 0x05, .y = 0x04 },
+            { .x = 0x05, .y = 0x12 },
+        },
+    },
+    [13] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x02, 0x05, 0x05 },
+        .offset = {
+            { 0 }, { .x = 0x15, .y = 0xfa }, { .x = 0x05, .y = 0x04 },
+            { .x = 0x05, .y = 0x12 },
+        },
+    },
+    [14] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x03, 0x05, 0x05 },
+        .offset = {
+            { 0 }, { .x = 0x15, .y = 0x01 }, { .x = 0x05, .y = 0x04 },
+            { .x = 0x05, .y = 0x12 },
+        },
+    },
+    [15] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x04, 0x05, 0x05 },
+        .offset = {
+            { 0 }, { .x = 0x15, .y = 0xfb }, { .x = 0x05, .y = 0x04 },
+            { .x = 0x05, .y = 0x12 },
+        },
+    },
+};
+dg_off_t GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
+    0x0805, 0x0814, 0x0823, 0x0832, 0x0841, 0x0850, 0x085f, 0x086e, 0x087d,
+    0x088c, 0x089b, 0x08aa, 0x08b9, 0x08c8, 0x08d7, 0x08e6,
+};
+struct point16 GENERATOR_FORM_SIZES[16] DGROUP_AT(0x0915) = {
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0026 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0025 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0026 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0025 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0026 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0025 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0026 },
+    { .x = 0x0050, .y = 0x0020 }, { .x = 0x0050, .y = 0x0025 },
+};
+struct point8 GENERATOR_HOT_SPOTS[16] DGROUP_AT(0x0955) = {
+    [1] = { .y = 0xfa },
+    [3] = { .y = 0xfb },
+    [5] = { .y = 0xfa },
+    [7] = { .y = 0xfb },
+    [9] = { .y = 0xfa },
+    [11] = { .y = 0xfb },
+    [13] = { .y = 0xfa },
+    [15] = { .y = 0xfb },
+};
+struct draw_step GUN_DRAW_STEPS[7] DGROUP_AT(0x0975) = {
+    [0] = { .level = 0x04, .frame = { 0x00, 0xff, 0xff, 0xff } },
+    [1] = {
+        .level = 0x04,
+        .frame = { 0x01, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xff, .y = 0xfb } },
+    },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x02, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xfe, .y = 0xfd } },
+    },
+    [3] = {
+        .level = 0x04,
+        .frame = { 0x03, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xf1, .y = 0xfa } },
+    },
+    [4] = {
+        .level = 0x04,
+        .frame = { 0x04, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xf5, .y = 0xfd } },
+    },
+    [5] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0xff, 0xff },
+        .offset = { { .x = 0xfe }, { .x = 0x40, .y = 0xf4 } },
+    },
+    [6] = { .level = 0x04, .frame = { 0x00, 0xff, 0xff, 0xff } },
+};
+dg_off_t GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { 0x0975, 0x0984, 0x0993, 0x09a2, 0x09b1, 0x09c0, 0x09cf };
+struct point16 GUN_FORM_SIZES[7] DGROUP_AT(0x09ec) = {
+    { .x = 0x0040, .y = 0x001f }, { .x = 0x0038, .y = 0x0024 },
+    { .x = 0x0080, .y = 0x0025 }, { .x = 0x0070, .y = 0x0022 },
+    { .x = 0x0080, .y = 0x0022 }, { .x = 0x0080, .y = 0x002b },
+    { .x = 0x0040, .y = 0x001f },
+};
+struct point8 GUN_HOT_SPOTS[7] DGROUP_AT(0x0a08) = {
+    { 0 }, { .x = 0xff, .y = 0xfb }, { .x = 0xfe, .y = 0xfd },
+    { .x = 0xf1, .y = 0xfa }, { .x = 0xf5, .y = 0xfd },
+    { .x = 0xfe, .y = 0xf4 },
+};
+struct draw_step LIGHT_DRAW_STEPS[4] DGROUP_AT(0x0a16) = {
+    [0] = {
+        .level = 0x02,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x14, .y = 0x1c } },
+    },
+    [1] = {
+        .level = 0x02,
+        .frame = { 0x01, 0x05, 0xff, 0xff },
+        .offset = { { .x = 0xf8, .y = 0xee }, { .x = 0x14, .y = 0x1c } },
+    },
+    [2] = {
+        .level = 0x02,
+        .frame = { 0x02, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x13, .y = 0x02 } },
+    },
+    [3] = {
+        .level = 0x02,
+        .frame = { 0x03, 0x05, 0xff, 0xff },
+        .offset = { { .x = 0xf8 }, { .x = 0x13, .y = 0x02 } },
+    },
+};
+dg_off_t LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { 0x0a16, 0x0a25, 0x0a34, 0x0a43 };
+struct point16 LIGHT_FORM_SIZES[4] DGROUP_AT(0x0a5a) = {
+    { .x = 0x0020, .y = 0x0036 }, { .x = 0x002f, .y = 0x0048 },
+    { .x = 0x0020, .y = 0x0026 }, { .x = 0x002f, .y = 0x0032 },
+};
+struct point8 LIGHT_HOT_SPOTS[4] DGROUP_AT(0x0a6a) = { [1] = { .x = 0xf8, .y = 0xee }, [3] = { .x = 0xf8 } };
+struct draw_step MONKEY_DRAW_STEPS[13] DGROUP_AT(0x0a72) = {
+    [0] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28 } },
+    },
+    [1] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0xff, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28, .y = 0x06 } },
+    },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x01, 0x05, 0xff, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28, .y = 0x06 } },
+    },
+    [3] = {
+        .level = 0x04,
+        .frame = { 0x02, 0x05, 0xff, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28, .y = 0x06 } },
+    },
+    [4] = {
+        .level = 0x04,
+        .frame = { 0x03, 0x05, 0xff, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28, .y = 0x06 } },
+    },
+    [5] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0x06, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28 }, { .x = 0x0e, .y = 0x01 } },
+    },
+    [6] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0x07, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28 }, { .x = 0x10, .y = 0x01 } },
+    },
+    [7] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0x08, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28 }, { .x = 0x10, .y = 0x01 } },
+    },
+    [8] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x04, 0x09, 0xff },
+        .offset = { { .y = 0x0c }, { .x = 0x28 }, { .x = 0x0f, .y = 0x01 } },
+    },
+    [9] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0x06, 0xff },
+        .offset = {
+            { .y = 0x0c }, { .x = 0x28, .y = 0x06 }, { .x = 0x0e, .y = 0x01 },
+        },
+    },
+    [10] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0x07, 0xff },
+        .offset = {
+            { .y = 0x0c }, { .x = 0x28, .y = 0x06 }, { .x = 0x10, .y = 0x01 },
+        },
+    },
+    [11] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0x08, 0xff },
+        .offset = {
+            { .y = 0x0c }, { .x = 0x28, .y = 0x06 }, { .x = 0x10, .y = 0x01 },
+        },
+    },
+    [12] = {
+        .level = 0x04,
+        .frame = { 0x00, 0x05, 0x09, 0xff },
+        .offset = {
+            { .y = 0x0c }, { .x = 0x28, .y = 0x06 }, { .x = 0x0e, .y = 0x01 },
+        },
+    },
+};
+dg_off_t MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
+    0x0a72, 0x0a81, 0x0a90, 0x0a9f, 0x0aae, 0x0abd, 0x0acc, 0x0adb, 0x0aea,
+    0x0af9, 0x0b08, 0x0b17, 0x0b26,
+};
+struct point16 MONKEY_FORM_SIZES[13] DGROUP_AT(0x0b4f) = {
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f }, { .x = 0x005c, .y = 0x004f },
+    { .x = 0x005c, .y = 0x004f },
+};
+struct draw_step ROCKET_DRAW_STEPS[10] DGROUP_AT(0x0b83) = {
+    [0] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x03, .y = 0x2d } },
+    },
+    [1] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x02, .y = 0x2d } },
+    },
+    [2] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x03, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x02, .y = 0x2d } },
+    },
+    [3] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .y = 0x2d } },
+    },
+    [4] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x05, 0xff, 0xff },
+        .offset = { [1] = { .x = 0xfe, .y = 0x2d } },
+    },
+    [5] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x06, 0xff, 0xff },
+        .offset = { [1] = { .x = 0xfe, .y = 0x2d } },
+    },
+    [6] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x07, 0xff, 0xff },
+        .offset = { [1] = { .y = 0x2c } },
+    },
+    [7] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x08, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x01, .y = 0x2e } },
+    },
+    [8] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x09, 0xff, 0xff },
+        .offset = { [1] = { .y = 0x2e } },
+    },
+    [9] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x0a, 0xff, 0xff },
+        .offset = { [1] = { .y = 0x2e } },
+    },
+};
+dg_off_t ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
+    0x0b83, 0x0b92, 0x0ba1, 0x0bb0, 0x0bbf, 0x0bce, 0x0bdd, 0x0bec, 0x0bfb,
+    0x0c0a,
+};
+struct point16 ROCKET_FORM_SIZES[10] DGROUP_AT(0x0c2d) = {
+    { .x = 0x0010, .y = 0x0042 }, { .x = 0x0010, .y = 0x004a },
+    { .x = 0x0010, .y = 0x0046 }, { .x = 0x0010, .y = 0x0041 },
+    { .x = 0x0010, .y = 0x003b }, { .x = 0x0010, .y = 0x0038 },
+    { .x = 0x0010, .y = 0x0042 }, { .x = 0x0010, .y = 0x0051 },
+    { .x = 0x0010, .y = 0x0053 }, { .x = 0x0010, .y = 0x0052 },
+};
+struct point8 ROCKET_HOT_SPOTS[10] DGROUP_AT(0x0c55) = { [4] = { .x = 0xfe }, [5] = { .x = 0xfe } };
+struct draw_step SCISSORS_DRAW_STEPS[3] DGROUP_AT(0x0c69) = {
+    [0] = {
+        .level = 0x04,
+        .frame = { 0x01, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0x15, .y = 0x11 } },
+    },
+    [1] = { .next = 0x0c69, .frame = { 0x00, 0xff, 0xff, 0xff } },
+    [2] = {
+        .level = 0x04,
+        .frame = { 0x02, 0xff, 0xff, 0xff },
+        .offset = { { .x = 0xfe, .y = 0x04 } },
+    },
+};
+dg_off_t SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { 0x0c78, 0x0c87 };
+struct point16 SCISSORS_FORM_SIZES[2] DGROUP_AT(0x0c9a) = { { .x = 0x0028, .y = 0x0022 }, { .x = 0x0030, .y = 0x0018 } };
+struct point8 SCISSORS_HOT_SPOTS[2] DGROUP_AT(0x0ca2) = { [1] = { .x = 0xfe } };
+struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
+    [0] = { .level = 0x05, .frame = { 0x00, 0xff, 0xff, 0xff } },
+    [1] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x34, .y = 0x04 } },
+    },
+    [2] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x34, .y = 0x12 } },
+    },
+    [3] = {
+        .level = 0x05,
+        .frame = { 0x00, 0x01, 0x01, 0xff },
+        .offset = { { 0 }, { .x = 0x34, .y = 0x04 }, { .x = 0x34, .y = 0x12 } },
+    },
+};
+dg_off_t SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { 0x0ca6, 0x0cb5, 0x0cc4, 0x0cd3 };
+struct point16 SOLAR_PANEL_FORM_SIZES[4] DGROUP_AT(0x0cea) = {
+    { .x = 0x0048, .y = 0x0020 }, { .x = 0x0048, .y = 0x0020 },
+    { .x = 0x0048, .y = 0x0020 }, { .x = 0x0048, .y = 0x0020 },
+};
+struct draw_step TRAMPOLINE_DRAW_STEPS[10] DGROUP_AT(0x0cfa) = {
+    [0] = {
+        .frame = { 0x01, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0x09 } },
+    },
+    [1] = {
+        .next = 0x0cfa,
+        .level = 0x04,
+        .frame = { 0x00, 0xff, 0xff, 0xff },
+    },
+    [2] = {
+        .frame = { 0x03, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0x09 } },
+    },
+    [3] = {
+        .next = 0x0d18,
+        .level = 0x04,
+        .frame = { 0x02, 0xff, 0xff, 0xff },
+    },
+    [4] = {
+        .frame = { 0x05, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0x09 } },
+    },
+    [5] = {
+        .next = 0x0d36,
+        .level = 0x04,
+        .frame = { 0x04, 0xff, 0xff, 0xff },
+    },
+    [6] = {
+        .frame = { 0x01, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0x09 } },
+    },
+    [7] = {
+        .next = 0x0d54,
+        .level = 0x04,
+        .frame = { 0x06, 0xff, 0xff, 0xff },
+    },
+    [8] = {
+        .frame = { 0x01, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0x09 } },
+    },
+    [9] = {
+        .next = 0x0d72,
+        .level = 0x04,
+        .frame = { 0x07, 0xff, 0xff, 0xff },
+        .offset = { { .y = 0xfd } },
+    },
+};
+dg_off_t TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { 0x0d09, 0x0d27, 0x0d45, 0x0d63, 0x0d81 };
+struct point16 TRAMPOLINE_FORM_SIZES[5] DGROUP_AT(0x0d9a) = {
+    { .x = 0x0030, .y = 0x001c }, { .x = 0x0030, .y = 0x001c },
+    { .x = 0x0030, .y = 0x001c }, { .x = 0x0030, .y = 0x001c },
+    { .x = 0x0030, .y = 0x001f },
+};
+struct point8 TRAMPOLINE_HOT_SPOTS[5] DGROUP_AT(0x0dae) = { [4] = { .y = 0xfd } };
+struct draw_step CANDLE_DRAW_STEPS[6] DGROUP_AT(0x0db8) = {
+    [0] = { .level = 0x03, .frame = { 0x00, 0xff, 0xff, 0xff } },
+    [1] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x01, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
+    },
+    [2] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x02, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
+    },
+    [3] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x03, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
+    },
+    [4] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x04, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
+    },
+    [5] = {
+        .level = 0x03,
+        .frame = { 0x00, 0x05, 0xff, 0xff },
+        .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
+    },
+};
+dg_off_t CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { 0x0db8, 0x0dc7, 0x0dd6, 0x0de5, 0x0df4, 0x0e03 };
+struct point16 CANDLE_FORM_SIZES[6] DGROUP_AT(0x0e1e) = {
+    { .x = 0x0022, .y = 0x0020 }, { .x = 0x0022, .y = 0x0024 },
+    { .x = 0x0022, .y = 0x0024 }, { .x = 0x0022, .y = 0x0024 },
+    { .x = 0x0022, .y = 0x0024 }, { .x = 0x0022, .y = 0x0024 },
+};
+struct point8 CANDLE_HOT_SPOTS[6] DGROUP_AT(0x0e36) = {
+    { 0 }, { .y = 0xfc }, { .y = 0xfc }, { .y = 0xfc }, { .y = 0xfc },
+    { .y = 0xfc },
+};
+struct point8 SEESAW_HOT_SPOTS[3] DGROUP_AT(0x0e42) = { [1] = { .y = 0x0c } };
+struct point8 BALLOON_HOT_SPOTS[7] DGROUP_AT(0x0e48) = {
+    { 0 }, { .x = 0xf1, .y = 0xf7 }, { .x = 0xec, .y = 0xfb },
+    { .x = 0xe4, .y = 0x08 }, { .x = 0xe2, .y = 0x19 },
+    { .x = 0xe6, .y = 0x29 }, { .x = 0xe6, .y = 0x38 },
+};
+struct point8 POKEY_HOT_SPOTS[10] DGROUP_AT(0x0e56) = {
+    { 0 }, { .x = 0xfa, .y = 0xf0 }, { .x = 0x13, .y = 0xff }, { .x = 0x0e },
+    { .x = 0x0a }, { .x = 0x08 }, { .x = 0x06, .y = 0xfe },
+    { .x = 0xff, .y = 0xfe }, { .x = 0xfb, .y = 0xfe },
+    { .x = 0xf7, .y = 0xfd },
+};
+struct point8 BELLOW_HOT_SPOTS[3] DGROUP_AT(0x0e6a) = { { 0 }, { .x = 0xf8, .y = 0x08 }, { .x = 0xf5, .y = 0x0c } };
+struct point8 BULLET_HOT_SPOTS[3] DGROUP_AT(0x0e70) = { { 0 }, { .x = 0x04, .y = 0xfd }, { .x = 0x01, .y = 0xf4 } };
+struct point8 FLASHLIGHT_HOT_SPOTS[2] DGROUP_AT(0x0e76) = { [1] = { .y = 0xf6 } };
+struct point8 BOXING_GLOVE_HOT_SPOTS[10] DGROUP_AT(0x0e7a) = {
+    { 0 }, { .x = 0x07, .y = 0xf4 }, { .x = 0xe3, .y = 0xfd },
+    { .x = 0xac, .y = 0xfa }, { .x = 0xf1, .y = 0xfd },
+    { .x = 0xe3, .y = 0xfd }, { .x = 0xe2, .y = 0x05 },
+    { .x = 0xeb, .y = 0x05 }, { .x = 0xe7, .y = 0x06 },
+    { .x = 0xeb, .y = 0x06 },
+};
+struct point8 WINDMILL_HOT_SPOTS[4] DGROUP_AT(0x0e8e) = {
+    { 0 }, { .x = 0xfd, .y = 0xfd }, { .x = 0xfc, .y = 0xfc },
+    { .x = 0xfd, .y = 0xfd },
+};
+struct point8 BLAST_HOT_SPOTS[6] DGROUP_AT(0x0e96) = {
+    { 0 }, { .x = 0xfc, .y = 0xf3 }, { .y = 0xfa }, { .x = 0x0d, .y = 0x09 },
+    { .x = 0x14, .y = 0x13 }, { .x = 0x14, .y = 0x14 },
+};
+struct point8 MORT_THE_MOUSE_HOT_SPOTS[2] DGROUP_AT(0x0ea2) = { [1] = { .y = 0x01 } };
+
+
 /*
  * DGROUP 0x0ea6 - the part kinds, 58 records of 0x3a bytes, as the image holds
  * them. See `PART_KINDS` in dgroup.h for how the game reaches a record.
@@ -1505,3 +2557,501 @@ struct part_shapes PARTSHAPES DGROUP_AT(0x3182) = {
         { .x = 0x4f42, .y = 0x5944 }, { .x = 0x7700, .y = 0x0062 },
     },
 };
+
+/* DGROUP 0x2966 - the part templates `make_part` copies from; see dgroup.h. */
+struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_AT(0x2966) = {
+    [0] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x6246, .seg = LOAD_SEG + 0x0dff },
+    },
+    [1] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0010 },
+        .size = { .width = 0x0020, .height = 0x0010 },
+        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+    },
+    [2] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x62b1, .seg = LOAD_SEG + 0x0dff },
+    },
+    [3] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0050, .height = 0x0020 },
+        .size = { .width = 0x0050, .height = 0x0020 },
+        .init = { .off = 0x62f6, .seg = LOAD_SEG + 0x0dff },
+    },
+    [4] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0030 },
+        .size = { .width = 0x0020, .height = 0x0030 },
+        .init = { .off = 0x6330, .seg = LOAD_SEG + 0x0dff },
+    },
+    [5] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0060, .height = 0x0010 },
+        .size = { .width = 0x0060, .height = 0x0010 },
+        .init = { .off = 0x6371, .seg = LOAD_SEG + 0x0dff },
+    },
+    [6] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0030, .height = 0x0020 },
+        .size = { .width = 0x0030, .height = 0x0020 },
+        .init = { .off = 0x63c3, .seg = LOAD_SEG + 0x0dff },
+    },
+    [7] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0010, .height = 0x0010 },
+        .size = { .width = 0x0010, .height = 0x0010 },
+        .init = { .off = 0x640b, .seg = LOAD_SEG + 0x0dff },
+    },
+    [8] = {
+        .flags_06 = 0x4800,
+        .init = { .off = 0x644d, .seg = LOAD_SEG + 0x0dff },
+    },
+    [9] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x647c, .seg = LOAD_SEG + 0x0dff },
+    },
+    [10] = {
+        .flags_06 = 0x4800,
+        .init = { .off = 0x64ad, .seg = LOAD_SEG + 0x0dff },
+    },
+    [11] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0030, .height = 0x0040 },
+        .size = { .width = 0x0030, .height = 0x0040 },
+        .init = { .off = 0x64db, .seg = LOAD_SEG + 0x0dff },
+    },
+    [12] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0028, .height = 0x0029 },
+        .size = { .width = 0x0028, .height = 0x0027 },
+        .init = { .off = 0x651c, .seg = LOAD_SEG + 0x0dff },
+    },
+    [13] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x6557, .seg = LOAD_SEG + 0x0dff },
+    },
+    [14] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0023, .height = 0x0023 },
+        .init = { .off = 0x659f, .seg = LOAD_SEG + 0x0dff },
+    },
+    [15] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0030, .height = 0x0030 },
+        .size = { .width = 0x0030, .height = 0x0030 },
+        .init = { .off = 0x65e1, .seg = LOAD_SEG + 0x0dff },
+    },
+    [16] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0040, .height = 0x0030 },
+        .size = { .width = 0x0040, .height = 0x0030 },
+        .init = { .off = 0x6617, .seg = LOAD_SEG + 0x0dff },
+    },
+    [17] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0025, .height = 0x0030 },
+        .size = { .width = 0x0028, .height = 0x0030 },
+        .init = { .off = 0x664d, .seg = LOAD_SEG + 0x0dff },
+    },
+    [18] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0040, .height = 0x0034 },
+        .size = { .width = 0x0040, .height = 0x0034 },
+        .init = { .off = 0x668e, .seg = LOAD_SEG + 0x0dff },
+    },
+    [19] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0030, .height = 0x001c },
+        .size = { .width = 0x0030, .height = 0x001c },
+        .init = { .off = 0x66cd, .seg = LOAD_SEG + 0x0dff },
+    },
+    [20] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0028, .height = 0x0007 },
+        .size = { .width = 0x0028, .height = 0x0007 },
+        .init = { .off = 0x670c, .seg = LOAD_SEG + 0x0dff },
+    },
+    [21] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0030, .height = 0x0020 },
+        .size = { .width = 0x0030, .height = 0x0020 },
+        .init = { .off = 0x673d, .seg = LOAD_SEG + 0x0dff },
+    },
+    [22] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0087, .height = 0x002f },
+        .size = { .width = 0x0087, .height = 0x002f },
+        .init = { .off = 0x677c, .seg = LOAD_SEG + 0x0dff },
+    },
+    [23] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0010, .height = 0x0010 },
+        .size = { .width = 0x0010, .height = 0x0010 },
+        .init = { .off = 0x67b7, .seg = LOAD_SEG + 0x0dff },
+    },
+    [24] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x67d5, .seg = LOAD_SEG + 0x0dff },
+    },
+    [25] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0010 },
+        .size = { .width = 0x0020, .height = 0x0010 },
+        .init = { .off = 0x6814, .seg = LOAD_SEG + 0x0dff },
+    },
+    [26] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0048, .height = 0x0020 },
+        .size = { .width = 0x0048, .height = 0x0020 },
+        .init = { .off = 0x684a, .seg = LOAD_SEG + 0x0dff },
+    },
+    [27] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0040, .height = 0x001f },
+        .size = { .width = 0x0040, .height = 0x001f },
+        .init = { .off = 0x6884, .seg = LOAD_SEG + 0x0dff },
+    },
+    [28] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x000f, .height = 0x000f },
+        .size = { .width = 0x000f, .height = 0x000f },
+        .init = { .off = 0x68bf, .seg = LOAD_SEG + 0x0dff },
+    },
+    [29] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x68f0, .seg = LOAD_SEG + 0x0dff },
+    },
+    [30] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0010, .height = 0x0025 },
+        .size = { .width = 0x0010, .height = 0x0025 },
+        .init = { .off = 0x690f, .seg = LOAD_SEG + 0x0dff },
+    },
+    [31] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x005c, .height = 0x004f },
+        .size = { .width = 0x005c, .height = 0x004f },
+        .init = { .off = 0x6929, .seg = LOAD_SEG + 0x0dff },
+    },
+    [32] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0027, .height = 0x0021 },
+        .size = { .width = 0x0027, .height = 0x0021 },
+        .init = { .off = 0x6964, .seg = LOAD_SEG + 0x0dff },
+    },
+    [33] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0025, .height = 0x0027 },
+        .size = { .width = 0x0025, .height = 0x0027 },
+        .init = { .off = 0x6995, .seg = LOAD_SEG + 0x0dff },
+    },
+    [34] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0029, .height = 0x0049 },
+        .size = { .width = 0x0029, .height = 0x0049 },
+        .init = { .off = 0x69d6, .seg = LOAD_SEG + 0x0dff },
+    },
+    [35] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0030, .height = 0x001f },
+        .size = { .width = 0x0030, .height = 0x001f },
+        .init = { .off = 0x6a07, .seg = LOAD_SEG + 0x0dff },
+    },
+    [36] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0010, .height = 0x0034 },
+        .size = { .width = 0x0010, .height = 0x0034 },
+        .init = { .off = 0x6a3d, .seg = LOAD_SEG + 0x0dff },
+    },
+    [37] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0028, .height = 0x0020 },
+        .size = { .width = 0x0028, .height = 0x0020 },
+        .init = { .off = 0x6a77, .seg = LOAD_SEG + 0x0dff },
+    },
+    [38] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0048, .height = 0x0020 },
+        .size = { .width = 0x0048, .height = 0x0020 },
+        .init = { .off = 0x6ab2, .seg = LOAD_SEG + 0x0dff },
+    },
+    [39] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0030, .height = 0x001c },
+        .size = { .width = 0x0030, .height = 0x001c },
+        .init = { .off = 0x6ac9, .seg = LOAD_SEG + 0x0dff },
+    },
+    [40] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0028, .height = 0x0030 },
+        .size = { .width = 0x0028, .height = 0x0030 },
+        .init = { .off = 0x6aff, .seg = LOAD_SEG + 0x0dff },
+    },
+    [41] = { .flags_0a = 0x0008 },
+    [42] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0018, .height = 0x000b },
+        .size = { .width = 0x0018, .height = 0x000b },
+        .init = { .off = 0x6b47, .seg = LOAD_SEG + 0x0dff },
+    },
+    [43] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0018, .height = 0x0017 },
+        .size = { .width = 0x0018, .height = 0x0017 },
+        .init = { .off = 0x6b82, .seg = LOAD_SEG + 0x0dff },
+    },
+    [44] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x000f, .height = 0x000f },
+        .size = { .width = 0x000f, .height = 0x000f },
+        .init = { .off = 0x6bb3, .seg = LOAD_SEG + 0x0dff },
+    },
+    [45] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x6be4, .seg = LOAD_SEG + 0x0dff },
+    },
+    [46] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0010 },
+        .size = { .width = 0x0020, .height = 0x0010 },
+        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+    },
+    [47] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0020 },
+        .size = { .width = 0x0020, .height = 0x0020 },
+        .init = { .off = 0x6c22, .seg = LOAD_SEG + 0x0dff },
+    },
+    [48] = {
+        .flags_06 = 0x4800,
+        .set_size = { .width = 0x0020, .height = 0x0010 },
+        .size = { .width = 0x0020, .height = 0x0010 },
+        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+    },
+    [49] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .init = { .off = 0x6c58, .seg = LOAD_SEG + 0x0dff },
+    },
+    [50] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0038, .height = 0x002f },
+        .size = { .width = 0x0038, .height = 0x002f },
+        .init = { .off = 0x6c72, .seg = LOAD_SEG + 0x0dff },
+    },
+    [51] = { .flags_0a = 0x0008 },
+    [52] = { .flags_0a = 0x0008 },
+    [53] = { .flags_0a = 0x0008 },
+    [54] = { .flags_0a = 0x0008 },
+    [55] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0060, .height = 0x0010 },
+        .size = { .width = 0x0060, .height = 0x0010 },
+        .init = { .off = 0x6cb0, .seg = LOAD_SEG + 0x0dff },
+    },
+    [56] = {
+        .flags_06 = 0x4800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x00d4, .height = 0x0010 },
+        .size = { .width = 0x00d4, .height = 0x0010 },
+        .init = { .off = 0x6ce9, .seg = LOAD_SEG + 0x0dff },
+    },
+    [57] = {
+        .flags_06 = 0x0800,
+        .flags_0a = 0x0008,
+        .set_size = { .width = 0x0020, .height = 0x0010 },
+        .size = { .width = 0x0020, .height = 0x0010 },
+        .init = { .off = 0x6d1a, .seg = LOAD_SEG + 0x0dff },
+    },
+};
+struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { .word_2d06 = 0x0001, .word_2d08 = 0xffff };
+
+struct dg_440e DG440E DGROUP_AT(0x440e) = {
+    .ptr_440e = { .off = 0x2716, .seg = LOAD_SEG + 0x1c25 },
+    .driver_table = {
+        { .off = 0x586d, .seg = LOAD_SEG + 0x1c25 },
+        { .off = 0x58e4, .seg = LOAD_SEG + 0x1c25 },
+        { .off = 0xba6a, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x92dc, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x93a2, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x94fb, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x9571, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x93e0, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xba5b, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x8fcd, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x91ef, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x917f, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb1e, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb75, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0x93f6, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb2d, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb3c, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb4f, .seg = LOAD_SEG + 0x0000 },
+        { .off = 0xbb62, .seg = LOAD_SEG + 0x0000 },
+    },
+};
+struct far_ptr DG44EA DGROUP_AT(0x44ea) = { .off = 0x3f39, .seg = LOAD_SEG + 0x1c25 };
+struct adapter_tags ADAPTER_TAGS DGROUP_AT(0x48fc) = {
+    .bad = "BAD:",
+    .tag = {
+        0x4923, 0x4928, 0x492d, 0x4932, 0x4937, 0x48fc, 0x493c, 0x4941,
+        0x4946, 0x494b, 0x4950, 0x4955,
+    },
+};
+struct sound_tags SOUND_TAGS DGROUP_AT(0x4a1c) = {
+    .device = {
+        0x4a38, 0x4a3d, 0x4a42, 0x4a47, 0x4a4c, 0x4a51, 0x4a56, 0x4a5b,
+        0x4a60,
+    },
+    .module = { 0x4a65, 0x4a6a, 0x4a6f, 0x4a74, 0x4a79 },
+    .tag = {
+        "STD:", "TAN:", "ADL:", "M32:", "SBP:", "PS1:", "PRO:", "GMD:",
+        "NLD:", "ASB:", "APS:", "ATD:", "APA:", "ADS:",
+    },
+    .mode_r_a = "r",
+    .mode_r_b = "r",
+};
+struct dg_4ab0 DG4AB0 DGROUP_AT(0x4ab0) = { .word_4ab0 = 0xfffe, .word_4ab2 = 0x2b11 };
+
+/* The sound module's data inside its code segment, and segment 1c25's three
+   cells - see `struct snd_cs` and `struct s1c_timer` in dgroup.h. */
+struct snd_cs SNDS SEGMENT_AT(0x2619, 0x0008) = {
+    .pad_004c = {
+        [220] = 0xff,
+        [221] = 0xff,
+        [222] = 0xff,
+        [223] = 0xff,
+        [224] = 0xff,
+        [225] = 0xff,
+        [226] = 0xff,
+        [227] = 0xff,
+        [228] = 0xff,
+        [229] = 0xff,
+        [230] = 0xff,
+        [231] = 0xff,
+        [232] = 0xff,
+        [233] = 0xff,
+        [234] = 0xff,
+        [235] = 0xff,
+        [284] = 0xff,
+        [285] = 0xff,
+        [286] = 0xff,
+        [287] = 0xff,
+        [288] = 0xff,
+        [289] = 0xff,
+        [290] = 0xff,
+        [291] = 0xff,
+        [292] = 0xff,
+        [293] = 0xff,
+        [294] = 0xff,
+        [295] = 0xff,
+        [296] = 0xff,
+        [297] = 0xff,
+        [298] = 0xff,
+        [299] = 0xff,
+        [348] = 0xff,
+        [349] = 0xff,
+        [350] = 0xff,
+        [351] = 0xff,
+        [352] = 0xff,
+        [353] = 0xff,
+        [354] = 0xff,
+        [355] = 0xff,
+        [356] = 0xff,
+        [357] = 0xff,
+        [358] = 0xff,
+        [359] = 0xff,
+        [360] = 0xff,
+        [361] = 0xff,
+        [362] = 0xff,
+        [363] = 0xff,
+        [364] = 0x0f,
+        [365] = 0x0f,
+        [366] = 0x0f,
+        [367] = 0x0f,
+        [368] = 0x0f,
+        [369] = 0x0f,
+        [370] = 0x0f,
+        [371] = 0x0f,
+        [372] = 0x0f,
+        [373] = 0x0f,
+        [374] = 0x0f,
+        [375] = 0x0f,
+        [376] = 0x0f,
+        [377] = 0x0f,
+        [378] = 0x0f,
+        [379] = 0x0f,
+        [380] = 0xff,
+        [381] = 0xff,
+        [382] = 0xff,
+        [383] = 0xff,
+        [384] = 0xff,
+        [385] = 0xff,
+        [386] = 0xff,
+        [387] = 0xff,
+        [388] = 0xff,
+        [389] = 0xff,
+        [390] = 0xff,
+        [391] = 0xff,
+        [392] = 0xff,
+        [393] = 0xff,
+        [394] = 0xff,
+        [395] = 0xff,
+    },
+    .voice_hi = 0x0f,
+    .own_voice = 0xff,
+};
+struct snd_cs_call SNDCALL SEGMENT_AT(0x2619, 0x30f6);
+struct s1c_timer S1C_TIMER SEGMENT_AT(0x1c25, 0x446d);
+struct s1c_keyboard S1C_KEYBOARD SEGMENT_AT(0x1c25, 0x4e3c);
+struct s1c_words S1C_WORDS SEGMENT_AT(0x1c25, 0x5f99);

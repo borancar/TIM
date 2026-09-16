@@ -172,20 +172,20 @@ struct part *make_part(uint16_t kind)
     heap_check_or_hang();
 
     part->kind = kind;
-    part->flags_06 = PARTTMPL_PTR(kind)->flags_06;
-    part->flags_0a = PARTTMPL_PTR(kind)->flags_0a;
-    part->set_size.width = PARTTMPL_PTR(kind)->set_size.width;
-    part->set_size.height = PARTTMPL_PTR(kind)->set_size.height;
-    part->size[0].width = PARTTMPL_PTR(kind)->size.width;
-    part->size[0].height = PARTTMPL_PTR(kind)->size.height;
+    part->flags_06 = PART_TEMPLATES[kind].flags_06;
+    part->flags_0a = PART_TEMPLATES[kind].flags_0a;
+    part->set_size.width = PART_TEMPLATES[kind].set_size.width;
+    part->set_size.height = PART_TEMPLATES[kind].set_size.height;
+    part->size[0].width = PART_TEMPLATES[kind].size.width;
+    part->size[0].height = PART_TEMPLATES[kind].size.height;
     part->point_count =
         PART_KINDS[kind].point_count;
     part->word_8c = 0xffff;
     part->word_8e = 0xffff;
-    part->word_94 = PARTTMPL_PTR(kind)->init.off;
+    part->word_94 = PART_TEMPLATES[kind].init.off;
 
-    if (!far_eq(PARTTMPL_PTR(kind)->init, FAR_NULL)
-        && call_part_init(PARTTMPL_PTR(kind)->init, part) == 1) {
+    if (!far_eq(PART_TEMPLATES[kind].init, FAR_NULL)
+        && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
         failed = 1;
         goto done;
     }

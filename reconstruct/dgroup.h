@@ -1547,9 +1547,35 @@ DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
 /* The four-character tags the two buffers above are completed from. The
    tables hold offsets rather than the tags themselves, which is why these
    stay `OFF_TABLE` and not a run of `char[5]`. */
-#define ADAPTER_TAGS    OFF_TABLE(0x48ff)  /* [si], si from 1: "CGA:" on */
-#define DEVICE_TAGS     OFF_TABLE(0x4a1c)  /* "STD:" "TAN:" "ADL:" ... */
-#define MODULE_TAGS     OFF_TABLE(0x4a2e)  /* "ASB:" "APS:" "ATD:" ... */
+/*
+ * **The adapter tags**, DGROUP 0x48fc..0x4919: "BAD:" and then twelve near
+ * pointers to the tags `load_named_chunk` puts after "OVL:". The game indexes
+ * `[si*2 + 0x48ff]` with `si` from 1 - the compiler folding the first index
+ * into the base - so entry 1 is `tag[0]`, at 0x4901. The sixth points back at
+ * "BAD:".
+ */
+struct adapter_tags {
+    char      bad[5];              /* +0x00  0x48fc  "BAD:" */
+    dg_off_t  tag[12];             /* +0x05  0x4901  entries 1 to 12 */
+} __attribute__((packed));
+_Static_assert(sizeof(struct adapter_tags) == 0x1d, "the tags end at 0x4919, where OVL: starts");
+extern struct adapter_tags ADAPTER_TAGS;
+
+/*
+ * **The sound device and module tags**, DGROUP 0x4a1c..0x4a82: nine near
+ * pointers indexed by device, five by module, the fourteen tags they point
+ * at, and two "r" modes `load_sound_driver` and `load_sound_module` open
+ * with.
+ */
+struct sound_tags {
+    dg_off_t  device[9];           /* +0x00  0x4a1c  "STD:" "TAN:" "ADL:" ... */
+    dg_off_t  module[5];           /* +0x12  0x4a2e  "ASB:" "APS:" "ATD:" ... */
+    char      tag[14][5];          /* +0x1c  0x4a38  the fourteen, in that order */
+    char      mode_r_a[2];         /* +0x62  0x4a7e  "r" */
+    char      mode_r_b[2];         /* +0x64  0x4a80  "r" */
+} __attribute__((packed));
+_Static_assert(sizeof(struct sound_tags) == 0x66, "the tags end at 0x4a82, where DG4A82 starts");
+extern struct sound_tags SOUND_TAGS;
 
 /* A signed 16-bit point: a part's position, box and size generations, a
    belt's and a rope's corners. Declared here because `struct part` is the
@@ -2174,7 +2200,9 @@ struct draw_step {
 
 /* **No draw step**, as a pointer - see `PART_NONE`. */
 #define DRAWSTEP_NONE DRAWSTEP_PTR(0)
-#define DG0124 (*DRAWSTEP_PTR(0x0124))
+/* **The one draw step `draw_part` builds itself**, at DGROUP 0x0124, for a
+   part whose kind has no step table of its own. */
+extern struct draw_step DG0124;
 
 DG_ASSERT_AT(struct draw_step, level,  0x02);
 DG_ASSERT_AT(struct draw_step, frame,  0x03);
@@ -2636,10 +2664,15 @@ uint16_t dg_alloca(uint16_t bytes);
 void     dg_free(uint16_t bytes);
 
 /*
- * **The sound module's own code segment, which is where it keeps its state**
+ * **The sound module's own code segment, which is where it keeps its state** -
+ * two data blocks inside segment 2619's code: 0x0008..0x020d, between a
+ * routine's `ret` and the next routine's `push bp`, and the six bytes at
+ * 0x30f6. Each is placed there as its own object, with what the image holds;
+ * the field comments are offsets in the segment, and `SND8`/`SND16` reach the
+ * same bytes from the segment's base.
  */
 struct snd_cs {
-    uint8_t   pad_0000[10];
+    uint8_t   pad_0008[2];
     int16_t   word_000a;          /* +0x000a */
     uint8_t   pad_000c[60];
     int16_t   poll_table;         /* +0x0048  the table remove_sequence checks; **not** the playing table */
@@ -2668,37 +2701,41 @@ struct snd_cs {
     uint8_t   muted;              /* +0x0209  set stops the muting and leaves the counters alone */
     uint8_t   pad_020a[2];
     uint8_t   scratch_mark;       /* +0x020c  0xff, set with the sixteen words at cs:0x108 */
-    uint8_t   pad_020d[12009];
+} __attribute__((packed));
+
+extern struct snd_cs SNDS;
+
+struct snd_cs_call {
     struct far_ptr callback;      /* +0x30f6  the cell sound_callback calls
                                               through */
     int16_t   answer;             /* +0x30fa  parked before the registers are popped and read back */
 } __attribute__((packed));
 
-#define SNDS (*(struct snd_cs *)(guest_mem + SNDCS))
+extern struct snd_cs_call SNDCALL;
 
-_Static_assert(__builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
-_Static_assert(__builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
-_Static_assert(__builtin_offsetof(struct snd_cs, word_004a) == 0x004a, "snd_cs.word_004a");
-_Static_assert(__builtin_offsetof(struct snd_cs, driver) == 0x01e7, "snd_cs.driver");
-_Static_assert(__builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
-_Static_assert(__builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
-_Static_assert(__builtin_offsetof(struct snd_cs, voice_lo) == 0x01fa, "snd_cs.voice_lo");
-_Static_assert(__builtin_offsetof(struct snd_cs, voice_hi) == 0x01fb, "snd_cs.voice_hi");
-_Static_assert(__builtin_offsetof(struct snd_cs, ch) == 0x01fc, "snd_cs.ch");
-_Static_assert(__builtin_offsetof(struct snd_cs, own_voice) == 0x01fd, "snd_cs.own_voice");
-_Static_assert(__builtin_offsetof(struct snd_cs, bend_gate) == 0x01fe, "snd_cs.bend_gate");
-_Static_assert(__builtin_offsetof(struct snd_cs, cl) == 0x01ff, "snd_cs.cl");
-_Static_assert(__builtin_offsetof(struct snd_cs, ah_high) == 0x0200, "snd_cs.ah_high");
-_Static_assert(__builtin_offsetof(struct snd_cs, slot_high) == 0x0201, "snd_cs.slot_high");
-_Static_assert(__builtin_offsetof(struct snd_cs, param_default) == 0x0202, "snd_cs.param_default");
-_Static_assert(__builtin_offsetof(struct snd_cs, word_0203) == 0x0203, "snd_cs.word_0203");
-_Static_assert(__builtin_offsetof(struct snd_cs, voices_changed) == 0x0204, "snd_cs.voices_changed");
-_Static_assert(__builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer");
-_Static_assert(__builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
-_Static_assert(__builtin_offsetof(struct snd_cs, muted) == 0x0209, "snd_cs.muted");
-_Static_assert(__builtin_offsetof(struct snd_cs, scratch_mark) == 0x020c, "snd_cs.scratch_mark");
-_Static_assert(__builtin_offsetof(struct snd_cs, callback) == 0x30f6, "snd_cs.callback");
-_Static_assert(__builtin_offsetof(struct snd_cs, answer) == 0x30fa, "snd_cs.answer");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_004a) == 0x004a, "snd_cs.word_004a");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, driver) == 0x01e7, "snd_cs.driver");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_lo) == 0x01fa, "snd_cs.voice_lo");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_hi) == 0x01fb, "snd_cs.voice_hi");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, ch) == 0x01fc, "snd_cs.ch");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, own_voice) == 0x01fd, "snd_cs.own_voice");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, bend_gate) == 0x01fe, "snd_cs.bend_gate");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cl) == 0x01ff, "snd_cs.cl");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, ah_high) == 0x0200, "snd_cs.ah_high");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, slot_high) == 0x0201, "snd_cs.slot_high");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, param_default) == 0x0202, "snd_cs.param_default");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_0203) == 0x0203, "snd_cs.word_0203");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voices_changed) == 0x0204, "snd_cs.voices_changed");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, muted) == 0x0209, "snd_cs.muted");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scratch_mark) == 0x020c, "snd_cs.scratch_mark");
+_Static_assert(sizeof(struct snd_cs) == 0x0205, "the data ends at 0x020d, where the next routine starts");
+_Static_assert(__builtin_offsetof(struct snd_cs_call, answer) == 0x0004, "snd_cs_call.answer");
 
 /*
  * **The digitised-sound module's own code segment**
@@ -2832,28 +2869,29 @@ _Static_assert(__builtin_offsetof(struct asb_cs, word_07bc) == 0x07bc, "asb_cs.w
 _Static_assert(__builtin_offsetof(struct asb_cs, word_07bd) == 0x07bd, "asb_cs.word_07bd");
 
 /*
- * **Segment 1c25, which keeps the displaced timer vector inside its own code**
+ * **Segment 1c25, which keeps the displaced vectors inside its own code** -
+ * three data cells, each placed at its offset in the segment. All are zero in
+ * the image; the routines that install the handlers fill them.
  */
-struct s1c_cs {
-    uint8_t   pad_0000[17517];
+struct s1c_timer {
     struct far_ptr old_int8;      /* +0x446d  the INT 08h vector
                                               timer_install displaced */
-    uint8_t   pad_4471[2507];
+} __attribute__((packed));
+
+struct s1c_keyboard {
     struct far_ptr old_int9;      /* +0x4e3c  the INT 09h vector
                                               install_keyboard displaced */
     struct far_ptr old_int1c;     /* +0x4e40  and the INT 1Ch one */
-    uint8_t   pad_4e44[4437];
+} __attribute__((packed));
+
+struct s1c_words {
     int16_t   word_5f99;          /* +0x5f99 */
     int16_t   word_5f9b;          /* +0x5f9b */
 } __attribute__((packed));
 
-#define S1CS (*(struct s1c_cs *)(guest_mem + S1C25))
-
-_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8) == 0x446d, "s1c_cs.old_int8");
-_Static_assert(__builtin_offsetof(struct s1c_cs, old_int9) == 0x4e3c, "s1c_cs.old_int9");
-_Static_assert(__builtin_offsetof(struct s1c_cs, old_int1c) == 0x4e40, "s1c_cs.old_int1c");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_5f99) == 0x5f99, "s1c_cs.word_5f99");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_5f9b) == 0x5f9b, "s1c_cs.word_5f9b");
+extern struct s1c_timer    S1C_TIMER;
+extern struct s1c_keyboard S1C_KEYBOARD;
+extern struct s1c_words    S1C_WORDS;
 
 /*
  * **The PC speaker driver**, laid over whatever `SX_SEG` points at.
@@ -4060,8 +4098,9 @@ DG_ASSERT_AT(struct part_template, init,  0x0c);
 _Static_assert(sizeof(struct part_template) == 0x10,
                "a part template is what make_part strides by");
 
-#define PARTTMPL_PTR(n) ((struct part_template *) \
-                     (dgroup + 0x2966 + 0x10 * (uint16_t)(n)))
+/* The templates, one per kind, and the two words after them that nothing is
+   known to read. */
+extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
 
 /*
  * ---------------------------------------------------------------------------
@@ -4156,5 +4195,45 @@ DG_ASSERT_AT(struct file_rec, flags,    0x02);
 DG_ASSERT_AT(struct file_rec, fd,   0x04);
 DG_ASSERT_AT(struct file_rec, bsize, 0x06);
 DG_ASSERT_AT(struct file_rec, curp, 0x0a);
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The rest of the image's DGROUP data**: what no struct above covers, typed
+ * as far as it is read. Everything here is **Not established** unless its
+ * comment says otherwise, and the names are ours.
+ * ---------------------------------------------------------------------------
+ */
+
+/* DGROUP 0x2d06..0x2d0a, after the part templates: two words. */
+struct dg_2d06 {
+    uint16_t  word_2d06;           /* +0x00 */
+    uint16_t  word_2d08;           /* +0x02 */
+} __attribute__((packed));
+extern struct dg_2d06 DG2D06;
+
+/*
+ * DGROUP 0x440e..0x4460: twenty far pointers after DG4342's, and two bytes.
+ * `vm_driver_init(0x3890, 0x4412, DGROUP_SEG)` hands the driver the table from
+ * the second, so the last nineteen are the driver's; what the first is is not
+ * known. Segment 1c25 and segment 0000 are both code.
+ */
+struct dg_440e {
+    struct far_ptr ptr_440e;       /* +0x00 */
+    struct far_ptr driver_table[19]; /* +0x04  0x4412 */
+    uint8_t   pad_445e[2];         /* +0x50 */
+} __attribute__((packed));
+_Static_assert(sizeof(struct dg_440e) == 0x52, "ends at 0x4460, ENGINE_PEN");
+extern struct dg_440e DG440E;
+
+/* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */
+extern struct far_ptr DG44EA;
+
+/* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
+   sample rate, and that is all that is known. */
+struct dg_4ab0 {
+    uint16_t  word_4ab0;           /* +0x00 */
+    uint16_t  word_4ab2;           /* +0x02 */
+} __attribute__((packed));
+extern struct dg_4ab0 DG4AB0;
 
 #endif /* DGROUP_H */
