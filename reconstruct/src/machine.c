@@ -12612,6 +12612,18 @@ int32_t hash_filename(char *name)
 }
 
 /*
+ * OURS, as a type: one entry of the archive index `scan_entry_list` walks - the
+ * name's 32-bit key, then where the entry's data starts. **Packed**, because the
+ * index hands back whatever offset the entry sits at and `+ 4` can be odd;
+ * that is why the base used to be read as two 16-bit words. A member of a
+ * packed struct is read correctly at any address, the key included.
+ */
+struct archive_entry {
+    uint32_t key;     /* +0x00 */
+    uint32_t base;    /* +0x04 */
+} __attribute__((packed));
+
+/*
  * 0x098e0
  *
  * Find which archive holds a file, and answer whether one does.
@@ -12654,7 +12666,7 @@ int16_t find_entry_for_pointer(struct game_file *out)
     back = (int16_t)(((int16_t)DG546C.last_record) - 1);
 
     for (;;) {
-        if (*(uint32_t *)MK_FP(at.seg, at.off) == want)
+        if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key == want)
             break;
         if (back <= 0 && fwd > DG546C.archive_count)
             break;
@@ -12664,7 +12676,7 @@ int16_t find_entry_for_pointer(struct game_file *out)
             scan_entry_list(idx, want, &at);
         }
 
-        if (*(uint32_t *)MK_FP(at.seg, at.off) == want)
+        if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key == want)
             continue;
         if (back <= 0)
             continue;
@@ -12672,18 +12684,11 @@ int16_t find_entry_for_pointer(struct game_file *out)
         scan_entry_list(idx, want, &at);
     }
 
-    if (*(uint32_t *)MK_FP(at.seg, at.off) != want)
+    if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key != want)
         return 0;
 
     out->archive = (uint16_t)idx;
-    {
-        /* The entry's base, four bytes past its key. Two 16-bit reads rather
-           than one 32-bit: the record is packed and `+ 4` can be odd. */
-        const uint8_t *p = MK_FP(at.seg, at.off);
-
-        out->base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
-                              | *(uint16_t *)(p + 4);
-    }
+    out->base = ((const struct archive_entry *)MK_FP(at.seg, at.off))->base;
     out->pos = 0;
     out->size = 0;
     return 1;

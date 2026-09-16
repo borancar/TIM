@@ -1282,7 +1282,7 @@ void poll_sequences(void)
         uint16_t es = (uint16_t)SND16(0x4a + si);
         uint8_t *rec;
         uint16_t answer;
-        uint16_t ds, bp;
+        struct far_ptr seq;
         uint8_t cl;
 
         if (es == 0 && bx == 0)
@@ -1295,23 +1295,18 @@ void poll_sequences(void)
          * Two far pointers followed - `lds bp, es:[bx+8]` and then
          * `lds bp, ds:[bp]` - land on the sequence's own data, and the low
          * nibble of +0x165, less one and doubled, indexes a table of offsets
-         * there. `bp` ends up on the record the callback is asked about.
+         * there. `seq` - the original's `ds:bp` - ends up on the record the callback
+         * is asked about.
          */
-        bp = *(uint16_t *)(rec + 8);
-        ds = *(uint16_t *)(rec + 0x0a);
-        {
-            const uint8_t *q = MK_FP(ds, bp);
-
-            bp = *(const uint16_t *)q;
-            ds = *(const uint16_t *)(q + 2);
-        }
+        seq = *(const struct far_ptr *)(rec + 8);
+        seq = *(const struct far_ptr *)MK_FP(seq.seg, seq.off);
 
         cl = (uint8_t)((rec[0x165] & 0x0f) - 1);
         cl = (uint8_t)(cl << 1);
-        bp = (uint16_t)(bp + *(uint16_t *)MK_FP(ds, (uint16_t)(bp + cl)));
+        seq.off = (uint16_t)(seq.off + *(uint16_t *)MK_FP(seq.seg, (uint16_t)(seq.off + cl)));
 
         if (rec[0x165] <= 0x10) {
-            uint16_t b = (uint16_t)(bp + 1);
+            uint16_t b = (uint16_t)(seq.off + 1);
 
             rec[0x165] |= 0x80;
 
@@ -1321,7 +1316,7 @@ void poll_sequences(void)
              * rate, its second the length, and the sample itself starts eight
              * bytes in.
              */
-            if (*MK_FP(ds, b) == 0xfe)
+            if (*MK_FP(seq.seg, b) == 0xfe)
                 b++;
             b++;
 
@@ -1332,11 +1327,11 @@ void poll_sequences(void)
              */
             _Alignas(2) uint8_t block[10];
 
-            *(int16_t *)(block + 8) = (int16_t)*(uint16_t *)MK_FP(ds,
+            *(int16_t *)(block + 8) = (int16_t)*(uint16_t *)MK_FP(seq.seg,
                                                   (uint16_t)(b + 2));
-            *(int16_t *)(block + 6) = (int16_t)ds;                   /* segment */
+            *(int16_t *)(block + 6) = (int16_t)seq.seg;              /* segment */
             *(int16_t *)(block + 4) = (int16_t)(b + 8);    /* offset */
-            *(int16_t *)(block + 2) = (int16_t)*(uint16_t *)MK_FP(ds, b);     /* rate */
+            *(int16_t *)(block + 2) = (int16_t)*(uint16_t *)MK_FP(seq.seg, b); /* rate */
             *(int16_t *)(block) = (int16_t)((rec[0x15d] << 8)
                                         | rec[0x15e]);        /* flags */
 
@@ -1426,11 +1421,11 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
          * in segment 77ab. Following it once more lands in the event data and
          * reads a note as if it were a pointer.
          */
-        uint16_t o = *(uint16_t *)(rec + 8), s = *(uint16_t *)(rec + 0xa);
-        const uint8_t *via = MK_FP(s, o);
+        struct far_ptr at = *(const struct far_ptr *)(rec + 8);
+        const struct far_ptr *via = (const struct far_ptr *)MK_FP(at.seg, at.off);
 
-        base = *(uint16_t *)via;
-        ds = *(uint16_t *)(via + 2);
+        base = via->off;
+        ds = via->seg;
     }
     bp = base;
     SNDS.cursor_park = (int16_t)base;
@@ -2157,23 +2152,15 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
  */
 void init_sequence_params(uint16_t es, uint16_t ax)
 {
-    uint8_t *slot = MK_FP(es, (uint16_t)(ax + 8));
-    uint16_t seg1, off1, seg, off;
+    struct far_ptr at = *(const struct far_ptr *)MK_FP(es, (uint16_t)(ax + 8));
     uint8_t *tbl;
     uint16_t si;
 
-    off1 = *(uint16_t *)slot;
-    seg1 = *(uint16_t *)(slot + 2);
-    if (off1 == 0xffff && seg1 == 0xffff)
+    if (at.off == 0xffff && at.seg == 0xffff)
         return;
 
-    {
-        uint8_t *via = MK_FP(seg1, off1);
-
-        off = *(uint16_t *)via;
-        seg = *(uint16_t *)(via + 2);
-    }
-    tbl = MK_FP(seg, off);
+    at = *(const struct far_ptr *)MK_FP(at.seg, at.off);
+    tbl = MK_FP(at.seg, at.off);
 
     if (tbl[0x23] == 0xfe && tbl[0x22] == 0xfd && tbl[0x21] == 0xfc)
         return;
