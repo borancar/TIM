@@ -10525,7 +10525,7 @@ void scan_entry_list(int16_t idx, uint32_t want, struct far_ptr *at)
  */
 int16_t game_fclose(FILE *file)
 {
-    uint16_t si = 0;
+    struct game_file *si = GAME_FILE_NONE;
     int16_t di = 0;
 
     if (file == 0)
@@ -10534,7 +10534,7 @@ int16_t game_fclose(FILE *file)
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
-    if (si == 0) {
+    if (si == GAME_FILE_NONE) {
         di = borland_fclose(file);
         DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
         return di;
@@ -10542,10 +10542,10 @@ int16_t game_fclose(FILE *file)
 
     archive_entry_for(0);
 
-    if (GAME_FILE_PTR(si)->stream != 0)
-        di = borland_fclose(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
+    if (si->stream_ptr != 0)
+        di = borland_fclose(FILEREC_PTR(si->stream_ptr));
 
-    GAME_FILE_PTR(si)->in_use = 0;
+    si->in_use = 0;
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate - 1);
 
     DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
@@ -10593,16 +10593,16 @@ void game_rewind(FILE *file)
 uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
                     FILE *file)
 {
-    uint16_t di = 0;
+    struct game_file *di = GAME_FILE_NONE;
 
     if (DG546C.archive_count != 0)
         di = archive_entry_for(file);
 
-    if (di == 0)
+    if (di == GAME_FILE_NONE)
         return borland_fread(buf, size, count, file);
 
-    if (GAME_FILE_PTR(di)->stream != 0)
-        return borland_fread(buf, size, count, FILEREC_PTR(GAME_FILE_PTR(di)->stream));
+    if (di->stream_ptr != 0)
+        return borland_fread(buf, size, count, FILEREC_PTR(di->stream_ptr));
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
@@ -10612,7 +10612,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
             if (bytes == 0)
                 break;
 
-            uint32_t left = GAME_FILE_PTR(di)->size - GAME_FILE_PTR(di)->pos;
+            uint32_t left = di->size - di->pos;
 
             if ((left >> 16) != 0)
                 break;
@@ -10623,24 +10623,24 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
             bytes = (uint16_t)(bytes - size);
         }
 
-        make_file_current(GAME_FILE_PTR(di)->archive);
+        make_file_current(di->archive);
 
         {
-            uint32_t at = GAME_FILE_PTR(di)->base + GAME_FILE_PTR(di)->pos;
+            uint32_t at = di->base + di->pos;
 
             seek_file_to(at);
         }
 
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[GAME_FILE_PTR(di)->archive].stream);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[di->archive].stream);
 
         n = borland_fread(buf, size, count, file);
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
-        GAME_FILE_PTR(di)->pos += got;
+        di->pos += got;
 
         {
-            struct archive *a = &MACHINE_ARCHIVES.slot[GAME_FILE_PTR(di)->archive];
+            struct archive *a = &MACHINE_ARCHIVES.slot[di->archive];
 
             a->pos += got;
         }
@@ -10670,33 +10670,33 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
  */
 int16_t game_fseek(FILE *file, int32_t off, int16_t whence)
 {
-    uint16_t si = 0;
+    struct game_file *si = GAME_FILE_NONE;
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
-    if (si == 0)
+    if (si == GAME_FILE_NONE)
         return borland_fseek(file, off, whence);
 
-    if (GAME_FILE_PTR(si)->stream != 0)
-        return borland_fseek(FILEREC_PTR(GAME_FILE_PTR(si)->stream), off, whence);
+    if (si->stream_ptr != 0)
+        return borland_fseek(FILEREC_PTR(si->stream_ptr), off, whence);
 
     /* Every comparison here is **unsigned** over the pair, which is the
        original's `cmp hi / ja / jb / cmp lo / ja` and not the signed shape
        `resource_seek` uses. */
     if (whence == 1) {
-        off = (int32_t)((uint32_t)off + GAME_FILE_PTR(si)->pos);
+        off = (int32_t)((uint32_t)off + si->pos);
     } else if (whence == 2) {
-        if (GAME_FILE_PTR(si)->size > (uint32_t)off)
-            off = (int32_t)(GAME_FILE_PTR(si)->size - (uint32_t)off);
+        if (si->size > (uint32_t)off)
+            off = (int32_t)(si->size - (uint32_t)off);
         else
             off = 0;
     }
 
-    if (GAME_FILE_PTR(si)->size < (uint32_t)off)
-        off = (int32_t)GAME_FILE_PTR(si)->size;
+    if (si->size < (uint32_t)off)
+        off = (int32_t)si->size;
 
-    GAME_FILE_PTR(si)->pos = (uint32_t)off;
+    si->pos = (uint32_t)off;
     return 0;
 }
 
@@ -10725,12 +10725,12 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
     uint16_t n;
 
     if (((uint16_t)DG546C.archive_count) != 0) {
-        uint16_t entry = archive_entry_for(file);
+        struct game_file *entry = archive_entry_for(file);
 
-        if (entry != 0) {
-            if (GAME_FILE_PTR(entry)->stream != 0)
+        if (entry != GAME_FILE_NONE) {
+            if (entry->stream_ptr != 0)
                 n = borland_fwrite(ptr, size, count,
-                              FILEREC_PTR(GAME_FILE_PTR(entry)->stream));
+                              FILEREC_PTR(entry->stream_ptr));
             else
                 n = 0;
 
@@ -10768,11 +10768,11 @@ int16_t game_fputc(int16_t c, FILE *file)
     int16_t n;
 
     if (((uint16_t)DG546C.archive_count) != 0) {
-        uint16_t entry = archive_entry_for(file);
+        struct game_file *entry = archive_entry_for(file);
 
-        if (entry != 0) {
-            if (GAME_FILE_PTR(entry)->stream != 0)
-                n = borland_fputc(c, FILEREC_PTR(GAME_FILE_PTR(entry)->stream));
+        if (entry != GAME_FILE_NONE) {
+            if (entry->stream_ptr != 0)
+                n = borland_fputc(c, FILEREC_PTR(entry->stream_ptr));
             else
                 n = -1;
 
@@ -10804,18 +10804,18 @@ int16_t game_fputc(int16_t c, FILE *file)
  */
 void game_setbuf(FILE *file, uint16_t buf)
 {
-    uint16_t rec = 0;
+    struct game_file *rec = GAME_FILE_NONE;
 
     if (((uint16_t)DG546C.archive_count) != 0)
         rec = archive_entry_for(file);
 
-    if (rec == 0) {
+    if (rec == GAME_FILE_NONE) {
         borland_setbuf(file, buf);
         return;
     }
 
-    if (GAME_FILE_PTR(rec)->stream != 0)
-        borland_setbuf(FILEREC_PTR(GAME_FILE_PTR(rec)->stream), buf);
+    if (rec->stream_ptr != 0)
+        borland_setbuf(FILEREC_PTR(rec->stream_ptr), buf);
 }
 
 /*
@@ -12248,18 +12248,18 @@ void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
  */
 int32_t game_ftell(FILE *file)
 {
-    uint16_t si = 0;
+    struct game_file *si = GAME_FILE_NONE;
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
-    if (si == 0)
+    if (si == GAME_FILE_NONE)
         return borland_ftell(file);
 
-    if (GAME_FILE_PTR(si)->stream != 0)
-        return borland_ftell(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
+    if (si->stream_ptr != 0)
+        return borland_ftell(FILEREC_PTR(si->stream_ptr));
 
-    return (int32_t)GAME_FILE_PTR(si)->pos;
+    return (int32_t)si->pos;
 }
 
 /*
@@ -12281,42 +12281,42 @@ int32_t game_ftell(FILE *file)
  */
 int16_t game_fgetc(FILE *file)
 {
-    uint16_t si = 0;
+    struct game_file *si = GAME_FILE_NONE;
 
     DG546C.file_asked = (int16_t)dg_off(dgroup, file);
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
-    if (si == 0) {
+    if (si == GAME_FILE_NONE) {
         DG546C.file_used = (int16_t)dg_off(dgroup, file);
         return borland_fgetc(file);
     }
 
-    if (GAME_FILE_PTR(si)->stream != 0) {
-        DG546C.file_used = (int16_t)GAME_FILE_PTR(si)->stream;
-        return borland_fgetc(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
+    if (si->stream_ptr != 0) {
+        DG546C.file_used = (int16_t)si->stream_ptr;
+        return borland_fgetc(FILEREC_PTR(si->stream_ptr));
     }
 
-    if (GAME_FILE_PTR(si)->pos >= GAME_FILE_PTR(si)->size)
+    if (si->pos >= si->size)
         return -1;
 
-    make_file_current(GAME_FILE_PTR(si)->archive);
+    make_file_current(si->archive);
 
     {
-        uint32_t at = GAME_FILE_PTR(si)->base + GAME_FILE_PTR(si)->pos;
+        uint32_t at = si->base + si->pos;
         int16_t got;
         struct archive *a;
 
         seek_file_to(at);
 
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[GAME_FILE_PTR(si)->archive].stream);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream);
         DG546C.file_used = (int16_t)dg_off(dgroup, file);
         got = borland_fgetc(file);
 
-        GAME_FILE_PTR(si)->pos++;
+        si->pos++;
 
-        a = &MACHINE_ARCHIVES.slot[GAME_FILE_PTR(si)->archive];
+        a = &MACHINE_ARCHIVES.slot[si->archive];
         a->pos++;
 
         return got;
@@ -12372,7 +12372,7 @@ int16_t answer_carry_on(uint16_t what)
 FILE *game_fopen(char *name, const char *mode)
 {
     char hdr[16];
-    uint16_t si;
+    struct game_file *si;
     struct file_rec *di;
     int16_t left;
     FILE *r = NULL;
@@ -12391,11 +12391,11 @@ FILE *game_fopen(char *name, const char *mode)
     DG546C.file_used = 0;
     DG546C.file_asked = 0;
 
-    si = dg_off(dgroup, &MACHINE_GAME_FILES.files[0]);
+    si = &MACHINE_GAME_FILES.files[0];
     for (left = 0xa; left != 0; left--) {
-        if (GAME_FILE_PTR(si)->in_use == 0)
+        if (si->in_use == 0)
             break;
-        si = (uint16_t)(si + sizeof(struct game_file));
+        si++;
     }
 
     if (left == 0)
@@ -12422,22 +12422,22 @@ FILE *game_fopen(char *name, const char *mode)
     DG546C.byte_5489 = 0;
 
     if (di != NULL) {
-        GAME_FILE_PTR(si)->archive = 0;
-        GAME_FILE_PTR(si)->pos = 0;
-        GAME_FILE_PTR(si)->size = 0;
-        GAME_FILE_PTR(si)->base = 0;
-        GAME_FILE_PTR(si)->in_use = 1;
-        GAME_FILE_PTR(si)->stream = dg_off(dgroup, di);
+        si->archive = 0;
+        si->pos = 0;
+        si->size = 0;
+        si->base = 0;
+        si->in_use = 1;
+        si->stream_ptr = dg_off(dgroup, di);
         goto found;
     }
 
-    if (find_entry_for_pointer(GAME_FILE_PTR(si)) == 0)
+    if (find_entry_for_pointer(si) == 0)
         goto out;
 
-    make_file_current(GAME_FILE_PTR(si)->archive);
+    make_file_current(si->archive);
 
     {
-        uint32_t at = GAME_FILE_PTR(si)->base + GAME_FILE_PTR(si)->pos;
+        uint32_t at = si->base + si->pos;
         int32_t pos;
         struct archive *a;
 
@@ -12446,10 +12446,10 @@ FILE *game_fopen(char *name, const char *mode)
         di = FILEREC_PTR(MACHINE_ARCHIVES.slot[DG546C.last_record].stream);
 
         borland_fread((uint8_t *)hdr, 0xd, 1, di);
-        borland_fread((uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
+        borland_fread((uint8_t *)&si->size, 4, 1, di);
 
         pos = borland_ftell(di);
-        GAME_FILE_PTR(si)->base = (uint32_t)pos;
+        si->base = (uint32_t)pos;
 
         a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
         a->pos = (uint32_t)pos;
@@ -12458,16 +12458,16 @@ FILE *game_fopen(char *name, const char *mode)
     if (string_compare_nocase(hdr, name) != 0)
         goto out;
 
-    GAME_FILE_PTR(si)->pos = 0;
-    GAME_FILE_PTR(si)->stream = 0;
-    GAME_FILE_PTR(si)->in_use = 1;
+    si->pos = 0;
+    si->stream_ptr = 0;
+    si->in_use = 1;
 
 found:
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate + 1);
     /* An archive entry: the game's FILE is its `game_file` record, and
        `archive_entry_for` tells the two apart by looking for it in the
        table. */
-    r = (FILE *)GAME_FILE_PTR(si);
+    r = (FILE *)si;
 
 out:
     return r;
@@ -12859,38 +12859,38 @@ void seek_file_to(uint32_t at)
  * then rejected. Both paths also clear 0x547a, so the negative answer is not
  * cached - only positive ones are.
  */
-uint16_t archive_entry_for(FILE *file)
+struct game_file *archive_entry_for(FILE *file)
 {
-    uint16_t si;
+    struct game_file *si;
     int16_t n;
 
     if (file == 0) {
         DG546C.cache_key = 0;
         DG546C.cache_answer = 0;
-        return 0;
+        return GAME_FILE_NONE;
     }
 
     if (DG546C.archive_count == 0)
-        return 0;
+        return GAME_FILE_NONE;
 
     if (dg_off(dgroup, file) == ((uint16_t)DG546C.cache_key))
-        return ((uint16_t)DG546C.cache_answer);
+        return GAME_FILE_PTR(DG546C.cache_answer);
 
     DG546C.cache_key = (int16_t)dg_off(dgroup, file);
 
-    si = dg_off(dgroup, &MACHINE_GAME_FILES.files[0]);
+    si = &MACHINE_GAME_FILES.files[0];
     n = 0xa;
-    while (n != 0 && si != dg_off(dgroup, file)) {
-        si = (uint16_t)(si + sizeof(struct game_file));
+    while (n != 0 && dg_off(dgroup, si) != dg_off(dgroup, file)) {
+        si++;
         n--;
     }
 
-    if (n == 0 || GAME_FILE_PTR(si)->in_use == 0) {
-        si = 0;
+    if (n == 0 || si->in_use == 0) {
+        si = GAME_FILE_NONE;
         DG546C.cache_key = 0;
     }
 
-    DG546C.cache_answer = (int16_t)si;
+    DG546C.cache_answer = (int16_t)dg_off(dgroup, si);
     return si;
 }
 

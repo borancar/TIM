@@ -2,7 +2,7 @@
 """Refuse a typed handle used as a boolean.
 
 The port's handles - `struct part *`, `struct belt *`, `struct rope *`,
-`struct rect_list_entry *` - are views of DGROUP: `PART_PTR(p)` is
+`struct rect_list_entry *`, `struct game_file *` - are views of DGROUP: `PART_PTR(p)` is
 `dgroup + p`, so the original's "no part", an offset of 0, is DGROUP:0 and
 **never NULL**. Every `*_NONE` sentinel exists for that reason. It follows
 that `if (p)`, `p ? ... : ...`, `!p`, `p && ...` and `... || p` on a handle
@@ -31,7 +31,7 @@ import re
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HANDLE_DECL = re.compile(r"struct (?:part|belt|rope|rect_list_entry) \*\s*(\w+)")
+HANDLE_DECL = re.compile(r"struct (?:part|belt|rope|rect_list_entry|game_file) \*\s*(\w+)")
 
 
 def scan(path):

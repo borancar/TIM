@@ -2014,7 +2014,7 @@ struct game_file {
     uint32_t  pos;             /* +0x0a  how far into the entry the reader is;
                                          `base + pos` is where to seek */
     uint16_t  in_use;          /* +0x0e  the slot is taken */
-    dg_off_t  stream;          /* +0x10  the loose file, when there is one */
+    dg_off_t  stream_ptr;      /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
 
 #define GAME_FILE_PTR(p) ((struct game_file *)(dgroup + (uint16_t)(p)))
@@ -2027,7 +2027,7 @@ DG_ASSERT_AT(struct game_file, base,            0x02);
 DG_ASSERT_AT(struct game_file, size,            0x06);
 DG_ASSERT_AT(struct game_file, pos,             0x0a);
 DG_ASSERT_AT(struct game_file, in_use,          0x0e);
-DG_ASSERT_AT(struct game_file, stream,          0x10);
+DG_ASSERT_AT(struct game_file, stream_ptr,      0x10);
 
 /*
  * ---------------------------------------------------------------------------
