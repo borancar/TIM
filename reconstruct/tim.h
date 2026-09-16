@@ -1109,7 +1109,7 @@ void restore_object_backdrop(uint16_t from_page,
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
 void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a62c */
 void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a6d7 */
-dg_off_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
 char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
 char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
@@ -1624,7 +1624,7 @@ void set_flag_2d44(void);                           /* 0x0a78e */
 int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
 void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
 void timer_callback(void);                          /* 0x0a7ae */
-dg_off_t open_bit_reader(struct far_ptr data); /* 0x248fe */
+dg_near_t open_bit_reader(struct far_ptr data); /* 0x248fe */
 void close_bit_reader(void);                        /* 0x24930 */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
 uint16_t read_palette_pixel(uint16_t bits);                /* 0x2493b */

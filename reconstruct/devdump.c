@@ -667,7 +667,7 @@ static void dev_autoplay(int32_t flip)
                 if (DG4E67.freeform == 0) {
                     DG50D3.parts_bin.prev_ptr = 0;
                     DG50D3.parts_bin.next_ptr = 0;
-                    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
+                    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
                 }
 
                 reset_machine();

@@ -51,7 +51,7 @@ uint8_t * heap_malloc_far(uint16_t bytes)
      * once `dgo` puts the pointer back into an offset.
      *
      * 0 means "no room", and NULL is the pointer spelling of it - see the
-     * note on `dg_off` in dgroup.h for why 0 is the one number that can.
+     * note on `dg_near` in dgroup.h for why 0 is the one number that can.
      */
     return p ? dg_ptr(dgroup, p) : NULL;
 }
@@ -66,7 +66,7 @@ uint8_t * heap_malloc_far(uint16_t bytes)
  */
 void heap_free_far(uint8_t * p)
 {
-    heap_free(dg_off(dgroup, p));
+    heap_free(dg_near(dgroup, p));
 }
 
 /*

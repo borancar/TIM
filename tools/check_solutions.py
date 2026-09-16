@@ -68,7 +68,7 @@ def run_one(path, flips, verbose, simulate=0):
     # **A port that solves and then dies is not a pass.** `--restore --run`
     # with `TIM_STOPFLIP` exits 0 when it finishes; anything else is the port
     # falling over, and this check used to score it on whatever it managed to
-    # print first. Measured on 2026-09-10, with `dg_off` newly refusing a
+    # print first. Measured on 2026-09-10, with `dg_near` newly refusing a
     # non-guest pointer: the port aborted with SIGABRT on every level and this
     # printed **33 of 33 solved**, because "io: level solved" really was in the
     # output - four lines before the crash.

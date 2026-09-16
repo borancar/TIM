@@ -175,8 +175,8 @@ def pointee(param):
     """
     if "*" not in param:
         # **An array parameter has no `*` to split on**, and everything left
-        # of it would then be the whole declaration - `dg_off_t near list[]`
-        # comes back as "dg_off_t list[]", which compiles into a cast that is
+        # of it would then be the whole declaration - `dg_near_t near list[]`
+        # comes back as "dg_near_t list[]", which compiles into a cast that is
         # not a type. Refuse rather than emit it: the six list routines were
         # spelled that way for one commit and none of them is dispatched, so
         # this never fired, which is exactly the kind of luck worth removing.
@@ -365,7 +365,7 @@ def emit(entries, protos):
             # result in AX and expects a DGROUP offset there; a routine that
             # now returns `dg_near` is handing back a host address, and
             # truncating one to sixteen bits is a number with no meaning.
-            # `dg_off` is the inverse of the `anearptr` above.
+            # `dg_near` is the inverse of the `anearptr` above.
             # **Keyed on the return being a pointer**, not on a tag. This
             # test has now silently stopped firing twice - once when the
             # `dg_near` typedef was spelled out, and once when the `near` tag
@@ -374,7 +374,7 @@ def emit(entries, protos):
             # paragraph above says must not happen. A tag can be removed; a
             # `*` in the return type cannot.
             if rt and "*" in rt and not re.search(r"\bfar\b", rt):
-                w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
+                w('    r%s_ax(c, dg_near(dgroup, %s), %d);' % (far, call, pops))
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
         elif rt and "union far_or_size" in rt:

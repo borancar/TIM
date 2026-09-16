@@ -37,7 +37,7 @@ struct bitmaps_flip_state {
     int16_t   flip_x;             /* +0x02 [2]  bit 1 of the draw flags */
     uint16_t  word_63fa;          /* +0x04 [2]  not touched by these routines */
     uint16_t  index_bits;         /* +0x06 [2]  bits per pixel index, or 8 */
-    dg_off_t  palette;            /* +0x08 [2]  the leaf's palette, in its frame */
+    dg_near_t palette;            /* +0x08 [2]  the leaf's palette, in its frame */
 } __attribute__((packed));
 
 struct bitmaps_flip_state BITMAPS_FLIP_STATE DGROUP_BSS(0x63f6);
@@ -59,7 +59,7 @@ DG_ASSERT_AT(struct bitmaps_flip_state, palette,    0x08);
  * There is only one of them. DGROUP 0x6400 says whether it is in use and a
  * second open answers 0 rather than taking it away from the first.
  */
-dg_off_t open_bit_reader(struct far_ptr data)
+dg_near_t open_bit_reader(struct far_ptr data)
 {
     if (BITMAPS.in_use != 0)
         return 0;
@@ -69,9 +69,9 @@ dg_off_t open_bit_reader(struct far_ptr data)
     BITMAPS.pos = 0;
 
     /* The address of the eight bytes above, not a handle - `mov ax, 0x6402`
-       at 0x2492b. `dg_off(dgroup, &BITMAPS.pos)` is the same number and
+       at 0x2492b. `dg_near(dgroup, &BITMAPS.pos)` is the same number and
        says which bytes it is. */
-    return dg_off(dgroup, (const void *)&BITMAPS.pos);
+    return dg_near(dgroup, (const void *)&BITMAPS.pos);
 }
 
 /*
@@ -550,7 +550,7 @@ uint16_t load_bitmaps(char *name)
     /* [bp-2]. The guest keeps a word here and reads it back through
        `BMPLIST`; the port keeps the array. `read_bmp_info` fills it in, and
        the two routines that still want the near pointer get it from
-       `dg_off`. */
+       `dg_near`. */
     bmp_ptr_t *list_at;
     int16_t offset_at[7]; /* [bp-0x14] */
     /* Two more slots the original addresses as `count_at` less a constant
@@ -696,7 +696,7 @@ out:
         close_file_record(di);
 
     {
-        uint16_t answer = dg_off(dgroup, list_at);
+        uint16_t answer = dg_near(dgroup, list_at);
         return answer;
     }
 }
@@ -743,14 +743,14 @@ void free_bitmaps_thunk(bmp_ptr_t * list)
  *
  * The array is what the routine is handed, so it is spelled as one. The
  * original's test is `list == 0` on the offset, and offset 0 is `dgroup`
- * itself rather than a C null pointer - `dg_off` answers 0 for both, which is
+ * itself rather than a C null pointer - `dg_near` answers 0 for both, which is
  * why the guard is written through it and not as `list == NULL`.
  */
 uint16_t count_list(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 
-    if (dg_off(dgroup, list) == 0)
+    if (dg_near(dgroup, list) == 0)
         return 0;
 
     while (list[n] != 0)
@@ -1013,11 +1013,11 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
      * locals sit above; both are Borland locals, so the frame is a C array.
      *
      * **The reader record keeps the guest's stack, and one slot is why.**
-     * `BITMAPS.reader = dg_off(dgroup, rd)` files the record's address into
+     * `BITMAPS.reader = dg_near(dgroup, rd)` files the record's address into
      * a guest word that `vqt_node`, `vqt_screen_node` and `fill_quadrant`
      * fetch back out and write through, so the address has to be one the guest
      * can hold. The frame was a C array for a while and that word then took
-     * the distance to somewhere outside guest memory; `dg_off` refuses such a
+     * the distance to somewhere outside guest memory; `dg_near` refuses such a
      * pointer now, which turned a wrong number into an abort and is what made
      * this worth putting back rather than leaving.
      *
@@ -1097,7 +1097,7 @@ no_block:
     buffer = 0x3ab4;
 
 have_block:
-    BITMAPS.reader = dg_off(dgroup, rd);
+    BITMAPS.reader = dg_near(dgroup, rd);
     rd->pos = 0;
     rd->data = block;
 

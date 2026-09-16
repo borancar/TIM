@@ -78,7 +78,7 @@ extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 #define DGROUP_BSS(off)      __attribute__((section(".bss.guest.dgroup." #off), used, aligned(1)))
 #define SEGMENT_AT(seg, off) __attribute__((section(".guest.seg." #seg "." #off), used, aligned(1)))
 
-/* Declared in io.h, which this header deliberately does not include: `dg_off`
+/* Declared in io.h, which this header deliberately does not include: `dg_near`
    below refuses a pointer that is not the guest's, and the refusal has to be
    loud. */
 void port_abort(const char *msg);
@@ -205,7 +205,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * and a set of C globals cannot express that. This overlays a struct on the
  * bytes; a field and a pointer dereference still reach the same byte.
  *
- * Names ending `_ptr` hold an address, and the type says which kind: `dg_off_t`
+ * Names ending `_ptr` hold an address, and the type says which kind: `dg_near_t`
  * is a near pointer, an offset into DGROUP, and `dg_seg_t` is a real-mode
  * segment. Everything else is the narrowest type the code actually uses -
  * `int16_t` where the original does signed compares, `uint8_t` for a flag byte.
@@ -224,18 +224,18 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * whole reason for having them; `packed` is what stops it happening again.
  * ---------------------------------------------------------------------------
  */
-typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
+typedef uint16_t dg_near_t;      /* a near pointer: an offset into DGROUP */
 
 /* **A near pointer to a bitmap header**, which is what the game stores
    wherever it keeps one: two bytes, an offset into DGROUP, exactly
-   `dg_off_t` and named for what it points at.
+   `dg_near_t` and named for what it points at.
 
    It is not `struct bitmap *`. A host pointer is eight bytes and these live
    in guest memory two bytes apart, so a `struct bitmap **` over one of these
    arrays would stride four times too far from the second entry on - which is
-   the whole reason `dg_off_t` exists. The typedef buys the name without
+   the whole reason `dg_near_t` exists. The typedef buys the name without
    touching the width. */
-typedef dg_off_t bmp_ptr_t;
+typedef dg_near_t bmp_ptr_t;
 /* A list of these is stepped with `++`, which must be the original's `+ 2`. */
 _Static_assert(sizeof(bmp_ptr_t) == 2, "bmp_ptr_t is a near pointer, one word");
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
@@ -254,7 +254,7 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
  * round, and says so where it is declared.
  */
 struct far_ptr {
-    dg_off_t  off;              /* +0x00 */
+    dg_near_t off;              /* +0x00 */
     dg_seg_t  seg;              /* +0x02 */
 } __attribute__((packed));
 
@@ -267,7 +267,7 @@ struct far_ptr {
  */
 struct far_ptr_rev {
     dg_seg_t  seg;              /* +0x00 */
-    dg_off_t  off;              /* +0x02 */
+    dg_near_t off;              /* +0x02 */
 } __attribute__((packed));
 
 /*
@@ -279,7 +279,7 @@ struct far_ptr_rev {
 static inline struct far_ptr far_normalise(struct far_ptr p)
 {
     p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
-    p.off = (dg_off_t)(p.off & 0x0f);
+    p.off = (dg_near_t)(p.off & 0x0f);
     return p;
 }
 
@@ -287,7 +287,7 @@ static inline struct far_ptr far_normalise(struct far_ptr p)
 static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
 {
     p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
-    p.off = (dg_off_t)(p.off & 0x0f);
+    p.off = (dg_near_t)(p.off & 0x0f);
     return p;
 }
 
@@ -350,7 +350,7 @@ static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
 /*
  * **Resolving between the two forms a near pointer has.** The game stores a
  * 16-bit offset into a segment; C wants an address. `dg_ptr` turns the game's
- * offset into something a routine can be handed, and `dg_off` turns an address
+ * offset into something a routine can be handed, and `dg_near` turns an address
  * back into the offset the game would have stored - which is what lets a field
  * be a *field* even where the code needs its address.
  *
@@ -365,7 +365,7 @@ static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
  * same fact written once instead of four times.
  *
  * The font tables below are the worked example:
- * `dg_off(dgroup, &VMDS.font_table_34[si])` is what `game_fread` wants, and
+ * `dg_near(dgroup, &VMDS.font_table_34[si])` is what `game_fread` wants, and
  * it says which table where `(uint16_t)(0x38c4 + si)` did not.
  */
 static inline uint8_t *dg_ptr(void *base, uint16_t off)
@@ -405,7 +405,7 @@ static inline uint8_t *dg_ptr(void *base, uint16_t off)
  * *address* by comparing numbers. `load_bitmaps` asks whether its argument
  * matches an open file record's `file_ptr`; for a pointer outside guest
  * memory the answer is certainly no, and saying so is the original's own test
- * answered exactly rather than by a `dg_off` that could collide.
+ * answered exactly rather than by a `dg_near` that could collide.
  */
 static inline int dg_is_guest(const void *p)
 {
@@ -435,7 +435,7 @@ struct dg_3f78 {
  * **An address back into the offset the guest holds it as.** The inverse of
  * `dg_ptr`, and a null pointer stays 0 because the guest's null is offset 0.
  *
- * **It refuses a pointer that is not the guest's.** `dg_off` takes a `void *`,
+ * **It refuses a pointer that is not the guest's.** `dg_near` takes a `void *`,
  * so the compiler will hand it anything - and a frame that became a C local
  * lives on the *host* stack, where the subtraction below is the distance
  * between two unrelated objects. Forty-one call sites were once "fixed" that
@@ -449,18 +449,40 @@ struct dg_3f78 {
  * here. So the check is at the conversion, where the answer is still known to
  * be wrong. Ours; the original has no such routine, because every address it
  * has is inside its own megabyte.
+ *
+ * **Only ever the value stored into a `dg_near_t` field named `_ptr`** - never
+ * compared, cast, passed or returned; a comparison turns the stored field into
+ * a pointer instead. `tools/check_dg_near.py` holds the code to that. `dg_near`
+ * and `dg_near_t` were `dg_off` and `dg_off_t` until 2026-09-17.
  */
-static inline uint16_t dg_off(const void *base, const void *p)
+static inline dg_near_t dg_near(const void *base, const void *p)
 {
     if (p == 0)
         return 0;
 
     if (!dg_is_guest(p))
-        port_abort("dg_off on a pointer outside guest memory - a C local has "
+        port_abort("dg_near on a pointer outside guest memory - a C local has "
                    "no offset the guest can hold");
 
-    return (uint16_t)((const uint8_t *)p
-                      - (const uint8_t *)base);
+    return (dg_near_t)((const uint8_t *)p
+                       - (const uint8_t *)base);
+}
+
+/*
+ * **A DGROUP object's far pointer**: DGROUP's segment and the object's near
+ * pointer - what the original builds with `push ds` and an offset when a
+ * routine that takes a far pointer is handed something of its own. `dg_near`'s
+ * pair; a null pointer is the far null, 0000:0000. Ours, like `dg_near`.
+ */
+static inline struct far_ptr dg_far(const void *base, const void *p)
+{
+    struct far_ptr f = { 0, 0 };
+
+    if (p != 0) {
+        f.off = dg_near(base, p);
+        f.seg = (dg_seg_t)((uint32_t)((const uint8_t *)base - guest_mem) >> 4);
+    }
+    return f;
 }
 
 /*
@@ -525,7 +547,7 @@ struct vmds {
     /*
      * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
      * slot. The loader hands their *addresses* to `game_fread`, which takes a
-     * DGROUP offset - so the call sites read `dg_off(&VMDS.font_table_34[si])`
+     * DGROUP offset - so the call sites read `dg_near(&VMDS.font_table_34[si])`
      * rather than `0x38c4 + si`, which says the same thing and says which
      * table it is.
      */
@@ -540,7 +562,7 @@ struct vmds {
      * passes: left and right out of `poly` into `work`, then top and bottom
      * back again, with `DG3A2C.clip_count` rewritten after each. The callers
      * hand the arrays' *addresses* to `poly_outline` and `poly_fill`, which
-     * take DGROUP offsets, so those sites read `dg_off(dgroup, VMDS.poly_x)`.
+     * take DGROUP offsets, so those sites read `dg_near(dgroup, VMDS.poly_x)`.
      */
     int16_t   poly_x[20];                   /* +0xac   DGROUP 0x393c */
     int16_t   poly_y[20];                   /* +0xd4   DGROUP 0x3964 */
@@ -658,7 +680,7 @@ DG_ASSERT_AT(struct vmds, row_offset,     0x6f2);
  * four words between here and 0x50d3 are not read as part of it.
  */
 struct dg_50bf {
-    dg_off_t  layer_head[6];      /* +0x00 */
+    dg_near_t layer_head[6];      /* +0x00 */
 } __attribute__((packed));
 
 extern struct dg_50bf DG50BF;
@@ -713,7 +735,7 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  * The types are the narrowest the code uses. `int16_t` where the original
  * compares signed - the three origin pairs are set to -8 by `round_setup` and
  * `game_play` tests its round number with `jle` - and `uint16_t` for the
- * counters and state words. `dg_off_t` marks the eight near pointers: five
+ * counters and state words. `dg_near_t` marks the eight near pointers: five
  * region-list heads, two records kept beside them, and the bitmap lists.
  * ---------------------------------------------------------------------------
  */
@@ -721,13 +743,13 @@ struct dg_4e67 {
     uint16_t  freeform;            /* +0x00  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
     uint16_t  word_4e69;           /* +0x02 */
     uint16_t  state;               /* +0x04  the round and screen state machine's word */
-    dg_off_t  region_kept_a_ptr;   /* +0x06  two records kept on their own as well */
-    dg_off_t  region_kept_b_ptr;   /* +0x08 */
-    dg_off_t  regions_a_ptr;       /* +0x0a  the five region lists, heads of */
-    dg_off_t  regions_b_ptr;       /* +0x0c */
-    dg_off_t  regions_c_ptr;       /* +0x0e */
-    dg_off_t  regions_panel_ptr;   /* +0x10  the briefing's controls */
-    dg_off_t  regions_play_ptr;    /* +0x12  the play screen's */
+    dg_near_t region_kept_a_ptr;   /* +0x06  two records kept on their own as well */
+    dg_near_t region_kept_b_ptr;   /* +0x08 */
+    dg_near_t regions_a_ptr;       /* +0x0a  the five region lists, heads of */
+    dg_near_t regions_b_ptr;       /* +0x0c */
+    dg_near_t regions_c_ptr;       /* +0x0e */
+    dg_near_t regions_panel_ptr;   /* +0x10  the briefing's controls */
+    dg_near_t regions_play_ptr;    /* +0x12  the play screen's */
     int16_t   holiday_christmas;   /* +0x14  25 December - kind 34, the tree */
     int16_t   holiday_halloween;   /* +0x16  31 October  - kind 32, the pumpkin */
     int16_t   holiday_stpatrick;   /* +0x18  17 March    - read by nothing */
@@ -770,10 +792,10 @@ struct dg_4e67 {
     uint16_t  master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
     int16_t   word_4ec3;           /* +0x5c */
     int16_t   word_4ec5;           /* +0x5e */
-    dg_off_t  icons_bmp_ptr;      /* +0x60  icons.bmp's list */
-    dg_off_t  menu_bmp_ptr;       /* +0x62  gp_menu.bmp's */
-    dg_off_t  bmp_4ecb_ptr;       /* +0x64  gp_bord.bmp's */
-    dg_off_t  score2_bmp_ptr;     /* +0x66  score2.bmp's - draw_odometer_digit's strips */
+    dg_near_t icons_bmp_ptr;      /* +0x60  icons.bmp's list */
+    dg_near_t menu_bmp_ptr;       /* +0x62  gp_menu.bmp's */
+    dg_near_t bmp_4ecb_ptr;       /* +0x64  gp_bord.bmp's */
+    dg_near_t score2_bmp_ptr;     /* +0x66  score2.bmp's - draw_odometer_digit's strips */
     /* **The level's title and hint**, read from the level file by
        `load_level` when it is a level and written back by `write_level`;
        the briefing draws the title over the panel and wraps the hint into
@@ -890,8 +912,8 @@ DG_ASSERT_AT(struct dg_5768, word_5786,         0x1e);
  */
 struct dg_53fc {
     int16_t   word_53fc;          /* +0x00 */
-    dg_off_t  other_ptr;          /* +0x02  the part `list_ptr` is being tested against */
-    dg_off_t  list_ptr;           /* +0x04  the part the collision sweep is
+    dg_near_t other_ptr;          /* +0x02  the part `list_ptr` is being tested against */
+    dg_near_t list_ptr;           /* +0x04  the part the collision sweep is
                                              working on; `resolve_collisions`
                                              sets it from `pick_by_flag` and
                                              every routine below reads part
@@ -980,7 +1002,7 @@ struct dg_4a82 {
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
     struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
                                             is a relocation */
-    dg_off_t  bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
+    dg_near_t bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
                                             what a voice's +0x15c and +0x15d
                                             come out of */
     struct far_ptr driver;        /* +0x12  the loaded driver, installed by
@@ -1086,8 +1108,8 @@ struct dg_52ed {
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
                                    * the assert caught: 0x52f2 follows it at +0x05 */
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
-    dg_off_t  panel_art_ptr;     /* +0x07  the art set the panel's pieces come out of */
-    dg_off_t  cursor_art_ptr;    /* +0x09  mouse.bmp's list */
+    dg_near_t panel_art_ptr;     /* +0x07  the art set the panel's pieces come out of */
+    dg_near_t cursor_art_ptr;    /* +0x09  mouse.bmp's list */
     uint16_t  word_52f8;          /* +0x0b */
     uint16_t  stop_requested;     /* +0x0d  game_teardown(0) raises it; the loops above read it */
     uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
@@ -1125,10 +1147,10 @@ DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
  */
 struct dg_4e4e {
     struct far_ptr shape_free;    /* +0x00  the free list nodes come off */
-    dg_off_t  shapes_ptr;         /* +0x04  the shapes drawn over, put back in reverse */
-    dg_off_t  shapes_tail_ptr;    /* +0x06 */
-    dg_off_t  parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
-    dg_off_t  parts_queue_ptr;    /* +0x0a  what asked to move this frame */
+    dg_near_t shapes_ptr;         /* +0x04  the shapes drawn over, put back in reverse */
+    dg_near_t shapes_tail_ptr;    /* +0x06 */
+    dg_near_t parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
+    dg_near_t parts_queue_ptr;    /* +0x0a  what asked to move this frame */
     char      name_buf[0xd];      /* +0x0c  pick_file fills this and copies the
                                      answer out; `validate_filename` reads it
                                      back. Thirteen bytes - an 8.3 name and its
@@ -1222,7 +1244,7 @@ _Static_assert(sizeof(struct timer) == 0x8b, "the timer state ends at 0x4579");
  * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
  */
 struct game_text_lines {
-    dg_off_t  line[9];            /* +0x00 [0x12] */
+    dg_near_t line[9];            /* +0x00 [0x12] */
 } __attribute__((packed));
 
 extern struct game_text_lines GAME_TEXT_LINES;
@@ -1272,13 +1294,13 @@ DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
  * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
  */
 struct dg_4e34 {
-    dg_off_t  first_block_ptr;    /* +0x00  the block chain runs from here to the topmost */
-    dg_off_t  top_block_ptr;      /* +0x02  which is where a new block is cut from */
-    dg_off_t  ring_cursor_ptr;    /* +0x04  first fit walks *backward* from here */
+    dg_near_t first_block_ptr;    /* +0x00  the block chain runs from here to the topmost */
+    dg_near_t top_block_ptr;      /* +0x02  which is where a new block is cut from */
+    dg_near_t ring_cursor_ptr;    /* +0x04  first fit walks *backward* from here */
     uint8_t   cr[2];              /* +0x06  "\r", which `borland_fputc` writes before a newline in text mode */
     int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
     int16_t   stdout_is_tty;      /* +0x0a */
-    dg_off_t  realcvt_ptr;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
+    dg_near_t realcvt_ptr;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
                                      `float_formats_missing` in this program */
 } __attribute__((packed));
 
@@ -1304,9 +1326,9 @@ DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
  */
 struct heap_block {
     uint16_t  size;            /* +0x00  even; bit 0 is the in-use flag */
-    dg_off_t  prev_ptr;        /* +0x02  the block below, by address */
-    dg_off_t  fwd_ptr;         /* +0x04  free ring, forward - payload otherwise */
-    dg_off_t  back_ptr;        /* +0x06  free ring, backward - payload otherwise */
+    dg_near_t prev_ptr;        /* +0x02  the block below, by address */
+    dg_near_t fwd_ptr;         /* +0x04  free ring, forward - payload otherwise */
+    dg_near_t back_ptr;        /* +0x06  free ring, backward - payload otherwise */
 } __attribute__((packed));
 
 #define HEAPBLK_PTR(p) ((struct heap_block *)(dgroup + (uint16_t)(p)))
@@ -1376,7 +1398,7 @@ struct point8 {
  * which words it reads and what they are.
  */
 #define OFF_TABLE(off) \
-    ((const dg_off_t *)(dgroup + (uint16_t)(off)))
+    ((const dg_near_t *)(dgroup + (uint16_t)(off)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -1506,7 +1528,7 @@ struct pal_chunk_names {
     char pal_ega[9];          /* +0x09  0x448f  "PAL:EGA:" */
     char pal_cga[9];          /* +0x12  0x4498  "PAL:CGA:" */
     char none[1];             /* +0x1b  0x44a1  "" */
-    dg_off_t by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
+    dg_near_t by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
     struct far_ptr palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
     char pal_amg[9];          /* +0x40  0x44c6  "PAL:AMG:" */
 } __attribute__((packed));
@@ -1556,7 +1578,7 @@ DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
  */
 struct adapter_tags {
     char      bad[5];              /* +0x00  0x48fc  "BAD:" */
-    dg_off_t  tag[12];             /* +0x05  0x4901  entries 1 to 12 */
+    dg_near_t tag[12];             /* +0x05  0x4901  entries 1 to 12 */
 } __attribute__((packed));
 _Static_assert(sizeof(struct adapter_tags) == 0x1d, "the tags end at 0x4919, where OVL: starts");
 extern struct adapter_tags ADAPTER_TAGS;
@@ -1568,8 +1590,8 @@ extern struct adapter_tags ADAPTER_TAGS;
  * with.
  */
 struct sound_tags {
-    dg_off_t  device[9];           /* +0x00  0x4a1c  "STD:" "TAN:" "ADL:" ... */
-    dg_off_t  module[5];           /* +0x12  0x4a2e  "ASB:" "APS:" "ATD:" ... */
+    dg_near_t device[9];           /* +0x00  0x4a1c  "STD:" "TAN:" "ADL:" ... */
+    dg_near_t module[5];           /* +0x12  0x4a2e  "ASB:" "APS:" "ATD:" ... */
     char      tag[14][5];          /* +0x1c  0x4a38  the fourteen, in that order */
     char      mode_r_a[2];         /* +0x62  0x4a7e  "r" */
     char      mode_r_b[2];         /* +0x64  0x4a80  "r" */
@@ -1620,11 +1642,11 @@ struct part {
        without asking whether that names a head or a part. One `mov` for both
        in the original. A list ends on a `next_ptr` of 0 - `or si,si` at
        0x126e4 and 0x14d8c - and only `prev_ptr` leads back to a head. */
-    dg_off_t  next_ptr;        /* +0x00 */
+    dg_near_t next_ptr;        /* +0x00 */
     /* **The bin list's back-link, not padding.** `insert_sorted` writes it - and
        writes the next node's back to `rec` - and `bin_part_at_index` walks it
        to step backwards from the sentinel at 0x50d7. */
-    dg_off_t  prev_ptr;        /* +0x02 */
+    dg_near_t prev_ptr;        /* +0x02 */
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
     uint16_t  flags_08;        /* +0x08 */
@@ -1700,7 +1722,7 @@ struct part {
     struct extent16 set_size;      /* +0x50 */
     /* The rope this part is tied to: the 0x38-byte record `heap_calloc_far`
        gives a kind-8 part, and both ends' parts point at it too. 0 when none. */
-    dg_off_t  rope_ptr;        /* +0x54 */
+    dg_near_t rope_ptr;        /* +0x54 */
     struct point8 grab;        /* +0x56  the grab box */
     uint16_t  word_58;         /* +0x58 */
     /* **Six links in one array.** `part_setup_2068` files four of them by
@@ -1709,11 +1731,11 @@ struct part {
        which reaches 0x62 and 0x64. `[0]` to `[3]` are the neighbours by
        direction - right, left, down, up - and `[4]`, `[5]` the pair
        `part_setup_3de5` turns into form bits. */
-    dg_off_t  link_ptr[6];     /* +0x5a */
+    dg_near_t link_ptr[6];     /* +0x5a */
     /* **The belt records this part is an end of**, indexed the same way as
        `link_ptr` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
        carrier's own belt is always the first. */
-    dg_off_t  belt_ptr[2];     /* +0x66 */
+    dg_near_t belt_ptr[2];     /* +0x66 */
     /* **The two attachment offsets, a byte pair each.** Written a byte at a
        time by the setups - `part_setup_1105` puts half the width in the first
        and zero in the second - and read as a pair by the belt routines, which
@@ -1729,14 +1751,14 @@ struct part {
        on** - `link_record_into_buckets` writes `[i]` for the layer its
        kind's `refile_level[i]` names, and `byte_7f` keeps which layer `[0]`
        is, so the walkers pick the half that matches the layer they are on. */
-    dg_off_t  layer_next_ptr[2];   /* +0x74 */
+    dg_near_t layer_next_ptr[2];   /* +0x74 */
     /* **The next part in a chain, and only after something builds one.** Five
        routines zero it on the head and then thread parts on by insertion -
        `collect_carried`, `link_nearby_objects`, `link_objects_in_range`,
        `link_objects_crossing` and `link_objects_at_point`. Everything else
        only walks it, so a step routine that reads it is reading whatever the
        last of those five left; it means nothing before one has run. */
-    dg_off_t  next_linked_ptr; /* +0x78 */
+    dg_near_t next_linked_ptr; /* +0x78 */
     uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
     uint16_t  word_7c;         /* +0x7c */
     uint8_t   byte_7e;         /* +0x7e */
@@ -1744,7 +1766,7 @@ struct part {
                                          walks compare it against the one they
                                          are filling */
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
-    dg_off_t  points_ptr;      /* +0x82  where a setup copies its connection points to */
+    dg_near_t points_ptr;      /* +0x82  where a setup copies its connection points to */
     /* **The contact block.** `resolve_collisions` and `find_edge_contact` both
        reach it by taking the address `part + 0x84` and walking from there, and
        `apply_contact_friction` takes the same address off whichever part it
@@ -1752,7 +1774,7 @@ struct part {
        call the address a `link`. +0x84 is the part being touched, the two
        bytes are cleared together, +0x88 goes to `angles_same_side`, and +0x8a
        gets the edge index the search stopped on. */
-    dg_off_t  contact_ptr;     /* +0x84  the part this one is in contact with */
+    dg_near_t contact_ptr;     /* +0x84  the part this one is in contact with */
     uint8_t   byte_86;         /* +0x86  cleared with byte_87 */
     uint8_t   byte_87;         /* +0x87 */
     int16_t   word_88;         /* +0x88  the contact angle */
@@ -1880,8 +1902,8 @@ _Static_assert(sizeof(struct part) == 0xa2,
  * and a member needs its type complete.
  */
 struct dg_50d3 {
-    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin */
-    dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
+    dg_near_t bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin */
+    dg_near_t dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
     /* **The parts bin: a doubly linked list's head, and the head is a whole
        part.** The level file fills it last, with `n_given` - the tools
        handed to the player, belts, ropes, pulleys, bellows, measured with
@@ -1937,8 +1959,8 @@ struct dg_546c {
     int16_t   version;            /* +0x08  the version gate: from 0x101 the file carries more */
     uint16_t  version_out;        /* +0x0a  written out beside it */
     uint16_t  error;              /* +0x0c  every writer checks it, and a file that fails to close is deleted */
-    dg_off_t  cache_key_ptr;      /* +0x0e  the one-entry cache in front of find_entry_for_pointer: */
-    dg_off_t  cache_answer_ptr;   /* +0x10  the pointer last asked about, and the answer */
+    dg_near_t cache_key_ptr;      /* +0x0e  the one-entry cache in front of find_entry_for_pointer: */
+    dg_near_t cache_answer_ptr;   /* +0x10  the pointer last asked about, and the answer */
     int16_t   archive_count;      /* +0x12  how many archives, accumulated; zero means none is open */
     uint16_t  last_record;        /* +0x14  where the search starts, so record 0 is never returned */
     /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
@@ -1952,8 +1974,8 @@ struct dg_546c {
     uint8_t   retry;              /* +0x1c  the loop around the loose-file open, for removable media */
     uint8_t   byte_5489;          /* +0x1d */
     uint8_t   scanned;            /* +0x1e  the archives have been counted once */
-    dg_off_t  file_used_ptr;      /* +0x1f  the FILE it actually read from */
-    dg_off_t  file_asked_ptr;     /* +0x21  and the one it was asked about */
+    dg_near_t file_used_ptr;      /* +0x1f  the FILE it actually read from */
+    dg_near_t file_asked_ptr;     /* +0x21  and the one it was asked about */
 } __attribute__((packed));
 
 extern struct dg_546c DG546C;
@@ -2014,7 +2036,7 @@ struct game_file {
     uint32_t  pos;             /* +0x0a  how far into the entry the reader is;
                                          `base + pos` is where to seek */
     uint16_t  in_use;          /* +0x0e  the slot is taken */
-    dg_off_t  stream_ptr;      /* +0x10  the loose file, when there is one */
+    dg_near_t stream_ptr;      /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
 
 #define GAME_FILE_PTR(p) ((struct game_file *)(dgroup + (uint16_t)(p)))
@@ -2052,7 +2074,7 @@ struct archive {
                                   to `fopen` as it stands */
     uint8_t   pad_0d[1];
     uint16_t  index;           /* +0x0e  its own index, written by the loader */
-    dg_off_t  stream_ptr;      /* +0x10  open only while it is the current one */
+    dg_near_t stream_ptr;      /* +0x10  open only while it is the current one */
     uint32_t  pos;             /* +0x12  where DOS is believed to be */
     uint8_t   pad_16[2];
     struct far_ptr list;       /* +0x18  the eight-byte entries the map read:
@@ -2205,7 +2227,7 @@ DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
  * one byte wide.
  */
 struct draw_step {
-    dg_off_t  next;               /* +0x00 */
+    dg_near_t next;               /* +0x00 */
     uint8_t   level;              /* +0x02  drawn on this level only, unless the part is carried */
     uint8_t   frame[4];           /* +0x03  indices into the kind's bitmap set; 0xff ends the list */
     struct point8 offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
@@ -2546,7 +2568,7 @@ typedef struct {
     struct far_ptr data;          /* +0x06  and the block it reads */
     uint16_t       draw_flags;    /* +0x0a  `draw_offset_bitmap`'s mode:
                                      bit 1 mirrors x, bit 0 mirrors y */
-    dg_off_t       reader;        /* +0x0c  which reader the vqt walk uses -
+    dg_near_t      reader;        /* +0x0c  which reader the vqt walk uses -
                                      the singleton above, or the frame
                                      `decode_vqt_list` files here */
     uint16_t       pixel_fn;      /* +0x0e  near, 248f: what a fill loop reads
@@ -3079,7 +3101,7 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.w
  * ---------------------------------------------------------------------------
  */
 struct region {
-    dg_off_t  link_ptr;        /* +0x00  the next record on this list */
+    dg_near_t link_ptr;        /* +0x00  the next record on this list */
     uint16_t  mask;            /* +0x02  and-ed with the state word at 0x4e6b */
     uint16_t  word_04;         /* +0x04 */
     int16_t   x0;              /* +0x06  the rectangle, inclusive at both ends */
@@ -3132,7 +3154,7 @@ _Static_assert(sizeof(struct region) == 0x1a,
    offsets; `token` the record's own offset, which `borland_fclose` and
    `borland_setvbuf` check before believing the pointer. The stream routines
    in borland_file.c take a pointer to one and nothing outside them looks
-   inside; a routine that files a stream in DGROUP keeps `dg_off` of it and
+   inside; a routine that files a stream in DGROUP keeps `dg_near` of it and
    gets it back with `FILEREC_PTR`. */
 struct file_rec {
     int16_t   level;           /* +0x00  bytes still in the buffer */
@@ -3140,10 +3162,10 @@ struct file_rec {
     uint8_t   fd;              /* +0x04  the DOS handle, read signed for -1 */
     uint8_t   hold;            /* +0x05  the unbuffered stream's one byte */
     uint16_t  bsize;           /* +0x06 */
-    dg_off_t  buffer;          /* +0x08 */
-    dg_off_t  curp;            /* +0x0a  where the next byte comes from */
+    dg_near_t buffer;          /* +0x08 */
+    dg_near_t curp;            /* +0x0a  where the next byte comes from */
     uint16_t  istemp;          /* +0x0c */
-    dg_off_t  token;           /* +0x0e  the record's own offset, filed by setup_streams */
+    dg_near_t token;           /* +0x0e  the record's own offset, filed by setup_streams */
 } __attribute__((packed));
 
 /* A stream offset of 0 is NULL - the failed open, which every caller tests. */
@@ -3200,7 +3222,7 @@ typedef struct file_rec FILE;
  * ---------------------------------------------------------------------------
  */
 struct open_file {
-    dg_off_t file_ptr;         /* +0x00  the Borland FILE this slot is for */
+    dg_near_t file_ptr;         /* +0x00  the Borland FILE this slot is for */
     uint8_t  path[0x19];       /* +0x02  the chunk tags walked into, four
                                          characters each, NUL-terminated */
     /*
@@ -3485,7 +3507,7 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  *   `s_` a run of `point8`  - an outline, copied a point at a time;
  *   `p_` a run of `point16`    - the same shape in words, where every other
  *                                byte is zero, read with a byte move;
- *   `o_` a run of `dg_off_t`   - **offsets of the tables above**, indexed by
+ *   `o_` a run of `dg_near_t`   - **offsets of the tables above**, indexed by
  *                                a part's form, so one kind reaches several
  *                                outlines.
  *
@@ -3514,11 +3536,11 @@ struct part_shapes {
     struct point8  s_3192[6];              /* 0x010  0x3192  6 pairs */
     struct point8  s_319e[6];              /* 0x01c  0x319e  6 pairs */
     struct point8  s_31aa[6];              /* 0x028  0x31aa  6 pairs */
-    dg_off_t          o_31b6[3];              /* 0x034  0x31b6  3 offsets */
+    dg_near_t         o_31b6[3];              /* 0x034  0x31b6  3 offsets */
     struct point8  s_31bc[6];              /* 0x03a  0x31bc  6 pairs */
     struct point8  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
     struct point8  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
-    dg_off_t          o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
+    dg_near_t         o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
     int16_t           glove_reach[6];         /* 0x064  0x31e6  -32 -82 0 80 130 0: how far the
                                                  boxing glove reaches, `part_step_boxing_glove` */
     struct point8  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
@@ -3555,12 +3577,12 @@ struct part_shapes {
     struct point8  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
     struct point8  s_3354[4];              /* 0x1d2  0x3354  4 pairs */
     struct point8  s_335c[4];              /* 0x1da  0x335c  4 pairs */
-    dg_off_t          o_3364[4];              /* 0x1e2  0x3364  4 offsets */
+    dg_near_t         o_3364[4];              /* 0x1e2  0x3364  4 offsets */
     struct point8  s_336c[4];              /* 0x1ea  0x336c  4 pairs */
     struct point8  s_3374[4];              /* 0x1f2  0x3374  4 pairs */
     struct point8  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
     struct point8  s_3384[4];              /* 0x202  0x3384  4 pairs */
-    dg_off_t          o_338c[4];              /* 0x20a  0x338c  4 offsets */
+    dg_near_t         o_338c[4];              /* 0x20a  0x338c  4 offsets */
     int16_t           jack_reach[3];          /* 0x212  0x3394  -21 -34 -59: how far the jack-in-the-box
                                                  reaches by form, `part_step_jack_in_the_box` */
     struct point16    p_339a[4];              /* 0x218  0x339a  4 points */
@@ -3569,11 +3591,11 @@ struct part_shapes {
     struct point8  s_33ce[4];              /* 0x24c  0x33ce  4 pairs */
     struct point8  s_33d6[4];              /* 0x254  0x33d6  4 pairs */
     struct point8  s_33de[4];              /* 0x25c  0x33de  4 pairs */
-    dg_off_t          o_33e6[3];              /* 0x264  0x33e6  3 offsets */
+    dg_near_t         o_33e6[3];              /* 0x264  0x33e6  3 offsets */
     struct point8  s_33ec[4];              /* 0x26a  0x33ec  4 pairs */
     struct point8  s_33f4[4];              /* 0x272  0x33f4  4 pairs */
     struct point8  s_33fc[4];              /* 0x27a  0x33fc  4 pairs */
-    dg_off_t          o_3404[3];              /* 0x282  0x3404  3 offsets */
+    dg_near_t         o_3404[3];              /* 0x282  0x3404  3 offsets */
     struct point16    p_340a[3];              /* 0x288  0x340a  3 points */
     struct point16    p_3416[3];              /* 0x294  0x3416  3 points */
     struct point8  s_3422[8];              /* 0x2a0  0x3422  8 pairs */
@@ -3583,10 +3605,10 @@ struct part_shapes {
     struct point8  s_3462[8];              /* 0x2e0  0x3462  8 pairs */
     struct point8  s_3472[8];              /* 0x2f0  0x3472  8 pairs */
     struct point8  s_3482[8];              /* 0x300  0x3482  8 pairs */
-    dg_off_t          o_3492[2];              /* 0x310  0x3492  2 offsets */
+    dg_near_t         o_3492[2];              /* 0x310  0x3492  2 offsets */
     struct point8  s_3496[8];              /* 0x314  0x3496  8 pairs */
     struct point8  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
-    dg_off_t          o_34b6[2];              /* 0x334  0x34b6  2 offsets */
+    dg_near_t         o_34b6[2];              /* 0x334  0x34b6  2 offsets */
     /* **The scissors' blade**, a segment of four words - x0, y0, x1, y1 - once
        as it stands and once mirrored; `part_step_scissors` picks one by the flip
        bit and `cut_belts` cuts every belt that crosses it. */
@@ -3704,11 +3726,11 @@ DG_ASSERT_AT(struct part_shapes, p_3522,        0x3a0);
 DG_ASSERT_AT(struct part_shapes, shaft_line,    0x3c0);
 
 struct belt {
-    dg_off_t  owner_ptr;       /* +0x00  the part this belt hangs off */
-    dg_off_t  end_a_ptr;       /* +0x02  the part end A is attached to */
-    dg_off_t  end_b_ptr;       /* +0x04  the part end B is attached to */
-    dg_off_t  home_a_ptr;      /* +0x06  the attachment the level file gave */
-    dg_off_t  home_b_ptr;      /* +0x08 */
+    dg_near_t owner_ptr;       /* +0x00  the part this belt hangs off */
+    dg_near_t end_a_ptr;       /* +0x02  the part end A is attached to */
+    dg_near_t end_b_ptr;       /* +0x04  the part end B is attached to */
+    dg_near_t home_a_ptr;      /* +0x06  the attachment the level file gave */
+    dg_near_t home_b_ptr;      /* +0x08 */
     uint8_t   slot_a;          /* +0x0a  which of end A's four +0x5a directions */
     uint8_t   slot_b;          /* +0x0b  the same for end B */
     uint8_t   home_slot_a;     /* +0x0c  the slot the level file gave */
@@ -3764,9 +3786,9 @@ _Static_assert(sizeof(struct belt) == 0x2c,
  */
 struct rope {
     uint16_t  word_00;         /* +0x00 */
-    dg_off_t  owner_ptr;       /* +0x02  the part this rope hangs off */
-    dg_off_t  end_a_ptr;       /* +0x04  the part end A is attached to */
-    dg_off_t  end_b_ptr;       /* +0x06  the part end B is attached to */
+    dg_near_t owner_ptr;       /* +0x02  the part this rope hangs off */
+    dg_near_t end_a_ptr;       /* +0x04  the part end A is attached to */
+    dg_near_t end_b_ptr;       /* +0x06  the part end B is attached to */
     struct point16 pt[3][4];   /* +0x08  three generations of four corners:
                                          gen 3 at +0x08, gen 2 at +0x18,
                                          gen 1 at +0x28 */
@@ -3856,8 +3878,8 @@ struct part_kind {
     int16_t   max_h;           /* +0x0e */
     int16_t   min_w;           /* +0x10 */
     int16_t   min_h;           /* +0x12 */
-    dg_off_t  bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
-    dg_off_t  bitmaps2_ptr;    /* +0x16  a second one */
+    dg_near_t bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
+    dg_near_t bitmaps2_ptr;    /* +0x16  a second one */
     uint16_t  word_18;         /* +0x18 */
     uint16_t  word_1a;         /* +0x1a */
     /* **Two level bounds, not padding.** `refile_overlapping_parts` compares a
@@ -4039,8 +4061,8 @@ extern struct part_kind PART_KINDS[PART_KIND_COUNT];
  * ---------------------------------------------------------------------------
  */
 struct queue_node {
-    dg_off_t  next;            /* +0x00 */
-    dg_off_t  part;            /* +0x02  the part that asked to move */
+    dg_near_t next;            /* +0x00 */
+    dg_near_t part;            /* +0x02  the part that asked to move */
     int32_t   momentum;        /* +0x04  the sort key: one Borland `long`,
                                          compared as `jg`/`jl` on the high
                                          word and `jae`/`ja` on the low */
@@ -4095,7 +4117,7 @@ struct rect_list_entry {
     uint16_t  area;            /* +0x10  w * h, from the creator's imul */
     uint16_t  block_head;      /* +0x12  1 on the first record of each heap block */
     struct far_ptr buf;        /* +0x14  the saved pixels, for mode 4 */
-    dg_off_t  next;            /* +0x18 */
+    dg_near_t next;            /* +0x18 */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct rect_list_entry, page_src, 0x08);
@@ -4170,7 +4192,7 @@ extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
  * ---------------------------------------------------------------------------
  */
 struct resource {
-    dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
+    dg_near_t work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
     struct far_ptr scratch;    /* +0x02  the far scratch block, which
                                   lzss_reset caches */
     /* **Where the resource's data lies.** Without bit 0x20 of `kind` it is a

@@ -115,7 +115,7 @@ void build_part_list(void)
         }
     }
 
-    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
+    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
     DG50AF.bonus_2 = 0;
     DG50AF.bonus_1 = 0;
     DG50AF.gravity = 0x43;
@@ -378,7 +378,7 @@ uint16_t part_init_pulley(struct part *part)
     part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
     if (part->belt_ptr[0] == 0)
         return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_off(dgroup, part);
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
     return 0;
 }
 
@@ -388,7 +388,7 @@ uint16_t part_init_belt(struct part *part)
     part->rope_ptr = heap_calloc_far(1, 0x38);
     if (part->rope_ptr == 0)
         return 1;
-    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_off(dgroup, part);
+    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_near(dgroup, part);
     return 0;
 }
 
@@ -410,7 +410,7 @@ uint16_t part_init_rope(struct part *part)
     part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
     if (part->belt_ptr[0] == 0)
         return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_off(dgroup, part);
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
     return 0;
 }
 
@@ -1142,7 +1142,7 @@ uint16_t part_init(uint32_t at, struct part *part)
  */
 void free_part(struct part *part)
 {
-    if (dg_off(dgroup, part) == 0)   /* the offset: `or si,si` at 0x14d9c */
+    if (dg_near(dgroup, part) == 0)   /* the offset: `or si,si` at 0x14d9c */
         return;
 
     if (part->points_ptr != 0)
@@ -1157,7 +1157,7 @@ void free_part(struct part *part)
             || part->kind == KIND_ROPE))
         checked_free(part->belt_ptr[0]);
 
-    checked_free(dg_off(dgroup, part));
+    checked_free(dg_near(dgroup, part));
 }
 
 /*
@@ -1192,7 +1192,7 @@ void free_part(struct part *part)
  */
 void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
 {
-    dg_off_t set = DG52ED.panel_art_ptr;
+    dg_near_t set = DG52ED.panel_art_ptr;
     int16_t  centre;
     int16_t  i;
 
@@ -1246,7 +1246,7 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
  */
 void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
 {
-    dg_off_t set = DG52ED.panel_art_ptr;
+    dg_near_t set = DG52ED.panel_art_ptr;
     int16_t  w, rounded, right, text_off, i;
 
     w = (int16_t)text_width_thunk(str);
@@ -1302,7 +1302,7 @@ void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
  */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    dg_off_t set = DG52ED.panel_art_ptr;
+    dg_near_t set = DG52ED.panel_art_ptr;
     int16_t  i, j;
 
     VMDS.clip_left    = x;
@@ -1376,7 +1376,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    dg_off_t set = DG52ED.panel_art_ptr;
+    dg_near_t set = DG52ED.panel_art_ptr;
     int16_t  i, j;
 
     set_clip_play_area();
@@ -1683,7 +1683,7 @@ void draw_machine_layer_a(void)
  */
 void draw_machine_layer_b(void)
 {
-    dg_off_t set;
+    dg_near_t set;
     int16_t  x;
 
     set_clip_play_area();
@@ -1710,7 +1710,7 @@ void draw_machine_layer_b(void)
  */
 void draw_machine_layer_c(void)
 {
-    dg_off_t set;
+    dg_near_t set;
     int16_t  x;
 
     set_clip_play_area();
@@ -1739,7 +1739,7 @@ void draw_machine_layer_c(void)
  */
 void draw_machine_layer_d(void)
 {
-    dg_off_t set;
+    dg_near_t set;
     int16_t  y;
 
     set_clip_play_area();
@@ -1781,7 +1781,7 @@ void draw_machine_layer_d(void)
  */
 void draw_machine_layer_e(void)
 {
-    dg_off_t set;
+    dg_near_t set;
     int16_t  n;
 
     draw_machine_layer_f();
@@ -1848,7 +1848,7 @@ void draw_machine_layer_e(void)
  */
 void draw_machine_layer_f(void)
 {
-    dg_off_t set;
+    dg_near_t set;
     int16_t  frame, slide_a, slide_b;
 
     VMDS.clip_enabled = 1;
@@ -2262,11 +2262,11 @@ void link_record_into_buckets(struct part *rec)
 
         if (slot == 0xFF)
             continue;
-        if (dg_off(dgroup, rec) == DG50D3.dragged_part_ptr)
+        if (dg_near(dgroup, rec) == DG50D3.dragged_part_ptr)
             slot = 0;
 
         rec->layer_next_ptr[i] = DG50BF.layer_head[slot];
-        DG50BF.layer_head[slot] = dg_off(dgroup, rec);
+        DG50BF.layer_head[slot] = dg_near(dgroup, rec);
         if (i == 0)
             rec->byte_7f = slot;
     }
@@ -2707,7 +2707,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     if (part->flags_08 & 0x1000) {
         v28 = OFF_TABLE(v26->bitmaps2_ptr)[v04];
     } else {
-        v28 = dg_off(dgroup, &DG0124);
+        v28 = dg_near(dgroup, &DG0124);
         DG0124.frame[0] = (uint8_t)v04;
         DG0124.level = (uint8_t)level;
 
@@ -2722,7 +2722,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 
     while (v28 != 0) {
         if (DRAWSTEP_PTR(v28)->level != (uint8_t)level
-            && dg_off(dgroup, part) != DG50D3.dragged_part_ptr)
+            && dg_near(dgroup, part) != DG50D3.dragged_part_ptr)
             goto next;
 
         v21 = DRAWSTEP_PTR(v28)->frame[0];

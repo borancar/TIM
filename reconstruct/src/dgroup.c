@@ -203,7 +203,7 @@ struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] DGROUP_AT(0x0133) = {
         },
     },
 };
-dg_off_t JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
+dg_near_t JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
     0x0133, 0x0142, 0x0151, 0x0160, 0x016f, 0x017e, 0x018d, 0x019c, 0x01ab,
     0x01ba, 0x01c9, 0x01d8, 0x01e7, 0x01f6, 0x0205, 0x0214, 0x0223, 0x0232,
     0x0241,
@@ -350,7 +350,7 @@ struct draw_step BOB_THE_FISH_DRAW_STEPS[23] DGROUP_AT(0x02e8) = {
         .offset = { { .x = 0xe4, .y = 0x19 }, { .x = 0x05, .y = 0x26 } },
     },
 };
-dg_off_t BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
+dg_near_t BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
     0x02e8, 0x02f7, 0x0306, 0x0315, 0x0324, 0x0333, 0x0342, 0x0351, 0x0360,
     0x036f, 0x037e, 0x038d, 0x039c, 0x03ab, 0x03ba, 0x03c9, 0x03d8, 0x03e7,
     0x03f6, 0x0405, 0x0414, 0x0423, 0x0432,
@@ -460,7 +460,7 @@ struct draw_step CANNON_DRAW_STEPS[15] DGROUP_AT(0x04f9) = {
         .offset = { { 0 }, { .x = 0x09, .y = 0x0d }, { .y = 0x02 } },
     },
 };
-dg_off_t CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
+dg_near_t CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
     0x04f9, 0x0508, 0x0517, 0x0526, 0x0535, 0x0544, 0x0553, 0x0562, 0x0580,
     0x059e, 0x05bc, 0x05cb,
 };
@@ -507,7 +507,7 @@ struct draw_step DYNAMITE_DRAW_STEPS[6] DGROUP_AT(0x063a) = {
         .offset = { [1] = { .x = 0x26, .y = 0x0c } },
     },
 };
-dg_off_t DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { 0x063a, 0x0649, 0x0658, 0x0667, 0x0676, 0x0685 };
+dg_near_t DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { 0x063a, 0x0649, 0x0658, 0x0667, 0x0676, 0x0685 };
 struct point16 DYNAMITE_FORM_SIZES[6] DGROUP_AT(0x06a0) = {
     { .x = 0x0030, .y = 0x001c }, { .x = 0x0038, .y = 0x001c },
     { .x = 0x0038, .y = 0x001c }, { .x = 0x0038, .y = 0x001c },
@@ -562,7 +562,7 @@ struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] DGROUP_AT(0x06c4) = {
         },
     },
 };
-dg_off_t ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { 0x06c4, 0x06d3, 0x06e2, 0x06f1, 0x0700, 0x070f, 0x071e, 0x072d };
+dg_near_t ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { 0x06c4, 0x06d3, 0x06e2, 0x06f1, 0x0700, 0x070f, 0x071e, 0x072d };
 struct point16 ELECTRIC_PLUG_FORM_SIZES[8] DGROUP_AT(0x074c) = {
     { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
     { .x = 0x0030, .y = 0x0020 }, { .x = 0x0030, .y = 0x0020 },
@@ -588,7 +588,7 @@ struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] DGROUP_AT(0x076c) = {
         .offset = { { .x = 0x67, .y = 0x0a }, { .x = 0x28, .y = 0x10 } },
     },
 };
-dg_off_t DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { 0x076c, 0x077b, 0x078a };
+dg_near_t DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { 0x076c, 0x077b, 0x078a };
 struct point16 DYNAMITE_PLUNGER_FORM_SIZES[3] DGROUP_AT(0x079f) = {
     { .x = 0x0087, .y = 0x0030 }, { .x = 0x0087, .y = 0x002e },
     { .x = 0x0087, .y = 0x0029 },
@@ -616,7 +616,7 @@ struct draw_step FAN_DRAW_STEPS[4] DGROUP_AT(0x07b1) = {
         .offset = { { .y = 0x08 }, { .x = 0x10 } },
     },
 };
-dg_off_t FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { 0x07b1, 0x07c0, 0x07cf, 0x07de };
+dg_near_t FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { 0x07b1, 0x07c0, 0x07cf, 0x07de };
 struct point16 FAN_FORM_SIZES[4] DGROUP_AT(0x07f5) = {
     { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
     { .x = 0x0020, .y = 0x0020 }, { .x = 0x0020, .y = 0x0020 },
@@ -715,7 +715,7 @@ struct draw_step GENERATOR_DRAW_STEPS[16] DGROUP_AT(0x0805) = {
         },
     },
 };
-dg_off_t GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
+dg_near_t GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
     0x0805, 0x0814, 0x0823, 0x0832, 0x0841, 0x0850, 0x085f, 0x086e, 0x087d,
     0x088c, 0x089b, 0x08aa, 0x08b9, 0x08c8, 0x08d7, 0x08e6,
 };
@@ -768,7 +768,7 @@ struct draw_step GUN_DRAW_STEPS[7] DGROUP_AT(0x0975) = {
     },
     [6] = { .level = 0x04, .frame = { 0x00, 0xff, 0xff, 0xff } },
 };
-dg_off_t GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { 0x0975, 0x0984, 0x0993, 0x09a2, 0x09b1, 0x09c0, 0x09cf };
+dg_near_t GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { 0x0975, 0x0984, 0x0993, 0x09a2, 0x09b1, 0x09c0, 0x09cf };
 struct point16 GUN_FORM_SIZES[7] DGROUP_AT(0x09ec) = {
     { .x = 0x0040, .y = 0x001f }, { .x = 0x0038, .y = 0x0024 },
     { .x = 0x0080, .y = 0x0025 }, { .x = 0x0070, .y = 0x0022 },
@@ -802,7 +802,7 @@ struct draw_step LIGHT_DRAW_STEPS[4] DGROUP_AT(0x0a16) = {
         .offset = { { .x = 0xf8 }, { .x = 0x13, .y = 0x02 } },
     },
 };
-dg_off_t LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { 0x0a16, 0x0a25, 0x0a34, 0x0a43 };
+dg_near_t LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { 0x0a16, 0x0a25, 0x0a34, 0x0a43 };
 struct point16 LIGHT_FORM_SIZES[4] DGROUP_AT(0x0a5a) = {
     { .x = 0x0020, .y = 0x0036 }, { .x = 0x002f, .y = 0x0048 },
     { .x = 0x0020, .y = 0x0026 }, { .x = 0x002f, .y = 0x0032 },
@@ -883,7 +883,7 @@ struct draw_step MONKEY_DRAW_STEPS[13] DGROUP_AT(0x0a72) = {
         },
     },
 };
-dg_off_t MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
+dg_near_t MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
     0x0a72, 0x0a81, 0x0a90, 0x0a9f, 0x0aae, 0x0abd, 0x0acc, 0x0adb, 0x0aea,
     0x0af9, 0x0b08, 0x0b17, 0x0b26,
 };
@@ -948,7 +948,7 @@ struct draw_step ROCKET_DRAW_STEPS[10] DGROUP_AT(0x0b83) = {
         .offset = { [1] = { .y = 0x2e } },
     },
 };
-dg_off_t ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
+dg_near_t ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
     0x0b83, 0x0b92, 0x0ba1, 0x0bb0, 0x0bbf, 0x0bce, 0x0bdd, 0x0bec, 0x0bfb,
     0x0c0a,
 };
@@ -973,7 +973,7 @@ struct draw_step SCISSORS_DRAW_STEPS[3] DGROUP_AT(0x0c69) = {
         .offset = { { .x = 0xfe, .y = 0x04 } },
     },
 };
-dg_off_t SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { 0x0c78, 0x0c87 };
+dg_near_t SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { 0x0c78, 0x0c87 };
 struct point16 SCISSORS_FORM_SIZES[2] DGROUP_AT(0x0c9a) = { { .x = 0x0028, .y = 0x0022 }, { .x = 0x0030, .y = 0x0018 } };
 struct point8 SCISSORS_HOT_SPOTS[2] DGROUP_AT(0x0ca2) = { [1] = { .x = 0xfe } };
 struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
@@ -994,7 +994,7 @@ struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
         .offset = { { 0 }, { .x = 0x34, .y = 0x04 }, { .x = 0x34, .y = 0x12 } },
     },
 };
-dg_off_t SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { 0x0ca6, 0x0cb5, 0x0cc4, 0x0cd3 };
+dg_near_t SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { 0x0ca6, 0x0cb5, 0x0cc4, 0x0cd3 };
 struct point16 SOLAR_PANEL_FORM_SIZES[4] DGROUP_AT(0x0cea) = {
     { .x = 0x0048, .y = 0x0020 }, { .x = 0x0048, .y = 0x0020 },
     { .x = 0x0048, .y = 0x0020 }, { .x = 0x0048, .y = 0x0020 },
@@ -1047,7 +1047,7 @@ struct draw_step TRAMPOLINE_DRAW_STEPS[10] DGROUP_AT(0x0cfa) = {
         .offset = { { .y = 0xfd } },
     },
 };
-dg_off_t TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { 0x0d09, 0x0d27, 0x0d45, 0x0d63, 0x0d81 };
+dg_near_t TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { 0x0d09, 0x0d27, 0x0d45, 0x0d63, 0x0d81 };
 struct point16 TRAMPOLINE_FORM_SIZES[5] DGROUP_AT(0x0d9a) = {
     { .x = 0x0030, .y = 0x001c }, { .x = 0x0030, .y = 0x001c },
     { .x = 0x0030, .y = 0x001c }, { .x = 0x0030, .y = 0x001c },
@@ -1082,7 +1082,7 @@ struct draw_step CANDLE_DRAW_STEPS[6] DGROUP_AT(0x0db8) = {
         .offset = { [1] = { .x = 0x0b, .y = 0xfc } },
     },
 };
-dg_off_t CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { 0x0db8, 0x0dc7, 0x0dd6, 0x0de5, 0x0df4, 0x0e03 };
+dg_near_t CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { 0x0db8, 0x0dc7, 0x0dd6, 0x0de5, 0x0df4, 0x0e03 };
 struct point16 CANDLE_FORM_SIZES[6] DGROUP_AT(0x0e1e) = {
     { .x = 0x0022, .y = 0x0020 }, { .x = 0x0022, .y = 0x0024 },
     { .x = 0x0022, .y = 0x0024 }, { .x = 0x0022, .y = 0x0024 },

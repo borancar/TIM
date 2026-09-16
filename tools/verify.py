@@ -174,12 +174,12 @@ def dgo(lib, p):
 
     A routine that now returns `dg_near` hands back a host address, and the
     original answers a DGROUP offset in AX. The hybrid's shims do this with
-    `dg_off`; here the spec's own `call` has to, because it reaches the C
+    `dg_near`; here the spec's own `call` has to, because it reaches the C
     directly. Without it the comparison reads `original AX=0x491d port=0x1dfd`
     - a truncated pointer, which looks like a wrong answer rather than a wrong
     unit.
     """
-    # A null pointer is the offset zero - see the note on `dg_off` in
+    # A null pointer is the offset zero - see the note on `dg_near` in
     # dgroup.h. `(p or 0) - base` would answer `-base` truncated, which is a
     # large offset and which every caller of `string_chr` would read as
     # "found".
@@ -214,7 +214,7 @@ def dgp(lib, off):
     - the hybrid's shims, and here. It is `dg_ptr(dgroup, off)`, done from
     outside: the library's `guest_mem` plus its `dgroup_base` plus the offset.
     """
-    # **Offset 0 is NULL**, the mirror of `dg_off` answering 0 for a null
+    # **Offset 0 is NULL**, the mirror of `dg_near` answering 0 for a null
     # pointer - see the note on it in dgroup.h. `load_sound_bank` takes an
     # out-parameter it tests with `if (out != NULL)`, and the original passes 0
     # to mean "do not write it"; handing the port `dgroup + 0` instead makes
@@ -6028,7 +6028,7 @@ def main():
             # `struct far_ptr` and a `FILE *`; its spec built a `FarPtr` for
             # the first and passed `c_uint16(a[6])` for the second, and the
             # test "is there a pointer spelling anywhere in the body" was
-            # satisfied by the first. The port then took `dg_off` of a small
+            # satisfied by the first. The port then took `dg_near` of a small
             # integer and aborted the whole sweep - after the collection, in
             # the same place `load_sound_bank` had. So the number of pointer
             # spellings has to reach the number of pointer parameters; a

@@ -1002,7 +1002,7 @@ static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
  */
 static void guest_load_machine(uc_engine *uc, const char *file)
 {
-    uint16_t arg = dg_off(dgroup, DG52FE.name);
+    uint16_t arg = dg_near(dgroup, DG52FE.name);
     int32_t i;
 
     /* Bounded by the field: the picker's buffer is thirteen bytes, an 8.3 name

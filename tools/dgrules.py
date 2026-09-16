@@ -20,7 +20,7 @@ argument that is an address.
                  That argument is an address, and the cast to `uint16_t` is
                  what a near pointer looks like once it has been written as
                  arithmetic. With the struct in place it reads
-                 `dg_off(&VMDS.font_table_34[si])`, which says which table.
+                 `dg_near(&VMDS.font_table_34[si])`, which says which table.
                  The bare form - a hex constant on its own, `load_bitmaps(0x25e8)`
                  - is reported separately: it is the same kind of value and a
                  much weaker signal, since a constant argument is often just a
@@ -135,7 +135,7 @@ def record_base(src, node):
 
 
 FRAME_RHS = re.compile(r"^\(uint16_t\)\(\s*fp\b|^fp\b")
-DECL = re.compile(r"\b(?:uint16_t|dg_off_t)\s+(\w+)\s*=\s*(.+?);")
+DECL = re.compile(r"\b(?:uint16_t|dg_near_t)\s+(\w+)\s*=\s*(.+?);")
 ASSIGN = re.compile(r"^\s*(\w+)\s*=\s*(.+?);")
 FUNC = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
 
@@ -475,7 +475,7 @@ def rule_const_addr(paths):
                     continue
                 callee = text(src, call.child_by_field_name("function"))
                 if re.match(r"DG(8|16|32|U16)$", callee) \
-                        or callee in ("dg_ptr", "dg_off"):
+                        or callee in ("dg_ptr", "dg_near"):
                     used.add(text(src, n))
             for v in sorted(used):
                 val, line = lit[v]
@@ -576,7 +576,7 @@ def main():
     if args.rule in ("offset-arg", "both"):
         indexed, bare = rule_offset_arg(paths)
         print("POINTER-LIKE ARGUMENTS, written as arithmetic - each of these is")
-        print("an address, and `dg_off(&STRUCT.field[i])` says which table:")
+        print("an address, and `dg_near(&STRUCT.field[i])` says which table:")
         print("   %d sites" % len(indexed))
         for f, line, fn, txt in indexed[:args.top]:
             print("      %-18s:%-5d %s(%s ...)" % (f, line, fn, txt))

@@ -221,14 +221,14 @@ void part_setup_gear(struct part *part)
 
         if (dy == 0) {
             if (dx == 0x20)
-                part->link_ptr[0] = dg_off(dgroup, di);
+                part->link_ptr[0] = dg_near(dgroup, di);
             else if (dx == -0x20)
-                part->link_ptr[1] = dg_off(dgroup, di);
+                part->link_ptr[1] = dg_near(dgroup, di);
         } else if (dx == 0) {
             if (dy == 0x20)
-                part->link_ptr[2] = dg_off(dgroup, di);
+                part->link_ptr[2] = dg_near(dgroup, di);
             else if (dy == -0x20)
-                part->link_ptr[3] = dg_off(dgroup, di);
+                part->link_ptr[3] = dg_near(dgroup, di);
         }
     }
 }
@@ -2172,7 +2172,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (di == 0 && mode != 1) {
         p2->direction = drive;
 
-        di = (int16_t)drive_belts(dg_off(dgroup, p1), p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
+        di = (int16_t)drive_belts(dg_near(dgroup, p1), p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
 
         if ((p4 & 0x8000) != 0)
             p2->direction = was;
@@ -4068,7 +4068,7 @@ uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
         if (v10 == from)
             continue;
 
-        if (BELT_PTR(si)->end_a_ptr == dg_off(dgroup, part)) {
+        if (BELT_PTR(si)->end_a_ptr == dg_near(dgroup, part)) {
             v06 = 0;
             v08 = BELT_PTR(si)->slot_a;
             v0a = BELT_PTR(si)->slot_b;
@@ -4107,14 +4107,14 @@ uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_
     switch (off) {
     case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
     case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2451: return part_drive_2451(dg_off(dgroup, p1), p2, p3, p4, p5, p6, p7);
+    case 0x2451: return part_drive_2451(dg_near(dgroup, p1), p2, p3, p4, p5, p6, p7);
     case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
     case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
     case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
     case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
     case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
     case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2c19: return part_drive_2c19(dg_off(dgroup, p1), p2, p3, p4, p5, p6, p7);
+    case 0x2c19: return part_drive_2c19(dg_near(dgroup, p1), p2, p3, p4, p5, p6, p7);
     default: break;
     }
 
@@ -4626,7 +4626,7 @@ void cut_belts(struct part *part, const int16_t *line)
             carrier->flags_06 |= 0x10;
 
             newbelt = carrier->belt_ptr[0];
-            BELT_PTR(newbelt)->end_a_ptr = dg_off(dgroup, anchorB);
+            BELT_PTR(newbelt)->end_a_ptr = dg_near(dgroup, anchorB);
             BELT_PTR(newbelt)->end_b_ptr = endB;
             BELT_PTR(newbelt)->slot_a = 0;
             BELT_PTR(newbelt)->slot_b =
@@ -4637,24 +4637,24 @@ void cut_belts(struct part *part, const int16_t *line)
 
             if (PART_PTR(next)->kind == 7) {
                 PART_PTR(next)->belt_ptr[1] = newbelt;
-                PART_PTR(next)->link_ptr[1] = dg_off(dgroup, anchorB);
+                PART_PTR(next)->link_ptr[1] = dg_near(dgroup, anchorB);
             } else {
                 PART_PTR(next)->belt_ptr[slotB] = newbelt;
-                PART_PTR(next)->link_ptr[slotB] = dg_off(dgroup, anchorB);
+                PART_PTR(next)->link_ptr[slotB] = dg_near(dgroup, anchorB);
             }
 
             PART_PTR(endB)->belt_ptr[BELT_PTR(newbelt)->slot_b] =
                 newbelt;
 
-            belt->end_b_ptr = dg_off(dgroup, di);
+            belt->end_b_ptr = dg_near(dgroup, di);
             belt->slot_b = 0;
             di->link_ptr[0] = prev;
-            di->belt_ptr[0] = dg_off(dgroup, belt);
+            di->belt_ptr[0] = dg_near(dgroup, belt);
 
             if (PART_PTR(prev)->kind == 7)
-                PART_PTR(prev)->link_ptr[0] = dg_off(dgroup, di);
+                PART_PTR(prev)->link_ptr[0] = dg_near(dgroup, di);
             else
-                PART_PTR(prev)->link_ptr[slotA] = dg_off(dgroup, di);
+                PART_PTR(prev)->link_ptr[slotA] = dg_near(dgroup, di);
 
             di->pos[1].x = di->pos[0].x;
             di->pos[2].x = di->pos[0].x;
@@ -4785,20 +4785,20 @@ uint16_t part_step_balloon(struct part *part)
     insert_sorted(si, &DG5179.moving_parts);
     si->flags_06 |= 0x10;
 
-    si->belt_ptr[0] = dg_off(dgroup, belt);
+    si->belt_ptr[0] = dg_near(dgroup, belt);
     si->link_ptr[0] = part->link_ptr[0];
     link = PART_PTR(si->link_ptr[0]);
 
     k = match_field_5a_5c(part, link);
     if (((int16_t)k) != -1)
-        link->link_ptr[k] = dg_off(dgroup, si);
+        link->link_ptr[k] = dg_near(dgroup, si);
 
-    if (belt->end_a_ptr == dg_off(dgroup, part)) {
-        belt->end_a_ptr = dg_off(dgroup, si);
+    if (belt->end_a_ptr == dg_near(dgroup, part)) {
+        belt->end_a_ptr = dg_near(dgroup, si);
         si->pos[0].x = belt->pt[0][0].x;
         si->pos[0].y = belt->pt[0][0].y;
     } else {
-        belt->end_b_ptr = dg_off(dgroup, si);
+        belt->end_b_ptr = dg_near(dgroup, si);
         si->pos[0].x = belt->pt[0][1].x;
         si->pos[0].y = belt->pt[0][1].y;
     }

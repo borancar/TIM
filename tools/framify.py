@@ -131,7 +131,7 @@ def _arg_index(text, at):
 #: **A spelling, not a use.** `dg_ptr(dgroup, si)` *is* `si` - it is how a slot
 #: reaches a parameter that takes a pointer - and stopping at it names `dg_ptr`
 #: as the callee, so whatever the slot was really passed to is never examined.
-TRANSPARENT = ('dg_ptr', 'dg_off', 'dg_cptr')
+TRANSPARENT = ('dg_ptr', 'dg_near', 'dg_cptr')
 
 
 def _real_call(text, at):
@@ -336,8 +336,8 @@ def convert(path, names, verbose=True, in_dgroup=False):
         #
         # `read_record` passes `&b3` to `read_resource(handle, off, seg, 1)`,
         # which writes through it *as a DGROUP address*. Once `b3` points into
-        # a C array, `dg_off(dgroup, b3)` is the distance between two unrelated
-        # objects - a number, accepted by the compiler because `dg_off` takes a
+        # a C array, `dg_near(dgroup, b3)` is the distance between two unrelated
+        # objects - a number, accepted by the compiler because `dg_near` takes a
         # `void *`, and pointing nowhere the callee should write. Forty-one
         # call sites were "fixed" that way in one sitting by wrapping whatever
         # the compiler complained about; every one of them was wrong, and the
@@ -372,14 +372,14 @@ def convert(path, names, verbose=True, in_dgroup=False):
             # the set on its own left `vp[0] = (int16_t)scratch;` - a host
             # pointer truncated to sixteen bits, which is the very bug this
             # tool exists to stop. Every place a slot is *used as a number*
-            # gets `dg_off(dgroup, slot)`, which is sound here because the
+            # gets `dg_near(dgroup, slot)`, which is sound here because the
             # bytes really are in DGROUP.
             #
             # **This mode is not finished, and its limits are the reason.**
             # Tried on `draw_compressed_bitmap` and `blit_scaled_a` on
             # 2026-09-09 it produced sound but poor C: the wrapper rewrote a
             # slot's name inside a *comment*, and a slot read at two widths
-            # came out as `DG16(dg_off(dgroup, vcut))` where `dg_rd16(vcut)`
+            # came out as `DG16(dg_near(dgroup, vcut))` where `dg_rd16(vcut)`
             # says it. Both are cosmetic and neither is worth a regex pass
             # over the blitter, so the mode exists and the drawing routines
             # were left alone. Anyone finishing it wants: skip comments and
@@ -467,7 +467,7 @@ def convert(path, names, verbose=True, in_dgroup=False):
             # really do have to be the guest's; what they gain is the same
             # spelling as the converted ones, typed slots and array indexing
             # instead of `DG16((uint16_t)(v + k))`, which is where the width
-            # bugs live. `dg_off(dgroup, slot)` is sound here, exactly because
+            # bugs live. `dg_near(dgroup, slot)` is sound here, exactly because
             # the bytes are in DGROUP.
             head = ("uint8_t *%s = dg_ptr(dgroup, dg_alloca(%#04x));"
                     "   /* **not** a C array: this frame's address\n"
@@ -713,10 +713,10 @@ def convert(path, names, verbose=True, in_dgroup=False):
                             or re.search(r'(?:uint8_t|int16_t|int32_t)\s*\*\s*$',
                                          pre) \
                             or post.startswith(('++', '--', ' =', '[')) \
-                            or 'dg_off(dgroup, ' in pre[-16:]:
+                            or 'dg_near(dgroup, ' in pre[-16:]:
                         continue
                     out.append(nb[last:um.start()])
-                    out.append("dg_off(dgroup, %s)" % v)
+                    out.append("dg_near(dgroup, %s)" % v)
                     last = um.end()
                 if out:
                     out.append(nb[last:])

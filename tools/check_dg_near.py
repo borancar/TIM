@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Refuse a `dg_off` anywhere but a store into a near-pointer field.
+"""Refuse a `dg_near` anywhere but a store into a near-pointer field.
 
-`dg_off(dgroup, p)` turns a pointer back into the 16-bit offset the original
+`dg_near(dgroup, p)` turns a pointer back into the 16-bit offset the original
 kept. That is only ever needed at one boundary: where the value is **filed into
 guest memory**, because a DGROUP field holds a word, not a host pointer. Used
 anywhere else it is the pointer being turned back into a number too early -
 passed to a callee that should take the pointer, returned where the pointer
 should be answered, held in a local, or compared, which is the case that hides
-best: `dg_off(dgroup, si) != dg_off(dgroup, file)` asks what `si != file`
-asks, and `dg_off(dgroup, p) == DG50D3.dragged_part_ptr` is
+best: `dg_near(dgroup, si) != dg_near(dgroup, file)` asks what `si != file`
+asks, and `dg_near(dgroup, p) == DG50D3.dragged_part_ptr` is
 `p == PART_PTR(DG50D3.dragged_part_ptr)`, the field turned into a pointer
 where it is read.
 
-So, over a tree-sitter parse of the port's sources, a `dg_off` call must be the
+So, over a tree-sitter parse of the port's sources, a `dg_near` call must be the
 **whole right-hand side of an assignment to a struct field** - `x.f = ...` or
 `x->f = ...`, through any subscripts - and that field must be named `..._ptr`
-and declared `dg_off_t`, the type that says "a near pointer" (see dgroup.h).
+and declared `dg_near_t`, the type that says "a near pointer" (see dgroup.h).
 A cast around the call is refused: a field of the right type needs none.
 
 This file is the port's own tooling; it is not a transcription. GPL-2.0.
@@ -62,7 +62,7 @@ def field_types(paths):
             if t is None:
                 continue
             for d in n.children_by_field_name("declarator"):
-                # `dg_off_t name;`, `dg_off_t name[4];` - the name is the
+                # `dg_near_t name;`, `dg_near_t name[4];` - the name is the
                 # innermost field_identifier, and an array of near pointers
                 # is still a near-pointer field.
                 ids = [c for c in walk(d) if c.type == "field_identifier"]
@@ -127,7 +127,7 @@ def main():
     headers = sorted(glob.glob(os.path.join(REC, "*.h"))
                      + glob.glob(os.path.join(REC, "src", "*.h")))
     if not sources:
-        sys.exit("check_dg_off: no sources found under reconstruct/")
+        sys.exit("check_dg_near: no sources found under reconstruct/")
     types = field_types(sources + headers)
 
     bad = []
@@ -137,7 +137,7 @@ def main():
             if n.type != "call_expression":
                 continue
             fn = n.child_by_field_name("function")
-            if fn is None or text(src, fn) != "dg_off":
+            if fn is None or text(src, fn) != "dg_near":
                 continue
             line = n.start_point[0] + 1
             where = os.path.relpath(path, REC)
@@ -149,7 +149,7 @@ def main():
             if not field.endswith("_ptr"):
                 bad.append((where, line, f"stored into `{field}`, not a `_ptr` field",
                             text(src, n.parent)))
-            elif declared != {"dg_off_t"}:
+            elif declared != {"dg_near_t"}:
                 bad.append((where, line,
                             f"stored into `{field}`, declared "
                             + (" / ".join(sorted(declared)) or "nowhere"),
@@ -161,10 +161,10 @@ def main():
         if not args.quiet:
             for where, line, why, what in bad:
                 print(f"{where}:{line}: {why}: {' '.join(what.split())[:110]}")
-        print("FAIL: %d dg_off uses that are not a store into a dg_off_t _ptr field (%s)"
+        print("FAIL: %d dg_near uses that are not a store into a dg_near_t _ptr field (%s)"
               % (len(bad), ", ".join(f"{v} {k}" for k, v in kinds.most_common())))
         return 1
-    print("every dg_off is a store into a dg_off_t _ptr field")
+    print("every dg_near is a store into a dg_near_t _ptr field")
     return 0
 
 

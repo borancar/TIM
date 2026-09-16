@@ -296,7 +296,7 @@ def convert(path, names, verbose=True):
             # 52-byte buffer as one byte.
             # **A bare pass is checked whichever way the size was reached.**
             # Setting `most` from an accessor's width used to skip this scan,
-            # and `decode_vqt_list`'s reader record - handed to `dg_off` and
+            # and `decode_vqt_list`'s reader record - handed to `dg_near` and
             # written at `rd + 2` upwards - came out two bytes because of it.
             if passed:
                 for stmt in body.split(";"):

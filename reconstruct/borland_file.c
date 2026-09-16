@@ -477,7 +477,7 @@ void setup_streams(void)
     for (dx = 5; dx < BORLAND_NFILE.word_4d04; dx++) {
         BORLAND_HANDLE_FLAGS.flags[dx] = 0;
         BORLAND_STREAMS.streams[dx].fd = 0xff;
-        BORLAND_STREAMS.streams[dx].token = dg_off(dgroup, &BORLAND_STREAMS.streams[dx]);
+        BORLAND_STREAMS.streams[dx].token = dg_near(dgroup, &BORLAND_STREAMS.streams[dx]);
     }
 
     if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[0].fd) == 0)
@@ -711,7 +711,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
  */
 void flush_all_streams(void)
 {
-    uint16_t si = dg_off(dgroup, &BORLAND_STREAMS.streams[0]);
+    uint16_t si = dg_near(dgroup, &BORLAND_STREAMS.streams[0]);
     int16_t n;
 
     for (n = 0x14; n != 0; n--) {
@@ -817,7 +817,7 @@ int16_t borland_fgetc(struct file_rec *file)
                     flush_all_streams();
 
                 if (read_translated((int16_t)((int8_t)file->fd),
-                                    dg_off(dgroup, &BORLAND_ATEXIT_TABLE.getc_byte), 1) == 0) {
+                                    dg_near(dgroup, &BORLAND_ATEXIT_TABLE.getc_byte), 1) == 0) {
                     if (borland_eof((int16_t)((int8_t)file->fd)) == 1) {
                         file->flags = (uint16_t)((file->flags & 0xfe7f) | 0x20);
                         return -1;
@@ -895,7 +895,7 @@ int16_t flush_stream(struct file_rec *file)
     if (file == 0)
         return borland_flushall();
 
-    if (file->token != dg_off(dgroup, file))
+    if (file->token != dg_near(dgroup, file))
         return -1;
 
     if (file->level < 0) {
@@ -917,13 +917,13 @@ int16_t flush_stream(struct file_rec *file)
     }
 
     if ((file->flags & 8) == 0) {
-        if (file->curp != dg_off(dgroup, &file->hold))
+        if (file->curp != dg_near(dgroup, &file->hold))
             return 0;
     }
 
     file->level = 0;
 
-    if (file->curp != dg_off(dgroup, &file->hold))
+    if (file->curp != dg_near(dgroup, &file->hold))
         return 0;
 
     file->curp = ((int16_t)file->buffer);
@@ -1093,7 +1093,7 @@ int16_t borland_fclose(struct file_rec *file)
 {
     int16_t si = -1;
 
-    if (file->token != dg_off(dgroup, file))
+    if (file->token != dg_near(dgroup, file))
         return -1;
 
     if (file->bsize != 0) {
@@ -1763,7 +1763,7 @@ have_handle:
  */
 int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint16_t size)
 {
-    if (file->token != dg_off(dgroup, file) || mode > 2 || size > 0x7fff)
+    if (file->token != dg_near(dgroup, file) || mode > 2 || size > 0x7fff)
         return -1;
 
     if (DG4E34.stdout_is_tty == 0 && file == &BORLAND_STREAMS.streams[1])
@@ -1779,8 +1779,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
 
     file->flags = (int16_t)(file->flags & 0xfff3);
     file->bsize = 0;
-    file->buffer = dg_off(dgroup, &file->hold);
-    file->curp = dg_off(dgroup, &file->hold);
+    file->buffer = dg_near(dgroup, &file->hold);
+    file->curp = dg_near(dgroup, &file->hold);
 
     if (mode == 2 || size == 0)
         return 0;
@@ -2317,20 +2317,20 @@ char *string_concat(char *dst, const char *src)
      * original aligns with one `movsb` when the source is odd, and "odd" there
      * means odd in the segment. A host address has its own parity and it is a
      * different number - the bytes copied come out the same either way, but
-     * the branch would no longer be the one the original takes. `dg_off` is
+     * the branch would no longer be the one the original takes. `dg_near` is
      * what makes it the same test.
      *
      * **And a source that is not the guest's has no such parity at all.**
      * Three callers hand this a C array - `count_level_files`, `load_level`
      * and `load_part_bitmap`, whose buffers stopped being DGROUP frames when
-     * the string routines took pointers - and `dg_off` on one of those is the
+     * the string routines took pointers - and `dg_near` on one of those is the
      * distance between two unrelated objects, so the branch was being decided
      * by a number that means nothing. It cost nothing, because the two arms
      * copy the same bytes: the step copies one and takes one off `n`. So the
      * port asks the question only where there is an offset to ask it about,
      * and takes the even arm otherwise - the one an aligned buffer gets.
      */
-    if (dg_is_guest(src) && (dg_off(dgroup, src) & 1) != 0) {
+    if (dg_is_guest(src) && (dg_near(dgroup, src) & 1) != 0) {
         *d = *src;
         d++;
         src++;
@@ -3176,7 +3176,7 @@ int16_t borland_eof(int16_t handle)
 int16_t borland_flushall(void)
 {
     int16_t  count = 0;
-    uint16_t si = dg_off(dgroup, &BORLAND_STREAMS.streams[0]);
+    uint16_t si = dg_near(dgroup, &BORLAND_STREAMS.streams[0]);
     uint16_t n;
 
     for (n = BORLAND_NFILE.word_4d04; n != 0; n--) {

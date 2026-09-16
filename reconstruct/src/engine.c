@@ -568,7 +568,7 @@ struct engine_font_mode ENGINE_FONT_MODE DGROUP_AT(0x495a) = { .mode_r = "r" };
  * name. Nothing in the port writes it: the value comes in with the image.
  */
 struct engine_font_chunk {
-    dg_off_t  font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
+    dg_near_t font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
 } __attribute__((packed));
 
 struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
@@ -611,7 +611,7 @@ DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
  * and a hundred words run exactly to `ENGINE_STREAM` at 0x5888.
  */
 struct engine_resource_slots {
-    dg_off_t  slot[0x64];         /* +0x00 [0xc8] */
+    dg_near_t slot[0x64];         /* +0x00 [0xc8] */
 } __attribute__((packed));
 
 struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
@@ -628,11 +628,11 @@ struct engine_stream {
                                      bits pick the handler, 0x20 reads from memory, 0x40 means
                                      opened for reading */
     uint8_t   pad_01;             /* +0x01 [1] */
-    dg_off_t  record_ptr;         /* +0x02 [2]  the record being read */
+    dg_near_t record_ptr;         /* +0x02 [2]  the record being read */
     struct far_ptr scratch;       /* +0x04 [4]  the decompressor's block; every
                                      use is a `huge_add` from its base */
     uint16_t  wanted;             /* +0x08 [2]  how many bytes the caller still wants */
-    dg_off_t  spill_ptr;          /* +0x0a [2]  the record's work_ptr, the buffer a run that does not fit spills into */
+    dg_near_t spill_ptr;          /* +0x0a [2]  the record's work_ptr, the buffer a run that does not fit spills into */
     struct far_ptr out;           /* +0x0c [4]  the decompression output cursor:
                                      `read_resource` normalises the caller's
                                      destination into it and three
@@ -1567,7 +1567,7 @@ int16_t next_lzw_code(void)
 
     {
         uint16_t width = ((uint16_t)ENGINE_STREAM.n_bits);
-        int16_t n = read_input_block(dg_off(dgroup, ENGINE_LZW_WINDOW.window), width);
+        int16_t n = read_input_block(dg_near(dgroup, ENGINE_LZW_WINDOW.window), width);
 
         if (n <= 0) {
             ENGINE_STREAM.bit_end = n;
@@ -1964,7 +1964,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
         return -1;
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->data.off = dg_off(dgroup, file);
+    RESOURCE_PTR(rec)->data.off = dg_near(dgroup, file);
 
     pos = game_ftell(file);
     rec = ENGINE_STREAM.record_ptr;
@@ -4742,7 +4742,7 @@ uint16_t load_font(char *name)
 
             if (failed == 0) {
                 ENGINE_FONTS.body[si].seg = DGROUP_SEG;
-                ENGINE_FONTS.body[si].off = dg_off(dgroup, p);
+                ENGINE_FONTS.body[si].off = dg_near(dgroup, p);
                 ENGINE_FONT_WIDTHS.width[si] = FAR_NULL;
                 ENGINE_FONT_SLOTS.slot[si] = FAR_NULL;
             } else {
@@ -4844,7 +4844,7 @@ uint16_t load_bitmap_list(char *name)
             heap_free_far(scratch);
             scratch = heap_malloc_far(0x3ac4);
             if (scratch != NULL) {
-                DG3576.scratch = (struct far_ptr){ dg_off(dgroup, scratch), DGROUP_SEG };
+                DG3576.scratch = (struct far_ptr){ dg_near(dgroup, scratch), DGROUP_SEG };
                 huge_add_to(&DG3576.scratch, 0x10);
                 DG3576.scratch = normalise_far_ptr_far(
                     (struct far_ptr){
@@ -4947,7 +4947,7 @@ done:
         close_file_record(si);
 
     {
-        uint16_t answer = dg_off(dgroup, list_at);
+        uint16_t answer = dg_near(dgroup, list_at);
         return answer;
     }
 }
@@ -4970,7 +4970,7 @@ void free_bitmap_list(bmp_ptr_t * list)
     if (list[0] != 0)
         heap_free_far(dg_ptr(dgroup, list[0]));
 
-    if (dg_off(dgroup, list) != 0)
+    if (dg_near(dgroup, list) != 0)
         heap_free_far((uint8_t *)list);
 }
 
@@ -5009,7 +5009,7 @@ void free_bitmap_list(bmp_ptr_t * list)
  */
 void free_bitmaps(bmp_ptr_t * list)
 {
-    if (dg_off(dgroup, list) == 0)
+    if (dg_near(dgroup, list) == 0)
         return;
 
     dos_free_far(far_of_rev(BMP_PTR(list[0])->data));
@@ -5027,7 +5027,7 @@ uint16_t count_list_entries(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 
-    if (dg_off(dgroup, list) == 0)
+    if (dg_near(dgroup, list) == 0)
         return 0;
 
     while (list[n] != 0)
@@ -5170,7 +5170,7 @@ uint16_t load_screen_plain(char *name)
     bytes = (uint16_t)(half << 7);
 
     do {
-        buf.off = dg_off(dgroup, heap_malloc_far(bytes));
+        buf.off = dg_near(dgroup, heap_malloc_far(bytes));
         buf.seg = DGROUP_SEG;
         /* The offset alone: it is the heap handle the allocator answered,
            and the segment beside it is always DGROUP's. */
@@ -5427,7 +5427,7 @@ FILE *open_file_record(char *name)
     if (rec == NULL)
         return 0;
 
-    rec->file_ptr = dg_off(dgroup, game_fopen(name, CHUNK.mode_rb));
+    rec->file_ptr = dg_near(dgroup, game_fopen(name, CHUNK.mode_rb));
     if (rec->file_ptr == 0)
         return 0;
 
@@ -6630,7 +6630,7 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
        caller's `[bp-2]`; the port hands back the array itself, and `off` is
        the near pointer the allocator answered, kept because the cleanup path
        frees by offset. */
-    dg_off_t off = 0;
+    dg_near_t off = 0;
     bmp_ptr_t *list = NULL;
     bmp_ptr_t di;
     int16_t *a, *b;
@@ -6973,7 +6973,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
             DG48DA.driver = p;
 
-            vm_driver_init(dg_off(dgroup, &VMDS), dg_off(dgroup, DG440E.driver_table), DGROUP_SEG);
+            vm_driver_init(dg_near(dgroup, &VMDS), dg_near(dgroup, DG440E.driver_table), DGROUP_SEG);
             seg = DG48DA.driver.seg;
 
             /* a hundred words of the driver's table, word by word, and
@@ -7121,7 +7121,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
     uint16_t over;
 
     ENGINE_BITMAP_COMPRESS.mode = (uint8_t)(colours - 1);
-    ENGINE_BITMAP_COMPRESS.word_63f2 = dg_off(dgroup, heap_malloc_far(0x7d0));
+    ENGINE_BITMAP_COMPRESS.word_63f2 = dg_near(dgroup, heap_malloc_far(0x7d0));
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
@@ -8304,7 +8304,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
  * 172c:39b7, image 0x20c07
  *
  * Clip the polygon against the window, in two passes: left and right into the
- * working arrays at 0x398c and dg_off(dgroup, VMDS.work_y), then top and bottom back into 0x393c and
+ * working arrays at 0x398c and dg_near(dgroup, VMDS.work_y), then top and bottom back into 0x393c and
  * 0x3964. Sutherland and Hodgman's, and the count at 0x3a2c is rewritten after
  * each pass.
  *

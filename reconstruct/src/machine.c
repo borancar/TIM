@@ -116,8 +116,8 @@ _Static_assert(sizeof(struct machine_resource_map_names) == 0x16, "DGROUP 0x28d6
  */
 struct machine_page_pairs {
     struct {
-        dg_off_t src;             /* +0x00  the address of a page word */
-        dg_off_t dst;             /* +0x02 */
+        dg_near_t src;             /* +0x00  the address of a page word */
+        dg_near_t dst;             /* +0x02 */
     } pair[10];                   /* +0x00 [0x28] */
 } __attribute__((packed));
 
@@ -223,7 +223,7 @@ DG_ASSERT_AT(struct machine_game_files, files, 0x00);
  * rect_list_entry`.
  */
 struct machine_rect_slots {
-    dg_off_t  slot[0x14];         /* +0x00 [0x28] */
+    dg_near_t slot[0x14];         /* +0x00 [0x28] */
 } __attribute__((packed));
 
 struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
@@ -238,7 +238,7 @@ struct machine_rect_free {
        here **and in the original**: the builder that fills it, 0x0a05f, is
        reached only from the creator at 0x0a0d7, and nothing in the image
        calls that. See `struct rect_list_entry`. */
-    dg_off_t  rect_free_ptr;      /* +0x00 [2] */
+    dg_near_t rect_free_ptr;      /* +0x00 [2] */
     int16_t   word_56e2;          /* +0x02 [2] */
     int16_t   word_56e4;          /* +0x04 [2] */
 } __attribute__((packed));
@@ -724,7 +724,7 @@ int16_t resolve_collisions(struct part *obj)
 {
     int16_t hit = 0;
 
-    DG53FC.list_ptr = dg_off(dgroup, obj);
+    DG53FC.list_ptr = dg_near(dgroup, obj);
     if (((int16_t)PART_PTR(DG53FC.list_ptr)->points_ptr) == 0)
         return 0;
 
@@ -758,7 +758,7 @@ int16_t resolve_collisions(struct part *obj)
         }
     }
 
-    DG53FC.other_ptr = dg_off(dgroup, pick_by_flag(0x3000));
+    DG53FC.other_ptr = dg_near(dgroup, pick_by_flag(0x3000));
 
     while (((int16_t)DG53FC.other_ptr) != 0) {
         if (chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.other_ptr) == 0
@@ -780,7 +780,7 @@ int16_t resolve_collisions(struct part *obj)
             }
         }
 
-        DG53FC.other_ptr = dg_off(dgroup,
+        DG53FC.other_ptr = dg_near(dgroup,
                                  pick_for_record(PART_PTR(DG53FC.other_ptr),
                                                  0x1000));
     }
@@ -1506,7 +1506,7 @@ void collect_carried(struct part *obj)
             continue;
 
         si->next_linked_ptr = obj->next_linked_ptr;
-        obj->next_linked_ptr = dg_off(dgroup, si);
+        obj->next_linked_ptr = dg_near(dgroup, si);
         si->flags_0a |= 0x10;
 
         si->word_38 = obj->word_38;
@@ -1603,7 +1603,7 @@ void sound_on_hard_impact(struct part *obj)
  */
 void bounce_off_contact(struct part *obj)
 {
-    dg_off_t *hit;  /* [bp-0x14] the contact block, never read */
+    dg_near_t *hit;  /* [bp-0x14] the contact block, never read */
     struct part_kind *their;  /* [bp-0x18] their kind record */
     struct part_kind *mine;   /* [bp-0x16] my kind record */
     struct part *what;  /* [bp-0x12] what was hit */
@@ -4729,7 +4729,7 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
                             dy = abs16(near_) < abs16(dy) ? lo : hi;
 
                             si->next_linked_ptr = ((int16_t)obj->next_linked_ptr);
-                            obj->next_linked_ptr = dg_off(dgroup, si);
+                            obj->next_linked_ptr = dg_near(dgroup, si);
                             si->word_7a = far_;
                             si->word_7c = dy;
                         }
@@ -4784,7 +4784,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
             continue;
 
         si->next_linked_ptr = obj->next_linked_ptr;
-        obj->next_linked_ptr = dg_off(dgroup, si);
+        obj->next_linked_ptr = dg_near(dgroup, si);
     }
 }
 
@@ -4850,7 +4850,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
             if (intersect_segments(line, v16,
                                    v1a) != 0) {
                 si->next_linked_ptr = obj->next_linked_ptr;
-                obj->next_linked_ptr = dg_off(dgroup, si);
+                obj->next_linked_ptr = dg_near(dgroup, si);
                 v02 = ((int16_t)si->point_count);
             }
 
@@ -4925,7 +4925,7 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
             continue;
 
         si->next_linked_ptr = obj->next_linked_ptr;
-        obj->next_linked_ptr = dg_off(dgroup, si);
+        obj->next_linked_ptr = dg_near(dgroup, si);
     }
 }
 
@@ -5656,7 +5656,7 @@ struct part *part_under_pointer(struct part *exclude, struct part *part)
             && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
             if (PART_PTR(link->end_a_ptr) == part) {
                 link->end_a_ptr = link->end_b_ptr;
-                link->end_b_ptr = dg_off(dgroup, part);
+                link->end_b_ptr = dg_near(dgroup, part);
             }
             return PART_PTR(link->owner_ptr);
         }
@@ -6146,8 +6146,8 @@ void rehome_carried_part(void)
     }
 
     if (di != PART_NONE) {
-        di->link_ptr[slot + 4] = dg_off(dgroup, part);
-        part->link_ptr[4] = dg_off(dgroup, di);
+        di->link_ptr[slot + 4] = dg_near(dgroup, part);
+        part->link_ptr[4] = dg_near(dgroup, di);
         part->byte_7e = slot;
 
         call_part_setup(PART_KINDS[di->kind].setup, di);
@@ -6378,10 +6378,10 @@ void insert_sorted(struct part *rec, struct part *head)
     }
 
     rec->next_ptr = di->next_ptr;
-    rec->prev_ptr = dg_off(dgroup, di);
-    di->next_ptr = dg_off(dgroup, rec);
+    rec->prev_ptr = dg_near(dgroup, di);
+    di->next_ptr = dg_near(dgroup, rec);
     if (rec->next_ptr != 0)
-        PART_PTR(rec->next_ptr)->prev_ptr = dg_off(dgroup, rec);
+        PART_PTR(rec->next_ptr)->prev_ptr = dg_near(dgroup, rec);
 }
 
 /*
@@ -7190,10 +7190,10 @@ void finish_part_removal(void)
             other = PART_PTR(p->link_ptr[1]);
             b = match_field_5a_5c(p, other);
 
-            next->link_ptr[a + 2] = dg_off(dgroup, other);
-            next->link_ptr[a] = dg_off(dgroup, other);
-            other->link_ptr[b + 2] = dg_off(dgroup, next);
-            other->link_ptr[b] = dg_off(dgroup, next);
+            next->link_ptr[a + 2] = dg_near(dgroup, other);
+            next->link_ptr[a] = dg_near(dgroup, other);
+            other->link_ptr[b + 2] = dg_near(dgroup, next);
+            other->link_ptr[b] = dg_near(dgroup, next);
 
             if (((int16_t)next->kind) == 7) {
                 aim_link_at_bisector(next);
@@ -7266,7 +7266,7 @@ void remove_all_parts(void)
         else
             detach_part_to_bin(si);
 
-        DG50D3.dragged_part_ptr = dg_off(dgroup, si);
+        DG50D3.dragged_part_ptr = dg_near(dgroup, si);
         finish_part_removal();
         DG50D3.dragged_part_ptr = 0;
 
@@ -9585,15 +9585,15 @@ void reset_machine(void)
         di->slot_a = di->home_slot_a;
         di->slot_b = di->home_slot_b;
 
-        PART_PTR(di->end_a_ptr)->belt_ptr[di->slot_a] = dg_off(dgroup, di);
-        PART_PTR(di->end_b_ptr)->belt_ptr[di->slot_b] = dg_off(dgroup, di);
+        PART_PTR(di->end_a_ptr)->belt_ptr[di->slot_a] = dg_near(dgroup, di);
+        PART_PTR(di->end_b_ptr)->belt_ptr[di->slot_b] = dg_near(dgroup, di);
 
         v6 = ((uint16_t)di->end_a_ptr);
         v8 = PART_PTR(v6)->link_ptr[di->slot_a];
 
         while (v6 != 0) {
             if (PART_PTR(v6)->kind == KIND_PULLEY)
-                PART_PTR(v6)->belt_ptr[1] = dg_off(dgroup, di);
+                PART_PTR(v6)->belt_ptr[1] = dg_near(dgroup, di);
 
             if (((uint16_t)di->end_b_ptr) == v6) {
                 v6 = 0;
@@ -10129,7 +10129,7 @@ void checked_free(uint16_t p)
  */
 void free_region_lists(void)
 {
-    dg_off_t *heads[5] = {
+    dg_near_t *heads[5] = {
         &DG4E67.regions_b_ptr, &DG4E67.regions_a_ptr, &DG4E67.regions_c_ptr,
         &DG4E67.regions_panel_ptr, &DG4E67.regions_play_ptr,
     };
@@ -10307,7 +10307,7 @@ void regions_handle_pointer(uint16_t first)
 enum region_word { RW_NONE, RW_A, RW_B, RW_C, RW_PANEL, RW_PLAY, RW_KEPT_A, RW_KEPT_B };
 
 /* OURS: the word an `enum region_word` names. */
-static dg_off_t *region_word(enum region_word w)
+static dg_near_t *region_word(enum region_word w)
 {
     switch (w) {
     case RW_A:      return &DG4E67.regions_a_ptr;
@@ -10885,7 +10885,7 @@ int16_t far_stricmp(const char far * a, const char far * b)
  */
 void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
-    dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    dg_near_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     struct rect_list_entry *last = RECTENT_NONE;
     struct rect_list_entry *rec;
 
@@ -11035,7 +11035,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
                      uint16_t refcount, struct far_ptr buf)
 {
-    dg_off_t *slot;                 /* [bp-2] */
+    dg_near_t *slot;                 /* [bp-2] */
     uint16_t stop, prev, after, from;        /* [bp-4] [bp-6] [bp-8] [bp-0xa] */
     int16_t  area, sum, ux0, ux1, uy0, uy1;  /* [bp-0xc] .. [bp-0x16] */
     uint16_t rec, other;                     /* si, di */
@@ -11228,7 +11228,7 @@ void restore_saved_rect_lists(int16_t which)
         return;
 
     {
-        dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];
+        dg_near_t *slot = &MACHINE_RECT_SLOTS.slot[0];
         int16_t  left = 0x14;
 
         while (left != 0) {
@@ -11256,7 +11256,7 @@ void restore_saved_rect_lists(int16_t which)
  */
 void discard_saved_rects(void)
 {
-    dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];
+    dg_near_t *slot = &MACHINE_RECT_SLOTS.slot[0];
     int16_t  left = 0x14;
     uint16_t rec;
 
@@ -11287,7 +11287,7 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                            dg_seg_t page_dst, uint16_t refcount)
 {
-    dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];         /* [bp-2] */
+    dg_near_t *slot = &MACHINE_RECT_SLOTS.slot[0];         /* [bp-2] */
     int16_t  left = 0x14;                              /* [bp-4] */
     int16_t  cols = (int16_t)((w + x % 8 + 7) / 8);    /* cx */
     uint16_t rec;                                      /* si */
@@ -11373,11 +11373,11 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-dg_off_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                                         uint16_t refcount)
 {
-    dg_off_t *slot  = &MACHINE_RECT_SLOTS.slot[0];
-    dg_off_t *empty = NULL;
+    dg_near_t *slot  = &MACHINE_RECT_SLOTS.slot[0];
+    dg_near_t *empty = NULL;
     int16_t  left  = 0x14;
 
     while (left != 0) {
@@ -11413,7 +11413,7 @@ dg_off_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
  */
 void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
-    dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    dg_near_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last;
 
     if (slot == NULL)
@@ -11450,7 +11450,7 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
                       dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref)
 {
-    dg_off_t *from_slot, *to_slot;
+    dg_near_t *from_slot, *to_slot;
     uint16_t rec;
 
     from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);   /* di */
@@ -12284,13 +12284,13 @@ int16_t game_fgetc(FILE *file)
 {
     struct game_file *si = GAME_FILE_NONE;
 
-    DG546C.file_asked_ptr = dg_off(dgroup, file);
+    DG546C.file_asked_ptr = dg_near(dgroup, file);
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == GAME_FILE_NONE) {
-        DG546C.file_used_ptr = dg_off(dgroup, file);
+        DG546C.file_used_ptr = dg_near(dgroup, file);
         return borland_fgetc(file);
     }
 
@@ -12312,7 +12312,7 @@ int16_t game_fgetc(FILE *file)
         seek_file_to(at);
 
         file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream_ptr);
-        DG546C.file_used_ptr = dg_off(dgroup, file);
+        DG546C.file_used_ptr = dg_near(dgroup, file);
         got = borland_fgetc(file);
 
         si->pos++;
@@ -12428,7 +12428,7 @@ FILE *game_fopen(char *name, const char *mode)
         si->size = 0;
         si->base = 0;
         si->in_use = 1;
-        si->stream_ptr = dg_off(dgroup, di);
+        si->stream_ptr = dg_near(dgroup, di);
         goto found;
     }
 
@@ -12775,7 +12775,7 @@ void make_file_current(uint16_t index)
             struct file_rec *f = borland_fopen((const char *)a->name,
                                      MACHINE_RESOURCE_MAP_NAMES.mode_rb_c);
 
-            a->stream_ptr = dg_off(dgroup, f);
+            a->stream_ptr = dg_near(dgroup, f);
             if (f != 0)
                 break;
             if (((uint8_t)VMDS.pixel_shift) != 0)
@@ -12864,7 +12864,7 @@ struct game_file *archive_entry_for(FILE *file)
     if (file == FILEREC_PTR(DG546C.cache_key_ptr))
         return GAME_FILE_PTR(DG546C.cache_answer_ptr);
 
-    DG546C.cache_key_ptr = dg_off(dgroup, file);
+    DG546C.cache_key_ptr = dg_near(dgroup, file);
 
     si = &MACHINE_GAME_FILES.files[0];
     n = 0xa;
@@ -12878,7 +12878,7 @@ struct game_file *archive_entry_for(FILE *file)
         DG546C.cache_key_ptr = 0;
     }
 
-    DG546C.cache_answer_ptr = dg_off(dgroup, si);
+    DG546C.cache_answer_ptr = dg_near(dgroup, si);
     return si;
 }
 

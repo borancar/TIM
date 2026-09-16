@@ -944,15 +944,15 @@ pair that is only *stored* - `read_resource` normalises into DGROUP
 0x5894/0x5896 for three decompressors to walk, and that pair is the cursor
 itself rather than a way of writing an address down.
 
-### `dg_off` on a pointer that is not in DGROUP is a number, and the compiler will hand it to you without complaint
+### `dg_near` on a pointer that is not in DGROUP is a number, and the compiler will hand it to you without complaint
 
-**`dg_off` on a pointer that is not in DGROUP is a number, and the compiler
+**`dg_near` on a pointer that is not in DGROUP is a number, and the compiler
 will hand it to you without complaint.** Converting a routine's frame to a
 `uint8_t frame[N]` makes its slots C-stack pointers. Where such a slot is
 passed to a routine that still takes a DGROUP offset, the build fails with
 "makes integer from pointer" - and wrapping the argument in
-`dg_off(dgroup, x)` makes that error go away while computing the distance
-between two unrelated objects. `dg_off` takes a `void *`, so nothing objects.
+`dg_near(dgroup, x)` makes that error go away while computing the distance
+between two unrelated objects. `dg_near` takes a `void *`, so nothing objects.
 
 **Forty-one call sites were "fixed" that way in one sitting and every one was
 wrong**, with a clean build at the end of it: `copy_file_record`,
@@ -1090,7 +1090,7 @@ correctly, which are the ones least likely to be wrong.
 
 They found `DG4A82.directory`, `DG48F8` (zero-tested as
 `huge_equal(off, seg, 0, 0)` and returned as `(seg << 16) | off`), and
-`DG3890.pal_copy_ptr`, which was an anonymous `{dg_off_t off; dg_seg_t seg;}`
+`DG3890.pal_copy_ptr`, which was an anonymous `{dg_near_t off; dg_seg_t seg;}`
 - already that layout, with no name for the type. The same sweep found four
 sites reaching a table by raw arithmetic where a typed array already existed:
 `0x3a2e + 4 * di` is `DG3A2C.blocks[di]`, and `bx + 0x618a` with
@@ -1206,7 +1206,7 @@ different origins:
   later as a DGROUP offset. A C array has no offset to store.
 - **polymorphic** - the value is a handle *or* an address, told apart by a
   numeric test. `load_bitmaps` asks `file_record_valid` whether its argument
-  matches an open record's `file_ptr`; a C array's `dg_off` is an arbitrary
+  matches an open record's `file_ptr`; a C array's `dg_near` is an arbitrary
   16-bit number that could match a live handle, and no pointer type can
   express the choice. `call_sound_module` is the same shape from the other
   end: its second argument is read by the module's own emulated code through
@@ -1279,7 +1279,7 @@ array indexing - while keeping `dg_alloca`/`dg_free`, because the bytes
 really do have to be the guest's. It works, and on `draw_compressed_bitmap`
 and `blit_scaled_a` it produced sound but poor C: the offset wrapper rewrote
 a slot's name inside a *comment*, and a slot read at two widths came out as
-`DG16(dg_off(dgroup, vcut))` where `dg_rd16(vcut)` says it. Both are
+`DG16(dg_near(dgroup, vcut))` where `dg_rd16(vcut)` says it. Both are
 cosmetic, the gain is readability rather than correctness, and a regex pass
 over the blitter for that trade is not one to make without being asked. The
 mode is in the tool with its limits written down; the drawing routines were
@@ -1431,21 +1431,21 @@ the other four - `decode_vqt_list`, `draw_compressed_bitmap`, `vm_init`,
 `blit_scaled_a` - really do file a slot address, which is the finding
 recorded further up this file.
 
-### `dg_off` refuses a pointer that is not the guest's, and the first thing it caught had been in the tree for weeks
+### `dg_near` refuses a pointer that is not the guest's, and the first thing it caught had been in the tree for weeks
 
-**`dg_off` refuses a pointer that is not the guest's, and the first thing it
-caught had been in the tree for weeks.** The forty-one wrong `dg_off` sites
+**`dg_near` refuses a pointer that is not the guest's, and the first thing it
+caught had been in the tree for weeks.** The forty-one wrong `dg_near` sites
 further up this file were found by reading; nothing stopped a forty-second,
-because `dg_off` takes a `void *` and the compiler has no opinion. It now
+because `dg_near` takes a `void *` and the compiler has no opinion. It now
 calls `port_abort` when the pointer is outside `guest_mem`, which was tested
 the only way worth testing a guard - by handing it a C local on purpose and
 watching it fire.
 
 Turned on, the port died in `game_startup`. One routine, three callers:
 `string_concat` decides whether to run the original's one-`movsb` alignment
-step from `dg_off(dgroup, src) & 1`, because the parity the original tests is
+step from `dg_near(dgroup, src) & 1`, because the parity the original tests is
 the *segment's*, not the host pointer's - and `count_level_files`,
-`load_level` and `load_part_bitmap` all hand it a C array, whose `dg_off` is
+`load_level` and `load_part_bitmap` all hand it a C array, whose `dg_near` is
 the distance between two unrelated objects. The branch was a coin toss. It
 cost nothing, because the two arms copy the same bytes, and that is exactly
 why it survived: no comparison could see it. The test is now asked only where

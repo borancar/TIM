@@ -3720,19 +3720,19 @@ uint16_t open_sound_file(char *name, int16_t id)
     int16_t si;
     uint16_t r = 0;
 
-    if (id != 0 && dg_off(dgroup, handle) == DG4A82.file && DG4A82.file != 0)
+    if (id != 0 && dg_near(dgroup, handle) == DG4A82.file && DG4A82.file != 0)
         goto search;
 
-    if (DG4A82.file != dg_off(dgroup, handle) && DG4A82.file_kind != 0)
+    if (DG4A82.file != dg_near(dgroup, handle) && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file));
 
     DG4A82.file = 0;
     DG4A82.file_kind = 0;
 
     if (file_record_valid(handle) != 0) {
-        DG4A82.file = (int16_t)dg_off(dgroup, handle);
+        DG4A82.file = (int16_t)dg_near(dgroup, handle);
     } else {
-        DG4A82.file = (int16_t)dg_off(dgroup, open_file_record(name));
+        DG4A82.file = (int16_t)dg_near(dgroup, open_file_record(name));
         if (DG4A82.file == 0)
             goto fail;
         DG4A82.file_kind = 1;

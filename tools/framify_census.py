@@ -17,7 +17,7 @@ R = '/home/boran/git/TIM/reconstruct'
 proto = open(os.path.join(R, 'tim.h')).read()
 PTR = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
                  r'|const (?:volatile )?uint8_t \*)[^;]*?\)\s*;', re.S)
-ptrfn = set(PTR.findall(proto)) | {"step_accumulate", "dg_ptr", "dg_off",
+ptrfn = set(PTR.findall(proto)) | {"step_accumulate", "dg_ptr", "dg_near",
                                    "dg_rd16", "dg_wr16", "dg_rd32", "dg_wr32"}
 fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(')
 DECL = re.compile(r'^\s*uint16_t\s+(\w+)\s*=\s*(?:\(uint16_t\)\()?\s*fp\b[^;]*;')
@@ -53,14 +53,14 @@ def enclosing_call_at(text, at):
 
 
 #: **A spelling, not a use.** `dg_ptr(dgroup, b)` *is* `b` - it is how a slot
-#: reaches a parameter that takes a pointer, and `dg_off` is the same the other
+#: reaches a parameter that takes a pointer, and `dg_near` is the same the other
 #: way round. Stopping at one of these reports the slot as handed to `dg_ptr`,
 #: which is in `ptrfn`, so the call is dropped and whatever the slot was really
 #: passed to is never looked at. That is what hid `read_resource` from both
 #: `sound.c` frames: they spell it `read_resource(handle, dg_ptr(dgroup, b), 1)`
 #: and the census answered "no blocking callee" about the two routines whose
 #: conversion is the one this project has *measured* to be wrong.
-TRANSPARENT = ('dg_ptr', 'dg_off', 'dg_cptr')
+TRANSPARENT = ('dg_ptr', 'dg_near', 'dg_cptr')
 
 
 def real_call(text, at):
@@ -128,7 +128,7 @@ BY_HAND = {
     # filename, and tells them apart by asking `file_record_valid` whether the
     # number matches an open record's `file_ptr`. That is a numeric comparison
     # against guest state, so the argument has to be a guest offset: a C
-    # array's `dg_off` is an arbitrary 16-bit number that could match a live
+    # array's `dg_near` is an arbitrary 16-bit number that could match a live
     # handle, and the polymorphism cannot be spelled in a pointer type at all.
     # Ten call sites, and **nine pass a DGROUP string constant** - 0x00f5
     # "cp.bmp", 0x254a "sierra.bmp", 0x2582 "icons.bmp" and so on. Only
@@ -136,7 +136,7 @@ BY_HAND = {
     # routine asks `file_record_valid` whether the number matches an open
     # record's `file_ptr`, which holds what `game_fopen` returned - a FILEREC
     # offset. So the argument is a handle *or* a filename address, told apart
-    # numerically: sound for the nine constants, where `dg_off(dg_ptr(x))` is
+    # numerically: sound for the nine constants, where `dg_near(dg_ptr(x))` is
     # `x` again, and unsound for a C array, whose arbitrary 16-bit distance
     # could match a live handle.
     # Measured on 2026-09-09: the test **never fires**. Every call on the
@@ -144,7 +144,7 @@ BY_HAND = {
     # at DGROUP 0xffe6 - answers `file_record_valid` = 0 and takes the
     # `open_file_record` path. So the polymorphism is real in the code and
     # unexercised in this data, and the only thing keeping `load_part_bitmap`
-    # in DGROUP is that a C array's `dg_off` is an arbitrary 16-bit number
+    # in DGROUP is that a C array's `dg_near` is an arbitrary 16-bit number
     # that *could* match one of the four live handles. "Unlikely" is not the
     # standard here.
     ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
