@@ -173,7 +173,7 @@ struct part *make_part(uint16_t kind)
     part->size[0].width = PARTTMPL_PTR(kind)->size.width;
     part->size[0].height = PARTTMPL_PTR(kind)->size.height;
     part->point_count =
-        PARTKIND_PTR(kind)->point_count;
+        PART_KINDS[kind].point_count;
     part->word_8c = 0xffff;
     part->word_8e = 0xffff;
     part->word_94 = PARTTMPL_PTR(kind)->init.off;
@@ -2252,7 +2252,7 @@ void link_record_into_buckets(struct part *rec)
     rec->flags_0a |= 0x20;
 
     for (i = 0; i < 2; i++) {
-        uint8_t slot = PARTKIND_PTR(kind)->refile_level[i];
+        uint8_t slot = PART_KINDS[kind].refile_level[i];
 
         if (slot == 0xFF)
             continue;
@@ -2602,7 +2602,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 {
     uint16_t v2a;   /* [bp-0x2a] the bitmap */
     uint16_t v28;   /* [bp-0x28] the record */
-    uint16_t v26;   /* [bp-0x26] the kind's record */
+    const struct part_kind *v26;   /* [bp-0x26] the kind's record */
     uint16_t v24;   /* [bp-0x24] the adjustment */
     const struct point8 *hot;
     uint8_t  v21;   /* [bp-0x21] the frame */
@@ -2626,9 +2626,9 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 
     v02 = part->kind;
     v04 = part->form;
-    v26 = (uint16_t)(0x0ea6 + 0x3a * ((int16_t)v02));
+    v26 = &PART_KINDS[v02];
 
-    v24 = PARTKIND_AT_PTR(v26)->word_18;
+    v24 = v26->word_18;
     hot = POINT_TABLE(v24);                    /* the hot spot by form, if the kind has them */
 
     clear_flag_2d44_thunk();
@@ -2674,7 +2674,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
                 }
 
                 {
-                    uint16_t bmp = BMPSET_PTR(PARTKIND_AT_PTR(v26)->bitmaps_ptr)->bmp[v1c];
+                    uint16_t bmp = BMPSET_PTR(v26->bitmaps_ptr)->bmp[v1c];
 
                     if (a != 0) {
                         v0c = (int16_t)long_shift_right(
@@ -2699,7 +2699,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     }
 
     if (part->flags_08 & 0x1000) {
-        v28 = OFF_TABLE(PARTKIND_AT_PTR(v26)->bitmaps2_ptr)[v04];
+        v28 = OFF_TABLE(v26->bitmaps2_ptr)[v04];
     } else {
         v28 = 0x124;
         DG0124.frame[0] = (uint8_t)v04;
@@ -2722,7 +2722,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
         v21 = DRAWSTEP_PTR(v28)->frame[0];
 
         for (di = 0; ; di++) {
-            v2a = BMPSET_PTR(PARTKIND_AT_PTR(v26)->bitmaps_ptr)->bmp[v21];
+            v2a = BMPSET_PTR(v26->bitmaps_ptr)->bmp[v21];
 
             v08 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
             v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);

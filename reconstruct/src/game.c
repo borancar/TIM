@@ -3712,7 +3712,7 @@ static void carried_part_resized(struct part *part, struct part_kind *kind)
 void carried_part_grow(void)
 {
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = &PART_KINDS[part->kind];
 
     if ((int16_t)part->set_size.height
             <= (int16_t)part->set_size.width
@@ -3746,7 +3746,7 @@ void carried_part_grow(void)
 void carried_part_shrink(void)
 {
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = &PART_KINDS[part->kind];
 
     if ((int16_t)part->set_size.height
             <= (int16_t)part->set_size.width
@@ -4111,7 +4111,7 @@ void discard_carried_part(void)
 void flip_carried_end_1(void)
 {
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = &PART_KINDS[part->kind];
 
     call_part_flip(kind->flip, part, 1);
     part->word_94 = part->flags_08;
@@ -4127,7 +4127,7 @@ void flip_carried_end_1(void)
 void flip_carried_end_2(void)
 {
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = &PART_KINDS[part->kind];
 
     call_part_flip(kind->flip, part, 2);
     part->word_94 = part->flags_08;
@@ -4180,7 +4180,7 @@ void run_drag_frame(void)
 
     if (si != 0) {
         part = PART_PTR(DG50D3.dragged_part_ptr);
-        kind = PARTKIND_PTR(part->kind);
+        kind = &PART_KINDS[part->kind];
 
         part->mirror_size.height = part->set_size.height;
         part->mirror_size.width = part->set_size.width;
@@ -4218,7 +4218,7 @@ int16_t drag_carried_part_first(void)
     uint16_t lo;    /* [bp-4] */
     uint16_t was;    /* [bp-2] */
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = PARTKIND_PTR(part->kind);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
     int16_t  si, di;
 
     moved = 0;
@@ -4285,7 +4285,7 @@ int16_t settle_carried_part_first(void)
     int16_t hi;    /* [bp-4] */
     int16_t lo;    /* [bp-2] */
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = PARTKIND_PTR(part->kind);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
     uint16_t was   = part->set_size.width;
     int16_t  si;
 
@@ -4351,7 +4351,7 @@ int16_t drag_carried_part_pair(void)
     int16_t lo;    /* [bp-4] */
     int16_t was;    /* [bp-2] */
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = PARTKIND_PTR(part->kind);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
     int16_t  si, di;
 
     moved = 0;
@@ -4434,7 +4434,7 @@ int16_t settle_carried_part(void)
     uint16_t lo;    /* [bp-2] */
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
     uint16_t was   = part->set_size.height;
-    struct part_kind *kind  = PARTKIND_PTR(part->kind);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
     int16_t  y;
 
     moved = 0;
@@ -5732,7 +5732,7 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
     clear_flag_2d44_thunk();
 
-    PARTKIND_PTR(n)->bitmaps_ptr = load_bitmaps(name);
+    PART_KINDS[n].bitmaps_ptr = load_bitmaps(name);
 
     restore_cursor_following();
     heap_check_or_hang();
@@ -5762,11 +5762,11 @@ void free_all_part_bitmaps(void)
  */
 void free_part_bitmap(uint16_t n)
 {
-    if (PARTKIND_PTR(n)->bitmaps_ptr == 0)
+    if (PART_KINDS[n].bitmaps_ptr == 0)
         return;
 
-    free_bitmaps_thunk(BMPLIST(PARTKIND_PTR(n)->bitmaps_ptr));
-    PARTKIND_PTR(n)->bitmaps_ptr = 0;
+    free_bitmaps_thunk(BMPLIST(PART_KINDS[n].bitmaps_ptr));
+    PART_KINDS[n].bitmaps_ptr = 0;
 }
 
 /*
@@ -6062,13 +6062,13 @@ void read_record_fields(FILE *file, struct part *rec)
         }
     }
 
-    rec->point_count = PARTKIND_PTR(rec->kind)->point_count;
+    rec->point_count = PART_KINDS[rec->kind].point_count;
 
     if (rec->point_count != 0)
         rec->points_ptr =
             heap_calloc_far(rec->point_count, 4);
 
-    call_part_setup(PARTKIND_PTR(rec->kind)->setup, rec);
+    call_part_setup(PART_KINDS[rec->kind].setup, rec);
 }
 
 /*

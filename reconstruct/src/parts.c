@@ -2260,7 +2260,7 @@ uint16_t part_step_bellow(struct part *part)
                        table at 0x0ea6 reached from a base of zero - the +2 is
                        the weight. */
                     force = long_divide(force,
-                                        (int32_t)PARTKIND_PTR(di->kind)->weight);
+                                        (int32_t)PART_KINDS[di->kind].weight);
 
                     di->vel_x =
                         (int16_t)(di->vel_x + (int16_t)force);
@@ -3425,7 +3425,7 @@ uint16_t part_step_boxing_glove(struct part *part)
  */
 int16_t bounce_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND_PTR((int16_t)obj->kind)->weight;
+    int16_t m = PART_KINDS[obj->kind].weight;
 
     if (m < 0x0006) return 0x1a00;
     if (m < 0x000a) return 0x1800;
@@ -3658,7 +3658,7 @@ out:
  */
 int16_t blast_speed_for_mass(struct part *part)
 {
-    int16_t w = PARTKIND_PTR((int16_t)part->kind)->weight;
+    int16_t w = PART_KINDS[part->kind].weight;
 
     if (w < 2)
         return 0x1800;
@@ -3901,7 +3901,7 @@ uint16_t part_step_fan(struct part *part)
         v08 = (int16_t)(p >> 16);
         v0a = (int16_t)p;
 
-        mass = PARTKIND_PTR((int16_t)si->kind)->weight;
+        mass = PART_KINDS[si->kind].weight;
 
         v04 = (int16_t)long_divide(
             (int32_t)(((uint32_t)(uint16_t)v08 << 16) | (uint16_t)v0a),
@@ -3934,7 +3934,7 @@ out:
  */
 int16_t push_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND_PTR((int16_t)obj->kind)->weight;
+    int16_t m = PART_KINDS[obj->kind].weight;
 
     if (m < 0x0002) return 0x1c00;
     if (m < 0x0006) return 0x1a00;
@@ -5753,7 +5753,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
  */
 int16_t conveyor_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND_PTR((int16_t)obj->kind)->weight;
+    int16_t m = PART_KINDS[obj->kind].weight;
 
     if (m < 0x0002) return 0x1800;
     if (m < 0x0006) return 0x1600;

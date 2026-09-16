@@ -308,6 +308,13 @@ test: devtim tim debug
 	    uv run python tools/check_handles.py; \
 	    echo "FAIL: a typed handle is used as a boolean - run tools/check_handles.py"; exit 1; }
 	@echo "no typed handle is used as a boolean"
+	@# **The kind table is transcribed, and DGROUP must not notice.** The
+	@# 58 records at 0x0ea6 come from dgroup.c now rather than from TIM.img;
+	@# this loads the image the way the port does and compares the two, the
+	@# relocated hook segments included. Before the solutions step, for the
+	@# same reason as the one above.
+	@cd .. && uv run python tools/check_part_kinds.py || { \
+	    echo "FAIL: the kind table differs from the image - see tools/check_part_kinds.py"; exit 1; }
 	@# **Every solution, simulated.** `TIM_SIMULATE` runs each restored
 	@# machine through the game's own per-frame step with no clock, input
 	@# or display, and the goal test is the verdict: 34 levels in about a

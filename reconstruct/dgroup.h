@@ -3847,9 +3847,20 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
  *    44 tennis_ball          45 candle               46 pipe
  *    47 corner_pipe          48 wooden_platform      50 motor
  */
-/* the record for a kind, and the record at an address a routine was handed */
-#define PARTKIND_AT_PTR(p) ((struct part_kind *)(dgroup + (uint16_t)(p)))
-#define PARTKIND_PTR(k)    PARTKIND_AT_PTR(0x0ea6 + 0x3a * (uint16_t)(k))
+/*
+ * **The kind table**: one `struct part_kind` per kind, from DGROUP 0x0ea6 to
+ * 0x1bca, where the strings start. Fifty-eight records, which is what
+ * `free_all_part_bitmaps` walks - 0 to 0x39 - and what the image holds before
+ * the text. The original reaches a record as `imul 0x3a` then `add ax, 0xea6`,
+ * or with the base folded into the displacement when it reads one field -
+ * `[bx + 0xec6]` is `word_20` - so the index is the only thing it computes.
+ *
+ * Its contents are transcribed in dgroup.c and put here by `load_part_kinds`.
+ */
+#define PART_KIND_COUNT 58
+#define PART_KINDS      ((struct part_kind *)(dgroup + 0x0ea6))
+
+void load_part_kinds(void);
 
 /*
  * ---------------------------------------------------------------------------

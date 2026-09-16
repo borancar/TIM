@@ -64,6 +64,9 @@ int main(void)
         return 1;
     }
 
+    /* The kind table the image carries, relocated as the loader would. */
+    load_part_kinds();
+
     /*
      * What the C runtime does between the loader and `main`: its init table at
      * DGROUP 0x4e48 has a single entry, and it is `setup_streams`. Without it

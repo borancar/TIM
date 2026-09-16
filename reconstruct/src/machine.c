@@ -1276,7 +1276,7 @@ void step_machine(void)
             apply_gravity_and_speed(si);
 
         si->weight =
-            ((uint16_t)PARTKIND_PTR((int16_t)si->kind)->weight);
+            ((uint16_t)PART_KINDS[si->kind].weight);
         si->flags_0a &= 0xffef;
     }
 
@@ -1613,8 +1613,8 @@ void bounce_off_contact(struct part *obj)
     (void)hit;   /* the original stores it here and re-derives it later */
     what = PART_PTR(obj->contact_ptr);
 
-    mine = PARTKIND_PTR(obj->kind);
-    their = PARTKIND_PTR(what->kind);
+    mine = &PART_KINDS[obj->kind];
+    their = &PART_KINDS[what->kind];
 
     di = obj->word_88;
 
@@ -1742,8 +1742,8 @@ void bounce_pair(struct part *obj)
     obj->flags_06 |= 8;
     di->flags_06 |= 8;
 
-    myKind = PARTKIND_PTR(obj->kind);
-    theirKind = PARTKIND_PTR(di->kind);
+    myKind = &PART_KINDS[obj->kind];
+    theirKind = &PART_KINDS[di->kind];
 
     bounce = (myKind->word_04
                     < theirKind->word_04)
@@ -1923,7 +1923,7 @@ void add_mass_capped(struct part *obj, struct part *other)
  */
 void part_step(struct part *part)
 {
-    call_part_hook(PARTKIND_PTR(part->kind)->step, part, "step");
+    call_part_hook(PART_KINDS[part->kind].step, part, "step");
 }
 
 /*
@@ -1934,7 +1934,7 @@ void part_step(struct part *part)
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    return call_part_drive(PARTKIND_PTR(by->kind)->drive,
+    return call_part_drive(PART_KINDS[by->kind].drive,
                            p1, p2, p3, p4, p5, p6, p7);
 }
 
@@ -1943,7 +1943,7 @@ uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t 
  */
 uint16_t part_hit(uint16_t kind, struct part *part)
 {
-    return call_part_hook(PARTKIND_PTR(kind)->hit, part, "hit");
+    return call_part_hook(PART_KINDS[kind].hit, part, "hit");
 }
 
 /*
@@ -4368,7 +4368,7 @@ void recompute_kind_physics(void)
         base = (int16_t)(base << 4);
 
     for (i = 0; i < 0x3A; i++) {
-        int16_t v = (int16_t)PARTKIND_PTR(i)->word_00;
+        int16_t v = (int16_t)PART_KINDS[i].word_00;
         int16_t g;
 
         if (v == base) {
@@ -4380,14 +4380,14 @@ void recompute_kind_physics(void)
             int32_t q = mul16x16(v, s) / (int32_t)base;
             g = (int16_t)((int16_t)q - s);
         }
-        PARTKIND_PTR(i)->gravity = g;
+        PART_KINDS[i].gravity = g;
 
         if (i == 0x14 || i == 0x2B) {
-            PARTKIND_PTR(i)->max_speed = 0x3000;
+            PART_KINDS[i].max_speed = 0x3000;
             if (i == 0x14)
-                PARTKIND_PTR(i)->gravity = 0;
+                PART_KINDS[i].gravity = 0;
         } else {
-            PARTKIND_PTR(i)->max_speed = (int16_t)(0x2600 - base);
+            PART_KINDS[i].max_speed = (int16_t)(0x2600 - base);
         }
     }
 }
@@ -4409,15 +4409,15 @@ void recompute_kind_physics(void)
 void clamp_record_pair(struct part *rec)
 {
 
-    if (rec->word_38 > PARTKIND_PTR(rec->kind)->max_speed)
-        rec->word_38 = PARTKIND_PTR(rec->kind)->max_speed;
-    else if (rec->word_38 < (int16_t)(0 - PARTKIND_PTR(rec->kind)->max_speed))
-        rec->word_38 = (int16_t)(0 - PARTKIND_PTR(rec->kind)->max_speed);
+    if (rec->word_38 > PART_KINDS[rec->kind].max_speed)
+        rec->word_38 = PART_KINDS[rec->kind].max_speed;
+    else if (rec->word_38 < (int16_t)(0 - PART_KINDS[rec->kind].max_speed))
+        rec->word_38 = (int16_t)(0 - PART_KINDS[rec->kind].max_speed);
 
-    if (rec->vel_x > PARTKIND_PTR(rec->kind)->max_speed)
-        rec->vel_x = PARTKIND_PTR(rec->kind)->max_speed;
-    else if (rec->vel_x < (int16_t)(0 - PARTKIND_PTR(rec->kind)->max_speed))
-        rec->vel_x = (int16_t)(0 - PARTKIND_PTR(rec->kind)->max_speed);
+    if (rec->vel_x > PART_KINDS[rec->kind].max_speed)
+        rec->vel_x = PART_KINDS[rec->kind].max_speed;
+    else if (rec->vel_x < (int16_t)(0 - PART_KINDS[rec->kind].max_speed))
+        rec->vel_x = (int16_t)(0 - PART_KINDS[rec->kind].max_speed);
 }
 
 /*
@@ -4436,11 +4436,11 @@ void clamp_record_pair(struct part *rec)
  */
 void apply_gravity_and_speed(struct part *rec)
 {
-    uint16_t entry = (uint16_t)(0xEA6 + (uint16_t)(((int16_t)rec->kind) * 0x3A));
+    const struct part_kind *entry = &PART_KINDS[rec->kind];
     int16_t vx, vy;
     int32_t  speed;
 
-    rec->word_38 = (int16_t)(rec->word_38 + PARTKIND_AT_PTR(entry)->gravity);
+    rec->word_38 = (int16_t)(rec->word_38 + entry->gravity);
     clamp_record_pair(rec);
 
     vx = rec->vel_x;
@@ -4483,14 +4483,14 @@ void apply_gravity_and_speed(struct part *rec)
  */
 void integrate_object(struct part *obj)
 {
-    uint16_t rec;
+    const struct part_kind *rec;
 
     obj->fx += obj->vel_x;
     obj->fy += obj->word_38;
 
     if ((((int16_t)obj->flags_06) & 1) != 0) {
-        rec = (uint16_t)(0xea6 + 0x3a * ((int16_t)obj->kind));
-        if (PARTKIND_AT_PTR(rec)->gravity > 0)
+        rec = &PART_KINDS[obj->kind];
+        if (rec->gravity > 0)
             obj->fy += 0x400;
         else
             obj->fy -= 0x400;
@@ -4572,9 +4572,9 @@ void integrate_object(struct part *obj)
 void apply_contact_friction(struct part *obj)
 {
     struct part *other = PART_PTR(obj->contact_ptr);
-    uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * ((int16_t)obj->kind));
-    uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)other->kind));
-    int16_t load   = PARTKIND_AT_PTR(rec_a)->gravity;
+    const struct part_kind *rec_a = &PART_KINDS[obj->kind];
+    const struct part_kind *rec_b = &PART_KINDS[other->kind];
+    int16_t load   = rec_a->gravity;
     int16_t angle  = obj->word_88;
     int16_t grip, cos_a, sin_a, aload, normal, tangent, drag, push, perp;
     int16_t v, step;
@@ -4592,8 +4592,7 @@ void apply_contact_friction(struct part *obj)
     if (((int16_t)other->kind) == 5 && other->direction != 0)
         grip = 0x100;
     else
-        grip = PARTKIND_AT_PTR(rec_a)->word_06 > PARTKIND_AT_PTR(rec_b)->word_06 ? PARTKIND_AT_PTR(rec_a)->word_06
-                                                 : PARTKIND_AT_PTR(rec_b)->word_06;
+        grip = rec_a->word_06 > rec_b->word_06 ? rec_a->word_06 : rec_b->word_06;
 
     cos_a = angle_cos((uint16_t)-angle);
     sin_a = angle_sin((uint16_t)-angle);
@@ -5832,7 +5831,7 @@ struct part *find_belt_anchor(int16_t *out_end, struct part *rec)
  */
 uint16_t part_flip_options(struct part *part)
 {
-    struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = &PART_KINDS[part->kind];
     uint16_t di = 0;
 
     if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
@@ -6126,7 +6125,7 @@ void rehome_carried_part(void)
         old->link_ptr[part->byte_7e + 4] = 0;
         part->link_ptr[4] = 0;
 
-        call_part_setup(PARTKIND_PTR(old->kind)->setup, old);
+        call_part_setup(PART_KINDS[old->kind].setup, old);
         old->word_90 = old->form;
     }
 
@@ -6135,7 +6134,7 @@ void rehome_carried_part(void)
         part->link_ptr[4] = dg_off(dgroup, di);
         part->byte_7e = slot;
 
-        call_part_setup(PARTKIND_PTR(di->kind)->setup, di);
+        call_part_setup(PART_KINDS[di->kind].setup, di);
         di->word_90 = di->form;
     }
 }
@@ -6335,7 +6334,7 @@ void unlink_part(struct part *part)
  */
 void insert_sorted(struct part *rec, struct part *head)
 {
-    const struct part_kind *kind = PARTKIND_PTR(rec->kind);
+    const struct part_kind *kind = &PART_KINDS[rec->kind];
     int16_t prio = kind->word_20;
     struct part *di = head;
     int16_t stop = 0;
@@ -6347,7 +6346,7 @@ void insert_sorted(struct part *rec, struct part *head)
         if (di->next_ptr == 0) {
             stop = 1;
         } else {
-            const struct part_kind *kind2 = PARTKIND_PTR(PART_PTR(di->next_ptr)->kind);
+            const struct part_kind *kind2 = &PART_KINDS[PART_PTR(di->next_ptr)->kind];
 
             if (head == &DG50D3.parts_bin) {
                 stop = (prio < kind2->word_20) ? 1 : 0;
@@ -6635,7 +6634,7 @@ uint16_t clone_part(struct part *part)
     PART_PTR(si)->attach[1] = part->attach[1];
 
     PART_PTR(si)->point_count =
-        PARTKIND_PTR((int16_t)PART_PTR(si)->kind)->point_count;
+        PART_KINDS[PART_PTR(si)->kind].point_count;
 
     if (PART_PTR(si)->point_count != 0) {
         src_pt = ((uint16_t)part->points_ptr);
@@ -6917,10 +6916,10 @@ void break_second_attachment(struct part *part)
             part->link_ptr[i] = 0;
             other->link_ptr[4] = 0;
 
-            call_part_setup(PARTKIND_PTR(other->kind)->setup, other);
+            call_part_setup(PART_KINDS[other->kind].setup, other);
         }
 
-        call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
+        call_part_setup(PART_KINDS[part->kind].setup, part);
 
         part->word_90 = part->form;
         return;
@@ -6933,9 +6932,9 @@ void break_second_attachment(struct part *part)
     other->link_ptr[part->byte_7e + 4] = 0;
     part->link_ptr[4] = 0;
 
-    call_part_setup(PARTKIND_PTR(part->kind)->setup, part);
+    call_part_setup(PART_KINDS[part->kind].setup, part);
 
-    call_part_setup(PARTKIND_PTR(other->kind)->setup, other);
+    call_part_setup(PART_KINDS[other->kind].setup, other);
 
     other->word_90 = other->form;
 }
@@ -7329,7 +7328,7 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
 void place_object_for_draw(struct part *obj)
 {
     int16_t type = ((int16_t)obj->kind);
-    uint16_t rec = (uint16_t)(0xea6 + 0x3a * type);
+    const struct part_kind *rec = &PART_KINDS[type];
     uint16_t idx = obj->form;
     int16_t flags = ((int16_t)obj->flags_08);
 
@@ -7338,10 +7337,10 @@ void place_object_for_draw(struct part *obj)
 
     set_object_extent(obj);
 
-    if (((int16_t)PARTKIND_AT_PTR(rec)->word_18) == 0)
+    if (((int16_t)rec->word_18) == 0)
         return;
 
-    const struct point8 *hot = POINT_TABLE(PARTKIND_AT_PTR(rec)->word_18);
+    const struct point8 *hot = POINT_TABLE(rec->word_18);
 
     if ((flags & 0x10) != 0)
         obj->box[0].x = (int16_t)(obj->box[0].x
@@ -7536,7 +7535,8 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
 void set_object_extent(struct part *obj)
 {
     int16_t type = ((int16_t)obj->kind);
-    uint16_t rec, target;
+    const struct part_kind *rec;
+    uint16_t target;
 
     if (type == 8 || type == 0xa) {
         obj->size[0].height = 0;
@@ -7550,18 +7550,18 @@ void set_object_extent(struct part *obj)
         return;
     }
 
-    rec = (uint16_t)(0xea6 + 0x3a * type);
+    rec = &PART_KINDS[type];
 
-    if (((int16_t)PARTKIND_AT_PTR(rec)->word_1a) != 0) {
-        const struct point16 *sizes = POINT16_TABLE(PARTKIND_AT_PTR(rec)->word_1a);
+    if (((int16_t)rec->word_1a) != 0) {
+        const struct point16 *sizes = POINT16_TABLE(rec->word_1a);
 
         obj->size[0].width = sizes[obj->form].x;
         obj->size[0].height = sizes[obj->form].y;
         return;
     }
 
-    if (((int16_t)PARTKIND_AT_PTR(rec)->bitmaps_ptr) != 0) {
-        target = BMPSET_PTR(PARTKIND_AT_PTR(rec)->bitmaps_ptr)->bmp[obj->form];
+    if (((int16_t)rec->bitmaps_ptr) != 0) {
+        target = BMPSET_PTR(rec->bitmaps_ptr)->bmp[obj->form];
         obj->size[0].width = BMP_PTR(target)->width;
         obj->size[0].height = BMP_PTR(target)->height;
         return;
@@ -8266,7 +8266,7 @@ void mark_parts_in_dirty_rects(void)
  */
 void refile_overlapping_parts(void)
 {
-    uint16_t v16;   /* [bp-0x16] the kind's record */
+    const struct part_kind *v16;   /* [bp-0x16] the kind's record */
     uint16_t v14;   /* [bp-0x14] the part walked to */
     uint16_t v12;   /* [bp-0x12] */
     uint16_t v10;   /* [bp-0x10] */
@@ -8287,16 +8287,16 @@ void refile_overlapping_parts(void)
         v14 = DG50BF.layer_head[v02];
 
         while (v14 != 0) {
-            v16 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)PART_PTR(v14)->kind);
+            v16 = &PART_KINDS[PART_PTR(v14)->kind];
 
-            if (!(PARTKIND_AT_PTR(v16)->refile_level[0] == 0xff
-                  || PARTKIND_AT_PTR(v16)->refile_level[0] >= v02
-                  || PARTKIND_AT_PTR(v16)->refile_level[0] <= 2))
+            if (!(v16->refile_level[0] == 0xff
+                  || v16->refile_level[0] >= v02
+                  || v16->refile_level[0] <= 2))
                 goto next;
 
-            if (!(PARTKIND_AT_PTR(v16)->refile_level[0] == 0xff
-                  || PARTKIND_AT_PTR(v16)->refile_level[1] >= v02
-                  || PARTKIND_AT_PTR(v16)->refile_level[1] <= 2))
+            if (!(v16->refile_level[0] == 0xff
+                  || v16->refile_level[1] >= v02
+                  || v16->refile_level[1] <= 2))
                 goto next;
 
             v04 = ((uint16_t)PART_PTR(v14)->box[0].x);
@@ -8316,13 +8316,13 @@ void refile_overlapping_parts(void)
                     || di->kind == KIND_ANCHOR)
                     continue;
 
-                v16 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)di->kind);
+                v16 = &PART_KINDS[di->kind];
 
-                if (PARTKIND_AT_PTR(v16)->refile_level[0] > v02
-                    && PARTKIND_AT_PTR(v16)->refile_level[0] != 0xff)
+                if (v16->refile_level[0] > v02
+                    && v16->refile_level[0] != 0xff)
                     continue;
-                if (PARTKIND_AT_PTR(v16)->refile_level[1] > v02
-                    && PARTKIND_AT_PTR(v16)->refile_level[1] != 0xff)
+                if (v16->refile_level[1] > v02
+                    && v16->refile_level[1] != 0xff)
                     continue;
 
                 if (di->kind == KIND_BELT) {
@@ -9180,7 +9180,7 @@ move:
         }
     } else {
         part_drive(PART_PTR(other), part, PART_PTR(other), 0, (uint16_t)orient,
-                   ((uint16_t)PARTKIND_PTR((int16_t)part->kind)->weight),
+                   ((uint16_t)PART_KINDS[part->kind].weight),
                    (uint16_t)part->momentum,
                    (uint16_t)((uint32_t)part->momentum >> 16));
     }
@@ -9530,7 +9530,7 @@ void reset_machine(void)
         si->size[1] = si->size[0];
         si->size[2] = si->size[0];
 
-        si->weight = PARTKIND_PTR(si->kind)->weight;
+        si->weight = PART_KINDS[si->kind].weight;
 
         si->contact_ptr = 0;
         si->direction = si->word_92;
@@ -9549,7 +9549,7 @@ void reset_machine(void)
                     si->link_ptr[v2 + 2];
         }
 
-        call_part_setup(PARTKIND_PTR(si->kind)->setup, si);
+        call_part_setup(PART_KINDS[si->kind].setup, si);
     }
 
     for (si = pick_by_flag(0x3000); si != PART_NONE;
