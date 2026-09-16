@@ -89,6 +89,7 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
 DG_ASSERT_AT(struct res_handler, read_off,  0x06);
 DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
 _Static_assert(sizeof(struct engine_res_handlers) == 0x38, "four handlers end at 0x35b2");
+
 /*
  * **Nine bit masks**, DGROUP 0x35b2..0x35bc, `(1 << n) - 1` for n from 0 to 8
  * - the same nine as `ENGINE_LZW_MASKS` - and a zero byte. **Not established**
@@ -146,6 +147,7 @@ struct engine_lzw_resume {
 struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
 _Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3, 0x02 bytes");
 DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
+
 /*
  * **Not established**, DGROUP 0x35d3..0x3600, 0x2d bytes: three words the
  * image sets - 0x138b, 10000 and 1 - and two nine-byte runs that read as the
@@ -185,6 +187,7 @@ struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
 _Static_assert(sizeof(struct engine_bit_buffer) == 0x03, "DGROUP 0x3600..0x3603, 0x03 bytes");
 DG_ASSERT_AT(struct engine_bit_buffer, bits,      0x00);
 DG_ASSERT_AT(struct engine_bit_buffer, bit_count, 0x02);
+
 /*
  * **The Huffman coder's position tables**, DGROUP 0x3603..0x3686: three zero
  * bytes, then sixty-four code lengths and sixty-four codes - the shape of
@@ -571,6 +574,7 @@ struct engine_font_chunk {
 struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
 _Static_assert(sizeof(struct engine_font_chunk) == 0x02, "DGROUP 0x495c..0x495e, 0x02 bytes");
 DG_ASSERT_AT(struct engine_font_chunk, font_chunk_name, 0x00);
+
 /*
  * **The font chunk's name**, DGROUP 0x495e..0x4966, which `ENGINE_FONT_CHUNK`
  * points at, and the "r" `load_font` opens with.
@@ -4852,7 +4856,7 @@ uint16_t load_bitmap_list(char *name)
         goto done;
 
     r = file_record_size(si);
-    di = open_resource(0, si, (char *)dg_ptr(dgroup, 0x4978), r);
+    di = open_resource(0, si, CHUNK.mode_r_a, r);
     if (di < 0)
         goto done;
 
@@ -4880,7 +4884,7 @@ uint16_t load_bitmap_list(char *name)
         goto done;
 
     r = file_record_size(si);
-    di = open_resource(0, si, (char *)dg_ptr(dgroup, 0x498c), r);
+    di = open_resource(0, si, CHUNK.mode_r_b, r);
     if (di < 0)
         goto done;
 
@@ -5156,7 +5160,7 @@ uint16_t load_screen_plain(char *name)
         goto close;
 
     r = file_record_size(handle);
-    res = open_resource(0, handle, (char *)dg_ptr(dgroup, 0x49a0), r);
+    res = open_resource(0, handle, CHUNK.mode_r_c, r);
     if (res < 0)
         goto close;
 
@@ -5210,7 +5214,7 @@ uint16_t load_screen_plain(char *name)
         goto free_buf;
 
     r = file_record_size(handle);
-    res = open_resource(0, handle, (char *)dg_ptr(dgroup, 0x49b4), r);
+    res = open_resource(0, handle, CHUNK.mode_r_d, r);
     if (res < 0)
         goto free_buf;
 
@@ -5421,7 +5425,7 @@ FILE *open_file_record(char *name)
     if (rec == NULL)
         return 0;
 
-    rec->file_ptr = dg_off(dgroup, game_fopen(name, "rb"));
+    rec->file_ptr = dg_off(dgroup, game_fopen(name, CHUNK.mode_rb));
     if (rec->file_ptr == 0)
         return 0;
 
@@ -6967,7 +6971,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
             DG48DA.driver = p;
 
-            vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
+            vm_driver_init(dg_off(dgroup, &VMDS), dg_off(dgroup, DG440E.driver_table), DGROUP_SEG);
             seg = DG48DA.driver.seg;
 
             /* a hundred words of the driver's table, word by word, and

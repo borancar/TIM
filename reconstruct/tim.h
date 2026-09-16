@@ -1350,7 +1350,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
 void link_objects_crossing(struct part *obj, uint16_t flags,
-                           uint16_t line);           /* 0x03782 */
+                           const int16_t *line);     /* 0x03782 */
 void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x038b9 */
 void     seg172c_nothing(void);                     /* 172c:0000 */
@@ -1400,7 +1400,7 @@ uint16_t part_step_mort_the_mouse(struct part *part);             /* 172c:34d0 *
 uint16_t part_hit_scissors(struct part *part);              /* 172c:3824 */
 uint16_t part_step_rocket(struct part *part);             /* 172c:3635 */
 uint16_t part_step_scissors(struct part *part);             /* 172c:38fc */
-void     cut_belts(struct part *part, uint16_t line);   /* 172c:3970 */
+void     cut_belts(struct part *part, const int16_t *line);   /* 172c:3970 */
 void grab_distance(struct part *a, struct part *b,
                    uint8_t * out_x, uint8_t * out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,

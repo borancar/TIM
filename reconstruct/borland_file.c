@@ -283,6 +283,7 @@ DG_ASSERT_AT(struct borland_runtime_strings, s_print,     0x72);
 DG_ASSERT_AT(struct borland_runtime_strings, s_scanf,     0x77);
 DG_ASSERT_AT(struct borland_runtime_strings, s_no_floats, 0x7c);
 _Static_assert(sizeof(struct borland_runtime_strings) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
+
 /*
  * DGROUP 0x4e42..0x4e4e - **two more near vectors and the init table.** The
  * two words follow `DG4E34.realcvt_ptr` and hold the same kind of value.
@@ -1391,11 +1392,11 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
             dos_lseek(handle, 0, 0, 2);
 
         if (BORLAND_FPUTC_CHAR.character == '\n' && (file->flags & 0x40) == 0) {
-            if (dos_write(handle, dg_ptr(dgroup, 0x4e3a /* "\r" */), 1) != 1)
+            if (dos_write(handle, DG4E34.cr, 1) != 1)
                 goto failed;
         }
 
-        if (dos_write(handle, dg_ptr(dgroup, 0x64c8), 1) == 1)
+        if (dos_write(handle, &BORLAND_FPUTC_CHAR.character, 1) == 1)
             return (int16_t)BORLAND_FPUTC_CHAR.character;
 
     failed:

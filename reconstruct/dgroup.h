@@ -1275,7 +1275,7 @@ struct dg_4e34 {
     dg_off_t  first_block_ptr;    /* +0x00  the block chain runs from here to the topmost */
     dg_off_t  top_block_ptr;      /* +0x02  which is where a new block is cut from */
     dg_off_t  ring_cursor_ptr;    /* +0x04  first fit walks *backward* from here */
-    uint8_t   pad_4e3a[2];
+    uint8_t   cr[2];              /* +0x06  "\r", which `borland_fputc` writes before a newline in text mode */
     int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
     int16_t   stdout_is_tty;      /* +0x0a */
     dg_off_t  realcvt_ptr;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
@@ -3572,18 +3572,41 @@ struct part_shapes {
     struct point8  s_3496[8];              /* 0x314  0x3496  8 pairs */
     struct point8  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
     dg_off_t          o_34b6[2];              /* 0x334  0x34b6  2 offsets */
-    uint8_t           unread_34ba[16];        /* 0x338  0x34ba  16 bytes */
+    /* **The scissors' blade**, a segment of four words - x0, y0, x1, y1 - once
+       as it stands and once mirrored; `part_step_scissors` picks one by the flip
+       bit and `cut_belts` cuts every belt that crosses it. */
+    int16_t           cut_line[2][4];         /* 0x338  0x34ba */
     struct point16    p_34ca[3];              /* 0x348  0x34ca  3 points */
     struct point16    p_34d6[3];              /* 0x354  0x34d6  3 points */
     struct point16    p_34e2[8];              /* 0x360  0x34e2  8 points */
     struct point16    p_3502[8];              /* 0x380  0x3502  8 points */
-    struct point16    p_3522[21];             /* 0x3a0  0x3522  21 points */
+    struct point16    p_3522[8];              /* 0x3a0  0x3522  8 points */
+    /* **The seesaw's shaft by form**, a segment of four words each, which
+       `part_step_seesaw` hands `link_objects_crossing`. */
+    int16_t           shaft_line[3][4];       /* 0x3c0  0x3542 */
 } __attribute__((packed));
 
 extern struct part_shapes PARTSHAPES;
 
-_Static_assert(sizeof(struct part_shapes) == 0x3f4,
-               "the shape tables run from 0x3182 to DG3576");
+_Static_assert(sizeof(struct part_shapes) == 0x3d8,
+               "the shape tables run from 0x3182 to the IFF chunk names at 0x355a");
+
+/*
+ * **The IFF chunk names**, DGROUP 0x355a..0x3576, and the mode the file is
+ * written with - the ILBM writer's literals, which follow the shape tables
+ * rather than belonging to them. They were the tail of `p_3522`'s 21 points
+ * until the six strings were read as what they are.
+ */
+struct iff_chunk_names {
+    char      form[5];            /* +0x00  "FORM" */
+    char      ilbm[5];            /* +0x05  "ILBM" */
+    char      bmhd[5];            /* +0x0a  "BMHD" */
+    char      cmap[5];            /* +0x0f  "CMAP" */
+    char      body[5];            /* +0x14  "BODY" */
+    char      mode_wb[3];         /* +0x19  "wb" */
+} __attribute__((packed));
+_Static_assert(sizeof(struct iff_chunk_names) == 0x1c, "ends at 0x3576, DG3576");
+extern struct iff_chunk_names IFF_CHUNK_NAMES;
 DG_ASSERT_AT(struct part_shapes, s_3182,        0x000);
 DG_ASSERT_AT(struct part_shapes, s_3192,        0x010);
 DG_ASSERT_AT(struct part_shapes, s_319e,        0x01c);
@@ -3657,12 +3680,13 @@ DG_ASSERT_AT(struct part_shapes, o_3492,        0x310);
 DG_ASSERT_AT(struct part_shapes, s_3496,        0x314);
 DG_ASSERT_AT(struct part_shapes, s_34a6,        0x324);
 DG_ASSERT_AT(struct part_shapes, o_34b6,        0x334);
-DG_ASSERT_AT(struct part_shapes, unread_34ba,   0x338);
+DG_ASSERT_AT(struct part_shapes, cut_line,      0x338);
 DG_ASSERT_AT(struct part_shapes, p_34ca,        0x348);
 DG_ASSERT_AT(struct part_shapes, p_34d6,        0x354);
 DG_ASSERT_AT(struct part_shapes, p_34e2,        0x360);
 DG_ASSERT_AT(struct part_shapes, p_3502,        0x380);
 DG_ASSERT_AT(struct part_shapes, p_3522,        0x3a0);
+DG_ASSERT_AT(struct part_shapes, shaft_line,    0x3c0);
 
 struct belt {
     dg_off_t  owner_ptr;       /* +0x00  the part this belt hangs off */
@@ -4195,6 +4219,24 @@ DG_ASSERT_AT(struct file_rec, flags,    0x02);
 DG_ASSERT_AT(struct file_rec, fd,   0x04);
 DG_ASSERT_AT(struct file_rec, bsize, 0x06);
 DG_ASSERT_AT(struct file_rec, curp, 0x0a);
+
+/*
+ * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
+ * copy of every literal beside the routine that uses it, which is why "*.TIM"
+ * is here twice. Named by their users; the bytes are the image's, and the
+ * run ends at the hot spots at 0x284a.
+ */
+struct game_level_strings {
+    char ff_lev[7];               /* +0x00 [7]  "ff.lev"   screen_state_0400 */
+    char tim_filter_load[6];      /* +0x07 [6]  "*.TIM"    screen_state_0100's pick_file */
+    char tim_filter_save[6];      /* +0x0d [6]  "*.TIM"    screen_state_0080's */
+    char title_sep[3];            /* +0x13 [3]  ": "       paint_panel_frame */
+    char replay[7];               /* +0x16 [7]  "REPLAY"   finish_level's two buttons */
+    char advance[8];              /* +0x1d [8]  "ADVANCE" */
+    uint8_t pad_2849[1];          /* +0x25 [1] */
+} __attribute__((packed));
+
+extern struct game_level_strings GAME_LEVEL_STRINGS;
 
 /*
  * ---------------------------------------------------------------------------

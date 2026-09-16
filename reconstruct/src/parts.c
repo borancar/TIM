@@ -541,13 +541,13 @@ void part_setup_monkey(struct part *part)
  */
 void part_setup_08a1(struct part *part)
 {
-    uint16_t si = (part->flags_08 & 0x10) ? 0x322a : 0x3222;
+    const struct point8 *si = (part->flags_08 & 0x10) ? PARTSHAPES.s_322a : PARTSHAPES.s_3222;
     struct part_point *di = POINTS(part->points_ptr);
     int16_t i;
 
     for (i = 0; i < 4; i++) {
-        di[i].x = POINT_TABLE(si)[i].x;
-        di[i].y = POINT_TABLE(si)[i].y;
+        di[i].x = si[i].x;
+        di[i].y = si[i].y;
     }
 
     part_finish(0x5d1e, part);
@@ -560,13 +560,13 @@ void part_setup_08a1(struct part *part)
  */
 void part_setup_pokey(struct part *part)
 {
-    uint16_t si = (part->flags_08 & 0x10) ? 0x325c : 0x3252;
+    const struct point8 *si = (part->flags_08 & 0x10) ? PARTSHAPES.s_325c : PARTSHAPES.s_3252;
     struct part_point *di = POINTS(part->points_ptr);
     int16_t i;
 
     for (i = 0; i < 5; i++) {
-        di[i].x = POINT_TABLE(si)[i].x;
-        di[i].y = POINT_TABLE(si)[i].y;
+        di[i].x = si[i].x;
+        di[i].y = si[i].y;
     }
 
     part_finish(0x5d1e, part);
@@ -579,13 +579,13 @@ void part_setup_pokey(struct part *part)
  */
 void part_setup_fan(struct part *part)
 {
-    uint16_t si = (part->flags_08 & 0x10) ? 0x32d2 : 0x32c8;
+    const struct point8 *si = (part->flags_08 & 0x10) ? PARTSHAPES.s_32d2 : PARTSHAPES.s_32c8;
     struct part_point *di = POINTS(part->points_ptr);
     int16_t i;
 
     for (i = 0; i < 5; i++) {
-        di[i].x = POINT_TABLE(si)[i].x;
-        di[i].y = POINT_TABLE(si)[i].y;
+        di[i].x = si[i].x;
+        di[i].y = si[i].y;
     }
 
     part_finish(0x5d1e, part);
@@ -622,13 +622,13 @@ void part_setup_bob_the_fish(struct part *part)
  */
 void part_setup_flashlight(struct part *part)
 {
-    uint16_t si = (part->flags_08 & 0x10) ? 0x3308 : 0x32fc;
+    const struct point8 *si = (part->flags_08 & 0x10) ? PARTSHAPES.s_3308 : PARTSHAPES.s_32fc;
     struct part_point *di = POINTS(part->points_ptr);
     int16_t i;
 
     for (i = 0; i < 6; i++) {
-        di[i].x = POINT_TABLE(si)[i].x;
-        di[i].y = POINT_TABLE(si)[i].y;
+        di[i].x = si[i].x;
+        di[i].y = si[i].y;
     }
 
     part_finish(0x5d1e, part);
@@ -4361,8 +4361,7 @@ uint16_t part_step_seesaw(struct part *part)
     v02 = (int16_t)(part->pos[0].x
                           + ((part->size[0].width) >> 1));
 
-    link_objects_crossing(part, 0x1000,
-                          (uint16_t)(0x3542 + 8 * part->form));
+    link_objects_crossing(part, 0x1000, PARTSHAPES.shaft_line[part->form]);
 
     for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
          di = PART_PTR(di->next_linked_ptr)) {
@@ -4480,7 +4479,7 @@ uint16_t part_step_scissors(struct part *part)
     if (part->form != 0)
         return 0;
 
-    cut_belts(part, (part->flags_08 & 0x10) ? 0x34c2 : 0x34ba);
+    cut_belts(part, PARTSHAPES.cut_line[(part->flags_08 & 0x10) ? 1 : 0]);
 
     part->form++;
     part_setup(0x389b, part);
@@ -4517,7 +4516,7 @@ uint16_t part_step_scissors(struct part *part)
  * geometry refreshed with the machine forced into state 0x1000, and the walk
  * ends: a belt is only cut once per pass.
  */
-void cut_belts(struct part *part, uint16_t line)
+void cut_belts(struct part *part, const int16_t *line)
 {
     uint16_t newbelt;   /* [bp-0x26] */
     struct belt *belt;   /* [bp-0x24] */
@@ -4574,7 +4573,7 @@ void cut_belts(struct part *part, uint16_t line)
                 + PART_PTR(next)->attach[slotB].y
                 - part->pos[0].y);
 
-            if (intersect_segments((const int16_t *)dg_ptr(dgroup, line), seg,
+            if (intersect_segments(line, seg,
                                    (uint8_t *)at) == 0) {
                 if (next == endB) {
                     next = 0;

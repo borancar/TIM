@@ -267,10 +267,12 @@ struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
 };
 _Static_assert(sizeof(struct game_puzzle_tabs) == 0x16, "DGROUP 0x260a..0x2620, 0x16 bytes");
 DG_ASSERT_AT(struct game_puzzle_tabs, word_260a, 0x00);
+
 /*
  * **The part bitmap's name pieces**, DGROUP 0x2620..0x2630: "*", ": ",
- * "part" and ".bmp", and a zero byte. `load_part_bitmap` builds "partNN.bmp"
- * out of the last two; the port's transcription spells them as literals.
+ * "part" and ".bmp", and a zero byte - each the copy one routine pushes:
+ * `puzzle_draw_password` the star, `puzzle_draw_list` the separator, and
+ * `load_part_bitmap`, which builds "partNN.bmp", the last two.
  */
 struct game_part_names {
     char      star[2];            /* +0x00  "*" */
@@ -321,22 +323,6 @@ struct game_master_level_x {
 struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = { .level_x = { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 } };
 _Static_assert(sizeof(struct game_master_level_x) == 0x0c, "DGROUP 0x2818..0x2824, 0x0c bytes");
 
-/*
- * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
- * copy of every literal beside the routine that uses it, which is why "*.TIM"
- * is here twice. Named by their users; the bytes are the image's, and the
- * run ends at the hot spots at 0x284a.
- */
-struct game_level_strings {
-    char ff_lev[7];               /* +0x00 [7]  "ff.lev"   screen_state_0400 */
-    char tim_filter_load[6];      /* +0x07 [6]  "*.TIM"    screen_state_0100's pick_file */
-    char tim_filter_save[6];      /* +0x0d [6]  "*.TIM"    screen_state_0080's */
-    char title_sep[3];            /* +0x13 [3]  ": "       paint_panel_frame */
-    char replay[7];               /* +0x16 [7]  "REPLAY"   finish_level's two buttons */
-    char advance[8];              /* +0x1d [8]  "ADVANCE" */
-    uint8_t pad_2849[1];          /* +0x25 [1] */
-} __attribute__((packed));
-
 struct game_level_strings GAME_LEVEL_STRINGS DGROUP_AT(0x2824) = {
     .ff_lev = "ff.lev",
     .tim_filter_load = "*.TIM",
@@ -355,7 +341,7 @@ _Static_assert(sizeof(struct game_level_strings) == 0x26, "the level screens' li
  *
  * The four names are fields because `game_fopen` uppercases a name in place
  * through `hash_filename` - see `game_startup_names`. The modes and the "l" and ".lev"
- * pieces are only read, and are literals where they are used.
+ * pieces are only read, and each routine reads its own copy by name.
  */
 struct game_file_names {
     char rb_read_level[3];        /* +0x00 [3]  read_level */
@@ -435,11 +421,12 @@ struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
 };
 _Static_assert(sizeof(struct game_picker_tabs) == 0x1e, "DGROUP 0x28fa..0x2918, 0x1e bytes");
 DG_ASSERT_AT(struct game_picker_tabs, word_28fa, 0x00);
+
 /*
- * **The file dialog's strings**, DGROUP 0x2918..0x2966: the ".TIM" extension,
- * the eleven DOS device names a typed file name must not be, the mode, and
- * the patterns the directory scan uses. The port's transcription spells them
- * as literals; these are the image's bytes, at the image's addresses.
+ * **The file dialog's strings**, DGROUP 0x2918..0x2966: the ".TIM" extension
+ * `pick_file` forces, the eleven DOS device names `validate_filename` refuses,
+ * its mode, and the stars, patterns and dots the picker and the directory scan
+ * use - each the copy one call site pushes.
  */
 struct game_file_strings {
     char      tim[4];             /* +0x00  "TIM" */
@@ -648,7 +635,7 @@ uint16_t game_teardown(int16_t really)
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
         read_password_line(DG4E67.password_puzzle, code);
         score_to_code(DG4E67.score, code);
-        string_copy(msg, "\n\nThanks for playing 'The Incredible Machine'.\nThe last password given to you was:  ");
+        string_copy(msg, DG1BCC.thanks_for_playing);
         string_concat(msg, code);
     } else {
         (*msg) = 0;
@@ -737,7 +724,7 @@ void game_startup(void)
     free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     if (free_bytes < 0x00044d90L) {
         borland_printf("\n\nNOT ENOUGH FREE MEMORY\n", NULL);
-        borland_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n", NULL);
+        borland_printf(DG1BCC.you_need_at_least, NULL);
         borland_exit(0);
     }
 
@@ -791,8 +778,8 @@ void game_startup(void)
     DG52BD.fill_colour = 3;
     DG52BD.word_52c9 = 0x0b;
 
-    if (vm_init(0x0d, 0x80, FILEREC_PTR(0x00ba)) == 0) {     /* "vm.ovl" */
-        borland_printf("Unable to initialize vm.", NULL);
+    if (vm_init(0x0d, 0x80, (FILE *)GAME_STARTUP_NAMES.vm_ovl) == 0) {     /* "vm.ovl" */
+        borland_printf(DG1BCC.unable_to_initialize_vm, NULL);
         borland_exit(0);
     }
 
@@ -800,25 +787,25 @@ void game_startup(void)
     VMDS.page_back_ptr = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim_ptr = load_palette((char *)dg_ptr(dgroup, 0x00c1));   /* "tim.pal"    */
-    DG52BD.pal_sierra_ptr = load_palette((char *)dg_ptr(dgroup, 0x00c9));   /* "sierra.pal" */
+    DG52ED.pal_tim_ptr = load_palette(GAME_STARTUP_NAMES.tim_pal);   /* "tim.pal"    */
+    DG52BD.pal_sierra_ptr = load_palette(GAME_STARTUP_NAMES.sierra_pal);   /* "sierra.pal" */
     {
-        struct far_ptr black = load_palette((char *)dg_ptr(dgroup, 0x00d4));  /* "black.pal"  */
+        struct far_ptr black = load_palette(GAME_STARTUP_NAMES.black_pal);  /* "black.pal"  */
 
         DG52BD.pal_black_ptr = black;
         set_palette_pointer(black);
     }
 
-    DG52BD.word_52df = load_font((char *)dg_ptr(dgroup, 0x00de));          /* "memofnt8.fnt" */
+    DG52BD.word_52df = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
-    DG52ED.cursor_art_ptr = load_bitmap_list((char *)dg_ptr(dgroup, 0x00eb));          /* "mouse.bmp"   */
+    DG52ED.cursor_art_ptr = load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp);          /* "mouse.bmp"   */
     DG52ED.panel_art_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp);
     DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp);
 
     install_keyboard(0);
 
-    start_sound(sound_device, sound_module, 0, FILEREC_PTR(0x0108));     /* "sx.ovl" */
+    start_sound(sound_device, sound_module, 0, (FILE *)GAME_STARTUP_NAMES.sx_ovl);     /* "sx.ovl" */
 
     DG52ED.word_52f8 = dg_off(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
     for (i = 1; i <= 0x14; i++)
@@ -1294,9 +1281,9 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), numbuf, 10);
-    string_copy(msg, "Please select, in order, the three parts listed on page ");
+    string_copy(msg, DG1BCC.please_select_in_order);
     string_concat(msg, numbuf);
-    string_concat(msg, " of the user's manual.");
+    string_concat(msg, DG1BCC.of_the_users_manual);
     draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
@@ -1664,10 +1651,10 @@ void load_level(uint16_t number)
     char name[14];
     char digits[8];
 
-    string_copy(name, "l");
+    string_copy(name, GAME_FILE_NAMES.l_load_level);
     int_to_string((int16_t)number, digits, 10);
     string_concat(name, digits);
-    string_concat(name, ".lev");
+    string_concat(name, GAME_FILE_NAMES.lev_load_level);
 
     DG546C.is_level = 1;
     read_level(name);
@@ -1705,12 +1692,12 @@ void paint_panel_frame(void)
     char digits[8];
 
     if (DG4E67.freeform != 0) {
-        string_copy(title, "FREEFORM MODE");
+        string_copy(title, DG1BCC.freeform_mode_title);
     } else {
-        string_copy(title, "PUZZLE ");
+        string_copy(title, DG1BCC.puzzle_prefix);
         int_to_string(DG4E67.round_number, digits, 10);
         string_concat(title, digits);
-        string_concat(title, ": ");
+        string_concat(title, GAME_LEVEL_STRINGS.title_sep);
         string_concat(title, (const char *)DG4E67.title);
     }
 
@@ -2581,7 +2568,7 @@ uint16_t read_level(char *name)
     uint16_t r;
     int16_t  n_machine, n_moving, n_given;
 
-    file = game_fopen(name, "rb");
+    file = game_fopen(name, GAME_FILE_NAMES.rb_read_level);
     if (file == 0) {
         DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
         dg_free(0x216);
@@ -2740,7 +2727,7 @@ uint16_t select_puzzle_screen(void)
                 level = (int16_t)password_to_level((char *)GAME_TYPED_TEXT.typed);
 
                 if (level == -1) {
-                    show_message_box("BAD PASSWORD", (char *)DG1BCC.bad_password_body);
+                    show_message_box(DG1BCC.bad_password, (char *)DG1BCC.bad_password_body);
                     DG4E67.state = 0x8000;
                     full = 1;
                 } else {
@@ -2751,7 +2738,7 @@ uint16_t select_puzzle_screen(void)
                     /* -1 in both halves is -1 in the whole. */
                     if (DG4E67.counter == -1) {
                         DG4E67.counter = 0;
-                        show_message_box("SCORE CODE INVALID", (char *)DG1BCC.score_code_body);
+                        show_message_box(DG1BCC.score_code_invalid, (char *)DG1BCC.score_code_body);
                         full = 1;
                     }
 
@@ -2826,7 +2813,7 @@ uint16_t select_puzzle_screen(void)
 
             if (row <= DG4E67.level_count) {
                 if (row > DG4E67.furthest_level) {
-                    show_message_box("NEED PASSWORD", (char *)DG1BCC.need_password_body);
+                    show_message_box(DG1BCC.need_password, (char *)DG1BCC.need_password_body);
                     repaint = 1;
                 } else if (row != DG53FC.selected_level) {
                     DG53FC.selected_level = row;
@@ -3011,8 +2998,8 @@ void puzzle_repaint(void)
 {
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
 
-    draw_scroll_text("SELECT PUZZLE", 0xa8, 0x27, 0xc0);
-    draw_scroll_text("PASSWORD", 0x20, 0x13c, 0x60);
+    draw_scroll_text(DG1BCC.select_puzzle, 0xa8, 0x27, 0xc0);
+    draw_scroll_text(DG1BCC.password, 0x20, 0x13c, 0x60);
 
     draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
     draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
@@ -3056,7 +3043,7 @@ void puzzle_draw_password(const char *text)
     if (DG4E67.state == 0x800) {
         DG53FC.word_5428++;
         if ((DG53FC.word_5428 & 8) != 0)
-            string_concat(si, "*");
+            string_concat(si, GAME_PART_NAMES.star);
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -3098,10 +3085,10 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
-        string_copy(name, "PUZZLE ");
+        string_copy(name, DG1BCC.puzzle_prefix);
         int_to_string(n, num, 10);
         string_concat(name, num);
-        string_concat(name, ": ");
+        string_concat(name, GAME_PART_NAMES.title_sep);
 
         if (get_puzzle_title(n, title) == 0) {
             i = 0x34;
@@ -3226,7 +3213,7 @@ void screen_state_1000(struct screen_loop *s)
     paint_panel_b(1);
     present_back_page();
 
-    if (ask_yes_no("QUIT GAME", (char *)DG1BCC.quit_body)) {   /* "QUIT GAME" / "Are you sure ..." */
+    if (ask_yes_no(DG1BCC.quit_game, (char *)DG1BCC.quit_body)) {   /* "QUIT GAME" / "Are you sure ..." */
         DG4E67.state = 1;
         s->done = 1;
     } else {
@@ -3251,7 +3238,7 @@ void screen_state_0800(struct screen_loop *s)
     paint_panel_c(1);
     present_back_page();
 
-    if (ask_yes_no("RESTART LEVEL", (char *)DG1BCC.restart_body)) {   /* "RESTART LEVEL" */
+    if (ask_yes_no(DG1BCC.restart_level, (char *)DG1BCC.restart_body)) {   /* "RESTART LEVEL" */
         remove_all_parts();
         DG4E67.state = 0x1000;
         s->done = 1;
@@ -3287,7 +3274,7 @@ void screen_state_0400(struct screen_loop *s)
     paint_panel_level(1);
     present_back_page();
 
-    if (ask_yes_no("FREEFORM MODE", (char *)DG1BCC.freeform_body)) {   /* "FREEFORM MODE" */
+    if (ask_yes_no(DG1BCC.freeform_mode, (char *)DG1BCC.freeform_body)) {   /* "FREEFORM MODE" */
         round_teardown();
         load_animation((char *)GAME_LEVEL_STRINGS.ff_lev);
         reset_machine();
@@ -3328,7 +3315,7 @@ void screen_state_0200(struct screen_loop *s)
     present_back_page();
 
     if (DG4E67.freeform != 0) {
-        if (ask_yes_no("LEAVE FREEFORM MODE", (char *)DG1BCC.leave_freeform_body)) {   /* "LEAVE FREEFORM MODE" */
+        if (ask_yes_no(DG1BCC.leave_freeform_mode, (char *)DG1BCC.leave_freeform_body)) {   /* "LEAVE FREEFORM MODE" */
             DG4E67.freeform = 0;
             s->reload = 1;
         }
@@ -3444,7 +3431,7 @@ void screen_state_0080(struct screen_loop *s)
         if (pick_file(0, 0, dg_off(dgroup, GAME_LEVEL_STRINGS.tim_filter_save))) {
             s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
-                show_message_box("FILE ERROR", (char *)DG1BCC.disk_write_protected);
+                show_message_box(DG1BCC.file_error, (char *)DG1BCC.disk_write_protected);
                 paint_game_screen(0);
             }
         } else {
@@ -3493,7 +3480,7 @@ void screen_state_0040(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE GRAVITY" */
-        show_message_box("CAN'T CHANGE GRAVITY", (char *)DG1BCC.gravity_body);
+        show_message_box(DG1BCC.cant_change_gravity, (char *)DG1BCC.gravity_body);
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -3538,7 +3525,7 @@ void screen_state_0020(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE AIR PRESSURE" */
-        show_message_box("CAN'T CHANGE AIR PRESSURE", (char *)DG1BCC.air_pressure_body);
+        show_message_box(DG1BCC.cant_change_air_pressure, (char *)DG1BCC.air_pressure_body);
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -3704,7 +3691,7 @@ void tab_move_pointer(void)
  */
 uint16_t ask_yes_no(const char *title, char *body)
 {
-    return message_box(title, body, "YES", "NO");
+    return message_box(title, body, GAME_BUTTON_LABELS.yes, GAME_BUTTON_LABELS.no);
 }
 
 /*
@@ -3869,7 +3856,7 @@ void message_box_tab(const char *button2)
  */
 void show_message_box(const char *title, char *body)
 {
-    message_box(title, body, "CONTINUE", NULL);
+    message_box(title, body, GAME_BUTTON_LABELS.continue_btn, NULL);
 }
 
 /*
@@ -5053,7 +5040,7 @@ void game_screen(void)
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
         if (bit0_of_468c(SC_ALT) && bit0_of_468c(SC_V)) {
-            show_message_box("VERSION NUMBER", (char *)DG1BCC.this_is_version);
+            show_message_box(DG1BCC.version_number, (char *)DG1BCC.this_is_version);
             s.repaint_all = 1;
             DG4E67.state = 2;
         }
@@ -5734,7 +5721,7 @@ uint16_t is_machine_file(char *name)
     FILE *file;
     uint16_t ok    = 0;
 
-    file = game_fopen(name, "rb");
+    file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file);
 
     if (file != 0) {
         game_fread_far(file, (uint8_t *)&magic);
@@ -5769,12 +5756,12 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
     FILE *file;
     uint16_t ok = 0;
 
-    string_copy(name, "l");
+    string_copy(name, GAME_FILE_NAMES.l_puzzle_title);
     int_to_string(n, num, 10);
     string_concat(name, num);
-    string_concat(name, ".lev");
+    string_concat(name, GAME_FILE_NAMES.lev_puzzle_title);
 
-    file = game_fopen(name, "rb");
+    file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title);
 
     if (file != 0) {
         game_fread_far(file, (uint8_t *)&magic);
@@ -5827,7 +5814,7 @@ uint16_t password_to_level(char *text)
     if (dash != NULL)
         *dash = 0;
 
-    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, "rb");
+    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, GAME_FILE_NAMES.rb_password_level);
 
     if (file != 0) {
         game_fread_line(file, line);
@@ -5862,7 +5849,7 @@ uint16_t password_to_level(char *text)
  */
 void write_config(void)
 {
-    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, "wb");
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg);
 
     if (file != 0) {
         write_word(file, (const uint8_t *)&DG4E67.furthest_level);
@@ -5922,10 +5909,10 @@ void load_part_bitmap(uint16_t n)
     char name[14];            /* [bp-0x16] */
     char number[8];          /* [bp-8]    */
 
-    string_copy(name, "part");
+    string_copy(name, GAME_PART_NAMES.part);
     int_to_string((int16_t)n, number, 10);
     string_concat(name, number);
-    string_concat(name, ".bmp");
+    string_concat(name, GAME_PART_NAMES.bmp);
 
     heap_check_or_hang();
     clear_flag_2d44_thunk();
@@ -6425,7 +6412,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         reload = 2;
                     } else {
                         dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                        show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
+                        show_message_box(DG1BCC.path_error, (char *)DG1BCC.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
                         restore_cursor();
@@ -6437,7 +6424,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         DG4E67.state = 0x8000;
                 } else {
                     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                    show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
+                    show_message_box(DG1BCC.path_error, (char *)DG1BCC.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
@@ -6468,7 +6455,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         if (DG4E67.state == 0x1000 || was == 0x1000) {
             if (((DG52ED.last_key) == '\r' || DG4E67.state != 0x1000)
                 && was == 0x1000) {
-                force_extension((char *)DG4E4E.name_buf, "TIM");
+                force_extension((char *)DG4E4E.name_buf, GAME_FILE_STRINGS.tim);
 
                 if (DG4E67.state == 0x1000)
                     DG4E67.state = 0x8000;
@@ -6566,7 +6553,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (valid == 0) {
                 picker_draw_action();
-                show_message_box("FILE ERROR",
+                show_message_box(DG1BCC.file_error,
                                  ((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100
                                      ? (char *)DG1BCC.cant_open_for_loading
                                      : (char *)DG1BCC.cant_open_for_saving);
@@ -6579,7 +6566,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 if (valid == 2) {
                     picker_draw_action();
 
-                    if (ask_yes_no("OVERWRITE FILE", (char *)DG1BCC.overwrite_body)
+                    if (ask_yes_no(DG1BCC.overwrite_file, (char *)DG1BCC.overwrite_body)
                         == 0) {
                         wait_cursor();
                         paint_panel_frame();
@@ -6590,7 +6577,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 }
             } else if (is_machine_file((char *)DG4E4E.name_buf) == 0) {
                 picker_draw_action();
-                show_message_box("WRONG FORMAT", (char *)DG1BCC.wrong_format_body);
+                show_message_box(DG1BCC.wrong_format, (char *)DG1BCC.wrong_format_body);
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -6688,7 +6675,7 @@ char *listing_to_name(const char far * entry)
     char *si;
 
     if (*entry == ':')
-        return "..";
+        return GAME_FILE_STRINGS.dot_dot_b;
 
     si = (char *)GAME_NAME_BUFFER.name;
 
@@ -6842,16 +6829,16 @@ void fill_file_listing(const char *pattern)
         GAME_PICKER_TEXT.entry_count++;
     }
 
-    more = dos_findfirst("*.*", 0x10);
+    more = dos_findfirst(GAME_FILE_STRINGS.star_dot_star_a, 0x10);
 
     while (more == 0 && ((uint16_t)GAME_PICKER_TEXT.entry_count) < ((uint16_t)GAME_PICKER_TEXT.word_569d)) {
         name     = dos_find_name();
         name_ext = string_chr(name, '.');
 
         if ((dos_find_attr() & 0x10) != 0) {
-            if (string_compare(name, ".") != 0
+            if (string_compare(name, GAME_FILE_STRINGS.dot) != 0
                 && string_compare(name,
-                                  "..") != 0) {
+                                  GAME_FILE_STRINGS.dot_dot_a) != 0) {
                 *ptr++ = txt;
                 GAME_PICKER_TEXT.entry_count++;
 
@@ -6894,7 +6881,7 @@ void fill_file_listing(const char *pattern)
             } while (*name++ != 0);
         }
 
-        more = dos_findnext("*.*", 0x10);
+        more = dos_findnext(GAME_FILE_STRINGS.star_dot_star_b, 0x10);
     }
 
     *ptr = FAR_NULL;                    /* the list's terminator */
@@ -7052,7 +7039,7 @@ void picker_draw_name(void)
     if (DG4E67.state == 0x4000) {
         DG5677.caret_blink++;
         if ((DG5677.caret_blink & 8) != 0)
-            string_concat(si, "*");
+            string_concat(si, GAME_FILE_STRINGS.star_a);
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -7093,11 +7080,11 @@ void picker_repaint(void)
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
     if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_scroll_text("LOAD MACHINE", 0x50, 0x34, 0xa0);
-        draw_button("LOAD", 0x40, 0x130, 0);
+        draw_scroll_text(DG1BCC.load_machine, 0x50, 0x34, 0xa0);
+        draw_button(DG1BCC.load, 0x40, 0x130, 0);
     } else {
-        draw_scroll_text("SAVE MACHINE", 0x50, 0x34, 0xa0);
-        draw_button("SAVE", 0x40, 0x130, 0);
+        draw_scroll_text(DG1BCC.save_machine, 0x50, 0x34, 0xa0);
+        draw_button(DG1BCC.save, 0x40, 0x130, 0);
     }
 
     draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
@@ -7106,7 +7093,7 @@ void picker_repaint(void)
     picker_draw_up();
     picker_draw_down();
 
-    draw_button("CANCEL", 0xc0, 0x130, 0);
+    draw_button(DG1BCC.cancel, 0xc0, 0x130, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -7161,24 +7148,25 @@ void picker_draw_down(void)
  * device name followed by a check that the byte after it ends the stem, and the
  * original repeats the whole thing eleven times rather than looping. Every
  * constant is kept, in the order the original tests them - including the last
- * pair, which do not agree with each other.
+ * pair, which do not agree with each other. The names are the DGROUP copies
+ * each block pushes, 0x291c to 0x294a.
  */
 static const struct {
     const char *name;
     uint16_t len;
     uint16_t after;
 } reserved_names[] = {
-    { "con", 3, 3 },   /* "con"  */
-    { "aux", 3, 3 },   /* "aux"  */
-    { "com1", 4, 4 },   /* "com1" */
-    { "com2", 4, 4 },   /* "com2" */
-    { "com3", 4, 4 },   /* "com3" */
-    { "com4", 4, 4 },   /* "com4" */
-    { "prn", 3, 3 },   /* "prn"  */
-    { "lpt1", 4, 4 },   /* "lpt1" */
-    { "lpt2", 4, 4 },   /* "lpt2" */
-    { "nul", 3, 3 },   /* "nul"  */
-    { "null", 3, 4 },   /* "null" compared for THREE bytes - see below */
+    { GAME_FILE_STRINGS.con,  3, 3 },
+    { GAME_FILE_STRINGS.aux,  3, 3 },
+    { GAME_FILE_STRINGS.com1, 4, 4 },
+    { GAME_FILE_STRINGS.com2, 4, 4 },
+    { GAME_FILE_STRINGS.com3, 4, 4 },
+    { GAME_FILE_STRINGS.com4, 4, 4 },
+    { GAME_FILE_STRINGS.prn,  3, 3 },
+    { GAME_FILE_STRINGS.lpt1, 4, 4 },
+    { GAME_FILE_STRINGS.lpt2, 4, 4 },
+    { GAME_FILE_STRINGS.nul,  3, 3 },
+    { GAME_FILE_STRINGS.null, 3, 4 },   /* compared for THREE bytes - see below */
 };
 
 /*
@@ -7254,7 +7242,7 @@ uint16_t validate_filename(void)
             return 0;
     }
 
-    file = game_fopen((char *)DG4E4E.name_buf, "rb");
+    file = game_fopen((char *)DG4E4E.name_buf, GAME_FILE_STRINGS.mode_rb);
 
     if (file != 0) {
         game_fclose(file);
@@ -7282,11 +7270,11 @@ uint16_t validate_filename(void)
 void picker_draw_action(void)
 {
     if (DG4E67.state != 0x200) {
-        draw_button("CANCEL", 0xc0, 0x130, 1);
+        draw_button(DG1BCC.cancel, 0xc0, 0x130, 1);
     } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_button("LOAD", 0x40, 0x130, 1);
+        draw_button(DG1BCC.load, 0x40, 0x130, 1);
     } else {
-        draw_button("SAVE", 0x40, 0x130, 1);
+        draw_button(DG1BCC.save, 0x40, 0x130, 1);
     }
 
     present_back_page();
@@ -7321,11 +7309,11 @@ void picker_draw_filename(void)
     if (DG4E67.state == 0x1000) {
         DG5677.caret_blink_b++;
         if ((DG5677.caret_blink_b & 8) != 0)
-            string_concat(si, "*");
+            string_concat(si, GAME_FILE_STRINGS.star_b);
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    draw_scroll_text("File Name:", 0x30, 0x10c, 0x54);
+    draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
     VMDS.unknown_01 = 0;
@@ -7875,7 +7863,7 @@ uint16_t write_level(char *name)
     DG546C.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    f = game_fopen(name, "wb");
+    f = game_fopen(name, GAME_FILE_NAMES.wb_write_level);
     if (f == 0) {
         DG4E67.file_op_active = 0;
         return 1;
@@ -7996,13 +7984,13 @@ void count_level_files(void)
     while (done == 0) {
         FILE *file;
 
-        string_copy(name, "l");
+        string_copy(name, GAME_FILE_NAMES.l_count_levels);
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
                       number, 10);
         string_concat(name, number);
-        string_concat(name, ".lev");
+        string_concat(name, GAME_FILE_NAMES.lev_count_levels);
 
-        file = game_fopen(name, "rb");
+        file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels);
 
         if (file != 0) {
             DG4E67.level_count++;
@@ -8037,7 +8025,7 @@ void read_password_line(int16_t count, char *buf)
 
     *buf = 0;
 
-    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, "rb");
+    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, GAME_FILE_NAMES.rb_password_line);
     if (f == 0)
         return;
 
@@ -8062,7 +8050,7 @@ void read_password_line(int16_t count, char *buf)
  */
 uint16_t read_tim_cfg(void)
 {
-    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_read, "rb");
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_read, GAME_FILE_NAMES.rb_tim_cfg);
 
     if (file == 0)
         return 0;

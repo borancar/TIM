@@ -76,9 +76,16 @@ def text(src, node):
 
 
 def walk(node):
-    yield node
-    for c in node.children:
-        yield from walk(c)
+    """Every node under `node`, in document order.
+
+    With an explicit stack, not recursion: a generated initialiser nests deeply
+    enough - a thousand levels - to exceed Python's recursion limit.
+    """
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        yield n
+        stack.extend(reversed(n.children))
 
 
 def hex_of(s):

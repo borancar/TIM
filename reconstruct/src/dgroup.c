@@ -1921,7 +1921,7 @@ struct timer TIMER DGROUP_AT(0x44ee) = { .word_44f1 = -1 };
 struct game_text_lines GAME_TEXT_LINES DGROUP_BSS(0x56a6);
 struct dg_5752 DG5752 DGROUP_BSS(0x5752);
 struct dg_5456 DG5456 DGROUP_BSS(0x5456);
-struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .pad_4e3a = { 0x0d }, .realcvt_ptr = 0xc884 };
+struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
 struct chunk_names CHUNK DGROUP_AT(0x4966) = {
     .bmp_inf = "BMP:INF:",
     .bmp_bin = "BMP:BIN:",
@@ -2515,14 +2515,9 @@ struct part_shapes PARTSHAPES DGROUP_AT(0x3182) = {
         { .x = 0x1e, .y = 0x1b }, { .x = 0x17, .y = 0x1e }, { .y = 0x12 },
     },
     .o_34b6 = { 0x3496, 0x34a6 },
-    .unread_34ba = {
-        [0] = 0x16,
-        [2] = 0x0f,
-        [4] = 0x27,
-        [6] = 0x0f,
-        [10] = 0x0f,
-        [12] = 0x10,
-        [14] = 0x0f,
+    .cut_line = {
+        { 0x0016, 0x000f, 0x0027, 0x000f },
+        { 0x0000, 0x000f, 0x0010, 0x000f },
     },
     .p_34ca = {
         { .x = 0x0005, .y = 0x001b }, { .x = 0x0004, .y = 0x0002 },
@@ -2548,14 +2543,21 @@ struct part_shapes PARTSHAPES DGROUP_AT(0x3182) = {
         { .y = 0x0003 }, { .x = 0x004f, .y = 0x0020 },
         { .x = 0x004f, .y = 0x0024 }, { .x = 0x002c, .y = 0x0018 },
         { .x = 0x002c, .y = 0x0022 }, { .x = 0x0024, .y = 0x0022 },
-        { .x = 0x0024, .y = 0x0015 }, { .y = 0x0008 }, { .y = 0x0020 },
-        { .x = 0x004f, .y = 0x0003 }, { .y = 0x0011 },
-        { .x = 0x004f, .y = 0x0011 }, { .y = 0x0003 },
-        { .x = 0x004f, .y = 0x0020 }, { .x = 0x4f46, .y = 0x4d52 },
-        { .x = 0x4900, .y = 0x424c }, { .x = 0x004d, .y = 0x4d42 },
-        { .x = 0x4448, .y = 0x4300 }, { .x = 0x414d, .y = 0x0050 },
-        { .x = 0x4f42, .y = 0x5944 }, { .x = 0x7700, .y = 0x0062 },
+        { .x = 0x0024, .y = 0x0015 }, { .y = 0x0008 },
     },
+    .shaft_line = {
+        { 0x0000, 0x0020, 0x004f, 0x0003 },
+        { 0x0000, 0x0011, 0x004f, 0x0011 },
+        { 0x0000, 0x0003, 0x004f, 0x0020 },
+    },
+};
+struct iff_chunk_names IFF_CHUNK_NAMES DGROUP_AT(0x355a) = {
+    .form = "FORM",
+    .ilbm = "ILBM",
+    .bmhd = "BMHD",
+    .cmap = "CMAP",
+    .body = "BODY",
+    .mode_wb = "wb",
 };
 
 /* DGROUP 0x2966 - the part templates `make_part` copies from; see dgroup.h. */

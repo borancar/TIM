@@ -82,6 +82,7 @@ struct machine_hash_order {
 
 struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
 _Static_assert(sizeof(struct machine_hash_order) == 0x04, "DGROUP 0x28d2..0x28d6, 0x04 bytes");
+
 /*
  * **The resource map's name and three modes**, DGROUP 0x28d6..0x28ec:
  * "RESOURCE.MAP" and "rb" three times, one for each of the routines at
@@ -4141,14 +4142,14 @@ void finish_level(void)
     }
 
     if (DG4E67.round_number >= DG4E67.level_count) {
-        title = "SOLVED ALL PUZZLES";
+        title = DG1BCC.solved_all_puzzles;
         body  = (char *)DG1BCC.solved_all_body;
     } else {
-        title = "REPLAY SOLUTION";
+        title = DG1BCC.replay_solution;
         body  = (char *)DG1BCC.replay_body;
     }
 
-    while (message_box(title, body, "REPLAY", "ADVANCE") != 0) {
+    while (message_box(title, body, GAME_LEVEL_STRINGS.replay, GAME_LEVEL_STRINGS.advance) != 0) {
         DG4E67.state = 0x2000;
         clear_layer_heads();
         reset_machine();
@@ -4805,7 +4806,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
  * four words handed to `intersect_segments` are differences rather than
  * positions.
  */
-void link_objects_crossing(struct part *obj, uint16_t flags, uint16_t line)
+void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line)
 {
     uint8_t v1a[4];              /* [bp-0x1a] where they crossed */
     int16_t v16[4];   /* [bp-0x16] the segment */
@@ -4846,7 +4847,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, uint16_t line)
             v16[3] =
                 (int16_t)(v0c - obj->pos[0].y);
 
-            if (intersect_segments((const int16_t *)dg_ptr(dgroup, line), v16,
+            if (intersect_segments(line, v16,
                                    v1a) != 0) {
                 si->next_linked_ptr = obj->next_linked_ptr;
                 obj->next_linked_ptr = dg_off(dgroup, si);
@@ -9950,7 +9951,7 @@ int16_t check_room_for_part(void)
     int16_t si = heap_largest_free();
 
     if ((uint16_t)si < 0x0fa0) {
-        show_message_box("OUT OF MEMORY", (char *)DG1BCC.you_cant_place_any);
+        show_message_box(DG1BCC.out_of_memory, (char *)DG1BCC.you_cant_place_any);
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();
@@ -9959,7 +9960,7 @@ int16_t check_room_for_part(void)
     }
 
     if ((uint16_t)si < 0x1388 && DG4E67.word_4e83 == 0) {
-        show_message_box("MEMORY LOW", (char *)DG1BCC.memory_is_getting_low);
+        show_message_box(DG1BCC.memory_low, (char *)DG1BCC.memory_is_getting_low);
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();
@@ -12514,7 +12515,7 @@ void load_archive_map(void)
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
 
-    file = borland_fopen("RESOURCE.MAP", "rb");
+    file = borland_fopen(MACHINE_RESOURCE_MAP_NAMES.resource_map, MACHINE_RESOURCE_MAP_NAMES.mode_rb_a);
     if (file == 0) {
         return;
     }
@@ -12761,7 +12762,7 @@ void make_file_current(uint16_t index)
 
     if (DG546C.open_immediate == 0 && index != 0) {
         struct file_rec *f = borland_fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
-                                 "rb");
+                                 MACHINE_RESOURCE_MAP_NAMES.mode_rb_b);
 
         borland_fclose(f);
         if (f != 0)
@@ -12784,7 +12785,7 @@ void make_file_current(uint16_t index)
         DG546C.byte_5489 = 1;
         for (;;) {
             struct file_rec *f = borland_fopen((const char *)a->name,
-                                     "rb");
+                                     MACHINE_RESOURCE_MAP_NAMES.mode_rb_c);
 
             a->stream = dg_off(dgroup, f);
             if (f != 0)

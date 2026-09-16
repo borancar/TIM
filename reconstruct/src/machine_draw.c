@@ -1445,12 +1445,12 @@ void show_level_complete(void)
 
     repaint_whole_screen();
 
-    string_copy(line, "PUZZLE ");
+    string_copy(line, DG1BCC.puzzle_prefix);
     int_to_string(DG4E67.round_number, num, 0xa);
     string_concat(line, num);
-    string_concat(line, " COMPLETED!");
+    string_concat(line, DG1BCC.completed);
 
-    string_copy(bonus, "Total bonus points: ");
+    string_copy(bonus, DG1BCC.total_bonus_points);
     int_to_string((int16_t)(DG50AF.bonus_1 + DG50AF.bonus_2), num, 0xa);
     string_concat(bonus, num);
 
@@ -1459,7 +1459,7 @@ void show_level_complete(void)
     draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
 
     if (DG4E67.round_number < DG4E67.level_count) {
-        draw_scroll_text("New Password", 0xb8, 0xc4, 0xd0);
+        draw_scroll_text(DG1BCC.new_password, 0xb8, 0xc4, 0xd0);
 
         read_password_line(DG4E67.round_number, code);
         score_to_code(DG4E67.counter,
@@ -1471,10 +1471,10 @@ void show_level_complete(void)
     clear_flag_2d44_thunk();
 
     VMDS.unknown_00 = 0;
-    draw_string("(click button to continue)", 0xd3, 0xee);
+    draw_string(DG1BCC.click_button_to_continue, 0xd3, 0xee);
 
     VMDS.unknown_00 = 0x0f;
-    draw_string("(click button to continue)", 0xd4, 0xed);
+    draw_string(DG1BCC.click_button_to_continue, 0xd4, 0xed);
 
     restore_cursor_following();
     present_back_page();
@@ -2707,7 +2707,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     if (part->flags_08 & 0x1000) {
         v28 = OFF_TABLE(v26->bitmaps2_ptr)[v04];
     } else {
-        v28 = 0x124;
+        v28 = dg_off(dgroup, &DG0124);
         DG0124.frame[0] = (uint8_t)v04;
         DG0124.level = (uint8_t)level;
 
