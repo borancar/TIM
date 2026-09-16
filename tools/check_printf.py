@@ -26,9 +26,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import verify  # noqa: E402  the port's loader and its guest-memory helpers
-import tim     # noqa: E402  where the recovered image is
 
-DG = 0x2d3c0                    # DGROUP's image offset, and the base used here
+DG = 0x2e4c0                    # DGROUP's linear address, where the linker put it
 FMT, ARGS, BUF, STR = 0x9000, 0x9100, 0x9200, 0x9800   # free DGROUP offsets;
                                                         # BUF is 512 bytes
 
@@ -75,9 +74,8 @@ def main():
     lib = verify.load_lib()
     verify.declare_restypes(lib)
     ctypes.c_uint32.in_dll(lib, "dgroup_base").value = DG
-    # The class table at 0x4da1 and "(null)" at 0x4d9a are the image's.
-    img = open(tim.IMAGE, "rb").read()
-    put(lib, 0, img[DG:DG + 0x10000])
+    # The class table at 0x4da1 and "(null)" at 0x4d9a are transcribed, in
+    # BORLAND_CTYPE and BORLAND_RUNTIME_STRINGS, so nothing is seeded.
     put(lib, STR, b"abc\0")
 
     S = STR                     # a near pointer to "abc", as a guest word
@@ -147,7 +145,7 @@ def main():
         ("%s", [0], "(null)"),                      # 0x0c5ac
         ("%p", [0x1234], "1234"),                   # upper case, four digits
         ("%Fp", [0x1234, 0x5678], "5678:1234"),     # SSSS:OOOO with the F prefix
-        ("%Fs", [S, 0x2d3c], "abc"),                # a far string: DGROUP's own segment
+        ("%Fs", [S, DG >> 4], "abc"),               # a far string: DGROUP's own segment
         ("%q rest %d", [1], "%q rest %d"),          # 0x0c73b: % and the rest, verbatim
         ("abc%", [], "abc%"),                       # the same at the end
         ("%+u", [42], "+42"),                       # 0x0c498 skips clearing the sign

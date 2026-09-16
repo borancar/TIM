@@ -51,9 +51,14 @@ def sections(obj):
     out = subprocess.run(["readelf", "-SWs", obj], capture_output=True,
                          text=True, check=True).stdout
     index = {}
-    for m in re.finditer(r"^\s*\[\s*(\d+)\]\s+(\S+)", out, re.M):
+    for m in re.finditer(r"^\s*\[\s*(\d+)\]\s+(\S+)\s.*\s(\d+)$", out, re.M):
         if m.group(2).startswith((".guest.", ".bss.guest.")):
             index[m.group(1)] = m.group(2)
+            # **Alignment 1, or the code that uses the object assumes one it
+            # does not have** - see DGROUP_AT in dgroup.h.
+            if m.group(3) != "1":
+                sys.exit(f"genld: {m.group(2)} in {obj} is aligned to "
+                         f"{m.group(3)}; its definition needs DGROUP_AT's aligned(1)")
     count = dict.fromkeys(index.values(), 0)
     for line in out.splitlines():
         f = line.split()
@@ -116,7 +121,9 @@ def main():
     lines += [
         f"    . = guest_mem + 0x{DGROUP + INIT_END:05x};",
         "  }",
-        "  .guest_bss (NOLOAD) : SUBALIGN(1)",
+        # An explicit address: left to itself the section takes the largest
+        # alignment among its inputs and starts past the end of the first.
+        f"  .guest_bss guest_mem + 0x{DGROUP + INIT_END:05x} (NOLOAD) : SUBALIGN(1)",
         "  {",
     ]
     for at, name in sorted(bss):

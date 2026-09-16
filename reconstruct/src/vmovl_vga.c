@@ -75,13 +75,13 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
     *(uint16_t *)MK_FP(cs, 0x13a) =
         (uint16_t)((data_delta >> 4) + DGROUP_SEG);
 
-    DG3F78.mode_kind    = 1;
+    VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;
     VMDS.page_front_ptr = 0xa000;
     VMDS.page_back_ptr  = 0xa800;
     VMDS.unknown_10     = 0xa800;
 
-    switch ((uint16_t)DG3F78.screen_height) {
+    switch ((uint16_t)VMDS.screen.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
@@ -111,9 +111,9 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
     io_out16(PORT_SEQ_INDEX, 0x0f02);
     io_out16(PORT_GC_INDEX, 0x0205);
 
-    DG3F78.screen_width = 0x280;
+    VMDS.screen.screen_width = 0x280;
     VMDS.clip_right   = 0x27f;
-    VMDS.clip_bottom  = (int16_t)(DG3F78.screen_height - 1);
+    VMDS.clip_bottom  = (int16_t)(VMDS.screen.screen_height - 1);
 
     return 2;
 }
@@ -285,7 +285,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
-    uint16_t pal     = DG3A2C.blocks[0].seg;
+    uint16_t pal     = VMDS.palettes.blocks[0].seg;
     uint16_t dst     = (uint16_t)(first * 3);
     uint16_t src     = (uint16_t)(dst + 0x30);
     uint16_t col     = (uint16_t)(0x30 + colour * 3);
@@ -838,7 +838,7 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  * low byte is written, to index 0x0C. That is why the page offset is always a
  * multiple of 256 and why the game never writes index 0x0D.
  *
- * `DG3F78.screen_height == 400` takes fifteen paragraphs off the start address. It is
+ * `VMDS.screen.screen_height == 400` takes fifteen paragraphs off the start address. It is
  * never taken in the mode this game runs - the height here is 480, with
  * blanking moved up to 399 - and is transcribed rather than dropped because it
  * is in the original.
@@ -851,7 +851,7 @@ void vm_show_page(uint16_t wait_retrace)
     VMDS.page_back_ptr = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
-    if (DG3F78.screen_height == 400)
+    if (VMDS.screen.screen_height == 400)
         start = (uint16_t)(start - 0x0F);
 
     io_out16(bios_crtc_base(), (uint16_t)(0x0C | ((start & 0xFF) << 8)));
@@ -1688,8 +1688,8 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(struct far_ptr pal)
 {
-    uint16_t di = VMDS.pal_copy_ptr.off;
-    uint16_t es = VMDS.pal_copy_ptr.seg;
+    uint16_t di = VMDS.palettes.blocks[0].off;
+    uint16_t es = VMDS.palettes.blocks[0].seg;
     uint16_t off = pal.off;
     int32_t i;
 

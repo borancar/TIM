@@ -40,7 +40,7 @@ struct bitmaps_flip_state {
     dg_off_t  palette;            /* +0x08 [2]  the leaf's palette, in its frame */
 } __attribute__((packed));
 
-#define BITMAPS_FLIP_STATE (*(struct bitmaps_flip_state *)(dgroup + 0x63f6))
+struct bitmaps_flip_state BITMAPS_FLIP_STATE DGROUP_BSS(0x63f6);
 _Static_assert(sizeof(struct bitmaps_flip_state) == 0x0a, "DGROUP 0x63f6..0x6400, 0x0a bytes");
 DG_ASSERT_AT(struct bitmaps_flip_state, flip_y,     0x00);
 DG_ASSERT_AT(struct bitmaps_flip_state, flip_x,     0x02);
@@ -586,7 +586,7 @@ uint16_t load_bitmaps(char *name)
 
     copy_file_record(saved_a, di);
 
-    if (seek_named_chunk(di, CHUNK.bmp_scn, 0) != -1) {
+    if (seek_named_chunk(di, CHUNK2.bmp_scn, 0) != -1) {
         copy_file_record(saved_b, di);
         restore_file_record_from(saved_a);
 
@@ -597,7 +597,7 @@ uint16_t load_bitmaps(char *name)
         restore_file_record_from(saved_b);
         kind = 0;
     } else {
-        if (seek_named_chunk(di, CHUNK.bmp_off, 0) == -1)
+        if (seek_named_chunk(di, CHUNK2.bmp_off, 0) == -1)
             goto planar;
 
         game_fread((uint8_t *)kind_at, 2, 1, di);
@@ -610,7 +610,7 @@ uint16_t load_bitmaps(char *name)
 
         set_field_4_of_each(0xffff, list_at);
 
-        if (seek_named_chunk(di, CHUNK.bmp_vqt, 0) == -1)
+        if (seek_named_chunk(di, CHUNK2.bmp_vqt, 0) == -1)
             goto fail;
     }
 
@@ -622,7 +622,7 @@ uint16_t load_bitmaps(char *name)
 
         read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
 
-        if (seek_named_chunk(di, CHUNK.bmp_off_b, 0) == -1) {
+        if (seek_named_chunk(di, CHUNK2.bmp_off_b, 0) == -1) {
             dos_free_far(block);
             goto fail;
         }
@@ -679,10 +679,10 @@ planar:
 loaded:
     count_at = count_list(list_at);
 
-    if (seek_named_chunk(di, CHUNK.bmp_rle, 0) != -1)
+    if (seek_named_chunk(di, CHUNK2.bmp_rle, 0) != -1)
         compress_bitmap_list(list_at, 0x10);
 
-    if (seek_named_chunk(di, CHUNK.bmp_scl, 0) != -1)
+    if (seek_named_chunk(di, CHUNK2.bmp_scl, 0) != -1)
         set_field_4_of_each(0xfffd, list_at);
 
     goto out;
@@ -841,7 +841,7 @@ uint16_t load_screen(char *name)
 
     copy_file_record(saved, si);
 
-    if (seek_named_chunk(si, CHUNK.scr_vqt, 0) == -1) {
+    if (seek_named_chunk(si, CHUNK2.scr_vqt, 0) == -1) {
         restore_file_record_from(saved);
         di = load_screen_plain((char *)si);
         goto close;

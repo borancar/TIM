@@ -54,7 +54,38 @@ struct engine_res_handlers {
     struct res_handler type[4];   /* +0x00 [0x38] */
 } __attribute__((packed));
 
-#define ENGINE_RES_HANDLERS (*(struct engine_res_handlers *)(dgroup + 0x357a))
+struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
+    .type = {
+        [0] = {
+            .near_size = 0x0080,
+            .read_off = 0x0001,
+            .word_08 = 0x007c,
+        },
+        [1] = {
+            .near_size = 0x0080,
+            .read_off = 0x0028,
+            .word_08 = 0x11bd,
+        },
+        [2] = {
+            .near_size = 0x0080,
+            .far_size_read = 0x3ab3,
+            .far_size = 0x7566,
+            .read_off = 0x0812,
+            .word_08 = 0x0ccb,
+            .word_0a = 0x0c4d,
+            .reset_off = 0x0720,
+        },
+        [3] = {
+            .near_size = 0x0080,
+            .far_size_read = 0x2163,
+            .far_size = 0x2163,
+            .read_off = 0x25a2,
+            .word_08 = 0x235e,
+            .word_0a = 0x1958,
+            .reset_off = 0x19c5,
+        },
+    },
+};
 DG_ASSERT_AT(struct res_handler, read_off,  0x06);
 DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
 _Static_assert(sizeof(struct engine_res_handlers) == 0x38, "four handlers end at 0x35b2");
@@ -68,7 +99,12 @@ struct engine_lzw_window {
     uint8_t   window[12];         /* +0x00 [0xc] */
 } __attribute__((packed));
 
-#define ENGINE_LZW_WINDOW (*(struct engine_lzw_window *)(dgroup + 0x35bc))
+struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {
+    .window = {
+        0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
+        0x0c,
+    },
+};
 _Static_assert(sizeof(struct engine_lzw_window) == 0x0c, "the input window ends at ENGINE_LZW_MASKS");
 
 /*
@@ -79,7 +115,7 @@ struct engine_lzw_masks {
     uint8_t   mask[9];            /* +0x00 [9] */
 } __attribute__((packed));
 
-#define ENGINE_LZW_MASKS (*(struct engine_lzw_masks *)(dgroup + 0x35c8))
+struct engine_lzw_masks ENGINE_LZW_MASKS DGROUP_AT(0x35c8) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
 _Static_assert(sizeof(struct engine_lzw_masks) == 9, "the mask table ends at 0x35d1");
 
 /*
@@ -94,7 +130,7 @@ struct engine_lzw_resume {
     int16_t   scratch_at;         /* +0x00 [2] */
 } __attribute__((packed));
 
-#define ENGINE_LZW_RESUME (*(struct engine_lzw_resume *)(dgroup + 0x35d1))
+struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
 _Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3, 0x02 bytes");
 DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
 
@@ -106,7 +142,7 @@ struct engine_bit_buffer {
     uint8_t   bit_count;          /* +0x02 [1]  how many are in it */
 } __attribute__((packed));
 
-#define ENGINE_BIT_BUFFER (*(struct engine_bit_buffer *)(dgroup + 0x3600))
+struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
 _Static_assert(sizeof(struct engine_bit_buffer) == 0x03, "DGROUP 0x3600..0x3603, 0x03 bytes");
 DG_ASSERT_AT(struct engine_bit_buffer, bits,      0x00);
 DG_ASSERT_AT(struct engine_bit_buffer, bit_count, 0x02);
@@ -121,37 +157,62 @@ struct engine_huffman_positions {
     uint8_t   len[256];           /* +0x100 [0x100] */
 } __attribute__((packed));
 
-#define ENGINE_HUFFMAN_POSITIONS (*(struct engine_huffman_positions *)(dgroup + 0x3686))
+struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS DGROUP_AT(0x3686) = {
+    .high = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+        0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+        0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+        0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09,
+        0x09, 0x09, 0x09, 0x09, 0x09, 0x09, 0x09, 0x0a, 0x0a, 0x0a, 0x0a,
+        0x0a, 0x0a, 0x0a, 0x0a, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0c, 0x0c, 0x0c, 0x0c, 0x0d, 0x0d, 0x0d, 0x0d, 0x0e, 0x0e,
+        0x0e, 0x0e, 0x0f, 0x0f, 0x0f, 0x0f, 0x10, 0x10, 0x10, 0x10, 0x11,
+        0x11, 0x11, 0x11, 0x12, 0x12, 0x12, 0x12, 0x13, 0x13, 0x13, 0x13,
+        0x14, 0x14, 0x14, 0x14, 0x15, 0x15, 0x15, 0x15, 0x16, 0x16, 0x16,
+        0x16, 0x17, 0x17, 0x17, 0x17, 0x18, 0x18, 0x19, 0x19, 0x1a, 0x1a,
+        0x1b, 0x1b, 0x1c, 0x1c, 0x1d, 0x1d, 0x1e, 0x1e, 0x1f, 0x1f, 0x20,
+        0x20, 0x21, 0x21, 0x22, 0x22, 0x23, 0x23, 0x24, 0x24, 0x25, 0x25,
+        0x26, 0x26, 0x27, 0x27, 0x28, 0x28, 0x29, 0x29, 0x2a, 0x2a, 0x2b,
+        0x2b, 0x2c, 0x2c, 0x2d, 0x2d, 0x2e, 0x2e, 0x2f, 0x2f, 0x30, 0x31,
+        0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c,
+        0x3d, 0x3e, 0x3f,
+    },
+    .len = {
+        0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+        0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+        0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x04,
+        0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+        0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+        0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+        0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+        0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        0x05, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+        0x06, 0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+        0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x08, 0x08,
+        0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+        0x08, 0x08, 0x08,
+    },
+};
 _Static_assert(sizeof(struct engine_huffman_positions) == 0x200, "DGROUP 0x3686..0x3886, 0x200 bytes");
 DG_ASSERT_AT(struct engine_huffman_positions, len, 0x100);
-
-/*
- * **The driver's page hook**, DGROUP 0x3f72..0x3f74, 0x02 bytes.
- *
- * Non-zero makes the three blitters call the vector at DGROUP 0x43b6 between
- * taking the destination page and reading the clip. That vector is the
- * driver's do-nothing stub, so the page comes back as it went in - and the
- * port keeps the guard so a build whose 0x3f72 is *set* is not silently the
- * same as one whose is clear. The name is a reading of that one use.
- */
-struct engine_page_hook {
-    int16_t   page_hook;          /* +0x00 [2] */
-} __attribute__((packed));
-
-#define ENGINE_PAGE_HOOK (*(struct engine_page_hook *)(dgroup + 0x3f72))
-_Static_assert(sizeof(struct engine_page_hook) == 0x02, "DGROUP 0x3f72..0x3f74, 0x02 bytes");
-DG_ASSERT_AT(struct engine_page_hook, page_hook, 0x00);
-
-/*
- * **The base address of each screen row**, DGROUP 0x3f82..0x4342, 0x3c0 bytes:
- * a word per row of the 480-row screen, which is exactly the run to 0x4342.
- */
-struct engine_row_base {
-    uint16_t  row[0x1e0];         /* +0x00 [0x3c0] */
-} __attribute__((packed));
-
-#define ENGINE_ROW_BASE (*(struct engine_row_base *)(dgroup + 0x3f82))
-_Static_assert(sizeof(struct engine_row_base) == 0x3c0, "480 rows end at 0x4342");
 
 /*
  * **Not established**, DGROUP 0x4460..0x4466, 0x06 bytes.
@@ -162,7 +223,7 @@ struct engine_pen {
     int16_t   word_4464;          /* +0x04 [2] */
 } __attribute__((packed));
 
-#define ENGINE_PEN (*(struct engine_pen *)(dgroup + 0x4460))
+struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .word_4460 = 0x003f, .word_4464 = 0x0300 };
 _Static_assert(sizeof(struct engine_pen) == 0x06, "DGROUP 0x4460..0x4466, 0x06 bytes");
 DG_ASSERT_AT(struct engine_pen, word_4460, 0x00);
 DG_ASSERT_AT(struct engine_pen, word_4462, 0x02);
@@ -177,20 +238,13 @@ struct engine_palette_pointers {
     int16_t   pointer[16];        /* +0x00 [0x20] */
 } __attribute__((packed));
 
-#define ENGINE_PALETTE_POINTERS (*(struct engine_palette_pointers *)(dgroup + 0x4466))
+struct engine_palette_pointers ENGINE_PALETTE_POINTERS DGROUP_AT(0x4466) = {
+    .pointer = {
+        0x0000, 0x0102, 0x0011, 0x0011, 0x0102, 0x0300, 0x0000, 0x0300,
+        0x0300, 0x0300, 0x0300, 0x0030, 0x0030, 0x0030, 0x0030, 0x0300,
+    },
+};
 _Static_assert(sizeof(struct engine_palette_pointers) == 0x20, "the palette pointers end at 0x4486");
-
-/*
- * **The palette `set_palette_pointer` last stored**, DGROUP 0x44c2..0x44c6,
- * 0x04 bytes.
- */
-struct engine_palette_ptr {
-    struct far_ptr palette_ptr;   /* +0x00 [4]  answered back when it is passed a null */
-} __attribute__((packed));
-
-#define ENGINE_PALETTE_PTR (*(struct engine_palette_ptr *)(dgroup + 0x44c2))
-_Static_assert(sizeof(struct engine_palette_ptr) == 0x04, "DGROUP 0x44c2..0x44c6, 0x04 bytes");
-DG_ASSERT_AT(struct engine_palette_ptr, palette_ptr, 0x00);
 
 /*
  * **The polygon walker's two chains**, DGROUP 0x44d0..0x44de, 0x0e bytes.
@@ -205,7 +259,7 @@ struct engine_polygon_chains {
     uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
 } __attribute__((packed));
 
-#define ENGINE_POLYGON_CHAINS (*(struct engine_polygon_chains *)(dgroup + 0x44d0))
+struct engine_polygon_chains ENGINE_POLYGON_CHAINS DGROUP_AT(0x44d0);
 _Static_assert(sizeof(struct engine_polygon_chains) == 0x0e, "DGROUP 0x44d0..0x44de, 0x0e bytes");
 DG_ASSERT_AT(struct engine_polygon_chains, word_44d0, 0x00);
 DG_ASSERT_AT(struct engine_polygon_chains, word_44d2, 0x02);
@@ -228,7 +282,7 @@ struct engine_polygon_state {
     uint8_t   byte_44e9;          /* +0x0b [1] */
 } __attribute__((packed));
 
-#define ENGINE_POLYGON_STATE (*(struct engine_polygon_state *)(dgroup + 0x44de))
+struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
 _Static_assert(sizeof(struct engine_polygon_state) == 0x0c, "DGROUP 0x44de..0x44ea, 0x0c bytes");
 DG_ASSERT_AT(struct engine_polygon_state, word_44de, 0x00);
 DG_ASSERT_AT(struct engine_polygon_state, word_44e0, 0x02);
@@ -247,10 +301,16 @@ DG_ASSERT_AT(struct engine_polygon_state, byte_44e9, 0x0b);
  */
 struct engine_stride_shifts {
     uint8_t   stride_shift[14];   /* +0x00 [0xe]  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
-    uint8_t   bytes_4588[4];      /* +0x0e [4] */
+    uint8_t   bytes_4588[4] __attribute__((nonstring));  /* +0x0e [4] */
 } __attribute__((packed));
 
-#define ENGINE_STRIDE_SHIFTS (*(struct engine_stride_shifts *)(dgroup + 0x457a))
+struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
+    .stride_shift = {
+        0xff, 0x02, 0x03, 0x01, 0xff, 0x00, 0xff, 0x00, 0x00, 0x03, 0x01,
+        0x03, 0x03, 0x03,
+    },
+    .bytes_4588 = "andy",
+};
 _Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts end at ENGINE_KEYBOARD");
 
 /*
@@ -274,11 +334,80 @@ struct engine_keyboard {
     uint8_t   shifted[0x59];      /* +0xa7 [0x59]  the same with shift down */
     uint8_t   state[0x59];        /* +0x100 [0x59]  a bit per key: down */
     uint8_t   pad_46e5[0x20];     /* +0x159 [0x20] */
-    uint8_t   pcjr_from[0x0b];    /* +0x179 [0xb]  the PCjr's scancodes ... */
+    uint8_t   pcjr_from[0x0b] __attribute__((nonstring));  /* +0x179 [0xb]  the PCjr's scancodes ... */
     uint8_t   pcjr_to[0x0b];      /* +0x184 [0xb]  ... and what they stand for */
 } __attribute__((packed));
 
-#define ENGINE_KEYBOARD (*(struct engine_keyboard *)(dgroup + 0x458c))
+struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
+    .pad_4592 = { 0x01 },
+    .ascii = {
+        0x00, 0x1b, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+        0x30, 0x2d, 0x3d, 0x08, 0x09, 0x71, 0x77, 0x65, 0x72, 0x74, 0x79,
+        0x75, 0x69, 0x6f, 0x70, 0x5b, 0x5d, 0x0d, 0x84, 0x61, 0x73, 0x64,
+        0x66, 0x67, 0x68, 0x6a, 0x6b, 0x6c, 0x3b, 0x27, 0x60, 0x82, 0x5c,
+        0x7a, 0x78, 0x63, 0x76, 0x62, 0x6e, 0x6d, 0x2c, 0x2e, 0x2f, 0x81,
+        0x2a, 0x88, 0x20, 0xc0,
+    },
+    .shifted = {
+        0x00, 0x1b, 0x21, 0x40, 0x23, 0x24, 0x25, 0x5e, 0x26, 0x2a, 0x28,
+        0x29, 0x5f, 0x2b, 0x08, 0x00, 0x51, 0x57, 0x45, 0x52, 0x54, 0x59,
+        0x55, 0x49, 0x4f, 0x50, 0x7b, 0x7d, 0x0d, 0x84, 0x41, 0x53, 0x44,
+        0x46, 0x47, 0x48, 0x4a, 0x4b, 0x4c, 0x3a, 0x22, 0x7e, 0x82, 0x7c,
+        0x5a, 0x58, 0x43, 0x56, 0x42, 0x4e, 0x4d, 0x3c, 0x3e, 0x3f, 0x81,
+        0x00, 0x88, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x37, 0x38, 0x39, 0x2d, 0x34, 0x35,
+        0x36, 0x2b, 0x31, 0x32, 0x33, 0x30, 0x2e,
+    },
+    .state = {
+        [16] = 0x6e,
+        [17] = 0x7e,
+        [18] = 0x8e,
+        [19] = 0x06,
+        [20] = 0x06,
+        [21] = 0x06,
+        [22] = 0x06,
+        [23] = 0x06,
+        [24] = 0x06,
+        [25] = 0x06,
+        [26] = 0x02,
+        [27] = 0x02,
+        [30] = 0x5e,
+        [31] = 0x9e,
+        [32] = 0x1e,
+        [33] = 0x06,
+        [34] = 0x06,
+        [35] = 0x06,
+        [36] = 0x06,
+        [37] = 0x06,
+        [38] = 0x06,
+        [43] = 0x02,
+        [44] = 0x4e,
+        [45] = 0x3e,
+        [46] = 0x2e,
+        [47] = 0x06,
+        [48] = 0x06,
+        [49] = 0x06,
+        [50] = 0x06,
+        [71] = 0x60,
+        [72] = 0x70,
+        [73] = 0x80,
+        [75] = 0x50,
+        [76] = 0x90,
+        [77] = 0x10,
+        [79] = 0x40,
+        [80] = 0x30,
+        [81] = 0x20,
+    },
+    .pad_46e5 = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01,
+        0x00, 0x03, 0x00, 0x80, 0xa0, 0x40, 0xe0, 0xc0, 0xf0, 0x60, 0xb0,
+        0x00, 0x08, 0x0a, 0x02, 0x06, 0x04, 0x05, 0x01, 0x09,
+    },
+    .pcjr_from = "YZUT)X+JNVW",
+    .pcjr_to = {
+        0x57, 0x58, 0x52, 0x46, 0x48, 0x47, 0x4b, 0x50, 0x4d, 0x53, 0x1c,
+    },
+};
 DG_ASSERT_AT(struct engine_keyboard, installed, 0x00);
 DG_ASSERT_AT(struct engine_keyboard, byte_458d, 0x01);
 DG_ASSERT_AT(struct engine_keyboard, word_458e, 0x02);
@@ -301,7 +430,7 @@ struct engine_pcjr_keyboard {
     uint8_t   pcjr_keyboard;      /* +0x00 [1] */
 } __attribute__((packed));
 
-#define ENGINE_PCJR_KEYBOARD (*(struct engine_pcjr_keyboard *)(dgroup + 0x471b))
+struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD DGROUP_AT(0x471b);
 _Static_assert(sizeof(struct engine_pcjr_keyboard) == 0x01, "DGROUP 0x471b..0x471c, 0x01 bytes");
 DG_ASSERT_AT(struct engine_pcjr_keyboard, pcjr_keyboard, 0x00);
 
@@ -313,7 +442,7 @@ struct engine_text_colours {
     uint8_t   colour[5];          /* +0x00 [5] */
 } __attribute__((packed));
 
-#define ENGINE_TEXT_COLOURS (*(struct engine_text_colours *)(dgroup + 0x471e))
+struct engine_text_colours ENGINE_TEXT_COLOURS DGROUP_AT(0x471e) = { .colour = { 0x00, 0x01, 0x02, 0x03, 0x04 } };
 _Static_assert(sizeof(struct engine_text_colours) == 0x05, "DGROUP 0x471e..0x4723, 0x05 bytes");
 
 /*
@@ -327,7 +456,7 @@ struct engine_mouse {
                                                nothing in the image sets it */
 } __attribute__((packed));
 
-#define ENGINE_MOUSE (*(struct engine_mouse *)(dgroup + 0x4740))
+struct engine_mouse ENGINE_MOUSE DGROUP_AT(0x4740);
 _Static_assert(sizeof(struct engine_mouse) == 0x08, "DGROUP 0x4740..0x4748, 0x08 bytes");
 DG_ASSERT_AT(struct engine_mouse, mouse_x,   0x00);
 DG_ASSERT_AT(struct engine_mouse, mouse_y,   0x02);
@@ -345,7 +474,7 @@ struct engine_driver_block {
     struct far_ptr block;         /* +0x00 [4] */
 } __attribute__((packed));
 
-#define ENGINE_DRIVER_BLOCK (*(struct engine_driver_block *)(dgroup + 0x48f8))
+struct engine_driver_block ENGINE_DRIVER_BLOCK DGROUP_AT(0x48f8);
 _Static_assert(sizeof(struct engine_driver_block) == 0x04, "DGROUP 0x48f8..0x48fc, 0x04 bytes");
 DG_ASSERT_AT(struct engine_driver_block, block, 0x00);
 
@@ -360,7 +489,7 @@ struct engine_font_chunk {
     dg_off_t  font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
 } __attribute__((packed));
 
-#define ENGINE_FONT_CHUNK (*(struct engine_font_chunk *)(dgroup + 0x495c))
+struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
 _Static_assert(sizeof(struct engine_font_chunk) == 0x02, "DGROUP 0x495c..0x495e, 0x02 bytes");
 DG_ASSERT_AT(struct engine_font_chunk, font_chunk_name, 0x00);
 
@@ -374,7 +503,7 @@ struct engine_resource_flags {
     uint8_t   handler;            /* +0x04 [1]  the low five bits of the byte, indexing a table of handlers */
 } __attribute__((packed));
 
-#define ENGINE_RESOURCE_FLAGS (*(struct engine_resource_flags *)(dgroup + 0x57ba))
+struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
 _Static_assert(sizeof(struct engine_resource_flags) == 0x05, "DGROUP 0x57ba..0x57bf, 0x05 bytes");
 DG_ASSERT_AT(struct engine_resource_flags, flags,     0x00);
 DG_ASSERT_AT(struct engine_resource_flags, word_57bc, 0x02);
@@ -389,7 +518,7 @@ struct engine_resource_slots {
     dg_off_t  slot[0x64];         /* +0x00 [0xc8] */
 } __attribute__((packed));
 
-#define ENGINE_RESOURCE_SLOTS (*(struct engine_resource_slots *)(dgroup + 0x57c0))
+struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
 _Static_assert(sizeof(struct engine_resource_slots) == 0xc8, "a hundred slots end at ENGINE_STREAM");
 
 /*
@@ -434,7 +563,7 @@ struct engine_stream {
     int16_t   maxcode;            /* +0x2e [2]  the largest code at this width, 0x1000 at twelve bits */
 } __attribute__((packed));
 
-#define ENGINE_STREAM (*(struct engine_stream *)(dgroup + 0x5888))
+struct engine_stream ENGINE_STREAM DGROUP_BSS(0x5888);
 _Static_assert(sizeof(struct engine_stream) == 0x30, "DGROUP 0x5888..0x58b8, 0x30 bytes");
 DG_ASSERT_AT(struct engine_stream, kind,       0x00);
 DG_ASSERT_AT(struct engine_stream, record_ptr, 0x02);
@@ -467,7 +596,7 @@ struct engine_match_resume {
     int16_t   progress;           /* +0x06 [2] */
 } __attribute__((packed));
 
-#define ENGINE_MATCH_RESUME (*(struct engine_match_resume *)(dgroup + 0x58e0))
+struct engine_match_resume ENGINE_MATCH_RESUME DGROUP_BSS(0x58e0);
 _Static_assert(sizeof(struct engine_match_resume) == 0x08, "DGROUP 0x58e0..0x58e8, 0x08 bytes");
 DG_ASSERT_AT(struct engine_match_resume, interrupted, 0x00);
 DG_ASSERT_AT(struct engine_match_resume, position,    0x02);
@@ -486,7 +615,7 @@ struct engine_lzss_state {
     int32_t   size;               /* +0x06 [4]  the record's size, copied at the start */
 } __attribute__((packed));
 
-#define ENGINE_LZSS_STATE (*(struct engine_lzss_state *)(dgroup + 0x58e8))
+struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
 _Static_assert(sizeof(struct engine_lzss_state) == 0x0a, "DGROUP 0x58e8..0x58f2, 0x0a bytes");
 DG_ASSERT_AT(struct engine_lzss_state, word_58e8, 0x00);
 DG_ASSERT_AT(struct engine_lzss_state, count,     0x02);
@@ -500,7 +629,7 @@ struct engine_huffman_tree {
     int16_t   word_5902;          /* +0x02 [2] */
 } __attribute__((packed));
 
-#define ENGINE_HUFFMAN_TREE (*(struct engine_huffman_tree *)(dgroup + 0x5900))
+struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_BSS(0x5900);
 _Static_assert(sizeof(struct engine_huffman_tree) == 0x04, "DGROUP 0x5900..0x5904, 0x04 bytes");
 DG_ASSERT_AT(struct engine_huffman_tree, word_5900, 0x00);
 DG_ASSERT_AT(struct engine_huffman_tree, word_5902, 0x02);
@@ -520,7 +649,7 @@ struct engine_decompress_cache {
     int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
 } __attribute__((packed));
 
-#define ENGINE_DECOMPRESS_CACHE (*(struct engine_decompress_cache *)(dgroup + 0x590a))
+struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_BSS(0x590a);
 _Static_assert(sizeof(struct engine_decompress_cache) == 0x10, "DGROUP 0x590a..0x591a, 0x10 bytes");
 DG_ASSERT_AT(struct engine_decompress_cache, cache_a,    0x00);
 DG_ASSERT_AT(struct engine_decompress_cache, cache_b,    0x04);
@@ -537,7 +666,7 @@ struct engine_scale_table {
     int16_t   entry[0x280];       /* +0x00 [0x500] */
 } __attribute__((packed));
 
-#define ENGINE_SCALE_TABLE (*(struct engine_scale_table *)(dgroup + 0x5956))
+struct engine_scale_table ENGINE_SCALE_TABLE DGROUP_BSS(0x5956);
 _Static_assert(sizeof(struct engine_scale_table) == 0x500, "640 columns end at ENGINE_ROW_OFFSETS");
 
 /*
@@ -554,7 +683,7 @@ struct engine_row_offsets {
     uint16_t  row[0x190];         /* +0x00 [0x320] */
 } __attribute__((packed));
 
-#define ENGINE_ROW_OFFSETS (*(struct engine_row_offsets *)(dgroup + 0x5e56))
+struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
 _Static_assert(sizeof(struct engine_row_offsets) == 0x320, "the run ends at ENGINE_FONT_KINDS");
 
 /*
@@ -569,7 +698,7 @@ struct engine_font_kinds {
     uint8_t   kind[0x14];         /* +0x00 [0x14] */
 } __attribute__((packed));
 
-#define ENGINE_FONT_KINDS (*(struct engine_font_kinds *)(dgroup + 0x6176))
+struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
 DG_ASSERT_AT(struct engine_font_kinds, kind, 0x00);
 _Static_assert(sizeof(struct engine_font_kinds) == 0x14, "twenty font slots, up to ENGINE_FONTS at 0x618a");
 
@@ -588,7 +717,7 @@ struct engine_fonts {
     struct far_ptr body[0x14];    /* +0x00 [0x50] */
 } __attribute__((packed));
 
-#define ENGINE_FONTS (*(struct engine_fonts *)(dgroup + 0x618a))
+struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
 _Static_assert(sizeof(struct engine_fonts) == 0x50, "twenty slots end at ENGINE_FONT_WIDTHS");
 DG_ASSERT_AT(struct engine_fonts, body, 0x00);
 
@@ -603,7 +732,7 @@ struct engine_font_widths {
     struct far_ptr width[0x14];   /* +0x00 [0x50] */
 } __attribute__((packed));
 
-#define ENGINE_FONT_WIDTHS (*(struct engine_font_widths *)(dgroup + 0x61da))
+struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
 _Static_assert(sizeof(struct engine_font_widths) == 0x50, "twenty slots end at ENGINE_FONT_SLOTS");
 DG_ASSERT_AT(struct engine_font_widths, width, 0x00);
 
@@ -623,7 +752,7 @@ struct engine_font_slots {
     struct far_ptr slot[0x14];    /* +0x00 [0x50] */
 } __attribute__((packed));
 
-#define ENGINE_FONT_SLOTS (*(struct engine_font_slots *)(dgroup + 0x622a))
+struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_BSS(0x622a);
 _Static_assert(sizeof(struct engine_font_slots) == 0x50, "twenty slots end at ENGINE_UNDERLINE_ROWS");
 DG_ASSERT_AT(struct engine_font_slots, slot, 0x00);
 
@@ -649,7 +778,7 @@ struct engine_underline_rows {
     uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
 } __attribute__((packed));
 
-#define ENGINE_UNDERLINE_ROWS (*(struct engine_underline_rows *)(dgroup + 0x627a))
+struct engine_underline_rows ENGINE_UNDERLINE_ROWS DGROUP_BSS(0x627a);
 _Static_assert(sizeof(struct engine_underline_rows) == 0x14, "DGROUP 0x627a..0x628e, 0x14 bytes");
 DG_ASSERT_AT(struct engine_underline_rows, underline_row, 0x00);
 
@@ -661,7 +790,7 @@ struct engine_scale_step {
     uint16_t  word_6290;          /* +0x02 [2] */
 } __attribute__((packed));
 
-#define ENGINE_SCALE_STEP (*(struct engine_scale_step *)(dgroup + 0x628e))
+struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
 _Static_assert(sizeof(struct engine_scale_step) == 0x04, "DGROUP 0x628e..0x6292, 0x04 bytes");
 DG_ASSERT_AT(struct engine_scale_step, base,      0x00);
 DG_ASSERT_AT(struct engine_scale_step, word_6290, 0x02);
@@ -675,7 +804,7 @@ struct engine_open_files {
     struct open_file rec[4];      /* +0x00 [0x10c] */
 } __attribute__((packed));
 
-#define ENGINE_OPEN_FILES (*(struct engine_open_files *)(dgroup + 0x6292))
+struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
 _Static_assert(sizeof(struct engine_open_files) == 0x10c, "four records end at ENGINE_SAVED_FILE_RECORD");
 
 /*
@@ -694,7 +823,7 @@ struct engine_saved_file_record {
     uint8_t   record[0x44];       /* +0x00 [0x44] */
 } __attribute__((packed));
 
-#define ENGINE_SAVED_FILE_RECORD (*(struct engine_saved_file_record *)(dgroup + 0x639e))
+struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD DGROUP_BSS(0x639e);
 _Static_assert(sizeof(struct engine_saved_file_record) == 0x44, "DGROUP 0x639e..0x63e2, 0x44 bytes");
 DG_ASSERT_AT(struct engine_saved_file_record, record, 0x00);
 
@@ -718,7 +847,7 @@ struct engine_bitmap_compress {
     uint16_t  mode;               /* +0x12 [2]  0x243bf sets it; it chooses how the runs are written */
 } __attribute__((packed));
 
-#define ENGINE_BITMAP_COMPRESS (*(struct engine_bitmap_compress *)(dgroup + 0x63e2))
+struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_BSS(0x63e2);
 _Static_assert(sizeof(struct engine_bitmap_compress) == 0x14, "DGROUP 0x63e2..0x63f6, 0x14 bytes");
 DG_ASSERT_AT(struct engine_bitmap_compress, pending_rows, 0x00);
 DG_ASSERT_AT(struct engine_bitmap_compress, out_start,    0x02);
@@ -2566,7 +2695,7 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  * 0x3a30, searched from 1 to 9 for one whose four bytes are zero. When none is
  * free the search ends with the index at 10, and the routine files a null
  * pointer into slot 10 and answers null - the table's last slot, which only
- * this store ever reaches. See `DG3A2C.blocks` for why that is storage and not
+ * this store ever reaches. See `VMDS.palettes.blocks` for why that is storage and not
  * an overrun.
  *
  * The palette's length and the chunk name are both chosen by the byte at
@@ -2597,7 +2726,7 @@ struct far_ptr load_palette(char *name)
 
     di = 1;
     for (;;) {
-        if (far_eq(DG3A2C.blocks[di], FAR_NULL))
+        if (far_eq(VMDS.palettes.blocks[di], FAR_NULL))
             break;
         if (di >= 0xa)
             break;
@@ -2662,7 +2791,7 @@ struct far_ptr load_palette(char *name)
             close_file_record(file);
     }
 
-    DG3A2C.blocks[di] = blk;
+    VMDS.palettes.blocks[di] = blk;
 
     return blk;
 }
@@ -2690,19 +2819,19 @@ struct far_ptr set_palette_pointer(struct far_ptr h)
 
     ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[idx];
 
-    if (far_eq(DG3A2C.blocks[0], FAR_NULL) && ENGINE_PEN.word_4464 != 0) {
+    if (far_eq(VMDS.palettes.blocks[0], FAR_NULL) && ENGINE_PEN.word_4464 != 0) {
         int16_t bytes = (int16_t)(ENGINE_PEN.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
         struct far_ptr p = dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr;
 
-        DG3A2C.blocks[0] = p;
+        VMDS.palettes.blocks[0] = p;
     }
 
     if (far_eq(h, FAR_NULL))
-        return ENGINE_PALETTE_PTR.palette_ptr;
+        return PALCHUNK.palette_ptr;
 
-    ENGINE_PALETTE_PTR.palette_ptr = h;
+    PALCHUNK.palette_ptr = h;
     vm_load_palette(h);
     return h;
 }
@@ -2848,7 +2977,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
      * clear is not silently different.
      */
     vpage = (int16_t)VMDS.page_dst_ptr;
-    if (ENGINE_PAGE_HOOK.page_hook != 0)
+    if (VMDS.page_hook != 0)
         vm_nothing();
 
     vclip = VMDS.clip_enabled;
@@ -2872,9 +3001,9 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
     if (vclip != 0) {
         vrowok = (y <= VMDS.clip_bottom && y >= VMDS.clip_top) ? 1 : 0;
         if (vrowok != 0)
-            vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+            vrow = (int16_t)VMDS.row_offset[y];
     } else {
-        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+        vrow = (int16_t)VMDS.row_offset[y];
     }
 
     vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
@@ -2906,9 +3035,9 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             if (vclip != 0) {
                 vrowok = (y <= VMDS.clip_bottom && y >= VMDS.clip_top) ? 1 : 0;
                 if (vrowok != 0)
-                    vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+                    vrow = (int16_t)VMDS.row_offset[y];
             } else {
-                vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+                vrow = (int16_t)VMDS.row_offset[y];
             }
 
             if (mode & 2)
@@ -3918,7 +4047,7 @@ uint16_t mouse_init(void)
     io_mouse_set_speed(8, 8);
     io_mouse_move_to(0, 0);
 
-    mouse_set_ranges(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
+    mouse_set_ranges(0, 0, ((uint16_t)VMDS.screen.screen_width), ((uint16_t)VMDS.screen.screen_height));
 
     io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
 
@@ -5743,11 +5872,11 @@ void free_far_block(struct far_ptr h)
         return;
 
     for (i = 1; i < 10; i++) {
-        if (!far_eq(DG3A2C.blocks[i], h))
+        if (!far_eq(VMDS.palettes.blocks[i], h))
             continue;
 
-        dos_free_far(DG3A2C.blocks[i]);
-        DG3A2C.blocks[i] = FAR_NULL;
+        dos_free_far(VMDS.palettes.blocks[i]);
+        VMDS.palettes.blocks[i] = FAR_NULL;
     }
 }
 
@@ -6591,25 +6720,25 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     switch (adapter) {
     case 4:
         si = 1;                           /* overwritten below, never read */
-        DG3F78.screen_width = 0x280;
+        VMDS.screen.screen_width = 0x280;
         si = 8;
-        DG3F78.screen_height = 0x190;
+        VMDS.screen.screen_height = 0x190;
         break;
     case 0xc:
         si = 0xb;
-        DG3F78.screen_height = 0x15e;
+        VMDS.screen.screen_height = 0x15e;
         break;
     case 0xd:
         si = 0xb;
-        DG3F78.screen_height = 0x1e0;
+        VMDS.screen.screen_height = 0x1e0;
         break;
     case 0xe:
         si = 0xb;
-        DG3F78.screen_height = 0x190;
+        VMDS.screen.screen_height = 0x190;
         break;
     case 0xf:
         si = 8;
-        DG3F78.screen_height = 0x190;
+        VMDS.screen.screen_height = 0x190;
         break;
     default:
         break;
@@ -6718,14 +6847,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     (void)unused;
 
     DG48DA.mode_forced = (uint8_t)adapter;
-    DG3F78.mode_kind = 0;
+    VMDS.screen.mode_kind = 0;
     VMDS.unknown_1f = 0;
-    DG3F78.screen_width = 0x140;
-    DG3F78.screen_height = 0xc8;
+    VMDS.screen.screen_width = 0x140;
+    VMDS.screen.screen_height = 0xc8;
 
-    if (!far_eq(DG3A2C.blocks[0], FAR_NULL)) {
-        dos_free_far(DG3A2C.blocks[0]);
-        DG3A2C.blocks[0] = FAR_NULL;
+    if (!far_eq(VMDS.palettes.blocks[0], FAR_NULL)) {
+        dos_free_far(VMDS.palettes.blocks[0]);
+        VMDS.palettes.blocks[0] = FAR_NULL;
     }
 
     DG48DA.mode_found = (uint8_t)bios_video_kind();
@@ -6774,7 +6903,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.span_buffer_seg - 1) });
 
     {
-        struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20), 0, 0).ptr;
+        struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
 
         if (p.seg == 0)
             goto out;
@@ -7481,7 +7610,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
      * different from one whose is set.
      */
     vpage = (int16_t)VMDS.page_dst_ptr;
-    if (ENGINE_PAGE_HOOK.page_hook != 0)
+    if (VMDS.page_hook != 0)
         vm_nothing();
 
     vclip = VMDS.clip_enabled;
@@ -7542,9 +7671,9 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     if (vclip != 0) {
         vrowok = (y <= VMDS.clip_bottom && y >= VMDS.clip_top) ? 1 : 0;
         if (vrowok != 0)
-            vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+            vrow = (int16_t)VMDS.row_offset[y];
     } else {
-        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+        vrow = (int16_t)VMDS.row_offset[y];
     }
 
     vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
@@ -7895,7 +8024,7 @@ next_solid:
                 continue;
         }
 
-        vrow = (int16_t)ENGINE_ROW_BASE.row[y];
+        vrow = (int16_t)VMDS.row_offset[y];
     }
 
 done:
@@ -8055,14 +8184,14 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
 
         page = VMDS.page_dst_ptr;
-        if (ENGINE_PAGE_HOOK.page_hook != 0)
+        if (VMDS.page_hook != 0)
             vm_nothing();
 
         for (j = top; j < bottom; j++)
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
                 &ENGINE_SCALE_TABLE.entry[cut],
-                ENGINE_ROW_BASE.row[j],
+                VMDS.row_offset[j],
                 page, left, (int16_t)(right - left),
                 (struct far_ptr){
                     (uint16_t)(ENGINE_ROW_OFFSETS.row[j - y] + src.off),
@@ -8102,7 +8231,7 @@ void clip_polygon(void)
     int16_t n;
 
     di = 0;
-    n = (int16_t)DG3A2C.clip_count;
+    n = (int16_t)VMDS.palettes.clip_count;
     if (n <= 1)
         return;
 
@@ -8198,13 +8327,13 @@ void clip_polygon(void)
         bx = si;
         cl = ch;
         si = (int16_t)(((uint16_t)si >> 1) + 1);
-        if (si == (int16_t)DG3A2C.clip_count)
+        if (si == (int16_t)VMDS.palettes.clip_count)
             break;
         si = (int16_t)(si * 2);
     }
 
     n = (int16_t)((uint16_t)di >> 1);
-    DG3A2C.clip_count = (uint16_t)n;
+    VMDS.palettes.clip_count = (uint16_t)n;
 
     if (n <= 1) {
         int16_t i;
@@ -8306,12 +8435,12 @@ void clip_polygon(void)
         bx = si;
         cl = ch;
         si = (int16_t)(((uint16_t)si >> 1) + 1);
-        if (si == (int16_t)DG3A2C.clip_count)
+        if (si == (int16_t)VMDS.palettes.clip_count)
             break;
         si = (int16_t)(si * 2);
     }
 
-    DG3A2C.clip_count = (uint16_t)((uint16_t)di >> 1);
+    VMDS.palettes.clip_count = (uint16_t)((uint16_t)di >> 1);
 }
 
 /*
@@ -8670,7 +8799,7 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
  */
 void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
 {
-    if (DG3F78.mode_kind == 0) {
+    if (VMDS.screen.mode_kind == 0) {
         while (n-- > 0) {
             clip_and_draw_line(xs[0], ys[0],
                                xs[1],
@@ -8735,7 +8864,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     ENGINE_POLYGON_STATE.byte_44e9 = 0;
 
     if (n >= 0) {
-        DG3A2C.clip_count = (uint16_t)n;
+        VMDS.palettes.clip_count = (uint16_t)n;
         for (i = 0; i < n; i++) {
             VMDS.poly_x[i] = xs[i];
             VMDS.poly_y[i] = ys[i];
@@ -8752,7 +8881,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 
     if (VMDS.fill_enabled == 0) {
         /* Filling is off: close the ring and draw it as lines. */
-        n = (int16_t)DG3A2C.clip_count;
+        n = (int16_t)VMDS.palettes.clip_count;
         VMDS.poly_x[n] = ((uint16_t)VMDS.poly_x[0]);
         VMDS.poly_y[n] = ((uint16_t)VMDS.poly_y[0]);
         poly_outline(VMDS.poly_x, VMDS.poly_y, n);
@@ -8760,7 +8889,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     }
 
     if (VMDS.second_colour != VMDS.fill_colour) {
-        n = (int16_t)DG3A2C.clip_count;
+        n = (int16_t)VMDS.palettes.clip_count;
         ENGINE_POLYGON_STATE.word_44e4 = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
@@ -8774,7 +8903,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     if (VMDS.clip_enabled != 0)
         clip_polygon();
 
-    n = (int16_t)DG3A2C.clip_count;
+    n = (int16_t)VMDS.palettes.clip_count;
     if (n < 2)
         goto out;
     if (n == 2) {
@@ -8834,7 +8963,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 
     if (dx == bx) {
         /* Every point on one row: one line, and nothing to fill. */
-        if (DG3F78.mode_kind == 0) {
+        if (VMDS.screen.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
             VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top >> 1);
@@ -8852,7 +8981,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
         goto out;
 
     if (ax == 2) {
-        if (DG3F78.mode_kind == 0) {
+        if (VMDS.screen.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
             VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top >> 1);
@@ -8866,7 +8995,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     }
 
     cx = di;
-    DG3A2C.clip_count = (uint16_t)ax;
+    VMDS.palettes.clip_count = (uint16_t)ax;
 
     /*
      * Which way round is it wound? Compare the slopes of the two edges leaving

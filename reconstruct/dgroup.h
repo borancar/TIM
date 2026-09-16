@@ -6,9 +6,10 @@
  * dereferenced as `[bx + 0x22]`. Named globals cannot express that; an array
  * can, and it is what the original actually has.
  *
- * Named variables are macros over the array rather than storage of their own,
- * so a name and a pointer dereference reach the same byte. Where a name is a
- * guess it says so; the offsets are read from the disassembly and are not.
+ * Named variables are objects the linker places *inside* the array - see
+ * `DGROUP_AT` below - so a name and a pointer dereference reach the same byte.
+ * Where a name is a guess it says so; the offsets are read from the
+ * disassembly and are not.
  *
  * DGROUP is at image 0x2d3c0, so a DGROUP offset plus that is an image offset.
  *
@@ -64,9 +65,18 @@ extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 #define IMG_DGROUP      0x2D3C0u
 #define DGROUP_INIT_END 0x4e4e
 
-#define DGROUP_AT(off)       __attribute__((section(".guest.dgroup." #off), used))
-#define DGROUP_BSS(off)      __attribute__((section(".bss.guest.dgroup." #off), used))
-#define SEGMENT_AT(seg, off) __attribute__((section(".guest.seg." #seg "." #off), used))
+/*
+ * **`aligned(1)` is not decoration.** The x86-64 ABI lets the compiler assume a
+ * global of sixteen bytes or more is on a sixteen-byte boundary, and GCC acts
+ * on it: `reset_input_state` cleared `MACHINE_BUTTONS` with one `movaps`, which
+ * faults on an address that is not - and a DGROUP offset usually is not. The
+ * linker script's `SUBALIGN(1)` puts the object where it belongs; this is what
+ * stops the code that uses it assuming otherwise. genld refuses a guest section
+ * whose alignment is not 1.
+ */
+#define DGROUP_AT(off)       __attribute__((section(".guest.dgroup." #off), used, aligned(1)))
+#define DGROUP_BSS(off)      __attribute__((section(".bss.guest.dgroup." #off), used, aligned(1)))
+#define SEGMENT_AT(seg, off) __attribute__((section(".guest.seg." #seg "." #off), used, aligned(1)))
 
 /* Declared in io.h, which this header deliberately does not include: `dg_off`
    below refuses a pointer that is not the guest's, and the refusal has to be
@@ -420,7 +430,6 @@ struct dg_3f78 {
     int16_t   screen_height;      /* +0x04  the copy-protection screen sets it to 0x18f first */
 } __attribute__((packed));
 
-#define DG3F78 (*(struct dg_3f78 *)(dgroup + 0x3f78))
 
 /*
  * **An address back into the offset the guest holds it as.** The inverse of
@@ -453,6 +462,33 @@ static inline uint16_t dg_off(const void *base, const void *p)
     return (uint16_t)((const uint8_t *)p
                       - (const uint8_t *)base);
 }
+
+/*
+ * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
+ */
+struct dg_3a2c {
+    uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
+    /* **Eleven slots of four bytes.** Slot 0 is `set_palette_pointer`'s, which
+       the driver reaches on its own as driverDS:0x1a0 - the segment half
+       alone, which is why each slot is a pair rather than a pointer. Slots 1
+       to 9 are `load_palette`'s search and `free_far_block`'s walk. Slot 10
+       takes the null a full table's store writes: the search stops at
+       `di >= 0xa`, and the `cmp di,0xa / jl` at 0x1e9a4 guards only the
+       *load* - failing it jumps straight to the store at 0x1eb4a, which files
+       `[bx+0x3a2e]` with `di` still 10, at 0x3a56.
+
+       Nothing else names those four bytes. After the table the game's code
+       references nothing until 0x3b00 and the driver nothing until 0x3a70, and
+       the image holds zeros throughout, so the storage is the table's. Eleven
+       is what the code indexes; the 22 bytes after it are unreferenced too, so
+       the source's array could have been larger, and nothing says so.
+
+       It was `[9]` once, sized from a note that said "nine slots", and then
+       `[10]` from a reading that took the `jl` for the store's guard. Both
+       were sizes argued for rather than read off every store. */
+    struct far_ptr blocks[11];    /* +0x02 */
+} __attribute__((packed));
+
 
 /*
  * **The video driver's data**, VMDS, at DGROUP 0x3890: the driver's own state,
@@ -513,15 +549,25 @@ struct vmds {
     int16_t   closed_x[20];                 /* +0x14c  DGROUP 0x39dc, the closed
                                                        copy poly_fill walks */
     int16_t   closed_y[20];                 /* +0x174  DGROUP 0x3a04 */
-    uint8_t   unknown_19c[2];               /* +0x19c  DG3A2C.clip_count */
-    struct far_ptr pal_copy_ptr;            /* +0x19e  VGA:0x0f15's palette */
-    uint8_t   unknown_1a2[0x51a];           /* +0x1a2 */
+    /* **The game's clip count and palette slots, inside the driver's data.**
+       The game reaches them at DGROUP 0x3a2c; the driver reaches slot 0 on its
+       own as VGA:0x0f15's palette, driverDS:0x19e. One block, two readers. */
+    struct dg_3a2c palettes;                /* +0x19c  DGROUP 0x3a2c */
+    uint8_t   unknown_1ca[0x4f2];           /* +0x1ca */
     uint16_t  dda_whole;                    /* +0x6bc */
     uint16_t  dda_frac;                     /* +0x6be */
     int16_t   dda_saved;                    /* +0x6c0 */
     uint16_t  dda_acc;                      /* +0x6c2 */
     uint8_t   line_mask;                    /* +0x6c4 */
-    uint8_t   unknown_6c5[0x23];            /* +0x6c5 */
+    uint8_t   unknown_6c5[0x1d];            /* +0x6c5 */
+    /* **The page hook**, DGROUP 0x3f72, which the game reads. Non-zero makes
+       the three blitters call the vector at DGROUP 0x43b6 between taking the
+       destination page and reading the clip. That vector is the driver's
+       do-nothing stub, so the page comes back as it went in - and the port
+       keeps the guard so a build whose 0x3f72 is *set* is not silently the
+       same as one whose is clear. The name is a reading of that one use. */
+    int16_t   page_hook;                    /* +0x6e2 */
+    uint8_t   unknown_6e4[4];               /* +0x6e4 */
     /*
      * +0x6e8  **DGROUP 0x3f78**, and the same six bytes `DG3F78` names. The
      * driver fills them in `vm_driver_init` and the game reads them all over;
@@ -533,7 +579,7 @@ struct vmds {
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } __attribute__((packed));
 
-#define VMDS (*(struct vmds *)(dgroup + 0x3890))
+extern struct vmds VMDS;
 
 #define DG_ASSERT_AT(type, field, off) \
     _Static_assert(__builtin_offsetof(type, field) == (off), \
@@ -568,7 +614,10 @@ DG_ASSERT_AT(struct vmds, font_table_34,  0x34);
 DG_ASSERT_AT(struct vmds, font_table_48,  0x48);
 DG_ASSERT_AT(struct vmds, font_table_5c,  0x5c);
 DG_ASSERT_AT(struct vmds, font_table_70,  0x70);
-DG_ASSERT_AT(struct vmds, pal_copy_ptr,   0x19e);
+DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
+DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
+DG_ASSERT_AT(struct vmds, palettes,       0x19c);
+DG_ASSERT_AT(struct vmds, page_hook,      0x6e2);
 DG_ASSERT_AT(struct vmds, dda_whole,      0x6bc);
 DG_ASSERT_AT(struct vmds, dda_frac,       0x6be);
 DG_ASSERT_AT(struct vmds, dda_saved,      0x6c0);
@@ -612,7 +661,7 @@ struct dg_50bf {
     dg_off_t  layer_head[6];      /* +0x00 */
 } __attribute__((packed));
 
-#define DG50BF (*(struct dg_50bf *)(dgroup + 0x50bf))
+extern struct dg_50bf DG50BF;
 _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 
 /*
@@ -736,7 +785,7 @@ struct dg_4e67 {
     char      hint[0x190];        /* +0xb8  0x4f1f, up to DG50AF */
 } __attribute__((packed));
 
-#define DG4E67 (*(struct dg_4e67 *)(dgroup + 0x4e67))
+extern struct dg_4e67 DG4E67;
 
 DG_ASSERT_AT(struct dg_4e67, freeform,         0x00);
 DG_ASSERT_AT(struct dg_4e67, title,            0x68);
@@ -817,7 +866,7 @@ struct dg_5768 {
     uint16_t  word_5786;          /* +0x1e */
 } __attribute__((packed));
 
-#define DG5768 (*(struct dg_5768 *)(dgroup + 0x5768))
+extern struct dg_5768 DG5768;
 
 DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
 DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
@@ -871,7 +920,7 @@ struct dg_53fc {
     int16_t   word_542c;          /* +0x30 */
 } __attribute__((packed));
 
-#define DG53FC (*(struct dg_53fc *)(dgroup + 0x53fc))
+extern struct dg_53fc DG53FC;
 
 DG_ASSERT_AT(struct dg_53fc, word_53fc,         0x00);
 DG_ASSERT_AT(struct dg_53fc, word_53fe,         0x02);
@@ -956,7 +1005,7 @@ struct dg_4a82 {
     uint16_t  device;             /* +0x2c  the device number; 8 is recorded as 3 */
 } __attribute__((packed));
 
-#define DG4A82 (*(struct dg_4a82 *)(dgroup + 0x4a82))
+extern struct dg_4a82 DG4A82;
 
 DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
 DG_ASSERT_AT(struct dg_4a82, config,            0x02);
@@ -1002,7 +1051,7 @@ struct dg_52bd {
     struct far_ptr pal_sierra_ptr;/* +0x28  sierra.pal */
 } __attribute__((packed));
 
-#define DG52BD (*(struct dg_52bd *)(dgroup + 0x52bd))
+extern struct dg_52bd DG52BD;
 
 DG_ASSERT_AT(struct dg_52bd, band_x,            0x00);
 DG_ASSERT_AT(struct dg_52bd, band_y,            0x02);
@@ -1044,7 +1093,7 @@ struct dg_52ed {
     uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
 } __attribute__((packed));
 
-#define DG52ED (*(struct dg_52ed *)(dgroup + 0x52ed))
+extern struct dg_52ed DG52ED;
 
 /*
  * **The machine file the picker chose**, at DGROUP 0x52fe. `pick_file` copies
@@ -1058,7 +1107,7 @@ struct dg_52fe {
     char      name[0xd];          /* +0x00 */
 } __attribute__((packed));
 
-#define DG52FE (*(struct dg_52fe *)(dgroup + 0x52fe))
+extern struct dg_52fe DG52FE;
 
 DG_ASSERT_AT(struct dg_52fe, name,              0x00);
 
@@ -1087,7 +1136,7 @@ struct dg_4e4e {
                                      `dg_4e67` */
 } __attribute__((packed));
 
-#define DG4E4E (*(struct dg_4e4e *)(dgroup + 0x4e4e))
+extern struct dg_4e4e DG4E4E;
 
 DG_ASSERT_AT(struct dg_4e4e, shape_free,        0x00);
 DG_ASSERT_AT(struct dg_4e4e, shapes_ptr,        0x04);
@@ -1113,7 +1162,7 @@ struct dg_50af {
     uint16_t  flip_options;       /* +0x0e  part_flip_options' answer, kept for the handles */
 } __attribute__((packed));
 
-#define DG50AF (*(struct dg_50af *)(dgroup + 0x50af))
+extern struct dg_50af DG50AF;
 
 DG_ASSERT_AT(struct dg_50af, bonus_1,           0x00);
 DG_ASSERT_AT(struct dg_50af, bonus_2,           0x02);
@@ -1149,7 +1198,7 @@ struct timer {
     } tick[16];                   /* +0x4b  0x4539 */
 } __attribute__((packed));
 
-#define TIMER (*(struct timer *)(dgroup + 0x44ee))
+extern struct timer TIMER;
 
 DG_ASSERT_AT(struct timer, installed,         0x00);
 DG_ASSERT_AT(struct timer, frame_budget,      0x01);
@@ -1162,6 +1211,27 @@ DG_ASSERT_AT(struct timer, tick,              0x4b);
 _Static_assert(sizeof(struct timer) == 0x8b, "the timer state ends at 0x4579");
 
 /*
+ * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b8, 0x12 bytes - a near pointer into
+ * the caller's own string for each line `wrap_text_to_box` decided on, and
+ * `GAME_PICKER_TEXT.line_count` of them.
+ *
+ * Nine words, settled from three directions that agree. The wrapper caps the
+ * box at seven line heights, so seven lines can start inside it and one more
+ * is written before the height is re-tested; `draw_wrapped_text` finds a
+ * line's end by reading the *next* entry, so the table needs one past the
+ * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
+ */
+struct game_text_lines {
+    dg_off_t  line[9];            /* +0x00 [0x12] */
+} __attribute__((packed));
+
+extern struct game_text_lines GAME_TEXT_LINES;
+_Static_assert(sizeof(struct game_text_lines) == 0x12, "DGROUP 0x56a6..0x56b8, 0x12 bytes");
+DG_ASSERT_AT(struct game_text_lines, line, 0x00);
+
+
+
+/*
  * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
  */
 struct dg_5752 {
@@ -1171,7 +1241,7 @@ struct dg_5752 {
     int16_t   size_word;          /* +0x04  the size, or the driver's own if this is zero */
 } __attribute__((packed));
 
-#define DG5752 (*(struct dg_5752 *)(dgroup + 0x5752))
+extern struct dg_5752 DG5752;
 
 DG_ASSERT_AT(struct dg_5752, guard,             0x00);
 DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
@@ -1193,7 +1263,7 @@ struct dg_5456 {
     uint16_t  goal_condition[10]; /* +0x02 .. +0x15 */
 } __attribute__((packed));
 
-#define DG5456 (*(struct dg_5456 *)(dgroup + 0x5456))
+extern struct dg_5456 DG5456;
 
 DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
 DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
@@ -1212,7 +1282,7 @@ struct dg_4e34 {
                                      `float_formats_missing` in this program */
 } __attribute__((packed));
 
-#define DG4E34 (*(struct dg_4e34 *)(dgroup + 0x4e34))
+extern struct dg_4e34 DG4E34;
 
 DG_ASSERT_AT(struct dg_4e34, first_block_ptr,   0x00);
 DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
@@ -1355,34 +1425,13 @@ struct chunk_names {
     char scr_amg[9];        /* +0x45  0x49ab  "SCR:AMG:" */
     char mode_r_d[2];       /* +0x4e  0x49b4  "r" */
     char mode_rb[3];        /* +0x50  0x49b6  "rb" */
-    /* +0x53  0x49b9. Not strings: `06 00` and then five words that read as
-       far pointers - 3e29:1c25, 61fd:1c25, and 1063 - which is another
-       module's data sharing the region. Named as the gap it is. */
-    uint8_t pad_49b9[13];
-    char bmp_scn[9];        /* +0x60  0x49c6  "BMP:SCN:" */
-    char bmp_off[9];        /* +0x69  0x49cf  "BMP:OFF:" */
-    char bmp_vqt[9];        /* +0x72  0x49d8  "BMP:VQT:" */
-    char bmp_off_b[9];      /* +0x7b  0x49e1  "BMP:OFF:" - the second copy */
-    char bmp_rle[9];        /* +0x84  0x49ea  "BMP:RLE:" */
-    char bmp_scl[9];        /* +0x8d  0x49f3  "BMP:SCL:" */
-    uint8_t pad_49fc[2];
-    char scr_vqt[9];        /* +0x98  0x49fe  "SCR:VQT:" */
-    uint8_t pad_4a07[1];
-    char ssm_000[9];        /* +0xa2  0x4a08  "SSM:000:" */
-    uint8_t pad_4a11[1];
-    /* +0xac  0x4a12. **Not a constant: a buffer.** The image holds
-       `53 53 4d 3a 20 20 20 20 20 00` - "SSM:" and *five* spaces, which is
-       nine characters and would fail the multiple-of-four check.
-       `setup_sound_device` writes a four-character tag **and its NUL** over
-       the spaces at +4 first, so the path is eight when it is walked and the
-       fifth space is the room that NUL needs. */
-    char ssm_tag[10];
+    uint8_t pad_49b9[1];    /* +0x53  0x49b9 */
 } __attribute__((packed));
 
 /* **Not `volatile`.** These are the compiler's string literals; nothing
    writes them. The two buffers among them are filled by `string_copy_far`,
    which takes an offset, so even those are not written through this. */
-#define CHUNK (*(struct chunk_names *)(dgroup + 0x4966))
+extern struct chunk_names CHUNK;
 
 DG_ASSERT_AT(struct chunk_names, bmp_inf,   0x00);
 DG_ASSERT_AT(struct chunk_names, bmp_bin,   0x09);
@@ -1393,16 +1442,52 @@ DG_ASSERT_AT(struct chunk_names, scr_bin,   0x31);
 DG_ASSERT_AT(struct chunk_names, scr_vga,   0x3c);
 DG_ASSERT_AT(struct chunk_names, scr_amg,   0x45);
 DG_ASSERT_AT(struct chunk_names, mode_rb,   0x50);
-DG_ASSERT_AT(struct chunk_names, bmp_scn,   0x60);
-DG_ASSERT_AT(struct chunk_names, bmp_off,   0x69);
-DG_ASSERT_AT(struct chunk_names, bmp_vqt,   0x72);
-DG_ASSERT_AT(struct chunk_names, bmp_off_b, 0x7b);
-DG_ASSERT_AT(struct chunk_names, bmp_rle,   0x84);
-DG_ASSERT_AT(struct chunk_names, bmp_scl,   0x8d);
-DG_ASSERT_AT(struct chunk_names, scr_vqt,   0x98);
-DG_ASSERT_AT(struct chunk_names, ssm_000,   0xa2);
-DG_ASSERT_AT(struct chunk_names, ssm_tag,   0xac);
-_Static_assert(sizeof(struct chunk_names) == 0xb6,
+_Static_assert(sizeof(struct chunk_names) == 0x54,
+               "the first run ends at 0x49ba, where DG49BA's code pointers begin");
+
+/*
+ * **The rest of the chunk names**, from 0x49c6, after the twelve bytes of
+ * `DG49BA` - another module's data sharing the region, three code pointers
+ * the offset-table bitmap draws through. The run was one struct with those
+ * twelve bytes as a gap in it until the data became objects the linker places,
+ * and two objects cannot share bytes.
+ */
+struct chunk_names2 {
+    char bmp_scn[9];        /* +0x00  0x49c6  "BMP:SCN:" */
+    char bmp_off[9];        /* +0x09  0x49cf  "BMP:OFF:" */
+    char bmp_vqt[9];        /* +0x12  0x49d8  "BMP:VQT:" */
+    char bmp_off_b[9];      /* +0x1b  0x49e1  "BMP:OFF:" - the second copy */
+    char bmp_rle[9];        /* +0x24  0x49ea  "BMP:RLE:" */
+    char bmp_scl[9];        /* +0x2d  0x49f3  "BMP:SCL:" */
+    uint8_t pad_49fc[2];
+    char scr_vqt[9];        /* +0x38  0x49fe  "SCR:VQT:" */
+    uint8_t pad_4a07[1];
+    /* **The sound module's name template**, not only a constant:
+       `load_sound_module` builds the name in place, writing the three digits
+       at +4, +5 and +6 - hundreds, tens and units, each from its own division
+       - over "000". */
+    char ssm_000[9];        /* +0x42  0x4a08  "SSM:000:" */
+    uint8_t pad_4a11[1];
+    /* +0x4c  0x4a12. **Not a constant: a buffer.** The image holds
+       `53 53 4d 3a 20 20 20 20 20 00` - "SSM:" and *five* spaces, which is
+       nine characters and would fail the multiple-of-four check.
+       `setup_sound_device` writes a four-character tag **and its NUL** over
+       the spaces at +4 first, so the path is eight when it is walked and the
+       fifth space is the room that NUL needs. */
+    char ssm_tag[10];
+} __attribute__((packed));
+
+extern struct chunk_names2 CHUNK2;
+
+DG_ASSERT_AT(struct chunk_names2, bmp_off,   0x09);
+DG_ASSERT_AT(struct chunk_names2, bmp_vqt,   0x12);
+DG_ASSERT_AT(struct chunk_names2, bmp_off_b, 0x1b);
+DG_ASSERT_AT(struct chunk_names2, bmp_rle,   0x24);
+DG_ASSERT_AT(struct chunk_names2, bmp_scl,   0x2d);
+DG_ASSERT_AT(struct chunk_names2, scr_vqt,   0x38);
+DG_ASSERT_AT(struct chunk_names2, ssm_000,   0x42);
+DG_ASSERT_AT(struct chunk_names2, ssm_tag,   0x4c);
+_Static_assert(sizeof(struct chunk_names2) == 0x56,
                "the run ends at 0x4a1c, where the device tag table begins");
 
 /*
@@ -1422,11 +1507,11 @@ struct pal_chunk_names {
     char pal_cga[9];          /* +0x12  0x4498  "PAL:CGA:" */
     char none[1];             /* +0x1b  0x44a1  "" */
     dg_off_t by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
-    uint8_t  pad_44c2[4];
+    struct far_ptr palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
     char pal_amg[9];          /* +0x40  0x44c6  "PAL:AMG:" */
 } __attribute__((packed));
 
-#define PALCHUNK (*(struct pal_chunk_names *)(dgroup + 0x4486))
+extern struct pal_chunk_names PALCHUNK;
 
 DG_ASSERT_AT(struct pal_chunk_names, pal_vga,    0x00);
 DG_ASSERT_AT(struct pal_chunk_names, pal_ega,    0x09);
@@ -1454,7 +1539,7 @@ struct ovl_chunk_names {
                                                VGA: EVG: HVG: HEG: NEW: */
 } __attribute__((packed));
 
-#define OVLCHUNK (*(struct ovl_chunk_names *)(dgroup + 0x4919))
+extern struct ovl_chunk_names OVLCHUNK;
 
 DG_ASSERT_AT(struct ovl_chunk_names, ovl_tag,     0x00);
 DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
@@ -1790,7 +1875,7 @@ struct dg_50d3 {
     struct part parts_bin;        /* +0x04 */
 } __attribute__((packed));
 
-#define DG50D3 (*(struct dg_50d3 *)(dgroup + 0x50d3))
+extern struct dg_50d3 DG50D3;
 
 DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
 DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
@@ -1809,7 +1894,7 @@ struct dg_5179 {
     struct part moving_parts;     /* +0x00 */
 } __attribute__((packed));
 
-#define DG5179 (*(struct dg_5179 *)(dgroup + 0x5179))
+extern struct dg_5179 DG5179;
 
 DG_ASSERT_AT(struct dg_5179, moving_parts,      0x00);
 _Static_assert(sizeof(struct dg_5179) == 0x521b - 0x5179,
@@ -1845,7 +1930,7 @@ struct dg_546c {
     int16_t   file_asked;         /* +0x21  and the one it was asked about */
 } __attribute__((packed));
 
-#define DG546C (*(struct dg_546c *)(dgroup + 0x546c))
+extern struct dg_546c DG546C;
 
 DG_ASSERT_AT(struct dg_546c, table,             0x00);
 DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
@@ -1985,7 +2070,7 @@ struct dg_48da {
                                             stored it */
 } __attribute__((packed));
 
-#define DG48DA (*(struct dg_48da *)(dgroup + 0x48da))
+extern struct dg_48da DG48DA;
 
 DG_ASSERT_AT(struct dg_48da, gc_0_1,            0x00);
 DG_ASSERT_AT(struct dg_48da, gc_4,              0x02);
@@ -2012,7 +2097,7 @@ struct dg_3576 {
                                      not null */
 } __attribute__((packed));
 
-#define DG3576 (*(struct dg_3576 *)(dgroup + 0x3576))
+extern struct dg_3576 DG3576;
 
 DG_ASSERT_AT(struct dg_3576, scratch,           0x00);
 
@@ -2028,7 +2113,7 @@ struct dg_521b {
     struct part placed_parts;     /* +0x00 */
 } __attribute__((packed));
 
-#define DG521B (*(struct dg_521b *)(dgroup + 0x521b))
+extern struct dg_521b DG521B;
 
 DG_ASSERT_AT(struct dg_521b, placed_parts,      0x00);
 _Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
@@ -2060,7 +2145,7 @@ struct dg_0094 {
     uint16_t  brklvl;             /* +0x08  the near heap's break */
 } __attribute__((packed));
 
-#define DG0094 (*(struct dg_0094 *)(dgroup + 0x0094))
+extern struct dg_0094 DG0094;
 
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
@@ -2178,7 +2263,7 @@ struct dg_1bcc {
     char path_sep[2];                 /* +0x7a2 0x236e '\\' */
 } __attribute__((packed));
 
-#define DG1BCC (*(struct dg_1bcc *)(dgroup + 0x1bcc))
+extern struct dg_1bcc DG1BCC;
 _Static_assert(sizeof(struct dg_1bcc) == 0x7a4, "DG1BCC ends at 0x2370");
 
 /*
@@ -2196,7 +2281,7 @@ struct dg_254a {
     char icons_bmp[10];               /* +0x038 0x2582 'icons.bmp' */
 } __attribute__((packed));
 
-#define DG254A (*(struct dg_254a *)(dgroup + 0x254a))
+extern struct dg_254a DG254A;
 _Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
 
 /*
@@ -2215,7 +2300,7 @@ struct dg_2630 {
     struct far_ptr goal_test[110];    /* +0x06 */
 } __attribute__((packed));
 
-#define DG2630 (*(struct dg_2630 *)(dgroup + 0x2630))
+extern struct dg_2630 DG2630;
 
 DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
 DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
@@ -2223,36 +2308,6 @@ DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
 DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
 _Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
 
-/*
- * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
- */
-struct dg_3a2c {
-    uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
-    /* **Eleven slots of four bytes.** Slot 0 is `set_palette_pointer`'s, which
-       the driver reaches on its own as driverDS:0x1a0 - the segment half
-       alone, which is why each slot is a pair rather than a pointer. Slots 1
-       to 9 are `load_palette`'s search and `free_far_block`'s walk. Slot 10
-       takes the null a full table's store writes: the search stops at
-       `di >= 0xa`, and the `cmp di,0xa / jl` at 0x1e9a4 guards only the
-       *load* - failing it jumps straight to the store at 0x1eb4a, which files
-       `[bx+0x3a2e]` with `di` still 10, at 0x3a56.
-
-       Nothing else names those four bytes. After the table the game's code
-       references nothing until 0x3b00 and the driver nothing until 0x3a70, and
-       the image holds zeros throughout, so the storage is the table's. Eleven
-       is what the code indexes; the 22 bytes after it are unreferenced too, so
-       the source's array could have been larger, and nothing says so.
-
-       It was `[9]` once, sized from a note that said "nine slots", and then
-       `[10]` from a reading that took the `jl` for the store's guard. Both
-       were sizes argued for rather than read off every store. */
-    struct far_ptr blocks[11];    /* +0x02 */
-} __attribute__((packed));
-
-#define DG3A2C (*(struct dg_3a2c *)(dgroup + 0x3a2c))
-
-DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
-DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
 
 /*
  * **The span buffer and the driver's vectors**, at DGROUP 0x4342.
@@ -2279,7 +2334,7 @@ struct dg_4342 {
     struct far_ptr font[50];      /* +0x04 */
 } __attribute__((packed));
 
-#define DG4342 (*(struct dg_4342 *)(dgroup + 0x4342))
+extern struct dg_4342 DG4342;
 
 DG_ASSERT_AT(struct dg_4342, span_buffer_seg,   0x00);
 DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
@@ -2328,7 +2383,7 @@ struct dg_5677 {
     uint16_t  caret_blink_b;      /* +0x09  a different counter, and a different asterisk at 0x2954 */
 } __attribute__((packed));
 
-#define DG5677 (*(struct dg_5677 *)(dgroup + 0x5677))
+extern struct dg_5677 DG5677;
 
 DG_ASSERT_AT(struct dg_5677, crit_vec,      0x00);
 DG_ASSERT_AT(struct dg_5677, failures,          0x04);
@@ -2408,7 +2463,7 @@ struct dg_49ba {
     uint16_t  read_fn;            /* +0x0a  near, 248f:1063, `vqt_read_bits` */
 } __attribute__((packed));
 
-#define DG49BA (*(struct dg_49ba *)(dgroup + 0x49ba))
+extern struct dg_49ba DG49BA;
 
 DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
 DG_ASSERT_AT(struct dg_49ba, fill_fn,           0x02);
@@ -2461,7 +2516,7 @@ typedef struct {
     uint8_t        pad_6413;
 } __attribute__((packed)) bitmaps_t;
 
-#define BITMAPS (*(bitmaps_t *)(dgroup + 0x6400))
+extern bitmaps_t BITMAPS;
 
 DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
 DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
@@ -3487,7 +3542,7 @@ struct part_shapes {
     struct point16    p_3522[21];             /* 0x3a0  0x3522  21 points */
 } __attribute__((packed));
 
-#define PARTSHAPES (*(const struct part_shapes *)(dgroup + 0x3182))
+extern struct part_shapes PARTSHAPES;
 
 _Static_assert(sizeof(struct part_shapes) == 0x3f4,
                "the shape tables run from 0x3182 to DG3576");

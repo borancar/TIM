@@ -34,7 +34,7 @@ struct machine_quadrant_steps {
     int16_t   dy[4];              /* +0x08 [8] */
 } __attribute__((packed));
 
-#define MACHINE_QUADRANT_STEPS (*(struct machine_quadrant_steps *)(dgroup + 0x258c))
+struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { .dx = { [1] = -1, [3] = 0x0001 }, .dy = { -1, 0x0000, 0x0001 } };
 DG_ASSERT_AT(struct machine_quadrant_steps, dy, 0x08);
 _Static_assert(sizeof(struct machine_quadrant_steps) == 0x10, "the quadrant steps end at 0x259c");
 
@@ -48,7 +48,13 @@ struct machine_cursor_hotspots {
     int16_t   hot_x[9];           /* +0x12 [0x12] */
 } __attribute__((packed));
 
-#define MACHINE_CURSOR_HOTSPOTS (*(struct machine_cursor_hotspots *)(dgroup + 0x284a))
+struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
+    .hot_y = {
+        0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
+        0x0003,
+    },
+    .hot_x = { [1] = 0x000a },
+};
 DG_ASSERT_AT(struct machine_cursor_hotspots, hot_x, 0x12);
 _Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots end at 0x286e");
 
@@ -59,7 +65,7 @@ struct machine_button_prev {
     int16_t   word_286e;          /* +0x00 [2] */
 } __attribute__((packed));
 
-#define MACHINE_BUTTON_PREV (*(struct machine_button_prev *)(dgroup + 0x286e))
+struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e);
 _Static_assert(sizeof(struct machine_button_prev) == 0x02, "DGROUP 0x286e..0x2870, 0x02 bytes");
 DG_ASSERT_AT(struct machine_button_prev, word_286e, 0x00);
 
@@ -74,7 +80,7 @@ struct machine_hash_order {
     uint8_t   hash_order[4];      /* +0x00 [4] */
 } __attribute__((packed));
 
-#define MACHINE_HASH_ORDER (*(struct machine_hash_order *)(dgroup + 0x28d2))
+struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
 _Static_assert(sizeof(struct machine_hash_order) == 0x04, "DGROUP 0x28d2..0x28d6, 0x04 bytes");
 
 /*
@@ -94,7 +100,15 @@ struct machine_page_pairs {
     } pair[10];                   /* +0x00 [0x28] */
 } __attribute__((packed));
 
-#define MACHINE_PAGE_PAIRS (*(struct machine_page_pairs *)(dgroup + 0x2d0a))
+struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
+    .pair = {
+        { .src = 0x2d08, .dst = 0x38a4 }, { .src = 0x38a2, .dst = 0x38a4 },
+        { .src = 0x2d08, .dst = 0x38a2 }, { .src = 0x38a0, .dst = 0x38a2 },
+        { .src = 0x2d08, .dst = 0x38a0 }, { .src = 0x38a4, .dst = 0x38a0 },
+        { .src = 0x38a4, .dst = 0x38a2 }, { .src = 0x38a2, .dst = 0x38a0 },
+        { .src = 0x38a0, .dst = 0x38a4 },
+    },
+};
 _Static_assert(sizeof(struct machine_page_pairs) == 0x28, "the page pairs end at 0x2d32");
 
 /*
@@ -113,7 +127,15 @@ struct machine_cursor_state {
     int16_t   word_2d46;          /* +0x14 [2] */
 } __attribute__((packed));
 
-#define MACHINE_CURSOR_STATE (*(struct machine_cursor_state *)(dgroup + 0x2d32))
+struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
+    .page = 0x0001,
+    .word_2d38 = 0x0100,
+    .cursor_off = 0x0001,
+    .delay_reload = 0x000c,
+    .read_driver = 0x0001,
+    .flag_2d44 = 0x0001,
+    .word_2d46 = 0x0001,
+};
 _Static_assert(sizeof(struct machine_cursor_state) == 0x16, "DGROUP 0x2d32..0x2d48, 0x16 bytes");
 DG_ASSERT_AT(struct machine_cursor_state, page,             0x00);
 DG_ASSERT_AT(struct machine_cursor_state, screen_disturbed, 0x02);
@@ -139,27 +161,11 @@ struct machine_isr_stack {
     uint16_t  saved_sp;           /* +0x02 [2] */
 } __attribute__((packed));
 
-#define MACHINE_ISR_STACK (*(struct machine_isr_stack *)(dgroup + 0x317e))
+struct machine_isr_stack MACHINE_ISR_STACK DGROUP_AT(0x317e);
 _Static_assert(sizeof(struct machine_isr_stack) == 0x04, "DGROUP 0x317e..0x3182, 0x04 bytes");
 DG_ASSERT_AT(struct machine_isr_stack, saved_ss, 0x00);
 DG_ASSERT_AT(struct machine_isr_stack, saved_sp, 0x02);
 
-/*
- * **Not established**, DGROUP 0x4e99..0x4ea1, 0x08 bytes.
- */
-struct machine_shape_origin {
-    int16_t   word_4e99;          /* +0x00 [2] */
-    int16_t   word_4e9b;          /* +0x02 [2] */
-    int16_t   word_4e9d;          /* +0x04 [2] */
-    int16_t   word_4e9f;          /* +0x06 [2] */
-} __attribute__((packed));
-
-#define MACHINE_SHAPE_ORIGIN (*(struct machine_shape_origin *)(dgroup + 0x4e99))
-_Static_assert(sizeof(struct machine_shape_origin) == 0x08, "DGROUP 0x4e99..0x4ea1, 0x08 bytes");
-DG_ASSERT_AT(struct machine_shape_origin, word_4e99, 0x00);
-DG_ASSERT_AT(struct machine_shape_origin, word_4e9b, 0x02);
-DG_ASSERT_AT(struct machine_shape_origin, word_4e9d, 0x04);
-DG_ASSERT_AT(struct machine_shape_origin, word_4e9f, 0x06);
 
 /*
  * **The eleven archives**, DGROUP 0x548f..0x55c3, 0x134 bytes. Index 0 is never where a search
@@ -169,7 +175,7 @@ struct machine_archives {
     struct archive slot[0xb];     /* +0x00 [0x134] */
 } __attribute__((packed));
 
-#define MACHINE_ARCHIVES (*(struct machine_archives *)(dgroup + 0x548f))
+struct machine_archives MACHINE_ARCHIVES DGROUP_BSS(0x548f);
 _Static_assert(sizeof(struct machine_archives) == 0x134, "DGROUP 0x548f..0x55c3, 0x134 bytes");
 DG_ASSERT_AT(struct machine_archives, slot, 0x00);
 
@@ -180,22 +186,9 @@ struct machine_game_files {
     struct game_file files[0xa];  /* +0x00 [0xb4] */
 } __attribute__((packed));
 
-#define MACHINE_GAME_FILES (*(struct machine_game_files *)(dgroup + 0x55c3))
+struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
 _Static_assert(sizeof(struct machine_game_files) == 0xb4, "DGROUP 0x55c3..0x5677, 0xb4 bytes");
 DG_ASSERT_AT(struct machine_game_files, files, 0x00);
-
-/*
- * **How many rect records the pool holds**, DGROUP 0x56b6..0x56b8, 0x02 bytes, just below the
- * twenty slot heads. Written only by the dead pool builder at 0x0a05f and
- * read only by the dead getter at 0x0a5d8; declared so the word has a name
- * and so nothing else is laid over it.
- */
-struct machine_rect_pool_count {
-    uint16_t  rect_pool_count;    /* +0x00 [2] */
-} __attribute__((packed));
-
-#define MACHINE_RECT_POOL_COUNT (*(struct machine_rect_pool_count *)(dgroup + 0x56b6))
-_Static_assert(sizeof(struct machine_rect_pool_count) == 0x02, "DGROUP 0x56b6..0x56b8, 0x02 bytes");
 
 /*
  * **The twenty saved-rectangle slots**, DGROUP 0x56b8..0x56e0, 0x28 bytes. Each is a near
@@ -212,7 +205,7 @@ struct machine_rect_slots {
     dg_off_t  slot[0x14];         /* +0x00 [0x28] */
 } __attribute__((packed));
 
-#define MACHINE_RECT_SLOTS (*(struct machine_rect_slots *)(dgroup + 0x56b8))
+struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
 _Static_assert(sizeof(struct machine_rect_slots) == 0x28, "DGROUP 0x56b8..0x56e0, 0x28 bytes");
 DG_ASSERT_AT(struct machine_rect_slots, slot, 0x00);
 
@@ -229,7 +222,7 @@ struct machine_rect_free {
     int16_t   word_56e4;          /* +0x04 [2] */
 } __attribute__((packed));
 
-#define MACHINE_RECT_FREE (*(struct machine_rect_free *)(dgroup + 0x56e0))
+struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
 _Static_assert(sizeof(struct machine_rect_free) == 0x06, "DGROUP 0x56e0..0x56e6, 0x06 bytes");
 DG_ASSERT_AT(struct machine_rect_free, rect_free_ptr, 0x00);
 DG_ASSERT_AT(struct machine_rect_free, word_56e2,     0x02);
@@ -247,7 +240,7 @@ struct machine_page_slots {
     struct page_slot slots[2];   /* +0x00 [0x40] */
 } __attribute__((packed));
 
-#define MACHINE_PAGE_SLOTS (*(struct machine_page_slots *)(dgroup + 0x56e6))
+struct machine_page_slots MACHINE_PAGE_SLOTS DGROUP_BSS(0x56e6);
 _Static_assert(sizeof(struct machine_page_slots) == 0x40, "DGROUP 0x56e6..0x5726, 0x40 bytes");
 DG_ASSERT_AT(struct machine_page_slots, slots, 0x00);
 
@@ -264,7 +257,7 @@ struct machine_saved_draw_state {
     uint16_t  saved_g;            /* +0x0c [2] */
 } __attribute__((packed));
 
-#define MACHINE_SAVED_DRAW_STATE (*(struct machine_saved_draw_state *)(dgroup + 0x5726))
+struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE DGROUP_BSS(0x5726);
 _Static_assert(sizeof(struct machine_saved_draw_state) == 0x0e, "DGROUP 0x5726..0x5734, 0x0e bytes");
 DG_ASSERT_AT(struct machine_saved_draw_state, saved_a, 0x00);
 DG_ASSERT_AT(struct machine_saved_draw_state, saved_b, 0x02);
@@ -276,7 +269,7 @@ DG_ASSERT_AT(struct machine_saved_draw_state, saved_g, 0x0c);
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734; the buffers themselves are `MACHINE_RECT_BUFFERS.slot[1..4]`, the far
+ * apiece at 0x5734; the buffers themselves are `MACHINE_RECT_BUFFERS.slot`, the far
  * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
@@ -285,7 +278,7 @@ struct machine_buffer_used {
     uint8_t   used[4];            /* +0x00 [4] */
 } __attribute__((packed));
 
-#define MACHINE_BUFFER_USED (*(struct machine_buffer_used *)(dgroup + 0x5734))
+struct machine_buffer_used MACHINE_BUFFER_USED DGROUP_BSS(0x5734);
 _Static_assert(sizeof(struct machine_buffer_used) == 0x04, "DGROUP 0x5734..0x5738, 0x04 bytes");
 
 /*
@@ -299,7 +292,7 @@ struct machine_palette_fade {
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
 } __attribute__((packed));
 
-#define MACHINE_PALETTE_FADE (*(struct machine_palette_fade *)(dgroup + 0x5738))
+struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_BSS(0x5738);
 _Static_assert(sizeof(struct machine_palette_fade) == 0x0a, "DGROUP 0x5738..0x5742, 0x0a bytes");
 DG_ASSERT_AT(struct machine_palette_fade, request,   0x00);
 DG_ASSERT_AT(struct machine_palette_fade, fade_mark, 0x04);
@@ -326,7 +319,7 @@ struct machine_buttons {
     struct button button[2];      /* +0x00 [0x10] */
 } __attribute__((packed));
 
-#define MACHINE_BUTTONS (*(struct machine_buttons *)(dgroup + 0x5742))
+struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
 _Static_assert(sizeof(struct machine_buttons) == 0x10, "DGROUP 0x5742..0x5752, 0x10 bytes");
 DG_ASSERT_AT(struct button, state,           0x00);
 DG_ASSERT_AT(struct button, was_down,        0x02);
@@ -335,16 +328,18 @@ DG_ASSERT_AT(struct button, delay,           0x06);
 DG_ASSERT_AT(struct machine_buttons, button, 0x00);
 
 /*
- * **A far pointer per saved rectangle**, DGROUP 0x5754..0x5768, 0x14 bytes,
- * indexed from ONE - slots 1 to 4 are the buffers `claim_buffer_slot` hands out,
- * and slot 0 is never handed out. Five run exactly to 0x5768.
+ * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
+ * ONE: slots 1 to 4 are the buffers `claim_buffer_slot` hands out. The
+ * original indexes `[bx + 0x5754]` with `bx = slot * 4`, so its slot 0 would be
+ * the four bytes at 0x5754 - `DG5752.frame_flag` and `size_word` - and it is
+ * never handed out. The array starts at slot 1, and every use subtracts one.
  */
 struct machine_rect_buffers {
-    struct far_ptr slot[5];       /* +0x00 [0x14] */
+    struct far_ptr slot[4];       /* +0x00  slots 1 to 4 */
 } __attribute__((packed));
 
-#define MACHINE_RECT_BUFFERS (*(struct machine_rect_buffers *)(dgroup + 0x5754))
-_Static_assert(sizeof(struct machine_rect_buffers) == 0x14, "five slots end at 0x5768");
+struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_BSS(0x5758);
+_Static_assert(sizeof(struct machine_rect_buffers) == 0x10, "slots 1 to 4 end at 0x5768");
 
 
 
@@ -7859,18 +7854,18 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     FAR16(seg, off + 0x0E) = width;
 
     if (which == 1) {
-        FAR16(seg, off + 6) -= MACHINE_SHAPE_ORIGIN.word_4e9b;
-        FAR16(seg, off + 8) -= MACHINE_SHAPE_ORIGIN.word_4e99;
+        FAR16(seg, off + 6) -= DG4E67.origin_c_x;
+        FAR16(seg, off + 8) -= DG4E67.origin_c_y;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= MACHINE_SHAPE_ORIGIN.word_4e9b;
-            FAR16(seg, off + 0x0C) -= MACHINE_SHAPE_ORIGIN.word_4e99;
+            FAR16(seg, off + 0x0A) -= DG4E67.origin_c_x;
+            FAR16(seg, off + 0x0C) -= DG4E67.origin_c_y;
         }
     } else {
-        FAR16(seg, off + 6) -= MACHINE_SHAPE_ORIGIN.word_4e9f;
-        FAR16(seg, off + 8) -= MACHINE_SHAPE_ORIGIN.word_4e9d;
+        FAR16(seg, off + 6) -= DG4E67.origin_b_x;
+        FAR16(seg, off + 8) -= DG4E67.origin_b_y;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= MACHINE_SHAPE_ORIGIN.word_4e9f;
-            FAR16(seg, off + 0x0C) -= MACHINE_SHAPE_ORIGIN.word_4e9d;
+            FAR16(seg, off + 0x0A) -= DG4E67.origin_b_x;
+            FAR16(seg, off + 0x0C) -= DG4E67.origin_b_y;
         }
     }
 
@@ -10986,7 +10981,7 @@ uint16_t build_rect_pool(uint16_t n)
 
     RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = base;
-    MACHINE_RECT_POOL_COUNT.rect_pool_count = (uint16_t)(MACHINE_RECT_POOL_COUNT.rect_pool_count + n);
+    GAME_TEXT_LINES.line[8] = (uint16_t)(GAME_TEXT_LINES.line[8] + n);
     return 1;
 }
 
@@ -11051,9 +11046,9 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
             if ((int16_t)(y + h - 1) > VMDS.clip_bottom)
                 h = (int16_t)(VMDS.clip_bottom - y + 1);
         } else {
-            if ((int16_t)(DG3F78.screen_width - 1) < x
+            if ((int16_t)(VMDS.screen.screen_width - 1) < x
                 || (int16_t)(x + w) < 0
-                || (int16_t)(DG3F78.screen_height - 1) < y
+                || (int16_t)(VMDS.screen.screen_height - 1) < y
                 || (int16_t)(y + h) < 0)
                 return;
 
@@ -11065,10 +11060,10 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                 h = (int16_t)(h - (0 - y));
                 y = 0;
             }
-            if ((int16_t)(x + w - 1) > (int16_t)(DG3F78.screen_width - 1))
-                w = (int16_t)(DG3F78.screen_width - 1 - x + 1);
-            if ((int16_t)(y + h - 1) > (int16_t)(DG3F78.screen_height - 1))
-                h = (int16_t)(DG3F78.screen_height - 1 - y + 1);
+            if ((int16_t)(x + w - 1) > (int16_t)(VMDS.screen.screen_width - 1))
+                w = (int16_t)(VMDS.screen.screen_width - 1 - x + 1);
+            if ((int16_t)(y + h - 1) > (int16_t)(VMDS.screen.screen_height - 1))
+                h = (int16_t)(VMDS.screen.screen_height - 1 - y + 1);
         }
 
         w = (int16_t)((w + x % 8 + 7) / 8);
@@ -11335,7 +11330,7 @@ void free_rect_pool(void)
  */
 uint16_t rect_pool_count(void)
 {
-    return MACHINE_RECT_POOL_COUNT.rect_pool_count;
+    return GAME_TEXT_LINES.line[8];
 }
 
 /*
@@ -11524,8 +11519,8 @@ void timer_callback(void)
     if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
         moved = 1;
         DG5768.cursor_y = (int16_t)(DG5768.cursor_y + 2);
-        if (DG5768.cursor_y - DG5768.word_577e > (int16_t)(DG3F78.screen_height - 1))
-            DG5768.cursor_y = (int16_t)(DG3F78.screen_height - 1);
+        if (DG5768.cursor_y - DG5768.word_577e > (int16_t)(VMDS.screen.screen_height - 1))
+            DG5768.cursor_y = (int16_t)(VMDS.screen.screen_height - 1);
     }
 
     if (k_end != 0 || k_left != 0 || k_home != 0) {
@@ -11538,8 +11533,8 @@ void timer_callback(void)
     if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
         moved = 1;
         DG5768.cursor_x = (int16_t)(DG5768.cursor_x + 2);
-        if (DG5768.cursor_x - DG5768.word_5780 > (int16_t)(DG3F78.screen_width - 1))
-            DG5768.cursor_x = (int16_t)(DG3F78.screen_width - 1);
+        if (DG5768.cursor_x - DG5768.word_5780 > (int16_t)(VMDS.screen.screen_width - 1))
+            DG5768.cursor_x = (int16_t)(VMDS.screen.screen_width - 1);
     }
 
     if (moved != 0)
@@ -11636,13 +11631,13 @@ void move_pointer_to(int16_t x, int16_t y)
 {
     if (x < 0)
         x = 0;
-    else if ((int16_t)(DG3F78.screen_width - 1) < x)
-        x = (int16_t)(DG3F78.screen_width - 1);
+    else if ((int16_t)(VMDS.screen.screen_width - 1) < x)
+        x = (int16_t)(VMDS.screen.screen_width - 1);
 
     if (y < 0)
         y = 0;
-    else if ((int16_t)(DG3F78.screen_height - 1) < y)
-        y = (int16_t)(DG3F78.screen_height - 1);
+    else if ((int16_t)(VMDS.screen.screen_height - 1) < y)
+        y = (int16_t)(VMDS.screen.screen_height - 1);
 
     DG5768.pointer_x = x;
     DG5768.cursor_x = x;
@@ -11694,8 +11689,8 @@ void draw_cursor(uint16_t page)
     VMDS.clip_enabled = 1;
     VMDS.clip_top = 0;
     VMDS.clip_left = 0;
-    VMDS.clip_bottom = (int16_t)(DG3F78.screen_height - 1);
-    VMDS.clip_right = (int16_t)(DG3F78.screen_width - 1);
+    VMDS.clip_bottom = (int16_t)(VMDS.screen.screen_height - 1);
+    VMDS.clip_right = (int16_t)(VMDS.screen.screen_width - 1);
 
     /* Put back what the last cursor covered. */
     if ((PAGESLOT_PTR(slot)->cursor.flags & 2) != 0) {
@@ -11704,7 +11699,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT_PTR(slot)->cursor.h > 0) {
                 uint16_t b = PAGESLOT_PTR(slot)->cursor.buf;
 
-                restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[b],
+                restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
                                    PAGESLOT_PTR(slot)->cursor.x,
                                    PAGESLOT_PTR(slot)->cursor.y,
                                    PAGESLOT_PTR(slot)->cursor.w,
@@ -11727,7 +11722,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT_PTR(slot)->obj.h > 0) {
                 uint16_t b = PAGESLOT_PTR(slot)->obj.buf;
 
-                save_rect_thunk(MACHINE_RECT_BUFFERS.slot[b],
+                save_rect_thunk(MACHINE_RECT_BUFFERS.slot[b - 1],
                                 PAGESLOT_PTR(slot)->obj.x,
                                 PAGESLOT_PTR(slot)->obj.y,
                                 PAGESLOT_PTR(slot)->obj.w,
@@ -11920,7 +11915,7 @@ void redraw_cursor_all(void)
         free_saved_rects(VMDS.unknown_10, VMDS.page_front_ptr, MACHINE_CURSOR_STATE.page);
         free_saved_rects(VMDS.page_src_ptr, VMDS.page_dst_ptr, 0);
 
-        copy_rect_thunk(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
+        copy_rect_thunk(0, 0, ((uint16_t)VMDS.screen.screen_width), ((uint16_t)VMDS.screen.screen_height));
 
         if (MACHINE_CURSOR_STATE.page != 0) {
             restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
@@ -12960,7 +12955,7 @@ void erase_object(uint16_t handle)
         if (((int16_t)PAGESLOT_PTR(rec)->obj.buf) != 0 && PAGESLOT_PTR(rec)->obj.w > 0
             && PAGESLOT_PTR(rec)->obj.h > 0) {
             slot = PAGESLOT_PTR(rec)->obj.buf;
-            vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot],
+            vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot - 1],
                             PAGESLOT_PTR(rec)->obj.x, PAGESLOT_PTR(rec)->obj.y,
                             PAGESLOT_PTR(rec)->obj.w, PAGESLOT_PTR(rec)->obj.h);
         } else {
@@ -13008,7 +13003,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (PAGESLOT_PTR(si)->obj.buf != 0
             && PAGESLOT_PTR(si)->obj.w > 0
             && PAGESLOT_PTR(si)->obj.h > 0) {
-            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[PAGESLOT_PTR(si)->obj.buf],
+            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[PAGESLOT_PTR(si)->obj.buf - 1],
                                PAGESLOT_PTR(si)->obj.x,
                                PAGESLOT_PTR(si)->obj.y,
                                PAGESLOT_PTR(si)->obj.w,
@@ -13177,14 +13172,14 @@ void restage_object_rect(uint16_t handle)
         w = (int16_t)(w + x);
         x = 0;
     }
-    if (x + w >= DG3F78.screen_width)
-        w = (int16_t)(DG3F78.screen_width - x);
+    if (x + w >= VMDS.screen.screen_width)
+        w = (int16_t)(VMDS.screen.screen_width - x);
     if (y < 0) {
         h = (int16_t)(h + y);
         y = 0;
     }
-    if (y + h >= DG3F78.screen_height)
-        h = (int16_t)(DG3F78.screen_height - y);
+    if (y + h >= VMDS.screen.screen_height)
+        h = (int16_t)(VMDS.screen.screen_height - y);
 
     PAGESLOT_PTR(rec)->obj.x = x;
     PAGESLOT_PTR(rec)->obj.y = y;
@@ -13360,16 +13355,16 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if ((MACHINE_RECT_BUFFERS.slot[i + 1].off | MACHINE_RECT_BUFFERS.slot[i + 1].seg) == 0) {
+        if ((MACHINE_RECT_BUFFERS.slot[i].off | MACHINE_RECT_BUFFERS.slot[i].seg) == 0) {
             struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
-            MACHINE_RECT_BUFFERS.slot[i + 1] = p;
+            MACHINE_RECT_BUFFERS.slot[i] = p;
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (MACHINE_BUFFER_USED.used[i] == 0
-            && (MACHINE_RECT_BUFFERS.slot[i + 1].off | MACHINE_RECT_BUFFERS.slot[i + 1].seg) != 0) {
+            && (MACHINE_RECT_BUFFERS.slot[i].off | MACHINE_RECT_BUFFERS.slot[i].seg) != 0) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return (int16_t)(i + 1);
         }

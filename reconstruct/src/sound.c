@@ -22,22 +22,6 @@
  */
 
 /*
- * **The sound module's name template**, DGROUP 0x4a08..0x4a11, 0x09 bytes.
- *
- * `load_sound_module` builds the name in place: the eight characters
- * `SSM:000:` with the three digits overwritten from the number it was given -
- * hundreds, tens and units, each from its own division. Those digits are bytes
- * 4, 5 and 6, which is what the three raw accessors at 0x4a0c..0x4a0e were.
- */
-struct sound_module_name {
-    char      module_name[9];     /* +0x00 [9]  "SSM:000:" and its terminator */
-} __attribute__((packed));
-
-#define SOUND_MODULE_NAME (*(struct sound_module_name *)(dgroup + 0x4a08))
-_Static_assert(sizeof(struct sound_module_name) == 0x09, "DGROUP 0x4a08..0x4a11, 0x09 bytes");
-DG_ASSERT_AT(struct sound_module_name, module_name, 0x00);
-
-/*
  * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
  * 0x1c bytes. Every loop over them is `i < 7`, and seven run exactly to
  * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
@@ -47,7 +31,7 @@ struct sound_voices {
     struct far_ptr voice[7];      /* +0x00 [0x1c] */
 } __attribute__((packed));
 
-#define SOUND_VOICES (*(struct sound_voices *)(dgroup + 0x6414))
+struct sound_voices SOUND_VOICES DGROUP_BSS(0x6414);
 _Static_assert(sizeof(struct sound_voices) == 0x1c, "seven voices end at SOUND_TICK_WAIT");
 
 /*
@@ -62,7 +46,7 @@ struct sound_tick_wait {
     int16_t   selector;           /* +0x06 [2] */
 } __attribute__((packed));
 
-#define SOUND_TICK_WAIT (*(struct sound_tick_wait *)(dgroup + 0x6430))
+struct sound_tick_wait SOUND_TICK_WAIT DGROUP_BSS(0x6430);
 _Static_assert(sizeof(struct sound_tick_wait) == 0x08, "DGROUP 0x6430..0x6438, 0x08 bytes");
 DG_ASSERT_AT(struct sound_tick_wait, ticks_left, 0x00);
 DG_ASSERT_AT(struct sound_tick_wait, cursor,     0x02);
@@ -2264,15 +2248,15 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
         goto out;
 
     n = (int16_t)*number;
-    SOUND_MODULE_NAME.module_name[4] = (uint8_t)((n / 100) + 0x30);
-    SOUND_MODULE_NAME.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
-    SOUND_MODULE_NAME.module_name[6] = (uint8_t)((n % 10) + 0x30);
+    CHUNK2.ssm_000[4] = (uint8_t)((n / 100) + 0x30);
+    CHUNK2.ssm_000[5] = (uint8_t)(((n / 10) % 10) + 0x30);
+    CHUNK2.ssm_000[6] = (uint8_t)((n % 10) + 0x30);
 
     if (!far_eq(DG4A82.config, FAR_NULL))
         free_for_kind(DG4A82.config, 1);
 
     {
-        struct far_ptr p = load_named_chunk((char *)handle, CHUNK.ssm_000, index);
+        struct far_ptr p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
 
         DG4A82.config = p;
         if (far_eq(p, FAR_NULL))
@@ -2339,10 +2323,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (module_index != -2) {
         struct far_ptr p;
 
-        string_copy_far(CHUNK.ssm_tag + 4,
+        string_copy_far(CHUNK2.ssm_tag + 4,
                         (const char *)dg_ptr(dgroup, MODULE_TAGS[module_index]));
 
-        p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
+        p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.module = p;
 
         if (far_eq(p, FAR_NULL)) {
@@ -2381,10 +2365,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (device != -2) {
         struct far_ptr p;
 
-        string_copy_far(CHUNK.ssm_tag + 4,
+        string_copy_far(CHUNK2.ssm_tag + 4,
                         (const char *)dg_ptr(dgroup, DEVICE_TAGS[device]));
 
-        p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
+        p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.driver = p;
 
         if (far_eq(p, FAR_NULL)) {

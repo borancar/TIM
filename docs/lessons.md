@@ -1496,3 +1496,35 @@ before anything is committed; on e8045fc it flags that one line and nothing
 else. The rule: **compare a typed handle with its sentinel, always, and never
 use it as a boolean** - and when a check suite cannot reach a fault's
 condition, a structural scan is the check.
+
+### An object the linker puts at an odd address is one the compiler assumed was aligned
+
+**What happened.** The image's data became C objects placed by a linker script
+at their DGROUP offsets, with `SUBALIGN(1)` so that an array the compiler had
+aligned to 16 was not moved off its address. Every placed object checked out -
+at its address, holding the image's bytes - and the intro ran byte for byte
+identical. Then every solution segfaulted as its level loaded, in
+`reset_input_state`, on `b->state = 0`.
+
+GCC had compiled the two-button clear into one `movaps` straight to
+`MACHINE_BUTTONS`. The x86-64 ABI lets a compiler assume a global of sixteen
+bytes or more starts on a sixteen-byte boundary, and GCC acts on it for an
+object it defines; `movaps` faults on an address that is not. DGROUP 0x5742 is
+not, and nothing about the section attribute told the compiler so. The first
+prototype had shown the same thing from the other side - a table placed two
+bytes past its offset - and `SUBALIGN(1)` fixed the placement without fixing
+the assumption.
+
+**What it cost.** Nothing that shipped, because the solutions run caught it -
+but only because that run reaches the routine. The intro did not, and neither
+did the placement check, which by construction cannot see what the code that
+*uses* an object assumes about it.
+
+**What settled it.** `aligned(1)` on the definition: GCC then gives the section
+alignment 1 and uses `movups`. It is part of `DGROUP_AT`, `DGROUP_BSS` and
+`SEGMENT_AT`, so no placed object can be defined without it, and
+`tools/genld.py` refuses to write a script if any guest section in any object
+is aligned to more than 1. A declaration elsewhere needs nothing - GCC assumes
+only the type's alignment for an object it does not define. The rule: **when
+the linker decides an address, the compiler must be told the alignment that
+address has.**

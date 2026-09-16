@@ -88,11 +88,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   called `engine.c` is a judgement about 8,275 lines and the segment number is
   not. Do not move a routine between files to suit a name: the file it belongs
   in is the one whose address range contains it.
-- **DGROUP is a byte array, not a set of C globals.** The game uses near
-  pointers - a word in DGROUP holding an offset into DGROUP - which named
-  globals cannot express. Names are macros over the array, so a name and a
-  pointer dereference reach the same byte. The video driver's data is part of
-  the same segment, at offset 0x3890.
+- **DGROUP is a byte array, and its names are objects the linker puts in it.**
+  The game uses near pointers - a word in DGROUP holding an offset into
+  DGROUP - so the guest's megabyte is one block, `guest_mem`, and a named
+  struct is a C object placed at its offset by `DGROUP_AT(off)` (or
+  `DGROUP_BSS`, or `SEGMENT_AT` for a code segment's own data), so a name and
+  a pointer dereference reach the same byte. What the image held there is the
+  object's initialiser, `LOAD_SEG + seg` for a relocated word. The video
+  driver's data is part of the same segment, at offset 0x3890.
 - Where a name or a type is a guess, **say so**.
 - **No licence header on reconstructed code.** A provenance header naming the
   binary instead. Our own tooling is a different matter and is GPL-2.0.
@@ -179,6 +182,7 @@ a case it does not obviously cover.
 - `dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison nobody makes - [more](docs/lessons.md#dg_calldg_uncall-are-gone-and-they-were-bookkeeping-for-a-comparison-nobody-makes)
 - `dg_off` refuses a pointer that is not the guest's, and the first thing it caught had been in the tree for weeks - [more](docs/lessons.md#dg_off-refuses-a-pointer-that-is-not-the-guests-and-the-first-thing-it-caught-had-been-in-the-tree-for-weeks)
 - A typed handle tested as a boolean is always true, and the compiler will not say so - [more](docs/lessons.md#a-typed-handle-tested-as-a-boolean-is-always-true-and-the-compiler-will-not-say-so)
+- An object the linker puts at an odd address is one the compiler assumed was aligned - [more](docs/lessons.md#an-object-the-linker-puts-at-an-odd-address-is-one-the-compiler-assumed-was-aligned)
 
 ### Still open, so recorded in STATUS.md
 

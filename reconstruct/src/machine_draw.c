@@ -39,7 +39,13 @@ struct machine_draw_menu_anim {
     int16_t   sprite_y[4];        /* +0x2c [8] */
 } __attribute__((packed));
 
-#define MACHINE_DRAW_MENU_ANIM (*(struct machine_draw_menu_anim *)(dgroup + 0x25a2))
+struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
+    .picture = { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },
+    .picture_x = { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },
+    .picture_y = { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },
+    .sprite_x = { 0x0250, 0x0252, 0x0250, 0x0251 },
+    .sprite_y = { 0x001a, 0x0018, 0x001b, 0x0019 },
+};
 DG_ASSERT_AT(struct machine_draw_menu_anim, sprite_x, 0x24);
 _Static_assert(sizeof(struct machine_draw_menu_anim) == 0x34, "the animation tables end at 0x25d6");
 
@@ -50,7 +56,7 @@ struct machine_draw_selection_phase {
     uint16_t  word_25d6;          /* +0x00 [2] */
 } __attribute__((packed));
 
-#define MACHINE_DRAW_SELECTION_PHASE (*(struct machine_draw_selection_phase *)(dgroup + 0x25d6))
+struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);
 _Static_assert(sizeof(struct machine_draw_selection_phase) == 0x02, "DGROUP 0x25d6..0x25d8, 0x02 bytes");
 DG_ASSERT_AT(struct machine_draw_selection_phase, word_25d6, 0x00);
 
