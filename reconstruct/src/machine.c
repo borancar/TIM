@@ -6335,38 +6335,36 @@ void unlink_part(struct part *part)
  */
 void insert_sorted(struct part *rec, struct part *head)
 {
-    int16_t kind = rec->kind;
-    int16_t prio = PARTKIND_PTR(kind)->word_20;
-    uint16_t di = dg_off(dgroup, head);
+    const struct part_kind *kind = PARTKIND_PTR(rec->kind);
+    int16_t prio = kind->word_20;
+    struct part *di = head;
     int16_t stop = 0;
 
     for (;;) {
         if (stop)
             break;
 
-        if (PART_PTR(di)->next_ptr == 0) {
+        if (di->next_ptr == 0) {
             stop = 1;
         } else {
-            struct part *next = PART_PTR(PART_PTR(di)->next_ptr);
-            int16_t kind2 = next->kind;
+            const struct part_kind *kind2 = PARTKIND_PTR(PART_PTR(di->next_ptr)->kind);
 
             if (head == &DG50D3.parts_bin) {
-                stop = (prio < PARTKIND_PTR(kind2)->word_20) ? 1 : 0;
+                stop = (prio < kind2->word_20) ? 1 : 0;
             } else if (head == &DG5179.moving_parts) {
-                stop = (PARTKIND_PTR(kind)->weight
-                        < PARTKIND_PTR(kind2)->weight) ? 1 : 0;
+                stop = (kind->weight < kind2->weight) ? 1 : 0;
             } else {
                 stop = 1;
             }
         }
 
         if (stop == 0)
-            di = PART_PTR(di)->next_ptr;
+            di = PART_PTR(di->next_ptr);
     }
 
-    rec->next_ptr = PART_PTR(di)->next_ptr;
-    rec->prev_ptr = di;
-    PART_PTR(di)->next_ptr = dg_off(dgroup, rec);
+    rec->next_ptr = di->next_ptr;
+    rec->prev_ptr = dg_off(dgroup, di);
+    di->next_ptr = dg_off(dgroup, rec);
     if (rec->next_ptr != 0)
         PART_PTR(rec->next_ptr)->prev_ptr = dg_off(dgroup, rec);
 }
