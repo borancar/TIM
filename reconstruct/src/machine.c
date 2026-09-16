@@ -6091,51 +6091,52 @@ void retension_pulleys(struct part *part)
 void rehome_carried_part(void)
 {
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    uint16_t old = part->link_ptr[4];
+    struct part *old = PART_PTR(part->link_ptr[4]);
     uint8_t  old_slot = part->byte_7e;
-    uint16_t di = 0, si;
+    struct part *si;
+    struct part *di = PART_NONE;
     uint8_t  slot = 0;
 
     part->link_ptr[4] = 0;
 
     link_nearby_objects(part, 0x2000, -8, 8, -8, 8);
 
-    si = part->next_linked_ptr;
-    while (si != 0) {
+    si = PART_PTR(part->next_linked_ptr);
+    while (si != PART_NONE) {
         if (si == old) {
             di = old;
             slot = old_slot;
-            si = 0;
-        } else if (PART_PTR(si)->flags_0a & 2) {
-            if (PART_PTR(si)->link_ptr[4] == 0) {
+            si = PART_NONE;
+        } else if (si->flags_0a & 2) {
+            if (si->link_ptr[4] == 0) {
                 di = si;
                 slot = 0;
-                si = 0;
-            } else if (PART_PTR(si)->link_ptr[5] == 0) {
+                si = PART_NONE;
+            } else if (si->link_ptr[5] == 0) {
                 di = si;
                 slot = 1;
-                si = 0;
+                si = PART_NONE;
             }
         }
-        if (si != 0)
-            si = PART_PTR(si)->next_linked_ptr;
+        if (si != PART_NONE)
+            si = PART_PTR(si->next_linked_ptr);
     }
 
-    if (old != 0 && di != old) {
-        PART_PTR(old)->link_ptr[part->byte_7e + 4] = 0;
+    if (old != PART_NONE && di != old) {
+        old->link_ptr[part->byte_7e + 4] = 0;
         part->link_ptr[4] = 0;
 
-        call_part_setup(PARTKIND_PTR(PART_PTR(old)->kind)->setup, PART_PTR(old));
-        PART_PTR(old)->word_90 = PART_PTR(old)->form;
+        call_part_setup(PARTKIND_PTR(old->kind)->setup, old);
+        old->word_90 = old->form;
     }
 
-    if (di != 0) {
-        PART_PTR(di)->link_ptr[slot + 4] = dg_off(dgroup, part);
-        part->link_ptr[4] = di;
+    if (di != PART_NONE) {
+        di->link_ptr[slot + 4] = dg_off(dgroup, part);
+        part->link_ptr[4] = dg_off(dgroup, di);
         part->byte_7e = slot;
 
-        call_part_setup(PARTKIND_PTR(PART_PTR(di)->kind)->setup, PART_PTR(di));
-        PART_PTR(di)->word_90 = PART_PTR(di)->form;
+        call_part_setup(PARTKIND_PTR(di->kind)->setup, di);
+        di->word_90 = di->form;
     }
 }
 
@@ -10868,36 +10869,37 @@ int16_t far_stricmp(const char far * a, const char far * b)
 void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
     dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
-    uint16_t rec, last = 0;
+    struct rect_list_entry *last = RECTENT_NONE;
+    struct rect_list_entry *rec;
 
     if (slot == NULL)
         return;
 
-    rec = *slot;
-    if (rec == 0)
+    rec = RECTENT_PTR(*slot);
+    if (rec == RECTENT_NONE)
         return;
 
-    VMDS.page_src_ptr = RECTENT_PTR(rec)->page_src;
-    VMDS.page_dst_ptr = RECTENT_PTR(rec)->page_dst;
+    VMDS.page_src_ptr = rec->page_src;
+    VMDS.page_dst_ptr = rec->page_dst;
 
-    while (rec != 0) {
-        int16_t x  = (int16_t)(RECTENT_PTR(rec)->x << 3);
-        int16_t rw = (int16_t)(RECTENT_PTR(rec)->w << 3);
+    while (rec != RECTENT_NONE) {
+        int16_t x  = (int16_t)(rec->x << 3);
+        int16_t rw = (int16_t)(rec->w << 3);
 
-        if (RECTENT_PTR(rec)->mode == 1)
-            copy_rect_thunk((uint16_t)x, (uint16_t)RECTENT_PTR(rec)->y,
-                            (uint16_t)rw, (uint16_t)RECTENT_PTR(rec)->h);
-        else if (RECTENT_PTR(rec)->mode == 4)
-            restore_rect_thunk(RECTENT_PTR(rec)->buf,
-                               RECTENT_PTR(rec)->x, RECTENT_PTR(rec)->y,
-                               RECTENT_PTR(rec)->w,
-                               RECTENT_PTR(rec)->h);
+        if (rec->mode == 1)
+            copy_rect_thunk((uint16_t)x, (uint16_t)rec->y,
+                            (uint16_t)rw, (uint16_t)rec->h);
+        else if (rec->mode == 4)
+            restore_rect_thunk(rec->buf,
+                               rec->x, rec->y,
+                               rec->w,
+                               rec->h);
 
         last = rec;
-        rec = RECTENT_PTR(rec)->next;
+        rec = RECTENT_PTR(rec->next);
     }
 
-    RECTENT_PTR(last)->next = MACHINE_RECT_FREE.rect_free_ptr;
+    last->next = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = *slot;
     *slot = 0;
 }

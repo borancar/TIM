@@ -2477,24 +2477,25 @@ void draw_belt(struct part *part, int16_t a)
     int16_t  v06;       /* [bp-6]  x1 */
     int16_t  v04;       /* [bp-4]  y0 */
     int16_t  v02;       /* [bp-2]  x0 */
-    uint16_t di, si;
+    struct part *si;
+    struct part *di;
 
     v0e = BELT_PTR(part->belt_ptr[0]);
 
-    di = v0e->end_a_ptr;
-    si = PART_PTR(di)->link_ptr[v0e->slot_a];
-    if (si == 0)
-        si = v0e->end_b_ptr;
+    di = PART_PTR(v0e->end_a_ptr);
+    si = PART_PTR(di->link_ptr[v0e->slot_a]);
+    if (si == PART_NONE)
+        si = PART_PTR(v0e->end_b_ptr);
 
-    while (di != 0 && si != 0) {
+    while (di != PART_NONE && si != PART_NONE) {
         v0a = 0;
 
-        if (PART_PTR(di)->kind == KIND_PULLEY) {
+        if (di->kind == KIND_PULLEY) {
             v02 = (int16_t)(
-                BELT_PTR(PART_PTR(di)->belt_ptr[0])->pt[0][1].x
+                BELT_PTR(di->belt_ptr[0])->pt[0][1].x
                 - DG4E67.origin_x);
             v04 = (int16_t)(
-                BELT_PTR(PART_PTR(di)->belt_ptr[0])->pt[0][1].y
+                BELT_PTR(di->belt_ptr[0])->pt[0][1].y
                 - DG4E67.origin_y);
         } else {
             v02 = (int16_t)(v0e->pt[0][0].x
@@ -2504,12 +2505,12 @@ void draw_belt(struct part *part, int16_t a)
             v0a = 1;
         }
 
-        if (PART_PTR(si)->kind == KIND_PULLEY) {
+        if (si->kind == KIND_PULLEY) {
             v06 = (int16_t)(
-                BELT_PTR(PART_PTR(si)->belt_ptr[0])->pt[0][0].x
+                BELT_PTR(si->belt_ptr[0])->pt[0][0].x
                 - DG4E67.origin_x);
             v08 = (int16_t)(
-                BELT_PTR(PART_PTR(si)->belt_ptr[0])->pt[0][0].y
+                BELT_PTR(si->belt_ptr[0])->pt[0][0].y
                 - DG4E67.origin_y);
         } else {
             v06 = (int16_t)(v0e->pt[0][1].x
@@ -2534,7 +2535,7 @@ void draw_belt(struct part *part, int16_t a)
         clear_flag_2d44_thunk();
 
         if (v0a != 0) {
-            v0c = link_slack(PART_PTR(di), v0e, 3);
+            v0c = link_slack(di, v0e, 3);
             draw_belt_segment(v02, v04, v06, v08,
                               v0c);
         } else {
@@ -2542,14 +2543,14 @@ void draw_belt(struct part *part, int16_t a)
         }
 
         if (a == 0) {
-            if (PART_PTR(di)->kind != KIND_ANCHOR
-                && PART_PTR(di)->kind != KIND_PULLEY)
+            if (di->kind != KIND_ANCHOR
+                && di->kind != KIND_PULLEY)
                 draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp[0x24]),
                             (int16_t)(v02 - 5),
                             (int16_t)(v04 - 2), 0);
 
-            if (PART_PTR(si)->kind != KIND_ANCHOR
-                && PART_PTR(si)->kind != KIND_PULLEY)
+            if (si->kind != KIND_ANCHOR
+                && si->kind != KIND_PULLEY)
                 draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp[0x24]),
                             (int16_t)(v06 - 5),
                             (int16_t)(v08 - 2), 0);
@@ -2558,10 +2559,10 @@ void draw_belt(struct part *part, int16_t a)
         restore_cursor_following();
 
         di = si;
-        if (PART_PTR(di)->kind == KIND_PULLEY)
-            si = PART_PTR(si)->link_ptr[0];
+        if (di->kind == KIND_PULLEY)
+            si = PART_PTR(si->link_ptr[0]);
         else
-            si = 0;
+            si = PART_NONE;
     }
 
 }
