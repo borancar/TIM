@@ -1544,7 +1544,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_input_block(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.read_input_block(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
     ),
     "next_lzw_code": dict(
         addr=0x1CC65,
@@ -3952,7 +3952,7 @@ ROUTINES = {
         returns=True,
         planes=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_bitmap_list(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.load_bitmap_list(dgp(lib, a[0]))),
     ),
     "free_bitmap_list": dict(
         addr=0x23A18,
@@ -3983,7 +3983,7 @@ ROUTINES = {
         returns=True,
         planes=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_bitmaps(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.load_bitmaps(dgp(lib, a[0]))),
     ),
     "planes_to_chunky": dict(
         addr=0x24320,
@@ -5835,9 +5835,9 @@ def declare_restypes(lib):
     lib.huge_move.restype = ctypes.c_void_p
     lib.load_palette.restype = FarPtr
     lib.load_font.restype = ctypes.c_uint16
-    lib.load_bitmaps.restype = ctypes.c_uint16
+    lib.load_bitmaps.restype = ctypes.c_void_p
     lib.compress_bitmap_list.restype = ctypes.c_uint32
-    lib.load_bitmap_list.restype = ctypes.c_uint16
+    lib.load_bitmap_list.restype = ctypes.c_void_p
     lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16

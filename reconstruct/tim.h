@@ -1624,7 +1624,7 @@ void set_flag_2d44(void);                           /* 0x0a78e */
 int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
 void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
 void timer_callback(void);                          /* 0x0a7ae */
-dg_near_t open_bit_reader(struct far_ptr data); /* 0x248fe */
+struct vqt_reader *open_bit_reader(struct far_ptr data); /* 0x248fe */
 void close_bit_reader(void);                        /* 0x24930 */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
 uint16_t read_palette_pixel(uint16_t bits);                /* 0x2493b */
@@ -1645,8 +1645,8 @@ uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
-uint16_t load_bitmap_list(char *name);           /* 0x2367c */
-uint16_t load_bitmaps(char *name);               /* 0x24f72 */
+struct bmp_set *load_bitmap_list(char *name);           /* 0x2367c */
+struct bmp_set *load_bitmaps(char *name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 uint16_t game_main(void);                           /* 0x0dfff */
@@ -1773,7 +1773,7 @@ int32_t resource_size(int16_t handle);             /* 0x1d95f */
 int32_t resource_seek(int16_t handle, int32_t by,
                        int16_t whence);                /* 0x1d983 */
 int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count); /* 0x1d868 */
-int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */
+int16_t read_input_block(uint8_t *dst, uint16_t count); /* 0x1c3e6 */
 int16_t decompress_lzw(void);                          /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
 int16_t huff_get_byte(void);                           /* 0x1e00b */

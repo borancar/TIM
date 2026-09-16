@@ -59,19 +59,19 @@ DG_ASSERT_AT(struct bitmaps_flip_state, palette,    0x08);
  * There is only one of them. DGROUP 0x6400 says whether it is in use and a
  * second open answers 0 rather than taking it away from the first.
  */
-dg_near_t open_bit_reader(struct far_ptr data)
+struct vqt_reader *open_bit_reader(struct far_ptr data)
 {
     if (BITMAPS.in_use != 0)
-        return 0;
+        return VQTRD(0);
 
     BITMAPS.in_use = 1;
     BITMAPS.data = data;
     BITMAPS.pos = 0;
 
     /* The address of the eight bytes above, not a handle - `mov ax, 0x6402`
-       at 0x2492b. `dg_near(dgroup, &BITMAPS.pos)` is the same number and
-       says which bytes it is. */
-    return dg_near(dgroup, (const void *)&BITMAPS.pos);
+       at 0x2492b. They are a `vqt_reader`'s head - the position and the block
+       - and nothing reads past them through this one. */
+    return (struct vqt_reader *)(void *)&BITMAPS.pos;
 }
 
 /*
@@ -463,7 +463,7 @@ out:
  *
  * The clip switch and the driver's two colour bytes - which a one-colour leaf
  * overwrites - are saved first and put back on every path, including an
- * `open_bit_reader` that refuses, which also leaves `BITMAPS.reader` 0.
+ * `open_bit_reader` that refuses, which also leaves `BITMAPS.reader_ptr` 0.
  */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
@@ -478,11 +478,11 @@ void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode
     rem = (uint16_t)(bmp->data.off & 0xf);
     (void)rem;
 
-    BITMAPS.reader = open_bit_reader((struct far_ptr){
+    BITMAPS.reader_ptr = dg_near(dgroup, open_bit_reader((struct far_ptr){
         (uint16_t)(((int16_t)seg < 0) ? 0xffff : 0),     /* DX after `cwd` */
-        seg });
+        seg }));
 
-    if (BITMAPS.reader != 0) {
+    if (BITMAPS.reader_ptr != 0) {
         w = bmp->width;
         h = bmp->height;
 
@@ -536,7 +536,7 @@ void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(char *name)
+struct bmp_set *load_bitmaps(char *name)
 {
     /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
        into both, so every call ran fifteen bytes past this one - silently,
@@ -674,7 +674,7 @@ uint16_t load_bitmaps(char *name)
     goto loaded;
 
 planar:
-    list_at = BMPLIST(load_bitmap_list((char *)di));
+    list_at = load_bitmap_list((char *)di)->bmp;
 
 loaded:
     count_at = count_list(list_at);
@@ -695,10 +695,7 @@ out:
     if (opened != 0)
         close_file_record(di);
 
-    {
-        uint16_t answer = dg_near(dgroup, list_at);
-        return answer;
-    }
+    return list_at != NULL ? (struct bmp_set *)list_at : BMPSET_NONE;
 }
 
 /*
@@ -750,7 +747,7 @@ uint16_t count_list(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 
-    if (dg_near(dgroup, list) == 0)
+    if (list == NULL || list == BMPLIST(0))
         return 0;
 
     while (list[n] != 0)
@@ -858,8 +855,8 @@ uint16_t load_screen(char *name)
         read_far(MK_FP(block.seg, block.off), (int32_t)size, si);
     }
 
-    BITMAPS.reader = open_bit_reader(block);
-    if (BITMAPS.reader == 0) {
+    BITMAPS.reader_ptr = dg_near(dgroup, open_bit_reader(block));
+    if (BITMAPS.reader_ptr == 0) {
         di = 0xffff;
         goto out;
     }
@@ -1013,7 +1010,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
      * locals sit above; both are Borland locals, so the frame is a C array.
      *
      * **The reader record keeps the guest's stack, and one slot is why.**
-     * `BITMAPS.reader = dg_near(dgroup, rd)` files the record's address into
+     * `BITMAPS.reader_ptr = dg_near(dgroup, rd)` files the record's address into
      * a guest word that `vqt_node`, `vqt_screen_node` and `fill_quadrant`
      * fetch back out and write through, so the address has to be one the guest
      * can hold. The frame was a C array for a while and that word then took
@@ -1037,7 +1034,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
      * that; the rest is a reading and this comment is not evidence for it.
      */
     /* **The reader record is the guest's, and has to be.** Its address is
-       filed into `BITMAPS.reader` for `vqt_node`, `vqt_screen_node` and
+       filed into `BITMAPS.reader_ptr` for `vqt_node`, `vqt_screen_node` and
        `fill_quadrant` to fetch back out and write through, and a C array has
        no DGROUP address to file. This is `framify.py --in-dgroup`'s shape: the
        original's `sub sp,0x1ca` is reserved and `rd` is a typed pointer into
@@ -1097,7 +1094,7 @@ no_block:
     buffer = 0x3ab4;
 
 have_block:
-    BITMAPS.reader = dg_near(dgroup, rd);
+    BITMAPS.reader_ptr = dg_near(dgroup, rd);
     rd->pos = 0;
     rd->data = block;
 
@@ -1179,7 +1176,7 @@ done:
 /*
  * 0x25953
  *
- * **Read `bits` bits** from the reader `BITMAPS.reader` names, and step its
+ * **Read `bits` bits** from the reader `BITMAPS.reader_ptr` names, and step its
  * position past them. `DG49BA.read_fn`'s only target.
  *
  * The same read `vqt_node` makes for its four: a word at `data.off + (pos >>
@@ -1195,7 +1192,7 @@ done:
  */
 uint16_t vqt_read_bits(uint16_t bits)
 {
-    struct vqt_reader *rd = VQTRD(BITMAPS.reader);
+    struct vqt_reader *rd = VQTRD(BITMAPS.reader_ptr);
     uint16_t turn = (uint16_t)((bits & 0x1f) % 16);
     uint16_t mask = (uint16_t)(((uint16_t)(0xff00u << turn)
                                 | (uint16_t)(0xff00u >> ((16 - turn) & 15)))
@@ -1232,7 +1229,7 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = VQTRD(BITMAPS.reader);
+    rd = VQTRD(BITMAPS.reader_ptr);
     pos = rd->pos;
     rd->pos = pos + 4;
 
@@ -1486,7 +1483,7 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = VQTRD(BITMAPS.reader);
+    rd = VQTRD(BITMAPS.reader_ptr);
     pos = rd->pos;
     rd->pos = pos + 4;
 
@@ -1528,7 +1525,7 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  *
  * **The quadtree's leaf: paint one rectangle of the bitmap** from what the bit
  * stream says next. Every pixel goes into the first plane of the reader record
- * `BITMAPS.reader` names, at `plane[0].off + row[y] + x` - a 16-bit offset
+ * `BITMAPS.reader_ptr` names, at `plane[0].off + row[y] + x` - a 16-bit offset
  * inside the plane's segment - and the other three planes are not touched.
  *
  * Either dimension 0 paints nothing; a 1 by 1 leaf is one byte read and
@@ -1587,7 +1584,7 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if (w == 1 && h == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        rd = VQTRD(BITMAPS.reader);
+        rd = VQTRD(BITMAPS.reader_ptr);
         FAR8(rd->plane[0].seg,
              (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[y] + x)) = colour;
         return;
@@ -1626,7 +1623,7 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         do {
             do {
                 colour = (uint8_t)vqt_read_bits(8);
-                rd = VQTRD(BITMAPS.reader);
+                rd = VQTRD(BITMAPS.reader_ptr);
                 FAR8(rd->plane[0].seg,
                      (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
                                 + (uint16_t)xi)) = colour;
@@ -1645,7 +1642,7 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
             xi = (int16_t)x;
             count = w;
             do {
-                rd = VQTRD(BITMAPS.reader);
+                rd = VQTRD(BITMAPS.reader_ptr);
                 FAR8(rd->plane[0].seg,
                      (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
                                 + (uint16_t)xi)) = colour;
@@ -1667,7 +1664,7 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     do {
         do {
             colour = palette[vqt_read_bits(index_bits)];
-            rd = VQTRD(BITMAPS.reader);
+            rd = VQTRD(BITMAPS.reader_ptr);
             FAR8(rd->plane[0].seg,
                  (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
                             + (uint16_t)xi)) = colour;

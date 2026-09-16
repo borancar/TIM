@@ -2568,7 +2568,7 @@ typedef struct {
     struct far_ptr data;          /* +0x06  and the block it reads */
     uint16_t       draw_flags;    /* +0x0a  `draw_offset_bitmap`'s mode:
                                      bit 1 mirrors x, bit 0 mirrors y */
-    dg_near_t      reader;        /* +0x0c  which reader the vqt walk uses -
+    dg_near_t      reader_ptr;    /* +0x0c  which reader the vqt walk uses -
                                      the singleton above, or the frame
                                      `decode_vqt_list` files here */
     uint16_t       pixel_fn;      /* +0x0e  near, 248f: what a fill loop reads
@@ -2587,7 +2587,7 @@ DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
 DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
 DG_ASSERT_AT(bitmaps_t, data,                   0x06);
 DG_ASSERT_AT(bitmaps_t, draw_flags,             0x0a);
-DG_ASSERT_AT(bitmaps_t, reader,                 0x0c);
+DG_ASSERT_AT(bitmaps_t, reader_ptr,                0x0c);
 DG_ASSERT_AT(bitmaps_t, pixel_fn,               0x0e);
 DG_ASSERT_AT(bitmaps_t, fill_fn,                0x10);
 DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
@@ -4201,8 +4201,12 @@ struct resource {
        0x0bf0a and normalise the answer. With bit 0x20 the resource is read from
        a file and only the offset word is used - it holds the file record's
        near pointer, which `open_resource` files there and `select_resource`
-       copies to 0x57bc. */
-    struct far_ptr data;       /* +0x06 */
+       copies to 0x57bc. Two readings of the same four bytes, chosen by the
+       kind, so a union. */
+    union {
+        struct far_ptr data;   /* +0x06 */
+        dg_near_t file_ptr;    /* +0x06  with bit 0x20: the file record */
+    };
     /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
        borrow and compares the two as wholes; `next_input_byte` steps `in`
        with a carry; `open_resource` splits a `uint32_t` into `end` and

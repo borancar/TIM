@@ -799,9 +799,9 @@ void game_startup(void)
     DG52BD.word_52df = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
-    DG52ED.cursor_art_ptr = load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp);          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp);
-    DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp);
+    DG52ED.cursor_art_ptr = dg_near(dgroup, load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp));          /* "mouse.bmp"   */
+    DG52ED.panel_art_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp));
+    DG4E67.bmp_4ecb_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp));
 
     install_keyboard(0);
 
@@ -888,8 +888,8 @@ void game_startup(void)
  */
 uint16_t game_intro(void)
 {
-    uint16_t bitmaps;                       /* [bp-0xc] */
-    uint16_t gkc;                           /* [bp-0xe] */
+    struct bmp_set *bitmaps;                /* [bp-0xc] */
+    struct bmp_set *gkc;                    /* [bp-0xe] */
     int16_t stage;                          /* [bp-4]  */
     int16_t budget;                         /* [bp-2]  */
     int16_t which;                          /* [bp-0xa] */
@@ -948,7 +948,7 @@ uint16_t game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(BMP_PTR(BMPSET_PTR(bitmaps)->bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(bitmaps->bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             if (step->bitmap == 0)
@@ -956,7 +956,7 @@ uint16_t game_intro(void)
 
             step++;
 
-            draw_bitmap(BMP_PTR(BMPSET_PTR(bitmaps)->bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(bitmaps->bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             step++;
@@ -983,7 +983,7 @@ uint16_t game_intro(void)
             break;
     }
 
-    free_bitmaps_thunk(BMPLIST(bitmaps));
+    free_bitmaps_thunk(bitmaps->bmp);
 
     DG52BD.saved_clip_left = 0;
     DG52BD.saved_clip_top = 0;
@@ -1060,7 +1060,7 @@ uint16_t game_intro(void)
         fill_rect(0, 0, 0x280, 0x190);
 
         step_and_draw_machine(1);
-        draw_frame_corners(BMPSET_PTR(gkc));
+        draw_frame_corners(gkc);
         present_frame(1);
 
         VMDS.page_src_ptr = VMDS.page_front_ptr;
@@ -1084,7 +1084,7 @@ uint16_t game_intro(void)
             replay_shapes();
 
             step_and_draw_machine(0);
-            draw_frame_corners(BMPSET_PTR(gkc));
+            draw_frame_corners(gkc);
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
@@ -1134,17 +1134,17 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap((uint16_t)si);
 
-    DG4E67.icons_bmp_ptr = load_bitmaps((char *)DG254A.icons_bmp);
+    DG4E67.icons_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)DG254A.icons_bmp));
     DG4E67.state = 0x8000;
 
-    copy_protect_screen(BMPSET_PTR(gkc));
+    copy_protect_screen(gkc);
 
     DG4E67.state = 2;
 
     set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
     present_frame(1);
 
-    free_bitmaps_thunk(BMPLIST(gkc));
+    free_bitmaps_thunk(gkc->bmp);
 
     stop_music_or_effect(0);
     show_cursor_again();
@@ -1511,7 +1511,7 @@ void game_play(void)
  */
 void game_setup(void)
 {
-    uint16_t bar;
+    struct bmp_set *bar;
 
     clear_flag_2d44_thunk();
     bar = load_bitmaps((char *)GAME_BUTTON_LABELS.score1_bmp);
@@ -1523,15 +1523,15 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[0]), 3, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[1]), 0x107, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[2]), 0x1bb, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp[0]), 3, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp[1]), 0x107, 0, 0);
+    draw_bitmap(BMP_PTR(bar->bmp[2]), 0x1bb, 0, 0);
 
-    free_bitmaps_thunk(BMPLIST(bar));
+    free_bitmaps_thunk(bar->bmp);
 
     clear_flag_2d44_thunk();
-    DG4E67.menu_bmp_ptr = load_bitmaps((char *)GAME_BUTTON_LABELS.gp_menu_bmp);
-    DG4E67.score2_bmp_ptr = load_bitmaps((char *)GAME_BUTTON_LABELS.score2_bmp);
+    DG4E67.menu_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_BUTTON_LABELS.gp_menu_bmp));
+    DG4E67.score2_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_BUTTON_LABELS.score2_bmp));
 
     DG4E67.counter = 0;
     DG4E67.round_number = 1;
@@ -5917,7 +5917,7 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
     clear_flag_2d44_thunk();
 
-    PART_KINDS[n].bitmaps_ptr = load_bitmaps(name);
+    PART_KINDS[n].bitmaps_ptr = dg_near(dgroup, load_bitmaps(name));
 
     restore_cursor_following();
     heap_check_or_hang();

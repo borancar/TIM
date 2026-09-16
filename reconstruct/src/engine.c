@@ -939,7 +939,7 @@ struct engine_bitmap_compress {
     struct far_ptr src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
                                      only the offset steps */
     struct far_ptr out;           /* +0x0c [4]  where the next byte goes */
-    uint16_t  word_63f2;          /* +0x10 [2] */
+    dg_near_t row_buffer_ptr;     /* +0x10 [2]  the row buffer compress_row works in, 0x7d0 bytes */
     uint16_t  mode;               /* +0x12 [2]  0x243bf sets it; it chooses how the runs are written */
 } __attribute__((packed));
 
@@ -950,7 +950,7 @@ DG_ASSERT_AT(struct engine_bitmap_compress, out_start,    0x02);
 DG_ASSERT_AT(struct engine_bitmap_compress, word_63e8,    0x06);
 DG_ASSERT_AT(struct engine_bitmap_compress, src,          0x08);
 DG_ASSERT_AT(struct engine_bitmap_compress, out,          0x0c);
-DG_ASSERT_AT(struct engine_bitmap_compress, word_63f2,    0x10);
+DG_ASSERT_AT(struct engine_bitmap_compress, row_buffer_ptr, 0x10);
 DG_ASSERT_AT(struct engine_bitmap_compress, mode,         0x12);
 
 
@@ -1048,7 +1048,7 @@ int16_t read_into_huge(struct far_ptr dst, uint16_t count)
  * between the file and a block already in memory - there through
  * `huge_add_to` on the cursor at 0x5898.
  */
-int16_t read_input_block(uint16_t dst, uint16_t count)
+int16_t read_input_block(uint8_t *dst, uint16_t count)
 {
     uint16_t rec = ENGINE_STREAM.record_ptr;
     /* `sub`/`sbb` on the two halves - one 32-bit subtract, and **signed**,
@@ -1076,10 +1076,10 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
     RESOURCE_PTR(rec)->in += n;
 
     if ((ENGINE_STREAM.kind & 0x20) != 0)
-        return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, (uint16_t)n,
+        return (int16_t)game_fread(dst, 1, (uint16_t)n,
                                    FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
 
-    far_memcpy(dg_ptr(dgroup, dst),
+    far_memcpy(dst,
                MK_FP((uint16_t)ENGINE_STREAM.in.seg,
                        (uint16_t)ENGINE_STREAM.in.off), (uint16_t)n);
     huge_add_to(&ENGINE_STREAM.in, (int32_t)n);
@@ -1567,7 +1567,7 @@ int16_t next_lzw_code(void)
 
     {
         uint16_t width = ((uint16_t)ENGINE_STREAM.n_bits);
-        int16_t n = read_input_block(dg_near(dgroup, ENGINE_LZW_WINDOW.window), width);
+        int16_t n = read_input_block(ENGINE_LZW_WINDOW.window, width);
 
         if (n <= 0) {
             ENGINE_STREAM.bit_end = n;
@@ -1652,7 +1652,7 @@ int16_t select_resource(int16_t handle)
     ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
     if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->data.off;
+        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->file_ptr;
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
@@ -1964,7 +1964,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
         return -1;
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->data.off = dg_near(dgroup, file);
+    RESOURCE_PTR(rec)->file_ptr = dg_near(dgroup, file);
 
     pos = game_ftell(file);
     rec = ENGINE_STREAM.record_ptr;
@@ -4741,8 +4741,7 @@ uint16_t load_font(char *name)
                 game_fread(p, (uint16_t)size[0], 1, di);
 
             if (failed == 0) {
-                ENGINE_FONTS.body[si].seg = DGROUP_SEG;
-                ENGINE_FONTS.body[si].off = dg_near(dgroup, p);
+                ENGINE_FONTS.body[si] = dg_far(dgroup, p);
                 ENGINE_FONT_WIDTHS.width[si] = FAR_NULL;
                 ENGINE_FONT_SLOTS.slot[si] = FAR_NULL;
             } else {
@@ -4792,7 +4791,7 @@ uint16_t load_font(char *name)
  * The driver call at vector 0x4382 is `vm_nothing` on this adapter, and nine
  * words are pushed at 0x4382 and 0x437e where five are read.
  */
-uint16_t load_bitmap_list(char *name)
+struct bmp_set *load_bitmap_list(char *name)
 {
     struct far_ptr walk;  /* [bp-0xa], [bp-8] - huge_add_to steps it */
     uint16_t count_at;    /* [bp-0x12] */
@@ -4844,7 +4843,7 @@ uint16_t load_bitmap_list(char *name)
             heap_free_far(scratch);
             scratch = heap_malloc_far(0x3ac4);
             if (scratch != NULL) {
-                DG3576.scratch = (struct far_ptr){ dg_near(dgroup, scratch), DGROUP_SEG };
+                DG3576.scratch = dg_far(dgroup, scratch);
                 huge_add_to(&DG3576.scratch, 0x10);
                 DG3576.scratch = normalise_far_ptr_far(
                     (struct far_ptr){
@@ -4946,10 +4945,7 @@ done:
     if (opened != 0)
         close_file_record(si);
 
-    {
-        uint16_t answer = dg_near(dgroup, list_at);
-        return answer;
-    }
+    return list_at != NULL ? (struct bmp_set *)list_at : BMPSET_NONE;
 }
 
 /*
@@ -4970,7 +4966,7 @@ void free_bitmap_list(bmp_ptr_t * list)
     if (list[0] != 0)
         heap_free_far(dg_ptr(dgroup, list[0]));
 
-    if (dg_near(dgroup, list) != 0)
+    if (list != NULL && list != BMPLIST(0))
         heap_free_far((uint8_t *)list);
 }
 
@@ -5009,7 +5005,7 @@ void free_bitmap_list(bmp_ptr_t * list)
  */
 void free_bitmaps(bmp_ptr_t * list)
 {
-    if (dg_near(dgroup, list) == 0)
+    if (list == NULL || list == BMPLIST(0))
         return;
 
     dos_free_far(far_of_rev(BMP_PTR(list[0])->data));
@@ -5027,7 +5023,7 @@ uint16_t count_list_entries(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 
-    if (dg_near(dgroup, list) == 0)
+    if (list == NULL || list == BMPLIST(0))
         return 0;
 
     while (list[n] != 0)
@@ -5170,10 +5166,9 @@ uint16_t load_screen_plain(char *name)
     bytes = (uint16_t)(half << 7);
 
     do {
-        buf.off = dg_near(dgroup, heap_malloc_far(bytes));
-        buf.seg = DGROUP_SEG;
-        /* The offset alone: it is the heap handle the allocator answered,
-           and the segment beside it is always DGROUP's. */
+        /* The offset is the heap handle the allocator answered, and the
+           segment beside it is always DGROUP's - even for a failure. */
+        buf = dg_far(dgroup, heap_malloc_far(bytes));
         if (buf.off != 0)
             break;
         bytes = (uint16_t)(bytes >> 1);
@@ -7121,7 +7116,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
     uint16_t over;
 
     ENGINE_BITMAP_COMPRESS.mode = (uint8_t)(colours - 1);
-    ENGINE_BITMAP_COMPRESS.word_63f2 = dg_near(dgroup, heap_malloc_far(0x7d0));
+    ENGINE_BITMAP_COMPRESS.row_buffer_ptr = dg_near(dgroup, heap_malloc_far(0x7d0));
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
@@ -7175,7 +7170,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
     io_dos_resize(BMP_PTR(list[0])->data.seg, ENGINE_BITMAP_COMPRESS.word_63e8);
 
-    heap_free_far(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2));
+    heap_free_far(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr));
 
     return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
 }
@@ -7445,7 +7440,7 @@ void compress_bitmap(struct bitmap *bmp)
 
             if (v == 0) {
                 if (di != 0) {
-                    compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2), (int16_t)di);
+                    compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
                     di = 0;
                 }
                 blanks++;
@@ -7453,7 +7448,7 @@ void compress_bitmap(struct bitmap *bmp)
             }
 
             v = (uint8_t)((v - least) & ((uint8_t)ENGINE_BITMAP_COMPRESS.mode));
-            dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2)[di] = v;
+            dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr)[di] = v;
             di++;
 
             if (blanks != 0) {
@@ -7469,7 +7464,7 @@ void compress_bitmap(struct bitmap *bmp)
         }
 
         if (di != 0) {
-            compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2), (int16_t)di);
+            compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
             di = 0;
         }
 
@@ -7478,7 +7473,7 @@ void compress_bitmap(struct bitmap *bmp)
     }
 
     if (di != 0)
-        compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2), (int16_t)di);
+        compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
 
     emit_packed_value(0);
 
