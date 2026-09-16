@@ -2337,21 +2337,21 @@ void draw_rope(struct part *part, int16_t a)
      */
     int16_t words[8];
     int16_t *p[8];
-    uint16_t si = part->rope_ptr;
+    struct rope *si = ROPE_PTR(part->rope_ptr);
     int32_t k;
 
     for (k = 0; k < 8; k++)
         p[k] = &words[7 - k];                  /* [bp-2] down to [bp-0x10] */
 
-    if (ROPE_PTR(si)->end_a_ptr == 0 || ROPE_PTR(si)->end_b_ptr == 0)
+    if (si->end_a_ptr == 0 || si->end_b_ptr == 0)
         goto out;
 
     clear_flag_2d44_thunk();
 
     for (k = 0; k < 8; k++)
         *p[k] = (int16_t)((k & 1)
-                          ? ROPE_PTR(si)->pt[0][k >> 1].y - DG4E67.origin_y
-                          : ROPE_PTR(si)->pt[0][k >> 1].x - DG4E67.origin_x);
+                          ? si->pt[0][k >> 1].y - DG4E67.origin_y
+                          : si->pt[0][k >> 1].x - DG4E67.origin_x);
 
     if (a != 0) {
         for (k = 0; k < 8; k++)
@@ -2468,7 +2468,7 @@ void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
  */
 void draw_belt(struct part *part, int16_t a)
 {
-    uint16_t v0e;       /* [bp-0x0e] the belt */
+    struct belt *v0e;       /* [bp-0x0e] the belt */
     int16_t  v0c;       /* [bp-0x0c] the slack */
     int16_t  v0a;       /* [bp-0x0a] sags */
     int16_t  v08;       /* [bp-8]  y1 */
@@ -2477,12 +2477,12 @@ void draw_belt(struct part *part, int16_t a)
     int16_t  v02;       /* [bp-2]  x0 */
     uint16_t di, si;
 
-    v0e = part->belt_ptr[0];
+    v0e = BELT_PTR(part->belt_ptr[0]);
 
-    di = BELT_PTR(v0e)->end_a_ptr;
-    si = PART_PTR(di)->link_ptr[BELT_PTR(v0e)->slot_a];
+    di = v0e->end_a_ptr;
+    si = PART_PTR(di)->link_ptr[v0e->slot_a];
     if (si == 0)
-        si = BELT_PTR(v0e)->end_b_ptr;
+        si = v0e->end_b_ptr;
 
     while (di != 0 && si != 0) {
         v0a = 0;
@@ -2495,9 +2495,9 @@ void draw_belt(struct part *part, int16_t a)
                 BELT_PTR(PART_PTR(di)->belt_ptr[0])->pt[0][1].y
                 - DG4E67.origin_y);
         } else {
-            v02 = (int16_t)(BELT_PTR(v0e)->pt[0][0].x
+            v02 = (int16_t)(v0e->pt[0][0].x
                                   - DG4E67.origin_x);
-            v04 = (int16_t)(BELT_PTR(v0e)->pt[0][0].y
+            v04 = (int16_t)(v0e->pt[0][0].y
                                   - DG4E67.origin_y);
             v0a = 1;
         }
@@ -2510,9 +2510,9 @@ void draw_belt(struct part *part, int16_t a)
                 BELT_PTR(PART_PTR(si)->belt_ptr[0])->pt[0][0].y
                 - DG4E67.origin_y);
         } else {
-            v06 = (int16_t)(BELT_PTR(v0e)->pt[0][1].x
+            v06 = (int16_t)(v0e->pt[0][1].x
                                   - DG4E67.origin_x);
-            v08 = (int16_t)(BELT_PTR(v0e)->pt[0][1].y
+            v08 = (int16_t)(v0e->pt[0][1].y
                                   - DG4E67.origin_y);
             v0a = 1;
         }
@@ -2532,7 +2532,7 @@ void draw_belt(struct part *part, int16_t a)
         clear_flag_2d44_thunk();
 
         if (v0a != 0) {
-            v0c = link_slack(PART_PTR(di), BELT_PTR(v0e), 3);
+            v0c = link_slack(PART_PTR(di), v0e, 3);
             draw_belt_segment(v02, v04, v06, v08,
                               v0c);
         } else {

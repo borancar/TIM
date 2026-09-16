@@ -3831,7 +3831,7 @@ void move_carried(void)
 void move_carried_part(void)
 {
     struct part *part;
-    uint16_t si;
+    struct rope *si;
     int16_t di;
 
     part_key_shortcut();
@@ -3891,8 +3891,8 @@ void move_carried_part(void)
     place_object_for_draw(part);
     retension_pulleys(part);
 
-    si = part->rope_ptr;
-    di = (si != 0) ? (int16_t)(rope_ends_close(ROPE_PTR(si)) == 0) : 0;
+    si = ROPE_PTR(part->rope_ptr);
+    di = (si != ROPE_NONE) ? (int16_t)(rope_ends_close(si) == 0) : 0;
 
     if (part->flags_0a & 1)
         rehome_carried_part();
@@ -3905,8 +3905,8 @@ void move_carried_part(void)
         mark_joined_shapes(part, 3);
 
         if (di != 0) {
-            untie_rope(PART_PTR(ROPE_PTR(si)->owner_ptr));
-            discard_part(PART_PTR(ROPE_PTR(si)->owner_ptr));
+            untie_rope(PART_PTR(si->owner_ptr));
+            discard_part(PART_PTR(si->owner_ptr));
             DG4E67.redraw_e = 2;
         }
 
@@ -7495,7 +7495,8 @@ void write_record_fields(FILE *file, struct part *part)
     int16_t vindex;   /* [bp-6] */
     int16_t vbelt;   /* [bp-4] */
     int16_t vrope;/* [bp-2] */
-    uint16_t rope, belt;
+    struct rope *rope;
+    uint16_t belt;
     int16_t  i;
 
     write_word(file, (const uint8_t *)&part->kind);
@@ -7520,11 +7521,11 @@ void write_record_fields(FILE *file, struct part *part)
     write_word(file, (const uint8_t *)&part->word_58);
 
     if ((uint16_t)vrope != 0) {
-        rope = part->rope_ptr;
+        rope = ROPE_PTR(part->rope_ptr);
 
-        vindex = (int16_t)part_index(ROPE_PTR(rope)->end_a_ptr);
+        vindex = (int16_t)part_index(rope->end_a_ptr);
         write_word(file, (uint8_t *)&vindex);
-        vindex = (int16_t)part_index(ROPE_PTR(rope)->end_b_ptr);
+        vindex = (int16_t)part_index(rope->end_b_ptr);
         write_word(file, (uint8_t *)&vindex);
     }
 

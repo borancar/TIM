@@ -2126,7 +2126,7 @@ uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t
 uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t chain = p2->belt_ptr[p3];
+    struct belt *chain = BELT_PTR(p2->belt_ptr[p3]);
     uint16_t mode;
     int16_t  drive = 0;         /* [bp-2]; see the note above */
     int16_t  was;
@@ -2135,9 +2135,9 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     p4   = (uint16_t)(p4 & 0x8007);
     mode = (uint16_t)(p4 & 0x7fff);
 
-    if (mode != 1 && ((uint16_t)BELT_PTR(chain)->v[0]) != 0) {
+    if (mode != 1 && ((uint16_t)chain->v[0]) != 0) {
         if ((p4 & 0x8000) == 0)
-            BELT_PTR(chain)->v[0]--;
+            chain->v[0]--;
         return 0;
     }
 
@@ -2187,7 +2187,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
         return 1;
 
     if (p4 == 1)
-        BELT_PTR(chain)->v[0]++;
+        chain->v[0]++;
 
     return 0;
 }
@@ -4281,13 +4281,13 @@ uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
 uint16_t part_drive_2c19(uint16_t p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t belt = si->belt_ptr[0];
+    struct belt *belt = BELT_PTR(si->belt_ptr[0]);
     uint16_t kept;
 
     (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
 
     if (flags == 1) {
-        BELT_PTR(belt)->v[0]++;
+        belt->v[0]++;
         return 0;
     }
 

@@ -1229,7 +1229,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
  */
 void step_machine(void)
 {
-    uint16_t v06;      /* [bp-6] */
+    struct belt *v06;      /* [bp-6] */
     uint16_t v04;      /* [bp-4] */
     uint16_t v02;      /* [bp-2] */
     struct part *si;
@@ -1345,12 +1345,12 @@ void step_machine(void)
             continue;
 
         for (v04 = 0; ((int16_t)v04) < 2; v04++) {
-            v06 = si->belt_ptr[v04];
-            if (v06 == 0)
+            v06 = BELT_PTR(si->belt_ptr[v04]);
+            if (v06 == BELT_NONE)
                 continue;
 
-            BELT_PTR(v06)->pt[0][0] = BELT_PTR(v06)->pt[2][0];
-            BELT_PTR(v06)->pt[0][1] = BELT_PTR(v06)->pt[2][1];
+            v06->pt[0][0] = v06->pt[2][0];
+            v06->pt[0][1] = v06->pt[2][1];
         }
     }
 
@@ -6512,15 +6512,15 @@ void mark_needs_refile(struct part *part, uint8_t n)
 {
     int16_t rope;                     /* [bp-4] */
     int16_t i;        /* [bp-2] */
-    uint16_t si;
+    struct belt *si;
 
     if (part->kind != KIND_ANCHOR)
         part->byte_14 = n;
 
     if (part->kind == KIND_PULLEY) {
-        si = part->belt_ptr[1];
-        if (si != 0)
-            PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
+        si = BELT_PTR(part->belt_ptr[1]);
+        if (si != BELT_NONE)
+            PART_PTR(si->owner_ptr)->byte_14 = n;
         goto out;
     }
 
@@ -6536,27 +6536,27 @@ void mark_needs_refile(struct part *part, uint8_t n)
     }
 
     if (((int16_t)DG4E67.state) == 0x2000) {
-        si = part->belt_ptr[0];
-        if (si != 0 && PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 == 0) {
-            PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-            refresh_link_geometry(BELT_PTR(si));
+        si = BELT_PTR(part->belt_ptr[0]);
+        if (si != BELT_NONE && PART_PTR(si->owner_ptr)->byte_14 == 0) {
+            PART_PTR(si->owner_ptr)->byte_14 = n;
+            refresh_link_geometry(si);
         }
 
-        si = part->belt_ptr[1];
-        if (si != 0 && PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 == 0) {
-            PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-            refresh_link_geometry(BELT_PTR(si));
+        si = BELT_PTR(part->belt_ptr[1]);
+        if (si != BELT_NONE && PART_PTR(si->owner_ptr)->byte_14 == 0) {
+            PART_PTR(si->owner_ptr)->byte_14 = n;
+            refresh_link_geometry(si);
         }
         goto out;
     }
 
     for (i = 0; i < 2; i++) {
-        si = part->belt_ptr[(uint16_t)i];
-        if (si == 0)
+        si = BELT_PTR(part->belt_ptr[(uint16_t)i]);
+        if (si == BELT_NONE)
             continue;
 
-        PART_PTR(BELT_PTR(si)->owner_ptr)->byte_14 = n;
-        refresh_link_geometry(BELT_PTR(si));
+        PART_PTR(si->owner_ptr)->byte_14 = n;
+        refresh_link_geometry(si);
     }
 
 out:
@@ -6706,26 +6706,26 @@ out:
  */
 void untie_rope(struct part *part)
 {
-    uint16_t rope = part->rope_ptr;
+    struct rope *rope = ROPE_PTR(part->rope_ptr);
     uint16_t end;
 
-    if (rope == 0)
+    if (rope == ROPE_NONE)
         return;
 
-    end = ROPE_PTR(rope)->end_a_ptr;
+    end = rope->end_a_ptr;
     if (end != 0) {
         PART_PTR(end)->flags_08 &= 0xfffd;
         PART_PTR(end)->word_94 = PART_PTR(end)->flags_08;
         PART_PTR(end)->rope_ptr = 0;
-        ROPE_PTR(rope)->end_a_ptr = 0;
+        rope->end_a_ptr = 0;
     }
 
-    end = ROPE_PTR(rope)->end_b_ptr;
+    end = rope->end_b_ptr;
     if (end != 0) {
         PART_PTR(end)->flags_08 &= 0xfffd;
         PART_PTR(end)->word_94 = PART_PTR(end)->flags_08;
         PART_PTR(end)->rope_ptr = 0;
-        ROPE_PTR(rope)->end_b_ptr = 0;
+        rope->end_b_ptr = 0;
     }
 
     if ((part->flags_06 & 0x800) == 0)
@@ -6769,20 +6769,20 @@ void detach_belt(struct part *part, uint16_t how)
     int16_t i;
 
     for (i = 0; i < 2; i++) {
-        uint16_t belt = part->belt_ptr[i];
+        struct belt *belt = BELT_PTR(part->belt_ptr[i]);
         uint16_t other, next;
         int16_t  slot;
 
-        if (belt == 0)
+        if (belt == BELT_NONE)
             continue;
 
         if (how != 0) {
-            other = BELT_PTR(belt)->end_a_ptr;
+            other = belt->end_a_ptr;
             if (other != 0) {
-                BELT_PTR(belt)->end_a_ptr = 0;
-                BELT_PTR(belt)->home_a_ptr = 0;
+                belt->end_a_ptr = 0;
+                belt->home_a_ptr = 0;
 
-                slot = (int16_t)((int8_t)BELT_PTR(belt)->slot_a);
+                slot = (int16_t)((int8_t)belt->slot_a);
                 PART_PTR(other)->belt_ptr[slot] = 0;
 
                 next = PART_PTR(other)->link_ptr[slot];
@@ -6801,13 +6801,13 @@ void detach_belt(struct part *part, uint16_t how)
             }
         }
 
-        other = BELT_PTR(belt)->end_b_ptr;
+        other = belt->end_b_ptr;
         if (other != 0) {
-            slot = (int16_t)((int8_t)BELT_PTR(belt)->slot_b);
+            slot = (int16_t)((int8_t)belt->slot_b);
             PART_PTR(other)->belt_ptr[slot] = 0;
 
-            BELT_PTR(belt)->end_b_ptr = 0;
-            BELT_PTR(belt)->home_b_ptr = 0;
+            belt->end_b_ptr = 0;
+            belt->home_b_ptr = 0;
 
             next = PART_PTR(other)->link_ptr[slot];
             PART_PTR(other)->link_ptr[slot + 2] = 0;
@@ -6863,10 +6863,10 @@ void detach_part_to_bin(struct part *part)
         if (((int16_t)part->kind) != 0x0a
             && ((int16_t)part->kind) != 7) {
             for (i = 0; i < 2; i++) {
-                uint16_t slot = part->belt_ptr[i];
+                struct belt *slot = BELT_PTR(part->belt_ptr[i]);
 
-                if (slot != 0)
-                    detach_belt(PART_PTR(BELT_PTR(slot)->owner_ptr), 0);
+                if (slot != BELT_NONE)
+                    detach_belt(PART_PTR(slot->owner_ptr), 0);
             }
         }
     }
@@ -7447,13 +7447,13 @@ void part_finish_angles(struct part *part)
  */
 void mark_joined_shapes(struct part *part, uint16_t mode)
 {
-    uint16_t rope;                     /* [bp-2] */
-    uint16_t di;
+    struct rope *rope;                     /* [bp-2] */
+    struct belt *di;
 
     if (part->kind == KIND_PULLEY) {
-        di = part->belt_ptr[1];
-        if (di != 0)
-            mark_belt_shapes(PART_PTR(BELT_PTR(di)->owner_ptr), mode);
+        di = BELT_PTR(part->belt_ptr[1]);
+        if (di != BELT_NONE)
+            mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
         goto out;
     }
 
@@ -7461,18 +7461,18 @@ void mark_joined_shapes(struct part *part, uint16_t mode)
         goto out;
 
     if (((int16_t)DG4E67.state) != 0x2000) {
-        rope = part->rope_ptr;
-        if (rope != 0)
-            add_sub_object_shapes(PART_PTR(ROPE_PTR(rope)->owner_ptr), (int16_t)mode);
+        rope = ROPE_PTR(part->rope_ptr);
+        if (rope != ROPE_NONE)
+            add_sub_object_shapes(PART_PTR(rope->owner_ptr), (int16_t)mode);
     }
 
-    di = part->belt_ptr[0];
-    if (di != 0)
-        mark_belt_shapes(PART_PTR(BELT_PTR(di)->owner_ptr), mode);
+    di = BELT_PTR(part->belt_ptr[0]);
+    if (di != BELT_NONE)
+        mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
 
-    di = part->belt_ptr[1];
-    if (di != 0)
-        mark_belt_shapes(PART_PTR(BELT_PTR(di)->owner_ptr), mode);
+    di = BELT_PTR(part->belt_ptr[1]);
+    if (di != BELT_NONE)
+        mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
 
 out:
 }
@@ -7497,16 +7497,16 @@ out:
  */
 void add_sub_object_shapes(struct part *obj, int16_t mask)
 {
-    uint16_t sub = obj->rope_ptr;
+    struct rope *sub = ROPE_PTR(obj->rope_ptr);
 
     if ((mask & 1) != 0) {
-        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[2][0], (const uint8_t *)&ROPE_PTR(sub)->pt[2][1], 4, 1, 0);
-        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[2][2], (const uint8_t *)&ROPE_PTR(sub)->pt[2][3], 4, 1, 0);
+        alloc_shape((const uint8_t *)&sub->pt[2][0], (const uint8_t *)&sub->pt[2][1], 4, 1, 0);
+        alloc_shape((const uint8_t *)&sub->pt[2][2], (const uint8_t *)&sub->pt[2][3], 4, 1, 0);
     }
 
     if ((mask & 2) != 0) {
-        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[1][0], (const uint8_t *)&ROPE_PTR(sub)->pt[1][1], 4, 2, 0);
-        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[1][2], (const uint8_t *)&ROPE_PTR(sub)->pt[1][3], 4, 2, 0);
+        alloc_shape((const uint8_t *)&sub->pt[1][0], (const uint8_t *)&sub->pt[1][1], 4, 2, 0);
+        alloc_shape((const uint8_t *)&sub->pt[1][2], (const uint8_t *)&sub->pt[1][3], 4, 2, 0);
     }
 }
 
@@ -8030,7 +8030,7 @@ void replay_shapes(void)
 void belt_in_dirty_rect(struct part *part)
 {
     int16_t node[2];  /* [bp-0x20], a far pointer */
-    uint16_t belt;  /* [bp-0x1c] */
+    struct belt *belt;  /* [bp-0x1c] */
     int16_t endB;  /* [bp-0x1a] */
     int16_t endA;  /* [bp-0x18] */
     int16_t slotB; /* [bp-0x16] */
@@ -8046,16 +8046,16 @@ void belt_in_dirty_rect(struct part *part)
     int16_t ax;    /* [bp-2] */
     uint16_t di, si;
 
-    belt = part->belt_ptr[0];
-    endA = (int16_t)((uint16_t)BELT_PTR(belt)->end_a_ptr);
+    belt = BELT_PTR(part->belt_ptr[0]);
+    endA = (int16_t)((uint16_t)belt->end_a_ptr);
     di = (uint16_t)endA;
-    endB = (int16_t)((uint16_t)BELT_PTR(belt)->end_b_ptr);
+    endB = (int16_t)((uint16_t)belt->end_b_ptr);
 
-    slotA = (int16_t)BELT_PTR(belt)->slot_a;
+    slotA = (int16_t)belt->slot_a;
     slotB = 0;
 
     si = PART_PTR(di)->link_ptr[(uint16_t)slotA];
-    slack = link_slack(PART_PTR(di), BELT_PTR(belt), 3);
+    slack = link_slack(PART_PTR(di), belt, 3);
 
     while (di != 0 && si != 0) {
         if (di != (uint16_t)endA) {
@@ -8069,8 +8069,8 @@ void belt_in_dirty_rect(struct part *part)
                              + PART_PTR(di)->attach[(uint16_t)slotA].y);
 
         if (si == (uint16_t)endB) {
-            slotB = (int16_t)BELT_PTR(belt)->slot_b;
-            slack = link_slack(PART_PTR(di), BELT_PTR(belt), 3);
+            slotB = (int16_t)belt->slot_b;
+            slack = link_slack(PART_PTR(di), belt, 3);
         }
 
         bx = (int16_t)(PART_PTR(si)->box[0].x
@@ -8150,7 +8150,7 @@ void mark_parts_in_dirty_rects(void)
     int16_t top;   /* [bp-4] */
     int16_t left;  /* [bp-2] */
     struct part *di;
-    uint16_t si;
+    struct rope *si;
 
     for (di = pick_by_flag(0x3000); di != PART_NONE;
          di = pick_for_record(di, 0x1000)) {
@@ -8167,44 +8167,44 @@ void mark_parts_in_dirty_rects(void)
         if (di->kind == KIND_BELT) {
             int16_t span;
 
-            si = di->rope_ptr;
+            si = ROPE_PTR(di->rope_ptr);
 
-            if (rope_ends_close(ROPE_PTR(si)) == 0)
+            if (rope_ends_close(si) == 0)
                 continue;
 
             if (((int16_t)DG4E67.word_4e69) == 9
-                && (ROPE_PTR(si)->end_a_ptr == DG50D3.dragged_part_ptr
-                    || ROPE_PTR(si)->end_b_ptr == DG50D3.dragged_part_ptr)
+                && (si->end_a_ptr == DG50D3.dragged_part_ptr
+                    || si->end_b_ptr == DG50D3.dragged_part_ptr)
                 && point_in_play_area() == 0)
                 continue;
 
-            if (ROPE_PTR(si)->pt[0][0].x < ROPE_PTR(si)->pt[0][1].x) {
-                left = (int16_t)(ROPE_PTR(si)->pt[0][0].x
+            if (si->pt[0][0].x < si->pt[0][1].x) {
+                left = (int16_t)(si->pt[0][0].x
                                        - DG4E67.origin_x);
                 right = left;
-                span = (int16_t)(ROPE_PTR(si)->pt[0][3].x
-                                 - ROPE_PTR(si)->pt[0][0].x);
+                span = (int16_t)(si->pt[0][3].x
+                                 - si->pt[0][0].x);
             } else {
-                left = (int16_t)(ROPE_PTR(si)->pt[0][1].x
+                left = (int16_t)(si->pt[0][1].x
                                        - DG4E67.origin_x);
                 right = left;
-                span = (int16_t)(ROPE_PTR(si)->pt[0][2].x
-                                 - ROPE_PTR(si)->pt[0][1].x);
+                span = (int16_t)(si->pt[0][2].x
+                                 - si->pt[0][1].x);
             }
             right = (int16_t)(right + span);
 
-            if (ROPE_PTR(si)->pt[0][0].y < ROPE_PTR(si)->pt[0][1].y) {
-                top = (int16_t)(ROPE_PTR(si)->pt[0][0].y
+            if (si->pt[0][0].y < si->pt[0][1].y) {
+                top = (int16_t)(si->pt[0][0].y
                                       - DG4E67.origin_x);
                 bottom = top;
-                span = (int16_t)(ROPE_PTR(si)->pt[0][3].y
-                                 - ROPE_PTR(si)->pt[0][0].y);
+                span = (int16_t)(si->pt[0][3].y
+                                 - si->pt[0][0].y);
             } else {
-                top = (int16_t)(ROPE_PTR(si)->pt[0][1].y
+                top = (int16_t)(si->pt[0][1].y
                                       - DG4E67.origin_x);
                 bottom = top;
-                span = (int16_t)(ROPE_PTR(si)->pt[0][2].y
-                                 - ROPE_PTR(si)->pt[0][1].y);
+                span = (int16_t)(si->pt[0][2].y
+                                 - si->pt[0][1].y);
             }
             bottom = (int16_t)(bottom + span);
         } else {
@@ -8278,7 +8278,7 @@ void refile_overlapping_parts(void)
     uint8_t  v02;   /* [bp-2] the level */
     uint8_t  v01;   /* [bp-1] the counter */
     struct part *di;
-    uint16_t si;
+    struct rope *si;
 
     for (v01 = 6; v01 != 0; v01--) {
         v02 = (uint8_t)(v01 - 1);
@@ -8327,40 +8327,40 @@ void refile_overlapping_parts(void)
                 if (di->kind == KIND_BELT) {
                     int16_t span;
 
-                    si = di->rope_ptr;
+                    si = ROPE_PTR(di->rope_ptr);
 
-                    if (rope_ends_close(ROPE_PTR(si)) == 0)
+                    if (rope_ends_close(si) == 0)
                         continue;
 
                     if (((int16_t)DG4E67.word_4e69) == 9
-                        && (ROPE_PTR(si)->end_a_ptr == DG50D3.dragged_part_ptr
-                            || ROPE_PTR(si)->end_b_ptr == DG50D3.dragged_part_ptr)
+                        && (si->end_a_ptr == DG50D3.dragged_part_ptr
+                            || si->end_b_ptr == DG50D3.dragged_part_ptr)
                         && point_in_play_area() == 0)
                         continue;
 
-                    if (ROPE_PTR(si)->pt[0][0].x < ROPE_PTR(si)->pt[0][1].x) {
-                        v0c = ((uint16_t)ROPE_PTR(si)->pt[0][0].x);
-                        v10 = ((uint16_t)ROPE_PTR(si)->pt[0][0].x);
-                        span = (int16_t)(ROPE_PTR(si)->pt[0][3].x
-                                         - ROPE_PTR(si)->pt[0][0].x);
+                    if (si->pt[0][0].x < si->pt[0][1].x) {
+                        v0c = ((uint16_t)si->pt[0][0].x);
+                        v10 = ((uint16_t)si->pt[0][0].x);
+                        span = (int16_t)(si->pt[0][3].x
+                                         - si->pt[0][0].x);
                     } else {
-                        v0c = ((uint16_t)ROPE_PTR(si)->pt[0][1].x);
-                        v10 = ((uint16_t)ROPE_PTR(si)->pt[0][1].x);
-                        span = (int16_t)(ROPE_PTR(si)->pt[0][2].x
-                                         - ROPE_PTR(si)->pt[0][1].x);
+                        v0c = ((uint16_t)si->pt[0][1].x);
+                        v10 = ((uint16_t)si->pt[0][1].x);
+                        span = (int16_t)(si->pt[0][2].x
+                                         - si->pt[0][1].x);
                     }
                     v10 = (uint16_t)(v10 + span);
 
-                    if (ROPE_PTR(si)->pt[0][0].y < ROPE_PTR(si)->pt[0][1].y) {
-                        v0e = ((uint16_t)ROPE_PTR(si)->pt[0][0].y);
-                        v12 = ((uint16_t)ROPE_PTR(si)->pt[0][0].y);
-                        span = (int16_t)(ROPE_PTR(si)->pt[0][3].y
-                                         - ROPE_PTR(si)->pt[0][0].y);
+                    if (si->pt[0][0].y < si->pt[0][1].y) {
+                        v0e = ((uint16_t)si->pt[0][0].y);
+                        v12 = ((uint16_t)si->pt[0][0].y);
+                        span = (int16_t)(si->pt[0][3].y
+                                         - si->pt[0][0].y);
                     } else {
-                        v0e = ((uint16_t)ROPE_PTR(si)->pt[0][1].y);
-                        v12 = ((uint16_t)ROPE_PTR(si)->pt[0][1].y);
-                        span = (int16_t)(ROPE_PTR(si)->pt[0][2].y
-                                         - ROPE_PTR(si)->pt[0][1].y);
+                        v0e = ((uint16_t)si->pt[0][1].y);
+                        v12 = ((uint16_t)si->pt[0][1].y);
+                        span = (int16_t)(si->pt[0][2].y
+                                         - si->pt[0][1].y);
                     }
                     v12 = (uint16_t)(v12 + span);
                 } else {
@@ -8404,15 +8404,15 @@ void refile_overlapping_parts(void)
  */
 uint16_t rope_other_end(struct part *part)
 {
-    uint16_t si = part->rope_ptr;
+    struct rope *si = ROPE_PTR(part->rope_ptr);
 
-    if (si == 0)
+    if (si == ROPE_NONE)
         return 0;
 
-    if (ROPE_PTR(si)->end_a_ptr == dg_off(dgroup, part))
-        return ROPE_PTR(si)->end_b_ptr;
+    if (si->end_a_ptr == dg_off(dgroup, part))
+        return si->end_b_ptr;
 
-    return ROPE_PTR(si)->end_a_ptr;
+    return si->end_a_ptr;
 }
 
 /*
