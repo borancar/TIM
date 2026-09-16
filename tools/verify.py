@@ -271,7 +271,7 @@ ROUTINES = {
         addr=0x04500,
         args=[("rec", 4)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: dgo(lib, lib.find_part_from(ctypes.c_uint16(a[0]))),
+        call=lambda lib, a: dgo(lib, lib.find_part_from(dgh(lib, a[0]))),
     ),
     "part_under_pointer": dict(
         addr=0x042A2,

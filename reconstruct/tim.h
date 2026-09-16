@@ -975,7 +975,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x227ac */
 void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x208f3 */
-struct part *find_part_from(uint16_t rec);              /* 0x04500 */
+struct part *find_part_from(struct part *rec);              /* 0x04500 */
 int16_t  rope_ends_close(struct rope *rope);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
@@ -1308,7 +1308,7 @@ void goal_test_puzzle_49(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(struct far_ptr h, struct part *part,
                     uint16_t which);
-uint16_t find_belt_anchor(uint8_t * out_end, uint16_t rec); /* 0x045b8 */
+uint16_t find_belt_anchor(uint8_t * out_end, struct part *rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(struct part *part);          /* 0x04748 */

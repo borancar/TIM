@@ -5198,7 +5198,7 @@ void move_carried_rope(void)
             return;
         }
 
-        si = find_part_from(0);
+        si = find_part_from(PART_NONE);
 
         if (di != PART_NONE) {
             si->flags_08 |= 2;
@@ -5273,7 +5273,7 @@ void move_carried_belt(void)
 
     far_ = (int16_t)((uint16_t)si->end_a_ptr);
 
-    di = find_belt_anchor((uint8_t *)&end, DG2630.word_2630);
+    di = find_belt_anchor((uint8_t *)&end, PART_PTR(DG2630.word_2630));
 
     if (di == DG5456.belt_far_end && (uint16_t)far_ != 0)
         di = 0;
@@ -5395,7 +5395,7 @@ void pointer_frame(void)
     si = (DG4E67.word_4e69 == 9 || (DG4E67.word_4e69 & 0x8000)) ? 1 : 0;
 
     if (si == 0) {
-        DG50D3.dragged_part_ptr = dg_off(dgroup, find_part_from(DG50D3.dragged_part_ptr));
+        DG50D3.dragged_part_ptr = dg_off(dgroup, find_part_from(PART_PTR(DG50D3.dragged_part_ptr)));
         if (DG50D3.dragged_part_ptr != 0
             && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000))
             DG50D3.dragged_part_ptr = 0;

@@ -5699,9 +5699,9 @@ struct part *part_under_pointer(struct part *exclude, struct part *part)
  * - kind 0x0a at 0x50d5, which must land on a part and not on the background -
  * and otherwise `rec`, so a drag that wanders off everything keeps what it had.
  */
-struct part *find_part_from(uint16_t rec)
+struct part *find_part_from(struct part *rec)
 {
-    struct part *di = PART_PTR(rec);
+    struct part *di = rec;
     struct part *si, *best;
     struct part *cur;
 
@@ -5766,7 +5766,7 @@ struct part *find_part_from(uint16_t rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-uint16_t find_belt_anchor(uint8_t * out_end, uint16_t rec)
+uint16_t find_belt_anchor(uint8_t * out_end, struct part *rec)
 {
     struct part *si = find_part_from(rec);
     int16_t e0, e1, d0, d1;
@@ -6003,7 +6003,7 @@ int16_t rope_ends_close(struct rope *rope)
     struct part *di;
 
     if (si == PART_NONE) {
-        si = find_part_from(0);
+        si = find_part_from(PART_NONE);
         if (si == PART_NONE)
             return 0;
         if ((si->flags_08 & 2) != 0
@@ -6014,7 +6014,7 @@ int16_t rope_ends_close(struct rope *rope)
 
     di = PART_PTR(rope->end_b_ptr);
     if (di == PART_NONE) {
-        di = find_part_from(0);
+        di = find_part_from(PART_NONE);
         if (di == PART_NONE)
             return 0;
         if ((di->flags_08 & 2) != 0
