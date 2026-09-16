@@ -5908,7 +5908,8 @@ uint16_t part_handle_at_pointer(struct part *part)
 {
     int16_t px = (int16_t)((uint16_t)DG5768.pointer_x), py = (int16_t)((uint16_t)DG5768.pointer_y);
     int16_t di, x_mid, x_end, y0, y_mid, y_end;
-    uint16_t rec, end, idx;
+    uint16_t rec, idx;
+    struct belt *end;
 
     DG50AF.flip_options = part_flip_options(part);
 
@@ -5927,9 +5928,9 @@ uint16_t part_handle_at_pointer(struct part *part)
     }
 
     if (part->kind == KIND_ROPE) {
-        end = part->belt_ptr[0];
-        rec = BELT_PTR(end)->end_b_ptr;
-        idx = ((int8_t)BELT_PTR(end)->slot_b);
+        end = BELT_PTR(part->belt_ptr[0]);
+        rec = end->end_b_ptr;
+        idx = ((int8_t)end->slot_b);
 
         di = (int16_t)(((uint16_t)PART_PTR(rec)->box[0].x)
                        + PART_PTR(rec)->attach[idx].x
@@ -6707,24 +6708,24 @@ out:
 void untie_rope(struct part *part)
 {
     struct rope *rope = ROPE_PTR(part->rope_ptr);
-    uint16_t end;
+    struct part *end;
 
     if (rope == ROPE_NONE)
         return;
 
-    end = rope->end_a_ptr;
-    if (end != 0) {
-        PART_PTR(end)->flags_08 &= 0xfffd;
-        PART_PTR(end)->word_94 = PART_PTR(end)->flags_08;
-        PART_PTR(end)->rope_ptr = 0;
+    end = PART_PTR(rope->end_a_ptr);
+    if (end != PART_NONE) {
+        end->flags_08 &= 0xfffd;
+        end->word_94 = end->flags_08;
+        end->rope_ptr = 0;
         rope->end_a_ptr = 0;
     }
 
-    end = rope->end_b_ptr;
-    if (end != 0) {
-        PART_PTR(end)->flags_08 &= 0xfffd;
-        PART_PTR(end)->word_94 = PART_PTR(end)->flags_08;
-        PART_PTR(end)->rope_ptr = 0;
+    end = PART_PTR(rope->end_b_ptr);
+    if (end != PART_NONE) {
+        end->flags_08 &= 0xfffd;
+        end->word_94 = end->flags_08;
+        end->rope_ptr = 0;
         rope->end_b_ptr = 0;
     }
 

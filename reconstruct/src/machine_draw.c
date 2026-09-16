@@ -2004,7 +2004,8 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 {
     int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
     struct extent16 ext;   /* [bp-0x22] width, [bp-0x20] height */
-    uint16_t si, rec, idx, bmp;
+    uint16_t si, idx, bmp;
+    struct belt *rec;
     int16_t  step, tall;
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
     int16_t  hx, hxm, hxr, hy, hym, hyb;
@@ -2030,9 +2031,9 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
              < (int16_t)PART_PTR(si)->word_58)
             ? 0x0a : PART_PTR(si)->word_58;
     } else if (part->kind == KIND_ROPE) {
-        rec = part->belt_ptr[0];
-        si = BELT_PTR(rec)->end_b_ptr;
-        idx = ((int8_t)BELT_PTR(rec)->slot_b);
+        rec = BELT_PTR(part->belt_ptr[0]);
+        si = rec->end_b_ptr;
+        idx = ((int8_t)rec->slot_b);
         at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].x)
                                + PART_PTR(si)->attach[idx].x - 8);
         at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].y)
