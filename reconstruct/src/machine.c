@@ -5597,7 +5597,7 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
     uint16_t oy = (uint16_t)(((uint16_t)part->box[0].y) - ((uint16_t)DG4E67.origin_y));
     uint16_t x0, y0, x1, y1;
     struct rope *link = ROPE_PTR(part->rope_ptr);
-    uint16_t link_end = link ? link->owner_ptr : 0;
+    uint16_t link_end = link != ROPE_NONE ? link->owner_ptr : 0;
     uint16_t e0 = part->belt_ptr[0];
     uint16_t e0_part = e0 ? BELT_PTR(e0)->owner_ptr : 0;
     uint16_t e1 = part->belt_ptr[1];

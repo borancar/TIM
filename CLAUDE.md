@@ -178,6 +178,7 @@ a case it does not obviously cover.
 - The line that separates the frames that convert from the ones that do not - [more](docs/lessons.md#the-line-that-separates-the-frames-that-convert-from-the-ones-that-do-not)
 - `dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison nobody makes - [more](docs/lessons.md#dg_calldg_uncall-are-gone-and-they-were-bookkeeping-for-a-comparison-nobody-makes)
 - `dg_off` refuses a pointer that is not the guest's, and the first thing it caught had been in the tree for weeks - [more](docs/lessons.md#dg_off-refuses-a-pointer-that-is-not-the-guests-and-the-first-thing-it-caught-had-been-in-the-tree-for-weeks)
+- A typed handle tested as a boolean is always true, and the compiler will not say so - [more](docs/lessons.md#a-typed-handle-tested-as-a-boolean-is-always-true-and-the-compiler-will-not-say-so)
 
 ### Still open, so recorded in STATUS.md
 

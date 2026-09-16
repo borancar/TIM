@@ -1463,3 +1463,36 @@ pass on the healthy port and refuse a verdict on a deliberately broken one.
 
 So: **a check that reports on a run must first establish that the run
 happened.** Solving and then dying is not solving.
+
+### A typed handle tested as a boolean is always true, and the compiler will not say so
+
+**What happened.** Converting handle locals from DGROUP offsets to typed
+pointers - `uint16_t link` becoming `struct rope *link` - left one line in
+`part_under_pointer` untouched:
+
+```c
+uint16_t link_end = link ? link->owner_ptr : 0;
+```
+
+As an offset, `link ?` asked the original's question: is there a rope, i.e. is
+the offset non-zero. As a pointer it asks whether `link` is NULL, and it never
+is: `ROPE_PTR(0)` is `dgroup + 0`, a real address. So for a part with no rope
+the test passed and `link_end` became whatever word sits at DGROUP:0 plus the
+field's offset - the Borland banner - instead of 0. It compiled without a
+warning, because a pointer in a boolean context is legal C.
+
+**What it cost.** It landed in a commit (e8045fc) that had passed every check
+the project has: both builds, `make test`, the full verification sweep, the
+intro byte for byte over 601 flips, and all 29 solutions identical and solved.
+None of them could see it. The difference only matters when a part has no rope
+*and* the `exclude` argument equals that stray word, which no captured run
+reached. It was found by reading the routine for an unrelated change.
+
+**What settled it.** Every `*_NONE` sentinel exists because a typed handle's
+"none" is DGROUP:0, never NULL - so `if (p)`, `p ? :`, `!p`, `p &&` and
+`|| p` on a typed handle are all the same fault. The conversion batches now
+fail on a scan for exactly those shapes over the whole game source, run
+before anything is committed; on e8045fc it flags that one line and nothing
+else. The rule: **compare a typed handle with its sentinel, always, and never
+use it as a boolean** - and when a check suite cannot reach a fault's
+condition, a structural scan is the check.
