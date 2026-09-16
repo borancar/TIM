@@ -5189,7 +5189,7 @@ void move_carried_rope(void)
     struct rope *link = ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr);
     struct part *di = PART_PTR(link->end_a_ptr);
     int16_t close = rope_ends_close(link);
-    uint16_t si;
+    struct part *si;
 
     if (DG5768.button_left == 2) {
         if (close == 0) {
@@ -5201,10 +5201,10 @@ void move_carried_rope(void)
         si = find_part_from(0);
 
         if (di != PART_NONE) {
-            PART_PTR(si)->flags_08 |= 2;
-            PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
-            link->end_b_ptr = si;
-            PART_PTR(si)->rope_ptr = dg_off(dgroup, link);
+            si->flags_08 |= 2;
+            si->word_94 = si->flags_08;
+            link->end_b_ptr = dg_off(dgroup, si);
+            si->rope_ptr = dg_off(dgroup, link);
 
             compute_link_endpoints(link);
             mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
@@ -5214,10 +5214,10 @@ void move_carried_rope(void)
             return;
         }
 
-        PART_PTR(si)->flags_08 |= 2;
-        PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
-        link->end_a_ptr = si;
-        PART_PTR(si)->rope_ptr = dg_off(dgroup, link);
+        si->flags_08 |= 2;
+        si->word_94 = si->flags_08;
+        link->end_a_ptr = dg_off(dgroup, si);
+        si->rope_ptr = dg_off(dgroup, link);
         return;
     }
 
@@ -5395,7 +5395,7 @@ void pointer_frame(void)
     si = (DG4E67.word_4e69 == 9 || (DG4E67.word_4e69 & 0x8000)) ? 1 : 0;
 
     if (si == 0) {
-        DG50D3.dragged_part_ptr = find_part_from(DG50D3.dragged_part_ptr);
+        DG50D3.dragged_part_ptr = dg_off(dgroup, find_part_from(DG50D3.dragged_part_ptr));
         if (DG50D3.dragged_part_ptr != 0
             && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000))
             DG50D3.dragged_part_ptr = 0;

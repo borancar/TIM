@@ -271,14 +271,14 @@ ROUTINES = {
         addr=0x04500,
         args=[("rec", 4)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.find_part_from(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.find_part_from(ctypes.c_uint16(a[0]))),
     ),
     "part_under_pointer": dict(
         addr=0x042A2,
         args=[("exclude", 4), ("part", 6)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.part_under_pointer(dgh(lib, a[0]),
-                                                   dgh(lib, a[1])),
+        call=lambda lib, a: dgo(lib, lib.part_under_pointer(dgh(lib, a[0]),
+                                                   dgh(lib, a[1]))),
     ),
     # The parts bin's two scroll arrows, and the search behind one of them.
     # No arguments: everything they read is DGROUP - the button at 0x5774, the
@@ -5631,6 +5631,8 @@ def declare_restypes(lib):
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
     lib.pick_by_flag.restype = ctypes.c_void_p
+    lib.find_part_from.restype = ctypes.c_void_p
+    lib.part_under_pointer.restype = ctypes.c_void_p
     lib.pick_for_record.restype = ctypes.c_void_p
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16

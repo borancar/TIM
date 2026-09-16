@@ -975,7 +975,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x227ac */
 void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x208f3 */
-uint16_t find_part_from(uint16_t rec);              /* 0x04500 */
+struct part *find_part_from(uint16_t rec);              /* 0x04500 */
 int16_t  rope_ends_close(struct rope *rope);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
@@ -1490,7 +1490,7 @@ uint16_t select_puzzle_screen(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
-uint16_t part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
+struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
 int16_t heapwalk(uint8_t * info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
