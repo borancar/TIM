@@ -2004,7 +2004,8 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 {
     int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
     struct extent16 ext;   /* [bp-0x22] width, [bp-0x20] height */
-    uint16_t si, idx, bmp;
+    uint16_t idx, bmp;
+    struct part *si;
     struct belt *rec;
     int16_t  step, tall;
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
@@ -2020,24 +2021,24 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     if (part->kind == KIND_BELT) {
-        si = ROPE_PTR(part->rope_ptr)->end_b_ptr;
-        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].x)
-                               + PART_PTR(si)->grab.x);
-        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].y)
-                                               + PART_PTR(si)->grab.y);
-        ext.width = (int16_t)PART_PTR(si)->word_58;
+        si = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
+        at[0] = (int16_t)(((uint16_t)si->box[0].x)
+                               + si->grab.x);
+        at[1] = (int16_t)(((uint16_t)si->box[0].y)
+                                               + si->grab.y);
+        ext.width = (int16_t)si->word_58;
         /* Reads the height before it is written; see the comment above. */
         ext.height = (int16_t)(((int16_t)ext.height >> 1)
-             < (int16_t)PART_PTR(si)->word_58)
-            ? 0x0a : PART_PTR(si)->word_58;
+             < (int16_t)si->word_58)
+            ? 0x0a : si->word_58;
     } else if (part->kind == KIND_ROPE) {
         rec = BELT_PTR(part->belt_ptr[0]);
-        si = rec->end_b_ptr;
+        si = PART_PTR(rec->end_b_ptr);
         idx = ((int8_t)rec->slot_b);
-        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].x)
-                               + PART_PTR(si)->attach[idx].x - 8);
-        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].y)
-                       + PART_PTR(si)->attach[idx].y - 4);
+        at[0] = (int16_t)(((uint16_t)si->box[0].x)
+                               + si->attach[idx].x - 8);
+        at[1] = (int16_t)(((uint16_t)si->box[0].y)
+                       + si->attach[idx].y - 4);
         ext.width = 0x10;
         ext.height = 8;
     } else {

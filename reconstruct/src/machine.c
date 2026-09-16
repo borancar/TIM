@@ -1515,7 +1515,7 @@ out:
 void carry_riders_along(struct part *obj)
 {
     int16_t dx, dy;
-    uint16_t si;
+    struct part *si;
 
     if (obj->kind != KIND_BUCKET)
         return;
@@ -1525,17 +1525,15 @@ void carry_riders_along(struct part *obj)
     if (dx == 0 && dy == 0)
         return;
 
-    for (si = obj->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr) {
-        struct part *linked = PART_PTR(si);
+    for (si = PART_PTR(obj->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr)) {
+        si->pos[0].x += dx;
+        si->pos[0].y += dy;
 
-        linked->pos[0].x += dx;
-        linked->pos[0].y += dy;
+        place_object_for_draw(si);
 
-        place_object_for_draw(linked);
-
-        linked->fx = (int32_t)linked->pos[0].x << 9;
-        linked->fy = (int32_t)linked->pos[0].y << 9;
+        si->fx = (int32_t)si->pos[0].x << 9;
+        si->fy = (int32_t)si->pos[0].y << 9;
     }
 }
 
@@ -1890,11 +1888,11 @@ void part_moved(struct part *part)
  */
 void add_carried_weight(struct part *obj)
 {
-    uint16_t si;
+    struct part *si;
 
-    for (si = obj->next_linked_ptr; si != 0;
-         si = PART_PTR(si)->next_linked_ptr)
-        add_mass_capped(obj, PART_PTR(si));
+    for (si = PART_PTR(obj->next_linked_ptr); si != PART_NONE;
+         si = PART_PTR(si->next_linked_ptr))
+        add_mass_capped(obj, si);
 }
 
 /*
@@ -2070,12 +2068,12 @@ void goal_test_puzzle_20(void)
  */
 void goal_test_puzzle_21(void)
 {
-    uint16_t si = DG5179.moving_parts.next_ptr;
+    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
 
-    while (PART_PTR(si)->kind != KIND_POKEY)
-        si = ((uint16_t)PART_PTR(si)->next_ptr);
+    while (si->kind != KIND_POKEY)
+        si = PART_PTR(si->next_ptr);
 
-    if ((int16_t)((uint16_t)PART_PTR(si)->pos[0].y) > 0x12c)
+    if ((int16_t)((uint16_t)si->pos[0].y) > 0x12c)
         DG4E67.state = 0x200;
 }
 
@@ -2110,15 +2108,15 @@ void goal_test_puzzle_22(void)
  */
 void goal_test_puzzle_1(void)
 {
-    uint16_t si = DG5179.moving_parts.next_ptr;
+    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
 
-    while (PART_PTR(si)->kind != KIND_BASKETBALL)
-        si = ((uint16_t)PART_PTR(si)->next_ptr);
+    while (si->kind != KIND_BASKETBALL)
+        si = PART_PTR(si->next_ptr);
 
-    if ((int16_t)((uint16_t)PART_PTR(si)->pos[0].x) > 0x1a8
-        && (int16_t)((uint16_t)PART_PTR(si)->pos[0].x) < 0x1da
-        && (int16_t)((uint16_t)PART_PTR(si)->pos[0].y) > 0x88
-        && (int16_t)((uint16_t)PART_PTR(si)->pos[0].y) < 0x98)
+    if ((int16_t)((uint16_t)si->pos[0].x) > 0x1a8
+        && (int16_t)((uint16_t)si->pos[0].x) < 0x1da
+        && (int16_t)((uint16_t)si->pos[0].y) > 0x88
+        && (int16_t)((uint16_t)si->pos[0].y) < 0x98)
         DG4E67.state = 0x200;
 }
 
@@ -2504,22 +2502,22 @@ void goal_test_puzzles_14_15_64_73(void)
  */
 void goal_test_puzzle_24(void)
 {
-    uint16_t si = DG5179.moving_parts.next_ptr;
+    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
     int16_t  ok = 1;
 
-    while (si != 0) {
-        if (PART_PTR(si)->kind == KIND_BALLOON) {
-            if (PART_PTR(si)->form != 0)
+    while (si != PART_NONE) {
+        if (si->kind == KIND_BALLOON) {
+            if (si->form != 0)
                 ok = 0;
-            if (PART_PTR(si)->pos[0].x != PART_PTR(si)->pos[2].x
-                || PART_PTR(si)->pos[0].y != PART_PTR(si)->pos[2].y)
+            if (si->pos[0].x != si->pos[2].x
+                || si->pos[0].y != si->pos[2].y)
                 ok = 0;
         }
 
         if ((int16_t)DG4E67.machine_frames < 0x14)
             ok = 0;
 
-        si = PART_PTR(si)->next_ptr;
+        si = PART_PTR(si->next_ptr);
     }
 
     if (ok)
@@ -4573,9 +4571,9 @@ void integrate_object(struct part *obj)
  */
 void apply_contact_friction(struct part *obj)
 {
-    uint16_t other = obj->contact_ptr;
+    struct part *other = PART_PTR(obj->contact_ptr);
     uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * ((int16_t)obj->kind));
-    uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART_PTR(other)->kind));
+    uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)other->kind));
     int16_t load   = PARTKIND_AT_PTR(rec_a)->gravity;
     int16_t angle  = obj->word_88;
     int16_t grip, cos_a, sin_a, aload, normal, tangent, drag, push, perp;
@@ -4591,7 +4589,7 @@ void apply_contact_friction(struct part *obj)
 
     v = obj->vel_x;
 
-    if (((int16_t)PART_PTR(other)->kind) == 5 && PART_PTR(other)->direction != 0)
+    if (((int16_t)other->kind) == 5 && other->direction != 0)
         grip = 0x100;
     else
         grip = PARTKIND_AT_PTR(rec_a)->word_06 > PARTKIND_AT_PTR(rec_b)->word_06 ? PARTKIND_AT_PTR(rec_a)->word_06
@@ -5504,46 +5502,48 @@ int16_t points_within_140(const struct point16 *a, const struct point16 *b)
  */
 void reverse_link_ends(struct belt *rec)
 {
-    uint16_t di, si, t;
+    uint16_t t;
+    struct belt *si;
+    struct part *di;
     uint8_t b;
     struct point8 pair;
 
-    di = PART_PTR(rec->end_a_ptr)->link_ptr[rec->slot_a];
+    di = PART_PTR(PART_PTR(rec->end_a_ptr)->link_ptr[rec->slot_a]);
 
-    while (di != 0 && PART_PTR(di)->kind == KIND_PULLEY) {
-        t = PART_PTR(di)->link_ptr[0];
-        PART_PTR(di)->link_ptr[0] = PART_PTR(di)->link_ptr[1];
-        PART_PTR(di)->link_ptr[1] = t;
-        PART_PTR(di)->link_ptr[2] = PART_PTR(di)->link_ptr[0];
-        PART_PTR(di)->link_ptr[3] = PART_PTR(di)->link_ptr[1];
+    while (di != PART_NONE && di->kind == KIND_PULLEY) {
+        t = di->link_ptr[0];
+        di->link_ptr[0] = di->link_ptr[1];
+        di->link_ptr[1] = t;
+        di->link_ptr[2] = di->link_ptr[0];
+        di->link_ptr[3] = di->link_ptr[1];
 
         /* the original swaps these with a single 16-bit move, which is the
            pair and not the byte */
-        pair = PART_PTR(di)->attach[0];
-        PART_PTR(di)->attach[0] = PART_PTR(di)->attach[1];
-        PART_PTR(di)->attach[1] = pair;
+        pair = di->attach[0];
+        di->attach[0] = di->attach[1];
+        di->attach[1] = pair;
 
-        si = PART_PTR(di)->belt_ptr[0];
-        t = ((uint16_t)BELT_PTR(si)->pt[0][0].x);
-        BELT_PTR(si)->pt[0][0].x = ((uint16_t)BELT_PTR(si)->pt[0][1].x);
-        BELT_PTR(si)->pt[0][1].x = t;
-        t = ((uint16_t)BELT_PTR(si)->pt[0][0].y);
-        BELT_PTR(si)->pt[0][0].y = ((uint16_t)BELT_PTR(si)->pt[0][1].y);
-        BELT_PTR(si)->pt[0][1].y = t;
-        t = ((uint16_t)BELT_PTR(si)->pt[1][0].x);
-        BELT_PTR(si)->pt[1][0].x = ((uint16_t)BELT_PTR(si)->pt[1][1].x);
-        BELT_PTR(si)->pt[1][1].x = t;
-        t = ((uint16_t)BELT_PTR(si)->pt[1][0].y);
-        BELT_PTR(si)->pt[1][0].y = ((uint16_t)BELT_PTR(si)->pt[1][1].y);
-        BELT_PTR(si)->pt[1][1].y = t;
-        t = ((uint16_t)BELT_PTR(si)->pt[2][0].x);
-        BELT_PTR(si)->pt[2][0].x = ((uint16_t)BELT_PTR(si)->pt[2][1].x);
-        BELT_PTR(si)->pt[2][1].x = t;
-        t = ((uint16_t)BELT_PTR(si)->pt[2][0].y);
-        BELT_PTR(si)->pt[2][0].y = ((uint16_t)BELT_PTR(si)->pt[2][1].y);
-        BELT_PTR(si)->pt[2][1].y = t;
+        si = BELT_PTR(di->belt_ptr[0]);
+        t = ((uint16_t)si->pt[0][0].x);
+        si->pt[0][0].x = ((uint16_t)si->pt[0][1].x);
+        si->pt[0][1].x = t;
+        t = ((uint16_t)si->pt[0][0].y);
+        si->pt[0][0].y = ((uint16_t)si->pt[0][1].y);
+        si->pt[0][1].y = t;
+        t = ((uint16_t)si->pt[1][0].x);
+        si->pt[1][0].x = ((uint16_t)si->pt[1][1].x);
+        si->pt[1][1].x = t;
+        t = ((uint16_t)si->pt[1][0].y);
+        si->pt[1][0].y = ((uint16_t)si->pt[1][1].y);
+        si->pt[1][1].y = t;
+        t = ((uint16_t)si->pt[2][0].x);
+        si->pt[2][0].x = ((uint16_t)si->pt[2][1].x);
+        si->pt[2][1].x = t;
+        t = ((uint16_t)si->pt[2][0].y);
+        si->pt[2][0].y = ((uint16_t)si->pt[2][1].y);
+        si->pt[2][1].y = t;
 
-        di = PART_PTR(di)->link_ptr[1];
+        di = PART_PTR(di->link_ptr[1]);
     }
 
     t = ((uint16_t)rec->end_a_ptr);
@@ -5596,8 +5596,8 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
     uint16_t ox = (uint16_t)(((uint16_t)part->box[0].x) - ((uint16_t)DG4E67.origin_x));
     uint16_t oy = (uint16_t)(((uint16_t)part->box[0].y) - ((uint16_t)DG4E67.origin_y));
     uint16_t x0, y0, x1, y1;
-    uint16_t link = part->rope_ptr;
-    uint16_t link_end = link ? ROPE_PTR(link)->owner_ptr : 0;
+    struct rope *link = ROPE_PTR(part->rope_ptr);
+    uint16_t link_end = link ? link->owner_ptr : 0;
     uint16_t e0 = part->belt_ptr[0];
     uint16_t e0_part = e0 ? BELT_PTR(e0)->owner_ptr : 0;
     uint16_t e1 = part->belt_ptr[1];
@@ -5623,7 +5623,7 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
           && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py))
         return 0;
 
-    if (link != 0 && DG4E67.word_4e69 != 9) {
+    if (link != ROPE_NONE && DG4E67.word_4e69 != 9) {
         x0 = (uint16_t)(ox + part->grab.x);
         y0 = (uint16_t)(oy + part->grab.y);
         x1 = (uint16_t)(x0 + part->word_58);
@@ -5632,18 +5632,18 @@ uint16_t part_under_pointer(uint16_t exclude, struct part *part)
              ? (uint16_t)(y0 + 0xa)
              : (uint16_t)(y0 + part->word_58);
 
-        if (ROPE_PTR(link)->owner_ptr == exclude) {
+        if (link->owner_ptr == exclude) {
             x0 = (uint16_t)(x0 - 0xb);
             y0 = (uint16_t)(y0 - 0xb);
         }
 
         if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
             && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-            if (ROPE_PTR(link)->end_a_ptr == dg_off(dgroup, part)) {
-                ROPE_PTR(link)->end_a_ptr = ROPE_PTR(link)->end_b_ptr;
-                ROPE_PTR(link)->end_b_ptr = dg_off(dgroup, part);
+            if (link->end_a_ptr == dg_off(dgroup, part)) {
+                link->end_a_ptr = link->end_b_ptr;
+                link->end_b_ptr = dg_off(dgroup, part);
             }
-            return ROPE_PTR(link)->owner_ptr;
+            return link->owner_ptr;
         }
     }
 
@@ -5908,18 +5908,19 @@ uint16_t part_handle_at_pointer(struct part *part)
 {
     int16_t px = (int16_t)((uint16_t)DG5768.pointer_x), py = (int16_t)((uint16_t)DG5768.pointer_y);
     int16_t di, x_mid, x_end, y0, y_mid, y_end;
-    uint16_t rec, idx;
+    uint16_t idx;
+    struct part *rec;
     struct belt *end;
 
     DG50AF.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
-        rec = ROPE_PTR(part->rope_ptr)->end_b_ptr;
+        rec = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
 
-        di = (int16_t)(((uint16_t)PART_PTR(rec)->box[0].x)
-                       + PART_PTR(rec)->grab.x - ((uint16_t)DG4E67.origin_x));
-        y0 = (int16_t)(((uint16_t)PART_PTR(rec)->box[0].y)
-                       + PART_PTR(rec)->grab.y - ((uint16_t)DG4E67.origin_x));
+        di = (int16_t)(((uint16_t)rec->box[0].x)
+                       + rec->grab.x - ((uint16_t)DG4E67.origin_x));
+        y0 = (int16_t)(((uint16_t)rec->box[0].y)
+                       + rec->grab.y - ((uint16_t)DG4E67.origin_x));
 
         if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
             return 8;
@@ -5929,14 +5930,14 @@ uint16_t part_handle_at_pointer(struct part *part)
 
     if (part->kind == KIND_ROPE) {
         end = BELT_PTR(part->belt_ptr[0]);
-        rec = end->end_b_ptr;
+        rec = PART_PTR(end->end_b_ptr);
         idx = ((int8_t)end->slot_b);
 
-        di = (int16_t)(((uint16_t)PART_PTR(rec)->box[0].x)
-                       + PART_PTR(rec)->attach[idx].x
+        di = (int16_t)(((uint16_t)rec->box[0].x)
+                       + rec->attach[idx].x
                        - ((uint16_t)DG4E67.origin_x) - 8);
-        y0 = (int16_t)(((uint16_t)PART_PTR(rec)->box[0].y)
-                       + PART_PTR(rec)->attach[idx].y
+        y0 = (int16_t)(((uint16_t)rec->box[0].y)
+                       + rec->attach[idx].y
                        - ((uint16_t)DG4E67.origin_x) - 4);
 
         if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
@@ -6089,17 +6090,17 @@ void retension_pulleys(struct part *part)
  */
 void rehome_carried_part(void)
 {
-    uint16_t part = DG50D3.dragged_part_ptr;
-    uint16_t old = PART_PTR(part)->link_ptr[4];
-    uint8_t  old_slot = PART_PTR(part)->byte_7e;
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    uint16_t old = part->link_ptr[4];
+    uint8_t  old_slot = part->byte_7e;
     uint16_t di = 0, si;
     uint8_t  slot = 0;
 
-    PART_PTR(part)->link_ptr[4] = 0;
+    part->link_ptr[4] = 0;
 
-    link_nearby_objects(PART_PTR(part), 0x2000, -8, 8, -8, 8);
+    link_nearby_objects(part, 0x2000, -8, 8, -8, 8);
 
-    si = PART_PTR(part)->next_linked_ptr;
+    si = part->next_linked_ptr;
     while (si != 0) {
         if (si == old) {
             di = old;
@@ -6121,17 +6122,17 @@ void rehome_carried_part(void)
     }
 
     if (old != 0 && di != old) {
-        PART_PTR(old)->link_ptr[PART_PTR(part)->byte_7e + 4] = 0;
-        PART_PTR(part)->link_ptr[4] = 0;
+        PART_PTR(old)->link_ptr[part->byte_7e + 4] = 0;
+        part->link_ptr[4] = 0;
 
         call_part_setup(PARTKIND_PTR(PART_PTR(old)->kind)->setup, PART_PTR(old));
         PART_PTR(old)->word_90 = PART_PTR(old)->form;
     }
 
     if (di != 0) {
-        PART_PTR(di)->link_ptr[slot + 4] = part;
-        PART_PTR(part)->link_ptr[4] = di;
-        PART_PTR(part)->byte_7e = slot;
+        PART_PTR(di)->link_ptr[slot + 4] = dg_off(dgroup, part);
+        part->link_ptr[4] = di;
+        part->byte_7e = slot;
 
         call_part_setup(PARTKIND_PTR(PART_PTR(di)->kind)->setup, PART_PTR(di));
         PART_PTR(di)->word_90 = PART_PTR(di)->form;
@@ -6168,9 +6169,9 @@ void compute_link_endpoints(struct rope *link)
      * Borland banner - and the endpoint is those bytes until the second click
      * fills the end. `PART_PTR(0)` is DS:0, so the same read is written here.
      */
-    uint16_t a = link->end_a_ptr;
+    struct part *a = PART_PTR(link->end_a_ptr);
     struct part *b = PART_PTR(link->end_b_ptr);
-    const struct part *pa = PART_PTR(a);
+    const struct part *pa = a;
     const struct part *pb = b;
     int16_t dx, dy;
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
@@ -6345,8 +6346,8 @@ void insert_sorted(struct part *rec, struct part *head)
         if (PART_PTR(di)->next_ptr == 0) {
             stop = 1;
         } else {
-            uint16_t next = PART_PTR(di)->next_ptr;
-            int16_t kind2 = PART_PTR(next)->kind;
+            struct part *next = PART_PTR(PART_PTR(di)->next_ptr);
+            int16_t kind2 = next->kind;
 
             if (head == &DG50D3.parts_bin) {
                 stop = (prio < PARTKIND_PTR(kind2)->word_20) ? 1 : 0;
@@ -8515,10 +8516,10 @@ int16_t compare_link_ends(struct belt *link, int16_t end, int16_t reversed)
  */
 int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
 {
-    uint16_t v16;   /* [bp-0x16] beyond the far end */
+    struct part *v16;   /* [bp-0x16] beyond the far end */
     uint16_t v14;   /* [bp-0x14] beyond the near end */
     uint16_t v12;   /* [bp-0x12] the far part */
-    uint16_t v10;   /* [bp-0x10] the near part */
+    struct part *v10;   /* [bp-0x10] the near part */
     uint16_t v0e;   /* [bp-0x0e] the far record */
     uint16_t v0c;   /* [bp-0x0c] the near record */
     int16_t  v0a;   /* [bp-0x0a] the first bit */
@@ -8532,19 +8533,19 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
     int16_t answer;
 
     if (cx != 0) {
-        v10 = ((uint16_t)BELT_PTR(si)->end_b_ptr);
+        v10 = PART_PTR(BELT_PTR(si)->end_b_ptr);
         v02 = (int16_t)BELT_PTR(si)->slot_b;
         v12 = ((uint16_t)BELT_PTR(si)->end_a_ptr);
         v04 = (int16_t)BELT_PTR(si)->slot_a;
     } else {
-        v10 = ((uint16_t)BELT_PTR(si)->end_a_ptr);
+        v10 = PART_PTR(BELT_PTR(si)->end_a_ptr);
         v02 = (int16_t)BELT_PTR(si)->slot_a;
         v12 = ((uint16_t)BELT_PTR(si)->end_b_ptr);
         v04 = (int16_t)BELT_PTR(si)->slot_b;
     }
 
-    v14 = PART_PTR(v10)->link_ptr[v02];
-    v16 = PART_PTR(v12)->link_ptr[v04];
+    v14 = v10->link_ptr[v02];
+    v16 = PART_PTR(PART_PTR(v12)->link_ptr[v04]);
 
     if (v12 == v14) {
         v0e = si;
@@ -8553,7 +8554,7 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
         v08 = cx;
     } else {
         v0c = PART_PTR(v14)->belt_ptr[0];
-        v0e = PART_PTR(v16)->belt_ptr[0];
+        v0e = v16->belt_ptr[0];
         v06 = (int16_t)(1 - cx);
         v08 = (int16_t)(1 - di);
     }
@@ -8896,7 +8897,7 @@ int16_t tension_belt(struct part *part)
     int16_t dA;   /* [bp-6] */
     int16_t gapA;   /* [bp-4] */
     int16_t slackA;   /* [bp-2] */
-    uint16_t di;
+    struct part *di;
     int16_t t;
 
     answer = 0;
@@ -8912,19 +8913,19 @@ int16_t tension_belt(struct part *part)
         moving = -1;
 
     belt = part->belt_ptr[0];
-    di = ((uint16_t)BELT_PTR(belt)->owner_ptr);
+    di = PART_PTR(BELT_PTR(belt)->owner_ptr);
     other = select_field_2_or_4((int16_t)dg_off(dgroup, part), BELT_PTR(belt));
 
     if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
         end = 0;
         slot = (int16_t)BELT_PTR(belt)->slot_b;
-        slackA = ((int16_t)PART_PTR(di)->word_96);
-        slackB = PART_PTR(di)->spin;
+        slackA = ((int16_t)di->word_96);
+        slackB = di->spin;
     } else {
         end = 1;
         slot = (int16_t)BELT_PTR(belt)->slot_a;
-        slackA = PART_PTR(di)->spin;
-        slackB = ((int16_t)PART_PTR(di)->word_96);
+        slackA = di->spin;
+        slackB = ((int16_t)di->word_96);
     }
 
     gapB = link_endpoint_gap(BELT_PTR(belt), PART_PTR(other), (uint8_t *)dx2,
@@ -8949,14 +8950,14 @@ int16_t tension_belt(struct part *part)
 
             if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
                 slackA = (int16_t)(gapA - dA);
-                PART_PTR(di)->word_96 = slackA;
+                di->word_96 = slackA;
                 slackB = (int16_t)(gapB - dB);
-                PART_PTR(di)->spin = slackB;
+                di->spin = slackB;
             } else {
                 slackA = (int16_t)(gapA - dA);
-                PART_PTR(di)->spin = slackA;
+                di->spin = slackA;
                 slackB = (int16_t)(gapB - dB);
-                PART_PTR(di)->word_96 = slackB;
+                di->word_96 = slackB;
             }
         }
     }
@@ -9003,8 +9004,8 @@ int16_t tension_belt(struct part *part)
         goto stretched;
 
     if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == dg_off(dgroup, part)) {
-        PART_PTR(di)->spin -= give;
-        slackB = PART_PTR(di)->spin;
+        di->spin -= give;
+        slackB = di->spin;
 
         tension_belt(PART_PTR(other));
         PART_PTR(other)->flags_06 &= 0xfff0;
@@ -9015,18 +9016,18 @@ int16_t tension_belt(struct part *part)
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
-            PART_PTR(di)->spin += dB;
+            di->spin += dB;
             give -= dB;
         }
 
         if (give != 0) {
-            PART_PTR(di)->word_96 += give;
-            slackA = ((int16_t)PART_PTR(di)->word_96);
+            di->word_96 += give;
+            slackA = ((int16_t)di->word_96);
             dA = (int16_t)(gapA - slackA);
         }
     } else {
-        PART_PTR(di)->word_96 -= give;
-        slackB = ((int16_t)PART_PTR(di)->word_96);
+        di->word_96 -= give;
+        slackB = ((int16_t)di->word_96);
 
         tension_belt(PART_PTR(other));
         PART_PTR(other)->flags_06 &= 0xfff0;
@@ -9037,13 +9038,13 @@ int16_t tension_belt(struct part *part)
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
-            PART_PTR(di)->word_96 += dB;
+            di->word_96 += dB;
             give -= dB;
         }
 
         if (give != 0) {
-            PART_PTR(di)->spin += give;
-            slackA = PART_PTR(di)->spin;
+            di->spin += give;
+            slackA = di->spin;
             dA = (int16_t)(gapA - slackA);
         }
     }
@@ -9061,14 +9062,14 @@ stretched:
         goto out;
 
     if (((uint16_t)BELT_PTR(belt)->end_a_ptr) == other) {
-        PART_PTR(di)->word_96 -= dA;
+        di->word_96 -= dA;
 
-        if (((int16_t)PART_PTR(di)->word_96) < 0) {
-            dA = (int16_t)(dA + ((int16_t)PART_PTR(di)->word_96));
+        if (((int16_t)di->word_96) < 0) {
+            dA = (int16_t)(dA + ((int16_t)di->word_96));
 
             saved = ((int16_t)DG4E67.state);
             DG4E67.state = 0x1000;
-            mark_belt_shapes(PART_PTR(di), 3);
+            mark_belt_shapes(di, 3);
             DG4E67.state = saved;
 
             pB = PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_a];
@@ -9087,16 +9088,16 @@ stretched:
                 (uint16_t)link_end_distance(BELT_PTR(belt), 3, 0);
         }
 
-        PART_PTR(di)->spin += dA;
+        di->spin += dA;
     } else {
-        PART_PTR(di)->spin -= dA;
+        di->spin -= dA;
 
-        if (PART_PTR(di)->spin < 0) {
-            dA = (int16_t)(dA + PART_PTR(di)->spin);
+        if (di->spin < 0) {
+            dA = (int16_t)(dA + di->spin);
 
             saved = ((int16_t)DG4E67.state);
             DG4E67.state = 0x1000;
-            mark_belt_shapes(PART_PTR(di), 3);
+            mark_belt_shapes(di, 3);
             DG4E67.state = saved;
 
             pB = PART_PTR(other)->link_ptr[BELT_PTR(belt)->slot_b];
@@ -9115,7 +9116,7 @@ stretched:
                 link_end_distance(BELT_PTR(belt), 3, 1);
         }
 
-        PART_PTR(di)->word_96 += dA;
+        di->word_96 += dA;
     }
 
     goto out;
@@ -9221,7 +9222,8 @@ out:
 int16_t link_endpoint_gap(struct belt *link, struct part *obj,
                           uint8_t * out_dx, uint8_t * out_dy)
 {
-    uint16_t self, other, pt;
+    uint16_t self, pt;
+    struct part *other;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
 
     if (link->end_a_ptr == dg_off(dgroup, obj)) {
@@ -9235,16 +9237,16 @@ int16_t link_endpoint_gap(struct belt *link, struct part *obj,
     x1 = (int16_t)(PART_PTR(self)->box[0].x + PART_PTR(self)->attach[idx].x);
     y1 = (int16_t)(PART_PTR(self)->box[0].y + PART_PTR(self)->attach[idx].y);
 
-    other = PART_PTR(self)->link_ptr[idx];
-    facing = match_field_5a_5c((int16_t)self, PART_PTR(other));
+    other = PART_PTR(PART_PTR(self)->link_ptr[idx]);
+    facing = match_field_5a_5c((int16_t)self, other);
 
-    if (((int16_t)PART_PTR(other)->kind) == 7) {
-        pt = PART_PTR(other)->belt_ptr[0];
+    if (((int16_t)other->kind) == 7) {
+        pt = other->belt_ptr[0];
         x2 = BELT_PTR(pt)->pt[0][1 - facing].x;
         y2 = BELT_PTR(pt)->pt[0][1 - facing].y;
     } else {
-        x2 = (int16_t)(PART_PTR(other)->box[0].x + PART_PTR(other)->attach[facing].x);
-        y2 = (int16_t)(PART_PTR(other)->box[0].y + PART_PTR(other)->attach[facing].y);
+        x2 = (int16_t)(other->box[0].x + other->attach[facing].x);
+        y2 = (int16_t)(other->box[0].y + other->attach[facing].y);
     }
 
     *(int16_t *)(out_dx) = (int16_t)(x1 - x2);
@@ -9483,7 +9485,7 @@ void reset_machine(void)
     struct part *v4;            /* [bp-4] */
     uint16_t v2;            /* [bp-2] */
     struct part *si;
-    uint16_t di;
+    struct belt *di;
 
     for (si = pick_by_flag(0x3000); si != PART_NONE; si = v4) {
         v4 = pick_for_record(si, 0x1000);
@@ -9559,23 +9561,23 @@ void reset_machine(void)
         if (si->kind != KIND_ROPE)
             continue;
 
-        di = si->belt_ptr[0];
-        BELT_PTR(di)->end_a_ptr = ((uint16_t)BELT_PTR(di)->home_a_ptr);
-        BELT_PTR(di)->end_b_ptr = ((uint16_t)BELT_PTR(di)->home_b_ptr);
-        BELT_PTR(di)->slot_a = BELT_PTR(di)->home_slot_a;
-        BELT_PTR(di)->slot_b = BELT_PTR(di)->home_slot_b;
+        di = BELT_PTR(si->belt_ptr[0]);
+        di->end_a_ptr = ((uint16_t)di->home_a_ptr);
+        di->end_b_ptr = ((uint16_t)di->home_b_ptr);
+        di->slot_a = di->home_slot_a;
+        di->slot_b = di->home_slot_b;
 
-        PART_PTR(BELT_PTR(di)->end_a_ptr)->belt_ptr[BELT_PTR(di)->slot_a] = di;
-        PART_PTR(BELT_PTR(di)->end_b_ptr)->belt_ptr[BELT_PTR(di)->slot_b] = di;
+        PART_PTR(di->end_a_ptr)->belt_ptr[di->slot_a] = dg_off(dgroup, di);
+        PART_PTR(di->end_b_ptr)->belt_ptr[di->slot_b] = dg_off(dgroup, di);
 
-        v6 = ((uint16_t)BELT_PTR(di)->end_a_ptr);
-        v8 = PART_PTR(v6)->link_ptr[BELT_PTR(di)->slot_a];
+        v6 = ((uint16_t)di->end_a_ptr);
+        v8 = PART_PTR(v6)->link_ptr[di->slot_a];
 
         while (v6 != 0) {
             if (PART_PTR(v6)->kind == KIND_PULLEY)
-                PART_PTR(v6)->belt_ptr[1] = di;
+                PART_PTR(v6)->belt_ptr[1] = dg_off(dgroup, di);
 
-            if (((uint16_t)BELT_PTR(di)->end_b_ptr) == v6) {
+            if (((uint16_t)di->end_b_ptr) == v6) {
                 v6 = 0;
                 continue;
             }
@@ -9584,19 +9586,19 @@ void reset_machine(void)
             v8 = PART_PTR(v8)->link_ptr[0];
         }
 
-        refresh_link_geometry(BELT_PTR(di));
+        refresh_link_geometry(di);
 
-        si->word_9a = (uint16_t)link_end_distance(BELT_PTR(di), 3, 0);
+        si->word_9a = (uint16_t)link_end_distance(di, 3, 0);
         si->word_98 = ((uint16_t)si->word_9a);
         si->word_96 = ((uint16_t)si->word_9a);
 
-        si->word_a0 = (uint16_t)link_end_distance(BELT_PTR(di), 3, 1);
+        si->word_a0 = (uint16_t)link_end_distance(di, 3, 1);
         si->word_9e = ((uint16_t)si->word_a0);
         si->spin = ((uint16_t)si->word_a0);
 
-        BELT_PTR(di)->v[2] = 0;
-        BELT_PTR(di)->v[1] = 0;
-        BELT_PTR(di)->v[0] = 0;
+        di->v[2] = 0;
+        di->v[1] = 0;
+        di->v[0] = 0;
     }
 
 }
