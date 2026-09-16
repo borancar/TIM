@@ -874,7 +874,7 @@ struct dg_5768 {
                                      cursor is drawn at, and `wait_and_latch_frame` copies the pair
                                      into `pointer_x`/`pointer_y` below for the frame's regions */
     int16_t   cursor_x;           /* +0x06 */
-    uint16_t  word_5770;          /* +0x08 */
+    dg_near_t cursor_bitmap_ptr;  /* +0x08  the mouse cursor's bitmap, 0 for none - set_cursor */
     uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
     uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
     uint16_t  word_5776;          /* +0x0e */
@@ -894,7 +894,7 @@ DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
 DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
 DG_ASSERT_AT(struct dg_5768, cursor_y,          0x04);
 DG_ASSERT_AT(struct dg_5768, cursor_x,          0x06);
-DG_ASSERT_AT(struct dg_5768, word_5770,         0x08);
+DG_ASSERT_AT(struct dg_5768, cursor_bitmap_ptr, 0x08);
 DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
 DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);
 DG_ASSERT_AT(struct dg_5768, word_5776,         0x0e);
@@ -2491,9 +2491,9 @@ _Static_assert(sizeof(struct saved_rect) == 0x0c, "a saved rect is twelve bytes"
 
 struct page_slot {
     dg_seg_t  page;            /* +0x00  the page this slot belongs to */
-    int16_t   word_02;         /* +0x02 */
-    int16_t   word_04;         /* +0x04 */
-    int16_t   word_06;         /* +0x06 */
+    dg_near_t bitmap_ptr;      /* +0x02  the bitmap the slot was staged for, re-staged when the cursor's changes */
+    int16_t   x;               /* +0x04  where the cursor's bitmap is drawn, unclipped */
+    int16_t   y;               /* +0x06 */
     struct saved_rect obj;     /* +0x08  what the object covered */
     struct saved_rect cursor;  /* +0x14  what the cursor covered */
 } __attribute__((packed));

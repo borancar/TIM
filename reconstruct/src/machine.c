@@ -11611,14 +11611,14 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
 {
     uint16_t saved;
 
-    if (DG5768.word_5770 == bitmap && DG5768.word_5780 == hot_y
+    if (DG5768.cursor_bitmap_ptr == bitmap && DG5768.word_5780 == hot_y
         && DG5768.word_577e == hot_x)
         return;
 
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    DG5768.word_5770 = bitmap;
+    DG5768.cursor_bitmap_ptr = bitmap;
 
     if (bitmap == 0) {
         DG5768.word_577e = 0;
@@ -11739,7 +11739,7 @@ void draw_cursor(uint16_t page)
     /* Save what the new one will cover. */
     if (MACHINE_CURSOR_STATE.cursor_off != 0) {
         if (slot->obj.buf != 0
-            && ((uint16_t)slot->word_02) != 0) {
+            && slot->bitmap_ptr != 0) {
             if (slot->obj.w > 0
                 && slot->obj.h > 0) {
                 uint16_t b = slot->obj.buf;
@@ -11757,25 +11757,25 @@ void draw_cursor(uint16_t page)
         }
 
         /* And draw it. */
-        if (((uint16_t)slot->word_02) != 0
+        if (slot->bitmap_ptr != 0
             && slot->obj.buf != 0) {
-            int16_t y = slot->word_06;
+            int16_t y = slot->y;
 
             /*
              * On adapter 8 a negative y is nudged one further up before the
              * blit, and the x argument is replaced by zero.
              */
             if (((uint8_t)VMDS.pixel_shift) == 8 && y < 0)
-                draw_bitmap(BMP_PTR(slot->word_02),
-                            slot->word_04,
+                draw_bitmap(BMP_PTR(slot->bitmap_ptr),
+                            slot->x,
                             (int16_t)(y - 1), 0);
             else
-                draw_bitmap(BMP_PTR(slot->word_02),
-                            slot->word_04, y, 0);
+                draw_bitmap(BMP_PTR(slot->bitmap_ptr),
+                            slot->x, y, 0);
         } else {
             MACHINE_PALETTE_FADE.word_573e = (int16_t)((MACHINE_PALETTE_FADE.word_573e + 1) & 0x0f);
-            plot_pixel_clipped(slot->word_04,
-                               slot->word_06,
+            plot_pixel_clipped(slot->x,
+                               slot->y,
                                MACHINE_PALETTE_FADE.word_573e);
         }
 
@@ -11837,10 +11837,10 @@ void redraw_cursor(uint16_t page)
     MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
     MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
-    if (DG5768.word_5770 == 0
-        || slot->word_04 != MACHINE_RECT_FREE.word_56e2
-        || slot->word_06 != MACHINE_RECT_FREE.word_56e4
-        || ((uint16_t)slot->word_02) != DG5768.word_5770
+    if (DG5768.cursor_bitmap_ptr == 0
+        || slot->x != MACHINE_RECT_FREE.word_56e2
+        || slot->y != MACHINE_RECT_FREE.word_56e4
+        || slot->bitmap_ptr != DG5768.cursor_bitmap_ptr
         || (slot->obj.flags & 2) == 0)
         draw_cursor(page);
 
@@ -13120,7 +13120,7 @@ void clear_object_covered(uint16_t page)
 void restage_object_rect(uint16_t handle)
 {
     struct page_slot *rec;
-    uint16_t parent;
+    struct bitmap *parent;
     int16_t saved, x, y, w, h;
 
     rec = claim_page_slot(handle);
@@ -13145,16 +13145,16 @@ void restage_object_rect(uint16_t handle)
     rec->cursor.flags = rec->obj.flags;
     rec->cursor.pixel = rec->obj.pixel;
 
-    if (((uint16_t)rec->word_02) != DG5768.word_5770 && MACHINE_PALETTE_FADE.busy == 0) {
+    if (rec->bitmap_ptr != DG5768.cursor_bitmap_ptr && MACHINE_PALETTE_FADE.busy == 0) {
         rec->cursor.flags |= 1;
-        rec->word_02 = ((int16_t)DG5768.word_5770);
+        rec->bitmap_ptr = DG5768.cursor_bitmap_ptr;
 
-        if (DG5768.word_5770 != 0) {
+        if (DG5768.cursor_bitmap_ptr != 0) {
             int32_t asked;
 
-            parent = DG5768.word_5770;
-            asked = (int16_t)vm_buffer_size((uint16_t)BMP_PTR(parent)->width,
-                                                      (uint16_t)BMP_PTR(parent)->height);
+            parent = BMP_PTR(DG5768.cursor_bitmap_ptr);
+            asked = (int16_t)vm_buffer_size((uint16_t)parent->width,
+                                            (uint16_t)parent->height);
             rec->obj.buf = claim_buffer_slot(asked, 0);
         } else {
             rec->obj.buf = 0;
@@ -13167,17 +13167,17 @@ void restage_object_rect(uint16_t handle)
     x = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
     y = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
-    if (DG5768.word_5770 != 0) {
-        parent = DG5768.word_5770;
-        w = BMP_PTR(parent)->width;
-        h = BMP_PTR(parent)->height;
+    if (DG5768.cursor_bitmap_ptr != 0) {
+        parent = BMP_PTR(DG5768.cursor_bitmap_ptr);
+        w = parent->width;
+        h = parent->height;
     } else {
         h = 1;
         w = 1;
     }
 
-    rec->word_04 = x;
-    rec->word_06 = y;
+    rec->x = x;
+    rec->y = y;
 
     if (x < 0) {
         w = (int16_t)(w + x);
