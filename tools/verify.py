@@ -598,7 +598,7 @@ ROUTINES = {
         addr=0x28BAF,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.free_node_list(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.free_node_list(farp(lib, a[0], a[1])),
     ),
     "create_sequence": dict(
         addr=0x28935,
@@ -611,10 +611,10 @@ ROUTINES = {
         addr=0x2A017,
         args=[("off", 4), ("seg", 6), ("kind", 8)],
         check_occurrences=[0, 1],
-        # The block is a pair - the near-heap branch takes only its offset,
-        # which is what `alloc_for_kind` hands out for kinds 6 and 8.
+        # The near-heap branch takes only the offset; `alloc_for_kind` hands
+        # out DS's pair for kinds 6 and 8, so the pointer lands in DGROUP.
         call=lambda lib, a: lib.free_for_kind(
-            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2])),
+            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2])),
     ),
     "alloc_for_kind": dict(
         addr=0x29F89,
@@ -944,7 +944,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.build_sound_index(
-            ctypes.c_int16(a[0]), FarPtr(a[1], a[2]), FarPtr(a[3], a[4]),
+            ctypes.c_int16(a[0]), farp(lib, a[1], a[2]), farp(lib, a[3], a[4]),
             ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
     ),
     "insert_by_key": dict(

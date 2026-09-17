@@ -267,11 +267,11 @@ struct far_ptr alloc_for_kind(uint32_t size,
                               uint16_t kind);             /* 0x29f89 */
 
 /* Release a block by the same kind it was allocated with. */
-void free_for_kind(struct far_ptr blk,
+void free_for_kind(uint8_t far * blk,
                    uint16_t kind);                  /* 0x2a017 */
 
 /* Free a chain of kind-9 nodes linked at +4. */
-void free_node_list(struct far_ptr list);            /* 0x28baf */
+void free_node_list(uint8_t far * list);            /* 0x28baf */
 
 /* Build a sequence record around note data; null far pointer on failure. */
 struct far_ptr create_sequence(struct far_ptr src);       /* 0x28935 */
@@ -345,8 +345,8 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
 struct far_ptr load_resource_block(FILE *file, uint32_t size,
                                    uint8_t * out,
                                    uint16_t kind);      /* 0x28f74 */
-uint16_t build_sound_index(int16_t handle, struct far_ptr list,
-                           struct far_ptr dst, uint16_t data_at,
+uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
+                           uint8_t far * dst, uint16_t data_at,
                            uint16_t tag);              /* 0x28e87 */
 struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node);
 void stop_voice_playing(struct far_ptr rec);   /* 0x290ab */

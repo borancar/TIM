@@ -2253,7 +2253,7 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
     CHUNK2.ssm_000[6] = (uint8_t)((n % 10) + 0x30);
 
     if (!far_eq(DG4A82.config, FAR_NULL))
-        free_for_kind(DG4A82.config, 1);
+        free_for_kind(MK_FP(DG4A82.config.seg, DG4A82.config.off), 1);
 
     {
         struct far_ptr p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
@@ -2273,7 +2273,7 @@ out:
     }
 
     if (!far_eq(DG4A82.config, FAR_NULL)) {
-        free_for_kind(DG4A82.config, 1);
+        free_for_kind(MK_FP(DG4A82.config.seg, DG4A82.config.off), 1);
         DG4A82.config = FAR_NULL;
     }
 
@@ -2354,7 +2354,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             if (sound_module_install(callback, 1) == 0) {
                 DG4A82.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(DG4A82.module, 1);
+                free_for_kind(MK_FP(DG4A82.module.seg, DG4A82.module.off), 1);
                 DG4A82.module = FAR_NULL;
                 module_index = -2;
                 di = 1;
@@ -2378,7 +2378,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                 (int16_t)(install_driver_far(DG4A82.driver) & 0xff);
 
             if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
-                free_for_kind(DG4A82.driver, 1);
+                free_for_kind(MK_FP(DG4A82.driver.seg, DG4A82.driver.off), 1);
                 DG4A82.driver = FAR_NULL;
                 di = 1;
             }
@@ -2777,20 +2777,20 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
             blk = p;
             if (far_eq(p, FAR_NULL)) {
                 close_resource(handle);
-                free_node_list(list);
+                free_node_list(MK_FP(list.seg, list.off));
                 goto out;
             }
         }
 
-        if (build_sound_index(handle, list,
-                              blk,
+        if (build_sound_index(handle, MK_FP(list.seg, list.off),
+                              MK_FP(blk.seg, blk.off),
                               si, want) == 0) {
             close_resource(handle);
-            free_node_list(list);
+            free_node_list(MK_FP(list.seg, list.off));
             goto out;
         }
 
-        free_node_list(list);
+        free_node_list(MK_FP(list.seg, list.off));
 
         if (out != NULL) {
             *(int16_t *)(out + 2) = (int16_t)(len >> 16);
@@ -2819,12 +2819,13 @@ out:
  *
  * A null chain is not a special case - the test is at the top.
  */
-void free_node_list(struct far_ptr list)
+void free_node_list(uint8_t far * list)
 {
-    while (!far_eq(list, FAR_NULL)) {
-        struct far_ptr cur = list;
+    while (list != MK_FP(0, 0)) {
+        uint8_t *cur = list;
+        const struct sound_node *node = (const struct sound_node *)(void *)list;
 
-        list = NODE(list)->next;
+        list = MK_FP(node->next.seg, node->next.off);
         free_for_kind(cur, 9);
     }
 }
@@ -2853,7 +2854,7 @@ uint16_t free_voice_records(void)
 
         if (far_eq(v, FAR_NULL))
             continue;
-        free_for_kind(v, 2);
+        free_for_kind(MK_FP(v.seg, v.off), 2);
     }
 
     return 1;
@@ -3135,7 +3136,7 @@ struct far_ptr read_sound_records(int16_t handle)
     }
 
     if (*b != 0xff)
-        free_node_list(head);
+        free_node_list(MK_FP(head.seg, head.off));
 
     dg_free(0xc);
     return head;
@@ -3206,38 +3207,38 @@ struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node)
  * from the start, not from where the last read left off - and reading its
  * length. A short read abandons the whole thing and answers 0.
  */
-uint16_t build_sound_index(int16_t handle, struct far_ptr list,
-                           struct far_ptr dst, uint16_t data_at, uint16_t tag)
+uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
+                           uint8_t far * dst, uint16_t data_at, uint16_t tag)
 {
-    /* `dir` and `data` are offsets stepped inside `dst`'s segment, which is
-       why `dst` stays a pair rather than becoming a pointer. */
-    uint16_t dir = dst.off;
-    uint16_t data = (uint16_t)(dst.off + data_at);
+    /* The original steps two offsets inside `dst`'s segment; the block is
+       sized in a word, so neither can leave it, and they are pointers. */
+    uint8_t *dir = dst;
+    uint8_t *data = dst + data_at;
 
-    *MK_FP(dst.seg, dir++) = 0x84;
-    *MK_FP(dst.seg, dir++) = 0;
-    *MK_FP(dst.seg, dir++) = (uint8_t)tag;
+    *dir++ = 0x84;
+    *dir++ = 0;
+    *dir++ = (uint8_t)tag;
 
-    while (!far_eq(list, FAR_NULL)) {
-        uint16_t len = NODE(list)->length;
-        uint8_t *e = MK_FP(dst.seg, dir);
+    while (list != MK_FP(0, 0)) {
+        const struct sound_node *node = (const struct sound_node *)(void *)list;
+        uint16_t len = node->length;
 
-        e[0] = 0;
-        e[1] = 0;
-        *(uint16_t *)(e + 2) = (uint16_t)(data - dst.off - 2);
-        *(uint16_t *)(e + 4) = len;
+        dir[0] = 0;
+        dir[1] = 0;
+        *(uint16_t *)(dir + 2) = (uint16_t)(data - dst - 2);
+        *(uint16_t *)(dir + 4) = len;
 
-        resource_seek(handle, (uint16_t)(NODE(list)->key + 2), 0);
+        resource_seek(handle, (uint16_t)(node->key + 2), 0);
 
-        if ((uint16_t)read_resource(handle, MK_FP(dst.seg, data), len) != len)
+        if ((uint16_t)read_resource(handle, data, len) != len)
             return 0;
 
-        data = (uint16_t)(data + len);
-        list = NODE(list)->next;
-        dir = (uint16_t)(dir + 6);
+        data += len;
+        list = MK_FP(node->next.seg, node->next.off);
+        dir += 6;
     }
 
-    *(uint16_t *)MK_FP(dst.seg, dir) = 0xffff;
+    *(uint16_t *)dir = 0xffff;
     return 1;
 }
 
@@ -3281,7 +3282,7 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
 
             /* `len_hi != 0` was "the size does not fit in a word". */
             if (len > 0xffff || got != (uint16_t)len) {
-                free_for_kind(buf, kind);
+                free_for_kind(MK_FP(buf.seg, buf.off), kind);
                 buf = FAR_NULL;
             }
         }
@@ -3418,12 +3419,12 @@ void stop_sound(void)
     }
 
     if (!far_eq(DG4A82.driver, FAR_NULL)) {
-        free_for_kind(DG4A82.driver, 1);
+        free_for_kind(MK_FP(DG4A82.driver.seg, DG4A82.driver.off), 1);
         DG4A82.driver = FAR_NULL;
     }
 
     if (!far_eq(DG4A82.module, FAR_NULL)) {
-        free_for_kind(DG4A82.module, 1);
+        free_for_kind(MK_FP(DG4A82.module.seg, DG4A82.module.off), 1);
         DG4A82.module = FAR_NULL;
     }
 }
@@ -3545,11 +3546,11 @@ uint16_t remove_and_free_records(int16_t selector)
             *(struct far_ptr *)link = *(struct far_ptr *)p;
 
             if ((*(uint16_t *)(p + 0x12) & 1) != 0)
-                free_for_kind((struct far_ptr){ *(uint16_t *)(p + 4), *(uint16_t *)(p + 6) }, 4);
+                free_for_kind(MK_FP(*(uint16_t *)(p + 6), *(uint16_t *)(p + 4)), 4);
             else
-                free_for_kind((struct far_ptr){ *(uint16_t *)(p + 4), *(uint16_t *)(p + 6) }, 7);
+                free_for_kind(MK_FP(*(uint16_t *)(p + 6), *(uint16_t *)(p + 4)), 7);
 
-            free_for_kind(cur, 3);
+            free_for_kind(MK_FP(cur.seg, cur.off), 3);
 
             if (selector > 0)
                 break;
@@ -3614,7 +3615,7 @@ uint16_t stop_sequences(int16_t selector)
                     v = *(struct far_ptr *)(rec + 0xe);
                 } while (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) != 0xff);
 
-                free_for_kind(v, 2);
+                free_for_kind(MK_FP(v.seg, v.off), 2);
                 rec = MK_FP(fp.seg, fp.off);
                 *(uint16_t *)(rec + 0x10) = 0;
                 *(uint16_t *)(rec + 0xe) = 0;
@@ -3669,7 +3670,7 @@ uint16_t stop_sequences(int16_t selector)
                 v = *(struct far_ptr *)(rec + 0xe);
             } while (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) != 0xff);
 
-            free_for_kind(v, 2);
+            free_for_kind(MK_FP(v.seg, v.off), 2);
             rec = MK_FP(fp.seg, fp.off);
             *(uint16_t *)(rec + 0x10) = 0;
             *(uint16_t *)(rec + 0xe) = 0;
@@ -3746,7 +3747,7 @@ uint16_t open_sound_file(char *name, int16_t id)
         goto fail;
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
-        free_for_kind(DG4A82.directory, 0xa);
+        free_for_kind(MK_FP(DG4A82.directory.seg, DG4A82.directory.off), 0xa);
 
     {
         /* `size + 4` as one long; the original adds the low word and carries
@@ -3865,7 +3866,7 @@ fail:
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
-        free_for_kind(DG4A82.directory, 0xa);
+        free_for_kind(MK_FP(DG4A82.directory.seg, DG4A82.directory.off), 0xa);
 
     remove_and_free_records(0);
 
@@ -4179,7 +4180,7 @@ void shutdown_sound(void)
     remove_and_free_records(0);
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
-        free_for_kind(DG4A82.directory, 0xa);
+        free_for_kind(MK_FP(DG4A82.directory.seg, DG4A82.directory.off), 0xa);
 
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
@@ -4314,7 +4315,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     goto out_;
 
 fail:
-    free_for_kind(rec, 3);
+    free_for_kind(MK_FP(rec.seg, rec.off), 3);
 
 out_:
     return r;
@@ -4380,13 +4381,15 @@ struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
  * `free` is not transcribed, for the reason `io_malloc` gives; the DOS path is
  * the one these screens take.
  */
-void free_for_kind(struct far_ptr blk, uint16_t kind)
+void free_for_kind(uint8_t far * blk, uint16_t kind)
 {
     if (kind == 6 || kind == 8) {
-        /* The near heap took only the offset - see `alloc_for_kind`. */
-        io_free(dg_ptr(dgroup, blk.off));
+        /* The near heap takes only the offset, `push [bp+6]`; the pair
+           `alloc_for_kind` answered for these kinds is DS's, so the pointer
+           is that offset in DGROUP. */
+        io_free(blk);
         return;
     }
-    dos_free_far(MK_FP(blk.seg, blk.off));
+    dos_free_far(blk);
 }
 
