@@ -11042,7 +11042,7 @@ uint16_t build_rect_pool(uint16_t n)
  */
 void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
-                     uint16_t refcount, struct far_ptr buf)
+                     uint16_t refcount, uint8_t far * buf)
 {
     dg_near_t *slot;                 /* [bp-2] */
     uint16_t stop, prev, after, from;        /* [bp-4] [bp-6] [bp-8] [bp-0xa] */
@@ -11118,7 +11118,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
     RECTENT_PTR(rec)->page_src = page_src;
     RECTENT_PTR(rec)->page_dst = page_dst;
     RECTENT_PTR(rec)->refcount = refcount;
-    RECTENT_PTR(rec)->buf = buf;
+    RECTENT_PTR(rec)->buf = far_of(buf);
     RECTENT_PTR(rec)->area = (uint16_t)(w * h);
 
     if (mode == 1) {
@@ -11475,7 +11475,7 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
         file_saved_rect((int16_t)(RECTENT_PTR(rec)->x << 3), RECTENT_PTR(rec)->y,
                         (int16_t)(RECTENT_PTR(rec)->w << 3), RECTENT_PTR(rec)->h,
                         RECTENT_PTR(rec)->mode, to_src, to_dst, to_ref,
-                        (struct far_ptr){ 0, 0 });
+                        MK_FP(0, 0));
         /* no step: see above */
     }
 }

@@ -1154,7 +1154,7 @@ char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
 uint16_t build_rect_pool(uint16_t n);                             /* 0x0a05f */
 void     file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                          uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
-                         uint16_t refcount, struct far_ptr buf);  /* 0x0a0d7 */
+                         uint16_t refcount, uint8_t far * buf);  /* 0x0a0d7 */
 void     discard_saved_rects(void);                               /* 0x0a4bf */
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                            dg_seg_t page_dst, uint16_t refcount); /* 0x0a4f9 */
@@ -1921,7 +1921,7 @@ void restore_int0_vector(void);                        /* 0x223f7 */
 void set_bios_video_mode(uint16_t bits);               /* 0x22741 */
 void shutdown_input(void);                             /* 0x225a5 */
 void restore_video_mode(void);                         /* 0x225ba */
-void free_far_block(struct far_ptr h);       /* 0x1ebdc */
+void free_far_block(uint8_t far * h);        /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */

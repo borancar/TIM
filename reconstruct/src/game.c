@@ -669,9 +669,9 @@ uint16_t game_teardown(int16_t really)
 
     close_table_618a_slot(DG52BD.word_52df);
 
-    free_far_block(DG52BD.pal_black_ptr);
-    free_far_block(DG52BD.pal_sierra_ptr);
-    free_far_block(DG52ED.pal_tim_ptr);
+    free_far_block(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));
+    free_far_block(MK_FP(DG52BD.pal_sierra_ptr.seg, DG52BD.pal_sierra_ptr.off));
+    free_far_block(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
 
     stop_sequences(-2);
     remove_and_free_records(-2);
@@ -6496,7 +6496,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
             break;
 
         case 0x2000: {                  /* a click in the listing */
-            struct far_ptr rec;
+            const char far *rec;
 
             /*
              * **Which row was clicked is arithmetic, not a hit test.** The
@@ -6511,14 +6511,20 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
                 break;
             }
 
-            /* Entry `idx` of the array at the block's front. */
-            rec = ((struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg,
-                                               GAME_PICKER_TEXT.block.off))[idx];
+            /* Entry `idx` of the array of far pointers at the block's
+               front, followed to the text it names. */
+            {
+                const struct far_ptr far *entries =
+                    (const struct far_ptr far *)(void *)
+                    MK_FP(GAME_PICKER_TEXT.block.seg,
+                          GAME_PICKER_TEXT.block.off);
 
-            if (FAR8(rec.seg, rec.off) != ':'
-                && FAR8(rec.seg, rec.off) != '<') {
-                string_copy((char *)DG4E4E.name_buf,
-                            listing_to_name((const char far *)MK_FP(rec.seg, rec.off)));
+                rec = (const char far *)MK_FP(entries[idx].seg,
+                                              entries[idx].off);
+            }
+
+            if (*rec != ':' && *rec != '<') {
+                string_copy((char *)DG4E4E.name_buf, listing_to_name(rec));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -6529,8 +6535,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
              * it from a directory called nothing is that we are not at a root.
              */
             if (idx != 0 || path_is_root((const char *)GAME_DIRECTORIES.path_field) != 0)
-                path_join((char *)GAME_DIRECTORIES.path_field,
-                          (const char far *)MK_FP(rec.seg, rec.off));
+                path_join((char *)GAME_DIRECTORIES.path_field, rec);
             else
                 path_up((char *)GAME_DIRECTORIES.path_field);
 

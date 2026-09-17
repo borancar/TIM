@@ -5942,18 +5942,21 @@ void restore_video_mode(void)
  * only ever holds the null `load_palette` files when the table is full. A null
  * argument does nothing at all.
  */
-void free_far_block(struct far_ptr h)
+void free_far_block(uint8_t far * h)
 {
     int16_t i;
 
-    if (far_eq(h, FAR_NULL))
+    if (h == MK_FP(0, 0))
         return;
 
     for (i = 1; i < 10; i++) {
-        if (!far_eq(VMDS.palettes.blocks[i], h))
+        uint8_t far *block = MK_FP(VMDS.palettes.blocks[i].seg,
+                                   VMDS.palettes.blocks[i].off);
+
+        if (block != h)
             continue;
 
-        dos_free_far(MK_FP(VMDS.palettes.blocks[i].seg, VMDS.palettes.blocks[i].off));
+        dos_free_far(block);
         VMDS.palettes.blocks[i] = FAR_NULL;
     }
 }
@@ -6950,11 +6953,15 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
             vm_driver_init(&VMDS, DG440E.driver_table, DGROUP_SEG);
             seg = DG48DA.driver.seg;
 
-            /* a hundred words of the driver's table, word by word, and
-               then the driver's segment over every second one */
-            for (i = 0; i < 0x64; i++)
-                ((int16_t *)DG4342.font)[i] =
-                    *(int16_t *)MK_FP(seg, (uint16_t)(0x13e + 2 * i));
+            /* a hundred words of the driver's table at its 0x13e, word by
+               word, and then the driver's segment over every second one */
+            {
+                const int16_t far *table = (const int16_t far *)(void *)
+                    MK_FP(seg, 0x13e);
+
+                for (i = 0; i < 0x64; i++)
+                    ((int16_t *)DG4342.font)[i] = table[i];
+            }
 
             for (i = 0; i < 0x32; i++)
                 DG4342.font[i].seg = seg;
