@@ -230,11 +230,11 @@ void vm_nothing(void)
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
-    uint16_t page   = vga_seg_offset(VMDS.page_dst_ptr);
     uint8_t  colour = VMDS.unknown_00;
     uint8_t  back   = VMDS.unknown_01;
     uint8_t  style  = VMDS.unknown_02;
-    uint16_t at     = (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3));
+    uint8_t *at     = MK_FP(VMDS.page_dst_ptr,
+                            (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3)));
     uint16_t shift  = (uint16_t)(x & 7);
     uint16_t row;
 
@@ -249,32 +249,32 @@ void vm_blit_glyph(const uint8_t far * glyph,
 
         if (style != 0) {
             io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
-            (void)vga_read((uint16_t)(page + at));
-            vga_write((uint16_t)(page + at), colour);
+            (void)vga_read((uint16_t)(at - vga_aperture));
+            vga_write((uint16_t)(at - vga_aperture), colour);
 
             io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
-            (void)vga_read((uint16_t)(page + at + 1));
-            vga_write((uint16_t)(page + at + 1), colour);
+            (void)vga_read((uint16_t)(at + 1 - vga_aperture));
+            vga_write((uint16_t)(at + 1 - vga_aperture), colour);
         } else {
             uint16_t hole = (uint16_t)((0x00FFu << (16 - shift))
                                        | (0x00FFu >> shift));
 
-            (void)vga_read((uint16_t)(page + at));
+            (void)vga_read((uint16_t)(at - vga_aperture));
 
             io_out8(PORT_GC_DATA, (uint8_t)(hole & 0xFF));
-            vga_write((uint16_t)(page + at), back);
+            vga_write((uint16_t)(at - vga_aperture), back);
             io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
-            (void)vga_read((uint16_t)(page + at));
-            vga_write((uint16_t)(page + at), colour);
+            (void)vga_read((uint16_t)(at - vga_aperture));
+            vga_write((uint16_t)(at - vga_aperture), colour);
 
             io_out8(PORT_GC_DATA, (uint8_t)(hole >> 8));
-            vga_write((uint16_t)(page + at + 1), back);
+            vga_write((uint16_t)(at + 1 - vga_aperture), back);
             io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
-            (void)vga_read((uint16_t)(page + at + 1));
-            vga_write((uint16_t)(page + at + 1), colour);
+            (void)vga_read((uint16_t)(at + 1 - vga_aperture));
+            vga_write((uint16_t)(at + 1 - vga_aperture), colour);
         }
 
-        at = (uint16_t)(at + 0x50);
+        at += 0x50;
     }
 }
 
@@ -626,7 +626,6 @@ void vm_save_rect(uint8_t far * buf,
 {
     uint8_t *blk  = buf;
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(VMDS.page_src_ptr);
     uint16_t bytes, words;
     int16_t plane;
 
@@ -640,7 +639,8 @@ void vm_save_rect(uint8_t far * buf,
         words++;
 
     for (plane = 3; plane >= 0; plane--) {
-        uint16_t si = (uint16_t)(VMDS.row_offset[y] + col);
+        const uint8_t *si = MK_FP(VMDS.page_src_ptr,
+                                  (uint16_t)(VMDS.row_offset[y] + col));
         int16_t row;
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
@@ -649,8 +649,8 @@ void vm_save_rect(uint8_t far * buf,
             uint16_t k;
 
             for (k = 0; k < (uint16_t)(words * 2); k++)
-                *blk++ = vga_read((uint16_t)(base + si + k));
-            si = (uint16_t)(si + 0x50);
+                *blk++ = vga_read((uint16_t)(si + k - vga_aperture));
+            si += 0x50;
         }
     }
 
@@ -715,7 +715,6 @@ void vm_restore_rect(const uint8_t far * buf,
 {
     const uint8_t *blk = buf;
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t bytes, words, mask;
 
     io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
@@ -728,7 +727,8 @@ void vm_restore_rect(const uint8_t far * buf,
         words++;
 
     for (mask = 8; mask != 0; mask >>= 1) {
-        uint16_t di = (uint16_t)(VMDS.row_offset[y] + col);
+        uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+                            (uint16_t)(VMDS.row_offset[y] + col));
         int16_t row;
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
@@ -739,10 +739,10 @@ void vm_restore_rect(const uint8_t far * buf,
             for (k = 0; k < words; k++) {
                 uint16_t v = (uint16_t)(blk[0] | (blk[1] << 8));
 
-                vga_write16((uint16_t)(base + di + k * 2), v);
+                vga_write16((uint16_t)(di + k * 2 - vga_aperture), v);
                 blk += 2;
             }
-            di = (uint16_t)(di + 0x50);
+            di += 0x50;
         }
     }
 
@@ -773,24 +773,24 @@ void vm_restore_rect(const uint8_t far * buf,
  */
 uint16_t vm_read_pixel(int16_t x, int16_t y)
 {
-    uint16_t base   = vga_seg_offset(VMDS.page_src_ptr);
-    uint16_t off    = (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3));
+    const uint8_t *at = MK_FP(VMDS.page_src_ptr,
+                              (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
     uint16_t colour = 0;
 
     io_out16(PORT_GC_INDEX, 0x0105);      /* write mode 1 */
     io_out16(PORT_GC_INDEX, 0x0004);      /* read map select: plane 0 */
 
-    if (vga_read((uint16_t)(base + off)) & bit)
+    if (vga_read((uint16_t)(at - vga_aperture)) & bit)
         colour |= 1;
     io_out8(PORT_GC_DATA, 1);
-    if (vga_read((uint16_t)(base + off)) & bit)
+    if (vga_read((uint16_t)(at - vga_aperture)) & bit)
         colour |= 2;
     io_out8(PORT_GC_DATA, 2);
-    if (vga_read((uint16_t)(base + off)) & bit)
+    if (vga_read((uint16_t)(at - vga_aperture)) & bit)
         colour |= 4;
     io_out8(PORT_GC_DATA, 3);
-    if (vga_read((uint16_t)(base + off)) & bit)
+    if (vga_read((uint16_t)(at - vga_aperture)) & bit)
         colour |= 8;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -825,15 +825,15 @@ uint16_t vm_read_pixel(int16_t x, int16_t y)
  */
 uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
 {
-    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
-    uint16_t di   = (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3));
+    uint8_t *di   = MK_FP(VMDS.page_dst_ptr,
+                          (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
 
     io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
 
-    vga_read((uint16_t)(base + di));
-    vga_write((uint16_t)(base + di), colour);
+    vga_read((uint16_t)(di - vga_aperture));
+    vga_write((uint16_t)(di - vga_aperture), colour);
 
     io_out16(PORT_GC_INDEX, 0xFF08);
     return 0xFF08;
@@ -907,15 +907,16 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
     uint16_t col   = (uint16_t)(left >> 3);
 
     uint16_t rows = height;
-    uint16_t di   = (uint16_t)(VMDS.row_offset[y] + col);
-    uint16_t src  = vga_seg_offset(VMDS.page_src_ptr);
-    uint16_t dst  = vga_seg_offset(VMDS.page_dst_ptr);
+    /* One row offset, in the source page and in the destination. */
+    const uint8_t *si = MK_FP(VMDS.page_src_ptr, (uint16_t)(VMDS.row_offset[y] + col));
+    uint8_t *di       = MK_FP(VMDS.page_dst_ptr, (uint16_t)(VMDS.row_offset[y] + col));
 
     do {
         for (uint16_t i = 0; i < span; i++)
-            vga_write((uint16_t)(dst + di + i),
-                      vga_read((uint16_t)(src + di + i)));
-        di = (uint16_t)(di + 0x50);
+            vga_write((uint16_t)(di + i - vga_aperture),
+                      vga_read((uint16_t)(si + i - vga_aperture)));
+        si += 0x50;
+        di += 0x50;
     } while (--rows);
 
     io_out16(PORT_GC_INDEX, 0x0205);
@@ -1169,8 +1170,7 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
                         int16_t x, int16_t width,
                         const uint8_t far * src)
 {
-    uint16_t base  = vga_seg_offset(page_seg);
-    uint16_t di    = (uint16_t)(dest_row + (uint16_t)(x >> 3));
+    uint8_t *di    = MK_FP(page_seg, (uint16_t)(dest_row + (uint16_t)(x >> 3)));
     const uint8_t *si = src + 4 * plane_size;       /* the mask */
     uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
     uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */
@@ -1217,18 +1217,18 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
         /* 0x046c: the byte is full. */
         if (mask != 0) {
             if (mask != 0xFF)
-                (void)vga_read((uint16_t)(base + di));
+                (void)vga_read((uint16_t)(di - vga_aperture));
 
             io_out8(PORT_GC_DATA, mask);
 
             io_out8(PORT_SEQ_DATA, 0x08);
-            vga_write((uint16_t)(base + di), (uint8_t)(acc32 & 0xFF));
+            vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc32 & 0xFF));
             io_out8(PORT_SEQ_DATA, 0x04);
-            vga_write((uint16_t)(base + di), (uint8_t)(acc32 >> 8));
+            vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc32 >> 8));
             io_out8(PORT_SEQ_DATA, 0x02);
-            vga_write((uint16_t)(base + di), (uint8_t)(acc10 & 0xFF));
+            vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc10 & 0xFF));
             io_out8(PORT_SEQ_DATA, 0x01);
-            vga_write((uint16_t)(base + di), (uint8_t)(acc10 >> 8));
+            vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc10 >> 8));
         }
 
         di++;
@@ -1241,17 +1241,17 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
     }
 
     /* 0x04c0: the row ended mid-byte, so flush what has been gathered. */
-    (void)vga_read((uint16_t)(base + di));
+    (void)vga_read((uint16_t)(di - vga_aperture));
     io_out8(PORT_GC_DATA, mask);
 
     io_out8(PORT_SEQ_DATA, 0x08);
-    vga_write((uint16_t)(base + di), (uint8_t)(acc32 & 0xFF));
+    vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc32 & 0xFF));
     io_out8(PORT_SEQ_DATA, 0x04);
-    vga_write((uint16_t)(base + di), (uint8_t)(acc32 >> 8));
+    vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc32 >> 8));
     io_out8(PORT_SEQ_DATA, 0x02);
-    vga_write((uint16_t)(base + di), (uint8_t)(acc10 & 0xFF));
+    vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc10 & 0xFF));
     io_out8(PORT_SEQ_DATA, 0x01);
-    vga_write((uint16_t)(base + di), (uint8_t)(acc10 >> 8));
+    vga_write((uint16_t)(di - vga_aperture), (uint8_t)(acc10 >> 8));
 }
 
 /*
@@ -1344,7 +1344,6 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
  */
 void vm_fill_spans(const uint8_t far * spans)
 {
-    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint8_t colour = VMDS.fill_colour;
     uint16_t y, rows;
 
@@ -1368,22 +1367,23 @@ void vm_fill_spans(const uint8_t far * spans)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint16_t di = (uint16_t)(VMDS.row_offset[y] + (x1 >> 3));
+            uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+                                (uint16_t)(VMDS.row_offset[y] + (x1 >> 3)));
             uint16_t bit = (uint16_t)(x1 & 7);
 
             if (bit + cx < 8) {
                 uint8_t mask = (uint8_t)(MASK_LEFT[bit]
                                          & MASK_RIGHT[(bit + cx) & 7]);
                 io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
-                vga_read((uint16_t)(base + di));
-                vga_write((uint16_t)(base + di), colour);
+                vga_read((uint16_t)(di - vga_aperture));
+                vga_write((uint16_t)(di - vga_aperture), colour);
             } else {
                 uint16_t tail;
                 cx = (uint16_t)(cx - (8 - bit));
                 io_out16(PORT_GC_INDEX,
                          (uint16_t)(0x08 | (MASK_LEFT[bit] << 8)));
-                vga_read((uint16_t)(base + di));
-                vga_write((uint16_t)(base + di), colour);
+                vga_read((uint16_t)(di - vga_aperture));
+                vga_write((uint16_t)(di - vga_aperture), colour);
                 di++;
 
                 tail = (uint16_t)(cx & 7);
@@ -1391,14 +1391,14 @@ void vm_fill_spans(const uint8_t far * spans)
                 if (cx) {
                     io_out8(PORT_GC_DATA, 0xFF);
                     while (cx--) {
-                        vga_write((uint16_t)(base + di), colour);
+                        vga_write((uint16_t)(di - vga_aperture), colour);
                         di++;
                     }
                 }
                 if (tail) {
                     io_out8(PORT_GC_DATA, MASK_RIGHT[tail]);
-                    vga_read((uint16_t)(base + di));
-                    vga_write((uint16_t)(base + di), colour);
+                    vga_read((uint16_t)(di - vga_aperture));
+                    vga_write((uint16_t)(di - vga_aperture), colour);
                 }
             }
         }
@@ -1451,10 +1451,10 @@ void vm_set_palette(const uint8_t *rgb, uint16_t first, uint16_t count)
  * below, factored out for readability. The original has no such helpers - it
  * repeats the instructions - so they carry no address of their own.
  */
-static void line_pixel(uint16_t base, uint16_t di, uint8_t colour)
+static void line_pixel(const uint8_t *di, uint8_t colour)
 {
-    vga_read((uint16_t)(base + di));
-    vga_write((uint16_t)(base + di), colour);
+    vga_read((uint16_t)(di - vga_aperture));
+    vga_write((uint16_t)(di - vga_aperture), colour);
 }
 
 /*
@@ -1495,10 +1495,9 @@ static void line_mask(uint8_t mask)
  */
 void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
-    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
     uint8_t colour;
     uint8_t mask;
-    uint16_t di;
+    uint8_t *di;
     int16_t bp = 0x50;
     int16_t run, rest;
 
@@ -1507,11 +1506,11 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     VMDS.line_mask = BIT_MASK[x1 & 7];
     colour = (uint8_t)VMDS.line_colour;
     mask = VMDS.line_mask;
-    di = (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3));
+    di = MK_FP(VMDS.page_dst_ptr, (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3)));
 
     if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
         line_mask(mask);
-        line_pixel(base, di, colour);
+        line_pixel(di, colour);
         return;
     }
 
@@ -1523,8 +1522,8 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         }
         line_mask(mask);
         for (;;) {
-            line_pixel(base, di, colour);
-            di = (uint16_t)(di + bp);
+            line_pixel(di, colour);
+            di += bp;
             if (--n < 0)
                 return;
         }
@@ -1533,14 +1532,14 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     if (y1 == y2) {                                 /* VGA:0x09eb, horizontal */
         int16_t n = (int16_t)(x2 - x1);
         line_mask(mask);
-        line_pixel(base, di, colour);
+        line_pixel(di, colour);
         for (;;) {
             uint8_t carry = (uint8_t)(mask & 1);
             mask = (uint8_t)((mask >> 1) | (mask << 7));
             if (carry)
                 di++;
             line_mask(mask);
-            line_pixel(base, di, colour);
+            line_pixel(di, colour);
             if (--n == 0)
                 return;
         }
@@ -1559,25 +1558,25 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         if (ey == ex) {                             /* VGA:0x0a6c, diagonal */
             int16_t n = ex;
             line_mask(mask);
-            line_pixel(base, di, colour);
+            line_pixel(di, colour);
             for (;;) {
                 uint8_t carry = (uint8_t)(mask & 1);
                 mask = (uint8_t)((mask >> 1) | (mask << 7));
                 if (carry) {
                     di++;
                     line_mask(mask);
-                    line_pixel(base, di, colour);
+                    line_pixel(di, colour);
                     if (--n == 0)
                         return;
-                    di = (uint16_t)(di + bp);
-                    vga_read((uint16_t)(base + di));
-                    vga_write((uint16_t)(base + di), colour);
+                    di += bp;
+                    vga_read((uint16_t)(di - vga_aperture));
+                    vga_write((uint16_t)(di - vga_aperture), colour);
                 } else {
                     line_mask(mask);
-                    line_pixel(base, di, colour);
-                    di = (uint16_t)(di + bp);
-                    vga_read((uint16_t)(base + di));
-                    vga_write((uint16_t)(base + di), colour);
+                    line_pixel(di, colour);
+                    di += bp;
+                    vga_read((uint16_t)(di - vga_aperture));
+                    vga_write((uint16_t)(di - vga_aperture), colour);
                     if (--n == 0)
                         return;
                 }
@@ -1593,7 +1592,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
             VMDS.dda_acc = 0;
             line_mask(mask);
             run = (int16_t)(VMDS.dda_whole + 1);
-            line_pixel(base, di, colour);
+            line_pixel(di, colour);
             for (;;) {
                 VMDS.dda_saved = rest;
                 rest = (int16_t)(rest - run);
@@ -1607,15 +1606,15 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                     if (carry)
                         di++;
                     line_mask(mask);
-                    line_pixel(base, di, colour);
+                    line_pixel(di, colour);
                     if (--run == 0)
                         break;
                 }
                 if (rest == 0)
                     return;
-                di = (uint16_t)(di + bp);
-                vga_read((uint16_t)(base + di));
-                vga_write((uint16_t)(base + di), colour);
+                di += bp;
+                vga_read((uint16_t)(di - vga_aperture));
+                vga_write((uint16_t)(di - vga_aperture), colour);
                 {
                     uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
                     VMDS.dda_acc = (uint16_t)sum;
@@ -1633,7 +1632,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         VMDS.dda_acc = 0;
         line_mask(mask);
         run = (int16_t)(VMDS.dda_whole + 1);
-        line_pixel(base, di, colour);
+        line_pixel(di, colour);
         for (;;) {
             VMDS.dda_saved = rest;
             rest = (int16_t)(rest - run);
@@ -1647,10 +1646,10 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                  * and the port has to, or the trace is half as long while
                  * the pixels come out identical - which is exactly how this
                  * was found. */
-                di = (uint16_t)(di + bp);
-                vga_read((uint16_t)(base + di));
+                di += bp;
+                vga_read((uint16_t)(di - vga_aperture));
                 line_mask(mask);
-                vga_write((uint16_t)(base + di), colour);
+                vga_write((uint16_t)(di - vga_aperture), colour);
                 if (--run == 0)
                     break;
             }
@@ -1662,7 +1661,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 if (carry)
                     di++;
                 line_mask(mask);
-                line_pixel(base, di, colour);
+                line_pixel(di, colour);
             }
             {
                 uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
@@ -1737,8 +1736,8 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
     /* The original normalises the source into a segment and a four-bit
        offset so its 16-bit index cannot overflow - a huge pointer, which
        the port's is. */
-    uint16_t base = vga_seg_offset(VMDS.page_dst_ptr);
-    uint16_t di = (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3));
+    uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+                        (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3)));
     const uint8_t *si = src;
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
     uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
@@ -1769,7 +1768,7 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
 
             for (k = 0; k < 4; k++) {
                 io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
-                vga_write((uint16_t)(base + di), pl[k]);
+                vga_write((uint16_t)(di - vga_aperture), pl[k]);
             }
 
             di++;
@@ -1780,7 +1779,7 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
         if (rows <= 0)
             break;
 
-        di = (uint16_t)(di + step);
+        di += step;
     }
 
     io_out8(PORT_SEQ_DATA, 0x0f);               /* map mask: every plane */
@@ -1829,7 +1828,6 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     int16_t  w        = bmp->width;
     int16_t  h        = bmp->height;
 
-    uint16_t base     = vga_seg_offset(VMDS.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
     uint16_t planestep = (uint16_t)((uint16_t)(mask_at - src) >> 2);  /* cs:[0x25d7] */
     int16_t  rows     = h;                           /* cs:[0x25dd] */
@@ -1837,12 +1835,13 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     uint8_t  edge_right = 0, edge_left = 0;          /* cs:[0x25e2], [0x25e3] */
     const uint8_t *si     = src;
     const uint8_t *mask_p = mask_at;                 /* cs:[0x25db] */
-    uint16_t di;
+    uint8_t *di;
     uint8_t  cl;
     int16_t  plane;
 
-    di = (uint16_t)((y >= 0) ? VMDS.row_offset[y] : (uint16_t)(y * 80));
-    di = (uint16_t)(di + (uint16_t)(x >> 3));
+    di = MK_FP(VMDS.page_dst_ptr,
+               (uint16_t)(((y >= 0) ? VMDS.row_offset[y] : (uint16_t)(y * 80))
+                          + (uint16_t)(x >> 3)));
     cl = (uint8_t)(x & 7);
 
     if ((mode & 1) != 0) {
@@ -1881,7 +1880,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             edge_left = 1;
             bx = (int16_t)((-bx + 7) >> 3);
             cols = (uint8_t)(cols - (uint8_t)bx);
-            di = (uint16_t)(di + bx);
+            di += bx;
             if ((mode & 2) != 0)
                 bx = (int16_t)(-bx);
             si += bx;
@@ -1905,7 +1904,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
             if (over >= h)
                 goto done;
             rows = (int16_t)(rows - over);
-            di = (uint16_t)(di + over * 80);
+            di += over * 80;
             n = (uint16_t)((uint8_t)over * (uint8_t)rowbytes);
             if ((mode & 1) != 0)
                 n = -n;
@@ -1921,14 +1920,14 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     /* ------------------------------------------------ the mask, all planes */
     {
         const uint8_t *p = mask_p;
-        uint16_t d = di;
+        uint8_t *d = di;
         int16_t row;
 
         io_out8(PORT_GC_INDEX, 0x08);        /* select the bit mask */
 
         for (row = rows; row != 0; row--) {
             const uint8_t *sp = p;
-            uint16_t dp = d;
+            uint8_t *dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint8_t al;
@@ -1950,8 +1949,8 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
                 ah = (uint8_t)(both >> 8);
 
                 io_out8(PORT_GC_DATA, al);
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), 0);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), 0);
                 dp++;
 
                 ah = (uint8_t)(ah >> (8 - cl));
@@ -1967,13 +1966,13 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 
                 both = (uint16_t)((both >> cl) | (both << (16 - cl)));
                 io_out8(PORT_GC_DATA, (uint8_t)both);
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), 0);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), 0);
             }
 
         mask_next:
             p += rowbytes;
-            d = (uint16_t)(d + 0x50);
+            d += 0x50;
         }
 
         io_out8(PORT_GC_DATA, 0xff);         /* every bit writable again */
@@ -1985,7 +1984,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     /* --------------------------------------------- and then the four planes */
     for (plane = 0; plane < 4; plane++) {
         const uint8_t *p = si;
-        uint16_t d = di;
+        uint8_t *d = di;
         int16_t row;
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
@@ -1993,7 +1992,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 
         for (row = rows; row != 0; row--) {
             const uint8_t *sp = p;
-            uint16_t dp = d;
+            uint8_t *dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint8_t al;
@@ -2014,8 +2013,8 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
                 al = (uint8_t)both;
                 ah = (uint8_t)(both >> 8);
 
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), al);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), al);
                 dp++;
 
                 ah = (uint8_t)(ah >> (8 - cl));
@@ -2030,13 +2029,13 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
                 uint16_t both = (uint16_t)(ah << 8);
 
                 both = (uint16_t)((both >> cl) | (both << (16 - cl)));
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), (uint8_t)both);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), (uint8_t)both);
             }
 
         plane_next:
             p += rowbytes;
-            d = (uint16_t)(d + 0x50);
+            d += 0x50;
         }
 
         si += planestep;
@@ -2103,21 +2102,24 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
     const uint8_t *si  = MK_FP(bmp->data.seg, bmp->data.off);
     int16_t  w         = bmp->width;                            /* [bp-4] */
     int16_t  h         = bmp->height;                           /* [bp-2] */
-    uint16_t base      = vga_seg_offset((uint16_t)VMDS.page_dst_ptr);
     uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */
     uint16_t planestep = (uint16_t)((uint8_t)rowbytes * (uint8_t)h);   /* cs:[0x2adf] */
     uint8_t  cols      = (uint8_t)((uint16_t)(w + 7) >> 3);     /* DH */
     uint8_t  rows      = (uint8_t)h;                            /* cs:[0x2ae5] */
     uint8_t  edge_right = 0, edge_left = 0;                     /* cs:[0x2ae3], [0x2ae4] */
     uint8_t  cl        = (uint8_t)(x & 7);
-    uint16_t di;
+    uint8_t *di;
     int16_t  plane;
 
-    if ((int16_t)((uint16_t)y << 1) >= 0)
-        di = VMDS.row_offset[(uint16_t)y];
-    else
-        di = (uint16_t)((uint16_t)y * 40u);                     /* y*8 + y*32 */
-    di = (uint16_t)(di + (uint16_t)(x >> 3));
+    {
+        uint16_t row;
+
+        if ((int16_t)((uint16_t)y << 1) >= 0)
+            row = VMDS.row_offset[(uint16_t)y];
+        else
+            row = (uint16_t)((uint16_t)y * 40u);                /* y*8 + y*32 */
+        di = MK_FP(VMDS.page_dst_ptr, (uint16_t)(row + (uint16_t)(x >> 3)));
+    }
 
     if (VMDS.clip_enabled != 0) {
         int16_t a, b;
@@ -2143,7 +2145,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
             edge_left = 1;
             bx = (uint16_t)((uint16_t)(-(uint16_t)a + 7) >> 3);
             cols = (uint8_t)(cols - (uint8_t)bx);
-            di = (uint16_t)(di + bx);
+            di += bx;
             si += bx;
         }
 
@@ -2161,7 +2163,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
             if (!((int16_t)(a - h) < 0))
                 goto done;
             rows = (uint8_t)(rows - (uint8_t)a);
-            di = (uint16_t)(di + (uint16_t)a * 40u);            /* a*8 + a*32 */
+            di += (uint16_t)a * 40u;                            /* a*8 + a*32 */
             si += (uint16_t)((uint8_t)a * (uint8_t)rowbytes);
         }
     }
@@ -2172,12 +2174,12 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
                         "carry from bitmap segment:BP-1, the original's frame "
                         "pointer as an offset");
     {
-        uint16_t d = di;
+        uint8_t *d = di;
         uint8_t r = rows;
 
         io_out8(PORT_GC_INDEX, 0x08);                           /* the bit mask */
         do {
-            uint16_t dp = d;
+            uint8_t *dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint32_t both;
@@ -2186,8 +2188,8 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
                 both = (uint32_t)((uint16_t)(ah << 8) | 0xff);
                 both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
                 io_out8(PORT_GC_DATA, (uint8_t)both);
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), 0);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), 0);
                 dp++;
                 ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
             } while (--ch != 0);
@@ -2196,11 +2198,11 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
                 both = (uint32_t)(uint16_t)(ah << 8);
                 both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
                 io_out8(PORT_GC_DATA, (uint8_t)both);
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), 0);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), 0);
             }
 
-            d = (uint16_t)(d + 0x50);
+            d += 0x50;
         } while (--r != 0);
 
         io_out8(PORT_GC_DATA, 0xff);
@@ -2213,14 +2215,14 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
     /* --------------------------------------------------- one pass a plane */
     for (plane = 0; plane < 4; plane++) {
         const uint8_t *s0 = si;
-        uint16_t d = di;
+        uint8_t *d = di;
         uint16_t count = rows;                                  /* BP */
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(((uint16_t)1 << plane) << 8 | 0x02));
 
         do {
             const uint8_t *s = s0;
-            uint16_t dp = d;
+            uint8_t *dp = d;
             uint8_t ch = cols;
             uint8_t ah = 0;
             uint32_t both;
@@ -2235,8 +2237,8 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
                 both = (uint32_t)((uint16_t)(ah << 8) | *s);
                 s++;
                 both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
-                (void)vga_read((uint16_t)(base + dp));
-                vga_write((uint16_t)(base + dp), (uint8_t)both);
+                (void)vga_read((uint16_t)(dp - vga_aperture));
+                vga_write((uint16_t)(dp - vga_aperture), (uint8_t)both);
                 dp++;
                 ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
             } while (--ch != 0);
@@ -2246,11 +2248,11 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         spill:
             both = (uint32_t)(uint16_t)(ah << 8);
             both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
-            (void)vga_read((uint16_t)(base + dp));
-            vga_write((uint16_t)(base + dp), (uint8_t)both);
+            (void)vga_read((uint16_t)(dp - vga_aperture));
+            vga_write((uint16_t)(dp - vga_aperture), (uint8_t)both);
         next:
             s0 += rowbytes;
-            d = (uint16_t)(d + 0x50);
+            d += 0x50;
         } while (--count != 0);
 
         si += planestep;
