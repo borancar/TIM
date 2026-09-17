@@ -1082,7 +1082,7 @@ no_block:
     if (largest > 0x3ab4)
         goto done;
 
-    block = MK_FP(DG3576.scratch.seg, DG3576.scratch.off);
+    block = dg_far_ptr(DG3576.scratch);
     buffer = 0x3ab4;
 
 have_block:
@@ -1134,7 +1134,7 @@ have_block:
 
         rd->pos = 0;
 
-        cur = MK_FP(rd->data.seg, rd->data.off);
+        cur = dg_far_ptr(rd->data);
 
         if (file_left != 0) {
             uint32_t chunk;
@@ -1158,7 +1158,7 @@ have_block:
         index++;
     }
 
-    if (block != MK_FP(DG3576.scratch.seg, DG3576.scratch.off))
+    if (block != dg_far_ptr(DG3576.scratch))
         dos_free_far(block);
 
 done:

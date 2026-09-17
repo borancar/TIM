@@ -133,7 +133,7 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 {
     (void)callback;
     (void)flag;
-    return call_sound_module(0, (union sound_module_args *)(void *)dg_ptr(dgroup, guest_sp));
+    return call_sound_module(0, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
 }
 
 
@@ -179,7 +179,7 @@ uint16_t sound_module_11(union sound_module_args * si) { return call_sound_modul
  */
 uint16_t stop_loaded_module(void)
 {
-    return call_sound_module(2, (union sound_module_args *)(void *)dg_ptr(dgroup, guest_sp));
+    return call_sound_module(2, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
 }
 
 
@@ -188,7 +188,7 @@ uint16_t stop_loaded_module(void)
  */
 uint16_t sound_module_shutdown(void)
 {
-    return call_sound_module(12, (union sound_module_args *)(void *)dg_ptr(dgroup, guest_sp));
+    return call_sound_module(12, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
 }
 
 

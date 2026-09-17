@@ -7631,8 +7631,8 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      : (uint16_t)(si + 0x28);
 
         v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-        alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x24)),
-                    dg_ptr(dgroup, (uint16_t)v0e), 4, 1, v02);
+        alloc_shape(dg_near_ptr((uint16_t)(si + 0x24)),
+                    dg_near_ptr((uint16_t)v0e), 4, 1, v02);
 
         for (di = 0; di < 2; di++) {
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
@@ -7648,8 +7648,8 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      : (uint16_t)(si + 0x20);
 
         v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-        alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x1c)),
-                    dg_ptr(dgroup, (uint16_t)v0e), 4, 2, v02);
+        alloc_shape(dg_near_ptr((uint16_t)(si + 0x1c)),
+                    dg_near_ptr((uint16_t)v0e), 4, 2, v02);
 
         for (di = 0; di < 2; di++) {
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
@@ -7671,8 +7671,8 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      : (uint16_t)(si + 0x24);
 
         v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-        alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
-                    dg_ptr(dgroup, (uint16_t)(si + 0x28)),
+        alloc_shape(dg_near_ptr((uint16_t)v0c),
+                    dg_near_ptr((uint16_t)(si + 0x28)),
                     4, 1, v02);
 
         for (di = 0; di < 2; di++) {
@@ -7689,8 +7689,8 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                      : (uint16_t)(si + 0x1c);
 
         v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-        alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
-                    dg_ptr(dgroup, (uint16_t)(si + 0x20)),
+        alloc_shape(dg_near_ptr((uint16_t)v0c),
+                    dg_near_ptr((uint16_t)(si + 0x20)),
                     4, 2, v02);
 
         for (di = 0; di < 2; di++) {
@@ -7720,8 +7720,8 @@ plain:
                          : (uint16_t)(si + 0x28);
 
             v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-            alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
-                        dg_ptr(dgroup, (uint16_t)v0e), 4, 1, v02);
+            alloc_shape(dg_near_ptr((uint16_t)v0c),
+                        dg_near_ptr((uint16_t)v0e), 4, 1, v02);
 
             v10 = v12;
             if (PART_PTR(v10)->kind != 7)
@@ -7754,8 +7754,8 @@ plain:
                          : (uint16_t)(si + 0x20);
 
             v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-            alloc_shape(dg_ptr(dgroup, (uint16_t)v0c),
-                        dg_ptr(dgroup, (uint16_t)v0e), 4, 2, v02);
+            alloc_shape(dg_near_ptr((uint16_t)v0c),
+                        dg_near_ptr((uint16_t)v0e), 4, 2, v02);
 
             v10 = v12;
             if (PART_PTR(v10)->kind != 7)
@@ -10133,7 +10133,7 @@ void free_region_lists(void)
         while (si != 0) {
             uint16_t next = REGION_PTR(si)->link_ptr;
 
-            checked_free(dg_ptr(dgroup, si));
+            checked_free(dg_near_ptr(si));
             si = next;
         }
     }
@@ -10165,7 +10165,7 @@ void free_archive_lists(void)
         if ((a->list.off | a->list.seg) == 0)
             continue;
 
-        dos_free_far(MK_FP(a->list.seg, a->list.off));
+        dos_free_far(dg_far_ptr(a->list));
 
         a->list = FAR_NULL;
     }
@@ -10500,8 +10500,7 @@ void vm_set_display_lines(uint16_t lines)
 void scan_entry_list(int16_t idx, uint32_t want,
                      const struct archive_entry **at)
 {
-    *at = (const struct archive_entry *)(void *)MK_FP(MACHINE_ARCHIVES.slot[idx].list.seg,
-                                                      MACHINE_ARCHIVES.slot[idx].list.off);
+    *at = (const struct archive_entry *)(void *)dg_far_ptr(MACHINE_ARCHIVES.slot[idx].list);
 
     for (;;) {
         /* Each entry opens with its 32-bit key; a zero one ends the list.
@@ -10916,7 +10915,7 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
             copy_rect_thunk((uint16_t)x, (uint16_t)rec->y,
                             (uint16_t)rw, (uint16_t)rec->h);
         else if (rec->mode == 4)
-            restore_rect_thunk(MK_FP(rec->buf.seg, rec->buf.off),
+            restore_rect_thunk(dg_far_ptr(rec->buf),
                                rec->x, rec->y,
                                rec->w,
                                rec->h);
@@ -11218,8 +11217,8 @@ void restore_saved_rect_lists(int16_t which)
     uint16_t i = which != 0 ? 1 : 0;              /* the pair to start from */
 
     for (;;) {
-        const dg_seg_t *src = (const dg_seg_t *)dg_ptr(dgroup, MACHINE_PAGE_PAIRS.pair[i].src);
-        const dg_seg_t *dst = (const dg_seg_t *)dg_ptr(dgroup, MACHINE_PAGE_PAIRS.pair[i].dst);
+        const dg_seg_t *src = (const dg_seg_t *)dg_near_ptr(MACHINE_PAGE_PAIRS.pair[i].src);
+        const dg_seg_t *dst = (const dg_seg_t *)dg_near_ptr(MACHINE_PAGE_PAIRS.pair[i].dst);
 
         restore_saved_rects(*src, *dst, 0);
         i++;
@@ -11346,7 +11345,7 @@ void free_rect_pool(void)
         if ((RECTENT_PTR(rec)->block_head & 1) != 0) {
             RECTENT_PTR(rec)->block_head = 0;
             free_rect_pool();
-            heap_free_far(dg_ptr(dgroup, rec));
+            heap_free_far(dg_near_ptr(rec));
             break;
         }
     }
@@ -11728,8 +11727,7 @@ void draw_cursor(uint16_t page)
         if (slot->cursor.buf != 0) {
             if (slot->cursor.w > 0
                 && slot->cursor.h > 0) {
-                const uint8_t *b = MK_FP(MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1].seg,
-                                 MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1].off);
+                const uint8_t *b = dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1]);
 
                 restore_rect_thunk(b,
                                    slot->cursor.x,
@@ -11752,8 +11750,7 @@ void draw_cursor(uint16_t page)
             && slot->bitmap_ptr != 0) {
             if (slot->obj.w > 0
                 && slot->obj.h > 0) {
-                uint8_t *b = MK_FP(MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1].seg,
-                                 MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1].off);
+                uint8_t *b = dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1]);
 
                 save_rect_thunk(b,
                                 slot->obj.x,
@@ -11922,7 +11919,7 @@ void redraw_cursor_all(void)
     }
 
     if ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) != 0) {
-        set_palette_pointer(MK_FP(MACHINE_CURSOR_STATE.pending_pal.seg, MACHINE_CURSOR_STATE.pending_pal.off));
+        set_palette_pointer(dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal));
         MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
         MACHINE_CURSOR_STATE.pending_pal = FAR_NULL;
         MACHINE_PALETTE_FADE.fade_mark = 0;
@@ -12552,7 +12549,7 @@ void load_archive_map(void)
         a->index = (uint16_t)di;
 
         /* The original steps the far pointer at [bp-6] by eight, one entry. */
-        e = (struct archive_entry *)MK_FP(a->list.seg, a->list.off);
+        e = (struct archive_entry *)dg_far_ptr(a->list);
         while (count != 0) {
             count--;
 
@@ -12974,8 +12971,7 @@ void erase_object(uint16_t handle)
         if (((int16_t)rec->obj.buf) != 0 && rec->obj.w > 0
             && rec->obj.h > 0) {
             slot = rec->obj.buf;
-            vm_restore_rect(MK_FP(MACHINE_RECT_BUFFERS.slot[slot - 1].seg,
-                  MACHINE_RECT_BUFFERS.slot[slot - 1].off),
+            vm_restore_rect(dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot - 1]),
                             rec->obj.x, rec->obj.y,
                             rec->obj.w, rec->obj.h);
         } else {
@@ -13023,8 +13019,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (si->obj.buf != 0
             && si->obj.w > 0
             && si->obj.h > 0) {
-            restore_rect_thunk(MK_FP(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1].seg,
-                  MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1].off),
+            restore_rect_thunk(dg_far_ptr(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1]),
                                si->obj.x,
                                si->obj.y,
                                si->obj.w,

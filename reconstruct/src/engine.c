@@ -1022,10 +1022,10 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count)
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
-        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
+        di = (int16_t)game_fread(dg_near_ptr(0x5788), 1, n, FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
         si = (int16_t)(si - di);
 
-        far_memcpy(dst, dg_ptr(dgroup, 0x5788), (uint16_t)di);
+        far_memcpy(dst, dg_near_ptr(0x5788), (uint16_t)di);
 
         dst += di;
     }
@@ -1080,8 +1080,7 @@ int16_t read_input_block(uint8_t *dst, uint16_t count)
                                    FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
 
     far_memcpy(dst,
-               MK_FP((uint16_t)ENGINE_STREAM.in.seg,
-                       (uint16_t)ENGINE_STREAM.in.off), (uint16_t)n);
+               dg_far_ptr(ENGINE_STREAM.in), (uint16_t)n);
     huge_add_to(&ENGINE_STREAM.in, (int32_t)n);
 
     return (int16_t)n;
@@ -1119,12 +1118,12 @@ int16_t emit_literal_run(uint16_t n)
     if (ENGINE_STREAM.wanted < n) {
         rec = ENGINE_STREAM.record_ptr;
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
-        read_into_huge(dg_ptr(dgroup, ENGINE_STREAM.spill_ptr), n);
+        read_into_huge(dg_near_ptr(ENGINE_STREAM.spill_ptr), n);
         return 0;
     }
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        read_into_huge(MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off), n);
+        read_into_huge(dg_far_ptr(ENGINE_STREAM.out), n);
     else
         game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), n, 1);
 
@@ -1154,8 +1153,7 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
 
     if (ENGINE_STREAM.wanted < n) {
         rec = ENGINE_STREAM.record_ptr;
-        far_memset(dg_ptr(dgroup,
-                          (uint16_t)(ENGINE_STREAM.spill_ptr + RESOURCE_PTR(rec)->spill_end)),
+        far_memset(dg_near_ptr((uint16_t)(ENGINE_STREAM.spill_ptr + RESOURCE_PTR(rec)->spill_end)),
                    value, (uint32_t)(int16_t)n);
         rec = ENGINE_STREAM.record_ptr;
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
@@ -1163,7 +1161,7 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
     }
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memset(MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off), value,
+        far_memset(dg_far_ptr(ENGINE_STREAM.out), value,
                    (uint32_t)(int16_t)n);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
@@ -1186,7 +1184,7 @@ int16_t emit_byte(uint16_t value)
 {
     if (ENGINE_STREAM.wanted >= 1) {
         if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-            *MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off) = (uint8_t)value;
+            *dg_far_ptr(ENGINE_STREAM.out) = (uint8_t)value;
 
         huge_add_to(&ENGINE_STREAM.out, 1);
         ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - 1);
@@ -1198,7 +1196,7 @@ int16_t emit_byte(uint16_t value)
         uint8_t n = RESOURCE_PTR(rec)->spill_end;
 
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(n + 1);
-        dg_ptr(dgroup, ENGINE_STREAM.spill_ptr)[n] = (uint8_t)value;
+        dg_near_ptr(ENGINE_STREAM.spill_ptr)[n] = (uint8_t)value;
         return 0;
     }
 }
@@ -1225,7 +1223,7 @@ void lzw_reset(void)
 {
     int16_t i;
     /* The dictionary block; `huge_add` reaches into it from the start. */
-    uint8_t *scratch = MK_FP(ENGINE_STREAM.scratch.seg, ENGINE_STREAM.scratch.off);
+    uint8_t *scratch = dg_far_ptr(ENGINE_STREAM.scratch);
 
     far_memset(scratch, 0, 0x3aa1);
 
@@ -1404,7 +1402,7 @@ int16_t decompress_lzw(void)
                        end lands in the start. */
                     if (++RESOURCE_PTR(rec)->spill_end == 0)
                         RESOURCE_PTR(rec)->spill_start++;
-                    dg_ptr(dgroup, ENGINE_STREAM.spill_ptr)[n] = al;
+                    dg_near_ptr(ENGINE_STREAM.spill_ptr)[n] = al;
                 }
 
                 ENGINE_STREAM.wanted = 0;
@@ -1693,7 +1691,7 @@ int16_t next_input_byte(void)
            cursor the decompressors walk. */
         struct far_ptr p = huge_post_add(&ENGINE_STREAM.in, 1);
 
-        return (int16_t)(*MK_FP(p.seg, p.off) & 0xff);
+        return (int16_t)(*dg_far_ptr(p) & 0xff);
     }
 }
 
@@ -1737,7 +1735,7 @@ int16_t string_contains_r(const char *str)
 void free_if_set(uint16_t p)
 {
     if (p != 0)
-        io_free(dg_ptr(dgroup, p));
+        io_free(dg_near_ptr(p));
 }
 /*
  * 0x1c71a
@@ -1767,8 +1765,7 @@ int16_t close_resource_slot(uint16_t slot)
         rec = ENGINE_STREAM.record_ptr;
         if (!huge_equal(RESOURCE_PTR(rec)->scratch.off, RESOURCE_PTR(rec)->scratch.seg, 0, 0)
             && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
-            dos_free_far(MK_FP(RESOURCE_PTR(rec)->scratch.seg,
-                               RESOURCE_PTR(rec)->scratch.off));
+            dos_free_far(dg_far_ptr(RESOURCE_PTR(rec)->scratch));
     }
 
     free_if_set(ENGINE_STREAM.record_ptr);
@@ -1912,8 +1909,7 @@ void resource_advance(void)
         return;
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memcpy(MK_FP((uint16_t)ENGINE_STREAM.out.seg,
-                           (uint16_t)ENGINE_STREAM.out.off),
+        far_memcpy(dg_far_ptr(ENGINE_STREAM.out),
                    MK_FP((uint16_t)(dgroup_base >> 4),
                            (uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
 
@@ -1990,7 +1986,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
     rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->end = size;
 
-    game_fread(dg_ptr(dgroup, (uint16_t)(ENGINE_STREAM.record_ptr + 0x12)),
+    game_fread(dg_near_ptr((uint16_t)(ENGINE_STREAM.record_ptr + 0x12)),
                1, 4, file);
 
     {
@@ -2842,8 +2838,7 @@ uint8_t far *load_palette(char *name)
            string, which `seek_named_chunk` refuses. */
         chunk = seek_named_chunk(
             file,
-            (const char *)dg_ptr(dgroup,
-                PALCHUNK.by_adapter[(int16_t)VMDS.pixel_shift]),
+            (const char *)dg_near_ptr(PALCHUNK.by_adapter[(int16_t)VMDS.pixel_shift]),
             0);
 
         if (chunk != -1) {
@@ -2922,7 +2917,7 @@ uint8_t far *set_palette_pointer(uint8_t far * h)
     }
 
     if (h == MK_FP(0, 0))
-        return MK_FP(PALCHUNK.palette_ptr.seg, PALCHUNK.palette_ptr.off);
+        return dg_far_ptr(PALCHUNK.palette_ptr);
 
     PALCHUNK.palette_ptr = far_of(h);
     vm_load_palette(h);
@@ -3099,7 +3094,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
         vrow = (int16_t)VMDS.row_offset[y];
     }
 
-    vsrc = MK_FP(bmp->data.seg, bmp->data.off);
+    vsrc = dg_far_ptr_rev(bmp->data);
 
     vbase = *vsrc;
     vsrc++;
@@ -4647,8 +4642,7 @@ uint16_t load_font(char *name)
         opened = 0;
     }
 
-    if (seek_named_chunk(di, (const char *)dg_ptr(dgroup,
-                                                  ENGINE_FONT_CHUNK.font_chunk_name), 0)
+    if (seek_named_chunk(di, (const char *)dg_near_ptr(ENGINE_FONT_CHUNK.font_chunk_name), 0)
             == -1) {
         si = 0;
     } else {
@@ -4682,7 +4676,7 @@ uint16_t load_font(char *name)
             }
 
             if (failed == 0)
-                failed = (read_resource(handle, MK_FP(blk.seg, blk.off),
+                failed = (read_resource(handle, dg_far_ptr(blk),
                                         (uint16_t)size[0]) == size[0])
                          ? 0 : 1;
 
@@ -4705,7 +4699,7 @@ uint16_t load_font(char *name)
 
             if (failed != 0) {
                 if (!far_eq(blk, FAR_NULL))
-                    dos_free_far(MK_FP(blk.seg, blk.off));
+                    dos_free_far(dg_far_ptr(blk));
                 si = 0;
             }
         } else {
@@ -5001,7 +4995,7 @@ void free_bitmaps(bmp_ptr_t * list)
     if (list == NULL || list == BMPLIST(0))
         return;
 
-    dos_free_far(MK_FP(BMP_PTR(list[0])->data.seg, BMP_PTR(list[0])->data.off));
+    dos_free_far(dg_far_ptr_rev(BMP_PTR(list[0])->data));
 
     free_bitmap_list(list);
 }
@@ -5788,10 +5782,9 @@ void close_table_618a_slot(int16_t index)
     }
 
     if (!far_eq(ENGINE_FONT_WIDTHS.width[index], FAR_NULL))
-        dos_free_far(MK_FP(ENGINE_FONT_WIDTHS.width[index].seg,
-                           ENGINE_FONT_WIDTHS.width[index].off));
+        dos_free_far(dg_far_ptr(ENGINE_FONT_WIDTHS.width[index]));
     else
-        heap_free_far(dg_ptr(dgroup, ENGINE_FONTS.body[index].off));
+        heap_free_far(dg_near_ptr(ENGINE_FONTS.body[index].off));
 
     ENGINE_FONT_KINDS.kind[index] = 0;
 
@@ -5950,8 +5943,7 @@ void free_far_block(uint8_t far * h)
         return;
 
     for (i = 1; i < 10; i++) {
-        uint8_t far *block = MK_FP(VMDS.palettes.blocks[i].seg,
-                                   VMDS.palettes.blocks[i].off);
+        uint8_t far *block = dg_far_ptr(VMDS.palettes.blocks[i]);
 
         if (block != h)
             continue;
@@ -6837,7 +6829,7 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
        - the compiler folding that first index into it - so entry 1 is
        `tag[0]`. */
     string_copy_far(OVLCHUNK.ovl_tag + 4,
-                    (const char *)dg_ptr(dgroup, ADAPTER_TAGS.tag[si - 1]));
+                    (const char *)dg_near_ptr(ADAPTER_TAGS.tag[si - 1]));
 
     if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == -1)
         return MK_FP(0, 0);
@@ -6858,21 +6850,21 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
     }
 
     if (!huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
-        dos_free_far(MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off));
+        dos_free_far(dg_far_ptr(ENGINE_DRIVER_BLOCK.block));
 
     ENGINE_DRIVER_BLOCK.block = far_of(dos_alloc_bytes(len, 0, 0).ptr);
 
     if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
         return MK_FP(0, 0);
 
-    read_resource(handle, MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off),
+    read_resource(handle, dg_far_ptr(ENGINE_DRIVER_BLOCK.block),
                   (uint16_t)len);
     close_resource(handle);
 
     if (opened != 0)
         close_file_record(di);
 
-    return MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off);
+    return dg_far_ptr(ENGINE_DRIVER_BLOCK.block);
 }
 
 /*
@@ -6929,7 +6921,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.screen.screen_height = 0xc8;
 
     if (!far_eq(VMDS.palettes.blocks[0], FAR_NULL)) {
-        dos_free_far(MK_FP(VMDS.palettes.blocks[0].seg, VMDS.palettes.blocks[0].off));
+        dos_free_far(dg_far_ptr(VMDS.palettes.blocks[0]));
         VMDS.palettes.blocks[0] = FAR_NULL;
     }
 
@@ -7125,7 +7117,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
             pixels = (uint16_t)(pixels >> 3);
 
-            planes_to_chunky(blk, MK_FP(hdr->data.seg, hdr->data.off),
+            planes_to_chunky(blk, dg_far_ptr_rev(hdr->data),
                              pixels);
 
             hdr->data = far_to_rev(far_of(blk));
@@ -7152,7 +7144,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
     io_dos_resize(BMP_PTR(list[0])->data.seg, ENGINE_BITMAP_COMPRESS.word_63e8);
 
-    heap_free_far(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr));
+    heap_free_far(dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr));
 
     return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
 }
@@ -7404,14 +7396,14 @@ void compress_bitmap(struct bitmap *bmp)
 
     ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
 
-    hdr = MK_FP(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off);
+    hdr = dg_far_ptr(ENGINE_BITMAP_COMPRESS.out);
     ENGINE_BITMAP_COMPRESS.out.off++;
 
     for (y = 0; bmp->height > y; y++) {
         uint8_t *at = rowbuf;
 
         far_memcpy((uint8_t *)rowbuf,
-                   MK_FP(ENGINE_BITMAP_COMPRESS.src.seg, ENGINE_BITMAP_COMPRESS.src.off),
+                   dg_far_ptr(ENGINE_BITMAP_COMPRESS.src),
                    (uint16_t)bmp->width);
         ENGINE_BITMAP_COMPRESS.src.off = (uint16_t)(ENGINE_BITMAP_COMPRESS.src.off + bmp->width);
 
@@ -7422,7 +7414,7 @@ void compress_bitmap(struct bitmap *bmp)
 
             if (v == 0) {
                 if (di != 0) {
-                    compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
+                    compress_row(dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
                     di = 0;
                 }
                 blanks++;
@@ -7430,7 +7422,7 @@ void compress_bitmap(struct bitmap *bmp)
             }
 
             v = (uint8_t)((v - least) & ((uint8_t)ENGINE_BITMAP_COMPRESS.mode));
-            dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr)[di] = v;
+            dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr)[di] = v;
             di++;
 
             if (blanks != 0) {
@@ -7446,7 +7438,7 @@ void compress_bitmap(struct bitmap *bmp)
         }
 
         if (di != 0) {
-            compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
+            compress_row(dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
             di = 0;
         }
 
@@ -7455,7 +7447,7 @@ void compress_bitmap(struct bitmap *bmp)
     }
 
     if (di != 0)
-        compress_row(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
+        compress_row(dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr), (int16_t)di);
 
     emit_packed_value(0);
 
@@ -7752,7 +7744,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
         vrow = (int16_t)VMDS.row_offset[y];
     }
 
-    vsrc = MK_FP(bmp->data.seg, bmp->data.off);
+    vsrc = dg_far_ptr_rev(bmp->data);
 
     vbase = *vsrc;
     vsrc++;
@@ -8235,7 +8227,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
     }
 
-    src = MK_FP(bmp->data.seg, bmp->data.off);
+    src = dg_far_ptr_rev(bmp->data);
 
     if (bottom - top > 0 && right - left > 1) {
         /*

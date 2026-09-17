@@ -131,7 +131,7 @@ def _arg_index(text, at):
 #: **A spelling, not a use.** `dg_ptr(dgroup, si)` *is* `si` - it is how a slot
 #: reaches a parameter that takes a pointer - and stopping at it names `dg_ptr`
 #: as the callee, so whatever the slot was really passed to is never examined.
-TRANSPARENT = ('dg_ptr', 'dg_near', 'dg_cptr')
+TRANSPARENT = ('dg_ptr', 'dg_near_ptr', 'dg_near', 'dg_cptr')
 
 
 def _real_call(text, at):

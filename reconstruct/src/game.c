@@ -642,10 +642,10 @@ uint16_t game_teardown(int16_t really)
     }
 
     /* Each free block's first four bytes are the far pointer to the next. */
-    node = MK_FP(DG4E4E.shape_free.seg, DG4E4E.shape_free.off);
+    node = dg_far_ptr(DG4E4E.shape_free);
     while (node != MK_FP(0, 0)) {
         const struct far_ptr *link = (const struct far_ptr *)(void *)node;
-        uint8_t *next = MK_FP(link->seg, link->off);
+        uint8_t *next = dg_far_ptr(*link);
 
         dos_free_far(node);
         node = next;
@@ -655,7 +655,7 @@ uint16_t game_teardown(int16_t really)
     while (si != 0) {
         uint16_t next = QNODE_PTR(si)->next_ptr;
 
-        heap_free_far(dg_ptr(dgroup, si));
+        heap_free_far(dg_near_ptr(si));
         si = next;
     }
 
@@ -669,9 +669,9 @@ uint16_t game_teardown(int16_t really)
 
     close_table_618a_slot(DG52BD.word_52df);
 
-    free_far_block(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));
-    free_far_block(MK_FP(DG52BD.pal_sierra_ptr.seg, DG52BD.pal_sierra_ptr.off));
-    free_far_block(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
+    free_far_block(dg_far_ptr(DG52BD.pal_black_ptr));
+    free_far_block(dg_far_ptr(DG52BD.pal_sierra_ptr));
+    free_far_block(dg_far_ptr(DG52ED.pal_tim_ptr));
 
     stop_sequences(-2);
     remove_and_free_records(-2);
@@ -900,7 +900,7 @@ uint16_t game_intro(void)
 
     TIMER.frame_budget = 0x2710;
 
-    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
+    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
 
     bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
@@ -922,7 +922,7 @@ uint16_t game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_front_ptr;
             clear_flag_2d44_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
-            set_palette_pointer(MK_FP(DG52BD.pal_sierra_ptr.seg, DG52BD.pal_sierra_ptr.off));  /* sierra.pal */
+            set_palette_pointer(dg_far_ptr(DG52BD.pal_sierra_ptr));  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(TIMER.frame_budget + 0xff88);
             step = &GAME_INTRO_STEPS.step[0];
@@ -996,7 +996,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
 
-    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
+    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
 
     VMDS.page_front_ptr = 0xa000;
     VMDS.page_back_ptr = 0xa820;
@@ -1087,7 +1087,7 @@ uint16_t game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));  /* tim.pal */
+                set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));  /* tim.pal */
 
             if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
             if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
@@ -1140,7 +1140,7 @@ uint16_t game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
+    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(gkc->bmp_ptr);
@@ -1308,7 +1308,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     VMDS.page_src_ptr = VMDS.page_front_ptr;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
+    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
     show_cursor_again();
 
     done = 0;
@@ -1915,10 +1915,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     i       = 0;
     left_at = GAME_PICKER_TEXT.line_count;
 
-    while (GAME_TEXT_LINES.line_ptr[i] != 0 && *dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i]) != 0
+    while (GAME_TEXT_LINES.line_ptr[i] != 0 && *dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]) != 0
            && left_at-- != 0) {
-        char *start = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i]);
-        char *end   = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line_ptr[i + 1]) - 1;
+        char *start = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]);
+        char *end   = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i + 1]) - 1;
         char  saved;
 
         while (end > start && (uint8_t)*end <= ' ')
@@ -2574,7 +2574,7 @@ uint16_t read_level(char *name)
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
-    game_setbuf(file, dg_ptr(dgroup, buf));
+    game_setbuf(file, dg_near_ptr(buf));
     game_fread_far(file, (uint8_t *)&DG546C.version_out);
 
     if (DG546C.version_out == 0xaced) {
@@ -2613,7 +2613,7 @@ uint16_t read_level(char *name)
         if (DG546C.is_level != 0)
             read_list(file, &DG50D3.parts_bin, n_given);
 
-        dos_free_far(MK_FP(DG546C.table.seg, DG546C.table.off));
+        dos_free_far(dg_far_ptr(DG546C.table));
     }
 
     r = game_fclose(file);
@@ -5026,7 +5026,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
+    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
     show_cursor_again();
 
     while (s.done == 0) {
@@ -6516,11 +6516,9 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
             {
                 const struct far_ptr far *entries =
                     (const struct far_ptr far *)(void *)
-                    MK_FP(GAME_PICKER_TEXT.block.seg,
-                          GAME_PICKER_TEXT.block.off);
+                    dg_far_ptr(GAME_PICKER_TEXT.block);
 
-                rec = (const char far *)MK_FP(entries[idx].seg,
-                                              entries[idx].off);
+                rec = (const char far *)dg_far_ptr(entries[idx]);
             }
 
             if (*rec != ':' && *rec != '<') {
@@ -6639,7 +6637,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
      * freeing that would hand back memory the picker never owned.
      */
     if (GAME_PICKER_TEXT.block.off != DG3576.scratch.off || GAME_PICKER_TEXT.block.seg != DG3576.scratch.seg) {
-        dos_free_far(MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off));
+        dos_free_far(dg_far_ptr(GAME_PICKER_TEXT.block));
         GAME_PICKER_TEXT.block = FAR_NULL;
         GAME_PICKER_TEXT.text_start = FAR_NULL;
     }
@@ -6741,12 +6739,12 @@ void picker_draw_list(void)
         top = 0;
     }
 
-    p = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off);
+    p = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
     p += top;                           /* skip the rows scrolled past */
 
     i = 0;
     while (i < GAME_PICKER_TEXT.entry_count && room >= 0x0a) {
-        const char *t = (const char *)MK_FP(p->seg, p->off);
+        const char *t = (const char *)dg_far_ptr(*p);
 
         p++;
         if (*t == ':')
@@ -6817,7 +6815,7 @@ void fill_file_listing(const char *pattern)
     GAME_PICKER_TEXT.entry_count = 0;
     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
-    ptr = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off);
+    ptr = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
     txt_seg = GAME_PICKER_TEXT.text_start.seg;
     txt_seg_start = MK_FP(txt_seg, 0);
     txt = MK_FP(txt_seg, GAME_PICKER_TEXT.text_start.off);
@@ -6921,13 +6919,12 @@ void sort_file_listing(void)
     while (swapped) {
         swapped = 0;
 
-        p = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg,
-                                        GAME_PICKER_TEXT.block.off);
+        p = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
 
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
         if (!far_eq(p[0], FAR_NULL)) {
-            if (*MK_FP(p[0].seg, p[0].off) == ':')
+            if (*dg_far_ptr(p[0]) == ':')
                 p++;
         }
 
@@ -6935,8 +6932,8 @@ void sort_file_listing(void)
             /* The pairs are swapped as they are; the names are read through. */
             struct far_ptr a = p[0];
             struct far_ptr b = p[1];
-            const char *name_a = (const char *)MK_FP(a.seg, a.off);
-            const char *name_b = (const char *)MK_FP(b.seg, b.off);
+            const char *name_a = (const char *)dg_far_ptr(a);
+            const char *name_b = (const char *)dg_far_ptr(b);
             int16_t  swap = 0;
 
             /* "<PARENT DIR>" and the directories sort first. */
@@ -7393,7 +7390,7 @@ uint16_t path_is_root(const char *path)
     const char *si = path;
     const char *last = 0;
     int16_t  n = 0;
-    char sep = *(const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr);
+    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
 
     while (*si != 0) {
         if (*si == sep) {
@@ -7428,7 +7425,7 @@ void path_up(char *path)
     char *si = path;
     char *last = 0;
     int16_t  n = 0;
-    char sep = *(const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr);
+    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
 
     while (*si != 0) {
         if (*si == sep) {
@@ -7476,7 +7473,7 @@ void path_join(char *path, const char far * entry)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(path, (const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr));
+        string_concat(path, (const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr));
 
     string_concat(path, name);
 
@@ -7739,8 +7736,8 @@ void write_record_fields(FILE *file, struct part *part)
             vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
             write_word(file, (uint8_t *)&vindex);
 
-            write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
-            write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0b)));
+            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0a)));
+            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0b)));
         }
     }
 

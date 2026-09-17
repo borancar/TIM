@@ -17,7 +17,8 @@ R = '/home/boran/git/TIM/reconstruct'
 proto = open(os.path.join(R, 'tim.h')).read()
 PTR = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
                  r'|const (?:volatile )?uint8_t \*)[^;]*?\)\s*;', re.S)
-ptrfn = set(PTR.findall(proto)) | {"step_accumulate", "dg_ptr", "dg_near",
+ptrfn = set(PTR.findall(proto)) | {"step_accumulate", "dg_ptr",
+                                   "dg_near_ptr", "dg_near",
                                    "dg_rd16", "dg_wr16", "dg_rd32", "dg_wr32"}
 fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(')
 DECL = re.compile(r'^\s*uint16_t\s+(\w+)\s*=\s*(?:\(uint16_t\)\()?\s*fp\b[^;]*;')
@@ -60,7 +61,7 @@ def enclosing_call_at(text, at):
 #: `sound.c` frames: they spell it `read_resource(handle, dg_ptr(dgroup, b), 1)`
 #: and the census answered "no blocking callee" about the two routines whose
 #: conversion is the one this project has *measured* to be wrong.
-TRANSPARENT = ('dg_ptr', 'dg_near', 'dg_cptr')
+TRANSPARENT = ('dg_ptr', 'dg_near_ptr', 'dg_near', 'dg_cptr')
 
 
 def real_call(text, at):

@@ -573,7 +573,7 @@ next_byte:
         uint16_t p = file->curp_ptr;
 
         file->curp_ptr = (int16_t)(p + 1);
-        dx = *dg_ptr(dgroup, p);
+        dx = *dg_near_ptr(p);
     }
 
     if (dx != 0xffff) {
@@ -748,7 +748,7 @@ int16_t refill_stream(struct file_rec *file)
 
     file->curp_ptr = ((int16_t)file->buffer_ptr);
 
-    got = read_translated((int16_t)file->fd, dg_ptr(dgroup, file->buffer_ptr),
+    got = read_translated((int16_t)file->fd, dg_near_ptr(file->buffer_ptr),
                           file->bsize);
     file->level = got;
 
@@ -843,7 +843,7 @@ int16_t borland_fgetc(struct file_rec *file)
 
         file->level--;
         file->curp_ptr = (int16_t)(p + 1);
-        return *dg_ptr(dgroup, p);
+        return *dg_near_ptr(p);
     }
 }
 
@@ -905,7 +905,7 @@ int16_t flush_stream(struct file_rec *file)
         file->curp_ptr = file->buffer_ptr;
 
         if (write_text((int16_t)((int8_t)file->fd),
-                       dg_ptr(dgroup, file->buffer_ptr),
+                       dg_near_ptr(file->buffer_ptr),
                        (uint16_t)n) == n)
             return 0;
 
@@ -917,13 +917,13 @@ int16_t flush_stream(struct file_rec *file)
     }
 
     if ((file->flags & 8) == 0) {
-        if (dg_ptr(dgroup, file->curp_ptr) != &file->hold)
+        if (dg_near_ptr(file->curp_ptr) != &file->hold)
             return 0;
     }
 
     file->level = 0;
 
-    if (dg_ptr(dgroup, file->curp_ptr) != &file->hold)
+    if (dg_near_ptr(file->curp_ptr) != &file->hold)
         return 0;
 
     file->curp_ptr = ((int16_t)file->buffer_ptr);
@@ -1109,7 +1109,7 @@ int16_t borland_fclose(struct file_rec *file)
             return -1;
 
         if ((file->flags & 4) != 0)
-            heap_free(dg_ptr(dgroup, file->buffer_ptr));
+            heap_free(dg_near_ptr(file->buffer_ptr));
     }
 
     if ((int8_t)file->fd >= 0)
@@ -1347,7 +1347,7 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
 
     if (file->level < -1) {
         file->level++;
-        *dg_ptr(dgroup, file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
+        *dg_near_ptr(file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
         file->curp_ptr++;
 
         if ((file->flags & 8) == 0)
@@ -1373,7 +1373,7 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
                 return -1;
 
             file->level = (int16_t)(-((int16_t)file->bsize));
-            *dg_ptr(dgroup, file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
+            *dg_near_ptr(file->curp_ptr) = BORLAND_FPUTC_CHAR.character;
             file->curp_ptr++;
 
             if ((file->flags & 8) == 0)
@@ -1775,7 +1775,7 @@ int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode, uint1
         borland_fseek(file, 0, 1);
 
     if ((file->flags & 4) != 0)
-        heap_free(dg_ptr(dgroup, file->buffer_ptr));
+        heap_free(dg_near_ptr(file->buffer_ptr));
 
     file->flags = (int16_t)(file->flags & 0xfff3);
     file->bsize = 0;
@@ -2489,7 +2489,7 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
                 return 0;
         }
 
-        mem_copy(dg_ptr(dgroup, file->curp_ptr), buf, count);
+        mem_copy(dg_near_ptr(file->curp_ptr), buf, count);
         file->level = (uint16_t)(((uint16_t)file->level) + count);
         file->curp_ptr =
             (uint16_t)(file->curp_ptr + count);
@@ -2519,7 +2519,7 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
             uint8_t c = *buf;
 
             buf++;
-            *dg_ptr(dgroup, file->curp_ptr) = c;
+            *dg_near_ptr(file->curp_ptr) = c;
             file->curp_ptr++;
             r = (int16_t)c;
         }
@@ -3551,7 +3551,7 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
                     uint16_t off = *(const uint16_t *)args;
 
                     args += 2;
-                    str = off != 0 ? (const char *)dg_ptr(dgroup, off)
+                    str = off != 0 ? (const char *)dg_near_ptr(off)
                                    : NULL;
                 } else {
                     uint16_t off = *(const uint16_t *)args;
@@ -3576,7 +3576,7 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
 
                 if ((flags & 0x20) == 0) {
                     args += 2;
-                    at = (uint16_t *)dg_ptr(dgroup, off);
+                    at = (uint16_t *)dg_near_ptr(off);
                 } else {
                     uint16_t seg = *(const uint16_t *)(args + 2);
 

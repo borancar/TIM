@@ -82,7 +82,7 @@ int32_t long_divide(int32_t a, int32_t b)
  */
 int16_t brk_set(const uint8_t *addr)
 {
-    if (addr >= dg_ptr(dgroup, (uint16_t)(guest_sp - 0x200))) {
+    if (addr >= dg_near_ptr((uint16_t)(guest_sp - 0x200))) {
         DG0094.err_no = 8;
         return -1;
     }
@@ -115,7 +115,7 @@ uint8_t *heap_sbrk(uint16_t lo, uint16_t hi)
     if ((uint16_t)(cx + 0x200) >= guest_sp)
         goto fail;
 
-    old = dg_ptr(dgroup, DG0094.brklvl_ptr);
+    old = dg_near_ptr(DG0094.brklvl_ptr);
     DG0094.brklvl_ptr = cx;
     return old;
 
@@ -796,7 +796,7 @@ int16_t heapwalk(struct heapinfo *info)
     struct heap_block *si;
 
     if (info->block_ptr != 0) {
-        si = heap_block_of(dg_ptr(dgroup, info->block_ptr));
+        si = heap_block_of(dg_near_ptr(info->block_ptr));
         if (si == HEAPBLK_PTR(DG4E34.top_block_ptr))
             return 5;
         /* `add si,[si] / and si,0xfffe`: the in-use bit in the size makes the

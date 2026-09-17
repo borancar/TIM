@@ -1142,16 +1142,16 @@ void free_part(struct part *part)
         return;
 
     if (part->points_ptr != 0)
-        checked_free(dg_ptr(dgroup, part->points_ptr));
+        checked_free(dg_near_ptr(part->points_ptr));
 
     if (part->rope_ptr != 0
         && (part->flags_08 & 1) == 0)
-        checked_free(dg_ptr(dgroup, part->rope_ptr));
+        checked_free(dg_near_ptr(part->rope_ptr));
 
     if (part->belt_ptr[0] != 0
         && (part->kind == KIND_PULLEY
             || part->kind == KIND_ROPE))
-        checked_free(dg_ptr(dgroup, part->belt_ptr[0]));
+        checked_free(dg_near_ptr(part->belt_ptr[0]));
 
     checked_free((uint8_t *)part);
 }

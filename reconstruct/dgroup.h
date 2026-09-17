@@ -105,7 +105,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 /*
  * **No raw accessor macro is left** - the family that read DGROUP at a
  * constant offset. DGROUP is read through a field of a struct overlay, through
- * a typed pointer such as `VQTRD`, or through `dg_ptr(dgroup, offset)`, and
+ * a typed pointer such as `VQTRD`, or through `dg_near_ptr(offset)`, and
  * that last one still reaches a byte by a computed number at dozens of sites:
  * it is what a typed view has not replaced yet, and `dgrules.py` does not
  * count it.
@@ -296,6 +296,18 @@ static inline struct far_ptr far_of(const uint8_t *p)
 }
 
 /*
+ * **The pointer a stored pair names** - `far_of` the other way round, and
+ * `dg_near_ptr`'s far counterpart. Every read of a `struct far_ptr` field is
+ * this `MK_FP`, and spelling both halves out at each one said nothing the
+ * field's own name did not. The typed records have their own - `SEQUENCE_PTR`,
+ * `SOUND_RECORD_PTR`. Ours.
+ */
+static inline uint8_t *dg_far_ptr(struct far_ptr p)
+{
+    return MK_FP(p.seg, p.off);
+}
+
+/*
  * **A pointer filed in another pointer's segment.** The original often holds a
  * segment and steps only the offset inside it - `advance_record` answers the
  * segment it was given beside a moved offset - and the pair it files is then
@@ -338,6 +350,13 @@ static inline int far_eq(struct far_ptr a, struct far_ptr b)
  */
 static const struct far_ptr FAR_NULL = { 0, 0 };
 
+/* `dg_far_ptr` for the one record that stores the pair segment-first - a
+   bitmap's pixels. */
+static inline uint8_t *dg_far_ptr_rev(struct far_ptr_rev r)
+{
+    return MK_FP(r.seg, r.off);
+}
+
 /* And the conversion between the two orders, for a caller that wants the
    common one out of a bitmap header. */
 static inline struct far_ptr far_of_rev(struct far_ptr_rev r)
@@ -378,6 +397,19 @@ static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
 static inline uint8_t *dg_ptr(void *base, uint16_t off)
 {
     return (uint8_t *)base + off;
+}
+
+/*
+ * **The pointer a stored near pointer names**, which is `dg_near_ptr(off)`
+ * and was written that way at all 74 of them. `dg_near` is the store; this is
+ * the read, and it names DGROUP the once rather than at every call - the base
+ * argument earns its keep on `dg_ptr`, where the offset may belong to one of
+ * the other four spaces, and says nothing on a field the game itself keeps as
+ * a DGROUP offset. Ours.
+ */
+static inline uint8_t *dg_near_ptr(dg_near_t off)
+{
+    return dg_ptr(dgroup, off);
 }
 
 /* `const volatile`, because the struct overlays are volatile - see the note on
@@ -2006,7 +2038,7 @@ extern struct dg_546c DG546C;
 struct part_table {
     dg_near_t part_ptr[];
 } __attribute__((packed));
-#define PART_TABLE ((struct part_table *)MK_FP(DG546C.table.seg, DG546C.table.off))
+#define PART_TABLE ((struct part_table *)dg_far_ptr(DG546C.table))
 
 DG_ASSERT_AT(struct dg_546c, table,             0x00);
 DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
@@ -3473,7 +3505,7 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
 
 /* One of these through the far pointer that reaches it. Not a `DG*` macro:
    they are not in DGROUP. */
-#define NODE(p) ((struct sound_node far *)MK_FP((p).seg, (p).off))
+#define NODE(p) ((struct sound_node far *)dg_far_ptr((p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -3562,7 +3594,7 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
    pointer the guest tests with `or ax,dx` - see `PART_NONE` for why a
    sentinel and not NULL. */
 #define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
-#define SEQUENCE_PTR(fp) ((struct sequence *)(void *)MK_FP((fp).seg, (fp).off))
+#define SEQUENCE_PTR(fp) ((struct sequence *)(void *)dg_far_ptr((fp)))
 #define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
 
 /*
@@ -3597,7 +3629,7 @@ DG_ASSERT_AT(struct sound_record, sequence,      0x0e);
 DG_ASSERT_AT(struct sound_record, flags,         0x12);
 
 #define SOUND_RECORD_NONE ((struct sound_record *)(void *)MK_FP(0, 0))
-#define SOUND_RECORD_PTR(fp) ((struct sound_record *)(void *)MK_FP((fp).seg, (fp).off))
+#define SOUND_RECORD_PTR(fp) ((struct sound_record *)(void *)dg_far_ptr((fp)))
 DG_ASSERT_AT(struct sequence, cursor_at,        0x008);
 DG_ASSERT_AT(struct sequence, position,         0x00c);
 DG_ASSERT_AT(struct sequence, delay,            0x04c);

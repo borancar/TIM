@@ -1687,8 +1687,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(const uint8_t far * pal)
 {
-    uint8_t *di = MK_FP(VMDS.palettes.blocks[0].seg,
-                        VMDS.palettes.blocks[0].off);
+    uint8_t *di = dg_far_ptr(VMDS.palettes.blocks[0]);
     const uint8_t *si = pal;
     int32_t i;
 
@@ -1823,7 +1822,7 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     /* The planes and the mask, both in the segment the header names. */
-    const uint8_t *src     = MK_FP(bmp->data.seg, bmp->data.off);
+    const uint8_t *src     = dg_far_ptr_rev(bmp->data);
     const uint8_t *mask_at = MK_FP(bmp->data.seg, bmp->mask_off);
     int16_t  w        = bmp->width;
     int16_t  h        = bmp->height;
@@ -2099,7 +2098,7 @@ done:
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 {
     /* [bp-0xa] -> cs:[0x2ae1] and [bp-8], the header's pair */
-    const uint8_t *si  = MK_FP(bmp->data.seg, bmp->data.off);
+    const uint8_t *si  = dg_far_ptr_rev(bmp->data);
     int16_t  w         = bmp->width;                            /* [bp-4] */
     int16_t  h         = bmp->height;                           /* [bp-2] */
     uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */

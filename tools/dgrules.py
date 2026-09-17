@@ -475,7 +475,7 @@ def rule_const_addr(paths):
                     continue
                 callee = text(src, call.child_by_field_name("function"))
                 if re.match(r"DG(8|16|32|U16)$", callee) \
-                        or callee in ("dg_ptr", "dg_near"):
+                        or callee in ("dg_ptr", "dg_near_ptr", "dg_near"):
                     used.add(text(src, n))
             for v in sorted(used):
                 val, line = lit[v]
