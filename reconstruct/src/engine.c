@@ -2356,6 +2356,18 @@ int16_t huff_get_byte(void)
 }
 
 /*
+ * **The three tables, indexed rather than addressed.** Each is a word array at
+ * its own offset inside the scratch block, and the original reaches every
+ * entry as `[bx + si]` with the table's offset in BX - which is what these
+ * say. They read the caller's own `seg`, `freq`, `prnt` and `son`, because
+ * every routine that uses them declares those four; the offsets are stepped in
+ * 16 bits, so the truncation is the macro's and a typed pointer would lose it.
+ */
+#define FREQ(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * (x))))
+#define PRNT(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (x))))
+#define SON(x)  (*(uint16_t *)MK_FP(seg, (uint16_t)(son  + 2 * (x))))
+
+/*
  * 0x1e0b3
  *
  * Build the adaptive Huffman tree that decompression type 3 decodes with.
@@ -2394,28 +2406,22 @@ void huffman_start(void)
     son  = ENGINE_HUFFMAN_TREE.word_5900;
 
     for (i = 0; i < 0x13a; i++) {
-        *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * i)) = 1;
-        *(uint16_t *)MK_FP(seg, (uint16_t)(son + 2 * i)) =
-            (uint16_t)(i + 0x273);
-        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (i + 0x273))) =
-            (uint16_t)i;
+        FREQ(i) = 1;
+        SON(i) = (uint16_t)(i + 0x273);
+        PRNT(i + 0x273) = (uint16_t)i;
     }
 
     i = 0;
     for (j = 0x13a; j <= 0x272; j++) {
-        *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * j)) =
-            (uint16_t)(*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * i))
-                       + *(uint16_t *)MK_FP(seg,
-                                              (uint16_t)(freq + 2 * (i + 1))));
-        *(uint16_t *)MK_FP(seg, (uint16_t)(son + 2 * j)) = (uint16_t)i;
-        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (i + 1))) =
-            (uint16_t)j;
-        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * i)) = (uint16_t)j;
+        FREQ(j) = (uint16_t)(FREQ(i) + FREQ(i + 1));
+        SON(j) = (uint16_t)i;
+        PRNT(i + 1) = (uint16_t)j;
+        PRNT(i) = (uint16_t)j;
         i += 2;
     }
 
-    *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 0x4e6)) = 0xffff;
-    *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 0x4e4)) = 0;
+    FREQ(0x273) = 0xffff;    /* the root's guard, `freq + 0x4e6` */
+    PRNT(0x272) = 0;
 }
 
 /*
@@ -2448,10 +2454,6 @@ void huffman_reconst(void)
     uint16_t prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
     uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
     int16_t i, j, k, n;
-
-#define FREQ(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * (x))))
-#define PRNT(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (x))))
-#define SON(x)  (*(uint16_t *)MK_FP(seg, (uint16_t)(son  + 2 * (x))))
 
     j = 0;
     for (i = 0; i < 0x273; i++) {
@@ -2553,9 +2555,6 @@ void huffman_update(uint16_t c)
         c = PRNT(c);
     } while (c != 0);
 
-#undef FREQ
-#undef PRNT
-#undef SON
 }
 
 /*
@@ -2650,10 +2649,9 @@ int16_t decompress_lzss(void)
             uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
             uint16_t seg = ((uint16_t)ENGINE_HUFFMAN_TREE.word_5902);
 
-            di = *(uint16_t *)MK_FP(seg, (uint16_t)(son + 0x4e4));
+            di = SON(0x272);          /* the root, `son + 0x4e4` */
             while (di < 0x273)
-                di = *(uint16_t *)MK_FP(
-                    seg, (uint16_t)(son + 2 * (di + huff_get_bit())));
+                di = SON(di + huff_get_bit());
 
             di -= 0x273;
             huffman_update(di);
@@ -2707,6 +2705,10 @@ int16_t decompress_lzss(void)
         }
     }
 }
+
+#undef FREQ
+#undef PRNT
+#undef SON
 
 /*
  * 0x1e940
@@ -7178,37 +7180,37 @@ void emit_packed_value(int16_t value)
         if (dx < 0) {
             dx = (int16_t)(-dx);
 
-            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dx & 0x3f);
+            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dx & 0x3f);
             ENGINE_BITMAP_COMPRESS.out.off++;
 
             dx = (int16_t)((dx & 0x1c0) >> 6);
 
             if (dx != 0) {
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dx & 0x3f);
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dx & 0x3f);
                 ENGINE_BITMAP_COMPRESS.out.off++;
             }
 
             while (--ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
                 ENGINE_BITMAP_COMPRESS.out.off++;
             }
             return;
         }
 
         while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
             ENGINE_BITMAP_COMPRESS.out.off++;
         }
         ENGINE_BITMAP_COMPRESS.pending_rows = 0;
     }
 
     while (dx > 0x3f) {
-        FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0x7f;
+        *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0x7f;
         ENGINE_BITMAP_COMPRESS.out.off++;
         dx = (int16_t)(dx - 0x3f);
     }
 
-    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(0x40 | (dx & 0xff));
+    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(0x40 | (dx & 0xff));
     ENGINE_BITMAP_COMPRESS.out.off++;
 }
 
@@ -7232,7 +7234,7 @@ void write_literal_run(uint8_t count, const uint8_t * buf)
     uint8_t dl = count;
     int16_t si;
 
-    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dl | 0xc0);
+    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dl | 0xc0);
     ENGINE_BITMAP_COMPRESS.out.off++;
 
     if ((dl & 1) != 0) {
@@ -7245,12 +7247,12 @@ void write_literal_run(uint8_t count, const uint8_t * buf)
             uint8_t v = (uint8_t)((buf[si] << 4)
                                   | buf[si + 1]);
 
-            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = v;
+            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = v;
             ENGINE_BITMAP_COMPRESS.out.off++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = buf[si];
+            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = buf[si];
             ENGINE_BITMAP_COMPRESS.out.off++;
         }
     }
@@ -7312,16 +7314,16 @@ void compress_row(uint8_t *src, int16_t remaining)
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0xbf;
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0xbf;
                 ENGINE_BITMAP_COMPRESS.out.off++;
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = value;
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = value;
                 ENGINE_BITMAP_COMPRESS.out.off++;
             }
 
             if (run != 0) {
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(0x80 | run);
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(0x80 | run);
                 ENGINE_BITMAP_COMPRESS.out.off++;
-                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = value;
+                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = value;
                 ENGINE_BITMAP_COMPRESS.out.off++;
             }
             run = 0;
@@ -7386,7 +7388,7 @@ void compress_bitmap(struct bitmap *bmp)
     if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f && VMDS.unknown_1f != 0) {
         for (y = 0; bmp->height > y; y++)
             for (x = 0; bmp->width > x; x++) {
-                uint8_t v = FAR8(ENGINE_BITMAP_COMPRESS.src.seg, ENGINE_BITMAP_COMPRESS.src.off);
+                uint8_t v = *dg_far_ptr(ENGINE_BITMAP_COMPRESS.src);
 
                 ENGINE_BITMAP_COMPRESS.src.off++;
                 if (v != 0 && v < least)
@@ -7432,7 +7434,7 @@ void compress_bitmap(struct bitmap *bmp)
                 blanks = 0;
             } else if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
                 while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-                    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+                    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
                     ENGINE_BITMAP_COMPRESS.out.off++;
                 }
                 ENGINE_BITMAP_COMPRESS.pending_rows = 0;
