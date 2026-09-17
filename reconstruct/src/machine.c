@@ -7849,70 +7849,67 @@ void mark_part_shapes(struct part *part, uint16_t mode)
 void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which, int16_t width)
 {
-    uint16_t off = DG4E4E.shape_free.off, seg = DG4E4E.shape_free.seg;
+    struct far_ptr at = DG4E4E.shape_free;
+    struct shape *n = SHAPE_PTR(at);
 
     /* Pop from the free list, push onto the used list. */
-    DG4E4E.shape_free = *(const struct far_ptr *)(void *)MK_FP(seg, off);
-    FARU16(seg, off + 2) = DG4E4E.shapes_tail_ptr;
-    FARU16(seg, off) = DG4E4E.shapes_ptr;
-    DG4E4E.shapes_tail_ptr = seg;
-    DG4E4E.shapes_ptr = off;
+    DG4E4E.shape_free = n->next;
+    n->next = DG4E4E.shapes;
+    DG4E4E.shapes = at;
 
-    if ((uint16_t)(off | seg) == 0)
+    if (dg_far_ptr(at) == FAR_NULL_PTR)
         return;
 
-    FAR8(seg, off + 4) = flags;
-    FAR8(seg, off + 5) = which;
-    FAR16(seg, off + 6) = *(int16_t *)(pt1);
-    FAR16(seg, off + 8) = *(int16_t *)(pt1 + 2);
-    FAR16(seg, off + 0x0A) = *(int16_t *)(pt2);
-    FAR16(seg, off + 0x0C) = *(int16_t *)(pt2 + 2);
-    FAR16(seg, off + 0x0E) = width;
+    n->flags = flags;
+    n->replays = which;
+    n->x1 = *(int16_t *)(pt1);
+    n->y1 = *(int16_t *)(pt1 + 2);
+    n->x2 = *(int16_t *)(pt2);
+    n->y2 = *(int16_t *)(pt2 + 2);
+    n->width = width;
 
     if (which == 1) {
-        FAR16(seg, off + 6) -= DG4E67.origin_c_x;
-        FAR16(seg, off + 8) -= DG4E67.origin_c_y;
+        n->x1 -= DG4E67.origin_c_x;
+        n->y1 -= DG4E67.origin_c_y;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG4E67.origin_c_x;
-            FAR16(seg, off + 0x0C) -= DG4E67.origin_c_y;
+            n->x2 -= DG4E67.origin_c_x;
+            n->y2 -= DG4E67.origin_c_y;
         }
     } else {
-        FAR16(seg, off + 6) -= DG4E67.origin_b_x;
-        FAR16(seg, off + 8) -= DG4E67.origin_b_y;
+        n->x1 -= DG4E67.origin_b_x;
+        n->y1 -= DG4E67.origin_b_y;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG4E67.origin_b_x;
-            FAR16(seg, off + 0x0C) -= DG4E67.origin_b_y;
+            n->x2 -= DG4E67.origin_b_x;
+            n->y2 -= DG4E67.origin_b_y;
         }
     }
 
-    if (FAR8(seg, off + 4) & 4) {
+    if (n->flags & 4) {
         int16_t hi;
 
-        if (FAR16(seg, off + 6) < FAR16(seg, off + 0x0A)) {
-            FAR16(seg, off + 0x10) = FAR16(seg, off + 6);
-            hi = FAR16(seg, off + 0x0A);
+        if (n->x1 < n->x2) {
+            n->left = n->x1;
+            hi = n->x2;
         } else {
-            FAR16(seg, off + 0x10) = FAR16(seg, off + 0x0A);
-            hi = FAR16(seg, off + 6);
+            n->left = n->x2;
+            hi = n->x1;
         }
-        FAR16(seg, off + 0x12) = hi;
+        n->right = hi;
 
-        if (FAR16(seg, off + 8) < FAR16(seg, off + 0x0C)) {
-            FAR16(seg, off + 0x14) = FAR16(seg, off + 8);
-            hi = FAR16(seg, off + 0x0C);
+        if (n->y1 < n->y2) {
+            n->top = n->y1;
+            hi = n->y2;
         } else {
-            FAR16(seg, off + 0x14) = FAR16(seg, off + 0x0C);
-            hi = FAR16(seg, off + 8);
+            n->top = n->y2;
+            hi = n->y1;
         }
-        FAR16(seg, off + 0x16) = hi;
-        FAR16(seg, off + 0x16) += (int16_t)(FAR16(seg, off + 0x0E) >> 1);
+        n->bottom = hi;
+        n->bottom += (int16_t)(n->width >> 1);
     } else {
-        FAR16(seg, off + 0x10) = FAR16(seg, off + 6);
-        FAR16(seg, off + 0x14) = FAR16(seg, off + 8);
-        FAR16(seg, off + 0x12) = (int16_t)(FAR16(seg, off + 0x10)
-                                           + FAR16(seg, off + 0x0A));
-        FAR16(seg, off + 0x16) = (int16_t)(FAR16(seg, off + 0x14)
-                                           + FAR16(seg, off + 0x0C));
+        n->left = n->x1;
+        n->top = n->y1;
+        n->right = (int16_t)(n->left + n->x2);
+        n->bottom = (int16_t)(n->top + n->y2);
     }
 }
 
@@ -7920,7 +7917,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
  * 0x06699
  *
  * Put back what was drawn over: walk the shape list at DGROUP 0x4e52, step each
- * record's life at +5, and act on the ones that have run out.
+ * record's `replays` at +5, and act on the ones that have run out.
  *
  * A record with bit 2 of +4 is a belt length and is redrawn by
  * `draw_belt_segment`; everything else is a rectangle filled in the background
@@ -7935,9 +7932,9 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
  */
 void replay_shapes(void)
 {
-    int16_t prev[2];   /* [bp-0x12], a far pointer */
-    int16_t next[2];   /* [bp-0x0e], a far pointer */
-    int16_t cur[2];   /* [bp-0x0a], a far pointer */
+    struct far_ptr prev;   /* [bp-0x12], a far pointer */
+    struct far_ptr next;   /* [bp-0x0e], a far pointer */
+    struct far_ptr cur;    /* [bp-0x0a], a far pointer */
     int16_t c;   /* [bp-6] */
     int16_t b;   /* [bp-4] */
     int16_t a;   /* [bp-2] */
@@ -7950,48 +7947,40 @@ void replay_shapes(void)
     VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    prev[0] = 0;
-    prev[1] = 0;
+    prev = FAR_NULL;
 
-    next[1] = (int16_t)DG4E4E.shapes_tail_ptr;
-    next[0] = (int16_t)DG4E4E.shapes_ptr;
+    next = DG4E4E.shapes;
 
     for (;;) {
-        uint16_t cs, co;
+        struct shape *n;
 
-        cur[1] = (int16_t)next[1];
-        cur[0] = (int16_t)next[0];
+        cur = next;
 
-        if (((uint16_t)cur[0] | (uint16_t)cur[1]) == 0)
+        if (dg_far_ptr(cur) == FAR_NULL_PTR)
             break;
 
-        cs = (uint16_t)cur[1];
-        co = (uint16_t)cur[0];
+        n = SHAPE_PTR(cur);
+        next = n->next;
 
-        next[1] = (int16_t)FARU16(cs, (uint16_t)(co + 2));
-        next[0] = (int16_t)FARU16(cs, co);
+        n->replays--;
 
-        FAR8(cs, (uint16_t)(co + 5)) =
-            (uint8_t)(FAR8(cs, (uint16_t)(co + 5)) - 1);
-
-        if (FAR8(cs, (uint16_t)(co + 5)) != 0) {
-            prev[1] = (int16_t)cs;
-            prev[0] = (int16_t)co;
+        if (n->replays != 0) {
+            prev = cur;
             continue;
         }
 
-        si = FAR16(cs, (uint16_t)(co + 6));
-        di = FAR16(cs, (uint16_t)(co + 8));
-        a = FAR16(cs, (uint16_t)(co + 0x0a));
-        b = FAR16(cs, (uint16_t)(co + 0x0c));
-        c = FAR16(cs, (uint16_t)(co + 0x0e));
+        si = n->x1;
+        di = n->y1;
+        a = n->x2;
+        b = n->y2;
+        c = n->width;
 
         clear_flag_2d44_thunk();
 
-        if (FAR8(cs, (uint16_t)(co + 4)) & 4) {
+        if (n->flags & 4) {
             draw_belt_segment(si, di, a, b, c);
         } else {
-            VMDS.fill_enabled = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
+            VMDS.fill_enabled = (uint8_t)(n->flags & 1);
 
             if (di == VMDS.clip_bottom)
                 di--;
@@ -8007,18 +7996,13 @@ void replay_shapes(void)
 
         restore_cursor_following();
 
-        if (((uint16_t)prev[0] | (uint16_t)prev[1]) != 0) {
-            FARU16((uint16_t)prev[1],
-                   (uint16_t)((uint16_t)prev[0] + 2)) = (uint16_t)next[1];
-            FARU16((uint16_t)prev[1], (uint16_t)prev[0]) = (uint16_t)next[0];
-        } else {
-            DG4E4E.shapes_tail_ptr = (uint16_t)next[1];
-            DG4E4E.shapes_ptr = (uint16_t)next[0];
-        }
+        if (dg_far_ptr(prev) != FAR_NULL_PTR)
+            SHAPE_PTR(prev)->next = next;
+        else
+            DG4E4E.shapes = next;
 
-        FARU16(cs, (uint16_t)(co + 2)) = DG4E4E.shape_free.seg;
-        FARU16(cs, co) = DG4E4E.shape_free.off;
-        DG4E4E.shape_free = (struct far_ptr){ co, cs };
+        n->next = DG4E4E.shape_free;
+        DG4E4E.shape_free = cur;
     }
 }
 
@@ -8040,7 +8024,7 @@ void replay_shapes(void)
  */
 void belt_in_dirty_rect(struct part *part)
 {
-    int16_t node[2];  /* [bp-0x20], a far pointer */
+    struct far_ptr node;  /* [bp-0x20], a far pointer */
     struct belt *belt;  /* [bp-0x1c] */
     int16_t endB;  /* [bp-0x1a] */
     int16_t endA;  /* [bp-0x18] */
@@ -8108,25 +8092,22 @@ void belt_in_dirty_rect(struct part *part)
         if (slack > 0)
             bottom = (int16_t)(bottom + (slack >> 1));
 
-        node[1] = (int16_t)DG4E4E.shapes_tail_ptr;
-        node[0] = (int16_t)DG4E4E.shapes_ptr;
+        node = DG4E4E.shapes;
 
-        while (((uint16_t)node[0] | (uint16_t)node[1]) != 0) {
-            uint8_t *p = MK_FP((uint16_t)node[1], (uint16_t)node[0]);
+        while (dg_far_ptr(node) != FAR_NULL_PTR) {
+            const struct shape *n = SHAPE_PTR(node);
 
-            if ((int16_t)(p[0x10] | (p[0x11] << 8)) < right
-                && (int16_t)(p[0x12] | (p[0x13] << 8)) > left
-                && (int16_t)(p[0x14] | (p[0x15] << 8)) < bottom
-                && (int16_t)(p[0x16] | (p[0x17] << 8)) > top) {
+            if (n->left < right
+                && n->right > left
+                && n->top < bottom
+                && n->bottom > top) {
                 mark_needs_refile(part, 1);
-                node[1] = 0;
-                node[0] = 0;
+                node = FAR_NULL;
                 si = (uint16_t)endB;
                 break;
             }
 
-            node[1] = (int16_t)(p[2] | (p[3] << 8));
-            node[0] = (int16_t)(p[0] | (p[1] << 8));
+            node = n->next;
         }
 
         if (si == (uint16_t)endB) {
@@ -8155,7 +8136,7 @@ void belt_in_dirty_rect(struct part *part)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    int16_t node[2];  /* [bp-0x0c], a far pointer */
+    struct far_ptr node;  /* [bp-0x0c], a far pointer */
     int16_t bottom;/* [bp-8] */
     int16_t right; /* [bp-6] */
     int16_t top;   /* [bp-4] */
@@ -8229,24 +8210,21 @@ void mark_parts_in_dirty_rects(void)
                                      + di->size[0].height);
         }
 
-        node[1] = (int16_t)DG4E4E.shapes_tail_ptr;
-        node[0] = (int16_t)DG4E4E.shapes_ptr;
+        node = DG4E4E.shapes;
 
-        while (((uint16_t)node[0] | (uint16_t)node[1]) != 0) {
-            uint8_t *p = MK_FP((uint16_t)node[1], (uint16_t)node[0]);
+        while (dg_far_ptr(node) != FAR_NULL_PTR) {
+            const struct shape *n = SHAPE_PTR(node);
 
-            if ((int16_t)(p[0x10] | (p[0x11] << 8)) < right
-                && (int16_t)(p[0x12] | (p[0x13] << 8)) > left
-                && (int16_t)(p[0x14] | (p[0x15] << 8)) < bottom
-                && (int16_t)(p[0x16] | (p[0x17] << 8)) > top) {
+            if (n->left < right
+                && n->right > left
+                && n->top < bottom
+                && n->bottom > top) {
                 mark_needs_refile(di, 1);
-                node[1] = 0;
-                node[0] = 0;
+                node = FAR_NULL;
                 break;
             }
 
-            node[1] = (int16_t)(p[2] | (p[3] << 8));
-            node[0] = (int16_t)(p[0] | (p[1] << 8));
+            node = n->next;
         }
     }
 }

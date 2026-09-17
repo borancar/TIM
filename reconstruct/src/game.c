@@ -844,15 +844,14 @@ void game_startup(void)
      * link in the first four bytes of each block. 0x4e52/0x4e54 are the second
      * head, cleared here and not filled.
      */
-    DG4E4E.shapes_tail_ptr = 0;
-    DG4E4E.shapes_ptr = 0;
+    DG4E4E.shapes = FAR_NULL;
     DG4E4E.shape_free = FAR_NULL;
     for (i = 0; i < 0xb4; i++) {
-        uint8_t *block = dos_alloc_bytes(0x18, 0, 1).ptr;
+        struct shape *block = (struct shape *)(void *)
+            dos_alloc_bytes(sizeof(struct shape), 0, 1).ptr;
 
-        *(uint16_t *)(void *)(block + 2) = DG4E4E.shape_free.seg;
-        *(uint16_t *)(void *)block = DG4E4E.shape_free.off;
-        DG4E4E.shape_free = far_of(block);
+        block->next = DG4E4E.shape_free;
+        DG4E4E.shape_free = far_of((uint8_t *)block);
     }
 }
 

@@ -1187,12 +1187,54 @@ DG_ASSERT_AT(struct dg_52ed, stop_requested,    0x0d);
 DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **A shape**, one of the 180 twenty-four-byte blocks `game_startup` takes
+ * from DOS and chains through their own first four bytes. A shape is a piece
+ * of the screen something was drawn over, kept until it has been put back:
+ * `alloc_shape` pops one off the free list and fills it in, `replay_shapes`
+ * walks the used list, redraws each and pops it back.
+ *
+ * The block is 0x18 bytes and every one of them is accounted for here.
+ * ---------------------------------------------------------------------------
+ */
+struct shape {
+    struct far_ptr next;       /* +0x00  the link, in the block's own first four bytes */
+    uint8_t        flags;      /* +0x04  bit 0 the second fill colour, bit 2 a belt length */
+    uint8_t        replays;    /* +0x05  how many passes of `replay_shapes` it waits for:
+                                         1 or 2 at every call site, stepped down once per
+                                         pass, and put back and freed when it reaches 0 -
+                                         so a 2 sits out one pass. `alloc_shape` reads the
+                                         same byte a second way, a 1 being the c origin and
+                                         anything else the b origin */
+    int16_t        x1;         /* +0x06  the first point, less that origin */
+    int16_t        y1;         /* +0x08 */
+    int16_t        x2;         /* +0x0a  the second point - an extent, without bit 2 */
+    int16_t        y2;         /* +0x0c */
+    int16_t        width;      /* +0x0e  a belt's width; half of it widens the box below */
+    int16_t        left;       /* +0x10  the box the dirty-rectangle tests read */
+    int16_t        right;      /* +0x12 */
+    int16_t        top;        /* +0x14 */
+    int16_t        bottom;     /* +0x16 */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct shape) == 0x18, "game_startup allocates 0x18 bytes");
+DG_ASSERT_AT(struct shape, flags,  0x04);
+DG_ASSERT_AT(struct shape, x1,     0x06);
+DG_ASSERT_AT(struct shape, width,  0x0e);
+DG_ASSERT_AT(struct shape, left,   0x10);
+DG_ASSERT_AT(struct shape, bottom, 0x16);
+
+#define SHAPE_PTR(fp) ((struct shape *)(void *)dg_far_ptr(fp))
+
+/*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
  */
 struct dg_4e4e {
     struct far_ptr shape_free;    /* +0x00  the free list nodes come off */
-    dg_near_t shapes_ptr;         /* +0x04  the shapes drawn over, put back in reverse */
-    dg_near_t shapes_tail_ptr;    /* +0x06 */
+    struct far_ptr shapes;        /* +0x04  the shapes drawn over, put back in reverse.
+                                            **One far pointer**, not two near ones: the
+                                            offset is at +0x04 and the segment at +0x06,
+                                            which is what `alloc_shape` files there */
     dg_near_t parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
     dg_near_t parts_queue_ptr;    /* +0x0a  what asked to move this frame */
     char      name_buf[0xd];      /* +0x0c  pick_file fills this and copies the
@@ -1205,8 +1247,7 @@ struct dg_4e4e {
 extern struct dg_4e4e DG4E4E;
 
 DG_ASSERT_AT(struct dg_4e4e, shape_free,        0x00);
-DG_ASSERT_AT(struct dg_4e4e, shapes_ptr,        0x04);
-DG_ASSERT_AT(struct dg_4e4e, shapes_tail_ptr,   0x06);
+DG_ASSERT_AT(struct dg_4e4e, shapes,            0x04);
 DG_ASSERT_AT(struct dg_4e4e, parts_free_ptr,    0x08);
 DG_ASSERT_AT(struct dg_4e4e, parts_queue_ptr,   0x0a);
 DG_ASSERT_AT(struct dg_4e4e, name_buf,          0x0c);
