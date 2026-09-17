@@ -1382,9 +1382,8 @@ uint16_t sbp_query(uint16_t ax, uint16_t cx)
  * CX. `ADL:` does exactly the same thing with its own address, 0x2414, so the
  * convention is the driver's rather than a value either one computed.
  */
-void sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
+void sbp_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx)
 {
-    const uint8_t *src = (const uint8_t *)MK_FP(seg, off);
     uint16_t n = (uint16_t)SXSBP.word_0377;
     uint16_t di;
 

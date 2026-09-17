@@ -1140,9 +1140,8 @@ uint16_t adl_query(uint16_t ax, uint16_t cx)
  * Then the chip is reset and the master level set to 15. The answer is
  * AX 0x2414 and CX 0x0800, of which `configure_driver` keeps CL and CH.
  */
-void adl_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
+void adl_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx)
 {
-    const uint8_t *src = (const uint8_t *)MK_FP(seg, off);
     uint16_t n = (uint16_t)SXADL.word_0372;
     uint16_t di;
 

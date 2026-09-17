@@ -212,55 +212,53 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
 /* Step one sequence forward by one tick. */
-void step_sequence(uint16_t es, uint16_t bx, uint16_t di);  /* 0x27c4e */
+void step_sequence(struct sequence far * seq, uint16_t di);  /* 0x27c4e */
 
 /* Handle an explicit note-off event; answers the advanced cursor. */
-uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
-                             uint16_t bx, uint16_t si,
-                             uint16_t ax);          /* 0x27e92 */
+const uint8_t far * midi_note_off_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x27e92 */
 
 /* Two-byte event, driver function 6 (a stub). */
-uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                      uint16_t si, uint16_t ax);    /* 0x27f54 */
+const uint8_t far * midi_event_6(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x27f54 */
 
 /* Sequencer meta events: checkpoints, loop counters, rewinds. */
-uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                         uint16_t si, uint16_t ax);  /* 0x2817e */
+const uint8_t far * midi_meta_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x2817e */
 
 /* Step past an event this module does not handle. */
-uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                            uint16_t si, uint16_t ax);  /* 0x2828e */
+const uint8_t far * skip_unknown_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x2828e */
 
 /* A forwarder to skip_unknown_event. */
-uint16_t midi_skip_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                         uint16_t si, uint16_t ax);     /* 0x2817a */
+const uint8_t far * midi_skip_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x2817a */
 
 /* Controller change: keeps most of a channel's state. */
-uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
-                               uint16_t bx, uint16_t si,
-                               uint16_t ax);        /* 0x27f85 */
+const uint8_t far * midi_controller_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x27f85 */
 
 /* Program change: stores the instrument at +0x116. */
-uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                            uint16_t si, uint16_t ax);  /* 0x28086 */
+const uint8_t far * midi_program_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x28086 */
 
 /* One-byte event, driver function 9 (a stub). */
-uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                      uint16_t si, uint16_t ax);    /* 0x280da */
+const uint8_t far * midi_event_9(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x280da */
 
 /* Handle one MIDI note event; answers the advanced stream cursor. */
-uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                         uint16_t si, uint16_t ax);  /* 0x27ee1 */
+const uint8_t far * midi_note_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x27ee1 */
 
 /* Parse a sequence's device parameter table once, cached in place. */
-void init_sequence_params(uint16_t es, uint16_t ax);  /* 0x28305 */
+void init_sequence_params(struct sequence far * seq);  /* 0x28305 */
 
 /* Next record matching a selector, as a far pointer in DX:AX. */
 struct sound_record far * next_matching_record(int16_t selector);    /* 0x29966 */
 
 /* Handle one pitch bend event; answers the advanced stream cursor. */
-uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
-                         uint16_t si, uint16_t ax);  /* 0x280fe */
+const uint8_t far * midi_bend_event(const uint8_t far * data,
+        struct sequence far * seq, uint16_t si, uint16_t ax);  /* 0x280fe */
 
 /* Allocate a block for the sound module by kind; zero some kinds. */
 uint8_t far * alloc_for_kind(uint32_t size,
@@ -285,14 +283,14 @@ struct sequence far * load_and_start_sequence(struct sequence far * seq, int16_t
                                        uint16_t volume);  /* 0x29034 */
 
 /* Start a sequence: reset it, read its header, place it in the table. */
-void start_sequence(uint16_t es, uint16_t ax, uint16_t cx);  /* 0x26783 */
+void start_sequence(struct sequence far * seq, uint16_t cx);  /* 0x26783 */
 
 /* Advance a sequence's volume fade by one tick. */
-void advance_volume_ramp(uint16_t es, uint16_t bx,
+void advance_volume_ramp(struct sequence far * seq,
                          uint16_t seq_slot);        /* 0x278e9 */
 
 /* Set a sequence's volume and push it to every voice it owns. */
-void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
+void set_sequence_volume(struct sequence far * seq, uint8_t volume,
                          uint8_t defer, uint16_t seq_slot);  /* 0x279a9 */
 
 /*
@@ -338,7 +336,7 @@ _Static_assert(sizeof(struct sound_position_args) == 6, "function 13 writes thre
 void sound_service(void);                           /* 0x27ace */
 
 /* Remove a sequence unless it is on the poll table. */
-void drop_unless_polled(uint16_t es, uint16_t bx);  /* 0x27b52 */
+void drop_unless_polled(struct sequence far * seq);  /* 0x27b52 */
 
 /* Poll sequences on the cs:0x48 table through the host callback. */
 void poll_sequences(void);                          /* 0x27b7e */
@@ -356,8 +354,8 @@ void sequencer_tick(void);                          /* 0x26f2a */
 void flush_pending_volumes(void);                   /* 0x27a86 */
 
 /* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
-uint16_t install_driver(struct far_ptr drv);  /* 0x265f2 */
-uint16_t configure_driver(struct far_ptr drv); /* 0x26629 */
+uint16_t install_driver(const uint8_t far * drv);   /* 0x265f2 */
+uint16_t configure_driver(const uint8_t far * drv); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
 void retire_and_tick(struct sequence far * seq);                         /* 0x26a57 */
@@ -394,7 +392,7 @@ uint16_t free_voice_records(void);                     /* 0x29106 */
 struct sequence far * start_on_free_voice(const uint8_t far * source, uint16_t index,
                                    uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
-void set_sound_callback(struct far_ptr cb);   /* 0x2928c */
+void set_sound_callback(const uint8_t far * cb);   /* 0x2928c */
 void stop_sound(void);                                 /* 0x292f4 */
 void shutdown_sound(void);                             /* 0x29cf6 */
 void delay_five_ticks(void);                           /* 0x2937f */
@@ -407,10 +405,10 @@ uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
 /* The ordinary-call faces of the hand-written routines above. */
 void set_master_level_far(uint16_t level);             /* 0x28431 */
-uint16_t install_driver_far(struct far_ptr drv);    /* 0x28458 */
-uint16_t configure_driver_far(struct far_ptr drv);  /* 0x2846a */
+uint16_t install_driver_far(const uint8_t far * drv);    /* 0x28458 */
+uint16_t configure_driver_far(const uint8_t far * drv);  /* 0x2846a */
 void retire_and_tick_far(struct sequence far * seq);  /* 0x284ef */
-void silence_driver_far(struct far_ptr drv);   /* 0x28559 */
+void silence_driver_far(const uint8_t far * drv);   /* 0x28559 */
 
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
@@ -476,7 +474,7 @@ void     sbp_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL SBP:0x198d */
 void     sbp_stop_all(uint16_t cx);                 /* SX.OVL SBP:0x1acd */
 void     sbp_nop(void);                             /* SX.OVL SBP:0x1956 */
 uint16_t sbp_query(uint16_t ax, uint16_t cx);       /* SX.OVL SBP:0x253d */
-void     sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx);
+void     sbp_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx);
                                                     /* SX.OVL SBP:0x25aa */
 void     sbp_describe_0(uint16_t *ax, uint16_t *cx); /* SX.OVL SBP:0x25dc */
 
@@ -527,13 +525,13 @@ uint16_t adl_param_346(uint16_t cl);                /* SX.OVL ADL:0x1a68 */
 uint16_t adl_param_349(uint16_t cl);                /* SX.OVL ADL:0x1abf */
 void     adl_stop_all(void);                        /* SX.OVL ADL:0x1ad0 */
 uint16_t adl_query(uint16_t ax, uint16_t cx);       /* SX.OVL ADL:0x23a7 */
-void     adl_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx);
+void     adl_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx);
                                                     /* SX.OVL ADL:0x2414 */
 void     adl_describe_0(uint16_t *ax, uint16_t *cx);   /* SX.OVL ADL:0x2446 */
 
 /* The driver call: which loaded driver a function number goes to. Ours. */
 void     driver_describe_0(uint16_t *ax, uint16_t *cx);
-void     driver_describe_1(struct far_ptr drv,
+void     driver_describe_1(const uint8_t far * drv,
                            uint16_t *ax, uint16_t *cx);
 void     driver_stop_all(uint16_t cx);
 void     driver_stop_note(uint16_t ax, uint16_t cx);
@@ -1972,7 +1970,7 @@ void clear_layer_heads(void);                   /* 0x166d6 */
 void link_record_into_buckets(struct part *rec);        /* 0x166ef */
 
 /* ---------------------------------------------------------- segment 2619 */
-uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
+const uint8_t far * advance_record(const uint8_t far * rec);  /* 0x2891a */
 
 /* Follow a chain of far pointers; answers the one it stopped on. */
 struct sequence far * follow_far_chain(struct sequence far * seq,

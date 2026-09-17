@@ -295,6 +295,21 @@ static inline struct far_ptr far_of(const uint8_t *p)
     return r;
 }
 
+/*
+ * **A pointer filed in another pointer's segment.** The original often holds a
+ * segment and steps only the offset inside it - `advance_record` answers the
+ * segment it was given beside a moved offset - and the pair it files is then
+ * that segment with that offset, not the normalised pair `far_of` would give.
+ * `from` is the pointer whose segment is kept; `p` is where the stepped offset
+ * lands. Ours.
+ */
+static inline struct far_ptr far_stepped(const uint8_t *from, const uint8_t *p)
+{
+    struct far_ptr r = { (uint16_t)(FP_OFF(from) + (p - from)), FP_SEG(from) };
+
+    return r;
+}
+
 /* The same, for the one record that stores the pair segment-first. */
 static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
 {
@@ -3530,6 +3545,23 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
    pointer the guest tests with `or ax,dx` - see `PART_NONE` for why a
    sentinel and not NULL. */
 #define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
+#define SEQUENCE_PTR(fp) ((struct sequence *)(void *)MK_FP((fp).seg, (fp).off))
+
+/*
+ * **A channel table, read by channel number.** The tables from +0x0bc on hold
+ * fifteen entries, but the number that indexes them is a MIDI channel's low
+ * nibble and runs to 15 - the original's `[bx+di+0x107]` then reads the first
+ * byte of the table after. The field is the table's start and the index is not
+ * bounded by it, so the read goes through a plain pointer rather than the
+ * array. Loops the original bounds at fifteen use the field itself.
+ *
+ * It is also how a routine holds **a pointer to one entry** - a channel's
+ * position counter, stepped once per byte - since the address of a member of
+ * a packed struct is not one C will hand out.
+ */
+#define SEQ_TABLE(seq, field) \
+    ((__typeof__((seq)->field[0]) *)(void *)((uint8_t *)(seq) \
+                                            + offsetof(struct sequence, field)))
 #define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
 
 /*

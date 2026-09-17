@@ -480,8 +480,8 @@ ROUTINES = {
         regs=["es", "ax"],
         near=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.init_sequence_params(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+        # ES:AX is the sequence.
+        call=lambda lib, a: lib.init_sequence_params(farp(lib, a[1], a[0])),
     ),
     "next_matching_record": dict(
         addr=0x29966,
@@ -497,8 +497,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_bend_event(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_bend_event, a),
     ),
     "step_sequence": dict(
         addr=0x27C4E,
@@ -507,7 +506,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.step_sequence(
-            *[ctypes.c_uint16(v) for v in a]),
+            farp(lib, a[1], a[0]), ctypes.c_uint16(a[2])),
     ),
     "midi_note_off_event": dict(
         addr=0x27E92,
@@ -516,8 +515,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_note_off_event(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_note_off_event, a),
     ),
     "midi_event_6": dict(
         addr=0x27F54,
@@ -526,7 +524,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_event_6(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_event_6, a),
     ),
     "midi_meta_event": dict(
         addr=0x2817E,
@@ -535,8 +533,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_meta_event(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_meta_event, a),
     ),
     "midi_skip_event": dict(
         addr=0x2817A,
@@ -545,7 +542,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0],
-        call=lambda lib, a: lib.midi_skip_event(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_skip_event, a),
     ),
     "skip_unknown_event": dict(
         addr=0x2828E,
@@ -554,7 +551,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0],
-        call=lambda lib, a: lib.skip_unknown_event(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.skip_unknown_event, a),
     ),
     "midi_controller_event": dict(
         addr=0x27F85,
@@ -563,8 +560,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_controller_event(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_controller_event, a),
     ),
     "midi_program_event": dict(
         addr=0x28086,
@@ -573,7 +569,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0],
-        call=lambda lib, a: lib.midi_program_event(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_program_event, a),
     ),
     "midi_event_9": dict(
         addr=0x280DA,
@@ -582,7 +578,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_event_9(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_event_9, a),
     ),
     "midi_note_event": dict(
         addr=0x27EE1,
@@ -591,8 +587,7 @@ ROUTINES = {
         near=True,
         returns_in=("bp", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.midi_note_event(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: _midi_event(lib, lib.midi_note_event, a),
     ),
     "free_node_list": dict(
         addr=0x28BAF,
@@ -643,7 +638,7 @@ ROUTINES = {
         regs=["es", "ax", "cx"],
         check_occurrences=[0],
         call=lambda lib, a: lib.start_sequence(
-            *[ctypes.c_uint16(v) for v in a]),
+            farp(lib, a[1], a[0]), ctypes.c_uint16(a[2])),
     ),
     "advance_volume_ramp": dict(
         addr=0x278E9,
@@ -652,7 +647,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.advance_volume_ramp(
-            *[ctypes.c_uint16(v) for v in a]),
+            farp(lib, a[1], a[0]), ctypes.c_uint16(a[2])),
     ),
     "set_sequence_volume": dict(
         addr=0x279A9,
@@ -661,7 +656,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.set_sequence_volume(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            farp(lib, a[1], a[0]),
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8((a[2] >> 8) & 0xFF),
             ctypes.c_uint16(a[3])),
     ),
@@ -679,8 +674,7 @@ ROUTINES = {
         regs=["es", "bx"],
         near=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.drop_unless_polled(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.drop_unless_polled(farp(lib, a[1], a[0])),
     ),
     "poll_sequences": dict(
         addr=0x27B7E,
@@ -757,7 +751,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0],
         # AX:ES is the driver - one pair.
-        call=lambda lib, a: lib.install_driver(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.install_driver(farp(lib, a[0], a[1])),
     ),
     # **ES:AX are inputs**, inherited rather than pushed: 0x26629 sets neither
     # and hands both straight to the driver's function 1, which for `GMD:` is
@@ -771,7 +765,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0],
         # AX:ES is the driver - one pair.
-        call=lambda lib, a: lib.configure_driver(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.configure_driver(farp(lib, a[0], a[1])),
     ),
     "silence_driver": dict(
         addr=0x2664E,
@@ -806,14 +800,14 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.install_driver_far(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.install_driver_far(farp(lib, a[0], a[1])),
     ),
     "configure_driver_far": dict(
         addr=0x2846A,
         args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.configure_driver_far(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.configure_driver_far(farp(lib, a[0], a[1])),
     ),
     "retire_and_tick_far": dict(
         addr=0x284EF,
@@ -825,7 +819,7 @@ ROUTINES = {
         addr=0x28559,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.silence_driver_far(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.silence_driver_far(farp(lib, a[0], a[1])),
     ),
     "voice_playing": dict(
         addr=0x287AD,
@@ -987,7 +981,7 @@ ROUTINES = {
         addr=0x2928C,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.set_sound_callback(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.set_sound_callback(farp(lib, a[0], a[1])),
     ),
     "set_master_level_ok": dict(
         addr=0x296A1,
@@ -3538,14 +3532,16 @@ ROUTINES = {
     "advance_record": dict(
         addr=0x2891A,
         args=[("off", 4), ("seg", 6)],
-        src_stack_far=(0, 1, 512),
         returns=True,
         # Called a handful of times only. Occurrence numbers are relative to
         # the sweep's own run - see STATUS.md - so the last one is not a safe
         # choice; these two are.
         check_occurrences=[0, 2],
         budget=200_000_000,
-        call=lambda lib, a: lib.advance_record(a[2], dgp(lib, a[0])),
+        # The answer is DX:AX, the segment passed in beside a stepped offset;
+        # only AX is compared, so the call answers the offset.
+        call=lambda lib, a: (a[0] + lib.advance_record(farp(lib, a[0], a[1]))
+                             - farp(lib, a[0], a[1]).value) & 0xFFFF,
     ),
     "match_field_5a_5c": dict(
         addr=0x06F43,
@@ -5599,7 +5595,7 @@ def declare_restypes(lib):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
-    lib.advance_record.restype = ctypes.c_uint16
+    lib.advance_record.restype = ctypes.c_void_p
     for fn in ("match_field_5a_5c", "lookup_table_546c",
                "string_contains_r", "read_mouse_button",
                "select_field_2_or_4", "angle_sin", "angle_cos"):
@@ -5786,16 +5782,16 @@ def declare_restypes(lib):
     lib.dos_lseek.restype = ctypes.c_int32
     lib.select_resource.restype = ctypes.c_int16
     lib.archive_entry_for.restype = ctypes.c_void_p
-    lib.midi_note_event.restype = ctypes.c_uint16
-    lib.midi_bend_event.restype = ctypes.c_uint16
-    lib.midi_note_off_event.restype = ctypes.c_uint16
-    lib.midi_event_6.restype = ctypes.c_uint16
-    lib.midi_program_event.restype = ctypes.c_uint16
-    lib.midi_event_9.restype = ctypes.c_uint16
-    lib.midi_controller_event.restype = ctypes.c_uint16
-    lib.midi_skip_event.restype = ctypes.c_uint16
-    lib.skip_unknown_event.restype = ctypes.c_uint16
-    lib.midi_meta_event.restype = ctypes.c_uint16
+    lib.midi_note_event.restype = ctypes.c_void_p
+    lib.midi_bend_event.restype = ctypes.c_void_p
+    lib.midi_note_off_event.restype = ctypes.c_void_p
+    lib.midi_event_6.restype = ctypes.c_void_p
+    lib.midi_program_event.restype = ctypes.c_void_p
+    lib.midi_event_9.restype = ctypes.c_void_p
+    lib.midi_controller_event.restype = ctypes.c_void_p
+    lib.midi_skip_event.restype = ctypes.c_void_p
+    lib.skip_unknown_event.restype = ctypes.c_void_p
+    lib.midi_meta_event.restype = ctypes.c_void_p
     lib.next_matching_record.restype = ctypes.c_void_p
     lib.alloc_for_kind.restype = ctypes.c_void_p
     lib.create_sequence.restype = ctypes.c_void_p
@@ -6266,6 +6262,16 @@ def _signed32(v):
 def _pair(r):
     """A far pointer returned in DX:AX, as the harness wants it."""
     return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _midi_event(lib, fn, a):
+    """A MIDI event handler: DS:BP the event data and ES:BX the sequence go in
+    as pointers, and the cursor it answers comes back as the BP it leaves -
+    its distance from DS:0000."""
+    ds, bp, es, bx, si, ax = a
+    p = fn(farp(lib, bp, ds), farp(lib, bx, es),
+           ctypes.c_uint16(si), ctypes.c_uint16(ax))
+    return (p or 0) - farp(lib, 0, ds).value
 
 
 def _farp_answer(lib, p):
