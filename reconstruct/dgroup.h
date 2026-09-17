@@ -3496,6 +3496,31 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
  * segment and offset, never renormalised.
  * ---------------------------------------------------------------------------
  */
+/*
+ * **A sequence's per-channel state**, +0x0bc to +0x152 of a sequence: one word
+ * table and eight byte tables, each read by the mapped MIDI channel - the
+ * original's `es:[bx+2*si+0xbc]` and `es:[bx+si+0x107]`.
+ *
+ * **Fifteen entries each, and the channel runs to 15.** The offsets fix the
+ * width - the tables are 0x0f apart - and the index is a channel's low nibble,
+ * so channel 15 reads the first entry of the table after: `byte_0f8[15]` is
+ * `byte_107[0]`, and `byte_143[15]` is `loop_count`'s low byte. That is the
+ * original's own arithmetic, and it is kept.
+ */
+struct sequence_channels {
+    uint16_t       bend[15];            /* +0x00  0x2000 at start, the centre; top bit the sustain pedal, controller 0x40 */
+    uint8_t        byte_0da[15];        /* +0x1e  0xff at start */
+    uint8_t        byte_0e9[15];        /* +0x2d  0 at start */
+    uint8_t        byte_0f8[15];        /* +0x3c  0xff at start */
+    uint8_t        byte_107[15];        /* +0x4b  0xff at start */
+    uint8_t        byte_116[15];        /* +0x5a  0xff at start */
+    uint8_t        byte_125[15];        /* +0x69  0xff at start */
+    uint8_t        byte_134[15];        /* +0x78  0 at start */
+    uint8_t        byte_143[15];        /* +0x87  0 at start */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct sequence_channels) == 0x96, "+0x0bc to +0x152 of a sequence");
+
 struct sequence {
     uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
     struct far_ptr cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
@@ -3506,15 +3531,7 @@ struct sequence {
     uint8_t        byte_08c[16];        /* +0x08c  0xff at start */
     uint8_t        status[16];          /* +0x09c  running status */
     uint8_t        status_saved[16];    /* +0x0ac */
-    uint16_t       word_0bc[15];        /* +0x0bc  0x2000 at start - a bend centre, guessed */
-    uint8_t        byte_0da[15];        /* +0x0da  0xff at start */
-    uint8_t        byte_0e9[15];        /* +0x0e9  0 at start */
-    uint8_t        byte_0f8[15];        /* +0x0f8  0xff at start */
-    uint8_t        byte_107[15];        /* +0x107  0xff at start */
-    uint8_t        byte_116[15];        /* +0x116  0xff at start */
-    uint8_t        byte_125[15];        /* +0x125  0xff at start */
-    uint8_t        byte_134[15];        /* +0x134  0 at start */
-    uint8_t        byte_143[15];        /* +0x143  0 at start */
+    struct sequence_channels ch;        /* +0x0bc  each channel's controllers */
     uint16_t       loop_count;          /* +0x152  bumped by controller 0x60 */
     uint16_t       ticks;               /* +0x154  bumped every step */
     uint16_t       ticks_saved;         /* +0x156  and restored from here on a loop */
@@ -3546,22 +3563,6 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
    sentinel and not NULL. */
 #define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
 #define SEQUENCE_PTR(fp) ((struct sequence *)(void *)MK_FP((fp).seg, (fp).off))
-
-/*
- * **A channel table, read by channel number.** The tables from +0x0bc on hold
- * fifteen entries, but the number that indexes them is a MIDI channel's low
- * nibble and runs to 15 - the original's `[bx+di+0x107]` then reads the first
- * byte of the table after. The field is the table's start and the index is not
- * bounded by it, so the read goes through a plain pointer rather than the
- * array. Loops the original bounds at fifteen use the field itself.
- *
- * It is also how a routine holds **a pointer to one entry** - a channel's
- * position counter, stepped once per byte - since the address of a member of
- * a packed struct is not one C will hand out.
- */
-#define SEQ_TABLE(seq, field) \
-    ((__typeof__((seq)->field[0]) *)(void *)((uint8_t *)(seq) \
-                                            + offsetof(struct sequence, field)))
 #define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
 
 /*
@@ -3601,9 +3602,9 @@ DG_ASSERT_AT(struct sequence, cursor_at,        0x008);
 DG_ASSERT_AT(struct sequence, position,         0x00c);
 DG_ASSERT_AT(struct sequence, delay,            0x04c);
 DG_ASSERT_AT(struct sequence, byte_08c,         0x08c);
-DG_ASSERT_AT(struct sequence, word_0bc,         0x0bc);
-DG_ASSERT_AT(struct sequence, byte_0da,         0x0da);
-DG_ASSERT_AT(struct sequence, byte_143,         0x143);
+DG_ASSERT_AT(struct sequence, ch,               0x0bc);
+DG_ASSERT_AT(struct sequence, ch.byte_0da,      0x0da);
+DG_ASSERT_AT(struct sequence, ch.byte_143,      0x143);
 DG_ASSERT_AT(struct sequence, loop_count,       0x152);
 DG_ASSERT_AT(struct sequence, state,            0x158);
 DG_ASSERT_AT(struct sequence, priority,         0x15c);

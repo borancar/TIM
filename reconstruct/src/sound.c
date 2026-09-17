@@ -71,36 +71,36 @@ static void tick_program_voice(struct sequence far * seq, uint16_t voice,
 
     driver_controller(voice, 0x7b00);                    /* all notes off */
 
-    cl = (uint8_t)(SEQ_TABLE(seq, byte_0da)[channel] & 0xf);
+    cl = (uint8_t)(seq->ch.byte_0da[channel] & 0xf);
     driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
-    cl = SEQ_TABLE(seq, byte_116)[channel];
+    cl = seq->ch.byte_116[channel];
     driver_program_change(voice, cl);
 
     SNDS.pending_volume[voice] = 0xff;
 
-    cl = scale_byte_pair(SEQ_TABLE(seq, byte_107)[channel], seq->volume);
+    cl = scale_byte_pair(seq->ch.byte_107[channel], seq->volume);
     driver_controller(voice, (uint16_t)((7 << 8) | cl));
 
-    cl = SEQ_TABLE(seq, byte_0f8)[channel];
+    cl = seq->ch.byte_0f8[channel];
     driver_controller(voice, (uint16_t)((0xa << 8) | cl));
 
-    cl = SEQ_TABLE(seq, byte_0e9)[channel];
+    cl = seq->ch.byte_0e9[channel];
     driver_controller(voice, (uint16_t)((1 << 8) | cl));
 
     cl = 0;
-    if ((uint8_t)(SEQ_TABLE(seq, word_0bc)[channel] >> 8) >= 0x80)
+    if ((uint8_t)(seq->ch.bend[channel] >> 8) >= 0x80)
         cl = 0x7f;
     driver_controller(voice, (uint16_t)((0x40 << 8) | cl));
 
-    bend = SEQ_TABLE(seq, word_0bc)[channel];
+    bend = seq->ch.bend[channel];
     ch = (uint8_t)bend;
     cl = (uint8_t)((bend >> 8) << 1);
     if (ch >= 0x80)
         cl |= 1;
     driver_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
 
-    cl = SEQ_TABLE(seq, byte_125)[channel];
+    cl = seq->ch.byte_125[channel];
     driver_controller(voice, (uint16_t)((0x4e << 8) | cl));
 }
 
@@ -301,18 +301,18 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
         seq->position_saved[si] = 3;
         seq->delay[si] = 0;
         seq->delay_saved[si] = 0;
-        seq->word_0bc[si] = 0x2000;
+        seq->ch.bend[si] = 0x2000;
         seq->byte_08c[si] = 0xff;
         seq->status[si] = 0;
         seq->status_saved[si] = 0;
-        seq->byte_0da[si] = 0xff;
-        seq->byte_0e9[si] = 0;
-        seq->byte_116[si] = 0xff;
-        seq->byte_107[si] = 0xff;
-        seq->byte_0f8[si] = 0xff;
-        seq->byte_125[si] = 0xff;
-        seq->byte_134[si] = 0;
-        seq->byte_143[si] = 0;
+        seq->ch.byte_0da[si] = 0xff;
+        seq->ch.byte_0e9[si] = 0;
+        seq->ch.byte_116[si] = 0xff;
+        seq->ch.byte_107[si] = 0xff;
+        seq->ch.byte_0f8[si] = 0xff;
+        seq->ch.byte_125[si] = 0xff;
+        seq->ch.byte_134[si] = 0;
+        seq->ch.byte_143[si] = 0;
     }
 
     seq->byte_08c[0xf] = 0xff;
@@ -359,7 +359,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                 seq->position_saved[si] = 0;
                 seq->byte_08c[si] = 0xfe;
             } else {
-                uint16_t ch;
+                uint16_t channel;
 
                 seq->byte_08c[si] = dl;
                 seq->status[si] = (uint8_t)(dl | 0xb0);
@@ -374,36 +374,36 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
 
                 dl = seq->byte_08c[si];
                 seq->byte_08c[si] &= 0xf;
-                ch = (uint16_t)(dl & 0xf);
+                channel = (uint16_t)(dl & 0xf);
 
                 if ((dl & 0x10) != 0) {
                     seq->position[si] = 3;
                     seq->delay[si] = 0;
-                    SEQ_TABLE(seq, byte_134)[ch] |= 2;
+                    seq->ch.byte_134[channel] |= 2;
                 } else {
                     int16_t do_f8 = 1;
 
                     if ((dl & 0x20) != 0)
-                        SEQ_TABLE(seq, byte_134)[ch] |= 1;
+                        seq->ch.byte_134[channel] |= 1;
                     if ((dl & 0x40) != 0)
-                        SEQ_TABLE(seq, byte_143)[ch] = 1;
+                        seq->ch.byte_143[channel] = 1;
 
-                    if (ch == 0xf) {
+                    if (channel == 0xf) {
                         if (seq->device_value == 0x7f) {
                             seq->device_value = e[8];
                             do_f8 = 0;
                         }
                     } else {
-                        if (seq->byte_0da[ch] == 0xff)
-                            seq->byte_0da[ch] = e[1];
-                        if (seq->byte_116[ch] == 0xff)
-                            seq->byte_116[ch] = e[4];
-                        if (seq->byte_107[ch] == 0xff)
-                            seq->byte_107[ch] = e[8];
+                        if (seq->ch.byte_0da[channel] == 0xff)
+                            seq->ch.byte_0da[channel] = e[1];
+                        if (seq->ch.byte_116[channel] == 0xff)
+                            seq->ch.byte_116[channel] = e[4];
+                        if (seq->ch.byte_107[channel] == 0xff)
+                            seq->ch.byte_107[channel] = e[8];
                     }
 
-                    if (do_f8 && SEQ_TABLE(seq, byte_0f8)[ch] == 0xff)
-                        SEQ_TABLE(seq, byte_0f8)[ch] = e[0xb];
+                    if (do_f8 && seq->ch.byte_0f8[channel] == 0xff)
+                        seq->ch.byte_0f8[channel] = e[0xb];
                 }
             }
 
@@ -416,7 +416,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
 
     if (seq->mode == 2) {
         for (di = 0xe; (int16_t)di >= 0; di--)
-            seq->byte_134[di] |= 1;
+            seq->ch.byte_134[di] |= 1;
     }
 
     key = seq->priority;
@@ -660,19 +660,19 @@ void sequencer_tick(void)
             cl = rec->byte_08c[ch_i];
             if (cl == 0xff || cl == 0xfe || cl == 0x0f)
                 continue;
-            if ((SEQ_TABLE(rec, byte_134)[cl] & 2) != 0)
+            if ((rec->ch.byte_134[cl] & 2) != 0)
                 continue;
-            if (SEQ_TABLE(rec, byte_143)[cl] != 0)
+            if (rec->ch.byte_143[cl] != 0)
                 continue;
 
             dl = (uint8_t)((seq * 4) | cl);
 
-            ah = (uint8_t)(SEQ_TABLE(rec, byte_0da)[cl] & 0xf);
-            chh = (uint8_t)(SEQ_TABLE(rec, byte_0da)[cl] >> 4);
+            ah = (uint8_t)(rec->ch.byte_0da[cl] & 0xf);
+            chh = (uint8_t)(rec->ch.byte_0da[cl] >> 4);
             if (chh != 0)
                 chh = (uint8_t)(0x10 - chh + bp_);
 
-            if ((SEQ_TABLE(rec, byte_134)[cl] & 1) != 0
+            if ((rec->ch.byte_134[cl] & 1) != 0
                 && SNDS.voice_request[cl] == 0xff) {
                 dh = cl;
                 goto check_budget;
@@ -743,7 +743,7 @@ have_voice:
             al = (uint8_t)(al - ah);
             SNDS.voice_cost[dh] = chh;
 
-            if ((SEQ_TABLE(rec, byte_134)[cl] & 1) == 0) {
+            if ((rec->ch.byte_134[cl] & 1) == 0) {
                 SNDS.voice_keep_own[dh] = 0;
                 continue;
             }
@@ -1014,7 +1014,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
             continue;
 
         di = (uint16_t)(held & 0xf);
-        level = scale_byte_pair(SEQ_TABLE(seq, byte_107)[di], seq->volume);
+        level = scale_byte_pair(seq->ch.byte_107[di], seq->volume);
 
         if (SNDS.defer != 0) {
             SNDS.pending_volume[si] = level;
@@ -1028,12 +1028,12 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
         di = seq->byte_08c[si];
         if (di == 0xff)
             return;
-        if ((SEQ_TABLE(seq, byte_134)[di] & 2) == 0)
+        if ((seq->ch.byte_134[di] & 2) == 0)
             continue;
         if (SNDS.voice_held[di] != 0xff)
             continue;
 
-        level = scale_byte_pair(SEQ_TABLE(seq, byte_107)[di], seq->volume);
+        level = scale_byte_pair(seq->ch.byte_107[di], seq->volume);
 
         if (SNDS.defer != 0) {
             SNDS.pending_volume[di] = level;
@@ -1401,8 +1401,8 @@ void step_sequence(struct sequence far * seq, uint16_t di)
 
     for (si = 0; si < 0x10; si++) {
         uint8_t al = seq->byte_08c[si];
-        uint16_t *pos = &SEQ_TABLE(seq, position)[si];
-        uint16_t *delay = &SEQ_TABLE(seq, delay)[si];
+        uint16_t *pos = &seq->position[si];
+        uint16_t *delay = &seq->delay[si];
         uint8_t status;
 
         if (al == 0xff)
@@ -1413,7 +1413,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
         SNDS.own_voice = 0xff;
         SNDS.bend_gate = 0;
 
-        if ((SEQ_TABLE(seq, byte_134)[al] & 2) != 0) {
+        if ((seq->ch.byte_134[al] & 2) != 0) {
             SNDS.own_voice = al;
             SNDS.bend_gate = 1;
         } else {
@@ -1560,7 +1560,7 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
                                        uint16_t ax)
 {
     uint8_t note, velocity, channel;
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
 
     note = *data;
     data++;
@@ -1578,8 +1578,8 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
 
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
-    if (SEQ_TABLE(seq, byte_125)[channel] == note)
-        SEQ_TABLE(seq, byte_125)[channel] = 0xff;
+    if (seq->ch.byte_125[channel] == note)
+        seq->ch.byte_125[channel] = 0xff;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_stop_note((uint16_t)(ax & 0xf),
@@ -1603,7 +1603,7 @@ const uint8_t far *midi_event_6(const uint8_t far * data,
                                 struct sequence far * seq, uint16_t si,
                                 uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
 
     data++;
     (*counter)++;
@@ -1652,7 +1652,7 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
                                    uint16_t ax)
 {
     uint8_t note, velocity, channel;
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
 
     note = *data;
     data++;
@@ -1665,14 +1665,14 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
     if (velocity != 0) {
-        SEQ_TABLE(seq, byte_125)[channel] = note;
+        seq->ch.byte_125[channel] = note;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_start_note((uint16_t)(ax & 0xf),
                               (uint16_t)((note << 8) | velocity));
     } else {
-        if (SEQ_TABLE(seq, byte_125)[channel] == note)
-            SEQ_TABLE(seq, byte_125)[channel] = 0xff;
+        if (seq->ch.byte_125[channel] == note)
+            seq->ch.byte_125[channel] = 0xff;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_stop_note((uint16_t)(ax & 0xf),
@@ -1714,7 +1714,7 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
                                          struct sequence far * seq, uint16_t si,
                                          uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
     uint8_t ctrl, value, channel;
 
     ctrl = *data;
@@ -1731,29 +1731,29 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
     if (ctrl == 7) {
-        SEQ_TABLE(seq, byte_107)[channel] = value;
+        seq->ch.byte_107[channel] = value;
         value = scale_byte_pair(value, seq->volume);
         if ((uint8_t)ax >= 0x20)
             return data;
         SNDS.pending_volume[(uint8_t)ax] = 0xff;
     } else if (ctrl == 0xa) {
-        SEQ_TABLE(seq, byte_0f8)[channel] = value;
+        seq->ch.byte_0f8[channel] = value;
     } else if (ctrl == 1) {
-        SEQ_TABLE(seq, byte_0e9)[channel] = value;
+        seq->ch.byte_0e9[channel] = value;
     } else if (ctrl == 0x40) {
-        uint16_t *bend = &SEQ_TABLE(seq, word_0bc)[channel];
+        uint16_t *bend = &seq->ch.bend[channel];
 
         if (value != 0)
             *bend |= 0x8000;
         else
             *bend &= 0x7fff;
     } else if (ctrl == 0x4b) {
-        uint8_t *p = &SEQ_TABLE(seq, byte_0da)[channel];
+        uint8_t *p = &seq->ch.byte_0da[channel];
 
         *p = (uint8_t)((*p & 0xf0) | value);
         SNDS.voices_changed = 1;
     } else if (ctrl == 0x4e) {
-        uint8_t *p = &SEQ_TABLE(seq, byte_143)[channel];
+        uint8_t *p = &seq->ch.byte_143[channel];
 
         *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
         SNDS.voices_changed = 1;
@@ -1785,7 +1785,7 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
                                       struct sequence far * seq, uint16_t si,
                                       uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
     uint8_t program, channel;
 
     program = *data;
@@ -1796,7 +1796,7 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
         return data;
 
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
-    SEQ_TABLE(seq, byte_116)[channel] = program;
+    seq->ch.byte_116[channel] = program;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_program_change((uint16_t)(ax & 0xf), program);
@@ -1817,7 +1817,7 @@ const uint8_t far *midi_event_9(const uint8_t far * data,
                                 struct sequence far * seq, uint16_t si,
                                 uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
 
     data++;
     (*counter)++;
@@ -1862,7 +1862,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
                                    uint16_t ax)
 {
     uint8_t lsb, msb, channel;
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
     uint16_t value;
     uint16_t *slot;
 
@@ -1882,7 +1882,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
     value = (uint16_t)((((uint16_t)msb >> 1) << 8)
                        | (uint16_t)(lsb | ((msb & 1) ? 0x80 : 0)));
 
-    slot = &SEQ_TABLE(seq, word_0bc)[channel];
+    slot = &seq->ch.bend[channel];
     if (*slot >= 0x8000)
         value |= 0x8000;
     *slot = value;
@@ -1927,7 +1927,7 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
                                    struct sequence far * seq, uint16_t si,
                                    uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
     uint8_t status = (uint8_t)(ax >> 8);
     uint8_t first, second;
     int16_t t;
@@ -2041,7 +2041,7 @@ const uint8_t far *skip_unknown_event(const uint8_t far * data,
                                       struct sequence far * seq, uint16_t si,
                                       uint16_t ax)
 {
-    uint16_t *counter = &SEQ_TABLE(seq, position)[si];
+    uint16_t *counter = &seq->position[si];
     uint8_t status = (uint8_t)(ax >> 8);
     uint8_t b;
 
