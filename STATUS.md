@@ -869,6 +869,32 @@ which `-Wmaybe-uninitialized` found the moment it could see through the
 reads. The timer thread itself is the port's artefact; on a synchronous
 tick, as the hybrid delivers it, even those three would not need the word.
 
+**The timer thread is not the only one, and the other takes no lock.**
+Found on 2026-09-17 by walking every handler for what it writes.
+`io_keyboard_scancode` (io.c:3476) calls the guest's INT 09h handler,
+`keyboard_isr` (src/engine.c:3634), straight off the **SDL event thread** with
+no `io_lock` - where the mouse path wraps `mouse_event` in `io_lock`/
+`io_unlock` (io.c:1896). So a keystroke runs guest code concurrently with the
+main thread exactly as a tick does, and this note's argument applies to it
+unchanged.
+
+What it writes from there: `ENGINE_KEYBOARD.state[]`, `held[]` and
+`word_458e`, and the **BIOS data area** directly - the shift flags at
+0040:0017 and the ring at 0040:001A/001C/001E. None of them is `volatile`,
+and `bios_read_key` reads the same ring on the main thread.
+
+The sharp case is not a torn word. Two combinations - the key word 0x19b with
+Ctrl, and 0x5380 with Alt and Ctrl - reach `game_teardown` (src/game.c:623),
+and the second frees the far and near free lists, the region lists, the part
+bitmaps, the palette blocks, the sound sequences, records and driver, and then
+calls `borland_exit`. That whole teardown runs **on the event thread, while
+the main thread is still playing**, which is the same shape as the `exit`
+under the timer thread that S07 crashed on - see "A run that stops with `exit`
+destroys the sound chip under the timer thread" in docs/lessons.md. Nothing
+has been attributed to it yet, and nothing has been measured either;
+keystrokes are rare next to ticks, and the teardown key is one a player has to
+mean.
+
 So this wants **a model, not a mutex**, and the model is not chosen yet. The
 honest options run from "make every tick a message the main thread drains at
 a safe point", which is what the hybrid already does by accident, to "give
