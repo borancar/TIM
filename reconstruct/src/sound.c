@@ -493,10 +493,10 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
  *
  * Hand-written assembly, no frame, a far `ret`.
  */
-void retire_and_tick(struct far_ptr rec)
+void retire_and_tick(struct sequence far * seq)
 {
     io_lock();                  /* `pushf`, `cli` */
-    remove_sequence(rec.seg, rec.off);
+    remove_sequence(FP_SEG(seq), FP_OFF(seq));
     sequencer_tick();
     io_unlock();                /* `popf` - which is why the lock is recursive */
 }
@@ -2256,10 +2256,10 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
         free_for_kind(MK_FP(DG4A82.config.seg, DG4A82.config.off), 1);
 
     {
-        struct far_ptr p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
+        uint8_t *p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
 
-        DG4A82.config = p;
-        if (far_eq(p, FAR_NULL))
+        DG4A82.config = far_of(p);
+        if (p == MK_FP(0, 0))
             di = 0;
     }
 
@@ -2321,15 +2321,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     int16_t di = 0;
 
     if (module_index != -2) {
-        struct far_ptr p;
+        uint8_t *p;
 
         string_copy_far(CHUNK2.ssm_tag + 4,
                         (const char *)dg_ptr(dgroup, SOUND_TAGS.module[module_index]));
 
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
-        DG4A82.module = p;
+        DG4A82.module = far_of(p);
 
-        if (far_eq(p, FAR_NULL)) {
+        if (p == MK_FP(0, 0)) {
             module_index = -2;
             di = 1;
         } else {
@@ -2363,15 +2363,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     }
 
     if (device != -2) {
-        struct far_ptr p;
+        uint8_t *p;
 
         string_copy_far(CHUNK2.ssm_tag + 4,
                         (const char *)dg_ptr(dgroup, SOUND_TAGS.device[device]));
 
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
-        DG4A82.driver = p;
+        DG4A82.driver = far_of(p);
 
-        if (far_eq(p, FAR_NULL)) {
+        if (p == MK_FP(0, 0)) {
             di = 1;
         } else {
             DG4A82.driver_number =
@@ -2409,22 +2409,24 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
  * ES from the first load while doing so. That is only a compiler making the
  * same address three times, not three different pointers.
  */
-struct far_ptr voice_playing(struct far_ptr rec)
+struct sequence far *voice_playing(const uint8_t far * source)
 {
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        const uint8_t *v = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
+        struct sequence *v = (struct sequence *)(void *)MK_FP(SOUND_VOICES.voice[i].seg,
+                                                              SOUND_VOICES.voice[i].off);
 
-        /* Which record this voice is playing, at +0x166. */
-        if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
+        /* Which note data this voice is playing. The pair was filed from a
+           pointer to a DOS block, so comparing pointers is comparing pairs. */
+        if ((const uint8_t *)MK_FP(v->source.seg, v->source.off) != source)
             continue;
-        if (v[0x158] == 0xff)
+        if (v->state == 0xff)
             continue;
-        return SOUND_VOICES.voice[i];
+        return v;
     }
 
-    return FAR_NULL;
+    return SEQUENCE_NONE;
 }
 
 /*
@@ -2450,23 +2452,22 @@ uint16_t alloc_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr p = far_of(alloc_for_kind(0x17a, 2));
-        uint8_t *voice;
+        struct sequence *voice = (struct sequence *)(void *)alloc_for_kind(0x17a, 2);
 
-        SOUND_VOICES.voice[i] = p;
+        SOUND_VOICES.voice[i] = far_of((uint8_t *)voice);
 
-        if (far_eq(p, FAR_NULL)) {
+        if (voice == SEQUENCE_NONE) {
             free_voice_records();
             return 0;
         }
 
-        /* Read back out of the table, which is where the original reads
-           it - the two locals were only its halves. */
-        voice = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
-
-        voice[0x158] = 0xff;
-        *(uint16_t *)(voice + 0xa) = SOUND_VOICES.voice[i].seg;
-        *(uint16_t *)(voice + 8) = (uint16_t)(SOUND_VOICES.voice[i].off + 0x16a);
+        /* The original reads the pair back out of the table; its segment
+           and offset are the record's own, a DOS block starting a segment,
+           and `cursor_at` is that segment beside the offset stepped to the
+           record's `cursor`. */
+        voice->state = 0xff;
+        voice->cursor_at = (struct far_ptr){
+            (uint16_t)(FP_OFF(voice) + offsetof(struct sequence, cursor)), FP_SEG(voice) };
     }
 
     return 1;
@@ -2490,13 +2491,13 @@ uint16_t alloc_voice_records(void)
  * A file this routine opened is closed on every path, including the ones that
  * give up; one it was handed is left alone.
  */
-struct far_ptr load_named_chunk(char *name, const char * path,
-                                uint16_t index)
+uint8_t far *load_named_chunk(char *name, const char * path,
+                              uint16_t index)
 {
     FILE *handle = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
     FILE *si;
-    struct far_ptr r = {0, 0};
+    uint8_t *r = MK_FP(0, 0);
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
@@ -2586,9 +2587,9 @@ uint16_t configure_driver_far(struct far_ptr drv)
  * The ordinary-call face of `retire_and_tick`, which reads its record from
  * `ES:AX` - loaded here from the stack argument with one `les`.
  */
-void retire_and_tick_far(struct far_ptr rec)
+void retire_and_tick_far(struct sequence far * seq)
 {
-    retire_and_tick(rec);
+    retire_and_tick(seq);
 }
 
 /*
@@ -2602,9 +2603,9 @@ void retire_and_tick_far(struct far_ptr rec)
  * it changes, but the ones this pushes are the ones a C caller expects to keep,
  * and the hand-written routine makes no such promise.
  */
-void start_sequence_far(struct far_ptr rec, uint16_t flag)
+void start_sequence_far(struct sequence far * seq, uint16_t flag)
 {
-    start_sequence(rec.seg, rec.off, flag);
+    start_sequence(FP_SEG(seq), FP_OFF(seq), flag);
 }
 
 /*
@@ -2629,35 +2630,28 @@ void start_sequence_far(struct far_ptr rec, uint16_t flag)
  * where it feeds `scale_byte_pair`, and the two words at +0x172 are cleared
  * again although the allocation already did it.
  */
-uint8_t far *create_sequence(uint8_t far * src)
+struct sequence far *create_sequence(const uint8_t far * src)
 {
-    uint8_t *rec = alloc_for_kind(0x17a, 2);
-    uint16_t stepped;
+    struct sequence *seq = (struct sequence *)(void *)alloc_for_kind(0x17a, 2);
 
-    if (rec == MK_FP(0, 0))
-        return rec;
+    if ((uint8_t *)seq == MK_FP(0, 0))
+        return seq;
 
-    /* Every pointer filed here is a segment beside an offset **stepped
+    /* `cursor` and `cursor_at` are a segment beside an offset **stepped
        inside it** - `advance_record` and the `+ 0x16a` move the offset alone
-       - so each is filed as the pointer's own segment and offset, not as
-       `far_of` of a stepped pointer, which would renormalise. The source and
-       the record are both blocks DOS handed out, so their pairs are the
-       ones the original holds. */
-    *(uint16_t *)(rec + 0x168) = FP_SEG(src);
-    *(uint16_t *)(rec + 0x166) = FP_OFF(src);
+       - so each is filed as that segment and offset, not as `far_of` of a
+       stepped pointer, which would renormalise. The source and the record
+       are both blocks DOS handed out, so their own pairs are the ones the
+       original holds. */
+    seq->source = far_of(src);
+    seq->cursor = (struct far_ptr){ advance_record(src, FP_OFF(src)), FP_SEG(src) };
+    seq->cursor_at = (struct far_ptr){
+        (uint16_t)(FP_OFF(seq) + offsetof(struct sequence, cursor)), FP_SEG(seq) };
 
-    stepped = advance_record(src, FP_OFF(src));
-    *(uint16_t *)(rec + 0x16c) = FP_SEG(src);
-    *(uint16_t *)(rec + 0x16a) = stepped;
+    seq->volume = 0x7f;
+    seq->next = FAR_NULL;
 
-    *(uint16_t *)(rec + 0xa) = FP_SEG(rec);
-    *(uint16_t *)(rec + 8) = (uint16_t)(FP_OFF(rec) + 0x16a);
-
-    rec[0x15e] = 0x7f;
-    *(uint16_t *)(rec + 0x174) = 0;
-    *(uint16_t *)(rec + 0x172) = 0;
-
-    return rec;
+    return seq;
 }
 /*
  * 0x289e8
@@ -2688,14 +2682,14 @@ uint8_t far *create_sequence(uint8_t far * src)
  * The node list is freed on every path, and the resource closed on every path
  * that opened it.
  */
-struct far_ptr load_sound_bank(FILE *file, uint32_t size,
+uint8_t far *load_sound_bank(FILE *file, uint32_t size,
                          uint8_t * out)
 {
     uint16_t want;
     int16_t handle;
-    uint8_t *list = MK_FP(0, 0);
-    struct far_ptr blk = FAR_NULL;
-    struct far_ptr r = {0, 0};
+    struct sound_node *list = SOUND_NODE_NONE;
+    uint8_t *blk = MK_FP(0, 0);
+    uint8_t *r = MK_FP(0, 0);
 
     /*
      * None of this routine's locals has its address taken, but the ones it
@@ -2740,10 +2734,9 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     }
 
     {
-        struct far_ptr head = read_sound_records(handle);
+        list = read_sound_records(handle);
 
-        list = MK_FP(head.seg, head.off);
-        if (list == MK_FP(0, 0)) {
+        if (list == SOUND_NODE_NONE) {
             DG4A82.load_error = 2;
             close_resource(handle);
             goto out;
@@ -2751,21 +2744,20 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     }
 
     {
-        const uint8_t *walk = list;
+        const struct sound_node *walk = list;
         /* One 32-bit total. The port had it as two words with the carry
            tested by hand, which is how the original's `add`/`adc` reads on
            the way in; every use of it below is of the whole. */
         uint32_t len = 0;
         uint16_t si = 5;
 
-        while (walk != MK_FP(0, 0)) {
-            const struct sound_node *node = (const struct sound_node *)(void *)walk;
-            uint16_t n = node->length;
+        while (walk != SOUND_NODE_NONE) {
+            uint16_t n = walk->length;
 
             len += n;
 
             si = (uint16_t)(si + 6);
-            walk = MK_FP(node->next.seg, node->next.off);
+            walk = (const struct sound_node *)(void *)MK_FP(walk->next.seg, walk->next.off);
         }
 
         if ((si & 1) != 0)
@@ -2776,10 +2768,8 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
         len += si;
 
         {
-            struct far_ptr p = far_of(alloc_for_kind(len + 1, 4));
-
-            blk = p;
-            if (far_eq(p, FAR_NULL)) {
+            blk = alloc_for_kind(len + 1, 4);
+            if (blk == MK_FP(0, 0)) {
                 close_resource(handle);
                 free_node_list(list);
                 goto out;
@@ -2787,7 +2777,7 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
         }
 
         if (build_sound_index(handle, list,
-                              MK_FP(blk.seg, blk.off),
+                              blk,
                               si, want) == 0) {
             close_resource(handle);
             free_node_list(list);
@@ -2823,14 +2813,13 @@ out:
  *
  * A null chain is not a special case - the test is at the top.
  */
-void free_node_list(uint8_t far * list)
+void free_node_list(struct sound_node far * list)
 {
-    while (list != MK_FP(0, 0)) {
-        uint8_t *cur = list;
-        const struct sound_node *node = (const struct sound_node *)(void *)list;
+    while (list != SOUND_NODE_NONE) {
+        struct sound_node *cur = list;
 
-        list = MK_FP(node->next.seg, node->next.off);
-        free_for_kind(cur, 9);
+        list = (struct sound_node *)(void *)MK_FP(list->next.seg, list->next.off);
+        free_for_kind((uint8_t *)cur, 9);
     }
 }
 
@@ -2883,46 +2872,45 @@ uint16_t free_voice_records(void)
  * Answers the voice as a far pointer, or 0 if the sequence was null or every
  * voice was busy.
  */
-struct far_ptr start_on_free_voice(struct far_ptr rec, uint16_t index,
-                                   uint16_t byte_arg)
+struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t index,
+                                         uint16_t byte_arg)
 {
     int16_t i;
 
-    if (far_eq(rec, FAR_NULL))
-        return FAR_NULL;
+    if (source == MK_FP(0, 0))
+        return SEQUENCE_NONE;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = SOUND_VOICES.voice[i];
-        uint8_t *voice = MK_FP(v.seg, v.off);
-        uint16_t next;
+        struct sequence *voice = (struct sequence *)(void *)MK_FP(SOUND_VOICES.voice[i].seg,
+                                                                  SOUND_VOICES.voice[i].off);
 
-        if (voice[0x158] != 0xff)
+        if (voice->state != 0xff)
             continue;
 
-        /* Which record this voice is playing, and how far into it. */
-        *(struct far_ptr *)(voice + 0x166) = rec;
-
-        next = advance_record(MK_FP(rec.seg, rec.off), rec.off);
-        *(struct far_ptr *)(voice + 0x16a) = (struct far_ptr){ next, rec.seg };
+        /* Which note data this voice is playing, and how far into it - the
+           second a segment beside the offset `advance_record` stepped. */
+        voice->source = far_of(source);
+        voice->cursor = (struct far_ptr){ advance_record(source, FP_OFF(source)),
+                                          FP_SEG(source) };
 
         if (DG4A82.bank_ptr != 0) {
             const struct sound_bank_entry *bank =
                 (const struct sound_bank_entry *)dg_ptr(dgroup, DG4A82.bank_ptr);
 
-            voice[0x15d] = bank[index].loop;
-            voice[0x15c] = bank[index].priority;
-            voice[0x15e] = 0x7f;
+            voice->loop = bank[index].loop;
+            voice->priority = bank[index].priority;
+            voice->volume = 0x7f;
         } else {
-            voice[0x15d] = (uint8_t)byte_arg;
-            voice[0x15c] = 1;
-            voice[0x15e] = (uint8_t)index;
+            voice->loop = (uint8_t)byte_arg;
+            voice->priority = 1;
+            voice->volume = (uint8_t)index;
         }
 
-        start_sequence_far(v, 0);
-        return v;
+        start_sequence_far(voice, 0);
+        return voice;
     }
 
-    return FAR_NULL;
+    return SEQUENCE_NONE;
 }
 
 /*
@@ -2938,13 +2926,14 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = SOUND_VOICES.voice[i];
+        struct sequence *v = (struct sequence *)(void *)MK_FP(SOUND_VOICES.voice[i].seg,
+                                                              SOUND_VOICES.voice[i].off);
 
-        if (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) == 0xff)
+        if (v->state == 0xff)
             continue;
 
         retire_and_tick_far(v);
-        *MK_FP(v.seg, (uint16_t)(v.off + 0x158)) = 0xff;
+        v->state = 0xff;
     }
 }
 
@@ -3008,11 +2997,11 @@ uint16_t sound_callback(uint16_t ax, uint8_t * si)
  * arguments before testing it, which is a compiler reusing the incoming slots
  * as a local and not a second meaning for them.
  */
-void follow_then_tick(struct far_ptr rec, int16_t count)
+void follow_then_tick(struct sequence far * seq, int16_t count)
 {
-    struct far_ptr p = follow_far_chain(rec, count);
+    struct sequence *p = follow_far_chain(seq, count);
 
-    if (!far_eq(p, FAR_NULL))
+    if (p != SEQUENCE_NONE)
         retire_and_tick_far(p);
 }
 
@@ -3108,14 +3097,14 @@ out:
  * That is the only path on which the byte read ahead is not 0xff, which is what
  * the second test distinguishes.
  */
-struct far_ptr read_sound_records(int16_t handle)
+struct sound_node far *read_sound_records(int16_t handle)
 {
     uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
     /* The byte at [bp-1], as a pointer - the frame is the guest's because
        `read_resource` takes a DGROUP address; see `seek_to_sound_record`. */
     uint8_t *b = dg_ptr(dgroup, (uint16_t)(fp + 0xc - 1));
-    struct far_ptr head = FAR_NULL;
-    struct far_ptr node = FAR_NULL;
+    struct sound_node *head = SOUND_NODE_NONE;
+    struct sound_node *node;
 
     read_resource(handle, b, 1);
 
@@ -3123,24 +3112,24 @@ struct far_ptr read_sound_records(int16_t handle)
         if (*b == 0xff)
             break;
 
-        node = far_of(alloc_for_kind(8, 9));
-        if (far_eq(node, FAR_NULL))
+        node = (struct sound_node *)(void *)alloc_for_kind(8, 9);
+        if (node == SOUND_NODE_NONE)
             break;
 
-        NODE(node)->next = FAR_NULL;
+        node->next = FAR_NULL;
 
         resource_seek(handle, 1, 1);
-        read_resource(handle, MK_FP(node.seg, node.off), 4);
+        read_resource(handle, (uint8_t *)node, 4);
         read_resource(handle, b, 1);
 
-        if (far_eq(head, FAR_NULL))
+        if (head == SOUND_NODE_NONE)
             head = node;
         else
             head = insert_by_key(head, node);
     }
 
     if (*b != 0xff)
-        free_node_list(MK_FP(head.seg, head.off));
+        free_node_list(head);
 
     dg_free(0xc);
     return head;
@@ -3161,16 +3150,19 @@ struct far_ptr read_sound_records(int16_t handle)
  * whose key is not below the new one, so equal keys go **after** the ones
  * already there.
  */
-struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node)
+struct sound_node far *insert_by_key(struct sound_node far * head,
+                                     struct sound_node far * node)
 {
-    struct far_ptr cur, prev;
-    uint16_t key = NODE(node)->key;
+    struct sound_node *cur, *prev;
+    uint16_t key = node->key;
 
-    if (far_eq(head, FAR_NULL))
+    if (head == SOUND_NODE_NONE)
         return head;
 
-    if (NODE(head)->key >= key) {
-        NODE(node)->next = head;
+    /* The links are filed as each node's own pair - a DOS block starting a
+       segment - so `far_of` files what the original does. */
+    if (head->key >= key) {
+        node->next = far_of((uint8_t *)head);
         return node;
     }
 
@@ -3178,16 +3170,16 @@ struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node)
 
     for (;;) {
         prev = cur;
-        cur = NODE(cur)->next;
+        cur = (struct sound_node *)(void *)MK_FP(cur->next.seg, cur->next.off);
 
-        if (far_eq(cur, FAR_NULL))
+        if (cur == SOUND_NODE_NONE)
             break;
-        if (NODE(cur)->key >= key)
+        if (cur->key >= key)
             break;
     }
 
-    NODE(node)->next = cur;
-    NODE(prev)->next = node;
+    node->next = far_of((uint8_t *)cur);
+    prev->next = far_of((uint8_t *)node);
 
     return head;
 }
@@ -3211,7 +3203,7 @@ struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node)
  * from the start, not from where the last read left off - and reading its
  * length. A short read abandons the whole thing and answers 0.
  */
-uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
+uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint8_t far * dst, uint16_t data_at, uint16_t tag)
 {
     /* The original steps two offsets inside `dst`'s segment; the block is
@@ -3223,22 +3215,21 @@ uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
     *dir++ = 0;
     *dir++ = (uint8_t)tag;
 
-    while (list != MK_FP(0, 0)) {
-        const struct sound_node *node = (const struct sound_node *)(void *)list;
-        uint16_t len = node->length;
+    while (list != SOUND_NODE_NONE) {
+        uint16_t len = list->length;
 
         dir[0] = 0;
         dir[1] = 0;
         *(uint16_t *)(dir + 2) = (uint16_t)(data - dst - 2);
         *(uint16_t *)(dir + 4) = len;
 
-        resource_seek(handle, (uint16_t)(node->key + 2), 0);
+        resource_seek(handle, (uint16_t)(list->key + 2), 0);
 
         if ((uint16_t)read_resource(handle, data, len) != len)
             return 0;
 
         data += len;
-        list = MK_FP(node->next.seg, node->next.off);
+        list = (const struct sound_node *)(void *)MK_FP(list->next.seg, list->next.off);
         dir += 6;
     }
 
@@ -3262,10 +3253,10 @@ uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
  * The optional pointer in the fourth argument is filled with the size, but only
  * when there is a block to go with it.
  */
-struct far_ptr load_resource_block(FILE *file, uint32_t size,
-                                   uint8_t * out, uint16_t kind)
+uint8_t far *load_resource_block(FILE *file, uint32_t size,
+                                 uint8_t * out, uint16_t kind)
 {
-    struct far_ptr buf = FAR_NULL;
+    uint8_t *buf = MK_FP(0, 0);
     uint32_t len = 0;
     int16_t handle;
 
@@ -3273,28 +3264,25 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
 
     if (handle >= 0) {
         int32_t sz = resource_size(handle);
-        struct far_ptr p;
 
         len = sz;
 
-        p = far_of(alloc_for_kind(sz, kind));
-        buf = p;
+        buf = alloc_for_kind(sz, kind);
 
-        if (!far_eq(p, FAR_NULL)) {
-            uint16_t got = (uint16_t)read_resource(
-                handle, MK_FP(buf.seg, buf.off), (uint16_t)len);
+        if (buf != MK_FP(0, 0)) {
+            uint16_t got = (uint16_t)read_resource(handle, buf, (uint16_t)len);
 
             /* `len_hi != 0` was "the size does not fit in a word". */
             if (len > 0xffff || got != (uint16_t)len) {
-                free_for_kind(MK_FP(buf.seg, buf.off), kind);
-                buf = FAR_NULL;
+                free_for_kind(buf, kind);
+                buf = MK_FP(0, 0);
             }
         }
 
         close_resource(handle);
     }
 
-    if (out != NULL && !far_eq(buf, FAR_NULL)) {
+    if (out != NULL && buf != MK_FP(0, 0)) {
         *(int16_t *)(out + 2) = (int16_t)(len >> 16);
         *(int16_t *)(out) = (int16_t)len;
     }
@@ -3319,15 +3307,15 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
  * the sequence is started with the flag set - so `start_sequence` will write 2
  * to +0x159 and mark every channel as needing its own voice.
  */
-struct far_ptr load_and_start_sequence(struct far_ptr rec, int16_t count,
-                                       uint16_t volume)
+struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t count,
+                                             uint16_t volume)
 {
-    struct far_ptr r = follow_far_chain(rec, count);
+    struct sequence *r = follow_far_chain(seq, count);
 
-    if (far_eq(r, FAR_NULL))
-        return FAR_NULL;
+    if (r == SEQUENCE_NONE)
+        return SEQUENCE_NONE;
 
-    *MK_FP(r.seg, (uint16_t)(r.off + 0x15e)) = (uint8_t)volume;
+    r->volume = (uint8_t)volume;
 
     start_sequence_far(r, 1);
 
@@ -3345,19 +3333,20 @@ struct far_ptr load_and_start_sequence(struct far_ptr rec, int16_t count,
  * It returns after the first match: nothing here handles a second voice on the
  * same sequence, which is the assumption that a sequence has one.
  */
-void stop_voice_playing(struct far_ptr rec)
+void stop_voice_playing(const uint8_t far * source)
 {
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint8_t *v = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
+        struct sequence *v = (struct sequence *)(void *)MK_FP(SOUND_VOICES.voice[i].seg,
+                                                              SOUND_VOICES.voice[i].off);
 
-        /* Which record this voice is playing, at +0x166. */
-        if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
+        /* Which note data this voice is playing - see `voice_playing`. */
+        if ((const uint8_t *)MK_FP(v->source.seg, v->source.off) != source)
             continue;
 
-        retire_and_tick_far(SOUND_VOICES.voice[i]);
-        v[0x158] = 0xff;
+        retire_and_tick_far(v);
+        v->state = 0xff;
         return;
     }
 }
@@ -3373,18 +3362,17 @@ void stop_voice_playing(struct far_ptr rec)
  * pointer is compared with zero without two compares. It answers the pointer
  * it stopped on, in DX:AX.
  */
-struct far_ptr follow_far_chain(struct far_ptr rec, int16_t count)
+struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 {
     for (;;) {
-        if (far_eq(rec, FAR_NULL))
+        if (seq == SEQUENCE_NONE)
             break;
         if (count == 0)
             break;
-        rec = (struct far_ptr){ FARU16(rec.seg, rec.off + 0x172),
-                                FARU16(rec.seg, rec.off + 0x174) };
+        seq = (struct sequence *)(void *)MK_FP(seq->next.seg, seq->next.off);
         count--;
     }
-    return rec;
+    return seq;
 }
 
 /*
@@ -3599,34 +3587,36 @@ uint16_t remove_and_free_records(int16_t selector)
  */
 uint16_t stop_sequences(int16_t selector)
 {
-    struct far_ptr fp;
+    uint8_t *fp;
 
     if (selector == -1 || selector == 0) {
         fp = next_matching_record(-1);
         for (;;) {
             uint8_t *rec;
 
-            if (far_eq(fp, FAR_NULL))
+            if (fp == MK_FP(0, 0))
                 break;
 
-            rec = MK_FP(fp.seg, fp.off);
+            rec = fp;
             *(uint16_t *)(rec + 0x12) &= 0xffef;
 
             if (!far_eq(*(struct far_ptr *)(rec + 0xe), FAR_NULL)) {
-                struct far_ptr v = *(struct far_ptr *)(rec + 0xe);
+                const struct far_ptr *at = (const struct far_ptr *)(rec + 0xe);
+                struct sequence *v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
 
                 follow_then_tick(v, 0);
 
                 do {
-                    rec = MK_FP(fp.seg, fp.off);
-                    v = *(struct far_ptr *)(rec + 0xe);
-                } while (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) != 0xff);
+                    rec = fp;
+                    at = (const struct far_ptr *)(rec + 0xe);
+                    v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
+                } while (v->state != 0xff);
 
-                free_for_kind(MK_FP(v.seg, v.off), 2);
-                rec = MK_FP(fp.seg, fp.off);
+                free_for_kind((uint8_t *)v, 2);
+                rec = fp;
                 *(uint16_t *)(rec + 0x10) = 0;
                 *(uint16_t *)(rec + 0xe) = 0;
-                fp = FAR_NULL;
+                fp = MK_FP(0, 0);
             } else {
                 fp = next_matching_record(-3);
             }
@@ -3641,10 +3631,10 @@ uint16_t stop_sequences(int16_t selector)
         for (;;) {
             uint8_t *rec;
 
-            if (far_eq(fp, FAR_NULL))
+            if (fp == MK_FP(0, 0))
                 break;
 
-            rec = MK_FP(fp.seg, fp.off);
+            rec = fp;
             *(uint16_t *)(rec + 0x12) &= 0xffef;
             fp = next_matching_record(-3);
         }
@@ -3654,31 +3644,35 @@ uint16_t stop_sequences(int16_t selector)
     }
 
     fp = next_matching_record(selector);
-    if (far_eq(fp, FAR_NULL))
+    if (fp == MK_FP(0, 0))
         return 0;
 
     {
-        uint8_t *rec = MK_FP(fp.seg, fp.off);
+        uint8_t *rec = fp;
 
         *(uint16_t *)(rec + 0x12) &= 0xffef;
 
         if ((*(uint16_t *)(rec + 0x12) & 1) == 0) {
-            stop_voice_playing(*(struct far_ptr *)(rec + 4));
+            const struct far_ptr *data = (const struct far_ptr *)(rec + 4);
+
+            stop_voice_playing(MK_FP(data->seg, data->off));
             return 1;
         }
 
         if (!far_eq(*(struct far_ptr *)(rec + 0xe), FAR_NULL)) {
-            struct far_ptr v = *(struct far_ptr *)(rec + 0xe);
+            const struct far_ptr *at = (const struct far_ptr *)(rec + 0xe);
+            struct sequence *v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
 
             follow_then_tick(v, 0);
 
             do {
-                rec = MK_FP(fp.seg, fp.off);
-                v = *(struct far_ptr *)(rec + 0xe);
-            } while (*MK_FP(v.seg, (uint16_t)(v.off + 0x158)) != 0xff);
+                rec = fp;
+                at = (const struct far_ptr *)(rec + 0xe);
+                v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
+            } while (v->state != 0xff);
 
-            free_for_kind(MK_FP(v.seg, v.off), 2);
-            rec = MK_FP(fp.seg, fp.off);
+            free_for_kind((uint8_t *)v, 2);
+            rec = fp;
             *(uint16_t *)(rec + 0x10) = 0;
             *(uint16_t *)(rec + 0xe) = 0;
         }
@@ -3783,7 +3777,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     }
 
 search:
-    if (id > 0 && !far_eq(next_matching_record(id), FAR_NULL)) {
+    if (id > 0 && next_matching_record(id) != MK_FP(0, 0)) {
         r = DG4A82.file_ptr;
         goto out;
     }
@@ -3971,30 +3965,34 @@ uint16_t start_sequence_by_id(int16_t id)
         }
 
         {
-            uint8_t *built = create_sequence(
+            struct sequence *built = create_sequence(
                 MK_FP(*(uint16_t *)(rec + 6), *(uint16_t *)(rec + 4)));
             struct far_ptr b;
-            uint8_t *seq;
+            struct sequence *seq;
 
             *(uint16_t *)(rec + 0x10) = FP_SEG(built);
             *(uint16_t *)(rec + 0xe) = FP_OFF(built);
-            if (built == MK_FP(0, 0))
+            if ((uint8_t *)built == MK_FP(0, 0))
                 return 0;
 
             b = *(struct far_ptr *)(rec + 0xe);
-            seq = MK_FP(b.seg, b.off);
+            seq = (struct sequence *)(void *)MK_FP(b.seg, b.off);
 
-            seq[0x15d] = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
-            seq[0x15c] = rec[0xc];
+            seq->loop = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
+            seq->priority = rec[0xc];
 
-            if (far_eq(load_and_start_sequence(b, 0, 0x7f), FAR_NULL))
+            if (load_and_start_sequence(seq, 0, 0x7f) == SEQUENCE_NONE)
                 return 0;
             return 1;
         }
     }
 
-    if (!far_eq(voice_playing(*(struct far_ptr *)(rec + 4)), FAR_NULL))
-        return 1;
+    {
+        const struct far_ptr *data = (const struct far_ptr *)(rec + 4);
+
+        if (voice_playing(MK_FP(data->seg, data->off)) != SEQUENCE_NONE)
+            return 1;
+    }
 
     if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
         if ((*(uint16_t *)(rec + 0x12) & 2) != 0)
@@ -4002,7 +4000,8 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
     }
 
-    start_on_free_voice(*(struct far_ptr *)(rec + 4),
+    start_on_free_voice(MK_FP(((const struct far_ptr *)(rec + 4))->seg,
+                              ((const struct far_ptr *)(rec + 4))->off),
                         0x7f,
                         (uint16_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0));
     return 1;
@@ -4041,7 +4040,7 @@ uint16_t start_sequence_by_id(int16_t id)
  * null naturally, the identifier walk writes zeros explicitly on the paths that
  * give up early.
  */
-struct far_ptr next_matching_record(int16_t selector)
+uint8_t far *next_matching_record(int16_t selector)
 {
     int16_t expect = 0, mask = 1;
 
@@ -4066,7 +4065,7 @@ struct far_ptr next_matching_record(int16_t selector)
         /* Match on the identifier at +0xa. */
         if ((SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0) || selector == -3) {
             SOUND_TICK_WAIT.cursor = FAR_NULL;
-            return FAR_NULL;
+            return MK_FP(0, 0);
         }
 
         for (;;) {
@@ -4080,7 +4079,7 @@ struct far_ptr next_matching_record(int16_t selector)
             SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
             SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
         }
-        return SOUND_TICK_WAIT.cursor;
+        return MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
     }
 
     while (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
@@ -4092,7 +4091,7 @@ struct far_ptr next_matching_record(int16_t selector)
         SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
     }
 
-    return SOUND_TICK_WAIT.cursor;
+    return MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
 }
 
 /*
@@ -4288,18 +4287,18 @@ uint16_t read_record(FILE *file, uint16_t mode)
                               | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
+        p = far_of(load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
                                       | (uint16_t)len[0],
-                            (uint8_t *)out);
+                            (uint8_t *)out));
 
         *(uint16_t *)(at + 6) = p.seg;
         *(uint16_t *)(at + 4) = p.off;
         if (far_eq(p, FAR_NULL))
             goto fail;
     } else {
-        p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
+        p = far_of(load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
                                           | (uint16_t)len[0],
-                                (uint8_t *)out, kind);
+                                (uint8_t *)out, kind));
 
         *(uint16_t *)(at + 6) = p.seg;
         *(uint16_t *)(at + 4) = p.off;

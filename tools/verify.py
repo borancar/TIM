@@ -628,7 +628,7 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("flag", 8)],
         check_occurrences=[0],
         call=lambda lib, a: lib.start_sequence_far(
-            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2])),
+            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2])),
     ),
     "load_and_start_sequence": dict(
         addr=0x29034,
@@ -794,7 +794,7 @@ ROUTINES = {
         regs=["es", "ax"],
         check_occurrences=[0, 1],
         # ES:AX, segment first in the register list.
-        call=lambda lib, a: lib.retire_and_tick(FarPtr(a[1], a[0])),
+        call=lambda lib, a: lib.retire_and_tick(farp(lib, a[1], a[0])),
     ),
     "set_master_level_far": dict(
         addr=0x28431,
@@ -820,7 +820,7 @@ ROUTINES = {
         addr=0x284EF,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.retire_and_tick_far(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.retire_and_tick_far(farp(lib, a[0], a[1])),
     ),
     "silence_driver_far": dict(
         addr=0x28559,
@@ -833,14 +833,14 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _far(lib.voice_playing(FarPtr(a[0], a[1]))),
+        call=lambda lib, a: _farp_answer(lib, lib.voice_playing(farp(lib, a[0], a[1]))),
     ),
     "follow_then_tick": dict(
         addr=0x289BA,
         args=[("off", 4), ("seg", 6), ("count", 8)],
         check_occurrences=[0],
         call=lambda lib, a: lib.follow_then_tick(
-            FarPtr(a[0], a[1]), ctypes.c_int16(a[2])),
+            farp(lib, a[0], a[1]), ctypes.c_int16(a[2])),
     ),
     "seek_to_sound_record": dict(
         addr=0x28BF2,
@@ -855,7 +855,7 @@ ROUTINES = {
         args=[("handle", 4)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _far(lib.read_sound_records(ctypes.c_int16(a[0]))),
+        call=lambda lib, a: _farp_answer(lib, lib.read_sound_records(ctypes.c_int16(a[0]))),
     ),
     "open_sound_file": dict(
         addr=0x296B4,
@@ -909,7 +909,7 @@ ROUTINES = {
         check_occurrences=[0],
         # `path` is the chunk name's address, not a number - see
         # `seek_named_chunk` below.
-        call=lambda lib, a: _far(lib.load_named_chunk(
+        call=lambda lib, a: _farp_answer(lib, lib.load_named_chunk(
             dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     # The port takes the arm the original's author meant rather than the
@@ -922,7 +922,7 @@ ROUTINES = {
         args=[("file", 4), ("size_lo", 6), ("size_hi", 8), ("out", 10)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _far(lib.load_sound_bank(
+        call=lambda lib, a: _farp_answer(lib, lib.load_sound_bank(
             dgp(lib, a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
             dgp(lib, a[3]))),
     ),
@@ -932,7 +932,7 @@ ROUTINES = {
               ("out", 10), ("kind", 12)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _far(lib.load_resource_block(
+        call=lambda lib, a: _farp_answer(lib, lib.load_resource_block(
             dgp(lib, a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
             dgp(lib, a[3]), ctypes.c_uint16(a[4]))),
     ),
@@ -953,14 +953,14 @@ ROUTINES = {
               ("node_off", 8), ("node_seg", 10)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _far(lib.insert_by_key(FarPtr(a[0], a[1]),
-                                                   FarPtr(a[2], a[3]))),
+        call=lambda lib, a: _farp_answer(lib, lib.insert_by_key(farp(lib, a[0], a[1]),
+                                                   farp(lib, a[2], a[3]))),
     ),
     "stop_voice_playing": dict(
         addr=0x290AB,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.stop_voice_playing(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.stop_voice_playing(farp(lib, a[0], a[1])),
     ),
     "free_voice_records": dict(
         addr=0x29106,
@@ -974,8 +974,8 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("index", 8), ("byte_arg", 10)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _far(lib.start_on_free_voice(
-            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2]),
+        call=lambda lib, a: _farp_answer(lib, lib.start_on_free_voice(
+            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2]),
             ctypes.c_uint16(a[3]))),
     ),
     "stop_all_voices": dict(
@@ -5607,7 +5607,7 @@ def declare_restypes(lib):
         getattr(lib, fn).restype = ctypes.c_int16
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
-    lib.follow_far_chain.restype = FarPtr
+    lib.follow_far_chain.restype = ctypes.c_void_p
     lib.points_within_140.restype = ctypes.c_int16
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
@@ -5758,21 +5758,21 @@ def declare_restypes(lib):
     lib.start_sequence_by_id.restype = ctypes.c_uint16
     lib.alloc_voice_records.restype = ctypes.c_uint16
     lib.stop_sequences.restype = ctypes.c_uint16
-    lib.voice_playing.restype = FarPtr
+    lib.voice_playing.restype = ctypes.c_void_p
     lib.open_sound_file.restype = ctypes.c_uint16
     lib.read_record.restype = ctypes.c_uint16
     lib.start_sound.restype = ctypes.c_uint16
     lib.setup_sound_device.restype = ctypes.c_uint16
     lib.load_sound_module.restype = ctypes.c_uint16
-    lib.load_named_chunk.restype = FarPtr
-    lib.load_sound_bank.restype = FarPtr
-    lib.load_resource_block.restype = FarPtr
+    lib.load_named_chunk.restype = ctypes.c_void_p
+    lib.load_sound_bank.restype = ctypes.c_void_p
+    lib.load_resource_block.restype = ctypes.c_void_p
     lib.build_sound_index.restype = ctypes.c_uint16
     lib.seek_to_sound_record.restype = ctypes.c_uint16
-    lib.read_sound_records.restype = FarPtr
-    lib.insert_by_key.restype = FarPtr
+    lib.read_sound_records.restype = ctypes.c_void_p
+    lib.insert_by_key.restype = ctypes.c_void_p
     lib.free_voice_records.restype = ctypes.c_uint16
-    lib.start_on_free_voice.restype = FarPtr
+    lib.start_on_free_voice.restype = ctypes.c_void_p
     lib.set_master_level_ok.restype = ctypes.c_uint16
     lib.install_driver.restype = ctypes.c_uint16
     lib.configure_driver.restype = ctypes.c_uint16
@@ -5797,10 +5797,10 @@ def declare_restypes(lib):
     lib.midi_skip_event.restype = ctypes.c_uint16
     lib.skip_unknown_event.restype = ctypes.c_uint16
     lib.midi_meta_event.restype = ctypes.c_uint16
-    lib.next_matching_record.restype = FarPtr
+    lib.next_matching_record.restype = ctypes.c_void_p
     lib.alloc_for_kind.restype = ctypes.c_void_p
     lib.create_sequence.restype = ctypes.c_void_p
-    lib.load_and_start_sequence.restype = FarPtr
+    lib.load_and_start_sequence.restype = ctypes.c_void_p
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_bitmap_list_size.restype = ctypes.c_uint32
@@ -6227,10 +6227,9 @@ def _normalise_far_ptr(lib, a):
 
 
 def _follow_far_chain(lib, a):
-    r = lib.follow_far_chain(FarPtr(a[0], a[1]),
-                             ctypes.c_int16(a[2] if a[2] < 0x8000
-                                            else a[2] - 0x10000))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.follow_far_chain(
+        farp(lib, a[0], a[1]),
+        ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000)))
 
 
 def _normalise_far_ptr_far(lib, a):
@@ -6254,11 +6253,10 @@ def _dos_alloc_bytes(lib, a):
 
 
 def _load_and_start_sequence(lib, a):
-    r = lib.load_and_start_sequence(
-        FarPtr(a[0], a[1]),
+    return _farp_answer(lib, lib.load_and_start_sequence(
+        farp(lib, a[0], a[1]),
         ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
-        ctypes.c_uint16(a[3]))
-    return r.off, r.seg
+        ctypes.c_uint16(a[3])))
 
 
 def _signed32(v):
@@ -6313,9 +6311,8 @@ def _alloc_for_kind(lib, a):
 
 
 def _next_matching_record(lib, a):
-    r = lib.next_matching_record(ctypes.c_int16(
-        a[0] if a[0] < 0x8000 else a[0] - 0x10000))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.next_matching_record(ctypes.c_int16(
+        a[0] if a[0] < 0x8000 else a[0] - 0x10000)))
 
 
 def _vm_buffer_size(lib, a):

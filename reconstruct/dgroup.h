@@ -3446,6 +3446,94 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
    they are not in DGROUP. */
 #define NODE(p) ((struct sound_node far *)MK_FP((p).seg, (p).off))
 
+/*
+ * ---------------------------------------------------------------------------
+ * **A sequence**, the 0x17a-byte record of kind 2 that `create_sequence` builds
+ * around a block of note data and `alloc_voice_records` makes seven of for the
+ * voices - the same record either way, which is why a voice and a sequence are
+ * read through the same offsets. It lives in a DOS block, not in DGROUP.
+ *
+ * The layout is the offsets the sound module reads and writes; the sizes of
+ * the channel tables are `start_sequence`'s loop, sixteen channels where it
+ * sets entry 0xf on its own and fifteen where it does not, and each table ends
+ * where the next begins. Names come from what the code does with a field, and
+ * where that is only a reading the comment says **guessed**; the per-channel
+ * byte tables `start_sequence` fills with 0 or 0xff and nothing here names are
+ * spelled by their offset.
+ *
+ * The far pointers are **stored** pairs, and three of them are a segment beside
+ * an offset stepped inside it - `cursor` is `source` past its first record, and
+ * `cursor_at` is this record's own `cursor` - so they are filed as that
+ * segment and offset, never renormalised.
+ * ---------------------------------------------------------------------------
+ */
+struct sequence {
+    uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
+    struct far_ptr cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
+    uint16_t       position[16];        /* +0x00c  each channel's place in the event data */
+    uint16_t       position_saved[16];  /* +0x02c  its shadow, which a checkpoint copies */
+    uint16_t       delay[16];           /* +0x04c  ticks to each channel's next event */
+    uint16_t       delay_saved[16];     /* +0x06c */
+    uint8_t        byte_08c[16];        /* +0x08c  0xff at start */
+    uint8_t        status[16];          /* +0x09c  running status */
+    uint8_t        status_saved[16];    /* +0x0ac */
+    uint16_t       word_0bc[15];        /* +0x0bc  0x2000 at start - a bend centre, guessed */
+    uint8_t        byte_0da[15];        /* +0x0da  0xff at start */
+    uint8_t        byte_0e9[15];        /* +0x0e9  0 at start */
+    uint8_t        byte_0f8[15];        /* +0x0f8  0xff at start */
+    uint8_t        byte_107[15];        /* +0x107  0xff at start */
+    uint8_t        byte_116[15];        /* +0x116  0xff at start */
+    uint8_t        byte_125[15];        /* +0x125  0xff at start */
+    uint8_t        byte_134[15];        /* +0x134  0 at start */
+    uint8_t        byte_143[15];        /* +0x143  0 at start */
+    uint16_t       loop_count;          /* +0x152  bumped by controller 0x60 */
+    uint16_t       ticks;               /* +0x154  bumped every step */
+    uint16_t       ticks_saved;         /* +0x156  and restored from here on a loop */
+    uint8_t        state;               /* +0x158  0xff free or stopped, 0xfe a fade arrived */
+    uint8_t        mode;                /* +0x159  1, or 2 when started with the flag */
+    uint8_t        byte_15a;            /* +0x15a  what a rewind must match; with `loop` 0, the end */
+    uint8_t        byte_15b;            /* +0x15b */
+    uint8_t        priority;            /* +0x15c  a sound bank entry's second byte */
+    uint8_t        loop;                /* +0x15d  and its first */
+    uint8_t        volume;              /* +0x15e  0x7f for the default */
+    uint8_t        device_value;        /* +0x15f  controller 0x50's, 0x7f for the default */
+    uint8_t        fade_target;         /* +0x160  top bit: remove the sequence on arrival */
+    uint8_t        fade_period;         /* +0x161  ticks between fade steps */
+    uint8_t        fade_countdown;      /* +0x162 */
+    uint8_t        fade_step;           /* +0x163  the largest step, 0 for no fade */
+    uint8_t        skip;                /* +0x164  set: the tick leaves the sequence alone */
+    uint8_t        poll;                /* +0x165  how the host is asked about it */
+    struct far_ptr source;              /* +0x166  the note data */
+    struct far_ptr cursor;              /* +0x16a  the record being played */
+    uint8_t        unknown_16e[4];      /* +0x16e */
+    struct far_ptr next;                /* +0x172  a chain `follow_far_chain` walks */
+    uint8_t        unknown_176[4];      /* +0x176 */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17a bytes");
+
+/* **No sequence**, and **no node**, as pointers: 0000:0000, the null far
+   pointer the guest tests with `or ax,dx` - see `PART_NONE` for why a
+   sentinel and not NULL. */
+#define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
+#define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
+DG_ASSERT_AT(struct sequence, cursor_at,        0x008);
+DG_ASSERT_AT(struct sequence, position,         0x00c);
+DG_ASSERT_AT(struct sequence, delay,            0x04c);
+DG_ASSERT_AT(struct sequence, byte_08c,         0x08c);
+DG_ASSERT_AT(struct sequence, word_0bc,         0x0bc);
+DG_ASSERT_AT(struct sequence, byte_0da,         0x0da);
+DG_ASSERT_AT(struct sequence, byte_143,         0x143);
+DG_ASSERT_AT(struct sequence, loop_count,       0x152);
+DG_ASSERT_AT(struct sequence, state,            0x158);
+DG_ASSERT_AT(struct sequence, priority,         0x15c);
+DG_ASSERT_AT(struct sequence, volume,           0x15e);
+DG_ASSERT_AT(struct sequence, fade_target,      0x160);
+DG_ASSERT_AT(struct sequence, poll,             0x165);
+DG_ASSERT_AT(struct sequence, source,           0x166);
+DG_ASSERT_AT(struct sequence, cursor,           0x16a);
+DG_ASSERT_AT(struct sequence, next,             0x172);
+
 DG_ASSERT_AT(struct vqt_reader, pos,            0x00);
 DG_ASSERT_AT(struct vqt_reader, data,           0x04);
 DG_ASSERT_AT(struct vqt_reader, plane,          0x08);

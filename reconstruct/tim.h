@@ -256,7 +256,7 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 void init_sequence_params(uint16_t es, uint16_t ax);  /* 0x28305 */
 
 /* Next record matching a selector, as a far pointer in DX:AX. */
-struct far_ptr next_matching_record(int16_t selector);    /* 0x29966 */
+uint8_t far * next_matching_record(int16_t selector);    /* 0x29966 */
 
 /* Handle one pitch bend event; answers the advanced stream cursor. */
 uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
@@ -271,17 +271,17 @@ void free_for_kind(uint8_t far * blk,
                    uint16_t kind);                  /* 0x2a017 */
 
 /* Free a chain of kind-9 nodes linked at +4. */
-void free_node_list(uint8_t far * list);            /* 0x28baf */
+void free_node_list(struct sound_node far * list);            /* 0x28baf */
 
 /* Build a sequence record around note data; null far pointer on failure. */
-uint8_t far * create_sequence(uint8_t far * src);         /* 0x28935 */
+struct sequence far * create_sequence(const uint8_t far * src);     /* 0x28935 */
 
 /* The ordinary-call face of start_sequence. */
-void start_sequence_far(struct far_ptr rec,
+void start_sequence_far(struct sequence far * seq,
                         uint16_t flag);             /* 0x28480 */
 
 /* Locate a sequence, set its volume, and start it. */
-struct far_ptr load_and_start_sequence(struct far_ptr rec, int16_t count,
+struct sequence far * load_and_start_sequence(struct sequence far * seq, int16_t count,
                                        uint16_t volume);  /* 0x29034 */
 
 /* Start a sequence: reset it, read its header, place it in the table. */
@@ -321,16 +321,16 @@ uint16_t install_driver(struct far_ptr drv);  /* 0x265f2 */
 uint16_t configure_driver(struct far_ptr drv); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
-void retire_and_tick(struct far_ptr rec);                         /* 0x26a57 */
+void retire_and_tick(struct sequence far * seq);                         /* 0x26a57 */
 
 /* The sound module's own routines over that driver, in address order. */
-struct far_ptr voice_playing(struct far_ptr rec);    /* 0x287ad */
+struct sequence far * voice_playing(const uint8_t far * source);    /* 0x287ad */
 uint16_t alloc_voice_records(void);                    /* 0x28800 */
-void follow_then_tick(struct far_ptr rec,
+void follow_then_tick(struct sequence far * seq,
                       int16_t count);                  /* 0x289ba */
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
-struct far_ptr read_sound_records(int16_t handle);           /* 0x28cf7 */
+struct sound_node far * read_sound_records(int16_t handle);           /* 0x28cf7 */
 uint16_t read_record(FILE *file, uint16_t mode);     /* 0x29da0 */
 uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, FILE *handle); /* 0x29c3b */
@@ -338,20 +338,21 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, FILE *handle); /* 0x28655 */
 uint16_t load_sound_module(FILE *handle, const uint16_t *number,
                            uint16_t index);         /* 0x28580 */
-struct far_ptr load_named_chunk(char *name, const char * path,
+uint8_t far * load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */
-struct far_ptr load_sound_bank(FILE *file, uint32_t size,
+uint8_t far * load_sound_bank(FILE *file, uint32_t size,
                                uint8_t * out);    /* 0x289e8 */
-struct far_ptr load_resource_block(FILE *file, uint32_t size,
+uint8_t far * load_resource_block(FILE *file, uint32_t size,
                                    uint8_t * out,
                                    uint16_t kind);      /* 0x28f74 */
-uint16_t build_sound_index(int16_t handle, const uint8_t far * list,
+uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint8_t far * dst, uint16_t data_at,
                            uint16_t tag);              /* 0x28e87 */
-struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node);
-void stop_voice_playing(struct far_ptr rec);   /* 0x290ab */
+struct sound_node far * insert_by_key(struct sound_node far * head,
+                                      struct sound_node far * node);
+void stop_voice_playing(const uint8_t far * source);   /* 0x290ab */
 uint16_t free_voice_records(void);                     /* 0x29106 */
-struct far_ptr start_on_free_voice(struct far_ptr rec, uint16_t index,
+struct sequence far * start_on_free_voice(const uint8_t far * source, uint16_t index,
                                    uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(struct far_ptr cb);   /* 0x2928c */
@@ -369,7 +370,7 @@ uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 void set_master_level_far(uint16_t level);             /* 0x28431 */
 uint16_t install_driver_far(struct far_ptr drv);    /* 0x28458 */
 uint16_t configure_driver_far(struct far_ptr drv);  /* 0x2846a */
-void retire_and_tick_far(struct far_ptr rec);  /* 0x284ef */
+void retire_and_tick_far(struct sequence far * seq);  /* 0x284ef */
 void silence_driver_far(struct far_ptr drv);   /* 0x28559 */
 
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
@@ -1935,7 +1936,7 @@ void link_record_into_buckets(struct part *rec);        /* 0x166ef */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 
 /* Follow a chain of far pointers; answers the one it stopped on. */
-struct far_ptr follow_far_chain(struct far_ptr rec,
+struct sequence far * follow_far_chain(struct sequence far * seq,
                                 int16_t count);           /* 0x2907b */
 
 /* Scale one byte by another and halve the range. */
