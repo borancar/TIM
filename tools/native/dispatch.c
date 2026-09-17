@@ -155,8 +155,8 @@ int32_t native_bind_overlay(uc_engine *uc)
  * routine is not worth a fifth calling convention in it.
  *
  * The address is not a constant and is not in the image. `install_driver`
- * stores the far pointer the loader gave it - `SND16(0x1e7)` the offset and
- * `SND16(0x1e9)` the segment - and the fifty call sites in the sound module
+ * stores the far pointer the loader gave it - `SNDS.driver`, at its `cs:0x1e7` -
+ * and the fifty call sites in the sound module
  * are all `push bp / mov bp,<n> / lcall cs:[0x1e7]`. So binding that pointer
  * puts the port's `sx_driver_call` in front of the whole driver at one place,
  * whichever of the nine devices the loader chose.
@@ -170,8 +170,8 @@ static uint32_t sound_hits[18];
 
 int32_t native_bind_sound(uc_engine *uc)
 {
-    uint16_t seg = (uint16_t)SND16(0x1e9);
-    uint16_t off = (uint16_t)SND16(0x1e7);
+    uint16_t seg = SNDS.driver.seg;
+    uint16_t off = SNDS.driver.off;
 
     (void)uc;
     if (sound_bound || !layer_wanted("sx") || (seg == 0 && off == 0))

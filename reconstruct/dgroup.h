@@ -2640,8 +2640,8 @@ DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
 
 /*
  * The sound module keeps its state in **its own code segment**, segment 0x2619,
- * the same way the video driver keeps its data inside DGROUP. `SND8`/`SND16`
- * reach it. The image base is derived from `dgroup_base` because that is the
+ * the same way the video driver keeps its data inside DGROUP - `struct snd_cs`,
+ * below. The image base is derived from `dgroup_base` because that is the
  * one thing tools/verify.py sets from the run it captured.
  *
  * The sound driver is a separate loaded block, and its address is not a
@@ -2660,9 +2660,6 @@ DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
 #define S1C16(off)  (*(int16_t *)(guest_mem + S1C25 + (off)))
 
 #define SNDCS       (IMAGE_BASE + 0x26190)
-
-#define SND8(off)   (*(uint8_t *)(guest_mem + SNDCS + (off)))
-#define SND16(off)  (*(int16_t *)(guest_mem + SNDCS + (off)))
 
 #define SX_SEG      (*(uint16_t *)(guest_mem + SNDCS + 0x1e9))
 #define SX8(off)    (*(uint8_t *)MK_FP(SX_SEG, (off)))
@@ -2723,16 +2720,27 @@ void     dg_free(uint16_t bytes);
  * two data blocks inside segment 2619's code: 0x0008..0x020d, between a
  * routine's `ret` and the next routine's `push bp`, and the six bytes at
  * 0x30f6. Each is placed there as its own object, with what the image holds;
- * the field comments are offsets in the segment, and `SND8`/`SND16` reach the
- * same bytes from the segment's base.
+ * the field comments are offsets in the segment.
  */
 struct snd_cs {
-    uint8_t   pad_0008[2];
-    int16_t   word_000a;          /* +0x000a */
-    uint8_t   pad_000c[60];
-    int16_t   poll_table;         /* +0x0048  the table remove_sequence checks; **not** the playing table */
-    int16_t   word_004a;          /* +0x004a */
-    uint8_t   pad_004c[411];
+    struct far_ptr playing[16];   /* +0x0008  the sequences playing, packed from the front, null-ended */
+    struct far_ptr polled[16];    /* +0x0048  the sequences parked to be polled; **not** the playing table */
+    struct far_ptr voice_sequence[16]; /* +0x0088  which sequence each voice plays, null for none */
+    uint8_t   unknown_00c8[64];   /* +0x00c8  not read or written by the port */
+    int16_t   scratch[16];        /* +0x0108  init_sequence_params' sixteen words */
+    /* The tick's per-voice arrays, sixteen bytes each - see `sequencer_tick`. */
+    uint8_t   voice_held[16];     /* +0x0128  the request each voice plays now, 0xff free */
+    uint8_t   voice_keep_own[16]; /* +0x0138  the request must keep its own voice number */
+    uint8_t   voice_cost[16];     /* +0x0148  what the request costs */
+    uint8_t   voice_gives_back[16]; /* +0x0158  what dropping it gives back */
+    uint8_t   voice_request[16];  /* +0x0168  the request this tick, 0xff none */
+    uint8_t   saved_keep_own[16]; /* +0x0178  the four above, snapshotted per sequence */
+    uint8_t   saved_cost[16];     /* +0x0188 */
+    uint8_t   saved_gives_back[16]; /* +0x0198 */
+    uint8_t   saved_request[16];  /* +0x01a8 */
+    uint8_t   voice_channel[16];  /* +0x01b8  the channel each voice was last given, 0x0f none */
+    uint8_t   pending_volume[16]; /* +0x01c8  a volume deferred for flush_pending_volumes, 0xff none */
+    uint8_t   pad_01d8[15];
     struct far_ptr driver;        /* +0x01e7  the cell every call far-calls
                                               through, with the function
                                               number in BP */
@@ -2768,9 +2776,20 @@ struct snd_cs_call {
 
 extern struct snd_cs_call SNDCALL;
 
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_004a) == 0x004a, "snd_cs.word_004a");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, polled) == 0x0048, "snd_cs.polled");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_sequence) == 0x0088, "snd_cs.voice_sequence");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scratch) == 0x0108, "snd_cs.scratch");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_held) == 0x0128, "snd_cs.voice_held");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_keep_own) == 0x0138, "snd_cs.voice_keep_own");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_cost) == 0x0148, "snd_cs.voice_cost");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_gives_back) == 0x0158, "snd_cs.voice_gives_back");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_request) == 0x0168, "snd_cs.voice_request");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_keep_own) == 0x0178, "snd_cs.saved_keep_own");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_cost) == 0x0188, "snd_cs.saved_cost");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_gives_back) == 0x0198, "snd_cs.saved_gives_back");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_request) == 0x01a8, "snd_cs.saved_request");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_channel) == 0x01b8, "snd_cs.voice_channel");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, pending_volume) == 0x01c8, "snd_cs.pending_volume");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, driver) == 0x01e7, "snd_cs.driver");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
