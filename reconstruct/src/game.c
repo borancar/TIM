@@ -643,7 +643,7 @@ uint16_t game_teardown(int16_t really)
 
     /* Each free block's first four bytes are the far pointer to the next. */
     node = dg_far_ptr(DG4E4E.shape_free);
-    while (node != MK_FP(0, 0)) {
+    while (node != FAR_NULL_PTR) {
         const struct far_ptr *link = (const struct far_ptr *)(void *)node;
         uint8_t *next = dg_far_ptr(*link);
 

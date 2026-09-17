@@ -2808,7 +2808,7 @@ uint8_t far *load_palette(char *name)
     _Alignas(2) uint8_t buf[0x300];             /* [bp-0x30a] */
     _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a] */
 
-    uint8_t *blk = MK_FP(0, 0);                 /* [bp-0xa], [bp-8] */
+    uint8_t *blk = FAR_NULL_PTR;                 /* [bp-0xa], [bp-8] */
     uint16_t opened;                            /* [bp-2] */
     int16_t di;
     int32_t size;
@@ -2845,7 +2845,7 @@ uint8_t far *load_palette(char *name)
             size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
             blk = dos_alloc_bytes(size, 0, 0).ptr;
 
-            if (blk != MK_FP(0, 0)) {
+            if (blk != FAR_NULL_PTR) {
                 game_fread(buf, 1, (uint16_t)ENGINE_PEN.word_4464, file);
                 size = ENGINE_PEN.word_4464;
                 huge_move(blk, buf, (uint32_t)size);
@@ -2858,7 +2858,7 @@ uint8_t far *load_palette(char *name)
                 size = ENGINE_PEN.word_4464;
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
-                if (blk != MK_FP(0, 0)) {
+                if (blk != FAR_NULL_PTR) {
                     uint8_t far *p = blk;                     /* [bp-4] */
                     int16_t si;
 
@@ -2916,7 +2916,7 @@ uint8_t far *set_palette_pointer(uint8_t far * h)
         VMDS.palettes.blocks[0] = far_of(dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr);
     }
 
-    if (h == MK_FP(0, 0))
+    if (h == FAR_NULL_PTR)
         return dg_far_ptr(PALCHUNK.palette_ptr);
 
     PALCHUNK.palette_ptr = far_of(h);
@@ -3958,7 +3958,7 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
     if (failed) {
         union far_or_size r;
 
-        r.ptr = MK_FP(0, 0);
+        r.ptr = FAR_NULL_PTR;
         return r;
     }
 
@@ -4792,8 +4792,8 @@ struct bmp_set *load_bitmap_list(char *name)
     uint16_t opened = 0;                        /* [bp-0x18] */
     int16_t kind = 0;                           /* [bp-0x1a] */
     /* DOS blocks, which a null pair - 0000:0000 - says were not had. */
-    uint8_t *blk = MK_FP(0, 0);                 /* [bp-4], [bp-6]    */
-    uint8_t *tmp = MK_FP(0, 0);                 /* [bp-0xc], [bp-0xe] */
+    uint8_t *blk = FAR_NULL_PTR;                 /* [bp-4], [bp-6]    */
+    uint8_t *tmp = FAR_NULL_PTR;                 /* [bp-0xc], [bp-0xe] */
     uint8_t *scratch = NULL;                    /* [bp-0x10] */
     uint32_t want;                              /* [bp-0x1e], [bp-0x1c] */
     int16_t got;                                /* [bp-0x14] */
@@ -4819,7 +4819,7 @@ struct bmp_set *load_bitmap_list(char *name)
        takes `.ptr` rather than pretending they are one type. */
     blk = dos_alloc_bytes(want, 0, 0).ptr;
 
-    if (blk == MK_FP(0, 0))
+    if (blk == FAR_NULL_PTR)
         goto done;
 
     if ((uint16_t)size_at != 0) {
@@ -4883,7 +4883,7 @@ struct bmp_set *load_bitmap_list(char *name)
 
     for (;;) {
         tmp = dos_alloc_bytes(want, 0, 0).ptr;
-        if (tmp != MK_FP(0, 0))
+        if (tmp != FAR_NULL_PTR)
             break;
         /* Halve the request. The original shifts the high word with `sar`,
            so this is a signed 32-bit shift; it starts at 0x7fff and stays
@@ -4908,7 +4908,7 @@ struct bmp_set *load_bitmap_list(char *name)
     close_resource(di);
 
 done:
-    if (tmp != MK_FP(0, 0))
+    if (tmp != FAR_NULL_PTR)
         dos_free_far(tmp);
 
     if (scratch != NULL) {
@@ -4917,7 +4917,7 @@ done:
     }
 
     if (kind == 0) {
-        if (blk != MK_FP(0, 0))
+        if (blk != FAR_NULL_PTR)
             dos_free_far(blk);
 
         if (di != 0)
@@ -5939,7 +5939,7 @@ void free_far_block(uint8_t far * h)
 {
     int16_t i;
 
-    if (h == MK_FP(0, 0))
+    if (h == FAR_NULL_PTR)
         return;
 
     for (i = 1; i < 10; i++) {
@@ -6405,7 +6405,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 
     /* The original tests `(str | seg) == 0` - a far pointer of 0000:0000,
        which is not a C null pointer but the first byte of guest memory. */
-    if (str == (const char far *)MK_FP(0, 0))
+    if (str == (const char far *)FAR_NULL_PTR)
         return;
 
     /*
@@ -6823,7 +6823,7 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
     }
 
     if (di == 0)
-        return MK_FP(0, 0);
+        return FAR_NULL_PTR;
 
     /* `si` runs from 1 here, and the original's base 0x48ff is `0x4901 - 2`
        - the compiler folding that first index into it - so entry 1 is
@@ -6832,7 +6832,7 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
                     (const char *)dg_near_ptr(ADAPTER_TAGS.tag[si - 1]));
 
     if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == -1)
-        return MK_FP(0, 0);
+        return FAR_NULL_PTR;
 
     {
         uint32_t sz = file_record_size(di);
@@ -6841,7 +6841,7 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
     }
 
     if (handle < 0)
-        return MK_FP(0, 0);
+        return FAR_NULL_PTR;
 
     {
         int32_t sz = resource_size(handle);
@@ -6855,7 +6855,7 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
     ENGINE_DRIVER_BLOCK.block = far_of(dos_alloc_bytes(len, 0, 0).ptr);
 
     if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
-        return MK_FP(0, 0);
+        return FAR_NULL_PTR;
 
     read_resource(handle, dg_far_ptr(ENGINE_DRIVER_BLOCK.block),
                   (uint16_t)len);

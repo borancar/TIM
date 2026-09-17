@@ -350,6 +350,16 @@ static inline int far_eq(struct far_ptr a, struct far_ptr b)
  */
 static const struct far_ptr FAR_NULL = { 0, 0 };
 
+/*
+ * **And the same null as a pointer**, for the routines that hold one rather
+ * than a filed pair - a block DOS refused, a list that ends. It is
+ * `dg_far_ptr(FAR_NULL)`, and it is **not** C's `NULL`: the guest's null is an
+ * address, `guest_mem`'s first byte, which is why the tests against it are
+ * written out rather than `!p`. The typed records say it their own way -
+ * `SEQUENCE_NONE`, `PART_NONE`, `BMP_NONE`.
+ */
+#define FAR_NULL_PTR dg_far_ptr(FAR_NULL)
+
 /* `dg_far_ptr` for the one record that stores the pair segment-first - a
    bitmap's pixels. */
 static inline uint8_t *dg_far_ptr_rev(struct far_ptr_rev r)
@@ -3593,9 +3603,9 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
 /* **No sequence**, and **no node**, as pointers: 0000:0000, the null far
    pointer the guest tests with `or ax,dx` - see `PART_NONE` for why a
    sentinel and not NULL. */
-#define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
+#define SEQUENCE_NONE   ((struct sequence *)(void *)FAR_NULL_PTR)
 #define SEQUENCE_PTR(fp) ((struct sequence *)(void *)dg_far_ptr((fp)))
-#define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
+#define SOUND_NODE_NONE ((struct sound_node *)(void *)FAR_NULL_PTR)
 
 /*
  * ---------------------------------------------------------------------------
@@ -3628,7 +3638,7 @@ DG_ASSERT_AT(struct sound_record, id,            0x0a);
 DG_ASSERT_AT(struct sound_record, sequence,      0x0e);
 DG_ASSERT_AT(struct sound_record, flags,         0x12);
 
-#define SOUND_RECORD_NONE ((struct sound_record *)(void *)MK_FP(0, 0))
+#define SOUND_RECORD_NONE ((struct sound_record *)(void *)FAR_NULL_PTR)
 #define SOUND_RECORD_PTR(fp) ((struct sound_record *)(void *)dg_far_ptr((fp)))
 DG_ASSERT_AT(struct sequence, cursor_at,        0x008);
 DG_ASSERT_AT(struct sequence, position,         0x00c);

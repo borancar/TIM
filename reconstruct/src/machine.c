@@ -10849,8 +10849,8 @@ int16_t far_stricmp(const char far * a, const char far * b)
     /* **0000:0000, not a C null pointer.** The original's guard is
        `(off | seg) == 0`, and that address is the first byte of the guest's
        memory - written as `b == NULL` it would never fire. */
-    if (b == (const char far *)MK_FP(0, 0)
-        || a == (const char far *)MK_FP(0, 0))
+    if (b == (const char far *)FAR_NULL_PTR
+        || a == (const char far *)FAR_NULL_PTR)
         return 1;
 
     for (;;) {
@@ -10934,21 +10934,21 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
  *
  * **Borland's `_fstrchr`**, linked in and never called - nothing in the image
  * reaches it by call or by address. A null pointer answers 0000:0000, the
- * guest's null, which is `MK_FP(0, 0)` here and not a C null; searching for
+ * guest's null, which is `FAR_NULL_PTR` here and not a C null; searching for
  * NUL itself answers null too, because the loop stops at the terminator and
  * the test after it is for a non-NUL byte.
  */
 char far *far_strchr(const char far *s, char c)
 {
-    if (s == (const char far *)MK_FP(0, 0))
-        return (char far *)MK_FP(0, 0);
+    if (s == (const char far *)FAR_NULL_PTR)
+        return (char far *)FAR_NULL_PTR;
 
     while (*s != 0 && *s != c)
         s++;
 
     if (*s != 0)
         return (char far *)s;
-    return (char far *)MK_FP(0, 0);
+    return (char far *)FAR_NULL_PTR;
 }
 
 /*
@@ -10964,9 +10964,9 @@ char far *far_strcat(char far *dst, const char far *src)
     char far *d = dst;                       /* [bp-4]:[bp-2] */
     char c;
 
-    if (src == (const char far *)MK_FP(0, 0)
-        || dst == (char far *)MK_FP(0, 0))
-        return (char far *)MK_FP(0, 0);
+    if (src == (const char far *)FAR_NULL_PTR
+        || dst == (char far *)FAR_NULL_PTR)
+        return (char far *)FAR_NULL_PTR;
 
     while (*d != 0)
         d++;
@@ -11474,7 +11474,7 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
         file_saved_rect((int16_t)(RECTENT_PTR(rec)->x << 3), RECTENT_PTR(rec)->y,
                         (int16_t)(RECTENT_PTR(rec)->w << 3), RECTENT_PTR(rec)->h,
                         RECTENT_PTR(rec)->mode, to_src, to_dst, to_ref,
-                        MK_FP(0, 0));
+                        FAR_NULL_PTR);
         /* no step: see above */
     }
 }

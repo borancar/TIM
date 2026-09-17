@@ -570,7 +570,7 @@ struct bmp_set *load_bitmaps(char *name)
     FILE *as_file = dg_is_guest(name) ? (FILE *)name : NULL;
     FILE *di = as_file;
     uint16_t opened = 0;                        /* [bp-8]  */
-    uint8_t *block = MK_FP(0, 0);               /* [bp-0xc], [bp-0xa] */
+    uint8_t *block = FAR_NULL_PTR;               /* [bp-0xc], [bp-0xa] */
     uint16_t kind = 0;                          /* [bp-0x1a] */
     uint16_t i;
     uint32_t r;
@@ -617,7 +617,7 @@ struct bmp_set *load_bitmaps(char *name)
     if (kind == 0) {
         uint32_t size = file_record_size(di);
         block = dos_alloc_bytes(size, 0, 0).ptr;
-        if (block == MK_FP(0, 0))
+        if (block == FAR_NULL_PTR)
             goto fail;
 
         read_far(block, (int32_t)size, di);
@@ -648,7 +648,7 @@ struct bmp_set *load_bitmaps(char *name)
         r = vm_bitmap_list_size(list_at,
                                 (uint8_t *)&size_at);
         block = dos_alloc_bytes(r, 0, 0).ptr;
-        if (block == MK_FP(0, 0))
+        if (block == FAR_NULL_PTR)
             goto fail;
 
         set_field_4_of_each(0xfffc, list_at);
@@ -817,7 +817,7 @@ uint16_t load_screen(char *name)
 
     FILE *si = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                    /* [bp-2]  */
-    uint8_t *block = MK_FP(0, 0);           /* [bp-6], [bp-4] */
+    uint8_t *block = FAR_NULL_PTR;           /* [bp-6], [bp-4] */
     uint16_t di = 0;
 
     if (file_record_valid(si) == 0) {
@@ -840,7 +840,7 @@ uint16_t load_screen(char *name)
     {
         uint32_t size = file_record_size(si);
         block = dos_alloc_bytes(size, 0, 0).ptr;
-        if (block == MK_FP(0, 0)) {
+        if (block == FAR_NULL_PTR) {
             di = 0xffff;
             goto out;
         }
@@ -865,7 +865,7 @@ close:
         close_file_record(si);
 
 out:
-    if (block != MK_FP(0, 0))
+    if (block != FAR_NULL_PTR)
         dos_free_far(block);
     return di;
 }
@@ -1044,7 +1044,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
-    uint8_t *block = MK_FP(0, 0);           /* [bp-0xe], [bp-0xc] */
+    uint8_t *block = FAR_NULL_PTR;           /* [bp-0xe], [bp-0xc] */
     uint16_t index = 0;                     /* [bp-0x12] */
     struct bitmap *si;
 
@@ -1071,7 +1071,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
 
     if (largest <= buffer) {
         block = dos_alloc_bytes(buffer, 0, 0).ptr;
-        if (block == MK_FP(0, 0))
+        if (block == FAR_NULL_PTR)
             goto no_block;
         goto have_block;
     }

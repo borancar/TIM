@@ -2245,7 +2245,7 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
         uint8_t *p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
 
         DG4A82.config = far_of(p);
-        if (p == MK_FP(0, 0))
+        if (p == FAR_NULL_PTR)
             di = 0;
     }
 
@@ -2314,7 +2314,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.module = far_of(p);
 
-        if (p == MK_FP(0, 0)) {
+        if (p == FAR_NULL_PTR) {
             module_index = -2;
             di = 1;
         } else {
@@ -2356,7 +2356,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
         DG4A82.driver = far_of(p);
 
-        if (p == MK_FP(0, 0)) {
+        if (p == FAR_NULL_PTR) {
             di = 1;
         } else {
             DG4A82.driver_number =
@@ -2481,7 +2481,7 @@ uint8_t far *load_named_chunk(char *name, const char * path,
     FILE *handle = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
     FILE *si;
-    uint8_t *r = MK_FP(0, 0);
+    uint8_t *r = FAR_NULL_PTR;
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
@@ -2617,7 +2617,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
 {
     struct sequence *seq = (struct sequence *)(void *)alloc_for_kind(0x17a, 2);
 
-    if ((uint8_t *)seq == MK_FP(0, 0))
+    if ((uint8_t *)seq == FAR_NULL_PTR)
         return seq;
 
     /* `cursor` and `cursor_at` are a segment beside an offset **stepped
@@ -2671,8 +2671,8 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     uint16_t want;
     int16_t handle;
     struct sound_node *list = SOUND_NODE_NONE;
-    uint8_t *blk = MK_FP(0, 0);
-    uint8_t *r = MK_FP(0, 0);
+    uint8_t *blk = FAR_NULL_PTR;
+    uint8_t *r = FAR_NULL_PTR;
 
     /*
      * None of this routine's locals has its address taken, but the ones it
@@ -2752,7 +2752,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
 
         {
             blk = alloc_for_kind(len + 1, 4);
-            if (blk == MK_FP(0, 0)) {
+            if (blk == FAR_NULL_PTR) {
                 close_resource(handle);
                 free_node_list(list);
                 goto out;
@@ -2828,7 +2828,7 @@ uint16_t free_voice_records(void)
     for (i = 0; i < 7; i++) {
         uint8_t *v = dg_far_ptr(SOUND_VOICES.voice[i]);
 
-        if (v == MK_FP(0, 0))
+        if (v == FAR_NULL_PTR)
             continue;
         free_for_kind(v, 2);
     }
@@ -2860,7 +2860,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
 {
     int16_t i;
 
-    if (source == MK_FP(0, 0))
+    if (source == FAR_NULL_PTR)
         return SEQUENCE_NONE;
 
     for (i = 0; i < 7; i++) {
@@ -3236,7 +3236,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
 uint8_t far *load_resource_block(FILE *file, uint32_t size,
                                  uint8_t * out, uint16_t kind)
 {
-    uint8_t *buf = MK_FP(0, 0);
+    uint8_t *buf = FAR_NULL_PTR;
     uint32_t len = 0;
     int16_t handle;
 
@@ -3249,20 +3249,20 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
 
         buf = alloc_for_kind(sz, kind);
 
-        if (buf != MK_FP(0, 0)) {
+        if (buf != FAR_NULL_PTR) {
             uint16_t got = (uint16_t)read_resource(handle, buf, (uint16_t)len);
 
             /* `len_hi != 0` was "the size does not fit in a word". */
             if (len > 0xffff || got != (uint16_t)len) {
                 free_for_kind(buf, kind);
-                buf = MK_FP(0, 0);
+                buf = FAR_NULL_PTR;
             }
         }
 
         close_resource(handle);
     }
 
-    if (out != NULL && buf != MK_FP(0, 0)) {
+    if (out != NULL && buf != FAR_NULL_PTR) {
         *(int16_t *)(out + 2) = (int16_t)(len >> 16);
         *(int16_t *)(out) = (int16_t)len;
     }
@@ -3375,7 +3375,7 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 void stop_sound(void)
 {
     if (!far_eq(DG4A82.driver, FAR_NULL)) {
-        silence_driver_far(MK_FP(0, 0));
+        silence_driver_far(FAR_NULL_PTR);
 
         if (((int16_t)DG4A82.tick_cb.off) == 0) {
             sound_service();
@@ -4197,7 +4197,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
                            | (uint16_t)len[0], kind);
         rec->data = far_of(p);
 
-        if (p == MK_FP(0, 0))
+        if (p == FAR_NULL_PTR)
             goto fail;
 
         if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
@@ -4209,7 +4209,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
                             (uint8_t *)out);
 
         rec->data = far_of(p);
-        if (p == MK_FP(0, 0))
+        if (p == FAR_NULL_PTR)
             goto fail;
     } else {
         p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
@@ -4217,7 +4217,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
                                 (uint8_t *)out, kind);
 
         rec->data = far_of(p);
-        if (p == MK_FP(0, 0))
+        if (p == FAR_NULL_PTR)
             goto fail;
     }
 
@@ -4277,7 +4277,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
         blk = dos_alloc_bytes(size, 0, 0).ptr;
     }
 
-    if (blk != MK_FP(0, 0)
+    if (blk != FAR_NULL_PTR
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
         far_memset(blk, 0, size);
 

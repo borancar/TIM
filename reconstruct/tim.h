@@ -1782,7 +1782,7 @@ uint8_t far * set_palette_pointer(uint8_t far * h);   /* 0x1eb6a */
  * at the site rather than guessed at by the signature.
  *
  * In the original both are DX:AX. Here the address is the host pointer to the
- * block - `MK_FP(0, 0)` when DOS refused, the 0000:0000 the guest tests for -
+ * block - `FAR_NULL_PTR` when DOS refused, the 0000:0000 the guest tests for -
  * and so the two do not overlay: the member the routine did not set is not
  * the other one read differently. A caller filing the address into a far
  * pair uses `far_of`, which is the block's own pair, a DOS block starting a
