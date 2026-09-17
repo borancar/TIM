@@ -7094,6 +7094,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 {
     bmp_ptr_t *si = list;
     struct bitmap *first = BMP_PTR(list[0]);
+    struct bitmap *hdr;
     uint16_t segs;
     uint16_t over;
 
@@ -7105,8 +7106,9 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
     ENGINE_BITMAP_COMPRESS.out_start = far_of_rev(first->data);
     ENGINE_BITMAP_COMPRESS.out = ENGINE_BITMAP_COMPRESS.out_start;
 
-    while (BMP_PTR(*si) != BMP_NONE) {
-        struct bitmap *hdr = BMP_PTR(*si);
+    /* One header per slot, where the original reloads `[si]` at each of the
+       five uses - it has nothing to keep it in and this does. */
+    while ((hdr = BMP_PTR(*si)) != BMP_NONE) {
         uint16_t di = ENGINE_BITMAP_COMPRESS.out.off;
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
@@ -7129,14 +7131,13 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
             /* `push word ptr [si]` at 0x2448c and 0x244a3: the header this
                slot holds, not the slot. */
-            compress_bitmap(BMP_PTR(*si));
+            compress_bitmap(hdr);
 
             dos_free_far(blk);
         } else {
-            compress_bitmap(BMP_PTR(*si));
+            compress_bitmap(hdr);
         }
 
-        hdr = BMP_PTR(*si);
         hdr->data = far_to_rev(at);
         hdr->mask_off = 0xfffe;
 

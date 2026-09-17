@@ -3107,6 +3107,18 @@ _Static_assert(__builtin_offsetof(struct sx_spkr, byte_0349) == 0x0349, "sx_spkr
  * single overlay would be right for one of them and quietly wrong for the
  * other two - they share only 0x188d, and that by coincidence.
  */
+/*
+ * One patch as the bank holds it: the two operators' thirteen bytes each, and
+ * their connection bytes at the end rather than in the runs - which is why
+ * `adl_write_operator` is handed a run and a connection separately.
+ */
+struct adl_patch {
+    uint8_t   op[2][13];          /* +0x00 and +0x0d */
+    uint8_t   connect[2];         /* +0x1a */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct adl_patch) == 28, "the bank is indexed by 28");
+
 struct sx_adl {
     uint8_t   pad_0000[55];
     int16_t   word_0037;          /* +0x0037 */
@@ -3119,14 +3131,31 @@ struct sx_adl {
     uint8_t   pad_0120[175];
     uint8_t   byte_01cf;          /* +0x01cf */
     uint8_t   pad_01d0[64];
-    uint8_t   byte_0210;          /* +0x0210  which slots do not own an operator */
-    uint8_t   pad_0211[17];
-    uint8_t   byte_0222;          /* +0x0222  the channel each slot is on */
-    uint8_t   pad_0223[17];
-    uint8_t   byte_0234;          /* +0x0234  the channel table */
-    uint8_t   pad_0235[317];
-    int16_t   word_0372;          /* +0x0372  the patch bank the driver was given */
-    uint8_t   pad_0374[5396];
+    /* **Three tables of eighteen**, one entry per operator the OPL2 has -
+       nine channels of two - and the driver indexes all three by the slot.
+       They were a byte each with a seventeen-byte pad, which is the same
+       memory and said nothing about the shape. */
+    uint8_t   no_operator[18];    /* +0x0210  set for a slot that owns none */
+    uint8_t   op_reg[18];         /* +0x0222  the register offset this slot's
+                                              operator answers to - the OPL2's
+                                              0,1,2,8,9,0xa,0x10 layout, not a
+                                              straight index */
+    uint8_t   chan_reg[18];       /* +0x0234  and the offset its channel uses */
+    uint8_t   pad_0246[300];
+    int16_t   word_0372;          /* +0x0372  how many bytes of bank were copied in */
+    /* **The patch bank**, at +0x374, which `adl_init` copies in from the file
+       the game hands it. A patch is 28 bytes - two operator runs of thirteen
+       and the two connection bytes kept apart at the end - and the driver
+       reaches one as `0x374 + program * 28`.
+
+       192 of them is what fits: the largest program the code can ask for is
+       0x58 + 0x65 = 0xbd, and 192 entries end at +0x1874, which leaves exactly
+       the six bytes before the default operator run at +0x187a. */
+    struct adl_patch patch[192];  /* +0x0374 */
+    uint8_t   pad_1874[6];
+    uint8_t   default_op[13];     /* +0x187a  the run adl_reset writes to every
+                                              slot */
+    uint8_t   pad_1887[1];
     uint8_t   byte_1888;          /* +0x1888 */
     uint8_t   byte_1889;          /* +0x1889 */
     uint8_t   byte_188a;          /* +0x188a */
@@ -3144,10 +3173,12 @@ _Static_assert(__builtin_offsetof(struct sx_adl, byte_011d) == 0x011d, "sx_adl.b
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_011e) == 0x011e, "sx_adl.byte_011e");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_011f) == 0x011f, "sx_adl.byte_011f");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_01cf) == 0x01cf, "sx_adl.byte_01cf");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_0210) == 0x0210, "sx_adl.byte_0210");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_0222) == 0x0222, "sx_adl.byte_0222");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_0234) == 0x0234, "sx_adl.byte_0234");
+_Static_assert(__builtin_offsetof(struct sx_adl, no_operator) == 0x0210, "sx_adl.no_operator");
+_Static_assert(__builtin_offsetof(struct sx_adl, op_reg) == 0x0222, "sx_adl.op_reg");
+_Static_assert(__builtin_offsetof(struct sx_adl, chan_reg) == 0x0234, "sx_adl.chan_reg");
 _Static_assert(__builtin_offsetof(struct sx_adl, word_0372) == 0x0372, "sx_adl.word_0372");
+_Static_assert(__builtin_offsetof(struct sx_adl, patch) == 0x0374, "sx_adl.patch");
+_Static_assert(__builtin_offsetof(struct sx_adl, default_op) == 0x187a, "sx_adl.default_op");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_1888) == 0x1888, "sx_adl.byte_1888");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_1889) == 0x1889, "sx_adl.byte_1889");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_188a) == 0x188a, "sx_adl.byte_188a");

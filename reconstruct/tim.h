@@ -498,8 +498,9 @@ void     adl_note(uint16_t voice, uint16_t cx, uint16_t dx);
                                                     /* SX.OVL ADL:0x1e23 */
 void     adl_touch_voice(uint16_t voice);           /* SX.OVL ADL:0x1df4 */
 void     adl_key_off(uint16_t voice);               /* SX.OVL ADL:0x1dc4 */
-void     adl_load_patch(uint16_t voice, uint16_t at);   /* SX.OVL ADL:0x1fe1 */
-void     adl_write_operator(uint16_t slot, uint16_t src, uint8_t connect);
+void     adl_load_patch(uint16_t voice, const struct adl_patch *p);   /* SX.OVL ADL:0x1fe1 */
+void     adl_write_operator(uint16_t slot, const uint8_t *run,
+                            uint8_t connect);
                                                     /* SX.OVL ADL:0x2109 */
 void     adl_reset(void);                           /* SX.OVL ADL:0x237d */
 void     adl_default_operators(void);               /* SX.OVL ADL:0x20b5 */

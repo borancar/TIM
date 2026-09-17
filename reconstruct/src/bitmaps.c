@@ -1047,9 +1047,9 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     uint8_t *block = FAR_NULL_PTR;           /* [bp-0xe], [bp-0xc] */
     uint16_t index = 0;                     /* [bp-0x12] */
     struct bitmap *si;
+    struct bitmap *hdr;
 
-    while (BMP_PTR(*at) != BMP_NONE) {
-        struct bitmap *hdr = BMP_PTR(*at);
+    while ((hdr = BMP_PTR(*at)) != BMP_NONE) {
         uint32_t need = buffer_size_thunk((uint16_t)hdr->width,
                                           (uint16_t)hdr->height)
                         & 0xffffu;

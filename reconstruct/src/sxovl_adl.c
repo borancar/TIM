@@ -135,7 +135,7 @@ void adl_write_level(uint16_t slot)
     cx = (uint16_t)((uint8_t)(SX8((uint16_t)(at + ADL_OP_KSL)) << 6));
     cx |= (uint16_t)(SX8((uint16_t)(at + ADL_OP_LEVEL)) & 0x3f);
 
-    adl_write((uint16_t)(0x40 + SX8((uint16_t)(0x222 + slot))), cx);
+    adl_write((uint16_t)(0x40 + SXADL.op_reg[slot]), cx);
 }
 
 /*
@@ -151,7 +151,7 @@ void adl_write_attack_decay(uint16_t slot)
     cx = (uint16_t)((uint8_t)(SX8((uint16_t)(at + ADL_OP_ATTACK)) << 4));
     cx |= (uint16_t)(SX8((uint16_t)(at + ADL_OP_DECAY)) & 0x0f);
 
-    adl_write((uint16_t)(0x60 + SX8((uint16_t)(0x222 + slot))), cx);
+    adl_write((uint16_t)(0x60 + SXADL.op_reg[slot]), cx);
 }
 
 /*
@@ -167,7 +167,7 @@ void adl_write_sustain_release(uint16_t slot)
     cx = (uint16_t)((uint8_t)(SX8((uint16_t)(at + ADL_OP_SUSTAIN)) << 4));
     cx |= (uint16_t)(SX8((uint16_t)(at + ADL_OP_RELEASE)) & 0x0f);
 
-    adl_write((uint16_t)(0x80 + SX8((uint16_t)(0x222 + slot))), cx);
+    adl_write((uint16_t)(0x80 + SXADL.op_reg[slot]), cx);
 }
 
 /*
@@ -184,7 +184,7 @@ void adl_write_feedback(uint16_t slot)
 {
     uint16_t at, cx;
 
-    if (SX8((uint16_t)(0x210 + slot)) != 0)
+    if (SXADL.no_operator[slot] != 0)
         return;
 
     at = ADL_OP(slot);
@@ -192,7 +192,7 @@ void adl_write_feedback(uint16_t slot)
     if (SX8((uint16_t)(at + ADL_OP_CONNECT)) == 0)
         cx++;
 
-    adl_write((uint16_t)(0xc0 + SX8((uint16_t)(0x234 + slot))),
+    adl_write((uint16_t)(0xc0 + SXADL.chan_reg[slot]),
               (uint16_t)(cx & 0x0f));
 }
 
@@ -218,7 +218,7 @@ void adl_write_mult(uint16_t slot)
         cx |= 0x10;
     cx |= (uint16_t)(SX8((uint16_t)(at + ADL_OP_MULT)) & 0x0f);
 
-    adl_write((uint16_t)(0x20 + SX8((uint16_t)(0x222 + slot))), cx);
+    adl_write((uint16_t)(0x20 + SXADL.op_reg[slot]), cx);
 }
 
 /*
@@ -236,7 +236,7 @@ void adl_write_wave(uint16_t slot)
         return;
 
     at = ADL_OP(slot);
-    adl_write((uint16_t)(0xe0 + SX8((uint16_t)(0x222 + slot))),
+    adl_write((uint16_t)(0xe0 + SXADL.op_reg[slot]),
               SX8((uint16_t)(at + ADL_OP_WAVE)));
 }
 
@@ -461,45 +461,43 @@ void adl_key_off(uint16_t voice)
  * `cs:0x190b` is the level divided by fifteen, kept for a scaling this game's
  * music does not reach.
  */
-void adl_load_patch(uint16_t voice, uint16_t at)
+void adl_load_patch(uint16_t voice, const struct adl_patch *p)
 {
-    uint16_t bx = voice, di = at, ax;
+    uint16_t bx = voice, ax;
 
     SX8((uint16_t)(bx + 0x1900)) = 1;
 
-    if (SX8((uint16_t)(di + 0x0c)) != 0) {
+    if (p->op[0][12] != 0) {
         SX8((uint16_t)(bx + 0x1900)) = 0;
         bx = (uint16_t)(bx * 2);
     } else {
         bx = (uint16_t)(bx * 2);
-        ax = SX8(di);
+        ax = p->op[0][0];
         SX16((uint16_t)(bx + 0x18d4)) = (int16_t)ax;
-        ax = (uint16_t)(0x3f - SX8((uint16_t)(di + 8)));
+        ax = (uint16_t)(0x3f - p->op[0][8]);
         SX16((uint16_t)(bx + 0x18ea)) = (int16_t)ax;
         SX16((uint16_t)(bx + 0x190b)) = (int16_t)(ax / 0x0f);
     }
 
-    ax = SX8((uint16_t)(di + 0x0d));
+    ax = p->op[1][0];
     SX16((uint16_t)(bx + 0x1892)) = (int16_t)ax;
-    ax = (uint16_t)(0x3f - SX8((uint16_t)(di + 0x15)));
+    ax = (uint16_t)(0x3f - p->op[1][8]);
     SX16((uint16_t)(bx + 0x18a8)) = (int16_t)ax;
     SX16((uint16_t)(bx + 0x18be)) = (int16_t)(ax / 0x0f);
 
     /*
      * And the two operators. The patch's own thirteen bytes for each go to
      * `adl_write_operator`, which stores them and emits the six registers;
-     * the fourteenth byte is the connection, and it comes from +0x1a of the
-     * patch rather than from the operator's own run.
+     * the fourteenth byte is the connection, and it comes from the pair at the
+     * end of the patch rather than from the operator's own run.
      */
     {
-        uint16_t src = (uint16_t)(at + 0x1a);
-        uint8_t  conn = SX8(src);
-        uint8_t  second = SX8((uint16_t)(src + 1));
         uint16_t idx = (uint16_t)(voice * 2);
 
-        adl_write_operator(SX8((uint16_t)(idx + 0x246)), at, conn);
-        adl_write_operator(SX8((uint16_t)(idx + 1 + 0x246)),
-                           (uint16_t)(at + 0x0d), second);
+        adl_write_operator(SX8((uint16_t)(idx + 0x246)), p->op[0],
+                           p->connect[0]);
+        adl_write_operator(SX8((uint16_t)(idx + 1 + 0x246)), p->op[1],
+                           p->connect[1]);
     }
 }
 
@@ -510,13 +508,13 @@ void adl_load_patch(uint16_t voice, uint16_t at)
  * the connection in the fourteenth, and then write every register that
  * depends on them.
  */
-void adl_write_operator(uint16_t slot, uint16_t src, uint8_t connect)
+void adl_write_operator(uint16_t slot, const uint8_t *run, uint8_t connect)
 {
     uint16_t at = ADL_OP(slot);
     uint16_t i;
 
     for (i = 0; i < 0x0d; i++)
-        SX8((uint16_t)(at + i)) = SX8((uint16_t)(src + i));
+        SX8((uint16_t)(at + i)) = run[i];
 
     SX8((uint16_t)(at + 0x0d)) = (uint8_t)(connect & 3);
 
@@ -578,7 +576,7 @@ void adl_default_operator(uint16_t slot, uint16_t src)
     for (di = 0; di < 0x0d; di++)
         SX8((uint16_t)(di + 0x187a)) = SX8((uint16_t)(src + di));
 
-    adl_write_operator(slot, 0x187a, 0);
+    adl_write_operator(slot, SXADL.default_op, 0);
 }
 
 /*
@@ -671,7 +669,7 @@ void adl_key_on(uint16_t voice, uint16_t cx)
 
     if (dl != SX8((uint16_t)(voice + 0x1bc)) && SXADL.byte_011e != 0) {
         SX8((uint16_t)(voice + 0x1bc)) = dl;
-        adl_load_patch(voice, (uint16_t)(0x374 + dl * 28));
+        adl_load_patch(voice, &SXADL.patch[dl]);
     }
 
     SX8((uint16_t)(voice + 0x1a6)) = (uint8_t)cx;

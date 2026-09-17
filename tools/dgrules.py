@@ -350,6 +350,13 @@ def rule_ptr_arg(paths):
 
     A bare name, a literal, or a field read is not an operation: `POINTS(p)`
     and `POINTS(part->points_ptr)` are the conversion and nothing more.
+
+    **Nor is a cursor read.** `BMP_PTR(*list)` is the slot the walking pointer
+    is on, and the rule accepted `BMP_PTR(list[0])` - the same read, a
+    subscript - from the first day. Flagging one and not the other said
+    nothing about the code, so a `*` applied to a plain name counts as an
+    atom here; `*(p + 1)` and `*f()` still do not, because those compute
+    something first.
     """
     macros = pointer_macros()
     out = []
@@ -373,6 +380,10 @@ def rule_ptr_arg(paths):
                 a = inner[0]
             if a.type in ATOMS:
                 continue
+            if a.type == "pointer_expression":
+                inner = [c for c in a.children if c.is_named]
+                if len(inner) == 1 and inner[0].type == "identifier":
+                    continue
             out.append((os.path.basename(path), n.start_point[0] + 1,
                         text(src, fn), a.type, text(src, n)[:72]))
     return out
