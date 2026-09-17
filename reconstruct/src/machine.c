@@ -10167,7 +10167,7 @@ void free_archive_lists(void)
         if ((a->list.off | a->list.seg) == 0)
             continue;
 
-        dos_free_far(a->list);
+        dos_free_far(MK_FP(a->list.seg, a->list.off));
 
         a->list = FAR_NULL;
     }

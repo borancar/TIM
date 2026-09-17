@@ -624,7 +624,7 @@ uint16_t game_teardown(int16_t really)
 {
     char msg[240];                     /* [bp-0x122] */
     char code[50];  /* [bp-0x32]  */
-    struct far_ptr node;
+    uint8_t *node;
     uint16_t si;
 
     if (really == 0) {
@@ -641,12 +641,11 @@ uint16_t game_teardown(int16_t really)
         (*msg) = 0;
     }
 
-    node = DG4E4E.shape_free;
-    while (!far_eq(node, FAR_NULL)) {
-        struct far_ptr next;
-
-        next.seg = (uint16_t)FAR16(node.seg, (uint16_t)(node.off + 2));
-        next.off = (uint16_t)FAR16(node.seg, node.off);
+    /* Each free block's first four bytes are the far pointer to the next. */
+    node = MK_FP(DG4E4E.shape_free.seg, DG4E4E.shape_free.off);
+    while (node != MK_FP(0, 0)) {
+        const struct far_ptr *link = (const struct far_ptr *)(void *)node;
+        uint8_t *next = MK_FP(link->seg, link->off);
 
         dos_free_far(node);
         node = next;
@@ -2614,7 +2613,7 @@ uint16_t read_level(char *name)
         if (DG546C.is_level != 0)
             read_list(file, &DG50D3.parts_bin, n_given);
 
-        dos_free_far(DG546C.table);
+        dos_free_far(MK_FP(DG546C.table.seg, DG546C.table.off));
     }
 
     r = game_fclose(file);
@@ -6635,7 +6634,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
      * freeing that would hand back memory the picker never owned.
      */
     if (GAME_PICKER_TEXT.block.off != DG3576.scratch.off || GAME_PICKER_TEXT.block.seg != DG3576.scratch.seg) {
-        dos_free_far(GAME_PICKER_TEXT.block);
+        dos_free_far(MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off));
         GAME_PICKER_TEXT.block = FAR_NULL;
         GAME_PICKER_TEXT.text_start = FAR_NULL;
     }

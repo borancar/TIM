@@ -4387,6 +4387,6 @@ void free_for_kind(struct far_ptr blk, uint16_t kind)
         io_free(dg_ptr(dgroup, blk.off));
         return;
     }
-    dos_free_far(blk);
+    dos_free_far(MK_FP(blk.seg, blk.off));
 }
 

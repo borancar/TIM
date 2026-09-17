@@ -845,7 +845,7 @@ int16_t prepare_resource_slot(int16_t type,
 void free_if_set(uint16_t p);                       /* 0x1c705 */
 
 /* Hand a block back to DOS; only the pointer's segment is used. */
-void dos_free_far(struct far_ptr block);            /* 0x21b34 */
+void dos_free_far(uint8_t far * block);            /* 0x21b34 */
 
 /* Recompute a link's endpoints, then the rest lengths they imply. */
 void refresh_link_geometry(struct belt *link);          /* 0x04f7f */

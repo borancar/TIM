@@ -623,7 +623,7 @@ struct bmp_set *load_bitmaps(char *name)
         read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
 
         if (seek_named_chunk(di, CHUNK2.bmp_off_b, 0) == -1) {
-            dos_free_far(block);
+            dos_free_far(MK_FP(block.seg, block.off));
             goto fail;
         }
 
@@ -632,7 +632,7 @@ struct bmp_set *load_bitmaps(char *name)
             struct far_ptr p;
 
             if (game_fread((uint8_t *)offset_at, 4, 1, di) != 1) {
-                dos_free_far(block);
+                dos_free_far(MK_FP(block.seg, block.off));
                 goto fail;
             }
 
@@ -871,7 +871,7 @@ close:
 
 out:
     if (huge_equal(block.off, block.seg, 0, 0) == 0)
-        dos_free_far(block);
+        dos_free_far(MK_FP(block.seg, block.off));
     return di;
 }
 
@@ -1165,7 +1165,7 @@ have_block:
     }
 
     if (!far_eq(block, DG3576.scratch))
-        dos_free_far(block);
+        dos_free_far(MK_FP(block.seg, block.off));
 
 done:
     (void)index;

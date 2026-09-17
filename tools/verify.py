@@ -5296,7 +5296,7 @@ ROUTINES = {
         addr=0x21B34,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.dos_free_far(FarPtr(a[0], a[1])),
+        call=lambda lib, a: lib.dos_free_far(farp(lib, a[0], a[1])),
     ),
     "refresh_link_geometry": dict(
         addr=0x04F7F,

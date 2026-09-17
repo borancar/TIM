@@ -1769,7 +1769,8 @@ int16_t close_resource_slot(uint16_t slot)
         rec = ENGINE_STREAM.record_ptr;
         if (!huge_equal(RESOURCE_PTR(rec)->scratch.off, RESOURCE_PTR(rec)->scratch.seg, 0, 0)
             && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
-            dos_free_far(RESOURCE_PTR(rec)->scratch);
+            dos_free_far(MK_FP(RESOURCE_PTR(rec)->scratch.seg,
+                               RESOURCE_PTR(rec)->scratch.off));
     }
 
     free_if_set(ENGINE_STREAM.record_ptr);
@@ -3990,7 +3991,8 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
  * The argument is a **far pointer**, and only its segment half is used: the
  * routine reads [bp+8], the second word, and never looks at the offset at
  * [bp+6]. DOS hands out whole paragraphs at offset zero, so the offset carries
- * no information to begin with.
+ * no information to begin with - and a pointer to a block's start answers its
+ * segment through `FP_SEG`.
  *
  * Nothing checks the result. DOS reports failure in CF with an error code in
  * AX, and the routine returns whatever DOS left there without looking, so a
@@ -3999,9 +4001,9 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
  * The DOS call is IO - see io.h. The port has no arena to give the block back
  * to, so this changes no guest memory.
  */
-void dos_free_far(struct far_ptr block)
+void dos_free_far(uint8_t far * block)
 {
-    io_dos_free(block.seg);
+    io_dos_free(FP_SEG(block));
 }
 /*
  * 0x21e34
@@ -4708,7 +4710,7 @@ uint16_t load_font(char *name)
 
             if (failed != 0) {
                 if (!far_eq(blk, FAR_NULL))
-                    dos_free_far(blk);
+                    dos_free_far(MK_FP(blk.seg, blk.off));
                 si = 0;
             }
         } else {
@@ -4927,7 +4929,7 @@ struct bmp_set *load_bitmap_list(char *name)
 
 done:
     if (tmp != MK_FP(0, 0))
-        dos_free_far(far_of(tmp));
+        dos_free_far(tmp);
 
     if (scratch != NULL) {
         heap_free_far(scratch);
@@ -4936,7 +4938,7 @@ done:
 
     if (kind == 0) {
         if (blk != MK_FP(0, 0))
-            dos_free_far(far_of(blk));
+            dos_free_far(blk);
 
         if (di != 0)
             close_resource(di);
@@ -5013,7 +5015,7 @@ void free_bitmaps(bmp_ptr_t * list)
     if (list == NULL || list == BMPLIST(0))
         return;
 
-    dos_free_far(far_of_rev(BMP_PTR(list[0])->data));
+    dos_free_far(MK_FP(BMP_PTR(list[0])->data.seg, BMP_PTR(list[0])->data.off));
 
     free_bitmap_list(list);
 }
@@ -5800,7 +5802,8 @@ void close_table_618a_slot(int16_t index)
     }
 
     if (!far_eq(ENGINE_FONT_WIDTHS.width[index], FAR_NULL))
-        dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
+        dos_free_far(MK_FP(ENGINE_FONT_WIDTHS.width[index].seg,
+                           ENGINE_FONT_WIDTHS.width[index].off));
     else
         heap_free_far(dg_ptr(dgroup, ENGINE_FONTS.body[index].off));
 
@@ -5964,7 +5967,7 @@ void free_far_block(struct far_ptr h)
         if (!far_eq(VMDS.palettes.blocks[i], h))
             continue;
 
-        dos_free_far(VMDS.palettes.blocks[i]);
+        dos_free_far(MK_FP(VMDS.palettes.blocks[i].seg, VMDS.palettes.blocks[i].off));
         VMDS.palettes.blocks[i] = FAR_NULL;
     }
 }
@@ -6866,7 +6869,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     }
 
     if (!huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
-        dos_free_far(ENGINE_DRIVER_BLOCK.block);
+        dos_free_far(MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off));
 
     {
         struct far_ptr p = dos_alloc_bytes(len, 0, 0).ptr;
@@ -6941,7 +6944,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.screen.screen_height = 0xc8;
 
     if (!far_eq(VMDS.palettes.blocks[0], FAR_NULL)) {
-        dos_free_far(VMDS.palettes.blocks[0]);
+        dos_free_far(MK_FP(VMDS.palettes.blocks[0].seg, VMDS.palettes.blocks[0].off));
         VMDS.palettes.blocks[0] = FAR_NULL;
     }
 
@@ -6988,7 +6991,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         goto out;
 
     if (DG4342.span_buffer_seg != 0)
-        dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.span_buffer_seg - 1) });
+        dos_free_far(MK_FP((uint16_t)(DG4342.span_buffer_seg - 1), 0));
 
     {
         struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
@@ -7131,16 +7134,15 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
         if (VMDS.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(hdr->width
                                          * hdr->height);
-            struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0).ptr;
-
+            struct far_ptr got = dos_alloc_bytes(pixels, 0, 0).ptr;
+            uint8_t *blk = MK_FP(got.seg, got.off);
 
             pixels = (uint16_t)(pixels >> 3);
 
-            planes_to_chunky(MK_FP(blk.seg, blk.off),
-                             MK_FP(hdr->data.seg, hdr->data.off),
+            planes_to_chunky(blk, MK_FP(hdr->data.seg, hdr->data.off),
                              pixels);
 
-            hdr->data = far_to_rev(blk);
+            hdr->data = far_to_rev(far_of(blk));
 
             /* `push word ptr [si]` at 0x2448c and 0x244a3: the header this
                slot holds, not the slot. */
