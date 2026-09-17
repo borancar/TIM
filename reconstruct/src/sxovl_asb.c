@@ -723,26 +723,25 @@ uint16_t asb_shutdown(void)
  *
  * Then the IRQ is hooked, the flags are cleared, and the first block goes.
  */
-void asb_play(int16_t *si)
+void asb_play(const struct sound_play_args *si)
 {
     uint32_t lin;
     uint16_t ax;
 
     asb_shutdown();
 
-    if (((uint16_t)si[0] >> 8) != 0)
+    if (si->loop != 0)
         ASBS.word_0047 = 1;
     else
         ASBS.word_0047 = 0;
 
-    asb_set_rate((uint16_t)si[1]);
+    asb_set_rate(si->rate);
 
-    lin = asb_linear((struct far_ptr){ (uint16_t)si[2],
-                                       (uint16_t)si[3] });
+    lin = asb_linear(si->sample);
     ASBS.word_0034  = (uint8_t)(lin >> 16);
     ASBS.word_0058 = (int16_t)lin;
 
-    ax = (uint16_t)si[4];
+    ax = si->length;
     ASBS.word_0056 = (int16_t)ax;
 
     if ((uint32_t)ax + ASBS.word_0058 > 0xffff) {
@@ -816,10 +815,10 @@ uint16_t asb_uninstall(void)
 /*
  * SX.OVL ASB:0x00de  - function 6
  */
-uint16_t asb_set_rate_fn(int16_t *si)
+uint16_t asb_set_rate_fn(const struct sound_rate_args *si)
 {
-    ASBS.word_0078 = (int16_t)si[0];
-    asb_set_rate((uint16_t)si[0]);
+    ASBS.word_0078 = (int16_t)si->rate;
+    asb_set_rate(si->rate);
     return 0;
 }
 
@@ -845,21 +844,19 @@ uint16_t asb_clear_49(void)
  * All ones means the sample is past its end or has stopped; all zeroes means
  * `cs:[0x4d]` says there is nothing to report.
  */
-uint16_t asb_position(uint8_t * si)
+uint16_t asb_position(struct sound_position_args *si)
 {
     uint16_t cx, dx, ax, bx;
 
     if (ASBS.nothing_to_report == 1) {
-        *(int16_t *)(si) = (int16_t)(0);
-        *(int16_t *)(si + 2) = (int16_t)(0);
-        *(int16_t *)(si + 4) = (int16_t)(0);
+        si->id = 0;
+        si->position = 0;
         return 0;
     }
 
     if (ASBS.word_0054 == 1) {
-        *(int16_t *)(si) = (int16_t)(0xffff);
-        *(int16_t *)(si + 2) = (int16_t)(0xffff);
-        *(int16_t *)(si + 4) = (int16_t)(0xffff);
+        si->id = 0xffff;
+        si->position = 0xffffffffu;
         return 0;
     }
 
@@ -891,9 +888,8 @@ uint16_t asb_position(uint8_t * si)
         }
 
         if (bx != ASBS.word_0080 ? bx > ASBS.word_0080 : ax > ASBS.word_0082) {
-            *(int16_t *)(si) = (int16_t)(0xffff);
-            *(int16_t *)(si + 2) = (int16_t)(0xffff);
-            *(int16_t *)(si + 4) = (int16_t)(0xffff);
+            si->id = 0xffff;
+            si->position = 0xffffffffu;
             return 0;
         }
 
@@ -904,9 +900,8 @@ uint16_t asb_position(uint8_t * si)
         }
     }
 
-    *(int16_t *)(si + 2) = (int16_t)(ax);
-    *(int16_t *)(si + 4) = (int16_t)(bx);
-    *(int16_t *)(si) = (int16_t)(((uint16_t)ASBS.word_0072));
+    si->position = ((uint32_t)bx << 16) | ax;
+    si->id = (uint16_t)ASBS.word_0072;
 
     return 0;
 }
@@ -978,18 +973,18 @@ uint16_t asb_install(void)
  * This module implements none of them, which is why the game's wrappers for
  * 9, 10 and 11 at 0x0bbb1, 0x0bbb8 and 0x0bbbf do nothing when it is loaded.
  */
-uint16_t asb_dispatch(uint16_t fn, uint8_t * si)
+uint16_t asb_dispatch(uint16_t fn, union sound_module_args * si)
 {
     switch (fn) {
     case 0:  return asb_install();
     case 2:  return asb_uninstall();
-    case 3:  asb_play((int16_t *)si); return 0;
+    case 3:  asb_play(&si->play); return 0;
     case 4:  return asb_status();
     case 5:  asb_stop(); return 0;
-    case 6:  return asb_set_rate_fn((int16_t *)si);
+    case 6:  return asb_set_rate_fn(&si->rate);
     case 8:  return asb_clear_49();
     case 12: return asb_shutdown();
-    case 13: return asb_position(si);
+    case 13: return asb_position(&si->position);
 
     case 1: case 7: case 9: case 10: case 11: case 14: case 15:
         return 0;

@@ -561,7 +561,7 @@ void remove_sequence(uint16_t es, uint16_t ax)
      * 5** and the argument pointer is null. Read in source order the two come
      * out swapped, which is what this used to say.
      */
-    sound_callback(5, 0);
+    sound_callback(5, NULL);
 }
 
 /*
@@ -1324,30 +1324,29 @@ void poll_sequences(void)
             b++;
 
             /*
-             * The five words the module reads through SI, built on the stack
-             * in the order the original pushes them - so the last pushed is at
-             * the lowest address and is what SI points at.
+             * The five words the module reads through SI, pushed length first
+             * so the last pushed - the volume and the loop - is what SI points
+             * at. The sample is the record's segment beside the offset `b`
+             * has been stepped to, which is why `seq` stayed a pair.
              */
-            _Alignas(2) uint8_t block[10];
+            union sound_module_args args;
 
-            *(int16_t *)(block + 8) = (int16_t)*(uint16_t *)MK_FP(seq.seg,
-                                                  (uint16_t)(b + 2));
-            *(int16_t *)(block + 6) = (int16_t)seq.seg;              /* segment */
-            *(int16_t *)(block + 4) = (int16_t)(b + 8);    /* offset */
-            *(int16_t *)(block + 2) = (int16_t)*(uint16_t *)MK_FP(seq.seg, b); /* rate */
-            *(int16_t *)(block) = (int16_t)((rec->loop << 8)
-                                        | rec->volume);       /* flags */
+            args.play.volume = rec->volume;
+            args.play.loop = rec->loop;
+            args.play.rate = *(uint16_t *)MK_FP(seq.seg, b);
+            args.play.sample = (struct far_ptr){ (uint16_t)(b + 8), seq.seg };
+            args.play.length = *(uint16_t *)MK_FP(seq.seg, (uint16_t)(b + 2));
 
-            sound_callback(3, block);
+            sound_callback(3, &args);
             continue;
         }
 
         {
-            _Alignas(2) uint8_t block[2];
+            union sound_module_args args;
 
-            *(int16_t *)(block) = (int16_t)((rec->loop << 8)
-                                               | rec->volume);
-            answer = sound_callback(4, block);
+            args.poll.volume = rec->volume;
+            args.poll.loop = rec->loop;
+            answer = sound_callback(4, &args);
         }
 
         if ((uint8_t)(answer >> 8) != 0)
@@ -2990,7 +2989,7 @@ void set_sound_callback(struct far_ptr cb)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax, uint8_t * si)
+uint16_t sound_callback(uint16_t ax, union sound_module_args * si)
 {
     /*
      * `mov ax, 0x2d3c` loads DS two instructions before the test, and the

@@ -295,6 +295,45 @@ void advance_volume_ramp(uint16_t es, uint16_t bx,
 void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
                          uint8_t defer, uint16_t seq_slot);  /* 0x279a9 */
 
+/*
+ * **What the loaded sound module is handed through SI**, one record per
+ * function number. The original builds each on the stack and points SI at it;
+ * the module reads it by offset. The layouts are the module's reads -
+ * `asb_play`, `asb_set_rate_fn`, `asb_position` - and what `poll_sequences`
+ * pushes for functions 3 and 4.
+ */
+struct sound_play_args {                /* function 3 */
+    uint8_t        volume;              /* +0 */
+    uint8_t        loop;                /* +1  non-zero plays it again */
+    uint16_t       rate;                /* +2 */
+    struct far_ptr sample;              /* +4  a segment and an offset inside it */
+    uint16_t       length;              /* +8 */
+} __attribute__((packed));
+
+struct sound_poll_args {                /* function 4 */
+    uint8_t        volume;              /* +0 */
+    uint8_t        loop;                /* +1 */
+} __attribute__((packed));
+
+struct sound_rate_args {                /* function 6 */
+    uint16_t       rate;                /* +0 */
+} __attribute__((packed));
+
+struct sound_position_args {            /* function 13, written back */
+    uint16_t       id;                  /* +0  the sample's */
+    uint32_t       position;            /* +2 */
+} __attribute__((packed));
+
+union sound_module_args {
+    struct sound_play_args     play;
+    struct sound_poll_args     poll;
+    struct sound_rate_args     rate;
+    struct sound_position_args position;
+};
+
+_Static_assert(sizeof(struct sound_play_args) == 10, "function 3's block is five words");
+_Static_assert(sizeof(struct sound_position_args) == 6, "function 13 writes three words");
+
 /* The sound module's service routine - what the timer calls. */
 void sound_service(void);                           /* 0x27ace */
 
@@ -308,7 +347,7 @@ void poll_sequences(void);                          /* 0x27b7e */
 void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
-uint16_t sound_callback(uint16_t ax, uint8_t * si);  /* 0x292a1 */
+uint16_t sound_callback(uint16_t ax, union sound_module_args * si); /* 0x292a1 */
 
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
@@ -553,15 +592,15 @@ void     asb_int74_hook(void);                  /* SX.OVL ASB:0x0551 */
 void     asb_int09_hook(void);                  /* SX.OVL ASB:0x0564 */
 uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x0506 */
 uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x00f5 */
-void     asb_play(int16_t *si);                 /* SX.OVL ASB:0x011e */
+void     asb_play(const struct sound_play_args *si); /* SX.OVL ASB:0x011e */
 uint16_t asb_status(void);                      /* SX.OVL ASB:0x01be */
 void     asb_stop(void);                        /* SX.OVL ASB:0x01ce */
 uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x01d2 */
-uint16_t asb_set_rate_fn(int16_t *si);          /* SX.OVL ASB:0x00de */
+uint16_t asb_set_rate_fn(const struct sound_rate_args *si); /* SX.OVL ASB:0x00de */
 uint16_t asb_clear_49(void);                    /* SX.OVL ASB:0x00ec */
-uint16_t asb_position(uint8_t * si);             /* SX.OVL ASB:0x0435 */
+uint16_t asb_position(struct sound_position_args *si); /* SX.OVL ASB:0x0435 */
 uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
-uint16_t asb_dispatch(uint16_t fn, uint8_t * si);   /* SX.OVL ASB:0x00c8 */
+uint16_t asb_dispatch(uint16_t fn, union sound_module_args * si); /* SX.OVL ASB:0x00c8 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(struct part *obj);           /* 0x00556 */
@@ -773,13 +812,13 @@ struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, cons
 struct file_rec *borland_fopen(const char *name, const char *mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
-uint16_t call_sound_module(uint16_t fn, uint8_t * si);   /* 0x0bbd4 */
+uint16_t call_sound_module(uint16_t fn, union sound_module_args * si); /* 0x0bbd4 */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0bb98 */
-uint16_t sound_module_set_rate(uint8_t * si);        /* 0x0bb9f */
-uint16_t sound_module_service(uint8_t * si);         /* 0x0bba6 */
-uint16_t sound_module_9(uint8_t * si);               /* 0x0bbb1 */
-uint16_t sound_module_10(uint8_t * si);              /* 0x0bbb8 */
-uint16_t sound_module_11(uint8_t * si);              /* 0x0bbbf */
+uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0bb9f */
+uint16_t sound_module_service(union sound_module_args * si); /* 0x0bba6 */
+uint16_t sound_module_9(union sound_module_args * si);  /* 0x0bbb1 */
+uint16_t sound_module_10(union sound_module_args * si); /* 0x0bbb8 */
+uint16_t sound_module_11(union sound_module_args * si); /* 0x0bbbf */
 uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);

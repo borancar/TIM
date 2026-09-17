@@ -1660,7 +1660,7 @@ void call_timer_handler(struct far_ptr h)
          * The loaded sound module's, in the Borland runtime's segment: an EOI
          * and then function 1 of whatever module is installed.
          */
-        sound_module_service(dg_ptr(dgroup, guest_sp));
+        sound_module_service((union sound_module_args *)(void *)dg_ptr(dgroup, guest_sp));
         return;
     default:
         break;
