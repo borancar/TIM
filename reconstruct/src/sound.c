@@ -331,11 +331,11 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
 
     {
         /* Both are far pointers stored in records: the sequence's own at
-           +8, and the table that one points at. Read as pairs, dereferenced
-           once each. */
-        struct far_ptr cur = *(struct far_ptr *)(rec + 8);
-        struct far_ptr tbl_at = *(struct far_ptr *)MK_FP(cur.seg, cur.off);
-        const uint8_t *tbl = MK_FP(tbl_at.seg, tbl_at.off);
+           +8, and the table that one points at, each followed once. */
+        const struct far_ptr *cur = (const struct far_ptr *)(rec + 8);
+        const struct far_ptr *tbl_at =
+            (const struct far_ptr *)(void *)MK_FP(cur->seg, cur->off);
+        const uint8_t *tbl = MK_FP(tbl_at->seg, tbl_at->off);
 
         if (tbl[0x20] != 0xff && rec[0x15b] == 0)
             rec[0x15c] = tbl[0x20];
@@ -2691,7 +2691,7 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
 {
     uint16_t want;
     int16_t handle;
-    struct far_ptr list = {0, 0};
+    uint8_t *list = MK_FP(0, 0);
     struct far_ptr blk = FAR_NULL;
     struct far_ptr r = {0, 0};
 
@@ -2738,9 +2738,10 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     }
 
     {
-        list = read_sound_records(handle);
+        struct far_ptr head = read_sound_records(handle);
 
-        if (far_eq(list, FAR_NULL)) {
+        list = MK_FP(head.seg, head.off);
+        if (list == MK_FP(0, 0)) {
             DG4A82.load_error = 2;
             close_resource(handle);
             goto out;
@@ -2748,20 +2749,21 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
     }
 
     {
-        struct far_ptr walk = list;
+        const uint8_t *walk = list;
         /* One 32-bit total. The port had it as two words with the carry
            tested by hand, which is how the original's `add`/`adc` reads on
            the way in; every use of it below is of the whole. */
         uint32_t len = 0;
         uint16_t si = 5;
 
-        while (!far_eq(walk, FAR_NULL)) {
-            uint16_t n = NODE(walk)->length;
+        while (walk != MK_FP(0, 0)) {
+            const struct sound_node *node = (const struct sound_node *)(void *)walk;
+            uint16_t n = node->length;
 
             len += n;
 
             si = (uint16_t)(si + 6);
-            walk = NODE(walk)->next;
+            walk = MK_FP(node->next.seg, node->next.off);
         }
 
         if ((si & 1) != 0)
@@ -2777,20 +2779,20 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
             blk = p;
             if (far_eq(p, FAR_NULL)) {
                 close_resource(handle);
-                free_node_list(MK_FP(list.seg, list.off));
+                free_node_list(list);
                 goto out;
             }
         }
 
-        if (build_sound_index(handle, MK_FP(list.seg, list.off),
+        if (build_sound_index(handle, list,
                               MK_FP(blk.seg, blk.off),
                               si, want) == 0) {
             close_resource(handle);
-            free_node_list(MK_FP(list.seg, list.off));
+            free_node_list(list);
             goto out;
         }
 
-        free_node_list(MK_FP(list.seg, list.off));
+        free_node_list(list);
 
         if (out != NULL) {
             *(int16_t *)(out + 2) = (int16_t)(len >> 16);
@@ -2850,11 +2852,11 @@ uint16_t free_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr v = SOUND_VOICES.voice[i];
+        uint8_t *v = MK_FP(SOUND_VOICES.voice[i].seg, SOUND_VOICES.voice[i].off);
 
-        if (far_eq(v, FAR_NULL))
+        if (v == MK_FP(0, 0))
             continue;
-        free_for_kind(MK_FP(v.seg, v.off), 2);
+        free_for_kind(v, 2);
     }
 
     return 1;
@@ -3511,14 +3513,16 @@ uint16_t remove_and_free_records(int16_t selector)
      */
     _Alignas(2) uint8_t cell[4];        /* [bp-0x1c], the two-word cell */
     uint8_t *link_at = cell;
-    struct far_ptr cur = DG4A82.records;
+    /* The records' own links are pairs filed as DOS handed the blocks out,
+       each starting a segment, so a pointer compares as the pair does. */
+    uint8_t *cur = MK_FP(DG4A82.records.seg, DG4A82.records.off);
     int16_t found = 0;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
 
-    while (!far_eq(cur, FAR_NULL)) {
-        uint8_t *p = MK_FP(cur.seg, cur.off);
+    while (cur != MK_FP(0, 0)) {
+        uint8_t *p = cur;
         int16_t match;
 
         if (selector == 0)
@@ -3538,8 +3542,8 @@ uint16_t remove_and_free_records(int16_t selector)
             found = 1;
             stop_sequences(*(int16_t *)(p + 0xa));
 
-            p = MK_FP(cur.seg, cur.off);
-            if (far_eq(cur, DG4A82.records))
+            p = cur;
+            if (cur == MK_FP(DG4A82.records.seg, DG4A82.records.off))
                 DG4A82.records = *(struct far_ptr *)p;
 
             link = link_at;
@@ -3550,15 +3554,16 @@ uint16_t remove_and_free_records(int16_t selector)
             else
                 free_for_kind(MK_FP(*(uint16_t *)(p + 6), *(uint16_t *)(p + 4)), 7);
 
-            free_for_kind(MK_FP(cur.seg, cur.off), 3);
+            free_for_kind(cur, 3);
 
             if (selector > 0)
                 break;
         } else {
-            link_at = MK_FP(cur.seg, cur.off);
+            link_at = cur;
         }
 
-        cur = *(struct far_ptr *)link_at;
+        cur = MK_FP(((struct far_ptr *)(void *)link_at)->seg,
+                    ((struct far_ptr *)(void *)link_at)->off);
     }
 
     return (uint16_t)found;
@@ -3717,7 +3722,7 @@ uint16_t open_sound_file(char *name, int16_t id)
        held. The port starts it at the zero the test is written for. */
     uint32_t found = 0;
     uint32_t size;               /* [bp-8]:[bp-6], one long */
-    struct far_ptr cur;          /* [bp-0xc]:[bp-0xa] */
+    const uint8_t *cur = NULL;   /* [bp-0xc]:[bp-0xa], six bytes an entry */
     int16_t si;
     uint16_t r = 0;
 
@@ -3784,8 +3789,7 @@ search:
     {
         const uint8_t *hdr = MK_FP(DG4A82.directory.seg, DG4A82.directory.off);
 
-        cur.seg = *(uint16_t *)(hdr + 2);
-        cur.off = *(uint16_t *)hdr;
+        cur = MK_FP(*(uint16_t *)(hdr + 2), *(uint16_t *)hdr);
     }
 
     if (id > 0) {
@@ -3796,12 +3800,12 @@ search:
             if (*(int16_t *)(hdr + 6) <= si)
                 break;
 
-            e = MK_FP(cur.seg, cur.off);
+            e = cur;
             if (*(int16_t *)e == id) {
                 found = *(uint32_t *)(e + 2);
                 break;
             }
-            cur.off = (uint16_t)(cur.off + 6);
+            cur += 6;
         }
 
         {
@@ -3835,7 +3839,7 @@ search:
         if (*(int16_t *)(hdr + 6) <= si)
             break;
 
-        e = MK_FP(cur.seg, cur.off);
+        e = cur;
         {
             uint32_t at = ((((uint32_t)*(uint16_t *)(e + 4) << 16)
                             | *(uint16_t *)(e + 2)) + 4);
@@ -3855,7 +3859,7 @@ search:
                 goto fail;
         }
 
-        cur.off = (uint16_t)(cur.off + 6);
+        cur += 6;
     }
 
     r = DG4A82.file_ptr;
@@ -3923,20 +3927,17 @@ uint16_t start_sequence_by_id(int16_t id)
 {
     /* The chain's link is the record's own first four bytes, which
        `read_record` writes as one `struct far_ptr`. */
-    struct far_ptr p = DG4A82.records;
-    uint8_t *rec;
+    uint8_t *rec = MK_FP(DG4A82.records.seg, DG4A82.records.off);
 
-    while (!far_eq(p, FAR_NULL)) {
-        rec = MK_FP(p.seg, p.off);
+    while (rec != MK_FP(0, 0)) {
         if (*(int16_t *)(rec + 0xa) == id)
             break;
-        p = *(struct far_ptr *)rec;
+        rec = MK_FP(((struct far_ptr *)(void *)rec)->seg,
+                    ((struct far_ptr *)(void *)rec)->off);
     }
 
-    if (far_eq(p, FAR_NULL))
+    if (rec == MK_FP(0, 0))
         return 0;
-
-    rec = MK_FP(p.seg, p.off);
 
     if ((*(uint16_t *)(rec + 0x12) & 0x10) != 0)
         return 1;
@@ -3946,10 +3947,9 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((*(uint16_t *)(rec + 0x12) & 1) != 0) {
-        struct far_ptr at = DG4A82.records;
+        const uint8_t *other = MK_FP(DG4A82.records.seg, DG4A82.records.off);
 
-        while (!far_eq(at, FAR_NULL)) {
-            uint8_t *other = MK_FP(at.seg, at.off);
+        while (other != MK_FP(0, 0)) {
 
             if ((*(uint16_t *)(other + 0x12) & 1) != 0
                 && (*(uint16_t *)(other + 0xe) != 0
@@ -3959,10 +3959,9 @@ uint16_t start_sequence_by_id(int16_t id)
 
             /* The link is the node's first four bytes, offset then
                segment - which is a `far_ptr` where it lies. */
-            at = *(struct far_ptr *)other;
+            other = MK_FP(((const struct far_ptr *)(void *)other)->seg,
+                          ((const struct far_ptr *)(void *)other)->off);
         }
-
-        rec = MK_FP(p.seg, p.off);
 
         if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
             *(uint16_t *)(rec + 0x12) |= 0x10;
