@@ -2088,8 +2088,7 @@ int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
      * what Borland's `FP_SEG`/`FP_OFF` answer for a pointer, so the round trip
      * is not needed.
      */
-    ENGINE_STREAM.out.seg = (int16_t)FP_SEG(dst);
-    ENGINE_STREAM.out.off = (int16_t)FP_OFF(dst);
+    ENGINE_STREAM.out = far_of(dst);
 
     ENGINE_RESOURCE_FLAGS.flags = (uint8_t)(ENGINE_RESOURCE_FLAGS.flags | 0x40);
 
@@ -2386,10 +2385,11 @@ void huffman_start(void)
     uint16_t freq, prnt, son;
     int16_t i, j;
 
-    ENGINE_DECOMPRESS_CACHE.cache_a.seg = (int16_t)seg;
-    ENGINE_DECOMPRESS_CACHE.cache_a.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b);
-    ENGINE_DECOMPRESS_CACHE.cache_b.seg = (int16_t)seg;
-    ENGINE_DECOMPRESS_CACHE.cache_b.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523);
+    /* Offsets stepped inside the scratch block's segment, filed beside it. */
+    ENGINE_DECOMPRESS_CACHE.cache_a =
+        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b), seg };
+    ENGINE_DECOMPRESS_CACHE.cache_b =
+        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523), seg };
     ENGINE_HUFFMAN_TREE.word_5902 = (int16_t)seg;
     ENGINE_HUFFMAN_TREE.word_5900 = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d);
 
@@ -6139,8 +6139,8 @@ void install_divide_trap(void)
 {
     DG48DA.vector_hooked = 1;
 
-    DG48DA.vector.off = (int16_t)*(uint16_t *)(guest_mem + 0);
-    DG48DA.vector.seg = (int16_t)*(uint16_t *)(guest_mem + 2);
+    /* Vector 0 as the table holds it, offset then segment. */
+    DG48DA.vector = far_to_rev(*(const struct far_ptr *)(void *)guest_mem);
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
@@ -6993,10 +6993,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      */
     font = io_bios_font_ptr(3);
 
-    ENGINE_FONTS.body[0].off = (int16_t)font.bp;
-    ENGINE_FONTS.body[0].seg = (int16_t)font.es;
-    ENGINE_FONTS.body[1].off = (int16_t)font.bp;
-    ENGINE_FONTS.body[1].seg = (int16_t)font.es;
+    ENGINE_FONTS.body[0] = (struct far_ptr){ (uint16_t)font.bp, (uint16_t)font.es };
+    ENGINE_FONTS.body[1] = (struct far_ptr){ (uint16_t)font.bp, (uint16_t)font.es };
 
     *(int16_t *)(&VMDS.font_table_48[0]) = 0x808;
     *(int16_t *)(&VMDS.font_table_34[0]) = 0x808;
@@ -7106,12 +7104,11 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
     while (BMP_PTR(*si) != BMP_NONE) {
         struct bitmap *hdr = BMP_PTR(*si);
         uint16_t di = ENGINE_BITMAP_COMPRESS.out.off;
-        struct far_ptr at;
-
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
-        at.seg = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg + (uint16_t)((int16_t)di >> 4));
-        at.off = (uint16_t)(di & 0x0f);
+        struct far_ptr at = {
+            (uint16_t)(di & 0x0f),
+            (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg + (uint16_t)((int16_t)di >> 4)) };
         ENGINE_BITMAP_COMPRESS.out = at;
 
         if (VMDS.unknown_1f == 0) {

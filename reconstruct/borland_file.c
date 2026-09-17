@@ -1305,8 +1305,8 @@ int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags, const char *mod
             r |= 0x40;
     }
 
-    BORLAND_EXIT_VECTORS.exit_fopen.seg = (uint16_t)(IMAGE_BASE >> 4);
-    BORLAND_EXIT_VECTORS.exit_fopen.off = 0xdfb4;       /* exit_close_streams */
+    BORLAND_EXIT_VECTORS.exit_fopen =
+        (struct far_ptr){ 0xdfb4, (uint16_t)(IMAGE_BASE >> 4) };   /* exit_close_streams */
 
     *(int16_t *)(out_flags) = (int16_t)flags;
     *(int16_t *)(out_perm) = (int16_t)perm;
@@ -1785,8 +1785,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode, uint1
     if (mode == 2 || size == 0)
         return 0;
 
-    BORLAND_EXIT_VECTORS.exit_buf.seg = (uint16_t)(IMAGE_BASE >> 4);
-    BORLAND_EXIT_VECTORS.exit_buf.off = 0xdfdc;         /* exit_flush_streams */
+    BORLAND_EXIT_VECTORS.exit_buf =
+        (struct far_ptr){ 0xdfdc, (uint16_t)(IMAGE_BASE >> 4) };   /* exit_flush_streams */
 
     if (buf == NULL) {
         buf = heap_malloc(size);

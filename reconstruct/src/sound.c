@@ -286,7 +286,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
 
     for (di = 0; di < 0x40; di += 4) {
         if (SNDS.playing[di / 4].off == ax && SNDS.playing[di / 4].seg == es) {
-            remove_sequence(es, ax);
+            remove_sequence((struct sequence *)(void *)MK_FP(es, ax));
             sequencer_tick();
             break;
         }
@@ -448,8 +448,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
              * below the first entry's, which is what makes `di` zero.
              */
             for (si = 0x38; (uint16_t)(si + 4) != di; si -= 4) {
-                SNDS.playing[si / 4 + 1].off = SNDS.playing[si / 4].off;
-                SNDS.playing[si / 4 + 1].seg = SNDS.playing[si / 4].seg;
+                SNDS.playing[si / 4 + 1] = SNDS.playing[si / 4];
             }
             break;
         }
@@ -457,8 +456,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
     if (di >= 0x40)
         return;
 
-    SNDS.playing[di / 4].off = (int16_t)ax;
-    SNDS.playing[di / 4].seg = (int16_t)es;
+    SNDS.playing[di / 4] = (struct far_ptr){ ax, es };
 
     if (SNDS.muted != 0)
         return;
@@ -496,7 +494,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
 void retire_and_tick(struct sequence far * seq)
 {
     io_lock();                  /* `pushf`, `cli` */
-    remove_sequence(FP_SEG(seq), FP_OFF(seq));
+    remove_sequence(seq);
     sequencer_tick();
     io_unlock();                /* `popf` - which is why the lock is recursive */
 }
@@ -524,36 +522,32 @@ void retire_and_tick(struct sequence far * seq)
  * arithmetic produced. Dead as written, and transcribed as the condition it
  * still is: the callback happens only for +0x165 >= 0x80.
  */
-void remove_sequence(uint16_t es, uint16_t ax)
+void remove_sequence(struct sequence far * seq)
 {
-    uint8_t *rec;
-    int16_t si;
+    int16_t i;
 
-    for (si = 0; si < 0x40; si += 4)
-        if (SNDS.playing[si / 4].off == ax && SNDS.playing[si / 4].seg == es)
+    /* The table's pairs are filed from pointers to DOS blocks, so comparing
+       the pointer is comparing the pair `es:ax` was matched against. */
+    for (i = 0; i < 0x10; i++)
+        if ((struct sequence *)(void *)MK_FP(SNDS.playing[i].seg, SNDS.playing[i].off) == seq)
             break;
-    if (si >= 0x40)
+    if (i >= 0x10)
         return;
 
-    SNDS.playing[si / 4].off = 0;
-    SNDS.playing[si / 4].seg = 0;
+    SNDS.playing[i] = FAR_NULL;
 
-    if (si != 0x3c) {
-        for (; si != 0x3c; si += 4) {
-            SNDS.playing[si / 4].off = SNDS.playing[si / 4 + 1].off;
-            SNDS.playing[si / 4].seg = SNDS.playing[si / 4 + 1].seg;
-        }
-        SNDS.playing[si / 4].off = 0;
-        SNDS.playing[si / 4].seg = 0;
+    if (i != 0xf) {
+        for (; i != 0xf; i++)
+            SNDS.playing[i] = SNDS.playing[i + 1];
+        SNDS.playing[i] = FAR_NULL;
     }
 
-    rec = MK_FP(es, ax);
-    rec[0x158] = 0xff;
-    rec[0x159] = 0;
+    seq->state = 0xff;
+    seq->mode = 0;
 
-    if (rec[0x165] == 0)
+    if (seq->poll == 0)
         return;
-    if (rec[0x165] < 0x80)
+    if (seq->poll < 0x80)
         return;
 
     /*
@@ -628,8 +622,7 @@ void sequencer_tick(void)
         SNDS.voice_cost[i] = 0;
         SNDS.voice_request[i] = 0xff;
     }
-    SNDS.polled[0].off = 0;
-    SNDS.polled[0].seg = 0;
+    SNDS.polled[0] = FAR_NULL;
 
     bx = SNDS.playing[0].off;
     es = (uint16_t)SNDS.playing[0].seg;
@@ -658,10 +651,9 @@ void sequencer_tick(void)
             goto next_sequence;
 
         if (*MK_FP(es, (uint16_t)(bx + 0x165)) != 0) {
-            if (SNDS.polled[0].off != 0 || SNDS.polled[0].seg != 0)
+            if (!far_eq(SNDS.polled[0], FAR_NULL))
                 goto next_sequence;
-            SNDS.polled[0].off = (int16_t)bx;
-            SNDS.polled[0].seg = (int16_t)es;
+            SNDS.polled[0] = (struct far_ptr){ bx, es };
             goto next_sequence;
         }
 
@@ -921,11 +913,9 @@ silence_unused:
         uint8_t held = SNDS.voice_held[voice];
 
         if (held == 0xff) {
-            SNDS.voice_sequence[voice].off = 0;
-            SNDS.voice_sequence[voice].seg = 0;
+            SNDS.voice_sequence[voice] = FAR_NULL;
         } else {
-            SNDS.voice_sequence[voice].off = SNDS.playing[held >> 4].off;
-            SNDS.voice_sequence[voice].seg = SNDS.playing[held >> 4].seg;
+            SNDS.voice_sequence[voice] = SNDS.playing[held >> 4];
         }
     }
 
@@ -989,7 +979,7 @@ void advance_volume_ramp(uint16_t es, uint16_t bx, uint16_t seq_slot)
     rec[0x163] = 0;
 
     if ((rec[0x160] & 0x80) != 0) {
-        remove_sequence(es, bx);
+        remove_sequence((struct sequence *)(void *)MK_FP(es, bx));
         SNDS.voices_changed = 1;
     }
 }
@@ -1243,7 +1233,7 @@ void drop_unless_polled(uint16_t es, uint16_t bx)
             && SNDS.polled[si / 4].seg == es)
             return;
 
-    remove_sequence(es, bx);
+    remove_sequence((struct sequence *)(void *)MK_FP(es, bx));
     SNDS.voices_changed = 1;
 }
 
@@ -1282,9 +1272,8 @@ void poll_sequences(void)
     int16_t si;
 
     for (si = 0; si < 0x40; si += 4) {
-        /* The entry as it lies, for `remove_sequence`, which matches pairs. */
-        struct far_ptr entry = SNDS.polled[si / 4];
-        struct sequence *rec = (struct sequence *)(void *)MK_FP(entry.seg, entry.off);
+        struct sequence *rec = (struct sequence *)(void *)MK_FP(SNDS.polled[si / 4].seg,
+                                                                SNDS.polled[si / 4].off);
         uint16_t answer;
         struct far_ptr seq;
         uint8_t cl;
@@ -1354,7 +1343,7 @@ void poll_sequences(void)
 
         if ((uint8_t)answer != 0) {
             rec->poll = 0;
-            remove_sequence(entry.seg, entry.off);
+            remove_sequence(rec);
             SNDS.voices_changed = 1;
         }
     }
@@ -1558,7 +1547,7 @@ finished:
     }
 
     if (rec[0x15a] == 0 && rec[0x15d] == 0) {
-        remove_sequence(es, bx);
+        remove_sequence((struct sequence *)(void *)MK_FP(es, bx));
         SNDS.voices_changed = 1;
         return;
     }

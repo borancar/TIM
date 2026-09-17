@@ -7852,8 +7852,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     uint16_t off = DG4E4E.shape_free.off, seg = DG4E4E.shape_free.seg;
 
     /* Pop from the free list, push onto the used list. */
-    DG4E4E.shape_free.seg = FARU16(seg, off + 2);
-    DG4E4E.shape_free.off = FARU16(seg, off);
+    DG4E4E.shape_free = *(const struct far_ptr *)(void *)MK_FP(seg, off);
     FARU16(seg, off + 2) = DG4E4E.shapes_tail_ptr;
     FARU16(seg, off) = DG4E4E.shapes_ptr;
     DG4E4E.shapes_tail_ptr = seg;
@@ -8019,8 +8018,7 @@ void replay_shapes(void)
 
         FARU16(cs, (uint16_t)(co + 2)) = DG4E4E.shape_free.seg;
         FARU16(cs, co) = DG4E4E.shape_free.off;
-        DG4E4E.shape_free.seg = cs;
-        DG4E4E.shape_free.off = co;
+        DG4E4E.shape_free = (struct far_ptr){ co, cs };
     }
 }
 
@@ -12232,8 +12230,7 @@ uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
 void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h, uint16_t mode)
 {
-    hdr->data.seg = (uint16_t)(hdr->data.seg + (hdr->data.off >> 4));
-    hdr->data.off = (uint16_t)(hdr->data.off & 0x0f);
+    hdr->data = far_normalise_rev(hdr->data);
 
     switch (hdr->mask_off) {
     case 0xfffd:

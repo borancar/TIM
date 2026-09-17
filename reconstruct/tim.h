@@ -344,7 +344,7 @@ void drop_unless_polled(uint16_t es, uint16_t bx);  /* 0x27b52 */
 void poll_sequences(void);                          /* 0x27b7e */
 
 /* Take a sequence out of the playing table and stop it. */
-void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
+void remove_sequence(struct sequence far * seq);    /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
 uint16_t sound_callback(uint16_t ax, union sound_module_args * si); /* 0x292a1 */

@@ -724,8 +724,7 @@ ROUTINES = {
         regs=["es", "ax"],
         near=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.remove_sequence(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.remove_sequence(farp(lib, a[1], a[0])),
     ),
     # **Both arguments are on the stack**, at [bp+6] and [bp+8]: the function
     # number for the loaded module and a pointer to the block it reads through

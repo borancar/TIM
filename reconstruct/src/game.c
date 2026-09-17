@@ -6997,8 +6997,9 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
             GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
 
-        GAME_PICKER_TEXT.text_start.seg = GAME_PICKER_TEXT.block.seg;
-        GAME_PICKER_TEXT.text_start.off = (uint16_t)(GAME_PICKER_TEXT.block.off + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
+        GAME_PICKER_TEXT.text_start = (struct far_ptr){
+            (uint16_t)(GAME_PICKER_TEXT.block.off + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d)),
+            GAME_PICKER_TEXT.block.seg };
     }
 
     fill_file_listing(pattern);

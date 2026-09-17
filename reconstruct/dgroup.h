@@ -278,9 +278,8 @@ struct far_ptr_rev {
  */
 static inline struct far_ptr far_normalise(struct far_ptr p)
 {
-    p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
-    p.off = (dg_near_t)(p.off & 0x0f);
-    return p;
+    return (struct far_ptr){ (dg_near_t)(p.off & 0x0f),
+                             (dg_seg_t)(p.seg + (p.off >> 4)) };
 }
 
 /*
@@ -299,9 +298,8 @@ static inline struct far_ptr far_of(const uint8_t *p)
 /* The same, for the one record that stores the pair segment-first. */
 static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
 {
-    p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
-    p.off = (dg_near_t)(p.off & 0x0f);
-    return p;
+    return (struct far_ptr_rev){ (dg_seg_t)(p.seg + (p.off >> 4)),
+                                 (dg_near_t)(p.off & 0x0f) };
 }
 
 /*
@@ -472,11 +470,8 @@ static inline dg_near_t dg_near(const void *base, const void *p)
  */
 static inline struct far_ptr dg_far(const void *base, const void *p)
 {
-    struct far_ptr f;
-
-    f.off = dg_near(base, p);
-    f.seg = (dg_seg_t)((uint32_t)((const uint8_t *)base - guest_mem) >> 4);
-    return f;
+    return (struct far_ptr){ dg_near(base, p),
+                             (dg_seg_t)((uint32_t)((const uint8_t *)base - guest_mem) >> 4) };
 }
 
 /*
