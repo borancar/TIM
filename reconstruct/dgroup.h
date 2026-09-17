@@ -1044,8 +1044,14 @@ struct dg_4a82 {
     struct far_ptr records;       /* +0x06  the record list start_sound
                                             walks by hand */
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
-    struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
-                                            is a relocation */
+    /* **Two timer handles, not a far pointer.** `timer_add_callback` answers a
+       slot number, and these are the two the sound module holds - the
+       sequencer's tick at SNDCS:0x193e and the loaded module's at
+       IMAGE_BASE:0xbba6. They are set, tested and dropped one at a time and
+       are never paired into an address; the field was a `struct far_ptr`
+       until 2026-09-18, which said the opposite of what the code does. */
+    int16_t   tick_handle;        /* +0x0c  the sequencer's */
+    int16_t   module_handle;      /* +0x0e  the loaded module's */
     dg_near_t bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
                                             what a voice's +0x15c and +0x15d
                                             come out of */
@@ -1077,7 +1083,8 @@ DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
 DG_ASSERT_AT(struct dg_4a82, config,            0x02);
 DG_ASSERT_AT(struct dg_4a82, records,           0x06);
 DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
-DG_ASSERT_AT(struct dg_4a82, tick_cb,       0x0c);
+DG_ASSERT_AT(struct dg_4a82, tick_handle,       0x0c);
+DG_ASSERT_AT(struct dg_4a82, module_handle,     0x0e);
 DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);
 DG_ASSERT_AT(struct dg_4a82, driver,            0x12);
 DG_ASSERT_AT(struct dg_4a82, module,        0x16);
@@ -3554,7 +3561,7 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
 
 /* One of these through the far pointer that reaches it. Not a `DG*` macro:
    they are not in DGROUP. */
-#define NODE(p) ((struct sound_node far *)dg_far_ptr((p)))
+#define SOUND_NODE_PTR(fp) ((struct sound_node *)(void *)dg_far_ptr(fp))
 
 /*
  * ---------------------------------------------------------------------------

@@ -6798,12 +6798,9 @@ void fill_file_listing(const char *pattern)
        a `struct far_ptr *` and the text a plain byte cursor. */
     struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
     /* [bp-8], [bp-6]: into the text. The original keeps the segment fixed
-       while the offset grows, and files the pair into the array at each
-       entry - so what is filed is the cursor's distance from the segment's
-       start beside that segment, not the normalised pair `FP_SEG`/`FP_OFF`
-       would answer. */
+       while the offset grows and files that pair at each entry, which is what
+       `far_stepped` answers - never the normalised pair. */
     uint8_t *txt;
-    uint16_t txt_seg;
     const uint8_t *txt_seg_start;
     const char *want_ext;                  /* [bp+6], rewritten in place */
     char *name;                      /* di */
@@ -6815,16 +6812,15 @@ void fill_file_listing(const char *pattern)
     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
     ptr = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
-    txt_seg = GAME_PICKER_TEXT.text_start.seg;
-    txt_seg_start = MK_FP(txt_seg, 0);
-    txt = MK_FP(txt_seg, GAME_PICKER_TEXT.text_start.off);
+    txt_seg_start = MK_FP(GAME_PICKER_TEXT.text_start.seg, 0);
+    txt = (uint8_t *)txt_seg_start + GAME_PICKER_TEXT.text_start.off;
 
     want_ext = string_chr((char *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
     if (GAME_DIRECTORIES.path_field[3] != 0) {
-        *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
+        *ptr++ = far_stepped(txt_seg_start, txt);
 
         *txt++ = ':';
         *txt++ = 0;
@@ -6842,7 +6838,7 @@ void fill_file_listing(const char *pattern)
             if (string_compare(name, GAME_FILE_STRINGS.dot) != 0
                 && string_compare(name,
                                   GAME_FILE_STRINGS.dot_dot_a) != 0) {
-                *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
+                *ptr++ = far_stepped(txt_seg_start, txt);
                 GAME_PICKER_TEXT.entry_count++;
 
                 *txt++ = '<';
@@ -6858,7 +6854,7 @@ void fill_file_listing(const char *pattern)
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
+            *ptr++ = far_stepped(txt_seg_start, txt);
             GAME_PICKER_TEXT.entry_count++;
 
             n = 0;

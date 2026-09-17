@@ -4621,7 +4621,7 @@ uint16_t load_font(char *name)
     uint16_t opened = 0;                        /* [bp-2]  */
     int16_t handle;                             /* [bp-6]  */
     int16_t failed;                             /* [bp-8]  */
-    struct far_ptr blk = FAR_NULL;              /* [bp-0xa], [bp-0xc] */
+    uint8_t *blk = FAR_NULL_PTR;                /* [bp-0xa], [bp-0xc] */
     uint8_t *p;                                 /* [bp-0xe] */
     int16_t si;
 
@@ -4674,35 +4674,31 @@ uint16_t load_font(char *name)
                          ? 0 : 1;
 
             if (failed == 0) {
-                blk = far_of(dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr);
-                failed = dg_far_ptr(blk) == FAR_NULL_PTR ? 1 : 0;
+                blk = dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr;
+                failed = blk == FAR_NULL_PTR ? 1 : 0;
             }
 
             if (failed == 0)
-                failed = (read_resource(handle, dg_far_ptr(blk),
+                failed = (read_resource(handle, blk,
                                         (uint16_t)size[0]) == size[0])
                          ? 0 : 1;
 
             if (failed == 0) {
                 /* Three pointers into the one block, the offset stepped
                    two bytes and then one per glyph. The segment does not
-                   move, which is why this steps a half rather than the
-                   pair. */
-                ENGINE_FONT_WIDTHS.width[si] = blk;
-
-                blk.off = (uint16_t)(blk.off
-                                     + 2 * VMDS.font_table_70[si]);
-                ENGINE_FONT_SLOTS.slot[si] = blk;
-
-                blk.off = (uint16_t)(blk.off + VMDS.font_table_70[si]);
-                ENGINE_FONTS.body[si] = blk;
+                   move, which is what `far_stepped` files. */
+                ENGINE_FONT_WIDTHS.width[si] = far_of(blk);
+                ENGINE_FONT_SLOTS.slot[si] =
+                    far_stepped(blk, blk + 2 * VMDS.font_table_70[si]);
+                ENGINE_FONTS.body[si] =
+                    far_stepped(blk, blk + 3 * VMDS.font_table_70[si]);
             }
 
             close_resource(handle);
 
             if (failed != 0) {
-                if (dg_far_ptr(blk) != FAR_NULL_PTR)
-                    dos_free_far(dg_far_ptr(blk));
+                if (blk != FAR_NULL_PTR)
+                    dos_free_far(blk);
                 si = 0;
             }
         } else {

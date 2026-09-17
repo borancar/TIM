@@ -2742,7 +2742,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
             len += n;
 
             si = (uint16_t)(si + 6);
-            walk = (const struct sound_node *)(void *)dg_far_ptr(walk->next);
+            walk = SOUND_NODE_PTR(walk->next);
         }
 
         if ((si & 1) != 0)
@@ -2803,7 +2803,7 @@ void free_node_list(struct sound_node far * list)
     while (list != SOUND_NODE_NONE) {
         struct sound_node *cur = list;
 
-        list = (struct sound_node *)(void *)dg_far_ptr(list->next);
+        list = SOUND_NODE_PTR(list->next);
         free_for_kind((uint8_t *)cur, 9);
     }
 }
@@ -3152,7 +3152,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 
     for (;;) {
         prev = cur;
-        cur = (struct sound_node *)(void *)dg_far_ptr(cur->next);
+        cur = SOUND_NODE_PTR(cur->next);
 
         if (cur == SOUND_NODE_NONE)
             break;
@@ -3211,7 +3211,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
             return 0;
 
         data += len;
-        list = (const struct sound_node *)(void *)dg_far_ptr(list->next);
+        list = SOUND_NODE_PTR(list->next);
         dir += 6;
     }
 
@@ -3379,7 +3379,7 @@ void stop_sound(void)
     if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR) {
         silence_driver_far(FAR_NULL_PTR);
 
-        if (((int16_t)DG4A82.tick_cb.off) == 0) {
+        if (((int16_t)DG4A82.tick_handle) == 0) {
             sound_service();
             sound_service();
         } else {
@@ -3671,6 +3671,11 @@ uint16_t open_sound_file(char *name, int16_t id)
     uint32_t found = 0;
     uint32_t size;               /* [bp-8]:[bp-6], one long */
     const uint8_t *cur = NULL;   /* [bp-0xc]:[bp-0xa], six bytes an entry */
+    /* The directory block itself. The original reloads `les bx,[0x4a98]`
+       before each of the ten reads below; nothing changes it in between, and
+       the `goto search` above skips the allocation, so it is taken again at
+       that label. */
+    uint8_t *dir;
     int16_t si;
     uint16_t r = 0;
 
@@ -3702,50 +3707,37 @@ uint16_t open_sound_file(char *name, int16_t id)
     if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
 
-    {
-        /* `size + 4` as one long; the original adds the low word and carries
-           into the high one by hand. */
-        struct far_ptr p = far_of(alloc_for_kind(size + 4, 0xa));
-
-        DG4A82.directory = p;
-        if (dg_far_ptr(p) == FAR_NULL_PTR)
-            goto fail;
-    }
-
-    if (fread_huge(MK_FP(DG4A82.directory.seg,
-                         (uint16_t)(DG4A82.directory.off + 4)),
-                   size, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
+    /* `size + 4` as one long; the original adds the low word and carries
+       into the high one by hand. */
+    dir = alloc_for_kind(size + 4, 0xa);
+    DG4A82.directory = far_of(dir);
+    if (dir == FAR_NULL_PTR)
         goto fail;
 
-    if (*(uint16_t *)MK_FP(DG4A82.directory.seg,
-                             (uint16_t)(DG4A82.directory.off + 4)) != 2)
+    if (fread_huge(dir + 4, size, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
-    {
-        uint8_t *hdr = dg_far_ptr(DG4A82.directory);
+    if (*(uint16_t *)(void *)(dir + 4) != 2)
+        goto fail;
 
-        *(uint16_t *)(hdr + 2) = DG4A82.directory.seg;
-        *(uint16_t *)hdr = (uint16_t)(DG4A82.directory.off + 9);
-    }
+    /* The cursor the search reads back, filed in the block's own first four
+       bytes: this block's segment beside its ninth byte. */
+    *(struct far_ptr *)(void *)dir = far_stepped(dir, dir + 9);
 
 search:
+    dir = dg_far_ptr(DG4A82.directory);
     if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE) {
         r = DG4A82.file_ptr;
         goto out;
     }
 
-    {
-        const uint8_t *hdr = dg_far_ptr(DG4A82.directory);
-
-        cur = MK_FP(*(uint16_t *)(hdr + 2), *(uint16_t *)hdr);
-    }
+    cur = dg_far_ptr(*(const struct far_ptr *)(const void *)dir);
 
     if (id > 0) {
         for (si = 0; ; si++) {
-            const uint8_t *hdr = dg_far_ptr(DG4A82.directory);
             const uint8_t *e;
 
-            if (*(int16_t *)(hdr + 6) <= si)
+            if (*(int16_t *)(void *)(dir + 6) <= si)
                 break;
 
             e = cur;
@@ -3769,9 +3761,7 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr),
-                             *MK_FP(DG4A82.directory.seg,
-                                      (uint16_t)(DG4A82.directory.off + 8)));
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir[8]);
             if (ok == 0)
                 goto out;
         }
@@ -3781,10 +3771,9 @@ search:
     }
 
     for (si = 0; ; si++) {
-        const uint8_t *hdr = dg_far_ptr(DG4A82.directory);
         const uint8_t *e;
 
-        if (*(int16_t *)(hdr + 6) <= si)
+        if (*(int16_t *)(void *)(dir + 6) <= si)
             break;
 
         e = cur;
@@ -3800,9 +3789,7 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr),
-                             *MK_FP(DG4A82.directory.seg,
-                                      (uint16_t)(DG4A82.directory.off + 8)));
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir[8]);
             if (ok == 0)
                 goto fail;
         }
@@ -4062,16 +4049,16 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0) {
-        DG4A82.tick_cb.off = (int16_t)timer_add_callback((struct far_ptr){ 0x193e,
+        DG4A82.tick_handle = (int16_t)timer_add_callback((struct far_ptr){ 0x193e,
                                        (uint16_t)(SNDCS >> 4) }, 4);
-        if (DG4A82.tick_cb.off == 0 && si != 0)
+        if (DG4A82.tick_handle == 0 && si != 0)
             return 0;
     } else if (si != 0) {
         return 0;
     }
 
     if (si != 0 && (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR))
-        DG4A82.tick_cb.seg = (int16_t)timer_add_callback((struct far_ptr){ 0xbba6,
+        DG4A82.module_handle = (int16_t)timer_add_callback((struct far_ptr){ 0xbba6,
                                        (uint16_t)(IMAGE_BASE >> 4) },
                                        2);
 
@@ -4108,14 +4095,14 @@ void shutdown_sound(void)
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
-    if (((int16_t)DG4A82.tick_cb.off) != 0) {
-        timer_drop_callback(DG4A82.tick_cb.off);
-        DG4A82.tick_cb.off = 0;
+    if (((int16_t)DG4A82.tick_handle) != 0) {
+        timer_drop_callback(DG4A82.tick_handle);
+        DG4A82.tick_handle = 0;
     }
 
-    if (((int16_t)DG4A82.tick_cb.seg) != 0) {
-        timer_drop_callback(DG4A82.tick_cb.seg);
-        DG4A82.tick_cb.seg = 0;
+    if (((int16_t)DG4A82.module_handle) != 0) {
+        timer_drop_callback(DG4A82.module_handle);
+        DG4A82.module_handle = 0;
     }
 
     if (((int16_t)DG4A82.timer_taken) != 0) {
