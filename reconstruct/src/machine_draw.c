@@ -180,7 +180,7 @@ struct part *make_part(uint16_t kind)
     part->word_8e = 0xffff;
     part->word_94 = PART_TEMPLATES[kind].init.off;
 
-    if (!far_eq(PART_TEMPLATES[kind].init, FAR_NULL)
+    if (dg_far_ptr(PART_TEMPLATES[kind].init) != FAR_NULL_PTR
         && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
         failed = 1;
         goto done;

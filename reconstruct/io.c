@@ -1615,7 +1615,7 @@ void call_bitmap_plot(struct far_ptr h, int16_t x, int16_t y, int16_t colour)
         (void)plot_pixel_clipped(x, y, colour);
         return;
     }
-    if (far_eq(h, DG4342.font[22])) {
+    if (dg_far_ptr(h) == dg_far_ptr(DG4342.font[22])) {
         (void)vm_plot_pixel(x, y, (uint8_t)colour);
         return;
     }

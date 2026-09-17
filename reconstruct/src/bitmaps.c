@@ -1077,7 +1077,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     }
 
 no_block:
-    if (far_eq(DG3576.scratch, FAR_NULL))
+    if (dg_far_ptr(DG3576.scratch) == FAR_NULL_PTR)
         goto done;
     if (largest > 0x3ab4)
         goto done;

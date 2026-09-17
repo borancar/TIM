@@ -6923,12 +6923,13 @@ void sort_file_listing(void)
 
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
-        if (!far_eq(p[0], FAR_NULL)) {
+        if (dg_far_ptr(p[0]) != FAR_NULL_PTR) {
             if (*dg_far_ptr(p[0]) == ':')
                 p++;
         }
 
-        while (!far_eq(p[0], FAR_NULL) && !far_eq(p[1], FAR_NULL)) {
+        while (dg_far_ptr(p[0]) != FAR_NULL_PTR
+               && dg_far_ptr(p[1]) != FAR_NULL_PTR) {
             /* The pairs are swapped as they are; the names are read through. */
             struct far_ptr a = p[0];
             struct far_ptr b = p[1];

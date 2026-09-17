@@ -330,19 +330,17 @@ static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
 }
 
 /*
- * **Are these the same far pointer?** The two *words*, which is what the
- * original compares - not the linear address, since many `seg:off` pairs
- * reach the same byte and the game never normalises before testing.
- */
-static inline int far_eq(struct far_ptr a, struct far_ptr b)
-{
-    return a.off == b.off && a.seg == b.seg;
-}
-
-/*
  * **The null far pointer**, 0000:0000. The game tests for it as
  * `(off | seg) == 0` - one `or` and a branch, which is the same question as
- * both halves being zero and is what `far_eq(p, FAR_NULL)` asks.
+ * both halves being zero, and the port asks it as
+ * `dg_far_ptr(p) == FAR_NULL_PTR`.
+ *
+ * **There was a `far_eq` here, comparing the two words**, and it was retired
+ * on 2026-09-18 when every one of its 44 call sites became a pointer
+ * comparison. The two are the same test wherever the pairs being compared were
+ * filed the same way, which is every one of them: a record's own block, or a
+ * pair copied from one table to another. Where an *exact* pair matters it is a
+ * store, not a comparison, and `far_stepped` files those.
  *
  * Note that this is *not* a C null pointer: 0000:0000 is a real address in the
  * guest, the first byte of `guest_mem`, which is why `draw_string_body`'s
@@ -3200,7 +3198,7 @@ struct region {
     uint16_t  cursor;          /* +0x0e  which cursor while the pointer is in it */
     uint16_t  code;            /* +0x10  written into the state word on a click */
     /* Two far *code* pointers, and both are tested `(off | seg) != 0` -
-       which is `far_eq(h, FAR_NULL)` and not a null-pointer test. */
+       which is `dg_far_ptr(h) != FAR_NULL_PTR` and not a C null test. */
     struct far_ptr hover;      /* +0x12  called whenever the pointer is
                                          inside */
     struct far_ptr click;      /* +0x16  and this one on the click itself */

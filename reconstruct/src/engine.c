@@ -2817,7 +2817,7 @@ uint8_t far *load_palette(char *name)
 
     di = 1;
     for (;;) {
-        if (far_eq(VMDS.palettes.blocks[di], FAR_NULL))
+        if (dg_far_ptr(VMDS.palettes.blocks[di]) == FAR_NULL_PTR)
             break;
         if (di >= 0xa)
             break;
@@ -2909,7 +2909,8 @@ uint8_t far *set_palette_pointer(uint8_t far * h)
 
     ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[idx];
 
-    if (far_eq(VMDS.palettes.blocks[0], FAR_NULL) && ENGINE_PEN.word_4464 != 0) {
+    if (dg_far_ptr(VMDS.palettes.blocks[0]) == FAR_NULL_PTR
+        && ENGINE_PEN.word_4464 != 0) {
         int16_t bytes = (int16_t)(ENGINE_PEN.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
@@ -3866,12 +3867,12 @@ uint16_t set_font(int16_t slot)
         struct far_ptr cur = ENGINE_FONTS.body[0];
 
         /* 0000:0000, which is the guest's first byte and not a C null. */
-        if (far_eq(cur, FAR_NULL))
+        if (dg_far_ptr(cur) == FAR_NULL_PTR)
             return 0;
 
         /* Which slot holds the same pointer as slot 0. */
         for (di = 1; di < 0x14; di++)
-            if (far_eq(ENGINE_FONTS.body[di], cur))
+            if (dg_far_ptr(ENGINE_FONTS.body[di]) == dg_far_ptr(cur))
                 break;
 
         return (uint16_t)di;
@@ -4322,7 +4323,7 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
     ENGINE_MOUSE.mouse_x = x;
     ENGINE_MOUSE.mouse_y = y;
 
-    if (far_eq(ENGINE_MOUSE.mouse_handler_fn, FAR_NULL))
+    if (dg_far_ptr(ENGINE_MOUSE.mouse_handler_fn) == FAR_NULL_PTR)
         return;
 
     mouse_save_vga();
@@ -4624,7 +4625,7 @@ uint16_t load_font(char *name)
 
     si = 2;
     for (;;) {
-        if (far_eq(ENGINE_FONTS.body[si], FAR_NULL))
+        if (dg_far_ptr(ENGINE_FONTS.body[si]) == FAR_NULL_PTR)
             break;
         if (si >= 0x14)
             break;
@@ -4672,7 +4673,7 @@ uint16_t load_font(char *name)
 
             if (failed == 0) {
                 blk = far_of(dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr);
-                failed = far_eq(blk, FAR_NULL) ? 1 : 0;
+                failed = dg_far_ptr(blk) == FAR_NULL_PTR ? 1 : 0;
             }
 
             if (failed == 0)
@@ -4698,7 +4699,7 @@ uint16_t load_font(char *name)
             close_resource(handle);
 
             if (failed != 0) {
-                if (!far_eq(blk, FAR_NULL))
+                if (dg_far_ptr(blk) != FAR_NULL_PTR)
                     dos_free_far(dg_far_ptr(blk));
                 si = 0;
             }
@@ -4828,7 +4829,7 @@ struct bmp_set *load_bitmap_list(char *name)
         tmp = dos_alloc_bytes(n, 0, 0).ptr;
     }
 
-    if (far_eq(DG3576.scratch, FAR_NULL)) {
+    if (dg_far_ptr(DG3576.scratch) == FAR_NULL_PTR) {
         scratch = heap_malloc_far(0x3cc4);
         if (scratch != NULL) {
             heap_free_far(scratch);
@@ -5768,7 +5769,8 @@ void close_table_618a_slot(int16_t index)
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (far_eq(ENGINE_FONTS.body[index], ENGINE_FONTS.body[0])) {
+    if (dg_far_ptr(ENGINE_FONTS.body[index])
+        == dg_far_ptr(ENGINE_FONTS.body[0])) {
         ENGINE_FONT_KINDS.kind[0] = 0;
         VMDS.font_table_70[0] = 0;
         VMDS.font_table_5c[0] = 0;
@@ -5781,7 +5783,7 @@ void close_table_618a_slot(int16_t index)
         ENGINE_FONTS.body[0]   = FAR_NULL;
     }
 
-    if (!far_eq(ENGINE_FONT_WIDTHS.width[index], FAR_NULL))
+    if (dg_far_ptr(ENGINE_FONT_WIDTHS.width[index]) != FAR_NULL_PTR)
         dos_free_far(dg_far_ptr(ENGINE_FONT_WIDTHS.width[index]));
     else
         heap_free_far(dg_near_ptr(ENGINE_FONTS.body[index].off));
@@ -6182,7 +6184,7 @@ uint16_t table_618a_in_use(int16_t index)
     if (index <= 0 || index >= 0x14)
         return 0;
 
-    if (far_eq(ENGINE_FONTS.body[index], FAR_NULL))
+    if (dg_far_ptr(ENGINE_FONTS.body[index]) == FAR_NULL_PTR)
         return 0;
 
     return 1;
@@ -6449,7 +6451,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 
             index = (int16_t)(*str - VMDS.font_table_5c[0]);
 
-            if (!far_eq(ENGINE_FONT_WIDTHS.width[0], FAR_NULL)) {
+            if (dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]) != FAR_NULL_PTR) {
                 /* Far pointers, as in `draw_char`; see the note there. */
                 w = FAR8(ENGINE_FONT_SLOTS.slot[0].seg, (uint16_t)(ENGINE_FONT_SLOTS.slot[0].off + index));
                 h = VMDS.font_table_48[0];
@@ -6920,7 +6922,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.screen.screen_width = 0x140;
     VMDS.screen.screen_height = 0xc8;
 
-    if (!far_eq(VMDS.palettes.blocks[0], FAR_NULL)) {
+    if (dg_far_ptr(VMDS.palettes.blocks[0]) != FAR_NULL_PTR) {
         dos_free_far(dg_far_ptr(VMDS.palettes.blocks[0]));
         VMDS.palettes.blocks[0] = FAR_NULL;
     }

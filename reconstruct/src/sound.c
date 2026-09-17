@@ -642,7 +642,7 @@ void sequencer_tick(void)
             goto next_sequence;
 
         if (rec->poll != 0) {
-            if (!far_eq(SNDS.polled[0], FAR_NULL))
+            if (dg_far_ptr(SNDS.polled[0]) != FAR_NULL_PTR)
                 goto next_sequence;
             SNDS.polled[0] = SNDS.playing[seq / 4];
             goto next_sequence;
@@ -818,7 +818,8 @@ next_sequence:
 
             d = SNDS.voice_lo;
             for (;;) {
-                if (far_eq(SNDS.voice_sequence[d], SNDS.playing[want >> 4])
+                if (dg_far_ptr(SNDS.voice_sequence[d])
+                        == dg_far_ptr(SNDS.playing[want >> 4])
                     && SNDS.voice_channel[d] == al) {
                     if (SNDS.voice_keep_own[d] == 0) {
                         SNDS.voice_held[d] = SNDS.voice_request[voice];
@@ -842,7 +843,8 @@ next_sequence:
             al = (uint8_t)(want & 0xf);
 
             if (SNDS.voice_channel[voice] == al
-                && far_eq(SNDS.voice_sequence[voice], SNDS.playing[want >> 4]))
+                && dg_far_ptr(SNDS.voice_sequence[voice])
+                       == dg_far_ptr(SNDS.playing[want >> 4]))
                 continue;
 
             tick_program_voice(SEQUENCE_PTR(SNDS.playing[want >> 4]),
@@ -2238,7 +2240,7 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
     CHUNK2.ssm_000[5] = (uint8_t)(((n / 10) % 10) + 0x30);
     CHUNK2.ssm_000[6] = (uint8_t)((n % 10) + 0x30);
 
-    if (!far_eq(DG4A82.config, FAR_NULL))
+    if (dg_far_ptr(DG4A82.config) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.config), 1);
 
     {
@@ -2257,7 +2259,7 @@ out:
             di = 0;
     }
 
-    if (!far_eq(DG4A82.config, FAR_NULL)) {
+    if (dg_far_ptr(DG4A82.config) != FAR_NULL_PTR) {
         free_for_kind(dg_far_ptr(DG4A82.config), 1);
         DG4A82.config = FAR_NULL;
     }
@@ -2432,7 +2434,7 @@ uint16_t alloc_voice_records(void)
 {
     int16_t i;
 
-    if (!far_eq(SOUND_VOICES.voice[0], FAR_NULL))
+    if (dg_far_ptr(SOUND_VOICES.voice[0]) != FAR_NULL_PTR)
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -2822,7 +2824,7 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (far_eq(SOUND_VOICES.voice[0], FAR_NULL))
+    if (dg_far_ptr(SOUND_VOICES.voice[0]) == FAR_NULL_PTR)
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -3374,7 +3376,7 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
  */
 void stop_sound(void)
 {
-    if (!far_eq(DG4A82.driver, FAR_NULL)) {
+    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR) {
         silence_driver_far(FAR_NULL_PTR);
 
         if (((int16_t)DG4A82.tick_cb.off) == 0) {
@@ -3385,16 +3387,16 @@ void stop_sound(void)
         }
     }
 
-    if (!far_eq(DG4A82.module, FAR_NULL)) {
+    if (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR) {
         stop_loaded_module();
     }
 
-    if (!far_eq(DG4A82.driver, FAR_NULL)) {
+    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR) {
         free_for_kind(dg_far_ptr(DG4A82.driver), 1);
         DG4A82.driver = FAR_NULL;
     }
 
-    if (!far_eq(DG4A82.module, FAR_NULL)) {
+    if (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR) {
         free_for_kind(dg_far_ptr(DG4A82.module), 1);
         DG4A82.module = FAR_NULL;
     }
@@ -3569,7 +3571,7 @@ uint16_t stop_sequences(int16_t selector)
 
             rec->flags &= 0xffef;
 
-            if (!far_eq(rec->sequence, FAR_NULL)) {
+            if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR) {
                 struct sequence *v = SEQUENCE_PTR(rec->sequence);
 
                 follow_then_tick(v, 0);
@@ -3615,7 +3617,7 @@ uint16_t stop_sequences(int16_t selector)
         return 1;
     }
 
-    if (!far_eq(rec->sequence, FAR_NULL)) {
+    if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR) {
         struct sequence *v = SEQUENCE_PTR(rec->sequence);
 
         follow_then_tick(v, 0);
@@ -3697,7 +3699,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
-    if (!far_eq(DG4A82.directory, FAR_NULL))
+    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
 
     {
@@ -3706,7 +3708,7 @@ uint16_t open_sound_file(char *name, int16_t id)
         struct far_ptr p = far_of(alloc_for_kind(size + 4, 0xa));
 
         DG4A82.directory = p;
-        if (far_eq(p, FAR_NULL))
+        if (dg_far_ptr(p) == FAR_NULL_PTR)
             goto fail;
     }
 
@@ -3815,7 +3817,7 @@ fail:
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
-    if (!far_eq(DG4A82.directory, FAR_NULL))
+    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
 
     remove_and_free_records(0);
@@ -3979,7 +3981,7 @@ struct sound_record far *next_matching_record(int16_t selector)
     if (selector != -3) {
         SOUND_TICK_WAIT.selector = selector;
         SOUND_TICK_WAIT.cursor = DG4A82.records;
-    } else if (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
+    } else if (dg_far_ptr(SOUND_TICK_WAIT.cursor) != FAR_NULL_PTR) {
         SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
     }
 
@@ -4007,7 +4009,7 @@ struct sound_record far *next_matching_record(int16_t selector)
         return SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor);
     }
 
-    while (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
+    while (dg_far_ptr(SOUND_TICK_WAIT.cursor) != FAR_NULL_PTR) {
         if ((((int16_t)SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->flags & mask) ^ expect) != 0)
             break;
         SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
@@ -4042,8 +4044,8 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (!far_eq(DG4A82.driver, FAR_NULL)
-        || !far_eq(DG4A82.module, FAR_NULL))
+    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR
+        || dg_far_ptr(DG4A82.module) != FAR_NULL_PTR)
         return 1;
 
     if (device == -1) {
@@ -4068,7 +4070,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
         return 0;
     }
 
-    if (si != 0 && (!far_eq(DG4A82.module, FAR_NULL)))
+    if (si != 0 && (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR))
         DG4A82.tick_cb.seg = (int16_t)timer_add_callback((struct far_ptr){ 0xbba6,
                                        (uint16_t)(IMAGE_BASE >> 4) },
                                        2);
@@ -4100,7 +4102,7 @@ void shutdown_sound(void)
 
     remove_and_free_records(0);
 
-    if (!far_eq(DG4A82.directory, FAR_NULL))
+    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
 
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
