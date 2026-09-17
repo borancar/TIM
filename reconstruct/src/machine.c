@@ -11922,7 +11922,7 @@ void redraw_cursor_all(void)
     }
 
     if ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) != 0) {
-        set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
+        set_palette_pointer(MK_FP(MACHINE_CURSOR_STATE.pending_pal.seg, MACHINE_CURSOR_STATE.pending_pal.off));
         MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
         MACHINE_CURSOR_STATE.pending_pal = FAR_NULL;
         MACHINE_PALETTE_FADE.fade_mark = 0;

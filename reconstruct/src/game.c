@@ -793,7 +793,7 @@ void game_startup(void)
         struct far_ptr black = load_palette(GAME_STARTUP_NAMES.black_pal);  /* "black.pal"  */
 
         DG52BD.pal_black_ptr = black;
-        set_palette_pointer(black);
+        set_palette_pointer(MK_FP(black.seg, black.off));
     }
 
     DG52BD.word_52df = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
@@ -901,7 +901,7 @@ uint16_t game_intro(void)
 
     TIMER.frame_budget = 0x2710;
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
 
     bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
@@ -923,7 +923,7 @@ uint16_t game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_front_ptr;
             clear_flag_2d44_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
-            set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
+            set_palette_pointer(MK_FP(DG52BD.pal_sierra_ptr.seg, DG52BD.pal_sierra_ptr.off));  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(TIMER.frame_budget + 0xff88);
             step = &GAME_INTRO_STEPS.step[0];
@@ -997,7 +997,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
 
     VMDS.page_front_ptr = 0xa000;
     VMDS.page_back_ptr = 0xa820;
@@ -1088,7 +1088,7 @@ uint16_t game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(DG52ED.pal_tim_ptr);  /* tim.pal */
+                set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));  /* tim.pal */
 
             if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
             if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
@@ -1141,7 +1141,7 @@ uint16_t game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(MK_FP(DG52BD.pal_black_ptr.seg, DG52BD.pal_black_ptr.off));      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(gkc->bmp_ptr);
@@ -1309,7 +1309,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     VMDS.page_src_ptr = VMDS.page_front_ptr;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(DG52ED.pal_tim_ptr);
+    set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
     show_cursor_again();
 
     done = 0;
@@ -5027,7 +5027,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(DG52ED.pal_tim_ptr);
+    set_palette_pointer(MK_FP(DG52ED.pal_tim_ptr.seg, DG52ED.pal_tim_ptr.off));
     show_cursor_again();
 
     while (s.done == 0) {

@@ -2909,7 +2909,7 @@ struct far_ptr load_palette(char *name)
  * The pointer is passed and answered offset-first, in AX, with the segment in
  * DX - the usual far-pointer convention here.
  */
-struct far_ptr set_palette_pointer(struct far_ptr h)
+struct far_ptr set_palette_pointer(const uint8_t far * h)
 {
     int16_t idx = VMDS.pixel_shift;
 
@@ -2924,12 +2924,12 @@ struct far_ptr set_palette_pointer(struct far_ptr h)
         VMDS.palettes.blocks[0] = p;
     }
 
-    if (far_eq(h, FAR_NULL))
+    if (h == MK_FP(0, 0))
         return PALCHUNK.palette_ptr;
 
-    PALCHUNK.palette_ptr = h;
-    vm_load_palette(MK_FP(h.seg, h.off));
-    return h;
+    PALCHUNK.palette_ptr = far_of(h);
+    vm_load_palette(h);
+    return PALCHUNK.palette_ptr;
 }
 
 /*
@@ -3047,7 +3047,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
     uint8_t scratch[320];   /* [bp-0x158] */
     uint8_t vb2;       /* [bp-0x18] */
     uint8_t vbase;     /* [bp-0x17] */
-    int16_t vpage;     /* [bp-0x16] */
+    uint8_t *vpage;     /* [bp-0x16], the page, as the aperture address of its row 0 */
     int16_t vrow;      /* [bp-0x14] */
     uint8_t vclip;     /* [bp-0x12] */
     uint8_t vrowok;    /* [bp-0x11] */
@@ -3062,7 +3062,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
     int16_t vx2;       /* [bp-0x0c] */
     int16_t vstep;     /* [bp-0x0a] */
     int16_t vskip;     /* [bp-8] */
-    int16_t vsrc[2];      /* [bp-6], offset then segment */
+    const uint8_t *vsrc;      /* [bp-6], the source; the original steps the offset alone */
     uint8_t vn;        /* [bp-2] */
     uint8_t vop;       /* [bp-1] */
 
@@ -3072,7 +3072,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
      * is set, and the port keeps the guard so that a build whose 0x3f72 is
      * clear is not silently different.
      */
-    vpage = (int16_t)VMDS.page_dst_ptr;
+    vpage = MK_FP(VMDS.page_dst_ptr, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
 
@@ -3102,15 +3102,14 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
         vrow = (int16_t)VMDS.row_offset[y];
     }
 
-    vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
-    vsrc[0] = (int16_t)bmp->data.off;              /* the offset */
+    vsrc = MK_FP(bmp->data.seg, bmp->data.off);
 
-    vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-    vsrc[0]++;
+    vbase = *vsrc;
+    vsrc++;
 
     for (;;) {
-        vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-        vsrc[0]++;
+        vop = *vsrc;
+        vsrc++;
 
         if ((vop & 0x80) == 0) {
             /* 0x2058b - a move, or the end of a row. */
@@ -3147,7 +3146,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
              * shifted up by six; anything else is left for the loop to read
              * again.
              */
-            vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+            vop = *vsrc;
             if (((int16_t)(int8_t)vop & 0xc0) != 0)
                 continue;
 
@@ -3155,7 +3154,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             if (vskip == 0)
                 continue;
 
-            vsrc[0]++;
+            vsrc++;
             vskip = (int16_t)(vskip << 6);
 
             if (mode & 2)
@@ -3172,8 +3171,8 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             vp = scratch;
 
             while (vop != 0) {
-                vb2 = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-                vsrc[0]++;
+                vb2 = *vsrc;
+                vsrc++;
 
                 *vp = (uint8_t)(((int16_t)vb2 >> 4) + vbase);
                 vp++;
@@ -3220,7 +3219,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                 }
 
                 vm_blit_run((uint16_t)x, vn, vp,
-                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 1);
+                            vpage + (uint16_t)vrow, 1);
                 goto advance;
             }
 
@@ -3254,14 +3253,14 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             }
 
             vm_blit_run((uint16_t)x, vn, vp,
-                        MK_FP((uint16_t)vpage, (uint16_t)vrow), 0);
+                        vpage + (uint16_t)vrow, 0);
             goto advance;
         }
 
         /* 0x20429 - a run of one colour. */
         vop &= 0x3f;
-        vb2 = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-        vsrc[0]++;
+        vb2 = *vsrc;
+        vsrc++;
 
         if (mode & 2) {
             vx2 = (int16_t)(x - (int8_t)vop);
@@ -3294,7 +3293,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
             vm_span((uint16_t)(uint8_t)(vbase + vb2),
                     (uint16_t)(x - vop + 1), vop,
-                    MK_FP((uint16_t)vpage, (uint16_t)vrow));
+                    vpage + (uint16_t)vrow);
             goto advance;
         }
 
@@ -3328,7 +3327,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
         vm_span((uint16_t)(uint8_t)(vb2 + vbase),
                 (uint16_t)x, vop,
-                MK_FP((uint16_t)vpage, (uint16_t)vrow));
+                vpage + (uint16_t)vrow);
 
     advance:
         x = vx2;
@@ -4793,7 +4792,7 @@ uint16_t load_font(char *name)
  */
 struct bmp_set *load_bitmap_list(char *name)
 {
-    struct far_ptr walk;  /* [bp-0xa], [bp-8] - huge_add_to steps it */
+    uint8_t *walk;        /* [bp-0xa], [bp-8] - huge_add_to steps it */
     uint16_t count_at;    /* [bp-0x12] */
     bmp_ptr_t *list_at;   /* [bp-2], the array itself now */
     int16_t size_at;   /* [bp-0x16] */
@@ -4801,8 +4800,9 @@ struct bmp_set *load_bitmap_list(char *name)
     FILE *si = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                        /* [bp-0x18] */
     int16_t kind = 0;                           /* [bp-0x1a] */
-    struct far_ptr blk = FAR_NULL;              /* [bp-4], [bp-6]    */
-    struct far_ptr tmp = FAR_NULL;              /* [bp-0xc], [bp-0xe] */
+    /* DOS blocks, which a null pair - 0000:0000 - says were not had. */
+    uint8_t *blk = MK_FP(0, 0);                 /* [bp-4], [bp-6]    */
+    uint8_t *tmp = MK_FP(0, 0);                 /* [bp-0xc], [bp-0xe] */
     uint8_t *scratch = NULL;                    /* [bp-0x10] */
     uint32_t want;                              /* [bp-0x1e], [bp-0x1c] */
     int16_t got;                                /* [bp-0x14] */
@@ -4826,15 +4826,20 @@ struct bmp_set *load_bitmap_list(char *name)
 
     /* `r` carries a *size* above and an address here; the union is why this
        takes `.ptr` rather than pretending they are one type. */
-    blk = dos_alloc_bytes(want, 0, 0).ptr;
+    {
+        struct far_ptr b = dos_alloc_bytes(want, 0, 0).ptr;
 
-    if (far_eq(blk, FAR_NULL))
+        blk = MK_FP(b.seg, b.off);
+    }
+
+    if (blk == MK_FP(0, 0))
         goto done;
 
     if ((uint16_t)size_at != 0) {
         int32_t n = size_at;              /* the `cwd` sign-extends it */
+        struct far_ptr t = dos_alloc_bytes(n, 0, 0).ptr;
 
-        tmp = dos_alloc_bytes(n, 0, 0).ptr;
+        tmp = MK_FP(t.seg, t.off);
     }
 
     if (far_eq(DG3576.scratch, FAR_NULL)) {
@@ -4863,12 +4868,11 @@ struct bmp_set *load_bitmap_list(char *name)
 
     walk = blk;
 
-    while (read_resource(di, MK_FP(walk.seg, walk.off),
-                         0x7fff) == 0x7fff)
-        huge_add_to(&walk, 0x7fff);
+    while (read_resource(di, walk, 0x7fff) == 0x7fff)
+        walk += 0x7fff;
 
     r = resource_size(di);
-    vm_load_bitmap_list(list_at, MK_FP(blk.seg, blk.off), r);
+    vm_load_bitmap_list(list_at, blk, r);
 
     close_resource(di);
     kind = 1;
@@ -4895,8 +4899,8 @@ struct bmp_set *load_bitmap_list(char *name)
         {
             struct far_ptr t = dos_alloc_bytes(want, 0, 0).ptr;
 
-            tmp = t;
-            if (!far_eq(t, FAR_NULL))
+            tmp = MK_FP(t.seg, t.off);
+            if (tmp != MK_FP(0, 0))
                 break;
         }
         /* Halve the request. The original shifts the high word with `sar`,
@@ -4907,8 +4911,7 @@ struct bmp_set *load_bitmap_list(char *name)
 
     walk = blk;
 
-    while ((got = read_resource(di, MK_FP(tmp.seg, tmp.off),
-                               (uint16_t)want)) > 0) {
+    while ((got = read_resource(di, tmp, (uint16_t)want)) > 0) {
         if (kind == 6) {
             expand_1bpp_to_4bpp(tmp, tmp,
                                 (uint16_t)got);
@@ -4917,14 +4920,14 @@ struct bmp_set *load_bitmap_list(char *name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to(&walk, (int32_t)(want << 1));
+        walk += (int32_t)(want << 1);
     }
 
     close_resource(di);
 
 done:
-    if (huge_equal(tmp.off, tmp.seg, 0, 0) == 0)
-        dos_free_far(tmp);
+    if (tmp != MK_FP(0, 0))
+        dos_free_far(far_of(tmp));
 
     if (scratch != NULL) {
         heap_free_far(scratch);
@@ -4932,8 +4935,8 @@ done:
     }
 
     if (kind == 0) {
-        if (huge_equal(blk.off, blk.seg, 0, 0) == 0)
-            dos_free_far(blk);
+        if (blk != MK_FP(0, 0))
+            dos_free_far(far_of(blk));
 
         if (di != 0)
             close_resource(di);
@@ -5054,39 +5057,31 @@ uint16_t count_list_entries(bmp_ptr_t * list)
  * away.
  *
  * Both far pointers live in the caller's argument slots and are walked in
- * place: `huge_add_to` takes the address *of* the pointer. That used to mean
- * real DGROUP addresses; since it takes a pointer the two slots are a C
- * array.
+ * place: `huge_add_to` takes the address *of* the pointer.
  */
-void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
+void expand_1bpp_to_4bpp(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count)
 {
-    /* Pairs rather than pointers: `huge_add_to` and `huge_sub_from` step both
-       and renormalise as they go, which is the four bytes the original
-       reserves at [bp+6] and [bp+0xa] for exactly that. Taken by value, so
-       the caller's copy is untouched - the original's are its own arguments. */
+    /* Both are huge, stepped through `huge_add_to` and `huge_sub_from` in the
+       original's own argument slots; a pointer steps the same way. */
     int16_t di = (int16_t)count;
 
-    huge_add_to(&src, (uint16_t)(di - 1));
-    huge_add_to(&dst, (uint16_t)(di * 4 - 1));
+    src += (uint16_t)(di - 1);
+    dst += (uint16_t)(di * 4 - 1);
 
     while (di != 0) {
         int16_t byte;
         int16_t si;
 
-        byte = (int16_t)(int8_t)FAR8(src.seg, src.off);
-        huge_sub_from(&src, 1);
+        byte = (int16_t)(int8_t)*src;
+        src--;
 
         for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
-            uint16_t seg = dst.seg;
-            uint16_t off = dst.off;
-
             if ((si & 0xaa) != 0) {
-                FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
-                                           | ((si & byte) ? 0x10 : 0x00));
-                huge_sub_from(&dst, 1);
+                *dst = (uint8_t)(*dst | ((si & byte) ? 0x10 : 0x00));
+                dst--;
             } else {
-                FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
+                *dst = (uint8_t)((si & byte) ? 0x01 : 0x00);
             }
         }
 
@@ -5229,8 +5224,7 @@ uint16_t load_screen_plain(char *name)
         read_resource(res, buf, band);
 
         if (kind == 6)
-            expand_1bpp_to_4bpp(dg_far(dgroup, buf),
-                                dg_far(dgroup, buf), band);
+            expand_1bpp_to_4bpp(buf, buf, band);
 
         blit_rows_alt_thunk();
 
@@ -7648,7 +7642,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 {
     uint8_t scratch[320];                        /* [bp-0x172] */
     int32_t vstep32[2];    /* [bp-0x2a], the accumulator and the step, 16.16 */
-    int16_t vpage;    /* [bp-0x1e] */
+    uint8_t *vpage;    /* [bp-0x1e], the page, as the aperture address of its row 0 */
     int16_t vrow;    /* [bp-0x1c] */
     uint8_t vclip;    /* [bp-0x1a] */
     uint8_t vrowok;    /* [bp-0x19] */
@@ -7660,7 +7654,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     int16_t vx2;    /* [bp-0x14] */
     int16_t vydir;    /* [bp-0x12] */
     int16_t vcol;    /* [bp-0x10] */
-    int16_t vsrc[2];    /* [bp-0xa], offset then seg */
+    const uint8_t *vsrc;    /* [bp-0xa], the source; the original steps the offset alone */
     uint8_t vbase;    /* [bp-0x21] */
     uint8_t vcolour;    /* [bp-0x22] */
     int16_t vn;    /* [bp-4] */
@@ -7669,7 +7663,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     int16_t vxrow;    /* [bp-0x2e] */
     int16_t vcolrow;    /* [bp-0x32] */
     int16_t vrowacc;    /* [bp-0x2c] */
-    int16_t vsrcrow[2];    /* [bp-0xe], the row's start */
+    const uint8_t *vsrcrow;    /* [bp-0xe], the row's start */
     int16_t *vrepeat = &vcut;   /* the same slot as `vcut` */    /* [bp-0x16], reused */
     /*
      * [bp-6], and it has to be its own slot. The skipped-row loop at 0x22d94
@@ -7703,7 +7697,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
      * same reason: a build whose 0x3f72 is clear must not be silently
      * different from one whose is set.
      */
-    vpage = (int16_t)VMDS.page_dst_ptr;
+    vpage = MK_FP(VMDS.page_dst_ptr, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
 
@@ -7770,11 +7764,10 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
         vrow = (int16_t)VMDS.row_offset[y];
     }
 
-    vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
-    vsrc[0] = (int16_t)bmp->data.off;              /* the offset */
+    vsrc = MK_FP(bmp->data.seg, bmp->data.off);
 
-    vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-    vsrc[0]++;
+    vbase = *vsrc;
+    vsrc++;
 
     vx0   = x;
     vxrow = x;
@@ -7782,16 +7775,15 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     vcolrow = 0;
     ENGINE_SCALE_STEP.word_6290 = (uint16_t)ENGINE_SCALE_TABLE.entry[0];
 
-    vsrcrow[0] = (int16_t)vsrc[0];
-    vsrcrow[1] = (int16_t)vsrc[1];
+    vsrcrow = vsrc;
 
     vstep32[0] = 0;
     vstep32[1] = (int32_t)((uint32_t)(uint16_t)(bmp->height - 1) << 16);
     compute_step(vstep32, (int16_t)(h - 1));
 
     for (;;) {
-        vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-        vsrc[0]++;
+        vop = *vsrc;
+        vsrc++;
 
         if ((vop & 0x80) && (vop & 0x40)) {
             /* 0x22997 - a run of nibbles, decoded into the row buffer. */
@@ -7808,8 +7800,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                 while (k-- > 0) {
                     int16_t rel = (int16_t)((int16_t)ENGINE_ROW_OFFSETS.row[col] - first);
                     uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
-                    uint8_t  b = *MK_FP((uint16_t)vsrc[1],
-                                          (uint16_t)((uint16_t)vsrc[0] + byte_at));
+                    uint8_t  b = vsrc[byte_at];
 
                     /*
                      * `shr` puts bit 0 in the carry and `jae` takes the even
@@ -7821,8 +7812,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                     col++;
                 }
 
-                vsrc[0] = (int16_t)((uint16_t)vsrc[0]
-                                         + ((vop + 1) >> 1));
+                vsrc += ((vop + 1) >> 1);
             }
 
             ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
@@ -7857,7 +7847,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
                             vp,
-                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 1);
+                            vpage + (uint16_t)vrow, 1);
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7883,7 +7873,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
                             vp,
-                            MK_FP((uint16_t)vpage, (uint16_t)vrow), 0);
+                            vpage + (uint16_t)vrow, 0);
             }
 
 next_run:
@@ -7897,8 +7887,8 @@ next_run:
             vn = scale_table_delta(vop);
             ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
 
-            vcolour = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-            vsrc[0]++;
+            vcolour = *vsrc;
+            vsrc++;
 
             if (mode & 2) {
                 vx2 = (int16_t)(x - vn);
@@ -7924,7 +7914,7 @@ next_run:
 
                 vm_span((uint16_t)(uint8_t)(vbase + vcolour),
                         (uint16_t)(x - vn + 1), vn,
-                        MK_FP((uint16_t)vpage, (uint16_t)vrow));
+                        vpage + (uint16_t)vrow);
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7949,7 +7939,7 @@ next_run:
 
                 vm_span((uint16_t)(uint8_t)(vcolour + vbase),
                         (uint16_t)x, vn,
-                MK_FP((uint16_t)vpage, (uint16_t)vrow));
+                vpage + (uint16_t)vrow);
             }
 
 next_solid:
@@ -7990,11 +7980,11 @@ next_solid:
          * bits clear is taken here, as a second move of its low six bits
          * shifted up by six.
          */
-        vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vop = *vsrc;
         if ((vop & 0xc0) == 0) {
             vcol = (int16_t)(vop & 0x3f);
             if (vcol != 0) {
-                vsrc[0]++;
+                vsrc++;
                 vcol = (int16_t)(vcol << 6);
                 vn = scale_table_delta(vcol);
                 ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vcol);
@@ -8016,8 +8006,7 @@ next_solid:
              * one, so this source row is not drawn at all: the source pointer,
              * x and the column index all go back to where the row began.
              */
-            vsrc[0] = (int16_t)vsrcrow[0];
-            vsrc[1] = (int16_t)vsrcrow[1];
+            vsrc = vsrcrow;
             x = vxrow;
             ENGINE_SCALE_STEP.base = (uint16_t)vcolrow;
         } else {
@@ -8044,8 +8033,8 @@ next_solid:
              * and the decode walked into the middle of the next row.
              */
             while (vrepeat[0] != 0) {
-                vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
-                vsrc[0]++;
+                vop = *vsrc;
+                vsrc++;
                 vn = (int16_t)(vop & 0x3f);
                 vdelta = scale_table_delta(vn);
                 if (mode & 2)
@@ -8055,10 +8044,9 @@ next_solid:
                     ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vn);
                     x = (int16_t)(x + vdelta);
                     if (vop & 0x40)
-                        vsrc[0] = (int16_t)((uint16_t)vsrc[0]
-                                                 + ((vn + 1) >> 1));
+                        vsrc += ((vn + 1) >> 1);
                     else
-                        vsrc[0]++;
+                        vsrc++;
                 } else if (vop & 0x40) {
                     if (vn == 0)
                         goto done;
@@ -8068,12 +8056,11 @@ next_solid:
                     ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vn);
                     x = (int16_t)(x - vdelta);
 
-                    vop = *MK_FP((uint16_t)vsrc[1],
-                                         (uint16_t)vsrc[0]);
+                    vop = *vsrc;
                     if ((vop & 0xc0) == 0) {
                         vcol = (int16_t)(vop & 0x3f);
                         if (vcol != 0) {
-                            vsrc[0]++;
+                            vsrc++;
                             vcol = (int16_t)(vcol << 6);
                             vn = scale_table_delta(vcol);
                             ENGINE_SCALE_STEP.base =
@@ -8090,8 +8077,7 @@ next_solid:
         }
 
         /* 0x22e73 - the row is finished; remember where the next one begins. */
-        vsrcrow[0] = (int16_t)vsrc[0];
-        vsrcrow[1] = (int16_t)vsrc[1];
+        vsrcrow = vsrc;
         vrowacc = vx2;
         vxrow   = x;
         vcolrow = (int16_t)ENGINE_SCALE_STEP.base;
@@ -8166,7 +8152,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
     int16_t  stride, plane_size;
     int16_t  i, j, row, want;
     uint16_t off, page;
-    struct far_ptr src;
+    const uint8_t *src;
 
     /* A negative size is a mirror, and unlike 0x227ac it does not move the
      * origin back - the tables below are filled backwards instead. */
@@ -8261,7 +8247,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
     }
 
-    src = far_of_rev(bmp->data);
+    src = MK_FP(bmp->data.seg, bmp->data.off);
 
     if (bottom - top > 0 && right - left > 1) {
         /*
@@ -8285,8 +8271,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                 &ENGINE_SCALE_TABLE.entry[cut],
                 VMDS.row_offset[j],
                 page, left, (int16_t)(right - left),
-                MK_FP(src.seg,
-                      (uint16_t)(ENGINE_ROW_OFFSETS.row[j - y] + src.off)));
+                src + ENGINE_ROW_OFFSETS.row[j - y]);
 
         restore_write_mode();
     }
@@ -9308,15 +9293,19 @@ chains:
     {
         int16_t top = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d0 >> 1];
         int16_t bottom = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
-        uint16_t at = (uint16_t)((top << 2) + 0x0c);
+        /* The list starts four words before the first row's pair: the
+           first row and the row count, in the segment below `seg`. */
+        uint8_t *spans = MK_FP((uint16_t)(seg - 1), (uint16_t)((top << 2) + 0x0c));
+        int16_t rows = (int16_t)(bottom - top + 1);
 
         ENGINE_POLYGON_STATE.word_44e2 = seg;
 
-        FAR16((uint16_t)(seg - 1), at) = top;
-        FAR16((uint16_t)(seg - 1), (uint16_t)(at + 2)) =
-            (int16_t)(bottom - top + 1);
+        spans[0] = (uint8_t)top;
+        spans[1] = (uint8_t)((uint16_t)top >> 8);
+        spans[2] = (uint8_t)rows;
+        spans[3] = (uint8_t)((uint16_t)rows >> 8);
 
-        vm_fill_spans(MK_FP((uint16_t)(seg - 1), at));
+        vm_fill_spans(spans);
     }
 
     if (VMDS.second_colour != VMDS.fill_colour)

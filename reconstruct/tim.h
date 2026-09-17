@@ -1732,7 +1732,7 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
 void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
-struct far_ptr set_palette_pointer(struct far_ptr h);   /* 0x1eb6a */
+struct far_ptr set_palette_pointer(const uint8_t far * h);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
 union far_or_size dos_alloc_bytes(uint32_t size,
@@ -1748,7 +1748,7 @@ int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
 struct far_ptr huge_sub_from(struct far_ptr *var,
                              int32_t delta);   /* 0x0bec6 */
-void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
+void expand_1bpp_to_4bpp(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                     /* 0x23a8a */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */

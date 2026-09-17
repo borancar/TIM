@@ -3959,9 +3959,8 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
-        # Two pairs `huge_add_to` steps.
         call=lambda lib, a: lib.expand_1bpp_to_4bpp(
-            FarPtr(a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
+            farp(lib, a[0], a[1]), farp(lib, a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "load_bitmaps": dict(
         addr=0x24F72,
@@ -6355,7 +6354,7 @@ def _load_palette(lib, a):
 
 
 def _set_palette_pointer(lib, a):
-    r = lib.set_palette_pointer(FarPtr(a[0], a[1]))
+    r = lib.set_palette_pointer(farp(lib, a[0], a[1]))
     return r.off, r.seg
 
 
