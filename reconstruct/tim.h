@@ -263,7 +263,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x280fe */
 
 /* Allocate a block for the sound module by kind; zero some kinds. */
-struct far_ptr alloc_for_kind(uint32_t size,
+uint8_t far * alloc_for_kind(uint32_t size,
                               uint16_t kind);             /* 0x29f89 */
 
 /* Release a block by the same kind it was allocated with. */
@@ -274,7 +274,7 @@ void free_for_kind(uint8_t far * blk,
 void free_node_list(uint8_t far * list);            /* 0x28baf */
 
 /* Build a sequence record around note data; null far pointer on failure. */
-struct far_ptr create_sequence(struct far_ptr src);       /* 0x28935 */
+uint8_t far * create_sequence(uint8_t far * src);         /* 0x28935 */
 
 /* The ordinary-call face of start_sequence. */
 void start_sequence_far(struct far_ptr rec,
@@ -1653,7 +1653,7 @@ uint16_t game_main(void);                           /* 0x0dfff */
 void game_startup(void);                            /* 0x0e01d */
 
 /* Load a palette, a font, and make a font current. Names from the call sites. */
-struct far_ptr load_palette(char *name);         /* 0x1e967 */
+uint8_t far * load_palette(char *name);         /* 0x1e967 */
 uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
@@ -1732,9 +1732,29 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
 void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
-struct far_ptr set_palette_pointer(const uint8_t far * h);   /* 0x1eb6a */
+uint8_t far * set_palette_pointer(uint8_t far * h);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
+/*
+ * **An address or a size, and only the caller knows which.** `dos_alloc_bytes`
+ * answers a far pointer when it allocates and a *byte count* when it is asked
+ * `(0xffff, 0xffff)`, which is how the game finds out how much memory is free -
+ * the original's own `if` at the top of the routine is the fork. Neither type
+ * is right for both, so the caller picks the member and the choice is written
+ * at the site rather than guessed at by the signature.
+ *
+ * In the original both are DX:AX. Here the address is the host pointer to the
+ * block - `MK_FP(0, 0)` when DOS refused, the 0000:0000 the guest tests for -
+ * and so the two do not overlay: the member the routine did not set is not
+ * the other one read differently. A caller filing the address into a far
+ * pair uses `far_of`, which is the block's own pair, a DOS block starting a
+ * segment.
+ */
+union far_or_size {
+    uint8_t far *ptr;           /* when it allocated */
+    uint32_t     bytes;         /* when it was asked how much is free */
+};
+
 union far_or_size dos_alloc_bytes(uint32_t size,
                          uint16_t unused,
                          uint16_t flags);           /* 0x21abd */
@@ -1790,7 +1810,7 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count);                  /* 0
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
-struct far_ptr load_video_driver(int16_t adapter, char *name); /* 0x22efd */
+uint8_t far * load_video_driver(int16_t adapter, char *name); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  FILE *file);                    /* 0x22483 */
 /*

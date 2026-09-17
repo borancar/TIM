@@ -616,9 +616,7 @@ struct bmp_set *load_bitmaps(char *name)
 
     if (kind == 0) {
         uint32_t size = file_record_size(di);
-        struct far_ptr got = dos_alloc_bytes(size, 0, 0).ptr;
-
-        block = MK_FP(got.seg, got.off);
+        block = dos_alloc_bytes(size, 0, 0).ptr;
         if (block == MK_FP(0, 0))
             goto fail;
 
@@ -647,12 +645,9 @@ struct bmp_set *load_bitmaps(char *name)
         /* The four bytes `huge_add_to` steps; each header files the
            normalised pair, which is what that call leaves in them. */
         uint8_t *fp2;
-        struct far_ptr got;
-
         r = vm_bitmap_list_size(list_at,
                                 (uint8_t *)&size_at);
-        got = dos_alloc_bytes(r, 0, 0).ptr;
-        block = MK_FP(got.seg, got.off);
+        block = dos_alloc_bytes(r, 0, 0).ptr;
         if (block == MK_FP(0, 0))
             goto fail;
 
@@ -844,9 +839,7 @@ uint16_t load_screen(char *name)
 
     {
         uint32_t size = file_record_size(si);
-        struct far_ptr got = dos_alloc_bytes(size, 0, 0).ptr;
-
-        block = MK_FP(got.seg, got.off);
+        block = dos_alloc_bytes(size, 0, 0).ptr;
         if (block == MK_FP(0, 0)) {
             di = 0xffff;
             goto out;
@@ -1077,9 +1070,7 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     }
 
     if (largest <= buffer) {
-        struct far_ptr got = dos_alloc_bytes(buffer, 0, 0).ptr;
-
-        block = MK_FP(got.seg, got.off);
+        block = dos_alloc_bytes(buffer, 0, 0).ptr;
         if (block == MK_FP(0, 0))
             goto no_block;
         goto have_block;

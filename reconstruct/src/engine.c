@@ -1856,7 +1856,7 @@ int16_t prepare_resource_slot(int16_t type, char *name)
             RESOURCE_PTR(rec)->scratch = DG3576.scratch;
             ENGINE_STREAM.scratch = DG3576.scratch;
         } else {
-            struct far_ptr p = dos_alloc_bytes(far_size, 0, 0).ptr;
+            struct far_ptr p = far_of(dos_alloc_bytes(far_size, 0, 0).ptr);
 
             rec = ENGINE_STREAM.record_ptr;
             RESOURCE_PTR(rec)->scratch = p;
@@ -2805,7 +2805,7 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  * 0x1eb5e - the segment in DX and the offset in AX, which is a
  * `struct far_ptr` and is answered as one.
  */
-struct far_ptr load_palette(char *name)
+uint8_t far *load_palette(char *name)
 {
     FILE *file = (FILE *)name;          /* a handle, or a name to open */
     /* `sub sp,0x34a`, and both halves of it are Borland locals. */
@@ -2847,11 +2847,8 @@ struct far_ptr load_palette(char *name)
             0);
 
         if (chunk != -1) {
-            struct far_ptr got;
-
             size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
-            got = dos_alloc_bytes(size, 0, 0).ptr;
-            blk = MK_FP(got.seg, got.off);
+            blk = dos_alloc_bytes(size, 0, 0).ptr;
 
             if (blk != MK_FP(0, 0)) {
                 game_fread(buf, 1, (uint16_t)ENGINE_PEN.word_4464, file);
@@ -2863,11 +2860,8 @@ struct far_ptr load_palette(char *name)
 
             if (chunk != -1
                 && game_fread((uint8_t *)amg, 1, 0x40, file) != 0) {
-                struct far_ptr got;
-
                 size = ENGINE_PEN.word_4464;
-                got = dos_alloc_bytes(size, 0, 0).ptr;
-                blk = MK_FP(got.seg, got.off);
+                blk = dos_alloc_bytes(size, 0, 0).ptr;
 
                 if (blk != MK_FP(0, 0)) {
                     uint8_t far *p = blk;                     /* [bp-4] */
@@ -2894,7 +2888,7 @@ struct far_ptr load_palette(char *name)
        original files - and a null one is 0000:0000 either way. */
     VMDS.palettes.blocks[di] = far_of(blk);
 
-    return VMDS.palettes.blocks[di];
+    return blk;
 }
 
 /*
@@ -2914,7 +2908,7 @@ struct far_ptr load_palette(char *name)
  * The pointer is passed and answered offset-first, in AX, with the segment in
  * DX - the usual far-pointer convention here.
  */
-struct far_ptr set_palette_pointer(const uint8_t far * h)
+uint8_t far *set_palette_pointer(uint8_t far * h)
 {
     int16_t idx = VMDS.pixel_shift;
 
@@ -2924,17 +2918,15 @@ struct far_ptr set_palette_pointer(const uint8_t far * h)
         int16_t bytes = (int16_t)(ENGINE_PEN.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
-        struct far_ptr p = dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr;
-
-        VMDS.palettes.blocks[0] = p;
+        VMDS.palettes.blocks[0] = far_of(dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr);
     }
 
     if (h == MK_FP(0, 0))
-        return PALCHUNK.palette_ptr;
+        return MK_FP(PALCHUNK.palette_ptr.seg, PALCHUNK.palette_ptr.off);
 
     PALCHUNK.palette_ptr = far_of(h);
     vm_load_palette(h);
-    return PALCHUNK.palette_ptr;
+    return h;
 }
 
 /*
@@ -3971,7 +3963,7 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
     if (failed) {
         union far_or_size r;
 
-        r.ptr = FAR_NULL;
+        r.ptr = MK_FP(0, 0);
         return r;
     }
 
@@ -3981,8 +3973,7 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
     {
         union far_or_size r;
 
-        r.ptr.off = 0;
-        r.ptr.seg = seg;
+        r.ptr = MK_FP(seg, 0);
         return r;
     }
 }
@@ -4686,7 +4677,7 @@ uint16_t load_font(char *name)
                          ? 0 : 1;
 
             if (failed == 0) {
-                blk = dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr;
+                blk = far_of(dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr);
                 failed = far_eq(blk, FAR_NULL) ? 1 : 0;
             }
 
@@ -4832,20 +4823,15 @@ struct bmp_set *load_bitmap_list(char *name)
 
     /* `r` carries a *size* above and an address here; the union is why this
        takes `.ptr` rather than pretending they are one type. */
-    {
-        struct far_ptr b = dos_alloc_bytes(want, 0, 0).ptr;
-
-        blk = MK_FP(b.seg, b.off);
-    }
+    blk = dos_alloc_bytes(want, 0, 0).ptr;
 
     if (blk == MK_FP(0, 0))
         goto done;
 
     if ((uint16_t)size_at != 0) {
         int32_t n = size_at;              /* the `cwd` sign-extends it */
-        struct far_ptr t = dos_alloc_bytes(n, 0, 0).ptr;
 
-        tmp = MK_FP(t.seg, t.off);
+        tmp = dos_alloc_bytes(n, 0, 0).ptr;
     }
 
     if (far_eq(DG3576.scratch, FAR_NULL)) {
@@ -4902,13 +4888,9 @@ struct bmp_set *load_bitmap_list(char *name)
     want = 0x7fff;
 
     for (;;) {
-        {
-            struct far_ptr t = dos_alloc_bytes(want, 0, 0).ptr;
-
-            tmp = MK_FP(t.seg, t.off);
-            if (tmp != MK_FP(0, 0))
-                break;
-        }
+        tmp = dos_alloc_bytes(want, 0, 0).ptr;
+        if (tmp != MK_FP(0, 0))
+            break;
         /* Halve the request. The original shifts the high word with `sar`,
            so this is a signed 32-bit shift; it starts at 0x7fff and stays
            positive, but the transcription is the shift it makes. */
@@ -6802,7 +6784,7 @@ ask_dcc:
  * The file may arrive as a handle or a name, and one this routine opened is
  * closed again; one it was handed is left alone.
  */
-struct far_ptr load_video_driver(int16_t adapter, char *name)
+uint8_t far *load_video_driver(int16_t adapter, char *name)
 {
     FILE *file = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
@@ -6846,7 +6828,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     }
 
     if (di == 0)
-        return FAR_NULL;
+        return MK_FP(0, 0);
 
     /* `si` runs from 1 here, and the original's base 0x48ff is `0x4901 - 2`
        - the compiler folding that first index into it - so entry 1 is
@@ -6855,7 +6837,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
                     (const char *)dg_ptr(dgroup, ADAPTER_TAGS.tag[si - 1]));
 
     if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == -1)
-        return FAR_NULL;
+        return MK_FP(0, 0);
 
     {
         uint32_t sz = file_record_size(di);
@@ -6864,7 +6846,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     }
 
     if (handle < 0)
-        return FAR_NULL;
+        return MK_FP(0, 0);
 
     {
         int32_t sz = resource_size(handle);
@@ -6875,14 +6857,10 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     if (!huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
         dos_free_far(MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off));
 
-    {
-        struct far_ptr p = dos_alloc_bytes(len, 0, 0).ptr;
-
-        ENGINE_DRIVER_BLOCK.block = p;
-    }
+    ENGINE_DRIVER_BLOCK.block = far_of(dos_alloc_bytes(len, 0, 0).ptr);
 
     if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
-        return FAR_NULL;
+        return MK_FP(0, 0);
 
     read_resource(handle, MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off),
                   (uint16_t)len);
@@ -6891,7 +6869,7 @@ struct far_ptr load_video_driver(int16_t adapter, char *name)
     if (opened != 0)
         close_file_record(di);
 
-    return ENGINE_DRIVER_BLOCK.block;
+    return MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off);
 }
 
 /*
@@ -6958,16 +6936,16 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.pixel_shift = (uint8_t)al;
 
     if (al != 0) {
-        struct far_ptr p = load_video_driver((int16_t)al, (char *)file);
+        uint8_t *p = load_video_driver((int16_t)al, (char *)file);
 
         /* Only DX is tested. */
-        if (p.seg == 0) {
+        if (FP_SEG(p) == 0) {
             VMDS.pixel_shift = 0;
         } else {
             uint16_t seg;
             int16_t i;
 
-            DG48DA.driver = p;
+            DG48DA.driver = far_of(p);
 
             vm_driver_init(&VMDS, DG440E.driver_table, DGROUP_SEG);
             seg = DG48DA.driver.seg;
@@ -6998,12 +6976,13 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         dos_free_far(MK_FP((uint16_t)(DG4342.span_buffer_seg - 1), 0));
 
     {
-        struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
+        uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
 
-        if (p.seg == 0)
+        /* Only the segment is kept, and tested: `or dx,dx`. */
+        if (FP_SEG(p) == 0)
             goto out;
 
-        DG4342.span_buffer_seg = (int16_t)(p.seg + 1);
+        DG4342.span_buffer_seg = (int16_t)(FP_SEG(p) + 1);
     }
 
     /*
@@ -7138,8 +7117,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
         if (VMDS.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(hdr->width
                                          * hdr->height);
-            struct far_ptr got = dos_alloc_bytes(pixels, 0, 0).ptr;
-            uint8_t *blk = MK_FP(got.seg, got.off);
+            uint8_t *blk = dos_alloc_bytes(pixels, 0, 0).ptr;
 
             pixels = (uint16_t)(pixels >> 3);
 

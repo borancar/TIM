@@ -12551,7 +12551,7 @@ void load_archive_map(void)
            The flags are the fourth argument - `push 1`, then `push 0` for the
            third - and the port had the two the other way round, so the block
            was not cleared and the terminator was whatever the memory held. */
-        a->list = dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr;
+        a->list = far_of(dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr);
         a->index = (uint16_t)di;
 
         /* The original steps the far pointer at [bp-6] by eight, one entry. */
@@ -13381,9 +13381,7 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
 
     for (i = 0; i < 4; i++) {
         if ((MACHINE_RECT_BUFFERS.slot[i].off | MACHINE_RECT_BUFFERS.slot[i].seg) == 0) {
-            struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
-
-            MACHINE_RECT_BUFFERS.slot[i] = p;
+            MACHINE_RECT_BUFFERS.slot[i] = far_of(dos_alloc_bytes(asked, 0, 0).ptr);
         }
     }
 

@@ -315,25 +315,6 @@ static inline int far_eq(struct far_ptr a, struct far_ptr b)
 }
 
 /*
- * **An address or a size, and only the caller knows which.** `dos_alloc_bytes`
- * answers a far pointer when it allocates and a *byte count* when it is asked
- * `(0xffff, 0xffff)`, which is how the game finds out how much memory is free -
- * the original's own `if` at the top of the routine is the fork. Neither type
- * is right for both, so the caller picks the member and the choice is written
- * at the site rather than guessed at by the signature.
- *
- * The two overlay exactly, and that is why `far_ptr` is `{off, seg}` and not
- * the other way round: the guest answers in DX:AX, so on a little-endian host
- * the low half of the 32-bit value sits where `off` is and the high half where
- * `seg` is. `.bytes` and `.ptr` are the same four bytes read two ways, which
- * is what the original does with DX:AX.
- */
-union far_or_size {
-    struct far_ptr ptr;         /* when it allocated */
-    uint32_t       bytes;       /* when it was asked how much is free */
-};
-
-/*
  * **The null far pointer**, 0000:0000. The game tests for it as
  * `(off | seg) == 0` - one `or` and a branch, which is the same question as
  * both halves being zero and is what `far_eq(p, FAR_NULL)` asks.

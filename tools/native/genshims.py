@@ -380,10 +380,26 @@ def emit(entries, protos):
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
         elif rt and "union far_or_size" in rt:
-            # The union's two members overlay, and `.bytes` *is* the DX:AX the
-            # guest expects - which member the C caller reads is the caller's
-            # business and none of the shim's.
-            w('    r%s_dxax(c, %s.bytes, %d);' % (far, call, pops))
+            # DX:AX is the byte count when the first argument asked how much
+            # is free - the routine's own fork - and the block's pair
+            # otherwise, the address member being a host pointer that does
+            # not overlay the count.
+            w('    {')
+            w('        union far_or_size r = %s;' % call)
+            w('')
+            w('        r%s_dxax(c, a0 == 0xFFFFFFFFu ? r.bytes'
+              ' : ((uint32_t)FP_SEG(r.ptr) << 16) | FP_OFF(r.ptr), %d);'
+              % (far, pops))
+            w('    }')
+        elif rt and "*" in rt and re.search(r"\bfar\b", rt):
+            # A far pointer answered as the pair DX:AX carries - the
+            # normalised one, which is all a host pointer can give back.
+            w('    {')
+            w('        const uint8_t *r = (const uint8_t *)%s;' % call)
+            w('')
+            w('        r%s_dxax(c, ((uint32_t)FP_SEG(r) << 16) | FP_OFF(r), %d);'
+              % (far, pops))
+            w('    }')
         elif rt and "struct far_ptr" in rt:
             # DX:AX is the segment and the offset, not a 32-bit number - the
             # same distinction the `+` token above draws on the way in.

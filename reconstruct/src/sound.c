@@ -2450,7 +2450,7 @@ uint16_t alloc_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr p = alloc_for_kind(0x17a, 2);
+        struct far_ptr p = far_of(alloc_for_kind(0x17a, 2));
         uint8_t *voice;
 
         SOUND_VOICES.voice[i] = p;
@@ -2629,33 +2629,35 @@ void start_sequence_far(struct far_ptr rec, uint16_t flag)
  * where it feeds `scale_byte_pair`, and the two words at +0x172 are cleared
  * again although the allocation already did it.
  */
-struct far_ptr create_sequence(struct far_ptr src)
+uint8_t far *create_sequence(uint8_t far * src)
 {
-    struct far_ptr p = alloc_for_kind(0x17a, 2);
-    uint16_t off = p.off, seg = p.seg;
-    uint8_t *rec;
+    uint8_t *rec = alloc_for_kind(0x17a, 2);
     uint16_t stepped;
 
-    if (far_eq(p, FAR_NULL))
-        return p;
+    if (rec == MK_FP(0, 0))
+        return rec;
 
-    rec = MK_FP(seg, off);
+    /* Every pointer filed here is a segment beside an offset **stepped
+       inside it** - `advance_record` and the `+ 0x16a` move the offset alone
+       - so each is filed as the pointer's own segment and offset, not as
+       `far_of` of a stepped pointer, which would renormalise. The source and
+       the record are both blocks DOS handed out, so their pairs are the
+       ones the original holds. */
+    *(uint16_t *)(rec + 0x168) = FP_SEG(src);
+    *(uint16_t *)(rec + 0x166) = FP_OFF(src);
 
-    *(uint16_t *)(rec + 0x168) = src.seg;
-    *(uint16_t *)(rec + 0x166) = src.off;
-
-    stepped = advance_record(MK_FP(src.seg, src.off), src.off);
-    *(uint16_t *)(rec + 0x16c) = src.seg;
+    stepped = advance_record(src, FP_OFF(src));
+    *(uint16_t *)(rec + 0x16c) = FP_SEG(src);
     *(uint16_t *)(rec + 0x16a) = stepped;
 
-    *(uint16_t *)(rec + 0xa) = seg;
-    *(uint16_t *)(rec + 8) = (uint16_t)(off + 0x16a);
+    *(uint16_t *)(rec + 0xa) = FP_SEG(rec);
+    *(uint16_t *)(rec + 8) = (uint16_t)(FP_OFF(rec) + 0x16a);
 
     rec[0x15e] = 0x7f;
     *(uint16_t *)(rec + 0x174) = 0;
     *(uint16_t *)(rec + 0x172) = 0;
 
-    return p;
+    return rec;
 }
 /*
  * 0x289e8
@@ -2774,7 +2776,7 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
         len += si;
 
         {
-            struct far_ptr p = alloc_for_kind(len + 1, 4);
+            struct far_ptr p = far_of(alloc_for_kind(len + 1, 4));
 
             blk = p;
             if (far_eq(p, FAR_NULL)) {
@@ -3121,7 +3123,7 @@ struct far_ptr read_sound_records(int16_t handle)
         if (*b == 0xff)
             break;
 
-        node = alloc_for_kind(8, 9);
+        node = far_of(alloc_for_kind(8, 9));
         if (far_eq(node, FAR_NULL))
             break;
 
@@ -3275,7 +3277,7 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
 
         len = sz;
 
-        p = alloc_for_kind(sz, kind);
+        p = far_of(alloc_for_kind(sz, kind));
         buf = p;
 
         if (!far_eq(p, FAR_NULL)) {
@@ -3757,7 +3759,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     {
         /* `size + 4` as one long; the original adds the low word and carries
            into the high one by hand. */
-        struct far_ptr p = alloc_for_kind(size + 4, 0xa);
+        struct far_ptr p = far_of(alloc_for_kind(size + 4, 0xa));
 
         DG4A82.directory = p;
         if (far_eq(p, FAR_NULL))
@@ -3969,15 +3971,14 @@ uint16_t start_sequence_by_id(int16_t id)
         }
 
         {
-            struct far_ptr built = create_sequence(
-                (struct far_ptr){ *(uint16_t *)(rec + 4),
-                                  *(uint16_t *)(rec + 6) });
+            uint8_t *built = create_sequence(
+                MK_FP(*(uint16_t *)(rec + 6), *(uint16_t *)(rec + 4)));
             struct far_ptr b;
             uint8_t *seq;
 
-            *(uint16_t *)(rec + 0x10) = built.seg;
-            *(uint16_t *)(rec + 0xe) = built.off;
-            if (far_eq(built, FAR_NULL))
+            *(uint16_t *)(rec + 0x10) = FP_SEG(built);
+            *(uint16_t *)(rec + 0xe) = FP_OFF(built);
+            if (built == MK_FP(0, 0))
                 return 0;
 
             b = *(struct far_ptr *)(rec + 0xe);
@@ -4249,7 +4250,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     game_fread((uint8_t *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
-    p = alloc_for_kind(0x14, 3);
+    p = far_of(alloc_for_kind(0x14, 3));
     rec = p;
     at = MK_FP(rec.seg, rec.off);
     if (far_eq(p, FAR_NULL))
@@ -4275,8 +4276,8 @@ uint16_t read_record(FILE *file, uint16_t mode)
     *(uint16_t *)(at + 4) = 0;
 
     if ((uint8_t)mode == 0x63) {
-        p = alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
-                           | (uint16_t)len[0], kind);
+        p = far_of(alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
+                                  | (uint16_t)len[0], kind));
         *(uint16_t *)(at + 6) = p.seg;
         *(uint16_t *)(at + 4) = p.off;
 
@@ -4342,15 +4343,19 @@ out_:
  * block header to; see `io_malloc`. Kinds 6 and 8 are not reached on the
  * screens checked, so the rest of this verifies.
  */
-struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
+uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
 {
-    struct far_ptr blk;
+    uint8_t *blk;
 
     if (kind == 6 || kind == 8) {
-        /* The near heap takes a word: 0x29f9d pushes `[bp+6]` alone. */
-        /* The pair is DS and the offset `malloc` answered, `mov [bp-2],ds`
-           at 0x29fab - so a refusal is DGROUP:0000, not FAR_NULL. */
-        blk = dg_far(dgroup, io_malloc((uint16_t)size));
+        /* The near heap takes a word: 0x29f9d pushes `[bp+6]` alone. The
+           pair is DS and the offset `malloc` answered, `mov [bp-2],ds` at
+           0x29fab - so a refusal is DGROUP:0000, not 0000:0000. That pair is
+           not normalised, so a caller filing it as `far_of` would file
+           different bytes; nothing in the game asks for these two kinds. */
+        blk = io_malloc((uint16_t)size);
+        if (blk == NULL)
+            blk = dgroup;
     } else {
         /* **The same Borland `long`, passed straight on.** 0x29fb7 pushes
            `[bp+8]` then `[bp+6]` into `dos_alloc_bytes` without touching
@@ -4358,9 +4363,9 @@ struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
         blk = dos_alloc_bytes(size, 0, 0).ptr;
     }
 
-    if (!far_eq(blk, FAR_NULL)
+    if (blk != MK_FP(0, 0)
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
-        far_memset(MK_FP(blk.seg, blk.off), 0, size);
+        far_memset(blk, 0, size);
 
     return blk;
 }

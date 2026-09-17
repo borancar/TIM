@@ -69,9 +69,9 @@ class FarPtr(ctypes.Structure):
 class FarOrSize(ctypes.Union):
     """`union far_or_size` - `dos_alloc_bytes` answers an address when it
     allocates and a byte count when asked how much is free, and only the caller
-    knows which. The two overlay, so either member reads the DX:AX the guest
-    sees."""
-    _fields_ = [("ptr", FarPtr), ("bytes", ctypes.c_uint32)]
+    knows which. The address is a host pointer, so the two do not overlay;
+    `_dos_alloc_bytes` reads the one the argument asked for."""
+    _fields_ = [("ptr", ctypes.c_void_p), ("bytes", ctypes.c_uint32)]
 
 
 
@@ -1075,7 +1075,7 @@ ROUTINES = {
         args=[("adapter", 4), ("file", 6)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _far(lib.load_video_driver(
+        call=lambda lib, a: _farp_answer(lib, lib.load_video_driver(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
             dgp(lib, a[1]))),
     ),
@@ -5732,7 +5732,7 @@ def declare_restypes(lib):
     lib.huge_add.restype = FarPtr
     lib.huge_post_add.restype = FarPtr
     lib.vm_init.restype = ctypes.c_uint16
-    lib.load_video_driver.restype = FarPtr
+    lib.load_video_driver.restype = ctypes.c_void_p
     lib.detect_adapter.restype = ctypes.c_uint16
     lib.read_bmp_info.restype = ctypes.c_uint16
     lib.table_618a_in_use.restype = ctypes.c_uint16
@@ -5798,8 +5798,8 @@ def declare_restypes(lib):
     lib.skip_unknown_event.restype = ctypes.c_uint16
     lib.midi_meta_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = FarPtr
-    lib.alloc_for_kind.restype = FarPtr
-    lib.create_sequence.restype = FarPtr
+    lib.alloc_for_kind.restype = ctypes.c_void_p
+    lib.create_sequence.restype = ctypes.c_void_p
     lib.load_and_start_sequence.restype = FarPtr
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
@@ -5817,9 +5817,9 @@ def declare_restypes(lib):
     lib.claim_buffer_slot.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = FarOrSize
     lib.mul16x16.restype = ctypes.c_uint32
-    lib.set_palette_pointer.restype = FarPtr
+    lib.set_palette_pointer.restype = ctypes.c_void_p
     lib.huge_move.restype = ctypes.c_void_p
-    lib.load_palette.restype = FarPtr
+    lib.load_palette.restype = ctypes.c_void_p
     lib.load_font.restype = ctypes.c_uint16
     lib.load_bitmaps.restype = ctypes.c_void_p
     lib.compress_bitmap_list.restype = ctypes.c_uint32
@@ -6241,11 +6241,16 @@ def _normalise_far_ptr_far(lib, a):
 
 
 def _dos_alloc_bytes(lib, a):
-    """`.bytes` either way: the guest gets DX:AX and the harness compares that,
-    which is the same four bytes whichever member the C caller reads."""
-    r = lib.dos_alloc_bytes(ctypes.c_uint32((a[1] << 16) | a[0]),
+    """DX:AX as the guest gets it: the count when the size asked how much is
+    free, and otherwise the block's pair, from the host pointer the port
+    answers."""
+    size = (a[1] << 16) | a[0]
+    r = lib.dos_alloc_bytes(ctypes.c_uint32(size),
                             ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]))
-    return r.bytes & 0xFFFF, (r.bytes >> 16) & 0xFFFF
+    if size == 0xFFFFFFFF:
+        return r.bytes & 0xFFFF, (r.bytes >> 16) & 0xFFFF
+    lin = (r.ptr or 0) - ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return lin & 0xF, (lin >> 4) & 0xFFFF
 
 
 def _load_and_start_sequence(lib, a):
@@ -6264,6 +6269,12 @@ def _signed32(v):
 def _pair(r):
     """A far pointer returned in DX:AX, as the harness wants it."""
     return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _farp_answer(lib, p):
+    """A far pointer the port answers, as the normalised pair DX:AX carries."""
+    lin = (p or 0) - ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return lin & 0xF, (lin >> 4) & 0xFFFF
 
 
 def _far(r):
@@ -6285,8 +6296,7 @@ def _read_bmp_info(lib, a):
 
 
 def _create_sequence(lib, a):
-    r = lib.create_sequence(FarPtr(a[0], a[1]))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.create_sequence(farp(lib, a[0], a[1])))
 
 
 def _dos_lseek(lib, a):
@@ -6298,9 +6308,8 @@ def _dos_lseek(lib, a):
 def _alloc_for_kind(lib, a):
     """`size_lo`/`size_hi` are one Borland `long` - 0x29fb7 pushes both into
     `dos_alloc_bytes` untouched - so the port takes a `uint32_t`."""
-    r = lib.alloc_for_kind(ctypes.c_uint32((a[1] << 16) | a[0]),
-                           ctypes.c_uint16(a[2]))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.alloc_for_kind(ctypes.c_uint32((a[1] << 16) | a[0]),
+                                                ctypes.c_uint16(a[2])))
 
 
 def _next_matching_record(lib, a):
@@ -6349,13 +6358,11 @@ def _huge_move(lib, a):
 
 
 def _load_palette(lib, a):
-    r = lib.load_palette(dgp(lib, a[0]))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.load_palette(dgp(lib, a[0])))
 
 
 def _set_palette_pointer(lib, a):
-    r = lib.set_palette_pointer(farp(lib, a[0], a[1]))
-    return r.off, r.seg
+    return _farp_answer(lib, lib.set_palette_pointer(farp(lib, a[0], a[1])))
 
 
 def compare_instance(inst, lib, verbose=True):

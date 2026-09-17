@@ -786,13 +786,13 @@ void game_startup(void)
     VMDS.page_back_ptr = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim_ptr = load_palette(GAME_STARTUP_NAMES.tim_pal);   /* "tim.pal"    */
-    DG52BD.pal_sierra_ptr = load_palette(GAME_STARTUP_NAMES.sierra_pal);   /* "sierra.pal" */
+    DG52ED.pal_tim_ptr = far_of(load_palette(GAME_STARTUP_NAMES.tim_pal));   /* "tim.pal"    */
+    DG52BD.pal_sierra_ptr = far_of(load_palette(GAME_STARTUP_NAMES.sierra_pal));   /* "sierra.pal" */
     {
-        struct far_ptr black = load_palette(GAME_STARTUP_NAMES.black_pal);  /* "black.pal"  */
+        uint8_t *black = load_palette(GAME_STARTUP_NAMES.black_pal);  /* "black.pal"  */
 
-        DG52BD.pal_black_ptr = black;
-        set_palette_pointer(MK_FP(black.seg, black.off));
+        DG52BD.pal_black_ptr = far_of(black);
+        set_palette_pointer(black);
     }
 
     DG52BD.word_52df = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
@@ -848,11 +848,11 @@ void game_startup(void)
     DG4E4E.shapes_ptr = 0;
     DG4E4E.shape_free = FAR_NULL;
     for (i = 0; i < 0xb4; i++) {
-        struct far_ptr block = dos_alloc_bytes(0x18, 0, 1).ptr;
+        uint8_t *block = dos_alloc_bytes(0x18, 0, 1).ptr;
 
-        FARU16(block.seg, (uint16_t)(block.off + 2)) = DG4E4E.shape_free.seg;
-        FARU16(block.seg, block.off) = DG4E4E.shape_free.off;
-        DG4E4E.shape_free = block;
+        *(uint16_t *)(void *)(block + 2) = DG4E4E.shape_free.seg;
+        *(uint16_t *)(void *)block = DG4E4E.shape_free.off;
+        DG4E4E.shape_free = far_of(block);
     }
 }
 
@@ -5985,7 +5985,7 @@ void alloc_part_table(int16_t n)
 {
     int16_t si;
 
-    DG546C.table = dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr;
+    DG546C.table = far_of(dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr);
 
     for (si = 0; si < n; si++)
         PART_TABLE->part_ptr[(uint16_t)si] =
@@ -6994,7 +6994,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
 
             GAME_PICKER_TEXT.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
 
-            GAME_PICKER_TEXT.block = dos_alloc_bytes(v, 0, 0).ptr;
+            GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
 
         GAME_PICKER_TEXT.text_start.seg = GAME_PICKER_TEXT.block.seg;
