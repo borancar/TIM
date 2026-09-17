@@ -62,6 +62,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "io.h"
 #include "tim.h"
@@ -1258,8 +1259,16 @@ void dev_flip_dump(int32_t flip)
 
             stop = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
         }
-        if (stop >= 0 && flip >= stop)
-            exit(0);
+        /* `_exit`, not `exit`: the timer thread is still running the
+           sequencer, and `exit` destroys the OPL emulator's static object
+           under it - a segfault in the destructor whenever music is playing
+           as the run stops (S07's solution, one run in eight). The files
+           this build writes are flushed first; nothing else is registered
+           to run at exit. */
+        if (stop >= 0 && flip >= stop) {
+            fflush(NULL);
+            _exit(0);
+        }
     }
 
     if (want == (const char *)-1) {

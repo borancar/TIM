@@ -823,6 +823,32 @@ alignment. A whole commit went in on that reading before the wider sample
 retracted it, which is the second time in this project that a green-looking
 measurement was compatible with the opposite being true.
 
+
+### A run that stops with `exit` destroys the sound chip under the timer thread
+
+**What happened.** Rebuilding the solution references after `/tmp` was cleared,
+S07's load run - load the machine, snapshot at flip 60, `TIM_STOPFLIP=65` -
+exited 139 on one run in eight, on the committed tree. The snapshot was written
+and the simulation from it solved, so the solution table, which compares level,
+solved and frames, said nothing; only the row's note showed it.
+
+**What it was.** Under gdb the main thread was in `exit`, running the static
+destructors, freeing `ymfm::ymf262`, while the timer thread was inside
+`sound_service` → `step_sequence` → `adl_note` → `opl_write` on that same
+object. Level 7's machine has music playing when the run stops, which is why it
+was that solution and only some of the time. `exit` runs destructors; nothing
+stops the timer thread first.
+
+**What settled it.** The two dev-build exits - `TIM_STOPFLIP` in devdump.c and
+Lua's `tim.quit` - `fflush(NULL)` and `_exit(0)`, as `sdl_die` already did.
+Nothing is registered with `atexit`, so the flush is all `exit` was doing that
+mattered. Twenty runs of S07 afterwards, no crash; the intro and all 29
+solutions unchanged.
+
+**The rule.** A process with a running timer thread leaves with `_exit` after a
+flush, never `exit`. And a check whose verdict ignores the exit status can pass
+over a crash - read the notes column.
+
 ## The hybrid runner
 
 What `tools/native` can and cannot observe.

@@ -155,6 +155,7 @@ a case it does not obviously cover.
 - Two references agreeing is not corroboration when they share a bias - [more](docs/lessons.md#two-references-agreeing-is-not-corroboration-when-they-share-a-bias)
 - The hybrid's music runs on a different clock from its samples, so the two cannot be compared - [more](docs/lessons.md#the-hybrids-music-runs-on-a-different-clock-from-its-samples-so-the-two-cannot-be-compared)
 - The sampling trap is not about frames - [more](docs/lessons.md#the-sampling-trap-is-not-about-frames)
+- A run that stops with `exit` destroys the sound chip under the timer thread - [more](docs/lessons.md#a-run-that-stops-with-exit-destroys-the-sound-chip-under-the-timer-thread)
 
 ### The hybrid runner
 

@@ -179,7 +179,11 @@ static int32_t l_peek16(lua_State *s)
 static int32_t l_quit(lua_State *s)
 {
     (void)s;
-    exit(0);
+    /* `_exit` after a flush, for the reason `TIM_STOPFLIP`'s exit in
+       devdump.c gives: `exit` would destroy the OPL emulator under the
+       timer thread. */
+    fflush(NULL);
+    _exit(0);
 }
 
 static const luaL_Reg TIM_FNS[] = {
