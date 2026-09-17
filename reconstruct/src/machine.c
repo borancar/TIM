@@ -12191,11 +12191,11 @@ void mouse_set_speed(uint16_t mickeys)
  * -1, and the test is made **before** the decrement, so a count of zero reads
  * nothing.
  */
-uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
+uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
                     FILE *file)
 {
     /* `dst` is the [bp-8] pair `huge_add_to` steps - the caller's copy, taken
-       by value, which is what the original's own four bytes of frame are. */
+       by value, which a huge pointer's `++` is. */
     uint32_t total = long_multiply(count, size);
     uint32_t got = 0;
 
@@ -12209,8 +12209,7 @@ uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
         if (c == -1)
             break;
 
-        *MK_FP(dst.seg, dst.off) = (uint8_t)c;
-        huge_add_to(&dst, 1);
+        *dst++ = (uint8_t)c;
         got++;
     }
     return ulong_divide(got, size);

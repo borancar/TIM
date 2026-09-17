@@ -632,7 +632,7 @@ void seek_file_to(uint32_t at);                     /* 0x09b38 */
 struct game_file *archive_entry_for(FILE *file); /* 0x09b7c */
 int16_t game_fseek(FILE *file, int32_t off,
                    int16_t whence);                 /* 0x092dc */
-uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
+uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
                     FILE *file);                 /* 0x0b93d */
 int32_t game_ftell(FILE *file);                  /* 0x093a2 */
 int16_t game_fgetc(FILE *file);                  /* 0x093f6 */
@@ -1786,7 +1786,7 @@ int16_t next_lzw_code(void);                           /* 0x1cc65 */
 int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
 int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */
 int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
-int16_t read_into_huge(struct far_ptr dst, uint16_t count);                /* 0x1c319 */
+int16_t read_into_huge(uint8_t far * dst, uint16_t count);                  /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */

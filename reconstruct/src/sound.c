@@ -3758,8 +3758,8 @@ uint16_t open_sound_file(char *name, int16_t id)
             goto fail;
     }
 
-    if (fread_huge((struct far_ptr){ (uint16_t)(DG4A82.directory.off + 4),
-                                     DG4A82.directory.seg },
+    if (fread_huge(MK_FP(DG4A82.directory.seg,
+                         (uint16_t)(DG4A82.directory.off + 4)),
                    size, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
@@ -4283,7 +4283,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
         if (far_eq(p, FAR_NULL))
             goto fail;
 
-        if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
+        if (fread_huge(MK_FP(p.seg, p.off), ((uint32_t)(uint16_t)len[1] << 16)
                               | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {

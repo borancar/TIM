@@ -1009,12 +1009,12 @@ int16_t decompress_rle(void)
  *
  * The destination is advanced by `huge_add_to` on **its own argument slot** -
  * `lea ax,[bp+4]` - so the far pointer the caller passed by value is stepped in
- * place and stays normalised; the port steps its copy of it the same way.
+ * place as a huge pointer; the port's parameter is one, stepped the same way.
  *
  * The loop ends on a short read as well as on the count running out, and the
  * answer is 0 either way: nothing here reports how much it managed.
  */
-int16_t read_into_huge(struct far_ptr dst, uint16_t count)
+int16_t read_into_huge(uint8_t far * dst, uint16_t count)
 {
     int16_t si = (int16_t)count;
     int16_t di = 1;
@@ -1025,9 +1025,9 @@ int16_t read_into_huge(struct far_ptr dst, uint16_t count)
         di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
         si = (int16_t)(si - di);
 
-        far_memcpy(MK_FP(dst.seg, dst.off), dg_ptr(dgroup, 0x5788), (uint16_t)di);
+        far_memcpy(dst, dg_ptr(dgroup, 0x5788), (uint16_t)di);
 
-        huge_add_to(&dst, (int32_t)di);
+        dst += di;
     }
     return 0;
 }
@@ -1119,12 +1119,12 @@ int16_t emit_literal_run(uint16_t n)
     if (ENGINE_STREAM.wanted < n) {
         rec = ENGINE_STREAM.record_ptr;
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
-        read_into_huge((struct far_ptr){ ENGINE_STREAM.spill_ptr, DGROUP_SEG }, n);
+        read_into_huge(dg_ptr(dgroup, ENGINE_STREAM.spill_ptr), n);
         return 0;
     }
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        read_into_huge(ENGINE_STREAM.out, n);
+        read_into_huge(MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off), n);
     else
         game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), n, 1);
 

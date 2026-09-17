@@ -1781,7 +1781,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_into_huge(FarPtr(a[0], a[1]),
+        call=lambda lib, a: lib.read_into_huge(farp(lib, a[0], a[1]),
                                               ctypes.c_uint16(a[2])),
     ),
     "next_input_byte": dict(
@@ -2959,9 +2959,9 @@ ROUTINES = {
               ("file", 16)],
         returns_pair=True,
         check_occurrences=[0],
-        # A pair `huge_add_to` steps, and two Borland `long`s.
+        # A huge pointer, and two Borland `long`s.
         call=lambda lib, a: _pair(lib.fread_huge(
-            FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]),
+            farp(lib, a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]),
             ctypes.c_uint32((a[5] << 16) | a[4]), dgp(lib, a[6]))),
     ),
     "game_ftell": dict(

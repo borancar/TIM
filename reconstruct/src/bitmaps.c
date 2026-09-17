@@ -570,7 +570,7 @@ struct bmp_set *load_bitmaps(char *name)
     FILE *as_file = dg_is_guest(name) ? (FILE *)name : NULL;
     FILE *di = as_file;
     uint16_t opened = 0;                        /* [bp-8]  */
-    struct far_ptr block = {0, 0};              /* [bp-0xc], [bp-0xa] */
+    uint8_t *block = MK_FP(0, 0);               /* [bp-0xc], [bp-0xa] */
     uint16_t kind = 0;                          /* [bp-0x1a] */
     uint16_t i;
     uint32_t r;
@@ -616,43 +616,44 @@ struct bmp_set *load_bitmaps(char *name)
 
     if (kind == 0) {
         uint32_t size = file_record_size(di);
-        block = dos_alloc_bytes(size, 0, 0).ptr;
-        if (far_eq(block, FAR_NULL))
+        struct far_ptr got = dos_alloc_bytes(size, 0, 0).ptr;
+
+        block = MK_FP(got.seg, got.off);
+        if (block == MK_FP(0, 0))
             goto fail;
 
-        read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
+        read_far(block, (int32_t)size, di);
 
         if (seek_named_chunk(di, CHUNK2.bmp_off_b, 0) == -1) {
-            dos_free_far(MK_FP(block.seg, block.off));
+            dos_free_far(block);
             goto fail;
         }
 
         for (i = 0; i < count_at; i++) {
             struct bitmap *si;
-            struct far_ptr p;
 
             if (game_fread((uint8_t *)offset_at, 4, 1, di) != 1) {
-                dos_free_far(MK_FP(block.seg, block.off));
+                dos_free_far(block);
                 goto fail;
             }
 
-            p = huge_add(block,
-                         (int32_t)(((uint32_t)(uint16_t)offset_at[1]
-                                    << 16) | (uint16_t)offset_at[0]));
-
+            /* `huge_add` answers the normalised pair, which is `far_of`'s. */
             si = BMP_PTR(list_at[i]);
-            si->data = far_to_rev(p);
+            si->data = far_to_rev(far_of(
+                block + (int32_t)(((uint32_t)(uint16_t)offset_at[1] << 16)
+                                  | (uint16_t)offset_at[0])));
         }
     } else {
-        /* As in `read_far`: four bytes for `huge_add_to` to step, and
-           nothing but that call sees the address. */
-        struct far_ptr fp2;
-
+        /* The four bytes `huge_add_to` steps; each header files the
+           normalised pair, which is what that call leaves in them. */
+        uint8_t *fp2;
+        struct far_ptr got;
 
         r = vm_bitmap_list_size(list_at,
                                 (uint8_t *)&size_at);
-        block = dos_alloc_bytes(r, 0, 0).ptr;
-        if (far_eq(block, FAR_NULL))
+        got = dos_alloc_bytes(r, 0, 0).ptr;
+        block = MK_FP(got.seg, got.off);
+        if (block == MK_FP(0, 0))
             goto fail;
 
         set_field_4_of_each(0xfffc, list_at);
@@ -662,11 +663,9 @@ struct bmp_set *load_bitmaps(char *name)
         for (i = 0; i < count_at; i++) {
             struct bitmap *si = BMP_PTR(list_at[i]);
 
-            si->data = far_to_rev(fp2);
+            si->data = far_to_rev(far_of(fp2));
 
-            huge_add_to(&fp2,
-                        (uint16_t)(si->width
-                                   * si->height));
+            fp2 += (uint16_t)(si->width * si->height);
         }
 
         decode_vqt_list(di, list_at);
@@ -823,7 +822,7 @@ uint16_t load_screen(char *name)
 
     FILE *si = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                    /* [bp-2]  */
-    struct far_ptr block = {0, 0};          /* [bp-6], [bp-4] */
+    uint8_t *block = MK_FP(0, 0);           /* [bp-6], [bp-4] */
     uint16_t di = 0;
 
     if (file_record_valid(si) == 0) {
@@ -845,16 +844,19 @@ uint16_t load_screen(char *name)
 
     {
         uint32_t size = file_record_size(si);
-        block = dos_alloc_bytes(size, 0, 0).ptr;
-        if (far_eq(block, FAR_NULL)) {
+        struct far_ptr got = dos_alloc_bytes(size, 0, 0).ptr;
+
+        block = MK_FP(got.seg, got.off);
+        if (block == MK_FP(0, 0)) {
             di = 0xffff;
             goto out;
         }
 
-        read_far(MK_FP(block.seg, block.off), (int32_t)size, si);
+        read_far(block, (int32_t)size, si);
     }
 
-    BITMAPS.reader_ptr = dg_near(dgroup, open_bit_reader(block));
+    /* The reader files the pair; a block DOS handed out starts a segment. */
+    BITMAPS.reader_ptr = dg_near(dgroup, open_bit_reader(far_of(block)));
     if (BITMAPS.reader_ptr == 0) {
         di = 0xffff;
         goto out;
@@ -870,8 +872,8 @@ close:
         close_file_record(si);
 
 out:
-    if (huge_equal(block.off, block.seg, 0, 0) == 0)
-        dos_free_far(MK_FP(block.seg, block.off));
+    if (block != MK_FP(0, 0))
+        dos_free_far(block);
     return di;
 }
 
@@ -910,12 +912,12 @@ void read_far(uint8_t far *dst, int32_t count, FILE *file)
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
-    struct far_ptr walk;                /* [bp-4], [bp-2] */
-    /* The parameter is a plain far pointer; the walk below needs the pair,
-       because it crosses 64K boundaries with `huge_add_to`. `FP_SEG`/`FP_OFF`
-       answer the normalised pair, which is what `huge_add_to` keeps it in
-       anyway. */
-    struct far_ptr ptr = { FP_OFF(dst), FP_SEG(dst) };
+    /* [bp-4], [bp-2]: the cursor the copy steps by the offset alone, and the
+       segment-sized stride `huge_add_to` takes it back to. The two agree
+       except where a segment's worth of chunks falls short of 0x10000
+       bytes, and then the original leaves the gap and so does this. */
+    uint8_t *walk;
+    uint8_t *ptr = dst;
     /* One Borland `long`, pushed as [bp+8] and [bp+0xa]: the loop compares
        `si` against it with `cwd / cmp dx,[bp+0xa] / jg / cmp ax,[bp+8] / jbe`,
        which is a signed 32-bit compare and not two word tests. */
@@ -955,16 +957,15 @@ void read_far(uint8_t far *dst, int32_t count, FILE *file)
         if (got == 0)
             break;
 
-        far_copy(MK_FP(walk.seg, walk.off), buf, got);
+        far_copy(walk, buf, got);
 
-        walk.off = (uint16_t)(walk.off + got);
+        walk += got;
         remaining -= got;
 
         if (per_segment != 0 && --left_in_segment == 0) {
-            /* The four bytes the original reserves so `huge_add_to` has a
-               variable to step; nothing but that call sees the address, so
-               unlike this routine's outer frame it is a local. */
-            huge_add_to(&ptr, 0x00010000L);
+            /* `huge_add_to` by a segment, on the four bytes the original
+               reserves for it. */
+            ptr += 0x00010000L;
 
             left_in_segment = per_segment;
             walk = ptr;
@@ -1043,15 +1044,14 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     struct vqt_reader *rd =
         VQTRD(dg_alloca(0x1ca));                      /* [bp-0x1ca] */
 
-    /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
-       to say it needed a real DGROUP address; that stopped being true when
-       `huge_add_to` took a pointer, and nothing else looks at it. */
-    struct far_ptr cur;
+    /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps - a huge pointer,
+       filed back into the reader as the normalised pair that call leaves. */
+    uint8_t *cur;
     bmp_ptr_t *at = list;      /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
-    struct far_ptr block = {0, 0};          /* [bp-0xe], [bp-0xc] */
+    uint8_t *block = MK_FP(0, 0);           /* [bp-0xe], [bp-0xc] */
     uint16_t index = 0;                     /* [bp-0x12] */
     struct bitmap *si;
 
@@ -1077,8 +1077,10 @@ void decode_vqt_list(FILE *file, bmp_ptr_t *list)
     }
 
     if (largest <= buffer) {
-        block = dos_alloc_bytes(buffer, 0, 0).ptr;
-        if (far_eq(block, FAR_NULL))
+        struct far_ptr got = dos_alloc_bytes(buffer, 0, 0).ptr;
+
+        block = MK_FP(got.seg, got.off);
+        if (block == MK_FP(0, 0))
             goto no_block;
         goto have_block;
     }
@@ -1089,15 +1091,17 @@ no_block:
     if (largest > 0x3ab4)
         goto done;
 
-    block = DG3576.scratch;
+    block = MK_FP(DG3576.scratch.seg, DG3576.scratch.off);
     buffer = 0x3ab4;
 
 have_block:
     BITMAPS.reader_ptr = dg_near(dgroup, rd);
     rd->pos = 0;
-    rd->data = block;
+    /* A DOS block starts a segment, and the scratch pointer is kept
+       normalised, so the pair filed is the one the original files. */
+    rd->data = far_of(block);
 
-    read_far(MK_FP(block.seg, block.off), (int32_t)buffer, file);
+    read_far(block, (int32_t)buffer, file);
     file_left -= buffer;
 
     at = list;
@@ -1139,33 +1143,32 @@ have_block:
 
         rd->pos = 0;
 
-        cur = rd->data;
+        cur = MK_FP(rd->data.seg, rd->data.off);
 
         if (file_left != 0) {
-            struct far_ptr p = huge_add(cur, (int32_t)used);
             uint32_t chunk;
 
-            far_copy(MK_FP(cur.seg, cur.off), MK_FP(p.seg, p.off),
+            far_copy(cur, cur + (int32_t)used,
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to(&cur, (int32_t)(buffer - used));
+            cur += (int32_t)(buffer - used);
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far(MK_FP(cur.seg, cur.off), (int32_t)chunk, file);
+            read_far(cur, (int32_t)chunk, file);
             file_left -= chunk;
         } else {
-            rd->data = huge_add(cur, (int32_t)used);
+            rd->data = far_of(cur + (int32_t)used);
         }
 
         at++;
         index++;
     }
 
-    if (!far_eq(block, DG3576.scratch))
-        dos_free_far(MK_FP(block.seg, block.off));
+    if (block != MK_FP(DG3576.scratch.seg, DG3576.scratch.off))
+        dos_free_far(block);
 
 done:
     (void)index;
