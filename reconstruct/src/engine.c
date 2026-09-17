@@ -1224,20 +1224,18 @@ int16_t emit_byte(uint16_t value)
 void lzw_reset(void)
 {
     int16_t i;
-    struct far_ptr p;
+    /* The dictionary block; `huge_add` reaches into it from the start. */
+    uint8_t *scratch = MK_FP(ENGINE_STREAM.scratch.seg, ENGINE_STREAM.scratch.off);
 
-    far_memset(MK_FP(ENGINE_STREAM.scratch.seg, ENGINE_STREAM.scratch.off), 0, 0x3aa1);
+    far_memset(scratch, 0, 0x3aa1);
 
     ENGINE_STREAM.n_bits = 9;
     ENGINE_STREAM.maxcode = (int16_t)((1 << 9) - 1);
 
     for (i = 0xff; i >= 0; i--) {
-        p = huge_add(ENGINE_STREAM.scratch, (int32_t)i * 2);
-        *(uint16_t *)MK_FP(p.seg, p.off) = 0;
+        *(uint16_t *)(scratch + (int32_t)i * 2) = 0;
 
-        p = huge_add(ENGINE_STREAM.scratch, (int32_t)i);
-        p = huge_add(p, 0x2720);
-        *MK_FP(p.seg, p.off) = (uint8_t)i;
+        scratch[(int32_t)i + 0x2720] = (uint8_t)i;
     }
 
     ENGINE_STREAM.free_ent = 0x101;
@@ -1247,8 +1245,8 @@ void lzw_reset(void)
     ENGINE_STREAM.bit_pos = 0;
     ENGINE_STREAM.bit_end = 0;
 
-    p = huge_add(ENGINE_STREAM.scratch, 0x3720);
-    ENGINE_STREAM.de_stack = p;
+    /* `huge_add` answers the normalised pair, which is `far_of`'s. */
+    ENGINE_STREAM.de_stack = far_of(scratch + 0x3720);
 }
 
 /*
@@ -2814,7 +2812,7 @@ struct far_ptr load_palette(char *name)
     _Alignas(2) uint8_t buf[0x300];             /* [bp-0x30a] */
     _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a] */
 
-    struct far_ptr blk = FAR_NULL;              /* [bp-0xa], [bp-8] */
+    uint8_t *blk = MK_FP(0, 0);                 /* [bp-0xa], [bp-8] */
     uint16_t opened;                            /* [bp-2] */
     int16_t di;
     int32_t size;
@@ -2849,26 +2847,30 @@ struct far_ptr load_palette(char *name)
             0);
 
         if (chunk != -1) {
-            size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
-            blk = dos_alloc_bytes(size, 0, 0).ptr;
+            struct far_ptr got;
 
-            if (!far_eq(blk, FAR_NULL)) {
+            size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
+            got = dos_alloc_bytes(size, 0, 0).ptr;
+            blk = MK_FP(got.seg, got.off);
+
+            if (blk != MK_FP(0, 0)) {
                 game_fread(buf, 1, (uint16_t)ENGINE_PEN.word_4464, file);
                 size = ENGINE_PEN.word_4464;
-                huge_move(MK_FP(blk.seg, blk.off), buf, (uint32_t)size);
+                huge_move(blk, buf, (uint32_t)size);
             }
         } else if (VMDS.unknown_1f != 0) {
             chunk = seek_named_chunk(file, PALCHUNK.pal_amg, 0);
 
             if (chunk != -1
                 && game_fread((uint8_t *)amg, 1, 0x40, file) != 0) {
-                size = ENGINE_PEN.word_4464;
-                blk = dos_alloc_bytes(size, 0, 0).ptr;
+                struct far_ptr got;
 
-                if (!far_eq(blk, FAR_NULL)) {
-                    /* A write cursor and nothing else - only ever
-                       dereferenced, so a pointer says it. */
-                    uint8_t far *p = MK_FP(blk.seg, blk.off); /* [bp-4] */
+                size = ENGINE_PEN.word_4464;
+                got = dos_alloc_bytes(size, 0, 0).ptr;
+                blk = MK_FP(got.seg, got.off);
+
+                if (blk != MK_FP(0, 0)) {
+                    uint8_t far *p = blk;                     /* [bp-4] */
                     int16_t si;
 
                     for (si = 0; si < 0x20; si++) {
@@ -2888,9 +2890,11 @@ struct far_ptr load_palette(char *name)
             close_file_record(file);
     }
 
-    VMDS.palettes.blocks[di] = blk;
+    /* A block DOS gave out starts a segment, so its pair is the one the
+       original files - and a null one is 0000:0000 either way. */
+    VMDS.palettes.blocks[di] = far_of(blk);
 
-    return blk;
+    return VMDS.palettes.blocks[di];
 }
 
 /*
@@ -7395,7 +7399,7 @@ void compress_bitmap(struct bitmap *bmp)
     uint16_t di = 0;                    /* pixels waiting in the row buffer */
     int16_t blanks = 0;                 /* [bp-6], and it does go negative */
     uint8_t least = 0xff;               /* [bp-7] */
-    struct far_ptr hdr;
+    uint8_t *hdr;
     int16_t x, y;
 
     ENGINE_BITMAP_COMPRESS.pending_rows = 0;
@@ -7418,7 +7422,7 @@ void compress_bitmap(struct bitmap *bmp)
 
     ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
 
-    hdr = ENGINE_BITMAP_COMPRESS.out;
+    hdr = MK_FP(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off);
     ENGINE_BITMAP_COMPRESS.out.off++;
 
     for (y = 0; bmp->height > y; y++) {
@@ -7473,7 +7477,7 @@ void compress_bitmap(struct bitmap *bmp)
 
     emit_packed_value(0);
 
-    FAR8(hdr.seg, hdr.off) = least;
+    *hdr = least;
 }
 
 

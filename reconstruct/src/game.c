@@ -6741,13 +6741,14 @@ void picker_draw_list(void)
 
     i = 0;
     while (i < GAME_PICKER_TEXT.entry_count && room >= 0x0a) {
-        struct far_ptr t = *p++;
+        const char *t = (const char *)MK_FP(p->seg, p->off);
 
-        if (FAR8(t.seg, t.off) == ':')
-            t = dg_far(dgroup, DG1BCC.parent_dir);
+        p++;
+        if (*t == ':')
+            t = DG1BCC.parent_dir;
 
         clear_flag_2d44_thunk();
-        draw_string_body((const char far *)MK_FP(t.seg, t.off),
+        draw_string_body(t,
                          (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
 
@@ -6794,12 +6795,14 @@ void fill_file_listing(const char *pattern)
        and `txt` a byte at a time, both inside one segment - so the array is
        a `struct far_ptr *` and the text a plain byte cursor. */
     struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
-    /* **A pair, although it is only ever written through.** Its value is
-       *stored* into the array above at each entry, and the original keeps
-       the segment fixed while the offset grows - so a host pointer is not
-       an option: `FP_SEG`/`FP_OFF` would answer the normalised pair, which
-       is different bytes in a block the comparison reads. */
-    struct far_ptr txt;                 /* [bp-8], [bp-6]: into the text */
+    /* [bp-8], [bp-6]: into the text. The original keeps the segment fixed
+       while the offset grows, and files the pair into the array at each
+       entry - so what is filed is the cursor's distance from the segment's
+       start beside that segment, not the normalised pair `FP_SEG`/`FP_OFF`
+       would answer. */
+    uint8_t *txt;
+    uint16_t txt_seg;
+    const uint8_t *txt_seg_start;
     const char *want_ext;                  /* [bp+6], rewritten in place */
     char *name;                      /* di */
     const char *name_ext;                  /* [bp-0xa]                        */
@@ -6810,19 +6813,19 @@ void fill_file_listing(const char *pattern)
     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
     ptr = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off);
-    txt = GAME_PICKER_TEXT.text_start;
+    txt_seg = GAME_PICKER_TEXT.text_start.seg;
+    txt_seg_start = MK_FP(txt_seg, 0);
+    txt = MK_FP(txt_seg, GAME_PICKER_TEXT.text_start.off);
 
     want_ext = string_chr((char *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
     if (GAME_DIRECTORIES.path_field[3] != 0) {
-        *ptr++ = txt;
+        *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
 
-        FAR8(txt.seg, txt.off) = ':';
-        txt.off++;
-        FAR8(txt.seg, txt.off) = 0;
-        txt.off++;
+        *txt++ = ':';
+        *txt++ = 0;
 
         GAME_PICKER_TEXT.entry_count++;
     }
@@ -6837,45 +6840,39 @@ void fill_file_listing(const char *pattern)
             if (string_compare(name, GAME_FILE_STRINGS.dot) != 0
                 && string_compare(name,
                                   GAME_FILE_STRINGS.dot_dot_a) != 0) {
-                *ptr++ = txt;
+                *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
                 GAME_PICKER_TEXT.entry_count++;
 
-                FAR8(txt.seg, txt.off) = '<';
-                txt.off++;
+                *txt++ = '<';
 
                 do {
-                    FAR8(txt.seg, txt.off) = *name;
-                    txt.off++;
+                    *txt++ = (uint8_t)*name;
                 } while (*name++ != 0);
 
-                FAR8(txt.seg, (uint16_t)(txt.off - 1)) = '>';
-                FAR8(txt.seg, txt.off)                 = 0;
-                txt.off++;
+                txt[-1] = '>';
+                *txt++  = 0;
             }
         } else if (want_ext == NULL
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            *ptr++ = txt;
+            *ptr++ = (struct far_ptr){ (uint16_t)(txt - txt_seg_start), txt_seg };
             GAME_PICKER_TEXT.entry_count++;
 
             n = 0;
             while (*name != 0 && *name != '.') {
-                FAR8(txt.seg, txt.off) = *name;
+                *txt++ = (uint8_t)*name;
                 name++;
-                txt.off++;
                 n++;
             }
 
             while (n < 8) {
-                FAR8(txt.seg, txt.off) = ' ';
-                txt.off++;
+                *txt++ = ' ';
                 n++;
             }
 
             do {
-                FAR8(txt.seg, txt.off) = *name;
-                txt.off++;
+                *txt++ = (uint8_t)*name;
             } while (*name++ != 0);
         }
 
@@ -6925,22 +6922,24 @@ void sort_file_listing(void)
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
         if (!far_eq(p[0], FAR_NULL)) {
-            if (FAR8(p[0].seg, p[0].off) == ':')
+            if (*MK_FP(p[0].seg, p[0].off) == ':')
                 p++;
         }
 
         while (!far_eq(p[0], FAR_NULL) && !far_eq(p[1], FAR_NULL)) {
+            /* The pairs are swapped as they are; the names are read through. */
             struct far_ptr a = p[0];
             struct far_ptr b = p[1];
+            const char *name_a = (const char *)MK_FP(a.seg, a.off);
+            const char *name_b = (const char *)MK_FP(b.seg, b.off);
             int16_t  swap = 0;
 
             /* "<PARENT DIR>" and the directories sort first. */
-            if (FAR8(a.seg, a.off) != '<' && FAR8(b.seg, b.off) == '<')
+            if (*name_a != '<' && *name_b == '<')
                 swap = 1;
-            else if (FAR8(a.seg, a.off) == '<' && FAR8(b.seg, b.off) != '<')
+            else if (*name_a == '<' && *name_b != '<')
                 swap = 0;
-            else if (far_stricmp((const char far *)MK_FP(a.seg, a.off),
-                                 (const char far *)MK_FP(b.seg, b.off)) > 0)
+            else if (far_stricmp(name_a, name_b) > 0)
                 swap = 1;
 
             if (swap) {

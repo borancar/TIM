@@ -10499,19 +10499,21 @@ void vm_set_display_lines(uint16_t lines)
  * It carried a bare `0x098e0` before, which files a routine as transcribed
  * under `tests/provenance.py`, and this is not one.
  */
-void scan_entry_list(int16_t idx, uint32_t want, struct far_ptr *at)
+void scan_entry_list(int16_t idx, uint32_t want,
+                     const struct archive_entry **at)
 {
-    *at = MACHINE_ARCHIVES.slot[idx].list;
+    *at = (const struct archive_entry *)(void *)MK_FP(MACHINE_ARCHIVES.slot[idx].list.seg,
+                                                      MACHINE_ARCHIVES.slot[idx].list.off);
 
     for (;;) {
         /* Each entry opens with its 32-bit key; a zero one ends the list.
-           The cursor steps eight bytes at a time inside the segment, which
-           is why it stays a pair. */
-        uint32_t key = *(uint32_t *)MK_FP(at->seg, at->off);
+           The original steps the offset eight bytes inside the list's
+           segment, and the list is sized in a word, so it cannot leave it. */
+        uint32_t key = (*at)->key;
 
         if (key == 0 || key == want)
             return;
-        at->off = (uint16_t)(at->off + 8);
+        (*at)++;
     }
 }
 
@@ -12666,7 +12668,7 @@ int32_t hash_filename(char *name)
 int16_t find_entry_for_pointer(struct game_file *out)
 {
     uint32_t want = DG546C.name_hash;
-    struct far_ptr at;
+    const struct archive_entry *at;
     int16_t idx, fwd, back;
 
     idx = ((int16_t)DG546C.last_record);
@@ -12678,7 +12680,7 @@ int16_t find_entry_for_pointer(struct game_file *out)
     back = (int16_t)(((int16_t)DG546C.last_record) - 1);
 
     for (;;) {
-        if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key == want)
+        if (at->key == want)
             break;
         if (back <= 0 && fwd > DG546C.archive_count)
             break;
@@ -12688,7 +12690,7 @@ int16_t find_entry_for_pointer(struct game_file *out)
             scan_entry_list(idx, want, &at);
         }
 
-        if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key == want)
+        if (at->key == want)
             continue;
         if (back <= 0)
             continue;
@@ -12696,11 +12698,11 @@ int16_t find_entry_for_pointer(struct game_file *out)
         scan_entry_list(idx, want, &at);
     }
 
-    if (((const struct archive_entry *)MK_FP(at.seg, at.off))->key != want)
+    if (at->key != want)
         return 0;
 
     out->archive = (uint16_t)idx;
-    out->base = ((const struct archive_entry *)MK_FP(at.seg, at.off))->base;
+    out->base = at->base;
     out->pos = 0;
     out->size = 0;
     return 1;
