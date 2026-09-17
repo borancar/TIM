@@ -981,6 +981,47 @@ regression gate; or make the step skip with a warning when there are no
 snapshots and move it last, which lets the other checks run but leaves a
 physics change unchecked.
 
+### A sequence's channel tables are read one entry past their end, for a channel that has no entry
+
+**Pencilled on 2026-09-17**, when the channel tables became
+`struct sequence_channels` (+0x0bc to +0x152 of a sequence: `bend[15]` and
+eight byte tables of 15). The widths are the listing's: the tables are 0x0f
+apart, and every access is `es:[bx + si + const]` with `si` unscaled - 62 of
+them - so an entry is one byte and there is room for exactly fifteen channels.
+
+**Fifteen is right, and the sixteenth channel is the reason.** Channel 15 is
+the device channel and deliberately has no per-channel state: the header parse
+in `start_sequence` takes its entry's byte 8 as `device_value` - controller
+0x50's - instead of writing `byte_0da`, `byte_116` and `byte_107`, and
+`sequencer_tick` skips it outright, `if (cl == 0xff || cl == 0xfe ||
+cl == 0x0f) continue`, so no voice is ever placed for it.
+
+**`step_sequence` and the MIDI handlers do not skip it.** They index with
+`byte_08c[si] & 0xf`, so a track mapped to channel 15 reads and writes one
+entry past a table: `byte_134[15]` is `byte_143[0]`, and `byte_143[15]` is
+`loop_count`'s low byte. That is the original's own arithmetic and it is kept -
+but in C it is an out-of-bounds index on a 15-entry array, which is undefined
+behaviour the -O2 build currently compiles the way the original meant it.
+
+**The intro reaches it.** Its sequence maps three tracks as `{2, 2, 0x0f}`, and
+a build with trapping bounds checks - `-fsanitize=bounds -fsanitize-trap=all`,
+because the Makefile's `asan`/`asandev` cannot link without libasan installed -
+stops in `step_sequence` at `ch.byte_134[15]` about 204 flips in. The value
+read there is channel 0's `byte_143`, 0 in this data because channel 0 is
+unused, so nothing observable changes; a sequence using channel 0 **and**
+channel 15 would have them tread on each other, in the original exactly as in
+the port.
+
+Left as it is, deliberately, on 2026-09-17: the faithful arithmetic is worth
+more than the C-level tidiness, and every check agrees - sweep 186, intro
+identical over 601 flips, 29 of 29 solutions, all 66 hybrid flips, and
+`check_sound` byte for byte on the intro and on a level. The way out, if the
+sanitizer builds are ever wanted on this path, is to declare the tables 16
+wide in two overlapping views - fields 0, 2, 4, 6, 8 in one struct and 1, 3,
+5, 7 in another, unioned, each table's sixteenth entry being the next one's
+first by construction - with `byte_143`'s sixteenth entry declared at the
+sequence level, where `loop_count` is.
+
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of

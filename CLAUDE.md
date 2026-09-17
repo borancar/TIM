@@ -193,6 +193,7 @@ a case it does not obviously cover.
 - An interrupt is exclusive; a thread is not - [more](STATUS.md#an-interrupt-is-exclusive-a-thread-is-not)
 - The reference run from the entry point never presents a page - [more](STATUS.md#the-reference-run-from-the-entry-point-never-presents-a-page)
 - `make test` stops at its solutions step, and the checks after it have not been running - [more](STATUS.md#make-test-stops-at-its-solutions-step-and-the-checks-after-it-have-not-been-running)
+- A sequence's channel tables are read one entry past their end, for a channel that has no entry - [more](STATUS.md#a-sequences-channel-tables-are-read-one-entry-past-their-end-for-a-channel-that-has-no-entry)
 
 ## Tools
 
