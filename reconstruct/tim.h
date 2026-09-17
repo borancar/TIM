@@ -256,7 +256,7 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 void init_sequence_params(uint16_t es, uint16_t ax);  /* 0x28305 */
 
 /* Next record matching a selector, as a far pointer in DX:AX. */
-uint8_t far * next_matching_record(int16_t selector);    /* 0x29966 */
+struct sound_record far * next_matching_record(int16_t selector);    /* 0x29966 */
 
 /* Handle one pitch bend event; answers the advanced stream cursor. */
 uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,

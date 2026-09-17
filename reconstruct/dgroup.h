@@ -3517,6 +3517,40 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
    sentinel and not NULL. */
 #define SEQUENCE_NONE   ((struct sequence *)(void *)MK_FP(0, 0))
 #define SOUND_NODE_NONE ((struct sound_node *)(void *)MK_FP(0, 0))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A sound record**, the 0x14 bytes of kind 3 `read_record` makes for each
+ * entry of a sound file and puts on the front of the list at `DG4A82.records`.
+ * It lives in a DOS block, not in DGROUP.
+ *
+ * The header's fields are what `read_record` reads into it - the identifier, a
+ * byte into +0xc, a byte into +0x12 - and what it loads is kept at +4. Bit 0 of
+ * the flags says the payload is note data to be **sequenced** - kind 4, and
+ * `start_sequence_by_id` builds a sequence for it and keeps it at +0xe - and a
+ * clear bit a sample for a voice, kind 7. Bit 1 is copied into the sequence's
+ * or the voice's loop byte, and bit 4 marks a start asked for while the device
+ * could not take it. Those three names are readings of the code, **guessed**.
+ * ---------------------------------------------------------------------------
+ */
+struct sound_record {
+    struct far_ptr next;                /* +0x00  the next record, newest first */
+    struct far_ptr data;                /* +0x04  what it loaded */
+    uint16_t       size;                /* +0x08  the low word of the loaded size */
+    int16_t        id;                  /* +0x0a  what `start_sequence_by_id` finds */
+    uint16_t       priority;            /* +0x0c  a byte, copied into a sequence's */
+    struct far_ptr sequence;            /* +0x0e  the sequence built for it, while one is */
+    uint16_t       flags;               /* +0x12  bit 0 sequenced, bit 1 loop, bit 4 start pending */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct sound_record) == 0x14, "read_record allocates 0x14 bytes");
+DG_ASSERT_AT(struct sound_record, data,          0x04);
+DG_ASSERT_AT(struct sound_record, id,            0x0a);
+DG_ASSERT_AT(struct sound_record, sequence,      0x0e);
+DG_ASSERT_AT(struct sound_record, flags,         0x12);
+
+#define SOUND_RECORD_NONE ((struct sound_record *)(void *)MK_FP(0, 0))
+#define SOUND_RECORD_PTR(fp) ((struct sound_record *)(void *)MK_FP((fp).seg, (fp).off))
 DG_ASSERT_AT(struct sequence, cursor_at,        0x008);
 DG_ASSERT_AT(struct sequence, position,         0x00c);
 DG_ASSERT_AT(struct sequence, delay,            0x04c);

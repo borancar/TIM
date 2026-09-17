@@ -3497,63 +3497,56 @@ uint16_t remove_and_free_records(int16_t selector)
      * **The previous link is a walking far pointer, and both ends of its walk
      * are host pointers.** It starts at this two-word scratch cell so that
      * the first unlink writes somewhere harmless, and then becomes each
-     * record in turn. Every use was `MK_FP(link_seg, link_off)` - the pair
-     * is only ever dereferenced, never stored or compared as a number - so
-     * one `uint8_t *` says it, and the cell is a C array.
+     * record's link in turn - only ever written and read through, so a
+     * pointer to the `struct far_ptr` it is, and the cell a C array.
      */
     _Alignas(2) uint8_t cell[4];        /* [bp-0x1c], the two-word cell */
-    uint8_t *link_at = cell;
+    struct far_ptr *link_at = (struct far_ptr *)(void *)cell;
     /* The records' own links are pairs filed as DOS handed the blocks out,
        each starting a segment, so a pointer compares as the pair does. */
-    uint8_t *cur = MK_FP(DG4A82.records.seg, DG4A82.records.off);
+    struct sound_record *cur = SOUND_RECORD_PTR(DG4A82.records);
     int16_t found = 0;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
 
-    while (cur != MK_FP(0, 0)) {
-        uint8_t *p = cur;
+    while (cur != SOUND_RECORD_NONE) {
         int16_t match;
 
         if (selector == 0)
             match = 1;
-        else if (*(int16_t *)(p + 0xa) == selector)
+        else if (cur->id == selector)
             match = 1;
         else if (selector == -1)
-            match = (*(uint16_t *)(p + 0x12) & 1) != 0;
+            match = (cur->flags & 1) != 0;
         else if (selector == -2)
-            match = (*(uint16_t *)(p + 0x12) & 1) == 0;
+            match = (cur->flags & 1) == 0;
         else
             match = 0;
 
         if (match) {
-            uint8_t *link;
-
             found = 1;
-            stop_sequences(*(int16_t *)(p + 0xa));
+            stop_sequences(cur->id);
 
-            p = cur;
-            if (cur == MK_FP(DG4A82.records.seg, DG4A82.records.off))
-                DG4A82.records = *(struct far_ptr *)p;
+            if (cur == SOUND_RECORD_PTR(DG4A82.records))
+                DG4A82.records = cur->next;
 
-            link = link_at;
-            *(struct far_ptr *)link = *(struct far_ptr *)p;
+            *link_at = cur->next;
 
-            if ((*(uint16_t *)(p + 0x12) & 1) != 0)
-                free_for_kind(MK_FP(*(uint16_t *)(p + 6), *(uint16_t *)(p + 4)), 4);
+            if ((cur->flags & 1) != 0)
+                free_for_kind(MK_FP(cur->data.seg, cur->data.off), 4);
             else
-                free_for_kind(MK_FP(*(uint16_t *)(p + 6), *(uint16_t *)(p + 4)), 7);
+                free_for_kind(MK_FP(cur->data.seg, cur->data.off), 7);
 
-            free_for_kind(cur, 3);
+            free_for_kind((uint8_t *)cur, 3);
 
             if (selector > 0)
                 break;
         } else {
-            link_at = cur;
+            link_at = &cur->next;
         }
 
-        cur = MK_FP(((struct far_ptr *)(void *)link_at)->seg,
-                    ((struct far_ptr *)(void *)link_at)->off);
+        cur = SOUND_RECORD_PTR(*link_at);
     }
 
     return (uint16_t)found;
@@ -3587,38 +3580,32 @@ uint16_t remove_and_free_records(int16_t selector)
  */
 uint16_t stop_sequences(int16_t selector)
 {
-    uint8_t *fp;
+    struct sound_record *rec;
 
     if (selector == -1 || selector == 0) {
-        fp = next_matching_record(-1);
+        rec = next_matching_record(-1);
         for (;;) {
-            uint8_t *rec;
-
-            if (fp == MK_FP(0, 0))
+            if (rec == SOUND_RECORD_NONE)
                 break;
 
-            rec = fp;
-            *(uint16_t *)(rec + 0x12) &= 0xffef;
+            rec->flags &= 0xffef;
 
-            if (!far_eq(*(struct far_ptr *)(rec + 0xe), FAR_NULL)) {
-                const struct far_ptr *at = (const struct far_ptr *)(rec + 0xe);
-                struct sequence *v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
+            if (!far_eq(rec->sequence, FAR_NULL)) {
+                struct sequence *v = (struct sequence *)(void *)MK_FP(rec->sequence.seg,
+                                                                      rec->sequence.off);
 
                 follow_then_tick(v, 0);
 
                 do {
-                    rec = fp;
-                    at = (const struct far_ptr *)(rec + 0xe);
-                    v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
+                    v = (struct sequence *)(void *)MK_FP(rec->sequence.seg,
+                                                         rec->sequence.off);
                 } while (v->state != 0xff);
 
                 free_for_kind((uint8_t *)v, 2);
-                rec = fp;
-                *(uint16_t *)(rec + 0x10) = 0;
-                *(uint16_t *)(rec + 0xe) = 0;
-                fp = MK_FP(0, 0);
+                rec->sequence = FAR_NULL;
+                rec = SOUND_RECORD_NONE;
             } else {
-                fp = next_matching_record(-3);
+                rec = next_matching_record(-3);
             }
         }
 
@@ -3627,55 +3614,42 @@ uint16_t stop_sequences(int16_t selector)
     }
 
     if (selector == -1 || selector == 0 || selector == -2) {
-        fp = next_matching_record(-2);
+        rec = next_matching_record(-2);
         for (;;) {
-            uint8_t *rec;
-
-            if (fp == MK_FP(0, 0))
+            if (rec == SOUND_RECORD_NONE)
                 break;
 
-            rec = fp;
-            *(uint16_t *)(rec + 0x12) &= 0xffef;
-            fp = next_matching_record(-3);
+            rec->flags &= 0xffef;
+            rec = next_matching_record(-3);
         }
 
         stop_all_voices();
         return 1;
     }
 
-    fp = next_matching_record(selector);
-    if (fp == MK_FP(0, 0))
+    rec = next_matching_record(selector);
+    if (rec == SOUND_RECORD_NONE)
         return 0;
 
-    {
-        uint8_t *rec = fp;
+    rec->flags &= 0xffef;
 
-        *(uint16_t *)(rec + 0x12) &= 0xffef;
+    if ((rec->flags & 1) == 0) {
+        stop_voice_playing(MK_FP(rec->data.seg, rec->data.off));
+        return 1;
+    }
 
-        if ((*(uint16_t *)(rec + 0x12) & 1) == 0) {
-            const struct far_ptr *data = (const struct far_ptr *)(rec + 4);
+    if (!far_eq(rec->sequence, FAR_NULL)) {
+        struct sequence *v = (struct sequence *)(void *)MK_FP(rec->sequence.seg,
+                                                              rec->sequence.off);
 
-            stop_voice_playing(MK_FP(data->seg, data->off));
-            return 1;
-        }
+        follow_then_tick(v, 0);
 
-        if (!far_eq(*(struct far_ptr *)(rec + 0xe), FAR_NULL)) {
-            const struct far_ptr *at = (const struct far_ptr *)(rec + 0xe);
-            struct sequence *v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
+        do {
+            v = (struct sequence *)(void *)MK_FP(rec->sequence.seg, rec->sequence.off);
+        } while (v->state != 0xff);
 
-            follow_then_tick(v, 0);
-
-            do {
-                rec = fp;
-                at = (const struct far_ptr *)(rec + 0xe);
-                v = (struct sequence *)(void *)MK_FP(at->seg, at->off);
-            } while (v->state != 0xff);
-
-            free_for_kind((uint8_t *)v, 2);
-            rec = fp;
-            *(uint16_t *)(rec + 0x10) = 0;
-            *(uint16_t *)(rec + 0xe) = 0;
-        }
+        free_for_kind((uint8_t *)v, 2);
+        rec->sequence = FAR_NULL;
     }
 
     return 1;
@@ -3777,7 +3751,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     }
 
 search:
-    if (id > 0 && next_matching_record(id) != MK_FP(0, 0)) {
+    if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE) {
         r = DG4A82.file_ptr;
         goto out;
     }
@@ -3921,65 +3895,52 @@ uint16_t set_master_level_ok(uint16_t level)
  */
 uint16_t start_sequence_by_id(int16_t id)
 {
-    /* The chain's link is the record's own first four bytes, which
-       `read_record` writes as one `struct far_ptr`. */
-    uint8_t *rec = MK_FP(DG4A82.records.seg, DG4A82.records.off);
+    struct sound_record *rec = SOUND_RECORD_PTR(DG4A82.records);
 
-    while (rec != MK_FP(0, 0)) {
-        if (*(int16_t *)(rec + 0xa) == id)
+    while (rec != SOUND_RECORD_NONE) {
+        if (rec->id == id)
             break;
-        rec = MK_FP(((struct far_ptr *)(void *)rec)->seg,
-                    ((struct far_ptr *)(void *)rec)->off);
+        rec = SOUND_RECORD_PTR(rec->next);
     }
 
-    if (rec == MK_FP(0, 0))
+    if (rec == SOUND_RECORD_NONE)
         return 0;
 
-    if ((*(uint16_t *)(rec + 0x12) & 0x10) != 0)
+    if ((rec->flags & 0x10) != 0)
         return 1;
-    if (*(uint16_t *)(rec + 4) == 0 && *(uint16_t *)(rec + 6) == 0)
+    if (rec->data.off == 0 && rec->data.seg == 0)
         return 1;
-    if (*(uint16_t *)(rec + 0xe) != 0 || *(uint16_t *)(rec + 0x10) != 0)
+    if (rec->sequence.off != 0 || rec->sequence.seg != 0)
         return 1;
 
-    if ((*(uint16_t *)(rec + 0x12) & 1) != 0) {
-        const uint8_t *other = MK_FP(DG4A82.records.seg, DG4A82.records.off);
+    if ((rec->flags & 1) != 0) {
+        const struct sound_record *other = SOUND_RECORD_PTR(DG4A82.records);
 
-        while (other != MK_FP(0, 0)) {
+        while (other != SOUND_RECORD_NONE) {
+            if ((other->flags & 1) != 0
+                && (other->sequence.off != 0 || other->sequence.seg != 0)
+                && other->id != id)
+                stop_sequences(other->id);
 
-            if ((*(uint16_t *)(other + 0x12) & 1) != 0
-                && (*(uint16_t *)(other + 0xe) != 0
-                    || *(uint16_t *)(other + 0x10) != 0)
-                && *(int16_t *)(other + 0xa) != id)
-                stop_sequences(*(int16_t *)(other + 0xa));
-
-            /* The link is the node's first four bytes, offset then
-               segment - which is a `far_ptr` where it lies. */
-            other = MK_FP(((const struct far_ptr *)(void *)other)->seg,
-                          ((const struct far_ptr *)(void *)other)->off);
+            other = SOUND_RECORD_PTR(other->next);
         }
 
         if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
-            *(uint16_t *)(rec + 0x12) |= 0x10;
+            rec->flags |= 0x10;
             return 1;
         }
 
         {
-            struct sequence *built = create_sequence(
-                MK_FP(*(uint16_t *)(rec + 6), *(uint16_t *)(rec + 4)));
-            struct far_ptr b;
-            struct sequence *seq;
+            struct sequence *seq = create_sequence(MK_FP(rec->data.seg, rec->data.off));
 
-            *(uint16_t *)(rec + 0x10) = FP_SEG(built);
-            *(uint16_t *)(rec + 0xe) = FP_OFF(built);
-            if ((uint8_t *)built == MK_FP(0, 0))
+            /* The sequence's pair, as the original files `create_sequence`'s
+               DX:AX - a DOS block starting a segment. */
+            rec->sequence = far_of((uint8_t *)seq);
+            if (seq == SEQUENCE_NONE)
                 return 0;
 
-            b = *(struct far_ptr *)(rec + 0xe);
-            seq = (struct sequence *)(void *)MK_FP(b.seg, b.off);
-
-            seq->loop = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
-            seq->priority = rec[0xc];
+            seq->loop = (uint8_t)((rec->flags & 2) ? 1 : 0);
+            seq->priority = (uint8_t)rec->priority;
 
             if (load_and_start_sequence(seq, 0, 0x7f) == SEQUENCE_NONE)
                 return 0;
@@ -3987,23 +3948,18 @@ uint16_t start_sequence_by_id(int16_t id)
         }
     }
 
-    {
-        const struct far_ptr *data = (const struct far_ptr *)(rec + 4);
-
-        if (voice_playing(MK_FP(data->seg, data->off)) != SEQUENCE_NONE)
-            return 1;
-    }
+    if (voice_playing(MK_FP(rec->data.seg, rec->data.off)) != SEQUENCE_NONE)
+        return 1;
 
     if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
-        if ((*(uint16_t *)(rec + 0x12) & 2) != 0)
-            *(uint16_t *)(rec + 0x12) |= 0x10;
+        if ((rec->flags & 2) != 0)
+            rec->flags |= 0x10;
         return 1;
     }
 
-    start_on_free_voice(MK_FP(((const struct far_ptr *)(rec + 4))->seg,
-                              ((const struct far_ptr *)(rec + 4))->off),
+    start_on_free_voice(MK_FP(rec->data.seg, rec->data.off),
                         0x7f,
-                        (uint16_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0));
+                        (uint16_t)((rec->flags & 2) ? 1 : 0));
     return 1;
 }
 
@@ -4040,7 +3996,7 @@ uint16_t start_sequence_by_id(int16_t id)
  * null naturally, the identifier walk writes zeros explicitly on the paths that
  * give up early.
  */
-uint8_t far *next_matching_record(int16_t selector)
+struct sound_record far *next_matching_record(int16_t selector)
 {
     int16_t expect = 0, mask = 1;
 
@@ -4048,10 +4004,7 @@ uint8_t far *next_matching_record(int16_t selector)
         SOUND_TICK_WAIT.selector = selector;
         SOUND_TICK_WAIT.cursor = DG4A82.records;
     } else if (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
-        uint8_t *rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
-
-        SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
-        SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
+        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
     }
 
     if (SOUND_TICK_WAIT.selector == -2) {
@@ -4062,36 +4015,29 @@ uint8_t far *next_matching_record(int16_t selector)
         mask = 0;
         expect = 1;
     } else {
-        /* Match on the identifier at +0xa. */
+        /* Match on the identifier. */
         if ((SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0) || selector == -3) {
             SOUND_TICK_WAIT.cursor = FAR_NULL;
-            return MK_FP(0, 0);
+            return SOUND_RECORD_NONE;
         }
 
         for (;;) {
-            uint8_t *rec;
-
             if (SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0)
                 break;
-            rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
-            if (*(int16_t *)(rec + 0xa) == selector)
+            if (SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->id == selector)
                 break;
-            SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
-            SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
+            SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
         }
-        return MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
+        return SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor);
     }
 
     while (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
-        uint8_t *rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
-
-        if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
+        if ((((int16_t)SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->flags & mask) ^ expect) != 0)
             break;
-        SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
-        SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
+        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
     }
 
-    return MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
+    return SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor);
 }
 
 /*
@@ -4240,81 +4186,74 @@ uint16_t read_record(FILE *file, uint16_t mode)
        is a byte buffer with one widening read rather than a record - which
        is why `framify.py` refuses it and this one is spelled by hand. */
     uint8_t scratch[6];
-    struct far_ptr rec;
-    uint8_t *at;
+    struct sound_record *rec;
     uint16_t kind;
-    struct far_ptr p;
+    uint8_t *p;
     uint16_t r = 0;
 
     game_fread((uint8_t *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
-    p = far_of(alloc_for_kind(0x14, 3));
-    rec = p;
-    at = MK_FP(rec.seg, rec.off);
-    if (far_eq(p, FAR_NULL))
+    rec = (struct sound_record *)(void *)alloc_for_kind(0x14, 3);
+    if (rec == SOUND_RECORD_NONE)
         goto out_;
 
-    *(uint16_t *)(at + 0xa) =
-        (uint16_t)*(int16_t *)(scratch);
+    rec->id = *(int16_t *)(scratch);
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)(at + 0xc) = *scratch;
+    rec->priority = *scratch;
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)(at + 0x12) = *scratch;
+    rec->flags = *scratch;
 
-    kind = (*(uint16_t *)(at + 0x12) & 1)
-           ? 4 : 7;
+    kind = (rec->flags & 1) ? 4 : 7;
 
     if ((uint16_t)len[0] < 4)
         len[1] = (int16_t)((uint16_t)len[1] - 1);
     len[0] = (int16_t)((uint16_t)len[0] - 4);
 
-    *(uint16_t *)(at + 6) = 0;
-    *(uint16_t *)(at + 4) = 0;
+    rec->data = FAR_NULL;
 
+    /* Each payload is a block DOS handed out, so `far_of` files its own
+       pair, as the original files the DX:AX it was answered. */
     if ((uint8_t)mode == 0x63) {
-        p = far_of(alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
-                                  | (uint16_t)len[0], kind));
-        *(uint16_t *)(at + 6) = p.seg;
-        *(uint16_t *)(at + 4) = p.off;
+        p = alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
+                           | (uint16_t)len[0], kind);
+        rec->data = far_of(p);
 
-        if (far_eq(p, FAR_NULL))
+        if (p == MK_FP(0, 0))
             goto fail;
 
-        if (fread_huge(MK_FP(p.seg, p.off), ((uint32_t)(uint16_t)len[1] << 16)
+        if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
                               | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        p = far_of(load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
+        p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
                                       | (uint16_t)len[0],
-                            (uint8_t *)out));
+                            (uint8_t *)out);
 
-        *(uint16_t *)(at + 6) = p.seg;
-        *(uint16_t *)(at + 4) = p.off;
-        if (far_eq(p, FAR_NULL))
+        rec->data = far_of(p);
+        if (p == MK_FP(0, 0))
             goto fail;
     } else {
-        p = far_of(load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
+        p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
                                           | (uint16_t)len[0],
-                                (uint8_t *)out, kind));
+                                (uint8_t *)out, kind);
 
-        *(uint16_t *)(at + 6) = p.seg;
-        *(uint16_t *)(at + 4) = p.off;
-        if (far_eq(p, FAR_NULL))
+        rec->data = far_of(p);
+        if (p == MK_FP(0, 0))
             goto fail;
     }
 
-    *(struct far_ptr *)at = DG4A82.records;
-    *(uint16_t *)(at + 8) = (uint16_t)out[0];
+    rec->next = DG4A82.records;
+    rec->size = (uint16_t)out[0];
 
-    DG4A82.records = rec;
+    DG4A82.records = far_of((uint8_t *)rec);
     r = 1;
     goto out_;
 
 fail:
-    free_for_kind(MK_FP(rec.seg, rec.off), 3);
+    free_for_kind((uint8_t *)rec, 3);
 
 out_:
     return r;
