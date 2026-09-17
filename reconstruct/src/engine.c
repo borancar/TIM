@@ -1299,12 +1299,16 @@ int16_t decompress_lzw(void)
     uint16_t *prefix = (uint16_t *)MK_FP(ENGINE_STREAM.scratch.seg, 0);
     uint8_t far * suffix = MK_FP(ENGINE_STREAM.scratch.seg, 0x2720);
     uint8_t far *in, *back;
-    uint16_t dst_seg;
+    /* The segment the caller chose, as its first byte: what the cursor below
+       is measured against, and the one thing a normalised pointer cannot
+       answer for - see the note on `out`. */
+    const uint8_t far *dst_base;
     /*
      * The output cursor. The original keeps it as `di` against a segment it
      * leaves alone, walking the offset with `inc di` and filing it back into
      * DGROUP 0x5894; here it is one address, and the two places the original
-     * files it write the offset back against the segment it started from.
+     * files it write back its distance from `dst_base`, that segment's first
+     * byte.
      *
      * **Normalising instead was tried and measured on 2026-09-10.** Writing
      * `FP_SEG`/`FP_OFF` of the cursor addresses the same byte - 424b:2b10 and
@@ -1323,8 +1327,8 @@ int16_t decompress_lzw(void)
 
     if (ENGINE_STREAM.resume != 0) {
         cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
-        dst_seg = ENGINE_STREAM.out.seg;
-        out = MK_FP(dst_seg, (uint16_t)ENGINE_STREAM.out.off);
+        dst_base = MK_FP(ENGINE_STREAM.out.seg, 0);
+        out = (uint8_t far *)dst_base + (uint16_t)ENGINE_STREAM.out.off;
         back = scratch + (uint16_t)ENGINE_LZW_RESUME.scratch_at;
         copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
         ENGINE_STREAM.resume = 0;
@@ -1381,8 +1385,8 @@ int16_t decompress_lzw(void)
 
         cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
         back = in - 1;
-        dst_seg = ENGINE_STREAM.out.seg;
-        out = MK_FP(dst_seg, (uint16_t)ENGINE_STREAM.out.off);
+        dst_base = MK_FP(ENGINE_STREAM.out.seg, 0);
+        out = (uint8_t far *)dst_base + (uint16_t)ENGINE_STREAM.out.off;
         copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
 
         for (;;) {
@@ -1391,7 +1395,7 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                ENGINE_STREAM.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
+                ENGINE_STREAM.out.off = (int16_t)(out - dst_base);
                 ENGINE_LZW_RESUME.scratch_at = (int16_t)(back - scratch);
 
                 rec = ENGINE_STREAM.record_ptr;
@@ -1426,7 +1430,7 @@ step_back:
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         ENGINE_STREAM.wanted = (int16_t)cx;
-        ENGINE_STREAM.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
+        ENGINE_STREAM.out.off = (int16_t)(out - dst_base);
 
         if (ENGINE_STREAM.free_ent < 0x1000) {
             uint16_t next = ((uint16_t)ENGINE_STREAM.free_ent);
@@ -6286,13 +6290,15 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          * briefing's title bar and its description came out smeared while the
          * panel's labels, which are bitmaps, were right.
          */
-        w = FAR8(ENGINE_FONT_SLOTS.slot[0].seg, (uint16_t)(ENGINE_FONT_SLOTS.slot[0].off + index));
+        /* A word per glyph in the offset table, a byte per glyph in the
+           width table: typed, so each is indexed by the glyph. */
+        const uint16_t far *offsets = (const uint16_t far *)(const void *)
+            dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]);
+        const uint8_t far *widths = dg_far_ptr(ENGINE_FONT_SLOTS.slot[0]);
+
+        w = widths[index];
         h = VMDS.font_table_48[0];
-        glyph = MK_FP(ENGINE_FONTS.body[0].seg,
-                      (uint16_t)(ENGINE_FONTS.body[0].off
-                                 + FARU16(ENGINE_FONT_WIDTHS.width[0].seg,
-                                          (uint16_t)(ENGINE_FONT_WIDTHS.width[0].off
-                                                     + 2 * index))));
+        glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + offsets[index];
     } else {
         uint16_t units;
 
@@ -6300,8 +6306,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         h = VMDS.font_table_48[0];
         units = (ENGINE_FONT_KINDS.kind[0] == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
-        glyph = MK_FP(ENGINE_FONTS.body[0].seg,
-                      (uint16_t)(ENGINE_FONTS.body[0].off + units * h));
+        glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + units * h;
     }
 
     clipped = (x < VMDS.clip_left)
@@ -6451,22 +6456,22 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 
             if (dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]) != FAR_NULL_PTR) {
                 /* Far pointers, as in `draw_char`; see the note there. */
-                w = FAR8(ENGINE_FONT_SLOTS.slot[0].seg, (uint16_t)(ENGINE_FONT_SLOTS.slot[0].off + index));
+                const uint16_t far *offsets =
+                    (const uint16_t far *)(const void *)
+                    dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]);
+                const uint8_t far *widths =
+                    dg_far_ptr(ENGINE_FONT_SLOTS.slot[0]);
+
+                w = widths[index];
                 h = VMDS.font_table_48[0];
-                glyph = MK_FP(ENGINE_FONTS.body[0].seg,
-                              (uint16_t)(ENGINE_FONTS.body[0].off
-                                  + FARU16(ENGINE_FONT_WIDTHS.width[0].seg,
-                                           (uint16_t)(ENGINE_FONT_WIDTHS.width[0].off
-                                                      + 2 * index))));
+                glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + offsets[index];
             } else {
                 uint16_t stride;
 
                 w = VMDS.font_table_34[0];
                 h = VMDS.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
-                glyph = MK_FP(ENGINE_FONTS.body[0].seg,
-                              (uint16_t)(ENGINE_FONTS.body[0].off
-                                         + stride * h * index));
+                glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + stride * h * index;
             }
 
             vm_blit_glyph(glyph, w, h, x, y);
@@ -6533,8 +6538,8 @@ uint16_t text_width(const char *str)
 
         /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
-                                    ? FAR8(ENGINE_FONT_SLOTS.slot[0].seg,
-                                           (uint16_t)(ENGINE_FONT_SLOTS.slot[0].off + index))
+                                    ? dg_far_ptr(
+                                          ENGINE_FONT_SLOTS.slot[0])[index]
                                     : VMDS.font_table_34[0]));
     }
 

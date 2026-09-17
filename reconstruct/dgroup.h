@@ -3655,6 +3655,38 @@ _Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17
 
 /*
  * ---------------------------------------------------------------------------
+ * **A sound file's directory**, the block `open_sound_file` allocates and
+ * fills from the file's own bytes: four bytes of cursor of its own making,
+ * and then the file's directory image read in at +4.
+ *
+ * The walk steps `entry` by one record at a time - the original's `add si,6` -
+ * and the cursor at +0 is where it left off, filed as this block's segment
+ * beside its ninth byte, which is `entry[0]`.
+ * ---------------------------------------------------------------------------
+ */
+struct sound_dir_entry {
+    int16_t   id;              /* +0x00  what start_sequence_by_id asks for */
+    uint32_t  at;              /* +0x02  where the record is in the file; the
+                                         original loads it as two words */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct sound_dir_entry) == 6, "the walk steps by six");
+
+struct sound_dir {
+    struct far_ptr cursor;     /* +0x00  where the walk is, filed by open_sound_file */
+    uint16_t  magic;           /* +0x04  2, or the file is not one of these */
+    int16_t   count;           /* +0x06  how many entries follow */
+    uint8_t   kind;            /* +0x08  handed to read_record as its mode */
+    struct sound_dir_entry entry[1];   /* +0x09  `count` of them */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct sound_dir, magic, 0x04);
+DG_ASSERT_AT(struct sound_dir, count, 0x06);
+DG_ASSERT_AT(struct sound_dir, kind,  0x08);
+DG_ASSERT_AT(struct sound_dir, entry, 0x09);
+
+/*
+ * ---------------------------------------------------------------------------
  * **A sound record**, the 0x14 bytes of kind 3 `read_record` makes for each
  * entry of a sound file and puts on the front of the list at `DG4A82.records`.
  * It lives in a DOS block, not in DGROUP.

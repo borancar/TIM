@@ -3670,12 +3670,14 @@ uint16_t open_sound_file(char *name, int16_t id)
        held. The port starts it at the zero the test is written for. */
     uint32_t found = 0;
     uint32_t size;               /* [bp-8]:[bp-6], one long */
-    const uint8_t *cur = NULL;   /* [bp-0xc]:[bp-0xa], six bytes an entry */
+    /* [bp-0xc]:[bp-0xa], the walk: one entry at a time, which is the
+       original's `add si,6`. */
+    const struct sound_dir_entry far *cur = NULL;
     /* The directory block itself. The original reloads `les bx,[0x4a98]`
        before each of the ten reads below; nothing changes it in between, and
        the `goto search` above skips the allocation, so it is taken again at
        that label. */
-    uint8_t *dir;
+    struct sound_dir far *dir;
     int16_t si;
     uint16_t r = 0;
 
@@ -3709,43 +3711,41 @@ uint16_t open_sound_file(char *name, int16_t id)
 
     /* `size + 4` as one long; the original adds the low word and carries
        into the high one by hand. */
-    dir = alloc_for_kind(size + 4, 0xa);
-    DG4A82.directory = far_of(dir);
-    if (dir == FAR_NULL_PTR)
+    dir = (struct sound_dir *)(void *)alloc_for_kind(size + 4, 0xa);
+    DG4A82.directory = far_of((uint8_t *)dir);
+    if ((uint8_t *)dir == FAR_NULL_PTR)
         goto fail;
 
-    if (fread_huge(dir + 4, size, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
+    /* The file's own directory image lands at +4, over `magic` onwards. */
+    if (fread_huge((uint8_t *)&dir->magic, size, 1,
+                   FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
-    if (*(uint16_t *)(void *)(dir + 4) != 2)
+    if (dir->magic != 2)
         goto fail;
 
-    /* The cursor the search reads back, filed in the block's own first four
-       bytes: this block's segment beside its ninth byte. */
-    *(struct far_ptr *)(void *)dir = far_stepped(dir, dir + 9);
+    /* Where the walk starts: this block's segment beside its ninth byte. */
+    dir->cursor = far_stepped((uint8_t *)dir, (uint8_t *)&dir->entry[0]);
 
 search:
-    dir = dg_far_ptr(DG4A82.directory);
+    dir = (struct sound_dir *)(void *)dg_far_ptr(DG4A82.directory);
     if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE) {
         r = DG4A82.file_ptr;
         goto out;
     }
 
-    cur = dg_far_ptr(*(const struct far_ptr *)(const void *)dir);
+    cur = (const struct sound_dir_entry *)(void *)dg_far_ptr(dir->cursor);
 
     if (id > 0) {
         for (si = 0; ; si++) {
-            const uint8_t *e;
-
-            if (*(int16_t *)(void *)(dir + 6) <= si)
+            if (dir->count <= si)
                 break;
 
-            e = cur;
-            if (*(int16_t *)e == id) {
-                found = *(uint32_t *)(e + 2);
+            if (cur->id == id) {
+                found = cur->at;
                 break;
             }
-            cur += 6;
+            cur++;
         }
 
         {
@@ -3761,7 +3761,7 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir[8]);
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir->kind);
             if (ok == 0)
                 goto out;
         }
@@ -3771,16 +3771,12 @@ search:
     }
 
     for (si = 0; ; si++) {
-        const uint8_t *e;
-
-        if (*(int16_t *)(void *)(dir + 6) <= si)
+        if (dir->count <= si)
             break;
 
-        e = cur;
         {
-            uint32_t at = ((((uint32_t)*(uint16_t *)(e + 4) << 16)
-                            | *(uint16_t *)(e + 2)) + 4);
-
+            /* The original loads the two words and adds four to the pair. */
+            uint32_t at = cur->at + 4;
 
             if (game_fseek(FILEREC_PTR(DG4A82.file_ptr), (int32_t)at, 0) != 0)
                 goto fail;
@@ -3789,12 +3785,12 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir[8]);
+            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir->kind);
             if (ok == 0)
                 goto fail;
         }
 
-        cur += 6;
+        cur++;
     }
 
     r = DG4A82.file_ptr;
