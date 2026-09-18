@@ -901,6 +901,57 @@ solutions unchanged.
 flush, never `exit`. And a check whose verdict ignores the exit status can pass
 over a crash - read the notes column.
 
+### `make test` stopped at its solutions step, and what that step wanted could not be in the repository
+
+**What happened.** Found on 2026-09-16 while adding `tools/check_handles.py` to
+`make test`. The `test` target ran `tools/check_solutions.py --simulate`, which
+globbed `solution_snaps/*.solution` - and `solution_snaps/` does not exist, so
+it exited with "no .solution snapshots", the target printed `FAIL: a solution
+no longer solves under simulation` and **stopped**. Everything after that step
+had therefore not been running: `check_printf.py`, and the
+`framify_census.py --assert` and `promote.py --assert` ratchets. The line was
+being read as "the one expected failure" rather than as a wall.
+
+**What it was.** Not the glob. A `.solution` is a *port snapshot* - our memory
+and our hardware state, carrying the original executable with it - so it is
+reached only by playing, is not ours to publish, and is ignored by
+`.gitignore` on purpose. The only end-to-end check in the project rested on a
+file that could not be in the repository, and would have gone on resting on
+one whatever the glob said.
+
+**What settled it, on 2026-09-18.** A solution became a **machine file**:
+`solutions/S<NN>.TIM`, what the game's own `save_machine` writes, loaded over
+its puzzle the way the game loads one - `--level N` supplies the goal,
+`TIM_LOADMACHINE` hands the file to `round_teardown`, `load_animation` and
+`reset_machine`, and the bin is emptied because a puzzle's bin is the level's.
+No snapshot, no CPU state to invent, and the same file is readable by the
+hybrid, which is why `check_machines.py` could drop its snapshots too.
+
+Two things had to be measured on the way. **The file has to be inside the game
+directory**: the port's file layer treats that directory as a floor, so an
+absolute host path resolved to nowhere, `read_level` answered 0 without a word,
+the autoplay driver still reported "loaded the machine", and the first goal
+test - `goal_test_puzzle_1`, whose walk has no end test because the original's
+has none - spun on an empty list. Both checks now stage a copy of the game
+directory with the solutions beside the game's own files, and
+`check_solutions.py` refuses to give a verdict about solving unless the
+loader's own line is in the output. And **the clock has to run** until the play
+screen is up: a simulation from a snapshot needs no timer, but a machine loaded
+the game's way needs the game to get as far as its level screen first, and the
+frame spins wait on the tick. `dev_autoplay` stops the timer at the moment it
+takes over.
+
+29 of 29 solve both ways, simulated and through the real loop, at the same
+frame. Playing the intro for every level costs two seconds a level that a
+snapshot did not, so both checks now run the levels in parallel: 4 seconds
+simulated, 97 seconds real, on sixteen cores.
+
+**The rule.** A check's evidence belongs in the repository, in the game's own
+format, loaded through the game's own loader. Evidence that can only be made by
+playing is evidence that will be missing when it matters - and a step whose
+absence prints the same line as a real failure will be read as one and skipped
+over.
+
 ## The hybrid runner
 
 What `tools/native` can and cannot observe.

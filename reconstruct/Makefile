@@ -222,11 +222,12 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS) $(GUEST
 # from the shipping `main.c` and a DOS game's entry point has no command line:
 # it can be pointed at the intro and at nothing else. Every frame in parts.c
 # and machine.c belongs to code a *level* reaches, so checking those needs
-# `--restore`, which only devmain.c has.
+# `--level` and `TIM_LOADMACHINE`, which only devmain.c has.
 #
 #   make -C reconstruct asandev
-#   TIM_HEADLESS=1 TIM_STOPFLIP=3000 ./reconstruct/devtimasan \
-#       --restore solution_snaps/level14.solution --run
+#   TIM_HEADLESS=1 TIM_STOPFLIP=3000 TIM_LOADMACHINE=S14.TIM \
+#       TIM_GAMEDIR=<a game directory with the solutions in it> \
+#       ./reconstruct/devtimasan --level 14 --run
 asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
 	    -std=c11 -I$(CURDIR) $(LDGUEST) $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
@@ -334,17 +335,18 @@ test: devtim tim debug
 	@# reason as the one above.
 	@cd .. && uv run python tools/check_image_data.py || { \
 	    echo "FAIL: transcribed data differs from the image - see tools/check_image_data.py"; exit 1; }
-	@# **Every solution, simulated.** `TIM_SIMULATE` runs each restored
-	@# machine through the game's own per-frame step with no clock, input
-	@# or display, and the goal test is the verdict: 34 levels in about a
-	@# second, the same frame counts as the real loop where the two were
-	@# compared, and the same answer every run. The real `check_solutions`
-	@# still stands - this does not exercise the loop's input or
-	@# presentation - but a physics or part-record change that breaks a
-	@# level now fails `make test` instead of an hour later.
+	@# **Every solution, simulated.** Each `solutions/S<NN>.TIM` is loaded
+	@# over its own puzzle the way the game loads a machine, and
+	@# `TIM_SIMULATE` then runs it through the game's own per-frame step
+	@# with no clock, input or display, the goal test being the verdict:
+	@# 29 levels in a few seconds, the same frame counts as the real loop
+	@# where the two were compared, and the same answer every run. The real
+	@# `check_solutions` still stands - this does not exercise the loop's
+	@# input or presentation - but a physics or part-record change that
+	@# breaks a level now fails `make test` instead of an hour later.
 	@cd .. && uv run python tools/check_solutions.py --simulate > /dev/null || { \
 	    echo "FAIL: a solution no longer solves under simulation - run tools/check_solutions.py --simulate"; exit 1; }
-	@echo "every solution snapshot solves under simulation"
+	@echo "every solution solves under simulation"
 	@# The printf engine against the host's libc: nothing the game does
 	@# reaches a conversion, so this is the only check the 1150-byte
 	@# transcription of `__vprinter` has. A second, and it takes a second.

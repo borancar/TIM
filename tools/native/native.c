@@ -1355,7 +1355,9 @@ static void usage(void)
 "                          to the port's hardware.\n"
 "  TIM_ABORTDUMP=F         where a stub's abort dumps memory and registers\n"
 "  TIM_SNAP=PATH           where a snapshot goes instead of a numbered one\n"
-"  TIM_SNAPDIR=DIR         where the numbered snapshots go (default out)\n");
+"  TIM_SNAPDIR=DIR         where the numbered snapshots go (default out)\n"
+"  TIM_GAMEDIR=DIR         the directory the guest sees as its own, instead\n"
+"                          of incredible-machine\n");
 }
 
 int main(int argc, char **argv)
@@ -1389,6 +1391,21 @@ int main(int argc, char **argv)
     snprintf(exe, sizeof exe, "%s/TIM.unpacked.exe", dir);
 
     io_reset();
+
+    /*
+     * OURS: `TIM_GAMEDIR` points the guest's file world somewhere other than
+     * `incredible-machine`, exactly as it does in `devmain.c`. The hybrid uses
+     * the port's file layer, and that layer treats its directory as a floor -
+     * so a check that wants the guest to open a file the game's folder does
+     * not have had, until this, to write the file into the game's folder.
+     */
+    {
+        const char *game = getenv("TIM_GAMEDIR");
+
+        if (game != NULL && *game)
+            io_set_game_dir(game);
+    }
+
     if (!io_load_program(img, exe)) {
         fprintf(stderr, "cannot read %s and %s - run tools/unlzexe.py first, "
                 "or set TIM_DIR\n", img, exe);

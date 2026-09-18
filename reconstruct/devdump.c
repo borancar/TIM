@@ -678,6 +678,27 @@ static void dev_autoplay(int32_t flip)
             }
         }
 
+        /*
+         * **`TIM_SIMULATE` without a snapshot.** The machine above was loaded
+         * the way the game loads one - `round_teardown`, `load_animation`,
+         * `reset_machine`, and the bin emptied - so the level is the machine's
+         * to run and there is nothing a snapshot would add.
+         * `dev_simulate_machine` takes it from here with no clock, no input
+         * and no timer thread, and the process leaves through `_exit` because
+         * the timer thread must not outlive the sound chip - see
+         * docs/lessons.md.
+         */
+        {
+            const char *sim = getenv("TIM_SIMULATE");
+
+            if (sim != NULL && *sim) {
+                io_stop_timer();        /* from here the simulation is alone */
+                dev_simulate_machine((int32_t)strtol(sim, NULL, 0));
+                fflush(NULL);
+                _exit(0);
+            }
+        }
+
         if (want_run) {
             DG4E67.state = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
@@ -792,8 +813,10 @@ void dev_level_solved(int16_t level, int16_t score)
 }
 
 /*
- * OURS: `TIM_SIMULATE=<frames>` - run a restored machine with no clock, no
- * input and no display, and say whether the goal test fired.
+ * OURS: `TIM_SIMULATE=<frames>` - run the machine that is up with no clock,
+ * no input and no display, and say whether the goal test fired. The machine
+ * arrives either through `TIM_LOADMACHINE`, which loads a .TIM the way the
+ * game loads one, or through `--restore`, which picks up a snapshot.
  *
  * `run_machine_loop` at 0x012ab is the game's own loop and this is **not a
  * second copy of it**: it is the same per-frame sequence with the hardware

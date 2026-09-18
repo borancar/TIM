@@ -45,6 +45,12 @@ incredible-machine/
 # original executable and its level data. They are reached by playing and are
 # worth keeping locally; they are not ours to publish. `out/` is already
 # ignored for the same reason.
+#
+# `solutions/` is **tracked**, and the difference is what the file is. A
+# `.TIM` is the game's own save format and holds part records - a kind, a
+# position, a size - for the machine that solves a puzzle: ours, built by
+# playing, and the only evidence the end-to-end check has. A snapshot is our
+# memory with Sierra's executable inside it.
 solution_snaps/
 *.snap
 *.snap.sp

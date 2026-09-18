@@ -126,12 +126,12 @@ static void resume_from_snapshot(void)
  * OURS: `TIM_SAVEMACHINE=<name>` - write the restored machine out as a `.TIM`
  * file through the game's own writer, and stop.
  *
- * Why it exists: the files in `solution_snaps` are *port* snapshots - memory and
- * hardware, no CPU - so only the port can open one, and the only question that
- * can be asked of a solved puzzle is "did it solve". The hybrid cannot load
- * one at all, which was tried and abandoned: the port installs its timer by
- * dispatch and so its memory carries an empty interrupt table, and even with
- * that filled in the guest ran off into unmapped code.
+ * Why it exists: a port snapshot is *our* memory and hardware with no CPU, so
+ * only the port can open one, and the only question that can be asked of a
+ * solved puzzle is "did it solve". The hybrid cannot load one at all, which was
+ * tried and abandoned: the port installs its timer by dispatch and so its
+ * memory carries an empty interrupt table, and even with that filled in the
+ * guest ran off into unmapped code.
  *
  * A machine *file* has none of those problems. It is what the game itself
  * writes and reads - `save_machine` at 0x1292d and `load_animation` at 0x12915
@@ -256,10 +256,14 @@ static void usage(void)
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
 "  TIM_RESTORE=F   the same as --restore\n"
-"  TIM_SIMULATE=N    with --restore, run the machine the snapshot holds for\n"
-"                  up to N frames through the game's own per-frame step, with\n"
-"                  no clock, input, display or timer thread, and report\n"
-"                  `io: simulate solved=...` - the goal test, in seconds\n"
+"  TIM_SIMULATE=N    run the machine for up to N frames through the game's\n"
+"                  own per-frame step, with no clock, input, display or timer\n"
+"                  thread, and report `io: simulate solved=...` - the goal\n"
+"                  test, in seconds. The machine is whichever of the two ways\n"
+"                  of supplying one was used: TIM_LOADMACHINE, which loads a\n"
+"                  .TIM the way the game loads one, or --restore, which picks\n"
+"                  up a snapshot. With TIM_LOADMACHINE the clock runs until\n"
+"                  the play screen is up, because the game has to get there.\n"
 "  TIM_SAVEMACHINE=NAME  with --restore, write the restored machine out as\n"
 "                  that .TIM file through the game's own `save_machine` and\n"
 "                  stop. A machine file can be loaded by either side through\n"
@@ -448,8 +452,16 @@ int main(int argc, char **argv)
         if (restore && !io_read_snapshot(restore))
             return 1;
 
-        if (getenv("TIM_SIMULATE") == NULL)
-            io_set_timer(timer_tick);      /* a simulation has no clock */
+        /*
+         * A simulation has no clock - but only a simulation that starts from a
+         * snapshot can do without one from the first instruction. Loading a
+         * machine the way the game loads one needs the game to *run* as far as
+         * the play screen first, and the frame spins it waits on are released
+         * by the timer. So the clock stays for that path and `dev_autoplay`
+         * stops it at the moment it takes over.
+         */
+        if (getenv("TIM_SIMULATE") == NULL || restore == NULL)
+            io_set_timer(timer_tick);
 
         /*
          * `TIM_SFXALL=N` asks the game for each sound identifier in turn

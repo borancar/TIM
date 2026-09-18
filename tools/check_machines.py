@@ -10,11 +10,11 @@ reaches. This runs a solved puzzle on both sides and compares every page flip.
 It is possible at all because of two things. The tick now obeys the chip - both
 sides advance the guest's clock at the 236.7 Hz divisor 5041 asks for - so flip
 N is the same moment on each, with no content alignment. And a solution travels
-as a **machine file** rather than as a snapshot: the port writes one through the
-game's own `save_machine`, and both sides read it back through the game's own
-`round_teardown` / `load_animation` / `reset_machine`. The goal it is judged
-against comes from the level, which is why each run is a level number and a
-file and nothing else.
+as a **machine file** rather than as a snapshot: `solutions/S<NN>.TIM` is what
+the game's own `save_machine` wrote, and both sides read it back through the
+game's own `round_teardown` / `load_animation` / `reset_machine`. The goal it is
+judged against comes from the level, which is why each run is a level number and
+a file and nothing else.
 
 A port snapshot cannot do this job and was tried: `TIMPORT1` carries memory and
 io state and no CPU registers, because the port has no guest CPU to save.
@@ -50,9 +50,12 @@ the port's timer perturbs its own simulation. It becomes a real check the day
 that timer is made deterministic - which is what STATUS.md already says has to
 happen before the port is finished - and nothing else here has to change.
 
-The machine files are written into the game's own directory, which is where the
-loader looks and which is not in the repository - so they are derived artefacts
-and are rebuilt from the snapshots on every run.
+**Both sides are pointed at a staged copy of the game directory.** The guest's
+file layer treats its directory as a floor, so a machine file has to be *inside*
+it to be openable at all; this used to mean writing the files into
+`incredible-machine/` itself. `TIM_GAMEDIR` now works for the hybrid as well as
+for the port, so the copy is made in a temporary directory with the solutions
+beside the game's own files and nothing here writes to the game's folder.
 
 This file is the port's own tooling; it is not a transcription.
 """
@@ -60,8 +63,10 @@ import argparse
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
@@ -71,24 +76,26 @@ NATIVE = os.path.join(tim.REPO, "tools", "native", "native")
 
 
 def level_of(name):
-    """`level07` -> 7. The number is the puzzle, and the puzzle is the goal."""
+    """`S07` -> 7. The number is the puzzle, and the puzzle is the goal."""
     m = re.search(r"(\d+)", name)
     return int(m.group(1), 10) if m else None
 
 
-def extract(snapshot, machine, gamedir, verbose):
-    """Write the snapshot's machine out through the game's own `save_machine`."""
-    env = dict(os.environ)
-    env.update({"TIM_HEADLESS": "1", "TIM_SAVEDIR": gamedir,
-                "TIM_SAVEMACHINE": machine})
-    p = subprocess.run([DEVTIM, "--restore", snapshot], env=env,
-                       capture_output=True, text=True, timeout=300)
-    if verbose:
-        sys.stderr.write(p.stderr)
-    return os.path.exists(os.path.join(gamedir, machine))
+def staged(paths):
+    """A game directory with the solutions in it, and its path.
+
+    A copy rather than the game's own folder, because nothing here writes to
+    that - the same rule `tools/fixture.py` states - and both binaries are
+    pointed at it with `TIM_GAMEDIR`.
+    """
+    out = tempfile.mkdtemp(prefix="tim-machines-")
+    shutil.copytree(tim.GAME_DIR, out, dirs_exist_ok=True)
+    for path in paths:
+        shutil.copy(path, os.path.join(out, os.path.basename(path).upper()))
+    return out
 
 
-def port_run(level, machine, hashes, flips, verbose):
+def port_run(level, machine, game, hashes, flips, verbose):
     """One port run of the machine, hashed per flip.
 
     **It does not report whether the puzzle solved, and that is deliberate.**
@@ -105,6 +112,7 @@ def port_run(level, machine, hashes, flips, verbose):
     """
     env = dict(os.environ)
     env.update({"TIM_HEADLESS": "1", "TIM_STOPFLIP": str(flips),
+                "TIM_GAMEDIR": game,
                 "TIM_LOADMACHINE": machine, "TIM_FLIPHASH": hashes})
     p = subprocess.run([DEVTIM, "--level", str(level), "--run"], env=env,
                        capture_output=True, text=True, timeout=600)
@@ -113,10 +121,10 @@ def port_run(level, machine, hashes, flips, verbose):
     return True
 
 
-def hybrid_run(level, machine, hashes, presents, verbose):
+def hybrid_run(level, machine, game, hashes, presents, verbose):
     env = dict(os.environ)
     env.update({"TIM_HEADLESS": "1", "TIM_STOP": str(presents),
-                "TIM_LEVEL": str(level), "TIM_RUN": "1",
+                "TIM_LEVEL": str(level), "TIM_RUN": "1", "TIM_GAMEDIR": game,
                 "TIM_LOADMACHINE": machine, "TIM_GUESTHASH": hashes})
     p = subprocess.run([NATIVE], env=env, capture_output=True, text=True,
                        timeout=900)
@@ -162,10 +170,10 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dir", default=os.path.join(tim.REPO, "solution_snaps"),
-                    help="where the .solution snapshots are")
+    ap.add_argument("--dir", default=os.path.join(tim.REPO, "solutions"),
+                    help="where the solution machine files are")
     ap.add_argument("--only", default="",
-                    help="a comma-separated list of level names to run")
+                    help="a comma-separated list of solution names to run")
     ap.add_argument("--flips", type=int, default=700,
                     help="port flips to compare (default %(default)s)")
     ap.add_argument("--presents", type=int, default=2400,
@@ -175,23 +183,27 @@ def main():
                     help="pass both binaries' stderr through")
     args = ap.parse_args()
 
-    gamedir = tim.game_dir()
     out = os.path.join(tim.REPO, "out")
     os.makedirs(out, exist_ok=True)
 
-    paths = sorted(glob.glob(os.path.join(args.dir, "*.solution")))
+    paths = sorted(glob.glob(os.path.join(args.dir, "S*.TIM")))
     if args.only:
         want = set(args.only.split(","))
         paths = [p for p in paths
                  if os.path.basename(p).rsplit(".", 1)[0] in want]
     if not paths:
-        raise SystemExit("no .solution snapshots in %s" % args.dir)
+        raise SystemExit("no S*.TIM solutions in %s" % args.dir)
 
+    game = staged(paths)
     bad = 0
     for path in paths:
-        name = os.path.basename(path).rsplit(".", 1)[0]
+        machine = os.path.basename(path).upper()
+        name = machine.rsplit(".", 1)[0]
         level = level_of(name)
-        machine = "S%02d.TIM" % level
+        if level is None:
+            print("  %-10s NO LEVEL IN THE NAME - skipped" % name)
+            bad += 1
+            continue
         ph = os.path.join(out, "%s.port.txt" % name)
         hh = os.path.join(out, "%s.hybrid.txt" % name)
 
@@ -199,18 +211,14 @@ def main():
             if os.path.exists(f):
                 os.remove(f)
 
-        if not extract(path, machine, gamedir, args.verbose):
-            print("  %-10s COULD NOT EXTRACT a machine file" % name)
-            bad += 1
-            continue
-
         ph2 = os.path.join(out, "%s.port2.txt" % name)
         if os.path.exists(ph2):
             os.remove(ph2)
 
-        port_run(level, machine, ph, args.flips, args.verbose)
-        port_run(level, machine, ph2, args.flips, args.verbose)
-        loaded = hybrid_run(level, machine, hh, args.presents, args.verbose)
+        port_run(level, machine, game, ph, args.flips, args.verbose)
+        port_run(level, machine, game, ph2, args.flips, args.verbose)
+        loaded = hybrid_run(level, machine, game, hh, args.presents,
+                            args.verbose)
 
         p, p2, h = digests(ph), digests(ph2), digests(hh)
         n = min(len(p), len(p2), len(h))
@@ -246,6 +254,8 @@ def main():
 
         if agree != len(stable) or not loaded:
             bad += 1
+
+    shutil.rmtree(game, ignore_errors=True)
 
     print()
     print("%d of %d levels agree on every flip the port reproduces"
