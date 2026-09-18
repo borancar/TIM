@@ -1303,8 +1303,7 @@ void poll_sequences(void)
             args.play.volume = rec->volume;
             args.play.loop = rec->loop;
             args.play.rate = *(const uint16_t *)b;
-            args.play.sample = (struct far_ptr){
-                (uint16_t)(b + 8 - MK_FP(at->seg, 0)), at->seg };
+            args.play.sample = far_stepped(MK_FP(at->seg, 0), b + 8);
             args.play.length = *(const uint16_t *)(b + 2);
 
             sound_callback(3, &args);

@@ -606,6 +606,23 @@ DG_ASSERT_AT(struct engine_resource_flags, word_57bc, 0x02);
 DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
 
 /*
+ * **The staging buffer `read_into_huge` reads through**, DGROUP
+ * 0x5788..0x57ba, 0x32 bytes - the 0x32 that routine reads at a time, and
+ * exactly the gap between `DG5768`'s end and the flags below. `game_fread`
+ * reads into DGROUP, so a destination anywhere else is filled a bufferful at a
+ * time through here.
+ *
+ * Zero in the image, which is why it is `DGROUP_BSS`.
+ */
+struct engine_read_staging {
+    uint8_t   buf[0x32];          /* +0x00 [0x32] */
+} __attribute__((packed));
+
+struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
+_Static_assert(sizeof(struct engine_read_staging) == 0x32,
+               "DGROUP 0x5788..0x57ba, the 0x32 read_into_huge reads at a time");
+
+/*
  * **The open resource streams**, a near pointer each, DGROUP 0x57c0..0x5888,
  * 0xc8 bytes. 0x64 is the bound `select_resource` and `open_resource_slot` test,
  * and a hundred words run exactly to `ENGINE_STREAM` at 0x5888.
@@ -1003,8 +1020,8 @@ int16_t decompress_rle(void)
 /*
  * 0x1c319
  *
- * Copy `count` bytes out of the current resource into a huge pointer, through a
- * 0x32-byte staging buffer at DGROUP 0x5788.
+ * Copy `count` bytes out of the current resource into a huge pointer, through
+ * `ENGINE_READ_STAGING`, the 0x32-byte staging buffer at DGROUP 0x5788.
  *
  * The buffer is why this is a loop at all: `game_fread` reads into DGROUP, and
  * the destination is a huge pointer that may be anywhere, so each pass reads at
@@ -1025,10 +1042,11 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count)
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
-        di = (int16_t)game_fread(dg_near_ptr(0x5788), 1, n, FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
+        di = (int16_t)game_fread(ENGINE_READ_STAGING.buf, 1, n,
+                                 FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
         si = (int16_t)(si - di);
 
-        far_memcpy(dst, dg_near_ptr(0x5788), (uint16_t)di);
+        far_memcpy(dst, ENGINE_READ_STAGING.buf, (uint16_t)di);
 
         dst += di;
     }
@@ -3871,15 +3889,15 @@ uint16_t set_font(int16_t slot)
     int16_t di = 0;
 
     if (slot == 0) {
-        struct far_ptr cur = ENGINE_FONTS.body[0];
+        uint8_t far *cur = dg_far_ptr(ENGINE_FONTS.body[0]);
 
         /* 0000:0000, which is the guest's first byte and not a C null. */
-        if (dg_far_ptr(cur) == FAR_NULL_PTR)
+        if (cur == FAR_NULL_PTR)
             return 0;
 
         /* Which slot holds the same pointer as slot 0. */
         for (di = 1; di < 0x14; di++)
-            if (dg_far_ptr(ENGINE_FONTS.body[di]) == dg_far_ptr(cur))
+            if (dg_far_ptr(ENGINE_FONTS.body[di]) == cur)
                 break;
 
         return (uint16_t)di;

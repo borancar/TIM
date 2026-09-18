@@ -6995,9 +6995,16 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
             GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
 
-        GAME_PICKER_TEXT.text_start = (struct far_ptr){
-            (uint16_t)(GAME_PICKER_TEXT.block.off + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d)),
-            GAME_PICKER_TEXT.block.seg };
+        {
+            /* The table of pointers sits at the head of the block and the text
+               after it, so the start is the block stepped past four bytes a
+               line. `far_stepped` files the pair the original files: the
+               block's own segment with the step in the offset. */
+            uint8_t far *blk = dg_far_ptr(GAME_PICKER_TEXT.block);
+
+            GAME_PICKER_TEXT.text_start =
+                far_stepped(blk, blk + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
+        }
     }
 
     fill_file_listing(pattern);
