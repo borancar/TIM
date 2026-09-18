@@ -2240,7 +2240,23 @@ than transcribed into a check that cannot pass.
 
 ### Bugs in the original, transcribed as they behave
 
-Three so far, and the third is the one that shows why this section matters.
+Four so far, and the third is the one that shows why this section matters.
+
+**The second bonus counter never rolls.** `step_counters` guards its two
+blocks on opposite senses of the state - `jne` at 0x251f for the long counter,
+`je` at 0x2592 for the short one - and the second sense is unreachable: the
+routine's only caller is the editor loop at 0x0f8f5, whose condition at
+0x0fa91 is `state != 0x2000 && state != 2`. The other way into the block is a
+scroll already off zero, and the only non-zero write to 0x4eb1 is the -9 at
+0x2750, in the teardown that has just zeroed both counters - so the block's own
+`bonus_2 != 0` test stops it there. The reel shows the level's second bonus,
+statically, until the level ends; `finish_level` still adds it to the first, so
+the player is not cheated, and nothing on screen says a roll was meant.
+
+The port had it rolling, because it wrote `!=` in both blocks, and that was the
+only thing on the level screen that ever differed from the original - 0293
+against 0300. Found on 2026-09-18, the first day that screen could be compared
+at all. See the entry above.
 
 **One of the three is deliberately *not* transcribed as it behaves**, which is
 the exception to this section's title and is recorded here rather than

@@ -3932,10 +3932,11 @@ void start_counters(void)
  *
  * State 0x2000 is the one that changes the rule, and it changes it in
  * *opposite* directions for the two counters: 0x251f is `jne` and 0x2592 is
- * `je`. The long counter steps while the machine is not running, the short one
- * while it is, and in each case a scroll already off zero is allowed to finish
- * - which is how a roll half-way through a digit is never left standing
- * between two of them.
+ * `je`. The long counter steps while the machine is not running - which is the
+ * only state this routine is ever called in - and in each case a scroll
+ * already off zero is allowed to finish, which is how a roll half-way through
+ * a digit is never left standing between two of them. The second counter's
+ * arm is dead, and the note in the block below says why.
  *
  * The value is written back whether or not it was decremented, and the draw is
  * skipped when the scroll is at or below zero: at zero there is nothing to
@@ -3977,11 +3978,15 @@ void step_counters(void)
     }
 
     /* **And the second counter's state test is the other way round** - `je`
-       at 0x2592 where the first block has `jne` at 0x251f. So the long
-       counter steps outside 0x2000 and the short one *inside* it, and outside
-       it only a scroll already off zero may finish. `start_counters` sets the
-       first scroll to -4 and this one to 0, which is what keeps this counter
-       still in the editor. */
+       at 0x2592 where the first block has `jne` at 0x251f - which makes this
+       block unreachable in the shipped game. Its only caller is the editor
+       loop at 0x0f8f5, whose condition at 0x0fa91 is `state != 0x2000 &&
+       state != 2`, so the state is never 0x2000 here; and the other way in,
+       a scroll already off zero, needs someone to arm it. The only non-zero
+       write to 0x4eb1 is the -9 at 0x2750, in the teardown that zeroes both
+       counters first, so the `bonus_2 != 0` test below stops it there.
+       The second reel therefore shows the level's bonus and never rolls.
+       Transcribed as it behaves - see STATUS.md. */
     if (DG4E67.state == 0x2000 || DG4E67.word_4eb1 != 0) {
         if (DG50AF.bonus_2 != 0) {
             DG4E67.word_4eb1 = (int16_t)(DG4E67.word_4eb1 + 1);

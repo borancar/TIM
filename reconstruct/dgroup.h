@@ -1266,8 +1266,11 @@ struct dg_50af {
     int16_t   bonus_1;            /* +0x00  the left bonus counter on the play screen, drawn at x 0x184;
                                      `step_counters` walks it down into the 32-bit score at 0x4ead
                                      first, and `finish_level` adds the two as words for the total */
-    int16_t   bonus_2;            /* +0x02  the counter to its right, drawn at x 0x238, walked down after
-                                     the first has reached zero */
+    int16_t   bonus_2;            /* +0x02  the counter to its right, drawn at x 0x238. **Never walked
+                                     down**: `step_counters` guards it on a state its only caller
+                                     excludes, and nothing arms its scroll while it holds a value -
+                                     so it shows the level's second bonus and stays there until the
+                                     teardown zeroes it. `finish_level` still adds it to the first */
     int16_t   gravity;            /* +0x04  the knob's x is this * 0xa0 / 0x80 + 0x3d, as a long */
     int16_t   air;                /* +0x06  and this one * 0xa0 / 0x200 + 0x3d - a different divisor */
     int16_t   extent_y;           /* +0x08  the level's own extent, -8 for a machine with none */
