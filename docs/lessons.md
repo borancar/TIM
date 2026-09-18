@@ -952,6 +952,45 @@ playing is evidence that will be missing when it matters - and a step whose
 absence prints the same line as a real failure will be read as one and skipped
 over.
 
+### Two drivers doing the same job in different units are not the same driver
+
+**What happened.** The side-by-side machine check reported 11 of 701 flips
+agreeing on S03 and blamed the port's timer, which STATUS.md had already
+deferred and which made the number easy to believe. Two defects were hiding
+behind that verdict, both in the *drivers* rather than in the game.
+
+**The first was a step one side took and the other did not.** `devdump.c`
+empties the parts bin after loading a machine over a puzzle, for a reason
+written there - a machine file records no bin, `load_animation` leaves
+freeform's one-of-every-kind in place, and level 10's goal disqualifies a gun
+left in it. `guest_load_machine` in the hybrid made the same three calls and
+not that one. The picture says it plainly once looked at: the hybrid drew a
+full bin down the right-hand strip where the port drew an empty one. Fixing it
+took one level from 11 of 701 to 696 of 701.
+
+**The second was the unit each driver counts in.** The port's runs on the page
+flip; the hybrid's ran on the *present*, and the hybrid presents about twice per
+guest flip. So its "let it settle before starting" - a `return` that costs the
+port a whole flip - cost nothing at all: measured on S03, it loaded the machine
+and started it within one flip, the level was never redrawn between the two, and
+the tutorial panel the load should have cleared was still on screen while the
+machine ran. Gating it on `io_flip_count()` moving put both drivers on the same
+cue. The message numbers wanted the same care: `io_flip_count()` is the *count*
+of flips and the hash beside it is numbered from zero, so the driver's log was
+one ahead of the frame it was talking about.
+
+**What settled it.** 29 of 29 levels, 685 flips each, byte for byte, and no
+unstable flip on any level - the port agreeing with itself as well as with the
+hybrid, where two sweeps in September had disagreed about eleven of
+twenty-eight levels. The check now aligns the two streams on the flip each side
+says it started the machine, which is a signal the game itself gives.
+
+**The rule.** When two artefacts are driven to the same place by two pieces of
+code, the drivers are part of what is being compared: they must take the same
+steps, in the same units, counted from the same zero. And a whole-screen
+difference is a screen to *look at* before it is a number to explain - the bin
+was visible in the first frame anyone rendered.
+
 ## The hybrid runner
 
 What `tools/native` can and cannot observe.

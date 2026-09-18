@@ -917,10 +917,24 @@ ticks are a fixed 3.95 per present, is byte for byte identical across runs -
 which is the control that puts the fault on the port's side rather than
 between them.
 
-So the port's machine simulation **cannot be compared with anything**, by
-this project or by anyone else, until the tick is deterministic.
-`check_machines.py` is written and waiting for that day; nothing in it has to
-change.
+**That measurement no longer holds, and what replaced it is worth reading
+carefully.** On 2026-09-18 `check_machines.py` reported **29 of 29 levels, 685
+flips each, byte for byte, with no unstable flip on any level** - the port
+agreeing with itself as well as with the hybrid. Neither the timer nor the
+concurrency changed. What changed is that nothing the tick perturbs reaches a
+pixel while the machine runs: `step_counters` is the *editor* loop's, so the
+odometers do not turn during a run, which is what the odometer work of
+2026-09-16..17 settled. The 2026-09-07 sweeps were also comparing two sides
+that loaded the machine differently and stepped their drivers in different
+units - both fixed the same day - so the eleven levels that changed verdict
+were not eleven levels of jitter.
+
+So the port's machine simulation **can** now be compared, and is. What is still
+deferred is the tick itself: `run_machine_loop` still waits on a real-time
+thread and still banks whatever elapsed into the score, so the *time* a run
+takes and any screen paced by ticks rather than by frames are still not
+reproducible. That is what this section is about and it is unchanged; what is
+withdrawn is the claim that the machine's own frames cannot be compared.
 
 **Still deferred, and still a decision to be made rather than a lock to be
 bolted on.** `io_lock` and the recursive mutex `timer_loop` already holds are

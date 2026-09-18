@@ -20,35 +20,35 @@ A port snapshot cannot do this job and was tried: `TIMPORT1` carries memory and
 io state and no CPU registers, because the port has no guest CPU to save.
 
 **The port is run twice, and that control is the verdict.** Measured on level
-06 before this was written: eight runs of the port, same level and same machine
-file, produced **five distinct frame sequences**. Its `run_machine_loop` waits
-for *at least* eight ticks and the number that have actually gone by depends on
-when a real-time timer thread got scheduled, so the simulation is not
-reproducible - while the hybrid, whose ticks are a fixed 3.95 per present, is
-byte for byte identical across runs.
+06 when this was written: eight runs of the port, same level and same machine
+file, produced **five distinct frame sequences**, and two whole sweeps minutes
+apart disagreed about eleven of twenty-eight levels. Its `run_machine_loop`
+waits for *at least* eight ticks and the number that have actually gone by
+depends on when a real-time timer thread got scheduled, so the simulation was
+not reproducible - while the hybrid, whose ticks are a fixed 3.95 per present,
+was byte for byte identical across runs.
 
 So a disagreement between the two sides says nothing until the port has been
 shown to agree with itself on that level, and a run where it does not is
-reported as the port moving rather than as a difference between them. This is
-the same defect STATUS.md defers under the timer's concurrency, seen from a new
-side: it is not only a stray column of odometer digits, it is the machine
-itself taking a different path.
+reported as the port moving rather than as a difference between them. The
+control stays for that reason, and because it is the one thing that would say
+the fault had come back.
 
-**And masking the unstable flips is not enough, which is the thing to know
-before reading any number this prints.** It helps only when both port runs land
-on the same one of its several outcomes; when they agree with each other on an
-outcome the hybrid did not take, the level reads as a clean disagreement. Two
-whole sweeps, same binaries, same machine files, minutes apart:
+**Measured on 2026-09-18: 29 of 29 levels, 685 flips each, byte for byte, with
+no unstable flip anywhere.** The port now agrees with itself as well as with
+the hybrid. Two things made the difference, and neither was the timer: the
+counters do not step while the machine runs - `step_counters` is the editor
+loop's, which is what the odometer work of the days before settled - so the
+tick's jitter no longer reaches a pixel; and the two sides' drivers now take
+their steps on the same cue, the guest page flip, and are aligned on the flip
+the machine starts.
 
-    agreed on more than 600 flips, sweep 1:   6 of 28
-    agreed on more than 600 flips, sweep 2:  15 of 28
-    levels that changed verdict between them: 11
-
-So the per-level verdict is close to a coin toss and **must not be read as a
-statement about the port's physics**. What the tool measures today is how badly
-the port's timer perturbs its own simulation. It becomes a real check the day
-that timer is made deterministic - which is what STATUS.md already says has to
-happen before the port is finished - and nothing else here has to change.
+**What this does and does not say about the tick.** The frames the machine
+draws are now reproducible; the tick underneath them is still a real-time
+thread and STATUS.md still defers that. Two things this tool does not look at
+could still move with it - the elapsed time the score is banked from, and any
+screen paced by ticks rather than by frames, which is why the flips before the
+machine starts are left to `check_native.py` and `check_briefing.py`.
 
 **Both sides are pointed at a staged copy of the game directory.** The guest's
 file layer treats its directory as a floor, so a machine file has to be *inside*
@@ -60,6 +60,7 @@ beside the game's own files and nothing here writes to the game's folder.
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
+import concurrent.futures
 import glob
 import os
 import re
@@ -72,7 +73,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 
 DEVTIM = tim.built("devtim")
-NATIVE = os.path.join(tim.REPO, "tools", "native", "native")
+# Built, not just named. A check that takes whatever binary is on disk compares
+# two different ages of the code - docs/lessons.md has the two findings that
+# cost, and one of them was this tool reporting 66 intro flips byte for byte
+# against a hybrid built before the routine that was broken.
+NATIVE = tim.built("native", where=os.path.join("tools", "native"))
 
 
 def level_of(name):
@@ -93,6 +98,20 @@ def staged(paths):
     for path in paths:
         shutil.copy(path, os.path.join(out, os.path.basename(path).upper()))
     return out
+
+
+def started_at(err):
+    """The flip the driver started the machine on, from its own message.
+
+    **Both sides number their steps in guest page flips**, and this is the one
+    signal the comparison aligns on: the machine's first running frame. Before
+    it the two are showing screens that slide in on the *tick*, and the two
+    clocks are not the same one - `check_native.py` and `check_briefing.py` are
+    where those screens are checked. After it they are running the same machine
+    from the same reset state, and a flip is a flip.
+    """
+    m = re.search(r"autoplay starts the machine at flip (\d+)", err)
+    return int(m.group(1), 10) if m else None
 
 
 def port_run(level, machine, game, hashes, flips, verbose):
@@ -118,7 +137,7 @@ def port_run(level, machine, game, hashes, flips, verbose):
                        capture_output=True, text=True, timeout=600)
     if verbose:
         sys.stderr.write(p.stderr)
-    return True
+    return started_at(p.stderr)
 
 
 def hybrid_run(level, machine, game, hashes, presents, verbose):
@@ -130,7 +149,8 @@ def hybrid_run(level, machine, game, hashes, presents, verbose):
                        timeout=900)
     if verbose:
         sys.stderr.write(p.stderr)
-    return "loaded the machine" in p.stderr
+    return (started_at(p.stderr),
+            "loaded the machine" in p.stderr)
 
 
 def digests(path):
@@ -166,6 +186,38 @@ def compare(a, b):
     return n, same, best, first
 
 
+def one_level(machine, name, level, game, out, args):
+    """The three runs one level needs, and the digests they leave.
+
+    **The port twice and the hybrid once, all at the same time.** The three are
+    separate processes writing to three files and sharing nothing but the
+    staged game directory, which none of them writes to. The port's own
+    non-determinism is a matter of when its timer thread is scheduled, and that
+    is what the two port runs measure - a busier machine makes the control
+    harder to pass, not less honest.
+    """
+    ph = os.path.join(out, "%s.port.txt" % name)
+    ph2 = os.path.join(out, "%s.port2.txt" % name)
+    hh = os.path.join(out, "%s.hybrid.txt" % name)
+
+    for f in (ph, ph2, hh):
+        if os.path.exists(f):
+            os.remove(f)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        a = pool.submit(port_run, level, machine, game, ph, args.flips,
+                        args.verbose)
+        b = pool.submit(port_run, level, machine, game, ph2, args.flips,
+                        args.verbose)
+        c = pool.submit(hybrid_run, level, machine, game, hh, args.presents,
+                        args.verbose)
+        pstart = a.result()
+        b.result()
+        hstart, loaded = c.result()
+
+    return digests(ph), digests(ph2), digests(hh), loaded, pstart, hstart
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -179,6 +231,9 @@ def main():
     ap.add_argument("--presents", type=int, default=2400,
                     help="hybrid presents to run for; it needs enough to "
                          "produce --flips guest flips (default %(default)s)")
+    ap.add_argument("-j", "--jobs", type=int, default=0, metavar="N",
+                    help="how many levels to run at once. Each level is three"
+                         " processes, so the default is a third of the cores")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="pass both binaries' stderr through")
     args = ap.parse_args()
@@ -196,36 +251,45 @@ def main():
 
     game = staged(paths)
     bad = 0
-    for path in paths:
-        machine = os.path.basename(path).upper()
-        name = machine.rsplit(".", 1)[0]
-        level = level_of(name)
-        if level is None:
+    jobs = args.jobs or max(1, (os.cpu_count() or 3) // 3)
+    runs = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        for path in paths:
+            machine = os.path.basename(path).upper()
+            name = machine.rsplit(".", 1)[0]
+            level = level_of(name)
+            if level is None:
+                runs.append((name, None))
+                continue
+            runs.append((name, pool.submit(one_level, machine, name, level,
+                                           game, out, args)))
+
+    for name, fut in runs:
+        if fut is None:
             print("  %-10s NO LEVEL IN THE NAME - skipped" % name)
             bad += 1
             continue
-        ph = os.path.join(out, "%s.port.txt" % name)
-        hh = os.path.join(out, "%s.hybrid.txt" % name)
-
-        for f in (ph, hh):
-            if os.path.exists(f):
-                os.remove(f)
-
-        ph2 = os.path.join(out, "%s.port2.txt" % name)
-        if os.path.exists(ph2):
-            os.remove(ph2)
-
-        port_run(level, machine, game, ph, args.flips, args.verbose)
-        port_run(level, machine, game, ph2, args.flips, args.verbose)
-        loaded = hybrid_run(level, machine, game, hh, args.presents,
-                            args.verbose)
-
-        p, p2, h = digests(ph), digests(ph2), digests(hh)
-        n = min(len(p), len(p2), len(h))
+        p, p2, h, loaded, pstart, hstart = fut.result()
 
         note = ""
         if not loaded:
             note += "  HYBRID DID NOT LOAD"
+        if pstart is None or hstart is None:
+            print("  %-10s NEITHER SIDE SAID WHEN THE MACHINE STARTED%s"
+                  % (name, note))
+            bad += 1
+            continue
+        if pstart != hstart:
+            # Worth saying rather than quietly allowing for: the two drivers
+            # take their steps on the same cue, so a different flip means one
+            # of them saw a different screen on the way in.
+            note += "  (started at %d / %d)" % (pstart, hstart)
+
+        # **From the machine's first running frame**, each side counted from
+        # its own start. Everything before it is a screen paced by the tick,
+        # and the two clocks are not the same one.
+        p, p2, h = p[pstart:], p2[pstart:], h[hstart:]
+        n = min(len(p), len(p2), len(h))
 
         if n == 0:
             print("  %-10s no flips to compare%s" % (name, note))

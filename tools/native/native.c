@@ -999,10 +999,21 @@ static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
  * The difference from the port's version is only who executes them: there they
  * are the port's C, here they are the guest's own code driven through Unicorn,
  * which is the point of doing it this way at all.
+ *
+ * **And the bin is emptied here too, because the port's loader empties it.**
+ * `load_animation` builds freeform's bin - one of every kind - and `read_level`
+ * reads a machine file's third list only when 0x5472 says the file is a level,
+ * so over a puzzle that bin survives the load; `devdump.c` clears it for the
+ * reason written there. Until this did the same, the two sides were loading
+ * different machines: measured on S03, the hybrid drew a full bin down the
+ * right-hand strip where the port drew an empty one, and `check_machines.py`
+ * reported 11 of 701 flips agreeing - which read as the port's timer and was
+ * a bin.
  */
 static void guest_load_machine(uc_engine *uc, const char *file)
 {
     uint16_t arg = dg_near(dgroup, DG52FE.name);
+    unsigned long count = (unsigned long)io_flip_count();
     int32_t i;
 
     /* Bounded by the field: the picker's buffer is thirteen bytes, an 8.3 name
@@ -1029,10 +1040,19 @@ static void guest_load_machine(uc_engine *uc, const char *file)
      * original's segment 0dff, which the loader puts at 0f0f, and machine.c is
      * segment 0, which lands at 0110.
      */
-    if (guest_call(uc, 0x0f0f, 0x10b6, 1, NULL, 0)     /* round_teardown */
-        && guest_call(uc, 0x0f0f, 0x4925, 1, &arg, 1)  /* load_animation */
-        && guest_call(uc, 0x0110, 0x7e45, 1, NULL, 0)) /* reset_machine */
-        fprintf(stderr, "native: loaded the machine %s\n", file);
+    if (!guest_call(uc, 0x0f0f, 0x10b6, 1, NULL, 0)    /* round_teardown */
+        || !guest_call(uc, 0x0f0f, 0x4925, 1, &arg, 1)) /* load_animation */
+        return;
+
+    if (DG4E67.freeform == 0) {
+        DG50D3.parts_bin.prev_ptr = 0;
+        DG50D3.parts_bin.next_ptr = 0;
+        DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+    }
+
+    if (guest_call(uc, 0x0110, 0x7e45, 1, NULL, 0))    /* reset_machine */
+        fprintf(stderr, "native: loaded the machine %s at flip %lu\n", file,
+                count ? count - 1 : 0);
 }
 
 /*
@@ -1048,11 +1068,31 @@ static void guest_load_machine(uc_engine *uc, const char *file)
  * Kept here rather than shared with devdump because the two binaries share no
  * developer code by design: `native` links `devstub.c`, so that nothing a
  * comparison depends on can reach the shipping game.
+ *
+ * **It acts once per guest page flip, not once per present.** The port's
+ * driver is called on the flip and its steps are numbered in flips; here the
+ * presents run about twice as fast as the guest flips, so a driver called on
+ * every present takes two steps inside one of the port's. Measured on S03: the
+ * load and the start then landed on the same guest flip, the level was never
+ * redrawn between them, and the tutorial panel the load should have cleared
+ * was still on screen while the machine ran - 690 of 701 flips differing, from
+ * the first running frame. With the gate, the two sides' steps fall on the
+ * same flip numbers, which is the whole premise of a flip-for-flip comparison.
  */
 static void native_autoplay(void)
 {
     static int32_t armed = -1, want_run, past_intro, nudged, loaded;
+    static unsigned long seen_flip = (unsigned long)-1;
+    unsigned long count = (unsigned long)io_flip_count();
+    /* **The flip the run has just presented**, which is one less than the
+       count of them - the same number `hash_guest_flip` writes beside its
+       digest, so a message here and a row there name the same frame. */
+    unsigned long flip = count ? count - 1 : 0;
     uint16_t state;
+
+    if (count == seen_flip)
+        return;
+    seen_flip = count;
 
     if (armed < 0) {
         armed = (getenv("TIM_LEVEL") != NULL || getenv("TIM_RUN") != NULL
@@ -1070,7 +1110,8 @@ static void native_autoplay(void)
             nudged = 1;
         } else if (nudged) {
             past_intro = 1;
-            fprintf(stderr, "native: autoplay leaves the intro\n");
+            fprintf(stderr, "native: autoplay leaves the intro at flip %lu\n",
+                    flip);
         }
         return;
     }
@@ -1087,12 +1128,14 @@ static void native_autoplay(void)
         }
         if (want_run) {
             DG4E67.state = 0x2000;
-            fprintf(stderr, "native: autoplay starts the machine\n");
+            fprintf(stderr, "native: autoplay starts the machine at flip %lu\n",
+                    flip);
         } else {
             armed = 0;
         }
     } else if (state == 0x2000) {
-        fprintf(stderr, "native: autoplay - the machine is running\n");
+        fprintf(stderr, "native: autoplay - the machine is running (flip %lu)\n",
+                flip);
         armed = 0;
     }
 }
