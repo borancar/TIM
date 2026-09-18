@@ -176,9 +176,9 @@ struct part *make_part(uint16_t kind)
     part->size[0].height = PART_TEMPLATES[kind].size.height;
     part->point_count =
         PART_KINDS[kind].point_count;
-    part->word_8c = 0xffff;
-    part->word_8e = 0xffff;
-    part->word_94 = PART_TEMPLATES[kind].init.off;
+    part->start_x = 0xffff;
+    part->start_y = 0xffff;
+    part->start_flags = PART_TEMPLATES[kind].init.off;
 
     if (dg_far_ptr(PART_TEMPLATES[kind].init) != FAR_NULL_PTR
         && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
@@ -186,7 +186,7 @@ struct part *make_part(uint16_t kind)
         goto done;
     }
 
-    part->word_94 = part->flags_08;
+    part->start_flags = part->flags_08;
 
     set_object_extent(part);
 
@@ -273,7 +273,7 @@ uint16_t part_init_ramp(struct part *part)
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0080);
     part->form = 0x0001;
-    part->word_90 = 0x0001;
+    part->start_form = 0x0001;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -326,11 +326,11 @@ uint16_t part_init_conveyor(struct part *part)
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0081);
     part->form = 0x001c;
-    part->word_90 = 0x001c;
+    part->start_form = 0x001c;
     part->direction = 0x0000;
-    part->word_92 = 0x0000;
+    part->start_direction = 0x0000;
     part->grab.x = 59;
-    part->word_58 = 0x000e;
+    part->grab_size = 0x000e;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -350,7 +350,7 @@ uint16_t part_init_mouse_cage(struct part *part)
         (uint16_t)(part->flags_08 | 0x0801);
     part->grab.x = 30;
     part->grab.y = 4;
-    part->word_58 = 0x000c;
+    part->grab_size = 0x000c;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -455,7 +455,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
         (uint16_t)(part->flags_08 | 0x1001);
     part->grab.x = 8;
     part->grab.y = 9;
-    part->word_58 = 0x000e;
+    part->grab_size = 0x000e;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -473,7 +473,7 @@ uint16_t part_init_gear(struct part *part)
         (uint16_t)(part->flags_08 | 0x0001);
     part->grab.y = 13;
     part->grab.x = 13;
-    part->word_58 = 0x0008;
+    part->grab_size = 0x0008;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -877,7 +877,7 @@ uint16_t part_init_windmill(struct part *part)
         (uint16_t)(part->flags_08 | 0x0801);
     part->grab.x = 15;
     part->grab.y = 15;
-    part->word_58 = 0x0008;
+    part->grab_size = 0x0008;
 
     part->points_ptr =
         dg_near(dgroup, heap_calloc_far(part->point_count, 4));
@@ -1853,12 +1853,12 @@ void draw_machine_layer_f(void)
     VMDS.clip_left    = 0x240;
     VMDS.clip_right   = 0x277;
 
-    DG4E67.word_4e87 = 0;
+    DG4E67.loop_frames = 0;
 
-    frame = (int16_t)(DG4E67.word_4e87 >> 1);
+    frame = (int16_t)(DG4E67.loop_frames >> 1);
     slide_a = (frame >= 4) ? (int16_t)(((frame - 4) * 2) % 0x38) : 0;
 
-    frame = (int16_t)(DG4E67.word_4e87 >> 1);
+    frame = (int16_t)(DG4E67.loop_frames >> 1);
     slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -2029,11 +2029,11 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
                                + si->grab.x);
         at[1] = (int16_t)(((uint16_t)si->box[0].y)
                                                + si->grab.y);
-        ext.width = (int16_t)si->word_58;
+        ext.width = (int16_t)si->grab_size;
         /* Reads the height before it is written; see the comment above. */
         ext.height = (int16_t)(((int16_t)ext.height >> 1)
-             < (int16_t)si->word_58)
-            ? 0x0a : si->word_58;
+             < (int16_t)si->grab_size)
+            ? 0x0a : si->grab_size;
     } else if (part->kind == KIND_ROPE) {
         rec = BELT_PTR(part->belt_ptr[0]);
         si = PART_PTR(rec->end_b_ptr);
@@ -2190,21 +2190,21 @@ void step_and_draw_machine(int16_t redraw_all)
 {
     struct part *si;
 
-    if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->byte_14 != 0) {
+    if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->redraw_count != 0) {
         link_record_into_buckets(PART_PTR(DG50D3.dragged_part_ptr));
-        PART_PTR(DG50D3.dragged_part_ptr)->byte_14--;
+        PART_PTR(DG50D3.dragged_part_ptr)->redraw_count--;
     }
 
     for (si = pick_by_flag(0x3000); si != PART_NONE;
          si = pick_for_record(si, 0x1000)) {
-        if ((redraw_all != 0 || si->byte_14 != 0)
+        if ((redraw_all != 0 || si->redraw_count != 0)
             && si != PART_PTR(DG50D3.dragged_part_ptr))
             link_record_into_buckets(si);
 
         if (redraw_all != 0)
-            si->byte_14 = 0;
-        else if (si->byte_14 != 0)
-            si->byte_14--;
+            si->redraw_count = 0;
+        else if (si->redraw_count != 0)
+            si->redraw_count--;
     }
 
     refile_overlapping_parts();
@@ -2830,10 +2830,10 @@ void draw_part_extra(struct part *part)
     VMDS.second_colour = 0x0e;
 
     x[1] = (int16_t)(di->pos[0].x
-                          + di->byte_72 - DG4E67.origin_x);
+                          + di->hold.x - DG4E67.origin_x);
     y[0] = (int16_t)(part->pos[0].y + 6 - DG4E67.origin_y);
     y[1] = (int16_t)(di->pos[0].y
-                          + di->byte_73 - DG4E67.origin_y);
+                          + di->hold.y - DG4E67.origin_y);
     y[2] = (int16_t)(part->pos[0].y + 0x10 - DG4E67.origin_y);
 
     if (part->flags_08 & 0x10)

@@ -100,9 +100,9 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
                 p->pos[0].x, p->pos[0].y,
                 p->size[0].width, p->size[0].height,
                 p->flags_06, p->flags_08, p->flags_0a,
-                (int16_t)p->word_7a, (int16_t)p->word_7c,
+                (int16_t)p->link_dx, (int16_t)p->link_dy,
                 p->direction,
-                p->vel_x, p->word_38, p->weight,
+                p->vel_x, p->vel_y, p->weight,
                 (uint32_t)p->momentum,
                 p->spin,
                 p->link_ptr[4], p->belt_ptr[0], p->next_linked_ptr,
@@ -823,7 +823,7 @@ void dev_level_solved(int16_t level, int16_t score)
  * taken out. Each frame the game latches its sound requests, reads the button
  * and a key, lets the play regions see the pointer, and then does the six
  * things that are the machine - `step_machine`, `mark_parts_in_dirty_rects`,
- * `step_word_4e87`, `replay_shapes`, `step_and_draw_machine`,
+ * `step_loop_frames`, `replay_shapes`, `step_and_draw_machine`,
  * `shift_all_histories` - before `check_goal`. The physics reads
  * `machine_frames` and nothing else about time: the eight-tick spin the loop
  * paces itself with, and the tick total it banks into `elapsed_ticks`, feed
@@ -856,7 +856,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
     while (DG4E67.state == 0x2000 && frames < max_frames) {
         step_machine();
         mark_parts_in_dirty_rects();
-        step_word_4e87();
+        step_loop_frames();
         replay_shapes();
         step_and_draw_machine(0);
 

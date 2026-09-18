@@ -3492,11 +3492,11 @@ ROUTINES = {
         call=lambda lib, a: lib.fill_rect(*[ctypes.c_int16(
             v if v < 0x8000 else v - 0x10000) for v in a]),
     ),
-    "step_word_4e87": dict(
+    "step_loop_frames": dict(
         addr=0x0144E,
         args=[],
         check_occurrences=[0, 5, 60],
-        call=lambda lib, a: lib.step_word_4e87(),
+        call=lambda lib, a: lib.step_loop_frames(),
     ),
     "set_clip_full_screen": dict(
         addr=0x0834B,

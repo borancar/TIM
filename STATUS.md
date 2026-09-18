@@ -1765,7 +1765,7 @@ used it.
 | `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1 (missed 3) | **not verified** |
 | `present_frame` | 0x081cc | - | **transcribed, never called** on these screens |
 | `fill_rect` | 0x20079 | - | **transcribed, never called** on these screens |
-| `step_word_4e87` | 0x0144e | - | **transcribed, never called** on these screens |
+| `step_loop_frames` | 0x0144e | - | **transcribed, never called** on these screens |
 | `set_clip_full_screen` | 0x0834b | - | **transcribed, never called** on these screens |
 | `sub_002be` | 0x002be | - | **transcribed, never called** on these screens |
 | `clear_word_array_50bf` | 0x166d6 | - | **transcribed, never called** on these screens |
@@ -2462,7 +2462,7 @@ shipping binary was the disease.
 
 Verified means the paths that were reached agreed. These were not reached:
 
-- `step_word_4e87` (0x0144e) wraps its counter at 0x2a00. That needs 10,752
+- `step_loop_frames` (0x0144e) wraps its counter at 0x2a00. That needs 10,752
   calls; over both intro screens it is called 428 times and the counter never
   exceeds 0x1ab.
 - `fill_rect` (0x20079) has an outline path, and `present_frame` (0x081cc) two

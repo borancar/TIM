@@ -116,7 +116,7 @@ uint16_t part_hook_no(struct part *part);               /* 0x002b5 */
 void sub_002be(void);                               /* 0x002be */
 
 /* Step the counter at DGROUP 0x4e87. */
-void step_word_4e87(void);                          /* 0x0144e */
+void step_loop_frames(void);                          /* 0x0144e */
 
 /* Advance the button state for one frame. */
 void update_button_state(void);                     /* 0x08136 */

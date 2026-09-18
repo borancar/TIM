@@ -726,7 +726,7 @@
     FAR_C (0x1d983, 4, RET_DXAX, resource_seek),
     FAR_C (0x081cc, 1, RET_NONE, present_frame),
 
-    FAR_C (0x0144e, 0, RET_NONE, step_word_4e87),
+    FAR_C (0x0144e, 0, RET_NONE, step_loop_frames),
     FAR_C (0x06699, 0, RET_NONE, replay_shapes),
     FAR_C (0x06806, 0, RET_NONE, mark_parts_in_dirty_rects),
     FAR_C (0x06b5b, 0, RET_NONE, refile_overlapping_parts),

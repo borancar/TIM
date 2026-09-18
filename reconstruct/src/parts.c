@@ -133,7 +133,7 @@ void part_setup_motor(struct part *part)
 
     part->grab.x = on ? 37 : 0;
     part->grab.y = 13;
-    part->word_58 = 0x12;
+    part->grab_size = 0x12;
 
     for (k = 0; k < 5; k++) {
         si[k].x = src[k].x;
@@ -214,10 +214,10 @@ void part_setup_gear(struct part *part)
         if (di->kind != KIND_GEAR)
             continue;
 
-        dx = (int16_t)(((int16_t)part->word_8c)
-                       - ((int16_t)di->word_8c));
-        dy = (int16_t)(((int16_t)part->word_8e)
-                       - ((int16_t)di->word_8e));
+        dx = (int16_t)(((int16_t)part->start_x)
+                       - ((int16_t)di->start_x));
+        dy = (int16_t)(((int16_t)part->start_y)
+                       - ((int16_t)di->start_y));
 
         if (dy == 0) {
             if (dx == 0x20)
@@ -415,14 +415,14 @@ void part_setup_cannon(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10) {
-        part->byte_72 = 0x3e;
+        part->hold.x = 0x3e;
         src = PARTSHAPES.s_3242;
     } else {
-        part->byte_72 = 1;
+        part->hold.x = 1;
         src = PARTSHAPES.s_3232;
     }
 
-    part->byte_73 = 3;
+    part->hold.y = 3;
 
 
     dst = POINTS(part->points_ptr);
@@ -450,14 +450,14 @@ void part_setup_dynamite(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10) {
-        part->byte_72 = 1;
+        part->hold.x = 1;
         src = PARTSHAPES.s_329a;
     } else {
-        part->byte_72 = 0x2d;
+        part->hold.x = 0x2d;
         src = PARTSHAPES.s_3290;
     }
 
-    part->byte_73 = 0x0f;
+    part->hold.y = 0x0f;
 
 
     dst = POINTS(part->points_ptr);
@@ -519,7 +519,7 @@ void part_setup_monkey(struct part *part)
 
     part->attach[0].y = 45;
     part->grab.y = 60;
-    part->word_58 = 9;
+    part->grab_size = 9;
 
     dst = POINTS(part->points_ptr);
 
@@ -652,7 +652,7 @@ void part_setup_generator(struct part *part)
 
     part->grab.x = 56;
     part->grab.y = 18;
-    part->word_58 = 0x0c;
+    part->grab_size = 0x0c;
 
     si = POINTS(part->points_ptr);
 
@@ -972,8 +972,8 @@ void part_setup_candle(struct part *part)
 {
     struct part_point *si = POINTS(part->points_ptr);
 
-    part->byte_72 = 0x0f;
-    part->byte_73 = 0x02;
+    part->hold.x = 0x0f;
+    part->hold.y = 0x02;
 
     si[0].x = 8;
     si[0].y = 31;
@@ -1127,8 +1127,8 @@ void part_setup_rocket(struct part *part)
 {
     struct part_point *si = POINTS(part->points_ptr);
 
-    part->byte_72 = 0x0b;
-    part->byte_73 = 0x3c;
+    part->hold.x = 0x0b;
+    part->hold.y = 0x3c;
 
     si[0].x = 4;
     si[0].y = 0;
@@ -1447,7 +1447,7 @@ uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t
 uint16_t part_hit_bellow(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
-    int16_t  face = ((int16_t)part->word_8a);
+    int16_t  face = ((int16_t)part->contact_edge);
 
     if ((other->flags_08 & 0x10) != 0) {
         if (face == 1 || face == 3)
@@ -1585,7 +1585,7 @@ void part_flip_electric_plug(struct part *part)
     else
         part->form = 4;
 
-    part->word_90 = part->form;
+    part->start_form = part->form;
 
     part_setup(0x1556, part);
 
@@ -1677,7 +1677,7 @@ void part_flip_light(struct part *part)
     else
         part->form = 0;
 
-    part->word_90 = part->form;
+    part->start_form = part->form;
 
     part_setup(0x2b58, part);
     place_object_for_draw(part);
@@ -1756,7 +1756,7 @@ void part_flip_corner_pipe(struct part *part, uint16_t which)
     else
         part->form ^= 2;
 
-    part->word_90 = part->form;
+    part->start_form = part->form;
 
     part_setup(0x377b, part);
     mark_part_shapes(part, 3);
@@ -1785,7 +1785,7 @@ void part_flip_seesaw(struct part *part)
     else
         part->form = 0;
 
-    part->word_90 = part->form;
+    part->start_form = part->form;
 
     part_setup(0x40f0, part);
     place_object_for_draw(part);
@@ -1824,7 +1824,7 @@ uint16_t part_hit_bucket(struct part *part)
     int16_t  mid   = (int16_t)(part->pos[1].x
                                + (int16_t)((part->size[0].width) >> 1));
 
-    if ((int16_t)((uint16_t)part->word_38) > 0 && mid > lo && mid < hi)
+    if ((int16_t)((uint16_t)part->vel_y) > 0 && mid > lo && mid < hi)
         return 0;
 
     return 1;
@@ -1907,7 +1907,7 @@ uint16_t part_settle_conveyor(struct part *part)
     steps = (int16_t)((int16_t)((part->size[0].width) - 0x20) / 0x10);
 
     part->form = (int16_t)(steps * 7);
-    part->word_90 = (int16_t)(steps * 7);
+    part->start_form = (int16_t)(steps * 7);
 
     /* `mov al,[bx+0x3330]`: the grab x by width step. */
     part->grab.x = PARTSHAPES.conveyor_grab_x[steps];
@@ -1931,7 +1931,7 @@ uint16_t part_settle_ramp(struct part *part)
     form = (int16_t)((part->size[0].width) / 0x10 - 1);
 
     part->form = form;
-    part->word_90 = form;
+    part->start_form = form;
 
     part_setup(0x2728, part);
     /* The original leaves whatever AX last held; every caller of the settle
@@ -1954,7 +1954,7 @@ uint16_t part_settle_ramp(struct part *part)
  */
 uint16_t part_settle_48f7(struct part *part)
 {
-    uint16_t handle = (uint16_t)(DG4E67.word_4e69 - 0x8003);
+    uint16_t handle = (uint16_t)(DG4E67.tool - 0x8003);
     /* `[bp-N]` held three cursors four bytes apart - `points_ptr + 4`, `+ 8`,
        `+ 0x0c` - which is points 1, 2 and 3 of the part's own table. */
     struct part_point *pt;
@@ -2245,7 +2245,7 @@ uint16_t part_step_bellow(struct part *part)
             for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
                  di = PART_PTR(di->next_linked_ptr)) {
                 if ((di->flags_06 & 0x1000) != 0) {
-                    int16_t  face = ((int16_t)di->word_7a);
+                    int16_t  face = ((int16_t)di->link_dx);
                     int16_t  scale;
                     int32_t  force;
 
@@ -2284,11 +2284,11 @@ uint16_t part_step_bellow(struct part *part)
             (int16_t)(((int16_t)part->form) - 1);
     }
 
-    if (((int16_t)part->form) != ((int16_t)part->word_0e)) {
+    if (((int16_t)part->form) != ((int16_t)part->form_prev)) {
         part_setup(0x0371, part);
 
-        if (((int16_t)part->word_0e) == 0
-            || ((int16_t)part->word_0e) == 2)
+        if (((int16_t)part->form_prev) == 0
+            || ((int16_t)part->form_prev) == 2)
             play_sound(0x12);
 
         place_object_for_draw(part);
@@ -2340,11 +2340,11 @@ void nudge_x_sub(struct part *obj, int16_t d)
  */
 void nudge_y_add(struct part *obj, int16_t d)
 {
-    obj->word_38 =
-        (int16_t)(obj->word_38 + d);
+    obj->vel_y =
+        (int16_t)(obj->vel_y + d);
 
-    if (obj->word_38 > d)
-        obj->word_38 = d;
+    if (obj->vel_y > d)
+        obj->vel_y = d;
 }
 
 /*
@@ -2352,11 +2352,11 @@ void nudge_y_add(struct part *obj, int16_t d)
  */
 void nudge_y_sub(struct part *obj, int16_t d)
 {
-    obj->word_38 =
-        (int16_t)(obj->word_38 - d);
+    obj->vel_y =
+        (int16_t)(obj->vel_y - d);
 
-    if (obj->word_38 < d)
-        obj->word_38 = (int16_t)-d;
+    if (obj->vel_y < d)
+        obj->vel_y = (int16_t)-d;
 }
 
 /*
@@ -2390,7 +2390,7 @@ uint16_t part_hit_gear(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
     int16_t  dir   = (int16_t)(((int16_t)other->form)
-                               - ((int16_t)other->word_0e));
+                               - ((int16_t)other->form_prev));
     int16_t  full  = 0x1000;
     int16_t  half  = (int16_t)(full >> 1);
     uint16_t face;
@@ -2409,8 +2409,8 @@ uint16_t part_hit_gear(struct part *part)
     }
 
     face = (dir > 0)
-           ? part->word_8a
-           : (uint16_t)((part->word_8a + 4) & 7);
+           ? part->contact_edge
+           : (uint16_t)((part->contact_edge + 4) & 7);
 
     if (face > 7)
         return 1;
@@ -2445,7 +2445,7 @@ uint16_t part_hit_gear(struct part *part)
 uint16_t part_hit_monkey(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
-    int16_t  face = ((int16_t)part->word_8a);
+    int16_t  face = ((int16_t)part->contact_edge);
 
     if (other->word_96 == 0 && face < 3) {
         other->word_96 = 0x1c;
@@ -2547,15 +2547,15 @@ uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t
 uint16_t part_hit_dynamite_plunger(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
-    int16_t  face = ((int16_t)part->word_8a);
+    int16_t  face = ((int16_t)part->contact_edge);
 
     if (face == 0) {
         other->direction = 1;
         return 1;
     }
 
-    if ((int16_t)((uint16_t)part->word_38) > 0
-        && (int16_t)(((uint16_t)part->word_88) + 0x800) < 0x1000
+    if ((int16_t)((uint16_t)part->vel_y) > 0
+        && (int16_t)(((uint16_t)part->contact_angle) + 0x800) < 0x1000
         && (int16_t)(((uint16_t)part->pos[0].y)
                      + part->mirror_size.height)
            < (int16_t)(((uint16_t)other->pos[0].y) + 0x0c))
@@ -2632,7 +2632,7 @@ uint16_t part_step_monkey(struct part *part)
             part->form++;
     }
 
-    if (part->form != part->word_0e) {
+    if (part->form != part->form_prev) {
         place_object_for_draw(part);
         DG52BD.sound_request_02 = 2;
     }
@@ -2739,7 +2739,7 @@ uint16_t part_step_solar_panel(struct part *part)
                 || si->kind == KIND_BLAST) {
                 part->direction = 1;
             } else if (si->kind == KIND_FLASHLIGHT) {
-                if ((int16_t)si->word_7a < 0) {
+                if ((int16_t)si->link_dx < 0) {
                     if ((si->flags_08 & 0x10) == 0)
                         part->direction = 1;
                 } else {
@@ -2800,7 +2800,7 @@ uint16_t part_step_windmill(struct part *part)
             part->form++;
     }
 
-    if (part->form != part->word_0e)
+    if (part->form != part->form_prev)
         place_object_for_draw(part);
 
     return 0;
@@ -2849,7 +2849,7 @@ uint16_t part_step_bob_the_fish(struct part *part)
         part->form = 0;
     }
 
-    if (part->form != part->word_0e)
+    if (part->form != part->form_prev)
         place_object_for_draw(part);
 
     return 0;
@@ -3093,10 +3093,10 @@ uint16_t part_step_magnifying_glass(struct part *part)
              || linked->kind == KIND_CANDLE)
             && linked->form != 0) {
             if (part->flags_08 & 0x10) {
-                if (((int16_t)linked->word_7a) > 0)
+                if (((int16_t)linked->link_dx) > 0)
                     v02 = 1;
             } else {
-                if (((int16_t)linked->word_7a) < 0)
+                if (((int16_t)linked->link_dx) < 0)
                     v02 = 1;
             }
 
@@ -3127,10 +3127,10 @@ uint16_t part_step_magnifying_glass(struct part *part)
         v08 = 0;
 
         if (part->flags_08 & 0x10) {
-            if (((int16_t)linked->word_7a) < 0)
+            if (((int16_t)linked->link_dx) < 0)
                 v08 = 1;
         } else {
-            if (((int16_t)linked->word_7a) > 0)
+            if (((int16_t)linked->link_dx) > 0)
                 v08 = 1;
         }
 
@@ -3149,7 +3149,7 @@ uint16_t part_step_magnifying_glass(struct part *part)
         }
 
         {
-            int16_t speed = ((int16_t)linked->word_7a);
+            int16_t speed = ((int16_t)linked->link_dx);
             int16_t best = v06;
 
             if (speed < 0)
@@ -3158,7 +3158,7 @@ uint16_t part_step_magnifying_glass(struct part *part)
                 best = (int16_t)-best;
 
             if (speed < best) {
-                v06 = (int16_t)linked->word_7a;
+                v06 = (int16_t)linked->link_dx;
                 v0e = (int16_t)si;
             }
         }
@@ -3197,9 +3197,9 @@ void grab_distance(struct part *a, struct part *b, uint8_t * out_x, uint8_t * ou
     int16_t ax = a->pos[0].x;
     int16_t ay = (int16_t)(a->pos[0].y + 8);
     int16_t bx = (int16_t)(b->pos[0].x
-                           + b->byte_72);
+                           + b->hold.x);
     int16_t by = (int16_t)(b->pos[0].y
-                           + b->byte_73);
+                           + b->hold.y);
     int16_t dx, dy;
 
     if (!(a->flags_08 & 0x10))
@@ -3236,7 +3236,7 @@ uint16_t part_step_conveyor(struct part *part)
         struct part *di = rope_other_end(part);
 
         if (di != PART_NONE && di->kind == KIND_GEAR
-            && di->word_0e == ((uint16_t)di->word_10))
+            && di->form_prev == ((uint16_t)di->form_prev2))
             part->direction = 0;
     }
 
@@ -3245,7 +3245,7 @@ uint16_t part_step_conveyor(struct part *part)
 
     DG52BD.sound_request_01 = 2;
 
-    if (part->form == part->word_0e)
+    if (part->form == part->form_prev)
         play_sound(1);
 
     if (part->direction > 0) {
@@ -3561,7 +3561,7 @@ uint16_t part_step_cannon(struct part *part)
     si->pos[2].y =
         (int16_t)(si->pos[0].y + 8);
     si->pos[1].y = ((int16_t)si->pos[2].y);
-    si->word_38 = 0xf000;
+    si->vel_y = 0xf000;
 
     clamp_record_pair(si);
 
@@ -3856,7 +3856,7 @@ uint16_t part_step_fan(struct part *part)
 
     DG52BD.sound_request_09 = 2;
 
-    if (part->form == part->word_0e)
+    if (part->form == part->form_prev)
         play_sound(9);
 
     part->form++;
@@ -3880,7 +3880,7 @@ uint16_t part_step_fan(struct part *part)
             if (si->kind != KIND_WINDMILL)
                 continue;
 
-            speed = ((int16_t)si->word_7a);
+            speed = ((int16_t)si->link_dx);
             if (speed < 0)
                 speed = (int16_t)-speed;
             if (speed >= 0xc8)
@@ -3891,7 +3891,7 @@ uint16_t part_step_fan(struct part *part)
             continue;
         }
 
-        speed = ((int16_t)si->word_7a);
+        speed = ((int16_t)si->link_dx);
         if (speed < 0)
             speed = (int16_t)-speed;
         v06 = (int16_t)(0x100 - speed);
@@ -4347,13 +4347,13 @@ uint16_t part_step_seesaw(struct part *part)
                        + ((uint16_t)part->direction));
     }
 
-    if (part->form == part->word_0e)
+    if (part->form == part->form_prev)
         goto clear;
 
     part_setup_seesaw(part);
 
-    if (part->word_0e == 0
-        || part->word_0e == 2)
+    if (part->form_prev == 0
+        || part->form_prev == 2)
         play_sound(0x12);
 
     place_object_for_draw(part);
@@ -4371,27 +4371,27 @@ uint16_t part_step_seesaw(struct part *part)
 
         if (part->direction == -1) {
             if (v04 < v02) {
-                di->word_38 = v06;
+                di->vel_y = v06;
                 di->vel_x =
                     (int16_t)-(int16_t)(v06 >> 2);
             } else {
-                di->word_38 = (int16_t)-v06;
+                di->vel_y = (int16_t)-v06;
                 di->vel_x = (int16_t)(v06 >> 2);
             }
         } else if (part->direction == 1) {
             if (v04 < v02) {
-                di->word_38 = (int16_t)-v06;
+                di->vel_y = (int16_t)-v06;
                 di->vel_x =
                     (int16_t)-(int16_t)(v06 >> 2);
             } else {
-                di->word_38 = v06;
+                di->vel_y = v06;
                 di->vel_x = (int16_t)(v06 >> 2);
             }
         }
 
         mark_part_shapes(di, 3);
 
-        if (di->word_38 < 0) {
+        if (di->vel_y < 0) {
             di->pos[1].y =
                 (int16_t)(di->pos[0].y - 0x10);
             resolve_collisions(di);
@@ -4437,8 +4437,8 @@ tail:
      * side at 0..6 and 0x20..0x24 down; at form 2 the two swap over. Each box
      * is followed by a `trigger_things_at` for the point it was measured from.
      */
-    if (part->word_0e == 0) {
-        if (((uint16_t)part->word_10) == 0)
+    if (part->form_prev == 0) {
+        if (((uint16_t)part->form_prev2) == 0)
             goto out;
 
         link_objects_in_range(part, 0x2000, 0x4a, 0x4f, -2, 2);
@@ -4449,9 +4449,9 @@ tail:
         goto out;
     }
 
-    if (part->word_0e != 2)
+    if (part->form_prev != 2)
         goto out;
-    if (((uint16_t)part->word_10) == 2)
+    if (((uint16_t)part->form_prev2) == 2)
         goto out;
 
     link_objects_in_range(part, 0x2000, 0x4a, 0x4f, 0x20, 0x24);
@@ -4878,7 +4878,7 @@ uint16_t part_step_mort_the_mouse(struct part *part)
         if (di->kind != KIND_POKEY)
             continue;
 
-        a = ((int16_t)di->word_7a);
+        a = ((int16_t)di->link_dx);
         if (a < 0)
             a = (int16_t)-a;
         b = slowest;
@@ -4886,7 +4886,7 @@ uint16_t part_step_mort_the_mouse(struct part *part)
             b = (int16_t)-b;
 
         if (a < b)
-            slowest = ((int16_t)di->word_7a);
+            slowest = ((int16_t)di->link_dx);
     }
 
     if (slowest == 0x190)
@@ -4904,7 +4904,7 @@ uint16_t part_step_mort_the_mouse(struct part *part)
     }
 
 draw:
-    if (part->form != part->word_0e) {
+    if (part->form != part->form_prev) {
         part->fx = part->pos[0].x;
         part->fx =
             (int32_t)long_shift_left((uint32_t)part->fx, 9);
@@ -5054,7 +5054,7 @@ uint16_t part_step_pokey(struct part *part)
             range = -1;
         }
 
-        t = ((int16_t)di->word_7a);
+        t = ((int16_t)di->link_dx);
         if (t < 0)
             t = (int16_t)-t;
         if (t >= range)
@@ -5082,7 +5082,7 @@ uint16_t part_step_pokey(struct part *part)
     }
 
 draw:
-    if (part->form != part->word_0e)
+    if (part->form != part->form_prev)
         place_object_for_draw(part);
     return 0;
 }
@@ -5126,7 +5126,7 @@ uint16_t part_hit_conveyor(struct part *part)
     int16_t cx = other->direction;
     const int16_t v = 0x1000;
 
-    if (part->word_8a == 0) {
+    if (part->contact_edge == 0) {
         if (cx > 0) {
             part->vel_x += v;
             if (part->vel_x > v)
@@ -5136,7 +5136,7 @@ uint16_t part_hit_conveyor(struct part *part)
             if (part->vel_x < v)
                 part->vel_x = (int16_t)-v;
         }
-    } else if (part->word_8a == 2) {
+    } else if (part->contact_edge == 2) {
         if (cx < 0) {
             part->vel_x += v;
             if (part->vel_x > v)
@@ -5183,7 +5183,7 @@ uint16_t part_hit_seesaw(struct part *part)
         goto out;
     }
 
-    face = (int16_t)part->word_8a;
+    face = (int16_t)part->contact_edge;
 
     plain = ((uint16_t)face == 0 || (uint16_t)face == 2 || (uint16_t)face == 6)
                   ? 0 : 1;
@@ -5244,7 +5244,7 @@ uint16_t part_hit_boxing_glove(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
 
-    if (part->word_8a == 2)
+    if (part->contact_edge == 2)
         other->direction = 1;
 
     return 1;
@@ -5263,7 +5263,7 @@ uint16_t part_hit_boxing_glove(struct part *part)
 uint16_t part_hit_scissors(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
-    int16_t face = ((int16_t)part->word_8a);
+    int16_t face = ((int16_t)part->contact_edge);
 
     if (other->flags_08 & 0x10) {
         if (face == 1 || face == 2 || face == 4 || face == 5)
@@ -5317,7 +5317,7 @@ uint16_t part_hit_pokey(struct part *part)
 uint16_t part_hit_electric_plug(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
-    uint16_t turned = (uint16_t)(((uint16_t)part->word_88) + 0x4000);
+    uint16_t turned = (uint16_t)(((uint16_t)part->contact_angle) + 0x4000);
 
     if (((int16_t)other->form) < 4) {
         if (!(turned & 0x8000)) {
@@ -5332,7 +5332,7 @@ uint16_t part_hit_electric_plug(struct part *part)
     }
 
     other->direction =
-        (other->form != other->word_90) ? 1 : 0;
+        (other->form != other->start_form) ? 1 : 0;
 
     if (part->kind == KIND_BULLET)
         part->vel_x--;
@@ -5448,7 +5448,7 @@ uint16_t part_step_motor(struct part *part)
 
     DG52BD.sound_request_0c = 2;
 
-    if (part->form == part->word_0e)
+    if (part->form == part->form_prev)
         play_sound(0x0c);
 
     part->form--;
@@ -5472,7 +5472,7 @@ uint16_t part_hit_flashlight(struct part *part)
 {
     struct part *other = PART_PTR(part->contact_ptr);
 
-    if (((uint16_t)part->word_88) == 0)
+    if (((uint16_t)part->contact_angle) == 0)
         other->direction = 1;
 
     return 1;
@@ -5532,14 +5532,14 @@ uint16_t part_step_generator(struct part *part)
         struct part *di = rope_other_end(part);
 
         if (di != PART_NONE && di->kind == KIND_GEAR
-            && di->word_0e == ((uint16_t)di->word_10))
+            && di->form_prev == ((uint16_t)di->form_prev2))
             part->direction = 0;
     }
 
     if (((uint16_t)part->direction) != 0) {
         DG52BD.sound_request_0c = 2;
 
-        if (part->form == part->word_0e)
+        if (part->form == part->form_prev)
             play_sound(0x0c);
 
         if (part->direction > 0) {
@@ -5592,7 +5592,7 @@ uint16_t part_hit_trampoline(struct part *part)
     int16_t apart, v;
     int32_t q;
 
-    if (part->word_8a != 0)
+    if (part->contact_edge != 0)
         return 1;
 
     apart = (int16_t)((part->pos[0].x
@@ -5616,8 +5616,8 @@ uint16_t part_hit_trampoline(struct part *part)
     part->fy = q;
 
     if (other->form == 3) {
-        v = part->word_38;
-        part->word_38 =
+        v = part->vel_y;
+        part->vel_y =
             (int16_t)(-(v < 0 ? (int16_t)-v : v) - 0x400);
         clamp_record_pair(part);
     }
@@ -5721,7 +5721,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
                 di->vel_x =
                     (part->flags_08 & 0x10)
                     ? push : (int16_t)-push;
-                di->word_38 = (int16_t)-push;
+                di->vel_y = (int16_t)-push;
                 continue;
             }
 
@@ -5737,7 +5737,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
         }
     }
 
-    if (part->form != part->word_0e)
+    if (part->form != part->form_prev)
         place_object_for_draw(part);
 
     return 0;
@@ -5830,7 +5830,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
     play_sound(0x11);
 
     obj->direction =
-        (obj->form != obj->word_90)
+        (obj->form != obj->start_form)
         ? 1 : 0;
 }
 
@@ -6138,7 +6138,7 @@ uint16_t part_step_rocket(struct part *part)
         play_sound(0x0f);
 
     if (((int16_t)part->form) >= 7) {
-        part->word_38 -= 0x400;
+        part->vel_y -= 0x400;
         clamp_record_pair(part);
     }
 

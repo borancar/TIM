@@ -785,7 +785,14 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  */
 struct dg_4e67 {
     uint16_t  freeform;            /* +0x00  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
-    uint16_t  word_4e69;           /* +0x02 */
+    /* **Which handle the pointer is on**, and the only word that says what a
+       click in the play area will do. 0 is nothing, 1 to 8 are the handles
+       `part_handle_at_pointer` answers - the two flips, the four resize
+       corners and the two ends - and 9 is "carrying a part". Bit 0x8000 says
+       the handle is engaged, so `tool & 0x7fff` is the handle and the bit is
+       the drag. `cursor_for_tool` turns the nine into cursor numbers, which is
+       where the name comes from. */
+    uint16_t  tool;            /* +0x02 */
     uint16_t  state;               /* +0x04  the round and screen state machine's word */
     dg_near_t region_kept_a_ptr;   /* +0x06  two records kept on their own as well */
     dg_near_t region_kept_b_ptr;   /* +0x08 */
@@ -798,17 +805,36 @@ struct dg_4e67 {
     int16_t   holiday_halloween;   /* +0x16  31 October  - kind 32, the pumpkin */
     int16_t   holiday_stpatrick;   /* +0x18  17 March    - read by nothing */
     int16_t   holiday_valentine;   /* +0x1a  14 February - kind 33, the heart */
-    uint16_t  word_4e83;           /* +0x1c */
+    /* **The "memory is getting low" box has been shown.** Set with the box and
+       cleared again only when the largest free block climbs back over 0x1770,
+       which is the hysteresis that stops a machine hovering near the edge
+       being told twice. */
+    uint16_t  memory_warned;   /* +0x1c */
     uint16_t  file_op_active;      /* +0x1e  GUESS: 1 around the chdir a file dialog does */
-    int16_t   word_4e87;           /* +0x20  stepped by 0x0144e, wrapped 0x2a00 to 0x1c00 */
-    uint16_t  word_4e89;           /* +0x22 */
+    /* **Frames the loop that is running has run.** `step_loop_frames` adds one
+       a frame from the intro's loop and from `run_machine_loop`, `round_setup`
+       clears it, and `draw_machine_layer_f` clears it on its way in - which is
+       what freezes the bin's header animation at frame 0, the one thing that
+       reads it as a phase. The other reader is `goal_test_puzzle_70`, which
+       wants 0x134 of them before it will pass, so on that puzzle it is
+       elapsed time. Not `machine_frames`: that one `clear_machine` resets at
+       every start and this one only a new round does. */
+    int16_t   loop_frames;         /* +0x20  wraps 0x2a00 to 0x1c00 */
+    /* **A countdown for the carried part's icon**, the same shape as a part's
+       own `redraw_count`: the editor loop draws the icon and steps it down
+       while it is not zero. */
+    uint16_t  redraw_carried;  /* +0x22 */
     uint16_t  redraw_a;            /* +0x24  five deferred redraws, one layer each; a */
     uint16_t  redraw_b;            /* +0x26  change asks for N frames and gets one a */
     uint16_t  redraw_c;            /* +0x28  frame. Counts, not flags - see */
     uint16_t  redraw_d;            /* +0x2a  game_screen_loop, which decrements each */
     uint16_t  redraw_e;            /* +0x2c  by one rather than clearing it */
-    uint16_t  word_4e95;           /* +0x2e */
-    uint16_t  word_4e97;           /* +0x30 */
+    /* **Where in the part the player took hold of it**: the pointer less the
+       part's own origin, filed when a part is picked up and subtracted again
+       every frame, so a part grabbed by its corner stays held by its corner.
+       The y is first, which is the order the original writes them in. */
+    uint16_t  drag_offset_y;   /* +0x2e */
+    uint16_t  drag_offset_x;   /* +0x30 */
     int16_t   origin_c_y;          /* +0x32  three origin pairs, y then x, all set to -8 */
     int16_t   origin_c_x;          /* +0x34  by round_setup; which is which role is not */
     int16_t   origin_b_y;          /* +0x36  established, only that the live one is the */
@@ -825,17 +851,32 @@ struct dg_4e67 {
     int32_t   score;               /* +0x42  what finish_level banks for the
                                              password */
     int32_t   counter;             /* +0x46  the odometer's running total */
-    int16_t   word_4eb1;           /* +0x4a */
-    int16_t   word_4eb3;           /* +0x4c */
+    /* **How far each bonus counter has rolled**, 0 to 0x15 - one digit cell -
+       and back to 0 with one off the counter's value. `start_counters` puts
+       the first at -4, which is four steps of nothing before it moves, and
+       `step_counters` draws the band only while the scroll is positive. The
+       second reel's is never armed in the shipped game; see `step_counters`
+       and STATUS.md. */
+    int16_t   bonus_2_scroll;  /* +0x4a */
+    int16_t   bonus_1_scroll;  /* +0x4c */
     int16_t   password_puzzle;     /* +0x4e  the puzzle game_teardown prints a password for */
     int16_t   furthest_level;      /* +0x50  how far the player has reached; in tim.cfg */
     int16_t   level_count;         /* +0x52  how many L<n>.LEV there are */
-    uint16_t  word_4ebb;           /* +0x54 */
+    /* **Written once and never read**, and that is the whole of what is known:
+       `round_setup` stores 0 here, and the two bytes of this offset occur
+       exactly once in the image - that store. A dead store of the original's,
+       kept because DGROUP is compared with the original's memory. */
+    uint16_t  word_4ebb;       /* +0x54 */
     int16_t   round_number;        /* +0x56  the puzzle being played; round_setup loads it */
     int16_t   playing;             /* +0x58  game_play runs while this is non-zero */
     uint16_t  master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
-    int16_t   word_4ec3;           /* +0x5c */
-    int16_t   word_4ec5;           /* +0x5e */
+    /* **The cursor showing, and the one the hourglass replaced.**
+       `select_cursor` returns at once when the number it is given is already
+       in `cursor`, `wait_cursor` files the outgoing one in `saved_cursor`
+       unless it is the hourglass itself, and `restore_cursor` selects what is
+       there. */
+    int16_t   saved_cursor;    /* +0x5c */
+    int16_t   cursor;          /* +0x5e */
     dg_near_t icons_bmp_ptr;      /* +0x60  icons.bmp's list */
     dg_near_t menu_bmp_ptr;       /* +0x62  gp_menu.bmp's */
     dg_near_t bmp_4ecb_ptr;       /* +0x64  gp_bord.bmp's */
@@ -857,7 +898,7 @@ DG_ASSERT_AT(struct dg_4e67, freeform,         0x00);
 DG_ASSERT_AT(struct dg_4e67, title,            0x68);
 DG_ASSERT_AT(struct dg_4e67, hint,             0xb8);
 _Static_assert(sizeof(struct dg_4e67) == 0x248, "the hint runs up to DG50AF");
-DG_ASSERT_AT(struct dg_4e67, word_4e69,          0x02);
+DG_ASSERT_AT(struct dg_4e67, tool,          0x02);
 DG_ASSERT_AT(struct dg_4e67, state,              0x04);
 DG_ASSERT_AT(struct dg_4e67, region_kept_a_ptr,  0x06);
 DG_ASSERT_AT(struct dg_4e67, region_kept_b_ptr,  0x08);
@@ -870,17 +911,17 @@ DG_ASSERT_AT(struct dg_4e67, holiday_christmas,  0x14);
 DG_ASSERT_AT(struct dg_4e67, holiday_halloween,  0x16);
 DG_ASSERT_AT(struct dg_4e67, holiday_stpatrick,  0x18);
 DG_ASSERT_AT(struct dg_4e67, holiday_valentine,  0x1a);
-DG_ASSERT_AT(struct dg_4e67, word_4e83,          0x1c);
+DG_ASSERT_AT(struct dg_4e67, memory_warned,          0x1c);
 DG_ASSERT_AT(struct dg_4e67, file_op_active,     0x1e);
-DG_ASSERT_AT(struct dg_4e67, word_4e87,          0x20);
-DG_ASSERT_AT(struct dg_4e67, word_4e89,          0x22);
+DG_ASSERT_AT(struct dg_4e67, loop_frames,          0x20);
+DG_ASSERT_AT(struct dg_4e67, redraw_carried,          0x22);
 DG_ASSERT_AT(struct dg_4e67, redraw_a,           0x24);
 DG_ASSERT_AT(struct dg_4e67, redraw_b,           0x26);
 DG_ASSERT_AT(struct dg_4e67, redraw_c,           0x28);
 DG_ASSERT_AT(struct dg_4e67, redraw_d,           0x2a);
 DG_ASSERT_AT(struct dg_4e67, redraw_e,           0x2c);
-DG_ASSERT_AT(struct dg_4e67, word_4e95,          0x2e);
-DG_ASSERT_AT(struct dg_4e67, word_4e97,          0x30);
+DG_ASSERT_AT(struct dg_4e67, drag_offset_y,          0x2e);
+DG_ASSERT_AT(struct dg_4e67, drag_offset_x,          0x30);
 DG_ASSERT_AT(struct dg_4e67, origin_c_y,         0x32);
 DG_ASSERT_AT(struct dg_4e67, origin_c_x,         0x34);
 DG_ASSERT_AT(struct dg_4e67, origin_b_y,         0x36);
@@ -891,8 +932,8 @@ DG_ASSERT_AT(struct dg_4e67, elapsed_ticks,      0x3e);
 DG_ASSERT_AT(struct dg_4e67, machine_frames,     0x40);
 DG_ASSERT_AT(struct dg_4e67, score,              0x42);
 DG_ASSERT_AT(struct dg_4e67, counter,            0x46);
-DG_ASSERT_AT(struct dg_4e67, word_4eb1,          0x4a);
-DG_ASSERT_AT(struct dg_4e67, word_4eb3,          0x4c);
+DG_ASSERT_AT(struct dg_4e67, bonus_2_scroll,          0x4a);
+DG_ASSERT_AT(struct dg_4e67, bonus_1_scroll,          0x4c);
 DG_ASSERT_AT(struct dg_4e67, password_puzzle,    0x4e);
 DG_ASSERT_AT(struct dg_4e67, furthest_level,     0x50);
 DG_ASSERT_AT(struct dg_4e67, level_count,        0x52);
@@ -900,8 +941,8 @@ DG_ASSERT_AT(struct dg_4e67, word_4ebb,          0x54);
 DG_ASSERT_AT(struct dg_4e67, round_number,       0x56);
 DG_ASSERT_AT(struct dg_4e67, playing,            0x58);
 DG_ASSERT_AT(struct dg_4e67, master_level,       0x5a);
-DG_ASSERT_AT(struct dg_4e67, word_4ec3,          0x5c);
-DG_ASSERT_AT(struct dg_4e67, word_4ec5,          0x5e);
+DG_ASSERT_AT(struct dg_4e67, saved_cursor,          0x5c);
+DG_ASSERT_AT(struct dg_4e67, cursor,          0x5e);
 DG_ASSERT_AT(struct dg_4e67, icons_bmp_ptr,      0x60);
 DG_ASSERT_AT(struct dg_4e67, menu_bmp_ptr,       0x62);
 DG_ASSERT_AT(struct dg_4e67, bmp_4ecb_ptr,       0x64);
@@ -1763,12 +1804,22 @@ struct part {
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
     uint16_t  flags_08;        /* +0x08 */
     uint16_t  flags_0a;        /* +0x0a */
+    /* **The form, and the two generations behind it** - the same
+       three-generation shape as `pos`, `box` and `size` below, aged by
+       `shift_state_history` with `form_prev2 = form_prev; form_prev = form`.
+       Kept as three names rather than an array because `form` is read at
+       several hundred sites and the older two at a handful: what reads them
+       asks "has the form changed since last frame" (`form != form_prev`) or
+       "has it been still for two" (`form_prev == form_prev2`). */
     uint16_t  form;            /* +0x0c  which shape a part with several is in */
-    uint16_t  word_0e;         /* +0x0e */
-    int16_t   word_10;         /* +0x10 */
+    uint16_t  form_prev;       /* +0x0e */
+    int16_t   form_prev2;      /* +0x10 */
     int16_t   direction;       /* +0x12  devdump prints it as `dir` */
-    uint8_t   byte_14;         /* +0x14  a redraw countdown: set to a count and
-                                         stepped down once per pass */
+    /* **A redraw countdown**: `mark_part_shapes` sets it to a count and the
+       draw walks in `machine_draw.c` step it down once per pass, redrawing
+       the part while it is not zero. The carried part is stepped separately
+       and ahead of the rest. */
+    uint8_t   redraw_count;    /* +0x14 */
     uint8_t   pad_15[1];
     /* **The position in 9-bit fixed point**, and the reason the momentum reads
        here are 32 bits wide. `reset_machine` loads `pos_x` into the first and
@@ -1797,8 +1848,12 @@ struct part {
        one the pointer is tested against; `box[1]` and `box[2]` are the older
        generations `shift_state_history` ages it into. */
     struct point16 box[3];         /* +0x2a  gen 1 at +0x2a, 2 at +0x2e, 3 at +0x32 */
-    int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
-    int16_t   word_38;         /* +0x38 */
+    /* **The velocity, both axes**, in the same ninths as `fx`/`fy`:
+       `integrate_object` does `fx += vel_x; fy += vel_y` and nothing else adds
+       to either. The pair is clamped, halved on a bounce and rotated together
+       by `rotate_point`; the cannon fires by writing both at once. */
+    int16_t   vel_x;           /* +0x36 */
+    int16_t   vel_y;           /* +0x38 */
     int16_t   weight;          /* +0x3a  devdump prints it as `wt` */
     /* **One 32-bit momentum**, and both spellings are the same four bytes -
        the same shape as `fx` above. `part_step_*` reads and writes it whole
@@ -1835,8 +1890,13 @@ struct part {
     /* The rope this part is tied to: the 0x38-byte record `heap_calloc_far`
        gives a kind-8 part, and both ends' parts point at it too. 0 when none. */
     dg_near_t rope_ptr;        /* +0x54 */
-    struct point8 grab;        /* +0x56  the grab box */
-    uint16_t  word_58;         /* +0x58 */
+    struct point8 grab;        /* +0x56  the grab box's corner */
+    /* **And the grab box's size**, one word used for both extents:
+       `draw_part_selection` takes it as the width and, for a belt, as the
+       height unless half the height is smaller. Only the kinds that are
+       grabbed by a handle rather than by their body set it - the conveyor
+       0x0e, the mouse cage 0x0c, and three more. */
+    uint16_t  grab_size;       /* +0x58 */
     /* **Six links in one array.** `part_setup_2068` files four of them by
        direction and `part_setup_3de5` writes the last two, and three
        `part_step_*` routines walk `+0x5a + 2 * i` with **i from 4 to 6**,
@@ -1857,8 +1917,15 @@ struct part {
        `attach[1]` say and what four separate bytes cannot. */
     struct point8 attach[2];   /* +0x6a */
     uint8_t   pad_6e[4];
-    uint8_t   byte_72;         /* +0x72 */
-    uint8_t   byte_73;         /* +0x73 */
+    /* **Where this kind is held** - the point a gripper, a rope or the line
+       drawn from a host reaches for, as an offset from the part's own
+       position. `grab_distance` measures a gripper's own edge against
+       `pos[0] + hold` and says so in as many words; `draw_part_extra` draws to
+       the same point, and `link_objects_at_point` tests it against a box.
+       Mirrored by the setups: the cannon puts it at 0x3e when bit 4 of +8 is
+       set and at 1 when it is not, which is the same point on a part facing
+       the other way. */
+    struct point8 hold;        /* +0x72 */
     /* **The next part on each of the two drawing layers this part is filed
        on** - `link_record_into_buckets` writes `[i]` for the layer its
        kind's `refile_level[i]` names, and `byte_7f` keeps which layer `[0]`
@@ -1871,9 +1938,20 @@ struct part {
        only walks it, so a step routine that reads it is reading whatever the
        last of those five left; it means nothing before one has run. */
     dg_near_t next_linked_ptr; /* +0x78 */
-    uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
-    uint16_t  word_7c;         /* +0x7c */
-    uint8_t   byte_7e;         /* +0x7e */
+    /* **How far this part is from the one that collected it**, on each axis,
+       and only `link_nearby_objects` ever writes them - the other four
+       chain-builders leave whatever was there. The value is the smaller of the
+       two edge distances with its sign kept: positive when this part is to the
+       right of (or below) the collector with a gap between them, negative when
+       it overlaps, and never zero, because the routine substitutes 1 and -1.
+       The part hooks read them as the direction and the reach of a push. */
+    int16_t   link_dx;         /* +0x7a */
+    int16_t   link_dy;         /* +0x7c */
+    /* **Which of the host's two slots this part sits in** - 0 or 1, the index
+       into the host's `link_ptr[4]`/`link_ptr[5]`, where `link_ptr[4]` of this
+       part names the host. `rehome_carried_part` reads it to empty the slot it
+       is leaving and writes it when a new host is found. */
+    uint8_t   host_slot;       /* +0x7e */
     uint8_t   byte_7f;         /* +0x7f  a bucket number: the draw and refile
                                          walks compare it against the one they
                                          are filling */
@@ -1887,15 +1965,39 @@ struct part {
        bytes are cleared together, +0x88 goes to `angles_same_side`, and +0x8a
        gets the edge index the search stopped on. */
     dg_near_t contact_ptr;     /* +0x84  the part this one is in contact with */
-    uint8_t   byte_86;         /* +0x86  cleared with byte_87 */
+    /* **Two flags that break a tie, and which is which is not settled.** Both
+       are cleared when the contact is taken and one of the two is set from the
+       swept test's `if (x0 > x1)` and `if (v > out[0])` - so they say which
+       side of the contact the object came down on. The only readers are
+       `bounce_off_contact` and `apply_contact_friction`, and both use them the
+       same way: a `contact_angle` of 0 or 0x8000 - a flat edge, which gives no
+       direction - is nudged by +0x1000 when `byte_86` is clear and by -0x1000
+       when `byte_87` is. So one of them names each direction, and nothing this
+       project has measured says which, which is why neither is named. */
+    uint8_t   byte_86;         /* +0x86 */
     uint8_t   byte_87;         /* +0x87 */
-    int16_t   word_88;         /* +0x88  the contact angle */
-    uint16_t  word_8a;         /* +0x8a  the edge the contact was found on */
-    uint16_t  word_8c;         /* +0x8c */
-    uint16_t  word_8e;         /* +0x8e */
-    uint16_t  word_90;         /* +0x90 */
-    uint16_t  word_92;         /* +0x92  copied part to part by clone_part */
-    uint16_t  word_94;         /* +0x94 */
+    /* **The angle of the edge being touched**, written as the edge's own angle
+       turned by 0x8000 - the normal pointing back at this part - and read by
+       `angles_same_side`, `bounce_off_contact` and `apply_contact_friction`. */
+    int16_t   contact_angle;   /* +0x88 */
+    /* **Which edge of the other part it is**, the index the search stopped on
+       (`i - 1` or `j - 1` of the point walk). The part hooks read it as the
+       face they are resting against, and `(contact_edge + 4) & 7` for the
+       opposite one. */
+    uint16_t  contact_edge;    /* +0x8a */
+    /* **The state a reset returns the part to**, and the state a machine file
+       records. `reset_machine` copies all five back - the position into all
+       three generations of `pos` and into `fx`/`fy`, and the other three
+       straight - `write_part_list` writes them and `read_record_fields` reads
+       them back, and the editor writes them when a part is put down or a
+       settle hook finishes: every `part->form = X` in a settle is followed by
+       `part->start_form = X`. `make_part` sets the position to -1,-1, which is
+       what a part that has never been placed carries. */
+    uint16_t  start_x;         /* +0x8c */
+    uint16_t  start_y;         /* +0x8e */
+    uint16_t  start_form;      /* +0x90 */
+    uint16_t  start_direction; /* +0x92 */
+    uint16_t  start_flags;     /* +0x94  the flags at +8 as they were placed */
     /* **These six words mean different things to different kinds of part, so
        none of them can carry a name.** `parts.c` runs `word_96` as a plain
        countdown - set to 0x1c, to 0x64, to 5, and stepped to zero - and steps
@@ -1960,16 +2062,16 @@ DG_ASSERT_AT(struct part, flags_06,       0x06);
 DG_ASSERT_AT(struct part, flags_08,       0x08);
 DG_ASSERT_AT(struct part, flags_0a,       0x0a);
 DG_ASSERT_AT(struct part, form,           0x0c);
-DG_ASSERT_AT(struct part, word_0e,        0x0e);
-DG_ASSERT_AT(struct part, word_10,        0x10);
+DG_ASSERT_AT(struct part, form_prev,        0x0e);
+DG_ASSERT_AT(struct part, form_prev2,        0x10);
 DG_ASSERT_AT(struct part, direction,      0x12);
-DG_ASSERT_AT(struct part, byte_14,        0x14);
+DG_ASSERT_AT(struct part, redraw_count,        0x14);
 DG_ASSERT_AT(struct part, fx,             0x16);
 DG_ASSERT_AT(struct part, fy,             0x1a);
 DG_ASSERT_AT(struct part, pos,            0x1e);
 DG_ASSERT_AT(struct part, box,            0x2a);
 DG_ASSERT_AT(struct part, vel_x,          0x36);
-DG_ASSERT_AT(struct part, word_38,        0x38);
+DG_ASSERT_AT(struct part, vel_y,        0x38);
 DG_ASSERT_AT(struct part, weight,         0x3a);
 DG_ASSERT_AT(struct part, momentum,       0x3c);
 DG_ASSERT_AT(struct part, mirror_size,    0x40);
@@ -1977,27 +2079,26 @@ DG_ASSERT_AT(struct part, size,           0x44);
 DG_ASSERT_AT(struct part, set_size,       0x50);
 DG_ASSERT_AT(struct part, rope_ptr,       0x54);
 DG_ASSERT_AT(struct part, grab,           0x56);
-DG_ASSERT_AT(struct part, word_58,        0x58);
+DG_ASSERT_AT(struct part, grab_size,        0x58);
 DG_ASSERT_AT(struct part, link_ptr,       0x5a);
 DG_ASSERT_AT(struct part, belt_ptr,       0x66);
 DG_ASSERT_AT(struct part, attach,         0x6a);
-DG_ASSERT_AT(struct part, byte_72,        0x72);
-DG_ASSERT_AT(struct part, byte_73,        0x73);
+DG_ASSERT_AT(struct part, hold,           0x72);
 DG_ASSERT_AT(struct part, next_linked_ptr, 0x78);
 DG_ASSERT_AT(struct part, layer_next_ptr, 0x74);
-DG_ASSERT_AT(struct part, word_7a,        0x7a);
-DG_ASSERT_AT(struct part, word_7c,        0x7c);
-DG_ASSERT_AT(struct part, byte_7e,        0x7e);
+DG_ASSERT_AT(struct part, link_dx,        0x7a);
+DG_ASSERT_AT(struct part, link_dy,        0x7c);
+DG_ASSERT_AT(struct part, host_slot,        0x7e);
 DG_ASSERT_AT(struct part, byte_7f,        0x7f);
 DG_ASSERT_AT(struct part, point_count,    0x80);
 DG_ASSERT_AT(struct part, points_ptr,     0x82);
 DG_ASSERT_AT(struct part, contact_ptr,    0x84);
-DG_ASSERT_AT(struct part, word_8a,        0x8a);
-DG_ASSERT_AT(struct part, word_8c,        0x8c);
-DG_ASSERT_AT(struct part, word_8e,        0x8e);
-DG_ASSERT_AT(struct part, word_90,        0x90);
-DG_ASSERT_AT(struct part, word_92,        0x92);
-DG_ASSERT_AT(struct part, word_94,        0x94);
+DG_ASSERT_AT(struct part, contact_edge,        0x8a);
+DG_ASSERT_AT(struct part, start_x,        0x8c);
+DG_ASSERT_AT(struct part, start_y,        0x8e);
+DG_ASSERT_AT(struct part, start_form,        0x90);
+DG_ASSERT_AT(struct part, start_direction,        0x92);
+DG_ASSERT_AT(struct part, start_flags,        0x94);
 DG_ASSERT_AT(struct part, word_96,        0x96);
 DG_ASSERT_AT(struct part, word_98,        0x98);
 DG_ASSERT_AT(struct part, word_9a,        0x9a);
@@ -4213,7 +4314,7 @@ struct part_kind {
     int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
     int16_t   gravity;         /* +0x08  the normal load, same field */
     /* **The velocity clamp, not padding.** `clamp_record_pair` bounds a part's
-       `vel_x` and `word_38` to plus and minus this. */
+       `vel_x` and `vel_y` to plus and minus this. */
     int16_t   max_speed;       /* +0x0a */
     /* the size limits the + and - keys stop at. `carried_part_grow` compares
        the part's +0x50 against the first and its +0x52 against the second,
