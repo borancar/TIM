@@ -74,18 +74,18 @@ static void tick_program_voice(struct sequence far * seq, uint16_t voice,
     cl = (uint8_t)(seq->ch.byte_0da[channel] & 0xf);
     driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
-    cl = seq->ch.byte_116[channel];
+    cl = seq->ch.program[channel];
     driver_program_change(voice, cl);
 
     SNDS.pending_volume[voice] = 0xff;
 
-    cl = scale_byte_pair(seq->ch.byte_107[channel], seq->volume);
+    cl = scale_byte_pair(seq->ch.volume[channel], seq->volume);
     driver_controller(voice, (uint16_t)((7 << 8) | cl));
 
-    cl = seq->ch.byte_0f8[channel];
+    cl = seq->ch.pan[channel];
     driver_controller(voice, (uint16_t)((0xa << 8) | cl));
 
-    cl = seq->ch.byte_0e9[channel];
+    cl = seq->ch.modulation[channel];
     driver_controller(voice, (uint16_t)((1 << 8) | cl));
 
     cl = 0;
@@ -100,7 +100,7 @@ static void tick_program_voice(struct sequence far * seq, uint16_t voice,
         cl |= 1;
     driver_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
 
-    cl = seq->ch.byte_125[channel];
+    cl = seq->ch.note[channel];
     driver_controller(voice, (uint16_t)((0x4e << 8) | cl));
 }
 
@@ -306,11 +306,11 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
         seq->status[si] = 0;
         seq->status_saved[si] = 0;
         seq->ch.byte_0da[si] = 0xff;
-        seq->ch.byte_0e9[si] = 0;
-        seq->ch.byte_116[si] = 0xff;
-        seq->ch.byte_107[si] = 0xff;
-        seq->ch.byte_0f8[si] = 0xff;
-        seq->ch.byte_125[si] = 0xff;
+        seq->ch.modulation[si] = 0;
+        seq->ch.program[si] = 0xff;
+        seq->ch.volume[si] = 0xff;
+        seq->ch.pan[si] = 0xff;
+        seq->ch.note[si] = 0xff;
         seq->ch.byte_134[si] = 0;
         seq->ch.byte_143[si] = 0;
     }
@@ -396,14 +396,14 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                     } else {
                         if (seq->ch.byte_0da[channel] == 0xff)
                             seq->ch.byte_0da[channel] = e[1];
-                        if (seq->ch.byte_116[channel] == 0xff)
-                            seq->ch.byte_116[channel] = e[4];
-                        if (seq->ch.byte_107[channel] == 0xff)
-                            seq->ch.byte_107[channel] = e[8];
+                        if (seq->ch.program[channel] == 0xff)
+                            seq->ch.program[channel] = e[4];
+                        if (seq->ch.volume[channel] == 0xff)
+                            seq->ch.volume[channel] = e[8];
                     }
 
-                    if (do_f8 && seq->ch.byte_0f8[channel] == 0xff)
-                        seq->ch.byte_0f8[channel] = e[0xb];
+                    if (do_f8 && seq->ch.pan[channel] == 0xff)
+                        seq->ch.pan[channel] = e[0xb];
                 }
             }
 
@@ -1016,7 +1016,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
             continue;
 
         di = (uint16_t)(held & 0xf);
-        level = scale_byte_pair(seq->ch.byte_107[di], seq->volume);
+        level = scale_byte_pair(seq->ch.volume[di], seq->volume);
 
         if (SNDS.defer != 0) {
             SNDS.pending_volume[si] = level;
@@ -1035,7 +1035,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
         if (SNDS.voice_held[di] != 0xff)
             continue;
 
-        level = scale_byte_pair(seq->ch.byte_107[di], seq->volume);
+        level = scale_byte_pair(seq->ch.volume[di], seq->volume);
 
         if (SNDS.defer != 0) {
             SNDS.pending_volume[di] = level;
@@ -1579,8 +1579,8 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
 
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
-    if (seq->ch.byte_125[channel] == note)
-        seq->ch.byte_125[channel] = 0xff;
+    if (seq->ch.note[channel] == note)
+        seq->ch.note[channel] = 0xff;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_stop_note((uint16_t)(ax & 0xf),
@@ -1666,14 +1666,14 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
     if (velocity != 0) {
-        seq->ch.byte_125[channel] = note;
+        seq->ch.note[channel] = note;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_start_note((uint16_t)(ax & 0xf),
                               (uint16_t)((note << 8) | velocity));
     } else {
-        if (seq->ch.byte_125[channel] == note)
-            seq->ch.byte_125[channel] = 0xff;
+        if (seq->ch.note[channel] == note)
+            seq->ch.note[channel] = 0xff;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_stop_note((uint16_t)(ax & 0xf),
@@ -1732,15 +1732,15 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
 
     if (ctrl == 7) {
-        seq->ch.byte_107[channel] = value;
+        seq->ch.volume[channel] = value;
         value = scale_byte_pair(value, seq->volume);
         if ((uint8_t)ax >= 0x20)
             return data;
         SNDS.pending_volume[(uint8_t)ax] = 0xff;
     } else if (ctrl == 0xa) {
-        seq->ch.byte_0f8[channel] = value;
+        seq->ch.pan[channel] = value;
     } else if (ctrl == 1) {
-        seq->ch.byte_0e9[channel] = value;
+        seq->ch.modulation[channel] = value;
     } else if (ctrl == 0x40) {
         uint16_t *bend = &seq->ch.bend[channel];
 
@@ -1797,7 +1797,7 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
         return data;
 
     channel = (uint8_t)(seq->byte_08c[si] & 0xf);
-    seq->ch.byte_116[channel] = program;
+    seq->ch.program[channel] = program;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_program_change((uint16_t)(ax & 0xf), program);

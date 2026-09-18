@@ -3914,19 +3914,25 @@ DG_ASSERT_AT(struct sound_node, next,              0x04);
  *
  * **Fifteen entries each, and the channel runs to 15.** The offsets fix the
  * width - the tables are 0x0f apart - and the index is a channel's low nibble,
- * so channel 15 reads the first entry of the table after: `byte_0f8[15]` is
- * `byte_107[0]`, and `byte_143[15]` is `loop_count`'s low byte. That is the
+ * so channel 15 reads the first entry of the table after: `pan[15]` is
+ * `volume[0]`, and `byte_143[15]` is `loop_count`'s low byte. That is the
  * original's own arithmetic, and it is kept.
  */
 struct sequence_channels {
+    /* **What each of the fifteen channels is set to**, and `tick_program_voice`
+       is where the names come from: it sends each of these to the driver as
+       the controller beside it when a channel is given a voice. The three that
+       start 0xff are filled from the sequence's own header the first time a
+       channel is met - bytes 1, 4, 8 and 0xb of it - so 0xff means "not set
+       yet" rather than a value. */
     uint16_t       bend[15];            /* +0x00  0x2000 at start, the centre; top bit the sustain pedal, controller 0x40 */
-    uint8_t        byte_0da[15];        /* +0x1e  0xff at start */
-    uint8_t        byte_0e9[15];        /* +0x2d  0 at start */
-    uint8_t        byte_0f8[15];        /* +0x3c  0xff at start */
-    uint8_t        byte_107[15];        /* +0x4b  0xff at start */
-    uint8_t        byte_116[15];        /* +0x5a  0xff at start */
-    uint8_t        byte_125[15];        /* +0x69  0xff at start */
-    uint8_t        byte_134[15];        /* +0x78  0 at start */
+    uint8_t        byte_0da[15];        /* +0x1e  0xff at start; the low nibble goes out as controller 0x4b and the high one is read on its own */
+    uint8_t        modulation[15];      /* +0x2d  controller 1 */
+    uint8_t        pan[15];             /* +0x3c  controller 0x0a */
+    uint8_t        volume[15];          /* +0x4b  controller 7, scaled by the sequence's own volume */
+    uint8_t        program[15];         /* +0x5a  the program change */
+    uint8_t        note[15];            /* +0x69  controller 0x4e, the note to retrigger */
+    uint8_t        byte_134[15];        /* +0x78  0 at start; bits 1 and 2, set while the channels are placed */
     uint8_t        byte_143[15];        /* +0x87  0 at start */
 } __attribute__((packed));
 
