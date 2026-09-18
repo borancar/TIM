@@ -254,6 +254,31 @@ before `dgo` was added to the spec it read `original AX=0x6a60 port=0x1f40`
 - a truncated host pointer, which is what a missing conversion always looks
 like - and with it the two agree over five calls.
 
+### What a field *is* is a measurement, not a reading
+
+**A field's name and the comment above it are somebody's earlier reading, and
+a wrong one defends itself.** `DG4A82.tick_cb` was typed `struct far_ptr` and
+commented "the timer callback; its segment is a relocation". Both halves are
+handles: `start_sound` stores what `timer_add_callback` *answers*, once per
+callback, and `shutdown_sound` hands each word straight back to
+`timer_drop_callback`. The name had been read off the argument - the far
+pointer that goes *in* - and the type then made the misreading look settled.
+
+The listing says so at 0x29ca1: `mov ax,0x193e` and `mov ax,0x2619` are
+pushed, `lcall` goes to `timer_add_callback`, and `mov word ptr [0x4a8e], ax`
+stores the answer. **The breakpoint says so without an argument.** Under the
+hybrid, with `TIM_LUA` and `tim.peek16`, the original's own DGROUP reads
+`0x4a8e = 1` and `0x4a90 = 2` - the first and second timer slots, where a
+function pointer would have shown `193e`/`2619`.
+
+So when a field's meaning is not certain, break on it and look: `gdb -batch -ex
+"b routine" -ex run -ex "p STRUCT.field" reconstruct/devtim` for the port,
+`tim.bp(<image offset>)` and `tim.peek16(<dgroup offset>)` for the original.
+The same run, with `ignore N 1000000` and `info breakpoints`, also counts how
+often the code executes - which is how "my check covers this" is told apart
+from "nothing here runs it", and `alloc_shape` runs 4,253 times in an intro
+the sweep calls "NEVER CALLED on these screens".
+
 ## Checks, measurements and verdicts
 
 How a check can pass over a defect, or fail over a correct port - and how a build that looks fresh is not.

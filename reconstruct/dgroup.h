@@ -2967,10 +2967,14 @@ struct asb_cs {
     uint16_t  word_0082;          /* +0x0082 */
     int16_t   word_0084;          /* +0x0084 */
     uint8_t   pad_0086[8];
-    int16_t   word_008e;          /* +0x008e */
-    int16_t   word_0090;          /* +0x0090 */
-    int16_t   word_0092;          /* +0x0092 */
-    int16_t   word_0094;          /* +0x0094 */
+    /* **Two far pointers, four words.** `asb_safe_to_call` reads a byte
+       through each and ORs them: INT 21h AH=34h answers the InDOS flag's
+       address, and the byte below it is the critical-error flag. Which field
+       holds which is read off `asb_install`, where the pair at +0x0092 is set
+       one byte above the pair at +0x008e - so the **names are that reading**,
+       not something the code states. */
+    struct far_ptr criterr;       /* +0x008e */
+    struct far_ptr indos;         /* +0x0092 */
     struct far_ptr old_int0d;     /* +0x0096  the vectors asb_install displaces */
     struct far_ptr old_int74;     /* +0x009a */
     struct far_ptr old_int10;     /* +0x009e */
@@ -3026,10 +3030,8 @@ _Static_assert(__builtin_offsetof(struct asb_cs, word_007a) == 0x007a, "asb_cs.w
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0080) == 0x0080, "asb_cs.word_0080");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0082) == 0x0082, "asb_cs.word_0082");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0084) == 0x0084, "asb_cs.word_0084");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_008e) == 0x008e, "asb_cs.word_008e");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0090) == 0x0090, "asb_cs.word_0090");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0092) == 0x0092, "asb_cs.word_0092");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0094) == 0x0094, "asb_cs.word_0094");
+_Static_assert(__builtin_offsetof(struct asb_cs, criterr) == 0x008e, "asb_cs.criterr");
+_Static_assert(__builtin_offsetof(struct asb_cs, indos) == 0x0092, "asb_cs.indos");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int0d) == 0x0096, "asb_cs.old_int0d");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int74) == 0x009a, "asb_cs.old_int74");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int10) == 0x009e, "asb_cs.old_int10");

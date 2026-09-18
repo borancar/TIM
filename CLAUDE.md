@@ -109,6 +109,30 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   mirrors that. Every developer flag goes in `devmain.c`. `tools/` calls the
   dev binary, so nothing a comparison depends on can become part of what ships.
 
+## Converting the guest's pointers
+
+The method is the `dos-game-reconstruction` skill's; what this port settled on:
+
+- **Two passes.** Every `seg:off` pair becomes a `struct far_ptr` first, split
+  fields included, so the layout stays byte-identical; *then* parameters,
+  returns and locals lift to `uint8_t far *` or a typed record pointer.
+- **Convert where the pair is read out, including into parameters.** A routine
+  taking `uint16_t es, uint16_t bx` and doing `MK_FP` inside is 16-bit
+  assembly written in C.
+- **`dg_near_t` and `struct far_ptr` survive only for what is written into
+  DGROUP**, because that memory is compared with the original's. A pointer
+  that is only followed has no reason to be a pair.
+- **Both directions are named**: `dg_near`/`dg_far` and `far_of` file a
+  pointer, `dg_near_ptr`/`dg_far_ptr` and the typed `X_PTR(fp)` read one back.
+  `far_stepped(from, p)` files the pair the original files when it steps an
+  offset inside a segment it already holds - `far_of` would renormalise it.
+- **Anything stepped gets a type that steps**: a `uint16_t *` for a word
+  table, a `struct entry *` for a record. No helper that wraps arithmetic.
+- **Split pairs run both ways**: two `int16_t` fields used as a segment and an
+  offset are one pointer - `tools/dgrules.py --rule split-pair` finds those -
+  and a `struct far_ptr` whose halves are two unrelated values is found only
+  by reading what the code does with each half.
+
 ## The traps this project has already hit
 
 Each is a rule learned by breaking it. The full account - what happened, what
@@ -133,6 +157,7 @@ a case it does not obviously cover.
 - A fact about one driver, written into the code that calls all of them - [more](docs/lessons.md#a-fact-about-one-driver-written-into-the-code-that-calls-all-of-them)
 - An array sized from the prose beside it, when the loop says otherwise - [more](docs/lessons.md#an-array-sized-from-the-prose-beside-it-when-the-loop-says-otherwise)
 - A name that says `far` may be talking about the call - [more](docs/lessons.md#a-name-that-says-far-may-be-talking-about-the-call)
+- What a field *is* is a measurement, not a reading: break on it in the port with gdb, or in the original with `tim.bp`/`tim.peek16` under the hybrid - [more](docs/lessons.md#what-a-field-is-is-a-measurement-not-a-reading)
 
 ### Checks, measurements and verdicts
 
@@ -216,7 +241,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/codemap.py` | recursive descent from the entry point; `--run` adds what the game reached |
 | `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips; `--audit` says which of them `verify.py` has a spec for, and which rest on the screen comparison alone |
 | `tools/resources.py` | reads and extracts the resource archive |
-| `tools/dgrules.py` | **what the DGROUP structs have not swallowed yet**, over a tree-sitter parse rather than a regex, because both its rules are about *shape*: `raw` lists every remaining `DG*` accessor split by constant offset - which a field can replace - against computed, which is a record needing its type known first; `offset-arg` finds a near pointer hidden as arithmetic in an argument, `game_fread((uint16_t)(0x627a + si), ...)`, which `dg_near(&STRUCT.field[si])` says better. Neither is a failure; both are a worklist, sorted so the biggest cluster is the next struct to write ; `const-addr` finds the third shape, a four-digit constant assigned to a variable that is *then* used as an address - `mov si, 0x53ab` seen from the C side, which `raw` cannot find because there is no accessor carrying the constant to group on|
+| `tools/dgrules.py` | **what the DGROUP structs have not swallowed yet**, over a tree-sitter parse rather than a regex, because both its rules are about *shape*: `raw` lists every remaining `DG*` accessor split by constant offset - which a field can replace - against computed, which is a record needing its type known first; `offset-arg` finds a near pointer hidden as arithmetic in an argument, `game_fread((uint16_t)(0x627a + si), ...)`, which `dg_near(&STRUCT.field[si])` says better. Neither is a failure; both are a worklist, sorted so the biggest cluster is the next struct to write ; `const-addr` finds the third shape, a four-digit constant assigned to a variable that is *then* used as an address - `mov si, 0x53ab` seen from the C side, which `raw` cannot find because there is no accessor carrying the constant to group on ; `split-pair` finds the fourth, **two fields of one struct used as a segment and an offset** - one far pointer written as two words - following the locals and the frame slots the halves are copied through, because only one of the four found by hand was written as a direct argument|
 | `tools/frames.py` | **what each routine reserves for its locals**, from the binary's `sub sp,N` and from the port's `dg_alloca(N)`. The two should agree, and where they do not the report says which of the two rules the port followed. It also flags a named slot at or past the frame's end, which cannot be a local ; it also separates the two shapes that are *not* a mismatch - a frame **split** between an array and C locals (`read_far` is 0x100 of `sub sp,0x10a`), and a frame that **is the caller's argument slots** (`read_into_huge` and `expand_1bpp_to_4bpp` reserve because `huge_add_to` steps the far pointer the caller passed by value, so the original's `sub sp` is 0)|
 | `tools/framify.py` | turns a routine's `dg_alloca` frame into the `uint8_t frame[N]` it is, one named routine at a time. **Its refusals are the point**: a slot whose value is *filed* anywhere rather than only read through, a slot spelled in a way it cannot read, a `bp` that derives nothing. Each was written after that shape broke something |
 | `tools/framify_fixups.py` | the shapes a frame conversion leaves behind - an unsigned read used as an lvalue, a `dg_ptr` on something that is already a pointer, a byte slot still read with `DG8`. Per *function*, because slot names are per function. **The `(?!=)` on every write rule is the one thing to get right**: without it a comparison `DG16(x) == 0` becomes `dg_wr16(x, = 0`, which has broken the build three times from three hand-retyped copies |

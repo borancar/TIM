@@ -679,8 +679,8 @@ uint8_t asb_safe_to_call(void)
 {
     uint8_t al;
 
-    al  = *(uint8_t *)MK_FP(((uint16_t)ASBS.word_0090), ((uint16_t)ASBS.word_008e));
-    al |= *(uint8_t *)MK_FP(((uint16_t)ASBS.word_0094), ((uint16_t)ASBS.word_0092));
+    al  = *dg_far_ptr(ASBS.criterr);
+    al |= *dg_far_ptr(ASBS.indos);
     al |= ASBS.word_0043;
     al |= ASBS.word_003f;
     al |= ASBS.word_0040;
@@ -945,10 +945,8 @@ uint16_t asb_install(void)
      * is safe - which is the truth here rather than a shortcut.
      */
     indos = 0;
-    ASBS.word_0092 = 1;
-    ASBS.word_0094 = 0;
-    ASBS.word_008e = 0;
-    ASBS.word_0090 = 0;
+    ASBS.indos = (struct far_ptr){ 1, 0 };
+    ASBS.criterr = FAR_NULL;
     (void)indos;
 
     ASBS.word_0078 = 0x2b11;          /* 11025 Hz */

@@ -389,6 +389,166 @@ def rule_ptr_arg(paths):
     return out
 
 
+def seg_off_macros(header=None):
+    """The macros that take a **segment and an offset**, read out of dgroup.h.
+
+    `MK_FP` itself and everything defined in terms of it with two parameters -
+    `FAR8`, `FAR16`, `FARU16` - so the rule below finds an address formed any
+    of the ways the port spells it.
+    """
+    header = header or os.path.join(tim.REPO, "reconstruct", "dgroup.h")
+    src = open(header).read().replace("\\\n", " ")
+    out = {"MK_FP"}
+    for m in re.finditer(r"^#define\s+([A-Z][A-Z0-9_]*)\(\s*seg\s*,\s*off\s*\)(.*)$",
+                         src, re.M):
+        if "MK_FP(" in m.group(2):
+            out.add(m.group(1))
+    return out
+
+
+def _unwrap(n):
+    """Past the casts and the parentheses to the value itself."""
+    while True:
+        if n.type == "parenthesized_expression":
+            kids = [c for c in n.children if c.is_named]
+            if len(kids) != 1:
+                return n
+            n = kids[0]
+        elif n.type == "cast_expression":
+            v = n.child_by_field_name("value")
+            if v is None:
+                return n
+            n = v
+        else:
+            return n
+
+
+def rule_split_pair(paths):
+    """**Two fields of one struct used as a segment and an offset.**
+
+    That is one far pointer written as two words, and `struct far_ptr` says it
+    in a way the two names cannot:
+
+        MK_FP(ASBS.word_0090, ASBS.word_008e)
+
+    Four of these were found by reading rather than by a tool - the sound
+    module's two timer handles at DG4A82+0x0c, which were typed as a far
+    pointer and are *not* one; the shape list's head, a `dg_near_t` beside
+    what the code files a segment into; the adaptive tree's son table at
+    DGROUP 0x5900; and the pair above. This rule is for the other direction
+    and finds the three that are one pointer spelled as two.
+
+    **It follows locals**, because only one of the four was written as a
+    direct argument. The rest copied the two fields into `seg` and `off` first
+    - which is what the original does with registers - so a rule that read
+    only the call site would have found a quarter of them.
+
+    A `seg`/`off` pair of one `struct far_ptr` is not a finding: that is the
+    shape this rule asks for.
+
+    **What it cannot see is a macro.** `FREQ`, `PRNT` and `SON` in engine.c
+    were `MK_FP(seg, base + 2 * x)` with the two halves as the caller's
+    locals, and this reads the parse tree rather than the preprocessor's
+    output, so it found the son table where the expression was written out and
+    not where a file-local macro stood in front of it. Measured against the
+    four that were found by hand: three of them, at the revision before each
+    was converted, and 22 sites between them.
+    """
+    macros = seg_off_macros()
+    out = []
+    for path in paths:
+        src, root = parse(path)
+        for fn in walk(root):
+            if fn.type != "function_definition":
+                continue
+            name = ""
+            d = fn.child_by_field_name("declarator")
+            while d is not None and d.type != "identifier":
+                d = d.child_by_field_name("declarator")
+            if d is not None:
+                name = text(src, d)
+
+            # local -> (base, field), from `T x = BASE.FIELD;` and `x = BASE.FIELD;`
+            held = {}
+            for n in walk(fn):
+                if n.type == "init_declarator":
+                    lhs, rhs = (n.child_by_field_name("declarator"),
+                                n.child_by_field_name("value"))
+                elif n.type == "assignment_expression":
+                    lhs, rhs = (n.child_by_field_name("left"),
+                                n.child_by_field_name("right"))
+                else:
+                    continue
+                if lhs is None or rhs is None:
+                    continue
+                if lhs.type not in ("identifier", "subscript_expression"):
+                    continue
+                rhs = _unwrap(rhs)
+                if rhs.type == "field_expression":
+                    base = rhs.child_by_field_name("argument")
+                    field = rhs.child_by_field_name("field")
+                    if base is None or field is None:
+                        continue
+                    held[text(src, lhs)] = (text(src, base), text(src, field))
+                elif rhs.type in ("identifier", "subscript_expression"):
+                    # **A copy carries the binding.** The original moves a
+                    # far pointer through registers and frame slots -
+                    # `next[1] = DG4E4E.shapes_tail_ptr` and then
+                    # `cur[1] = next[1]` - so a rule that stopped at the first
+                    # hop saw two of the four known cases and not the pair the
+                    # shape list's head was written as.
+                    got = held.get(text(src, rhs))
+                    if got is not None:
+                        held[text(src, lhs)] = got
+
+            def resolve(a, depth=0):
+                a = _unwrap(a)
+                # `off + 4` is still that field's address - the original adds
+                # to the register it loaded the word into. Only the offset
+                # half is ever written this way, and following it is what
+                # takes the rule from a quarter of the known cases to most
+                # of them.
+                if a.type == "binary_expression" and depth < 3:
+                    for side in ("left", "right"):
+                        k = a.child_by_field_name(side)
+                        if k is None:
+                            continue
+                        got = resolve(k, depth + 1)
+                        if got is not None:
+                            return got
+                    return None
+                if a.type == "field_expression":
+                    b, f = (a.child_by_field_name("argument"),
+                            a.child_by_field_name("field"))
+                    if b is not None and f is not None:
+                        return text(src, b), text(src, f)
+                    return None
+                if a.type in ("identifier", "subscript_expression"):
+                    return held.get(text(src, a))
+                return None
+
+            for n in walk(fn):
+                if n.type != "call_expression":
+                    continue
+                f = n.child_by_field_name("function")
+                if f is None or text(src, f) not in macros:
+                    continue
+                args = n.child_by_field_name("arguments")
+                kids = [c for c in args.children if c.is_named] if args else []
+                if len(kids) != 2:
+                    continue
+                a, b = resolve(kids[0]), resolve(kids[1])
+                if a is None or b is None:
+                    continue
+                if a[0] != b[0] or a[1] == b[1]:
+                    continue
+                if {a[1], b[1]} == {"seg", "off"}:
+                    continue           # already one `struct far_ptr`
+                out.append((os.path.basename(path), n.start_point[0] + 1,
+                            name, a[0], a[1], b[1]))
+    return out
+
+
 def rule_const_addr(paths):
     """A four-digit constant **assigned to a variable that is then an address**.
 
@@ -531,7 +691,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rule",
                     choices=("raw", "offset-arg", "truncated", "const-addr",
-                             "ptr-arg", "both"),
+                             "ptr-arg", "split-pair", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -606,6 +766,16 @@ def main():
         print("   %d sites" % len(rows))
         for f, line, fn, kind, txt in rows[:args.top]:
             print("   %-16s %5d  %-14s %-22s %s" % (f, line, fn, kind, txt))
+        print()
+
+    if args.rule in ("split-pair", "both"):
+        rows = rule_split_pair(paths)
+        print("\nTWO FIELDS OF ONE STRUCT AS A SEGMENT AND AN OFFSET - that is")
+        print("one far pointer written as two words, and `struct far_ptr` says")
+        print("it where two names cannot:")
+        print("   %d sites" % len(rows))
+        for f, line, fn, base, s1, s2 in rows[:args.top]:
+            print("   %-16s %5d  %-22s %s.%s / .%s" % (f, line, fn, base, s1, s2))
         print()
 
     if args.rule in ("const-addr", "both"):
