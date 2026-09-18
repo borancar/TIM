@@ -2249,9 +2249,15 @@ struct dg_546c {
     uint32_t  name_hash;          /* +0x16  what hash_filename leaves for
                                             find_entry_for_pointer */
     uint8_t   open_immediate;     /* +0x1a  clear means try the file by name and close it again */
-    uint8_t   byte_5487;          /* +0x1b */
+    /* **Reopen the archive even if it is the one already current.** Every
+       reader forces the switch when it is set, and the switch clears it; the
+       only thing that sets it is the two-instruction routine at image 0x09804,
+       which nothing the port reaches calls. */
+    uint8_t   reopen;          /* +0x1b */
     uint8_t   retry;              /* +0x1c  the loop around the loose-file open, for removable media */
-    uint8_t   byte_5489;          /* +0x1d */
+    /* **An archive is being opened**, raised around the two retry loops that
+       call `borland_fopen` - the ones the missing-disk prompt belongs to. */
+    uint8_t   opening;         /* +0x1d */
     uint8_t   scanned;            /* +0x1e  the archives have been counted once */
     dg_near_t file_used_ptr;      /* +0x1f  the FILE it actually read from */
     dg_near_t file_asked_ptr;     /* +0x21  and the one it was asked about */
@@ -2278,9 +2284,9 @@ DG_ASSERT_AT(struct dg_546c, archive_count,     0x12);
 DG_ASSERT_AT(struct dg_546c, last_record,       0x14);
 DG_ASSERT_AT(struct dg_546c, name_hash,         0x16);
 DG_ASSERT_AT(struct dg_546c, open_immediate,    0x1a);
-DG_ASSERT_AT(struct dg_546c, byte_5487,         0x1b);
+DG_ASSERT_AT(struct dg_546c, reopen,         0x1b);
 DG_ASSERT_AT(struct dg_546c, retry,             0x1c);
-DG_ASSERT_AT(struct dg_546c, byte_5489,         0x1d);
+DG_ASSERT_AT(struct dg_546c, opening,         0x1d);
 DG_ASSERT_AT(struct dg_546c, scanned,           0x1e);
 DG_ASSERT_AT(struct dg_546c, file_used_ptr,     0x1f);
 DG_ASSERT_AT(struct dg_546c, file_asked_ptr,    0x21);
@@ -3945,7 +3951,10 @@ struct sequence {
     uint16_t       position_saved[16];  /* +0x02c  its shadow, which a checkpoint copies */
     uint16_t       delay[16];           /* +0x04c  ticks to each channel's next event */
     uint16_t       delay_saved[16];     /* +0x06c */
-    uint8_t        byte_08c[16];        /* +0x08c  0xff at start */
+    /* **Each track's channel**, in the low nibble, with three flag bits above
+       it that the placement consumes and then masks off; 0xff means the track
+       is not in use, which is what the end-of-sequence walk stops on. */
+    uint8_t        track_channel[16];   /* +0x08c */
     uint8_t        status[16];          /* +0x09c  running status */
     uint8_t        status_saved[16];    /* +0x0ac */
     struct sequence_channels ch;        /* +0x0bc  each channel's controllers */
@@ -3954,7 +3963,10 @@ struct sequence {
     uint16_t       ticks_saved;         /* +0x156  and restored from here on a loop */
     uint8_t        state;               /* +0x158  0xff free or stopped, 0xfe a fade arrived */
     uint8_t        mode;                /* +0x159  1, or 2 when started with the flag */
-    uint8_t        byte_15a;            /* +0x15a  what a rewind must match; with `loop` 0, the end */
+    /* **What a rewind must match**: a 0x52 meta event carrying this byte puts
+       every track's position back to 0. Zero here with `loop` also zero is
+       what makes the end of the data the end of the sequence. */
+    uint8_t        rewind_mark;         /* +0x15a */
     uint8_t        byte_15b;            /* +0x15b */
     uint8_t        priority;            /* +0x15c  a sound bank entry's second byte */
     uint8_t        loop;                /* +0x15d  and its first */
@@ -4050,7 +4062,7 @@ DG_ASSERT_AT(struct sound_record, flags,             0x12);
 DG_ASSERT_AT(struct sequence, cursor_at,         0x008);
 DG_ASSERT_AT(struct sequence, position,          0x00c);
 DG_ASSERT_AT(struct sequence, delay,             0x04c);
-DG_ASSERT_AT(struct sequence, byte_08c,          0x08c);
+DG_ASSERT_AT(struct sequence, track_channel,          0x08c);
 DG_ASSERT_AT(struct sequence, ch,                0x0bc);
 DG_ASSERT_AT(struct sequence, ch.byte_0da,      0x0da);
 DG_ASSERT_AT(struct sequence, ch.byte_143,      0x143);

@@ -12386,7 +12386,7 @@ FILE *game_fopen(char *name, const char *mode)
     int16_t left;
     FILE *r = NULL;
 
-    if (DG546C.byte_5487 != 0)
+    if (DG546C.reopen != 0)
         make_file_current(0);
 
     load_archive_map();
@@ -12412,7 +12412,7 @@ FILE *game_fopen(char *name, const char *mode)
 
     hash_filename(name);
 
-    DG546C.byte_5489 = 1;
+    DG546C.opening = 1;
 
     for (;;) {
         DG546C.retry = 0;
@@ -12428,7 +12428,7 @@ FILE *game_fopen(char *name, const char *mode)
             break;
     }
 
-    DG546C.byte_5489 = 0;
+    DG546C.opening = 0;
 
     if (di != NULL) {
         si->archive = 0;
@@ -12765,7 +12765,7 @@ void make_file_current(uint16_t index)
             exists = 1;
     }
 
-    if (index == DG546C.last_record && exists == 0 && DG546C.byte_5487 == 0)
+    if (index == DG546C.last_record && exists == 0 && DG546C.reopen == 0)
         return;
 
     a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
@@ -12778,7 +12778,7 @@ void make_file_current(uint16_t index)
     a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
 
     if (index != 0) {
-        DG546C.byte_5489 = 1;
+        DG546C.opening = 1;
         for (;;) {
             struct file_rec *f = borland_fopen((const char *)a->name,
                                      MACHINE_RESOURCE_MAP_NAMES.mode_rb_c);
@@ -12789,13 +12789,13 @@ void make_file_current(uint16_t index)
             if (((uint8_t)VMDS.pixel_shift) != 0)
                 not_transcribed("0x08fc3, the prompt for a missing disk");
         }
-        DG546C.byte_5489 = 0;
+        DG546C.opening = 0;
     }
 
     a->pos = 0;
 
     archive_entry_for(0);
-    DG546C.byte_5487 = 0;
+    DG546C.reopen = 0;
 }
 
 /*

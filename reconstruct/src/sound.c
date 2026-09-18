@@ -302,7 +302,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
         seq->delay[si] = 0;
         seq->delay_saved[si] = 0;
         seq->ch.bend[si] = 0x2000;
-        seq->byte_08c[si] = 0xff;
+        seq->track_channel[si] = 0xff;
         seq->status[si] = 0;
         seq->status_saved[si] = 0;
         seq->ch.byte_0da[si] = 0xff;
@@ -315,11 +315,11 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
         seq->ch.byte_143[si] = 0;
     }
 
-    seq->byte_08c[0xf] = 0xff;
+    seq->track_channel[0xf] = 0xff;
     seq->status[0xf] = 0;
     seq->status_saved[0xf] = 0;
     seq->poll = 0;
-    seq->byte_15a = 0;
+    seq->rewind_mark = 0;
     seq->device_value = 0x7f;
     seq->position[0xf] = 0xd;
     seq->position_saved[0xf] = 3;
@@ -357,11 +357,11 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                 }
                 seq->position[si] = 0;
                 seq->position_saved[si] = 0;
-                seq->byte_08c[si] = 0xfe;
+                seq->track_channel[si] = 0xfe;
             } else {
                 uint16_t channel;
 
-                seq->byte_08c[si] = dl;
+                seq->track_channel[si] = dl;
                 seq->status[si] = (uint8_t)(dl | 0xb0);
 
                 dl = e[0xc];
@@ -372,8 +372,8 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                 }
                 seq->delay[si] = (uint16_t)(((uint16_t)dh << 8) | dl);
 
-                dl = seq->byte_08c[si];
-                seq->byte_08c[si] &= 0xf;
+                dl = seq->track_channel[si];
+                seq->track_channel[si] &= 0xf;
                 channel = (uint16_t)(dl & 0xf);
 
                 if ((dl & 0x10) != 0) {
@@ -657,7 +657,7 @@ void sequencer_tick(void)
         SNDS.saved_total = al;
 
         for (ch_i = 0; ch_i < 0x10; ch_i++) {
-            cl = rec->byte_08c[ch_i];
+            cl = rec->track_channel[ch_i];
             if (cl == 0xff || cl == 0xfe || cl == 0x0f)
                 continue;
             if ((rec->ch.byte_134[cl] & 2) != 0)
@@ -1027,7 +1027,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
     }
 
     for (si = 0; si < 0x10; si++) {
-        di = seq->byte_08c[si];
+        di = seq->track_channel[si];
         if (di == 0xff)
             return;
         if ((seq->ch.byte_134[di] & 2) == 0)
@@ -1401,7 +1401,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
     data = base;
 
     for (si = 0; si < 0x10; si++) {
-        uint8_t al = seq->byte_08c[si];
+        uint8_t al = seq->track_channel[si];
         uint16_t *pos = &seq->position[si];
         uint16_t *delay = &seq->delay[si];
         uint8_t status;
@@ -1518,13 +1518,13 @@ next_channel:
 
 finished:
     for (si = 0; si < 0x10; si++) {
-        if (seq->byte_08c[si] == 0xff)
+        if (seq->track_channel[si] == 0xff)
             break;
         if (seq->position[si] != 0)
             return;
     }
 
-    if (seq->byte_15a == 0 && seq->loop == 0) {
+    if (seq->rewind_mark == 0 && seq->loop == 0) {
         remove_sequence(seq);
         SNDS.voices_changed = 1;
         return;
@@ -1577,7 +1577,7 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    channel = (uint8_t)(seq->byte_08c[si] & 0xf);
+    channel = (uint8_t)(seq->track_channel[si] & 0xf);
 
     if (seq->ch.note[channel] == note)
         seq->ch.note[channel] = 0xff;
@@ -1663,7 +1663,7 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    channel = (uint8_t)(seq->byte_08c[si] & 0xf);
+    channel = (uint8_t)(seq->track_channel[si] & 0xf);
 
     if (velocity != 0) {
         seq->ch.note[channel] = note;
@@ -1729,7 +1729,7 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
     if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
-    channel = (uint8_t)(seq->byte_08c[si] & 0xf);
+    channel = (uint8_t)(seq->track_channel[si] & 0xf);
 
     if (ctrl == 7) {
         seq->ch.volume[channel] = value;
@@ -1796,7 +1796,7 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
     if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
-    channel = (uint8_t)(seq->byte_08c[si] & 0xf);
+    channel = (uint8_t)(seq->track_channel[si] & 0xf);
     seq->ch.program[channel] = program;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
@@ -1878,7 +1878,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
     if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
-    channel = (uint8_t)(seq->byte_08c[si] & 0xf);
+    channel = (uint8_t)(seq->track_channel[si] & 0xf);
 
     value = (uint16_t)((((uint16_t)msb >> 1) << 8)
                        | (uint16_t)(lsb | ((msb & 1) ? 0x80 : 0)));
@@ -1997,7 +1997,7 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
         return data;
     }
 
-    if (first == 0x52 && seq->byte_15a == second) {
+    if (first == 0x52 && seq->rewind_mark == second) {
         for (t = 0; t < 0x10; t++)
             seq->position[t] = 0;
     }
