@@ -308,16 +308,29 @@ static inline uint8_t *dg_far_ptr(struct far_ptr p)
 }
 
 /*
- * **A pointer filed in another pointer's segment.** The original often holds a
- * segment and steps only the offset inside it - `advance_record` answers the
- * segment it was given beside a moved offset - and the pair it files is then
- * that segment with that offset, not the normalised pair `far_of` would give.
- * `from` is the pointer whose segment is kept; `p` is where the stepped offset
- * lands. Ours.
+ * **`far_of` against a segment of your choosing**, which is the pair the
+ * original files whenever it holds a segment and steps only the offset inside
+ * it. `far_of` can only answer the normalised pair - a host pointer does not
+ * remember which of the many `seg:off` addressing it the guest was holding -
+ * and a normalised pair is *different bytes* in guest memory, where they are
+ * compared with the original's.
+ *
+ * So the segment is named and the offset is the distance from that segment's
+ * first byte, which is the definition of a far pointer and the inverse of
+ * `dg_far_ptr` for that segment.
+ *
+ * **What is stepped is stepped by its own type, at the call site**:
+ * `&voice->cursor`, `&dir->entry[0]`, `advance_record(src)`, `blk + 3 * n`.
+ * This takes the answer and says which segment it is to be expressed in; it
+ * does no stepping of its own. A `far_stepped(from, p)` that did the
+ * subtraction itself lived here until 2026-09-19 and had to normalise `from`
+ * to find a segment, which is exactly the thing that cannot be recovered.
  */
-static inline struct far_ptr far_stepped(const uint8_t *from, const uint8_t *p)
+static inline struct far_ptr far_from(uint16_t seg, const void *p)
 {
-    struct far_ptr r = { (uint16_t)(FP_OFF(from) + (p - from)), FP_SEG(from) };
+    struct far_ptr r = {
+        (uint16_t)(FP_LIN(p) - (((uint32_t)seg) << 4)), seg
+    };
 
     return r;
 }
@@ -340,7 +353,7 @@ static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
  * comparison. The two are the same test wherever the pairs being compared were
  * filed the same way, which is every one of them: a record's own block, or a
  * pair copied from one table to another. Where an *exact* pair matters it is a
- * store, not a comparison, and `far_stepped` files those.
+ * store, not a comparison, and a store keeps the segment it was given.
  *
  * Note that this is *not* a C null pointer: 0000:0000 is a real address in the
  * guest, the first byte of `guest_mem`, which is why `draw_string_body`'s

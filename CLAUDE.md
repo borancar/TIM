@@ -124,10 +124,16 @@ The method is the `dos-game-reconstruction` skill's; what this port settled on:
   that is only followed has no reason to be a pair.
 - **Both directions are named**: `dg_near`/`dg_far` and `far_of` file a
   pointer, `dg_near_ptr`/`dg_far_ptr` and the typed `X_PTR(fp)` read one back.
-  `far_stepped(from, p)` files the pair the original files when it steps an
-  offset inside a segment it already holds - `far_of` would renormalise it.
 - **Anything stepped gets a type that steps**: a `uint16_t *` for a word
-  table, a `struct entry *` for a record. No helper that wraps arithmetic.
+  table, a `struct entry *` for a record. No helper that wraps arithmetic -
+  `&voice->cursor`, `&dir->entry[0]`, `blk + 3 * n` and `advance_record(src)`
+  are the step, at the site, in the type.
+- **A pair that is filed keeps the segment it was given**: `far_from(seg, p)`
+  is `far_of` against a segment of your choosing - the offset is the distance
+  from that segment's first byte - and it does no stepping of its own.
+  `far_of` can only answer the *normalised* pair, and a big offset climbing
+  into the segment is different bytes in guest memory, which is compared with
+  the original's.
 - **Split pairs run both ways**: two `int16_t` fields used as a segment and an
   offset are one pointer - `tools/dgrules.py --rule split-pair` finds those -
   and a `struct far_ptr` whose halves are two unrelated values is found only

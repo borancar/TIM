@@ -6798,10 +6798,11 @@ void fill_file_listing(const char *pattern)
        a `struct far_ptr *` and the text a plain byte cursor. */
     struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
     /* [bp-8], [bp-6]: into the text. The original keeps the segment fixed
-       while the offset grows and files that pair at each entry, which is what
-       `far_stepped` answers - never the normalised pair. */
+       while the offset grows and files that pair at each entry - the segment
+       and the distance from its first byte, never the normalised pair. */
     uint8_t *txt;
     const uint8_t *txt_seg_start;
+    uint16_t txt_seg;                   /* the segment the offsets are in */
     const char *want_ext;                  /* [bp+6], rewritten in place */
     char *name;                      /* di */
     const char *name_ext;                  /* [bp-0xa]                        */
@@ -6812,7 +6813,8 @@ void fill_file_listing(const char *pattern)
     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
     ptr = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
-    txt_seg_start = MK_FP(GAME_PICKER_TEXT.text_start.seg, 0);
+    txt_seg = GAME_PICKER_TEXT.text_start.seg;
+    txt_seg_start = MK_FP(txt_seg, 0);
     txt = (uint8_t *)txt_seg_start + GAME_PICKER_TEXT.text_start.off;
 
     want_ext = string_chr((char *)pattern, '.');
@@ -6820,7 +6822,7 @@ void fill_file_listing(const char *pattern)
         want_ext = NULL;
 
     if (GAME_DIRECTORIES.path_field[3] != 0) {
-        *ptr++ = far_stepped(txt_seg_start, txt);
+        *ptr++ = far_from(txt_seg, txt);
 
         *txt++ = ':';
         *txt++ = 0;
@@ -6838,7 +6840,7 @@ void fill_file_listing(const char *pattern)
             if (string_compare(name, GAME_FILE_STRINGS.dot) != 0
                 && string_compare(name,
                                   GAME_FILE_STRINGS.dot_dot_a) != 0) {
-                *ptr++ = far_stepped(txt_seg_start, txt);
+                *ptr++ = far_from(txt_seg, txt);
                 GAME_PICKER_TEXT.entry_count++;
 
                 *txt++ = '<';
@@ -6854,7 +6856,7 @@ void fill_file_listing(const char *pattern)
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            *ptr++ = far_stepped(txt_seg_start, txt);
+            *ptr++ = far_from(txt_seg, txt);
             GAME_PICKER_TEXT.entry_count++;
 
             n = 0;
@@ -6995,16 +6997,13 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
             GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
 
-        {
-            /* The table of pointers sits at the head of the block and the text
-               after it, so the start is the block stepped past four bytes a
-               line. `far_stepped` files the pair the original files: the
-               block's own segment with the step in the offset. */
-            uint8_t far *blk = dg_far_ptr(GAME_PICKER_TEXT.block);
-
-            GAME_PICKER_TEXT.text_start =
-                far_stepped(blk, blk + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
-        }
+        /* The table of pointers sits at the head of the block and the text
+           after it, so the start is four bytes a line in, in the block's own
+           segment. */
+        GAME_PICKER_TEXT.text_start =
+            far_from(GAME_PICKER_TEXT.block.seg,
+                     dg_far_ptr(GAME_PICKER_TEXT.block)
+                     + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
     }
 
     fill_file_listing(pattern);

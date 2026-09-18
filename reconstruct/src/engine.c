@@ -2422,14 +2422,15 @@ void huffman_start(void)
     uint16_t *freq, *prnt, *son;
     int16_t i, j;
 
-    /* Offsets stepped inside the scratch block's segment, filed beside it. */
-    ENGINE_DECOMPRESS_CACHE.cache_a =
-        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b), seg };
-    ENGINE_DECOMPRESS_CACHE.cache_b =
-        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523), seg };
-    ENGINE_HUFFMAN_TREE.son =
-        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d),
-                          seg };
+    /* Three places inside the scratch block, each filed in the block's own
+       segment - the offset steps and the segment does not. */
+    {
+        uint8_t far *scratch = dg_far_ptr(RESOURCE_PTR(rec)->scratch);
+
+        ENGINE_DECOMPRESS_CACHE.cache_a = far_from(seg, scratch + 0x103b);
+        ENGINE_DECOMPRESS_CACHE.cache_b = far_from(seg, scratch + 0x1523);
+        ENGINE_HUFFMAN_TREE.son         = far_from(seg, scratch + 0x1c7d);
+    }
 
     freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
     prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
@@ -4707,14 +4708,17 @@ uint16_t load_font(char *name)
                          ? 0 : 1;
 
             if (failed == 0) {
-                /* Three pointers into the one block, the offset stepped
-                   two bytes and then one per glyph. The segment does not
-                   move, which is what `far_stepped` files. */
+                /* Three pointers into the one block, two bytes and then
+                   three per glyph in. **The segment does not move**: the
+                   original keeps it and adds to the offset, so the pair filed
+                   is the block's own segment with the stepped offset - not
+                   the renormalised pair `far_of` of a stepped pointer would
+                   give. */
                 ENGINE_FONT_WIDTHS.width[si] = far_of(blk);
                 ENGINE_FONT_SLOTS.slot[si] =
-                    far_stepped(blk, blk + 2 * VMDS.font_table_70[si]);
+                    far_from(FP_SEG(blk), blk + 2 * VMDS.font_table_70[si]);
                 ENGINE_FONTS.body[si] =
-                    far_stepped(blk, blk + 3 * VMDS.font_table_70[si]);
+                    far_from(FP_SEG(blk), blk + 3 * VMDS.font_table_70[si]);
             }
 
             close_resource(handle);

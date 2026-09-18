@@ -1303,7 +1303,7 @@ void poll_sequences(void)
             args.play.volume = rec->volume;
             args.play.loop = rec->loop;
             args.play.rate = *(const uint16_t *)b;
-            args.play.sample = far_stepped(MK_FP(at->seg, 0), b + 8);
+            args.play.sample = far_from(at->seg, b + 8);
             args.play.length = *(const uint16_t *)(b + 2);
 
             sound_callback(3, &args);
@@ -2451,8 +2451,7 @@ uint16_t alloc_voice_records(void)
            and `cursor_at` is that segment beside the offset stepped to the
            record's `cursor`. */
         voice->state = 0xff;
-        voice->cursor_at = far_stepped((uint8_t *)voice,
-                                       (uint8_t *)voice + offsetof(struct sequence, cursor));
+        voice->cursor_at = far_from(FP_SEG(voice), &voice->cursor);
     }
 
     return 1;
@@ -2515,8 +2514,9 @@ uint8_t far *load_named_chunk(char *name, const char * path,
  * `off + rec[1] + 2`.
  *
  * The original takes and returns a far pointer in DX:AX and leaves DX - the
- * segment - untouched, so only the offset moves. The port answers the pointer;
- * a caller that files it keeps the segment with `far_stepped`.
+ * segment - untouched, so only the offset moves. The port answers the pointer,
+ * and a caller that files the result files the segment it already holds with
+ * the difference added to its offset.
  */
 const uint8_t far *advance_record(const uint8_t far * rec)
 {
@@ -2628,9 +2628,8 @@ struct sequence far *create_sequence(const uint8_t far * src)
        are both blocks DOS handed out, so their own pairs are the ones the
        original holds. */
     seq->source = far_of(src);
-    seq->cursor = far_stepped(src, advance_record(src));
-    seq->cursor_at = far_stepped((uint8_t *)seq,
-                                 (uint8_t *)seq + offsetof(struct sequence, cursor));
+    seq->cursor = far_from(FP_SEG(src), advance_record(src));
+    seq->cursor_at = far_from(FP_SEG(seq), &seq->cursor);
 
     seq->volume = 0x7f;
     seq->next = FAR_NULL;
@@ -2873,7 +2872,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
         /* Which note data this voice is playing, and how far into it - the
            second a segment beside the offset `advance_record` stepped. */
         voice->source = far_of(source);
-        voice->cursor = far_stepped(source, advance_record(source));
+        voice->cursor = far_from(FP_SEG(source), advance_record(source));
 
         if (DG4A82.bank_ptr != 0) {
             const struct sound_bank_entry *bank =
@@ -3724,7 +3723,7 @@ uint16_t open_sound_file(char *name, int16_t id)
         goto fail;
 
     /* Where the walk starts: this block's segment beside its ninth byte. */
-    dir->cursor = far_stepped((uint8_t *)dir, (uint8_t *)&dir->entry[0]);
+    dir->cursor = far_from(FP_SEG(dir), &dir->entry[0]);
 
 search:
     dir = (struct sound_dir *)(void *)dg_far_ptr(DG4A82.directory);
