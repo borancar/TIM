@@ -3260,28 +3260,46 @@ extern struct s1c_words    S1C_WORDS;
  */
 struct sx_spkr {
     uint8_t   pad_0000[828];
-    int16_t   word_033c;          /* +0x033c */
+    /* **The pitch bend as MIDI sent it**, both halves - `(msb << 7) | lsb` -
+       kept only so `sx_query` can hand it back. What the bend is *computed*
+       from throws the low seven bits away. */
+    int16_t   bend_value;      /* +0x033c */
     uint8_t   pad_033e[4];
-    uint8_t   byte_0342;          /* +0x0342 */
-    uint8_t   byte_0343;          /* +0x0343 */
-    uint8_t   byte_0344;          /* +0x0344 */
-    uint8_t   byte_0345;          /* +0x0345 */
-    uint8_t   byte_0346;          /* +0x0346 */
-    uint8_t   byte_0347;          /* +0x0347 */
-    uint8_t   byte_0348;          /* +0x0348 */
-    uint8_t   byte_0349;          /* +0x0349 */
+    /* **The bend in quarter semitones and its direction** (1 up), which
+       `sx_apply_bend` adds to or subtracts from the note's table index. A
+       full-scale bend is 47 of them, near enough an octave. */
+    uint8_t   bend;            /* +0x0342 */
+    uint8_t   bend_up;         /* +0x0343 */
+    /* **The note on the speaker**, 0 for silence. `sx_stop_note` ignores a
+       request to stop any other note, which is what lets a voice taken over by
+       a later note be released harmlessly. */
+    uint8_t   note;            /* +0x0344 */
+    /* **Three things that can veto a note**, all tested together in
+       `sx_note_on`: the master level (function 12, 0 to 0xf, and setting it to
+       zero silences), the on/off switch (function 13, which stores only 0 or
+       1), and MIDI controller 7's own flag. */
+    uint8_t   level;           /* +0x0345 */
+    uint8_t   enabled;         /* +0x0346 */
+    uint8_t   volume_on;       /* +0x0347 */
+    /* **The one channel the speaker listens to**, claimed and released through
+       controller 0x4b, 0xff for nobody. One speaker sounds one note, so every
+       request for another channel is dropped. */
+    uint8_t   channel;         /* +0x0348 */
+    /* Function 11 stores CL here and answers what was there; **nothing else in
+       the driver reads it**, so what it is for is not established. */
+    uint8_t   byte_0349;       /* +0x0349 */
 } __attribute__((packed));
 
 #define SXSPKR (*(struct sx_spkr *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_spkr, word_033c) == 0x033c, "sx_spkr.word_033c");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0342) == 0x0342, "sx_spkr.byte_0342");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0343) == 0x0343, "sx_spkr.byte_0343");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0344) == 0x0344, "sx_spkr.byte_0344");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0345) == 0x0345, "sx_spkr.byte_0345");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0346) == 0x0346, "sx_spkr.byte_0346");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0347) == 0x0347, "sx_spkr.byte_0347");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0348) == 0x0348, "sx_spkr.byte_0348");
+_Static_assert(__builtin_offsetof(struct sx_spkr, bend_value) == 0x033c, "sx_spkr.bend_value");
+_Static_assert(__builtin_offsetof(struct sx_spkr, bend) == 0x0342, "sx_spkr.bend");
+_Static_assert(__builtin_offsetof(struct sx_spkr, bend_up) == 0x0343, "sx_spkr.bend_up");
+_Static_assert(__builtin_offsetof(struct sx_spkr, note) == 0x0344, "sx_spkr.note");
+_Static_assert(__builtin_offsetof(struct sx_spkr, level) == 0x0345, "sx_spkr.level");
+_Static_assert(__builtin_offsetof(struct sx_spkr, enabled) == 0x0346, "sx_spkr.enabled");
+_Static_assert(__builtin_offsetof(struct sx_spkr, volume_on) == 0x0347, "sx_spkr.volume_on");
+_Static_assert(__builtin_offsetof(struct sx_spkr, channel) == 0x0348, "sx_spkr.channel");
 _Static_assert(__builtin_offsetof(struct sx_spkr, byte_0349) == 0x0349, "sx_spkr.byte_0349");
 
 /*
@@ -3306,15 +3324,29 @@ _Static_assert(sizeof(struct adl_patch) == 28, "the bank is indexed by 28");
 
 struct sx_adl {
     uint8_t   pad_0000[55];
-    int16_t   word_0037;          /* +0x0037 */
-    int16_t   word_0039;          /* +0x0039 */
-    int16_t   word_003b;          /* +0x003b */
+    /* **The three port numbers `adl_write` uses**: the register select, the
+       one it reads 0x21 times as the chip's settling delay, and the data
+       port. They are variables rather than constants, which is why searching
+       this driver's bytes for 0x0388 finds them in what looks like a table. */
+    int16_t   reg_port;        /* +0x0037 */
+    int16_t   wait_port;       /* +0x0039 */
+    int16_t   data_port;       /* +0x003b */
     uint8_t   pad_003d[224];
-    uint8_t   byte_011d;          /* +0x011d */
-    uint8_t   byte_011e;          /* +0x011e */
-    uint8_t   byte_011f;          /* +0x011f */
+    /* Function 11 stores CL here and answers what was there, and nothing else
+       in the driver reads it - the same shape, and the same silence about what
+       it means, as `SPKR:0x349`. */
+    uint8_t   byte_011d;       /* +0x011d */
+    /* **The master level and the switch above it**, functions 12 and 13, the
+       same pair every driver in this family carries: the level scales every
+       note's output and setting it rewrites all nine sounding voices, and a
+       clear `enabled` forces the level to zero at the point it is applied. */
+    uint8_t   enabled;         /* +0x011e */
+    uint8_t   level;           /* +0x011f */
     uint8_t   pad_0120[175];
-    uint8_t   byte_01cf;          /* +0x01cf */
+    /* **The most recently used voice**: the last entry of the nine-entry
+       rotation at ADL:0x1c7, which `adl_touch_voice` shifts a voice to the end
+       of so the next allocation takes the one used longest ago. */
+    uint8_t   voice_mru;       /* +0x01cf */
     uint8_t   pad_01d0[64];
     /* **Three tables of eighteen**, one entry per operator the OPL2 has -
        nine channels of two - and the driver indexes all three by the slot.
@@ -3327,7 +3359,7 @@ struct sx_adl {
                                               straight index */
     uint8_t   chan_reg[18];       /* +0x0234  and the offset its channel uses */
     uint8_t   pad_0246[300];
-    int16_t   word_0372;          /* +0x0372  how many bytes of bank were copied in */
+    int16_t   bank_bytes;          /* +0x0372  how many bytes of bank were copied in */
     /* **The patch bank**, at +0x374, which `adl_init` copies in from the file
        the game hands it. A patch is 28 bytes - two operator runs of thirteen
        and the two connection bytes kept apart at the end - and the driver
@@ -3341,34 +3373,41 @@ struct sx_adl {
     uint8_t   default_op[13];     /* +0x187a  the run adl_reset writes to every
                                               slot */
     uint8_t   pad_1887[1];
-    uint8_t   byte_1888;          /* +0x1888 */
-    uint8_t   byte_1889;          /* +0x1889 */
-    uint8_t   byte_188a;          /* +0x188a */
+    /* **The chip's own global bits**, each held here and written to the OPL2
+       when one of them changes: note select in register 8, and the tremolo and
+       vibrato depths in the top two bits of register 0xBD. */
+    uint8_t   note_select;     /* +0x1888 */
+    uint8_t   am_depth;        /* +0x1889 */
+    uint8_t   vib_depth;       /* +0x188a */
     uint8_t   pad_188b[1];
-    uint8_t   byte_188c;          /* +0x188c */
-    int16_t   word_188d;          /* +0x188d */
+    /* The rhythm bits of the same register, which this game leaves clear: it
+       uses the nine melodic voices and no percussion mode. */
+    uint8_t   rhythm;          /* +0x188c */
+    /* Register 1, which on an OPL2 is the wave-select enable; `adl_reset`
+       writes 0x20 here and passes it on. */
+    int16_t   wave_select;     /* +0x188d */
 } __attribute__((packed));
 
 #define SXADL (*(struct sx_adl *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_adl, word_0037) == 0x0037, "sx_adl.word_0037");
-_Static_assert(__builtin_offsetof(struct sx_adl, word_0039) == 0x0039, "sx_adl.word_0039");
-_Static_assert(__builtin_offsetof(struct sx_adl, word_003b) == 0x003b, "sx_adl.word_003b");
+_Static_assert(__builtin_offsetof(struct sx_adl, reg_port) == 0x0037, "sx_adl.reg_port");
+_Static_assert(__builtin_offsetof(struct sx_adl, wait_port) == 0x0039, "sx_adl.wait_port");
+_Static_assert(__builtin_offsetof(struct sx_adl, data_port) == 0x003b, "sx_adl.data_port");
 _Static_assert(__builtin_offsetof(struct sx_adl, byte_011d) == 0x011d, "sx_adl.byte_011d");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_011e) == 0x011e, "sx_adl.byte_011e");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_011f) == 0x011f, "sx_adl.byte_011f");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_01cf) == 0x01cf, "sx_adl.byte_01cf");
+_Static_assert(__builtin_offsetof(struct sx_adl, enabled) == 0x011e, "sx_adl.enabled");
+_Static_assert(__builtin_offsetof(struct sx_adl, level) == 0x011f, "sx_adl.level");
+_Static_assert(__builtin_offsetof(struct sx_adl, voice_mru) == 0x01cf, "sx_adl.voice_mru");
 _Static_assert(__builtin_offsetof(struct sx_adl, no_operator) == 0x0210, "sx_adl.no_operator");
 _Static_assert(__builtin_offsetof(struct sx_adl, op_reg) == 0x0222, "sx_adl.op_reg");
 _Static_assert(__builtin_offsetof(struct sx_adl, chan_reg) == 0x0234, "sx_adl.chan_reg");
-_Static_assert(__builtin_offsetof(struct sx_adl, word_0372) == 0x0372, "sx_adl.word_0372");
+_Static_assert(__builtin_offsetof(struct sx_adl, bank_bytes) == 0x0372, "sx_adl.bank_bytes");
 _Static_assert(__builtin_offsetof(struct sx_adl, patch) == 0x0374, "sx_adl.patch");
 _Static_assert(__builtin_offsetof(struct sx_adl, default_op) == 0x187a, "sx_adl.default_op");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_1888) == 0x1888, "sx_adl.byte_1888");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_1889) == 0x1889, "sx_adl.byte_1889");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_188a) == 0x188a, "sx_adl.byte_188a");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_188c) == 0x188c, "sx_adl.byte_188c");
-_Static_assert(__builtin_offsetof(struct sx_adl, word_188d) == 0x188d, "sx_adl.word_188d");
+_Static_assert(__builtin_offsetof(struct sx_adl, note_select) == 0x1888, "sx_adl.note_select");
+_Static_assert(__builtin_offsetof(struct sx_adl, am_depth) == 0x1889, "sx_adl.am_depth");
+_Static_assert(__builtin_offsetof(struct sx_adl, vib_depth) == 0x188a, "sx_adl.vib_depth");
+_Static_assert(__builtin_offsetof(struct sx_adl, rhythm) == 0x188c, "sx_adl.rhythm");
+_Static_assert(__builtin_offsetof(struct sx_adl, wave_select) == 0x188d, "sx_adl.wave_select");
 
 /*
  * **The Sound Blaster Pro driver**, laid over whatever `SX_SEG` points at.
@@ -3380,60 +3419,84 @@ _Static_assert(__builtin_offsetof(struct sx_adl, word_188d) == 0x188d, "sx_adl.w
  */
 struct sx_sbp {
     uint8_t   pad_0000[44];
-    int16_t   word_002c;          /* +0x002c */
-    int16_t   word_002e;          /* +0x002e */
-    int16_t   word_0030;          /* +0x0030 */
-    int16_t   word_0032;          /* +0x0032 */
-    int16_t   word_0034;          /* +0x0034 */
-    int16_t   word_0036;          /* +0x0036 */
-    int16_t   word_0038;          /* +0x0038 */
-    int16_t   word_003a;          /* +0x003a */
-    int16_t   word_003c;          /* +0x003c */
-    int16_t   word_003e;          /* +0x003e */
-    int16_t   word_0040;          /* +0x0040 */
+    /* **Eleven port numbers**, because a Sound Blaster Pro's base is
+       configurable where an AdLib's is not. Each write is an index, five reads
+       of the index port as the chip's settling time, the data byte, and
+       thirty-three reads of the wait port. The first three are the plain OPL
+       pair; then the left and the right bank, which on a Pro 1.0 are two
+       physically separate YM3812s and on an OPL3 the one chip's two banks; and
+       last the mixer, which is the part an AdLib does not have and is how this
+       driver places a voice left or right. */
+    int16_t   reg_port;        /* +0x002c */
+    int16_t   wait_port;       /* +0x002e */
+    int16_t   data_port;       /* +0x0030 */
+    int16_t   left_reg_port;   /* +0x0032 */
+    int16_t   left_wait_port;  /* +0x0034 */
+    int16_t   left_data_port;  /* +0x0036 */
+    int16_t   right_reg_port;  /* +0x0038 */
+    int16_t   right_wait_port; /* +0x003a */
+    int16_t   right_data_port; /* +0x003c */
+    int16_t   mixer_reg_port;  /* +0x003e */
+    int16_t   mixer_data_port; /* +0x0040 */
     uint8_t   pad_0042[224];
-    uint8_t   byte_0122;          /* +0x0122 */
-    uint8_t   byte_0123;          /* +0x0123 */
-    uint8_t   byte_0124;          /* +0x0124 */
+    /* Function 11's byte, which this driver stores and nothing here reads -
+       the same shape as `ADL:0x11d` and `SPKR:0x349`. */
+    uint8_t   byte_0122;       /* +0x0122 */
+    /* **The FM switch and the master level**, functions 13 and 12. On this card
+       the level is not an OPL register but the mixer's FM volume at 0x26, both
+       nibbles at once; switching off writes silence to the mixer and keeps the
+       setting here, so `level` always holds the real one. */
+    uint8_t   enabled;         /* +0x0123 */
+    uint8_t   level;           /* +0x0124 */
     uint8_t   pad_0125[175];
-    uint8_t   byte_01d4;          /* +0x01d4 */
+    /* **The most recently used voice**: the last of the nine at SBP:0x1cc,
+       which the rotation shifts a voice to the end of. */
+    uint8_t   voice_mru;       /* +0x01d4 */
     uint8_t   pad_01d5[45];
-    uint8_t   byte_0202;          /* +0x0202 */
+    /* **Whether the two banks take the stereo bits** - 0x20 for left and 0x10
+       for right on registers 0xc0..0xc8. It is zero in the shipped driver, a
+       build-time constant saying "this is not an OPL3", and the branch that
+       tests it is transcribed whole because that is what the original runs. */
+    uint8_t   opl3;            /* +0x0202 */
     uint8_t   pad_0203[372];
-    int16_t   word_0377;          /* +0x0377 */
+    /* How many bytes of patch bank `sbp_init` copies in. */
+    int16_t   bank_bytes;      /* +0x0377 */
     uint8_t   pad_0379[5396];
-    uint8_t   byte_188d;          /* +0x188d */
-    uint8_t   byte_188e;          /* +0x188e */
-    uint8_t   byte_188f;          /* +0x188f */
+    /* **The chip's global bits**, the same five this family's other drivers
+       keep: note select in register 8, the tremolo and vibrato depths and the
+       rhythm bits in 0xBD, and register 1's wave-select enable. */
+    uint8_t   note_select;     /* +0x188d */
+    uint8_t   am_depth;        /* +0x188e */
+    uint8_t   vib_depth;       /* +0x188f */
     uint8_t   pad_1890[1];
-    uint8_t   byte_1891;          /* +0x1891 */
-    int16_t   word_1892;          /* +0x1892 */
+    uint8_t   rhythm;          /* +0x1891 */
+    int16_t   wave_select;     /* +0x1892 */
 } __attribute__((packed));
 
 #define SXSBP (*(struct sx_sbp *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_002c) == 0x002c, "sx_sbp.word_002c");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_002e) == 0x002e, "sx_sbp.word_002e");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0030) == 0x0030, "sx_sbp.word_0030");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0032) == 0x0032, "sx_sbp.word_0032");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0034) == 0x0034, "sx_sbp.word_0034");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0036) == 0x0036, "sx_sbp.word_0036");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0038) == 0x0038, "sx_sbp.word_0038");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_003a) == 0x003a, "sx_sbp.word_003a");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_003c) == 0x003c, "sx_sbp.word_003c");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_003e) == 0x003e, "sx_sbp.word_003e");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0040) == 0x0040, "sx_sbp.word_0040");
+_Static_assert(__builtin_offsetof(struct sx_sbp, reg_port) == 0x002c, "sx_sbp.reg_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, wait_port) == 0x002e, "sx_sbp.wait_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, data_port) == 0x0030, "sx_sbp.data_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, left_reg_port) == 0x0032, "sx_sbp.left_reg_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, left_wait_port) == 0x0034, "sx_sbp.left_wait_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, left_data_port) == 0x0036, "sx_sbp.left_data_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, right_reg_port) == 0x0038, "sx_sbp.right_reg_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, right_wait_port) == 0x003a, "sx_sbp.right_wait_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, right_data_port) == 0x003c, "sx_sbp.right_data_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, mixer_reg_port) == 0x003e, "sx_sbp.mixer_reg_port");
+_Static_assert(__builtin_offsetof(struct sx_sbp, mixer_data_port) == 0x0040, "sx_sbp.mixer_data_port");
 _Static_assert(__builtin_offsetof(struct sx_sbp, byte_0122) == 0x0122, "sx_sbp.byte_0122");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0123) == 0x0123, "sx_sbp.byte_0123");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0124) == 0x0124, "sx_sbp.byte_0124");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_01d4) == 0x01d4, "sx_sbp.byte_01d4");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0202) == 0x0202, "sx_sbp.byte_0202");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_0377) == 0x0377, "sx_sbp.word_0377");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188d) == 0x188d, "sx_sbp.byte_188d");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188e) == 0x188e, "sx_sbp.byte_188e");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188f) == 0x188f, "sx_sbp.byte_188f");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_1891) == 0x1891, "sx_sbp.byte_1891");
-_Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.word_1892");
+_Static_assert(__builtin_offsetof(struct sx_sbp, enabled) == 0x0123, "sx_sbp.enabled");
+_Static_assert(__builtin_offsetof(struct sx_sbp, level) == 0x0124, "sx_sbp.level");
+_Static_assert(__builtin_offsetof(struct sx_sbp, voice_mru) == 0x01d4, "sx_sbp.voice_mru");
+_Static_assert(__builtin_offsetof(struct sx_sbp, opl3) == 0x0202, "sx_sbp.opl3");
+_Static_assert(__builtin_offsetof(struct sx_sbp, bank_bytes) == 0x0377, "sx_sbp.bank_bytes");
+_Static_assert(__builtin_offsetof(struct sx_sbp, note_select) == 0x188d, "sx_sbp.note_select");
+_Static_assert(__builtin_offsetof(struct sx_sbp, am_depth) == 0x188e, "sx_sbp.am_depth");
+_Static_assert(__builtin_offsetof(struct sx_sbp, vib_depth) == 0x188f, "sx_sbp.vib_depth");
+_Static_assert(__builtin_offsetof(struct sx_sbp, rhythm) == 0x1891, "sx_sbp.rhythm");
+_Static_assert(__builtin_offsetof(struct sx_sbp, wave_select) == 0x1892, "sx_sbp.wave_select");
 
 /*
  * ---------------------------------------------------------------------------

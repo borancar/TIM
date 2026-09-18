@@ -49,7 +49,7 @@ void adl_write(uint16_t reg, uint16_t val)
     uint16_t dx;
     uint16_t cx;
 
-    dx = (uint16_t)SXADL.word_0037;
+    dx = (uint16_t)SXADL.reg_port;
     io_out8(dx, (uint8_t)reg);
     (void)io_in8(dx);
     (void)io_in8(dx);
@@ -57,10 +57,10 @@ void adl_write(uint16_t reg, uint16_t val)
     (void)io_in8(dx);
     (void)io_in8(dx);
 
-    dx = (uint16_t)SXADL.word_003b;
+    dx = (uint16_t)SXADL.data_port;
     io_out8(dx, (uint8_t)val);
 
-    dx = (uint16_t)SXADL.word_0039;
+    dx = (uint16_t)SXADL.wait_port;
     for (cx = 0x21; cx != 0; cx--)
         (void)io_in8(dx);
 }
@@ -76,11 +76,11 @@ void adl_write_bd(void)
 {
     uint16_t cx = 0;
 
-    if (SXADL.byte_1889 != 0)
+    if (SXADL.am_depth != 0)
         cx |= 0x80;
-    if (SXADL.byte_188a != 0)
+    if (SXADL.vib_depth != 0)
         cx |= 0x40;
-    cx |= SXADL.byte_188c;
+    cx |= SXADL.rhythm;
 
     adl_write(0xbd, cx);
 }
@@ -93,7 +93,7 @@ void adl_write_bd(void)
  */
 void adl_write_nts(void)
 {
-    adl_write(8, (uint16_t)(SXADL.byte_1888 != 0 ? 0x40 : 0));
+    adl_write(8, (uint16_t)(SXADL.note_select != 0 ? 0x40 : 0));
 }
 
 /*
@@ -232,7 +232,7 @@ void adl_write_wave(uint16_t slot)
 {
     uint16_t at;
 
-    if (SXADL.word_188d == 0)
+    if (SXADL.wave_select == 0)
         return;
 
     at = ADL_OP(slot);
@@ -392,11 +392,11 @@ void adl_note(uint16_t voice, uint16_t cx, uint16_t dx)
     di = SX8((uint16_t)(bx + 0x1a6));
     ax = (uint16_t)(ax * (uint16_t)(SX8((uint16_t)(di + 0x9d)) + 1));
     ax >>= 6;
-    ax = (uint16_t)(ax * (uint16_t)(SXADL.byte_011f + 1));
+    ax = (uint16_t)(ax * (uint16_t)(SXADL.level + 1));
     ax >>= 4;
     if ((uint8_t)ax != 0)
         ax--;
-    if (SXADL.byte_011e == 0)
+    if (SXADL.enabled == 0)
         ax = 0;
 
     adl_write_voice_level(bx, (uint16_t)(ax & 0xff));
@@ -424,7 +424,7 @@ void adl_touch_voice(uint16_t voice)
         break;
     }
 
-    SXADL.byte_01cf = (uint8_t)voice;
+    SXADL.voice_mru = (uint8_t)voice;
 }
 
 /*
@@ -543,8 +543,8 @@ void adl_reset(void)
     for (bx = 0; bx < 0xf6; bx++)
         adl_write(bx, 0);
 
-    SXADL.word_188d = 0x20;
-    adl_write(1, (uint16_t)SXADL.word_188d);
+    SXADL.wave_select = 0x20;
+    adl_write(1, (uint16_t)SXADL.wave_select);
     adl_default_operators();
 }
 
@@ -667,7 +667,7 @@ void adl_key_on(uint16_t voice, uint16_t cx)
         dl = (uint8_t)(dl + 0x65);
     }
 
-    if (dl != SX8((uint16_t)(voice + 0x1bc)) && SXADL.byte_011e != 0) {
+    if (dl != SX8((uint16_t)(voice + 0x1bc)) && SXADL.enabled != 0) {
         SX8((uint16_t)(voice + 0x1bc)) = dl;
         adl_load_patch(voice, &SXADL.patch[dl]);
     }
@@ -1045,13 +1045,13 @@ void adl_pitch_bend(uint16_t ax, uint16_t cx)
  */
 uint16_t adl_param_345(uint16_t cl)
 {
-    uint16_t ax = SXADL.byte_011f;
+    uint16_t ax = SXADL.level;
     uint16_t bx;
 
     if ((uint8_t)cl == 0xff)
         return ax;
 
-    SXADL.byte_011f = (uint8_t)cl;
+    SXADL.level = (uint8_t)cl;
 
     for (bx = 0; bx < 9; bx++) {
         if (SX8((uint16_t)(bx + 0x19b)) == 0xff)
@@ -1065,16 +1065,16 @@ uint16_t adl_param_345(uint16_t cl)
 /* SX.OVL ADL:0x1a68  - function 13. */
 uint16_t adl_param_346(uint16_t cl)
 {
-    uint16_t ax = SXADL.byte_011e;
+    uint16_t ax = SXADL.enabled;
 
     if ((uint8_t)cl == 0xff)
         return ax;
 
-    SXADL.byte_011e = (uint8_t)cl;
+    SXADL.enabled = (uint8_t)cl;
     if ((uint8_t)cl != 0)
-        cl = SXADL.byte_011f;
+        cl = SXADL.level;
 
-    SXADL.byte_011f = (uint8_t)adl_param_345(cl);
+    SXADL.level = (uint8_t)adl_param_345(cl);
     return ax;
 }
 
@@ -1140,7 +1140,7 @@ uint16_t adl_query(uint16_t ax, uint16_t cx)
  */
 void adl_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx)
 {
-    uint16_t n = (uint16_t)SXADL.word_0372;
+    uint16_t n = (uint16_t)SXADL.bank_bytes;
     uint16_t di;
 
     for (di = 0; di < n; di++)
