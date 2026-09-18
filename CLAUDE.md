@@ -157,6 +157,7 @@ a case it does not obviously cover.
 - A fact about one driver, written into the code that calls all of them - [more](docs/lessons.md#a-fact-about-one-driver-written-into-the-code-that-calls-all-of-them)
 - An array sized from the prose beside it, when the loop says otherwise - [more](docs/lessons.md#an-array-sized-from-the-prose-beside-it-when-the-loop-says-otherwise)
 - A name that says `far` may be talking about the call - [more](docs/lessons.md#a-name-that-says-far-may-be-talking-about-the-call)
+- A routine nothing exercises is not a routine that works, and the hybrid says whether a difference is ours - [more](docs/lessons.md#a-routine-nothing-exercises-is-not-a-routine-that-works)
 - What a field *is* is a measurement, not a reading: break on it in the port with gdb, or in the original with `tim.bp`/`tim.peek16` under the hybrid - [more](docs/lessons.md#what-a-field-is-is-a-measurement-not-a-reading)
 
 ### Checks, measurements and verdicts
@@ -218,7 +219,6 @@ a case it does not obviously cover.
 - An interrupt is exclusive; a thread is not - [more](STATUS.md#an-interrupt-is-exclusive-a-thread-is-not)
 - The reference run from the entry point never presents a page - [more](STATUS.md#the-reference-run-from-the-entry-point-never-presents-a-page)
 - `make test` stops at its solutions step, and the checks after it have not been running - [more](STATUS.md#make-test-stops-at-its-solutions-step-and-the-checks-after-it-have-not-been-running)
-- The level screen agrees everywhere but the bonus odometer, and that is a value, not a drawing - [more](STATUS.md#the-level-screen-agrees-everywhere-but-the-bonus-odometer-and-that-is-a-value-not-a-drawing)
 - A sequence's channel tables are read one entry past their end, for a channel that has no entry - [more](STATUS.md#a-sequences-channel-tables-are-read-one-entry-past-their-end-for-a-channel-that-has-no-entry)
 
 ## Tools

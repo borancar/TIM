@@ -1048,33 +1048,40 @@ wide in two overlapping views - fields 0, 2, 4, 6, 8 in one struct and 1, 3,
 first by construction - with `byte_143`'s sixteenth entry declared at the
 sequence level, where `loop_count` is.
 
-### The level screen agrees everywhere but the bonus odometer, and that is a value, not a drawing
+### The level screen's odometer found a transcription bug, and the hybrid is what named it
 
-**Found on 2026-09-18, the first time `check_briefing --screen level` could
-run** - it had been refusing since the emulator pin lost its hand patch. Three
-settled flips, 2373, 2554 and 2592 pixels of 307200 differing, and every one of
-them is in the bonus counter at the bottom right. The parts, the belts, the
-balls, the panel and the score strip all agree.
+**Settled on 2026-09-18, the day it was found.** `check_briefing --screen
+level` had never run - the emulator pin had lost its patch - and the first run
+of it showed 2373, 2554 and 2592 pixels differing at its three flips, every one
+of them in the bonus odometer: the original's reels read `0 3 0 0`, the port's
+`0 2 9 3`.
 
-**It is the counter's value, not its rendering.** Zoomed, the original's reels
-read `0 3 0 0` and the port's `0 2 9 3`, each digit's neighbours sitting at
-their own rotation - so both sides are drawing a well-formed odometer and the
-numbers behind them differ. Whatever drives that counter is a few units behind
-in the port at the same flip.
+**Deterministic, and not this week's work.** The same three counts came back
+from a second run and from a build of 7763ab4. That ruled out the timer-thread
+race, which differs run to run, and pointed at either the port's pacing or the
+port's code.
 
-**It is deterministic and it is not new.** The same three counts come back
-from a build of 7763ab4, the commit before this week's pointer work, against
-the same emulator - to the pixel. That rules out both the timer-thread race,
-which differs run to run, and everything done this week.
+**The hybrid told the two apart.** Reading `DG50AF.bonus_2` and its scroll on
+both sides through `TIM_LUA` and `tim.peek16`: the port rolled the counter
+down from 300, while the hybrid - the original's own code, on the port's
+hardware and its tick - left it at 300 with the scroll still zero. Same
+pacing, different behaviour, so the difference was ours.
 
-The other three screens are clean against the original at the same time:
-briefing, picker and save all compare 0 of 307200 pixels.
+**And the listing named it.** At 0x2510 the two counter blocks test the state
+in *opposite* directions - `jne` at 0x251f for the long counter, `je` at
+0x2592 for the short one - and the port had `!=` in both. `start_counters`
+sets the second scroll to 0, and that zero is exactly what the original's
+condition uses to keep that counter still while the machine is not running.
+One character, and the port rolled a counter the original leaves standing.
 
-Not chased yet. The likely shape is that the counter is stepped by something
-whose rate the port does not match - the frame budget or the tick - which is
-the same family as "An interrupt is exclusive; a thread is not" above, but
-this one is steady rather than racy, so it should be findable by reading what
-writes those digits and counting how often each side calls it.
+With the `==` restored, all four screens compare **0 of 307200 pixels**:
+briefing, picker, save and level.
+
+The routine had carried "**Unverified** - the intro screens never reach them,
+so this is transcribed from the disassembly and has never been run against the
+original" since it was written. That note was accurate, it stood for months,
+and the first run against the original found the bug. A routine nothing
+exercises is not a routine that works.
 
 ### The copy-protection screen's page number
 
@@ -2028,7 +2035,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 94 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 92 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

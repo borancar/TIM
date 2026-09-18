@@ -279,6 +279,33 @@ often the code executes - which is how "my check covers this" is told apart
 from "nothing here runs it", and `alloc_shape` runs 4,253 times in an intro
 the sweep calls "NEVER CALLED on these screens".
 
+### A routine nothing exercises is not a routine that works
+
+**`step_counters` carried "Unverified" for months and was wrong.** The note
+above it said exactly why it would stay that way - "the counters belong to the
+game proper; the intro screens never reach them, so this is transcribed from
+the disassembly and has never been run against the original" - and the first
+run against the original found a defect in it.
+
+The routine steps two odometers. At 0x2510 the two blocks test the state in
+**opposite** directions, `jne` at 0x251f and `je` at 0x2592: the long counter
+rolls while the machine is not running, the short one while it is. The port
+wrote `!=` in both, so it rolled the second counter in the editor, where the
+original leaves it standing - `start_counters` sets that scroll to 0, and the
+zero is what the original's condition uses. On the level screen the port's
+reels read 0293 against the original's 0300, and nothing else on the screen
+differed.
+
+**Three things had to be true before anyone could see it**, and they are the
+lesson. The emulator pin had to carry the multi-byte video read, or
+`check_briefing` refuses. The screen had to be compared at all - the level
+screen never had been. And the difference had to be told apart from the port's
+own pacing, which is what the **hybrid** does: reading `DG50AF.bonus_2` on both
+sides through `TIM_LUA` and `tim.peek16`, the port rolled the counter while the
+hybrid - the original's code on the *port's* hardware and tick - did not. Same
+pacing, different behaviour, so the difference was in our C and not in the
+clock. A pure-emulator comparison alone cannot make that distinction.
+
 ## Checks, measurements and verdicts
 
 How a check can pass over a defect, or fail over a correct port - and how a build that looks fresh is not.

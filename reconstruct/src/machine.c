@@ -3930,18 +3930,23 @@ void start_counters(void)
  * large tally is not slow, and the last hundred or so still count one at a
  * time. The second counter always gains one.
  *
- * State 0x2000 is the one that changes the rule. Outside it both counters step
- * whenever they have anything left; inside it neither *starts*, and only a
- * scroll already off zero is allowed to finish - which is how a roll that is
- * half-way through a digit is never left standing between two of them.
+ * State 0x2000 is the one that changes the rule, and it changes it in
+ * *opposite* directions for the two counters: 0x251f is `jne` and 0x2592 is
+ * `je`. The long counter steps while the machine is not running, the short one
+ * while it is, and in each case a scroll already off zero is allowed to finish
+ * - which is how a roll half-way through a digit is never left standing
+ * between two of them.
  *
  * The value is written back whether or not it was decremented, and the draw is
  * skipped when the scroll is at or below zero: at zero there is nothing to
  * slide, and the negative is the four-step delay `start_counters` set.
  *
- * **Unverified.** The counters belong to the game proper; the intro screens
- * never reach them, so this is transcribed from the disassembly and has never
- * been run against the original.
+ * **This was wrong until 2026-09-18**, and the note that stood here said why
+ * it survived: the counters belong to the game proper, the intro never reaches
+ * them, and nothing had run them against the original. Both blocks tested
+ * `state != 0x2000`, so the port rolled the second counter in the editor where
+ * the original leaves it standing - 0293 against 0300 on the level screen, the
+ * only pixels of it that ever differed.
  */
 void step_counters(void)
 {
@@ -3971,7 +3976,13 @@ void step_counters(void)
         }
     }
 
-    if (DG4E67.state != 0x2000 || DG4E67.word_4eb1 != 0) {
+    /* **And the second counter's state test is the other way round** - `je`
+       at 0x2592 where the first block has `jne` at 0x251f. So the long
+       counter steps outside 0x2000 and the short one *inside* it, and outside
+       it only a scroll already off zero may finish. `start_counters` sets the
+       first scroll to -4 and this one to 0, which is what keeps this counter
+       still in the editor. */
+    if (DG4E67.state == 0x2000 || DG4E67.word_4eb1 != 0) {
         if (DG50AF.bonus_2 != 0) {
             DG4E67.word_4eb1 = (int16_t)(DG4E67.word_4eb1 + 1);
             if (DG4E67.word_4eb1 > 0x15) {
