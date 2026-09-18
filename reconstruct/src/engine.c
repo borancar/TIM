@@ -718,17 +718,18 @@ DG_ASSERT_AT(struct engine_lzss_state, count,     0x02);
 DG_ASSERT_AT(struct engine_lzss_state, size,      0x06);
 
 /*
- * **Not established**, DGROUP 0x5900..0x5904, 0x04 bytes.
+ * **The son table's far pointer**, DGROUP 0x5900..0x5904. Two words that are
+ * one pointer - the offset at 0x5900 and the segment at 0x5902, which is
+ * `far_ptr`'s own order - filed by `huffman_start` beside the other two tables
+ * it caches at 0x590a and 0x590e.
  */
 struct engine_huffman_tree {
-    uint16_t  word_5900;          /* +0x00 [2] */
-    int16_t   word_5902;          /* +0x02 [2] */
+    struct far_ptr son;           /* +0x00 [4] */
 } __attribute__((packed));
 
 struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_BSS(0x5900);
 _Static_assert(sizeof(struct engine_huffman_tree) == 0x04, "DGROUP 0x5900..0x5904, 0x04 bytes");
-DG_ASSERT_AT(struct engine_huffman_tree, word_5900, 0x00);
-DG_ASSERT_AT(struct engine_huffman_tree, word_5902, 0x02);
+DG_ASSERT_AT(struct engine_huffman_tree, son, 0x00);
 
 /*
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
@@ -1286,18 +1287,23 @@ void lzw_reset(void)
 int16_t decompress_lzw(void)
 {
     /*
-     * The scratch buffer the string is built into, forwards, and then read out
-     * of backwards. The original holds it as a segment with `di` walking in
-     * and `si` walking out; both are one address here.
+     * **The scratch block, and the three things inside it.** The dictionary is
+     * a word per code at +0 and a byte per code at +0x2720; the buffer the
+     * string is built into, forwards, and then read out of backwards, is at
+     * +0x3720 - which the original reaches as the segment plus 0x372
+     * paragraphs, because the block's offset is zero.
+     *
+     * **It is zero by construction, not by luck.** `select_resource` files
+     * either a DOS block, which starts a segment, or `DG3576.scratch`, which
+     * is masked to a paragraph with `& 0xfff0` and then normalised where it is
+     * built. Every use here reads that invariant, and the clear loop below
+     * writes the offset itself into the dictionary, which is what makes it
+     * visible.
      */
-    uint8_t far * scratch = MK_FP((uint16_t)(ENGINE_STREAM.scratch.seg + 0x372), 0);
-    /*
-     * The dictionary, two tables in one segment: a word per code at +0 and a
-     * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
-     * original writes by hand and `suffix[si]` is the `0x2720 + si`.
-     */
-    uint16_t *prefix = (uint16_t *)MK_FP(ENGINE_STREAM.scratch.seg, 0);
-    uint8_t far * suffix = MK_FP(ENGINE_STREAM.scratch.seg, 0x2720);
+    uint8_t far * block = dg_far_ptr(ENGINE_STREAM.scratch);
+    uint16_t *prefix = (uint16_t *)(void *)block;
+    uint8_t far * suffix = block + 0x2720;
+    uint8_t far * scratch = block + 0x3720;
     uint8_t far *in, *back;
     /* The segment the caller chose, as its first byte: what the cursor below
        is measured against, and the one thing a normalised pointer cannot
@@ -1350,12 +1356,14 @@ int16_t decompress_lzw(void)
             return code;
 
         if (code == 0x100) {
+            /* The block's own offset, written into every entry it clears -
+               zero, as the note on `block` says, and written as the field
+               rather than as a 0 because that is what the original stores. */
             uint16_t p = ENGINE_STREAM.scratch.off;
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
-                *(uint16_t *)MK_FP(ENGINE_STREAM.scratch.seg,
-                                     (uint16_t)(p + 2 * i)) = p;
+                prefix[i] = p;
 
             ENGINE_STREAM.clear_flg = (int16_t)(p + 1);
             ENGINE_STREAM.free_ent = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
@@ -1914,8 +1922,7 @@ void resource_advance(void)
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
         far_memcpy(dg_far_ptr(ENGINE_STREAM.out),
-                   MK_FP((uint16_t)(dgroup_base >> 4),
-                           (uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
+                   dg_near_ptr((uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - si);
 
@@ -2360,16 +2367,14 @@ int16_t huff_get_byte(void)
 }
 
 /*
- * **The three tables, indexed rather than addressed.** Each is a word array at
- * its own offset inside the scratch block, and the original reaches every
- * entry as `[bx + si]` with the table's offset in BX - which is what these
- * say. They read the caller's own `seg`, `freq`, `prnt` and `son`, because
- * every routine that uses them declares those four; the offsets are stepped in
- * 16 bits, so the truncation is the macro's and a typed pointer would lose it.
+ * **The three tables of the adaptive tree**, each a word array inside the one
+ * scratch block - the frequencies at +0x103b, the parents at +0x1523 and the
+ * sons at +0x1c7d - and each cached as its own far pointer so the routines
+ * below can take it as the table it is. The original reaches an entry as
+ * `[bx + si]` with the table's offset in BX and the index doubled by hand;
+ * a `uint16_t *` says the same thing and indexes by the entry.
  */
-#define FREQ(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * (x))))
-#define PRNT(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (x))))
-#define SON(x)  (*(uint16_t *)MK_FP(seg, (uint16_t)(son  + 2 * (x))))
+#define HUFF_TABLE(fp) ((uint16_t *)(void *)dg_far_ptr(fp))
 
 /*
  * 0x1e0b3
@@ -2394,7 +2399,7 @@ void huffman_start(void)
 {
     uint16_t rec = ENGINE_STREAM.record_ptr;
     uint16_t seg = RESOURCE_PTR(rec)->scratch.seg;
-    uint16_t freq, prnt, son;
+    uint16_t *freq, *prnt, *son;
     int16_t i, j;
 
     /* Offsets stepped inside the scratch block's segment, filed beside it. */
@@ -2402,30 +2407,31 @@ void huffman_start(void)
         (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b), seg };
     ENGINE_DECOMPRESS_CACHE.cache_b =
         (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523), seg };
-    ENGINE_HUFFMAN_TREE.word_5902 = (int16_t)seg;
-    ENGINE_HUFFMAN_TREE.word_5900 = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d);
+    ENGINE_HUFFMAN_TREE.son =
+        (struct far_ptr){ (uint16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d),
+                          seg };
 
-    freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
-    prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
-    son  = ENGINE_HUFFMAN_TREE.word_5900;
+    freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
+    prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
+    son  = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
 
     for (i = 0; i < 0x13a; i++) {
-        FREQ(i) = 1;
-        SON(i) = (uint16_t)(i + 0x273);
-        PRNT(i + 0x273) = (uint16_t)i;
+        freq[i] = 1;
+        son[i] = (uint16_t)(i + 0x273);
+        prnt[i + 0x273] = (uint16_t)i;
     }
 
     i = 0;
     for (j = 0x13a; j <= 0x272; j++) {
-        FREQ(j) = (uint16_t)(FREQ(i) + FREQ(i + 1));
-        SON(j) = (uint16_t)i;
-        PRNT(i + 1) = (uint16_t)j;
-        PRNT(i) = (uint16_t)j;
+        freq[j] = (uint16_t)(freq[i] + freq[i + 1]);
+        son[j] = (uint16_t)i;
+        prnt[i + 1] = (uint16_t)j;
+        prnt[i] = (uint16_t)j;
         i += 2;
     }
 
-    FREQ(0x273) = 0xffff;    /* the root's guard, `freq + 0x4e6` */
-    PRNT(0x272) = 0;
+    freq[0x273] = 0xffff;    /* the root's guard, `freq + 0x4e6` */
+    prnt[0x272] = 0;
 }
 
 /*
@@ -2453,49 +2459,48 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t seg = ENGINE_DECOMPRESS_CACHE.cache_a.seg;
-    uint16_t freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
-    uint16_t prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
-    uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
+    uint16_t *freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
+    uint16_t *prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
+    uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
     int16_t i, j, k, n;
 
     j = 0;
     for (i = 0; i < 0x273; i++) {
-        if (SON(i) >= 0x273) {
-            FREQ(j) = (uint16_t)((FREQ(i) + 1) >> 1);
-            SON(j) = SON(i);
+        if (son[i] >= 0x273) {
+            freq[j] = (uint16_t)((freq[i] + 1) >> 1);
+            son[j] = son[i];
             j++;
         }
     }
 
     i = 0;
     for (j = 0x13a; j < 0x273; j++) {
-        uint16_t f = (uint16_t)(FREQ(i) + FREQ(i + 1));
+        uint16_t f = (uint16_t)(freq[i] + freq[i + 1]);
 
-        FREQ(j) = f;
+        freq[j] = f;
 
-        for (k = (int16_t)(j - 1); FREQ(k) > f; k--)
+        for (k = (int16_t)(j - 1); freq[k] > f; k--)
             ;
         k++;
 
         for (n = (int16_t)((j - k) * 2 - 1); n >= 0; n--) {
-            FREQ(k + n + 1) = FREQ(k + n);
-            SON(k + n + 1) = SON(k + n);
+            freq[k + n + 1] = freq[k + n];
+            son[k + n + 1] = son[k + n];
         }
 
-        FREQ(k) = f;
-        SON(k) = (uint16_t)i;
+        freq[k] = f;
+        son[k] = (uint16_t)i;
         i += 2;
     }
 
     for (i = 0; i < 0x273; i++) {
-        uint16_t c = SON(i);
+        uint16_t c = son[i];
 
         if (c >= 0x273) {
-            PRNT(c) = (uint16_t)i;
+            prnt[c] = (uint16_t)i;
         } else {
-            PRNT(c + 1) = (uint16_t)i;
-            PRNT(c) = (uint16_t)i;
+            prnt[c + 1] = (uint16_t)i;
+            prnt[c] = (uint16_t)i;
         }
     }
 }
@@ -2515,48 +2520,47 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t seg = ENGINE_DECOMPRESS_CACHE.cache_a.seg;
-    uint16_t freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
-    uint16_t prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
-    uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
+    uint16_t *freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
+    uint16_t *prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
+    uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
 
-    if (FREQ(0x272) == 0x8000)
+    if (freq[0x272] == 0x8000)
         huffman_reconst();
 
-    c = PRNT(c + 0x273);
+    c = prnt[c + 0x273];
 
     do {
-        uint16_t k = (uint16_t)(FREQ(c) + 1);
+        uint16_t k = (uint16_t)(freq[c] + 1);
         uint16_t l = (uint16_t)(c + 1);
 
-        FREQ(c) = k;
+        freq[c] = k;
 
-        if (FREQ(l) < k) {
+        if (freq[l] < k) {
             uint16_t i, j;
 
-            while (FREQ(l) < k)
+            while (freq[l] < k)
                 l++;
             l--;
 
-            FREQ(c) = FREQ(l);
-            FREQ(l) = k;
+            freq[c] = freq[l];
+            freq[l] = k;
 
-            i = SON(c);
-            PRNT(i) = l;
+            i = son[c];
+            prnt[i] = l;
             if (i < 0x273)
-                PRNT(i + 1) = l;
+                prnt[i + 1] = l;
 
-            j = SON(l);
-            SON(l) = i;
-            PRNT(j) = c;
+            j = son[l];
+            son[l] = i;
+            prnt[j] = c;
             if (j < 0x273)
-                PRNT(j + 1) = c;
-            SON(c) = j;
+                prnt[j + 1] = c;
+            son[c] = j;
 
             c = l;
         }
 
-        c = PRNT(c);
+        c = prnt[c];
     } while (c != 0);
 
 }
@@ -2621,6 +2625,10 @@ int16_t decode_position(void)
  */
 int16_t decompress_lzss(void)
 {
+    /* **The ring**, 0x1000 bytes at the front of the record's own block: the
+       window the matches are copied out of, indexed everywhere below by a
+       position masked to 0xfff. */
+    uint8_t far * ring = dg_far_ptr(ENGINE_DECOMPRESS_CACHE.cache_c);
     uint16_t di = 0;
     int16_t si;
 
@@ -2632,8 +2640,7 @@ int16_t decompress_lzss(void)
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
-            *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
-                     (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + i)) = 0x20;
+            ring[i] = 0x20;
 
         ENGINE_LZSS_STATE.word_58e8 = 0xfc4;
         ENGINE_LZSS_STATE.count = 0;
@@ -2650,12 +2657,11 @@ int16_t decompress_lzss(void)
 
         if (ENGINE_MATCH_RESUME.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
-            uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
-            uint16_t seg = ((uint16_t)ENGINE_HUFFMAN_TREE.word_5902);
+            const uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
 
-            di = SON(0x272);          /* the root, `son + 0x4e4` */
+            di = son[0x272];          /* the root */
             while (di < 0x273)
-                di = SON(di + huff_get_bit());
+                di = son[di + huff_get_bit()];
 
             di -= 0x273;
             huffman_update(di);
@@ -2664,9 +2670,7 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
-                         (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + ENGINE_LZSS_STATE.word_58e8)) =
-                    (uint8_t)di;
+                ring[ENGINE_LZSS_STATE.word_58e8] = (uint8_t)di;
                 ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
                 ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
 
@@ -2688,15 +2692,13 @@ int16_t decompress_lzss(void)
         ENGINE_MATCH_RESUME.interrupted = 0;
 
         while (ENGINE_MATCH_RESUME.progress < ENGINE_MATCH_RESUME.length) {
-            uint16_t b = *MK_FP(
-                ENGINE_DECOMPRESS_CACHE.cache_c.seg,
-                (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off
-                           + ((((uint16_t)ENGINE_MATCH_RESUME.position) + ((uint16_t)ENGINE_MATCH_RESUME.progress)) & 0xfff)));
+            uint16_t b = ring[(((uint16_t)ENGINE_MATCH_RESUME.position)
+                               + ((uint16_t)ENGINE_MATCH_RESUME.progress))
+                              & 0xfff];
 
             si = emit_byte(b);
 
-            *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
-                     (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + ENGINE_LZSS_STATE.word_58e8)) = (uint8_t)b;
+            ring[ENGINE_LZSS_STATE.word_58e8] = (uint8_t)b;
             ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
             ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
 
@@ -2710,9 +2712,6 @@ int16_t decompress_lzss(void)
     }
 }
 
-#undef FREQ
-#undef PRNT
-#undef SON
 
 /*
  * 0x1e940
