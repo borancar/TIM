@@ -4887,11 +4887,15 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_walk(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:6]],
             ctypes.c_uint16(a[6])),
     ),
+    # **ES is the span buffer's segment, and the port takes its first byte.**
+    # The routines step a 16-bit offset of their own inside it, so the C takes
+    # the base and the offset stays an argument - `farp(lib, 0, es)` is that
+    # base. The audit below catches this the day a signature changes.
     "poly_edge_vertical": dict(
         addr=0x1F265,
         args=[],
@@ -4899,7 +4903,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_edge_vertical(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),
@@ -4910,7 +4914,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_edge_diagonal(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),
@@ -4926,7 +4930,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_edge_steep(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),
@@ -4937,7 +4941,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_edge_shallow_right(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),
@@ -4948,7 +4952,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_edge_shallow_left(
-            ctypes.c_uint16(a[0]),
+            farp(lib, 0, a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
               for v in a[1:]]),
     ),

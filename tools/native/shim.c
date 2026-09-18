@@ -77,6 +77,19 @@ uint16_t areg(call_t *c, int reg)
     return v;
 }
 
+/* That segment's first byte - for a routine that steps its own offset. */
+const uint8_t *aregbase(call_t *c, int seg_reg)
+{
+    uint32_t at = (uint32_t)areg(c, seg_reg) << 4;
+
+    if (at >= GUEST_MEM_BYTES) {
+        fprintf(stderr, "native: segment %04x is outside the guest's memory\n",
+                areg(c, seg_reg));
+        return guest_mem;
+    }
+    return guest_mem + at;
+}
+
 const uint8_t *aregptr(call_t *c, int seg_reg, int off_reg)
 {
     uint16_t seg = areg(c, seg_reg), off = areg(c, off_reg);

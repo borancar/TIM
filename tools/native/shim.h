@@ -39,6 +39,7 @@ const uint8_t *anearptr(call_t *c);
 uint16_t        areg(call_t *c, int reg);
 /* A far pointer held in a register pair, and the carry flag as 0 or 1 - one
  * of the driver's blitters takes its direction that way. */
+const uint8_t *aregbase(call_t *c, int seg_reg);
 const uint8_t *aregptr(call_t *c, int seg_reg, int off_reg);
 uint32_t        acarry(call_t *c);
 

@@ -34,6 +34,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 #
 #   bx      a word in that register
 #   ds:si   a far pointer, that segment and offset
+#   es:0    that segment's first byte, as a pointer - what a routine takes
+#           when the original keeps the segment and steps a 16-bit offset of
+#           its own inside it
 #   dx:ax   a 32-bit value, that register the high half
 #   cf      the carry flag, as 0 or 1
 #   stack   off the frame, in order, like an ordinary argument
@@ -54,12 +57,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # being read off the stack as arguments and the blitter drew runs wherever the
 # rubbish pointed. That is what smeared the second intro screen.
 REGS = {
-    "poly_walk":              "es ax bx si bp cx di",
-    "poly_edge_vertical":     "es bp si cx",
-    "poly_edge_diagonal":     "es bx bp cx si",
-    "poly_edge_steep":        "es bx bp cx si",
-    "poly_edge_shallow_right":"es bx bp cx si",
-    "poly_edge_shallow_left": "es bx bp cx si",
+    "poly_walk":              "es:0 ax bx si bp cx di",
+    "poly_edge_vertical":     "es:0 bp si cx",
+    "poly_edge_diagonal":     "es:0 bx bp cx si",
+    "poly_edge_steep":        "es:0 bx bp cx si",
+    "poly_edge_shallow_right":"es:0 bx bp cx si",
+    "poly_edge_shallow_left": "es:0 bx bp cx si",
     "poly_outline":           "di si bp",
 
     "vm_span":                "ax bx cx es:di",
@@ -278,6 +281,15 @@ def emit(entries, protos):
                       % (i, off.upper()))
                     w('    a%d.seg = areg(c, UC_X86_REG_%s);'
                       % (i, seg.upper()))
+                elif r.endswith(":0"):
+                    # **That segment's first byte.** The routine keeps the
+                    # segment and steps an offset of its own inside it, so the
+                    # port takes the base and the offset stays a `uint16_t`
+                    # argument - `MK_FP(seg, di)` and `base + di` are the same
+                    # address, which is what makes the split safe.
+                    seg = r[:-2]
+                    w('    %s *a%d = (%s *)aregbase(c, UC_X86_REG_%s);'
+                      % (far_type(p), i, far_type(p), seg.upper()))
                 elif ":" in r:
                     hi, lo = r.split(":")
                     # The `far` tag, the same discriminator `kind_of` uses.

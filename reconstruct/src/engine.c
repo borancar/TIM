@@ -735,10 +735,12 @@ DG_ASSERT_AT(struct engine_huffman_tree, son, 0x00);
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
  */
 struct engine_decompress_cache {
-    /* Three cached far pointers into the decompressor's block. `a` and `b`
-       share a segment - the Huffman tables are read as
-       `FARU16(cache_a.seg, cache_b.off + n)` - and every walk steps an
-       offset alone, so the pairs are stored rather than dereferenced. */
+    /* Three cached far pointers into the decompressor's block, and all three
+       tables live in that one block: the original reads them as
+       `[bx + si]` with the table's offset in BX, which is why it keeps the
+       pairs rather than one pointer. The port takes each as the word table it
+       is - see `HUFF_TABLE` - and the pairs stay because the guest stores
+       them. */
     struct far_ptr cache_a;       /* +0x00 [4]  the three records' pointers */
     struct far_ptr cache_b;       /* +0x04 [4] */
     struct far_ptr cache_c;       /* +0x08 [4]  the record's own block */
@@ -8521,7 +8523,7 @@ void clip_polygon(void)
  * this routine's 3,674 bytes. That is a speed device with no observable
  * difference, so the port writes the loop.
  */
-void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
+void poly_walk(uint8_t far * span, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di)
 {
     int16_t di_step = (int8_t)ENGINE_POLYGON_STATE.byte_44e8;
@@ -8531,7 +8533,7 @@ void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
     while (count-- > 0) {
         uint32_t t;
 
-        FAR16(seg, di) = x;
+        *(int16_t *)(void *)(span + di) = x;
         di = (uint16_t)(di + 2 + di_step);
 
         t = (uint32_t)(uint16_t)acc + (uint32_t)(uint16_t)frac;
@@ -8546,7 +8548,7 @@ void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
  * Both ends have the same x, so every row gets it: no fractional part and no
  * step. The two ends are put in top-to-bottom order first.
  */
-void poly_edge_vertical(uint16_t seg, int16_t x,
+void poly_edge_vertical(uint8_t far * span, int16_t x,
                         int16_t y1, int16_t y2)
 {
     if (y2 <= y1) {
@@ -8557,7 +8559,7 @@ void poly_edge_vertical(uint16_t seg, int16_t x,
     }
 
     ENGINE_POLYGON_STATE.byte_44e8 = 2;
-    poly_walk(seg, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
+    poly_walk(span, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
 }
 
 /*
@@ -8566,7 +8568,7 @@ void poly_edge_vertical(uint16_t seg, int16_t x,
  * One across for every one down, so again no fractional part: the step is 1 or
  * -1 by which way the x runs.
  */
-void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_diagonal(uint8_t far * span, int16_t x1, int16_t x2,
                         int16_t y1, int16_t y2)
 {
     /*
@@ -8589,7 +8591,7 @@ void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
     }
 
     ENGINE_POLYGON_STATE.byte_44e8 = 2;
-    poly_walk(seg, x1, 0, (x1 < x2) ? 1 : -1, 0,
+    poly_walk(span, x1, 0, (x1 < x2) ? 1 : -1, 0,
               (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
 }
 
@@ -8604,7 +8606,7 @@ void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
  * the rows run - `di` four bytes forward or four back - which is the same two
  * loops the port writes as one with a signed step.
  */
-void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_steep(uint8_t far * span, int16_t x1, int16_t x2,
                      int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e1, e2, x, count, sign;
@@ -8640,7 +8642,7 @@ void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
      * second copy of the whole unrolled body.
      */
     while (count-- > 0) {
-        FAR16(seg, di) = x;
+        *(int16_t *)(void *)(span + di) = x;
         di = (uint16_t)(di + (sign == 0 ? -4 : 4));
 
         if (err >= 0) {
@@ -8673,7 +8675,7 @@ void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
  * function with a flag they could not be told apart by the verifier, and the
  * coverage tool counted neither.
  */
-void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_shallow_right(uint8_t far * span, int16_t x1, int16_t x2,
                              int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
@@ -8726,7 +8728,7 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
      * whole run of rows unset and the driver fills those to the clip's right
      * edge: a stripe from wherever the polygon was to x=639.
      */
-    FAR16(seg, di) = x;
+    *(int16_t *)(void *)(span + di) = x;
     di = (uint16_t)(di + 2 + di_step);
     x = (int16_t)(x - 1);
 
@@ -8736,7 +8738,7 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
     }
 
     for (;;) {
-        FAR16(seg, di) = x;
+        *(int16_t *)(void *)(span + di) = x;
         di = (uint16_t)(di + 2 + di_step);
         x = (int16_t)(x - 1);
 
@@ -8772,7 +8774,7 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
  * function with a flag they could not be told apart by the verifier, and the
  * coverage tool counted neither.
  */
-void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_shallow_left(uint8_t far * span, int16_t x1, int16_t x2,
                             int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
@@ -8825,7 +8827,7 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
      * whole run of rows unset and the driver fills those to the clip's right
      * edge: a stripe from wherever the polygon was to x=639.
      */
-    FAR16(seg, di) = x;
+    *(int16_t *)(void *)(span + di) = x;
     di = (uint16_t)(di + 2 + di_step);
     x = (int16_t)(x + 1);
 
@@ -8835,7 +8837,7 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
     }
 
     for (;;) {
-        FAR16(seg, di) = x;
+        *(int16_t *)(void *)(span + di) = x;
         di = (uint16_t)(di + 2 + di_step);
         x = (int16_t)(x + 1);
 
@@ -8918,6 +8920,11 @@ void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
 void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 {
     uint16_t seg;
+    /* The span buffer's first byte. The edge routines step a 16-bit offset
+       inside it, exactly as the original steps `di` against a segment, so the
+       base and the offset stay apart; `seg` itself is still filed at
+       0x44e2 below. */
+    uint8_t far * span;
     int16_t ax, bx, cx, dx, si, di, bp;
     int16_t i;
 
@@ -9210,6 +9217,7 @@ chains:
     ENGINE_POLYGON_CHAINS.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.word_44d4);
 
     seg = DG4342.span_buffer_seg;
+    span = MK_FP(seg, 0);
 
     ENGINE_POLYGON_CHAINS.chain = 2;
     ENGINE_POLYGON_CHAINS.word_44da = 0;
@@ -9244,7 +9252,7 @@ chains:
                 adx = (int16_t)-adx;
 
             if (adx == 0) {
-                poly_edge_vertical(seg, x1, y1, y2);
+                poly_edge_vertical(span, x1, y1, y2);
             } else {
                 ady = (int16_t)(y1 - y2);
                 if (ady < 0)
@@ -9256,17 +9264,18 @@ chains:
                     int16_t hi = (x1 < x2) ? x2 : x1;
                     uint16_t at = (uint16_t)((y1 << 2) + ENGINE_POLYGON_CHAINS.chain);
 
-                    FAR16(seg, at) = (ENGINE_POLYGON_CHAINS.chain == 0) ? lo : hi;
+                    *(int16_t *)(void *)(span + at) =
+                        (ENGINE_POLYGON_CHAINS.chain == 0) ? lo : hi;
                 } else if (adx < ady) {
-                    poly_edge_steep(seg, x1, x2, y1, y2);
+                    poly_edge_steep(span, x1, x2, y1, y2);
                 } else if (adx > ady) {
                     /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
                     if (ENGINE_POLYGON_CHAINS.chain != 0)
-                        poly_edge_shallow_right(seg, x1, x2, y1, y2);
+                        poly_edge_shallow_right(span, x1, x2, y1, y2);
                     else
-                        poly_edge_shallow_left(seg, x1, x2, y1, y2);
+                        poly_edge_shallow_left(span, x1, x2, y1, y2);
                 } else {
-                    poly_edge_diagonal(seg, x1, x2, y1, y2);
+                    poly_edge_diagonal(span, x1, x2, y1, y2);
                 }
             }
         }
@@ -9280,7 +9289,9 @@ chains:
         int16_t bottom = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
         /* The list starts four words before the first row's pair: the
            first row and the row count, in the segment below `seg`. */
-        uint8_t *spans = MK_FP((uint16_t)(seg - 1), (uint16_t)((top << 2) + 0x0c));
+        /* The paragraph below the buffer - `seg - 1` - is where the list's
+           own header lives. */
+        uint8_t *spans = span - 0x10 + (uint16_t)((top << 2) + 0x0c);
         int16_t rows = (int16_t)(bottom - top + 1);
 
         ENGINE_POLYGON_STATE.word_44e2 = seg;

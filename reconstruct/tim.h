@@ -1859,17 +1859,17 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused,
  * Their arguments arrive in **registers**, so the addresses matter to
  * tools/native/dispatch.c rather than to any caller here.
  */
-void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
+void poly_walk(uint8_t far * span, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di);      /* 0x1f562 */
-void poly_edge_vertical(uint16_t seg, int16_t x,
+void poly_edge_vertical(uint8_t far * span, int16_t x,
                         int16_t y1, int16_t y2);              /* 0x1f265 */
-void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_diagonal(uint8_t far * span, int16_t x1, int16_t x2,
                         int16_t y1, int16_t y2);              /* 0x1f3bf */
-void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_steep(uint8_t far * span, int16_t x1, int16_t x2,
                      int16_t y1, int16_t y2);                 /* 0x1f281 */
-void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_shallow_right(uint8_t far * span, int16_t x1, int16_t x2,
                              int16_t y1, int16_t y2);         /* 0x1f3e6 */
-void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
+void poly_edge_shallow_left(uint8_t far * span, int16_t x1, int16_t x2,
                             int16_t y1, int16_t y2);          /* 0x1f4a1 */
 void poly_outline(int16_t *xs, int16_t *ys,
                   int16_t n);                             /* 0x1f219 */

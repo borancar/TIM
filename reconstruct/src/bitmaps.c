@@ -1194,7 +1194,7 @@ uint16_t vqt_read_bits(uint16_t bits)
     uint16_t word;
 
     rd->pos = pos + bits;
-    word = FARU16(rd->data.seg, (uint16_t)(rd->data.off + (uint16_t)(pos >> 3)));
+    word = *(const uint16_t *)(void *)(dg_far_ptr(rd->data) + (pos >> 3));
     return (uint16_t)((word >> (pos & 7)) & mask);
 }
 
@@ -1226,10 +1226,9 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     pos = rd->pos;
     rd->pos = pos + 4;
 
-    /* Four bits at `pos`, read as a word so a nibble can straddle a byte. The
-       offset is stepped inside the segment, which is why `data` stays a pair. */
-    code = (uint16_t)((FARU16(rd->data.seg,
-                              (uint16_t)(rd->data.off + (pos >> 3)))
+    /* Four bits at `pos`, read as a word so a nibble can straddle a byte. */
+    code = (uint16_t)((*(const uint16_t *)(void *)
+                       (dg_far_ptr(rd->data) + (pos >> 3))
                        >> (pos & 7)) & 0x0f);
 
     if (code & 8) {
@@ -1482,8 +1481,8 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     /* Four bits at `pos`, read as a word so a nibble can straddle a byte. The
        offset is stepped inside the segment, which is why `data` stays a pair. */
-    code = (uint16_t)((FARU16(rd->data.seg,
-                              (uint16_t)(rd->data.off + (pos >> 3)))
+    code = (uint16_t)((*(const uint16_t *)(void *)
+                       (dg_far_ptr(rd->data) + (pos >> 3))
                        >> (pos & 7)) & 0x0f);
 
     if (code & 8)
@@ -1578,8 +1577,7 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if (w == 1 && h == 1) {
         colour = (uint8_t)vqt_read_bits(8);
         rd = VQTRD(BITMAPS.reader_ptr);
-        FAR8(rd->plane[0].seg,
-             (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[y] + x)) = colour;
+        dg_far_ptr(rd->plane[0])[(uint16_t)rd->row[y] + x] = colour;
         return;
     }
 
@@ -1617,9 +1615,8 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
             do {
                 colour = (uint8_t)vqt_read_bits(8);
                 rd = VQTRD(BITMAPS.reader_ptr);
-                FAR8(rd->plane[0].seg,
-                     (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
-                                + (uint16_t)xi)) = colour;
+                dg_far_ptr(rd->plane[0])[(uint16_t)rd->row[yi]
+                                         + (uint16_t)xi] = colour;
                 yi++;
             } while (yi < y1);
             yi = (int16_t)y;
@@ -1636,9 +1633,8 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
             count = w;
             do {
                 rd = VQTRD(BITMAPS.reader_ptr);
-                FAR8(rd->plane[0].seg,
-                     (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
-                                + (uint16_t)xi)) = colour;
+                dg_far_ptr(rd->plane[0])[(uint16_t)rd->row[yi]
+                                         + (uint16_t)xi] = colour;
                 xi++;
             } while (--count != 0);                   /* `loop` */
             yi++;
@@ -1658,9 +1654,8 @@ void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         do {
             colour = palette[vqt_read_bits(index_bits)];
             rd = VQTRD(BITMAPS.reader_ptr);
-            FAR8(rd->plane[0].seg,
-                 (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
-                            + (uint16_t)xi)) = colour;
+            dg_far_ptr(rd->plane[0])[(uint16_t)rd->row[yi]
+                                     + (uint16_t)xi] = colour;
             yi++;
         } while (yi < y1);
         yi = (int16_t)y;
