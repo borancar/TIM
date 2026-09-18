@@ -1048,6 +1048,34 @@ wide in two overlapping views - fields 0, 2, 4, 6, 8 in one struct and 1, 3,
 first by construction - with `byte_143`'s sixteenth entry declared at the
 sequence level, where `loop_count` is.
 
+### The level screen agrees everywhere but the bonus odometer, and that is a value, not a drawing
+
+**Found on 2026-09-18, the first time `check_briefing --screen level` could
+run** - it had been refusing since the emulator pin lost its hand patch. Three
+settled flips, 2373, 2554 and 2592 pixels of 307200 differing, and every one of
+them is in the bonus counter at the bottom right. The parts, the belts, the
+balls, the panel and the score strip all agree.
+
+**It is the counter's value, not its rendering.** Zoomed, the original's reels
+read `0 3 0 0` and the port's `0 2 9 3`, each digit's neighbours sitting at
+their own rotation - so both sides are drawing a well-formed odometer and the
+numbers behind them differ. Whatever drives that counter is a few units behind
+in the port at the same flip.
+
+**It is deterministic and it is not new.** The same three counts come back
+from a build of 7763ab4, the commit before this week's pointer work, against
+the same emulator - to the pixel. That rules out both the timer-thread race,
+which differs run to run, and everything done this week.
+
+The other three screens are clean against the original at the same time:
+briefing, picker and save all compare 0 of 307200 pixels.
+
+Not chased yet. The likely shape is that the counter is stepped by something
+whose rate the port does not match - the frame budget or the tick - which is
+the same family as "An interrupt is exclusive; a thread is not" above, but
+this one is steady rather than racy, so it should be findable by reading what
+writes those digits and counting how often each side calls it.
+
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of
@@ -1096,12 +1124,20 @@ fade, so the difference is in the indices only. It does not reach the briefing.
 
 ### The emulator pin
 
-`pyproject.toml` names `548df402fbbd3edd2a3f256763661a83d866397b`. The
-multi-byte video-memory read fixed above is committed in the emulator but **not
-pushed**, and the installed copy under `.venv` has been patched by hand so the
-comparisons here are correct. That is not a state to leave: a reinstall silently
-puts the fault back, and with it the 452 pixels. Moving the pin is a deliberate
-act and the verification sweep is re-run afterwards.
+`pyproject.toml` names `430aae0cd73e1e91701fa91800e99039c33b859b`, moved
+there on 2026-09-18.
+
+**It used to name `548df402`, with the fix hand-patched into `.venv`.** The
+paragraph here said the fix was "committed in the emulator but not pushed";
+it *is* pushed - `6d8ca0b`, "A read from video memory can be wider than a
+byte" - and the hand patch was gone, exactly as this entry predicted a
+reinstall would leave it. `check_briefing` had been refusing to compare
+anything for that reason, which is how a whole class of check went quiet
+without anyone noticing.
+
+Four commits came with the move: the fix, a deterministic subtree split, and
+the CGA colour-burst rework, which a VGA game does not reach. The sweep was
+re-run afterwards, as this entry requires.
 
 It is no longer silent, at least. `tools/check_briefing.py` tests the emulator
 for that exact fault before it compares anything - it calls the read hook with a
@@ -1992,7 +2028,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 87 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 94 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

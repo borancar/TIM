@@ -27,7 +27,7 @@ wheels = [
 [[package]]
 name = "dos-emulator"
 version = "0.1.0"
-source = { git = "https://github.com/borancar/dos_emulator?rev=548df402fbbd3edd2a3f256763661a83d866397b#548df402fbbd3edd2a3f256763661a83d866397b" }
+source = { git = "https://github.com/borancar/dos_emulator?rev=430aae0cd73e1e91701fa91800e99039c33b859b#430aae0cd73e1e91701fa91800e99039c33b859b" }
 dependencies = [
     { name = "pygame-ce" },
     { name = "unicorn" },
@@ -257,7 +257,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "capstone", specifier = ">=5.0" },
-    { name = "dos-emulator", git = "https://github.com/borancar/dos_emulator?rev=548df402fbbd3edd2a3f256763661a83d866397b" },
+    { name = "dos-emulator", git = "https://github.com/borancar/dos_emulator?rev=430aae0cd73e1e91701fa91800e99039c33b859b" },
     { name = "numpy" },
     { name = "pygame-ce", specifier = ">=2.4" },
     { name = "tree-sitter", specifier = ">=0.21" },
