@@ -962,15 +962,37 @@ struct dg_5768 {
     dg_near_t cursor_bitmap_ptr;  /* +0x08  the mouse cursor's bitmap, 0 for none - set_cursor */
     uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
     uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
-    uint16_t  word_5776;          /* +0x0e */
-    uint16_t  word_5778;          /* +0x10 */
-    uint16_t  word_577a;          /* +0x12 */
-    uint16_t  word_577c;          /* +0x14 */
-    int16_t   word_577e;          /* +0x16 */
-    int16_t   word_5780;          /* +0x18 */
+    /* **The pointer as the driver last reported it** - the mouse driver's own
+       x and y, or a copy of `cursor_x`/`cursor_y` when the driver is not being
+       read. **Nothing reads them**: the two bytes of each offset occur exactly
+       twice in the image and both are this store, so they are named by address
+       because there is nothing else to name them from. */
+    uint16_t  word_5776;       /* +0x0e  y */
+    uint16_t  word_5778;       /* +0x10  x */
+    /* **A pointer move waiting to be made**, x and y, which `redraw_cursor_all`
+       performs and clears. Nothing in the image ever stores a non-zero pair
+       here - three references each, all in that one routine - so the request
+       is never made; the routine that would make it is transcribed whole. */
+    uint16_t  pending_move_y;  /* +0x12 */
+    uint16_t  pending_move_x;  /* +0x14 */
+    /* **The cursor bitmap's hot spot**, subtracted from the pointer to place
+       the bitmap - `draw_cursor` does `cursor_x - hot_x, cursor_y - hot_y` -
+       and the keyboard's pointer steps clamp against the same pair. Which way
+       round was measured rather than read: with the hourglass up the bitmap is
+       16 by 20 and the pair is 8 and 10. `set_cursor` takes them in this
+       order and zeroes both when the cursor is turned off, so an old offset
+       cannot outlive its bitmap. */
+    int16_t   hot_y;           /* +0x16 */
+    int16_t   hot_x;           /* +0x18 */
     int16_t   pointer_y;          /* +0x1a  regions_handle_pointer tests a record's +8 and +0x0c */
     int16_t   pointer_x;          /* +0x1c  against these, and its +6 and +0x0a against x */
-    uint16_t  word_5786;          /* +0x1e */
+    /* **How far the palette should be faded** towards the colour, the weight
+       `fade_palette_run` takes; `MACHINE_PALETTE_FADE.fade_mark` is how far it
+       has been, and `redraw_cursor_all` runs a fade whenever the two differ.
+       Nothing in the image writes it - four references, all reads - so it
+       holds what the image put there and the fade the two would drive never
+       runs. */
+    uint16_t  fade_weight;     /* +0x1e */
 } __attribute__((packed));
 
 extern struct dg_5768 DG5768;
@@ -984,13 +1006,13 @@ DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
 DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);
 DG_ASSERT_AT(struct dg_5768, word_5776,         0x0e);
 DG_ASSERT_AT(struct dg_5768, word_5778,         0x10);
-DG_ASSERT_AT(struct dg_5768, word_577a,         0x12);
-DG_ASSERT_AT(struct dg_5768, word_577c,         0x14);
-DG_ASSERT_AT(struct dg_5768, word_577e,         0x16);
-DG_ASSERT_AT(struct dg_5768, word_5780,         0x18);
+DG_ASSERT_AT(struct dg_5768, pending_move_y,         0x12);
+DG_ASSERT_AT(struct dg_5768, pending_move_x,         0x14);
+DG_ASSERT_AT(struct dg_5768, hot_y,         0x16);
+DG_ASSERT_AT(struct dg_5768, hot_x,         0x18);
 DG_ASSERT_AT(struct dg_5768, pointer_y,         0x1a);
 DG_ASSERT_AT(struct dg_5768, pointer_x,         0x1c);
-DG_ASSERT_AT(struct dg_5768, word_5786,         0x1e);
+DG_ASSERT_AT(struct dg_5768, fade_weight,         0x1e);
 
 /*
  * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.

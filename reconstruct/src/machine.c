@@ -39,23 +39,31 @@ DG_ASSERT_AT(struct machine_quadrant_steps, dy, 0x08);
 _Static_assert(sizeof(struct machine_quadrant_steps) == 0x10, "the quadrant steps end at 0x259c");
 
 /*
- * **The cursors' hot spots**, DGROUP 0x284a..0x286e, 0x24 bytes: y for the nine cursors,
- * then x - y before x, the way `set_cursor` takes them. `select_cursor`
- * reads both by cursor number and the run ends at 0x286e.
+ * **The cursors' hot spots**, DGROUP 0x284a..0x286e, 0x24 bytes: x for the nine
+ * cursors, then y. `select_cursor` reads both by cursor number and the run ends
+ * at 0x286e.
+ *
+ * **Which half is which was measured, because it had been written down the
+ * other way round.** `draw_cursor` draws the bitmap at `cursor_x - 0x5780,
+ * cursor_y - 0x577e` and `set_cursor` files its first argument - this first
+ * table - in 0x5780. Broken on `set_cursor` with the hourglass up: the bitmap
+ * is 16 by 20 and the pair is 8 and 10, which is its centre only if the first
+ * table is x. The eight tool cursors have x 0..7 here and y 0 below, a hot
+ * spot on the top edge.
  */
 struct machine_cursor_hotspots {
-    int16_t   hot_y[9];           /* +0x00 [0x12] */
-    int16_t   hot_x[9];           /* +0x12 [0x12] */
+    int16_t   hot_x[9];           /* +0x00 [0x12] */
+    int16_t   hot_y[9];           /* +0x12 [0x12] */
 } __attribute__((packed));
 
 struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
-    .hot_y = {
+    .hot_x = {
         0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
         0x0003,
     },
-    .hot_x = { [1] = 0x000a },
+    .hot_y = { [1] = 0x000a },
 };
-DG_ASSERT_AT(struct machine_cursor_hotspots, hot_x, 0x12);
+DG_ASSERT_AT(struct machine_cursor_hotspots, hot_y, 0x12);
 _Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots end at 0x286e");
 
 /*
@@ -5402,7 +5410,7 @@ void restore_cursor(void)
 void select_cursor(int16_t which)
 {
     int16_t si = which;
-    int16_t hot_y, hot_x;
+    int16_t hot_x, hot_y;
 
     if (si > 0x1a)
         si = 0;
@@ -5413,14 +5421,14 @@ void select_cursor(int16_t which)
     DG4E67.cursor = si;
 
     if (si < 9) {
-        hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[si];
         hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[si];
+        hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[si];
     } else {
-        hot_y = 0;
         hot_x = 0;
+        hot_y = 0;
     }
 
-    set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si]), hot_y, hot_x);
+    set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si]), hot_x, hot_y);
 }
 
 /*
@@ -11536,28 +11544,28 @@ void timer_callback(void)
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
         DG5768.cursor_y = (int16_t)(DG5768.cursor_y - 2);
-        if (DG5768.cursor_y - DG5768.word_577e < 0)
+        if (DG5768.cursor_y - DG5768.hot_y < 0)
             DG5768.cursor_y = 0;
     }
 
     if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
         moved = 1;
         DG5768.cursor_y = (int16_t)(DG5768.cursor_y + 2);
-        if (DG5768.cursor_y - DG5768.word_577e > (int16_t)(VMDS.screen.screen_height - 1))
+        if (DG5768.cursor_y - DG5768.hot_y > (int16_t)(VMDS.screen.screen_height - 1))
             DG5768.cursor_y = (int16_t)(VMDS.screen.screen_height - 1);
     }
 
     if (k_end != 0 || k_left != 0 || k_home != 0) {
         moved = 1;
         DG5768.cursor_x = (int16_t)(DG5768.cursor_x - 2);
-        if (DG5768.cursor_x - DG5768.word_5780 < 0)
+        if (DG5768.cursor_x - DG5768.hot_x < 0)
             DG5768.cursor_x = 0;
     }
 
     if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
         moved = 1;
         DG5768.cursor_x = (int16_t)(DG5768.cursor_x + 2);
-        if (DG5768.cursor_x - DG5768.word_5780 > (int16_t)(VMDS.screen.screen_width - 1))
+        if (DG5768.cursor_x - DG5768.hot_x > (int16_t)(VMDS.screen.screen_width - 1))
             DG5768.cursor_x = (int16_t)(VMDS.screen.screen_width - 1);
     }
 
@@ -11609,12 +11617,12 @@ void timer_callback(void)
  * simple flag: the value it had is *saved*, so a redraw inside a redraw leaves
  * the outer one's state alone when it finishes.
  */
-void set_cursor(struct bitmap *bitmap, int16_t hot_y, int16_t hot_x)
+void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 {
     uint16_t saved;
 
-    if (BMP_PTR(DG5768.cursor_bitmap_ptr) == bitmap && DG5768.word_5780 == hot_y
-        && DG5768.word_577e == hot_x)
+    if (BMP_PTR(DG5768.cursor_bitmap_ptr) == bitmap && DG5768.hot_x == hot_x
+        && DG5768.hot_y == hot_y)
         return;
 
     saved = DG5752.guard;
@@ -11623,11 +11631,11 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_y, int16_t hot_x)
     DG5768.cursor_bitmap_ptr = dg_near(dgroup, bitmap);
 
     if (bitmap == BMP_NONE) {
-        DG5768.word_577e = 0;
-        DG5768.word_5780 = 0;
+        DG5768.hot_y = 0;
+        DG5768.hot_x = 0;
     } else {
-        DG5768.word_5780 = hot_y;
-        DG5768.word_577e = hot_x;
+        DG5768.hot_x = hot_x;
+        DG5768.hot_y = hot_y;
     }
 
     redraw_cursor(VMDS.page_front_ptr);
@@ -11836,8 +11844,8 @@ void redraw_cursor(uint16_t page)
     if (MACHINE_CURSOR_STATE.read_driver != 0)
         read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
-    MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
+    MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.hot_x);
+    MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.hot_y);
 
     if (DG5768.cursor_bitmap_ptr == 0
         || slot->x != MACHINE_RECT_FREE.word_56e2
@@ -11896,10 +11904,10 @@ void redraw_cursor_all(void)
 
     DG5752.guard = 1;
 
-    if (DG5768.word_577c != 0 || DG5768.word_577a != 0) {
-        move_pointer_to((int16_t)DG5768.word_577c, (int16_t)DG5768.word_577a);
-        DG5768.word_577a = 0;
-        DG5768.word_577c = 0;
+    if (DG5768.pending_move_x != 0 || DG5768.pending_move_y != 0) {
+        move_pointer_to((int16_t)DG5768.pending_move_x, (int16_t)DG5768.pending_move_y);
+        DG5768.pending_move_y = 0;
+        DG5768.pending_move_x = 0;
     }
 
     draw_cursor(VMDS.page_back_ptr);
@@ -11907,7 +11915,7 @@ void redraw_cursor_all(void)
     if (MACHINE_CURSOR_STATE.page != 0) {
         uint16_t quiet =
             ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) == 0
-             && DG5768.word_5786 == MACHINE_PALETTE_FADE.fade_mark) ? 1 : 0;
+             && DG5768.fade_weight == MACHINE_PALETTE_FADE.fade_mark) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
@@ -11919,9 +11927,9 @@ void redraw_cursor_all(void)
         MACHINE_PALETTE_FADE.fade_mark = 0;
     }
 
-    if (DG5768.word_5786 != MACHINE_PALETTE_FADE.fade_mark) {
-        fade_palette_run(MACHINE_CURSOR_STATE.word_2d36, MACHINE_CURSOR_STATE.word_2d38, 0, DG5768.word_5786);
-        MACHINE_PALETTE_FADE.fade_mark = DG5768.word_5786;
+    if (DG5768.fade_weight != MACHINE_PALETTE_FADE.fade_mark) {
+        fade_palette_run(MACHINE_CURSOR_STATE.word_2d36, MACHINE_CURSOR_STATE.word_2d38, 0, DG5768.fade_weight);
+        MACHINE_PALETTE_FADE.fade_mark = DG5768.fade_weight;
     }
 
     if (MACHINE_CURSOR_STATE.screen_disturbed == 0) {
@@ -13164,8 +13172,8 @@ void restage_object_rect(uint16_t handle)
     if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0)
         read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    x = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
-    y = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
+    x = (int16_t)(DG5768.cursor_x - DG5768.hot_x);
+    y = (int16_t)(DG5768.cursor_y - DG5768.hot_y);
 
     if (DG5768.cursor_bitmap_ptr != 0) {
         parent = BMP_PTR(DG5768.cursor_bitmap_ptr);

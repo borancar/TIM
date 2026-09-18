@@ -5036,7 +5036,7 @@ ROUTINES = {
     ),
     "set_cursor": dict(
         addr=0x0AA14,
-        args=[("bitmap", 4), ("hot_y", 6), ("hot_x", 8)],
+        args=[("bitmap", 4), ("hot_x", 6), ("hot_y", 8)],
         planes=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.set_cursor(
