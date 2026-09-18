@@ -3097,58 +3097,95 @@ _Static_assert(__builtin_offsetof(struct snd_cs_call, answer) == 0x0004, "snd_cs
  */
 struct asb_cs {
     uint8_t   pad_0000[52];
-    uint8_t   word_0034;          /* +0x0034 */
-    uint8_t   word_0035;          /* +0x0035 */
+    /* **The two halves of a sample**, because a block that crosses a 64K DMA
+       page has to be handed over in two: the page byte, the offset and the
+       length of each, with `half` saying which is current. A sample that does
+       not cross has `length_b` zero and is played in one. */
+    uint8_t   page_a;          /* +0x0034 */
+    uint8_t   page_b;          /* +0x0035 */
     uint8_t   word_0036;          /* +0x0036 */
     uint8_t   pad_0037[1];
-    uint8_t   word_0038;          /* +0x0038 */
-    uint8_t   word_0039;          /* +0x0039 */
+    /* The DSP answered 2.00 or later, which `asb_probe_version` takes off the
+       version it read; 3.00 or later also sets `irq10_worth`. */
+    uint8_t   dsp_v2;          /* +0x0038 */
+    /* The page, offset and length now programmed into the DMA controller, out
+       of whichever half `asb_arm_block` chose. */
+    uint8_t   page;            /* +0x0039 */
     uint8_t   pad_003a[1];
     uint8_t   word_003b;          /* +0x003b */
     uint8_t   pad_003c[1];
     uint8_t   word_003d;          /* +0x003d */
-    uint8_t   word_003e;          /* +0x003e */
-    uint8_t   word_003f;          /* +0x003f */
-    uint8_t   word_0040;          /* +0x0040 */
+    /* **Four "busy" flags**, one per vector the module chains, each raised
+       across the handler it replaced and lowered again; `asb_safe_to_call` ORs
+       them with the two DOS flags to answer whether it is safe to go near DOS
+       or the BIOS. */
+    uint8_t   busy_int09;      /* +0x003e */
+    uint8_t   busy_int0d;      /* +0x003f */
+    uint8_t   busy_int74;      /* +0x0040 */
     uint8_t   word_0041;          /* +0x0041 */
     uint8_t   word_0042;          /* +0x0042 */
-    uint8_t   word_0043;          /* +0x0043 */
+    uint8_t   busy_int10;      /* +0x0043 */
     uint8_t   word_0044;          /* +0x0044 */
-    uint8_t   word_0045;          /* +0x0045 */
-    uint8_t   word_0046;          /* +0x0046 */
-    uint8_t   word_0047;          /* +0x0047 */
+    /* **The card's IRQ**, and above 7 means the slave PIC - which is what
+       chooses `pic_port` and whether the interrupt is acknowledged at 0xa0 as
+       well as 0x20. */
+    uint8_t   irq;             /* +0x0045 */
+    /* **Looping**: `looping` is what the caller asked for and `looped` is
+       raised when the handler rearms the block rather than stopping, which is
+       the high byte of what function 4 answers. */
+    uint8_t   looped;          /* +0x0046 */
+    uint8_t   looping;         /* +0x0047 */
     uint8_t   pad_0048[1];
     uint8_t   word_0049;          /* +0x0049 */
     uint8_t   pad_004a[2];
     uint8_t   half;               /* +0x004c  which half is current; `xor ...,1` flips it */
     uint8_t   nothing_to_report;  /* +0x004d */
-    uint8_t   word_004e;          /* +0x004e */
+    /* What `asb_hook_irq` answered when the vector was taken, and what
+       `asb_unhook_irq` is given to put it back. */
+    uint8_t   irq_saved;       /* +0x004e */
     uint8_t   irq10_worth;        /* +0x004f  what later decides whether IRQ 10 is worth trying */
     uint8_t   pad_0050[2];
     uint8_t   word_0052;          /* +0x0052 */
     uint8_t   pad_0053[1];
-    uint8_t   word_0054;          /* +0x0054 */
+    /* **The shutdown guard**: once it is 1 `asb_shutdown` does nothing, which
+       is what lets the interrupt handler stop the last block and the game stop
+       it again afterwards. Function 4 answers `id` 0xffff while it is set. */
+    uint8_t   stopped;         /* +0x0054 */
     uint8_t   pad_0055[1];
-    int16_t   word_0056;          /* +0x0056 */
-    uint16_t  word_0058;          /* +0x0058 */
-    int16_t   word_005a;          /* +0x005a */
-    int16_t   word_005c;          /* +0x005c */
+    int16_t   length_a;        /* +0x0056 */
+    uint16_t  offset_a;        /* +0x0058 */
+    int16_t   length_b;        /* +0x005a  zero when the sample fits in one */
+    int16_t   offset_b;        /* +0x005c */
     uint8_t   pad_005e[6];
-    uint16_t  word_0064;          /* +0x0064 */
-    uint16_t  word_0066;          /* +0x0066 */
+    /* **Where in the sample this block began**, high word then low, which
+       function 4 adds the bytes the DMA controller has already taken to. */
+    uint16_t  pos_hi;          /* +0x0064 */
+    uint16_t  pos_lo;          /* +0x0066 */
     uint8_t   pad_0068[4];
-    int16_t   word_006c;          /* +0x006c */
-    int16_t   word_006e;          /* +0x006e */
-    int16_t   word_0070;          /* +0x0070 */
-    int16_t   word_0072;          /* +0x0072 */
-    int16_t   word_0074;          /* +0x0074  zero in the module's own image; 0x07be writes 0x21 into it */
+    /* The length this block started with, kept so function 4 can subtract the
+       DMA controller's remaining count and say how far in it is. */
+    int16_t   block_length;    /* +0x006c */
+    int16_t   length;          /* +0x006e */
+    int16_t   offset;          /* +0x0070 */
+    /* What function 4 answers as the sound's identifier; `asb_play` zeroes
+       it. */
+    int16_t   id;              /* +0x0072 */
+    /* **The PIC's mask port**, 0x21 for the master and 0xa1 for the slave,
+       chosen from `irq`. Zero in the module's own image; the install path
+       writes it. */
+    int16_t   pic_port;        /* +0x0074 */
     int16_t   base;               /* +0x0076  the card's base port, which every other port is an offset from */
-    int16_t   word_0078;          /* +0x0078 */
-    int16_t   word_007a;          /* +0x007a */
+    /* The rate the caller asked for - 0x2b11, 11025 Hz, is what install
+       leaves - against `dsp_rate`, the time constant actually written. */
+    int16_t   rate;            /* +0x0078 */
+    /* A DOS handle the module opens, 0xffff for none, closed on shutdown. */
+    int16_t   file_handle;     /* +0x007a */
     uint8_t   pad_007c[4];
-    uint16_t  word_0080;          /* +0x0080 */
-    uint16_t  word_0082;          /* +0x0082 */
-    int16_t   word_0084;          /* +0x0084 */
+    /* **The position past which function 4 answers "finished"**, high word
+       then low, and the rate as the DSP's own time constant. */
+    uint16_t  limit_hi;        /* +0x0080 */
+    uint16_t  limit_lo;        /* +0x0082 */
+    int16_t   dsp_rate;        /* +0x0084 */
     uint8_t   pad_0086[8];
     /* **Two far pointers, four words.** `asb_safe_to_call` reads a byte
        through each and ORs them: INT 21h AH=34h answers the InDOS flag's
@@ -3172,47 +3209,47 @@ struct asb_cs {
 
 #define ASBS (*(struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
 
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0034) == 0x0034, "asb_cs.word_0034");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0035) == 0x0035, "asb_cs.word_0035");
+_Static_assert(__builtin_offsetof(struct asb_cs, page_a) == 0x0034, "asb_cs.page_a");
+_Static_assert(__builtin_offsetof(struct asb_cs, page_b) == 0x0035, "asb_cs.page_b");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0036) == 0x0036, "asb_cs.word_0036");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0038) == 0x0038, "asb_cs.word_0038");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0039) == 0x0039, "asb_cs.word_0039");
+_Static_assert(__builtin_offsetof(struct asb_cs, dsp_v2) == 0x0038, "asb_cs.dsp_v2");
+_Static_assert(__builtin_offsetof(struct asb_cs, page) == 0x0039, "asb_cs.page");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_003b) == 0x003b, "asb_cs.word_003b");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_003d) == 0x003d, "asb_cs.word_003d");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_003e) == 0x003e, "asb_cs.word_003e");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_003f) == 0x003f, "asb_cs.word_003f");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0040) == 0x0040, "asb_cs.word_0040");
+_Static_assert(__builtin_offsetof(struct asb_cs, busy_int09) == 0x003e, "asb_cs.busy_int09");
+_Static_assert(__builtin_offsetof(struct asb_cs, busy_int0d) == 0x003f, "asb_cs.busy_int0d");
+_Static_assert(__builtin_offsetof(struct asb_cs, busy_int74) == 0x0040, "asb_cs.busy_int74");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0041) == 0x0041, "asb_cs.word_0041");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0042) == 0x0042, "asb_cs.word_0042");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0043) == 0x0043, "asb_cs.word_0043");
+_Static_assert(__builtin_offsetof(struct asb_cs, busy_int10) == 0x0043, "asb_cs.busy_int10");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0044) == 0x0044, "asb_cs.word_0044");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0045) == 0x0045, "asb_cs.word_0045");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0046) == 0x0046, "asb_cs.word_0046");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0047) == 0x0047, "asb_cs.word_0047");
+_Static_assert(__builtin_offsetof(struct asb_cs, irq) == 0x0045, "asb_cs.irq");
+_Static_assert(__builtin_offsetof(struct asb_cs, looped) == 0x0046, "asb_cs.looped");
+_Static_assert(__builtin_offsetof(struct asb_cs, looping) == 0x0047, "asb_cs.looping");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0049) == 0x0049, "asb_cs.word_0049");
 _Static_assert(__builtin_offsetof(struct asb_cs, half) == 0x004c, "asb_cs.half");
 _Static_assert(__builtin_offsetof(struct asb_cs, nothing_to_report) == 0x004d, "asb_cs.nothing_to_report");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_004e) == 0x004e, "asb_cs.word_004e");
+_Static_assert(__builtin_offsetof(struct asb_cs, irq_saved) == 0x004e, "asb_cs.irq_saved");
 _Static_assert(__builtin_offsetof(struct asb_cs, irq10_worth) == 0x004f, "asb_cs.irq10_worth");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0052) == 0x0052, "asb_cs.word_0052");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0054) == 0x0054, "asb_cs.word_0054");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0056) == 0x0056, "asb_cs.word_0056");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0058) == 0x0058, "asb_cs.word_0058");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_005a) == 0x005a, "asb_cs.word_005a");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_005c) == 0x005c, "asb_cs.word_005c");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0064) == 0x0064, "asb_cs.word_0064");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0066) == 0x0066, "asb_cs.word_0066");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_006c) == 0x006c, "asb_cs.word_006c");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_006e) == 0x006e, "asb_cs.word_006e");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0070) == 0x0070, "asb_cs.word_0070");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0072) == 0x0072, "asb_cs.word_0072");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0074) == 0x0074, "asb_cs.word_0074");
+_Static_assert(__builtin_offsetof(struct asb_cs, stopped) == 0x0054, "asb_cs.stopped");
+_Static_assert(__builtin_offsetof(struct asb_cs, length_a) == 0x0056, "asb_cs.length_a");
+_Static_assert(__builtin_offsetof(struct asb_cs, offset_a) == 0x0058, "asb_cs.offset_a");
+_Static_assert(__builtin_offsetof(struct asb_cs, length_b) == 0x005a, "asb_cs.length_b");
+_Static_assert(__builtin_offsetof(struct asb_cs, offset_b) == 0x005c, "asb_cs.offset_b");
+_Static_assert(__builtin_offsetof(struct asb_cs, pos_hi) == 0x0064, "asb_cs.pos_hi");
+_Static_assert(__builtin_offsetof(struct asb_cs, pos_lo) == 0x0066, "asb_cs.pos_lo");
+_Static_assert(__builtin_offsetof(struct asb_cs, block_length) == 0x006c, "asb_cs.block_length");
+_Static_assert(__builtin_offsetof(struct asb_cs, length) == 0x006e, "asb_cs.length");
+_Static_assert(__builtin_offsetof(struct asb_cs, offset) == 0x0070, "asb_cs.offset");
+_Static_assert(__builtin_offsetof(struct asb_cs, id) == 0x0072, "asb_cs.id");
+_Static_assert(__builtin_offsetof(struct asb_cs, pic_port) == 0x0074, "asb_cs.pic_port");
 _Static_assert(__builtin_offsetof(struct asb_cs, base) == 0x0076, "asb_cs.base");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0078) == 0x0078, "asb_cs.word_0078");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_007a) == 0x007a, "asb_cs.word_007a");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0080) == 0x0080, "asb_cs.word_0080");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0082) == 0x0082, "asb_cs.word_0082");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0084) == 0x0084, "asb_cs.word_0084");
+_Static_assert(__builtin_offsetof(struct asb_cs, rate) == 0x0078, "asb_cs.rate");
+_Static_assert(__builtin_offsetof(struct asb_cs, file_handle) == 0x007a, "asb_cs.file_handle");
+_Static_assert(__builtin_offsetof(struct asb_cs, limit_hi) == 0x0080, "asb_cs.limit_hi");
+_Static_assert(__builtin_offsetof(struct asb_cs, limit_lo) == 0x0082, "asb_cs.limit_lo");
+_Static_assert(__builtin_offsetof(struct asb_cs, dsp_rate) == 0x0084, "asb_cs.dsp_rate");
 _Static_assert(__builtin_offsetof(struct asb_cs, criterr) == 0x008e, "asb_cs.criterr");
 _Static_assert(__builtin_offsetof(struct asb_cs, indos) == 0x0092, "asb_cs.indos");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int0d) == 0x0096, "asb_cs.old_int0d");

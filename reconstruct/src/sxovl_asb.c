@@ -170,7 +170,7 @@ void asb_set_rate(uint16_t rate)
 {
     uint8_t tc;
 
-    ASBS.word_0084 = (int16_t)rate;
+    ASBS.dsp_rate = (int16_t)rate;
     tc = (uint8_t)(1000000UL / rate);
     tc = (uint8_t)(-(int8_t)tc);
 
@@ -250,19 +250,19 @@ void asb_dma_start(void)
 
     io_out8(0x0a, 5);
     io_out8(0x0c, 0);
-    io_out8(0x02, (uint8_t)((uint16_t)ASBS.word_0070));
-    io_out8(0x02, (uint8_t)(((uint16_t)ASBS.word_0070) >> 8));
+    io_out8(0x02, (uint8_t)((uint16_t)ASBS.offset));
+    io_out8(0x02, (uint8_t)(((uint16_t)ASBS.offset) >> 8));
 
-    cx = ((uint16_t)ASBS.word_006e);
-    ASBS.word_006c = (int16_t)cx;
+    cx = ((uint16_t)ASBS.length);
+    ASBS.block_length = (int16_t)cx;
     io_out8(0x0b, 0x49);
-    io_out8(0x83, ASBS.word_0039);
+    io_out8(0x83, ASBS.page);
     io_out8(0x03, (uint8_t)(cx - 1));
     io_out8(0x03, (uint8_t)((cx - 1) >> 8));
     io_out8(0x0a, 1);
 
     asb_dsp_write(0x14);
-    cx = (uint16_t)(((uint16_t)ASBS.word_006e) - 1);
+    cx = (uint16_t)(((uint16_t)ASBS.length) - 1);
     asb_dsp_write((uint8_t)cx);
     asb_dsp_write((uint8_t)(cx >> 8));
 }
@@ -278,13 +278,13 @@ void asb_dma_start(void)
 void asb_arm_block(void)
 {
     if (ASBS.half == 0) {
-        ASBS.word_0039 = ASBS.word_0034;
-        ASBS.word_0070 = (int16_t)ASBS.word_0058;
-        ASBS.word_006e = (int16_t)((uint16_t)ASBS.word_0056);
+        ASBS.page = ASBS.page_a;
+        ASBS.offset = (int16_t)ASBS.offset_a;
+        ASBS.length = (int16_t)((uint16_t)ASBS.length_a);
     } else {
-        ASBS.word_0039 = ASBS.word_0035;
-        ASBS.word_0070 = (int16_t)((uint16_t)ASBS.word_005c);
-        ASBS.word_006e = (int16_t)((uint16_t)ASBS.word_005a);
+        ASBS.page = ASBS.page_b;
+        ASBS.offset = (int16_t)((uint16_t)ASBS.offset_b);
+        ASBS.length = (int16_t)((uint16_t)ASBS.length_b);
     }
 
     asb_dma_start();
@@ -324,16 +324,16 @@ void asb_isr(void)
     asb_dma_pause();
     asb_dma_stop();
 
-    if (((uint16_t)ASBS.word_005a) != 0 && (ASBS.half ^= 1) != 0) {
+    if (((uint16_t)ASBS.length_b) != 0 && (ASBS.half ^= 1) != 0) {
         asb_arm_block();
-    } else if (ASBS.word_0047 == 1) {
+    } else if (ASBS.looping == 1) {
         asb_arm_block();
-        ASBS.word_0046 = 1;
+        ASBS.looped = 1;
     } else {
         asb_stop();
     }
 
-    if (ASBS.word_0045 > 7)
+    if (ASBS.irq > 7)
         io_out8(0xa0, 0x20);
     io_out8(0x20, 0x20);
 }
@@ -386,7 +386,7 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
 
-    mask = ((uint16_t)ASBS.word_0074);
+    mask = ((uint16_t)ASBS.pic_port);
     was = io_in8(mask);
     io_out8(mask, (uint8_t)(was & ~bit));
 
@@ -404,7 +404,7 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
     dos_setvect(vec, ASBU16(save_at), ASBU16(save_at + 2));
-    io_out8(((uint16_t)ASBS.word_0074), mask_was);
+    io_out8(((uint16_t)ASBS.pic_port), mask_was);
 
     io_on_sb_irq(irq, 0);
 }
@@ -478,14 +478,14 @@ uint16_t asb_probe_version(void)
     ver = (uint16_t)(asb_dsp_read() << 8);
     ver |= asb_dsp_read();
 
-    ASBS.word_0038 = 0;
+    ASBS.dsp_v2 = 0;
     ASBS.irq10_worth = 0;
 
     if ((int16_t)ver < 0x0101)
         return 4;
 
     if ((int16_t)ver >= 0x0200) {
-        ASBS.word_0038 = 1;
+        ASBS.dsp_v2 = 1;
         if ((int16_t)ver >= 0x0300)
             ASBS.irq10_worth = 1;
     }
@@ -503,11 +503,11 @@ uint16_t asb_probe_version(void)
  */
 static void asb_probe_isr(uint8_t irq)
 {
-    ASBS.word_0045 = irq;
+    ASBS.irq = irq;
     io_out8(0x0a, 5);
     (void)io_in8((uint16_t)(ASB_BASE + 0x0e));
 
-    if (ASBS.word_0045 > 7)
+    if (ASBS.irq > 7)
         io_out8(0xa0, 0x20);
     io_out8(0x20, 0x20);
 }
@@ -563,7 +563,7 @@ uint16_t asb_probe_irq(void)
      * dumped from. The verifier found it - the original writes 0xfb, 0xf3,
      * 0xd3, 0x53 to port 0x021 and the port wrote them to port 0x000.
      */
-    ASBS.word_0074 = 0x21;
+    ASBS.pic_port = 0x21;
 
     ASBS.word_07b9 = asb_hook_irq(2, 0x7a5, 0x0915);
     ASBS.word_07ba = asb_hook_irq(3, 0x7a9, 0x091e);
@@ -571,7 +571,7 @@ uint16_t asb_probe_irq(void)
     ASBS.word_07bc = asb_hook_irq(7, 0x7b1, 0x0930);
 
     if (ASBS.irq10_worth == 1) {
-        ASBS.word_0074 = 0xa1;
+        ASBS.pic_port = 0xa1;
         ASBS.word_07bd = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
@@ -584,24 +584,24 @@ uint16_t asb_probe_irq(void)
     asb_dsp_write(0);
     asb_dsp_write(0);
 
-    ASBS.word_0045 = 0;
+    ASBS.irq = 0;
     cx = 0x800;
-    while (ASBS.word_0045 == 0 && --cx != 0)
+    while (ASBS.irq == 0 && --cx != 0)
         io_sb_wait();   /* OURS: the original's spin waits to be preempted */
 
-    answer = (uint16_t)(ASBS.word_0045 == 0 ? 5 : 0);
+    answer = (uint16_t)(ASBS.irq == 0 ? 5 : 0);
 
     if (ASBS.irq10_worth == 1) {
-        ASBS.word_0074 = 0xa1;
+        ASBS.pic_port = 0xa1;
         asb_unhook_irq(10, 0x7b5, ASBS.word_07bd);
     }
     asb_unhook_irq(7, 0x7b1, ASBS.word_07bc);
     asb_unhook_irq(5, 0x7ad, ASBS.word_07bb);
-    ASBS.word_0074 = 0x21;
+    ASBS.pic_port = 0x21;
     asb_unhook_irq(3, 0x7a9, ASBS.word_07ba);
     asb_unhook_irq(2, 0x7a5, ASBS.word_07b9);
 
-    ASBS.word_0074 = (int16_t)(ASBS.word_0045 > 7 ? 0xa1 : 0x21);
+    ASBS.pic_port = (int16_t)(ASBS.irq > 7 ? 0xa1 : 0x21);
     return answer;
 }
 
@@ -662,10 +662,10 @@ uint16_t asb_detect(void)
  * else. They exist because the module's state includes them and because
  * `asb_safe_to_call` reads them.
  */
-void asb_int10_hook(void) { ASBS.word_0043 = 1; ASBS.word_0043 = 0; }
-void asb_int0d_hook(void) { ASBS.word_003f = 1; ASBS.word_003f = 0; }
-void asb_int74_hook(void) { ASBS.word_0040 = 1; ASBS.word_0040 = 0; }
-void asb_int09_hook(void) { ASBS.word_003e = 1; ASBS.word_003e = 0; }
+void asb_int10_hook(void) { ASBS.busy_int10 = 1; ASBS.busy_int10 = 0; }
+void asb_int0d_hook(void) { ASBS.busy_int0d = 1; ASBS.busy_int0d = 0; }
+void asb_int74_hook(void) { ASBS.busy_int74 = 1; ASBS.busy_int74 = 0; }
+void asb_int09_hook(void) { ASBS.busy_int09 = 1; ASBS.busy_int09 = 0; }
 
 /*
  * SX.OVL ASB:0x0506
@@ -681,10 +681,10 @@ uint8_t asb_safe_to_call(void)
 
     al  = *dg_far_ptr(ASBS.criterr);
     al |= *dg_far_ptr(ASBS.indos);
-    al |= ASBS.word_0043;
-    al |= ASBS.word_003f;
-    al |= ASBS.word_0040;
-    al |= ASBS.word_003e;
+    al |= ASBS.busy_int10;
+    al |= ASBS.busy_int0d;
+    al |= ASBS.busy_int74;
+    al |= ASBS.busy_int09;
 
     return al;
 }
@@ -698,13 +698,13 @@ uint8_t asb_safe_to_call(void)
  */
 uint16_t asb_shutdown(void)
 {
-    if (ASBS.word_0054 == 1)
+    if (ASBS.stopped == 1)
         return 0;
 
-    ASBS.word_0054 = 1;
+    ASBS.stopped = 1;
     asb_dma_pause();
     asb_dma_stop();
-    asb_unhook_irq(ASBS.word_0045, 0x8a, ASBS.word_004e);
+    asb_unhook_irq(ASBS.irq, 0x8a, ASBS.irq_saved);
 
     return 0;
 }
@@ -731,39 +731,39 @@ void asb_play(const struct sound_play_args *si)
     asb_shutdown();
 
     if (si->loop != 0)
-        ASBS.word_0047 = 1;
+        ASBS.looping = 1;
     else
-        ASBS.word_0047 = 0;
+        ASBS.looping = 0;
 
     asb_set_rate(si->rate);
 
     lin = asb_linear(si->sample);
-    ASBS.word_0034  = (uint8_t)(lin >> 16);
-    ASBS.word_0058 = (int16_t)lin;
+    ASBS.page_a  = (uint8_t)(lin >> 16);
+    ASBS.offset_a = (int16_t)lin;
 
     ax = si->length;
-    ASBS.word_0056 = (int16_t)ax;
+    ASBS.length_a = (int16_t)ax;
 
-    if ((uint32_t)ax + ASBS.word_0058 > 0xffff) {
-        ax = (uint16_t)(ax + ASBS.word_0058);
-        ASBS.word_005a = (int16_t)ax;
-        ASBS.word_0056 = (int16_t)(((uint16_t)ASBS.word_0056) - ax);
-        ASBS.word_005c = 0;
-        ASBS.word_0035  = (uint8_t)((lin >> 16) + 1);
+    if ((uint32_t)ax + ASBS.offset_a > 0xffff) {
+        ax = (uint16_t)(ax + ASBS.offset_a);
+        ASBS.length_b = (int16_t)ax;
+        ASBS.length_a = (int16_t)(((uint16_t)ASBS.length_a) - ax);
+        ASBS.offset_b = 0;
+        ASBS.page_b  = (uint8_t)((lin >> 16) + 1);
     } else {
-        ASBS.word_005a = 0;
+        ASBS.length_b = 0;
     }
 
-    ASBS.word_004e = asb_hook_irq(ASBS.word_0045, 0x8a, 0x02b7);
+    ASBS.irq_saved = asb_hook_irq(ASBS.irq, 0x8a, 0x02b7);
     ASBS.half = 0;
     ASBS.word_003b = 0;
     ASBS.word_003d = 1;
 
     asb_arm_block();
 
-    ASBS.word_0072 = 0;
-    ASBS.word_0054 = 0;
-    ASBS.word_0046 = 0;
+    ASBS.id = 0;
+    ASBS.stopped = 0;
+    ASBS.looped = 0;
 }
 
 /*
@@ -775,9 +775,9 @@ void asb_play(const struct sound_play_args *si)
  */
 uint16_t asb_status(void)
 {
-    uint16_t r = (uint16_t)(ASBS.word_0054 | (ASBS.word_0046 << 8));
+    uint16_t r = (uint16_t)(ASBS.stopped | (ASBS.looped << 8));
 
-    ASBS.word_0046 = 0;
+    ASBS.looped = 0;
     return r;
 }
 
@@ -804,9 +804,9 @@ uint16_t asb_uninstall(void)
     dos_setvect(0x74, ASBS.old_int74.off, ASBS.old_int74.seg);
     dos_setvect(0x09, ASBS.old_int09.off, ASBS.old_int09.seg);
 
-    if (((uint16_t)ASBS.word_007a) != 0xffff) {
-        io_dos_close((int16_t)((uint16_t)ASBS.word_007a));
-        ASBS.word_007a = (int16_t)0xffff;
+    if (((uint16_t)ASBS.file_handle) != 0xffff) {
+        io_dos_close((int16_t)((uint16_t)ASBS.file_handle));
+        ASBS.file_handle = (int16_t)0xffff;
     }
 
     return 0;
@@ -817,7 +817,7 @@ uint16_t asb_uninstall(void)
  */
 uint16_t asb_set_rate_fn(const struct sound_rate_args *si)
 {
-    ASBS.word_0078 = (int16_t)si->rate;
+    ASBS.rate = (int16_t)si->rate;
     asb_set_rate(si->rate);
     return 0;
 }
@@ -854,7 +854,7 @@ uint16_t asb_position(struct sound_position_args *si)
         return 0;
     }
 
-    if (ASBS.word_0054 == 1) {
+    if (ASBS.stopped == 1) {
         si->id = 0xffff;
         si->position = 0xffffffffu;
         return 0;
@@ -863,9 +863,9 @@ uint16_t asb_position(struct sound_position_args *si)
     cx  = io_in8(0x03);
     cx |= (uint16_t)(io_in8(0x03) << 8);
 
-    dx = ((uint16_t)ASBS.word_006c);
-    ax = ASBS.word_0066;
-    bx = ASBS.word_0064;
+    dx = ((uint16_t)ASBS.block_length);
+    ax = ASBS.pos_lo;
+    bx = ASBS.pos_hi;
 
     dx = (uint16_t)(dx - cx);
     {
@@ -887,7 +887,7 @@ uint16_t asb_position(struct sound_position_args *si)
             bx = (uint16_t)(v >> 16);
         }
 
-        if (bx != ASBS.word_0080 ? bx > ASBS.word_0080 : ax > ASBS.word_0082) {
+        if (bx != ASBS.limit_hi ? bx > ASBS.limit_hi : ax > ASBS.limit_lo) {
             si->id = 0xffff;
             si->position = 0xffffffffu;
             return 0;
@@ -901,7 +901,7 @@ uint16_t asb_position(struct sound_position_args *si)
     }
 
     si->position = ((uint32_t)bx << 16) | ax;
-    si->id = (uint16_t)ASBS.word_0072;
+    si->id = (uint16_t)ASBS.id;
 
     return 0;
 }
@@ -924,7 +924,7 @@ uint16_t asb_install(void)
     if (asb_detect() != 0)
         return 0;
 
-    ASBS.word_0054 = 1;
+    ASBS.stopped = 1;
 
     ASBS.old_int10 = dos_getvect(0x10);
     dos_setvect(0x10, 0x052b, ASB_SEG);
@@ -949,12 +949,12 @@ uint16_t asb_install(void)
     ASBS.criterr = FAR_NULL;
     (void)indos;
 
-    ASBS.word_0078 = 0x2b11;          /* 11025 Hz */
+    ASBS.rate = 0x2b11;          /* 11025 Hz */
     asb_set_rate(0x2b11);
 
     ASBS.word_0042 = 0;
     ASBS.word_0041 = 0;
-    ASBS.word_007a = (int16_t)0xffff;
+    ASBS.file_handle = (int16_t)0xffff;
 
     return 0x577;
 }
