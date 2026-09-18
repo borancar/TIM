@@ -2673,7 +2673,7 @@ uint16_t select_puzzle_screen(void)
 
     DG53FC.selected_level = ((uint16_t)DG4E67.round_number);
     page = (int16_t)puzzle_page_of_score();
-    DG53FC.word_542c = page;
+    DG53FC.puzzle_page = page;
 
     /*
      * The screen **opens the current level** before it draws anything: if the
@@ -2750,8 +2750,8 @@ uint16_t select_puzzle_screen(void)
                     set_clip_play_area();
 
                     page = (int16_t)puzzle_page_of_score();
-                    if (page != DG53FC.word_542c) {
-                        DG53FC.word_542c = page;
+                    if (page != DG53FC.puzzle_page) {
+                        DG53FC.puzzle_page = page;
                         repaint = 1;
                     }
 
@@ -2781,10 +2781,10 @@ uint16_t select_puzzle_screen(void)
             if (hold == 0) {
                 if (DG5768.button_left != 1 && DG5768.button_left != 2) {
                     DG4E67.state = 0x8000;
-                } else if (DG53FC.word_542c > 1) {
-                    DG53FC.word_542c = (int16_t)(DG53FC.word_542c - 0x15);
-                    if (DG53FC.word_542c < 1)
-                        DG53FC.word_542c = 1;
+                } else if (DG53FC.puzzle_page > 1) {
+                    DG53FC.puzzle_page = (int16_t)(DG53FC.puzzle_page - 0x15);
+                    if (DG53FC.puzzle_page < 1)
+                        DG53FC.puzzle_page = 1;
                     repaint = 1;
                     hold    = 4;
                 }
@@ -2796,8 +2796,8 @@ uint16_t select_puzzle_screen(void)
             if (hold == 0) {
                 if (DG5768.button_left != 1 && DG5768.button_left != 2) {
                     DG4E67.state = 0x8000;
-                } else if ((int16_t)(DG53FC.word_542c + 0x15) <= DG4E67.level_count) {
-                    DG53FC.word_542c = (int16_t)(DG53FC.word_542c + 0x15);
+                } else if ((int16_t)(DG53FC.puzzle_page + 0x15) <= DG4E67.level_count) {
+                    DG53FC.puzzle_page = (int16_t)(DG53FC.puzzle_page + 0x15);
                     repaint = 1;
                     hold    = 4;
                 }
@@ -2807,7 +2807,7 @@ uint16_t select_puzzle_screen(void)
 
         case 0x4000:                    /* a click in the list */
             row = (int16_t)((int16_t)(DG5768.pointer_y - 0x4c) / 10
-                            + DG53FC.word_542c);
+                            + DG53FC.puzzle_page);
 
             if (row <= DG4E67.level_count) {
                 if (row > DG4E67.furthest_level) {
@@ -2857,7 +2857,7 @@ uint16_t select_puzzle_screen(void)
                 rp_down--;
             }
             if (repaint != 0)
-                puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
+                puzzle_draw_list(DG53FC.puzzle_page, DG53FC.selected_level);
             if (rp_pass != 0) {
                 puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
                 rp_pass--;
@@ -3007,7 +3007,7 @@ void puzzle_repaint(void)
     puzzle_draw_down();
     puzzle_draw_ok(0);
     puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
-    puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
+    puzzle_draw_list(DG53FC.puzzle_page, DG53FC.selected_level);
 
     present_back_page();
 }
@@ -3039,8 +3039,8 @@ void puzzle_draw_password(const char *text)
         si++;
 
     if (DG4E67.state == 0x800) {
-        DG53FC.word_5428++;
-        if ((DG53FC.word_5428 & 8) != 0)
+        DG53FC.password_blink++;
+        if ((DG53FC.password_blink & 8) != 0)
             string_concat(si, GAME_PART_NAMES.star);
     }
 
