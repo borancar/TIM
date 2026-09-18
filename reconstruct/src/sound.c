@@ -654,7 +654,7 @@ void sequencer_tick(void)
          * zeroed: the abandon path below reads it back so a sequence that
          * fails leaves the total exactly as it found it.
          */
-        SNDS.word_0203 = al;
+        SNDS.saved_total = al;
 
         for (ch_i = 0; ch_i < 0x10; ch_i++) {
             cl = rec->byte_08c[ch_i];
@@ -799,7 +799,7 @@ next_channel:
 
 abandon_sequence:
         tick_restore_state();
-        al = SNDS.word_0203;
+        al = SNDS.saved_total;
 
 next_sequence:
         bp_ = (uint16_t)(bp_ + 0x10);

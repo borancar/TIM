@@ -1206,7 +1206,10 @@ struct dg_52bd {
     int16_t   anchor_y;           /* +0x06 */
     int16_t   band_colour;        /* +0x08  0xa where it would attach, -1 for no line */
     int16_t   drop_cursor;        /* +0x0a  0xa on every frame the hand is not already carrying */
-    int16_t   word_52c9;          /* +0x0c */
+    /* **The colour the parts bin's column is cleared to**, 0x0b, filed once by
+       `game_setup` and read only by `draw_machine_layer_a`, which puts it in
+       both of the driver's fill colours before its two `fill_rect`s. */
+    int16_t   bin_colour;      /* +0x0c */
     int16_t   fill_colour;        /* +0x0e  the colour the panel and the title box are filled in */
     int16_t   sound_request_0c;   /* +0x10  four request-and-acknowledge words: something sets */
     int16_t   sound_request_09;   /* +0x12  one to 2 and the loop below turns it to 1 and then */
@@ -1217,7 +1220,9 @@ struct dg_52bd {
     int16_t   saved_clip_top;     /* +0x1c  0x52dd is the left edge and 0x52d7 the bottom, which */
     int16_t   saved_clip_right;   /* +0x1e  looks like a transcription error and is not */
     int16_t   saved_clip_left;    /* +0x20 */
-    int16_t   word_52df;          /* +0x22 */
+    /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
+       start-up; `set_font` takes it and `game_teardown` gives its slot back. */
+    int16_t   memo_font;       /* +0x22 */
     struct far_ptr pal_black_ptr; /* +0x24  black.pal, as pal_tim_ptr */
     struct far_ptr pal_sierra_ptr;/* +0x28  sierra.pal */
 } __attribute__((packed));
@@ -1230,7 +1235,7 @@ DG_ASSERT_AT(struct dg_52bd, anchor_x,          0x04);
 DG_ASSERT_AT(struct dg_52bd, anchor_y,          0x06);
 DG_ASSERT_AT(struct dg_52bd, band_colour,       0x08);
 DG_ASSERT_AT(struct dg_52bd, drop_cursor,       0x0a);
-DG_ASSERT_AT(struct dg_52bd, word_52c9,         0x0c);
+DG_ASSERT_AT(struct dg_52bd, bin_colour,         0x0c);
 DG_ASSERT_AT(struct dg_52bd, fill_colour,       0x0e);
 DG_ASSERT_AT(struct dg_52bd, sound_request_0c,  0x10);
 DG_ASSERT_AT(struct dg_52bd, sound_request_09,  0x12);
@@ -1241,7 +1246,7 @@ DG_ASSERT_AT(struct dg_52bd, saved_clip_bottom, 0x1a);
 DG_ASSERT_AT(struct dg_52bd, saved_clip_top,    0x1c);
 DG_ASSERT_AT(struct dg_52bd, saved_clip_right,  0x1e);
 DG_ASSERT_AT(struct dg_52bd, saved_clip_left,   0x20);
-DG_ASSERT_AT(struct dg_52bd, word_52df,         0x22);
+DG_ASSERT_AT(struct dg_52bd, memo_font,         0x22);
 DG_ASSERT_AT(struct dg_52bd, pal_black_ptr,     0x24);
 DG_ASSERT_AT(struct dg_52bd, pal_sierra_ptr,    0x28);
 
@@ -1396,7 +1401,9 @@ struct timer {
     volatile int16_t frame_budget; /* +0x01  counts down from 0x2710; every frame spin waits on it.
                                      **volatile**: `timer_tick` writes it on the timer thread and the
                                      spin reads it with nothing between the reads */
-    int16_t   word_44f1;          /* +0x03 */
+    /* **The divisor programmed into the 8253**, 0xffff / rate, kept beside the
+       rate itself. */
+    int16_t   divisor;         /* +0x03 */
     int16_t   divider_reload;     /* +0x05 */
     int16_t   divider;            /* +0x07  counts from the reload, and only then does the rest */
     uint16_t  slot_mask;          /* +0x09  which of the sixteen callback slots are in use */
@@ -1417,7 +1424,7 @@ extern struct timer TIMER;
 
 DG_ASSERT_AT(struct timer, installed,         0x00);
 DG_ASSERT_AT(struct timer, frame_budget,      0x01);
-DG_ASSERT_AT(struct timer, word_44f1,         0x03);
+DG_ASSERT_AT(struct timer, divisor,         0x03);
 DG_ASSERT_AT(struct timer, divider_reload,    0x05);
 DG_ASSERT_AT(struct timer, divider,           0x07);
 DG_ASSERT_AT(struct timer, slot_mask,         0x09);
@@ -1985,7 +1992,7 @@ struct part {
     struct point8 hold;        /* +0x72 */
     /* **The next part on each of the two drawing layers this part is filed
        on** - `link_record_into_buckets` writes `[i]` for the layer its
-       kind's `refile_level[i]` names, and `byte_7f` keeps which layer `[0]`
+       kind's `refile_level[i]` names, and `layer_slot` keeps which layer `[0]`
        is, so the walkers pick the half that matches the layer they are on. */
     dg_near_t layer_next_ptr[2];   /* +0x74 */
     /* **The next part in a chain, and only after something builds one.** Five
@@ -2009,9 +2016,11 @@ struct part {
        part names the host. `rehome_carried_part` reads it to empty the slot it
        is leaving and writes it when a new host is found. */
     uint8_t   host_slot;       /* +0x7e */
-    uint8_t   byte_7f;         /* +0x7f  a bucket number: the draw and refile
-                                         walks compare it against the one they
-                                         are filling */
+    /* **Which layer `layer_next_ptr[0]` is filed on** - the slot number
+       `link_record_into_buckets` used for `[0]` - so the draw and refile walks
+       can tell which of a part's two links belongs to the layer they are
+       filling. */
+    uint8_t   layer_slot;      /* +0x7f */
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
     dg_near_t points_ptr;      /* +0x82  where a setup copies its connection points to */
     /* **The contact block.** `resolve_collisions` and `find_edge_contact` both
@@ -2146,7 +2155,7 @@ DG_ASSERT_AT(struct part, layer_next_ptr,    0x74);
 DG_ASSERT_AT(struct part, link_dx,           0x7a);
 DG_ASSERT_AT(struct part, link_dy,           0x7c);
 DG_ASSERT_AT(struct part, host_slot,         0x7e);
-DG_ASSERT_AT(struct part, byte_7f,           0x7f);
+DG_ASSERT_AT(struct part, layer_slot,           0x7f);
 DG_ASSERT_AT(struct part, point_count,       0x80);
 DG_ASSERT_AT(struct part, points_ptr,        0x82);
 DG_ASSERT_AT(struct part, contact_ptr,       0x84);
@@ -2392,10 +2401,16 @@ struct dg_48da {
     int16_t   seq_map_mask;       /* +0x06  and the sequencer's map mask */
     uint8_t   gc_3;               /* +0x08 */
     uint8_t   pad_48e3[3];
-    uint8_t   word_48e6;          /* +0x0c */
-    uint8_t   quarter_a;          /* +0x0d  a second pair, a quarter of each of the two */
-    uint8_t   word_48e8;          /* +0x0e */
-    uint8_t   quarter_b;          /* +0x0f */
+    /* **Two graphics-controller mode bytes**, both written to GC register 5 by
+       the cursor code: 2 and 1 in the image, which are VGA write mode 2 - a
+       byte selects a colour - and write mode 1, the latch copy the routine
+       parks with. The second pair is the same two with bit 6 set, 0x40 and
+       0x41, which is the 256-colour shift; `mouse_init` copies them over the
+       first pair when the driver reports eight bits a pixel. */
+    uint8_t   gc_mode_fill;    /* +0x0c */
+    uint8_t   quarter_a;       /* +0x0d */
+    uint8_t   gc_mode_copy;    /* +0x0e */
+    uint8_t   quarter_b;       /* +0x0f */
     uint8_t   mouse_taken;        /* +0x10  whether the driver was taken; `neg al` branches on it */
     uint8_t   buttons;            /* +0x11  the byte timer_callback samples on the page flip */
     uint8_t   vector_hooked;      /* +0x12  the handler after this routine was installed */
@@ -2417,9 +2432,9 @@ DG_ASSERT_AT(struct dg_48da, gc_4,              0x02);
 DG_ASSERT_AT(struct dg_48da, gc_8,              0x04);
 DG_ASSERT_AT(struct dg_48da, seq_map_mask,      0x06);
 DG_ASSERT_AT(struct dg_48da, gc_3,              0x08);
-DG_ASSERT_AT(struct dg_48da, word_48e6,         0x0c);
+DG_ASSERT_AT(struct dg_48da, gc_mode_fill,         0x0c);
 DG_ASSERT_AT(struct dg_48da, quarter_a,         0x0d);
-DG_ASSERT_AT(struct dg_48da, word_48e8,         0x0e);
+DG_ASSERT_AT(struct dg_48da, gc_mode_copy,         0x0e);
 DG_ASSERT_AT(struct dg_48da, quarter_b,         0x0f);
 DG_ASSERT_AT(struct dg_48da, mouse_taken,       0x10);
 DG_ASSERT_AT(struct dg_48da, buttons,           0x11);
@@ -2636,8 +2651,8 @@ struct dg_2630 {
        would make them entry 0 of the goal table, but the round is never 0 -
        `game_setup` starts it at 1 and nothing brings it lower - so they are
        only ever these two words, 0000:0000 in the image. */
-    uint16_t  word_2632;          /* +0x02 */
-    uint16_t  word_2634;          /* +0x04 */
+    uint16_t  back_held;       /* +0x02  how long the bin's back arrow has been held */
+    uint16_t  forward_held;    /* +0x04  and the forward one */
     /* **The goal tests, one far pointer per puzzle from 1**, up to 0x27ee. */
     struct far_ptr goal_test[110];    /* +0x06 */
 } __attribute__((packed));
@@ -2645,8 +2660,8 @@ struct dg_2630 {
 extern struct dg_2630 DG2630;
 
 DG_ASSERT_AT(struct dg_2630, belt_anchor_ptr,   0x00);
-DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
-DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
+DG_ASSERT_AT(struct dg_2630, back_held,         0x02);
+DG_ASSERT_AT(struct dg_2630, forward_held,         0x04);
 DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
 _Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
 
@@ -2668,7 +2683,10 @@ struct dg_4342 {
        `vm_fill_spans` both failed at once: the original's span list was being
        written somewhere the port never touched. */
     uint16_t  span_buffer_seg;    /* +0x00 */
-    int16_t   word_4344;          /* +0x02 */
+    /* **Adapter detection is allowed**: `detect_adapter` answers 0 without
+       asking anything when this is clear. The image holds 1 and nothing in it
+       writes the offset, so it is on and stays on. */
+    int16_t   detect_allowed;  /* +0x02 */
     /* **Fifty far pointers into the video driver**, at 0x4346: `vm_init`
        copies a hundred words of the driver's own table from its +0x13e and
        then writes the driver's segment over every second one, which is what
@@ -2679,7 +2697,7 @@ struct dg_4342 {
 extern struct dg_4342 DG4342;
 
 DG_ASSERT_AT(struct dg_4342, span_buffer_seg,   0x00);
-DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
+DG_ASSERT_AT(struct dg_4342, detect_allowed,         0x02);
 DG_ASSERT_AT(struct dg_4342, font,              0x04);
 _Static_assert(sizeof(struct dg_4342) == 0xcc, "the driver pointers end at 0x440e");
 
@@ -3015,7 +3033,11 @@ struct snd_cs {
     uint8_t   ah_high;            /* +0x0200  AH >> 4; clear marks the channel 0xfe and skips it */
     uint8_t   slot_high;          /* +0x0201  the sequence's slot times four */
     uint8_t   param_default;      /* +0x0202  the default function 11 is given */
-    uint8_t   word_0203;          /* +0x0203 */
+    /* **The running total parked across a sequence**: `sound_service` puts it
+       here before it walks the channels and reads it back on the path that
+       abandons one, so a sequence that fails leaves the total as it found
+       it. */
+    uint8_t   saved_total;     /* +0x0203 */
     uint8_t   voices_changed;     /* +0x0204  something changed which voice plays what */
     uint8_t   defer;              /* +0x0205  set leaves the new value in the pending array at cs:0x1c8 */
     uint8_t   scan_stopped;       /* +0x0206  at most two a call, so the scan stops where it is */
@@ -3061,7 +3083,7 @@ _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cl) == 0x01ff, "snd_cs
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, ah_high) == 0x0200, "snd_cs.ah_high");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, slot_high) == 0x0201, "snd_cs.slot_high");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, param_default) == 0x0202, "snd_cs.param_default");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, word_0203) == 0x0203, "snd_cs.word_0203");
+_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_total) == 0x0203, "snd_cs.saved_total");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voices_changed) == 0x0204, "snd_cs.voices_changed");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer");
 _Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
@@ -3432,7 +3454,12 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.w
 struct region {
     dg_near_t link_ptr;        /* +0x00  the next record on this list */
     uint16_t  mask;            /* +0x02  and-ed with the state word at 0x4e6b */
-    uint16_t  word_04;         /* +0x04 */
+    /* **The region's own number**, which its handler reads and nothing else
+       does. Measured on the play screen: the five bin rows carry 0 to 4 -
+       the slot each one is - and every other region on that screen carries
+       0. `region_cursor_bin` and its click handler pass it straight to
+       `bin_part_at_index`. */
+    uint16_t  slot;            /* +0x04 */
     int16_t   x0;              /* +0x06  the rectangle, inclusive at both ends */
     int16_t   y0;              /* +0x08 */
     int16_t   x1;              /* +0x0a */
@@ -3572,7 +3599,9 @@ struct open_file {
     uint32_t bound[7];         /* +0x1b */
     int16_t  depth;            /* +0x37  how far in, in bytes: a multiple of 4,
                                          and the walk gives up at 0x18 */
-    int16_t  word_39;          /* +0x39  how many matches to skip */
+    /* **How many matches this record has already gone past**, so asking for a
+       later index continues from there; an earlier one resets the record. */
+    int16_t  matched;          /* +0x39 */
     uint32_t pos;              /* +0x3b  the position, which restore_file_record
                                          seeks back to */
     int32_t  size;             /* +0x3f  the current chunk's size; what
@@ -3586,7 +3615,7 @@ struct open_file {
 DG_ASSERT_AT(struct open_file, path,              0x02);
 DG_ASSERT_AT(struct open_file, bound,             0x1b);
 DG_ASSERT_AT(struct open_file, depth,             0x37);
-DG_ASSERT_AT(struct open_file, word_39,           0x39);
+DG_ASSERT_AT(struct open_file, matched,           0x39);
 DG_ASSERT_AT(struct open_file, pos,               0x3b);
 DG_ASSERT_AT(struct open_file, size,              0x3f);
 _Static_assert(sizeof(struct open_file) == 0x43,
@@ -4289,7 +4318,10 @@ _Static_assert(sizeof(struct belt) == 0x2c,
  * ---------------------------------------------------------------------------
  */
 struct rope {
-    uint16_t  word_00;         /* +0x00 */
+    /* **Nothing in the port reads or writes it**, and a rope is a heap record
+       reached through a pointer, so the image cannot be searched for a use
+       the way a DGROUP offset can. Named for what is known. */
+    uint16_t  _pad_00;         /* +0x00 */
     dg_near_t owner_ptr;       /* +0x02  the part this rope hangs off */
     dg_near_t end_a_ptr;       /* +0x04  the part end A is attached to */
     dg_near_t end_b_ptr;       /* +0x06  the part end B is attached to */
@@ -4365,10 +4397,21 @@ _Static_assert(sizeof(struct part_point) == 4,
  * ---------------------------------------------------------------------------
  */
 struct part_kind {
-    uint16_t  word_00;         /* +0x00 */
+    /* **The kind's density**, and what the sign of its gravity comes from.
+       `recompute_kind_physics` bends the world's gravity setting into a
+       `base` and compares this against it: heavier falls, lighter rises,
+       equal gets none. Measured against the table itself - the balloon is 9
+       where that `base` is 33 at the default gravity, and the balloon is the
+       part that goes up; the bowling ball is 2832. */
+    uint16_t  density;         /* +0x00 */
     int16_t   weight;          /* +0x02 */
-    int16_t   word_04;         /* +0x04  bounce_pair reads it beside the weight */
-    int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
+    /* **How bouncy and how grippy the material is**, both taken from the two
+       kinds in contact rather than from one: `bounce_pair` takes the
+       *smaller* bounce of the two and multiplies the velocity by it, and
+       `apply_contact_friction` takes the *larger* grip - except against a
+       running conveyor, which forces 0x100. */
+    int16_t   bounce;          /* +0x04 */
+    int16_t   grip;            /* +0x06 */
     int16_t   gravity;         /* +0x08  the normal load, same field */
     /* **The velocity clamp, not padding.** `clamp_record_pair` bounds a part's
        `vel_x` and `vel_y` to plus and minus this. */
@@ -4384,14 +4427,23 @@ struct part_kind {
     int16_t   min_h;           /* +0x12 */
     dg_near_t bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
     dg_near_t bitmaps2_ptr;    /* +0x16  a second one */
-    uint16_t  word_18;         /* +0x18 */
-    uint16_t  word_1a;         /* +0x1a */
+    /* **Two tables the form indexes**, each a DGROUP offset or 0 for none: the
+       hot spot of each form as a `point8`, which `place_object_for_draw` adds
+       to the position and mirrors within `mirror_size` when the part is
+       flipped, and the size of each form as a `point16`, which
+       `set_object_extent` takes in preference to the bitmap's own. */
+    dg_near_t hotspots_ptr;    /* +0x18 */
+    dg_near_t sizes_ptr;       /* +0x1a */
     /* **Two level bounds, not padding.** `refile_overlapping_parts` compares a
        draw level against each, with 0xff meaning no limit. The name is a
        reading of that comparison and nothing more. */
     uint8_t   refile_level[2]; /* +0x1c */
     uint16_t  point_count;     /* +0x1e */
-    uint16_t  word_20;         /* +0x20 */
+    /* **Where the kind sorts in the parts bin.** `insert_sorted` walks the bin
+       until it meets a kind with a larger one, so the bin's order is this
+       number and not the kind's. The moving list sorts by weight instead, and
+       the placed list not at all. */
+    uint16_t  priority;        /* +0x20 */
     /* **Five hooks, not three**, each a far pointer the game calls through.
        Two of them were inside a `pad_20[10]` until the dispatchers were
        typed: `part_step` calls `[bx + 0x0ecc]` and `part_hit` calls
@@ -4407,8 +4459,8 @@ struct part_kind {
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_kind, weight,            0x02);
-DG_ASSERT_AT(struct part_kind, word_04,           0x04);
-DG_ASSERT_AT(struct part_kind, word_06,           0x06);
+DG_ASSERT_AT(struct part_kind, bounce,           0x04);
+DG_ASSERT_AT(struct part_kind, grip,           0x06);
 DG_ASSERT_AT(struct part_kind, gravity,           0x08);
 DG_ASSERT_AT(struct part_kind, max_speed,         0x0a);
 DG_ASSERT_AT(struct part_kind, max_w,             0x0c);
@@ -4417,8 +4469,8 @@ DG_ASSERT_AT(struct part_kind, min_w,             0x10);
 DG_ASSERT_AT(struct part_kind, min_h,             0x12);
 DG_ASSERT_AT(struct part_kind, bitmaps_ptr,       0x14);
 DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,      0x16);
-DG_ASSERT_AT(struct part_kind, word_18,           0x18);
-DG_ASSERT_AT(struct part_kind, word_1a,           0x1a);
+DG_ASSERT_AT(struct part_kind, hotspots_ptr,           0x18);
+DG_ASSERT_AT(struct part_kind, sizes_ptr,           0x1a);
 DG_ASSERT_AT(struct part_kind, refile_level,      0x1c);
 DG_ASSERT_AT(struct part_kind, point_count,       0x1e);
 DG_ASSERT_AT(struct part_kind, hit,               0x22);
@@ -4793,8 +4845,12 @@ extern struct game_level_strings GAME_LEVEL_STRINGS;
 
 /* DGROUP 0x2d06..0x2d0a, after the part templates: two words. */
 struct dg_2d06 {
-    uint16_t  word_2d06;           /* +0x00 */
-    uint16_t  word_2d08;           /* +0x02 */
+    /* **Nothing in the port touches either word**, and the image holds no
+       instruction that names 0x2d06 or 0x2d08 - so whatever reads them, if
+       anything does, reaches them through a pointer. The image's own bytes are
+       the initialisers below and `check_image_data` holds them to that. */
+    uint16_t  _pad_2d06;       /* +0x00 */
+    uint16_t  _pad_2d08;           /* +0x02 */
 } __attribute__((packed));
 extern struct dg_2d06 DG2D06;
 
@@ -4818,8 +4874,11 @@ extern struct far_ptr DG44EA;
 /* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
    sample rate, and that is all that is known. */
 struct dg_4ab0 {
-    uint16_t  word_4ab0;           /* +0x00 */
-    uint16_t  word_4ab2;           /* +0x02 */
+    /* **The same shape**: nothing in the port touches them and the image names
+       neither offset. 0x2b11 has the look of a DGROUP offset and 0xfffe of a
+       -2, which is as far as the evidence goes. */
+    uint16_t  _pad_4ab0;       /* +0x00 */
+    uint16_t  _pad_4ab2;           /* +0x02 */
 } __attribute__((packed));
 extern struct dg_4ab0 DG4AB0;
 

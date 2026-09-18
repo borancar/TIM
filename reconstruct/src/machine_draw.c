@@ -1609,8 +1609,8 @@ void draw_machine_layer_a(void)
     VMDS.clip_enabled = 1;
     set_clip_play_area();
     VMDS.fill_enabled = 1;
-    VMDS.fill_colour   = ((uint8_t)DG52BD.word_52c9);
-    VMDS.second_colour = ((uint8_t)DG52BD.word_52c9);
+    VMDS.fill_colour   = ((uint8_t)DG52BD.bin_colour);
+    VMDS.second_colour = ((uint8_t)DG52BD.bin_colour);
 
     clear_flag_2d44_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
@@ -2265,7 +2265,7 @@ void link_record_into_buckets(struct part *rec)
         rec->layer_next_ptr[i] = DG50BF.layer_head_ptr[slot];
         DG50BF.layer_head_ptr[slot] = dg_near(dgroup, rec);
         if (i == 0)
-            rec->byte_7f = slot;
+            rec->layer_slot = slot;
     }
 }
 
@@ -2303,7 +2303,7 @@ void draw_machine(int16_t a, int16_t b)
         v02 = (uint8_t)(v01 - 1);
 
         for (si = DG50BF.layer_head_ptr[v02]; si != 0;
-             si = (PART_PTR(si)->byte_7f == v02
+             si = (PART_PTR(si)->layer_slot == v02
                    ? PART_PTR(si)->layer_next_ptr[0]
                    : PART_PTR(si)->layer_next_ptr[1])) {
             PART_PTR(si)->flags_0a &= 0xffdf;
@@ -2631,7 +2631,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     v04 = part->form;
     v26 = &PART_KINDS[v02];
 
-    v24 = v26->word_18;
+    v24 = v26->hotspots_ptr;
     hot = POINT_TABLE(v24);                    /* the hot spot by form, if the kind has them */
 
     clear_flag_2d44_thunk();

@@ -1656,9 +1656,9 @@ void bounce_off_contact(struct part *obj)
                  (uint16_t)di);
 
     bounce =
-        (mine->word_04 < their->word_04)
-        ? mine->word_04
-        : their->word_04;
+        (mine->bounce < their->bounce)
+        ? mine->bounce
+        : their->bounce;
 
     {
         int32_t p = mul16x16(vy, bounce);
@@ -1769,10 +1769,10 @@ void bounce_pair(struct part *obj)
     myKind = &PART_KINDS[obj->kind];
     theirKind = &PART_KINDS[di->kind];
 
-    bounce = (myKind->word_04
-                    < theirKind->word_04)
-                   ? myKind->word_04
-                   : theirKind->word_04;
+    bounce = (myKind->bounce
+                    < theirKind->bounce)
+                   ? myKind->bounce
+                   : theirKind->bounce;
     (void)bounce;   /* the original computes it here and never reads it */
 
     myW = myKind->weight;
@@ -4408,7 +4408,7 @@ void recompute_kind_physics(void)
         base = (int16_t)(base << 4);
 
     for (i = 0; i < 0x3A; i++) {
-        int16_t v = (int16_t)PART_KINDS[i].word_00;
+        int16_t v = (int16_t)PART_KINDS[i].density;
         int16_t g;
 
         if (v == base) {
@@ -4632,7 +4632,7 @@ void apply_contact_friction(struct part *obj)
     if (((int16_t)other->kind) == 5 && other->direction != 0)
         grip = 0x100;
     else
-        grip = rec_a->word_06 > rec_b->word_06 ? rec_a->word_06 : rec_b->word_06;
+        grip = rec_a->grip > rec_b->grip ? rec_a->grip : rec_b->grip;
 
     cos_a = angle_cos((uint16_t)-angle);
     sin_a = angle_sin((uint16_t)-angle);
@@ -6375,7 +6375,7 @@ void unlink_part(struct part *part)
 void insert_sorted(struct part *rec, struct part *head)
 {
     const struct part_kind *kind = &PART_KINDS[rec->kind];
-    int16_t prio = kind->word_20;
+    int16_t prio = kind->priority;
     struct part *di = head;
     int16_t stop = 0;
 
@@ -6389,7 +6389,7 @@ void insert_sorted(struct part *rec, struct part *head)
             const struct part_kind *kind2 = &PART_KINDS[PART_PTR(di->next_ptr)->kind];
 
             if (head == &DG50D3.parts_bin) {
-                stop = (prio < kind2->word_20) ? 1 : 0;
+                stop = (prio < kind2->priority) ? 1 : 0;
             } else if (head == &DG5179.moving_parts) {
                 stop = (kind->weight < kind2->weight) ? 1 : 0;
             } else {
@@ -7373,10 +7373,10 @@ void place_object_for_draw(struct part *obj)
 
     set_object_extent(obj);
 
-    if (((int16_t)rec->word_18) == 0)
+    if (((int16_t)rec->hotspots_ptr) == 0)
         return;
 
-    const struct point8 *hot = POINT_TABLE(rec->word_18);
+    const struct point8 *hot = POINT_TABLE(rec->hotspots_ptr);
 
     if ((flags & 0x10) != 0)
         obj->box[0].x = (int16_t)(obj->box[0].x
@@ -7588,8 +7588,8 @@ void set_object_extent(struct part *obj)
 
     rec = &PART_KINDS[type];
 
-    if (((int16_t)rec->word_1a) != 0) {
-        const struct point16 *sizes = POINT16_TABLE(rec->word_1a);
+    if (((int16_t)rec->sizes_ptr) != 0) {
+        const struct point16 *sizes = POINT16_TABLE(rec->sizes_ptr);
 
         obj->size[0].width = sizes[obj->form].x;
         obj->size[0].height = sizes[obj->form].y;
@@ -8398,7 +8398,7 @@ void refile_overlapping_parts(void)
             }
 
         next:
-            if (PART_PTR(v14)->byte_7f == v02)
+            if (PART_PTR(v14)->layer_slot == v02)
                 v14 = PART_PTR(v14)->layer_next_ptr[0];
             else
                 v14 = PART_PTR(v14)->layer_next_ptr[1];

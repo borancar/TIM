@@ -4149,8 +4149,8 @@ uint16_t mouse_init(void)
     io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
 
     if (((uint8_t)VMDS.pixel_shift) == 8) {
-        DG48DA.word_48e6 = DG48DA.quarter_a;
-        DG48DA.word_48e8 = DG48DA.quarter_b;
+        DG48DA.gc_mode_fill = DG48DA.quarter_a;
+        DG48DA.gc_mode_copy = DG48DA.quarter_b;
     }
 
     return 1;
@@ -4220,9 +4220,9 @@ void mouse_save_vga(void)
 
     io_out8(PORT_GC_INDEX, 5);
     v = (uint16_t)(io_in8(PORT_GC_DATA) << 8);
-    io_out8(PORT_GC_DATA, DG48DA.word_48e8);
-    vga_write(0xffff, DG48DA.word_48e8);          /* park the latches */
-    io_out8(PORT_GC_DATA, DG48DA.word_48e6);
+    io_out8(PORT_GC_DATA, DG48DA.gc_mode_copy);
+    vga_write(0xffff, DG48DA.gc_mode_copy);          /* park the latches */
+    io_out8(PORT_GC_DATA, DG48DA.gc_mode_fill);
 
     io_out8(PORT_GC_INDEX, 8);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
@@ -4267,7 +4267,7 @@ void mouse_restore_vga(void)
     io_out8(PORT_GC_DATA, (uint8_t)v);
 
     io_out8(PORT_GC_INDEX, 5);
-    io_out8(PORT_GC_DATA, DG48DA.word_48e8);
+    io_out8(PORT_GC_DATA, DG48DA.gc_mode_copy);
     (void)vga_read(0xffff);                  /* pick the latches back up */
     io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
 
@@ -5550,12 +5550,12 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
             goto at_position;
         }
 
-        if (rec->word_39 != 0) {
+        if (rec->matched != 0) {
             if (index != 0) {
                 keep = index;
-                if (rec->word_39 < index) {
-                    index = (int16_t)(index - rec->word_39);
-                } else if (rec->word_39 == index) {
+                if (rec->matched < index) {
+                    index = (int16_t)(index - rec->matched);
+                } else if (rec->matched == index) {
                     game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
                     goto at_position;
                 } else {
@@ -5563,7 +5563,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
                 }
             } else {
                 index = 1;
-                keep = (int16_t)(rec->word_39 + 1);
+                keep = (int16_t)(rec->matched + 1);
             }
         } else {
             keep = index;
@@ -5664,7 +5664,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
         }
     }
 
-    rec->word_39 = keep;
+    rec->matched = keep;
 
 at_position:
     return (int32_t)rec->pos;
@@ -5730,7 +5730,7 @@ int16_t timer_install(uint16_t rate)
     TIMER.divider = (int16_t)rate;
 
     divisor = (uint16_t)(0xffffu / rate);
-    TIMER.word_44f1 = (int16_t)divisor;
+    TIMER.divisor = (int16_t)divisor;
 
     /*
      * `cli` from here to just before the flag is set: the 8253 is half
@@ -6717,7 +6717,7 @@ uint16_t detect_adapter(void)
 {
     uint8_t al = DG48DA.mode_forced;
 
-    if (DG4342.word_4344 == 0)
+    if (DG4342.detect_allowed == 0)
         return 0;
 
     if (al == 0)

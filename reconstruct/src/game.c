@@ -667,7 +667,7 @@ uint16_t game_teardown(int16_t really)
     free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
     free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
 
-    close_table_618a_slot(DG52BD.word_52df);
+    close_table_618a_slot(DG52BD.memo_font);
 
     free_far_block(dg_far_ptr(DG52BD.pal_black_ptr));
     free_far_block(dg_far_ptr(DG52BD.pal_sierra_ptr));
@@ -775,7 +775,7 @@ void game_startup(void)
     DG4E67.password_puzzle = 0;
     DG4E67.score = 0;
     DG52BD.fill_colour = 3;
-    DG52BD.word_52c9 = 0x0b;
+    DG52BD.bin_colour = 0x0b;
 
     if (vm_init(0x0d, 0x80, (FILE *)GAME_STARTUP_NAMES.vm_ovl) == 0) {     /* "vm.ovl" */
         borland_printf(DG1BCC.unable_to_initialize_vm, NULL);
@@ -795,8 +795,8 @@ void game_startup(void)
         set_palette_pointer(black);
     }
 
-    DG52BD.word_52df = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
-    set_font((int16_t)((uint16_t)DG52BD.word_52df));
+    DG52BD.memo_font = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
+    set_font((int16_t)((uint16_t)DG52BD.memo_font));
 
     DG52ED.cursor_art_ptr = dg_near(dgroup, load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp));          /* "mouse.bmp"   */
     DG52ED.panel_art_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp));
@@ -4738,13 +4738,13 @@ void bin_scroll_back(void)
     uint16_t si;
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.word_2632 = 0;
+        DG2630.back_held = 0;
         DG4E67.state = 0x1000;
         DG4E67.redraw_a = 2;
         return;
     }
 
-    if (bin_repeat_due(((int16_t)DG2630.word_2632))) {   /* deviation: see above */
+    if (bin_repeat_due(((int16_t)DG2630.back_held))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(-5);
         if (si != DG50D3.bin_list_ptr) {
             DG50D3.bin_list_ptr = si;
@@ -4758,7 +4758,7 @@ void bin_scroll_back(void)
         }
     }
 
-    DG2630.word_2632++;
+    DG2630.back_held++;
     DG4E67.redraw_a = 2;
 }
 
@@ -4780,13 +4780,13 @@ void bin_scroll_forward(void)
     uint16_t si;
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.word_2634 = 0;
+        DG2630.forward_held = 0;
         DG4E67.state = 0x1000;
         DG4E67.redraw_a = 2;
         return;
     }
 
-    if (bin_repeat_due(((int16_t)DG2630.word_2634))) {   /* deviation: see above */
+    if (bin_repeat_due(((int16_t)DG2630.forward_held))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(5);
         if (si != 0)
             DG50D3.bin_list_ptr = si;
@@ -4795,7 +4795,7 @@ void bin_scroll_forward(void)
         DG4E67.redraw_e = 2;
     }
 
-    DG2630.word_2634++;
+    DG2630.forward_held++;
     DG4E67.redraw_a = 2;
 }
 
@@ -4859,7 +4859,7 @@ void region_cursor_bin(struct region *region)
     }
 
     region->cursor =
-        bin_part_at_index((int16_t)region->word_04) != 0 ? 2 : 0;
+        bin_part_at_index((int16_t)region->slot) != 0 ? 2 : 0;
 }
 
 /*
@@ -4913,7 +4913,7 @@ void region_click_bin(struct region *region)
     DG4E67.drag_offset_x = 0;
 
     part = PART_PTR(PART_PTR(bin_part_at_index(
-                     (int16_t)region->word_04))->next_ptr);
+                     (int16_t)region->slot))->next_ptr);
     DG50D3.dragged_part_ptr = dg_near(dgroup, part);
 
     if (part == PART_NONE) {
