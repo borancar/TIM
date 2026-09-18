@@ -3109,7 +3109,14 @@ struct asb_cs {
        not cross has `length_b` zero and is played in one. */
     uint8_t   page_a;          /* +0x0034 */
     uint8_t   page_b;          /* +0x0035 */
-    uint8_t   word_0036;          /* +0x0036 */
+    /* **Eight of this module's bytes keep their addresses** - +0x36, +0x3b,
+       +0x3d, +0x41, +0x42, +0x44, +0x49 and +0x52 - because each is read or
+       written at one site and nothing says what it is for. Four of them steer
+       the position function 4 reports: +0x52 doubles it, +0x36 halves it and
+       doubles it back around the limit test, and +0x44 skips that test
+       altogether, which has the shape of a format - stereo, or sixteen bits -
+       without saying so anywhere. */
+    uint8_t   word_0036;       /* +0x0036 */
     uint8_t   pad_0037[1];
     /* The DSP answered 2.00 or later, which `asb_probe_version` takes off the
        version it read; 3.00 or later also sets `irq10_worth`. */
@@ -3206,11 +3213,14 @@ struct asb_cs {
     struct far_ptr old_int10;     /* +0x009e */
     struct far_ptr old_int09;     /* +0x00a2 */
     uint8_t   pad_00a6[1811];
-    uint8_t   word_07b9;          /* +0x07b9 */
-    uint8_t   word_07ba;          /* +0x07ba */
-    uint8_t   word_07bb;          /* +0x07bb */
-    uint8_t   word_07bc;          /* +0x07bc */
-    uint8_t   word_07bd;          /* +0x07bd */
+    /* **What `asb_hook_irq` answered for each IRQ the probe tries**, and what
+       unhooking is given to put each back. IRQ 10 is only tried when
+       `irq10_worth` says the DSP is a 3.00 or later. */
+    uint8_t   probe_irq2;      /* +0x07b9 */
+    uint8_t   probe_irq3;      /* +0x07ba */
+    uint8_t   probe_irq5;      /* +0x07bb */
+    uint8_t   probe_irq7;      /* +0x07bc */
+    uint8_t   probe_irq10;     /* +0x07bd */
 } __attribute__((packed));
 
 #define ASBS (*(struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
@@ -3262,11 +3272,11 @@ _Static_assert(__builtin_offsetof(struct asb_cs, old_int0d) == 0x0096, "asb_cs.o
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int74) == 0x009a, "asb_cs.old_int74");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int10) == 0x009e, "asb_cs.old_int10");
 _Static_assert(__builtin_offsetof(struct asb_cs, old_int09) == 0x00a2, "asb_cs.old_int09");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_07b9) == 0x07b9, "asb_cs.word_07b9");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_07ba) == 0x07ba, "asb_cs.word_07ba");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_07bb) == 0x07bb, "asb_cs.word_07bb");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_07bc) == 0x07bc, "asb_cs.word_07bc");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_07bd) == 0x07bd, "asb_cs.word_07bd");
+_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq2) == 0x07b9, "asb_cs.probe_irq2");
+_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq3) == 0x07ba, "asb_cs.probe_irq3");
+_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq5) == 0x07bb, "asb_cs.probe_irq5");
+_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq7) == 0x07bc, "asb_cs.probe_irq7");
+_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq10) == 0x07bd, "asb_cs.probe_irq10");
 
 /*
  * **Segment 1c25, which keeps the displaced vectors inside its own code** -

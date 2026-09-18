@@ -565,14 +565,14 @@ uint16_t asb_probe_irq(void)
      */
     ASBS.pic_port = 0x21;
 
-    ASBS.word_07b9 = asb_hook_irq(2, 0x7a5, 0x0915);
-    ASBS.word_07ba = asb_hook_irq(3, 0x7a9, 0x091e);
-    ASBS.word_07bb = asb_hook_irq(5, 0x7ad, 0x0927);
-    ASBS.word_07bc = asb_hook_irq(7, 0x7b1, 0x0930);
+    ASBS.probe_irq2 = asb_hook_irq(2, 0x7a5, 0x0915);
+    ASBS.probe_irq3 = asb_hook_irq(3, 0x7a9, 0x091e);
+    ASBS.probe_irq5 = asb_hook_irq(5, 0x7ad, 0x0927);
+    ASBS.probe_irq7 = asb_hook_irq(7, 0x7b1, 0x0930);
 
     if (ASBS.irq10_worth == 1) {
         ASBS.pic_port = 0xa1;
-        ASBS.word_07bd = asb_hook_irq(10, 0x7b5, 0x0939);
+        ASBS.probe_irq10 = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
     lin = asb_linear((struct far_ptr){ 0xa6, ASB_SEG });
@@ -593,13 +593,13 @@ uint16_t asb_probe_irq(void)
 
     if (ASBS.irq10_worth == 1) {
         ASBS.pic_port = 0xa1;
-        asb_unhook_irq(10, 0x7b5, ASBS.word_07bd);
+        asb_unhook_irq(10, 0x7b5, ASBS.probe_irq10);
     }
-    asb_unhook_irq(7, 0x7b1, ASBS.word_07bc);
-    asb_unhook_irq(5, 0x7ad, ASBS.word_07bb);
+    asb_unhook_irq(7, 0x7b1, ASBS.probe_irq7);
+    asb_unhook_irq(5, 0x7ad, ASBS.probe_irq5);
     ASBS.pic_port = 0x21;
-    asb_unhook_irq(3, 0x7a9, ASBS.word_07ba);
-    asb_unhook_irq(2, 0x7a5, ASBS.word_07b9);
+    asb_unhook_irq(3, 0x7a9, ASBS.probe_irq3);
+    asb_unhook_irq(2, 0x7a5, ASBS.probe_irq2);
 
     ASBS.pic_port = (int16_t)(ASBS.irq > 7 ? 0xa1 : 0x21);
     return answer;
