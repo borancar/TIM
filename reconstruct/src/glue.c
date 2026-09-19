@@ -162,13 +162,16 @@ uint16_t sound_module_service(union sound_module_args * si)
 
 
 /*
- * 0x0bbb1, 0x0bbb8, 0x0bbbf
+ * 0x0bbb1
  *
  * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
- * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430.
+ * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430. One address each, because
+ * a group comment is provenance for the routine it sits above and no other.
  */
 uint16_t sound_module_9(union sound_module_args * si)  { return call_sound_module(9, si); }
+/* 0x0bbb8 */
 uint16_t sound_module_10(union sound_module_args * si) { return call_sound_module(10, si); }
+/* 0x0bbbf */
 uint16_t sound_module_11(union sound_module_args * si) { return call_sound_module(11, si); }
 
 

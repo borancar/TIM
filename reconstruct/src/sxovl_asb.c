@@ -651,7 +651,7 @@ uint16_t asb_detect(void)
 }
 
 /*
- * SX.OVL ASB:0x052b, 0x053e, 0x0551, 0x0564
+ * SX.OVL ASB:0x052b
  *
  * Four vector hooks that do nothing but say "busy": each raises a byte, chains
  * to the handler it replaced, and lowers it again. With the DOS InDOS flag at
@@ -661,10 +661,16 @@ uint16_t asb_detect(void)
  * **The port has no vectors to chain to**, so these are the flags and nothing
  * else. They exist because the module's state includes them and because
  * `asb_safe_to_call` reads them.
+ *
+ * One address each, below, because a group comment is provenance for the
+ * routine it sits above and for no other.
  */
 void asb_int10_hook(void) { ASBS.busy_int10 = 1; ASBS.busy_int10 = 0; }
+/* SX.OVL ASB:0x053e - the same, for the DOS/critical vector. */
 void asb_int0d_hook(void) { ASBS.busy_int0d = 1; ASBS.busy_int0d = 0; }
+/* SX.OVL ASB:0x0551 - the same, for the mouse's. */
 void asb_int74_hook(void) { ASBS.busy_int74 = 1; ASBS.busy_int74 = 0; }
+/* SX.OVL ASB:0x0564 - the same, for the keyboard's. */
 void asb_int09_hook(void) { ASBS.busy_int09 = 1; ASBS.busy_int09 = 0; }
 
 /*

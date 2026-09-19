@@ -49,7 +49,7 @@ def collect_overlay():
     """
     out = {}
     path = os.path.join(ROOT, "reconstruct", "src", "vmovl_vga.c")
-    transcribed, _ours, stubs, _bare, _internal = provenance.check(path)
+    transcribed, _ours, stubs = provenance.check(path)[:3]
     for name, addr in transcribed:
         out[int(addr, 16)] = (name, 0)
     for name, addr in stubs:
@@ -62,7 +62,16 @@ def collect():
     for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "**", "*.c"), recursive=True)):
         if os.path.basename(path) in OVERLAY_UNITS:
             continue
-        transcribed, _ours, stubs, _bare, _internal = provenance.check(path)
+        transcribed, _ours, stubs, _bare, _internal, errs = \
+            provenance.check(path)
+        # **A file the parser could not read is a file whose symbols are
+        # missing.** `provenance` now answers what it could not parse; a
+        # symbol table built quietly over that would name the wrong routine in
+        # every backtrace the hybrid prints.
+        if errs:
+            print("gensyms: %s has %d unparsed region(s), first at line %d"
+                  % (os.path.relpath(path, ROOT), len(errs),
+                     errs[0].start_point[0] + 1), file=sys.stderr)
         for name, addr in transcribed:
             try:
                 out[int(addr, 16)] = (name, 0)

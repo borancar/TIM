@@ -101,7 +101,7 @@ def port_frames():
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
     for path in sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "**",
                                               "*.c"), recursive=True)):
-        transcribed, _ours, _stubs, _bare, _internal = provenance.check(path)
+        transcribed = provenance.check(path)[0]
         for name, at in transcribed:
             try:
                 addr[name] = int(at, 16)

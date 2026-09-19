@@ -49,8 +49,21 @@ BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|SEGMENT_AT|DG_ASSERT_AT)"
 # An offsetof has to leave a `0` behind, or the `_Static_assert` around it
 # loses its operand and the error comes back one line further on.
 OFFSETOF_RE = re.compile(r"\b__builtin_offsetof\s*\([^()]*\)")
-# `far` and `huge` are the Borland tags, defined as nothing on the host.
+# `far` and `huge` are the Borland tags, defined as nothing on the host, and
+# `SDLCALL` is SDL's calling-convention tag in the same position.
 TAG_RE = re.compile(r"\b(?:far|huge)\b(?=\s*\*)")
+SDLCALL_RE = re.compile(r"\bSDLCALL\b")
+# **A conditional *inside* a function body.** `copy_protect_screen` has an
+# `#ifndef TIM_COPY_PROTECTION` around a label, which the C grammar cannot take
+# in an expression position - and the damage is not local: brace matching runs
+# past the routine's end and swallows every definition after it, which took
+# game.c from 300-odd top-level functions to five. Blanking the *directive*
+# lines - not the code between them - leaves both branches in the tree, which
+# for counting definitions and finding shapes is right. It would be wrong for a
+# tree with an `#if 0` block in it; there is none, and a rule that needed the
+# preprocessor's answer rather than the parser's would have to say so.
+PPCOND_RE = re.compile(r"^[ \t]*#[ \t]*(?:if|ifdef|ifndef|else|elif|endif)\b"
+                       r".*$", re.M)
 
 _PARSER = Parser(Language(tree_sitter_c.language()))
 
@@ -59,6 +72,8 @@ def expand(text):
     """The source with those four expanded, every offset preserved."""
     text = BLANK_RE.sub(lambda m: " " * len(m.group(0)), text)
     text = OFFSETOF_RE.sub(lambda m: "0" + " " * (len(m.group(0)) - 1), text)
+    text = PPCOND_RE.sub(lambda m: " " * len(m.group(0)), text)
+    text = SDLCALL_RE.sub("       ", text)
     return TAG_RE.sub("   ", text)
 
 

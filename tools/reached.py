@@ -101,7 +101,7 @@ def audit(used):
                            re.M))
     byaddr, stubs = {}, {}
     for path in sorted(glob.glob(os.path.join(root, "reconstruct", "**", "*.c"), recursive=True)):
-        t, _o, st, _b, _i = provenance.check(path)
+        t, _o, st = provenance.check(path)[:3]
         for name, addr in t:
             try:
                 byaddr.setdefault(int(addr, 16), (name, os.path.basename(path)))

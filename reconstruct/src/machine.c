@@ -8854,6 +8854,11 @@ void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
     clamp_record_pair(rec);
 }
 
+/* ours: a call counter for reconstruct/devdump.c. Above this
+   routine's comment, not between it and the routine: the
+   provenance is the comment *directly* above a definition. */
+int32_t dev_tension_belt_calls;
+
 /*
  * 0x072c7
  *
@@ -8887,8 +8892,6 @@ void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
  * a direction that depends on which side of it the belt leaves; everything else
  * goes through its own drive hook.
  */
-int32_t dev_tension_belt_calls;          /* ours: see reconstruct/devdump.c */
-
 int16_t tension_belt(struct part *part)
 {
     dev_tension_belt_calls++;
@@ -9316,6 +9319,11 @@ void splice_list_4e58_onto_4e56(void)
     DG4E4E.parts_queue_ptr = 0;
 }
 
+/* ours: a call counter for reconstruct/devdump.c. Above this
+   routine's comment, not between it and the routine: the
+   provenance is the comment *directly* above a definition. */
+int32_t dev_queue_part_calls;
+
 /*
  * 0x07b6f
  *
@@ -9331,8 +9339,6 @@ void splice_list_4e58_onto_4e56(void)
  * The queue is what `step_machine` runs first, so this is how one part asks
  * another to move before the general passes begin.
  */
-int32_t dev_queue_part_calls;            /* ours: see reconstruct/devdump.c */
-
 int16_t queue_part(struct part *src, uint16_t part)
 {
     dev_queue_part_calls++;
