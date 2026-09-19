@@ -219,13 +219,13 @@ _Static_assert(sizeof(struct game_copy_protection) == 0x60, "the answers end at 
  * **Not established**, DGROUP 0x259c..0x25a2, 0x06 bytes.
  */
 struct game_message_tabs {
-    uint16_t  word_259c;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
+    uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
     int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
 } __attribute__((packed));
 
-struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .word_259c = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
+struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
 _Static_assert(sizeof(struct game_message_tabs) == 0x06, "DGROUP 0x259c..0x25a2, 0x06 bytes");
-DG_ASSERT_AT(struct game_message_tabs, word_259c, 0x00);
+DG_ASSERT_AT(struct game_message_tabs, stop, 0x00);
 
 /*
  * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
@@ -255,18 +255,18 @@ _Static_assert(sizeof(struct game_button_labels) == 0x32, "GAME_BUTTON_LABELS en
  * **Not established**, DGROUP 0x260a..0x2620, 0x16 bytes.
  */
 struct game_puzzle_tabs {
-    uint16_t  word_260a;          /* +0x00 [2]  which of the puzzle screen's five tab stops */
+    uint16_t  stop;          /* +0x00 [2]  which of the puzzle screen's five tab stops */
     int16_t   stop_x[5];          /* +0x02 [0xa]  where `puzzle_tab` parks the pointer */
     int16_t   stop_y[5];          /* +0x0c [0xa] */
 } __attribute__((packed));
 
 struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
-    .word_260a = 0xffff,
+    .stop = 0xffff,
     .stop_x = { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 },
     .stop_y = { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 },
 };
 _Static_assert(sizeof(struct game_puzzle_tabs) == 0x16, "DGROUP 0x260a..0x2620, 0x16 bytes");
-DG_ASSERT_AT(struct game_puzzle_tabs, word_260a, 0x00);
+DG_ASSERT_AT(struct game_puzzle_tabs, stop, 0x00);
 
 /*
  * **The part bitmap's name pieces**, DGROUP 0x2620..0x2630: "*", ": ",
@@ -290,7 +290,7 @@ _Static_assert(sizeof(struct game_part_names) == 0x10, "DGROUP 0x2620..0x2630, 0
  * **Not established**, DGROUP 0x27ee..0x2818, 0x2a bytes.
  */
 struct game_play_tabs {
-    uint16_t  word_27ee;          /* +0x00 [2]  which of the eleven tab stops on the play screen */
+    uint16_t  stop;          /* +0x00 [2]  which of the eleven tab stops on the play screen */
     int16_t   stop_x[9];          /* +0x02 [0x12]  stops 9 and 10 take x from the two knobs instead */
     int16_t   stop_y[11];         /* +0x14 [0x16]  and its eleventh word, at 0x2816, is also the
                                             first of the level table below, which nothing
@@ -298,7 +298,7 @@ struct game_play_tabs {
 } __attribute__((packed));
 
 struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
-    .word_27ee = 0xffff,
+    .stop = 0xffff,
     .stop_x = {
         0x0042, 0x0064, 0x0064, 0x00c4, 0x00e6, 0x0051, 0x0079, 0x009e,
         0x00ce,
@@ -309,7 +309,7 @@ struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
     },
 };
 _Static_assert(sizeof(struct game_play_tabs) == 0x2a, "DGROUP 0x27ee..0x2818, 0x2a bytes");
-DG_ASSERT_AT(struct game_play_tabs, word_27ee, 0x00);
+DG_ASSERT_AT(struct game_play_tabs, stop, 0x00);
 
 /*
  * **Where each master level's marker is drawn**, DGROUP 0x2818..0x2824, 0x0c bytes: an x per
@@ -409,18 +409,18 @@ _Static_assert(sizeof(struct game_forbidden_chars) == 14, "the forbidden charact
  * **Not established**, DGROUP 0x28fa..0x2918, 0x1e bytes.
  */
 struct game_picker_tabs {
-    uint16_t  word_28fa;          /* +0x00 [2]  which of the picker's seven tab stops */
+    uint16_t  stop;          /* +0x00 [2]  which of the picker's seven tab stops */
     int16_t   stop_x[7];          /* +0x02 [0xe]  where `picker_tab` parks the pointer */
     int16_t   stop_y[7];          /* +0x10 [0xe] */
 } __attribute__((packed));
 
 struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
-    .word_28fa = 0xffff,
+    .stop = 0xffff,
     .stop_x = { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 },
     .stop_y = { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a },
 };
 _Static_assert(sizeof(struct game_picker_tabs) == 0x1e, "DGROUP 0x28fa..0x2918, 0x1e bytes");
-DG_ASSERT_AT(struct game_picker_tabs, word_28fa, 0x00);
+DG_ASSERT_AT(struct game_picker_tabs, stop, 0x00);
 
 /*
  * **The file dialog's strings**, DGROUP 0x2918..0x2966: the ".TIM" extension
@@ -548,12 +548,12 @@ struct game_picker_text {
     int16_t   picker_mode;        /* +0x00 [2]  0x80 from the mode it was opened from, else 0 */
     int16_t   scroll;             /* +0x02 [2]  clamped on the way in, not on the way out */
     int16_t   entry_count;        /* +0x04 [2] */
-    struct far_ptr text_start;    /* +0x06 [4]  where the listing's text begins: `word_569d`
+    struct far_ptr text_start;    /* +0x06 [4]  where the listing's text begins: `entry_max`
                                      four-byte pointer slots into `block`, same segment */
     struct far_ptr block;         /* +0x0a [4]  allocated once and kept; a null
                                      pointer is the end */
-    int16_t   word_569d;          /* +0x0e [2] */
-    uint8_t   word_569f;          /* +0x10 [1]  a byte: 0x56a0 follows at +0x11 */
+    int16_t   entry_max;          /* +0x0e [2] */
+    uint8_t   _pad_569f;          /* +0x10 [1]  a byte: 0x56a0 follows at +0x11 */
     int16_t   text_height;        /* +0x11 [2]  the block's measured extents, which the centring uses */
     int16_t   text_width;         /* +0x13 [2]  the widest line, clamped to the box */
     int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
@@ -566,8 +566,8 @@ DG_ASSERT_AT(struct game_picker_text, scroll,      0x02);
 DG_ASSERT_AT(struct game_picker_text, entry_count, 0x04);
 DG_ASSERT_AT(struct game_picker_text, text_start,  0x06);
 DG_ASSERT_AT(struct game_picker_text, block,       0x0a);
-DG_ASSERT_AT(struct game_picker_text, word_569d,   0x0e);
-DG_ASSERT_AT(struct game_picker_text, word_569f,   0x10);
+DG_ASSERT_AT(struct game_picker_text, entry_max,   0x0e);
+DG_ASSERT_AT(struct game_picker_text, _pad_569f,   0x10);
 DG_ASSERT_AT(struct game_picker_text, text_height, 0x11);
 DG_ASSERT_AT(struct game_picker_text, text_width,  0x13);
 DG_ASSERT_AT(struct game_picker_text, line_count,  0x15);
@@ -2895,13 +2895,13 @@ uint16_t select_puzzle_screen(void)
  */
 void puzzle_tab(void)
 {
-    GAME_PUZZLE_TABS.word_260a++;
+    GAME_PUZZLE_TABS.stop++;
 
-    if (GAME_PUZZLE_TABS.word_260a == 5)
-        GAME_PUZZLE_TABS.word_260a = 0;
+    if (GAME_PUZZLE_TABS.stop == 5)
+        GAME_PUZZLE_TABS.stop = 0;
 
-    move_pointer_to(GAME_PUZZLE_TABS.stop_x[GAME_PUZZLE_TABS.word_260a],
-                    GAME_PUZZLE_TABS.stop_y[GAME_PUZZLE_TABS.word_260a]);
+    move_pointer_to(GAME_PUZZLE_TABS.stop_x[GAME_PUZZLE_TABS.stop],
+                    GAME_PUZZLE_TABS.stop_y[GAME_PUZZLE_TABS.stop]);
 }
 
 /*
@@ -3646,19 +3646,19 @@ void tab_move_pointer(void)
     int16_t  x;
     uint16_t stop;
 
-    GAME_PLAY_TABS.word_27ee++;
+    GAME_PLAY_TABS.stop++;
 
     if (DG4E67.freeform != 0) {
-        if (GAME_PLAY_TABS.word_27ee == 5)
-            GAME_PLAY_TABS.word_27ee = 6;
-    } else if (GAME_PLAY_TABS.word_27ee == 7) {
-        GAME_PLAY_TABS.word_27ee = 0;
+        if (GAME_PLAY_TABS.stop == 5)
+            GAME_PLAY_TABS.stop = 6;
+    } else if (GAME_PLAY_TABS.stop == 7) {
+        GAME_PLAY_TABS.stop = 0;
     }
 
-    if (GAME_PLAY_TABS.word_27ee == 0x0b)
-        GAME_PLAY_TABS.word_27ee = 0;
+    if (GAME_PLAY_TABS.stop == 0x0b)
+        GAME_PLAY_TABS.stop = 0;
 
-    stop = GAME_PLAY_TABS.word_27ee;
+    stop = GAME_PLAY_TABS.stop;
 
     if (stop == 9)
         x = (int16_t)long_divide(mul16x16(DG50AF.air, 0xa0), 0x200)
@@ -3826,16 +3826,16 @@ uint16_t message_box(const char *title, char *body,
  */
 void message_box_tab(const char *button2)
 {
-    GAME_MESSAGE_TABS.word_259c++;
+    GAME_MESSAGE_TABS.stop++;
 
     if (button2 != NULL) {
-        if (GAME_MESSAGE_TABS.word_259c == 2)
-            GAME_MESSAGE_TABS.word_259c = 0;
+        if (GAME_MESSAGE_TABS.stop == 2)
+            GAME_MESSAGE_TABS.stop = 0;
     } else {
-        GAME_MESSAGE_TABS.word_259c = 0;
+        GAME_MESSAGE_TABS.stop = 0;
     }
 
-    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.word_259c],
+    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.stop],
                     0xde);
 }
 
@@ -6358,7 +6358,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
         if (reload != 0) {
             picker_begin(arg1, arg2, pat);
 
-            if (((uint16_t)GAME_PICKER_TEXT.word_569d) == 0) {
+            if (((uint16_t)GAME_PICKER_TEXT.entry_max) == 0) {
                 answer = 0;
                 goto out;
             }
@@ -6832,7 +6832,7 @@ void fill_file_listing(const char *pattern)
 
     more = dos_findfirst(GAME_FILE_STRINGS.star_dot_star_a, 0x10);
 
-    while (more == 0 && ((uint16_t)GAME_PICKER_TEXT.entry_count) < ((uint16_t)GAME_PICKER_TEXT.word_569d)) {
+    while (more == 0 && ((uint16_t)GAME_PICKER_TEXT.entry_count) < ((uint16_t)GAME_PICKER_TEXT.entry_max)) {
         name     = dos_find_name();
         name_ext = string_chr(name, '.');
 
@@ -6984,7 +6984,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
 
     if ((GAME_PICKER_TEXT.block.off | GAME_PICKER_TEXT.block.seg) == 0) {
         if ((DG3576.scratch.off | DG3576.scratch.seg) != 0) {
-            GAME_PICKER_TEXT.word_569d = 0x3e8;
+            GAME_PICKER_TEXT.entry_max = 0x3e8;
             GAME_PICKER_TEXT.block = DG3576.scratch;
         } else {
             v = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
@@ -6992,7 +6992,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
             if ((int32_t)v > 0x7530)
                 v = 0x7530;
 
-            GAME_PICKER_TEXT.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
+            GAME_PICKER_TEXT.entry_max = (uint16_t)long_divide((int32_t)v, 0x16);
 
             GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
@@ -7003,7 +7003,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
         GAME_PICKER_TEXT.text_start =
             far_from(GAME_PICKER_TEXT.block.seg,
                      dg_far_ptr(GAME_PICKER_TEXT.block)
-                     + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
+                     + 4 * ((uint16_t)GAME_PICKER_TEXT.entry_max));
     }
 
     fill_file_listing(pattern);
@@ -7337,13 +7337,13 @@ void picker_draw_filename(void)
  */
 void picker_tab(void)
 {
-    GAME_PICKER_TABS.word_28fa++;
+    GAME_PICKER_TABS.stop++;
 
-    if (GAME_PICKER_TABS.word_28fa == 7)
-        GAME_PICKER_TABS.word_28fa = 0;
+    if (GAME_PICKER_TABS.stop == 7)
+        GAME_PICKER_TABS.stop = 0;
 
-    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.word_28fa],
-                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.word_28fa]);
+    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.stop],
+                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.stop]);
 }
 
 /*

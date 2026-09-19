@@ -53,12 +53,12 @@ _Static_assert(sizeof(struct machine_draw_menu_anim) == 0x34, "the animation tab
  * **Not established**, DGROUP 0x25d6..0x25d8, 0x02 bytes.
  */
 struct machine_draw_selection_phase {
-    uint16_t  word_25d6;          /* +0x00 [2] */
+    uint16_t  phase;          /* +0x00 [2] */
 } __attribute__((packed));
 
 struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);
 _Static_assert(sizeof(struct machine_draw_selection_phase) == 0x02, "DGROUP 0x25d6..0x25d8, 0x02 bytes");
-DG_ASSERT_AT(struct machine_draw_selection_phase, word_25d6, 0x00);
+DG_ASSERT_AT(struct machine_draw_selection_phase, phase, 0x00);
 
 
 /*
@@ -2014,12 +2014,12 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
     int16_t  hx, hxm, hxr, hy, hym, hyb;
 
-    if (MACHINE_DRAW_SELECTION_PHASE.word_25d6 == 3)
-        MACHINE_DRAW_SELECTION_PHASE.word_25d6 = 0;
+    if (MACHINE_DRAW_SELECTION_PHASE.phase == 3)
+        MACHINE_DRAW_SELECTION_PHASE.phase = 0;
     else
-        MACHINE_DRAW_SELECTION_PHASE.word_25d6++;
+        MACHINE_DRAW_SELECTION_PHASE.phase++;
 
-    step = (int16_t)(4 - MACHINE_DRAW_SELECTION_PHASE.word_25d6);
+    step = (int16_t)(4 - MACHINE_DRAW_SELECTION_PHASE.phase);
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
@@ -2105,19 +2105,19 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 
     if (keep_l)
         draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.seg),
-                           (int16_t)(((uint16_t)VMDS.clip_left) - MACHINE_DRAW_SELECTION_PHASE.word_25d6),
+                           (int16_t)(((uint16_t)VMDS.clip_left) - MACHINE_DRAW_SELECTION_PHASE.phase),
                            (int16_t)((uint16_t)VMDS.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
         VMDS.clip_right++;
         draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
                            (int16_t)(((uint16_t)VMDS.clip_right) - 1),
-                           (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.word_25d6),
+                           (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.phase),
                            8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
                                (int16_t)(((uint16_t)VMDS.clip_right) - 1),
-                               (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.word_25d6
+                               (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.phase
                                          + 0x80), 8, 0x88, 0);
         VMDS.clip_right--;
     }

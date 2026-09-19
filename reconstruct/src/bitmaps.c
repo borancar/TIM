@@ -35,7 +35,7 @@
 struct bitmaps_flip_state {
     int16_t   flip_y;             /* +0x00 [2]  bit 0 of the draw flags */
     int16_t   flip_x;             /* +0x02 [2]  bit 1 of the draw flags */
-    uint16_t  word_63fa;          /* +0x04 [2]  not touched by these routines */
+    uint16_t  _pad_63fa;          /* +0x04 [2]  not touched by these routines */
     uint16_t  index_bits;         /* +0x06 [2]  bits per pixel index, or 8 */
     dg_near_t palette;            /* +0x08 [2]  the leaf's palette, in its frame */
 } __attribute__((packed));
@@ -44,7 +44,7 @@ struct bitmaps_flip_state BITMAPS_FLIP_STATE DGROUP_BSS(0x63f6);
 _Static_assert(sizeof(struct bitmaps_flip_state) == 0x0a, "DGROUP 0x63f6..0x6400, 0x0a bytes");
 DG_ASSERT_AT(struct bitmaps_flip_state, flip_y,     0x00);
 DG_ASSERT_AT(struct bitmaps_flip_state, flip_x,     0x02);
-DG_ASSERT_AT(struct bitmaps_flip_state, word_63fa,  0x04);
+DG_ASSERT_AT(struct bitmaps_flip_state, _pad_63fa,  0x04);
 DG_ASSERT_AT(struct bitmaps_flip_state, index_bits, 0x06);
 DG_ASSERT_AT(struct bitmaps_flip_state, palette,    0x08);
 

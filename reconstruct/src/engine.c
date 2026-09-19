@@ -149,9 +149,17 @@ _Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3,
 DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
 
 /*
- * **Not established**, DGROUP 0x35d3..0x3600, 0x2d bytes: three words the
- * image sets - 0x138b, 10000 and 1 - and two nine-byte runs that read as the
- * left and right bit masks, 0xff down to 0 and 0 up to 0xff.
+ * **The resource *writer's* state**, DGROUP 0x35d3..0x3600, 0x2d bytes: three
+ * words the image sets - 0x138b, 10000 and 1 - and two nine-byte runs that
+ * read as the left and right bit masks, 0xff down to 0 and 0 up to 0xff.
+ *
+ * **Nothing in the port touches the four words, and that is not an omission.**
+ * Every instruction in the image that names them is between 0x1cd2c and
+ * 0x1d54e - the gap between `next_lzw_code` and `open_resource` - which is the
+ * compressing side, and this port does not transcribe it: `engine_stream`'s
+ * `written` says the same thing. That side keeps its own `n_bits` and
+ * `maxcode` too, at 0x58b8 and 0x58c8, where the reader's are at 0x589e and
+ * 0x58b6.
  */
 struct engine_bit_state {
     uint8_t   pad_35d3[3];        /* +0x00 */
@@ -293,79 +301,103 @@ DG_ASSERT_AT(struct engine_huffman_positions, len, 0x100);
  * **Not established**, DGROUP 0x4460..0x4466, 0x06 bytes.
  */
 struct engine_pen {
-    uint16_t  word_4460;          /* +0x00 [2] */
-    uint16_t  word_4462;          /* +0x02 [2] */
-    int16_t   word_4464;          /* +0x04 [2] */
+    uint16_t  fade_weight;          /* +0x00 [2] */
+    uint16_t  fade_colour;          /* +0x02 [2] */
+    /* **The palette's size in bytes for the depth in use**, out of the table
+       below - 0x300 for 256 colours - and what the loader reads and the
+       allocator doubles. */
+    int16_t   palette_bytes;   /* +0x04 [2] */
 } __attribute__((packed));
 
-struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .word_4460 = 0x003f, .word_4464 = 0x0300 };
+struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .fade_weight = 0x003f, .palette_bytes = 0x0300 };
 _Static_assert(sizeof(struct engine_pen) == 0x06, "DGROUP 0x4460..0x4466, 0x06 bytes");
-DG_ASSERT_AT(struct engine_pen, word_4460, 0x00);
-DG_ASSERT_AT(struct engine_pen, word_4462, 0x02);
-DG_ASSERT_AT(struct engine_pen, word_4464, 0x04);
+DG_ASSERT_AT(struct engine_pen, fade_weight, 0x00);
+DG_ASSERT_AT(struct engine_pen, fade_colour, 0x02);
+DG_ASSERT_AT(struct engine_pen, palette_bytes, 0x04);
 
 /*
- * **The palette pointer table**, DGROUP 0x4466..0x4486, 0x20 bytes: sixteen words, one per
- * pixel shift, which `load_palette` and `set_palette_pointer` file into
- * `ENGINE_PEN.word_4464`. Up to 0x4486, where the chunk names begin.
+ * **How many bytes of palette each pixel depth has**, DGROUP 0x4466..0x4486,
+ * 0x20 bytes: sixteen words indexed by the pixel shift, which `load_palette`
+ * and `set_palette_pointer` file into `ENGINE_PEN.palette_bytes` and then read
+ * that many bytes of file into the block. 0x300 is 256 colours of three bytes
+ * and 0x30 is sixteen of three; the header called them pointers, which the
+ * values are not. Up to 0x4486, where the chunk names begin.
  */
-struct engine_palette_pointers {
-    int16_t   pointer[16];        /* +0x00 [0x20] */
+struct engine_palette_sizes {
+    int16_t   size[16];           /* +0x00 [0x20] */
 } __attribute__((packed));
 
-struct engine_palette_pointers ENGINE_PALETTE_POINTERS DGROUP_AT(0x4466) = {
-    .pointer = {
+struct engine_palette_sizes ENGINE_PALETTE_SIZES DGROUP_AT(0x4466) = {
+    .size = {
         0x0000, 0x0102, 0x0011, 0x0011, 0x0102, 0x0300, 0x0000, 0x0300,
         0x0300, 0x0300, 0x0300, 0x0030, 0x0030, 0x0030, 0x0030, 0x0300,
     },
 };
-_Static_assert(sizeof(struct engine_palette_pointers) == 0x20, "the palette pointers end at 0x4486");
+_Static_assert(sizeof(struct engine_palette_sizes) == 0x20, "the palette sizes end at 0x4486");
 
 /*
  * **The polygon walker's two chains**, DGROUP 0x44d0..0x44de, 0x0e bytes.
+ *
+ * `draw_polygon` finds the topmost and the bottommost vertex, and the ring
+ * between them is two chains - right from one to the other and left back
+ * again. `top_at` and `bottom_at` are those two vertices as byte offsets into
+ * the working arrays; `right_count` and `left_count` are how many points each
+ * chain got; `at` is the cursor stepping through them an edge at a time and
+ * `remaining` the count parked while an edge is drawn, because the original
+ * needs the register.
  */
 struct engine_polygon_chains {
-    uint16_t  word_44d0;          /* +0x00 [2] */
-    uint16_t  word_44d2;          /* +0x02 [2] */
-    uint16_t  word_44d4;          /* +0x04 [2] */
-    uint16_t  word_44d6;          /* +0x06 [2] */
-    uint16_t  word_44d8;          /* +0x08 [2] */
-    uint16_t  word_44da;          /* +0x0a [2] */
+    uint16_t  top_at;          /* +0x00 [2] */
+    uint16_t  bottom_at;          /* +0x02 [2] */
+    uint16_t  right_count;          /* +0x04 [2] */
+    uint16_t  left_count;          /* +0x06 [2] */
+    uint16_t  remaining;          /* +0x08 [2] */
+    uint16_t  at;          /* +0x0a [2] */
     uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
 } __attribute__((packed));
 
 struct engine_polygon_chains ENGINE_POLYGON_CHAINS DGROUP_AT(0x44d0);
 _Static_assert(sizeof(struct engine_polygon_chains) == 0x0e, "DGROUP 0x44d0..0x44de, 0x0e bytes");
-DG_ASSERT_AT(struct engine_polygon_chains, word_44d0, 0x00);
-DG_ASSERT_AT(struct engine_polygon_chains, word_44d2, 0x02);
-DG_ASSERT_AT(struct engine_polygon_chains, word_44d4, 0x04);
-DG_ASSERT_AT(struct engine_polygon_chains, word_44d6, 0x06);
-DG_ASSERT_AT(struct engine_polygon_chains, word_44d8, 0x08);
-DG_ASSERT_AT(struct engine_polygon_chains, word_44da, 0x0a);
+DG_ASSERT_AT(struct engine_polygon_chains, top_at, 0x00);
+DG_ASSERT_AT(struct engine_polygon_chains, bottom_at, 0x02);
+DG_ASSERT_AT(struct engine_polygon_chains, right_count, 0x04);
+DG_ASSERT_AT(struct engine_polygon_chains, left_count, 0x06);
+DG_ASSERT_AT(struct engine_polygon_chains, remaining, 0x08);
+DG_ASSERT_AT(struct engine_polygon_chains, at, 0x0a);
 DG_ASSERT_AT(struct engine_polygon_chains, chain,     0x0c);
 
 /*
- * **Not established**, DGROUP 0x44de..0x44ea, 0x0c bytes.
+ * **The polygon walker's own state**, DGROUP 0x44de..0x44ea, 0x0c bytes.
+ *
+ * `prev_x`/`prev_y` are the vertex before this one, which is how a repeated
+ * point is dropped; `span_seg` is the span buffer's segment; `span_step` is
+ * what `poly_walk` adds to its cursor beside the two, so one chain's spans
+ * land in the buffer's left column and the other's in the right.
+ *
+ * The outline is a second pass: when its colour differs from the fill,
+ * `outline_count` points of the ring are kept in `closed_x`/`closed_y` to be
+ * drawn after; `second_pass` and `second_count` are the other copy, the one
+ * kept when the two orderings came out exactly equal.
  */
 struct engine_polygon_state {
-    int16_t   word_44de;          /* +0x00 [2] */
-    int16_t   word_44e0;          /* +0x02 [2] */
-    uint16_t  word_44e2;          /* +0x04 [2] */
-    uint16_t  word_44e4;          /* +0x06 [2] */
-    uint16_t  word_44e6;          /* +0x08 [2] */
-    uint8_t   byte_44e8;          /* +0x0a [1] */
-    uint8_t   byte_44e9;          /* +0x0b [1] */
+    int16_t   prev_x;          /* +0x00 [2] */
+    int16_t   prev_y;          /* +0x02 [2] */
+    uint16_t  span_seg;          /* +0x04 [2] */
+    uint16_t  outline_count;          /* +0x06 [2] */
+    uint16_t  second_count;          /* +0x08 [2] */
+    uint8_t   span_step;          /* +0x0a [1] */
+    uint8_t   second_pass;          /* +0x0b [1] */
 } __attribute__((packed));
 
 struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
 _Static_assert(sizeof(struct engine_polygon_state) == 0x0c, "DGROUP 0x44de..0x44ea, 0x0c bytes");
-DG_ASSERT_AT(struct engine_polygon_state, word_44de, 0x00);
-DG_ASSERT_AT(struct engine_polygon_state, word_44e0, 0x02);
-DG_ASSERT_AT(struct engine_polygon_state, word_44e2, 0x04);
-DG_ASSERT_AT(struct engine_polygon_state, word_44e4, 0x06);
-DG_ASSERT_AT(struct engine_polygon_state, word_44e6, 0x08);
-DG_ASSERT_AT(struct engine_polygon_state, byte_44e8, 0x0a);
-DG_ASSERT_AT(struct engine_polygon_state, byte_44e9, 0x0b);
+DG_ASSERT_AT(struct engine_polygon_state, prev_x, 0x00);
+DG_ASSERT_AT(struct engine_polygon_state, prev_y, 0x02);
+DG_ASSERT_AT(struct engine_polygon_state, span_seg, 0x04);
+DG_ASSERT_AT(struct engine_polygon_state, outline_count, 0x06);
+DG_ASSERT_AT(struct engine_polygon_state, second_count, 0x08);
+DG_ASSERT_AT(struct engine_polygon_state, span_step, 0x0a);
+DG_ASSERT_AT(struct engine_polygon_state, second_pass, 0x0b);
 
 /*
  * **The stride shift table**, DGROUP 0x457a..0x458c, 0x12 bytes: `blit_scaled_b` shifts a
@@ -394,8 +426,14 @@ _Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts e
 struct engine_keyboard {
     uint8_t   installed;          /* +0x00 [1]  the keyboard handler is in: install_keyboard
                                      returns at once while it is set, remove_keyboard clears it */
+    /* Read twice and written nowhere - `install_keyboard` sets bit 0x40 of
+       BIOS 40:17 when it is set, and the ISR tests it beside the same bit -
+       so the image's value is the whole of it. */
     uint8_t   byte_458d;          /* +0x01 [1] */
-    uint16_t  word_458e;          /* +0x02 [2] */
+    /* **The last key event the ISR made**, the scancode and the character as
+       one word: what it pushes into the BIOS ring, and cleared again on the
+       release. */
+    uint16_t  last_event;         /* +0x02 [2] */
     /* **The keyboard's tables**, as `keyboard_isr` reads them. The extents
        are the ISR's own bounds - it drops any scancode at or above 0x59
        before touching a table, and walks the PCjr remap eleven wide - and
@@ -485,7 +523,7 @@ struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
 };
 DG_ASSERT_AT(struct engine_keyboard, installed, 0x00);
 DG_ASSERT_AT(struct engine_keyboard, byte_458d, 0x01);
-DG_ASSERT_AT(struct engine_keyboard, word_458e, 0x02);
+DG_ASSERT_AT(struct engine_keyboard, last_event, 0x02);
 DG_ASSERT_AT(struct engine_keyboard, held,      0x04);
 DG_ASSERT_AT(struct engine_keyboard, ascii,     0x4e);
 DG_ASSERT_AT(struct engine_keyboard, shifted,   0xa7);
@@ -595,14 +633,16 @@ _Static_assert(sizeof(struct engine_font_tag) == 0x08, "DGROUP 0x495e..0x4966, 0
 struct engine_resource_flags {
     uint8_t   flags;              /* +0x00 [1]  bit 0x40 makes the copy happen at all; bit 0x20 picks 0x1cd2c */
     uint8_t   pad_57bb[1];        /* +0x01 [1] */
-    uint16_t  word_57bc;          /* +0x02 [2] */
+    /* **The stream the reader is on**, the same near pointer to a `file_rec`
+       the selected resource holds; every read below goes through it. */
+    dg_near_t file_ptr;           /* +0x02 [2] */
     uint8_t   handler;            /* +0x04 [1]  the low five bits of the byte, indexing a table of handlers */
 } __attribute__((packed));
 
 struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
 _Static_assert(sizeof(struct engine_resource_flags) == 0x05, "DGROUP 0x57ba..0x57bf, 0x05 bytes");
 DG_ASSERT_AT(struct engine_resource_flags, flags,     0x00);
-DG_ASSERT_AT(struct engine_resource_flags, word_57bc, 0x02);
+DG_ASSERT_AT(struct engine_resource_flags, file_ptr, 0x02);
 DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
 
 /*
@@ -723,14 +763,14 @@ DG_ASSERT_AT(struct engine_match_resume, progress,    0x06);
  * words and `jae` on the low, which is one signed 32-bit compare.
  */
 struct engine_lzss_state {
-    uint16_t  word_58e8;          /* +0x00 [2] */
+    uint16_t  ring_pos;          /* +0x00 [2] */
     int32_t   count;              /* +0x02 [4]  bytes produced so far */
     int32_t   size;               /* +0x06 [4]  the record's size, copied at the start */
 } __attribute__((packed));
 
 struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
 _Static_assert(sizeof(struct engine_lzss_state) == 0x0a, "DGROUP 0x58e8..0x58f2, 0x0a bytes");
-DG_ASSERT_AT(struct engine_lzss_state, word_58e8, 0x00);
+DG_ASSERT_AT(struct engine_lzss_state, ring_pos, 0x00);
 DG_ASSERT_AT(struct engine_lzss_state, count,     0x02);
 DG_ASSERT_AT(struct engine_lzss_state, size,      0x06);
 
@@ -955,7 +995,7 @@ struct engine_bitmap_compress {
        `out` by hand between bitmaps and steps its offset alone in between. */
     struct far_ptr out_start;     /* +0x02 [4]  where the output started, and
                                             does not move */
-    uint16_t  word_63e8;          /* +0x06 [2] */
+    uint16_t  block_paras;          /* +0x06 [2] */
     struct far_ptr src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
                                      only the offset steps */
     struct far_ptr out;           /* +0x0c [4]  where the next byte goes */
@@ -967,7 +1007,7 @@ struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_BSS(0x63e2);
 _Static_assert(sizeof(struct engine_bitmap_compress) == 0x14, "DGROUP 0x63e2..0x63f6, 0x14 bytes");
 DG_ASSERT_AT(struct engine_bitmap_compress, pending_rows, 0x00);
 DG_ASSERT_AT(struct engine_bitmap_compress, out_start,    0x02);
-DG_ASSERT_AT(struct engine_bitmap_compress, word_63e8,    0x06);
+DG_ASSERT_AT(struct engine_bitmap_compress, block_paras,    0x06);
 DG_ASSERT_AT(struct engine_bitmap_compress, src,          0x08);
 DG_ASSERT_AT(struct engine_bitmap_compress, out,          0x0c);
 DG_ASSERT_AT(struct engine_bitmap_compress, row_buffer_ptr, 0x10);
@@ -1043,7 +1083,7 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count)
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
         di = (int16_t)game_fread(ENGINE_READ_STAGING.buf, 1, n,
-                                 FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
+                                 FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
         si = (int16_t)(si - di);
 
         far_memcpy(dst, ENGINE_READ_STAGING.buf, (uint16_t)di);
@@ -1098,7 +1138,7 @@ int16_t read_input_block(uint8_t *dst, uint16_t count)
 
     if ((ENGINE_STREAM.kind & 0x20) != 0)
         return (int16_t)game_fread(dst, 1, (uint16_t)n,
-                                   FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
+                                   FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
 
     far_memcpy(dst,
                dg_far_ptr(ENGINE_STREAM.in), (uint16_t)n);
@@ -1146,7 +1186,7 @@ int16_t emit_literal_run(uint16_t n)
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
         read_into_huge(dg_far_ptr(ENGINE_STREAM.out), n);
     else
-        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), n, 1);
+        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), n, 1);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
     huge_add_to(&ENGINE_STREAM.out, (int32_t)n);
@@ -1680,7 +1720,7 @@ int16_t select_resource(int16_t handle)
     ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
     if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->file_ptr;
+        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->file_ptr;
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
@@ -1716,7 +1756,7 @@ int16_t next_input_byte(void)
     RESOURCE_PTR(rec)->in++;
 
     if ((ENGINE_STREAM.kind & 0x20) != 0)
-        return game_fgetc(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
+        return game_fgetc(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
 
     {
         /* 0x5898 is `ENGINE_STREAM.in`, which is already a pair - the read
@@ -2282,7 +2322,7 @@ int16_t restart_resource_stream(int16_t handle)
     if (RESOURCE_PTR(rec)->kind & 0x20) {
         uint32_t at = RESOURCE_PTR(rec)->start + 5;
 
-        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), (int32_t)at, 0);
+        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), (int32_t)at, 0);
     } else {
         struct far_ptr p = huge_add(RESOURCE_PTR(rec)->data, 5);
 
@@ -2663,7 +2703,7 @@ int16_t decompress_lzss(void)
         for (i = 0; i < 0xfc4; i++)
             ring[i] = 0x20;
 
-        ENGINE_LZSS_STATE.word_58e8 = 0xfc4;
+        ENGINE_LZSS_STATE.ring_pos = 0xfc4;
         ENGINE_LZSS_STATE.count = 0;
 
         rec = ENGINE_STREAM.record_ptr;
@@ -2691,8 +2731,8 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                ring[ENGINE_LZSS_STATE.word_58e8] = (uint8_t)di;
-                ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
+                ring[ENGINE_LZSS_STATE.ring_pos] = (uint8_t)di;
+                ENGINE_LZSS_STATE.ring_pos = (int16_t)((ENGINE_LZSS_STATE.ring_pos + 1) & 0xfff);
                 ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
 
                 if (si == 0)
@@ -2704,7 +2744,7 @@ int16_t decompress_lzss(void)
             {
                 uint16_t pos = (uint16_t)decode_position();
 
-                ENGINE_MATCH_RESUME.position = (int16_t)((ENGINE_LZSS_STATE.word_58e8 - pos - 1) & 0xfff);
+                ENGINE_MATCH_RESUME.position = (int16_t)((ENGINE_LZSS_STATE.ring_pos - pos - 1) & 0xfff);
                 ENGINE_MATCH_RESUME.length = (int16_t)(di + 0xff03);
                 ENGINE_MATCH_RESUME.progress = 0;
             }
@@ -2719,8 +2759,8 @@ int16_t decompress_lzss(void)
 
             si = emit_byte(b);
 
-            ring[ENGINE_LZSS_STATE.word_58e8] = (uint8_t)b;
-            ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
+            ring[ENGINE_LZSS_STATE.ring_pos] = (uint8_t)b;
+            ENGINE_LZSS_STATE.ring_pos = (int16_t)((ENGINE_LZSS_STATE.ring_pos + 1) & 0xfff);
             ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
 
             ENGINE_MATCH_RESUME.progress = (int16_t)(((uint16_t)ENGINE_MATCH_RESUME.progress) + 1);
@@ -2794,8 +2834,8 @@ void restore_write_mode(void)
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight)
 {
-    ENGINE_PEN.word_4460 = weight;
-    ENGINE_PEN.word_4462 = colour;
+    ENGINE_PEN.fade_weight = weight;
+    ENGINE_PEN.fade_colour = colour;
 
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 }
@@ -2839,7 +2879,7 @@ uint8_t far *load_palette(char *name)
     int16_t di;
     int32_t size;
 
-    ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[(int16_t)VMDS.pixel_shift];
+    ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[(int16_t)VMDS.pixel_shift];
 
     di = 1;
     for (;;) {
@@ -2868,12 +2908,12 @@ uint8_t far *load_palette(char *name)
             0);
 
         if (chunk != -1) {
-            size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
+            size = ENGINE_PEN.palette_bytes;                /* the `cwd` sign-extends it */
             blk = dos_alloc_bytes(size, 0, 0).ptr;
 
             if (blk != FAR_NULL_PTR) {
-                game_fread(buf, 1, (uint16_t)ENGINE_PEN.word_4464, file);
-                size = ENGINE_PEN.word_4464;
+                game_fread(buf, 1, (uint16_t)ENGINE_PEN.palette_bytes, file);
+                size = ENGINE_PEN.palette_bytes;
                 huge_move(blk, buf, (uint32_t)size);
             }
         } else if (VMDS.unknown_1f != 0) {
@@ -2881,7 +2921,7 @@ uint8_t far *load_palette(char *name)
 
             if (chunk != -1
                 && game_fread((uint8_t *)amg, 1, 0x40, file) != 0) {
-                size = ENGINE_PEN.word_4464;
+                size = ENGINE_PEN.palette_bytes;
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
                 if (blk != FAR_NULL_PTR) {
@@ -2933,11 +2973,11 @@ uint8_t far *set_palette_pointer(uint8_t far * h)
 {
     int16_t idx = VMDS.pixel_shift;
 
-    ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[idx];
+    ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[idx];
 
     if (dg_far_ptr(VMDS.palettes.blocks[0]) == FAR_NULL_PTR
-        && ENGINE_PEN.word_4464 != 0) {
-        int16_t bytes = (int16_t)(ENGINE_PEN.word_4464 * 2);
+        && ENGINE_PEN.palette_bytes != 0) {
+        int16_t bytes = (int16_t)(ENGINE_PEN.palette_bytes * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
         VMDS.palettes.blocks[0] = far_of(dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr);
@@ -3711,7 +3751,7 @@ void keyboard_isr(void)
                 ENGINE_KEYBOARD.held[di] = 0;
         }
 
-        ENGINE_KEYBOARD.word_458e = 0;
+        ENGINE_KEYBOARD.last_event = 0;
 
         al = ENGINE_KEYBOARD.ascii[al & 0x7f];
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
@@ -3764,7 +3804,7 @@ void keyboard_isr(void)
         uint16_t head, tail;
         int16_t full = 0;
 
-        ENGINE_KEYBOARD.word_458e = ax;
+        ENGINE_KEYBOARD.last_event = ax;
 
         head = (uint16_t)FAR16(0x40, 0x1a);
         tail = (uint16_t)FAR16(0x40, 0x1c);
@@ -7169,9 +7209,9 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
 
     segs = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg - ENGINE_BITMAP_COMPRESS.out_start.seg);
     over = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.off - ENGINE_BITMAP_COMPRESS.out_start.off);
-    ENGINE_BITMAP_COMPRESS.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
+    ENGINE_BITMAP_COMPRESS.block_paras = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
-    io_dos_resize(BMP_PTR(list[0])->data.seg, ENGINE_BITMAP_COMPRESS.word_63e8);
+    io_dos_resize(BMP_PTR(list[0])->data.seg, ENGINE_BITMAP_COMPRESS.block_paras);
 
     heap_free_far(dg_near_ptr(ENGINE_BITMAP_COMPRESS.row_buffer_ptr));
 
@@ -7406,7 +7446,7 @@ void compress_bitmap(struct bitmap *bmp)
     int16_t x, y;
 
     ENGINE_BITMAP_COMPRESS.pending_rows = 0;
-    ENGINE_BITMAP_COMPRESS.word_63e8 = 0;
+    ENGINE_BITMAP_COMPRESS.block_paras = 0;
 
     ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
 
@@ -8548,7 +8588,7 @@ void clip_polygon(void)
 void poly_walk(uint8_t far * span, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di)
 {
-    int16_t di_step = (int8_t)ENGINE_POLYGON_STATE.byte_44e8;
+    int16_t di_step = (int8_t)ENGINE_POLYGON_STATE.span_step;
 
     di = (uint16_t)((di << 2) + ENGINE_POLYGON_CHAINS.chain);
 
@@ -8580,7 +8620,7 @@ void poly_edge_vertical(uint8_t far * span, int16_t x,
         y2 = t;
     }
 
-    ENGINE_POLYGON_STATE.byte_44e8 = 2;
+    ENGINE_POLYGON_STATE.span_step = 2;
     poly_walk(span, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
 }
 
@@ -8612,7 +8652,7 @@ void poly_edge_diagonal(uint8_t far * span, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    ENGINE_POLYGON_STATE.byte_44e8 = 2;
+    ENGINE_POLYGON_STATE.span_step = 2;
     poly_walk(span, x1, 0, (x1 < x2) ? 1 : -1, 0,
               (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
 }
@@ -8950,8 +8990,8 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     int16_t ax, bx, cx, dx, si, di, bp;
     int16_t i;
 
-    ENGINE_POLYGON_STATE.word_44e2 = 0;
-    ENGINE_POLYGON_STATE.byte_44e9 = 0;
+    ENGINE_POLYGON_STATE.span_seg = 0;
+    ENGINE_POLYGON_STATE.second_pass = 0;
 
     if (n >= 0) {
         VMDS.palettes.clip_count = (uint16_t)n;
@@ -8980,7 +9020,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 
     if (VMDS.second_colour != VMDS.fill_colour) {
         n = (int16_t)VMDS.palettes.clip_count;
-        ENGINE_POLYGON_STATE.word_44e4 = (uint16_t)n;
+        ENGINE_POLYGON_STATE.outline_count = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
             VMDS.closed_x[i] = ((uint16_t)VMDS.poly_x[i]);
@@ -9002,24 +9042,24 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     }
 
     si = (int16_t)((n - 1) * 2);
-    ENGINE_POLYGON_STATE.word_44e0 = ((uint16_t)VMDS.poly_y[0]);
+    ENGINE_POLYGON_STATE.prev_y = ((uint16_t)VMDS.poly_y[0]);
     dx = 0x7fff;
     bx = (int16_t)0x8001;
-    ENGINE_POLYGON_STATE.word_44de = ((uint16_t)VMDS.poly_x[0]);
+    ENGINE_POLYGON_STATE.prev_x = ((uint16_t)VMDS.poly_x[0]);
     bp = dx;
     cx = bx;
     di = 0;
-    ENGINE_POLYGON_CHAINS.word_44d0 = 0;
-    ENGINE_POLYGON_CHAINS.word_44d2 = 0;
+    ENGINE_POLYGON_CHAINS.top_at = 0;
+    ENGINE_POLYGON_CHAINS.bottom_at = 0;
 
     for (; si >= 0; si -= 2) {
         ax = VMDS.poly_y[si >> 1];
 
-        if (ax == ENGINE_POLYGON_STATE.word_44e0
-            && VMDS.poly_x[si >> 1] == ENGINE_POLYGON_STATE.word_44de)
+        if (ax == ENGINE_POLYGON_STATE.prev_y
+            && VMDS.poly_x[si >> 1] == ENGINE_POLYGON_STATE.prev_x)
             continue;
 
-        ENGINE_POLYGON_STATE.word_44e0 = ax;
+        ENGINE_POLYGON_STATE.prev_y = ax;
         VMDS.work_y[di >> 1] = ax;
 
         /*
@@ -9033,20 +9073,20 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
          */
         if (ax < dx
             || (ax == dx && VMDS.poly_x[si >> 1] > cx)) {
-            ENGINE_POLYGON_CHAINS.word_44d0 = (uint16_t)di;
+            ENGINE_POLYGON_CHAINS.top_at = (uint16_t)di;
             dx = ax;
             cx = VMDS.poly_x[si >> 1];
         }
 
         if (ax > bx
             || (ax == bx && VMDS.poly_x[si >> 1] <= bp)) {
-            ENGINE_POLYGON_CHAINS.word_44d2 = (uint16_t)di;
+            ENGINE_POLYGON_CHAINS.bottom_at = (uint16_t)di;
             bx = ax;
             bp = VMDS.poly_x[si >> 1];
         }
 
         ax = VMDS.poly_x[si >> 1];
-        ENGINE_POLYGON_STATE.word_44de = ax;
+        ENGINE_POLYGON_STATE.prev_x = ax;
         VMDS.work_x[di >> 1] = ax;
         di += 2;
     }
@@ -9094,7 +9134,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
      * quotient-then-remainder rather than by cross-multiplying, because the
      * product would not fit.
      */
-    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d0;
+    si = (int16_t)ENGINE_POLYGON_CHAINS.top_at;
     di = (int16_t)(si + 2);
     if (di >= cx)
         di = 0;
@@ -9182,8 +9222,8 @@ compare:
     }
 
     /* Exactly equal: keep a copy for a second pass and go on. */
-    ENGINE_POLYGON_STATE.byte_44e9 = 1;
-    ENGINE_POLYGON_STATE.word_44e6 = (uint16_t)cx;
+    ENGINE_POLYGON_STATE.second_pass = 1;
+    ENGINE_POLYGON_STATE.second_count = (uint16_t)cx;
     for (i = 0; i < cx; i += 2) {
         VMDS.closed_x[i >> 1] = VMDS.work_x[i >> 1];
         VMDS.closed_y[i >> 1] = VMDS.work_y[i >> 1];
@@ -9201,13 +9241,13 @@ reverse:
         VMDS.poly_x[(cx - 2 - i) >> 1] = VMDS.work_x[i >> 1];
         VMDS.poly_y[(cx - 2 - i) >> 1] = VMDS.work_y[i >> 1];
     }
-    ENGINE_POLYGON_CHAINS.word_44d0 = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.word_44d0);
-    ENGINE_POLYGON_CHAINS.word_44d2 = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.word_44d2);
+    ENGINE_POLYGON_CHAINS.top_at = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.top_at);
+    ENGINE_POLYGON_CHAINS.bottom_at = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.bottom_at);
 
 chains:
     /* The right chain: from the bottom vertex up to the top. */
-    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
-    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d0;
+    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.bottom_at >> 1];
+    si = (int16_t)ENGINE_POLYGON_CHAINS.top_at;
     di = 0;
     for (;;) {
         VMDS.work_x[di >> 1] = VMDS.poly_x[si >> 1];
@@ -9220,11 +9260,11 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    ENGINE_POLYGON_CHAINS.word_44d4 = (uint16_t)((uint16_t)di >> 1);
+    ENGINE_POLYGON_CHAINS.right_count = (uint16_t)((uint16_t)di >> 1);
 
     /* The left chain: from the top vertex down to the bottom. */
-    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d0 >> 1];
-    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d2;
+    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.top_at >> 1];
+    si = (int16_t)ENGINE_POLYGON_CHAINS.bottom_at;
     for (;;) {
         VMDS.work_x[di >> 1] = VMDS.poly_x[si >> 1];
         ax = VMDS.poly_y[si >> 1];
@@ -9236,31 +9276,31 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    ENGINE_POLYGON_CHAINS.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.word_44d4);
+    ENGINE_POLYGON_CHAINS.left_count = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.right_count);
 
     seg = DG4342.span_buffer_seg;
     span = MK_FP(seg, 0);
 
     ENGINE_POLYGON_CHAINS.chain = 2;
-    ENGINE_POLYGON_CHAINS.word_44da = 0;
-    ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d4;
+    ENGINE_POLYGON_CHAINS.at = 0;
+    ax = (int16_t)ENGINE_POLYGON_CHAINS.right_count;
 
     for (;;) {
         ax--;
         if (ax == 0) {
             if (ENGINE_POLYGON_CHAINS.chain != 0) {
-                ENGINE_POLYGON_CHAINS.word_44da += 2;
+                ENGINE_POLYGON_CHAINS.at += 2;
                 ENGINE_POLYGON_CHAINS.chain = 0;
-                ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d6;
+                ax = (int16_t)ENGINE_POLYGON_CHAINS.left_count;
                 continue;
             }
             break;
         }
 
-        ENGINE_POLYGON_CHAINS.word_44d8 = (uint16_t)ax;
+        ENGINE_POLYGON_CHAINS.remaining = (uint16_t)ax;
 
-        si = (int16_t)ENGINE_POLYGON_CHAINS.word_44da;
-        ENGINE_POLYGON_CHAINS.word_44da = (uint16_t)(si + 2);
+        si = (int16_t)ENGINE_POLYGON_CHAINS.at;
+        ENGINE_POLYGON_CHAINS.at = (uint16_t)(si + 2);
 
         {
             int16_t x1 = VMDS.work_x[si >> 1];
@@ -9302,13 +9342,13 @@ chains:
             }
         }
 
-        ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d8;
+        ax = (int16_t)ENGINE_POLYGON_CHAINS.remaining;
     }
 
     /* Hand the whole buffer to the driver's span filler in one call. */
     {
-        int16_t top = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d0 >> 1];
-        int16_t bottom = VMDS.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
+        int16_t top = VMDS.poly_y[ENGINE_POLYGON_CHAINS.top_at >> 1];
+        int16_t bottom = VMDS.poly_y[ENGINE_POLYGON_CHAINS.bottom_at >> 1];
         /* The list starts four words before the first row's pair: the
            first row and the row count, in the segment below `seg`. */
         /* The paragraph below the buffer - `seg - 1` - is where the list's
@@ -9316,7 +9356,7 @@ chains:
         uint8_t *spans = span - 0x10 + (uint16_t)((top << 2) + 0x0c);
         int16_t rows = (int16_t)(bottom - top + 1);
 
-        ENGINE_POLYGON_STATE.word_44e2 = seg;
+        ENGINE_POLYGON_STATE.span_seg = seg;
 
         spans[0] = (uint8_t)top;
         spans[1] = (uint8_t)((uint16_t)top >> 8);
@@ -9327,13 +9367,13 @@ chains:
     }
 
     if (VMDS.second_colour != VMDS.fill_colour)
-        poly_outline(VMDS.closed_x, VMDS.closed_y, (int16_t)ENGINE_POLYGON_STATE.word_44e4);
+        poly_outline(VMDS.closed_x, VMDS.closed_y, (int16_t)ENGINE_POLYGON_STATE.outline_count);
 
 out:
-    if (ENGINE_POLYGON_STATE.byte_44e9 != 0) {
+    if (ENGINE_POLYGON_STATE.second_pass != 0) {
         /* The second pass, for a polygon whose two top edges had one slope. */
-        ENGINE_POLYGON_STATE.byte_44e9 = 0;
-        cx = (int16_t)ENGINE_POLYGON_STATE.word_44e6;
+        ENGINE_POLYGON_STATE.second_pass = 0;
+        cx = (int16_t)ENGINE_POLYGON_STATE.second_count;
         for (i = 0; i < cx; i += 2) {
             VMDS.work_x[i >> 1] = ((uint16_t)VMDS.closed_x[i >> 1]);
             VMDS.work_y[i >> 1] = ((uint16_t)VMDS.closed_y[i >> 1]);

@@ -70,12 +70,12 @@ _Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots en
  * **Not established**, DGROUP 0x286e..0x2870, 0x02 bytes.
  */
 struct machine_button_prev {
-    int16_t   word_286e;          /* +0x00 [2] */
+    int16_t   prev;          /* +0x00 [2] */
 } __attribute__((packed));
 
 struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e);
 _Static_assert(sizeof(struct machine_button_prev) == 0x02, "DGROUP 0x286e..0x2870, 0x02 bytes");
-DG_ASSERT_AT(struct machine_button_prev, word_286e, 0x00);
+DG_ASSERT_AT(struct machine_button_prev, prev, 0x00);
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP
@@ -146,36 +146,36 @@ _Static_assert(sizeof(struct machine_page_pairs) == 0x28, "the page pairs end at
 struct machine_cursor_state {
     uint16_t  page;               /* +0x00 [2]  the page the middle call passes */
     uint16_t  screen_disturbed;   /* +0x02 [2]  the saved rectangles are put back when this says so */
-    uint16_t  word_2d36;          /* +0x04 [2] */
-    uint16_t  word_2d38;          /* +0x06 [2] */
+    uint16_t  fade_first;          /* +0x04 [2] */
+    uint16_t  fade_count;          /* +0x06 [2] */
     struct far_ptr pending_pal;   /* +0x08 [4]  a palette waiting to be loaded */
     uint16_t  cursor_off;         /* +0x0c [2]  clear turns the whole cursor off - nothing is drawn */
     int16_t   delay_reload;       /* +0x0e [2]  the delay counts down and is reloaded from here */
     uint16_t  read_driver;        /* +0x10 [2]  take the position from the driver rather than the last known */
     uint16_t  flag_2d44;          /* +0x12 [2]  what clear_flag_2d44 zeroes, and nothing else */
-    int16_t   word_2d46;          /* +0x14 [2] */
+    int16_t   slots_unset;          /* +0x14 [2] */
 } __attribute__((packed));
 
 struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
     .page = 0x0001,
-    .word_2d38 = 0x0100,
+    .fade_count = 0x0100,
     .cursor_off = 0x0001,
     .delay_reload = 0x000c,
     .read_driver = 0x0001,
     .flag_2d44 = 0x0001,
-    .word_2d46 = 0x0001,
+    .slots_unset = 0x0001,
 };
 _Static_assert(sizeof(struct machine_cursor_state) == 0x16, "DGROUP 0x2d32..0x2d48, 0x16 bytes");
 DG_ASSERT_AT(struct machine_cursor_state, page,             0x00);
 DG_ASSERT_AT(struct machine_cursor_state, screen_disturbed, 0x02);
-DG_ASSERT_AT(struct machine_cursor_state, word_2d36,        0x04);
-DG_ASSERT_AT(struct machine_cursor_state, word_2d38,        0x06);
+DG_ASSERT_AT(struct machine_cursor_state, fade_first,        0x04);
+DG_ASSERT_AT(struct machine_cursor_state, fade_count,        0x06);
 DG_ASSERT_AT(struct machine_cursor_state, pending_pal,      0x08);
 DG_ASSERT_AT(struct machine_cursor_state, cursor_off,       0x0c);
 DG_ASSERT_AT(struct machine_cursor_state, delay_reload,     0x0e);
 DG_ASSERT_AT(struct machine_cursor_state, read_driver,      0x10);
 DG_ASSERT_AT(struct machine_cursor_state, flag_2d44,        0x12);
-DG_ASSERT_AT(struct machine_cursor_state, word_2d46,        0x14);
+DG_ASSERT_AT(struct machine_cursor_state, slots_unset,        0x14);
 
 /*
  * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
@@ -247,15 +247,15 @@ struct machine_rect_free {
        reached only from the creator at 0x0a0d7, and nothing in the image
        calls that. See `struct rect_list_entry`. */
     dg_near_t rect_free_ptr;      /* +0x00 [2] */
-    int16_t   word_56e2;          /* +0x02 [2] */
-    int16_t   word_56e4;          /* +0x04 [2] */
+    int16_t   draw_x;          /* +0x02 [2] */
+    int16_t   draw_y;          /* +0x04 [2] */
 } __attribute__((packed));
 
 struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
 _Static_assert(sizeof(struct machine_rect_free) == 0x06, "DGROUP 0x56e0..0x56e6, 0x06 bytes");
 DG_ASSERT_AT(struct machine_rect_free, rect_free_ptr, 0x00);
-DG_ASSERT_AT(struct machine_rect_free, word_56e2,     0x02);
-DG_ASSERT_AT(struct machine_rect_free, word_56e4,     0x04);
+DG_ASSERT_AT(struct machine_rect_free, draw_x,     0x02);
+DG_ASSERT_AT(struct machine_rect_free, draw_y,     0x04);
 
 /*
  * **The two page slots**, DGROUP 0x56e6..0x5726, 0x40 bytes.
@@ -317,7 +317,10 @@ struct machine_palette_fade {
     struct far_ptr request;       /* +0x00 [4]  cleared when taken, so one
                                             request loads once */
     uint16_t  fade_mark;          /* +0x04 [2]  reset to zero by a load, which forces the fade to run; */
-    int16_t   word_573e;          /* +0x06 [2]  the fade runs only while it differs from 0x5786 */
+    /* **A colour that walks 0 to 15**, stepped and plotted when a cursor slot
+       has no bitmap - one pixel, in the next colour each time. Nothing else
+       reads it. */
+    int16_t   plot_colour;        /* +0x06 [2] */
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
 } __attribute__((packed));
 
@@ -325,7 +328,7 @@ struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_BSS(0x5738);
 _Static_assert(sizeof(struct machine_palette_fade) == 0x0a, "DGROUP 0x5738..0x5742, 0x0a bytes");
 DG_ASSERT_AT(struct machine_palette_fade, request,   0x00);
 DG_ASSERT_AT(struct machine_palette_fade, fade_mark, 0x04);
-DG_ASSERT_AT(struct machine_palette_fade, word_573e, 0x06);
+DG_ASSERT_AT(struct machine_palette_fade, plot_colour, 0x06);
 DG_ASSERT_AT(struct machine_palette_fade, busy,      0x08);
 
 /*
@@ -9728,9 +9731,9 @@ void update_button_state(void)
     if (read_mouse_button(1))
         DG5768.button_right = 2;
 
-    if (prev == 2 && MACHINE_BUTTON_PREV.word_286e != 1) {
+    if (prev == 2 && MACHINE_BUTTON_PREV.prev != 1) {
         DG5768.button_left = 2;
-    } else if (((int16_t)DG5768.button_left) == 1 && MACHINE_BUTTON_PREV.word_286e == 0) {
+    } else if (((int16_t)DG5768.button_left) == 1 && MACHINE_BUTTON_PREV.prev == 0) {
         DG5768.button_left = 2;
     } else if (((int16_t)DG5768.button_left) != 0) {
         DG5768.button_left = 1;
@@ -9738,10 +9741,10 @@ void update_button_state(void)
         DG5768.button_left = 0;
     }
 
-    if (((int16_t)DG5768.button_left) == 2 && MACHINE_BUTTON_PREV.word_286e == 2)
+    if (((int16_t)DG5768.button_left) == 2 && MACHINE_BUTTON_PREV.prev == 2)
         DG5768.button_left = 1;
 
-    MACHINE_BUTTON_PREV.word_286e = ((int16_t)DG5768.button_left);
+    MACHINE_BUTTON_PREV.prev = ((int16_t)DG5768.button_left);
 }
 
 /*
@@ -11783,10 +11786,10 @@ void draw_cursor(uint16_t page)
                 draw_bitmap(BMP_PTR(slot->bitmap_ptr),
                             slot->x, y, 0);
         } else {
-            MACHINE_PALETTE_FADE.word_573e = (int16_t)((MACHINE_PALETTE_FADE.word_573e + 1) & 0x0f);
+            MACHINE_PALETTE_FADE.plot_colour = (int16_t)((MACHINE_PALETTE_FADE.plot_colour + 1) & 0x0f);
             plot_pixel_clipped(slot->x,
                                slot->y,
-                               MACHINE_PALETTE_FADE.word_573e);
+                               MACHINE_PALETTE_FADE.plot_colour);
         }
 
         slot->obj.flags =
@@ -11844,12 +11847,12 @@ void redraw_cursor(uint16_t page)
     if (MACHINE_CURSOR_STATE.read_driver != 0)
         read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.hot_x);
-    MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.hot_y);
+    MACHINE_RECT_FREE.draw_x = (int16_t)(DG5768.cursor_x - DG5768.hot_x);
+    MACHINE_RECT_FREE.draw_y = (int16_t)(DG5768.cursor_y - DG5768.hot_y);
 
     if (DG5768.cursor_bitmap_ptr == 0
-        || slot->x != MACHINE_RECT_FREE.word_56e2
-        || slot->y != MACHINE_RECT_FREE.word_56e4
+        || slot->x != MACHINE_RECT_FREE.draw_x
+        || slot->y != MACHINE_RECT_FREE.draw_y
         || slot->bitmap_ptr != DG5768.cursor_bitmap_ptr
         || (slot->obj.flags & 2) == 0)
         draw_cursor(page);
@@ -11928,7 +11931,7 @@ void redraw_cursor_all(void)
     }
 
     if (DG5768.fade_weight != MACHINE_PALETTE_FADE.fade_mark) {
-        fade_palette_run(MACHINE_CURSOR_STATE.word_2d36, MACHINE_CURSOR_STATE.word_2d38, 0, DG5768.fade_weight);
+        fade_palette_run(MACHINE_CURSOR_STATE.fade_first, MACHINE_CURSOR_STATE.fade_count, 0, DG5768.fade_weight);
         MACHINE_PALETTE_FADE.fade_mark = DG5768.fade_weight;
     }
 
@@ -13226,10 +13229,10 @@ struct page_slot *claim_page_slot(uint16_t want)
 {
     int16_t i;
 
-    if (MACHINE_CURSOR_STATE.word_2d46 != 0) {
+    if (MACHINE_CURSOR_STATE.slots_unset != 0) {
         MACHINE_PAGE_SLOTS.slots[0].page = VMDS.page_back_ptr;
         MACHINE_PAGE_SLOTS.slots[1].page = VMDS.page_front_ptr;
-        MACHINE_CURSOR_STATE.word_2d46 = 0;
+        MACHINE_CURSOR_STATE.slots_unset = 0;
     }
 
     if (want == 0)
