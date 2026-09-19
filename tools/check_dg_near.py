@@ -28,35 +28,19 @@ import os
 import re
 import sys
 
-try:
-    from tree_sitter import Language, Parser
-    import tree_sitter_c
-except ImportError:                                     # pragma: no cover
-    raise SystemExit("tree-sitter is not installed: uv sync")
+import cparse
+from cparse import parse, text, walk
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REC = os.path.join(ROOT, "reconstruct")
-PARSER = Parser(Language(tree_sitter_c.language()))
-
-
-def walk(node):
-    stack = [node]
-    while stack:
-        n = stack.pop()
-        yield n
-        stack.extend(reversed(n.children))
-
-
-def text(src, node):
-    return src[node.start_byte:node.end_byte].decode("utf-8", "replace")
 
 
 def field_types(paths):
     """member name -> set of declared type spellings, over every struct."""
     types = collections.defaultdict(set)
     for path in paths:
-        src = open(path, "rb").read()
-        for n in walk(PARSER.parse(src).root_node):
+        src, root = parse(path)
+        for n in walk(root):
             if n.type != "field_declaration":
                 continue
             t = n.child_by_field_name("type")
@@ -77,8 +61,8 @@ def near_aliases(paths):
     `bmp_ptr_t` field is a near pointer that says what it points at."""
     out = {}
     for path in paths:
-        src = open(path, "rb").read()
-        for n in walk(PARSER.parse(src).root_node):
+        src, root = parse(path)
+        for n in walk(root):
             if n.type != "type_definition":
                 continue
             t = n.child_by_field_name("type")
@@ -151,8 +135,8 @@ def main():
 
     bad = []
     for path in sources:
-        src = open(path, "rb").read()
-        for n in walk(PARSER.parse(src).root_node):
+        src, root = parse(path)
+        for n in walk(root):
             if n.type != "call_expression":
                 continue
             fn = n.child_by_field_name("function")

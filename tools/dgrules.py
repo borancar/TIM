@@ -12,6 +12,11 @@ argument that is an address.
                  replace - or computed from a variable, which is a record
                  reached through a pointer and needs its type known first.
 
+    near-const   a constant that **is** the address of an object this port has
+                 named: `.hotspots_ptr = 0x02c2` is
+                 `JACK_IN_THE_BOX_HOT_SPOTS`, and a static initialiser cannot
+                 say so. It resolves them rather than changing them.
+
     offset-arg   a **pointer-like value passed to a function**, which is the
                  shape that hides a near pointer in plain sight:
 
@@ -56,36 +61,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 
-try:
-    from tree_sitter import Language, Parser
-    import tree_sitter_c
-except ImportError:                                     # pragma: no cover
-    raise SystemExit("tree-sitter is not installed: uv sync")
+import cparse
+from cparse import parse, text, walk
 
 DG = ("DG8", "DG16", "DG32", "DGU16")
 
 
-def parse(path):
-    src = open(path, "rb").read()
-    parser = Parser(Language(tree_sitter_c.language()))
-    return src, parser.parse(src).root_node
 
-
-def text(src, node):
-    return src[node.start_byte:node.end_byte].decode("utf-8", "replace")
-
-
-def walk(node):
-    """Every node under `node`, in document order.
-
-    With an explicit stack, not recursion: a generated initialiser nests deeply
-    enough - a thousand levels - to exceed Python's recursion limit.
-    """
-    stack = [node]
-    while stack:
-        n = stack.pop()
-        yield n
-        stack.extend(reversed(n.children))
 
 
 def hex_of(s):
@@ -134,29 +116,50 @@ def record_base(src, node):
     return text(src, n).strip()
 
 
-FRAME_RHS = re.compile(r"^\(uint16_t\)\(\s*fp\b|^fp\b")
-DECL = re.compile(r"\b(?:uint16_t|dg_near_t)\s+(\w+)\s*=\s*(.+?);")
-ASSIGN = re.compile(r"^\s*(\w+)\s*=\s*(.+?);")
-FUNC = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
-
-
 def frame_bases(path):
     """(function, variable) pairs whose value came out of `dg_alloca`'s frame.
 
     Read off the assignment rather than the name, because the names are the
     original's slot numbers - `v02` is `[bp-2]` - and the same name is a
     different slot in every routine that has one.
+
+    **Over the parse tree.** This was four regexes - one for a function's
+    opening line, one for a declaration, one for an assignment, one for the
+    right-hand side - and each was a guess at C's shape from the outside: the
+    function pattern took any line beginning with a letter and containing a
+    `(`, so a multi-line condition could rename the routine every site after it
+    belonged to. A declarator is a declarator in the tree.
     """
     out = set()
-    cur = None
-    for line in open(path, encoding="utf-8", errors="replace"):
-        m = FUNC.match(line)
-        if m and not line.rstrip().endswith(";"):
-            cur = m.group(1)
-        for pat in (DECL, ASSIGN):
-            mm = pat.search(line)
-            if mm and FRAME_RHS.match(mm.group(2).strip()):
-                out.add((cur, mm.group(1)))
+    src, root = parse(path)
+
+    def from_frame(node):
+        """Is this initialiser `fp` or a cast of it - the frame's own base?"""
+        n = node
+        while n is not None and n.type in ("cast_expression",
+                                           "parenthesized_expression"):
+            n = n.child_by_field_name("value") or next(
+                (c for c in n.children if c.is_named), None)
+        return n is not None and n.type == "identifier" and text(src, n) == "fp"
+
+    for fn in walk(root):
+        if fn.type != "function_definition":
+            continue
+        d = fn.child_by_field_name("declarator")
+        while d is not None and d.type != "identifier":
+            d = d.child_by_field_name("declarator")
+        name = text(src, d) if d is not None else None
+        for n in walk(fn):
+            if n.type == "init_declarator":
+                v = n.child_by_field_name("declarator")
+                init = n.child_by_field_name("value")
+                if v is not None and init is not None and from_frame(init):
+                    out.add((name, text(src, v).strip()))
+            elif n.type == "assignment_expression":
+                v = n.child_by_field_name("left")
+                init = n.child_by_field_name("right")
+                if v is not None and init is not None and from_frame(init):
+                    out.add((name, text(src, v).strip()))
     return out
 
 
@@ -685,13 +688,138 @@ def rule_const_addr(paths):
     return fixed
 
 
+def dgroup_objects(paths):
+    """Every object the linker places in DGROUP, as (start, end, name).
+
+    Read out of the declarations themselves, so the map is whatever the tree
+    currently says rather than a copy that can go stale. **Over the parse tree
+    like everything else here**: a placement is a declaration whose declarator
+    is followed by the macro `cparse` has already expanded away, so what is
+    left is an ordinary `struct x NAME = {...}` - and the address comes from
+    the macro's own argument, which is why `cparse.placements` keeps them.
+
+    An object whose size is not asserted is taken to run to the next one, which
+    is the rule `genld.py` works to.
+    """
+    sizes, objs = {}, []
+    for path in list(paths) + [os.path.join(tim.REPO, "reconstruct", "dgroup.h")]:
+        try:
+            src, root = parse(path)
+        except OSError:
+            continue
+        for n in walk(root):
+            if n.type != "call_expression":
+                continue
+            fn = n.child_by_field_name("function")
+            if fn is None or text(src, fn) != "_Static_assert":
+                continue
+            args = n.child_by_field_name("arguments")
+            inner = [c for c in args.children if c.is_named]
+            if len(inner) < 1:
+                continue
+            m = re.match(r"sizeof\(struct (\w+)\)\s*==\s*(0x[0-9a-fA-F]+|\d+)",
+                         text(src, inner[0]).replace("\n", " "))
+            if m:
+                sizes[m.group(1)] = int(m.group(2), 0)
+        for sname, vname, at in cparse.placements(path):
+            objs.append((at, sname, vname))
+    objs.sort()
+    out = []
+    for i, (at, sname, vname) in enumerate(objs):
+        n = sizes.get(sname)
+        end = at + n if n else (objs[i + 1][0] if i + 1 < len(objs) else at + 2)
+        out.append((at, end, vname))
+    return out
+
+
+def rule_near_const(paths):
+    """A constant that **is the address of an object this port has named**.
+
+    The original addresses DGROUP absolutely, so a table of near pointers is a
+    table of numbers - and where the port has since given the target a name and
+    a place, the number and the name are the same address written two ways:
+
+        .hotspots_ptr = 0x02c2,        /* JACK_IN_THE_BOX_HOT_SPOTS */
+
+    A static initialiser cannot say `dg_near(&JACK_IN_THE_BOX_HOT_SPOTS)` - that
+    address is the linker's and not a constant expression - so the number has to
+    stay. What this rule does is *resolve* it: which object each constant names,
+    and which field it is filling, so a reader can follow it and a rename cannot
+    quietly leave a stale one behind.
+
+    **Over the tree, and the first version was not.** It matched
+    `0x[0-9a-f]{4}` against the text and needed a hundred lines of hand-written
+    comment stripping to keep "DGROUP 0x4ab4" in a *header* out of the results.
+    A comment is not a `number_literal`; the parser does that for nothing. The
+    two things worth knowing about each constant - which field it initialises
+    and whether it sits inside a placement macro - are its parents, not a guess
+    at the line's shape.
+
+    A constant that lands inside an object rather than on its first byte is
+    reported separately and is mostly noise: the placed objects cover most of
+    the sixteen-bit range, so a state word or a colour falls inside one by
+    accident. The exact hits are the ones to read.
+    """
+    ranges = dgroup_objects(paths)
+
+    def landing(v):
+        for a, b, vname in ranges:
+            if a <= v < b:
+                return vname, v - a
+        return None
+
+    exact, inside = [], []
+    for path in paths:
+        src, root = parse(path)
+        for node in walk(root):
+            if node.type != "number_literal":
+                continue
+            tok = text(src, node)
+            # **Hex only.** An address is written in hex in the original and in
+            # this port; a decimal that lands in a range is a count.
+            if not tok.lower().startswith("0x"):
+                continue
+            v = hex_of(tok)
+            if v is None or v < 0x100:
+                continue
+            w = landing(v)
+            if w is None:
+                continue
+            row = (os.path.basename(path), node.start_point[0] + 1, tok,
+                   w[0], w[1], designator(src, node))
+            (exact if w[1] == 0 else inside).append(row)
+    return exact, inside
+
+
+def designator(src, node):
+    """What the literal is *for*, from its parents: `.field`, `f()`, or ``.
+
+    An initialiser pair gives the field it fills and a call gives the routine
+    it is handed to; anything else gives nothing rather than a guess.
+    """
+    n = node.parent
+    while n is not None:
+        if n.type == "initializer_pair":
+            d = n.child_by_field_name("designator")
+            if d is not None:
+                return text(src, d).strip()
+        if n.type == "call_expression":
+            fn = n.child_by_field_name("function")
+            if fn is not None:
+                return text(src, fn) + "()"
+        if n.type in ("function_definition", "translation_unit"):
+            break
+        n = n.parent
+    return ""
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rule",
                     choices=("raw", "offset-arg", "truncated", "const-addr",
-                             "ptr-arg", "split-pair", "both"),
+                             "ptr-arg", "split-pair", "near-const", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -704,6 +832,23 @@ def main():
     paths = args.files or (
         sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "src", "*.c")))
         + sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c"))))
+
+    if args.rule == "near-const":
+        exact, inside = rule_near_const(paths)
+        print("CONSTANTS THAT ARE A PLACED OBJECT'S OWN ADDRESS - the number")
+        print("and the name are the same address written two ways, and a")
+        print("static initialiser cannot say the name:")
+        print("   %d sites" % len(exact))
+        for f, n, h, vname, _off, what in exact:
+            print("      %-22s %-8s %-28s %s" % (f + ":" + str(n), h, vname, what))
+        print()
+        print("constants landing INSIDE a placed object - mostly numbers that")
+        print("fall in a range by accident, since the objects cover most of it:")
+        print("   %d sites" % len(inside))
+        for f, n, h, vname, off, what in inside[:args.top]:
+            print("      %-22s %-8s %s+0x%x %s" % (f + ":" + str(n), h, vname,
+                                                   off, what))
+        return 0
 
     if args.rule in ("raw", "both"):
         const, computed, frame, where = rule_raw(paths)

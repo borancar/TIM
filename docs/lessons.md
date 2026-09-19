@@ -991,6 +991,49 @@ steps, in the same units, counted from the same zero. And a whole-screen
 difference is a screen to *look at* before it is a number to explain - the bin
 was visible in the first frame anyone rendered.
 
+### A tree-sitter parse of code full of unknown macros is not a parse, and the tool cannot tell
+
+**What happened.** A new `dgrules` rule wanted to know which field each
+constant in `dgroup.c` initialises. The parse said `assignment_expression` with
+no designator, for every one of them. Counting the damage: a plain tree-sitter
+parse of the port's sources yields **7,188 ERROR nodes**, 6,112 of them in
+`dgroup.c` alone.
+
+**What it was.** Four things in this tree are macros the C grammar has no rule
+for, and each one makes the parser abandon the construct it is in:
+
+    struct draw_step DG0124 DGROUP_AT(0x0124) = { ... };   /* between the
+                                       declarator and its `=` */
+    DG_ASSERT_AT(struct part, kind, 0x04);       /* a type as an argument */
+    _Static_assert(__builtin_offsetof(struct vm_cs, data_seg) == 0x13a, "");
+    int16_t read_into_huge(uint8_t far * dst, uint16_t count)  /* `far` is
+                                       defined as nothing at all */
+
+Inside an ERROR subtree the node types are whatever the parser could salvage,
+so a rule that asks "is this an `initializer_pair`" gets no for a line that is
+one - and reports nothing, which reads exactly like a clean result.
+
+**What it cost beyond that rule.** `check_dg_near.py`, which runs in `make
+test` and is the reason `dg_near` cannot be called anywhere but a store, parses
+the same sources with a plain parser: 7,188 ERROR nodes of its guarantee. It
+found nothing because there is nothing to find, but it was not in a position to
+say so.
+
+**What settled it.** `tools/cparse.py`, the one door to tree-sitter for every
+tool that reads the port's C, expanding those four before the parse - space for
+space, so every byte offset and line number is the file's own. Six ERROR nodes
+are left in the whole tree, and both are preprocessor conditionals in the
+middle of a function, which no macro expansion can help. `check_handles.py`
+moved from regexes to the same parse while the door was being built, and the
+move immediately paid: its three-line window for "was this handle just
+allocated" called a `p == NULL` four lines after its own `heap_calloc_far` a
+fault.
+
+**The rule.** A tool that parses reports what it could not parse. Expanding a
+known macro is part of the front end, not a shortcut around it - and a parse
+that has never been asked how many ERROR nodes it produced is a parse nobody
+has checked.
+
 ## The hybrid runner
 
 What `tools/native` can and cannot observe.
