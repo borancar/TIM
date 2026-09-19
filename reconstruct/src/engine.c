@@ -155,34 +155,52 @@ _Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3,
 DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
 
 /*
- * **The resource *writer's* state**, DGROUP 0x35d3..0x3600, 0x2d bytes: three
- * words the image sets - 0x138b, 10000 and 1 - and two nine-byte runs that
- * read as the left and right bit masks, 0xff down to 0 and 0 up to 0xff.
+ * **The resource *writer's* state**, DGROUP 0x35d3..0x3600, 0x2d bytes: the
+ * image sets 0x138b, 10000 and 1, and two nine-byte runs read as the left and
+ * right bit masks, 0xff down to 0 and 0 up to 0xff.
  *
- * **Nothing in the port touches the four words, and that is not an omission.**
- * Every instruction in the image that names them is between 0x1cd2c and
+ * **Nothing in the port touches any of it, and that is not an omission.**
+ * Every instruction in the image that names these is between 0x1cd2c and
  * 0x1d54e - the gap between `next_lzw_code` and `open_resource` - which is the
  * compressing side, and this port does not transcribe it: `engine_stream`'s
  * `written` says the same thing. That side keeps its own `n_bits` and
  * `maxcode` too, at 0x58b8 and 0x58c8, where the reader's are at 0x589e and
  * 0x58b6.
+ *
+ * **Three of the four words were two `long`s**, which the image says twice
+ * over. `in_count` is incremented `add [0x35e6],1 / adc [0x35e8],0` at
+ * 0x1cf68, once per byte the compressor takes, so it is 32 bits at 0x35e6 and
+ * the two bytes above it are its high half, not padding. `checkpoint` is
+ * written from it at 0x1d2e5 - `dx = [0x35e6] / ax = [0x35e8] / add dx,0x2710
+ * / adc ax,0`, then the pair back into 0x35e2 and 0x35e4 - so it is 32 bits at
+ * 0x35e2, and the routine that does it is the one 0x1d0b8 calls when the
+ * 32-bit comparison of the two says the count has caught up. The image's 10000
+ * and 1 are those two `long`s' initialisers, not two words that happen to sit
+ * beside zeroes.
+ *
+ * `hash_size` is the third: 5003, and 0x1d0de adds it to the probe when
+ * stepping back off the bottom of the table, which is what a table's size is
+ * for. The pad above the counters keeps two more the same routines use - the
+ * next free code at 0x35d8, 0x101 at reset and stepped to 0x1000, and the flag
+ * at 0x35da that 0x1d0cd tests before letting the table be cleared - unnamed
+ * because nothing here needs them and a writer this port does not transcribe
+ * is the only thing that would.
  */
 struct engine_bit_state {
     uint8_t   pad_35d3[3];        /* +0x00 */
-    uint16_t  word_35d6;          /* +0x03 */
-    uint8_t   pad_35d8[10];       /* +0x05 */
-    uint16_t  word_35e2;          /* +0x0f */
-    uint16_t  word_35e4;          /* +0x11 */
-    uint16_t  word_35e6;          /* +0x13 */
-    uint8_t   pad_35e8[6];        /* +0x15 */
+    uint16_t  hash_size;          /* +0x03  0x35d6 */
+    uint8_t   pad_35d8[10];       /* +0x05  0x35d8..0x35e1 */
+    int32_t   checkpoint;         /* +0x0f  0x35e2  in_count + 10000, last set */
+    int32_t   in_count;           /* +0x13  0x35e6  bytes taken in */
+    uint8_t   pad_35ea[4];        /* +0x17 */
     uint8_t   left_mask[9];       /* +0x1b  0x35ee */
     uint8_t   right_mask[9];      /* +0x24  0x35f7 */
 } __attribute__((packed));
 
 struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3) = {
-    .word_35d6 = 0x138b,
-    .word_35e2 = 0x2710,
-    .word_35e6 = 0x0001,
+    .hash_size = 0x138b,
+    .checkpoint = 10000,
+    .in_count = 1,
     .left_mask = { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80 },
     .right_mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff },
 };
@@ -435,10 +453,12 @@ _Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts e
 struct engine_keyboard {
     uint8_t   installed;          /* +0x00 [1]  the keyboard handler is in: install_keyboard
                                      returns at once while it is set, remove_keyboard clears it */
-    /* Read twice and written nowhere - `install_keyboard` sets bit 0x40 of
-       BIOS 40:17 when it is set, and the ISR tests it beside the same bit -
-       so the image's value is the whole of it. */
-    uint8_t   byte_458d;          /* +0x01 [1] */
+    /* **Whether the caps lock stays where the game put it.** Bit 0x40 of BIOS
+       40:17 is caps lock active, and both reads are about that bit:
+       `install_keyboard` sets it when this is set, and the ISR skips the
+       toggle for a 0x40 scancode unless this is clear. Read twice, written
+       nowhere and zero in the image, so the lock is left to the ISR. */
+    uint8_t   hold_caps_lock;     /* +0x01 [1] */
     /* **The last key event the ISR made**, the scancode and the character as
        one word: what it pushes into the BIOS ring, and cleared again on the
        release. */
@@ -531,7 +551,7 @@ struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
     },
 };
 DG_ASSERT_AT(struct engine_keyboard, installed, 0x00);
-DG_ASSERT_AT(struct engine_keyboard, byte_458d, 0x01);
+DG_ASSERT_AT(struct engine_keyboard, hold_caps_lock, 0x01);
 DG_ASSERT_AT(struct engine_keyboard, last_event, 0x02);
 DG_ASSERT_AT(struct engine_keyboard, held,      0x04);
 DG_ASSERT_AT(struct engine_keyboard, ascii,     0x4e);
@@ -592,7 +612,7 @@ DG_ASSERT_AT(struct engine_mouse, mouse_handler_fn, 0x04);
 struct engine_driver_block {
     /* **One far pointer**: the block `load_video_driver` reads the adapter's
        driver into. +0x00 is the offset and +0x02 the segment - every use
-       pairs them, as `huge_equal(off, seg, 0, 0)` against null, as the
+       pairs them, as `dg_far_ptr(block) == FAR_NULL_PTR` against null, as the
        destination of `read_resource`, and as the `(seg << 16) | off` the
        routine answers. */
     struct far_ptr block;         /* +0x00 [4] */
@@ -954,6 +974,9 @@ DG_ASSERT_AT(struct engine_underline_rows, underline_row, 0x00);
  */
 struct engine_scale_step {
     uint16_t  base;               /* +0x00 [2]  one `n` further on, less the one this indexes */
+    /* Written once, at the top of `blit_scaled_a`, with the scale table's
+       first entry, and never read - by this routine or any other in the port.
+       Named by address because a lone store says nothing more. */
     uint16_t  word_6290;          /* +0x02 [2] */
 } __attribute__((packed));
 
@@ -1846,8 +1869,8 @@ int16_t close_resource_slot(uint16_t slot)
         free_if_set(RESOURCE_PTR(rec)->work_ptr);
 
         rec = ENGINE_STREAM.record_ptr;
-        if (!huge_equal(RESOURCE_PTR(rec)->scratch.off, RESOURCE_PTR(rec)->scratch.seg, 0, 0)
-            && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
+        if (dg_far_ptr(RESOURCE_PTR(rec)->scratch) != FAR_NULL_PTR
+            && dg_far_ptr(DG3576.scratch) == FAR_NULL_PTR)
             dos_free_far(dg_far_ptr(RESOURCE_PTR(rec)->scratch));
     }
 
@@ -1931,7 +1954,7 @@ int16_t prepare_resource_slot(int16_t type, char *name)
         return -1;
 
     if (far_size != 0) {
-        if (!huge_equal(DG3576.scratch.off, DG3576.scratch.seg, 0, 0)) {
+        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
             rec = ENGINE_STREAM.record_ptr;
             RESOURCE_PTR(rec)->scratch = DG3576.scratch;
             ENGINE_STREAM.scratch = DG3576.scratch;
@@ -1944,7 +1967,7 @@ int16_t prepare_resource_slot(int16_t type, char *name)
         }
 
         rec = ENGINE_STREAM.record_ptr;
-        if (RESOURCE_PTR(rec)->scratch.off == 0 && RESOURCE_PTR(rec)->scratch.seg == 0)
+        if (dg_far_ptr(RESOURCE_PTR(rec)->scratch) == FAR_NULL_PTR)
             return -1;
     }
 
@@ -3654,7 +3677,7 @@ uint16_t install_keyboard(int16_t hook_timer)
 
     FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & 0xdf);
 
-    if (ENGINE_KEYBOARD.byte_458d != 0)
+    if (ENGINE_KEYBOARD.hold_caps_lock != 0)
         FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
 
     return ENGINE_KEYBOARD.installed;
@@ -3791,7 +3814,7 @@ void keyboard_isr(void)
             io_out8(0x20, 0x20);
             return;
         }
-        if ((al & 0x40) == 0 || ENGINE_KEYBOARD.byte_458d == 0) {
+        if ((al & 0x40) == 0 || ENGINE_KEYBOARD.hold_caps_lock == 0) {
             if ((dl & 1) == 0)
                 FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) ^ al);
         }
@@ -4522,10 +4545,12 @@ void normalise_far_ptr(struct far_ptr *p)
  */
 uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count)
 {
-    /* The original's dispatch words, stored for the comparison's sake only. */
-    /* Stored going up, and overwritten below if the copy has to go down. */
-    S1C_WORDS.word_5f99 = 0x5f11;
-    S1C_WORDS.word_5f9b = 0x5f86;
+    /* The original's dispatch offsets - `normalise_far_ptr` at 0x22161 and the
+       forward copy at 0x221d6 - stored for the comparison's sake only: this
+       body calls neither through them. Overwritten below if the copy has to
+       go down. */
+    S1C_HUGE_MOVE.normalise_off = 0x5f11;
+    S1C_HUGE_MOVE.copy_off = 0x5f86;
 
     /*
      * The original compares the two *linear* addresses, and that is a question
@@ -4536,8 +4561,9 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
      */
     if ((dg_is_guest(src) ? src : dgroup)
         < (dg_is_guest(dst) ? (const uint8_t *)dst : dgroup)) {
-        S1C_WORDS.word_5f99 = 0x5f23;
-        S1C_WORDS.word_5f9b = 0x5f6f;
+        /* The normalise that steps back a paragraph, and the backward copy. */
+        S1C_HUGE_MOVE.normalise_off = 0x5f23;
+        S1C_HUGE_MOVE.copy_off = 0x5f6f;
     }
 
     memmove((void *)(uintptr_t)dst, (const void *)(uintptr_t)src, count);
@@ -6600,7 +6626,7 @@ void draw_string(const char *str, int16_t x, int16_t y)
 uint16_t text_width(const char *str)
 {
     uint16_t width = 0;
-    int16_t  proportional = (ENGINE_FONT_WIDTHS.width[0].off | ENGINE_FONT_WIDTHS.width[0].seg) != 0;
+    int16_t  proportional = dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]) != FAR_NULL_PTR;
 
     while (*str != 0) {
         int16_t index = (int16_t)((uint8_t)*str - VMDS.font_table_5c[0]);
@@ -6929,12 +6955,12 @@ uint8_t far *load_video_driver(int16_t adapter, char *name)
         len = sz;
     }
 
-    if (!huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
+    if (dg_far_ptr(ENGINE_DRIVER_BLOCK.block) != FAR_NULL_PTR)
         dos_free_far(dg_far_ptr(ENGINE_DRIVER_BLOCK.block));
 
     ENGINE_DRIVER_BLOCK.block = far_of(dos_alloc_bytes(len, 0, 0).ptr);
 
-    if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
+    if (dg_far_ptr(ENGINE_DRIVER_BLOCK.block) == FAR_NULL_PTR)
         return FAR_NULL_PTR;
 
     read_resource(handle, dg_far_ptr(ENGINE_DRIVER_BLOCK.block),

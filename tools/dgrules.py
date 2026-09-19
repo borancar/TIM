@@ -837,6 +837,12 @@ def rule_long_halves(paths):
 
     Over the tree because the halves are two *statements*, and which two is a
     question about the block they sit in rather than about the text of a line.
+
+    **The two left are not work.** `huge_add` and `huge_add_to` split the
+    delta because the routine they transcribe does: it negates `DX:AX` with a
+    `not`/`inc` pair and then works on each half with 16-bit adds and borrows,
+    and the halves *are* the registers. Folding them would hide the one thing
+    those bodies are for.
     """
     out = []
     for path in paths:
@@ -897,10 +903,18 @@ def rule_split_arg(paths):
     a cast beside a shifted cast - that a regex would have to guess the shape
     of.
 
-    **Two shapes in the output are not work.** A `%04x:%04x` in a diagnostic
-    takes both halves because that is what the format asks for, and
-    `huge_equal(x.off, x.seg, 0, 0)` is the Borland huge routine's own argument
-    list, which stays as the original has it.
+    **One shape in the output is not work.** A `%04x:%04x` in a diagnostic
+    takes both halves because that is what the format asks for.
+
+    A Borland runtime routine is *not* an exception, which this docstring said
+    for one commit. `huge_equal(x.off, x.seg, 0, 0)` looked like the original's
+    own argument list, but the original's argument list here is four registers
+    - `DX:AX` against `CX:BX` - two far pointers, not four words, and the C
+    signature is ours to write. The four sites went further than a signature:
+    each asks whether a stored pair is null, which a host pointer answers by
+    itself, so they read `dg_far_ptr(x) != FAR_NULL_PTR` and call no emulation
+    at all. `huge_equal` keeps its address, its body and its two
+    `struct far_ptr`, because the hybrid still dispatches it.
     """
     out = []
     half = re.compile(r"^\(uint16_t\)\s*\(?\s*(?:\(uint32_t\)\s*)?(.+?)\s*\)?$")

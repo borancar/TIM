@@ -10195,7 +10195,7 @@ void free_archive_lists(void)
         a->list = FAR_NULL;
     }
 
-    if ((DG5677.crit_vec.off | DG5677.crit_vec.seg) != 0) {
+    if (dg_far_ptr(DG5677.crit_vec) != FAR_NULL_PTR) {
         dos_setvect(0x24, DG5677.crit_vec);
         DG5677.crit_vec = FAR_NULL;
     }
@@ -11937,13 +11937,13 @@ void redraw_cursor_all(void)
 
     if (MACHINE_CURSOR_STATE.page != 0) {
         uint16_t quiet =
-            ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) == 0
+            (dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal) == FAR_NULL_PTR
              && DG5768.fade_weight == MACHINE_PALETTE_FADE.fade_mark) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
 
-    if ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) != 0) {
+    if (dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal) != FAR_NULL_PTR) {
         set_palette_pointer(dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal));
         MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
         MACHINE_CURSOR_STATE.pending_pal = FAR_NULL;
@@ -12130,11 +12130,10 @@ int16_t button_state(uint16_t index, int16_t down)
         }
 
         if (MACHINE_CURSOR_STATE.read_driver != 0) {
-            read_mouse_pointer((int16_t *)&DG5768.word_5778,
-                           (int16_t *)&DG5768.word_5776);
+            read_mouse_pointer(&DG5768.button_at_x, &DG5768.button_at_y);
         } else {
-            DG5768.word_5778 = ((uint16_t)DG5768.cursor_x);
-            DG5768.word_5776 = ((uint16_t)DG5768.cursor_y);
+            DG5768.button_at_x = DG5768.cursor_x;
+            DG5768.button_at_y = DG5768.cursor_y;
         }
 
         b->delay = MACHINE_CURSOR_STATE.delay_reload;
@@ -13397,14 +13396,14 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if ((MACHINE_RECT_BUFFERS.slot[i].off | MACHINE_RECT_BUFFERS.slot[i].seg) == 0) {
+        if (dg_far_ptr(MACHINE_RECT_BUFFERS.slot[i]) == FAR_NULL_PTR) {
             MACHINE_RECT_BUFFERS.slot[i] = far_of(dos_alloc_bytes(asked, 0, 0).ptr);
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (MACHINE_BUFFER_USED.used[i] == 0
-            && (MACHINE_RECT_BUFFERS.slot[i].off | MACHINE_RECT_BUFFERS.slot[i].seg) != 0) {
+            && dg_far_ptr(MACHINE_RECT_BUFFERS.slot[i]) != FAR_NULL_PTR) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return (int16_t)(i + 1);
         }

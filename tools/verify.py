@@ -1414,7 +1414,10 @@ ROUTINES = {
         # original AX=0 against the port's 1 on all three occurrences, which
         # is the flag answer being read out of the wrong place.
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.huge_equal(*[ctypes.c_uint16(v) for v in a]),
+        # The port takes the two pairs the registers hold - AX/DX the first,
+        # BX/CX the second - rather than four words.
+        call=lambda lib, a: lib.huge_equal(FarPtr(a[0], a[1]),
+                                           FarPtr(a[2], a[3])),
     ),
     "near_memset": dict(
         addr=0x0D543,

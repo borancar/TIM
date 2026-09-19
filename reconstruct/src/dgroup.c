@@ -2979,4 +2979,4 @@ struct snd_cs SNDS SEGMENT_AT(0x2619, 0x0008) = {
 struct snd_cs_call SNDCALL SEGMENT_AT(0x2619, 0x30f6);
 struct s1c_timer S1C_TIMER SEGMENT_AT(0x1c25, 0x446d);
 struct s1c_keyboard S1C_KEYBOARD SEGMENT_AT(0x1c25, 0x4e3c);
-struct s1c_words S1C_WORDS SEGMENT_AT(0x1c25, 0x5f99);
+struct s1c_huge_move S1C_HUGE_MOVE SEGMENT_AT(0x1c25, 0x5f99);

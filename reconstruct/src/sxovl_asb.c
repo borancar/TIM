@@ -763,8 +763,8 @@ void asb_play(const struct sound_play_args *si)
 
     ASBS.irq_saved = asb_hook_irq(ASBS.irq, 0x8a, 0x02b7);
     ASBS.half = 0;
-    ASBS.word_003b = 0;
-    ASBS.word_003d = 1;
+    ASBS.byte_003b = 0;
+    ASBS.byte_003d = 1;
 
     asb_arm_block();
 
@@ -834,7 +834,7 @@ uint16_t asb_set_rate_fn(const struct sound_rate_args *si)
  */
 uint16_t asb_clear_49(void)
 {
-    ASBS.word_0049 = 0;
+    ASBS.byte_0049 = 0;
     return 0;
 }
 
@@ -853,7 +853,8 @@ uint16_t asb_clear_49(void)
  */
 uint16_t asb_position(struct sound_position_args *si)
 {
-    uint16_t cx, dx, ax, bx;
+    uint16_t cx, dx;
+    uint32_t pos;
 
     if (ASBS.nothing_to_report == 1) {
         si->id = 0;
@@ -871,43 +872,34 @@ uint16_t asb_position(struct sound_position_args *si)
     cx |= (uint16_t)(io_in8(0x03) << 8);
 
     dx = ((uint16_t)ASBS.block_length);
-    ax = ASBS.pos_lo;
-    bx = ASBS.pos_hi;
+
+    /* The base is two words, high first, and the original carries it in BX:AX
+       from here on - one 32-bit position, added to and shifted as a whole. */
+    pos = ((uint32_t)ASBS.pos_hi << 16) | ASBS.pos_lo;
 
     dx = (uint16_t)(dx - cx);
-    {
-        uint32_t sum = (uint32_t)ax + dx;
-        ax = (uint16_t)sum;
-        bx = (uint16_t)(bx + (sum >> 16));
-    }
+    pos += dx;
 
-    if (ASBS.word_0052 == 1) {
-        uint32_t v = ((uint32_t)bx << 16 | ax) << 1;
-        ax = (uint16_t)v;
-        bx = (uint16_t)(v >> 16);
-    }
+    if (ASBS.byte_0052 == 1)
+        pos <<= 1;
 
-    if (ASBS.word_0044 != 1) {
-        if (ASBS.word_0036 == 1) {
-            uint32_t v = ((uint32_t)bx << 16 | ax) >> 1;
-            ax = (uint16_t)v;
-            bx = (uint16_t)(v >> 16);
-        }
+    if (ASBS.byte_0044 != 1) {
+        if (ASBS.byte_0036 == 1)
+            pos >>= 1;
 
-        if (bx != ASBS.limit_hi ? bx > ASBS.limit_hi : ax > ASBS.limit_lo) {
+        /* `cmp bx,limit_hi / jne / cmp ax,limit_lo`, which is one unsigned
+           32-bit comparison against the limit's own two words. */
+        if (pos > (((uint32_t)ASBS.limit_hi << 16) | ASBS.limit_lo)) {
             si->id = 0xffff;
             si->position = 0xffffffffu;
             return 0;
         }
 
-        if (ASBS.word_0036 == 1) {
-            uint32_t v = ((uint32_t)bx << 16 | ax) << 1;
-            ax = (uint16_t)v;
-            bx = (uint16_t)(v >> 16);
-        }
+        if (ASBS.byte_0036 == 1)
+            pos <<= 1;
     }
 
-    si->position = ((uint32_t)bx << 16) | ax;
+    si->position = pos;
     si->id = (uint16_t)ASBS.id;
 
     return 0;
@@ -959,8 +951,8 @@ uint16_t asb_install(void)
     ASBS.rate = 0x2b11;          /* 11025 Hz */
     asb_set_rate(0x2b11);
 
-    ASBS.word_0042 = 0;
-    ASBS.word_0041 = 0;
+    ASBS.byte_0042 = 0;
+    ASBS.byte_0041 = 0;
     ASBS.file_handle = (int16_t)0xffff;
 
     return 0x577;

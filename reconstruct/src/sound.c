@@ -3867,9 +3867,9 @@ uint16_t start_sequence_by_id(int16_t id)
 
     if ((rec->flags & 0x10) != 0)
         return 1;
-    if (rec->data.off == 0 && rec->data.seg == 0)
+    if (dg_far_ptr(rec->data) == FAR_NULL_PTR)
         return 1;
-    if (rec->sequence.off != 0 || rec->sequence.seg != 0)
+    if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR)
         return 1;
 
     if ((rec->flags & 1) != 0) {
@@ -3877,7 +3877,7 @@ uint16_t start_sequence_by_id(int16_t id)
 
         while (other != SOUND_RECORD_NONE) {
             if ((other->flags & 1) != 0
-                && (other->sequence.off != 0 || other->sequence.seg != 0)
+                && dg_far_ptr(other->sequence) != FAR_NULL_PTR
                 && other->id != id)
                 stop_sequences(other->id);
 
@@ -3975,13 +3975,13 @@ struct sound_record far *next_matching_record(int16_t selector)
         expect = 1;
     } else {
         /* Match on the identifier. */
-        if ((SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0) || selector == -3) {
+        if (dg_far_ptr(SOUND_TICK_WAIT.cursor) == FAR_NULL_PTR || selector == -3) {
             SOUND_TICK_WAIT.cursor = FAR_NULL;
             return SOUND_RECORD_NONE;
         }
 
         for (;;) {
-            if (SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0)
+            if (dg_far_ptr(SOUND_TICK_WAIT.cursor) == FAR_NULL_PTR)
                 break;
             if (SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->id == selector)
                 break;
@@ -4077,8 +4077,8 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (DG4A82.driver.off == 0 && DG4A82.driver.seg == 0
-        && DG4A82.module.off == 0 && DG4A82.module.seg == 0)
+    if (dg_far_ptr(DG4A82.driver) == FAR_NULL_PTR
+        && dg_far_ptr(DG4A82.module) == FAR_NULL_PTR)
         return;
 
     remove_and_free_records(0);

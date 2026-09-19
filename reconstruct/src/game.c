@@ -6991,8 +6991,8 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
     (void)arg1;
     (void)arg2;
 
-    if ((GAME_PICKER_TEXT.block.off | GAME_PICKER_TEXT.block.seg) == 0) {
-        if ((DG3576.scratch.off | DG3576.scratch.seg) != 0) {
+    if (dg_far_ptr(GAME_PICKER_TEXT.block) == FAR_NULL_PTR) {
+        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
             GAME_PICKER_TEXT.entry_max = 0x3e8;
             GAME_PICKER_TEXT.block = DG3576.scratch;
         } else {

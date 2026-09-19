@@ -1793,10 +1793,8 @@ union far_or_size dos_alloc_bytes(uint32_t size,
 /* Fill memory through a far pointer, with a 32-bit count. */
 void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
 
-/* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
-int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
-                   uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
+int16_t huge_equal(struct far_ptr a, struct far_ptr b);  /* 0x0bd0d */
 struct far_ptr huge_sub_from(struct far_ptr *var,
                              int32_t delta);   /* 0x0bec6 */
 void expand_1bpp_to_4bpp(const uint8_t far * src, uint8_t far * dst,
@@ -1935,6 +1933,7 @@ int16_t timer_remove(void);                            /* 0x2072e */
 uint16_t timer_add_callback(struct far_ptr cb,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
+/* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */

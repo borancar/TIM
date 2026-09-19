@@ -355,6 +355,17 @@ static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
  * pair copied from one table to another. Where an *exact* pair matters it is a
  * store, not a comparison, and a store keeps the segment it was given.
  *
+ * **The hand-written halves went the same way on 2026-09-20**: the eight
+ * `(p.off | p.seg) != 0` and seven `p.off == 0 && p.seg == 0` tests still in
+ * the tree, and the four calls to `huge_equal`, the Borland routine that
+ * normalises two pairs before comparing them. A normalised comparison is
+ * exactly what a host pointer is, so the port has no reason to call the
+ * emulation to ask - the routine stays transcribed for the hybrid, and takes
+ * two `struct far_ptr` like the rest of its file. What is *not* foldable is a
+ * half tested alone, which is the original testing one word
+ * (`SNDS.playing[i].seg == 0`), and a sentinel that is not an address
+ * (`cursor_at` against `ffff:ffff`).
+ *
  * Note that this is *not* a C null pointer: 0000:0000 is a real address in the
  * guest, the first byte of `guest_mem`, which is why `draw_string_body`'s
  * guard is `(str | seg) == 0` and not `str == NULL`.
@@ -990,13 +1001,15 @@ struct dg_5768 {
     dg_near_t cursor_bitmap_ptr;  /* +0x08  the mouse cursor's bitmap, 0 for none - set_cursor */
     uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
     uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
-    /* **The pointer as the driver last reported it** - the mouse driver's own
-       x and y, or a copy of `cursor_x`/`cursor_y` when the driver is not being
-       read. **Nothing reads them**: the two bytes of each offset occur exactly
-       twice in the image and both are this store, so they are named by address
-       because there is nothing else to name them from. */
-    uint16_t  word_5776;       /* +0x0e  y */
-    uint16_t  word_5778;       /* +0x10  x */
+    /* **Where the pointer was when a button last changed**, y first like the
+       pair above. `button_state` samples them on every edge it sees - from the
+       mouse driver through `read_mouse_pointer` when `read_driver` is set, and
+       from the live `cursor_x`/`cursor_y` when it is not. **Nothing reads
+       them**: the two bytes of each offset occur exactly twice in the image
+       and both are that store, so the writer is all there is to name them
+       from. */
+    int16_t   button_at_y;     /* +0x0e */
+    int16_t   button_at_x;     /* +0x10 */
     /* **A pointer move waiting to be made**, x and y, which `redraw_cursor_all`
        performs and clears. Nothing in the image ever stores a non-zero pair
        here - three references each, all in that one routine - so the request
@@ -1032,8 +1045,8 @@ DG_ASSERT_AT(struct dg_5768, cursor_x,          0x06);
 DG_ASSERT_AT(struct dg_5768, cursor_bitmap_ptr, 0x08);
 DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
 DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);
-DG_ASSERT_AT(struct dg_5768, word_5776,         0x0e);
-DG_ASSERT_AT(struct dg_5768, word_5778,         0x10);
+DG_ASSERT_AT(struct dg_5768, button_at_y,         0x0e);
+DG_ASSERT_AT(struct dg_5768, button_at_x,         0x10);
 DG_ASSERT_AT(struct dg_5768, pending_move_y,         0x12);
 DG_ASSERT_AT(struct dg_5768, pending_move_x,         0x14);
 DG_ASSERT_AT(struct dg_5768, hot_y,         0x16);
@@ -3141,12 +3154,14 @@ struct asb_cs {
     uint8_t   page_b;          /* +0x0035 */
     /* **Eight of this module's bytes keep their addresses** - +0x36, +0x3b,
        +0x3d, +0x41, +0x42, +0x44, +0x49 and +0x52 - because each is read or
-       written at one site and nothing says what it is for. Four of them steer
+       written at one site and nothing says what it is for. They are `byte_`
+       and not `word_`: each is one byte, and a name that says otherwise is a
+       claim about width. Four of them steer
        the position function 4 reports: +0x52 doubles it, +0x36 halves it and
        doubles it back around the limit test, and +0x44 skips that test
        altogether, which has the shape of a format - stereo, or sixteen bits -
        without saying so anywhere. */
-    uint8_t   word_0036;       /* +0x0036 */
+    uint8_t   byte_0036;       /* +0x0036 */
     uint8_t   pad_0037[1];
     /* The DSP answered 2.00 or later, which `asb_probe_version` takes off the
        version it read; 3.00 or later also sets `irq10_worth`. */
@@ -3155,9 +3170,9 @@ struct asb_cs {
        of whichever half `asb_arm_block` chose. */
     uint8_t   page;            /* +0x0039 */
     uint8_t   pad_003a[1];
-    uint8_t   word_003b;          /* +0x003b */
+    uint8_t   byte_003b;          /* +0x003b */
     uint8_t   pad_003c[1];
-    uint8_t   word_003d;          /* +0x003d */
+    uint8_t   byte_003d;          /* +0x003d */
     /* **Four "busy" flags**, one per vector the module chains, each raised
        across the handler it replaced and lowered again; `asb_safe_to_call` ORs
        them with the two DOS flags to answer whether it is safe to go near DOS
@@ -3165,10 +3180,10 @@ struct asb_cs {
     uint8_t   busy_int09;      /* +0x003e */
     uint8_t   busy_int0d;      /* +0x003f */
     uint8_t   busy_int74;      /* +0x0040 */
-    uint8_t   word_0041;          /* +0x0041 */
-    uint8_t   word_0042;          /* +0x0042 */
+    uint8_t   byte_0041;          /* +0x0041 */
+    uint8_t   byte_0042;          /* +0x0042 */
     uint8_t   busy_int10;      /* +0x0043 */
-    uint8_t   word_0044;          /* +0x0044 */
+    uint8_t   byte_0044;          /* +0x0044 */
     /* **The card's IRQ**, and above 7 means the slave PIC - which is what
        chooses `pic_port` and whether the interrupt is acknowledged at 0xa0 as
        well as 0x20. */
@@ -3179,7 +3194,7 @@ struct asb_cs {
     uint8_t   looped;          /* +0x0046 */
     uint8_t   looping;         /* +0x0047 */
     uint8_t   pad_0048[1];
-    uint8_t   word_0049;          /* +0x0049 */
+    uint8_t   byte_0049;          /* +0x0049 */
     uint8_t   pad_004a[2];
     uint8_t   half;               /* +0x004c  which half is current; `xor ...,1` flips it */
     uint8_t   nothing_to_report;  /* +0x004d */
@@ -3188,7 +3203,7 @@ struct asb_cs {
     uint8_t   irq_saved;       /* +0x004e */
     uint8_t   irq10_worth;        /* +0x004f  what later decides whether IRQ 10 is worth trying */
     uint8_t   pad_0050[2];
-    uint8_t   word_0052;          /* +0x0052 */
+    uint8_t   byte_0052;          /* +0x0052 */
     uint8_t   pad_0053[1];
     /* **The shutdown guard**: once it is 1 `asb_shutdown` does nothing, which
        is what lets the interrupt handler stop the last block and the game stop
@@ -3257,27 +3272,27 @@ struct asb_cs {
 
 _Static_assert(__builtin_offsetof(struct asb_cs, page_a) == 0x0034, "asb_cs.page_a");
 _Static_assert(__builtin_offsetof(struct asb_cs, page_b) == 0x0035, "asb_cs.page_b");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0036) == 0x0036, "asb_cs.word_0036");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0036) == 0x0036, "asb_cs.byte_0036");
 _Static_assert(__builtin_offsetof(struct asb_cs, dsp_v2) == 0x0038, "asb_cs.dsp_v2");
 _Static_assert(__builtin_offsetof(struct asb_cs, page) == 0x0039, "asb_cs.page");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_003b) == 0x003b, "asb_cs.word_003b");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_003d) == 0x003d, "asb_cs.word_003d");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_003b) == 0x003b, "asb_cs.byte_003b");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_003d) == 0x003d, "asb_cs.byte_003d");
 _Static_assert(__builtin_offsetof(struct asb_cs, busy_int09) == 0x003e, "asb_cs.busy_int09");
 _Static_assert(__builtin_offsetof(struct asb_cs, busy_int0d) == 0x003f, "asb_cs.busy_int0d");
 _Static_assert(__builtin_offsetof(struct asb_cs, busy_int74) == 0x0040, "asb_cs.busy_int74");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0041) == 0x0041, "asb_cs.word_0041");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0042) == 0x0042, "asb_cs.word_0042");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0041) == 0x0041, "asb_cs.byte_0041");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0042) == 0x0042, "asb_cs.byte_0042");
 _Static_assert(__builtin_offsetof(struct asb_cs, busy_int10) == 0x0043, "asb_cs.busy_int10");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0044) == 0x0044, "asb_cs.word_0044");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0044) == 0x0044, "asb_cs.byte_0044");
 _Static_assert(__builtin_offsetof(struct asb_cs, irq) == 0x0045, "asb_cs.irq");
 _Static_assert(__builtin_offsetof(struct asb_cs, looped) == 0x0046, "asb_cs.looped");
 _Static_assert(__builtin_offsetof(struct asb_cs, looping) == 0x0047, "asb_cs.looping");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0049) == 0x0049, "asb_cs.word_0049");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0049) == 0x0049, "asb_cs.byte_0049");
 _Static_assert(__builtin_offsetof(struct asb_cs, half) == 0x004c, "asb_cs.half");
 _Static_assert(__builtin_offsetof(struct asb_cs, nothing_to_report) == 0x004d, "asb_cs.nothing_to_report");
 _Static_assert(__builtin_offsetof(struct asb_cs, irq_saved) == 0x004e, "asb_cs.irq_saved");
 _Static_assert(__builtin_offsetof(struct asb_cs, irq10_worth) == 0x004f, "asb_cs.irq10_worth");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0052) == 0x0052, "asb_cs.word_0052");
+_Static_assert(__builtin_offsetof(struct asb_cs, byte_0052) == 0x0052, "asb_cs.byte_0052");
 _Static_assert(__builtin_offsetof(struct asb_cs, stopped) == 0x0054, "asb_cs.stopped");
 _Static_assert(__builtin_offsetof(struct asb_cs, length_a) == 0x0056, "asb_cs.length_a");
 _Static_assert(__builtin_offsetof(struct asb_cs, offset_a) == 0x0058, "asb_cs.offset_a");
@@ -3324,14 +3339,25 @@ struct s1c_keyboard {
     struct far_ptr old_int1c;     /* +0x4e40  and the INT 1Ch one */
 } __attribute__((packed));
 
-struct s1c_words {
-    int16_t   word_5f99;          /* +0x5f99 */
-    int16_t   word_5f9b;          /* +0x5f9b */
+/*
+ * **The two code offsets `huge_move` dispatches through**, in its own segment
+ * just below its entry at 0x5f9d. It patches both before each copy and then
+ * `call word ptr cs:[0x5f99]` on each pointer and `call word ptr cs:[0x5f9b]`
+ * once per block, at 0x22293, 0x222a0 and 0x222a9.
+ *
+ * Copying **up** it stores 0x5f11 and 0x5f86 - `normalise_far_ptr` at 0x22161
+ * and the forward `rep movsw` at 0x221d6. Copying **down** it stores 0x5f23
+ * and 0x5f6f - the normalise at 0x22173 that steps a paragraph back first, and
+ * the backward copy at 0x221bf, which runs with the direction flag set.
+ */
+struct s1c_huge_move {
+    uint16_t  normalise_off;      /* +0x5f99  called on each pointer */
+    uint16_t  copy_off;           /* +0x5f9b  called once per block */
 } __attribute__((packed));
 
 extern struct s1c_timer    S1C_TIMER;
 extern struct s1c_keyboard S1C_KEYBOARD;
-extern struct s1c_words    S1C_WORDS;
+extern struct s1c_huge_move    S1C_HUGE_MOVE;
 
 /*
  * **The PC speaker driver**, laid over whatever `SX_SEG` points at.

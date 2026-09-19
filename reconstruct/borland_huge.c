@@ -135,14 +135,23 @@ struct far_ptr huge_add_to(struct far_ptr *var, int32_t delta)
  *
  * The port answers 1 for equal and 0 otherwise, since C has no flags to leave
  * behind.
+ *
+ * **Nothing in the port calls it any more**, and that is not a gap. The
+ * guest's four calls all ask whether a stored pair is null, and a normalised
+ * comparison is what a host pointer already is - so the port's own sites are
+ * `dg_far_ptr(p) == FAR_NULL_PTR`, the same move that retired `far_eq`
+ * (dgroup.h). The routine stays because the original has one at 0x0bd0d, and
+ * `verify.py` still runs it against that body; it is the hybrid that cannot
+ * take it, because its answer is the zero flag and no return kind in
+ * `routines.def` sets flags. It takes the two pairs the guest's registers
+ * hold rather than four words, like every other routine in this file.
  */
-int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
-                   uint16_t off_b, uint16_t seg_b)
+int16_t huge_equal(struct far_ptr a, struct far_ptr b)
 {
-    uint16_t na = (uint16_t)(seg_a + (off_a >> 4));
-    uint16_t nb = (uint16_t)(seg_b + (off_b >> 4));
+    uint16_t na = (uint16_t)(a.seg + (a.off >> 4));
+    uint16_t nb = (uint16_t)(b.seg + (b.off >> 4));
 
-    return (int16_t)(na == nb && (off_a & 0xf) == (off_b & 0xf));
+    return (int16_t)(na == nb && (a.off & 0xf) == (b.off & 0xf));
 }
 
 /*
