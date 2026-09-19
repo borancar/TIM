@@ -1205,11 +1205,11 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]),
                 (int16_t)(x + w - 0x18), y, 0);
 
-    VMDS.unknown_02 = 1;                    /* transparent: no background line */
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_style = 1;                    /* transparent: no background line */
+    VMDS.text_colour = 0x0f;
     draw_string(str, (int16_t)(centre - 1), (int16_t)(y + 6));
 
-    VMDS.unknown_00 = 5;
+    VMDS.text_colour = 5;
     draw_string(str, centre, (int16_t)(y + 5));
 
     restore_cursor_following();
@@ -1263,8 +1263,8 @@ void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x30]),
                 right, (int16_t)y, 0);
 
-    VMDS.unknown_02 = 1;            /* transparent: no background line */
-    VMDS.unknown_00 = 5;
+    VMDS.text_style = 1;            /* transparent: no background line */
+    VMDS.text_colour = 5;
     draw_string(str,
                 (int16_t)(x + text_off - (int16_t)pressed),
                 (int16_t)(y + 2 * (int16_t)pressed + 4));
@@ -1466,10 +1466,10 @@ void show_level_complete(void)
 
     cursor_redraw_off_thunk();
 
-    VMDS.unknown_00 = 0;
+    VMDS.text_colour = 0;
     draw_string(DG1BCC.click_button_to_continue, 0xd3, 0xee);
 
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_colour = 0x0f;
     draw_string(DG1BCC.click_button_to_continue, 0xd4, 0xed);
 
     restore_cursor_following();
@@ -1617,7 +1617,7 @@ void draw_machine_layer_a(void)
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
 
-    VMDS.unknown_02 = 1;                            /* transparent text */
+    VMDS.text_style = 1;                            /* transparent text */
 
     part = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
     y    = 0x64;
@@ -1654,10 +1654,10 @@ void draw_machine_layer_a(void)
         if (text_y > 0x161)
             text_y = 0x161;
 
-        VMDS.unknown_00 = 0;
+        VMDS.text_colour = 0;
         draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
 
-        VMDS.unknown_00 = 0x0e;
+        VMDS.text_colour = 0x0e;
         draw_string(digits, (int16_t)(text_x - 1), text_y);
 
         restore_cursor_following();

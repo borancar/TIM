@@ -574,9 +574,13 @@ struct dg_3a2c {
  * which the game reads and writes through the fields below.
  */
 struct vmds {
-    uint8_t   unknown_00;                   /* +0x00 */
-    uint8_t   unknown_01;                   /* +0x01 */
-    uint8_t   unknown_02;                   /* +0x02 */
+    /* **What the driver draws text in**: the glyph blitter takes the colour,
+       the background and the style out of these three, and the game sets them
+       before every string it draws - 0x0f for white, 5 for the shadow, and a
+       style of 1 for "no background line". */
+    uint8_t   text_colour;                  /* +0x00 */
+    uint8_t   text_back;                    /* +0x01 */
+    uint8_t   text_style;                   /* +0x02 */
     uint8_t   clip_enabled;                 /* +0x03 */
     int16_t   clip_left;                    /* +0x04 */
     int16_t   clip_right;                   /* +0x06 */
@@ -586,17 +590,28 @@ struct vmds {
     uint8_t   fill_colour;                  /* +0x0d */
     uint8_t   second_colour;                /* +0x0e */
     uint8_t   unknown_0f;                   /* +0x0f */
-    uint16_t  unknown_10;                   /* +0x10 */
+    /* **The page the saved-rect slots are keyed against**, which the two
+       `free_saved_rects` calls pass as the source beside the front and the
+       back. `vm_init` gives it the second page's segment - 0xa800, or 0xa000
+       in the 640x480 mode, where there is only one. */
+    uint16_t  rect_page;                    /* +0x10 */
     dg_seg_t  page_back_ptr;                /* +0x12  being drawn into */
     dg_seg_t  page_front_ptr;               /* +0x14  on screen */
     dg_seg_t  page_src_ptr;                 /* +0x16  a copy's source */
     dg_seg_t  page_dst_ptr;                 /* +0x18  what drawing goes into */
     uint8_t   unknown_1a[2];                /* +0x1a */
-    uint8_t   unknown_1c;                   /* +0x1c */
+    /* Set by `detect_pcjr`, which reads the two ROM bytes that say so, and
+       read by the keyboard ISR. */
+    uint8_t   is_pcjr;                      /* +0x1c */
     int8_t    pixel_shift;                  /* +0x1d  bytes per pixel, as a
                                              * shift; signed, and read so */
     uint8_t   unknown_1e;                   /* +0x1e */
-    uint8_t   unknown_1f;                   /* +0x1f */
+    /* **Take the 256-colour resources**: while it is set the loaders look for
+       the `VGA:` bitmap chunk and the `AMG:` palette instead of the plain
+       ones. `vm_init` clears it and **nothing in the image sets it**, so this
+       build always reads the plain chunks; the branches are transcribed as
+       they stand. */
+    uint8_t   vga_chunks;                   /* +0x1f */
     uint8_t   unknown_20;                   /* +0x20 */
     uint8_t   adapter;                      /* +0x21  0x10 is the VGA */
     uint16_t  line_colour;                  /* +0x22 */

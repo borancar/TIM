@@ -1898,7 +1898,7 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     uint16_t i;
     int16_t  left, top, left_at;
 
-    VMDS.unknown_02 = 1;                        /* transparent */
+    VMDS.text_style = 1;                        /* transparent */
     line_height = font_line_height(0);
 
     wrap_text_to_box(str, w, h, line_height);
@@ -1929,10 +1929,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 
         cursor_redraw_off_thunk();
 
-        VMDS.unknown_00 = 0x0f;
+        VMDS.text_colour = 0x0f;
         draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
 
-        VMDS.unknown_00 = 5;
+        VMDS.text_colour = 5;
         draw_string(start, left, top);
 
         restore_cursor_following();
@@ -3047,7 +3047,7 @@ void puzzle_draw_password(const char *text)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
 
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x140);
@@ -3094,11 +3094,11 @@ void puzzle_draw_list(int16_t first, int16_t selected)
             string_concat(name, title);
 
             if (n == selected)
-                VMDS.unknown_00 = 0x0f;
+                VMDS.text_colour = 0x0f;
             else if (n <= DG4E67.furthest_level)
-                VMDS.unknown_00 = 0x0a;
+                VMDS.text_colour = 0x0a;
             else
-                VMDS.unknown_00 = 0x0c;
+                VMDS.text_colour = 0x0c;
 
             cursor_redraw_off_thunk();
             draw_string(name, 0x34, y);
@@ -6727,8 +6727,8 @@ void picker_draw_list(void)
     fill_panel_area(x, y, w, room, 0);
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.unknown_02 = 1;                    /* transparent text */
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_style = 1;                    /* transparent text */
+    VMDS.text_colour = 0x0f;
 
     if (GAME_PICKER_TEXT.entry_count > 0x0c) {
         top = GAME_PICKER_TEXT.scroll;
@@ -7047,8 +7047,8 @@ void picker_draw_name(void)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
 
-    VMDS.unknown_01 = 0;
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_back = 0;
+    VMDS.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x44, 0x5a);
@@ -7318,8 +7318,8 @@ void picker_draw_filename(void)
     draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
-    VMDS.unknown_01 = 0;
-    VMDS.unknown_00 = 0x0f;
+    VMDS.text_back = 0;
+    VMDS.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x110);

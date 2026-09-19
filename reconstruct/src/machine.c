@@ -11950,8 +11950,8 @@ void redraw_cursor_all(void)
             VMDS.page_dst_ptr = VMDS.page_front_ptr;
         }
 
-        free_saved_rects(VMDS.unknown_10, VMDS.page_back_ptr, 0);
-        free_saved_rects(VMDS.unknown_10, VMDS.page_front_ptr, MACHINE_CURSOR_STATE.page);
+        free_saved_rects(VMDS.rect_page, VMDS.page_back_ptr, 0);
+        free_saved_rects(VMDS.rect_page, VMDS.page_front_ptr, MACHINE_CURSOR_STATE.page);
         free_saved_rects(VMDS.page_src_ptr, VMDS.page_dst_ptr, 0);
 
         copy_rect_thunk(0, 0, ((uint16_t)VMDS.screen.screen_width), ((uint16_t)VMDS.screen.screen_height));

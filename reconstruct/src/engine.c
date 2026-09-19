@@ -923,7 +923,7 @@ DG_ASSERT_AT(struct engine_font_slots, slot, 0x00);
  * as well.
  *
  * What it holds is the row the underline is drawn on: `draw_char` tests
- * `VMDS.unknown_02 & 8` and then this against the row it is about to draw,
+ * `VMDS.text_style & 8` and then this against the row it is about to draw,
  * blanking that pixel. The name is a **reading** of that one use.
  *
  * Element 0 doubles as the current font's value - `select_font` copies the
@@ -2916,7 +2916,7 @@ uint8_t far *load_palette(char *name)
                 size = ENGINE_PEN.palette_bytes;
                 huge_move(blk, buf, (uint32_t)size);
             }
-        } else if (VMDS.unknown_1f != 0) {
+        } else if (VMDS.vga_chunks != 0) {
             chunk = seek_named_chunk(file, PALCHUNK.pal_amg, 0);
 
             if (chunk != -1
@@ -3706,7 +3706,7 @@ void keyboard_isr(void)
     al = (uint8_t)(raw & 0x7f);
     bl = (uint8_t)(raw & 0x80);
 
-    if (VMDS.unknown_1c == 1) {
+    if (VMDS.is_pcjr == 1) {
         if (ENGINE_PCJR_KEYBOARD.pcjr_keyboard == 1) {
             if (al == 0x29)
                 al = 0x48;
@@ -4929,7 +4929,7 @@ struct bmp_set *load_bitmap_list(char *name)
     close_resource(di);
     kind = 1;
 
-    if (VMDS.unknown_1f == 0)
+    if (VMDS.vga_chunks == 0)
         goto done;
 
     if (seek_named_chunk(si, CHUNK.bmp_vga, 0) != -1)
@@ -5242,7 +5242,7 @@ uint16_t load_screen_plain(char *name)
 
     kind = 1;
 
-    if (VMDS.unknown_1f == 0)
+    if (VMDS.vga_chunks == 0)
         goto free_buf;
 
     close_resource(res);
@@ -5748,9 +5748,9 @@ int16_t detect_pcjr(void)
 {
     if (*MK_FP(0xf000, 0xfffe) == 0xff
         && *MK_FP(0xf000, 0xc000) == 0x21)
-        VMDS.unknown_1c = 1;
+        VMDS.is_pcjr = 1;
 
-    return (int16_t)(int8_t)VMDS.unknown_1c;
+    return (int16_t)(int8_t)VMDS.is_pcjr;
 }
 
 /*
@@ -6326,7 +6326,7 @@ static void draw_char_plot(int32_t clipped, int16_t x, int16_t y,
  */
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 {
-    uint8_t  entering = VMDS.unknown_00;
+    uint8_t  entering = VMDS.text_colour;
     int16_t  index    = (int16_t)(c - VMDS.font_table_5c[0]);
     uint16_t w, h;
     /* The glyph's bytes, walked and never stored - so a pointer, and the
@@ -6379,12 +6379,12 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 
     one_bit = ENGINE_FONT_KINDS.kind[0] <= 1;
 
-    if (VMDS.unknown_02 & 4)
+    if (VMDS.text_style & 4)
         x = (int16_t)(x + h / 2);
 
     for (row = 0; row < h; row++) {
-        if ((VMDS.unknown_02 & 1) == 0) {
-            VMDS.second_colour = VMDS.unknown_01;
+        if ((VMDS.text_style & 1) == 0) {
+            VMDS.second_colour = VMDS.text_back;
             clip_and_draw_line(x, y, (int16_t)(x + w), y);
         }
 
@@ -6402,7 +6402,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             } else {
                 pixel = *glyph;
                 if (pixel != 0)
-                    VMDS.unknown_00 = (pixel < 5)
+                    VMDS.text_colour = (pixel < 5)
                                   ? ENGINE_TEXT_COLOURS.colour[pixel]
                                   : pixel;
                 if ((uint16_t)(w - 1) > col)
@@ -6412,30 +6412,30 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             px = (int16_t)(x + col);
 
             if (pixel != 0) {
-                if ((VMDS.unknown_02 & 0x10) && (((px + y) & 1) == 0)) {
+                if ((VMDS.text_style & 0x10) && (((px + y) & 1) == 0)) {
                     /* half-tone: this one is skipped, but bold still draws */
-                    if (VMDS.unknown_02 & 2)
+                    if (VMDS.text_style & 2)
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
-                                       (int16_t)VMDS.unknown_00);
+                                       (int16_t)VMDS.text_colour);
                 } else {
-                    draw_char_plot(clipped, px, y, (int16_t)VMDS.unknown_00);
-                    if ((VMDS.unknown_02 & 0x10) == 0 && (VMDS.unknown_02 & 2))
+                    draw_char_plot(clipped, px, y, (int16_t)VMDS.text_colour);
+                    if ((VMDS.text_style & 0x10) == 0 && (VMDS.text_style & 2))
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
-                                       (int16_t)VMDS.unknown_00);
+                                       (int16_t)VMDS.text_colour);
                 }
-            } else if ((VMDS.unknown_02 & 8) && ENGINE_UNDERLINE_ROWS.underline_row[0] == row) {
+            } else if ((VMDS.text_style & 8) && ENGINE_UNDERLINE_ROWS.underline_row[0] == row) {
                 draw_char_plot(clipped, px, y, (int16_t)entering);
             }
         }
 
-        if ((VMDS.unknown_02 & 4) && (row & 1))
+        if ((VMDS.text_style & 4) && (row & 1))
             x--;
 
         y++;
         glyph++;
     }
 
-    VMDS.unknown_00 = entering;
+    VMDS.text_colour = entering;
     return w;
 }
 
@@ -6484,7 +6484,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
      * `jbe`, unsigned. Written as three unsigned tests they would agree on
      * every value this game uses and disagree on a style of 0x80 or more.
      */
-    if ((int8_t)VMDS.unknown_02 <= 1 && (int8_t)VMDS.clip_enabled == 0
+    if ((int8_t)VMDS.text_style <= 1 && (int8_t)VMDS.clip_enabled == 0
         && ENGINE_FONT_KINDS.kind[0] <= 1) {
         /*
          * The fast path: a character goes straight to the driver, and one
@@ -6548,7 +6548,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
         w = draw_char(*str, x, y);
 
         x = (int16_t)(x + w);
-        if (VMDS.unknown_02 & 2)
+        if (VMDS.text_style & 2)
             x++;
         str++;
     }
@@ -6984,7 +6984,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
     DG48DA.mode_forced = (uint8_t)adapter;
     VMDS.screen.mode_kind = 0;
-    VMDS.unknown_1f = 0;
+    VMDS.vga_chunks = 0;
     VMDS.screen.screen_width = 0x140;
     VMDS.screen.screen_height = 0xc8;
 
@@ -7180,7 +7180,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
             (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg + (uint16_t)((int16_t)di >> 4)) };
         ENGINE_BITMAP_COMPRESS.out = at;
 
-        if (VMDS.unknown_1f == 0) {
+        if (VMDS.vga_chunks == 0) {
             uint16_t pixels = (uint16_t)(hdr->width
                                          * hdr->height);
             uint8_t *blk = dos_alloc_bytes(pixels, 0, 0).ptr;
@@ -7450,7 +7450,7 @@ void compress_bitmap(struct bitmap *bmp)
 
     ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
 
-    if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f && VMDS.unknown_1f != 0) {
+    if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f && VMDS.vga_chunks != 0) {
         for (y = 0; bmp->height > y; y++)
             for (x = 0; bmp->width > x; x++) {
                 uint8_t v = *dg_far_ptr(ENGINE_BITMAP_COMPRESS.src);

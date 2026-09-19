@@ -109,14 +109,14 @@ uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
     VMDS.adapter      = 0x10;
     VMDS.page_front_ptr = 0xa000;
     VMDS.page_back_ptr  = 0xa800;
-    VMDS.unknown_10     = 0xa800;
+    VMDS.rect_page     = 0xa800;
 
     switch ((uint16_t)VMDS.screen.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
         VMDS.page_back_ptr = 0xa000;
-        VMDS.unknown_10    = 0xa000;
+        VMDS.rect_page    = 0xa000;
         break;
     case 0x15e:
         not_transcribed("VGA:0x00b4, the 0x15e screen height");
@@ -230,9 +230,9 @@ void vm_nothing(void)
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
-    uint8_t  colour = VMDS.unknown_00;
-    uint8_t  back   = VMDS.unknown_01;
-    uint8_t  style  = VMDS.unknown_02;
+    uint8_t  colour = VMDS.text_colour;
+    uint8_t  back   = VMDS.text_back;
+    uint8_t  style  = VMDS.text_style;
     uint8_t *at     = MK_FP(VMDS.page_dst_ptr,
                             (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3)));
     uint16_t shift  = (uint16_t)(x & 7);
