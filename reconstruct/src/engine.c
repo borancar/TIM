@@ -44,8 +44,14 @@ struct res_handler {
     uint16_t  far_size_read;      /* +0x02  when the mode string has an "r" */
     uint16_t  far_size;           /* +0x04  otherwise */
     uint16_t  read_off;           /* +0x06  the decoder: rle, lzw, ... */
-    uint16_t  word_08;            /* +0x08 */
-    uint16_t  word_0a;            /* +0x0a */
+    /* **The writing side's two hooks.** +0x08 is called where the port
+       refuses with "flushing a resource opened for writing" - 0x1d7d3, inside
+       `close_resource`'s write branch - and +0x0a where it refuses with
+       "opening a resource for writing": 0x1d671 tests it for zero and 0x1d681
+       calls it. Neither is reached by anything this port does, which is the
+       same side of the resource layer `ENGINE_BIT_STATE` belongs to. */
+    uint16_t  write_start_off;    /* +0x08 */
+    uint16_t  write_open_off;     /* +0x0a */
     uint16_t  reset_off;          /* +0x0c  the restart */
 } __attribute__((packed));
 
@@ -59,20 +65,20 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
         [0] = {
             .near_size = 0x0080,
             .read_off = 0x0001,
-            .word_08 = 0x007c,
+            .write_start_off = 0x007c,
         },
         [1] = {
             .near_size = 0x0080,
             .read_off = 0x0028,
-            .word_08 = 0x11bd,
+            .write_start_off = 0x11bd,
         },
         [2] = {
             .near_size = 0x0080,
             .far_size_read = 0x3ab3,
             .far_size = 0x7566,
             .read_off = 0x0812,
-            .word_08 = 0x0ccb,
-            .word_0a = 0x0c4d,
+            .write_start_off = 0x0ccb,
+            .write_open_off = 0x0c4d,
             .reset_off = 0x0720,
         },
         [3] = {
@@ -80,8 +86,8 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
             .far_size_read = 0x2163,
             .far_size = 0x2163,
             .read_off = 0x25a2,
-            .word_08 = 0x235e,
-            .word_0a = 0x1958,
+            .write_start_off = 0x235e,
+            .write_open_off = 0x1958,
             .reset_off = 0x19c5,
         },
     },
