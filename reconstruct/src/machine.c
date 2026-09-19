@@ -3889,7 +3889,7 @@ void draw_counter_long(int32_t value, int16_t x, int16_t y,
     uint32_t v   = (uint32_t)value + 0xf4240;
     int16_t  si;
 
-    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), buf, 10);
+    long_int_to_string(v, buf, 10);
     buf[7] = '0';
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -4280,7 +4280,7 @@ void score_to_code(int32_t score, char *text)
     uint32_t sum;
     char *si;
 
-    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), five, 0x10);
+    long_int_to_string(wide, five, 0x10);
 
     (*five) = '-';                        /* over the digit the add forced */
     (*code) = 0;
@@ -4291,7 +4291,7 @@ void score_to_code(int32_t score, char *text)
     sum += long_multiply((uint32_t)score, (uint8_t)text[1]);
     sum += long_multiply((uint32_t)score, (uint8_t)text[2]);
 
-    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
+    long_int_to_string(sum, sumt, 0x22);
 
     string_concat(code, sumt);
 

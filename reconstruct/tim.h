@@ -719,7 +719,7 @@ uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
    DGROUP offset, which the shim converts in both directions. */
 char *int_to_string(int16_t value, char *buf,
                        uint16_t radix);             /* 0x0d4bd */
-char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
+char *long_int_to_string(int32_t value, char *buf,
                             uint16_t radix);        /* 0x0d4ff */
 void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
@@ -734,13 +734,13 @@ void score_to_code(int32_t score, char *text); /* 0x02809 */
 int32_t score_code_to_score(char *text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
 char *long_to_string(uint16_t letters, uint16_t is_signed,
-                        uint16_t radix, char *buf, uint16_t lo,
-                        uint16_t hi);               /* 0x0c029 */
+                        uint16_t radix, char *buf,
+                        int32_t value);               /* 0x0c029 */
 uint8_t *heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
 int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
-int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
+int32_t dos_lseek(int16_t handle, int32_t off,
                   int16_t whence);                  /* 0x0c0c3 */
 int16_t read_translated(int16_t handle, uint8_t *buf,
                         uint16_t count);            /* 0x0da6d */

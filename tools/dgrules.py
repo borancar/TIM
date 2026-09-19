@@ -875,6 +875,67 @@ def rule_long_halves(paths):
     return out
 
 
+def rule_split_arg(paths):
+    """**A pair handed to a routine as two arguments.**
+
+    The other direction of `split-pair`: not two fields of one record, but one
+    value split at the call. Two shapes, both read off the argument list:
+
+        dos_setvect(0x10, ASBS.old_int10.off, ASBS.old_int10.seg);
+        part_drive(..., (uint16_t)part->momentum,
+                        (uint16_t)((uint32_t)part->momentum >> 16));
+
+    The first is a `struct far_ptr` taken apart to be put back together inside;
+    the second is a `long`. Either way the routine's parameters should be the
+    value - a `struct far_ptr` where the callee files the pair into guest
+    memory, a host pointer where it only follows it, an `int32_t` for the long -
+    and the split belongs at the one seam where the guest's stack is read,
+    which is `tools/verify.py`'s spec.
+
+    Over the tree because "two adjacent arguments" is a position in an argument
+    list, and because the two halves are expressions - `X.off` beside `X.seg`,
+    a cast beside a shifted cast - that a regex would have to guess the shape
+    of.
+
+    **Two shapes in the output are not work.** A `%04x:%04x` in a diagnostic
+    takes both halves because that is what the format asks for, and
+    `huge_equal(x.off, x.seg, 0, 0)` is the Borland huge routine's own argument
+    list, which stays as the original has it.
+    """
+    out = []
+    half = re.compile(r"^\(uint16_t\)\s*\(?\s*(?:\(uint32_t\)\s*)?(.+?)\s*\)?$")
+    for path in paths:
+        src, root = parse(path)
+        for call in walk(root):
+            if call.type != "call_expression":
+                continue
+            fn = call.child_by_field_name("function")
+            args = call.child_by_field_name("arguments")
+            if fn is None or args is None:
+                continue
+            items = [c for c in args.children if c.is_named]
+            for i in range(len(items) - 1):
+                a = " ".join(text(src, items[i]).split())
+                b = " ".join(text(src, items[i + 1]).split())
+                why = None
+                if a.endswith(".off") and b.endswith(".seg") and a[:-4] == b[:-4]:
+                    why = "far_ptr %s" % a[:-4]
+                elif a.endswith(".seg") and b.endswith(".off") and a[:-4] == b[:-4]:
+                    why = "far_ptr %s" % a[:-4]
+                else:
+                    ma, mb = half.match(a), half.match(b)
+                    if ma and mb:
+                        va = ma.group(1).replace(" ", "")
+                        vb = mb.group(1).replace(" ", "")
+                        for lo, hi in ((va, vb), (vb, va)):
+                            if hi.endswith(">>16") and hi[:-4].strip("()") == lo:
+                                why = "long %s" % lo
+                if why:
+                    out.append((os.path.basename(path),
+                                call.start_point[0] + 1, text(src, fn), why))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -882,7 +943,7 @@ def main():
     ap.add_argument("--rule",
                     choices=("raw", "offset-arg", "truncated", "const-addr",
                              "ptr-arg", "split-pair", "near-const",
-                             "long-halves", "both"),
+                             "long-halves", "split-arg", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -895,6 +956,15 @@ def main():
     paths = args.files or (
         sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "src", "*.c")))
         + sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c"))))
+
+    if args.rule == "split-arg":
+        rows = rule_split_arg(paths)
+        print("A PAIR HANDED OVER AS TWO ARGUMENTS - one value split at the")
+        print("call, which the callee then puts back together:")
+        print("   %d sites" % len(rows))
+        for f, line, fn, why in rows:
+            print("      %-24s %-26s %s" % (f + ":" + str(line), fn, why))
+        return 0
 
     if args.rule == "long-halves":
         rows = rule_long_halves(paths)

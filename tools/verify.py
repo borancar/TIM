@@ -1286,11 +1286,12 @@ ROUTINES = {
     ),
     "long_int_to_string": dict(
         addr=0x0D4FF,
+        # The guest pushes the `long` as two words; the port takes the value.
         args=[("lo", 4), ("hi", 6), ("buf", 8), ("radix", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: dgo(lib, lib.long_int_to_string(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int32(long32(a[0], a[1])),
             dgp(lib, a[2]), ctypes.c_uint16(a[3]))),
     ),
     "draw_odometer_digit": dict(
@@ -1355,7 +1356,7 @@ ROUTINES = {
         call=lambda lib, a: dgo(lib, lib.long_to_string(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_uint16(a[2]), dgp(lib, a[3]),
-            ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]))),
+            ctypes.c_int32(long32(a[4], a[5])))),
     ),
     "heap_malloc_far": dict(
         addr=0x0BB1E,
@@ -6326,8 +6327,11 @@ def _create_sequence(lib, a):
 
 
 def _dos_lseek(lib, a):
-    r = lib.dos_lseek(ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
-                      ctypes.c_uint16(a[2]), ctypes.c_int16(a[3]))
+    # The offset is a `long`: two words on the guest's stack, one argument
+    # here.
+    r = lib.dos_lseek(ctypes.c_int16(a[0]),
+                      ctypes.c_int32(long32(a[1], a[2])),
+                      ctypes.c_int16(a[3]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

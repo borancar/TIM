@@ -688,7 +688,7 @@ void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count)
  * The original cleans its own arguments - `ret 0xc`.
  */
 char *long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
-                       char *buf, uint16_t lo, uint16_t hi)
+                       char *buf, int32_t value)
 {
     uint8_t digits[0x22];
     int16_t n = 0;
@@ -700,9 +700,12 @@ char *long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
         return buf;
     }
 
-    v = ((uint32_t)hi << 16) | lo;
+    v = (uint32_t)value;
 
-    if ((int16_t)hi < 0 && (is_signed & 0xff) != 0) {
+    /* The sign test is on the *high word*, which is where the original's
+       `or dx,dx / jns` looks - the same bit as `value < 0`, said the way the
+       original says it. */
+    if ((int16_t)(uint16_t)(v >> 16) < 0 && (is_signed & 0xff) != 0) {
         *out = '-';
         out++;
         v = (uint32_t)(-(int32_t)v);
@@ -739,8 +742,7 @@ char *int_to_string(int16_t value, char *buf, uint16_t radix)
     uint32_t v = (radix == 10) ? (uint32_t)value
                                : (uint32_t)(uint16_t)value;
 
-    return long_to_string(0x61, 1, radix, buf, (uint16_t)v,
-                          (uint16_t)(v >> 16));
+    return long_to_string(0x61, 1, radix, buf, (int32_t)v);
 }
 
 /*
@@ -755,10 +757,9 @@ char *int_to_string(int16_t value, char *buf, uint16_t radix)
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
-                           uint16_t radix)
+char *long_int_to_string(int32_t value, char *buf, uint16_t radix)
 {
-    return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);
+    return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, value);
 }
 
 /*

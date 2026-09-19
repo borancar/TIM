@@ -443,13 +443,13 @@ int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count)
  * clearing it here rather than in the caller is what stops a pushed-back byte
  * surviving a seek and being read at the wrong offset.
  */
-int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
+int32_t dos_lseek(int16_t handle, int32_t off, int16_t whence)
 {
     int32_t pos;
 
     BORLAND_HANDLE_FLAGS.flags[handle] = (int16_t)(BORLAND_HANDLE_FLAGS.flags[handle] & 0xfdff);
 
-    pos = io_dos_lseek(handle, (int32_t)(((uint32_t)hi << 16) | lo), whence);
+    pos = io_dos_lseek(handle, off, whence);
     if (pos < 0) {
         not_transcribed("__IOerror after a failed DOS seek");
         return -1;
@@ -974,8 +974,7 @@ int16_t borland_fseek(struct file_rec *file, int32_t off, int16_t whence)
     file->level = 0;
     file->curp_ptr = ((int16_t)file->buffer_ptr);
 
-    if (dos_lseek((int8_t)file->fd, (uint16_t)off,
-                  (uint16_t)((uint32_t)off >> 16), whence) == -1)
+    if (dos_lseek((int8_t)file->fd, off, whence) == -1)
         return -1;
 
     return 0;
@@ -989,7 +988,7 @@ int16_t borland_fseek(struct file_rec *file, int32_t off, int16_t whence)
  */
 int32_t dos_tell(int16_t handle)
 {
-    return dos_lseek(handle, 0, 0, 1);
+    return dos_lseek(handle, 0, 1);
 }
 
 /*
@@ -1404,7 +1403,7 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
         handle = (int16_t)((int8_t)file->fd);
 
         if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
-            dos_lseek(handle, 0, 0, 2);
+            dos_lseek(handle, 0, 2);
 
         if (BORLAND_FPUTC_CHAR.character == '\n' && (file->flags & 0x40) == 0) {
             if (dos_write(handle, DG4E34.cr, 1) != 1)
@@ -1490,7 +1489,7 @@ int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
         return 0;
 
     if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
-        dos_lseek(handle, 0, 0, 2);
+        dos_lseek(handle, 0, 2);
 
     if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x4000) == 0)
         return dos_write(handle, buf, count);
@@ -2475,7 +2474,7 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
         if (file->bsize == 0) {
             /* Unbuffered. */
             if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
-                dos_lseek(handle, 0, 0, 2);
+                dos_lseek(handle, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)
                 return 0;
@@ -2489,7 +2488,7 @@ uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * b
                 return 0;
 
             if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x800) != 0)
-                dos_lseek(handle, 0, 0, 2);
+                dos_lseek(handle, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)
                 return 0;
@@ -3039,7 +3038,7 @@ void borland_exit_common(int16_t status, int16_t dontexit, int16_t quick)
  */
 char *tmp_number(char *buf, uint16_t number)
 {
-    return long_to_string('a', 0, 10, buf, number, 0);
+    return long_to_string('a', 0, 10, buf, (int32_t)(uint32_t)number);
 }
 
 /*
@@ -3646,7 +3645,8 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
                 continue;                       /* 0x0c4eb: nothing at all */
             if ((lo | hi) != 0)
                 flags |= 4;
-            long_to_string(letters, is_signed, radix, num + 1, lo, hi);
+            long_to_string(letters, is_signed, radix, num + 1,
+                           (int32_t)(((uint32_t)hi << 16) | lo));
             text = num + 1;
         }
 
