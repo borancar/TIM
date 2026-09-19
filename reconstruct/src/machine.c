@@ -10196,7 +10196,7 @@ void free_archive_lists(void)
     }
 
     if ((DG5677.crit_vec.off | DG5677.crit_vec.seg) != 0) {
-        dos_setvect(0x24, DG5677.crit_vec.off, DG5677.crit_vec.seg);
+        dos_setvect(0x24, DG5677.crit_vec);
         DG5677.crit_vec = FAR_NULL;
     }
 
@@ -12544,7 +12544,7 @@ void load_archive_map(void)
 
     DG5677.crit_vec = dos_getvect(0x24);
 
-    dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
+    dos_setvect(0x24, (struct far_ptr){ 0x9bdf, (uint16_t)(IMAGE_BASE >> 4) });
     DG546C.scanned = 1;
 
     file = borland_fopen(MACHINE_RESOURCE_MAP_NAMES.resource_map, MACHINE_RESOURCE_MAP_NAMES.mode_rb_a);

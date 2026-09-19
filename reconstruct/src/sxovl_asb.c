@@ -382,7 +382,7 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
     uint8_t  bit, was;
 
     *(struct far_ptr *)&ASB16(save_at) = dos_getvect(vec);
-    dos_setvect(vec, handler, ASB_SEG);
+    dos_setvect(vec, (struct far_ptr){ handler, ASB_SEG });
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
 
@@ -403,7 +403,8 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
 {
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
-    dos_setvect(vec, ASBU16(save_at), ASBU16(save_at + 2));
+    dos_setvect(vec, (struct far_ptr){ ASBU16(save_at),
+                                       ASBU16(save_at + 2) });
     io_out8(((uint16_t)ASBS.pic_port), mask_was);
 
     io_on_sb_irq(irq, 0);
@@ -805,10 +806,10 @@ uint16_t asb_uninstall(void)
 {
     asb_shutdown();
 
-    dos_setvect(0x10, ASBS.old_int10.off, ASBS.old_int10.seg);
-    dos_setvect(0x0d, ASBS.old_int0d.off, ASBS.old_int0d.seg);
-    dos_setvect(0x74, ASBS.old_int74.off, ASBS.old_int74.seg);
-    dos_setvect(0x09, ASBS.old_int09.off, ASBS.old_int09.seg);
+    dos_setvect(0x10, ASBS.old_int10);
+    dos_setvect(0x0d, ASBS.old_int0d);
+    dos_setvect(0x74, ASBS.old_int74);
+    dos_setvect(0x09, ASBS.old_int09);
 
     if (((uint16_t)ASBS.file_handle) != 0xffff) {
         io_dos_close((int16_t)((uint16_t)ASBS.file_handle));
@@ -933,16 +934,16 @@ uint16_t asb_install(void)
     ASBS.stopped = 1;
 
     ASBS.old_int10 = dos_getvect(0x10);
-    dos_setvect(0x10, 0x052b, ASB_SEG);
+    dos_setvect(0x10, (struct far_ptr){ 0x052b, ASB_SEG });
 
     ASBS.old_int0d = dos_getvect(0x0d);
-    dos_setvect(0x0d, 0x053e, ASB_SEG);
+    dos_setvect(0x0d, (struct far_ptr){ 0x053e, ASB_SEG });
 
     ASBS.old_int74 = dos_getvect(0x74);
-    dos_setvect(0x74, 0x0551, ASB_SEG);
+    dos_setvect(0x74, (struct far_ptr){ 0x0551, ASB_SEG });
 
     ASBS.old_int09 = dos_getvect(0x09);
-    dos_setvect(0x09, 0x0564, ASB_SEG);
+    dos_setvect(0x09, (struct far_ptr){ 0x0564, ASB_SEG });
 
     /*
      * INT 21h AH=34h, the address of the InDOS flag, and the byte below it.

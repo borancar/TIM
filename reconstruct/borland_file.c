@@ -2047,12 +2047,12 @@ struct far_ptr dos_getvect(uint16_t n)
  * The port writes the vector table directly, for the same reason `getvect`
  * reads it.
  */
-void dos_setvect(uint16_t n, uint16_t off, uint16_t seg)
+void dos_setvect(uint16_t n, struct far_ptr handler)
 {
     uint8_t *v = guest_mem + 4 * (n & 0xff);
 
-    *(uint16_t *)v = off;
-    *(uint16_t *)(v + 2) = seg;
+    *(uint16_t *)v = handler.off;
+    *(uint16_t *)(v + 2) = handler.seg;
 }
 
 /*

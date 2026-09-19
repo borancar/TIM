@@ -823,7 +823,7 @@ uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
 struct far_ptr dos_getvect(uint16_t n);                   /* 0x0bd70 */
-void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
+void dos_setvect(uint16_t n, struct far_ptr handler);     /* 0x0bd7f */
 char *string_copy(char *dst, const char *src);    /* 0x0dd33 */
 uint16_t string_length(const char *s);                 /* 0x0dd95 */
 char *string_reverse(char *s);                /* 0x0de1e */

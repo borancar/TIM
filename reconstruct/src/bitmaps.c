@@ -552,7 +552,12 @@ struct bmp_set *load_bitmaps(char *name)
        the two routines that still want the near pointer get it from
        `dg_near`. */
     bmp_ptr_t *list_at;
-    int16_t offset_at[7]; /* [bp-0x14] */
+    /* **One `long`, not two words.** The four bytes the offset table holds
+       per bitmap are a 32-bit offset into the block, which the original reads
+       into `[bp-0x14]` and then adds with `huge_add`; reading them as two
+       words meant putting them back together at the one place they are used.
+       The slot is fourteen bytes and only these four are read. */
+    int32_t offset_at;    /* [bp-0x14] */
     /* Two more slots the original addresses as `count_at` less a constant
        rather than by name: [bp-0x1a] is the kind and [bp-6] the size
        `vm_bitmap_list_size` writes. 0x8e - 0x16 and 0x8e - 2. */
@@ -630,16 +635,14 @@ struct bmp_set *load_bitmaps(char *name)
         for (i = 0; i < count_at; i++) {
             struct bitmap *si;
 
-            if (game_fread((uint8_t *)offset_at, 4, 1, di) != 1) {
+            if (game_fread((uint8_t *)&offset_at, 4, 1, di) != 1) {
                 dos_free_far(block);
                 goto fail;
             }
 
             /* `huge_add` answers the normalised pair, which is `far_of`'s. */
             si = BMP_PTR(list_at[i]);
-            si->data = far_to_rev(far_of(
-                block + (int32_t)(((uint32_t)(uint16_t)offset_at[1] << 16)
-                                  | (uint16_t)offset_at[0])));
+            si->data = far_to_rev(far_of(block + offset_at));
         }
     } else {
         /* The four bytes `huge_add_to` steps; each header files the

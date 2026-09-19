@@ -1827,10 +1827,9 @@ void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
  * port that delivered events the game never asked for would be inventing
  * input.
  */
-void io_mouse_set_handler(uint16_t mask, uint16_t off, uint16_t seg)
+void io_mouse_set_handler(uint16_t mask, struct far_ptr handler)
 {
-    (void)off;
-    (void)seg;
+    (void)handler;
     mouse_mask = mask;
     mouse_installed = 1;
 }

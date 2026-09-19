@@ -1834,9 +1834,12 @@ ROUTINES = {
     ),
     "dos_setvect": dict(
         addr=0x0BD7F,
+        # The guest pushes the vector as two words and the port takes the pair,
+        # because a vector is guest code and cannot be a host pointer.
         args=[("n", 4), ("off", 6), ("seg", 8)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.dos_setvect(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.dos_setvect(ctypes.c_uint16(a[0]),
+                                            FarPtr(a[1], a[2])),
     ),
     "long_shift_left": dict(
         addr=0x0BE3E,
