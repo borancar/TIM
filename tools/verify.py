@@ -205,6 +205,18 @@ def dgh(lib, off):
                            + (off & 0xFFFF))
 
 
+def long32(lo, hi):
+    """The signed `long` the guest pushed as two words, low half first.
+
+    A `long` argument is two pushes, and a port routine that takes the value
+    as one `int32_t` needs them put back together here - the same seam `dgp`
+    is: what the guest's stack holds on one side, what the port's C takes on
+    the other.
+    """
+    v = ((hi & 0xFFFF) << 16) | (lo & 0xFFFF)
+    return v - 0x100000000 if v & 0x80000000 else v
+
+
 def dgp(lib, off):
     """A DGROUP offset as the host pointer the port now takes.
 
@@ -4435,19 +4447,23 @@ ROUTINES = {
     ),
     "part_drive_0802": dict(
         addr=0x17AC2,
+        # **The last two words are one `long`.** The guest pushes the momentum
+        # as two words and the port takes it as the `int32_t` it is, so the
+        # spec is where the halves are put back together - the same seam
+        # `dgp` uses to turn a guest offset into a pointer.
         args=[("from", 4), ("part", 6), ("p3", 8), ("flags", 10),
               ("p5", 12), ("lo", 14), ("hi", 16)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_drive_0802(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
+        call=lambda lib, a: lib.part_drive_0802(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_int32(long32(a[5], a[6]))),
     ),
     "part_drive_2451": dict(
         addr=0x19711,
         args=[("p1", 4), ("si", 6), ("p3", 8), ("flags", 10),
-              ("p5", 12), ("p6", 14), ("p7", 16)],
+              ("p5", 12), ("lo", 14), ("hi", 16)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_drive_2451(dgh(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
+        call=lambda lib, a: lib.part_drive_2451(dgh(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_int32(long32(a[5], a[6]))),
     ),
     "collect_carried": dict(
         addr=0x03972,

@@ -1409,7 +1409,7 @@ uint16_t part_hook_172c(uint16_t off, struct part *part)
  * which is what a 32-bit signed compare is, so it is written as one.
  */
 uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     int32_t  v, limit;
 
@@ -1425,7 +1425,7 @@ uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (p1->kind != KIND_SEESAW)
         v += v;
 
-    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    limit = p6;
     return v > limit ? 1 : 0;
 }
 
@@ -1992,7 +1992,7 @@ uint16_t part_settle_48f7(struct part *part)
  * thing it was asked about.
  */
 uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     int32_t  v, limit;
 
@@ -2008,7 +2008,7 @@ uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (p1->kind != KIND_SEESAW)
         v += v;
 
-    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    limit = p6;
     if (v > limit)
         return 1;
 
@@ -2029,7 +2029,7 @@ uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t
  * is kind 3 - answers 1 when it is past the limit.
  */
 uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     int32_t  v, limit;
 
@@ -2045,7 +2045,7 @@ uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (p1->kind != KIND_SEESAW)
         v += v;
 
-    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    limit = p6;
     return v > limit ? 1 : 0;
 }
 
@@ -2061,7 +2061,7 @@ uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t
  * on it.
  */
 uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     uint16_t di = p4;
     uint16_t mode;
@@ -2070,7 +2070,6 @@ uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     (void)p3;
     (void)p5;
     (void)p6;
-    (void)p7;
 
     if (di == 1) {
         BELT_PTR(p2->belt_ptr[0])->v[0]++;
@@ -2124,7 +2123,7 @@ uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t
  * difference and not a transcription slip.
  */
 uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     struct belt *chain = BELT_PTR(p2->belt_ptr[p3]);
     uint16_t mode;
@@ -2172,7 +2171,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     if (di == 0 && mode != 1) {
         p2->direction = drive;
 
-        di = (int16_t)drive_belts(p1, p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
+        di = (int16_t)drive_belts(p1, p2, (uint16_t)(p4 & 0x8000), p5, p6);
 
         if ((p4 & 0x8000) != 0)
             p2->direction = was;
@@ -2482,7 +2481,7 @@ uint16_t part_hit_monkey(struct part *part)
  * mode 4 has already answered yes in that case. Transcribed anyway.
  */
 uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     uint16_t di = p4;
     uint16_t mode;
@@ -2491,7 +2490,6 @@ uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     (void)p3;
     (void)p5;
     (void)p6;
-    (void)p7;
 
     if (di == 1) {
         BELT_PTR(p2->belt_ptr[0])->v[0]++;
@@ -4039,7 +4037,7 @@ void seg172c_nothing(void)
  * first belt that answers anything at all.
  */
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
-                     uint16_t a, uint16_t b, uint16_t c)
+                     uint16_t a, int32_t momentum)
 {
     uint16_t v10;   /* [bp-0x10] the far part */
     uint16_t v0a;   /* [bp-0x0a] the far slot */
@@ -4088,7 +4086,7 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
         v04 |= flags;
 
         v04 = part_drive(PART_PTR(v10), part, PART_PTR(v10), v0a,
-                                v04, a, b, c);
+                                v04, a, momentum);
     }
 
     answer = v04;
@@ -4102,26 +4100,26 @@ out:
  * segment. An offset with no case yet aborts and names itself.
  */
 uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p4, uint16_t p5, int32_t p6)
 {
     switch (off) {
-    case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
-    case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
-    case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
-    case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
-    case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
-    case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
-    case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
+    case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6);
+    case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6);
+    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6);
+    case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6);
+    case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6);
+    case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6);
+    case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6);
+    case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6);
+    case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6);
+    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6);
     default: break;
     }
 
     {
         static char what[64];
 
-        (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6; (void)p7;
+        (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6;
         io_format(what, sizeof what, "the part drive at 172c:%04x", off);
         not_transcribed(what);
     }
@@ -4142,8 +4140,7 @@ uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_
  * something that, as far as the file is concerned, is at 172c:11d2.
  */
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t lo,
-                         uint16_t hi)
+                         uint16_t flags, uint16_t p5, int32_t momentum)
 {
     uint32_t mine;
 
@@ -4159,7 +4156,7 @@ uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
     if (from->kind != KIND_SEESAW)
         mine += mine;
 
-    return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
+    return (int32_t)mine > momentum
            ? 1 : 0;
 }
 
@@ -4178,8 +4175,7 @@ uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
  * turn it at one more remove.
  */
 uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t lo,
-                         uint16_t hi)
+                         uint16_t flags, uint16_t p5, int32_t momentum)
 {
     uint32_t mine;
 
@@ -4195,7 +4191,7 @@ uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
     if (from->kind != KIND_SEESAW)
         mine += mine;
 
-    return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
+    return (int32_t)mine > momentum
            ? 1 : 0;
 }
 
@@ -4218,12 +4214,11 @@ uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
  * past it.
  */
 uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t p6,
-                         uint16_t p7)
+                         uint16_t flags, uint16_t p5, int32_t p6)
 {
     uint16_t kept, unsigned_kept;
 
-    (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
+    (void)p1; (void)p3; (void)p5; (void)p6;
 
     if (flags == 1) {
         BELT_PTR(si->belt_ptr[0])->v[0]++;
@@ -4267,12 +4262,12 @@ uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
  * that is *not* going starts it instead, with sound 0x11, and answers 0.
  */
 uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t flags, uint16_t p5, int32_t p6)
 {
     struct belt *belt = BELT_PTR(si->belt_ptr[0]);
     uint16_t kept;
 
-    (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
+    (void)p1; (void)p3; (void)p5; (void)p6;
 
     if (flags == 1) {
         belt->v[0]++;
@@ -4335,13 +4330,10 @@ uint16_t part_step_seesaw(struct part *part)
             (uint16_t)(part->form
                        + ((uint16_t)part->direction));
     } else if (drive_belts(PART_NONE, part, 0x8000, 0x3e8,
-                           (uint16_t)part->momentum,
-                           (uint16_t)((uint32_t)part->momentum >> 16)) != 0) {
+                           part->momentum) != 0) {
         part->flags_08 |= 0x200;
     } else {
-        drive_belts(PART_NONE, part, 0, 0x3e8,
-                    (uint16_t)part->momentum,
-                    (uint16_t)((uint32_t)part->momentum >> 16));
+        drive_belts(PART_NONE, part, 0, 0x3e8, part->momentum);
         part->form =
             (uint16_t)(part->form
                        + ((uint16_t)part->direction));

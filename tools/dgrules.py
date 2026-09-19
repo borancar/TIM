@@ -813,13 +813,76 @@ def designator(src, node):
     return ""
 
 
+def rule_long_halves(paths):
+    """**Two 16-bit fields written as the halves of one 32-bit value.**
+
+    The original has no 32-bit type but Borland has `long`, and a `long` in
+    memory is two words the compiler addresses separately. Read back as two
+    `uint16_t` fields the arithmetic has to be done by hand - a shift and a
+    mask at every site - and the field that should carry the fact carries
+    half of it:
+
+        rec->hi = (uint16_t)(v >> 16);
+        rec->lo = (uint16_t)v;
+
+    This finds that shape: a store of `x >> 16` into one field of a struct and
+    a store of the same `x` - cast or masked to sixteen bits - into another,
+    in the same statement block. It also finds the read, `((uint32_t)hi << 16)
+    | lo`, which is the same fact the other way round.
+
+    A pair it names is one `int32_t` field, and the port already has several
+    written that way - a part's `fx`, `fy` and `momentum` - with the note that
+    a two-byte read where the original reads four is the defect that stopped
+    three levels solving.
+
+    Over the tree because the halves are two *statements*, and which two is a
+    question about the block they sit in rather than about the text of a line.
+    """
+    out = []
+    for path in paths:
+        src, root = parse(path)
+        for fn in walk(root):
+            if fn.type != "compound_statement":
+                continue
+            shifted = {}        # value expression -> (field, line)
+            plain = {}
+            for st in fn.children:
+                if st.type != "expression_statement":
+                    continue
+                e = next((c for c in st.children if c.is_named), None)
+                if e is None or e.type != "assignment_expression":
+                    continue
+                left = e.child_by_field_name("left")
+                right = e.child_by_field_name("right")
+                if left is None or right is None:
+                    continue
+                if left.type not in ("field_expression", "subscript_expression",
+                                     "identifier"):
+                    continue
+                target = text(src, left)
+                rhs = " ".join(text(src, right).split())
+                m = re.match(r"^\(uint16_t\)\s*\(\s*(.+?)\s*>>\s*16\s*\)$", rhs)
+                if m:
+                    shifted[m.group(1)] = (target, st.start_point[0] + 1)
+                    continue
+                m = re.match(r"^\(uint16_t\)\s*(.+)$", rhs)
+                if m:
+                    plain.setdefault(m.group(1), (target, st.start_point[0] + 1))
+            for value, (hi, line) in shifted.items():
+                if value in plain:
+                    lo, lo_line = plain[value]
+                    out.append((os.path.basename(path), line, hi, lo, value))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rule",
                     choices=("raw", "offset-arg", "truncated", "const-addr",
-                             "ptr-arg", "split-pair", "near-const", "both"),
+                             "ptr-arg", "split-pair", "near-const",
+                             "long-halves", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -832,6 +895,17 @@ def main():
     paths = args.files or (
         sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "src", "*.c")))
         + sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c"))))
+
+    if args.rule == "long-halves":
+        rows = rule_long_halves(paths)
+        print("TWO FIELDS WRITTEN AS THE HALVES OF ONE 32-BIT VALUE - that is")
+        print("one `int32_t` field, and the halves make every reader do the")
+        print("arithmetic by hand:")
+        print("   %d sites" % len(rows))
+        for f, line, hi, lo, value in rows:
+            print("      %-22s %s = %s >> 16, %s = %s"
+                  % (f + ":" + str(line), hi, value, lo, value))
+        return 0
 
     if args.rule == "near-const":
         exact, inside = rule_near_const(paths)

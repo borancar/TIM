@@ -60,7 +60,8 @@ _Static_assert(sizeof(struct borland_data_start) == 0x74, "DGROUP 0x0000..0x0074
  * DGROUP 0x2d48..0x2d76, 0x2e bytes.
  */
 struct borland_find_name {
-    uint16_t  word_2d48;          /* +0x00 [2] */
+    /* Nothing touches it and the image never names the offset. */
+    uint16_t  _pad_2d48;          /* +0x00 [2] */
     char      find_name[13];      /* +0x02 [0xd] */
     uint8_t   unread_2d57[0x1f];  /* +0x0f [0x1f] */
 } __attribute__((packed));
@@ -73,17 +74,23 @@ _Static_assert(sizeof(struct borland_find_name) == 0x2e, "the find name's run en
  * **Not established**, DGROUP 0x2d76..0x2d7d, 0x07 bytes.
  */
 struct borland_find_info {
-    uint8_t   word_2d76;          /* +0x00 [1] */
+    /* The attribute byte the last find left in the DTA, which
+       `dos_find_attr` answers. */
+    uint8_t   attr;               /* +0x00 [1] */
     uint32_t  size;               /* +0x01 [4]  the size of the entry just found, which
                                      dos_find_to_dgroup copies out of the DTA */
-    int16_t   word_2d7b;          /* +0x05 [2] */
+    /* **The DOS result of the last directory call**, zero when the carry was
+       clear: `chdir`, `mkdir`, `rmdir` and `unlink` each file theirs here.
+       Nothing in the image reads it - the four stores are its only
+       references. */
+    int16_t   dos_result;         /* +0x05 [2] */
 } __attribute__((packed));
 
 struct borland_find_info BORLAND_FIND_INFO DGROUP_AT(0x2d76);
 _Static_assert(sizeof(struct borland_find_info) == 0x07, "DGROUP 0x2d76..0x2d7d, 0x07 bytes");
-DG_ASSERT_AT(struct borland_find_info, word_2d76, 0x00);
+DG_ASSERT_AT(struct borland_find_info, attr, 0x00);
 DG_ASSERT_AT(struct borland_find_info, size,      0x01);
-DG_ASSERT_AT(struct borland_find_info, word_2d7b, 0x05);
+DG_ASSERT_AT(struct borland_find_info, dos_result, 0x05);
 
 /*
  * **The `atexit` count**, DGROUP 0x4ab4..0x4ab7, 0x03 bytes: how many far pointers the table
@@ -94,7 +101,7 @@ DG_ASSERT_AT(struct borland_find_info, word_2d7b, 0x05);
  */
 struct borland_atexit_count {
     uint16_t  atexit_count;       /* +0x00 [2] */
-    uint8_t   byte_4ab6;          /* +0x02 [1] */
+    uint8_t   _pad_4ab6;          /* +0x02 [1]  nothing touches it */
 } __attribute__((packed));
 
 struct borland_atexit_count BORLAND_ATEXIT_COUNT DGROUP_AT(0x4ab4);
@@ -157,7 +164,7 @@ _Static_assert(sizeof(struct borland_exit_vectors) == 0x0c, "the exit vectors en
  *
  * Twenty `struct file_rec`, which is what the two routines that walk the table
  * say: `flush_all_streams` counts 0x14 of them at a stride of 0x10, and
- * `find_free_stream` bounds itself with `BORLAND_NFILE.word_4d04 << 4` - the count
+ * `find_free_stream` bounds itself with `BORLAND_NFILE.nfile << 4` - the count
  * times the stride. The fields they read are already named on that struct -
  * `+2` is `flags` and `+4` is `handle`, which is tested signed because -1
  * means no handle.
@@ -182,12 +189,14 @@ DG_ASSERT_AT(struct borland_streams, streams, 0x00);
  * **Not established**, DGROUP 0x4d04..0x4d06, 0x02 bytes.
  */
 struct borland_nfile {
-    uint16_t  word_4d04;          /* +0x00 [2] */
+    /* **`_nfile`**, the size of the stream table: twenty here, and
+       `find_free_stream` bounds itself with it. */
+    uint16_t  nfile;              /* +0x00 [2] */
 } __attribute__((packed));
 
-struct borland_nfile BORLAND_NFILE DGROUP_AT(0x4d04) = { .word_4d04 = 0x0014 };
+struct borland_nfile BORLAND_NFILE DGROUP_AT(0x4d04) = { .nfile = 0x0014 };
 _Static_assert(sizeof(struct borland_nfile) == 0x02, "DGROUP 0x4d04..0x4d06, 0x02 bytes");
-DG_ASSERT_AT(struct borland_nfile, word_4d04, 0x00);
+DG_ASSERT_AT(struct borland_nfile, nfile, 0x00);
 
 /*
  * **Borland's handle flags**, one word per DOS handle, DGROUP 0x4d06..0x4d2e,
@@ -205,10 +214,16 @@ _Static_assert(sizeof(struct borland_handle_flags) == 0x28, "twenty handles end 
  * **Not established**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
  */
 struct borland_io_modes {
-    uint16_t  word_4d2e;          /* +0x00 [2] */
-    uint16_t  word_4d30;          /* +0x02 [2] */
+    /* **`_fmode`**, the text-or-binary default an `fopen` with neither takes:
+       its top two bits are or-ed into the flags. */
+    uint16_t  fmode;              /* +0x00 [2] */
+    /* The mask an open's permission argument is taken through - 0xffff, so
+       all of it - before the read and write bits are tested. */
+    uint16_t  perm_mask;          /* +0x02 [2] */
     uint8_t   pad_4d32[2];        /* +0x04 [2] */
-    int16_t   word_4d34;          /* +0x06 [2] */
+    /* **`_doserrno`**: the DOS code `io_error` files, which the open path
+       reads back to tell "file not found" from a real failure. */
+    int16_t   doserrno;           /* +0x06 [2] */
     /* Borland's `_dosErrorToSV`: the errno for each DOS error code, 0x59
        entries, -1 where there is none. `io_error` clamps a code to 0x58 and
        reads through here. The string "TMP" follows at 0x4d90. */
@@ -216,8 +231,8 @@ struct borland_io_modes {
 } __attribute__((packed));
 
 struct borland_io_modes BORLAND_IO_MODES DGROUP_AT(0x4d2e) = {
-    .word_4d2e = 0x4000,
-    .word_4d30 = 0xffff,
+    .fmode = 0x4000,
+    .perm_mask = 0xffff,
     .errno_map = {
         0x00, 0x13, 0x02, 0x02, 0x04, 0x05, 0x06, 0x08, 0x08, 0x08, 0x14,
         0x15, 0x05, 0x13, -0x01, 0x16, 0x05, 0x11, 0x02, -0x01, -0x01, -0x01,
@@ -232,9 +247,9 @@ struct borland_io_modes BORLAND_IO_MODES DGROUP_AT(0x4d2e) = {
 };
 DG_ASSERT_AT(struct borland_io_modes, errno_map, 0x08);
 _Static_assert(sizeof(struct borland_io_modes) == 0x61, "the errno map ends before the TMP string at 0x4d90");
-DG_ASSERT_AT(struct borland_io_modes, word_4d2e, 0x00);
-DG_ASSERT_AT(struct borland_io_modes, word_4d30, 0x02);
-DG_ASSERT_AT(struct borland_io_modes, word_4d34, 0x06);
+DG_ASSERT_AT(struct borland_io_modes, fmode, 0x00);
+DG_ASSERT_AT(struct borland_io_modes, perm_mask, 0x02);
+DG_ASSERT_AT(struct borland_io_modes, doserrno, 0x06);
 
 /*
  * **The runtime's strings and the printf class table**, DGROUP 0x4d90..0x4e34, 0xa4 bytes:
@@ -474,7 +489,7 @@ void setup_streams(void)
 {
     uint16_t dx;
 
-    for (dx = 5; dx < BORLAND_NFILE.word_4d04; dx++) {
+    for (dx = 5; dx < BORLAND_NFILE.nfile; dx++) {
         BORLAND_HANDLE_FLAGS.flags[dx] = 0;
         BORLAND_STREAMS.streams[dx].fd = 0xff;
         BORLAND_STREAMS.streams[dx].token_ptr = dg_near(dgroup, &BORLAND_STREAMS.streams[dx]);
@@ -677,7 +692,7 @@ int16_t read_translated(int16_t handle, uint8_t *buf, uint16_t count)
 {
     int16_t got;
 
-    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04) {
+    if ((uint16_t)handle >= BORLAND_NFILE.nfile) {
         not_transcribed("__IOerror after a read on a handle above _nfile");
         return -1;
     }
@@ -1066,7 +1081,7 @@ int16_t dos_close(int16_t handle)
  */
 int16_t close_handle(int16_t handle)
 {
-    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04) {
+    if ((uint16_t)handle >= BORLAND_NFILE.nfile) {
         not_transcribed("__IOerror for a handle above _nfile");
         return -1;
     }
@@ -1300,7 +1315,7 @@ int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags, const char *mod
         flags |= 0x8000;
         r |= 0x40;
     } else {
-        flags |= (uint16_t)(BORLAND_IO_MODES.word_4d2e & 0xc000);
+        flags |= (uint16_t)(BORLAND_IO_MODES.fmode & 0xc000);
         if ((flags & 0x8000) != 0)
             r |= 0x40;
     }
@@ -1468,7 +1483,7 @@ int16_t borland_putc(int16_t c, struct file_rec *file)
  */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
 {
-    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04)
+    if ((uint16_t)handle >= BORLAND_NFILE.nfile)
         return io_error(6);             /* DOS 6: invalid handle */
 
     if ((uint16_t)(count + 1) < 2)
@@ -1645,7 +1660,7 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
     int16_t info;
 
     if ((flags & 0xc000) == 0)
-        flags |= (uint16_t)(BORLAND_IO_MODES.word_4d2e & 0xc000);
+        flags |= (uint16_t)(BORLAND_IO_MODES.fmode & 0xc000);
 
     attr = dos_getattr(name, 0, 0);
 
@@ -1668,7 +1683,7 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
      * open is not abandoned.
      */
     if ((flags & 0x100) != 0) {
-        uint16_t perms = (uint16_t)(perm & BORLAND_IO_MODES.word_4d30);
+        uint16_t perms = (uint16_t)(perm & BORLAND_IO_MODES.perm_mask);
 
         if ((perms & 0x180) == 0)
             io_error(1);
@@ -1679,8 +1694,8 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
              * anything but 2 - "file not found" - is a real failure, because a
              * create is only justified by the file's absence.
              */
-            if (((uint16_t)BORLAND_IO_MODES.word_4d34) != 2)
-                return io_error((int16_t)((uint16_t)BORLAND_IO_MODES.word_4d34));
+            if (((uint16_t)BORLAND_IO_MODES.doserrno) != 2)
+                return io_error((int16_t)((uint16_t)BORLAND_IO_MODES.doserrno));
 
             attr = (int16_t)((perms & 0x80) ? 0 : 1);
 
@@ -1819,7 +1834,7 @@ int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode, uint1
 struct file_rec *find_free_stream(void)
 {
     struct file_rec *si  = &BORLAND_STREAMS.streams[0];
-    struct file_rec *end = &BORLAND_STREAMS.streams[BORLAND_NFILE.word_4d04];
+    struct file_rec *end = &BORLAND_STREAMS.streams[BORLAND_NFILE.nfile];
 
     while ((int8_t)si->fd >= 0) {
         struct file_rec *prev = si;
@@ -2066,16 +2081,16 @@ int16_t io_error(int16_t code)
     if (si >= 0) {
         if (si > 0x58)
             si = 0x57;
-        BORLAND_IO_MODES.word_4d34 = si;
+        BORLAND_IO_MODES.doserrno = si;
         si = BORLAND_IO_MODES.errno_map[si];
     } else {
         si = (int16_t)(-si);
         if (si > 0x23) {
             si = 0x57;
-            BORLAND_IO_MODES.word_4d34 = si;
+            BORLAND_IO_MODES.doserrno = si;
             si = BORLAND_IO_MODES.errno_map[si];
         } else {
-            BORLAND_IO_MODES.word_4d34 = -1;
+            BORLAND_IO_MODES.doserrno = -1;
         }
     }
 
@@ -2560,7 +2575,7 @@ uint16_t dos_unlink(const char *path)
 
     r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
 
-    BORLAND_FIND_INFO.word_2d7b = r;
+    BORLAND_FIND_INFO.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -2657,7 +2672,7 @@ void dos_find_to_dgroup(void)
 {
     uint16_t i;
 
-    BORLAND_FIND_INFO.word_2d76  = dta_attr;
+    BORLAND_FIND_INFO.attr  = dta_attr;
     BORLAND_FIND_INFO.size = dta_size;
 
     for (i = 0; i < 0x0d; i++)
@@ -2728,7 +2743,7 @@ uint16_t dos_findnext(const char *pattern, uint16_t attr)
  */
 uint16_t dos_find_attr(void)
 {
-    return BORLAND_FIND_INFO.word_2d76;
+    return BORLAND_FIND_INFO.attr;
 }
 
 /*
@@ -2783,7 +2798,7 @@ uint16_t dos_chdir(const char *path)
 
     r = io_dos_chdir(name);
 
-    BORLAND_FIND_INFO.word_2d7b = r;
+    BORLAND_FIND_INFO.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -3144,7 +3159,7 @@ int16_t borland_eof(int16_t handle)
 {
     int32_t cur, end;
 
-    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04)
+    if ((uint16_t)handle >= BORLAND_NFILE.nfile)
         return io_error(6);
 
     if ((BORLAND_HANDLE_FLAGS.flags[handle] & 0x200) != 0)
@@ -3179,7 +3194,7 @@ int16_t borland_flushall(void)
     struct file_rec *si = &BORLAND_STREAMS.streams[0];
     uint16_t n;
 
-    for (n = BORLAND_NFILE.word_4d04; n != 0; n--) {
+    for (n = BORLAND_NFILE.nfile; n != 0; n--) {
         if ((si->flags & 3) != 0) {
             flush_stream(si);
             count++;
@@ -3799,7 +3814,7 @@ void exit_close_streams(void)
 {
     uint16_t i;
 
-    for (i = 0; i < BORLAND_NFILE.word_4d04; i++)
+    for (i = 0; i < BORLAND_NFILE.nfile; i++)
         if ((BORLAND_STREAMS.streams[i].flags & 3) != 0)
             borland_fclose(&BORLAND_STREAMS.streams[i]);
 }

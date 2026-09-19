@@ -1213,26 +1213,20 @@ uint16_t     part_settle_conveyor(struct part *part);           /* 0x198dd */
 uint16_t     part_settle_ramp(struct part *part);           /* 0x19a49 */
 uint16_t     part_settle_48f7(struct part *part);           /* 0x1bbb7 */
 uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x182bc */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x182bc */
 uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x19983 */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x19983 */
 uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x1a6dd */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a6dd */
 uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x1b7be */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1b7be */
 uint16_t part_hit_dynamite_plunger(struct part *part);              /* 0x1a4ff */
 uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x1a10b */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a10b */
 uint16_t part_step_dynamite_plunger(struct part *part);             /* 0x1a5ea */
 uint16_t part_step_solar_panel(struct part *part);             /* 0x1b0c8 */
 uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 0x1758d */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1758d */
 void     part_flip_bellow(struct part *part);             /* 0x17692 */
 void     part_flip_boxing_glove(struct part *part);             /* 0x17986 */
 void     part_flip_cannon(struct part *part);             /* 0x17ea9 */
@@ -1363,23 +1357,21 @@ void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
 uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
+                         uint16_t p4, uint16_t p5, int32_t p6);
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t lo,
-                         uint16_t hi);                   /* 172c:0802 */
+                         uint16_t flags, uint16_t p5,
+                         int32_t momentum);              /* 172c:0802 */
 uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t lo,
-                         uint16_t hi);                   /* 172c:11d2 */
+                         uint16_t flags, uint16_t p5,
+                         int32_t momentum);              /* 172c:11d2 */
 uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t p6,
-                         uint16_t p7);                   /* 172c:2451 */
+                         uint16_t flags, uint16_t p5, int32_t p6);                   /* 172c:2451 */
 uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
-                         uint16_t flags, uint16_t p5, uint16_t p6,
-                         uint16_t p7);              /* 172c:2c19 */
+                         uint16_t flags, uint16_t p5, int32_t p6);              /* 172c:2c19 */
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
-                    uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
+                    uint16_t p4, uint16_t p5, int32_t p6);
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
-                     uint16_t a, uint16_t b, uint16_t c); /* 172c:461a */
+                     uint16_t a, int32_t momentum);      /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
 uint16_t part_step_trampoline(struct part *part);             /* 172c:3fae */
 uint16_t part_hit_seesaw(struct part *part);              /* 172c:3fe8 */

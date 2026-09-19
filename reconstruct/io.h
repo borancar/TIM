@@ -322,7 +322,7 @@ uint16_t call_part_hook(struct far_ptr h, struct part *part,
                         const char *what);
 uint16_t call_part_drive(struct far_ptr h,
                          struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7);
+                         uint16_t p5, int32_t p6);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);

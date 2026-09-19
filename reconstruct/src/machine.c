@@ -1965,13 +1965,19 @@ void part_step(struct part *part)
 /*
  * OURS: not a transcription, the third of the by-value dispatches. A part's
  * drive hook is the far pointer at +0x36 of its kind's record, and it takes
- * seven arguments where the other two take one.
+ * six arguments where the other two take one.
+ *
+ * **Six and not seven, because the last is a `long`.** The original pushes
+ * seven words and the last two are the driving part's momentum, low half
+ * first - three of the hooks put them straight back together to compare
+ * against their own. The port passes the value, and `tools/verify.py` is
+ * where the guest's two words become it.
  */
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
-                    uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
+                    uint16_t p4, uint16_t p5, int32_t p6)
 {
     return call_part_drive(PART_KINDS[by->kind].drive,
-                           p1, p2, p3, p4, p5, p6, p7);
+                           p1, p2, p3, p4, p5, p6);
 }
 
 /*
@@ -9208,8 +9214,7 @@ move:
     } else {
         part_drive(PART_PTR(other), part, PART_PTR(other), 0, (uint16_t)orient,
                    ((uint16_t)PART_KINDS[part->kind].weight),
-                   (uint16_t)part->momentum,
-                   (uint16_t)((uint32_t)part->momentum >> 16));
+                   part->momentum);
     }
 
 out:

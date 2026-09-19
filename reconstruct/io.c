@@ -1454,10 +1454,10 @@ void call_part_flip(struct far_ptr h, struct part *part, uint16_t which)
  */
 uint16_t call_part_drive(struct far_ptr h,
                          struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
-                         uint16_t p5, uint16_t p6, uint16_t p7)
+                         uint16_t p5, int32_t p6)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
-        return part_drive_172c(h.off, p1, p2, p3, p4, p5, p6, p7);
+        return part_drive_172c(h.off, p1, p2, p3, p4, p5, p6);
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && h.off == 0x02b5)
         return part_hook_no(p1);
