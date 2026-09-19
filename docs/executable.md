@@ -112,8 +112,8 @@ are byte offsets from the start of a record:
 | --- | --- | --- |
 | +0x04 | kind | indexes the 0x3a-byte table at DGROUP 0xea6 |
 | +0x0a | flags | `link_record_into_buckets` sets bit 5 |
-| +0x1e, +0x20 | position, x and y | `compute_bounds_53fe` reads them as the corner; `update_velocity` differences them |
-| +0x22, +0x24 | previous position | `update_velocity` subtracts them; `compute_swept_bounds_5400` stretches the box back to them |
+| +0x1e, +0x20 | position, x and y | `compute_other_bounds` reads them as the corner; `update_velocity` differences them |
+| +0x22, +0x24 | previous position | `update_velocity` subtracts them; `compute_swept_bounds` stretches the box back to them |
 | +0x36, +0x38 | velocity, x and y | `update_velocity` writes them, `clamp_record_pair` clamps them |
 | +0x44, +0x46 | width and height | added to the corner to give the far edges |
 | +0x3a | speed scale | multiplied by the Manhattan sum of the velocities |

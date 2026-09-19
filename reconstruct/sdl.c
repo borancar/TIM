@@ -642,7 +642,7 @@ static const struct { int32_t key; uint8_t scan; char ascii; } KEYMAP[] = {
     { SDLK_RIGHT, 0x4d, 0 }, { SDLK_DOWN, 0x50, 0 },
     /*
      * **The modifiers, and they are not optional.** `game_screen` asks
-     * `bit0_of_468c` for 0x38 and 0x2f together for the version box, so Alt
+     * `key_is_down` for 0x38 and 0x2f together for the version box, so Alt
      * has to arrive as a key of its own - the handler keeps its state the same
      * way it keeps any other. Shift and Ctrl reach the BIOS shift flags
      * through the handler's own table at DGROUP 0x45da, which is what picks

@@ -1194,7 +1194,7 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
 
     centre = (int16_t)(x + (w - (int16_t)text_width_thunk(str)) / 2);
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), x, y, 0);
 
@@ -1251,7 +1251,7 @@ void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
     text_off = (int16_t)(((rounded - w) >> 1) + 8);
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x2c]),
                 (int16_t)x, (int16_t)y, 0);
@@ -1307,7 +1307,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
     VMDS.clip_bottom  = (int16_t)(y + h - 1);
     VMDS.clip_enabled = 1;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     for (j = 0; j < h; j = (int16_t)(j + 0x40))
         for (i = 0; i < w; i = (int16_t)(i + 0x40))
@@ -1378,7 +1378,7 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
     set_clip_play_area();
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     for (j = 8; (int16_t)(h - 8) > j; j = (int16_t)(j + 8)) {
         for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8))
@@ -1464,7 +1464,7 @@ void show_level_complete(void)
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     VMDS.unknown_00 = 0;
     draw_string(DG1BCC.click_button_to_continue, 0xd3, 0xee);
@@ -1512,12 +1512,12 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 
     if (digit < 5) {
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
         draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[0]), x, row, 0);
     } else {
         digit = (uint8_t)(digit + 0xfb);    /* `add al, 0xfb` is `- 5` */
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
         draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[1]), x, row, 0);
     }
 
@@ -1547,7 +1547,7 @@ void redraw_machine_area(void)
     VMDS.fill_enabled = 1;
     VMDS.clip_enabled = 0;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     fill_rect(8, 8, 0x230, 0x160);
     draw_machine_thunk();
     step_and_draw_machine(1);
@@ -1612,7 +1612,7 @@ void draw_machine_layer_a(void)
     VMDS.fill_colour   = ((uint8_t)DG52BD.bin_colour);
     VMDS.second_colour = ((uint8_t)DG52BD.bin_colour);
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
@@ -1641,7 +1641,7 @@ void draw_machine_layer_a(void)
         if (count == 0)
             continue;
 
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
 
         icon = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
@@ -1684,7 +1684,7 @@ void draw_machine_layer_b(void)
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
@@ -1711,7 +1711,7 @@ void draw_machine_layer_c(void)
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
@@ -1740,7 +1740,7 @@ void draw_machine_layer_d(void)
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     set = DG4E67.bmp_4ecb_ptr;
     for (y = 8; y < 0x162; y = (int16_t)(y + 8))
@@ -1783,7 +1783,7 @@ void draw_machine_layer_e(void)
     draw_machine_layer_f();
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     set = DG4E67.bmp_4ecb_ptr;
 
@@ -1862,7 +1862,7 @@ void draw_machine_layer_f(void)
     slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     set = DG4E67.menu_bmp_ptr;
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0x240, 0x0a, 0);
@@ -1925,7 +1925,7 @@ void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
  * +4, doubled. It is drawn straight at 0x5784,0x5782, the pointer, with the
  * clip set to the play area first so it cannot spill into the panel.
  *
- * `clear_flag_2d44_thunk` **both sides of the draw**, not once: the flag is
+ * `cursor_redraw_off_thunk` **both sides of the draw**, not once: the flag is
  * cleared, the bitmap goes down, and it is cleared again. Transcribed as the
  * two calls it is.
  *
@@ -1949,9 +1949,9 @@ void draw_carried_icon(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(si, (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     at[0] = (int16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
     at[1] = (int16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
@@ -2088,7 +2088,7 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 
     tall = ((int16_t)ext.height > 0x80) ? 1 : 0;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     bmp = (uint16_t)(DG52ED.cursor_art_ptr + which * 2);
 
@@ -2351,7 +2351,7 @@ void draw_rope(struct part *part, int16_t a)
     if (si->end_a_ptr == 0 || si->end_b_ptr == 0)
         goto out;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     for (k = 0; k < 8; k++)
         *p[k] = (int16_t)((k & 1)
@@ -2535,7 +2535,7 @@ void draw_belt(struct part *part, int16_t a)
         }
 
         VMDS.second_colour = 6;
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
 
         if (v0a != 0) {
             v0c = link_slack(di, v0e, 3);
@@ -2634,7 +2634,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     v24 = v26->hotspots_ptr;
     hot = POINT_TABLE(v24);                    /* the hot spot by form, if the kind has them */
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     if (part->flags_06 & 0x40) {
         v14 = (int16_t)(part->size[0].width >> 4);

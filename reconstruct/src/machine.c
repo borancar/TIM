@@ -152,7 +152,11 @@ struct machine_cursor_state {
     uint16_t  cursor_off;         /* +0x0c [2]  clear turns the whole cursor off - nothing is drawn */
     int16_t   delay_reload;       /* +0x0e [2]  the delay counts down and is reloaded from here */
     uint16_t  read_driver;        /* +0x10 [2]  take the position from the driver rather than the last known */
-    uint16_t  flag_2d44;          /* +0x12 [2]  what clear_flag_2d44 zeroes, and nothing else */
+    /* **May the timer redraw the cursor?** `timer_callback` is the only
+       reader - it redraws only while this is set and the guard is clear - and
+       every routine that is about to draw clears it and puts it back, so the
+       cursor is not lifted and dropped underneath a half-drawn frame. */
+    uint16_t  timer_draws_cursor; /* +0x12 [2] */
     int16_t   slots_unset;          /* +0x14 [2] */
 } __attribute__((packed));
 
@@ -162,7 +166,7 @@ struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
     .cursor_off = 0x0001,
     .delay_reload = 0x000c,
     .read_driver = 0x0001,
-    .flag_2d44 = 0x0001,
+    .timer_draws_cursor = 0x0001,
     .slots_unset = 0x0001,
 };
 _Static_assert(sizeof(struct machine_cursor_state) == 0x16, "DGROUP 0x2d32..0x2d48, 0x16 bytes");
@@ -174,7 +178,7 @@ DG_ASSERT_AT(struct machine_cursor_state, pending_pal,      0x08);
 DG_ASSERT_AT(struct machine_cursor_state, cursor_off,       0x0c);
 DG_ASSERT_AT(struct machine_cursor_state, delay_reload,     0x0e);
 DG_ASSERT_AT(struct machine_cursor_state, read_driver,      0x10);
-DG_ASSERT_AT(struct machine_cursor_state, flag_2d44,        0x12);
+DG_ASSERT_AT(struct machine_cursor_state, timer_draws_cursor,        0x12);
 DG_ASSERT_AT(struct machine_cursor_state, slots_unset,        0x14);
 
 /*
@@ -447,7 +451,7 @@ uint16_t part_hook_no(struct part *part)
  *
  * The pointer is re-read from DGROUP for the second field, exactly as here.
  */
-void sub_002be(void)
+void compute_moved(void)
 {
     DG53FC.moved_x = (int16_t)(DG53FC.cur_x - PART_PTR(DG53FC.list_ptr)->pos[1].x);
     DG53FC.moved_y = (int16_t)(DG53FC.cur_y - PART_PTR(DG53FC.list_ptr)->pos[1].y);
@@ -460,10 +464,10 @@ void sub_002be(void)
  * of where it is and where it was, which is what a dirty-rectangle redraw has
  * to repaint.
  *
- * The current box comes from the same fields `compute_bounds_53fe` uses -
+ * The current box comes from the same fields `compute_other_bounds` uses -
  * +0x1e/+0x20 for the corner and +0x44/+0x46 for the extents - into
  * 0x5420/0x541c and 0x541e/0x541a, with the centre at 0x5418/0x5416. Then
- * `sub_002be` fills 0x5414 and 0x5402 with how far the object has moved, from
+ * `compute_moved` fills 0x5414 and 0x5402 with how far the object has moved, from
  * the previous position at +0x22/+0x24.
  *
  * The box is then stretched both ways: the near edges at 0x5412/0x5410 move
@@ -473,7 +477,7 @@ void sub_002be(void)
  *
  * As in 0x00386, the pointer at 0x5400 is re-read before every field.
  */
-void compute_swept_bounds_5400(void)
+void compute_swept_bounds(void)
 {
     int16_t d;
 
@@ -490,7 +494,7 @@ void compute_swept_bounds_5400(void)
     DG53FC.mid_y = (int16_t)(DG53FC.cur_y
                              + (int16_t)(PART_PTR(DG53FC.list_ptr)->size[0].height >> 1));
 
-    sub_002be();
+    compute_moved();
 
     if (PART_PTR(DG53FC.list_ptr)->pos[1].x < DG53FC.cur_x)
         DG53FC.swept_left = PART_PTR(DG53FC.list_ptr)->pos[1].x;
@@ -528,7 +532,7 @@ void compute_swept_bounds_5400(void)
  * is what the original does and it is transcribed that way; it matters if
  * anything else can change 0x53fe in between.
  */
-void compute_bounds_53fe(void)
+void compute_other_bounds(void)
 {
     DG53FC.other_left = PART_PTR(DG53FC.other_ptr)->pos[0].x;
     DG53FC.other_top = PART_PTR(DG53FC.other_ptr)->pos[0].y;
@@ -680,7 +684,7 @@ void set_side_flags(const int16_t *range, int16_t v, uint8_t * out)
  * block of four comparisons.
  *
  * 0x5408..0x540e are one object's bounds and 0x5410..0x541e the other's, filled
- * in by `compute_swept_bounds_5400` and `compute_bounds_53fe`.
+ * in by `compute_swept_bounds` and `compute_other_bounds`.
  */
 static int16_t boxes_meet_strict(void)
 {
@@ -749,14 +753,14 @@ int16_t resolve_collisions(struct part *obj)
     PART_PTR(DG53FC.list_ptr)->byte_86 = 0;
 
     DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
-    compute_swept_bounds_5400();
+    compute_swept_bounds();
 
     if (DG53FC.contact_ptr != 0
         && chain_contains(PART_PTR(DG53FC.list_ptr), ((uint16_t)DG53FC.contact_ptr)) == 0) {
         DG53FC.other_ptr = DG53FC.contact_ptr;
         if (((int16_t)PART_PTR(DG53FC.other_ptr)->points_ptr) != 0
             && (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08) & 0x2000) == 0) {
-            compute_bounds_53fe();
+            compute_other_bounds();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
                 hit = 1;
@@ -779,7 +783,7 @@ int16_t resolve_collisions(struct part *obj)
             && (((int16_t)PART_PTR(DG53FC.other_ptr)->flags_08) & 0x2000) == 0
             && !(((int16_t)PART_PTR(DG53FC.list_ptr)->kind) == 0xc
                  && ((int16_t)PART_PTR(DG53FC.other_ptr)->kind) == 0x2a)) {
-            compute_bounds_53fe();
+            compute_other_bounds();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
                 hit = 1;
@@ -965,7 +969,7 @@ int16_t find_edge_contact(int16_t test_only)
                             }
 
                             place_object_for_draw(PART_PTR(DG53FC.list_ptr));
-                            compute_swept_bounds_5400();
+                            compute_swept_bounds();
 
                             PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
                             if (((((int16_t)PART_PTR(DG53FC.list_ptr)->flags_08)
@@ -1162,7 +1166,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             v = (int16_t)(DG53FC.mid_x - x0);
 
                             place_object_for_draw(PART_PTR(DG53FC.list_ptr));
-                            compute_swept_bounds_5400();
+                            compute_swept_bounds();
 
                             PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
                             if (((((int16_t)PART_PTR(DG53FC.list_ptr)->flags_08)
@@ -8002,7 +8006,7 @@ void replay_shapes(void)
         b = n->y2;
         c = n->width;
 
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
 
         if (n->flags & 4) {
             draw_belt_segment(si, di, a, b, c);
@@ -8817,7 +8821,7 @@ void set_vector_from_angle(struct part *obj, uint16_t angle, int16_t mag)
  *
  * Recompute a record's velocity from how far it has moved, then clamp it.
  *
- * The position is at +0x1e and +0x20 - the same pair `compute_bounds_53fe`
+ * The position is at +0x1e and +0x20 - the same pair `compute_other_bounds`
  * reads as the left and top edges - and +0x22 and +0x24 hold where it was, so
  * the difference is the step taken. That difference is then shifted **left**
  * by `9 - shift`, which turns a whole-pixel step into the fixed-point velocity
@@ -9652,7 +9656,7 @@ int16_t point_in_play_area(void)
 void erase_both_pages(void)
 {
     DG52ED.cursor_follows = 0;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     erase_object(VMDS.page_back_ptr);
     erase_object(VMDS.page_front_ptr);
 }
@@ -9664,7 +9668,7 @@ void erase_both_pages(void)
  * 0x52f2 and then call `restore_cursor_following`, which is guarded by that
  * same flag and so is bound to act.
  *
- * The pair to `clear_flag_2d44_thunk`, which is how the rest of the program
+ * The pair to `cursor_redraw_off_thunk`, which is how the rest of the program
  * takes the cursor *off* the screen around a blit. This is the one that says
  * "whatever happened before, the cursor is wanted now" - where 0x08125 on its
  * own only puts back what a matching call had removed.
@@ -9678,20 +9682,20 @@ void show_cursor_again(void)
 /*
  * 0x0811b
  *
- * A one-call forwarder to `clear_flag_2d44`, in the same segment, reached from
+ * A one-call forwarder to `cursor_redraw_off`, in the same segment, reached from
  * 48 sites. Whatever the flag means, this is how most of the program clears
  * it; the sibling at 0x08125 is how it is set again, guarded by 0x52f2.
  */
-void clear_flag_2d44_thunk(void)
+void cursor_redraw_off_thunk(void)
 {
-    clear_flag_2d44();
+    cursor_redraw_off();
 }
 
 /*
  * 0x08125
  *
  * Let the cursor follow the mouse again, but only if DGROUP 0x52f2 says it
- * should. The pair to `clear_flag_2d44_thunk`, and the reason it is a routine
+ * should. The pair to `cursor_redraw_off_thunk`, and the reason it is a routine
  * rather than a line is that the flag is what a caller sets to say "I turned
  * the cursor off, so put it back" - a caller that never turned it off leaves
  * 0x52f2 clear and this does nothing.
@@ -9699,7 +9703,7 @@ void clear_flag_2d44_thunk(void)
 void restore_cursor_following(void)
 {
     if (DG52ED.cursor_follows != 0)
-        set_flag_2d44();
+        cursor_redraw_on();
 }
 
 /*
@@ -11488,13 +11492,13 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
  * 0x0a78e
  *
  * Let the cursor follow the mouse again, and redraw it where the mouse now is.
- * The pair to `clear_flag_2d44` three instructions below: DGROUP 0x2d44 is what
+ * The pair to `cursor_redraw_off` three instructions below: DGROUP 0x2d44 is what
  * `redraw_cursor` tests before it asks the driver for the position, so clearing
  * it pins the cursor and setting it releases it.
  */
-void set_flag_2d44(void)
+void cursor_redraw_on(void)
 {
-    MACHINE_CURSOR_STATE.flag_2d44 = 1;
+    MACHINE_CURSOR_STATE.timer_draws_cursor = 1;
     redraw_cursor(VMDS.page_front_ptr);
 }
 
@@ -11535,14 +11539,14 @@ void timer_callback(void)
 
     MACHINE_PALETTE_FADE.busy = 1;
 
-    k_end   = bit0_of_468c(SC_END);
-    k_down  = bit0_of_468c(SC_DOWN);
-    k_pgdn  = bit0_of_468c(SC_PGDN);
-    k_left  = bit0_of_468c(SC_LEFT);
-    k_right = bit0_of_468c(SC_RIGHT);
-    k_home  = bit0_of_468c(SC_HOME);
-    k_up    = bit0_of_468c(SC_UP);
-    k_pgup  = bit0_of_468c(SC_PGUP);
+    k_end   = key_is_down(SC_END);
+    k_down  = key_is_down(SC_DOWN);
+    k_pgdn  = key_is_down(SC_PGDN);
+    k_left  = key_is_down(SC_LEFT);
+    k_right = key_is_down(SC_RIGHT);
+    k_home  = key_is_down(SC_HOME);
+    k_up    = key_is_down(SC_UP);
+    k_pgup  = key_is_down(SC_PGUP);
 
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
@@ -11575,7 +11579,7 @@ void timer_callback(void)
     if (moved != 0)
         mouse_move_to(((uint16_t)DG5768.cursor_x), ((uint16_t)DG5768.cursor_y));
 
-    if (MACHINE_CURSOR_STATE.flag_2d44 != 0 && DG5752.guard == 0) {
+    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
         redraw_cursor(VMDS.page_front_ptr);
         isr_stack_switch(0);
@@ -11583,8 +11587,8 @@ void timer_callback(void)
 
     di = read_mouse_button(0);
 
-    si = (bit0_of_468c(SC_SPACE) != 0 || bit0_of_468c(SC_ENTER) != 0
-          || bit0_of_468c(SC_KP5) != 0 || bit0_of_468c(SC_INS) != 0) ? 1 : 0;
+    si = (key_is_down(SC_SPACE) != 0 || key_is_down(SC_ENTER) != 0
+          || key_is_down(SC_KP5) != 0 || key_is_down(SC_INS) != 0) ? 1 : 0;
 
     di |= (si != 0) ? 1 : 0;
 
@@ -11594,7 +11598,7 @@ void timer_callback(void)
     DG5768.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
     di = (MACHINE_CURSOR_STATE.read_driver != 0 && read_mouse_button(1) != 0) ? 1 : 0;
-    di |= bit0_of_468c(1);
+    di |= key_is_down(1);
 
     si = button_state(1, di);
     if (si <= 1)
@@ -11805,7 +11809,7 @@ void draw_cursor(uint16_t page)
     if ((slot->cursor.flags & 1) != 0
         && slot->cursor.buf != 0
         && ((uint16_t)MACHINE_PALETTE_FADE.busy) == 0) {
-        clear_slot_5734((int16_t)slot->cursor.buf);
+        release_buffer((int16_t)slot->cursor.buf);
         slot->cursor.buf = 0;
         slot->cursor.flags =
             (uint8_t)(slot->cursor.flags & 0xfe);
@@ -12719,9 +12723,9 @@ int16_t find_entry_for_pointer(struct game_file *out)
  * shape of the two routines, not something measured, and the name says only
  * what the code does.
  */
-void clear_flag_2d44(void)
+void cursor_redraw_off(void)
 {
-    MACHINE_CURSOR_STATE.flag_2d44 = 0;
+    MACHINE_CURSOR_STATE.timer_draws_cursor = 0;
 }
 
 /*
@@ -13108,7 +13112,7 @@ void clear_object_covered(uint16_t page)
  * +0x1e/+0x1f. Copying one onto the other is the whole of the first half.
  *
  * Before that copy it may hand back a buffer slot, and **only the
- * `clear_slot_5734` call survives**: the two stores beside it, zeroing +0x1c
+ * `release_buffer` call survives**: the two stores beside it, zeroing +0x1c
  * and clearing bit 0 of +0x1f, are both overwritten a few instructions later by
  * the copy. They are dead as written, and transcribed anyway.
  *
@@ -13143,7 +13147,7 @@ void restage_object_rect(uint16_t handle)
 
     if ((rec->cursor.flags & 1) != 0 && ((int16_t)rec->cursor.buf) != 0
         && MACHINE_PALETTE_FADE.busy == 0) {
-        clear_slot_5734(((int16_t)rec->cursor.buf));
+        release_buffer(((int16_t)rec->cursor.buf));
         rec->cursor.buf = 0;
         rec->cursor.flags &= 0xfe;
     }
@@ -13335,7 +13339,7 @@ void reset_input_state(void)
  * 0x0b5ed
  *
  * Make sure the four scratch buffers exist, then claim a free one and answer
- * its **one-based** index, or -1 if all four are taken. `clear_slot_5734` is
+ * its **one-based** index, or -1 if all four are taken. `release_buffer` is
  * the release.
  *
  * The four buffers are far pointers at DGROUP 0x5758, four bytes apart; the
@@ -13405,7 +13409,7 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
  * byte in front of the array. No caller seen does, but the guard is genuinely
  * one-sided and the port reproduces it rather than adding the missing half.
  */
-void clear_slot_5734(int16_t n)
+void release_buffer(int16_t n)
 {
     int16_t i = (int16_t)(n - 1);
 

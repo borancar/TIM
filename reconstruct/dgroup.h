@@ -1033,8 +1033,8 @@ DG_ASSERT_AT(struct dg_5768, fade_weight,         0x1e);
 struct dg_53fc {
     /* **The collision sweep's own block**, and the two parts it is working on.
        `resolve_collisions` sets `list_ptr` from `pick_by_flag` and walks every
-       other part into `other_ptr`; `compute_swept_bounds_5400` fills the first
-       part's boxes and `compute_bounds_53fe` the second's, and the overlap
+       other part into `other_ptr`; `compute_swept_bounds` fills the first
+       part's boxes and `compute_other_bounds` the second's, and the overlap
        tests below read them as two rectangles. A block rather than locals
        because the original's routines take no arguments and reach these by
        offset - which is why DGROUP has to be memory. */
@@ -1050,10 +1050,10 @@ struct dg_53fc {
                                              every routine below reads part
                                              fields out of it */
     /* **How far `list_ptr` moved this frame**, current position less previous,
-       which `compute_swept_bounds_5400` then adds to the far edges as an
+       which `compute_swept_bounds` then adds to the far edges as an
        absolute value. */
     int16_t   moved_y;            /* +0x06 */
-    /* **`other_ptr`'s box**, from `compute_bounds_53fe`: its position, its
+    /* **`other_ptr`'s box**, from `compute_other_bounds`: its position, its
        position plus its size, and the two centres - the halving an arithmetic
        shift, so a negative extent rounds down rather than toward zero. */
     int16_t   other_mid_y;        /* +0x08 */

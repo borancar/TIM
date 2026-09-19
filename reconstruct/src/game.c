@@ -919,7 +919,7 @@ uint16_t game_intro(void)
     for (;;) {
         if (stage == 0) {
             VMDS.page_dst_ptr = VMDS.page_front_ptr;
-            clear_flag_2d44_thunk();
+            cursor_redraw_off_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
             set_palette_pointer(dg_far_ptr(DG52BD.pal_sierra_ptr));  /* sierra.pal */
             stage = 1;
@@ -1024,7 +1024,7 @@ uint16_t game_intro(void)
     }
 
     while ((uint16_t)which == 0x8000 || (uint16_t)which == 0x4000) {
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
 
         /*
          * The two animations are placed differently: the title screen sits
@@ -1262,7 +1262,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     VMDS.second_colour   = ((uint8_t)DG52BD.fill_colour);
     VMDS.fill_enabled   = 1;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     fill_rect(0, 0, 0x280, 0x190);
     restore_cursor_following();
 
@@ -1274,7 +1274,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     draw_panel(0x180, 0x12c, 0x40, 0x30);
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
@@ -1295,7 +1295,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
         if (part == 0x20)
             part = 0x24;
 
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
         draw_bitmap_centred(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[part]),
                             x, y, 0x40, 0x30);
         restore_cursor_following();
@@ -1391,7 +1391,7 @@ test:
  *
  * The panel is drawn first and the icon centred into it afterwards, so a part
  * whose picture is smaller than the box is not left with the previous pick's
- * pixels around it. `clear_flag_2d44_thunk` and `restore_cursor_following`
+ * pixels around it. `cursor_redraw_off_thunk` and `restore_cursor_following`
  * bracket the drawing the way they do everywhere the cursor might be over what
  * is being painted.
  *
@@ -1413,7 +1413,7 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
     x = (int16_t)(slot * 0x60 + 0xc0);
 
     draw_panel(x, 0x12c, 0x40, 0x30);
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap_centred(bmp, x, 0x12c, 0x40, 0x30);
     restore_cursor_following();
     present_frame(1);
@@ -1433,7 +1433,7 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
  */
 void draw_frame_corners(struct bmp_set *rec)
 {
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     draw_bitmap(BMP_PTR(rec->bmp_ptr[0]), 0, 0, 0);
     draw_bitmap(BMP_PTR(rec->bmp_ptr[1]), 0x262, 0, 0);
@@ -1511,7 +1511,7 @@ void game_setup(void)
 {
     struct bmp_set *bar;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     bar = load_bitmaps((char *)GAME_BUTTON_LABELS.score1_bmp);
 
     VMDS.page_dst_ptr = 0xa000;
@@ -1527,7 +1527,7 @@ void game_setup(void)
 
     free_bitmaps_thunk(bar->bmp_ptr);
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     DG4E67.menu_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_BUTTON_LABELS.gp_menu_bmp));
     DG4E67.score2_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_BUTTON_LABELS.score2_bmp));
 
@@ -1755,7 +1755,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     VMDS.fill_colour   = 0;
     VMDS.second_colour = 0;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     if (filled != 0) {
         fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
@@ -1834,7 +1834,7 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     int16_t  y2  = (int16_t)(y + h);
     int16_t  n;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     VMDS.fill_colour = (uint8_t)colour;
@@ -1927,7 +1927,7 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
         saved = *end;
         *end = 0;
 
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
 
         VMDS.unknown_00 = 0x0f;
         draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
@@ -2171,7 +2171,7 @@ void paint_panel_a(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x10]),
                 0x3a, 0x5b, 0);
     restore_cursor_following();
@@ -2196,7 +2196,7 @@ void paint_panel_b(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x12]),
                 0xd8, 0x60, 0);
     restore_cursor_following();
@@ -2221,7 +2221,7 @@ void paint_panel_c(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1f]),
                 0xbc, 0x5c, 0);
     restore_cursor_following();
@@ -2246,7 +2246,7 @@ void paint_panel_d(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x29]),
                 0x6d, 0x85, 0);
     restore_cursor_following();
@@ -2259,7 +2259,7 @@ void paint_panel_d(uint16_t frame)
  * at 0x96,0x8c and then `list[0x3a / 2 + frame]` at 0xa6,0x8b, both
  * out of the list at DGROUP 0x52f4.
  *
- * Two bitmaps between one `clear_flag_2d44_thunk` and one
+ * Two bitmaps between one `cursor_redraw_off_thunk` and one
  * `restore_cursor_following`, not two of each - the cursor is lifted once and
  * put back once, so the second bitmap cannot land on a restored cursor.
  */
@@ -2267,7 +2267,7 @@ void paint_panel_free_a(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x21]),
                 0x96, 0x8c, 0);
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
@@ -2282,7 +2282,7 @@ void paint_panel_free_a(uint16_t frame)
  * at 0xc8,0x8c and then `list[0x3a / 2 + frame]` at 0xd8,0x8b, both
  * out of the list at DGROUP 0x52f4.
  *
- * Two bitmaps between one `clear_flag_2d44_thunk` and one
+ * Two bitmaps between one `cursor_redraw_off_thunk` and one
  * `restore_cursor_following`, not two of each - the cursor is lifted once and
  * put back once, so the second bitmap cannot land on a restored cursor.
  */
@@ -2290,7 +2290,7 @@ void paint_panel_free_b(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x23]),
                 0xc8, 0x8c, 0);
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
@@ -2309,7 +2309,7 @@ void paint_panel_level(uint16_t frame)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1b]),
                 0x39, 0x86, 0);
     restore_cursor_following();
@@ -2343,7 +2343,7 @@ void paint_panel_e(void)
     right = (DG4E67.state == 0x2000) ? 0x28 : 0x27;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
         for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
@@ -2379,7 +2379,7 @@ void paint_panel_f(void)
     int16_t at;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x7]), 0x41, 0xc8, 0);
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0xe5, 0);
@@ -2409,7 +2409,7 @@ void paint_panel_g(void)
     int16_t at;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x8]), 0x41, 0x114, 0);
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0x131, 0);
@@ -2464,7 +2464,7 @@ void paint_game_screen(uint16_t present)
     VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
     VMDS.fill_enabled = 1;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     fill_rect(8, 8, 0x230, 0x160);
 
     draw_machine_thunk();
@@ -2488,7 +2488,7 @@ void paint_game_screen(uint16_t present)
     paint_panel_f();
     paint_panel_g();
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     set = DG52ED.panel_art_ptr;
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x53, 0x42, 0);
     draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x64, 0xb2, 0);
@@ -2936,7 +2936,7 @@ void puzzle_draw_up(void)
     int16_t pressed = (DG4E67.state == 0x2000) ? 1 : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
@@ -2953,7 +2953,7 @@ void puzzle_draw_down(void)
     int16_t pressed = (DG4E67.state == 0x1000) ? 1 : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
@@ -2970,7 +2970,7 @@ void puzzle_draw_down(void)
 void puzzle_draw_ok(uint16_t pressed)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x10]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
@@ -3049,7 +3049,7 @@ void puzzle_draw_password(const char *text)
 
     VMDS.unknown_00 = 0x0f;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x140);
     restore_cursor_following();
 }
@@ -3100,7 +3100,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
             else
                 VMDS.unknown_00 = 0x0c;
 
-            clear_flag_2d44_thunk();
+            cursor_redraw_off_thunk();
             draw_string(name, 0x34, y);
             restore_cursor_following();
         }
@@ -5003,7 +5003,7 @@ void region_cursor_playfield(struct region *region)
  * The whole-screen repaint and the piecewise ones are exclusive - `or si,si`
  * takes the first branch - so a full repaint does not also run the three.
  *
- * Alt and V together put up a version box: `bit0_of_468c` is asked for
+ * Alt and V together put up a version box: `key_is_down` is asked for
  * scancodes 0x38 and 0x2f, and both being down shows it and asks for a full
  * repaint afterwards.
  *
@@ -5037,7 +5037,7 @@ void game_screen(void)
 
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
-        if (bit0_of_468c(SC_ALT) && bit0_of_468c(SC_V)) {
+        if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
             show_message_box(DG1BCC.version_number, (char *)DG1BCC.this_is_version);
             s.repaint_all = 1;
             DG4E67.state = 2;
@@ -5177,7 +5177,7 @@ void game_screen_loop(void)
             draw_part_selection(PART_PTR(DG50D3.dragged_part_ptr), ((uint16_t)DG52BD.drop_cursor), 1);
 
         if (DG52BD.band_colour != -1) {
-            clear_flag_2d44_thunk();
+            cursor_redraw_off_thunk();
             VMDS.second_colour = ((uint8_t)DG52BD.band_colour);
             clip_and_draw_line(
                 (int16_t)(((uint16_t)DG52BD.anchor_x) - ((uint16_t)DG4E67.origin_x)),
@@ -5913,7 +5913,7 @@ void load_part_bitmap(uint16_t n)
     string_concat(name, GAME_PART_NAMES.bmp);
 
     heap_check_or_hang();
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
 
     PART_KINDS[n].bitmaps_ptr = dg_near(dgroup, load_bitmaps(name));
 
@@ -5960,7 +5960,7 @@ void free_part_bitmap(uint16_t n)
  * block DOS handed the program - which is why the port models the guest's
  * whole address space rather than only its data segment.
  */
-int16_t lookup_table_546c(int16_t index)
+int16_t part_by_index(int16_t index)
 {
     if (index == -1)
         return 0;
@@ -5976,7 +5976,7 @@ int16_t lookup_table_546c(int16_t index)
  * put in each of its slots.
  *
  * The table is a **far** array of near pointers - four bytes an entry where the
- * pointer is two - and the game reaches it through `lookup_table_546c`, which
+ * pointer is two - and the game reaches it through `part_by_index`, which
  * is what makes a part number into a record. Two bytes of every four are not
  * written here and are whatever DOS left in the block.
  */
@@ -6089,7 +6089,7 @@ void game_fread_string(FILE *file, char *buf)
  *    carries one: 0x38 bytes off the near heap at +0x54, whose +2 points back
  *    at the part and whose +4 and +6 are the two parts it ties together, each
  *    stored in the file as a part number and resolved through
- *    `lookup_table_546c`. Each end that exists is pointed back at the rope
+ *    `part_by_index`. Each end that exists is pointed back at the rope
  *    through its own +0x54.
  *
  *  - **Two belts**, at +0x66 and +0x68. Each one present is 0x2c bytes off the
@@ -6163,11 +6163,11 @@ void read_record_fields(FILE *file, struct part *rec)
 
         game_fread_far(file, (uint8_t *)&v06);
         rope->end_a_ptr =
-            (uint16_t)lookup_table_546c((int16_t)v06);
+            (uint16_t)part_by_index((int16_t)v06);
 
         game_fread_far(file, (uint8_t *)&v06);
         rope->end_b_ptr =
-            (uint16_t)lookup_table_546c((int16_t)v06);
+            (uint16_t)part_by_index((int16_t)v06);
 
         if (rope->end_a_ptr != 0)
             PART_PTR(rope->end_a_ptr)->rope_ptr = dg_near(dgroup, rope);
@@ -6190,12 +6190,12 @@ void read_record_fields(FILE *file, struct part *rec)
 
         game_fread_far(file, (uint8_t *)&v06);
         di->end_a_ptr =
-            (uint16_t)lookup_table_546c((int16_t)v06);
+            (uint16_t)part_by_index((int16_t)v06);
         di->home_a_ptr = di->end_a_ptr;
 
         game_fread_far(file, (uint8_t *)&v06);
         di->end_b_ptr =
-            (uint16_t)lookup_table_546c((int16_t)v06);
+            (uint16_t)part_by_index((int16_t)v06);
         di->home_b_ptr = di->end_b_ptr;
 
         game_fread_byte(file, &di->slot_a);
@@ -6213,7 +6213,7 @@ void read_record_fields(FILE *file, struct part *rec)
     for (v0a = 0; v0a < 2; v0a++) {
         game_fread_far(file, (uint8_t *)&v06);
         rec->link_ptr[(uint16_t)v0a + 2] =
-            (uint16_t)lookup_table_546c((int16_t)v06);
+            (uint16_t)part_by_index((int16_t)v06);
         rec->link_ptr[(uint16_t)v0a] =
             rec->link_ptr[(uint16_t)v0a + 2];
     }
@@ -6222,13 +6222,13 @@ void read_record_fields(FILE *file, struct part *rec)
         for (v0a = 4; v0a < 6; v0a++) {
             game_fread_far(file, (uint8_t *)&v06);
             rec->link_ptr[(uint16_t)v0a] =
-                (uint16_t)lookup_table_546c((int16_t)v06);
+                (uint16_t)part_by_index((int16_t)v06);
         }
     }
 
     if (rec->kind == KIND_PULLEY) {
         game_fread_far(file, (uint8_t *)&v06);
-        v10 = lookup_table_546c((int16_t)v06);
+        v10 = part_by_index((int16_t)v06);
         if (v10 != 0)
             rec->belt_ptr[1] =
                 PART_PTR(v10)->belt_ptr[0];
@@ -6259,7 +6259,7 @@ void read_record_fields(FILE *file, struct part *rec)
  * Read `n` things out of the file and put them on a list.
  *
  * DGROUP 0x5470 counts them, and each one's number is turned into its record by
- * `lookup_table_546c` before being read into - so the records were made in
+ * `part_by_index` before being read into - so the records were made in
  * advance by `alloc_part_table` and this only fills them. `insert_sorted` puts
  * each on the list the caller named.
  *
@@ -6287,7 +6287,7 @@ void read_list(FILE *file, struct part *head, int16_t n)
     head->next_ptr = 0;
 
     for (di = 0; di < n; di++) {
-        uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DG546C.record_count);
+        uint16_t rec = (uint16_t)part_by_index((int16_t)DG546C.record_count);
 
         read_record_fields(file, PART_PTR(rec));
         insert_sorted(PART_PTR(rec), head);
@@ -6749,7 +6749,7 @@ void picker_draw_list(void)
         if (*t == ':')
             t = DG1BCC.parent_dir;
 
-        clear_flag_2d44_thunk();
+        cursor_redraw_off_thunk();
         draw_string_body(t,
                          (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
@@ -7050,7 +7050,7 @@ void picker_draw_name(void)
     VMDS.unknown_01 = 0;
     VMDS.unknown_00 = 0x0f;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_string(si, 0x44, 0x5a);
     restore_cursor_following();
 }
@@ -7120,7 +7120,7 @@ void picker_draw_up(void)
     int16_t pressed = (DG4E67.state == 0x800) ? 1 : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
@@ -7138,7 +7138,7 @@ void picker_draw_down(void)
     int16_t pressed = (DG4E67.state == 0x400) ? 1 : 0;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
@@ -7321,7 +7321,7 @@ void picker_draw_filename(void)
     VMDS.unknown_01 = 0;
     VMDS.unknown_00 = 0x0f;
 
-    clear_flag_2d44_thunk();
+    cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x110);
     restore_cursor_following();
 }

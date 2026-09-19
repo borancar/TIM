@@ -115,7 +115,7 @@ uint16_t read_palette_pixel(uint16_t bits)
  * 0x249a4 after the x-alone arm.
  *
  * The driver's fill byte at 0x389c is forced to 1 for the walk and put back
- * after, and the walk runs between `clear_flag_2d44` and `set_flag_2d44`. The
+ * after, and the walk runs between `cursor_redraw_off` and `cursor_redraw_on`. The
  * byte is saved sign-extended, `cbw`, and restored as its low half.
  *
  * **Unreachable with this game's data**: its one caller is
@@ -136,9 +136,9 @@ void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
 
     saved = (int16_t)(int8_t)VMDS.fill_enabled;
     VMDS.fill_enabled = 1;
-    clear_flag_2d44();
+    cursor_redraw_off();
     vqt_flip_node(x, y, w, h);
-    set_flag_2d44();
+    cursor_redraw_on();
     VMDS.fill_enabled = (uint8_t)saved;
 }
 
@@ -855,9 +855,9 @@ uint16_t load_screen(char *name)
         goto out;
     }
 
-    clear_flag_2d44();
+    cursor_redraw_off();
     vqt_screen_node(0, 0, 0x140, 0xc8);
-    set_flag_2d44();
+    cursor_redraw_on();
     close_bit_reader();
 
 close:

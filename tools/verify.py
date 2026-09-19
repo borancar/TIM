@@ -3509,11 +3509,11 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.set_clip_full_screen(),
     ),
-    "sub_002be": dict(
+    "compute_moved": dict(
         addr=0x002BE,
         args=[],
         check_occurrences=[0, 3, 12],
-        call=lambda lib, a: lib.sub_002be(),
+        call=lambda lib, a: lib.compute_moved(),
     ),
     "clear_word_array_50bf": dict(
         addr=0x166D6,
@@ -3522,12 +3522,12 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: lib.clear_word_array_50bf(),
     ),
-    "bit0_of_468c": dict(
+    "key_is_down": dict(
         addr=0x2147D,
         args=[("index", 4)],
         returns=True,
         check_occurrences=[0, 4, 25],
-        call=lambda lib, a: lib.bit0_of_468c(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.key_is_down(ctypes.c_uint16(a[0])),
     ),
     "advance_record": dict(
         addr=0x2891A,
@@ -3550,12 +3550,12 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.match_field_5a_5c(dgh(lib, a[0]), dgh(lib, a[1])),
     ),
-    "lookup_table_546c": dict(
+    "part_by_index": dict(
         addr=0x11D44,
         args=[("index", 4)],
         returns=True,
         check_occurrences=[0, 5, 30],
-        call=lambda lib, a: lib.lookup_table_546c(
+        call=lambda lib, a: lib.part_by_index(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
     ),
     # A near function: `ret`, not `retf`.
@@ -3697,11 +3697,11 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: _normalise_far_ptr_far(lib, a),
     ),
-    "compute_bounds_53fe": dict(
+    "compute_other_bounds": dict(
         addr=0x00386,
         args=[],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.compute_bounds_53fe(),
+        call=lambda lib, a: lib.compute_other_bounds(),
     ),
     "pick_for_record": dict(
         addr=0x05BA7,
@@ -3823,11 +3823,11 @@ ROUTINES = {
         check_occurrences=[],
         call=lambda lib, a: lib.update_button_state(),
     ),
-    "compute_swept_bounds_5400": dict(
+    "compute_swept_bounds": dict(
         addr=0x002DD,
         args=[],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.compute_swept_bounds_5400(),
+        call=lambda lib, a: lib.compute_swept_bounds(),
     ),
     "angles_same_side": dict(
         addr=0x003DF,
@@ -4608,11 +4608,11 @@ ROUTINES = {
             ctypes.c_int32(((a[3] << 16) | a[2]) - (1 << 32)
                            if a[3] & 0x8000 else (a[3] << 16) | a[2])),
     ),
-    "clear_slot_5734": dict(
+    "release_buffer": dict(
         addr=0x0B69C,
         args=[("n", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.clear_slot_5734(ctypes.c_int16(a[0])),
+        call=lambda lib, a: lib.release_buffer(ctypes.c_int16(a[0])),
     ),
     "seek_file_to": dict(
         addr=0x09B38,
@@ -4631,17 +4631,17 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: dgo(lib, lib.archive_entry_for(dgp(lib, a[0]))),
     ),
-    "clear_flag_2d44": dict(
+    "cursor_redraw_off": dict(
         addr=0x0A7A3,
         args=[],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.clear_flag_2d44(),
+        call=lambda lib, a: lib.cursor_redraw_off(),
     ),
-    "clear_flag_2d44_thunk": dict(
+    "cursor_redraw_off_thunk": dict(
         addr=0x0811B,
         args=[],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.clear_flag_2d44_thunk(),
+        call=lambda lib, a: lib.cursor_redraw_off_thunk(),
     ),
     "resource_advance": dict(
         addr=0x1C8A7,
@@ -5598,9 +5598,9 @@ def declare_restypes(lib):
                "string_copy_far", "string_concat_far", "string_chr_far"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
-    lib.bit0_of_468c.restype = ctypes.c_int16
+    lib.key_is_down.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_void_p
-    for fn in ("match_field_5a_5c", "lookup_table_546c",
+    for fn in ("match_field_5a_5c", "part_by_index",
                "string_contains_r", "read_mouse_button",
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16

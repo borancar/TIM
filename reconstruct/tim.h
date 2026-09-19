@@ -113,7 +113,7 @@ void     part_hook_none_2b0(struct part *part);         /* 0x002b0 */
 uint16_t part_hook_no(struct part *part);               /* 0x002b5 */
 
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
-void sub_002be(void);                               /* 0x002be */
+void compute_moved(void);                               /* 0x002be */
 
 /* Step the counter at DGROUP 0x4e87. */
 void step_loop_frames(void);                          /* 0x0144e */
@@ -132,10 +132,10 @@ void set_clip_full_screen(void);                    /* 0x0834b */
 void apply_gravity_and_speed(struct part *rec);         /* 0x02c39 */
 
 /* Build the swept bounding box of the object at DGROUP 0x5400. */
-void compute_swept_bounds_5400(void);               /* 0x002dd */
+void compute_swept_bounds(void);               /* 0x002dd */
 
 /* Derive a rectangle and its centre from the structure at DGROUP 0x53fe. */
-void compute_bounds_53fe(void);                     /* 0x00386 */
+void compute_other_bounds(void);                     /* 0x00386 */
 
 /* Are two angles on the same side of a reference direction? */
 int16_t angles_same_side(int16_t angle);            /* 0x003df */
@@ -659,7 +659,7 @@ void restage_object_rect(uint16_t handle);          /* 0x0aef6 */
 int16_t claim_buffer_slot(int32_t a, int32_t b);        /* 0x0b5ed */
 
 /* Clear one byte of the one-based four-entry array at 0x5734. */
-void clear_slot_5734(int16_t n);                    /* 0x0b69c */
+void release_buffer(int16_t n);                    /* 0x0b69c */
 
 /* Make a resource file the open one, closing whatever was open before. */
 void make_file_current(uint16_t index);             /* 0x09a62 */
@@ -686,8 +686,8 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
                     FILE *file);                 /* 0x091ef */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
-void clear_flag_2d44(void);                         /* 0x0a7a3 */
-void clear_flag_2d44_thunk(void);                   /* 0x0811b */
+void cursor_redraw_off(void);                         /* 0x0a7a3 */
+void cursor_redraw_off_thunk(void);                   /* 0x0811b */
 
 /* Borland's near heap - NOT part of the reconstruction, see borland_heap.c. */
 int16_t brk_set(const uint8_t *addr);                     /* 0x0c7c4 */
@@ -1659,7 +1659,7 @@ void select_cursor(int16_t which);                  /* 0x0467d */
 void set_cursor(struct bitmap *bitmap, int16_t hot_x,
                 int16_t hot_y);                     /* 0x0aa14 */
 void redraw_cursor(uint16_t page);                  /* 0x0acc3 */
-void set_flag_2d44(void);                           /* 0x0a78e */
+void cursor_redraw_on(void);                           /* 0x0a78e */
 int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
 void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
 void timer_callback(void);                          /* 0x0a7ae */
@@ -1701,7 +1701,7 @@ int16_t borland_printf(const char *fmt, const uint8_t *args);  /* 0x0d754 */
 void borland_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
-int16_t lookup_table_546c(int16_t index);           /* 0x11d44 */
+int16_t part_by_index(int16_t index);           /* 0x11d44 */
 
 /* Set the number of scan lines the CRTC displays before blanking. */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
@@ -1962,7 +1962,7 @@ void mouse_set_user_handler(struct far_ptr h); /* 0x21fbe */
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y); /* 0x21fcf */
 
 /* Bit 0 of the byte array at DGROUP 0x468c. */
-int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */
+int16_t key_is_down(uint16_t index);               /* 0x2147d */
 
 /* ---------------------------------------------------------- segment 14de */
 void clear_layer_heads(void);                   /* 0x166d6 */

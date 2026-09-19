@@ -1767,12 +1767,12 @@ used it.
 | `fill_rect` | 0x20079 | - | **transcribed, never called** on these screens |
 | `step_loop_frames` | 0x0144e | - | **transcribed, never called** on these screens |
 | `set_clip_full_screen` | 0x0834b | - | **transcribed, never called** on these screens |
-| `sub_002be` | 0x002be | - | **transcribed, never called** on these screens |
+| `compute_moved` | 0x002be | - | **transcribed, never called** on these screens |
 | `clear_word_array_50bf` | 0x166d6 | - | **transcribed, never called** on these screens |
-| `bit0_of_468c` | 0x2147d | 0, 4, 25 | agreed |
+| `key_is_down` | 0x2147d | 0, 4, 25 | agreed |
 | `advance_record` | 0x2891a | 0 (missed 2) | **not verified** |
 | `match_field_5a_5c` | 0x06f43 | - | **transcribed, never called** on these screens |
-| `lookup_table_546c` | 0x11d44 | - | **transcribed, never called** on these screens |
+| `part_by_index` | 0x11d44 | - | **transcribed, never called** on these screens |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `read_mouse_button` | 0x2213e | 0, 4 (missed 30) | **not verified** |
 | `select_field_2_or_4` | 0x06f68 | - | **transcribed, never called** on these screens |
@@ -1790,7 +1790,7 @@ used it.
 | `value_between` | 0x03d67 | - | **transcribed, never called** on these screens |
 | `pick_by_flag` | 0x05b65 | - | **transcribed, never called** on these screens |
 | `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
-| `compute_bounds_53fe` | 0x00386 | - | **transcribed, never called** on these screens |
+| `compute_other_bounds` | 0x00386 | - | **transcribed, never called** on these screens |
 | `pick_for_record` | 0x05ba7 | - | **transcribed, never called** on these screens |
 | `set_side_flags` | 0x004fd | - | **transcribed, never called** on these screens |
 | `far_memcpy` | 0x222c6 | 0, 2 | agreed |
@@ -1803,7 +1803,7 @@ used it.
 | `clip_and_draw_line` | 0x21e34 | - | **transcribed, never called** on these screens |
 | `vm_draw_line` | VM.OVL VGA:0x0998 | - | **transcribed, never called** on these screens |
 | `far_memset` | 0x22300 | 0, 2, 9 | agreed |
-| `compute_swept_bounds_5400` | 0x002dd | - | **transcribed, never called** on these screens |
+| `compute_swept_bounds` | 0x002dd | - | **transcribed, never called** on these screens |
 | `angles_same_side` | 0x003df | - | **transcribed, never called** on these screens |
 | `insert_sorted` | 0x05646 | - | **transcribed, never called** on these screens |
 | `dos_alloc_bytes` | 0x21abd | 0, 2, 9 | agreed |
@@ -1906,11 +1906,11 @@ used it.
 | `erase_object` | 0x0ad51 | 0 | agreed |
 | `restage_object_rect` | 0x0aef6 | 0 | agreed |
 | `claim_buffer_slot` | 0x0b5ed | 0 | agreed |
-| `clear_slot_5734` | 0x0b69c | - | **transcribed, never called** on these screens |
+| `release_buffer` | 0x0b69c | - | **transcribed, never called** on these screens |
 | `seek_file_to` | 0x09b38 | 0, 2 | agreed |
 | `archive_entry_for` | 0x09b7c | 0, 1, 4 | agreed |
-| `clear_flag_2d44` | 0x0a7a3 | 0 (missed 1, 4) | **not verified** |
-| `clear_flag_2d44_thunk` | 0x0811b | 0 (missed 1, 4) | **not verified** |
+| `cursor_redraw_off` | 0x0a7a3 | 0 (missed 1, 4) | **not verified** |
+| `cursor_redraw_off_thunk` | 0x0811b | 0 (missed 1, 4) | **not verified** |
 | `resource_advance` | 0x1c8a7 | 0, 1, 4 | agreed |
 | `select_resource` | 0x1c649 | 0, 1, 4 | agreed |
 | `borland_fgetc` | 0x0d404 | 0, 1, 4 | agreed |
@@ -2165,7 +2165,7 @@ named by a segment in DGROUP 0x4342, which the port never touched.
 
 The port now models the guest's whole address space as a flat megabyte, with
 DGROUP as a window into it and far pointers formed the way the hardware forms
-them. That is also what let `lookup_table_546c` be transcribed at all: it
+them. That is also what let `part_by_index` be transcribed at all: it
 follows `les bx, [0x546c]` into an allocation outside DGROUP.
 
 ### A model corrected

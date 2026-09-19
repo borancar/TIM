@@ -3902,7 +3902,7 @@ uint16_t bios_read_key(void)
  * its argument is at [bp+4] rather than the usual [bp+6]. Transcribed as an
  * ordinary parameter, since the port has no BP to preserve.
  */
-int16_t bit0_of_468c(uint16_t index)
+int16_t key_is_down(uint16_t index)
 {
     return (int16_t)(ENGINE_KEYBOARD.state[index] & 1);
 }

@@ -543,7 +543,7 @@
      * the guest's wait for the next frame - `mov ax,[0x5754]`, negate, sbb,
      * inc - spun on until the timer handler sets the word.
      *
-     * `bit0_of_468c` uses BP as a frame pointer **without pushing it**: `cli /
+     * `key_is_down` uses BP as a frame pointer **without pushing it**: `cli /
      * mov dx,bp / mov bp,sp`, so its argument is at [bp+4] where every other
      * far routine here has it at [bp+6]. Still a far frame - the four bytes
      * below are the return address - and still four words for the shim to
@@ -553,7 +553,7 @@
     FAR_C (0x0b4e2, 0, RET_AX,   frame_pending),
     FAR_C (0x05ba7, 2, RET_AX,   pick_for_record),
     FAR_C (0x07ce3, 1, RET_NONE, shift_state_history),
-    FAR_C (0x2147d, 1, RET_AX,   bit0_of_468c),
+    FAR_C (0x2147d, 1, RET_AX,   key_is_down),
 
     /*
      * The next tier by call count. Four far, one near, all ending plainly.
@@ -588,7 +588,7 @@
      * face at 0x22386 does take a stack frame and is here.
      */
     FAR_C (0x05b65, 1, RET_AX,   pick_by_flag),
-    FAR_C (0x0a7a3, 0, RET_NONE, clear_flag_2d44),
+    FAR_C (0x0a7a3, 0, RET_NONE, cursor_redraw_off),
     FAR_C (0x0b542, 2, RET_AX,   button_state),
 
     /*
@@ -703,7 +703,7 @@
      * complete until something outside them happens - which, here, is the
      * emulator that is waiting for them.
      */
-    FAR_C (0x0811b, 0, RET_NONE, clear_flag_2d44_thunk),
+    FAR_C (0x0811b, 0, RET_NONE, cursor_redraw_off_thunk),
     FAR_C (0x08125, 0, RET_NONE, restore_cursor_following),
     FAR_C (0x166ef, 1, RET_NONE, link_record_into_buckets),
     FAR_C (0x220e9, 2, RET_NONE, read_mouse_pointer),
@@ -736,7 +736,7 @@
     FAR_C (0x16181, 1, RET_NONE, step_and_draw_machine),
 
     FAR_C (0x05be4, 1, RET_NONE, place_object_for_draw),
-    FAR_C (0x11d44, 1, RET_AX,   lookup_table_546c),
+    FAR_C (0x11d44, 1, RET_AX,   part_by_index),
     FAR_C (0x14133, 1, RET_AX,   make_part),
     FAR_C (0x29f89, 3, RET_DXAX, alloc_for_kind),
     NEAR_P(0x1c6e3, 1, 0, RET_AX,   string_contains_r),
