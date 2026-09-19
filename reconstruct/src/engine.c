@@ -298,7 +298,8 @@ _Static_assert(sizeof(struct engine_huffman_positions) == 0x200, "DGROUP 0x3686.
 DG_ASSERT_AT(struct engine_huffman_positions, len, 0x100);
 
 /*
- * **Not established**, DGROUP 0x4460..0x4466, 0x06 bytes.
+ * **What the last palette fade was asked for, and how big a palette is**,
+ * DGROUP 0x4460..0x4466, 0x06 bytes.
  */
 struct engine_pen {
     uint16_t  fade_weight;          /* +0x00 [2] */
@@ -421,7 +422,9 @@ struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
 _Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts end at ENGINE_KEYBOARD");
 
 /*
- * **Not established**, DGROUP 0x458c..0x471b, 0x18f bytes.
+ * **The keyboard handler's own state and tables**, DGROUP 0x458c..0x471b,
+ * 0x18f bytes: whether it is installed, the last event it made, which keys are
+ * held, and the tables the ISR translates through.
  */
 struct engine_keyboard {
     uint8_t   installed;          /* +0x00 [1]  the keyboard handler is in: install_keyboard
@@ -559,7 +562,9 @@ struct engine_text_colours ENGINE_TEXT_COLOURS DGROUP_AT(0x471e) = { .colour = {
 _Static_assert(sizeof(struct engine_text_colours) == 0x05, "DGROUP 0x471e..0x4723, 0x05 bytes");
 
 /*
- * **Not established**, DGROUP 0x4740..0x4748, 0x08 bytes.
+ * **The mouse's position and the game's handler**, DGROUP 0x4740..0x4748,
+ * 0x08 bytes. The position is kept at four times the pixel, which is what the
+ * driver's own units are.
  */
 struct engine_mouse {
     uint16_t  mouse_x;            /* +0x00 [2]  four times the pixel x: `mouse_move_to` stores `x << 2`
@@ -576,7 +581,7 @@ DG_ASSERT_AT(struct engine_mouse, mouse_y,   0x02);
 DG_ASSERT_AT(struct engine_mouse, mouse_handler_fn, 0x04);
 
 /*
- * **Not established**, DGROUP 0x48f8..0x48fc, 0x04 bytes.
+ * **Where the video driver was read to**, DGROUP 0x48f8..0x48fc, 0x04 bytes.
  */
 struct engine_driver_block {
     /* **One far pointer**: the block `load_video_driver` reads the adapter's

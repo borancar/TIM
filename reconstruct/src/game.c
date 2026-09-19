@@ -85,7 +85,8 @@ struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = {
 _Static_assert(sizeof(struct game_master_levels) == 14, "the master-level table ends at 0x124");
 
 /*
- * **Not established**, DGROUP 0x1bca..0x1bcc, 0x02 bytes.
+ * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
+ * the backslash string, which the path builders concatenate.
  */
 struct game_path_sep {
     uint16_t  path_sep_ptr;      /* +0x00 [2]  a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
@@ -216,7 +217,9 @@ struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
 _Static_assert(sizeof(struct game_copy_protection) == 0x60, "the answers end at 0x254a");
 
 /*
- * **Not established**, DGROUP 0x259c..0x25a2, 0x06 bytes.
+ * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
  */
 struct game_message_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
@@ -252,7 +255,9 @@ struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
 _Static_assert(sizeof(struct game_button_labels) == 0x32, "GAME_BUTTON_LABELS ends at 0x260a");
 
 /*
- * **Not established**, DGROUP 0x260a..0x2620, 0x16 bytes.
+ * **Where Tab sends the pointer on the puzzle picker's controls**, DGROUP 0x260a..0x2620, 0x16 bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
  */
 struct game_puzzle_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the puzzle screen's five tab stops */
@@ -287,7 +292,9 @@ _Static_assert(sizeof(struct game_part_names) == 0x10, "DGROUP 0x2620..0x2630, 0
 
 
 /*
- * **Not established**, DGROUP 0x27ee..0x2818, 0x2a bytes.
+ * **Where Tab sends the pointer on the play screen's controls**, DGROUP 0x27ee..0x2818, 0x2a bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
  */
 struct game_play_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the eleven tab stops on the play screen */
@@ -406,7 +413,9 @@ struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = { .forbidde
 _Static_assert(sizeof(struct game_forbidden_chars) == 14, "the forbidden characters end at 0x28fa");
 
 /*
- * **Not established**, DGROUP 0x28fa..0x2918, 0x1e bytes.
+ * **Where Tab sends the pointer on the file picker's controls**, DGROUP 0x28fa..0x2918, 0x1e bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
  */
 struct game_picker_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the picker's seven tab stops */

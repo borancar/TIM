@@ -67,7 +67,9 @@ DG_ASSERT_AT(struct machine_cursor_hotspots, hot_y, 0x12);
 _Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots end at 0x286e");
 
 /*
- * **Not established**, DGROUP 0x286e..0x2870, 0x02 bytes.
+ * **Last frame's button state**, DGROUP 0x286e..0x2870, 0x02 bytes.
+ * `update_button_state` keeps it so that "changed" cannot last two frames in
+ * a row.
  */
 struct machine_button_prev {
     int16_t   prev;          /* +0x00 [2] */
@@ -243,7 +245,10 @@ _Static_assert(sizeof(struct machine_rect_slots) == 0x28, "DGROUP 0x56b8..0x56e0
 DG_ASSERT_AT(struct machine_rect_slots, slot, 0x00);
 
 /*
- * **Not established**, DGROUP 0x56e0..0x56e6, 0x06 bytes.
+ * **The saved-rect free list, and where the cursor is to be drawn**, DGROUP
+ * 0x56e0..0x56e6, 0x06 bytes. The pair is the pointer less the bitmap's hot
+ * spot, worked out before the redraw and compared with the slot's own so an
+ * unmoved cursor is not drawn again.
  */
 struct machine_rect_free {
     /* The free list of `rect_list_entry` records. Only ever appended to -

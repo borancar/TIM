@@ -50,7 +50,9 @@ DG_ASSERT_AT(struct machine_draw_menu_anim, sprite_x, 0x24);
 _Static_assert(sizeof(struct machine_draw_menu_anim) == 0x34, "the animation tables end at 0x25d6");
 
 /*
- * **Not established**, DGROUP 0x25d6..0x25d8, 0x02 bytes.
+ * **The selection box's animation phase**, DGROUP 0x25d6..0x25d8, 0x02 bytes:
+ * 0 to 3 and back, stepped once per `draw_part_selection` and turned into the
+ * marching-ants offset.
  */
 struct machine_draw_selection_phase {
     uint16_t  phase;          /* +0x00 [2] */

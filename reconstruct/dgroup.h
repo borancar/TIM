@@ -2676,7 +2676,9 @@ extern struct dg_254a DG254A;
 _Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
 
 /*
- * **Not established**, at DGROUP 0x2630.
+ * **The goal tests, with three words in front of them**, at DGROUP 0x2630: the
+ * part a belt being placed is anchored to, and how long each of the bin's two
+ * arrows has been held down.
  */
 struct dg_2630 {
     dg_near_t belt_anchor_ptr;    /* +0x00  the part a belt being placed is anchored to */
