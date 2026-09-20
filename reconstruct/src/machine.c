@@ -8777,9 +8777,9 @@ int16_t link_slack(struct part *obj, struct belt *link, int16_t gen)
 
     if (PART_PTR(link->end_a_ptr) == obj) {
         if (gen == 1)
-            rest = holder->word_9a;
+            rest = holder->word_96_prev2;
         else if (gen == 2)
-            rest = holder->word_98;
+            rest = holder->word_96_prev;
         else
             rest = ((int16_t)holder->word_96);
         return (int16_t)(rest - link_end_distance(link, gen, 0));
@@ -8787,9 +8787,9 @@ int16_t link_slack(struct part *obj, struct belt *link, int16_t gen)
 
     if (ent != PART_NONE && PART_PTR(link->end_b_ptr) == ent) {
         if (gen == 1)
-            rest = holder->word_a0;
+            rest = holder->spin_prev2;
         else if (gen == 2)
-            rest = holder->word_9e;
+            rest = holder->spin_prev;
         else
             rest = holder->spin;
         return (int16_t)(rest - link_end_distance(link, gen, 1));
@@ -9478,10 +9478,10 @@ void shift_state_history(struct part *obj)
         BELT_PTR(sub)->pt[1][1] = BELT_PTR(sub)->pt[0][1];
     }
 
-    obj->word_9a = obj->word_98;
-    obj->word_98 = ((int16_t)obj->word_96);
-    obj->word_a0 = obj->word_9e;
-    obj->word_9e = obj->spin;
+    obj->word_96_prev2 = obj->word_96_prev;
+    obj->word_96_prev = ((int16_t)obj->word_96);
+    obj->spin_prev2 = obj->spin_prev;
+    obj->spin_prev = obj->spin;
 }
 
 /*
@@ -9568,11 +9568,11 @@ void reset_machine(void)
         si->direction = si->start_direction;
         si->vel_y = 0;
         si->vel_x = 0;
-        si->word_9a = 0;
-        si->word_98 = 0;
+        si->word_96_prev2 = 0;
+        si->word_96_prev = 0;
         si->word_96 = 0;
-        si->word_a0 = 0;
-        si->word_9e = 0;
+        si->spin_prev2 = 0;
+        si->spin_prev = 0;
         si->spin = 0;
 
         if (si->kind != KIND_GEAR) {
@@ -9621,13 +9621,13 @@ void reset_machine(void)
 
         refresh_link_geometry(di);
 
-        si->word_9a = (uint16_t)link_end_distance(di, 3, 0);
-        si->word_98 = ((uint16_t)si->word_9a);
-        si->word_96 = ((uint16_t)si->word_9a);
+        si->word_96_prev2 = (uint16_t)link_end_distance(di, 3, 0);
+        si->word_96_prev = ((uint16_t)si->word_96_prev2);
+        si->word_96 = ((uint16_t)si->word_96_prev2);
 
-        si->word_a0 = (uint16_t)link_end_distance(di, 3, 1);
-        si->word_9e = ((uint16_t)si->word_a0);
-        si->spin = ((uint16_t)si->word_a0);
+        si->spin_prev2 = (uint16_t)link_end_distance(di, 3, 1);
+        si->spin_prev = ((uint16_t)si->spin_prev2);
+        si->spin = ((uint16_t)si->spin_prev2);
 
         di->v[2] = 0;
         di->v[1] = 0;

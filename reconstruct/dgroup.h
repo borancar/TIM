@@ -600,13 +600,16 @@ struct vmds {
     uint8_t   fill_enabled;                 /* +0x0c */
     uint8_t   fill_colour;                  /* +0x0d */
     uint8_t   second_colour;                /* +0x0e */
-    /* **The six holes in this record are the driver's, not the game's.**
-       `vm_init` pushes 0x3890 - this record's own address - to the driver at
-       image 0x224ed, and the driver reads its half through that pointer. No
-       instruction the game's entry point reaches names +0x0f, +0x1a, +0x1e,
-       +0x20, +0x24 or +0x84 (`tools/xrefs.py`), and nothing transcribed from
-       the VGA overlay touches them either, so what is left is the drivers this
-       port does not transcribe. */
+    /* **The six holes in this record are a driver's, and not the one this
+       port transcribes.** `vm_init` pushes 0x3890 - this record's own address
+       - to the driver at image 0x224ed, and the driver runs with **DS on this
+       record**: every direct reference the dumped VGA overlay makes is an
+       offset into it, `[4]` for `clip_left`, `[0x12]` for `page_back_ptr`,
+       `[0x21]` for `adapter`. Both sides were scanned for +0x0f, +0x1a, +0x1e,
+       +0x20, +0x24 and +0x84 - the game's own code with `tools/xrefs.py`, and
+       the overlay's 2,969 reachable instructions the same way - and neither
+       names any of them. What is left is the seven adapters' drivers this port
+       does not transcribe. */
     uint8_t   unknown_0f;                   /* +0x0f */
     /* **The page the saved-rect slots are keyed against**, which the two
        `free_saved_rects` calls pass as the source beside the front and the
@@ -2117,22 +2120,32 @@ struct part {
     uint16_t  start_form;      /* +0x90 */
     uint16_t  start_direction; /* +0x92 */
     uint16_t  start_flags;     /* +0x94  the flags at +8 as they were placed */
-    /* **These six words mean different things to different kinds of part, so
-       none of them can carry a name.** `parts.c` runs `word_96` as a plain
-       countdown - set to 0x1c, to 0x64, to 5, and stepped to zero - and steps
-       `spin` up towards 0x14. `link_slack` reads the same six as two chains of
-       three generations, end A in 0x96/0x98/0x9a and end B in 0x9c/0x9e/0xa0,
-       holding a belt's rest length; `refresh_link_geometry` writes 0x96 and
-       0x9c from `link_end_distance`, and `shift_state_history` ages both
-       chains for every part whether or not it has a belt. `spin` is what
-       devdump prints it as and is a guess about one kind, kept because
-       renaming it would only move the guess. */
-    uint16_t  word_96;         /* +0x96 */
-    int16_t   word_98;         /* +0x98 */
-    int16_t   word_9a;         /* +0x9a */
-    int16_t   spin;            /* +0x9c */
-    int16_t   word_9e;         /* +0x9e */
-    int16_t   word_a0;         /* +0xa0 */
+    /* **Two three-deep histories, and what each head *means* is the part's
+       kind's business.** The shape is not in doubt: `shift_state_history` ages
+       both unconditionally, for every part, `word_96_prev2 = word_96_prev;
+       word_96_prev = word_96` and the same for `spin` - the record's own
+       `form`/`form_prev`/`form_prev2` idiom, one word at a time where `pos`,
+       `box` and `size` are 32-bit and use arrays. `reset_machine` clears both
+       chains together and calls them that.
+
+       The heads keep their addresses because two kinds of part disagree about
+       them. `parts.c` runs `word_96` as a plain countdown - set to 0x1c, to
+       0x64, to 5, and stepped to zero - and steps `spin` up towards 0x14,
+       while for a belt `refresh_link_geometry` writes both from
+       `link_end_distance` and `link_slack` reads them as the rest length each
+       end was given. `spin` is what devdump prints it as and is a guess about
+       one kind, kept because renaming it would only move the guess.
+
+       **`link_slack` numbers its generations backwards**, and so does
+       `link_end_distance` beside it: `gen` of 1 takes `_prev2` and `pt[2]`,
+       and 2 takes `_prev` and `pt[1]`. The two agree, which is what says it is
+       the original's numbering rather than an off-by-one. */
+    uint16_t  word_96;         /* +0x96  a head */
+    int16_t   word_96_prev;    /* +0x98 */
+    int16_t   word_96_prev2;   /* +0x9a */
+    int16_t   spin;            /* +0x9c  the other */
+    int16_t   spin_prev;       /* +0x9e */
+    int16_t   spin_prev2;      /* +0xa0 */
     uint8_t   pad_a2[0];
 } __attribute__((packed));
 
@@ -2219,11 +2232,11 @@ DG_ASSERT_AT(struct part, start_form,        0x90);
 DG_ASSERT_AT(struct part, start_direction,   0x92);
 DG_ASSERT_AT(struct part, start_flags,       0x94);
 DG_ASSERT_AT(struct part, word_96,           0x96);
-DG_ASSERT_AT(struct part, word_98,           0x98);
-DG_ASSERT_AT(struct part, word_9a,           0x9a);
+DG_ASSERT_AT(struct part, word_96_prev,           0x98);
+DG_ASSERT_AT(struct part, word_96_prev2,           0x9a);
 DG_ASSERT_AT(struct part, spin,              0x9c);
-DG_ASSERT_AT(struct part, word_9e,           0x9e);
-DG_ASSERT_AT(struct part, word_a0,           0xa0);
+DG_ASSERT_AT(struct part, spin_prev,           0x9e);
+DG_ASSERT_AT(struct part, spin_prev2,           0xa0);
 _Static_assert(sizeof(struct part) == 0xa2,
                "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
 
