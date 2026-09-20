@@ -754,8 +754,8 @@ int16_t resolve_collisions(struct part *obj)
         DG53FC.contact_quadrant = angle_to_quadrant(DG53FC.contact_angle);
     }
 
-    PART_PTR(DG53FC.list_ptr)->byte_87 = 0;
-    PART_PTR(DG53FC.list_ptr)->byte_86 = 0;
+    PART_PTR(DG53FC.list_ptr)->no_nudge_minus = 0;
+    PART_PTR(DG53FC.list_ptr)->no_nudge_plus = 0;
 
     DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
     compute_swept_bounds();
@@ -1187,14 +1187,14 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             if (x0 > x1) {
                                 if (v > out[0])
-                                    PART_PTR(DG53FC.list_ptr)->byte_86 = 1;
+                                    PART_PTR(DG53FC.list_ptr)->no_nudge_plus = 1;
                                 else
-                                    PART_PTR(DG53FC.list_ptr)->byte_87 = 1;
+                                    PART_PTR(DG53FC.list_ptr)->no_nudge_minus = 1;
                             } else {
                                 if (v > out[0])
-                                    PART_PTR(DG53FC.list_ptr)->byte_87 = 1;
+                                    PART_PTR(DG53FC.list_ptr)->no_nudge_minus = 1;
                                 else
-                                    PART_PTR(DG53FC.list_ptr)->byte_86 = 1;
+                                    PART_PTR(DG53FC.list_ptr)->no_nudge_plus = 1;
                             }
 
                             PART_PTR(DG53FC.list_ptr)->contact_edge = (int16_t)(j - 1);
@@ -1433,8 +1433,8 @@ void step_moving_object(struct part *obj)
         obj->flags_06 &= 0xfff0;
     } else {
         saved = obj->contact_ptr;
-        b1 = obj->byte_86;
-        b2 = obj->byte_87;
+        b1 = obj->no_nudge_plus;
+        b2 = obj->no_nudge_minus;
         obj->contact_ptr = 0;
     }
 
@@ -1447,8 +1447,8 @@ void step_moving_object(struct part *obj)
         goto out;
 
     obj->contact_ptr = saved;
-    obj->byte_86 = b1;
-    obj->byte_87 = b2;
+    obj->no_nudge_plus = b1;
+    obj->no_nudge_minus = b2;
 
 out:
 }
@@ -1656,9 +1656,9 @@ void bounce_off_contact(struct part *obj)
     di = obj->contact_angle;
 
     if (di == 0 || di == (int16_t)0x8000) {
-        if (obj->byte_86 == 0)
+        if (obj->no_nudge_plus == 0)
             di = (int16_t)(di + 0x1000);
-        else if (obj->byte_87 == 0)
+        else if (obj->no_nudge_minus == 0)
             di = (int16_t)(di - 0x1000);
     }
 
@@ -4637,9 +4637,9 @@ void apply_contact_friction(struct part *obj)
     int32_t q;
 
     if (angle == 0 || angle == (int16_t)0x8000) {
-        if (obj->byte_86 == 0)
+        if (obj->no_nudge_plus == 0)
             angle = (int16_t)(angle + 0x1000);
-        else if (obj->byte_87 == 0)
+        else if (obj->no_nudge_minus == 0)
             angle = (int16_t)(angle - 0x1000);
     }
 

@@ -2087,17 +2087,28 @@ struct part {
        bytes are cleared together, +0x88 goes to `angles_same_side`, and +0x8a
        gets the edge index the search stopped on. */
     dg_near_t contact_ptr;     /* +0x84  the part this one is in contact with */
-    /* **Two flags that break a tie, and which is which is not settled.** Both
-       are cleared when the contact is taken and one of the two is set from the
-       swept test's `if (x0 > x1)` and `if (v > out[0])` - so they say which
-       side of the contact the object came down on. The only readers are
-       `bounce_off_contact` and `apply_contact_friction`, and both use them the
-       same way: a `contact_angle` of 0 or 0x8000 - a flat edge, which gives no
-       direction - is nudged by +0x1000 when `byte_86` is clear and by -0x1000
-       when `byte_87` is. So one of them names each direction, and nothing this
-       project has measured says which, which is why neither is named. */
-    uint8_t   byte_86;         /* +0x86 */
-    uint8_t   byte_87;         /* +0x87 */
+    /* **Which way a dead-on contact is nudged**, and the two readers say it
+       outright. `bounce_off_contact` and `apply_contact_friction` both do the
+       same thing with a `contact_angle` of 0 or 0x8000 - a flat edge, which
+       gives no direction of its own:
+
+           if (no_nudge_plus == 0)       di += 0x1000;
+           else if (no_nudge_minus == 0) di -= 0x1000;
+
+       so each byte suppresses one of the two nudges, which is what the names
+       say and all they say. The table that falls out of it: neither set is
+       +0x1000, `plus` alone is -0x1000, and both set leaves the angle alone.
+
+       Both are cleared when a contact search starts, and the swept test sets
+       one of the two per hit, on `if (x0 > x1)` against `if (v > out[0])` -
+       `no_nudge_plus` when they agree and `no_nudge_minus` when they do not.
+       So they do carry which side the object came down on, and **which side is
+       which is still not settled**: that is a fact about the sweep's geometry,
+       where this is a fact about the branch. `part_step_and_collide` saves and
+       restores the pair beside `contact_ptr`, which is the other thing that
+       says they belong to the contact and not to the part. */
+    uint8_t   no_nudge_plus;   /* +0x86 */
+    uint8_t   no_nudge_minus;  /* +0x87 */
     /* **The angle of the edge being touched**, written as the edge's own angle
        turned by 0x8000 - the normal pointing back at this part - and read by
        `angles_same_side`, `bounce_off_contact` and `apply_contact_friction`. */
@@ -4098,7 +4109,7 @@ DG_ASSERT_AT(struct sound_node, next,              0x04);
  * **Fifteen entries each, and the channel runs to 15.** The offsets fix the
  * width - the tables are 0x0f apart - and the index is a channel's low nibble,
  * so channel 15 reads the first entry of the table after: `pan[15]` is
- * `volume[0]`, and `byte_143[15]` is `loop_count`'s low byte. That is the
+ * `volume[0]`, and `no_voice[15]` is `loop_count`'s low byte. That is the
  * original's own arithmetic, and it is kept.
  */
 struct sequence_channels {
@@ -4109,14 +4120,33 @@ struct sequence_channels {
        channel is met - bytes 1, 4, 8 and 0xb of it - so 0xff means "not set
        yet" rather than a value. */
     uint16_t       bend[15];            /* +0x00  0x2000 at start, the centre; top bit the sustain pedal, controller 0x40 */
-    uint8_t        byte_0da[15];        /* +0x1e  0xff at start; the low nibble goes out as controller 0x4b and the high one is read on its own */
+    /* **What the channel costs in voices**, in two nibbles and 0xff until the
+       first event on the channel fills it from the sequence header's byte 1.
+       The low nibble goes to the driver as controller 0x4b when a voice is
+       programmed, and is also what `sound_service` puts in `voice_gives_back`
+       - the budget the voice returns when it is dropped. The high nibble is
+       the other half of that sum: `0x10 - it + the request` is the
+       `voice_cost` the allocation charges. Both readers are budget
+       arithmetic, which is why one name covers the byte. */
+    uint8_t        voice_budget[15];    /* +0x1e */
     uint8_t        modulation[15];      /* +0x2d  controller 1 */
     uint8_t        pan[15];             /* +0x3c  controller 0x0a */
     uint8_t        volume[15];          /* +0x4b  controller 7, scaled by the sequence's own volume */
     uint8_t        program[15];         /* +0x5a  the program change */
     uint8_t        note[15];            /* +0x69  controller 0x4e, the note to retrigger */
-    uint8_t        byte_134[15];        /* +0x78  0 at start; bits 1 and 2, set while the channels are placed */
-    uint8_t        byte_143[15];        /* +0x87  0 at start */
+    /* **What the track's own flag bits asked for**, read off `track_channel`
+       as each track is placed and read back when `sound_service` hands out
+       voices. Bit 0 is the 0x20 bit of the track byte, and `mode` 2 sets it
+       for every channel at once: the channel wants **the voice numbered like
+       itself**, which `voice_keep_own` then records and which is what the
+       swap below `have_voice` is for. Bit 1 is the 0x10 bit, the one that also
+       rewinds the track to position 3, and it takes the channel out of the
+       allocation walk entirely. */
+    uint8_t        channel_flags[15];   /* +0x78  0 at start */
+    /* **The other way out of the allocation walk**, from the track byte's 0x40
+       bit: the walk skips a channel with this set, exactly as it skips one
+       with bit 1 of `channel_flags`, and nothing else reads it. */
+    uint8_t        no_voice[15];        /* +0x87  0 at start */
 } __attribute__((packed));
 
 _Static_assert(sizeof(struct sequence_channels) == 0x96, "+0x0bc to +0x152 of a sequence");
@@ -4246,8 +4276,8 @@ DG_ASSERT_AT(struct sequence, position,          0x00c);
 DG_ASSERT_AT(struct sequence, delay,             0x04c);
 DG_ASSERT_AT(struct sequence, track_channel,          0x08c);
 DG_ASSERT_AT(struct sequence, ch,                0x0bc);
-DG_ASSERT_AT(struct sequence, ch.byte_0da,      0x0da);
-DG_ASSERT_AT(struct sequence, ch.byte_143,      0x143);
+DG_ASSERT_AT(struct sequence, ch.voice_budget,      0x0da);
+DG_ASSERT_AT(struct sequence, ch.no_voice,      0x143);
 DG_ASSERT_AT(struct sequence, loop_count,        0x152);
 DG_ASSERT_AT(struct sequence, state,             0x158);
 DG_ASSERT_AT(struct sequence, priority,          0x15c);

@@ -71,7 +71,7 @@ static void tick_program_voice(struct sequence far * seq, uint16_t voice,
 
     driver_controller(voice, 0x7b00);                    /* all notes off */
 
-    cl = (uint8_t)(seq->ch.byte_0da[channel] & 0xf);
+    cl = (uint8_t)(seq->ch.voice_budget[channel] & 0xf);
     driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
     cl = seq->ch.program[channel];
@@ -305,14 +305,14 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
         seq->track_channel[si] = 0xff;
         seq->status[si] = 0;
         seq->status_saved[si] = 0;
-        seq->ch.byte_0da[si] = 0xff;
+        seq->ch.voice_budget[si] = 0xff;
         seq->ch.modulation[si] = 0;
         seq->ch.program[si] = 0xff;
         seq->ch.volume[si] = 0xff;
         seq->ch.pan[si] = 0xff;
         seq->ch.note[si] = 0xff;
-        seq->ch.byte_134[si] = 0;
-        seq->ch.byte_143[si] = 0;
+        seq->ch.channel_flags[si] = 0;
+        seq->ch.no_voice[si] = 0;
     }
 
     seq->track_channel[0xf] = 0xff;
@@ -379,14 +379,14 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                 if ((dl & 0x10) != 0) {
                     seq->position[si] = 3;
                     seq->delay[si] = 0;
-                    seq->ch.byte_134[channel] |= 2;
+                    seq->ch.channel_flags[channel] |= 2;
                 } else {
                     int16_t do_f8 = 1;
 
                     if ((dl & 0x20) != 0)
-                        seq->ch.byte_134[channel] |= 1;
+                        seq->ch.channel_flags[channel] |= 1;
                     if ((dl & 0x40) != 0)
-                        seq->ch.byte_143[channel] = 1;
+                        seq->ch.no_voice[channel] = 1;
 
                     if (channel == 0xf) {
                         if (seq->device_value == 0x7f) {
@@ -394,8 +394,8 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
                             do_f8 = 0;
                         }
                     } else {
-                        if (seq->ch.byte_0da[channel] == 0xff)
-                            seq->ch.byte_0da[channel] = e[1];
+                        if (seq->ch.voice_budget[channel] == 0xff)
+                            seq->ch.voice_budget[channel] = e[1];
                         if (seq->ch.program[channel] == 0xff)
                             seq->ch.program[channel] = e[4];
                         if (seq->ch.volume[channel] == 0xff)
@@ -416,7 +416,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
 
     if (seq->mode == 2) {
         for (di = 0xe; (int16_t)di >= 0; di--)
-            seq->ch.byte_134[di] |= 1;
+            seq->ch.channel_flags[di] |= 1;
     }
 
     key = seq->priority;
@@ -660,19 +660,19 @@ void sequencer_tick(void)
             cl = rec->track_channel[ch_i];
             if (cl == 0xff || cl == 0xfe || cl == 0x0f)
                 continue;
-            if ((rec->ch.byte_134[cl] & 2) != 0)
+            if ((rec->ch.channel_flags[cl] & 2) != 0)
                 continue;
-            if (rec->ch.byte_143[cl] != 0)
+            if (rec->ch.no_voice[cl] != 0)
                 continue;
 
             dl = (uint8_t)((seq * 4) | cl);
 
-            ah = (uint8_t)(rec->ch.byte_0da[cl] & 0xf);
-            chh = (uint8_t)(rec->ch.byte_0da[cl] >> 4);
+            ah = (uint8_t)(rec->ch.voice_budget[cl] & 0xf);
+            chh = (uint8_t)(rec->ch.voice_budget[cl] >> 4);
             if (chh != 0)
                 chh = (uint8_t)(0x10 - chh + bp_);
 
-            if ((rec->ch.byte_134[cl] & 1) != 0
+            if ((rec->ch.channel_flags[cl] & 1) != 0
                 && SNDS.voice_request[cl] == 0xff) {
                 dh = cl;
                 goto check_budget;
@@ -743,7 +743,7 @@ have_voice:
             al = (uint8_t)(al - ah);
             SNDS.voice_cost[dh] = chh;
 
-            if ((rec->ch.byte_134[cl] & 1) == 0) {
+            if ((rec->ch.channel_flags[cl] & 1) == 0) {
                 SNDS.voice_keep_own[dh] = 0;
                 continue;
             }
@@ -1030,7 +1030,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
         di = seq->track_channel[si];
         if (di == 0xff)
             return;
-        if ((seq->ch.byte_134[di] & 2) == 0)
+        if ((seq->ch.channel_flags[di] & 2) == 0)
             continue;
         if (SNDS.voice_held[di] != 0xff)
             continue;
@@ -1413,7 +1413,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
         SNDS.own_voice = 0xff;
         SNDS.bend_gate = 0;
 
-        if ((seq->ch.byte_134[al] & 2) != 0) {
+        if ((seq->ch.channel_flags[al] & 2) != 0) {
             SNDS.own_voice = al;
             SNDS.bend_gate = 1;
         } else {
@@ -1748,12 +1748,12 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
         else
             *bend &= 0x7fff;
     } else if (ctrl == 0x4b) {
-        uint8_t *p = &seq->ch.byte_0da[channel];
+        uint8_t *p = &seq->ch.voice_budget[channel];
 
         *p = (uint8_t)((*p & 0xf0) | value);
         SNDS.voices_changed = 1;
     } else if (ctrl == 0x4e) {
-        uint8_t *p = &seq->ch.byte_143[channel];
+        uint8_t *p = &seq->ch.no_voice[channel];
 
         *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
         SNDS.voices_changed = 1;
