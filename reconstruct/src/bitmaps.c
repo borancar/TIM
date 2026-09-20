@@ -164,10 +164,13 @@ void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    int16_t w_lo, w_hi;           /* [bp-2], [bp-4] */
-    int16_t h_lo, h_hi;           /* [bp-6], [bp-8] */
-    int16_t x_lo, x_hi;           /* [bp-0xa], [bp-0xe]  origins of the narrow and wide */
-    int16_t y_lo, y_hi;           /* [bp-0xc], [bp-0x10] origins of the short and tall */
+    /* The quadrant's two widths and two heights, and where each begins.
+       Not halves of anything: `_narrow` and `_wide` are `w >> 1` and
+       `(w + 1) >> 1`, which `flip_x` swaps the origins of. */
+    int16_t w_narrow, w_wide;     /* [bp-2], [bp-4] */
+    int16_t h_short, h_tall;      /* [bp-6], [bp-8] */
+    int16_t x_narrow, x_wide;     /* [bp-0xa], [bp-0xe] */
+    int16_t y_short, y_tall;      /* [bp-0xc], [bp-0x10] */
     uint8_t code;                 /* [bp-0x11] */
 
     if (w == 0)
@@ -175,45 +178,45 @@ void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
     if (h == 0)
         return;
 
-    y_lo = 0;
-    x_lo = 0;
-    w_lo = x_hi = (int16_t)(w >> 1);
-    w_hi = (int16_t)((int16_t)(w + 1) >> 1);
-    h_lo = y_hi = (int16_t)(h >> 1);
-    h_hi = (int16_t)((int16_t)(h + 1) >> 1);
+    y_short = 0;
+    x_narrow = 0;
+    w_narrow = x_wide = (int16_t)(w >> 1);
+    w_wide = (int16_t)((int16_t)(w + 1) >> 1);
+    h_short = y_tall = (int16_t)(h >> 1);
+    h_tall = (int16_t)((int16_t)(h + 1) >> 1);
 
     if (BITMAPS_FLIP_STATE.flip_x != 0) {
-        x_lo = w_hi;
-        x_hi = 0;
+        x_narrow = w_wide;
+        x_wide = 0;
     }
     if (BITMAPS_FLIP_STATE.flip_y != 0) {
-        y_lo = h_hi;
-        y_hi = 0;
+        y_short = h_tall;
+        y_tall = 0;
     }
 
     code = (uint8_t)call_bitmap_read(DG49BA.read_fn, 4);
 
     if (code & 8) {
-        vqt_flip_node((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
+        vqt_flip_node((int16_t)(x + x_narrow), (int16_t)(y + y_short), w_narrow, h_short);
     } else {
-        vqt_flip_leaf((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
+        vqt_flip_leaf((int16_t)(x + x_narrow), (int16_t)(y + y_short), w_narrow, h_short);
         redraw_cursor(VMDS.page_front_ptr);
     }
 
     if (code & 4)
-        vqt_flip_node((int16_t)(x + x_hi), (int16_t)(y + y_lo), w_hi, h_lo);
+        vqt_flip_node((int16_t)(x + x_wide), (int16_t)(y + y_short), w_wide, h_short);
     else
-        vqt_flip_leaf((int16_t)(x + x_hi), (int16_t)(y + y_lo), w_hi, h_lo);
+        vqt_flip_leaf((int16_t)(x + x_wide), (int16_t)(y + y_short), w_wide, h_short);
 
     if (code & 2)
-        vqt_flip_node((int16_t)(x + x_lo), (int16_t)(y + y_hi), w_lo, h_hi);
+        vqt_flip_node((int16_t)(x + x_narrow), (int16_t)(y + y_tall), w_narrow, h_tall);
     else
-        vqt_flip_leaf((int16_t)(x + x_lo), (int16_t)(y + y_hi), w_lo, h_hi);
+        vqt_flip_leaf((int16_t)(x + x_narrow), (int16_t)(y + y_tall), w_narrow, h_tall);
 
     if (code & 1)
-        vqt_flip_node((int16_t)(x + x_hi), (int16_t)(y + y_hi), w_hi, h_hi);
+        vqt_flip_node((int16_t)(x + x_wide), (int16_t)(y + y_tall), w_wide, h_tall);
     else
-        vqt_flip_leaf((int16_t)(x + x_hi), (int16_t)(y + y_hi), w_hi, h_hi);
+        vqt_flip_leaf((int16_t)(x + x_wide), (int16_t)(y + y_tall), w_wide, h_tall);
 }
 
 /*

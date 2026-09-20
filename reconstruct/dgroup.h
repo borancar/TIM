@@ -600,6 +600,13 @@ struct vmds {
     uint8_t   fill_enabled;                 /* +0x0c */
     uint8_t   fill_colour;                  /* +0x0d */
     uint8_t   second_colour;                /* +0x0e */
+    /* **The six holes in this record are the driver's, not the game's.**
+       `vm_init` pushes 0x3890 - this record's own address - to the driver at
+       image 0x224ed, and the driver reads its half through that pointer. No
+       instruction the game's entry point reaches names +0x0f, +0x1a, +0x1e,
+       +0x20, +0x24 or +0x84 (`tools/xrefs.py`), and nothing transcribed from
+       the VGA overlay touches them either, so what is left is the drivers this
+       port does not transcribe. */
     uint8_t   unknown_0f;                   /* +0x0f */
     /* **The page the saved-rect slots are keyed against**, which the two
        `free_saved_rects` calls pass as the source beside the front and the
@@ -2534,8 +2541,18 @@ _Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
  * and `heap_sbrk` (0x0c7e6) moves it and answers where it was, which is the
  * Unix convention and what makes the caller's block start at the answer.
  *
- * The six bytes between them are read by nothing transcribed here, so what
- * they hold is not established.
+ * **Four of the six bytes between them are the clock at startup.** The C
+ * startup calls INT 1Ah AH=0 at image 0x11d - the BIOS tick count since
+ * midnight, CX:DX - and files it with `mov [0x96],dx / mov [0x98],cx`, so
+ * 0x0096 is one 32-bit count, low word first. Those two stores are the only
+ * instructions in the image that name either word: nothing reads it back, and
+ * the port has no DOS startup to write it, so it stays zero here.
+ *
+ * The two bytes above it are a different matter. A scan of the whole image
+ * finds **no instruction naming 0x009a at all**, and what the image leaves
+ * there is 0x64ca - the same value as `brklvl` below it, which is what a heap
+ * base initialised beside the break would look like. That is a resemblance and
+ * not a reading, so it stays padding.
  *
  * The field is `err_no` rather than `errno` because `errno` is a macro in
  * standard C and a struct member cannot carry that name.
@@ -2543,13 +2560,15 @@ _Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
  */
 struct dg_0094 {
     int16_t   err_no;             /* +0x00  `errno` */
-    uint8_t   pad_0096[6];
+    uint32_t  start_ticks;        /* +0x02  INT 1Ah AH=0's CX:DX at startup */
+    uint8_t   pad_009a[2];
     dg_near_t brklvl_ptr;         /* +0x08  the near heap's break */
 } __attribute__((packed));
 
 extern struct dg_0094 DG0094;
 
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
+DG_ASSERT_AT(struct dg_0094, start_ticks,       0x02);
 DG_ASSERT_AT(struct dg_0094, brklvl_ptr,        0x08);
 
 /*
