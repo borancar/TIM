@@ -1081,10 +1081,10 @@ uint16_t adl_param_346(uint16_t cl)
 /* SX.OVL ADL:0x1abf  - function 11. */
 uint16_t adl_param_349(uint16_t cl)
 {
-    uint16_t ax = SXADL.byte_011d;
+    uint16_t ax = SXADL.param_349;
 
     if ((uint8_t)cl != 0xff)
-        SXADL.byte_011d = (uint8_t)cl;
+        SXADL.param_349 = (uint8_t)cl;
 
     return ax;
 }

@@ -1719,7 +1719,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 
 /* One row of a scaled bitmap, from the column table. Register arguments. */
 void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
-                        uint16_t dest_row, uint16_t page_seg,
+                        uint8_t far * row,
                         int16_t x, int16_t width,
                         const uint8_t far * src);        /* VGA:0x03db */
 

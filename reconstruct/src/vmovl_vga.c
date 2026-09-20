@@ -1166,11 +1166,11 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
  * mask) is programmed by the caller and put back by `restore_write_mode`.
  */
 void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
-                        uint16_t dest_row, uint16_t page_seg,
+                        uint8_t far * row,
                         int16_t x, int16_t width,
                         const uint8_t far * src)
 {
-    uint8_t *di    = MK_FP(page_seg, (uint16_t)(dest_row + (uint16_t)(x >> 3)));
+    uint8_t *di    = row + (x >> 3);
     const uint8_t *si = src + 4 * plane_size;       /* the mask */
     uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
     uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */

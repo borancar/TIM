@@ -1628,13 +1628,14 @@ void bounce_off_contact(struct part *obj)
     struct part_kind *mine;   /* [bp-0x16] my kind record */
     struct part *what;  /* [bp-0x12] what was hit */
     /*
-     * One 32-bit value, and the routine writes it both ways: whole through
-     * `*(int32_t *)(plo) = ...`, and in halves as `phi[0] = p >> 16` with
-     * `*(int16_t *)(plo) = p`. So neither half can be a word of its own.
+     * **Two `long`s the routine reuses.** The original writes the first as
+     * `mov [bp-0x0e],dx / mov [bp-0x10],ax` - one 32-bit store of DX:AX - and
+     * reads it back the same way, which is why it was spelled as four bytes
+     * with a pointer at its high half while the halves were being written
+     * separately. They are one store and one read, so each is an `int32_t`.
      */
-    uint8_t plo[4];                        /* [bp-0x10], a long */
-    int16_t *phi = (int16_t *)(plo + 2);   /* [bp-0x0e], its high half */
-    uint8_t qlo[4];  /* [bp-0x0c] */
+    int32_t scratch_a;  /* [bp-0x10]  a product, then y */
+    int32_t scratch_b;  /* [bp-0x0c]  x */
     int16_t bounce; /* [bp-8] */
     int16_t t;  /* [bp-6] */
     int16_t vy;  /* [bp-4] */
@@ -1675,12 +1676,9 @@ void bounce_off_contact(struct part *obj)
     {
         int32_t p = mul16x16(vy, bounce);
 
-        phi[0] = (int16_t)(p >> 16);
-        *(int16_t *)(plo) = (int16_t)p;
+        scratch_a = p;
 
-        vy = (int16_t)long_shift_right(
-            (int32_t)(((uint32_t)(uint16_t)phi[0] << 16)
-                      | (uint16_t)*(int16_t *)(plo)), 8);
+        vy = (int16_t)long_shift_right(scratch_a, 8);
     }
 
     vy = (int16_t)-vy;
@@ -1701,21 +1699,21 @@ void bounce_off_contact(struct part *obj)
 
     clamp_record_pair(obj);
 
-    *(int32_t *)(qlo) = obj->pos[0].x;
+    scratch_b = obj->pos[0].x;
     if (vx >= 0)
         obj->fx =
-            (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(qlo) + 1), 9) - 1);
+            (int32_t)(long_shift_left((uint32_t)(scratch_b + 1), 9) - 1);
     else
         obj->fx =
-            (int32_t)long_shift_left((uint32_t)*(int32_t *)(qlo), 9);
+            (int32_t)long_shift_left((uint32_t)scratch_b, 9);
 
-    *(int32_t *)(plo) = obj->pos[0].y;
+    scratch_a = obj->pos[0].y;
     if (mine->gravity >= 0)
         obj->fy =
-            (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(plo) + 1), 9) - 1);
+            (int32_t)(long_shift_left((uint32_t)(scratch_a + 1), 9) - 1);
     else
         obj->fy =
-            (int32_t)long_shift_left((uint32_t)*(int32_t *)(plo), 9);
+            (int32_t)long_shift_left((uint32_t)scratch_a, 9);
 }
 
 /*
@@ -8906,8 +8904,9 @@ int16_t tension_belt(struct part *part)
     uint16_t pC;   /* [bp-0x38] */
     uint16_t pB;   /* [bp-0x36] */
     uint16_t other;   /* [bp-0x34] */
-    int16_t plo;   /* [bp-0x32] */
-    int16_t phi;   /* [bp-0x30] */
+    /* One long: the original stores DX:AX across [bp-0x32] and [bp-0x30] and
+       reads the pair straight back into a divide. */
+    int32_t product;   /* [bp-0x32] */
     int16_t pulley;   /* [bp-0x2e] */
     int16_t give;   /* [bp-0x2c] */
     int16_t saved;   /* [bp-0x2a] */
@@ -9017,12 +9016,9 @@ int16_t tension_belt(struct part *part)
             t = (int16_t)-t;
 
         p = mul16x16(t, (int16_t)(m - PART_PTR(other)->weight));
-        phi = (int16_t)(p >> 16);
-        plo = (int16_t)p;
+        product = p;
 
-        give = (int16_t)long_divide(
-            (int32_t)(((uint32_t)(uint16_t)phi << 16) | (uint16_t)plo) + m,
-            (int32_t)m);
+        give = (int16_t)long_divide(product + m, (int32_t)m);
     }
 
     t = slackB;

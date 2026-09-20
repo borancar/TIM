@@ -2169,8 +2169,8 @@ int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
      * OURS, and a refusal rather than a fallback. The pair below is not a way
      * of writing the destination down, it is the **decompression cursor**:
      * fourteen sites walk it, `huge_add_to` steps it, and `decompress_lzw` and
-     * `decompress_lzss` renormalise it in place with `word_5894 = di`. So the
-     * destination has to be somewhere the guest can address.
+     * `decompress_lzss` renormalise it in place, writing `ENGINE_STREAM.out`.
+     * So the destination has to be somewhere the guest can address.
      *
      * A pointer signature accepts a C local where the `seg:off` pair refused
      * one, and that is how this was got wrong before: handed a one-byte frame
@@ -8356,8 +8356,8 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
                 &ENGINE_SCALE_TABLE.entry[cut],
-                VMDS.row_offset[j],
-                page, left, (int16_t)(right - left),
+                MK_FP(page, VMDS.row_offset[j]),
+                left, (int16_t)(right - left),
                 src + ENGINE_ROW_OFFSETS.row[j - y]);
 
         restore_write_mode();

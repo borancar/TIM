@@ -114,12 +114,12 @@ void sbp_program_change(uint16_t ax, uint16_t cx)
  */
 uint16_t sbp_param_349(uint16_t cl)
 {
-    uint8_t prev = SXSBP.byte_0122;
+    uint8_t prev = SXSBP.param_349;
 
     if ((cl & 0xff) == 0xff)
         return prev;
 
-    SXSBP.byte_0122 = (uint8_t)cl;
+    SXSBP.param_349 = (uint8_t)cl;
     return prev;
 }
 

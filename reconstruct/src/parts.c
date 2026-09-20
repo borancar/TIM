@@ -3842,8 +3842,9 @@ out:
  */
 uint16_t part_step_fan(struct part *part)
 {
-    int16_t  v0a;      /* [bp-0x0a] the product, low */
-    int16_t  v08;      /* [bp-8] the product, high */
+    /* One long: the original stores DX:AX across [bp-0x0a] and [bp-8] and
+       reads the pair straight back into the divide. */
+    int32_t  product;  /* [bp-0x0a] */
     int16_t  v06;      /* [bp-6] how much slower */
     int16_t  v04;      /* [bp-4] the push */
     uint16_t v02;      /* [bp-2] the force */
@@ -3896,14 +3897,11 @@ uint16_t part_step_fan(struct part *part)
 
         p = mul16x16(((int16_t)v02), v06);
         p = long_shift_right(p, 8);
-        v08 = (int16_t)(p >> 16);
-        v0a = (int16_t)p;
+        product = p;
 
         mass = PART_KINDS[si->kind].weight;
 
-        v04 = (int16_t)long_divide(
-            (int32_t)(((uint32_t)(uint16_t)v08 << 16) | (uint16_t)v0a),
-            (int32_t)mass);
+        v04 = (int16_t)long_divide(product, (int32_t)mass);
 
         si->vel_x =
             (int16_t)(si->vel_x + v04);

@@ -391,12 +391,12 @@ uint16_t sx_param_345(uint16_t cx)
 uint16_t sx_param_349(uint16_t cx)
 {
     uint8_t value = (uint8_t)cx;
-    uint16_t old = SXSPKR.byte_0349;
+    uint16_t old = SXSPKR.param_349;
 
     if (value == 0xff)
         return old;
 
-    SXSPKR.byte_0349 = value;
+    SXSPKR.param_349 = value;
     return old;
 }
 

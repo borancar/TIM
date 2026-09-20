@@ -3396,7 +3396,7 @@ struct sx_spkr {
     uint8_t   channel;         /* +0x0348 */
     /* Function 11 stores CL here and answers what was there; **nothing else in
        the driver reads it**, so what it is for is not established. */
-    uint8_t   byte_0349;       /* +0x0349 */
+    uint8_t   param_349;       /* +0x0349  function 11's byte: stored, never read here */
 } __attribute__((packed));
 
 #define SXSPKR (*(struct sx_spkr *)MK_FP(SX_SEG, 0))
@@ -3409,7 +3409,7 @@ _Static_assert(__builtin_offsetof(struct sx_spkr, level) == 0x0345, "sx_spkr.lev
 _Static_assert(__builtin_offsetof(struct sx_spkr, enabled) == 0x0346, "sx_spkr.enabled");
 _Static_assert(__builtin_offsetof(struct sx_spkr, volume_on) == 0x0347, "sx_spkr.volume_on");
 _Static_assert(__builtin_offsetof(struct sx_spkr, channel) == 0x0348, "sx_spkr.channel");
-_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0349) == 0x0349, "sx_spkr.byte_0349");
+_Static_assert(__builtin_offsetof(struct sx_spkr, param_349) == 0x0349, "sx_spkr.param_349");
 
 /*
  * **The AdLib driver**, laid over whatever `SX_SEG` points at.
@@ -3444,7 +3444,7 @@ struct sx_adl {
     /* Function 11 stores CL here and answers what was there, and nothing else
        in the driver reads it - the same shape, and the same silence about what
        it means, as `SPKR:0x349`. */
-    uint8_t   byte_011d;       /* +0x011d */
+    uint8_t   param_349;       /* +0x011d  function 11's byte: stored, never read here */
     /* **The master level and the switch above it**, functions 12 and 13, the
        same pair every driver in this family carries: the level scales every
        note's output and setting it rewrites all nine sounding voices, and a
@@ -3502,7 +3502,7 @@ struct sx_adl {
 _Static_assert(__builtin_offsetof(struct sx_adl, reg_port) == 0x0037, "sx_adl.reg_port");
 _Static_assert(__builtin_offsetof(struct sx_adl, wait_port) == 0x0039, "sx_adl.wait_port");
 _Static_assert(__builtin_offsetof(struct sx_adl, data_port) == 0x003b, "sx_adl.data_port");
-_Static_assert(__builtin_offsetof(struct sx_adl, byte_011d) == 0x011d, "sx_adl.byte_011d");
+_Static_assert(__builtin_offsetof(struct sx_adl, param_349) == 0x011d, "sx_adl.param_349");
 _Static_assert(__builtin_offsetof(struct sx_adl, enabled) == 0x011e, "sx_adl.enabled");
 _Static_assert(__builtin_offsetof(struct sx_adl, level) == 0x011f, "sx_adl.level");
 _Static_assert(__builtin_offsetof(struct sx_adl, voice_mru) == 0x01cf, "sx_adl.voice_mru");
@@ -3550,7 +3550,7 @@ struct sx_sbp {
     uint8_t   pad_0042[224];
     /* Function 11's byte, which this driver stores and nothing here reads -
        the same shape as `ADL:0x11d` and `SPKR:0x349`. */
-    uint8_t   byte_0122;       /* +0x0122 */
+    uint8_t   param_349;       /* +0x0122  function 11's byte: stored, never read here */
     /* **The FM switch and the master level**, functions 13 and 12. On this card
        the level is not an OPL register but the mixer's FM volume at 0x26, both
        nibbles at once; switching off writes silence to the mixer and keeps the
@@ -3595,7 +3595,7 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, right_wait_port) == 0x003a, "sx
 _Static_assert(__builtin_offsetof(struct sx_sbp, right_data_port) == 0x003c, "sx_sbp.right_data_port");
 _Static_assert(__builtin_offsetof(struct sx_sbp, mixer_reg_port) == 0x003e, "sx_sbp.mixer_reg_port");
 _Static_assert(__builtin_offsetof(struct sx_sbp, mixer_data_port) == 0x0040, "sx_sbp.mixer_data_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0122) == 0x0122, "sx_sbp.byte_0122");
+_Static_assert(__builtin_offsetof(struct sx_sbp, param_349) == 0x0122, "sx_sbp.param_349");
 _Static_assert(__builtin_offsetof(struct sx_sbp, enabled) == 0x0123, "sx_sbp.enabled");
 _Static_assert(__builtin_offsetof(struct sx_sbp, level) == 0x0124, "sx_sbp.level");
 _Static_assert(__builtin_offsetof(struct sx_sbp, voice_mru) == 0x01d4, "sx_sbp.voice_mru");
@@ -3899,7 +3899,7 @@ _Static_assert(sizeof(struct bitmap) == 0xa,
 /*
  * ---------------------------------------------------------------------------
  * **The quadtree bit reader**, the record `decode_vqt_list` builds on its own
- * stack and files into `DG6400.word_640c` for `vqt_node`, `vqt_screen_node`
+ * stack and files into `BITMAPS.reader_ptr` for `vqt_node`, `vqt_screen_node`
  * and `fill_quadrant` to fetch back out.
  *
  * `pos` is a bit position, stepped four at a time and read as one 32-bit
@@ -4033,7 +4033,12 @@ struct sequence {
        every track's position back to 0. Zero here with `loop` also zero is
        what makes the end of the data the end of the sequence. */
     uint8_t        rewind_mark;         /* +0x15a */
-    uint8_t        byte_15b;            /* +0x15b */
+    /* **Whether the bank entry's priority is allowed in.** `start_sequence`
+       takes the header's byte 0x20 as the priority only when this is zero, so
+       a non-zero one keeps whatever the record already has. Read there and
+       nowhere else, and written nowhere - every record the port allocates is
+       calloc'd, so the guard always passes. */
+    uint8_t        keep_priority;       /* +0x15b */
     uint8_t        priority;            /* +0x15c  a sound bank entry's second byte */
     uint8_t        loop;                /* +0x15d  and its first */
     uint8_t        volume;              /* +0x15e  0x7f for the default */
@@ -4781,7 +4786,8 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
  * `free_all_part_bitmaps` walks - 0 to 0x39 - and what the image holds before
  * the text. The original reaches a record as `imul 0x3a` then `add ax, 0xea6`,
  * or with the base folded into the displacement when it reads one field -
- * `[bx + 0xec6]` is `word_20` - so the index is the only thing it computes.
+ * `[bx + 0xec6]` is `priority`, the record's +0x20 - so the index is the only
+ * thing it computes.
  *
  * Its contents are transcribed in dgroup.c, at that address.
  */

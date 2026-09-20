@@ -333,7 +333,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
             dg_far_ptr(seq->cursor_at);
         const uint8_t far *tbl = dg_far_ptr(*tbl_at);
 
-        if (tbl[0x20] != 0xff && seq->byte_15b == 0)
+        if (tbl[0x20] != 0xff && seq->keep_priority == 0)
             seq->priority = tbl[0x20];
 
         base = 0;
@@ -4138,7 +4138,10 @@ uint16_t read_record(FILE *file, uint16_t mode)
     /* The original reserves 0xe and then pushes SI and DI; the port used to
        reserve all 0x12 so a callee's frame cleared the saved registers too.
        An array's neighbours are its own bytes, so the size is the locals. */
-    int16_t len[2];   /* the 32-bit length */
+    /* **One `long`, not two words.** The original reads four bytes into
+       `[bp-4]` and then takes four off with a `sub`/`sbb` pair, and every use
+       hands the whole thing to a routine that takes a 32-bit size. */
+    int32_t len;
     int16_t out[2];
     /* **Two bytes read three times, at two widths.** `game_fread` fills it
        with a word once and with a single byte twice, all at offset 0, so it
@@ -4150,7 +4153,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     uint8_t *p;
     uint16_t r = 0;
 
-    game_fread((uint8_t *)len, 4, 1, file);
+    game_fread((uint8_t *)&len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
     rec = (struct sound_record *)(void *)alloc_for_kind(0x14, 3);
@@ -4167,37 +4170,30 @@ uint16_t read_record(FILE *file, uint16_t mode)
 
     kind = (rec->flags & 1) ? 4 : 7;
 
-    if ((uint16_t)len[0] < 4)
-        len[1] = (int16_t)((uint16_t)len[1] - 1);
-    len[0] = (int16_t)((uint16_t)len[0] - 4);
+    /* `sub ax,4 / sbb dx,0` - the borrow the two words needed by hand. */
+    len -= 4;
 
     rec->data = FAR_NULL;
 
     /* Each payload is a block DOS handed out, so `far_of` files its own
        pair, as the original files the DX:AX it was answered. */
     if ((uint8_t)mode == 0x63) {
-        p = alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
-                           | (uint16_t)len[0], kind);
+        p = alloc_for_kind((uint32_t)len, kind);
         rec->data = far_of(p);
 
         if (p == FAR_NULL_PTR)
             goto fail;
 
-        if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
-                              | (uint16_t)len[0], 1, file) != 1)
+        if (fread_huge(p, (uint32_t)len, 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
-                                      | (uint16_t)len[0],
-                            (uint8_t *)out);
+        p = load_sound_bank(file, (uint32_t)len, (uint8_t *)out);
 
         rec->data = far_of(p);
         if (p == FAR_NULL_PTR)
             goto fail;
     } else {
-        p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
-                                          | (uint16_t)len[0],
-                                (uint8_t *)out, kind);
+        p = load_resource_block(file, (uint32_t)len, (uint8_t *)out, kind);
 
         rec->data = far_of(p);
         if (p == FAR_NULL_PTR)
