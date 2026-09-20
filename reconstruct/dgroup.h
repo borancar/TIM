@@ -1314,7 +1314,12 @@ struct dg_52ed {
     dg_near_t cursor_art_ptr;    /* +0x09  mouse.bmp's list */
     dg_near_t tim_sx_ptr;         /* +0x0b  tim.sx's file record, which open_sound_file reads the sounds from */
     uint16_t  stop_requested;     /* +0x0d  game_teardown(0) raises it; the loops above read it */
-    uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
+    /* **`_stklen`**, which is the same word twice over. The DOS startup reads
+       it at image 0x5a to size the block it keeps, beside `_heaplen` at
+       0x4d32; the game then writes 0x800 into it in `game_start` and
+       `heap_largest_free` subtracts it from the top of the heap, so after
+       startup it is what the stack is reserved below. */
+    uint16_t  stack_floor;        /* +0x0f */
 } __attribute__((packed));
 
 extern struct dg_52ed DG52ED;
@@ -2530,6 +2535,54 @@ _Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
 
 /*
  * ---------------------------------------------------------------------------
+ * **What the DOS startup left behind**, DGROUP 0x0074..0x0094.
+ *
+ * The port has no DOS startup - `main.c` stands where the original's does - so
+ * nothing here writes any of this, and it is declared because the *original*
+ * does and DGROUP is described in full. Every field below is read off the
+ * startup's own instructions, which `tools/xrefs.py` lists: these twenty-eight
+ * bytes are named by eighteen instructions, all of them between image 0x0000
+ * and 0x0215.
+ *
+ * The four vectors are INT 00h, 04h, 05h and 06h - divide by zero, overflow,
+ * bound and invalid opcode - fetched with INT 21h AX=35xx at image 0x1ad and
+ * put back with AX=25xx at 0x1f0. `argc` and `argv` are what the startup
+ * pushes before `lcall 0xdff:0x000f`, which is `game_main`: the segment first,
+ * then the offset, then the count, so the last pushed is the first argument
+ * and `argv` is one far pointer.
+ *
+ * **`env` is a far pointer whose offset half is then reused.** `les di,[0x8a]`
+ * walks the environment for its end, and the length that walk measures goes
+ * straight back into 0x008a, so after the startup the word is a count and not
+ * an offset any more. The segment beside it is the PSP's word at +0x2c, read
+ * while DS was still the PSP.
+ * ---------------------------------------------------------------------------
+ */
+struct dos_startup {
+    struct far_ptr int00;         /* +0x00  0x0074  as the startup found it */
+    struct far_ptr int04;         /* +0x04  0x0078 */
+    struct far_ptr int05;         /* +0x08  0x007c */
+    struct far_ptr int06;         /* +0x0c  0x0080 */
+    int16_t        argc;          /* +0x10  0x0084 */
+    struct far_ptr argv;          /* +0x12  0x0086 */
+    struct far_ptr env;           /* +0x16  0x008a  the offset becomes its length */
+    uint16_t       env_bytes;     /* +0x1a  0x008e  the length rounded up for the copy */
+    dg_seg_t       psp;           /* +0x1c  0x0090  ES at the entry point */
+    uint8_t        os_major;      /* +0x1e  0x0092  INT 21h AH=30h: AL here, AH above.
+                                                    The startup gives up below 3.30 */
+    uint8_t        os_minor;      /* +0x1f  0x0093 */
+} __attribute__((packed));
+
+extern struct dos_startup DOS_STARTUP;
+
+DG_ASSERT_AT(struct dos_startup, int00,     0x00);
+DG_ASSERT_AT(struct dos_startup, argc,      0x10);
+DG_ASSERT_AT(struct dos_startup, env,       0x16);
+DG_ASSERT_AT(struct dos_startup, psp,       0x1c);
+DG_ASSERT_AT(struct dos_startup, os_major,  0x1e);
+
+/*
+ * ---------------------------------------------------------------------------
  * **Two of Borland's runtime globals**, at DGROUP 0x0094.
  *
  * `errno` is at +0x00, and `io_error` (0x0dcf2) says so in its own comment: it
@@ -2570,6 +2623,32 @@ extern struct dg_0094 DG0094;
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, start_ticks,       0x02);
 DG_ASSERT_AT(struct dg_0094, brklvl_ptr,        0x08);
+
+/*
+ * **The top of the program, as the startup worked it out**, DGROUP 0x00a0.
+ *
+ * `bx = di + ds` at image 0x9c is the paragraph one past the stack, and the
+ * startup files it at 0x00a0 and again at 0x00a4 before handing the difference
+ * to INT 21h AH=4Ah to give the rest back. Each word is named by that one
+ * store and nothing reads either, so which of Borland's two globals is which
+ * cannot be told apart here.
+ *
+ * `memory_top` is the PSP's word at +2, read at image 0x0c while DS was still
+ * the PSP, and overwritten at 0x104 with the segment INT 21h AH=48h answered.
+ */
+struct dos_program_top {
+    dg_seg_t  top_a;              /* +0x00  0x00a0 */
+    uint8_t   pad_00a2[2];
+    dg_seg_t  top_b;              /* +0x04  0x00a4  the same value, filed twice */
+    uint8_t   pad_00a6[2];
+    dg_seg_t  memory_top;         /* +0x08  0x00a8 */
+} __attribute__((packed));
+
+extern struct dos_program_top DOS_PROGRAM_TOP;
+
+DG_ASSERT_AT(struct dos_program_top, top_a,      0x00);
+DG_ASSERT_AT(struct dos_program_top, top_b,      0x04);
+DG_ASSERT_AT(struct dos_program_top, memory_top, 0x08);
 
 /*
  * **A draw step**, the record a part's draw list is a chain of: which

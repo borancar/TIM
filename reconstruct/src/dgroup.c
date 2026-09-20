@@ -1982,6 +1982,8 @@ struct dg_48da DG48DA DGROUP_AT(0x48da) = {
 };
 struct dg_3576 DG3576 DGROUP_AT(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
+struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
+struct dos_program_top DOS_PROGRAM_TOP DGROUP_AT(0x00a0) = { .top_a = 0 };
 struct dg_0094 DG0094 DGROUP_AT(0x0094) = { .pad_009a = { 0xca, 0x64 }, .brklvl_ptr = 0x64ca };
 struct dg_1bcc DG1BCC DGROUP_AT(0x1bcc) = {
     .not_enough_free_memory = "\012\012NOT ENOUGH FREE MEMORY\012",

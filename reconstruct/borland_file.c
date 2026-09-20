@@ -211,7 +211,7 @@ struct borland_handle_flags BORLAND_HANDLE_FLAGS DGROUP_AT(0x4d06) = { .flags = 
 _Static_assert(sizeof(struct borland_handle_flags) == 0x28, "twenty handles end at BORLAND_IO_MODES");
 
 /*
- * **Not established**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
+ * **Borland's own IO defaults**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
  */
 struct borland_io_modes {
     /* **`_fmode`**, the text-or-binary default an `fopen` with neither takes:
@@ -220,7 +220,14 @@ struct borland_io_modes {
     /* The mask an open's permission argument is taken through - 0xffff, so
        all of it - before the read and write bits are tested. */
     uint16_t  perm_mask;          /* +0x02 [2] */
-    uint8_t   pad_4d32[2];        /* +0x04 [2] */
+    /* **`_heaplen`**, and it is zero, which is why this program owns all of
+       conventional memory. The startup adds it to `_stklen` at image 0x71 to
+       size what it keeps - `(stklen + heaplen + 15) >> 4` paragraphs, handed
+       to INT 21h AH=4Ah - but only after the pair at 0x80 and 0x87: with
+       `_heaplen` zero the block is 0x1000 paragraphs or everything left,
+       whichever is smaller, instead. Those two instructions are the only ones
+       in the image that name it. */
+    uint16_t  heaplen;            /* +0x04 [2] */
     /* **`_doserrno`**: the DOS code `io_error` files, which the open path
        reads back to tell "file not found" from a real failure. */
     int16_t   doserrno;           /* +0x06 [2] */
@@ -248,6 +255,7 @@ struct borland_io_modes BORLAND_IO_MODES DGROUP_AT(0x4d2e) = {
 DG_ASSERT_AT(struct borland_io_modes, errno_map, 0x08);
 _Static_assert(sizeof(struct borland_io_modes) == 0x61, "the errno map ends before the TMP string at 0x4d90");
 DG_ASSERT_AT(struct borland_io_modes, fmode, 0x00);
+DG_ASSERT_AT(struct borland_io_modes, heaplen, 0x04);
 DG_ASSERT_AT(struct borland_io_modes, perm_mask, 0x02);
 DG_ASSERT_AT(struct borland_io_modes, doserrno, 0x06);
 
