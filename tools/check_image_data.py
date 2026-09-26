@@ -70,6 +70,26 @@ def judged_ranges():
     return out
 
 
+# **What the host no longer lays out as the guest's.** A record that holds
+# real pointers is the host's own layout and is not placed; `DGROUP_WAS(off)`
+# keeps its original address beside it. Its bytes are then the judge's, with
+# its module, and this tool only knows where the run starts: it runs to the
+# next object the sources give an address to.
+def was_ranges():
+    import cparse
+    starts, was = set(), set()
+    for path in (glob.glob(os.path.join(REC, "src", "*.c"))
+                 + glob.glob(os.path.join(REC, "*.c"))):
+        text_ = open(path).read()
+        for _s, name, addr in cparse.placements(path):
+            starts.add(addr)
+            if re.search(r"\b%s\b[^;=]*DGROUP_WAS\(" % re.escape(name), text_):
+                was.add(addr)
+    starts = sorted(starts | {INIT_END})
+    return [(DGROUP + a, DGROUP + next(b for b in starts if b > a))
+            for a in sorted(was) if a < INIT_END]
+
+
 DG = re.compile(r"^\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
 BSS = re.compile(r"^\.bss\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
 SEG = re.compile(r"^\.guest\.seg\.0x([0-9a-fA-F]{4})\.0x([0-9a-fA-F]{4})$")
@@ -152,6 +172,8 @@ def main():
 
     missing = 0
     judged = judged_ranges()
+    was = was_ranges()
+    judged += was
     for lo, hi in NEEDED:
         for at in range(lo, hi):
             if any(j_lo <= at < j_hi for j_lo, j_hi in judged):
@@ -167,7 +189,8 @@ def main():
     print(f"{len(objects)} placed objects, each at its address and holding the image's bytes, "
           f"and nothing the game reads is left out"
           + (f" ({sum(h - l for l, h in judged)} bytes in {len(judged)} runs "
-             f"are judged modules' own data)" if judged else ""))
+             f"are judged modules' own data or records the host lays out "
+             f"itself, {len(was)} of them)" if judged else ""))
     return 0
 
 

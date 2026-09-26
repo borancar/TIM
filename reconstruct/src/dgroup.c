@@ -2,7 +2,22 @@
  * Storage for the original's DGROUP and for the span-list buffer. See
  * dgroup.h for why DGROUP is an array rather than a set of named globals.
  */
+#include "tim.h"
 #include "dgroup.h"
+
+/* **A do-nothing hook in a slot whose calls take an answer.** The original's
+   table holds far code pointers of whatever type; its `retf`-only hooks at
+   0x02a1 and 0x02b0 answer nothing and their callers ignore AX. C needs the
+   types to agree, and `void (*)(void)` is the one GCC lets a cast go through
+   without complaint. Ours. */
+#define NO_ANSWER(fn) ((uint16_t (far *)())(void (far *)(void))(fn))
+
+/* **`part_hook_no` as a drive hook**: it takes the part and answers 0, and
+   the drive's caller pushes all six arguments, which the C calling convention
+   lets it ignore. The same cast, for the same reason. Ours. */
+#define NO_DRIVE ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)
 
 /* `guest_mem` itself is the linker script's - see DGROUP_AT in dgroup.h. */
 
@@ -1140,19 +1155,19 @@ struct point8 MORT_THE_MOUSE_HOT_SPOTS[2] DGROUP_AT(0x0ea2) = { [1] = { .y = 0x0
  * The `word_*` fields are words nothing has been read for yet, transcribed as
  * they are.
  */
-struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
+struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
     [KIND_BOWLING_BALL] = {    /* DGROUP 0x0ea6 */
         .density = 0x0b10, .weight = 0x00c8, .bounce = 0x0080, .grip = 0x0010,
         .gravity = 0x0000, .max_speed = 0x0000,
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0000,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x0001, LOAD_SEG + 0x172c },    /* part_setup_0001 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_0001,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BRICK_PLATFORM] = {    /* DGROUP 0x0ee0 */
         .density = 0x1039, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0018,
@@ -1160,12 +1175,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0010, .min_h = 0x0010,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0028,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x48ab, LOAD_SEG + 0x172c },    /* part_setup_48ab */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x48f7, LOAD_SEG + 0x172c },    /* part_settle_48f7 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_48ab,
+        .flip = part_hook_none_2ab,
+        .settle = part_settle_48f7,
+        .drive = NO_DRIVE,
     },
     [KIND_RAMP] = {    /* DGROUP 0x0f1a */
         .density = 0x05e6, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1173,12 +1188,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0040, .max_h = 0x0000, .min_w = 0x0010, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x002c,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x2728, LOAD_SEG + 0x172c },    /* part_setup_ramp */
-        .flip   = { 0x27b6, LOAD_SEG + 0x172c },    /* part_flip_ramp */
-        .settle = { 0x2789, LOAD_SEG + 0x172c },    /* part_settle_ramp */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_ramp,
+        .flip = part_flip_ramp,
+        .settle = part_settle_ramp,
+        .drive = NO_DRIVE,
     },
     [KIND_SEESAW] = {    /* DGROUP 0x0f54 */
         .density = 0x0760, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1186,12 +1201,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e42, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0008, .priority = 0x0006,
-        .hit    = { 0x3fe8, LOAD_SEG + 0x172c },    /* part_hit_seesaw */
-        .step   = { 0x420f, LOAD_SEG + 0x172c },    /* part_step_seesaw */
-        .setup  = { 0x40f0, LOAD_SEG + 0x172c },    /* part_setup_seesaw */
-        .flip   = { 0x41bb, LOAD_SEG + 0x172c },    /* part_flip_seesaw */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x44fe, LOAD_SEG + 0x172c },    /* part_drive_44fe */
+        .hit = part_hit_seesaw,
+        .step = part_step_seesaw,
+        .setup = part_setup_seesaw,
+        .flip = part_flip_seesaw,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_44fe,
     },
     [KIND_BALLOON] = {    /* DGROUP 0x0f8e */
         .density = 0x0009, .weight = 0x0001, .bounce = 0x0040, .grip = 0x0020,
@@ -1199,12 +1214,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e48, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0005,
-        .hit    = { 0x016e, LOAD_SEG + 0x172c },    /* part_hit_balloon */
-        .step   = { 0x018e, LOAD_SEG + 0x172c },    /* part_step_balloon */
-        .setup  = { 0x012d, LOAD_SEG + 0x172c },    /* part_setup_balloon */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02cd, LOAD_SEG + 0x172c },    /* part_drive_02cd */
+        .hit = part_hit_balloon,
+        .step = part_step_balloon,
+        .setup = part_setup_balloon,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_02cd,
     },
     [KIND_CONVEYOR] = {    /* DGROUP 0x0fc8 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1212,12 +1227,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0060, .max_h = 0x0000, .min_w = 0x0020, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x000c,
-        .hit    = { 0x2514, LOAD_SEG + 0x172c },    /* part_hit_conveyor */
-        .step   = { 0x2592, LOAD_SEG + 0x172c },    /* part_step_conveyor */
-        .setup  = { 0x24d0, LOAD_SEG + 0x172c },    /* part_setup_conveyor */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x261d, LOAD_SEG + 0x172c },    /* part_settle_conveyor */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_conveyor,
+        .step = part_step_conveyor,
+        .setup = part_setup_conveyor,
+        .flip = part_hook_none_2ab,
+        .settle = part_settle_conveyor,
+        .drive = NO_DRIVE,
     },
     [KIND_MOUSE_CAGE] = {    /* DGROUP 0x1002 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1225,12 +1240,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0025,
-        .hit    = { 0x2f25, LOAD_SEG + 0x172c },    /* part_hit_mouse_cage */
-        .step   = { 0x2f3e, LOAD_SEG + 0x172c },    /* part_step_mouse_cage */
-        .setup  = { 0x2ee1, LOAD_SEG + 0x172c },    /* part_setup_mouse_cage */
-        .flip   = { 0x2fba, LOAD_SEG + 0x172c },    /* part_flip_mouse_cage */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_mouse_cage,
+        .step = part_step_mouse_cage,
+        .setup = part_setup_mouse_cage,
+        .flip = part_flip_mouse_cage,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_PULLEY] = {    /* DGROUP 0x103c */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0000, .grip = 0x0000,
@@ -1238,12 +1253,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0000, .priority = 0x0011,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BELT] = {    /* DGROUP 0x1076 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0000, .grip = 0x0000,
@@ -1251,12 +1266,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x01, 0xff }, .point_count = 0x0000, .priority = 0x000a,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BASKETBALL] = {    /* DGROUP 0x10b0 */
         .density = 0x052a, .weight = 0x0014, .bounce = 0x00c0, .grip = 0x0010,
@@ -1264,12 +1279,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0001,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x0001, LOAD_SEG + 0x172c },    /* part_setup_0001 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_0001,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_ROPE] = {    /* DGROUP 0x10ea */
         .density = 0x0640, .weight = 0x03e8, .bounce = 0x0000, .grip = 0x0000,
@@ -1277,12 +1292,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x01, 0xff }, .point_count = 0x0000, .priority = 0x000f,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BIRD_CAGE] = {    /* DGROUP 0x1124 */
         .density = 0x1d80, .weight = 0x0096, .bounce = 0x0020, .grip = 0x0040,
@@ -1290,12 +1305,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x000c, .priority = 0x0022,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x0f70, LOAD_SEG + 0x172c },    /* part_setup_bird_cage */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x0ffc, LOAD_SEG + 0x172c },    /* part_drive_0ffc */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_bird_cage,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_0ffc,
     },
     [KIND_POKEY] = {    /* DGROUP 0x115e */
         .density = 0x07d0, .weight = 0x0078, .bounce = 0x0000, .grip = 0x0040,
@@ -1303,12 +1318,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e56, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0005, .priority = 0x0023,
-        .hit    = { 0x0c6c, LOAD_SEG + 0x172c },    /* part_hit_pokey */
-        .step   = { 0x0ca3, LOAD_SEG + 0x172c },    /* part_step_pokey */
-        .setup  = { 0x0c1c, LOAD_SEG + 0x172c },    /* part_setup_pokey */
-        .flip   = { 0x0f3d, LOAD_SEG + 0x172c },    /* part_flip_pokey */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_pokey,
+        .step = part_step_pokey,
+        .setup = part_setup_pokey,
+        .flip = part_flip_pokey,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_JACK_IN_THE_BOX] = {    /* DGROUP 0x1198 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1316,12 +1331,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0250, .hotspots_ptr = 0x02c2, .sizes_ptr = 0x0276,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0004, .priority = 0x000d,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x27e2, LOAD_SEG + 0x172c },    /* part_step_jack_in_the_box */
-        .setup  = { 0x295d, LOAD_SEG + 0x172c },    /* part_setup_jack_in_the_box */
-        .flip   = { 0x2999, LOAD_SEG + 0x172c },    /* part_flip_jack_in_the_box */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_jack_in_the_box,
+        .setup = part_setup_jack_in_the_box,
+        .flip = part_flip_jack_in_the_box,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_GEAR] = {    /* DGROUP 0x11d2 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0030,
@@ -1329,12 +1344,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0008, .priority = 0x000b,
-        .hit    = { 0x1f78, LOAD_SEG + 0x172c },    /* part_hit_gear */
-        .step   = { 0x20fc, LOAD_SEG + 0x172c },    /* part_step_gear */
-        .setup  = { 0x2068, LOAD_SEG + 0x172c },    /* part_setup_gear */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_gear,
+        .step = part_step_gear,
+        .setup = part_setup_gear,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BOB_THE_FISH] = {    /* DGROUP 0x120c */
         .density = 0x07d0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1342,12 +1357,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0441, .hotspots_ptr = 0x04cb, .sizes_ptr = 0x046f,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0026,
-        .hit    = { 0x1c39, LOAD_SEG + 0x172c },    /* part_hit_bob_the_fish */
-        .step   = { 0x1c5f, LOAD_SEG + 0x172c },    /* part_step_bob_the_fish */
-        .setup  = { 0x1be9, LOAD_SEG + 0x172c },    /* part_setup_bob_the_fish */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_bob_the_fish,
+        .step = part_step_bob_the_fish,
+        .setup = part_setup_bob_the_fish,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BELLOW] = {    /* DGROUP 0x1246 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1355,12 +1370,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e6a, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0006, .priority = 0x0007,
-        .hit    = { 0x0332, LOAD_SEG + 0x172c },    /* part_hit_bellow */
-        .step   = { 0x0405, LOAD_SEG + 0x172c },    /* part_step_bellow */
-        .setup  = { 0x0371, LOAD_SEG + 0x172c },    /* part_setup_bellow */
-        .flip   = { 0x03d2, LOAD_SEG + 0x172c },    /* part_flip_bellow */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_bellow,
+        .step = part_step_bellow,
+        .setup = part_setup_bellow,
+        .flip = part_flip_bellow,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BUCKET] = {    /* DGROUP 0x1280 */
         .density = 0x1d80, .weight = 0x0064, .bounce = 0x0020, .grip = 0x0030,
@@ -1368,12 +1383,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0006, .priority = 0x0021,
-        .hit    = { 0x0763, LOAD_SEG + 0x172c },    /* part_hit_bucket */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x07b2, LOAD_SEG + 0x172c },    /* part_setup_bucket */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x0802, LOAD_SEG + 0x172c },    /* part_drive_0802 */
+        .hit = part_hit_bucket,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_bucket,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_0802,
     },
     [KIND_CANNON] = {    /* DGROUP 0x12ba */
         .density = 0x3986, .weight = 0x03e8, .bounce = 0x00c0, .grip = 0x000c,
@@ -1381,12 +1396,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x05da, .hotspots_ptr = 0x0622, .sizes_ptr = 0x05f2,
         .refile_level = { 0x04, 0x00 }, .point_count = 0x0008, .priority = 0x001c,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x0a5d, LOAD_SEG + 0x172c },    /* part_step_cannon */
-        .setup  = { 0x0b88, LOAD_SEG + 0x172c },    /* part_setup_cannon */
-        .flip   = { 0x0be9, LOAD_SEG + 0x172c },    /* part_flip_cannon */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_cannon,
+        .setup = part_setup_cannon,
+        .flip = part_flip_cannon,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_DYNAMITE] = {    /* DGROUP 0x12f4 */
         .density = 0x046c, .weight = 0x005a, .bounce = 0x0040, .grip = 0x0020,
@@ -1394,12 +1409,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0694, .hotspots_ptr = 0x06b8, .sizes_ptr = 0x06a0,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0005, .priority = 0x001d,
-        .hit    = { 0x1237, LOAD_SEG + 0x172c },    /* part_hit_dynamite */
-        .step   = { 0x12c2, LOAD_SEG + 0x172c },    /* part_step_dynamite */
-        .setup  = { 0x1261, LOAD_SEG + 0x172c },    /* part_setup_dynamite */
-        .flip   = { 0x12fc, LOAD_SEG + 0x172c },    /* part_flip_dynamite */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_dynamite,
+        .step = part_step_dynamite,
+        .setup = part_setup_dynamite,
+        .flip = part_flip_dynamite,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BULLET] = {    /* DGROUP 0x132e */
         .density = 0x0000, .weight = 0x4e20, .bounce = 0x0000, .grip = 0x0000,
@@ -1407,12 +1422,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e70, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0004, .priority = 0x0032,
-        .hit    = { 0x0867, LOAD_SEG + 0x172c },    /* part_hit_0867 */
-        .step   = { 0x08f1, LOAD_SEG + 0x172c },    /* part_step_08f1 */
-        .setup  = { 0x08a1, LOAD_SEG + 0x172c },    /* part_setup_08a1 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_0867,
+        .step = part_step_08f1,
+        .setup = part_setup_08a1,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_ELECTRIC_PLUG] = {    /* DGROUP 0x1368 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1420,12 +1435,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x073c, .hotspots_ptr = 0x0000, .sizes_ptr = 0x074c,
         .refile_level = { 0x05, 0xff }, .point_count = 0x0004, .priority = 0x0014,
-        .hit    = { 0x14d3, LOAD_SEG + 0x172c },    /* part_hit_electric_plug */
-        .step   = { 0x15ce, LOAD_SEG + 0x172c },    /* part_step_electric_plug */
-        .setup  = { 0x1556, LOAD_SEG + 0x172c },    /* part_setup_electric_plug */
-        .flip   = { 0x15fc, LOAD_SEG + 0x172c },    /* part_flip_electric_plug */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_electric_plug,
+        .step = part_step_electric_plug,
+        .setup = part_setup_electric_plug,
+        .flip = part_flip_electric_plug,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_DYNAMITE_PLUNGER] = {    /* DGROUP 0x13a2 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1433,12 +1448,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0799, .hotspots_ptr = 0x07ab, .sizes_ptr = 0x079f,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0020,
-        .hit    = { 0x323f, LOAD_SEG + 0x172c },    /* part_hit_dynamite_plunger */
-        .step   = { 0x332a, LOAD_SEG + 0x172c },    /* part_step_dynamite_plunger */
-        .setup  = { 0x3294, LOAD_SEG + 0x172c },    /* part_setup_dynamite_plunger */
-        .flip   = { 0x33e5, LOAD_SEG + 0x172c },    /* part_flip_dynamite_plunger */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x341d, LOAD_SEG + 0x172c },    /* part_drive_341d */
+        .hit = part_hit_dynamite_plunger,
+        .step = part_step_dynamite_plunger,
+        .setup = part_setup_dynamite_plunger,
+        .flip = part_flip_dynamite_plunger,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_341d,
     },
     [KIND_HOOK] = {    /* DGROUP 0x13dc */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1446,12 +1461,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0000, .priority = 0x0010,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x19db, LOAD_SEG + 0x172c },    /* part_setup_hook */
-        .flip   = { 0x19fa, LOAD_SEG + 0x172c },    /* part_flip_hook */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_hook,
+        .flip = part_flip_hook,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_FAN] = {    /* DGROUP 0x1416 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1459,12 +1474,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x07ed, .hotspots_ptr = 0x0000, .sizes_ptr = 0x07f5,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0005, .priority = 0x0017,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x1a82, LOAD_SEG + 0x172c },    /* part_step_fan */
-        .setup  = { 0x1a32, LOAD_SEG + 0x172c },    /* part_setup_fan */
-        .flip   = { 0x1bbd, LOAD_SEG + 0x172c },    /* part_flip_fan */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_fan,
+        .setup = part_setup_fan,
+        .flip = part_flip_fan,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_FLASHLIGHT] = {    /* DGROUP 0x1450 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1472,12 +1487,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e76, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0006, .priority = 0x001a,
-        .hit    = { 0x1d07, LOAD_SEG + 0x172c },    /* part_hit_flashlight */
-        .step   = { 0x1d78, LOAD_SEG + 0x172c },    /* part_step_flashlight */
-        .setup  = { 0x1d28, LOAD_SEG + 0x172c },    /* part_setup_flashlight */
-        .flip   = { 0x1da8, LOAD_SEG + 0x172c },    /* part_flip_flashlight */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_flashlight,
+        .step = part_step_flashlight,
+        .setup = part_setup_flashlight,
+        .flip = part_flip_flashlight,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_GENERATOR] = {    /* DGROUP 0x148a */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1485,12 +1500,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x08f5, .hotspots_ptr = 0x0955, .sizes_ptr = 0x0915,
         .refile_level = { 0x05, 0xff }, .point_count = 0x0004, .priority = 0x0015,
-        .hit    = { 0x1de0, LOAD_SEG + 0x172c },    /* part_hit_generator */
-        .step   = { 0x1e5c, LOAD_SEG + 0x172c },    /* part_step_generator */
-        .setup  = { 0x1dfb, LOAD_SEG + 0x172c },    /* part_setup_generator */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_generator,
+        .step = part_step_generator,
+        .setup = part_setup_generator,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_GUN] = {    /* DGROUP 0x14c4 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x00c0, .grip = 0x0010,
@@ -1498,12 +1513,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x09de, .hotspots_ptr = 0x0a08, .sizes_ptr = 0x09ec,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0007, .priority = 0x0012,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x22ae, LOAD_SEG + 0x172c },    /* part_step_gun */
-        .setup  = { 0x23b1, LOAD_SEG + 0x172c },    /* part_setup_gun */
-        .flip   = { 0x2412, LOAD_SEG + 0x172c },    /* part_flip_gun */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x2451, LOAD_SEG + 0x172c },    /* part_drive_2451 */
+        .hit = part_hook_yes,
+        .step = part_step_gun,
+        .setup = part_setup_gun,
+        .flip = part_flip_gun,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_2451,
     },
     [KIND_BASEBALL] = {    /* DGROUP 0x14fe */
         .density = 0x07d0, .weight = 0x0009, .bounce = 0x0040, .grip = 0x0018,
@@ -1511,12 +1526,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0003,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x00c9, LOAD_SEG + 0x172c },    /* part_setup_00c9 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_00c9,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_LIGHT] = {    /* DGROUP 0x1538 */
         .density = 0x0514, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1524,12 +1539,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0a52, .hotspots_ptr = 0x0a6a, .sizes_ptr = 0x0a5a,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0000, .priority = 0x001b,
-        .hit    = { 0x2b7e, LOAD_SEG + 0x172c },    /* part_hit_light */
-        .step   = { 0x2b99, LOAD_SEG + 0x172c },    /* part_step_light */
-        .setup  = { 0x2b58, LOAD_SEG + 0x172c },    /* part_setup_light */
-        .flip   = { 0x2bc5, LOAD_SEG + 0x172c },    /* part_flip_light */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x2c19, LOAD_SEG + 0x172c },    /* part_drive_2c19 */
+        .hit = part_hit_light,
+        .step = part_step_light,
+        .setup = part_setup_light,
+        .flip = part_flip_light,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_2c19,
     },
     [KIND_MAGNIFYING_GLASS] = {    /* DGROUP 0x1572 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1537,12 +1552,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0000, .priority = 0x0019,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x3035, LOAD_SEG + 0x172c },    /* part_step_magnifying_glass */
-        .setup  = { 0x3030, LOAD_SEG + 0x172c },    /* part_setup_magnifying_glass */
-        .flip   = { 0x31af, LOAD_SEG + 0x172c },    /* part_flip_magnifying_glass */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_magnifying_glass,
+        .setup = part_setup_magnifying_glass,
+        .flip = part_flip_magnifying_glass,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_MONKEY] = {    /* DGROUP 0x15ac */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1550,12 +1565,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0b35, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0b4f,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0009, .priority = 0x0027,
-        .hit    = { 0x2c83, LOAD_SEG + 0x172c },    /* part_hit_monkey */
-        .step   = { 0x2d40, LOAD_SEG + 0x172c },    /* part_step_monkey */
-        .setup  = { 0x2cce, LOAD_SEG + 0x172c },    /* part_setup_monkey */
-        .flip   = { 0x2e0c, LOAD_SEG + 0x172c },    /* part_flip_monkey */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x2e4b, LOAD_SEG + 0x172c },    /* part_drive_2e4b */
+        .hit = part_hit_monkey,
+        .step = part_step_monkey,
+        .setup = part_setup_monkey,
+        .flip = part_flip_monkey,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_2e4b,
     },
     [KIND_PUMPKIN] = {    /* DGROUP 0x15e6 */
         .density = 0x0960, .weight = 0x0064, .bounce = 0x0040, .grip = 0x0020,
@@ -1563,12 +1578,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x35f4, LOAD_SEG + 0x172c },    /* part_setup_pumpkin */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_pumpkin,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_HEART_BALLOON] = {    /* DGROUP 0x1620 */
         .density = 0x000b, .weight = 0x0004, .bounce = 0x0080, .grip = 0x0008,
@@ -1576,12 +1591,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0007, .priority = 0x0033,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x2682, LOAD_SEG + 0x172c },    /* part_setup_heart_balloon */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x26c3, LOAD_SEG + 0x172c },    /* part_drive_26c3 */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_heart_balloon,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_26c3,
     },
     [KIND_CHRISTMAS_TREE] = {    /* DGROUP 0x165a */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1589,12 +1604,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0007, .priority = 0x0034,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x1075, LOAD_SEG + 0x172c },    /* part_setup_christmas_tree */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_christmas_tree,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BOXING_GLOVE] = {    /* DGROUP 0x1694 */
         .density = 0x0ec0, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1602,12 +1617,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e7a, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0006, .priority = 0x0008,
-        .hit    = { 0x0552, LOAD_SEG + 0x172c },    /* part_hit_boxing_glove */
-        .step   = { 0x057e, LOAD_SEG + 0x172c },    /* part_step_boxing_glove */
-        .setup  = { 0x065b, LOAD_SEG + 0x172c },    /* part_setup_boxing_glove */
-        .flip   = { 0x06c6, LOAD_SEG + 0x172c },    /* part_flip_boxing_glove */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_boxing_glove,
+        .step = part_step_boxing_glove,
+        .setup = part_setup_boxing_glove,
+        .flip = part_flip_boxing_glove,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_ROCKET] = {    /* DGROUP 0x16ce */
         .density = 0x4650, .weight = 0x0708, .bounce = 0x0080, .grip = 0x0020,
@@ -1615,12 +1630,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0c19, .hotspots_ptr = 0x0c55, .sizes_ptr = 0x0c2d,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0004, .priority = 0x001e,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x3635, LOAD_SEG + 0x172c },    /* part_step_rocket */
-        .setup  = { 0x3737, LOAD_SEG + 0x172c },    /* part_setup_rocket */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_rocket,
+        .setup = part_setup_rocket,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_SCISSORS] = {    /* DGROUP 0x1708 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1628,12 +1643,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0c96, .hotspots_ptr = 0x0ca2, .sizes_ptr = 0x0c9a,
         .refile_level = { 0x04, 0x00 }, .point_count = 0x0008, .priority = 0x0013,
-        .hit    = { 0x3824, LOAD_SEG + 0x172c },    /* part_hit_scissors */
-        .step   = { 0x38fc, LOAD_SEG + 0x172c },    /* part_step_scissors */
-        .setup  = { 0x389b, LOAD_SEG + 0x172c },    /* part_setup_scissors */
-        .flip   = { 0x3944, LOAD_SEG + 0x172c },    /* part_flip_scissors */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_scissors,
+        .step = part_step_scissors,
+        .setup = part_setup_scissors,
+        .flip = part_flip_scissors,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_SOLAR_PANEL] = {    /* DGROUP 0x1742 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1641,12 +1656,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0ce2, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0cea,
         .refile_level = { 0x05, 0xff }, .point_count = 0x0000, .priority = 0x0016,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x3e08, LOAD_SEG + 0x172c },    /* part_step_solar_panel */
-        .setup  = { 0x3de5, LOAD_SEG + 0x172c },    /* part_setup_solar_panel */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_solar_panel,
+        .setup = part_setup_solar_panel,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_TRAMPOLINE] = {    /* DGROUP 0x177c */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0020,
@@ -1654,12 +1669,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0d90, .hotspots_ptr = 0x0dae, .sizes_ptr = 0x0d9a,
         .refile_level = { 0x04, 0x00 }, .point_count = 0x0004, .priority = 0x0009,
-        .hit    = { 0x3ebf, LOAD_SEG + 0x172c },    /* part_hit_trampoline */
-        .step   = { 0x3fae, LOAD_SEG + 0x172c },    /* part_step_trampoline */
-        .setup  = { 0x3f72, LOAD_SEG + 0x172c },    /* part_setup_trampoline */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_trampoline,
+        .step = part_step_trampoline,
+        .setup = part_setup_trampoline,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_WINDMILL] = {    /* DGROUP 0x17b6 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0080, .grip = 0x0010,
@@ -1667,12 +1682,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e8e, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0003, .priority = 0x000e,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x49a1, LOAD_SEG + 0x172c },    /* part_step_windmill */
-        .setup  = { 0x496f, LOAD_SEG + 0x172c },    /* part_setup_windmill */
-        .flip   = { 0x4a22, LOAD_SEG + 0x172c },    /* part_flip_windmill */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_windmill,
+        .setup = part_setup_windmill,
+        .flip = part_flip_windmill,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_BLAST] = {    /* DGROUP 0x17f0 */
         .density = 0x0000, .weight = 0x0001, .bounce = 0x0100, .grip = 0x0000,
@@ -1680,12 +1695,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0e96, .sizes_ptr = 0x0000,
         .refile_level = { 0x00, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x1649, LOAD_SEG + 0x172c },    /* part_step_1649 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_1649,
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_MORT_THE_MOUSE] = {    /* DGROUP 0x182a */
         .density = 0x07d0, .weight = 0x0001, .bounce = 0x0000, .grip = 0x0100,
@@ -1693,12 +1708,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0ea2, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0005, .priority = 0x0024,
-        .hit    = { 0x34b5, LOAD_SEG + 0x172c },    /* part_hit_mort_the_mouse */
-        .step   = { 0x34d0, LOAD_SEG + 0x172c },    /* part_step_mort_the_mouse */
-        .setup  = { 0x346f, LOAD_SEG + 0x172c },    /* part_setup_mort_the_mouse */
-        .flip   = { 0x35c7, LOAD_SEG + 0x172c },    /* part_flip_mort_the_mouse */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hit_mort_the_mouse,
+        .step = part_step_mort_the_mouse,
+        .setup = part_setup_mort_the_mouse,
+        .flip = part_flip_mort_the_mouse,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_CANNON_BALL] = {    /* DGROUP 0x1864 */
         .density = 0x53b4, .weight = 0x6d60, .bounce = 0x0020, .grip = 0x0010,
@@ -1706,12 +1721,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0002,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x0065, LOAD_SEG + 0x172c },    /* part_setup_cannon_ball */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_cannon_ball,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_TENNIS_BALL] = {    /* DGROUP 0x189e */
         .density = 0x052a, .weight = 0x0005, .bounce = 0x00c0, .grip = 0x0010,
@@ -1719,12 +1734,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0004,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x00c9, LOAD_SEG + 0x172c },    /* part_setup_00c9 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_00c9,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_CANDLE] = {    /* DGROUP 0x18d8 */
         .density = 0x07d0, .weight = 0x000c, .bounce = 0x0080, .grip = 0x0020,
@@ -1732,12 +1747,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0e12, .hotspots_ptr = 0x0e36, .sizes_ptr = 0x0e1e,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0003, .priority = 0x001f,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x098a, LOAD_SEG + 0x172c },    /* part_step_candle */
-        .setup  = { 0x0950, LOAD_SEG + 0x172c },    /* part_setup_candle */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_candle,
+        .setup = part_setup_candle,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_PIPE] = {    /* DGROUP 0x1912 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1745,12 +1760,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0029,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x48ab, LOAD_SEG + 0x172c },    /* part_setup_48ab */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x48f7, LOAD_SEG + 0x172c },    /* part_settle_48f7 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_48ab,
+        .flip = part_hook_none_2ab,
+        .settle = part_settle_48f7,
+        .drive = NO_DRIVE,
     },
     [KIND_CORNER_PIPE] = {    /* DGROUP 0x194c */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1758,12 +1773,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0008, .priority = 0x002a,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x377b, LOAD_SEG + 0x172c },    /* part_setup_corner_pipe */
-        .flip   = { 0x37e5, LOAD_SEG + 0x172c },    /* part_flip_corner_pipe */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_corner_pipe,
+        .flip = (void (far *)())part_flip_corner_pipe,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_WOODEN_PLATFORM] = {    /* DGROUP 0x1986 */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x000c,
@@ -1771,12 +1786,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x002b,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x48ab, LOAD_SEG + 0x172c },    /* part_setup_48ab */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x48f7, LOAD_SEG + 0x172c },    /* part_settle_48f7 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_48ab,
+        .flip = part_hook_none_2ab,
+        .settle = part_settle_48f7,
+        .drive = NO_DRIVE,
     },
     [KIND_ANCHOR] = {    /* DGROUP 0x19c0 */
         .density = 0x0640, .weight = 0x03e8, .bounce = 0x0000, .grip = 0x0000,
@@ -1784,12 +1799,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_MOTOR] = {    /* DGROUP 0x19fa */
         .density = 0x1d80, .weight = 0x03e8, .bounce = 0x0100, .grip = 0x0010,
@@ -1797,12 +1812,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0005, .priority = 0x0018,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x13c9, LOAD_SEG + 0x172c },    /* part_step_motor */
-        .setup  = { 0x1435, LOAD_SEG + 0x172c },    /* part_setup_motor */
-        .flip   = { 0x149b, LOAD_SEG + 0x172c },    /* part_flip_motor */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = part_step_motor,
+        .setup = part_setup_motor,
+        .flip = part_flip_motor,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [51] = {    /* DGROUP 0x1a34 */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0000, .grip = 0x0002,
@@ -1810,12 +1825,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [52] = {    /* DGROUP 0x1a6e */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0000, .grip = 0x0002,
@@ -1823,12 +1838,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [53] = {    /* DGROUP 0x1aa8 */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0000, .grip = 0x0002,
@@ -1836,12 +1851,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [54] = {    /* DGROUP 0x1ae2 */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0000, .grip = 0x0002,
@@ -1849,12 +1864,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x00f0, .max_h = 0x00f0, .min_w = 0x0020, .min_h = 0x0020,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x02a6, LOAD_SEG + 0x0000 },    /* part_hook_none_2a6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_hook_none_2a6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_55] = {    /* DGROUP 0x1b1c */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0040, .grip = 0x0020,
@@ -1862,12 +1877,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x1105, LOAD_SEG + 0x172c },    /* part_setup_1105 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_1105,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_56] = {    /* DGROUP 0x1b56 */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0080, .grip = 0x0020,
@@ -1875,12 +1890,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x05, 0xff }, .point_count = 0x0007, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x02a1, LOAD_SEG + 0x0000 },    /* part_hook_none_2a1 */
-        .setup  = { 0x10b6, LOAD_SEG + 0x172c },    /* part_setup_10b6 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x02b5, LOAD_SEG + 0x0000 },    /* part_hook_no */
+        .hit = part_hook_yes,
+        .step = NO_ANSWER(part_hook_none_2a1),
+        .setup = part_setup_10b6,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = NO_DRIVE,
     },
     [KIND_57] = {    /* DGROUP 0x1b90 */
         .density = 0x0064, .weight = 0x008c, .bounce = 0x0080, .grip = 0x0020,
@@ -1888,12 +1903,12 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_AT(0x0ea6) = {
         .max_w = 0x0000, .max_h = 0x0000, .min_w = 0x00f0, .min_h = 0x00f0,
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x00, 0xff }, .point_count = 0x0004, .priority = 0x0032,
-        .hit    = { 0x0297, LOAD_SEG + 0x0000 },    /* part_hook_yes */
-        .step   = { 0x11a6, LOAD_SEG + 0x172c },    /* part_step_11a6 */
-        .setup  = { 0x1105, LOAD_SEG + 0x172c },    /* part_setup_1105 */
-        .flip   = { 0x02ab, LOAD_SEG + 0x0000 },    /* part_hook_none_2ab */
-        .settle = { 0x02b0, LOAD_SEG + 0x0000 },    /* part_hook_none_2b0 */
-        .drive  = { 0x11d2, LOAD_SEG + 0x172c },    /* part_drive_11d2 */
+        .hit = part_hook_yes,
+        .step = part_step_11a6,
+        .setup = part_setup_1105,
+        .flip = part_hook_none_2ab,
+        .settle = NO_ANSWER(part_hook_none_2b0),
+        .drive = part_drive_11d2,
     },
 };
 
@@ -2549,275 +2564,275 @@ struct iff_chunk_names IFF_CHUNK_NAMES DGROUP_AT(0x355a) = {
 };
 
 /* DGROUP 0x2966 - the part templates `make_part` copies from; see dgroup.h. */
-struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_AT(0x2966) = {
+struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_WAS(0x2966) = {
     [0] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x6246, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_bowling_ball,
     },
     [1] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0010 },
         .size = { .width = 0x0020, .height = 0x0010 },
-        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14267,
     },
     [2] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x62b1, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_ramp,
     },
     [3] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0050, .height = 0x0020 },
         .size = { .width = 0x0050, .height = 0x0020 },
-        .init = { .off = 0x62f6, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_seesaw,
     },
     [4] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0030 },
         .size = { .width = 0x0020, .height = 0x0030 },
-        .init = { .off = 0x6330, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_balloon,
     },
     [5] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0060, .height = 0x0010 },
         .size = { .width = 0x0060, .height = 0x0010 },
-        .init = { .off = 0x6371, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_conveyor,
     },
     [6] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0030, .height = 0x0020 },
         .size = { .width = 0x0030, .height = 0x0020 },
-        .init = { .off = 0x63c3, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_mouse_cage,
     },
     [7] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0010, .height = 0x0010 },
         .size = { .width = 0x0010, .height = 0x0010 },
-        .init = { .off = 0x640b, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_pulley,
     },
     [8] = {
         .flags_06 = 0x4800,
-        .init = { .off = 0x644d, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_belt,
     },
     [9] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x647c, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_basketball,
     },
     [10] = {
         .flags_06 = 0x4800,
-        .init = { .off = 0x64ad, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_rope,
     },
     [11] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0030, .height = 0x0040 },
         .size = { .width = 0x0030, .height = 0x0040 },
-        .init = { .off = 0x64db, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_bird_cage,
     },
     [12] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0028, .height = 0x0029 },
         .size = { .width = 0x0028, .height = 0x0027 },
-        .init = { .off = 0x651c, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_pokey,
     },
     [13] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x6557, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_jack_in_the_box,
     },
     [14] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0023, .height = 0x0023 },
-        .init = { .off = 0x659f, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_gear,
     },
     [15] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0030, .height = 0x0030 },
         .size = { .width = 0x0030, .height = 0x0030 },
-        .init = { .off = 0x65e1, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_bob_the_fish,
     },
     [16] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0040, .height = 0x0030 },
         .size = { .width = 0x0040, .height = 0x0030 },
-        .init = { .off = 0x6617, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_bellow,
     },
     [17] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0025, .height = 0x0030 },
         .size = { .width = 0x0028, .height = 0x0030 },
-        .init = { .off = 0x664d, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_bucket,
     },
     [18] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0040, .height = 0x0034 },
         .size = { .width = 0x0040, .height = 0x0034 },
-        .init = { .off = 0x668e, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_cannon,
     },
     [19] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0030, .height = 0x001c },
         .size = { .width = 0x0030, .height = 0x001c },
-        .init = { .off = 0x66cd, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_dynamite,
     },
     [20] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0028, .height = 0x0007 },
         .size = { .width = 0x0028, .height = 0x0007 },
-        .init = { .off = 0x670c, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_146fc,
     },
     [21] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0030, .height = 0x0020 },
         .size = { .width = 0x0030, .height = 0x0020 },
-        .init = { .off = 0x673d, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_electric_plug,
     },
     [22] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0087, .height = 0x002f },
         .size = { .width = 0x0087, .height = 0x002f },
-        .init = { .off = 0x677c, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_dynamite_plunger,
     },
     [23] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0010, .height = 0x0010 },
         .size = { .width = 0x0010, .height = 0x0010 },
-        .init = { .off = 0x67b7, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_hook,
     },
     [24] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x67d5, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_fan,
     },
     [25] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0010 },
         .size = { .width = 0x0020, .height = 0x0010 },
-        .init = { .off = 0x6814, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_flashlight,
     },
     [26] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0048, .height = 0x0020 },
         .size = { .width = 0x0048, .height = 0x0020 },
-        .init = { .off = 0x684a, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_generator,
     },
     [27] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0040, .height = 0x001f },
         .size = { .width = 0x0040, .height = 0x001f },
-        .init = { .off = 0x6884, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_gun,
     },
     [28] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x000f, .height = 0x000f },
         .size = { .width = 0x000f, .height = 0x000f },
-        .init = { .off = 0x68bf, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_baseball,
     },
     [29] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x68f0, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_light,
     },
     [30] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0010, .height = 0x0025 },
         .size = { .width = 0x0010, .height = 0x0025 },
-        .init = { .off = 0x690f, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_magnifying_glass,
     },
     [31] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x005c, .height = 0x004f },
         .size = { .width = 0x005c, .height = 0x004f },
-        .init = { .off = 0x6929, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_monkey,
     },
     [32] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0027, .height = 0x0021 },
         .size = { .width = 0x0027, .height = 0x0021 },
-        .init = { .off = 0x6964, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_pumpkin,
     },
     [33] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0025, .height = 0x0027 },
         .size = { .width = 0x0025, .height = 0x0027 },
-        .init = { .off = 0x6995, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_heart_balloon,
     },
     [34] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0029, .height = 0x0049 },
         .size = { .width = 0x0029, .height = 0x0049 },
-        .init = { .off = 0x69d6, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_christmas_tree,
     },
     [35] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0030, .height = 0x001f },
         .size = { .width = 0x0030, .height = 0x001f },
-        .init = { .off = 0x6a07, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_boxing_glove,
     },
     [36] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0010, .height = 0x0034 },
         .size = { .width = 0x0010, .height = 0x0034 },
-        .init = { .off = 0x6a3d, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_rocket,
     },
     [37] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0028, .height = 0x0020 },
         .size = { .width = 0x0028, .height = 0x0020 },
-        .init = { .off = 0x6a77, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_scissors,
     },
     [38] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0048, .height = 0x0020 },
         .size = { .width = 0x0048, .height = 0x0020 },
-        .init = { .off = 0x6ab2, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_solar_panel,
     },
     [39] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0030, .height = 0x001c },
         .size = { .width = 0x0030, .height = 0x001c },
-        .init = { .off = 0x6ac9, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_trampoline,
     },
     [40] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0028, .height = 0x0030 },
         .size = { .width = 0x0028, .height = 0x0030 },
-        .init = { .off = 0x6aff, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_windmill,
     },
     [41] = { .flags_0a = 0x0008 },
     [42] = {
@@ -2825,58 +2840,58 @@ struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_AT(0x2966) = {
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0018, .height = 0x000b },
         .size = { .width = 0x0018, .height = 0x000b },
-        .init = { .off = 0x6b47, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_mort_the_mouse,
     },
     [43] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0018, .height = 0x0017 },
         .size = { .width = 0x0018, .height = 0x0017 },
-        .init = { .off = 0x6b82, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_cannon_ball,
     },
     [44] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x000f, .height = 0x000f },
         .size = { .width = 0x000f, .height = 0x000f },
-        .init = { .off = 0x6bb3, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_tennis_ball,
     },
     [45] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x6be4, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_candle,
     },
     [46] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0010 },
         .size = { .width = 0x0020, .height = 0x0010 },
-        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14267,
     },
     [47] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0020 },
         .size = { .width = 0x0020, .height = 0x0020 },
-        .init = { .off = 0x6c22, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_corner_pipe,
     },
     [48] = {
         .flags_06 = 0x4800,
         .set_size = { .width = 0x0020, .height = 0x0010 },
         .size = { .width = 0x0020, .height = 0x0010 },
-        .init = { .off = 0x6277, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14267,
     },
     [49] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
-        .init = { .off = 0x6c58, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14c48,
     },
     [50] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0038, .height = 0x002f },
         .size = { .width = 0x0038, .height = 0x002f },
-        .init = { .off = 0x6c72, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_motor,
     },
     [51] = { .flags_0a = 0x0008 },
     [52] = { .flags_0a = 0x0008 },
@@ -2887,21 +2902,21 @@ struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_AT(0x2966) = {
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0060, .height = 0x0010 },
         .size = { .width = 0x0060, .height = 0x0010 },
-        .init = { .off = 0x6cb0, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14ca0,
     },
     [56] = {
         .flags_06 = 0x4800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x00d4, .height = 0x0010 },
         .size = { .width = 0x00d4, .height = 0x0010 },
-        .init = { .off = 0x6ce9, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14cd9,
     },
     [57] = {
         .flags_06 = 0x0800,
         .flags_0a = 0x0008,
         .set_size = { .width = 0x0020, .height = 0x0010 },
         .size = { .width = 0x0020, .height = 0x0010 },
-        .init = { .off = 0x6d1a, .seg = LOAD_SEG + 0x0dff },
+        .init = part_init_14d0a,
     },
 };
 struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { ._pad_2d06 = 0x0001, ._pad_2d08 = 0xffff };

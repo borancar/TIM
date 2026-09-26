@@ -1901,7 +1901,7 @@ void add_mass_capped(struct part *obj, struct part *other)
  */
 void part_step(struct part *part)
 {
-    call_part_hook(PART_KINDS[part->kind].step, part, "step");
+    PART_KINDS[part->kind].step(part);
 }
 
 /*
@@ -1918,8 +1918,7 @@ void part_step(struct part *part)
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, int32_t p6)
 {
-    return call_part_drive(PART_KINDS[by->kind].drive,
-                           p1, p2, p3, p4, p5, p6);
+    return PART_KINDS[by->kind].drive(p1, p2, p3, p4, p5, p6);
 }
 
 /*
@@ -1927,7 +1926,7 @@ uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t 
  */
 uint16_t part_hit(uint16_t kind, struct part *part)
 {
-    return call_part_hook(PART_KINDS[kind].hit, part, "hit");
+    return PART_KINDS[kind].hit(part);
 }
 
 /*
@@ -5846,13 +5845,13 @@ uint16_t part_flip_options(struct part *part)
         if (DG4E67.tool == 9) {
             di |= 4;
         } else {
-            call_part_flip(kind->flip, part, 1);
+            kind->flip(part, 1);
             part->start_flags = part->flags_08;
 
             if (object_overlaps_any(part) == 0)
                 di |= 4;
 
-            call_part_flip(kind->flip, part, 1);
+            kind->flip(part, 1);
             part->start_flags = part->flags_08;
         }
     }
@@ -5861,13 +5860,13 @@ uint16_t part_flip_options(struct part *part)
         if (DG4E67.tool == 9) {
             di |= 8;
         } else {
-            call_part_flip(kind->flip, part, 2);
+            kind->flip(part, 2);
             part->start_flags = part->flags_08;
 
             if (object_overlaps_any(part) == 0)
                 di |= 8;
 
-            call_part_flip(kind->flip, part, 2);
+            kind->flip(part, 2);
             part->start_flags = part->flags_08;
         }
     }
@@ -6125,7 +6124,7 @@ void rehome_carried_part(void)
         old->link_ptr[part->host_slot + 4] = 0;
         part->link_ptr[4] = 0;
 
-        call_part_setup(PART_KINDS[old->kind].setup, old);
+        PART_KINDS[old->kind].setup(old);
         old->start_form = old->form;
     }
 
@@ -6134,7 +6133,7 @@ void rehome_carried_part(void)
         part->link_ptr[4] = dg_near(dgroup, di);
         part->host_slot = slot;
 
-        call_part_setup(PART_KINDS[di->kind].setup, di);
+        PART_KINDS[di->kind].setup(di);
         di->start_form = di->form;
     }
 }
@@ -6893,8 +6892,7 @@ void detach_part_to_bin(struct part *part)
  * out without searching.
  *
  * Every part touched is then handed to its kind's own routine through the table
- * at DGROUP 0xed0, indexed by kind times 0x3a - the same dispatch
- * `call_part_setup` is used for elsewhere - and afterwards +0x0c is copied to
+ * at DGROUP 0xed0, indexed by kind times 0x3a - its setup hook - and afterwards +0x0c is copied to
  * +0x90. Both halves do that copy, and both do it to the part at the *far* end
  * rather than to the one they were given.
  */
@@ -6912,10 +6910,10 @@ void break_second_attachment(struct part *part)
             part->link_ptr[i] = 0;
             other->link_ptr[4] = 0;
 
-            call_part_setup(PART_KINDS[other->kind].setup, other);
+            PART_KINDS[other->kind].setup(other);
         }
 
-        call_part_setup(PART_KINDS[part->kind].setup, part);
+        PART_KINDS[part->kind].setup(part);
 
         part->start_form = part->form;
         return;
@@ -6928,9 +6926,9 @@ void break_second_attachment(struct part *part)
     other->link_ptr[part->host_slot + 4] = 0;
     part->link_ptr[4] = 0;
 
-    call_part_setup(PART_KINDS[part->kind].setup, part);
+    PART_KINDS[part->kind].setup(part);
 
-    call_part_setup(PART_KINDS[other->kind].setup, other);
+    PART_KINDS[other->kind].setup(other);
 
     other->start_form = other->form;
 }
@@ -9531,7 +9529,7 @@ void reset_machine(void)
                     si->link_ptr[v2 + 2];
         }
 
-        call_part_setup(PART_KINDS[si->kind].setup, si);
+        PART_KINDS[si->kind].setup(si);
     }
 
     for (si = pick_by_flag(0x3000); si != PART_NONE;

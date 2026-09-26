@@ -1049,7 +1049,6 @@ void free_two_bitmap_lists(void);                   /* 0x0efdc */
 void free_all_part_bitmaps(void);                   /* 0x0f86e */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
-uint16_t part_init(uint32_t at, struct part *part);     /* OURS: by address */
 uint16_t part_init_bowling_ball(struct part *part);           /* 0dff:6246, 0x14236 */
 uint16_t part_init_14267(struct part *part);           /* 0dff:6277, 0x14267 */
 uint16_t part_init_ramp(struct part *part);           /* 0dff:62b1, 0x142a1 */
@@ -1101,7 +1100,6 @@ uint16_t part_init_motor(struct part *part);           /* 0dff:6c72, 0x14c62 */
 uint16_t part_init_14ca0(struct part *part);           /* 0dff:6cb0, 0x14ca0 */
 uint16_t part_init_14cd9(struct part *part);           /* 0dff:6ce9, 0x14cd9 */
 uint16_t part_init_14d0a(struct part *part);           /* 0dff:6d1a, 0x14d0a */
-void part_setup(uint16_t off, struct part *part);       /* segment 172c */
 void part_finish(uint16_t off, struct part *part);
 void part_finish_angles(struct part *part);             /* 0x05d1e */
 void part_setup_boxing_glove(struct part *part);                /* 172c:065b, 0x1791b */
@@ -1260,7 +1258,6 @@ void     part_flip_scissors(struct part *part);             /* 0x1ac04 */
 void     part_flip_seesaw(struct part *part);             /* 0x1b47b */
 void     part_flip_windmill(struct part *part);             /* 0x1bce2 */
 uint16_t part_step_bellow(struct part *part);             /* 0x176c5 */
-uint16_t part_hook_172c(uint16_t off, struct part *part); /* segment 172c */
 void call_goal_test(struct far_ptr h);
 void goal_test_puzzle_2(void);                          /* 0x01476 */
 void goal_test_puzzle_1(void);                          /* 0x0151b */
@@ -1350,8 +1347,6 @@ void goal_test_puzzle_72(void);                            /* 0x02322 */
 void goal_test_puzzle_59(void);                            /* 0x02351 */
 void goal_test_puzzle_49(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
-void call_part_flip(struct far_ptr h, struct part *part,
-                    uint16_t which);
 struct part *find_belt_anchor(int16_t *out_end, struct part *rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
@@ -1367,8 +1362,6 @@ void draw_part_selection(struct part *part, int16_t which, uint8_t flags); /* 0x
 void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
-uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5,
                          int32_t momentum);              /* 172c:0802 */

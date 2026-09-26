@@ -4237,12 +4237,13 @@ struct part_kind {
        `[bx + 0x0ec8]`, where `bx` is `kind * 0x3a` - so those are this
        record's +0x26 and +0x22, the compiler having folded 0x0ea6 into the
        displacement. */
-    struct far_ptr hit;        /* +0x22  `call_part_hook(.., "hit")` */
-    struct far_ptr step;       /* +0x26  `call_part_hook(.., "step")` */
-    struct far_ptr setup;      /* +0x2a */
-    struct far_ptr flip;       /* +0x2e */
-    struct far_ptr settle;     /* +0x32 */
-    struct far_ptr drive;      /* +0x36  the drive hook - the one `part_drive` calls with seven arguments */
+    uint16_t (far *hit)();        /* +0x22 */
+    uint16_t (far *step)();       /* +0x26 */
+    void     (far *setup)();      /* +0x2a */
+    void     (far *flip)();       /* +0x2e */
+    uint16_t (far *settle)();     /* +0x32 */
+    uint16_t (far *drive)(struct part *, struct part *, uint16_t, uint16_t,
+                          uint16_t, int32_t); /* +0x36  the drive hook - the one `part_drive` calls with seven arguments */
 } PACKED;
 
 
@@ -4460,7 +4461,7 @@ struct part_template {
     uint16_t  flags_0a;        /* +0x02  ... +0x0a */
     struct extent16 set_size;  /* +0x04  ... the part's set_size at +0x50 */
     struct extent16 size;      /* +0x08  ... the part's size[0] at +0x44 */
-    struct far_ptr init;       /* +0x0c  the kind's init routine, called
+    uint16_t (far *init)();    /* +0x0c  the kind's init routine, called
                                          far */
 } PACKED;
 

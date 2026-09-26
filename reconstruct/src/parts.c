@@ -201,7 +201,7 @@ void part_setup_gear(struct part *part)
     struct part *di;
     int32_t i;
 
-    part_setup(0x0001, part);
+    part_setup_0001(part);
 
     for (i = 0; i < 4; i++)
         part->link_ptr[i] = 0;
@@ -259,74 +259,6 @@ void part_setup_solar_panel(struct part *part)
     if (part->link_ptr[5] != 0)
         part->form |= 2;
 }
-
-/*
- * NOT a transcription: reach one part's setup by its offset in this segment.
- *
- * The original arrives by `lcall` through a relocated far pointer, which the
- * port cannot do, so the offset is dispatched here the same way the region and
- * timer handlers are. An offset with no row yet aborts and names itself.
- */
-void part_setup(uint16_t off, struct part *part)
-{
-    switch (off) {
-    case 0x0001: part_setup_0001(part); return;
-    case 0x0065: part_setup_cannon_ball(part); return;
-    case 0x00c9: part_setup_00c9(part); return;
-    case 0x012d: part_setup_balloon(part); return;
-    case 0x0371: part_setup_bellow(part); return;
-    case 0x065b: part_setup_boxing_glove(part); return;
-    case 0x07b2: part_setup_bucket(part); return;
-    case 0x08a1: part_setup_08a1(part); return;
-    case 0x0950: part_setup_candle(part); return;
-    case 0x0b88: part_setup_cannon(part); return;
-    case 0x0c1c: part_setup_pokey(part); return;
-    case 0x0f70: part_setup_bird_cage(part); return;
-    case 0x1075: part_setup_christmas_tree(part); return;
-    case 0x10b6: part_setup_10b6(part); return;
-    case 0x1105: part_setup_1105(part); return;
-    case 0x1261: part_setup_dynamite(part); return;
-    case 0x1435: part_setup_motor(part); return;
-    case 0x1556: part_setup_electric_plug(part); return;
-    case 0x19db: part_setup_hook(part); return;
-    case 0x1a32: part_setup_fan(part); return;
-    case 0x1be9: part_setup_bob_the_fish(part); return;
-    case 0x1d28: part_setup_flashlight(part); return;
-    case 0x1dfb: part_setup_generator(part); return;
-    case 0x2068: part_setup_gear(part); return;
-    case 0x23b1: part_setup_gun(part); return;
-    case 0x24d0: part_setup_conveyor(part); return;
-    case 0x2682: part_setup_heart_balloon(part); return;
-    case 0x2728: part_setup_ramp(part); return;
-    case 0x295d: part_setup_jack_in_the_box(part); return;
-    case 0x2b58: part_setup_light(part); return;
-    case 0x2cce: part_setup_monkey(part); return;
-    case 0x2ee1: part_setup_mouse_cage(part); return;
-    case 0x3030: part_setup_magnifying_glass(part); return;
-    case 0x3294: part_setup_dynamite_plunger(part); return;
-    case 0x346f: part_setup_mort_the_mouse(part); return;
-    case 0x35f4: part_setup_pumpkin(part); return;
-    case 0x3737: part_setup_rocket(part); return;
-    case 0x377b: part_setup_corner_pipe(part); return;
-    case 0x389b: part_setup_scissors(part); return;
-    case 0x3de5: part_setup_solar_panel(part); return;
-    case 0x3f72: part_setup_trampoline(part); return;
-    case 0x40f0: part_setup_seesaw(part); return;
-    case 0x48ab: part_setup_48ab(part); return;
-    case 0x496f: part_setup_windmill(part); return;
-
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        io_format(what, sizeof what, "the part setup at 172c:%04x", off);
-        not_transcribed(what);
-    }
-}
-
 
 /*
  * 172c:23b1, image 0x19671 - a setup.
@@ -1306,93 +1238,6 @@ void part_finish(uint16_t off, struct part *part)
 }
 
 /*
- * NOT a transcription: reach one part's per-step or hit hook by its offset in
- * this segment, the same way `part_setup` reaches a setup. An offset with no
- * case yet aborts and names itself.
- */
-uint16_t part_hook_172c(uint16_t off, struct part *part)
-{
-    switch (off) {
-    case 0x0332: return part_hit_bellow(part);
-    case 0x1f78: return part_hit_gear(part);
-    case 0x2d40: return part_step_monkey(part);
-    case 0x332a: return part_step_dynamite_plunger(part);
-    case 0x3e08: return part_step_solar_panel(part);
-    case 0x323f: return part_hit_dynamite_plunger(part);
-    case 0x2c83: return part_hit_monkey(part);
-    case 0x0763: return part_hit_bucket(part);
-    case 0x0867: return part_hit_0867(part);
-    case 0x1237: return part_hit_dynamite(part);
-    case 0x261d: return part_settle_conveyor(part);
-    case 0x2789: return part_settle_ramp(part);
-    case 0x48f7: return part_settle_48f7(part);
-    case 0x0405: return part_step_bellow(part);
-    case 0x016e: return part_hit_balloon(part);
-    case 0x018e: return part_step_balloon(part);
-    case 0x0552: return part_hit_boxing_glove(part);
-    case 0x057e: return part_step_boxing_glove(part);
-    case 0x08f1: return part_step_08f1(part);
-    case 0x098a: return part_step_candle(part);
-    case 0x0a5d: return part_step_cannon(part);
-    case 0x0ca3: return part_step_pokey(part);
-    case 0x11a6: return part_step_11a6(part);
-    case 0x0c6c: return part_hit_pokey(part);
-    case 0x12c2: return part_step_dynamite(part);
-    case 0x13c9: return part_step_motor(part);
-    case 0x14d3: return part_hit_electric_plug(part);
-    case 0x15ce: return part_step_electric_plug(part);
-    case 0x20fc: return part_step_gear(part);
-    case 0x22ae: return part_step_gun(part);
-    case 0x2514: return part_hit_conveyor(part);
-    case 0x2592: return part_step_conveyor(part);
-    case 0x2f25: return part_hit_mouse_cage(part);
-    case 0x2f3e: return part_step_mouse_cage(part);
-    case 0x3035: return part_step_magnifying_glass(part);
-    case 0x34d0: return part_step_mort_the_mouse(part);
-    case 0x3824: return part_hit_scissors(part);
-    case 0x3635: return part_step_rocket(part);
-    case 0x38fc: return part_step_scissors(part);
-    case 0x3ebf: return part_hit_trampoline(part);
-    case 0x3fae: return part_step_trampoline(part);
-    case 0x3fe8: return part_hit_seesaw(part);
-    case 0x420f: return part_step_seesaw(part);
-    case 0x1649: return part_step_1649(part);
-    case 0x1a82: return part_step_fan(part);
-    case 0x1d07: return part_hit_flashlight(part);
-    case 0x1d78: return part_step_flashlight(part);
-    case 0x1de0: return part_hit_generator(part);
-    case 0x1e5c: return part_step_generator(part);
-    case 0x1c39: return part_hit_bob_the_fish(part);
-    case 0x34b5: return part_hit_mort_the_mouse(part);
-    case 0x1c5f: return part_step_bob_the_fish(part);
-    case 0x27e2: return part_step_jack_in_the_box(part);
-    case 0x2b7e: return part_hit_light(part);
-    case 0x2b99: return part_step_light(part);
-    case 0x49a1: return part_step_windmill(part);
-    default: break;
-    }
-
-    {
-        static char what[64];
-
-        /*
-         * The survey mode is the **developer binary's**, not this one's. It
-         * used to be a `getenv` right here, which put the flag in `tim` and
-         * made a stub return quietly to anyone who happened to have that
-         * variable set - a silent no-op in a part hook, which is the one
-         * thing a stub must never be. `dev_survey_hook` does nothing and
-         * answers 0 in what ships.
-         */
-        if (dev_survey_hook(off, part->kind))
-            return 0;
-
-        io_format(what, sizeof what, "the part hook at 172c:%04x", off);
-        not_transcribed(what);
-    }
-    return 0;
-}
-
-/*
  * 172c:02cd, image 0x1758d - kind 4's drive.
  *
  * Seven arguments like every drive, and it uses four of them: the asking part
@@ -1472,7 +1317,7 @@ void part_flip_bellow(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x0371, part);
+    part_setup_bellow(part);
 
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
@@ -1491,7 +1336,7 @@ void part_flip_boxing_glove(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x065b, part);
+    part_setup_boxing_glove(part);
 
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
@@ -1510,7 +1355,7 @@ void part_flip_cannon(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x0b88, part);
+    part_setup_cannon(part);
 
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
@@ -1529,7 +1374,7 @@ void part_flip_pokey(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x0c1c, part);
+    part_setup_pokey(part);
 
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
@@ -1546,7 +1391,7 @@ void part_flip_dynamite(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x1261, part);
+    part_setup_dynamite(part);
 
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -1563,7 +1408,7 @@ void part_flip_motor(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x1435, part);
+    part_setup_motor(part);
 
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1587,7 +1432,7 @@ void part_flip_electric_plug(struct part *part)
 
     part->start_form = part->form;
 
-    part_setup(0x1556, part);
+    part_setup_electric_plug(part);
 
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1604,7 +1449,7 @@ void part_flip_hook(struct part *part)
 {
     part->flags_08 ^= 0x20;
 
-    part_setup(0x19db, part);
+    part_setup_hook(part);
 
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1619,7 +1464,7 @@ void part_flip_fan(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x1a32, part);
+    part_setup_fan(part);
 
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -1632,7 +1477,7 @@ void part_flip_flashlight(struct part *part)
 {
     part->flags_08 ^= 0x10;
 
-    part_setup(0x1d28, part);
+    part_setup_flashlight(part);
 
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1646,7 +1491,7 @@ void part_flip_flashlight(struct part *part)
 void part_flip_gun(struct part *part)
 {
     part->flags_08 ^= 0x10;
-    part_setup(0x23b1, part);
+    part_setup_gun(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1679,7 +1524,7 @@ void part_flip_light(struct part *part)
 
     part->start_form = part->form;
 
-    part_setup(0x2b58, part);
+    part_setup_light(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1692,7 +1537,7 @@ void part_flip_light(struct part *part)
 void part_flip_monkey(struct part *part)
 {
     part->flags_08 ^= 0x10;
-    part_setup(0x2cce, part);
+    part_setup_monkey(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1717,7 +1562,7 @@ void part_flip_magnifying_glass(struct part *part)
 void part_flip_dynamite_plunger(struct part *part)
 {
     part->flags_08 ^= 0x10;
-    part_setup(0x3294, part);
+    part_setup_dynamite_plunger(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -1744,8 +1589,8 @@ void part_flip_mort_the_mouse(struct part *part)
  * part has two independent axes held in one word, which is what X and Y
  * flipping separately means for it.
  *
- * The port's `call_part_flip` had `(void)which` and threw that away, so this
- * kind would have flipped the same axis whichever key was pressed. The three
+ * The port's old flip dispatcher had `(void)which` and threw that away, so
+ * this kind would have flipped the same axis whichever key was pressed. The three
  * flips written before this one were re-read to check they really do take the
  * part alone; they do.
  */
@@ -1758,7 +1603,7 @@ void part_flip_corner_pipe(struct part *part, uint16_t which)
 
     part->start_form = part->form;
 
-    part_setup(0x377b, part);
+    part_setup_corner_pipe(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
 }
@@ -1769,7 +1614,7 @@ void part_flip_corner_pipe(struct part *part, uint16_t which)
 void part_flip_scissors(struct part *part)
 {
     part->flags_08 ^= 0x10;
-    part_setup(0x389b, part);
+    part_setup_scissors(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
 }
@@ -1787,7 +1632,7 @@ void part_flip_seesaw(struct part *part)
 
     part->start_form = part->form;
 
-    part_setup(0x40f0, part);
+    part_setup_seesaw(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
@@ -1933,7 +1778,7 @@ uint16_t part_settle_ramp(struct part *part)
     part->form = form;
     part->start_form = form;
 
-    part_setup(0x2728, part);
+    part_setup_ramp(part);
     /* The original leaves whatever AX last held; every caller of the settle
        hook discards the answer, so the port picks 0. */
     return 0;
@@ -2284,7 +2129,7 @@ uint16_t part_step_bellow(struct part *part)
     }
 
     if (((int16_t)part->form) != ((int16_t)part->form_prev)) {
-        part_setup(0x0371, part);
+        part_setup_bellow(part);
 
         if (((int16_t)part->form_prev) == 0
             || ((int16_t)part->form_prev) == 2)
@@ -2651,8 +2496,7 @@ uint16_t part_step_monkey(struct part *part)
  * still steps its own form.
  *
  * The form then walks 1, 2 and stops, rebuilt each time through the setup at
- * 172c:3294 - which is a row of `part_setup`'s table here, not a routine, so
- * the call goes through the same door `call_part_setup` uses.
+ * 172c:3294, called directly.
  */
 uint16_t part_step_dynamite_plunger(struct part *part)
 {
@@ -2692,7 +2536,7 @@ uint16_t part_step_dynamite_plunger(struct part *part)
 
     if (part->form != 2) {
         part->form++;
-        part_setup(0x3294, part);
+        part_setup_dynamite_plunger(part);
         place_object_for_draw(part);
     }
 
@@ -2881,7 +2725,7 @@ uint16_t part_step_light(struct part *part)
         return 0;
 
     part->form++;
-    part_setup(0x2b58, part);
+    part_setup_light(part);
     place_object_for_draw(part);
 
     return 0;
@@ -3371,7 +3215,7 @@ uint16_t part_step_boxing_glove(struct part *part)
             play_sound(3);
 
         part->form++;
-        part_setup(0x065b, part);
+        part_setup_boxing_glove(part);
         place_object_for_draw(part);
     }
 
@@ -3745,14 +3589,14 @@ void split_part_at(struct part *part, struct part *blast)
                 part->size[0].width =
                     (int16_t)(v04 - part->pos[0].x);
 
-                part_setup(0x48ab, di);
+                part_setup_48ab(di);
             } else if ((int16_t)(part->pos[0].x
                                  + part->size[0].width) > v04) {
                 part->size[0].width =
                     (int16_t)(v04 - part->pos[0].x);
             }
 
-            part_setup(0x48ab, part);
+            part_setup_48ab(part);
         } else if ((int16_t)(part->pos[0].x
                              + part->size[0].width) > v06) {
             if (part->pos[0].x < v06) {
@@ -3761,7 +3605,7 @@ void split_part_at(struct part *part, struct part *blast)
                               + part->size[0].width - v06);
                 part->pos[0].x = v06;
                 part->box[0].x = v06;
-                part_setup(0x48ab, part);
+                part_setup_48ab(part);
             }
         } else if (part->pos[0].x < v06
                    && (int16_t)(part->pos[0].x
@@ -3796,14 +3640,14 @@ void split_part_at(struct part *part, struct part *blast)
             part->size[0].height =
                 (int16_t)(v0a - part->pos[0].y);
 
-            part_setup(0x48ab, di);
+            part_setup_48ab(di);
         } else if ((int16_t)(part->pos[0].y
                              + part->size[0].height) > v0a) {
             part->size[0].height =
                 (int16_t)(v0a - part->pos[0].y);
         }
 
-        part_setup(0x48ab, part);
+        part_setup_48ab(part);
     } else if ((int16_t)(part->pos[0].y
                          + part->size[0].height) > v0c) {
         if (part->pos[0].y < v0c) {
@@ -3812,7 +3656,7 @@ void split_part_at(struct part *part, struct part *blast)
                           + part->size[0].height - v0c);
             part->pos[0].y = v0c;
             part->box[0].y = v0c;
-            part_setup(0x48ab, part);
+            part_setup_48ab(part);
         }
     } else if (part->pos[0].y < v0c
                && (int16_t)(part->pos[0].y
@@ -4080,37 +3924,6 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
 
 out:
     return answer;
-}
-
-/*
- * NOT a transcription: reach one part's drive hook by its offset in this
- * segment. An offset with no case yet aborts and names itself.
- */
-uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6)
-{
-    switch (off) {
-    case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6);
-    case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6);
-    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6);
-    case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6);
-    case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6);
-    case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6);
-    case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6);
-    case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6);
-    case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6);
-    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6);
-    default: break;
-    }
-
-    {
-        static char what[64];
-
-        (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6;
-        io_format(what, sizeof what, "the part drive at 172c:%04x", off);
-        not_transcribed(what);
-    }
-    return 0;
 }
 
 /*
@@ -4461,7 +4274,7 @@ uint16_t part_step_scissors(struct part *part)
     cut_belts(part, PARTSHAPES.cut_line[(part->flags_08 & 0x10) ? 1 : 0]);
 
     part->form++;
-    part_setup(0x389b, part);
+    part_setup_scissors(part);
     place_object_for_draw(part);
     play_sound(0x10);
 
@@ -5301,12 +5114,12 @@ uint16_t part_hit_electric_plug(struct part *part)
     if (((int16_t)other->form) < 4) {
         if (!(turned & 0x8000)) {
             other->form += 4;
-            part_setup(0x1556, other);
+            part_setup_electric_plug(other);
             play_sound(0x11);
         }
     } else if (turned & 0x8000) {
         other->form -= 4;
-        part_setup(0x1556, other);
+        part_setup_electric_plug(other);
         play_sound(0x11);
     }
 
@@ -5472,7 +5285,7 @@ uint16_t part_step_flashlight(struct part *part)
         return 0;
 
     part->form++;
-    part_setup(0x1d28, part);
+    part_setup_flashlight(part);
     place_object_for_draw(part);
     play_sound(0x11);
 
@@ -5805,7 +5618,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
         return;
 
     obj->form -= 4;
-    part_setup(0x1556, obj);
+    part_setup_electric_plug(obj);
     play_sound(0x11);
 
     obj->direction =
@@ -5871,7 +5684,7 @@ uint16_t part_step_gun(struct part *part)
 
     if (part->flags_08 & 0x10) {
         si->flags_08 |= 0x10;
-        part_setup(0x08a1, si);
+        part_setup_08a1(si);
 
         si->pos[0].x =
             (int16_t)(part->pos[0].x - 32);

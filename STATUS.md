@@ -2910,8 +2910,8 @@ being sent.
 ## The part hooks still to transcribe
 
 `parts.c` holds the part hooks - `part_hit_*`, `part_step_*`, `part_flip_*`,
-`part_drive_*` - dispatched by `part_hook_172c` on the hook's offset within
-segment `172c`, so image address = `0x172c0 + offset`.
+`part_drive_*` - called through the kind table's function pointers, and
+living in segment `172c`, so image address = `0x172c0 + offset`.
 
 Recursive descent finds 41 routines in that segment the port has no function
 for. **Fourteen of those are not missing**: they fill a part's contact-point

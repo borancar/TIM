@@ -454,7 +454,7 @@ struct game_picker_text GAME_PICKER_TEXT DGROUP_BSS(0x568f);
  */
 static void carried_part_resized(struct part *part, struct part_kind *kind)
 {
-    call_part_hook(kind->settle, part, "settle");
+    kind->settle(part);
     place_object_for_draw(part);
     mark_needs_refile(part, 2);
     mark_joined_shapes(part, 3);
@@ -2957,7 +2957,7 @@ void flip_carried_end_1(void)
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
     struct part_kind *kind = &PART_KINDS[part->kind];
 
-    call_part_flip(kind->flip, part, 1);
+    kind->flip(part, 1);
     part->start_flags = part->flags_08;
 }
 
@@ -2973,7 +2973,7 @@ void flip_carried_end_2(void)
     struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
     struct part_kind *kind = &PART_KINDS[part->kind];
 
-    call_part_flip(kind->flip, part, 2);
+    kind->flip(part, 2);
     part->start_flags = part->flags_08;
 }
 
@@ -3029,7 +3029,7 @@ void run_drag_frame(void)
         part->mirror_size.height = part->set_size.height;
         part->mirror_size.width = part->set_size.width;
 
-        call_part_hook(kind->settle, part, "settle");
+        kind->settle(part);
         place_object_for_draw(part);
         mark_joined_shapes(part, 3);
         mark_part_shapes(part, 3);
@@ -3088,9 +3088,9 @@ int16_t drag_carried_part_first(void)
         part->set_size.width = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            kind->settle(part);
             place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
+            kind->setup(part);
             if (object_overlaps_any(part) == 0)
                 break;
             part->pos[0].x =
@@ -3150,9 +3150,9 @@ int16_t settle_carried_part_first(void)
         part->set_size.width = (uint16_t)si;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            kind->settle(part);
             place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
+            kind->setup(part);
             if (object_overlaps_any(part) == 0)
                 break;
             part->set_size.width =
@@ -3221,9 +3221,9 @@ int16_t drag_carried_part_pair(void)
         part->set_size.height = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            kind->settle(part);
             place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
+            kind->setup(part);
             if (object_overlaps_any(part) == 0)
                 break;
             part->pos[0].y =
@@ -3263,9 +3263,8 @@ int16_t drag_carried_part_pair(void)
  * first placement happens before the first test.
  *
  * Two of the three calls in the loop are per-kind hooks reached through far
- * pointers in the kind record, +0x32 and +0x2a, which C cannot call; they go
- * through `call_part_hook` and `call_part_setup` like every other one. For
- * every kind this game's early levels use, +0x32 is the do-nothing hook.
+ * pointers in the kind record, +0x32 and +0x2a. For every kind this game's
+ * early levels use, +0x32 is the do-nothing hook.
  *
  * The answer is whether the part ended up somewhere other than where it
  * started, which is not the same as whether the loop ran: a part lifted and
@@ -3298,9 +3297,9 @@ int16_t settle_carried_part(void)
         part->set_size.height = (uint16_t)y;
 
         for (;;) {
-            call_part_hook(kind->settle, part, "settle");
+            kind->settle(part);
             place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
+            kind->setup(part);
             if (object_overlaps_any(part) == 0)
                 break;
             part->set_size.height =
@@ -5038,7 +5037,7 @@ void read_record_fields(FILE *file, struct part *rec)
         rec->points_ptr =
             dg_near(dgroup, heap_calloc_far(rec->point_count, 4));
 
-    call_part_setup(PART_KINDS[rec->kind].setup, rec);
+    PART_KINDS[rec->kind].setup(rec);
 }
 
 /*
@@ -7433,10 +7432,8 @@ struct part *make_part(uint16_t kind)
         PART_KINDS[kind].point_count;
     part->start_x = 0xffff;
     part->start_y = 0xffff;
-    part->start_flags = PART_TEMPLATES[kind].init.off;
-
-    if (dg_far_ptr(PART_TEMPLATES[kind].init) != FAR_NULL_PTR
-        && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
+    if (PART_TEMPLATES[kind].init != NULL
+        && PART_TEMPLATES[kind].init(part) == 1) {
         failed = 1;
         goto done;
     }
@@ -7464,7 +7461,7 @@ done:
  * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
  *
  * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
- * +0x0c, and `make_part` calls it through `call_part_init`. Fifty-eight kind
+ * +0x0c, and `make_part` calls it through that. Fifty-eight kind
  * slots reach fifty-one distinct routines: five kinds have no initialiser at
  * all and three - 1, 46 and 48 - share 0x14267.
  *
@@ -7491,88 +7488,6 @@ done:
  * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
  */
 
-/*
- * OURS: reach one part initialiser by its image address.
- *
- * The original has no such routine. Each kind's initialiser is called through
- * the relocated far pointer at +0x0c of its entry in the table at DGROUP
- * 0x2966, and the port has no way to call one - so `call_part_init` in io.c
- * turns the pointer back into an image address and this turns that address
- * into a call. It is the same stand-in as `part_setup` and `part_finish`.
- *
- * An address with no case **aborts**: a part built by nothing at all would
- * surface much later as a level that cannot be solved.
- */
-uint16_t part_init(uint32_t at, struct part *part)
-{
-    switch (at) {
-    case 0x14236: return part_init_bowling_ball(part);
-    case 0x14267: return part_init_14267(part);
-    case 0x142a1: return part_init_ramp(part);
-    case 0x142e6: return part_init_seesaw(part);
-    case 0x14320: return part_init_balloon(part);
-    case 0x14361: return part_init_conveyor(part);
-    case 0x143b3: return part_init_mouse_cage(part);
-    case 0x143fb: return part_init_pulley(part);
-    case 0x1443d: return part_init_belt(part);
-    case 0x1446c: return part_init_basketball(part);
-    case 0x1449d: return part_init_rope(part);
-    case 0x144cb: return part_init_bird_cage(part);
-    case 0x1450c: return part_init_pokey(part);
-    case 0x14547: return part_init_jack_in_the_box(part);
-    case 0x1458f: return part_init_gear(part);
-    case 0x145d1: return part_init_bob_the_fish(part);
-    case 0x14607: return part_init_bellow(part);
-    case 0x1463d: return part_init_bucket(part);
-    case 0x1467e: return part_init_cannon(part);
-    case 0x146bd: return part_init_dynamite(part);
-    case 0x146fc: return part_init_146fc(part);
-    case 0x1472d: return part_init_electric_plug(part);
-    case 0x1476c: return part_init_dynamite_plunger(part);
-    case 0x147a7: return part_init_hook(part);
-    case 0x147c5: return part_init_fan(part);
-    case 0x14804: return part_init_flashlight(part);
-    case 0x1483a: return part_init_generator(part);
-    case 0x14874: return part_init_gun(part);
-    case 0x148af: return part_init_baseball(part);
-    case 0x148e0: return part_init_light(part);
-    case 0x148ff: return part_init_magnifying_glass(part);
-    case 0x14919: return part_init_monkey(part);
-    case 0x14954: return part_init_pumpkin(part);
-    case 0x14985: return part_init_heart_balloon(part);
-    case 0x149c6: return part_init_christmas_tree(part);
-    case 0x149f7: return part_init_boxing_glove(part);
-    case 0x14a2d: return part_init_rocket(part);
-    case 0x14a67: return part_init_scissors(part);
-    case 0x14aa2: return part_init_solar_panel(part);
-    case 0x14ab9: return part_init_trampoline(part);
-    case 0x14aef: return part_init_windmill(part);
-    case 0x14b37: return part_init_mort_the_mouse(part);
-    case 0x14b72: return part_init_cannon_ball(part);
-    case 0x14ba3: return part_init_tennis_ball(part);
-    case 0x14bd4: return part_init_candle(part);
-    case 0x14c12: return part_init_corner_pipe(part);
-    case 0x14c48: return part_init_14c48(part);
-    case 0x14c62: return part_init_motor(part);
-    case 0x14ca0: return part_init_14ca0(part);
-    case 0x14cd9: return part_init_14cd9(part);
-    case 0x14d0a: return part_init_14d0a(part);
-
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        io_format(what, sizeof what, "the part initialiser at %#07lx",
-                 (unsigned long)at);
-        not_transcribed(what);
-    }
-    return 1;
-}
-
-
 /* 0x14236 */
 uint16_t part_init_bowling_ball(struct part *part)
 {
@@ -7581,7 +7496,7 @@ uint16_t part_init_bowling_ball(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0001, part);
+    part_setup_0001(part);
     return 0;
 }
 
@@ -7598,7 +7513,7 @@ uint16_t part_init_14267(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x48ab, part);
+    part_setup_48ab(part);
     return 0;
 }
 
@@ -7617,7 +7532,7 @@ uint16_t part_init_ramp(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x2728, part);
+    part_setup_ramp(part);
     return 0;
 }
 
@@ -7634,7 +7549,7 @@ uint16_t part_init_seesaw(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x40f0, part);
+    part_setup_seesaw(part);
     return 0;
 }
 
@@ -7653,7 +7568,7 @@ uint16_t part_init_balloon(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x012d, part);
+    part_setup_balloon(part);
     return 0;
 }
 
@@ -7674,7 +7589,7 @@ uint16_t part_init_conveyor(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x24d0, part);
+    part_setup_conveyor(part);
     return 0;
 }
 
@@ -7694,7 +7609,7 @@ uint16_t part_init_mouse_cage(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x2ee1, part);
+    part_setup_mouse_cage(part);
     return 0;
 }
 
@@ -7733,7 +7648,7 @@ uint16_t part_init_basketball(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0001, part);
+    part_setup_0001(part);
     return 0;
 }
 
@@ -7762,7 +7677,7 @@ uint16_t part_init_bird_cage(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0f70, part);
+    part_setup_bird_cage(part);
     return 0;
 }
 
@@ -7779,7 +7694,7 @@ uint16_t part_init_pokey(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0c1c, part);
+    part_setup_pokey(part);
     return 0;
 }
 
@@ -7799,7 +7714,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x295d, part);
+    part_setup_jack_in_the_box(part);
     return 0;
 }
 
@@ -7817,7 +7732,7 @@ uint16_t part_init_gear(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0001, part);
+    part_setup_0001(part);
     return 0;
 }
 
@@ -7832,7 +7747,7 @@ uint16_t part_init_bob_the_fish(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1be9, part);
+    part_setup_bob_the_fish(part);
     return 0;
 }
 
@@ -7847,7 +7762,7 @@ uint16_t part_init_bellow(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0371, part);
+    part_setup_bellow(part);
     return 0;
 }
 
@@ -7866,7 +7781,7 @@ uint16_t part_init_bucket(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x07b2, part);
+    part_setup_bucket(part);
     return 0;
 }
 
@@ -7885,7 +7800,7 @@ uint16_t part_init_cannon(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0b88, part);
+    part_setup_cannon(part);
     return 0;
 }
 
@@ -7904,7 +7819,7 @@ uint16_t part_init_dynamite(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1261, part);
+    part_setup_dynamite(part);
     return 0;
 }
 
@@ -7916,7 +7831,7 @@ uint16_t part_init_146fc(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x08a1, part);
+    part_setup_08a1(part);
     return 0;
 }
 
@@ -7935,7 +7850,7 @@ uint16_t part_init_electric_plug(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1556, part);
+    part_setup_electric_plug(part);
     return 0;
 }
 
@@ -7952,7 +7867,7 @@ uint16_t part_init_dynamite_plunger(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x3294, part);
+    part_setup_dynamite_plunger(part);
     return 0;
 }
 
@@ -7964,7 +7879,7 @@ uint16_t part_init_hook(struct part *part)
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
 
-    part_setup(0x19db, part);
+    part_setup_hook(part);
     return 0;
 }
 
@@ -7983,7 +7898,7 @@ uint16_t part_init_fan(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1a32, part);
+    part_setup_fan(part);
     return 0;
 }
 
@@ -7998,7 +7913,7 @@ uint16_t part_init_flashlight(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1d28, part);
+    part_setup_flashlight(part);
     return 0;
 }
 
@@ -8015,7 +7930,7 @@ uint16_t part_init_generator(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1dfb, part);
+    part_setup_generator(part);
     return 0;
 }
 
@@ -8032,7 +7947,7 @@ uint16_t part_init_gun(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x23b1, part);
+    part_setup_gun(part);
     return 0;
 }
 
@@ -8044,7 +7959,7 @@ uint16_t part_init_baseball(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x00c9, part);
+    part_setup_00c9(part);
     return 0;
 }
 
@@ -8056,7 +7971,7 @@ uint16_t part_init_light(struct part *part)
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x1004);
 
-    part_setup(0x2b58, part);
+    part_setup_light(part);
     return 0;
 }
 
@@ -8066,7 +7981,7 @@ uint16_t part_init_magnifying_glass(struct part *part)
     part->flags_06 =
         (uint16_t)(part->flags_06 | 0x0400);
 
-    part_setup(0x3030, part);
+    part_setup_magnifying_glass(part);
     return 0;
 }
 
@@ -8083,7 +7998,7 @@ uint16_t part_init_monkey(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x2cce, part);
+    part_setup_monkey(part);
     return 0;
 }
 
@@ -8095,7 +8010,7 @@ uint16_t part_init_pumpkin(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x35f4, part);
+    part_setup_pumpkin(part);
     return 0;
 }
 
@@ -8114,7 +8029,7 @@ uint16_t part_init_heart_balloon(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x2682, part);
+    part_setup_heart_balloon(part);
     return 0;
 }
 
@@ -8126,7 +8041,7 @@ uint16_t part_init_christmas_tree(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1075, part);
+    part_setup_christmas_tree(part);
     return 0;
 }
 
@@ -8141,7 +8056,7 @@ uint16_t part_init_boxing_glove(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x065b, part);
+    part_setup_boxing_glove(part);
     return 0;
 }
 
@@ -8158,7 +8073,7 @@ uint16_t part_init_rocket(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x3737, part);
+    part_setup_rocket(part);
     return 0;
 }
 
@@ -8175,7 +8090,7 @@ uint16_t part_init_scissors(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x389b, part);
+    part_setup_scissors(part);
     return 0;
 }
 
@@ -8201,7 +8116,7 @@ uint16_t part_init_trampoline(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x3f72, part);
+    part_setup_trampoline(part);
     return 0;
 }
 
@@ -8221,7 +8136,7 @@ uint16_t part_init_windmill(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x496f, part);
+    part_setup_windmill(part);
     return 0;
 }
 
@@ -8238,7 +8153,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x346f, part);
+    part_setup_mort_the_mouse(part);
     return 0;
 }
 
@@ -8250,7 +8165,7 @@ uint16_t part_init_cannon_ball(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0065, part);
+    part_setup_cannon_ball(part);
     return 0;
 }
 
@@ -8262,7 +8177,7 @@ uint16_t part_init_tennis_ball(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x00c9, part);
+    part_setup_00c9(part);
     return 0;
 }
 
@@ -8281,7 +8196,7 @@ uint16_t part_init_candle(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x0950, part);
+    part_setup_candle(part);
     return 0;
 }
 
@@ -8296,7 +8211,7 @@ uint16_t part_init_corner_pipe(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x377b, part);
+    part_setup_corner_pipe(part);
     return 0;
 }
 
@@ -8326,7 +8241,7 @@ uint16_t part_init_motor(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1435, part);
+    part_setup_motor(part);
     return 0;
 }
 
@@ -8343,7 +8258,7 @@ uint16_t part_init_14ca0(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1105, part);
+    part_setup_1105(part);
     return 0;
 }
 
@@ -8355,7 +8270,7 @@ uint16_t part_init_14cd9(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x10b6, part);
+    part_setup_10b6(part);
     return 0;
 }
 
@@ -8372,7 +8287,7 @@ uint16_t part_init_14d0a(struct part *part)
     if (part->points_ptr == 0)
         return 1;
 
-    part_setup(0x1105, part);
+    part_setup_1105(part);
     return 0;
 }
 
