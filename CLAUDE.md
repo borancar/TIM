@@ -8,6 +8,19 @@ the *reference* that defines what "correct" means, and the **C port** is the
 deliverable. Neither is trusted alone. Nothing is finished because it looks
 right on screen.
 
+## The goal: one source, two compilers
+
+Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
+`reconstruct/src` file is to compile under the compiler that built it -
+Turbo C++ 3.0 `-mm -O` for the game, Turbo C++ 1.0x for a few library
+modules - to exactly the image's bytes (`tools/judge.py`), *and* still build
+with gcc into the working port, which must stay green. Pointer sizes differ
+between the two and that is expected. What exists only because the host is
+not a 16-bit machine goes through macros that vanish under TCC; what TCC does
+by itself (huge pointer arithmetic, long helpers, layout) is not emulated in
+the source. A routine is **matched** when the judge says MATCH; until then it
+is transcribed, as before.
+
 ## Keep this file short
 
 **This file is read at the start of every session, so it holds only what
@@ -68,10 +81,10 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   silent no-op in a drawing path is a missing frame that looks like a blitter
   fault.
 - **The port's `.c` files mirror the original's translation units**, functions
-  in address order. In this large-model binary each module is its own code
-  segment, so the boundaries are readable off the binary - see
-  `docs/executable.md`. Any boundary *we* added for porting says so in its
-  header.
+  in address order. The binary is **medium model**: a segment boundary is a
+  module boundary, but segment 0000 (`_TEXT`) holds several modules, whose
+  boundaries have to be found - see `docs/executable.md`. Any boundary *we*
+  added for porting says so in its header.
 
   **They live in `reconstruct/src`.** That directory is the game and nothing
   else: the eight modules, the DGROUP array and the two overlays, plus
@@ -256,6 +269,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/framify_fixups.py` | the shapes a frame conversion leaves behind - an unsigned read used as an lvalue, a `dg_ptr` on something that is already a pointer, a byte slot still read with `DG8`. Per *function*, because slot names are per function. **The `(?!=)` on every write rule is the one thing to get right**: without it a comparison `DG16(x) == 0` becomes `dg_wr16(x, = 0`, which has broken the build three times from three hand-retyped copies |
 | `tools/promote.py` | **turns a frame's slots into the C locals they are**, which is what `framify.py`'s `uint8_t frame[N]` was a staging post for. A slot nothing indexes past `[0]` and nothing hands to a callee is one variable; one that is indexed further or passed on is a buffer and gets the whole extent, because then its size is the caller's business. **Its refusals are the point**: an array with no slots is a real array (`draw_rope` builds a table of pointers into its own frame), and two slots at one offset are the original *reusing* a slot - `blit_scaled_a` calls `[bp-0x16]` `vcut` while clipping and `vrepeat` while repeating rows, so they alias rather than split |
 | `tools/framify_census.py` | which frames `framify.py` can take, and what each remaining callee holds up. Wrong three times in three ways before it was right, all three recorded in its own header |
+| `tools/judge.py` | **proves a source is the original's**: compiles a port file with the compiler that built it - the host port of TCC 3.0 in the sibling `turboc` checkout by default, or an original under turboc's emulator (`JUDGE: compiler 1.01`) - and compares every routine with the image, fixups masked, far calls checked against the callee's address (as `9A` or as TLINK's `nop / push cs / call`). `JUDGE: built-with <options>` overrides `-mm -O` |
 | `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware. `--click` drives it to screens behind the menu |
 | `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |
 | `tools/check_save.py` | **proves the file the game saves**, byte for byte. A machine file never reaches a pixel, so no screen comparison can see the writer |

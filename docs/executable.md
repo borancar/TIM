@@ -35,26 +35,36 @@ hundred transcription bugs later, so this is a gate, not a formality.
 
 ## What built it
 
-**Borland C++, 1991** - the banner `Borland C++ - Copyright 1991 Borland Intl.`
-sits at image 0x2d3c4, and `Null pointer assignment` at 0x2d3ef is the same
-runtime. So this is **compiled C**, not hand-written assembly, which means a
-byte-exact matching decompilation is on the table in principle.
+**Turbo C++ 3.0, medium model** - measured 2026-09-26 against the installs in
+the sibling `turboc` checkout (`dos-c/`), and against the compilers themselves.
 
-Evidence for the memory model:
-
-| measurement | count |
-| --- | --- |
-| `push bp; mov bp,sp` prologues | 1,022 |
-| far returns (`retf`) | 1,202 |
-| near returns (`ret`) | 433 |
-| far calls (`lcall`) | 1,814 |
-| near calls (`call`) | 2,188 |
-
-Far returns outnumbering near ones by three to one is **large model**: far code
-and far data, one code segment per translation unit. Byte counts of this kind
-are approximate - `0xE8` occurs in data too - but the ratio is not in doubt,
-and the disassembly confirms it: routines end `mov sp,bp; pop bp; retf` and are
-called with `lcall seg, off`.
+- **The startup is TC++ 3.0's `C0M.OBJ`**, byte for byte: all 535 of its fixed
+  bytes are at image 0 but two, and those two are TLINK's own - a far call into
+  the caller's segment rewritten as `nop / push cs / call near`. `C0L.OBJ`
+  differs from byte 0x26 on: `mov cx,1 / add bx,8` is C0.ASM's near-data arm,
+  and the stack is sized against DS from `_stklen` and `_heaplen`. So this is
+  **medium model** - far code, near data - and not large, which this file said
+  until then (far returns outnumbering near ones is true of both).
+- **The runtime is TC++ 3.0's `CM.LIB`**: 50 of its modules, 4,967 bytes, found
+  at 0x0bbfe..0x0dfb4 by turboc's `tools/libmatch.py`. Borland C++ 3.0 ships
+  the same `C0M.OBJ` and the same fifty modules, so the runtime cannot tell the
+  two apart; the banner `Borland C++ - Copyright 1991 Borland Intl.` at 0x2d3c4
+  is in both. BC++ 2.0's differ.
+- **The game's own modules are TCC 3.0's with `-mm -O`** - 8086 code, cdecl,
+  no `-G` (a two-byte clean-up is `pop cx`). `tools/judge.py` compiles a port
+  source with it and compares each routine; the first ones judged match byte
+  for byte. `-O` was settled by `draw_vqt_flipped` (0x24954), which matches
+  only with it.
+- **Not every module is.** Sixteen routines reserve a two-byte frame with
+  `dec sp / dec sp` where the rest have `sub sp,2`, and they cluster: most are
+  in segment 1c25, one is in segment 0000, and `atan2_long` is segment 2d29's
+  only routine. TCC 3.0, BC++ 3.0 (with or without its optimiser switches) and
+  Turbo C 2.01 all write `sub sp,2`; BC++ 2.0 writes `dec sp` but stores a
+  negated long high word first where the image stores the low word first.
+  **Turbo C++ 1.0x reproduces `atan2_long` byte for byte** (`-mm`, no `-O`),
+  far calls included. The likely reading is a library built earlier and linked
+  into the game - Dynamix's engine - so the compiler is a property of a
+  module, and a file says which with `JUDGE: compiler <version>`.
 
 ## Layout
 
@@ -66,8 +76,12 @@ called with `lcall seg, off`.
   `0x00b4` calls INT 21h AH=4Ah with BX=0x3d4c, sizing the program's block to
   end at DGROUP + 0x1000 paragraphs.
 
-Because this is large model, **each translation unit is its own code segment**,
-so the module boundaries are readable off the binary rather than guessed. The
+**Each code segment is not one translation unit.** In the medium model a
+module's code goes into a segment of its own name unless it was compiled into
+`_TEXT`, and segment 0000 is `_TEXT`: C0M's code at the front, the library's at
+the back (every `CM.LIB` module is `_TEXT`), and the game units that were
+built into it in between. So a segment boundary is a module boundary, but a
+segment can hold several modules, and those boundaries have to be found. The
 port's `.c` files mirror them; see `STATUS.md` for the map as it is measured.
 
 ## Video

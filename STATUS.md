@@ -5,11 +5,20 @@
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
 
-**Which world this is in:** the original is **compiled C** (Borland C++ 1991,
-large model), not hand-written assembly. A byte-exact *matching* decompilation
-is therefore possible in principle. It is **not** what is being attempted yet;
-the present standard is behavioural equivalence proved by differential
-verification, and any move to matching would be a deliberate change of goal.
+**Which world this is in:** the original is **compiled C** - Turbo C++ 3.0,
+**medium model**, `-mm -O`, with a few library modules from Turbo C++ 1.0x
+(`docs/executable.md`, "What built it"). Since 2026-09-26 the goal **is** a
+byte-exact matching decompilation: the same sources compile under the original
+compiler to the image's bytes, judged per routine by `tools/judge.py`, and
+under gcc to the working port, whose behavioural checks stay as they are.
+
+**Matched so far** (judged on scratch spellings, not yet in the port's
+sources): `compute_moved` 0x002be, `step_loop_frames` 0x0144e,
+`restart_machine` 0x01431, `draw_vqt_flipped` 0x24954 (TCC 3.0 `-mm -O`) and
+`atan2_long` 0x2d296 (TC++ 1.01 `-mm`). What the spellings taught: the original
+wrote `if`/`else` statements where the port has `?:`, an assignment inside a
+condition (`if ((neg = a < 0) != 0)`, which is what `or al,al` after the store
+is), and `r = r - 0x400` where `r -= 0x400` compiles differently.
 
 **Which variant:** `TIM.EXE` is the only executable, but its video driver
 `VM.OVL` is a container of **eight per-adapter drivers** - `VGA`, `EGA`, `MCG`,
