@@ -2576,6 +2576,22 @@ struct dg_4342 {
 extern struct dg_4342 DG4342;
 
 /*
+ * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
+ * Typed from the image, one array per literal in the order Borland filed
+ * them; the names are ours, from the text. The run ends at 0x260a.
+ */
+struct game_button_labels {
+    char continue_btn[9];             /* +0x00 [9]  'CONTINUE' */
+    char yes[4];                      /* +0x09 [4]  'YES' */
+    char no[3];                       /* +0x0d [3]  'NO' */
+    char score1_bmp[11];              /* +0x10 [0xb]  'score1.bmp' */
+    char gp_menu_bmp[12];             /* +0x1b [0xc]  'gp_menu.bmp' */
+    char score2_bmp[11];              /* +0x27 [0xb]  'score2.bmp' */
+} PACKED;
+
+extern struct game_button_labels GAME_BUTTON_LABELS;
+
+/*
  * **The driver's vector, as the code pointers its slots are.** `DG4342.font`
  * is filled by `vm_init` with the entry points of the loaded driver, and the
  * game calls through a slot as a far function pointer - `lcall [0x437a]` is

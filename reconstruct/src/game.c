@@ -204,32 +204,6 @@ struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
     },
 };
 
-/*
- * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
- * stop it is on - 0xffff until the first Tab, and back to 0 past the last
- * - and the x of each, the y being fixed.
- */
-struct game_message_tabs {
-    uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
-    int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
-} PACKED;
-
-struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
-
-/*
- * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
- * Typed from the image, one array per literal in the order Borland filed
- * them; the names are ours, from the text. The run ends at 0x260a.
- */
-struct game_button_labels {
-    char continue_btn[9];             /* +0x00 [9]  'CONTINUE' */
-    char yes[4];                      /* +0x09 [4]  'YES' */
-    char no[3];                       /* +0x0d [3]  'NO' */
-    char score1_bmp[11];              /* +0x10 [0xb]  'score1.bmp' */
-    char gp_menu_bmp[12];             /* +0x1b [0xc]  'gp_menu.bmp' */
-    char score2_bmp[11];              /* +0x27 [0xb]  'score2.bmp' */
-} PACKED;
-
 struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
     .continue_btn = "CONTINUE",
     .yes = "YES",
@@ -537,6 +511,107 @@ struct game_picker_text {
 struct game_picker_text GAME_PICKER_TEXT DGROUP_BSS(0x568f);
 
 /*
+ * OURS: what both resize arms do once they have decided which way to go.
+ *
+ * The original writes these four calls out twice in each arm - once for the
+ * width and once for the height - so four copies in all, identical but for the
+ * field they follow. Factored here because the *decision* above it is the part
+ * that differs, and that is left written out.
+ */
+static void carried_part_resized(struct part *part, struct part_kind *kind)
+{
+    call_part_hook(kind->settle, part, "settle");
+    place_object_for_draw(part);
+    mark_needs_refile(part, 2);
+    mark_joined_shapes(part, 3);
+}
+
+/* The parts bin's initial repeat delay, in loop iterations. Ours - see below. */
+#define BIN_REPEAT_DELAY 9
+
+/*
+ * OURS: not a transcription, but a **deliberate deviation** chosen by the
+ * project owner on 2026-09-06 - the only one in this file.
+ *
+ * The original has no initial repeat delay. `bin_scroll_back` and
+ * `bin_scroll_forward` fire on call 0, 3, 6 ... of `game_screen_loop` with the
+ * counter reset only on release, so a press begins repeating at once - read
+ * instruction by instruction against 0x10cc8 and 0x10d37, which match.
+ *
+ * That is fine on the machine it was written for and not on this one. The
+ * frame wait at `game_screen_loop` is a **minimum** - eight ticks of a 236.7 Hz
+ * timer - and a 386 spent longer than that on the frame itself, so its loop ran
+ * slower than the 29.6 iterations a second the port achieves. At the port's
+ * rate an ordinary click of about 150 ms spans four iterations, which is enough
+ * for the counter to come round to 3 and scroll a second page. Measured: one
+ * click gave one page about 20% of the time.
+ *
+ * So the press still fires immediately, then nothing until the delay, then the
+ * original's one-in-three.
+ *
+ * **The delay is ours, and it is twelve loop iterations - about 400 ms.**
+ *
+ * An earlier version of this took the 12 from DGROUP 0x2d40, the original's
+ * own constant, and said so as if that gave it provenance. It does not.
+ * `button_state` reloads its per-button countdown from that word and decrements
+ * it once per call, and it is called from `timer_callback` - so its unit is a
+ * **timer tick at 236.7 Hz**, where 12 is about 51 ms. Using the same number as
+ * a count of *loop iterations* at 29.6 Hz stretches it eightfold. The two
+ * quantities are not the same quantity, and borrowing the digits was dressing a
+ * chosen number as a measured one.
+ *
+ * In its own units it would not work either: 51 ms expires part-way through an
+ * ordinary 150 ms click, which is 4.4 iterations here, so the counter would
+ * still come round and scroll again.
+ *
+ * Twelve iterations is therefore chosen, on the only grounds that hold - it
+ * sits past a click and short of a deliberate hold - and is written here as a
+ * constant of ours rather than read from a word that means something else.
+ *
+ * The test is `n % 3` and not `(n - BIN_REPEAT_DELAY) % 3`. The subtraction
+ * was there to make the first repeat land exactly at the end of the delay
+ * whatever the delay was, and with a delay that is a multiple of three - which
+ * this one is, and which the constant above asks it to stay - the two are the
+ * same expression. Arithmetic that can never change an answer is worse than
+ * none: it reads as though it matters.
+ */
+static int32_t bin_repeat_due(int16_t n)
+{
+    if (n == 0)
+        return 1;
+    if (n < BIN_REPEAT_DELAY)
+        return 0;
+    return (n % 3) == 0;
+}
+
+/*
+ * NOT a transcription: the port's factoring of the eleven **identical inline
+ * blocks** at 0x13205 to 0x133c3. Each is `strnicmp` against one reserved DOS
+ * device name followed by a check that the byte after it ends the stem, and the
+ * original repeats the whole thing eleven times rather than looping. Every
+ * constant is kept, in the order the original tests them - including the last
+ * pair, which do not agree with each other. The names are the DGROUP copies
+ * each block pushes, 0x291c to 0x294a.
+ */
+static const struct {
+    const char *name;
+    uint16_t len;
+    uint16_t after;
+} reserved_names[] = {
+    { GAME_FILE_STRINGS.con,  3, 3 },
+    { GAME_FILE_STRINGS.aux,  3, 3 },
+    { GAME_FILE_STRINGS.com1, 4, 4 },
+    { GAME_FILE_STRINGS.com2, 4, 4 },
+    { GAME_FILE_STRINGS.com3, 4, 4 },
+    { GAME_FILE_STRINGS.com4, 4, 4 },
+    { GAME_FILE_STRINGS.prn,  3, 3 },
+    { GAME_FILE_STRINGS.lpt1, 4, 4 },
+    { GAME_FILE_STRINGS.lpt2, 4, 4 },
+    { GAME_FILE_STRINGS.nul,  3, 3 },
+    { GAME_FILE_STRINGS.null, 3, 4 },   /* compared for THREE bytes - see below */
+};
+
+/*
  * 0x0dfff
  *
  * **`main`.** The Borland startup calls it at image 0x00155 with argc, argv
@@ -554,103 +629,6 @@ uint16_t game_main(void)
     game_intro();
     game_play();
     return game_teardown(1);
-}
-
-/*
- * 0x0e34a
- *
- * **Leaving the game.** `game_main`'s fourth call, and the one that actually
- * takes the program down.
- *
- * The argument is whether this is really the end. Called with 0 it only raises
- * DGROUP 0x52fa - a request to stop, which the loops above read - and returns.
- * Called with 1 it does the whole teardown and never comes back.
- *
- * **It prints your password on the way out.** If 0x4eb5 holds a puzzle number,
- * that puzzle's line of `password.txt` is read and `score_to_code` appends the
- * score kept at 0x4eab/0x4ea9 - the pair `finish_level` banks and only when the
- * puzzle was not the last. The message at DGROUP 0x1c49 goes in front of it and
- * the whole thing is handed to `printf` at the very end, after the screen has
- * been given back to DOS, so it is the last thing on the terminal.
- *
- * Then everything is handed back, in the original's order: a linked list of far
- * blocks whose first two words are the next pointer; a chain of near blocks
- * from 0x4e56; the five region lists; the part bitmaps; four bitmap lists;
- * a slot of the 0x618a table and three far blocks; the sound sequences,
- * records and driver; a file; the sound slots; and the keyboard, the rest of
- * the input and the video mode.
- *
- * `remove_keyboard` is called and then `shutdown_input` calls it again. The
- * second call finds the flag already clear and does nothing, which is what the
- * flag is for. Transcribed as the two calls it is.
- */
-uint16_t game_teardown(int16_t really)
-{
-    char msg[240];                     /* [bp-0x122] */
-    char code[50];  /* [bp-0x32]  */
-    uint8_t *node;
-    uint16_t si;
-
-    if (really == 0) {
-        DG52ED.stop_requested = 1;
-        return 0;
-    }
-
-    if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, code);
-        score_to_code(DG4E67.score, code);
-        string_copy(msg, DG1BCC.thanks_for_playing);
-        string_concat(msg, code);
-    } else {
-        (*msg) = 0;
-    }
-
-    /* Each free block's first four bytes are the far pointer to the next. */
-    node = dg_far_ptr(DG4E4E.shape_free);
-    while (node != FAR_NULL_PTR) {
-        const struct far_ptr *link = (const struct far_ptr *)(void *)node;
-        uint8_t *next = dg_far_ptr(*link);
-
-        dos_free_far(node);
-        node = next;
-    }
-
-    si = DG4E4E.parts_free_ptr;
-    while (si != 0) {
-        uint16_t next = QNODE_PTR(si)->next_ptr;
-
-        heap_free_far(dg_near_ptr(si));
-        si = next;
-    }
-
-    free_region_lists();
-    free_all_part_bitmaps();
-
-    free_bitmaps_thunk(BMPLIST(DG4E67.icons_bmp_ptr));
-    free_bitmaps_thunk(BMPLIST(DG4E67.bmp_4ecb_ptr));
-    free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
-    free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
-
-    close_table_618a_slot(DG52BD.memo_font);
-
-    free_far_block(dg_far_ptr(DG52BD.pal_black_ptr));
-    free_far_block(dg_far_ptr(DG52BD.pal_sierra_ptr));
-    free_far_block(dg_far_ptr(DG52ED.pal_tim_ptr));
-
-    stop_sequences(-2);
-    remove_and_free_records(-2);
-    shutdown_sound();
-
-    close_file_record(FILEREC_PTR(DG52ED.tim_sx_ptr));
-    free_archive_lists();
-
-    remove_keyboard();
-    shutdown_input();
-    restore_video_mode();
-
-    borland_printf(msg, NULL);
-    borland_exit(0);
-    return 0;
 }
 
 /*
@@ -817,6 +795,103 @@ void game_startup(void)
         block->next = DG4E4E.shape_free;
         DG4E4E.shape_free = far_of((uint8_t *)block);
     }
+}
+
+/*
+ * 0x0e34a
+ *
+ * **Leaving the game.** `game_main`'s fourth call, and the one that actually
+ * takes the program down.
+ *
+ * The argument is whether this is really the end. Called with 0 it only raises
+ * DGROUP 0x52fa - a request to stop, which the loops above read - and returns.
+ * Called with 1 it does the whole teardown and never comes back.
+ *
+ * **It prints your password on the way out.** If 0x4eb5 holds a puzzle number,
+ * that puzzle's line of `password.txt` is read and `score_to_code` appends the
+ * score kept at 0x4eab/0x4ea9 - the pair `finish_level` banks and only when the
+ * puzzle was not the last. The message at DGROUP 0x1c49 goes in front of it and
+ * the whole thing is handed to `printf` at the very end, after the screen has
+ * been given back to DOS, so it is the last thing on the terminal.
+ *
+ * Then everything is handed back, in the original's order: a linked list of far
+ * blocks whose first two words are the next pointer; a chain of near blocks
+ * from 0x4e56; the five region lists; the part bitmaps; four bitmap lists;
+ * a slot of the 0x618a table and three far blocks; the sound sequences,
+ * records and driver; a file; the sound slots; and the keyboard, the rest of
+ * the input and the video mode.
+ *
+ * `remove_keyboard` is called and then `shutdown_input` calls it again. The
+ * second call finds the flag already clear and does nothing, which is what the
+ * flag is for. Transcribed as the two calls it is.
+ */
+uint16_t game_teardown(int16_t really)
+{
+    char msg[240];                     /* [bp-0x122] */
+    char code[50];  /* [bp-0x32]  */
+    uint8_t *node;
+    uint16_t si;
+
+    if (really == 0) {
+        DG52ED.stop_requested = 1;
+        return 0;
+    }
+
+    if (((uint16_t)DG4E67.password_puzzle) != 0) {
+        read_password_line(DG4E67.password_puzzle, code);
+        score_to_code(DG4E67.score, code);
+        string_copy(msg, DG1BCC.thanks_for_playing);
+        string_concat(msg, code);
+    } else {
+        (*msg) = 0;
+    }
+
+    /* Each free block's first four bytes are the far pointer to the next. */
+    node = dg_far_ptr(DG4E4E.shape_free);
+    while (node != FAR_NULL_PTR) {
+        const struct far_ptr *link = (const struct far_ptr *)(void *)node;
+        uint8_t *next = dg_far_ptr(*link);
+
+        dos_free_far(node);
+        node = next;
+    }
+
+    si = DG4E4E.parts_free_ptr;
+    while (si != 0) {
+        uint16_t next = QNODE_PTR(si)->next_ptr;
+
+        heap_free_far(dg_near_ptr(si));
+        si = next;
+    }
+
+    free_region_lists();
+    free_all_part_bitmaps();
+
+    free_bitmaps_thunk(BMPLIST(DG4E67.icons_bmp_ptr));
+    free_bitmaps_thunk(BMPLIST(DG4E67.bmp_4ecb_ptr));
+    free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
+    free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
+
+    close_table_618a_slot(DG52BD.memo_font);
+
+    free_far_block(dg_far_ptr(DG52BD.pal_black_ptr));
+    free_far_block(dg_far_ptr(DG52BD.pal_sierra_ptr));
+    free_far_block(dg_far_ptr(DG52ED.pal_tim_ptr));
+
+    stop_sequences(-2);
+    remove_and_free_records(-2);
+    shutdown_sound();
+
+    close_file_record(FILEREC_PTR(DG52ED.tim_sx_ptr));
+    free_archive_lists();
+
+    remove_keyboard();
+    shutdown_input();
+    restore_video_mode();
+
+    borland_printf(msg, NULL);
+    borland_exit(0);
+    return 0;
 }
 
 /*
@@ -1502,6 +1577,62 @@ void game_setup(void)
 }
 
 /*
+ * 0x0efdc
+ *
+ * Give back the two bitmap lists the game keeps at DGROUP 0x4ecd and 0x4ec9,
+ * in that order, through the driver's own thunk.
+ */
+void free_two_bitmap_lists(void)
+{
+    free_bitmaps_thunk(BMPLIST(DG4E67.score2_bmp_ptr));
+    free_bitmaps_thunk(BMPLIST(DG4E67.menu_bmp_ptr));
+}
+
+/*
+ * 0x0eff5
+ *
+ * **One round**, as a state machine on DGROUP 0x4e6b.
+ *
+ * After `round_setup` the state is 2, and each pass through the loop checks
+ * the heap and then dispatches on it:
+ *
+ *   2       0x10f03 - and 0x4e6b being left at 2 by the setup is what makes
+ *           this the first screen of a round
+ *   0x2000  0x012ab
+ *   other   0x0f8c2
+ *
+ * The two that end the round are 0x200 and 1, tested at the bottom, so a
+ * screen leaves by writing one of those into 0x4e6b rather than by returning
+ * anything. And 0x200 alone gets `finish_level` called on the way out, which
+ * is the one asymmetry in it.
+ *
+ * A `while` again rather than a `do`: the entry jump at 0x0effd goes to the
+ * test. With the state at 2 the test passes, so the loop always runs at least
+ * once in practice - but it is written as a test-first loop and is transcribed
+ * as one.
+ */
+void game_round(void)
+{
+    round_setup();
+
+    while (DG4E67.state != 0x200 && DG4E67.state != 1) {
+        heap_check_or_hang();
+
+        if (DG4E67.state == 2)
+            game_screen();
+        else if (DG4E67.state == 0x2000)
+            run_machine_loop();
+        else
+            game_screen_loop();
+    }
+
+    if (DG4E67.state == 0x200)
+        finish_level();
+
+    round_teardown();
+}
+
+/*
  * 0x0f04b
  *
  * Start a round: put the machine's six origins back to -8, clear the counters
@@ -1553,1040 +1684,19 @@ void round_setup(void)
 }
 
 /*
- * 0x0eff5
+ * 0x0f0a6
  *
- * **One round**, as a state machine on DGROUP 0x4e6b.
+ * **Take the round down**, and it is one call: `free_all_lists`. Nothing else
+ * happens - no saving, no drawing, no state reset. Everything a round owns is
+ * on those lists, and everything else it touched belongs to the game rather
+ * than to the round.
  *
- * After `round_setup` the state is 2, and each pass through the loop checks
- * the heap and then dispatches on it:
- *
- *   2       0x10f03 - and 0x4e6b being left at 2 by the setup is what makes
- *           this the first screen of a round
- *   0x2000  0x012ab
- *   other   0x0f8c2
- *
- * The two that end the round are 0x200 and 1, tested at the bottom, so a
- * screen leaves by writing one of those into 0x4e6b rather than by returning
- * anything. And 0x200 alone gets `finish_level` called on the way out, which
- * is the one asymmetry in it.
- *
- * A `while` again rather than a `do`: the entry jump at 0x0effd goes to the
- * test. With the state at 2 the test passes, so the loop always runs at least
- * once in practice - but it is written as a test-first loop and is transcribed
- * as one.
+ * It is a routine rather than a call because `game_round` ends in one place and
+ * `screen_state_0100` and the freeform handlers end a round in others.
  */
-void game_round(void)
+void round_teardown(void)
 {
-    round_setup();
-
-    while (DG4E67.state != 0x200 && DG4E67.state != 1) {
-        heap_check_or_hang();
-
-        if (DG4E67.state == 2)
-            game_screen();
-        else if (DG4E67.state == 0x2000)
-            run_machine_loop();
-        else
-            game_screen_loop();
-    }
-
-    if (DG4E67.state == 0x200)
-        finish_level();
-
-    round_teardown();
-}
-
-/*
- * 0x12863
- *
- * Load a level by number: build its name and hand it to `read_level`.
- *
- * The name is assembled a piece at a time out of DGROUP - "l" at 0x2876, the
- * number in decimal, ".lev" at 0x2878 - into a 0x16-byte buffer on the stack.
- * `round_setup` passes the round count at 0x4ebd, so the first round asks for
- * "l1.lev", which is the name the resource archive holds.
- *
- * The flag at 0x5472 is set to 1 before the read and is not cleared here.
- */
-void load_level(uint16_t number)
-{
-    char name[14];
-    char digits[8];
-
-    string_copy(name, GAME_FILE_NAMES.l_load_level);
-    int_to_string((int16_t)number, digits, 10);
-    string_concat(name, digits);
-    string_concat(name, GAME_FILE_NAMES.lev_load_level);
-
-    DG546C.is_level = 1;
-    read_level(name);
-}
-
-
-
-/*
- * 0x117ed
- *
- * **The title bar and the hint box** - the two pieces of text across the top
- * of the game screen, and the first thing `paint_game_screen` draws over the
- * cleared play area.
- *
- * The title is built in a 0x80-byte buffer and depends on the mode at DGROUP
- * 0x4e67. Free play gets "FREEFORM MODE" and nothing else. A level gets
- * "PUZZLE ", the round number from 0x4ebd, the separator at 0x2837, and then
- * the level's own title from **0x4ecf** - which `read_level` filled in from the
- * file. So "PUZZLE 1: TUTORIAL: PUT THE BALL IN THE HOOP" is three pieces from
- * three places, and only the middle one is a number.
- *
- * Then the drawing: a bar at (0x20, 0x20) 0x220 by 0x158 through 0x14de:0x000c,
- * a filled area at (0x110, 0x48) in the colour at 0x52cb, the title centred on
- * a scroll at (0x3c, 0x27) 0x1bc wide, and a panel at (0x110, 0xff).
- *
- * The hint below it comes from the same fork: free play gets the fixed string
- * at 0x22c0 about creating any machine you wish, and a level gets **0x4f1f**,
- * the hint `read_level` read out of the file - which for level one is "Make the
- * basketball go through the hoop." Both are drawn into the same box at
- * (0x114, 0x104) 0xf8 by 0x44, so the two paths differ only in the string.
- */
-void paint_panel_frame(void)
-{
-    char title[120];
-    char digits[8];
-
-    if (DG4E67.freeform != 0) {
-        string_copy(title, DG1BCC.freeform_mode_title);
-    } else {
-        string_copy(title, DG1BCC.puzzle_prefix);
-        int_to_string(DG4E67.round_number, digits, 10);
-        string_concat(title, digits);
-        string_concat(title, GAME_LEVEL_STRINGS.title_sep);
-        string_concat(title, (const char *)DG4E67.title);
-    }
-
-    set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
-    fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
-
-    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
-    draw_panel(0x110, 0xff, 0x100, 0x4c);
-
-    if (DG4E67.freeform != 0)
-        draw_wrapped_text((char *)DG1BCC.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
-    else
-        draw_wrapped_text((char *)DG4E67.hint, 0x114, 0x104, 0xf8, 0x44);
-
-    paint_panel_frame_rest();
-}
-
-/*
- * 0x14dec
- *
- * **The frame the title bar sits in**: a shadow, a tiled interior, and a
- * border of edge and corner pieces from the set at DGROUP 0x4ecb.
- *
- * The rectangle arrives as **two corners and not a size**, which is worth
- * saying because the call passes 0x220 and 0x158 and those read as a width and
- * a height: every use of them here is a subtraction, `x2 - x1` and `y2 - y1`.
- *
- * `filled` gates the first part - a filled rectangle offset down and left of
- * the frame, and two pieces at +0x4a and +0x4c - which is the drop shadow, so
- * a caller can have the frame without it.
- *
- * Then the interior. The clip box is set to the four corners and the tile at
- * +0x54 is laid in steps of 0x80 across and 0x40 down, so one tile covers any
- * size. The clip then goes back to the whole screen or to the play area
- * depending on whether the state at 0x4e6b is 0x8000 - the same fork
- * `draw_panel` makes, and it has to happen before the border is drawn or the
- * border would be clipped away by its own frame.
- *
- * The border is four runs of 8 pixels - top and bottom together in one loop
- * across x, left and right together in one loop down y - and then four
- * corners, each placed by an offset from its own corner rather than from the
- * origin. Nine pieces in all: +0x20 to +0x26 for the runs, +0x18 to +0x1e for
- * the corners.
- */
-void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
-                    uint16_t filled)
-{
-    dg_near_t set = DG4E67.bmp_4ecb_ptr;
-    int16_t  x, y;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.clip_enabled = 0;
-    VMDS.fill_enabled = 1;
-    VMDS.fill_colour   = 0;
-    VMDS.second_colour = 0;
-
-    cursor_redraw_off_thunk();
-
-    if (filled != 0) {
-        fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
-                  (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x25]),
-                    (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x26]),
-                    (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x27]),
-                    (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
-    }
-
-    VMDS.clip_left    = x1;
-    VMDS.clip_right   = x2;
-    VMDS.clip_top     = y1;
-    VMDS.clip_bottom  = y2;
-    VMDS.clip_enabled = 1;
-
-    for (y = y1; y < y2; y = (int16_t)(y + 0x40))
-        for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2a]), x, y, 0);
-
-    if (DG4E67.state == 0x8000)
-        set_clip_full_screen();
-    else
-        set_clip_play_area();
-
-    VMDS.clip_enabled = 0;
-
-    for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x12]), x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x13]), x, y2, 0);
-    }
-
-    for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x10]), (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x11]), x2, y, 0);
-    }
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]),
-                (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]),
-                (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]),
-                (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]),
-                (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
-}
-
-/*
- * 0x15523
- *
- * **A filled, framed area** of the panel: a rectangle in a given colour with
- * the same nine-piece border around it that `draw_title_bar` uses - four runs
- * of 8 pixels and four corners, from the set at DGROUP 0x4ecb.
- *
- * Unlike `draw_title_bar` this one takes a **width and a height** and works
- * out the far corner itself, into two locals, on the way in. The two routines
- * draw the same kind of frame and disagree about how to be told where it goes,
- * which is worth knowing before reading either from memory of the other.
- *
- * The border pieces are a different set from the title bar's: +0x34 and +0x36
- * for the top and bottom runs, +0x30 and +0x32 for the sides, +0x28 to +0x2e
- * for the corners. All four corners sit 8 pixels out except the bottom-left,
- * which is **5** - `0xfffb` and not `0xfff8`, once, and it is not a
- * misreading: the byte is `fb`.
- *
- * The colour is passed in and written to both 0x389d and 0x389e before the
- * fill, so the interior and whatever else reads the second colour agree.
- */
-void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint16_t colour)
-{
-    dg_near_t set = DG4E67.bmp_4ecb_ptr;
-    int16_t  x2  = (int16_t)(x + w);
-    int16_t  y2  = (int16_t)(y + h);
-    int16_t  n;
-
-    cursor_redraw_off_thunk();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    VMDS.fill_colour = (uint8_t)colour;
-    VMDS.second_colour = (uint8_t)colour;
-
-    fill_rect(x, y, w, h);
-
-    for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1a]), n, (int16_t)(y - 8), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1b]), n, y2, 0);
-    }
-
-    for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x18]), (int16_t)(x - 8), n, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x19]), x2, n, 0);
-    }
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x14]),
-                (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x15]),
-                (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x16]),
-                (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x17]),
-                (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
-}
-
-/*
- * 0x13dc7
- *
- * **Draw a string wrapped into a box**, centred both ways, with a shadow.
- *
- * `wrap_text_to_box` does the wrapping and leaves its results in DGROUP: a
- * list of line pointers from 0x56a6, how many at 0x56a4, and the block's
- * measured height and width at 0x56a0 and 0x56a2. This routine only places and
- * draws them.
- *
- * The centring uses the *measured* extents, not the box: `(w - 0x56a2 - 1) / 2`
- * and `(h - 0x56a0 - 1) / 2`, the minus one making an odd remainder fall left
- * and up rather than right and down. The clip box is then set to the box as
- * placed, so a line the wrapper could not fit is cut rather than drawn over
- * the panel.
- *
- * **A line's end is the next line's start, less one.** The table holds only
- * starts, so each line is bounded by looking ahead - and the trailing spaces
- * are walked back over before drawing, then a NUL is written *into the
- * caller's string* to terminate it and the displaced byte is put back
- * afterwards. The string is modified and restored, which is why this cannot be
- * handed a string in read-only memory.
- *
- * Each line is drawn twice, colour 0xf one pixel left and one down and then
- * colour 5 at the true place - the same shadow the parts bin's numbers use.
- *
- * The loop ends on a null pointer, on a line that starts with a NUL, or when
- * the count runs out, and the count is tested **before** it is decremented, so
- * a count of one draws one line.
- */
-void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
-{
-    uint16_t line_height;
-    uint16_t i;
-    int16_t  left, top, left_at;
-
-    VMDS.text_style = 1;                        /* transparent */
-    line_height = font_line_height(0);
-
-    wrap_text_to_box(str, w, h, line_height);
-
-    left = (int16_t)(x + (w - GAME_PICKER_TEXT.text_width - 1) / 2);
-    top  = (int16_t)(y + (h - GAME_PICKER_TEXT.text_height - 1) / 2 + 1);
-
-    VMDS.clip_left   = left;
-    VMDS.clip_right  = (int16_t)(left + w);
-    VMDS.clip_top    = top;
-    VMDS.clip_bottom = (int16_t)(top + h);
-
-    i       = 0;
-    left_at = GAME_PICKER_TEXT.line_count;
-
-    while (GAME_TEXT_LINES.line_ptr[i] != 0 && *dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]) != 0
-           && left_at-- != 0) {
-        char *start = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]);
-        char *end   = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i + 1]) - 1;
-        char  saved;
-
-        while (end > start && (uint8_t)*end <= ' ')
-            end--;
-        end++;
-
-        saved = *end;
-        *end = 0;
-
-        cursor_redraw_off_thunk();
-
-        VMDS.text_colour = 0x0f;
-        draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
-
-        VMDS.text_colour = 5;
-        draw_string(start, left, top);
-
-        restore_cursor_following();
-
-        *end = saved;
-        i++;
-        top = (int16_t)(top + line_height);
-    }
-
-    set_clip_full_screen();
-}
-
-/*
- * 0x13ed2
- *
- * **Break a string into lines that fit a box.** The line starts go into the
- * table from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
- * height and width at 0x56a0 and 0x56a2 - which `draw_wrapped_text` then uses
- * to centre it.
- *
- * The height is capped at **seven lines** before anything else: `h` is reduced
- * to `7 * line_height` if it is larger, so a tall box does not make a tall
- * block. Seven is a constant in the code, not a table size.
- *
- * The measuring is by *word*, through `measure_word`, which answers the word's
- * width and its length. A word that does not fit starts a new line - and the
- * test is `width + word > box` **or** nothing has been placed on this line yet
- * and the block is not empty, so a single word wider than the box still gets a
- * line to itself rather than looping.
- *
- * A carriage return, 0x0d, forces a line break and the next line starts *after*
- * it. A space adds the width of a space - measured once at the top from a
- * two-byte string - and is otherwise skipped. Any other character at or below
- * a space ends the scan.
- *
- * The width recorded at 0x56a2 is the widest line, clamped to the box.
- *
- * **The last line is counted only if it has something on it**: after the loop,
- * a run width of zero with at least one line already recorded takes one back
- * off the count; otherwise the height gains one more line. Then the entry past
- * the last is set to the point the scan stopped at, which is what makes
- * `draw_wrapped_text`'s "end is the next start, less one" work for the final
- * line as well.
- */
-void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
-{
-    char space[2];            /* [bp-0xc], a two-byte " " */
-    int16_t o_len[3];   /* [bp-0xa] */
-    int16_t o_wide[2];   /* [bp-4]   */
-    char    *at     = str;
-    int16_t  used   = 0;         /* height used so far */
-    int16_t  run    = 0;         /* width on the current line */
-    int16_t  space_w;
-    int16_t  cap    = (int16_t)(line_height * 7);
-
-    if (h > cap)
-        h = cap;
-
-    GAME_PICKER_TEXT.line_count = 0;
-    GAME_PICKER_TEXT.text_height  = 0;
-    GAME_PICKER_TEXT.text_width  = 0;
-
-    if (*at != 0) {
-        GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
-        GAME_PICKER_TEXT.line_count++;
-    }
-
-    (*space)     = ' ';
-    space[1] = 0;
-    space_w = (int16_t)text_width_thunk(space);
-
-    while (*at != 0 && (int16_t)(used + line_height) < h) {
-        int16_t word_w, word_len;
-
-        measure_word(at, (uint8_t *)o_wide,
-                     (uint8_t *)o_len);
-        word_w   = o_wide[0];
-        word_len = o_len[0];
-
-        if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
-            run  = 0;
-            used = (int16_t)(used + line_height);
-            GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
-            GAME_PICKER_TEXT.line_count++;
-            if ((int16_t)(used + line_height) >= h)
-                break;
-        }
-
-        at += word_len;
-        run = (int16_t)(run + word_w);
-        if (run > GAME_PICKER_TEXT.text_width)
-            GAME_PICKER_TEXT.text_width = run;
-        if (GAME_PICKER_TEXT.text_width > w)
-            GAME_PICKER_TEXT.text_width = w;
-
-        while (*at != 0 && (uint8_t)*at <= ' '
-               && (int16_t)(used + line_height) < h) {
-            if (*at == 0x0d) {
-                run  = 0;
-                used = (int16_t)(used + line_height);
-                GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at + 1);
-                GAME_PICKER_TEXT.line_count++;
-            } else if (*at == ' ') {
-                run = (int16_t)(run + space_w);
-            }
-            at++;
-        }
-    }
-
-    GAME_PICKER_TEXT.text_height = used;
-
-    if (run == 0 && ((uint16_t)GAME_PICKER_TEXT.line_count) != 0)
-        GAME_PICKER_TEXT.line_count--;
-    else
-        GAME_PICKER_TEXT.text_height = (int16_t)(GAME_PICKER_TEXT.text_height + line_height);
-
-    GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
-}
-
-/*
- * 0x1401d
- *
- * Measure one word: how wide it is and how long, answered through the two near
- * pointers it is given.
- *
- * A word runs to the first character **at or below a space** - so a space, a
- * carriage return and a NUL all end it, and `wrap_text_to_box` then decides
- * which of those it was.
- *
- * The width comes from `text_width`, and to get it the routine writes a NUL
- * over the terminator, measures, and puts the displaced byte back - the same
- * trick `draw_wrapped_text` uses on the same string, for the same reason:
- * `text_width` stops at a NUL and there is nowhere else to put one.
- *
- * The length is counted separately as the walk goes rather than taken from the
- * pointer difference.
- */
-void measure_word(char *str, uint8_t * out_width, uint8_t * out_length)
-{
-    char *at  = str;
-    int16_t  len = 0;
-    char     saved;
-
-    while ((uint8_t)*at > ' ') {
-        at++;
-        len++;
-    }
-
-    saved   = *at;
-    *at = 0;
-
-    *(int16_t *)(out_width) = (int16_t)text_width(str);
-    *(int16_t *)(out_length) = len;
-
-    *at = saved;
-}
-
-/*
- * 0x1175c
- *
- * **Draw the machine's parts into the play area**, which is the last thing the
- * title bar's painter does and the thing that puts the level's contents on the
- * screen.
- *
- * The scale comes from the level's own origin: the *larger* of 0x50b7 and
- * 0x50b9 plus 0x230, divided into 4 as a 32-bit division. Both are -8 for a
- * fresh level, so the divisor is 0x228 and the result is 0 - but the code
- * takes the larger and divides, and a level with a different origin would get
- * a different answer.
- *
- * Then every part in the buckets is linked in and drawn: `pick_by_flag` with
- * 0x3000 answers the first, `pick_for_record` with 0x1000 walks on from it,
- * and each is passed to `link_record_into_buckets` on the way. The loop ends
- * when the walk answers zero - and it is a `while` whose test is the *result*
- * of the walk, so a machine with no parts draws nothing and does not fault.
- *
- * `draw_machine` is then given the scale and 0x200, and the clip is put back
- * to the play area.
- *
- * **The scale is 0x40000 divided by the extent**, which is 1024 units per
- * pixel over a 256-pixel panel - not the extent divided by 4. The two long
- * arguments at 0x1179a are pushed the way Borland pushes a long, high word
- * first, so `mov ax, 4 / xor dx, dx / push ax / push dx` puts 0x0004_0000 on
- * the stack and it is the *dividend*. Reading it as a divisor of 4 gave 138
- * where the original gives 474, and a machine drawn at a third of its size
- * scaled every part's position off the panel - which is how it was caught: the
- * blitter's row buffer overran into DGROUP 0x124 and the part walk there never
- * terminated.
- *
- * The two locals stepped by two - 0x100 and 0xa0 becoming 0x102 and 0xa2 - are
- * computed and never read. Transcribed as the dead stores they are.
- */
-void paint_panel_frame_rest(void)
-{
-    int16_t  extent;
-    int16_t  scale;
-    struct part *rec;
-
-    VMDS.clip_enabled = 1;
-    set_clip_for_mode();
-
-    extent = (DG50AF.extent_y > DG50AF.extent_x) ? DG50AF.extent_y : DG50AF.extent_x;
-    extent = (int16_t)(extent + 0x230);
-
-    scale = (int16_t)long_divide(0x40000, (int32_t)extent);
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    rec = pick_by_flag(0x3000);
-    while (rec != PART_NONE) {
-        link_record_into_buckets(rec);
-        rec = pick_for_record(rec, 0x1000);
-    }
-
-    draw_machine(scale, 0x200);
-
-    set_clip_play_area();
-}
-
-/*
- * 0x1190d
- *
- * Paint one of the control panel's four fixed decorations: bitmap
- * `list[0x20 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x3a,0x5b.
- *
- * Four routines with one body between them - the same six instructions with a
- * different position and a different entry in the list - so they are
- * transcribed as four rather than folded into one taking three arguments. The
- * original has four, and which one a caller uses is part of what the caller
- * says.
- *
- * `frame` is doubled and used as a word index, so it selects among consecutive
- * entries rather than naming a panel: `paint_game_screen` passes 0.
- */
-void paint_panel_a(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x10]),
-                0x3a, 0x5b, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x11943
- *
- * Paint one of the control panel's four fixed decorations: bitmap
- * `list[0x24 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xd8,0x60.
- *
- * Four routines with one body between them - the same six instructions with a
- * different position and a different entry in the list - so they are
- * transcribed as four rather than folded into one taking three arguments. The
- * original has four, and which one a caller uses is part of what the caller
- * says.
- *
- * `frame` is doubled and used as a word index, so it selects among consecutive
- * entries rather than naming a panel: `paint_game_screen` passes 0.
- */
-void paint_panel_b(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x12]),
-                0xd8, 0x60, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x11979
- *
- * Paint one of the control panel's four fixed decorations: bitmap
- * `list[0x3e / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xbc,0x5c.
- *
- * Four routines with one body between them - the same six instructions with a
- * different position and a different entry in the list - so they are
- * transcribed as four rather than folded into one taking three arguments. The
- * original has four, and which one a caller uses is part of what the caller
- * says.
- *
- * `frame` is doubled and used as a word index, so it selects among consecutive
- * entries rather than naming a panel: `paint_game_screen` passes 0.
- */
-void paint_panel_c(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1f]),
-                0xbc, 0x5c, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x119af
- *
- * Paint one of the control panel's four fixed decorations: bitmap
- * `list[0x52 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x6d,0x85.
- *
- * Four routines with one body between them - the same six instructions with a
- * different position and a different entry in the list - so they are
- * transcribed as four rather than folded into one taking three arguments. The
- * original has four, and which one a caller uses is part of what the caller
- * says.
- *
- * `frame` is doubled and used as a word index, so it selects among consecutive
- * entries rather than naming a panel: `paint_game_screen` passes 0.
- */
-void paint_panel_d(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x29]),
-                0x6d, 0x85, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x119e5
- *
- * Paint one of the free-play panel's pairs: bitmap `list[0x42 / 2 + frame]`
- * at 0x96,0x8c and then `list[0x3a / 2 + frame]` at 0xa6,0x8b, both
- * out of the list at DGROUP 0x52f4.
- *
- * Two bitmaps between one `cursor_redraw_off_thunk` and one
- * `restore_cursor_following`, not two of each - the cursor is lifted once and
- * put back once, so the second bitmap cannot land on a restored cursor.
- */
-void paint_panel_free_a(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x21]),
-                0x96, 0x8c, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
-                0xa6, 0x8b, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x11a3f
- *
- * Paint one of the free-play panel's pairs: bitmap `list[0x46 / 2 + frame]`
- * at 0xc8,0x8c and then `list[0x3a / 2 + frame]` at 0xd8,0x8b, both
- * out of the list at DGROUP 0x52f4.
- *
- * Two bitmaps between one `cursor_redraw_off_thunk` and one
- * `restore_cursor_following`, not two of each - the cursor is lifted once and
- * put back once, so the second bitmap cannot land on a restored cursor.
- */
-void paint_panel_free_b(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x23]),
-                0xc8, 0x8c, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
-                0xd8, 0x8b, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x11a99
- *
- * Paint the level indicator: bitmap `list[0x36 / 2 + frame]` out of the
- * list at DGROUP 0x52f4, at 0x39,0x86. The same six instructions as
- * `paint_panel_a`; see its comment for the shape.
- */
-void paint_panel_level(uint16_t frame)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1b]),
-                0x39, 0x86, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x11acf
- *
- * The panel's tiled background and the row of indicators over it, all out of
- * the bitmap list at DGROUP 0x52f4.
- *
- * The background is one bitmap - `list[0x56 / 2]` - stamped on an eight-pixel
- * grid from x 0x84 to 0xb4 and y 0x5f to 0x77. The two bounds are tested
- * differently: `cmp si, 0xb4 / jl` stops before 0xb4 and `cmp di, 0x77 / jle`
- * includes 0x77, so the grid is six columns by four rows and not five by four.
- *
- * Two of the indicators depend on what the round is: DGROUP 0x4e6b holding
- * 0x4000 picks entry 0x26 over 0x25, and 0x2000 picks 0x28 over 0x27.
- *
- * The last loop draws one bitmap per part in the level, `list[0x28 / 2 + si]`,
- * at the x in the word table at DGROUP 0x2816 - which is indexed from 1, so
- * its first word is not an x - and at a y that starts at 0x69 and steps *down*
- * by two each time, so the row leans.
- */
-void paint_panel_e(void)
-{
-    int16_t left, right, y;
-    int16_t si, di;
-
-    left  = (DG4E67.state == 0x4000) ? 0x26 : 0x25;
-    right = (DG4E67.state == 0x2000) ? 0x28 : 0x27;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    cursor_redraw_off_thunk();
-
-    for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
-        for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x2b]), si, di, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[left]),  0x58, 0x5d, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[right]), 0x58, 0x6f, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x14]),      0x6e, 0x60, 0);
-
-    y = 0x69;
-    for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[si + 0x14]),
-                    GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
-        y = (int16_t)(y - 2);
-    }
-
-    restore_cursor_following();
-}
-
-/*
- * 0x11bd6
- *
- * A slider on the control panel: its track, its scale, and a knob whose
- * position comes from DGROUP 0x50b5.
- *
- * The knob's x is `0x50b5 * 0xa0 / 0x200 + 0x3d`, worked out as a long -
- * `mul16x16` then `long_divide` - because the product overflows a word before
- * the divide brings it back. The two sliders differ in that divisor, 0x200
- * against 0x80, so they are not the same slider at two positions.
- */
-void paint_panel_f(void)
-{
-    int16_t at;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    cursor_redraw_off_thunk();
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x7]), 0x41, 0xc8, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0xe5, 0);
-
-    at = (int16_t)long_divide(
-             mul16x16(DG50AF.air, 0xa0), 0x200);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
-                (int16_t)(at + 0x3d), 0xe0, 0);
-
-    restore_cursor_following();
-}
-
-/*
- * 0x11c6b
- *
- * A slider on the control panel: its track, its scale, and a knob whose
- * position comes from DGROUP 0x50b3.
- *
- * The knob's x is `0x50b3 * 0xa0 / 0x80 + 0x3d`, worked out as a long -
- * `mul16x16` then `long_divide` - because the product overflows a word before
- * the divide brings it back. The two sliders differ in that divisor, 0x80
- * against 0x200, so they are not the same slider at two positions.
- */
-void paint_panel_g(void)
-{
-    int16_t at;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    cursor_redraw_off_thunk();
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x8]), 0x41, 0x114, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0x131, 0);
-
-    at = (int16_t)long_divide(
-             mul16x16(DG50AF.gravity, 0xa0), 0x80);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
-                (int16_t)(at + 0x3d), 0x12c, 0);
-
-    restore_cursor_following();
-}
-
-/*
- * 0x11632
- *
- * **Paint the game screen**: the play area, the control panel down the left,
- * and the three ornaments that sit on it.
- *
- * The order is the order the pieces overlap in. The play area is cleared to
- * the colour at DGROUP 0x52cb - `fill_rect(8, 8, 0x230, 0x160)`, inside the
- * clip box `set_clip_play_area` just set - then the machine is drawn over it,
- * then the panel at `draw_panel(0x2c, 0x42, 0xd0, 0x109)` and its contents.
- *
- * The panel's contents are eleven separate painters, each of which takes a
- * flag this passes as zero, and the flag is presumably "redraw only". Four
- * always run; then the fork on 0x4e67 - the same word `round_setup` uses to
- * tell free play from a level - chooses **two** painters for free play and
- * **one** for a level. That is the control panel having a different set of
- * controls in the two modes.
- *
- * The three bitmaps at the end come from the set at 0x52f4, at +6, +0xa and
- * +8, placed at (0x53,0x42), (0x64,0xb2) and (0x5b,0xfe) - note the middle one
- * is +0xa and the last +8, which is not the order they are drawn in.
- *
- * `select_music` is given the level's own tune from 0x50bb, which
- * `read_level` filled in.
- *
- * The argument decides whether the finished screen is presented: non-zero
- * calls 0x081f9. So a caller can paint into the back page and show it, or
- * paint and leave it for something else to show.
- */
-void paint_game_screen(uint16_t present)
-{
-    dg_near_t set;
-
-    wait_cursor();
-    set_clip_play_area();
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.fill_enabled = 1;
-
-    cursor_redraw_off_thunk();
-    fill_rect(8, 8, 0x230, 0x160);
-
-    draw_machine_thunk();
-    paint_panel_frame();
-
-    draw_panel(0x2c, 0x42, 0xd0, 0x109);
-
-    paint_panel_a(0);
-    paint_panel_b(0);
-    paint_panel_c(0);
-    paint_panel_d(0);
-
-    if (DG4E67.freeform != 0) {
-        paint_panel_free_a(0);
-        paint_panel_free_b(0);
-    } else {
-        paint_panel_level(0);
-    }
-
-    paint_panel_e();
-    paint_panel_f();
-    paint_panel_g();
-
-    cursor_redraw_off_thunk();
-    set = DG52ED.panel_art_ptr;
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x53, 0x42, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x64, 0xb2, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x4]), 0x5b, 0xfe, 0);
-    restore_cursor_following();
-
-    select_music(DG50AF.tune);
-
-    if (present != 0)
-        present_back_page();
-
-    restore_cursor();
-}
-
-/*
- * 0x12269
- *
- * **Read a level file.** The name is opened, checked, unpacked field by field
- * into DGROUP, and closed; a file that does not open leaves everything as it
- * was and only the last line runs.
- *
- * The first word must be **0xaced** or the whole of the rest is skipped - the
- * file is still closed, and 0x50d3 is still pointed at the parts list, so a
- * corrupt level leaves the game with an empty machine rather than half of a
- * broken one.
- *
- * The flag at 0x5472 that `load_level` sets is what tells a *level* from a
- * saved machine. Set, the file also carries its title and hint at 0x4ecf and
- * 0x4f1f, the two counters at 0x50af and 0x50b1, and the origin pair at 0x50b7
- * and 0x50b9. Clear, all six are left as they are and only the parts are read.
- * So the same reader serves both, and one word decides which.
- *
- * The gravity and air pressure at 0x50b3 and 0x50b5 are always read, and
- * `recompute_kind_physics` is called immediately after them - not at the end -
- * so the three lists that follow are built against the settings the file
- * asked for rather than the ones the last level left behind.
- *
- * Three counts then arrive together and their **sum** is what the part table
- * is allocated for, once, before any of the three lists is read. The lists are
- * the machine's own parts at 0x521b, the moving ones at 0x5179, and - only
- * when 0x5472 says this is a level - the parts the player is given, at 0x50d7.
- *
- * The far pointer at 0x546c is freed at the end - whatever the list reader
- * left there - and a 0x216-byte buffer on the stack is handed to the file
- * first, which is a `setvbuf` and nothing to do with the level's contents.
- *
- * **Two callers, one routine.** `load_level` sets 0x5472 and asks for
- * "l<n>.lev"; `load_animation` (0x12915) clears it and asks for an animation,
- * which is why the two strings above are read on one path and not the other.
- * This was transcribed twice - once under each caller's name - and the copies
- * drifted: the second read only 0x4ecf where the original reads 0x4f1f as
- * well, and answered a fabricated 0. It never bit, because the caller that
- * skipped the string is the caller that clears 0x5472 and so never reaches
- * it. There is one `sub sp,0x216` in the image and there is one of these.
- */
-uint16_t read_level(char *name)
-{
-    /*
-     * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
-     * buffer, and `game_setbuf` files its address into the file record's
-     * `read_ptr` at +0x0a - a *guest word*, which the layer then steps as a
-     * cursor, compares against `(uint16_t)(file + 5)` to tell a set buffer
-     * from the record's own, and frees as a heap handle. Sixteen bits is the
-     * whole of it and the port cannot promise a C object an address that fits.
-     * The six count bytes below it are a C array, so the reservation is only
-     * for the buffer.
-     */
-    uint16_t fp  = dg_alloca(0x216);
-    uint16_t buf = fp;
-
-    /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
-       outside this routine ever sees their address. */
-    _Alignas(2) uint8_t counts[6];
-    FILE *file;
-    uint16_t r;
-    int16_t  n_machine, n_moving, n_given;
-
-    file = game_fopen(name, GAME_FILE_NAMES.rb_read_level);
-    if (file == 0) {
-        DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
-        dg_free(0x216);
-        return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
-    }
-
-    game_setbuf(file, dg_near_ptr(buf));
-    game_fread_far(file, (uint8_t *)&DG546C.version_out);
-
-    if (DG546C.version_out == 0xaced) {
-        game_fread_far(file, (uint8_t *)&DG546C.version);
-
-        if (DG546C.is_level != 0) {
-            game_fread_string(file, (char *)DG4E67.title);
-            game_fread_string(file, (char *)DG4E67.hint);
-            game_fread_far(file, (uint8_t *)&DG50AF.bonus_1);
-            game_fread_far(file, (uint8_t *)&DG50AF.bonus_2);
-        }
-
-        game_fread_far(file, (uint8_t *)&DG50AF.gravity);
-        game_fread_far(file, (uint8_t *)&DG50AF.air);
-        recompute_kind_physics();
-
-        if (DG546C.is_level != 0) {
-            game_fread_far(file, (uint8_t *)&DG50AF.extent_y);
-            game_fread_far(file, (uint8_t *)&DG50AF.extent_x);
-        }
-
-        game_fread_far(file, (uint8_t *)&DG50AF.tune);
-
-        game_fread_far(file, counts + 4);
-        game_fread_far(file, counts + 2);
-        game_fread_far(file, counts);
-        n_machine = *(int16_t *)(counts + 4);
-        n_moving  = *(int16_t *)(counts + 2);
-        n_given   = *(int16_t *)(counts);
-
-        DG546C.record_count = 0;
-        alloc_part_table((int16_t)(n_machine + n_moving + n_given));
-
-        read_list(file, &DG521B.placed_parts, n_machine);
-        read_list(file, &DG5179.moving_parts, n_moving);
-        if (DG546C.is_level != 0)
-            read_list(file, &DG50D3.parts_bin, n_given);
-
-        dos_free_far(dg_far_ptr(DG546C.table));
-    }
-
-    r = game_fclose(file);
-    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
-
-    /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
-       retf` - nothing touches AX after the close, so the close's answer is
-       the routine's. */
-    dg_free(0x216);
-    return r;
+    free_all_lists();
 }
 
 /*
@@ -2889,6 +1999,42 @@ uint16_t puzzle_page_of_score(void)
 }
 
 /*
+ * 0x0f4b5
+ *
+ * **The puzzle screen's whole surface**, the counterpart of `picker_repaint`:
+ * the title bar, two headings, three sunken wells, and then the same five
+ * routines the loop calls for its partial redraws.
+ *
+ * The three wells are all placed round what goes in them: two 0x20 squares at
+ * x 0x1cc for the arrows drawn at 0x1d4, and a 0x28 square at (0x1f0, 0x12c)
+ * for the OK button at (0x200, 0x12e). The list has no well - it is drawn onto
+ * the title bar's own surface, and `puzzle_draw_list` fills its rectangle
+ * itself before writing the rows.
+ *
+ * The OK button is drawn with `0`, unpressed, because this is the paint that
+ * puts the screen up rather than the one that answers a click.
+ */
+void puzzle_repaint(void)
+{
+    draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
+
+    draw_scroll_text(DG1BCC.select_puzzle, 0xa8, 0x27, 0xc0);
+    draw_scroll_text(DG1BCC.password, 0x20, 0x13c, 0x60);
+
+    draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
+    draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
+    draw_sunken_box(0x1f0, 0x12c, 0x28, 0x28);
+
+    puzzle_draw_up();
+    puzzle_draw_down();
+    puzzle_draw_ok(0);
+    puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
+    puzzle_draw_list(DG53FC.puzzle_page, DG53FC.selected_level);
+
+    present_back_page();
+}
+
+/*
  * 0x0f57e
  *
  * The puzzle list's **up arrow**, and `picker_draw_up`'s twin in a different
@@ -2938,42 +2084,6 @@ void puzzle_draw_ok(uint16_t pressed)
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x10]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
-}
-
-/*
- * 0x0f4b5
- *
- * **The puzzle screen's whole surface**, the counterpart of `picker_repaint`:
- * the title bar, two headings, three sunken wells, and then the same five
- * routines the loop calls for its partial redraws.
- *
- * The three wells are all placed round what goes in them: two 0x20 squares at
- * x 0x1cc for the arrows drawn at 0x1d4, and a 0x28 square at (0x1f0, 0x12c)
- * for the OK button at (0x200, 0x12e). The list has no well - it is drawn onto
- * the title bar's own surface, and `puzzle_draw_list` fills its rectangle
- * itself before writing the rows.
- *
- * The OK button is drawn with `0`, unpressed, because this is the paint that
- * puts the screen up rather than the one that answers a click.
- */
-void puzzle_repaint(void)
-{
-    draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
-
-    draw_scroll_text(DG1BCC.select_puzzle, 0xa8, 0x27, 0xc0);
-    draw_scroll_text(DG1BCC.password, 0x20, 0x13c, 0x60);
-
-    draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
-    draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
-    draw_sunken_box(0x1f0, 0x12c, 0x28, 0x28);
-
-    puzzle_draw_up();
-    puzzle_draw_down();
-    puzzle_draw_ok(0);
-    puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
-    puzzle_draw_list(DG53FC.puzzle_page, DG53FC.selected_level);
-
-    present_back_page();
 }
 
 /*
@@ -3076,19 +2186,1857 @@ void puzzle_draw_list(int16_t first, int16_t selected)
 }
 
 /*
- * 0x0f0a6
+ * 0x0f7b6
  *
- * **Take the round down**, and it is one call: `free_all_lists`. Nothing else
- * happens - no saving, no drawing, no state reset. Everything a round owns is
- * on those lists, and everything else it touched belongs to the game rather
- * than to the round.
- *
- * It is a routine rather than a call because `game_round` ends in one place and
- * `screen_state_0100` and the freeform handlers end a round in others.
+ * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
+ * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out
+ * of the ranges rather than tested for - there is no part with those numbers.
  */
-void round_teardown(void)
+void load_all_parts(void)
 {
-    free_all_lists();
+    int16_t si;
+
+    for (si = 0; si < 8; si++)
+        load_part_bitmap((uint16_t)si);
+
+    load_part_bitmap(9);
+
+    for (si = 0x0b; si < 0x31; si++)
+        load_part_bitmap((uint16_t)si);
+
+    load_part_bitmap(0x32);
+}
+
+/*
+ * 0x0f7f4
+ *
+ * Load one part's bitmaps: build "part" + the number + ".bmp", read it, and
+ * keep the list at DGROUP 0xeba + 0x3a * n - so the parts' records are 0x3a
+ * bytes apart and this is the first field of each.
+ *
+ * The heap is checked either side of the load, and the cursor is pinned across
+ * it and released after: a load takes long enough for the pointer to want
+ * redrawing, and redrawing it in the middle of one would draw it onto a page
+ * that is being rebuilt.
+ */
+void load_part_bitmap(uint16_t n)
+{
+    char name[14];            /* [bp-0x16] */
+    char number[8];          /* [bp-8]    */
+
+    string_copy(name, GAME_PART_NAMES.part);
+    int_to_string((int16_t)n, number, 10);
+    string_concat(name, number);
+    string_concat(name, GAME_PART_NAMES.bmp);
+
+    heap_check_or_hang();
+    cursor_redraw_off_thunk();
+
+    PART_KINDS[n].bitmaps_ptr = dg_near(dgroup, load_bitmaps(name));
+
+    restore_cursor_following();
+    heap_check_or_hang();
+}
+
+/*
+ * 0x0f86e
+ *
+ * Give back every part's bitmaps: 0 to 0x39, one at a time, and no skipping -
+ * unlike `load_all_parts`, which leaves out 10 and 0x31 because there is no
+ * part with those numbers. Freeing one that was never loaded is harmless, so
+ * the loop is written plainly.
+ */
+void free_all_part_bitmaps(void)
+{
+    int16_t si;
+
+    for (si = 0; si < 0x3a; si++)
+        free_part_bitmap((uint16_t)si);
+}
+
+/*
+ * 0x0f886
+ *
+ * Give one part's bitmaps back, and clear its slot. A slot that is already
+ * empty is left alone.
+ */
+void free_part_bitmap(uint16_t n)
+{
+    if (PART_KINDS[n].bitmaps_ptr == 0)
+        return;
+
+    free_bitmaps_thunk(BMPLIST(PART_KINDS[n].bitmaps_ptr));
+    PART_KINDS[n].bitmaps_ptr = 0;
+}
+
+/*
+0x0f8c2
+ *
+ * **The game screen's own loop** - where the game sits while a level is being
+ * built and run, and the last piece between the briefing and playing.
+ *
+ * It is a loop on the same DGROUP 0x4e6b that `game_round` dispatches on, so a
+ * screen leaves by *writing into that word* rather than by returning: it runs
+ * while 0x4e6b is neither 0x2000 nor 2.
+ *
+ * One pass, in order: clear the two cursor hints to -1, take a key, update the
+ * button, scroll the play area, step the counters, offer the key to the music
+ * shortcut if this is freeform, let the regions see the pointer, run the bin's
+ * arrows if a region asked for them, and then either the pointer frame - if
+ * the pointer is in the play area - or the edge-scroll flags if it is not.
+ *
+ * `si` is the "was outside last frame" latch. It exists so that leaving the
+ * play area with a part in hand re-marks that part exactly **once**, on the
+ * frame the pointer crosses out, rather than every frame it stays out.
+ *
+ * **Five deferred redraws** follow, at 0x4e93 down to 0x4e8b, each a countdown
+ * and a layer: a change asks for N frames of redraw and gets one a frame. Then
+ * the machine is stepped and drawn, the selection decoration goes on if
+ * something is selected, and the rubber-band line goes on if a mover asked for
+ * one - 0x52c5 is its colour and -1 means no line.
+ *
+ * **The frame pacing is a spin on 0x44ef**, which the timer counts down: the
+ * loop waits until eight have gone by, then reloads 0x2710 and presents. That
+ * is the same counter the copy-protection screen reads its page number from,
+ * and it is why the two clocks differ there.
+ *
+ * On the way out, a part still in hand with bit 0x800 in +6 is thrown away if
+ * it is a rope or a belt that reached something, and otherwise handed to
+ * finish_part_removal. A rope that never reached anything takes the second path, because
+ * the kind test falls through to the belt test and then out.
+ */
+void game_screen_loop(void)
+{
+    int16_t si = 0;
+    struct part *part;
+
+    reset_level_state();
+    TIMER.frame_budget = 0x2710;
+
+    while (DG4E67.state != 0x2000 && DG4E67.state != 2) {
+        DG52BD.band_colour = 0xffff;
+        DG52BD.drop_cursor = 0xffff;
+
+        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
+
+        update_button_state();
+        scroll_play_area();
+        step_counters();
+
+        if (DG4E67.freeform != 0)
+            select_music_by_key();
+
+        regions_handle_pointer(DG4E67.regions_play_ptr);
+
+        if (DG4E67.state == 0x800)
+            bin_scroll_back();
+        else if (DG4E67.state == 0x400)
+            bin_scroll_forward();
+
+        if (point_in_play_area() != 0) {
+            pointer_frame();
+            si = 0;
+        } else {
+            if (DG50D3.dragged_part_ptr != 0 && si == 0) {
+                mark_joined_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
+                mark_part_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
+            }
+            edge_scroll_flags();
+            si = 1;
+        }
+
+        if (DG4E67.redraw_e != 0) { draw_machine_layer_a(); DG4E67.redraw_e--; }
+        if (DG4E67.redraw_d != 0) { draw_machine_layer_b(); DG4E67.redraw_d--; }
+        if (DG4E67.redraw_c != 0) { draw_machine_layer_c(); DG4E67.redraw_c--; }
+        if (DG4E67.redraw_b != 0) { draw_machine_layer_d(); DG4E67.redraw_b--; }
+        if (DG4E67.redraw_a != 0) { draw_machine_layer_e(); DG4E67.redraw_a--; }
+
+        mark_parts_in_dirty_rects();
+        replay_shapes();
+        step_and_draw_machine(0);
+
+        if (DG50D3.dragged_part_ptr != 0 && DG52BD.drop_cursor != -1)
+            draw_part_selection(PART_PTR(DG50D3.dragged_part_ptr), ((uint16_t)DG52BD.drop_cursor), 1);
+
+        if (DG52BD.band_colour != -1) {
+            cursor_redraw_off_thunk();
+            VMDS.second_colour = ((uint8_t)DG52BD.band_colour);
+            clip_and_draw_line(
+                (int16_t)(((uint16_t)DG52BD.anchor_x) - ((uint16_t)DG4E67.origin_x)),
+                (int16_t)(((uint16_t)DG52BD.anchor_y) - ((uint16_t)DG4E67.origin_y)),
+                (int16_t)(((uint16_t)DG52BD.band_x) - ((uint16_t)DG4E67.origin_x)),
+                (int16_t)(((uint16_t)DG52BD.band_y) - ((uint16_t)DG4E67.origin_y)));
+            restore_cursor_following();
+            alloc_shape((const uint8_t *)&DG52BD.anchor_x,
+                        (const uint8_t *)&DG52BD.band_x,
+                        4, 2, 0);
+        }
+
+        if (DG4E67.redraw_carried != 0) { draw_carried_icon(); DG4E67.redraw_carried--; }
+
+        seg172c_nothing();
+
+        while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
+            ;
+        TIMER.frame_budget = 0x2710;
+
+        present_frame(1);
+        shift_all_histories();
+
+        if (DG5768.button_right == 2)
+            DG4E67.state = 2;
+    }
+
+    part = PART_PTR(DG50D3.dragged_part_ptr);
+    if (part == PART_NONE || (part->flags_06 & 0x800) == 0)
+        return;
+
+    if (part->kind == KIND_BELT
+        && ROPE_PTR(part->rope_ptr)->end_a_ptr != 0) {
+        discard_carried_part();
+        return;
+    }
+
+    if (part->kind == KIND_ROPE
+        && ((uint16_t)BELT_PTR(part->belt_ptr[0])->end_a_ptr) != 0) {
+        discard_carried_part();
+        return;
+    }
+
+    finish_part_removal();
+}
+
+/*
+ * 0x0faf9
+ *
+ * **Pick a tune from the keyboard.** DGROUP 0x52f1 is the last key the loop
+ * read, *not* a level number, and this is a jump table on it at CS:0x1b8c -
+ * the scancode less two, refusing anything past 0x2e.
+ *
+ * Read as scancodes the sixteen entries are exactly the number row and the
+ * first seven letters:
+ *
+ *     1 2 3 4 5 6 7 8 9   ->  tunes 0x3e9 .. 0x3f1
+ *     A B C D E F G       ->  tunes 0x3f2 .. 0x3f8
+ *
+ * which is why the table looked like an arbitrary jumble of levels - 2..10,
+ * then 30, 48, 46, 32, 18, 33, 34 - when read as anything else. The remaining
+ * thirty-one entries all point at the arm that loads -1.
+ *
+ * `game_screen_loop` only calls this when 0x4e67 is set, so the shortcut is a
+ * freeform-mode feature and not a cheat that works everywhere.
+ *
+ * -1 means silence and returns without touching anything. Otherwise the tune
+ * is remembered at 0x50bb - which is where `game_round` reads it from when it
+ * restarts the music - and started.
+ */
+void select_music_by_key(void)
+{
+    static const struct { uint8_t key; int16_t tune; } TUNES[] = {
+        {  2, 0x3e9 }, {  3, 0x3ea }, {  4, 0x3eb }, {  5, 0x3ec },
+        {  6, 0x3ed }, {  7, 0x3ee }, {  8, 0x3ef }, {  9, 0x3f0 },
+        { 10, 0x3f1 }, { 30, 0x3f2 }, { 48, 0x3f3 }, { 46, 0x3f4 },
+        { 32, 0x3f5 }, { 18, 0x3f6 }, { 33, 0x3f7 }, { 34, 0x3f8 },
+    };
+    uint16_t key = (DG52ED.last_key);
+    int16_t si = -1;
+    uint16_t i;
+
+    if ((uint16_t)(key - 2) <= 0x2e) {
+        for (i = 0; i < sizeof TUNES / sizeof TUNES[0]; i++)
+            if (TUNES[i].key == key) {
+                si = TUNES[i].tune;
+                break;
+            }
+    }
+
+    if (si == -1)
+        return;
+
+    DG50AF.tune = si;
+    select_music(DG50AF.tune);
+}
+
+/*
+ * 0x0fbda
+ *
+ * Put the level back to the state it starts in: no tool selected, nothing in
+ * hand, and the eight words from 0x4e69 and 0x4e87 through 0x4e93 cleared.
+ *
+ * Those seven at 0x4e87 upward are the loop's **deferred redraw counters** -
+ * the ones `game_screen_loop` decrements a frame at a time - so clearing them is
+ * cancelling every redraw that was still owed, which is right because the
+ * three calls after it redraw everything anyway.
+ */
+void reset_level_state(void)
+{
+    DG4E67.tool = 0;
+    DG4E67.loop_frames = 0;
+    DG4E67.redraw_carried = 0;
+    DG4E67.redraw_a = 0;
+    DG4E67.redraw_b = 0;
+    DG4E67.redraw_c = 0;
+    DG4E67.redraw_d = 0;
+    DG4E67.redraw_e = 0;
+    DG50D3.dragged_part_ptr = 0;
+
+    clear_layer_heads();
+    reset_machine();
+    redraw_machine_area();
+}
+
+/*
+ * 0x0fc0e
+ *
+ * **One frame of whatever the pointer is doing to a part** - the level loop's
+ * pointer half, and the routine that turns a position into a tool.
+ *
+ * `si` is set when the hand is already busy: tool 9, or any tool with the top
+ * bit, which is a drag in progress. Only when it is *not* busy does this look
+ * for something new - `find_part_from` on the currently carried part, with a
+ * part whose +6 has bit 0x8000 refused - and only then does
+ * `part_handle_at_pointer` choose a tool from where the pointer is.
+ *
+ * So a drag keeps its tool for as long as it lasts, and a fresh pointer picks
+ * one every frame. Nothing under the pointer clears the tool and returns.
+ *
+ * 0x52c7 is set to 0xa on every frame the hand is not already carrying, which
+ * is the plain cursor; the movers overwrite it with 0xe or 0xc when they have
+ * an opinion about dropping.
+ *
+ * The tool then picks an arm through a jump table at CS:0x1cfe, on the tool
+ * less one with the top bit stripped, and **anything outside 1 to 10 falls
+ * through doing nothing**. Four of the ten act only on the press edge, three
+ * act every frame, and tool 10's whole body is to let go of the part.
+ */
+void pointer_frame(void)
+{
+    uint16_t si;
+
+    si = (DG4E67.tool == 9 || (DG4E67.tool & 0x8000)) ? 1 : 0;
+
+    if (si == 0) {
+        DG50D3.dragged_part_ptr = dg_near(dgroup, find_part_from(PART_PTR(DG50D3.dragged_part_ptr)));
+        if (DG50D3.dragged_part_ptr != 0
+            && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000))
+            DG50D3.dragged_part_ptr = 0;
+    }
+
+    if (DG50D3.dragged_part_ptr == 0) {
+        DG4E67.tool = 0;
+        return;
+    }
+
+    if (DG4E67.tool != 9)
+        DG52BD.drop_cursor = 0x0a;
+
+    if (si == 0)
+        DG4E67.tool = part_handle_at_pointer(PART_PTR(DG50D3.dragged_part_ptr));
+
+    switch ((uint16_t)((DG4E67.tool & 0x7fff) - 1)) {
+    case 0:                                     /* tool 1 */
+        if (DG5768.button_left == 2)
+            flip_carried_end_1();
+        return;
+    case 1:                                     /* tool 2 */
+        if (DG5768.button_left == 2)
+            flip_carried_end_2();
+        return;
+    case 2: case 3: case 4: case 5:             /* tools 3 to 6 */
+        run_drag_frame();
+        return;
+    case 6:                                     /* tool 7 */
+        if (DG5768.button_left == 2)
+            pick_up_part();
+        return;
+    case 7:                                     /* tool 8 */
+        if (DG5768.button_left == 2)
+            discard_carried_part();
+        return;
+    case 8:                                     /* tool 9 */
+        move_carried();
+        return;
+    case 9:                                     /* tool 10 */
+        if (DG5768.button_left == 2)
+            DG50D3.dragged_part_ptr = 0;
+        return;
+    default:
+        return;
+    }
+}
+
+/*
+ * 0x0fd02
+ *
+ * **Carrying a part off the edge of the play area asks for a redraw.**
+ *
+ * Only while a part is in hand - tool 9 with something at 0x50d5 - and only
+ * for a part that is neither a rope nor a belt, because those two are drawn
+ * from their endpoints and do not hang off the pointer.
+ *
+ * 0x4e89 is set to 1 unconditionally, and then each edge the pointer has gone
+ * past sets its own counter to 3: above 8 or below 0x12f in 0x5782, left of 8
+ * or right of 0x1ff in 0x5784. The right edge sets two of them, 0x4e93 as well
+ * as 0x4e8b.
+ *
+ * Three, not one, because these are the countdowns `game_screen_loop` works through a
+ * frame at a time - the strip has to be repainted for three frames, not
+ * redrawn once.
+ */
+void edge_scroll_flags(void)
+{
+    uint16_t kind;
+
+    if (DG4E67.tool != 9 || DG50D3.dragged_part_ptr == 0)
+        return;
+
+    kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+    if (kind == 8 || kind == 0x0a)
+        return;
+
+    DG4E67.redraw_carried = 1;
+
+    if (DG5768.pointer_y < 8)
+        DG4E67.redraw_d = 3;
+    if (DG5768.pointer_y > 0x12f)
+        DG4E67.redraw_c = 3;
+    if (DG5768.pointer_x < 8)
+        DG4E67.redraw_b = 3;
+    if (DG5768.pointer_x > 0x1ff) {
+        DG4E67.redraw_e = 3;
+        DG4E67.redraw_a = 3;
+    }
+}
+
+/*
+ * 0x0fd65
+ *
+ * **Scroll the play area** when the pointer is against an edge, and re-file
+ * everything in it if it moved.
+ *
+ * The current origins at 0x4ea3 and 0x4ea1 are first copied down to 0x4e9b and
+ * 0x4e99, which is where `draw_carried_icon` reads the *previous* position
+ * from - so this is also what makes an icon's backdrop restorable after a
+ * scroll.
+ *
+ * Then four edges, each a pair of tests: the pointer at or past the edge, and
+ * the origin not already at its stop. Left stops at -8 and top at -8; right
+ * and bottom stop at 0x50b7 and 0x50b9, which is where the level's own extent
+ * is kept. A step is 0x10 either way. **Both axes can move in one call** - the
+ * flag is shared and the two offsets are independent - so a pointer held in a
+ * corner scrolls diagonally.
+ *
+ * Nothing is written back unless something moved. When it did, every part is
+ * walked - `pick_by_flag(0x3000)` then `pick_for_record(si, 0x1000)` - and
+ * each one that does not have bit 0x2000 in +8 is marked for re-filing and its
+ * shapes re-marked. The parts do not move; the window over them does, so what
+ * was drawn where is no longer true.
+ *
+ * The origins are stored **after** that walk, not before, so the marking sees
+ * the old position.
+ */
+void scroll_play_area(void)
+{
+    uint16_t di, y, moved = 0;
+    struct part *si;
+
+    DG4E67.origin_c_x = ((uint16_t)DG4E67.origin_b_x);
+    DG4E67.origin_c_y = ((uint16_t)DG4E67.origin_b_y);
+    DG4E67.origin_b_x = ((uint16_t)DG4E67.origin_x);
+    DG4E67.origin_b_y = ((uint16_t)DG4E67.origin_y);
+
+    di = ((uint16_t)DG4E67.origin_x);
+    y = ((uint16_t)DG4E67.origin_y);
+
+    if ((int16_t)((uint16_t)DG5768.pointer_x) <= 0 && DG4E67.origin_x != -8) {
+        moved = 1;
+        di = (uint16_t)(di - 0x10);
+    }
+    if ((int16_t)((uint16_t)DG5768.pointer_x) >= 0x27f && ((uint16_t)DG4E67.origin_x) != ((uint16_t)DG50AF.extent_y)) {
+        moved = 1;
+        di = (uint16_t)(di + 0x10);
+    }
+    if ((int16_t)((uint16_t)DG5768.pointer_y) <= 0 && DG4E67.origin_y != -8) {
+        moved = 1;
+        y = (uint16_t)(y - 0x10);
+    }
+    if ((int16_t)((uint16_t)DG5768.pointer_y) >= 0x16f && ((uint16_t)DG4E67.origin_y) != ((uint16_t)DG50AF.extent_x)) {
+        moved = 1;
+        y = (uint16_t)(y + 0x10);
+    }
+
+    if (moved == 0)
+        return;
+
+    si = pick_by_flag(0x3000);
+    while (si != PART_NONE) {
+        if ((si->flags_08 & 0x2000) == 0) {
+            mark_needs_refile(si, 2);
+            mark_part_shapes(si, 3);
+        }
+        si = pick_for_record(si, 0x1000);
+    }
+
+    DG4E67.origin_x = di;
+    DG4E67.origin_y = y;
+}
+
+/*
+ * 0x0fe47
+ *
+ * Move whatever is in your hand, by kind. Tool 9's arm of the level loop.
+ *
+ * **+0x20 and +0x1e are set to -1 first**, both of them, before anything looks
+ * at the kind. A carried part has no position until the mover gives it one,
+ * and -1 is what the drawing code reads as "nowhere yet" - so a frame that
+ * ends up not placing it leaves it off the board rather than at its old spot.
+ */
+void move_carried(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+
+    part->pos[0].y = -1;
+    part->pos[0].x = -1;
+
+    if (part->kind == KIND_BELT)
+        move_carried_rope();
+    else if (part->kind == KIND_ROPE)
+        move_carried_belt();
+    else
+        move_carried_part();
+}
+
+/*
+ * 0x0fe84
+ *
+ * Move a carried **rope** with the pointer, and drop it when the button goes
+ * down.
+ *
+ * Two halves. With the button down, `rope_ends_close` decides what happens:
+ * ends too far apart and the rope is thrown away, but only if it had a far
+ * part - `di` non-zero - because a rope attached to nothing has nothing to
+ * come apart. Close enough, and `find_part_from(0)` is asked what is under the
+ * pointer and the rope is joined to it: bit 2 into that part's +8, +0x94
+ * refreshed, and the link's **+6 or +4** set depending on whether the far end
+ * was already taken. Then the endpoints are recomputed, the rope re-filed, and
+ * both the tool and the carried part cleared.
+ *
+ * With the button up it is only preview: 0x52c1 and 0x52c3 take the far part's
+ * anchor - its +0x1e and +0x20 plus the bytes at +0x56 and +0x57 - and 0x52bd
+ * and 0x52bf take the pointer in play-area coordinates, so something else can
+ * draw the rubber-band line. 0x52c5 is the colour, 0xa when the ends are close
+ * enough to join and 0xc when they are not.
+ */
+void move_carried_rope(void)
+{
+    struct rope *link = ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr);
+    struct part *di = PART_PTR(link->end_a_ptr);
+    int16_t close = rope_ends_close(link);
+    struct part *si;
+
+    if (DG5768.button_left == 2) {
+        if (close == 0) {
+            if (di != PART_NONE)
+                discard_carried_part();
+            return;
+        }
+
+        si = find_part_from(PART_NONE);
+
+        if (di != PART_NONE) {
+            si->flags_08 |= 2;
+            si->start_flags = si->flags_08;
+            link->end_b_ptr = dg_near(dgroup, si);
+            si->rope_ptr = dg_near(dgroup, link);
+
+            compute_link_endpoints(link);
+            mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
+            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
+            DG4E67.tool = 0;
+            DG50D3.dragged_part_ptr = 0;
+            return;
+        }
+
+        si->flags_08 |= 2;
+        si->start_flags = si->flags_08;
+        link->end_a_ptr = dg_near(dgroup, si);
+        si->rope_ptr = dg_near(dgroup, link);
+        return;
+    }
+
+    if (di == PART_NONE)
+        return;
+
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)di->pos[0].x)
+                               + di->grab.x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)di->pos[0].y)
+                               + di->grab.y);
+    DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
+    DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
+
+    DG52BD.band_colour = (close != 0) ? 0x0a : 0x0c;
+}
+
+/*
+ * 0x0ff80
+ *
+ * Move a carried **belt** with the pointer, attach it when the button goes
+ * down, and preview it when the button is up.
+ *
+ * `find_belt_anchor` says what is under the pointer and which of its ends;
+ * 0x2630 remembers that between frames. Two anchors are refused outright: the
+ * one already at the belt's other end (0x5456) and the far part it is already
+ * joined to, and both only when there *is* a far part - so the first end can
+ * legally land on anything.
+ *
+ * With the button down and no anchor, a belt that already had a far part is
+ * thrown away and one that did not is simply left alone.
+ *
+ * **The two ends are not symmetric.** The first end - no far part yet - just
+ * records itself in the anchor's +0x66 pair and in the link's +2, +6, +0xa and
+ * +0xc, and refuses a pulley outright. The second end does the geometry: a
+ * pulley anchor takes the belt in its single socket at +0x5a and +0x5e, any
+ * other part takes it at the end named by the link's +0xa **and again two
+ * slots further on**, then the link is re-measured and the whole thing
+ * re-filed and let go of. A pulley on the far side is passed to aim_link_at_bisector
+ * either way.
+ *
+ * Button up is preview only, and it changes the machine anyway when the far
+ * end is a pulley: aim_link_at_bisector and three marks, before working out the line to
+ * draw. 0x52c1 and 0x52c3 are the anchor point, 0x52bd and 0x52bf the pointer
+ * in play-area coordinates, 0x52c5 the colour - 0xa where it would attach and
+ * 0xc where it would not.
+ */
+void move_carried_belt(void)
+{
+    struct part *far_;                /* [bp-4] */
+    int16_t end;     /* [bp-2] */
+    struct belt *si = BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0]);
+    struct part *di;
+    uint16_t idx;
+
+    far_ = PART_PTR(si->end_a_ptr);
+
+    di = find_belt_anchor(&end, PART_PTR(DG2630.belt_anchor_ptr));
+
+    if (di == PART_PTR(DG5456.belt_far_end_ptr) && far_ != PART_NONE)
+        di = PART_NONE;
+    else if (di == far_ && far_ != PART_NONE)
+        di = PART_NONE;
+
+    DG2630.belt_anchor_ptr = dg_near(dgroup, di);
+
+    if (DG5768.button_left == 2) {
+        if (di == PART_NONE) {
+            if (far_ != PART_NONE)
+                discard_carried_part();
+            return;
+        }
+
+        if (far_ == PART_NONE) {
+            if (di->kind != KIND_PULLEY) {
+                di->belt_ptr[(uint16_t)end] = dg_near(dgroup, si);
+                si->end_a_ptr = dg_near(dgroup, di);
+                si->home_a_ptr = dg_near(dgroup, di);
+                si->slot_a = (uint8_t)(uint16_t)end;
+                si->home_slot_a = (uint8_t)(uint16_t)end;
+                DG5456.belt_far_end_ptr = dg_near(dgroup, di);
+            }
+            return;
+        }
+
+        if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[0] = dg_near(dgroup, di);
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[2] = dg_near(dgroup, di);
+            mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+            mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+            mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
+        } else {
+            idx = si->slot_a;
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx] = dg_near(dgroup, di);
+            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx + 2] = dg_near(dgroup, di);
+        }
+
+        refresh_link_geometry(si);
+        mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
+
+        if (di->kind == KIND_PULLEY) {
+            di->link_ptr[1] = DG5456.belt_far_end_ptr;
+            di->link_ptr[3] = DG5456.belt_far_end_ptr;
+            di->belt_ptr[1] = dg_near(dgroup, si);
+            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
+            DG5456.belt_far_end_ptr = dg_near(dgroup, di);
+        } else {
+            di->link_ptr[(uint16_t)end] = DG5456.belt_far_end_ptr;
+            di->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end_ptr;
+            di->belt_ptr[(uint16_t)end] = dg_near(dgroup, si);
+            si->end_b_ptr = dg_near(dgroup, di);
+            si->home_b_ptr = dg_near(dgroup, di);
+            si->slot_b = (uint8_t)(uint16_t)end;
+            si->home_slot_b = (uint8_t)(uint16_t)end;
+            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
+                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
+            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
+            DG4E67.tool = 0;
+            DG50D3.dragged_part_ptr = 0;
+        }
+        return;
+    }
+
+    if (far_ == PART_NONE) {
+        return;
+    }
+
+    if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
+        end = 1;
+        aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
+        mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+        mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
+        mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
+    } else {
+        end = (int16_t)si->slot_a;
+    }
+
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].x)
+                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].y)
+                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].y);
+    DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
+    DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
+
+    DG52BD.band_colour = (di != PART_NONE) ? 0x0a : 0x0c;
+}
+
+/*
+ * 0x101dc
+ *
+ * **Move an ordinary carried part** with the pointer - everything that is not
+ * a rope or a belt - and put it down when the button goes down.
+ *
+ * The level's own opinion is asked first, through `part_key_shortcut`,
+ * which does nothing at all on all but six levels.
+ *
+ * Then the position, and bit 8 of +0xa decides which of two quite different
+ * ways: **free** placement follows the pointer exactly and is clamped into the
+ * play area by 0xc at the near edges and 0x235 and 0x165 at the far ones;
+ * **snapped** placement masks the pointer to a multiple of 16 and, if the part
+ * would end up entirely off the near edge, nudges it back by one whole cell
+ * rather than clamping. Both take the grab offset at 0x4e97 and 0x4e95 off
+ * first, so the part stays held where it was picked up.
+ *
+ * `di` is whether the part's rope is *not* close enough to stay joined -
+ * `neg/sbb/inc` around `rope_ends_close`, which is Borland's `== 0` - and it
+ * is only consulted when the part is actually put down.
+ *
+ * Then +0xa again: bit 1 re-homes the part onto whatever it is near, bit 2
+ * goes to break_second_attachment instead, and neither is tried if the other matched.
+ *
+ * The ending is three-way. Overlapping something sets the cursor colour at
+ * 0x52c7 to 0xe and nothing else happens - you cannot drop a part inside
+ * another. The button down commits: marks, then **a rope that has come too far
+ * apart is untied and thrown away**, then +0x8c and +0x8e remember where the
+ * part landed, it is re-filed, and the hand is emptied. Neither of those and
+ * the colour is 0xc, meaning it would drop cleanly.
+ *
+ * `part_moved` runs on every frame the button is *not* down, which is to say
+ * while it is still being dragged rather than when it lands.
+ */
+void move_carried_part(void)
+{
+    struct part *part;
+    struct rope *si;
+    int16_t di;
+
+    part_key_shortcut();
+
+    part = PART_PTR(DG50D3.dragged_part_ptr);
+
+    if (part->flags_0a & 8) {
+        part->pos[0].x =
+            (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.drag_offset_x + ((uint16_t)DG4E67.origin_x));
+
+        if ((int16_t)(((uint16_t)part->pos[0].x)
+                      + ((uint16_t)part->size[0].width))
+            <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)part->size[0].width)
+                           + 12);
+
+        if ((int16_t)((uint16_t)part->pos[0].x)
+            >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
+
+        part->pos[0].y =
+            (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.drag_offset_y + ((uint16_t)DG4E67.origin_y));
+
+        if ((int16_t)(((uint16_t)part->pos[0].y)
+                      + ((uint16_t)part->size[0].height))
+            <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)part->size[0].height)
+                           + 12);
+
+        if ((int16_t)((uint16_t)part->pos[0].y)
+            >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
+    } else {
+        part->pos[0].x =
+            (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.drag_offset_x) & 0xfff0)
+                       + ((uint16_t)DG4E67.origin_x));
+        if ((int16_t)(((uint16_t)part->pos[0].x)
+                      + ((uint16_t)part->size[0].width))
+            <= (int16_t)((uint16_t)DG4E67.origin_x))
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
+
+        part->pos[0].y =
+            (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.drag_offset_y) & 0xfff0)
+                       + ((uint16_t)DG4E67.origin_y));
+        if ((int16_t)(((uint16_t)part->pos[0].y)
+                      + ((uint16_t)part->size[0].height))
+            <= (int16_t)((uint16_t)DG4E67.origin_y))
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
+    }
+
+    place_object_for_draw(part);
+    retension_pulleys(part);
+
+    si = ROPE_PTR(part->rope_ptr);
+    di = (si != ROPE_NONE) ? (int16_t)(rope_ends_close(si) == 0) : 0;
+
+    if (part->flags_0a & 1)
+        rehome_carried_part();
+    else if (part->flags_0a & 2)
+        break_second_attachment(part);
+
+    if (object_overlaps_any(part) != 0) {
+        DG52BD.drop_cursor = 0x0e;
+    } else if (DG5768.button_left == 2) {
+        mark_joined_shapes(part, 3);
+
+        if (di != 0) {
+            untie_rope(PART_PTR(si->owner_ptr));
+            discard_part(PART_PTR(si->owner_ptr));
+            DG4E67.redraw_e = 2;
+        }
+
+        mark_needs_refile(part, 2);
+        part->start_x = ((uint16_t)part->pos[0].x);
+        part->start_y = ((uint16_t)part->pos[0].y);
+        refile_part_list(part);
+        DG4E67.tool = 0;
+        DG50D3.dragged_part_ptr = 0;
+    } else {
+        DG52BD.drop_cursor = 0x0c;
+    }
+
+    if (DG5768.button_left != 2)
+        part_moved(part);
+}
+
+/*
+ * 0x10410
+ *
+ * **The keyboard shortcuts for the part in your hand.** DGROUP 0x52f1 is the
+ * last key, and six scancodes have a meaning here; every other key falls
+ * straight out, which is what this routine does almost every frame.
+ *
+ * The table of six at CS:0x2650 is searched with a `loop` and a hit jumps
+ * through the parallel table twelve bytes further on. Read as scancodes it is
+ * obvious what they are:
+ *
+ *     45  X          flip the first end, if the part has one
+ *     21  Y          flip the second end, if the part has one
+ *     13  =   78  +  grow the part in your hand
+ *     12  -   74  -  shrink it
+ *
+ * X and Y flipping the two axes is what identifies the table; as level
+ * numbers - which is how this was first written up, because 0x52f1 was
+ * mistaken for the level - 12, 13, 21, 45, 74 and 78 look like nothing at all.
+ *
+ * The two flip arms are here in full because they are five instructions each;
+ * the resize pair are ~235 bytes apiece and have routines of their own.
+ *
+ * `si` is loaded with the part's kind at entry and never used. That is the
+ * original's, not an omission.
+ */
+void part_key_shortcut(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    static const uint16_t KEYS[6] = { 12, 13, 21, 45, 74, 78 };
+    uint16_t key = (DG52ED.last_key);
+    int32_t i;
+
+    for (i = 0; i < 6; i++)
+        if (KEYS[i] == key)
+            break;
+
+    if (i == 6)
+        return;
+
+    switch (KEYS[i]) {
+    case 45:
+        if (part->flags_06 & 0x400)
+            flip_carried_end_1();
+        return;
+    case 21:
+        if (part->flags_06 & 0x200)
+            flip_carried_end_2();
+        return;
+    case 13:
+    case 78:
+        carried_part_grow();
+        return;
+    case 12:
+    case 74:
+        carried_part_shrink();
+        return;
+    default:
+        return;
+    }
+}
+
+/*
+ * 0x10466
+ *
+ * **Grow the part in your hand** - the `=` and `+` arm of
+ * `part_key_shortcut`, scancodes 13 and 78.
+ *
+ * Which axis grows is decided first, and it is not a choice the player makes:
+ * the **shorter side grows**, so +0x50 unless +0x52 is already bigger. Kind 2
+ * is the exception and always takes the width, whatever its height is.
+ *
+ * Then the chosen side moves by 0x10 if the kind's maximum leaves room -
+ * `cs:0x0eb2` for the width and `cs:0x0eb4` for the height, both compared
+ * signed - and +0x40 or +0x42 is brought along to match. Nothing happens at
+ * all when the part is already at its limit; there is no clamp, just no step.
+ *
+ * The original holds the kind in SI, loaded by `part_key_shortcut` and, as the
+ * note there says, never used by that routine itself - only by these two arms.
+ * It is the part's own +4, so it is recomputed here rather than passed.
+ */
+void carried_part_grow(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = &PART_KINDS[part->kind];
+
+    if ((int16_t)part->set_size.height
+            <= (int16_t)part->set_size.width
+        || part->kind == KIND_RAMP) {
+        if (kind->max_w
+                > (int16_t)part->set_size.width) {
+            part->set_size.width =
+                (uint16_t)(part->set_size.width + 0x10);
+            part->mirror_size.width = part->set_size.width;
+            carried_part_resized(part, kind);
+        }
+    } else {
+        if (kind->max_h
+                > (int16_t)part->set_size.height) {
+            part->set_size.height =
+                (uint16_t)(part->set_size.height + 0x10);
+            part->mirror_size.height = part->set_size.height;
+            carried_part_resized(part, kind);
+        }
+    }
+}
+
+/*
+ * 0x10551
+ *
+ * **Shrink the part in your hand** - the `-` arm, scancodes 12 and 74, and the
+ * mirror of `carried_part_grow` instruction for instruction: the same choice of
+ * axis, the minimum at `cs:0x0eb6` and `cs:0x0eb8` instead of the maximum, the
+ * comparison the other way round, and 0x10 subtracted rather than added.
+ */
+void carried_part_shrink(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = &PART_KINDS[part->kind];
+
+    if ((int16_t)part->set_size.height
+            <= (int16_t)part->set_size.width
+        || part->kind == KIND_RAMP) {
+        if (kind->min_w
+                < (int16_t)part->set_size.width) {
+            part->set_size.width =
+                (uint16_t)(part->set_size.width - 0x10);
+            part->mirror_size.width = part->set_size.width;
+            carried_part_resized(part, kind);
+        }
+    } else {
+        if (kind->min_h
+                < (int16_t)part->set_size.height) {
+            part->set_size.height =
+                (uint16_t)(part->set_size.height - 0x10);
+            part->mirror_size.height = part->set_size.height;
+            carried_part_resized(part, kind);
+        }
+    }
+}
+
+/*
+ * 0x10658
+ *
+ * **Pick a placed part up** and start carrying it - tool 7's arm, taken when
+ * the button goes down on a part's body.
+ *
+ * The grab offset is saved first: 0x4e97 and 0x4e95 are the pointer less the
+ * part's own origin, so a part picked up by its corner stays held by its
+ * corner however far the pointer then moves.
+ *
+ * `di` is the part's +0x54 and `si` **its +4, read only if +0x54 is not zero**.
+ * `si` is used again at the end, and only on the branch where the part is a
+ * rope - which is exactly when +0x54 is set - so the original's conditional
+ * load is safe. It is initialised to 0 here because C says so; the original
+ * would be carrying whatever SI held.
+ *
+ * The part is unmarked, then detached according to kind: a rope untied, a belt
+ * detached with `how` 0 after stashing its far end's +0x5a at 0x5456, anything
+ * else through detach_part_to_bin. A rope then has its link put back the other way
+ * round - `di->+4 = si`, `si->+0x54 = di` - with bit 2 set in the far part's
+ * +8 and +0x94 refreshed to match, so the rope is now held by the end you did
+ * not grab.
+ *
+ * Tool 9 last, which is what makes everything else treat this as carried.
+ */
+void pick_up_part(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    uint16_t si = 0, idx;
+    struct belt *rec;
+    struct part *di;
+
+    DG4E67.drag_offset_x = (uint16_t)(((uint16_t)DG5768.pointer_x)
+                               - ((uint16_t)part->pos[0].x)
+                               + ((uint16_t)DG4E67.origin_x));
+    DG4E67.drag_offset_y = (uint16_t)(((uint16_t)DG5768.pointer_y)
+                               - ((uint16_t)part->pos[0].y)
+                               + ((uint16_t)DG4E67.origin_y));
+
+    di = PART_PTR(part->rope_ptr);
+    if (di != PART_NONE)
+        si = di->kind;
+
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
+
+    if (part->kind == KIND_BELT) {
+        untie_rope(part);
+    } else if (part->kind == KIND_ROPE) {
+        rec = BELT_PTR(part->belt_ptr[0]);
+        idx = ((int8_t)rec->slot_b);
+        DG5456.belt_far_end_ptr = PART_PTR(rec->end_b_ptr)->link_ptr[idx];
+        detach_belt(part, 0);
+    } else {
+        detach_part_to_bin(part);
+    }
+
+    if (part->kind == KIND_BELT) {
+        di->kind = si;
+        PART_PTR(si)->flags_08 |= 2;
+        PART_PTR(si)->start_flags = PART_PTR(si)->flags_08;
+        PART_PTR(si)->rope_ptr = dg_near(dgroup, di);
+    }
+
+    DG4E67.tool = 9;
+}
+
+/*
+ * 0x10733
+ *
+ * **Throw away the part in hand**, whatever kind it is, and leave the player
+ * holding nothing.
+ *
+ * Its shapes are unmarked first - `mark_joined_shapes` and `mark_part_shapes`
+ * both with mode 3 - so nothing that was drawn for it is left claiming space.
+ * Then three ways to go, on the kind at +4:
+ *
+ *   a rope, kind 8      untie it from both ends, then discard
+ *   a belt, kind 0x0a   detach it with `how` 1, then discard
+ *   anything else       detach_part_to_bin and finish_part_removal
+ *
+ * The two ends of the first two are why they need untying before discarding: a
+ * rope or a belt is joined to parts that outlive it, and freeing the record
+ * without breaking the joins leaves those parts pointing at it.
+ *
+ * It closes by setting 0x4e93 to 2 and the tool at 0x4e69 to 0 - the hand is
+ * empty, so no tool is selected. Both are unconditional and outside the
+ * branch, and are transcribed there.
+ */
+void discard_carried_part(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
+
+    if (part->kind == KIND_BELT) {
+        untie_rope(part);
+        discard_part(part);
+    } else if (part->kind == KIND_ROPE) {
+        detach_belt(part, 1);
+        discard_part(part);
+    } else {
+        detach_part_to_bin(part);
+        finish_part_removal();
+    }
+
+    DG4E67.redraw_e = 2;
+    DG4E67.tool = 0;
+}
+
+/*
+ * 0x107b6
+ *
+ * Flip the carried part's **first** end, for real - the arm the level loop
+ * takes for tool 1 when the button has just gone down.
+ *
+ * The same flip hook `part_flip_options` uses to *test* an end, called once
+ * with 1 and not undone, so this is the move rather than the trial. +0x94 is
+ * refreshed from +8 afterwards for the same reason it is there: the hook
+ * changes +8 and the two must not drift apart.
+ */
+void flip_carried_end_1(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = &PART_KINDS[part->kind];
+
+    call_part_flip(kind->flip, part, 1);
+    part->start_flags = part->flags_08;
+}
+
+/*
+ * 0x107e6
+ *
+ * The **second** end, and `flip_carried_end_1` with a 2 in it - tool 2's arm.
+ * Kept as two routines because the original has two; they differ in one
+ * immediate and nothing else.
+ */
+void flip_carried_end_2(void)
+{
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind = &PART_KINDS[part->kind];
+
+    call_part_flip(kind->flip, part, 2);
+    part->start_flags = part->flags_08;
+}
+
+/*
+ * 0x10816
+ *
+ * **Run one frame of a drag.** The level loop's arm for tools 3 to 6, and the
+ * only place the four drag routines are called from.
+ *
+ * The top bit of 0x4e69 is what says a drag is in progress. Without it, this
+ * does one thing: if the button has just gone down, set the bit and return -
+ * so the frame that starts a drag does no dragging.
+ *
+ * With it, the low bits pick one of four through a jump table at CS:0x28f4,
+ * indexed by `0x4e69 - 0x8003`, and anything outside 0..3 falls through with
+ * nothing moved rather than being rejected:
+ *
+ *     0x8003  drag_carried_part_first     0x8005  drag_carried_part_pair
+ *     0x8004  settle_carried_part_first   0x8006  settle_carried_part
+ *
+ * If the part moved, +0x42 and +0x40 take copies of +0x52 and +0x50 - the
+ * position the *next* frame will treat as where it came from - and the part is
+ * re-hooked, re-placed and marked three ways.
+ *
+ * The button being down **ends** the drag, clearing both the tool and the
+ * carried part. That is not a mistake: 0x5774 is 2 only on the press edge, so
+ * the drag runs while the button is up and the next press drops it.
+ */
+void run_drag_frame(void)
+{
+    int16_t si = 0;
+    struct part *part;
+    struct part_kind *kind;
+
+    if ((DG4E67.tool & 0x8000) == 0) {
+        if (DG5768.button_left == 2)
+            DG4E67.tool |= 0x8000;
+        return;
+    }
+
+    switch ((uint16_t)(DG4E67.tool - 0x8003)) {
+    case 0: si = drag_carried_part_first();   break;
+    case 1: si = settle_carried_part_first(); break;
+    case 2: si = drag_carried_part_pair();    break;
+    case 3: si = settle_carried_part();       break;
+    default: break;
+    }
+
+    if (si != 0) {
+        part = PART_PTR(DG50D3.dragged_part_ptr);
+        kind = &PART_KINDS[part->kind];
+
+        part->mirror_size.height = part->set_size.height;
+        part->mirror_size.width = part->set_size.width;
+
+        call_part_hook(kind->settle, part, "settle");
+        place_object_for_draw(part);
+        mark_joined_shapes(part, 3);
+        mark_part_shapes(part, 3);
+        mark_needs_refile(part, 2);
+    }
+
+    if (DG5768.button_left == 2) {
+        DG4E67.tool = 0;
+        DG50D3.dragged_part_ptr = 0;
+    }
+}
+
+/*
+ * 0x108ec
+ *
+ * Drag the carried part by its **first** pair - `drag_carried_part_pair`'s
+ * sibling, on +0x1e and +0x50 rather than +0x20 and +0x52, driven by the other
+ * pointer axis and clamped against the kind's other pair of bounds, +0x0c and
+ * +0x10. It remembers into +0x8c where the other remembers into +0x8e.
+ *
+ * The four differ only in which words they touch; each is written out rather
+ * than folded into one routine taking offsets, because that is how the
+ * original has them and a table of offsets would be a different program that
+ * happens to agree.
+ */
+int16_t drag_carried_part_first(void)
+{
+    uint16_t moved;                    /* [bp-8] */
+    uint16_t hi;    /* [bp-6] */
+    uint16_t lo;    /* [bp-4] */
+    uint16_t was;    /* [bp-2] */
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
+    int16_t  si, di;
+
+    moved = 0;
+    was = ((uint16_t)part->pos[0].x);
+
+    si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
+
+    lo = ((uint16_t)kind->min_w);
+    hi = ((uint16_t)kind->max_w);
+
+    di = (int16_t)(was - si + part->set_size.width);
+
+    if (di > (int16_t)hi) {
+        si = (int16_t)(si + (di - (int16_t)hi));
+        di = (int16_t)hi;
+    } else if (di < (int16_t)lo) {
+        si = (int16_t)(si - ((int16_t)lo - di));
+        di = (int16_t)lo;
+    }
+
+    if (was != (uint16_t)si) {
+        part->pos[0].x = (uint16_t)si;
+        part->set_size.width = (uint16_t)di;
+
+        for (;;) {
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            part->pos[0].x =
+                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
+            part->set_size.width =
+                (uint16_t)(part->set_size.width - 0x10);
+        }
+
+        if (((uint16_t)part->pos[0].x) != was) {
+            part->start_x = ((uint16_t)part->pos[0].x);
+            moved = 1;
+        }
+    }
+
+    {
+        int16_t answer = (int16_t)moved;
+
+        return answer;
+    }
+}
+
+/*
+ * 0x10a00
+ *
+ * Settle the carried part on its **first** axis - `settle_carried_part`'s
+ * sibling, on +0x50 and +0x1e rather than +0x52 and +0x20, taking its target
+ * from 0x5784 and 0x4ea3 and clamping against the kind's +0x0c and +0x10.
+ *
+ * The fourth and last of the drag family, and like the other three it lifts by
+ * a whole row at a time until `object_overlaps_any` is satisfied, with the
+ * first placement before the first test - a do-while, as written.
+ */
+int16_t settle_carried_part_first(void)
+{
+    int16_t moved;                    /* [bp-6] */
+    int16_t hi;    /* [bp-4] */
+    int16_t lo;    /* [bp-2] */
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
+    uint16_t was   = part->set_size.width;
+    int16_t  si;
+
+    moved = 0;
+
+    si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
+                   - ((uint16_t)part->pos[0].x));
+
+    lo = (int16_t)((uint16_t)kind->min_w);
+    hi = (int16_t)((uint16_t)kind->max_w);
+
+    if (si > (int16_t)hi)
+        si = (int16_t)hi;
+    else if (si < (int16_t)lo)
+        si = (int16_t)lo;
+
+    if (was != (uint16_t)si) {
+        part->set_size.width = (uint16_t)si;
+
+        for (;;) {
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            part->set_size.width =
+                (uint16_t)(part->set_size.width - 0x10);
+        }
+
+        if (part->set_size.width != was)
+            moved = 1;
+    }
+
+    {
+        int16_t answer = (int16_t)moved;
+        return answer;
+    }
+}
+
+/*
+ * 0x10ada
+ *
+ * Drag the carried part **along its other axis**, and say whether it moved -
+ * `settle_carried_part`'s twin, and not a mirror of it.
+ *
+ * Where that one moves +0x52 alone, this moves +0x20 and +0x52 **together and
+ * in opposite directions**: the new +0x20 comes from the pointer, +0x52 is
+ * derived from it as `was + pointer_delta`, and the settling loop adds 0x10 to
+ * one while taking 0x10 off the other. The pair is a diagonal, which is what a
+ * part with two ends slides along.
+ *
+ * The clamp is on +0x52 against the same kind bounds at +0x12 and +0x0e, and
+ * the *overshoot is pushed back into +0x20* rather than discarded - `si +=
+ * di - hi` - so the two stay consistent when the end is pinned.
+ *
+ * On success +0x8e takes a copy of the new +0x20, which the plain vertical
+ * drag does not do.
+ */
+int16_t drag_carried_part_pair(void)
+{
+    int16_t moved;                    /* [bp-8] */
+    int16_t hi;    /* [bp-6] */
+    int16_t lo;    /* [bp-4] */
+    int16_t was;    /* [bp-2] */
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    struct part_kind *kind  = &PART_KINDS[part->kind];
+    int16_t  si, di;
+
+    moved = 0;
+    was = (int16_t)((uint16_t)part->pos[0].y);
+
+    si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
+
+    lo = (int16_t)((uint16_t)kind->min_h);
+    hi = (int16_t)((uint16_t)kind->max_h);
+
+    di = (int16_t)((uint16_t)was - si + part->set_size.height);
+
+    if (di > (int16_t)hi) {
+        si = (int16_t)(si + (di - (int16_t)hi));
+        di = (int16_t)hi;
+    } else if (di < (int16_t)lo) {
+        si = (int16_t)(si - ((int16_t)lo - di));
+        di = (int16_t)lo;
+    }
+
+    if ((uint16_t)was != (uint16_t)si) {
+        part->pos[0].y = (uint16_t)si;
+        part->set_size.height = (uint16_t)di;
+
+        for (;;) {
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            part->pos[0].y =
+                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
+            part->set_size.height =
+                (uint16_t)(part->set_size.height - 0x10);
+        }
+
+        if (((uint16_t)part->pos[0].y) != (uint16_t)was) {
+            part->start_y = ((uint16_t)part->pos[0].y);
+            moved = 1;
+        }
+    }
+
+    {
+        int16_t answer = (int16_t)moved;
+        return answer;
+    }
+}
+
+/*
+ * 0x10bee
+ *
+ * Drop the carried part onto something solid, and say whether it moved.
+ *
+ * Its y at +0x52 is first put where the pointer is - the pointer's row at
+ * 0x5782 taken down to a multiple of 16, plus the play area's top at 0x4ea3
+ * and one more row, less the part's own height at +0x20 - and then clamped
+ * into the band its kind allows, +0x12 low and +0x0e high in the kind record.
+ * The two are read through the usual `kind * 0x3a` stride.
+ *
+ * If that lands where it already was, nothing happens and the answer is 0.
+ * Otherwise it settles: place it, ask `object_overlaps_any`, and while the
+ * answer is yes lift it a whole row and ask again. The loop has no bound of
+ * its own - it is the clamp above and the ceiling of the play area that end
+ * it - and it is transcribed as the do-while the original writes, because the
+ * first placement happens before the first test.
+ *
+ * Two of the three calls in the loop are per-kind hooks reached through far
+ * pointers in the kind record, +0x32 and +0x2a, which C cannot call; they go
+ * through `call_part_hook` and `call_part_setup` like every other one. For
+ * every kind this game's early levels use, +0x32 is the do-nothing hook.
+ *
+ * The answer is whether the part ended up somewhere other than where it
+ * started, which is not the same as whether the loop ran: a part lifted and
+ * put back reports 0.
+ */
+int16_t settle_carried_part(void)
+{
+    uint16_t moved;                    /* [bp-6] */
+    uint16_t hi;    /* [bp-4] */
+    uint16_t lo;    /* [bp-2] */
+    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
+    uint16_t was   = part->set_size.height;
+    struct part_kind *kind  = &PART_KINDS[part->kind];
+    int16_t  y;
+
+    moved = 0;
+
+    y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
+                  - ((uint16_t)part->pos[0].y));
+
+    lo = ((uint16_t)kind->min_h);
+    hi = ((uint16_t)kind->max_h);
+
+    if (y > (int16_t)hi)
+        y = (int16_t)hi;
+    else if (y < (int16_t)lo)
+        y = (int16_t)lo;
+
+    if ((uint16_t)y != was) {
+        part->set_size.height = (uint16_t)y;
+
+        for (;;) {
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            part->set_size.height =
+                (uint16_t)(part->set_size.height - 0x10);
+        }
+
+        if (part->set_size.height != was)
+            moved = 1;
+    }
+
+    {
+        int16_t answer = (int16_t)moved;
+
+        return answer;
+    }
+}
+
+/*
+ * 0x10cc8
+ *
+ * **Scroll the parts bin back**, held down.
+ *
+ * Let go - the button word at 0x5774 is neither 1 nor 2 - and it resets its
+ * own repeat phase and hands the screen back to state 0x1000. Held, it moves
+ * one page every *third* call: `[0x2632] % 3`, a signed divide by 3 whose
+ * remainder is the test, with the counter incremented on every call whether it
+ * scrolled or not. That is the auto-repeat, and three frames is its rate.
+ *
+ * A page back is `bin_part_at_index(-5)`. When that answers where the cursor
+ * already is there is nothing before it, and the bin **wraps to the far end**
+ * through `bin_scroll_end` rather than stopping. Both moves ask for a redraw
+ * by putting 2 in 0x4e93; a move that changes nothing asks for none.
+ *
+ * 0x4e8b is set to 2 on every path, held or not.
+ */
+void bin_scroll_back(void)
+{
+    uint16_t si;
+
+    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
+        DG2630.back_held = 0;
+        DG4E67.state = 0x1000;
+        DG4E67.redraw_a = 2;
+        return;
+    }
+
+    if (bin_repeat_due(((int16_t)DG2630.back_held))) {   /* deviation: see above */
+        si = (uint16_t)bin_part_at_index(-5);
+        if (si != DG50D3.bin_list_ptr) {
+            DG50D3.bin_list_ptr = si;
+            DG4E67.redraw_e = 2;
+        } else {
+            si = bin_scroll_end();
+            if (si != DG50D3.bin_list_ptr) {
+                DG50D3.bin_list_ptr = si;
+                DG4E67.redraw_e = 2;
+            }
+        }
+    }
+
+    DG2630.back_held++;
+    DG4E67.redraw_a = 2;
+}
+
+/*
+ * 0x10d37
+ *
+ * **Scroll the parts bin forward**, held down - `bin_scroll_back`'s twin, with
+ * its own repeat counter at 0x2634 and the same one-page-in-three rate.
+ *
+ * The two are not mirror images at the end stop. Back wraps by asking
+ * `bin_scroll_end` where the last page is; forward wraps by writing the list
+ * head 0x50d7 straight into the cursor, because the head is a constant and the
+ * end is not. Forward also does not compare against the old cursor first: a
+ * step that answers something sets it, and a step that answers nothing wraps,
+ * so 0x4e93 is asked for a redraw either way.
+ */
+void bin_scroll_forward(void)
+{
+    uint16_t si;
+
+    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
+        DG2630.forward_held = 0;
+        DG4E67.state = 0x1000;
+        DG4E67.redraw_a = 2;
+        return;
+    }
+
+    if (bin_repeat_due(((int16_t)DG2630.forward_held))) {   /* deviation: see above */
+        si = (uint16_t)bin_part_at_index(5);
+        if (si != 0)
+            DG50D3.bin_list_ptr = si;
+        else
+            DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+        DG4E67.redraw_e = 2;
+    }
+
+    DG2630.forward_held++;
+    DG4E67.redraw_a = 2;
+}
+
+/*
+ * 0x10da9
+ *
+ * The cursor over the **box above the parts bin** - the region at 576,0 to
+ * 632,63, which is row 1 of the table and carries no action bit of its own.
+ *
+ * Two answers, and it changes the region's *bit* as well as its cursor. While
+ * a part is being carried - tool 9 - it hands the cursor question straight to
+ * `region_cursor_bin` below, the box beneath it, and sets +0x10 to 0x1000 so a
+ * click here does what a click in the bin does. Otherwise the cursor is 0x1a
+ * and the bit is 0x2000.
+ *
+ * So the box is not a fixed control: what it means depends on whether your
+ * hand is full. A region's +0x10 is the bit `build_screen_regions` filed from
+ * the table, and this is one of the places that rewrites it.
+ *
+ * The call is the near-to-far thunk - `push si / push cs / call` - so the
+ * callee's `retf` finds a full far return; the `nop` between is the assembler
+ * padding it, and `pop cx` is the caller clearing its argument.
+ */
+void region_cursor_bin_above(struct region *region)
+{
+    if (DG4E67.tool == 9) {
+        region_cursor_bin(region);
+        region->code = 0x1000;
+        return;
+    }
+
+    region->cursor = 0x1a;
+    region->code = 0x2000;
+}
+
+/*
+ * 0x10dc2
+ *
+ * **The parts bin's cursor** - the region at 576,100 to 632,144, row 4, whose
+ * click handler is 0x10e14 alongside it.
+ *
+ * Carrying a part, tool 9, the cursor says what is in your hand, by the kind
+ * at +4 of the part at DGROUP 0x50d5: a rope, kind 8, gets cursor 8; a belt,
+ * kind 0x0a, gets 9; anything else 0. That is the same question
+ * `cursor_for_tool` asks for its own ninth tool, asked again here rather than
+ * shared, and the pointer is loaded once into DI instead of twice - the two
+ * routines are not the same code and are not transcribed as if they were.
+ *
+ * Otherwise the cursor says whether there is anything here to pick up:
+ * `bin_part_at_index` is asked for the region's own +4, and a record answers
+ * cursor 2 while nothing answers 0.
+ */
+void region_cursor_bin(struct region *region)
+{
+    if (DG4E67.tool == 9) {
+        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+
+        region->cursor =
+            (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
+        return;
+    }
+
+    region->cursor =
+        bin_part_at_index((int16_t)region->slot) != 0 ? 2 : 0;
+}
+
+/*
+ * 0x10e14
+ *
+ * **Clicking the parts bin** - the click handler of the region whose cursor is
+ * `region_cursor_bin`, filed at +0x16 of the same row.
+ *
+ * With a part already in hand it is a bin: the part is thrown away by
+ * `discard_carried_part` and the tool is cleared. A rope or a belt sets 0x4e93
+ * to 2 on the way, which the discard would set anyway - the original tests the
+ * kind twice, here and inside, and both are transcribed.
+ *
+ * With an empty hand it is a source. `bin_part_at_index` is asked for the
+ * region's own +4 and the record it answers is **dereferenced** - the part
+ * taken is the one its +0 names, not the entry itself - and nothing there ends
+ * the click.
+ *
+ * Then the interesting part, which is what freeform mode means for the bin.
+ * When 0x4e67 is set the part is **cloned** rather than taken, so the bin
+ * never empties, and the clone is spliced into the list right after the
+ * original: `clone->next = part->next`, that node's `prev` set back to the
+ * clone when there is one, `clone->prev = part`, `part->next = clone`.
+ *
+ * The memory check around it is worth reading slowly. 0x50d5 is set to **0**
+ * before `check_room_for_part` and put back afterwards, so the part being
+ * picked up is not counted against the room it needs, and the answer decides
+ * whether the clone is kept or handed straight back to `free_part`. A refused
+ * clone leaves the hand empty and the bin exactly as it was.
+ *
+ * Whatever ends up in hand, a non-zero 0x50d5 selects tool 9 - which is what
+ * makes `cursor_for_tool` and `region_cursor_bin` start answering by kind.
+ */
+void region_click_bin(struct region *region)
+{
+    struct part *saved;                /* [bp-2] */
+    struct part *part, *clone;
+
+    if (DG4E67.tool == 9) {
+        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+
+        if (kind == 8 || kind == 0x0a)
+            DG4E67.redraw_e = 2;
+
+        discard_carried_part();
+        DG4E67.tool = 0;
+        return;
+    }
+
+    DG4E67.drag_offset_y = 0;
+    DG4E67.drag_offset_x = 0;
+
+    part = PART_PTR(PART_PTR(bin_part_at_index(
+                     (int16_t)region->slot))->next_ptr);
+    DG50D3.dragged_part_ptr = dg_near(dgroup, part);
+
+    if (part == PART_NONE) {
+        return;
+    }
+
+    if (DG4E67.freeform != 0) {
+        clone = clone_part(PART_PTR(DG50D3.dragged_part_ptr));
+        saved = PART_PTR(DG50D3.dragged_part_ptr);
+        DG50D3.dragged_part_ptr = 0;
+
+        if (check_room_for_part() != 0) {
+            DG50D3.dragged_part_ptr = dg_near(dgroup, saved);
+            clone->next_ptr = PART_PTR(DG50D3.dragged_part_ptr)->next_ptr;
+            if (clone->next_ptr != 0)
+                PART_PTR(clone->next_ptr)->prev_ptr = dg_near(dgroup, clone);
+            clone->prev_ptr = DG50D3.dragged_part_ptr;
+            PART_PTR(DG50D3.dragged_part_ptr)->next_ptr = dg_near(dgroup, clone);
+            DG50D3.dragged_part_ptr = dg_near(dgroup, clone);
+        } else {
+            free_part(clone);
+        }
+    }
+
+    if (DG50D3.dragged_part_ptr != 0) {
+        uint16_t kind;
+
+        DG4E67.tool = 9;
+        kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+        if (kind == 8 || kind == 0x0a)
+            DG4E67.redraw_e = 2;
+    }
+
+}
+
+/*
+ * 0x10ef1
+ *
+ * **The playfield's cursor.** A region handler, of the same family as the five
+ * at 0x34eb and after: it writes a cursor number into its region's own +0x0e,
+ * which `regions_handle_pointer` reads a moment later.
+ *
+ * Named from the row that installs it rather than from what it does, as the
+ * others here had to be. That row is
+ *
+ *     { 0x4e79, 0, 0x200, { 0x1000, 0, 0, 0, 0x27f, 0x16f, 0, 0x1000,
+ *                           0x2f01, 0xdff, 0, 0 } }
+ *
+ * whose rectangle is 0..0x27f by 0..0x16f - the whole 640-wide picture down to
+ * scan line 367, which is exactly where `vm_set_line_compare(0x16f)` splits
+ * the screen. So the region is the play area entire, not a button in it, and
+ * the cursor it asks for is the one the selected tool wants: the answer comes
+ * straight from `cursor_for_tool` at 0x046d8 and is not looked at here.
+ *
+ * Unlike its five siblings this one has no condition of its own - they choose
+ * between two cursors on a flag, and it delegates the whole question.
+ */
+void region_cursor_playfield(struct region *region)
+{
+    region->cursor = (uint16_t)cursor_for_tool();
+}
+
+/*
+ * 0x10f03
+ *
+ * **The game screen.** State 2 dispatches here, so this is the first screen a
+ * round shows - the level briefing for round 1 - and it stays here, running
+ * its own loop, until something sets the state to one it does not handle.
+ *
+ * It paints once on the way in, through `paint_game_screen(1)`, and then loops:
+ * take the button state and a key, let the regions at DGROUP 0x4e77 see the
+ * pointer, and dispatch on the state at 0x4e6b through a **jump table** at
+ * CS:0x34bf - eleven single-bit states, 0x0020 through 0x8000, with the
+ * handlers in a second table 0x16 bytes further on.
+ *
+ * State 2 is *not* in that table. The search runs off the end and falls to the
+ * bottom of the loop, so the screen simply sits and presents itself, which is
+ * what a briefing waiting for a click is.
+ *
+ * **The repaint counters are counts and not flags, and that is the double
+ * buffer showing through.** `si` repaints the whole screen and the three at
+ * [bp-0xa], [bp-0xc] and [bp-0xe] repaint one panel piece each; every one is
+ * decremented by one per pass rather than cleared, so setting a counter to two
+ * paints the same thing into both pages. A flag would paint it into whichever
+ * page happened to be current and leave the other stale for a frame.
+ *
+ * The whole-screen repaint and the piecewise ones are exclusive - `or si,si`
+ * takes the first branch - so a full repaint does not also run the three.
+ *
+ * Alt and V together put up a version box: `key_is_down` is asked for
+ * scancodes 0x38 and 0x2f, and both being down shows it and asks for a full
+ * repaint afterwards.
+ *
+ * The eleven handlers are stubs. Each is named for the state that reaches it,
+ * because that is what is known about it; what each screen *is* is not, and
+ * naming them for their addresses would lose even that.
+ */
+void game_screen(void)
+{
+    /*
+     * **The original's `sub sp,0x16` is this routine's own locals**, and the
+     * port keeps them in `s` below rather than in DGROUP - so there was
+     * nothing left for the reservation to protect. It was kept on the reading
+     * that a callee's frame has to land *below* this one; that is true of a
+     * routine whose locals are the guest's, and this one's are not. Without
+     * it a callee's frame lands 0x18 higher, on bytes nothing reads.
+     */
+    struct screen_loop s = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    reset_machine();
+    paint_game_screen(1);
+    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
+    show_cursor_again();
+
+    while (s.done == 0) {
+        update_button_state();
+
+        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
+        if ((DG52ED.last_key) == SC_TAB)
+            tab_move_pointer();
+
+        regions_handle_pointer(DG4E67.regions_panel_ptr);
+
+        if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
+            show_message_box(DG1BCC.version_number, (char *)DG1BCC.this_is_version);
+            s.repaint_all = 1;
+            DG4E67.state = 2;
+        }
+
+        switch (DG4E67.state) {
+        case 0x8000:
+            paint_panel_a(1);
+            present_back_page();
+            DG4E67.state = 0x1000;
+            s.done = 1;
+            break;
+        case 0x4000: screen_state_4000(&s); break;
+        case 0x2000: screen_state_2000(&s); break;
+        case 0x1000: screen_state_1000(&s); break;
+        case 0x0800: screen_state_0800(&s); break;
+        case 0x0400: screen_state_0400(&s); break;
+        case 0x0200: screen_state_0200(&s); break;
+        case 0x0100: screen_state_0100(&s); break;
+        case 0x0080: screen_state_0080(&s); break;
+        case 0x0040: screen_state_0040(&s); break;
+        case 0x0020: screen_state_0020(&s); break;
+        default:
+            /* State 2 among them: not in the table, so nothing runs. */
+            break;
+        }
+
+        if (s.repaint_all != 0) {
+            paint_game_screen(1);
+            s.repaint_all--;
+        } else {
+            if (s.repaint_e != 0) {
+                paint_panel_e();
+                s.repaint_e--;
+            }
+            if (s.repaint_f != 0) {
+                paint_panel_f();
+                s.repaint_f--;
+            }
+            if (s.repaint_g != 0) {
+                paint_panel_g();
+                s.repaint_g--;
+            }
+        }
+
+        present_frame(1);
+    }
 }
 
 /*
@@ -3637,2283 +4585,509 @@ void tab_move_pointer(void)
 }
 
 /*
- * 0x1567b
+ * 0x11632
  *
- * **A message box with two buttons**, answering which was pressed. The other
- * doorway into 0x15698, twenty-six bytes past the first, and the only
- * difference is that both button strings are given: 0x25e1 and 0x25e5.
+ * **Paint the game screen**: the play area, the control panel down the left,
+ * and the three ornaments that sit on it.
  *
- * Quit, restart and both freeform handlers ask through this one. It is its own
- * routine and not an argument to `show_message_box` because that is what the
- * original has - two entry points to one body, the way Borland's runtime is
- * built and the way the part tables reach shared code.
+ * The order is the order the pieces overlap in. The play area is cleared to
+ * the colour at DGROUP 0x52cb - `fill_rect(8, 8, 0x230, 0x160)`, inside the
+ * clip box `set_clip_play_area` just set - then the machine is drawn over it,
+ * then the panel at `draw_panel(0x2c, 0x42, 0xd0, 0x109)` and its contents.
  *
- * Its `jmp` to the instruction after it, at 0x15694, is the compiler leaving a
- * return path in that nothing needed; transcribed as the fall-through it is.
+ * The panel's contents are eleven separate painters, each of which takes a
+ * flag this passes as zero, and the flag is presumably "redraw only". Four
+ * always run; then the fork on 0x4e67 - the same word `round_setup` uses to
+ * tell free play from a level - chooses **two** painters for free play and
+ * **one** for a level. That is the control panel having a different set of
+ * controls in the two modes.
+ *
+ * The three bitmaps at the end come from the set at 0x52f4, at +6, +0xa and
+ * +8, placed at (0x53,0x42), (0x64,0xb2) and (0x5b,0xfe) - note the middle one
+ * is +0xa and the last +8, which is not the order they are drawn in.
+ *
+ * `select_music` is given the level's own tune from 0x50bb, which
+ * `read_level` filled in.
+ *
+ * The argument decides whether the finished screen is presented: non-zero
+ * calls 0x081f9. So a caller can paint into the back page and show it, or
+ * paint and leave it for something else to show.
  */
-uint16_t ask_yes_no(const char *title, char *body)
+void paint_game_screen(uint16_t present)
 {
-    return message_box(title, body, GAME_BUTTON_LABELS.yes, GAME_BUTTON_LABELS.no);
-}
-
-/*
- * 0x15698
- *
- * **The message box.** Both doorways above reach it - `show_message_box` with
- * one button and `ask_yes_no` with two - and it answers 1 for the first button
- * and 0 for the second or for none.
- *
- * **It takes the screen over by borrowing the state word.** DGROUP 0x4e6b is
- * what `game_screen` and `game_round` dispatch on; it is saved, set to 0x8000
- * while the box is up, and put back on the way out. So the box's own loop tests
- * the same word those screens do, 0x4000 and 0x2000 mean its two buttons here,
- * and nothing underneath can act on a click meant for it.
- *
- * **The buttons' keys come from their first letter.** `[si]` is the first byte
- * of the first button's string, and the shortcuts are chosen from it: 'Y' takes
- * Y for the first button and N for the second, 'R' takes R and A, 'C' takes C -
- * and Enter, which is the only key that means the same as a button rather than
- * naming one. So "YES"/"NO" and "CONTINUE" get their keys without a table, and
- * a button whose word began with something else would get none.
- *
- * **The second button is right-aligned by measurement**: its width is rounded
- * up to a multiple of 8 and taken from 0x168, and that x is filed into the
- * region record at [0x4e6d]+6 so the clickable area moves with it. The first
- * button's own width plus 0xd8 goes into [0x4e6f]+0xa the same way. A box with
- * one button files only the first.
- *
- * **One button means the second cannot be chosen**: with `di` zero, a state of
- * 0x2000 is turned straight back into 0x8000 at 0x15814, so the loop carries on
- * rather than leaving with an answer nothing asked for.
- *
- * On the way out the chosen button is drawn again pressed and presented, which
- * is what makes it flash before the box goes.
- */
-uint16_t message_box(const char *title, char *body,
-                     const char *button1, const char *button2)
-{
-    uint16_t saved;
-    int16_t  second_x = 0;
+    dg_near_t set;
 
     wait_cursor();
+    set_clip_play_area();
 
-    saved = DG4E67.state;
-    DG4E67.state = 0x8000;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_enabled = 1;
 
-    draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text(title, 0xb8, 0x74, 0xd0);
-    draw_panel(0xb8, 0x90, 0xd0, 0x5a);
-    draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
+    cursor_redraw_off_thunk();
+    fill_rect(8, 8, 0x230, 0x160);
 
-    draw_button(button1, 0xc8, 0xd4, 0);
-    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
-        (uint16_t)(text_width_thunk(button1) + 0xd8);
+    draw_machine_thunk();
+    paint_panel_frame();
 
-    if (button2 != NULL) {
-        second_x = (int16_t)(0x168
-                             - ((text_width_thunk(button2) + 7) & 0xfff8));
-        draw_button(button2, (uint16_t)second_x, 0xd4, 0);
-        REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
-    }
+    draw_panel(0x2c, 0x42, 0xd0, 0x109);
 
-    present_back_page();
-    restore_cursor();
-
-    while (DG4E67.state == 0x8000) {
-        update_button_state();
-
-        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-
-        if ((DG52ED.last_key) == SC_TAB) {
-            message_box_tab(button2);
-        } else {
-            if (*button1 == 'Y') {
-                if ((DG52ED.last_key) == SC_Y)
-                    DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_N)
-                    DG4E67.state = 0x2000;
-            }
-            if (*button1 == 'R') {
-                if ((DG52ED.last_key) == SC_R)
-                    DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_A)
-                    DG4E67.state = 0x2000;
-            }
-            if (*button1 == 'C') {
-                if ((DG52ED.last_key) == SC_C)
-                    DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_ENTER)
-                    DG4E67.state = 0x4000;
-            }
-        }
-
-        regions_handle_pointer(DG4E67.regions_b_ptr);
-
-        if (button2 == NULL && DG4E67.state == 0x2000)
-            DG4E67.state = 0x8000;
-
-        present_frame(1);
-    }
-
-    update_button_state();
-
-    if (DG4E67.state == 0x4000) {
-        draw_button(button1, 0xc8, 0xd4, 1);
-        present_back_page();
-        DG4E67.state = saved;
-        return 1;
-    }
-
-    if (button2 != NULL) {
-        draw_button(button2, (uint16_t)second_x, 0xd4, 1);
-        present_back_page();
-    }
-    DG4E67.state = saved;
-    return 0;
-}
-
-/*
- * 0x1588c
- *
- * **Tab walks the pointer between the buttons.** A counter at DGROUP 0x259c
- * steps on each press and the pointer is moved to the x that counter names in
- * the table at 0x259e - 232 for the first button, 360 for the second - at a
- * fixed y of 0xde.
- *
- * With no second button the counter is put straight back to zero, so Tab keeps
- * the pointer on the only button there is rather than sending it to where the
- * other one would have been. With one, it wraps at 2.
- *
- * It moves the *pointer*, not a highlight: there is no selected button in this
- * box, only where the mouse is, and Tab is a way of driving the mouse from the
- * keyboard.
- */
-void message_box_tab(const char *button2)
-{
-    GAME_MESSAGE_TABS.stop++;
-
-    if (button2 != NULL) {
-        if (GAME_MESSAGE_TABS.stop == 2)
-            GAME_MESSAGE_TABS.stop = 0;
-    } else {
-        GAME_MESSAGE_TABS.stop = 0;
-    }
-
-    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.stop],
-                    0xde);
-}
-
-
-/*
- * 0x15661
- *
- * **A message box with one button.** It is a doorway: the box itself is
- * 0x15698, and this passes it the title, the body, "CONTINUE" for the first
- * button and **zero for the second**, which is how the box is told there is
- * only one.
- *
- * The zero is pushed first and the strings after, so what the box reads as its
- * fourth argument is the absent button rather than a flag saying how many there
- * are. That is the whole difference between this and `ask_yes_no` below.
- */
-void show_message_box(const char *title, char *body)
-{
-    message_box(title, body, GAME_BUTTON_LABELS.continue_btn, NULL);
-}
-
-/*
- * OURS: what both resize arms do once they have decided which way to go.
- *
- * The original writes these four calls out twice in each arm - once for the
- * width and once for the height - so four copies in all, identical but for the
- * field they follow. Factored here because the *decision* above it is the part
- * that differs, and that is left written out.
- */
-static void carried_part_resized(struct part *part, struct part_kind *kind)
-{
-    call_part_hook(kind->settle, part, "settle");
-    place_object_for_draw(part);
-    mark_needs_refile(part, 2);
-    mark_joined_shapes(part, 3);
-}
-
-/*
- * 0x10466
- *
- * **Grow the part in your hand** - the `=` and `+` arm of
- * `part_key_shortcut`, scancodes 13 and 78.
- *
- * Which axis grows is decided first, and it is not a choice the player makes:
- * the **shorter side grows**, so +0x50 unless +0x52 is already bigger. Kind 2
- * is the exception and always takes the width, whatever its height is.
- *
- * Then the chosen side moves by 0x10 if the kind's maximum leaves room -
- * `cs:0x0eb2` for the width and `cs:0x0eb4` for the height, both compared
- * signed - and +0x40 or +0x42 is brought along to match. Nothing happens at
- * all when the part is already at its limit; there is no clamp, just no step.
- *
- * The original holds the kind in SI, loaded by `part_key_shortcut` and, as the
- * note there says, never used by that routine itself - only by these two arms.
- * It is the part's own +4, so it is recomputed here rather than passed.
- */
-void carried_part_grow(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = &PART_KINDS[part->kind];
-
-    if ((int16_t)part->set_size.height
-            <= (int16_t)part->set_size.width
-        || part->kind == KIND_RAMP) {
-        if (kind->max_w
-                > (int16_t)part->set_size.width) {
-            part->set_size.width =
-                (uint16_t)(part->set_size.width + 0x10);
-            part->mirror_size.width = part->set_size.width;
-            carried_part_resized(part, kind);
-        }
-    } else {
-        if (kind->max_h
-                > (int16_t)part->set_size.height) {
-            part->set_size.height =
-                (uint16_t)(part->set_size.height + 0x10);
-            part->mirror_size.height = part->set_size.height;
-            carried_part_resized(part, kind);
-        }
-    }
-}
-
-/*
- * 0x10551
- *
- * **Shrink the part in your hand** - the `-` arm, scancodes 12 and 74, and the
- * mirror of `carried_part_grow` instruction for instruction: the same choice of
- * axis, the minimum at `cs:0x0eb6` and `cs:0x0eb8` instead of the maximum, the
- * comparison the other way round, and 0x10 subtracted rather than added.
- */
-void carried_part_shrink(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = &PART_KINDS[part->kind];
-
-    if ((int16_t)part->set_size.height
-            <= (int16_t)part->set_size.width
-        || part->kind == KIND_RAMP) {
-        if (kind->min_w
-                < (int16_t)part->set_size.width) {
-            part->set_size.width =
-                (uint16_t)(part->set_size.width - 0x10);
-            part->mirror_size.width = part->set_size.width;
-            carried_part_resized(part, kind);
-        }
-    } else {
-        if (kind->min_h
-                < (int16_t)part->set_size.height) {
-            part->set_size.height =
-                (uint16_t)(part->set_size.height - 0x10);
-            part->mirror_size.height = part->set_size.height;
-            carried_part_resized(part, kind);
-        }
-    }
-}
-
-/*
- * 0x0fe47
- *
- * Move whatever is in your hand, by kind. Tool 9's arm of the level loop.
- *
- * **+0x20 and +0x1e are set to -1 first**, both of them, before anything looks
- * at the kind. A carried part has no position until the mover gives it one,
- * and -1 is what the drawing code reads as "nowhere yet" - so a frame that
- * ends up not placing it leaves it off the board rather than at its old spot.
- */
-void move_carried(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-
-    part->pos[0].y = -1;
-    part->pos[0].x = -1;
-
-    if (part->kind == KIND_BELT)
-        move_carried_rope();
-    else if (part->kind == KIND_ROPE)
-        move_carried_belt();
-    else
-        move_carried_part();
-}
-
-/*
- * 0x101dc
- *
- * **Move an ordinary carried part** with the pointer - everything that is not
- * a rope or a belt - and put it down when the button goes down.
- *
- * The level's own opinion is asked first, through `part_key_shortcut`,
- * which does nothing at all on all but six levels.
- *
- * Then the position, and bit 8 of +0xa decides which of two quite different
- * ways: **free** placement follows the pointer exactly and is clamped into the
- * play area by 0xc at the near edges and 0x235 and 0x165 at the far ones;
- * **snapped** placement masks the pointer to a multiple of 16 and, if the part
- * would end up entirely off the near edge, nudges it back by one whole cell
- * rather than clamping. Both take the grab offset at 0x4e97 and 0x4e95 off
- * first, so the part stays held where it was picked up.
- *
- * `di` is whether the part's rope is *not* close enough to stay joined -
- * `neg/sbb/inc` around `rope_ends_close`, which is Borland's `== 0` - and it
- * is only consulted when the part is actually put down.
- *
- * Then +0xa again: bit 1 re-homes the part onto whatever it is near, bit 2
- * goes to break_second_attachment instead, and neither is tried if the other matched.
- *
- * The ending is three-way. Overlapping something sets the cursor colour at
- * 0x52c7 to 0xe and nothing else happens - you cannot drop a part inside
- * another. The button down commits: marks, then **a rope that has come too far
- * apart is untied and thrown away**, then +0x8c and +0x8e remember where the
- * part landed, it is re-filed, and the hand is emptied. Neither of those and
- * the colour is 0xc, meaning it would drop cleanly.
- *
- * `part_moved` runs on every frame the button is *not* down, which is to say
- * while it is still being dragged rather than when it lands.
- */
-void move_carried_part(void)
-{
-    struct part *part;
-    struct rope *si;
-    int16_t di;
-
-    part_key_shortcut();
-
-    part = PART_PTR(DG50D3.dragged_part_ptr);
-
-    if (part->flags_0a & 8) {
-        part->pos[0].x =
-            (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.drag_offset_x + ((uint16_t)DG4E67.origin_x));
-
-        if ((int16_t)(((uint16_t)part->pos[0].x)
-                      + ((uint16_t)part->size[0].width))
-            <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
-            part->pos[0].x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)part->size[0].width)
-                           + 12);
-
-        if ((int16_t)((uint16_t)part->pos[0].x)
-            >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
-            part->pos[0].x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
-
-        part->pos[0].y =
-            (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.drag_offset_y + ((uint16_t)DG4E67.origin_y));
-
-        if ((int16_t)(((uint16_t)part->pos[0].y)
-                      + ((uint16_t)part->size[0].height))
-            <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
-            part->pos[0].y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)part->size[0].height)
-                           + 12);
-
-        if ((int16_t)((uint16_t)part->pos[0].y)
-            >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
-            part->pos[0].y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
-    } else {
-        part->pos[0].x =
-            (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.drag_offset_x) & 0xfff0)
-                       + ((uint16_t)DG4E67.origin_x));
-        if ((int16_t)(((uint16_t)part->pos[0].x)
-                      + ((uint16_t)part->size[0].width))
-            <= (int16_t)((uint16_t)DG4E67.origin_x))
-            part->pos[0].x =
-                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
-
-        part->pos[0].y =
-            (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.drag_offset_y) & 0xfff0)
-                       + ((uint16_t)DG4E67.origin_y));
-        if ((int16_t)(((uint16_t)part->pos[0].y)
-                      + ((uint16_t)part->size[0].height))
-            <= (int16_t)((uint16_t)DG4E67.origin_y))
-            part->pos[0].y =
-                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
-    }
-
-    place_object_for_draw(part);
-    retension_pulleys(part);
-
-    si = ROPE_PTR(part->rope_ptr);
-    di = (si != ROPE_NONE) ? (int16_t)(rope_ends_close(si) == 0) : 0;
-
-    if (part->flags_0a & 1)
-        rehome_carried_part();
-    else if (part->flags_0a & 2)
-        break_second_attachment(part);
-
-    if (object_overlaps_any(part) != 0) {
-        DG52BD.drop_cursor = 0x0e;
-    } else if (DG5768.button_left == 2) {
-        mark_joined_shapes(part, 3);
-
-        if (di != 0) {
-            untie_rope(PART_PTR(si->owner_ptr));
-            discard_part(PART_PTR(si->owner_ptr));
-            DG4E67.redraw_e = 2;
-        }
-
-        mark_needs_refile(part, 2);
-        part->start_x = ((uint16_t)part->pos[0].x);
-        part->start_y = ((uint16_t)part->pos[0].y);
-        refile_part_list(part);
-        DG4E67.tool = 0;
-        DG50D3.dragged_part_ptr = 0;
-    } else {
-        DG52BD.drop_cursor = 0x0c;
-    }
-
-    if (DG5768.button_left != 2)
-        part_moved(part);
-}
-
-/*
- * 0x10410
- *
- * **The keyboard shortcuts for the part in your hand.** DGROUP 0x52f1 is the
- * last key, and six scancodes have a meaning here; every other key falls
- * straight out, which is what this routine does almost every frame.
- *
- * The table of six at CS:0x2650 is searched with a `loop` and a hit jumps
- * through the parallel table twelve bytes further on. Read as scancodes it is
- * obvious what they are:
- *
- *     45  X          flip the first end, if the part has one
- *     21  Y          flip the second end, if the part has one
- *     13  =   78  +  grow the part in your hand
- *     12  -   74  -  shrink it
- *
- * X and Y flipping the two axes is what identifies the table; as level
- * numbers - which is how this was first written up, because 0x52f1 was
- * mistaken for the level - 12, 13, 21, 45, 74 and 78 look like nothing at all.
- *
- * The two flip arms are here in full because they are five instructions each;
- * the resize pair are ~235 bytes apiece and have routines of their own.
- *
- * `si` is loaded with the part's kind at entry and never used. That is the
- * original's, not an omission.
- */
-void part_key_shortcut(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    static const uint16_t KEYS[6] = { 12, 13, 21, 45, 74, 78 };
-    uint16_t key = (DG52ED.last_key);
-    int32_t i;
-
-    for (i = 0; i < 6; i++)
-        if (KEYS[i] == key)
-            break;
-
-    if (i == 6)
-        return;
-
-    switch (KEYS[i]) {
-    case 45:
-        if (part->flags_06 & 0x400)
-            flip_carried_end_1();
-        return;
-    case 21:
-        if (part->flags_06 & 0x200)
-            flip_carried_end_2();
-        return;
-    case 13:
-    case 78:
-        carried_part_grow();
-        return;
-    case 12:
-    case 74:
-        carried_part_shrink();
-        return;
-    default:
-        return;
-    }
-}
-
-/*
- * 0x10658
- *
- * **Pick a placed part up** and start carrying it - tool 7's arm, taken when
- * the button goes down on a part's body.
- *
- * The grab offset is saved first: 0x4e97 and 0x4e95 are the pointer less the
- * part's own origin, so a part picked up by its corner stays held by its
- * corner however far the pointer then moves.
- *
- * `di` is the part's +0x54 and `si` **its +4, read only if +0x54 is not zero**.
- * `si` is used again at the end, and only on the branch where the part is a
- * rope - which is exactly when +0x54 is set - so the original's conditional
- * load is safe. It is initialised to 0 here because C says so; the original
- * would be carrying whatever SI held.
- *
- * The part is unmarked, then detached according to kind: a rope untied, a belt
- * detached with `how` 0 after stashing its far end's +0x5a at 0x5456, anything
- * else through detach_part_to_bin. A rope then has its link put back the other way
- * round - `di->+4 = si`, `si->+0x54 = di` - with bit 2 set in the far part's
- * +8 and +0x94 refreshed to match, so the rope is now held by the end you did
- * not grab.
- *
- * Tool 9 last, which is what makes everything else treat this as carried.
- */
-void pick_up_part(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    uint16_t si = 0, idx;
-    struct belt *rec;
-    struct part *di;
-
-    DG4E67.drag_offset_x = (uint16_t)(((uint16_t)DG5768.pointer_x)
-                               - ((uint16_t)part->pos[0].x)
-                               + ((uint16_t)DG4E67.origin_x));
-    DG4E67.drag_offset_y = (uint16_t)(((uint16_t)DG5768.pointer_y)
-                               - ((uint16_t)part->pos[0].y)
-                               + ((uint16_t)DG4E67.origin_y));
-
-    di = PART_PTR(part->rope_ptr);
-    if (di != PART_NONE)
-        si = di->kind;
-
-    mark_joined_shapes(part, 3);
-    mark_part_shapes(part, 3);
-
-    if (part->kind == KIND_BELT) {
-        untie_rope(part);
-    } else if (part->kind == KIND_ROPE) {
-        rec = BELT_PTR(part->belt_ptr[0]);
-        idx = ((int8_t)rec->slot_b);
-        DG5456.belt_far_end_ptr = PART_PTR(rec->end_b_ptr)->link_ptr[idx];
-        detach_belt(part, 0);
-    } else {
-        detach_part_to_bin(part);
-    }
-
-    if (part->kind == KIND_BELT) {
-        di->kind = si;
-        PART_PTR(si)->flags_08 |= 2;
-        PART_PTR(si)->start_flags = PART_PTR(si)->flags_08;
-        PART_PTR(si)->rope_ptr = dg_near(dgroup, di);
-    }
-
-    DG4E67.tool = 9;
-}
-
-/*
- * 0x10733
- *
- * **Throw away the part in hand**, whatever kind it is, and leave the player
- * holding nothing.
- *
- * Its shapes are unmarked first - `mark_joined_shapes` and `mark_part_shapes`
- * both with mode 3 - so nothing that was drawn for it is left claiming space.
- * Then three ways to go, on the kind at +4:
- *
- *   a rope, kind 8      untie it from both ends, then discard
- *   a belt, kind 0x0a   detach it with `how` 1, then discard
- *   anything else       detach_part_to_bin and finish_part_removal
- *
- * The two ends of the first two are why they need untying before discarding: a
- * rope or a belt is joined to parts that outlive it, and freeing the record
- * without breaking the joins leaves those parts pointing at it.
- *
- * It closes by setting 0x4e93 to 2 and the tool at 0x4e69 to 0 - the hand is
- * empty, so no tool is selected. Both are unconditional and outside the
- * branch, and are transcribed there.
- */
-void discard_carried_part(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-
-    mark_joined_shapes(part, 3);
-    mark_part_shapes(part, 3);
-
-    if (part->kind == KIND_BELT) {
-        untie_rope(part);
-        discard_part(part);
-    } else if (part->kind == KIND_ROPE) {
-        detach_belt(part, 1);
-        discard_part(part);
-    } else {
-        detach_part_to_bin(part);
-        finish_part_removal();
-    }
-
-    DG4E67.redraw_e = 2;
-    DG4E67.tool = 0;
-}
-
-/*
- * 0x107b6
- *
- * Flip the carried part's **first** end, for real - the arm the level loop
- * takes for tool 1 when the button has just gone down.
- *
- * The same flip hook `part_flip_options` uses to *test* an end, called once
- * with 1 and not undone, so this is the move rather than the trial. +0x94 is
- * refreshed from +8 afterwards for the same reason it is there: the hook
- * changes +8 and the two must not drift apart.
- */
-void flip_carried_end_1(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = &PART_KINDS[part->kind];
-
-    call_part_flip(kind->flip, part, 1);
-    part->start_flags = part->flags_08;
-}
-
-/*
- * 0x107e6
- *
- * The **second** end, and `flip_carried_end_1` with a 2 in it - tool 2's arm.
- * Kept as two routines because the original has two; they differ in one
- * immediate and nothing else.
- */
-void flip_carried_end_2(void)
-{
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind = &PART_KINDS[part->kind];
-
-    call_part_flip(kind->flip, part, 2);
-    part->start_flags = part->flags_08;
-}
-
-/*
- * 0x10816
- *
- * **Run one frame of a drag.** The level loop's arm for tools 3 to 6, and the
- * only place the four drag routines are called from.
- *
- * The top bit of 0x4e69 is what says a drag is in progress. Without it, this
- * does one thing: if the button has just gone down, set the bit and return -
- * so the frame that starts a drag does no dragging.
- *
- * With it, the low bits pick one of four through a jump table at CS:0x28f4,
- * indexed by `0x4e69 - 0x8003`, and anything outside 0..3 falls through with
- * nothing moved rather than being rejected:
- *
- *     0x8003  drag_carried_part_first     0x8005  drag_carried_part_pair
- *     0x8004  settle_carried_part_first   0x8006  settle_carried_part
- *
- * If the part moved, +0x42 and +0x40 take copies of +0x52 and +0x50 - the
- * position the *next* frame will treat as where it came from - and the part is
- * re-hooked, re-placed and marked three ways.
- *
- * The button being down **ends** the drag, clearing both the tool and the
- * carried part. That is not a mistake: 0x5774 is 2 only on the press edge, so
- * the drag runs while the button is up and the next press drops it.
- */
-void run_drag_frame(void)
-{
-    int16_t si = 0;
-    struct part *part;
-    struct part_kind *kind;
-
-    if ((DG4E67.tool & 0x8000) == 0) {
-        if (DG5768.button_left == 2)
-            DG4E67.tool |= 0x8000;
-        return;
-    }
-
-    switch ((uint16_t)(DG4E67.tool - 0x8003)) {
-    case 0: si = drag_carried_part_first();   break;
-    case 1: si = settle_carried_part_first(); break;
-    case 2: si = drag_carried_part_pair();    break;
-    case 3: si = settle_carried_part();       break;
-    default: break;
-    }
-
-    if (si != 0) {
-        part = PART_PTR(DG50D3.dragged_part_ptr);
-        kind = &PART_KINDS[part->kind];
-
-        part->mirror_size.height = part->set_size.height;
-        part->mirror_size.width = part->set_size.width;
-
-        call_part_hook(kind->settle, part, "settle");
-        place_object_for_draw(part);
-        mark_joined_shapes(part, 3);
-        mark_part_shapes(part, 3);
-        mark_needs_refile(part, 2);
-    }
-
-    if (DG5768.button_left == 2) {
-        DG4E67.tool = 0;
-        DG50D3.dragged_part_ptr = 0;
-    }
-}
-
-/*
- * 0x108ec
- *
- * Drag the carried part by its **first** pair - `drag_carried_part_pair`'s
- * sibling, on +0x1e and +0x50 rather than +0x20 and +0x52, driven by the other
- * pointer axis and clamped against the kind's other pair of bounds, +0x0c and
- * +0x10. It remembers into +0x8c where the other remembers into +0x8e.
- *
- * The four differ only in which words they touch; each is written out rather
- * than folded into one routine taking offsets, because that is how the
- * original has them and a table of offsets would be a different program that
- * happens to agree.
- */
-int16_t drag_carried_part_first(void)
-{
-    uint16_t moved;                    /* [bp-8] */
-    uint16_t hi;    /* [bp-6] */
-    uint16_t lo;    /* [bp-4] */
-    uint16_t was;    /* [bp-2] */
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = &PART_KINDS[part->kind];
-    int16_t  si, di;
-
-    moved = 0;
-    was = ((uint16_t)part->pos[0].x);
-
-    si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
-
-    lo = ((uint16_t)kind->min_w);
-    hi = ((uint16_t)kind->max_w);
-
-    di = (int16_t)(was - si + part->set_size.width);
-
-    if (di > (int16_t)hi) {
-        si = (int16_t)(si + (di - (int16_t)hi));
-        di = (int16_t)hi;
-    } else if (di < (int16_t)lo) {
-        si = (int16_t)(si - ((int16_t)lo - di));
-        di = (int16_t)lo;
-    }
-
-    if (was != (uint16_t)si) {
-        part->pos[0].x = (uint16_t)si;
-        part->set_size.width = (uint16_t)di;
-
-        for (;;) {
-            call_part_hook(kind->settle, part, "settle");
-            place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
-            if (object_overlaps_any(part) == 0)
-                break;
-            part->pos[0].x =
-                (uint16_t)(((uint16_t)part->pos[0].x) + 16);
-            part->set_size.width =
-                (uint16_t)(part->set_size.width - 0x10);
-        }
-
-        if (((uint16_t)part->pos[0].x) != was) {
-            part->start_x = ((uint16_t)part->pos[0].x);
-            moved = 1;
-        }
-    }
-
-    {
-        int16_t answer = (int16_t)moved;
-
-        return answer;
-    }
-}
-
-/*
- * 0x10a00
- *
- * Settle the carried part on its **first** axis - `settle_carried_part`'s
- * sibling, on +0x50 and +0x1e rather than +0x52 and +0x20, taking its target
- * from 0x5784 and 0x4ea3 and clamping against the kind's +0x0c and +0x10.
- *
- * The fourth and last of the drag family, and like the other three it lifts by
- * a whole row at a time until `object_overlaps_any` is satisfied, with the
- * first placement before the first test - a do-while, as written.
- */
-int16_t settle_carried_part_first(void)
-{
-    int16_t moved;                    /* [bp-6] */
-    int16_t hi;    /* [bp-4] */
-    int16_t lo;    /* [bp-2] */
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = &PART_KINDS[part->kind];
-    uint16_t was   = part->set_size.width;
-    int16_t  si;
-
-    moved = 0;
-
-    si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                   - ((uint16_t)part->pos[0].x));
-
-    lo = (int16_t)((uint16_t)kind->min_w);
-    hi = (int16_t)((uint16_t)kind->max_w);
-
-    if (si > (int16_t)hi)
-        si = (int16_t)hi;
-    else if (si < (int16_t)lo)
-        si = (int16_t)lo;
-
-    if (was != (uint16_t)si) {
-        part->set_size.width = (uint16_t)si;
-
-        for (;;) {
-            call_part_hook(kind->settle, part, "settle");
-            place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
-            if (object_overlaps_any(part) == 0)
-                break;
-            part->set_size.width =
-                (uint16_t)(part->set_size.width - 0x10);
-        }
-
-        if (part->set_size.width != was)
-            moved = 1;
-    }
-
-    {
-        int16_t answer = (int16_t)moved;
-        return answer;
-    }
-}
-
-/*
- * 0x10ada
- *
- * Drag the carried part **along its other axis**, and say whether it moved -
- * `settle_carried_part`'s twin, and not a mirror of it.
- *
- * Where that one moves +0x52 alone, this moves +0x20 and +0x52 **together and
- * in opposite directions**: the new +0x20 comes from the pointer, +0x52 is
- * derived from it as `was + pointer_delta`, and the settling loop adds 0x10 to
- * one while taking 0x10 off the other. The pair is a diagonal, which is what a
- * part with two ends slides along.
- *
- * The clamp is on +0x52 against the same kind bounds at +0x12 and +0x0e, and
- * the *overshoot is pushed back into +0x20* rather than discarded - `si +=
- * di - hi` - so the two stay consistent when the end is pinned.
- *
- * On success +0x8e takes a copy of the new +0x20, which the plain vertical
- * drag does not do.
- */
-int16_t drag_carried_part_pair(void)
-{
-    int16_t moved;                    /* [bp-8] */
-    int16_t hi;    /* [bp-6] */
-    int16_t lo;    /* [bp-4] */
-    int16_t was;    /* [bp-2] */
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part_kind *kind  = &PART_KINDS[part->kind];
-    int16_t  si, di;
-
-    moved = 0;
-    was = (int16_t)((uint16_t)part->pos[0].y);
-
-    si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
-
-    lo = (int16_t)((uint16_t)kind->min_h);
-    hi = (int16_t)((uint16_t)kind->max_h);
-
-    di = (int16_t)((uint16_t)was - si + part->set_size.height);
-
-    if (di > (int16_t)hi) {
-        si = (int16_t)(si + (di - (int16_t)hi));
-        di = (int16_t)hi;
-    } else if (di < (int16_t)lo) {
-        si = (int16_t)(si - ((int16_t)lo - di));
-        di = (int16_t)lo;
-    }
-
-    if ((uint16_t)was != (uint16_t)si) {
-        part->pos[0].y = (uint16_t)si;
-        part->set_size.height = (uint16_t)di;
-
-        for (;;) {
-            call_part_hook(kind->settle, part, "settle");
-            place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
-            if (object_overlaps_any(part) == 0)
-                break;
-            part->pos[0].y =
-                (uint16_t)(((uint16_t)part->pos[0].y) + 16);
-            part->set_size.height =
-                (uint16_t)(part->set_size.height - 0x10);
-        }
-
-        if (((uint16_t)part->pos[0].y) != (uint16_t)was) {
-            part->start_y = ((uint16_t)part->pos[0].y);
-            moved = 1;
-        }
-    }
-
-    {
-        int16_t answer = (int16_t)moved;
-        return answer;
-    }
-}
-
-/*
- * 0x10bee
- *
- * Drop the carried part onto something solid, and say whether it moved.
- *
- * Its y at +0x52 is first put where the pointer is - the pointer's row at
- * 0x5782 taken down to a multiple of 16, plus the play area's top at 0x4ea3
- * and one more row, less the part's own height at +0x20 - and then clamped
- * into the band its kind allows, +0x12 low and +0x0e high in the kind record.
- * The two are read through the usual `kind * 0x3a` stride.
- *
- * If that lands where it already was, nothing happens and the answer is 0.
- * Otherwise it settles: place it, ask `object_overlaps_any`, and while the
- * answer is yes lift it a whole row and ask again. The loop has no bound of
- * its own - it is the clamp above and the ceiling of the play area that end
- * it - and it is transcribed as the do-while the original writes, because the
- * first placement happens before the first test.
- *
- * Two of the three calls in the loop are per-kind hooks reached through far
- * pointers in the kind record, +0x32 and +0x2a, which C cannot call; they go
- * through `call_part_hook` and `call_part_setup` like every other one. For
- * every kind this game's early levels use, +0x32 is the do-nothing hook.
- *
- * The answer is whether the part ended up somewhere other than where it
- * started, which is not the same as whether the loop ran: a part lifted and
- * put back reports 0.
- */
-int16_t settle_carried_part(void)
-{
-    uint16_t moved;                    /* [bp-6] */
-    uint16_t hi;    /* [bp-4] */
-    uint16_t lo;    /* [bp-2] */
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    uint16_t was   = part->set_size.height;
-    struct part_kind *kind  = &PART_KINDS[part->kind];
-    int16_t  y;
-
-    moved = 0;
-
-    y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                  - ((uint16_t)part->pos[0].y));
-
-    lo = ((uint16_t)kind->min_h);
-    hi = ((uint16_t)kind->max_h);
-
-    if (y > (int16_t)hi)
-        y = (int16_t)hi;
-    else if (y < (int16_t)lo)
-        y = (int16_t)lo;
-
-    if ((uint16_t)y != was) {
-        part->set_size.height = (uint16_t)y;
-
-        for (;;) {
-            call_part_hook(kind->settle, part, "settle");
-            place_object_for_draw(part);
-            call_part_setup(kind->setup, part);
-            if (object_overlaps_any(part) == 0)
-                break;
-            part->set_size.height =
-                (uint16_t)(part->set_size.height - 0x10);
-        }
-
-        if (part->set_size.height != was)
-            moved = 1;
-    }
-
-    {
-        int16_t answer = (int16_t)moved;
-
-        return answer;
-    }
-}
-
-/* The parts bin's initial repeat delay, in loop iterations. Ours - see below. */
-#define BIN_REPEAT_DELAY 9
-
-/*
- * OURS: not a transcription, but a **deliberate deviation** chosen by the
- * project owner on 2026-09-06 - the only one in this file.
- *
- * The original has no initial repeat delay. `bin_scroll_back` and
- * `bin_scroll_forward` fire on call 0, 3, 6 ... of `game_screen_loop` with the
- * counter reset only on release, so a press begins repeating at once - read
- * instruction by instruction against 0x10cc8 and 0x10d37, which match.
- *
- * That is fine on the machine it was written for and not on this one. The
- * frame wait at `game_screen_loop` is a **minimum** - eight ticks of a 236.7 Hz
- * timer - and a 386 spent longer than that on the frame itself, so its loop ran
- * slower than the 29.6 iterations a second the port achieves. At the port's
- * rate an ordinary click of about 150 ms spans four iterations, which is enough
- * for the counter to come round to 3 and scroll a second page. Measured: one
- * click gave one page about 20% of the time.
- *
- * So the press still fires immediately, then nothing until the delay, then the
- * original's one-in-three.
- *
- * **The delay is ours, and it is twelve loop iterations - about 400 ms.**
- *
- * An earlier version of this took the 12 from DGROUP 0x2d40, the original's
- * own constant, and said so as if that gave it provenance. It does not.
- * `button_state` reloads its per-button countdown from that word and decrements
- * it once per call, and it is called from `timer_callback` - so its unit is a
- * **timer tick at 236.7 Hz**, where 12 is about 51 ms. Using the same number as
- * a count of *loop iterations* at 29.6 Hz stretches it eightfold. The two
- * quantities are not the same quantity, and borrowing the digits was dressing a
- * chosen number as a measured one.
- *
- * In its own units it would not work either: 51 ms expires part-way through an
- * ordinary 150 ms click, which is 4.4 iterations here, so the counter would
- * still come round and scroll again.
- *
- * Twelve iterations is therefore chosen, on the only grounds that hold - it
- * sits past a click and short of a deliberate hold - and is written here as a
- * constant of ours rather than read from a word that means something else.
- *
- * The test is `n % 3` and not `(n - BIN_REPEAT_DELAY) % 3`. The subtraction
- * was there to make the first repeat land exactly at the end of the delay
- * whatever the delay was, and with a delay that is a multiple of three - which
- * this one is, and which the constant above asks it to stay - the two are the
- * same expression. Arithmetic that can never change an answer is worse than
- * none: it reads as though it matters.
- */
-static int32_t bin_repeat_due(int16_t n)
-{
-    if (n == 0)
-        return 1;
-    if (n < BIN_REPEAT_DELAY)
-        return 0;
-    return (n % 3) == 0;
-}
-
-/*
- * 0x10cc8
- *
- * **Scroll the parts bin back**, held down.
- *
- * Let go - the button word at 0x5774 is neither 1 nor 2 - and it resets its
- * own repeat phase and hands the screen back to state 0x1000. Held, it moves
- * one page every *third* call: `[0x2632] % 3`, a signed divide by 3 whose
- * remainder is the test, with the counter incremented on every call whether it
- * scrolled or not. That is the auto-repeat, and three frames is its rate.
- *
- * A page back is `bin_part_at_index(-5)`. When that answers where the cursor
- * already is there is nothing before it, and the bin **wraps to the far end**
- * through `bin_scroll_end` rather than stopping. Both moves ask for a redraw
- * by putting 2 in 0x4e93; a move that changes nothing asks for none.
- *
- * 0x4e8b is set to 2 on every path, held or not.
- */
-void bin_scroll_back(void)
-{
-    uint16_t si;
-
-    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.back_held = 0;
-        DG4E67.state = 0x1000;
-        DG4E67.redraw_a = 2;
-        return;
-    }
-
-    if (bin_repeat_due(((int16_t)DG2630.back_held))) {   /* deviation: see above */
-        si = (uint16_t)bin_part_at_index(-5);
-        if (si != DG50D3.bin_list_ptr) {
-            DG50D3.bin_list_ptr = si;
-            DG4E67.redraw_e = 2;
-        } else {
-            si = bin_scroll_end();
-            if (si != DG50D3.bin_list_ptr) {
-                DG50D3.bin_list_ptr = si;
-                DG4E67.redraw_e = 2;
-            }
-        }
-    }
-
-    DG2630.back_held++;
-    DG4E67.redraw_a = 2;
-}
-
-/*
- * 0x10d37
- *
- * **Scroll the parts bin forward**, held down - `bin_scroll_back`'s twin, with
- * its own repeat counter at 0x2634 and the same one-page-in-three rate.
- *
- * The two are not mirror images at the end stop. Back wraps by asking
- * `bin_scroll_end` where the last page is; forward wraps by writing the list
- * head 0x50d7 straight into the cursor, because the head is a constant and the
- * end is not. Forward also does not compare against the old cursor first: a
- * step that answers something sets it, and a step that answers nothing wraps,
- * so 0x4e93 is asked for a redraw either way.
- */
-void bin_scroll_forward(void)
-{
-    uint16_t si;
-
-    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.forward_held = 0;
-        DG4E67.state = 0x1000;
-        DG4E67.redraw_a = 2;
-        return;
-    }
-
-    if (bin_repeat_due(((int16_t)DG2630.forward_held))) {   /* deviation: see above */
-        si = (uint16_t)bin_part_at_index(5);
-        if (si != 0)
-            DG50D3.bin_list_ptr = si;
-        else
-            DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
-        DG4E67.redraw_e = 2;
-    }
-
-    DG2630.forward_held++;
-    DG4E67.redraw_a = 2;
-}
-
-/*
- * 0x10da9
- *
- * The cursor over the **box above the parts bin** - the region at 576,0 to
- * 632,63, which is row 1 of the table and carries no action bit of its own.
- *
- * Two answers, and it changes the region's *bit* as well as its cursor. While
- * a part is being carried - tool 9 - it hands the cursor question straight to
- * `region_cursor_bin` below, the box beneath it, and sets +0x10 to 0x1000 so a
- * click here does what a click in the bin does. Otherwise the cursor is 0x1a
- * and the bit is 0x2000.
- *
- * So the box is not a fixed control: what it means depends on whether your
- * hand is full. A region's +0x10 is the bit `build_screen_regions` filed from
- * the table, and this is one of the places that rewrites it.
- *
- * The call is the near-to-far thunk - `push si / push cs / call` - so the
- * callee's `retf` finds a full far return; the `nop` between is the assembler
- * padding it, and `pop cx` is the caller clearing its argument.
- */
-void region_cursor_bin_above(struct region *region)
-{
-    if (DG4E67.tool == 9) {
-        region_cursor_bin(region);
-        region->code = 0x1000;
-        return;
-    }
-
-    region->cursor = 0x1a;
-    region->code = 0x2000;
-}
-
-/*
- * 0x10dc2
- *
- * **The parts bin's cursor** - the region at 576,100 to 632,144, row 4, whose
- * click handler is 0x10e14 alongside it.
- *
- * Carrying a part, tool 9, the cursor says what is in your hand, by the kind
- * at +4 of the part at DGROUP 0x50d5: a rope, kind 8, gets cursor 8; a belt,
- * kind 0x0a, gets 9; anything else 0. That is the same question
- * `cursor_for_tool` asks for its own ninth tool, asked again here rather than
- * shared, and the pointer is loaded once into DI instead of twice - the two
- * routines are not the same code and are not transcribed as if they were.
- *
- * Otherwise the cursor says whether there is anything here to pick up:
- * `bin_part_at_index` is asked for the region's own +4, and a record answers
- * cursor 2 while nothing answers 0.
- */
-void region_cursor_bin(struct region *region)
-{
-    if (DG4E67.tool == 9) {
-        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-
-        region->cursor =
-            (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
-        return;
-    }
-
-    region->cursor =
-        bin_part_at_index((int16_t)region->slot) != 0 ? 2 : 0;
-}
-
-/*
- * 0x10e14
- *
- * **Clicking the parts bin** - the click handler of the region whose cursor is
- * `region_cursor_bin`, filed at +0x16 of the same row.
- *
- * With a part already in hand it is a bin: the part is thrown away by
- * `discard_carried_part` and the tool is cleared. A rope or a belt sets 0x4e93
- * to 2 on the way, which the discard would set anyway - the original tests the
- * kind twice, here and inside, and both are transcribed.
- *
- * With an empty hand it is a source. `bin_part_at_index` is asked for the
- * region's own +4 and the record it answers is **dereferenced** - the part
- * taken is the one its +0 names, not the entry itself - and nothing there ends
- * the click.
- *
- * Then the interesting part, which is what freeform mode means for the bin.
- * When 0x4e67 is set the part is **cloned** rather than taken, so the bin
- * never empties, and the clone is spliced into the list right after the
- * original: `clone->next = part->next`, that node's `prev` set back to the
- * clone when there is one, `clone->prev = part`, `part->next = clone`.
- *
- * The memory check around it is worth reading slowly. 0x50d5 is set to **0**
- * before `check_room_for_part` and put back afterwards, so the part being
- * picked up is not counted against the room it needs, and the answer decides
- * whether the clone is kept or handed straight back to `free_part`. A refused
- * clone leaves the hand empty and the bin exactly as it was.
- *
- * Whatever ends up in hand, a non-zero 0x50d5 selects tool 9 - which is what
- * makes `cursor_for_tool` and `region_cursor_bin` start answering by kind.
- */
-void region_click_bin(struct region *region)
-{
-    struct part *saved;                /* [bp-2] */
-    struct part *part, *clone;
-
-    if (DG4E67.tool == 9) {
-        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-
-        if (kind == 8 || kind == 0x0a)
-            DG4E67.redraw_e = 2;
-
-        discard_carried_part();
-        DG4E67.tool = 0;
-        return;
-    }
-
-    DG4E67.drag_offset_y = 0;
-    DG4E67.drag_offset_x = 0;
-
-    part = PART_PTR(PART_PTR(bin_part_at_index(
-                     (int16_t)region->slot))->next_ptr);
-    DG50D3.dragged_part_ptr = dg_near(dgroup, part);
-
-    if (part == PART_NONE) {
-        return;
-    }
+    paint_panel_a(0);
+    paint_panel_b(0);
+    paint_panel_c(0);
+    paint_panel_d(0);
 
     if (DG4E67.freeform != 0) {
-        clone = clone_part(PART_PTR(DG50D3.dragged_part_ptr));
-        saved = PART_PTR(DG50D3.dragged_part_ptr);
-        DG50D3.dragged_part_ptr = 0;
-
-        if (check_room_for_part() != 0) {
-            DG50D3.dragged_part_ptr = dg_near(dgroup, saved);
-            clone->next_ptr = PART_PTR(DG50D3.dragged_part_ptr)->next_ptr;
-            if (clone->next_ptr != 0)
-                PART_PTR(clone->next_ptr)->prev_ptr = dg_near(dgroup, clone);
-            clone->prev_ptr = DG50D3.dragged_part_ptr;
-            PART_PTR(DG50D3.dragged_part_ptr)->next_ptr = dg_near(dgroup, clone);
-            DG50D3.dragged_part_ptr = dg_near(dgroup, clone);
-        } else {
-            free_part(clone);
-        }
-    }
-
-    if (DG50D3.dragged_part_ptr != 0) {
-        uint16_t kind;
-
-        DG4E67.tool = 9;
-        kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-        if (kind == 8 || kind == 0x0a)
-            DG4E67.redraw_e = 2;
-    }
-
-}
-
-/*
- * 0x10ef1
- *
- * **The playfield's cursor.** A region handler, of the same family as the five
- * at 0x34eb and after: it writes a cursor number into its region's own +0x0e,
- * which `regions_handle_pointer` reads a moment later.
- *
- * Named from the row that installs it rather than from what it does, as the
- * others here had to be. That row is
- *
- *     { 0x4e79, 0, 0x200, { 0x1000, 0, 0, 0, 0x27f, 0x16f, 0, 0x1000,
- *                           0x2f01, 0xdff, 0, 0 } }
- *
- * whose rectangle is 0..0x27f by 0..0x16f - the whole 640-wide picture down to
- * scan line 367, which is exactly where `vm_set_line_compare(0x16f)` splits
- * the screen. So the region is the play area entire, not a button in it, and
- * the cursor it asks for is the one the selected tool wants: the answer comes
- * straight from `cursor_for_tool` at 0x046d8 and is not looked at here.
- *
- * Unlike its five siblings this one has no condition of its own - they choose
- * between two cursors on a flag, and it delegates the whole question.
- */
-void region_cursor_playfield(struct region *region)
-{
-    region->cursor = (uint16_t)cursor_for_tool();
-}
-
-/*
- * 0x10f03
- *
- * **The game screen.** State 2 dispatches here, so this is the first screen a
- * round shows - the level briefing for round 1 - and it stays here, running
- * its own loop, until something sets the state to one it does not handle.
- *
- * It paints once on the way in, through `paint_game_screen(1)`, and then loops:
- * take the button state and a key, let the regions at DGROUP 0x4e77 see the
- * pointer, and dispatch on the state at 0x4e6b through a **jump table** at
- * CS:0x34bf - eleven single-bit states, 0x0020 through 0x8000, with the
- * handlers in a second table 0x16 bytes further on.
- *
- * State 2 is *not* in that table. The search runs off the end and falls to the
- * bottom of the loop, so the screen simply sits and presents itself, which is
- * what a briefing waiting for a click is.
- *
- * **The repaint counters are counts and not flags, and that is the double
- * buffer showing through.** `si` repaints the whole screen and the three at
- * [bp-0xa], [bp-0xc] and [bp-0xe] repaint one panel piece each; every one is
- * decremented by one per pass rather than cleared, so setting a counter to two
- * paints the same thing into both pages. A flag would paint it into whichever
- * page happened to be current and leave the other stale for a frame.
- *
- * The whole-screen repaint and the piecewise ones are exclusive - `or si,si`
- * takes the first branch - so a full repaint does not also run the three.
- *
- * Alt and V together put up a version box: `key_is_down` is asked for
- * scancodes 0x38 and 0x2f, and both being down shows it and asks for a full
- * repaint afterwards.
- *
- * The eleven handlers are stubs. Each is named for the state that reaches it,
- * because that is what is known about it; what each screen *is* is not, and
- * naming them for their addresses would lose even that.
- */
-void game_screen(void)
-{
-    /*
-     * **The original's `sub sp,0x16` is this routine's own locals**, and the
-     * port keeps them in `s` below rather than in DGROUP - so there was
-     * nothing left for the reservation to protect. It was kept on the reading
-     * that a callee's frame has to land *below* this one; that is true of a
-     * routine whose locals are the guest's, and this one's are not. Without
-     * it a callee's frame lands 0x18 higher, on bytes nothing reads.
-     */
-    struct screen_loop s = {0, 0, 0, 0, 0, 0, 0, 0};
-
-    reset_machine();
-    paint_game_screen(1);
-    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
-    show_cursor_again();
-
-    while (s.done == 0) {
-        update_button_state();
-
-        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        if ((DG52ED.last_key) == SC_TAB)
-            tab_move_pointer();
-
-        regions_handle_pointer(DG4E67.regions_panel_ptr);
-
-        if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
-            show_message_box(DG1BCC.version_number, (char *)DG1BCC.this_is_version);
-            s.repaint_all = 1;
-            DG4E67.state = 2;
-        }
-
-        switch (DG4E67.state) {
-        case 0x8000:
-            paint_panel_a(1);
-            present_back_page();
-            DG4E67.state = 0x1000;
-            s.done = 1;
-            break;
-        case 0x4000: screen_state_4000(&s); break;
-        case 0x2000: screen_state_2000(&s); break;
-        case 0x1000: screen_state_1000(&s); break;
-        case 0x0800: screen_state_0800(&s); break;
-        case 0x0400: screen_state_0400(&s); break;
-        case 0x0200: screen_state_0200(&s); break;
-        case 0x0100: screen_state_0100(&s); break;
-        case 0x0080: screen_state_0080(&s); break;
-        case 0x0040: screen_state_0040(&s); break;
-        case 0x0020: screen_state_0020(&s); break;
-        default:
-            /* State 2 among them: not in the table, so nothing runs. */
-            break;
-        }
-
-        if (s.repaint_all != 0) {
-            paint_game_screen(1);
-            s.repaint_all--;
-        } else {
-            if (s.repaint_e != 0) {
-                paint_panel_e();
-                s.repaint_e--;
-            }
-            if (s.repaint_f != 0) {
-                paint_panel_f();
-                s.repaint_f--;
-            }
-            if (s.repaint_g != 0) {
-                paint_panel_g();
-                s.repaint_g--;
-            }
-        }
-
-        present_frame(1);
-    }
-}
-
-/*
-0x0f8c2
- *
- * **The game screen's own loop** - where the game sits while a level is being
- * built and run, and the last piece between the briefing and playing.
- *
- * It is a loop on the same DGROUP 0x4e6b that `game_round` dispatches on, so a
- * screen leaves by *writing into that word* rather than by returning: it runs
- * while 0x4e6b is neither 0x2000 nor 2.
- *
- * One pass, in order: clear the two cursor hints to -1, take a key, update the
- * button, scroll the play area, step the counters, offer the key to the music
- * shortcut if this is freeform, let the regions see the pointer, run the bin's
- * arrows if a region asked for them, and then either the pointer frame - if
- * the pointer is in the play area - or the edge-scroll flags if it is not.
- *
- * `si` is the "was outside last frame" latch. It exists so that leaving the
- * play area with a part in hand re-marks that part exactly **once**, on the
- * frame the pointer crosses out, rather than every frame it stays out.
- *
- * **Five deferred redraws** follow, at 0x4e93 down to 0x4e8b, each a countdown
- * and a layer: a change asks for N frames of redraw and gets one a frame. Then
- * the machine is stepped and drawn, the selection decoration goes on if
- * something is selected, and the rubber-band line goes on if a mover asked for
- * one - 0x52c5 is its colour and -1 means no line.
- *
- * **The frame pacing is a spin on 0x44ef**, which the timer counts down: the
- * loop waits until eight have gone by, then reloads 0x2710 and presents. That
- * is the same counter the copy-protection screen reads its page number from,
- * and it is why the two clocks differ there.
- *
- * On the way out, a part still in hand with bit 0x800 in +6 is thrown away if
- * it is a rope or a belt that reached something, and otherwise handed to
- * finish_part_removal. A rope that never reached anything takes the second path, because
- * the kind test falls through to the belt test and then out.
- */
-void game_screen_loop(void)
-{
-    int16_t si = 0;
-    struct part *part;
-
-    reset_level_state();
-    TIMER.frame_budget = 0x2710;
-
-    while (DG4E67.state != 0x2000 && DG4E67.state != 2) {
-        DG52BD.band_colour = 0xffff;
-        DG52BD.drop_cursor = 0xffff;
-
-        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-
-        update_button_state();
-        scroll_play_area();
-        step_counters();
-
-        if (DG4E67.freeform != 0)
-            select_music_by_key();
-
-        regions_handle_pointer(DG4E67.regions_play_ptr);
-
-        if (DG4E67.state == 0x800)
-            bin_scroll_back();
-        else if (DG4E67.state == 0x400)
-            bin_scroll_forward();
-
-        if (point_in_play_area() != 0) {
-            pointer_frame();
-            si = 0;
-        } else {
-            if (DG50D3.dragged_part_ptr != 0 && si == 0) {
-                mark_joined_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
-                mark_part_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
-            }
-            edge_scroll_flags();
-            si = 1;
-        }
-
-        if (DG4E67.redraw_e != 0) { draw_machine_layer_a(); DG4E67.redraw_e--; }
-        if (DG4E67.redraw_d != 0) { draw_machine_layer_b(); DG4E67.redraw_d--; }
-        if (DG4E67.redraw_c != 0) { draw_machine_layer_c(); DG4E67.redraw_c--; }
-        if (DG4E67.redraw_b != 0) { draw_machine_layer_d(); DG4E67.redraw_b--; }
-        if (DG4E67.redraw_a != 0) { draw_machine_layer_e(); DG4E67.redraw_a--; }
-
-        mark_parts_in_dirty_rects();
-        replay_shapes();
-        step_and_draw_machine(0);
-
-        if (DG50D3.dragged_part_ptr != 0 && DG52BD.drop_cursor != -1)
-            draw_part_selection(PART_PTR(DG50D3.dragged_part_ptr), ((uint16_t)DG52BD.drop_cursor), 1);
-
-        if (DG52BD.band_colour != -1) {
-            cursor_redraw_off_thunk();
-            VMDS.second_colour = ((uint8_t)DG52BD.band_colour);
-            clip_and_draw_line(
-                (int16_t)(((uint16_t)DG52BD.anchor_x) - ((uint16_t)DG4E67.origin_x)),
-                (int16_t)(((uint16_t)DG52BD.anchor_y) - ((uint16_t)DG4E67.origin_y)),
-                (int16_t)(((uint16_t)DG52BD.band_x) - ((uint16_t)DG4E67.origin_x)),
-                (int16_t)(((uint16_t)DG52BD.band_y) - ((uint16_t)DG4E67.origin_y)));
-            restore_cursor_following();
-            alloc_shape((const uint8_t *)&DG52BD.anchor_x,
-                        (const uint8_t *)&DG52BD.band_x,
-                        4, 2, 0);
-        }
-
-        if (DG4E67.redraw_carried != 0) { draw_carried_icon(); DG4E67.redraw_carried--; }
-
-        seg172c_nothing();
-
-        while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
-            ;
-        TIMER.frame_budget = 0x2710;
-
-        present_frame(1);
-        shift_all_histories();
-
-        if (DG5768.button_right == 2)
-            DG4E67.state = 2;
-    }
-
-    part = PART_PTR(DG50D3.dragged_part_ptr);
-    if (part == PART_NONE || (part->flags_06 & 0x800) == 0)
-        return;
-
-    if (part->kind == KIND_BELT
-        && ROPE_PTR(part->rope_ptr)->end_a_ptr != 0) {
-        discard_carried_part();
-        return;
-    }
-
-    if (part->kind == KIND_ROPE
-        && ((uint16_t)BELT_PTR(part->belt_ptr[0])->end_a_ptr) != 0) {
-        discard_carried_part();
-        return;
-    }
-
-    finish_part_removal();
-}
-
-/*
- * 0x0faf9
- *
- * **Pick a tune from the keyboard.** DGROUP 0x52f1 is the last key the loop
- * read, *not* a level number, and this is a jump table on it at CS:0x1b8c -
- * the scancode less two, refusing anything past 0x2e.
- *
- * Read as scancodes the sixteen entries are exactly the number row and the
- * first seven letters:
- *
- *     1 2 3 4 5 6 7 8 9   ->  tunes 0x3e9 .. 0x3f1
- *     A B C D E F G       ->  tunes 0x3f2 .. 0x3f8
- *
- * which is why the table looked like an arbitrary jumble of levels - 2..10,
- * then 30, 48, 46, 32, 18, 33, 34 - when read as anything else. The remaining
- * thirty-one entries all point at the arm that loads -1.
- *
- * `game_screen_loop` only calls this when 0x4e67 is set, so the shortcut is a
- * freeform-mode feature and not a cheat that works everywhere.
- *
- * -1 means silence and returns without touching anything. Otherwise the tune
- * is remembered at 0x50bb - which is where `game_round` reads it from when it
- * restarts the music - and started.
- */
-void select_music_by_key(void)
-{
-    static const struct { uint8_t key; int16_t tune; } TUNES[] = {
-        {  2, 0x3e9 }, {  3, 0x3ea }, {  4, 0x3eb }, {  5, 0x3ec },
-        {  6, 0x3ed }, {  7, 0x3ee }, {  8, 0x3ef }, {  9, 0x3f0 },
-        { 10, 0x3f1 }, { 30, 0x3f2 }, { 48, 0x3f3 }, { 46, 0x3f4 },
-        { 32, 0x3f5 }, { 18, 0x3f6 }, { 33, 0x3f7 }, { 34, 0x3f8 },
-    };
-    uint16_t key = (DG52ED.last_key);
-    int16_t si = -1;
-    uint16_t i;
-
-    if ((uint16_t)(key - 2) <= 0x2e) {
-        for (i = 0; i < sizeof TUNES / sizeof TUNES[0]; i++)
-            if (TUNES[i].key == key) {
-                si = TUNES[i].tune;
-                break;
-            }
-    }
-
-    if (si == -1)
-        return;
-
-    DG50AF.tune = si;
-    select_music(DG50AF.tune);
-}
-
-/*
- * 0x0fbda
- *
- * Put the level back to the state it starts in: no tool selected, nothing in
- * hand, and the eight words from 0x4e69 and 0x4e87 through 0x4e93 cleared.
- *
- * Those seven at 0x4e87 upward are the loop's **deferred redraw counters** -
- * the ones `game_screen_loop` decrements a frame at a time - so clearing them is
- * cancelling every redraw that was still owed, which is right because the
- * three calls after it redraw everything anyway.
- */
-void reset_level_state(void)
-{
-    DG4E67.tool = 0;
-    DG4E67.loop_frames = 0;
-    DG4E67.redraw_carried = 0;
-    DG4E67.redraw_a = 0;
-    DG4E67.redraw_b = 0;
-    DG4E67.redraw_c = 0;
-    DG4E67.redraw_d = 0;
-    DG4E67.redraw_e = 0;
-    DG50D3.dragged_part_ptr = 0;
-
-    clear_layer_heads();
-    reset_machine();
-    redraw_machine_area();
-}
-
-/*
- * 0x0fd02
- *
- * **Carrying a part off the edge of the play area asks for a redraw.**
- *
- * Only while a part is in hand - tool 9 with something at 0x50d5 - and only
- * for a part that is neither a rope nor a belt, because those two are drawn
- * from their endpoints and do not hang off the pointer.
- *
- * 0x4e89 is set to 1 unconditionally, and then each edge the pointer has gone
- * past sets its own counter to 3: above 8 or below 0x12f in 0x5782, left of 8
- * or right of 0x1ff in 0x5784. The right edge sets two of them, 0x4e93 as well
- * as 0x4e8b.
- *
- * Three, not one, because these are the countdowns `game_screen_loop` works through a
- * frame at a time - the strip has to be repainted for three frames, not
- * redrawn once.
- */
-void edge_scroll_flags(void)
-{
-    uint16_t kind;
-
-    if (DG4E67.tool != 9 || DG50D3.dragged_part_ptr == 0)
-        return;
-
-    kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-    if (kind == 8 || kind == 0x0a)
-        return;
-
-    DG4E67.redraw_carried = 1;
-
-    if (DG5768.pointer_y < 8)
-        DG4E67.redraw_d = 3;
-    if (DG5768.pointer_y > 0x12f)
-        DG4E67.redraw_c = 3;
-    if (DG5768.pointer_x < 8)
-        DG4E67.redraw_b = 3;
-    if (DG5768.pointer_x > 0x1ff) {
-        DG4E67.redraw_e = 3;
-        DG4E67.redraw_a = 3;
-    }
-}
-
-/*
- * 0x0fe84
- *
- * Move a carried **rope** with the pointer, and drop it when the button goes
- * down.
- *
- * Two halves. With the button down, `rope_ends_close` decides what happens:
- * ends too far apart and the rope is thrown away, but only if it had a far
- * part - `di` non-zero - because a rope attached to nothing has nothing to
- * come apart. Close enough, and `find_part_from(0)` is asked what is under the
- * pointer and the rope is joined to it: bit 2 into that part's +8, +0x94
- * refreshed, and the link's **+6 or +4** set depending on whether the far end
- * was already taken. Then the endpoints are recomputed, the rope re-filed, and
- * both the tool and the carried part cleared.
- *
- * With the button up it is only preview: 0x52c1 and 0x52c3 take the far part's
- * anchor - its +0x1e and +0x20 plus the bytes at +0x56 and +0x57 - and 0x52bd
- * and 0x52bf take the pointer in play-area coordinates, so something else can
- * draw the rubber-band line. 0x52c5 is the colour, 0xa when the ends are close
- * enough to join and 0xc when they are not.
- */
-void move_carried_rope(void)
-{
-    struct rope *link = ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr);
-    struct part *di = PART_PTR(link->end_a_ptr);
-    int16_t close = rope_ends_close(link);
-    struct part *si;
-
-    if (DG5768.button_left == 2) {
-        if (close == 0) {
-            if (di != PART_NONE)
-                discard_carried_part();
-            return;
-        }
-
-        si = find_part_from(PART_NONE);
-
-        if (di != PART_NONE) {
-            si->flags_08 |= 2;
-            si->start_flags = si->flags_08;
-            link->end_b_ptr = dg_near(dgroup, si);
-            si->rope_ptr = dg_near(dgroup, link);
-
-            compute_link_endpoints(link);
-            mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
-            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
-            DG4E67.tool = 0;
-            DG50D3.dragged_part_ptr = 0;
-            return;
-        }
-
-        si->flags_08 |= 2;
-        si->start_flags = si->flags_08;
-        link->end_a_ptr = dg_near(dgroup, si);
-        si->rope_ptr = dg_near(dgroup, link);
-        return;
-    }
-
-    if (di == PART_NONE)
-        return;
-
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)di->pos[0].x)
-                               + di->grab.x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)di->pos[0].y)
-                               + di->grab.y);
-    DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
-    DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
-
-    DG52BD.band_colour = (close != 0) ? 0x0a : 0x0c;
-}
-
-/*
- * 0x0ff80
- *
- * Move a carried **belt** with the pointer, attach it when the button goes
- * down, and preview it when the button is up.
- *
- * `find_belt_anchor` says what is under the pointer and which of its ends;
- * 0x2630 remembers that between frames. Two anchors are refused outright: the
- * one already at the belt's other end (0x5456) and the far part it is already
- * joined to, and both only when there *is* a far part - so the first end can
- * legally land on anything.
- *
- * With the button down and no anchor, a belt that already had a far part is
- * thrown away and one that did not is simply left alone.
- *
- * **The two ends are not symmetric.** The first end - no far part yet - just
- * records itself in the anchor's +0x66 pair and in the link's +2, +6, +0xa and
- * +0xc, and refuses a pulley outright. The second end does the geometry: a
- * pulley anchor takes the belt in its single socket at +0x5a and +0x5e, any
- * other part takes it at the end named by the link's +0xa **and again two
- * slots further on**, then the link is re-measured and the whole thing
- * re-filed and let go of. A pulley on the far side is passed to aim_link_at_bisector
- * either way.
- *
- * Button up is preview only, and it changes the machine anyway when the far
- * end is a pulley: aim_link_at_bisector and three marks, before working out the line to
- * draw. 0x52c1 and 0x52c3 are the anchor point, 0x52bd and 0x52bf the pointer
- * in play-area coordinates, 0x52c5 the colour - 0xa where it would attach and
- * 0xc where it would not.
- */
-void move_carried_belt(void)
-{
-    struct part *far_;                /* [bp-4] */
-    int16_t end;     /* [bp-2] */
-    struct belt *si = BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0]);
-    struct part *di;
-    uint16_t idx;
-
-    far_ = PART_PTR(si->end_a_ptr);
-
-    di = find_belt_anchor(&end, PART_PTR(DG2630.belt_anchor_ptr));
-
-    if (di == PART_PTR(DG5456.belt_far_end_ptr) && far_ != PART_NONE)
-        di = PART_NONE;
-    else if (di == far_ && far_ != PART_NONE)
-        di = PART_NONE;
-
-    DG2630.belt_anchor_ptr = dg_near(dgroup, di);
-
-    if (DG5768.button_left == 2) {
-        if (di == PART_NONE) {
-            if (far_ != PART_NONE)
-                discard_carried_part();
-            return;
-        }
-
-        if (far_ == PART_NONE) {
-            if (di->kind != KIND_PULLEY) {
-                di->belt_ptr[(uint16_t)end] = dg_near(dgroup, si);
-                si->end_a_ptr = dg_near(dgroup, di);
-                si->home_a_ptr = dg_near(dgroup, di);
-                si->slot_a = (uint8_t)(uint16_t)end;
-                si->home_slot_a = (uint8_t)(uint16_t)end;
-                DG5456.belt_far_end_ptr = dg_near(dgroup, di);
-            }
-            return;
-        }
-
-        if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
-            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[0] = dg_near(dgroup, di);
-            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[2] = dg_near(dgroup, di);
-            mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-            mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-            mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
-        } else {
-            idx = si->slot_a;
-            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx] = dg_near(dgroup, di);
-            PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[idx + 2] = dg_near(dgroup, di);
-        }
-
-        refresh_link_geometry(si);
-        mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
-
-        if (di->kind == KIND_PULLEY) {
-            di->link_ptr[1] = DG5456.belt_far_end_ptr;
-            di->link_ptr[3] = DG5456.belt_far_end_ptr;
-            di->belt_ptr[1] = dg_near(dgroup, si);
-            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
-                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-            DG5456.belt_far_end_ptr = dg_near(dgroup, di);
-        } else {
-            di->link_ptr[(uint16_t)end] = DG5456.belt_far_end_ptr;
-            di->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end_ptr;
-            di->belt_ptr[(uint16_t)end] = dg_near(dgroup, si);
-            si->end_b_ptr = dg_near(dgroup, di);
-            si->home_b_ptr = dg_near(dgroup, di);
-            si->slot_b = (uint8_t)(uint16_t)end;
-            si->home_slot_b = (uint8_t)(uint16_t)end;
-            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
-                aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
-            DG4E67.tool = 0;
-            DG50D3.dragged_part_ptr = 0;
-        }
-        return;
-    }
-
-    if (far_ == PART_NONE) {
-        return;
-    }
-
-    if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
-        end = 1;
-        aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-        mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-        mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-        mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
+        paint_panel_free_a(0);
+        paint_panel_free_b(0);
     } else {
-        end = (int16_t)si->slot_a;
+        paint_panel_level(0);
     }
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].x)
-                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end_ptr)->pos[0].y)
-                    + PART_PTR(DG5456.belt_far_end_ptr)->attach[(uint16_t)end].y);
-    DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
-    DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
+    paint_panel_e();
+    paint_panel_f();
+    paint_panel_g();
 
-    DG52BD.band_colour = (di != PART_NONE) ? 0x0a : 0x0c;
+    cursor_redraw_off_thunk();
+    set = DG52ED.panel_art_ptr;
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x53, 0x42, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x64, 0xb2, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x4]), 0x5b, 0xfe, 0);
+    restore_cursor_following();
+
+    select_music(DG50AF.tune);
+
+    if (present != 0)
+        present_back_page();
+
+    restore_cursor();
 }
 
 /*
- * 0x0fc0e
+ * 0x1175c
  *
- * **One frame of whatever the pointer is doing to a part** - the level loop's
- * pointer half, and the routine that turns a position into a tool.
+ * **Draw the machine's parts into the play area**, which is the last thing the
+ * title bar's painter does and the thing that puts the level's contents on the
+ * screen.
  *
- * `si` is set when the hand is already busy: tool 9, or any tool with the top
- * bit, which is a drag in progress. Only when it is *not* busy does this look
- * for something new - `find_part_from` on the currently carried part, with a
- * part whose +6 has bit 0x8000 refused - and only then does
- * `part_handle_at_pointer` choose a tool from where the pointer is.
+ * The scale comes from the level's own origin: the *larger* of 0x50b7 and
+ * 0x50b9 plus 0x230, divided into 4 as a 32-bit division. Both are -8 for a
+ * fresh level, so the divisor is 0x228 and the result is 0 - but the code
+ * takes the larger and divides, and a level with a different origin would get
+ * a different answer.
  *
- * So a drag keeps its tool for as long as it lasts, and a fresh pointer picks
- * one every frame. Nothing under the pointer clears the tool and returns.
+ * Then every part in the buckets is linked in and drawn: `pick_by_flag` with
+ * 0x3000 answers the first, `pick_for_record` with 0x1000 walks on from it,
+ * and each is passed to `link_record_into_buckets` on the way. The loop ends
+ * when the walk answers zero - and it is a `while` whose test is the *result*
+ * of the walk, so a machine with no parts draws nothing and does not fault.
  *
- * 0x52c7 is set to 0xa on every frame the hand is not already carrying, which
- * is the plain cursor; the movers overwrite it with 0xe or 0xc when they have
- * an opinion about dropping.
+ * `draw_machine` is then given the scale and 0x200, and the clip is put back
+ * to the play area.
  *
- * The tool then picks an arm through a jump table at CS:0x1cfe, on the tool
- * less one with the top bit stripped, and **anything outside 1 to 10 falls
- * through doing nothing**. Four of the ten act only on the press edge, three
- * act every frame, and tool 10's whole body is to let go of the part.
+ * **The scale is 0x40000 divided by the extent**, which is 1024 units per
+ * pixel over a 256-pixel panel - not the extent divided by 4. The two long
+ * arguments at 0x1179a are pushed the way Borland pushes a long, high word
+ * first, so `mov ax, 4 / xor dx, dx / push ax / push dx` puts 0x0004_0000 on
+ * the stack and it is the *dividend*. Reading it as a divisor of 4 gave 138
+ * where the original gives 474, and a machine drawn at a third of its size
+ * scaled every part's position off the panel - which is how it was caught: the
+ * blitter's row buffer overran into DGROUP 0x124 and the part walk there never
+ * terminated.
+ *
+ * The two locals stepped by two - 0x100 and 0xa0 becoming 0x102 and 0xa2 - are
+ * computed and never read. Transcribed as the dead stores they are.
  */
-void pointer_frame(void)
+void paint_panel_frame_rest(void)
 {
-    uint16_t si;
+    int16_t  extent;
+    int16_t  scale;
+    struct part *rec;
 
-    si = (DG4E67.tool == 9 || (DG4E67.tool & 0x8000)) ? 1 : 0;
+    VMDS.clip_enabled = 1;
+    set_clip_for_mode();
 
-    if (si == 0) {
-        DG50D3.dragged_part_ptr = dg_near(dgroup, find_part_from(PART_PTR(DG50D3.dragged_part_ptr)));
-        if (DG50D3.dragged_part_ptr != 0
-            && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000))
-            DG50D3.dragged_part_ptr = 0;
+    extent = (DG50AF.extent_y > DG50AF.extent_x) ? DG50AF.extent_y : DG50AF.extent_x;
+    extent = (int16_t)(extent + 0x230);
+
+    scale = (int16_t)long_divide(0x40000, (int32_t)extent);
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+
+    rec = pick_by_flag(0x3000);
+    while (rec != PART_NONE) {
+        link_record_into_buckets(rec);
+        rec = pick_for_record(rec, 0x1000);
     }
 
-    if (DG50D3.dragged_part_ptr == 0) {
-        DG4E67.tool = 0;
-        return;
-    }
+    draw_machine(scale, 0x200);
 
-    if (DG4E67.tool != 9)
-        DG52BD.drop_cursor = 0x0a;
-
-    if (si == 0)
-        DG4E67.tool = part_handle_at_pointer(PART_PTR(DG50D3.dragged_part_ptr));
-
-    switch ((uint16_t)((DG4E67.tool & 0x7fff) - 1)) {
-    case 0:                                     /* tool 1 */
-        if (DG5768.button_left == 2)
-            flip_carried_end_1();
-        return;
-    case 1:                                     /* tool 2 */
-        if (DG5768.button_left == 2)
-            flip_carried_end_2();
-        return;
-    case 2: case 3: case 4: case 5:             /* tools 3 to 6 */
-        run_drag_frame();
-        return;
-    case 6:                                     /* tool 7 */
-        if (DG5768.button_left == 2)
-            pick_up_part();
-        return;
-    case 7:                                     /* tool 8 */
-        if (DG5768.button_left == 2)
-            discard_carried_part();
-        return;
-    case 8:                                     /* tool 9 */
-        move_carried();
-        return;
-    case 9:                                     /* tool 10 */
-        if (DG5768.button_left == 2)
-            DG50D3.dragged_part_ptr = 0;
-        return;
-    default:
-        return;
-    }
+    set_clip_play_area();
 }
 
 /*
- * 0x0fd65
+ * 0x117ed
  *
- * **Scroll the play area** when the pointer is against an edge, and re-file
- * everything in it if it moved.
+ * **The title bar and the hint box** - the two pieces of text across the top
+ * of the game screen, and the first thing `paint_game_screen` draws over the
+ * cleared play area.
  *
- * The current origins at 0x4ea3 and 0x4ea1 are first copied down to 0x4e9b and
- * 0x4e99, which is where `draw_carried_icon` reads the *previous* position
- * from - so this is also what makes an icon's backdrop restorable after a
- * scroll.
+ * The title is built in a 0x80-byte buffer and depends on the mode at DGROUP
+ * 0x4e67. Free play gets "FREEFORM MODE" and nothing else. A level gets
+ * "PUZZLE ", the round number from 0x4ebd, the separator at 0x2837, and then
+ * the level's own title from **0x4ecf** - which `read_level` filled in from the
+ * file. So "PUZZLE 1: TUTORIAL: PUT THE BALL IN THE HOOP" is three pieces from
+ * three places, and only the middle one is a number.
  *
- * Then four edges, each a pair of tests: the pointer at or past the edge, and
- * the origin not already at its stop. Left stops at -8 and top at -8; right
- * and bottom stop at 0x50b7 and 0x50b9, which is where the level's own extent
- * is kept. A step is 0x10 either way. **Both axes can move in one call** - the
- * flag is shared and the two offsets are independent - so a pointer held in a
- * corner scrolls diagonally.
+ * Then the drawing: a bar at (0x20, 0x20) 0x220 by 0x158 through 0x14de:0x000c,
+ * a filled area at (0x110, 0x48) in the colour at 0x52cb, the title centred on
+ * a scroll at (0x3c, 0x27) 0x1bc wide, and a panel at (0x110, 0xff).
  *
- * Nothing is written back unless something moved. When it did, every part is
- * walked - `pick_by_flag(0x3000)` then `pick_for_record(si, 0x1000)` - and
- * each one that does not have bit 0x2000 in +8 is marked for re-filing and its
- * shapes re-marked. The parts do not move; the window over them does, so what
- * was drawn where is no longer true.
- *
- * The origins are stored **after** that walk, not before, so the marking sees
- * the old position.
+ * The hint below it comes from the same fork: free play gets the fixed string
+ * at 0x22c0 about creating any machine you wish, and a level gets **0x4f1f**,
+ * the hint `read_level` read out of the file - which for level one is "Make the
+ * basketball go through the hoop." Both are drawn into the same box at
+ * (0x114, 0x104) 0xf8 by 0x44, so the two paths differ only in the string.
  */
-void scroll_play_area(void)
+void paint_panel_frame(void)
 {
-    uint16_t di, y, moved = 0;
-    struct part *si;
+    char title[120];
+    char digits[8];
 
-    DG4E67.origin_c_x = ((uint16_t)DG4E67.origin_b_x);
-    DG4E67.origin_c_y = ((uint16_t)DG4E67.origin_b_y);
-    DG4E67.origin_b_x = ((uint16_t)DG4E67.origin_x);
-    DG4E67.origin_b_y = ((uint16_t)DG4E67.origin_y);
-
-    di = ((uint16_t)DG4E67.origin_x);
-    y = ((uint16_t)DG4E67.origin_y);
-
-    if ((int16_t)((uint16_t)DG5768.pointer_x) <= 0 && DG4E67.origin_x != -8) {
-        moved = 1;
-        di = (uint16_t)(di - 0x10);
-    }
-    if ((int16_t)((uint16_t)DG5768.pointer_x) >= 0x27f && ((uint16_t)DG4E67.origin_x) != ((uint16_t)DG50AF.extent_y)) {
-        moved = 1;
-        di = (uint16_t)(di + 0x10);
-    }
-    if ((int16_t)((uint16_t)DG5768.pointer_y) <= 0 && DG4E67.origin_y != -8) {
-        moved = 1;
-        y = (uint16_t)(y - 0x10);
-    }
-    if ((int16_t)((uint16_t)DG5768.pointer_y) >= 0x16f && ((uint16_t)DG4E67.origin_y) != ((uint16_t)DG50AF.extent_x)) {
-        moved = 1;
-        y = (uint16_t)(y + 0x10);
+    if (DG4E67.freeform != 0) {
+        string_copy(title, DG1BCC.freeform_mode_title);
+    } else {
+        string_copy(title, DG1BCC.puzzle_prefix);
+        int_to_string(DG4E67.round_number, digits, 10);
+        string_concat(title, digits);
+        string_concat(title, GAME_LEVEL_STRINGS.title_sep);
+        string_concat(title, (const char *)DG4E67.title);
     }
 
-    if (moved == 0)
-        return;
+    set_clip_play_area();
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    si = pick_by_flag(0x3000);
-    while (si != PART_NONE) {
-        if ((si->flags_08 & 0x2000) == 0) {
-            mark_needs_refile(si, 2);
-            mark_part_shapes(si, 3);
-        }
-        si = pick_for_record(si, 0x1000);
-    }
+    draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
+    fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
 
-    DG4E67.origin_x = di;
-    DG4E67.origin_y = y;
+    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
+    draw_panel(0x110, 0xff, 0x100, 0x4c);
+
+    if (DG4E67.freeform != 0)
+        draw_wrapped_text((char *)DG1BCC.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
+    else
+        draw_wrapped_text((char *)DG4E67.hint, 0x114, 0x104, 0xf8, 0x44);
+
+    paint_panel_frame_rest();
 }
 
 /*
- * 0x1295f
+ * 0x1190d
  *
- * **Is this file one of ours?** It opens the name, reads one word, and answers
- * whether that word is **0xaced** - the machine file's magic, and the only
- * check made before the loader is trusted with the rest.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x20 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x3a,0x5b.
  *
- * Both exits close the file, and the failure exit closes it *even when the open
- * failed*, handing `fclose` the zero it just tested. That is what the original
- * does; the runtime's `fclose` looks the pointer up rather than following it,
- * so it is a wasted call rather than a fault.
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-uint16_t is_machine_file(char *name)
+void paint_panel_a(uint16_t frame)
 {
-    int16_t magic;                /* [bp-2] */
-    FILE *file;
-    uint16_t ok    = 0;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file);
-
-    if (file != 0) {
-        game_fread_far(file, (uint8_t *)&magic);
-        if ((uint16_t)magic == 0xaced)
-            ok = 1;
-    }
-
-    game_fclose(file);
-    return ok;
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x10]),
+                0x3a, 0x5b, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x12a2f
+ * 0x11943
  *
- * **A puzzle's title, out of its own level file.** The name is built rather
- * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
- * there is no table anywhere saying so.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x24 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xd8,0x60.
  *
- * The file is checked with the same 0xaced `is_machine_file` looks for, and
- * then **one word is read and thrown away** before the title. Nothing here says
- * what it is; the title is what follows it.
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
  *
- * A missing file, or a wrong magic, answers 0 - which is what stops the list
- * drawer, so the number of puzzles is however many files are actually there.
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-uint16_t get_puzzle_title(int16_t n, char *buf)
+void paint_panel_b(uint16_t frame)
 {
-    char name[14];                 /* [bp-0x1a] */
-    char num[8]; /* [bp-0x0c] */
-    uint8_t skip[2]; /* [bp-4]    */
-    int16_t magic; /* [bp-2]   */
-    FILE *file;
-    uint16_t ok = 0;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    string_copy(name, GAME_FILE_NAMES.l_puzzle_title);
-    int_to_string(n, num, 10);
-    string_concat(name, num);
-    string_concat(name, GAME_FILE_NAMES.lev_puzzle_title);
-
-    file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title);
-
-    if (file != 0) {
-        game_fread_far(file, (uint8_t *)&magic);
-
-        if ((uint16_t)magic != 0xaced) {
-            game_fclose(file);
-        } else {
-            game_fread_far(file, skip);
-            game_fread_string(file, buf);
-            game_fclose(file);
-            ok = 1;
-        }
-    }
-    return ok;
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x12]),
+                0xd8, 0x60, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x12ad0
+ * 0x11979
  *
- * **A password into a level number**, by finding it in `password.txt`.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x3e / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xbc,0x5c.
  *
- * The text is upper-cased in place first, and then **cut at the first `-`** -
- * a NUL is written over it - so a code of the form `WORD-SCORE` matches on the
- * word alone. The dash is put back before the routine answers, because the same
- * buffer is about to be handed to the score decoder, which wants the half this
- * one just hid.
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
  *
- * The line counter starts at **1 and is incremented before the comparison**, so
- * a match on the file's first line answers 2. Whether that is deliberate or an
- * off-by-one cannot be told from here - it is consistent, so a password file
- * written to suit it works.
- *
- * The loop cannot tell a blank line from the end of the file, because
- * `game_fread_line` reports both as an empty buffer.
- *
- * Not found is 0xffff, and a file that will not open leaves it at that without
- * reading anything.
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-uint16_t password_to_level(char *text)
+void paint_panel_c(uint16_t frame)
 {
-    char line[26];                    /* [bp-0x1a] */
-    char *dash;
-    FILE *file;
-    int16_t  n      = 1;                    /* [bp-4] */
-    int16_t  answer = -1;                   /* [bp-2] */
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    string_upper(text);
-
-    dash = string_chr(text, '-');
-    if (dash != NULL)
-        *dash = 0;
-
-    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, GAME_FILE_NAMES.rb_password_level);
-
-    if (file != 0) {
-        game_fread_line(file, line);
-
-        while ((*line) != 0) {
-            n++;
-
-            if (string_compare_nocase(text, line) == 0)
-                answer = n;
-
-            game_fread_line(file, line);
-        }
-
-        game_fclose(file);
-    }
-
-    if (dash != NULL)
-        *dash = '-';
-    return (uint16_t)answer;
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1f]),
+                0xbc, 0x5c, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x12bed
+ * 0x119af
  *
- * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
- * it is two words: the furthest level reached at DGROUP 0x4eb7 and the sound
- * level at 0x4ec1. Nothing else survives quitting.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x52 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x6d,0x85.
  *
- * It writes them with `write_word`, the same routine the machine files use, so
- * the file's four bytes are in the same byte order as everything else the game
- * writes. A failed open is silently nothing - the settings just do not persist.
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-void write_config(void)
+void paint_panel_d(uint16_t frame)
 {
-    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg);
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    if (file != 0) {
-        write_word(file, (const uint8_t *)&DG4E67.furthest_level);
-        write_word(file, (const uint8_t *)&DG4E67.master_level);
-        game_fclose(file);
-    }
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x29]),
+                0x6d, 0x85, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x0efdc
+ * 0x119e5
  *
- * Give back the two bitmap lists the game keeps at DGROUP 0x4ecd and 0x4ec9,
- * in that order, through the driver's own thunk.
+ * Paint one of the free-play panel's pairs: bitmap `list[0x42 / 2 + frame]`
+ * at 0x96,0x8c and then `list[0x3a / 2 + frame]` at 0xa6,0x8b, both
+ * out of the list at DGROUP 0x52f4.
+ *
+ * Two bitmaps between one `cursor_redraw_off_thunk` and one
+ * `restore_cursor_following`, not two of each - the cursor is lifted once and
+ * put back once, so the second bitmap cannot land on a restored cursor.
  */
-void free_two_bitmap_lists(void)
+void paint_panel_free_a(uint16_t frame)
 {
-    free_bitmaps_thunk(BMPLIST(DG4E67.score2_bmp_ptr));
-    free_bitmaps_thunk(BMPLIST(DG4E67.menu_bmp_ptr));
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x21]),
+                0x96, 0x8c, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
+                0xa6, 0x8b, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x0f7b6
+ * 0x11a3f
  *
- * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
- * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out
- * of the ranges rather than tested for - there is no part with those numbers.
+ * Paint one of the free-play panel's pairs: bitmap `list[0x46 / 2 + frame]`
+ * at 0xc8,0x8c and then `list[0x3a / 2 + frame]` at 0xd8,0x8b, both
+ * out of the list at DGROUP 0x52f4.
+ *
+ * Two bitmaps between one `cursor_redraw_off_thunk` and one
+ * `restore_cursor_following`, not two of each - the cursor is lifted once and
+ * put back once, so the second bitmap cannot land on a restored cursor.
  */
-void load_all_parts(void)
+void paint_panel_free_b(uint16_t frame)
 {
-    int16_t si;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    for (si = 0; si < 8; si++)
-        load_part_bitmap((uint16_t)si);
-
-    load_part_bitmap(9);
-
-    for (si = 0x0b; si < 0x31; si++)
-        load_part_bitmap((uint16_t)si);
-
-    load_part_bitmap(0x32);
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x23]),
+                0xc8, 0x8c, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1d]),
+                0xd8, 0x8b, 0);
+    restore_cursor_following();
 }
 
 /*
- * 0x0f7f4
+ * 0x11a99
  *
- * Load one part's bitmaps: build "part" + the number + ".bmp", read it, and
- * keep the list at DGROUP 0xeba + 0x3a * n - so the parts' records are 0x3a
- * bytes apart and this is the first field of each.
- *
- * The heap is checked either side of the load, and the cursor is pinned across
- * it and released after: a load takes long enough for the pointer to want
- * redrawing, and redrawing it in the middle of one would draw it onto a page
- * that is being rebuilt.
+ * Paint the level indicator: bitmap `list[0x36 / 2 + frame]` out of the
+ * list at DGROUP 0x52f4, at 0x39,0x86. The same six instructions as
+ * `paint_panel_a`; see its comment for the shape.
  */
-void load_part_bitmap(uint16_t n)
+void paint_panel_level(uint16_t frame)
 {
-    char name[14];            /* [bp-0x16] */
-    char number[8];          /* [bp-8]    */
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    string_copy(name, GAME_PART_NAMES.part);
-    int_to_string((int16_t)n, number, 10);
-    string_concat(name, number);
-    string_concat(name, GAME_PART_NAMES.bmp);
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[frame + 0x1b]),
+                0x39, 0x86, 0);
+    restore_cursor_following();
+}
 
-    heap_check_or_hang();
+/*
+ * 0x11acf
+ *
+ * The panel's tiled background and the row of indicators over it, all out of
+ * the bitmap list at DGROUP 0x52f4.
+ *
+ * The background is one bitmap - `list[0x56 / 2]` - stamped on an eight-pixel
+ * grid from x 0x84 to 0xb4 and y 0x5f to 0x77. The two bounds are tested
+ * differently: `cmp si, 0xb4 / jl` stops before 0xb4 and `cmp di, 0x77 / jle`
+ * includes 0x77, so the grid is six columns by four rows and not five by four.
+ *
+ * Two of the indicators depend on what the round is: DGROUP 0x4e6b holding
+ * 0x4000 picks entry 0x26 over 0x25, and 0x2000 picks 0x28 over 0x27.
+ *
+ * The last loop draws one bitmap per part in the level, `list[0x28 / 2 + si]`,
+ * at the x in the word table at DGROUP 0x2816 - which is indexed from 1, so
+ * its first word is not an x - and at a y that starts at 0x69 and steps *down*
+ * by two each time, so the row leans.
+ */
+void paint_panel_e(void)
+{
+    int16_t left, right, y;
+    int16_t si, di;
+
+    left  = (DG4E67.state == 0x4000) ? 0x26 : 0x25;
+    right = (DG4E67.state == 0x2000) ? 0x28 : 0x27;
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
 
-    PART_KINDS[n].bitmaps_ptr = dg_near(dgroup, load_bitmaps(name));
+    for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
+        for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x2b]), si, di, 0);
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[left]),  0x58, 0x5d, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[right]), 0x58, 0x6f, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x14]),      0x6e, 0x60, 0);
+
+    y = 0x69;
+    for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[si + 0x14]),
+                    GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
+        y = (int16_t)(y - 2);
+    }
 
     restore_cursor_following();
-    heap_check_or_hang();
 }
 
 /*
- * 0x0f86e
+ * 0x11bd6
  *
- * Give back every part's bitmaps: 0 to 0x39, one at a time, and no skipping -
- * unlike `load_all_parts`, which leaves out 10 and 0x31 because there is no
- * part with those numbers. Freeing one that was never loaded is harmless, so
- * the loop is written plainly.
+ * A slider on the control panel: its track, its scale, and a knob whose
+ * position comes from DGROUP 0x50b5.
+ *
+ * The knob's x is `0x50b5 * 0xa0 / 0x200 + 0x3d`, worked out as a long -
+ * `mul16x16` then `long_divide` - because the product overflows a word before
+ * the divide brings it back. The two sliders differ in that divisor, 0x200
+ * against 0x80, so they are not the same slider at two positions.
  */
-void free_all_part_bitmaps(void)
+void paint_panel_f(void)
 {
-    int16_t si;
+    int16_t at;
 
-    for (si = 0; si < 0x3a; si++)
-        free_part_bitmap((uint16_t)si);
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    cursor_redraw_off_thunk();
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x7]), 0x41, 0xc8, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0xe5, 0);
+
+    at = (int16_t)long_divide(
+             mul16x16(DG50AF.air, 0xa0), 0x200);
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
+                (int16_t)(at + 0x3d), 0xe0, 0);
+
+    restore_cursor_following();
 }
 
 /*
- * 0x0f886
+ * 0x11c6b
  *
- * Give one part's bitmaps back, and clear its slot. A slot that is already
- * empty is left alone.
+ * A slider on the control panel: its track, its scale, and a knob whose
+ * position comes from DGROUP 0x50b3.
+ *
+ * The knob's x is `0x50b3 * 0xa0 / 0x80 + 0x3d`, worked out as a long -
+ * `mul16x16` then `long_divide` - because the product overflows a word before
+ * the divide brings it back. The two sliders differ in that divisor, 0x80
+ * against 0x200, so they are not the same slider at two positions.
  */
-void free_part_bitmap(uint16_t n)
+void paint_panel_g(void)
 {
-    if (PART_KINDS[n].bitmaps_ptr == 0)
-        return;
+    int16_t at;
 
-    free_bitmaps_thunk(BMPLIST(PART_KINDS[n].bitmaps_ptr));
-    PART_KINDS[n].bitmaps_ptr = 0;
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    cursor_redraw_off_thunk();
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x8]), 0x41, 0x114, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x9]), 0x3d, 0x131, 0);
+
+    at = (int16_t)long_divide(
+             mul16x16(DG50AF.gravity, 0xa0), 0x80);
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x6]),
+                (int16_t)(at + 0x3d), 0x12c, 0);
+
+    restore_cursor_following();
+}
+
+/*
+ * 0x11d00
+ *
+ * **A part's index among all parts**, which is how the machine file refers to
+ * one: a pointer means nothing to a reload, so every reference is written as the
+ * position the part has in the walk `pick_by_flag(0x3000)` makes.
+ *
+ * A null part answers 0xffff, and that is the file's "no part here".
+ *
+ * **A part that is not found answers the count**, because the loop ends the same
+ * way whether it found the part - which sets `si` to zero to break out - or ran
+ * off the end, and the index is whatever the counter reached. So a reference to
+ * something outside the walk is written as one past the last part rather than
+ * as an error. Nothing here checks for it, and this is transcribed as it is
+ * rather than made to answer 0xffff, because a reload that trips over it is
+ * behaviour the original has.
+ */
+uint16_t part_index(struct part *part)
+{
+    struct part *si;
+    uint16_t n = 0;
+
+    if (part == PART_NONE)
+        return 0xffff;
+
+    for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
+        if (si == part) {
+            si = PART_NONE;
+            break;
+        }
+        si = pick_for_record(si, 0x1000);
+        n++;
+    }
+
+    return n;
 }
 
 /*
@@ -5930,7 +5104,6 @@ int16_t part_by_index(int16_t index)
         return 0;
     return (int16_t)PART_TABLE->part_ptr[(uint16_t)index];
 }
-
 
 /*
  * 0x11d66
@@ -5971,6 +5144,36 @@ uint16_t game_fread_byte(FILE *file, uint8_t * buf)
 }
 
 /*
+ * 0x11dd1
+ *
+ * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
+ * arguments the other way round from `fread`'s own - the file first and the
+ * buffer second.
+ */
+void game_fread_far(FILE *file, uint8_t * buf)
+{
+    game_fread(buf, 2, 1, file);
+}
+
+/*
+ * 0x11dec
+ *
+ * Read a null-terminated string, a byte at a time, and **including** the null:
+ * the loop reads first and tests afterwards, so the terminator is stored before
+ * the test that stops on it. The buffer has to be big enough for the string the
+ * file happens to hold; nothing here bounds it.
+ */
+void game_fread_string(FILE *file, char *buf)
+{
+    for (;;) {
+        game_fread_byte(file, (uint8_t *)buf);
+        if (*buf == 0)
+            return;
+        buf++;
+    }
+}
+
+/*
  * 0x11e0b
  *
  * **Read one line.** Bytes into the buffer until a `\n` is seen, and then the
@@ -6002,36 +5205,6 @@ void game_fread_line(FILE *file, char *buf)
     }
 
     si[-1] = 0;
-}
-
-/*
- * 0x11dd1
- *
- * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
- * arguments the other way round from `fread`'s own - the file first and the
- * buffer second.
- */
-void game_fread_far(FILE *file, uint8_t * buf)
-{
-    game_fread(buf, 2, 1, file);
-}
-
-/*
- * 0x11dec
- *
- * Read a null-terminated string, a byte at a time, and **including** the null:
- * the loop reads first and tests afterwards, so the terminator is stored before
- * the test that stops on it. The buffer has to be big enough for the string the
- * file happens to hold; nothing here bounds it.
- */
-void game_fread_string(FILE *file, char *buf)
-{
-    for (;;) {
-        game_fread_byte(file, (uint8_t *)buf);
-        if (*buf == 0)
-            return;
-        buf++;
-    }
 }
 
 /*
@@ -6259,6 +5432,776 @@ void read_list(FILE *file, struct part *head, int16_t n)
     }
 }
 
+/*
+ * 0x12269
+ *
+ * **Read a level file.** The name is opened, checked, unpacked field by field
+ * into DGROUP, and closed; a file that does not open leaves everything as it
+ * was and only the last line runs.
+ *
+ * The first word must be **0xaced** or the whole of the rest is skipped - the
+ * file is still closed, and 0x50d3 is still pointed at the parts list, so a
+ * corrupt level leaves the game with an empty machine rather than half of a
+ * broken one.
+ *
+ * The flag at 0x5472 that `load_level` sets is what tells a *level* from a
+ * saved machine. Set, the file also carries its title and hint at 0x4ecf and
+ * 0x4f1f, the two counters at 0x50af and 0x50b1, and the origin pair at 0x50b7
+ * and 0x50b9. Clear, all six are left as they are and only the parts are read.
+ * So the same reader serves both, and one word decides which.
+ *
+ * The gravity and air pressure at 0x50b3 and 0x50b5 are always read, and
+ * `recompute_kind_physics` is called immediately after them - not at the end -
+ * so the three lists that follow are built against the settings the file
+ * asked for rather than the ones the last level left behind.
+ *
+ * Three counts then arrive together and their **sum** is what the part table
+ * is allocated for, once, before any of the three lists is read. The lists are
+ * the machine's own parts at 0x521b, the moving ones at 0x5179, and - only
+ * when 0x5472 says this is a level - the parts the player is given, at 0x50d7.
+ *
+ * The far pointer at 0x546c is freed at the end - whatever the list reader
+ * left there - and a 0x216-byte buffer on the stack is handed to the file
+ * first, which is a `setvbuf` and nothing to do with the level's contents.
+ *
+ * **Two callers, one routine.** `load_level` sets 0x5472 and asks for
+ * "l<n>.lev"; `load_animation` (0x12915) clears it and asks for an animation,
+ * which is why the two strings above are read on one path and not the other.
+ * This was transcribed twice - once under each caller's name - and the copies
+ * drifted: the second read only 0x4ecf where the original reads 0x4f1f as
+ * well, and answered a fabricated 0. It never bit, because the caller that
+ * skipped the string is the caller that clears 0x5472 and so never reaches
+ * it. There is one `sub sp,0x216` in the image and there is one of these.
+ */
+uint16_t read_level(char *name)
+{
+    /*
+     * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
+     * buffer, and `game_setbuf` files its address into the file record's
+     * `read_ptr` at +0x0a - a *guest word*, which the layer then steps as a
+     * cursor, compares against `(uint16_t)(file + 5)` to tell a set buffer
+     * from the record's own, and frees as a heap handle. Sixteen bits is the
+     * whole of it and the port cannot promise a C object an address that fits.
+     * The six count bytes below it are a C array, so the reservation is only
+     * for the buffer.
+     */
+    uint16_t fp  = dg_alloca(0x216);
+    uint16_t buf = fp;
+
+    /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
+       outside this routine ever sees their address. */
+    _Alignas(2) uint8_t counts[6];
+    FILE *file;
+    uint16_t r;
+    int16_t  n_machine, n_moving, n_given;
+
+    file = game_fopen(name, GAME_FILE_NAMES.rb_read_level);
+    if (file == 0) {
+        DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+        dg_free(0x216);
+        return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
+    }
+
+    game_setbuf(file, dg_near_ptr(buf));
+    game_fread_far(file, (uint8_t *)&DG546C.version_out);
+
+    if (DG546C.version_out == 0xaced) {
+        game_fread_far(file, (uint8_t *)&DG546C.version);
+
+        if (DG546C.is_level != 0) {
+            game_fread_string(file, (char *)DG4E67.title);
+            game_fread_string(file, (char *)DG4E67.hint);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_1);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_2);
+        }
+
+        game_fread_far(file, (uint8_t *)&DG50AF.gravity);
+        game_fread_far(file, (uint8_t *)&DG50AF.air);
+        recompute_kind_physics();
+
+        if (DG546C.is_level != 0) {
+            game_fread_far(file, (uint8_t *)&DG50AF.extent_y);
+            game_fread_far(file, (uint8_t *)&DG50AF.extent_x);
+        }
+
+        game_fread_far(file, (uint8_t *)&DG50AF.tune);
+
+        game_fread_far(file, counts + 4);
+        game_fread_far(file, counts + 2);
+        game_fread_far(file, counts);
+        n_machine = *(int16_t *)(counts + 4);
+        n_moving  = *(int16_t *)(counts + 2);
+        n_given   = *(int16_t *)(counts);
+
+        DG546C.record_count = 0;
+        alloc_part_table((int16_t)(n_machine + n_moving + n_given));
+
+        read_list(file, &DG521B.placed_parts, n_machine);
+        read_list(file, &DG5179.moving_parts, n_moving);
+        if (DG546C.is_level != 0)
+            read_list(file, &DG50D3.parts_bin, n_given);
+
+        dos_free_far(dg_far_ptr(DG546C.table));
+    }
+
+    r = game_fclose(file);
+    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+
+    /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
+       retf` - nothing touches AX after the close, so the close's answer is
+       the routine's. */
+    dg_free(0x216);
+    return r;
+}
+
+/*
+ * 0x123b7
+ *
+ * **Write one byte**, and do nothing at all once the file has gone wrong.
+ *
+ * The error word 0x5478 is checked first and every writer checks it, so a
+ * failure part way through a machine file does not have to be propagated: the
+ * remaining hundreds of calls simply become no-ops and `write_level` finds the
+ * word set when it gets to the end. That is why none of the writers answer
+ * anything.
+ */
+void write_byte(FILE *file, const uint8_t * addr)
+{
+    if (DG546C.error != 0)
+        return;
+
+    if (game_fwrite(addr, 1, 1, file) != 1)
+        DG546C.error = 1;
+}
+
+/*
+ * 0x123e4
+ *
+ * **Write one word.** The same routine as `write_byte` with a size of 2, and
+ * the original writes it out twice rather than sharing one - so this does too.
+ */
+void write_word(FILE *file, const uint8_t * addr)
+{
+    if (DG546C.error != 0)
+        return;
+
+    if (game_fwrite(addr, 2, 1, file) != 1)
+        DG546C.error = 1;
+}
+
+/*
+ * 0x12411
+ *
+ * **Write a string, and its terminator with it.** The loop writes the byte at
+ * the pointer and *then* tests it, so the NUL goes to the file before the loop
+ * ends - a reader has something to stop at. Written the other way round it
+ * would be an off-by-one that only shows up when the file is read back.
+ */
+void write_string(FILE *file, char *str)
+{
+    for (;;) {
+        write_byte(file, (const uint8_t *)str);
+        if (*str == 0)
+            return;
+        str++;
+    }
+}
+
+/*
+ * 0x12430
+ *
+ * **Write one part's record.** Thirteen fields, then whatever the part is
+ * attached to - and every attachment is written as a *`part_index`*, never a
+ * pointer, so a reload can find the other end again.
+ *
+ * **Three of its locals have their addresses taken**, because `write_word`
+ * writes from an address and the values here are computed rather than fields of
+ * the part: whether there is a rope, whether there is a belt, and each index in
+ * turn. So the port takes a guest frame for those three and keeps the rest as
+ * ordinary locals - which is the same split `write_part_count` needed for its count.
+ *
+ * **The rope flag is written whether or not there is a rope**, and the belt flag
+ * twice, once per slot. That is what makes the record fixed-width up to the
+ * flags and self-describing after them: a reader takes the flag and knows
+ * whether two more indices follow.
+ *
+ * The belt flag can only be true on the **first** slot - `i == 0` and the kind
+ * being 0x0a or 7 - which is why the belt it then reads is at +0x66 flatly and
+ * not at +0x66 + 2i. The second pass writes the flag as zero and the two bytes
+ * at +0x6a and +0x6b, and nothing else.
+ *
+ * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
+ * skipping 2 and 3, which are the second half of the pairs `detach_belt` and
+ * `finish_part_removal` clear together. A file that stored them would be storing the same
+ * links twice.
+ *
+ * Last, and only for kind 7, the record at +0x68 - its first word as an index,
+ * or 0xffff when there is none. That is the one place this writes 0xffff
+ * itself; everywhere else it comes back from `part_index`.
+ */
+void write_record_fields(FILE *file, struct part *part)
+{
+    int16_t vindex;   /* [bp-6] */
+    int16_t vbelt;   /* [bp-4] */
+    int16_t vrope;/* [bp-2] */
+    struct rope *rope;
+    uint16_t belt;
+    int16_t  i;
+
+    write_word(file, (const uint8_t *)&part->kind);
+    write_word(file, (const uint8_t *)&part->flags_06);
+    write_word(file, (const uint8_t *)&part->start_flags);
+    write_word(file, (const uint8_t *)&part->flags_0a);
+    write_word(file, (const uint8_t *)&part->start_form);
+    write_word(file, (const uint8_t *)&part->start_direction);
+    write_word(file, (const uint8_t *)&part->size[0].width);
+    write_word(file, (const uint8_t *)&part->size[0].height);
+    write_word(file, (const uint8_t *)&part->set_size.width);
+    write_word(file, (const uint8_t *)&part->set_size.height);
+    write_word(file, (const uint8_t *)&part->start_x);
+    write_word(file, (const uint8_t *)&part->start_y);
+    write_word(file, (const uint8_t *)&part->word_96);
+
+    vrope = (int16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
+    write_word(file, (uint8_t *)&vrope);
+
+    write_byte(file, (const uint8_t *)&part->grab.x);
+    write_byte(file, (const uint8_t *)&part->grab.y);
+    write_word(file, (const uint8_t *)&part->grab_size);
+
+    if ((uint16_t)vrope != 0) {
+        rope = ROPE_PTR(part->rope_ptr);
+
+        vindex = (int16_t)part_index(PART_PTR(rope->end_a_ptr));
+        write_word(file, (uint8_t *)&vindex);
+        vindex = (int16_t)part_index(PART_PTR(rope->end_b_ptr));
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    for (i = 0; i < 2; i++) {
+        vbelt = (int16_t)((i == 0
+                                   && (((int16_t)part->kind) == 0x0a
+                                       || ((int16_t)part->kind) == 7))
+                                  ? 1 : 0);
+        write_word(file, (uint8_t *)&vbelt);
+
+        write_byte(file, &part->attach[i].x);
+        write_byte(file, &part->attach[i].y);
+
+        if ((uint16_t)vbelt != 0) {
+            belt = part->belt_ptr[0];
+
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
+            write_word(file, (uint8_t *)&vindex);
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
+            write_word(file, (uint8_t *)&vindex);
+
+            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0a)));
+            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0b)));
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    for (i = 4; i < 6; i++) {
+        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    if (((int16_t)part->kind) == 7) {
+        belt = part->belt_ptr[1];
+
+        if (belt != 0)
+            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
+        else
+            vindex = (int16_t)0xffff;
+
+        write_word(file, (uint8_t *)&vindex);
+    }
+}
+
+/*
+ * 0x126b3
+ *
+ * **Write every part of one list, and mark it as it goes.**
+ *
+ * The mark is bit 15 of +6 - the same bit `remove_all_parts` refuses to touch a
+ * part over. List 2 is the bin at 0x50d7 and every part in it has the bit
+ * *cleared*; lists 0 and 1 have it *set*, but only when DGROUP 0x5472 says this
+ * is the long form of the file. So saving is what decides which parts a reload
+ * will call the level's own and which the player's, and in the short form -
+ * which is what the game itself saves - nothing is marked at all.
+ *
+ * The bit is set on the live part and not on a copy, so a save leaves the
+ * machine in memory marked as well as the file.
+ *
+ * Takes the list's head cell, as `write_part_count` does.
+ */
+void write_part_list(FILE *file, struct part *head, uint16_t which)
+{
+    struct part *si;
+
+    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
+        if (which == 2)
+            si->flags_06 &= 0x7fff;
+        else if (DG546C.is_level != 0)
+            si->flags_06 |= 0x8000;
+
+        write_record_fields(file, si);
+    }
+}
+
+/*
+ * 0x126ec
+ *
+ * **Write how many parts a list holds**, by walking it and counting.
+ *
+ * The count goes into a *stack* local whose address is then handed to
+ * `write_word` - which is why the port takes a guest frame for it rather than
+ * using a C variable. Every field of this file is written from an address, and
+ * a count that exists only for the length of this call is no exception.
+ *
+ * This is the first of the two passes each list gets: the count first, so a
+ * reader knows how many of the records that `write_part_list` writes to expect.
+ *
+ * Takes the list's head cell, as the original does - `mov ax, 0x521b` in
+ * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
+ * an empty list's head holds 0, and the walk ends on that offset.
+ */
+void write_part_count(FILE *file, struct part *head)
+{
+    int16_t vn;                   /* [bp-2] */
+    struct part *si;
+
+    vn = 0;
+    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
+        vn++;
+
+    write_word(file, (uint8_t *)&vn);
+}
+
+/*
+ * 0x1271c
+ *
+ * **The machine file writer.** `save_machine` is the doorway that puts the
+ * dragged part down first; this is what opens the file and writes it. Answers
+ * zero on success.
+ *
+ * The file starts with 0xaced and then 0x0102, a magic and a version, and both
+ * are written *out of DGROUP* - set into 0x5476 and 0x5474 first and the address
+ * passed - because everything else here is written the same way and the writer
+ * takes an address, not a value.
+ *
+ * **DGROUP 0x5472 decides how much goes in.** Two groups of fields are written
+ * only when it is set - 0x4ecf and 0x4f1f, then 0x50af and 0x50b1, and later
+ * 0x50b7 and 0x50b9 - while 0x50b3, 0x50b5 and 0x50bb always go. `save_machine`
+ * zeroes 0x5472 before calling, so a machine saved from the game gets the short
+ * form and only whatever else sets that word gets the long one.
+ *
+ * Then the three part lists - 0x521b, 0x5179 and 0x50d7 - each written twice:
+ * once by `write_part_count` and once by `write_part_list`, which also takes 0, 1 and 2. Two
+ * passes over the same three lists, so the second can refer to what the first
+ * wrote; the tag says which list it is reading back.
+ *
+ * **A file that fails to close is deleted.** The error word 0x5478 is set by a
+ * non-zero close as well as by a failed open, and a set error word deletes the
+ * file - so a half-written machine does not survive to be loaded. The open
+ * failing returns 1 without touching the disk.
+ *
+ * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
+ * save handlers set around the picker.
+ */
+uint16_t write_level(char *name)
+{
+    FILE *f;
+
+    DG546C.error = 0;
+    DG546C.version_out = 0xaced;
+    DG546C.version = 0x0102;
+    DG4E67.file_op_active = 1;
+
+    f = game_fopen(name, GAME_FILE_NAMES.wb_write_level);
+    if (f == 0) {
+        DG4E67.file_op_active = 0;
+        return 1;
+    }
+
+    write_word(f, (const uint8_t *)&DG546C.version_out);
+    write_word(f, (const uint8_t *)&DG546C.version);
+
+    if (DG546C.is_level != 0) {
+        write_string(f, (char *)DG4E67.title);
+        write_string(f, (char *)DG4E67.hint);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_1);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_2);
+    }
+
+    write_word(f, (const uint8_t *)&DG50AF.gravity);
+    write_word(f, (const uint8_t *)&DG50AF.air);
+
+    if (DG546C.is_level != 0) {
+        write_word(f, (const uint8_t *)&DG50AF.extent_y);
+        write_word(f, (const uint8_t *)&DG50AF.extent_x);
+    }
+
+    write_word(f, (const uint8_t *)&DG50AF.tune);
+
+    write_part_count(f, &DG521B.placed_parts);
+    write_part_count(f, &DG5179.moving_parts);
+    write_part_count(f, &DG50D3.parts_bin);
+
+    write_part_list(f, &DG521B.placed_parts, 0);
+    write_part_list(f, &DG5179.moving_parts, 1);
+    write_part_list(f, &DG50D3.parts_bin, 2);
+
+    if (game_fclose(f) != 0)
+        DG546C.error = 1;
+
+    if (DG546C.error != 0)
+        dos_unlink(name);
+
+    DG4E67.file_op_active = 0;
+    return DG546C.error;
+}
+
+/*
+ * 0x12863
+ *
+ * Load a level by number: build its name and hand it to `read_level`.
+ *
+ * The name is assembled a piece at a time out of DGROUP - "l" at 0x2876, the
+ * number in decimal, ".lev" at 0x2878 - into a 0x16-byte buffer on the stack.
+ * `round_setup` passes the round count at 0x4ebd, so the first round asks for
+ * "l1.lev", which is the name the resource archive holds.
+ *
+ * The flag at 0x5472 is set to 1 before the read and is not cleared here.
+ */
+void load_level(uint16_t number)
+{
+    char name[14];
+    char digits[8];
+
+    string_copy(name, GAME_FILE_NAMES.l_load_level);
+    int_to_string((int16_t)number, digits, 10);
+    string_concat(name, digits);
+    string_concat(name, GAME_FILE_NAMES.lev_load_level);
+
+    DG546C.is_level = 1;
+    read_level(name);
+}
+
+/*
+ * 0x12915
+ *
+ * Load an animation file: build the part list first, clear DGROUP 0x5472, and
+ * read it. Every load in the image comes here - the title and credits
+ * animations, freeform's `ff.lev`, and the file picker.
+ *
+ * **The bin is `build_part_list`'s and stays so.** With 0x5472 clear,
+ * `read_level` reads a file's placed and moving lists but not its given one,
+ * so the bin after a load is freeform's one-of-every-kind. This comment once
+ * said a routine three bytes below loaded while *preserving* 0x50d7; those
+ * bytes are the tail of the routine before, which ends by calling the machine
+ * writer at 0x1271c.
+ */
+uint16_t load_animation(char *name)
+{
+    build_part_list();
+    DG546C.is_level = 0;
+
+    return read_level(name);
+}
+
+/*
+ * 0x1292d
+ *
+ * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
+ * Answers zero on success - the caller shows "FILE ERROR" and asks again for
+ * anything else, so what comes back is a reason and not a count.
+ *
+ * The writing is `write_level`; what this adds is that **the dragged part is put
+ * down first**. DGROUP 0x50d7 is saved, zeroed for the length of the write and
+ * put back after, so a part in mid-drag is not written as held - the file has
+ * no way to say "and this one is in the player's hand", and reloading it would
+ * have to invent somewhere to put it. 0x5472 is zeroed with it and not restored.
+ *
+ * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
+ * single exit; transcribed as the fall-through it is.
+ */
+uint16_t save_machine(char *name)
+{
+    uint16_t held = DG50D3.parts_bin.next_ptr;
+    uint16_t r;
+
+    DG50D3.parts_bin.next_ptr = 0;
+    DG546C.is_level = 0;
+
+    r = write_level(name);
+
+    DG50D3.parts_bin.next_ptr = held;
+    return r;
+}
+
+/*
+ * 0x1295f
+ *
+ * **Is this file one of ours?** It opens the name, reads one word, and answers
+ * whether that word is **0xaced** - the machine file's magic, and the only
+ * check made before the loader is trusted with the rest.
+ *
+ * Both exits close the file, and the failure exit closes it *even when the open
+ * failed*, handing `fclose` the zero it just tested. That is what the original
+ * does; the runtime's `fclose` looks the pointer up rather than following it,
+ * so it is a wasted call rather than a fault.
+ */
+uint16_t is_machine_file(char *name)
+{
+    int16_t magic;                /* [bp-2] */
+    FILE *file;
+    uint16_t ok    = 0;
+
+    file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file);
+
+    if (file != 0) {
+        game_fread_far(file, (uint8_t *)&magic);
+        if ((uint16_t)magic == 0xaced)
+            ok = 1;
+    }
+
+    game_fclose(file);
+    return ok;
+}
+
+/*
+ * 0x129a8
+ *
+ * Count the level files, and leave the count at DGROUP 0x4eb9.
+ *
+ * It builds "l", the number, ".lev" and tries to open it, climbing from 1 until
+ * one is missing - so the answer is one *past* the last that opened, and the
+ * decrement on the failing try is what turns that back into a count. Each file
+ * that opens is closed again immediately; nothing is read.
+ *
+ * The name is assembled in a stack buffer whose address is passed on. That
+ * used to mean a real DGROUP frame; it stopped meaning it when `game_fopen`
+ * and the string routines took pointers, and the buffer is a C array.
+ */
+void count_level_files(void)
+{
+    char name[16];                         /* [bp-0x18] */
+    char number[8];    /* [bp-8]    */
+    int16_t done = 0;
+
+    DG4E67.level_count = 1;
+
+    while (done == 0) {
+        FILE *file;
+
+        string_copy(name, GAME_FILE_NAMES.l_count_levels);
+        int_to_string((int16_t)((uint16_t)DG4E67.level_count),
+                      number, 10);
+        string_concat(name, number);
+        string_concat(name, GAME_FILE_NAMES.lev_count_levels);
+
+        file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels);
+
+        if (file != 0) {
+            DG4E67.level_count++;
+            game_fclose(file);
+        } else {
+            DG4E67.level_count--;
+            done = 1;
+        }
+    }
+}
+
+/*
+ * 0x12a2f
+ *
+ * **A puzzle's title, out of its own level file.** The name is built rather
+ * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
+ * there is no table anywhere saying so.
+ *
+ * The file is checked with the same 0xaced `is_machine_file` looks for, and
+ * then **one word is read and thrown away** before the title. Nothing here says
+ * what it is; the title is what follows it.
+ *
+ * A missing file, or a wrong magic, answers 0 - which is what stops the list
+ * drawer, so the number of puzzles is however many files are actually there.
+ */
+uint16_t get_puzzle_title(int16_t n, char *buf)
+{
+    char name[14];                 /* [bp-0x1a] */
+    char num[8]; /* [bp-0x0c] */
+    uint8_t skip[2]; /* [bp-4]    */
+    int16_t magic; /* [bp-2]   */
+    FILE *file;
+    uint16_t ok = 0;
+
+    string_copy(name, GAME_FILE_NAMES.l_puzzle_title);
+    int_to_string(n, num, 10);
+    string_concat(name, num);
+    string_concat(name, GAME_FILE_NAMES.lev_puzzle_title);
+
+    file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title);
+
+    if (file != 0) {
+        game_fread_far(file, (uint8_t *)&magic);
+
+        if ((uint16_t)magic != 0xaced) {
+            game_fclose(file);
+        } else {
+            game_fread_far(file, skip);
+            game_fread_string(file, buf);
+            game_fclose(file);
+            ok = 1;
+        }
+    }
+    return ok;
+}
+
+/*
+ * 0x12ad0
+ *
+ * **A password into a level number**, by finding it in `password.txt`.
+ *
+ * The text is upper-cased in place first, and then **cut at the first `-`** -
+ * a NUL is written over it - so a code of the form `WORD-SCORE` matches on the
+ * word alone. The dash is put back before the routine answers, because the same
+ * buffer is about to be handed to the score decoder, which wants the half this
+ * one just hid.
+ *
+ * The line counter starts at **1 and is incremented before the comparison**, so
+ * a match on the file's first line answers 2. Whether that is deliberate or an
+ * off-by-one cannot be told from here - it is consistent, so a password file
+ * written to suit it works.
+ *
+ * The loop cannot tell a blank line from the end of the file, because
+ * `game_fread_line` reports both as an empty buffer.
+ *
+ * Not found is 0xffff, and a file that will not open leaves it at that without
+ * reading anything.
+ */
+uint16_t password_to_level(char *text)
+{
+    char line[26];                    /* [bp-0x1a] */
+    char *dash;
+    FILE *file;
+    int16_t  n      = 1;                    /* [bp-4] */
+    int16_t  answer = -1;                   /* [bp-2] */
+
+    string_upper(text);
+
+    dash = string_chr(text, '-');
+    if (dash != NULL)
+        *dash = 0;
+
+    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, GAME_FILE_NAMES.rb_password_level);
+
+    if (file != 0) {
+        game_fread_line(file, line);
+
+        while ((*line) != 0) {
+            n++;
+
+            if (string_compare_nocase(text, line) == 0)
+                answer = n;
+
+            game_fread_line(file, line);
+        }
+
+        game_fclose(file);
+    }
+
+    if (dash != NULL)
+        *dash = '-';
+    return (uint16_t)answer;
+}
+
+/*
+ * 0x12b60
+ *
+ * Read the `count`th line of **password.txt** into `buf`.
+ *
+ * The file has one password a line and this wants the one for a level, so it
+ * reads `count` lines and keeps only the last - the buffer is written over
+ * each time round. There is no seek and no index; the lines are found by
+ * reading past them.
+ *
+ * `buf` is emptied first, so a missing file leaves an empty string rather than
+ * whatever was there: the open is tested and everything else skipped.
+ *
+ * The loop decrements *before* it reads, and its test is at the top, so a
+ * count of zero reads nothing at all and any other count reads exactly that
+ * many lines.
+ */
+void read_password_line(int16_t count, char *buf)
+{
+    FILE *f;
+
+    *buf = 0;
+
+    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, GAME_FILE_NAMES.rb_password_line);
+    if (f == 0)
+        return;
+
+    while (count != 0) {
+        count--;
+        game_fread_line(f, buf);
+    }
+
+    game_fclose(f);
+}
+
+/*
+ * 0x12ba7
+ *
+ * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the
+ * file was there and 0 if it was not.
+ *
+ * The name is the string at DGROUP 0x28bb and the mode the one at 0x28c3. Both
+ * reads go through `game_fread_far`, which takes its file first and buffer
+ * second, and the file is closed on the success path only - a failed open has
+ * nothing to close.
+ */
+uint16_t read_tim_cfg(void)
+{
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_read, GAME_FILE_NAMES.rb_tim_cfg);
+
+    if (file == 0)
+        return 0;
+
+    game_fread_far(file, (uint8_t *)&DG4E67.furthest_level);
+    game_fread_far(file, (uint8_t *)&DG4E67.master_level);
+    game_fclose(file);
+
+    return 1;
+}
+
+/*
+ * 0x12bed
+ *
+ * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
+ * it is two words: the furthest level reached at DGROUP 0x4eb7 and the sound
+ * level at 0x4ec1. Nothing else survives quitting.
+ *
+ * It writes them with `write_word`, the same routine the machine files use, so
+ * the file's four bytes are in the same byte order as everything else the game
+ * writes. A failed open is silently nothing - the settings just do not persist.
+ */
+void write_config(void)
+{
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg);
+
+    if (file != 0) {
+        write_word(file, (const uint8_t *)&DG4E67.furthest_level);
+        write_word(file, (const uint8_t *)&DG4E67.master_level);
+        game_fclose(file);
+    }
+}
 
 /*
  * 0x12c26
@@ -6620,41 +6563,581 @@ out:
 }
 
 /*
- * 0x13d75
+ * 0x1319d
  *
- * **A listing record back into a plain name.** The record is far and the answer
- * is near - DGROUP 0x5682, one shared buffer - so the caller gets something it
- * can hand to `strcpy` without carrying a segment around.
+ * **Is the typed name usable?** Three answers, not two: 0 for no, 1 for a name
+ * that is free to create, and **2 for one that already exists** - which the
+ * caller needs to tell apart so it can ask before overwriting.
  *
- * It strips exactly three things: `<`, `>` and spaces. That undoes both of the
- * shapes `fill_file_listing` writes, the angle brackets round a directory and the
- * padding that lines the extensions up, with one filter rather than two.
+ * The rejections, in the order they are made:
  *
- * A `:` record does not go through the loop at all; it answers the constant
- * `".."`, so the way back up leaves here as a path DOS understands rather than
- * as the marker the listing keeps it as.
+ *   an empty name, or one starting with `.`; a space anywhere in the stem - the
+ *   scan stops at the first `.`, so spaces in an extension are not looked at;
+ *   any of the fourteen characters in the table at DGROUP 0x28ec, which are
+ *   `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`; and any of eleven
+ *   reserved DOS device names.
+ *
+ * A device name only counts when it is the *whole stem* - the byte after it has
+ * to be the terminator or a `.` - which is why `CONFIG.TIM` survives and
+ * `CON.TIM` does not.
+ *
+ * **The eleventh entry is wrong in the original.** "null" is compared for
+ * **three** bytes - so it tests the same `nul` the tenth entry does - but checks
+ * the byte at +4 rather than +3. The effect is that *any* four-letter stem
+ * beginning `NUL` is rejected: `NULA` and `NULX` as much as `NULL`. Written as
+ * `strnicmp(name, "null", 4)`, which is plainly what was meant, it would have
+ * caught `NULL` alone. Transcribed as it is.
+ *
+ * Last, it *opens the file* to find out whether it is there, and closes it
+ * again. A name that opens answers 2. One that does not answers 1 only when
+ * 0x568f says 0x80 - the mode the picker was opened from - and 0 otherwise, so
+ * asking to load something that is not there is a rejection rather than an
+ * answer the caller has to interpret.
  */
-char *listing_to_name(const char far * entry)
+uint16_t validate_filename(void)
+{
+    char    *si;
+    uint16_t i;
+    FILE *file;
+    int16_t  bad = 0;
+
+    si = (char *)DG4E4E.name_buf;
+
+    if (*si == 0)
+        bad = 1;
+    if (*si == '.')
+        bad = 1;
+
+    while (*si != 0 && *si != '.') {
+        if (*si == ' ')
+            bad = 1;
+        si++;
+    }
+
+    if (bad)
+        return 0;
+
+    for (i = 0; i < 0x0e; i++) {
+        if (string_chr((char *)DG4E4E.name_buf,
+                       GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
+            return 0;
+    }
+
+    for (i = 0; i < sizeof reserved_names / sizeof reserved_names[0]; i++) {
+        uint16_t after;
+
+        if (string_ncompare_i((const char *)DG4E4E.name_buf, reserved_names[i].name,
+                              reserved_names[i].len) != 0)
+            continue;
+
+        after = (uint8_t)DG4E4E.name_buf[reserved_names[i].after];
+        if (after == 0 || after == '.')
+            return 0;
+    }
+
+    file = game_fopen((char *)DG4E4E.name_buf, GAME_FILE_STRINGS.mode_rb);
+
+    if (file != 0) {
+        game_fclose(file);
+        return 2;
+    }
+
+    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x80)
+        return 1;
+
+    return 0;
+}
+
+/*
+ * 0x13402
+ *
+ * **Redraw the picker's one action button.** Which word it carries is not a
+ * parameter: it is read back out of the mode word DGROUP 0x4e6b, and when that
+ * says 0x200 - the picker's own mode - out of *0x568f*, the value 0x4e6b held
+ * before the picker took it. So the button says LOAD or SAVE according to which
+ * handler opened the picker, and the picker itself does not have to be told.
+ *
+ * Anything else says CANCEL, and it moves: 0xc0 against 0x40. The two are
+ * different buttons in the same place in the code, not one button relabelled.
+ */
+void picker_draw_action(void)
+{
+    if (DG4E67.state != 0x200) {
+        draw_button(DG1BCC.cancel, 0xc0, 0x130, 1);
+    } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
+        draw_button(DG1BCC.load, 0x40, 0x130, 1);
+    } else {
+        draw_button(DG1BCC.save, 0x40, 0x130, 1);
+    }
+
+    present_back_page();
+}
+
+/*
+ * 0x1345f
+ *
+ * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
+ * warps the pointer rather than moving any focus. Seven stops, cursor at DGROUP
+ * 0x28fa, x at 0x28fc and y at 0x290a - and here the two tables are the same
+ * length, because none of the picker's controls is a slider whose position has
+ * to be worked out from a value.
+ */
+void picker_tab(void)
+{
+    GAME_PICKER_TABS.stop++;
+
+    if (GAME_PICKER_TABS.stop == 7)
+        GAME_PICKER_TABS.stop = 0;
+
+    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.stop],
+                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.stop]);
+}
+
+/*
+ * 0x13490
+ *
+ * **One keystroke into the picker's name field.** Backspace - 8 - takes the
+ * last byte off, and does nothing on an empty field. Anything else is appended
+ * *as a string*: the character is stored into a two-byte local with a NUL after
+ * it and handed to `strcat`, which is why this routine has locals at all.
+ *
+ * Two characters never reach the field: backspace, which is handled above, and
+ * **tab**, which is excluded explicitly. Tab is a key the picker wants for
+ * moving the pointer, and a field that swallowed it would take it away.
+ *
+ * The length check is `< max`, and `max` counts the NUL's room the way the
+ * caller passed it - this routine does not add one.
+ */
+void picker_type(uint8_t c, char *buf, int16_t max)
+{
+    char str[2];                  /* [bp-2], the two-byte string */
+    int16_t  len;
+
+    str[0] = (char)c;
+    str[1] = 0;
+
+    len = (int16_t)string_length(buf);
+
+    if (c == '\b') {
+        if (len != 0)
+            buf[len - 1] = 0;
+    } else if (len < max && c != '\t') {
+        string_concat(buf, str);
+    }
+}
+
+/*
+ * 0x134dd
+ *
+ * **Is this path a drive's root?** One separator in the whole string, and it is
+ * the last byte - "C:\\" and nothing else. It counts the same way `path_up`
+ * does, against the same shared "\\" at DGROUP 0x1bca, which is what keeps the
+ * two agreeing about where the walk up has to stop.
+ */
+uint16_t path_is_root(const char *path)
+{
+    const char *si = path;
+    const char *last = 0;
+    int16_t  n = 0;
+    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
+
+    while (*si != 0) {
+        if (*si == sep) {
+            last = si;
+            n++;
+        }
+        si++;
+    }
+
+    if (n == 1 && last[1] == 0)
+        return 1;
+
+    return 0;
+}
+
+/*
+ * 0x13516
+ *
+ * **Drop the last component of a path**, in place. It walks to the terminator
+ * counting separators - the character is not a literal here but `*GAME_PATH_SEP.path_sep_ptr`,
+ * the one-character string "\\" the rest of the module shares - and remembers
+ * the last one it saw.
+ *
+ * The two cases differ by one byte, and that byte is the whole point: with a
+ * single separator the cut is *after* it, leaving "C:\\", because a drive with
+ * its backslash taken off means the current directory rather than the root.
+ * With more than one it cuts *at* the separator, leaving the parent. With none
+ * it does nothing at all.
+ */
+void path_up(char *path)
+{
+    char *si = path;
+    char *last = 0;
+    int16_t  n = 0;
+    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
+
+    while (*si != 0) {
+        if (*si == sep) {
+            last = si;
+            n++;
+        }
+        si++;
+    }
+
+    if (n == 1)
+        last[1] = 0;
+    else if (n > 1)
+        *last = 0;
+}
+
+/*
+ * 0x1354c
+ *
+ * **Join a listed name onto the path.** The name comes in as a *far* pointer -
+ * it is in the picker's own list block, not DGROUP - and the path is near, so
+ * the name is copied through a fourteen-byte local first.
+ *
+ * That copy is off by one at both ends, deliberately, and `fill_file_listing` is what
+ * makes it right: a directory is written into the listing as `<NAME>`. This
+ * stores from the **second** byte, past the `<`, and after the join chops the
+ * **last** byte, the `>`. So `<DOS>` arrives and `\\DOS` leaves.
+ *
+ * The separator goes in only when the path is not already a root, because a
+ * root already ends in one and `path_is_root` is the routine that knows.
+ *
+ * The loop tests the byte *before* stepping and stores the byte *after*, so the
+ * NUL is copied along with the rest and the local needs no terminating of its
+ * own.
+ */
+void path_join(char *path, const char far * entry)
+{
+    char name[14];                            /* [bp-0xe] */
+    uint16_t di   = 0;
+    uint16_t len;
+
+    while (*entry != 0) {
+        entry++;
+        name[di] = *entry;
+        di++;
+    }
+
+    if (path_is_root(path) == 0)
+        string_concat(path, (const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr));
+
+    string_concat(path, name);
+
+    len = string_length(path);
+    path[len - 1] = 0;
+}
+
+/*
+ * 0x135a6
+ *
+ * **Force a name into 8.3.** The eighth byte is cut off first, unconditionally
+ * and before anything is looked at, so a long name loses its tail rather than
+ * its extension. Then the first `.` - or the terminator, if there is none - is
+ * where the new one goes, and the extension the caller passed is appended.
+ *
+ * An empty name is left empty: the cut at byte 8 has already happened, but
+ * nothing is appended, so the picker cannot end up holding a name that is only
+ * an extension.
+ */
+void force_extension(char *name, const char *ext)
 {
     char *si;
 
-    if (*entry == ':')
-        return GAME_FILE_STRINGS.dot_dot_b;
+    name[8] = 0;
 
-    si = (char *)GAME_NAME_BUFFER.name;
+    if (name[0] == 0)
+        return;
 
-    while (*entry != 0) {
-        char c = *entry;
+    si = name;
+    while (*si != 0 && *si != '.')
+        si++;
 
-        if (c != '<' && c != '>' && c != ' ') {
-            *si = c;
-            si++;
+    si[0] = '.';
+    si[1] = 0;
+
+    string_concat(name, ext);
+}
+
+/*
+ * 0x135dc
+ *
+ * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
+ * the one buffer the picker answers out of.
+ *
+ * **Nothing calls it**, by three searches rather than one: no near `call` to
+ * it in this module, no far `call` anywhere in the image - `9a ec 55 ff 0d` -
+ * and its far pointer `0dff:55ec` is not *stored* anywhere either, which is how
+ * the region handlers are reached and would have been missed by the first two.
+ * The same holds for `picker_name` beside it.
+ *
+ * The pointer search was run against `path_join` as a control: that one is
+ * called, by a near `call`, and its pointer is likewise stored nowhere - so the
+ * search distinguishes dispatch through a table from a direct call, rather than
+ * answering "nowhere" to everything. They are the picker's public face, written and never
+ * used, because `pick_file` fills 0x4e5a itself and copies the answer to
+ * 0x52fe on the way out. Transcribed because they are there, and recorded as
+ * dead because saying "unreached on the paths tried" would suggest a path
+ * exists.
+ */
+void picker_set_name(const char *name)
+{
+    string_copy((char *)DG4E4E.name_buf, name);
+}
+
+/*
+ * 0x135ef
+ *
+ * The picker's answer: **the buffer's address, or zero when it is empty.** A
+ * caller would get a pointer it could hand straight to `load_animation`,
+ * without having to know where the name lives.
+ *
+ * There is no caller. See `picker_set_name` above: neither is reachable from
+ * anywhere in the image.
+ */
+char *picker_name(void)
+{
+    if (DG4E4E.name_buf[0] != 0)
+        return (char *)DG4E4E.name_buf;
+
+    return NULL;
+}
+
+/*
+ * 0x13606
+ *
+ * **Get the listing a place to live, then fill it and draw it.**
+ *
+ * The block is allocated once and kept: the far pointer at DGROUP 0x5699 being
+ * non-null is the whole test, and on the second and later openings everything
+ * below is skipped. There is a second source before DOS is asked at all - the
+ * pointer at 0x3576, some other part of the game's block, which is taken with a
+ * flat capacity of 0x3e8 entries rather than a measured one.
+ *
+ * Otherwise it asks `dos_alloc_bytes` for **0xffffffff** bytes, which is the
+ * "how much is there" question, and clamps the answer to 0x7530. So the picker
+ * takes what is free up to 30000 bytes and no more - the listing is allowed to
+ * grow into spare memory, but not to eat it.
+ *
+ * The entry size is 0x16, and that is where 0x5695 comes from: the block is
+ * *two* arrays, `count` far pointers of four bytes each and then the records
+ * themselves, so the second pointer is the first plus `4 * count`. Only the
+ * offset is added - the segment is shared - which is what keeps a listing this
+ * size inside one segment.
+ */
+void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
+{
+    uint32_t v;
+
+    (void)arg1;
+    (void)arg2;
+
+    if (dg_far_ptr(GAME_PICKER_TEXT.block) == FAR_NULL_PTR) {
+        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
+            GAME_PICKER_TEXT.entry_max = 0x3e8;
+            GAME_PICKER_TEXT.block = DG3576.scratch;
+        } else {
+            v = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
+
+            if ((int32_t)v > 0x7530)
+                v = 0x7530;
+
+            GAME_PICKER_TEXT.entry_max = (uint16_t)long_divide((int32_t)v, 0x16);
+
+            GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
         }
-        entry++;
+
+        /* The table of pointers sits at the head of the block and the text
+           after it, so the start is four bytes a line in, in the block's own
+           segment. */
+        GAME_PICKER_TEXT.text_start =
+            far_from(GAME_PICKER_TEXT.block.seg,
+                     dg_far_ptr(GAME_PICKER_TEXT.block)
+                     + 4 * ((uint16_t)GAME_PICKER_TEXT.entry_max));
     }
 
-    *si = 0;
-    return (char *)GAME_NAME_BUFFER.name;
+    fill_file_listing(pattern);
+    sort_file_listing();
+    GAME_PICKER_TEXT.scroll = 0;
+}
+
+/*
+ * 0x136c9
+ *
+ * **The picker's whole screen.** Everything the loop redraws piecemeal, laid
+ * down once: the title bar, the four sunken wells - two for the buttons, two
+ * for the scroll arrows - the heading, the buttons, and then the same four
+ * routines the loop calls for its partial repaints.
+ *
+ * The heading and the left button say LOAD or SAVE according to 0x568f, and
+ * they are drawn from **two separate branches** rather than one branch choosing
+ * two strings. Both buttons are drawn unpressed here; `picker_draw_action` is
+ * what draws them pressed, and it exists precisely because this routine cannot
+ * be called for a button going down.
+ *
+ * The wells are placed round what goes in them, not derived from it: the button
+ * well at (0x36, 0x129) is 0x40 by 0x20 for a button drawn at (0x40, 0x130).
+ */
+void picker_repaint(void)
+{
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+
+    draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
+
+    draw_sunken_box(0x36, 0x129, 0x40, 0x20);
+    draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
+
+    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
+        draw_scroll_text(DG1BCC.load_machine, 0x50, 0x34, 0xa0);
+        draw_button(DG1BCC.load, 0x40, 0x130, 0);
+    } else {
+        draw_scroll_text(DG1BCC.save_machine, 0x50, 0x34, 0xa0);
+        draw_button(DG1BCC.save, 0x40, 0x130, 0);
+    }
+
+    draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
+    draw_sunken_box(0xbc, 0xe0, 0x20, 0x20);
+
+    picker_draw_up();
+    picker_draw_down();
+
+    draw_button(DG1BCC.cancel, 0xc0, 0x130, 0);
+
+    picker_draw_name();
+    picker_draw_list();
+    picker_draw_filename();
+
+    present_back_page();
+}
+
+/*
+ * 0x137e4
+ *
+ * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is
+ * read out of the mode word DGROUP 0x4e6b - 0x800 is "this arrow is held down"
+ * - so the picker never has to tell it, the same way `picker_draw_action` reads
+ * its own word back.
+ *
+ * The pair sits at +0x4a in the art set at DGROUP 0x52f4, and the pressed one
+ * is the *second*, which is why the index is doubled before it is added.
+ */
+void picker_draw_up(void)
+{
+    int16_t pressed = (DG4E67.state == 0x800) ? 1 : 0;
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
+                0xc4, 0x78, 0);
+    restore_cursor_following();
+}
+
+/*
+ * 0x1382a
+ *
+ * **The list's down arrow.** `picker_draw_up`'s twin, and the only differences
+ * are the three numbers: the mode it answers to is 0x400, its art is at +0x4e,
+ * and it sits 0x70 further down at y 0xe8.
+ */
+void picker_draw_down(void)
+{
+    int16_t pressed = (DG4E67.state == 0x400) ? 1 : 0;
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    cursor_redraw_off_thunk();
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
+                0xc4, 0xe8, 0);
+    restore_cursor_following();
+}
+
+/*
+ * 0x13870
+ *
+ * **The name field.** The buffer at DGROUP 0x53ab is copied into a local first,
+ * and then the *pointer* is walked forward while the text is wider than 0xac
+ * pixels - so a long name scrolls off the **left**, showing its end. That is
+ * the right way round for typing: what you just typed stays in view.
+ *
+ * The caret is `*`, and it blinks by counting: 0x567e is bumped on every one of
+ * these redraws and bit 3 decides whether the asterisk is appended, so it is on
+ * for eight redraws and off for eight. It is appended *after* the width walk,
+ * which means the caret can push the text past 0xac - the field is measured on
+ * the name, not on the name plus caret.
+ *
+ * It only blinks when 0x4e6b says 0x4000, the field's own mode. Out of that
+ * mode nothing is counted, so the caret is not merely hidden, it stops.
+ */
+void picker_draw_name(void)
+{
+    char buf[90];                  /* [bp-0x5a] */
+    char *si  = buf;
+
+    string_copy(buf, (const char *)GAME_DIRECTORIES.path_field);
+
+    while ((int16_t)text_width_thunk(si) > 0xac)
+        si++;
+
+    if (DG4E67.state == 0x4000) {
+        DG5677.caret_blink++;
+        if ((DG5677.caret_blink & 8) != 0)
+            string_concat(si, GAME_FILE_STRINGS.star_a);
+    }
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
+
+    VMDS.text_back = 0;
+    VMDS.text_colour = 0x0f;
+
+    cursor_redraw_off_thunk();
+    draw_string(si, 0x44, 0x5a);
+    restore_cursor_following();
+}
+
+/*
+ * 0x13902
+ *
+ * **The "File Name:" field**, and `picker_draw_name`'s twin down to the shape
+ * of the code: copy, walk the pointer forward while the text is too wide, blink
+ * a caret by counting, fill, draw.
+ *
+ * Everything that differs is a number - a different buffer (0x4e5a against
+ * 0x53ab), a narrower field (0x64 against 0xac), a different mode (0x1000), a
+ * different counter (0x5680) - and a *different asterisk*: 0x2954, where the
+ * other field uses 0x2952. The two one-character strings sit next to each other
+ * in the image, unpooled, which is how you can tell these are two routines and
+ * not one called twice.
+ *
+ * This one also draws its own label, because the label belongs to the field.
+ */
+void picker_draw_filename(void)
+{
+    char buf[16];                  /* [bp-0x10] */
+    char *si  = buf;
+
+    string_copy(buf, (const char *)DG4E4E.name_buf);
+
+    while ((int16_t)text_width_thunk(si) > 0x64)
+        si++;
+
+    if (DG4E67.state == 0x1000) {
+        DG5677.caret_blink_b++;
+        if ((DG5677.caret_blink_b & 8) != 0)
+            string_concat(si, GAME_FILE_STRINGS.star_b);
+    }
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
+    fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
+
+    VMDS.text_back = 0;
+    VMDS.text_colour = 0x0f;
+
+    cursor_redraw_off_thunk();
+    draw_string(si, 0x94, 0x110);
+    restore_cursor_following();
 }
 
 /*
@@ -6918,1115 +7401,1217 @@ void sort_file_listing(void)
 }
 
 /*
- * 0x13606
+ * 0x13d75
  *
- * **Get the listing a place to live, then fill it and draw it.**
+ * **A listing record back into a plain name.** The record is far and the answer
+ * is near - DGROUP 0x5682, one shared buffer - so the caller gets something it
+ * can hand to `strcpy` without carrying a segment around.
  *
- * The block is allocated once and kept: the far pointer at DGROUP 0x5699 being
- * non-null is the whole test, and on the second and later openings everything
- * below is skipped. There is a second source before DOS is asked at all - the
- * pointer at 0x3576, some other part of the game's block, which is taken with a
- * flat capacity of 0x3e8 entries rather than a measured one.
+ * It strips exactly three things: `<`, `>` and spaces. That undoes both of the
+ * shapes `fill_file_listing` writes, the angle brackets round a directory and the
+ * padding that lines the extensions up, with one filter rather than two.
  *
- * Otherwise it asks `dos_alloc_bytes` for **0xffffffff** bytes, which is the
- * "how much is there" question, and clamps the answer to 0x7530. So the picker
- * takes what is free up to 30000 bytes and no more - the listing is allowed to
- * grow into spare memory, but not to eat it.
- *
- * The entry size is 0x16, and that is where 0x5695 comes from: the block is
- * *two* arrays, `count` far pointers of four bytes each and then the records
- * themselves, so the second pointer is the first plus `4 * count`. Only the
- * offset is added - the segment is shared - which is what keeps a listing this
- * size inside one segment.
+ * A `:` record does not go through the loop at all; it answers the constant
+ * `".."`, so the way back up leaves here as a path DOS understands rather than
+ * as the marker the listing keeps it as.
  */
-void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
-{
-    uint32_t v;
-
-    (void)arg1;
-    (void)arg2;
-
-    if (dg_far_ptr(GAME_PICKER_TEXT.block) == FAR_NULL_PTR) {
-        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
-            GAME_PICKER_TEXT.entry_max = 0x3e8;
-            GAME_PICKER_TEXT.block = DG3576.scratch;
-        } else {
-            v = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
-
-            if ((int32_t)v > 0x7530)
-                v = 0x7530;
-
-            GAME_PICKER_TEXT.entry_max = (uint16_t)long_divide((int32_t)v, 0x16);
-
-            GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
-        }
-
-        /* The table of pointers sits at the head of the block and the text
-           after it, so the start is four bytes a line in, in the block's own
-           segment. */
-        GAME_PICKER_TEXT.text_start =
-            far_from(GAME_PICKER_TEXT.block.seg,
-                     dg_far_ptr(GAME_PICKER_TEXT.block)
-                     + 4 * ((uint16_t)GAME_PICKER_TEXT.entry_max));
-    }
-
-    fill_file_listing(pattern);
-    sort_file_listing();
-    GAME_PICKER_TEXT.scroll = 0;
-}
-
-/*
- * 0x13870
- *
- * **The name field.** The buffer at DGROUP 0x53ab is copied into a local first,
- * and then the *pointer* is walked forward while the text is wider than 0xac
- * pixels - so a long name scrolls off the **left**, showing its end. That is
- * the right way round for typing: what you just typed stays in view.
- *
- * The caret is `*`, and it blinks by counting: 0x567e is bumped on every one of
- * these redraws and bit 3 decides whether the asterisk is appended, so it is on
- * for eight redraws and off for eight. It is appended *after* the width walk,
- * which means the caret can push the text past 0xac - the field is measured on
- * the name, not on the name plus caret.
- *
- * It only blinks when 0x4e6b says 0x4000, the field's own mode. Out of that
- * mode nothing is counted, so the caret is not merely hidden, it stops.
- */
-void picker_draw_name(void)
-{
-    char buf[90];                  /* [bp-0x5a] */
-    char *si  = buf;
-
-    string_copy(buf, (const char *)GAME_DIRECTORIES.path_field);
-
-    while ((int16_t)text_width_thunk(si) > 0xac)
-        si++;
-
-    if (DG4E67.state == 0x4000) {
-        DG5677.caret_blink++;
-        if ((DG5677.caret_blink & 8) != 0)
-            string_concat(si, GAME_FILE_STRINGS.star_a);
-    }
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
-
-    VMDS.text_back = 0;
-    VMDS.text_colour = 0x0f;
-
-    cursor_redraw_off_thunk();
-    draw_string(si, 0x44, 0x5a);
-    restore_cursor_following();
-}
-
-/*
- * 0x136c9
- *
- * **The picker's whole screen.** Everything the loop redraws piecemeal, laid
- * down once: the title bar, the four sunken wells - two for the buttons, two
- * for the scroll arrows - the heading, the buttons, and then the same four
- * routines the loop calls for its partial repaints.
- *
- * The heading and the left button say LOAD or SAVE according to 0x568f, and
- * they are drawn from **two separate branches** rather than one branch choosing
- * two strings. Both buttons are drawn unpressed here; `picker_draw_action` is
- * what draws them pressed, and it exists precisely because this routine cannot
- * be called for a button going down.
- *
- * The wells are placed round what goes in them, not derived from it: the button
- * well at (0x36, 0x129) is 0x40 by 0x20 for a button drawn at (0x40, 0x130).
- */
-void picker_repaint(void)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
-
-    draw_sunken_box(0x36, 0x129, 0x40, 0x20);
-    draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
-
-    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_scroll_text(DG1BCC.load_machine, 0x50, 0x34, 0xa0);
-        draw_button(DG1BCC.load, 0x40, 0x130, 0);
-    } else {
-        draw_scroll_text(DG1BCC.save_machine, 0x50, 0x34, 0xa0);
-        draw_button(DG1BCC.save, 0x40, 0x130, 0);
-    }
-
-    draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
-    draw_sunken_box(0xbc, 0xe0, 0x20, 0x20);
-
-    picker_draw_up();
-    picker_draw_down();
-
-    draw_button(DG1BCC.cancel, 0xc0, 0x130, 0);
-
-    picker_draw_name();
-    picker_draw_list();
-    picker_draw_filename();
-
-    present_back_page();
-}
-
-/*
- * 0x137e4
- *
- * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is
- * read out of the mode word DGROUP 0x4e6b - 0x800 is "this arrow is held down"
- * - so the picker never has to tell it, the same way `picker_draw_action` reads
- * its own word back.
- *
- * The pair sits at +0x4a in the art set at DGROUP 0x52f4, and the pressed one
- * is the *second*, which is why the index is doubled before it is added.
- */
-void picker_draw_up(void)
-{
-    int16_t pressed = (DG4E67.state == 0x800) ? 1 : 0;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x25]),
-                0xc4, 0x78, 0);
-    restore_cursor_following();
-}
-
-/*
- * 0x1382a
- *
- * **The list's down arrow.** `picker_draw_up`'s twin, and the only differences
- * are the three numbers: the mode it answers to is 0x400, its art is at +0x4e,
- * and it sits 0x70 further down at y 0xe8.
- */
-void picker_draw_down(void)
-{
-    int16_t pressed = (DG4E67.state == 0x400) ? 1 : 0;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[pressed + 0x27]),
-                0xc4, 0xe8, 0);
-    restore_cursor_following();
-}
-
-/*
- * NOT a transcription: the port's factoring of the eleven **identical inline
- * blocks** at 0x13205 to 0x133c3. Each is `strnicmp` against one reserved DOS
- * device name followed by a check that the byte after it ends the stem, and the
- * original repeats the whole thing eleven times rather than looping. Every
- * constant is kept, in the order the original tests them - including the last
- * pair, which do not agree with each other. The names are the DGROUP copies
- * each block pushes, 0x291c to 0x294a.
- */
-static const struct {
-    const char *name;
-    uint16_t len;
-    uint16_t after;
-} reserved_names[] = {
-    { GAME_FILE_STRINGS.con,  3, 3 },
-    { GAME_FILE_STRINGS.aux,  3, 3 },
-    { GAME_FILE_STRINGS.com1, 4, 4 },
-    { GAME_FILE_STRINGS.com2, 4, 4 },
-    { GAME_FILE_STRINGS.com3, 4, 4 },
-    { GAME_FILE_STRINGS.com4, 4, 4 },
-    { GAME_FILE_STRINGS.prn,  3, 3 },
-    { GAME_FILE_STRINGS.lpt1, 4, 4 },
-    { GAME_FILE_STRINGS.lpt2, 4, 4 },
-    { GAME_FILE_STRINGS.nul,  3, 3 },
-    { GAME_FILE_STRINGS.null, 3, 4 },   /* compared for THREE bytes - see below */
-};
-
-/*
- * 0x1319d
- *
- * **Is the typed name usable?** Three answers, not two: 0 for no, 1 for a name
- * that is free to create, and **2 for one that already exists** - which the
- * caller needs to tell apart so it can ask before overwriting.
- *
- * The rejections, in the order they are made:
- *
- *   an empty name, or one starting with `.`; a space anywhere in the stem - the
- *   scan stops at the first `.`, so spaces in an extension are not looked at;
- *   any of the fourteen characters in the table at DGROUP 0x28ec, which are
- *   `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`; and any of eleven
- *   reserved DOS device names.
- *
- * A device name only counts when it is the *whole stem* - the byte after it has
- * to be the terminator or a `.` - which is why `CONFIG.TIM` survives and
- * `CON.TIM` does not.
- *
- * **The eleventh entry is wrong in the original.** "null" is compared for
- * **three** bytes - so it tests the same `nul` the tenth entry does - but checks
- * the byte at +4 rather than +3. The effect is that *any* four-letter stem
- * beginning `NUL` is rejected: `NULA` and `NULX` as much as `NULL`. Written as
- * `strnicmp(name, "null", 4)`, which is plainly what was meant, it would have
- * caught `NULL` alone. Transcribed as it is.
- *
- * Last, it *opens the file* to find out whether it is there, and closes it
- * again. A name that opens answers 2. One that does not answers 1 only when
- * 0x568f says 0x80 - the mode the picker was opened from - and 0 otherwise, so
- * asking to load something that is not there is a rejection rather than an
- * answer the caller has to interpret.
- */
-uint16_t validate_filename(void)
-{
-    char    *si;
-    uint16_t i;
-    FILE *file;
-    int16_t  bad = 0;
-
-    si = (char *)DG4E4E.name_buf;
-
-    if (*si == 0)
-        bad = 1;
-    if (*si == '.')
-        bad = 1;
-
-    while (*si != 0 && *si != '.') {
-        if (*si == ' ')
-            bad = 1;
-        si++;
-    }
-
-    if (bad)
-        return 0;
-
-    for (i = 0; i < 0x0e; i++) {
-        if (string_chr((char *)DG4E4E.name_buf,
-                       GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
-            return 0;
-    }
-
-    for (i = 0; i < sizeof reserved_names / sizeof reserved_names[0]; i++) {
-        uint16_t after;
-
-        if (string_ncompare_i((const char *)DG4E4E.name_buf, reserved_names[i].name,
-                              reserved_names[i].len) != 0)
-            continue;
-
-        after = (uint8_t)DG4E4E.name_buf[reserved_names[i].after];
-        if (after == 0 || after == '.')
-            return 0;
-    }
-
-    file = game_fopen((char *)DG4E4E.name_buf, GAME_FILE_STRINGS.mode_rb);
-
-    if (file != 0) {
-        game_fclose(file);
-        return 2;
-    }
-
-    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x80)
-        return 1;
-
-    return 0;
-}
-
-/*
- * 0x13402
- *
- * **Redraw the picker's one action button.** Which word it carries is not a
- * parameter: it is read back out of the mode word DGROUP 0x4e6b, and when that
- * says 0x200 - the picker's own mode - out of *0x568f*, the value 0x4e6b held
- * before the picker took it. So the button says LOAD or SAVE according to which
- * handler opened the picker, and the picker itself does not have to be told.
- *
- * Anything else says CANCEL, and it moves: 0xc0 against 0x40. The two are
- * different buttons in the same place in the code, not one button relabelled.
- */
-void picker_draw_action(void)
-{
-    if (DG4E67.state != 0x200) {
-        draw_button(DG1BCC.cancel, 0xc0, 0x130, 1);
-    } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_button(DG1BCC.load, 0x40, 0x130, 1);
-    } else {
-        draw_button(DG1BCC.save, 0x40, 0x130, 1);
-    }
-
-    present_back_page();
-}
-
-/*
- * 0x13902
- *
- * **The "File Name:" field**, and `picker_draw_name`'s twin down to the shape
- * of the code: copy, walk the pointer forward while the text is too wide, blink
- * a caret by counting, fill, draw.
- *
- * Everything that differs is a number - a different buffer (0x4e5a against
- * 0x53ab), a narrower field (0x64 against 0xac), a different mode (0x1000), a
- * different counter (0x5680) - and a *different asterisk*: 0x2954, where the
- * other field uses 0x2952. The two one-character strings sit next to each other
- * in the image, unpooled, which is how you can tell these are two routines and
- * not one called twice.
- *
- * This one also draws its own label, because the label belongs to the field.
- */
-void picker_draw_filename(void)
-{
-    char buf[16];                  /* [bp-0x10] */
-    char *si  = buf;
-
-    string_copy(buf, (const char *)DG4E4E.name_buf);
-
-    while ((int16_t)text_width_thunk(si) > 0x64)
-        si++;
-
-    if (DG4E67.state == 0x1000) {
-        DG5677.caret_blink_b++;
-        if ((DG5677.caret_blink_b & 8) != 0)
-            string_concat(si, GAME_FILE_STRINGS.star_b);
-    }
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
-    fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
-
-    VMDS.text_back = 0;
-    VMDS.text_colour = 0x0f;
-
-    cursor_redraw_off_thunk();
-    draw_string(si, 0x94, 0x110);
-    restore_cursor_following();
-}
-
-/*
- * 0x1345f
- *
- * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
- * warps the pointer rather than moving any focus. Seven stops, cursor at DGROUP
- * 0x28fa, x at 0x28fc and y at 0x290a - and here the two tables are the same
- * length, because none of the picker's controls is a slider whose position has
- * to be worked out from a value.
- */
-void picker_tab(void)
-{
-    GAME_PICKER_TABS.stop++;
-
-    if (GAME_PICKER_TABS.stop == 7)
-        GAME_PICKER_TABS.stop = 0;
-
-    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.stop],
-                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.stop]);
-}
-
-/*
- * 0x13490
- *
- * **One keystroke into the picker's name field.** Backspace - 8 - takes the
- * last byte off, and does nothing on an empty field. Anything else is appended
- * *as a string*: the character is stored into a two-byte local with a NUL after
- * it and handed to `strcat`, which is why this routine has locals at all.
- *
- * Two characters never reach the field: backspace, which is handled above, and
- * **tab**, which is excluded explicitly. Tab is a key the picker wants for
- * moving the pointer, and a field that swallowed it would take it away.
- *
- * The length check is `< max`, and `max` counts the NUL's room the way the
- * caller passed it - this routine does not add one.
- */
-void picker_type(uint8_t c, char *buf, int16_t max)
-{
-    char str[2];                  /* [bp-2], the two-byte string */
-    int16_t  len;
-
-    str[0] = (char)c;
-    str[1] = 0;
-
-    len = (int16_t)string_length(buf);
-
-    if (c == '\b') {
-        if (len != 0)
-            buf[len - 1] = 0;
-    } else if (len < max && c != '\t') {
-        string_concat(buf, str);
-    }
-}
-
-/*
- * 0x134dd
- *
- * **Is this path a drive's root?** One separator in the whole string, and it is
- * the last byte - "C:\\" and nothing else. It counts the same way `path_up`
- * does, against the same shared "\\" at DGROUP 0x1bca, which is what keeps the
- * two agreeing about where the walk up has to stop.
- */
-uint16_t path_is_root(const char *path)
-{
-    const char *si = path;
-    const char *last = 0;
-    int16_t  n = 0;
-    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
-
-    while (*si != 0) {
-        if (*si == sep) {
-            last = si;
-            n++;
-        }
-        si++;
-    }
-
-    if (n == 1 && last[1] == 0)
-        return 1;
-
-    return 0;
-}
-
-/*
- * 0x13516
- *
- * **Drop the last component of a path**, in place. It walks to the terminator
- * counting separators - the character is not a literal here but `*GAME_PATH_SEP.path_sep_ptr`,
- * the one-character string "\\" the rest of the module shares - and remembers
- * the last one it saw.
- *
- * The two cases differ by one byte, and that byte is the whole point: with a
- * single separator the cut is *after* it, leaving "C:\\", because a drive with
- * its backslash taken off means the current directory rather than the root.
- * With more than one it cuts *at* the separator, leaving the parent. With none
- * it does nothing at all.
- */
-void path_up(char *path)
-{
-    char *si = path;
-    char *last = 0;
-    int16_t  n = 0;
-    char sep = *(const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr);
-
-    while (*si != 0) {
-        if (*si == sep) {
-            last = si;
-            n++;
-        }
-        si++;
-    }
-
-    if (n == 1)
-        last[1] = 0;
-    else if (n > 1)
-        *last = 0;
-}
-
-/*
- * 0x1354c
- *
- * **Join a listed name onto the path.** The name comes in as a *far* pointer -
- * it is in the picker's own list block, not DGROUP - and the path is near, so
- * the name is copied through a fourteen-byte local first.
- *
- * That copy is off by one at both ends, deliberately, and `fill_file_listing` is what
- * makes it right: a directory is written into the listing as `<NAME>`. This
- * stores from the **second** byte, past the `<`, and after the join chops the
- * **last** byte, the `>`. So `<DOS>` arrives and `\\DOS` leaves.
- *
- * The separator goes in only when the path is not already a root, because a
- * root already ends in one and `path_is_root` is the routine that knows.
- *
- * The loop tests the byte *before* stepping and stores the byte *after*, so the
- * NUL is copied along with the rest and the local needs no terminating of its
- * own.
- */
-void path_join(char *path, const char far * entry)
-{
-    char name[14];                            /* [bp-0xe] */
-    uint16_t di   = 0;
-    uint16_t len;
-
-    while (*entry != 0) {
-        entry++;
-        name[di] = *entry;
-        di++;
-    }
-
-    if (path_is_root(path) == 0)
-        string_concat(path, (const char *)dg_near_ptr(GAME_PATH_SEP.path_sep_ptr));
-
-    string_concat(path, name);
-
-    len = string_length(path);
-    path[len - 1] = 0;
-}
-
-/*
- * 0x135a6
- *
- * **Force a name into 8.3.** The eighth byte is cut off first, unconditionally
- * and before anything is looked at, so a long name loses its tail rather than
- * its extension. Then the first `.` - or the terminator, if there is none - is
- * where the new one goes, and the extension the caller passed is appended.
- *
- * An empty name is left empty: the cut at byte 8 has already happened, but
- * nothing is appended, so the picker cannot end up holding a name that is only
- * an extension.
- */
-void force_extension(char *name, const char *ext)
+char *listing_to_name(const char far * entry)
 {
     char *si;
 
-    name[8] = 0;
+    if (*entry == ':')
+        return GAME_FILE_STRINGS.dot_dot_b;
 
-    if (name[0] == 0)
-        return;
+    si = (char *)GAME_NAME_BUFFER.name;
 
-    si = name;
-    while (*si != 0 && *si != '.')
-        si++;
+    while (*entry != 0) {
+        char c = *entry;
 
-    si[0] = '.';
-    si[1] = 0;
-
-    string_concat(name, ext);
-}
-
-/*
- * 0x135dc
- *
- * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
- * the one buffer the picker answers out of.
- *
- * **Nothing calls it**, by three searches rather than one: no near `call` to
- * it in this module, no far `call` anywhere in the image - `9a ec 55 ff 0d` -
- * and its far pointer `0dff:55ec` is not *stored* anywhere either, which is how
- * the region handlers are reached and would have been missed by the first two.
- * The same holds for `picker_name` beside it.
- *
- * The pointer search was run against `path_join` as a control: that one is
- * called, by a near `call`, and its pointer is likewise stored nowhere - so the
- * search distinguishes dispatch through a table from a direct call, rather than
- * answering "nowhere" to everything. They are the picker's public face, written and never
- * used, because `pick_file` fills 0x4e5a itself and copies the answer to
- * 0x52fe on the way out. Transcribed because they are there, and recorded as
- * dead because saying "unreached on the paths tried" would suggest a path
- * exists.
- */
-void picker_set_name(const char *name)
-{
-    string_copy((char *)DG4E4E.name_buf, name);
-}
-
-/*
- * 0x135ef
- *
- * The picker's answer: **the buffer's address, or zero when it is empty.** A
- * caller would get a pointer it could hand straight to `load_animation`,
- * without having to know where the name lives.
- *
- * There is no caller. See `picker_set_name` above: neither is reachable from
- * anywhere in the image.
- */
-char *picker_name(void)
-{
-    if (DG4E4E.name_buf[0] != 0)
-        return (char *)DG4E4E.name_buf;
-
-    return NULL;
-}
-
-
-/*
- * 0x123b7
- *
- * **Write one byte**, and do nothing at all once the file has gone wrong.
- *
- * The error word 0x5478 is checked first and every writer checks it, so a
- * failure part way through a machine file does not have to be propagated: the
- * remaining hundreds of calls simply become no-ops and `write_level` finds the
- * word set when it gets to the end. That is why none of the writers answer
- * anything.
- */
-void write_byte(FILE *file, const uint8_t * addr)
-{
-    if (DG546C.error != 0)
-        return;
-
-    if (game_fwrite(addr, 1, 1, file) != 1)
-        DG546C.error = 1;
-}
-
-/*
- * 0x123e4
- *
- * **Write one word.** The same routine as `write_byte` with a size of 2, and
- * the original writes it out twice rather than sharing one - so this does too.
- */
-void write_word(FILE *file, const uint8_t * addr)
-{
-    if (DG546C.error != 0)
-        return;
-
-    if (game_fwrite(addr, 2, 1, file) != 1)
-        DG546C.error = 1;
-}
-
-/*
- * 0x12411
- *
- * **Write a string, and its terminator with it.** The loop writes the byte at
- * the pointer and *then* tests it, so the NUL goes to the file before the loop
- * ends - a reader has something to stop at. Written the other way round it
- * would be an off-by-one that only shows up when the file is read back.
- */
-void write_string(FILE *file, char *str)
-{
-    for (;;) {
-        write_byte(file, (const uint8_t *)str);
-        if (*str == 0)
-            return;
-        str++;
-    }
-}
-
-/*
- * 0x11d00
- *
- * **A part's index among all parts**, which is how the machine file refers to
- * one: a pointer means nothing to a reload, so every reference is written as the
- * position the part has in the walk `pick_by_flag(0x3000)` makes.
- *
- * A null part answers 0xffff, and that is the file's "no part here".
- *
- * **A part that is not found answers the count**, because the loop ends the same
- * way whether it found the part - which sets `si` to zero to break out - or ran
- * off the end, and the index is whatever the counter reached. So a reference to
- * something outside the walk is written as one past the last part rather than
- * as an error. Nothing here checks for it, and this is transcribed as it is
- * rather than made to answer 0xffff, because a reload that trips over it is
- * behaviour the original has.
- */
-uint16_t part_index(struct part *part)
-{
-    struct part *si;
-    uint16_t n = 0;
-
-    if (part == PART_NONE)
-        return 0xffff;
-
-    for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
-        if (si == part) {
-            si = PART_NONE;
-            break;
+        if (c != '<' && c != '>' && c != ' ') {
+            *si = c;
+            si++;
         }
-        si = pick_for_record(si, 0x1000);
-        n++;
+        entry++;
     }
 
-    return n;
+    *si = 0;
+    return (char *)GAME_NAME_BUFFER.name;
 }
 
 /*
- * 0x12430
+ * 0x13dc7
  *
- * **Write one part's record.** Thirteen fields, then whatever the part is
- * attached to - and every attachment is written as a *`part_index`*, never a
- * pointer, so a reload can find the other end again.
+ * **Draw a string wrapped into a box**, centred both ways, with a shadow.
  *
- * **Three of its locals have their addresses taken**, because `write_word`
- * writes from an address and the values here are computed rather than fields of
- * the part: whether there is a rope, whether there is a belt, and each index in
- * turn. So the port takes a guest frame for those three and keeps the rest as
- * ordinary locals - which is the same split `write_part_count` needed for its count.
+ * `wrap_text_to_box` does the wrapping and leaves its results in DGROUP: a
+ * list of line pointers from 0x56a6, how many at 0x56a4, and the block's
+ * measured height and width at 0x56a0 and 0x56a2. This routine only places and
+ * draws them.
  *
- * **The rope flag is written whether or not there is a rope**, and the belt flag
- * twice, once per slot. That is what makes the record fixed-width up to the
- * flags and self-describing after them: a reader takes the flag and knows
- * whether two more indices follow.
+ * The centring uses the *measured* extents, not the box: `(w - 0x56a2 - 1) / 2`
+ * and `(h - 0x56a0 - 1) / 2`, the minus one making an odd remainder fall left
+ * and up rather than right and down. The clip box is then set to the box as
+ * placed, so a line the wrapper could not fit is cut rather than drawn over
+ * the panel.
  *
- * The belt flag can only be true on the **first** slot - `i == 0` and the kind
- * being 0x0a or 7 - which is why the belt it then reads is at +0x66 flatly and
- * not at +0x66 + 2i. The second pass writes the flag as zero and the two bytes
- * at +0x6a and +0x6b, and nothing else.
+ * **A line's end is the next line's start, less one.** The table holds only
+ * starts, so each line is bounded by looking ahead - and the trailing spaces
+ * are walked back over before drawing, then a NUL is written *into the
+ * caller's string* to terminate it and the displaced byte is put back
+ * afterwards. The string is modified and restored, which is why this cannot be
+ * handed a string in read-only memory.
  *
- * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
- * skipping 2 and 3, which are the second half of the pairs `detach_belt` and
- * `finish_part_removal` clear together. A file that stored them would be storing the same
- * links twice.
+ * Each line is drawn twice, colour 0xf one pixel left and one down and then
+ * colour 5 at the true place - the same shadow the parts bin's numbers use.
  *
- * Last, and only for kind 7, the record at +0x68 - its first word as an index,
- * or 0xffff when there is none. That is the one place this writes 0xffff
- * itself; everywhere else it comes back from `part_index`.
+ * The loop ends on a null pointer, on a line that starts with a NUL, or when
+ * the count runs out, and the count is tested **before** it is decremented, so
+ * a count of one draws one line.
  */
-void write_record_fields(FILE *file, struct part *part)
+void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    int16_t vindex;   /* [bp-6] */
-    int16_t vbelt;   /* [bp-4] */
-    int16_t vrope;/* [bp-2] */
-    struct rope *rope;
-    uint16_t belt;
-    int16_t  i;
+    uint16_t line_height;
+    uint16_t i;
+    int16_t  left, top, left_at;
 
-    write_word(file, (const uint8_t *)&part->kind);
-    write_word(file, (const uint8_t *)&part->flags_06);
-    write_word(file, (const uint8_t *)&part->start_flags);
-    write_word(file, (const uint8_t *)&part->flags_0a);
-    write_word(file, (const uint8_t *)&part->start_form);
-    write_word(file, (const uint8_t *)&part->start_direction);
-    write_word(file, (const uint8_t *)&part->size[0].width);
-    write_word(file, (const uint8_t *)&part->size[0].height);
-    write_word(file, (const uint8_t *)&part->set_size.width);
-    write_word(file, (const uint8_t *)&part->set_size.height);
-    write_word(file, (const uint8_t *)&part->start_x);
-    write_word(file, (const uint8_t *)&part->start_y);
-    write_word(file, (const uint8_t *)&part->word_96);
+    VMDS.text_style = 1;                        /* transparent */
+    line_height = font_line_height(0);
 
-    vrope = (int16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
-    write_word(file, (uint8_t *)&vrope);
+    wrap_text_to_box(str, w, h, line_height);
 
-    write_byte(file, (const uint8_t *)&part->grab.x);
-    write_byte(file, (const uint8_t *)&part->grab.y);
-    write_word(file, (const uint8_t *)&part->grab_size);
+    left = (int16_t)(x + (w - GAME_PICKER_TEXT.text_width - 1) / 2);
+    top  = (int16_t)(y + (h - GAME_PICKER_TEXT.text_height - 1) / 2 + 1);
 
-    if ((uint16_t)vrope != 0) {
-        rope = ROPE_PTR(part->rope_ptr);
+    VMDS.clip_left   = left;
+    VMDS.clip_right  = (int16_t)(left + w);
+    VMDS.clip_top    = top;
+    VMDS.clip_bottom = (int16_t)(top + h);
 
-        vindex = (int16_t)part_index(PART_PTR(rope->end_a_ptr));
-        write_word(file, (uint8_t *)&vindex);
-        vindex = (int16_t)part_index(PART_PTR(rope->end_b_ptr));
-        write_word(file, (uint8_t *)&vindex);
+    i       = 0;
+    left_at = GAME_PICKER_TEXT.line_count;
+
+    while (GAME_TEXT_LINES.line_ptr[i] != 0 && *dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]) != 0
+           && left_at-- != 0) {
+        char *start = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i]);
+        char *end   = (char *)dg_near_ptr(GAME_TEXT_LINES.line_ptr[i + 1]) - 1;
+        char  saved;
+
+        while (end > start && (uint8_t)*end <= ' ')
+            end--;
+        end++;
+
+        saved = *end;
+        *end = 0;
+
+        cursor_redraw_off_thunk();
+
+        VMDS.text_colour = 0x0f;
+        draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
+
+        VMDS.text_colour = 5;
+        draw_string(start, left, top);
+
+        restore_cursor_following();
+
+        *end = saved;
+        i++;
+        top = (int16_t)(top + line_height);
     }
 
-    for (i = 0; i < 2; i++) {
-        vbelt = (int16_t)((i == 0
-                                   && (((int16_t)part->kind) == 0x0a
-                                       || ((int16_t)part->kind) == 7))
-                                  ? 1 : 0);
-        write_word(file, (uint8_t *)&vbelt);
+    set_clip_full_screen();
+}
 
-        write_byte(file, &part->attach[i].x);
-        write_byte(file, &part->attach[i].y);
+/*
+ * 0x13ed2
+ *
+ * **Break a string into lines that fit a box.** The line starts go into the
+ * table from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
+ * height and width at 0x56a0 and 0x56a2 - which `draw_wrapped_text` then uses
+ * to centre it.
+ *
+ * The height is capped at **seven lines** before anything else: `h` is reduced
+ * to `7 * line_height` if it is larger, so a tall box does not make a tall
+ * block. Seven is a constant in the code, not a table size.
+ *
+ * The measuring is by *word*, through `measure_word`, which answers the word's
+ * width and its length. A word that does not fit starts a new line - and the
+ * test is `width + word > box` **or** nothing has been placed on this line yet
+ * and the block is not empty, so a single word wider than the box still gets a
+ * line to itself rather than looping.
+ *
+ * A carriage return, 0x0d, forces a line break and the next line starts *after*
+ * it. A space adds the width of a space - measured once at the top from a
+ * two-byte string - and is otherwise skipped. Any other character at or below
+ * a space ends the scan.
+ *
+ * The width recorded at 0x56a2 is the widest line, clamped to the box.
+ *
+ * **The last line is counted only if it has something on it**: after the loop,
+ * a run width of zero with at least one line already recorded takes one back
+ * off the count; otherwise the height gains one more line. Then the entry past
+ * the last is set to the point the scan stopped at, which is what makes
+ * `draw_wrapped_text`'s "end is the next start, less one" work for the final
+ * line as well.
+ */
+void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
+{
+    char space[2];            /* [bp-0xc], a two-byte " " */
+    int16_t o_len[3];   /* [bp-0xa] */
+    int16_t o_wide[2];   /* [bp-4]   */
+    char    *at     = str;
+    int16_t  used   = 0;         /* height used so far */
+    int16_t  run    = 0;         /* width on the current line */
+    int16_t  space_w;
+    int16_t  cap    = (int16_t)(line_height * 7);
 
-        if ((uint16_t)vbelt != 0) {
-            belt = part->belt_ptr[0];
+    if (h > cap)
+        h = cap;
 
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
-            write_word(file, (uint8_t *)&vindex);
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
-            write_word(file, (uint8_t *)&vindex);
+    GAME_PICKER_TEXT.line_count = 0;
+    GAME_PICKER_TEXT.text_height  = 0;
+    GAME_PICKER_TEXT.text_width  = 0;
 
-            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0a)));
-            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0b)));
+    if (*at != 0) {
+        GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
+        GAME_PICKER_TEXT.line_count++;
+    }
+
+    (*space)     = ' ';
+    space[1] = 0;
+    space_w = (int16_t)text_width_thunk(space);
+
+    while (*at != 0 && (int16_t)(used + line_height) < h) {
+        int16_t word_w, word_len;
+
+        measure_word(at, (uint8_t *)o_wide,
+                     (uint8_t *)o_len);
+        word_w   = o_wide[0];
+        word_len = o_len[0];
+
+        if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
+            run  = 0;
+            used = (int16_t)(used + line_height);
+            GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
+            GAME_PICKER_TEXT.line_count++;
+            if ((int16_t)(used + line_height) >= h)
+                break;
+        }
+
+        at += word_len;
+        run = (int16_t)(run + word_w);
+        if (run > GAME_PICKER_TEXT.text_width)
+            GAME_PICKER_TEXT.text_width = run;
+        if (GAME_PICKER_TEXT.text_width > w)
+            GAME_PICKER_TEXT.text_width = w;
+
+        while (*at != 0 && (uint8_t)*at <= ' '
+               && (int16_t)(used + line_height) < h) {
+            if (*at == 0x0d) {
+                run  = 0;
+                used = (int16_t)(used + line_height);
+                GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at + 1);
+                GAME_PICKER_TEXT.line_count++;
+            } else if (*at == ' ') {
+                run = (int16_t)(run + space_w);
+            }
+            at++;
         }
     }
 
-    for (i = 0; i < 2; i++) {
-        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
-        write_word(file, (uint8_t *)&vindex);
-    }
+    GAME_PICKER_TEXT.text_height = used;
 
-    for (i = 4; i < 6; i++) {
-        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
-        write_word(file, (uint8_t *)&vindex);
-    }
+    if (run == 0 && ((uint16_t)GAME_PICKER_TEXT.line_count) != 0)
+        GAME_PICKER_TEXT.line_count--;
+    else
+        GAME_PICKER_TEXT.text_height = (int16_t)(GAME_PICKER_TEXT.text_height + line_height);
 
-    if (((int16_t)part->kind) == 7) {
-        belt = part->belt_ptr[1];
-
-        if (belt != 0)
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
-        else
-            vindex = (int16_t)0xffff;
-
-        write_word(file, (uint8_t *)&vindex);
-    }
+    GAME_TEXT_LINES.line_ptr[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_near(dgroup, at);
 }
 
 /*
- * 0x126b3
+ * 0x1401d
  *
- * **Write every part of one list, and mark it as it goes.**
+ * Measure one word: how wide it is and how long, answered through the two near
+ * pointers it is given.
  *
- * The mark is bit 15 of +6 - the same bit `remove_all_parts` refuses to touch a
- * part over. List 2 is the bin at 0x50d7 and every part in it has the bit
- * *cleared*; lists 0 and 1 have it *set*, but only when DGROUP 0x5472 says this
- * is the long form of the file. So saving is what decides which parts a reload
- * will call the level's own and which the player's, and in the short form -
- * which is what the game itself saves - nothing is marked at all.
+ * A word runs to the first character **at or below a space** - so a space, a
+ * carriage return and a NUL all end it, and `wrap_text_to_box` then decides
+ * which of those it was.
  *
- * The bit is set on the live part and not on a copy, so a save leaves the
- * machine in memory marked as well as the file.
+ * The width comes from `text_width`, and to get it the routine writes a NUL
+ * over the terminator, measures, and puts the displaced byte back - the same
+ * trick `draw_wrapped_text` uses on the same string, for the same reason:
+ * `text_width` stops at a NUL and there is nowhere else to put one.
  *
- * Takes the list's head cell, as `write_part_count` does.
+ * The length is counted separately as the walk goes rather than taken from the
+ * pointer difference.
  */
-void write_part_list(FILE *file, struct part *head, uint16_t which)
+void measure_word(char *str, uint8_t * out_width, uint8_t * out_length)
 {
-    struct part *si;
+    char *at  = str;
+    int16_t  len = 0;
+    char     saved;
 
-    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        if (which == 2)
-            si->flags_06 &= 0x7fff;
-        else if (DG546C.is_level != 0)
-            si->flags_06 |= 0x8000;
-
-        write_record_fields(file, si);
+    while ((uint8_t)*at > ' ') {
+        at++;
+        len++;
     }
+
+    saved   = *at;
+    *at = 0;
+
+    *(int16_t *)(out_width) = (int16_t)text_width(str);
+    *(int16_t *)(out_length) = len;
+
+    *at = saved;
 }
 
 /*
- * 0x126ec
+ * 0x1405b
  *
- * **Write how many parts a list holds**, by walking it and counting.
+ * Build the list of parts a level may use, and reset the machine's state around
+ * it: the list head at DGROUP 0x50d7, the two pairs at 0x5179 and 0x521b, the
+ * play area at 0x50af..0x50b5, and the two at 0x4ead.
  *
- * The count goes into a *stack* local whose address is then handed to
- * `write_word` - which is why the port takes a guest frame for it rather than
- * using a C variable. Every field of this file is written from an address, and
- * a count that exists only for the length of this call is no exception.
+ * Parts 0 to 0x32 are all included except in three cases. **0x14, 0x29 and 0x31
+ * are never included**, and are excluded by falling into a branch that leaves
+ * the flag clear rather than by being tested against a list. And **0x20, 0x21
+ * and 0x22 are conditional**, each on its own word - 0x4e7d, 0x4e81 and 0x4e7b -
+ * which is what makes three of the parts appear only when the game says so.
  *
- * This is the first of the two passes each list gets: the count first, so a
- * reader knows how many of the records that `write_part_list` writes to expect.
+ * The three conditionals are written as three independent `if`s inside the same
+ * branch rather than as a switch, so a part number that is not one of the three
+ * reaches the end of them with its flag still clear and is left out too - which
+ * cannot happen, because only those three get in there.
  *
- * Takes the list's head cell, as the original does - `mov ax, 0x521b` in
- * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
- * an empty list's head holds 0, and the walk ends on that offset.
+ * The play area is 0x43,0x110 to -8,-8 - the negative pair being the origin
+ * rather than a size, which is worth saying because it reads like a mistake.
  */
-void write_part_count(FILE *file, struct part *head)
+void build_part_list(void)
 {
-    int16_t vn;                   /* [bp-2] */
-    struct part *si;
+    int16_t si;
 
-    vn = 0;
-    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        vn++;
-
-    write_word(file, (uint8_t *)&vn);
-}
-
-/*
- * 0x1271c
- *
- * **The machine file writer.** `save_machine` is the doorway that puts the
- * dragged part down first; this is what opens the file and writes it. Answers
- * zero on success.
- *
- * The file starts with 0xaced and then 0x0102, a magic and a version, and both
- * are written *out of DGROUP* - set into 0x5476 and 0x5474 first and the address
- * passed - because everything else here is written the same way and the writer
- * takes an address, not a value.
- *
- * **DGROUP 0x5472 decides how much goes in.** Two groups of fields are written
- * only when it is set - 0x4ecf and 0x4f1f, then 0x50af and 0x50b1, and later
- * 0x50b7 and 0x50b9 - while 0x50b3, 0x50b5 and 0x50bb always go. `save_machine`
- * zeroes 0x5472 before calling, so a machine saved from the game gets the short
- * form and only whatever else sets that word gets the long one.
- *
- * Then the three part lists - 0x521b, 0x5179 and 0x50d7 - each written twice:
- * once by `write_part_count` and once by `write_part_list`, which also takes 0, 1 and 2. Two
- * passes over the same three lists, so the second can refer to what the first
- * wrote; the tag says which list it is reading back.
- *
- * **A file that fails to close is deleted.** The error word 0x5478 is set by a
- * non-zero close as well as by a failed open, and a set error word deletes the
- * file - so a half-written machine does not survive to be loaded. The open
- * failing returns 1 without touching the disk.
- *
- * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
- * save handlers set around the picker.
- */
-uint16_t write_level(char *name)
-{
-    FILE *f;
-
-    DG546C.error = 0;
-    DG546C.version_out = 0xaced;
-    DG546C.version = 0x0102;
-    DG4E67.file_op_active = 1;
-
-    f = game_fopen(name, GAME_FILE_NAMES.wb_write_level);
-    if (f == 0) {
-        DG4E67.file_op_active = 0;
-        return 1;
-    }
-
-    write_word(f, (const uint8_t *)&DG546C.version_out);
-    write_word(f, (const uint8_t *)&DG546C.version);
-
-    if (DG546C.is_level != 0) {
-        write_string(f, (char *)DG4E67.title);
-        write_string(f, (char *)DG4E67.hint);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_1);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_2);
-    }
-
-    write_word(f, (const uint8_t *)&DG50AF.gravity);
-    write_word(f, (const uint8_t *)&DG50AF.air);
-
-    if (DG546C.is_level != 0) {
-        write_word(f, (const uint8_t *)&DG50AF.extent_y);
-        write_word(f, (const uint8_t *)&DG50AF.extent_x);
-    }
-
-    write_word(f, (const uint8_t *)&DG50AF.tune);
-
-    write_part_count(f, &DG521B.placed_parts);
-    write_part_count(f, &DG5179.moving_parts);
-    write_part_count(f, &DG50D3.parts_bin);
-
-    write_part_list(f, &DG521B.placed_parts, 0);
-    write_part_list(f, &DG5179.moving_parts, 1);
-    write_part_list(f, &DG50D3.parts_bin, 2);
-
-    if (game_fclose(f) != 0)
-        DG546C.error = 1;
-
-    if (DG546C.error != 0)
-        dos_unlink(name);
-
-    DG4E67.file_op_active = 0;
-    return DG546C.error;
-}
-
-/*
- * 0x1292d
- *
- * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
- * Answers zero on success - the caller shows "FILE ERROR" and asks again for
- * anything else, so what comes back is a reason and not a count.
- *
- * The writing is `write_level`; what this adds is that **the dragged part is put
- * down first**. DGROUP 0x50d7 is saved, zeroed for the length of the write and
- * put back after, so a part in mid-drag is not written as held - the file has
- * no way to say "and this one is in the player's hand", and reloading it would
- * have to invent somewhere to put it. 0x5472 is zeroed with it and not restored.
- *
- * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
- * single exit; transcribed as the fall-through it is.
- */
-uint16_t save_machine(char *name)
-{
-    uint16_t held = DG50D3.parts_bin.next_ptr;
-    uint16_t r;
-
+    DG50D3.parts_bin.prev_ptr = 0;
     DG50D3.parts_bin.next_ptr = 0;
-    DG546C.is_level = 0;
+    DG5179.moving_parts.prev_ptr = 0;
+    DG5179.moving_parts.next_ptr = 0;
+    DG521B.placed_parts.prev_ptr = 0;
+    DG521B.placed_parts.next_ptr = 0;
 
-    r = write_level(name);
+    for (si = 0; si < 0x33; si++) {
+        int16_t wanted = 0;
 
-    DG50D3.parts_bin.next_ptr = held;
-    return r;
-}
+        if (si == 0x20 || si == 0x21 || si == 0x22) {
+            if (si == 0x20 && ((uint16_t)DG4E67.holiday_halloween) != 0)
+                wanted = 1;
+            if (si == 0x21 && ((uint16_t)DG4E67.holiday_valentine) != 0)
+                wanted = 1;
+            if (si == 0x22 && ((uint16_t)DG4E67.holiday_christmas) != 0)
+                wanted = 1;
+        } else if (si != 0x14 && si != 0x29 && si != 0x31) {
+            wanted = 1;
+        }
 
-/*
- * 0x12915
- *
- * Load an animation file: build the part list first, clear DGROUP 0x5472, and
- * read it. Every load in the image comes here - the title and credits
- * animations, freeform's `ff.lev`, and the file picker.
- *
- * **The bin is `build_part_list`'s and stays so.** With 0x5472 clear,
- * `read_level` reads a file's placed and moving lists but not its given one,
- * so the bin after a load is freeform's one-of-every-kind. This comment once
- * said a routine three bytes below loaded while *preserving* 0x50d7; those
- * bytes are the tail of the routine before, which ends by calling the machine
- * writer at 0x1271c.
- */
-uint16_t load_animation(char *name)
-{
-    build_part_list();
-    DG546C.is_level = 0;
+        if (wanted != 0) {
+            struct part *rec = make_part((uint16_t)si);
 
-    return read_level(name);
-}
-
-/*
- * 0x129a8
- *
- * Count the level files, and leave the count at DGROUP 0x4eb9.
- *
- * It builds "l", the number, ".lev" and tries to open it, climbing from 1 until
- * one is missing - so the answer is one *past* the last that opened, and the
- * decrement on the failing try is what turns that back into a count. Each file
- * that opens is closed again immediately; nothing is read.
- *
- * The name is assembled in a stack buffer whose address is passed on. That
- * used to mean a real DGROUP frame; it stopped meaning it when `game_fopen`
- * and the string routines took pointers, and the buffer is a C array.
- */
-void count_level_files(void)
-{
-    char name[16];                         /* [bp-0x18] */
-    char number[8];    /* [bp-8]    */
-    int16_t done = 0;
-
-    DG4E67.level_count = 1;
-
-    while (done == 0) {
-        FILE *file;
-
-        string_copy(name, GAME_FILE_NAMES.l_count_levels);
-        int_to_string((int16_t)((uint16_t)DG4E67.level_count),
-                      number, 10);
-        string_concat(name, number);
-        string_concat(name, GAME_FILE_NAMES.lev_count_levels);
-
-        file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels);
-
-        if (file != 0) {
-            DG4E67.level_count++;
-            game_fclose(file);
-        } else {
-            DG4E67.level_count--;
-            done = 1;
+            if (rec != PART_NONE)
+                insert_sorted(rec, &DG50D3.parts_bin);
         }
     }
+
+    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+    DG50AF.bonus_2 = 0;
+    DG50AF.bonus_1 = 0;
+    DG50AF.gravity = 0x43;
+    DG50AF.air = 0x110;
+    DG50AF.extent_x = -8;
+    DG50AF.extent_y = -8;
+    DG50AF.tune = 0x3e9;
+    DG4E67.counter = 0;
+
+    recompute_kind_physics();
 }
 
 /*
- * 0x12b60
+ * 0x14133
  *
- * Read the `count`th line of **password.txt** into `buf`.
+ * Make one part: a 0xa2-byte record off the near heap, filled from the
+ * sixteen-byte-per-part table at DGROUP 0x2966 and the bitmap list
+ * `load_part_bitmap` left at 0xeba.
  *
- * The file has one password a line and this wants the one for a level, so it
- * reads `count` lines and keeps only the last - the buffer is written over
- * each time round. There is no seek and no index; the lines are found by
- * reading past them.
+ * The fields that come across are the part's kind at +6, its size at +0xa and
+ * +0x50/+0x52, its extent at +0x44/+0x46, its bitmaps at +0x80 and a word at
+ * +0x94. The two at +0x8c and +0x8e start at -1 rather than 0, which is what
+ * "no link" looks like everywhere else in this game.
  *
- * `buf` is emptied first, so a missing file leaves an empty string rather than
- * whatever was there: the open is tested and everything else skipped.
+ * Each part may also have an **init function** in the table, at +12 of its
+ * entry, and a part that answers 1 from it is refused - the record is freed and
+ * the answer is `PART_NONE`, offset 0. The port dispatches that far pointer on
+ * its value, as it does everywhere else it cannot call one.
  *
- * The loop decrements *before* it reads, and its test is at the top, so a
- * count of zero reads nothing at all and any other count reads exactly that
- * many lines.
+ * The heap is checked three times: before the allocation, after it, and at the
+ * end.
  */
-void read_password_line(int16_t count, char *buf)
+struct part *make_part(uint16_t kind)
 {
-    FILE *f;
+    struct part *part = PART_NONE;
+    int16_t failed = 0;
 
-    *buf = 0;
+    heap_check_or_hang();
 
-    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, GAME_FILE_NAMES.rb_password_line);
-    if (f == 0)
-        return;
-
-    while (count != 0) {
-        count--;
-        game_fread_line(f, buf);
+    /* A refusal is the offset 0 `or ax,ax` at 0x14159 tests, so `part` is
+       no part on the `done` path below. */
+    part = (struct part *)(void *)heap_calloc_far(1, sizeof(struct part));
+    if (part == NULL) {
+        part = PART_NONE;
+        failed = 1;
+        goto done;
     }
 
-    game_fclose(f);
+    heap_check_or_hang();
+
+    part->kind = kind;
+    part->flags_06 = PART_TEMPLATES[kind].flags_06;
+    part->flags_0a = PART_TEMPLATES[kind].flags_0a;
+    part->set_size.width = PART_TEMPLATES[kind].set_size.width;
+    part->set_size.height = PART_TEMPLATES[kind].set_size.height;
+    part->size[0].width = PART_TEMPLATES[kind].size.width;
+    part->size[0].height = PART_TEMPLATES[kind].size.height;
+    part->point_count =
+        PART_KINDS[kind].point_count;
+    part->start_x = 0xffff;
+    part->start_y = 0xffff;
+    part->start_flags = PART_TEMPLATES[kind].init.off;
+
+    if (dg_far_ptr(PART_TEMPLATES[kind].init) != FAR_NULL_PTR
+        && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
+        failed = 1;
+        goto done;
+    }
+
+    part->start_flags = part->flags_08;
+
+    set_object_extent(part);
+
+    part->mirror_size.height = part->size[0].height;
+    part->mirror_size.width = part->size[0].width;
+
+    heap_check_or_hang();
+
+done:
+    if (failed != 0) {
+        if (part != PART_NONE)
+            free_part(part);
+        return PART_NONE;
+    }
+
+    return part;
 }
 
-/*
- * 0x12ba7
- *
- * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the
- * file was there and 0 if it was not.
- *
- * The name is the string at DGROUP 0x28bb and the mode the one at 0x28c3. Both
- * reads go through `game_fread_far`, which takes its file first and buffer
- * second, and the file is closed on the success path only - a failed open has
- * nothing to close.
- */
-uint16_t read_tim_cfg(void)
+/* 0x14236 */
+uint16_t part_init_bowling_ball(struct part *part)
 {
-    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_read, GAME_FILE_NAMES.rb_tim_cfg);
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
 
-    if (file == 0)
-        return 0;
-
-    game_fread_far(file, (uint8_t *)&DG4E67.furthest_level);
-    game_fread_far(file, (uint8_t *)&DG4E67.master_level);
-    game_fclose(file);
-
-    return 1;
+    part_setup(0x0001, part);
+    return 0;
 }
+
+/* 0x14267 */
+uint16_t part_init_14267(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0040);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0180);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x48ab, part);
+    return 0;
+}
+
+/* 0x142a1 */
+uint16_t part_init_ramp(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0600);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0080);
+    part->form = 0x0001;
+    part->start_form = 0x0001;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x2728, part);
+    return 0;
+}
+
+/* 0x142e6 */
+uint16_t part_init_seesaw(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x000c);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x40f0, part);
+    return 0;
+}
+
+/* 0x14320 */
+uint16_t part_init_balloon(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 16;
+    part->attach[0].y = 47;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x012d, part);
+    return 0;
+}
+
+/* 0x14361 */
+uint16_t part_init_conveyor(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0081);
+    part->form = 0x001c;
+    part->start_form = 0x001c;
+    part->direction = 0x0000;
+    part->start_direction = 0x0000;
+    part->grab.x = 59;
+    part->grab_size = 0x000e;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x24d0, part);
+    return 0;
+}
+
+/* 0x143b3 */
+uint16_t part_init_mouse_cage(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0801);
+    part->grab.x = 30;
+    part->grab.y = 4;
+    part->grab_size = 0x000c;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x2ee1, part);
+    return 0;
+}
+
+/* 0x143fb */
+uint16_t part_init_pulley(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 0;
+    part->attach[0].y = 8;
+    part->attach[1].x = 15;
+    part->attach[1].y = 8;
+
+    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
+    if (part->belt_ptr[0] == 0)
+        return 1;
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
+    return 0;
+}
+
+/* 0x1443d */
+uint16_t part_init_belt(struct part *part)
+{
+    part->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38));
+    if (part->rope_ptr == 0)
+        return 1;
+    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_near(dgroup, part);
+    return 0;
+}
+
+/* 0x1446c */
+uint16_t part_init_basketball(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0001, part);
+    return 0;
+}
+
+/* 0x1449d */
+uint16_t part_init_rope(struct part *part)
+{
+    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
+    if (part->belt_ptr[0] == 0)
+        return 1;
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
+    return 0;
+}
+
+/* 0x144cb */
+uint16_t part_init_bird_cage(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 21;
+    part->attach[0].y = 2;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0f70, part);
+    return 0;
+}
+
+/* 0x1450c */
+uint16_t part_init_pokey(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x8000);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0c1c, part);
+    return 0;
+}
+
+/* 0x14547 */
+uint16_t part_init_jack_in_the_box(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1001);
+    part->grab.x = 8;
+    part->grab.y = 9;
+    part->grab_size = 0x000e;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x295d, part);
+    return 0;
+}
+
+/* 0x1458f */
+uint16_t part_init_gear(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0001);
+    part->grab.y = 13;
+    part->grab.x = 13;
+    part->grab_size = 0x0008;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0001, part);
+    return 0;
+}
+
+/* 0x145d1 */
+uint16_t part_init_bob_the_fish(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1be9, part);
+    return 0;
+}
+
+/* 0x14607 */
+uint16_t part_init_bellow(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0371, part);
+    return 0;
+}
+
+/* 0x1463d */
+uint16_t part_init_bucket(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 18;
+    part->attach[0].y = 0;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x07b2, part);
+    return 0;
+}
+
+/* 0x1467e */
+uint16_t part_init_cannon(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0b88, part);
+    return 0;
+}
+
+/* 0x146bd */
+uint16_t part_init_dynamite(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0420);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1261, part);
+    return 0;
+}
+
+/* 0x146fc */
+uint16_t part_init_146fc(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x08a1, part);
+    return 0;
+}
+
+/* 0x1472d */
+uint16_t part_init_electric_plug(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0200);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0002);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1556, part);
+    return 0;
+}
+
+/* 0x1476c */
+uint16_t part_init_dynamite_plunger(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x3294, part);
+    return 0;
+}
+
+/* 0x147a7 */
+uint16_t part_init_hook(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0200);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+
+    part_setup(0x19db, part);
+    return 0;
+}
+
+/* 0x147c5 */
+uint16_t part_init_fan(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0001);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1a32, part);
+    return 0;
+}
+
+/* 0x14804 */
+uint16_t part_init_flashlight(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1d28, part);
+    return 0;
+}
+
+/* 0x1483a */
+uint16_t part_init_generator(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1001);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0002);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1dfb, part);
+    return 0;
+}
+
+/* 0x14874 */
+uint16_t part_init_gun(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x23b1, part);
+    return 0;
+}
+
+/* 0x148af */
+uint16_t part_init_baseball(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x00c9, part);
+    return 0;
+}
+
+/* 0x148e0 */
+uint16_t part_init_light(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0200);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1004);
+
+    part_setup(0x2b58, part);
+    return 0;
+}
+
+/* 0x148ff */
+uint16_t part_init_magnifying_glass(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+
+    part_setup(0x3030, part);
+    return 0;
+}
+
+/* 0x14919 */
+uint16_t part_init_monkey(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1805);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x2cce, part);
+    return 0;
+}
+
+/* 0x14954 */
+uint16_t part_init_pumpkin(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x35f4, part);
+    return 0;
+}
+
+/* 0x14985 */
+uint16_t part_init_heart_balloon(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 18;
+    part->attach[0].y = 35;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x2682, part);
+    return 0;
+}
+
+/* 0x149c6 */
+uint16_t part_init_christmas_tree(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1075, part);
+    return 0;
+}
+
+/* 0x149f7 */
+uint16_t part_init_boxing_glove(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x065b, part);
+    return 0;
+}
+
+/* 0x14a2d */
+uint16_t part_init_rocket(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x3737, part);
+    return 0;
+}
+
+/* 0x14a67 */
+uint16_t part_init_scissors(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x389b, part);
+    return 0;
+}
+
+/* 0x14aa2 */
+uint16_t part_init_solar_panel(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0002);
+
+    return 0;
+}
+
+/* 0x14ab9 */
+uint16_t part_init_trampoline(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x3f72, part);
+    return 0;
+}
+
+/* 0x14aef */
+uint16_t part_init_windmill(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0801);
+    part->grab.x = 15;
+    part->grab.y = 15;
+    part->grab_size = 0x0008;
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x496f, part);
+    return 0;
+}
+
+/* 0x14b37 */
+uint16_t part_init_mort_the_mouse(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x8000);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x346f, part);
+    return 0;
+}
+
+/* 0x14b72 */
+uint16_t part_init_cannon_ball(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0065, part);
+    return 0;
+}
+
+/* 0x14ba3 */
+uint16_t part_init_tennis_ball(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x00c9, part);
+    return 0;
+}
+
+/* 0x14bd4 */
+uint16_t part_init_candle(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x1000);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x0950, part);
+    return 0;
+}
+
+/* 0x14c12 */
+uint16_t part_init_corner_pipe(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0600);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x377b, part);
+    return 0;
+}
+
+/* 0x14c48 */
+uint16_t part_init_14c48(struct part *part)
+{
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+    part->attach[0].x = 0;
+    part->attach[0].y = 0;
+
+    return 0;
+}
+
+/* 0x14c62 */
+uint16_t part_init_motor(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0400);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0001);
+    part->flags_0a =
+        (uint16_t)(part->flags_0a | 0x0001);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1435, part);
+    return 0;
+}
+
+/* 0x14ca0 */
+uint16_t part_init_14ca0(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1105, part);
+    return 0;
+}
+
+/* 0x14cd9 */
+uint16_t part_init_14cd9(struct part *part)
+{
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x10b6, part);
+    return 0;
+}
+
+/* 0x14d0a */
+uint16_t part_init_14d0a(struct part *part)
+{
+    part->flags_06 =
+        (uint16_t)(part->flags_06 | 0x0020);
+    part->flags_08 =
+        (uint16_t)(part->flags_08 | 0x0004);
+
+    part->points_ptr =
+        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
+    if (part->points_ptr == 0)
+        return 1;
+
+    part_setup(0x1105, part);
+    return 0;
+}
+
 /*
  * 0x14d43
  *
@@ -8065,3 +8650,38 @@ void free_part_list(struct part *si)
     }
 }
 
+/*
+ * 0x14d95
+ *
+ * Give a part back: its per-bitmap array, then two records it may or may not
+ * own, then the part itself. Every free goes through the checked one, so a
+ * corrupt heap stops here rather than later.
+ *
+ * The two conditions are the interesting part. The record at +0x54 is freed
+ * only when bit 0 of the flags at +8 is **clear** - with it set the record
+ * belongs to something else and freeing it would be a double free. And the
+ * record at +0x66 is freed only for parts 7 and 0x0a, compared by number
+ * rather than by a flag: two particular parts allocate it and the rest leave
+ * the field as whatever it was.
+ *
+ * A null part is not an error; it returns.
+ */
+void free_part(struct part *part)
+{
+    if (part == PART_NONE)   /* the offset: `or si,si` at 0x14d9c */
+        return;
+
+    if (part->points_ptr != 0)
+        checked_free(dg_near_ptr(part->points_ptr));
+
+    if (part->rope_ptr != 0
+        && (part->flags_08 & 1) == 0)
+        checked_free(dg_near_ptr(part->rope_ptr));
+
+    if (part->belt_ptr[0] != 0
+        && (part->kind == KIND_PULLEY
+            || part->kind == KIND_ROPE))
+        checked_free(dg_near_ptr(part->belt_ptr[0]));
+
+    checked_free((uint8_t *)part);
+}

@@ -10,7 +10,8 @@
  * that depends on it.
  *
  * This file corresponds to the original's **code segment 14de**, image
- * 0x14de0..0x1c250. Functions are in address order and each carries the image
+ * 0x14de0..0x172c0 - it ends with a routine that does nothing, 0x172bc, called
+ * as 14de:24dc. Functions are in address order and each carries the image
  * offset it was read from.
  */
 
@@ -23,6 +24,18 @@
  * DGROUP byte array at the address its macro names, like the shared ones in
  * dgroup.h; they are declared here because nothing else uses them.
  */
+
+/*
+ * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
+ */
+struct game_message_tabs {
+    uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
+    int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
+} PACKED;
+
+struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
 
 /*
  * **The menu strip's animation tables**, DGROUP 0x25a2..0x25d6, 0x34 bytes, as
@@ -60,150 +73,6 @@ struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d
 
 
 /*
- * 0x1405b
- *
- * Build the list of parts a level may use, and reset the machine's state around
- * it: the list head at DGROUP 0x50d7, the two pairs at 0x5179 and 0x521b, the
- * play area at 0x50af..0x50b5, and the two at 0x4ead.
- *
- * Parts 0 to 0x32 are all included except in three cases. **0x14, 0x29 and 0x31
- * are never included**, and are excluded by falling into a branch that leaves
- * the flag clear rather than by being tested against a list. And **0x20, 0x21
- * and 0x22 are conditional**, each on its own word - 0x4e7d, 0x4e81 and 0x4e7b -
- * which is what makes three of the parts appear only when the game says so.
- *
- * The three conditionals are written as three independent `if`s inside the same
- * branch rather than as a switch, so a part number that is not one of the three
- * reaches the end of them with its flag still clear and is left out too - which
- * cannot happen, because only those three get in there.
- *
- * The play area is 0x43,0x110 to -8,-8 - the negative pair being the origin
- * rather than a size, which is worth saying because it reads like a mistake.
- */
-void build_part_list(void)
-{
-    int16_t si;
-
-    DG50D3.parts_bin.prev_ptr = 0;
-    DG50D3.parts_bin.next_ptr = 0;
-    DG5179.moving_parts.prev_ptr = 0;
-    DG5179.moving_parts.next_ptr = 0;
-    DG521B.placed_parts.prev_ptr = 0;
-    DG521B.placed_parts.next_ptr = 0;
-
-    for (si = 0; si < 0x33; si++) {
-        int16_t wanted = 0;
-
-        if (si == 0x20 || si == 0x21 || si == 0x22) {
-            if (si == 0x20 && ((uint16_t)DG4E67.holiday_halloween) != 0)
-                wanted = 1;
-            if (si == 0x21 && ((uint16_t)DG4E67.holiday_valentine) != 0)
-                wanted = 1;
-            if (si == 0x22 && ((uint16_t)DG4E67.holiday_christmas) != 0)
-                wanted = 1;
-        } else if (si != 0x14 && si != 0x29 && si != 0x31) {
-            wanted = 1;
-        }
-
-        if (wanted != 0) {
-            struct part *rec = make_part((uint16_t)si);
-
-            if (rec != PART_NONE)
-                insert_sorted(rec, &DG50D3.parts_bin);
-        }
-    }
-
-    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
-    DG50AF.bonus_2 = 0;
-    DG50AF.bonus_1 = 0;
-    DG50AF.gravity = 0x43;
-    DG50AF.air = 0x110;
-    DG50AF.extent_x = -8;
-    DG50AF.extent_y = -8;
-    DG50AF.tune = 0x3e9;
-    DG4E67.counter = 0;
-
-    recompute_kind_physics();
-}
-
-
-/*
- * 0x14133
- *
- * Make one part: a 0xa2-byte record off the near heap, filled from the
- * sixteen-byte-per-part table at DGROUP 0x2966 and the bitmap list
- * `load_part_bitmap` left at 0xeba.
- *
- * The fields that come across are the part's kind at +6, its size at +0xa and
- * +0x50/+0x52, its extent at +0x44/+0x46, its bitmaps at +0x80 and a word at
- * +0x94. The two at +0x8c and +0x8e start at -1 rather than 0, which is what
- * "no link" looks like everywhere else in this game.
- *
- * Each part may also have an **init function** in the table, at +12 of its
- * entry, and a part that answers 1 from it is refused - the record is freed and
- * the answer is `PART_NONE`, offset 0. The port dispatches that far pointer on
- * its value, as it does everywhere else it cannot call one.
- *
- * The heap is checked three times: before the allocation, after it, and at the
- * end.
- */
-struct part *make_part(uint16_t kind)
-{
-    struct part *part = PART_NONE;
-    int16_t failed = 0;
-
-    heap_check_or_hang();
-
-    /* A refusal is the offset 0 `or ax,ax` at 0x14159 tests, so `part` is
-       no part on the `done` path below. */
-    part = (struct part *)(void *)heap_calloc_far(1, sizeof(struct part));
-    if (part == NULL) {
-        part = PART_NONE;
-        failed = 1;
-        goto done;
-    }
-
-    heap_check_or_hang();
-
-    part->kind = kind;
-    part->flags_06 = PART_TEMPLATES[kind].flags_06;
-    part->flags_0a = PART_TEMPLATES[kind].flags_0a;
-    part->set_size.width = PART_TEMPLATES[kind].set_size.width;
-    part->set_size.height = PART_TEMPLATES[kind].set_size.height;
-    part->size[0].width = PART_TEMPLATES[kind].size.width;
-    part->size[0].height = PART_TEMPLATES[kind].size.height;
-    part->point_count =
-        PART_KINDS[kind].point_count;
-    part->start_x = 0xffff;
-    part->start_y = 0xffff;
-    part->start_flags = PART_TEMPLATES[kind].init.off;
-
-    if (dg_far_ptr(PART_TEMPLATES[kind].init) != FAR_NULL_PTR
-        && call_part_init(PART_TEMPLATES[kind].init, part) == 1) {
-        failed = 1;
-        goto done;
-    }
-
-    part->start_flags = part->flags_08;
-
-    set_object_extent(part);
-
-    part->mirror_size.height = part->size[0].height;
-    part->mirror_size.width = part->size[0].width;
-
-    heap_check_or_hang();
-
-done:
-    if (failed != 0) {
-        if (part != PART_NONE)
-            free_part(part);
-        return PART_NONE;
-    }
-
-    return part;
-}
-
-/*
  * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
  *
  * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
@@ -233,809 +102,6 @@ done:
  * the one it could not report: the table had **forty-eight** of the fifty-one,
  * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
  */
-
-/* 0x14236 */
-uint16_t part_init_bowling_ball(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0001, part);
-    return 0;
-}
-
-/* 0x14267 */
-uint16_t part_init_14267(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0040);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0180);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x48ab, part);
-    return 0;
-}
-
-/* 0x142a1 */
-uint16_t part_init_ramp(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0600);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0080);
-    part->form = 0x0001;
-    part->start_form = 0x0001;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x2728, part);
-    return 0;
-}
-
-/* 0x142e6 */
-uint16_t part_init_seesaw(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x000c);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x40f0, part);
-    return 0;
-}
-
-/* 0x14320 */
-uint16_t part_init_balloon(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 16;
-    part->attach[0].y = 47;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x012d, part);
-    return 0;
-}
-
-/* 0x14361 */
-uint16_t part_init_conveyor(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0081);
-    part->form = 0x001c;
-    part->start_form = 0x001c;
-    part->direction = 0x0000;
-    part->start_direction = 0x0000;
-    part->grab.x = 59;
-    part->grab_size = 0x000e;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x24d0, part);
-    return 0;
-}
-
-/* 0x143b3 */
-uint16_t part_init_mouse_cage(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0801);
-    part->grab.x = 30;
-    part->grab.y = 4;
-    part->grab_size = 0x000c;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x2ee1, part);
-    return 0;
-}
-
-/* 0x143fb */
-uint16_t part_init_pulley(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 0;
-    part->attach[0].y = 8;
-    part->attach[1].x = 15;
-    part->attach[1].y = 8;
-
-    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
-    if (part->belt_ptr[0] == 0)
-        return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
-    return 0;
-}
-
-/* 0x1443d */
-uint16_t part_init_belt(struct part *part)
-{
-    part->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38));
-    if (part->rope_ptr == 0)
-        return 1;
-    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_near(dgroup, part);
-    return 0;
-}
-
-/* 0x1446c */
-uint16_t part_init_basketball(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0001, part);
-    return 0;
-}
-
-/* 0x1449d */
-uint16_t part_init_rope(struct part *part)
-{
-    part->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
-    if (part->belt_ptr[0] == 0)
-        return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
-    return 0;
-}
-
-/* 0x144cb */
-uint16_t part_init_bird_cage(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 21;
-    part->attach[0].y = 2;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0f70, part);
-    return 0;
-}
-
-/* 0x1450c */
-uint16_t part_init_pokey(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x8000);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0c1c, part);
-    return 0;
-}
-
-/* 0x14547 */
-uint16_t part_init_jack_in_the_box(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1001);
-    part->grab.x = 8;
-    part->grab.y = 9;
-    part->grab_size = 0x000e;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x295d, part);
-    return 0;
-}
-
-/* 0x1458f */
-uint16_t part_init_gear(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0001);
-    part->grab.y = 13;
-    part->grab.x = 13;
-    part->grab_size = 0x0008;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0001, part);
-    return 0;
-}
-
-/* 0x145d1 */
-uint16_t part_init_bob_the_fish(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1be9, part);
-    return 0;
-}
-
-/* 0x14607 */
-uint16_t part_init_bellow(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0371, part);
-    return 0;
-}
-
-/* 0x1463d */
-uint16_t part_init_bucket(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 18;
-    part->attach[0].y = 0;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x07b2, part);
-    return 0;
-}
-
-/* 0x1467e */
-uint16_t part_init_cannon(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0b88, part);
-    return 0;
-}
-
-/* 0x146bd */
-uint16_t part_init_dynamite(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0420);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1261, part);
-    return 0;
-}
-
-/* 0x146fc */
-uint16_t part_init_146fc(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x08a1, part);
-    return 0;
-}
-
-/* 0x1472d */
-uint16_t part_init_electric_plug(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0200);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0002);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1556, part);
-    return 0;
-}
-
-/* 0x1476c */
-uint16_t part_init_dynamite_plunger(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x3294, part);
-    return 0;
-}
-
-/* 0x147a7 */
-uint16_t part_init_hook(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0200);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-
-    part_setup(0x19db, part);
-    return 0;
-}
-
-/* 0x147c5 */
-uint16_t part_init_fan(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0001);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1a32, part);
-    return 0;
-}
-
-/* 0x14804 */
-uint16_t part_init_flashlight(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1d28, part);
-    return 0;
-}
-
-/* 0x1483a */
-uint16_t part_init_generator(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1001);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0002);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1dfb, part);
-    return 0;
-}
-
-/* 0x14874 */
-uint16_t part_init_gun(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x23b1, part);
-    return 0;
-}
-
-/* 0x148af */
-uint16_t part_init_baseball(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x00c9, part);
-    return 0;
-}
-
-/* 0x148e0 */
-uint16_t part_init_light(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0200);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1004);
-
-    part_setup(0x2b58, part);
-    return 0;
-}
-
-/* 0x148ff */
-uint16_t part_init_magnifying_glass(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-
-    part_setup(0x3030, part);
-    return 0;
-}
-
-/* 0x14919 */
-uint16_t part_init_monkey(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1805);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x2cce, part);
-    return 0;
-}
-
-/* 0x14954 */
-uint16_t part_init_pumpkin(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x35f4, part);
-    return 0;
-}
-
-/* 0x14985 */
-uint16_t part_init_heart_balloon(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 18;
-    part->attach[0].y = 35;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x2682, part);
-    return 0;
-}
-
-/* 0x149c6 */
-uint16_t part_init_christmas_tree(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1075, part);
-    return 0;
-}
-
-/* 0x149f7 */
-uint16_t part_init_boxing_glove(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x065b, part);
-    return 0;
-}
-
-/* 0x14a2d */
-uint16_t part_init_rocket(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x3737, part);
-    return 0;
-}
-
-/* 0x14a67 */
-uint16_t part_init_scissors(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x389b, part);
-    return 0;
-}
-
-/* 0x14aa2 */
-uint16_t part_init_solar_panel(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0002);
-
-    return 0;
-}
-
-/* 0x14ab9 */
-uint16_t part_init_trampoline(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x3f72, part);
-    return 0;
-}
-
-/* 0x14aef */
-uint16_t part_init_windmill(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0801);
-    part->grab.x = 15;
-    part->grab.y = 15;
-    part->grab_size = 0x0008;
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x496f, part);
-    return 0;
-}
-
-/* 0x14b37 */
-uint16_t part_init_mort_the_mouse(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x8000);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x346f, part);
-    return 0;
-}
-
-/* 0x14b72 */
-uint16_t part_init_cannon_ball(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0065, part);
-    return 0;
-}
-
-/* 0x14ba3 */
-uint16_t part_init_tennis_ball(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x00c9, part);
-    return 0;
-}
-
-/* 0x14bd4 */
-uint16_t part_init_candle(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x1000);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x0950, part);
-    return 0;
-}
-
-/* 0x14c12 */
-uint16_t part_init_corner_pipe(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0600);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x377b, part);
-    return 0;
-}
-
-/* 0x14c48 */
-uint16_t part_init_14c48(struct part *part)
-{
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-    part->attach[0].x = 0;
-    part->attach[0].y = 0;
-
-    return 0;
-}
-
-/* 0x14c62 */
-uint16_t part_init_motor(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0400);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0001);
-    part->flags_0a =
-        (uint16_t)(part->flags_0a | 0x0001);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1435, part);
-    return 0;
-}
-
-/* 0x14ca0 */
-uint16_t part_init_14ca0(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1105, part);
-    return 0;
-}
-
-/* 0x14cd9 */
-uint16_t part_init_14cd9(struct part *part)
-{
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x10b6, part);
-    return 0;
-}
-
-/* 0x14d0a */
-uint16_t part_init_14d0a(struct part *part)
-{
-    part->flags_06 =
-        (uint16_t)(part->flags_06 | 0x0020);
-    part->flags_08 =
-        (uint16_t)(part->flags_08 | 0x0004);
-
-    part->points_ptr =
-        dg_near(dgroup, heap_calloc_far(part->point_count, 4));
-    if (part->points_ptr == 0)
-        return 1;
-
-    part_setup(0x1105, part);
-    return 0;
-}
 
 /*
  * OURS: reach one part initialiser by its image address.
@@ -1119,39 +185,92 @@ uint16_t part_init(uint32_t at, struct part *part)
 }
 
 /*
- * 0x14d95
+ * 0x14dec
  *
- * Give a part back: its per-bitmap array, then two records it may or may not
- * own, then the part itself. Every free goes through the checked one, so a
- * corrupt heap stops here rather than later.
+ * **The frame the title bar sits in**: a shadow, a tiled interior, and a
+ * border of edge and corner pieces from the set at DGROUP 0x4ecb.
  *
- * The two conditions are the interesting part. The record at +0x54 is freed
- * only when bit 0 of the flags at +8 is **clear** - with it set the record
- * belongs to something else and freeing it would be a double free. And the
- * record at +0x66 is freed only for parts 7 and 0x0a, compared by number
- * rather than by a flag: two particular parts allocate it and the rest leave
- * the field as whatever it was.
+ * The rectangle arrives as **two corners and not a size**, which is worth
+ * saying because the call passes 0x220 and 0x158 and those read as a width and
+ * a height: every use of them here is a subtraction, `x2 - x1` and `y2 - y1`.
  *
- * A null part is not an error; it returns.
+ * `filled` gates the first part - a filled rectangle offset down and left of
+ * the frame, and two pieces at +0x4a and +0x4c - which is the drop shadow, so
+ * a caller can have the frame without it.
+ *
+ * Then the interior. The clip box is set to the four corners and the tile at
+ * +0x54 is laid in steps of 0x80 across and 0x40 down, so one tile covers any
+ * size. The clip then goes back to the whole screen or to the play area
+ * depending on whether the state at 0x4e6b is 0x8000 - the same fork
+ * `draw_panel` makes, and it has to happen before the border is drawn or the
+ * border would be clipped away by its own frame.
+ *
+ * The border is four runs of 8 pixels - top and bottom together in one loop
+ * across x, left and right together in one loop down y - and then four
+ * corners, each placed by an offset from its own corner rather than from the
+ * origin. Nine pieces in all: +0x20 to +0x26 for the runs, +0x18 to +0x1e for
+ * the corners.
  */
-void free_part(struct part *part)
+void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+                    uint16_t filled)
 {
-    if (part == PART_NONE)   /* the offset: `or si,si` at 0x14d9c */
-        return;
+    dg_near_t set = DG4E67.bmp_4ecb_ptr;
+    int16_t  x, y;
 
-    if (part->points_ptr != 0)
-        checked_free(dg_near_ptr(part->points_ptr));
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.clip_enabled = 0;
+    VMDS.fill_enabled = 1;
+    VMDS.fill_colour   = 0;
+    VMDS.second_colour = 0;
 
-    if (part->rope_ptr != 0
-        && (part->flags_08 & 1) == 0)
-        checked_free(dg_near_ptr(part->rope_ptr));
+    cursor_redraw_off_thunk();
 
-    if (part->belt_ptr[0] != 0
-        && (part->kind == KIND_PULLEY
-            || part->kind == KIND_ROPE))
-        checked_free(dg_near_ptr(part->belt_ptr[0]));
+    if (filled != 0) {
+        fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
+                  (int16_t)(x2 - x1), (int16_t)(y2 - y1));
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x25]),
+                    (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x26]),
+                    (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x27]),
+                    (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
+    }
 
-    checked_free((uint8_t *)part);
+    VMDS.clip_left    = x1;
+    VMDS.clip_right   = x2;
+    VMDS.clip_top     = y1;
+    VMDS.clip_bottom  = y2;
+    VMDS.clip_enabled = 1;
+
+    for (y = y1; y < y2; y = (int16_t)(y + 0x40))
+        for (x = x1; x < x2; x = (int16_t)(x + 0x80))
+            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2a]), x, y, 0);
+
+    if (DG4E67.state == 0x8000)
+        set_clip_full_screen();
+    else
+        set_clip_play_area();
+
+    VMDS.clip_enabled = 0;
+
+    for (x = x1; x < x2; x = (int16_t)(x + 8)) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x12]), x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x13]), x, y2, 0);
+    }
+
+    for (y = y1; y < y2; y = (int16_t)(y + 8)) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x10]), (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x11]), x2, y, 0);
+    }
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]),
+                (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]),
+                (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]),
+                (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]),
+                (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
 /*
@@ -1404,6 +523,247 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
+ * 0x15523
+ *
+ * **A filled, framed area** of the panel: a rectangle in a given colour with
+ * the same nine-piece border around it that `draw_title_bar` uses - four runs
+ * of 8 pixels and four corners, from the set at DGROUP 0x4ecb.
+ *
+ * Unlike `draw_title_bar` this one takes a **width and a height** and works
+ * out the far corner itself, into two locals, on the way in. The two routines
+ * draw the same kind of frame and disagree about how to be told where it goes,
+ * which is worth knowing before reading either from memory of the other.
+ *
+ * The border pieces are a different set from the title bar's: +0x34 and +0x36
+ * for the top and bottom runs, +0x30 and +0x32 for the sides, +0x28 to +0x2e
+ * for the corners. All four corners sit 8 pixels out except the bottom-left,
+ * which is **5** - `0xfffb` and not `0xfff8`, once, and it is not a
+ * misreading: the byte is `fb`.
+ *
+ * The colour is passed in and written to both 0x389d and 0x389e before the
+ * fill, so the interior and whatever else reads the second colour agree.
+ */
+void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
+                     uint16_t colour)
+{
+    dg_near_t set = DG4E67.bmp_4ecb_ptr;
+    int16_t  x2  = (int16_t)(x + w);
+    int16_t  y2  = (int16_t)(y + h);
+    int16_t  n;
+
+    cursor_redraw_off_thunk();
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+
+    VMDS.fill_colour = (uint8_t)colour;
+    VMDS.second_colour = (uint8_t)colour;
+
+    fill_rect(x, y, w, h);
+
+    for (n = x; n < x2; n = (int16_t)(n + 8)) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1a]), n, (int16_t)(y - 8), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1b]), n, y2, 0);
+    }
+
+    for (n = y; n < y2; n = (int16_t)(n + 8)) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x18]), (int16_t)(x - 8), n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x19]), x2, n, 0);
+    }
+
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x14]),
+                (int16_t)(x - 8), (int16_t)(y - 8), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x15]),
+                (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x16]),
+                (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x17]),
+                (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
+}
+
+/*
+ * 0x15661
+ *
+ * **A message box with one button.** It is a doorway: the box itself is
+ * 0x15698, and this passes it the title, the body, "CONTINUE" for the first
+ * button and **zero for the second**, which is how the box is told there is
+ * only one.
+ *
+ * The zero is pushed first and the strings after, so what the box reads as its
+ * fourth argument is the absent button rather than a flag saying how many there
+ * are. That is the whole difference between this and `ask_yes_no` below.
+ */
+void show_message_box(const char *title, char *body)
+{
+    message_box(title, body, GAME_BUTTON_LABELS.continue_btn, NULL);
+}
+
+/*
+ * 0x1567b
+ *
+ * **A message box with two buttons**, answering which was pressed. The other
+ * doorway into 0x15698, twenty-six bytes past the first, and the only
+ * difference is that both button strings are given: 0x25e1 and 0x25e5.
+ *
+ * Quit, restart and both freeform handlers ask through this one. It is its own
+ * routine and not an argument to `show_message_box` because that is what the
+ * original has - two entry points to one body, the way Borland's runtime is
+ * built and the way the part tables reach shared code.
+ *
+ * Its `jmp` to the instruction after it, at 0x15694, is the compiler leaving a
+ * return path in that nothing needed; transcribed as the fall-through it is.
+ */
+uint16_t ask_yes_no(const char *title, char *body)
+{
+    return message_box(title, body, GAME_BUTTON_LABELS.yes, GAME_BUTTON_LABELS.no);
+}
+
+/*
+ * 0x15698
+ *
+ * **The message box.** Both doorways above reach it - `show_message_box` with
+ * one button and `ask_yes_no` with two - and it answers 1 for the first button
+ * and 0 for the second or for none.
+ *
+ * **It takes the screen over by borrowing the state word.** DGROUP 0x4e6b is
+ * what `game_screen` and `game_round` dispatch on; it is saved, set to 0x8000
+ * while the box is up, and put back on the way out. So the box's own loop tests
+ * the same word those screens do, 0x4000 and 0x2000 mean its two buttons here,
+ * and nothing underneath can act on a click meant for it.
+ *
+ * **The buttons' keys come from their first letter.** `[si]` is the first byte
+ * of the first button's string, and the shortcuts are chosen from it: 'Y' takes
+ * Y for the first button and N for the second, 'R' takes R and A, 'C' takes C -
+ * and Enter, which is the only key that means the same as a button rather than
+ * naming one. So "YES"/"NO" and "CONTINUE" get their keys without a table, and
+ * a button whose word began with something else would get none.
+ *
+ * **The second button is right-aligned by measurement**: its width is rounded
+ * up to a multiple of 8 and taken from 0x168, and that x is filed into the
+ * region record at [0x4e6d]+6 so the clickable area moves with it. The first
+ * button's own width plus 0xd8 goes into [0x4e6f]+0xa the same way. A box with
+ * one button files only the first.
+ *
+ * **One button means the second cannot be chosen**: with `di` zero, a state of
+ * 0x2000 is turned straight back into 0x8000 at 0x15814, so the loop carries on
+ * rather than leaving with an answer nothing asked for.
+ *
+ * On the way out the chosen button is drawn again pressed and presented, which
+ * is what makes it flash before the box goes.
+ */
+uint16_t message_box(const char *title, char *body,
+                     const char *button1, const char *button2)
+{
+    uint16_t saved;
+    int16_t  second_x = 0;
+
+    wait_cursor();
+
+    saved = DG4E67.state;
+    DG4E67.state = 0x8000;
+
+    draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
+    draw_scroll_text(title, 0xb8, 0x74, 0xd0);
+    draw_panel(0xb8, 0x90, 0xd0, 0x5a);
+    draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
+
+    draw_button(button1, 0xc8, 0xd4, 0);
+    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
+        (uint16_t)(text_width_thunk(button1) + 0xd8);
+
+    if (button2 != NULL) {
+        second_x = (int16_t)(0x168
+                             - ((text_width_thunk(button2) + 7) & 0xfff8));
+        draw_button(button2, (uint16_t)second_x, 0xd4, 0);
+        REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
+    }
+
+    present_back_page();
+    restore_cursor();
+
+    while (DG4E67.state == 0x8000) {
+        update_button_state();
+
+        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
+
+        if ((DG52ED.last_key) == SC_TAB) {
+            message_box_tab(button2);
+        } else {
+            if (*button1 == 'Y') {
+                if ((DG52ED.last_key) == SC_Y)
+                    DG4E67.state = 0x4000;
+                if ((DG52ED.last_key) == SC_N)
+                    DG4E67.state = 0x2000;
+            }
+            if (*button1 == 'R') {
+                if ((DG52ED.last_key) == SC_R)
+                    DG4E67.state = 0x4000;
+                if ((DG52ED.last_key) == SC_A)
+                    DG4E67.state = 0x2000;
+            }
+            if (*button1 == 'C') {
+                if ((DG52ED.last_key) == SC_C)
+                    DG4E67.state = 0x4000;
+                if ((DG52ED.last_key) == SC_ENTER)
+                    DG4E67.state = 0x4000;
+            }
+        }
+
+        regions_handle_pointer(DG4E67.regions_b_ptr);
+
+        if (button2 == NULL && DG4E67.state == 0x2000)
+            DG4E67.state = 0x8000;
+
+        present_frame(1);
+    }
+
+    update_button_state();
+
+    if (DG4E67.state == 0x4000) {
+        draw_button(button1, 0xc8, 0xd4, 1);
+        present_back_page();
+        DG4E67.state = saved;
+        return 1;
+    }
+
+    if (button2 != NULL) {
+        draw_button(button2, (uint16_t)second_x, 0xd4, 1);
+        present_back_page();
+    }
+    DG4E67.state = saved;
+    return 0;
+}
+
+/*
+ * 0x1588c
+ *
+ * **Tab walks the pointer between the buttons.** A counter at DGROUP 0x259c
+ * steps on each press and the pointer is moved to the x that counter names in
+ * the table at 0x259e - 232 for the first button, 360 for the second - at a
+ * fixed y of 0xde.
+ *
+ * With no second button the counter is put straight back to zero, so Tab keeps
+ * the pointer on the only button there is rather than sending it to where the
+ * other one would have been. With one, it wraps at 2.
+ *
+ * It moves the *pointer*, not a highlight: there is no selected button in this
+ * box, only where the mouse is, and Tab is a way of driving the mouse from the
+ * keyboard.
+ */
+void message_box_tab(const char *button2)
+{
+    GAME_MESSAGE_TABS.stop++;
+
+    if (button2 != NULL) {
+        if (GAME_MESSAGE_TABS.stop == 2)
+            GAME_MESSAGE_TABS.stop = 0;
+    } else {
+        GAME_MESSAGE_TABS.stop = 0;
+    }
+
+    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.stop],
+                    0xde);
+}
+
+/*
  * 0x158c5
  *
  * **The panel that says a puzzle is finished.** A title bar, two lines of
@@ -1475,6 +835,36 @@ void show_level_complete(void)
 }
 
 /*
+ * 0x15a2f
+ *
+ * Wipe the play area and draw the machine into it again - what a message box
+ * needs doing behind it once it has gone.
+ *
+ * The driver is set up first: 0x38a8 takes the page from 0x38a2, the two bytes
+ * at 0x389d and 0x389e take the colour at 0x52cb, 0x389c is set and the on/off
+ * byte at 0x3893 is cleared so nothing clips. Then the area 8,8 to 0x230 by
+ * 0x160 is filled - inside the frame, not the whole screen - and the machine
+ * is drawn over it.
+ *
+ * `step_and_draw_machine(1)` rather than 0: the argument is redraw-everything,
+ * so nothing is left to the dirty rectangles that have just been painted over.
+ */
+void redraw_machine_area(void)
+{
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_enabled = 1;
+    VMDS.clip_enabled = 0;
+
+    cursor_redraw_off_thunk();
+    fill_rect(8, 8, 0x230, 0x160);
+    draw_machine_thunk();
+    step_and_draw_machine(1);
+    present_back_page();
+}
+
+/*
  * 0x15a7e
  *
  * Draw one **odometer digit**: the character `c`, at `x`, scrolled by `y`.
@@ -1523,36 +913,6 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 }
 
 /*
- * 0x15a2f
- *
- * Wipe the play area and draw the machine into it again - what a message box
- * needs doing behind it once it has gone.
- *
- * The driver is set up first: 0x38a8 takes the page from 0x38a2, the two bytes
- * at 0x389d and 0x389e take the colour at 0x52cb, 0x389c is set and the on/off
- * byte at 0x3893 is cleared so nothing clips. Then the area 8,8 to 0x230 by
- * 0x160 is filled - inside the frame, not the whole screen - and the machine
- * is drawn over it.
- *
- * `step_and_draw_machine(1)` rather than 0: the argument is redraw-everything,
- * so nothing is left to the dirty rectangles that have just been painted over.
- */
-void redraw_machine_area(void)
-{
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.fill_enabled = 1;
-    VMDS.clip_enabled = 0;
-
-    cursor_redraw_off_thunk();
-    fill_rect(8, 8, 0x230, 0x160);
-    draw_machine_thunk();
-    step_and_draw_machine(1);
-    present_back_page();
-}
-
-/*
  * 0x15af8
  *
  * Draw the machine and everything around it, as five calls and nothing else.
@@ -1566,102 +926,6 @@ void draw_machine_thunk(void)
     draw_machine_layer_c();
     draw_machine_layer_d();
     draw_machine_layer_e();
-}
-
-/*
- * 0x15dfd
- *
- * **The parts bin**: the column down the right of the screen listing the parts
- * the player has, each as its icon with a count under it.
- *
- * The list at DGROUP 0x50d3 is walked, and this is the part worth reading
- * slowly: the parts are **grouped by kind as it goes**, not counted in
- * advance. For each run, the kind is taken from +4 of the first entry, and the
- * walk continues while the next entry has the same kind, counting as it goes.
- * The entry the game has singled out - the one at 0x50d5 - is *not* counted:
- * it starts the count at 0 rather than 1 and is skipped inside the run. So the
- * number under an icon is how many are left to place, and the one being
- * carried is already gone from it.
- *
- * A run whose count comes to zero draws nothing at all, icon included.
- *
- * The count is turned into a string and centred in the 0x38-wide cell -
- * `text_width_thunk` measured, not assumed - and drawn twice for a shadow:
- * colour 0 at one pixel left and one down, then 0xe at the true place. The
- * baseline is the icon's own height plus one, and is clamped to 0x161 so a
- * tall part cannot push its number off the bottom.
- *
- * The cells are 0x34 apart and the walk stops at y = 0x134, so the bin holds
- * however many fit and the rest of the list is simply not shown.
- *
- * The two `fill_rect`s at the top clear the column in two pieces - 0x241 wide
- * by 0x37 and 0x240 by 0x103 - which overlap by a pixel in x.
- */
-void draw_machine_layer_a(void)
-{
-    char digits[16];      /* [bp-0x10] */
-    uint16_t part;
-    int16_t  kind, count, y, text_x, text_y;
-
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.clip_enabled = 1;
-    set_clip_play_area();
-    VMDS.fill_enabled = 1;
-    VMDS.fill_colour   = ((uint8_t)DG52BD.bin_colour);
-    VMDS.second_colour = ((uint8_t)DG52BD.bin_colour);
-
-    cursor_redraw_off_thunk();
-    fill_rect(0x241, 0x63, 0x37, 2);
-    fill_rect(0x240, 0x65, 0x38, 0x103);
-    restore_cursor_following();
-
-    VMDS.text_style = 1;                            /* transparent text */
-
-    part = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
-    y    = 0x64;
-
-    while (part != 0 && y <= 0x134) {
-        struct bitmap *icon;
-
-        kind = ((int16_t)PART_PTR(part)->kind);
-        count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
-
-        for (;;) {
-            part = PART_PTR(part)->next_ptr;
-            if (part == 0)
-                break;
-            if (((int16_t)PART_PTR(part)->kind) != kind)
-                break;
-            if (part != DG50D3.dragged_part_ptr)
-                count++;
-        }
-
-        if (count == 0)
-            continue;
-
-        cursor_redraw_off_thunk();
-
-        icon = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
-        draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
-
-        int_to_string(count, digits, 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
-
-        text_y = (int16_t)(y + icon->height
-                           + (0x2a - icon->height) / 2 + 1);
-        if (text_y > 0x161)
-            text_y = 0x161;
-
-        VMDS.text_colour = 0;
-        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
-
-        VMDS.text_colour = 0x0e;
-        draw_string(digits, (int16_t)(text_x - 1), text_y);
-
-        restore_cursor_following();
-
-        y = (int16_t)(y + 0x34);
-    }
 }
 
 /*
@@ -1813,6 +1077,123 @@ void draw_machine_layer_e(void)
 }
 
 /*
+ * 0x15dfd
+ *
+ * **The parts bin**: the column down the right of the screen listing the parts
+ * the player has, each as its icon with a count under it.
+ *
+ * The list at DGROUP 0x50d3 is walked, and this is the part worth reading
+ * slowly: the parts are **grouped by kind as it goes**, not counted in
+ * advance. For each run, the kind is taken from +4 of the first entry, and the
+ * walk continues while the next entry has the same kind, counting as it goes.
+ * The entry the game has singled out - the one at 0x50d5 - is *not* counted:
+ * it starts the count at 0 rather than 1 and is skipped inside the run. So the
+ * number under an icon is how many are left to place, and the one being
+ * carried is already gone from it.
+ *
+ * A run whose count comes to zero draws nothing at all, icon included.
+ *
+ * The count is turned into a string and centred in the 0x38-wide cell -
+ * `text_width_thunk` measured, not assumed - and drawn twice for a shadow:
+ * colour 0 at one pixel left and one down, then 0xe at the true place. The
+ * baseline is the icon's own height plus one, and is clamped to 0x161 so a
+ * tall part cannot push its number off the bottom.
+ *
+ * The cells are 0x34 apart and the walk stops at y = 0x134, so the bin holds
+ * however many fit and the rest of the list is simply not shown.
+ *
+ * The two `fill_rect`s at the top clear the column in two pieces - 0x241 wide
+ * by 0x37 and 0x240 by 0x103 - which overlap by a pixel in x.
+ */
+void draw_machine_layer_a(void)
+{
+    char digits[16];      /* [bp-0x10] */
+    uint16_t part;
+    int16_t  kind, count, y, text_x, text_y;
+
+    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.clip_enabled = 1;
+    set_clip_play_area();
+    VMDS.fill_enabled = 1;
+    VMDS.fill_colour   = ((uint8_t)DG52BD.bin_colour);
+    VMDS.second_colour = ((uint8_t)DG52BD.bin_colour);
+
+    cursor_redraw_off_thunk();
+    fill_rect(0x241, 0x63, 0x37, 2);
+    fill_rect(0x240, 0x65, 0x38, 0x103);
+    restore_cursor_following();
+
+    VMDS.text_style = 1;                            /* transparent text */
+
+    part = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
+    y    = 0x64;
+
+    while (part != 0 && y <= 0x134) {
+        struct bitmap *icon;
+
+        kind = ((int16_t)PART_PTR(part)->kind);
+        count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
+
+        for (;;) {
+            part = PART_PTR(part)->next_ptr;
+            if (part == 0)
+                break;
+            if (((int16_t)PART_PTR(part)->kind) != kind)
+                break;
+            if (part != DG50D3.dragged_part_ptr)
+                count++;
+        }
+
+        if (count == 0)
+            continue;
+
+        cursor_redraw_off_thunk();
+
+        icon = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
+        draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
+
+        int_to_string(count, digits, 10);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
+
+        text_y = (int16_t)(y + icon->height
+                           + (0x2a - icon->height) / 2 + 1);
+        if (text_y > 0x161)
+            text_y = 0x161;
+
+        VMDS.text_colour = 0;
+        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
+
+        VMDS.text_colour = 0x0e;
+        draw_string(digits, (int16_t)(text_x - 1), text_y);
+
+        restore_cursor_following();
+
+        y = (int16_t)(y + 0x34);
+    }
+}
+
+/*
+ * 0x15f76
+ *
+ * Draw a bitmap **centred in a box**: the caller gives a corner and a size,
+ * and the picture's own width and height - the words at +6 and +8 of its
+ * header - decide where inside it lands.
+ *
+ * Both halves are `sar`, an arithmetic shift, so a picture *wider* than the
+ * box centres to a negative offset and hangs off both sides equally rather
+ * than being pinned to the left. That is what puts a part's icon in the middle
+ * of its cell in the copy-protection grid whatever size the part is.
+ */
+void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
+                         int16_t w, int16_t h)
+{
+    x = (int16_t)(x + (w - bmp->width) / 2);
+    y = (int16_t)(y + (h - bmp->height) / 2);
+
+    draw_bitmap(bmp, x, y, 0);
+}
+
+/*
  * 0x15faa
  *
  * The **animated header** at the top of the parts bin, clipped to
@@ -1892,27 +1273,6 @@ void draw_machine_layer_f(void)
 }
 
 /*
- * 0x15f76
- *
- * Draw a bitmap **centred in a box**: the caller gives a corner and a size,
- * and the picture's own width and height - the words at +6 and +8 of its
- * header - decide where inside it lands.
- *
- * Both halves are `sar`, an arithmetic shift, so a picture *wider* than the
- * box centres to a negative offset and hangs off both sides equally rather
- * than being pinned to the left. That is what puts a part's icon in the middle
- * of its cell in the copy-protection grid whatever size the part is.
- */
-void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
-                         int16_t w, int16_t h)
-{
-    x = (int16_t)(x + (w - bmp->width) / 2);
-    y = (int16_t)(y + (h - bmp->height) / 2);
-
-    draw_bitmap(bmp, x, y, 0);
-}
-
-/*
  * 0x160fc
  *
  * **Draw the part in your hand at the pointer**, and tell the shape allocator
@@ -1958,6 +1318,47 @@ void draw_carried_icon(void)
 
     alloc_shape((uint8_t *)at,
                 (uint8_t *)&ext, 1, 2, 0);
+}
+
+/*
+ * 0x16181
+ *
+ * One frame of the machine: settle the display buckets, run the physics, draw.
+ *
+ * A part carries a countdown at +0x14 saying it has moved and its bucket is
+ * stale. Each frame every part with a non-zero one is put back in its bucket
+ * by `link_record_into_buckets` and the countdown steps down, so a part that
+ * moved is re-filed for as many frames as the count says. With `redraw_all`
+ * set the count is ignored and cleared instead, which is how the first frame
+ * of a machine files everything at once.
+ *
+ * The part at DGROUP 0x50d5 - the one being dragged - is done first and then
+ * skipped in the walk, so it is filed before anything can be filed on top of
+ * it, and only once.
+ */
+void step_and_draw_machine(int16_t redraw_all)
+{
+    struct part *si;
+
+    if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->redraw_count != 0) {
+        link_record_into_buckets(PART_PTR(DG50D3.dragged_part_ptr));
+        PART_PTR(DG50D3.dragged_part_ptr)->redraw_count--;
+    }
+
+    for (si = pick_by_flag(0x3000); si != PART_NONE;
+         si = pick_for_record(si, 0x1000)) {
+        if ((redraw_all != 0 || si->redraw_count != 0)
+            && si != PART_PTR(DG50D3.dragged_part_ptr))
+            link_record_into_buckets(si);
+
+        if (redraw_all != 0)
+            si->redraw_count = 0;
+        else if (si->redraw_count != 0)
+            si->redraw_count--;
+    }
+
+    refile_overlapping_parts();
+    draw_machine(0, 0);
 }
 
 /*
@@ -2169,47 +1570,6 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 }
 
 /*
- * 0x16181
- *
- * One frame of the machine: settle the display buckets, run the physics, draw.
- *
- * A part carries a countdown at +0x14 saying it has moved and its bucket is
- * stale. Each frame every part with a non-zero one is put back in its bucket
- * by `link_record_into_buckets` and the countdown steps down, so a part that
- * moved is re-filed for as many frames as the count says. With `redraw_all`
- * set the count is ignored and cleared instead, which is how the first frame
- * of a machine files everything at once.
- *
- * The part at DGROUP 0x50d5 - the one being dragged - is done first and then
- * skipped in the walk, so it is filed before anything can be filed on top of
- * it, and only once.
- */
-void step_and_draw_machine(int16_t redraw_all)
-{
-    struct part *si;
-
-    if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->redraw_count != 0) {
-        link_record_into_buckets(PART_PTR(DG50D3.dragged_part_ptr));
-        PART_PTR(DG50D3.dragged_part_ptr)->redraw_count--;
-    }
-
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
-         si = pick_for_record(si, 0x1000)) {
-        if ((redraw_all != 0 || si->redraw_count != 0)
-            && si != PART_PTR(DG50D3.dragged_part_ptr))
-            link_record_into_buckets(si);
-
-        if (redraw_all != 0)
-            si->redraw_count = 0;
-        else if (si->redraw_count != 0)
-            si->redraw_count--;
-    }
-
-    refile_overlapping_parts();
-    draw_machine(0, 0);
-}
-
-/*
  * 0x166d6
  *
  * Clear six words at DGROUP 0x50bf. The loop counts *down* from 5 and tests
@@ -2266,7 +1626,6 @@ void link_record_into_buckets(struct part *rec)
             rec->layer_slot = slot;
     }
 }
-
 
 /*
  * 0x1675e
@@ -2866,4 +2225,15 @@ void draw_part_extra(struct part *part)
                 1, 2, 0);
 
 out:
+}
+
+/*
+ * 172c:0000, image 0x172bc
+ *
+ *
+ * The module's first routine, and it does nothing at all: a frame and a `retf`.
+ * It is here because the segment's own offset 0 has to be something.
+ */
+void seg172c_nothing(void)
+{
 }

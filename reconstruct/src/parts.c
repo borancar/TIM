@@ -4007,17 +4007,6 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
 }
 
 /*
- * 172c:0000, image 0x172bc
- *
- *
- * The module's first routine, and it does nothing at all: a frame and a `retf`.
- * It is here because the segment's own offset 0 has to be something.
- */
-void seg172c_nothing(void)
-{
-}
-
-/*
  * 172c:461a, image 0x1b8da
  *
  * Push a part's motion out along its belts, and answer whether anything
