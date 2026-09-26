@@ -84,7 +84,21 @@ import provenance                                       # noqa: E402
 from cparse import parse, text                          # noqa: E402
 
 BUILT_WITH = re.compile(r"JUDGE:\s*built-with\s+([^\n*]+)")
+VIA_ASSEMBLER = re.compile(r"JUDGE:\s*via-assembler\b")
+ASSEMBLER = re.compile(r"JUDGE:\s*assembler\s+(\S+)")
+# **A module with inline `asm` went through the assembler** (`tcc -B`): the
+# compiler writes assembly and TASM makes the object, so a jump TCC could not
+# size - one across an `asm` block - is TASM's to shorten, and a one-pass
+# TASM leaves a `nop` behind it. Which TASM Dynamix had is a measurement;
+# turboc has host ports of four (built on demand into out/tasm/, as turboc's
+# tasmbuild.py builds them) and the rest run under its emulator.
+TASM_HOST = ("tasm1.00", "tasm1.01", "tasm2.00", "bc2.00")
+TASM_EMULATED = ("tasm2.01", "bc3.00")
+DEFAULT_ASSEMBLER = "bc2.00"
 COMPILER = re.compile(r"JUDGE:\s*compiler\s+(\S+)")
+# An error line from TCC (`Error file line: ...`) or TASM (`**Error** ...`),
+# not TASM's summary `Error messages:    None`.
+ERRORS = re.compile(r"^(\*\*)?(Error|Fatal)\b(?! messages:)", re.M)
 
 
 def port_sources():
@@ -151,7 +165,38 @@ def stage(src_path, dst_path):
     open(dst_path, "wb").write(data.replace(b"\n", b"\r\n"))
 
 
-def compile_obj(path, opts, compiler=DEFAULT_COMPILER):
+def host_tasm(version):
+    """turboc's host port of TASM `version`, built once into out/tasm/."""
+    exe = os.path.join(REPO, "out", "tasm", version, "tasm")
+    if not os.path.exists(exe):
+        subprocess.run(["uv", "run", "--project", TURBOC, "python",
+                        os.path.join(TURBOC, "tools", "tasmbuild.py"),
+                        os.path.dirname(exe)], cwd=TURBOC, check=True,
+                       capture_output=True,
+                       env=dict(os.environ, TURBOC_VERSION=version))
+    return exe
+
+
+def assemble(d, base, opts, assembler):
+    """TASM on `base`.ASM in `d`, with the command line TCC gives it."""
+    models = {"-mt": "__TINY__", "-ms": "__SMALL__", "-mm": "__MEDIUM__",
+              "-mc": "__COMPACT__", "-ml": "__LARGE__", "-mh": "__HUGE__"}
+    model = next((models[o] for o in opts if o in models), "__SMALL__")
+    conv = "__PASCAL__" if "-p" in opts else "__CDECL__"
+    tail = [base, "/D" + model, "/D" + conv, "/r/ml," + base, ";"]
+    if assembler in TASM_HOST:
+        r = subprocess.run([host_tasm(assembler)] + tail, cwd=d,
+                           capture_output=True, text=True)
+        return r.stdout + r.stderr
+    cmd = ["uv", "run", "--project", TURBOC, "python",
+           os.path.join(TURBOC, "tools", "tcemu.py"), "TASM.EXE",
+           "--save", d, "--add", os.path.join(d, base + ".ASM"), "--"] + tail
+    r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
+                       env=dict(os.environ, TURBOC_VERSION=assembler))
+    return r.stdout + r.stderr
+
+
+def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
     d = tempfile.mkdtemp(prefix="judge")
     try:
         # A DOS compiler takes an 8.3 name: `machine_draw.c` is staged as
@@ -168,17 +213,23 @@ def compile_obj(path, opts, compiler=DEFAULT_COMPILER):
                       os.path.join(RECON, "tc")):
             for h in glob.glob(os.path.join(where, "*.h")):
                 stage(h, os.path.join(inc, os.path.basename(h)))
+        step = ["-S"] if assembler else ["-c"]
         if compiler in EMULATED:
-            out = compile_emulated(d, name, inc, opts, compiler)
+            out = compile_emulated(d, name, inc, step + opts, compiler)
         else:
             tcc, tc_include = COMPILERS[compiler]
-            r = subprocess.run([tcc, "-c"] + opts +
+            r = subprocess.run([tcc] + step + opts +
                                ["-I" + inc + ";" + tc_include, name], cwd=d,
                                capture_output=True, text=True,
                                env=dict(os.environ, TURBOC_ROOT=TC_ROOT))
             out = r.stdout + r.stderr
+        if assembler and not ERRORS.search(out):
+            asms = [f for f in os.listdir(d) if f.upper().endswith(".ASM")]
+            if asms:
+                out += assemble(d, os.path.splitext(asms[0])[0], opts,
+                                assembler)
         objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
-        if not objs or "Error" in out:
+        if not objs or ERRORS.search(out):
             sys.stdout.write(out)
             raise SystemExit("%s: %s did not compile it" % (path, compiler))
         return omf.load(os.path.join(d, objs[0]))[0], out
@@ -202,7 +253,7 @@ def compile_emulated(d, name, inc, opts, compiler):
         cmd += ["--add", m]
     # `-I.`: the mounted headers are in the current directory, which `<...>`
     # does not search on its own - and <stdint.h> is one of them.
-    cmd += ["--", "-c", "-I."] + opts + [name]
+    cmd += ["--", "-I."] + opts + [name]
     r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
                        env=dict(os.environ, TURBOC_VERSION=version))
     return r.stdout + r.stderr
@@ -271,7 +322,7 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose):
 
 
 def judge(path, known, img, fr, verbose=False, force_opts=None,
-          force_compiler=None, placed=None):
+          force_compiler=None, placed=None, force_assembler=None):
     placed = placed or {}
     src = open(path).read()
     c = COMPILER.search(src)
@@ -280,7 +331,10 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
     opts = m.group(1).split() if m else DEFAULT_OPTS
     if force_opts is not None:
         opts = force_opts
-    mod, _log = compile_obj(path, opts, compiler)
+    a = ASSEMBLER.search(src)
+    assembler = (force_assembler or (a.group(1) if a else DEFAULT_ASSEMBLER)) \
+        if VIA_ASSEMBLER.search(src) or force_assembler else None
+    mod, _log = compile_obj(path, opts, compiler, assembler)
     results = []
     refs = []
     for si, seg in enumerate(mod.segs):
@@ -408,6 +462,9 @@ def main(argv=None):
     ap.add_argument("-v", "--verbose", action="store_true")
     ap.add_argument("--opts", help="TCC options instead of the file's own "
                     "(one string: --opts='-mm -O')")
+    ap.add_argument("--assembler", choices=TASM_HOST + TASM_EMULATED,
+                    help="through TASM, whether or not the file says "
+                    "JUDGE: via-assembler")
     ap.add_argument("--compiler", choices=sorted(COMPILERS) + sorted(EMULATED),
                     help="instead of the file's own JUDGE: compiler")
     a = ap.parse_args(argv)
@@ -424,7 +481,7 @@ def main(argv=None):
         for name, addr, verdict, notes in judge(
                 path, known, img, fr, a.verbose,
                 a.opts.split() if a.opts is not None else None,
-                a.compiler, placed):
+                a.compiler, placed, a.assembler):
             total += 1
             matched += verdict.startswith("MATCH")
             where = "%05x" % addr if addr is not None else "  ?  "
