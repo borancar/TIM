@@ -21,6 +21,15 @@ by itself (huge pointer arithmetic, long helpers, layout) is not emulated in
 the source. A routine is **matched** when the judge says MATCH; until then it
 is transcribed, as before.
 
+**A stored pointer is a real pointer on both compilers** (decided 2026-09-26):
+`plot_fn = plot_clipped`, `list_ptr->pos`, not a guest `seg:off` pair or a
+DGROUP offset. So the host's DGROUP stops mirroring the guest's bytes, one
+record type at a time, and the tools that compare guest memory
+(`check_image_data`, `verify.py`, the hybrid runner) are rescoped as each
+record converts; `check_machines` and `check_solutions` stay the functional
+proof. The *Converting the guest's pointers* section below describes the
+layout-preserving scheme this replaces.
+
 ## Keep this file short
 
 **This file is read at the start of every session, so it holds only what
