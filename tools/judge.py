@@ -75,7 +75,7 @@ EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "bc2.00": "BCC.EXE",
 # under the emulator; `--compiler 3.00` is the host port of Turbo C++ 3.0,
 # the same code generator without that pass, and much faster to iterate with.
 DEFAULT_COMPILER = "bc3.00"
-TCC = COMPILERS[DEFAULT_COMPILER][0]
+TCC = COMPILERS["3.00"][0]     # the host port; emulated ones need none
 IMAGE = os.path.join(REPO, "out", "TIM.img")
 UNPACKED = os.path.join(REPO, "out", "TIM.unpacked.exe")
 DEFAULT_OPTS = ["-mm", "-O"]
@@ -125,7 +125,9 @@ def addresses(paths):
             if name is None or block is None:
                 continue
             first = provenance.first_content_line(text(src, block))
-            m = re.match(r"(0x[0-9a-fA-F]{5})\b", first)
+            # `0x1791b`, or `172c:065b, image 0x1791b` as parts.c has it
+            m = re.match(r"(?:[0-9a-fA-F]{4}:[0-9a-fA-F]{4},\s*image\s+)?"
+                         r"(0x[0-9a-fA-F]{5})\b", first)
             if m:
                 out[name] = int(m.group(1), 16)
     return out
@@ -540,7 +542,7 @@ def main(argv=None):
     ap.add_argument("--compiler", choices=sorted(COMPILERS) + sorted(EMULATED),
                     help="instead of the file's own JUDGE: compiler")
     a = ap.parse_args(argv)
-    if not os.path.exists(TCC):
+    if (a.compiler or DEFAULT_COMPILER) in COMPILERS and not os.path.exists(TCC):
         raise SystemExit("no TCC 3.0 at %s: make tcc in %s/reconstruct/v3.00"
                          % (TCC, TURBOC))
     img = open(IMAGE, "rb").read()
