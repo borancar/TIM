@@ -2297,7 +2297,7 @@ extern struct dg_48da DG48DA;
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
  */
 struct dg_3576 {
-    struct far_ptr scratch;       /* +0x00  picker_begin takes this if it is
+    uint8_t far *scratch;       /* +0x00  picker_begin takes this if it is
                                      not null */
 } PACKED;
 
@@ -4451,7 +4451,7 @@ struct rect_list_entry {
     int16_t   refcount;             /* +0x0e  how many hold the slot; stepped down once a frame, reusable at 0 */
     uint16_t  area;            /* +0x10  w * h, from the creator's imul */
     uint16_t  block_head;      /* +0x12  1 on the first record of each heap block */
-    struct far_ptr buf;        /* +0x14  the saved pixels, for mode 4 */
+    uint8_t far *buf;        /* +0x14  the saved pixels, for mode 4 */
     dg_near_t next_ptr;        /* +0x18 */
 } PACKED;
 
@@ -4516,7 +4516,7 @@ extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
  */
 struct resource {
     dg_near_t work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
-    struct far_ptr scratch;    /* +0x02  the far scratch block, which
+    uint8_t far *scratch;      /* +0x02  the far scratch block, which
                                   lzss_reset caches */
     /* **Where the resource's data lies.** Without bit 0x20 of `kind` it is a
        far pointer into memory: `select_resource`, `resource_seek` and
@@ -4525,9 +4525,11 @@ struct resource {
        a file and only the offset word is used - it holds the file record's
        near pointer, which `open_resource` files there and `select_resource`
        copies to 0x57bc. Two readings of the same four bytes, chosen by the
-       kind: the file record's pointer is `data.off`. (An anonymous union
-       said so until Turbo C++ 3.0 had to read it; it has none.) */
-    struct far_ptr data;       /* +0x06 */
+       kind: the file record's pointer is the low word. */
+    union {
+        uint8_t huge *ptr;     /* the data in memory */
+        dg_near_t file_ptr;    /* or the file record it is read from */
+    } data;                    /* +0x06 */
     /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
        borrow and compares the two as wholes; `next_input_byte` steps `in`
        with a carry; `open_resource` splits a `uint32_t` into `end` and

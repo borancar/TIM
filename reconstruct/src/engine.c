@@ -652,15 +652,15 @@ struct engine_stream {
                                      opened for reading */
     uint8_t   pad_01;             /* +0x01 [1] */
     dg_near_t record_ptr;         /* +0x02 [2]  the record being read */
-    struct far_ptr scratch;       /* +0x04 [4]  the decompressor's block; every
+    uint8_t huge *scratch;      /* +0x04 [4]  the decompressor's block; every
                                      use is a `huge_add` from its base */
     uint16_t  wanted;             /* +0x08 [2]  how many bytes the caller still wants */
     dg_near_t spill_ptr;          /* +0x0a [2]  the record's work_ptr, the buffer a run that does not fit spills into */
-    struct far_ptr out;           /* +0x0c [4]  the decompression output cursor:
+    uint8_t huge *out;          /* +0x0c [4]  the decompression output cursor:
                                      `read_resource` normalises the caller's
                                      destination into it and three
                                      decompressors walk it */
-    struct far_ptr in;            /* +0x10 [4]  and where they are reading from */
+    uint8_t huge *in;           /* +0x10 [4]  and where they are reading from */
     int16_t   written;            /* +0x14 [2]  what close_resource answers; the writing side counts into it
                                      - a name that is a guess, that side is not transcribed */
     int16_t   n_bits;             /* +0x16 [2]  the code width: 9 at a reset, one more when free_ent passes maxcode */
@@ -670,7 +670,7 @@ struct engine_stream {
     uint8_t   pad_1b;             /* +0x1b [1] */
     int16_t   clear_flg;          /* +0x1c [2]  set by code 0x100; next_lzw_code resets the width and clears it */
     int16_t   oldcode;            /* +0x1e [2]  the previous code, prefix of the entry the next one adds */
-    struct far_ptr de_stack;      /* +0x20 [4]  the scratch block plus 0x3720, where decompress_lzw builds
+    uint8_t huge *de_stack;     /* +0x20 [4]  the scratch block plus 0x3720, where decompress_lzw builds
                                      each string backwards */
     int16_t   finchar;            /* +0x24 [2]  the first byte of the last string, the new entry's suffix */
     uint8_t   first_code;         /* +0x26 [1]  set at a reset: the stream's first code is a literal */
@@ -682,7 +682,7 @@ struct engine_stream {
     int16_t   maxcode;            /* +0x2e [2]  the largest code at this width, 0x1000 at twelve bits */
 } PACKED;
 
-struct engine_stream ENGINE_STREAM DGROUP_BSS(0x5888);
+struct engine_stream ENGINE_STREAM DGROUP_WAS(0x5888);
 
 /*
  * **An interrupted match, and where it resumes**, DGROUP 0x58e0..0x58e8, 0x08 bytes.
@@ -717,10 +717,10 @@ struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
  * it caches at 0x590a and 0x590e.
  */
 struct engine_huffman_tree {
-    struct far_ptr son;           /* +0x00 [4] */
+    uint16_t far *son;          /* +0x00 [4] */
 } PACKED;
 
-struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_BSS(0x5900);
+struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_WAS(0x5900);
 
 /*
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
@@ -732,14 +732,14 @@ struct engine_decompress_cache {
        pairs rather than one pointer. The port takes each as the word table it
        is - see `HUFF_TABLE` - and the pairs stay because the guest stores
        them. */
-    struct far_ptr cache_a;       /* +0x00 [4]  the three records' pointers */
-    struct far_ptr cache_b;       /* +0x04 [4] */
-    struct far_ptr cache_c;       /* +0x08 [4]  the record's own block */
+    uint16_t far *cache_a;      /* +0x00 [4]  the three records' pointers */
+    uint16_t far *cache_b;      /* +0x04 [4] */
+    uint8_t far *cache_c;       /* +0x08 [4]  the record's own block */
     uint8_t   pad_5916[2];        /* +0x0c [2] */
     int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
 } PACKED;
 
-struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_BSS(0x590a);
+struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_WAS(0x590a);
 
 /*
  * **The scaling table** `scale_table_delta` takes differences across,
@@ -1047,8 +1047,8 @@ int16_t read_input_block(uint8_t *dst, uint16_t count)
                                    FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
 
     far_memcpy(dst,
-               dg_far_ptr(ENGINE_STREAM.in), (uint16_t)n);
-    huge_add_to(&ENGINE_STREAM.in, (int32_t)n);
+               ENGINE_STREAM.in, (uint16_t)n);
+    ENGINE_STREAM.in += (int32_t)n;
 
     return (int16_t)n;
 }
@@ -1090,12 +1090,12 @@ int16_t emit_literal_run(uint16_t n)
     }
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        read_into_huge(dg_far_ptr(ENGINE_STREAM.out), n);
+        read_into_huge(ENGINE_STREAM.out, n);
     else
         game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), n, 1);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
-    huge_add_to(&ENGINE_STREAM.out, (int32_t)n);
+    ENGINE_STREAM.out += (int32_t)n;
 
     return 1;
 }
@@ -1128,11 +1128,11 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
     }
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memset(dg_far_ptr(ENGINE_STREAM.out), value,
+        far_memset(ENGINE_STREAM.out, value,
                    (uint32_t)(int16_t)n);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
-    huge_add_to(&ENGINE_STREAM.out, (int32_t)(int16_t)n);
+    ENGINE_STREAM.out += (int32_t)(int16_t)n;
 
     return 1;
 }
@@ -1151,9 +1151,9 @@ int16_t emit_byte(uint16_t value)
 {
     if (ENGINE_STREAM.wanted >= 1) {
         if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-            *dg_far_ptr(ENGINE_STREAM.out) = (uint8_t)value;
+            *ENGINE_STREAM.out = (uint8_t)value;
 
-        huge_add_to(&ENGINE_STREAM.out, 1);
+        ENGINE_STREAM.out += 1;
         ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - 1);
         return 1;
     }
@@ -1190,7 +1190,7 @@ void lzw_reset(void)
 {
     int16_t i;
     /* The dictionary block; `huge_add` reaches into it from the start. */
-    uint8_t *scratch = dg_far_ptr(ENGINE_STREAM.scratch);
+    uint8_t *scratch = ENGINE_STREAM.scratch;
 
     far_memset(scratch, 0, 0x3aa1);
 
@@ -1211,7 +1211,7 @@ void lzw_reset(void)
     ENGINE_STREAM.bit_end = 0;
 
     /* `huge_add` answers the normalised pair, which is `far_of`'s. */
-    ENGINE_STREAM.de_stack = far_of(scratch + 0x3720);
+    ENGINE_STREAM.de_stack = scratch + 0x3720;
 }
 
 /*
@@ -1266,31 +1266,15 @@ int16_t decompress_lzw(void)
      * writes the offset itself into the dictionary, which is what makes it
      * visible.
      */
-    uint8_t far * block = dg_far_ptr(ENGINE_STREAM.scratch);
+    uint8_t far * block = ENGINE_STREAM.scratch;
     uint16_t *prefix = (uint16_t *)(void *)block;
     uint8_t far * suffix = block + 0x2720;
     uint8_t far * scratch = block + 0x3720;
     uint8_t far *in, *back;
-    /* The segment the caller chose, as its first byte: what the cursor below
-       is measured against, and the one thing a normalised pointer cannot
-       answer for - see the note on `out`. */
-    const uint8_t far *dst_base;
-    /*
-     * The output cursor. The original keeps it as `di` against a segment it
-     * leaves alone, walking the offset with `inc di` and filing it back into
-     * DGROUP 0x5894; here it is one address, and the two places the original
-     * files it write back its distance from `dst_base`, that segment's first
-     * byte.
-     *
-     * **Normalising instead was tried and measured on 2026-09-10.** Writing
-     * `FP_SEG`/`FP_OFF` of the cursor addresses the same byte - 424b:2b10 and
-     * 44fc:0000 are both 0x44fc0 - and all 20,859 decompressed bytes were
-     * identical, but the four bytes at DGROUP 0x5894 are compared and the
-     * routine went from verified to DIFFERS. A pointer can only answer for
-     * the normalised pair; this routine's segment is one the caller chose.
-     * The scratch index that shared the `di` register is `in` above, which is
-     * a different thing entirely.
-     */
+    /* The output cursor: `di` against the segment the caller chose, walked
+       with `inc di` and filed back into DGROUP 0x5894 - a far pointer, whose
+       arithmetic is the offset's. The scratch index that shared the `di`
+       register is `in` above, which is a different thing entirely. */
     uint8_t far * out;
     uint16_t si, cx;
     int16_t code;
@@ -1299,8 +1283,7 @@ int16_t decompress_lzw(void)
 
     if (ENGINE_STREAM.resume != 0) {
         cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
-        dst_base = MK_FP(ENGINE_STREAM.out.seg, 0);
-        out = (uint8_t far *)dst_base + (uint16_t)ENGINE_STREAM.out.off;
+        out = (uint8_t far *)ENGINE_STREAM.out;
         back = scratch + (uint16_t)ENGINE_LZW_RESUME.scratch_at;
         copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
         ENGINE_STREAM.resume = 0;
@@ -1325,7 +1308,7 @@ int16_t decompress_lzw(void)
             /* The block's own offset, written into every entry it clears -
                zero, as the note on `block` says, and written as the field
                rather than as a 0 because that is what the original stores. */
-            uint16_t p = ENGINE_STREAM.scratch.off;
+            uint16_t p = FP_OFF(ENGINE_STREAM.scratch);
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
@@ -1359,8 +1342,7 @@ int16_t decompress_lzw(void)
 
         cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
         back = in - 1;
-        dst_base = MK_FP(ENGINE_STREAM.out.seg, 0);
-        out = (uint8_t far *)dst_base + (uint16_t)ENGINE_STREAM.out.off;
+        out = (uint8_t far *)ENGINE_STREAM.out;
         copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
 
         for (;;) {
@@ -1369,7 +1351,7 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                ENGINE_STREAM.out.off = (int16_t)(out - dst_base);
+                ENGINE_STREAM.out = out;
                 ENGINE_LZW_RESUME.scratch_at = (int16_t)(back - scratch);
 
                 rec = ENGINE_STREAM.record_ptr;
@@ -1404,7 +1386,7 @@ step_back:
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         ENGINE_STREAM.wanted = (int16_t)cx;
-        ENGINE_STREAM.out.off = (int16_t)(out - dst_base);
+        ENGINE_STREAM.out = out;
 
         if (ENGINE_STREAM.free_ent < 0x1000) {
             uint16_t next = ((uint16_t)ENGINE_STREAM.free_ent);
@@ -1626,14 +1608,14 @@ int16_t select_resource(int16_t handle)
     ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
     if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->data.off;
+        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->data.file_ptr;
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
 
     ENGINE_RESOURCE_FLAGS.flags = 0;
-    ENGINE_STREAM.in = normalise_far_ptr_far(huge_add(RESOURCE_PTR(entry)->data,
-                                                      (int32_t)RESOURCE_PTR(entry)->in));
+    ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(entry)->data.ptr
+                                             + RESOURCE_PTR(entry)->in);
     return 1;
 }
 /*
@@ -1664,13 +1646,9 @@ int16_t next_input_byte(void)
     if ((ENGINE_STREAM.kind & 0x20) != 0)
         return game_fgetc(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
 
-    {
-        /* 0x5898 is `ENGINE_STREAM.in`, which is already a pair - the read
-           cursor the decompressors walk. */
-        struct far_ptr p = huge_post_add(&ENGINE_STREAM.in, 1);
-
-        return (int16_t)(*dg_far_ptr(p) & 0xff);
-    }
+    /* 0x5898 is `ENGINE_STREAM.in`, the read cursor the decompressors
+       walk, stepped as a huge pointer. */
+    return (int16_t)(*ENGINE_STREAM.in++ & 0xff);
 }
 
 /*
@@ -1741,9 +1719,9 @@ int16_t close_resource_slot(uint16_t slot)
         free_if_set(RESOURCE_PTR(rec)->work_ptr);
 
         rec = ENGINE_STREAM.record_ptr;
-        if (dg_far_ptr(RESOURCE_PTR(rec)->scratch) != FAR_NULL_PTR
-            && dg_far_ptr(DG3576.scratch) == FAR_NULL_PTR)
-            dos_free_far(dg_far_ptr(RESOURCE_PTR(rec)->scratch));
+        if (RESOURCE_PTR(rec)->scratch != FAR_NULL_PTR
+            && DG3576.scratch == FAR_NULL_PTR)
+            dos_free_far(RESOURCE_PTR(rec)->scratch);
     }
 
     free_if_set(ENGINE_STREAM.record_ptr);
@@ -1775,7 +1753,7 @@ int16_t open_resource_slot(void)
     if (si == 0x64)
         return -1;
 
-    rec = (struct resource *)(void *)heap_calloc_far(1, 0x21);
+    rec = (struct resource *)(void *)heap_calloc_far(1, sizeof(struct resource));
     ENGINE_STREAM.record_ptr = dg_near(dgroup, rec);
     if (rec == NULL)
         return -1;
@@ -1826,12 +1804,12 @@ int16_t prepare_resource_slot(int16_t type, char *name)
         return -1;
 
     if (far_size != 0) {
-        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
+        if (DG3576.scratch != FAR_NULL_PTR) {
             rec = ENGINE_STREAM.record_ptr;
             RESOURCE_PTR(rec)->scratch = DG3576.scratch;
             ENGINE_STREAM.scratch = DG3576.scratch;
         } else {
-            struct far_ptr p = far_of(dos_alloc_bytes(far_size, 0, 0).ptr);
+            uint8_t far *p = dos_alloc_bytes(far_size, 0, 0).ptr;
 
             rec = ENGINE_STREAM.record_ptr;
             RESOURCE_PTR(rec)->scratch = p;
@@ -1839,7 +1817,7 @@ int16_t prepare_resource_slot(int16_t type, char *name)
         }
 
         rec = ENGINE_STREAM.record_ptr;
-        if (dg_far_ptr(RESOURCE_PTR(rec)->scratch) == FAR_NULL_PTR)
+        if (RESOURCE_PTR(rec)->scratch == FAR_NULL_PTR)
             return -1;
     }
 
@@ -1887,12 +1865,12 @@ void resource_advance(void)
         return;
 
     if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memcpy(dg_far_ptr(ENGINE_STREAM.out),
+        far_memcpy(ENGINE_STREAM.out,
                    dg_near_ptr((uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
 
     ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - si);
 
-    huge_add_to(&ENGINE_STREAM.out, (int32_t)si);
+    ENGINE_STREAM.out += (int32_t)si;
 }
 /*
  * 0x1d54e
@@ -1936,7 +1914,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
         return -1;
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->data.off = dg_near(dgroup, file);
+    RESOURCE_PTR(rec)->data.file_ptr = dg_near(dgroup, file);
 
     pos = game_ftell(file);
     rec = ENGINE_STREAM.record_ptr;
@@ -1963,7 +1941,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
     rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->end = size;
 
-    game_fread(dg_near_ptr((uint16_t)(ENGINE_STREAM.record_ptr + 0x12)),
+    game_fread((uint8_t *)&RESOURCE_PTR(ENGINE_STREAM.record_ptr)->size,
                1, 4, file);
 
     {
@@ -2061,7 +2039,7 @@ int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
      * what Borland's `FP_SEG`/`FP_OFF` answer for a pointer, so the round trip
      * is not needed.
      */
-    ENGINE_STREAM.out = far_of(dst);
+    ENGINE_STREAM.out = dst;
 
     ENGINE_RESOURCE_FLAGS.flags = (uint8_t)(ENGINE_RESOURCE_FLAGS.flags | 0x40);
 
@@ -2165,13 +2143,8 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
             break;
 
         rec = ENGINE_STREAM.record_ptr;
-        {
-            struct far_ptr p = huge_add(RESOURCE_PTR(rec)->data,
-                                        (int32_t)RESOURCE_PTR(rec)->in);
-
-            p = normalise_far_ptr_far(p);
-            ENGINE_STREAM.in = p;
-        }
+        ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(rec)->data.ptr
+                                                 + RESOURCE_PTR(rec)->in);
     }
 
     rec = ENGINE_STREAM.record_ptr;
@@ -2230,10 +2203,7 @@ int16_t restart_resource_stream(int16_t handle)
 
         game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), (int32_t)at, 0);
     } else {
-        struct far_ptr p = huge_add(RESOURCE_PTR(rec)->data, 5);
-
-        p = normalise_far_ptr_far(p);
-        ENGINE_STREAM.in = p;
+        ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(rec)->data.ptr + 5);
     }
 
     rec = ENGINE_STREAM.record_ptr;
@@ -2340,7 +2310,6 @@ int16_t huff_get_byte(void)
  * `[bx + si]` with the table's offset in BX and the index doubled by hand;
  * a `uint16_t *` says the same thing and indexes by the entry.
  */
-#define HUFF_TABLE(fp) ((uint16_t *)(void *)dg_far_ptr(fp))
 
 /*
  * 0x1e0b3
@@ -2364,23 +2333,22 @@ int16_t huff_get_byte(void)
 void huffman_start(void)
 {
     uint16_t rec = ENGINE_STREAM.record_ptr;
-    uint16_t seg = RESOURCE_PTR(rec)->scratch.seg;
-    uint16_t *freq, *prnt, *son;
+    uint16_t far *freq, far *prnt, far *son;
     int16_t i, j;
 
-    /* Three places inside the scratch block, each filed in the block's own
+    /* Three places inside the scratch block, each in the block's own
        segment - the offset steps and the segment does not. */
     {
-        uint8_t far *scratch = dg_far_ptr(RESOURCE_PTR(rec)->scratch);
+        uint8_t far *scratch = RESOURCE_PTR(rec)->scratch;
 
-        ENGINE_DECOMPRESS_CACHE.cache_a = far_from(seg, scratch + 0x103b);
-        ENGINE_DECOMPRESS_CACHE.cache_b = far_from(seg, scratch + 0x1523);
-        ENGINE_HUFFMAN_TREE.son         = far_from(seg, scratch + 0x1c7d);
+        ENGINE_DECOMPRESS_CACHE.cache_a = (uint16_t far *)(scratch + 0x103b);
+        ENGINE_DECOMPRESS_CACHE.cache_b = (uint16_t far *)(scratch + 0x1523);
+        ENGINE_HUFFMAN_TREE.son         = (uint16_t far *)(scratch + 0x1c7d);
     }
 
-    freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
-    prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
-    son  = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
+    freq = ENGINE_DECOMPRESS_CACHE.cache_a;
+    prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
+    son  = ENGINE_HUFFMAN_TREE.son;
 
     for (i = 0; i < 0x13a; i++) {
         freq[i] = 1;
@@ -2426,9 +2394,9 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t *freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
-    uint16_t *prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
-    uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
+    uint16_t *freq = ENGINE_DECOMPRESS_CACHE.cache_a;
+    uint16_t *prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
+    uint16_t *son = ENGINE_HUFFMAN_TREE.son;
     int16_t i, j, k, n;
 
     j = 0;
@@ -2487,9 +2455,9 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t *freq = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_a);
-    uint16_t *prnt = HUFF_TABLE(ENGINE_DECOMPRESS_CACHE.cache_b);
-    uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
+    uint16_t *freq = ENGINE_DECOMPRESS_CACHE.cache_a;
+    uint16_t *prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
+    uint16_t *son = ENGINE_HUFFMAN_TREE.son;
 
     if (freq[0x272] == 0x8000)
         huffman_reconst();
@@ -2595,7 +2563,7 @@ int16_t decompress_lzss(void)
     /* **The ring**, 0x1000 bytes at the front of the record's own block: the
        window the matches are copied out of, indexed everywhere below by a
        position masked to 0xfff. */
-    uint8_t far * ring = dg_far_ptr(ENGINE_DECOMPRESS_CACHE.cache_c);
+    uint8_t far * ring = ENGINE_DECOMPRESS_CACHE.cache_c;
     uint16_t di = 0;
     int16_t si;
 
@@ -2624,7 +2592,7 @@ int16_t decompress_lzss(void)
 
         if (ENGINE_MATCH_RESUME.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
-            const uint16_t *son = HUFF_TABLE(ENGINE_HUFFMAN_TREE.son);
+            const uint16_t *son = ENGINE_HUFFMAN_TREE.son;
 
             di = son[0x272];          /* the root */
             while (di < 0x273)
@@ -4526,10 +4494,19 @@ void far_memset(uint8_t far * dst, uint16_t value, uint32_t count)
  * So this answers a normalised far pointer in DX:AX, like any other far
  * routine returning a long.
  */
-struct far_ptr normalise_far_ptr_far(struct far_ptr p)
+uint8_t far *normalise_far_ptr_far(uint8_t far *p)
 {
-    normalise_far_ptr(&p);
+#ifdef __TURBOC__
+    struct far_ptr q;
+
+    q.off = FP_OFF(p);
+    q.seg = FP_SEG(p);
+    normalise_far_ptr(&q);
+    return MK_FP(q.seg, q.off);
+#else
+    /* A host pointer is one address, which is all normalising changes. */
     return p;
+#endif
 }
 /*
  * 0x2241b
@@ -4808,18 +4785,16 @@ struct bmp_set *load_bitmap_list(char *name)
         tmp = dos_alloc_bytes(n, 0, 0).ptr;
     }
 
-    if (dg_far_ptr(DG3576.scratch) == FAR_NULL_PTR) {
+    if (DG3576.scratch == FAR_NULL_PTR) {
         scratch = heap_malloc_far(0x3cc4);
         if (scratch != NULL) {
             heap_free_far(scratch);
             scratch = heap_malloc_far(0x3ac4);
             if (scratch != NULL) {
-                DG3576.scratch = dg_far(dgroup, scratch);
-                huge_add_to(&DG3576.scratch, 0x10);
+                /* DS:scratch, sixteen bytes on, masked down to a paragraph. */
+                DG3576.scratch = (uint8_t huge *)scratch + 0x10;
                 DG3576.scratch = normalise_far_ptr_far(
-                    (struct far_ptr){
-                        (uint16_t)(DG3576.scratch.off & 0xfff0),
-                        DG3576.scratch.seg });
+                    MK_FP(FP_SEG(DG3576.scratch), FP_OFF(DG3576.scratch) & 0xfff0));
             }
         }
     }
@@ -4893,7 +4868,7 @@ done:
 
     if (scratch != NULL) {
         heap_free_far(scratch);
-        DG3576.scratch = FAR_NULL;
+        DG3576.scratch = NULL;
     }
 
     if (kind == 0) {

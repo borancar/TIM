@@ -529,8 +529,8 @@ void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
     }
     if (largest > buffer
         || FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
-        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR && largest <= 0x3ab4) {
-            block = dg_far_ptr(DG3576.scratch);
+        if (DG3576.scratch != FAR_NULL_PTR && largest <= 0x3ab4) {
+            block = DG3576.scratch;
             buffer = 0x3ab4;
         } else
             return;
@@ -571,6 +571,6 @@ void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
         at++;
         index++;
     }
-    if (block != dg_far_ptr(DG3576.scratch))
+    if (block != DG3576.scratch)
         dos_free_far(block);
 }

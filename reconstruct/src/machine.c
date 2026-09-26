@@ -141,7 +141,7 @@ struct machine_cursor_state {
     uint16_t  screen_disturbed;   /* +0x02 [2]  the saved rectangles are put back when this says so */
     uint16_t  fade_first;          /* +0x04 [2] */
     uint16_t  fade_count;          /* +0x06 [2] */
-    struct far_ptr pending_pal;   /* +0x08 [4]  a palette waiting to be loaded */
+    uint8_t far *pending_pal;   /* +0x08 [4]  a palette waiting to be loaded */
     uint16_t  cursor_off;         /* +0x0c [2]  clear turns the whole cursor off - nothing is drawn */
     int16_t   delay_reload;       /* +0x0e [2]  the delay counts down and is reloaded from here */
     uint16_t  read_driver;        /* +0x10 [2]  take the position from the driver rather than the last known */
@@ -153,7 +153,7 @@ struct machine_cursor_state {
     int16_t   slots_unset;          /* +0x14 [2] */
 } PACKED;
 
-struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
+struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_WAS(0x2d32) = {
     .page = 0x0001,
     .fade_count = 0x0100,
     .cursor_off = 0x0001,
@@ -279,7 +279,7 @@ struct machine_buffer_used MACHINE_BUFFER_USED DGROUP_BSS(0x5734);
  * **The palette request and the fade**, DGROUP 0x5738..0x5742, 0x0a bytes.
  */
 struct machine_palette_fade {
-    struct far_ptr request;       /* +0x00 [4]  cleared when taken, so one
+    uint8_t far *request;       /* +0x00 [4]  cleared when taken, so one
                                             request loads once */
     uint16_t  fade_mark;          /* +0x04 [2]  reset to zero by a load, which forces the fade to run; */
     /* **A colour that walks 0 to 15**, stepped and plotted when a cursor slot
@@ -289,7 +289,7 @@ struct machine_palette_fade {
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
 } PACKED;
 
-struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_BSS(0x5738);
+struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_WAS(0x5738);
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
@@ -321,10 +321,10 @@ struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
  * never handed out. The array starts at slot 1, and every use subtracts one.
  */
 struct machine_rect_buffers {
-    struct far_ptr slot[4];       /* +0x00  slots 1 to 4 */
+    uint8_t far *slot[4];       /* +0x00  slots 1 to 4 */
 } PACKED;
 
-struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_BSS(0x5758);
+struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_WAS(0x5758);
 
 
 
@@ -10872,7 +10872,7 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
             copy_rect_thunk((uint16_t)x, (uint16_t)rec->y,
                             (uint16_t)rw, (uint16_t)rec->h);
         else if (rec->mode == 4)
-            restore_rect_thunk(dg_far_ptr(rec->buf),
+            restore_rect_thunk(rec->buf,
                                rec->x, rec->y,
                                rec->w,
                                rec->h);
@@ -10955,7 +10955,7 @@ uint16_t build_rect_pool(uint16_t n)
     struct rect_list_entry *rec;             /* si */
 
     n = (uint16_t)((int16_t)(n + 4) / 5 * 5);
-    base = (struct rect_list_entry *)(void *)heap_calloc_far(n, 0x1a);
+    base = (struct rect_list_entry *)(void *)heap_calloc_far(n, sizeof(struct rect_list_entry));
     if (base == NULL)
         return 0;
 
@@ -11074,7 +11074,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
     RECTENT_PTR(rec)->page_src = page_src;
     RECTENT_PTR(rec)->page_dst = page_dst;
     RECTENT_PTR(rec)->refcount = refcount;
-    RECTENT_PTR(rec)->buf = far_of(buf);
+    RECTENT_PTR(rec)->buf = (buf);
     RECTENT_PTR(rec)->area = (uint16_t)(w * h);
 
     if (mode == 1) {
@@ -11684,7 +11684,7 @@ void draw_cursor(uint16_t page)
         if (slot->cursor.buf != 0) {
             if (slot->cursor.w > 0
                 && slot->cursor.h > 0) {
-                const uint8_t *b = dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1]);
+                const uint8_t *b = MACHINE_RECT_BUFFERS.slot[slot->cursor.buf - 1];
 
                 restore_rect_thunk(b,
                                    slot->cursor.x,
@@ -11707,7 +11707,7 @@ void draw_cursor(uint16_t page)
             && slot->bitmap_ptr != 0) {
             if (slot->obj.w > 0
                 && slot->obj.h > 0) {
-                uint8_t *b = dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1]);
+                uint8_t *b = MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1];
 
                 save_rect_thunk(b,
                                 slot->obj.x,
@@ -11869,16 +11869,16 @@ void redraw_cursor_all(void)
 
     if (MACHINE_CURSOR_STATE.page != 0) {
         uint16_t quiet =
-            (dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal) == FAR_NULL_PTR
+            (MACHINE_CURSOR_STATE.pending_pal == FAR_NULL_PTR
              && DG5768.fade_weight == MACHINE_PALETTE_FADE.fade_mark) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
 
-    if (dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal) != FAR_NULL_PTR) {
-        set_palette_pointer(dg_far_ptr(MACHINE_CURSOR_STATE.pending_pal));
+    if (MACHINE_CURSOR_STATE.pending_pal != FAR_NULL_PTR) {
+        set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
         MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
-        MACHINE_CURSOR_STATE.pending_pal = FAR_NULL;
+        MACHINE_CURSOR_STATE.pending_pal = NULL;
         MACHINE_PALETTE_FADE.fade_mark = 0;
     }
 
@@ -12927,7 +12927,7 @@ void erase_object(uint16_t handle)
         if (((int16_t)rec->obj.buf) != 0 && rec->obj.w > 0
             && rec->obj.h > 0) {
             slot = rec->obj.buf;
-            vm_restore_rect(dg_far_ptr(MACHINE_RECT_BUFFERS.slot[slot - 1]),
+            vm_restore_rect(MACHINE_RECT_BUFFERS.slot[slot - 1],
                             rec->obj.x, rec->obj.y,
                             rec->obj.w, rec->obj.h);
         } else {
@@ -12975,7 +12975,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (si->obj.buf != 0
             && si->obj.w > 0
             && si->obj.h > 0) {
-            restore_rect_thunk(dg_far_ptr(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1]),
+            restore_rect_thunk(MACHINE_RECT_BUFFERS.slot[si->obj.buf - 1],
                                si->obj.x,
                                si->obj.y,
                                si->obj.w,
@@ -13328,14 +13328,14 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if (dg_far_ptr(MACHINE_RECT_BUFFERS.slot[i]) == FAR_NULL_PTR) {
-            MACHINE_RECT_BUFFERS.slot[i] = far_of(dos_alloc_bytes(asked, 0, 0).ptr);
+        if (MACHINE_RECT_BUFFERS.slot[i] == FAR_NULL_PTR) {
+            MACHINE_RECT_BUFFERS.slot[i] = (dos_alloc_bytes(asked, 0, 0).ptr);
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (MACHINE_BUFFER_USED.used[i] == 0
-            && dg_far_ptr(MACHINE_RECT_BUFFERS.slot[i]) != FAR_NULL_PTR) {
+            && MACHINE_RECT_BUFFERS.slot[i] != FAR_NULL_PTR) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return (int16_t)(i + 1);
         }

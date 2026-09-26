@@ -431,9 +431,9 @@ struct game_picker_text {
     int16_t   picker_mode;        /* +0x00 [2]  0x80 from the mode it was opened from, else 0 */
     int16_t   scroll;             /* +0x02 [2]  clamped on the way in, not on the way out */
     int16_t   entry_count;        /* +0x04 [2] */
-    struct far_ptr text_start;    /* +0x06 [4]  where the listing's text begins: `entry_max`
+    uint8_t far *text_start;    /* +0x06 [4]  where the listing's text begins: `entry_max`
                                      four-byte pointer slots into `block`, same segment */
-    struct far_ptr block;         /* +0x0a [4]  allocated once and kept; a null
+    uint8_t far *block;         /* +0x0a [4]  allocated once and kept; a null
                                      pointer is the end */
     int16_t   entry_max;          /* +0x0e [2] */
     uint8_t   _pad_569f;          /* +0x10 [1]  a byte: 0x56a0 follows at +0x11 */
@@ -442,7 +442,7 @@ struct game_picker_text {
     int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
 } PACKED;
 
-struct game_picker_text GAME_PICKER_TEXT DGROUP_BSS(0x568f);
+struct game_picker_text GAME_PICKER_TEXT DGROUP_WAS(0x568f);
 
 /*
  * OURS: what both resize arms do once they have decided which way to go.
@@ -6070,11 +6070,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
             /* Entry `idx` of the array of far pointers at the block's
                front, followed to the text it names. */
             {
-                const struct far_ptr far *entries =
-                    (const struct far_ptr far *)(void *)
-                    dg_far_ptr(GAME_PICKER_TEXT.block);
+                char far * far *entries =
+                    (char far * far *)GAME_PICKER_TEXT.block;
 
-                rec = (const char far *)dg_far_ptr(entries[idx]);
+                rec = entries[idx];
             }
 
             if (*rec != ':' && *rec != '<') {
@@ -6192,10 +6191,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, const char *pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (GAME_PICKER_TEXT.block.off != DG3576.scratch.off || GAME_PICKER_TEXT.block.seg != DG3576.scratch.seg) {
-        dos_free_far(dg_far_ptr(GAME_PICKER_TEXT.block));
-        GAME_PICKER_TEXT.block = FAR_NULL;
-        GAME_PICKER_TEXT.text_start = FAR_NULL;
+    if (GAME_PICKER_TEXT.block != DG3576.scratch) {
+        dos_free_far(GAME_PICKER_TEXT.block);
+        GAME_PICKER_TEXT.block = NULL;
+        GAME_PICKER_TEXT.text_start = NULL;
     }
 
     picker_draw_action();
@@ -6584,8 +6583,8 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
     (void)arg1;
     (void)arg2;
 
-    if (dg_far_ptr(GAME_PICKER_TEXT.block) == FAR_NULL_PTR) {
-        if (dg_far_ptr(DG3576.scratch) != FAR_NULL_PTR) {
+    if (GAME_PICKER_TEXT.block == FAR_NULL_PTR) {
+        if (DG3576.scratch != FAR_NULL_PTR) {
             GAME_PICKER_TEXT.entry_max = 0x3e8;
             GAME_PICKER_TEXT.block = DG3576.scratch;
         } else {
@@ -6596,16 +6595,14 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
 
             GAME_PICKER_TEXT.entry_max = (uint16_t)long_divide((int32_t)v, 0x16);
 
-            GAME_PICKER_TEXT.block = far_of(dos_alloc_bytes(v, 0, 0).ptr);
+            GAME_PICKER_TEXT.block = (dos_alloc_bytes(v, 0, 0).ptr);
         }
 
         /* The table of pointers sits at the head of the block and the text
-           after it, so the start is four bytes a line in, in the block's own
+           after it, so the start is one pointer a line in, in the block's own
            segment. */
-        GAME_PICKER_TEXT.text_start =
-            far_from(GAME_PICKER_TEXT.block.seg,
-                     dg_far_ptr(GAME_PICKER_TEXT.block)
-                     + 4 * ((uint16_t)GAME_PICKER_TEXT.entry_max));
+        GAME_PICKER_TEXT.text_start = (uint8_t far *)
+            ((char far * far *)GAME_PICKER_TEXT.block + GAME_PICKER_TEXT.entry_max);
     }
 
     fill_file_listing(pattern);
@@ -6818,7 +6815,7 @@ void picker_draw_list(void)
     int16_t  w = 0x70;                  /* [bp-0xc] */
     int16_t  room = 0x80;               /* [bp-0xe] */
     /* The block is an array of far pointers, one per entry. */
-    struct far_ptr far *p;              /* [bp-4], [bp-2] */
+    char far * far *p;                  /* [bp-4], [bp-2] */
     int16_t  top, i;
 
     fill_panel_area(x, y, w, room, 0);
@@ -6835,12 +6832,12 @@ void picker_draw_list(void)
         top = 0;
     }
 
-    p = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
+    p = (char far * far *)GAME_PICKER_TEXT.block;
     p += top;                           /* skip the rows scrolled past */
 
     i = 0;
     while (i < GAME_PICKER_TEXT.entry_count && room >= 0x0a) {
-        const char *t = (const char *)dg_far_ptr(*p);
+        const char far *t = *p;
 
         p++;
         if (*t == ':')
@@ -6890,16 +6887,9 @@ void picker_draw_list(void)
 void fill_file_listing(const char *pattern)
 {
     /* Two cursors into the one block: the array of far pointers at its
-       front, and the text they point at. `ptr` walks four bytes at a time
-       and `txt` a byte at a time, both inside one segment - so the array is
-       a `struct far_ptr *` and the text a plain byte cursor. */
-    struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
-    /* [bp-8], [bp-6]: into the text. The original keeps the segment fixed
-       while the offset grows and files that pair at each entry - the segment
-       and the distance from its first byte, never the normalised pair. */
-    uint8_t *txt;
-    const uint8_t *txt_seg_start;
-    uint16_t txt_seg;                   /* the segment the offsets are in */
+       front, and the text they point at, both stepped inside one segment. */
+    char far * far *ptr;                /* [bp-4], [bp-2]: into the array */
+    char far *txt;                      /* [bp-8], [bp-6]: into the text */
     const char *want_ext;                  /* [bp+6], rewritten in place */
     char *name;                      /* di */
     const char *name_ext;                  /* [bp-0xa]                        */
@@ -6909,17 +6899,15 @@ void fill_file_listing(const char *pattern)
     GAME_PICKER_TEXT.entry_count = 0;
     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
-    ptr = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
-    txt_seg = GAME_PICKER_TEXT.text_start.seg;
-    txt_seg_start = MK_FP(txt_seg, 0);
-    txt = (uint8_t *)txt_seg_start + GAME_PICKER_TEXT.text_start.off;
+    ptr = (char far * far *)GAME_PICKER_TEXT.block;
+    txt = (char far *)GAME_PICKER_TEXT.text_start;
 
     want_ext = string_chr((char *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
     if (GAME_DIRECTORIES.path_field[3] != 0) {
-        *ptr++ = far_from(txt_seg, txt);
+        *ptr++ = txt;
 
         *txt++ = ':';
         *txt++ = 0;
@@ -6937,13 +6925,13 @@ void fill_file_listing(const char *pattern)
             if (string_compare(name, GAME_FILE_STRINGS.dot) != 0
                 && string_compare(name,
                                   GAME_FILE_STRINGS.dot_dot_a) != 0) {
-                *ptr++ = far_from(txt_seg, txt);
+                *ptr++ = txt;
                 GAME_PICKER_TEXT.entry_count++;
 
                 *txt++ = '<';
 
                 do {
-                    *txt++ = (uint8_t)*name;
+                    *txt++ = *name;
                 } while (*name++ != 0);
 
                 txt[-1] = '>';
@@ -6953,12 +6941,12 @@ void fill_file_listing(const char *pattern)
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            *ptr++ = far_from(txt_seg, txt);
+            *ptr++ = txt;
             GAME_PICKER_TEXT.entry_count++;
 
             n = 0;
             while (*name != 0 && *name != '.') {
-                *txt++ = (uint8_t)*name;
+                *txt++ = *name;
                 name++;
                 n++;
             }
@@ -6969,14 +6957,14 @@ void fill_file_listing(const char *pattern)
             }
 
             do {
-                *txt++ = (uint8_t)*name;
+                *txt++ = *name;
             } while (*name++ != 0);
         }
 
         more = dos_findnext(GAME_FILE_STRINGS.star_dot_star_b, 0x10);
     }
 
-    *ptr = FAR_NULL;                    /* the list's terminator */
+    *ptr = NULL;                        /* the list's terminator */
 }
 
 /*
@@ -7006,29 +6994,28 @@ void fill_file_listing(const char *pattern)
 void sort_file_listing(void)
 {
     /* The block is an array of far pointers, one per entry. `p` walks it
-       and `q` is always `p + 1`, which is what the original's `+ 4` is. */
-    struct far_ptr far *p;              /* [bp-4], [bp-2] */
+       and `p[1]` is the next, which is what the original's `+ 4` is. */
+    char far * far *p;                  /* [bp-4], [bp-2] */
     int16_t  swapped = 1;
 
     while (swapped) {
         swapped = 0;
 
-        p = (struct far_ptr far *)dg_far_ptr(GAME_PICKER_TEXT.block);
+        p = (char far * far *)GAME_PICKER_TEXT.block;
 
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
-        if (dg_far_ptr(p[0]) != FAR_NULL_PTR) {
-            if (*dg_far_ptr(p[0]) == ':')
+        if (p[0] != NULL) {
+            if (*p[0] == ':')
                 p++;
         }
 
-        while (dg_far_ptr(p[0]) != FAR_NULL_PTR
-               && dg_far_ptr(p[1]) != FAR_NULL_PTR) {
-            /* The pairs are swapped as they are; the names are read through. */
-            struct far_ptr a = p[0];
-            struct far_ptr b = p[1];
-            const char *name_a = (const char *)dg_far_ptr(a);
-            const char *name_b = (const char *)dg_far_ptr(b);
+        while (p[0] != NULL && p[1] != NULL) {
+            /* The pointers are swapped; the names are read through. */
+            char far *a = p[0];
+            char far *b = p[1];
+            const char far *name_a = a;
+            const char far *name_b = b;
             int16_t  swap = 0;
 
             /* "<PARENT DIR>" and the directories sort first. */

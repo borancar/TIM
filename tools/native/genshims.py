@@ -504,7 +504,6 @@ LAYER_OF_FN = {
     "install_keyboard":      "irq",
     "timer_install":         "irq",
     "timer_add_callback":    "irq",
-    "timer_callback":        "irq",
 
     # INT 33h. routines.def's own comment on this group says it: "there is no
     # mouse driver here; the io layer is it" - so every one of these is the

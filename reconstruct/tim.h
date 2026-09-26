@@ -1967,7 +1967,7 @@ uint16_t timer_add_callback(void (far *cb)(void),
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
-struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
+uint8_t far *normalise_far_ptr_far(uint8_t far *p);  /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */
 void normalise_far_ptr(struct far_ptr *p);       /* 0x22161 */

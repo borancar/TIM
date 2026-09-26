@@ -1988,7 +1988,7 @@ struct dg_48da DG48DA DGROUP_AT(0x48da) = {
     .mode_found = 0xff,
     .mode_forced = 0xff,
 };
-struct dg_3576 DG3576 DGROUP_AT(0x3576);
+struct dg_3576 DG3576 DGROUP_WAS(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
 struct dos_program_top DOS_PROGRAM_TOP DGROUP_AT(0x00a0) = { .top_a = 0 };
