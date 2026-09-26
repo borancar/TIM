@@ -4771,7 +4771,7 @@ void alloc_part_table(int16_t n)
 {
     int16_t si;
 
-    DG546C.table = far_of(dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr);
+    DG546C.table = (dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr);
 
     for (si = 0; si < n; si++)
         PART_TABLE->part_ptr[(uint16_t)si] =
@@ -5191,7 +5191,7 @@ uint16_t read_level(char *name)
         if (DG546C.is_level != 0)
             read_list(file, &DG50D3.parts_bin, n_given);
 
-        dos_free_far(dg_far_ptr(DG546C.table));
+        dos_free_far(DG546C.table);
     }
 
     r = game_fclose(file);

@@ -1956,13 +1956,15 @@ struct chunk_names2 CHUNK2 DGROUP_AT(0x4a08) = {
     .ssm_000 = "SSM:000:",
     .ssm_tag = "SSM:     ",
 };
-struct pal_chunk_names PALCHUNK DGROUP_AT(0x4486) = {
+struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
     .pal_vga = "PAL:VGA:",
     .pal_ega = "PAL:EGA:",
     .pal_cga = "PAL:CGA:",
     .by_adapter = {
-        0x44a1, 0x4498, 0x448f, 0x448f, 0x4498, 0x4486, 0x44a1, 0x4486,
-        0x4486, 0x4486, 0x4486, 0x448f, 0x4486, 0x4486, 0x4486, 0x4486,
+        PALCHUNK.none, PALCHUNK.pal_cga, PALCHUNK.pal_ega, PALCHUNK.pal_ega,
+        PALCHUNK.pal_cga, PALCHUNK.pal_vga, PALCHUNK.none, PALCHUNK.pal_vga,
+        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_ega,
+        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga,
     },
     .pal_amg = "PAL:AMG:",
 };
@@ -1979,7 +1981,7 @@ struct ovl_chunk_names OVLCHUNK DGROUP_AT(0x4919) = {
 };
 struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
 struct dg_5179 DG5179 DGROUP_BSS(0x5179);
-struct dg_546c DG546C DGROUP_BSS(0x546c);
+struct dg_546c DG546C DGROUP_WAS(0x546c);
 struct dg_48da DG48DA DGROUP_AT(0x48da) = {
     .gc_mode_fill = 0x02,
     .quarter_a = 0x40,

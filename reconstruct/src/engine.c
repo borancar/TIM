@@ -907,17 +907,17 @@ struct engine_bitmap_compress {
        `out.off - out_start.off` bytes, subtracting the halves separately -
        which is a distance no single pointer can give. It also renormalises
        `out` by hand between bitmaps and steps its offset alone in between. */
-    struct far_ptr out_start;     /* +0x02 [4]  where the output started, and
+    uint8_t far *out_start;     /* +0x02 [4]  where the output started, and
                                             does not move */
     uint16_t  block_paras;          /* +0x06 [2] */
-    struct far_ptr src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
+    uint8_t far *src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
                                      only the offset steps */
-    struct far_ptr out;           /* +0x0c [4]  where the next byte goes */
+    uint8_t far *out;           /* +0x0c [4]  where the next byte goes */
     dg_near_t row_buffer_ptr;     /* +0x10 [2]  the row buffer compress_row works in, 0x7d0 bytes */
     uint16_t  mode;               /* +0x12 [2]  0x243bf sets it; it chooses how the runs are written */
 } PACKED;
 
-struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_BSS(0x63e2);
+struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_WAS(0x63e2);
 
 
 /*
@@ -2778,7 +2778,7 @@ uint8_t far *load_palette(char *name)
            string, which `seek_named_chunk` refuses. */
         chunk = seek_named_chunk(
             file,
-            (const char *)dg_near_ptr(PALCHUNK.by_adapter[(int16_t)VMDS.pixel_shift]),
+            PALCHUNK.by_adapter[(int16_t)VMDS.pixel_shift],
             0);
 
         if (chunk != -1) {
@@ -2858,9 +2858,9 @@ uint8_t far *set_palette_pointer(uint8_t far * h)
     }
 
     if (h == FAR_NULL_PTR)
-        return dg_far_ptr(PALCHUNK.palette_ptr);
+        return PALCHUNK.palette_ptr;
 
-    PALCHUNK.palette_ptr = far_of(h);
+    PALCHUNK.palette_ptr = (h);
     vm_load_palette(h);
     return h;
 }
@@ -7055,18 +7055,18 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
-    ENGINE_BITMAP_COMPRESS.out_start = far_of_rev(first->data);
+    ENGINE_BITMAP_COMPRESS.out_start = dg_far_ptr_rev(first->data);
     ENGINE_BITMAP_COMPRESS.out = ENGINE_BITMAP_COMPRESS.out_start;
 
     /* One header per slot, where the original reloads `[si]` at each of the
        five uses - it has nothing to keep it in and this does. */
     while ((hdr = BMP_PTR(*si)) != BMP_NONE) {
-        uint16_t di = ENGINE_BITMAP_COMPRESS.out.off;
+        uint16_t di = FP_OFF(ENGINE_BITMAP_COMPRESS.out);
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
-        struct far_ptr at = {
-            (uint16_t)(di & 0x0f),
-            (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg + (uint16_t)((int16_t)di >> 4)) };
+        uint8_t far *at = MK_FP(FP_SEG(ENGINE_BITMAP_COMPRESS.out)
+                                + (uint16_t)((int16_t)di >> 4), di & 0x0f);
+
         ENGINE_BITMAP_COMPRESS.out = at;
 
         if (VMDS.vga_chunks == 0) {
@@ -7090,14 +7090,14 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
             compress_bitmap(hdr);
         }
 
-        hdr->data = far_to_rev(at);
+        hdr->data = far_to_rev(far_of(at));
         hdr->mask_off = 0xfffe;
 
         si++;
     }
 
-    segs = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg - ENGINE_BITMAP_COMPRESS.out_start.seg);
-    over = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.off - ENGINE_BITMAP_COMPRESS.out_start.off);
+    segs = (uint16_t)(FP_SEG(ENGINE_BITMAP_COMPRESS.out) - FP_SEG(ENGINE_BITMAP_COMPRESS.out_start));
+    over = (uint16_t)(FP_OFF(ENGINE_BITMAP_COMPRESS.out) - FP_OFF(ENGINE_BITMAP_COMPRESS.out_start));
     ENGINE_BITMAP_COMPRESS.block_paras = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
     io_dos_resize(BMP_PTR(list[0])->data.seg, ENGINE_BITMAP_COMPRESS.block_paras);
@@ -7134,38 +7134,38 @@ void emit_packed_value(int16_t value)
         if (dx < 0) {
             dx = (int16_t)(-dx);
 
-            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dx & 0x3f);
-            ENGINE_BITMAP_COMPRESS.out.off++;
+            *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dx & 0x3f);
+            ENGINE_BITMAP_COMPRESS.out++;
 
             dx = (int16_t)((dx & 0x1c0) >> 6);
 
             if (dx != 0) {
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dx & 0x3f);
-                ENGINE_BITMAP_COMPRESS.out.off++;
+                *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dx & 0x3f);
+                ENGINE_BITMAP_COMPRESS.out++;
             }
 
             while (--ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
-                ENGINE_BITMAP_COMPRESS.out.off++;
+                *ENGINE_BITMAP_COMPRESS.out = 0;
+                ENGINE_BITMAP_COMPRESS.out++;
             }
             return;
         }
 
         while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
-            ENGINE_BITMAP_COMPRESS.out.off++;
+            *ENGINE_BITMAP_COMPRESS.out = 0;
+            ENGINE_BITMAP_COMPRESS.out++;
         }
         ENGINE_BITMAP_COMPRESS.pending_rows = 0;
     }
 
     while (dx > 0x3f) {
-        *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0x7f;
-        ENGINE_BITMAP_COMPRESS.out.off++;
+        *ENGINE_BITMAP_COMPRESS.out = 0x7f;
+        ENGINE_BITMAP_COMPRESS.out++;
         dx = (int16_t)(dx - 0x3f);
     }
 
-    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(0x40 | (dx & 0xff));
-    ENGINE_BITMAP_COMPRESS.out.off++;
+    *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(0x40 | (dx & 0xff));
+    ENGINE_BITMAP_COMPRESS.out++;
 }
 
 /*
@@ -7188,8 +7188,8 @@ void write_literal_run(uint8_t count, const uint8_t * buf)
     uint8_t dl = count;
     int16_t si;
 
-    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(dl | 0xc0);
-    ENGINE_BITMAP_COMPRESS.out.off++;
+    *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dl | 0xc0);
+    ENGINE_BITMAP_COMPRESS.out++;
 
     if ((dl & 1) != 0) {
         ((uint8_t *)buf)[dl] = 0;
@@ -7201,13 +7201,13 @@ void write_literal_run(uint8_t count, const uint8_t * buf)
             uint8_t v = (uint8_t)((buf[si] << 4)
                                   | buf[si + 1]);
 
-            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = v;
-            ENGINE_BITMAP_COMPRESS.out.off++;
+            *ENGINE_BITMAP_COMPRESS.out = v;
+            ENGINE_BITMAP_COMPRESS.out++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = buf[si];
-            ENGINE_BITMAP_COMPRESS.out.off++;
+            *ENGINE_BITMAP_COMPRESS.out = buf[si];
+            ENGINE_BITMAP_COMPRESS.out++;
         }
     }
 }
@@ -7268,17 +7268,17 @@ void compress_row(uint8_t *src, int16_t remaining)
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0xbf;
-                ENGINE_BITMAP_COMPRESS.out.off++;
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = value;
-                ENGINE_BITMAP_COMPRESS.out.off++;
+                *ENGINE_BITMAP_COMPRESS.out = 0xbf;
+                ENGINE_BITMAP_COMPRESS.out++;
+                *ENGINE_BITMAP_COMPRESS.out = value;
+                ENGINE_BITMAP_COMPRESS.out++;
             }
 
             if (run != 0) {
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = (uint8_t)(0x80 | run);
-                ENGINE_BITMAP_COMPRESS.out.off++;
-                *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = value;
-                ENGINE_BITMAP_COMPRESS.out.off++;
+                *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(0x80 | run);
+                ENGINE_BITMAP_COMPRESS.out++;
+                *ENGINE_BITMAP_COMPRESS.out = value;
+                ENGINE_BITMAP_COMPRESS.out++;
             }
             run = 0;
         } else {
@@ -7337,14 +7337,14 @@ void compress_bitmap(struct bitmap *bmp)
     ENGINE_BITMAP_COMPRESS.pending_rows = 0;
     ENGINE_BITMAP_COMPRESS.block_paras = 0;
 
-    ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
+    ENGINE_BITMAP_COMPRESS.src = dg_far_ptr_rev(bmp->data);
 
     if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f && VMDS.vga_chunks != 0) {
         for (y = 0; bmp->height > y; y++)
             for (x = 0; bmp->width > x; x++) {
-                uint8_t v = *dg_far_ptr(ENGINE_BITMAP_COMPRESS.src);
+                uint8_t v = *ENGINE_BITMAP_COMPRESS.src;
 
-                ENGINE_BITMAP_COMPRESS.src.off++;
+                ENGINE_BITMAP_COMPRESS.src++;
                 if (v != 0 && v < least)
                     least = v;
             }
@@ -7352,18 +7352,18 @@ void compress_bitmap(struct bitmap *bmp)
         least = 1;
     }
 
-    ENGINE_BITMAP_COMPRESS.src = far_of_rev(bmp->data);
+    ENGINE_BITMAP_COMPRESS.src = dg_far_ptr_rev(bmp->data);
 
-    hdr = dg_far_ptr(ENGINE_BITMAP_COMPRESS.out);
-    ENGINE_BITMAP_COMPRESS.out.off++;
+    hdr = ENGINE_BITMAP_COMPRESS.out;
+    ENGINE_BITMAP_COMPRESS.out++;
 
     for (y = 0; bmp->height > y; y++) {
         uint8_t *at = rowbuf;
 
         far_memcpy((uint8_t *)rowbuf,
-                   dg_far_ptr(ENGINE_BITMAP_COMPRESS.src),
+                   ENGINE_BITMAP_COMPRESS.src,
                    (uint16_t)bmp->width);
-        ENGINE_BITMAP_COMPRESS.src.off = (uint16_t)(ENGINE_BITMAP_COMPRESS.src.off + bmp->width);
+        ENGINE_BITMAP_COMPRESS.src += bmp->width;
 
         for (x = 0; bmp->width > x; x++) {
             uint8_t v = (*at);
@@ -7388,8 +7388,8 @@ void compress_bitmap(struct bitmap *bmp)
                 blanks = 0;
             } else if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
                 while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-                    *dg_far_ptr(ENGINE_BITMAP_COMPRESS.out) = 0;
-                    ENGINE_BITMAP_COMPRESS.out.off++;
+                    *ENGINE_BITMAP_COMPRESS.out = 0;
+                    ENGINE_BITMAP_COMPRESS.out++;
                 }
                 ENGINE_BITMAP_COMPRESS.pending_rows = 0;
             }

@@ -187,7 +187,7 @@ struct machine_archives {
     struct archive slot[0xb];     /* +0x00 [0x134] */
 } PACKED;
 
-struct machine_archives MACHINE_ARCHIVES DGROUP_BSS(0x548f);
+struct machine_archives MACHINE_ARCHIVES DGROUP_WAS(0x548f);
 
 /*
  * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
@@ -10128,12 +10128,12 @@ void free_archive_lists(void)
     for (i = 0; i <= 10; i++) {
         struct archive *a = &MACHINE_ARCHIVES.slot[i];
 
-        if ((a->list.off | a->list.seg) == 0)
+        if (a->list == NULL)
             continue;
 
-        dos_free_far(dg_far_ptr(a->list));
+        dos_free_far(a->list);
 
-        a->list = FAR_NULL;
+        a->list = NULL;
     }
 
     if (dg_far_ptr(DG5677.crit_vec) != FAR_NULL_PTR) {
@@ -10457,7 +10457,7 @@ void vm_set_display_lines(uint16_t lines)
 void scan_entry_list(int16_t idx, uint32_t want,
                      const struct archive_entry **at)
 {
-    *at = (const struct archive_entry *)(void *)dg_far_ptr(MACHINE_ARCHIVES.slot[idx].list);
+    *at = (const struct archive_entry *)(void *)MACHINE_ARCHIVES.slot[idx].list;
 
     for (;;) {
         /* Each entry opens with its 32-bit key; a zero one ends the list.
@@ -12501,11 +12501,11 @@ void load_archive_map(void)
            The flags are the fourth argument - `push 1`, then `push 0` for the
            third - and the port had the two the other way round, so the block
            was not cleared and the terminator was whatever the memory held. */
-        a->list = far_of(dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr);
+        a->list = (dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr);
         a->index = (uint16_t)di;
 
         /* The original steps the far pointer at [bp-6] by eight, one entry. */
-        e = (struct archive_entry *)dg_far_ptr(a->list);
+        e = (struct archive_entry *)a->list;
         while (count != 0) {
             count--;
 

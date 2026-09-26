@@ -1102,6 +1102,23 @@ knows the frame, is what covers that half.
 
 The model of the guest's memory as a byte array, and every way a pointer, an offset, a frame or a field width has gone wrong in it.
 
+### A record moved off its guest address leaves its near pointers behind
+
+`PALCHUNK` became the host's own layout on 2026-09-27 - a far pointer in it
+made it bigger - and the title screen's palette went 26 bytes wrong in the
+hybrid comparison while every pixel still matched. The record's `by_adapter`
+table was sixteen DGROUP offsets, 0x4486 to 0x44a1, naming the record's *own*
+strings, and `dg_near_ptr` followed them into guest memory where the record no
+longer was: zeros, so the palette chunk looked up was the empty name.
+
+`dg_near` refuses to *make* an offset for an object that is not in guest
+memory, but a literal offset in an initialiser was never made - it was typed.
+**When a record leaves its placement, every `dg_near_t` that can point into it
+has to become a real pointer with it**, and the initialiser says which member:
+`PALCHUNK.pal_vga`, not 0x4486. Two things were suspected and cleared first,
+the font tables and the host's `MK_FP`, and the one that said which it was is
+`check_native --frames`: 0 pixels, 26 palette bytes.
+
 ### A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its locals over live memory
 
 **A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its

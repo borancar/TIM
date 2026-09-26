@@ -204,8 +204,15 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
     ((uint8_t far *)(((int32_t)(seg) << 16) | (uint16_t)(off)))
 #  define BCC_FAR_ARG(p, seg)   (p)
 #else
-#define MK_FP(seg, off) \
-    (guest_mem + (((uint32_t)(uint16_t)(seg)) << 4) + (uint16_t)(off))
+/* 0000:0000 is the guest's null and the host's is C's, both ways round:
+   `FP_LIN(NULL)` is 0 and this answers NULL for it. */
+static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
+{
+    if (seg == 0 && off == 0)
+        return NULL;
+    return guest_mem + (((uint32_t)seg) << 4) + off;
+}
+#define MK_FP(seg, off) mk_fp((uint16_t)(seg), (uint16_t)(off))
 
 /*
  * **And Borland's spelling for taking one apart.** `FP_SEG` and `FP_OFF`
@@ -500,7 +507,7 @@ static const struct far_ptr FAR_NULL = { 0, 0 };
 #ifdef __TURBOC__
 #  define NULL_READ(p)   (p)
 #else
-#  define NULL_READ(p)   ((p) != NULL ? (p) : (void *)MK_FP(0, 0))
+#  define NULL_READ(p)   ((p) != NULL ? (p) : (void *)guest_mem)
 #endif
 
 /* `dg_far_ptr` for the one record that stores the pair segment-first - a
@@ -1682,8 +1689,8 @@ struct pal_chunk_names {
     char pal_ega[9];          /* +0x09  0x448f  "PAL:EGA:" */
     char pal_cga[9];          /* +0x12  0x4498  "PAL:CGA:" */
     char none[1];             /* +0x1b  0x44a1  "" */
-    dg_near_t by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
-    struct far_ptr palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
+    char     *by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
+    uint8_t far *palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
     char pal_amg[9];          /* +0x40  0x44c6  "PAL:AMG:" */
 } PACKED;
 
@@ -2120,7 +2127,7 @@ extern struct dg_5179 DG5179;
  * **The level reader, the archive, and its one-entry cache**, at DGROUP 0x546c.
  */
 struct dg_546c {
-    struct far_ptr table;         /* +0x00  the far pointer the list reader
+    uint8_t far *table;         /* +0x00  the far pointer the list reader
                                      allocates and frees */
     uint16_t  record_count;       /* +0x04  how many records of 0xa2 bytes came off the near heap */
     uint16_t  is_level;           /* +0x06  load_level sets it; save_machine zeroes it. It decides how much of a record is written and read */
@@ -2159,7 +2166,7 @@ extern struct dg_546c DG546C;
 struct part_table {
     dg_near_t part_ptr[FLEX];
 } PACKED;
-#define PART_TABLE ((struct part_table *)dg_far_ptr(DG546C.table))
+#define PART_TABLE ((struct part_table *)DG546C.table)
 
 
 /*
@@ -2234,7 +2241,7 @@ struct archive {
     dg_near_t stream_ptr;      /* +0x10  open only while it is the current one */
     uint32_t  pos;             /* +0x12  where DOS is believed to be */
     uint8_t   pad_16[2];
-    struct far_ptr list;       /* +0x18  the eight-byte entries the map read:
+    uint8_t far *list;       /* +0x18  the eight-byte entries the map read:
                                   a hash and an offset each, ending on an
                                   all-zero hash */
 } PACKED;
