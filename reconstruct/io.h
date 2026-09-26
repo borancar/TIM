@@ -19,6 +19,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* A host attribute, which Turbo C++ 3.0 reads as nothing (see dgroup.h,
+   "The two compilers"). Ours. */
+#ifdef __TURBOC__
+#  define WEAK
+#else
+#  define WEAK __attribute__((weak))
+#endif
+
 /* **The tag, so it is the same type here as in dgroup.h.** Two of the region
    and part dispatchers below take a `struct far_ptr` by value; without this
    the compiler declares a *different* struct inside each parameter list and
@@ -190,7 +198,7 @@ void     dev_flip_dump(int32_t flip);
  * other dev*.c files and must not carry a socket, and a weak symbol lets them
  * link with the hook simply absent. Test it before calling it.
  */
-void     dev_lua_flip(int32_t flip) __attribute__((weak));
+void     dev_lua_flip(int32_t flip) WEAK;
 
 /*
  * OURS: a sound the game asked to play, by identifier. Called unconditionally
