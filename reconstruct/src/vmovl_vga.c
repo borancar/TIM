@@ -62,10 +62,6 @@ struct vm_cs {
 
 #define VMCS (*(struct vm_cs *)MK_FP(DG48DA.driver.seg, 0))
 
-_Static_assert(__builtin_offsetof(struct vm_cs, data_seg) == 0x13a, "vm_cs.data_seg");
-_Static_assert(__builtin_offsetof(struct vm_cs, data_ptr) == 0x13c, "vm_cs.data_ptr");
-_Static_assert(__builtin_offsetof(struct vm_cs, hooks) == 0x206, "vm_cs.hooks");
-_Static_assert(sizeof(((struct vm_cs *)0)->hooks) == 0x4c, "the driver copies 0x4c bytes of hooks");
 
 /*
  * VM.OVL VGA:0x0000

@@ -92,9 +92,6 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
         },
     },
 };
-DG_ASSERT_AT(struct res_handler, read_off,  0x06);
-DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
-_Static_assert(sizeof(struct engine_res_handlers) == 0x38, "four handlers end at 0x35b2");
 
 /*
  * **Nine bit masks**, DGROUP 0x35b2..0x35bc, `(1 << n) - 1` for n from 0 to 8
@@ -107,7 +104,6 @@ struct engine_bit_masks {
 } __attribute__((packed));
 
 struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
-_Static_assert(sizeof(struct engine_bit_masks) == 0x0a, "DGROUP 0x35b2..0x35bc, 0x0a bytes");
 
 
 /*
@@ -125,7 +121,6 @@ struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {
         0x0c,
     },
 };
-_Static_assert(sizeof(struct engine_lzw_window) == 0x0c, "the input window ends at ENGINE_LZW_MASKS");
 
 /*
  * **The LZW mask table**, DGROUP 0x35c8..0x35d1, 0x09 bytes: 0, 1, 3, 7, ..., 0xff, indexed
@@ -136,7 +131,6 @@ struct engine_lzw_masks {
 } __attribute__((packed));
 
 struct engine_lzw_masks ENGINE_LZW_MASKS DGROUP_AT(0x35c8) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
-_Static_assert(sizeof(struct engine_lzw_masks) == 9, "the mask table ends at 0x35d1");
 
 /*
  * **Where the LZW string had got to**, DGROUP 0x35d1..0x35d3, 0x02 bytes.
@@ -151,8 +145,6 @@ struct engine_lzw_resume {
 } __attribute__((packed));
 
 struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
-_Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3, 0x02 bytes");
-DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
 
 /*
  * **The resource *writer's* state**, DGROUP 0x35d3..0x3600, 0x2d bytes: the
@@ -204,7 +196,6 @@ struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3) = {
     .left_mask = { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80 },
     .right_mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff },
 };
-_Static_assert(sizeof(struct engine_bit_state) == 0x2d, "DGROUP 0x35d3..0x3600, 0x2d bytes");
 
 
 /*
@@ -216,9 +207,6 @@ struct engine_bit_buffer {
 } __attribute__((packed));
 
 struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
-_Static_assert(sizeof(struct engine_bit_buffer) == 0x03, "DGROUP 0x3600..0x3603, 0x03 bytes");
-DG_ASSERT_AT(struct engine_bit_buffer, bits,      0x00);
-DG_ASSERT_AT(struct engine_bit_buffer, bit_count, 0x02);
 
 /*
  * **The Huffman coder's position tables**, DGROUP 0x3603..0x3686: three zero
@@ -251,7 +239,6 @@ struct engine_huffman_codes ENGINE_HUFFMAN_CODES DGROUP_AT(0x3603) = {
         0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
     },
 };
-_Static_assert(sizeof(struct engine_huffman_codes) == 0x83, "DGROUP 0x3603..0x3686, 0x83 bytes");
 
 
 /*
@@ -318,8 +305,6 @@ struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS DGROUP_AT(0x3686) = {
         0x08, 0x08, 0x08,
     },
 };
-_Static_assert(sizeof(struct engine_huffman_positions) == 0x200, "DGROUP 0x3686..0x3886, 0x200 bytes");
-DG_ASSERT_AT(struct engine_huffman_positions, len, 0x100);
 
 /*
  * **What the last palette fade was asked for, and how big a palette is**,
@@ -335,10 +320,6 @@ struct engine_pen {
 } __attribute__((packed));
 
 struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .fade_weight = 0x003f, .palette_bytes = 0x0300 };
-_Static_assert(sizeof(struct engine_pen) == 0x06, "DGROUP 0x4460..0x4466, 0x06 bytes");
-DG_ASSERT_AT(struct engine_pen, fade_weight, 0x00);
-DG_ASSERT_AT(struct engine_pen, fade_colour, 0x02);
-DG_ASSERT_AT(struct engine_pen, palette_bytes, 0x04);
 
 /*
  * **How many bytes of palette each pixel depth has**, DGROUP 0x4466..0x4486,
@@ -358,7 +339,6 @@ struct engine_palette_sizes ENGINE_PALETTE_SIZES DGROUP_AT(0x4466) = {
         0x0300, 0x0300, 0x0300, 0x0030, 0x0030, 0x0030, 0x0030, 0x0300,
     },
 };
-_Static_assert(sizeof(struct engine_palette_sizes) == 0x20, "the palette sizes end at 0x4486");
 
 /*
  * **The polygon walker's two chains**, DGROUP 0x44d0..0x44de, 0x0e bytes.
@@ -382,14 +362,6 @@ struct engine_polygon_chains {
 } __attribute__((packed));
 
 struct engine_polygon_chains ENGINE_POLYGON_CHAINS DGROUP_AT(0x44d0);
-_Static_assert(sizeof(struct engine_polygon_chains) == 0x0e, "DGROUP 0x44d0..0x44de, 0x0e bytes");
-DG_ASSERT_AT(struct engine_polygon_chains, top_at, 0x00);
-DG_ASSERT_AT(struct engine_polygon_chains, bottom_at, 0x02);
-DG_ASSERT_AT(struct engine_polygon_chains, right_count, 0x04);
-DG_ASSERT_AT(struct engine_polygon_chains, left_count, 0x06);
-DG_ASSERT_AT(struct engine_polygon_chains, remaining, 0x08);
-DG_ASSERT_AT(struct engine_polygon_chains, at, 0x0a);
-DG_ASSERT_AT(struct engine_polygon_chains, chain,     0x0c);
 
 /*
  * **The polygon walker's own state**, DGROUP 0x44de..0x44ea, 0x0c bytes.
@@ -415,14 +387,6 @@ struct engine_polygon_state {
 } __attribute__((packed));
 
 struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
-_Static_assert(sizeof(struct engine_polygon_state) == 0x0c, "DGROUP 0x44de..0x44ea, 0x0c bytes");
-DG_ASSERT_AT(struct engine_polygon_state, prev_x, 0x00);
-DG_ASSERT_AT(struct engine_polygon_state, prev_y, 0x02);
-DG_ASSERT_AT(struct engine_polygon_state, span_seg, 0x04);
-DG_ASSERT_AT(struct engine_polygon_state, outline_count, 0x06);
-DG_ASSERT_AT(struct engine_polygon_state, second_count, 0x08);
-DG_ASSERT_AT(struct engine_polygon_state, span_step, 0x0a);
-DG_ASSERT_AT(struct engine_polygon_state, second_pass, 0x0b);
 
 /*
  * **The stride shift table**, DGROUP 0x457a..0x458c, 0x12 bytes: `blit_scaled_b` shifts a
@@ -443,7 +407,6 @@ struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
     },
     .bytes_4588 = "andy",
 };
-_Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts end at ENGINE_KEYBOARD");
 
 /*
  * **The keyboard handler's own state and tables**, DGROUP 0x458c..0x471b,
@@ -550,15 +513,6 @@ struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
         0x57, 0x58, 0x52, 0x46, 0x48, 0x47, 0x4b, 0x50, 0x4d, 0x53, 0x1c,
     },
 };
-DG_ASSERT_AT(struct engine_keyboard, installed, 0x00);
-DG_ASSERT_AT(struct engine_keyboard, hold_caps_lock, 0x01);
-DG_ASSERT_AT(struct engine_keyboard, last_event, 0x02);
-DG_ASSERT_AT(struct engine_keyboard, held,      0x04);
-DG_ASSERT_AT(struct engine_keyboard, ascii,     0x4e);
-DG_ASSERT_AT(struct engine_keyboard, shifted,   0xa7);
-DG_ASSERT_AT(struct engine_keyboard, state,     0x100);
-DG_ASSERT_AT(struct engine_keyboard, pcjr_from, 0x179);
-_Static_assert(sizeof(struct engine_keyboard) == 0x18f, "the keyboard record ends at 0x471b");
 
 /*
  * **The PCjr keyboard flag**, DGROUP 0x471b..0x471c, 0x01 bytes.
@@ -573,8 +527,6 @@ struct engine_pcjr_keyboard {
 } __attribute__((packed));
 
 struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD DGROUP_AT(0x471b);
-_Static_assert(sizeof(struct engine_pcjr_keyboard) == 0x01, "DGROUP 0x471b..0x471c, 0x01 bytes");
-DG_ASSERT_AT(struct engine_pcjr_keyboard, pcjr_keyboard, 0x00);
 
 /*
  * **The text colour map**, DGROUP 0x471e..0x4723, 0x05 bytes: `draw_char` maps a glyph
@@ -585,7 +537,6 @@ struct engine_text_colours {
 } __attribute__((packed));
 
 struct engine_text_colours ENGINE_TEXT_COLOURS DGROUP_AT(0x471e) = { .colour = { 0x00, 0x01, 0x02, 0x03, 0x04 } };
-_Static_assert(sizeof(struct engine_text_colours) == 0x05, "DGROUP 0x471e..0x4723, 0x05 bytes");
 
 /*
  * **The mouse's position and the game's handler**, DGROUP 0x4740..0x4748,
@@ -601,10 +552,6 @@ struct engine_mouse {
 } __attribute__((packed));
 
 struct engine_mouse ENGINE_MOUSE DGROUP_AT(0x4740);
-_Static_assert(sizeof(struct engine_mouse) == 0x08, "DGROUP 0x4740..0x4748, 0x08 bytes");
-DG_ASSERT_AT(struct engine_mouse, mouse_x,   0x00);
-DG_ASSERT_AT(struct engine_mouse, mouse_y,   0x02);
-DG_ASSERT_AT(struct engine_mouse, mouse_handler_fn, 0x04);
 
 /*
  * **Where the video driver was read to**, DGROUP 0x48f8..0x48fc, 0x04 bytes.
@@ -619,8 +566,6 @@ struct engine_driver_block {
 } __attribute__((packed));
 
 struct engine_driver_block ENGINE_DRIVER_BLOCK DGROUP_AT(0x48f8);
-_Static_assert(sizeof(struct engine_driver_block) == 0x04, "DGROUP 0x48f8..0x48fc, 0x04 bytes");
-DG_ASSERT_AT(struct engine_driver_block, block, 0x00);
 
 /* **The mode the font is opened with**, DGROUP 0x495a..0x495c: "r". */
 struct engine_font_mode {
@@ -641,8 +586,6 @@ struct engine_font_chunk {
 } __attribute__((packed));
 
 struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
-_Static_assert(sizeof(struct engine_font_chunk) == 0x02, "DGROUP 0x495c..0x495e, 0x02 bytes");
-DG_ASSERT_AT(struct engine_font_chunk, font_chunk_name, 0x00);
 
 /*
  * **The font chunk's name**, DGROUP 0x495e..0x4966, which `ENGINE_FONT_CHUNK`
@@ -655,7 +598,6 @@ struct engine_font_tag {
 } __attribute__((packed));
 
 struct engine_font_tag ENGINE_FONT_TAG DGROUP_AT(0x495e) = { .fnt = "FNT:", .mode_r = "r" };
-_Static_assert(sizeof(struct engine_font_tag) == 0x08, "DGROUP 0x495e..0x4966, 0x08 bytes");
 
 
 /*
@@ -671,10 +613,6 @@ struct engine_resource_flags {
 } __attribute__((packed));
 
 struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
-_Static_assert(sizeof(struct engine_resource_flags) == 0x05, "DGROUP 0x57ba..0x57bf, 0x05 bytes");
-DG_ASSERT_AT(struct engine_resource_flags, flags,     0x00);
-DG_ASSERT_AT(struct engine_resource_flags, file_ptr, 0x02);
-DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
 
 /*
  * **The staging buffer `read_into_huge` reads through**, DGROUP
@@ -690,8 +628,6 @@ struct engine_read_staging {
 } __attribute__((packed));
 
 struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
-_Static_assert(sizeof(struct engine_read_staging) == 0x32,
-               "DGROUP 0x5788..0x57ba, the 0x32 read_into_huge reads at a time");
 
 /*
  * **The open resource streams**, a near pointer each, DGROUP 0x57c0..0x5888,
@@ -703,7 +639,6 @@ struct engine_resource_slots {
 } __attribute__((packed));
 
 struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
-_Static_assert(sizeof(struct engine_resource_slots) == 0xc8, "a hundred slots end at ENGINE_STREAM");
 
 /*
  * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8, 0x30 bytes.
@@ -748,27 +683,6 @@ struct engine_stream {
 } __attribute__((packed));
 
 struct engine_stream ENGINE_STREAM DGROUP_BSS(0x5888);
-_Static_assert(sizeof(struct engine_stream) == 0x30, "DGROUP 0x5888..0x58b8, 0x30 bytes");
-DG_ASSERT_AT(struct engine_stream, kind,       0x00);
-DG_ASSERT_AT(struct engine_stream, record_ptr, 0x02);
-DG_ASSERT_AT(struct engine_stream, scratch,    0x04);
-DG_ASSERT_AT(struct engine_stream, wanted,     0x08);
-DG_ASSERT_AT(struct engine_stream, spill_ptr,  0x0a);
-DG_ASSERT_AT(struct engine_stream, out,        0x0c);
-DG_ASSERT_AT(struct engine_stream, in,         0x10);
-DG_ASSERT_AT(struct engine_stream, written,    0x14);
-DG_ASSERT_AT(struct engine_stream, n_bits,     0x16);
-DG_ASSERT_AT(struct engine_stream, free_ent,   0x18);
-DG_ASSERT_AT(struct engine_stream, resume,     0x1a);
-DG_ASSERT_AT(struct engine_stream, clear_flg,  0x1c);
-DG_ASSERT_AT(struct engine_stream, oldcode,    0x1e);
-DG_ASSERT_AT(struct engine_stream, de_stack,   0x20);
-DG_ASSERT_AT(struct engine_stream, finchar,    0x24);
-DG_ASSERT_AT(struct engine_stream, first_code, 0x26);
-DG_ASSERT_AT(struct engine_stream, incode,     0x28);
-DG_ASSERT_AT(struct engine_stream, bit_pos,    0x2a);
-DG_ASSERT_AT(struct engine_stream, bit_end,    0x2c);
-DG_ASSERT_AT(struct engine_stream, maxcode,    0x2e);
 
 /*
  * **An interrupted match, and where it resumes**, DGROUP 0x58e0..0x58e8, 0x08 bytes.
@@ -781,11 +695,6 @@ struct engine_match_resume {
 } __attribute__((packed));
 
 struct engine_match_resume ENGINE_MATCH_RESUME DGROUP_BSS(0x58e0);
-_Static_assert(sizeof(struct engine_match_resume) == 0x08, "DGROUP 0x58e0..0x58e8, 0x08 bytes");
-DG_ASSERT_AT(struct engine_match_resume, interrupted, 0x00);
-DG_ASSERT_AT(struct engine_match_resume, position,    0x02);
-DG_ASSERT_AT(struct engine_match_resume, length,      0x04);
-DG_ASSERT_AT(struct engine_match_resume, progress,    0x06);
 
 /*
  * **The LZSS decoder's progress**, DGROUP 0x58e8..0x58f2, 0x0a bytes.
@@ -800,10 +709,6 @@ struct engine_lzss_state {
 } __attribute__((packed));
 
 struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
-_Static_assert(sizeof(struct engine_lzss_state) == 0x0a, "DGROUP 0x58e8..0x58f2, 0x0a bytes");
-DG_ASSERT_AT(struct engine_lzss_state, ring_pos, 0x00);
-DG_ASSERT_AT(struct engine_lzss_state, count,     0x02);
-DG_ASSERT_AT(struct engine_lzss_state, size,      0x06);
 
 /*
  * **The son table's far pointer**, DGROUP 0x5900..0x5904. Two words that are
@@ -816,8 +721,6 @@ struct engine_huffman_tree {
 } __attribute__((packed));
 
 struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_BSS(0x5900);
-_Static_assert(sizeof(struct engine_huffman_tree) == 0x04, "DGROUP 0x5900..0x5904, 0x04 bytes");
-DG_ASSERT_AT(struct engine_huffman_tree, son, 0x00);
 
 /*
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
@@ -837,11 +740,6 @@ struct engine_decompress_cache {
 } __attribute__((packed));
 
 struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_BSS(0x590a);
-_Static_assert(sizeof(struct engine_decompress_cache) == 0x10, "DGROUP 0x590a..0x591a, 0x10 bytes");
-DG_ASSERT_AT(struct engine_decompress_cache, cache_a,    0x00);
-DG_ASSERT_AT(struct engine_decompress_cache, cache_b,    0x04);
-DG_ASSERT_AT(struct engine_decompress_cache, cache_c,    0x08);
-DG_ASSERT_AT(struct engine_decompress_cache, lzss_ready, 0x0e);
 
 /*
  * **The scaling table** `scale_table_delta` takes differences across,
@@ -854,7 +752,6 @@ struct engine_scale_table {
 } __attribute__((packed));
 
 struct engine_scale_table ENGINE_SCALE_TABLE DGROUP_BSS(0x5956);
-_Static_assert(sizeof(struct engine_scale_table) == 0x500, "640 columns end at ENGINE_ROW_OFFSETS");
 
 /*
  * **One word per output row of a scaled blit**, DGROUP 0x5e56..0x6176, 0x320
@@ -871,7 +768,6 @@ struct engine_row_offsets {
 } __attribute__((packed));
 
 struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
-_Static_assert(sizeof(struct engine_row_offsets) == 0x320, "the run ends at ENGINE_FONT_KINDS");
 
 /*
  * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
@@ -886,8 +782,6 @@ struct engine_font_kinds {
 } __attribute__((packed));
 
 struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
-DG_ASSERT_AT(struct engine_font_kinds, kind, 0x00);
-_Static_assert(sizeof(struct engine_font_kinds) == 0x14, "twenty font slots, up to ENGINE_FONTS at 0x618a");
 
 /*
  * **The font bodies, a far pointer per font slot**, DGROUP 0x618a..0x61da,
@@ -905,8 +799,6 @@ struct engine_fonts {
 } __attribute__((packed));
 
 struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
-_Static_assert(sizeof(struct engine_fonts) == 0x50, "twenty slots end at ENGINE_FONT_WIDTHS");
-DG_ASSERT_AT(struct engine_fonts, body, 0x00);
 
 /*
  * **Each font slot's width table**, a far pointer per slot, DGROUP
@@ -920,8 +812,6 @@ struct engine_font_widths {
 } __attribute__((packed));
 
 struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
-_Static_assert(sizeof(struct engine_font_widths) == 0x50, "twenty slots end at ENGINE_FONT_SLOTS");
-DG_ASSERT_AT(struct engine_font_widths, width, 0x00);
 
 /*
  * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
@@ -940,8 +830,6 @@ struct engine_font_slots {
 } __attribute__((packed));
 
 struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_BSS(0x622a);
-_Static_assert(sizeof(struct engine_font_slots) == 0x50, "twenty slots end at ENGINE_UNDERLINE_ROWS");
-DG_ASSERT_AT(struct engine_font_slots, slot, 0x00);
 
 /*
  * ---------------------------------------------------------------------------
@@ -966,8 +854,6 @@ struct engine_underline_rows {
 } __attribute__((packed));
 
 struct engine_underline_rows ENGINE_UNDERLINE_ROWS DGROUP_BSS(0x627a);
-_Static_assert(sizeof(struct engine_underline_rows) == 0x14, "DGROUP 0x627a..0x628e, 0x14 bytes");
-DG_ASSERT_AT(struct engine_underline_rows, underline_row, 0x00);
 
 /*
  * **The base the two indexes are taken from**, DGROUP 0x628e..0x6292, 0x04 bytes.
@@ -981,9 +867,6 @@ struct engine_scale_step {
 } __attribute__((packed));
 
 struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
-_Static_assert(sizeof(struct engine_scale_step) == 0x04, "DGROUP 0x628e..0x6292, 0x04 bytes");
-DG_ASSERT_AT(struct engine_scale_step, base,      0x00);
-DG_ASSERT_AT(struct engine_scale_step, word_6290, 0x02);
 
 /*
  * **The open files**, DGROUP 0x6292..0x639e, 0x10c bytes: four `struct
@@ -995,7 +878,6 @@ struct engine_open_files {
 } __attribute__((packed));
 
 struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
-_Static_assert(sizeof(struct engine_open_files) == 0x10c, "four records end at ENGINE_SAVED_FILE_RECORD");
 
 /*
  * **The saved file record**, DGROUP 0x639e..0x63e2, 0x44 bytes. `seek_named_chunk` copies a
@@ -1014,8 +896,6 @@ struct engine_saved_file_record {
 } __attribute__((packed));
 
 struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD DGROUP_BSS(0x639e);
-_Static_assert(sizeof(struct engine_saved_file_record) == 0x44, "DGROUP 0x639e..0x63e2, 0x44 bytes");
-DG_ASSERT_AT(struct engine_saved_file_record, record, 0x00);
 
 /*
  * **The bitmap compressor's stream**, DGROUP 0x63e2..0x63f6, 0x14 bytes.
@@ -1038,14 +918,6 @@ struct engine_bitmap_compress {
 } __attribute__((packed));
 
 struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_BSS(0x63e2);
-_Static_assert(sizeof(struct engine_bitmap_compress) == 0x14, "DGROUP 0x63e2..0x63f6, 0x14 bytes");
-DG_ASSERT_AT(struct engine_bitmap_compress, pending_rows, 0x00);
-DG_ASSERT_AT(struct engine_bitmap_compress, out_start,    0x02);
-DG_ASSERT_AT(struct engine_bitmap_compress, block_paras,    0x06);
-DG_ASSERT_AT(struct engine_bitmap_compress, src,          0x08);
-DG_ASSERT_AT(struct engine_bitmap_compress, out,          0x0c);
-DG_ASSERT_AT(struct engine_bitmap_compress, row_buffer_ptr, 0x10);
-DG_ASSERT_AT(struct engine_bitmap_compress, mode,         0x12);
 
 
 /*

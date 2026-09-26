@@ -8,12 +8,11 @@ one makes tree-sitter abandon the construct it is in and read what follows as
 loose expressions:
 
     struct draw_step DG0124 DGROUP_AT(0x0124) = { ... };
-    DG_ASSERT_AT(struct part, kind, 0x04);
     _Static_assert(__builtin_offsetof(struct vm_cs, data_seg) == 0x13a, "..");
     int16_t read_into_huge(uint8_t far * dst, uint16_t count)
 
 A placement macro sits between a declarator and its `=`, which no C grammar
-accepts; `DG_ASSERT_AT` and `__builtin_offsetof` take a *type* as an argument,
+accepts; `__builtin_offsetof` takes a *type* as an argument,
 which no expression grammar accepts; and `far` is defined as nothing at all -
 "one kind of pointer here" in tim.h - so `uint8_t far * dst` reads as two type
 names in a row.
@@ -44,7 +43,7 @@ except ImportError:                                     # pragma: no cover
 # The placements, and the assertions that pin them. Blanked whole: no rule
 # wants to look inside one, and what is inside is a type where an expression
 # belongs.
-BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|SEGMENT_AT|DG_ASSERT_AT)"
+BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|SEGMENT_AT)"
                       r"\s*\([^()]*\)")
 # An offsetof has to leave a `0` behind, or the `_Static_assert` around it
 # loses its operand and the error comes back one line further on.

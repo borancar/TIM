@@ -46,8 +46,6 @@ struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
     .sprite_x = { 0x0250, 0x0252, 0x0250, 0x0251 },
     .sprite_y = { 0x001a, 0x0018, 0x001b, 0x0019 },
 };
-DG_ASSERT_AT(struct machine_draw_menu_anim, sprite_x, 0x24);
-_Static_assert(sizeof(struct machine_draw_menu_anim) == 0x34, "the animation tables end at 0x25d6");
 
 /*
  * **The selection box's animation phase**, DGROUP 0x25d6..0x25d8, 0x02 bytes:
@@ -59,8 +57,6 @@ struct machine_draw_selection_phase {
 } __attribute__((packed));
 
 struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);
-_Static_assert(sizeof(struct machine_draw_selection_phase) == 0x02, "DGROUP 0x25d6..0x25d8, 0x02 bytes");
-DG_ASSERT_AT(struct machine_draw_selection_phase, phase, 0x00);
 
 
 /*

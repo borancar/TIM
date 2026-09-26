@@ -49,7 +49,6 @@ struct borland_data_start BORLAND_DATA_START DGROUP_AT(0x0000) = {
     .divide_message = "Divide error\015\012",
     .abort_message = "Abnormal program termination\015\012",
 };
-_Static_assert(sizeof(struct borland_data_start) == 0x74, "DGROUP 0x0000..0x0074, 0x74 bytes");
 
 /*
  * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
@@ -67,8 +66,6 @@ struct borland_find_name {
 } __attribute__((packed));
 
 struct borland_find_name BORLAND_FIND_NAME DGROUP_AT(0x2d48);
-DG_ASSERT_AT(struct borland_find_name, find_name, 0x02);
-_Static_assert(sizeof(struct borland_find_name) == 0x2e, "the find name's run ends at BORLAND_FIND_INFO");
 
 /*
  * **Not established**, DGROUP 0x2d76..0x2d7d, 0x07 bytes.
@@ -87,10 +84,6 @@ struct borland_find_info {
 } __attribute__((packed));
 
 struct borland_find_info BORLAND_FIND_INFO DGROUP_AT(0x2d76);
-_Static_assert(sizeof(struct borland_find_info) == 0x07, "DGROUP 0x2d76..0x2d7d, 0x07 bytes");
-DG_ASSERT_AT(struct borland_find_info, attr, 0x00);
-DG_ASSERT_AT(struct borland_find_info, size,      0x01);
-DG_ASSERT_AT(struct borland_find_info, dos_result, 0x05);
 
 /*
  * **The `atexit` count**, DGROUP 0x4ab4..0x4ab7, 0x03 bytes: how many far pointers the table
@@ -105,8 +98,6 @@ struct borland_atexit_count {
 } __attribute__((packed));
 
 struct borland_atexit_count BORLAND_ATEXIT_COUNT DGROUP_AT(0x4ab4);
-DG_ASSERT_AT(struct borland_atexit_count, atexit_count, 0x00);
-_Static_assert(sizeof(struct borland_atexit_count) == 3, "the atexit count ends at the ctype table");
 
 /*
  * **Borland's `_ctype` table**, DGROUP 0x4ab7..0x4bb8, 0x101 bytes: a class byte per character,
@@ -133,7 +124,6 @@ struct borland_ctype BORLAND_CTYPE DGROUP_AT(0x4ab7) = {
         0x08, 0x08, 0x40, 0x40, 0x40, 0x40, 0x20,
     },
 };
-_Static_assert(sizeof(struct borland_ctype) == 0x101, "the ctype table ends at BORLAND_EXIT_VECTORS");
 
 /*
  * **The three exit vectors**, DGROUP 0x4bb8..0x4bc4, 0x0c bytes: `_exitbuf`, `_exitfopen` and
@@ -154,10 +144,6 @@ struct borland_exit_vectors BORLAND_EXIT_VECTORS DGROUP_AT(0x4bb8) = {
     .exit_fopen = { .off = 0xbc63, .seg = LOAD_SEG + 0x0000 },
     .exit_open = { .off = 0xbc63, .seg = LOAD_SEG + 0x0000 },
 };
-DG_ASSERT_AT(struct borland_exit_vectors, exit_buf,   0x00);
-DG_ASSERT_AT(struct borland_exit_vectors, exit_fopen, 0x04);
-DG_ASSERT_AT(struct borland_exit_vectors, exit_open,  0x08);
-_Static_assert(sizeof(struct borland_exit_vectors) == 0x0c, "the exit vectors end at the stream table");
 
 /*
  * **Borland's streams**, DGROUP 0x4bc4..0x4d04, 0x140 bytes.
@@ -182,8 +168,6 @@ struct borland_streams BORLAND_STREAMS DGROUP_AT(0x4bc4) = {
         { .flags = 0x0242, .fd = 0x04, .token_ptr = 0x4c04 },
     },
 };
-_Static_assert(sizeof(struct borland_streams) == 0x140, "DGROUP 0x4bc4..0x4d04, 0x140 bytes");
-DG_ASSERT_AT(struct borland_streams, streams, 0x00);
 
 /*
  * **Not established**, DGROUP 0x4d04..0x4d06, 0x02 bytes.
@@ -195,8 +179,6 @@ struct borland_nfile {
 } __attribute__((packed));
 
 struct borland_nfile BORLAND_NFILE DGROUP_AT(0x4d04) = { .nfile = 0x0014 };
-_Static_assert(sizeof(struct borland_nfile) == 0x02, "DGROUP 0x4d04..0x4d06, 0x02 bytes");
-DG_ASSERT_AT(struct borland_nfile, nfile, 0x00);
 
 /*
  * **Borland's handle flags**, one word per DOS handle, DGROUP 0x4d06..0x4d2e,
@@ -208,7 +190,6 @@ struct borland_handle_flags {
 } __attribute__((packed));
 
 struct borland_handle_flags BORLAND_HANDLE_FLAGS DGROUP_AT(0x4d06) = { .flags = { 0x6001, 0x6002, 0x6002, 0xa004, 0xa002 } };
-_Static_assert(sizeof(struct borland_handle_flags) == 0x28, "twenty handles end at BORLAND_IO_MODES");
 
 /*
  * **Borland's own IO defaults**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
@@ -252,12 +233,6 @@ struct borland_io_modes BORLAND_IO_MODES DGROUP_AT(0x4d2e) = {
         -0x01, -0x01, 0x23, -0x01, 0x13, -0x01,
     },
 };
-DG_ASSERT_AT(struct borland_io_modes, errno_map, 0x08);
-_Static_assert(sizeof(struct borland_io_modes) == 0x61, "the errno map ends before the TMP string at 0x4d90");
-DG_ASSERT_AT(struct borland_io_modes, fmode, 0x00);
-DG_ASSERT_AT(struct borland_io_modes, heaplen, 0x04);
-DG_ASSERT_AT(struct borland_io_modes, perm_mask, 0x02);
-DG_ASSERT_AT(struct borland_io_modes, doserrno, 0x06);
 
 /*
  * **The runtime's strings and the printf class table**, DGROUP 0x4d90..0x4e34, 0xa4 bytes:
@@ -298,14 +273,6 @@ struct borland_runtime_strings BORLAND_RUNTIME_STRINGS DGROUP_AT(0x4d90) = {
     .s_scanf = " scan",
     .s_no_floats = "f : floating point formats not linked\015\012",
 };
-DG_ASSERT_AT(struct borland_runtime_strings, tmp_prefix,  0x00);
-DG_ASSERT_AT(struct borland_runtime_strings, tmp_suffix,  0x04);
-DG_ASSERT_AT(struct borland_runtime_strings, null_str,    0x0a);
-DG_ASSERT_AT(struct borland_runtime_strings, fmt_class,   0x11);
-DG_ASSERT_AT(struct borland_runtime_strings, s_print,     0x72);
-DG_ASSERT_AT(struct borland_runtime_strings, s_scanf,     0x77);
-DG_ASSERT_AT(struct borland_runtime_strings, s_no_floats, 0x7c);
-_Static_assert(sizeof(struct borland_runtime_strings) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
 
 /*
  * DGROUP 0x4e42..0x4e4e - **two more near vectors and the init table.** The
@@ -329,7 +296,6 @@ struct borland_init_table BORLAND_INIT_TABLE DGROUP_AT(0x4e42) = {
     .priority = 0xc8,
     .init = { .off = 0x0200, .seg = 0xc1d6 },
 };
-_Static_assert(sizeof(struct borland_init_table) == 0x0c, "DGROUP 0x4e42..0x4e4e, 0x0c bytes");
 
 
 /*
@@ -347,10 +313,6 @@ struct borland_atexit_table {
 } __attribute__((packed));
 
 struct borland_atexit_table BORLAND_ATEXIT_TABLE DGROUP_BSS(0x6438);
-DG_ASSERT_AT(struct borland_atexit_table, atexit,    0x00);
-DG_ASSERT_AT(struct borland_atexit_table, tmp_name,  0x80);
-DG_ASSERT_AT(struct borland_atexit_table, getc_byte, 0x8e);
-_Static_assert(sizeof(struct borland_atexit_table) == 0x90, "the atexit table and the temp name end at BORLAND_FPUTC_CHAR");
 
 /*
  * **The character being drawn**, DGROUP 0x64c8..0x64c9, 0x01 bytes.
@@ -360,8 +322,6 @@ struct borland_fputc_char {
 } __attribute__((packed));
 
 struct borland_fputc_char BORLAND_FPUTC_CHAR DGROUP_BSS(0x64c8);
-_Static_assert(sizeof(struct borland_fputc_char) == 0x01, "DGROUP 0x64c8..0x64c9, 0x01 bytes");
-DG_ASSERT_AT(struct borland_fputc_char, character, 0x00);
 
 
 /*

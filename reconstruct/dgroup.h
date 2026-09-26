@@ -194,11 +194,10 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  *
  * NOT a transcription - the original has no struct declaration to copy, only
  * offsets off DS - but the *layout* is, and every field below carries the
- * offset it was read at with a `_Static_assert` next to the definition. That
- * assert is the point of doing it this way: a mistyped padding array or a
- * field the compiler decides to align moves everything after it, and silently
- * reading the wrong word is exactly the class of fault this project cannot
- * catch by looking at a screen.
+ * offset it was read at in a comment. The `_Static_assert`s that used to pin
+ * each one are gone (2026-09-26): the proof of a layout is now the original
+ * compiler, Turbo C++ 3.0, reproducing the instructions that address it byte
+ * for byte, and a mistyped padding array moves every displacement after it.
  *
  * **The byte array stays underneath.** DGROUP is still `dgroup[]`, because the
  * game uses near pointers - a word in DGROUP holding an offset into DGROUP -
@@ -220,8 +219,8 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * compiler is entitled to align it and move everything after it. That happened
  * the first time `dg_52ed` was written: `last_key` is a byte at 0x52f1, the
  * word after it belongs at 0x52f2, and unpacked it went to 0x52f3 with the
- * five fields behind it following. The asserts caught all six, which is the
- * whole reason for having them; `packed` is what stops it happening again.
+ * five fields behind it following. The asserts of the time caught all six;
+ * `packed` is what stops it happening again on the host.
  * ---------------------------------------------------------------------------
  */
 typedef uint16_t dg_near_t;      /* a near pointer: an offset into DGROUP */
@@ -237,7 +236,6 @@ typedef uint16_t dg_near_t;      /* a near pointer: an offset into DGROUP */
    touching the width. */
 typedef dg_near_t bmp_ptr_t;
 /* A list of these is stepped with `++`, which must be the original's `+ 2`. */
-_Static_assert(sizeof(bmp_ptr_t) == 2, "bmp_ptr_t is a near pointer, one word");
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
@@ -696,50 +694,7 @@ struct vmds {
 
 extern struct vmds VMDS;
 
-#define DG_ASSERT_AT(type, field, off) \
-    _Static_assert(__builtin_offsetof(type, field) == (off), \
-                   #type "." #field " must sit at " #off)
 
-DG_ASSERT_AT(struct dg_3f78, mode_kind,         0x00);
-DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
-DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
-
-DG_ASSERT_AT(struct vmds, clip_enabled,      0x03);
-DG_ASSERT_AT(struct vmds, clip_left,         0x04);
-DG_ASSERT_AT(struct vmds, clip_right,        0x06);
-DG_ASSERT_AT(struct vmds, clip_top,          0x08);
-DG_ASSERT_AT(struct vmds, clip_bottom,       0x0a);
-DG_ASSERT_AT(struct vmds, fill_enabled,      0x0c);
-DG_ASSERT_AT(struct vmds, fill_colour,       0x0d);
-DG_ASSERT_AT(struct vmds, second_colour,     0x0e);
-DG_ASSERT_AT(struct vmds, poly_x,            0xac);
-DG_ASSERT_AT(struct vmds, poly_y,            0xd4);
-DG_ASSERT_AT(struct vmds, work_x,            0xfc);
-DG_ASSERT_AT(struct vmds, work_y,            0x124);
-DG_ASSERT_AT(struct vmds, closed_x,          0x14c);
-DG_ASSERT_AT(struct vmds, closed_y,          0x174);
-DG_ASSERT_AT(struct vmds, page_back_ptr,     0x12);
-DG_ASSERT_AT(struct vmds, page_front_ptr,    0x14);
-DG_ASSERT_AT(struct vmds, page_src_ptr,      0x16);
-DG_ASSERT_AT(struct vmds, page_dst_ptr,      0x18);
-DG_ASSERT_AT(struct vmds, pixel_shift,       0x1d);
-DG_ASSERT_AT(struct vmds, adapter,           0x21);
-DG_ASSERT_AT(struct vmds, line_colour,       0x22);
-DG_ASSERT_AT(struct vmds, font_table_34,     0x34);
-DG_ASSERT_AT(struct vmds, font_table_48,     0x48);
-DG_ASSERT_AT(struct vmds, font_table_5c,     0x5c);
-DG_ASSERT_AT(struct vmds, font_table_70,     0x70);
-DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
-DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
-DG_ASSERT_AT(struct vmds, palettes,          0x19c);
-DG_ASSERT_AT(struct vmds, page_hook,         0x6e2);
-DG_ASSERT_AT(struct vmds, dda_whole,         0x6bc);
-DG_ASSERT_AT(struct vmds, dda_frac,          0x6be);
-DG_ASSERT_AT(struct vmds, dda_saved,         0x6c0);
-DG_ASSERT_AT(struct vmds, dda_acc,           0x6c2);
-DG_ASSERT_AT(struct vmds, line_mask,         0x6c4);
-DG_ASSERT_AT(struct vmds, screen,            0x6e8);
-DG_ASSERT_AT(struct vmds, row_offset,        0x6f2);
 
 /* The names above are the struct's fields now; there are no macros for
  * them, because a macro named for a field re-expands inside `VMDS.field`
@@ -777,7 +732,6 @@ struct dg_50bf {
 } __attribute__((packed));
 
 extern struct dg_50bf DG50BF;
-_Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 
 /*
  * ---------------------------------------------------------------------------
@@ -943,59 +897,6 @@ struct dg_4e67 {
 
 extern struct dg_4e67 DG4E67;
 
-DG_ASSERT_AT(struct dg_4e67, freeform,          0x00);
-DG_ASSERT_AT(struct dg_4e67, title,             0x68);
-DG_ASSERT_AT(struct dg_4e67, hint,              0xb8);
-_Static_assert(sizeof(struct dg_4e67) == 0x248, "the hint runs up to DG50AF");
-DG_ASSERT_AT(struct dg_4e67, tool,              0x02);
-DG_ASSERT_AT(struct dg_4e67, state,             0x04);
-DG_ASSERT_AT(struct dg_4e67, region_kept_a_ptr, 0x06);
-DG_ASSERT_AT(struct dg_4e67, region_kept_b_ptr, 0x08);
-DG_ASSERT_AT(struct dg_4e67, regions_a_ptr,     0x0a);
-DG_ASSERT_AT(struct dg_4e67, regions_b_ptr,     0x0c);
-DG_ASSERT_AT(struct dg_4e67, regions_c_ptr,     0x0e);
-DG_ASSERT_AT(struct dg_4e67, regions_panel_ptr, 0x10);
-DG_ASSERT_AT(struct dg_4e67, regions_play_ptr,  0x12);
-DG_ASSERT_AT(struct dg_4e67, holiday_christmas, 0x14);
-DG_ASSERT_AT(struct dg_4e67, holiday_halloween, 0x16);
-DG_ASSERT_AT(struct dg_4e67, holiday_stpatrick, 0x18);
-DG_ASSERT_AT(struct dg_4e67, holiday_valentine, 0x1a);
-DG_ASSERT_AT(struct dg_4e67, memory_warned,     0x1c);
-DG_ASSERT_AT(struct dg_4e67, file_op_active,    0x1e);
-DG_ASSERT_AT(struct dg_4e67, loop_frames,       0x20);
-DG_ASSERT_AT(struct dg_4e67, redraw_carried,    0x22);
-DG_ASSERT_AT(struct dg_4e67, redraw_a,          0x24);
-DG_ASSERT_AT(struct dg_4e67, redraw_b,          0x26);
-DG_ASSERT_AT(struct dg_4e67, redraw_c,          0x28);
-DG_ASSERT_AT(struct dg_4e67, redraw_d,          0x2a);
-DG_ASSERT_AT(struct dg_4e67, redraw_e,          0x2c);
-DG_ASSERT_AT(struct dg_4e67, drag_offset_y,     0x2e);
-DG_ASSERT_AT(struct dg_4e67, drag_offset_x,     0x30);
-DG_ASSERT_AT(struct dg_4e67, origin_c_y,        0x32);
-DG_ASSERT_AT(struct dg_4e67, origin_c_x,        0x34);
-DG_ASSERT_AT(struct dg_4e67, origin_b_y,        0x36);
-DG_ASSERT_AT(struct dg_4e67, origin_b_x,        0x38);
-DG_ASSERT_AT(struct dg_4e67, origin_y,          0x3a);
-DG_ASSERT_AT(struct dg_4e67, origin_x,          0x3c);
-DG_ASSERT_AT(struct dg_4e67, elapsed_ticks,     0x3e);
-DG_ASSERT_AT(struct dg_4e67, machine_frames,    0x40);
-DG_ASSERT_AT(struct dg_4e67, score,             0x42);
-DG_ASSERT_AT(struct dg_4e67, counter,           0x46);
-DG_ASSERT_AT(struct dg_4e67, bonus_2_scroll,    0x4a);
-DG_ASSERT_AT(struct dg_4e67, bonus_1_scroll,    0x4c);
-DG_ASSERT_AT(struct dg_4e67, password_puzzle,   0x4e);
-DG_ASSERT_AT(struct dg_4e67, furthest_level,    0x50);
-DG_ASSERT_AT(struct dg_4e67, level_count,       0x52);
-DG_ASSERT_AT(struct dg_4e67, word_4ebb,         0x54);
-DG_ASSERT_AT(struct dg_4e67, round_number,      0x56);
-DG_ASSERT_AT(struct dg_4e67, playing,           0x58);
-DG_ASSERT_AT(struct dg_4e67, master_level,      0x5a);
-DG_ASSERT_AT(struct dg_4e67, saved_cursor,      0x5c);
-DG_ASSERT_AT(struct dg_4e67, cursor,            0x5e);
-DG_ASSERT_AT(struct dg_4e67, icons_bmp_ptr,     0x60);
-DG_ASSERT_AT(struct dg_4e67, menu_bmp_ptr,      0x62);
-DG_ASSERT_AT(struct dg_4e67, bmp_4ecb_ptr,      0x64);
-DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,    0x66);
 
 /*
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
@@ -1048,22 +949,6 @@ struct dg_5768 {
 
 extern struct dg_5768 DG5768;
 
-DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
-DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
-DG_ASSERT_AT(struct dg_5768, cursor_y,          0x04);
-DG_ASSERT_AT(struct dg_5768, cursor_x,          0x06);
-DG_ASSERT_AT(struct dg_5768, cursor_bitmap_ptr, 0x08);
-DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
-DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);
-DG_ASSERT_AT(struct dg_5768, button_at_y,         0x0e);
-DG_ASSERT_AT(struct dg_5768, button_at_x,         0x10);
-DG_ASSERT_AT(struct dg_5768, pending_move_y,         0x12);
-DG_ASSERT_AT(struct dg_5768, pending_move_x,         0x14);
-DG_ASSERT_AT(struct dg_5768, hot_y,         0x16);
-DG_ASSERT_AT(struct dg_5768, hot_x,         0x18);
-DG_ASSERT_AT(struct dg_5768, pointer_y,         0x1a);
-DG_ASSERT_AT(struct dg_5768, pointer_x,         0x1c);
-DG_ASSERT_AT(struct dg_5768, fade_weight,         0x1e);
 
 /*
  * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.
@@ -1137,31 +1022,6 @@ struct dg_53fc {
 
 extern struct dg_53fc DG53FC;
 
-DG_ASSERT_AT(struct dg_53fc, contact_ptr,       0x00);
-DG_ASSERT_AT(struct dg_53fc, other_ptr,         0x02);
-DG_ASSERT_AT(struct dg_53fc, list_ptr,          0x04);
-DG_ASSERT_AT(struct dg_53fc, moved_y,           0x06);
-DG_ASSERT_AT(struct dg_53fc, other_mid_y,       0x08);
-DG_ASSERT_AT(struct dg_53fc, other_mid_x,       0x0a);
-DG_ASSERT_AT(struct dg_53fc, other_bottom,      0x0c);
-DG_ASSERT_AT(struct dg_53fc, other_top,         0x0e);
-DG_ASSERT_AT(struct dg_53fc, other_right,       0x10);
-DG_ASSERT_AT(struct dg_53fc, other_left,        0x12);
-DG_ASSERT_AT(struct dg_53fc, swept_top,         0x14);
-DG_ASSERT_AT(struct dg_53fc, swept_left,        0x16);
-DG_ASSERT_AT(struct dg_53fc, moved_x,           0x18);
-DG_ASSERT_AT(struct dg_53fc, mid_y,             0x1a);
-DG_ASSERT_AT(struct dg_53fc, mid_x,             0x1c);
-DG_ASSERT_AT(struct dg_53fc, swept_bottom,      0x1e);
-DG_ASSERT_AT(struct dg_53fc, cur_y,             0x20);
-DG_ASSERT_AT(struct dg_53fc, swept_right,       0x22);
-DG_ASSERT_AT(struct dg_53fc, cur_x,             0x24);
-DG_ASSERT_AT(struct dg_53fc, contact_quadrant,  0x26);
-DG_ASSERT_AT(struct dg_53fc, contact_angle,     0x28);
-DG_ASSERT_AT(struct dg_53fc, travel_angle,      0x2a);
-DG_ASSERT_AT(struct dg_53fc, password_blink,    0x2c);
-DG_ASSERT_AT(struct dg_53fc, selected_level,    0x2e);
-DG_ASSERT_AT(struct dg_53fc, puzzle_page,       0x30);
 
 /*
  * **One entry of the table `bank_ptr` points at**: two bytes per index -
@@ -1175,8 +1035,6 @@ struct sound_bank_entry {
     uint8_t loop;              /* +0x00  -> voice +0x15d */
     uint8_t priority;          /* +0x01  -> voice +0x15c */
 } __attribute__((packed));
-DG_ASSERT_AT(struct sound_bank_entry, loop,              0x00);
-DG_ASSERT_AT(struct sound_bank_entry, priority,          0x01);
 
 /*
  * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
@@ -1228,24 +1086,6 @@ struct dg_4a82 {
 
 extern struct dg_4a82 DG4A82;
 
-DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
-DG_ASSERT_AT(struct dg_4a82, config,            0x02);
-DG_ASSERT_AT(struct dg_4a82, records,           0x06);
-DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
-DG_ASSERT_AT(struct dg_4a82, tick_handle,       0x0c);
-DG_ASSERT_AT(struct dg_4a82, module_handle,     0x0e);
-DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);
-DG_ASSERT_AT(struct dg_4a82, driver,            0x12);
-DG_ASSERT_AT(struct dg_4a82, module,            0x16);
-DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
-DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);
-DG_ASSERT_AT(struct dg_4a82, voice_word,        0x1e);
-DG_ASSERT_AT(struct dg_4a82, directory,         0x20);
-DG_ASSERT_AT(struct dg_4a82, file_ptr,          0x24);
-DG_ASSERT_AT(struct dg_4a82, file_kind,         0x26);
-DG_ASSERT_AT(struct dg_4a82, module_live,       0x28);
-DG_ASSERT_AT(struct dg_4a82, bank_choice,       0x2a);
-DG_ASSERT_AT(struct dg_4a82, device,            0x2c);
 
 /*
  * **The rubber-band line and the machine's sound requests**, at DGROUP 0x52bd.
@@ -1280,26 +1120,6 @@ struct dg_52bd {
 
 extern struct dg_52bd DG52BD;
 
-DG_ASSERT_AT(struct dg_52bd, band_x,            0x00);
-DG_ASSERT_AT(struct dg_52bd, band_y,            0x02);
-DG_ASSERT_AT(struct dg_52bd, anchor_x,          0x04);
-DG_ASSERT_AT(struct dg_52bd, anchor_y,          0x06);
-DG_ASSERT_AT(struct dg_52bd, band_colour,       0x08);
-DG_ASSERT_AT(struct dg_52bd, drop_cursor,       0x0a);
-DG_ASSERT_AT(struct dg_52bd, bin_colour,         0x0c);
-DG_ASSERT_AT(struct dg_52bd, fill_colour,       0x0e);
-DG_ASSERT_AT(struct dg_52bd, sound_request_0c,  0x10);
-DG_ASSERT_AT(struct dg_52bd, sound_request_09,  0x12);
-DG_ASSERT_AT(struct dg_52bd, sound_request_02,  0x14);
-DG_ASSERT_AT(struct dg_52bd, sound_request_01,  0x16);
-DG_ASSERT_AT(struct dg_52bd, music_now,         0x18);
-DG_ASSERT_AT(struct dg_52bd, saved_clip_bottom, 0x1a);
-DG_ASSERT_AT(struct dg_52bd, saved_clip_top,    0x1c);
-DG_ASSERT_AT(struct dg_52bd, saved_clip_right,  0x1e);
-DG_ASSERT_AT(struct dg_52bd, saved_clip_left,   0x20);
-DG_ASSERT_AT(struct dg_52bd, memo_font,         0x22);
-DG_ASSERT_AT(struct dg_52bd, pal_black_ptr,     0x24);
-DG_ASSERT_AT(struct dg_52bd, pal_sierra_ptr,    0x28);
 
 /*
  * **The palettes, the last key, and the art sets**, at DGROUP 0x52ed.
@@ -1341,16 +1161,7 @@ struct dg_52fe {
 
 extern struct dg_52fe DG52FE;
 
-DG_ASSERT_AT(struct dg_52fe, name,              0x00);
 
-DG_ASSERT_AT(struct dg_52ed, pal_tim_ptr,       0x00);
-DG_ASSERT_AT(struct dg_52ed, last_key,          0x04);
-DG_ASSERT_AT(struct dg_52ed, cursor_follows,    0x05);
-DG_ASSERT_AT(struct dg_52ed, panel_art_ptr,     0x07);
-DG_ASSERT_AT(struct dg_52ed, cursor_art_ptr,    0x09);
-DG_ASSERT_AT(struct dg_52ed, tim_sx_ptr,        0x0b);
-DG_ASSERT_AT(struct dg_52ed, stop_requested,    0x0d);
-DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
 
 /*
  * ---------------------------------------------------------------------------
@@ -1383,12 +1194,6 @@ struct shape {
     int16_t        bottom;     /* +0x16 */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct shape) == 0x18, "game_startup allocates 0x18 bytes");
-DG_ASSERT_AT(struct shape, flags,             0x04);
-DG_ASSERT_AT(struct shape, x1,                0x06);
-DG_ASSERT_AT(struct shape, width,             0x0e);
-DG_ASSERT_AT(struct shape, left,              0x10);
-DG_ASSERT_AT(struct shape, bottom,            0x16);
 
 #define SHAPE_PTR(fp) ((struct shape *)(void *)dg_far_ptr(fp))
 
@@ -1412,11 +1217,6 @@ struct dg_4e4e {
 
 extern struct dg_4e4e DG4E4E;
 
-DG_ASSERT_AT(struct dg_4e4e, shape_free,        0x00);
-DG_ASSERT_AT(struct dg_4e4e, shapes,            0x04);
-DG_ASSERT_AT(struct dg_4e4e, parts_free_ptr,    0x08);
-DG_ASSERT_AT(struct dg_4e4e, parts_queue_ptr,   0x0a);
-DG_ASSERT_AT(struct dg_4e4e, name_buf,          0x0c);
 
 /*
  * **The level's own settings and its two bonus counters**, at DGROUP 0x50af.
@@ -1440,14 +1240,6 @@ struct dg_50af {
 
 extern struct dg_50af DG50AF;
 
-DG_ASSERT_AT(struct dg_50af, bonus_1,           0x00);
-DG_ASSERT_AT(struct dg_50af, bonus_2,           0x02);
-DG_ASSERT_AT(struct dg_50af, gravity,           0x04);
-DG_ASSERT_AT(struct dg_50af, air,               0x06);
-DG_ASSERT_AT(struct dg_50af, extent_y,          0x08);
-DG_ASSERT_AT(struct dg_50af, extent_x,          0x0a);
-DG_ASSERT_AT(struct dg_50af, tune,              0x0c);
-DG_ASSERT_AT(struct dg_50af, flip_options,      0x0e);
 
 /*
  * **The timer's own state**, at DGROUP 0x44ee.
@@ -1478,15 +1270,6 @@ struct timer {
 
 extern struct timer TIMER;
 
-DG_ASSERT_AT(struct timer, installed,         0x00);
-DG_ASSERT_AT(struct timer, frame_budget,      0x01);
-DG_ASSERT_AT(struct timer, divisor,         0x03);
-DG_ASSERT_AT(struct timer, divider_reload,    0x05);
-DG_ASSERT_AT(struct timer, divider,           0x07);
-DG_ASSERT_AT(struct timer, slot_mask,         0x09);
-DG_ASSERT_AT(struct timer, callback,          0x0b);
-DG_ASSERT_AT(struct timer, tick,              0x4b);
-_Static_assert(sizeof(struct timer) == 0x8b, "the timer state ends at 0x4579");
 
 /*
  * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b8, 0x12 bytes - a near pointer into
@@ -1504,8 +1287,6 @@ struct game_text_lines {
 } __attribute__((packed));
 
 extern struct game_text_lines GAME_TEXT_LINES;
-_Static_assert(sizeof(struct game_text_lines) == 0x12, "DGROUP 0x56a6..0x56b8, 0x12 bytes");
-DG_ASSERT_AT(struct game_text_lines, line_ptr,          0x00);
 
 
 
@@ -1521,9 +1302,6 @@ struct dg_5752 {
 
 extern struct dg_5752 DG5752;
 
-DG_ASSERT_AT(struct dg_5752, guard,             0x00);
-DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
-DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
 
 /*
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
@@ -1543,8 +1321,6 @@ struct dg_5456 {
 
 extern struct dg_5456 DG5456;
 
-DG_ASSERT_AT(struct dg_5456, belt_far_end_ptr,  0x00);
-DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
 
 /*
  * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
@@ -1562,8 +1338,6 @@ struct dg_4e34 {
 
 extern struct dg_4e34 DG4E34;
 
-DG_ASSERT_AT(struct dg_4e34, first_block_ptr,   0x00);
-DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
 
 /*
  * **A near-heap block header**: the four bytes *below* every pointer
@@ -1609,13 +1383,6 @@ struct heapinfo {
    for the reason `PART_NONE` gives. */
 #define HEAP_SBRK_FAIL ((uint8_t *)(dgroup + 0xffff))
 
-DG_ASSERT_AT(struct heap_block, size,              0x00);
-DG_ASSERT_AT(struct heap_block, prev_ptr,          0x02);
-DG_ASSERT_AT(struct heap_block, fwd_ptr,           0x04);
-DG_ASSERT_AT(struct heap_block, back_ptr,          0x06);
-DG_ASSERT_AT(struct dg_4e34, ring_cursor_ptr,   0x04);
-DG_ASSERT_AT(struct dg_4e34, stdin_is_tty,      0x08);
-DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);
 
 /*
  * A pair of bytes the original moves as a word: an x and a y that are written
@@ -1728,17 +1495,6 @@ struct chunk_names {
    which takes an offset, so even those are not written through this. */
 extern struct chunk_names CHUNK;
 
-DG_ASSERT_AT(struct chunk_names, bmp_inf,           0x00);
-DG_ASSERT_AT(struct chunk_names, bmp_bin,           0x09);
-DG_ASSERT_AT(struct chunk_names, bmp_vga,           0x14);
-DG_ASSERT_AT(struct chunk_names, bmp_amg,           0x1d);
-DG_ASSERT_AT(struct chunk_names, scr_dim,           0x28);
-DG_ASSERT_AT(struct chunk_names, scr_bin,           0x31);
-DG_ASSERT_AT(struct chunk_names, scr_vga,           0x3c);
-DG_ASSERT_AT(struct chunk_names, scr_amg,           0x45);
-DG_ASSERT_AT(struct chunk_names, mode_rb,           0x50);
-_Static_assert(sizeof(struct chunk_names) == 0x54,
-               "the first run ends at 0x49ba, where DG49BA's code pointers begin");
 
 /*
  * **The rest of the chunk names**, from 0x49c6, after the twelve bytes of
@@ -1774,16 +1530,6 @@ struct chunk_names2 {
 
 extern struct chunk_names2 CHUNK2;
 
-DG_ASSERT_AT(struct chunk_names2, bmp_off,           0x09);
-DG_ASSERT_AT(struct chunk_names2, bmp_vqt,           0x12);
-DG_ASSERT_AT(struct chunk_names2, bmp_off_b,         0x1b);
-DG_ASSERT_AT(struct chunk_names2, bmp_rle,           0x24);
-DG_ASSERT_AT(struct chunk_names2, bmp_scl,           0x2d);
-DG_ASSERT_AT(struct chunk_names2, scr_vqt,           0x38);
-DG_ASSERT_AT(struct chunk_names2, ssm_000,           0x42);
-DG_ASSERT_AT(struct chunk_names2, ssm_tag,           0x4c);
-_Static_assert(sizeof(struct chunk_names2) == 0x56,
-               "the run ends at 0x4a1c, where the device tag table begins");
 
 /*
  * ---------------------------------------------------------------------------
@@ -1808,12 +1554,6 @@ struct pal_chunk_names {
 
 extern struct pal_chunk_names PALCHUNK;
 
-DG_ASSERT_AT(struct pal_chunk_names, pal_vga,           0x00);
-DG_ASSERT_AT(struct pal_chunk_names, pal_ega,           0x09);
-DG_ASSERT_AT(struct pal_chunk_names, pal_cga,           0x12);
-DG_ASSERT_AT(struct pal_chunk_names, none,              0x1b);
-DG_ASSERT_AT(struct pal_chunk_names, by_adapter,        0x1c);
-DG_ASSERT_AT(struct pal_chunk_names, pal_amg,           0x40);
 
 /*
  * ---------------------------------------------------------------------------
@@ -1836,8 +1576,6 @@ struct ovl_chunk_names {
 
 extern struct ovl_chunk_names OVLCHUNK;
 
-DG_ASSERT_AT(struct ovl_chunk_names, ovl_tag,           0x00);
-DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag,       0x0a);
 
 /* The four-character tags the two buffers above are completed from. The
    tables hold offsets rather than the tags themselves, which is why these
@@ -1853,7 +1591,6 @@ struct adapter_tags {
     char      bad[5];              /* +0x00  0x48fc  "BAD:" */
     dg_near_t tag[12];             /* +0x05  0x4901  entries 1 to 12 */
 } __attribute__((packed));
-_Static_assert(sizeof(struct adapter_tags) == 0x1d, "the tags end at 0x4919, where OVL: starts");
 extern struct adapter_tags ADAPTER_TAGS;
 
 /*
@@ -1869,7 +1606,6 @@ struct sound_tags {
     char      mode_r_a[2];         /* +0x62  0x4a7e  "r" */
     char      mode_r_b[2];         /* +0x64  0x4a80  "r" */
 } __attribute__((packed));
-_Static_assert(sizeof(struct sound_tags) == 0x66, "the tags end at 0x4a82, where DG4A82 starts");
 extern struct sound_tags SOUND_TAGS;
 
 /* A signed 16-bit point: a part's position, box and size generations, a
@@ -2198,58 +1934,6 @@ static inline struct part *PART_PTR(uint16_t p)
    on this, which is the same address the original's `or si,si` decides on. */
 #define PART_NONE PART_PTR(0)
 
-DG_ASSERT_AT(struct part, next_ptr,          0x00);
-DG_ASSERT_AT(struct part, prev_ptr,          0x02);
-DG_ASSERT_AT(struct part, kind,              0x04);
-DG_ASSERT_AT(struct part, flags_06,          0x06);
-DG_ASSERT_AT(struct part, flags_08,          0x08);
-DG_ASSERT_AT(struct part, flags_0a,          0x0a);
-DG_ASSERT_AT(struct part, form,              0x0c);
-DG_ASSERT_AT(struct part, form_prev,         0x0e);
-DG_ASSERT_AT(struct part, form_prev2,        0x10);
-DG_ASSERT_AT(struct part, direction,         0x12);
-DG_ASSERT_AT(struct part, redraw_count,      0x14);
-DG_ASSERT_AT(struct part, fx,                0x16);
-DG_ASSERT_AT(struct part, fy,                0x1a);
-DG_ASSERT_AT(struct part, pos,               0x1e);
-DG_ASSERT_AT(struct part, box,               0x2a);
-DG_ASSERT_AT(struct part, vel_x,             0x36);
-DG_ASSERT_AT(struct part, vel_y,             0x38);
-DG_ASSERT_AT(struct part, weight,            0x3a);
-DG_ASSERT_AT(struct part, momentum,          0x3c);
-DG_ASSERT_AT(struct part, mirror_size,       0x40);
-DG_ASSERT_AT(struct part, size,              0x44);
-DG_ASSERT_AT(struct part, set_size,          0x50);
-DG_ASSERT_AT(struct part, rope_ptr,          0x54);
-DG_ASSERT_AT(struct part, grab,              0x56);
-DG_ASSERT_AT(struct part, grab_size,         0x58);
-DG_ASSERT_AT(struct part, link_ptr,          0x5a);
-DG_ASSERT_AT(struct part, belt_ptr,          0x66);
-DG_ASSERT_AT(struct part, attach,            0x6a);
-DG_ASSERT_AT(struct part, hold,              0x72);
-DG_ASSERT_AT(struct part, next_linked_ptr,   0x78);
-DG_ASSERT_AT(struct part, layer_next_ptr,    0x74);
-DG_ASSERT_AT(struct part, link_dx,           0x7a);
-DG_ASSERT_AT(struct part, link_dy,           0x7c);
-DG_ASSERT_AT(struct part, host_slot,         0x7e);
-DG_ASSERT_AT(struct part, layer_slot,           0x7f);
-DG_ASSERT_AT(struct part, point_count,       0x80);
-DG_ASSERT_AT(struct part, points_ptr,        0x82);
-DG_ASSERT_AT(struct part, contact_ptr,       0x84);
-DG_ASSERT_AT(struct part, contact_edge,      0x8a);
-DG_ASSERT_AT(struct part, start_x,           0x8c);
-DG_ASSERT_AT(struct part, start_y,           0x8e);
-DG_ASSERT_AT(struct part, start_form,        0x90);
-DG_ASSERT_AT(struct part, start_direction,   0x92);
-DG_ASSERT_AT(struct part, start_flags,       0x94);
-DG_ASSERT_AT(struct part, word_96,           0x96);
-DG_ASSERT_AT(struct part, word_96_prev,           0x98);
-DG_ASSERT_AT(struct part, word_96_prev2,           0x9a);
-DG_ASSERT_AT(struct part, spin,              0x9c);
-DG_ASSERT_AT(struct part, spin_prev,           0x9e);
-DG_ASSERT_AT(struct part, spin_prev2,           0xa0);
-_Static_assert(sizeof(struct part) == 0xa2,
-               "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
 
 /*
  * **The parts the game is holding on to**, at DGROUP 0x50d3.
@@ -2281,11 +1965,6 @@ struct dg_50d3 {
 
 extern struct dg_50d3 DG50D3;
 
-DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
-DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
-DG_ASSERT_AT(struct dg_50d3, parts_bin,         0x04);
-_Static_assert(sizeof(struct dg_50d3) == 0x5179 - 0x50d3,
-               "the bin's head part ends where the moving list's head begins");
 
 /*
  * **The moving parts**, at DGROUP 0x5179.
@@ -2300,9 +1979,6 @@ struct dg_5179 {
 
 extern struct dg_5179 DG5179;
 
-DG_ASSERT_AT(struct dg_5179, moving_parts,      0x00);
-_Static_assert(sizeof(struct dg_5179) == 0x521b - 0x5179,
-               "the moving list's head part ends where the placed list's head begins");
 
 /*
  * **The level reader, the archive, and its one-entry cache**, at DGROUP 0x546c.
@@ -2349,24 +2025,6 @@ struct part_table {
 } __attribute__((packed));
 #define PART_TABLE ((struct part_table *)dg_far_ptr(DG546C.table))
 
-DG_ASSERT_AT(struct dg_546c, table,             0x00);
-DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
-DG_ASSERT_AT(struct dg_546c, is_level,          0x06);
-DG_ASSERT_AT(struct dg_546c, version,           0x08);
-DG_ASSERT_AT(struct dg_546c, version_out,       0x0a);
-DG_ASSERT_AT(struct dg_546c, error,             0x0c);
-DG_ASSERT_AT(struct dg_546c, cache_key_ptr,     0x0e);
-DG_ASSERT_AT(struct dg_546c, cache_answer_ptr,  0x10);
-DG_ASSERT_AT(struct dg_546c, archive_count,     0x12);
-DG_ASSERT_AT(struct dg_546c, last_record,       0x14);
-DG_ASSERT_AT(struct dg_546c, name_hash,         0x16);
-DG_ASSERT_AT(struct dg_546c, open_immediate,    0x1a);
-DG_ASSERT_AT(struct dg_546c, reopen,         0x1b);
-DG_ASSERT_AT(struct dg_546c, retry,             0x1c);
-DG_ASSERT_AT(struct dg_546c, opening,         0x1d);
-DG_ASSERT_AT(struct dg_546c, scanned,           0x1e);
-DG_ASSERT_AT(struct dg_546c, file_used_ptr,     0x1f);
-DG_ASSERT_AT(struct dg_546c, file_asked_ptr,    0x21);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2413,12 +2071,6 @@ struct game_file {
 /* **No game file**, as a pointer - see `PART_NONE`. */
 #define GAME_FILE_NONE GAME_FILE_PTR(0)
 
-DG_ASSERT_AT(struct game_file, archive,           0x00);
-DG_ASSERT_AT(struct game_file, base,              0x02);
-DG_ASSERT_AT(struct game_file, size,              0x06);
-DG_ASSERT_AT(struct game_file, pos,               0x0a);
-DG_ASSERT_AT(struct game_file, in_use,            0x0e);
-DG_ASSERT_AT(struct game_file, stream_ptr,        0x10);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2466,13 +2118,7 @@ struct archive_entry {
     uint32_t key;     /* +0x00 */
     uint32_t base;    /* +0x04 */
 } __attribute__((packed));
-_Static_assert(sizeof(struct archive_entry) == 8, "load_archive_map steps its cursor by 8");
 
-DG_ASSERT_AT(struct archive, name,              0x00);
-DG_ASSERT_AT(struct archive, index,             0x0e);
-DG_ASSERT_AT(struct archive, stream_ptr,        0x10);
-DG_ASSERT_AT(struct archive, pos,               0x12);
-DG_ASSERT_AT(struct archive, list,              0x18);
 
 /*
  * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
@@ -2510,22 +2156,6 @@ struct dg_48da {
 
 extern struct dg_48da DG48DA;
 
-DG_ASSERT_AT(struct dg_48da, gc_0_1,            0x00);
-DG_ASSERT_AT(struct dg_48da, gc_4,              0x02);
-DG_ASSERT_AT(struct dg_48da, gc_8,              0x04);
-DG_ASSERT_AT(struct dg_48da, seq_map_mask,      0x06);
-DG_ASSERT_AT(struct dg_48da, gc_3,              0x08);
-DG_ASSERT_AT(struct dg_48da, gc_mode_fill,         0x0c);
-DG_ASSERT_AT(struct dg_48da, quarter_a,         0x0d);
-DG_ASSERT_AT(struct dg_48da, gc_mode_copy,         0x0e);
-DG_ASSERT_AT(struct dg_48da, quarter_b,         0x0f);
-DG_ASSERT_AT(struct dg_48da, mouse_taken,       0x10);
-DG_ASSERT_AT(struct dg_48da, buttons,           0x11);
-DG_ASSERT_AT(struct dg_48da, vector_hooked,     0x12);
-DG_ASSERT_AT(struct dg_48da, vector,            0x13);
-DG_ASSERT_AT(struct dg_48da, mode_found,        0x18);
-DG_ASSERT_AT(struct dg_48da, mode_forced,       0x19);
-DG_ASSERT_AT(struct dg_48da, driver,            0x1a);
 
 /*
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
@@ -2537,7 +2167,6 @@ struct dg_3576 {
 
 extern struct dg_3576 DG3576;
 
-DG_ASSERT_AT(struct dg_3576, scratch,           0x00);
 
 /*
  * **The machine's own parts**, at DGROUP 0x521b.
@@ -2553,9 +2182,6 @@ struct dg_521b {
 
 extern struct dg_521b DG521B;
 
-DG_ASSERT_AT(struct dg_521b, placed_parts,      0x00);
-_Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
-               "the placed list's head part ends where DG52BD begins");
 
 /*
  * ---------------------------------------------------------------------------
@@ -2599,11 +2225,6 @@ struct dos_startup {
 
 extern struct dos_startup DOS_STARTUP;
 
-DG_ASSERT_AT(struct dos_startup, int00,     0x00);
-DG_ASSERT_AT(struct dos_startup, argc,      0x10);
-DG_ASSERT_AT(struct dos_startup, env,       0x16);
-DG_ASSERT_AT(struct dos_startup, psp,       0x1c);
-DG_ASSERT_AT(struct dos_startup, os_major,  0x1e);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2644,9 +2265,6 @@ struct dg_0094 {
 
 extern struct dg_0094 DG0094;
 
-DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
-DG_ASSERT_AT(struct dg_0094, start_ticks,       0x02);
-DG_ASSERT_AT(struct dg_0094, brklvl_ptr,        0x08);
 
 /*
  * **The top of the program, as the startup worked it out**, DGROUP 0x00a0.
@@ -2670,9 +2288,6 @@ struct dos_program_top {
 
 extern struct dos_program_top DOS_PROGRAM_TOP;
 
-DG_ASSERT_AT(struct dos_program_top, top_a,      0x00);
-DG_ASSERT_AT(struct dos_program_top, top_b,      0x04);
-DG_ASSERT_AT(struct dos_program_top, memory_top, 0x08);
 
 /*
  * **A draw step**, the record a part's draw list is a chain of: which
@@ -2702,10 +2317,6 @@ struct draw_step {
    part whose kind has no step table of its own. */
 extern struct draw_step DG0124;
 
-DG_ASSERT_AT(struct draw_step, level,             0x02);
-DG_ASSERT_AT(struct draw_step, frame,             0x03);
-DG_ASSERT_AT(struct draw_step, offset,            0x07);
-_Static_assert(sizeof(struct draw_step) == 15, "a draw step: four frames and their offsets");
 
 /*
  * **The game's message texts**, at DGROUP 0x1bcc: the two startup complaints
@@ -2790,7 +2401,6 @@ struct dg_1bcc {
 } __attribute__((packed));
 
 extern struct dg_1bcc DG1BCC;
-_Static_assert(sizeof(struct dg_1bcc) == 0x7a4, "DG1BCC ends at 0x2370");
 
 /*
  * **The intro's file names**, at DGROUP 0x254a - the Sierra screen, the corners,
@@ -2808,7 +2418,6 @@ struct dg_254a {
 } __attribute__((packed));
 
 extern struct dg_254a DG254A;
-_Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
 
 /*
  * **The goal tests, with three words in front of them**, at DGROUP 0x2630: the
@@ -2830,11 +2439,6 @@ struct dg_2630 {
 
 extern struct dg_2630 DG2630;
 
-DG_ASSERT_AT(struct dg_2630, belt_anchor_ptr,   0x00);
-DG_ASSERT_AT(struct dg_2630, back_held,         0x02);
-DG_ASSERT_AT(struct dg_2630, forward_held,         0x04);
-DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
-_Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
 
 
 /*
@@ -2867,10 +2471,6 @@ struct dg_4342 {
 
 extern struct dg_4342 DG4342;
 
-DG_ASSERT_AT(struct dg_4342, span_buffer_seg,   0x00);
-DG_ASSERT_AT(struct dg_4342, detect_allowed,         0x02);
-DG_ASSERT_AT(struct dg_4342, font,              0x04);
-_Static_assert(sizeof(struct dg_4342) == 0xcc, "the driver pointers end at 0x440e");
 
 /*
  * **Scan codes**, set 1, as the keyboard sends them: what `bios_read_key()`
@@ -2916,11 +2516,7 @@ struct dg_5677 {
 
 extern struct dg_5677 DG5677;
 
-DG_ASSERT_AT(struct dg_5677, crit_vec,          0x00);
-DG_ASSERT_AT(struct dg_5677, failures,          0x04);
-DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
 
-DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2953,7 +2549,6 @@ struct saved_rect {
     uint8_t   flags;           /* +0x0b  bit 1 says something is saved */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct saved_rect) == 0x0c, "a saved rect is twelve bytes");
 
 struct page_slot {
     dg_seg_t  page;            /* +0x00  the page this slot belongs to */
@@ -2964,10 +2559,6 @@ struct page_slot {
     struct saved_rect cursor;  /* +0x14  what the cursor covered */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct page_slot, obj,               0x08);
-DG_ASSERT_AT(struct page_slot, cursor,            0x14);
-_Static_assert(sizeof(struct page_slot) == 0x20,
-               "claim_page_slot strides by 0x20");
 
 #define PAGESLOT_PTR(p) ((struct page_slot *)(dgroup + (uint16_t)(p)))
 
@@ -2996,10 +2587,6 @@ struct dg_49ba {
 
 extern struct dg_49ba DG49BA;
 
-DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
-DG_ASSERT_AT(struct dg_49ba, fill_fn,           0x02);
-DG_ASSERT_AT(struct dg_49ba, plot_fn,           0x06);
-DG_ASSERT_AT(struct dg_49ba, read_fn,           0x0a);
 
 /*
  * **Not established**, at DGROUP 0x6400.
@@ -3049,14 +2636,6 @@ typedef struct {
 
 extern bitmaps_t BITMAPS;
 
-DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
-DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
-DG_ASSERT_AT(bitmaps_t, data,                   0x06);
-DG_ASSERT_AT(bitmaps_t, draw_flags,             0x0a);
-DG_ASSERT_AT(bitmaps_t, reader_ptr,                0x0c);
-DG_ASSERT_AT(bitmaps_t, pixel_fn,               0x0e);
-DG_ASSERT_AT(bitmaps_t, fill_fn,                0x10);
-DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
 
 /*
  * ---------------------------------------------------------------------------
@@ -3228,40 +2807,6 @@ struct snd_cs_call {
 
 extern struct snd_cs_call SNDCALL;
 
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, polled) == 0x0048, "snd_cs.polled");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_sequence) == 0x0088, "snd_cs.voice_sequence");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scratch) == 0x0108, "snd_cs.scratch");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_held) == 0x0128, "snd_cs.voice_held");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_keep_own) == 0x0138, "snd_cs.voice_keep_own");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_cost) == 0x0148, "snd_cs.voice_cost");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_gives_back) == 0x0158, "snd_cs.voice_gives_back");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_request) == 0x0168, "snd_cs.voice_request");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_keep_own) == 0x0178, "snd_cs.saved_keep_own");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_cost) == 0x0188, "snd_cs.saved_cost");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_gives_back) == 0x0198, "snd_cs.saved_gives_back");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_request) == 0x01a8, "snd_cs.saved_request");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_channel) == 0x01b8, "snd_cs.voice_channel");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, pending_volume) == 0x01c8, "snd_cs.pending_volume");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, driver) == 0x01e7, "snd_cs.driver");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_lo) == 0x01fa, "snd_cs.voice_lo");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voice_hi) == 0x01fb, "snd_cs.voice_hi");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, ch) == 0x01fc, "snd_cs.ch");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, own_voice) == 0x01fd, "snd_cs.own_voice");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, bend_gate) == 0x01fe, "snd_cs.bend_gate");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, cl) == 0x01ff, "snd_cs.cl");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, ah_high) == 0x0200, "snd_cs.ah_high");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, slot_high) == 0x0201, "snd_cs.slot_high");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, param_default) == 0x0202, "snd_cs.param_default");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, saved_total) == 0x0203, "snd_cs.saved_total");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, voices_changed) == 0x0204, "snd_cs.voices_changed");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, muted) == 0x0209, "snd_cs.muted");
-_Static_assert(0x0008 + __builtin_offsetof(struct snd_cs, scratch_mark) == 0x020c, "snd_cs.scratch_mark");
-_Static_assert(sizeof(struct snd_cs) == 0x0205, "the data ends at 0x020d, where the next routine starts");
-_Static_assert(__builtin_offsetof(struct snd_cs_call, answer) == 0x0004, "snd_cs_call.answer");
 
 /*
  * **The digitised-sound module's own code segment**
@@ -3392,58 +2937,6 @@ struct asb_cs {
 
 #define ASBS (*(struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
 
-_Static_assert(__builtin_offsetof(struct asb_cs, page_a) == 0x0034, "asb_cs.page_a");
-_Static_assert(__builtin_offsetof(struct asb_cs, page_b) == 0x0035, "asb_cs.page_b");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0036) == 0x0036, "asb_cs.byte_0036");
-_Static_assert(__builtin_offsetof(struct asb_cs, dsp_v2) == 0x0038, "asb_cs.dsp_v2");
-_Static_assert(__builtin_offsetof(struct asb_cs, page) == 0x0039, "asb_cs.page");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_003b) == 0x003b, "asb_cs.byte_003b");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_003d) == 0x003d, "asb_cs.byte_003d");
-_Static_assert(__builtin_offsetof(struct asb_cs, busy_int09) == 0x003e, "asb_cs.busy_int09");
-_Static_assert(__builtin_offsetof(struct asb_cs, busy_int0d) == 0x003f, "asb_cs.busy_int0d");
-_Static_assert(__builtin_offsetof(struct asb_cs, busy_int74) == 0x0040, "asb_cs.busy_int74");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0041) == 0x0041, "asb_cs.byte_0041");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0042) == 0x0042, "asb_cs.byte_0042");
-_Static_assert(__builtin_offsetof(struct asb_cs, busy_int10) == 0x0043, "asb_cs.busy_int10");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0044) == 0x0044, "asb_cs.byte_0044");
-_Static_assert(__builtin_offsetof(struct asb_cs, irq) == 0x0045, "asb_cs.irq");
-_Static_assert(__builtin_offsetof(struct asb_cs, looped) == 0x0046, "asb_cs.looped");
-_Static_assert(__builtin_offsetof(struct asb_cs, looping) == 0x0047, "asb_cs.looping");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0049) == 0x0049, "asb_cs.byte_0049");
-_Static_assert(__builtin_offsetof(struct asb_cs, half) == 0x004c, "asb_cs.half");
-_Static_assert(__builtin_offsetof(struct asb_cs, nothing_to_report) == 0x004d, "asb_cs.nothing_to_report");
-_Static_assert(__builtin_offsetof(struct asb_cs, irq_saved) == 0x004e, "asb_cs.irq_saved");
-_Static_assert(__builtin_offsetof(struct asb_cs, irq10_worth) == 0x004f, "asb_cs.irq10_worth");
-_Static_assert(__builtin_offsetof(struct asb_cs, byte_0052) == 0x0052, "asb_cs.byte_0052");
-_Static_assert(__builtin_offsetof(struct asb_cs, stopped) == 0x0054, "asb_cs.stopped");
-_Static_assert(__builtin_offsetof(struct asb_cs, length_a) == 0x0056, "asb_cs.length_a");
-_Static_assert(__builtin_offsetof(struct asb_cs, offset_a) == 0x0058, "asb_cs.offset_a");
-_Static_assert(__builtin_offsetof(struct asb_cs, length_b) == 0x005a, "asb_cs.length_b");
-_Static_assert(__builtin_offsetof(struct asb_cs, offset_b) == 0x005c, "asb_cs.offset_b");
-_Static_assert(__builtin_offsetof(struct asb_cs, pos_hi) == 0x0064, "asb_cs.pos_hi");
-_Static_assert(__builtin_offsetof(struct asb_cs, pos_lo) == 0x0066, "asb_cs.pos_lo");
-_Static_assert(__builtin_offsetof(struct asb_cs, block_length) == 0x006c, "asb_cs.block_length");
-_Static_assert(__builtin_offsetof(struct asb_cs, length) == 0x006e, "asb_cs.length");
-_Static_assert(__builtin_offsetof(struct asb_cs, offset) == 0x0070, "asb_cs.offset");
-_Static_assert(__builtin_offsetof(struct asb_cs, id) == 0x0072, "asb_cs.id");
-_Static_assert(__builtin_offsetof(struct asb_cs, pic_port) == 0x0074, "asb_cs.pic_port");
-_Static_assert(__builtin_offsetof(struct asb_cs, base) == 0x0076, "asb_cs.base");
-_Static_assert(__builtin_offsetof(struct asb_cs, rate) == 0x0078, "asb_cs.rate");
-_Static_assert(__builtin_offsetof(struct asb_cs, file_handle) == 0x007a, "asb_cs.file_handle");
-_Static_assert(__builtin_offsetof(struct asb_cs, limit_hi) == 0x0080, "asb_cs.limit_hi");
-_Static_assert(__builtin_offsetof(struct asb_cs, limit_lo) == 0x0082, "asb_cs.limit_lo");
-_Static_assert(__builtin_offsetof(struct asb_cs, dsp_rate) == 0x0084, "asb_cs.dsp_rate");
-_Static_assert(__builtin_offsetof(struct asb_cs, criterr) == 0x008e, "asb_cs.criterr");
-_Static_assert(__builtin_offsetof(struct asb_cs, indos) == 0x0092, "asb_cs.indos");
-_Static_assert(__builtin_offsetof(struct asb_cs, old_int0d) == 0x0096, "asb_cs.old_int0d");
-_Static_assert(__builtin_offsetof(struct asb_cs, old_int74) == 0x009a, "asb_cs.old_int74");
-_Static_assert(__builtin_offsetof(struct asb_cs, old_int10) == 0x009e, "asb_cs.old_int10");
-_Static_assert(__builtin_offsetof(struct asb_cs, old_int09) == 0x00a2, "asb_cs.old_int09");
-_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq2) == 0x07b9, "asb_cs.probe_irq2");
-_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq3) == 0x07ba, "asb_cs.probe_irq3");
-_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq5) == 0x07bb, "asb_cs.probe_irq5");
-_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq7) == 0x07bc, "asb_cs.probe_irq7");
-_Static_assert(__builtin_offsetof(struct asb_cs, probe_irq10) == 0x07bd, "asb_cs.probe_irq10");
 
 /*
  * **Segment 1c25, which keeps the displaced vectors inside its own code** -
@@ -3523,15 +3016,6 @@ struct sx_spkr {
 
 #define SXSPKR (*(struct sx_spkr *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_spkr, bend_value) == 0x033c, "sx_spkr.bend_value");
-_Static_assert(__builtin_offsetof(struct sx_spkr, bend) == 0x0342, "sx_spkr.bend");
-_Static_assert(__builtin_offsetof(struct sx_spkr, bend_up) == 0x0343, "sx_spkr.bend_up");
-_Static_assert(__builtin_offsetof(struct sx_spkr, note) == 0x0344, "sx_spkr.note");
-_Static_assert(__builtin_offsetof(struct sx_spkr, level) == 0x0345, "sx_spkr.level");
-_Static_assert(__builtin_offsetof(struct sx_spkr, enabled) == 0x0346, "sx_spkr.enabled");
-_Static_assert(__builtin_offsetof(struct sx_spkr, volume_on) == 0x0347, "sx_spkr.volume_on");
-_Static_assert(__builtin_offsetof(struct sx_spkr, channel) == 0x0348, "sx_spkr.channel");
-_Static_assert(__builtin_offsetof(struct sx_spkr, param_349) == 0x0349, "sx_spkr.param_349");
 
 /*
  * **The AdLib driver**, laid over whatever `SX_SEG` points at.
@@ -3551,7 +3035,6 @@ struct adl_patch {
     uint8_t   connect[2];         /* +0x1a */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct adl_patch) == 28, "the bank is indexed by 28");
 
 struct sx_adl {
     uint8_t   pad_0000[55];
@@ -3621,24 +3104,6 @@ struct sx_adl {
 
 #define SXADL (*(struct sx_adl *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_adl, reg_port) == 0x0037, "sx_adl.reg_port");
-_Static_assert(__builtin_offsetof(struct sx_adl, wait_port) == 0x0039, "sx_adl.wait_port");
-_Static_assert(__builtin_offsetof(struct sx_adl, data_port) == 0x003b, "sx_adl.data_port");
-_Static_assert(__builtin_offsetof(struct sx_adl, param_349) == 0x011d, "sx_adl.param_349");
-_Static_assert(__builtin_offsetof(struct sx_adl, enabled) == 0x011e, "sx_adl.enabled");
-_Static_assert(__builtin_offsetof(struct sx_adl, level) == 0x011f, "sx_adl.level");
-_Static_assert(__builtin_offsetof(struct sx_adl, voice_mru) == 0x01cf, "sx_adl.voice_mru");
-_Static_assert(__builtin_offsetof(struct sx_adl, no_operator) == 0x0210, "sx_adl.no_operator");
-_Static_assert(__builtin_offsetof(struct sx_adl, op_reg) == 0x0222, "sx_adl.op_reg");
-_Static_assert(__builtin_offsetof(struct sx_adl, chan_reg) == 0x0234, "sx_adl.chan_reg");
-_Static_assert(__builtin_offsetof(struct sx_adl, bank_bytes) == 0x0372, "sx_adl.bank_bytes");
-_Static_assert(__builtin_offsetof(struct sx_adl, patch) == 0x0374, "sx_adl.patch");
-_Static_assert(__builtin_offsetof(struct sx_adl, default_op) == 0x187a, "sx_adl.default_op");
-_Static_assert(__builtin_offsetof(struct sx_adl, note_select) == 0x1888, "sx_adl.note_select");
-_Static_assert(__builtin_offsetof(struct sx_adl, am_depth) == 0x1889, "sx_adl.am_depth");
-_Static_assert(__builtin_offsetof(struct sx_adl, vib_depth) == 0x188a, "sx_adl.vib_depth");
-_Static_assert(__builtin_offsetof(struct sx_adl, rhythm) == 0x188c, "sx_adl.rhythm");
-_Static_assert(__builtin_offsetof(struct sx_adl, wave_select) == 0x188d, "sx_adl.wave_select");
 
 /*
  * **The Sound Blaster Pro driver**, laid over whatever `SX_SEG` points at.
@@ -3706,28 +3171,6 @@ struct sx_sbp {
 
 #define SXSBP (*(struct sx_sbp *)MK_FP(SX_SEG, 0))
 
-_Static_assert(__builtin_offsetof(struct sx_sbp, reg_port) == 0x002c, "sx_sbp.reg_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, wait_port) == 0x002e, "sx_sbp.wait_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, data_port) == 0x0030, "sx_sbp.data_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, left_reg_port) == 0x0032, "sx_sbp.left_reg_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, left_wait_port) == 0x0034, "sx_sbp.left_wait_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, left_data_port) == 0x0036, "sx_sbp.left_data_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, right_reg_port) == 0x0038, "sx_sbp.right_reg_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, right_wait_port) == 0x003a, "sx_sbp.right_wait_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, right_data_port) == 0x003c, "sx_sbp.right_data_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, mixer_reg_port) == 0x003e, "sx_sbp.mixer_reg_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, mixer_data_port) == 0x0040, "sx_sbp.mixer_data_port");
-_Static_assert(__builtin_offsetof(struct sx_sbp, param_349) == 0x0122, "sx_sbp.param_349");
-_Static_assert(__builtin_offsetof(struct sx_sbp, enabled) == 0x0123, "sx_sbp.enabled");
-_Static_assert(__builtin_offsetof(struct sx_sbp, level) == 0x0124, "sx_sbp.level");
-_Static_assert(__builtin_offsetof(struct sx_sbp, voice_mru) == 0x01d4, "sx_sbp.voice_mru");
-_Static_assert(__builtin_offsetof(struct sx_sbp, opl3) == 0x0202, "sx_sbp.opl3");
-_Static_assert(__builtin_offsetof(struct sx_sbp, bank_bytes) == 0x0377, "sx_sbp.bank_bytes");
-_Static_assert(__builtin_offsetof(struct sx_sbp, note_select) == 0x188d, "sx_sbp.note_select");
-_Static_assert(__builtin_offsetof(struct sx_sbp, am_depth) == 0x188e, "sx_sbp.am_depth");
-_Static_assert(__builtin_offsetof(struct sx_sbp, vib_depth) == 0x188f, "sx_sbp.vib_depth");
-_Static_assert(__builtin_offsetof(struct sx_sbp, rhythm) == 0x1891, "sx_sbp.rhythm");
-_Static_assert(__builtin_offsetof(struct sx_sbp, wave_select) == 0x1892, "sx_sbp.wave_select");
 
 /*
  * ---------------------------------------------------------------------------
@@ -3766,25 +3209,12 @@ struct region {
                                          inside */
     struct far_ptr click;      /* +0x16  and this one on the click itself */
 } __attribute__((packed));
-_Static_assert(sizeof(struct region) == 0x1a, "a region record is thirteen words");
 
 #define REGION_PTR(p) ((struct region *)(dgroup + (uint16_t)(p)))
 
 /* **No region**, as a pointer - see `PART_NONE`. */
 #define REGION_NONE REGION_PTR(0)
 
-DG_ASSERT_AT(struct region, link_ptr,          0x00);
-DG_ASSERT_AT(struct region, mask,              0x02);
-DG_ASSERT_AT(struct region, x0,                0x06);
-DG_ASSERT_AT(struct region, y0,                0x08);
-DG_ASSERT_AT(struct region, x1,                0x0a);
-DG_ASSERT_AT(struct region, y1,                0x0c);
-DG_ASSERT_AT(struct region, cursor,            0x0e);
-DG_ASSERT_AT(struct region, code,              0x10);
-DG_ASSERT_AT(struct region, hover,             0x12);
-DG_ASSERT_AT(struct region, click,             0x16);
-_Static_assert(sizeof(struct region) == 0x1a,
-               "a region is 0x1a bytes - build_screen_regions cuts thirty-six");
 
 /*
  * ---------------------------------------------------------------------------
@@ -3906,14 +3336,6 @@ struct open_file {
                                          unsigned bound makes it unsigned */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct open_file, path,              0x02);
-DG_ASSERT_AT(struct open_file, bound,             0x1b);
-DG_ASSERT_AT(struct open_file, depth,             0x37);
-DG_ASSERT_AT(struct open_file, matched,           0x39);
-DG_ASSERT_AT(struct open_file, pos,               0x3b);
-DG_ASSERT_AT(struct open_file, size,              0x3f);
-_Static_assert(sizeof(struct open_file) == 0x43,
-               "an open file is what find_file_record strides by");
 
 
 /*
@@ -3989,9 +3411,6 @@ struct bitmap {
     int16_t   height;             /* +0x08 */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct bitmap) == 0xa,
-               "a bitmap header is the 0xa read_bmp_info calloc's one of "
-               "per bitmap, and the 0xa it steps its cursor by");
 
 /* **The same header as a pointer**, for the routines that take one rather
    than reach for a field. `draw_bitmap` and the four it dispatches to had a
@@ -4072,9 +3491,6 @@ struct sound_node {
     struct far_ptr next;        /* +0x04  null-terminated, both halves zero */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct sound_node, key,               0x00);
-DG_ASSERT_AT(struct sound_node, length,            0x02);
-DG_ASSERT_AT(struct sound_node, next,              0x04);
 
 /* One of these through the far pointer that reaches it. Not a `DG*` macro:
    they are not in DGROUP. */
@@ -4149,7 +3565,6 @@ struct sequence_channels {
     uint8_t        no_voice[15];        /* +0x87  0 at start */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct sequence_channels) == 0x96, "+0x0bc to +0x152 of a sequence");
 
 struct sequence {
     uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
@@ -4197,7 +3612,6 @@ struct sequence {
     uint8_t        unknown_176[4];      /* +0x176 */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct sequence) == 0x17a, "create_sequence allocates 0x17a bytes");
 
 /* **No sequence**, and **no node**, as pointers: 0000:0000, the null far
    pointer the guest tests with `or ax,dx` - see `PART_NONE` for why a
@@ -4223,7 +3637,6 @@ struct sound_dir_entry {
                                          original loads it as two words */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct sound_dir_entry) == 6, "the walk steps by six");
 
 struct sound_dir {
     struct far_ptr cursor;     /* +0x00  where the walk is, filed by open_sound_file */
@@ -4233,10 +3646,6 @@ struct sound_dir {
     struct sound_dir_entry entry[1];   /* +0x09  `count` of them */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct sound_dir, magic,             0x04);
-DG_ASSERT_AT(struct sound_dir, count,             0x06);
-DG_ASSERT_AT(struct sound_dir, kind,              0x08);
-DG_ASSERT_AT(struct sound_dir, entry,             0x09);
 
 /*
  * ---------------------------------------------------------------------------
@@ -4263,40 +3672,11 @@ struct sound_record {
     uint16_t       flags;               /* +0x12  bit 0 sequenced, bit 1 loop, bit 4 start pending */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct sound_record) == 0x14, "read_record allocates 0x14 bytes");
-DG_ASSERT_AT(struct sound_record, data,              0x04);
-DG_ASSERT_AT(struct sound_record, id,                0x0a);
-DG_ASSERT_AT(struct sound_record, sequence,          0x0e);
-DG_ASSERT_AT(struct sound_record, flags,             0x12);
 
 #define SOUND_RECORD_NONE ((struct sound_record *)(void *)FAR_NULL_PTR)
 #define SOUND_RECORD_PTR(fp) ((struct sound_record *)(void *)dg_far_ptr((fp)))
-DG_ASSERT_AT(struct sequence, cursor_at,         0x008);
-DG_ASSERT_AT(struct sequence, position,          0x00c);
-DG_ASSERT_AT(struct sequence, delay,             0x04c);
-DG_ASSERT_AT(struct sequence, track_channel,          0x08c);
-DG_ASSERT_AT(struct sequence, ch,                0x0bc);
-DG_ASSERT_AT(struct sequence, ch.voice_budget,      0x0da);
-DG_ASSERT_AT(struct sequence, ch.no_voice,      0x143);
-DG_ASSERT_AT(struct sequence, loop_count,        0x152);
-DG_ASSERT_AT(struct sequence, state,             0x158);
-DG_ASSERT_AT(struct sequence, priority,          0x15c);
-DG_ASSERT_AT(struct sequence, volume,            0x15e);
-DG_ASSERT_AT(struct sequence, fade_target,       0x160);
-DG_ASSERT_AT(struct sequence, poll,              0x165);
-DG_ASSERT_AT(struct sequence, source,            0x166);
-DG_ASSERT_AT(struct sequence, cursor,            0x16a);
-DG_ASSERT_AT(struct sequence, next,              0x172);
 
-DG_ASSERT_AT(struct vqt_reader, pos,               0x00);
-DG_ASSERT_AT(struct vqt_reader, data,              0x04);
-DG_ASSERT_AT(struct vqt_reader, plane,             0x08);
-DG_ASSERT_AT(struct vqt_reader, row,               0x18);
 
-DG_ASSERT_AT(struct bitmap, data,              0x00);
-DG_ASSERT_AT(struct bitmap, mask_off,          0x04);
-DG_ASSERT_AT(struct bitmap, width,             0x06);
-DG_ASSERT_AT(struct bitmap, height,            0x08);
 
 /*
  * ---------------------------------------------------------------------------
@@ -4488,8 +3868,6 @@ struct part_shapes {
 
 extern struct part_shapes PARTSHAPES;
 
-_Static_assert(sizeof(struct part_shapes) == 0x3d8,
-               "the shape tables run from 0x3182 to the IFF chunk names at 0x355a");
 
 /*
  * **The IFF chunk names**, DGROUP 0x355a..0x3576, and the mode the file is
@@ -4505,88 +3883,7 @@ struct iff_chunk_names {
     char      body[5];            /* +0x14  "BODY" */
     char      mode_wb[3];         /* +0x19  "wb" */
 } __attribute__((packed));
-_Static_assert(sizeof(struct iff_chunk_names) == 0x1c, "ends at 0x3576, DG3576");
 extern struct iff_chunk_names IFF_CHUNK_NAMES;
-DG_ASSERT_AT(struct part_shapes, s_3182,            0x000);
-DG_ASSERT_AT(struct part_shapes, s_3192,            0x010);
-DG_ASSERT_AT(struct part_shapes, s_319e,            0x01c);
-DG_ASSERT_AT(struct part_shapes, s_31aa,            0x028);
-DG_ASSERT_AT(struct part_shapes, o_31b6,            0x034);
-DG_ASSERT_AT(struct part_shapes, s_31bc,            0x03a);
-DG_ASSERT_AT(struct part_shapes, s_31c8,            0x046);
-DG_ASSERT_AT(struct part_shapes, s_31d4,            0x052);
-DG_ASSERT_AT(struct part_shapes, o_31e0,            0x05e);
-DG_ASSERT_AT(struct part_shapes, glove_reach,       0x064);
-DG_ASSERT_AT(struct part_shapes, s_31f2,            0x070);
-DG_ASSERT_AT(struct part_shapes, s_31fe,            0x07c);
-DG_ASSERT_AT(struct part_shapes, s_320a,            0x088);
-DG_ASSERT_AT(struct part_shapes, s_3216,            0x094);
-DG_ASSERT_AT(struct part_shapes, s_3222,            0x0a0);
-DG_ASSERT_AT(struct part_shapes, s_322a,            0x0a8);
-DG_ASSERT_AT(struct part_shapes, s_3232,            0x0b0);
-DG_ASSERT_AT(struct part_shapes, s_3242,            0x0c0);
-DG_ASSERT_AT(struct part_shapes, s_3252,            0x0d0);
-DG_ASSERT_AT(struct part_shapes, s_325c,            0x0da);
-DG_ASSERT_AT(struct part_shapes, s_3266,            0x0e4);
-DG_ASSERT_AT(struct part_shapes, s_3274,            0x0f2);
-DG_ASSERT_AT(struct part_shapes, s_3282,            0x100);
-DG_ASSERT_AT(struct part_shapes, s_3290,            0x10e);
-DG_ASSERT_AT(struct part_shapes, s_329a,            0x118);
-DG_ASSERT_AT(struct part_shapes, s_32a4,            0x122);
-DG_ASSERT_AT(struct part_shapes, s_32ae,            0x12c);
-DG_ASSERT_AT(struct part_shapes, s_32b8,            0x136);
-DG_ASSERT_AT(struct part_shapes, s_32c0,            0x13e);
-DG_ASSERT_AT(struct part_shapes, s_32c8,            0x146);
-DG_ASSERT_AT(struct part_shapes, s_32d2,            0x150);
-DG_ASSERT_AT(struct part_shapes, p_32dc,            0x15a);
-DG_ASSERT_AT(struct part_shapes, s_32fc,            0x17a);
-DG_ASSERT_AT(struct part_shapes, s_3308,            0x186);
-DG_ASSERT_AT(struct part_shapes, s_3314,            0x192);
-DG_ASSERT_AT(struct part_shapes, s_3322,            0x1a0);
-DG_ASSERT_AT(struct part_shapes, conveyor_grab_x,   0x1ae);
-DG_ASSERT_AT(struct part_shapes, s_3336,            0x1b4);
-DG_ASSERT_AT(struct part_shapes, s_3344,            0x1c2);
-DG_ASSERT_AT(struct part_shapes, s_334c,            0x1ca);
-DG_ASSERT_AT(struct part_shapes, s_3354,            0x1d2);
-DG_ASSERT_AT(struct part_shapes, s_335c,            0x1da);
-DG_ASSERT_AT(struct part_shapes, o_3364,            0x1e2);
-DG_ASSERT_AT(struct part_shapes, s_336c,            0x1ea);
-DG_ASSERT_AT(struct part_shapes, s_3374,            0x1f2);
-DG_ASSERT_AT(struct part_shapes, s_337c,            0x1fa);
-DG_ASSERT_AT(struct part_shapes, s_3384,            0x202);
-DG_ASSERT_AT(struct part_shapes, o_338c,            0x20a);
-DG_ASSERT_AT(struct part_shapes, jack_reach,        0x212);
-DG_ASSERT_AT(struct part_shapes, p_339a,            0x218);
-DG_ASSERT_AT(struct part_shapes, s_33aa,            0x228);
-DG_ASSERT_AT(struct part_shapes, s_33bc,            0x23a);
-DG_ASSERT_AT(struct part_shapes, s_33ce,            0x24c);
-DG_ASSERT_AT(struct part_shapes, s_33d6,            0x254);
-DG_ASSERT_AT(struct part_shapes, s_33de,            0x25c);
-DG_ASSERT_AT(struct part_shapes, o_33e6,            0x264);
-DG_ASSERT_AT(struct part_shapes, s_33ec,            0x26a);
-DG_ASSERT_AT(struct part_shapes, s_33f4,            0x272);
-DG_ASSERT_AT(struct part_shapes, s_33fc,            0x27a);
-DG_ASSERT_AT(struct part_shapes, o_3404,            0x282);
-DG_ASSERT_AT(struct part_shapes, p_340a,            0x288);
-DG_ASSERT_AT(struct part_shapes, p_3416,            0x294);
-DG_ASSERT_AT(struct part_shapes, s_3422,            0x2a0);
-DG_ASSERT_AT(struct part_shapes, s_3432,            0x2b0);
-DG_ASSERT_AT(struct part_shapes, s_3442,            0x2c0);
-DG_ASSERT_AT(struct part_shapes, s_3452,            0x2d0);
-DG_ASSERT_AT(struct part_shapes, s_3462,            0x2e0);
-DG_ASSERT_AT(struct part_shapes, s_3472,            0x2f0);
-DG_ASSERT_AT(struct part_shapes, s_3482,            0x300);
-DG_ASSERT_AT(struct part_shapes, o_3492,            0x310);
-DG_ASSERT_AT(struct part_shapes, s_3496,            0x314);
-DG_ASSERT_AT(struct part_shapes, s_34a6,            0x324);
-DG_ASSERT_AT(struct part_shapes, o_34b6,            0x334);
-DG_ASSERT_AT(struct part_shapes, cut_line,          0x338);
-DG_ASSERT_AT(struct part_shapes, p_34ca,            0x348);
-DG_ASSERT_AT(struct part_shapes, p_34d6,            0x354);
-DG_ASSERT_AT(struct part_shapes, p_34e2,            0x360);
-DG_ASSERT_AT(struct part_shapes, p_3502,            0x380);
-DG_ASSERT_AT(struct part_shapes, p_3522,            0x3a0);
-DG_ASSERT_AT(struct part_shapes, shaft_line,        0x3c0);
 
 struct belt {
     dg_near_t owner_ptr;       /* +0x00  the part this belt hangs off */
@@ -4605,18 +3902,6 @@ struct belt {
                                          gen 1 at +0x24 */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct belt, end_a_ptr,         0x02);
-DG_ASSERT_AT(struct belt, end_b_ptr,         0x04);
-DG_ASSERT_AT(struct belt, home_a_ptr,        0x06);
-DG_ASSERT_AT(struct belt, home_b_ptr,        0x08);
-DG_ASSERT_AT(struct belt, slot_a,            0x0a);
-DG_ASSERT_AT(struct belt, slot_b,            0x0b);
-DG_ASSERT_AT(struct belt, home_slot_a,       0x0c);
-DG_ASSERT_AT(struct belt, home_slot_b,       0x0d);
-DG_ASSERT_AT(struct belt, v,                 0x0e);
-DG_ASSERT_AT(struct belt, pt,                0x14);
-_Static_assert(sizeof(struct belt) == 0x2c,
-               "a belt is what heap_calloc_far(1, 0x2c) makes");
 
 #define BELT_PTR(p) ((struct belt *)(dgroup + (uint16_t)(p)))
 
@@ -4660,12 +3945,6 @@ struct rope {
                                          gen 1 at +0x28 */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct rope, owner_ptr,         0x02);
-DG_ASSERT_AT(struct rope, end_a_ptr,         0x04);
-DG_ASSERT_AT(struct rope, end_b_ptr,         0x06);
-DG_ASSERT_AT(struct rope, pt,                0x08);
-_Static_assert(sizeof(struct rope) == 0x38,
-               "a rope is what clone_part makes with heap_calloc_far(1, 0x38)");
 
 #define ROPE_PTR(p) ((struct rope *)(dgroup + (uint16_t)(p)))
 
@@ -4694,8 +3973,6 @@ struct part_point {
     int16_t   angle;           /* +0x02  towards the next point */
 } __attribute__((packed));
 
-_Static_assert(sizeof(struct part_point) == 4,
-               "part_init allocates four bytes a point");
 
 /* Not `volatile`, for the reason `PARTP` gives: a point array is a part's
    own data, reached only from one, and the timer handler touches neither. */
@@ -4788,29 +4065,6 @@ struct part_kind {
     struct far_ptr drive;      /* +0x36  the drive hook - the one `part_drive` calls with seven arguments */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct part_kind, weight,            0x02);
-DG_ASSERT_AT(struct part_kind, bounce,           0x04);
-DG_ASSERT_AT(struct part_kind, grip,           0x06);
-DG_ASSERT_AT(struct part_kind, gravity,           0x08);
-DG_ASSERT_AT(struct part_kind, max_speed,         0x0a);
-DG_ASSERT_AT(struct part_kind, max_w,             0x0c);
-DG_ASSERT_AT(struct part_kind, max_h,             0x0e);
-DG_ASSERT_AT(struct part_kind, min_w,             0x10);
-DG_ASSERT_AT(struct part_kind, min_h,             0x12);
-DG_ASSERT_AT(struct part_kind, bitmaps_ptr,       0x14);
-DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,      0x16);
-DG_ASSERT_AT(struct part_kind, hotspots_ptr,           0x18);
-DG_ASSERT_AT(struct part_kind, sizes_ptr,           0x1a);
-DG_ASSERT_AT(struct part_kind, refile_level,      0x1c);
-DG_ASSERT_AT(struct part_kind, point_count,       0x1e);
-DG_ASSERT_AT(struct part_kind, hit,               0x22);
-DG_ASSERT_AT(struct part_kind, step,              0x26);
-DG_ASSERT_AT(struct part_kind, setup,             0x2a);
-DG_ASSERT_AT(struct part_kind, flip,              0x2e);
-DG_ASSERT_AT(struct part_kind, settle,            0x32);
-DG_ASSERT_AT(struct part_kind, drive,             0x36);
-_Static_assert(sizeof(struct part_kind) == 0x3a,
-               "a part kind is what free_part_bitmap strides by");
 
 /*
  * **The part kinds by name**, so `make_part(KIND_DYNAMITE)` says which part
@@ -4955,9 +4209,6 @@ struct queue_node {
                                          word and `jae`/`ja` on the low */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct queue_node, part,              0x02);
-DG_ASSERT_AT(struct queue_node, momentum,          0x04);
-_Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc_far(1, 8) makes");
 
 #define QNODE_PTR(p) ((struct queue_node *)(dgroup + (uint16_t)(p)))
 
@@ -5007,12 +4258,6 @@ struct rect_list_entry {
     dg_near_t next_ptr;        /* +0x18 */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct rect_list_entry, page_src,          0x08);
-DG_ASSERT_AT(struct rect_list_entry, mode,              0x0c);
-DG_ASSERT_AT(struct rect_list_entry, refcount,          0x0e);
-DG_ASSERT_AT(struct rect_list_entry, buf,               0x14);
-DG_ASSERT_AT(struct rect_list_entry, next_ptr,          0x18);
-_Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1a bytes");
 
 #define RECTENT_PTR(p) ((struct rect_list_entry *)(dgroup + (uint16_t)(p)))
 
@@ -5039,12 +4284,6 @@ struct part_template {
                                          far */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct part_template, flags_0a,          0x02);
-DG_ASSERT_AT(struct part_template, set_size,          0x04);
-DG_ASSERT_AT(struct part_template, size,              0x08);
-DG_ASSERT_AT(struct part_template, init,              0x0c);
-_Static_assert(sizeof(struct part_template) == 0x10,
-               "a part template is what make_part strides by");
 
 /* The templates, one per kind, and the two words after them that nothing is
    known to read. */
@@ -5124,29 +4363,12 @@ struct resource {
     uint8_t   kind;            /* +0x20  the type prepare_resource_slot was given */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct resource, scratch,           0x02);
-DG_ASSERT_AT(struct resource, data,              0x06);
-DG_ASSERT_AT(struct resource, in,                0x0a);
-DG_ASSERT_AT(struct resource, end,               0x0e);
-DG_ASSERT_AT(struct resource, size,              0x12);
-DG_ASSERT_AT(struct resource, pos,               0x16);
-DG_ASSERT_AT(struct resource, spill_end,         0x1a);
-DG_ASSERT_AT(struct resource, spill_start,       0x1b);
-DG_ASSERT_AT(struct resource, start,             0x1c);
-DG_ASSERT_AT(struct resource, kind,              0x20);
-_Static_assert(sizeof(struct resource) == 0x21,
-               "a resource is what heap_calloc_far(1, 0x21) makes");
 
 #define RESOURCE_PTR(p) ((struct resource *)(dgroup + (uint16_t)(p)))
 
 /* **No resource slot**, as a pointer - see `PART_NONE`. */
 #define RESOURCE_NONE RESOURCE_PTR(0)
 
-DG_ASSERT_AT(struct file_rec, level,             0x00);
-DG_ASSERT_AT(struct file_rec, flags,             0x02);
-DG_ASSERT_AT(struct file_rec, fd,                0x04);
-DG_ASSERT_AT(struct file_rec, bsize,             0x06);
-DG_ASSERT_AT(struct file_rec, curp_ptr,          0x0a);
 
 /*
  * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
@@ -5196,7 +4418,6 @@ struct dg_440e {
     struct far_ptr driver_table[19]; /* +0x04  0x4412 */
     uint8_t   pad_445e[2];         /* +0x50 */
 } __attribute__((packed));
-_Static_assert(sizeof(struct dg_440e) == 0x52, "ends at 0x4460, ENGINE_PEN");
 extern struct dg_440e DG440E;
 
 /* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */

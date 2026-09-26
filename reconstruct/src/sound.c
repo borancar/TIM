@@ -32,7 +32,6 @@ struct sound_voices {
 } __attribute__((packed));
 
 struct sound_voices SOUND_VOICES DGROUP_BSS(0x6414);
-_Static_assert(sizeof(struct sound_voices) == 0x1c, "seven voices end at SOUND_TICK_WAIT");
 
 /*
  * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
@@ -47,10 +46,6 @@ struct sound_tick_wait {
 } __attribute__((packed));
 
 struct sound_tick_wait SOUND_TICK_WAIT DGROUP_BSS(0x6430);
-_Static_assert(sizeof(struct sound_tick_wait) == 0x08, "DGROUP 0x6430..0x6438, 0x08 bytes");
-DG_ASSERT_AT(struct sound_tick_wait, ticks_left, 0x00);
-DG_ASSERT_AT(struct sound_tick_wait, cursor,     0x02);
-DG_ASSERT_AT(struct sound_tick_wait, selector,   0x06);
 
 
 /*

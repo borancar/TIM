@@ -65,9 +65,6 @@ struct game_startup_names GAME_STARTUP_NAMES DGROUP_AT(0x00aa) = {
     .sx_ovl = "sx.ovl",
     .tim_sx = "tim.sx",
 };
-DG_ASSERT_AT(struct game_startup_names, cp_bmp, 0x4b);
-DG_ASSERT_AT(struct game_startup_names, tim_sx, 0x65);
-_Static_assert(sizeof(struct game_startup_names) == 0x6c, "the runtime's file names end at the master-level table at 0x116");
 
 /*
  * **The master-level table**, DGROUP 0x0116..0x0124, 0x0e bytes: a word per master level, 0 to
@@ -82,7 +79,6 @@ struct game_master_levels {
 struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = {
     .master_level_ok = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f },
 };
-_Static_assert(sizeof(struct game_master_levels) == 14, "the master-level table ends at 0x124");
 
 /*
  * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
@@ -93,8 +89,6 @@ struct game_path_sep {
 } __attribute__((packed));
 
 struct game_path_sep GAME_PATH_SEP DGROUP_AT(0x1bca) = { .path_sep_ptr = 0x236e };
-_Static_assert(sizeof(struct game_path_sep) == 0x02, "DGROUP 0x1bca..0x1bcc, 0x02 bytes");
-DG_ASSERT_AT(struct game_path_sep, path_sep_ptr, 0x00);
 
 /*
  * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
@@ -182,11 +176,6 @@ struct game_intro_steps GAME_INTRO_STEPS DGROUP_AT(0x2370) = {
         { .x = 0x01ee, .y = 0x002f, .bitmap = 0x0007 },
     },
 };
-_Static_assert(sizeof(struct game_intro_steps) == 0x17a, "DGROUP 0x2370..0x24ea, 0x17a bytes");
-DG_ASSERT_AT(struct intro_step, x,          0x00);
-DG_ASSERT_AT(struct intro_step, y,          0x02);
-DG_ASSERT_AT(struct intro_step, bitmap,     0x04);
-DG_ASSERT_AT(struct game_intro_steps, step, 0x00);
 
 /*
  * **The copy-protection answers**, DGROUP 0x24ea..0x254a, 0x60 bytes: three rows of sixteen
@@ -214,7 +203,6 @@ struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
         },
     },
 };
-_Static_assert(sizeof(struct game_copy_protection) == 0x60, "the answers end at 0x254a");
 
 /*
  * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
@@ -227,8 +215,6 @@ struct game_message_tabs {
 } __attribute__((packed));
 
 struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
-_Static_assert(sizeof(struct game_message_tabs) == 0x06, "DGROUP 0x259c..0x25a2, 0x06 bytes");
-DG_ASSERT_AT(struct game_message_tabs, stop, 0x00);
 
 /*
  * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
@@ -252,7 +238,6 @@ struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
     .gp_menu_bmp = "gp_menu.bmp",
     .score2_bmp = "score2.bmp",
 };
-_Static_assert(sizeof(struct game_button_labels) == 0x32, "GAME_BUTTON_LABELS ends at 0x260a");
 
 /*
  * **Where Tab sends the pointer on the puzzle picker's controls**, DGROUP 0x260a..0x2620, 0x16 bytes: which
@@ -270,8 +255,6 @@ struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
     .stop_x = { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 },
     .stop_y = { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 },
 };
-_Static_assert(sizeof(struct game_puzzle_tabs) == 0x16, "DGROUP 0x260a..0x2620, 0x16 bytes");
-DG_ASSERT_AT(struct game_puzzle_tabs, stop, 0x00);
 
 /*
  * **The part bitmap's name pieces**, DGROUP 0x2620..0x2630: "*", ": ",
@@ -288,7 +271,6 @@ struct game_part_names {
 } __attribute__((packed));
 
 struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = { .star = "*", .title_sep = ": ", .part = "part", .bmp = ".bmp" };
-_Static_assert(sizeof(struct game_part_names) == 0x10, "DGROUP 0x2620..0x2630, 0x10 bytes");
 
 
 /*
@@ -315,8 +297,6 @@ struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
         0x0098, 0x00ec, 0x0138,
     },
 };
-_Static_assert(sizeof(struct game_play_tabs) == 0x2a, "DGROUP 0x27ee..0x2818, 0x2a bytes");
-DG_ASSERT_AT(struct game_play_tabs, stop, 0x00);
 
 /*
  * **Where each master level's marker is drawn**, DGROUP 0x2818..0x2824, 0x0c bytes: an x per
@@ -328,7 +308,6 @@ struct game_master_level_x {
 } __attribute__((packed));
 
 struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = { .level_x = { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 } };
-_Static_assert(sizeof(struct game_master_level_x) == 0x0c, "DGROUP 0x2818..0x2824, 0x0c bytes");
 
 struct game_level_strings GAME_LEVEL_STRINGS DGROUP_AT(0x2824) = {
     .ff_lev = "ff.lev",
@@ -338,7 +317,6 @@ struct game_level_strings GAME_LEVEL_STRINGS DGROUP_AT(0x2824) = {
     .replay = "REPLAY",
     .advance = "ADVANCE",
 };
-_Static_assert(sizeof(struct game_level_strings) == 0x26, "the level screens' literals end at 0x284a");
 
 /*
  * **The file names and modes**, DGROUP 0x2870..0x28d2, 0x62 bytes: one "rb", "wb", "l", ".lev",
@@ -398,7 +376,6 @@ struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
     .tim_cfg_write = "tim.cfg",
     .wb_tim_cfg = "wb",
 };
-_Static_assert(sizeof(struct game_file_names) == 0x62, "the file names end at the hash order at 0x28d2");
 
 /*
  * **The characters a filename may not contain**, DGROUP 0x28ec..0x28fa, 0x0e bytes: fourteen
@@ -410,7 +387,6 @@ struct game_forbidden_chars {
 } __attribute__((packed));
 
 struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = { .forbidden = "*/,-[]&@^%?():" };
-_Static_assert(sizeof(struct game_forbidden_chars) == 14, "the forbidden characters end at 0x28fa");
 
 /*
  * **Where Tab sends the pointer on the file picker's controls**, DGROUP 0x28fa..0x2918, 0x1e bytes: which
@@ -428,8 +404,6 @@ struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
     .stop_x = { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 },
     .stop_y = { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a },
 };
-_Static_assert(sizeof(struct game_picker_tabs) == 0x1e, "DGROUP 0x28fa..0x2918, 0x1e bytes");
-DG_ASSERT_AT(struct game_picker_tabs, stop, 0x00);
 
 /*
  * **The file dialog's strings**, DGROUP 0x2918..0x2966: the ".TIM" extension
@@ -482,7 +456,6 @@ struct game_file_strings GAME_FILE_STRINGS DGROUP_AT(0x2918) = {
     .star_dot_star_b = "*.*",
     .dot_dot_b = "..",
 };
-_Static_assert(sizeof(struct game_file_strings) == 0x4e, "DGROUP 0x2918..0x2966, where the part templates start");
 
 
 /*
@@ -516,10 +489,6 @@ struct game_directories {
 } __attribute__((packed));
 
 struct game_directories GAME_DIRECTORIES DGROUP_BSS(0x530b);
-_Static_assert(sizeof(struct game_directories) == 0xf0, "DGROUP 0x530b..0x53fb, 0xf0 bytes");
-DG_ASSERT_AT(struct game_directories, picker_dir, 0x00);
-DG_ASSERT_AT(struct game_directories, game_dir,   0x50);
-DG_ASSERT_AT(struct game_directories, path_field, 0xa0);
 
 /*
  * **The text the player types on the puzzle screen**, DGROUP 0x542e..0x5456, 0x28 bytes - a
@@ -532,7 +501,6 @@ struct game_typed_text {
 } __attribute__((packed));
 
 struct game_typed_text GAME_TYPED_TEXT DGROUP_BSS(0x542e);
-_Static_assert(sizeof(struct game_typed_text) == 0x28, "the typed text ends at DG5456");
 
 /*
  * **The shared name buffer**, DGROUP 0x5682..0x568f, 0x0d bytes. `listing_to_name` strips a
@@ -547,8 +515,6 @@ struct game_name_buffer {
 } __attribute__((packed));
 
 struct game_name_buffer GAME_NAME_BUFFER DGROUP_BSS(0x5682);
-_Static_assert(sizeof(struct game_name_buffer) == 0x0d, "DGROUP 0x5682..0x568f, 0x0d bytes");
-DG_ASSERT_AT(struct game_name_buffer, name, 0x00);
 
 /*
  * **The file picker and the wrapped-text block**, DGROUP 0x568f..0x56a6, 0x17 bytes.
@@ -569,17 +535,6 @@ struct game_picker_text {
 } __attribute__((packed));
 
 struct game_picker_text GAME_PICKER_TEXT DGROUP_BSS(0x568f);
-_Static_assert(sizeof(struct game_picker_text) == 0x17, "DGROUP 0x568f..0x56a6, 0x17 bytes");
-DG_ASSERT_AT(struct game_picker_text, picker_mode, 0x00);
-DG_ASSERT_AT(struct game_picker_text, scroll,      0x02);
-DG_ASSERT_AT(struct game_picker_text, entry_count, 0x04);
-DG_ASSERT_AT(struct game_picker_text, text_start,  0x06);
-DG_ASSERT_AT(struct game_picker_text, block,       0x0a);
-DG_ASSERT_AT(struct game_picker_text, entry_max,   0x0e);
-DG_ASSERT_AT(struct game_picker_text, _pad_569f,   0x10);
-DG_ASSERT_AT(struct game_picker_text, text_height, 0x11);
-DG_ASSERT_AT(struct game_picker_text, text_width,  0x13);
-DG_ASSERT_AT(struct game_picker_text, line_count,  0x15);
 
 /*
  * 0x0dfff

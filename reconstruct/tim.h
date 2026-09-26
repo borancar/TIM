@@ -329,8 +329,6 @@ union sound_module_args {
     struct sound_position_args position;
 };
 
-_Static_assert(sizeof(struct sound_play_args) == 10, "function 3's block is five words");
-_Static_assert(sizeof(struct sound_position_args) == 6, "function 13 writes three words");
 
 /* The sound module's service routine - what the timer calls. */
 void sound_service(void);                           /* 0x27ace */

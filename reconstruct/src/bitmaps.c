@@ -41,12 +41,6 @@ struct bitmaps_flip_state {
 } __attribute__((packed));
 
 struct bitmaps_flip_state BITMAPS_FLIP_STATE DGROUP_BSS(0x63f6);
-_Static_assert(sizeof(struct bitmaps_flip_state) == 0x0a, "DGROUP 0x63f6..0x6400, 0x0a bytes");
-DG_ASSERT_AT(struct bitmaps_flip_state, flip_y,     0x00);
-DG_ASSERT_AT(struct bitmaps_flip_state, flip_x,     0x02);
-DG_ASSERT_AT(struct bitmaps_flip_state, _pad_63fa,  0x04);
-DG_ASSERT_AT(struct bitmaps_flip_state, index_bits, 0x06);
-DG_ASSERT_AT(struct bitmaps_flip_state, palette,    0x08);
 
 
 /*

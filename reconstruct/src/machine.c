@@ -35,8 +35,6 @@ struct machine_quadrant_steps {
 } __attribute__((packed));
 
 struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { .dx = { [1] = -1, [3] = 0x0001 }, .dy = { -1, 0x0000, 0x0001 } };
-DG_ASSERT_AT(struct machine_quadrant_steps, dy, 0x08);
-_Static_assert(sizeof(struct machine_quadrant_steps) == 0x10, "the quadrant steps end at 0x259c");
 
 /*
  * **The cursors' hot spots**, DGROUP 0x284a..0x286e, 0x24 bytes: x for the nine
@@ -63,8 +61,6 @@ struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
     },
     .hot_y = { [1] = 0x000a },
 };
-DG_ASSERT_AT(struct machine_cursor_hotspots, hot_y, 0x12);
-_Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots end at 0x286e");
 
 /*
  * **Last frame's button state**, DGROUP 0x286e..0x2870, 0x02 bytes.
@@ -76,8 +72,6 @@ struct machine_button_prev {
 } __attribute__((packed));
 
 struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e);
-_Static_assert(sizeof(struct machine_button_prev) == 0x02, "DGROUP 0x286e..0x2870, 0x02 bytes");
-DG_ASSERT_AT(struct machine_button_prev, prev, 0x00);
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP
@@ -91,7 +85,6 @@ struct machine_hash_order {
 } __attribute__((packed));
 
 struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
-_Static_assert(sizeof(struct machine_hash_order) == 0x04, "DGROUP 0x28d2..0x28d6, 0x04 bytes");
 
 /*
  * **The resource map's name and three modes**, DGROUP 0x28d6..0x28ec:
@@ -111,7 +104,6 @@ struct machine_resource_map_names MACHINE_RESOURCE_MAP_NAMES DGROUP_AT(0x28d6) =
     .mode_rb_b = "rb",
     .mode_rb_c = "rb",
 };
-_Static_assert(sizeof(struct machine_resource_map_names) == 0x16, "DGROUP 0x28d6..0x28ec, 0x16 bytes");
 
 
 /*
@@ -140,7 +132,6 @@ struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
         { .src = 0x38a0, .dst = 0x38a4 },
     },
 };
-_Static_assert(sizeof(struct machine_page_pairs) == 0x28, "the page pairs end at 0x2d32");
 
 /*
  * **The cursor, the fade, and the palette waiting to load**, DGROUP 0x2d32..0x2d48, 0x16 bytes.
@@ -171,17 +162,6 @@ struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
     .timer_draws_cursor = 0x0001,
     .slots_unset = 0x0001,
 };
-_Static_assert(sizeof(struct machine_cursor_state) == 0x16, "DGROUP 0x2d32..0x2d48, 0x16 bytes");
-DG_ASSERT_AT(struct machine_cursor_state, page,             0x00);
-DG_ASSERT_AT(struct machine_cursor_state, screen_disturbed, 0x02);
-DG_ASSERT_AT(struct machine_cursor_state, fade_first,        0x04);
-DG_ASSERT_AT(struct machine_cursor_state, fade_count,        0x06);
-DG_ASSERT_AT(struct machine_cursor_state, pending_pal,      0x08);
-DG_ASSERT_AT(struct machine_cursor_state, cursor_off,       0x0c);
-DG_ASSERT_AT(struct machine_cursor_state, delay_reload,     0x0e);
-DG_ASSERT_AT(struct machine_cursor_state, read_driver,      0x10);
-DG_ASSERT_AT(struct machine_cursor_state, timer_draws_cursor,        0x12);
-DG_ASSERT_AT(struct machine_cursor_state, slots_unset,        0x14);
 
 /*
  * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
@@ -197,9 +177,6 @@ struct machine_isr_stack {
 } __attribute__((packed));
 
 struct machine_isr_stack MACHINE_ISR_STACK DGROUP_AT(0x317e);
-_Static_assert(sizeof(struct machine_isr_stack) == 0x04, "DGROUP 0x317e..0x3182, 0x04 bytes");
-DG_ASSERT_AT(struct machine_isr_stack, saved_ss, 0x00);
-DG_ASSERT_AT(struct machine_isr_stack, saved_sp, 0x02);
 
 
 /*
@@ -211,8 +188,6 @@ struct machine_archives {
 } __attribute__((packed));
 
 struct machine_archives MACHINE_ARCHIVES DGROUP_BSS(0x548f);
-_Static_assert(sizeof(struct machine_archives) == 0x134, "DGROUP 0x548f..0x55c3, 0x134 bytes");
-DG_ASSERT_AT(struct machine_archives, slot, 0x00);
 
 /*
  * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
@@ -222,8 +197,6 @@ struct machine_game_files {
 } __attribute__((packed));
 
 struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
-_Static_assert(sizeof(struct machine_game_files) == 0xb4, "DGROUP 0x55c3..0x5677, 0xb4 bytes");
-DG_ASSERT_AT(struct machine_game_files, files, 0x00);
 
 /*
  * **The twenty saved-rectangle slots**, DGROUP 0x56b8..0x56e0, 0x28 bytes. Each is a near
@@ -241,8 +214,6 @@ struct machine_rect_slots {
 } __attribute__((packed));
 
 struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
-_Static_assert(sizeof(struct machine_rect_slots) == 0x28, "DGROUP 0x56b8..0x56e0, 0x28 bytes");
-DG_ASSERT_AT(struct machine_rect_slots, slot, 0x00);
 
 /*
  * **The saved-rect free list, and where the cursor is to be drawn**, DGROUP
@@ -261,10 +232,6 @@ struct machine_rect_free {
 } __attribute__((packed));
 
 struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
-_Static_assert(sizeof(struct machine_rect_free) == 0x06, "DGROUP 0x56e0..0x56e6, 0x06 bytes");
-DG_ASSERT_AT(struct machine_rect_free, rect_free_ptr, 0x00);
-DG_ASSERT_AT(struct machine_rect_free, draw_x,     0x02);
-DG_ASSERT_AT(struct machine_rect_free, draw_y,     0x04);
 
 /*
  * **The two page slots**, DGROUP 0x56e6..0x5726, 0x40 bytes.
@@ -279,8 +246,6 @@ struct machine_page_slots {
 } __attribute__((packed));
 
 struct machine_page_slots MACHINE_PAGE_SLOTS DGROUP_BSS(0x56e6);
-_Static_assert(sizeof(struct machine_page_slots) == 0x40, "DGROUP 0x56e6..0x5726, 0x40 bytes");
-DG_ASSERT_AT(struct machine_page_slots, slots, 0x00);
 
 /*
  * **The drawing state saved across an interrupt**, DGROUP 0x5726..0x5734, 0x0e bytes.
@@ -296,14 +261,6 @@ struct machine_saved_draw_state {
 } __attribute__((packed));
 
 struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE DGROUP_BSS(0x5726);
-_Static_assert(sizeof(struct machine_saved_draw_state) == 0x0e, "DGROUP 0x5726..0x5734, 0x0e bytes");
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_a, 0x00);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_b, 0x02);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_c, 0x04);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_d, 0x06);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_e, 0x08);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_f, 0x0a);
-DG_ASSERT_AT(struct machine_saved_draw_state, saved_g, 0x0c);
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
@@ -317,7 +274,6 @@ struct machine_buffer_used {
 } __attribute__((packed));
 
 struct machine_buffer_used MACHINE_BUFFER_USED DGROUP_BSS(0x5734);
-_Static_assert(sizeof(struct machine_buffer_used) == 0x04, "DGROUP 0x5734..0x5738, 0x04 bytes");
 
 /*
  * **The palette request and the fade**, DGROUP 0x5738..0x5742, 0x0a bytes.
@@ -334,11 +290,6 @@ struct machine_palette_fade {
 } __attribute__((packed));
 
 struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_BSS(0x5738);
-_Static_assert(sizeof(struct machine_palette_fade) == 0x0a, "DGROUP 0x5738..0x5742, 0x0a bytes");
-DG_ASSERT_AT(struct machine_palette_fade, request,   0x00);
-DG_ASSERT_AT(struct machine_palette_fade, fade_mark, 0x04);
-DG_ASSERT_AT(struct machine_palette_fade, plot_colour, 0x06);
-DG_ASSERT_AT(struct machine_palette_fade, busy,      0x08);
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
@@ -361,12 +312,6 @@ struct machine_buttons {
 } __attribute__((packed));
 
 struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
-_Static_assert(sizeof(struct machine_buttons) == 0x10, "DGROUP 0x5742..0x5752, 0x10 bytes");
-DG_ASSERT_AT(struct button, state,           0x00);
-DG_ASSERT_AT(struct button, was_down,        0x02);
-DG_ASSERT_AT(struct button, presses,         0x04);
-DG_ASSERT_AT(struct button, delay,           0x06);
-DG_ASSERT_AT(struct machine_buttons, button, 0x00);
 
 /*
  * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
@@ -380,7 +325,6 @@ struct machine_rect_buffers {
 } __attribute__((packed));
 
 struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_BSS(0x5758);
-_Static_assert(sizeof(struct machine_rect_buffers) == 0x10, "slots 1 to 4 end at 0x5768");
 
 
 
