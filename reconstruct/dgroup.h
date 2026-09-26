@@ -488,6 +488,21 @@ static const struct far_ptr FAR_NULL = { 0, 0 };
 #  define FAR_IS_NULL(p) ((p) == FAR_NULL_PTR)
 #endif
 
+/*
+ * **Where the original reads through its null.** 0000:0000 is the interrupt
+ * vector table, and a few paths in the game follow a far pointer that is
+ * still null and read whatever is there. The host's null is C's and cannot be
+ * followed, so at those sites - and only those - the pointer is spelled
+ * `NULL_READ(p)`: `p` itself under the original compiler, and on the host
+ * the guest's 0000:0000 when `p` is null, so what is read is what the
+ * original read. Ours.
+ */
+#ifdef __TURBOC__
+#  define NULL_READ(p)   (p)
+#else
+#  define NULL_READ(p)   ((p) != NULL ? (p) : (void *)MK_FP(0, 0))
+#endif
+
 /* `dg_far_ptr` for the one record that stores the pair segment-first - a
    bitmap's pixels. */
 #ifndef __TURBOC__
@@ -2555,7 +2570,7 @@ struct dg_2630 {
     uint16_t  back_held;       /* +0x02  how long the bin's back arrow has been held */
     uint16_t  forward_held;    /* +0x04  and the forward one */
     /* **The goal tests, one far pointer per puzzle from 1**, up to 0x27ee. */
-    struct far_ptr goal_test[110];    /* +0x06 */
+    void (far *goal_test[110])(void); /* +0x06 */
 } PACKED;
 
 extern struct dg_2630 DG2630;
@@ -3361,11 +3376,12 @@ struct region {
     int16_t   y1;              /* +0x0c */
     uint16_t  cursor;          /* +0x0e  which cursor while the pointer is in it */
     uint16_t  code;            /* +0x10  written into the state word on a click */
-    /* Two far *code* pointers, and both are tested `(off | seg) != 0` -
-       which is `dg_far_ptr(h) != FAR_NULL_PTR` and not a C null test. */
-    struct far_ptr hover;      /* +0x12  called whenever the pointer is
-                                         inside */
-    struct far_ptr click;      /* +0x16  and this one on the click itself */
+    /* Two far *code* pointers, each tested `(off | seg) != 0` before the
+       call. */
+    void (far *hover)(struct region *); /* +0x12  called whenever the pointer
+                                                is inside */
+    void (far *click)(struct region *); /* +0x16  and this one on the click
+                                                itself */
 } PACKED;
 
 #define REGION_PTR(p) ((struct region *)(dgroup + (uint16_t)(p)))

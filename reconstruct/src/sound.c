@@ -2247,7 +2247,9 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
 
 out:
     if (di != 0) {
-        const uint8_t far *config = dg_far_ptr(DG4A82.config);
+        /* With no module named, `config` is still null here, and the
+           original reads the driver's configuration out of the vector table. */
+        const uint8_t far *config = NULL_READ(dg_far_ptr(DG4A82.config));
 
         if (configure_driver_far(advance_record(config)) == 0xffff)
             di = 0;

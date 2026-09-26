@@ -1275,123 +1275,6 @@ void io_service_timer(void)
 }
 
 /*
- * OURS: call a slot's timer handler. The same problem as a region's, and the
- * same answer - the original reaches it through a far pointer in DGROUP and
- * the port dispatches on the value.
- */
-/*
- * OURS: not a transcription. The level's **goal test**, reached through the
- * table at DGROUP 0x2632 whose index is 0x4ebd. Seven of them, all in segment
- * 0000, so the offset alone identifies one.
- *
- * An index the table does not cover aborts by name rather than silently
- * skipping the test - a goal that never fires is a level that cannot be won,
- * which would look like a physics bug and never like a missing dispatch.
- */
-void call_goal_test(struct far_ptr h)
-{
-    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
-        switch (h.off) {
-        case 0x1476: goal_test_puzzle_2(); return;
-        case 0x151b: goal_test_puzzle_1(); return;
-        case 0x15fa: goal_test_puzzles_3_8_27_30_33_45_50_62(); return;
-        case 0x1cc4: goal_test_puzzle_4(); return;
-        case 0x1cea: goal_test_puzzle_5(); return;
-        case 0x1d1d: goal_test_puzzles_6_58(); return;
-        case 0x1d5e: goal_test_puzzles_7_51_65(); return;
-        case 0x14ad: goal_test_puzzle_20(); return;
-        case 0x14cc: goal_test_puzzle_21(); return;
-        case 0x14ee: goal_test_puzzle_22(); return;
-        case 0x16a6: goal_test_puzzle_23(); return;
-        case 0x16fb: goal_test_puzzle_26(); return;
-        case 0x172d: goal_test_puzzle_43(); return;
-        case 0x1753: goal_test_puzzle_39(); return;
-        case 0x17db: goal_test_puzzle_25(); return;
-        case 0x1819: goal_test_puzzle_41(); return;
-        case 0x1846: goal_test_puzzles_10_32(); return;
-        case 0x1888: goal_test_puzzle_46(); return;
-        case 0x18d9: goal_test_puzzle_34(); return;
-        case 0x1907: goal_test_puzzles_14_15_64_73(); return;
-        case 0x1935: goal_test_puzzle_24(); return;
-        case 0x19ac: goal_test_puzzle_38(); return;
-        case 0x19e0: goal_test_puzzle_44(); return;
-        case 0x1a49: goal_test_puzzles_16_56_83(); return;
-        case 0x1ab0: goal_test_puzzle_47(); return;
-        case 0x1b89: goal_test_puzzles_19_48(); return;
-        case 0x1d8c: goal_test_puzzle_9(); return;
-        case 0x1dbb: goal_test_puzzle_11(); return;
-        case 0x1df1: goal_test_puzzle_12(); return;
-        case 0x1e1e: goal_test_puzzle_13(); return;
-        case 0x1e59: goal_test_puzzle_17(); return;
-        case 0x1eb9: goal_test_puzzle_18(); return;
-        case 0x1f25: goal_test_puzzles_42_75(); return;
-        case 0x1fa6: goal_test_puzzle_31(); return;
-        case 0x2010: goal_test_puzzle_29(); return;
-        case 0x2065: goal_test_puzzle_28(); return;
-        case 0x20fa: goal_test_puzzle_36(); return;
-        case 0x2260: goal_test_puzzle_37(); return;
-        case 0x23ef: goal_test_puzzle_40(); return;
-        case 0x242c: goal_test_puzzle_35(); return;
-        case 0x1552: goal_test_puzzle_78(); return;
-        case 0x1630: goal_test_puzzle_79(); return;
-        case 0x17ad: goal_test_puzzles_53_54_63_67_87(); return;
-        case 0x197e: goal_test_puzzle_55(); return;
-        case 0x1a0c: goal_test_puzzle_71(); return;
-        case 0x1a77: goal_test_puzzle_80(); return;
-        case 0x1af7: goal_test_puzzle_70(); return;
-        case 0x1b2f: goal_test_puzzle_69(); return;
-        case 0x1b63: goal_test_puzzle_52(); return;
-        case 0x1bd9: goal_test_puzzle_82(); return;
-        case 0x1c0a: goal_test_puzzle_81(); return;
-        case 0x1ee6: goal_test_puzzle_76(); return;
-        case 0x1f77: goal_test_puzzles_57_74(); return;
-        case 0x1fe3: goal_test_puzzle_66(); return;
-        case 0x203f: goal_test_puzzle_61(); return;
-        case 0x2172: goal_test_puzzle_86(); return;
-        case 0x21a6: goal_test_puzzle_77(); return;
-        case 0x21fd: goal_test_puzzle_85(); return;
-        case 0x2231: goal_test_puzzle_60(); return;
-        case 0x2292: goal_test_puzzle_84(); return;
-        case 0x22d8: goal_test_puzzle_68(); return;
-        case 0x2322: goal_test_puzzle_72(); return;
-        case 0x2351: goal_test_puzzle_59(); return;
-        case 0x23a4: goal_test_puzzle_49(); return;
-        case 0x2467: goal_test_puzzle_88(); return;
-        case 0x2470: goal_test_puzzle_89(); return;
-        case 0x2479: goal_test_puzzle_90(); return;
-        case 0x2482: goal_test_puzzle_91(); return;
-        case 0x248b: goal_test_puzzle_92(); return;
-        case 0x2494: goal_test_puzzle_93(); return;
-        case 0x249d: goal_test_puzzle_94(); return;
-        case 0x24a6: goal_test_puzzle_95(); return;
-        case 0x24af: goal_test_puzzle_96(); return;
-        case 0x24b4: goal_test_puzzle_97(); return;
-        case 0x24b9: goal_test_puzzle_98(); return;
-        case 0x24be: goal_test_puzzle_99(); return;
-        case 0x24c3: goal_test_puzzle_100(); return;
-        case 0x24c8: goal_test_puzzle_101(); return;
-        case 0x24cd: goal_test_puzzle_102(); return;
-        case 0x24d2: goal_test_puzzle_103(); return;
-        case 0x24d7: goal_test_puzzle_104(); return;
-        case 0x24dc: goal_test_puzzle_105(); return;
-        case 0x24e1: goal_test_puzzle_106(); return;
-        case 0x24e6: goal_test_puzzle_107(); return;
-        case 0x24eb: goal_test_puzzle_108(); return;
-        case 0x24f0: goal_test_puzzle_109(); return;
-        case 0x24f5: goal_test_puzzle_110(); return;
-        default: break;
-        }
-    }
-
-    {
-        static char msg[64];
-
-        snprintf(msg, sizeof msg, "a level's goal test at %04x:%04x", h.seg, h.off);
-        not_transcribed(msg);
-    }
-}
-
-/*
  * OURS: **the driver's vector, as the port's own routines.** On the original
  * `vm_init` fills `DG4342.font` with the entry points of the driver it loaded,
  * and a routine that wants one calls through the slot. The port has no loaded
@@ -1423,8 +1306,8 @@ void (*vm_vector_host(int16_t slot))(void)
 /*
  * OURS: not a transcription. The call `mouse_event` makes through the far
  * pointer at DGROUP 0x4744 - `lcall [0x4744]` at 0x21ffc. C cannot call through
- * a guest far pointer, so this dispatches on the value the way
- * `call_region_handler` does; but nothing in the image ever sets that pointer,
+ * a guest far pointer, so this would have to dispatch on the value; but
+ * nothing in the image ever sets that pointer,
  * so there is no handler to dispatch to and every value aborts, naming itself.
  */
 void call_mouse_handler(struct far_ptr h)
@@ -1433,62 +1316,6 @@ void call_mouse_handler(struct far_ptr h)
 
     snprintf(what, sizeof what, "the mouse handler at %04x:%04x", h.seg, h.off);
     not_transcribed(what);
-}
-
-/*
- * Call a region's `enter` or `click` handler.
- *
- * NOT a transcription of anything: the original does `call far [si+0x12]`, and
- * the port cannot call through a guest far pointer. The offsets are the ones
- * `build_screen_regions` files into the table, and the segment is the module's
- * - all of these are in seg0dff, which is why only the offset is switched on.
- *
- * An offset with no case **aborts** rather than being ignored, for the reason
- * every stub here aborts: a region handler that silently does nothing is a
- * cursor that does not change and a click that goes nowhere, which looks like a
- * drawing fault.
- */
-void call_region_handler(struct far_ptr h, struct region *region)
-{
-    switch (h.off) {
-    case 0x2da9:
-        region_cursor_bin_above(region);
-        return;
-    case 0x2dd2:
-        region_cursor_bin(region);
-        return;
-    case 0x2e24:
-        region_click_bin(region);
-        return;
-    case 0x2f01:
-        region_cursor_playfield(region);
-        return;
-    case 0x34eb:
-        region_cursor_freeform(region);
-        return;
-    case 0x3508:
-        region_cursor_load(region);
-        return;
-    case 0x3525:
-        region_cursor_save(region);
-        return;
-    case 0x3542:
-        region_cursor_gravity(region);
-        return;
-    case 0x355f:
-        region_cursor_air(region);
-        return;
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        snprintf(what, sizeof what,
-                 "a screen region's handler at %04x:%04x", h.seg, h.off);
-        not_transcribed(what);
-    }
 }
 
 /*
@@ -1565,7 +1392,7 @@ void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
  * The offset and segment name `mouse_event` at image 0x21fcf and nothing else -
  * `mouse_init` is the one caller and that is what it passes - so the port
  * remembers only *that* it was installed, and calls the routine directly. A
- * dispatch by offset, the way `call_region_handler` does it, would be inventing
+ * dispatch by offset would be inventing
  * a choice where the original has one destination.
  *
  * The mask is kept because the driver is supposed to honour it, and because a

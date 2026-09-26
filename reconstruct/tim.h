@@ -1183,7 +1183,6 @@ void regions_handle_pointer(uint16_t first);        /* 0x08546 */
  * OURS: the port cannot call through a far pointer held in guest memory, so a
  * region's two handlers are dispatched on their value. See machine.c.
  */
-void call_region_handler(struct far_ptr h, struct region *region);
 void stop_music_or_effect(int16_t id);              /* 0x083ea */
 void play_sound(int16_t id);                        /* 0x083ab */
 void select_music(int16_t id);                      /* 0x08364 */
@@ -1258,7 +1257,6 @@ void     part_flip_scissors(struct part *part);             /* 0x1ac04 */
 void     part_flip_seesaw(struct part *part);             /* 0x1b47b */
 void     part_flip_windmill(struct part *part);             /* 0x1bce2 */
 uint16_t part_step_bellow(struct part *part);             /* 0x176c5 */
-void call_goal_test(struct far_ptr h);
 void goal_test_puzzle_2(void);                          /* 0x01476 */
 void goal_test_puzzle_1(void);                          /* 0x0151b */
 void goal_test_puzzles_3_8_27_30_33_45_50_62(void);                          /* 0x015fa */

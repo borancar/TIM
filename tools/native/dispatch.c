@@ -39,7 +39,13 @@ static uint32_t bound_hits[512];
  *                             and the runtime's heap and huge-pointer
  *                             helpers are the original's, executed
  *   TIM_NATIVE_LAYERS=vm,mem  any comma-separated subset of vm sx dos mem game
- *   unset, or `all`           what the hybrid has always done
+ *   TIM_NATIVE_LAYERS=all     every routine the port has, the game's included
+ *   unset                     `io`
+ *
+ * **`io` is the default since 2026-09-27.** The port's game records hold real
+ * pointers and are laid out as the host's, so a port game routine can no longer
+ * run on the original's memory - and a run that dispatched the game compared
+ * the port with itself, which is how S15's difference hid (docs/lessons.md).
  *
  * `io` is exactly "everything that is not the game", which is the split this
  * was asked for: the port as the machine, the original as the program.
@@ -59,7 +65,7 @@ static int32_t layer_wanted(const char *layer)
     if (want == NULL) {
         want = getenv("TIM_NATIVE_LAYERS");
         if (want == NULL || *want == 0)
-            want = "all";
+            want = "io";
     }
 
     if (strcmp(want, "all") == 0)
