@@ -5,20 +5,25 @@
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
 
-**Which world this is in:** the original is **compiled C** - Turbo C++ 3.0,
-**medium model**, `-mm -O`, with a few library modules from Turbo C++ 1.0x
-(`docs/executable.md`, "What built it"). Since 2026-09-26 the goal **is** a
-byte-exact matching decompilation: the same sources compile under the original
-compiler to the image's bytes, judged per routine by `tools/judge.py`, and
-under gcc to the working port, whose behavioural checks stay as they are.
+**Which world this is in:** the original is **compiled C** - Borland C++ 3.0,
+**medium model**, options per module, with a few library modules from Turbo
+C++ 1.0x and hand-written assembly beside them (`docs/executable.md`, "What
+built it"). Since 2026-09-26 the goal **is** a byte-exact matching
+decompilation: the same sources compile under the original compiler to the
+image's bytes, judged per routine and per module's data by `tools/judge.py`,
+and under gcc to the working port, whose behavioural checks stay as they are.
 
-**Matched so far** (judged on scratch spellings, not yet in the port's
-sources): `compute_moved` 0x002be, `step_loop_frames` 0x0144e,
-`restart_machine` 0x01431, `draw_vqt_flipped` 0x24954 (TCC 3.0 `-mm -O`) and
-`atan2_long` 0x2d296 (TC++ 1.01 `-mm`). What the spellings taught: the original
-wrote `if`/`else` statements where the port has `?:`, an assignment inside a
-condition (`if ((neg = a < 0) != 0)`, which is what `or al,al` after the store
-is), and `r = r - 0x400` where `r -= 0x400` compiles differently.
+**Byte-exact in the port so far** (`uv run python tools/judge.py <file>`):
+
+| file | module | routines | data |
+| --- | --- | --- | --- |
+| `src/atan2.c` | segment 2d29 (TC++ 1.01 `-mm`) | 1 of 1 | none |
+| `src/vqtflip.c` | segment 248f, first (BC++ 3.0 `-mm -O -G -Z`, via TASM) | 9 of 9 | `_DATA` 0x49ba..0x49c6, `_BSS` 0x63f6..0x6414 |
+| `src/offbmp.c` | segment 248f, second (BC++ 3.0 `-mm -O -G -Z`) | 1 of 1 | none |
+| `src/bitmaps.c` | segment 248f, third (BC++ 3.0 `-mm -O -G -Z`) | 10 of 10 | `_DATA` 0x49c6..0x4a07 |
+
+Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly; its
+host transcription is `src/vqt.c` and its TASM source is not written yet.
 
 **Which variant:** `TIM.EXE` is the only executable, but its video driver
 `VM.OVL` is a container of **eight per-adapter drivers** - `VGA`, `EGA`, `MCG`,

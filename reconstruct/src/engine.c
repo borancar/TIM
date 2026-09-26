@@ -5992,9 +5992,9 @@ void save_rect_thunk(uint8_t far * buf, int16_t x, int16_t y,
  * A thunk into the video driver: `ljmp [0x435e]`, which is `vm_buffer_size`.
  * Same arrangement as 0x2149a.
  */
-uint32_t buffer_size_thunk(uint16_t w, uint16_t h)
+uint16_t buffer_size_thunk(uint16_t w, uint16_t h)
 {
-    return vm_buffer_size(w, h);
+    return (uint16_t)vm_buffer_size(w, h);
 }
 
 /*
@@ -7063,7 +7063,7 @@ void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
  * and handed to INT 21h AH=4Ah, which is the only place the port has to grow a
  * DOS arena that can shrink a block.
  */
-int32_t compress_bitmap_list(bmp_ptr_t *list, uint16_t colours)
+int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
 {
     bmp_ptr_t *si = list;
     struct bitmap *first = BMP_PTR(list[0]);

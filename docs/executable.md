@@ -50,11 +50,21 @@ the sibling `turboc` checkout (`dos-c/`), and against the compilers themselves.
   the same `C0M.OBJ` and the same fifty modules, so the runtime cannot tell the
   two apart; the banner `Borland C++ - Copyright 1991 Borland Intl.` at 0x2d3c4
   is in both. BC++ 2.0's differ.
-- **The game's own modules are TCC 3.0's with `-mm -O`** - 8086 code, cdecl,
-  no `-G` (a two-byte clean-up is `pop cx`). `tools/judge.py` compiles a port
-  source with it and compares each routine; the first ones judged match byte
-  for byte. `-O` was settled by `draw_vqt_flipped` (0x24954), which matches
-  only with it.
+- **The game's own modules are Borland C++ 3.0's** - `BCC`, not Turbo C++'s
+  `TCC`: medium model, 8086 code, cdecl. BC++ 3.0 is the only one of the
+  compilers tried (TC++ 1.01 and 3.0, BC++ 2.0 and 3.0) that turns an early
+  `return` into a copy of the epilogue, which `open_bit_reader` (0x248fe)
+  has, and every routine matched with TC++ 3.0 matches with it too. The
+  options are **per module**: segment 0's first routines are `-mm -O`, and
+  segment 248f's C files are `-mm -O -G -Z` - `-G` for `add sp,2` after a
+  call, `-Z` for a register kept across statements. `tools/judge.py`
+  compiles a port source and compares every routine and its module's data.
+- **Segment 248f is four modules**, three in C and one in assembly - see
+  `reconstruct/src/vqtflip.c`'s header for how a segment's module boundaries
+  are read off far calls: Borland C++ calls a routine defined earlier in the
+  same file with `push cs / call`, and TLINK leaves `nop / push cs / call`
+  for every other far call into the segment. The one with inline `asm`
+  (`vqt_flip_leaf`) went through TASM (`bcc -B`); 2.51 reproduces it.
 - **Not every module is.** Sixteen routines reserve a two-byte frame with
   `dec sp / dec sp` where the rest have `sub sp,2`, and they cluster: most are
   in segment 1c25, one is in segment 0000, and `atan2_long` is segment 2d29's

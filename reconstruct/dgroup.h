@@ -48,6 +48,12 @@
 #  define PACKED     __attribute__((packed))
 #  define NONSTRING  __attribute__((nonstring))
 #  define FLEX
+/* Borland's pointer tags, which the host erases - see tim.h, "The tags
+   themselves". `near` is for a near *code* pointer, which the medium model
+   has to be told about, because there an untagged function pointer is far. */
+#  define far
+#  define huge
+#  define near
 #endif
 
 #include <stddef.h>
@@ -177,6 +183,19 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 #ifdef __TURBOC__
 #include <dos.h>   /* MK_FP, FP_SEG and FP_OFF are Borland's own */
+/*
+ * **A far pointer built as a `long`**: the segment shifted into the high
+ * word and the offset or'd into the low - how `bitmaps.c` makes one, rather
+ * than with `MK_FP`. BC++ 3.0 compiles the call that takes such a pointer
+ * straight away with a register it has lost track of: it pushes the segment
+ * and then DX, which holds the sign of the segment from its own `cwd`, not
+ * the offset. So the callee is handed `seg:0` (or `seg:0xffff`), and
+ * `BCC_FAR_ARG` says so on the host, where the pointer is made right and the
+ * argument has to be made wrong. Ours.
+ */
+#  define FAR_OF_LONG(seg, off) \
+    ((uint8_t far *)(((int32_t)(seg) << 16) | (uint16_t)(off)))
+#  define BCC_FAR_ARG(p, seg)   (p)
 #else
 #define MK_FP(seg, off) \
     (guest_mem + (((uint32_t)(uint16_t)(seg)) << 4) + (uint16_t)(off))
@@ -202,6 +221,9 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
 #define FAR16(seg, off)   (*(int16_t *)MK_FP(seg, off))
 #define FARU16(seg, off)  (*(uint16_t *)MK_FP(seg, off))
+#define FAR_OF_LONG(seg, off) MK_FP((uint16_t)(seg), (uint16_t)(off))
+#define BCC_FAR_ARG(p, seg) \
+    ((void)(p), MK_FP((uint16_t)(seg), (int16_t)(seg) < 0 ? 0xffffu : 0u))
 #endif
 
 /*
@@ -441,9 +463,17 @@ static const struct far_ptr FAR_NULL = { 0, 0 };
  * `SEQUENCE_NONE`, `PART_NONE`, `BMP_NONE`.
  */
 #ifdef __TURBOC__
-#  define FAR_NULL_PTR ((uint8_t far *)0)
+/* A plain 0, so that it takes the kind of whatever it is compared with: a
+   `huge` pointer against it is the runtime's `F_PCMP@`, as `load_screen` has
+   it, where a far null would make the compare a far one. */
+#  define FAR_NULL_PTR 0
+/* `!p`: on a `huge` pointer Borland C++ tests the far value it has in
+   DX:AX, `or ax,dx`, where `p == 0` calls `F_PCMP@`. The host's null is not
+   C's, so it compares. */
+#  define FAR_IS_NULL(p) (!(p))
 #else
 #  define FAR_NULL_PTR dg_far_ptr(FAR_NULL)
+#  define FAR_IS_NULL(p) ((p) == FAR_NULL_PTR)
 #endif
 
 /* `dg_far_ptr` for the one record that stores the pair segment-first - a
@@ -1579,29 +1609,20 @@ extern struct chunk_names CHUNK;
 
 
 /*
- * **The rest of the chunk names**, from 0x49c6, after the twelve bytes of
- * `DG49BA` - another module's data sharing the region, three code pointers
- * the offset-table bitmap draws through. The run was one struct with those
- * twelve bytes as a gap in it until the data became objects the linker places,
- * and two objects cannot share bytes.
+ * **The sound module's chunk names**, from 0x4a08 - the first of that
+ * module's data. The run began at 0x49c6 until 2026-09-26, with
+ * `bitmaps.c`'s seven names in front; those are that module's string
+ * literals, which Turbo C++ put at the end of its `_DATA` (0x49c6..0x4a07),
+ * and they are written as literals in the code that names them now.
  */
 struct chunk_names2 {
-    char bmp_scn[9];        /* +0x00  0x49c6  "BMP:SCN:" */
-    char bmp_off[9];        /* +0x09  0x49cf  "BMP:OFF:" */
-    char bmp_vqt[9];        /* +0x12  0x49d8  "BMP:VQT:" */
-    char bmp_off_b[9];      /* +0x1b  0x49e1  "BMP:OFF:" - the second copy */
-    char bmp_rle[9];        /* +0x24  0x49ea  "BMP:RLE:" */
-    char bmp_scl[9];        /* +0x2d  0x49f3  "BMP:SCL:" */
-    uint8_t pad_49fc[2];
-    char scr_vqt[9];        /* +0x38  0x49fe  "SCR:VQT:" */
-    uint8_t pad_4a07[1];
     /* **The sound module's name template**, not only a constant:
        `load_sound_module` builds the name in place, writing the three digits
        at +4, +5 and +6 - hundreds, tens and units, each from its own division
        - over "000". */
-    char ssm_000[9];        /* +0x42  0x4a08  "SSM:000:" */
+    char ssm_000[9];        /* +0x00  0x4a08  "SSM:000:" */
     uint8_t pad_4a11[1];
-    /* +0x4c  0x4a12. **Not a constant: a buffer.** The image holds
+    /* +0x0a  0x4a12. **Not a constant: a buffer.** The image holds
        `53 53 4d 3a 20 20 20 20 20 00` - "SSM:" and *five* spaces, which is
        nine characters and would fail the multiple-of-four check.
        `setup_sound_device` writes a four-character tag **and its NUL** over
@@ -2554,6 +2575,22 @@ struct dg_4342 {
 
 extern struct dg_4342 DG4342;
 
+/*
+ * **The driver's vector, as the code pointers its slots are.** `DG4342.font`
+ * is filled by `vm_init` with the entry points of the loaded driver, and the
+ * game calls through a slot as a far function pointer - `lcall [0x437a]` is
+ * slot 13. Under Turbo C++ that is the slot read as the pointer it is; the
+ * port has no loaded driver to point into, so `vm_vector_host` answers the
+ * port's own routine for a slot (io.c). Ours.
+ */
+typedef uint32_t (far *vm_list_size_fn)(bmp_ptr_t *list, uint8_t *out);
+#ifdef __TURBOC__
+#  define VM_VECTOR(n, type)   (*(type *)&DG4342.font[n])
+#else
+void (*vm_vector_host(int16_t slot))(void);
+#  define VM_VECTOR(n, type)   ((type)vm_vector_host(n))
+#endif
+
 
 /*
  * **Scan codes**, set 1, as the keyboard sends them: what `bios_read_key()`
@@ -2655,69 +2692,30 @@ struct page_slot {
  * it reaches this; anything shorter goes out as literals. Nothing in the port
  * writes it either - it comes in with the image.
  */
+/* The three kinds of code pointer the offset-table bitmap draws through,
+   as the medium model has them: two far routines of segment 1c25 and a near
+   one of this segment. */
+typedef void     (far  *bmp_fill_fn)(int16_t x, int16_t y, int16_t w, int16_t h);
+typedef int16_t  (far  *bmp_plot_fn)(int16_t x, int16_t y, int16_t colour);
+typedef uint16_t (near *bmp_read_fn)(uint16_t bits);
+
 struct dg_49ba {
     int16_t   min_run;            /* +0x00 */
     /* **Three code pointers the offset-table bitmap draws through**, and
        nothing in the image writes the first or the last: they come in with
        the data segment. `draw_offset_bitmap` repoints `plot_fn` before a
-       draw - at the driver's plot, `DG4342.font[22]`, when the bitmap is
+       draw - at the driver's plot, the vector's slot 22, when the bitmap is
        wholly inside the clip box, and back at `plot_pixel_clipped` when it
-       is not. Names are ours. */
-    struct far_ptr fill_fn;       /* +0x02  1c25:3e29, `fill_rect` */
-    struct far_ptr plot_fn;       /* +0x06  1c25:61fd, `plot_pixel_clipped` */
-    uint16_t  read_fn;            /* +0x0a  near, 248f:1063, `vqt_read_bits` */
-} PACKED;
+       is not. Defined, with its initialiser, in bitmaps.c: it is that
+       module's data. Names are ours. */
+    bmp_fill_fn fill_fn;          /* +0x02  `fill_rect` */
+    bmp_plot_fn plot_fn;          /* +0x06  `plot_pixel_clipped` */
+    bmp_read_fn read_fn;          /* +0x0a  `vqt_read_bits` */
+};
 
 extern struct dg_49ba DG49BA;
 
 
-/*
- * **Not established**, at DGROUP 0x6400.
- */
-/*
- * ---------------------------------------------------------------------------
- * **`bitmaps.c`'s own state**, at DGROUP 0x6400 - and it is named for the
- * module rather than the address because that is what it is: every one of its
- * fourteen uses is in that one translation unit, which in the original means
- * this run of DGROUP *is* that unit's statics. DGROUP is one segment shared by
- * the whole program, but each unit's own data sits in a contiguous piece of it.
- *
- * **The eight bytes at +0x02 are the singleton bit reader**, and
- * `open_bit_reader` answers `0x6402` - their address - rather than a handle.
- * They are a `vqt_reader` **truncated after `data`**: no plane table at +0x08
- * and no row table at +0x18. That is not an oversight in the transcription, it
- * is the defect the quadtree format has - `load_screen_vqt` puts this reader in
- * `reader` for `vqt_node` to walk, and the leaf then reads a plane table that
- * is not there. `VQT` occurs zero times in the four shipped archives, which is
- * the measured half of why nobody noticed.
- *
- * Field names are ours; the offsets are the original's.
- * ---------------------------------------------------------------------------
- */
-typedef struct {
-    uint16_t       in_use;        /* +0x00  a second open answers 0 */
-    uint32_t       pos;           /* +0x02  the singleton's bit position,
-                                     stepped four bits at a time. One
-                                     Borland `long`: `vqt_node` loads it
-                                     `mov ax,[bx] / mov dx,[bx+2]` and steps
-                                     it `add cx,4 / adc cx,0`. */
-    struct far_ptr data;          /* +0x06  and the block it reads */
-    uint16_t       draw_flags;    /* +0x0a  `draw_offset_bitmap`'s mode:
-                                     bit 1 mirrors x, bit 0 mirrors y */
-    dg_near_t      reader_ptr;    /* +0x0c  which reader the vqt walk uses -
-                                     the singleton above, or the frame
-                                     `decode_vqt_list` files here */
-    uint16_t       pixel_fn;      /* +0x0e  near, 248f: what a fill loop reads
-                                     a colour through - `DG49BA.read_fn`, or
-                                     0x004b, `read_palette_pixel` */
-    uint16_t       fill_fn;       /* +0x10  near, 248f: 0x0275, 0x02c4 or
-                                     0x0313 for a mirrored fill, 0 for none */
-    uint8_t        plot_zero;     /* +0x12  plot colour 0 rather than skip it;
-                                     only ever cleared */
-    uint8_t        pad_6413;
-} PACKED bitmaps_t;
-
-extern bitmaps_t BITMAPS;
 
 
 /*
@@ -3538,23 +3536,43 @@ struct bitmap {
  * ---------------------------------------------------------------------------
  */
 struct vqt_reader {
-    uint32_t        pos;          /* +0x00  the bit position, one Borland
-                                     `long` - see `bitmaps_t.pos` */
-    struct far_ptr  data;         /* +0x04  the compressed block */
-    struct far_ptr  plane[4];     /* +0x08  one per plane */
-    int16_t         row[FLEX];    /* +0x18  `height` row offsets */
-} PACKED;
+    int32_t         pos;          /* +0x00  the bit position, one Borland
+                                     `long` */
+    uint8_t far *   data;         /* +0x04  the compressed block */
+    uint8_t far *   plane[4];     /* +0x08  one per plane */
+    int16_t         row[200];     /* +0x18  `height` row offsets - 200, which
+                                     is what makes `decode_vqt_list`'s frame
+                                     0x1ca */
+};
 
-#define VQTRD(p) ((struct vqt_reader *)(dgroup + (uint16_t)(p)))
+/*
+ * **`bitmaps.c`'s statics**, DGROUP 0x6400..0x6414 - see that file. Declared
+ * here because the assembly module beside it (vqt.c) walks `walk`.
+ */
+struct bit_reader {
+    int32_t        pos;           /* the bit position, stepped four bits at a
+                                     time */
+    uint8_t far *  data;          /* and the block it reads */
+};
 
-/* **The mirrored quadtree leaf's palette**, as `VQTRD` is the reader: up to
-   256 colour bytes that `vqt_flip_leaf` reads into the bottom of its own
-   frame and files the offset of at `BITMAPS_FLIP_STATE.palette`. `p` is that offset.
+struct bitmaps_state {
+    uint16_t       in_use;        /* 0x6400  a second open answers 0 */
+    struct bit_reader reader;     /* 0x6402 */
+    uint16_t       draw_flags;    /* 0x640a  `draw_offset_bitmap`'s mode:
+                                     bit 1 mirrors x, bit 0 mirrors y */
+    struct vqt_reader *walk;      /* 0x640c  which reader the vqt walk uses -
+                                     the singleton above, or the one
+                                     `decode_vqt_list` builds in its frame */
+    uint16_t (near *pixel_fn)(uint16_t bits);   /* 0x640e  what a mirrored
+                                     fill reads a colour through */
+    void (near *fill_fn)(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
+                                  /* 0x6410  the mirrored fill, or none */
+    uint8_t        plot_zero;     /* 0x6412  plot colour 0 rather than skip
+                                     it; only ever cleared */
+};
 
-   The original indexes it as `add bx,ax` on the 16-bit offset; indexing the
-   pointer instead only differs if the table straddles the end of DGROUP, and
-   a 0x110-byte frame on the guest's stack cannot. */
-#define VQTPAL(p) ((uint8_t *)(dgroup + (uint16_t)(p)))
+extern struct bitmaps_state BITMAPS;
+
 
 /*
  * ---------------------------------------------------------------------------

@@ -169,15 +169,10 @@ WALLED = {
         "aborts rather than accepting a C local until then",
     "seek_to_sound_record":
         "its three bytes are written by a decompressor through DGROUP 0x5894",
-    "vqt_flip_leaf":
-        "the palette is read into the frame and its address filed at "
-        "BITMAPS_FLIP_STATE.palette for read_palette_pixel to index through, so it has "
-        "to be an address the guest can hold",
-    "decode_vqt_list":
-        "the bit-reader record's address is filed into BITMAPS.reader for "
-        "vqt_node, vqt_screen_node and fill_quadrant to fetch back out and "
-        "write through, so it has to be an address the guest can hold - it is "
-        "a `struct vqt_reader *` over a reserved frame",
+    # vqt_flip_leaf and decode_vqt_list were walled until 2026-09-26, when
+    # the records they file their frames into became real pointers: the
+    # original compiler proves them now, and the host holds a C local's
+    # address as the pointer it is.
 }
 BY_HAND.update(NEEDS_GUEST_ADDRESS)
 

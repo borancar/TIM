@@ -1937,14 +1937,7 @@ struct chunk_names CHUNK DGROUP_AT(0x4966) = {
     .mode_r_d = "r",
     .mode_rb = "rb",
 };
-struct chunk_names2 CHUNK2 DGROUP_AT(0x49c6) = {
-    .bmp_scn = "BMP:SCN:",
-    .bmp_off = "BMP:OFF:",
-    .bmp_vqt = "BMP:VQT:",
-    .bmp_off_b = "BMP:OFF:",
-    .bmp_rle = "BMP:RLE:",
-    .bmp_scl = "BMP:SCL:",
-    .scr_vqt = "SCR:VQT:",
+struct chunk_names2 CHUNK2 DGROUP_AT(0x4a08) = {
     .ssm_000 = "SSM:000:",
     .ssm_tag = "SSM:     ",
 };
@@ -2226,13 +2219,6 @@ struct dg_4342 DG4342 DGROUP_AT(0x4342) = {
     },
 };
 struct dg_5677 DG5677 DGROUP_BSS(0x5677);
-struct dg_49ba DG49BA DGROUP_AT(0x49ba) = {
-    .min_run = 0x0006,
-    .fill_fn = { .off = 0x3e29, .seg = LOAD_SEG + 0x1c25 },
-    .plot_fn = { .off = 0x61fd, .seg = LOAD_SEG + 0x1c25 },
-    .read_fn = 0x1063,
-};
-bitmaps_t BITMAPS DGROUP_BSS(0x6400);
 struct part_shapes PARTSHAPES DGROUP_AT(0x3182) = {
     .s_3182 = {
         { .y = 0x0a }, { .x = 0x0c }, { .x = 0x16 }, { .x = 0x1f, .y = 0x0a },

@@ -68,13 +68,8 @@
  * the wrap or the stored `seg:off` pair actually matters, the port uses
  * `struct far_ptr` in dgroup.h instead, and says so at the site.
  */
-#ifndef __TURBOC__
-#  define far    /* one kind of pointer here */
-#  define huge   /* likewise */
-#  define near   /* and the third: a near *code* pointer, which the medium
-                    model has to be told about, because there an untagged
-                    function pointer is far */
-#endif
+/* The tags themselves are defined in dgroup.h, which this header includes
+   first and whose records use them. */
 
 /* The typedefs `dg_near`/`dg_cnear` stood here. They are spelled out now -
    `volatile uint8_t *` - so the tag says which pointer kind it is. */
@@ -705,11 +700,11 @@ void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count);    /*
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
-void read_far(uint8_t far *dst, int32_t count,
+void near read_far(uint8_t huge *dst, int32_t count,
               FILE *file);                        /* 0x2551a */
-void decode_vqt_list(FILE *file, bmp_ptr_t *list); /* 0x25639 */
-void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
-void fill_quadrant(uint16_t x, uint16_t y,
+void near decode_vqt_list(FILE *file, bmp_ptr_t *list); /* 0x25639 */
+void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
+void near fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
 uint16_t near_memset(uint8_t *dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
@@ -1011,8 +1006,12 @@ void draw_polygon(int16_t n, const int16_t *xs,
 void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h,
                         uint16_t mode);             /* 0x0b9c9 */
+#ifndef TIM_BITMAPS_C
+/* bitmaps.c's own declaration of it is near, and wrong - see
+   `draw_bitmap_scaled_248f`. */
 void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x227ac */
+#endif
 void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x208f3 */
 struct part *find_part_from(struct part *rec);              /* 0x04500 */
@@ -1656,18 +1655,26 @@ void cursor_redraw_on(void);                           /* 0x0a78e */
 int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
 void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
 void timer_callback(void);                          /* 0x0a7ae */
-struct vqt_reader *open_bit_reader(struct far_ptr data); /* 0x248fe */
+struct vqt_reader *open_bit_reader(uint8_t far *data); /* 0x248fe */
 void close_bit_reader(void);                        /* 0x24930 */
-void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
-uint16_t read_palette_pixel(uint16_t bits);                /* 0x2493b */
-void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h);   /* 0x24954 */
-void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x249ed */
-void fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24b65 */
-void fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24bb4 */
-void fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1); /* 0x24c03 */
-void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x24c55 */
-uint16_t vqt_read_bits(uint16_t bits);                     /* 0x25953 */
-void fill_screen_quadrant(uint16_t x, uint16_t y,
+void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
+/* **It answers AL alone** - the byte it looked up, with nothing put in AH -
+   so under Turbo C++ it returns a `char`. The host calls it through the same
+   16-bit pointer as `vqt_read_bits` and gives it that type. */
+#ifdef __TURBOC__
+typedef uint8_t pixel_byte_t;
+#else
+typedef uint16_t pixel_byte_t;
+#endif
+pixel_byte_t near read_palette_pixel(uint16_t bits);                /* 0x2493b */
+void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h);   /* 0x24954 */
+void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x249ed */
+void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24b65 */
+void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24bb4 */
+void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1); /* 0x24c03 */
+void near vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x24c55 */
+uint16_t near vqt_read_bits(uint16_t bits);                     /* 0x25953 */
+void near fill_screen_quadrant(uint16_t x, uint16_t y,
                           uint16_t w, uint16_t h);  /* 0x25aaa */
 uint16_t load_screen_plain(char *name);        /* 0x23b29 */
 void draw_cursor(uint16_t page);                    /* 0x0ab1f */
@@ -1787,9 +1794,28 @@ union far_or_size {
     uint32_t     bytes;         /* when it was asked how much is free */
 };
 
+#ifdef __TURBOC__
+/* **The original's answer is one DX:AX**, a far pointer when it allocated and
+   a count when it was asked how much is free, and a caller takes it as the
+   one it wants. TCC returns a union through memory, so under TCC the routine
+   answers the pointer and a caller reads the count as the same four bytes;
+   the host keeps the union. `DOS_ALLOC_PTR` and `DOS_ALLOC_BYTES` are the two
+   readings. Ours. */
+uint8_t far *dos_alloc_bytes(uint32_t size, uint32_t flags); /* 0x21abd */
+/* A caller passes the flags as the high word of one `long` - `bitmaps.c`
+   pushes `0L` with one `xor ax,ax` and two `push ax` - and the routine
+   reads only that word, [bp+0xc]. */
+#  define DOS_ALLOC(size, flags) dos_alloc_bytes((size), (uint32_t)(flags) << 16)
+#  define DOS_ALLOC_PTR(r)     (r)
+#  define DOS_ALLOC_BYTES(r)   ((uint32_t)(r))
+#else
 union far_or_size dos_alloc_bytes(uint32_t size,
                          uint16_t unused,
                          uint16_t flags);           /* 0x21abd */
+#  define DOS_ALLOC(size, flags) dos_alloc_bytes((size), 0, (flags))
+#  define DOS_ALLOC_PTR(r)     ((r).ptr)
+#  define DOS_ALLOC_BYTES(r)   ((r).bytes)
+#endif
 
 /* Fill memory through a far pointer, with a 32-bit count. */
 void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
@@ -1875,7 +1901,7 @@ void write_literal_run(uint8_t count, const uint8_t * buf); /* 0x245b9 */
 void compress_row(uint8_t *src, int16_t remaining); /* 0x24639 */
 void compress_bitmap(struct bitmap *bmp);              /* 0x24757 */
 int32_t compress_bitmap_list(bmp_ptr_t *list,
-                             uint16_t colours);     /* 0x243bf */
+                             uint8_t colours);     /* 0x243bf */
 void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
 uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
@@ -1885,9 +1911,11 @@ struct far_ptr huge_add_positive(struct far_ptr p,
                                  uint32_t delta);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
-void set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
+void near set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
+void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
+                             int16_t a, int16_t b, int16_t c);  /* 0x2537d */
 uint16_t count_list(bmp_ptr_t * list);             /* 0x252e0 */
-void far_copy(uint8_t far *dst, const uint8_t far *src,
+void near far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
 void dos_getdate(uint8_t * out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
@@ -1923,7 +1951,9 @@ uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(uint8_t far * buf, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
-uint32_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
+/* The driver answers a `long` in DX:AX; the one caller, `decode_vqt_list`,
+   declares the thunk `unsigned` and reads AX alone. */
+uint16_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
 void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
 uint16_t bios_video_kind(void);                        /* 0x22764 */

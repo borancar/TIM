@@ -70,7 +70,11 @@ COMPILERS = {
 }
 EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "bc2.00": "BCC.EXE",
             "bc3.00": "BCC.EXE", "3.00-emu": "TCC.EXE"}
-DEFAULT_COMPILER = "3.00"
+# Borland C++ 3.0 built the game - it alone turns an early `return` into a
+# copy of the epilogue (`open_bit_reader`) - so it is the default. It runs
+# under the emulator; `--compiler 3.00` is the host port of Turbo C++ 3.0,
+# the same code generator without that pass, and much faster to iterate with.
+DEFAULT_COMPILER = "bc3.00"
 TCC = COMPILERS[DEFAULT_COMPILER][0]
 IMAGE = os.path.join(REPO, "out", "TIM.img")
 UNPACKED = os.path.join(REPO, "out", "TIM.unpacked.exe")
@@ -225,6 +229,9 @@ def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
             out = r.stdout + r.stderr
         if assembler and not ERRORS.search(out):
             asms = [f for f in os.listdir(d) if f.upper().endswith(".ASM")]
+            keep = os.environ.get("JUDGE_KEEP_ASM")
+            if keep and asms:
+                shutil.copy(os.path.join(d, asms[0]), keep)
             if asms:
                 out += assemble(d, os.path.splitext(asms[0])[0], opts,
                                 assembler)
@@ -271,7 +278,8 @@ def disasm(code, at, n=6):
     return lines
 
 
-def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose):
+def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose,
+                  pubs=()):
     """Compare seg.data[lo:hi] with img[addr:]. Answers (ok, first difference
     or None, unchecked fixup count, notes)."""
     fix = {}
@@ -288,9 +296,23 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose):
         b = seg.data[i]
         f = fix.get(i + 1)
         if (b == 0x9A and f and f[1] == "pointer"
-                and f[2].startswith("ext:")):
-            callee = f[2][4:].lstrip("_")
-            want = known.get(callee)
+                and (f[2].startswith("ext:") or f[2] == "seg:" + seg.name)):
+            if f[2].startswith("ext:"):
+                callee = f[2][4:].lstrip("_")
+                want = known.get(callee)
+            else:
+                # a routine later in this same file: the fixup names this
+                # code segment, and the offset is the routine's here
+                disp = seg.fixinfo.get(i + 1, (0,))[0]
+                target = (struct.unpack_from("<H", seg.data, i + 1)[0]
+                          + disp) & 0xFFFF
+                owner = [(o, n) for o, n in pubs if o <= target]
+                callee, want = "?", None
+                if owner:
+                    o, n = owner[-1]
+                    callee = n.lstrip("_")
+                    if callee in known:
+                        want = known[callee] + (target - o)
             if img[at] == 0x9A:
                 o, s = struct.unpack_from("<HH", img, at + 1)
                 got = s * 16 + o
@@ -321,8 +343,36 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose):
     return True, None, unchecked, notes
 
 
+def full_diff(ours, theirs, addr):
+    """The whole routine, instruction by instruction, as a unified diff -
+    branch and call targets written relative to the routine so that a
+    difference early on does not make every later target differ."""
+    import capstone
+    import difflib
+    md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_16)
+
+    def text(code):
+        out = []
+        for ins in md.disasm(bytes(code), 0):
+            op = ins.op_str
+            if ins.mnemonic.startswith(("j", "call", "loop")) and \
+                    re.fullmatch(r"0x[0-9a-f]+", op):
+                op = "+%x" % int(op, 16)
+            # what a fixup fills in is the linker's: a DGROUP address, a
+            # far call's target
+            op = re.sub(r"\[(0x)?[0-9a-f]+\]", "[mem]", op)
+            if ins.mnemonic == "lcall" and "[" not in op:
+                op = "far"
+            out.append("%s %s" % (ins.mnemonic, op))
+        return out
+    a, b = text(ours), text(theirs)
+    return ["  " + l for l in difflib.unified_diff(a, b, "ours", "image",
+                                                   n=2, lineterm="")]
+
+
 def judge(path, known, img, fr, verbose=False, force_opts=None,
-          force_compiler=None, placed=None, force_assembler=None):
+          force_compiler=None, placed=None, force_assembler=None,
+          full=False):
     placed = placed or {}
     src = open(path).read()
     c = COMPILER.search(src)
@@ -348,10 +398,10 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
             if addr is None:
                 results.append((name, None, "no address", []))
                 continue
-            ok, where, unchecked, notes = judge_routine(
-                name, seg, off, hi, addr, img, known, fr, verbose)
             later = [a for a in known.values() if a > addr]
             gap = (min(later) - addr) if later else None
+            ok, where, unchecked, notes = judge_routine(
+                name, seg, off, hi, addr, img, known, fr, verbose, pubs)
             size = hi - off
             if ok and gap is not None and gap != size:
                 notes.append("%d bytes compiled, %d to the next known routine"
@@ -362,7 +412,11 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
             results.append((name, addr, verdict, notes))
             if ok:
                 refs.extend(data_refs(seg, off, hi, addr, img))
-            if not ok:
+            if not ok and full:
+                notes.extend(full_diff(seg.data[off:hi], img[addr:addr + gap
+                                       if gap else addr + (hi - off) + 32],
+                                       addr))
+            elif not ok:
                 lines_o = disasm(seg.data[off + max(0, where - 8):hi],
                                  addr + max(0, where - 8))
                 lines_i = disasm(img[addr + max(0, where - 8):
@@ -372,7 +426,8 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
                 notes.extend("  " + x for x in lines_o)
                 notes.append("image:")
                 notes.extend("  " + x for x in lines_i)
-    results.extend(judge_data(mod, refs, img, placed))
+    results.extend(judge_data(mod, refs, img, placed,
+                              JUDGED_DATA.findall(src)))
     return results
 
 
@@ -394,7 +449,10 @@ def data_refs(seg, lo, hi, addr, img):
     return out
 
 
-def judge_data(mod, refs, img, placed):
+JUDGED_DATA = re.compile(r"JUDGE:\s*data\s+0x([0-9a-fA-F]+)\.\.0x([0-9a-fA-F]+)")
+
+
+def judge_data(mod, refs, img, placed, declared=()):
     """**The module's own data, placed and compared.** Each reference from a
     matched routine into the module's `_DATA` or `_BSS` says where that
     segment begins in DGROUP: the image's word less the object's addend. All
@@ -409,6 +467,9 @@ def judge_data(mod, refs, img, placed):
     bases = {}
     for tgt, addend, got in refs:
         if tgt.startswith("seg:"):
+            seg = next((x for x in mod.segs[1:] if x.name == tgt[4:]), None)
+            if seg is None or seg.cls == "CODE":
+                continue    # an offset into the module's own code
             bases.setdefault(tgt[4:], set()).add((got - addend) & 0xFFFF)
         elif tgt.startswith("ext:") and tgt[4:].lstrip("_") in placed:
             want = (placed[tgt[4:].lstrip("_")] + addend) & 0xFFFF
@@ -425,6 +486,14 @@ def judge_data(mod, refs, img, placed):
             continue
         base = found.pop()
         verdict = "at DGROUP %04x..%04x" % (base, base + seg.length)
+        if seg.cls == "DATA" and declared and \
+                (base, base + seg.length) not in \
+                [(int(a, 16), int(b, 16)) for a, b in declared]:
+            out.append(("[%s]" % segname, None,
+                        "DIFF: placed %04x..%04x, the file declares %s"
+                        % (base, base + seg.length,
+                           ", ".join("%s..%s" % d for d in declared)), []))
+            continue
         notes = []
         if seg.cls == "DATA" and seg.length:
             masked = set()
@@ -460,6 +529,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("files", nargs="+")
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--full", action="store_true",
+                    help="a differing routine as a whole-routine diff")
+    ap.add_argument("--only", help="judge only these routines (comma list)")
     ap.add_argument("--opts", help="TCC options instead of the file's own "
                     "(one string: --opts='-mm -O')")
     ap.add_argument("--assembler", choices=TASM_HOST + TASM_EMULATED,
@@ -481,7 +553,9 @@ def main(argv=None):
         for name, addr, verdict, notes in judge(
                 path, known, img, fr, a.verbose,
                 a.opts.split() if a.opts is not None else None,
-                a.compiler, placed, a.assembler):
+                a.compiler, placed, a.assembler, a.full):
+            if a.only and name not in a.only.split(","):
+                continue
             total += 1
             matched += verdict.startswith("MATCH")
             where = "%05x" % addr if addr is not None else "  ?  "

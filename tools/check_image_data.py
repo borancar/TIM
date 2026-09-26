@@ -52,6 +52,24 @@ NEEDED = [(DGROUP, DGROUP + INIT_END),
           ((LOAD_SEG << 4) + 0x26190 + 0x0008, (LOAD_SEG << 4) + 0x26190 + 0x020d),
           ((LOAD_SEG << 4) + 0x26190 + 0x30f6, (LOAD_SEG << 4) + 0x26190 + 0x30fc)]
 
+# **What the original compiler proves instead.** A module whose source Turbo
+# C++ / Borland C++ compiles to the image's bytes (tools/judge.py) says which
+# run of DGROUP is its data - `JUDGE: data 0x49ba..0x49c6` in its header - and
+# the judge holds that line to where the compiler put it. On the host that
+# data is ordinary C objects with real pointers in them, not a copy of the
+# image's bytes, so those runs are the judge's to check and not this tool's.
+JUDGED = re.compile(r"JUDGE:\s*data\s+0x([0-9a-fA-F]+)\.\.0x([0-9a-fA-F]+)")
+
+
+def judged_ranges():
+    out = []
+    for path in glob.glob(os.path.join(REC, "src", "*.c")):
+        for m in JUDGED.finditer(open(path).read()):
+            out.append((DGROUP + int(m.group(1), 16),
+                        DGROUP + int(m.group(2), 16)))
+    return out
+
+
 DG = re.compile(r"^\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
 BSS = re.compile(r"^\.bss\.guest\.dgroup\.0x([0-9a-fA-F]{4})$")
 SEG = re.compile(r"^\.guest\.seg\.0x([0-9a-fA-F]{4})\.0x([0-9a-fA-F]{4})$")
@@ -133,8 +151,11 @@ def main():
         return 1
 
     missing = 0
+    judged = judged_ranges()
     for lo, hi in NEEDED:
         for at in range(lo, hi):
+            if any(j_lo <= at < j_hi for j_lo, j_hi in judged):
+                continue
             if mem[at] != image[at]:
                 if missing < 10:
                     print(f"NOT TRANSCRIBED linear 0x{at:05x}: the image has "
@@ -144,7 +165,9 @@ def main():
         print(f"FAIL: {missing} bytes the game reads are not in any placed object")
         return 1
     print(f"{len(objects)} placed objects, each at its address and holding the image's bytes, "
-          f"and nothing the game reads is left out")
+          f"and nothing the game reads is left out"
+          + (f" ({sum(h - l for l, h in judged)} bytes in {len(judged)} runs "
+             f"are judged modules' own data)" if judged else ""))
     return 0
 
 

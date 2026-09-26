@@ -48,7 +48,7 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 # against - and the dev*.c files are not shipped at all.
 SRC  := src
 GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
-        $(SRC)/engine.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c $(SRC)/atan2.c \
+        $(SRC)/engine.c $(SRC)/vqtflip.c $(SRC)/offbmp.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c $(SRC)/atan2.c $(SRC)/vqt.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
         $(SRC)/sxovl_asb.c $(SRC)/sxovl_adl.c $(SRC)/sxovl_sbp.c \
         $(SRC)/sxovl.c $(SRC)/glue.c

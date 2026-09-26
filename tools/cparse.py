@@ -50,7 +50,14 @@ BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|SEGMENT_AT)"
 OFFSETOF_RE = re.compile(r"\b__builtin_offsetof\s*\([^()]*\)")
 # `far` and `huge` are the Borland tags, defined as nothing on the host, and
 # `SDLCALL` is SDL's calling-convention tag in the same position.
-TAG_RE = re.compile(r"\b(?:far|huge)\b(?=\s*\*)")
+TAG_RE = re.compile(r"\b(?:far|huge|near)\b")
+# **What only Turbo C++ reads**: the body of an `#ifdef __TURBOC__` branch -
+# inline `asm`, the pseudo-registers `_CX`/`_DX`, a declaration the original
+# made its own way. The tools that parse are about the host's code, so the
+# branch is blanked up to its `#else` or `#endif`. Nothing nests inside one.
+TCC_BRANCH_RE = re.compile(r"^[ \t]*#[ \t]*ifdef[ \t]+__TURBOC__\b.*?"
+                           r"(?=^[ \t]*#[ \t]*(?:else|endif)\b)",
+                           re.M | re.S)
 # `PACKED` and `NONSTRING` are dgroup.h's spellings of a host attribute, which
 # vanish under Turbo C++ 3.0; after a closing brace or a declarator the
 # grammar would read either as a second declarator.
@@ -73,12 +80,13 @@ _PARSER = Parser(Language(tree_sitter_c.language()))
 
 def expand(text):
     """The source with those four expanded, every offset preserved."""
+    text = TCC_BRANCH_RE.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
     text = BLANK_RE.sub(lambda m: " " * len(m.group(0)), text)
     text = OFFSETOF_RE.sub(lambda m: "0" + " " * (len(m.group(0)) - 1), text)
     text = PPCOND_RE.sub(lambda m: " " * len(m.group(0)), text)
     text = SDLCALL_RE.sub("       ", text)
     text = ATTR_RE.sub(lambda m: " " * len(m.group(0)), text)
-    return TAG_RE.sub("   ", text)
+    return TAG_RE.sub(lambda m: " " * len(m.group(0)), text)
 
 
 def parse(path):
