@@ -32,7 +32,7 @@
 struct machine_quadrant_steps {
     int16_t   dx[4];              /* +0x00 [8] */
     int16_t   dy[4];              /* +0x08 [8] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { .dx = { [1] = -1, [3] = 0x0001 }, .dy = { -1, 0x0000, 0x0001 } };
 
@@ -52,7 +52,7 @@ struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { .dx =
 struct machine_cursor_hotspots {
     int16_t   hot_x[9];           /* +0x00 [0x12] */
     int16_t   hot_y[9];           /* +0x12 [0x12] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
     .hot_x = {
@@ -69,7 +69,7 @@ struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
  */
 struct machine_button_prev {
     int16_t   prev;          /* +0x00 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e);
 
@@ -82,7 +82,7 @@ struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e);
  */
 struct machine_hash_order {
     uint8_t   hash_order[4];      /* +0x00 [4] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
 
@@ -96,7 +96,7 @@ struct machine_resource_map_names {
     char      mode_rb_a[3];       /* +0x0d  "rb" */
     char      mode_rb_b[3];       /* +0x10  "rb" */
     char      mode_rb_c[3];       /* +0x13  "rb" */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_resource_map_names MACHINE_RESOURCE_MAP_NAMES DGROUP_AT(0x28d6) = {
     .resource_map = "RESOURCE.MAP",
@@ -121,7 +121,7 @@ struct machine_page_pairs {
         dg_near_t src;             /* +0x00  the address of a page word */
         dg_near_t dst;             /* +0x02 */
     } pair[10];                   /* +0x00 [0x28] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
     .pair = {
@@ -151,7 +151,7 @@ struct machine_cursor_state {
        cursor is not lifted and dropped underneath a half-drawn frame. */
     uint16_t  timer_draws_cursor; /* +0x12 [2] */
     int16_t   slots_unset;          /* +0x14 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
     .page = 0x0001,
@@ -174,7 +174,7 @@ struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_AT(0x2d32) = {
 struct machine_isr_stack {
     uint16_t  saved_ss;           /* +0x00 [2] */
     uint16_t  saved_sp;           /* +0x02 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_isr_stack MACHINE_ISR_STACK DGROUP_AT(0x317e);
 
@@ -185,7 +185,7 @@ struct machine_isr_stack MACHINE_ISR_STACK DGROUP_AT(0x317e);
  */
 struct machine_archives {
     struct archive slot[0xb];     /* +0x00 [0x134] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_archives MACHINE_ARCHIVES DGROUP_BSS(0x548f);
 
@@ -194,7 +194,7 @@ struct machine_archives MACHINE_ARCHIVES DGROUP_BSS(0x548f);
  */
 struct machine_game_files {
     struct game_file files[0xa];  /* +0x00 [0xb4] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
 
@@ -211,7 +211,7 @@ struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
  */
 struct machine_rect_slots {
     dg_near_t slot[0x14];         /* +0x00 [0x28] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
 
@@ -229,7 +229,7 @@ struct machine_rect_free {
     dg_near_t rect_free_ptr;      /* +0x00 [2] */
     int16_t   draw_x;          /* +0x02 [2] */
     int16_t   draw_y;          /* +0x04 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
 
@@ -243,7 +243,7 @@ struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
  */
 struct machine_page_slots {
     struct page_slot slots[2];   /* +0x00 [0x40] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_page_slots MACHINE_PAGE_SLOTS DGROUP_BSS(0x56e6);
 
@@ -258,7 +258,7 @@ struct machine_saved_draw_state {
     int16_t   saved_e;            /* +0x08 [2] */
     uint16_t  saved_f;            /* +0x0a [2] */
     uint16_t  saved_g;            /* +0x0c [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE DGROUP_BSS(0x5726);
 
@@ -271,7 +271,7 @@ struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE DGROUP_BSS(0x5726);
  */
 struct machine_buffer_used {
     uint8_t   used[4];            /* +0x00 [4] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_buffer_used MACHINE_BUFFER_USED DGROUP_BSS(0x5734);
 
@@ -287,7 +287,7 @@ struct machine_palette_fade {
        reads it. */
     int16_t   plot_colour;        /* +0x06 [2] */
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_BSS(0x5738);
 
@@ -304,12 +304,12 @@ struct button {
     int16_t   was_down;           /* +0x02  what the driver said last time */
     int16_t   presses;            /* +0x04  what tells a click from a double one */
     int16_t   delay;              /* +0x06  reloaded from 0x2d40 on every change */
-} __attribute__((packed));
+} PACKED;
 
 /* DGROUP 0x5742..0x5752, 0x10 bytes. */
 struct machine_buttons {
     struct button button[2];      /* +0x00 [0x10] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
 
@@ -322,7 +322,7 @@ struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
  */
 struct machine_rect_buffers {
     struct far_ptr slot[4];       /* +0x00  slots 1 to 4 */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_BSS(0x5758);
 

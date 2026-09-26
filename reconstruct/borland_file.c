@@ -38,10 +38,10 @@
 struct borland_data_start {
     uint8_t   null_check[4];      /* +0x00 */
     char      copyright[43];      /* +0x04  "Borland C++ - Copyright 1991 Borland Intl." */
-    char      null_message[25] __attribute__((nonstring));   /* +0x2f  "Null pointer assignment\r\n" */
-    char      divide_message[14] __attribute__((nonstring)); /* +0x48  "Divide error\r\n" */
-    char      abort_message[30] __attribute__((nonstring));  /* +0x56  "Abnormal program termination\r\n" */
-} __attribute__((packed));
+    char      null_message[25] NONSTRING;   /* +0x2f  "Null pointer assignment\r\n" */
+    char      divide_message[14] NONSTRING; /* +0x48  "Divide error\r\n" */
+    char      abort_message[30] NONSTRING;  /* +0x56  "Abnormal program termination\r\n" */
+} PACKED;
 
 struct borland_data_start BORLAND_DATA_START DGROUP_AT(0x0000) = {
     .copyright = "Borland C++ - Copyright 1991 Borland Intl.",
@@ -63,7 +63,7 @@ struct borland_find_name {
     uint16_t  _pad_2d48;          /* +0x00 [2] */
     char      find_name[13];      /* +0x02 [0xd] */
     uint8_t   unread_2d57[0x1f];  /* +0x0f [0x1f] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_find_name BORLAND_FIND_NAME DGROUP_AT(0x2d48);
 
@@ -81,7 +81,7 @@ struct borland_find_info {
        Nothing in the image reads it - the four stores are its only
        references. */
     int16_t   dos_result;         /* +0x05 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_find_info BORLAND_FIND_INFO DGROUP_AT(0x2d76);
 
@@ -95,7 +95,7 @@ struct borland_find_info BORLAND_FIND_INFO DGROUP_AT(0x2d76);
 struct borland_atexit_count {
     uint16_t  atexit_count;       /* +0x00 [2] */
     uint8_t   _pad_4ab6;          /* +0x02 [1]  nothing touches it */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_atexit_count BORLAND_ATEXIT_COUNT DGROUP_AT(0x4ab4);
 
@@ -106,7 +106,7 @@ struct borland_atexit_count BORLAND_ATEXIT_COUNT DGROUP_AT(0x4ab4);
  */
 struct borland_ctype {
     uint8_t   ctype[0x101];       /* +0x00 [0x101] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_ctype BORLAND_CTYPE DGROUP_AT(0x4ab7) = {
     .ctype = {
@@ -137,7 +137,7 @@ struct borland_exit_vectors {
     struct far_ptr exit_buf;      /* +0x00 [4] */
     struct far_ptr exit_fopen;    /* +0x04 [4] */
     struct far_ptr exit_open;     /* +0x08 [4] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_exit_vectors BORLAND_EXIT_VECTORS DGROUP_AT(0x4bb8) = {
     .exit_buf = { .off = 0xbc63, .seg = LOAD_SEG + 0x0000 },
@@ -157,7 +157,7 @@ struct borland_exit_vectors BORLAND_EXIT_VECTORS DGROUP_AT(0x4bb8) = {
  */
 struct borland_streams {
     struct file_rec streams[0x14];   /* +0x00 [0x140] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_streams BORLAND_STREAMS DGROUP_AT(0x4bc4) = {
     .streams = {
@@ -176,7 +176,7 @@ struct borland_nfile {
     /* **`_nfile`**, the size of the stream table: twenty here, and
        `find_free_stream` bounds itself with it. */
     uint16_t  nfile;              /* +0x00 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_nfile BORLAND_NFILE DGROUP_AT(0x4d04) = { .nfile = 0x0014 };
 
@@ -187,7 +187,7 @@ struct borland_nfile BORLAND_NFILE DGROUP_AT(0x4d04) = { .nfile = 0x0014 };
  */
 struct borland_handle_flags {
     uint16_t  flags[0x14];        /* +0x00 [0x28] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_handle_flags BORLAND_HANDLE_FLAGS DGROUP_AT(0x4d06) = { .flags = { 0x6001, 0x6002, 0x6002, 0xa004, 0xa002 } };
 
@@ -216,7 +216,7 @@ struct borland_io_modes {
        entries, -1 where there is none. `io_error` clamps a code to 0x58 and
        reads through here. The string "TMP" follows at 0x4d90. */
     int8_t    errno_map[0x59];    /* +0x08 [0x59] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_io_modes BORLAND_IO_MODES DGROUP_AT(0x4d2e) = {
     .fmode = 0x4000,
@@ -249,10 +249,10 @@ struct borland_runtime_strings {
     char      null_str[7];        /* +0x0a [7]  "(null)" */
     uint8_t   fmt_class[0x60];    /* +0x11 [0x60] */
     uint8_t   pad_4e01;           /* +0x71 [1] */
-    char      s_print[5] __attribute__((nonstring));  /* +0x72 [5]  "print", no terminator */
-    char      s_scanf[5] __attribute__((nonstring));  /* +0x77 [5]  " scan", no terminator */
+    char      s_print[5] NONSTRING;  /* +0x72 [5]  "print", no terminator */
+    char      s_scanf[5] NONSTRING;  /* +0x77 [5]  " scan", no terminator */
     char      s_no_floats[0x28];  /* +0x7c [0x28]  " : floating point formats not linked\r\n" */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_runtime_strings BORLAND_RUNTIME_STRINGS DGROUP_AT(0x4d90) = {
     .tmp_prefix = "TMP",
@@ -287,7 +287,7 @@ struct borland_init_table {
     uint8_t   priority;           /* +0x05 */
     struct far_ptr init;          /* +0x06  0x4e48  setup_streams */
     uint8_t   pad_4e4c[2];        /* +0x0a */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_init_table BORLAND_INIT_TABLE DGROUP_AT(0x4e42) = {
     .vector_4e42 = 0xc889,
@@ -310,7 +310,7 @@ struct borland_atexit_table {
     char      tmp_name[0x0e];     /* +0x80 [0xe] */
     uint8_t   getc_byte;          /* +0x8e [1] */
     uint8_t   pad_64c7;           /* +0x8f [1] */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_atexit_table BORLAND_ATEXIT_TABLE DGROUP_BSS(0x6438);
 
@@ -319,7 +319,7 @@ struct borland_atexit_table BORLAND_ATEXIT_TABLE DGROUP_BSS(0x6438);
  */
 struct borland_fputc_char {
     uint8_t   character;          /* +0x00 [1]  filed here before anything else, and it stays */
-} __attribute__((packed));
+} PACKED;
 
 struct borland_fputc_char BORLAND_FPUTC_CHAR DGROUP_BSS(0x64c8);
 

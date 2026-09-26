@@ -58,7 +58,7 @@ struct vm_cs {
     dg_near_t data_ptr;           /* +0x13c  the driver's data, VMDS */
     uint8_t   pad_013e[0xc8];
     struct far_ptr hooks[19];     /* +0x206  copied from the table it is handed */
-} __attribute__((packed));
+} PACKED;
 
 #define VMCS (*(struct vm_cs *)MK_FP(DG48DA.driver.seg, 0))
 

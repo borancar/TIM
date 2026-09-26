@@ -53,12 +53,12 @@ struct res_handler {
     uint16_t  write_start_off;    /* +0x08 */
     uint16_t  write_open_off;     /* +0x0a */
     uint16_t  reset_off;          /* +0x0c  the restart */
-} __attribute__((packed));
+} PACKED;
 
 /* DGROUP 0x357a..0x35b2, 0x38 bytes. */
 struct engine_res_handlers {
     struct res_handler type[4];   /* +0x00 [0x38] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
     .type = {
@@ -101,7 +101,7 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
 struct engine_bit_masks {
     uint8_t   mask[9];            /* +0x00 */
     uint8_t   pad_35bb;           /* +0x09 */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
 
@@ -113,7 +113,7 @@ struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0
  */
 struct engine_lzw_window {
     uint8_t   window[12];         /* +0x00 [0xc] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {
     .window = {
@@ -128,7 +128,7 @@ struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {
  */
 struct engine_lzw_masks {
     uint8_t   mask[9];            /* +0x00 [9] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_lzw_masks ENGINE_LZW_MASKS DGROUP_AT(0x35c8) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
 
@@ -142,7 +142,7 @@ struct engine_lzw_masks ENGINE_LZW_MASKS DGROUP_AT(0x35c8) = { .mask = { 0x00, 0
  */
 struct engine_lzw_resume {
     int16_t   scratch_at;         /* +0x00 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
 
@@ -187,7 +187,7 @@ struct engine_bit_state {
     uint8_t   pad_35ea[4];        /* +0x17 */
     uint8_t   left_mask[9];       /* +0x1b  0x35ee */
     uint8_t   right_mask[9];      /* +0x24  0x35f7 */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3) = {
     .hash_size = 0x138b,
@@ -204,7 +204,7 @@ struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3) = {
 struct engine_bit_buffer {
     int16_t   bits;               /* +0x00 [2]  filled from the top; bits come off the **left** */
     uint8_t   bit_count;          /* +0x02 [1]  how many are in it */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
 
@@ -219,7 +219,7 @@ struct engine_huffman_codes {
     uint8_t   pad_3603[3];        /* +0x00 */
     uint8_t   len[64];            /* +0x03  0x3606 */
     uint8_t   code[64];           /* +0x43  0x3646 */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_huffman_codes ENGINE_HUFFMAN_CODES DGROUP_AT(0x3603) = {
     .len = {
@@ -249,7 +249,7 @@ struct engine_huffman_codes ENGINE_HUFFMAN_CODES DGROUP_AT(0x3603) = {
 struct engine_huffman_positions {
     uint8_t   high[256];          /* +0x00 [0x100] */
     uint8_t   len[256];           /* +0x100 [0x100] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS DGROUP_AT(0x3686) = {
     .high = {
@@ -317,7 +317,7 @@ struct engine_pen {
        below - 0x300 for 256 colours - and what the loader reads and the
        allocator doubles. */
     int16_t   palette_bytes;   /* +0x04 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .fade_weight = 0x003f, .palette_bytes = 0x0300 };
 
@@ -331,7 +331,7 @@ struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { .fade_weight = 0x003f, .palet
  */
 struct engine_palette_sizes {
     int16_t   size[16];           /* +0x00 [0x20] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_palette_sizes ENGINE_PALETTE_SIZES DGROUP_AT(0x4466) = {
     .size = {
@@ -359,7 +359,7 @@ struct engine_polygon_chains {
     uint16_t  remaining;          /* +0x08 [2] */
     uint16_t  at;          /* +0x0a [2] */
     uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_polygon_chains ENGINE_POLYGON_CHAINS DGROUP_AT(0x44d0);
 
@@ -384,7 +384,7 @@ struct engine_polygon_state {
     uint16_t  second_count;          /* +0x08 [2] */
     uint8_t   span_step;          /* +0x0a [1] */
     uint8_t   second_pass;          /* +0x0b [1] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
 
@@ -397,8 +397,8 @@ struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
  */
 struct engine_stride_shifts {
     uint8_t   stride_shift[14];   /* +0x00 [0xe]  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
-    uint8_t   bytes_4588[4] __attribute__((nonstring));  /* +0x0e [4] */
-} __attribute__((packed));
+    uint8_t   bytes_4588[4] NONSTRING;  /* +0x0e [4] */
+} PACKED;
 
 struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
     .stride_shift = {
@@ -439,9 +439,9 @@ struct engine_keyboard {
     uint8_t   shifted[0x59];      /* +0xa7 [0x59]  the same with shift down */
     uint8_t   state[0x59];        /* +0x100 [0x59]  a bit per key: down */
     uint8_t   pad_46e5[0x20];     /* +0x159 [0x20] */
-    uint8_t   pcjr_from[0x0b] __attribute__((nonstring));  /* +0x179 [0xb]  the PCjr's scancodes ... */
+    uint8_t   pcjr_from[0x0b] NONSTRING;  /* +0x179 [0xb]  the PCjr's scancodes ... */
     uint8_t   pcjr_to[0x0b];      /* +0x184 [0xb]  ... and what they stand for */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
     .pad_4592 = { 0x01 },
@@ -524,7 +524,7 @@ struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
  */
 struct engine_pcjr_keyboard {
     uint8_t   pcjr_keyboard;      /* +0x00 [1] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD DGROUP_AT(0x471b);
 
@@ -534,7 +534,7 @@ struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD DGROUP_AT(0x471b);
  */
 struct engine_text_colours {
     uint8_t   colour[5];          /* +0x00 [5] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_text_colours ENGINE_TEXT_COLOURS DGROUP_AT(0x471e) = { .colour = { 0x00, 0x01, 0x02, 0x03, 0x04 } };
 
@@ -549,7 +549,7 @@ struct engine_mouse {
     uint16_t  mouse_y;            /* +0x02 [2]  the same for y */
     struct far_ptr mouse_handler_fn; /* +0x04 [4]  the game's own handler, called by `mouse_event`;
                                                nothing in the image sets it */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_mouse ENGINE_MOUSE DGROUP_AT(0x4740);
 
@@ -563,14 +563,14 @@ struct engine_driver_block {
        destination of `read_resource`, and as the `(seg << 16) | off` the
        routine answers. */
     struct far_ptr block;         /* +0x00 [4] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_driver_block ENGINE_DRIVER_BLOCK DGROUP_AT(0x48f8);
 
 /* **The mode the font is opened with**, DGROUP 0x495a..0x495c: "r". */
 struct engine_font_mode {
     char      mode_r[2];          /* +0x00 */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_mode ENGINE_FONT_MODE DGROUP_AT(0x495a) = { .mode_r = "r" };
 
@@ -583,7 +583,7 @@ struct engine_font_mode ENGINE_FONT_MODE DGROUP_AT(0x495a) = { .mode_r = "r" };
  */
 struct engine_font_chunk {
     dg_near_t font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
 
@@ -595,7 +595,7 @@ struct engine_font_tag {
     char      fnt[5];             /* +0x00  "FNT:" */
     char      mode_r[2];          /* +0x05  0x4963  "r" */
     uint8_t   pad_4965;           /* +0x07 */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_tag ENGINE_FONT_TAG DGROUP_AT(0x495e) = { .fnt = "FNT:", .mode_r = "r" };
 
@@ -610,7 +610,7 @@ struct engine_resource_flags {
        the selected resource holds; every read below goes through it. */
     dg_near_t file_ptr;           /* +0x02 [2] */
     uint8_t   handler;            /* +0x04 [1]  the low five bits of the byte, indexing a table of handlers */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
 
@@ -625,7 +625,7 @@ struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
  */
 struct engine_read_staging {
     uint8_t   buf[0x32];          /* +0x00 [0x32] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
 
@@ -636,7 +636,7 @@ struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
  */
 struct engine_resource_slots {
     dg_near_t slot_ptr[0x64];     /* +0x00 [0xc8] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
 
@@ -680,7 +680,7 @@ struct engine_stream {
     int16_t   bit_end;            /* +0x2c [2]  where whole codes stop in the window: bytes read * 8 less
                                      n_bits - 1; zero or less is the end of the input */
     int16_t   maxcode;            /* +0x2e [2]  the largest code at this width, 0x1000 at twelve bits */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_stream ENGINE_STREAM DGROUP_BSS(0x5888);
 
@@ -692,7 +692,7 @@ struct engine_match_resume {
     int16_t   position;           /* +0x02 [2]  and these three are what it comes back to */
     int16_t   length;             /* +0x04 [2] */
     int16_t   progress;           /* +0x06 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_match_resume ENGINE_MATCH_RESUME DGROUP_BSS(0x58e0);
 
@@ -706,7 +706,7 @@ struct engine_lzss_state {
     uint16_t  ring_pos;          /* +0x00 [2] */
     int32_t   count;              /* +0x02 [4]  bytes produced so far */
     int32_t   size;               /* +0x06 [4]  the record's size, copied at the start */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
 
@@ -718,7 +718,7 @@ struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
  */
 struct engine_huffman_tree {
     struct far_ptr son;           /* +0x00 [4] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_BSS(0x5900);
 
@@ -737,7 +737,7 @@ struct engine_decompress_cache {
     struct far_ptr cache_c;       /* +0x08 [4]  the record's own block */
     uint8_t   pad_5916[2];        /* +0x0c [2] */
     int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_BSS(0x590a);
 
@@ -749,7 +749,7 @@ struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_BSS(0x590a);
  */
 struct engine_scale_table {
     int16_t   entry[0x280];       /* +0x00 [0x500] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_scale_table ENGINE_SCALE_TABLE DGROUP_BSS(0x5956);
 
@@ -765,7 +765,7 @@ struct engine_scale_table ENGINE_SCALE_TABLE DGROUP_BSS(0x5956);
  */
 struct engine_row_offsets {
     uint16_t  row[0x190];         /* +0x00 [0x320] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
 
@@ -779,7 +779,7 @@ struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
  */
 struct engine_font_kinds {
     uint8_t   kind[0x14];         /* +0x00 [0x14] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
 
@@ -796,7 +796,7 @@ struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
  */
 struct engine_fonts {
     struct far_ptr body[0x14];    /* +0x00 [0x50] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
 
@@ -809,7 +809,7 @@ struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
  */
 struct engine_font_widths {
     struct far_ptr width[0x14];   /* +0x00 [0x50] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
 
@@ -827,7 +827,7 @@ struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
  */
 struct engine_font_slots {
     struct far_ptr slot[0x14];    /* +0x00 [0x50] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_BSS(0x622a);
 
@@ -851,7 +851,7 @@ struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_BSS(0x622a);
  */
 struct engine_underline_rows {
     uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_underline_rows ENGINE_UNDERLINE_ROWS DGROUP_BSS(0x627a);
 
@@ -864,7 +864,7 @@ struct engine_scale_step {
        first entry, and never read - by this routine or any other in the port.
        Named by address because a lone store says nothing more. */
     uint16_t  word_6290;          /* +0x02 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
 
@@ -875,7 +875,7 @@ struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
  */
 struct engine_open_files {
     struct open_file rec[4];      /* +0x00 [0x10c] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
 
@@ -893,7 +893,7 @@ struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
  */
 struct engine_saved_file_record {
     uint8_t   record[0x44];       /* +0x00 [0x44] */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD DGROUP_BSS(0x639e);
 
@@ -915,7 +915,7 @@ struct engine_bitmap_compress {
     struct far_ptr out;           /* +0x0c [4]  where the next byte goes */
     dg_near_t row_buffer_ptr;     /* +0x10 [2]  the row buffer compress_row works in, 0x7d0 bytes */
     uint16_t  mode;               /* +0x12 [2]  0x243bf sets it; it chooses how the runs are written */
-} __attribute__((packed));
+} PACKED;
 
 struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_BSS(0x63e2);
 
@@ -1626,7 +1626,7 @@ int16_t select_resource(int16_t handle)
     ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
     if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->file_ptr;
+        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->data.off;
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
@@ -1936,7 +1936,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
         return -1;
 
     rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->file_ptr = dg_near(dgroup, file);
+    RESOURCE_PTR(rec)->data.off = dg_near(dgroup, file);
 
     pos = game_ftell(file);
     rec = ENGINE_STREAM.record_ptr;

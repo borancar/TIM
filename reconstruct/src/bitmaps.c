@@ -38,7 +38,7 @@ struct bitmaps_flip_state {
     uint16_t  _pad_63fa;          /* +0x04 [2]  not touched by these routines */
     uint16_t  index_bits;         /* +0x06 [2]  bits per pixel index, or 8 */
     dg_near_t palette;            /* +0x08 [2]  the leaf's palette, in its frame */
-} __attribute__((packed));
+} PACKED;
 
 struct bitmaps_flip_state BITMAPS_FLIP_STATE DGROUP_BSS(0x63f6);
 

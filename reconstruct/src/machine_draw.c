@@ -37,7 +37,7 @@ struct machine_draw_menu_anim {
     int16_t   picture_y[6];       /* +0x18 [0xc] */
     int16_t   sprite_x[4];        /* +0x24 [8]  by the frame modulo four */
     int16_t   sprite_y[4];        /* +0x2c [8] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
     .picture = { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },
@@ -54,7 +54,7 @@ struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
  */
 struct machine_draw_selection_phase {
     uint16_t  phase;          /* +0x00 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);
 

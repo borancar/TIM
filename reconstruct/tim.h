@@ -306,21 +306,21 @@ struct sound_play_args {                /* function 3 */
     uint16_t       rate;                /* +2 */
     struct far_ptr sample;              /* +4  a segment and an offset inside it */
     uint16_t       length;              /* +8 */
-} __attribute__((packed));
+} PACKED;
 
 struct sound_poll_args {                /* function 4 */
     uint8_t        volume;              /* +0 */
     uint8_t        loop;                /* +1 */
-} __attribute__((packed));
+} PACKED;
 
 struct sound_rate_args {                /* function 6 */
     uint16_t       rate;                /* +0 */
-} __attribute__((packed));
+} PACKED;
 
 struct sound_position_args {            /* function 13, written back */
     uint16_t       id;                  /* +0  the sample's */
     uint32_t       position;            /* +2 */
-} __attribute__((packed));
+} PACKED;
 
 union sound_module_args {
     struct sound_play_args     play;

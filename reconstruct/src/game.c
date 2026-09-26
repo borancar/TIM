@@ -49,7 +49,7 @@ struct game_startup_names {
     char gp_bord_bmp[12];    /* +0x52 [0xc]  "gp_bord.bmp"  game_startup */
     char sx_ovl[7];          /* +0x5e [7]  "sx.ovl" */
     char tim_sx[7];          /* +0x65 [7]  "tim.sx"       game_startup */
-} __attribute__((packed));
+} PACKED;
 
 struct game_startup_names GAME_STARTUP_NAMES DGROUP_AT(0x00aa) = {
     .resource_cfg = "RESOURCE.CFG",
@@ -74,7 +74,7 @@ struct game_startup_names GAME_STARTUP_NAMES DGROUP_AT(0x00aa) = {
  */
 struct game_master_levels {
     uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = {
     .master_level_ok = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f },
@@ -86,7 +86,7 @@ struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = {
  */
 struct game_path_sep {
     uint16_t  path_sep_ptr;      /* +0x00 [2]  a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
-} __attribute__((packed));
+} PACKED;
 
 struct game_path_sep GAME_PATH_SEP DGROUP_AT(0x1bca) = { .path_sep_ptr = 0x236e };
 
@@ -103,12 +103,12 @@ struct intro_step {
     int16_t   x;                  /* +0x00  zero ends the roll */
     int16_t   y;                  /* +0x02  0x19f is added before drawing */
     int16_t   bitmap;             /* +0x04  an index into the intro's list */
-} __attribute__((packed));
+} PACKED;
 
 /* DGROUP 0x2370..0x24ea, 0x17a bytes. */
 struct game_intro_steps {
     struct intro_step step[63];   /* +0x00 [0x17a] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_intro_steps GAME_INTRO_STEPS DGROUP_AT(0x2370) = {
     .step = {
@@ -185,7 +185,7 @@ struct game_intro_steps GAME_INTRO_STEPS DGROUP_AT(0x2370) = {
  */
 struct game_copy_protection {
     int16_t   answer[3][16];      /* +0x00 [0x60]  [icon][page] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
     .answer = {
@@ -212,7 +212,7 @@ struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
 struct game_message_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
     int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
-} __attribute__((packed));
+} PACKED;
 
 struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
 
@@ -228,7 +228,7 @@ struct game_button_labels {
     char score1_bmp[11];              /* +0x10 [0xb]  'score1.bmp' */
     char gp_menu_bmp[12];             /* +0x1b [0xc]  'gp_menu.bmp' */
     char score2_bmp[11];              /* +0x27 [0xb]  'score2.bmp' */
-} __attribute__((packed));
+} PACKED;
 
 struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
     .continue_btn = "CONTINUE",
@@ -248,7 +248,7 @@ struct game_puzzle_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the puzzle screen's five tab stops */
     int16_t   stop_x[5];          /* +0x02 [0xa]  where `puzzle_tab` parks the pointer */
     int16_t   stop_y[5];          /* +0x0c [0xa] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
     .stop = 0xffff,
@@ -268,7 +268,7 @@ struct game_part_names {
     char      part[5];            /* +0x05  "part" */
     char      bmp[5];             /* +0x0a  ".bmp" */
     uint8_t   pad_262f;           /* +0x0f */
-} __attribute__((packed));
+} PACKED;
 
 struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = { .star = "*", .title_sep = ": ", .part = "part", .bmp = ".bmp" };
 
@@ -284,7 +284,7 @@ struct game_play_tabs {
     int16_t   stop_y[11];         /* +0x14 [0x16]  and its eleventh word, at 0x2816, is also the
                                             first of the level table below, which nothing
                                             reads as that */
-} __attribute__((packed));
+} PACKED;
 
 struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
     .stop = 0xffff,
@@ -305,7 +305,7 @@ struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
  */
 struct game_master_level_x {
     int16_t   level_x[6];         /* +0x00 [0xc]  level 1 first */
-} __attribute__((packed));
+} PACKED;
 
 struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = { .level_x = { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 } };
 
@@ -351,7 +351,7 @@ struct game_file_names {
     char tim_cfg_write[8];        /* +0x56 [8]  write_config, which writes it */
     char wb_tim_cfg[3];           /* +0x5e [3] */
     uint8_t pad_28d1[1];          /* +0x61 [1] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
     .rb_read_level = "rb",
@@ -383,8 +383,8 @@ struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
  * `validate_filename` tests one by one. The run ends at 0x28fa.
  */
 struct game_forbidden_chars {
-    uint8_t   forbidden[14] __attribute__((nonstring));  /* +0x00 [0xe]  a set, not a string */
-} __attribute__((packed));
+    uint8_t   forbidden[14] NONSTRING;  /* +0x00 [0xe]  a set, not a string */
+} PACKED;
 
 struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = { .forbidden = "*/,-[]&@^%?():" };
 
@@ -397,7 +397,7 @@ struct game_picker_tabs {
     uint16_t  stop;          /* +0x00 [2]  which of the picker's seven tab stops */
     int16_t   stop_x[7];          /* +0x02 [0xe]  where `picker_tab` parks the pointer */
     int16_t   stop_y[7];          /* +0x10 [0xe] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
     .stop = 0xffff,
@@ -432,7 +432,7 @@ struct game_file_strings {
     char      dot_dot_a[3];       /* +0x44  ".." */
     char      star_dot_star_b[4]; /* +0x47  "*.*" */
     char      dot_dot_b[3];       /* +0x4b  ".." */
-} __attribute__((packed));
+} PACKED;
 
 struct game_file_strings GAME_FILE_STRINGS DGROUP_AT(0x2918) = {
     .tim = "TIM",
@@ -486,7 +486,7 @@ struct game_directories {
     char      picker_dir[0x50];   /* +0x00 [0x50] */
     char      game_dir[0x50];     /* +0x50 [0x50] */
     char      path_field[0x50];   /* +0xa0 [0x50] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_directories GAME_DIRECTORIES DGROUP_BSS(0x530b);
 
@@ -498,7 +498,7 @@ struct game_directories GAME_DIRECTORIES DGROUP_BSS(0x530b);
  */
 struct game_typed_text {
     char typed[0x28];             /* +0x00 [0x28] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_typed_text GAME_TYPED_TEXT DGROUP_BSS(0x542e);
 
@@ -512,7 +512,7 @@ struct game_typed_text GAME_TYPED_TEXT DGROUP_BSS(0x542e);
  */
 struct game_name_buffer {
     char      name[0xd];          /* +0x00 [0xd] */
-} __attribute__((packed));
+} PACKED;
 
 struct game_name_buffer GAME_NAME_BUFFER DGROUP_BSS(0x5682);
 
@@ -532,7 +532,7 @@ struct game_picker_text {
     int16_t   text_height;        /* +0x11 [2]  the block's measured extents, which the centring uses */
     int16_t   text_width;         /* +0x13 [2]  the widest line, clamped to the box */
     int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
-} __attribute__((packed));
+} PACKED;
 
 struct game_picker_text GAME_PICKER_TEXT DGROUP_BSS(0x568f);
 

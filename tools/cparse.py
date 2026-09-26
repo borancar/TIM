@@ -51,6 +51,10 @@ OFFSETOF_RE = re.compile(r"\b__builtin_offsetof\s*\([^()]*\)")
 # `far` and `huge` are the Borland tags, defined as nothing on the host, and
 # `SDLCALL` is SDL's calling-convention tag in the same position.
 TAG_RE = re.compile(r"\b(?:far|huge)\b(?=\s*\*)")
+# `PACKED` and `NONSTRING` are dgroup.h's spellings of a host attribute, which
+# vanish under Turbo C++ 3.0; after a closing brace or a declarator the
+# grammar would read either as a second declarator.
+ATTR_RE = re.compile(r"\b(?:PACKED|NONSTRING)\b")
 SDLCALL_RE = re.compile(r"\bSDLCALL\b")
 # **A conditional *inside* a function body.** `copy_protect_screen` has an
 # `#ifndef TIM_COPY_PROTECTION` around a label, which the C grammar cannot take
@@ -73,6 +77,7 @@ def expand(text):
     text = OFFSETOF_RE.sub(lambda m: "0" + " " * (len(m.group(0)) - 1), text)
     text = PPCOND_RE.sub(lambda m: " " * len(m.group(0)), text)
     text = SDLCALL_RE.sub("       ", text)
+    text = ATTR_RE.sub(lambda m: " " * len(m.group(0)), text)
     return TAG_RE.sub("   ", text)
 
 

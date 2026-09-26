@@ -149,7 +149,11 @@ def main():
                 bad.append((where, line, describe(src, n), text(src, n)))
                 continue
             declared = types.get(field, set())
-            if not field.endswith("_ptr"):
+            # `off` is the offset half of a stored `struct far_ptr`, declared
+            # `dg_near_t`: a resource record keeps a file's near pointer
+            # there (`data.off`), where an anonymous union named it until
+            # Turbo C++ 3.0 had to read the record and has no such thing.
+            if not field.endswith("_ptr") and field != "off":
                 bad.append((where, line, f"stored into `{field}`, not a `_ptr` field",
                             text(src, n.parent)))
             elif {aliases.get(t, t) for t in declared} != {"dg_near_t"}:

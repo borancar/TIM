@@ -29,7 +29,7 @@
  */
 struct sound_voices {
     struct far_ptr voice[7];      /* +0x00 [0x1c] */
-} __attribute__((packed));
+} PACKED;
 
 struct sound_voices SOUND_VOICES DGROUP_BSS(0x6414);
 
@@ -43,7 +43,7 @@ struct sound_tick_wait {
     struct far_ptr cursor;        /* +0x02 [4]  a static far pointer, with its
                                             selector beside it */
     int16_t   selector;           /* +0x06 [2] */
-} __attribute__((packed));
+} PACKED;
 
 struct sound_tick_wait SOUND_TICK_WAIT DGROUP_BSS(0x6430);
 
