@@ -46,6 +46,9 @@ const uint8_t *aptr(call_t *c)
     uint16_t off = aword(c), seg = aword(c);
     uint32_t at = ((uint32_t)seg << 4) + off;
 
+    /* The guest's null is the host's. */
+    if (seg == 0 && off == 0)
+        return NULL;
     if (at >= GUEST_MEM_BYTES) {
         fprintf(stderr, "native: %04x:%04x is outside the guest's memory\n",
                 seg, off);
@@ -95,6 +98,9 @@ const uint8_t *aregptr(call_t *c, int seg_reg, int off_reg)
     uint16_t seg = areg(c, seg_reg), off = areg(c, off_reg);
     uint32_t at = ((uint32_t)seg << 4) + off;
 
+    /* The guest's null is the host's. */
+    if (seg == 0 && off == 0)
+        return NULL;
     if (at >= GUEST_MEM_BYTES) {
         fprintf(stderr, "native: %04x:%04x is outside the guest's memory\n",
                 seg, off);

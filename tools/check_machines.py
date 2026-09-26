@@ -141,7 +141,17 @@ def port_run(level, machine, game, hashes, flips, verbose):
 
 
 def hybrid_run(level, machine, game, hashes, presents, verbose):
+    """One hybrid run of the machine, hashed per flip.
+
+    **The original's game code, the port as the machine** -
+    `TIM_NATIVE_LAYERS=io` unless the caller says otherwise. The port's game
+    records hold real pointers now and are not laid out as the guest's, so a
+    port routine cannot run on the original's memory; and a hybrid running the
+    port's own game code compared the port with itself. Under `io` a
+    difference is the port's game logic against the original's.
+    """
     env = dict(os.environ)
+    env.setdefault("TIM_NATIVE_LAYERS", "io")
     env.update({"TIM_HEADLESS": "1", "TIM_STOP": str(presents),
                 "TIM_LEVEL": str(level), "TIM_RUN": "1", "TIM_GAMEDIR": game,
                 "TIM_LOADMACHINE": machine, "TIM_GUESTHASH": hashes})

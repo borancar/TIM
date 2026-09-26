@@ -800,7 +800,9 @@
     FAR_C (0x1eb6a, 2, RET_DXAX, set_palette_pointer),
     FAR_C (0x002a6, 1, RET_NONE, part_hook_none_2a6),
     FAR_C (0x04e65, 1, RET_NONE, compute_link_endpoints),
-    FAR_C (0x20654, 3, RET_AX,   timer_add_callback),
+    /* `timer_add_callback` (0x20654) is not dispatched: the handler that
+       reads its table, `timer_tick`, is the original's here, and the port
+       keeps its callbacks as its own code pointers, not in guest memory. */
     FAR_C (0x206c1, 1, RET_AX,   timer_install),
 
     /*

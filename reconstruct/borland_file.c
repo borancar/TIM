@@ -621,18 +621,18 @@ static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf);
  * caller's stack past the format, as the arguments. `vprinter` pops its own
  * four words, which is why nothing follows the call but `pop bp` and `retf`.
  *
- * The port takes the arguments' address as a parameter, as `borland_sprintf`
- * does, because it has no such stack. The game's four calls - the message
+ * Variadic, as Borland's is, but the port has no such stack to hand the
+ * engine, so it passes none: the game's four calls - the message
  * `game_teardown` leaves with, and three fatal start-up messages - pass a
- * finished string and null for the arguments; a `%` in one would ask the
- * engine for an argument it does not have, and it says so.
+ * finished string and nothing else, and a `%` in one would ask the engine for
+ * an argument it does not have, and it says so.
  *
  * It used to abort, and that was wrong: `game_teardown` reaches it on the
  * ordinary way out, so an abort turned quitting into a crash.
  */
-int16_t borland_printf(const char *fmt, const uint8_t *args)
+int16_t borland_printf(const char *fmt, ...)
 {
-    return vprinter(file_putn, &BORLAND_STREAMS.streams[1], fmt, args);
+    return vprinter(file_putn, &BORLAND_STREAMS.streams[1], fmt, NULL);
 }
 
 /*

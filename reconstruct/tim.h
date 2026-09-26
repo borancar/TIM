@@ -811,6 +811,17 @@ uint16_t call_sound_module(uint16_t fn, union sound_module_args * si); /* 0x0bbd
 uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0bb98 */
 uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0bb9f */
 uint16_t sound_module_service(union sound_module_args * si); /* 0x0bba6 */
+/* **`sound_module_service` as a timer callback.** The timer calls it with no
+   arguments and it reads whatever SI holds, which C can only say with a cast;
+   the host cannot call it that way, so there it is `sound_module_tick`, which
+   hands it the guest's stack as the arguments the way the port's other calls
+   into the module do. Ours. */
+#ifdef __TURBOC__
+#  define SOUND_MODULE_TICK ((void (far *)(void))sound_module_service)
+#else
+void sound_module_tick(void);
+#  define SOUND_MODULE_TICK sound_module_tick
+#endif
 uint16_t sound_module_9(union sound_module_args * si);  /* 0x0bbb1 */
 uint16_t sound_module_10(union sound_module_args * si); /* 0x0bbb8 */
 uint16_t sound_module_11(union sound_module_args * si); /* 0x0bbbf */
@@ -880,7 +891,7 @@ int16_t prepare_resource_slot(int16_t type,
 void free_if_set(uint16_t p);                       /* 0x1c705 */
 
 /* Hand a block back to DOS; only the pointer's segment is used. */
-void dos_free_far(uint8_t far * block);            /* 0x21b34 */
+void dos_free_far(void far *block);            /* 0x21b34 */
 
 /* Recompute a link's endpoints, then the rest lengths they imply. */
 void refresh_link_geometry(struct belt *link);          /* 0x04f7f */
@@ -1456,7 +1467,7 @@ void     conveyor_nudge_15(struct part *obj, int16_t mid); /* 172c:2acb */
 void     conveyor_nudge_25(struct part *obj, int16_t mid); /* 172c:2b1e */
 uint16_t part_step_light(struct part *part);             /* 172c:2b99 */
 uint16_t part_step_windmill(struct part *part);             /* 172c:49a1 */
-uint16_t game_teardown(int16_t really);             /* 0x0e34a */
+void game_teardown(int16_t really);                 /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
 void game_play(void);                               /* 0x0eed5 */
 void game_setup(void);                              /* 0x0ef19 */
@@ -1688,7 +1699,7 @@ struct bmp_set *load_bitmap_list(char *name);           /* 0x2367c */
 struct bmp_set *load_bitmaps(char *name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
-uint16_t game_main(void);                           /* 0x0dfff */
+void game_main(void);                               /* 0x0dfff */
 void game_startup(void);                            /* 0x0e01d */
 
 /* Load a palette, a font, and make a font current. Names from the call sites. */
@@ -1697,7 +1708,7 @@ uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
-int16_t borland_printf(const char *fmt, const uint8_t *args);  /* 0x0d754 */
+int16_t borland_printf(const char *fmt, ...);        /* 0x0d754 */
 void borland_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
@@ -1961,7 +1972,7 @@ int16_t detect_pcjr(void);                             /* 0x20be0 */
 void timer_tick(void);                              /* 0x20767 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
 int16_t timer_remove(void);                            /* 0x2072e */
-uint16_t timer_add_callback(struct far_ptr cb,
+uint16_t timer_add_callback(void (far *cb)(void),
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */

@@ -161,6 +161,13 @@ uint16_t sound_module_service(union sound_module_args * si)
 }
 
 
+/* OURS: `SOUND_MODULE_TICK` on the host - see tim.h. */
+void sound_module_tick(void)
+{
+    sound_module_service((union sound_module_args *)(void *)dg_near_ptr(guest_sp));
+}
+
+
 /*
  * 0x0bbb1
  *

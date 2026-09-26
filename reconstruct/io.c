@@ -1586,42 +1586,11 @@ void (*vm_vector_host(int16_t slot))(void)
     return 0;
 }
 
-void call_timer_handler(struct far_ptr h)
-{
-
-    switch (h.off) {
-    case 0xa7ae:
-        timer_callback();
-        return;
-    case 0x193e:
-        /* The sound module's, in its own code segment. */
-        sound_service();
-        return;
-    case 0xbba6:
-        /*
-         * The loaded sound module's, in the Borland runtime's segment: an EOI
-         * and then function 1 of whatever module is installed.
-         */
-        sound_module_service((union sound_module_args *)(void *)dg_near_ptr(guest_sp));
-        return;
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        snprintf(what, sizeof what,
-                 "a timer slot's handler at %04x:%04x", h.seg, h.off);
-        not_transcribed(what);
-    }
-}
-
 /*
  * OURS: not a transcription. The call `mouse_event` makes through the far
  * pointer at DGROUP 0x4744 - `lcall [0x4744]` at 0x21ffc. C cannot call through
  * a guest far pointer, so this dispatches on the value the way
- * `call_timer_handler` does; but nothing in the image ever sets that pointer,
+ * `call_region_handler` does; but nothing in the image ever sets that pointer,
  * so there is no handler to dispatch to and every value aborts, naming itself.
  */
 void call_mouse_handler(struct far_ptr h)
@@ -1762,7 +1731,7 @@ void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
  * The offset and segment name `mouse_event` at image 0x21fcf and nothing else -
  * `mouse_init` is the one caller and that is what it passes - so the port
  * remembers only *that* it was installed, and calls the routine directly. A
- * dispatch by offset, the way `call_timer_handler` does it, would be inventing
+ * dispatch by offset, the way `call_region_handler` does it, would be inventing
  * a choice where the original has one destination.
  *
  * The mask is kept because the driver is supposed to honour it, and because a

@@ -43,7 +43,7 @@ except ImportError:                                     # pragma: no cover
 # The placements, and the assertions that pin them. Blanked whole: no rule
 # wants to look inside one, and what is inside is a type where an expression
 # belongs.
-BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|SEGMENT_AT)"
+BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|DGROUP_WAS|SEGMENT_AT)"
                       r"\s*\([^()]*\)")
 # An offsetof has to leave a `0` behind, or the `_Static_assert` around it
 # loses its operand and the error comes back one line further on.
@@ -120,7 +120,8 @@ def text(src, node):
 
 def placements(path):
     """Every `DGROUP_AT`/`DGROUP_BSS` placement in a file, as (struct, name,
-    address).
+    address) - and every `DGROUP_WAS`, the address a record had in the
+    original and no longer has on the host.
 
     The macro is expanded away before the parse - that is the whole point of
     this module - so the address it carried has to be read here, from the text,
@@ -131,7 +132,7 @@ def placements(path):
     out = []
     text_ = open(path, "rb").read().decode("utf-8", "replace")
     for m in re.finditer(r"struct\s+(\w+)\s+(\w+)\s*(?:\[[^\]]*\])?\s*"
-                         r"(?:DGROUP_AT|DGROUP_BSS)\((0x[0-9a-fA-F]+)\)", text_):
+                         r"(?:DGROUP_AT|DGROUP_BSS|DGROUP_WAS)\((0x[0-9a-fA-F]+)\)", text_):
         out.append((m.group(1), m.group(2), int(m.group(3), 0)))
     return out
 

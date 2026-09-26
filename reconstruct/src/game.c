@@ -22,62 +22,8 @@
  * dgroup.h; they are declared here because nothing else uses them.
  */
 
-/*
- * **The runtime's own file names**, DGROUP 0x00aa..0x0116, 0x6c bytes: the configuration, the
- * two overlays, the palettes, the font, the cursor and the two panel bitmaps
- * `game_startup` opens, in the order Borland filed them. Typed from the
- * image; the names are ours, from the text. The run ends at the master-level
- * table at 0x116.
- *
- * **A name the game opens stays in DGROUP.** `game_fopen` hands it to
- * `hash_filename`, which uppercases it in place - so after the first open the
- * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
- * the verifier compares them. A C string literal is read-only and would
- * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
- * to `borland_fopen` and not through the hash - is a literal at its call site.
- */
-struct game_startup_names {
-    char resource_cfg[13];   /* +0x00 [0xd]  "RESOURCE.CFG" (a literal where it is read) */
-    char rb[3];              /* +0x0d [3]  "rb" */
-    char vm_ovl[7];          /* +0x10 [7]  "vm.ovl" */
-    char tim_pal[8];         /* +0x17 [8]  "tim.pal" */
-    char sierra_pal[11];     /* +0x1f [0xb]  "sierra.pal" */
-    char black_pal[10];      /* +0x2a [0xa]  "black.pal" */
-    char memofnt8_fnt[13];   /* +0x34 [0xd]  "memofnt8.fnt" */
-    char mouse_bmp[10];      /* +0x41 [0xa]  "mouse.bmp" */
-    char cp_bmp[7];          /* +0x4b [7]  "cp.bmp"       game_startup */
-    char gp_bord_bmp[12];    /* +0x52 [0xc]  "gp_bord.bmp"  game_startup */
-    char sx_ovl[7];          /* +0x5e [7]  "sx.ovl" */
-    char tim_sx[7];          /* +0x65 [7]  "tim.sx"       game_startup */
-} PACKED;
-
-struct game_startup_names GAME_STARTUP_NAMES DGROUP_AT(0x00aa) = {
-    .resource_cfg = "RESOURCE.CFG",
-    .rb = "rb",
-    .vm_ovl = "vm.ovl",
-    .tim_pal = "tim.pal",
-    .sierra_pal = "sierra.pal",
-    .black_pal = "black.pal",
-    .memofnt8_fnt = "memofnt8.fnt",
-    .mouse_bmp = "mouse.bmp",
-    .cp_bmp = "cp.bmp",
-    .gp_bord_bmp = "gp_bord.bmp",
-    .sx_ovl = "sx.ovl",
-    .tim_sx = "tim.sx",
-};
-
-/*
- * **The master-level table**, DGROUP 0x0116..0x0124, 0x0e bytes: a word per master level, 0 to
- * 6, which `game_startup` and the two level-change states hand to
- * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
- * up to the static draw step at 0x124.
- */
-struct game_master_levels {
-    uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
-} PACKED;
-
 struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = {
-    .master_level_ok = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f },
+    { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f }, /* master_level_ok */
 };
 
 /*
@@ -88,7 +34,9 @@ struct game_path_sep {
     uint16_t  path_sep_ptr;      /* +0x00 [2]  a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
 } PACKED;
 
-struct game_path_sep GAME_PATH_SEP DGROUP_AT(0x1bca) = { .path_sep_ptr = 0x236e };
+struct game_path_sep GAME_PATH_SEP DGROUP_AT(0x1bca) = {
+    0x236e, /* path_sep_ptr */
+};
 
 /*
  * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
@@ -111,70 +59,71 @@ struct game_intro_steps {
 } PACKED;
 
 struct game_intro_steps GAME_INTRO_STEPS DGROUP_AT(0x2370) = {
-    .step = {
-        { .x = 0x0278, .y = 0x000e, .bitmap = 0x0003 },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0275, .y = 0x000d },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0275, .y = 0x000b, .bitmap = 0x0001 },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x026c, .y = 0x000b, .bitmap = 0x0002 },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x025a, .y = 0x000b, .bitmap = 0x0003 },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0252, .y = 0x000d, .bitmap = 0x0004 },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0251, .y = 0x000d },
-        { .x = 0x0280, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0251, .y = 0x000b, .bitmap = 0x0001 },
-        { .x = 0x0278, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0248, .y = 0x000b, .bitmap = 0x0002 },
-        { .x = 0x0272, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0236, .y = 0x000b, .bitmap = 0x0003 },
-        { .x = 0x026b, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x022e, .y = 0x000d, .bitmap = 0x0004 },
-        { .x = 0x0264, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x022d, .y = 0x000e },
-        { .x = 0x025d, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x022d, .y = 0x000c, .bitmap = 0x0001 },
-        { .x = 0x0256, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0224, .y = 0x000c, .bitmap = 0x0002 },
-        { .x = 0x024f, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0212, .y = 0x000c, .bitmap = 0x0003 },
-        { .x = 0x0248, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x020a, .y = 0x000e, .bitmap = 0x0004 },
-        { .x = 0x0241, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0209, .y = 0x000e },
-        { .x = 0x023a, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0209, .y = 0x000d, .bitmap = 0x0001 },
-        { .x = 0x0233, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x0200, .y = 0x000d, .bitmap = 0x0002 },
-        { .x = 0x022d, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01ef, .y = 0x000d, .bitmap = 0x0003 },
-        { .x = 0x0226, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01e7, .y = 0x000f, .bitmap = 0x0004 },
-        { .x = 0x021f, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01e6, .y = 0x000e },
-        { .x = 0x0218, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01e6, .y = 0x000c, .bitmap = 0x0001 },
-        { .x = 0x0211, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01dd, .y = 0x000c, .bitmap = 0x0002 },
-        { .x = 0x020a, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01cc, .y = 0x000c, .bitmap = 0x0003 },
-        { .x = 0x0203, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000e, .bitmap = 0x0004 },
-        { .x = 0x01fc, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000e, .bitmap = 0x0004 },
-        { .x = 0x01fc, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000e, .bitmap = 0x0005 },
-        { .x = 0x01f5, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000e, .bitmap = 0x0005 },
-        { .x = 0x01f5, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000e, .bitmap = 0x0005 },
-        { .x = 0x01f5, .y = 0x002f, .bitmap = 0x0007 },
-        { .x = 0x01c3, .y = 0x000a, .bitmap = 0x0006 },
-        { .x = 0x01ee, .y = 0x002f, .bitmap = 0x0007 },
+    {
+        { 0x0278, 0x000e, 0x0003 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x0275, 0x000d, 0 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x0275, 0x000b, 0x0001 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x026c, 0x000b, 0x0002 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x025a, 0x000b, 0x0003 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x0252, 0x000d, 0x0004 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x0251, 0x000d, 0 },
+        { 0x0280, 0x002f, 0x0007 },
+        { 0x0251, 0x000b, 0x0001 },
+        { 0x0278, 0x002f, 0x0007 },
+        { 0x0248, 0x000b, 0x0002 },
+        { 0x0272, 0x002f, 0x0007 },
+        { 0x0236, 0x000b, 0x0003 },
+        { 0x026b, 0x002f, 0x0007 },
+        { 0x022e, 0x000d, 0x0004 },
+        { 0x0264, 0x002f, 0x0007 },
+        { 0x022d, 0x000e, 0 },
+        { 0x025d, 0x002f, 0x0007 },
+        { 0x022d, 0x000c, 0x0001 },
+        { 0x0256, 0x002f, 0x0007 },
+        { 0x0224, 0x000c, 0x0002 },
+        { 0x024f, 0x002f, 0x0007 },
+        { 0x0212, 0x000c, 0x0003 },
+        { 0x0248, 0x002f, 0x0007 },
+        { 0x020a, 0x000e, 0x0004 },
+        { 0x0241, 0x002f, 0x0007 },
+        { 0x0209, 0x000e, 0 },
+        { 0x023a, 0x002f, 0x0007 },
+        { 0x0209, 0x000d, 0x0001 },
+        { 0x0233, 0x002f, 0x0007 },
+        { 0x0200, 0x000d, 0x0002 },
+        { 0x022d, 0x002f, 0x0007 },
+        { 0x01ef, 0x000d, 0x0003 },
+        { 0x0226, 0x002f, 0x0007 },
+        { 0x01e7, 0x000f, 0x0004 },
+        { 0x021f, 0x002f, 0x0007 },
+        { 0x01e6, 0x000e, 0 },
+        { 0x0218, 0x002f, 0x0007 },
+        { 0x01e6, 0x000c, 0x0001 },
+        { 0x0211, 0x002f, 0x0007 },
+        { 0x01dd, 0x000c, 0x0002 },
+        { 0x020a, 0x002f, 0x0007 },
+        { 0x01cc, 0x000c, 0x0003 },
+        { 0x0203, 0x002f, 0x0007 },
+        { 0x01c3, 0x000e, 0x0004 },
+        { 0x01fc, 0x002f, 0x0007 },
+        { 0x01c3, 0x000e, 0x0004 },
+        { 0x01fc, 0x002f, 0x0007 },
+        { 0x01c3, 0x000e, 0x0005 },
+        { 0x01f5, 0x002f, 0x0007 },
+        { 0x01c3, 0x000e, 0x0005 },
+        { 0x01f5, 0x002f, 0x0007 },
+        { 0x01c3, 0x000e, 0x0005 },
+        { 0x01f5, 0x002f, 0x0007 },
+        { 0x01c3, 0x000a, 0x0006 },
+        { 0x01ee, 0x002f, 0x0007 },
     },
+    /* step */
 };
 
 /*
@@ -188,29 +137,30 @@ struct game_copy_protection {
 } PACKED;
 
 struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
-    .answer = {
-        [0] = {
+    {
+        {
             0x000f, 0x0024, 0x001d, 0x000f, 0x0007, 0x0013, 0x0019, 0x0010,
             0x0010, 0x0018, 0x0011, 0, 0x0009, 0x000d, 0x0011, 0x0013,
         },
-        [1] = {
-            0x000c, 0x0013, 0x0018, 0x001d, 0x0011, 0x001b, 0x000c, 0, 0x0007,
-            0x0012, 0x0010, 0x000f, 0x0012, 0x0003, 0x000d, 0x001b,
+        {
+            0x000c, 0x0013, 0x0018, 0x001d, 0x0011, 0x001b, 0x000c, 0,
+            0x0007, 0x0012, 0x0010, 0x000f, 0x0012, 0x0003, 0x000d, 0x001b,
         },
-        [2] = {
-            0x001d, 0x001b, 0, 0x000c, 0x001d, 0x0024, 0x001d, 0x001d, 0x0019,
-            0x000d, 0, 0x0010, 0x0018, 0x000c, 0x0018, 0x000d,
+        {
+            0x001d, 0x001b, 0, 0x000c, 0x001d, 0x0024, 0x001d, 0x001d,
+            0x0019, 0x000d, 0, 0x0010, 0x0018, 0x000c, 0x0018, 0x000d,
         },
     },
+    /* answer */
 };
 
 struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
-    .continue_btn = "CONTINUE",
-    .yes = "YES",
-    .no = "NO",
-    .score1_bmp = "score1.bmp",
-    .gp_menu_bmp = "gp_menu.bmp",
-    .score2_bmp = "score2.bmp",
+    "CONTINUE", /* continue_btn */
+    "YES", /* yes */
+    "NO", /* no */
+    "score1.bmp", /* score1_bmp */
+    "gp_menu.bmp", /* gp_menu_bmp */
+    "score2.bmp", /* score2_bmp */
 };
 
 /*
@@ -225,9 +175,9 @@ struct game_puzzle_tabs {
 } PACKED;
 
 struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
-    .stop = 0xffff,
-    .stop_x = { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 },
-    .stop_y = { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 },
+    0xffff, /* stop */
+    { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 }, /* stop_x */
+    { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 }, /* stop_y */
 };
 
 /*
@@ -244,7 +194,13 @@ struct game_part_names {
     uint8_t   pad_262f;           /* +0x0f */
 } PACKED;
 
-struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = { .star = "*", .title_sep = ": ", .part = "part", .bmp = ".bmp" };
+struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = {
+    "*", /* star */
+    ": ", /* title_sep */
+    "part", /* part */
+    ".bmp", /* bmp */
+    0, /* pad_262f */
+};
 
 
 /*
@@ -261,15 +217,17 @@ struct game_play_tabs {
 } PACKED;
 
 struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
-    .stop = 0xffff,
-    .stop_x = {
+    0xffff, /* stop */
+    {
         0x0042, 0x0064, 0x0064, 0x00c4, 0x00e6, 0x0051, 0x0079, 0x009e,
         0x00ce,
     },
-    .stop_y = {
+    /* stop_x */
+    {
         0x006b, 0x0065, 0x0073, 0x0074, 0x006e, 0x009e, 0x0097, 0x0098,
         0x0098, 0x00ec, 0x0138,
     },
+    /* stop_y */
 };
 
 /*
@@ -281,15 +239,18 @@ struct game_master_level_x {
     int16_t   level_x[6];         /* +0x00 [0xc]  level 1 first */
 } PACKED;
 
-struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = { .level_x = { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 } };
+struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = {
+    { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 }, /* level_x */
+};
 
 struct game_level_strings GAME_LEVEL_STRINGS DGROUP_AT(0x2824) = {
-    .ff_lev = "ff.lev",
-    .tim_filter_load = "*.TIM",
-    .tim_filter_save = "*.TIM",
-    .title_sep = ": ",
-    .replay = "REPLAY",
-    .advance = "ADVANCE",
+    "ff.lev", /* ff_lev */
+    "*.TIM", /* tim_filter_load */
+    "*.TIM", /* tim_filter_save */
+    ": ", /* title_sep */
+    "REPLAY", /* replay */
+    "ADVANCE", /* advance */
+    {0}, /* pad_2849 */
 };
 
 /*
@@ -328,27 +289,28 @@ struct game_file_names {
 } PACKED;
 
 struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
-    .rb_read_level = "rb",
-    .wb_write_level = "wb",
-    .l_load_level = "l",
-    .lev_load_level = ".lev",
-    .l_287d = "l",
-    .lev_287f = ".lev",
-    .rb_is_machine_file = "rb",
-    .l_count_levels = "l",
-    .lev_count_levels = ".lev",
-    .rb_count_levels = "rb",
-    .l_puzzle_title = "l",
-    .lev_puzzle_title = ".lev",
-    .rb_puzzle_title = "rb",
-    .password_txt_level = "password.txt",
-    .rb_password_level = "rb",
-    .password_txt_line = "password.txt",
-    .rb_password_line = "rb",
-    .tim_cfg_read = "tim.cfg",
-    .rb_tim_cfg = "rb",
-    .tim_cfg_write = "tim.cfg",
-    .wb_tim_cfg = "wb",
+    "rb", /* rb_read_level */
+    "wb", /* wb_write_level */
+    "l", /* l_load_level */
+    ".lev", /* lev_load_level */
+    "l", /* l_287d */
+    ".lev", /* lev_287f */
+    "rb", /* rb_is_machine_file */
+    "l", /* l_count_levels */
+    ".lev", /* lev_count_levels */
+    "rb", /* rb_count_levels */
+    "l", /* l_puzzle_title */
+    ".lev", /* lev_puzzle_title */
+    "rb", /* rb_puzzle_title */
+    "password.txt", /* password_txt_level */
+    "rb", /* rb_password_level */
+    "password.txt", /* password_txt_line */
+    "rb", /* rb_password_line */
+    "tim.cfg", /* tim_cfg_read */
+    "rb", /* rb_tim_cfg */
+    "tim.cfg", /* tim_cfg_write */
+    "wb", /* wb_tim_cfg */
+    {0}, /* pad_28d1 */
 };
 
 /*
@@ -360,7 +322,9 @@ struct game_forbidden_chars {
     uint8_t   forbidden[14] NONSTRING;  /* +0x00 [0xe]  a set, not a string */
 } PACKED;
 
-struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = { .forbidden = "*/,-[]&@^%?():" };
+struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = {
+    "*/,-[]&@^%?():", /* forbidden */
+};
 
 /*
  * **Where Tab sends the pointer on the file picker's controls**, DGROUP 0x28fa..0x2918, 0x1e bytes: which
@@ -374,9 +338,9 @@ struct game_picker_tabs {
 } PACKED;
 
 struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
-    .stop = 0xffff,
-    .stop_x = { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 },
-    .stop_y = { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a },
+    0xffff, /* stop */
+    { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 }, /* stop_x */
+    { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a }, /* stop_y */
 };
 
 /*
@@ -409,58 +373,28 @@ struct game_file_strings {
 } PACKED;
 
 struct game_file_strings GAME_FILE_STRINGS DGROUP_AT(0x2918) = {
-    .tim = "TIM",
-    .con = "con",
-    .aux = "aux",
-    .com1 = "com1",
-    .com2 = "com2",
-    .com3 = "com3",
-    .com4 = "com4",
-    .prn = "prn",
-    .lpt1 = "lpt1",
-    .lpt2 = "lpt2",
-    .nul = "nul",
-    .null = "null",
-    .mode_rb = "rb",
-    .star_a = "*",
-    .star_b = "*",
-    .star_dot_star_a = "*.*",
-    .dot = ".",
-    .dot_dot_a = "..",
-    .star_dot_star_b = "*.*",
-    .dot_dot_b = "..",
+    "TIM", /* tim */
+    "con", /* con */
+    "aux", /* aux */
+    "com1", /* com1 */
+    "com2", /* com2 */
+    "com3", /* com3 */
+    "com4", /* com4 */
+    "prn", /* prn */
+    "lpt1", /* lpt1 */
+    "lpt2", /* lpt2 */
+    "nul", /* nul */
+    "null", /* null */
+    "rb", /* mode_rb */
+    "*", /* star_a */
+    "*", /* star_b */
+    "*.*", /* star_dot_star_a */
+    ".", /* dot */
+    "..", /* dot_dot_a */
+    "*.*", /* star_dot_star_b */
+    "..", /* dot_dot_b */
 };
 
-
-/*
- * ---------------------------------------------------------------------------
- * **The two directories the game holds on to**, DGROUP 0x530b..0x53fb, 0xf0 bytes.
- *
- * Both are filled at startup by `dos_get_cur_dir`, which writes a drive letter,
- * a colon and a backslash before the path - so byte 0 of each is the drive, and
- * `dos_setdisk(DG8(...))` is handing over that letter.
- *
- * `screen_state_0100` is where the pair earns its keep: it changes to
- * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
- * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
- * put the process back. So the picker remembers its own place and the game
- * keeps its own.
- *
- * Three of them, eighty bytes each: 0x530b, 0x535b and 0x53ab. The third is
- * the one the picker actually navigates - `path_join` and `path_up` walk it,
- * `path_is_root` tests it, `dos_chdir` follows it and `picker_type` types into
- * it with a width of 0x50, which is where that size is stated outright.
- * `picker_draw_name`'s comment calls it the name field.
- *
- * An earlier version of this comment said 0x53ab was "the next object" after
- * the two. It is the third member of the same run.
- * ---------------------------------------------------------------------------
- */
-struct game_directories {
-    char      picker_dir[0x50];   /* +0x00 [0x50] */
-    char      game_dir[0x50];     /* +0x50 [0x50] */
-    char      path_field[0x50];   /* +0xa0 [0x50] */
-} PACKED;
 
 struct game_directories GAME_DIRECTORIES DGROUP_BSS(0x530b);
 
@@ -612,289 +546,6 @@ static const struct {
 };
 
 /*
- * 0x0dfff
- *
- * **`main`.** The Borland startup calls it at image 0x00155 with argc, argv
- * and envp, and pushes the answer straight into `exit`. The game reads none of
- * the three, which is what a DOS game with no command line looks like.
- *
- * Four calls and nothing else: bring the machine up, then three routines that
- * are not transcribed yet. The last one's result is left in AX and becomes the
- * program's exit status, so it is written here as a `return`; the bytes cannot
- * distinguish that from a bare call whose answer happened to survive.
- */
-uint16_t game_main(void)
-{
-    game_startup();
-    game_intro();
-    game_play();
-    return game_teardown(1);
-}
-
-/*
- * 0x0e01d
- *
- * The whole bring-up, in the original's order: refuse to run without enough
- * memory, read the two configuration files, start the video driver, load the
- * palettes, the font and the first bitmaps, start sound, install the timer,
- * and build two free lists.
- *
- * The memory check is a signed 32-bit compare against 0x44d90 - 282,000 bytes
- * - written as a high-word signed test and a low-word unsigned one, which is
- * how the compiler emits `long < constant`. `dos_alloc_bytes` is asked for
- * 0xffffffff bytes with flags 0, which is the "how much is free" call rather
- * than an allocation.
- */
-void game_startup(void)
-{
-    /*
-     * The original's 0x14 bytes of locals. Only one of them needs to live in
-     * DGROUP - the byte at [bp-1], whose address is handed to `borland_fread` -
-     * but the whole frame is reserved so the port's stack use matches the
-     * original's, and [bp-1] is its last byte.
-     */
-    uint8_t cfg_byte;
-
-    int32_t free_bytes;
-    int16_t sound_device, sound_module, cfg_first;
-    struct file_rec *file;
-    uint16_t i;
-
-    DG52ED.stack_floor = 0x800;
-
-    free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
-    if (free_bytes < 0x00044d90L) {
-        borland_printf("\n\nNOT ENOUGH FREE MEMORY\n", NULL);
-        borland_printf(DG1BCC.you_need_at_least, NULL);
-        borland_exit(0);
-    }
-
-    dos_get_cur_dir((char *)GAME_DIRECTORIES.game_dir);
-    dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
-    set_holiday_flags();
-
-    DG52ED.stop_requested = 0;
-    DG4E67.file_op_active = 0;
-    DG4E67.cursor = 0xffff;
-
-    load_archive_map();
-
-    /*
-     * What RESOURCE.CFG would have said, if it is not there.
-     *
-     * **NOT A TRANSCRIPTION for the two sound bytes. A deliberate deviation,
-     * chosen by the project owner on 2026-09-04**, and the second of the two
-     * in `reconstruct/src` - the other is `load_sound_bank`'s device 7.
-     *
-     * The original falls back to device 0 and module -2: the PC speaker, and
-     * no digitised module. So does this, again - the port briefly fell back to
-     * General Midi and `ASB:` instead, which was a deliberate deviation and
-     * stopped meaning anything when the `GMD:` driver was removed.
-     *
-     * A RESOURCE.CFG decides in practice, and the game ships one.
-     */
-    cfg_first = 0;
-    sound_module = -2;
-    sound_device = 0;
-
-    file = borland_fopen("RESOURCE.CFG", "rb");
-    if (file != 0) {
-        borland_fread((&cfg_byte), 1, 1, file);
-        cfg_first = ((int8_t)cfg_byte);
-        borland_fread((&cfg_byte), 1, 1, file);
-        sound_device = ((int8_t)cfg_byte);
-        borland_fread((&cfg_byte), 1, 1, file);
-        sound_module = ((int8_t)cfg_byte);
-        borland_fclose(file);
-    }
-    (void)cfg_first;    /* the original stores it and never reads it back */
-
-    if (read_tim_cfg() == 0) {
-        DG4E67.furthest_level = 1;
-        DG4E67.master_level = 6;
-    }
-
-    DG4E67.password_puzzle = 0;
-    DG4E67.score = 0;
-    DG52BD.fill_colour = 3;
-    DG52BD.bin_colour = 0x0b;
-
-    if (vm_init(0x0d, 0x80, (FILE *)GAME_STARTUP_NAMES.vm_ovl) == 0) {     /* "vm.ovl" */
-        borland_printf(DG1BCC.unable_to_initialize_vm, NULL);
-        borland_exit(0);
-    }
-
-    VMDS.page_front_ptr = 0xa000;
-    VMDS.page_back_ptr = 0xa820;
-    vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
-
-    DG52ED.pal_tim_ptr = far_of(load_palette(GAME_STARTUP_NAMES.tim_pal));   /* "tim.pal"    */
-    DG52BD.pal_sierra_ptr = far_of(load_palette(GAME_STARTUP_NAMES.sierra_pal));   /* "sierra.pal" */
-    {
-        uint8_t *black = load_palette(GAME_STARTUP_NAMES.black_pal);  /* "black.pal"  */
-
-        DG52BD.pal_black_ptr = far_of(black);
-        set_palette_pointer(black);
-    }
-
-    DG52BD.memo_font = load_font(GAME_STARTUP_NAMES.memofnt8_fnt);          /* "memofnt8.fnt" */
-    set_font((int16_t)((uint16_t)DG52BD.memo_font));
-
-    DG52ED.cursor_art_ptr = dg_near(dgroup, load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp));          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp));
-    DG4E67.bmp_4ecb_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp));
-
-    install_keyboard(0);
-
-    start_sound(sound_device, sound_module, 0, (FILE *)GAME_STARTUP_NAMES.sx_ovl);     /* "sx.ovl" */
-
-    DG52ED.tim_sx_ptr = dg_near(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
-    for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)FILEREC_PTR(DG52ED.tim_sx_ptr), (int16_t)i);
-
-    /* A word table at DGROUP 0x116, indexed by what TIM.CFG put at 0x4ec1. */
-    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
-
-    install_divide_trap();
-    timer_install(0x0d);
-    mouse_init();
-    mouse_move_to(10, 10);
-    timer_add_callback((struct far_ptr){ 0xa7ae, (uint16_t)(IMAGE_BASE >> 4) }, 4);
-
-    select_cursor(0);
-    erase_both_pages();
-    mouse_set_speed(3);
-    build_screen_regions();
-    count_level_files();
-
-    /*
-     * Twenty eight-byte records off the near heap, chained through their first
-     * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
-     */
-    DG4E4E.parts_queue_ptr = 0;
-    DG4E4E.parts_free_ptr = 0;
-    for (i = 0; i < 0x14; i++) {
-        struct queue_node *p = (struct queue_node *)(void *)heap_calloc_far(1, 8);
-
-        p->next_ptr = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = dg_near(dgroup, p);
-    }
-
-    /*
-     * And 180 twenty-four-byte records from DOS, chained the same way but
-     * through a *far* pointer - offset at 0x4e4e, segment at 0x4e50, and the
-     * link in the first four bytes of each block. 0x4e52/0x4e54 are the second
-     * head, cleared here and not filled.
-     */
-    DG4E4E.shapes = FAR_NULL;
-    DG4E4E.shape_free = FAR_NULL;
-    for (i = 0; i < 0xb4; i++) {
-        struct shape *block = (struct shape *)(void *)
-            dos_alloc_bytes(sizeof(struct shape), 0, 1).ptr;
-
-        block->next = DG4E4E.shape_free;
-        DG4E4E.shape_free = far_of((uint8_t *)block);
-    }
-}
-
-/*
- * 0x0e34a
- *
- * **Leaving the game.** `game_main`'s fourth call, and the one that actually
- * takes the program down.
- *
- * The argument is whether this is really the end. Called with 0 it only raises
- * DGROUP 0x52fa - a request to stop, which the loops above read - and returns.
- * Called with 1 it does the whole teardown and never comes back.
- *
- * **It prints your password on the way out.** If 0x4eb5 holds a puzzle number,
- * that puzzle's line of `password.txt` is read and `score_to_code` appends the
- * score kept at 0x4eab/0x4ea9 - the pair `finish_level` banks and only when the
- * puzzle was not the last. The message at DGROUP 0x1c49 goes in front of it and
- * the whole thing is handed to `printf` at the very end, after the screen has
- * been given back to DOS, so it is the last thing on the terminal.
- *
- * Then everything is handed back, in the original's order: a linked list of far
- * blocks whose first two words are the next pointer; a chain of near blocks
- * from 0x4e56; the five region lists; the part bitmaps; four bitmap lists;
- * a slot of the 0x618a table and three far blocks; the sound sequences,
- * records and driver; a file; the sound slots; and the keyboard, the rest of
- * the input and the video mode.
- *
- * `remove_keyboard` is called and then `shutdown_input` calls it again. The
- * second call finds the flag already clear and does nothing, which is what the
- * flag is for. Transcribed as the two calls it is.
- */
-uint16_t game_teardown(int16_t really)
-{
-    char msg[240];                     /* [bp-0x122] */
-    char code[50];  /* [bp-0x32]  */
-    uint8_t *node;
-    uint16_t si;
-
-    if (really == 0) {
-        DG52ED.stop_requested = 1;
-        return 0;
-    }
-
-    if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, code);
-        score_to_code(DG4E67.score, code);
-        string_copy(msg, DG1BCC.thanks_for_playing);
-        string_concat(msg, code);
-    } else {
-        (*msg) = 0;
-    }
-
-    /* Each free block's first four bytes are the far pointer to the next. */
-    node = dg_far_ptr(DG4E4E.shape_free);
-    while (node != FAR_NULL_PTR) {
-        const struct far_ptr *link = (const struct far_ptr *)(void *)node;
-        uint8_t *next = dg_far_ptr(*link);
-
-        dos_free_far(node);
-        node = next;
-    }
-
-    si = DG4E4E.parts_free_ptr;
-    while (si != 0) {
-        uint16_t next = QNODE_PTR(si)->next_ptr;
-
-        heap_free_far(dg_near_ptr(si));
-        si = next;
-    }
-
-    free_region_lists();
-    free_all_part_bitmaps();
-
-    free_bitmaps_thunk(BMPLIST(DG4E67.icons_bmp_ptr));
-    free_bitmaps_thunk(BMPLIST(DG4E67.bmp_4ecb_ptr));
-    free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
-    free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
-
-    close_table_618a_slot(DG52BD.memo_font);
-
-    free_far_block(dg_far_ptr(DG52BD.pal_black_ptr));
-    free_far_block(dg_far_ptr(DG52BD.pal_sierra_ptr));
-    free_far_block(dg_far_ptr(DG52ED.pal_tim_ptr));
-
-    stop_sequences(-2);
-    remove_and_free_records(-2);
-    shutdown_sound();
-
-    close_file_record(FILEREC_PTR(DG52ED.tim_sx_ptr));
-    free_archive_lists();
-
-    remove_keyboard();
-    shutdown_input();
-    restore_video_mode();
-
-    borland_printf(msg, NULL);
-    borland_exit(0);
-    return 0;
-}
-
-/*
  * 0x0e4be
  *
  * The intros: the Sierra logo, then the title screen and the credits, looping
@@ -938,7 +589,7 @@ uint16_t game_intro(void)
 
     TIMER.frame_budget = 0x2710;
 
-    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
     bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
@@ -960,7 +611,7 @@ uint16_t game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_front_ptr;
             cursor_redraw_off_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
-            set_palette_pointer(dg_far_ptr(DG52BD.pal_sierra_ptr));  /* sierra.pal */
+            set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(TIMER.frame_budget + 0xff88);
             step = &GAME_INTRO_STEPS.step[0];
@@ -1034,7 +685,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
 
-    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
     VMDS.page_front_ptr = 0xa000;
     VMDS.page_back_ptr = 0xa820;
@@ -1125,7 +776,7 @@ uint16_t game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));  /* tim.pal */
+                set_palette_pointer(DG52ED.pal_tim_ptr);  /* tim.pal */
 
             if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
             if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
@@ -1178,7 +829,7 @@ uint16_t game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(dg_far_ptr(DG52BD.pal_black_ptr));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(gkc->bmp_ptr);
@@ -1346,7 +997,7 @@ uint16_t copy_protect_screen(struct bmp_set *bitmaps)
     VMDS.page_src_ptr = VMDS.page_front_ptr;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
+    set_palette_pointer(DG52ED.pal_tim_ptr);
     show_cursor_again();
 
     done = 0;
@@ -3977,7 +3628,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(dg_far_ptr(DG52ED.pal_tim_ptr));
+    set_palette_pointer(DG52ED.pal_tim_ptr);
     show_cursor_again();
 
     while (s.done == 0) {

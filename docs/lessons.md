@@ -1038,6 +1038,29 @@ has checked.
 
 What `tools/native` can and cannot observe.
 
+### A hybrid that runs the port's game code compares the port with itself
+
+`check_machines` ran the hybrid with every layer dispatched, the port's game
+routines included, and reported 29 of 29 levels agreeing on all 685 flips.
+Run with `TIM_NATIVE_LAYERS=io` - the original's game code, the port only as
+the machine - on 2026-09-26, the same tool said 28 of 29: S15 agrees on 664
+flips, with its longest agreeing run 441. The difference is in the port's game
+logic, and the all-layers run could not see it, because on that side the
+logic *was* the port's.
+
+It came to light only because the pointer conversion made the question
+unavoidable: a record holding host pointers is no longer laid out as the
+guest's, so a port routine cannot run on the original's memory any more.
+`check_machines` now runs the hybrid under `io` unless told otherwise.
+
+The same shape cost a second failure the same day. The timer's callback table
+moved out of guest memory into host code pointers, and `timer_add_callback`
+was still dispatched - but the handler that reads the table, `timer_tick`, is
+*not*, so the original's handler read zeros and jumped to 0000:0000 on its
+fifth tick. **A routine dispatched in the hybrid has to agree with every
+original routine that reads what it writes.** The fix was to stop dispatching
+the writer.
+
 ### A Unicorn read hook over a `uc_mem_map_ptr` region breaks the guest
 
 **A Unicorn read hook over a `uc_mem_map_ptr` region breaks the guest.**

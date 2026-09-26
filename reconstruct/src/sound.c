@@ -3403,9 +3403,7 @@ void stop_sound(void)
  * has counted it down; then the slot is given back.
  *
  * The far pointer it registers is this module's own `cs:0x3228`, which is
- * `tick_delay` below. The segment is a relocated constant in the image, so the
- * port works it out from where the module actually is rather than using the
- * 0x2619 the bytes read.
+ * `tick_delay` below.
  *
  * The spin only ends because the timer interrupt runs the callback, so in the
  * port it ends only when something drives the timer - the same standing as
@@ -3417,7 +3415,7 @@ void delay_five_ticks(void)
 
     SOUND_TICK_WAIT.ticks_left = 5;
 
-    handle = timer_add_callback((struct far_ptr){ 0x3228, (uint16_t)(SNDCS >> 4) }, 4);
+    handle = timer_add_callback(tick_delay, 4);
 
     while (SOUND_TICK_WAIT.ticks_left > 0)
         ;
@@ -4008,8 +4006,7 @@ struct sound_record far *next_matching_record(int16_t selector)
  * With sound wanted, three things follow. The timer is taken over at rate 0xd
  * unless something already has it - DGROUP 0x44ee - and 0x4a8c records that.
  * The sequencer's own tick is registered as a callback at rate 4, keeping its
- * slot at 0x4a8e; **the segment it registers is a relocation**, reading 0x2619
- * in the image, so the port works it out from where the module is. And a third
+ * slot at 0x4a8e. And a third
  * callback goes to the loaded module's own dispatcher, at 0x0bba6 in segment 0,
  * but only if that module loaded - which it does not here.
  *
@@ -4038,8 +4035,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0) {
-        DG4A82.tick_handle = (int16_t)timer_add_callback((struct far_ptr){ 0x193e,
-                                       (uint16_t)(SNDCS >> 4) }, 4);
+        DG4A82.tick_handle = (int16_t)timer_add_callback(sound_service, 4);
         if (DG4A82.tick_handle == 0 && si != 0)
             return 0;
     } else if (si != 0) {
@@ -4047,9 +4043,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0 && (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR))
-        DG4A82.module_handle = (int16_t)timer_add_callback((struct far_ptr){ 0xbba6,
-                                       (uint16_t)(IMAGE_BASE >> 4) },
-                                       2);
+        DG4A82.module_handle = (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
 
     alloc_voice_records();
     return 1;

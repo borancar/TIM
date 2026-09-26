@@ -34,9 +34,10 @@ static uint32_t bound_hits[512];
  * two things: whether the port's hardware and memory are faithful, and whether
  * its game logic is. Selecting layers separates them.
  *
- *   TIM_NATIVE_LAYERS=io      the port supplies VM.OVL, SX.OVL and the
- *                             Borland runtime; the game's own code is the
- *                             original's, executed
+ *   TIM_NATIVE_LAYERS=io      the port supplies VM.OVL, SX.OVL, DOS, the
+ *                             timer, keyboard and mouse; the game's own code
+ *                             and the runtime's heap and huge-pointer
+ *                             helpers are the original's, executed
  *   TIM_NATIVE_LAYERS=vm,mem  any comma-separated subset of vm sx dos mem game
  *   unset, or `all`           what the hybrid has always done
  *
@@ -64,9 +65,10 @@ static int32_t layer_wanted(const char *layer)
     if (strcmp(want, "all") == 0)
         return 1;
 
-    /* `io` is the four that are not the game. */
+    /* `io` is the machine: not the game, and not the heap and huge-pointer
+       helpers, which are computation the original's bytes do themselves. */
     if (strcmp(want, "io") == 0)
-        return strcmp(layer, "game") != 0;
+        return strcmp(layer, "game") != 0 && strcmp(layer, "mem") != 0;
 
     for (p = want; *p; ) {
         size_t len = strcspn(p, ",");

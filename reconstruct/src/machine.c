@@ -7833,15 +7833,21 @@ void mark_part_shapes(struct part *part, uint16_t mode)
 void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which, int16_t width)
 {
-    struct far_ptr at = DG4E4E.shape_free;
-    struct shape *n = SHAPE_PTR(at);
+    struct shape far *n = DG4E4E.shape_free;
 
-    /* Pop from the free list, push onto the used list. */
+    /* Pop from the free list, push onto the used list - before the test for
+       an empty list, as the original does it, which then reads and writes
+       0000:0000. The host's null is C's and cannot be followed, so there the
+       test comes first; ours. */
+#ifndef __TURBOC__
+    if (n == NULL)
+        return;
+#endif
     DG4E4E.shape_free = n->next;
     n->next = DG4E4E.shapes;
-    DG4E4E.shapes = at;
+    DG4E4E.shapes = n;
 
-    if (dg_far_ptr(at) == FAR_NULL_PTR)
+    if (n == NULL)
         return;
 
     n->flags = flags;
@@ -7916,9 +7922,9 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
  */
 void replay_shapes(void)
 {
-    struct far_ptr prev;   /* [bp-0x12], a far pointer */
-    struct far_ptr next;   /* [bp-0x0e], a far pointer */
-    struct far_ptr cur;    /* [bp-0x0a], a far pointer */
+    struct shape far *prev; /* [bp-0x12], a far pointer */
+    struct shape far *next; /* [bp-0x0e], a far pointer */
+    struct shape far *cur;  /* [bp-0x0a], a far pointer */
     int16_t c;   /* [bp-6] */
     int16_t b;   /* [bp-4] */
     int16_t a;   /* [bp-2] */
@@ -7931,19 +7937,19 @@ void replay_shapes(void)
     VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    prev = FAR_NULL;
+    prev = NULL;
 
     next = DG4E4E.shapes;
 
     for (;;) {
-        struct shape *n;
+        struct shape far *n;
 
         cur = next;
 
-        if (dg_far_ptr(cur) == FAR_NULL_PTR)
+        if (cur == NULL)
             break;
 
-        n = SHAPE_PTR(cur);
+        n = cur;
         next = n->next;
 
         n->replays--;
@@ -7980,8 +7986,8 @@ void replay_shapes(void)
 
         restore_cursor_following();
 
-        if (dg_far_ptr(prev) != FAR_NULL_PTR)
-            SHAPE_PTR(prev)->next = next;
+        if (prev != NULL)
+            prev->next = next;
         else
             DG4E4E.shapes = next;
 
@@ -8008,7 +8014,7 @@ void replay_shapes(void)
  */
 void belt_in_dirty_rect(struct part *part)
 {
-    struct far_ptr node;  /* [bp-0x20], a far pointer */
+    struct shape far *node; /* [bp-0x20], a far pointer */
     struct belt *belt;  /* [bp-0x1c] */
     int16_t endB;  /* [bp-0x1a] */
     int16_t endA;  /* [bp-0x18] */
@@ -8078,15 +8084,15 @@ void belt_in_dirty_rect(struct part *part)
 
         node = DG4E4E.shapes;
 
-        while (dg_far_ptr(node) != FAR_NULL_PTR) {
-            const struct shape *n = SHAPE_PTR(node);
+        while (node != NULL) {
+            const struct shape far *n = node;
 
             if (n->left < right
                 && n->right > left
                 && n->top < bottom
                 && n->bottom > top) {
                 mark_needs_refile(part, 1);
-                node = FAR_NULL;
+                node = NULL;
                 si = (uint16_t)endB;
                 break;
             }
@@ -8120,7 +8126,7 @@ void belt_in_dirty_rect(struct part *part)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    struct far_ptr node;  /* [bp-0x0c], a far pointer */
+    struct shape far *node; /* [bp-0x0c], a far pointer */
     int16_t bottom;/* [bp-8] */
     int16_t right; /* [bp-6] */
     int16_t top;   /* [bp-4] */
@@ -8196,15 +8202,15 @@ void mark_parts_in_dirty_rects(void)
 
         node = DG4E4E.shapes;
 
-        while (dg_far_ptr(node) != FAR_NULL_PTR) {
-            const struct shape *n = SHAPE_PTR(node);
+        while (node != NULL) {
+            const struct shape far *n = node;
 
             if (n->left < right
                 && n->right > left
                 && n->top < bottom
                 && n->bottom > top) {
                 mark_needs_refile(di, 1);
-                node = FAR_NULL;
+                node = NULL;
                 break;
             }
 

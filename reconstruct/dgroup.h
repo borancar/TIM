@@ -118,10 +118,17 @@ extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 #  define DGROUP_AT(off)
 #  define DGROUP_BSS(off)
 #  define SEGMENT_AT(seg, off)
+#  define DGROUP_WAS(off)
 #else
 #  define DGROUP_AT(off)       __attribute__((section(".guest.dgroup." #off), used, aligned(1)))
 #  define DGROUP_BSS(off)      __attribute__((section(".bss.guest.dgroup." #off), used, aligned(1)))
 #  define SEGMENT_AT(seg, off) __attribute__((section(".guest.seg." #seg "." #off), used, aligned(1)))
+/* **Where a record was, for a record that is no longer there.** One that
+   holds real pointers is the host's own layout and cannot sit over the
+   guest's bytes, so it is an ordinary object; this keeps its original
+   address beside it, for `tools/judge.py` to hold the original compiler's
+   references to, and places nothing. Ours. */
+#  define DGROUP_WAS(off)
 #endif
 
 /* Declared in io.h, which this header deliberately does not include: `dg_near`
@@ -215,7 +222,9 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * simply the register. `out - MK_FP(seg, 0)` says it where it is needed, and
  * reads the same as the `back - scratch` beside it.
  */
-#define FP_LIN(p)         ((uint32_t)((const uint8_t *)(p) - guest_mem))
+/* C's null is the guest's 0000:0000, and so is a pair filed from it. */
+#define FP_LIN(p)         ((const void *)(p) == NULL ? 0u \
+                           : (uint32_t)((const uint8_t *)(p) - guest_mem))
 #define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
 #define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
 #define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
@@ -379,6 +388,9 @@ static inline struct far_ptr far_of(const uint8_t *p)
 #ifndef __TURBOC__
 static inline uint8_t *dg_far_ptr(struct far_ptr p)
 {
+    /* 0000:0000 is the guest's null, and a host pointer's is C's. */
+    if (p.seg == 0 && p.off == 0)
+        return NULL;
     return MK_FP(p.seg, p.off);
 }
 #endif
@@ -472,7 +484,7 @@ static const struct far_ptr FAR_NULL = { 0, 0 };
    C's, so it compares. */
 #  define FAR_IS_NULL(p) (!(p))
 #else
-#  define FAR_NULL_PTR dg_far_ptr(FAR_NULL)
+#  define FAR_NULL_PTR ((uint8_t *)NULL)
 #  define FAR_IS_NULL(p) ((p) == FAR_NULL_PTR)
 #endif
 
@@ -1226,8 +1238,8 @@ struct dg_52bd {
     /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
        start-up; `set_font` takes it and `game_teardown` gives its slot back. */
     int16_t   memo_font;       /* +0x22 */
-    struct far_ptr pal_black_ptr; /* +0x24  black.pal, as pal_tim_ptr */
-    struct far_ptr pal_sierra_ptr;/* +0x28  sierra.pal */
+    uint8_t far *pal_black_ptr;   /* +0x24  black.pal, as pal_tim_ptr */
+    uint8_t far *pal_sierra_ptr;  /* +0x28  sierra.pal */
 } PACKED;
 
 extern struct dg_52bd DG52BD;
@@ -1241,7 +1253,7 @@ struct dg_52ed {
      * +0x00  tim.pal: the far pointer `load_palette` answers, stored whole and
      * read whole by `set_palette_pointer` and `free_far_block`.
      */
-    struct far_ptr pal_tim_ptr;
+    uint8_t far *pal_tim_ptr;
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
                                    * the assert caught: 0x52f2 follows it at +0x05 */
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
@@ -1287,7 +1299,7 @@ extern struct dg_52fe DG52FE;
  * ---------------------------------------------------------------------------
  */
 struct shape {
-    struct far_ptr next;       /* +0x00  the link, in the block's own first four bytes */
+    struct shape far *next;    /* +0x00  the link, in the block's own first four bytes */
     uint8_t        flags;      /* +0x04  bit 0 the second fill colour, bit 2 a belt length */
     uint8_t        replays;    /* +0x05  how many passes of `replay_shapes` it waits for:
                                          1 or 2 at every call site, stepped down once per
@@ -1307,14 +1319,13 @@ struct shape {
 } PACKED;
 
 
-#define SHAPE_PTR(fp) ((struct shape *)(void *)dg_far_ptr(fp))
 
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
  */
 struct dg_4e4e {
-    struct far_ptr shape_free;    /* +0x00  the free list nodes come off */
-    struct far_ptr shapes;        /* +0x04  the shapes drawn over, put back in reverse.
+    struct shape far *shape_free; /* +0x00  the free list nodes come off */
+    struct shape far *shapes;     /* +0x04  the shapes drawn over, put back in reverse.
                                             **One far pointer**, not two near ones: the
                                             offset is at +0x04 and the segment at +0x06,
                                             which is what `alloc_shape` files there */
@@ -1372,8 +1383,14 @@ struct timer {
        takes the first clear bit of `slot_mask` and files all three;
        `timer_tick` counts every live slot down, calls it at zero and reloads
        it from its period. Sixteen is the mask's width, which is the extent
-       both walkers use. */
-    struct far_ptr callback[16];  /* +0x0b  0x44f9 */
+       both walkers use.
+
+       **The pointers are not kept here on the host.** They are code
+       pointers, which only the timer's own routines read, and the port's
+       are real ones in `timer_callbacks` (engine.c); these bytes stay in
+       the record because the original's game code reads the words either
+       side of them in guest memory. */
+    uint8_t   callback_slots[0x40]; /* +0x0b  0x44f9 */
     struct {
         int16_t left;             /* +0x00  counts down to the call */
         int16_t period;           /* +0x02  what it reloads from */
@@ -4594,5 +4611,47 @@ struct dg_4ab0 {
     uint16_t  _pad_4ab2;           /* +0x02 */
 } PACKED;
 extern struct dg_4ab0 DG4AB0;
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The two directories the game holds on to**, DGROUP 0x530b..0x53fb, 0xf0 bytes.
+ *
+ * Both are filled at startup by `dos_get_cur_dir`, which writes a drive letter,
+ * a colon and a backslash before the path - so byte 0 of each is the drive, and
+ * `dos_setdisk(DG8(...))` is handing over that letter.
+ *
+ * `screen_state_0100` is where the pair earns its keep: it changes to
+ * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
+ * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
+ * put the process back. So the picker remembers its own place and the game
+ * keeps its own.
+ *
+ * Three of them, eighty bytes each: 0x530b, 0x535b and 0x53ab. The third is
+ * the one the picker actually navigates - `path_join` and `path_up` walk it,
+ * `path_is_root` tests it, `dos_chdir` follows it and `picker_type` types into
+ * it with a width of 0x50, which is where that size is stated outright.
+ * `picker_draw_name`'s comment calls it the name field.
+ *
+ * An earlier version of this comment said 0x53ab was "the next object" after
+ * the two. It is the third member of the same run.
+ * ---------------------------------------------------------------------------
+ */
+struct game_directories {
+    char      picker_dir[0x50];   /* +0x00 [0x50] */
+    char      game_dir[0x50];     /* +0x50 [0x50] */
+    char      path_field[0x50];   /* +0xa0 [0x50] */
+} PACKED;
+extern struct game_directories GAME_DIRECTORIES;
+
+/*
+ * **The master-level table**, DGROUP 0x0116..0x0124, 0x0e bytes: a word per master level, 0 to
+ * 6, which `game_startup` and the two level-change states hand to
+ * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
+ * up to the static draw step at 0x124.
+ */
+struct game_master_levels {
+    uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
+} PACKED;
+extern struct game_master_levels GAME_MASTER_LEVELS;
 
 #endif /* DGROUP_H */

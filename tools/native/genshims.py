@@ -456,9 +456,10 @@ The names are the ones a run is selected by:
   mem   its allocator and long arithmetic reconstruct/borland_heap.c, _huge.c
   game  everything the game itself is     the rest of reconstruct/src
 
-`io` in `TIM_NATIVE_LAYERS` is shorthand for the four that are not `game`,
-which is the split this exists for: the port's hardware and memory under the
-original's own logic.
+`io` in `TIM_NATIVE_LAYERS` is the machine and nothing else - everything but
+`game` and `mem`. The heap and the huge-pointer helpers are computation over
+guest memory, which the original's own bytes do as well as the port's; only
+what reaches DOS or a device has to be the port.
 """
 LAYER_OF_FILE = {
     "borland_file.c": "dos",
@@ -485,8 +486,9 @@ LAYER_OF_FILE = {
 # clock, which is the difference `native.c` already relies on by not calling
 # `io_set_timer`.
 LAYER_OF_FN = {
-    "dos_alloc_bytes":       "mem",
-    "dos_free_far":          "mem",
+    # INT 21h ah=48h/49h: DOS itself, not the allocator above it.
+    "dos_alloc_bytes":       "dos",
+    "dos_free_far":          "dos",
     "normalise_far_ptr_far": "mem",
 
     "vm_init":               "vm",
