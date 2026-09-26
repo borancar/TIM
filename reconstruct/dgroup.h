@@ -2591,6 +2591,50 @@ struct game_button_labels {
 
 extern struct game_button_labels GAME_BUTTON_LABELS;
 
+/* The message box's and the machine view's data at 0x259c: another
+   module's, which segment 14de only references. Placed from dgroup.c until
+   its owner converts. */
+/*
+ * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
+ * stop it is on - 0xffff until the first Tab, and back to 0 past the last
+ * - and the x of each, the y being fixed.
+ */
+struct game_message_tabs {
+    uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
+    int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
+} PACKED;
+
+
+
+/*
+ * **The menu strip's animation tables**, DGROUP 0x25a2..0x25d6, 0x34 bytes, as
+ * `draw_machine_layer_f` reads them: by frame, which of the menu bitmaps to
+ * draw and where; and for frames past the fourth, where the four-frame
+ * sprite goes. The names are ours; the extents are the routine's bounds
+ * and the run ends exactly at 0x25d6.
+ */
+struct machine_draw_menu_anim {
+    uint16_t  picture[6];         /* +0x00 [0xc]  a bitmap index in menu_bmp_ptr's set */
+    int16_t   picture_x[6];       /* +0x0c [0xc] */
+    int16_t   picture_y[6];       /* +0x18 [0xc] */
+    int16_t   sprite_x[4];        /* +0x24 [8]  by the frame modulo four */
+    int16_t   sprite_y[4];        /* +0x2c [8] */
+} PACKED;
+
+
+
+/*
+ * **The selection box's animation phase**, DGROUP 0x25d6..0x25d8, 0x02 bytes:
+ * 0 to 3 and back, stepped once per `draw_part_selection` and turned into the
+ * marching-ants offset.
+ */
+struct machine_draw_selection_phase {
+    uint16_t  phase;          /* +0x00 [2] */
+} PACKED;
+extern struct game_message_tabs GAME_MESSAGE_TABS;
+extern struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM;
+extern struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE;
+
 /*
  * **The driver's vector, as the code pointers its slots are.** `DG4342.font`
  * is filled by `vm_init` with the entry points of the loaded driver, and the

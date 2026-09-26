@@ -13,6 +13,17 @@
  * 0x14de0..0x172c0 - it ends with a routine that does nothing, 0x172bc, called
  * as 14de:24dc. Functions are in address order and each carries the image
  * offset it was read from.
+ *
+ * JUDGE: compiler 3.00
+ * JUDGE: built-with -mm -d
+ * JUDGE: data 0x21e2..0x2234
+ *
+ * **Turbo C++ 3.0, `-mm -d`, without `-O`**: a `return` leaves its `jmp` to
+ * the epilogue even when the epilogue is next (`ask_yes_no`), the two
+ * `"(click button to continue)"` share one copy, and the calls to routines
+ * earlier in the file are `push cs / call`. Its data is its literals alone,
+ * DGROUP 0x21e2..0x2234 - the records at 0x259c it touches are another
+ * module's.
  */
 
 #include "tim.h"
@@ -24,165 +35,6 @@
  * DGROUP byte array at the address its macro names, like the shared ones in
  * dgroup.h; they are declared here because nothing else uses them.
  */
-
-/*
- * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
- * stop it is on - 0xffff until the first Tab, and back to 0 past the last
- * - and the x of each, the y being fixed.
- */
-struct game_message_tabs {
-    uint16_t  stop;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
-    int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
-} PACKED;
-
-struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { .stop = 0xffff, .stop_x = { 0x00e8, 0x0168 } };
-
-/*
- * **The menu strip's animation tables**, DGROUP 0x25a2..0x25d6, 0x34 bytes, as
- * `draw_machine_layer_f` reads them: by frame, which of the menu bitmaps to
- * draw and where; and for frames past the fourth, where the four-frame
- * sprite goes. The names are ours; the extents are the routine's bounds
- * and the run ends exactly at 0x25d6.
- */
-struct machine_draw_menu_anim {
-    uint16_t  picture[6];         /* +0x00 [0xc]  a bitmap index in menu_bmp_ptr's set */
-    int16_t   picture_x[6];       /* +0x0c [0xc] */
-    int16_t   picture_y[6];       /* +0x18 [0xc] */
-    int16_t   sprite_x[4];        /* +0x24 [8]  by the frame modulo four */
-    int16_t   sprite_y[4];        /* +0x2c [8] */
-} PACKED;
-
-struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
-    .picture = { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },
-    .picture_x = { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },
-    .picture_y = { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },
-    .sprite_x = { 0x0250, 0x0252, 0x0250, 0x0251 },
-    .sprite_y = { 0x001a, 0x0018, 0x001b, 0x0019 },
-};
-
-/*
- * **The selection box's animation phase**, DGROUP 0x25d6..0x25d8, 0x02 bytes:
- * 0 to 3 and back, stepped once per `draw_part_selection` and turned into the
- * marching-ants offset.
- */
-struct machine_draw_selection_phase {
-    uint16_t  phase;          /* +0x00 [2] */
-} PACKED;
-
-struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);
-
-
-/*
- * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
- *
- * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
- * +0x0c, and `make_part` calls it through `call_part_init`. Fifty-eight kind
- * slots reach fifty-one distinct routines: five kinds have no initialiser at
- * all and three - 1, 46 and 48 - share 0x14267.
- *
- * Nearly all of them are the same four steps:
- *
- *   1. OR some bits into the part's flags at +6, +8 and +0x0a, if it has any;
- *   2. take four bytes per bitmap - `heap_calloc_far(count, 4)` - into +0x82;
- *   3. refuse, by answering 1, if that allocation failed;
- *   4. call the part's own setup in segment 0x172c, and answer 0.
- *
- * Three skip step 2 - 0x147a7, 0x148e0 and 0x148ff call their setup with no
- * allocation. Two more skip both: 0x14aa2 and 0x14c48 only set flags and
- * bytes. And three allocate something else instead - 0x143fb and 0x1449d a
- * 0x2c-byte belt at +0x66, 0x1443d a 0x38-byte rope at +0x54 - each writing
- * the part's own address into the new record as its back-pointer.
- *
- * **They were a table until 2026-09-11**, six columns standing in for the
- * bodies: three flag words, the setup, a list of stores and a flag for
- * whether it allocated. That is not what the binary holds. The constants live
- * as immediates inside fifty-one separate functions - searching the whole
- * image for any two of them adjacent as data finds nothing - and the form
- * cost three defects, every one recorded in a comment beside it. The worst is
- * the one it could not report: the table had **forty-eight** of the fifty-one,
- * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
- */
-
-/*
- * OURS: reach one part initialiser by its image address.
- *
- * The original has no such routine. Each kind's initialiser is called through
- * the relocated far pointer at +0x0c of its entry in the table at DGROUP
- * 0x2966, and the port has no way to call one - so `call_part_init` in io.c
- * turns the pointer back into an image address and this turns that address
- * into a call. It is the same stand-in as `part_setup` and `part_finish`.
- *
- * An address with no case **aborts**: a part built by nothing at all would
- * surface much later as a level that cannot be solved.
- */
-uint16_t part_init(uint32_t at, struct part *part)
-{
-    switch (at) {
-    case 0x14236: return part_init_bowling_ball(part);
-    case 0x14267: return part_init_14267(part);
-    case 0x142a1: return part_init_ramp(part);
-    case 0x142e6: return part_init_seesaw(part);
-    case 0x14320: return part_init_balloon(part);
-    case 0x14361: return part_init_conveyor(part);
-    case 0x143b3: return part_init_mouse_cage(part);
-    case 0x143fb: return part_init_pulley(part);
-    case 0x1443d: return part_init_belt(part);
-    case 0x1446c: return part_init_basketball(part);
-    case 0x1449d: return part_init_rope(part);
-    case 0x144cb: return part_init_bird_cage(part);
-    case 0x1450c: return part_init_pokey(part);
-    case 0x14547: return part_init_jack_in_the_box(part);
-    case 0x1458f: return part_init_gear(part);
-    case 0x145d1: return part_init_bob_the_fish(part);
-    case 0x14607: return part_init_bellow(part);
-    case 0x1463d: return part_init_bucket(part);
-    case 0x1467e: return part_init_cannon(part);
-    case 0x146bd: return part_init_dynamite(part);
-    case 0x146fc: return part_init_146fc(part);
-    case 0x1472d: return part_init_electric_plug(part);
-    case 0x1476c: return part_init_dynamite_plunger(part);
-    case 0x147a7: return part_init_hook(part);
-    case 0x147c5: return part_init_fan(part);
-    case 0x14804: return part_init_flashlight(part);
-    case 0x1483a: return part_init_generator(part);
-    case 0x14874: return part_init_gun(part);
-    case 0x148af: return part_init_baseball(part);
-    case 0x148e0: return part_init_light(part);
-    case 0x148ff: return part_init_magnifying_glass(part);
-    case 0x14919: return part_init_monkey(part);
-    case 0x14954: return part_init_pumpkin(part);
-    case 0x14985: return part_init_heart_balloon(part);
-    case 0x149c6: return part_init_christmas_tree(part);
-    case 0x149f7: return part_init_boxing_glove(part);
-    case 0x14a2d: return part_init_rocket(part);
-    case 0x14a67: return part_init_scissors(part);
-    case 0x14aa2: return part_init_solar_panel(part);
-    case 0x14ab9: return part_init_trampoline(part);
-    case 0x14aef: return part_init_windmill(part);
-    case 0x14b37: return part_init_mort_the_mouse(part);
-    case 0x14b72: return part_init_cannon_ball(part);
-    case 0x14ba3: return part_init_tennis_ball(part);
-    case 0x14bd4: return part_init_candle(part);
-    case 0x14c12: return part_init_corner_pipe(part);
-    case 0x14c48: return part_init_14c48(part);
-    case 0x14c62: return part_init_motor(part);
-    case 0x14ca0: return part_init_14ca0(part);
-    case 0x14cd9: return part_init_14cd9(part);
-    case 0x14d0a: return part_init_14d0a(part);
-
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        io_format(what, sizeof what, "the part initialiser at %#07lx",
-                 (unsigned long)at);
-        not_transcribed(what);
-    }
-    return 1;
-}
 
 /*
  * 0x14dec
@@ -211,66 +63,60 @@ uint16_t part_init(uint32_t at, struct part *part)
  * origin. Nine pieces in all: +0x20 to +0x26 for the runs, +0x18 to +0x1e for
  * the corners.
  */
-void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled)
 {
-    dg_near_t set = DG4E67.bmp_4ecb_ptr;
-    int16_t  x, y;
+    int16_t y;
+    register int16_t i;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     VMDS.clip_enabled = 0;
+    VMDS.second_colour = VMDS.fill_colour = 0;
     VMDS.fill_enabled = 1;
-    VMDS.fill_colour   = 0;
-    VMDS.second_colour = 0;
-
     cursor_redraw_off_thunk();
-
     if (filled != 0) {
-        fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
-                  (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x25]),
-                    (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x26]),
-                    (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x27]),
-                    (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
+        fill_rect(x1 - 0x0c, y1 + 0x0c, x2 - x1, y2 - y1);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x25]),
+                    x1 - 0x0f, y1 + 7, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x26]),
+                    x1 - 0x0f, y2 - 9, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x27]),
+                    x2 - 0x20, y2 - 9, 0);
     }
-
-    VMDS.clip_left    = x1;
-    VMDS.clip_right   = x2;
-    VMDS.clip_top     = y1;
-    VMDS.clip_bottom  = y2;
+    VMDS.clip_left = x1;
+    VMDS.clip_right = x2;
+    VMDS.clip_top = y1;
+    VMDS.clip_bottom = y2;
     VMDS.clip_enabled = 1;
-
-    for (y = y1; y < y2; y = (int16_t)(y + 0x40))
-        for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2a]), x, y, 0);
-
+    for (y = y1; y < y2; y += 0x40)
+        for (i = x1; i < x2; i += 0x80)
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x2a]),
+                        i, y, 0);
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
     else
         set_clip_play_area();
-
     VMDS.clip_enabled = 0;
-
-    for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x12]), x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x13]), x, y2, 0);
+    for (i = x1; i < x2; i += 8) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x12]),
+                    i, y1 - 4, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x13]),
+                    i, y2, 0);
     }
-
-    for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x10]), (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x11]), x2, y, 0);
+    for (i = y1; i < y2; i += 8) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x10]),
+                    x1 - 4, i, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x11]),
+                    x2, i, 0);
     }
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]),
-                (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]),
-                (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]),
-                (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]),
-                (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xc]),
+                x1 - 7, y1 - 7, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xd]),
+                x2 - 0x11, y1 - 7, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xe]),
+                x1 - 7, y2 - 0x11, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xf]),
+                x2 - 0x11, y2 - 0x11, 0);
 }
 
 /*
@@ -303,32 +149,26 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
  * TUTORIAL" with the light pass painted over the dark one. The order of the
  * three instructions is the whole of the evidence.
  */
-void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
+void draw_scroll_text(const char *str, register int16_t x, register int16_t y,
+                      int16_t w)
 {
-    dg_near_t set = DG52ED.panel_art_ptr;
-    int16_t  centre;
-    int16_t  i;
+    int16_t i;
+    int16_t centre;
 
-    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(str)) / 2);
-
+    centre = x + ((w - (int16_t)text_width_thunk(str)) >> 1);
     cursor_redraw_off_thunk();
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), x, y, 0);
-
-    for (i = (int16_t)(x + 0x18); i < (int16_t)(x + w - 0x18);
-         i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), i, (int16_t)(y + 2), 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]),
-                (int16_t)(x + w - 0x18), y, 0);
-
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0]), x, y, 0);
+    for (i = x + 0x18; i < x + w - 0x18; i += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x1]),
+                    i, y + 2, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x2]),
+                x + w - 0x18, y, 0);
     VMDS.text_style = 1;                    /* transparent: no background line */
     VMDS.text_colour = 0x0f;
-    draw_string(str, (int16_t)(centre - 1), (int16_t)(y + 6));
-
+    draw_string(str, centre - 1, y + 6);
     VMDS.text_colour = 5;
-    draw_string(str, centre, (int16_t)(y + 5));
-
+    /* `str++`: the original steps its own copy of the pointer, to no end. */
+    draw_string(str++, centre, y + 5);
     restore_cursor_following();
 }
 
@@ -357,35 +197,31 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
  * same flag, which is what makes the word look pushed into the button rather
  * than merely moved.
  */
-void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
+void draw_button(const char *str, register int16_t x, int16_t y,
+                 register int16_t pressed)
 {
-    dg_near_t set = DG52ED.panel_art_ptr;
-    int16_t  w, rounded, right, text_off, i;
+    int16_t i;
+    int16_t w;
+    int16_t rounded;
+    int16_t text_off;
+    int16_t right;
 
     w = (int16_t)text_width_thunk(str);
-    rounded = (int16_t)((w + 7) & 0xfff8);
-    right = (int16_t)(x + rounded + 8);
-    text_off = (int16_t)(((rounded - w) >> 1) + 8);
-
+    rounded = (w + 7) & 0xfff8;
+    right = x + rounded + 8;
+    text_off = ((rounded - w) >> 1) + 8;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x2c]),
-                (int16_t)x, (int16_t)y, 0);
-
-    for (i = (int16_t)(x + 8); i < right; i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x2e]),
-                    i, (int16_t)y, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[pressed + 0x30]),
-                right, (int16_t)y, 0);
-
+    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x2c)[pressed]),
+                x, y, 0);
+    for (i = x + 8; i < right; i += 8)
+        draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x2e)[pressed]),
+                    i, y, 0);
+    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x30)[pressed]),
+                right, y, 0);
     VMDS.text_style = 1;            /* transparent: no background line */
     VMDS.text_colour = 5;
-    draw_string(str,
-                (int16_t)(x + text_off - (int16_t)pressed),
-                (int16_t)(y + 2 * (int16_t)pressed + 4));
-
+    draw_string(str, x + text_off - pressed, y + 2 * pressed + 4);
     restore_cursor_following();
 }
 
@@ -413,57 +249,39 @@ void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
  * by an offset from a corner rather than from the middle, which is what lets
  * the same routine draw a 0x20-wide button and a 0x220-wide panel.
  */
-void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
+void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
 {
-    dg_near_t set = DG52ED.panel_art_ptr;
-    int16_t  i, j;
+    int16_t i;
+    int16_t j;
 
-    VMDS.clip_left    = x;
-    VMDS.clip_right   = (int16_t)(x + w);
-    VMDS.clip_top     = y;
-    VMDS.clip_bottom  = (int16_t)(y + h - 1);
+    VMDS.clip_left = x;
+    VMDS.clip_right = x + w;
+    VMDS.clip_top = y;
+    VMDS.clip_bottom = y + h - 1;
     VMDS.clip_enabled = 1;
-
     cursor_redraw_off_thunk();
-
-    for (j = 0; j < h; j = (int16_t)(j + 0x40))
-        for (i = 0; i < w; i = (int16_t)(i + 0x40))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3a]),
-                        (int16_t)(x + i), (int16_t)(y + j), 0);
-
+    for (j = 0; j < h; j += 0x40)
+        for (i = 0; i < w; i += 0x40)
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x3a]), i + x, j + y, 0);
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
     else
         set_clip_play_area();
-
     VMDS.second_colour = 0x0f;
-    clip_and_draw_line(x, (int16_t)(y + 1), (int16_t)(x + w), (int16_t)(y + 1));
-    clip_and_draw_line((int16_t)(x + w - 1), y,
-              (int16_t)(x + w - 1), (int16_t)(y + h));
-
+    clip_and_draw_line(x, y + 1, x + w, y + 1);
+    clip_and_draw_line(x + w - 1, y, x + w - 1, y + h);
     VMDS.second_colour = 0x0e;
-    clip_and_draw_line(x, y, (int16_t)(x + w), y);
-
+    clip_and_draw_line(x, y, x + w, y);
     VMDS.second_colour = 0x06;
-    clip_and_draw_line((int16_t)(x + w), y,
-              (int16_t)(x + w), (int16_t)(y + h));
-
-    for (i = (int16_t)(y + 0x13); i < (int16_t)(y + h); i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xe]), (int16_t)(x - 2), i, 0);
-
-    for (i = (int16_t)(x + 0x10); i < (int16_t)(x + w); i = (int16_t)(i + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xf]), i,
-                    (int16_t)(y + h - 4), 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), (int16_t)(x - 7),
-                (int16_t)(y - 4), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xb]), (int16_t)(x + w - 0x10),
-                (int16_t)(y - 4), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xc]), (int16_t)(x - 7),
-                (int16_t)(y + h - 0x10), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xd]), (int16_t)(x + w - 0x13),
-                (int16_t)(y + h - 0xe), 0);
-
+    clip_and_draw_line(x + w, y, x + w, y + h);
+    for (i = y + 0x13; i < y + h; i += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xe]), x - 2, i, 0);
+    for (i = x + 0x10; i < x + w; i += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xf]), i, y + h - 4, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xa]), x - 7, y - 4, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xb]), x + w - 0x10, y - 4, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xc]), x - 7, y + h - 0x10, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0xd]), x + w - 0x13, y + h - 0xe, 0);
     restore_cursor_following();
 }
 
@@ -487,38 +305,28 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
  * is placed rather than tiled past a boundary - so nothing here can escape and
  * nothing has to be clipped to stop it.
  */
-void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
+void draw_sunken_box(register int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    dg_near_t set = DG52ED.panel_art_ptr;
-    int16_t  i, j;
+    int16_t j;
+    register int16_t i;
 
     set_clip_play_area();
-
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    for (j = 8; (int16_t)(h - 8) > j; j = (int16_t)(j + 8)) {
-        for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8))
-            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2b]),
-                        (int16_t)(i + x), (int16_t)(j + y), 0);
-
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x36]), x, (int16_t)(j + y), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x37]),
-                    (int16_t)(x + w - 8), (int16_t)(j + y), 0);
+    for (j = 8; h - 8 > j; j += 8) {
+        for (i = 8; w - 8 > i; i += 8)
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x2b]), i + x, j + y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x36]), x, j + y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x37]), x + w - 8, j + y, 0);
     }
-
-    for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x38]), (int16_t)(i + x), y, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x39]),
-                    (int16_t)(i + x), (int16_t)(y + h - 8), 0);
+    for (i = 8; w - 8 > i; i += 8) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x38]), i + x, y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x39]), i + x, y + h - 8, 0);
     }
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x32]), x, y, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x33]), (int16_t)(x + w - 0x10), y, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x34]), x, (int16_t)(y + h - 0x10), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x35]), (int16_t)(x + w - 0x10),
-                (int16_t)(y + h - 0x10), 0);
-
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x32]), x, y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x33]), x + w - 0x10, y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x34]), x, y + h - 0x10, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x35]), x + w - 0x10, y + h - 0x10, 0);
     restore_cursor_following();
 }
 
@@ -543,40 +351,31 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
  * The colour is passed in and written to both 0x389d and 0x389e before the
  * fill, so the interior and whatever else reads the second colour agree.
  */
-void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint16_t colour)
+void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
+                     uint8_t colour)
 {
-    dg_near_t set = DG4E67.bmp_4ecb_ptr;
-    int16_t  x2  = (int16_t)(x + w);
-    int16_t  y2  = (int16_t)(y + h);
-    int16_t  n;
+    int16_t x2;
+    int16_t y2;
+    register int16_t n;
 
+    x2 = x + w;
+    y2 = y + h;
     cursor_redraw_off_thunk();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
-    VMDS.fill_colour = (uint8_t)colour;
-    VMDS.second_colour = (uint8_t)colour;
-
+    VMDS.second_colour = VMDS.fill_colour = colour;
     fill_rect(x, y, w, h);
-
-    for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1a]), n, (int16_t)(y - 8), 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1b]), n, y2, 0);
+    for (n = x; n < x2; n += 8) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x1a]), n, y - 8, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x1b]), n, y2, 0);
     }
-
-    for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x18]), (int16_t)(x - 8), n, 0);
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x19]), x2, n, 0);
+    for (n = y; n < y2; n += 8) {
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x18]), x - 8, n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x19]), x2, n, 0);
     }
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x14]),
-                (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x15]),
-                (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x16]),
-                (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x17]),
-                (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x14]), x - 8, y - 8, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x15]), x2 - 8, y - 8, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x16]), x - 8, y2 - 5, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x17]), x2 - 8, y2 - 8, 0);
 }
 
 /*
@@ -650,82 +449,67 @@ uint16_t ask_yes_no(const char *title, char *body)
  * is what makes it flash before the box goes.
  */
 uint16_t message_box(const char *title, char *body,
-                     const char *button1, const char *button2)
+                     register const char *button1,
+                     register const char *button2)
 {
     uint16_t saved;
-    int16_t  second_x = 0;
+    int16_t second_x;
 
     wait_cursor();
-
     saved = DG4E67.state;
     DG4E67.state = 0x8000;
-
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
     draw_scroll_text(title, 0xb8, 0x74, 0xd0);
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
-
     draw_button(button1, 0xc8, 0xd4, 0);
-    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
-        (uint16_t)(text_width_thunk(button1) + 0xd8);
-
+    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 = text_width_thunk(button1) + 0xd8;
     if (button2 != NULL) {
-        second_x = (int16_t)(0x168
-                             - ((text_width_thunk(button2) + 7) & 0xfff8));
-        draw_button(button2, (uint16_t)second_x, 0xd4, 0);
+        second_x = 0x168 - ((text_width_thunk(button2) + 7) & 0xfff8);
+        draw_button(button2, second_x, 0xd4, 0);
         REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
     }
-
     present_back_page();
     restore_cursor();
-
     while (DG4E67.state == 0x8000) {
         update_button_state();
-
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-
-        if ((DG52ED.last_key) == SC_TAB) {
+        if (DG52ED.last_key == SC_TAB)
             message_box_tab(button2);
-        } else {
+        else {
             if (*button1 == 'Y') {
-                if ((DG52ED.last_key) == SC_Y)
+                if (DG52ED.last_key == SC_Y)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_N)
+                if (DG52ED.last_key == SC_N)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'R') {
-                if ((DG52ED.last_key) == SC_R)
+                if (DG52ED.last_key == SC_R)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_A)
+                if (DG52ED.last_key == SC_A)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'C') {
-                if ((DG52ED.last_key) == SC_C)
+                if (DG52ED.last_key == SC_C)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == SC_ENTER)
+                if (DG52ED.last_key == SC_ENTER)
                     DG4E67.state = 0x4000;
             }
         }
-
         regions_handle_pointer(DG4E67.regions_b_ptr);
-
         if (button2 == NULL && DG4E67.state == 0x2000)
             DG4E67.state = 0x8000;
-
         present_frame(1);
     }
-
     update_button_state();
-
     if (DG4E67.state == 0x4000) {
         draw_button(button1, 0xc8, 0xd4, 1);
         present_back_page();
         DG4E67.state = saved;
         return 1;
     }
-
     if (button2 != NULL) {
-        draw_button(button2, (uint16_t)second_x, 0xd4, 1);
+        draw_button(button2, second_x, 0xd4, 1);
         present_back_page();
     }
     DG4E67.state = saved;
@@ -792,44 +576,34 @@ void message_box_tab(const char *button2)
  */
 void show_level_complete(void)
 {
-    char code[40];                    /* [bp-0x6c], password and code */
-    char bonus[30]; /* [bp-0x44], the second line */
-    char line[30]; /* [bp-0x26], the first line */
-    char num[8]; /* [bp-8],    a number as text */
+    char num[8];
+    char line[30];
+    char bonus[30];
+    char code[40];
 
     repaint_whole_screen();
-
-    string_copy(line, DG1BCC.puzzle_prefix);
+    string_copy(line, "PUZZLE ");
     int_to_string(DG4E67.round_number, num, 0xa);
     string_concat(line, num);
-    string_concat(line, DG1BCC.completed);
-
-    string_copy(bonus, DG1BCC.total_bonus_points);
-    int_to_string((int16_t)(DG50AF.bonus_1 + DG50AF.bonus_2), num, 0xa);
+    string_concat(line, " COMPLETED!");
+    string_copy(bonus, "Total bonus points: ");
+    int_to_string(DG50AF.bonus_1 + DG50AF.bonus_2, num, 0xa);
     string_concat(bonus, num);
-
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text(line,  0xb8, 0x80, 0xd0);
+    draw_scroll_text(line, 0xb8, 0x80, 0xd0);
     draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
-
     if (DG4E67.round_number < DG4E67.level_count) {
-        draw_scroll_text(DG1BCC.new_password, 0xb8, 0xc4, 0xd0);
-
+        /* The literal ends in a NUL of its own: the image has two after it. */
+        draw_scroll_text("New Password\0", 0xb8, 0xc4, 0xd0);
         read_password_line(DG4E67.round_number, code);
-        score_to_code(DG4E67.counter,
-                      code);
-
+        score_to_code(DG4E67.counter, code);
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }
-
     cursor_redraw_off_thunk();
-
     VMDS.text_colour = 0;
-    draw_string(DG1BCC.click_button_to_continue, 0xd3, 0xee);
-
+    draw_string("(click button to continue)", 0xd3, 0xee);
     VMDS.text_colour = 0x0f;
-    draw_string(DG1BCC.click_button_to_continue, 0xd4, 0xed);
-
+    draw_string("(click button to continue)", 0xd4, 0xed);
     restore_cursor_following();
     present_back_page();
 }
@@ -852,11 +626,9 @@ void show_level_complete(void)
 void redraw_machine_area(void)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.second_colour = VMDS.fill_colour = (uint8_t)DG52BD.fill_colour;
     VMDS.fill_enabled = 1;
     VMDS.clip_enabled = 0;
-
     cursor_redraw_off_thunk();
     fill_rect(8, 8, 0x230, 0x160);
     draw_machine_thunk();
@@ -892,23 +664,23 @@ void redraw_machine_area(void)
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-void draw_odometer_digit(char c, int16_t x, int16_t y)
+void draw_odometer_digit(uint8_t c, register int16_t x, int16_t y)
 {
-    uint8_t  digit = (uint8_t)(c + 0xd0);   /* `add al, 0xd0` is `- '0'` */
-    uint16_t list  = DG4E67.score2_bmp_ptr;
-    int16_t  row;
+    register int16_t row;
 
-    if (digit < 5) {
-        row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
+    c += 0xd0;                              /* `- '0'` */
+    if (c < 5) {
+        row = 6 - c * 0x15;
+        row += y;
         cursor_redraw_off_thunk();
-        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[0]), x, row, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.score2_bmp_ptr)->bmp_ptr[0]), x, row, 0);
     } else {
-        digit = (uint8_t)(digit + 0xfb);    /* `add al, 0xfb` is `- 5` */
-        row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
+        c += 0xfb;                          /* `- 5` */
+        row = 6 - c * 0x15;
+        row += y;
         cursor_redraw_off_thunk();
-        draw_bitmap(BMP_PTR(BMPSET_PTR(list)->bmp_ptr[1]), x, row, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.score2_bmp_ptr)->bmp_ptr[1]), x, row, 0);
     }
-
     restore_cursor_following();
 }
 
@@ -941,21 +713,16 @@ void draw_machine_thunk(void)
  */
 void draw_machine_layer_b(void)
 {
-    dg_near_t set;
-    int16_t  x;
+    register int16_t x;
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    set = DG4E67.bmp_4ecb_ptr;
-    for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x6]), x, 0, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), 0x230, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0, 0);
-
+    for (x = 0x10; x < 0x22f; x += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x6]), x, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x1]), 0x230, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xa]), 0x238, 0, 0);
     restore_cursor_following();
 }
 
@@ -968,20 +735,15 @@ void draw_machine_layer_b(void)
  */
 void draw_machine_layer_c(void)
 {
-    dg_near_t set;
-    int16_t  x;
+    register int16_t x;
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    set = DG4E67.bmp_4ecb_ptr;
-    for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x7]), x, 0x168, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), 0, 0x160, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x230, 0x160, 0);
-
+    for (x = 0x10; x < 0x22f; x += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x7]), x, 0x168, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x2]), 0, 0x160, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x3]), 0x230, 0x160, 0);
     restore_cursor_following();
 }
 
@@ -997,20 +759,15 @@ void draw_machine_layer_c(void)
  */
 void draw_machine_layer_d(void)
 {
-    dg_near_t set;
-    int16_t  y;
+    register int16_t y;
 
     set_clip_play_area();
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    set = DG4E67.bmp_4ecb_ptr;
-    for (y = 8; y < 0x162; y = (int16_t)(y + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x4]), 0, y, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), 0, 0x160, 0);
-
+    for (y = 8; y < 0x162; y += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x4]), 0, y, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x2]), 0, 0x160, 0);
     restore_cursor_following();
 }
 
@@ -1039,40 +796,28 @@ void draw_machine_layer_d(void)
  */
 void draw_machine_layer_e(void)
 {
-    dg_near_t set;
-    int16_t  n;
+    register int16_t n;
 
     draw_machine_layer_f();
-
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    set = DG4E67.bmp_4ecb_ptr;
-
-    for (n = 8; n < 0x162; n = (int16_t)(n + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x5]), 0x238, n, 0);
-
-    for (n = 0; n < 0x16f; n = (int16_t)(n + 8))
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x8]), 0x278, n, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), 0x230, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x3]), 0x230, 0x160, 0);
-
+    for (n = 8; n < 0x162; n += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x5]), 0x238, n, 0);
+    for (n = 0; n < 0x16f; n += 8)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x8]), 0x278, n, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x1]), 0x230, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x3]), 0x230, 0x160, 0);
     VMDS.second_colour = 0;
     clip_and_draw_line(0x238, 0, 0x27f, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0x3b, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xb]), 0x23f, 0x42, 0);
-
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xa]), 0x238, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xa]), 0x238, 0x3b, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xb]), 0x23f, 0x42, 0);
     if (DG4E67.state == 0x800)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x28]), 0x248, 0x45, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x28]), 0x248, 0x45, 0);
     else if (DG4E67.state == 0x400)
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x29]), 0x25d, 0x45, 0);
-
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0xa]), 0x238, 0x59, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x9]), 0x240, 0x168, 0);
-
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x29]), 0x25d, 0x45, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0xa]), 0x238, 0x59, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x9]), 0x240, 0x168, 0);
     restore_cursor_following();
 }
 
@@ -1107,68 +852,59 @@ void draw_machine_layer_e(void)
  */
 void draw_machine_layer_a(void)
 {
-    char digits[16];      /* [bp-0x10] */
-    uint16_t part;
-    int16_t  kind, count, y, text_x, text_y;
+    int16_t text_x;
+    int16_t text_y;
+    int16_t kind;
+    int16_t count;
+    char digits[8];
+    struct bitmap *icon;
+    register struct part *part;
+    register int16_t y;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     VMDS.clip_enabled = 1;
     set_clip_play_area();
     VMDS.fill_enabled = 1;
-    VMDS.fill_colour   = ((uint8_t)DG52BD.bin_colour);
-    VMDS.second_colour = ((uint8_t)DG52BD.bin_colour);
-
+    VMDS.second_colour = VMDS.fill_colour = (uint8_t)DG52BD.bin_colour;
     cursor_redraw_off_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
-
     VMDS.text_style = 1;                            /* transparent text */
-
-    part = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
-    y    = 0x64;
-
-    while (part != 0 && y <= 0x134) {
-        struct bitmap *icon;
-
-        kind = ((int16_t)PART_PTR(part)->kind);
-        count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
-
-        for (;;) {
-            part = PART_PTR(part)->next_ptr;
-            if (part == 0)
-                break;
-            if (((int16_t)PART_PTR(part)->kind) != kind)
-                break;
-            if (part != DG50D3.dragged_part_ptr)
+    part = PART_PTR(PART_PTR(DG50D3.bin_list_ptr)->next_ptr);
+    y = 0x64;
+    while (part != PART_NONE && y <= 0x134) {
+        kind = part->kind;
+        if (part == PART_PTR(DG50D3.dragged_part_ptr))
+            count = 0;
+        else
+            count = 1;
+        /* The step to the next part is at the loop's test, as a statement:
+           `mov si,[si] / or si,si`. An assignment inside a `while` condition
+           goes through AX under both Borland compilers, so the loop is
+           entered at the step, which is what its bytes do. */
+        goto next;
+        do {
+            if (part != PART_PTR(DG50D3.dragged_part_ptr))
                 count++;
-        }
-
+next:
+            part = PART_PTR(part->next_ptr);
+        } while (part != PART_NONE && part->kind == kind);
         if (count == 0)
             continue;
-
         cursor_redraw_off_thunk();
-
         icon = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
-
         int_to_string(count, digits, 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
-
-        text_y = (int16_t)(y + icon->height
-                           + (0x2a - icon->height) / 2 + 1);
-        if (text_y > 0x161)
+        text_x = ((0x38 - (int16_t)text_width_thunk(digits)) >> 1) + 0x240;
+        if ((text_y = y + icon->height + ((0x2a - icon->height) >> 1) + 1) > 0x161)
             text_y = 0x161;
-
         VMDS.text_colour = 0;
-        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
-
+        draw_string(digits, text_x - 2, text_y + 1);
         VMDS.text_colour = 0x0e;
-        draw_string(digits, (int16_t)(text_x - 1), text_y);
-
+        draw_string(digits, text_x - 1, text_y);
         restore_cursor_following();
-
-        y = (int16_t)(y + 0x34);
+        y += 0x34;
     }
 }
 
@@ -1184,12 +920,11 @@ void draw_machine_layer_a(void)
  * than being pinned to the left. That is what puts a part's icon in the middle
  * of its cell in the copy-protection grid whatever size the part is.
  */
-void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
-                         int16_t w, int16_t h)
+void draw_bitmap_centred(register struct bitmap *bmp, register int16_t x,
+                         int16_t y, int16_t w, int16_t h)
 {
-    x = (int16_t)(x + (w - bmp->width) / 2);
-    y = (int16_t)(y + (h - bmp->height) / 2);
-
+    x += (w - bmp->width) >> 1;
+    y += (h - bmp->height) >> 1;
     draw_bitmap(bmp, x, y, 0);
 }
 
@@ -1223,51 +958,42 @@ void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
  */
 void draw_machine_layer_f(void)
 {
-    dg_near_t set;
-    int16_t  frame, slide_a, slide_b;
+    int16_t slide_b;
+    register int16_t frame;
+    register int16_t slide_a;
 
     VMDS.clip_enabled = 1;
-    VMDS.clip_top     = 0x0a;
-    VMDS.clip_bottom  = 0x3b;
-    VMDS.clip_left    = 0x240;
-    VMDS.clip_right   = 0x277;
-
+    VMDS.clip_top = 0x0a;
+    VMDS.clip_bottom = 0x3b;
+    VMDS.clip_left = 0x240;
+    VMDS.clip_right = 0x277;
     DG4E67.loop_frames = 0;
-
-    frame = (int16_t)(DG4E67.loop_frames >> 1);
-    slide_a = (frame >= 4) ? (int16_t)(((frame - 4) * 2) % 0x38) : 0;
-
-    frame = (int16_t)(DG4E67.loop_frames >> 1);
-    slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
-
+    if ((frame = DG4E67.loop_frames >> 1) >= 4)
+        slide_a = ((frame - 4) * 2) % 0x38;
+    else
+        slide_a = 0;
+    if ((frame = DG4E67.loop_frames >> 1) >= 4)
+        slide_b = ((frame - 4) * 4) % 0x38;
+    else
+        slide_b = 0;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-
-    set = DG4E67.menu_bmp_ptr;
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0]), 0x240, 0x0a, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x1]), (int16_t)(0x208 + slide_a), 0x1a, 0);
-    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x2]), (int16_t)(0x208 + slide_b), 0x20, 0);
-
-    if (frame < 6) {
-        /* 0x25a2 the picture, 0x25ae its x, 0x25ba its y - by frame. */
-        uint16_t which = MACHINE_DRAW_MENU_ANIM.picture[frame];
-
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[which]),
-                    MACHINE_DRAW_MENU_ANIM.picture_x[frame],
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr[0]), 0x240, 0x0a, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr[0x1]), slide_a + 0x208, 0x1a, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr[0x2]), slide_b + 0x208, 0x20, 0);
+    if (frame < 6)
+        /* the picture, its x and its y, by frame */
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr[MACHINE_DRAW_MENU_ANIM.picture[frame]]), MACHINE_DRAW_MENU_ANIM.picture_x[frame],
                     MACHINE_DRAW_MENU_ANIM.picture_y[frame], 0);
+    if (frame < 4)
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr[0x7]), 0x24a, 0x2a, 0);
+    else {
+        frame &= 3;
+        /* the sprite's x and y, by the frame modulo four */
+        draw_bitmap(BMP_PTR((BMPSET_PTR(DG4E67.menu_bmp_ptr)->bmp_ptr + 8)[frame]),
+                    MACHINE_DRAW_MENU_ANIM.sprite_x[frame],
+                    MACHINE_DRAW_MENU_ANIM.sprite_y[frame], 0);
     }
-
-    if (frame < 4) {
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[0x7]), 0x24a, 0x2a, 0);
-    } else {
-        int16_t f = (int16_t)(frame & 3);
-
-        /* 0x25c6 its x and 0x25ce its y, by the frame modulo four. */
-        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp_ptr[f + 0x8]),
-                    MACHINE_DRAW_MENU_ANIM.sprite_x[f],
-                    MACHINE_DRAW_MENU_ANIM.sprite_y[f], 0);
-    }
-
     restore_cursor_following();
     set_clip_play_area();
 }
@@ -1295,29 +1021,23 @@ void draw_machine_layer_f(void)
  */
 void draw_carried_icon(void)
 {
-    struct extent16 ext;                     /* [bp-0xa], [bp-8] */
-    int16_t at[3];     /* [bp-6],  [bp-4]  */
     uint16_t kind;
-    struct bitmap *si;
+    int16_t at[2];
+    struct extent16 ext;
+    register struct bitmap *bmp;
 
     set_clip_play_area();
-
     kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
-    si = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
-
+    bmp = BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[kind]);
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
     cursor_redraw_off_thunk();
-    draw_bitmap(si, (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
+    draw_bitmap(bmp, DG5768.pointer_x, DG5768.pointer_y, 0);
     cursor_redraw_off_thunk();
-
-    at[0] = (int16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
-    at[1] = (int16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
-    ext.width  = si->width;
-    ext.height = si->height;
-
-    alloc_shape((uint8_t *)at,
-                (uint8_t *)&ext, 1, 2, 0);
+    at[0] = DG5768.pointer_x + DG4E67.origin_b_x;
+    at[1] = DG5768.pointer_y + DG4E67.origin_b_y;
+    ext.width = bmp->width;
+    ext.height = bmp->height;
+    alloc_shape((uint8_t *)at, (uint8_t *)&ext, 1, 2, 0);
 }
 
 /*
@@ -1402,149 +1122,133 @@ void step_and_draw_machine(int16_t redraw_all)
  * extents, which is not symmetric and is what the original writes - and handed
  * to `alloc_shape` so the whole decoration can be lifted off again.
  */
-void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
+void draw_part_selection(register struct part *part, int16_t which, uint8_t flags)
 {
-    int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
-    struct extent16 ext;   /* [bp-0x22] width, [bp-0x20] height */
-    uint16_t idx, bmp;
-    struct part *si;
+    int16_t step;
+    int16_t tall;
+    int16_t keep_t;
+    int16_t keep_b;
+    int16_t keep_l;
+    int16_t keep_r;
+    int16_t hx;
+    int16_t hxm;
+    int16_t hxr;
+    int16_t hy;
+    int16_t hym;
+    int16_t hyb;
+    uint16_t idx;
+    struct point16 at;
+    struct extent16 ext;
     struct belt *rec;
-    int16_t  step, tall;
-    int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
-    int16_t  hx, hxm, hxr, hy, hym, hyb;
+    struct part *end;
 
     if (MACHINE_DRAW_SELECTION_PHASE.phase == 3)
         MACHINE_DRAW_SELECTION_PHASE.phase = 0;
     else
         MACHINE_DRAW_SELECTION_PHASE.phase++;
-
-    step = (int16_t)(4 - MACHINE_DRAW_SELECTION_PHASE.phase);
-
+    step = 4 - MACHINE_DRAW_SELECTION_PHASE.phase;
+    keep_t = keep_b = keep_l = keep_r = 1;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
-
     if (part->kind == KIND_BELT) {
-        si = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
-        at[0] = (int16_t)(((uint16_t)si->box[0].x)
-                               + si->grab.x);
-        at[1] = (int16_t)(((uint16_t)si->box[0].y)
-                                               + si->grab.y);
-        ext.width = (int16_t)si->grab_size;
-        /* Reads the height before it is written; see the comment above. */
-        ext.height = (int16_t)(((int16_t)ext.height >> 1)
-             < (int16_t)si->grab_size)
-            ? 0x0a : si->grab_size;
+        end = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
+        at.x = end->box[0].x + end->grab.x;
+        at.y = end->box[0].y + end->grab.y;
+        ext.width = end->grab_size;
+        /* Reads the height before it is written: the original's. */
+        if ((ext.height >> 1) < (int16_t)end->grab_size)
+            ext.height = 0x0a;
+        else
+            ext.height = end->grab_size;
     } else if (part->kind == KIND_ROPE) {
         rec = BELT_PTR(part->belt_ptr[0]);
-        si = PART_PTR(rec->end_b_ptr);
-        idx = ((int8_t)rec->slot_b);
-        at[0] = (int16_t)(((uint16_t)si->box[0].x)
-                               + si->attach[idx].x - 8);
-        at[1] = (int16_t)(((uint16_t)si->box[0].y)
-                       + si->attach[idx].y - 4);
+        end = PART_PTR(rec->end_b_ptr);
+        idx = rec->slot_b;
+        at.x = end->box[0].x + end->attach[idx].x - 8;
+        at.y = end->box[0].y + end->attach[idx].y - 4;
         ext.width = 0x10;
         ext.height = 8;
     } else {
-        at[1] = (int16_t)((uint16_t)part->box[0].y);
-        at[0] = (int16_t)((uint16_t)part->box[0].x);
-        ext.height = (int16_t)((uint16_t)part->size[0].height);
-        ext.width = (int16_t)((uint16_t)part->size[0].width);
+        at = part->box[0];
+        ext = part->size[0];
     }
-
-    VMDS.clip_left = (uint16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x));
-    VMDS.clip_right = (uint16_t)((uint16_t)at[0] + (uint16_t)ext.width - ((uint16_t)DG4E67.origin_x) - 1);
-    VMDS.clip_top = (uint16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y));
-    VMDS.clip_bottom = (uint16_t)((uint16_t)at[1]
-                               + (uint16_t)ext.height
-                               - ((uint16_t)DG4E67.origin_y) - 1);
+    VMDS.clip_left = at.x - DG4E67.origin_x;
+    VMDS.clip_right = at.x + ext.width - DG4E67.origin_x - 1;
+    VMDS.clip_top = at.y - DG4E67.origin_y;
+    VMDS.clip_bottom = at.y + ext.height - DG4E67.origin_y - 1;
     VMDS.clip_enabled = 1;
-
-    if (VMDS.clip_left < 8)      { VMDS.clip_left = 8;     keep_l = 0; }
-    if (VMDS.clip_right > 0x237)  { VMDS.clip_right = 0x237; keep_r = 0; }
-    if (VMDS.clip_top < 8)      { VMDS.clip_top = 8;     keep_t = 0; }
-    if (VMDS.clip_bottom > 0x167)  { VMDS.clip_bottom = 0x167; keep_b = 0; }
-
+    if (VMDS.clip_left < 8) {
+        VMDS.clip_left = 8;
+        keep_l = 0;
+    }
+    if (VMDS.clip_right > 0x237) {
+        VMDS.clip_right = 0x237;
+        keep_r = 0;
+    }
+    if (VMDS.clip_top < 8) {
+        VMDS.clip_top = 8;
+        keep_t = 0;
+    }
+    if (VMDS.clip_bottom > 0x167) {
+        VMDS.clip_bottom = 0x167;
+        keep_b = 0;
+    }
     if (which == 0x0e) {
         VMDS.second_colour = 0;
-        clip_and_draw_line((int16_t)((uint16_t)VMDS.clip_left),
-                           (int16_t)(((uint16_t)VMDS.clip_top) + 1),
-                           (int16_t)((uint16_t)VMDS.clip_right),
-                           (int16_t)(((uint16_t)VMDS.clip_bottom) + 1));
-        clip_and_draw_line((int16_t)((uint16_t)VMDS.clip_left),
-                           (int16_t)(((uint16_t)VMDS.clip_bottom) + 1),
-                           (int16_t)((uint16_t)VMDS.clip_right),
-                           (int16_t)(((uint16_t)VMDS.clip_top) + 1));
+        clip_and_draw_line(VMDS.clip_left, VMDS.clip_top + 1,
+                           VMDS.clip_right, VMDS.clip_bottom + 1);
+        clip_and_draw_line(VMDS.clip_left, VMDS.clip_bottom + 1,
+                           VMDS.clip_right, VMDS.clip_top + 1);
         VMDS.second_colour = 0x0c;
-        clip_and_draw_line((int16_t)((uint16_t)VMDS.clip_left), (int16_t)((uint16_t)VMDS.clip_top),
-                           (int16_t)((uint16_t)VMDS.clip_right), (int16_t)((uint16_t)VMDS.clip_bottom));
-        clip_and_draw_line((int16_t)((uint16_t)VMDS.clip_left), (int16_t)((uint16_t)VMDS.clip_bottom),
-                           (int16_t)((uint16_t)VMDS.clip_right), (int16_t)((uint16_t)VMDS.clip_top));
+        clip_and_draw_line(VMDS.clip_left, VMDS.clip_top,
+                           VMDS.clip_right, VMDS.clip_bottom);
+        clip_and_draw_line(VMDS.clip_left, VMDS.clip_bottom,
+                           VMDS.clip_right, VMDS.clip_top);
     }
-
-    at[0] = (int16_t)(((uint16_t)VMDS.clip_left) + ((uint16_t)DG4E67.origin_x));
-    at[1] = (int16_t)(((uint16_t)VMDS.clip_top) + ((uint16_t)DG4E67.origin_y));
-    ext.width = (int16_t)(((uint16_t)VMDS.clip_right) - ((uint16_t)VMDS.clip_left) + 1);
-    ext.height = (int16_t)(((uint16_t)VMDS.clip_bottom) - ((uint16_t)VMDS.clip_top) + 1);
-
-    tall = ((int16_t)ext.height > 0x80) ? 1 : 0;
-
+    at.x = VMDS.clip_left + DG4E67.origin_x;
+    at.y = VMDS.clip_top + DG4E67.origin_y;
+    ext.width = VMDS.clip_right - VMDS.clip_left + 1;
+    if ((ext.height = VMDS.clip_bottom - VMDS.clip_top + 1) > 0x80)
+        tall = 1;
+    else
+        tall = 0;
     cursor_redraw_off_thunk();
-
-    bmp = (uint16_t)(DG52ED.cursor_art_ptr + which * 2);
-
-    if (keep_t) {
-        draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
-                           (int16_t)((uint16_t)VMDS.clip_left),
-                           (int16_t)(((uint16_t)VMDS.clip_top) - step), 8, 0x88, 0);
+    if (keep_l) {
+        draw_bitmap_scaled(BMP_PTR((BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr + 1)[which]), VMDS.clip_left, VMDS.clip_top - step, 8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
-                               (int16_t)((uint16_t)VMDS.clip_left),
-                               (int16_t)(((uint16_t)VMDS.clip_top) - step + 0x80),
+            draw_bitmap_scaled(BMP_PTR((BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr + 1)[which]), VMDS.clip_left, VMDS.clip_top - step + 0x80,
                                8, 0x88, 0);
     }
-
-    if (keep_l)
-        draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.seg),
-                           (int16_t)(((uint16_t)VMDS.clip_left) - MACHINE_DRAW_SELECTION_PHASE.phase),
-                           (int16_t)((uint16_t)VMDS.clip_top), 0x110, 1, 0);
-
+    if (keep_t)
+        draw_bitmap_scaled(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[which]),
+                           VMDS.clip_left - MACHINE_DRAW_SELECTION_PHASE.phase,
+                           VMDS.clip_top, 0x110, 1, 0);
     if (keep_r) {
         VMDS.clip_right++;
-        draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
-                           (int16_t)(((uint16_t)VMDS.clip_right) - 1),
-                           (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.phase),
+        draw_bitmap_scaled(BMP_PTR((BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr + 1)[which]), VMDS.clip_right - 1,
+                           VMDS.clip_top - MACHINE_DRAW_SELECTION_PHASE.phase,
                            8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.off),
-                               (int16_t)(((uint16_t)VMDS.clip_right) - 1),
-                               (int16_t)(((uint16_t)VMDS.clip_top) - MACHINE_DRAW_SELECTION_PHASE.phase
-                                         + 0x80), 8, 0x88, 0);
+            draw_bitmap_scaled(BMP_PTR((BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr + 1)[which]), VMDS.clip_right - 1,
+                               VMDS.clip_top - MACHINE_DRAW_SELECTION_PHASE.phase + 0x80,
+                               8, 0x88, 0);
         VMDS.clip_right--;
     }
-
     if (keep_b) {
         VMDS.clip_bottom++;
-        draw_bitmap_scaled(BMP_PTR(BMP_PTR(bmp)->data.seg),
-                           (int16_t)(((uint16_t)VMDS.clip_left) - step),
-                           (int16_t)(((uint16_t)VMDS.clip_bottom) - 1), 0x110, 1, 0);
+        draw_bitmap_scaled(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[which]), VMDS.clip_left - step, VMDS.clip_bottom - 1,
+                           0x110, 1, 0);
     }
-
     set_clip_for_mode();
-
-    hx  = (int16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x) - 12);
-    hxm = (int16_t)(hx + ((int16_t)ext.width >> 1) + 6);
-    hxr = (int16_t)(hx + (int16_t)ext.width + 0x0c);
-    hy  = (int16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y) - 11);
-    hym = (int16_t)(hy + ((int16_t)ext.height >> 1) + 6);
-    hyb = (int16_t)(hy + (int16_t)ext.height + 0x0c);
-
+    hx = at.x - DG4E67.origin_x - 12;
+    hxm = hx + (ext.width >> 1) + 6;
+    hxr = hx + ext.width + 0x0c;
+    hy = at.y - DG4E67.origin_y - 11;
+    hym = hy + (ext.height >> 1) + 6;
+    hyb = hy + ext.height + 0x0c;
     VMDS.fill_enabled = 1;
-    VMDS.fill_colour = 0x0f;
-    VMDS.second_colour = 0x0f;
-
+    VMDS.second_colour = VMDS.fill_colour = 0x0f;
     DG50AF.flip_options = part_flip_options(part);
-
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1b]), hx, hy, 0);
-
     if (DG50AF.flip_options & 1) {
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1c]), hx, hym, 0);
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1c]), hxr, hym, 0);
@@ -1557,15 +1261,11 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1e]), hx, hyb, 0);
     if (DG50AF.flip_options & 8)
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[0x1f]), hxr, hyb, 0);
-
-    at[0] = (int16_t)((uint16_t)at[0] - 0x0c);
-    at[1] = (int16_t)((uint16_t)at[1] - 0x0c);
-    ext.width = (int16_t)((uint16_t)ext.width + 0x18);
-    ext.height = (int16_t)((uint16_t)ext.height + 0x19);
-
-    alloc_shape((uint8_t *)at,
-                (uint8_t *)&ext, flags, 2, 0);
-
+    at.x -= 0x0c;
+    at.y -= 0x0c;
+    ext.width += 0x18;
+    ext.height += 0x19;
+    alloc_shape((uint8_t *)&at, (uint8_t *)&ext, flags, 2, 0);
     restore_cursor_following();
 }
 
@@ -1578,12 +1278,16 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
  */
 void clear_layer_heads(void)
 {
-    int16_t i = 5;
+#ifdef __TURBOC__
+    /* The count is in AX, Borland's pseudo-register: no register is saved. */
+    for (_AX = 5; (int16_t)_AX >= 0; _AX--)
+        DG50BF.layer_head_ptr[_AX] = 0;
+#else
+    int16_t i;
 
-    do {
+    for (i = 5; i >= 0; i--)
         DG50BF.layer_head_ptr[i] = 0;
-        i--;
-    } while (i >= 0);
+#endif
 }
 
 /*
@@ -1605,25 +1309,25 @@ void clear_layer_heads(void)
  * One record is special - the one whose address is at DGROUP 0x50d5 always
  * goes into bucket 0 whatever its kind says.
  */
-void link_record_into_buckets(struct part *rec)
+void link_record_into_buckets(register struct part *rec)
 {
-    int16_t kind = ((int16_t)rec->kind);
-    int16_t i;
+    int16_t kind;
+    uint8_t slot;
+#ifndef __TURBOC__
+    uint16_t _CX;               /* the count: CX, Borland's pseudo-register */
+#endif
 
     rec->flags_0a |= 0x20;
-
-    for (i = 0; i < 2; i++) {
-        uint8_t slot = PART_KINDS[kind].refile_level[i];
-
-        if (slot == 0xFF)
-            continue;
-        if (rec == PART_PTR(DG50D3.dragged_part_ptr))
-            slot = 0;
-
-        rec->layer_next_ptr[i] = DG50BF.layer_head_ptr[slot];
-        DG50BF.layer_head_ptr[slot] = dg_near(dgroup, rec);
-        if (i == 0)
-            rec->layer_slot = slot;
+    kind = rec->kind;
+    for (_CX = 0; (int16_t)_CX < 2; _CX++) {
+        if ((slot = PART_KINDS[kind].refile_level[_CX]) != 0xff) {
+            if (rec == PART_PTR(DG50D3.dragged_part_ptr))
+                slot = 0;
+            rec->layer_next_ptr[_CX] = DG50BF.layer_head_ptr[slot];
+            DG50BF.layer_head_ptr[slot] = dg_near(dgroup, rec);
+            if (_CX == 0)
+                rec->layer_slot = slot;
+        }
     }
 }
 
@@ -1646,36 +1350,33 @@ void link_record_into_buckets(struct part *rec)
  * The page being drawn into, `VMDS.page_dst_ptr`, is set from `VMDS.page_back_ptr` first, and the
  * clip is put back to whatever the mode wants.
  */
-void draw_machine(int16_t a, int16_t b)
+void draw_machine(register int16_t a, int16_t b)
 {
-    uint8_t  v02;          /* [bp-2] the level */
-    uint8_t  v01;          /* [bp-1] the counter */
-    uint16_t si;
+    uint8_t counter;
+    uint8_t level;
+    register struct part *part;
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     VMDS.clip_enabled = 1;
     set_clip_for_mode();
-
-    for (v01 = 6; v01 != 0; v01--) {
-        v02 = (uint8_t)(v01 - 1);
-
-        for (si = DG50BF.layer_head_ptr[v02]; si != 0;
-             si = (PART_PTR(si)->layer_slot == v02
-                   ? PART_PTR(si)->layer_next_ptr[0]
-                   : PART_PTR(si)->layer_next_ptr[1])) {
-            PART_PTR(si)->flags_0a &= 0xffdf;
-
-            if (PART_PTR(si)->kind == KIND_BELT)
-                draw_rope(PART_PTR(si), a);
-            else if (PART_PTR(si)->kind == KIND_ROPE)
-                draw_belt(PART_PTR(si), a);
-            else if (PART_PTR(si)->kind != KIND_ANCHOR)
-                draw_part(PART_PTR(si), (int16_t)v02, a, b);
+    for (counter = 6; counter > 0; counter--) {
+        level = counter - 1;
+        part = PART_PTR(DG50BF.layer_head_ptr[level]);
+        while (part != PART_NONE) {
+            part->flags_0a &= 0xffdf;
+            if (part->kind == KIND_BELT)
+                draw_rope(part, a);
+            else if (part->kind == KIND_ROPE)
+                draw_belt(part, a);
+            else if (part->kind != KIND_ANCHOR)
+                draw_part(part, level, a, b);
+            if (part->layer_slot == level)
+                part = PART_PTR(part->layer_next_ptr[0]);
+            else
+                part = PART_PTR(part->layer_next_ptr[1]);
         }
     }
-
     clear_layer_heads();
-
 }
 
 /*
@@ -1689,48 +1390,54 @@ void draw_machine(int16_t a, int16_t b)
  * With `a` set all eight coordinates are scaled into the preview window first,
  * exactly as `draw_belt` and `draw_part` scale theirs.
  */
-void draw_rope(struct part *part, int16_t a)
+void draw_rope(struct part *part, register int16_t a)
 {
-    /*
-     * The frame really is eight words - the four points the two lines are
-     * drawn between - and the original addresses them from BP downwards, so
-     * `p[0]` is `[bp-2]` and `p[7]` is `[bp-0x10]`. Held as the array it is,
-     * the table is the same eight words in the other order.
-     */
-    int16_t words[8];
-    int16_t *p[8];
-    struct rope *si = ROPE_PTR(part->rope_ptr);
-    int32_t k;
+    int16_t x0;
+    int16_t y0;
+    int16_t x1;
+    int16_t y1;
+    int16_t x2;
+    int16_t y2;
+    int16_t x3;
+    int16_t y3;
+    register struct rope *rope;
 
-    for (k = 0; k < 8; k++)
-        p[k] = &words[7 - k];                  /* [bp-2] down to [bp-0x10] */
-
-    if (si->end_a_ptr == 0 || si->end_b_ptr == 0)
-        goto out;
-
+    rope = ROPE_PTR(part->rope_ptr);
+    if (rope->end_a_ptr == 0)
+        return;
+    if (rope->end_b_ptr == 0)
+        return;
     cursor_redraw_off_thunk();
-
-    for (k = 0; k < 8; k++)
-        *p[k] = (int16_t)((k & 1)
-                          ? si->pt[0][k >> 1].y - DG4E67.origin_y
-                          : si->pt[0][k >> 1].x - DG4E67.origin_x);
-
+    x0 = rope->pt[0][0].x - DG4E67.origin_x;
+    y0 = rope->pt[0][0].y - DG4E67.origin_y;
+    x1 = rope->pt[0][1].x - DG4E67.origin_x;
+    y1 = rope->pt[0][1].y - DG4E67.origin_y;
+    x2 = rope->pt[0][2].x - DG4E67.origin_x;
+    y2 = rope->pt[0][2].y - DG4E67.origin_y;
+    x3 = rope->pt[0][3].x - DG4E67.origin_x;
+    y3 = rope->pt[0][3].y - DG4E67.origin_y;
     if (a != 0) {
-        for (k = 0; k < 8; k++)
-            *p[k] = (int16_t)((int16_t)long_shift_right(
-                mul16x16((*p[k]), a), 10)
-                + ((k & 1) ? 0x48 : 0x110));
+        x0 = (int16_t)(mul16x16(x0, a) >> 10);
+        x0 += 0x110;
+        y0 = (int16_t)(mul16x16(y0, a) >> 10);
+        y0 += 0x48;
+        x1 = (int16_t)(mul16x16(x1, a) >> 10);
+        x1 += 0x110;
+        y1 = (int16_t)(mul16x16(y1, a) >> 10);
+        y1 += 0x48;
+        x2 = (int16_t)(mul16x16(x2, a) >> 10);
+        x2 += 0x110;
+        y2 = (int16_t)(mul16x16(y2, a) >> 10);
+        y2 += 0x48;
+        x3 = (int16_t)(mul16x16(x3, a) >> 10);
+        x3 += 0x110;
+        y3 = (int16_t)(mul16x16(y3, a) >> 10);
+        y3 += 0x48;
     }
-
     VMDS.second_colour = 0;
-
-    clip_and_draw_line((*p[0]), (*p[1]), (*p[2]), (*p[3]));
-    clip_and_draw_line((*p[4]), (*p[5]), (*p[6]), (*p[7]));
-
+    clip_and_draw_line(x0, y0, x1, y1);
+    clip_and_draw_line(x2, y2, x3, y3);
     restore_cursor_following();
-
-out:
-    return;
 }
 
 /*
@@ -1752,40 +1459,47 @@ out:
  * signed and the low words unsigned; both are small and non-negative here, so
  * the port writes the comparison the values actually mean.
  */
-void draw_curve(uint8_t colour, int16_t shift,
+void draw_curve(uint16_t colour, int16_t shift,
                 int32_t x0, int32_t x1, int32_t x2,
                 int32_t y0, int32_t y1, int32_t y2)
 {
-    int32_t ddx = x0 + x2 - 2 * x1;
-    int32_t ddy = y0 + y2 - 2 * y1;
-    int32_t dx = (int32_t)long_shift_left((uint32_t)(x1 - x0),
-                                          (uint8_t)(shift + 1));
-    int32_t dy = (int32_t)long_shift_left((uint32_t)(y1 - y0),
-                                          (uint8_t)(shift + 1));
-    int32_t s2 = (int32_t)(int16_t)(shift << 1);
-    int32_t X = (int32_t)long_shift_left((uint32_t)x0, (uint8_t)s2);
-    int32_t Y = (int32_t)long_shift_left((uint32_t)y0, (uint8_t)s2);
-    int32_t steps = (int32_t)(int16_t)(1 << shift);
-    int16_t px = (int16_t)long_shift_right(X, (uint8_t)s2);
-    int16_t py = (int16_t)long_shift_right(Y, (uint8_t)s2);
+    int16_t px;
+    int16_t py;
+    int32_t ddx;
+    int32_t ddy;
+    int32_t dx;
+    int32_t dy;
+    int32_t X;
+    int32_t Y;
     int32_t i;
+    int32_t steps;
+    int32_t s2;
+    register int16_t sx;
+    register int16_t sy;
 
-    VMDS.second_colour = colour;
-
+    /* A word parameter, of which the colour is the low byte: the caller
+       zero-extends it (`mov ah,0`), and only AL is read here. */
+    VMDS.second_colour = (uint8_t)colour;
+    ddx = x2 + x0 - x1 * 2;
+    ddy = y2 + y0 - y1 * 2;
+    dx = (int32_t)((uint32_t)(x1 - x0) << (shift + 1));
+    dy = (int32_t)((uint32_t)(y1 - y0) << (shift + 1));
+    s2 = shift << 1;
+    X = (int32_t)((uint32_t)x0 << s2);
+    Y = (int32_t)((uint32_t)y0 << s2);
+    steps = 1 << shift;
+    px = (int16_t)(X >> s2);
+    py = (int16_t)(Y >> s2);
     for (i = 0; i <= steps; i++) {
-        int16_t sx = (int16_t)long_shift_right(X, (uint8_t)s2);
-        int16_t sy = (int16_t)long_shift_right(Y, (uint8_t)s2);
-
+        sx = (int16_t)(X >> s2);
+        sy = (int16_t)(Y >> s2);
         if (px != sx || py != sy) {
             clip_and_draw_line(px, py, sx, sy);
             px = sx;
             py = sy;
         }
-
-        X += dx + (int32_t)long_multiply_2((uint32_t)ddx,
-                                           (uint32_t)(2 * i + 1));
-        Y += dy + (int32_t)long_multiply_2((uint32_t)ddy,
-                                           (uint32_t)(2 * i + 1));
+        X += dx + ddx * (i * 2 + 1);
+        Y += dy + ddy * (i * 2 + 1);
     }
 }
 
@@ -1796,20 +1510,18 @@ void draw_curve(uint8_t colour, int16_t shift,
  * line; anything more is a curve whose middle control point is the midpoint
  * pushed **down** by the slack, so a loose belt sags.
  */
-void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                       int16_t slack)
+void draw_belt_segment(register int16_t x0, register int16_t y0, int16_t x1,
+                       int16_t y1, int16_t slack)
 {
-    int16_t mx, my;
+    int16_t mx;
+    int16_t my;
 
-    if (slack <= 4) {
+    if (slack > 4) {
+        mx = (x0 + x1) >> 1;
+        my = ((y0 + y1) >> 1) + slack;
+        draw_curve(VMDS.second_colour, 4, x0, mx, x1, y0, my, y1);
+    } else
         clip_and_draw_line(x0, y0, x1, y1);
-        return;
-    }
-
-    mx = (int16_t)((int16_t)(x0 + x1) >> 1);
-    my = (int16_t)(((int16_t)(y0 + y1) >> 1) + slack);
-
-    draw_curve(VMDS.second_colour, 4, x0, mx, x1, y0, my, y1);
 }
 
 /*
@@ -1830,101 +1542,70 @@ void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
  */
 void draw_belt(struct part *part, int16_t a)
 {
-    struct belt *v0e;       /* [bp-0x0e] the belt */
-    int16_t  v0c;       /* [bp-0x0c] the slack */
-    int16_t  v0a;       /* [bp-0x0a] sags */
-    int16_t  v08;       /* [bp-8]  y1 */
-    int16_t  v06;       /* [bp-6]  x1 */
-    int16_t  v04;       /* [bp-4]  y0 */
-    int16_t  v02;       /* [bp-2]  x0 */
-    struct part *si;
-    struct part *di;
+    int16_t x0;
+    int16_t y0;
+    int16_t x1;
+    int16_t y1;
+    int16_t sags;
+    int16_t slack;
+    struct belt *belt;
+    register struct part *next;
+    register struct part *cur;
 
-    v0e = BELT_PTR(part->belt_ptr[0]);
-
-    di = PART_PTR(v0e->end_a_ptr);
-    si = PART_PTR(di->link_ptr[v0e->slot_a]);
-    if (si == PART_NONE)
-        si = PART_PTR(v0e->end_b_ptr);
-
-    while (di != PART_NONE && si != PART_NONE) {
-        v0a = 0;
-
-        if (di->kind == KIND_PULLEY) {
-            v02 = (int16_t)(
-                BELT_PTR(di->belt_ptr[0])->pt[0][1].x
-                - DG4E67.origin_x);
-            v04 = (int16_t)(
-                BELT_PTR(di->belt_ptr[0])->pt[0][1].y
-                - DG4E67.origin_y);
+    belt = BELT_PTR(part->belt_ptr[0]);
+    cur = PART_PTR(belt->end_a_ptr);
+    if ((next = PART_PTR(cur->link_ptr[belt->slot_a])) == PART_NONE)
+        next = PART_PTR(belt->end_b_ptr);
+    while (cur != PART_NONE && next != PART_NONE) {
+        sags = 0;
+        if (cur->kind == KIND_PULLEY) {
+            x0 = BELT_PTR(cur->belt_ptr[0])->pt[0][1].x - DG4E67.origin_x;
+            y0 = BELT_PTR(cur->belt_ptr[0])->pt[0][1].y - DG4E67.origin_y;
         } else {
-            v02 = (int16_t)(v0e->pt[0][0].x
-                                  - DG4E67.origin_x);
-            v04 = (int16_t)(v0e->pt[0][0].y
-                                  - DG4E67.origin_y);
-            v0a = 1;
+            x0 = belt->pt[0][0].x - DG4E67.origin_x;
+            y0 = belt->pt[0][0].y - DG4E67.origin_y;
+            sags = 1;
         }
-
-        if (si->kind == KIND_PULLEY) {
-            v06 = (int16_t)(
-                BELT_PTR(si->belt_ptr[0])->pt[0][0].x
-                - DG4E67.origin_x);
-            v08 = (int16_t)(
-                BELT_PTR(si->belt_ptr[0])->pt[0][0].y
-                - DG4E67.origin_y);
+        if (next->kind == KIND_PULLEY) {
+            x1 = BELT_PTR(next->belt_ptr[0])->pt[0][0].x - DG4E67.origin_x;
+            y1 = BELT_PTR(next->belt_ptr[0])->pt[0][0].y - DG4E67.origin_y;
         } else {
-            v06 = (int16_t)(v0e->pt[0][1].x
-                                  - DG4E67.origin_x);
-            v08 = (int16_t)(v0e->pt[0][1].y
-                                  - DG4E67.origin_y);
-            v0a = 1;
+            x1 = belt->pt[0][1].x - DG4E67.origin_x;
+            y1 = belt->pt[0][1].y - DG4E67.origin_y;
+            sags = 1;
         }
-
         if (a != 0) {
-            v02 = (int16_t)((int16_t)long_shift_right(
-                mul16x16(v02, a), 10) + 0x110);
-            v04 = (int16_t)((int16_t)long_shift_right(
-                mul16x16(v04, a), 10) + 0x48);
-            v06 = (int16_t)((int16_t)long_shift_right(
-                mul16x16(v06, a), 10) + 0x110);
-            v08 = (int16_t)((int16_t)long_shift_right(
-                mul16x16(v08, a), 10) + 0x48);
+            x0 = (int16_t)(mul16x16(x0, a) >> 10);
+            x0 += 0x110;
+            y0 = (int16_t)(mul16x16(y0, a) >> 10);
+            y0 += 0x48;
+            x1 = (int16_t)(mul16x16(x1, a) >> 10);
+            x1 += 0x110;
+            y1 = (int16_t)(mul16x16(y1, a) >> 10);
+            y1 += 0x48;
         }
-
         VMDS.second_colour = 6;
         cursor_redraw_off_thunk();
-
-        if (v0a != 0) {
-            v0c = link_slack(di, v0e, 3);
-            draw_belt_segment(v02, v04, v06, v08,
-                              v0c);
-        } else {
-            clip_and_draw_line(v02, v04, v06, v08);
-        }
-
+        if (sags != 0) {
+            slack = link_slack(cur, belt, 3);
+            draw_belt_segment(x0, y0, x1, y1, slack);
+        } else
+            clip_and_draw_line(x0, y0, x1, y1);
         if (a == 0) {
-            if (di->kind != KIND_ANCHOR
-                && di->kind != KIND_PULLEY)
+            if (cur->kind != KIND_ANCHOR && cur->kind != KIND_PULLEY)
                 draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x24]),
-                            (int16_t)(v02 - 5),
-                            (int16_t)(v04 - 2), 0);
-
-            if (si->kind != KIND_ANCHOR
-                && si->kind != KIND_PULLEY)
+                            x0 - 5, y0 - 2, 0);
+            if (next->kind != KIND_ANCHOR && next->kind != KIND_PULLEY)
                 draw_bitmap(BMP_PTR(BMPSET_PTR(DG4E67.bmp_4ecb_ptr)->bmp_ptr[0x24]),
-                            (int16_t)(v06 - 5),
-                            (int16_t)(v08 - 2), 0);
+                            x1 - 5, y1 - 2, 0);
         }
-
         restore_cursor_following();
-
-        di = si;
-        if (di->kind == KIND_PULLEY)
-            si = PART_PTR(si->link_ptr[0]);
+        cur = next;
+        if (cur->kind != KIND_PULLEY)
+            next = PART_NONE;
         else
-            si = PART_NONE;
+            next = PART_PTR(next->link_ptr[0]);
     }
-
 }
 
 /*
@@ -1958,194 +1639,130 @@ void draw_belt(struct part *part, int16_t a)
  * horizontally and vertically: the offset is measured from the far edge
  * instead, and the mirror is passed on to the blitter in the mode word.
  */
-void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
+void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
 {
-    struct bitmap *v2a;   /* [bp-0x2a] the bitmap */
-    const struct draw_step *v28;   /* [bp-0x28] the record */
-    const struct part_kind *v26;   /* [bp-0x26] the kind's record */
-    uint16_t v24;   /* [bp-0x24] the adjustment */
-    const struct point8 *hot;
-    uint8_t  v21;   /* [bp-0x21] the frame */
-    uint16_t v20;   /* [bp-0x20] py */
-    uint16_t v1e;   /* [bp-0x1e] px */
-    uint16_t v1c;   /* [bp-0x1c] the bitmap index */
-    uint16_t v1a;   /* [bp-0x1a] the mirror flags */
-    int16_t  v18;   /* [bp-0x18] */
-    int16_t  v16;   /* [bp-0x16] rows */
-    int16_t  v14;   /* [bp-0x14] columns */
-    int16_t  v12;   /* [bp-0x12] */
-    int16_t  v10;   /* [bp-0x10] */
-    int16_t  v0e;   /* [bp-0x0e] */
-    int16_t  v0c;   /* [bp-0x0c] */
-    int16_t  v0a;   /* [bp-0x0a] y */
-    int16_t  v08;   /* [bp-8] x */
-    int16_t  v06;   /* [bp-6] the column */
-    uint16_t v04;   /* [bp-4] the form */
-    uint16_t v02;   /* [bp-2] the kind */
-    int16_t di;
+    uint16_t kind;
+    uint16_t form;
+    int16_t col;
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+    int16_t sx;
+    int16_t sy;
+    int16_t cols;
+    int16_t rows;
+    int16_t x0;
+    uint16_t mirror;
+    uint16_t idx;
+    uint16_t px;
+    uint16_t py;
+    uint8_t frame;
+    dg_near_t hot;          /* the kind's hot spot for this form, a table offset */
+    int16_t i;
+    const struct part_kind *kindrec;
+    const struct draw_step *step;
+    struct bitmap *bmp;
 
-    v02 = part->kind;
-    v04 = part->form;
-    v26 = &PART_KINDS[v02];
-
-    v24 = v26->hotspots_ptr;
-    hot = POINT_TABLE(v24);                    /* the hot spot by form, if the kind has them */
-
+    kind = part->kind;
+    form = part->form;
+    kindrec = &PART_KINDS[kind];
+    if ((hot = kindrec->hotspots_ptr) != 0)
+        hot += form << 1;
     cursor_redraw_off_thunk();
-
     if (part->flags_06 & 0x40) {
-        v14 = (int16_t)(part->size[0].width >> 4);
-        v16 = (int16_t)(part->size[0].height >> 4);
-
-        v18 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
-        v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);
-
-        if (v24 != 0) {
-            v18 = (int16_t)(v18 + (int8_t)hot[v04].x);
-            v0a = (int8_t)hot[v04].y;
+        cols = part->size[0].width >> 4;
+        rows = part->size[0].height >> 4;
+        x0 = part->pos[0].x - DG4E67.origin_x;
+        y = part->pos[0].y - DG4E67.origin_y;
+        if (hot != 0) {
+            x0 += (int8_t)POINT_TABLE(hot)->x;
+            y = (int8_t)POINT_TABLE(hot)->y;
         }
-
-        v1e = (int16_t)((v18 & 0x10) >> 4);
-        v20 = (int16_t)((v0a & 0x10) >> 4);
-        v1c = v04;
-
-        for (di = 0; di < v16; di++,
-             v0a = (int16_t)(v0a + 0x10),
-             v20 ^= 1) {
-            for (v06 = 0, v08 = v18;
-                 v06 < v14;
-                 v06++,
-                 v08 = (int16_t)(v08 + 0x10),
-                 v1e ^= 1) {
-                if (v16 == 1) {
-                    if (v06 == 0)
-                        v1c = v04;
-                    else if ((int16_t)(v14 - 1) == v06)
-                        v1c = (uint16_t)(v04 + 3);
+        px = (x0 & 0x10) >> 4;
+        py = (y & 0x10) >> 4;
+        idx = form;
+        for (i = 0; i < rows; i++, y += 0x10, py ^= 1)
+            for (col = 0, x = x0; col < cols; col++, x += 0x10, px ^= 1) {
+                if (rows == 1) {
+                    if (col == 0)
+                        idx = form;
+                    else if (cols - 1 == col)
+                        idx = form + 3;
                     else
-                        v1c = (uint16_t)(v04 + v1e + 1);
-                } else if (v14 == 1) {
-                    if (di == 0)
-                        v1c = (uint16_t)(v04 + 4);
-                    else if ((int16_t)(v16 - 1) == di)
-                        v1c = (uint16_t)(v04 + 7);
+                        idx = form + px + 1;
+                } else if (cols == 1) {
+                    if (i == 0)
+                        idx = form + 4;
+                    else if (rows - 1 == i)
+                        idx = form + 7;
                     else
-                        v1c = (uint16_t)(v04 + v20 + 5);
+                        idx = form + py + 5;
                 }
-
-                {
-                    struct bitmap *bmp = BMP_PTR(BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v1c]);
-
-                    if (a != 0) {
-                        v0c = (int16_t)long_shift_right(
-                            mul16x16(0x10, b), 10);
-                        v0e = (int16_t)long_shift_right(
-                            mul16x16(0x10, b), 10);
-                        v10 = (int16_t)((int16_t)long_shift_right(
-                            mul16x16(v08, a), 10) + 0x110);
-                        v12 = (int16_t)((int16_t)long_shift_right(
-                            mul16x16(v0a, a), 10) + 0x48);
-
-                        draw_bitmap_scaled(bmp, v10, v12,
-                                           v0c, v0e, 0);
-                    } else {
-                        draw_bitmap(bmp, v08, v0a, 0);
-                    }
-                }
+                if (a != 0) {
+                    w = (int16_t)(mul16x16(0x10, b) >> 10);
+                    h = (int16_t)(mul16x16(0x10, b) >> 10);
+                    sx = (int16_t)(mul16x16(x, a) >> 10);
+                    sx += 0x110;
+                    sy = (int16_t)(mul16x16(y, a) >> 10);
+                    sy += 0x48;
+                    draw_bitmap_scaled(BMP_PTR(BMPSET_PTR(kindrec->bitmaps_ptr)->bmp_ptr[idx]),
+                                       sx, sy, w, h, 0);
+                } else
+                    draw_bitmap(BMP_PTR(BMPSET_PTR(kindrec->bitmaps_ptr)->bmp_ptr[idx]),
+                                x, y, 0);
             }
-        }
-
-        goto done;
-    }
-
-    if (part->flags_08 & 0x1000) {
-        v28 = DRAWSTEP_PTR(OFF_TABLE(v26->bitmaps2_ptr)[v04]);
     } else {
-        v28 = &DG0124;
-        DG0124.frame[0] = (uint8_t)v04;
-        DG0124.level = (uint8_t)level;
-
-        if (v24 != 0) {
-            DG0124.offset[0].x = hot[v04].x;
-            DG0124.offset[0].y = hot[v04].y;
-        } else {
-            DG0124.offset[0].y = 0;
-            DG0124.offset[0].x = 0;
+        if (part->flags_08 & 0x1000)
+            step = DRAWSTEP_PTR(OFF_TABLE(kindrec->bitmaps2_ptr)[form]);
+        else {
+            step = &DG0124;
+            DG0124.frame[0] = (uint8_t)form;
+            DG0124.level = level;
+            if (hot != 0) {
+                DG0124.offset[0].x = POINT_TABLE(hot)->x;
+                DG0124.offset[0].y = POINT_TABLE(hot)->y;
+            } else
+                DG0124.offset[0].x = DG0124.offset[0].y = 0;
+        }
+        for (; step != DRAWSTEP_NONE; step = DRAWSTEP_PTR(step->next)) {
+            if (step->level != level && part != PART_PTR(DG50D3.dragged_part_ptr))
+                continue;
+            else
+                frame = 0;
+            frame = step->frame[0];
+            for (i = 0; i < 4 && frame != 0xff; frame = step->frame[i + 1], i++) {
+                bmp = BMP_PTR(BMPSET_PTR(kindrec->bitmaps_ptr)->bmp_ptr[frame]);
+                x = part->pos[0].x - DG4E67.origin_x;
+                y = part->pos[0].y - DG4E67.origin_y;
+                if (part->flags_08 & 0x10) {
+                    x += part->mirror_size.width - (int8_t)step->offset[i].x - bmp->width;
+                    mirror = 2;
+                } else {
+                    x += (int8_t)step->offset[i].x;
+                    mirror = 0;
+                }
+                if (part->flags_08 & 0x20) {
+                    y += part->mirror_size.height - (int8_t)step->offset[i].y - bmp->height;
+                    mirror |= 1;
+                } else
+                    y += (int8_t)step->offset[i].y;
+                if (a != 0) {
+                    w = (int16_t)(mul16x16(bmp->width, b) >> 10);
+                    h = (int16_t)(mul16x16(bmp->height, b) >> 10);
+                    sx = (int16_t)(mul16x16(x, a) >> 10);
+                    sx += 0x110;
+                    sy = (int16_t)(mul16x16(y, a) >> 10);
+                    sy += 0x48;
+                    draw_bitmap_scaled(bmp, sx, sy, w, h, mirror);
+                } else
+                    draw_bitmap(bmp, x, y, mirror);
+            }
         }
     }
-
-    while (v28 != DRAWSTEP_NONE) {
-        if (v28->level != (uint8_t)level
-            && part != PART_PTR(DG50D3.dragged_part_ptr))
-            goto next;
-
-        v21 = v28->frame[0];
-
-        for (di = 0; ; di++) {
-            v2a = BMP_PTR(BMPSET_PTR(v26->bitmaps_ptr)->bmp_ptr[v21]);
-
-            v08 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
-            v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);
-
-            if (part->flags_08 & 0x10) {
-                v08 = (int16_t)(
-                    v08
-                    + (part->mirror_size.width
-                       - (int8_t)v28->offset[di].x
-                       - v2a->width));
-                v1a = 2;
-            } else {
-                v08 = (int16_t)(
-                    v08
-                    + (int8_t)v28->offset[di].x);
-                v1a = 0;
-            }
-
-            if (part->flags_08 & 0x20) {
-                v0a = (int16_t)(
-                    v0a
-                    + (part->mirror_size.height
-                       - (int8_t)v28->offset[di].y
-                       - v2a->height));
-                v1a |= 1;
-            } else {
-                v0a = (int16_t)(
-                    v0a
-                    + (int8_t)v28->offset[di].y);
-            }
-
-            if (a != 0) {
-                v0c = (int16_t)long_shift_right(
-                    mul16x16(v2a->width, b), 10);
-                v0e = (int16_t)long_shift_right(
-                    mul16x16(v2a->height, b), 10);
-                v10 = (int16_t)((int16_t)long_shift_right(
-                    mul16x16(v08, a), 10) + 0x110);
-                v12 = (int16_t)((int16_t)long_shift_right(
-                    mul16x16(v0a, a), 10) + 0x48);
-
-                draw_bitmap_scaled(v2a, v10, v12,
-                                   v0c, v0e, v1a);
-            } else {
-                draw_bitmap(v2a, v08, v0a, v1a);
-            }
-
-            v21 = v28->frame[di + 1];
-
-            if (di + 1 >= 4 || v21 == 0xff)
-                break;
-        }
-
-    next:
-        v28 = DRAWSTEP_PTR(v28->next);
-    }
-
-done:
-    if (((int16_t)DG4E67.state) == 0x2000 && part->kind == KIND_MAGNIFYING_GLASS)
+    if (DG4E67.state == 0x2000 && part->kind == KIND_MAGNIFYING_GLASS)
         draw_part_extra(part);
-
     restore_cursor_following();
-
 }
 
 /*
@@ -2164,67 +1781,32 @@ done:
  * than a triangle, which is why the bounding box is worked out from the
  * extremes rather than from all three.
  */
-void draw_part_extra(struct part *part)
+void draw_part_extra(register struct part *part)
 {
-    /*
-     * **The frame, as the original reserves it.** `sub sp,0x14` at 0x171b5,
-     * which `tools/frames.py` checks. Laying the locals out inside one array
-     * rather than as separate C variables is what keeps them adjacent, and
-     * adjacency is not incidental here: the three x's and the three y's are
-     * arrays this routine hands to `draw_polygon` by address.
-     */
-    int16_t size[2];  /* [bp-0x14], [bp-0x12] */
-    int16_t corner[2];  /* [bp-0x10], [bp-0x0e] */
-    int16_t y[3];  /* [bp-0x0c] .. [bp-8]  */
-    int16_t x[3];  /* [bp-6] .. [bp-2]     */
-    struct part *di = PART_PTR(part->link_ptr[4]);
-    int16_t edge;
+    int16_t x[3];
+    int16_t y[3];
+    int16_t corner[2];
+    int16_t size[2];
+    struct part *held;
 
-    if (di == PART_NONE)
-        goto out;
-
-    VMDS.fill_colour = 0x0e;
-    VMDS.second_colour = 0x0e;
-
-    x[1] = (int16_t)(di->pos[0].x
-                          + di->hold.x - DG4E67.origin_x);
-    y[0] = (int16_t)(part->pos[0].y + 6 - DG4E67.origin_y);
-    y[1] = (int16_t)(di->pos[0].y
-                          + di->hold.y - DG4E67.origin_y);
-    y[2] = (int16_t)(part->pos[0].y + 0x10 - DG4E67.origin_y);
-
-    if (part->flags_08 & 0x10)
-        edge = (int16_t)(part->pos[0].x - 1);
-    else
-        edge = (int16_t)(part->pos[0].x + 0x0f);
-
-    edge = (int16_t)(edge - DG4E67.origin_x);
-    x[2] = edge;
-    x[0] = edge;
-
+    if ((held = PART_PTR(part->link_ptr[4])) == PART_NONE)
+        return;
+    VMDS.second_colour = VMDS.fill_colour = 0x0e;
+    x[1] = held->pos[0].x + held->hold.x - DG4E67.origin_x;
+    y[0] = part->pos[0].y + 6 - DG4E67.origin_y;
+    y[1] = held->pos[0].y + held->hold.y - DG4E67.origin_y;
+    y[2] = part->pos[0].y + 0x10 - DG4E67.origin_y;
+    x[0] = x[2] = ((part->flags_08 & 0x10) ? part->pos[0].x - 1
+                                           : part->pos[0].x + 0x0f)
+                  - DG4E67.origin_x;
     draw_polygon(3, x, y);
-
-    if (x[0] < x[1]) {
-        corner[0] = x[0];
-        size[0] = (int16_t)(x[1] - x[0]);
-    } else {
-        corner[0] = x[1];
-        size[0] = (int16_t)(x[0] - x[1]);
-    }
-    size[0]++;
-
+    size[0] = (x[0] < x[1] ? (corner[0] = x[0], x[1] - x[0])
+                           : (corner[0] = x[1], x[0] - x[1])) + 1;
     corner[1] = y[0] < y[1] ? y[0] : y[1];
-
-    size[1] = (int16_t)((y[2] >= y[1] ? y[2] : y[1])
-                          - corner[1] + 1);
-
-    corner[0] = (int16_t)(corner[0] + DG4E67.origin_b_x);
-    corner[1] = (int16_t)(corner[1] + DG4E67.origin_b_y);
-
-    alloc_shape((const uint8_t *)corner, (const uint8_t *)size,
-                1, 2, 0);
-
-out:
+    size[1] = (y[2] < y[1] ? y[1] : y[2]) - corner[1] + 1;
+    corner[0] += DG4E67.origin_b_x;
+    corner[1] += DG4E67.origin_b_y;
+    alloc_shape((const uint8_t *)corner, (const uint8_t *)size, 1, 2, 0);
 }
 
 /*

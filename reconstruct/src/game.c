@@ -7809,6 +7809,119 @@ done:
     return part;
 }
 
+/*
+ * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
+ *
+ * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
+ * +0x0c, and `make_part` calls it through `call_part_init`. Fifty-eight kind
+ * slots reach fifty-one distinct routines: five kinds have no initialiser at
+ * all and three - 1, 46 and 48 - share 0x14267.
+ *
+ * Nearly all of them are the same four steps:
+ *
+ *   1. OR some bits into the part's flags at +6, +8 and +0x0a, if it has any;
+ *   2. take four bytes per bitmap - `heap_calloc_far(count, 4)` - into +0x82;
+ *   3. refuse, by answering 1, if that allocation failed;
+ *   4. call the part's own setup in segment 0x172c, and answer 0.
+ *
+ * Three skip step 2 - 0x147a7, 0x148e0 and 0x148ff call their setup with no
+ * allocation. Two more skip both: 0x14aa2 and 0x14c48 only set flags and
+ * bytes. And three allocate something else instead - 0x143fb and 0x1449d a
+ * 0x2c-byte belt at +0x66, 0x1443d a 0x38-byte rope at +0x54 - each writing
+ * the part's own address into the new record as its back-pointer.
+ *
+ * **They were a table until 2026-09-11**, six columns standing in for the
+ * bodies: three flag words, the setup, a list of stores and a flag for
+ * whether it allocated. That is not what the binary holds. The constants live
+ * as immediates inside fifty-one separate functions - searching the whole
+ * image for any two of them adjacent as data finds nothing - and the form
+ * cost three defects, every one recorded in a comment beside it. The worst is
+ * the one it could not report: the table had **forty-eight** of the fifty-one,
+ * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
+ */
+
+/*
+ * OURS: reach one part initialiser by its image address.
+ *
+ * The original has no such routine. Each kind's initialiser is called through
+ * the relocated far pointer at +0x0c of its entry in the table at DGROUP
+ * 0x2966, and the port has no way to call one - so `call_part_init` in io.c
+ * turns the pointer back into an image address and this turns that address
+ * into a call. It is the same stand-in as `part_setup` and `part_finish`.
+ *
+ * An address with no case **aborts**: a part built by nothing at all would
+ * surface much later as a level that cannot be solved.
+ */
+uint16_t part_init(uint32_t at, struct part *part)
+{
+    switch (at) {
+    case 0x14236: return part_init_bowling_ball(part);
+    case 0x14267: return part_init_14267(part);
+    case 0x142a1: return part_init_ramp(part);
+    case 0x142e6: return part_init_seesaw(part);
+    case 0x14320: return part_init_balloon(part);
+    case 0x14361: return part_init_conveyor(part);
+    case 0x143b3: return part_init_mouse_cage(part);
+    case 0x143fb: return part_init_pulley(part);
+    case 0x1443d: return part_init_belt(part);
+    case 0x1446c: return part_init_basketball(part);
+    case 0x1449d: return part_init_rope(part);
+    case 0x144cb: return part_init_bird_cage(part);
+    case 0x1450c: return part_init_pokey(part);
+    case 0x14547: return part_init_jack_in_the_box(part);
+    case 0x1458f: return part_init_gear(part);
+    case 0x145d1: return part_init_bob_the_fish(part);
+    case 0x14607: return part_init_bellow(part);
+    case 0x1463d: return part_init_bucket(part);
+    case 0x1467e: return part_init_cannon(part);
+    case 0x146bd: return part_init_dynamite(part);
+    case 0x146fc: return part_init_146fc(part);
+    case 0x1472d: return part_init_electric_plug(part);
+    case 0x1476c: return part_init_dynamite_plunger(part);
+    case 0x147a7: return part_init_hook(part);
+    case 0x147c5: return part_init_fan(part);
+    case 0x14804: return part_init_flashlight(part);
+    case 0x1483a: return part_init_generator(part);
+    case 0x14874: return part_init_gun(part);
+    case 0x148af: return part_init_baseball(part);
+    case 0x148e0: return part_init_light(part);
+    case 0x148ff: return part_init_magnifying_glass(part);
+    case 0x14919: return part_init_monkey(part);
+    case 0x14954: return part_init_pumpkin(part);
+    case 0x14985: return part_init_heart_balloon(part);
+    case 0x149c6: return part_init_christmas_tree(part);
+    case 0x149f7: return part_init_boxing_glove(part);
+    case 0x14a2d: return part_init_rocket(part);
+    case 0x14a67: return part_init_scissors(part);
+    case 0x14aa2: return part_init_solar_panel(part);
+    case 0x14ab9: return part_init_trampoline(part);
+    case 0x14aef: return part_init_windmill(part);
+    case 0x14b37: return part_init_mort_the_mouse(part);
+    case 0x14b72: return part_init_cannon_ball(part);
+    case 0x14ba3: return part_init_tennis_ball(part);
+    case 0x14bd4: return part_init_candle(part);
+    case 0x14c12: return part_init_corner_pipe(part);
+    case 0x14c48: return part_init_14c48(part);
+    case 0x14c62: return part_init_motor(part);
+    case 0x14ca0: return part_init_14ca0(part);
+    case 0x14cd9: return part_init_14cd9(part);
+    case 0x14d0a: return part_init_14d0a(part);
+
+    default:
+        break;
+    }
+
+    {
+        static char what[64];
+
+        io_format(what, sizeof what, "the part initialiser at %#07lx",
+                 (unsigned long)at);
+        not_transcribed(what);
+    }
+    return 1;
+}
+
+
 /* 0x14236 */
 uint16_t part_init_bowling_ball(struct part *part)
 {

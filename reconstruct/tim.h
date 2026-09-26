@@ -717,7 +717,7 @@ char *int_to_string(int16_t value, char *buf,
                        uint16_t radix);             /* 0x0d4bd */
 char *long_int_to_string(int32_t value, char *buf,
                             uint16_t radix);        /* 0x0d4ff */
-void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
+void draw_odometer_digit(uint8_t c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
 void draw_counter_word(int16_t value, int16_t x, int16_t y,
                        int16_t all);                /* 0x0262b */
@@ -992,13 +992,13 @@ void step_and_draw_machine(int16_t redraw_all);     /* 0x16181 */
 void refile_overlapping_parts(void);                /* 0x06b5b */
 void draw_machine(int16_t a, int16_t b);            /* 0x1675e */
 void draw_rope(struct part *part, int16_t a);           /* 0x167fa */
-void draw_curve(uint8_t colour, int16_t shift,
+void draw_curve(uint16_t colour, int16_t shift,
                 int32_t x0, int32_t x1, int32_t x2,
                 int32_t y0, int32_t y1, int32_t y2); /* 0x1697d */
 void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        int16_t slack);              /* 0x16b39 */
 void draw_belt(struct part *part, int16_t a);           /* 0x16baf */
-void draw_part(struct part *part, int16_t level,
+void draw_part(struct part *part, uint8_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
 void draw_part_extra(struct part *part);                /* 0x171b5 */
 void draw_polygon(int16_t n, const int16_t *xs,
@@ -1352,7 +1352,7 @@ void move_carried_rope(void);                       /* 0x0fe84 */
 void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
-void draw_part_selection(struct part *part, uint16_t which, uint8_t flags); /* 0x16209 */
+void draw_part_selection(struct part *part, int16_t which, uint8_t flags); /* 0x16209 */
 void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
@@ -1478,7 +1478,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled);               /* 0x14dec */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x153b8 */
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint16_t colour);              /* 0x15523 */
+                     uint8_t colour);              /* 0x15523 */
 void draw_wrapped_text(char *str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,
@@ -1506,8 +1506,8 @@ uint16_t ask_yes_no(const char *title, char *body); /* 0x1567b */
 uint16_t message_box(const char *title, char *body,
                      const char *button1, const char *button2); /* 0x15698 */
 void message_box_tab(const char *button2);             /* 0x1588c */
-void draw_button(const char *str, uint16_t x, uint16_t y,
-                 uint16_t pressed);                 /* 0x150db */
+void draw_button(const char *str, int16_t x, int16_t y,
+                 int16_t pressed);                 /* 0x150db */
 void remove_all_parts(void);                        /* 0x057e6 */
 void untie_rope(struct part *part);                     /* 0x0527f */
 void detach_belt(struct part *part, uint16_t how);      /* 0x052f5 */
