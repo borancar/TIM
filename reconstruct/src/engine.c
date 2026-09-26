@@ -795,10 +795,10 @@ struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
  * into DGROUP has DGROUP as its body's segment.
  */
 struct engine_fonts {
-    struct far_ptr body[0x14];    /* +0x00 [0x50] */
+    uint8_t far *body[0x14];    /* +0x00 [0x50] */
 } PACKED;
 
-struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
+struct engine_fonts ENGINE_FONTS DGROUP_WAS(0x618a);
 
 /*
  * **Each font slot's width table**, a far pointer per slot, DGROUP
@@ -808,10 +808,10 @@ struct engine_fonts ENGINE_FONTS DGROUP_BSS(0x618a);
  * width is a far read.
  */
 struct engine_font_widths {
-    struct far_ptr width[0x14];   /* +0x00 [0x50] */
+    uint8_t far *width[0x14];   /* +0x00 [0x50] */
 } PACKED;
 
-struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
+struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_WAS(0x61da);
 
 /*
  * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
@@ -826,10 +826,10 @@ struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_BSS(0x61da);
  * table of far pointers is.
  */
 struct engine_font_slots {
-    struct far_ptr slot[0x14];    /* +0x00 [0x50] */
+    uint8_t far *slot[0x14];    /* +0x00 [0x50] */
 } PACKED;
 
-struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_BSS(0x622a);
+struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_WAS(0x622a);
 
 /*
  * ---------------------------------------------------------------------------
@@ -3808,7 +3808,7 @@ uint16_t set_font(int16_t slot)
     int16_t di = 0;
 
     if (slot == 0) {
-        uint8_t far *cur = dg_far_ptr(ENGINE_FONTS.body[0]);
+        uint8_t far *cur = ENGINE_FONTS.body[0];
 
         /* 0000:0000, which is the guest's first byte and not a C null. */
         if (cur == FAR_NULL_PTR)
@@ -3816,7 +3816,7 @@ uint16_t set_font(int16_t slot)
 
         /* Which slot holds the same pointer as slot 0. */
         for (di = 1; di < 0x14; di++)
-            if (dg_far_ptr(ENGINE_FONTS.body[di]) == cur)
+            if (ENGINE_FONTS.body[di] == cur)
                 break;
 
         return (uint16_t)di;
@@ -4582,7 +4582,7 @@ uint16_t load_font(char *name)
 
     si = 2;
     for (;;) {
-        if (dg_far_ptr(ENGINE_FONTS.body[si]) == FAR_NULL_PTR)
+        if (ENGINE_FONTS.body[si] == FAR_NULL_PTR)
             break;
         if (si >= 0x14)
             break;
@@ -4640,16 +4640,10 @@ uint16_t load_font(char *name)
 
             if (failed == 0) {
                 /* Three pointers into the one block, two bytes and then
-                   three per glyph in. **The segment does not move**: the
-                   original keeps it and adds to the offset, so the pair filed
-                   is the block's own segment with the stepped offset - not
-                   the renormalised pair `far_of` of a stepped pointer would
-                   give. */
-                ENGINE_FONT_WIDTHS.width[si] = far_of(blk);
-                ENGINE_FONT_SLOTS.slot[si] =
-                    far_from(FP_SEG(blk), blk + 2 * VMDS.font_table_70[si]);
-                ENGINE_FONTS.body[si] =
-                    far_from(FP_SEG(blk), blk + 3 * VMDS.font_table_70[si]);
+                   three per glyph in, stepped in the block's own segment. */
+                ENGINE_FONT_WIDTHS.width[si] = blk;
+                ENGINE_FONT_SLOTS.slot[si] = blk + 2 * VMDS.font_table_70[si];
+                ENGINE_FONTS.body[si] = blk + 3 * VMDS.font_table_70[si];
             }
 
             close_resource(handle);
@@ -4688,9 +4682,9 @@ uint16_t load_font(char *name)
                 game_fread(p, (uint16_t)size[0], 1, di);
 
             if (failed == 0) {
-                ENGINE_FONTS.body[si] = dg_far(dgroup, p);
-                ENGINE_FONT_WIDTHS.width[si] = FAR_NULL;
-                ENGINE_FONT_SLOTS.slot[si] = FAR_NULL;
+                ENGINE_FONTS.body[si] = (uint8_t far *)p;
+                ENGINE_FONT_WIDTHS.width[si] = NULL;
+                ENGINE_FONT_SLOTS.slot[si] = NULL;
             } else {
                 if (p != NULL)
                     heap_free_far(p);
@@ -5723,8 +5717,8 @@ void close_table_618a_slot(int16_t index)
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (dg_far_ptr(ENGINE_FONTS.body[index])
-        == dg_far_ptr(ENGINE_FONTS.body[0])) {
+    if (ENGINE_FONTS.body[index]
+        == ENGINE_FONTS.body[0]) {
         ENGINE_FONT_KINDS.kind[0] = 0;
         VMDS.font_table_70[0] = 0;
         VMDS.font_table_5c[0] = 0;
@@ -5732,23 +5726,23 @@ void close_table_618a_slot(int16_t index)
         VMDS.font_table_48[0] = 0;
         VMDS.font_table_34[0] = 0;
 
-        ENGINE_FONT_WIDTHS.width[0] = FAR_NULL;
-        ENGINE_FONT_SLOTS.slot[0]    = FAR_NULL;
-        ENGINE_FONTS.body[0]   = FAR_NULL;
+        ENGINE_FONT_WIDTHS.width[0] = NULL;
+        ENGINE_FONT_SLOTS.slot[0]    = NULL;
+        ENGINE_FONTS.body[0]   = NULL;
     }
 
-    if (dg_far_ptr(ENGINE_FONT_WIDTHS.width[index]) != FAR_NULL_PTR)
-        dos_free_far(dg_far_ptr(ENGINE_FONT_WIDTHS.width[index]));
+    if (ENGINE_FONT_WIDTHS.width[index] != FAR_NULL_PTR)
+        dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
     else
-        heap_free_far(dg_near_ptr(ENGINE_FONTS.body[index].off));
+        heap_free_far((uint8_t *)ENGINE_FONTS.body[index]);
 
     ENGINE_FONT_KINDS.kind[index] = 0;
 
     /* The three slot tables, cleared through the types that name them -
        which is what `bx = 4 * index` was computing an offset into. */
-    ENGINE_FONTS.body[index]  = FAR_NULL;
-    ENGINE_FONT_WIDTHS.width[index] = FAR_NULL;
-    ENGINE_FONT_SLOTS.slot[index]   = FAR_NULL;
+    ENGINE_FONTS.body[index]  = NULL;
+    ENGINE_FONT_WIDTHS.width[index] = NULL;
+    ENGINE_FONT_SLOTS.slot[index]   = NULL;
 }
 
 /*
@@ -6138,7 +6132,7 @@ uint16_t table_618a_in_use(int16_t index)
     if (index <= 0 || index >= 0x14)
         return 0;
 
-    if (dg_far_ptr(ENGINE_FONTS.body[index]) == FAR_NULL_PTR)
+    if (ENGINE_FONTS.body[index] == FAR_NULL_PTR)
         return 0;
 
     return 1;
@@ -6245,12 +6239,12 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         /* A word per glyph in the offset table, a byte per glyph in the
            width table: typed, so each is indexed by the glyph. */
         const uint16_t far *offsets = (const uint16_t far *)(const void *)
-            dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]);
-        const uint8_t far *widths = dg_far_ptr(ENGINE_FONT_SLOTS.slot[0]);
+            ENGINE_FONT_WIDTHS.width[0];
+        const uint8_t far *widths = ENGINE_FONT_SLOTS.slot[0];
 
         w = widths[index];
         h = VMDS.font_table_48[0];
-        glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + offsets[index];
+        glyph = ENGINE_FONTS.body[0] + offsets[index];
     } else {
         uint16_t units;
 
@@ -6258,7 +6252,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         h = VMDS.font_table_48[0];
         units = (ENGINE_FONT_KINDS.kind[0] == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
-        glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + units * h;
+        glyph = ENGINE_FONTS.body[0] + units * h;
     }
 
     clipped = (x < VMDS.clip_left)
@@ -6406,24 +6400,24 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 
             index = (int16_t)(*str - VMDS.font_table_5c[0]);
 
-            if (dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]) != FAR_NULL_PTR) {
+            if (ENGINE_FONT_WIDTHS.width[0] != FAR_NULL_PTR) {
                 /* Far pointers, as in `draw_char`; see the note there. */
                 const uint16_t far *offsets =
                     (const uint16_t far *)(const void *)
-                    dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]);
+                    ENGINE_FONT_WIDTHS.width[0];
                 const uint8_t far *widths =
-                    dg_far_ptr(ENGINE_FONT_SLOTS.slot[0]);
+                    ENGINE_FONT_SLOTS.slot[0];
 
                 w = widths[index];
                 h = VMDS.font_table_48[0];
-                glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + offsets[index];
+                glyph = ENGINE_FONTS.body[0] + offsets[index];
             } else {
                 uint16_t stride;
 
                 w = VMDS.font_table_34[0];
                 h = VMDS.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
-                glyph = dg_far_ptr(ENGINE_FONTS.body[0]) + stride * h * index;
+                glyph = ENGINE_FONTS.body[0] + stride * h * index;
             }
 
             vm_blit_glyph(glyph, w, h, x, y);
@@ -6477,7 +6471,7 @@ void draw_string(const char *str, int16_t x, int16_t y)
 uint16_t text_width(const char *str)
 {
     uint16_t width = 0;
-    int16_t  proportional = dg_far_ptr(ENGINE_FONT_WIDTHS.width[0]) != FAR_NULL_PTR;
+    int16_t  proportional = ENGINE_FONT_WIDTHS.width[0] != FAR_NULL_PTR;
 
     while (*str != 0) {
         int16_t index = (int16_t)((uint8_t)*str - VMDS.font_table_5c[0]);
@@ -6490,8 +6484,7 @@ uint16_t text_width(const char *str)
 
         /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
-                                    ? dg_far_ptr(
-                                          ENGINE_FONT_SLOTS.slot[0])[index]
+                                    ? ENGINE_FONT_SLOTS.slot[0][index]
                                     : VMDS.font_table_34[0]));
     }
 
@@ -6949,8 +6942,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      */
     font = io_bios_font_ptr(3);
 
-    ENGINE_FONTS.body[0] = (struct far_ptr){ (uint16_t)font.bp, (uint16_t)font.es };
-    ENGINE_FONTS.body[1] = (struct far_ptr){ (uint16_t)font.bp, (uint16_t)font.es };
+    ENGINE_FONTS.body[0] = MK_FP(font.es, font.bp);
+    ENGINE_FONTS.body[1] = MK_FP(font.es, font.bp);
 
     *(int16_t *)(&VMDS.font_table_48[0]) = 0x808;
     *(int16_t *)(&VMDS.font_table_34[0]) = 0x808;
