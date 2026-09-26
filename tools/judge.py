@@ -40,6 +40,7 @@ source is copied into a scratch directory and compiled by a relative name.
 """
 import argparse
 import glob
+import json
 import os
 import re
 import shutil
@@ -110,6 +111,15 @@ def addresses(paths):
             if m:
                 out[name] = int(m.group(1), 16)
     return out
+
+
+def runtime_names():
+    """The C runtime's public names at their image addresses - `F_LDIV@`,
+    `N_LXLSH@`, `_lseek` - so a far call into the library is checked like any
+    other. Measured by turboc's libmatch.py; see tools/runtime_names.json.
+    Stored without the leading underscore, as the port's names are."""
+    j = json.load(open(os.path.join(HERE, "runtime_names.json")))
+    return {k.lstrip("_"): int(v, 16) for k, v in j["names"].items()}
 
 
 def frames():
@@ -190,7 +200,9 @@ def compile_emulated(d, name, inc, opts, compiler):
            "--save", d]
     for m in mounts:
         cmd += ["--add", m]
-    cmd += ["--", "-c"] + opts + [name]
+    # `-I.`: the mounted headers are in the current directory, which `<...>`
+    # does not search on its own - and <stdint.h> is one of them.
+    cmd += ["--", "-c", "-I."] + opts + [name]
     r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
                        env=dict(os.environ, TURBOC_VERSION=version))
     return r.stdout + r.stderr
@@ -318,7 +330,8 @@ def main(argv=None):
         raise SystemExit("no TCC 3.0 at %s: make tcc in %s/reconstruct/v3.00"
                          % (TCC, TURBOC))
     img = open(IMAGE, "rb").read()
-    known = addresses(port_sources())
+    known = runtime_names()
+    known.update(addresses(port_sources()))
     fr = frames()
     total = matched = 0
     for path in a.files:
