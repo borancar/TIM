@@ -1048,6 +1048,14 @@ flips, with its longest agreeing run 441. The difference is in the port's game
 logic, and the all-layers run could not see it, because on that side the
 logic *was* the port's.
 
+**It was `poly_edge_steep`**, found in seven runs by bisecting which of the
+port's 137 game routines, dispatched on top of `io`, made S15 agree
+(`TIM_NATIVE_ALSO`). The original keeps its two error increments xor'd
+together in BP and picks one with `mask & bp ^ si`; the transcription copied
+the xor and then added BP itself, so every step that moved x added the wrong
+amount. `verify.py` had a spec for the routine and passed it: it checks three
+captured calls, and none of them took that step. With the fix, 29 of 29.
+
 It came to light only because the pointer conversion made the question
 unavoidable: a record holding host pointers is no longer laid out as the
 guest's, so a port routine cannot run on the original's memory any more.

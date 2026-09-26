@@ -8621,11 +8621,19 @@ void poly_edge_steep(uint8_t far * span, int16_t x1, int16_t x2,
         *(int16_t *)(void *)(span + di) = x;
         di = (uint16_t)(di + (sign == 0 ? -4 : 4));
 
-        if (err >= 0) {
-            x++;
-            err = (int16_t)(err + e1);
-        } else {
-            err = (int16_t)(err + e2);
+        /*
+         * `cmp bh,0x80 / sbb dx,dx`: all ones when the error is not negative.
+         * It steps x, and it picks the increment out of `e1`, which holds
+         * the two increments xor'd together: `mask & e1 ^ e2` is
+         * `2 * (dx - dy)` on a step and `2 * dx` otherwise. Adding `e1`
+         * itself - which this did until 2026-09-27 - put S15's machine 21
+         * flips off the original's.
+         */
+        {
+            int16_t mask = (int16_t)(err >= 0 ? -1 : 0);
+
+            x = (int16_t)(x - mask);
+            err = (int16_t)(err + ((mask & e1) ^ e2));
         }
     }
 }

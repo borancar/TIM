@@ -88,6 +88,55 @@ static int32_t layer_wanted(const char *layer)
  */
 static int32_t selected[512];
 
+/*
+ * `TIM_NATIVE_ALSO` - routines dispatched on top of the selected layers, by
+ * name: a comma-separated list, or `@path` to a file of names one a line.
+ * What a bisection needs, to find which of the port's game routines makes a
+ * run differ from the original's. Ours.
+ */
+static int32_t also_wanted(const char *name)
+{
+    static char *list;
+    const char *want = getenv("TIM_NATIVE_ALSO");
+    const char *p;
+    size_t n = strlen(name);
+
+    if (want == NULL || *want == 0)
+        return 0;
+    if (list == NULL) {
+        if (want[0] == '@') {
+            FILE *f = fopen(want + 1, "r");
+            size_t len = 0;
+            int32_t ch;
+
+            list = calloc(1, 1 << 16);
+            if (f == NULL || list == NULL) {
+                fprintf(stderr, "native: TIM_NATIVE_ALSO: cannot read %s\n",
+                        want + 1);
+                exit(1);
+            }
+            while ((ch = fgetc(f)) != EOF && len + 1 < (1 << 16))
+                list[len++] = (char)(ch == '\n' ? ',' : ch);
+            fclose(f);
+        } else {
+            list = calloc(1, strlen(want) + 1);
+            if (list == NULL)
+                exit(1);
+            memcpy(list, want, strlen(want));
+        }
+    }
+    for (p = list; *p; ) {
+        size_t len = strcspn(p, ",");
+
+        if (len == n && strncmp(p, name, n) == 0)
+            return 1;
+        p += len;
+        if (*p == ',')
+            p++;
+    }
+    return 0;
+}
+
 static void select_layers(void)
 {
     static int32_t done;
@@ -98,7 +147,8 @@ static void select_layers(void)
     done = 1;
 
     for (i = 0; i < shim_count && i < 512; i++) {
-        selected[i] = layer_wanted(shim_table[i].layer);
+        selected[i] = layer_wanted(shim_table[i].layer)
+                      || also_wanted(shim_table[i].name);
         n += selected[i];
     }
 

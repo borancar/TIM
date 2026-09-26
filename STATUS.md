@@ -647,15 +647,6 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
-### S15 differs from the original's game code on 21 flips
-
-`check_machines` with the hybrid under `TIM_NATIVE_LAYERS=io` - the original's
-game code executed, the port only as the machine - measured 2026-09-26: 28 of
-29 levels agree on all 685 flips; **S15 agrees on 664, longest run 441**, no
-unstable flip. The all-layers run had said 29 of 29 because it ran the port's
-game code on both sides. So a routine S15 reaches, from roughly flip 441 of the
-running machine, does something the original does not. Not yet found.
-
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 
 **STATUS.md's table is only as fresh as the last `--all` sweep, and it can
