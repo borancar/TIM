@@ -271,7 +271,8 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose):
 
 
 def judge(path, known, img, fr, verbose=False, force_opts=None,
-          force_compiler=None):
+          force_compiler=None, placed=None):
+    placed = placed or {}
     src = open(path).read()
     c = COMPILER.search(src)
     compiler = force_compiler or (c.group(1) if c else DEFAULT_COMPILER)
@@ -281,6 +282,7 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
         opts = force_opts
     mod, _log = compile_obj(path, opts, compiler)
     results = []
+    refs = []
     for si, seg in enumerate(mod.segs):
         if seg is None or seg.cls != "CODE" or not seg.length:
             continue
@@ -304,6 +306,8 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
             if ok and unchecked:
                 verdict += " (%d fixups unchecked)" % unchecked
             results.append((name, addr, verdict, notes))
+            if ok:
+                refs.extend(data_refs(seg, off, hi, addr, img))
             if not ok:
                 lines_o = disasm(seg.data[off + max(0, where - 8):hi],
                                  addr + max(0, where - 8))
@@ -314,7 +318,88 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
                 notes.extend("  " + x for x in lines_o)
                 notes.append("image:")
                 notes.extend("  " + x for x in lines_i)
+    results.extend(judge_data(mod, refs, img, placed))
     return results
+
+
+IMG_DGROUP = 0x2D3C0
+
+
+def data_refs(seg, lo, hi, addr, img):
+    """Every segment-relative data fixup in a matched routine, with the word
+    the image holds there: (target, the object's addend, the image's word)."""
+    out = []
+    for off, size, kind, tgt, seg_rel in seg.fixups:
+        if not (lo <= off < hi) or kind != "offset" or size != 2 \
+                or not seg_rel:
+            continue
+        disp = seg.fixinfo.get(off, (0,))[0]
+        addend = (struct.unpack_from("<H", seg.data, off)[0] + disp) & 0xFFFF
+        got = struct.unpack_from("<H", img, addr + (off - lo))[0]
+        out.append((tgt, addend, got))
+    return out
+
+
+def judge_data(mod, refs, img, placed):
+    """**The module's own data, placed and compared.** Each reference from a
+    matched routine into the module's `_DATA` or `_BSS` says where that
+    segment begins in DGROUP: the image's word less the object's addend. All
+    of them must agree - a record laid out in another order, or a variable in
+    the wrong module, shows up as two bases - and then `_DATA`'s bytes are
+    compared with the image's at that base, fixups masked. `_BSS` is past the
+    image's initialised data and only its base can be checked.
+
+    A reference to an *extern* is checked against the port's placement of
+    that object (`DGROUP_AT`/`DGROUP_BSS`), when it has one."""
+    out = []
+    bases = {}
+    for tgt, addend, got in refs:
+        if tgt.startswith("seg:"):
+            bases.setdefault(tgt[4:], set()).add((got - addend) & 0xFFFF)
+        elif tgt.startswith("ext:") and tgt[4:].lstrip("_") in placed:
+            want = (placed[tgt[4:].lstrip("_")] + addend) & 0xFFFF
+            if want != got:
+                out.append((tgt[4:], None,
+                            "DIFF: referenced at %04x, placed at %04x"
+                            % (got, want), []))
+    for segname, found in sorted(bases.items()):
+        seg = next(x for x in mod.segs[1:] if x.name == segname)
+        if len(found) != 1:
+            out.append(("[%s]" % segname, None, "DIFF: %d bases %s"
+                        % (len(found), " ".join("%04x" % b for b in sorted(found))),
+                        []))
+            continue
+        base = found.pop()
+        verdict = "at DGROUP %04x..%04x" % (base, base + seg.length)
+        notes = []
+        if seg.cls == "DATA" and seg.length:
+            masked = set()
+            for off, size, *_ in seg.fixups:
+                masked.update(range(off, off + size))
+            at = IMG_DGROUP + base
+            bad = [i for i in range(seg.length) if seg.have[i]
+                   and i not in masked and seg.data[i] != img[at + i]]
+            if bad:
+                verdict = "DIFF at +0x%x, %s" % (bad[0], verdict)
+                notes.append("ours : %s" % bytes(seg.data[bad[0]:bad[0] + 16]).hex(" "))
+                notes.append("image: %s" % img[at + bad[0]:at + bad[0] + 16].hex(" "))
+            else:
+                verdict = "MATCH, " + verdict
+        else:
+            verdict = "MATCH, " + verdict
+        out.append(("[%s]" % segname, None, verdict, notes))
+    return out
+
+
+def placements(paths):
+    """Every object the port places in DGROUP, by name: `cparse.placements`
+    over every source."""
+    import cparse
+    out = {}
+    for p in paths:
+        for _struct, name, addr in cparse.placements(p):
+            out[name] = addr
+    return out
 
 
 def main(argv=None):
@@ -333,12 +418,13 @@ def main(argv=None):
     known = runtime_names()
     known.update(addresses(port_sources()))
     fr = frames()
+    placed = placements(port_sources())
     total = matched = 0
     for path in a.files:
         for name, addr, verdict, notes in judge(
                 path, known, img, fr, a.verbose,
                 a.opts.split() if a.opts is not None else None,
-                a.compiler):
+                a.compiler, placed):
             total += 1
             matched += verdict.startswith("MATCH")
             where = "%05x" % addr if addr is not None else "  ?  "

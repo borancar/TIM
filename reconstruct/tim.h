@@ -68,9 +68,12 @@
  * the wrap or the stored `seg:off` pair actually matters, the port uses
  * `struct far_ptr` in dgroup.h instead, and says so at the site.
  */
-#ifndef __BORLANDC__
+#ifndef __TURBOC__
 #  define far    /* one kind of pointer here */
 #  define huge   /* likewise */
+#  define near   /* and the third: a near *code* pointer, which the medium
+                    model has to be told about, because there an untagged
+                    function pointer is far */
 #endif
 
 /* The typedefs `dg_near`/`dg_cnear` stood here. They are spelled out now -
