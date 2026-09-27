@@ -50,6 +50,22 @@ def definitions(path):
     return src, out
 
 
+DEF = re.compile(rb"^(?:static\s+)?(?:const\s+)?[A-Za-z_][\w \*]*?\b(\w+)\s*"
+                 rb"(?:\([^;{]*\)\s*\n\{|(?:\[[^\]]*\])*\s*(?:DGROUP_\w+\([^)]*\))?\s*=)",
+                 re.M)
+
+
+def defined_names(paths, override):
+    """Every top-level function and initialised object the files define."""
+    out = set()
+    for path in paths:
+        data = override.get(path)
+        if data is None:
+            data = open(path, "rb").read()
+        out.update(m.group(1).decode() for m in DEF.finditer(data))
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("lo", type=lambda v: int(v, 16))
@@ -81,6 +97,23 @@ def main(argv=None):
     moved.sort()
     for addr, _, where in moved:
         print("%05x  from %s" % (addr, where))
+    # **Nothing may go missing but what was asked for.** A cut is a range of
+    # the file, and on 2026-09-27 one took two unaddressed helpers with it that
+    # sat above the first routine it moved. Every top-level name the sources
+    # define before must still be defined after, in the edited files or the
+    # target.
+    before = defined_names(judge.port_sources(), {})
+    after_files = dict(edits)
+    target_now = (after_files.get(target) if target in after_files else (
+        open(target, "rb").read() if os.path.exists(target) else b""))
+    after_files[target] = target_now + b"\n" + "\n".join(
+        t for _, t, _ in moved).encode("utf-8")
+    after = defined_names(sorted(set(judge.port_sources()) | {target}),
+                          after_files)
+    lost = sorted(before - after)
+    if lost:
+        print("refusing: this would lose %s" % ", ".join(lost))
+        return 1
     if a.dry_run:
         return 0
     for path, data in edits.items():
