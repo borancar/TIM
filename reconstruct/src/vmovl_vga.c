@@ -60,7 +60,7 @@ struct vm_cs {
     struct far_ptr hooks[19];     /* +0x206  copied from the table it is handed */
 } PACKED;
 
-#define VMCS (*(struct vm_cs *)MK_FP(DG48DA.driver.seg, 0))
+#define VMCS (*(struct vm_cs *)MK_FP(VM_START.driver.seg, 0))
 
 
 /*

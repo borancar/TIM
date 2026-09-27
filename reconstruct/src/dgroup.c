@@ -1952,8 +1952,6 @@ struct dg_48da DG48DA DGROUP_AT(0x48da) = {
     .quarter_a = 0x40,
     .gc_mode_copy = 0x01,
     .quarter_b = 0x41,
-    .mode_found = 0xff,
-    .mode_forced = 0xff,
 };
 struct dg_3576 DG3576 DGROUP_WAS(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);

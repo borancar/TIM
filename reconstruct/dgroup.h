@@ -2202,12 +2202,23 @@ struct dg_48da {
        an odd offset, which the packed record allows. */
     struct far_ptr_rev vector;    /* +0x13  vector 0, from 0:0 and 0:2 - a
                                             load, not a store */
-    uint8_t   pad_48f1[1];
-    uint8_t   mode_found;         /* +0x18  the mode the program found the adapter in */
-    uint8_t   mode_forced;        /* +0x19  a forced setting; 0xd is the one these screens take */
-    struct far_ptr driver;        /* +0x1a  the video driver, as vm_init
-                                            stored it */
+    uint8_t   pad_48f1[1];        /* the word alignment of the next module's `_DATA` */
 } PACKED;
+
+/*
+ * **`vm_init`'s module's `_DATA`**, DGROUP 0x48f2..0x48f8 (vidinit.c): the
+ * mode the program found the adapter in, a forced adapter, and the loaded
+ * driver's entry. The driver pointer stays a `seg:off` pair where the
+ * original put it, because the hybrid reads the original's store of it to
+ * find VM.OVL.
+ */
+struct vm_start {
+    uint8_t   mode_found;         /* +0x00  the mode the program found the adapter in; 0xff none */
+    uint8_t   mode_forced;        /* +0x01  a forced setting; 0xd is the one these screens take */
+    struct far_ptr driver;        /* +0x02  the video driver, as vm_init stored it */
+} PACKED;
+
+extern struct vm_start VM_START;
 
 extern struct dg_48da DG48DA;
 

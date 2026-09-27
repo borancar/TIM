@@ -40,6 +40,7 @@ its driver calls and the page hook.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/vidinit.c` | 0x22483..0x22790 | assembly: host transcription, not judged | `_DATA` 0x48f2..0x48f8 |
 | `src/vidload.c` | 0x22790..0x2307d | 3 of 3, through TASM | `_DATA` 0x48f8..0x495c, `_BSS` 0x628e..0x6292 |
 | `src/fontload.c` | 0x2307d..0x234d2 | 2 of 2 | `_DATA` 0x495c..0x4965 |
 | `src/bmpload.c` | 0x234d2..0x23b29 | 6 of 6 | `_DATA` 0x4966..0x498e |
