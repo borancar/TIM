@@ -91,15 +91,16 @@ assembled it itself.
 | `src/resource.c` | 0x1c251..0x1ca46, the resource streams (all `near`); `-mm`, no `-zC_TEXT` | 23 of 23, seven of them uncalled and new | `_DATA` 0x3576..0x35b2, `_BSS` 0x5788..0x58b8 |
 | `src/resfile.c` | 0x1ce1f..0x1dba8, the resource API and Unix `compress`'s LZW coder and a run-length coder behind it; `-mm` | 18 of 18, the coders and two of the API uncalled | `_DATA` 0x35d6..0x3600, `_BSS` 0x58b8..0x58d2 |
 | `src/palette.c` | 0x1e967..0x1eded | 9 of 9 | `_DATA` 0x445e..0x44cf, `_BSS` 0x591a..0x5956 |
-| `src/polygon.c` | 0x1eded..0x20189 | assembly: host transcription, not judged | 0x44d0..0x44ea |
+| `src/polygon.c` | 0x1eded..0x20189, TASM | 10 of 10 | `_DATA` 0x44d0..0x44ea |
 | `src/compbmp.c` | 0x20189..0x20654 | 1 of 1 | whether 0x44ea is its `_DATA` is not settled |
 | `src/timer.c` | 0x20654..0x20840, TASM | 8 of 8 | `_DATA` 0x44ee..0x457a |
 | `src/scale.c` | 0x20840..0x20be0 | 3 of 3 | `_DATA` 0x457a..0x458c, `_BSS` 0x5956..0x6176 |
-| `src/polyclip.c` | 0x20be0..0x21088 | assembly: host transcription, not judged | none |
-| `src/keyboard.c` | 0x21088..0x2149e | assembly: host transcription, not judged | `_DATA` 0x458c..0x471c |
+| `src/polyclip.c` | 0x20be0..0x21088, TASM | 2 of 2 | none |
+| `src/keyboard.c` | 0x21088..0x2149e, TASM, self-modifying | 7 of 7 | `_DATA` 0x458c..0x471c |
 | `src/text.c` | 0x2149e..0x21ab5 | 10 of 10 | `_DATA` 0x471e..0x4723, `_BSS` 0x6176..0x628e |
-| `src/lowlevel.c` | 0x21ab5..0x22483 | assembly, probably several modules: host transcription, not judged | `DG48DA` 0x48da..0x48f2, the mouse at 0x4740 |
-| `src/vidinit.c` | 0x22483..0x22790 | assembly: host transcription, not judged | `_DATA` 0x48f2..0x48f8 |
+| `src/dosmem.c` | 0x21ab5..0x21b44, TASM; its end proven by TLINK's far call to `far_memset` | 4 of 4 | none |
+| `src/lowlevel.c` | 0x21b44..0x22483, TASM: joystick (uncalled, host stubs), line clipper, mouse, huge pointers, divide trap, pixels | 31 of 31 | `_DATA` 0x4724..0x48f2 |
+| `src/vidinit.c` | 0x22483..0x22790, TASM | 6 of 6 | `_DATA` 0x48f2..0x48f8 |
 | `src/vidload.c` | 0x22790..0x2307d | 3 of 3, through TASM | `_DATA` 0x48f8..0x495c, `_BSS` 0x628e..0x6292 |
 | `src/fontload.c` | 0x2307d..0x234d2 | 2 of 2 | `_DATA` 0x495c..0x4965 |
 | `src/bmpload.c` | 0x234d2..0x23b29 | 6 of 6 | `_DATA` 0x4966..0x498e |

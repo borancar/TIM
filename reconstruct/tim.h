@@ -1988,7 +1988,17 @@ uint16_t read_bmp_info(FILE *handle, int16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta); /* 0x22190 */
+int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b); /* 0x2235a */
 void install_divide_trap(void);                        /* 0x22394 */
+void divide_error_handler(void);                       /* 0x223be */
+/* The joystick driver, which nothing calls. */
+void     joy_time_axes(void);                          /* 0x21b44 */
+int16_t  joy_scale_axis(void);                         /* 0x21bab */
+int16_t  joy_init(void);                               /* 0x21be2 */
+void     joy_read(int16_t stick, int16_t *x, int16_t *y); /* 0x21d19 */
+uint16_t joy_direction(int16_t stick);                 /* 0x21d91 */
+uint16_t joy_button(uint16_t n);                       /* 0x21dea */
+int16_t  joy_axis(uint16_t n);                         /* 0x21e04 */
 int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
 void near set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
 void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,

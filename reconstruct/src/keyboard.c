@@ -14,9 +14,10 @@
  * segment at 0x2108c - the saved keyboard and timer vectors - which only
  * these routines name.
  *
- * **So no C compiler judges this file.** The handler is an interrupt routine
- * and every entry is hand-written; it is the host's transcription, and the
- * byte-exact source of these bytes is TASM's to make (not written yet).
+ * **So it is TASM source**: the handler is an interrupt routine and every
+ * entry is hand-written - it even patches its own immediates, `cs:` stores
+ * into two `and dl, 0ffh`. The source is the `#ifdef __TURBOC__` block
+ * below, the host's transcription the `#else`.
  *
  * **Where the module begins is proven to within one thunk**:
  * `install_keyboard` calls `detect_pcjr` (0x20be0) through TLINK's
@@ -24,10 +25,586 @@
  * code-segment words at 0x2108c are this module's. Whether the thunk at
  * 0x21088 before them is its first routine or the previous module's last is
  * not settled. Its end is the text module's first byte.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
+ * transcription is the `#else`. See glue.c for how the block reaches the
+ * assembler.
+ */
+asm {
+_DATA segment word public 'DATA'
+d_458c label byte
+        db 0h
+d_458d label byte
+        db 0h
+d_458e label byte
+        db 0h, 0h
+d_4590 label byte
+        db 0h, 0h, 1h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+d_45da label byte
+        db 0h, 1bh, 31h, 32h, 33h, 34h, 35h, 36h, 37h, 38h, 39h, 30h, 2dh, 3dh, 8h, 9h
+        db 71h, 77h, 65h, 72h, 74h, 79h, 75h, 69h, 6fh, 70h, 5bh, 5dh, 0dh, 84h, 61h, 73h
+        db 64h, 66h, 67h, 68h, 6ah, 6bh, 6ch, 3bh, 27h, 60h, 82h, 5ch, 7ah, 78h, 63h, 76h
+        db 62h, 6eh, 6dh, 2ch, 2eh, 2fh, 81h, 2ah, 88h, 20h, 0c0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+d_4633 label byte
+        db 0h, 1bh, 21h, 40h, 23h, 24h, 25h, 5eh, 26h, 2ah, 28h, 29h, 5fh, 2bh, 8h, 0h
+        db 51h, 57h, 45h, 52h, 54h, 59h, 55h, 49h, 4fh, 50h, 7bh, 7dh, 0dh, 84h, 41h, 53h
+        db 44h, 46h, 47h, 48h, 4ah, 4bh, 4ch, 3ah, 22h, 7eh, 82h, 7ch, 5ah, 58h, 43h, 56h
+        db 42h, 4eh, 4dh, 3ch, 3eh, 3fh, 81h, 0h, 88h, 20h, 0c0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 37h, 38h, 39h, 2dh, 34h, 35h, 36h, 2bh, 31h
+        db 32h, 33h, 30h, 2eh, 0h, 0h, 0h, 0h, 0h
+d_468c label byte
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 6eh, 7eh, 8eh, 6h, 6h, 6h, 6h, 6h, 6h, 6h, 2h, 2h, 0h, 0h, 5eh, 9eh
+        db 1eh, 6h, 6h, 6h, 6h, 6h, 6h, 0h, 0h, 0h, 0h, 2h, 4eh, 3eh, 2eh, 6h
+        db 6h, 6h, 6h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 60h, 70h, 80h, 0h, 50h, 90h, 10h, 0h, 40h
+        db 30h, 20h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+d_46e5 label byte
+        db 0h, 0h, 0h, 0h
+d_46e9 label byte
+        db 0h, 0h, 0h, 0h
+d_46ed label byte
+        db 1h, 0h, 1h, 0h, 3h, 0h
+d_46f3 label byte
+        db 80h, 0a0h, 40h, 0e0h, 0c0h, 0f0h, 60h, 0b0h, 0h, 8h, 0ah, 2h, 6h, 4h, 5h, 1h
+        db 9h, 0h
+d_4705 label byte
+        db 59h, 5ah, 55h, 54h, 29h, 58h, 2bh, 4ah, 4eh, 56h, 57h, 57h, 58h, 52h, 46h, 48h
+        db 47h, 4bh, 50h, 4dh, 53h, 1ch
+d_471b label byte
+        db 0h
+_DATA ends
+
+extrn _detect_pcjr:far
+extrn _game_teardown:far
+extrn _DG4342:byte
+extrn _VMDS:byte
+KEYBOARD_TEXT segment byte public 'CODE'
+assume cs:KEYBOARD_TEXT, ds:DGROUP
+public _copy_rect_thunk, _install_keyboard, _remove_keyboard, _keyboard_isr
+public _bios_read_key, _key_is_down, _show_page_thunk
+
+/* 0x21088 */
+_copy_rect_thunk proc near
+        jmp dword ptr DGROUP:_DG4342+14h
+c_2108c db 0h, 0h
+c_2108e db 0h, 0h
+c_21090 db 0h, 0h
+c_21092 db 0h, 0h
+_copy_rect_thunk endp
+
+/* 0x21094 */
+_install_keyboard proc far
+        push bp
+        mov bp, sp
+        push di
+        push si
+        sub ax, ax
+        cmp byte ptr DGROUP:d_458c, al
+        je L210a4
+        jmp L21139
+L210a4:
+        push ds
+        mov ax, 3509h
+        int 21h
+        mov word ptr cs:c_2108c, bx
+        mov word ptr cs:c_2108e, es
+        mov ax, 351ch
+        int 21h
+        mov word ptr cs:c_21090, bx
+        mov word ptr cs:c_21092, es
+        mov dx, 4f46h
+        mov ax, 1c25h
+        mov ds, ax
+        mov ax, 2509h
+        int 21h
+        mov ax, word ptr [bp+6]
+        neg ax
+        jae L210e4
+        mov dx, 5136h
+        mov ax, 1c25h
+        mov ds, ax
+        mov ax, 251ch
+        int 21h
+L210e4:
+        pop ds
+        mov byte ptr DGROUP:d_471b, 0
+        call FAR PTR _detect_pcjr
+        neg ax
+        jae L21133
+        int 15h
+        jae L2110c
+        mov ax, 40h
+        mov es, ax
+        mov si, 96h
+        cmp byte ptr es:[si], 10h
+        jne L2110c
+        mov byte ptr DGROUP:d_471b, 1
+        jmp short L21133
+L2110c:
+        mov byte ptr cs:c_21222, 0feh
+        mov byte ptr cs:c_2122e, 0feh
+        mov bx, offset DGROUP:d_468c
+        mov al, byte ptr [bx+48h]
+        mov byte ptr [bx+29h], al
+        mov al, byte ptr [bx+4bh]
+        mov byte ptr [bx+2bh], al
+        mov al, byte ptr [bx+4dh]
+        mov byte ptr [bx+4eh], al
+        mov al, byte ptr [bx+50h]
+        mov byte ptr [bx+4ah], al
+L21133:
+        mov ax, 1
+        mov byte ptr DGROUP:d_458c, al
+L21139:
+        mov ax, 40h
+        mov es, ax
+        and byte ptr es:[17h], 0dfh
+        test byte ptr DGROUP:d_458d, 0ffh
+        je L21151
+        or byte ptr es:[17h], 40h
+L21151:
+        mov al, byte ptr DGROUP:d_458c
+        pop si
+        pop di
+        pop bp
+        retf
+_install_keyboard endp
+
+/* 0x21158 */
+_remove_keyboard proc far
+        sub ax, ax
+        cmp byte ptr DGROUP:d_458c, al
+        je L21195
+        mov byte ptr DGROUP:d_458c, al
+        mov ax, 40h
+        mov es, ax
+        mov ax, word ptr es:[1ch]
+        mov word ptr es:[1ah], ax
+        push ds
+        mov dx, word ptr cs:c_2108c
+        mov ax, word ptr cs:c_2108e
+        mov ds, ax
+        mov ax, 2509h
+        int 21h
+        mov dx, word ptr cs:c_21090
+        mov ax, word ptr cs:c_21092
+        mov ds, ax
+        mov ax, 251ch
+        int 21h
+        pop ds
+        mov ax, 1
+L21195:
+        retf
+_remove_keyboard endp
+
+/* 0x21196 */
+_keyboard_isr proc near
+        push ax
+        push bx
+        push cx
+        push dx
+        push ds
+        push es
+        push di
+        mov ax, 40h
+        mov es, ax
+        mov ax, DGROUP
+        mov ds, ax
+        xor ax, ax
+        in al, 60h
+        mov dx, 61h
+        mov bx, ax
+        in al, dx
+        mov ah, al
+        or al, 80h
+        out dx, al
+        mov al, ah
+        out dx, al
+        mov ax, bx
+        and al, 7fh
+        and bl, 80h
+        cmp byte ptr DGROUP:_VMDS+1ch, 1
+        jne L211ef
+        cmp byte ptr DGROUP:d_471b, 1
+        je L211e3
+        mov di, offset DGROUP:d_4705
+        dec di
+        mov cx, 0bh
+L211d5:
+        inc di
+        cmp al, byte ptr [di]
+        loopne L211d5
+        jne L211ef
+        add di, 0bh
+        mov al, byte ptr [di]
+        jmp short L211ef
+L211e3:
+        cmp al, 29h
+        jne L211e9
+        mov al, 48h
+L211e9:
+        cmp al, 2bh
+        jne L211ef
+        mov al, 4bh
+L211ef:
+        or al, bl
+        mov dh, 0ffh
+        mov dl, al
+        shl dx, 1
+        shr dl, 1
+        cmp dl, 59h
+        jl L21201
+        jmp L2137a
+L21201:
+        xor bh, bh
+        mov bl, dl
+        mov dl, byte ptr d_468c[bx]
+        and dh, dl
+        xor dh, 1
+        mov byte ptr d_468c[bx], dh
+        cmp byte ptr DGROUP:d_471b, 1
+        jne L2122f
+        cmp bl, 3ah
+        jne L21225
+        mov al, bl
+        and dl, 0ffh
+c_21222 equ byte ptr $-1
+        jmp short L2122f
+L21225:
+        cmp bl, 45h
+        jne L2122f
+        mov al, bl
+        and dl, 0ffh
+c_2122e equ byte ptr $-1
+L2122f:
+        mov bx, offset DGROUP:d_45da
+        test al, 80h
+        je L21274
+        test dl, 0f8h
+        je L21259
+        mov cx, dx
+        mov ch, 0
+        shr cx, 1
+        shr cx, 1
+        shr cx, 1
+        mov di, cx
+        shr cx, 1
+        and di, 1
+        mov ch, byte ptr d_4590[di]
+        cmp ch, cl
+        jne L21259
+        mov byte ptr d_4590[di], 0
+L21259:
+        mov word ptr DGROUP:d_458e, 0
+        and al, 7fh
+        xlatb
+        test al, 80h
+        je L21271
+        test al, 70h
+        jne L21271
+        xor al, 7fh
+        and byte ptr es:[17h], al
+L21271:
+        jmp L2137a
+L21274:
+        test dl, 0f8h
+        je L2128e
+        mov cx, dx
+        mov ch, 0
+        shr cx, 1
+        shr cx, 1
+        shr cx, 1
+        mov di, cx
+        shr cx, 1
+        and di, 1
+        mov byte ptr d_4590[di], cl
+L2128e:
+        mov cl, al
+        xor ah, ah
+        mov di, ax
+        xlatb
+        test al, 80h
+        je L212be
+        and al, 7fh
+        test al, 70h
+        jne L212a7
+        or byte ptr es:[17h], al
+        jmp L2137a
+L212a7:
+        test al, 40h
+        je L212b2
+        test byte ptr DGROUP:d_458d, 0ffh
+        jne L212bb
+L212b2:
+        shr dl, 1
+        jb L212bb
+        xor byte ptr es:[17h], al
+L212bb:
+        jmp L2137a
+L212be:
+        test byte ptr es:[17h], 4
+        je L212d1
+        or al, 80h
+        test dl, 4
+        je L212ee
+        sub al, 20h
+        jmp short L212ee
+L212d1:
+        test byte ptr es:[17h], 40h
+        je L212e2
+        test dl, 4
+        je L212e2
+        sub al, 20h
+        jmp short L212ee
+L212e2:
+        test byte ptr es:[17h], 3
+        je L212ee
+        mov al, byte ptr d_4633[di]
+L212ee:
+        mov ah, cl
+        mov word ptr DGROUP:d_458e, ax
+        mov cx, word ptr es:[1ah]
+        mov di, word ptr es:[1ch]
+        cmp cx, 3ch
+        je L2130a
+        inc cx
+        inc cx
+        cmp cx, di
+        je L21322
+        jmp short L2130f
+L2130a:
+        cmp di, 1eh
+        je L21322
+L2130f:
+        mov word ptr es:[di], ax
+        cmp di, 3ch
+        jne L2131a
+        mov di, 1ch
+L2131a:
+        add di, 2
+        mov word ptr es:[1ch], di
+L21322:
+        cmp ah, 20h
+        jne L21335
+        test byte ptr es:[17h], 4
+        je L21335
+        mov al, 20h
+        out 20h, al
+        jmp short L2137e
+L21335:
+        xor bx, bx
+        cmp ax, 19bh
+        je L2134a
+        inc bx
+        cmp ax, 5380h
+        jne L2137a
+        test byte ptr es:[17h], 8
+        je L2137a
+L2134a:
+        test byte ptr es:[17h], 4
+        je L2137a
+        sub di, 2
+        cmp di, 1ch
+        jne L2135d
+        mov di, 3ch
+L2135d:
+        mov word ptr es:[di], 0
+        mov ax, word ptr es:[1ch]
+        mov word ptr es:[1ah], ax
+        mov al, 20h
+        out 20h, al
+        sti
+        mov ax, bx
+        push ax
+        call FAR PTR _game_teardown
+        pop ax
+        jmp short L2137e
+L2137a:
+        mov al, 20h
+        out 20h, al
+L2137e:
+        pop di
+        pop es
+        pop ds
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        iret
+c_21386 db 50h
+c_21387 db 53h
+c_21388 db 51h
+c_21389 db 52h
+c_2138a db 57h
+c_2138b db 56h
+c_2138c db 55h
+c_2138d db 1eh
+c_2138e db 6h
+c_2138f db 0b8h, 3ch, 2dh
+c_21392 db 8eh, 0d8h
+c_21394 db 0a1h, 0f1h, 46h
+c_21397 db 8eh, 0c0h
+c_21399 db 0bdh, 7fh, 0h
+c_2139c db 0beh, 2h, 0h
+c_2139f db 0b7h, 0h
+L213a1:
+        sub ax, ax
+        shr si, 1
+        mov bl, byte ptr d_4590[si]
+        shl si, 1
+        dec bl
+        jns L213bf
+        cmp word ptr d_46ed[si], ax
+        je L21422
+L213b5:
+        mov word ptr d_46e5[si], ax
+        mov word ptr d_46e9[si], ax
+        jmp short L21422
+L213bf:
+        cmp bl, 8
+        je L213b5
+        mov bl, byte ptr d_46f3[bx]
+        shl bl, 1
+        jae L213f6
+        mov ax, word ptr d_46e5[si]
+        cwd
+        xor ax, dx
+        sub ax, dx
+        mov cx, ax
+        mov di, dx
+        mov ah, bl
+        shl bl, 1
+        cwd
+        xor dx, di
+        mov ax, es
+        xor ax, dx
+        sub ax, dx
+        add ax, cx
+        cmp ax, bp
+        jle L213ee
+        mov ax, bp
+L213ee:
+        xor ax, di
+        sub ax, di
+        mov word ptr d_46e5[si], ax
+L213f6:
+        shl bl, 1
+        jae L21422
+        mov ax, word ptr d_46e9[si]
+        cwd
+        xor ax, dx
+        sub ax, dx
+        mov cx, ax
+        mov di, dx
+        mov ah, bl
+        cwd
+        xor dx, di
+        mov ax, es
+        xor ax, dx
+        sub ax, dx
+        add ax, cx
+        cmp ax, bp
+        jle L2141a
+        mov ax, bp
+L2141a:
+        xor ax, di
+        sub ax, di
+        mov word ptr d_46e9[si], ax
+L21422:
+        sub si, 2
+        js L2142a
+        jmp L213a1
+L2142a:
+        pop es
+        pop ds
+        pop bp
+        pop si
+        pop di
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        iret
+_keyboard_isr endp
+
+/* 0x21434 */
+_bios_read_key proc far
+        pushf
+        cli
+        push es
+        mov ax, 40h
+        mov es, ax
+        xor ax, ax
+        mov bx, word ptr es:[1ah]
+        cmp bx, word ptr es:[1ch]
+        je L21460
+        mov ax, word ptr es:[bx]
+        inc bx
+        inc bx
+        cmp bx, word ptr es:[82h]
+        jne L2145b
+        mov bx, word ptr es:[80h]
+L2145b:
+        mov word ptr es:[1ah], bx
+L21460:
+        pop es
+        popf
+        retf
+c_21463 db 8bh, 0d5h
+c_21465 db 8bh, 0ech
+c_21467 db 2bh, 0dbh
+c_21469 db 8bh, 46h, 4h
+c_2146c db 0f7h, 0d8h
+c_2146e db 0d1h, 0d3h
+c_21470 db 8ah, 9fh, 90h, 45h
+c_21474 db 8ah, 0e7h
+c_21476 db 8ah, 87h, 0fbh, 46h
+c_2147a db 8bh, 0eah
+c_2147c db 0cbh
+_bios_read_key endp
+
+/* 0x2147d */
+_key_is_down proc far
+        cli
+        mov dx, bp
+        mov bp, sp
+        mov bx, word ptr [bp+4]
+        xor ax, ax
+        mov al, byte ptr d_468c[bx]
+        and al, 1
+        mov bp, dx
+        sti
+        retf
+c_21491 db 0cbh
+c_21492 db 0ffh, 2eh, 0aah, 43h
+c_21496 db 0ffh, 2eh, 0aeh, 43h
+_key_is_down endp
+
+/* 0x2149a */
+_show_page_thunk proc near
+        jmp dword ptr DGROUP:_DG4342+24h
+_show_page_thunk endp
+KEYBOARD_TEXT ends
+}
+#else
 
 /*
  * **The keyboard handler's own state and tables**, DGROUP 0x458c..0x471b,
@@ -518,3 +1095,4 @@ void show_page_thunk(uint16_t wait_retrace)
 {
     vm_show_page(wait_retrace);
 }
+#endif

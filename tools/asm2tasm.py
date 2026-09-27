@@ -75,7 +75,18 @@ def data_name(off, placed, addrs):
     if i < 0:
         return None
     base, name = placed[i]
-    return "_%s+%xh" % (name, off - base) if off != base else "_" + name
+    # inside that object: below the next one, and not far past the last
+    end = addrs[i + 1] if i + 1 < len(addrs) else base + 0x200
+    if off >= end:
+        return None
+    return "_%s+%s" % (name, hexnum(off - base)) if off != base else "_" + name
+
+
+def is_branch(ins):
+    """A relative transfer: capstone leaves `loop` and `jcxz` out of its
+    jump group."""
+    return (ins.group(capstone.CS_GRP_JUMP) or ins.mnemonic == "call"
+            or ins.mnemonic in ("loop", "loope", "loopne", "jcxz"))
 
 
 def hexnum(v):
@@ -112,20 +123,40 @@ def main(argv):
 
     md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_16)
     md.detail = True
-    code = img[a.lo:a.hi]
-    insns = list(md.disasm(code, a.lo))
     starts = sorted(v for v in by_addr if a.lo <= v < a.hi)
+    # **Each routine decoded from its own start**, so data before one - a
+    # module's state in its own code segment, as the sound driver keeps it -
+    # cannot pull the decoding out of step. What precedes the first routine
+    # is data.
+    insns = []
+    pre = []
+    first = starts[0] if starts else a.hi
+    for k in range(a.lo, first):
+        pre.append(k)
+    bounds = starts + [a.hi]
+    for k, st in enumerate(starts):
+        insns.extend(md.disasm(img[st:bounds[k + 1]], st))
 
     # labels: every branch target inside the range that is not a routine
     labels = {}
     for ins in insns:
-        if ins.group(capstone.CS_GRP_JUMP) or ins.mnemonic == "call":
+        if is_branch(ins):
             op = ins.op_str
             if re.fullmatch(r"0x[0-9a-f]+", op) and ins.bytes[0] != 0x9A:
                 t = int(op, 16)
                 if a.lo <= t < a.hi and t not in starts:
                     labels[t] = "L%05x" % t
 
+    # **The code segment named as data**: a saved vector after a routine,
+    # or - self-modifying code - the immediate byte of an instruction the
+    # routine patches. Every `cs:` operand's target inside the range.
+    cs_targets = set()
+    for ins in insns:
+        mc = re.search(r"cs:\[(0x[0-9a-f]+)\]", ins.op_str)
+        if mc:
+            t = judge.frame_of(ins.address, fr) + int(mc.group(1), 16)
+            if a.lo <= t < a.hi:
+                cs_targets.add(t)
     externs = {}
     own = set()
     a.own = own
@@ -136,7 +167,26 @@ def main(argv):
     out.append("assume cs:%s, ds:DGROUP" % a.segment)
     for i in range(0, len(publics), 4):
         out.append("public " + ", ".join("_" + p for p in publics[i:i + 4]))
+    far_procs = {}
+    for k, st in enumerate(starts):
+        end = starts[k + 1] if k + 1 < len(starts) else a.hi
+        for j in md.disasm(img[st:end], st):
+            if j.mnemonic in ("retf", "ret", "iret"):
+                far_procs[by_addr[st]] = j.mnemonic == "retf"
+                break
     body = []
+    # the leading data, a label at each offset the code names
+    run = []
+    for k in pre:
+        if k in cs_targets and run:
+            body.append("        db " + ", ".join(run)); run = []
+        if k in cs_targets:
+            body.append("c_%05x label byte" % k)
+        run.append(hexnum(img[k]))
+        if len(run) == 16:
+            body.append("        db " + ", ".join(run)); run = []
+    if run:
+        body.append("        db " + ", ".join(run))
     open_proc = None
     dead = False
     for ins in insns:
@@ -148,6 +198,8 @@ def main(argv):
             # saved vector, a table - between a routine's last transfer and
             # the next label. Written as bytes, labelled `c_` by their
             # offset in the image.
+            if body and body[-1] == "c_%05x label byte" % at:
+                body.pop()
             body.append("c_%05x db %s" % (at, ", ".join(hexnum(x) for x in ins.bytes)))
             continue
         if at in by_addr and at in starts:
@@ -166,6 +218,8 @@ def main(argv):
             body.append("_%s proc %s" % (open_proc, kind))
         if at in labels:
             body.append("%s:" % labels[at])
+        if at in cs_targets:
+            body.append("c_%05x label byte" % at)
         line = render(ins, labels, by_addr, starts, rel, img,
                       placed, addrs, externs, fr, a)
         # **TLINK's far call**: a `call far` to a routine in the same
@@ -179,7 +233,22 @@ def main(argv):
             if tn[1:] in externs:
                 externs[tn[1:]] = "far"
             line = "call FAR PTR " + tn
+        # **TASM's own far call**: to a `proc far` in the same segment TASM
+        # writes `push cs / call near` itself, so the source said `call`.
+        # Forward, TASM's one pass cannot know the target is far, so there
+        # the source wrote `push cs` and a near call itself - which Borland's
+        # front end will not pass as `call near ptr`, so it goes as bytes.
+        if (ins.bytes[0] == 0xE8 and line.startswith("call _")
+                and far_procs.get(line[len("call _"):])):
+            tgt = int(ins.op_str, 16)
+            if tgt < ins.address and body and body[-1].strip() == "push cs":
+                del body[-1]
+            elif tgt > ins.address:
+                line = "db 0e8h\n        dw %s-$-2" % line[len("call "):]
         body.append("        " + line)
+        for t in sorted(cs_targets):
+            if at < t < at + ins.size:
+                body.append("c_%05x equ byte ptr $-%d" % (t, at + ins.size - t))
         if ins.mnemonic in ("ret", "retf", "iret", "jmp", "ljmp"):
             dead = True
     if open_proc:
@@ -226,6 +295,17 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
     if b[0] == 0x98:
         return "cbw"
     opc = next(x for x in b if x not in (0x26, 0x2E, 0x36, 0x3E))
+    # string instructions: the operands are the defaults, which TASM
+    # writes as the bare mnemonic; an override is a prefix byte of its own
+    if re.fullmatch(r"(rep[a-z]* )?(movs|stos|lods|cmps|scas|ins|outs)[bw]", m):
+        pre = [x for x in b[:-1] if x in (0x26, 0x2E, 0x36)]
+        if "ds:" not in op or not pre:
+            return ("db %s\n        " % ", ".join(hexnum(x) for x in pre) if pre else "") + m
+    # **Register `xchg`**: capstone prints the r/m operand first and TASM
+    # puts its first operand in the reg field, so the two are swapped.
+    if m in ("xchg", "test") and opc in (0x84, 0x85, 0x86, 0x87) and (b[-1] >> 6) == 3:
+        x, y = op.split(", ")
+        return "%s %s, %s" % (m, y, x)
     if m in ("lcall", "ljmp") and opc == 0xFF:
         m = "call" if m == "lcall" else "jmp"
         op = "dword ptr " + op
@@ -240,7 +320,7 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
         if not (a.lo <= tgt < a.hi):
             externs[name] = "far"
         return "call FAR PTR _%s" % name
-    if ins.group(capstone.CS_GRP_JUMP) or m == "call":
+    if is_branch(ins):
         if re.fullmatch(r"0x[0-9a-f]+", op):
             t = int(op, 16)
             if t in labels:
@@ -292,6 +372,22 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
             op = op.replace(mo.group(0), "%s ptr DGROUP:%s" % (mo.group(1), nm))
             if not nm.startswith("d_"):
                 a.data_externs.add(nm.split("+")[0])
+    # **An index register loaded with an address**: `mov si, 398ch` before
+    # a `rep movsw` is VMDS+0fch, not a number. Narrow on purpose - only SI,
+    # DI, BX and BP, and only a value inside an object the port places - and
+    # still a guess for the reader to confirm: the bytes are the same either
+    # way, so the judge cannot.
+    mi = re.fullmatch(r"(si|di|bx|bp), (0x[0-9a-f]+)", op)
+    if m == "mov" and mi and not re.search(r"\[", op):
+        v = int(mi.group(2), 16)
+        if a.data and a.data[0] <= v < a.data[1]:
+            a.own.add(v)
+            return "mov %s, offset DGROUP:d_%04x" % (mi.group(1), v)
+        if v >= 0x100:
+            nm = data_name(v, placed, addrs)
+            if nm:
+                a.data_externs.add(nm.split("+")[0])
+                return "mov %s, offset DGROUP:%s" % (mi.group(1), nm)
     # the code segment's own data, by the label the dead bytes got
     mc = re.search(r"cs:\[(0x[0-9a-f]+)\]", op)
     if mc:

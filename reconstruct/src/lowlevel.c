@@ -9,12 +9,13 @@
  * into the video driver.
  *
  * This file corresponds to the original's **code segment 1c25**, image
- * 0x21ab5..0x22483, split out of engine.c on 2026-09-27. All of it is
+ * 0x21b44..0x22483, split out of engine.c on 2026-09-27; dosmem.c holds
+ * 0x21ab5..0x21b44, the module `far_memset` is not in. All of it is
  * hand-written: register arguments and answers, `iret`, near helpers that
- * answer in the carry, frames no compiler builds. **So no C compiler judges
- * this file.** It is the host's transcription, and the byte-exact source of
- * these bytes is TASM's to make (not written yet). The functions are in
- * address order and each carries the image offset it was read from.
+ * answer in the carry, frames no compiler builds. **So it is TASM source**,
+ * the `#ifdef __TURBOC__` block below, with the host's transcription in the
+ * `#else`. The functions are in address order and each carries the image
+ * offset it was read from.
  *
  * **It is probably several modules, and only one boundary is proven.**
  * Measured 2026-09-27 over every call into, out of and inside the range, and
@@ -46,12 +47,1447 @@
  *
  * **0x21b44..0x21e34 is not transcribed**: a joystick driver - port 0x201,
  * timed with `loop` - that nothing on the paths the port runs calls.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include <string.h>
 
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
+ * transcription is the `#else`. See glue.c for how the block reaches the
+ * assembler.
+ */
+asm {
+_DATA segment word public 'DATA'
+d_4724 label byte
+        db 0h
+d_4725 label byte
+        db 0h
+d_4726 label byte
+        db 0h
+d_4727 label byte
+        db 0h, 0h
+d_4729 label byte
+        db 0h, 0h
+d_472b label byte
+        db 0h, 0h
+d_472d label byte
+        db 0h, 0h
+d_472f label byte
+        db 0h, 0h
+d_4731 label byte
+        db 0h, 0h
+d_4733 label byte
+        db 0h, 0h
+d_4735 label byte
+        db 0h, 0h
+d_4737 label byte
+        db 0h, 0h
+d_4739 label byte
+        db 0h, 0h
+d_473b label byte
+        db 0h, 0h
+d_473d label byte
+        db 0h, 0h, 0h
+d_4740 label byte
+        db 0h, 0h
+d_4742 label byte
+        db 0h, 0h
+d_4744 label byte
+        db 0h, 0h
+d_4746 label byte
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h
+d_48da label byte
+        db 0h, 0h
+d_48dc label byte
+        db 0h, 0h
+d_48de label byte
+        db 0h, 0h
+d_48e0 label byte
+        db 0h, 0h
+d_48e2 label byte
+        db 0h, 0h, 0h, 0h
+d_48e6 label byte
+        db 2h
+d_48e7 label byte
+        db 40h
+d_48e8 label byte
+        db 1h
+d_48e9 label byte
+        db 41h
+d_48ea label byte
+        db 0h
+d_48eb label byte
+        db 0h
+d_48ec label byte
+        db 0h
+d_48ed label byte
+        db 0h, 0h
+d_48ef label byte
+        db 0h, 0h, 0h
+_DATA ends
+
+extrn _DG4342:byte
+extrn _TIMER:byte
+extrn _VMDS:byte
+LOWLEVEL_TEXT segment byte public 'CODE'
+assume cs:LOWLEVEL_TEXT, ds:DGROUP
+public _joy_time_axes, _joy_scale_axis, _joy_init, _joy_read
+public _joy_direction, _joy_button, _joy_axis, _clip_and_draw_line
+public _mouse_init, _mouse_set_ranges, _mouse_set_user_handler, _mouse_event
+public _mouse_save_vga, _mouse_restore_vga, _remove_mouse, _read_mouse_pointer
+public _mouse_move_to, _read_mouse_button, _normalise_far_ptr, _huge_add_positive
+public _huge_move, _far_memcpy, _far_memset, _far_ptr_compare
+public _normalise_far_ptr_far, _install_divide_trap, _divide_error_handler, _restore_int0_vector
+public _read_pixel_clipped, _plot_pixel_clipped, _restore_rect_thunk
+
+/* 0x21b44 */
+_joy_time_axes proc near
+        mov dx, 201h
+        pushf
+        push bp
+        cli
+        mov bp, word ptr DGROUP:d_4739
+        mov cx, 190h
+L21b51:
+        mov ax, cx
+        mov cx, bp
+L21b55:
+        loop L21b55
+        mov cx, ax
+        in al, dx
+        test al, bl
+        loopne L21b51
+        jcxz L21b60
+L21b60:
+        mov cx, 190h
+        xor al, al
+        out dx, al
+        xor si, si
+        mov di, si
+        test bl, 3
+        je L21b8b
+L21b6f:
+        mov ax, cx
+        mov cx, bp
+L21b73:
+        loop L21b73
+        mov cx, ax
+        in al, dx
+        and al, bl
+        je L21b88
+        shr al, 1
+        adc si, 0
+        shr al, 1
+        adc di, 0
+        loop L21b6f
+L21b88:
+        pop bp
+        popf
+        ret
+L21b8b:
+        mov ax, cx
+        mov cx, bp
+L21b8f:
+        loop L21b8f
+        mov cx, ax
+        in al, dx
+        and al, bl
+        je L21b88
+        shr al, 1
+        shr al, 1
+        shr al, 1
+        adc si, 0
+        shr al, 1
+        adc di, 0
+        loop L21b8b
+        pop bp
+        popf
+        ret
+_joy_time_axes endp
+
+/* 0x21bab */
+_joy_scale_axis proc near
+        push di
+        sub ax, bx
+        or ax, ax
+        jge L21bb9
+        mov di, 1
+        neg ax
+        jmp short L21bbc
+L21bb9:
+        mov di, 0
+L21bbc:
+        or cx, cx
+        je L21bc8
+        xor dx, dx
+        mul cx
+        mov al, ah
+        mov ah, dl
+L21bc8:
+        cmp ax, 7fh
+        jbe L21bd0
+        mov ax, 7fh
+L21bd0:
+        cmp al, 8
+        jae L21bd6
+        xor al, al
+L21bd6:
+        xor ah, ah
+        test di, 1
+        je L21be0
+        neg ax
+L21be0:
+        pop di
+        ret
+_joy_scale_axis endp
+
+/* 0x21be2 */
+_joy_init proc far
+        push si
+        push di
+        cli
+        mov al, 36h
+        out 43h, al
+        xor al, al
+        out 40h, al
+        out 40h, al
+        mov dx, 201h
+        mov cx, 3e8h
+        out 43h, al
+        in al, 40h
+        mov ah, al
+        in al, 40h
+        xchg al, ah
+        mov si, ax
+L21c01:
+        mov ax, ax
+        mov ax, ax
+        nop
+        nop
+        nop
+        nop
+        mov ax, ax
+        in al, dx
+        test al, al
+        loop L21c01
+        mov al, 6
+        out 43h, al
+        in al, 40h
+        mov ah, al
+        in al, 40h
+        xchg al, ah
+        mov di, ax
+        mov bx, word ptr DGROUP:_TIMER+3h
+        mov al, 36h
+        out 43h, al
+        mov al, bl
+        out 40h, al
+        mov al, bh
+        out 40h, al
+        sti
+        sub si, di
+        xor dx, dx
+        mov ax, 6fcch
+        div si
+        cmp ax, 0
+        jne L21c40
+        mov ax, 1
+L21c40:
+        mov word ptr DGROUP:d_4739, ax
+        mov bx, 3
+        call _joy_time_axes
+        mov ax, si
+        mov word ptr DGROUP:d_4727, ax
+        cmp ax, 190h
+        rcr byte ptr DGROUP:d_4726, 1
+        mov ax, di
+        mov word ptr DGROUP:d_4729, ax
+        cmp ax, 190h
+        rcr byte ptr DGROUP:d_4726, 1
+        mov al, byte ptr DGROUP:d_4726
+        and al, 0c0h
+        cmp al, 0c0h
+        jne L21c71
+        mov byte ptr DGROUP:d_4724, 1
+        jmp short L21c76
+L21c71:
+        mov byte ptr DGROUP:d_4724, 0
+L21c76:
+        or si, si
+        je L21c86
+        mov cx, si
+        mov ax, 7f00h
+        xor dx, dx
+        div cx
+        mov word ptr DGROUP:d_472f, ax
+L21c86:
+        or di, di
+        je L21c96
+        mov cx, di
+        mov ax, 7f00h
+        xor dx, dx
+        div cx
+        mov word ptr DGROUP:d_4731, ax
+L21c96:
+        mov bx, 0ch
+        call _joy_time_axes
+        mov ax, si
+        cmp ax, 190h
+        mov word ptr DGROUP:d_472b, ax
+        rcr byte ptr DGROUP:d_4726, 1
+        mov ax, di
+        mov word ptr DGROUP:d_472d, ax
+        cmp ax, 190h
+        rcr byte ptr DGROUP:d_4726, 1
+        mov al, byte ptr DGROUP:d_4726
+        and al, 0c0h
+        cmp al, 0c0h
+        jne L21cc4
+        mov byte ptr DGROUP:d_4725, 1
+        jmp short L21cc9
+L21cc4:
+        mov byte ptr DGROUP:d_4725, 0
+L21cc9:
+        or si, si
+        je L21cd9
+        mov cx, si
+        mov ax, 7f00h
+        xor dx, dx
+        div cx
+        mov word ptr DGROUP:d_4733, ax
+L21cd9:
+        or di, di
+        je L21ce9
+        mov cx, di
+        mov ax, 7f00h
+        xor dx, dx
+        div cx
+        mov word ptr DGROUP:d_4735, ax
+L21ce9:
+        mov dx, 201h
+        out dx, al
+        mov cx, 14h
+L21cf0:
+        loop L21cf0
+        in al, dx
+        test al, 3
+        jne L21cfc
+        mov byte ptr DGROUP:d_4724, 0
+L21cfc:
+        test al, 0ch
+        jne L21d05
+        mov byte ptr DGROUP:d_4725, 0
+L21d05:
+        mov cl, 4
+        shr byte ptr DGROUP:d_4726, cl
+        xor ax, ax
+        mov al, byte ptr DGROUP:d_4725
+        shl al, 1
+        or al, byte ptr DGROUP:d_4724
+        pop di
+        pop si
+        retf
+_joy_init endp
+
+/* 0x21d19 */
+_joy_read proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        mov bx, word ptr [bp+6]
+        cmp bx, 0
+        jne L21d54
+        xor ah, ah
+        mov al, byte ptr DGROUP:d_4724
+        or al, al
+        je L21d8d
+        mov bx, 3
+        call _joy_time_axes
+        mov bx, word ptr DGROUP:d_4727
+        mov cx, word ptr DGROUP:d_472f
+        mov ax, si
+        call _joy_scale_axis
+        mov word ptr DGROUP:d_4737, ax
+        mov bx, word ptr DGROUP:d_4729
+        mov cx, word ptr DGROUP:d_4731
+        mov ax, di
+        call _joy_scale_axis
+        jmp short L21d80
+L21d54:
+        xor ah, ah
+        mov al, byte ptr DGROUP:d_4725
+        or al, al
+        je L21d8d
+        mov bx, 0ch
+        call _joy_time_axes
+        mov bx, word ptr DGROUP:d_472b
+        mov cx, word ptr DGROUP:d_4733
+        mov ax, si
+        call _joy_scale_axis
+        mov word ptr DGROUP:d_4737, ax
+        mov bx, word ptr DGROUP:d_472d
+        mov cx, word ptr DGROUP:d_4735
+        mov ax, di
+        call _joy_scale_axis
+L21d80:
+        mov si, word ptr [bp+0ah]
+        mov di, word ptr [bp+8]
+        mov word ptr [si], ax
+        mov ax, word ptr DGROUP:d_4737
+        mov word ptr [di], ax
+L21d8d:
+        pop di
+        pop si
+        pop bp
+        retf
+_joy_read endp
+
+/* 0x21d91 */
+_joy_direction proc far
+        push bp
+        mov bp, sp
+        mov ax, word ptr [bp+6]
+        or ax, ax
+        je L21da0
+        mov al, byte ptr DGROUP:d_4725
+        jmp short L21da3
+L21da0:
+        mov al, byte ptr DGROUP:d_4724
+L21da3:
+        or al, al
+        je L21de8
+        mov ax, 473dh
+        push ax
+        mov ax, 473bh
+        push ax
+        mov ax, word ptr [bp+6]
+        push ax
+        call _joy_read
+        add sp, 6
+        xor ax, ax
+        mov bx, word ptr DGROUP:d_473b
+        cmp bx, -1eh
+        jge L21dca
+        or ax, 4
+        jmp short L21dd2
+L21dca:
+        cmp bx, 1eh
+        jl L21dd2
+        or ax, 8
+L21dd2:
+        mov bx, word ptr DGROUP:d_473d
+        cmp bx, -1eh
+        jge L21de0
+        or ax, 1
+        jmp short L21de8
+L21de0:
+        cmp bx, 1eh
+        jl L21de8
+        or ax, 2
+L21de8:
+        pop bp
+        retf
+_joy_direction endp
+
+/* 0x21dea */
+_joy_button proc far
+        push bp
+        mov bp, sp
+        mov cx, word ptr [bp+6]
+        and cx, 3
+        mov dx, 201h
+        in al, dx
+        add cl, 4
+        shr al, cl
+        and al, 1
+        xor ah, ah
+        xor al, 1
+        pop bp
+        retf
+_joy_button endp
+
+/* 0x21e04 */
+_joy_axis proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        mov bx, 1
+        mov cx, word ptr [bp+6]
+        shl bx, cl
+        call _joy_time_axes
+        mov cx, word ptr [bp+6]
+        test cl, 1
+        je L21e1e
+        mov si, di
+L21e1e:
+        mov di, cx
+        shl di, 1
+        mov bx, word ptr d_4727[di]
+        mov cx, word ptr d_472f[di]
+        mov ax, si
+        call _joy_scale_axis
+        sti
+        pop di
+        pop si
+        pop bp
+        retf
+_joy_axis endp
+
+/* 0x21e34 */
+_clip_and_draw_line proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        push es
+        mov ax, word ptr DGROUP:_VMDS+18h
+        mov es, ax
+        mov bx, word ptr [bp+6]
+        mov cx, word ptr [bp+8]
+        mov si, word ptr [bp+0ah]
+        mov di, word ptr [bp+0ch]
+        mov al, byte ptr DGROUP:_VMDS+3h
+        or al, al
+        jne L21e55
+        jmp L21f08
+L21e55:
+        mov ax, word ptr DGROUP:_VMDS+8h
+        cmp cx, ax
+        jl L21e66
+        cmp di, ax
+        jge L21e81
+        xchg bx, si
+        xchg cx, di
+        jmp short L21e6a
+L21e66:
+        cmp di, ax
+        jl L21e96
+L21e6a:
+        mov bp, di
+        sub bp, cx
+        sub ax, cx
+        mov cx, ax
+        mov ax, si
+        sub ax, bx
+        imul cx
+        idiv bp
+        add bx, ax
+        mov ax, word ptr DGROUP:_VMDS+8h
+        mov cx, ax
+L21e81:
+        mov ax, word ptr DGROUP:_VMDS+4h
+        cmp bx, ax
+        jl L21e92
+        cmp si, ax
+        jge L21eb0
+        xchg bx, si
+        xchg cx, di
+        jmp short L21e99
+L21e92:
+        cmp si, ax
+        jge L21e99
+L21e96:
+        jmp L21f18
+L21e99:
+        mov bp, si
+        sub bp, bx
+        sub ax, bx
+        mov bx, ax
+        mov ax, di
+        sub ax, cx
+        imul bx
+        idiv bp
+        add cx, ax
+        mov ax, word ptr DGROUP:_VMDS+4h
+        mov bx, ax
+L21eb0:
+        mov ax, word ptr DGROUP:_VMDS+0ah
+        cmp cx, ax
+        ja L21ec1
+        cmp di, ax
+        jbe L21edc
+        xchg bx, si
+        xchg cx, di
+        jmp short L21ec5
+L21ec1:
+        cmp di, ax
+        ja L21e96
+L21ec5:
+        mov bp, di
+        sub bp, cx
+        sub ax, cx
+        mov cx, ax
+        mov ax, si
+        sub ax, bx
+        imul cx
+        idiv bp
+        add bx, ax
+        mov ax, word ptr DGROUP:_VMDS+0ah
+        mov cx, ax
+L21edc:
+        mov ax, word ptr DGROUP:_VMDS+6h
+        cmp bx, ax
+        ja L21eed
+        cmp si, ax
+        jbe L21f08
+        xchg bx, si
+        xchg cx, di
+        jmp short L21ef1
+L21eed:
+        cmp si, ax
+        ja L21e96
+L21ef1:
+        mov bp, si
+        sub bp, bx
+        sub ax, bx
+        mov bx, ax
+        mov ax, di
+        sub ax, cx
+        imul bx
+        idiv bp
+        add cx, ax
+        mov ax, word ptr DGROUP:_VMDS+6h
+        mov bx, ax
+L21f08:
+        mov dx, si
+        mov si, di
+        cmp bx, dx
+        jbe L21f14
+        xchg bx, dx
+        xchg cx, si
+L21f14:
+        call dword ptr DGROUP:_DG4342+0ch
+L21f18:
+        pop es
+        pop di
+        pop si
+        pop bp
+        retf
+_clip_and_draw_line endp
+
+/* 0x21f1d */
+_mouse_init proc far
+        sub ax, ax
+        cmp byte ptr DGROUP:d_48ea, al
+        jne L21f8c
+        int 33h
+        neg ax
+        mov byte ptr DGROUP:d_48ea, al
+        jae L21f8c
+        mov ax, 4
+        mov cx, 7fffh
+        mov dx, cx
+        int 33h
+        mov ax, 1
+        int 33h
+        mov ax, 2
+        int 33h
+        mov ax, 0fh
+        mov cx, 8
+        mov dx, 8
+        int 33h
+        mov ax, 4
+        xor cx, cx
+        mov dx, cx
+        int 33h
+        push word ptr DGROUP:_VMDS+6ech
+        push word ptr DGROUP:_VMDS+6eah
+        xor ax, ax
+        push ax
+        push ax
+        push cs
+        db 0e8h
+        dw _mouse_set_ranges-$-2
+        add sp, 8
+        mov ax, 0ch
+        mov cx, 1fh
+        push cs
+        pop es
+        mov dx, 5d7fh
+        int 33h
+        mov al, byte ptr DGROUP:_VMDS+1dh
+        cmp al, 8
+        jne L21f89
+        mov al, byte ptr DGROUP:d_48e7
+        mov byte ptr DGROUP:d_48e6, al
+        mov al, byte ptr DGROUP:d_48e9
+        mov byte ptr DGROUP:d_48e8, al
+L21f89:
+        mov ax, 1
+L21f8c:
+        retf
+_mouse_init endp
+
+/* 0x21f8d */
+_mouse_set_ranges proc far
+        push bp
+        mov bp, sp
+        mov ax, 7
+        mov cx, word ptr [bp+6]
+        mov dx, cx
+        add dx, word ptr [bp+0ah]
+        shl cx, 1
+        shl cx, 1
+        dec dx
+        shl dx, 1
+        shl dx, 1
+        int 33h
+        mov ax, 8
+        mov cx, word ptr [bp+8]
+        mov dx, cx
+        add dx, word ptr [bp+0ch]
+        shl cx, 1
+        shl cx, 1
+        dec dx
+        shl dx, 1
+        shl dx, 1
+        int 33h
+        pop bp
+        retf
+_mouse_set_ranges endp
+
+/* 0x21fbe */
+_mouse_set_user_handler proc far
+        push bp
+        mov bp, sp
+        mov ax, word ptr [bp+6]
+        mov word ptr DGROUP:d_4744, ax
+        mov ax, word ptr [bp+8]
+        mov word ptr DGROUP:d_4746, ax
+        pop bp
+        retf
+_mouse_set_user_handler endp
+
+/* 0x21fcf */
+_mouse_event proc far
+        push ds
+        push es
+        push bp
+        push si
+        mov bp, sp
+        mov si, ss
+        mov ax, DGROUP
+        cli
+        mov sp, 48d8h
+        mov ss, ax
+        sti
+        mov ds, ax
+        mov byte ptr DGROUP:d_48eb, bl
+        mov word ptr DGROUP:d_4740, cx
+        mov word ptr DGROUP:d_4742, dx
+        mov ax, word ptr DGROUP:d_4744
+        or ax, word ptr DGROUP:d_4746
+        je L22004
+        push cs
+        db 0e8h
+        dw _mouse_save_vga-$-2
+        call dword ptr DGROUP:d_4744
+        push cs
+        db 0e8h
+        dw _mouse_restore_vga-$-2
+L22004:
+        cli
+        mov ss, si
+        mov sp, bp
+        sti
+        pop si
+        pop bp
+        pop es
+        pop ds
+        retf
+_mouse_event endp
+
+/* 0x2200f */
+_mouse_save_vga proc far
+        mov dx, 3ceh
+        in al, dx
+        mov ah, al
+        xor al, al
+        out dx, al
+        inc dx
+        in al, dx
+        mov word ptr DGROUP:d_48da, ax
+        dec dx
+        mov al, 1
+        out dx, al
+        inc dx
+        in al, dx
+        mov ah, al
+        xor al, al
+        out dx, al
+        dec dx
+        mov al, 4
+        out dx, al
+        inc dx
+        in al, dx
+        mov word ptr DGROUP:d_48dc, ax
+        dec dx
+        mov al, 5
+        out dx, al
+        inc dx
+        in al, dx
+        mov ah, al
+        mov al, byte ptr DGROUP:d_48e8
+        out dx, al
+        mov di, 0ffffh
+        mov bx, 0a000h
+        mov es, bx
+        stosb
+        mov al, byte ptr DGROUP:d_48e6
+        out dx, al
+        dec dx
+        mov al, 8
+        out dx, al
+        inc dx
+        in al, dx
+        mov word ptr DGROUP:d_48de, ax
+        mov al, 0ffh
+        out dx, al
+        dec dx
+        mov al, 3
+        out dx, al
+        inc dx
+        in al, dx
+        mov byte ptr DGROUP:d_48e2, al
+        xor al, al
+        out dx, al
+        mov dx, 3c4h
+        in al, dx
+        mov ah, al
+        mov al, 2
+        out dx, al
+        inc dx
+        in al, dx
+        mov word ptr DGROUP:d_48e0, ax
+        mov al, 0fh
+        out dx, al
+        retf
+_mouse_save_vga endp
+
+/* 0x22074 */
+_mouse_restore_vga proc far
+        mov dx, 3c4h
+        mov al, 2
+        out dx, al
+        mov ax, word ptr DGROUP:d_48e0
+        inc dx
+        out dx, al
+        dec dx
+        mov al, ah
+        out dx, al
+        mov dx, 3ceh
+        mov al, 3
+        out dx, al
+        mov al, byte ptr DGROUP:d_48e2
+        inc dx
+        out dx, al
+        dec dx
+        mov al, 8
+        out dx, al
+        mov ax, word ptr DGROUP:d_48de
+        inc dx
+        out dx, al
+        dec dx
+        mov al, 5
+        out dx, al
+        inc dx
+        mov al, byte ptr DGROUP:d_48e8
+        out dx, al
+        mov di, 0ffffh
+        mov bx, 0a000h
+        mov es, bx
+        mov al, byte ptr es:[di]
+        mov al, ah
+        out dx, al
+        dec dx
+        mov al, 4
+        out dx, al
+        mov ax, word ptr DGROUP:d_48dc
+        inc dx
+        out dx, al
+        dec dx
+        mov al, 1
+        out dx, al
+        mov al, ah
+        inc dx
+        out dx, al
+        dec dx
+        xor al, al
+        out dx, al
+        mov ax, word ptr DGROUP:d_48da
+        inc dx
+        out dx, al
+        dec dx
+        mov al, ah
+        out dx, al
+        retf
+_mouse_restore_vga endp
+
+/* 0x220cd */
+_remove_mouse proc far
+        xor ax, ax
+        cmp byte ptr DGROUP:d_48ea, al
+        je L220e8
+        mov byte ptr DGROUP:d_48ea, al
+        int 33h
+        mov ax, 0ch
+        xor cx, cx
+        mov dx, cx
+        mov es, cx
+        int 33h
+        mov ax, 1
+L220e8:
+        retf
+_remove_mouse endp
+
+/* 0x220e9 */
+_read_mouse_pointer proc far
+        push bp
+        mov bp, sp
+        sub cx, cx
+        mov dx, cx
+        mov ax, cx
+        mov al, byte ptr DGROUP:d_48ea
+        neg ax
+        jae L22111
+        mov bx, word ptr [bp+6]
+        mov ax, word ptr DGROUP:d_4740
+        shr ax, 1
+        shr ax, 1
+        mov word ptr [bx], ax
+        mov bx, word ptr [bp+8]
+        mov ax, word ptr DGROUP:d_4742
+        shr ax, 1
+        shr ax, 1
+        mov word ptr [bx], ax
+L22111:
+        pop bp
+        retf
+_read_mouse_pointer endp
+
+/* 0x22113 */
+_mouse_move_to proc far
+        push bp
+        mov bp, sp
+        mov al, byte ptr DGROUP:d_48ea
+        neg al
+        jae L2213a
+        mov ax, 4
+        mov cx, word ptr [bp+6]
+        shl cx, 1
+        shl cx, 1
+        mov word ptr DGROUP:d_4740, cx
+        mov dx, word ptr [bp+8]
+        shl dx, 1
+        shl dx, 1
+        mov word ptr DGROUP:d_4742, dx
+        int 33h
+        mov al, 1
+L2213a:
+        mov ah, 0
+        pop bp
+        retf
+_mouse_move_to endp
+
+/* 0x2213e */
+_read_mouse_button proc far
+        push bp
+        mov bp, sp
+        sub bx, bx
+        mov bl, byte ptr DGROUP:d_48ea
+        neg bx
+        jae L2215a
+        mov bl, byte ptr DGROUP:d_48eb
+        xor bh, bh
+        mov ax, word ptr [bp+6]
+        neg ax
+        jae L2215a
+        shr bx, 1
+L2215a:
+        mov ax, bx
+        and ax, 1
+        pop bp
+        retf
+_read_mouse_button endp
+
+/* 0x22161 */
+_normalise_far_ptr proc near
+        push cx
+        mov cx, ax
+        and ax, 0fh
+        shr cx, 1
+        shr cx, 1
+        shr cx, 1
+        shr cx, 1
+        add dx, cx
+        pop cx
+        ret
+c_22173 db 0e8h, 0ebh, 0ffh
+c_22176 db 0f6h, 0c6h, 0f0h
+c_22179 db 74h, 8h
+c_2217b db 5h, 0f0h, 0ffh
+c_2217e db 81h, 0eah, 0ffh, 0fh
+c_22182 db 0c3h
+L22183:
+        shl dx, 1
+        shl dx, 1
+        shl dx, 1
+        shl dx, 1
+        add ax, dx
+        sub dx, dx
+        ret
+_normalise_far_ptr endp
+
+/* 0x22190 */
+_huge_add_positive proc near
+        add ax, bx
+        sbb bx, bx
+        and bx, 1000h
+        add dx, bx
+        mov bx, cx
+        mov cl, 5
+        clc
+        rcr bx, cl
+        add dx, bx
+        ret
+c_221a4 db 0f7h, 0dbh
+c_221a6 db 3h, 0c3h
+c_221a8 db 1bh, 0dbh
+c_221aa db 0f7h, 0d3h
+c_221ac db 81h, 0e3h, 0h, 10h
+c_221b0 db 2bh, 0d3h
+c_221b2 db 0e8h, 0ach, 0ffh
+c_221b5 db 8bh, 0d9h
+c_221b7 db 0b1h, 5h
+c_221b9 db 0f8h
+c_221ba db 0d3h, 0dbh
+c_221bc db 2bh, 0d3h
+c_221be db 0c3h
+c_221bf db 0e3h, 12h
+c_221c1 db 0f7h, 0c7h, 1h, 0h
+c_221c5 db 75h, 2h
+c_221c7 db 0a4h
+c_221c8 db 49h
+L221c9:
+        dec si
+        dec di
+        shr cx, 1
+        rep movsw
+        rcl cx, 1
+        inc si
+        inc di
+L221d3:
+        rep movsb
+        ret
+c_221d6 db 0e3h, 10h
+c_221d8 db 0f7h, 0c7h, 1h, 0h
+c_221dc db 74h, 2h
+c_221de db 0a4h
+c_221df db 49h
+L221e0:
+        shr cx, 1
+        rep movsw
+        rcl cx, 1
+        rep movsb
+L221e8:
+        ret
+c_221e9 db 0h, 0h
+c_221eb db 0h, 0h
+_huge_add_positive endp
+
+/* 0x221ed */
+_huge_move proc far
+        push bp
+        mov bp, sp
+        sub sp, 4
+        push si
+        push di
+        push ds
+        mov word ptr cs:c_221e9, 5f11h
+        mov word ptr cs:c_221eb, 5f86h
+        mov ax, word ptr [bp+6]
+        mov dx, word ptr [bp+8]
+        mov word ptr [bp-4], ax
+        mov word ptr [bp-2], dx
+        call _normalise_far_ptr
+        mov word ptr [bp+6], ax
+        mov word ptr [bp+8], dx
+        mov ax, word ptr [bp+0ah]
+        mov dx, word ptr [bp+0ch]
+        call _normalise_far_ptr
+        cmp dx, word ptr [bp+8]
+        ja L2226c
+        jb L22233
+        cmp ax, word ptr [bp+6]
+        ja L2226c
+        jb L22233
+        jmp L222b8
+L22233:
+        std
+        mov word ptr cs:c_221e9, 5f23h
+        mov word ptr cs:c_221eb, 5f6fh
+        mov ax, word ptr [bp+6]
+        mov dx, word ptr [bp+8]
+        mov bx, word ptr [bp+0eh]
+        mov cx, word ptr [bp+10h]
+        sub bx, 1
+        sbb cx, 0
+        js L222b8
+        push cx
+        push bx
+        call _huge_add_positive
+        mov word ptr [bp+6], ax
+        mov word ptr [bp+8], dx
+        mov ax, word ptr [bp+0ah]
+        mov dx, word ptr [bp+0ch]
+        pop bx
+        pop cx
+        call _huge_add_positive
+L2226c:
+        mov ds, dx
+        mov si, ax
+        mov es, word ptr [bp+8]
+        mov di, word ptr [bp+6]
+L22276:
+        sub cx, cx
+        mov bx, 7d00h
+        cmp word ptr [bp+10h], cx
+        jne L2228d
+        mov ax, word ptr [bp+0eh]
+        cmp ax, cx
+        je L222b8
+        cmp ax, bx
+        jg L2228d
+        mov bx, ax
+L2228d:
+        mov cx, bx
+        mov ax, si
+        mov dx, ds
+        call word ptr cs:c_221e9
+        mov si, ax
+        mov ds, dx
+        mov ax, di
+        mov dx, es
+        call word ptr cs:c_221e9
+        mov di, ax
+        mov es, dx
+        call word ptr cs:c_221eb
+        sub ax, ax
+        sub word ptr [bp+0eh], bx
+        sbb word ptr [bp+10h], ax
+        jmp short L22276
+L222b8:
+        mov dx, word ptr [bp-2]
+        mov ax, word ptr [bp-4]
+        cld
+        pop ds
+        pop di
+        pop si
+        mov sp, bp
+        pop bp
+        retf
+_huge_move endp
+
+/* 0x222c6 */
+_far_memcpy proc far
+        push bp
+        mov bp, sp
+        mov cx, word ptr [bp+0eh]
+        jcxz L222fe
+        push si
+        push di
+        push ds
+        mov ax, word ptr [bp+0ah]
+        mov dx, word ptr [bp+0ch]
+        call _normalise_far_ptr
+        mov ds, dx
+        mov si, ax
+        mov ax, word ptr [bp+6]
+        mov dx, word ptr [bp+8]
+        call _normalise_far_ptr
+        mov es, dx
+        mov di, ax
+        test di, 1
+        jae L222f3
+        movsb
+        dec cx
+L222f3:
+        shr cx, 1
+        rep movsw
+        rcl cx, 1
+        rep movsb
+        pop ds
+        pop di
+        pop si
+L222fe:
+        pop bp
+        retf
+_far_memcpy endp
+
+/* 0x22300 */
+_far_memset proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        cld
+        mov di, word ptr [bp+6]
+        mov ax, word ptr [bp+8]
+        mov es, ax
+        mov ax, word ptr [bp+0ah]
+        mov ah, al
+        mov si, ax
+L22315:
+        sub bx, bx
+        mov cx, 7d00h
+        cmp word ptr [bp+0eh], bx
+        jne L2232c
+        mov ax, word ptr [bp+0ch]
+        cmp ax, bx
+        je L22356
+        cmp ax, cx
+        jg L2232c
+        mov cx, ax
+L2232c:
+        mov bx, cx
+        mov ax, di
+        mov dx, es
+        call _normalise_far_ptr
+        mov di, ax
+        mov es, dx
+        mov ax, si
+        cmp cx, 0ah
+        jl L2234c
+        or di, di
+        jp L22346
+        stosb
+        dec cx
+L22346:
+        shr cx, 1
+        rep stosw
+        rcl cl, 1
+L2234c:
+        rep stosb
+        sub word ptr [bp+0ch], bx
+        sbb word ptr [bp+0eh], cx
+        jmp short L22315
+L22356:
+        pop di
+        pop si
+        pop bp
+        retf
+_far_memset endp
+
+/* 0x2235a */
+_far_ptr_compare proc far
+        push bp
+        mov bp, sp
+        mov ax, word ptr [bp+6]
+        mov dx, word ptr [bp+8]
+        call _normalise_far_ptr
+        mov bx, ax
+        mov cx, dx
+        mov ax, word ptr [bp+0ah]
+        mov dx, word ptr [bp+0ch]
+        call _normalise_far_ptr
+        cmp cx, dx
+        jb L2237d
+        ja L22381
+        cmp bx, ax
+        ja L22381
+L2237d:
+        sbb ax, ax
+        pop bp
+        retf
+L22381:
+        mov ax, 1
+        pop bp
+        retf
+_far_ptr_compare endp
+
+/* 0x22386 */
+_normalise_far_ptr_far proc far
+        push bp
+        mov bp, sp
+        mov ax, word ptr [bp+6]
+        mov dx, word ptr [bp+8]
+        call _normalise_far_ptr
+        pop bp
+        retf
+_normalise_far_ptr_far endp
+
+/* 0x22394 */
+_install_divide_trap proc far
+        push ax
+        push es
+        mov byte ptr DGROUP:d_48ec, 1
+        sub ax, ax
+        mov es, ax
+        mov ax, word ptr es:[0]
+        mov word ptr DGROUP:d_48ef, ax
+        mov ax, word ptr es:[2]
+        mov word ptr DGROUP:d_48ed, ax
+        cli
+        mov word ptr es:[0], offset _divide_error_handler
+        mov word ptr es:[2], cs
+        sti
+        pop es
+        pop ax
+        retf
+_install_divide_trap endp
+
+/* 0x223be */
+_divide_error_handler proc near
+        push bp
+        mov bp, sp
+        push bx
+        push es
+        push ax
+        mov ax, word ptr [bp+2]
+        mov bx, ax
+        mov ax, word ptr [bp+4]
+        mov es, ax
+        mov ax, word ptr es:[bx]
+        and ax, 0feh
+        cmp ax, 0f6h
+        je L223e1
+        sub bx, 2
+        mov ax, bx
+        mov word ptr [bp+2], ax
+L223e1:
+        mov ax, word ptr es:[bx]
+        test ax, 1
+        je L223f0
+        pop ax
+        sar dx, 1
+        rcr ax, 1
+        jmp short L223f3
+L223f0:
+        pop ax
+        sar ax, 1
+L223f3:
+        pop es
+        pop bx
+        pop bp
+        iret
+_divide_error_handler endp
+
+/* 0x223f7 */
+_restore_int0_vector proc far
+        push ax
+        push es
+        xor ax, ax
+        cmp byte ptr DGROUP:d_48ec, al
+        je L22418
+        mov byte ptr DGROUP:d_48ec, al
+        sub ax, ax
+        mov es, ax
+        cli
+        mov ax, word ptr DGROUP:d_48ef
+        mov ax, word ptr es:[0]
+        mov ax, word ptr DGROUP:d_48ed
+        mov ax, word ptr es:[2]
+        sti
+L22418:
+        pop es
+        pop ax
+        retf
+_restore_int0_vector endp
+
+/* 0x2241b */
+_read_pixel_clipped proc far
+        push bp
+        mov bp, sp
+        cmp byte ptr DGROUP:_VMDS+3h, 0
+        je L22443
+        mov ax, word ptr [bp+6]
+        cmp ax, word ptr DGROUP:_VMDS+4h
+        jl L22448
+        cmp ax, word ptr DGROUP:_VMDS+6h
+        jg L22448
+        mov ax, word ptr [bp+8]
+        cmp ax, word ptr DGROUP:_VMDS+8h
+        jl L22448
+        cmp ax, word ptr DGROUP:_VMDS+0ah
+        jg L22448
+L22443:
+        pop bp
+        jmp dword ptr DGROUP:_DG4342+58h
+L22448:
+        pop bp
+        mov ax, 0ffffh
+        retf
+_read_pixel_clipped endp
+
+/* 0x2244d */
+_plot_pixel_clipped proc far
+        push bp
+        mov bp, sp
+        cmp byte ptr DGROUP:_VMDS+3h, 0
+        je L22475
+        mov ax, word ptr [bp+6]
+        cmp ax, word ptr DGROUP:_VMDS+4h
+        jl L2247a
+        cmp ax, word ptr DGROUP:_VMDS+6h
+        jg L2247a
+        mov ax, word ptr [bp+8]
+        cmp ax, word ptr DGROUP:_VMDS+8h
+        jl L2247a
+        cmp ax, word ptr DGROUP:_VMDS+0ah
+        jg L2247a
+L22475:
+        pop bp
+        jmp dword ptr DGROUP:_DG4342+5ch
+L2247a:
+        pop bp
+        mov ax, 0ffffh
+        retf
+_plot_pixel_clipped endp
+
+/* 0x2247f */
+_restore_rect_thunk proc near
+        jmp dword ptr DGROUP:_DG4342+20h
+_restore_rect_thunk endp
+LOWLEVEL_TEXT ends
+}
+#else
+
 
 /*
  * **The mouse's position and the game's handler**, DGROUP 0x4740..0x4748,
@@ -81,127 +1517,96 @@ struct dg_48da DG48DA DGROUP_AT(0x48da) = {
 };
 
 /*
- * 0x21ab5
+ * 0x21b44
  *
- * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
- * Same arrangement as 0x2149a.
+ * **Time the joystick's axes**: fire the one-shots and count until the chosen bits fall, into SI and DI. A near routine with register arguments. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
  */
-void save_rect_thunk(uint8_t far * buf, int16_t x, int16_t y,
-                     int16_t w, int16_t h)
+void joy_time_axes(void)
 {
-    vm_save_rect(buf, x, y, w, h);
+    not_transcribed("0x21b44, the joystick driver");
 }
 
 /*
- * 0x21ab9
+ * 0x21bab
  *
- * A thunk into the video driver: `ljmp [0x435e]`, which is `vm_buffer_size`.
- * Same arrangement as 0x2149a.
+ * **Scale one axis** against its calibration: AX less BX, times CX, clamped to 127 with a dead zone of 8, the sign put back. A near routine with register arguments. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
  */
-uint16_t buffer_size_thunk(uint16_t w, uint16_t h)
+int16_t joy_scale_axis(void)
 {
-    return (uint16_t)vm_buffer_size(w, h);
+    not_transcribed("0x21bab, the joystick driver");
+    return 0;
 }
 
 /*
- * 0x21abd
+ * 0x21be2
  *
- * Allocate memory from DOS, given a **32-bit byte count**, and answer a far
- * pointer to it in DX:AX - always at offset 0, since DOS hands out whole
- * paragraphs.
- *
- * The size is turned into paragraphs by shifting the pair right four times
- * with `shr`/`rcr`, and rounded **up** if any of the low four bits were set -
- * the remainder is tested from a copy taken before the shifting.
- *
- * A size of 0xffffffff is not a request but a question: it calls DOS with
- * 0xffff paragraphs, which always fails, and converts the largest-free figure
- * DOS reports back into bytes. So one routine both allocates and asks how much
- * there is, told apart by its argument.
- *
- * Bit 0 of the flags asks for the block to be zeroed, which it does through
- * `far_memset` at 0x22300. The flags are the **fourth** argument, at [bp+0xc];
- * the third is pushed by every caller and never read. Reading the third as the
- * flags was an error here that verified anyway, because the callers seen so
- * far push zero into both. Two callers ask for zeroing - `game_startup`'s
- * 0x18-byte block and `load_archive_map`'s entry lists - and the second had the
- * two swapped in the port until it was checked against the pushes.
- *
- * The DOS call itself is IO - see io.h - and is primed by the verifier with
- * what DOS actually answered, because the port has no arena of its own.
+ * **Find and calibrate the joysticks**: time the 8253 against the port to size the delay loop, then take each stick's centre. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
  */
-union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
-                                  uint16_t flags)
+int16_t joy_init(void)
 {
-    (void)unused;
-    uint16_t paras, remainder, seg, largest;
-    int32_t failed;
-
-    /* **One Borland `long`**, low word at [bp+6]. 0x21ad1 shifts the pair
-       right four with `shr ax,1 / rcr bx,1` four times over, which is a
-       32-bit shift and not two 16-bit ones; the test above it is
-       `cmp ax,bx / jne / cmp ax,0xffff`, the pair against 0xffffffff. */
-    if (size == 0xFFFFFFFFu) {
-        /* The "how much is free" question. */
-        io_dos_alloc(0xFFFF, &largest, &failed);
-        {
-            union far_or_size r;
-
-            r.bytes = (uint32_t)largest << 4;
-            return r;
-        }
-    }
-
-    /* Bytes to paragraphs, rounded up. The high half of the shifted pair
-       is dropped - DOS takes the count in BX alone, and AH is loaded with
-       0x48 over what was in AX - so a request above a megabyte would
-       truncate here exactly as it does in the original. */
-    remainder = (uint16_t)(size & 0x0F);
-    paras = (uint16_t)(size >> 4);
-    if (remainder != 0)
-        paras = (uint16_t)(paras + 1);
-
-    seg = io_dos_alloc(paras, &largest, &failed);
-    if (failed) {
-        union far_or_size r;
-
-        r.ptr = FAR_NULL_PTR;
-        return r;
-    }
-
-    if (flags & 1)
-        far_memset(MK_FP(seg, 0), 0, size);
-
-    {
-        union far_or_size r;
-
-        r.ptr = MK_FP(seg, 0);
-        return r;
-    }
+    not_transcribed("0x21be2, the joystick driver");
+    return 0;
 }
 
 /*
- * 0x21b34
+ * 0x21d19
  *
- * Hand a block back to DOS - INT 21h with AH=0x49 and the block's segment in
- * ES.
- *
- * The argument is a **far pointer**, and only its segment half is used: the
- * routine reads [bp+8], the second word, and never looks at the offset at
- * [bp+6]. DOS hands out whole paragraphs at offset zero, so the offset carries
- * no information to begin with - and a pointer to a block's start answers its
- * segment through `FP_SEG`.
- *
- * Nothing checks the result. DOS reports failure in CF with an error code in
- * AX, and the routine returns whatever DOS left there without looking, so a
- * double free or a corrupted arena passes silently.
- *
- * The DOS call is IO - see io.h. The port has no arena to give the block back
- * to, so this changes no guest memory.
+ * **Read a stick's two axes**, scaled. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
  */
-void dos_free_far(void far *block)
+void joy_read(int16_t stick, int16_t *x, int16_t *y)
 {
-    io_dos_free(FP_SEG(block));
+    not_transcribed("0x21d19, the joystick driver");
+    (void)stick; (void)x; (void)y;
+}
+
+/*
+ * 0x21d91
+ *
+ * **A stick as four direction bits**: left 4, right 8, up 1, down 2, past thirty either way. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
+ */
+uint16_t joy_direction(int16_t stick)
+{
+    not_transcribed("0x21d91, the joystick driver");
+    (void)stick;
+    return 0;
+}
+
+/*
+ * 0x21dea
+ *
+ * **Is button `n` down?** Bit 4+n of port 0x201, inverted. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
+ */
+uint16_t joy_button(uint16_t n)
+{
+    not_transcribed("0x21dea, the joystick driver");
+    (void)n;
+    return 0;
+}
+
+/*
+ * 0x21e04
+ *
+ * **One axis, scaled.** Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
+ * port has no joystick, and the routine is timing loops on port 0x201 and
+ * the 8253. A stub, which aborts; the TASM source above is the original's.
+ */
+int16_t joy_axis(uint16_t n)
+{
+    not_transcribed("0x21e04, the joystick driver");
+    (void)n;
+    return 0;
 }
 
 /*
@@ -845,6 +2250,19 @@ void far_memset(uint8_t far * dst, uint16_t value, uint32_t count)
 }
 
 /*
+ * 0x2235a
+ *
+ * **Compare two far pointers**, each normalised first: -1 below, 0 equal,
+ * 1 above. Nothing calls it.
+ */
+int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b)
+{
+    if (a < b)
+        return -1;
+    return a == b ? 0 : 1;
+}
+
+/*
  * 0x22386
  *
  * The far-callable face of `normalise_far_ptr` at 0x22161: load the pointer
@@ -891,6 +2309,18 @@ void install_divide_trap(void)
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
+}
+
+/*
+ * 0x223be
+ *
+ * **The divide-error handler** `install_divide_trap` puts at INT 0: it steps
+ * the saved IP over the faulting `div` and returns. An interrupt handler;
+ * the host takes no INT 0, so it has no body to run. A stub, which aborts.
+ */
+void divide_error_handler(void)
+{
+    not_transcribed("0x223be, the divide-error handler");
 }
 
 /*
@@ -995,3 +2425,4 @@ void restore_rect_thunk(const uint8_t far * buf, int16_t x,
 {
     vm_restore_rect(buf, x, y, w, h);
 }
+#endif

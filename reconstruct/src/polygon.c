@@ -11,18 +11,2815 @@
  * The original's **code segment 1c25**, image 0x1eded..0x20189, split out of
  * engine.c on 2026-09-27. All of it is hand-written - the edge walkers pass
  * everything in registers and answer in them, `fill_rect` pushes its own
- * arguments and pops them back - so **no C compiler judges this file**; it
- * is the host's transcription, and the byte-exact source is TASM's to make
- * (not written yet). The polygon's data is DGROUP 0x44d0..0x44ea.
+ * arguments and pops them back - so it is TASM source, the `#ifdef
+ * __TURBOC__` block below, with the host's transcription in the `#else`.
+ * The polygon's data is DGROUP 0x44d0..0x44ea.
  *
  * **Possibly more than one module.** Its start is the palette module's end,
  * which is C. `fill_rect` ends in a padding `nop` at 0x20184, which looks like
  * the end of a module, but nothing proves it, and nothing says which side
  * of that the thunk at 0x20185 is on. Its end is the C body the thunk jumps to.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
+ * transcription is the `#else`. See glue.c for how the block reaches the
+ * assembler.
+ */
+asm {
+_DATA segment word public 'DATA'
+d_44d0 label byte
+        db 0h, 0h
+d_44d2 label byte
+        db 0h, 0h
+d_44d4 label byte
+        db 0h, 0h
+d_44d6 label byte
+        db 0h, 0h
+d_44d8 label byte
+        db 0h, 0h
+d_44da label byte
+        db 0h, 0h
+d_44dc label byte
+        db 0h, 0h
+d_44de label byte
+        db 0h, 0h
+d_44e0 label byte
+        db 0h, 0h
+d_44e2 label byte
+        db 0h, 0h
+d_44e4 label byte
+        db 0h, 0h
+d_44e6 label byte
+        db 0h, 0h
+d_44e8 label byte
+        db 0h
+d_44e9 label byte
+        db 0h
+_DATA ends
+
+extrn _clip_and_draw_line:far
+extrn _clip_polygon:far
+extrn _DG4342:byte
+extrn _DG44EA:byte
+extrn _VMDS:byte
+POLYGON_TEXT segment byte public 'CODE'
+assume cs:POLYGON_TEXT, ds:DGROUP
+public _draw_polygon, _poly_outline, _poly_edge_vertical, _poly_edge_steep
+public _poly_edge_diagonal, _poly_edge_shallow_right, _poly_edge_shallow_left, _poly_walk
+public _fill_rect, _draw_compressed_bitmap
+
+/* 0x1eded */
+_draw_polygon proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        push es
+        sub ax, ax
+        mov word ptr DGROUP:d_44e2, ax
+        mov byte ptr DGROUP:d_44e9, al
+        mov ax, ds
+        mov es, ax
+        mov ax, word ptr [bp+6]
+        or ax, ax
+        js L1ee1d
+        mov word ptr DGROUP:_VMDS+19ch, ax
+        mov cx, ax
+        mov si, word ptr [bp+8]
+        mov di, offset DGROUP:_VMDS+0ach
+        rep movsw
+        mov cx, ax
+        mov si, word ptr [bp+0ah]
+        mov di, offset DGROUP:_VMDS+0d4h
+        rep movsw
+L1ee1d:
+        cmp ax, 2
+        jg L1ee33
+        jl L1ee30
+L1ee24:
+        mov si, offset DGROUP:_VMDS+0ach
+        mov di, offset DGROUP:_VMDS+0d4h
+        mov bp, 1
+        call _poly_outline
+L1ee30:
+        jmp L1f1e0
+L1ee33:
+        mov al, byte ptr DGROUP:_VMDS+0ch
+        or al, al
+        jne L1ee57
+        mov ax, word ptr DGROUP:_VMDS+19ch
+        mov bx, ax
+        mov bp, ax
+        shl bx, 1
+        mov si, offset DGROUP:_VMDS+0ach
+        mov di, offset DGROUP:_VMDS+0d4h
+        mov ax, word ptr [si]
+        mov word ptr [bx+si], ax
+        mov ax, word ptr [di]
+        mov word ptr [bx+di], ax
+        call _poly_outline
+        jmp L1f1e0
+L1ee57:
+        mov al, byte ptr DGROUP:_VMDS+0eh
+        cmp al, byte ptr DGROUP:_VMDS+0dh
+        je L1ee83
+        mov ax, word ptr DGROUP:_VMDS+19ch
+        mov word ptr DGROUP:d_44e4, ax
+        mov bx, ax
+        dec bx
+        mov si, offset DGROUP:_VMDS+0ach
+        mov di, offset DGROUP:_VMDS+14ch
+        lodsw
+        stosw
+        mov cx, bx
+        rep movsw
+        stosw
+        mov si, offset DGROUP:_VMDS+0d4h
+        mov di, offset DGROUP:_VMDS+174h
+        lodsw
+        stosw
+        mov cx, bx
+        rep movsw
+        stosw
+L1ee83:
+        mov al, byte ptr DGROUP:_VMDS+3h
+        or al, al
+        je L1ee8f
+        call FAR PTR _clip_polygon
+L1ee8f:
+        mov ax, word ptr DGROUP:_VMDS+19ch
+        cmp ax, 2
+        je L1ee24
+        jl L1ee30
+        dec ax
+        shl ax, 1
+        mov si, ax
+        mov ax, word ptr DGROUP:_VMDS+0d4h
+        mov word ptr DGROUP:d_44e0, ax
+        mov dx, 7fffh
+        mov bx, 8001h
+        mov ax, word ptr DGROUP:_VMDS+0ach
+        mov word ptr DGROUP:d_44de, ax
+        mov bp, dx
+        mov cx, bx
+        sub di, di
+        sub ax, ax
+        mov word ptr DGROUP:d_44d0, ax
+        mov word ptr DGROUP:d_44d2, ax
+L1eebe:
+        mov ax, word ptr [si+3964h]
+        cmp ax, word ptr DGROUP:d_44e0
+        jne L1eed6
+        mov ax, word ptr [si+393ch]
+        cmp ax, word ptr DGROUP:d_44de
+        je L1ef17
+        mov ax, word ptr [si+3964h]
+L1eed6:
+        mov word ptr DGROUP:d_44e0, ax
+        mov word ptr [di+39b4h], ax
+        cmp ax, dx
+        jg L1eef3
+        jl L1eee9
+        cmp word ptr [si+393ch], cx
+        jle L1eef3
+L1eee9:
+        mov word ptr DGROUP:d_44d0, di
+        mov dx, ax
+        mov cx, word ptr [si+393ch]
+L1eef3:
+        cmp ax, bx
+        jl L1ef09
+        jg L1eeff
+        cmp word ptr [si+393ch], bp
+        jg L1ef09
+L1eeff:
+        mov word ptr DGROUP:d_44d2, di
+        mov bx, ax
+        mov bp, word ptr [si+393ch]
+L1ef09:
+        mov ax, word ptr [si+393ch]
+        mov word ptr DGROUP:d_44de, ax
+        mov word ptr [di+398ch], ax
+        add di, 2
+L1ef17:
+        sub si, 2
+        jge L1eebe
+        cmp dx, bx
+        jne L1ef59
+L1ef20:
+        cmp byte ptr DGROUP:_VMDS+6e8h, 0
+        jne L1ef36
+        push dx
+        push cx
+        push bx
+        push bp
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+L1ef33:
+        jmp L1f1e0
+L1ef36:
+        shr word ptr DGROUP:_VMDS+8h, 1
+        shr word ptr DGROUP:_VMDS+0ah, 1
+        sar dx, 1
+        push dx
+        push cx
+        sar bx, 1
+        push bx
+        push bp
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+        shl word ptr DGROUP:_VMDS+8h, 1
+        shl word ptr DGROUP:_VMDS+0ah, 1
+        jmp L1f1e0
+L1ef59:
+        mov ax, di
+        shr ax, 1
+        cmp ax, 2
+        je L1ef20
+        jl L1ef33
+        mov cx, di
+        mov word ptr DGROUP:_VMDS+19ch, ax
+        mov ax, ds
+        mov es, ax
+        mov ax, word ptr DGROUP:d_44d0
+        mov si, ax
+        mov di, si
+        add di, 2
+        cmp di, cx
+        sbb ax, ax
+        and di, ax
+        mov dx, word ptr [di+398ch]
+        sub dx, word ptr [si+398ch]
+        mov bp, word ptr [di+39b4h]
+        sub bp, word ptr [si+39b4h]
+        jne L1ef99
+        inc bp
+        or dx, dx
+        mov dx, 7fffh
+        jns L1ef99
+        neg dx
+L1ef99:
+        mov di, si
+        sub di, 2
+        jge L1efa2
+        add di, cx
+L1efa2:
+        mov ax, word ptr [di+398ch]
+        sub ax, word ptr [si+398ch]
+        mov bx, word ptr [di+39b4h]
+        sub bx, word ptr [si+39b4h]
+        jne L1efbe
+        inc bx
+        or ax, ax
+        mov ax, 8001h
+        js L1efc8
+        neg ax
+L1efbe:
+        or ax, ax
+        js L1efc8
+        or dx, dx
+        jle L1f039
+        jmp short L1efd3
+L1efc8:
+        or dx, dx
+        jge L1f01d
+        neg dx
+        neg ax
+        xchg dx, ax
+        xchg bp, bx
+L1efd3:
+        mov si, ax
+        mov di, dx
+        sub dx, dx
+        div bx
+        xchg di, ax
+        mov si, dx
+        sub dx, dx
+        div bp
+        cmp ax, di
+        ja L1f01d
+        jb L1f039
+        sub ax, ax
+        div bp
+        mov di, ax
+        sub ax, ax
+        mov dx, si
+        div bx
+        cmp di, ax
+        jb L1f039
+        ja L1f01d
+        mov byte ptr DGROUP:d_44e9, 1
+        mov word ptr DGROUP:d_44e6, cx
+        mov dx, cx
+        mov si, offset DGROUP:_VMDS+0fch
+        mov di, offset DGROUP:_VMDS+14ch
+        shr cx, 1
+        rep movsw
+        mov cx, dx
+        mov si, offset DGROUP:_VMDS+124h
+        mov di, offset DGROUP:_VMDS+174h
+        shr cx, 1
+        rep movsw
+        mov cx, dx
+L1f01d:
+        mov si, offset DGROUP:_VMDS+0fch
+        mov di, offset DGROUP:_VMDS+0ach
+        mov dx, cx
+        shr cx, 1
+        rep movsw
+        mov si, offset DGROUP:_VMDS+124h
+        mov di, offset DGROUP:_VMDS+0d4h
+        mov cx, dx
+        shr cx, 1
+        rep movsw
+        mov cx, dx
+        jmp short L1f076
+L1f039:
+        mov dx, cx
+        mov si, offset DGROUP:_VMDS+0fch
+        mov di, offset DGROUP:_VMDS+0ach
+        add di, dx
+        shr cx, 1
+L1f045:
+        lodsw
+        dec di
+        dec di
+        mov word ptr [di], ax
+        loop L1f045
+        mov si, offset DGROUP:_VMDS+124h
+        mov di, offset DGROUP:_VMDS+0d4h
+        add di, dx
+        mov cx, dx
+        shr cx, 1
+L1f058:
+        lodsw
+        dec di
+        dec di
+        mov word ptr [di], ax
+        loop L1f058
+        mov cx, dx
+        sub dx, 2
+        mov ax, dx
+        sub ax, word ptr DGROUP:d_44d0
+        mov word ptr DGROUP:d_44d0, ax
+        mov ax, dx
+        sub ax, word ptr DGROUP:d_44d2
+        mov word ptr DGROUP:d_44d2, ax
+L1f076:
+        mov ax, word ptr DGROUP:d_44d2
+        mov bx, ax
+        mov dx, word ptr [bx+3964h]
+        mov ax, word ptr DGROUP:d_44d0
+        mov si, ax
+        sub di, di
+        jmp short L1f091
+L1f088:
+        add si, 2
+        cmp si, cx
+        sbb ax, ax
+        and si, ax
+L1f091:
+        mov ax, word ptr [si+393ch]
+        mov word ptr [di+398ch], ax
+        mov ax, word ptr [si+3964h]
+        mov word ptr [di+39b4h], ax
+        add di, 2
+        cmp ax, dx
+        jl L1f088
+        mov ax, di
+        shr ax, 1
+        mov word ptr DGROUP:d_44d4, ax
+        mov ax, word ptr DGROUP:d_44d0
+        mov bx, ax
+        mov dx, word ptr [bx+3964h]
+        mov ax, word ptr DGROUP:d_44d2
+        mov si, ax
+        jmp short L1f0c8
+L1f0bf:
+        add si, 2
+        cmp si, cx
+        sbb ax, ax
+        and si, ax
+L1f0c8:
+        mov ax, word ptr [si+393ch]
+        mov word ptr [di+398ch], ax
+        mov ax, word ptr [si+3964h]
+        mov word ptr [di+39b4h], ax
+        add di, 2
+        cmp ax, dx
+        jg L1f0bf
+        mov ax, di
+        shr ax, 1
+        sub ax, word ptr DGROUP:d_44d4
+        mov word ptr DGROUP:d_44d6, ax
+        mov ax, word ptr DGROUP:_DG4342
+        mov es, ax
+        mov word ptr DGROUP:d_44dc, 2
+        mov word ptr DGROUP:d_44da, 0
+        mov ax, word ptr DGROUP:d_44d4
+        jmp short L1f103
+L1f100:
+        mov ax, word ptr DGROUP:d_44d8
+L1f103:
+        dec ax
+        je L1f17e
+        mov word ptr DGROUP:d_44d8, ax
+        mov ax, word ptr DGROUP:d_44da
+        mov si, ax
+        add ax, 2
+        mov word ptr DGROUP:d_44da, ax
+        mov ax, word ptr [si+398ch]
+        mov bx, ax
+        mov bp, word ptr [si+398eh]
+        mov cx, word ptr [si+39b4h]
+        mov si, word ptr [si+39b6h]
+        sub ax, bp
+        cwd
+        xor ax, dx
+        sub ax, dx
+        je L1f147
+        mov di, ax
+        mov ax, cx
+        sub ax, si
+        cwd
+        xor ax, dx
+        sub ax, dx
+        je L1f14c
+        cmp di, ax
+        jl L1f179
+        jg L1f168
+        call _poly_edge_diagonal
+        jmp short L1f100
+L1f147:
+        call _poly_edge_vertical
+        jmp short L1f100
+L1f14c:
+        cmp bx, bp
+        jl L1f152
+        xchg bx, bp
+L1f152:
+        mov di, cx
+        shl di, 1
+        shl di, 1
+        mov ax, word ptr DGROUP:d_44dc
+        add di, ax
+        or ax, ax
+        mov ax, bx
+        je L1f165
+        mov ax, bp
+L1f165:
+        stosw
+        jmp short L1f100
+L1f168:
+        cmp word ptr DGROUP:d_44dc, 0
+        jne L1f174
+        call _poly_edge_shallow_left
+        jmp short L1f100
+L1f174:
+        call _poly_edge_shallow_right
+        jmp short L1f100
+L1f179:
+        call _poly_edge_steep
+        jmp short L1f100
+L1f17e:
+        mov ax, word ptr DGROUP:d_44dc
+        or ax, ax
+        je L1f195
+        add word ptr DGROUP:d_44da, 2
+        sub ax, ax
+        mov word ptr DGROUP:d_44dc, ax
+        mov ax, word ptr DGROUP:d_44d6
+        jmp L1f103
+L1f195:
+        mov ax, word ptr DGROUP:d_44d0
+        mov bx, ax
+        mov ax, word ptr [bx+3964h]
+        mov dx, ax
+        shl ax, 1
+        shl ax, 1
+        mov si, ax
+        mov word ptr DGROUP:d_44e2, es
+        mov ax, word ptr DGROUP:d_44d2
+        mov bx, ax
+        mov ax, word ptr [bx+3964h]
+        sub ax, dx
+        inc ax
+        mov cx, es
+        dec cx
+        mov es, cx
+        add si, 0ch
+        mov word ptr es:[si], dx
+        mov word ptr es:[si+2], ax
+        call dword ptr DGROUP:_DG4342+70h
+        mov al, byte ptr DGROUP:_VMDS+0eh
+        cmp al, byte ptr DGROUP:_VMDS+0dh
+        je L1f1e0
+        mov ax, word ptr DGROUP:d_44e4
+        mov bp, ax
+        mov si, offset DGROUP:_VMDS+14ch
+        mov di, offset DGROUP:_VMDS+174h
+        call _poly_outline
+L1f1e0:
+        mov al, byte ptr DGROUP:d_44e9
+        or al, al
+        je L1f211
+        mov byte ptr DGROUP:d_44e9, 0
+        mov ax, ds
+        mov es, ax
+        mov cx, word ptr DGROUP:d_44e6
+        mov dx, cx
+        mov si, offset DGROUP:_VMDS+14ch
+        mov di, offset DGROUP:_VMDS+0fch
+        shr cx, 1
+        rep movsw
+        mov cx, dx
+        mov si, offset DGROUP:_VMDS+174h
+        mov di, offset DGROUP:_VMDS+124h
+        shr cx, 1
+        rep movsw
+        mov cx, dx
+        jmp L1f039
+L1f211:
+        mov ax, word ptr DGROUP:d_44e2
+        pop es
+        pop di
+        pop si
+        pop bp
+        retf
+_draw_polygon endp
+
+/* 0x1f219 */
+_poly_outline proc near
+        cmp byte ptr DGROUP:_VMDS+6e8h, 0
+        jne L1f237
+L1f220:
+        push word ptr [di]
+        lodsw
+        push ax
+        add di, 2
+        push word ptr [di]
+        push word ptr [si]
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+        dec bp
+        jne L1f220
+        ret
+L1f237:
+        shr word ptr DGROUP:_VMDS+8h, 1
+        shr word ptr DGROUP:_VMDS+0ah, 1
+L1f23f:
+        mov ax, word ptr [di]
+        add di, 2
+        sar ax, 1
+        push ax
+        lodsw
+        push ax
+        mov ax, word ptr [di]
+        sar ax, 1
+        push ax
+        mov ax, word ptr [si]
+        push ax
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+        dec bp
+        jne L1f23f
+        shl word ptr DGROUP:_VMDS+8h, 1
+        shl word ptr DGROUP:_VMDS+0ah, 1
+        ret
+_poly_outline endp
+
+/* 0x1f265 */
+_poly_edge_vertical proc near
+        cmp cx, si
+        jg L1f26b
+        xchg cx, si
+L1f26b:
+        mov di, si
+        sub cx, si
+        inc cx
+        mov byte ptr DGROUP:d_44e8, 2
+        mov ax, bp
+        sub bx, bx
+        mov si, bx
+        mov bp, bx
+        jmp _poly_walk
+c_1f280 db 0c3h
+_poly_edge_vertical endp
+
+/* 0x1f281 */
+_poly_edge_steep proc near
+        cmp bx, bp
+        jl L1f289
+        xchg bx, bp
+        xchg cx, si
+L1f289:
+        mov di, cx
+        shl di, 1
+        shl di, 1
+        mov ax, word ptr DGROUP:d_44dc
+        add di, ax
+        mov ax, cx
+        sub ax, si
+        cwd
+        xor ax, dx
+        sub ax, dx
+        mov cx, ax
+        mov ax, bp
+        sub ax, bx
+        mov si, ax
+        shl si, 1
+        mov bp, ax
+        mov ax, bx
+        mov bx, si
+        sub bx, cx
+        sub bp, cx
+        shl bp, 1
+        xor bp, si
+        inc cx
+        or dx, dx
+        je L1f32f
+L1f2ba:
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        stosw
+        inc di
+        inc di
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f32e
+        jmp short L1f2ba
+L1f32e:
+        ret
+L1f32f:
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        stosw
+        add di, -6
+        cmp bh, 80h
+        sbb dx, dx
+        sub ax, dx
+        and dx, bp
+        xor dx, si
+        add bx, dx
+        dec cx
+        je L1f3be
+        jmp L1f32f
+L1f3be:
+        ret
+_poly_edge_steep endp
+
+/* 0x1f3bf */
+_poly_edge_diagonal proc near
+        cmp cx, si
+        jl L1f3c7
+        xchg bx, bp
+        xchg cx, si
+L1f3c7:
+        mov di, cx
+        sub cx, si
+        neg cx
+        inc cx
+        mov si, 1
+        cmp bx, bp
+        jl L1f3d7
+        neg si
+L1f3d7:
+        mov ax, bx
+        sub bx, bx
+        mov bp, bx
+        mov byte ptr DGROUP:d_44e8, 2
+        jmp _poly_walk
+c_1f3e5 db 0c3h
+_poly_edge_diagonal endp
+
+/* 0x1f3e6 */
+_poly_edge_shallow_right proc near
+        cmp bx, bp
+        jg L1f3ee
+        xchg bx, bp
+        xchg cx, si
+L1f3ee:
+        mov di, cx
+        shl di, 1
+        inc di
+        shl di, 1
+        mov dx, 2
+        sub si, cx
+        jge L1f401
+        neg si
+        mov dx, 0fffah
+L1f401:
+        mov cx, si
+        sub bp, bx
+        jle L1f409
+        neg bp
+L1f409:
+        mov ax, bp
+        add bp, si
+        shl bp, 1
+        shl si, 1
+        add ax, si
+        xchg bx, ax
+        stosw
+        add di, dx
+        dec ax
+        or bx, bx
+        jl L1f41e
+        jmp short L1f44c
+L1f41e:
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        dec ax
+        add bx, si
+        jge L1f44c
+        jmp short L1f41e
+L1f448:
+        add bx, bp
+        jl L1f41e
+L1f44c:
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        je L1f4a0
+        add bx, bp
+        jl L1f41e
+        stosw
+        add di, dx
+        dec ax
+        dec cx
+        jne L1f448
+L1f4a0:
+        ret
+_poly_edge_shallow_right endp
+
+/* 0x1f4a1 */
+_poly_edge_shallow_left proc near
+        cmp bx, bp
+        jl L1f4a9
+        xchg bx, bp
+        xchg cx, si
+L1f4a9:
+        mov di, cx
+        shl di, 1
+        shl di, 1
+        mov dx, 2
+        sub si, cx
+        jge L1f4bb
+        neg si
+        mov dx, 0fffah
+L1f4bb:
+        mov cx, si
+        sub bp, bx
+        jle L1f4c3
+        neg bp
+L1f4c3:
+        mov ax, bp
+        add bp, si
+        shl bp, 1
+        shl si, 1
+        add ax, si
+        xchg bx, ax
+        stosw
+        add di, dx
+        inc ax
+        or bx, bx
+        jl L1f4d8
+        jmp short L1f506
+L1f4d8:
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        inc ax
+        add bx, si
+        jge L1f506
+        jmp short L1f4d8
+L1f502:
+        add bx, bp
+        jl L1f4d8
+L1f506:
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        je L1f55a
+        add bx, bp
+        jl L1f4d8
+        stosw
+        add di, dx
+        inc ax
+        dec cx
+        jne L1f502
+L1f55a:
+        ret
+c_1f55b db 0abh
+c_1f55c db 3h, 0f9h
+c_1f55e db 3h, 0ebh
+c_1f560 db 13h, 0c6h
+_poly_edge_shallow_left endp
+
+/* 0x1f562 */
+_poly_walk proc near
+        push ax
+        shl di, 1
+        shl di, 1
+        mov ax, word ptr DGROUP:d_44dc
+        add di, ax
+        mov dx, cx
+        xor ax, ax
+        add ax, dx
+        shl dx, 1
+        add ax, dx
+        shl dx, 1
+        add ax, dx
+        mov dx, 3e28h
+        sub dx, ax
+        mov al, byte ptr DGROUP:d_44e8
+        cbw
+        mov cx, ax
+        pop ax
+        jmp dx
+c_1f588 db 0abh
+c_1f589 db 3h, 0f9h
+c_1f58b db 3h, 0ebh
+c_1f58d db 13h, 0c6h
+c_1f58f db 0abh
+c_1f590 db 3h, 0f9h
+c_1f592 db 3h, 0ebh
+c_1f594 db 13h, 0c6h
+c_1f596 db 0abh
+c_1f597 db 3h, 0f9h
+c_1f599 db 3h, 0ebh
+c_1f59b db 13h, 0c6h
+c_1f59d db 0abh
+c_1f59e db 3h, 0f9h
+c_1f5a0 db 3h, 0ebh
+c_1f5a2 db 13h, 0c6h
+c_1f5a4 db 0abh
+c_1f5a5 db 3h, 0f9h
+c_1f5a7 db 3h, 0ebh
+c_1f5a9 db 13h, 0c6h
+c_1f5ab db 0abh
+c_1f5ac db 3h, 0f9h
+c_1f5ae db 3h, 0ebh
+c_1f5b0 db 13h, 0c6h
+c_1f5b2 db 0abh
+c_1f5b3 db 3h, 0f9h
+c_1f5b5 db 3h, 0ebh
+c_1f5b7 db 13h, 0c6h
+c_1f5b9 db 0abh
+c_1f5ba db 3h, 0f9h
+c_1f5bc db 3h, 0ebh
+c_1f5be db 13h, 0c6h
+c_1f5c0 db 0abh
+c_1f5c1 db 3h, 0f9h
+c_1f5c3 db 3h, 0ebh
+c_1f5c5 db 13h, 0c6h
+c_1f5c7 db 0abh
+c_1f5c8 db 3h, 0f9h
+c_1f5ca db 3h, 0ebh
+c_1f5cc db 13h, 0c6h
+c_1f5ce db 0abh
+c_1f5cf db 3h, 0f9h
+c_1f5d1 db 3h, 0ebh
+c_1f5d3 db 13h, 0c6h
+c_1f5d5 db 0abh
+c_1f5d6 db 3h, 0f9h
+c_1f5d8 db 3h, 0ebh
+c_1f5da db 13h, 0c6h
+c_1f5dc db 0abh
+c_1f5dd db 3h, 0f9h
+c_1f5df db 3h, 0ebh
+c_1f5e1 db 13h, 0c6h
+c_1f5e3 db 0abh
+c_1f5e4 db 3h, 0f9h
+c_1f5e6 db 3h, 0ebh
+c_1f5e8 db 13h, 0c6h
+c_1f5ea db 0abh
+c_1f5eb db 3h, 0f9h
+c_1f5ed db 3h, 0ebh
+c_1f5ef db 13h, 0c6h
+c_1f5f1 db 0abh
+c_1f5f2 db 3h, 0f9h
+c_1f5f4 db 3h, 0ebh
+c_1f5f6 db 13h, 0c6h
+c_1f5f8 db 0abh
+c_1f5f9 db 3h, 0f9h
+c_1f5fb db 3h, 0ebh
+c_1f5fd db 13h, 0c6h
+c_1f5ff db 0abh
+c_1f600 db 3h, 0f9h
+c_1f602 db 3h, 0ebh
+c_1f604 db 13h, 0c6h
+c_1f606 db 0abh
+c_1f607 db 3h, 0f9h
+c_1f609 db 3h, 0ebh
+c_1f60b db 13h, 0c6h
+c_1f60d db 0abh
+c_1f60e db 3h, 0f9h
+c_1f610 db 3h, 0ebh
+c_1f612 db 13h, 0c6h
+c_1f614 db 0abh
+c_1f615 db 3h, 0f9h
+c_1f617 db 3h, 0ebh
+c_1f619 db 13h, 0c6h
+c_1f61b db 0abh
+c_1f61c db 3h, 0f9h
+c_1f61e db 3h, 0ebh
+c_1f620 db 13h, 0c6h
+c_1f622 db 0abh
+c_1f623 db 3h, 0f9h
+c_1f625 db 3h, 0ebh
+c_1f627 db 13h, 0c6h
+c_1f629 db 0abh
+c_1f62a db 3h, 0f9h
+c_1f62c db 3h, 0ebh
+c_1f62e db 13h, 0c6h
+c_1f630 db 0abh
+c_1f631 db 3h, 0f9h
+c_1f633 db 3h, 0ebh
+c_1f635 db 13h, 0c6h
+c_1f637 db 0abh
+c_1f638 db 3h, 0f9h
+c_1f63a db 3h, 0ebh
+c_1f63c db 13h, 0c6h
+c_1f63e db 0abh
+c_1f63f db 3h, 0f9h
+c_1f641 db 3h, 0ebh
+c_1f643 db 13h, 0c6h
+c_1f645 db 0abh
+c_1f646 db 3h, 0f9h
+c_1f648 db 3h, 0ebh
+c_1f64a db 13h, 0c6h
+c_1f64c db 0abh
+c_1f64d db 3h, 0f9h
+c_1f64f db 3h, 0ebh
+c_1f651 db 13h, 0c6h
+c_1f653 db 0abh
+c_1f654 db 3h, 0f9h
+c_1f656 db 3h, 0ebh
+c_1f658 db 13h, 0c6h
+c_1f65a db 0abh
+c_1f65b db 3h, 0f9h
+c_1f65d db 3h, 0ebh
+c_1f65f db 13h, 0c6h
+c_1f661 db 0abh
+c_1f662 db 3h, 0f9h
+c_1f664 db 3h, 0ebh
+c_1f666 db 13h, 0c6h
+c_1f668 db 0abh
+c_1f669 db 3h, 0f9h
+c_1f66b db 3h, 0ebh
+c_1f66d db 13h, 0c6h
+c_1f66f db 0abh
+c_1f670 db 3h, 0f9h
+c_1f672 db 3h, 0ebh
+c_1f674 db 13h, 0c6h
+c_1f676 db 0abh
+c_1f677 db 3h, 0f9h
+c_1f679 db 3h, 0ebh
+c_1f67b db 13h, 0c6h
+c_1f67d db 0abh
+c_1f67e db 3h, 0f9h
+c_1f680 db 3h, 0ebh
+c_1f682 db 13h, 0c6h
+c_1f684 db 0abh
+c_1f685 db 3h, 0f9h
+c_1f687 db 3h, 0ebh
+c_1f689 db 13h, 0c6h
+c_1f68b db 0abh
+c_1f68c db 3h, 0f9h
+c_1f68e db 3h, 0ebh
+c_1f690 db 13h, 0c6h
+c_1f692 db 0abh
+c_1f693 db 3h, 0f9h
+c_1f695 db 3h, 0ebh
+c_1f697 db 13h, 0c6h
+c_1f699 db 0abh
+c_1f69a db 3h, 0f9h
+c_1f69c db 3h, 0ebh
+c_1f69e db 13h, 0c6h
+c_1f6a0 db 0abh
+c_1f6a1 db 3h, 0f9h
+c_1f6a3 db 3h, 0ebh
+c_1f6a5 db 13h, 0c6h
+c_1f6a7 db 0abh
+c_1f6a8 db 3h, 0f9h
+c_1f6aa db 3h, 0ebh
+c_1f6ac db 13h, 0c6h
+c_1f6ae db 0abh
+c_1f6af db 3h, 0f9h
+c_1f6b1 db 3h, 0ebh
+c_1f6b3 db 13h, 0c6h
+c_1f6b5 db 0abh
+c_1f6b6 db 3h, 0f9h
+c_1f6b8 db 3h, 0ebh
+c_1f6ba db 13h, 0c6h
+c_1f6bc db 0abh
+c_1f6bd db 3h, 0f9h
+c_1f6bf db 3h, 0ebh
+c_1f6c1 db 13h, 0c6h
+c_1f6c3 db 0abh
+c_1f6c4 db 3h, 0f9h
+c_1f6c6 db 3h, 0ebh
+c_1f6c8 db 13h, 0c6h
+c_1f6ca db 0abh
+c_1f6cb db 3h, 0f9h
+c_1f6cd db 3h, 0ebh
+c_1f6cf db 13h, 0c6h
+c_1f6d1 db 0abh
+c_1f6d2 db 3h, 0f9h
+c_1f6d4 db 3h, 0ebh
+c_1f6d6 db 13h, 0c6h
+c_1f6d8 db 0abh
+c_1f6d9 db 3h, 0f9h
+c_1f6db db 3h, 0ebh
+c_1f6dd db 13h, 0c6h
+c_1f6df db 0abh
+c_1f6e0 db 3h, 0f9h
+c_1f6e2 db 3h, 0ebh
+c_1f6e4 db 13h, 0c6h
+c_1f6e6 db 0abh
+c_1f6e7 db 3h, 0f9h
+c_1f6e9 db 3h, 0ebh
+c_1f6eb db 13h, 0c6h
+c_1f6ed db 0abh
+c_1f6ee db 3h, 0f9h
+c_1f6f0 db 3h, 0ebh
+c_1f6f2 db 13h, 0c6h
+c_1f6f4 db 0abh
+c_1f6f5 db 3h, 0f9h
+c_1f6f7 db 3h, 0ebh
+c_1f6f9 db 13h, 0c6h
+c_1f6fb db 0abh
+c_1f6fc db 3h, 0f9h
+c_1f6fe db 3h, 0ebh
+c_1f700 db 13h, 0c6h
+c_1f702 db 0abh
+c_1f703 db 3h, 0f9h
+c_1f705 db 3h, 0ebh
+c_1f707 db 13h, 0c6h
+c_1f709 db 0abh
+c_1f70a db 3h, 0f9h
+c_1f70c db 3h, 0ebh
+c_1f70e db 13h, 0c6h
+c_1f710 db 0abh
+c_1f711 db 3h, 0f9h
+c_1f713 db 3h, 0ebh
+c_1f715 db 13h, 0c6h
+c_1f717 db 0abh
+c_1f718 db 3h, 0f9h
+c_1f71a db 3h, 0ebh
+c_1f71c db 13h, 0c6h
+c_1f71e db 0abh
+c_1f71f db 3h, 0f9h
+c_1f721 db 3h, 0ebh
+c_1f723 db 13h, 0c6h
+c_1f725 db 0abh
+c_1f726 db 3h, 0f9h
+c_1f728 db 3h, 0ebh
+c_1f72a db 13h, 0c6h
+c_1f72c db 0abh
+c_1f72d db 3h, 0f9h
+c_1f72f db 3h, 0ebh
+c_1f731 db 13h, 0c6h
+c_1f733 db 0abh
+c_1f734 db 3h, 0f9h
+c_1f736 db 3h, 0ebh
+c_1f738 db 13h, 0c6h
+c_1f73a db 0abh
+c_1f73b db 3h, 0f9h
+c_1f73d db 3h, 0ebh
+c_1f73f db 13h, 0c6h
+c_1f741 db 0abh
+c_1f742 db 3h, 0f9h
+c_1f744 db 3h, 0ebh
+c_1f746 db 13h, 0c6h
+c_1f748 db 0abh
+c_1f749 db 3h, 0f9h
+c_1f74b db 3h, 0ebh
+c_1f74d db 13h, 0c6h
+c_1f74f db 0abh
+c_1f750 db 3h, 0f9h
+c_1f752 db 3h, 0ebh
+c_1f754 db 13h, 0c6h
+c_1f756 db 0abh
+c_1f757 db 3h, 0f9h
+c_1f759 db 3h, 0ebh
+c_1f75b db 13h, 0c6h
+c_1f75d db 0abh
+c_1f75e db 3h, 0f9h
+c_1f760 db 3h, 0ebh
+c_1f762 db 13h, 0c6h
+c_1f764 db 0abh
+c_1f765 db 3h, 0f9h
+c_1f767 db 3h, 0ebh
+c_1f769 db 13h, 0c6h
+c_1f76b db 0abh
+c_1f76c db 3h, 0f9h
+c_1f76e db 3h, 0ebh
+c_1f770 db 13h, 0c6h
+c_1f772 db 0abh
+c_1f773 db 3h, 0f9h
+c_1f775 db 3h, 0ebh
+c_1f777 db 13h, 0c6h
+c_1f779 db 0abh
+c_1f77a db 3h, 0f9h
+c_1f77c db 3h, 0ebh
+c_1f77e db 13h, 0c6h
+c_1f780 db 0abh
+c_1f781 db 3h, 0f9h
+c_1f783 db 3h, 0ebh
+c_1f785 db 13h, 0c6h
+c_1f787 db 0abh
+c_1f788 db 3h, 0f9h
+c_1f78a db 3h, 0ebh
+c_1f78c db 13h, 0c6h
+c_1f78e db 0abh
+c_1f78f db 3h, 0f9h
+c_1f791 db 3h, 0ebh
+c_1f793 db 13h, 0c6h
+c_1f795 db 0abh
+c_1f796 db 3h, 0f9h
+c_1f798 db 3h, 0ebh
+c_1f79a db 13h, 0c6h
+c_1f79c db 0abh
+c_1f79d db 3h, 0f9h
+c_1f79f db 3h, 0ebh
+c_1f7a1 db 13h, 0c6h
+c_1f7a3 db 0abh
+c_1f7a4 db 3h, 0f9h
+c_1f7a6 db 3h, 0ebh
+c_1f7a8 db 13h, 0c6h
+c_1f7aa db 0abh
+c_1f7ab db 3h, 0f9h
+c_1f7ad db 3h, 0ebh
+c_1f7af db 13h, 0c6h
+c_1f7b1 db 0abh
+c_1f7b2 db 3h, 0f9h
+c_1f7b4 db 3h, 0ebh
+c_1f7b6 db 13h, 0c6h
+c_1f7b8 db 0abh
+c_1f7b9 db 3h, 0f9h
+c_1f7bb db 3h, 0ebh
+c_1f7bd db 13h, 0c6h
+c_1f7bf db 0abh
+c_1f7c0 db 3h, 0f9h
+c_1f7c2 db 3h, 0ebh
+c_1f7c4 db 13h, 0c6h
+c_1f7c6 db 0abh
+c_1f7c7 db 3h, 0f9h
+c_1f7c9 db 3h, 0ebh
+c_1f7cb db 13h, 0c6h
+c_1f7cd db 0abh
+c_1f7ce db 3h, 0f9h
+c_1f7d0 db 3h, 0ebh
+c_1f7d2 db 13h, 0c6h
+c_1f7d4 db 0abh
+c_1f7d5 db 3h, 0f9h
+c_1f7d7 db 3h, 0ebh
+c_1f7d9 db 13h, 0c6h
+c_1f7db db 0abh
+c_1f7dc db 3h, 0f9h
+c_1f7de db 3h, 0ebh
+c_1f7e0 db 13h, 0c6h
+c_1f7e2 db 0abh
+c_1f7e3 db 3h, 0f9h
+c_1f7e5 db 3h, 0ebh
+c_1f7e7 db 13h, 0c6h
+c_1f7e9 db 0abh
+c_1f7ea db 3h, 0f9h
+c_1f7ec db 3h, 0ebh
+c_1f7ee db 13h, 0c6h
+c_1f7f0 db 0abh
+c_1f7f1 db 3h, 0f9h
+c_1f7f3 db 3h, 0ebh
+c_1f7f5 db 13h, 0c6h
+c_1f7f7 db 0abh
+c_1f7f8 db 3h, 0f9h
+c_1f7fa db 3h, 0ebh
+c_1f7fc db 13h, 0c6h
+c_1f7fe db 0abh
+c_1f7ff db 3h, 0f9h
+c_1f801 db 3h, 0ebh
+c_1f803 db 13h, 0c6h
+c_1f805 db 0abh
+c_1f806 db 3h, 0f9h
+c_1f808 db 3h, 0ebh
+c_1f80a db 13h, 0c6h
+c_1f80c db 0abh
+c_1f80d db 3h, 0f9h
+c_1f80f db 3h, 0ebh
+c_1f811 db 13h, 0c6h
+c_1f813 db 0abh
+c_1f814 db 3h, 0f9h
+c_1f816 db 3h, 0ebh
+c_1f818 db 13h, 0c6h
+c_1f81a db 0abh
+c_1f81b db 3h, 0f9h
+c_1f81d db 3h, 0ebh
+c_1f81f db 13h, 0c6h
+c_1f821 db 0abh
+c_1f822 db 3h, 0f9h
+c_1f824 db 3h, 0ebh
+c_1f826 db 13h, 0c6h
+c_1f828 db 0abh
+c_1f829 db 3h, 0f9h
+c_1f82b db 3h, 0ebh
+c_1f82d db 13h, 0c6h
+c_1f82f db 0abh
+c_1f830 db 3h, 0f9h
+c_1f832 db 3h, 0ebh
+c_1f834 db 13h, 0c6h
+c_1f836 db 0abh
+c_1f837 db 3h, 0f9h
+c_1f839 db 3h, 0ebh
+c_1f83b db 13h, 0c6h
+c_1f83d db 0abh
+c_1f83e db 3h, 0f9h
+c_1f840 db 3h, 0ebh
+c_1f842 db 13h, 0c6h
+c_1f844 db 0abh
+c_1f845 db 3h, 0f9h
+c_1f847 db 3h, 0ebh
+c_1f849 db 13h, 0c6h
+c_1f84b db 0abh
+c_1f84c db 3h, 0f9h
+c_1f84e db 3h, 0ebh
+c_1f850 db 13h, 0c6h
+c_1f852 db 0abh
+c_1f853 db 3h, 0f9h
+c_1f855 db 3h, 0ebh
+c_1f857 db 13h, 0c6h
+c_1f859 db 0abh
+c_1f85a db 3h, 0f9h
+c_1f85c db 3h, 0ebh
+c_1f85e db 13h, 0c6h
+c_1f860 db 0abh
+c_1f861 db 3h, 0f9h
+c_1f863 db 3h, 0ebh
+c_1f865 db 13h, 0c6h
+c_1f867 db 0abh
+c_1f868 db 3h, 0f9h
+c_1f86a db 3h, 0ebh
+c_1f86c db 13h, 0c6h
+c_1f86e db 0abh
+c_1f86f db 3h, 0f9h
+c_1f871 db 3h, 0ebh
+c_1f873 db 13h, 0c6h
+c_1f875 db 0abh
+c_1f876 db 3h, 0f9h
+c_1f878 db 3h, 0ebh
+c_1f87a db 13h, 0c6h
+c_1f87c db 0abh
+c_1f87d db 3h, 0f9h
+c_1f87f db 3h, 0ebh
+c_1f881 db 13h, 0c6h
+c_1f883 db 0abh
+c_1f884 db 3h, 0f9h
+c_1f886 db 3h, 0ebh
+c_1f888 db 13h, 0c6h
+c_1f88a db 0abh
+c_1f88b db 3h, 0f9h
+c_1f88d db 3h, 0ebh
+c_1f88f db 13h, 0c6h
+c_1f891 db 0abh
+c_1f892 db 3h, 0f9h
+c_1f894 db 3h, 0ebh
+c_1f896 db 13h, 0c6h
+c_1f898 db 0abh
+c_1f899 db 3h, 0f9h
+c_1f89b db 3h, 0ebh
+c_1f89d db 13h, 0c6h
+c_1f89f db 0abh
+c_1f8a0 db 3h, 0f9h
+c_1f8a2 db 3h, 0ebh
+c_1f8a4 db 13h, 0c6h
+c_1f8a6 db 0abh
+c_1f8a7 db 3h, 0f9h
+c_1f8a9 db 3h, 0ebh
+c_1f8ab db 13h, 0c6h
+c_1f8ad db 0abh
+c_1f8ae db 3h, 0f9h
+c_1f8b0 db 3h, 0ebh
+c_1f8b2 db 13h, 0c6h
+c_1f8b4 db 0abh
+c_1f8b5 db 3h, 0f9h
+c_1f8b7 db 3h, 0ebh
+c_1f8b9 db 13h, 0c6h
+c_1f8bb db 0abh
+c_1f8bc db 3h, 0f9h
+c_1f8be db 3h, 0ebh
+c_1f8c0 db 13h, 0c6h
+c_1f8c2 db 0abh
+c_1f8c3 db 3h, 0f9h
+c_1f8c5 db 3h, 0ebh
+c_1f8c7 db 13h, 0c6h
+c_1f8c9 db 0abh
+c_1f8ca db 3h, 0f9h
+c_1f8cc db 3h, 0ebh
+c_1f8ce db 13h, 0c6h
+c_1f8d0 db 0abh
+c_1f8d1 db 3h, 0f9h
+c_1f8d3 db 3h, 0ebh
+c_1f8d5 db 13h, 0c6h
+c_1f8d7 db 0abh
+c_1f8d8 db 3h, 0f9h
+c_1f8da db 3h, 0ebh
+c_1f8dc db 13h, 0c6h
+c_1f8de db 0abh
+c_1f8df db 3h, 0f9h
+c_1f8e1 db 3h, 0ebh
+c_1f8e3 db 13h, 0c6h
+c_1f8e5 db 0abh
+c_1f8e6 db 3h, 0f9h
+c_1f8e8 db 3h, 0ebh
+c_1f8ea db 13h, 0c6h
+c_1f8ec db 0abh
+c_1f8ed db 3h, 0f9h
+c_1f8ef db 3h, 0ebh
+c_1f8f1 db 13h, 0c6h
+c_1f8f3 db 0abh
+c_1f8f4 db 3h, 0f9h
+c_1f8f6 db 3h, 0ebh
+c_1f8f8 db 13h, 0c6h
+c_1f8fa db 0abh
+c_1f8fb db 3h, 0f9h
+c_1f8fd db 3h, 0ebh
+c_1f8ff db 13h, 0c6h
+c_1f901 db 0abh
+c_1f902 db 3h, 0f9h
+c_1f904 db 3h, 0ebh
+c_1f906 db 13h, 0c6h
+c_1f908 db 0abh
+c_1f909 db 3h, 0f9h
+c_1f90b db 3h, 0ebh
+c_1f90d db 13h, 0c6h
+c_1f90f db 0abh
+c_1f910 db 3h, 0f9h
+c_1f912 db 3h, 0ebh
+c_1f914 db 13h, 0c6h
+c_1f916 db 0abh
+c_1f917 db 3h, 0f9h
+c_1f919 db 3h, 0ebh
+c_1f91b db 13h, 0c6h
+c_1f91d db 0abh
+c_1f91e db 3h, 0f9h
+c_1f920 db 3h, 0ebh
+c_1f922 db 13h, 0c6h
+c_1f924 db 0abh
+c_1f925 db 3h, 0f9h
+c_1f927 db 3h, 0ebh
+c_1f929 db 13h, 0c6h
+c_1f92b db 0abh
+c_1f92c db 3h, 0f9h
+c_1f92e db 3h, 0ebh
+c_1f930 db 13h, 0c6h
+c_1f932 db 0abh
+c_1f933 db 3h, 0f9h
+c_1f935 db 3h, 0ebh
+c_1f937 db 13h, 0c6h
+c_1f939 db 0abh
+c_1f93a db 3h, 0f9h
+c_1f93c db 3h, 0ebh
+c_1f93e db 13h, 0c6h
+c_1f940 db 0abh
+c_1f941 db 3h, 0f9h
+c_1f943 db 3h, 0ebh
+c_1f945 db 13h, 0c6h
+c_1f947 db 0abh
+c_1f948 db 3h, 0f9h
+c_1f94a db 3h, 0ebh
+c_1f94c db 13h, 0c6h
+c_1f94e db 0abh
+c_1f94f db 3h, 0f9h
+c_1f951 db 3h, 0ebh
+c_1f953 db 13h, 0c6h
+c_1f955 db 0abh
+c_1f956 db 3h, 0f9h
+c_1f958 db 3h, 0ebh
+c_1f95a db 13h, 0c6h
+c_1f95c db 0abh
+c_1f95d db 3h, 0f9h
+c_1f95f db 3h, 0ebh
+c_1f961 db 13h, 0c6h
+c_1f963 db 0abh
+c_1f964 db 3h, 0f9h
+c_1f966 db 3h, 0ebh
+c_1f968 db 13h, 0c6h
+c_1f96a db 0abh
+c_1f96b db 3h, 0f9h
+c_1f96d db 3h, 0ebh
+c_1f96f db 13h, 0c6h
+c_1f971 db 0abh
+c_1f972 db 3h, 0f9h
+c_1f974 db 3h, 0ebh
+c_1f976 db 13h, 0c6h
+c_1f978 db 0abh
+c_1f979 db 3h, 0f9h
+c_1f97b db 3h, 0ebh
+c_1f97d db 13h, 0c6h
+c_1f97f db 0abh
+c_1f980 db 3h, 0f9h
+c_1f982 db 3h, 0ebh
+c_1f984 db 13h, 0c6h
+c_1f986 db 0abh
+c_1f987 db 3h, 0f9h
+c_1f989 db 3h, 0ebh
+c_1f98b db 13h, 0c6h
+c_1f98d db 0abh
+c_1f98e db 3h, 0f9h
+c_1f990 db 3h, 0ebh
+c_1f992 db 13h, 0c6h
+c_1f994 db 0abh
+c_1f995 db 3h, 0f9h
+c_1f997 db 3h, 0ebh
+c_1f999 db 13h, 0c6h
+c_1f99b db 0abh
+c_1f99c db 3h, 0f9h
+c_1f99e db 3h, 0ebh
+c_1f9a0 db 13h, 0c6h
+c_1f9a2 db 0abh
+c_1f9a3 db 3h, 0f9h
+c_1f9a5 db 3h, 0ebh
+c_1f9a7 db 13h, 0c6h
+c_1f9a9 db 0abh
+c_1f9aa db 3h, 0f9h
+c_1f9ac db 3h, 0ebh
+c_1f9ae db 13h, 0c6h
+c_1f9b0 db 0abh
+c_1f9b1 db 3h, 0f9h
+c_1f9b3 db 3h, 0ebh
+c_1f9b5 db 13h, 0c6h
+c_1f9b7 db 0abh
+c_1f9b8 db 3h, 0f9h
+c_1f9ba db 3h, 0ebh
+c_1f9bc db 13h, 0c6h
+c_1f9be db 0abh
+c_1f9bf db 3h, 0f9h
+c_1f9c1 db 3h, 0ebh
+c_1f9c3 db 13h, 0c6h
+c_1f9c5 db 0abh
+c_1f9c6 db 3h, 0f9h
+c_1f9c8 db 3h, 0ebh
+c_1f9ca db 13h, 0c6h
+c_1f9cc db 0abh
+c_1f9cd db 3h, 0f9h
+c_1f9cf db 3h, 0ebh
+c_1f9d1 db 13h, 0c6h
+c_1f9d3 db 0abh
+c_1f9d4 db 3h, 0f9h
+c_1f9d6 db 3h, 0ebh
+c_1f9d8 db 13h, 0c6h
+c_1f9da db 0abh
+c_1f9db db 3h, 0f9h
+c_1f9dd db 3h, 0ebh
+c_1f9df db 13h, 0c6h
+c_1f9e1 db 0abh
+c_1f9e2 db 3h, 0f9h
+c_1f9e4 db 3h, 0ebh
+c_1f9e6 db 13h, 0c6h
+c_1f9e8 db 0abh
+c_1f9e9 db 3h, 0f9h
+c_1f9eb db 3h, 0ebh
+c_1f9ed db 13h, 0c6h
+c_1f9ef db 0abh
+c_1f9f0 db 3h, 0f9h
+c_1f9f2 db 3h, 0ebh
+c_1f9f4 db 13h, 0c6h
+c_1f9f6 db 0abh
+c_1f9f7 db 3h, 0f9h
+c_1f9f9 db 3h, 0ebh
+c_1f9fb db 13h, 0c6h
+c_1f9fd db 0abh
+c_1f9fe db 3h, 0f9h
+c_1fa00 db 3h, 0ebh
+c_1fa02 db 13h, 0c6h
+c_1fa04 db 0abh
+c_1fa05 db 3h, 0f9h
+c_1fa07 db 3h, 0ebh
+c_1fa09 db 13h, 0c6h
+c_1fa0b db 0abh
+c_1fa0c db 3h, 0f9h
+c_1fa0e db 3h, 0ebh
+c_1fa10 db 13h, 0c6h
+c_1fa12 db 0abh
+c_1fa13 db 3h, 0f9h
+c_1fa15 db 3h, 0ebh
+c_1fa17 db 13h, 0c6h
+c_1fa19 db 0abh
+c_1fa1a db 3h, 0f9h
+c_1fa1c db 3h, 0ebh
+c_1fa1e db 13h, 0c6h
+c_1fa20 db 0abh
+c_1fa21 db 3h, 0f9h
+c_1fa23 db 3h, 0ebh
+c_1fa25 db 13h, 0c6h
+c_1fa27 db 0abh
+c_1fa28 db 3h, 0f9h
+c_1fa2a db 3h, 0ebh
+c_1fa2c db 13h, 0c6h
+c_1fa2e db 0abh
+c_1fa2f db 3h, 0f9h
+c_1fa31 db 3h, 0ebh
+c_1fa33 db 13h, 0c6h
+c_1fa35 db 0abh
+c_1fa36 db 3h, 0f9h
+c_1fa38 db 3h, 0ebh
+c_1fa3a db 13h, 0c6h
+c_1fa3c db 0abh
+c_1fa3d db 3h, 0f9h
+c_1fa3f db 3h, 0ebh
+c_1fa41 db 13h, 0c6h
+c_1fa43 db 0abh
+c_1fa44 db 3h, 0f9h
+c_1fa46 db 3h, 0ebh
+c_1fa48 db 13h, 0c6h
+c_1fa4a db 0abh
+c_1fa4b db 3h, 0f9h
+c_1fa4d db 3h, 0ebh
+c_1fa4f db 13h, 0c6h
+c_1fa51 db 0abh
+c_1fa52 db 3h, 0f9h
+c_1fa54 db 3h, 0ebh
+c_1fa56 db 13h, 0c6h
+c_1fa58 db 0abh
+c_1fa59 db 3h, 0f9h
+c_1fa5b db 3h, 0ebh
+c_1fa5d db 13h, 0c6h
+c_1fa5f db 0abh
+c_1fa60 db 3h, 0f9h
+c_1fa62 db 3h, 0ebh
+c_1fa64 db 13h, 0c6h
+c_1fa66 db 0abh
+c_1fa67 db 3h, 0f9h
+c_1fa69 db 3h, 0ebh
+c_1fa6b db 13h, 0c6h
+c_1fa6d db 0abh
+c_1fa6e db 3h, 0f9h
+c_1fa70 db 3h, 0ebh
+c_1fa72 db 13h, 0c6h
+c_1fa74 db 0abh
+c_1fa75 db 3h, 0f9h
+c_1fa77 db 3h, 0ebh
+c_1fa79 db 13h, 0c6h
+c_1fa7b db 0abh
+c_1fa7c db 3h, 0f9h
+c_1fa7e db 3h, 0ebh
+c_1fa80 db 13h, 0c6h
+c_1fa82 db 0abh
+c_1fa83 db 3h, 0f9h
+c_1fa85 db 3h, 0ebh
+c_1fa87 db 13h, 0c6h
+c_1fa89 db 0abh
+c_1fa8a db 3h, 0f9h
+c_1fa8c db 3h, 0ebh
+c_1fa8e db 13h, 0c6h
+c_1fa90 db 0abh
+c_1fa91 db 3h, 0f9h
+c_1fa93 db 3h, 0ebh
+c_1fa95 db 13h, 0c6h
+c_1fa97 db 0abh
+c_1fa98 db 3h, 0f9h
+c_1fa9a db 3h, 0ebh
+c_1fa9c db 13h, 0c6h
+c_1fa9e db 0abh
+c_1fa9f db 3h, 0f9h
+c_1faa1 db 3h, 0ebh
+c_1faa3 db 13h, 0c6h
+c_1faa5 db 0abh
+c_1faa6 db 3h, 0f9h
+c_1faa8 db 3h, 0ebh
+c_1faaa db 13h, 0c6h
+c_1faac db 0abh
+c_1faad db 3h, 0f9h
+c_1faaf db 3h, 0ebh
+c_1fab1 db 13h, 0c6h
+c_1fab3 db 0abh
+c_1fab4 db 3h, 0f9h
+c_1fab6 db 3h, 0ebh
+c_1fab8 db 13h, 0c6h
+c_1faba db 0abh
+c_1fabb db 3h, 0f9h
+c_1fabd db 3h, 0ebh
+c_1fabf db 13h, 0c6h
+c_1fac1 db 0abh
+c_1fac2 db 3h, 0f9h
+c_1fac4 db 3h, 0ebh
+c_1fac6 db 13h, 0c6h
+c_1fac8 db 0abh
+c_1fac9 db 3h, 0f9h
+c_1facb db 3h, 0ebh
+c_1facd db 13h, 0c6h
+c_1facf db 0abh
+c_1fad0 db 3h, 0f9h
+c_1fad2 db 3h, 0ebh
+c_1fad4 db 13h, 0c6h
+c_1fad6 db 0abh
+c_1fad7 db 3h, 0f9h
+c_1fad9 db 3h, 0ebh
+c_1fadb db 13h, 0c6h
+c_1fadd db 0abh
+c_1fade db 3h, 0f9h
+c_1fae0 db 3h, 0ebh
+c_1fae2 db 13h, 0c6h
+c_1fae4 db 0abh
+c_1fae5 db 3h, 0f9h
+c_1fae7 db 3h, 0ebh
+c_1fae9 db 13h, 0c6h
+c_1faeb db 0abh
+c_1faec db 3h, 0f9h
+c_1faee db 3h, 0ebh
+c_1faf0 db 13h, 0c6h
+c_1faf2 db 0abh
+c_1faf3 db 3h, 0f9h
+c_1faf5 db 3h, 0ebh
+c_1faf7 db 13h, 0c6h
+c_1faf9 db 0abh
+c_1fafa db 3h, 0f9h
+c_1fafc db 3h, 0ebh
+c_1fafe db 13h, 0c6h
+c_1fb00 db 0abh
+c_1fb01 db 3h, 0f9h
+c_1fb03 db 3h, 0ebh
+c_1fb05 db 13h, 0c6h
+c_1fb07 db 0abh
+c_1fb08 db 3h, 0f9h
+c_1fb0a db 3h, 0ebh
+c_1fb0c db 13h, 0c6h
+c_1fb0e db 0abh
+c_1fb0f db 3h, 0f9h
+c_1fb11 db 3h, 0ebh
+c_1fb13 db 13h, 0c6h
+c_1fb15 db 0abh
+c_1fb16 db 3h, 0f9h
+c_1fb18 db 3h, 0ebh
+c_1fb1a db 13h, 0c6h
+c_1fb1c db 0abh
+c_1fb1d db 3h, 0f9h
+c_1fb1f db 3h, 0ebh
+c_1fb21 db 13h, 0c6h
+c_1fb23 db 0abh
+c_1fb24 db 3h, 0f9h
+c_1fb26 db 3h, 0ebh
+c_1fb28 db 13h, 0c6h
+c_1fb2a db 0abh
+c_1fb2b db 3h, 0f9h
+c_1fb2d db 3h, 0ebh
+c_1fb2f db 13h, 0c6h
+c_1fb31 db 0abh
+c_1fb32 db 3h, 0f9h
+c_1fb34 db 3h, 0ebh
+c_1fb36 db 13h, 0c6h
+c_1fb38 db 0abh
+c_1fb39 db 3h, 0f9h
+c_1fb3b db 3h, 0ebh
+c_1fb3d db 13h, 0c6h
+c_1fb3f db 0abh
+c_1fb40 db 3h, 0f9h
+c_1fb42 db 3h, 0ebh
+c_1fb44 db 13h, 0c6h
+c_1fb46 db 0abh
+c_1fb47 db 3h, 0f9h
+c_1fb49 db 3h, 0ebh
+c_1fb4b db 13h, 0c6h
+c_1fb4d db 0abh
+c_1fb4e db 3h, 0f9h
+c_1fb50 db 3h, 0ebh
+c_1fb52 db 13h, 0c6h
+c_1fb54 db 0abh
+c_1fb55 db 3h, 0f9h
+c_1fb57 db 3h, 0ebh
+c_1fb59 db 13h, 0c6h
+c_1fb5b db 0abh
+c_1fb5c db 3h, 0f9h
+c_1fb5e db 3h, 0ebh
+c_1fb60 db 13h, 0c6h
+c_1fb62 db 0abh
+c_1fb63 db 3h, 0f9h
+c_1fb65 db 3h, 0ebh
+c_1fb67 db 13h, 0c6h
+c_1fb69 db 0abh
+c_1fb6a db 3h, 0f9h
+c_1fb6c db 3h, 0ebh
+c_1fb6e db 13h, 0c6h
+c_1fb70 db 0abh
+c_1fb71 db 3h, 0f9h
+c_1fb73 db 3h, 0ebh
+c_1fb75 db 13h, 0c6h
+c_1fb77 db 0abh
+c_1fb78 db 3h, 0f9h
+c_1fb7a db 3h, 0ebh
+c_1fb7c db 13h, 0c6h
+c_1fb7e db 0abh
+c_1fb7f db 3h, 0f9h
+c_1fb81 db 3h, 0ebh
+c_1fb83 db 13h, 0c6h
+c_1fb85 db 0abh
+c_1fb86 db 3h, 0f9h
+c_1fb88 db 3h, 0ebh
+c_1fb8a db 13h, 0c6h
+c_1fb8c db 0abh
+c_1fb8d db 3h, 0f9h
+c_1fb8f db 3h, 0ebh
+c_1fb91 db 13h, 0c6h
+c_1fb93 db 0abh
+c_1fb94 db 3h, 0f9h
+c_1fb96 db 3h, 0ebh
+c_1fb98 db 13h, 0c6h
+c_1fb9a db 0abh
+c_1fb9b db 3h, 0f9h
+c_1fb9d db 3h, 0ebh
+c_1fb9f db 13h, 0c6h
+c_1fba1 db 0abh
+c_1fba2 db 3h, 0f9h
+c_1fba4 db 3h, 0ebh
+c_1fba6 db 13h, 0c6h
+c_1fba8 db 0abh
+c_1fba9 db 3h, 0f9h
+c_1fbab db 3h, 0ebh
+c_1fbad db 13h, 0c6h
+c_1fbaf db 0abh
+c_1fbb0 db 3h, 0f9h
+c_1fbb2 db 3h, 0ebh
+c_1fbb4 db 13h, 0c6h
+c_1fbb6 db 0abh
+c_1fbb7 db 3h, 0f9h
+c_1fbb9 db 3h, 0ebh
+c_1fbbb db 13h, 0c6h
+c_1fbbd db 0abh
+c_1fbbe db 3h, 0f9h
+c_1fbc0 db 3h, 0ebh
+c_1fbc2 db 13h, 0c6h
+c_1fbc4 db 0abh
+c_1fbc5 db 3h, 0f9h
+c_1fbc7 db 3h, 0ebh
+c_1fbc9 db 13h, 0c6h
+c_1fbcb db 0abh
+c_1fbcc db 3h, 0f9h
+c_1fbce db 3h, 0ebh
+c_1fbd0 db 13h, 0c6h
+c_1fbd2 db 0abh
+c_1fbd3 db 3h, 0f9h
+c_1fbd5 db 3h, 0ebh
+c_1fbd7 db 13h, 0c6h
+c_1fbd9 db 0abh
+c_1fbda db 3h, 0f9h
+c_1fbdc db 3h, 0ebh
+c_1fbde db 13h, 0c6h
+c_1fbe0 db 0abh
+c_1fbe1 db 3h, 0f9h
+c_1fbe3 db 3h, 0ebh
+c_1fbe5 db 13h, 0c6h
+c_1fbe7 db 0abh
+c_1fbe8 db 3h, 0f9h
+c_1fbea db 3h, 0ebh
+c_1fbec db 13h, 0c6h
+c_1fbee db 0abh
+c_1fbef db 3h, 0f9h
+c_1fbf1 db 3h, 0ebh
+c_1fbf3 db 13h, 0c6h
+c_1fbf5 db 0abh
+c_1fbf6 db 3h, 0f9h
+c_1fbf8 db 3h, 0ebh
+c_1fbfa db 13h, 0c6h
+c_1fbfc db 0abh
+c_1fbfd db 3h, 0f9h
+c_1fbff db 3h, 0ebh
+c_1fc01 db 13h, 0c6h
+c_1fc03 db 0abh
+c_1fc04 db 3h, 0f9h
+c_1fc06 db 3h, 0ebh
+c_1fc08 db 13h, 0c6h
+c_1fc0a db 0abh
+c_1fc0b db 3h, 0f9h
+c_1fc0d db 3h, 0ebh
+c_1fc0f db 13h, 0c6h
+c_1fc11 db 0abh
+c_1fc12 db 3h, 0f9h
+c_1fc14 db 3h, 0ebh
+c_1fc16 db 13h, 0c6h
+c_1fc18 db 0abh
+c_1fc19 db 3h, 0f9h
+c_1fc1b db 3h, 0ebh
+c_1fc1d db 13h, 0c6h
+c_1fc1f db 0abh
+c_1fc20 db 3h, 0f9h
+c_1fc22 db 3h, 0ebh
+c_1fc24 db 13h, 0c6h
+c_1fc26 db 0abh
+c_1fc27 db 3h, 0f9h
+c_1fc29 db 3h, 0ebh
+c_1fc2b db 13h, 0c6h
+c_1fc2d db 0abh
+c_1fc2e db 3h, 0f9h
+c_1fc30 db 3h, 0ebh
+c_1fc32 db 13h, 0c6h
+c_1fc34 db 0abh
+c_1fc35 db 3h, 0f9h
+c_1fc37 db 3h, 0ebh
+c_1fc39 db 13h, 0c6h
+c_1fc3b db 0abh
+c_1fc3c db 3h, 0f9h
+c_1fc3e db 3h, 0ebh
+c_1fc40 db 13h, 0c6h
+c_1fc42 db 0abh
+c_1fc43 db 3h, 0f9h
+c_1fc45 db 3h, 0ebh
+c_1fc47 db 13h, 0c6h
+c_1fc49 db 0abh
+c_1fc4a db 3h, 0f9h
+c_1fc4c db 3h, 0ebh
+c_1fc4e db 13h, 0c6h
+c_1fc50 db 0abh
+c_1fc51 db 3h, 0f9h
+c_1fc53 db 3h, 0ebh
+c_1fc55 db 13h, 0c6h
+c_1fc57 db 0abh
+c_1fc58 db 3h, 0f9h
+c_1fc5a db 3h, 0ebh
+c_1fc5c db 13h, 0c6h
+c_1fc5e db 0abh
+c_1fc5f db 3h, 0f9h
+c_1fc61 db 3h, 0ebh
+c_1fc63 db 13h, 0c6h
+c_1fc65 db 0abh
+c_1fc66 db 3h, 0f9h
+c_1fc68 db 3h, 0ebh
+c_1fc6a db 13h, 0c6h
+c_1fc6c db 0abh
+c_1fc6d db 3h, 0f9h
+c_1fc6f db 3h, 0ebh
+c_1fc71 db 13h, 0c6h
+c_1fc73 db 0abh
+c_1fc74 db 3h, 0f9h
+c_1fc76 db 3h, 0ebh
+c_1fc78 db 13h, 0c6h
+c_1fc7a db 0abh
+c_1fc7b db 3h, 0f9h
+c_1fc7d db 3h, 0ebh
+c_1fc7f db 13h, 0c6h
+c_1fc81 db 0abh
+c_1fc82 db 3h, 0f9h
+c_1fc84 db 3h, 0ebh
+c_1fc86 db 13h, 0c6h
+c_1fc88 db 0abh
+c_1fc89 db 3h, 0f9h
+c_1fc8b db 3h, 0ebh
+c_1fc8d db 13h, 0c6h
+c_1fc8f db 0abh
+c_1fc90 db 3h, 0f9h
+c_1fc92 db 3h, 0ebh
+c_1fc94 db 13h, 0c6h
+c_1fc96 db 0abh
+c_1fc97 db 3h, 0f9h
+c_1fc99 db 3h, 0ebh
+c_1fc9b db 13h, 0c6h
+c_1fc9d db 0abh
+c_1fc9e db 3h, 0f9h
+c_1fca0 db 3h, 0ebh
+c_1fca2 db 13h, 0c6h
+c_1fca4 db 0abh
+c_1fca5 db 3h, 0f9h
+c_1fca7 db 3h, 0ebh
+c_1fca9 db 13h, 0c6h
+c_1fcab db 0abh
+c_1fcac db 3h, 0f9h
+c_1fcae db 3h, 0ebh
+c_1fcb0 db 13h, 0c6h
+c_1fcb2 db 0abh
+c_1fcb3 db 3h, 0f9h
+c_1fcb5 db 3h, 0ebh
+c_1fcb7 db 13h, 0c6h
+c_1fcb9 db 0abh
+c_1fcba db 3h, 0f9h
+c_1fcbc db 3h, 0ebh
+c_1fcbe db 13h, 0c6h
+c_1fcc0 db 0abh
+c_1fcc1 db 3h, 0f9h
+c_1fcc3 db 3h, 0ebh
+c_1fcc5 db 13h, 0c6h
+c_1fcc7 db 0abh
+c_1fcc8 db 3h, 0f9h
+c_1fcca db 3h, 0ebh
+c_1fccc db 13h, 0c6h
+c_1fcce db 0abh
+c_1fccf db 3h, 0f9h
+c_1fcd1 db 3h, 0ebh
+c_1fcd3 db 13h, 0c6h
+c_1fcd5 db 0abh
+c_1fcd6 db 3h, 0f9h
+c_1fcd8 db 3h, 0ebh
+c_1fcda db 13h, 0c6h
+c_1fcdc db 0abh
+c_1fcdd db 3h, 0f9h
+c_1fcdf db 3h, 0ebh
+c_1fce1 db 13h, 0c6h
+c_1fce3 db 0abh
+c_1fce4 db 3h, 0f9h
+c_1fce6 db 3h, 0ebh
+c_1fce8 db 13h, 0c6h
+c_1fcea db 0abh
+c_1fceb db 3h, 0f9h
+c_1fced db 3h, 0ebh
+c_1fcef db 13h, 0c6h
+c_1fcf1 db 0abh
+c_1fcf2 db 3h, 0f9h
+c_1fcf4 db 3h, 0ebh
+c_1fcf6 db 13h, 0c6h
+c_1fcf8 db 0abh
+c_1fcf9 db 3h, 0f9h
+c_1fcfb db 3h, 0ebh
+c_1fcfd db 13h, 0c6h
+c_1fcff db 0abh
+c_1fd00 db 3h, 0f9h
+c_1fd02 db 3h, 0ebh
+c_1fd04 db 13h, 0c6h
+c_1fd06 db 0abh
+c_1fd07 db 3h, 0f9h
+c_1fd09 db 3h, 0ebh
+c_1fd0b db 13h, 0c6h
+c_1fd0d db 0abh
+c_1fd0e db 3h, 0f9h
+c_1fd10 db 3h, 0ebh
+c_1fd12 db 13h, 0c6h
+c_1fd14 db 0abh
+c_1fd15 db 3h, 0f9h
+c_1fd17 db 3h, 0ebh
+c_1fd19 db 13h, 0c6h
+c_1fd1b db 0abh
+c_1fd1c db 3h, 0f9h
+c_1fd1e db 3h, 0ebh
+c_1fd20 db 13h, 0c6h
+c_1fd22 db 0abh
+c_1fd23 db 3h, 0f9h
+c_1fd25 db 3h, 0ebh
+c_1fd27 db 13h, 0c6h
+c_1fd29 db 0abh
+c_1fd2a db 3h, 0f9h
+c_1fd2c db 3h, 0ebh
+c_1fd2e db 13h, 0c6h
+c_1fd30 db 0abh
+c_1fd31 db 3h, 0f9h
+c_1fd33 db 3h, 0ebh
+c_1fd35 db 13h, 0c6h
+c_1fd37 db 0abh
+c_1fd38 db 3h, 0f9h
+c_1fd3a db 3h, 0ebh
+c_1fd3c db 13h, 0c6h
+c_1fd3e db 0abh
+c_1fd3f db 3h, 0f9h
+c_1fd41 db 3h, 0ebh
+c_1fd43 db 13h, 0c6h
+c_1fd45 db 0abh
+c_1fd46 db 3h, 0f9h
+c_1fd48 db 3h, 0ebh
+c_1fd4a db 13h, 0c6h
+c_1fd4c db 0abh
+c_1fd4d db 3h, 0f9h
+c_1fd4f db 3h, 0ebh
+c_1fd51 db 13h, 0c6h
+c_1fd53 db 0abh
+c_1fd54 db 3h, 0f9h
+c_1fd56 db 3h, 0ebh
+c_1fd58 db 13h, 0c6h
+c_1fd5a db 0abh
+c_1fd5b db 3h, 0f9h
+c_1fd5d db 3h, 0ebh
+c_1fd5f db 13h, 0c6h
+c_1fd61 db 0abh
+c_1fd62 db 3h, 0f9h
+c_1fd64 db 3h, 0ebh
+c_1fd66 db 13h, 0c6h
+c_1fd68 db 0abh
+c_1fd69 db 3h, 0f9h
+c_1fd6b db 3h, 0ebh
+c_1fd6d db 13h, 0c6h
+c_1fd6f db 0abh
+c_1fd70 db 3h, 0f9h
+c_1fd72 db 3h, 0ebh
+c_1fd74 db 13h, 0c6h
+c_1fd76 db 0abh
+c_1fd77 db 3h, 0f9h
+c_1fd79 db 3h, 0ebh
+c_1fd7b db 13h, 0c6h
+c_1fd7d db 0abh
+c_1fd7e db 3h, 0f9h
+c_1fd80 db 3h, 0ebh
+c_1fd82 db 13h, 0c6h
+c_1fd84 db 0abh
+c_1fd85 db 3h, 0f9h
+c_1fd87 db 3h, 0ebh
+c_1fd89 db 13h, 0c6h
+c_1fd8b db 0abh
+c_1fd8c db 3h, 0f9h
+c_1fd8e db 3h, 0ebh
+c_1fd90 db 13h, 0c6h
+c_1fd92 db 0abh
+c_1fd93 db 3h, 0f9h
+c_1fd95 db 3h, 0ebh
+c_1fd97 db 13h, 0c6h
+c_1fd99 db 0abh
+c_1fd9a db 3h, 0f9h
+c_1fd9c db 3h, 0ebh
+c_1fd9e db 13h, 0c6h
+c_1fda0 db 0abh
+c_1fda1 db 3h, 0f9h
+c_1fda3 db 3h, 0ebh
+c_1fda5 db 13h, 0c6h
+c_1fda7 db 0abh
+c_1fda8 db 3h, 0f9h
+c_1fdaa db 3h, 0ebh
+c_1fdac db 13h, 0c6h
+c_1fdae db 0abh
+c_1fdaf db 3h, 0f9h
+c_1fdb1 db 3h, 0ebh
+c_1fdb3 db 13h, 0c6h
+c_1fdb5 db 0abh
+c_1fdb6 db 3h, 0f9h
+c_1fdb8 db 3h, 0ebh
+c_1fdba db 13h, 0c6h
+c_1fdbc db 0abh
+c_1fdbd db 3h, 0f9h
+c_1fdbf db 3h, 0ebh
+c_1fdc1 db 13h, 0c6h
+c_1fdc3 db 0abh
+c_1fdc4 db 3h, 0f9h
+c_1fdc6 db 3h, 0ebh
+c_1fdc8 db 13h, 0c6h
+c_1fdca db 0abh
+c_1fdcb db 3h, 0f9h
+c_1fdcd db 3h, 0ebh
+c_1fdcf db 13h, 0c6h
+c_1fdd1 db 0abh
+c_1fdd2 db 3h, 0f9h
+c_1fdd4 db 3h, 0ebh
+c_1fdd6 db 13h, 0c6h
+c_1fdd8 db 0abh
+c_1fdd9 db 3h, 0f9h
+c_1fddb db 3h, 0ebh
+c_1fddd db 13h, 0c6h
+c_1fddf db 0abh
+c_1fde0 db 3h, 0f9h
+c_1fde2 db 3h, 0ebh
+c_1fde4 db 13h, 0c6h
+c_1fde6 db 0abh
+c_1fde7 db 3h, 0f9h
+c_1fde9 db 3h, 0ebh
+c_1fdeb db 13h, 0c6h
+c_1fded db 0abh
+c_1fdee db 3h, 0f9h
+c_1fdf0 db 3h, 0ebh
+c_1fdf2 db 13h, 0c6h
+c_1fdf4 db 0abh
+c_1fdf5 db 3h, 0f9h
+c_1fdf7 db 3h, 0ebh
+c_1fdf9 db 13h, 0c6h
+c_1fdfb db 0abh
+c_1fdfc db 3h, 0f9h
+c_1fdfe db 3h, 0ebh
+c_1fe00 db 13h, 0c6h
+c_1fe02 db 0abh
+c_1fe03 db 3h, 0f9h
+c_1fe05 db 3h, 0ebh
+c_1fe07 db 13h, 0c6h
+c_1fe09 db 0abh
+c_1fe0a db 3h, 0f9h
+c_1fe0c db 3h, 0ebh
+c_1fe0e db 13h, 0c6h
+c_1fe10 db 0abh
+c_1fe11 db 3h, 0f9h
+c_1fe13 db 3h, 0ebh
+c_1fe15 db 13h, 0c6h
+c_1fe17 db 0abh
+c_1fe18 db 3h, 0f9h
+c_1fe1a db 3h, 0ebh
+c_1fe1c db 13h, 0c6h
+c_1fe1e db 0abh
+c_1fe1f db 3h, 0f9h
+c_1fe21 db 3h, 0ebh
+c_1fe23 db 13h, 0c6h
+c_1fe25 db 0abh
+c_1fe26 db 3h, 0f9h
+c_1fe28 db 3h, 0ebh
+c_1fe2a db 13h, 0c6h
+c_1fe2c db 0abh
+c_1fe2d db 3h, 0f9h
+c_1fe2f db 3h, 0ebh
+c_1fe31 db 13h, 0c6h
+c_1fe33 db 0abh
+c_1fe34 db 3h, 0f9h
+c_1fe36 db 3h, 0ebh
+c_1fe38 db 13h, 0c6h
+c_1fe3a db 0abh
+c_1fe3b db 3h, 0f9h
+c_1fe3d db 3h, 0ebh
+c_1fe3f db 13h, 0c6h
+c_1fe41 db 0abh
+c_1fe42 db 3h, 0f9h
+c_1fe44 db 3h, 0ebh
+c_1fe46 db 13h, 0c6h
+c_1fe48 db 0abh
+c_1fe49 db 3h, 0f9h
+c_1fe4b db 3h, 0ebh
+c_1fe4d db 13h, 0c6h
+c_1fe4f db 0abh
+c_1fe50 db 3h, 0f9h
+c_1fe52 db 3h, 0ebh
+c_1fe54 db 13h, 0c6h
+c_1fe56 db 0abh
+c_1fe57 db 3h, 0f9h
+c_1fe59 db 3h, 0ebh
+c_1fe5b db 13h, 0c6h
+c_1fe5d db 0abh
+c_1fe5e db 3h, 0f9h
+c_1fe60 db 3h, 0ebh
+c_1fe62 db 13h, 0c6h
+c_1fe64 db 0abh
+c_1fe65 db 3h, 0f9h
+c_1fe67 db 3h, 0ebh
+c_1fe69 db 13h, 0c6h
+c_1fe6b db 0abh
+c_1fe6c db 3h, 0f9h
+c_1fe6e db 3h, 0ebh
+c_1fe70 db 13h, 0c6h
+c_1fe72 db 0abh
+c_1fe73 db 3h, 0f9h
+c_1fe75 db 3h, 0ebh
+c_1fe77 db 13h, 0c6h
+c_1fe79 db 0abh
+c_1fe7a db 3h, 0f9h
+c_1fe7c db 3h, 0ebh
+c_1fe7e db 13h, 0c6h
+c_1fe80 db 0abh
+c_1fe81 db 3h, 0f9h
+c_1fe83 db 3h, 0ebh
+c_1fe85 db 13h, 0c6h
+c_1fe87 db 0abh
+c_1fe88 db 3h, 0f9h
+c_1fe8a db 3h, 0ebh
+c_1fe8c db 13h, 0c6h
+c_1fe8e db 0abh
+c_1fe8f db 3h, 0f9h
+c_1fe91 db 3h, 0ebh
+c_1fe93 db 13h, 0c6h
+c_1fe95 db 0abh
+c_1fe96 db 3h, 0f9h
+c_1fe98 db 3h, 0ebh
+c_1fe9a db 13h, 0c6h
+c_1fe9c db 0abh
+c_1fe9d db 3h, 0f9h
+c_1fe9f db 3h, 0ebh
+c_1fea1 db 13h, 0c6h
+c_1fea3 db 0abh
+c_1fea4 db 3h, 0f9h
+c_1fea6 db 3h, 0ebh
+c_1fea8 db 13h, 0c6h
+c_1feaa db 0abh
+c_1feab db 3h, 0f9h
+c_1fead db 3h, 0ebh
+c_1feaf db 13h, 0c6h
+c_1feb1 db 0abh
+c_1feb2 db 3h, 0f9h
+c_1feb4 db 3h, 0ebh
+c_1feb6 db 13h, 0c6h
+c_1feb8 db 0abh
+c_1feb9 db 3h, 0f9h
+c_1febb db 3h, 0ebh
+c_1febd db 13h, 0c6h
+c_1febf db 0abh
+c_1fec0 db 3h, 0f9h
+c_1fec2 db 3h, 0ebh
+c_1fec4 db 13h, 0c6h
+c_1fec6 db 0abh
+c_1fec7 db 3h, 0f9h
+c_1fec9 db 3h, 0ebh
+c_1fecb db 13h, 0c6h
+c_1fecd db 0abh
+c_1fece db 3h, 0f9h
+c_1fed0 db 3h, 0ebh
+c_1fed2 db 13h, 0c6h
+c_1fed4 db 0abh
+c_1fed5 db 3h, 0f9h
+c_1fed7 db 3h, 0ebh
+c_1fed9 db 13h, 0c6h
+c_1fedb db 0abh
+c_1fedc db 3h, 0f9h
+c_1fede db 3h, 0ebh
+c_1fee0 db 13h, 0c6h
+c_1fee2 db 0abh
+c_1fee3 db 3h, 0f9h
+c_1fee5 db 3h, 0ebh
+c_1fee7 db 13h, 0c6h
+c_1fee9 db 0abh
+c_1feea db 3h, 0f9h
+c_1feec db 3h, 0ebh
+c_1feee db 13h, 0c6h
+c_1fef0 db 0abh
+c_1fef1 db 3h, 0f9h
+c_1fef3 db 3h, 0ebh
+c_1fef5 db 13h, 0c6h
+c_1fef7 db 0abh
+c_1fef8 db 3h, 0f9h
+c_1fefa db 3h, 0ebh
+c_1fefc db 13h, 0c6h
+c_1fefe db 0abh
+c_1feff db 3h, 0f9h
+c_1ff01 db 3h, 0ebh
+c_1ff03 db 13h, 0c6h
+c_1ff05 db 0abh
+c_1ff06 db 3h, 0f9h
+c_1ff08 db 3h, 0ebh
+c_1ff0a db 13h, 0c6h
+c_1ff0c db 0abh
+c_1ff0d db 3h, 0f9h
+c_1ff0f db 3h, 0ebh
+c_1ff11 db 13h, 0c6h
+c_1ff13 db 0abh
+c_1ff14 db 3h, 0f9h
+c_1ff16 db 3h, 0ebh
+c_1ff18 db 13h, 0c6h
+c_1ff1a db 0abh
+c_1ff1b db 3h, 0f9h
+c_1ff1d db 3h, 0ebh
+c_1ff1f db 13h, 0c6h
+c_1ff21 db 0abh
+c_1ff22 db 3h, 0f9h
+c_1ff24 db 3h, 0ebh
+c_1ff26 db 13h, 0c6h
+c_1ff28 db 0abh
+c_1ff29 db 3h, 0f9h
+c_1ff2b db 3h, 0ebh
+c_1ff2d db 13h, 0c6h
+c_1ff2f db 0abh
+c_1ff30 db 3h, 0f9h
+c_1ff32 db 3h, 0ebh
+c_1ff34 db 13h, 0c6h
+c_1ff36 db 0abh
+c_1ff37 db 3h, 0f9h
+c_1ff39 db 3h, 0ebh
+c_1ff3b db 13h, 0c6h
+c_1ff3d db 0abh
+c_1ff3e db 3h, 0f9h
+c_1ff40 db 3h, 0ebh
+c_1ff42 db 13h, 0c6h
+c_1ff44 db 0abh
+c_1ff45 db 3h, 0f9h
+c_1ff47 db 3h, 0ebh
+c_1ff49 db 13h, 0c6h
+c_1ff4b db 0abh
+c_1ff4c db 3h, 0f9h
+c_1ff4e db 3h, 0ebh
+c_1ff50 db 13h, 0c6h
+c_1ff52 db 0abh
+c_1ff53 db 3h, 0f9h
+c_1ff55 db 3h, 0ebh
+c_1ff57 db 13h, 0c6h
+c_1ff59 db 0abh
+c_1ff5a db 3h, 0f9h
+c_1ff5c db 3h, 0ebh
+c_1ff5e db 13h, 0c6h
+c_1ff60 db 0abh
+c_1ff61 db 3h, 0f9h
+c_1ff63 db 3h, 0ebh
+c_1ff65 db 13h, 0c6h
+c_1ff67 db 0abh
+c_1ff68 db 3h, 0f9h
+c_1ff6a db 3h, 0ebh
+c_1ff6c db 13h, 0c6h
+c_1ff6e db 0abh
+c_1ff6f db 3h, 0f9h
+c_1ff71 db 3h, 0ebh
+c_1ff73 db 13h, 0c6h
+c_1ff75 db 0abh
+c_1ff76 db 3h, 0f9h
+c_1ff78 db 3h, 0ebh
+c_1ff7a db 13h, 0c6h
+c_1ff7c db 0abh
+c_1ff7d db 3h, 0f9h
+c_1ff7f db 3h, 0ebh
+c_1ff81 db 13h, 0c6h
+c_1ff83 db 0abh
+c_1ff84 db 3h, 0f9h
+c_1ff86 db 3h, 0ebh
+c_1ff88 db 13h, 0c6h
+c_1ff8a db 0abh
+c_1ff8b db 3h, 0f9h
+c_1ff8d db 3h, 0ebh
+c_1ff8f db 13h, 0c6h
+c_1ff91 db 0abh
+c_1ff92 db 3h, 0f9h
+c_1ff94 db 3h, 0ebh
+c_1ff96 db 13h, 0c6h
+c_1ff98 db 0abh
+c_1ff99 db 3h, 0f9h
+c_1ff9b db 3h, 0ebh
+c_1ff9d db 13h, 0c6h
+c_1ff9f db 0abh
+c_1ffa0 db 3h, 0f9h
+c_1ffa2 db 3h, 0ebh
+c_1ffa4 db 13h, 0c6h
+c_1ffa6 db 0abh
+c_1ffa7 db 3h, 0f9h
+c_1ffa9 db 3h, 0ebh
+c_1ffab db 13h, 0c6h
+c_1ffad db 0abh
+c_1ffae db 3h, 0f9h
+c_1ffb0 db 3h, 0ebh
+c_1ffb2 db 13h, 0c6h
+c_1ffb4 db 0abh
+c_1ffb5 db 3h, 0f9h
+c_1ffb7 db 3h, 0ebh
+c_1ffb9 db 13h, 0c6h
+c_1ffbb db 0abh
+c_1ffbc db 3h, 0f9h
+c_1ffbe db 3h, 0ebh
+c_1ffc0 db 13h, 0c6h
+c_1ffc2 db 0abh
+c_1ffc3 db 3h, 0f9h
+c_1ffc5 db 3h, 0ebh
+c_1ffc7 db 13h, 0c6h
+c_1ffc9 db 0abh
+c_1ffca db 3h, 0f9h
+c_1ffcc db 3h, 0ebh
+c_1ffce db 13h, 0c6h
+c_1ffd0 db 0abh
+c_1ffd1 db 3h, 0f9h
+c_1ffd3 db 3h, 0ebh
+c_1ffd5 db 13h, 0c6h
+c_1ffd7 db 0abh
+c_1ffd8 db 3h, 0f9h
+c_1ffda db 3h, 0ebh
+c_1ffdc db 13h, 0c6h
+c_1ffde db 0abh
+c_1ffdf db 3h, 0f9h
+c_1ffe1 db 3h, 0ebh
+c_1ffe3 db 13h, 0c6h
+c_1ffe5 db 0abh
+c_1ffe6 db 3h, 0f9h
+c_1ffe8 db 3h, 0ebh
+c_1ffea db 13h, 0c6h
+c_1ffec db 0abh
+c_1ffed db 3h, 0f9h
+c_1ffef db 3h, 0ebh
+c_1fff1 db 13h, 0c6h
+c_1fff3 db 0abh
+c_1fff4 db 3h, 0f9h
+c_1fff6 db 3h, 0ebh
+c_1fff8 db 13h, 0c6h
+c_1fffa db 0abh
+c_1fffb db 3h, 0f9h
+c_1fffd db 3h, 0ebh
+c_1ffff db 13h, 0c6h
+c_20001 db 0abh
+c_20002 db 3h, 0f9h
+c_20004 db 3h, 0ebh
+c_20006 db 13h, 0c6h
+c_20008 db 0abh
+c_20009 db 3h, 0f9h
+c_2000b db 3h, 0ebh
+c_2000d db 13h, 0c6h
+c_2000f db 0abh
+c_20010 db 3h, 0f9h
+c_20012 db 3h, 0ebh
+c_20014 db 13h, 0c6h
+c_20016 db 0abh
+c_20017 db 3h, 0f9h
+c_20019 db 3h, 0ebh
+c_2001b db 13h, 0c6h
+c_2001d db 0abh
+c_2001e db 3h, 0f9h
+c_20020 db 3h, 0ebh
+c_20022 db 13h, 0c6h
+c_20024 db 0abh
+c_20025 db 3h, 0f9h
+c_20027 db 3h, 0ebh
+c_20029 db 13h, 0c6h
+c_2002b db 0abh
+c_2002c db 3h, 0f9h
+c_2002e db 3h, 0ebh
+c_20030 db 13h, 0c6h
+c_20032 db 0abh
+c_20033 db 3h, 0f9h
+c_20035 db 3h, 0ebh
+c_20037 db 13h, 0c6h
+c_20039 db 0abh
+c_2003a db 3h, 0f9h
+c_2003c db 3h, 0ebh
+c_2003e db 13h, 0c6h
+c_20040 db 0abh
+c_20041 db 3h, 0f9h
+c_20043 db 3h, 0ebh
+c_20045 db 13h, 0c6h
+c_20047 db 0abh
+c_20048 db 3h, 0f9h
+c_2004a db 3h, 0ebh
+c_2004c db 13h, 0c6h
+c_2004e db 0abh
+c_2004f db 3h, 0f9h
+c_20051 db 3h, 0ebh
+c_20053 db 13h, 0c6h
+c_20055 db 0abh
+c_20056 db 3h, 0f9h
+c_20058 db 3h, 0ebh
+c_2005a db 13h, 0c6h
+c_2005c db 0abh
+c_2005d db 3h, 0f9h
+c_2005f db 3h, 0ebh
+c_20061 db 13h, 0c6h
+c_20063 db 0abh
+c_20064 db 3h, 0f9h
+c_20066 db 3h, 0ebh
+c_20068 db 13h, 0c6h
+c_2006a db 0abh
+c_2006b db 3h, 0f9h
+c_2006d db 3h, 0ebh
+c_2006f db 13h, 0c6h
+c_20071 db 0abh
+c_20072 db 3h, 0f9h
+c_20074 db 3h, 0ebh
+c_20076 db 13h, 0c6h
+c_20078 db 0c3h
+_poly_walk endp
+
+/* 0x20079 */
+_fill_rect proc far
+        push bp
+        mov bp, sp
+        sub sp, 6
+        push di
+        push si
+        mov ax, word ptr [bp+0ah]
+        add ax, word ptr [bp+6]
+        dec ax
+        mov word ptr [bp-4], ax
+        mov ax, word ptr [bp+0ch]
+        add ax, word ptr [bp+8]
+        dec ax
+        mov word ptr [bp-6], ax
+        cmp byte ptr DGROUP:_VMDS+0ch, 0
+        jne L2009f
+        jmp L2012f
+L2009f:
+        push word ptr [bp+6]
+        push word ptr [bp+8]
+        cmp byte ptr DGROUP:_VMDS+3h, 0
+        je L200f4
+        mov ax, word ptr [bp+6]
+        sub ax, word ptr DGROUP:_VMDS+4h
+        mov word ptr [bp-2], ax
+        or ax, ax
+        jge L200c0
+        sub word ptr [bp+6], ax
+        add word ptr [bp+0ah], ax
+L200c0:
+        mov ax, word ptr [bp+8]
+        sub ax, word ptr DGROUP:_VMDS+8h
+        mov word ptr [bp-2], ax
+        or ax, ax
+        jge L200d4
+        sub word ptr [bp+8], ax
+        add word ptr [bp+0ch], ax
+L200d4:
+        mov ax, word ptr DGROUP:_VMDS+6h
+        sub ax, word ptr [bp-4]
+        mov word ptr [bp-2], ax
+        or ax, ax
+        jge L200e4
+        add word ptr [bp+0ah], ax
+L200e4:
+        mov ax, word ptr DGROUP:_VMDS+0ah
+        sub ax, word ptr [bp-6]
+        mov word ptr [bp-2], ax
+        or ax, ax
+        jge L200f4
+        add word ptr [bp+0ch], ax
+L200f4:
+        cmp word ptr [bp+0ah], 0
+        jle L20129
+        cmp word ptr [bp+0ch], 0
+        jle L20129
+        mov es, word ptr DGROUP:_DG4342
+        xor di, di
+        mov ax, word ptr [bp+8]
+        stosw
+        mov ax, word ptr [bp+0ch]
+        mov cx, ax
+        stosw
+        mov bx, word ptr [bp+6]
+        mov dx, bx
+        add dx, word ptr [bp+0ah]
+        dec dx
+L20119:
+        mov ax, bx
+        stosw
+        mov ax, dx
+        stosw
+        loop L20119
+        xor si, si
+        push bp
+        call dword ptr DGROUP:_DG4342+70h
+        pop bp
+L20129:
+        pop word ptr [bp+8]
+        pop word ptr [bp+6]
+L2012f:
+        cmp byte ptr DGROUP:_VMDS+0ch, 0
+        je L2013f
+        mov al, byte ptr DGROUP:_VMDS+0eh
+        cmp byte ptr DGROUP:_VMDS+0dh, al
+        je L2017e
+L2013f:
+        mov si, word ptr [bp+6]
+        mov di, word ptr [bp+8]
+        mov ax, word ptr [bp-6]
+        push ax
+        mov ax, word ptr [bp-4]
+        push ax
+        push di
+        push ax
+        call FAR PTR _clip_and_draw_line
+        add sp, 4
+        mov ax, word ptr [bp-6]
+        push ax
+        push si
+        call FAR PTR _clip_and_draw_line
+        add sp, 6
+        push si
+        push di
+        push si
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+        push di
+        mov ax, word ptr [bp-4]
+        push ax
+        push di
+        push si
+        call FAR PTR _clip_and_draw_line
+        add sp, 8
+L2017e:
+        pop si
+        pop di
+        mov sp, bp
+        pop bp
+        retf
+c_20184 db 90h
+_fill_rect endp
+
+/* 0x20185 */
+_draw_compressed_bitmap proc near
+        jmp dword ptr DGROUP:_DG44EA
+_draw_compressed_bitmap endp
+POLYGON_TEXT ends
+}
+#else
 
 /*
  * **The polygon walker's two chains**, DGROUP 0x44d0..0x44de, 0x0e bytes.
@@ -983,3 +3780,4 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 {
     draw_compressed_body(bmp, x, y, mode);
 }
+#endif
