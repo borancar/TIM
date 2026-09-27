@@ -1479,8 +1479,14 @@ void paint_panel_frame(void);                       /* 0x117ed */
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled);               /* 0x14dec */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x153b8 */
+/* **Two declarations, as the original had.** The routine takes a byte, and
+   `machine_draw.c`, which defines it, says so; the modules that call it from
+   segment 0dff push the colour as a word - `xor ax,ax / push ax` for a 0 - so
+   the declaration they were compiled against took an `int`. */
+#ifndef TIM_MACHINE_DRAW_C
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint8_t colour);              /* 0x15523 */
+                     int16_t colour);              /* 0x15523 */
+#endif
 void draw_wrapped_text(char *str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,

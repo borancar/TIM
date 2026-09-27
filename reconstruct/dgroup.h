@@ -1141,15 +1141,6 @@ struct dg_53fc {
     /* **Which way `list_ptr` is travelling**, `object_delta_angle` of its last
        two positions, refreshed at every step of the search. */
     int16_t   travel_angle;       /* +0x2a */
-    /* Ours in name only: the password field's cursor blink, stepped every time
-       the puzzle picker redraws the line and showing a star while bit 3 is
-       set. */
-    uint16_t  password_blink;     /* +0x2c */
-    int16_t   selected_level;     /* +0x2e  the puzzle picker's row; game_round copies it to round_number */
-    /* **The first puzzle the list shows**, from `puzzle_page_of_score`, and
-       the arrows page it by 0x15 - the twenty-one rows a page holds - with 1
-       as the floor and the level count as the ceiling. */
-    int16_t   puzzle_page;        /* +0x30 */
 } PACKED;
 
 extern struct dg_53fc DG53FC;

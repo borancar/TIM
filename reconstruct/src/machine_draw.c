@@ -29,6 +29,7 @@
  * and a literal belongs to one module.
  */
 
+#define TIM_MACHINE_DRAW_C
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
