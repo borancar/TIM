@@ -4570,12 +4570,18 @@ struct game_level_strings {
     char tim_filter_load[6];      /* +0x07 [6]  "*.TIM"    screen_state_0100's pick_file */
     char tim_filter_save[6];      /* +0x0d [6]  "*.TIM"    screen_state_0080's */
     char title_sep[3];            /* +0x13 [3]  ": "       paint_panel_frame */
-    char replay[7];               /* +0x16 [7]  "REPLAY"   finish_level's two buttons */
-    char advance[8];              /* +0x1d [8]  "ADVANCE" */
-    uint8_t pad_2849[1];          /* +0x25 [1] */
 } PACKED;
 
 extern struct game_level_strings GAME_LEVEL_STRINGS;
+
+/* `finish_level`'s two buttons, DGROUP 0x283a..0x2849: the next module's
+   literal pool, placed in machine.c. */
+struct finish_level_labels {
+    char replay[7];               /* +0x00 [7]  "REPLAY" */
+    char advance[8];              /* +0x07 [8]  "ADVANCE" */
+} PACKED;
+
+extern struct finish_level_labels FINISH_LEVEL_LABELS;
 
 /*
  * ---------------------------------------------------------------------------

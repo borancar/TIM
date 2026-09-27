@@ -340,6 +340,16 @@ static int16_t abs16(int16_t v)
 }
 
 /*
+ * **`finish_level`'s two buttons**, DGROUP 0x283a..0x2849 - the literal pool
+ * of the module it is in, straight after the game screen's in the link order.
+ * The byte after it is the next module's `_DATA` starting on a word.
+ */
+struct finish_level_labels FINISH_LEVEL_LABELS DGROUP_AT(0x283a) = {
+    "REPLAY", /* replay */
+    "ADVANCE", /* advance */
+};
+
+/*
  * 0x00297
  *
  * A part hook that agrees to everything: it answers 1 and does nothing else.
@@ -4129,7 +4139,7 @@ void finish_level(void)
         body  = (char *)DG1BCC.replay_body;
     }
 
-    while (message_box(title, body, GAME_LEVEL_STRINGS.replay, GAME_LEVEL_STRINGS.advance) != 0) {
+    while (message_box(title, body, FINISH_LEVEL_LABELS.replay, FINISH_LEVEL_LABELS.advance) != 0) {
         DG4E67.state = 0x2000;
         clear_layer_heads();
         reset_machine();
