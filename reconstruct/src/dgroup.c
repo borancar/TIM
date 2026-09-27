@@ -1981,7 +1981,10 @@ struct ovl_chunk_names OVLCHUNK DGROUP_AT(0x4919) = {
 };
 struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
 struct dg_5179 DG5179 DGROUP_BSS(0x5179);
-struct dg_546c DG546C DGROUP_WAS(0x546c);
+/* Not placed: the port's `vm_init`, which the hybrid runs as the machine
+   layer, opens files through the archive lookup, and its count and its
+   lists have to be the same side's. */
+struct dg_547a DG547A DGROUP_WAS(0x547a);
 struct dg_48da DG48DA DGROUP_AT(0x48da) = {
     .gc_mode_fill = 0x02,
     .quarter_a = 0x40,

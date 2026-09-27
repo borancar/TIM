@@ -1035,7 +1035,7 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x15
 void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(struct part *si);                       /* 0x14d71 */
-uint16_t load_animation(char *name);             /* 0x12915 */
+void load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x11db4 */
 void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */
 void read_password_line(int16_t count, char *buf); /* 0x12b60 */
@@ -1466,7 +1466,7 @@ void game_round(void);                              /* 0x0eff5 */
 void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
-uint16_t read_level(char *name);                 /* 0x12269 */
+void read_level(char *name);                 /* 0x12269 */
 void paint_game_screen(uint16_t present);           /* 0x11632 */
 void draw_machine_thunk(void);                      /* 0x15af8 */
 void draw_machine_layer_a(void);                    /* 0x15dfd */

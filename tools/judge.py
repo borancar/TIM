@@ -334,6 +334,31 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose,
                 return False, i - lo, unchecked, notes
             i += 5
             continue
+        # **A near call to a routine earlier in this file** - `push cs / call`
+        # - carries a displacement, and a displacement is the distance to the
+        # callee in *our* layout. Compared as bytes it fails whenever anything
+        # between the two differs in size, which ties every routine's verdict
+        # to all the routines before it. So resolve both ends by name.
+        if (b == 0x0E and i + 3 < len(seg.data) and seg.data[i + 1] == 0xE8
+                and img[at] == 0x0E and img[at + 1] == 0xE8
+                and not any(k in covered for k in range(i, i + 4))):
+            rel = struct.unpack_from("<h", seg.data, i + 2)[0]
+            target = (i + 4 + rel) & 0xFFFF
+            owner = [(o, n) for o, n in pubs if o <= target]
+            if owner:
+                o, n = owner[-1]
+                callee = n.lstrip("_")
+                want = known.get(callee)
+                base = frame_of(addr, fr)
+                irel = struct.unpack_from("<h", img, at + 2)[0]
+                got = base + ((at + 4 - base + irel) & 0xFFFF)
+                if want is not None and want + (target - o) == got:
+                    i += 4
+                    continue
+                if want is not None:
+                    notes.append("near call to %s reaches %05x, not %05x"
+                                 % (callee, got, want + (target - o)))
+                    return False, i - lo, unchecked, notes
         if i in covered:
             if i in fix:
                 unchecked += 1
