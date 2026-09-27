@@ -13,17 +13,1046 @@
  * a pointer, `add sp,0x10a / pop bp` epilogues, and early exits that jump to
  * an epilogue placed *before* the routine's own entry.
  *
- * **So no C compiler judges this file.** It is the host's transcription of a
- * hand-written module, and the byte-exact source of these bytes is TASM's to
- * make (not written yet). The functions are in address order and each
+ * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
+ * host's transcription in the `#else`. The functions are in address order and each
  * carries the image offset it was read from, as everywhere else.
  *
  * The records it walks are `bitmaps.c`'s: `BITMAPS.walk`, the reader the
  * bitmap and screen loaders point it at.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
+ * transcription is the `#else`. See glue.c for how the block reaches the
+ * assembler.
+ */
+asm {
+extrn _redraw_cursor:far
+extrn _BITMAP_COMPRESS:byte
+extrn _DG4342:byte
+extrn _VMDS:byte
+VQT_TEXT segment byte public 'CODE'
+assume cs:VQT_TEXT, ds:DGROUP
+public _vqt_read_bits, _vqt_screen_node, _fill_screen_quadrant, _far_copy
+public _vqt_node, _fill_quadrant
+
+/* 0x25953 */
+_vqt_read_bits proc near
+        push bp
+        mov bp, sp
+        mov bx, word ptr [bp+4]
+        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, 0ff00h
+        mov cx, bx
+        rol ax, cl
+        xor ah, ah
+        mov bx, ax
+        mov ax, word ptr [bp]
+        mov dx, word ptr [bp+2]
+        add word ptr [bp], cx
+        adc word ptr [bp+2], 0
+        mov cx, word ptr [bp+4]
+        mov es, word ptr [bp+6]
+        mov bp, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bp, ax
+        mov ax, word ptr es:[bp]
+        and cl, 7
+        shr ax, cl
+        and ax, bx
+        pop bp
+        ret
+L2599a:
+        pop di
+        pop si
+        add sp, 2
+        pop bp
+        ret
+_vqt_read_bits endp
+
+/* 0x259a1 */
+_vqt_screen_node proc near
+        push bp
+        mov bp, sp
+        sub sp, 2
+        push si
+        push di
+        mov si, word ptr [bp+8]
+        mov di, word ptr [bp+0ah]
+        mov ax, si
+        or ax, di
+        je L2599a
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 4
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        and ax, 0fh
+        mov byte ptr [bp-2], al
+        mov ax, di
+        shr ax, 1
+        push ax
+        mov ax, si
+        shr ax, 1
+        push ax
+        push word ptr [bp+6]
+        push word ptr [bp+4]
+        test byte ptr [bp-2], 8
+        je L25a0e
+        call _vqt_screen_node
+        jmp short L25a1d
+L25a0e:
+        call _fill_screen_quadrant
+        mov ax, word ptr DGROUP:_VMDS+14h
+        push ax
+        call FAR PTR _redraw_cursor
+        add sp, 2
+L25a1d:
+        add sp, 8
+        mov ax, di
+        shr ax, 1
+        push ax
+        mov ax, si
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        push word ptr [bp+6]
+        shr bx, 1
+        add bx, word ptr [bp+4]
+        push bx
+        test byte ptr [bp-2], 4
+        je L25a41
+        call _vqt_screen_node
+        jmp short L25a44
+L25a41:
+        call _fill_screen_quadrant
+L25a44:
+        add sp, 8
+        mov ax, di
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        mov ax, si
+        shr ax, 1
+        push ax
+        shr bx, 1
+        add bx, word ptr [bp+6]
+        push bx
+        push word ptr [bp+4]
+        test byte ptr [bp-2], 2
+        je L25a68
+        call _vqt_screen_node
+        jmp short L25a6b
+L25a68:
+        call _fill_screen_quadrant
+L25a6b:
+        add sp, 8
+        mov ax, di
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        mov ax, si
+        mov cx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        shr bx, 1
+        add bx, word ptr [bp+6]
+        push bx
+        shr cx, 1
+        add cx, word ptr [bp+4]
+        push cx
+        test byte ptr [bp-2], 1
+        je L25a95
+        call _vqt_screen_node
+        jmp short L25a98
+L25a95:
+        call _fill_screen_quadrant
+L25a98:
+        add sp, 8
+        pop di
+        pop si
+        add sp, 2
+        pop bp
+        ret
+L25aa2:
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+_vqt_screen_node endp
+
+/* 0x25aaa */
+_fill_screen_quadrant proc near
+        push bp
+        mov bp, sp
+        sub sp, 10ah
+        push si
+        push di
+        mov ax, word ptr [bp+0ah]
+        or ax, ax
+        je L25aa2
+        mov di, ax
+        mov ax, word ptr [bp+8]
+        or ax, ax
+        je L25aa2
+        mov si, ax
+        cmp si, 1
+        jne L25b39
+        cmp di, 1
+        jne L25b39
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov ch, al
+        mov bx, word ptr [bp+6]
+        shl bx, 1
+        mov bx, word ptr [bx+3f82h]
+        mov ax, word ptr [bp+4]
+        mov cl, al
+        shr ax, 1
+        shr ax, 1
+        add bx, ax
+        and cl, 3
+        mov dx, 3c4h
+        mov ax, 102h
+        shl ah, cl
+        out dx, ax
+        mov ax, word ptr DGROUP:_VMDS+18h
+        mov es, ax
+        mov byte ptr es:[bx], ch
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L25b39:
+        mov ax, si
+        mov bx, di
+        mul bl
+        mov word ptr [bp-6], ax
+        mov cx, 8
+        or ah, ah
+        jne L25b52
+        xor cx, cx
+        dec al
+L25b4d:
+        inc cx
+        shr al, 1
+        jne L25b4d
+L25b52:
+        push bp
+        mov bx, cx
+        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, 0ff00h
+        mov cx, bx
+        rol ax, cl
+        xor ah, ah
+        mov bx, ax
+        mov ax, word ptr [bp]
+        mov dx, word ptr [bp+2]
+        add word ptr [bp], cx
+        adc word ptr [bp+2], 0
+        mov cx, word ptr [bp+4]
+        mov es, word ptr [bp+6]
+        mov bp, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bp, ax
+        mov ax, word ptr es:[bp]
+        and cl, 7
+        shr ax, cl
+        and ax, bx
+        pop bp
+        xor cx, cx
+        mov word ptr [bp-4], ax
+        or al, al
+        je L25ba3
+L25b9e:
+        inc cx
+        shr al, 1
+        jne L25b9e
+L25ba3:
+        mov ax, word ptr [bp+4]
+        mov di, ax
+        add ax, word ptr [bp+8]
+        mov word ptr [bp-8], ax
+        mov ax, word ptr [bp+6]
+        mov si, ax
+        add ax, word ptr [bp+0ah]
+        mov word ptr [bp-0ah], ax
+        mov word ptr [bp-2], cx
+        inc byte ptr [bp-4]
+        mov ax, word ptr [bp-6]
+        mov bx, ax
+        shl bx, 1
+        shl bx, 1
+        shl bx, 1
+        mul word ptr [bp-2]
+        mov cx, word ptr [bp-4]
+        shl cx, 1
+        shl cx, 1
+        shl cx, 1
+        add ax, cx
+        cmp bx, ax
+        ja L25c53
+L25bdc:
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov ch, al
+        mov bx, si
+        shl bx, 1
+        mov bx, word ptr [bx+3f82h]
+        mov ax, di
+        mov cl, al
+        shr ax, 1
+        shr ax, 1
+        add bx, ax
+        and cl, 3
+        mov dx, 3c4h
+        mov ax, 102h
+        shl ah, cl
+        out dx, ax
+        mov ax, word ptr DGROUP:_VMDS+18h
+        mov es, ax
+        mov byte ptr es:[bx], ch
+        inc si
+        cmp si, word ptr [bp-0ah]
+        jl L25bdc
+        mov si, word ptr [bp+6]
+        inc di
+        cmp di, word ptr [bp-8]
+        jl L25bdc
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L25c53:
+        cmp byte ptr [bp-4], 1
+        jne L25cbf
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov bx, word ptr [bp+6]
+        shl bx, 1
+        mov di, word ptr [bx+3f82h]
+        mov bx, word ptr DGROUP:_VMDS+18h
+        mov es, bx
+        mov si, word ptr [bp+0ah]
+L25ca3:
+        mov cx, word ptr [bp+8]
+        mov bx, word ptr [bp+4]
+        push di
+        mov ah, al
+        call dword ptr DGROUP:_DG4342+2ch
+        pop di
+        add di, 50h
+        dec si
+        jne L25ca3
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L25cbf:
+        lea di, [bp-10ah]
+L25cc3:
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov bx, ds
+        mov es, bx
+        stosb
+        dec byte ptr [bp-4]
+        jne L25cc3
+        mov di, word ptr [bp+4]
+L25d08:
+        push bp
+        mov bx, word ptr [bp-2]
+        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, 0ff00h
+        mov cx, bx
+        rol ax, cl
+        xor ah, ah
+        mov bx, ax
+        mov ax, word ptr [bp]
+        mov dx, word ptr [bp+2]
+        add word ptr [bp], cx
+        adc word ptr [bp+2], 0
+        mov cx, word ptr [bp+4]
+        mov es, word ptr [bp+6]
+        mov bp, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bp, ax
+        mov ax, word ptr es:[bp]
+        and cl, 7
+        shr ax, cl
+        and ax, bx
+        pop bp
+        lea bx, [bp-10ah]
+        add bx, ax
+        mov al, byte ptr [bx]
+        mov ch, al
+        mov bx, si
+        shl bx, 1
+        mov bx, word ptr [bx+3f82h]
+        mov ax, di
+        mov cl, al
+        shr ax, 1
+        shr ax, 1
+        add bx, ax
+        and cl, 3
+        mov dx, 3c4h
+        mov ax, 102h
+        shl ah, cl
+        out dx, ax
+        mov ax, word ptr DGROUP:_VMDS+18h
+        mov es, ax
+        mov byte ptr es:[bx], ch
+        inc si
+        cmp si, word ptr [bp-0ah]
+        jl L25d08
+        mov si, word ptr [bp+6]
+        inc di
+        cmp di, word ptr [bp-8]
+        jae L25d8e
+        jmp L25d08
+L25d8e:
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+_fill_screen_quadrant endp
+
+/* 0x25d96 */
+_far_copy proc near
+        push bp
+        mov bp, sp
+        push ds
+        push si
+        push di
+        les di, dword ptr [bp+4]
+        lds si, dword ptr [bp+8]
+        mov cx, word ptr [bp+0ch]
+        shr cx, 1
+        rep movsw
+        jae L25dac
+        movsb
+L25dac:
+        pop di
+        pop si
+        pop ds
+        pop bp
+        ret
+L25db1:
+        pop di
+        pop si
+        add sp, 2
+        pop bp
+        ret
+_far_copy endp
+
+/* 0x25db8 */
+_vqt_node proc near
+        push bp
+        mov bp, sp
+        sub sp, 2
+        push si
+        push di
+        mov si, word ptr [bp+8]
+        mov di, word ptr [bp+0ah]
+        mov ax, si
+        or ax, di
+        je L25db1
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 4
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        and ax, 0fh
+        mov byte ptr [bp-2], al
+        mov ax, di
+        shr ax, 1
+        push ax
+        mov ax, si
+        shr ax, 1
+        push ax
+        push word ptr [bp+6]
+        push word ptr [bp+4]
+        test byte ptr [bp-2], 8
+        je L25e25
+        call _vqt_node
+        jmp short L25e28
+L25e25:
+        call _fill_quadrant
+L25e28:
+        add sp, 8
+        mov ax, di
+        shr ax, 1
+        push ax
+        mov ax, si
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        push word ptr [bp+6]
+        shr bx, 1
+        add bx, word ptr [bp+4]
+        push bx
+        test byte ptr [bp-2], 4
+        je L25e4c
+        call _vqt_node
+        jmp short L25e4f
+L25e4c:
+        call _fill_quadrant
+L25e4f:
+        add sp, 8
+        mov ax, di
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        mov ax, si
+        shr ax, 1
+        push ax
+        shr bx, 1
+        add bx, word ptr [bp+6]
+        push bx
+        push word ptr [bp+4]
+        test byte ptr [bp-2], 2
+        je L25e73
+        call _vqt_node
+        jmp short L25e76
+L25e73:
+        call _fill_quadrant
+L25e76:
+        add sp, 8
+        mov ax, di
+        mov bx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        mov ax, si
+        mov cx, ax
+        inc ax
+        shr ax, 1
+        push ax
+        shr bx, 1
+        add bx, word ptr [bp+6]
+        push bx
+        shr cx, 1
+        add cx, word ptr [bp+4]
+        push cx
+        test byte ptr [bp-2], 1
+        je L25ea0
+        call _vqt_node
+        jmp short L25ea3
+L25ea0:
+        call _fill_quadrant
+L25ea3:
+        add sp, 8
+        pop di
+        pop si
+        add sp, 2
+        pop bp
+        ret
+L25ead:
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+_vqt_node endp
+
+/* 0x25eb5 */
+_fill_quadrant proc near
+        push bp
+        mov bp, sp
+        sub sp, 10ah
+        push si
+        push di
+        mov ax, word ptr [bp+0ah]
+        or ax, ax
+        je L25ead
+        mov di, ax
+        mov ax, word ptr [bp+8]
+        or ax, ax
+        je L25ead
+        mov si, ax
+        cmp si, 1
+        jne L25f3f
+        cmp di, 1
+        jne L25f3f
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov di, word ptr [bp+4]
+        mov dl, al
+        mov cx, di
+        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        lea bx, [di+18h]
+        mov ax, word ptr [bp+6]
+        shl ax, 1
+        add bx, ax
+        mov bx, word ptr [bx]
+        mov ax, cx
+        add bx, ax
+        les di, dword ptr [di+8]
+        add di, bx
+        mov al, dl
+        stosb
+        mov di, cx
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L25f3f:
+        mov ax, si
+        mov bx, di
+        mul bl
+        mov word ptr [bp-6], ax
+        mov cx, 8
+        or ah, ah
+        jne L25f58
+        xor cx, cx
+        dec al
+L25f53:
+        inc cx
+        shr al, 1
+        jne L25f53
+L25f58:
+        push bp
+        mov bx, cx
+        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, 0ff00h
+        mov cx, bx
+        rol ax, cl
+        xor ah, ah
+        mov bx, ax
+        mov ax, word ptr [bp]
+        mov dx, word ptr [bp+2]
+        add word ptr [bp], cx
+        adc word ptr [bp+2], 0
+        mov cx, word ptr [bp+4]
+        mov es, word ptr [bp+6]
+        mov bp, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bp, ax
+        mov ax, word ptr es:[bp]
+        and cl, 7
+        shr ax, cl
+        and ax, bx
+        pop bp
+        xor cx, cx
+        mov word ptr [bp-4], ax
+        or al, al
+        je L25fa9
+L25fa4:
+        inc cx
+        shr al, 1
+        jne L25fa4
+L25fa9:
+        mov ax, word ptr [bp+4]
+        mov di, ax
+        add ax, word ptr [bp+8]
+        mov word ptr [bp-8], ax
+        mov ax, word ptr [bp+6]
+        mov si, ax
+        add ax, word ptr [bp+0ah]
+        mov word ptr [bp-0ah], ax
+        mov word ptr [bp-2], cx
+        inc byte ptr [bp-4]
+        mov ax, word ptr [bp-6]
+        mov bx, ax
+        shl bx, 1
+        shl bx, 1
+        shl bx, 1
+        mul word ptr [bp-2]
+        mov cx, word ptr [bp-4]
+        shl cx, 1
+        shl cx, 1
+        shl cx, 1
+        add ax, cx
+        cmp bx, ax
+        ja L26052
+L25fe2:
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov dl, al
+        mov cx, di
+        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        lea bx, [di+18h]
+        mov ax, si
+        shl ax, 1
+        add bx, ax
+        mov bx, word ptr [bx]
+        mov ax, cx
+        add bx, ax
+        les di, dword ptr [di+8]
+        add di, bx
+        mov al, dl
+        stosb
+        mov di, cx
+        inc si
+        cmp si, word ptr [bp-0ah]
+        jl L25fe2
+        mov si, word ptr [bp+6]
+        inc di
+        cmp di, word ptr [bp-8]
+        jl L25fe2
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L26052:
+        cmp byte ptr [bp-4], 1
+        jne L260c9
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov byte ptr [bp-2], al
+        mov dx, word ptr [bp+6]
+L26096:
+        mov si, word ptr [bp+4]
+        mov cx, word ptr [bp+8]
+L2609c:
+        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        lea bx, [di+18h]
+        mov ax, dx
+        shl ax, 1
+        add bx, ax
+        mov bx, word ptr [bx]
+        mov ax, si
+        add bx, ax
+        les di, dword ptr [di+8]
+        add di, bx
+        mov al, byte ptr [bp-2]
+        stosb
+        inc si
+        loop L2609c
+        inc dx
+        dec word ptr [bp+0ah]
+        jne L26096
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+L260c9:
+        lea di, [bp-10ah]
+L260cd:
+        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, word ptr [bx]
+        mov dx, word ptr [bx+2]
+        mov cx, ax
+        add cx, 8
+        mov word ptr [bx], cx
+        mov cx, dx
+        adc cx, 0
+        mov word ptr [bx+2], cx
+        mov cx, word ptr [bx+4]
+        mov es, word ptr [bx+6]
+        mov bx, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bx, ax
+        mov ax, word ptr es:[bx]
+        and cl, 7
+        shr ax, cl
+        mov bx, ds
+        mov es, bx
+        stosb
+        dec byte ptr [bp-4]
+        jne L260cd
+        mov di, word ptr [bp+4]
+L26112:
+        push bp
+        mov bx, word ptr [bp-2]
+        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov ax, 0ff00h
+        mov cx, bx
+        rol ax, cl
+        xor ah, ah
+        mov bx, ax
+        mov ax, word ptr [bp]
+        mov dx, word ptr [bp+2]
+        add word ptr [bp], cx
+        adc word ptr [bp+2], 0
+        mov cx, word ptr [bp+4]
+        mov es, word ptr [bp+6]
+        mov bp, cx
+        mov cx, ax
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        shr dx, 1
+        rcr ax, 1
+        add bp, ax
+        mov ax, word ptr es:[bp]
+        and cl, 7
+        shr ax, cl
+        and ax, bx
+        pop bp
+        lea bx, [bp-10ah]
+        add bx, ax
+        mov al, byte ptr [bx]
+        mov dl, al
+        mov cx, di
+        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        lea bx, [di+18h]
+        mov ax, si
+        shl ax, 1
+        add bx, ax
+        mov bx, word ptr [bx]
+        mov ax, cx
+        add bx, ax
+        les di, dword ptr [di+8]
+        add di, bx
+        mov al, dl
+        stosb
+        mov di, cx
+        inc si
+        cmp si, word ptr [bp-0ah]
+        jl L26112
+        mov si, word ptr [bp+6]
+        inc di
+        cmp di, word ptr [bp-8]
+        jge L26190
+        jmp short L26112
+L26190:
+        pop di
+        pop si
+        add sp, 10ah
+        pop bp
+        ret
+_fill_quadrant endp
+VQT_TEXT ends
+}
+#else
 
 /*
  * 0x25953
@@ -521,4 +1550,4 @@ void near fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         xi++;
     } while (xi < x1);
 }
-
+#endif

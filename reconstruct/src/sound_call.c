@@ -6,20 +6,116 @@
  *
  * **The host callback, which was written in assembly.** This file
  * corresponds to the fifth module of the original's code segment 2619, image
- * 0x2928c..0x292f4: installing the callback cell at `cs:0x30f6`, and two ways
+ * 0x29286..0x292f4: installing the callback cell at `cs:0x30f6`, and two ways
  * of calling through it. It sits between two C modules, and none of its
  * three routines is a compiler's: `set_sound_callback` saves AX round its
  * stores, and the callers save every register and the flags and keep their
  * answer in the code segment.
  *
- * **So no C compiler judges this file.** It is the host's transcription of a
- * hand-written module, and the byte-exact source of these bytes is TASM's to
- * make (not written yet). The functions are in address order and each
+ * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
+ * host's transcription in the `#else`. It begins at 0x29286, with the cell itself: six
+ * bytes of the code segment before the first routine. The functions are in address order and each
  * carries the image offset it was read from.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
+ * transcription is the `#else`. See glue.c for how the block reaches the
+ * assembler.
+ */
+asm {
+extrn _DG4A82:byte
+SOUND_CALL_TEXT segment byte public 'CODE'
+assume cs:SOUND_CALL_TEXT, ds:DGROUP
+public _set_sound_callback, _sound_callback, _sound_callback_quiet
+c_29286 label byte
+        db 0h, 0h
+c_29288 label byte
+        db 0h, 0h
+c_2928a label byte
+        db 0h, 0h
+
+/* 0x2928c */
+_set_sound_callback proc far
+        push bp
+        mov bp, sp
+        push ax
+        mov ax, word ptr [bp+6]
+        mov word ptr cs:c_29286, ax
+        mov ax, word ptr [bp+8]
+        mov word ptr cs:c_29288, ax
+        pop ax
+        pop bp
+        retf
+_set_sound_callback endp
+
+/* 0x292a1 */
+_sound_callback proc far
+        push bp
+        mov bp, sp
+        push ds
+        push es
+        pushf
+        push ax
+        push cx
+        push dx
+        push bx
+        push bp
+        push si
+        push di
+        mov ax, DGROUP
+        mov ds, ax
+        cmp word ptr DGROUP:_DG4A82+28h, 0
+        je L292c5
+        mov si, word ptr [bp+8]
+        mov ax, word ptr [bp+6]
+        call dword ptr cs:c_29286
+L292c5:
+        mov word ptr cs:c_2928a, ax
+        pop di
+        pop si
+        pop bp
+        pop bx
+        pop dx
+        pop cx
+        pop ax
+        popf
+        mov ax, word ptr cs:c_2928a
+        pop es
+        pop ds
+        pop bp
+        retf
+_sound_callback endp
+
+/* 0x292d9 */
+_sound_callback_quiet proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        cmp word ptr DGROUP:_DG4A82+28h, 0
+        je L292f0
+        mov si, word ptr [bp+8]
+        mov ax, word ptr [bp+6]
+        call dword ptr cs:c_29286
+L292f0:
+        pop di
+        pop si
+        pop bp
+        retf
+_sound_callback_quiet endp
+SOUND_CALL_TEXT ends
+}
+#else
 
 /*
  * 0x2928c
@@ -88,3 +184,4 @@ void sound_callback_quiet(uint16_t ax, union sound_module_args * si)
     if (((int16_t)DG4A82.module_live) != 0)
         call_sound_module(ax, si);
 }
+#endif

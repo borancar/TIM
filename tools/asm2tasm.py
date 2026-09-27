@@ -103,6 +103,18 @@ def main(argv):
                     metavar=("LO", "HI"),
                     help="the module's own _DATA, emitted from the image with a "
                          "label at every offset the code names")
+    ap.add_argument("--bss", nargs=2, type=lambda s: int(s, 0),
+                    metavar=("LO", "HI"),
+                    help="the module's own _BSS, emitted as reserved bytes with "
+                         "a label at every offset the code names")
+    ap.add_argument("--offsets", action="store_true",
+                    help="write an index register loaded with a value inside a "
+                         "placed object as `offset` - right for polyclip.c's "
+                         "VMDS copies, wrong for LZHUF's tree constants, so "
+                         "asked for and then read")
+    ap.add_argument("--code-lead", action="store_true",
+                    help="what precedes the first routine is code (a routine's "
+                         "own head, reached by a branch), not data")
     ap.add_argument("--at", action="append", default=[],
                     help="name=0xADDR for a routine the port has no name for")
     a = ap.parse_args(argv)
@@ -131,8 +143,11 @@ def main(argv):
     insns = []
     pre = []
     first = starts[0] if starts else a.hi
-    for k in range(a.lo, first):
-        pre.append(k)
+    if a.code_lead:
+        insns.extend(md.disasm(img[a.lo:first], a.lo))
+    else:
+        for k in range(a.lo, first):
+            pre.append(k)
     bounds = starts + [a.hi]
     for k, st in enumerate(starts):
         insns.extend(md.disasm(img[st:bounds[k + 1]], st))
@@ -281,6 +296,14 @@ def main(argv):
             dat.append("        db " + ", ".join(run))
         dat.append("_DATA ends")
         out = dat + [""] + out
+    if a.bss:
+        blo, bhi = a.bss
+        cut = sorted({o for o in own if blo <= o < bhi} | {blo}) + [bhi]
+        bss = ["_BSS segment word public 'BSS'"]
+        for k in range(len(cut) - 1):
+            bss.append("d_%04x db %d dup (?)" % (cut[k], cut[k + 1] - cut[k]))
+        bss.append("_BSS ends")
+        out = bss + [""] + out
     print("\n".join(out))
 
 
@@ -359,7 +382,8 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
         mo = None
     if mo and not re.search(r"\b(es|cs|ss):\[", op):
         off = int(mo.group(3), 16)
-        if a.data and a.data[0] <= off < a.data[1]:
+        if (a.data and a.data[0] <= off < a.data[1]) or \
+                (a.bss and a.bss[0] <= off < a.bss[1]):
             a.own.add(off)
             nm = "d_%04x" % off
         elif mo.group(2):
@@ -380,10 +404,12 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
     mi = re.fullmatch(r"(si|di|bx|bp), (0x[0-9a-f]+)", op)
     if m == "mov" and mi and not re.search(r"\[", op):
         v = int(mi.group(2), 16)
-        if a.data and a.data[0] <= v < a.data[1]:
+        # inside the module's own data it is safe to call an address
+        if (a.data and a.data[0] <= v < a.data[1]) or \
+                (a.bss and a.bss[0] <= v < a.bss[1]):
             a.own.add(v)
             return "mov %s, offset DGROUP:d_%04x" % (mi.group(1), v)
-        if v >= 0x100:
+        if v >= 0x100 and a.offsets:
             nm = data_name(v, placed, addrs)
             if nm:
                 a.data_externs.add(nm.split("+")[0])
@@ -394,6 +420,9 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
         tgt = judge.frame_of(ins.address, fr) + int(mc.group(1), 16)
         if a.lo <= tgt < a.hi:
             op = op.replace(mc.group(0), "cs:c_%05x" % tgt)
+    # capstone writes `les di, ptr [bp + 4]`; TASM wants the size
+    if m in ("les", "lds"):
+        op = re.sub(r"(^|, )ptr ", r"\1dword ptr ", op)
     op = re.sub(r"0x([0-9a-f]+)", lambda x: hexnum(int(x.group(1), 16)), op)
     op = op.replace(" + ", "+").replace(" - ", "-")
     return ("%s %s" % (m, op)).strip()

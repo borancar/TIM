@@ -119,8 +119,9 @@ modules are BC++ 3.0 `-mm -O -G -Z`, and all their routines match:
 
 sound_device.c's `_BSS` is 0x6414..0x6430.
 
-`sound.c` (0x26198..0x28580) and `sound_call.c` (0x2928c..0x292f4) are the
-host's transcriptions of the assembly. Their TASM source is not written.
+`sound.c` (0x26198..0x28580) is the host's transcription of the assembly;
+its TASM source is not written. `sound_call.c` (0x29286..0x292f4, the
+callback cell in its code segment first) is TASM, 3 of 3.
 
 `DG4A82` could be sound_stop's or sound_file's: both give the same bytes.
 Nothing names 0x4ab0..0x4ab4 (`DG4AB0`), and the modules after the sound
@@ -135,16 +136,16 @@ routine matches:
 - `src/screenshot.c` is an ILBM screenshot writer that nothing calls. It is
   BC++ **2.0** `-mm`: 5 of 5 routines match, and so does its `_DATA`
   0x355a..0x3576.
-- `src/vgadac.c` is the host transcription of the segment's closing assembly
-  module, 0x1c087..0x1c251. Its TASM source is not written.
+- `src/vgadac.c` is the segment's closing assembly module,
+  0x1c087..0x1c251, as TASM: 3 of 3.
   `chunky_to_planar` agrees with the original's bytes, run under Unicorn, on
   20 random rows.
 
 The part modules' data, DGROUP 0x3182..0x355a, is split among the 26
 modules that have tables. Each module's `_DATA` matches at its own base.
 
-Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly; its
-host transcription is `src/vqt.c` and its TASM source is not written yet.
+Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly:
+`src/vqt.c`, as TASM, 6 of 6.
 
 **Which variant:** `TIM.EXE` is the only executable, but its video driver
 `VM.OVL` is a container of **eight per-adapter drivers** - `VGA`, `EGA`, `MCG`,
