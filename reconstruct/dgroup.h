@@ -1643,43 +1643,11 @@ struct pal_chunk_names {
 extern struct pal_chunk_names PALCHUNK;
 
 
-/*
- * ---------------------------------------------------------------------------
- * **The overlay chunk name and the adapter tags**, at DGROUP 0x4919. The same
- * shape as `CHUNK.ssm_tag`: `4f 56 4c 3a 20 20 20 20 20 00` is "OVL:" and
- * five spaces, and the caller copies a four-character tag and its NUL over the
- * spaces at +4 before the seek.
- *
- * The tags follow it, eleven of five bytes. The code reaches them only through
- * `ADAPTER_TAGS`, whose table sits *below* this at 0x4901 and one of whose
- * entries - "BAD:" - points below that again, so they are transcribed as the
- * run they are rather than named one by one.
- * ---------------------------------------------------------------------------
- */
-struct ovl_chunk_names {
-    char ovl_tag[10];        /* +0x00  0x4919  "OVL:" + room for the tag */
-    char adapter_tag[11][5]; /* +0x0a  0x4923  CGA: EGA: TAN: HER: MCG: EVA:
-                                               VGA: EVG: HVG: HEG: NEW: */
-} PACKED;
-
-extern struct ovl_chunk_names OVLCHUNK;
 
 
 /* The four-character tags the two buffers above are completed from. The
    tables hold offsets rather than the tags themselves, which is why these
    stay `OFF_TABLE` and not a run of `char[5]`. */
-/*
- * **The adapter tags**, DGROUP 0x48fc..0x4919: "BAD:" and then twelve near
- * pointers to the tags `load_named_chunk` puts after "OVL:". The game indexes
- * `[si*2 + 0x48ff]` with `si` from 1 - the compiler folding the first index
- * into the base - so entry 1 is `tag[0]`, at 0x4901. The sixth points back at
- * "BAD:".
- */
-struct adapter_tags {
-    char      bad[5];              /* +0x00  0x48fc  "BAD:" */
-    dg_near_t tag[12];             /* +0x05  0x4901  entries 1 to 12 */
-} PACKED;
-extern struct adapter_tags ADAPTER_TAGS;
 
 
 /* A signed 16-bit point: a part's position, box and size generations, a
@@ -2988,6 +2956,34 @@ struct engine_underline_rows {
 } PACKED;
 
 extern struct engine_underline_rows ENGINE_UNDERLINE_ROWS;
+
+/*
+ * **The scaling table** `scale_table_delta` takes differences across,
+ * DGROUP 0x5956..0x5e56, 0x500 bytes: an entry per destination column, and
+ * `step_accumulate` writes one past the last. 640 entries run exactly to
+ * `ENGINE_ROW_OFFSETS` at 0x5e56.
+ */
+struct engine_scale_table {
+    int16_t   entry[0x280];       /* +0x00 [0x500] */
+} PACKED;
+
+extern struct engine_scale_table ENGINE_SCALE_TABLE;
+
+/*
+ * **One word per output row of a scaled blit**, DGROUP 0x5e56..0x6176, 0x320
+ * bytes - the source row's offset into its plane, as `blit_scaled_a` and
+ * `blit_scaled_b` work it out from the scaling table. The original also reaches
+ * it as `[bx+0x5e54]` with `bx` one entry higher, which is the same table one
+ * word lower: `ENGINE_ROW_OFFSETS.row[n - 1]`.
+ *
+ * 400 words is only the run to `ENGINE_FONT_KINDS` at 0x6176: no loop in the
+ * port bounds it.
+ */
+struct engine_row_offsets {
+    uint16_t  row[0x190];         /* +0x00 [0x320] */
+} PACKED;
+
+extern struct engine_row_offsets ENGINE_ROW_OFFSETS;
 
 /*
  * **The sound module's own code segment, which is where it keeps its state** -

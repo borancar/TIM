@@ -394,6 +394,27 @@ The module defines that `MK_FP` for itself under Borland.
 waiting on a name.** When moving definitions changes nothing, rename one
 object and compile again.
 
+### A compiler short of memory can write an object with no symbols, and exit 0
+
+vidload.c judged "0 of 0 routines match" on 2026-09-27. Borland C++ 2.0,
+under turboc's emulator, had compiled it with 56 KB of conventional memory
+left. It printed only warnings and exited 0, but its object had no EXTDEF or
+PUBDEF records: two records with broken type bytes (0x04, 0x42) sat where
+they should have been. So the judge saw no routines and said so without
+complaint.
+
+The trigger was the module's data - adding a table of twelve pointers to
+literals tipped it over - and memory was the cause. turboc's emulator loads
+the program at segment 0x1000, and with the PSP at 0x0800 instead the same
+compile reports 89 KB free and writes the object whole. What a compiler
+writes does not depend on where it was loaded, and every module judged
+before was re-judged under the new setting with the same result.
+
+`tools/tcrun.py` is turboc's `tcemu.py` with the PSP at 0x0800, and the
+judge runs the emulated compilers through it. The judge also **refuses an
+object with no publics**: every file it judges defines something, so an
+empty one is a compiler that went wrong.
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their

@@ -241,7 +241,15 @@ def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
         if not objs or ERRORS.search(out):
             sys.stdout.write(out)
             raise SystemExit("%s: %s did not compile it" % (path, compiler))
-        return omf.load(os.path.join(d, objs[0]))[0], out
+        mod = omf.load(os.path.join(d, objs[0]))[0]
+        # **An object without publics is a compiler that went wrong**, not a
+        # file with nothing in it: BC++ 2.0 short of memory exited 0 having
+        # written one (tools/tcrun.py). Every judged file defines something.
+        if not mod.publics:
+            sys.stdout.write(out)
+            raise SystemExit("%s: %s wrote an object with no publics"
+                             % (path, compiler))
+        return mod, out
     finally:
         shutil.rmtree(d)
 
@@ -255,8 +263,11 @@ def compile_emulated(d, name, inc, opts, compiler):
     version = compiler.replace("-emu", "")
     mounts = [os.path.join(d, name)] + sorted(
         os.path.join(inc, h) for h in os.listdir(inc))
+    # tools/tcrun.py is turboc's tcemu.py with the memory a real machine
+    # left: BC++ 2.0 wrote an object without its symbol records under
+    # turboc's own figure.
     cmd = ["uv", "run", "--project", TURBOC, "python",
-           os.path.join(TURBOC, "tools", "tcemu.py"), EMULATED[compiler],
+           os.path.join(REPO, "tools", "tcrun.py"), EMULATED[compiler],
            "--save", d]
     for m in mounts:
         cmd += ["--add", m]

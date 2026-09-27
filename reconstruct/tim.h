@@ -1949,7 +1949,7 @@ void read_mouse_pointer(int16_t *x,
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
 int16_t compute_step(int32_t *v, int16_t count);   /* 0x20840 */
-int16_t scale_table_delta(int16_t n);               /* 0x22790 */
+int16_t near scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t read_mouse_button(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */
 void mouse_restore_vga(void);                       /* 0x22074 */
