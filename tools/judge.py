@@ -194,19 +194,26 @@ def host_tasm(version):
     return exe
 
 
-def assemble(d, base, opts, assembler):
-    """TASM on `base`.ASM in `d`, with the command line TCC gives it."""
+def assemble(d, base, opts, assembler, defines=True):
+    """TASM on `base`.ASM in `d`, with the command line TCC gives it - less
+    the `/D` defines for an assembly module's own source (`defines=False`),
+    which never tests them, and under which TASM 3.0 in turboc's emulator
+    loops until the instruction budget runs out."""
     models = {"-mt": "__TINY__", "-ms": "__SMALL__", "-mm": "__MEDIUM__",
               "-mc": "__COMPACT__", "-ml": "__LARGE__", "-mh": "__HUGE__"}
     model = next((models[o] for o in opts if o in models), "__SMALL__")
     conv = "__PASCAL__" if "-p" in opts else "__CDECL__"
-    tail = [base, "/D" + model, "/D" + conv, "/r/ml," + base, ";"]
+    tail = ([base, "/D" + model, "/D" + conv, "/r/ml," + base, ";"] if defines
+            else [base, "/r/ml," + base, ";"])
     if assembler in TASM_HOST:
         r = subprocess.run([host_tasm(assembler)] + tail, cwd=d,
                            capture_output=True, text=True)
         return r.stdout + r.stderr
+    # Through tools/tcrun.py, as the compilers are: under turboc's own
+    # memory figure TASM 3.0 prints its banner and then runs the emulator's
+    # instruction budget out without assembling a line.
     cmd = ["uv", "run", "--project", TURBOC, "python",
-           os.path.join(TURBOC, "tools", "tcemu.py"), "TASM.EXE",
+           os.path.join(REPO, "tools", "tcrun.py"), "TASM.EXE",
            "--save", d, "--add", os.path.join(d, base + ".ASM"), "--"] + tail
     r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
                        env=dict(os.environ, TURBOC_VERSION=assembler))
@@ -238,7 +245,7 @@ def tasm_obj(path, opts, assembler):
         base = os.path.splitext(os.path.basename(path))[0][:8].upper()
         with open(os.path.join(d, base + ".ASM"), "w", newline="\r\n") as f:
             f.write(prelude + body + "\nend\n")
-        out = assemble(d, base, opts, assembler)
+        out = assemble(d, base, opts, assembler, defines=False)
         objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
         if not objs or ERRORS.search(out):
             sys.stdout.write(out)
