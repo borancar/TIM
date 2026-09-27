@@ -1207,8 +1207,11 @@ void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
 void add_mass_capped(struct part *obj, struct part *other); /* 0x07c5b */
-void part_step(struct part *part);                      /* dispatch, ours */
-uint16_t part_hit(uint16_t kind, struct part *part); /* dispatch, ours */
+/* **A kind's step and hit hooks, called through its record** - inline in
+   the original, `lcall [bx+0x0ecc]` and `lcall [bx+0x0ec8]` with `bx` the
+   kind times 0x3a, which is what these expand to. Ours in name. */
+#define part_step(part)        (PART_KINDS[(part)->kind].step(part))
+#define part_hit(kind, part)   (PART_KINDS[kind].hit(part))
 uint16_t part_hit_bellow(struct part *part);              /* 0x175f2 */
 void     nudge_x_add(struct part *obj, int16_t d);      /* 0x191c8 */
 void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x191e2 */

@@ -40,6 +40,7 @@ time, from the front, each BC++ 3.0 `-mm` (no `-O`: the image keeps the
 | file | image | routines | data |
 | --- | --- | --- | --- |
 | `src/collide.c` | 0x00297..0x00f86 | 16 of 16 | `_DATA` 0x258c..0x259c, `_BSS` 0x53fc..0x5428 |
+| `src/stepmach.c` | 0x00f86..0x012ab | 2 of 2 | none |
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went

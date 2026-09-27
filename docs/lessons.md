@@ -527,6 +527,33 @@ because DS is the bitmap's, the prefix is an `asm db 36h` in front: a
 `_ss` pointer into DGROUP loses its prefix, because the model takes SS to
 be DGROUP.
 
+### A cast the judge does not need can be one the host does, and a wait on a check's files can read the previous run
+
+collide.c was committed on 2026-09-27 (ac75438) as byte-exact with
+`check_machines` at 29/29. It was byte-exact, but `check_machines` was not
+at 29/29: S28 and S30 diverged from the first flip after the machine
+started. Two mistakes met there.
+
+**Rewriting a routine to the image's shape dropped a cast the host
+needed.** `resolve_collisions` compares `DG53FC.contact_ptr`, declared
+`int16_t`, with `DG53FC.other_ptr`, a `dg_near_t`. Borland compares two
+16-bit words and cannot tell signed from unsigned. The host promotes both
+to `int`, so a part above DGROUP 0x8000 is negative on one side and
+positive on the other. The port had carried `(int16_t)` on the pointer,
+and the rewrite dropped it as noise, because the judge matched without
+it. A cast to a field's own width costs Borland nothing: **when rewriting
+for the judge, keep every cast that the old code had for the host**. It
+was found by putting the old routines back a group at a time and running
+the failing level, which took four runs.
+
+**The sweep's results were stale.** The check ran in the background, and
+the wait was a loop polling for its result files. Those files were
+deleted by the same background job when it started, but the loop's first
+look came before that, so it found the previous commit's green results,
+all six of them, and they were reported as this one's. **Wait on the job
+itself, its completion notice or its pid through `tools/waitpids.py`, never
+on files it will rewrite.**
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their

@@ -10,9 +10,9 @@
  * `run_machine_loop`, all 64 goal tests, and the part list they walk.
  *
  * This file holds what is left of the original's **code segment 0000**
- * (`_TEXT`), image 0x00f86..0x0dff0, while its modules are split out from the
- * front: collide.c holds 0x00297..0x00f86, and C0M's startup before it is the
- * Borland library's. The binary is medium model, and `_TEXT` holds several
+ * (`_TEXT`), image 0x012ab..0x0dff0, while its modules are split out from the
+ * front: collide.c and stepmach.c hold 0x00297..0x012ab, and C0M's startup
+ * before them is the Borland library's. The binary is medium model, and `_TEXT` holds several
  * modules - docs/executable.md. Functions are in address order and each
  * carries the image offset it was read from.
  */
@@ -349,223 +349,6 @@ struct finish_level_labels FINISH_LEVEL_LABELS DGROUP_AT(0x283a) = {
     "REPLAY", /* replay */
     "ADVANCE", /* advance */
 };
-
-/*
- * 0x00f86
- *
- * One step of the machine's physics, as a dozen passes over the same lists.
- *
- * The order matters and is the whole point: a pass finishes for every part
- * before the next begins, so a part never sees half of another part's step.
- *
- *  1. Clear bits 6 to 9 of the flags at +8 on everything - last step's answers.
- *  2. Run the step of every part on the list at DGROUP 0x4e58, which is the
- *     queue of parts something asked to move, then fold that list onto 0x4e56.
- *  3. Run it again for the parts on 0x521b with bit 11 set and neither bit 6
- *     nor bit 13, then for kind 0x0e, then for everything with none of bits 6,
- *     11 or 13. Three passes in a fixed order, so a conveyor moves before the
- *     things standing on it.
- *  4. Over the list at 0x5179 - the moving objects - apply gravity, reset the
- *     mass from the kind's record, and clear bit 4 of +0x0a.
- *  5. Four more passes over 0x5179 around kind 0x11, each pairing 0x03972 with
- *     a different follow-up.
- *  6. Collisions: an object with bit 1 of +6 asks the kind of whatever it is
- *     touching - the part at +0x84 - whether the hit counts, and answers by
- *     bouncing or sliding; bit 2 asks the same question and takes a third
- *     answer. Bit 3 or being hidden skips it.
- *  7. Finally, over the 0x3000 list, each part that has moved since last step
- *     is told so, and each that has not still copies its belts' positions
- *     forward.
- */
-void step_machine(void)
-{
-    struct belt *v06;      /* [bp-6] */
-    uint16_t v04;      /* [bp-4] */
-    uint16_t v02;      /* [bp-2] */
-    struct part *si;
-    uint16_t di;
-
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        si->flags_08 &= 0xf9bf;
-
-    for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next_ptr) {
-        si = PART_PTR(QNODE_PTR(di)->part);
-        if (si->flags_08 & 0x40)
-            continue;
-        part_step(si);
-    }
-
-    splice_list_4e58_onto_4e56();
-
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        v02 = si->flags_08;
-        if (!(v02 & 0x800))
-            continue;
-        if (v02 & 0x2040)
-            continue;
-        part_step(si);
-    }
-
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        if (si->kind != KIND_GEAR)
-            continue;
-        if (si->flags_08 & 0x2040)
-            continue;
-        part_step(si);
-    }
-
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        v02 = si->flags_08;
-        if (v02 & 0x2840)
-            continue;
-        part_step(si);
-    }
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        if (!(si->flags_08 & 0x2000))
-            apply_gravity_and_speed(si);
-
-        si->weight =
-            ((uint16_t)PART_KINDS[si->kind].weight);
-        si->flags_0a &= 0xffef;
-    }
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        if (si->kind != KIND_BUCKET)
-            step_moving_object(si);
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        if (si->kind == KIND_BUCKET) {
-            collect_carried(si);
-            add_carried_weight(si);
-        }
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        if (si->kind == KIND_BUCKET) {
-            collect_carried(si);
-            step_moving_object(si);
-        }
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
-        if (si->kind == KIND_BUCKET) {
-            collect_carried(si);
-            carry_riders_along(si);
-        }
-
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
-        if (si->flags_06 & 8)
-            continue;
-        if (si->flags_08 & 0x2000)
-            continue;
-
-        if (si->flags_06 & 2) {
-            if (part_hit(PART_PTR(si->contact_ptr)->kind,
-                         si) == 0)
-                continue;
-
-            if (si->flags_06 & 1)
-                apply_contact_friction(si);
-            else
-                bounce_off_contact(si);
-            continue;
-        }
-
-        if (si->flags_06 & 4) {
-            if (part_hit(PART_PTR(si->contact_ptr)->kind,
-                         si) != 0)
-                bounce_pair(si);
-        }
-    }
-
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
-         si = pick_for_record(si, 0x1000)) {
-        if (si->flags_08 & 0x2000)
-            continue;
-
-        if (si->pos[0].x != si->pos[2].x
-            || si->pos[0].y != si->pos[2].y
-            || si->form != ((uint16_t)si->form_prev2)) {
-            part_moved(si);
-            continue;
-        }
-
-        if (((uint16_t)si->pos[0].x) == ((uint16_t)si->pos[1].x)
-            && ((uint16_t)si->pos[0].y) == ((uint16_t)si->pos[1].y)
-            && si->form == si->form_prev)
-            continue;
-
-        for (v04 = 0; ((int16_t)v04) < 2; v04++) {
-            v06 = BELT_PTR(si->belt_ptr[v04]);
-            if (v06 == BELT_NONE)
-                continue;
-
-            v06->pt[0][0] = v06->pt[2][0];
-            v06->pt[0][1] = v06->pt[2][1];
-        }
-    }
-
-}
-
-/*
- * 0x01216
- *
- * One moving object's step: run its kind's own handler, integrate it, clear the
- * low nibble of its contact flags at +6, and settle it against whatever it hits.
- *
- * Then, if it hangs from a belt, `tension_belt` is asked whether that pulled it
- * somewhere. If it did, the contact flags are cleared again - the position it
- * was settled at is no longer where it is. If it did not, the contact record at
- * +0x84 is *saved and cleared* across a second `resolve_collisions`, and put
- * back only if that second pass found nothing: a part that the belt did not
- * move keeps the contact it already had, rather than losing it to a settle that
- * was only run to check.
- *
- * An object hidden - bit 13 of +8 - does none of it.
- */
-void step_moving_object(struct part *obj)
-{
-    uint16_t saved;                    /* [bp-6], the contact's +0 */
-    uint8_t  b2;       /* [bp-4], its +3 */
-    uint8_t  b1;       /* [bp-3], its +2 */
-    int16_t  pulled;   /* [bp-2] */
-
-    if (obj->flags_08 & 0x2000)
-        goto out;
-
-    part_step(obj);
-    integrate_object(obj);
-
-    obj->flags_06 &= 0xfff0;
-    resolve_collisions(obj);
-
-    if (obj->belt_ptr[0] == 0)
-        goto out;
-
-    pulled = tension_belt(obj);
-
-    if (pulled != 0) {
-        obj->flags_06 &= 0xfff0;
-    } else {
-        saved = obj->contact_ptr;
-        b1 = obj->no_nudge_plus;
-        b2 = obj->no_nudge_minus;
-        obj->contact_ptr = 0;
-    }
-
-    resolve_collisions(obj);
-
-    if (pulled != 0)
-        goto out;
-
-    if (obj->contact_ptr != 0)
-        goto out;
-
-    obj->contact_ptr = saved;
-    obj->no_nudge_plus = b1;
-    obj->no_nudge_minus = b2;
-
-out:
-}
 
 /*
  * 0x03972
@@ -1064,17 +847,6 @@ void add_mass_capped(struct part *obj, struct part *other)
 }
 
 /*
- * OURS: not a transcription. The original runs a part's per-step handler
- * through the far pointer at +0x26 of its kind's record, and asks whether a
- * hit counts through the one at +0x22 of the *other* part's kind. C cannot
- * call either, so both are dispatched by value.
- */
-void part_step(struct part *part)
-{
-    PART_KINDS[part->kind].step(part);
-}
-
-/*
  * OURS: not a transcription, the third of the by-value dispatches. A part's
  * drive hook is the far pointer at +0x36 of its kind's record, and it takes
  * six arguments where the other two take one.
@@ -1089,14 +861,6 @@ uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t 
                     uint16_t p4, uint16_t p5, int32_t p6)
 {
     return PART_KINDS[by->kind].drive(p1, p2, p3, p4, p5, p6);
-}
-
-/*
- * OURS: not a transcription, the other half of the pair above.
- */
-uint16_t part_hit(uint16_t kind, struct part *part)
-{
-    return PART_KINDS[kind].hit(part);
 }
 
 /*

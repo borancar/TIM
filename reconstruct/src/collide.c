@@ -277,8 +277,8 @@ int16_t angles_same_side(int16_t angle)
  */
 int16_t object_delta_angle(register struct part *obj)
 {
-    return atan2_long(obj->pos[1].x - obj->pos[0].x,
-                      obj->pos[0].y - obj->pos[1].y);
+    return atan2_long((int16_t)(obj->pos[1].x - obj->pos[0].x),
+                      (int16_t)(obj->pos[0].y - obj->pos[1].y));
 }
 
 /*
@@ -412,7 +412,7 @@ int16_t resolve_collisions(struct part *obj)
                                                     0x1000))) {
         if (!chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.other_ptr)
             && DG53FC.list_ptr != DG53FC.other_ptr
-            && DG53FC.contact_ptr != DG53FC.other_ptr
+            && DG53FC.contact_ptr != (int16_t)DG53FC.other_ptr
             && PART_PTR(DG53FC.other_ptr)->points_ptr != 0
             && !(PART_PTR(DG53FC.other_ptr)->flags_08 & 0x2000)
             && !(PART_PTR(DG53FC.list_ptr)->kind == 0xc
