@@ -2668,6 +2668,9 @@ static void sb_play_block(uint16_t count)
             b = (uint16_t)((b + a) % 255);
         }
         sb_say("play", (uint16_t)n, sb_rate);
+        /* Where it starts, so a sample the module cut at a 64K page can be
+           joined back up: `check_sound.py` does, from the two sums. */
+        sb_say("play at", (uint16_t)(at >> 16), (uint16_t)at);
         sb_say("play sum", (uint16_t)((b << 8) | a), (uint16_t)n);
     }
 

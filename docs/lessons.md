@@ -1061,6 +1061,14 @@ unavoidable: a record holding host pointers is no longer laid out as the
 guest's, so a port routine cannot run on the original's memory any more.
 `check_machines` now runs the hybrid under `io` unless told otherwise.
 
+It hid a third thing too: `check_sound` had said the port plays the
+original's samples, and under `io` it said the attract loop differs at run 1.
+That one was the tool - a sample split at a 64K DMA page lands differently
+when the two sides' memory is laid out differently, which it now is by design,
+and joining contiguous blocks fixed it - and behind it was the sequencer's
+clock again, which the tool now reports as inconclusive rather than as a
+difference (STATUS.md).
+
 The same shape cost a second failure the same day. The timer's callback table
 moved out of guest memory into host code pointers, and `timer_add_callback`
 was still dispatched - but the handler that reads the table, `timer_tick`, is

@@ -647,6 +647,24 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
+### check_sound cannot say whether the attract loop's samples come in the original's order
+
+Since the hybrid runs the original's game code (2026-09-27), `check_sound`'s
+reference is the original's sequencer, and two things surfaced. The first was
+the tool's: the module cuts a sample where it crosses a 64K DMA page, and the
+original's memory is laid out differently from the port's, so one sample came
+as one block on one side and two on the other. The trace now says where each
+block starts and the tool joins contiguous blocks back into the sample
+(Fletcher-16 composes), which made runs 0 to 6 agree.
+
+The second is the clock `--fm` already cannot see past: in the attract loop the
+music triggers the samples on the timer tick, and the hybrid's tick runs at
+emulation speed, so from run 7 the one-shots come in a different order - all
+five samples the original played are the port's byte for byte. The tool now
+says ORDER DIFFERS and exits 2, inconclusive, when content agrees and only the
+order does not. `--screen level` agrees outright. A verdict on order needs the
+tick and the card on one clock, which is the same unfinished work as `--fm`.
+
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 
 **STATUS.md's table is only as fresh as the last `--all` sweep, and it can

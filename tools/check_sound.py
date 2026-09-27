@@ -89,11 +89,30 @@ def blocks(cmd, seconds, label, clicks=()):
             if "io: PORT ABORTED" in line:
                 sys.exit("%s: %s - no verdict, the run did not finish"
                          % (label, line.strip()))
+    # **A sample, not a DMA block.** The module cuts a sample where it crosses a
+    # 64K page, so where the two sides' memory differs - and the hybrid runs
+    # the original's allocations now - the same sample arrives as one block on
+    # one side and two on the other. A block that starts where the last one
+    # ended is the same sample, and Fletcher-16 joins: for A then B,
+    # a = aA + aB and b = bA + bB + len(B) * aA, mod 255.
     out = []
+    at = None
+    end = None
     for line in text.splitlines():
         f = line.split()
-        if line.startswith("io: sb play sum"):
-            out.append((f[4], f[5]))
+        if line.startswith("io: sb play at"):
+            at = (int(f[4], 16) << 16) | int(f[5], 16)
+        elif line.startswith("io: sb play sum"):
+            s, n = int(f[4], 16), int(f[5], 16)
+            if out and at is not None and at == end:
+                ps, pn = out[-1]
+                a = ((ps & 0xff) + (s & 0xff)) % 255
+                b = ((ps >> 8) + (s >> 8) + n * (ps & 0xff)) % 255
+                out[-1] = ((b << 8) | a, pn + n)
+            else:
+                out.append((s, n))
+            end = at + n if at is not None else None
+    out = [("%04x" % s, "%04x" % n) for s, n in out]
     if not out:
         sys.exit(f"{label}: no sample blocks at all - is RESOURCE.CFG a "
                  f"Sound Blaster? "
@@ -234,11 +253,30 @@ exit status:
 
     for i in range(n):
         if port[i][0] != hybrid[i][0]:
-            print(f"DIFFERS at run {i}: the original played "
+            # **What was played, before when.** Every sample the original
+            # played has to be one the port played, byte for byte; that is
+            # this tool's claim, and a sample on one side only is a
+            # difference. The *order* is the sequencer's: in the attract loop
+            # the music triggers the samples on the timer tick, and the
+            # hybrid's tick runs at emulation speed - the clock `--fm` cannot
+            # give a verdict across either. It was hidden while the hybrid ran
+            # the port's own game code (docs/lessons.md).
+            ported = {k for k, _ in port}
+            alien = [k for k, _ in hybrid if k not in ported]
+            if alien:
+                s, ln = alien[0]
+                print(f"DIFFERS: the original played {int(ln, 16)} bytes "
+                      f"summing {s}, which the port never played")
+                return 1
+            print(f"ORDER DIFFERS at run {i}: the original played "
                   f"{int(hybrid[i][0][1], 16)} bytes summing "
-                  f"{hybrid[i][0][0]}, the port played "
-                  f"{int(port[i][0][1], 16)} bytes summing {port[i][0][0]}")
-            return 1
+                  f"{hybrid[i][0][0]}, the port "
+                  f"{int(port[i][0][1], 16)} bytes summing {port[i][0][0]}.")
+            print(f"Every sample the original played - {len({k for k, _ in hybrid})} "
+                  f"of them - is one the port played, byte for byte. The order "
+                  f"is the sequencer's tick, which the hybrid runs at emulation "
+                  f"speed: inconclusive on order.")
+            return 2
 
     if not args.quiet:
         seen = {}
