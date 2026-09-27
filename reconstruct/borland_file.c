@@ -1727,6 +1727,30 @@ have_handle:
 }
 
 /*
+ * 0x0db3b
+ *
+ * `read`: one `jmp` to 0x0da6d, `read_translated`, which is the whole of it.
+ * Its one caller is the far face at 0x0ba6a, which nothing calls.
+ */
+int16_t borland_read(int16_t handle, uint8_t *buf, uint16_t count)
+{
+    return read_translated(handle, buf, count);
+}
+
+/*
+ * 0x0db3e
+ *
+ * `rewind`: seek to the start, and on success clear the end-of-file bit,
+ * 0x10 of the stream's flags. Its one caller is the far face at 0x0bb00,
+ * which nothing calls.
+ */
+void borland_rewind(struct file_rec *file)
+{
+    if (borland_fseek(file, 0, 0) == 0)
+        file->flags &= 0xffef;
+}
+
+/*
  * 0x0db5e
  *
  * `setvbuf`. Answers 0, or -1 for a stream that is not open, a mode above 2 or

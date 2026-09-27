@@ -732,6 +732,21 @@ uint16_t near_memset(uint8_t *dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint8_t *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint8_t *heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
+/* thunks.c: far faces of the runtime's routines, the first twelve uncalled. */
+int16_t open_file_far(const char *name, uint16_t flags);                  /* 0x0ba32 */
+int16_t open_file_perm_far(const char *name, uint16_t flags, uint16_t perm); /* 0x0ba45 */
+int16_t close_handle_far(int16_t handle);                                 /* 0x0ba5b */
+int16_t borland_read_far(int16_t handle, uint8_t *buf, uint16_t count);   /* 0x0ba6a */
+struct file_rec *borland_fopen_far(const char *name, const char *mode);   /* 0x0ba80 */
+int16_t borland_fseek_far(struct file_rec *file, int32_t off, int16_t whence); /* 0x0ba93 */
+int32_t borland_ftell_far(struct file_rec *file);                         /* 0x0baac */
+uint16_t borland_fread_far(uint8_t *buf, uint16_t size, uint16_t count,
+                           struct file_rec *file);                        /* 0x0babb */
+uint16_t borland_fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
+                            struct file_rec *file);                       /* 0x0bad4 */
+int16_t borland_fputc_far(int16_t c, struct file_rec *file);              /* 0x0baed */
+void    borland_rewind_far(struct file_rec *file);                        /* 0x0bb00 */
+int16_t borland_fclose_far(struct file_rec *file);                        /* 0x0bb0f */
 uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
@@ -765,6 +780,8 @@ int16_t read_translated(int16_t handle, uint8_t *buf,
 void    flush_all_streams(void);                    /* 0x0d36d */
 int16_t refill_stream(struct file_rec *file);               /* 0x0d396 */
 int16_t borland_fgetc(struct file_rec *file);                 /* 0x0d404 */
+int16_t borland_read(int16_t handle, uint8_t *buf, uint16_t count); /* 0x0db3b */
+void    borland_rewind(struct file_rec *file);              /* 0x0db3e */
 int16_t borland_getchar(void);                              /* 0x0d4b3 */
 int16_t flush_stream(struct file_rec *file);                /* 0x0ce92 */
 int16_t borland_flushall(void);                             /* 0x0cf13 */
@@ -870,13 +887,18 @@ char *string_chr(char *s, int16_t c);       /* 0x0dcce */
 int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
 char *string_copy_far(char *dst, const char *src); /* 0x0bb4f */
 char *string_concat_far(char *dst, const char *src); /* 0x0bb3c */
-char *string_chr_far(char *s, uint16_t c);        /* 0x0bb62 */
+char *string_chr_far(char *s, int16_t c);        /* 0x0bb62 */
 int16_t  borland_fgetc_far(struct file_rec *file);              /* 0x0bb88 */
 int16_t string_compare_nocase(const char *a, const char *b); /* 0x0dd55 */
 char *string_copy_padded(char *dst, const char *src,
                             uint16_t n);            /* 0x0ddaf */
+#ifdef __TURBOC__
+/* Borland's `open` is variadic, and 0x0ba32 calls it with two arguments. */
+int16_t open_file(const char *name, uint16_t flags, ...); /* 0x0d5af */
+#else
 int16_t open_file(const char *name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
+#endif
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
 uint8_t *  mem_copy(uint8_t * dst, const uint8_t * src, uint16_t n); /* 0x0d524 */
 int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0df7a */
@@ -1713,6 +1735,9 @@ uint16_t load_screen_plain(char *name);        /* 0x23b29 */
 void draw_cursor(uint16_t page);                    /* 0x0ab1f */
 void build_screen_regions(void);                    /* 0x085c9 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */
+void mono_clear(void);                              /* 0x0b868 */
+void mono_puts(const char *s, int16_t x, int16_t y); /* 0x0b89d */
+void mono_printf(int16_t x, int16_t y, const char *fmt, ...); /* 0x0b907 */
 uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,

@@ -55,7 +55,10 @@ calls).
 | `src/fstring.c` | 0x09e4c..0x0a05f, BC++ 2.0 `-mm -zC_TEXT` | 7 of 7 | none |
 | `src/rects.c` | 0x0a05f..0x0a78e, BC++ 2.0 `-mm -zC_TEXT` (end ours) | 13 of 13 | `_DATA` 0x2d06..0x2d32, `_BSS` 0x56b6..0x56e6 |
 | `src/cursor.c` | 0x0a78e..0x0b6b7 (both ends ours) | 25 of 25, one of them (0x0b40d) uncalled | `_DATA` 0x2d32..0x2d48, `_BSS` 0x56e6..0x5788 |
-| `src/seg0000.c` | 0x0b82c..0x0bb1e, what is left: assembly, the monochrome printer, `fread_huge`, `draw_bitmap_scaled` and eleven far thunks | not judged | |
+| `src/seg0000.c` | 0x0b82c..0x0b859, `isr_stack_switch` | assembly: host transcription, not judged | the DOS helpers before it, 0x0b6b7..0x0b82c with `_DATA` 0x2d4a..0x2d7e, are transcribed in borland_file.c |
+| `src/mono.c` | 0x0b859..0x0ba32, BC++ 2.0 `-mm -zC_TEXT` (ends ours; 0x0b89d..0x0b933 is one module) | 6 of 6, the monochrome printer's three uncalled | none |
+| `src/thunks.c` | 0x0ba32..0x0bb97, BC++ 2.0 `-mm -zC_TEXT -G -O` (front ours) | 19 of 19, the first twelve uncalled | none |
+| `src/glue.c` | 0x0bb98..0x0bbfe, the sound module's wrappers | assembly: host transcription, not judged | none |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a
 bare `push cs / call` only for a routine defined earlier in the same file,

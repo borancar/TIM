@@ -4,11 +4,13 @@
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file: it is
  * derived from someone else's executable.
  *
- * **The game's far glue in `_TEXT`**: code segment 0000, image range
- * 0x0bb1e..0x0bbfd. Four far entries into the runtime's near heap and string
- * copy - `push cs`, a near call, `retf` - and the interface to the loaded
- * sound module: nine wrappers that load a function number and fall into the
- * trampoline at 0x0bbd4, which far-calls the module through DGROUP 0x4a98.
+ * **The interface to the loaded sound module**, in `_TEXT`: code segment
+ * 0000, image range 0x0bb98..0x0bbfe. Nine wrappers that load a function
+ * number and fall into the trampoline at 0x0bbd4, which far-calls the module
+ * through DGROUP 0x4a98. Hand-written assembly - a near `call` to a shared
+ * tail and no frame of their own - so this is the host's transcription and
+ * is not judged. It starts on a word boundary: 0x0bb97 is the pad byte after
+ * thunks.c, the far faces of the runtime's routines.
  *
  * **This boundary is ours, and so is the one on either side of it.** Segment
  * 0000 is `_TEXT`, which three parties share: Borland's startup owns the entry
@@ -30,97 +32,6 @@
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
-
-/*
- * 0x0bb1e
- *
- * The far-callable face of `malloc`: one argument off the stack and straight
- * on to `heap_malloc`.
- */
-uint8_t * heap_malloc_far(uint16_t bytes)
-{
-    /*
-     * **The `far` is the call, not the pointer.** 0x0bb1e is a thunk - one
-     * word pushed, `push cs`, a near call to `heap_malloc`, `retf` - and
-     * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a near
-     * heap block is one 16-bit DGROUP offset, which `heap_malloc` answers as
-     * the pointer it is, NULL for the original's 0.
-     */
-    return heap_malloc(bytes);
-}
-
-
-/*
- * 0x0bb2d
- *
- * The far-callable face of `free`: one argument off the stack and straight on
- * to `heap_free`. The `inc sp` twice that cleans it is two bytes shorter than
- * an `add sp,2` and does the same.
- */
-void heap_free_far(uint8_t * p)
-{
-    heap_free(p);
-}
-
-/*
- * 0x0bb3c
- *
- * The far-callable face of `strcat`, the same shape as its neighbours: two
- * words off the stack and straight on to `string_concat`. **Nothing calls
- * it** - no `lcall` and no near call anywhere in the image - so it was linked
- * in with the rest of this module and never used. The same is true of the
- * `strchr` and `fgetc` faces below; the other four are called from 8 to 56
- * sites each.
- */
-char *string_concat_far(char *dst, const char *src)
-{
-    return string_concat(dst, src);
-}
-
-/*
- * 0x0bb4f
- *
- * The far-callable face of `strcpy`: it takes the two words off the stack and
- * hands them straight on.
- */
-char *string_copy_far(char *dst, const char *src)
-{
-    return string_copy(dst, src);
-}
-
-/*
- * 0x0bb62
- *
- * The far-callable face of `strchr`: the string and the character, the
- * latter pushed as a word, on to `string_chr`. Uncalled - see 0x0bb3c.
- */
-char *string_chr_far(char *s, uint16_t c)
-{
-    return string_chr(s, (char)c);
-}
-
-/*
- * 0x0bb75
- *
- * The far-callable face of `calloc`: it takes the two words off the stack and
- * hands them straight on. Four instructions and a `retf`.
- */
-uint8_t *heap_calloc_far(uint16_t count, uint16_t size)
-{
-    return heap_calloc(count, size);
-}
-
-/*
- * 0x0bb88
- *
- * The far-callable face of `fgetc`: one word, the stream, on to
- * `borland_fgetc`. Uncalled - see 0x0bb3c.
- */
-int16_t borland_fgetc_far(struct file_rec *file)
-{
-    return borland_fgetc(file);
-}
-
 
 /*
  * 0x0bb98
