@@ -7,16 +7,17 @@
  * **Sequences, sound banks and the record index.**
  *
  * The fourth module of the original's **code segment 2619**, image
- * 0x28935..0x293c1 - the second of its modules in C; sound_device.c says how the
+ * 0x28935..0x2928c - the third of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
+ *
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -O -G -Z
+ * JUDGE: data 0x4a7e..0x4a82
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
-
-/* The five-tick wait, DGROUP 0x6430; the record is described in dgroup.h. */
-struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
 
 /*
  * 0x28935
@@ -146,7 +147,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     default:   goto out;
     }
 
-    handle = open_resource(0, file, SOUND_TAGS.mode_r_a, size);
+    handle = open_resource(0, file, "r", size);
     if (handle < 0)
         goto out;
 
@@ -501,7 +502,7 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
     uint32_t len = 0;
     int16_t handle;
 
-    handle = open_resource(0, file, SOUND_TAGS.mode_r_b, size);
+    handle = open_resource(0, file, "r", size);
 
     if (handle >= 0) {
         int32_t sz = resource_size(handle);
@@ -726,138 +727,3 @@ void stop_all_voices(void)
     }
 }
 
-/*
- * 0x2928c
- *
- * Install the host callback: a far pointer written into this module's own code
- * segment at `cs:0x30f6`, which is the cell `sound_callback` calls through.
- *
- * `AX` is pushed and popped around the two stores, so the caller's `AX`
- * survives - the routine has no return value of its own.
- */
-void set_sound_callback(const uint8_t far * cb)
-{
-    SNDCALL.callback = far_of(cb);
-}
-
-/*
- * 0x292a1
- *
- * Call the host's sound callback, if one is installed, and answer what it
- * returned.
- *
- * The vector is the far pointer at the module's `cs:0x30f6` and it is only
- * called when the word at DGROUP 0x4aaa says a callback exists. With none
- * installed the routine still answers - AX is untouched from entry, so the
- * caller gets back whatever it passed in.
- *
- * The answer is parked at `cs:0x30fa` before the registers are popped and read
- * back afterwards, because the pops would otherwise destroy it. That is why a
- * routine that appears to return AX has a global in the middle of it.
- *
- * Everything is saved, flags included, because a callback is arbitrary code.
- * The port takes only the register input: the two stack arguments are read
- * solely on the path that calls the callback, and calling an arbitrary guest
- * function pointer is not something the port can do.
- */
-uint16_t sound_callback(uint16_t ax, union sound_module_args * si)
-{
-    /*
-     * `mov ax, 0x2d3c` loads DS two instructions before the test, and the
-     * branch that skips the call lands *after* it - so with no module the
-     * answer is that constant, which is a **relocation**: the program's DGROUP
-     * segment, not the 0x2d3c the bytes read.
-     */
-    uint16_t answer = DGROUP_SEG;
-
-    if (((int16_t)DG4A82.module_live) != 0)
-        answer = call_sound_module(ax, si);
-
-    SNDCALL.answer = (int16_t)answer;
-    return (uint16_t)SNDCALL.answer;
-}
-
-/*
- * 0x292f4
- *
- * Shut the sound down: silence the driver, let whatever is playing finish, and
- * give both blocks back.
- *
- * How it waits depends on whether the sequencer's timer callback is
- * registered - DGROUP 0x4a8e. With it registered the tick is running and
- * `delay_five_ticks` is enough; without it nothing is driving the sequencer, so
- * `sound_service` is called twice by hand instead.
- *
- * `silence_driver_far` is called with **no arguments at all**, which is safe
- * only because it reads none - the same dead argument 0x2846a has.
- *
- * The loaded module is told to stop through its own dispatcher at 0x0bbc6, a
- * call into a block that is not part of this binary. Not reached here, and left
- * as a stub.
- */
-void stop_sound(void)
-{
-    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR) {
-        silence_driver_far(FAR_NULL_PTR);
-
-        if (((int16_t)DG4A82.tick_handle) == 0) {
-            sound_service();
-            sound_service();
-        } else {
-            delay_five_ticks();
-        }
-    }
-
-    if (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR) {
-        stop_loaded_module();
-    }
-
-    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR) {
-        free_for_kind(dg_far_ptr(DG4A82.driver), 1);
-        DG4A82.driver = FAR_NULL;
-    }
-
-    if (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR) {
-        free_for_kind(dg_far_ptr(DG4A82.module), 1);
-        DG4A82.module = FAR_NULL;
-    }
-}
-
-/*
- * 0x2937f
- *
- * Wait five timer ticks. A counter at DGROUP 0x6430 is set to five, a callback
- * registered at four ticks a time, and the routine **spins** until the callback
- * has counted it down; then the slot is given back.
- *
- * The far pointer it registers is this module's own `cs:0x3228`, which is
- * `tick_delay` below.
- *
- * The spin only ends because the timer interrupt runs the callback, so in the
- * port it ends only when something drives the timer - the same standing as
- * `wait_and_latch_frame`. Nothing reaches it on these screens.
- */
-void delay_five_ticks(void)
-{
-    uint16_t handle;
-
-    SOUND_TICK_WAIT.ticks_left = 5;
-
-    handle = timer_add_callback(tick_delay, 4);
-
-    while (SOUND_TICK_WAIT.ticks_left > 0)
-        ;
-
-    timer_drop_callback(handle);
-}
-
-/*
- * 0x293b8
- *
- * The callback `delay_five_ticks` registers: one instruction of work, counting
- * DGROUP 0x6430 down by one each tick.
- */
-void tick_delay(void)
-{
-    SOUND_TICK_WAIT.ticks_left = (int16_t)(((uint16_t)SOUND_TICK_WAIT.ticks_left) - 1);
-}

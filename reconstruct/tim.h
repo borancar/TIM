@@ -342,6 +342,7 @@ void remove_sequence(struct sequence far * seq);    /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
 uint16_t sound_callback(uint16_t ax, union sound_module_args * si); /* 0x292a1 */
+void sound_callback_quiet(uint16_t ax, union sound_module_args * si); /* 0x292d9 */
 
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
@@ -369,7 +370,7 @@ uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, FILE *handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, FILE *handle); /* 0x28655 */
-uint16_t load_sound_module(FILE *handle, const uint16_t *number,
+uint16_t load_sound_module(FILE *handle, const int16_t *number,
                            uint16_t index);         /* 0x28580 */
 uint8_t far * load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */

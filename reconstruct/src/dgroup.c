@@ -1920,7 +1920,7 @@ struct dg_50bf DG50BF DGROUP_BSS(0x50bf);
 struct dg_4e67 DG4E67 DGROUP_BSS(0x4e67);
 struct dg_5768 DG5768 DGROUP_BSS(0x5768);
 struct dg_53fc DG53FC DGROUP_BSS(0x53fc);
-struct dg_4a82 DG4A82 DGROUP_AT(0x4a82) = { .voice_word = 0xfffc, .bank_choice = 0x0001, .device = 0xfffe };
+struct dg_4a82 DG4A82 DGROUP_WAS(0x4a82) = { .voice_word = 0xfffc, .bank_choice = 0x0001, .device = 0xfffe };
 struct dg_52bd DG52BD DGROUP_WAS(0x52bd);
 struct dg_52ed DG52ED DGROUP_WAS(0x52ed);
 struct dg_52fe DG52FE DGROUP_BSS(0x52fe);
@@ -1944,10 +1944,6 @@ struct chunk_names CHUNK DGROUP_AT(0x4966) = {
     .scr_amg = "SCR:AMG:",
     .mode_r_d = "r",
     .mode_rb = "rb",
-};
-struct chunk_names2 CHUNK2 DGROUP_AT(0x4a08) = {
-    .ssm_000 = "SSM:000:",
-    .ssm_tag = "SSM:     ",
 };
 struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
     .pal_vga = "PAL:VGA:",
@@ -2150,19 +2146,6 @@ struct adapter_tags ADAPTER_TAGS DGROUP_AT(0x48fc) = {
         0x4923, 0x4928, 0x492d, 0x4932, 0x4937, 0x48fc, 0x493c, 0x4941,
         0x4946, 0x494b, 0x4950, 0x4955,
     },
-};
-struct sound_tags SOUND_TAGS DGROUP_AT(0x4a1c) = {
-    .device = {
-        0x4a38, 0x4a3d, 0x4a42, 0x4a47, 0x4a4c, 0x4a51, 0x4a56, 0x4a5b,
-        0x4a60,
-    },
-    .module = { 0x4a65, 0x4a6a, 0x4a6f, 0x4a74, 0x4a79 },
-    .tag = {
-        "STD:", "TAN:", "ADL:", "M32:", "SBP:", "PS1:", "PRO:", "GMD:",
-        "NLD:", "ASB:", "APS:", "ATD:", "APA:", "ADS:",
-    },
-    .mode_r_a = "r",
-    .mode_r_b = "r",
 };
 struct dg_4ab0 DG4AB0 DGROUP_AT(0x4ab0) = { ._pad_4ab0 = 0xfffe, ._pad_4ab2 = 0x2b11 };
 

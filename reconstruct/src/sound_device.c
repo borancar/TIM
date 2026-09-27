@@ -11,30 +11,66 @@
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
  *
- * **How segment 2619's boundaries are known.** The segment was one file,
- * sound.c, until 2026-09-27. The first module, 0x26198..0x28580, is hand
- * written, and its end is where C's frames begin: `load_sound_module` is the
- * first routine with a compiler's prologue that is not one of the
- * assembly's far entry points. After that the calls decide, as in segment
- * 172c (part_ball.c). A backward call with TLINK's `nop / push cs / call`
- * proves a boundary between callee and caller, and one without it rules a
- * boundary out. Those calls force cuts at 0x28655 (`load_sound_module` is
- * called from `setup_sound_device`) and 0x28935 (`advance_record` from
- * `create_sequence`). They also need one cut in 0x2928c..0x293c1 and one in
- * 0x294ff..0x296b4.
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -O -G -Z
+ * JUDGE: data 0x4a12..0x4a7e
  *
- * The files take the fewest cuts that satisfy every call, which puts those
- * two at their latest places, 0x293c1 and 0x296b4. The literal pool agrees:
- * DGROUP 0x4a08.. holds `load_sound_module`'s strings, then
- * `setup_sound_device`'s, then the two `"r"`s of `load_sound_bank` and
- * `load_resource_block` - one module, not built with `-d`. A module that
- * was really two files, with nothing calling backward across the line,
- * cannot be seen from the calls. The judge will say whether it can be seen
- * from anything else.
+ * **How segment 2619's boundaries are known.** The segment was one file,
+ * sound.c, until 2026-09-27. It is seven modules: two hand written and five
+ * in C.
+ *
+ * - **The assembly** is told apart by its code. The first module,
+ *   0x26198..0x28580, keeps its state in its own code segment and takes its
+ *   arguments in registers, and only its far entry points build a C frame.
+ *   Its end is the first compiler's prologue after them, `load_sound_module`.
+ *   The fifth, 0x2928c..0x292f4 (sound_call.c), saves AX round stores, or
+ *   every register and the flags, and keeps its answer in the code segment.
+ * - **Between the C modules the calls decide**, as in segment 172c
+ *   (part_ball.c). A backward call with TLINK's `nop / push cs / call`
+ *   proves a boundary between callee and caller, and one without it rules a
+ *   boundary out. Those calls force cuts at 0x28655 (`load_sound_module` is
+ *   called from `setup_sound_device`) and 0x28935 (`advance_record` from
+ *   `create_sequence`), and one in 0x294ff..0x296b4. The files take its
+ *   latest place, 0x296b4, which gives the fewest cuts that satisfy every
+ *   call.
+ * - **The literal pool agrees.** DGROUP 0x4a08.. holds `load_sound_module`'s
+ *   template, then this module's name buffer, tag tables and tags, then the
+ *   two `"r"`s of `load_sound_bank` and `load_resource_block` - one module,
+ *   not built with `-d`.
+ *
+ * Two C files with no backward call across the line between them would look
+ * like one. The judge would say so only if the data or the code disagreed.
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * **The sound device's chunk name**, DGROUP 0x4a12..0x4a1c. **Not a
+ * constant: a buffer.** The image holds "SSM:" and *five* spaces, which is
+ * nine characters and would fail the multiple-of-four check.
+ * `setup_sound_device` writes a four-character tag **and its NUL** over the
+ * spaces at +4 first, so the path is eight when it is walked and the fifth
+ * space is the room that NUL needs.
+ */
+char SOUND_CHUNK_NAME[] DGROUP_AT(0x4a12) = "SSM:     ";
+
+/*
+ * **The device tags**, DGROUP 0x4a1c..0x4a2e, indexed by the device byte of
+ * RESOURCE.CFG. The tags themselves are the module's literal pool, from
+ * 0x4a38 to 0x4a7e, after the two tables.
+ */
+char *SOUND_DEVICE_TAGS[9] DGROUP_WAS(0x4a1c) = {
+    "STD:", "TAN:", "ADL:", "M32:", "SBP:", "PS1:", "PRO:", "GMD:", "NLD:",
+};
+
+/*
+ * **The sound module tags**, DGROUP 0x4a2e..0x4a38, indexed by the module
+ * byte of RESOURCE.CFG.
+ */
+char *SOUND_MODULE_TAGS[5] DGROUP_WAS(0x4a2e) = {
+    "ASB:", "APS:", "ATD:", "APA:", "ADS:",
+};
 
 /* The seven voices, DGROUP 0x6414; the record is described in dgroup.h. */
 struct sound_voices SOUND_VOICES DGROUP_WAS(0x6414);
@@ -77,78 +113,63 @@ struct sound_voices SOUND_VOICES DGROUP_WAS(0x6414);
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, FILE *handle)
 {
-    int16_t di = 0;
+    int16_t failed = 0;
 
     if (module_index != -2) {
-        uint8_t *p;
+        string_copy_far(SOUND_CHUNK_NAME + 4,
+                        SOUND_MODULE_TAGS[module_index]);
 
-        string_copy_far(CHUNK2.ssm_tag + 4,
-                        (const char *)dg_near_ptr(SOUND_TAGS.module[module_index]));
-
-        p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
-        DG4A82.module = far_of(p);
-
-        if (p == FAR_NULL_PTR) {
-            module_index = -2;
-            di = 1;
-        } else {
+        if ((DG4A82.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+            != FAR_NULL_PTR) {
             DG4A82.module_live = 1;
-            set_sound_callback(dg_far_ptr(DG4A82.module));
+            set_sound_callback(DG4A82.module);
 
             /*
-             * **And then on to the driver, whatever this answers.** The call
-             * at 0x286b7 is `sub_0bb98(callback, 1)`; a non-zero answer jumps
-             * straight to the driver half keeping the module, and a zero one
-             * takes the module down again - 0x4aaa cleared, 0x0bbc6 told to
-             * stop, `free_for_kind`, the pointers zeroed - and *then* goes to
-             * the driver half. Either way the driver is loaded.
-             *
-             * The port used to `return 1` here, which said a module supersedes
-             * the driver. It does not: they are a pair, and that is why the two
-             * bytes of RESOURCE.CFG are independent indices into two tables.
-             * The mistake was invisible because the stub below aborts before
-             * reaching it, and it had been written into the comment above and
-             * into docs/sound-driver.md as though it were a finding.
+             * **And then on to the driver, whatever this answers.** A
+             * non-zero answer goes straight to the driver half keeping the
+             * module, and a zero one takes the module down again - 0x4aaa
+             * cleared, 0x0bbc6 told to stop, `free_for_kind`, the pointer
+             * zeroed - and *then* goes to the driver half. Either way the
+             * driver is loaded: a module and a device are a pair, which is
+             * why the two bytes of RESOURCE.CFG are independent indices into
+             * two tables.
              */
             if (sound_module_install(callback, 1) == 0) {
                 DG4A82.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(dg_far_ptr(DG4A82.module), 1);
-                DG4A82.module = FAR_NULL;
+                free_for_kind(DG4A82.module, 1);
+                DG4A82.module = 0;
                 module_index = -2;
-                di = 1;
+                failed = 1;
             }
+        } else {
+            module_index = -2;
+            failed = 1;
         }
     }
 
     if (device != -2) {
-        uint8_t *p;
+        string_copy_far(SOUND_CHUNK_NAME + 4,
+                        SOUND_DEVICE_TAGS[device]);
 
-        string_copy_far(CHUNK2.ssm_tag + 4,
-                        (const char *)dg_near_ptr(SOUND_TAGS.device[device]));
-
-        p = load_named_chunk((char *)handle, CHUNK2.ssm_tag, 0);
-        DG4A82.driver = far_of(p);
-
-        if (p == FAR_NULL_PTR) {
-            di = 1;
-        } else {
-            DG4A82.driver_number =
-                (int16_t)(install_driver_far(dg_far_ptr(DG4A82.driver)) & 0xff);
+        if ((DG4A82.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+            != FAR_NULL_PTR) {
+            DG4A82.driver_number = (uint8_t)install_driver_far(DG4A82.driver);
 
             if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
-                free_for_kind(dg_far_ptr(DG4A82.driver), 1);
-                DG4A82.driver = FAR_NULL;
-                di = 1;
+                free_for_kind(DG4A82.driver, 1);
+                DG4A82.driver = 0;
+                failed = 1;
             }
+        } else {
+            failed = 1;
         }
 
-        if (device == 8)
-            device = 3;
+        device = device == 8 ? 3 : device;
     }
 
     DG4A82.device = device;
-    return (uint16_t)(di == 0 ? 1 : 0);
+    return !failed;
 }
 
 /*
@@ -173,15 +194,9 @@ struct sequence far *voice_playing(const uint8_t far * source)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SOUND_VOICES.voice[i];
-
-        /* Which note data this voice is playing. The pair was filed from a
-           pointer to a DOS block, so comparing pointers is comparing pairs. */
-        if ((const uint8_t *)v->source != source)
-            continue;
-        if (v->state == 0xff)
-            continue;
-        return v;
+        if (SOUND_VOICES.voice[i]->source == source
+            && SOUND_VOICES.voice[i]->state != 0xff)
+            return SOUND_VOICES.voice[i];
     }
 
     return SEQUENCE_NONE;
@@ -205,26 +220,26 @@ struct sequence far *voice_playing(const uint8_t far * source)
 uint16_t alloc_voice_records(void)
 {
     int16_t i;
+    struct sequence far *voice;
 
-    if (SOUND_VOICES.voice[0] != NULL)
-        return 0;
+    if (SOUND_VOICES.voice[0] == SEQUENCE_NONE) {
+        for (i = 0; i < 7; i++) {
+            if ((SOUND_VOICES.voice[i] = (struct sequence far *)
+                     alloc_for_kind(sizeof(struct sequence), 2))
+                == SEQUENCE_NONE) {
+                free_voice_records();
+                return 0;
+            }
 
-    for (i = 0; i < 7; i++) {
-        struct sequence *voice = (struct sequence *)(void *)alloc_for_kind(sizeof(struct sequence), 2);
-
-        SOUND_VOICES.voice[i] = voice;
-
-        if (voice == SEQUENCE_NONE) {
-            free_voice_records();
-            return 0;
+            /* `cursor_at` is where the record's own `cursor` is. */
+            voice = SOUND_VOICES.voice[i];
+            voice->state = 0xff;
+            voice->cursor_at = &voice->cursor;
         }
-
-        /* `cursor_at` is where the record's own `cursor` is. */
-        voice->state = 0xff;
-        voice->cursor_at = &voice->cursor;
+        return 1;
     }
 
-    return 1;
+    return 0;
 }
 
 /*
@@ -248,27 +263,20 @@ uint16_t alloc_voice_records(void)
 uint8_t far *load_named_chunk(char *name, const char * path,
                               uint16_t index)
 {
-    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
-    uint16_t opened = 0;
+    int16_t opened = 0;
+    uint8_t far *r = FAR_NULL_PTR;
     FILE *si;
-    uint8_t *r = FAR_NULL_PTR;
 
-    if (file_record_valid(handle) == 0) {
+    /* A handle, or a name to open. */
+    if (file_record_valid((FILE *)name) == 0) {
         opened = 1;
         si = open_file_record(name);
     } else {
-        si = handle;
+        si = (FILE *)name;
     }
 
-    if (si != 0) {
-        int32_t p = seek_named_chunk(si, path, (int16_t)index);
-
-        if (p != -1) {
-            uint32_t size = file_record_size(si);
-
-            r = load_resource_block(si, size, NULL, 1);
-        }
-    }
+    if (si != 0 && seek_named_chunk(si, path, (int16_t)index) != -1L)
+        r = load_resource_block(si, file_record_size(si), NULL, 1);
 
     if (opened != 0)
         close_file_record(si);

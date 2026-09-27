@@ -549,7 +549,7 @@ static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
  *
  * **Both take the base the offset is measured against, and that is not
  * ceremony.** This program has several offset spaces: DGROUP, the loaded sound
- * driver at `SX_SEG`, the sound module at `ASB_SEG:ASB_OFF`, the two code
+ * driver at `SX_SEG`, the sound module at `ASB_SEG`, the two code
  * segments `S1C25` and `SNDCS` that keep state inside themselves. An offset
  * only means something against one of them, and a helper that always
  * subtracted `dgroup` would answer confidently and wrongly for the other four.
@@ -1176,17 +1176,21 @@ struct sound_bank_entry {
 
 /*
  * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
+ *
+ * Its five far pointers are real pointers on both compilers, so on the host
+ * the record is laid out by the host and not over the guest's bytes
+ * (`DGROUP_WAS`).
  */
 struct dg_4a82 {
-    uint16_t  driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
+    int16_t   driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
     /* A far pointer: allocated and freed as one block, tested
        `(off != 0 || seg != 0)`, and handed to `configure_driver_far`. */
-    struct far_ptr config;        /* +0x02  handed to configure_driver_far */
+    uint8_t far *config;          /* +0x02  handed to configure_driver_far */
     /* **One far pointer, and "tail" was a misreading.** +0x06 is the offset
        and +0x08 the segment: every use pairs them - as `MK_FP(+8, +6)` to
        reach the head, and the node's own first four bytes are written back
        over both when one is unlinked. */
-    struct far_ptr records;       /* +0x06  the record list start_sound
+    struct sound_record far *records; /* +0x06  the record list start_sound
                                             walks by hand */
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
     /* **Two timer handles, not a far pointer.** `timer_add_callback` answers a
@@ -1200,21 +1204,19 @@ struct dg_4a82 {
     dg_near_t bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
                                             what a voice's +0x15c and +0x15d
                                             come out of */
-    struct far_ptr driver;        /* +0x12  the loaded driver, installed by
+    uint8_t far *driver;          /* +0x12  the loaded driver, installed by
                                             install_driver_far */
-    struct far_ptr module;        /* +0x16  offset first, segment second,
+    uint8_t far *module;          /* +0x16  offset first, segment second,
                                             which is what the `lcall [0x4a98]`
                                             at 0x0bbde reads */
     uint16_t  load_error;         /* +0x1a  2 on the two failures that mean the resource was missing */
     uint16_t  identifier;         /* +0x1c  the identifier 0x7e takes instead of a constant */
     uint16_t  voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
     /* **One far pointer.** +0x20 is the offset and +0x22 the segment: the
-       two were tested against zero together at four sites, built into a
-       `struct far_ptr` by hand at three more, and assigned from one
-       allocation's `.off` and `.seg`. The payload headers are reached as
-       `directory.off + 4` and `+ 8`, which is a read at an offset and not
-       the pointer being stepped. */
-    struct far_ptr directory;     /* +0x20  the payload directory */
+       two were tested against zero together at four sites and assigned from
+       one allocation. The payload headers are reached at +4 and +8, which is
+       a read at an offset and not the pointer being stepped. */
+    uint8_t far *directory;       /* +0x20  the payload directory */
     dg_near_t file_ptr;           /* +0x24  the file this module opened, if it did */
     uint16_t  file_kind;          /* +0x26  recorded beside the handle */
     uint16_t  module_live;        /* +0x28  the module is loaded and a callback exists */
@@ -1623,30 +1625,6 @@ struct chunk_names {
 extern struct chunk_names CHUNK;
 
 
-/*
- * **The sound module's chunk names**, from 0x4a08 - the first of that
- * module's data. The run began at 0x49c6 until 2026-09-26, with
- * `bitmaps.c`'s seven names in front; those are that module's string
- * literals, which Turbo C++ put at the end of its `_DATA` (0x49c6..0x4a07),
- * and they are written as literals in the code that names them now.
- */
-struct chunk_names2 {
-    /* **The sound module's name template**, not only a constant:
-       `load_sound_module` builds the name in place, writing the three digits
-       at +4, +5 and +6 - hundreds, tens and units, each from its own division
-       - over "000". */
-    char ssm_000[9];        /* +0x00  0x4a08  "SSM:000:" */
-    uint8_t pad_4a11[1];
-    /* +0x0a  0x4a12. **Not a constant: a buffer.** The image holds
-       `53 53 4d 3a 20 20 20 20 20 00` - "SSM:" and *five* spaces, which is
-       nine characters and would fail the multiple-of-four check.
-       `setup_sound_device` writes a four-character tag **and its NUL** over
-       the spaces at +4 first, so the path is eight when it is walked and the
-       fifth space is the room that NUL needs. */
-    char ssm_tag[10];
-} PACKED;
-
-extern struct chunk_names2 CHUNK2;
 
 
 /*
@@ -1711,20 +1689,6 @@ struct adapter_tags {
 } PACKED;
 extern struct adapter_tags ADAPTER_TAGS;
 
-/*
- * **The sound device and module tags**, DGROUP 0x4a1c..0x4a82: nine near
- * pointers indexed by device, five by module, the fourteen tags they point
- * at, and two "r" modes `load_sound_driver` and `load_sound_module` open
- * with.
- */
-struct sound_tags {
-    dg_near_t device[9];           /* +0x00  0x4a1c  "STD:" "TAN:" "ADL:" ... */
-    dg_near_t module[5];           /* +0x12  0x4a2e  "ASB:" "APS:" "ATD:" ... */
-    char      tag[14][5];          /* +0x1c  0x4a38  the fourteen, in that order */
-    char      mode_r_a[2];         /* +0x62  0x4a7e  "r" */
-    char      mode_r_b[2];         /* +0x64  0x4a80  "r" */
-} PACKED;
-extern struct sound_tags SOUND_TAGS;
 
 /* A signed 16-bit point: a part's position, box and size generations, a
    belt's and a rope's corners. Declared here because `struct part` is the
@@ -2876,11 +2840,12 @@ extern struct dg_49ba DG49BA;
  * digitised-sound half of a Sound Blaster. The table at DGROUP 0x4a2e names
  * four more and the port has none of them.
  */
-#define ASB_SEG     DG4A82.module.seg
-#define ASB_OFF     DG4A82.module.off
-#define ASB8(off)   (*(uint8_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
-#define ASB16(off)  (*(int16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
-#define ASBU16(off) (*(uint16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
+/* The module is a DOS block, so its offset is 0 and the normalised segment
+   `FP_SEG` answers is the one the original holds. */
+#define ASB_SEG     FP_SEG(DG4A82.module)
+#define ASB8(off)   (*(uint8_t *)(DG4A82.module + (off)))
+#define ASB16(off)  (*(int16_t *)(DG4A82.module + (off)))
+#define ASBU16(off) (*(uint16_t *)(DG4A82.module + (off)))
 
 /*
  * NOT a transcription: a stand-in for the guest's own stack frame.
@@ -3134,7 +3099,7 @@ struct asb_cs {
     uint8_t   probe_irq10;     /* +0x07bd */
 } PACKED;
 
-#define ASBS (*(struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
+#define ASBS (*(struct asb_cs *)DG4A82.module)
 
 
 /*

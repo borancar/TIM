@@ -7,13 +7,24 @@
  * **Loading the sound driver out of SX.OVL.**
  *
  * The second module of the original's **code segment 2619**, image
- * 0x28580..0x28655 - the second of its modules in C; sound_device.c says how the
+ * 0x28580..0x28655 - the first of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
+ *
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -O -G -Z
+ * JUDGE: data 0x4a08..0x4a11
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * **The sound module's name template**, DGROUP 0x4a08..0x4a11: this module's
+ * `_DATA`. Not only a constant: `load_sound_module` builds the name in
+ * place, writing the three digits at +4, +5 and +6 over "000".
+ */
+char SOUND_MODULE_NAME[] DGROUP_AT(0x4a08) = "SSM:000:";
 
 /*
  * 0x28580
@@ -35,44 +46,36 @@
  * from that is a failure. The block is freed again on the way out either way:
  * this loads a module to configure the driver with, not to keep.
  */
-uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
+uint16_t load_sound_module(FILE *handle, const int16_t *number, uint16_t index)
 {
-    int16_t di = 1;
-    int16_t n;
+    int16_t ok = 1;
 
-    if (*number == 0xff)
-        goto out;
+    if (*number != 0xff) {
+        char *name = SOUND_MODULE_NAME;
 
-    n = (int16_t)*number;
-    CHUNK2.ssm_000[4] = (uint8_t)((n / 100) + 0x30);
-    CHUNK2.ssm_000[5] = (uint8_t)(((n / 10) % 10) + 0x30);
-    CHUNK2.ssm_000[6] = (uint8_t)((n % 10) + 0x30);
+        SOUND_MODULE_NAME[4] = (char)(*number / 100 + '0');
+        SOUND_MODULE_NAME[5] = (char)(*number / 10 % 10 + '0');
+        SOUND_MODULE_NAME[6] = (char)(*number % 10 + '0');
 
-    if (dg_far_ptr(DG4A82.config) != FAR_NULL_PTR)
-        free_for_kind(dg_far_ptr(DG4A82.config), 1);
+        if (DG4A82.config != FAR_NULL_PTR)
+            free_for_kind(DG4A82.config, 1);
 
-    {
-        uint8_t *p = load_named_chunk((char *)handle, CHUNK2.ssm_000, index);
-
-        DG4A82.config = far_of(p);
-        if (p == FAR_NULL_PTR)
-            di = 0;
+        if ((DG4A82.config = load_named_chunk((char *)handle, name, index))
+            == FAR_NULL_PTR)
+            ok = 0;
     }
 
-out:
-    if (di != 0) {
-        /* With no module named, `config` is still null here, and the
-           original reads the driver's configuration out of the vector table. */
-        const uint8_t far *config = NULL_READ(dg_far_ptr(DG4A82.config));
+    /* With no module named, `config` is still null here, and the original
+       reads the driver's configuration out of the vector table. */
+    if (ok != 0
+        && configure_driver_far(advance_record(NULL_READ(DG4A82.config)))
+           == 0xffff)
+        ok = 0;
 
-        if (configure_driver_far(advance_record(config)) == 0xffff)
-            di = 0;
+    if (DG4A82.config != FAR_NULL_PTR) {
+        free_for_kind(DG4A82.config, 1);
+        DG4A82.config = 0;
     }
 
-    if (dg_far_ptr(DG4A82.config) != FAR_NULL_PTR) {
-        free_for_kind(dg_far_ptr(DG4A82.config), 1);
-        DG4A82.config = FAR_NULL;
-    }
-
-    return (uint16_t)di;
+    return (uint16_t)ok;
 }

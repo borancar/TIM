@@ -4,16 +4,104 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **Freeing records and stopping sequences.**
+ * **Stopping sound**: the whole of it, one sequence, or the records a selector names, and the five-tick wait.
  *
- * The fifth module of the original's **code segment 2619**, image
- * 0x293c1..0x296b4 - the second of its modules in C; sound_device.c says how the
+ * The sixth module of the original's **code segment 2619**, image
+ * 0x292f4..0x296b4 - the fourth of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/* The five-tick wait, DGROUP 0x6430; the record is described in dgroup.h. */
+struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
+
+/*
+ * 0x292f4
+ *
+ * Shut the sound down: silence the driver, let whatever is playing finish, and
+ * give both blocks back.
+ *
+ * How it waits depends on whether the sequencer's timer callback is
+ * registered - DGROUP 0x4a8e. With it registered the tick is running and
+ * `delay_five_ticks` is enough; without it nothing is driving the sequencer, so
+ * `sound_service` is called twice by hand instead.
+ *
+ * `silence_driver_far` is called with **no arguments at all**, which is safe
+ * only because it reads none - the same dead argument 0x2846a has.
+ *
+ * The loaded module is told to stop through its own dispatcher at 0x0bbc6, a
+ * call into a block that is not part of this binary. Not reached here, and left
+ * as a stub.
+ */
+void stop_sound(void)
+{
+    if (DG4A82.driver != FAR_NULL_PTR) {
+        silence_driver_far(FAR_NULL_PTR);
+
+        if (((int16_t)DG4A82.tick_handle) == 0) {
+            sound_service();
+            sound_service();
+        } else {
+            delay_five_ticks();
+        }
+    }
+
+    if (DG4A82.module != FAR_NULL_PTR) {
+        stop_loaded_module();
+    }
+
+    if (DG4A82.driver != FAR_NULL_PTR) {
+        free_for_kind(DG4A82.driver, 1);
+        DG4A82.driver = 0;
+    }
+
+    if (DG4A82.module != FAR_NULL_PTR) {
+        free_for_kind(DG4A82.module, 1);
+        DG4A82.module = 0;
+    }
+}
+
+/*
+ * 0x2937f
+ *
+ * Wait five timer ticks. A counter at DGROUP 0x6430 is set to five, a callback
+ * registered at four ticks a time, and the routine **spins** until the callback
+ * has counted it down; then the slot is given back.
+ *
+ * The far pointer it registers is this module's own `cs:0x3228`, which is
+ * `tick_delay` below.
+ *
+ * The spin only ends because the timer interrupt runs the callback, so in the
+ * port it ends only when something drives the timer - the same standing as
+ * `wait_and_latch_frame`. Nothing reaches it on these screens.
+ */
+void delay_five_ticks(void)
+{
+    uint16_t handle;
+
+    SOUND_TICK_WAIT.ticks_left = 5;
+
+    handle = timer_add_callback(tick_delay, 4);
+
+    while (SOUND_TICK_WAIT.ticks_left > 0)
+        ;
+
+    timer_drop_callback(handle);
+}
+
+/*
+ * 0x293b8
+ *
+ * The callback `delay_five_ticks` registers: one instruction of work, counting
+ * DGROUP 0x6430 down by one each tick.
+ */
+void tick_delay(void)
+{
+    SOUND_TICK_WAIT.ticks_left = (int16_t)(((uint16_t)SOUND_TICK_WAIT.ticks_left) - 1);
+}
 
 /*
  * 0x293c1
@@ -57,7 +145,7 @@ uint16_t remove_and_free_records(int16_t selector)
     struct sound_record far * far *link_at = &cell;
     /* The records' own links are pairs filed as DOS handed the blocks out,
        each starting a segment, so a pointer compares as the pair does. */
-    struct sound_record *cur = SOUND_RECORD_PTR(DG4A82.records);
+    struct sound_record *cur = DG4A82.records;
     int16_t found = 0;
 
     if (selector == 0 || selector == -2)
@@ -81,8 +169,8 @@ uint16_t remove_and_free_records(int16_t selector)
             found = 1;
             stop_sequences(cur->id);
 
-            if (cur == SOUND_RECORD_PTR(DG4A82.records))
-                DG4A82.records = far_of((uint8_t *)cur->next);
+            if (cur == DG4A82.records)
+                DG4A82.records = cur->next;
 
             *link_at = cur->next;
 

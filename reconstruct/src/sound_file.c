@@ -6,8 +6,8 @@
  *
  * **The sound file: opening it, finding a record, starting and stopping the whole of sound.**
  *
- * The sixth module of the original's **code segment 2619**, image
- * 0x296b4..0x2a040 - the second of its modules in C; sound_device.c says how the
+ * The seventh module of the original's **code segment 2619**, image
+ * 0x296b4..0x2a040 - the fifth of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
  */
@@ -88,14 +88,14 @@ uint16_t open_sound_file(char *name, int16_t id)
     if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
 
-    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
-        free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
+    if (DG4A82.directory != FAR_NULL_PTR)
+        free_for_kind(DG4A82.directory, 0xa);
 
     /* `size + 4` as one long - the directory image goes after the cursor;
        the original adds the low word and carries into the high one by hand. */
     dir = (struct sound_dir *)(void *)
         alloc_for_kind(size + offsetof(struct sound_dir, magic), 0xa);
-    DG4A82.directory = far_of((uint8_t *)dir);
+    DG4A82.directory = (uint8_t far *)dir;
     if ((uint8_t *)dir == FAR_NULL_PTR)
         goto fail;
 
@@ -112,7 +112,7 @@ uint16_t open_sound_file(char *name, int16_t id)
     dir->cursor = (uint8_t far *)&dir->entry[0];
 
 search:
-    dir = (struct sound_dir *)(void *)dg_far_ptr(DG4A82.directory);
+    dir = (struct sound_dir *)(void *)DG4A82.directory;
     if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE) {
         r = DG4A82.file_ptr;
         goto out;
@@ -184,13 +184,13 @@ fail:
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
 
-    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
-        free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
+    if (DG4A82.directory != FAR_NULL_PTR)
+        free_for_kind(DG4A82.directory, 0xa);
 
     remove_and_free_records(0);
 
     DG4A82.file_ptr = 0;
-    DG4A82.directory = FAR_NULL;
+    DG4A82.directory = 0;
     r = 0;
 
 out:
@@ -236,7 +236,7 @@ struct sound_record far *next_matching_record(int16_t selector)
 
     if (selector != -3) {
         SOUND_TICK_WAIT.selector = selector;
-        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(DG4A82.records);
+        SOUND_TICK_WAIT.cursor = DG4A82.records;
     } else if (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE) {
         SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
     }
@@ -305,7 +305,7 @@ struct sound_record far *next_matching_record(int16_t selector)
  */
 uint16_t start_sequence_by_id(int16_t id)
 {
-    struct sound_record *rec = SOUND_RECORD_PTR(DG4A82.records);
+    struct sound_record *rec = DG4A82.records;
 
     while (rec != SOUND_RECORD_NONE) {
         if (rec->id == id)
@@ -324,7 +324,7 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((rec->flags & 1) != 0) {
-        const struct sound_record *other = SOUND_RECORD_PTR(DG4A82.records);
+        const struct sound_record *other = DG4A82.records;
 
         while (other != SOUND_RECORD_NONE) {
             if ((other->flags & 1) != 0
@@ -398,8 +398,8 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (dg_far_ptr(DG4A82.driver) != FAR_NULL_PTR
-        || dg_far_ptr(DG4A82.module) != FAR_NULL_PTR)
+    if (DG4A82.driver != FAR_NULL_PTR
+        || DG4A82.module != FAR_NULL_PTR)
         return 1;
 
     if (device == -1) {
@@ -423,7 +423,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
         return 0;
     }
 
-    if (si != 0 && (dg_far_ptr(DG4A82.module) != FAR_NULL_PTR))
+    if (si != 0 && (DG4A82.module != FAR_NULL_PTR))
         DG4A82.module_handle = (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
 
     alloc_voice_records();
@@ -447,14 +447,14 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (dg_far_ptr(DG4A82.driver) == FAR_NULL_PTR
-        && dg_far_ptr(DG4A82.module) == FAR_NULL_PTR)
+    if (DG4A82.driver == FAR_NULL_PTR
+        && DG4A82.module == FAR_NULL_PTR)
         return;
 
     remove_and_free_records(0);
 
-    if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
-        free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
+    if (DG4A82.directory != FAR_NULL_PTR)
+        free_for_kind(DG4A82.directory, 0xa);
 
     if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
         close_file_record(FILEREC_PTR(DG4A82.file_ptr));
@@ -570,10 +570,10 @@ uint16_t read_record(FILE *file, uint16_t mode)
             goto fail;
     }
 
-    rec->next = SOUND_RECORD_PTR(DG4A82.records);
+    rec->next = DG4A82.records;
     rec->size = (uint16_t)out[0];
 
-    DG4A82.records = far_of((uint8_t *)rec);
+    DG4A82.records = rec;
     r = 1;
     goto out_;
 
