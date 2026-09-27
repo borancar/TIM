@@ -2437,14 +2437,6 @@ struct part_shapes PARTSHAPES DGROUP_AT(0x3182) = {
         { 0x0000, 0x0003, 0x004f, 0x0020 },
     },
 };
-struct iff_chunk_names IFF_CHUNK_NAMES DGROUP_AT(0x355a) = {
-    .form = "FORM",
-    .ilbm = "ILBM",
-    .bmhd = "BMHD",
-    .cmap = "CMAP",
-    .body = "BODY",
-    .mode_wb = "wb",
-};
 
 struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { ._pad_2d06 = 0x0001, ._pad_2d08 = 0xffff };
 

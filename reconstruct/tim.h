@@ -1414,6 +1414,17 @@ void     trigger_mouse_cage(struct part *part);             /* 172c:2ffd */
 int16_t  push_speed_for_mass(struct part *obj);         /* 172c:471f */
 void     trigger_things_at(struct part *part, int16_t mode,
                            int16_t dx);             /* 172c:477d */
+void     iff_write_be(uint8_t *p, int16_t count, int16_t size,
+                      struct file_rec *f);          /* 172c:4a54 */
+void     iff_write_cmap(struct file_rec *f);        /* 172c:4aea */
+void     iff_write_body(struct file_rec *f);        /* 172c:4b6c */
+void     iff_save(char *name);                      /* 172c:4c21 */
+void     save_screenshot(char *name);               /* 172c:4d90 */
+void     vga_set_dac(const uint8_t *rgb, int16_t first,
+                     int16_t count);                /* 172c:4dc7 */
+void     vga_get_dac(uint8_t *rgb, int16_t first,
+                     int16_t count);                /* 172c:4e02 */
+void     chunky_to_planar(const uint8_t *src, uint8_t *dst); /* 172c:4e3f */
 uint16_t part_hit_pokey(struct part *part);              /* 172c:0c6c */
 void part_step_dynamite(struct part *part);             /* 172c:12c2 */
 void     burst_dynamite(struct part *part);              /* 172c:1328 */

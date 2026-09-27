@@ -3215,6 +3215,10 @@ void io_out8(uint16_t port, uint8_t value)
         dac_write_mode = 1;
         break;
     case PORT_DAC_READ:
+        /* OURS: the read index. The screenshot writer's `vga_get_dac` reads
+         * the palette back through the data port from here. */
+        dac_index = value;
+        dac_phase = 0;
         dac_write_mode = 0;
         break;
     case PORT_DAC_DATA:
@@ -3262,6 +3266,16 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_CRTC_DATA: return crtc[crtc_index];
     /* The DAC state register: 3 while the write index is the live one. */
     case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
+    case PORT_DAC_DATA: {
+        /* OURS: a component of the colour at the read index, which steps
+         * after the third. */
+        uint8_t v = dac[dac_index][dac_phase++];
+        if (dac_phase == 3) {
+            dac_index++;
+            dac_phase = 0;
+        }
+        return v;
+    }
     case 0x60:           return kbd_latch;
     case 0x61:           return port61;
 
