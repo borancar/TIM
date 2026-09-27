@@ -4,32 +4,32 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **The sequencer, which was written in assembly, and the far entry points
- * of the whole sound module.** This file corresponds to the third module of
- * the original's code segment 2619, image 0x26783..0x28580; the module's
- * data and its dispatcher are sound_api.c, 0x26198..0x265f2, and the
- * driver interface sound_drv.c, 0x265f2..0x26783. The three keep their
- * state in the code segment (`SNDS`, placed with `SEGMENT_AT`), and reach
- * the loaded driver through a far pointer there, with the function number
- * in BP. Its routines take their arguments in registers and save what they
- * use, and its far entry points, 0x2841f..0x28580, are the only ones that
- * build a C frame.
+ * **The sound module, which was written in assembly**: its state, a far
+ * entry and its dispatcher, the interface to the loaded driver, the
+ * sequencer, and the far entry points the C calls. This file corresponds to
+ * the first module of the original's code segment 2619, image
+ * 0x26198..0x28580. The module keeps its state in its own code segment
+ * (`SNDS`, placed with `SEGMENT_AT`) and reaches the loaded driver through a
+ * far pointer in that segment, with the function number in BP. Its routines
+ * take their arguments in registers and save what they use, and its far
+ * entry points, 0x2841f..0x28580, are the only ones that build a C frame.
  *
  * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
- * host's transcription in the `#else`. It is TASM 3.0's, the assembler
- * Borland C++ 3.0 shipped: 3.0 writes a forward far call to a routine of
- * the same file as `push cs / call / nop`, so each `nop / push cs / call`
- * in the segment is TLINK's, a far call to another file - the dispatcher's
- * to every driver routine, and the seek's to `start_sequence` - and those
- * say where the three files end. Where the image has a backward far call
- * as a bare `push cs / call` the source wrote both. Too long for Borland
- * C++'s front end to pass through (it holds some 64K of a file's `asm`),
- * it goes to TASM directly (`JUDGE: tasm`). Eleven `and si, 0fh` are in
- * the image with a word immediate, `81`, which no TASM from 1.0 to 3.0
- * writes for a value that fits a byte; they are written as their bytes,
- * and what the source said is open. The C that follows it in the segment
- * is in sound_load.c, sound_device.c, sound_bank.c, sound_stop.c and
- * sound_file.c.
+ * host's transcription in the `#else`. It is TASM 3.0's, assembled
+ * **NOSMART**: twelve `and si, 0fh` and `and cx, 0fh` are in the image with
+ * a word immediate, `81`, which TASM writes only with SMART off, and none of
+ * its logical ops has the short form. (Turbo C++ 1.x and 2.01 and Borland
+ * C++ 2.0 write `81` too, in C and in BC++ 2.0's inline `asm`, so the
+ * encoding does not rule out C with localised `asm`; that is being tried,
+ * STATUS.md.) NOSMART also leaves a far call to a
+ * routine of the same file far, and TLINK turns it into `nop / push cs /
+ * call` - so here, unlike in a SMART module, that form says nothing about
+ * where a file ends; the dispatcher's calls and the seek's are this file's
+ * own. Where the image has a far call as a bare `push cs / call` the source
+ * wrote both. Too long for Borland C++'s front end to pass through (it
+ * holds some 64K of a file's `asm`), it goes to TASM directly (`JUDGE:
+ * tasm`). The C that follows it in the segment is in sound_load.c,
+ * sound_device.c, sound_bank.c, sound_stop.c and sound_file.c.
  *
  * Functions are in address order and each carries the image offset it was
  * read from.
@@ -44,137 +44,687 @@
 
 #ifdef __TURBOC__
 /*
- * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
- * transcription is the `#else`. The judge hands the blocks to TASM 3.0
- * (`JUDGE: tasm`).
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py (`--nosmart`);
+ * the host's transcription is the `#else`. The judge hands the block to
+ * TASM 3.0 (`JUDGE: tasm`).
  */
 asm {
 extrn _sound_callback:far
+extrn _DG4A82:byte
+nosmart
 SOUND_TEXT segment byte public 'CODE'
 assume cs:SOUND_TEXT, ds:DGROUP
-extrn _configure_driver:near
-extrn _driver_fn13:near
-extrn _install_driver:near
-extrn _seek_sequence:near
-extrn _set_master_level:near
-extrn _set_sequence_level:near
-extrn _silence_driver:near
-extrn c_26198:byte
-extrn c_2619a:byte
-extrn c_2619c:byte
-extrn c_2619e:byte
-extrn c_261d8:byte
-extrn c_261da:byte
-extrn c_26218:byte
-extrn c_2621a:byte
-extrn c_26298:byte
-extrn c_262b8:byte
-extrn c_262ba:byte
-extrn c_262bc:byte
-extrn c_262be:byte
-extrn c_262c0:byte
-extrn c_262c2:byte
-extrn c_262c4:byte
-extrn c_262c6:byte
-extrn c_262c8:byte
-extrn c_262ca:byte
-extrn c_262cc:byte
-extrn c_262ce:byte
-extrn c_262d0:byte
-extrn c_262d2:byte
-extrn c_262d4:byte
-extrn c_262d6:byte
-extrn c_262d8:byte
-extrn c_262da:byte
-extrn c_262dc:byte
-extrn c_262de:byte
-extrn c_262e0:byte
-extrn c_262e2:byte
-extrn c_262e4:byte
-extrn c_262e6:byte
-extrn c_262e8:byte
-extrn c_262ea:byte
-extrn c_262ec:byte
-extrn c_262ee:byte
-extrn c_262f0:byte
-extrn c_262f2:byte
-extrn c_262f4:byte
-extrn c_262f6:byte
-extrn c_262f8:byte
-extrn c_262fa:byte
-extrn c_262fc:byte
-extrn c_262fe:byte
-extrn c_26300:byte
-extrn c_26302:byte
-extrn c_26304:byte
-extrn c_26306:byte
-extrn c_26308:byte
-extrn c_2630a:byte
-extrn c_2630c:byte
-extrn c_2630e:byte
-extrn c_26310:byte
-extrn c_26312:byte
-extrn c_26314:byte
-extrn c_26316:byte
-extrn c_26318:byte
-extrn c_2631a:byte
-extrn c_2631c:byte
-extrn c_2631e:byte
-extrn c_26320:byte
-extrn c_26322:byte
-extrn c_26324:byte
-extrn c_26326:byte
-extrn c_26328:byte
-extrn c_2632a:byte
-extrn c_2632c:byte
-extrn c_2632e:byte
-extrn c_26330:byte
-extrn c_26332:byte
-extrn c_26334:byte
-extrn c_26336:byte
-extrn c_26338:byte
-extrn c_2633a:byte
-extrn c_2633c:byte
-extrn c_2633e:byte
-extrn c_26340:byte
-extrn c_26342:byte
-extrn c_26344:byte
-extrn c_26346:byte
-extrn c_26348:byte
-extrn c_2634a:byte
-extrn c_2634c:byte
-extrn c_2634e:byte
-extrn c_26350:byte
-extrn c_26352:byte
-extrn c_26354:byte
-extrn c_26356:byte
-extrn c_26358:byte
-extrn c_26377:byte
-extrn c_26387:byte
-extrn c_26389:byte
-extrn c_2638a:byte
-extrn c_2638b:byte
-extrn c_2638c:byte
-extrn c_2638d:byte
-extrn c_2638e:byte
-extrn c_2638f:byte
-extrn c_26390:byte
-extrn c_26391:byte
-extrn c_26392:byte
-extrn c_26393:byte
-extrn c_26394:byte
-extrn c_26395:byte
-extrn c_26396:byte
-extrn c_26399:byte
-extrn c_2639c:byte
-public _start_sequence, _retire_and_tick, _remove_sequence, _sequencer_tick
-public _advance_volume_ramp, _set_sequence_volume, _flush_pending_volumes, _sound_service
-public _drop_unless_polled, _poll_sequences, _step_sequence, _midi_note_off_event
-public _midi_note_event, _midi_event_6, _midi_controller_event, _midi_program_event
-public _midi_event_9, _midi_bend_event, _midi_skip_event, _midi_meta_event
-public _skip_unknown_event, _scale_byte_pair, _init_sequence_params, _seek_sequence_far
-public _set_master_level_far, _install_driver_far, _configure_driver_far, _start_sequence_far
-public _driver_fn13_far, _retire_and_tick_far, _set_sequence_level_far, _silence_driver_far
+public _sound_api, _sound_api_dispatch, _install_driver, _configure_driver
+public _silence_driver, _sound_hold, _driver_fn13, _seek_sequence
+public _set_master_level, _set_sequence_level, _start_sequence, _retire_and_tick
+public _remove_sequence, _sequencer_tick, _advance_volume_ramp, _set_sequence_volume
+public _flush_pending_volumes, _sound_service, _drop_unless_polled, _poll_sequences
+public _step_sequence, _midi_note_off_event, _midi_note_event, _midi_event_6
+public _midi_controller_event, _midi_program_event, _midi_event_9, _midi_bend_event
+public _midi_skip_event, _midi_meta_event, _skip_unknown_event, _scale_byte_pair
+public _init_sequence_params, _seek_sequence_far, _set_master_level_far, _install_driver_far
+public _configure_driver_far, _start_sequence_far, _driver_fn13_far, _retire_and_tick_far
+public _set_sequence_level_far, _silence_driver_far
+c_26198 label byte
+	db 0h, 0h
+c_2619a label byte
+	db 0h, 0h
+c_2619c label byte
+	db 0h, 0h
+c_2619e label byte
+	db 58 dup (0h)
+c_261d8 label byte
+	db 0h, 0h
+c_261da label byte
+	db 62 dup (0h)
+c_26218 label byte
+	db 0h, 0h
+c_2621a label byte
+	db 126 dup (0h)
+c_26298 label byte
+	db 32 dup (0h)
+c_262b8 label byte
+	db 0ffh, 0ffh
+c_262ba label byte
+	db 0ffh, 0ffh
+c_262bc label byte
+	db 0ffh, 0ffh
+c_262be label byte
+	db 0ffh, 0ffh
+c_262c0 label byte
+	db 0ffh, 0ffh
+c_262c2 label byte
+	db 0ffh, 0ffh
+c_262c4 label byte
+	db 0ffh, 0ffh
+c_262c6 label byte
+	db 0ffh, 0ffh
+c_262c8 label byte
+	db 0h, 0h
+c_262ca label byte
+	db 0h, 0h
+c_262cc label byte
+	db 0h, 0h
+c_262ce label byte
+	db 0h, 0h
+c_262d0 label byte
+	db 0h, 0h
+c_262d2 label byte
+	db 0h, 0h
+c_262d4 label byte
+	db 0h, 0h
+c_262d6 label byte
+	db 0h, 0h
+c_262d8 label byte
+	db 0h, 0h
+c_262da label byte
+	db 0h, 0h
+c_262dc label byte
+	db 0h, 0h
+c_262de label byte
+	db 0h, 0h
+c_262e0 label byte
+	db 0h, 0h
+c_262e2 label byte
+	db 0h, 0h
+c_262e4 label byte
+	db 0h, 0h
+c_262e6 label byte
+	db 0h, 0h
+c_262e8 label byte
+	db 0h, 0h
+c_262ea label byte
+	db 0h, 0h
+c_262ec label byte
+	db 0h, 0h
+c_262ee label byte
+	db 0h, 0h
+c_262f0 label byte
+	db 0h, 0h
+c_262f2 label byte
+	db 0h, 0h
+c_262f4 label byte
+	db 0h, 0h
+c_262f6 label byte
+	db 0h, 0h
+c_262f8 label byte
+	db 0ffh, 0ffh
+c_262fa label byte
+	db 0ffh, 0ffh
+c_262fc label byte
+	db 0ffh, 0ffh
+c_262fe label byte
+	db 0ffh, 0ffh
+c_26300 label byte
+	db 0ffh, 0ffh
+c_26302 label byte
+	db 0ffh, 0ffh
+c_26304 label byte
+	db 0ffh, 0ffh
+c_26306 label byte
+	db 0ffh, 0ffh
+c_26308 label byte
+	db 0h, 0h
+c_2630a label byte
+	db 0h, 0h
+c_2630c label byte
+	db 0h, 0h
+c_2630e label byte
+	db 0h, 0h
+c_26310 label byte
+	db 0h, 0h
+c_26312 label byte
+	db 0h, 0h
+c_26314 label byte
+	db 0h, 0h
+c_26316 label byte
+	db 0h, 0h
+c_26318 label byte
+	db 0h, 0h
+c_2631a label byte
+	db 0h, 0h
+c_2631c label byte
+	db 0h, 0h
+c_2631e label byte
+	db 0h, 0h
+c_26320 label byte
+	db 0h, 0h
+c_26322 label byte
+	db 0h, 0h
+c_26324 label byte
+	db 0h, 0h
+c_26326 label byte
+	db 0h, 0h
+c_26328 label byte
+	db 0h, 0h
+c_2632a label byte
+	db 0h, 0h
+c_2632c label byte
+	db 0h, 0h
+c_2632e label byte
+	db 0h, 0h
+c_26330 label byte
+	db 0h, 0h
+c_26332 label byte
+	db 0h, 0h
+c_26334 label byte
+	db 0h, 0h
+c_26336 label byte
+	db 0h, 0h
+c_26338 label byte
+	db 0ffh, 0ffh
+c_2633a label byte
+	db 0ffh, 0ffh
+c_2633c label byte
+	db 0ffh, 0ffh
+c_2633e label byte
+	db 0ffh, 0ffh
+c_26340 label byte
+	db 0ffh, 0ffh
+c_26342 label byte
+	db 0ffh, 0ffh
+c_26344 label byte
+	db 0ffh, 0ffh
+c_26346 label byte
+	db 0ffh, 0ffh
+c_26348 label byte
+	db 0fh, 0fh
+c_2634a label byte
+	db 0fh, 0fh
+c_2634c label byte
+	db 0fh, 0fh
+c_2634e label byte
+	db 0fh, 0fh
+c_26350 label byte
+	db 0fh, 0fh
+c_26352 label byte
+	db 0fh, 0fh
+c_26354 label byte
+	db 0fh, 0fh
+c_26356 label byte
+	db 0fh, 0fh
+c_26358 label byte
+	db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
+c_26368 label byte
+	db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+c_26377 label byte
+	db 0h, 0h
+c_26379 label byte
+	db 0h, 0h
+c_2637b label byte
+	db 0h, 0h
+c_2637d label byte
+	db 0h, 0h
+c_2637f label byte
+	db 0h, 0h
+c_26381 label byte
+	db 0h, 0h
+c_26383 label byte
+	db 0h, 0h
+c_26385 label byte
+	db 0h, 0h
+c_26387 label byte
+	db 0h, 0h
+c_26389 label byte
+	db 0h
+c_2638a label byte
+	db 0h
+c_2638b label byte
+	db 0fh
+c_2638c label byte
+	db 0h
+c_2638d label byte
+	db 0ffh
+c_2638e label byte
+	db 0h
+c_2638f label byte
+	db 0h
+c_26390 label byte
+	db 0h
+c_26391 label byte
+	db 0h
+c_26392 label byte
+	db 0h
+c_26393 label byte
+	db 0h
+c_26394 label byte
+	db 0h
+c_26395 label byte
+	db 0h
+c_26396 label byte
+	db 0h, 0h, 0h
+c_26399 label byte
+	db 0h, 0h, 0h
+c_2639c label byte
+	db 0h
+
+/* 0x2639d */
+_sound_api proc far
+	push bp
+	mov bp, sp
+	push es
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+8]
+	mov cx, [bp+0ch]
+	mov word ptr cs:c_2637b, cx
+	mov cx, [bp+0eh]
+	mov word ptr cs:c_2637d, cx
+	mov cx, [bp+10h]
+	mov word ptr cs:c_2637f, cx
+	mov cx, [bp+12h]
+	mov word ptr cs:c_26381, cx
+	mov cx, [bp+14h]
+	mov word ptr cs:c_26383, cx
+	mov cx, [bp+16h]
+	mov word ptr cs:c_26385, cx
+	mov cx, [bp+6]
+	cmp cl, 6
+	je L263ee
+	cmp cl, 3
+	je L263ee
+	cmp cl, 4
+	je L263ee
+	cmp cl, 7
+	jne L263f6
+L263ee:
+	mov dx, [bp+8]
+	mov word ptr cs:c_2637b, dx
+L263f6:
+	call _sound_api_dispatch
+	pop si
+	pop di
+	pop ds
+	pop es
+	pop bp
+	retf
+_sound_api endp
+
+/* 0x263ff */
+_sound_api_dispatch proc near
+	cmp cl, 0
+	jne L2643b
+	call FAR PTR _install_driver
+	xor ah, ah
+	cmp al, 0ffh
+	jne L26411
+	mov ah, al
+L26411:
+	xor cx, cx
+	mov cl, byte ptr cs:c_2638f
+	les bx, dword ptr cs:c_2637b
+	mov es:[bx], cx
+	mov cl, byte ptr cs:c_26390
+	les bx, dword ptr cs:c_2637f
+	mov es:[bx], cx
+	mov cl, byte ptr cs:c_2638c
+	les bx, dword ptr cs:c_26383
+	mov es:[bx], cx
+	ret
+L2643b:
+	cmp cl, 1
+	jne L2644b
+	mov bx, word ptr cs:c_2637b
+	call FAR PTR _configure_driver
+	ret
+L2644b:
+	cmp cl, 2
+	jne L26456
+	call FAR PTR _silence_driver
+	ret
+L26456:
+	cmp cl, 3
+	jne L26466
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR _sound_hold
+	ret
+L26466:
+	cmp cl, 4
+	jne L26476
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR _driver_fn13
+	ret
+L26476:
+	cmp cl, 5
+	jne L26481
+	call FAR PTR _seek_sequence
+	ret
+L26481:
+	cmp cl, 6
+	jne L26491
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR _set_master_level
+	ret
+L26491:
+	cmp cl, 7
+	jne L264a1
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR _set_sequence_level
+	ret
+L264a1:
+	cmp cl, 8
+	jne L264b1
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR _start_sequence
+	ret
+L264b1:
+	cmp cl, 9
+	jne L264bc
+	call FAR PTR _retire_and_tick
+	ret
+L264bc:
+	cmp cl, 0ah
+	jne L264cc
+	mov cl, byte ptr cs:c_2637b
+	call FAR PTR L26a61
+	ret
+L264cc:
+	cmp cl, 0bh
+	jne L264e6
+	mov dl, byte ptr cs:c_2637b
+	mov cl, byte ptr cs:c_2637d
+	mov ch, byte ptr cs:c_2637f
+	call FAR PTR L26ac9
+	ret
+L264e6:
+	cmp cl, 0ch
+	jne L264f6
+	mov cl, byte ptr cs:c_2637b
+	call FAR PTR L26aed
+	ret
+L264f6:
+	cmp cl, 0dh
+	jne L26506
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR L26af7
+	ret
+L26506:
+	cmp cl, 0eh
+	jne L26516
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR L26b34
+	ret
+L26516:
+	cmp cl, 0fh
+	jne L26525
+	mov cx, word ptr cs:c_2637b
+	call FAR PTR L26b44
+L26525:
+	cmp cl, 11h
+	jne L26531
+	call FAR PTR L26c18
+	mov ax, cx
+L26531:
+	cmp cl, 10h
+	jne L26540
+	call FAR PTR L26c02
+	mov al, cl
+	xor ah, ah
+	ret
+L26540:
+	cmp cl, 19h
+	jne L2654f
+	call FAR PTR L26c0c
+	mov al, cl
+	xor ah, ah
+	ret
+L2654f:
+	cmp cl, 12h
+	jne L26579
+	call FAR PTR L26c22
+	xor ah, ah
+	les bx, dword ptr cs:c_2637b
+	mov al, dl
+	mov es:[bx], ax
+	les bx, dword ptr cs:c_2637f
+	mov al, ch
+	mov es:[bx], ax
+	les bx, dword ptr cs:c_26383
+	mov al, cl
+	mov es:[bx], ax
+L26579:
+	cmp cl, 13h
+	jne L26593
+	mov dl, byte ptr cs:c_2637b
+	mov ch, byte ptr cs:c_2637d
+	mov cl, byte ptr cs:c_2637f
+	call FAR PTR L26c43
+	ret
+L26593:
+	cmp cl, 14h
+	jne L265ad
+	mov dl, byte ptr cs:c_2637b
+	mov ch, byte ptr cs:c_2637d
+	mov cl, byte ptr cs:c_2637f
+	call FAR PTR L26c95
+	ret
+L265ad:
+	cmp cl, 15h
+	jne L265c7
+	mov dl, byte ptr cs:c_2637b
+	mov ch, byte ptr cs:c_2637d
+	mov cl, byte ptr cs:c_2637f
+	call FAR PTR L26ce6
+	ret
+L265c7:
+	cmp cl, 16h
+	jne L265dc
+	mov dl, byte ptr cs:c_2637b
+	mov cl, byte ptr cs:c_2637d
+	call FAR PTR L26dc4
+	ret
+L265dc:
+	cmp cl, 17h
+	jne L265f1
+	mov dl, byte ptr cs:c_2637b
+	mov cx, word ptr cs:c_2637d
+	call FAR PTR L26e15
+	ret
+L265f1:
+	ret
+_sound_api_dispatch endp
+
+/* 0x265f2 */
+_install_driver proc far
+	mov word ptr cs:c_26377, ax
+	mov word ptr cs:c_26379, es
+	push bp
+	mov bp, 0
+	call dword ptr cs:c_26377
+	pop bp
+	mov byte ptr cs:c_2638f, cl
+	mov byte ptr cs:c_2638c, ch
+	mov dl, ah
+	shr dl, 1
+	shr dl, 1
+	shr dl, 1
+	shr dl, 1
+	cmp word ptr DGROUP:_DG4A82+28h, 0
+	je L26623
+	or dl, 1
+L26623:
+	mov byte ptr cs:c_26390, dl
+	retf
+_install_driver endp
+
+/* 0x26629 */
+_configure_driver proc far
+	push cx
+	push bp
+	mov bp, 1
+	call dword ptr cs:c_26377
+	pop bp
+	mov byte ptr cs:c_2638a, cl
+	mov byte ptr cs:c_2638b, ch
+	push ax
+	xor cl, cl
+	push bp
+	mov bp, 0bh
+	call dword ptr cs:c_26377
+	pop bp
+	pop ax
+	pop cx
+	retf
+_configure_driver endp
+
+/* 0x2664e */
+_silence_driver proc far
+	push bx
+	push cx
+	push es
+	push si
+	mov cl, 0fh
+	push bp
+	mov bp, 0ch
+	call dword ptr cs:c_26377
+	pop bp
+	push bp
+	mov bp, 2
+	call dword ptr cs:c_26377
+	pop bp
+	pop si
+	pop es
+	pop cx
+	pop bx
+	retf
+_silence_driver endp
+
+/* 0x2666d */
+_sound_hold proc far
+	cmp cx, 0
+	jne L26678
+	inc byte ptr cs:c_26389
+	retf
+L26678:
+	cmp byte ptr cs:c_26389, 0
+	je L26685
+	dec byte ptr cs:c_26389
+L26685:
+	retf
+_sound_hold endp
+
+/* 0x26686 */
+_driver_fn13 proc far
+	push bp
+	mov bp, 0dh
+	call dword ptr cs:c_26377
+	pop bp
+	retf
+_driver_fn13 endp
+
+/* 0x26691 */
+_seek_sequence proc far
+	pushf
+	cli
+	push si
+	push ax
+	push bx
+	push cx
+	push dx
+	mov bx, ax
+	xor ch, ch
+	mov cl, es:[bx+159h]
+	dec cl
+	mov si, 0eh
+L266a6:
+	mov dl, es:[bx+si+143h]
+	and dl, 0f0h
+	mov byte ptr cs:c_26368[si], dl
+	dec si
+	jns L266a6
+	mov byte ptr cs:c_26399, 1
+	call FAR PTR _start_sequence
+	mov cx, es:[bx+154h]
+	mov word ptr es:[bx+154h], 0
+	mov al, es:[bx+15dh]
+	mov byte ptr es:[bx+15dh], 1
+	cmp cx, 0
+	je L266fc
+L266dd:
+	mov dx, es:[bx+154h]
+	call _step_sequence
+	cmp dx, es:[bx+154h]
+	jb L266f5
+	je L266fc
+	sub dx, es:[bx+154h]
+	sub cx, dx
+L266f5:
+	cmp cx, es:[bx+154h]
+	jne L266dd
+L266fc:
+	mov es:[bx+15dh], al
+	mov byte ptr cs:c_26399, 0
+	mov si, 0eh
+L2670a:
+	mov dl, byte ptr cs:c_26368[si]
+	or es:[bx+si+143h], dl
+	dec si
+	jns L2670a
+	call _sequencer_tick
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop si
+	popf
+	retf
+_seek_sequence endp
+
+/* 0x26721 */
+_set_master_level proc far
+	cmp cl, 0ffh
+	je L2672d
+	cmp cl, 0fh
+	jbe L2672d
+	mov cl, 0fh
+L2672d:
+	push bp
+	mov bp, 0ch
+	call dword ptr cs:c_26377
+	pop bp
+	retf
+_set_master_level endp
+
+/* 0x26738 */
+_set_sequence_level proc far
+	cmp cl, 0ffh
+	jne L26748
+	push bp
+	mov bp, 0bh
+	call dword ptr cs:c_26377
+	pop bp
+	retf
+L26748:
+	cmp cl, 0ah
+	jbe L26754
+	mov al, byte ptr cs:c_26392
+	xor ah, ah
+	retf
+L26754:
+	mov al, byte ptr cs:c_26392
+	push es
+	push ax
+	push bx
+	push dx
+	mov byte ptr cs:c_26392, cl
+	les bx, dword ptr cs:c_26198
+	mov dx, es
+	or dx, bx
+	je L2677e
+	cmp byte ptr es:[bx+15fh], 7fh
+	jne L2677e
+	push bp
+	mov bp, 0bh
+	call dword ptr cs:c_26377
+	pop bp
+L2677e:
+	pop dx
+	pop bx
+	pop ax
+	pop es
+	retf
+_set_sequence_level endp
 
 /* 0x26783 */
 _start_sequence proc far
@@ -304,13 +854,13 @@ L268e8:
 	mov word ptr es:[bx+si+4ch], 0
 	xor dh, dh
 	mov si, dx
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	or byte ptr es:[bx+si+134h], 2
 	jmp short L26999
 L2691f:
 	xor dh, dh
 	mov si, dx
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	test dl, 20h
 	je L26932
 	or byte ptr es:[bx+si+134h], 1
@@ -623,8 +1173,13 @@ L26c02:
 	mov cl, es:[bx+158h]
 	pop bx
 	retf
-c_26c0c label byte
-	db 53h, 8bh, 0d8h, 32h, 0c9h, 26h, 86h, 8fh, 58h, 1h, 5bh, 0cbh
+L26c0c:
+	push bx
+	mov bx, ax
+	xor cl, cl
+	xchg es:[bx+158h], cl
+	pop bx
+	retf
 L26c18:
 	push bx
 	mov bx, ax
@@ -650,10 +1205,30 @@ L26c22:
 	pop bx
 	pop ax
 	retf
-c_26c43 label byte
-	db 50h, 53h, 52h, 56h, 2eh, 0feh, 6h, 0f9h, 1h, 8bh, 0d8h, 0e8h, 92h, 16h, 81h, 0feh, 0ffh, 0h
-	db 74h, 34h, 56h, 32h, 0f6h, 8bh, 0f2h, 26h, 0c6h, 80h, 25h, 1h, 0ffh, 8bh, 0c6h, 5eh
-	db 8bh, 0d6h, 0d0h, 0e2h, 0d0h, 0e2h, 0ah, 0d0h, 33h, 0f6h, 0ebh, 7h, 90h
+L26c43:
+	push ax
+	push bx
+	push dx
+	push si
+	inc byte ptr cs:c_26389
+	mov bx, ax
+	call L282e3
+	cmp si, 0ffh
+	je L26c8b
+	push si
+	xor dh, dh
+	mov si, dx
+	mov byte ptr es:[bx+si+125h], 0ffh
+	mov ax, si
+	pop si
+	mov dx, si
+	shl dl, 1
+	shl dl, 1
+	or dl, al
+	xor si, si
+	jmp short L26c78
+c_26c71 label byte
+	db 90h
 L26c72:
 	inc si
 	cmp si, 10h
@@ -673,10 +1248,30 @@ L26c8b:
 	pop ax
 	pop si
 	retf
-c_26c95 label byte
-	db 50h, 53h, 52h, 56h, 2eh, 0feh, 6h, 0f9h, 1h, 8bh, 0d8h, 0e8h, 40h, 16h, 81h, 0feh, 0ffh, 0h
-	db 74h, 33h, 56h, 32h, 0f6h, 8bh, 0f2h, 26h, 88h, 0a8h, 25h, 1h, 8bh, 0c6h, 5eh, 8bh, 0d6h
-	db 0d0h, 0e2h, 0d0h, 0e2h, 0ah, 0d0h, 33h, 0f6h, 0ebh, 7h, 90h
+L26c95:
+	push ax
+	push bx
+	push dx
+	push si
+	inc byte ptr cs:c_26389
+	mov bx, ax
+	call L282e3
+	cmp si, 0ffh
+	je L26cdc
+	push si
+	xor dh, dh
+	mov si, dx
+	mov es:[bx+si+125h], ch
+	mov ax, si
+	pop si
+	mov dx, si
+	shl dl, 1
+	shl dl, 1
+	or dl, al
+	xor si, si
+	jmp short L26cc9
+c_26cc2 label byte
+	db 90h
 L26cc3:
 	inc si
 	cmp si, 10h
@@ -805,10 +1400,30 @@ L26dbd:
 	pop ax
 	popf
 	retf
-c_26dc4 label byte
-	db 50h, 53h, 52h, 56h, 2eh, 0feh, 6h, 0f9h, 1h, 8bh, 0d8h, 0e8h, 11h, 15h, 81h, 0feh, 0ffh, 0h
-	db 74h, 33h, 56h, 32h, 0f6h, 8bh, 0f2h, 26h, 88h, 88h, 16h, 1h, 8bh, 0c6h, 5eh, 8bh, 0d6h
-	db 0d0h, 0e2h, 0d0h, 0e2h, 0ah, 0d0h, 33h, 0f6h, 0ebh, 7h, 90h
+L26dc4:
+	push ax
+	push bx
+	push dx
+	push si
+	inc byte ptr cs:c_26389
+	mov bx, ax
+	call L282e3
+	cmp si, 0ffh
+	je L26e0b
+	push si
+	xor dh, dh
+	mov si, dx
+	mov es:[bx+si+116h], cl
+	mov ax, si
+	pop si
+	mov dx, si
+	shl dl, 1
+	shl dl, 1
+	or dl, al
+	xor si, si
+	jmp short L26df8
+c_26df1 label byte
+	db 90h
 L26df2:
 	inc si
 	cmp si, 10h
@@ -1911,7 +2526,7 @@ L279d4:
 	cmp cl, dl
 	jne L27a21
 	mov cl, ch
-	db 81h, 0e1h, 0fh, 0h  /* and cx, 0fh, written long */
+	and cx, 0fh
 	mov di, cx
 	mov cl, es:[bx+di+107h]
 	push dx
@@ -2462,7 +3077,7 @@ _midi_note_off_event proc near
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	pop ax
 	cmp es:[bx+si+125h], ch
 	jne L27ec7
@@ -2498,7 +3113,7 @@ _midi_note_event proc near
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	pop ax
 	cmp cl, 0
 	je L27f2d
@@ -2573,7 +3188,7 @@ _midi_controller_event proc near
 	je L27fbb
 	push si
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	cmp byte ptr cs:c_262b8[si], 0ffh
 	pop si
 	je L27fbb
@@ -2582,7 +3197,7 @@ L27fbb:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	pop ax
 	cmp ch, 7
 	jne L27ff1
@@ -2676,7 +3291,7 @@ _midi_program_event proc near
 	je L280ae
 	push si
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	cmp byte ptr cs:c_262b8[si], 0ffh
 	pop si
 	je L280ae
@@ -2685,7 +3300,7 @@ L280ae:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	pop ax
 	mov es:[bx+si+116h], cl
 	cmp al, 0ffh
@@ -2738,7 +3353,7 @@ _midi_bend_event proc near
 	je L28133
 	push si
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	cmp byte ptr cs:c_262b8[si], 0ffh
 	pop si
 	je L28133
@@ -2747,7 +3362,7 @@ L28133:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
-	db 81h, 0e6h, 0fh, 0h  /* and si, 0fh, written long */
+	and si, 0fh
 	pop ax
 	push cx
 	xchg ch, cl
@@ -3071,7 +3686,7 @@ _seek_sequence_far proc far
 	push si
 	les ax, dword ptr [bp+6]
 	push cs
-	call _seek_sequence
+	call near ptr _seek_sequence
 	pop si
 	pop di
 	pop ds
@@ -3088,7 +3703,7 @@ _set_master_level_far proc far
 	push si
 	mov cx, [bp+6]
 	push cs
-	call _set_master_level
+	call near ptr _set_master_level
 	pop si
 	pop di
 	pop ds
@@ -3108,7 +3723,7 @@ _install_driver_far proc far
 	push si
 	les ax, dword ptr [bp+6]
 	push cs
-	call _install_driver
+	call near ptr _install_driver
 	pop si
 	pop di
 	pop ds
@@ -3127,7 +3742,7 @@ _configure_driver_far proc far
 	xor bx, bx
 	les ax, dword ptr [bp+6]
 	push cs
-	call _configure_driver
+	call near ptr _configure_driver
 	pop bx
 	pop si
 	pop di
@@ -3145,7 +3760,8 @@ _start_sequence_far proc far
 	push si
 	les ax, dword ptr [bp+6]
 	mov cx, [bp+0ah]
-	call _start_sequence
+	push cs
+	call near ptr _start_sequence
 	pop si
 	pop di
 	pop ds
@@ -3165,7 +3781,7 @@ _driver_fn13_far proc far
 	push si
 	mov cx, [bp+6]
 	push cs
-	call _driver_fn13
+	call near ptr _driver_fn13
 	pop si
 	pop di
 	pop ds
@@ -3185,7 +3801,8 @@ _retire_and_tick_far proc far
 	push di
 	push si
 	les ax, dword ptr [bp+6]
-	call _retire_and_tick
+	push cs
+	call near ptr _retire_and_tick
 	pop si
 	pop di
 	pop ds
@@ -3206,7 +3823,7 @@ _set_sequence_level_far proc far
 	push si
 	mov cl, [bp+6]
 	push cs
-	call _set_sequence_level
+	call near ptr _set_sequence_level
 	pop si
 	pop di
 	pop ds
@@ -3226,7 +3843,7 @@ _silence_driver_far proc far
 	push si
 	les ax, dword ptr [bp+6]
 	push cs
-	call _silence_driver
+	call near ptr _silence_driver
 	pop si
 	pop di
 	pop ds
@@ -3239,8 +3856,183 @@ _silence_driver_far endp
 SOUND_TEXT ends
 }
 #else
+/*
+ * 0x2639d
+ *
+ * **The sound module's one far entry** (a name that is a guess): its arguments filed into the code segment at `cs:1ebh` on, then `sound_api_dispatch` on the function number. Nothing in the game calls it; the game calls the routines' own far faces. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+uint16_t sound_api(uint16_t fn)
+{
+    (void)fn;
+    not_transcribed("0x2639d");
+    return 0;
+}
+/*
+ * 0x263ff
+ *
+ * **The dispatcher**: CL chooses one of the driver interface's routines, each far-called, with the arguments `sound_api` filed. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+void sound_api_dispatch(void)
+{
+    not_transcribed("0x263ff");
+}
 
+/*
+ * 0x265f2
+ *
+ * Plant the driver and ask it what it is.
+ *
+ * The far pointer arrives in `ES:AX` and is written straight into the module's
+ * own code segment at `cs:0x1e7` - the cell every other routine here far-calls
+ * through. Nothing else installs it; this is where the sound module and the
+ * loaded `SX.OVL` are joined.
+ *
+ * Then function 0 - `sx_describe_0` - which answers two constants. `CL` and
+ * `CH` are kept at `cs:0x1ff` and `cs:0x1fc`, and `AH >> 4` at `cs:0x200`, with
+ * bit 0 forced on when DGROUP 0x4aaa is set. For the speaker driver those come
+ * out as 1, 0x12 and 0 - but they are read from the driver, not assumed, so a
+ * different `SX.OVL` describes itself differently.
+ *
+ * Hand-written assembly: register arguments, no frame, a far `ret`. `BP` is
+ * saved around the call because it carries the function number.
+ *
+ * `AX` is left holding `sx_describe_0`'s answer and the routine returns it -
+ * not by writing it anywhere, just by not disturbing it, which is a return
+ * value in assembly and is why the port declares one.
+ */
+uint16_t install_driver(const uint8_t far * drv)
+{
+    uint16_t ax, cx;
+    uint8_t dl;
 
+    SNDS.driver = far_of(drv);
+
+    driver_describe_0(&ax, &cx);
+
+    SNDS.cl = (uint8_t)cx;
+    SNDS.ch = (uint8_t)(cx >> 8);
+
+    dl = (uint8_t)((ax >> 8) >> 4);
+    if (((int16_t)DG4A82.module_live) != 0)
+        dl |= 1;
+    SNDS.ah_high = dl;
+
+    return ax;
+}
+
+/*
+ * 0x26629
+ *
+ * Ask the driver its *second* description and set one parameter from it.
+ *
+ * Function 1 - `sx_describe_1` - answers another pair of constants, kept at
+ * `cs:0x1fa` and `cs:0x1fb`. Then function 11 - `sx_param_349` - is called with
+ * `CL` zero.
+ *
+ * `AX` and `CX` are pushed around that second call and popped back, so the
+ * caller sees `sx_describe_1`'s answer and not `sx_param_349`'s - and that is
+ * the routine's return value: 0x28580 tests it against 0xffff.
+ *
+ * Hand-written assembly, as above.
+ */
+uint16_t configure_driver(const uint8_t far * drv)
+{
+    uint16_t ax, cx;
+
+    driver_describe_1(drv, &ax, &cx);
+
+    SNDS.voice_lo = (uint8_t)cx;
+    SNDS.voice_hi = (uint8_t)(cx >> 8);
+
+    driver_param_349(0);
+
+    return ax;
+}
+
+/*
+ * 0x2664e
+ *
+ * Shut the driver up. Function 12 - `sx_param_345` - with `CL` 0xf, then
+ * function 2 - `sx_stop_all`, which forwards to the speaker-off.
+ *
+ * Every register it touches is pushed and popped, `CX` included, so the two
+ * calls are invisible to the caller. Hand-written assembly, as above.
+ *
+ * **`CL` is set once, to 0xf, and both calls see it** - function 12 preserves
+ * CX. That matters because `SBP:`'s function 2 reads CL where the other
+ * drivers ignore it, so the 0xf is passed on rather than dropped.
+ */
+void silence_driver(void)
+{
+    driver_param_345(0xf);
+    driver_stop_all(0xf);
+}
+
+/*
+ * 0x2666d
+ *
+ * **Hold or release the driver** (a name that is a guess): with CX zero the count at `cs:1f9h` goes up, otherwise it comes down to zero. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+void sound_hold(uint16_t cx)
+{
+    (void)cx;
+    not_transcribed("0x2666d");
+}
+
+/*
+ * 0x26686
+ *
+ * **The driver's function 13**, and nothing else (the name says only that). Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+void driver_fn13(void)
+{
+    not_transcribed("0x26686");
+}
+
+/*
+ * 0x26691
+ *
+ * **Seek a sequence** (a name that is a guess): its channels muted, `start_sequence` to restart it, `step_sequence` until its position reaches the one it had, the channels put back, and a tick. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+void seek_sequence(struct sequence far *seq)
+{
+    (void)seq;
+    not_transcribed("0x26691");
+}
+
+/*
+ * 0x26721
+ *
+ * Set the driver's master level. `CL` is clamped to 0..0xf and handed to
+ * function 12 - `sx_param_345` - except that 0xff passes through unclamped,
+ * so it is a value the driver reads as something other than a level.
+ *
+ * Hand-written assembly: the argument is a register and there is no frame.
+ */
+void set_master_level(uint8_t cl)
+{
+    if (cl != 0xff && cl > 0xf)
+        cl = 0xf;
+    driver_param_345(cl);
+}
+
+/*
+ * 0x26738
+ *
+ * **Set the level the playing sequence is heard at** (a name that is a guess): 0xff asks the driver, above 10 answers the current one at `cs:202h`, and otherwise it is stored and, if a sequence is playing, handed on. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
+ * stub, which aborts; the TASM source above is the original's.
+ */
+uint16_t set_sequence_level(uint8_t cl)
+{
+    (void)cl;
+    not_transcribed("0x26738");
+    return 0;
+}
 
 /*
  * NOT a transcription of a routine of its own: the block of driver calls that

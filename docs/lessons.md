@@ -527,6 +527,35 @@ because DS is the bitmap's, the prefix is an `asm db 36h` in front: a
 `_ss` pointer into DGROUP loses its prefix, because the model takes SS to
 be DGROUP.
 
+### TLINK's far-call form proves a file boundary only in a SMART module
+
+**What happened.** Moving the assembly from TASM 1.01 to TASM 3.0 left one
+difference: in `sound.c` a forward far call, `nop / push cs / call` in the
+image, came out `push cs / call / nop` - TASM 3.0's own shortening of a far
+call to a routine in the same file. So every `nop / push cs / call` was
+read as TLINK's, a call to another file, and the module was split in three
+at the calls that said so: `sound_api.c`, `sound_drv.c`, `sound.c`, all
+matching, committed with every check green.
+
+**What it missed.** The shortening is TASM's **SMART** mode, its default.
+`NOSMART` leaves a far call to the same file far, and TLINK then rewrites it
+to `nop / push cs / call` exactly as it does a call to another file - so
+under NOSMART the form says nothing about files. NOSMART also turns off the
+short `83` encoding of `and`/`or`/`xor` with a byte-sized immediate, and
+`sound.c` had twelve of those in the image as `81`, written as `db` with
+"what the source said is open". That open question was one answer
+(Turbo C++ 1.x/2.01 and Borland C++ 2.0 write `81` too, so it is not the
+only one): one
+`nosmart` line, the twelve written as instructions and the far calls
+written far, and the whole 0x26198..0x28580 assembled 42 of 42 as one file.
+The split was undone the same day.
+
+**The rule.** Before a far-call form is evidence of a boundary, find the
+module's mode from its bytes: a logical op with a byte-sized immediate as
+`83` is SMART, as `81` is NOSMART. keyboard.c, dosmem.c and lowlevel.c
+each have an `83`, so their boundaries at TLINK's far calls stand.
+`asm2tasm.py --nosmart` drafts a NOSMART module.
+
 ### A cast the judge does not need can be one the host does, and a wait on a check's files can read the previous run
 
 collide.c was committed on 2026-09-27 (ac75438) as byte-exact with

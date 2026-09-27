@@ -162,6 +162,9 @@ def main(argv):
                          "module that names it")
     ap.add_argument("--public-labels", action="store_true",
                     help="publish the c_ labels, which sibling modules name")
+    ap.add_argument("--nosmart", action="store_true",
+                    help="the module was assembled NOSMART: logical ops keep "
+                         "word immediates, far calls stay far for TLINK")
     ap.add_argument("--table", action="append", default=[],
                     help="LO:HI of a table inside the range: data, not code, "
                          "even where the port names its address")
@@ -253,6 +256,8 @@ def main(argv):
     a.data_externs = set()
     out = []
     publics = [by_addr[s] for s in starts]
+    if a.nosmart:
+        out.append("nosmart")
     out.append("%s segment byte public 'CODE'" % a.segment)
     out.append("assume cs:%s, ds:%s" % (a.segment, a.segment if a.ds_is_cs else "DGROUP"))
     for i in range(0, len(publics), 4):
@@ -344,7 +349,7 @@ def main(argv):
         if (ins.bytes[0] == 0xE8 and line.startswith("call _")
                 and far_procs.get(line[len("call _"):])):
             tgt = int(ins.op_str, 16)
-            if a.tasm1:
+            if a.tasm1 or a.nosmart:
                 line = "call near ptr " + line[len("call "):]
             elif tgt < ins.address and body and body[-1].strip() == "push cs":
                 del body[-1]
@@ -537,11 +542,11 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
     op = op.replace(" + ", "+").replace(" - ", "-")
     # **A small number TASM would have written short**: an `and`, `or` or
     # `xor` whose imm8-sized value the image has as a word (`81`, where
-    # every TASM from 1.0 to 2.51 writes `83`, QUIRKS and MASM51 included),
-    # or a word displacement a byte would hold. No spelling gets TASM to
-    # write these, so they are the bytes, and say so.
+    # TASM in its default SMART mode writes `83`), or a word displacement a
+    # byte would hold. Under `--nosmart` the first is what TASM writes, so
+    # it stays an instruction; otherwise they are the bytes, and say so.
     opc = next(x for x in b if x not in (0x26, 0x2E, 0x36, 0x3E, 0xF2, 0xF3))
-    if getattr(ins, "imm_size", 0) == 2 and opc == 0x81:
+    if getattr(ins, "imm_size", 0) == 2 and opc == 0x81 and not a.nosmart:
         v = struct.unpack_from("<h", b, len(b) - 2)[0]
         if -128 <= v <= 127:
             return "db %s  /* %s %s, written long */" % (

@@ -26,12 +26,9 @@ ASB, ADL, SBP and SPKR), which are separate binaries.
 of the game (72 files, the four Turbo C++ 3.0 was credited with included -
 they match either); **Borland C++ 2.0** for 15 modules, none of which 3.0
 reproduces; **Turbo C++ 1.01** for `atan2_long` alone; and **TASM 3.0**, the
-assembler BC++ 3.0 shipped, for all 19 assembly modules and the three C
-modules with inline `asm`. TASM 1.01 assembles every one of them to the
-same bytes but for one far call, and that call is what split the sound
-module in three: 3.0 writes a forward far call inside a file as `push cs /
-call / nop`, so the image's `nop / push cs / call`s are TLINK's, calls
-between files. The link
+assembler BC++ 3.0 shipped, for all 17 assembly modules and the three C
+modules with inline `asm` - the sound module assembled NOSMART, the rest
+in TASM's default SMART mode. The link
 itself was the 3.0 generation's: the startup is 3.0's `C0M.OBJ` (661 of 663
 bytes, the other two TLINK's rewrite of a far call; 2.0's differs from the
 26th byte), and 3.0's `CM.LIB` accounts for 50 runtime modules where 2.0's
@@ -148,19 +145,21 @@ modules are BC++ 3.0 `-mm -O -G -Z`, and all their routines match:
 
 sound_device.c's `_BSS` is 0x6414..0x6430.
 
-The sound module is three TASM files in one segment, judged directly
-(`JUDGE: tasm`), whose ends are where TASM 3.0's far calls say:
-`sound_api.c` (0x26198..0x265f2, the state and a far entry nothing calls,
-with its dispatcher) 3 of 3, `sound_drv.c` (0x265f2..0x26783, the driver
-interface: install, configure, silence, levels and a seek) 8 of 8, and
-`sound.c` (0x26783..0x28580, the sequencer and the far faces) 32 of 32.
-The dispatcher far-calls every driver routine the TLINK way, and so does
-the seek its call to `start_sequence`. `silence_driver` sitting apart
-from the sequencer fits a fallback kept for when no driver loaded, but
-that is a reading of its neighbours, not a measurement. Eleven `and si,
-0fh` are written as their bytes - the image has them with a word
-immediate that no TASM from 1.0 to 3.0 writes; what the source said is
-open. `sound_call.c` (0x29286..0x292f4, the
+`sound.c` (0x26198..0x28580: the state, a far entry and its dispatcher,
+the driver interface, the sequencer and the far faces) is TASM 3.0 source
+assembled **NOSMART**, judged directly (`JUDGE: tasm`): 42 of 42. Twelve
+`and si, 0fh` / `and cx, 0fh` are in the image with a word immediate,
+`81`, which TASM writes only NOSMART - and so do Turbo C++ 1.x/2.01 and
+Borland C++ 2.0, in C and in 2.0's built-in inline assembler, so the
+encoding does not settle that the module is assembly at all; no logical op
+in it has the short `83`. **Open**: a pilot writes three of its routines as
+C with the idioms (`pushf / cli`, the `push ds / di / si` save, the
+driver call through `cs:1e7h`) as small macros. `retire_and_tick` and
+`start_sequence_far` match as C under BC++ 2.0 and 3.0 with `-k-`;
+`midi_event_9`, a register-convention fragment that shifts SI and shifts
+it back, matches but for a `push si` the compiler adds for any SI it sees
+changed. It was split in three on the SMART reading of its far calls
+and put back the same day (docs/lessons.md). `sound_call.c` (0x29286..0x292f4, the
 callback cell in its code segment first) is TASM, 3 of 3.
 
 `DG4A82` could be sound_stop's or sound_file's: both give the same bytes.

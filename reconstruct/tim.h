@@ -359,7 +359,7 @@ uint16_t install_driver(const uint8_t far * drv);   /* 0x265f2 */
 uint16_t configure_driver(const uint8_t far * drv); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
-/* sound_api.c and sound_drv.c's routines the port had no name for. */
+/* sound.c's routines nothing in the game calls, named 2026-09-27. */
 uint16_t sound_api(uint16_t fn);                       /* 0x2639d */
 void     sound_api_dispatch(void);                     /* 0x263ff */
 void     sound_hold(uint16_t cx);                      /* 0x2666d */
