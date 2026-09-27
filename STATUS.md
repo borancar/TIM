@@ -33,7 +33,7 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
-Segment 0000 (`_TEXT`) is being split out of machine.c one module at a
+Segment 0000 (`_TEXT`) is being split out of seg0000.c one module at a
 time, from the front, each BC++ 3.0 `-mm -zC_TEXT` (no `-O`: the image keeps
 the `jmp` to the epilogue; `-zC_TEXT` makes the runtime's long helpers near
 calls).
@@ -47,14 +47,21 @@ calls).
 | `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
-| `src/geometry.c` | 0x03b17..0x04169 (both ends ours) | 7 of 7 | none |
+| `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 7 of 73; the rest do not compile under BC++ 3.0 yet | `_DATA` 0x284a..0x286e |
+| `src/seg0000.c` | 0x080b9..0x0dff0, what is left: several modules | not judged | |
 
-What pins the next boundaries is `_DATA`, which TLINK lays out in module
-order. After goals.c's 0x283a..0x2849 come 0x284a..0x286e, read only by
-`select_cursor` (0x0467d, the cursor hot spots), and 0x286e, read only by
-`update_button_state` (0x08136), and then levels.c's 0x2870. So the module
-holding `select_cursor` starts somewhere after 0x04169 at the latest cursor
-routine that needs it, and everything from score.c to it has no data.
+**The bare calls say where segment 0000's modules are.** Borland writes a
+bare `push cs / call` only for a routine defined earlier in the same file,
+so each bare call backwards puts caller and callee in one module. Merged
+over the whole segment, the spans are 0x002be..0x00e31 (collide.c),
+0x015fa..0x024aa and 0x025d8..0x02763 (goals.c), 0x02bcc..0x0345e
+(physics.c), **0x03ba9..0x080a5**, 0x08136..0x08497, 0x08fc3..0x09afe,
+0x0a05f..0x0a77d, 0x0aa76..0x0b3fd and 0x0b89d..0x0b933. The long one is
+machine.c. It was first split by subject at 0x04169, as geometry.c, before
+`part_flip_options`' bare call to `object_overlaps_any` showed that both are
+in one file. Its `_DATA`, the cursor hot spots at 0x284a..0x286e, comes after
+goals.c's in TLINK's order. The module after it holds `update_button_state`
+and 0x286e, then levels.c's 0x2870.
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
