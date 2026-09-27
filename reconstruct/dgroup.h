@@ -56,6 +56,7 @@
 #  define far
 #  define huge
 #  define near
+#  define interrupt
 #endif
 
 #include <stddef.h>
@@ -2060,38 +2061,6 @@ struct level_io {
 
 extern struct level_io LEVEL_IO;
 
-/*
- * **The archives' lookup**, at DGROUP 0x547a: its one-entry cache, the
- * archive count, the name hash and the files it read. segment 0000's.
- */
-struct dg_547a {
-    dg_near_t cache_key_ptr;      /* +0x00  the one-entry cache in front of find_entry_for_pointer: */
-    dg_near_t cache_answer_ptr;   /* +0x02  the pointer last asked about, and the answer */
-    int16_t   archive_count;      /* +0x04  how many archives, accumulated; zero means none is open */
-    uint16_t  last_record;        /* +0x06  where the search starts, so record 0 is never returned */
-    /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
-       `uint32_t acc` across these two and `find_entry_for_pointer`
-       compares the pair against each entry's first four bytes; the
-       `_off`/`_seg` names its readers used were a misreading of a key. */
-    uint32_t  name_hash;          /* +0x08  what hash_filename leaves for
-                                            find_entry_for_pointer */
-    uint8_t   open_immediate;     /* +0x0c  clear means try the file by name and close it again */
-    /* **Reopen the archive even if it is the one already current.** Every
-       reader forces the switch when it is set, and the switch clears it; the
-       only thing that sets it is the two-instruction routine at image 0x09804,
-       which nothing the port reaches calls. */
-    uint8_t   reopen;          /* +0x0d */
-    uint8_t   retry;              /* +0x0e  the loop around the loose-file open, for removable media */
-    /* **An archive is being opened**, raised around the two retry loops that
-       call `borland_fopen` - the ones the missing-disk prompt belongs to. */
-    uint8_t   opening;         /* +0x0f */
-    uint8_t   scanned;            /* +0x10  the archives have been counted once */
-    dg_near_t file_used_ptr;      /* +0x11  the FILE it actually read from */
-    dg_near_t file_asked_ptr;     /* +0x13  and the one it was asked about */
-} PACKED;
-
-extern struct dg_547a DG547A;
-
 /* The block `LEVEL_IO.table` points at, as the far array of near pointers it is:
    one a part, indexed by part number, `n * 4` bytes allocated for `n`. */
 struct part_table {
@@ -2181,7 +2150,7 @@ struct archive {
 
 /*
  * OURS, as a type: one entry of the archive index `archive.list` points at and
- * `scan_entry_list` walks - the name's 32-bit key, then where the entry's data
+ * `find_entry_for_pointer` walks - the name's 32-bit key, then where the entry's data
  * starts. `load_archive_map` fills them from RESOURCE.MAP, a `long` each, and
  * steps its cursor by eight. **Packed**, because the index hands back whatever
  * offset the entry sits at and `+ 4` can be odd; that is why the base used to
@@ -2675,19 +2644,6 @@ void (*vm_vector_host(int16_t slot))(void);
 #define SC_DOWN   0x50
 #define SC_PGDN   0x51
 #define SC_INS    0x52
-
-/*
- * **The critical-error vector**, at DGROUP 0x5677, and what failed.
- */
-struct dg_5677 {
-    struct far_ptr crit_vec;      /* +0x00  DOS's 24h, kept so it can be
-                                            put back */
-    uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
-} PACKED;
-
-extern struct dg_5677 DG5677;
-
-
 
 /*
  * ---------------------------------------------------------------------------

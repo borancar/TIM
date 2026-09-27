@@ -1075,6 +1075,10 @@ int16_t borland_fclose(struct file_rec *file)
 {
     int16_t si = -1;
 
+    /* Borland's reads DS:0 for a null stream and fails the token test with
+       -1; the host cannot read through NULL, so it says so first. Ours. */
+    if (file == NULL)
+        return -1;
     if (FILEREC_PTR(file->token_ptr) != file)
         return -1;
 

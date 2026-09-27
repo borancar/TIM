@@ -1928,10 +1928,6 @@ struct dg_5752 DG5752 DGROUP_BSS(0x5752);
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
 struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
 struct dg_5179 DG5179 DGROUP_BSS(0x5179);
-/* Not placed: the port's `vm_init`, which the hybrid runs as the machine
-   layer, opens files through the archive lookup, and its count and its
-   lists have to be the same side's. */
-struct dg_547a DG547A DGROUP_WAS(0x547a);
 struct dg_3576 DG3576 DGROUP_WAS(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
@@ -2062,7 +2058,6 @@ struct dg_4342 DG4342 DGROUP_AT(0x4342) = {
         { .off = 0x2716, .seg = LOAD_SEG + 0x1c25 },
     },
 };
-struct dg_5677 DG5677 DGROUP_BSS(0x5677);
 struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { ._pad_2d06 = 0x0001, ._pad_2d08 = 0xffff };
 
 struct dg_440e DG440E DGROUP_AT(0x440e) = {

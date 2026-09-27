@@ -851,8 +851,15 @@ uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
+#ifdef __TURBOC__
+/* **An interrupt vector as Borland has it**, a far pointer to an `interrupt`
+   function, where the host keeps the guest's `struct far_ptr`. Ours. */
+void interrupt (far *dos_getvect(uint16_t n))();         /* 0x0bd70 */
+void dos_setvect(uint16_t n, void interrupt (far *handler)()); /* 0x0bd7f */
+#else
 struct far_ptr dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, struct far_ptr handler);     /* 0x0bd7f */
+#endif
 char *string_copy(char *dst, const char *src);    /* 0x0dd33 */
 uint16_t string_length(const char *s);                 /* 0x0dd95 */
 char *string_reverse(char *s);                /* 0x0de1e */
@@ -1220,6 +1227,12 @@ void bounce_pair(struct part *obj);                       /* 0x03201 */
 void part_moved(struct part *part);                     /* 0x06d8e */
 void free_all_shapes(void);                             /* 0x05dfc */
 int16_t other_end_direction(struct part *part);         /* 0x07205 */
+int16_t game_feof(FILE *file);                          /* 0x094a8 */
+void request_archive_reopen(void);                      /* 0x09803 */
+void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
+                                  uint16_t ds, uint16_t es, uint16_t dx,
+                                  uint16_t cx, uint16_t bx, uint16_t ax); /* 0x09bdf */
+void draw_xor_rect(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x09c23 */
 void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */

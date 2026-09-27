@@ -26,36 +26,36 @@
 #include "dgroup.h"
 
 /*
- * **Which four characters of a filename its hash is made of**, at DGROUP
- * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
- * name - 0, 1, 6, 7 in the image - into a long.
- *
- * DGROUP 0x28d2..0x28d6, 0x04 bytes.
+ * **This module's `_BSS`, 0x547a..0x567e, in the order the four are
+ * defined below reversed**: Borland lays `_BSS` out in reverse order of
+ * first mention, so the highest, DG5677, is defined first and DG547A, the
+ * lowest, last. None of them is declared anywhere else, which would be a
+ * mention of its own (docs/lessons.md).
  */
-struct machine_hash_order {
-    uint8_t   hash_order[4];      /* +0x00 [4] */
-} PACKED;
-
-struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { .hash_order = { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
- * **The resource map's name and three modes**, DGROUP 0x28d6..0x28ec:
- * "RESOURCE.MAP" and "rb" three times, one for each of the routines at
- * 0x0964b, 0x09a7f and 0x09b02 that opens a file.
+ * **The critical-error vector**, at DGROUP 0x5677, and what failed.
  */
-struct machine_resource_map_names {
-    char      resource_map[13];   /* +0x00  "RESOURCE.MAP" */
-    char      mode_rb_a[3];       /* +0x0d  "rb" */
-    char      mode_rb_b[3];       /* +0x10  "rb" */
-    char      mode_rb_c[3];       /* +0x13  "rb" */
+struct dg_5677 {
+#ifdef __TURBOC__
+    void interrupt (far *crit_vec)(); /* +0x00 */
+#else
+    struct far_ptr crit_vec;      /* +0x00  DOS's 24h, kept so it can be
+                                            put back */
+#endif
+    uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
 } PACKED;
 
-struct machine_resource_map_names MACHINE_RESOURCE_MAP_NAMES DGROUP_AT(0x28d6) = {
-    .resource_map = "RESOURCE.MAP",
-    .mode_rb_a = "rb",
-    .mode_rb_b = "rb",
-    .mode_rb_c = "rb",
-};
+struct dg_5677 DG5677 DGROUP_BSS(0x5677);
+
+/*
+ * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
+ */
+struct machine_game_files {
+    struct game_file files[0xa];  /* +0x00 [0xb4] */
+} PACKED;
+
+struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
 
 /*
  * **The eleven archives**, DGROUP 0x548f..0x55c3, 0x134 bytes. Index 0 is never where a search
@@ -68,48 +68,52 @@ struct machine_archives {
 struct machine_archives MACHINE_ARCHIVES DGROUP_WAS(0x548f);
 
 /*
- * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
+ * **The archives' lookup**, at DGROUP 0x547a: its one-entry cache, the
+ * archive count, the name hash and the files it read. segment 0000's.
  */
-struct machine_game_files {
-    struct game_file files[0xa];  /* +0x00 [0xb4] */
+struct dg_547a {
+    dg_near_t cache_key_ptr;      /* +0x00  the one-entry cache in front of find_entry_for_pointer: */
+    dg_near_t cache_answer_ptr;   /* +0x02  the pointer last asked about, and the answer */
+    int16_t   archive_count;      /* +0x04  how many archives, accumulated; zero means none is open */
+    uint16_t  last_record;        /* +0x06  where the search starts, so record 0 is never returned */
+    /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
+       `uint32_t acc` across these two and `find_entry_for_pointer`
+       compares the pair against each entry's first four bytes; the
+       `_off`/`_seg` names its readers used were a misreading of a key. */
+    uint32_t  name_hash;          /* +0x08  what hash_filename leaves for
+                                            find_entry_for_pointer */
+    uint8_t   open_immediate;     /* +0x0c  clear means try the file by name and close it again */
+    /* **Reopen the archive even if it is the one already current.** Every
+       reader forces the switch when it is set, and the switch clears it; the
+       only thing that sets it is the two-instruction routine at image 0x09804,
+       which nothing the port reaches calls. */
+    uint8_t   reopen;          /* +0x0d */
+    uint8_t   retry;              /* +0x0e  the loop around the loose-file open, for removable media */
+    /* **An archive is being opened**, raised around the two retry loops that
+       call `borland_fopen` - the ones the missing-disk prompt belongs to. */
+    uint8_t   opening;         /* +0x0f */
+    uint8_t   scanned;            /* +0x10  the archives have been counted once */
+    dg_near_t file_used_ptr;      /* +0x11  the FILE it actually read from */
+    dg_near_t file_asked_ptr;     /* +0x13  and the one it was asked about */
 } PACKED;
 
-struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
+/* Not placed: the port's `vm_init`, which the hybrid runs as the machine
+   layer, opens files through the archive lookup, and its count and its
+   lists have to be the same side's. */
+struct dg_547a DG547A DGROUP_WAS(0x547a);
 
 /*
- * NOT a transcription: a boundary the port chose. The enclosing routine
- * contains three inlined copies of this loop, and this is the loop, lifted out
- * so the port writes it once. Its address is given below rather than here,
- * because an address on the first line of a block *is* the provenance mark.
+ * **Which four characters of a filename its hash is made of**, at DGROUP
+ * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
+ * name - 0, 1, 6, 7 in the image - into a long.
  *
- * Walk each list once, from its head to either a null entry or a match. The
- * body matches 0x09904..0x09941 instruction for instruction - the 0x1c-strided
- * table at 0x54a7/0x54a9, the `(off | seg) == 0` test, the compare against the
- * wanted pair, the `off += 8` - but **the enclosing routine is not
- * transcribed**: 0x098e0 takes one argument at bp+6, reads what it is looking
- * for out of the globals at 0x5482 and 0x5484 rather than from arguments, and
- * carries on past this loop at 0x09941. Its signature here is the helper's,
- * not the original's.
- *
- * It carried a bare `0x098e0` before, which files a routine as transcribed
- * under `tests/provenance.py`, and this is not one.
+ * DGROUP 0x28d2..0x28d6, 0x04 bytes.
  */
-void scan_entry_list(int16_t idx, uint32_t want,
-                     const struct archive_entry **at)
-{
-    *at = (const struct archive_entry *)(void *)MACHINE_ARCHIVES.slot[idx].list;
+struct machine_hash_order {
+    uint8_t   hash_order[4];      /* +0x00 [4] */
+} PACKED;
 
-    for (;;) {
-        /* Each entry opens with its 32-bit key; a zero one ends the list.
-           The original steps the offset eight bytes inside the list's
-           segment, and the list is sized in a word, so it cannot leave it. */
-        uint32_t key = (*at)->key;
-
-        if (key == 0 || key == want)
-            return;
-        (*at)++;
-    }
-}
+struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
  * 0x08fc3
@@ -159,106 +163,63 @@ int16_t answer_carry_on(uint16_t what)
  */
 FILE *game_fopen(char *name, const char *mode)
 {
-    char hdr[16];
-    struct game_file *si;
-    struct file_rec *di;
-    int16_t left;
-    FILE *r = NULL;
+    register struct game_file *si;
+    register FILE *di;
+    int16_t left;                       /* [bp-2] */
+    char hdr[14];                       /* [bp-0x10] */
 
     if (DG547A.reopen != 0)
         make_file_current(0);
-
     load_archive_map();
     DG5677.failures = 0;
-
-    if (DG547A.archive_count == 0) {
-        r = borland_fopen(name, mode);
-        goto out;
-    }
+    if (DG547A.archive_count == 0)
+        return borland_fopen(name, mode);
 
     DG547A.file_used_ptr = 0;
     DG547A.file_asked_ptr = 0;
-
-    si = &MACHINE_GAME_FILES.files[0];
-    for (left = 0xa; left != 0; left--) {
-        if (si->in_use == 0)
-            break;
-        si++;
-    }
-
+    for (si = &MACHINE_GAME_FILES.files[0], left = 0xa;
+         left != 0 && si->in_use != 0; si++, left--)
+        ;
     if (left == 0)
-        goto out;
+        return NULL;
 
     hash_filename(name);
-
     DG547A.opening = 1;
-
-    for (;;) {
+    do {
         DG547A.retry = 0;
         di = borland_fopen(name, mode);
-
-        if (((int16_t)DG4E67.file_op_active) != 0) {
-            r = di;
-            goto out;
-        }
-        if (DG547A.retry != 0 && ((uint8_t)VMDS.pixel_shift) != 0)
-            not_transcribed("0x08fc3, the prompt for a missing disk");
-        if (DG547A.retry == 0)
-            break;
-    }
-
+        if (DG4E67.file_op_active != 0)
+            return di;
+        if (DG547A.retry != 0 && VMDS.pixel_shift != 0)
+            answer_carry_on(DG547A.last_record != 0 ? DG547A.last_record : 1);
+    } while (DG547A.retry != 0);
     DG547A.opening = 0;
 
     if (di != NULL) {
         si->archive = 0;
-        si->pos = 0;
-        si->size = 0;
-        si->base = 0;
+        si->base = si->size = si->pos = 0;
         si->in_use = 1;
         si->stream_ptr = dg_near(dgroup, di);
-        goto found;
-    }
-
-    if (find_entry_for_pointer(si) == 0)
-        goto out;
-
-    make_file_current(si->archive);
-
-    {
-        uint32_t at = si->base + si->pos;
-        int32_t pos;
-        struct archive *a;
-
-        seek_file_to(at);
-
+    } else {
+        if (!find_entry_for_pointer(si))
+            return NULL;
+        make_file_current(si->archive);
+        seek_file_to(si->base + si->pos);
         di = FILEREC_PTR(MACHINE_ARCHIVES.slot[DG547A.last_record].stream_ptr);
-
         borland_fread((uint8_t *)hdr, 0xd, 1, di);
         borland_fread((uint8_t *)&si->size, 4, 1, di);
-
-        pos = borland_ftell(di);
-        si->base = (uint32_t)pos;
-
-        a = &MACHINE_ARCHIVES.slot[DG547A.last_record];
-        a->pos = (uint32_t)pos;
+        MACHINE_ARCHIVES.slot[DG547A.last_record].pos = si->base = borland_ftell(di);
+        if (string_compare_nocase(hdr, name))
+            return NULL;
+        si->pos = 0;
+        si->stream_ptr = 0;
+        si->in_use = 1;
     }
-
-    if (string_compare_nocase(hdr, name) != 0)
-        goto out;
-
-    si->pos = 0;
-    si->stream_ptr = 0;
-    si->in_use = 1;
-
-found:
-    DG547A.open_immediate = (uint8_t)(DG547A.open_immediate + 1);
+    DG547A.open_immediate++;
     /* An archive entry: the game's FILE is its `game_file` record, and
        `archive_entry_for` tells the two apart by looking for it in the
        table. */
-    r = (FILE *)si;
-
-out:
-    return r;
+    return (FILE *)si;
 }
 
 /*
@@ -281,30 +242,23 @@ out:
  */
 int16_t game_fclose(FILE *file)
 {
-    struct game_file *si = GAME_FILE_NONE;
-    int16_t di = 0;
+    register struct game_file *si;
+    register int16_t di;
 
-    if (file == 0)
+    di = 0;
+    if (file == NULL)
         return -1;
-
-    if (DG547A.archive_count != 0)
-        si = archive_entry_for(file);
-
-    if (si == GAME_FILE_NONE) {
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
         di = borland_fclose(file);
-        DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
-        return di;
+    else {
+        archive_entry_for(NULL);
+        if (si->stream_ptr != 0)
+            di = borland_fclose(FILEREC_PTR(si->stream_ptr));
+        si->in_use = 0;
+        DG547A.open_immediate--;
     }
-
-    archive_entry_for(0);
-
-    if (si->stream_ptr != 0)
-        di = borland_fclose(FILEREC_PTR(si->stream_ptr));
-
-    si->in_use = 0;
-    DG547A.open_immediate = (uint8_t)(DG547A.open_immediate - 1);
-
-    DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
+    DG5677.failures |= di == -1;
     return di;
 }
 
@@ -338,60 +292,33 @@ int16_t game_fclose(FILE *file)
 uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
                     FILE *file)
 {
-    struct game_file *di = GAME_FILE_NONE;
+#ifdef __TURBOC__
+    /* The image saves SI and nothing uses it: a register variable the
+       original declared and never used. */
+    register int16_t unused;
+#endif
+    register struct game_file *di;
+    uint16_t n;                         /* [bp-2] */
+    uint16_t bytes;                     /* [bp-4] */
 
-    if (DG547A.archive_count != 0)
-        di = archive_entry_for(file);
-
-    if (di == GAME_FILE_NONE)
+    if (DG547A.archive_count == 0
+        || (di = archive_entry_for(file)) == GAME_FILE_NONE)
         return borland_fread(buf, size, count, file);
-
     if (di->stream_ptr != 0)
         return borland_fread(buf, size, count, FILEREC_PTR(di->stream_ptr));
 
-    {
-        uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
-        uint16_t n, got;
-
-        for (;;) {
-            if (bytes == 0)
-                break;
-
-            uint32_t left = di->size - di->pos;
-
-            if ((left >> 16) != 0)
-                break;
-            if (bytes <= (uint16_t)left)
-                break;
-
-            count--;
-            bytes = (uint16_t)(bytes - size);
-        }
-
-        make_file_current(di->archive);
-
-        {
-            uint32_t at = di->base + di->pos;
-
-            seek_file_to(at);
-        }
-
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[di->archive].stream_ptr);
-
-        n = borland_fread(buf, size, count, file);
-
-        got = (uint16_t)((int16_t)n * (int16_t)size);
-
-        di->pos += got;
-
-        {
-            struct archive *a = &MACHINE_ARCHIVES.slot[di->archive];
-
-            a->pos += got;
-        }
-
-        return n;
-    }
+    for (bytes = size * count;
+         bytes != 0 && (uint32_t)bytes > di->size - di->pos;
+         count--, bytes -= size)
+        ;
+    make_file_current(di->archive);
+    seek_file_to(di->base + di->pos);
+    file = FILEREC_PTR(MACHINE_ARCHIVES.slot[di->archive].stream_ptr);
+    n = borland_fread(buf, size, count, file);
+    bytes = n * size;
+    di->pos += bytes;
+    MACHINE_ARCHIVES.slot[di->archive].pos += bytes;
+    return n;
 }
 
 /*
@@ -413,35 +340,30 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
  * and the result is clamped to the entry's size, so seeking past the end parks
  * at the end rather than reporting an error. The answer is 0 either way.
  */
-int16_t game_fseek(FILE *file, int32_t off, int16_t whence)
+int16_t game_fseek(FILE *file, int32_t off, register int16_t whence)
 {
-    struct game_file *si = GAME_FILE_NONE;
+    register struct game_file *si;
 
-    if (DG547A.archive_count != 0)
-        si = archive_entry_for(file);
-
-    if (si == GAME_FILE_NONE)
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
         return borland_fseek(file, off, whence);
-
     if (si->stream_ptr != 0)
         return borland_fseek(FILEREC_PTR(si->stream_ptr), off, whence);
 
     /* Every comparison here is **unsigned** over the pair, which is the
        original's `cmp hi / ja / jb / cmp lo / ja` and not the signed shape
        `resource_seek` uses. */
-    if (whence == 1) {
-        off = (int32_t)((uint32_t)off + si->pos);
-    } else if (whence == 2) {
-        if (si->size > (uint32_t)off)
-            off = (int32_t)(si->size - (uint32_t)off);
-        else
+    if (whence == 1)
+        off += si->pos;
+    else if (whence == 2) {
+        if (si->size <= (uint32_t)off)
             off = 0;
+        else
+            off = si->size - off;
     }
-
     if (si->size < (uint32_t)off)
-        off = (int32_t)si->size;
-
-    si->pos = (uint32_t)off;
+        off = si->size;
+    si->pos = off;
     return 0;
 }
 
@@ -456,20 +378,17 @@ int16_t game_fseek(FILE *file, int32_t off, int16_t whence)
  * not the file's, so a caller sees the resource as if it were a file of its
  * own.
  */
-int32_t game_ftell(FILE *file)
+int32_t game_ftell(register FILE *file)
 {
-    struct game_file *si = GAME_FILE_NONE;
+    register struct game_file *si;
 
-    if (DG547A.archive_count != 0)
-        si = archive_entry_for(file);
-
-    if (si == GAME_FILE_NONE)
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
         return borland_ftell(file);
-
     if (si->stream_ptr != 0)
         return borland_ftell(FILEREC_PTR(si->stream_ptr));
-
-    return (int32_t)si->pos;
+    else
+        return si->pos;
 }
 
 /*
@@ -480,7 +399,7 @@ int32_t game_ftell(FILE *file)
  */
 void game_rewind(FILE *file)
 {
-    game_fseek(file, 0, 0);
+    game_fseek(file, 0L, 0);
 }
 
 /*
@@ -500,48 +419,51 @@ void game_rewind(FILE *file)
  *
  * Both the entry position and the archive's running total advance by one.
  */
-int16_t game_fgetc(FILE *file)
+int16_t game_fgetc(register FILE *file)
 {
-    struct game_file *si = GAME_FILE_NONE;
+    register struct game_file *si;
+    int16_t got;                        /* [bp-2] */
 
     DG547A.file_asked_ptr = dg_near(dgroup, file);
-
-    if (DG547A.archive_count != 0)
-        si = archive_entry_for(file);
-
-    if (si == GAME_FILE_NONE) {
-        DG547A.file_used_ptr = dg_near(dgroup, file);
-        return borland_fgetc(file);
-    }
-
-    if (si->stream_ptr != 0) {
-        DG547A.file_used_ptr = si->stream_ptr;
-        return borland_fgetc(FILEREC_PTR(si->stream_ptr));
-    }
-
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        return borland_fgetc(FILEREC_PTR(DG547A.file_used_ptr = dg_near(dgroup, file)));
+    if (si->stream_ptr != 0)
+        return borland_fgetc(FILEREC_PTR(DG547A.file_used_ptr = si->stream_ptr));
     if (si->pos >= si->size)
         return -1;
-
     make_file_current(si->archive);
+    seek_file_to(si->base + si->pos);
+    file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream_ptr);
+    got = borland_fgetc(FILEREC_PTR(DG547A.file_used_ptr = dg_near(dgroup, file)));
+    si->pos++;
+    MACHINE_ARCHIVES.slot[si->archive].pos++;
+    return got;
+}
 
-    {
-        uint32_t at = si->base + si->pos;
-        int16_t got;
-        struct archive *a;
+/*
+ * 0x094a8
+ *
+ * **Is a game file at its end?** A loose file answers as Borland's `feof`
+ * does, the stream's end-of-file bit, 0x20 of its flags; so does an archive
+ * member with a stream of its own. Any other archive member is at its end
+ * when its position has reached its size.
+ *
+ * Nothing in the image calls it, near or far, so the descent map never
+ * reached it and the port never had it. It is transcribed because the module
+ * holds it. The name is ours.
+ */
+int16_t game_feof(register FILE *file)
+{
+    register struct game_file *si;
 
-        seek_file_to(at);
-
-        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[si->archive].stream_ptr);
-        DG547A.file_used_ptr = dg_near(dgroup, file);
-        got = borland_fgetc(file);
-
-        si->pos++;
-
-        a = &MACHINE_ARCHIVES.slot[si->archive];
-        a->pos++;
-
-        return got;
-    }
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        return file->flags & 0x20;
+    if (si->stream_ptr != 0)
+        return FILEREC_PTR(si->stream_ptr)->flags & 0x20;
+    else
+        return si->pos >= si->size;
 }
 
 /*
@@ -566,27 +488,20 @@ int16_t game_fgetc(FILE *file)
 uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                      FILE *file)
 {
-    uint16_t n;
+    register struct game_file *si;
+    register uint16_t di;
+    const uint8_t *p;                   /* [bp-2] */
 
-    if (((uint16_t)DG547A.archive_count) != 0) {
-        struct game_file *entry = archive_entry_for(file);
-
-        if (entry != GAME_FILE_NONE) {
-            if (entry->stream_ptr != 0)
-                n = borland_fwrite(ptr, size, count,
-                              FILEREC_PTR(entry->stream_ptr));
-            else
-                n = 0;
-
-            DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
-            return n;
-        }
-    }
-
-    n = borland_fwrite(ptr, size, count, file);
-
-    DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
-    return n;
+    p = ptr;
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        di = borland_fwrite(p, size, count, file);
+    else if (si->stream_ptr != 0)
+        di = borland_fwrite(p, size, count, FILEREC_PTR(si->stream_ptr));
+    else
+        di = 0;
+    DG5677.failures |= di != count;
+    return di;
 }
 
 /*
@@ -609,26 +524,18 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
  */
 int16_t game_fputc(int16_t c, FILE *file)
 {
-    int16_t n;
+    register struct game_file *si;
+    register int16_t di;
 
-    if (((uint16_t)DG547A.archive_count) != 0) {
-        struct game_file *entry = archive_entry_for(file);
-
-        if (entry != GAME_FILE_NONE) {
-            if (entry->stream_ptr != 0)
-                n = borland_fputc(c, FILEREC_PTR(entry->stream_ptr));
-            else
-                n = -1;
-
-            DG5677.failures |= (uint16_t)(n == -1 ? 1 : 0);
-            return n;
-        }
-    }
-
-    n = borland_fputc(c, file);
-
-    DG5677.failures |= (uint16_t)(n == -1 ? 1 : 0);
-    return n;
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        di = borland_fputc(c, file);
+    else if (si->stream_ptr != 0)
+        di = borland_fputc(c, FILEREC_PTR(si->stream_ptr));
+    else
+        di = -1;
+    DG5677.failures |= di == -1;
+    return di;
 }
 
 /*
@@ -646,20 +553,15 @@ int16_t game_fputc(int16_t c, FILE *file)
  * DGROUP 0x547e is whether the archive is in use at all; with it clear the
  * lookup is skipped.
  */
-void game_setbuf(FILE *file, uint8_t *buf)
+void game_setbuf(register FILE *file, uint8_t *buf)
 {
-    struct game_file *rec = GAME_FILE_NONE;
+    register struct game_file *si;
 
-    if (((uint16_t)DG547A.archive_count) != 0)
-        rec = archive_entry_for(file);
-
-    if (rec == GAME_FILE_NONE) {
+    if (DG547A.archive_count == 0
+        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
         borland_setbuf(file, buf);
-        return;
-    }
-
-    if (rec->stream_ptr != 0)
-        borland_setbuf(FILEREC_PTR(rec->stream_ptr), buf);
+    else if (si->stream_ptr != 0)
+        borland_setbuf(FILEREC_PTR(si->stream_ptr), buf);
 }
 
 /*
@@ -689,62 +591,51 @@ void game_setbuf(FILE *file, uint8_t *buf)
  */
 void load_archive_map(void)
 {
-    int16_t count;               /* [bp-8] */
-    uint32_t lo;                 /* [bp-0xc] the entry's key */
-    uint32_t hi;                 /* [bp-0x10] and where its data starts */
-    struct file_rec *file;
-    int16_t di;
+    register FILE *si;
+    register int16_t di;
+    struct archive *a;                  /* [bp-2] */
+    struct archive_entry far *e;        /* [bp-6] */
+    int16_t count;                      /* [bp-8] */
+    uint32_t lo;                        /* [bp-0xc] the entry's key */
+    uint32_t hi;                        /* [bp-0x10] and where its data starts */
+    char *name;                         /* [bp-0x12] */
 
-    if (DG547A.scanned != 0) {
-        return;
-    }
-
-    DG5677.crit_vec = dos_getvect(0x24);
-
-    dos_setvect(0x24, (struct far_ptr){ 0x9bdf, (uint16_t)(IMAGE_BASE >> 4) });
-    DG547A.scanned = 1;
-
-    file = borland_fopen(MACHINE_RESOURCE_MAP_NAMES.resource_map, MACHINE_RESOURCE_MAP_NAMES.mode_rb_a);
-    if (file == 0) {
-        return;
-    }
-
-    borland_fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, file);
-    borland_fread((uint8_t *)&count, 2, 1, file);
-
-    DG547A.archive_count = (int16_t)(DG547A.archive_count + count);
-    di = (int16_t)(DG547A.archive_count - count + 1);
-
-    for (; di <= DG547A.archive_count; di++) {
-        struct archive *a = &MACHINE_ARCHIVES.slot[di];
-        struct archive_entry *e;
-
-        borland_fread((uint8_t *)a->name, 0xd, 1, file);
-        borland_fread((uint8_t *)&count, 2, 1, file);
-
-        /* **Zeroed**, which is what writes the terminator: the block is one
-           entry longer than the count and the lookup stops on an all-zero key.
-           The flags are the fourth argument - `push 1`, then `push 0` for the
-           third - and the port had the two the other way round, so the block
-           was not cleared and the terminator was whatever the memory held. */
-        a->list = (dos_alloc_bytes((uint16_t)((count + 1) << 3), 0, 1).ptr);
-        a->index = (uint16_t)di;
-
-        /* The original steps the far pointer at [bp-6] by eight, one entry. */
-        e = (struct archive_entry *)a->list;
-        while (count != 0) {
-            count--;
-
-            borland_fread((uint8_t *)&lo, 4, 1, file);
-            borland_fread((uint8_t *)&hi, 4, 1, file);
-
-            e->key = lo;
-            e->base = hi;
-            e++;
+    if (DG547A.scanned == 0) {
+        DG5677.crit_vec = dos_getvect(0x24);
+#ifdef __TURBOC__
+        dos_setvect(0x24, crit_error_handler);
+#else
+        dos_setvect(0x24, (struct far_ptr){ 0x9bdf, (uint16_t)(IMAGE_BASE >> 4) });
+#endif
+        DG547A.scanned = 1;
+        name = "RESOURCE.MAP";
+        if ((si = borland_fopen(name, "rb")) != NULL) {
+            borland_fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, si);
+            borland_fread((uint8_t *)&count, 2, 1, si);
+            DG547A.archive_count += count;
+            for (di = DG547A.archive_count - count + 1; di <= DG547A.archive_count;
+                 di++) {
+                a = &MACHINE_ARCHIVES.slot[di];
+                borland_fread((uint8_t *)a->name, 0xd, 1, si);
+                borland_fread((uint8_t *)&count, 2, 1, si);
+                /* **Zeroed**, which is what writes the terminator: the block is
+                   one entry longer than the count and the lookup stops on an
+                   all-zero key. */
+                e = (struct archive_entry far *)
+                    DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)((count + 1) << 3), 1));
+                a->list = (uint8_t far *)e;
+                a->index = di;
+                while (count--) {
+                    borland_fread((uint8_t *)&lo, 4, 1, si);
+                    borland_fread((uint8_t *)&hi, 4, 1, si);
+                    e->key = lo;
+                    e->base = hi;
+                    e++;
+                }
+            }
+            borland_fclose(si);
         }
     }
-
-    borland_fclose(file);
 }
 
 /*
@@ -765,25 +656,39 @@ void load_archive_map(void)
  */
 void free_archive_lists(void)
 {
-    int16_t i;
+    register int16_t si;
 
-    for (i = 0; i <= 10; i++) {
-        struct archive *a = &MACHINE_ARCHIVES.slot[i];
-
-        if (a->list == NULL)
-            continue;
-
-        dos_free_far(a->list);
-
-        a->list = NULL;
+    for (si = 0; si <= 10; si++)
+        if (MACHINE_ARCHIVES.slot[si].list != NULL) {
+            dos_free_far(MACHINE_ARCHIVES.slot[si].list);
+            MACHINE_ARCHIVES.slot[si].list = NULL;
+        }
+#ifdef __TURBOC__
+    if (DG5677.crit_vec) {
+        dos_setvect(0x24, DG5677.crit_vec);
+        DG5677.crit_vec = 0;
     }
-
+#else
     if (dg_far_ptr(DG5677.crit_vec) != FAR_NULL_PTR) {
         dos_setvect(0x24, DG5677.crit_vec);
         DG5677.crit_vec = FAR_NULL;
     }
-
+#endif
     DG547A.scanned = 0;
+}
+
+/*
+ * 0x09803
+ *
+ * **Ask for the archives to be reopened**: set the byte at DGROUP 0x5487
+ * that `game_fopen` tests before it opens anything, and nothing else.
+ *
+ * Nothing in the image calls it, near or far. It is transcribed because the
+ * module holds it. The name is ours.
+ */
+void request_archive_reopen(void)
+{
+    DG547A.reopen = 1;
 }
 
 /*
@@ -807,49 +712,34 @@ void free_archive_lists(void)
  */
 int32_t hash_filename(char *name)
 {
-    char buf[22];
-    char *si;
-    uint16_t sum = 0, eor = 0;
-    uint32_t acc = 0;
-    int16_t i;
+    register uint8_t *si;
+    register int16_t di;
+    int32_t acc;                        /* [bp-4] */
+    uint16_t sum;                       /* [bp-6] */
+    uint16_t eor;                       /* [bp-8] */
+    char buf[14];                       /* [bp-0x16] */
 
-    if (name == NULL) {
-        DG547A.name_hash = 0;
-        return 0;
-    }
+    if (name == NULL)
+        return DG547A.name_hash = 0;
 
-    si = name;
-    while (*si != 0) {
-        uint8_t c;
-
+    sum = eor = 0;
+    for (si = (uint8_t *)name; *si != 0; si++) {
         if (*si >= 'a' && *si <= 'z')
-            *si = (char)(*si ^ 0x20);
-
-        c = (uint8_t)*si;
-        sum = (uint16_t)(sum + c);
-        eor ^= c;
-
+            *si ^= 0x20;
+        sum += *si;
+        eor ^= *si;
         if (*si == '\\' || *si == ':') {
-            eor = 0;
-            sum = 0;
-            name = si + 1;
+            sum = eor = 0;
+            name = (char *)si + 1;
         }
-        si++;
     }
-
     string_copy_padded(buf, name, 0xd);
-
-    for (i = 0; i < 4; i++) {
-        uint8_t c = (uint8_t)buf[MACHINE_HASH_ORDER.hash_order[i]];
-
-        acc = long_shift_left(acc, 8) + c;
-    }
-
-    acc = (uint32_t)((int32_t)acc
-                     + (int32_t)(int16_t)(sum * eor));
-
-    DG547A.name_hash = acc;
-    return (int32_t)acc;
+    acc = 0;
+    for (di = 0; di < 4; di++)
+        acc = (int32_t)((uint32_t)acc << 8)
+              + (uint8_t)buf[MACHINE_HASH_ORDER.hash_order[di]];
+    acc += (int16_t)(sum * eor);
+    return DG547A.name_hash = acc;
 }
 
 /*
@@ -880,47 +770,46 @@ int32_t hash_filename(char *name)
  * those four as **four 16-bit stores**, high half first - the port had them as
  * two `DG32`, which is byte for byte the same only because the value is zero.
  */
-int16_t find_entry_for_pointer(struct game_file *out)
+int16_t find_entry_for_pointer(register struct game_file *out)
 {
-    uint32_t want = DG547A.name_hash;
-    const struct archive_entry *at;
-    int16_t idx, fwd, back;
+    int16_t idx;
+    int16_t fwd;
+    const struct archive_entry far *at; /* [bp-4] */
+    uint32_t want;                      /* [bp-8] */
+    int16_t back;                       /* [bp-0xa] */
 
-    idx = ((int16_t)DG547A.last_record);
-    if (idx == 0)
+    /* Each walk below starts a list and steps over its eight-byte entries to
+       the key it wants or to the zero key that ends it. The original writes
+       it out three times, and so does this. */
+    want = DG547A.name_hash;
+    if ((idx = DG547A.last_record) == 0)
         idx = 1;
-    scan_entry_list(idx, want, &at);
-
-    fwd = (int16_t)(((int16_t)DG547A.last_record) + 1);
-    back = (int16_t)(((int16_t)DG547A.last_record) - 1);
-
-    for (;;) {
-        if (at->key == want)
-            break;
-        if (back <= 0 && fwd > DG547A.archive_count)
-            break;
-
+    for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+         at->key != 0 && at->key != want; at++)
+        ;
+    fwd = DG547A.last_record + 1;
+    back = DG547A.last_record - 1;
+    while (at->key != want && (back > 0 || fwd <= DG547A.archive_count)) {
         if (fwd <= DG547A.archive_count) {
             idx = fwd++;
-            scan_entry_list(idx, want, &at);
+            for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+                 at->key != 0 && at->key != want; at++)
+                ;
         }
-
-        if (at->key == want)
-            continue;
-        if (back <= 0)
-            continue;
-        idx = back--;
-        scan_entry_list(idx, want, &at);
+        if (at->key != want && back > 0) {
+            idx = back--;
+            for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+                 at->key != 0 && at->key != want; at++)
+                ;
+        }
     }
-
-    if (at->key != want)
+    if (at->key == want) {
+        out->archive = idx;
+        out->base = at->base;
+        out->size = out->pos = 0;
+        return 1;
+    } else
         return 0;
-
-    out->archive = (uint16_t)idx;
-    out->base = at->base;
-    out->pos = 0;
-    out->size = 0;
-    return 1;
 }
 
 /*
@@ -953,51 +842,39 @@ int16_t find_entry_for_pointer(struct game_file *out)
  * anything - but every occurrence the harness samples is off it, which is why
  * this needed the runtime's own `fopen` before it could be checked at all.
  */
-void make_file_current(uint16_t index)
+void make_file_current(register uint16_t index)
 {
-    struct archive *a;
-    int16_t exists = 0;
+    register struct archive *si;
+    int16_t missing;                    /* [bp-2] */
 
-    if (DG547A.open_immediate == 0 && index != 0) {
-        struct file_rec *f = borland_fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
-                                 MACHINE_RESOURCE_MAP_NAMES.mode_rb_b);
+    /* Set when the archive *cannot* be opened: `fclose` of a failed
+       `fopen` is what answers non-zero. */
+    missing = 0;
+    if (!DG547A.open_immediate && index != 0
+        && borland_fclose(borland_fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
+                                        "rb")))
+        missing = 1;
 
-        borland_fclose(f);
-        if (f != 0)
-            exists = 1;
-    }
-
-    if (index == DG547A.last_record && exists == 0 && DG547A.reopen == 0)
-        return;
-
-    a = &MACHINE_ARCHIVES.slot[DG547A.last_record];
-    if (a->stream_ptr != 0) {
-        borland_fclose(FILEREC_PTR(a->stream_ptr));
-        a->stream_ptr = 0;
-    }
-
-    DG547A.last_record = (int16_t)index;
-    a = &MACHINE_ARCHIVES.slot[DG547A.last_record];
-
-    if (index != 0) {
-        DG547A.opening = 1;
-        for (;;) {
-            struct file_rec *f = borland_fopen((const char *)a->name,
-                                     MACHINE_RESOURCE_MAP_NAMES.mode_rb_c);
-
-            a->stream_ptr = dg_near(dgroup, f);
-            if (f != 0)
-                break;
-            if (((uint8_t)VMDS.pixel_shift) != 0)
-                not_transcribed("0x08fc3, the prompt for a missing disk");
+    if (index != DG547A.last_record || missing != 0 || DG547A.reopen != 0) {
+        si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+        if (si->stream_ptr != 0) {
+            borland_fclose(FILEREC_PTR(si->stream_ptr));
+            si->stream_ptr = 0;
         }
-        DG547A.opening = 0;
+        DG547A.last_record = index;
+        si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+        if (index != 0) {
+            DG547A.opening = 1;
+            while ((si->stream_ptr = dg_near(dgroup, borland_fopen((const char *)si->name,
+                                                                   "rb"))) == 0)
+                if (VMDS.pixel_shift != 0)
+                    answer_carry_on(index);
+            DG547A.opening = 0;
+        }
+        si->pos = 0;
+        archive_entry_for(NULL);
+        DG547A.reopen = 0;
     }
-
-    a->pos = 0;
-
-    archive_entry_for(0);
-    DG547A.reopen = 0;
 }
 
 /*
@@ -1021,14 +898,13 @@ void make_file_current(uint16_t index)
  */
 void seek_file_to(uint32_t at)
 {
-    struct archive *a = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+    register struct archive *si;
 
-    if (a->pos == at)
-        return;
-
-    borland_fseek(FILEREC_PTR(a->stream_ptr), (int32_t)at, 0);
-
-    a->pos = at;
+    si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+    if (si->pos != at) {
+        borland_fseek(FILEREC_PTR(si->stream_ptr), at, 0);
+        si->pos = at;
+    }
 }
 
 /*
@@ -1059,35 +935,139 @@ void seek_file_to(uint32_t at)
  */
 struct game_file *archive_entry_for(FILE *file)
 {
-    struct game_file *si;
+    register struct game_file *si;
     int16_t n;
 
-    if (file == 0) {
+    if (file == NULL) {
         DG547A.cache_key_ptr = 0;
         DG547A.cache_answer_ptr = 0;
         return GAME_FILE_NONE;
     }
-
     if (DG547A.archive_count == 0)
         return GAME_FILE_NONE;
-
     if (file == FILEREC_PTR(DG547A.cache_key_ptr))
         return GAME_FILE_PTR(DG547A.cache_answer_ptr);
-
     DG547A.cache_key_ptr = dg_near(dgroup, file);
-
-    si = &MACHINE_GAME_FILES.files[0];
-    n = 0xa;
-    while (n != 0 && (FILE *)si != file) {
-        si++;
-        n--;
-    }
-
+    for (si = &MACHINE_GAME_FILES.files[0], n = 0xa; n != 0 && (FILE *)si != file;
+         si++, n--)
+        ;
     if (n == 0 || si->in_use == 0) {
         si = GAME_FILE_NONE;
         DG547A.cache_key_ptr = 0;
     }
+    return GAME_FILE_PTR(DG547A.cache_answer_ptr = dg_near(dgroup, si));
+}
 
-    DG547A.cache_answer_ptr = dg_near(dgroup, si);
-    return si;
+/*
+ * 0x09bdf
+ *
+ * **DOS's critical-error handler while the game's files are open**, the
+ * vector `load_archive_map` installs at 24h. An `interrupt` function: DOS's
+ * answer is the AX it pops, so it is the `ax` below that is set. With a file
+ * operation of the game's own in progress, and whenever an archive is being
+ * opened, the answer is 3, fail the call; otherwise 1, retry. Either way it
+ * notes that the call went wrong, in the two bytes `game_fopen` and
+ * `make_file_current` look at.
+ *
+ * The host has no DOS to raise it, so there it is never called; under the
+ * hybrid the original's own runs.
+ */
+void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
+                                  uint16_t ds, uint16_t es, uint16_t dx,
+                                  uint16_t cx, uint16_t bx, uint16_t ax)
+{
+    if (DG4E67.file_op_active != 0)
+        ax = 3;
+    else
+        ax = DG547A.opening ? 3 : 1;
+    DG547A.retry = 1;
+    DG547A.reopen = 1;
+#ifndef __TURBOC__
+    (void)ax;   /* ours: on the host the answer goes nowhere */
+#endif
+}
+
+/*
+ * 0x09c23
+ *
+ * **A rectangle drawn by XOR**, pixel by pixel through the driver's clipped
+ * read and write: the outline in the second colour, and the inside in the
+ * fill colour when filling is on - so drawing it twice takes it away again.
+ * Drawn from the destination page into itself, the source page being set to
+ * it for the while and put back after.
+ *
+ * With clipping on, each edge is drawn only if it is inside the clip box, and
+ * the rectangle is cut down to the box. **A cut-down left or top edge is set
+ * to the clip-enabled byte, 1, not to the clip box's edge**: that is what the
+ * image does, and it is transcribed so.
+ *
+ * Nothing in the image calls it, near or far. It is transcribed because the
+ * module holds it. The name is ours.
+ */
+void draw_xor_rect(register int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    register int16_t si;
+    int16_t yy;                         /* [bp-2] */
+    int16_t outline;                    /* [bp-4] */
+    int16_t fill;                       /* [bp-6] */
+    int16_t end;                        /* [bp-8] */
+    uint16_t saved;                     /* [bp-0xa] */
+    int16_t left_in;                    /* [bp-0xc] */
+    int16_t right_in;                   /* [bp-0xe] */
+    int16_t top_in;                     /* [bp-0x10] */
+    int16_t bottom_in;                  /* [bp-0x12] */
+    int16_t x_end;                      /* [bp-0x14] */
+    int16_t y_end;                      /* [bp-0x16] */
+
+    if (!VMDS.second_colour && !VMDS.fill_colour)
+        return;
+    saved = VMDS.page_src_ptr;
+    VMDS.page_src_ptr = VMDS.page_dst_ptr;
+    outline = VMDS.second_colour;
+    fill = VMDS.fill_colour;
+    if (VMDS.clip_enabled) {
+        end = x + w - 1;
+        left_in = x >= VMDS.clip_left && x <= VMDS.clip_right;
+        right_in = end >= VMDS.clip_left && end <= VMDS.clip_right;
+        if (x < VMDS.clip_left) {
+            w -= VMDS.clip_left - x;
+            x = VMDS.clip_enabled;
+        }
+        if (x > VMDS.clip_right) {
+            w -= x - VMDS.clip_right;
+            x = VMDS.clip_right;
+        }
+        end = y + h - 1;
+        top_in = y >= VMDS.clip_top && y <= VMDS.clip_bottom;
+        bottom_in = end >= VMDS.clip_top && end <= VMDS.clip_bottom;
+        if (y < VMDS.clip_top) {
+            h -= VMDS.clip_top - y;
+            y = VMDS.clip_enabled;
+        }
+        if (y > VMDS.clip_bottom) {
+            h -= y - VMDS.clip_bottom;
+            y = VMDS.clip_bottom;
+        }
+    } else
+        left_in = right_in = top_in = bottom_in = 1;
+
+    x_end = x + w - 1;
+    y_end = y + h - 1;
+    if (VMDS.fill_enabled)
+        for (yy = y + 1; yy < y_end; yy++)
+            for (si = x + 1; si < x_end; si++)
+                plot_pixel_clipped(si, yy, read_pixel_clipped(si, yy) ^ fill);
+    for (si = y; si <= y_end; si++) {
+        if (left_in)
+            plot_pixel_clipped(x, si, read_pixel_clipped(x, si) ^ outline);
+        if (right_in)
+            plot_pixel_clipped(x_end, si, read_pixel_clipped(x_end, si) ^ outline);
+    }
+    for (si = x + 1; si < x_end; si++) {
+        if (top_in)
+            plot_pixel_clipped(si, y, read_pixel_clipped(si, y) ^ outline);
+        if (bottom_in)
+            plot_pixel_clipped(si, y_end, read_pixel_clipped(si, y_end) ^ outline);
+    }
+    VMDS.page_src_ptr = saved;
 }
