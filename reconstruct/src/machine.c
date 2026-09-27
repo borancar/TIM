@@ -2122,58 +2122,46 @@ uint16_t bin_scroll_end(void)
  * belt is only marked if it was not already, and its geometry is refreshed;
  * outside that state both belts are marked and refreshed unconditionally.
  */
-void mark_needs_refile(struct part *part, int16_t n)
+void mark_needs_refile(register struct part *part, int16_t n)
 {
-    int16_t rope;                     /* [bp-4] */
-    int16_t i;        /* [bp-2] */
-    struct belt *si;
+    register struct belt *si;
+    int16_t i;                          /* [bp-2] */
+    struct rope *rope;                  /* [bp-4] */
 
     if (part->kind != KIND_ANCHOR)
         part->redraw_count = n;
 
     if (part->kind == KIND_PULLEY) {
-        si = BELT_PTR(part->belt_ptr[1]);
-        if (si != BELT_NONE)
+        if ((si = BELT_PTR(part->belt_ptr[1])) != BELT_NONE)
             PART_PTR(si->owner_ptr)->redraw_count = n;
-        goto out;
-    }
-
-    rope = (int16_t)part->rope_ptr;
-    if ((uint16_t)rope != 0) {
-        if (((int16_t)DG4E67.state) == 0x1000) {
-            compute_link_endpoints(ROPE_PTR(rope));
-            if (rope_ends_close(ROPE_PTR(rope)) != 0)
-                PART_PTR(ROPE_PTR(rope)->owner_ptr)->redraw_count = n;
-        } else {
-            PART_PTR(ROPE_PTR(rope)->owner_ptr)->redraw_count = n;
-        }
-    }
-
-    if (((int16_t)DG4E67.state) == 0x2000) {
-        si = BELT_PTR(part->belt_ptr[0]);
-        if (si != BELT_NONE && PART_PTR(si->owner_ptr)->redraw_count == 0) {
-            PART_PTR(si->owner_ptr)->redraw_count = n;
-            refresh_link_geometry(si);
+    } else {
+        if ((rope = ROPE_PTR(part->rope_ptr)) != ROPE_NONE) {
+            if (DG4E67.state == 0x1000) {
+                compute_link_endpoints(rope);
+                if (rope_ends_close(rope))
+                    PART_PTR(rope->owner_ptr)->redraw_count = n;
+            } else
+                PART_PTR(rope->owner_ptr)->redraw_count = n;
         }
 
-        si = BELT_PTR(part->belt_ptr[1]);
-        if (si != BELT_NONE && PART_PTR(si->owner_ptr)->redraw_count == 0) {
-            PART_PTR(si->owner_ptr)->redraw_count = n;
-            refresh_link_geometry(si);
-        }
-        goto out;
+        if (DG4E67.state == 0x2000) {
+            if ((si = BELT_PTR(part->belt_ptr[0])) != BELT_NONE
+                && !PART_PTR(si->owner_ptr)->redraw_count) {
+                PART_PTR(si->owner_ptr)->redraw_count = n;
+                refresh_link_geometry(si);
+            }
+            if ((si = BELT_PTR(part->belt_ptr[1])) != BELT_NONE
+                && !PART_PTR(si->owner_ptr)->redraw_count) {
+                PART_PTR(si->owner_ptr)->redraw_count = n;
+                refresh_link_geometry(si);
+            }
+        } else
+            for (i = 0; i < 2; i++)
+                if ((si = BELT_PTR(part->belt_ptr[i])) != BELT_NONE) {
+                    PART_PTR(si->owner_ptr)->redraw_count = n;
+                    refresh_link_geometry(si);
+                }
     }
-
-    for (i = 0; i < 2; i++) {
-        si = BELT_PTR(part->belt_ptr[(uint16_t)i]);
-        if (si == BELT_NONE)
-            continue;
-
-        PART_PTR(si->owner_ptr)->redraw_count = n;
-        refresh_link_geometry(si);
-    }
-
-out:
 }
 
 /*
@@ -2198,90 +2186,66 @@ out:
  * it by a `jmp` back to one place that sets the flag - so a half-built copy
  * never escapes.
  */
-struct part *clone_part(struct part *part)
+struct part *clone_part(register struct part *part)
 {
-    uint16_t failed;    /* [bp-4] */
+    register struct part *si;
+    int16_t i;                          /* [bp-2] */
+    uint16_t failed;                    /* [bp-4] */
     struct part_point *dst_pt;          /* [bp-6] */
     const struct part_point *src_pt;    /* [bp-8] */
-    struct part *si;
-    int16_t i;
 
     failed = 0;
-
-    si = (struct part *)(void *)heap_calloc_far(1, 0xa2);
-    if (si == NULL) {
-        /* the refusal is offset 0, which `free_part` below tests as no part */
+    if ((si = (struct part *)(void *)heap_calloc_far(1, 0xa2)) == NULL) {
+#ifndef __TURBOC__
+        /* Ours: the host's refusal is NULL, and `free_part` below tests
+           for offset 0, which is what the original's refusal already is */
         si = PART_NONE;
-        goto give_up;
-    }
-
-    si->kind = part->kind;
-    si->flags_06 = part->flags_06;
-    si->flags_08 = part->flags_08;
-    si->flags_0a = part->flags_0a;
-    si->form = part->form;
-    si->form_prev = part->form_prev;
-    si->form_prev2 = ((uint16_t)part->form_prev2);
-    si->direction = ((uint16_t)part->direction);
-    si->mirror_size.height = part->mirror_size.height;
-    si->mirror_size.width = part->mirror_size.width;
-    si->size[0].height = ((uint16_t)part->size[0].height);
-    si->size[0].width = ((uint16_t)part->size[0].width);
-    si->set_size.height = part->set_size.height;
-    si->set_size.width = part->set_size.width;
-
-    if (si->kind == KIND_BELT) {
-        si->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38));
-        if (si->rope_ptr == 0)
-            goto give_up;
-        ROPE_PTR(si->rope_ptr)->owner_ptr = dg_near(dgroup, si);
-    }
-
-    si->grab = part->grab;
-    si->grab_size = part->grab_size;
-
-    if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
-        si->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c));
-        if (si->belt_ptr[0] == 0)
-            goto give_up;
-        BELT_PTR(si->belt_ptr[0])->owner_ptr = dg_near(dgroup, si);
-    }
-
-    si->attach[0] = part->attach[0];
-    si->attach[1] = part->attach[1];
-
-    si->point_count =
-        PART_KINDS[si->kind].point_count;
-
-    if (si->point_count != 0) {
-        src_pt = POINTS(part->points_ptr);
-
-        si->points_ptr =
-            dg_near(dgroup, heap_calloc_far(si->point_count, 4));
-        dst_pt = POINTS(si->points_ptr);
-        if (dst_pt == POINTS_NONE)
-            goto give_up;
-
-        for (i = 0; ((int16_t)si->point_count) > i; i++) {
-            /* two word moves in the original, +2 and then +0: the same
-               four bytes as one `struct part_point` */
-            *dst_pt = *src_pt;
-            dst_pt++;
-            src_pt++;
-        }
-    }
-
-    si->start_form = part->start_form;
-    si->start_direction = part->start_direction;
-    si->start_flags = part->start_flags;
-
-    goto out;
-
+#endif
 give_up:
-    failed = 1;
+        failed = 1;
+    } else {
+        si->kind = part->kind;
+        si->flags_06 = part->flags_06;
+        si->flags_08 = part->flags_08;
+        si->flags_0a = part->flags_0a;
+        si->form = part->form;
+        si->form_prev = part->form_prev;
+        si->form_prev2 = part->form_prev2;
+        si->direction = part->direction;
+        si->mirror_size = part->mirror_size;
+        si->size[0] = part->size[0];
+        si->set_size = part->set_size;
 
-out:
-    if (failed != 0) {
+        if (si->kind == KIND_BELT) {
+            if ((si->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38))) == 0)
+                goto give_up;
+            ROPE_PTR(si->rope_ptr)->owner_ptr = dg_near(dgroup, si);
+        }
+        si->grab = part->grab;
+        si->grab_size = part->grab_size;
+        if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
+            if ((si->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c))) == 0)
+                goto give_up;
+            BELT_PTR(si->belt_ptr[0])->owner_ptr = dg_near(dgroup, si);
+        }
+        si->attach[0] = part->attach[0];
+        si->attach[1] = part->attach[1];
+
+        if ((si->point_count = PART_KINDS[part->kind].point_count) != 0) {
+            src_pt = POINTS(part->points_ptr);
+            dst_pt = POINTS(si->points_ptr
+                            = dg_near(dgroup, heap_calloc_far(si->point_count, 4)));
+            if (dst_pt == POINTS_NONE)
+                goto give_up;
+            for (i = 0; (int16_t)si->point_count > i; i++, dst_pt++, src_pt++)
+                *dst_pt = *src_pt;
+        }
+        si->start_form = part->start_form;
+        si->start_direction = part->start_direction;
+        si->start_flags = part->start_flags;
+    }
+
+    if (failed) {
         free_part(si);
         return PART_NONE;
     }
@@ -2408,43 +2372,30 @@ void place_object_for_draw(register struct part *obj)
  * than keeping it; that is the compiler, not a second read of anything that
  * could have changed.
  */
-void set_object_extent(struct part *obj)
+void set_object_extent(register struct part *obj)
 {
-    int16_t type = ((int16_t)obj->kind);
     const struct part_kind *rec;
     struct bitmap *target;
+    int16_t type;                       /* [bp-2] */
 
-    if (type == 8 || type == 0xa) {
-        obj->size[0].height = 0;
-        obj->size[0].width = 0;
-        return;
-    }
-
-    if ((((int16_t)obj->flags_06) & 0x40) != 0) {
+    if (obj->kind == KIND_BELT || obj->kind == KIND_ROPE)
+        obj->size[0].width = obj->size[0].height = 0;
+    else if (obj->flags_06 & 0x40) {
         obj->size[0].width = obj->set_size.width;
         obj->size[0].height = obj->set_size.height;
-        return;
+    } else {
+        type = obj->kind;
+        rec = &PART_KINDS[type];
+        if (rec->sizes_ptr != 0) {
+            obj->size[0].width = POINT16_TABLE(rec->sizes_ptr)[obj->form].x;
+            obj->size[0].height = POINT16_TABLE(rec->sizes_ptr)[obj->form].y;
+        } else if (rec->bitmaps_ptr != 0) {
+            target = BMP_PTR(BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form]);
+            obj->size[0].width = target->width;
+            obj->size[0].height = target->height;
+        } else
+            obj->size[0].width = obj->size[0].height = 0;
     }
-
-    rec = &PART_KINDS[type];
-
-    if (((int16_t)rec->sizes_ptr) != 0) {
-        const struct point16 *sizes = POINT16_TABLE(rec->sizes_ptr);
-
-        obj->size[0].width = sizes[obj->form].x;
-        obj->size[0].height = sizes[obj->form].y;
-        return;
-    }
-
-    if (((int16_t)rec->bitmaps_ptr) != 0) {
-        target = BMP_PTR(BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form]);
-        obj->size[0].width = target->width;
-        obj->size[0].height = target->height;
-        return;
-    }
-
-    obj->size[0].height = 0;
-    obj->size[0].width = 0;
 }
 
 /*
@@ -2465,56 +2416,63 @@ void set_object_extent(struct part *obj)
  * The loop runs `count - 1` times and the last pair is done afterwards rather
  * than by wrapping the index, which is why the tail repeats the body.
  */
-void part_finish_angles(struct part *part)
+void part_finish_angles(register struct part *part)
 {
-    int16_t pair[7];  /* [bp-0xe]: x0, y0, x1, y1 */
-    uint16_t si = part->points_ptr;
-    int16_t n = 1;
+    register struct part_point *si;
+    int16_t n;                          /* [bp-2] */
+    int16_t dx;                         /* [bp-4] */
+    int16_t dy;                         /* [bp-6] */
+    int16_t pair[4];                    /* [bp-0xe]: x0, y0, x1, y1 */
 
-    while (((int16_t)part->point_count) > n) {
-        int16_t dx, dy;
-
-        pair[0] = POINTS(si)->x;
-        pair[1] = POINTS(si)->y;
-        pair[2] = POINTS(si)[1].x;
-        pair[3] = POINTS(si)[1].y;
-
+    for (n = 1, si = POINTS(part->points_ptr); (int16_t)part->point_count > n;
+         n++, si++) {
+        pair[0] = si->x;
+        pair[1] = si->y;
+        pair[2] = si[1].x;
+        pair[3] = si[1].y;
         step_pair_apart(pair);
-
-        dx = (int16_t)(pair[2] - pair[0]);
-        dy = (int16_t)(pair[3]
-                       - pair[1]);
-
-        POINTS(si)->angle =
-            /* The high halves were `dx < 0 ? -1 : 0` - a `cwd` widening
-                each to the long the routine takes. */
-            (int16_t)(0xc000 - (uint16_t)atan2_long((int32_t)dx,
-                                                    (int32_t)dy));
-
-        n++;
-        si = (uint16_t)(si + 4);
+        dx = pair[2] - pair[0];
+        dy = pair[3] - pair[1];
+        si->angle = 0xc000 - atan2_long(dx, dy);
     }
 
-    {
-        uint16_t first = part->points_ptr;
-        int16_t dx, dy;
+    pair[0] = si->x;
+    pair[1] = si->y;
+    pair[2] = POINTS(part->points_ptr)->x;
+    pair[3] = POINTS(part->points_ptr)->y;
+    step_pair_apart(pair);
+    dx = pair[2] - pair[0];
+    dy = pair[3] - pair[1];
+    si->angle = 0xc000 - atan2_long(dx, dy);
+}
 
-        pair[0] = POINTS(si)->x;
-        pair[1] = POINTS(si)->y;
-        pair[2] = POINTS(first)->x;
-        pair[3] = POINTS(first)->y;
+/*
+ * 0x05dfc
+ *
+ * **Every shape on the drawn list back on the free list**: walk the list at
+ * DGROUP 0x4e52 to its last node, point that at the free list at 0x4e4e, make
+ * the whole list the free list's head, and empty 0x4e52. The far-pointer
+ * twin of `splice_list_4e58_onto_4e56`.
+ *
+ * **Nothing in the image calls it**: no near call from segment 0000, and no
+ * far call to it anywhere. It is transcribed because the module holds it.
+ * The name is ours.
+ */
+void free_all_shapes(void)
+{
+    struct shape far *next;             /* [bp-4] */
+    struct shape far *q;                /* [bp-8] */
 
-        step_pair_apart(pair);
-
-        dx = (int16_t)(pair[2] - pair[0]);
-        dy = (int16_t)(pair[3]
-                       - pair[1]);
-
-        POINTS(si)->angle =
-            /* The high halves were `dx < 0 ? -1 : 0` - a `cwd` widening
-                each to the long the routine takes. */
-            (int16_t)(0xc000 - (uint16_t)atan2_long((int32_t)dx,
-                                                    (int32_t)dy));
+    if (DG4E4E.shapes) {
+        q = DG4E4E.shapes;
+        next = q->next;
+        while (next) {
+            q = next;
+            next = next->next;
+        }
+        q->next = DG4E4E.shape_free;
+        DG4E4E.shape_free = DG4E4E.shapes;
+        DG4E4E.shapes = 0;
     }
 }
 
@@ -2531,36 +2489,23 @@ void part_finish_angles(struct part *part)
  * Each belt is reached through the *part* its record names at +0, not through
  * this one, so the shapes come out in the belt's own terms.
  */
-void mark_joined_shapes(struct part *part, uint16_t mode)
+void mark_joined_shapes(register struct part *part, uint16_t mode)
 {
-    struct rope *rope;                     /* [bp-2] */
     struct belt *di;
+    struct rope *rope;                  /* [bp-2] */
 
     if (part->kind == KIND_PULLEY) {
-        di = BELT_PTR(part->belt_ptr[1]);
-        if (di != BELT_NONE)
+        if ((di = BELT_PTR(part->belt_ptr[1])) != BELT_NONE)
             mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
-        goto out;
+    } else if (part->kind != KIND_BELT && part->kind != KIND_ROPE) {
+        if (DG4E67.state != 0x2000
+            && (rope = ROPE_PTR(part->rope_ptr)) != ROPE_NONE)
+            add_sub_object_shapes(PART_PTR(rope->owner_ptr), mode);
+        if ((di = BELT_PTR(part->belt_ptr[0])) != BELT_NONE)
+            mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
+        if ((di = BELT_PTR(part->belt_ptr[1])) != BELT_NONE)
+            mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
     }
-
-    if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
-        goto out;
-
-    if (((int16_t)DG4E67.state) != 0x2000) {
-        rope = ROPE_PTR(part->rope_ptr);
-        if (rope != ROPE_NONE)
-            add_sub_object_shapes(PART_PTR(rope->owner_ptr), (int16_t)mode);
-    }
-
-    di = BELT_PTR(part->belt_ptr[0]);
-    if (di != BELT_NONE)
-        mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
-
-    di = BELT_PTR(part->belt_ptr[1]);
-    if (di != BELT_NONE)
-        mark_belt_shapes(PART_PTR(di->owner_ptr), mode);
-
-out:
 }
 
 /*
@@ -2619,173 +2564,125 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
  */
 void mark_belt_shapes(struct part *part, uint16_t mode)
 {
-    uint16_t v12;   /* [bp-0x12] the far part */
-    uint16_t v10;   /* [bp-0x10] the near part */
-    int16_t v0e;   /* [bp-0x0e] the far point */
-    int16_t v0c;   /* [bp-0x0c] the near point */
-    int16_t v0a[2];   /* [bp-0x0a] the box, 0x10 wide */
-    int16_t v06[2];   /* [bp-6] the box's corner */
-    int16_t v02;   /* [bp-2] the slack */
-    uint16_t si = part->belt_ptr[0];
-    int16_t di;
+    register struct belt *si;
+    register int16_t di;
+    int16_t slack;                      /* [bp-2] */
+    int16_t corner[2];                  /* [bp-6] */
+    int16_t box[2];                     /* [bp-0xa]: 0x10 square */
+    struct point16 *near_pt;            /* [bp-0xc] */
+    struct point16 *far_pt;             /* [bp-0xe] */
+    struct part *near_part;             /* [bp-0x10] */
+    struct part *far_part;              /* [bp-0x12] */
 
-    v0a[0] = 0x10;
-    v0a[1] = 0x10;
+    si = BELT_PTR(part->belt_ptr[0]);
+    box[0] = 0x10;
+    box[1] = 0x10;
 
-    if (((int16_t)DG4E67.state) != 0x2000)
-        goto plain;
+    if (DG4E67.state == 0x2000) {
+        near_part = PART_PTR(si->end_a_ptr);
+        far_part = PART_PTR(near_part->link_ptr[si->slot_a]);
+        if (mode & 1) {
+            far_pt = far_part->kind == KIND_PULLEY
+                     ? &BELT_PTR(far_part->belt_ptr[0])->pt[2][0] : &si->pt[2][1];
+            slack = link_slack(near_part, si, 1);
+            alloc_shape((const uint8_t *)&si->pt[2][0], (const uint8_t *)far_pt,
+                        4, 1, slack);
+            for (di = 0; di < 2; di++) {
+                corner[0] = si->pt[2][di].x - 8;
+                corner[1] = si->pt[2][di].y - 8;
+                alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 1, 0);
+            }
+        }
+        if (mode & 2) {
+            far_pt = far_part->kind == KIND_PULLEY
+                     ? &BELT_PTR(far_part->belt_ptr[0])->pt[1][0] : &si->pt[1][1];
+            slack = link_slack(near_part, si, 2);
+            alloc_shape((const uint8_t *)&si->pt[1][0], (const uint8_t *)far_pt,
+                        4, 2, slack);
+            for (di = 0; di < 2; di++) {
+                corner[0] = si->pt[2][di].x - 8;
+                corner[1] = si->pt[2][di].y - 8;
+                alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 2, 0);
+            }
+        }
 
-    v10 = BELT_PTR(si)->end_a_ptr;
-    v12 = PART_PTR(v10)->link_ptr[(int8_t)BELT_PTR(si)->slot_a];
-
-    if (mode & 1) {
-        v0e = (int16_t)(PART_PTR(v12)->kind == 7)
-                     ? (uint16_t)(PART_PTR(v12)->belt_ptr[0] + 0x24)
-                     : (uint16_t)(si + 0x28);
-
-        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-        alloc_shape(dg_near_ptr((uint16_t)(si + 0x24)),
-                    dg_near_ptr((uint16_t)v0e), 4, 1, v02);
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
+        if (PART_PTR(si->end_b_ptr) != far_part) {
+            far_part = PART_PTR(si->end_b_ptr);
+            near_part = PART_PTR(far_part->link_ptr[si->slot_b]);
+            if (mode & 1) {
+                near_pt = near_part->kind == KIND_PULLEY
+                          ? &BELT_PTR(near_part->belt_ptr[0])->pt[2][1] : &si->pt[2][0];
+                slack = link_slack(near_part, si, 1);
+                alloc_shape((const uint8_t *)near_pt, (const uint8_t *)&si->pt[2][1],
+                            4, 1, slack);
+                for (di = 0; di < 2; di++) {
+                    corner[0] = si->pt[2][di].x - 8;
+                    corner[1] = si->pt[2][di].y - 8;
+                    alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 1, 0);
+                }
+            }
+            if (mode & 2) {
+                /* the far end's kind decides, and the near end's belt is read */
+                near_pt = far_part->kind == KIND_PULLEY
+                          ? &BELT_PTR(near_part->belt_ptr[0])->pt[1][1] : &si->pt[1][0];
+                slack = link_slack(near_part, si, 2);
+                alloc_shape((const uint8_t *)near_pt, (const uint8_t *)&si->pt[1][1],
+                            4, 2, slack);
+                for (di = 0; di < 2; di++) {
+                    corner[0] = si->pt[2][di].x - 8;
+                    corner[1] = si->pt[2][di].y - 8;
+                    alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 2, 0);
+                }
+            }
+        }
+    } else {
+        if (mode & 1) {
+            near_part = PART_PTR(si->end_a_ptr);
+            far_part = PART_PTR(near_part->link_ptr[si->slot_a]);
+            while (near_part != PART_NONE && far_part != PART_NONE) {
+                near_pt = near_part->kind == KIND_PULLEY
+                          ? &BELT_PTR(near_part->belt_ptr[0])->pt[2][1] : &si->pt[2][0];
+                far_pt = far_part->kind == KIND_PULLEY
+                         ? &BELT_PTR(far_part->belt_ptr[0])->pt[2][0] : &si->pt[2][1];
+                slack = link_slack(near_part, si, 1);
+                alloc_shape((const uint8_t *)near_pt, (const uint8_t *)far_pt,
+                            4, 1, slack);
+                near_part = far_part;
+                if (near_part->kind != KIND_PULLEY)
+                    far_part = PART_NONE;
+                else
+                    far_part = PART_PTR(far_part->link_ptr[0]);
+            }
+            for (di = 0; di < 2; di++) {
+                corner[0] = si->pt[2][di].x - 8;
+                corner[1] = si->pt[2][di].y - 8;
+                alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 1, 0);
+            }
+        }
+        if (mode & 2) {
+            near_part = PART_PTR(si->end_a_ptr);
+            far_part = PART_PTR(near_part->link_ptr[si->slot_a]);
+            while (near_part != PART_NONE && far_part != PART_NONE) {
+                near_pt = near_part->kind == KIND_PULLEY
+                          ? &BELT_PTR(near_part->belt_ptr[0])->pt[1][1] : &si->pt[1][0];
+                far_pt = far_part->kind == KIND_PULLEY
+                         ? &BELT_PTR(far_part->belt_ptr[0])->pt[1][0] : &si->pt[1][1];
+                slack = link_slack(near_part, si, 2);
+                alloc_shape((const uint8_t *)near_pt, (const uint8_t *)far_pt,
+                            4, 2, slack);
+                near_part = far_part;
+                if (near_part->kind != KIND_PULLEY)
+                    far_part = PART_NONE;
+                else
+                    far_part = PART_PTR(far_part->link_ptr[0]);
+            }
+            for (di = 0; di < 2; di++) {
+                corner[0] = si->pt[1][di].x - 8;
+                corner[1] = si->pt[1][di].y - 8;
+                alloc_shape((const uint8_t *)corner, (const uint8_t *)box, 1, 2, 0);
+            }
         }
     }
-
-    if (mode & 2) {
-        v0e = (int16_t)(PART_PTR(v12)->kind == 7)
-                     ? (uint16_t)(PART_PTR(v12)->belt_ptr[0] + 0x1c)
-                     : (uint16_t)(si + 0x20);
-
-        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-        alloc_shape(dg_near_ptr((uint16_t)(si + 0x1c)),
-                    dg_near_ptr((uint16_t)v0e), 4, 2, v02);
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
-        }
-    }
-
-    if (BELT_PTR(si)->end_b_ptr == v12)
-        goto out;
-
-    v12 = BELT_PTR(si)->end_b_ptr;
-    v10 = PART_PTR(v12)->link_ptr[(int8_t)BELT_PTR(si)->slot_b];
-
-    if (mode & 1) {
-        v0c = (int16_t)(PART_PTR(v10)->kind == 7)
-                     ? (uint16_t)(PART_PTR(v10)->belt_ptr[0] + 0x28)
-                     : (uint16_t)(si + 0x24);
-
-        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-        alloc_shape(dg_near_ptr((uint16_t)v0c),
-                    dg_near_ptr((uint16_t)(si + 0x28)),
-                    4, 1, v02);
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
-        }
-    }
-
-    if (mode & 2) {
-        v0c = (int16_t)(PART_PTR(v12)->kind == 7)
-                     ? (uint16_t)(PART_PTR(v10)->belt_ptr[0] + 0x20)
-                     : (uint16_t)(si + 0x1c);
-
-        v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-        alloc_shape(dg_near_ptr((uint16_t)v0c),
-                    dg_near_ptr((uint16_t)(si + 0x20)),
-                    4, 2, v02);
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
-        }
-    }
-
-    goto out;
-
-plain:
-    if (mode & 1) {
-        v10 = BELT_PTR(si)->end_a_ptr;
-        v12 = PART_PTR(v10)->link_ptr[(int8_t)BELT_PTR(si)->slot_a];
-
-        while (v10 != 0 && v12 != 0) {
-            v0c = (int16_t)(PART_PTR(v10)->kind == 7)
-                         ? (uint16_t)(PART_PTR(v10)->belt_ptr[0]
-                                      + 0x28)
-                         : (uint16_t)(si + 0x24);
-
-            v0e = (int16_t)(PART_PTR(v12)->kind == 7)
-                         ? (uint16_t)(PART_PTR(v12)->belt_ptr[0]
-                                      + 0x24)
-                         : (uint16_t)(si + 0x28);
-
-            v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 1);
-            alloc_shape(dg_near_ptr((uint16_t)v0c),
-                        dg_near_ptr((uint16_t)v0e), 4, 1, v02);
-
-            v10 = v12;
-            if (PART_PTR(v10)->kind != 7)
-                v12 = 0;
-            else
-                v12 = PART_PTR(v12)->link_ptr[0];
-        }
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
-        }
-    }
-
-    if (mode & 2) {
-        v10 = BELT_PTR(si)->end_a_ptr;
-        v12 = PART_PTR(v10)->link_ptr[(int8_t)BELT_PTR(si)->slot_a];
-
-        while (v10 != 0 && v12 != 0) {
-            v0c = (int16_t)(PART_PTR(v10)->kind == 7)
-                         ? (uint16_t)(PART_PTR(v10)->belt_ptr[0]
-                                      + 0x20)
-                         : (uint16_t)(si + 0x1c);
-
-            v0e = (int16_t)(PART_PTR(v12)->kind == 7)
-                         ? (uint16_t)(PART_PTR(v12)->belt_ptr[0]
-                                      + 0x1c)
-                         : (uint16_t)(si + 0x20);
-
-            v02 = link_slack(PART_PTR(v10), BELT_PTR(si), 2);
-            alloc_shape(dg_near_ptr((uint16_t)v0c),
-                        dg_near_ptr((uint16_t)v0e), 4, 2, v02);
-
-            v10 = v12;
-            if (PART_PTR(v10)->kind != 7)
-                v12 = 0;
-            else
-                v12 = PART_PTR(v12)->link_ptr[0];
-        }
-
-        for (di = 0; di < 2; di++) {
-            v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
-            v06[1] =
-                (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
-        }
-    }
-
-out:
 }
 
 /*
@@ -2817,19 +2714,14 @@ void add_record_shapes(struct part *rec, uint16_t which)
  * everything else through `add_record_shapes`. Three lines and a dispatch, and
  * fifteen callers.
  */
-void mark_part_shapes(struct part *part, uint16_t mode)
+void mark_part_shapes(register struct part *part, register uint16_t mode)
 {
-    if (part->kind == KIND_BELT) {
-        add_sub_object_shapes(part, (int16_t)mode);
-        return;
-    }
-
-    if (part->kind == KIND_ROPE) {
+    if (part->kind == KIND_BELT)
+        add_sub_object_shapes(part, mode);
+    else if (part->kind == KIND_ROPE)
         mark_belt_shapes(part, mode);
-        return;
-    }
-
-    add_record_shapes(part, mode);
+    else
+        add_record_shapes(part, mode);
 }
 
 /*
@@ -2862,8 +2754,9 @@ void mark_part_shapes(struct part *part, uint16_t mode)
 void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which, int16_t width)
 {
-    struct shape far *n = DG4E4E.shape_free;
+    struct shape far *n;                /* [bp-4] */
 
+    n = DG4E4E.shape_free;
     /* Pop from the free list, push onto the used list - before the test for
        an empty list, as the original does it, which then reads and writes
        0000:0000. The host's null is C's and cannot be followed, so there the
@@ -2872,63 +2765,54 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     if (n == NULL)
         return;
 #endif
-    DG4E4E.shape_free = n->next;
+    DG4E4E.shape_free = DG4E4E.shape_free->next;
     n->next = DG4E4E.shapes;
     DG4E4E.shapes = n;
 
-    if (n == NULL)
-        return;
-
-    n->flags = flags;
-    n->replays = which;
-    n->x1 = *(int16_t *)(pt1);
-    n->y1 = *(int16_t *)(pt1 + 2);
-    n->x2 = *(int16_t *)(pt2);
-    n->y2 = *(int16_t *)(pt2 + 2);
-    n->width = width;
-
-    if (which == 1) {
-        n->x1 -= DG4E67.origin_c_x;
-        n->y1 -= DG4E67.origin_c_y;
-        if (flags & 4) {
-            n->x2 -= DG4E67.origin_c_x;
-            n->y2 -= DG4E67.origin_c_y;
+    if (n) {
+        n->flags = flags;
+        n->replays = which;
+        *(struct point16 far *)&n->x1 = *(const struct point16 *)pt1;
+        *(struct point16 far *)&n->x2 = *(const struct point16 *)pt2;
+        n->width = width;
+        if (which == 1) {
+            n->x1 -= DG4E67.origin_c_x;
+            n->y1 -= DG4E67.origin_c_y;
+            if (flags & 4) {
+                n->x2 -= DG4E67.origin_c_x;
+                n->y2 -= DG4E67.origin_c_y;
+            }
+        } else {
+            n->x1 -= DG4E67.origin_b_x;
+            n->y1 -= DG4E67.origin_b_y;
+            if (flags & 4) {
+                n->x2 -= DG4E67.origin_b_x;
+                n->y2 -= DG4E67.origin_b_y;
+            }
         }
-    } else {
-        n->x1 -= DG4E67.origin_b_x;
-        n->y1 -= DG4E67.origin_b_y;
-        if (flags & 4) {
-            n->x2 -= DG4E67.origin_b_x;
-            n->y2 -= DG4E67.origin_b_y;
-        }
-    }
 
-    if (n->flags & 4) {
-        int16_t hi;
-
-        if (n->x1 < n->x2) {
+        if (n->flags & 4) {
+            if (n->x1 < n->x2) {
+                n->left = n->x1;
+                n->right = n->x2;
+            } else {
+                n->left = n->x2;
+                n->right = n->x1;
+            }
+            if (n->y1 < n->y2) {
+                n->top = n->y1;
+                n->bottom = n->y2;
+            } else {
+                n->top = n->y2;
+                n->bottom = n->y1;
+            }
+            n->bottom += n->width >> 1;
+        } else {
             n->left = n->x1;
-            hi = n->x2;
-        } else {
-            n->left = n->x2;
-            hi = n->x1;
-        }
-        n->right = hi;
-
-        if (n->y1 < n->y2) {
             n->top = n->y1;
-            hi = n->y2;
-        } else {
-            n->top = n->y2;
-            hi = n->y1;
+            n->right = n->left + n->x2;
+            n->bottom = n->top + n->y2;
         }
-        n->bottom = hi;
-        n->bottom += (int16_t)(n->width >> 1);
-    } else {
-        n->left = n->x1;
-        n->top = n->y1;
-        n->right = (int16_t)(n->left + n->x2);
-        n->bottom = (int16_t)(n->top + n->y2);
     }
 }
 
@@ -2951,77 +2835,51 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
  */
 void replay_shapes(void)
 {
-    struct shape far *prev; /* [bp-0x12], a far pointer */
-    struct shape far *next; /* [bp-0x0e], a far pointer */
-    struct shape far *cur;  /* [bp-0x0a], a far pointer */
-    int16_t c;   /* [bp-6] */
-    int16_t b;   /* [bp-4] */
-    int16_t a;   /* [bp-2] */
-    int16_t si, di;
+    register int16_t si;
+    register int16_t di;
+    int16_t a;                          /* [bp-2] */
+    int16_t b;                          /* [bp-4] */
+    int16_t c;                          /* [bp-6] */
+    struct shape far *cur;              /* [bp-0xa] */
+    struct shape far *next;             /* [bp-0xe] */
+    struct shape far *prev;             /* [bp-0x12] */
 
     set_clip_for_mode();
-
     VMDS.clip_enabled = 1;
-    VMDS.second_colour = ((uint8_t)DG52BD.fill_colour);
-    VMDS.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    VMDS.fill_colour = VMDS.second_colour = DG52BD.fill_colour;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
-    prev = NULL;
-
-    next = DG4E4E.shapes;
-
-    for (;;) {
-        struct shape far *n;
-
-        cur = next;
-
-        if (cur == NULL)
-            break;
-
-        n = cur;
-        next = n->next;
-
-        n->replays--;
-
-        if (n->replays != 0) {
+    prev = 0;
+    for (cur = DG4E4E.shapes; cur; cur = next) {
+        next = cur->next;
+        if (--cur->replays == 0) {
+            si = cur->x1;
+            di = cur->y1;
+            a = cur->x2;
+            b = cur->y2;
+            c = cur->width;
+            cursor_redraw_off_thunk();
+            if (cur->flags & 4)
+                draw_belt_segment(si, di, a, b, c);
+            else {
+                VMDS.fill_enabled = cur->flags & 1;
+                if (di == VMDS.clip_bottom)
+                    di--;
+                if (si == VMDS.clip_right)
+                    si--;
+                if (si < VMDS.clip_right && (int16_t)(si + a) > VMDS.clip_left
+                    && di < VMDS.clip_bottom && (int16_t)(di + b) > VMDS.clip_top)
+                    fill_rect(si, di, a, b);
+            }
+            restore_cursor_following();
+            if (prev)
+                prev->next = next;
+            else
+                DG4E4E.shapes = next;
+            cur->next = DG4E4E.shape_free;
+            DG4E4E.shape_free = cur;
+        } else
             prev = cur;
-            continue;
-        }
-
-        si = n->x1;
-        di = n->y1;
-        a = n->x2;
-        b = n->y2;
-        c = n->width;
-
-        cursor_redraw_off_thunk();
-
-        if (n->flags & 4) {
-            draw_belt_segment(si, di, a, b, c);
-        } else {
-            VMDS.fill_enabled = (uint8_t)(n->flags & 1);
-
-            if (di == VMDS.clip_bottom)
-                di--;
-            if (si == VMDS.clip_right)
-                si--;
-
-            if (si < VMDS.clip_right
-                && (int16_t)(si + a) > VMDS.clip_left
-                && di < VMDS.clip_bottom
-                && (int16_t)(di + b) > VMDS.clip_top)
-                fill_rect(si, di, a, b);
-        }
-
-        restore_cursor_following();
-
-        if (prev != NULL)
-            prev->next = next;
-        else
-            DG4E4E.shapes = next;
-
-        n->next = DG4E4E.shape_free;
-        DG4E4E.shape_free = cur;
     }
 }
 
@@ -3041,95 +2899,62 @@ void replay_shapes(void)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    struct shape far *node; /* [bp-0x0c], a far pointer */
-    int16_t bottom;/* [bp-8] */
-    int16_t right; /* [bp-6] */
-    int16_t top;   /* [bp-4] */
-    int16_t left;  /* [bp-2] */
-    struct part *di;
-    struct rope *si;
+    register struct rope *si;
+    register struct part *di;
+    int16_t left;                       /* [bp-2] */
+    int16_t top;                        /* [bp-4] */
+    int16_t right;                      /* [bp-6] */
+    int16_t bottom;                     /* [bp-8] */
+    struct shape far *node;             /* [bp-0xc] */
 
     for (di = pick_by_flag(0x3000); di != PART_NONE;
          di = pick_for_record(di, 0x1000)) {
-        if (di->redraw_count != 0)
-            continue;
-        if (di->flags_08 & 0x2000)
-            continue;
-
-        if (di->kind == KIND_ROPE) {
-            belt_in_dirty_rect(di);
-            continue;
-        }
-
-        if (di->kind == KIND_BELT) {
-            int16_t span;
-
-            si = ROPE_PTR(di->rope_ptr);
-
-            if (rope_ends_close(si) == 0)
+        if (!di->redraw_count && !(di->flags_08 & 0x2000)) {
+            if (di->kind == KIND_ROPE) {
+                belt_in_dirty_rect(di);
                 continue;
+            }
 
-            if (((int16_t)DG4E67.tool) == 9
-                && (si->end_a_ptr == DG50D3.dragged_part_ptr
-                    || si->end_b_ptr == DG50D3.dragged_part_ptr)
-                && point_in_play_area() == 0)
-                continue;
-
-            if (si->pt[0][0].x < si->pt[0][1].x) {
-                left = (int16_t)(si->pt[0][0].x
-                                       - DG4E67.origin_x);
-                right = left;
-                span = (int16_t)(si->pt[0][3].x
-                                 - si->pt[0][0].x);
+            if (di->kind == KIND_BELT) {
+                si = ROPE_PTR(di->rope_ptr);
+                if (!rope_ends_close(si))
+                    continue;
+                if (DG4E67.tool == 9
+                    && (si->end_a_ptr == DG50D3.dragged_part_ptr
+                        || si->end_b_ptr == DG50D3.dragged_part_ptr)
+                    && !point_in_play_area())
+                    continue;
+                if (si->pt[0][0].x < si->pt[0][1].x) {
+                    right = left = si->pt[0][0].x - DG4E67.origin_x;
+                    right += si->pt[0][3].x - si->pt[0][0].x;
+                } else {
+                    right = left = si->pt[0][1].x - DG4E67.origin_x;
+                    right += si->pt[0][2].x - si->pt[0][1].x;
+                }
+                /* origin_x on the y axis too, as the original has it */
+                if (si->pt[0][0].y < si->pt[0][1].y) {
+                    bottom = top = si->pt[0][0].y - DG4E67.origin_x;
+                    bottom += si->pt[0][3].y - si->pt[0][0].y;
+                } else {
+                    bottom = top = si->pt[0][1].y - DG4E67.origin_x;
+                    bottom += si->pt[0][2].y - si->pt[0][1].y;
+                }
             } else {
-                left = (int16_t)(si->pt[0][1].x
-                                       - DG4E67.origin_x);
-                right = left;
-                span = (int16_t)(si->pt[0][2].x
-                                 - si->pt[0][1].x);
-            }
-            right = (int16_t)(right + span);
-
-            if (si->pt[0][0].y < si->pt[0][1].y) {
-                top = (int16_t)(si->pt[0][0].y
-                                      - DG4E67.origin_x);
-                bottom = top;
-                span = (int16_t)(si->pt[0][3].y
-                                 - si->pt[0][0].y);
-            } else {
-                top = (int16_t)(si->pt[0][1].y
-                                      - DG4E67.origin_x);
-                bottom = top;
-                span = (int16_t)(si->pt[0][2].y
-                                 - si->pt[0][1].y);
-            }
-            bottom = (int16_t)(bottom + span);
-        } else {
-            left = (int16_t)(di->box[0].x
-                                   - DG4E67.origin_x);
-            top = (int16_t)(di->box[0].y
-                                  - DG4E67.origin_y);
-            right = (int16_t)(left
-                                    + di->size[0].width);
-            bottom = (int16_t)(top
-                                     + di->size[0].height);
-        }
-
-        node = DG4E4E.shapes;
-
-        while (node != NULL) {
-            const struct shape far *n = node;
-
-            if (n->left < right
-                && n->right > left
-                && n->top < bottom
-                && n->bottom > top) {
-                mark_needs_refile(di, 1);
-                node = NULL;
-                break;
+                left = di->box[0].x - DG4E67.origin_x;
+                top = di->box[0].y - DG4E67.origin_y;
+                right = left + di->size[0].width;
+                bottom = top + di->size[0].height;
             }
 
-            node = n->next;
+            node = DG4E4E.shapes;
+            while (node) {
+                if (node->left < right && node->right > left
+                    && node->top < bottom && node->bottom > top) {
+                    mark_needs_refile(di, 1);
+                    node = 0;
+                } else
+                    node = node->next;
+            }
         }
     }
 }
@@ -3152,98 +2977,79 @@ void mark_parts_in_dirty_rects(void)
  */
 void belt_in_dirty_rect(struct part *part)
 {
-    struct shape far *node; /* [bp-0x20], a far pointer */
-    struct belt *belt;  /* [bp-0x1c] */
-    int16_t endB;  /* [bp-0x1a] */
-    int16_t endA;  /* [bp-0x18] */
-    int16_t slotB; /* [bp-0x16] */
-    int16_t slotA; /* [bp-0x14] */
-    int16_t slack; /* [bp-0x12] */
-    int16_t bottom;/* [bp-0x10] */
-    int16_t right; /* [bp-0x0e] */
-    int16_t top;   /* [bp-0x0c] */
-    int16_t left;  /* [bp-0x0a] */
-    int16_t by;    /* [bp-8] */
-    int16_t bx;    /* [bp-6] */
-    int16_t ay;    /* [bp-4] */
-    int16_t ax;    /* [bp-2] */
-    uint16_t di, si;
+    register struct part *si;
+    register struct part *di;
+    int16_t ax;                         /* [bp-2] */
+    int16_t ay;                         /* [bp-4] */
+    int16_t bx;                         /* [bp-6] */
+    int16_t by;                         /* [bp-8] */
+    int16_t left;                       /* [bp-0xa] */
+    int16_t top;                        /* [bp-0xc] */
+    int16_t right;                      /* [bp-0xe] */
+    int16_t bottom;                     /* [bp-0x10] */
+    int16_t slack;                      /* [bp-0x12] */
+    uint16_t slotA;                     /* [bp-0x14] */
+    uint16_t slotB;                     /* [bp-0x16] */
+    struct part *endA;                  /* [bp-0x18] */
+    struct part *endB;                  /* [bp-0x1a] */
+    struct belt *belt;                  /* [bp-0x1c] */
+    struct shape far *node;             /* [bp-0x20] */
 
     belt = BELT_PTR(part->belt_ptr[0]);
-    endA = (int16_t)((uint16_t)belt->end_a_ptr);
-    di = (uint16_t)endA;
-    endB = (int16_t)((uint16_t)belt->end_b_ptr);
-
-    slotA = (int16_t)belt->slot_a;
+    di = endA = PART_PTR(belt->end_a_ptr);
+    endB = PART_PTR(belt->end_b_ptr);
+    slotA = belt->slot_a;
     slotB = 0;
+    si = PART_PTR(di->link_ptr[slotA]);
+    slack = link_slack(di, belt, 3);
 
-    si = PART_PTR(di)->link_ptr[(uint16_t)slotA];
-    slack = link_slack(PART_PTR(di), belt, 3);
-
-    while (di != 0 && si != 0) {
-        if (di != (uint16_t)endA) {
+    while (di != PART_NONE && si != PART_NONE) {
+        if (di != endA) {
             slotA = 1;
             slack = 0;
         }
-
-        ax = (int16_t)(PART_PTR(di)->box[0].x
-                             + PART_PTR(di)->attach[(uint16_t)slotA].x);
-        ay = (int16_t)(PART_PTR(di)->box[0].y
-                             + PART_PTR(di)->attach[(uint16_t)slotA].y);
-
-        if (si == (uint16_t)endB) {
-            slotB = (int16_t)belt->slot_b;
-            slack = link_slack(PART_PTR(di), belt, 3);
+        ax = di->box[0].x + di->attach[slotA].x;
+        ay = di->box[0].y + di->attach[slotA].y;
+        if (si == endB) {
+            slotB = belt->slot_b;
+            slack = link_slack(di, belt, 3);
         }
-
-        bx = (int16_t)(PART_PTR(si)->box[0].x
-                             + PART_PTR(si)->attach[(uint16_t)slotB].x);
-        by = (int16_t)(PART_PTR(si)->box[0].y
-                             + PART_PTR(si)->attach[(uint16_t)slotB].y);
+        bx = si->box[0].x + si->attach[slotB].x;
+        by = si->box[0].y + si->attach[slotB].y;
 
         if (ax < bx) {
-            left = (int16_t)(ax - DG4E67.origin_x);
-            right = (int16_t)(bx - DG4E67.origin_x);
+            left = ax - DG4E67.origin_x;
+            right = bx - DG4E67.origin_x;
         } else {
-            left = (int16_t)(bx - DG4E67.origin_x);
-            right = (int16_t)(ax - DG4E67.origin_x);
+            left = bx - DG4E67.origin_x;
+            right = ax - DG4E67.origin_x;
         }
-
         if (ay < by) {
-            top = (int16_t)(ay - DG4E67.origin_y);
-            bottom = (int16_t)(by - DG4E67.origin_y);
+            top = ay - DG4E67.origin_y;
+            bottom = by - DG4E67.origin_y;
         } else {
-            top = (int16_t)(by - DG4E67.origin_y);
-            bottom = (int16_t)(ay - DG4E67.origin_y);
+            top = by - DG4E67.origin_y;
+            bottom = ay - DG4E67.origin_y;
         }
-
         if (slack > 0)
-            bottom = (int16_t)(bottom + (slack >> 1));
+            bottom += slack >> 1;
 
         node = DG4E4E.shapes;
-
-        while (node != NULL) {
-            const struct shape far *n = node;
-
-            if (n->left < right
-                && n->right > left
-                && n->top < bottom
-                && n->bottom > top) {
+        while (node) {
+            if (node->left < right && node->right > left
+                && node->top < bottom && node->bottom > top) {
                 mark_needs_refile(part, 1);
-                node = NULL;
-                si = (uint16_t)endB;
-                break;
-            }
-
-            node = n->next;
+                node = 0;
+                si = endB;
+            } else
+                node = node->next;
         }
 
-        if (si == (uint16_t)endB) {
-            si = 0;
-            di = 0;
-        } else {
+        if (si == endB)
+            di = si = PART_NONE;
+        else {
             di = si;
-            si = PART_PTR(si)->link_ptr[0];
+            si = PART_PTR(si->link_ptr[0]);
         }
     }
 }

@@ -1213,6 +1213,7 @@ void carry_riders_along(struct part *obj);              /* 0x03a8d */
 void bounce_off_contact(struct part *obj);              /* 0x03046 */
 void bounce_pair(struct part *obj);                       /* 0x03201 */
 void part_moved(struct part *part);                     /* 0x06d8e */
+void free_all_shapes(void);                             /* 0x05dfc */
 void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
