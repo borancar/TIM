@@ -137,7 +137,15 @@ def addresses(paths):
         # the underscore C would have given it.
         for m in ASM_PROC.finditer(open(path).read()):
             out.setdefault(m.group(2), int(m.group(1), 16))
+        # **A routine only the Borland branch defines** - C with inline
+        # `asm` whose work the host does inside another routine - carries
+        # its provenance the same way, directly above the definition.
+        for m in TC_DEF.finditer(open(path).read()):
+            out.setdefault(m.group(2), int(m.group(1), 16))
     return out
+
+
+TC_DEF = re.compile(r"^/\* (0x[0-9a-fA-F]{5}) \*/\n[A-Za-z_][\w \t*]*?\b(\w+)\s*\(", re.M)
 
 
 ASM_PROC = re.compile(r"/\*[^*]*?\b(0x[0-9a-fA-F]{5})\b[^*]*\*/[ \t]*\n"
@@ -288,8 +296,10 @@ def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
             if keep and asms:
                 shutil.copy(os.path.join(d, asms[0]), keep)
             if asms:
+                # The emulated TASM 3.0 loops on the `/D` defines TCC
+                # hands it; the compiler's own output never tests them.
                 out += assemble(d, os.path.splitext(asms[0])[0], opts,
-                                assembler)
+                                assembler, defines=assembler in TASM_HOST)
         objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
         if not objs or ERRORS.search(out):
             sys.stdout.write(out)

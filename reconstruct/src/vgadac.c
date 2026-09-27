@@ -9,17 +9,20 @@
  * forty-fifth and last module of the original's code segment 172c, image
  * 0x1c087..0x1c251, which ends a byte into segment 1c25's first paragraph.
  *
- * `chunky_to_planar` borrows BP as a
- * data register and keeps its loop count on the stack, which no compiler
- * does. **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
- * host's transcription in the `#else`. The functions are in address order and each carries the image offset it was
- * read from, as everywhere else.
+ * **C with inline `asm`**, Borland C++ 3.0 `-mm -k-` through TASM: each
+ * routine is a C function whose body is `asm` statements, and what the
+ * compiler writes itself - the frame, the SI and DI it saves because the
+ * `asm` names them, and each final return - is the image's, byte for byte.
+ * `chunky_to_planar` borrows BP as a data register and keeps its loop count
+ * on the stack inside that `asm`. The functions are in address order and
+ * each carries the image offset it was read from, as everywhere else.
  *
  * Only screenshot.c calls into it, and nothing calls `vga_set_dac` at all.
  * The names are ours.
  *
- * JUDGE: built-with -mm
- * JUDGE: tasm
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -k-
+ * JUDGE: via-assembler
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -28,270 +31,246 @@
 
 #ifdef __TURBOC__
 /*
- * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
- * transcription is the `#else`. See glue.c for how the block reaches the
- * assembler.
+ * C with inline `asm`, compiled through TASM (`JUDGE: via-assembler`):
+ * the frame, the SI/DI save and each final return are the compiler's.
+ * Drafted by tools/asm2c.py.
  */
-asm {
-VGADAC_TEXT segment byte public 'CODE'
-assume cs:VGADAC_TEXT, ds:DGROUP
-public _vga_set_dac, _vga_get_dac, _chunky_to_planar
-
 /* 0x1c087 */
-_vga_set_dac proc far
-        push bp
-        mov bp, sp
-        push si
-        mov si, word ptr [bp+6]
-        mov cx, word ptr [bp+0ah]
-        mov ax, cx
-        shl cx, 1
-        add cx, ax
-        mov bx, word ptr [bp+8]
-        mov dx, 3dah
+void vga_set_dac(const uint8_t *rgb, int16_t first, int16_t count)
+{
+    asm mov si, word ptr [bp+6]
+    asm mov cx, word ptr [bp+0ah]
+    asm mov ax, cx
+    asm shl cx, 1
+    asm add cx, ax
+    asm mov bx, word ptr [bp+8]
+    asm mov dx, 3dah
 L1c09d:
-        in al, dx
-        and al, 8
-        je L1c09d
-        mov dx, 3c7h
-        in al, dx
-        and al, 3
-        cmp al, 3
-        je L1c0b0
-        mov dx, 3c9h
-        out dx, al
+    asm in al, dx
+    asm and al, 8
+    asm je L1c09d
+    asm mov dx, 3c7h
+    asm in al, dx
+    asm and al, 3
+    asm cmp al, 3
+    asm je L1c0b0
+    asm mov dx, 3c9h
+    asm out dx, al
 L1c0b0:
-        mov dx, 3c8h
-        mov ax, bx
-        out dx, al
-        mov dx, 3c9h
-        cli
+    asm mov dx, 3c8h
+    asm mov ax, bx
+    asm out dx, al
+    asm mov dx, 3c9h
+    asm cli
 L1c0ba:
-        lodsb
-        out dx, al
-        loop L1c0ba
-        sti
-        pop si
-        pop bp
-        retf
-_vga_set_dac endp
+    asm lodsb
+    asm out dx, al
+    asm loop L1c0ba
+    asm sti
+}
 
 /* 0x1c0c2 */
-_vga_get_dac proc far
-        push bp
-        mov bp, sp
-        push di
-        push ds
-        pop es
-        mov di, word ptr [bp+6]
-        mov cx, word ptr [bp+0ah]
-        mov ax, cx
-        shl cx, 1
-        add cx, ax
-        mov bx, word ptr [bp+8]
-        mov dx, 3dah
+void vga_get_dac(uint8_t *rgb, int16_t first, int16_t count)
+{
+    asm push ds
+    asm pop es
+    asm mov di, word ptr [bp+6]
+    asm mov cx, word ptr [bp+0ah]
+    asm mov ax, cx
+    asm shl cx, 1
+    asm add cx, ax
+    asm mov bx, word ptr [bp+8]
+    asm mov dx, 3dah
 L1c0da:
-        in al, dx
-        and al, 8
-        je L1c0da
-        mov dx, 3c7h
-        in al, dx
-        and al, 3
-        or al, al
-        je L1c0f0
-        mov dx, 3c9h
-        in al, dx
-        mov dx, 3c7h
+    asm in al, dx
+    asm and al, 8
+    asm je L1c0da
+    asm mov dx, 3c7h
+    asm in al, dx
+    asm and al, 3
+    asm or al, al
+    asm je L1c0f0
+    asm mov dx, 3c9h
+    asm in al, dx
+    asm mov dx, 3c7h
 L1c0f0:
-        mov ax, bx
-        out dx, al
-        mov dx, 3c9h
-        cli
+    asm mov ax, bx
+    asm out dx, al
+    asm mov dx, 3c9h
+    asm cli
 L1c0f7:
-        in al, dx
-        stosb
-        loop L1c0f7
-        sti
-        pop di
-        pop bp
-        retf
-_vga_get_dac endp
+    asm in al, dx
+    asm stosb
+    asm loop L1c0f7
+    asm sti
+}
 
 /* 0x1c0ff */
-_chunky_to_planar proc far
-        push bp
-        mov bp, sp
-        push si
-        push di
-        mov si, word ptr [bp+6]
-        mov di, word ptr [bp+8]
-        mov ax, 50h
-        push ax
+void chunky_to_planar(const uint8_t *src, uint8_t *dst)
+{
+    asm mov si, word ptr [bp+6]
+    asm mov di, word ptr [bp+8]
+    asm mov ax, 50h
+    asm push ax
 L1c10e:
-        mov bp, word ptr [si]
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        mov bp, word ptr [si+2]
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        mov bp, word ptr [si+4]
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        mov bp, word ptr [si+6]
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        shr bp, 1
-        rcl ah, 1
-        shr bp, 1
-        rcl al, 1
-        shr bp, 1
-        rcl bh, 1
-        shr bp, 1
-        rcl bl, 1
-        shr bp, 1
-        rcl ch, 1
-        shr bp, 1
-        rcl cl, 1
-        shr bp, 1
-        rcl dh, 1
-        shr bp, 1
-        rcl dl, 1
-        push di
-        add si, 8
-        mov byte ptr [di], ah
-        add di, 50h
-        mov byte ptr [di], al
-        add di, 50h
-        mov byte ptr [di], bh
-        add di, 50h
-        mov byte ptr [di], bl
-        add di, 50h
-        mov byte ptr [di], ch
-        add di, 50h
-        mov byte ptr [di], cl
-        add di, 50h
-        mov byte ptr [di], dh
-        add di, 50h
-        mov byte ptr [di], dl
-        pop di
-        inc di
-        pop ax
-        dec ax
-        push ax
-        je L1c24c
-        jmp L1c10e
+    asm mov bp, word ptr [si]
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm mov bp, word ptr [si+2]
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm mov bp, word ptr [si+4]
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm mov bp, word ptr [si+6]
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm shr bp, 1
+    asm rcl ah, 1
+    asm shr bp, 1
+    asm rcl al, 1
+    asm shr bp, 1
+    asm rcl bh, 1
+    asm shr bp, 1
+    asm rcl bl, 1
+    asm shr bp, 1
+    asm rcl ch, 1
+    asm shr bp, 1
+    asm rcl cl, 1
+    asm shr bp, 1
+    asm rcl dh, 1
+    asm shr bp, 1
+    asm rcl dl, 1
+    asm push di
+    asm add si, 8
+    asm mov byte ptr [di], ah
+    asm add di, 50h
+    asm mov byte ptr [di], al
+    asm add di, 50h
+    asm mov byte ptr [di], bh
+    asm add di, 50h
+    asm mov byte ptr [di], bl
+    asm add di, 50h
+    asm mov byte ptr [di], ch
+    asm add di, 50h
+    asm mov byte ptr [di], cl
+    asm add di, 50h
+    asm mov byte ptr [di], dh
+    asm add di, 50h
+    asm mov byte ptr [di], dl
+    asm pop di
+    asm inc di
+    asm pop ax
+    asm dec ax
+    asm push ax
+    asm je L1c24c
+    asm jmp L1c10e
 L1c24c:
-        pop ax
-        pop di
-        pop si
-        pop bp
-        retf
-_chunky_to_planar endp
-VGADAC_TEXT ends
+    asm pop ax
 }
 #else
 

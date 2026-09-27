@@ -556,6 +556,43 @@ module's mode from its bytes: a logical op with a byte-sized immediate as
 each have an `83`, so their boundaries at TLINK's far calls stand.
 `asm2tasm.py --nosmart` drafts a NOSMART module.
 
+### An assembly module is one no C source can produce, and that is measured routine by routine
+
+**What happened.** Every module whose code looked hand-written had been
+drafted as TASM source whole. The question "is it C with inline `asm`
+instead?" was answered by testing what Borland C++ does around an `asm`
+statement - BC++ 2.0 and 3.0, and Turbo C++ 1.00, 1.01 and 2.01 through
+TASM, all the same:
+
+  - any mention of SI or DI, by `asm` or by a pseudo-register, even a
+    read, makes it `push si` / `push di` right after the frame and pop
+    them before the return; a `register` variable does too, used or not;
+  - it always writes the final `ret`/`retf`, even after an `asm jmp`;
+  - its epilogue is the last thing in the function, and `mov sp, bp` is in
+    it only when there are locals (`sub sp, N`);
+  - with `-k-` a function has a frame exactly when it has parameters, and
+    `#pragma option -k` between functions gives one to a function without;
+  - a `void interrupt` function pushes `ax bx cx dx es ds si di bp`;
+  - `asm` jumps to labels of its own function only, and `call` to a C
+    label is not resolved - such a target is a function of its own.
+
+`tools/asm2c.py` drafts a module as C on those rules and refuses a routine
+that breaks one, naming it. `vgadac.c` and `vidinit.c` converted and
+matched (vidinit once two routines the draft had lumped into their
+neighbours were split out). The other fifteen each have a routine that
+breaks a rule - the sound sequencer's register-convention routines
+(SI and DI outside the save), crtc's `mov sp, bp` with no locals, dos's
+code after its own epilogue, the video-driver thunks with no `ret`, the
+interrupt handlers' own push order, data kept between routines in the code
+segment, jumps from one routine into another.
+
+**And the sweep that said they matched had not run them.** Moving the
+inline-`asm` modules to TASM 3.0 was reported as matching because the sweep
+script counted a file whose compile failed - no "routines match" line at
+all - as agreeing. TASM 3.0 loops under the emulator on the `/D` defines
+TCC passes it; the judge now drops them for the emulated assembler, and
+the sweep counts only "N of N routines match".
+
 ### A cast the judge does not need can be one the host does, and a wait on a check's files can read the previous run
 
 collide.c was committed on 2026-09-27 (ac75438) as byte-exact with

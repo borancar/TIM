@@ -26,9 +26,23 @@ ASB, ADL, SBP and SPKR), which are separate binaries.
 of the game (72 files, the four Turbo C++ 3.0 was credited with included -
 they match either); **Borland C++ 2.0** for 15 modules, none of which 3.0
 reproduces; **Turbo C++ 1.01** for `atan2_long` alone; and **TASM 3.0**, the
-assembler BC++ 3.0 shipped, for all 17 assembly modules and the three C
+assembler BC++ 3.0 shipped, for all 15 assembly modules and the five C
 modules with inline `asm` - the sound module assembled NOSMART, the rest
-in TASM's default SMART mode. The link
+in TASM's default SMART mode. **Which modules are assembly is a
+measurement** (2026-09-27, `tools/asm2c.py`): Borland C++ of every
+version tried saves SI and DI around any function whose `asm` or
+pseudo-registers name them, always writes a final `ret`, puts its epilogue
+last and `mov sp, bp` only after locals, and its interrupt functions push
+in one order - so a module with a routine that breaks one of those, or
+jumps into another routine, or keeps data in its code segment between
+routines, is not C. `vgadac.c` and `vidinit.c` broke none, and are C now;
+each of the fifteen left has at least one routine that does. **Open**:
+the video driver's thunks - a bare `jmp dword ptr` through DG4342, no
+`ret` - stand at the edges of several modules (keyboard.c's ends,
+dosmem.c's front, lowlevel.c's and lzhuf.c's ends, timer.c's), and would
+be the whole reason dosmem.c is not C: without its two thunks,
+`dos_alloc_bytes` and `dos_free_far` match as C with inline `asm`. Whether
+the thunks were modules of their own is not measured. The link
 itself was the 3.0 generation's: the startup is 3.0's `C0M.OBJ` (661 of 663
 bytes, the other two TLINK's rewrite of a far call; 2.0's differs from the
 26th byte), and 3.0's `CM.LIB` accounts for 50 runtime modules where 2.0's
@@ -126,7 +140,7 @@ assembled it itself.
 | `src/text.c` | 0x2149e..0x21ab5 | 10 of 10 | `_DATA` 0x471e..0x4723, `_BSS` 0x6176..0x628e |
 | `src/dosmem.c` | 0x21ab5..0x21b44, TASM; its end proven by TLINK's far call to `far_memset` | 4 of 4 | none |
 | `src/lowlevel.c` | 0x21b44..0x22483, TASM: joystick (uncalled, host stubs), line clipper, mouse, huge pointers, divide trap, pixels | 31 of 31 | `_DATA` 0x4724..0x48f2 |
-| `src/vidinit.c` | 0x22483..0x22790, TASM | 6 of 6 | `_DATA` 0x48f2..0x48f8 |
+| `src/vidinit.c` | 0x22483..0x22790, C with inline `asm` (BC++ 3.0 `-mm -k-`, two functions under `#pragma option -k`), via TASM | 9 of 9 | `_DATA` 0x48f2..0x48f8 |
 | `src/vidload.c` | 0x22790..0x2307d | 3 of 3, through TASM | `_DATA` 0x48f8..0x495c, `_BSS` 0x628e..0x6292 |
 | `src/fontload.c` | 0x2307d..0x234d2 | 2 of 2 | `_DATA` 0x495c..0x4965 |
 | `src/bmpload.c` | 0x234d2..0x23b29 | 6 of 6 | `_DATA` 0x4966..0x498e |
@@ -179,8 +193,8 @@ routine matches:
 - `src/screenshot.c` is an ILBM screenshot writer that nothing calls. It is
   BC++ **2.0** `-mm`: 5 of 5 routines match, and so does its `_DATA`
   0x355a..0x3576.
-- `src/vgadac.c` is the segment's closing assembly module,
-  0x1c087..0x1c251, as TASM: 3 of 3.
+- `src/vgadac.c` is the segment's closing module, 0x1c087..0x1c251, C
+  with inline `asm` (BC++ 3.0 `-mm -k-`, via TASM): 3 of 3.
   `chunky_to_planar` agrees with the original's bytes, run under Unicorn, on
   20 random rows.
 

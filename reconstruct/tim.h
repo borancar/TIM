@@ -1967,7 +1967,7 @@ int16_t decode_position(void);                         /* 0x1e561 */
 int16_t near decompress_lzss(void);                    /* 0x1e7f2 */
 int16_t next_lzw_code(void);                           /* 0x1cc65 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
-uint16_t detect_adapter(void);                         /* 0x225d2 */
+uint16_t near detect_adapter(void);                    /* 0x225d2 */
 uint8_t far * load_video_driver(int16_t adapter, char *name); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  FILE *file);                    /* 0x22483 */
@@ -2049,7 +2049,8 @@ void free_archive_lists(void);                         /* 0x09784 */
 int16_t remove_keyboard(void);                         /* 0x21158 */
 int16_t remove_mouse(void);                            /* 0x220cd */
 void restore_int0_vector(void);                        /* 0x223f7 */
-void set_bios_video_mode(uint16_t bits);               /* 0x22741 */
+void near crtc_present(void);                          /* 0x22727 */
+void near set_bios_video_mode(uint16_t bits);          /* 0x22741 */
 void shutdown_input(void);                             /* 0x225a5 */
 void restore_video_mode(void);                         /* 0x225ba */
 void free_far_block(uint8_t far * h);        /* 0x1ebdc */
@@ -2067,7 +2068,8 @@ void save_rect_thunk(uint8_t far * buf, int16_t x,
 uint16_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
 void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
-uint16_t bios_video_kind(void);                        /* 0x22764 */
+uint16_t near bios_video_kind(void);                   /* 0x22764 */
+void near set_colour_text_mode(void);                  /* 0x2277c */
 int16_t detect_pcjr(void);                             /* 0x20be0 */
 void timer_tick(void);                              /* 0x20767 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */

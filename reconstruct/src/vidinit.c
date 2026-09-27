@@ -14,21 +14,28 @@
  * `VM_START`, and it starts a byte after the divide trap's: the pad at
  * 0x48f1 is the word alignment of a new module's data.
  *
- * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
- * host's transcription in the `#else`. Every routine is hand-written:
- * `detect_adapter` answers in AL and calls two near helpers, one answering
- * in the carry flag; `vm_init` copies the driver's table with `rep movsw`
- * across a borrowed DS; `restore_video_mode` pushes its argument and pops it
- * back. The functions are in address order and each carries the image offset it was
- * read from.
+ * **C with inline `asm`**, Borland C++ 3.0 `-mm -k-` through TASM: each
+ * routine is a C function whose body is `asm` statements, and what the
+ * compiler writes itself is the image's - the frame of a function with
+ * parameters, the SI and DI it saves for an `asm` that names them, each
+ * final return. `restore_video_mode` and `bios_video_kind` take nothing and
+ * still have a frame, so they sit in `#pragma option -k`; `vm_init` saves
+ * an SI it never uses, a `register` variable nothing reads. The routines
+ * the `asm` reaches with `call` are functions of their own, since a call to
+ * a C label is not something the compiler resolves: `crtc_present`, which
+ * answers in the carry flag, and `set_colour_text_mode`, the two a host
+ * `detect_adapter` does inline. The functions are in address order and
+ * each carries the image offset it was read from.
  *
  * Where the module begins is not settled. 0x2241b..0x22483, the two clipped
  * pixel routines and the `vm_restore_rect` thunk, is assembly too and has no
  * data of its own, so nothing says whether it ends the divide trap's module or
- * starts this one; it stays in engine.c.
+ * starts this one; it stays in lowlevel.c.
  *
- * JUDGE: built-with -mm
- * JUDGE: tasm
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -k-
+ * JUDGE: via-assembler
+ * JUDGE: data 0x48f2..0x48f8
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -37,426 +44,400 @@
 
 #ifdef __TURBOC__
 /*
- * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
- * transcription is the `#else`. See glue.c for how the block reaches the
- * assembler.
+ * C with inline `asm`, compiled through TASM (`JUDGE: via-assembler`):
+ * the frame, the SI/DI save and each final return are the compiler's.
+ * Drafted by tools/asm2c.py.
  */
-asm {
-_DATA segment word public 'DATA'
-d_48f2 label byte
-        db 0ffh
-d_48f3 label byte
-        db 0ffh
-d_48f4 label byte
-        db 0h, 0h
-d_48f6 label byte
-        db 0h, 0h
-_DATA ends
 
-extrn _detect_pcjr:far
-extrn _dos_alloc_bytes:far
-extrn _dos_free_far:far
-extrn _load_video_driver:far
-extrn _remove_keyboard:far
-extrn _remove_mouse:far
-extrn _restore_int0_vector:far
-extrn _timer_remove:far
-extrn _DG4342:byte
-extrn _ENGINE_FONT_BODIES:byte
-extrn _VMDS:byte
-VIDINIT_TEXT segment byte public 'CODE'
-assume cs:VIDINIT_TEXT, ds:DGROUP
-public _vm_init, _shutdown_input, _restore_video_mode, _detect_adapter
-public _set_bios_video_mode, _bios_video_kind
-
+/*
+ * **This module's `_DATA`**, DGROUP 0x48f2..0x48f8: nothing recorded yet,
+ * nothing forced, and no driver.
+ */
+struct vm_start VM_START = { 0xff, 0xff };
 /* 0x22483 */
-_vm_init proc far
-        push bp
-        mov bp, sp
-        push si
-        push di
-        mov al, byte ptr [bp+6]
-        mov byte ptr DGROUP:d_48f3, al
-        xor ax, ax
-        mov byte ptr DGROUP:_VMDS+6e8h, al
-        mov byte ptr DGROUP:_VMDS+1fh, al
-        mov word ptr DGROUP:_VMDS+6eah, 140h
-        mov word ptr DGROUP:_VMDS+6ech, 0c8h
-        mov ax, word ptr DGROUP:_VMDS+19eh
-        mov dx, word ptr DGROUP:_VMDS+1a0h
-        mov bx, ax
-        or bx, dx
-        je L224c1
-        push dx
-        push ax
-        call FAR PTR _dos_free_far
-        add sp, 4
-        xor ax, ax
-        mov word ptr DGROUP:_VMDS+19eh, ax
-        mov word ptr DGROUP:_VMDS+1a0h, ax
+uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
+{
+    register int held;
+
+    asm mov al, byte ptr [bp+6]
+    asm mov byte ptr VM_START+1, al
+    asm xor ax, ax
+    asm mov byte ptr VMDS+6e8h, al
+    asm mov byte ptr VMDS+1fh, al
+    asm mov word ptr VMDS+6eah, 140h
+    asm mov word ptr VMDS+6ech, 0c8h
+    asm mov ax, word ptr VMDS+19eh
+    asm mov dx, word ptr VMDS+1a0h
+    asm mov bx, ax
+    asm or bx, dx
+    asm je L224c1
+    asm push dx
+    asm push ax
+    asm call far ptr dos_free_far
+    asm add sp, 4
+    asm xor ax, ax
+    asm mov word ptr VMDS+19eh, ax
+    asm mov word ptr VMDS+1a0h, ax
 L224c1:
-        call _bios_video_kind
-        mov byte ptr DGROUP:d_48f2, al
-        call _detect_adapter
-        mov byte ptr DGROUP:_VMDS+1dh, al
-        or ax, ax
-        je L2251c
-        push word ptr [bp+0ah]
-        push ax
-        call FAR PTR _load_video_driver
-        add sp, 4
-        or dx, dx
-        je L2251c
-        mov word ptr DGROUP:d_48f4, ax
-        mov word ptr DGROUP:d_48f6, dx
-        push ds
-        mov ax, 4412h
-        push ax
-        mov ax, 3890h
-        push ax
-        call dword ptr DGROUP:d_48f4
-        add sp, 6
-        mov di, offset DGROUP:_DG4342+4h
-        push ds
-        mov ax, ds
-        mov ds, dx
-        mov es, ax
-        mov ax, 32h
-        mov cx, ax
-        shl cx, 1
-        rep movsw
-        pop ds
-        mov di, offset DGROUP:_DG4342+4h
-        mov ax, dx
-        mov cx, 32h
+    asm call near ptr bios_video_kind
+    asm mov byte ptr VM_START, al
+    asm call near ptr detect_adapter
+    asm mov byte ptr VMDS+1dh, al
+    asm or ax, ax
+    asm je L2251c
+    asm push word ptr [bp+0ah]
+    asm push ax
+    asm call far ptr load_video_driver
+    asm add sp, 4
+    asm or dx, dx
+    asm je L2251c
+    asm mov word ptr VM_START+2, ax
+    asm mov word ptr VM_START+4, dx
+    asm push ds
+    asm mov ax, 4412h
+    asm push ax
+    asm mov ax, 3890h
+    asm push ax
+    asm call dword ptr VM_START+2
+    asm add sp, 6
+    asm mov di, offset DG4342+4h
+    asm push ds
+    asm mov ax, ds
+    asm mov ds, dx
+    asm mov es, ax
+    asm mov ax, 32h
+    asm mov cx, ax
+    asm shl cx, 1
+    asm rep movsw
+    asm pop ds
+    asm mov di, offset DG4342+4h
+    asm mov ax, dx
+    asm mov cx, 32h
 L22514:
-        add di, 2
-        stosw
-        loop L22514
-        jmp short L22521
+    asm add di, 2
+    asm stosw
+    asm loop L22514
+    asm jmp short L22521
 L2251c:
-        mov byte ptr DGROUP:_VMDS+1dh, 0
+    asm mov byte ptr VMDS+1dh, 0
 L22521:
-        xor ax, ax
-        mov es, ax
-        mov ax, ds
-        mov word ptr es:[4f0h], ax
-        mov ax, word ptr DGROUP:_VMDS+14h
-        mov word ptr DGROUP:_VMDS+16h, ax
-        mov ax, word ptr DGROUP:_VMDS+12h
-        mov word ptr DGROUP:_VMDS+18h, ax
-        mov al, byte ptr DGROUP:_VMDS+1dh
-        xor ah, ah
-        push ax
-        or ax, ax
-        je L225a0
-        mov ax, word ptr DGROUP:_DG4342
-        or ax, ax
-        je L22555
-        xor bx, bx
-        dec ax
-        push ax
-        push bx
-        call FAR PTR _dos_free_far
-        add sp, 4
+    asm xor ax, ax
+    asm mov es, ax
+    asm mov ax, ds
+    asm mov word ptr es:[4f0h], ax
+    asm mov ax, word ptr VMDS+14h
+    asm mov word ptr VMDS+16h, ax
+    asm mov ax, word ptr VMDS+12h
+    asm mov word ptr VMDS+18h, ax
+    asm mov al, byte ptr VMDS+1dh
+    asm xor ah, ah
+    asm push ax
+    asm or ax, ax
+    asm je L225a0
+    asm mov ax, word ptr DG4342
+    asm or ax, ax
+    asm je L22555
+    asm xor bx, bx
+    asm dec ax
+    asm push ax
+    asm push bx
+    asm call far ptr dos_free_far
+    asm add sp, 4
 L22555:
-        mov ax, word ptr DGROUP:_VMDS+6ech
-        shl ax, 1
-        shl ax, 1
-        add ax, 20h
-        xor bx, bx
-        push bx
-        push bx
-        push bx
-        push ax
-        call FAR PTR _dos_alloc_bytes
-        add sp, 8
-        or dx, dx
-        je L225a0
-        inc dx
-        mov word ptr DGROUP:_DG4342, dx
-        mov ax, 1130h
-        mov bh, 3
-        int 10h
-        mov bx, offset DGROUP:_ENGINE_FONT_BODIES
-        mov word ptr [bx], bp
-        mov word ptr [bx+2], es
-        mov word ptr [bx+4], bp
-        mov word ptr [bx+6], es
-        mov ax, 808h
-        mov word ptr DGROUP:_VMDS+48h, ax
-        mov word ptr DGROUP:_VMDS+34h, ax
-        mov ax, 0
-        mov word ptr DGROUP:_VMDS+5ch, ax
-        mov ax, 0ffffh
-        mov word ptr DGROUP:_VMDS+70h, ax
+    asm mov ax, word ptr VMDS+6ech
+    asm shl ax, 1
+    asm shl ax, 1
+    asm add ax, 20h
+    asm xor bx, bx
+    asm push bx
+    asm push bx
+    asm push bx
+    asm push ax
+    asm call far ptr dos_alloc_bytes
+    asm add sp, 8
+    asm or dx, dx
+    asm je L225a0
+    asm inc dx
+    asm mov word ptr DG4342, dx
+    asm mov ax, 1130h
+    asm mov bh, 3
+    asm int 10h
+    asm mov bx, offset ENGINE_FONT_BODIES
+    asm mov word ptr [bx], bp
+    asm mov word ptr [bx+2], es
+    asm mov word ptr [bx+4], bp
+    asm mov word ptr [bx+6], es
+    asm mov ax, 808h
+    asm mov word ptr VMDS+48h, ax
+    asm mov word ptr VMDS+34h, ax
+    asm mov ax, 0
+    asm mov word ptr VMDS+5ch, ax
+    asm mov ax, 0ffffh
+    asm mov word ptr VMDS+70h, ax
 L225a0:
-        pop ax
-        pop di
-        pop si
-        pop bp
-        retf
-_vm_init endp
+    asm pop ax
+}
 
 /* 0x225a5 */
-_shutdown_input proc far
-        call FAR PTR _remove_keyboard
-        call FAR PTR _remove_mouse
-        call FAR PTR _timer_remove
-        call FAR PTR _restore_int0_vector
-        retf
-_shutdown_input endp
+void shutdown_input(void)
+{
+    asm call far ptr remove_keyboard
+    asm call far ptr remove_mouse
+    asm call far ptr timer_remove
+    asm call far ptr restore_int0_vector
+}
 
+#pragma option -k
 /* 0x225ba */
-_restore_video_mode proc far
-        push bp
-        mov bp, sp
-        xor ax, ax
-        mov al, byte ptr DGROUP:d_48f2
-        cmp al, 0ffh
-        je L225d0
-        push ax
-        call _set_bios_video_mode
-        pop ax
-        mov byte ptr DGROUP:d_48f2, 0ffh
+void restore_video_mode(void)
+{
+    asm xor ax, ax
+    asm mov al, byte ptr VM_START
+    asm cmp al, 0ffh
+    asm je L225d0
+    asm push ax
+    asm call near ptr set_bios_video_mode
+    asm pop ax
+    asm mov byte ptr VM_START, 0ffh
 L225d0:
-        pop bp
-        retf
-_restore_video_mode endp
+    ;
+}
+#pragma option -k-
 
 /* 0x225d2 */
-_detect_adapter proc near
-        mov al, byte ptr DGROUP:d_48f3
-        cmp word ptr DGROUP:_DG4342+2h, 0
-        jne L225df
-        xor ah, ah
-        ret
+uint16_t near detect_adapter(void)
+{
+    asm mov al, byte ptr VM_START+1
+    asm cmp word ptr DG4342+2h, 0
+    asm jne L225df
+    asm xor ah, ah
+    asm ret
 L225df:
-        or al, al
-        je L2261a
-        cmp al, 9
-        je L22612
-        cmp al, 0ah
-        je L2261a
-        cmp al, 8
-        je L2261a
-        cmp al, 0dh
-        je L2261a
-        cmp al, 0ch
-        je L2261a
-        cmp al, 0eh
-        je L2261a
-        cmp al, 0fh
-        je L2261a
-        cmp al, 5
-        je L2264b
-        cmp al, 2
-        je L22682
-        cmp al, 7
-        je L22682
-        cmp al, 0bh
-        je L22682
-        jmp L226ab
+    asm or al, al
+    asm je L2261a
+    asm cmp al, 9
+    asm je L22612
+    asm cmp al, 0ah
+    asm je L2261a
+    asm cmp al, 8
+    asm je L2261a
+    asm cmp al, 0dh
+    asm je L2261a
+    asm cmp al, 0ch
+    asm je L2261a
+    asm cmp al, 0eh
+    asm je L2261a
+    asm cmp al, 0fh
+    asm je L2261a
+    asm cmp al, 5
+    asm je L2264b
+    asm cmp al, 2
+    asm je L22682
+    asm cmp al, 7
+    asm je L22682
+    asm cmp al, 0bh
+    asm je L22682
+    asm jmp L226ab
 L22612:
-        call L2277c
-        mov al, 9
-        jmp L22724
+    asm call near ptr set_colour_text_mode
+    asm mov al, 9
+    asm jmp L22724
 L2261a:
-        cmp byte ptr DGROUP:_DG4342+2h, 0
-        mov ax, 1a00h
-        int 10h
-        cmp bl, 7
-        je L2263d
-        cmp bl, 8
-        je L2263d
-        cmp bh, 7
-        je L2263a
-        cmp bh, 8
-        je L2263a
-        jne L2264b
+    asm cmp byte ptr DG4342+2h, 0
+    asm mov ax, 1a00h
+    asm int 10h
+    asm cmp bl, 7
+    asm je L2263d
+    asm cmp bl, 8
+    asm je L2263d
+    asm cmp bh, 7
+    asm je L2263a
+    asm cmp bh, 8
+    asm je L2263a
+    asm jne L2264b
 L2263a:
-        call L2277c
+    asm call near ptr set_colour_text_mode
 L2263d:
-        mov al, byte ptr DGROUP:d_48f3
-        xor ah, ah
-        or ax, ax
-        jne L22648
-        mov al, 8
+    asm mov al, byte ptr VM_START+1
+    asm xor ah, ah
+    asm or ax, ax
+    asm jne L22648
+    asm mov al, 8
 L22648:
-        jmp L22724
+    asm jmp L22724
 L2264b:
-        mov ax, 1a00h
-        int 10h
-        cmp bl, 7
-        je L2267d
-        cmp bl, 8
-        je L2267d
-        cmp bh, 7
-        je L2267a
-        cmp bh, 8
-        je L2267a
-        cmp bl, 0bh
-        je L2267d
-        cmp bl, 0ch
-        je L2267d
-        cmp bh, 0bh
-        je L2267a
-        cmp bh, 0ch
-        je L2267a
-        jne L22682
+    asm mov ax, 1a00h
+    asm int 10h
+    asm cmp bl, 7
+    asm je L2267d
+    asm cmp bl, 8
+    asm je L2267d
+    asm cmp bh, 7
+    asm je L2267a
+    asm cmp bh, 8
+    asm je L2267a
+    asm cmp bl, 0bh
+    asm je L2267d
+    asm cmp bl, 0ch
+    asm je L2267d
+    asm cmp bh, 0bh
+    asm je L2267a
+    asm cmp bh, 0ch
+    asm je L2267a
+    asm jne L22682
 L2267a:
-        call L2277c
+    asm call near ptr set_colour_text_mode
 L2267d:
-        mov al, 5
-        jmp L22724
+    asm mov al, 5
+    asm jmp L22724
 L22682:
-        mov ax, 40h
-        mov es, ax
-        mov ah, 12h
-        mov bx, 10h
-        int 10h
-        cmp bx, 10h
-        je L226ab
-        mov bx, 87h
-        mov al, byte ptr es:[bx]
-        and al, 8
-        jne L226a3
-        mov al, byte ptr DGROUP:d_48f3
-        jmp L22724
+    asm mov ax, 40h
+    asm mov es, ax
+    asm mov ah, 12h
+    asm mov bx, 10h
+    asm int 10h
+    asm cmp bx, 10h
+    asm je L226ab
+    asm mov bx, 87h
+    asm mov al, byte ptr es:[bx]
+    asm and al, 8
+    asm jne L226a3
+    asm mov al, byte ptr VM_START+1
+    asm jmp L22724
 L226a3:
-        call L2277c
-        mov al, byte ptr DGROUP:d_48f3
-        jmp short L22724
+    asm call near ptr set_colour_text_mode
+    asm mov al, byte ptr VM_START+1
+    asm jmp short L22724
 L226ab:
-        mov al, byte ptr DGROUP:d_48f3
-        or al, al
-        je L226ba
-        cmp al, 1
-        je L226ba
-        cmp al, 3
-        jne L226f7
+    asm mov al, byte ptr VM_START+1
+    asm or al, al
+    asm je L226ba
+    asm cmp al, 1
+    asm je L226ba
+    asm cmp al, 3
+    asm jne L226f7
 L226ba:
-        mov dx, 3d4h
-        mov al, 0fh
-        out dx, al
-        inc dx
-        mov ah, al
-        mov al, 66h
-        out dx, al
-        mov cx, 64h
+    asm mov dx, 3d4h
+    asm mov al, 0fh
+    asm out dx, al
+    asm inc dx
+    asm mov ah, al
+    asm mov al, 66h
+    asm out dx, al
+    asm mov cx, 64h
 L226c9:
-        nop
-        loop L226c9
-        in al, dx
-        xchg ah, al
-        out dx, al
-        cmp ah, 66h
-        jne L226f7
-        call L2277c
-        call FAR PTR _detect_pcjr
-        cmp byte ptr DGROUP:d_48f3, 1
-        je L226ec
-        or al, al
-        je L226ec
-        mov al, 3
-        jmp short L22724
+    asm nop
+    asm loop L226c9
+    asm in al, dx
+    asm xchg ah, al
+    asm out dx, al
+    asm cmp ah, 66h
+    asm jne L226f7
+    asm call near ptr set_colour_text_mode
+    asm call far ptr detect_pcjr
+    asm cmp byte ptr VM_START+1, 1
+    asm je L226ec
+    asm or al, al
+    asm je L226ec
+    asm mov al, 3
+    asm jmp short L22724
 L226ec:
-        cmp byte ptr DGROUP:d_48f3, 3
-        je L22722
-        mov al, 1
-        jmp short L22724
+    asm cmp byte ptr VM_START+1, 3
+    asm je L22722
+    asm mov al, 1
+    asm jmp short L22724
 L226f7:
-        mov al, byte ptr DGROUP:d_48f3
-        or al, al
-        je L22702
-        cmp al, 4
-        jne L22722
+    asm mov al, byte ptr VM_START+1
+    asm or al, al
+    asm je L22702
+    asm cmp al, 4
+    asm jne L22722
 L22702:
-        mov dx, 3b4h
-        call L22727
-        jb L22722
-        mov dl, 0bah
-        in al, dx
-        and al, 80h
-        mov ah, al
-        mov cx, 8000h
+    asm mov dx, 3b4h
+    asm call near ptr crtc_present
+    asm jb L22722
+    asm mov dl, 0bah
+    asm in al, dx
+    asm and al, 80h
+    asm mov ah, al
+    asm mov cx, 8000h
 L22714:
-        in al, dx
-        and al, 80h
-        cmp ah, al
-        loope L22714
-        je L22722
-        mov ax, 4
-        jmp short L22724
+    asm in al, dx
+    asm and al, 80h
+    asm cmp ah, al
+    asm loope L22714
+    asm je L22722
+    asm mov ax, 4
+    asm jmp short L22724
 L22722:
-        xor al, al
+    asm xor al, al
 L22724:
-        xor ah, ah
-        ret
-L22727:
-        mov al, 0fh
-        out dx, al
-        inc dx
-        in al, dx
-        mov ah, al
-        mov al, 66h
-        out dx, al
-        mov cx, 100h
+    asm xor ah, ah
+}
+
+/* 0x22727 */
+void near crtc_present(void)
+{
+    asm mov al, 0fh
+    asm out dx, al
+    asm inc dx
+    asm in al, dx
+    asm mov ah, al
+    asm mov al, 66h
+    asm out dx, al
+    asm mov cx, 100h
 L22734:
-        loop L22734
-        in al, dx
-        xchg ah, al
-        out dx, al
-        cmp ah, 66h
-        je L22740
-        stc
+    asm loop L22734
+    asm in al, dx
+    asm xchg ah, al
+    asm out dx, al
+    asm cmp ah, 66h
+    asm je L22740
+    asm stc
 L22740:
-        ret
-_detect_adapter endp
+    ;
+}
 
 /* 0x22741 */
-_set_bios_video_mode proc near
-        push bp
-        mov bp, sp
-        mov ax, 40h
-        mov es, ax
-        mov ax, word ptr [bp+4]
-        mov cl, 4
-        shl ax, cl
-        mov bx, 10h
-        and byte ptr es:[bx], 0cfh
-        or byte ptr es:[bx], al
-        mov ax, 3
-        mov bx, 3
-        int 10h
-        pop bp
-        ret
-_set_bios_video_mode endp
+void near set_bios_video_mode(uint16_t bits)
+{
+    asm mov ax, 40h
+    asm mov es, ax
+    asm mov ax, word ptr [bp+4]
+    asm mov cl, 4
+    asm shl ax, cl
+    asm mov bx, 10h
+    asm and byte ptr es:[bx], 0cfh
+    asm or byte ptr es:[bx], al
+    asm mov ax, 3
+    asm mov bx, 3
+    asm int 10h
+}
 
+#pragma option -k
 /* 0x22764 */
-_bios_video_kind proc near
-        push bp
-        mov bp, sp
-        mov ax, 40h
-        mov es, ax
-        mov bx, 10h
-        mov al, byte ptr es:[bx]
-        and al, 30h
-        mov cl, 4
-        shr al, cl
-        xor ah, ah
-        pop bp
-        ret
-L2277c:
-        mov bx, 10h
-        and byte ptr es:[bx], 0cfh
-        or byte ptr es:[bx], 20h
-        mov ax, 3
-        mov bx, 3
-        int 10h
-        ret
-_bios_video_kind endp
-VIDINIT_TEXT ends
+uint16_t near bios_video_kind(void)
+{
+    asm mov ax, 40h
+    asm mov es, ax
+    asm mov bx, 10h
+    asm mov al, byte ptr es:[bx]
+    asm and al, 30h
+    asm mov cl, 4
+    asm shr al, cl
+    asm xor ah, ah
+}
+#pragma option -k-
+
+/* 0x2277c */
+void near set_colour_text_mode(void)
+{
+    asm mov bx, 10h
+    asm and byte ptr es:[bx], 0cfh
+    asm or byte ptr es:[bx], 20h
+    asm mov ax, 3
+    asm mov bx, 3
+    asm int 10h
 }
 #else
 
