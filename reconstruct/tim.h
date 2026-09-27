@@ -1265,7 +1265,7 @@ void     part_flip_windmill(struct part *part);             /* 0x1bce2 */
 void part_step_bellow(struct part *part);             /* 0x176c5 */
 void goal_test_puzzle_2(void);                          /* 0x01476 */
 void goal_test_puzzle_1(void);                          /* 0x0151b */
-void goal_test_puzzles_3_8_27_30_33_45_50_62(void);                          /* 0x015fa */
+void goal_test_pop_balloons(void);                          /* 0x015fa */
 void goal_test_puzzle_4(void);                          /* 0x01cc4 */
 void goal_test_puzzle_5(void);                          /* 0x01cea */
 void goal_test_puzzles_6_58(void);                          /* 0x01d1d */

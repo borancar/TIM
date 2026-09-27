@@ -41,6 +41,8 @@ time, from the front, each BC++ 3.0 `-mm` (no `-O`: the image keeps the
 | --- | --- | --- | --- |
 | `src/collide.c` | 0x00297..0x00f86 | 16 of 16 | `_DATA` 0x258c..0x259c, `_BSS` 0x53fc..0x5428 |
 | `src/stepmach.c` | 0x00f86..0x012ab | 2 of 2 | none |
+| `src/runloop.c` | 0x012ab..0x01476 | 5 of 5 | none |
+| `src/goals.c` | 0x01476..0x02809 (the module may run on) | 94 of 94 | `_DATA` 0x283a..0x2849, `_BSS` 0x5456..0x546c |
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
@@ -2119,7 +2121,7 @@ used it.
 | `intersect_segments` | 0x03ba9 | - | **transcribed, never called** on these screens |
 | `frame_pending` | 0x0b4e2 | - | **transcribed, never called** on these screens |
 | `decode_position` | 0x1e561 | - | **transcribed, not verifiable**: it has no return to detect - the compiler replaced its `ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it jumps back. Covered by decompress_lzss, which runs it on every one of its 226 verified calls. |
-| `goal_test_puzzle_1` | 0x0151b | - | **transcribed, not verifiable**: no scripted run reaches it. A goal test only runs while the machine is running, which needs the editor's START MACHINE pressed, and --click 620:607:37 on top of the two the level screen uses does not start it - 900M instructions went by without one call. The other six are further away still: the goal table is indexed by the puzzle number, so each needs the game driven to its own level. This spec is here because it is the shape the rest will be checked in once there is a way to reach them, and because goal_test_puzzles_3_8_27_30_33_45_50_62 was inverted for weeks and no instrument in this tree could have said so. |
+| `goal_test_puzzle_1` | 0x0151b | - | **transcribed, not verifiable**: no scripted run reaches it. A goal test only runs while the machine is running, which needs the editor's START MACHINE pressed, and --click 620:607:37 on top of the two the level screen uses does not start it - 900M instructions went by without one call. The other six are further away still: the goal table is indexed by the puzzle number, so each needs the game driven to its own level. This spec is here because it is the shape the rest will be checked in once there is a way to reach them, and because goal_test_pop_balloons was inverted for weeks and no instrument in this tree could have said so. |
 | `finish_level` | 0x02710 | - | **transcribed, not verifiable**: it waits for the player twice - for the click the panel asks for, and then for a button of the REPLAY/ADVANCE box. The harness stops the timer and the keyboard while a routine is open, so neither wait can ever end. What it draws is covered by show_level_complete, which is the part that draws and does not wait. |
 | `ask_yes_no` | 0x1567b | - | **transcribed, not verifiable**: it waits for the player. The harness stops the timer and the keyboard while a routine is open, so nothing can arrive to end the wait, and the watchdog abandons it after 30M instructions. What it draws is covered by the screen comparisons, which put the box up and click its buttons. |
 | `message_box` | 0x15698 | - | **transcribed, not verifiable**: it waits for the player. The harness stops the timer and the keyboard while a routine is open, so nothing can arrive to end the wait, and the watchdog abandons it after 30M instructions. What it draws is covered by the screen comparisons, which put the box up and click its buttons. |

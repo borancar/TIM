@@ -4529,14 +4529,6 @@ struct resource {
 
 
 
-/* `finish_level`'s two buttons, DGROUP 0x283a..0x2849: the next module's
-   literal pool, placed in machine.c. */
-struct finish_level_labels {
-    char replay[7];               /* +0x00 [7]  "REPLAY" */
-    char advance[8];              /* +0x07 [8]  "ADVANCE" */
-} PACKED;
-
-extern struct finish_level_labels FINISH_LEVEL_LABELS;
 
 /*
  * ---------------------------------------------------------------------------
