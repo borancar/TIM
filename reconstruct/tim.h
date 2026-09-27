@@ -175,7 +175,8 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VGA:0x15d0 */
 void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* 0x20838 */
-void blit_rows_alt_thunk(void);                     /* 0x2083c */
+void blit_rows_alt_thunk(const uint8_t far * src, int16_t x, int16_t y,
+                         int16_t w, int16_t h);  /* 0x2083c */
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                     uint16_t mode);                     /* VGA:0x1707 */
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y); /* VGA:0x271b */
@@ -1870,7 +1871,7 @@ void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
 void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
                       uint16_t count);                    /* 0x24320 */
 void near emit_packed_value(int16_t value);              /* 0x2451f */
-void near write_literal_run(uint8_t count, const uint8_t * buf); /* 0x245b9 */
+void near write_literal_run(uint8_t count, uint8_t * buf); /* 0x245b9 */
 void near compress_row(uint8_t *src, int16_t remaining); /* 0x24639 */
 void near compress_bitmap(struct bitmap *bmp);              /* 0x24757 */
 int32_t compress_bitmap_list(bmp_ptr_t *list,

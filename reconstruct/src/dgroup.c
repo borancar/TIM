@@ -1936,13 +1936,6 @@ struct chunk_names CHUNK DGROUP_AT(0x4966) = {
     .bmp_vga = "BMP:VGA:",
     .bmp_amg = "BMP:AMG:",
     .mode_r_b = "r",
-    .scr_dim = "SCR:DIM:",
-    .scr_bin = "SCR:BIN:",
-    .mode_r_c = "r",
-    .scr_vga = "SCR:VGA:",
-    .scr_amg = "SCR:AMG:",
-    .mode_r_d = "r",
-    .mode_rb = "rb",
 };
 struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
     .pal_vga = "PAL:VGA:",

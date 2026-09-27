@@ -708,7 +708,23 @@ static inline struct far_ptr dg_far(const void *base, const void *p)
 #ifdef __TURBOC__
 #  define FAR_OF_NEAR(p)       ((uint8_t far *)(p))
 #else
-#  define FAR_OF_NEAR(p)       ((p) != NULL ? (uint8_t *)(p) : dgroup)
+static inline uint8_t *far_of_near(uint8_t *p)
+{
+    return p != NULL ? p : dgroup;
+}
+#  define FAR_OF_NEAR(p)       far_of_near((uint8_t *)(p))
+#endif
+
+/*
+ * **Was the near pointer this was widened from null?** The original tests
+ * the offset word alone, which is the near pointer's value. On the host a
+ * normalised offset is 0 for any block on a paragraph, so the host asks
+ * whether it is the DGROUP:0000 a null widened to. Ours.
+ */
+#ifdef __TURBOC__
+#  define FAR_OF_NEAR_NULL(p)  (FP_OFF(p) == 0)
+#else
+#  define FAR_OF_NEAR_NULL(p)  ((uint8_t *)(p) == dgroup)
 #endif
 
 /*
@@ -1622,14 +1638,6 @@ struct chunk_names {
     char bmp_vga[9];        /* +0x14  0x497a  "BMP:VGA:" */
     char bmp_amg[9];        /* +0x1d  0x4983  "BMP:AMG:" */
     char mode_r_b[2];       /* +0x26  0x498c  "r" */
-    char scr_dim[9];        /* +0x28  0x498e  "SCR:DIM:" */
-    char scr_bin[9];        /* +0x31  0x4997  "SCR:BIN:" */
-    char mode_r_c[2];       /* +0x3a  0x49a0  "r" */
-    char scr_vga[9];        /* +0x3c  0x49a2  "SCR:VGA:" */
-    char scr_amg[9];        /* +0x45  0x49ab  "SCR:AMG:" */
-    char mode_r_d[2];       /* +0x4e  0x49b4  "r" */
-    char mode_rb[3];        /* +0x50  0x49b6  "rb" */
-    uint8_t pad_49b9[1];    /* +0x53  0x49b9 */
 } PACKED;
 
 /* **Not `volatile`.** These are the compiler's string literals; nothing

@@ -371,6 +371,29 @@ the store. `open_sound_file` clears the file and its kind only when it
 closes the previous file, and the port cleared them every time. Neither
 reaches a screen or a sample on the paths the checks drive.
 
+### Borland C++ 2.0 orders `_BSS` by name, and its `MK_FP` was not the one in its own header
+
+files.c, segment 1c25's last module, matched all eighteen routines under
+BC++ 2.0 `-mm -G -O` on 2026-09-27, while its `_BSS` came out at three
+bases. The three uninitialised records were in the wrong order, and no
+order of definition changed that. A scratch file of sixteen `int`s showed
+why: BC++ 2.0 lays `_BSS` out in an order that comes from the names. It is
+neither alphabetical nor by length, and not the reverse first-mention order
+BC++ 3.0 uses (see the account above). Renaming the compressor's record from
+`ENGINE_BITMAP_COMPRESS` to `BITMAP_COMPRESS` put it last, as the image has
+it. The names are ours, so a name is a free choice, and the reason for this
+one is written beside it.
+
+The same module builds its far pointers with a `cwd` before each: the
+segment is converted to a long and shifted, which is Turbo C 2.0's `MK_FP`.
+Every C++ compiler's `<dos.h>` has the `_seg` addition instead, which
+leaves no `cwd`, and the `cwd` also needs the segment to be a signed `int`.
+The module defines that `MK_FP` for itself under Borland.
+
+**A module that matches in its routines and not in its `_BSS` may be
+waiting on a name.** When moving definitions changes nothing, rename one
+object and compile again.
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their

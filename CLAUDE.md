@@ -222,6 +222,7 @@ a case it does not obviously cover.
 - A literal the original writes to is read-only on the host: spell it `WRITABLE_LITERAL`, and run every `check_briefing` screen after data becomes literals - [more](docs/lessons.md#a-literal-the-original-writes-to-is-read-only-on-the-host-and-only-one-check-went-where-it-is-written)
 - A `jmp $+2` in the image means the module went through TASM: when a shared tail lands on the wrong copy, read the `-S` listing before rewriting the C - [more](docs/lessons.md#a-tail-the-compiler-will-not-share-the-images-way-may-be-the-assemblers)
 - A prototype is what the callers push: `silence_driver_far` is called with nothing, and `load_sound_bank` with a fourth argument it never reads - [more](docs/lessons.md#a-prototype-is-what-the-callers-push-not-what-the-callee-reads)
+- Borland C++ 2.0 orders `_BSS` by name, not by definition, so a module whose routines match may be waiting on a rename - [more](docs/lessons.md#borland-c-20-orders-_bss-by-name-and-its-mk_fp-was-not-the-one-in-its-own-header)
 
 ### The hybrid runner
 

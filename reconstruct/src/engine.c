@@ -3404,8 +3404,12 @@ void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
  * A thunk into the video driver: `ljmp [0x438e]`, which on this adapter is
  * VGA:0x0252 - the entry that does nothing at all.
  */
-void blit_rows_alt_thunk(void)
+void blit_rows_alt_thunk(const uint8_t far * src, int16_t x, int16_t y,
+                         int16_t w, int16_t h)
 {
+    /* The same five arguments as `blit_rows_thunk`, which the driver's
+       entry never reads. */
+    (void)src; (void)x; (void)y; (void)w; (void)h;
     vm_nothing();
 }
 

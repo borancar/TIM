@@ -8,13 +8,21 @@
  * compressor.**
  *
  * The last module of the original's **code segment 1c25**, image
- * 0x23b29..0x248f0, split out of engine.c on 2026-09-27. No call forces a
- * boundary inside it, and its literal pool, DGROUP 0x498e..0x49ba, is one
- * run. Functions are in address order and each carries the image offset it
- * was read from.
+ * 0x23b29..0x248fe - a paragraph past the segment's nominal end, where
+ * segment 248f's first routine begins - split out of engine.c on
+ * 2026-09-27. No call forces a boundary inside it, and its literal pool,
+ * DGROUP 0x498e..0x49b9, is one run. Functions are in address order and
+ * each carries the image offset it was read from.
+ *
+ * **Borland C++ 2.0, `-mm -G -O`**, like screenshot.c. Two-byte frames are
+ * `dec sp / dec sp`, which BC++ 2.0 writes and TC++ 3.0 does not; `-G` is
+ * the `inc sp / inc sp` after a one-word call and `-O` the missing jumps to
+ * the epilogue. TC++ 1.01 does both, and assigns SI and DI the other way
+ * round.
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
+ * JUDGE: data 0x498e..0x49b9
  */
 #include <string.h>
 
@@ -22,16 +30,48 @@
 #include "io.h"
 #include "dgroup.h"
 
+#ifdef __TURBOC__
 /*
- * **The open files**, DGROUP 0x6292..0x639e, 0x10c bytes: four `struct
- * open_file` records. `find_file_record` searches them downwards from index 3,
- * and four records of 0x43 bytes run exactly to `ENGINE_SAVED_FILE_RECORD`.
+ * **This module's `MK_FP` is Turbo C 2.0's**: the segment widened to a long
+ * and shifted, not Borland C++'s `_seg` addition. The widening is the `cwd`
+ * the image has before every pointer it builds, and it is there because the
+ * header's segment is a signed `int`. Ours, in the sense that the header it
+ * came from is not known.
  */
-struct engine_open_files {
-    struct open_file rec[4];      /* +0x00 [0x10c] */
+#undef MK_FP
+#define MK_FP(seg, ofs) ((void far *)(((uint32_t)(seg) << 16) | (uint16_t)(ofs)))
+#endif
+
+/*
+ * The module's `_BSS`, 0x6292..0x63f6, is these three records. **Borland
+ * C++ 2.0 orders `_BSS` by name, not by definition**: the order comes from
+ * its symbol table, and moving the definitions changes nothing. So the third
+ * is called `BITMAP_COMPRESS`, which that order puts after the other two as
+ * the image has it; `ENGINE_BITMAP_COMPRESS` came out second. The names are
+ * ours either way.
+ */
+/*
+ * **The bitmap compressor's stream**, DGROUP 0x63e2..0x63f6, 0x14 bytes.
+ */
+struct engine_bitmap_compress {
+    int16_t   pending_rows;       /* +0x00 [2]  counts rows, not pixels */
+    /* **Pairs, and this record is why.** `compress_bitmap_list` measures how
+       much it wrote as `out.seg - out_start.seg` paragraphs *plus*
+       `out.off - out_start.off` bytes, subtracting the halves separately -
+       which is a distance no single pointer can give. It also renormalises
+       `out` by hand between bitmaps and steps its offset alone in between. */
+    uint8_t far *out_start;     /* +0x02 [4]  where the output started, and
+                                            does not move */
+    uint16_t  block_paras;          /* +0x06 [2] */
+    uint8_t far *src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
+                                     only the offset steps */
+    uint8_t far *out;           /* +0x0c [4]  where the next byte goes */
+    uint8_t  *row_buffer;         /* +0x10 [2]  the row buffer compress_row works in, 0x7d0 bytes */
+    int8_t    mode;               /* +0x12      0x243bf sets it, a byte; it chooses how the runs are written */
+    uint8_t   pad_13;             /* +0x13 */
 } PACKED;
 
-struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
+struct engine_bitmap_compress BITMAP_COMPRESS DGROUP_WAS(0x63e2);
 
 /*
  * **The saved file record**, DGROUP 0x639e..0x63e2, 0x44 bytes. `seek_named_chunk` copies a
@@ -53,27 +93,15 @@ struct engine_saved_file_record {
 struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD DGROUP_BSS(0x639e);
 
 /*
- * **The bitmap compressor's stream**, DGROUP 0x63e2..0x63f6, 0x14 bytes.
+ * **The open files**, DGROUP 0x6292..0x639e, 0x10c bytes: four `struct
+ * open_file` records. `find_file_record` searches them downwards from index 3,
+ * and four records of 0x43 bytes run exactly to `ENGINE_SAVED_FILE_RECORD`.
  */
-struct engine_bitmap_compress {
-    uint16_t  pending_rows;       /* +0x00 [2]  counts rows, not pixels */
-    /* **Pairs, and this record is why.** `compress_bitmap_list` measures how
-       much it wrote as `out.seg - out_start.seg` paragraphs *plus*
-       `out.off - out_start.off` bytes, subtracting the halves separately -
-       which is a distance no single pointer can give. It also renormalises
-       `out` by hand between bitmaps and steps its offset alone in between. */
-    uint8_t far *out_start;     /* +0x02 [4]  where the output started, and
-                                            does not move */
-    uint16_t  block_paras;          /* +0x06 [2] */
-    uint8_t far *src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
-                                     only the offset steps */
-    uint8_t far *out;           /* +0x0c [4]  where the next byte goes */
-    uint8_t  *row_buffer;         /* +0x10 [2]  the row buffer compress_row works in, 0x7d0 bytes */
-    uint8_t   mode;               /* +0x12      0x243bf sets it, a byte; it chooses how the runs are written */
-    uint8_t   pad_13;             /* +0x13 */
+struct engine_open_files {
+    struct open_file rec[4];      /* +0x00 [0x10c] */
 } PACKED;
 
-struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_WAS(0x63e2);
+struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
 
 /*
  * 0x23b29
@@ -99,139 +127,119 @@ struct engine_bitmap_compress ENGINE_BITMAP_COMPRESS DGROUP_WAS(0x63e2);
  */
 uint16_t load_screen_plain(char *name)
 {
-    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
-    int16_t w_at[8];          /* [bp-0x10] */
-    int16_t h_at;          /* [bp-0x12] */
-
-    uint16_t opened = 0;                         /* [bp-4]  */
-    uint16_t kind = 0;                           /* [bp-6]  */
-    int16_t res = 0;                             /* [bp-2]  */
-    uint8_t *buf = NULL;                         /* [bp-0xe], [bp-0xc] */
-    uint16_t bytes;                              /* [bp-8]  */
-    uint16_t half;                               /* [bp-0x14] */
-    uint16_t band;                               /* [bp-0xa] */
-    int16_t si, di;
-    uint32_t r;
-
-    w_at[0] = 0x140;
-    h_at = 0xc8;
+    int16_t res;
+    int16_t opened;
+    int16_t kind;
+    uint16_t bytes;
+    uint16_t band;
+    uint8_t far *buf;
+    int16_t w = 0x140;
+    int16_t h = 0xc8;
+    uint16_t half;
+    register int16_t si;
+    register int16_t di;
 
     /*
-     * 0x23b3c is `push cs / call 0x1e94c` - `restore_write_mode`, not
-     * `vm_reset_attributes`. The two are both "put the VGA back", which is how
-     * the wrong one got written here, and the mistake is invisible on screen:
-     * resetting the attribute controller to the identity palette it already
-     * holds changes no pixel. The verifier saw it at once - the original's
-     * first eight events are the graphics controller and sequencer, the port's
-     * were thirty writes to 0x3c0.
+     * `restore_write_mode`, not `vm_reset_attributes`. The two are both "put
+     * the VGA back", which is how the wrong one got written here once, and
+     * the mistake is invisible on screen; the verifier saw it at once.
      */
     restore_write_mode();
+    kind = 0;
 
-    if (file_record_valid(handle) == 0) {
+    /* A handle, or a name to open - and the name's own slot then holds the
+       handle. */
+    if (file_record_valid((FILE *)name) == 0) {
         opened = 1;
-        handle = open_file_record(name);
+        name = (char *)open_file_record(name);
+    } else {
+        opened = 0;
     }
 
-    if (seek_named_chunk(handle, CHUNK.scr_dim, 0) != -1) {
-        game_fread((uint8_t *)w_at, 1, 2, handle);
-        game_fread((uint8_t *)&h_at, 1, 2, handle);
+    if (seek_named_chunk((FILE *)name, "SCR:DIM:", 0) != -1L) {
+        game_fread((uint8_t *)&w, 1, 2, (FILE *)name);
+        game_fread((uint8_t *)&h, 1, 2, (FILE *)name);
     }
 
-    if (seek_named_chunk(handle, CHUNK.scr_bin, 0) == -1)
-        goto close;
+    if (seek_named_chunk((FILE *)name, "SCR:BIN:", 0) != -1L) {
+        if ((res = open_resource(0, (FILE *)name, "r",
+                                 file_record_size((FILE *)name))) >= 0) {
+            bytes = (half = w >> 1) << 7;
 
-    r = file_record_size(handle);
-    res = open_resource(0, handle, CHUNK.mode_r_c, r);
-    if (res < 0)
-        goto close;
+            /* The heap's answer widened with DS, halving the request until
+               it is granted or would be less than a row pair. */
+            do
+                buf = FAR_OF_NEAR(heap_malloc_far(bytes));
+            while (FAR_OF_NEAR_NULL(buf) && (bytes >>= 1) >= half);
 
-    half = (uint16_t)(w_at[0] >> 1);
-    bytes = (uint16_t)(half << 7);
+            if (!FAR_OF_NEAR_NULL(buf)) {
+                di = 0;
+                si = bytes / half;
+                band = bytes;
+                if (si > h)
+                    si = h;
 
-    do {
-        /* The guest holds DGROUP's segment beside the heap's answer - even
-           for a failure - and tests the offset. */
-        buf = heap_malloc_far(bytes);
-        if (buf != NULL)
-            break;
-        bytes = (uint16_t)(bytes >> 1);
-    } while (bytes >= half);
+                while (di < h) {
+                    read_resource(res, buf, band);
+                    blit_rows_thunk(buf, 0, di, half << 1, si);
 
-    if (buf == NULL)
-        goto close_resource_only;
+                    di += si;
+                    if (di + si > h) {
+                        si = h - di;
+                        band = si * half;
+                    }
+                }
 
-    di = 0;
-    si = (int16_t)(bytes / half);
-    band = bytes;
-    if (si > h_at)
-        si = h_at;
+                kind = 1;
 
-    while (di < h_at) {
-        read_resource(res, buf, band);
-        blit_rows_thunk(buf, 0, di,
-                        (int16_t)(half << 1), si);
+                if (VMDS.vga_chunks != 0) {
+                    close_resource(res);
 
-        di = (int16_t)(di + si);
-        if ((int16_t)(di + si) > h_at) {
-            si = (int16_t)(h_at - di);
-            band = (uint16_t)(si * half);
+                    if (seek_named_chunk((FILE *)name, "SCR:VGA:", 0) != -1L)
+                        kind = 5;
+                    else if (seek_named_chunk((FILE *)name, "SCR:AMG:", 0) != -1L)
+                        kind = 6;
+
+                    if (kind >= 5
+                        && (res = open_resource(0, (FILE *)name, "r",
+                                                file_record_size((FILE *)name))) >= 0) {
+                        di = 0;
+                        si = bytes / half;
+                        if (kind == 6)
+                            bytes >>= 2;
+                        band = bytes;
+                        if (si > h)
+                            si = h;
+
+                        while (di < h) {
+                            read_resource(res, buf, band);
+
+                            if (kind == 6)
+                                expand_1bpp_to_4bpp(buf, buf, band);
+
+                            blit_rows_alt_thunk(buf, 0, di, half << 1, si);
+
+                            di += si;
+                            if (di + si > h) {
+                                si = h - di;
+                                band = si * half;
+                                if (kind == 6)
+                                    band >>= 2;
+                            }
+                        }
+                    }
+                }
+
+                heap_free_far((uint8_t *)buf);
+            }
+
+            close_resource(res);
         }
     }
 
-    kind = 1;
-
-    if (VMDS.vga_chunks == 0)
-        goto free_buf;
-
-    close_resource(res);
-
-    if (seek_named_chunk(handle, CHUNK.scr_vga, 0) != -1)
-        kind = 5;
-    else if (seek_named_chunk(handle, CHUNK.scr_amg, 0) != -1)
-        kind = 6;
-
-    if (kind < 5)
-        goto free_buf;
-
-    r = file_record_size(handle);
-    res = open_resource(0, handle, CHUNK.mode_r_d, r);
-    if (res < 0)
-        goto free_buf;
-
-    di = 0;
-    si = (int16_t)(bytes / half);
-    if (kind == 6)
-        bytes = (uint16_t)(bytes >> 2);
-    band = bytes;
-    if (si > h_at)
-        si = h_at;
-
-    while (di < h_at) {
-        read_resource(res, buf, band);
-
-        if (kind == 6)
-            expand_1bpp_to_4bpp(buf, buf, band);
-
-        blit_rows_alt_thunk();
-
-        di = (int16_t)(di + si);
-        if ((int16_t)(di + si) > h_at) {
-            si = (int16_t)(h_at - di);
-            band = (uint16_t)(si * half);
-            if (kind == 6)
-                band = (uint16_t)(band >> 2);
-        }
-    }
-
-free_buf:
-    heap_free_far(buf);
-
-close_resource_only:
-    close_resource(res);
-
-close:
     if (opened != 0)
-        close_file_record(handle);
+        close_file_record((FILE *)name);
+
     return kind;
 }
 
@@ -365,7 +373,7 @@ FILE *open_file_record(char *name)
     if ((rec = find_file_record(0)) == NULL)
         return 0;
 
-    if ((rec->file_ptr = dg_near(dgroup, game_fopen(name, CHUNK.mode_rb))) == 0)
+    if ((rec->file_ptr = dg_near(dgroup, game_fopen(name, "rb"))) == 0)
         return 0;
 
     game_fseek(FILEREC_PTR(rec->file_ptr), 0L, 2);
@@ -423,39 +431,28 @@ int32_t near restore_file_record(struct open_file *rec)
 int32_t seek_named_chunk(FILE *handle, const char * path,
                           int16_t index)
 {
-    struct open_file *rec;
-    int16_t di = 0;
     int16_t keep;
+    register struct open_file *rec;
+    register int16_t len;
 
-    if (handle == 0)
-        return -1;
+    if (handle == 0 || (rec = find_file_record(handle)) == NULL)
+        return -1L;
 
-    rec = find_file_record(handle);
-    if (rec == NULL)
-        return -1;
+    len = -1;
+    while (path[++len] != 0)
+        ;
 
-    while (path[di] != 0)
-        di++;
-
-    if (di == 0 || (di & 3) != 0)
-        return -1;
+    if (len == 0 || (len & 3) != 0)
+        return -1L;
 
     ENGINE_SAVED_FILE_RECORD.rec = *rec;
 
-    /* The record's own copy of the path walked so far, at +2. It is reached
-       through a cast because `OPENFILE` is `volatile` - the record is guest
-       memory another routine writes - and an argument is not. */
-    if (string_equal_upto(path, (const char *)rec->path,
-                          0x19) != 0) {
-        if (index == 0) {
-            int32_t pos = game_ftell(FILEREC_PTR(rec->file_ptr));
-
-            if ((uint32_t)pos == rec->pos)
-                goto at_position;
-        }
+    if (string_equal_upto(path, (const char *)rec->path, 0x19) != 0) {
+        if (index == 0 && (uint32_t)game_ftell(FILEREC_PTR(rec->file_ptr)) == rec->pos)
+            goto at_position;
 
         if (index == -1) {
-            game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
+            game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
             goto at_position;
         }
 
@@ -463,20 +460,18 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
             if (index != 0) {
                 keep = index;
                 if (rec->matched < index) {
-                    index = (int16_t)(index - rec->matched);
-                } else if (rec->matched == index) {
-                    game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
-                    goto at_position;
-                } else {
+                    index -= rec->matched;
+                } else if (rec->matched > index) {
                     reset_file_record(rec);
+                } else {
+                    game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
+                    goto at_position;
                 }
             } else {
-                index = 1;
-                keep = (int16_t)(rec->matched + 1);
+                keep = rec->matched + (index = 1);
             }
         } else {
-            keep = index;
-            if (index != 0)
+            if ((keep = index) != 0)
                 reset_file_record(rec);
             else
                 index = 1;
@@ -491,84 +486,54 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
         }
     }
 
-    /* 0x240f8 - step over whatever chunk the record is sitting on. */
-    {
-        uint16_t bx = (uint16_t)(((rec->depth >> 2) << 2) & 0xffff);
+    /* Step over whatever chunk the record is sitting on. */
+    if ((rec->bound[rec->depth >> 2] & 0x80000000L) == 0)
+        rec->pos += rec->size;
+    game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
 
-        if ((rec->bound[bx >> 2] & 0x80000000u) == 0) {
-            rec->pos += rec->size;
-        }
-
-        game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
-    }
-
-    for (;;) {
-        /* 0x24290 - one match gone by. */
-        if (index-- == 0)
-            break;
-
+    while (index-- != 0) {
         for (;;) {
-            uint16_t bx = (uint16_t)(((rec->depth >> 2) << 2) & 0xffff);
-
-            /* 0x24136 - has this chunk run out? */
-            if ((rec->bound[bx >> 2] & 0x7fffffffu)
-                    == rec->pos) {
+            /* Has this chunk run out? */
+            if ((rec->bound[rec->depth >> 2] & 0x7fffffffL) == rec->pos) {
                 if (rec->depth == 0)
                     return restore_file_record(rec);
-                rec->depth = (int16_t)(rec->depth - 4);
+                rec->depth -= 4;
                 continue;
             }
 
-            if ((rec->bound[bx >> 2] & 0x80000000u) == 0) {
+            /* A data chunk is skipped over. */
+            if ((rec->bound[rec->depth >> 2] & 0x80000000L) == 0) {
                 rec->pos += rec->size;
-                game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
+                game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
                 continue;
             }
 
-            /* 0x241aa - descend into a container. */
+            /* A container is descended into. */
             if (game_fread(&rec->path[rec->depth], 1, 4,
                            FILEREC_PTR(rec->file_ptr)) != 4)
                 return restore_file_record(rec);
 
-            rec->depth = (int16_t)(rec->depth + 4);
-            if (rec->depth >= 0x18)
+            if ((rec->depth += 4) >= 0x18)
                 return restore_file_record(rec);
 
             rec->path[rec->depth] = 0;
-
             rec->pos += 8;
 
             if (game_fread((uint8_t *)&rec->size, 4, 1,
-                       FILEREC_PTR(rec->file_ptr)) != 1)
+                           FILEREC_PTR(rec->file_ptr)) != 1)
                 return restore_file_record(rec);
 
-            {
-                uint32_t end = rec->pos + rec->size;
+            rec->bound[rec->depth >> 2] = rec->pos + rec->size;
 
-                bx = (uint16_t)(((rec->depth >> 2) << 2) & 0xffff);
-                rec->bound[bx >> 2] = end;
-            }
+            /* The container flag is taken off the size here rather than
+               masked at every read. */
+            rec->size &= 0x7fffffffL;
 
-            /* Bit 15 of the size's high word is the container flag, and
-               is taken off here rather than masked at every read. */
-            rec->size &= 0x7fffffff;
-
-            if (rec->size < 0)
+            if (rec->size < 0 || rec->size >= (rec->bound[0] & 0x7fffffffL))
                 return restore_file_record(rec);
 
-            {
-                /* The outermost bound, with its container flag masked off. */
-                uint32_t top = rec->bound[0] & 0x7fffffffu;
-
-                if ((uint32_t)rec->size >= top)
-                    return restore_file_record(rec);
-            }
-
-            if (rec->depth != di)
-                continue;
-
-            if (string_equal_upto((const char *)rec->path, path,
-                                  (uint16_t)di) != 0)
+            if (rec->depth == len
+                && string_equal_upto((const char *)rec->path, path, len) != 0)
                 break;
         }
     }
@@ -576,7 +541,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
     rec->matched = keep;
 
 at_position:
-    return (int32_t)rec->pos;
+    return rec->pos;
 }
 
 /*
@@ -592,12 +557,8 @@ int32_t file_record_size(FILE *handle)
 {
     struct open_file *rec;
 
-    if (handle == 0)
-        return -1;
-
-    rec = find_file_record(handle);
-    if (rec == NULL)
-        return -1;
+    if (handle == 0 || (rec = find_file_record(handle)) == NULL)
+        return -1L;
 
     return rec->size;
 }
@@ -614,13 +575,9 @@ int32_t file_record_size(FILE *handle)
  */
 int16_t close_file_record(FILE *handle)
 {
-    struct open_file *rec;
+    register struct open_file *rec;
 
-    if (handle == 0)
-        return 0;
-
-    rec = find_file_record(handle);
-    if (rec == NULL)
+    if (handle == 0 || (rec = find_file_record(handle)) == NULL)
         return 0;
 
     rec->file_ptr = 0;
@@ -660,33 +617,36 @@ int16_t file_record_valid(FILE *handle)
 void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
                       uint16_t count)
 {
-    /* Four plane cursors into one block, `count` apart. Only ever read
-       through, so pointers - and the 16-bit wrap the original's
-       `src_off + 3 * count` has is given up here, which is the standing
-       trade for the `far` tag: the four planes are one allocation and
-       cannot straddle a segment. */
-    const uint8_t far * p0 = src;
-    const uint8_t far * p1 = src + count;
-    const uint8_t far * p2 = src + 2 * count;
-    const uint8_t far * p3 = src + 3 * count;
+    /* Four plane cursors into one block, `count` apart; the first is `src`
+       itself. The four planes are one allocation and cannot straddle a
+       segment, so offset arithmetic is pointer arithmetic. */
+    const uint8_t far *p1;
+    const uint8_t far *p2;
+    const uint8_t far *p3;
     uint8_t mask = 0x80;
+    register uint8_t v;
+
+    p1 = src + count;
+    p2 = p1 + count;
+    p3 = p2 + count;
 
     while (count != 0) {
-        uint8_t v = 0;
+        v = 0;
+        if ((*src & mask) != 0)
+            v |= 1;
+        if ((*p1 & mask) != 0)
+            v |= 2;
+        if ((*p2 & mask) != 0)
+            v |= 4;
+        if ((*p3 & mask) != 0)
+            v |= 8;
 
-        if ((*p0 & mask) != 0) v = (uint8_t)(v | 1);
-        if ((*p1 & mask) != 0) v = (uint8_t)(v | 2);
-        if ((*p2 & mask) != 0) v = (uint8_t)(v | 4);
-        if ((*p3 & mask) != 0) v = (uint8_t)(v | 8);
+        *dst++ = v;
 
-        *dst = v;
-        dst++;
-
-        mask = (uint8_t)(mask >> 1);
-        if (mask == 0) {
+        if (!(mask >>= 1)) {
             count--;
             mask = 0x80;
-            p0++;
+            src++;
             p1++;
             p2++;
             p3++;
@@ -728,33 +688,33 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
     uint16_t resize_seg;
     uint16_t pixels;
     uint8_t far *blk;
-    bmp_ptr_t *si;
-    int16_t di;
+    register bmp_ptr_t *si;
+    register int16_t di;
 
-    ENGINE_BITMAP_COMPRESS.mode = (uint8_t)(colours - 1);
-    ENGINE_BITMAP_COMPRESS.row_buffer = heap_malloc_far(0x7d0);
+    BITMAP_COMPRESS.mode = colours - 1;
+    BITMAP_COMPRESS.row_buffer = heap_malloc_far(0x7d0);
 
     si = list;
 
     /* The first bitmap's own pixels, which is where the output begins. */
-    ENGINE_BITMAP_COMPRESS.out = ENGINE_BITMAP_COMPRESS.out_start =
-        MK_FP(BMP_PTR(list[0])->data.seg, BMP_PTR(list[0])->data.off);
+    BITMAP_COMPRESS.out = BITMAP_COMPRESS.out_start =
+        MK_FP((int16_t)BMP_PTR(list[0])->data.seg, BMP_PTR(list[0])->data.off);
 
     while (*si != 0) {
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
-        seg = FP_SEG(ENGINE_BITMAP_COMPRESS.out);
-        di = FP_OFF(ENGINE_BITMAP_COMPRESS.out);
-        at = ENGINE_BITMAP_COMPRESS.out = MK_FP(seg + (di >> 4), di & 0x0f);
+        seg = FP_SEG(BITMAP_COMPRESS.out);
+        di = FP_OFF(BITMAP_COMPRESS.out);
+        at = BITMAP_COMPRESS.out = MK_FP(seg + (di >> 4), di & 0x0f);
 
-        if ((int8_t)VMDS.vga_chunks == 0) {
+        if (!(int8_t)VMDS.vga_chunks) {
             pixels = BMP_PTR(*si)->width * BMP_PTR(*si)->height;
             blk = DOS_ALLOC_PTR(DOS_ALLOC(pixels, 0));
 
             pixels >>= 3;
 
             planes_to_chunky(blk,
-                             MK_FP(BMP_PTR(*si)->data.seg, BMP_PTR(*si)->data.off),
+                             MK_FP((int16_t)BMP_PTR(*si)->data.seg, BMP_PTR(*si)->data.off),
                              pixels);
 
             BMP_PTR(*si)->data.seg = FP_SEG(blk);
@@ -774,23 +734,24 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
         si++;
     }
 
-    seg = FP_SEG(ENGINE_BITMAP_COMPRESS.out) - FP_SEG(ENGINE_BITMAP_COMPRESS.out_start);
-    di = FP_OFF(ENGINE_BITMAP_COMPRESS.out) - FP_OFF(ENGINE_BITMAP_COMPRESS.out_start);
-    ENGINE_BITMAP_COMPRESS.block_paras = seg + ((di + 0x0f) >> 4);
+    seg = FP_SEG(BITMAP_COMPRESS.out) - FP_SEG(BITMAP_COMPRESS.out_start);
+    di = FP_OFF(BITMAP_COMPRESS.out) - FP_OFF(BITMAP_COMPRESS.out_start);
+    BITMAP_COMPRESS.block_paras = seg + ((di + 0x0f) >> 4);
 
     /* Shrink the block to what the compressed form needed: INT 21h AH=4Ah on
        the first bitmap's segment. */
     resize_seg = BMP_PTR(list[0])->data.seg;
 #ifdef __TURBOC__
-    _BX = ENGINE_BITMAP_COMPRESS.block_paras;
-    _ES = resize_seg;
+    _BX = BITMAP_COMPRESS.block_paras;
+    _AX = resize_seg;
+    _ES = _AX;
     _AH = 0x4a;
     geninterrupt(0x21);
 #else
-    io_dos_resize(resize_seg, ENGINE_BITMAP_COMPRESS.block_paras);
+    io_dos_resize(resize_seg, BITMAP_COMPRESS.block_paras);
 #endif
 
-    heap_free_far(ENGINE_BITMAP_COMPRESS.row_buffer);
+    heap_free_far(BITMAP_COMPRESS.row_buffer);
 
     return (seg << 4) + di;
 }
@@ -814,46 +775,33 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
  *
  * A **** routine: its argument is at [bp+4].
  */
-void near emit_packed_value(int16_t value)
+void near emit_packed_value(register int16_t value)
 {
-    int16_t dx = value;
+    if (BITMAP_COMPRESS.pending_rows != 0) {
+        if (value < 0) {
+            value = -value;
+            *BITMAP_COMPRESS.out++ = (uint8_t)(value & 0x3f);
 
-    if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
-        if (dx < 0) {
-            dx = (int16_t)(-dx);
+            value = (value & 0x1c0) >> 6;
+            if (value != 0)
+                *BITMAP_COMPRESS.out++ = (uint8_t)(value & 0x3f);
 
-            *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dx & 0x3f);
-            ENGINE_BITMAP_COMPRESS.out++;
-
-            dx = (int16_t)((dx & 0x1c0) >> 6);
-
-            if (dx != 0) {
-                *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dx & 0x3f);
-                ENGINE_BITMAP_COMPRESS.out++;
-            }
-
-            while (--ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
-                *ENGINE_BITMAP_COMPRESS.out = 0;
-                ENGINE_BITMAP_COMPRESS.out++;
-            }
+            while (--BITMAP_COMPRESS.pending_rows)
+                *BITMAP_COMPRESS.out++ = 0;
             return;
         }
 
-        while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-            *ENGINE_BITMAP_COMPRESS.out = 0;
-            ENGINE_BITMAP_COMPRESS.out++;
-        }
-        ENGINE_BITMAP_COMPRESS.pending_rows = 0;
+        while (BITMAP_COMPRESS.pending_rows-- != 0)
+            *BITMAP_COMPRESS.out++ = 0;
+        BITMAP_COMPRESS.pending_rows = 0;
     }
 
-    while (dx > 0x3f) {
-        *ENGINE_BITMAP_COMPRESS.out = 0x7f;
-        ENGINE_BITMAP_COMPRESS.out++;
-        dx = (int16_t)(dx - 0x3f);
+    while (value > 0x3f) {
+        *BITMAP_COMPRESS.out++ = 0x7f;
+        value -= 0x3f;
     }
 
-    *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(0x40 | (dx & 0xff));
-    ENGINE_BITMAP_COMPRESS.out++;
+    *BITMAP_COMPRESS.out++ = (uint8_t)(0x40 | value);
 }
 
 /*
@@ -871,32 +819,26 @@ void near emit_packed_value(int16_t value)
  * The count is a byte and is compared zero-extended, so a run is at most 255
  * pixels. A **** routine: its arguments are at [bp+4] and [bp+6].
  */
-void near write_literal_run(uint8_t count, const uint8_t * buf)
+void near write_literal_run(register uint8_t count, uint8_t * buf)
 {
-    uint8_t dl = count;
-    int16_t si;
+    uint8_t v;
+    register int16_t si;
 
-    *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(dl | 0xc0);
-    ENGINE_BITMAP_COMPRESS.out++;
+    *BITMAP_COMPRESS.out++ = (uint8_t)(count | 0xc0);
 
-    if ((dl & 1) != 0) {
-        ((uint8_t *)buf)[dl] = 0;
-        dl++;
+    if ((count & 1) != 0) {
+        buf[count] = 0;
+        count++;
     }
 
-    if (ENGINE_BITMAP_COMPRESS.mode == 0x0f) {
-        for (si = 0; (int16_t)dl > si; si += 2) {
-            uint8_t v = (uint8_t)((buf[si] << 4)
-                                  | buf[si + 1]);
-
-            *ENGINE_BITMAP_COMPRESS.out = v;
-            ENGINE_BITMAP_COMPRESS.out++;
+    if (BITMAP_COMPRESS.mode == 0x0f) {
+        for (si = 0; count > si; si += 2) {
+            v = (uint8_t)((buf[si] << 4) | buf[si + 1]);
+            *BITMAP_COMPRESS.out++ = v;
         }
     } else {
-        for (si = 0; (int16_t)dl > si; si++) {
-            *ENGINE_BITMAP_COMPRESS.out = buf[si];
-            ENGINE_BITMAP_COMPRESS.out++;
-        }
+        for (si = 0; count > si; si++)
+            *BITMAP_COMPRESS.out++ = buf[si];
     }
 }
 
@@ -924,23 +866,18 @@ void near write_literal_run(uint8_t count, const uint8_t * buf)
  */
 void near compress_row(uint8_t *src, int16_t remaining)
 {
-    uint8_t buf[260];                  /* [bp-0x104], 0x101 bytes */
-
-    const uint8_t *di = src;
-    uint8_t literals = 0;               /* [bp-3] */
-    uint8_t run = 0;                    /* [bp-2] */
-    uint8_t value = 0;                  /* [bp-1] */
+    uint8_t value;
+    uint8_t run = 0;
+    uint8_t literals = 0;
+    uint8_t buf[0x100];
+    register uint8_t *si;
 
     while (remaining > 0) {
-        const uint8_t *si = di;
-
+        si = src;
         run = 1;
-        value = *si;
-        si++;
-        while (*si == value) {
-            si++;
+        value = *si++;
+        while (*si++ == value)
             run++;
-        }
 
         if ((int16_t)run >= DG49BA.min_run) {
             if ((int16_t)run > remaining)
@@ -951,29 +888,25 @@ void near compress_row(uint8_t *src, int16_t remaining)
                 literals = 0;
             }
 
-            remaining = (int16_t)(remaining - run);
-            di += run;
+            remaining -= run;
+            src += run;
 
             while (run > 0x3f) {
-                run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                *ENGINE_BITMAP_COMPRESS.out = 0xbf;
-                ENGINE_BITMAP_COMPRESS.out++;
-                *ENGINE_BITMAP_COMPRESS.out = value;
-                ENGINE_BITMAP_COMPRESS.out++;
+                run += 0xc1;                    /* less 0x3f */
+                *BITMAP_COMPRESS.out++ = 0xbf;
+                *BITMAP_COMPRESS.out++ = value;
             }
 
             if (run != 0) {
-                *ENGINE_BITMAP_COMPRESS.out = (uint8_t)(0x80 | run);
-                ENGINE_BITMAP_COMPRESS.out++;
-                *ENGINE_BITMAP_COMPRESS.out = value;
-                ENGINE_BITMAP_COMPRESS.out++;
+                *BITMAP_COMPRESS.out++ = (uint8_t)(0x80 | run);
+                *BITMAP_COMPRESS.out++ = value;
             }
             run = 0;
         } else {
             remaining--;
             buf[literals] = value;
             literals++;
-            di++;
+            src++;
         }
 
         if (literals == 0x3f) {
@@ -1012,88 +945,79 @@ void near compress_row(uint8_t *src, int16_t remaining)
  *
  * A **** routine.
  */
-void near compress_bitmap(struct bitmap *bmp)
+void near compress_bitmap(register struct bitmap *bmp)
 {
-    uint8_t rowbuf[334];               /* [bp-0x14e] */
+    register int16_t di = 0;            /* pixels waiting in the row buffer */
+    int16_t x;
+    int16_t y;
+    int16_t blanks = 0;                 /* and it does go negative */
+    uint8_t least = 0xff;
+    char v;
+    char *at;
+    uint8_t far *hdr;
+    char rowbuf[0x140];
 
-    uint16_t di = 0;                    /* pixels waiting in the row buffer */
-    int16_t blanks = 0;                 /* [bp-6], and it does go negative */
-    uint8_t least = 0xff;               /* [bp-7] */
-    uint8_t *hdr;
-    int16_t x, y;
+    BITMAP_COMPRESS.pending_rows = 0;
+    BITMAP_COMPRESS.block_paras = 0;
 
-    ENGINE_BITMAP_COMPRESS.pending_rows = 0;
-    ENGINE_BITMAP_COMPRESS.block_paras = 0;
+    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
 
-    ENGINE_BITMAP_COMPRESS.src = dg_far_ptr_rev(bmp->data);
-
-    if (ENGINE_BITMAP_COMPRESS.mode == 0x0f && VMDS.vga_chunks != 0) {
-        for (y = 0; bmp->height > y; y++)
+    if (BITMAP_COMPRESS.mode == 0x0f && VMDS.vga_chunks != 0) {
+        for (y = 0; bmp->height > y; y++) {
             for (x = 0; bmp->width > x; x++) {
-                uint8_t v = *ENGINE_BITMAP_COMPRESS.src;
-
-                ENGINE_BITMAP_COMPRESS.src++;
-                if (v != 0 && v < least)
+                v = *BITMAP_COMPRESS.src++;
+                if (v != 0 && (uint8_t)v < least)
                     least = v;
             }
+        }
     } else {
         least = 1;
     }
 
-    ENGINE_BITMAP_COMPRESS.src = dg_far_ptr_rev(bmp->data);
+    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
 
-    hdr = ENGINE_BITMAP_COMPRESS.out;
-    ENGINE_BITMAP_COMPRESS.out++;
+    hdr = BITMAP_COMPRESS.out++;
 
     for (y = 0; bmp->height > y; y++) {
-        uint8_t *at = rowbuf;
-
-        far_memcpy((uint8_t *)rowbuf,
-                   ENGINE_BITMAP_COMPRESS.src,
-                   (uint16_t)bmp->width);
-        ENGINE_BITMAP_COMPRESS.src += bmp->width;
+        at = rowbuf;
+        far_memcpy((uint8_t far *)rowbuf, BITMAP_COMPRESS.src, bmp->width);
+        BITMAP_COMPRESS.src += bmp->width;
 
         for (x = 0; bmp->width > x; x++) {
-            uint8_t v = (*at);
-
-            at++;
-
-            if (v == 0) {
+            v = *at++;
+            if (!v) {
                 if (di != 0) {
-                    compress_row(ENGINE_BITMAP_COMPRESS.row_buffer, (int16_t)di);
+                    compress_row(BITMAP_COMPRESS.row_buffer, di);
                     di = 0;
                 }
                 blanks++;
-                continue;
-            }
+            } else {
+                v = (uint8_t)((v - least) & BITMAP_COMPRESS.mode);
+                BITMAP_COMPRESS.row_buffer[di] = v;
+                di++;
 
-            v = (uint8_t)((v - least) & ENGINE_BITMAP_COMPRESS.mode);
-            ENGINE_BITMAP_COMPRESS.row_buffer[di] = v;
-            di++;
-
-            if (blanks != 0) {
-                emit_packed_value(blanks);
-                blanks = 0;
-            } else if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
-                while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
-                    *ENGINE_BITMAP_COMPRESS.out = 0;
-                    ENGINE_BITMAP_COMPRESS.out++;
+                if (blanks != 0) {
+                    emit_packed_value(blanks);
+                    blanks = 0;
+                } else if (BITMAP_COMPRESS.pending_rows != 0) {
+                    while (BITMAP_COMPRESS.pending_rows-- != 0)
+                        *BITMAP_COMPRESS.out++ = 0;
+                    BITMAP_COMPRESS.pending_rows = 0;
                 }
-                ENGINE_BITMAP_COMPRESS.pending_rows = 0;
             }
         }
 
         if (di != 0) {
-            compress_row(ENGINE_BITMAP_COMPRESS.row_buffer, (int16_t)di);
+            compress_row(BITMAP_COMPRESS.row_buffer, di);
             di = 0;
         }
 
-        blanks = (int16_t)(blanks - bmp->width);
-        ENGINE_BITMAP_COMPRESS.pending_rows++;
+        blanks -= bmp->width;
+        BITMAP_COMPRESS.pending_rows++;
     }
 
     if (di != 0)
-        compress_row(ENGINE_BITMAP_COMPRESS.row_buffer, (int16_t)di);
+        compress_row(BITMAP_COMPRESS.row_buffer, di);
 
     emit_packed_value(0);
 
