@@ -1408,48 +1408,37 @@ void compute_link_endpoints(register struct rope *link)
  * The global at 0x4e6b holding 0x2000 skips the rest lengths entirely, leaving
  * whatever they were.
  */
-void refresh_link_geometry(struct belt *link)
+void refresh_link_geometry(register struct belt *link)
 {
-    struct part *a, *b, *chain;
-    struct belt *pt;
-    struct part *holder;
-    int16_t idx, j;
+    register struct part *a;            /* the first end, then the chain */
+    uint16_t idx;                       /* [bp-2] */
+    uint16_t k;                         /* [bp-4] */
+    int16_t j;                          /* [bp-6] */
+    struct part *b;                     /* [bp-8] */
 
-    a = PART_PTR(link->end_a_ptr);
-    if (a == PART_NONE)
-        return;
-
-    idx = ((int8_t)link->slot_a);
-    link->pt[0][0].x = (int16_t)(a->box[0].x + a->attach[idx].x);
-    link->pt[0][0].y = (int16_t)(a->box[0].y + a->attach[idx].y);
-
-    b = PART_PTR(link->end_b_ptr);
-    if (b != PART_NONE) {
-        int16_t k = ((int8_t)link->slot_b);
-
-        link->pt[0][1].x = (int16_t)(b->box[0].x + b->attach[k].x);
-        link->pt[0][1].y = (int16_t)(b->box[0].y + b->attach[k].y);
-    }
-
-    chain = PART_PTR(a->link_ptr[idx]);
-    while (chain != PART_NONE && ((int16_t)chain->kind) == 7) {
-        for (j = 0; j < 2; j++) {
-            pt = BELT_PTR(chain->belt_ptr[0]);
-            pt->pt[0][j].x = (int16_t)(chain->pos[0].x
-                                             + chain->attach[j].x);
-            pt->pt[0][j].y = (int16_t)(chain->pos[0].y
-                                             + chain->attach[j].y);
+    if ((a = PART_PTR(link->end_a_ptr)) != PART_NONE) {
+        idx = link->slot_a;
+        link->pt[0][0].x = a->box[0].x + a->attach[idx].x;
+        link->pt[0][0].y = a->box[0].y + a->attach[idx].y;
+        if ((b = PART_PTR(link->end_b_ptr)) != PART_NONE) {
+            k = link->slot_b;
+            link->pt[0][1].x = b->box[0].x + b->attach[k].x;
+            link->pt[0][1].y = b->box[0].y + b->attach[k].y;
         }
-        chain = PART_PTR(chain->link_ptr[0]);
+
+        for (a = PART_PTR(a->link_ptr[idx]);
+             a != PART_NONE && a->kind == KIND_PULLEY;
+             a = PART_PTR(a->link_ptr[0]))
+            for (j = 0; j < 2; j++) {
+                BELT_PTR(a->belt_ptr[0])->pt[0][j].x = a->pos[0].x + a->attach[j].x;
+                BELT_PTR(a->belt_ptr[0])->pt[0][j].y = a->pos[0].y + a->attach[j].y;
+            }
+
+        if (DG4E67.state != 0x2000) {
+            PART_PTR(link->owner_ptr)->word_96 = link_end_distance(link, 3, 0);
+            PART_PTR(link->owner_ptr)->spin = link_end_distance(link, 3, 1);
+        }
     }
-
-    if (DG4E67.state == 0x2000)
-        return;
-
-    holder = PART_PTR(link->owner_ptr);
-    holder->word_96 = (uint16_t)link_end_distance(link, 3, 0);
-    holder = PART_PTR(link->owner_ptr);
-    holder->spin = link_end_distance(link, 3, 1);
 }
 
 /*
@@ -1478,18 +1467,23 @@ void refresh_link_geometry(struct belt *link)
  */
 void rehome_carried_part(void)
 {
-    struct part *part = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part *old = PART_PTR(part->link_ptr[4]);
-    uint8_t  old_slot = part->host_slot;
-    struct part *si;
-    struct part *di = PART_NONE;
-    uint8_t  slot = 0;
+    register struct part *si;
+    register struct part *di = PART_NONE;
+    uint8_t old_slot;                   /* [bp-1] */
+    uint8_t slot;                       /* [bp-2] */
+    struct part *old;                   /* [bp-4] */
 
-    part->link_ptr[4] = 0;
+#ifndef __TURBOC__
+    /* Ours: read only when a host was found, and set with it, which gcc
+       cannot see. The original leaves it as the stack had it. */
+    slot = 0;
+#endif
+    old = PART_PTR(PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[4]);
+    old_slot = PART_PTR(DG50D3.dragged_part_ptr)->host_slot;
+    PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[4] = 0;
+    link_nearby_objects(PART_PTR(DG50D3.dragged_part_ptr), 0x2000, -8, 8, -8, 8);
 
-    link_nearby_objects(part, 0x2000, -8, 8, -8, 8);
-
-    si = PART_PTR(part->next_linked_ptr);
+    si = PART_PTR(PART_PTR(DG50D3.dragged_part_ptr)->next_linked_ptr);
     while (si != PART_NONE) {
         if (si == old) {
             di = old;
@@ -1511,18 +1505,15 @@ void rehome_carried_part(void)
     }
 
     if (old != PART_NONE && di != old) {
-        old->link_ptr[part->host_slot + 4] = 0;
-        part->link_ptr[4] = 0;
-
+        old->link_ptr[PART_PTR(DG50D3.dragged_part_ptr)->host_slot + 4] = 0;
+        PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[4] = 0;
         PART_KINDS[old->kind].setup(old);
         old->start_form = old->form;
     }
-
     if (di != PART_NONE) {
-        di->link_ptr[slot + 4] = dg_near(dgroup, part);
-        part->link_ptr[4] = dg_near(dgroup, di);
-        part->host_slot = slot;
-
+        di->link_ptr[slot + 4] = DG50D3.dragged_part_ptr;
+        PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[4] = dg_near(dgroup, di);
+        PART_PTR(DG50D3.dragged_part_ptr)->host_slot = slot;
         PART_KINDS[di->kind].setup(di);
         di->start_form = di->form;
     }
@@ -1551,41 +1542,27 @@ void rehome_carried_part(void)
  * +0x90. Both halves do that copy, and both do it to the part at the *far* end
  * rather than to the one they were given.
  */
-void break_second_attachment(struct part *part)
+void break_second_attachment(register struct part *part)
 {
     struct part *other;
-    int16_t  i;
+    int16_t i;                          /* [bp-2] */
 
     if (part->flags_0a & 2) {
-        for (i = 4; i < 6; i++) {
-            other = PART_PTR(part->link_ptr[i]);
-            if (other == PART_NONE)
-                continue;
-
-            part->link_ptr[i] = 0;
-            other->link_ptr[4] = 0;
-
-            PART_KINDS[other->kind].setup(other);
-        }
-
+        for (i = 4; i < 6; i++)
+            if ((other = PART_PTR(part->link_ptr[i])) != PART_NONE) {
+                part->link_ptr[i] = 0;
+                other->link_ptr[4] = 0;
+                PART_KINDS[other->kind].setup(other);
+            }
         PART_KINDS[part->kind].setup(part);
-
         part->start_form = part->form;
-        return;
+    } else if ((other = PART_PTR(part->link_ptr[4])) != PART_NONE) {
+        other->link_ptr[part->host_slot + 4] = 0;
+        part->link_ptr[4] = 0;
+        PART_KINDS[part->kind].setup(part);
+        PART_KINDS[other->kind].setup(other);
+        other->start_form = other->form;
     }
-
-    other = PART_PTR(part->link_ptr[4]);
-    if (other == PART_NONE)
-        return;
-
-    other->link_ptr[part->host_slot + 4] = 0;
-    part->link_ptr[4] = 0;
-
-    PART_KINDS[part->kind].setup(part);
-
-    PART_KINDS[other->kind].setup(other);
-
-    other->start_form = other->form;
 }
 
 /*
@@ -1616,30 +1593,26 @@ void break_second_attachment(struct part *part)
  */
 void untie_rope(struct part *part)
 {
-    struct rope *rope = ROPE_PTR(part->rope_ptr);
-    struct part *end;
+    register struct part *a;
+    register struct part *b;
+    struct rope *rope;                  /* [bp-2] */
 
-    if (rope == ROPE_NONE)
-        return;
-
-    end = PART_PTR(rope->end_a_ptr);
-    if (end != PART_NONE) {
-        end->flags_08 &= 0xfffd;
-        end->start_flags = end->flags_08;
-        end->rope_ptr = 0;
-        rope->end_a_ptr = 0;
+    if ((rope = ROPE_PTR(part->rope_ptr)) != ROPE_NONE) {
+        if ((a = PART_PTR(rope->end_a_ptr)) != PART_NONE) {
+            a->flags_08 &= 0xfffd;
+            a->start_flags = a->flags_08;
+            a->rope_ptr = 0;
+            rope->end_a_ptr = 0;
+        }
+        if ((b = PART_PTR(rope->end_b_ptr)) != PART_NONE) {
+            b->flags_08 &= 0xfffd;
+            b->start_flags = b->flags_08;
+            b->rope_ptr = 0;
+            rope->end_b_ptr = 0;
+        }
+        if (!(part->flags_06 & 0x800))
+            detach_part_to_bin(part);
     }
-
-    end = PART_PTR(rope->end_b_ptr);
-    if (end != PART_NONE) {
-        end->flags_08 &= 0xfffd;
-        end->start_flags = end->flags_08;
-        end->rope_ptr = 0;
-        rope->end_b_ptr = 0;
-    }
-
-    if ((part->flags_06 & 0x800) == 0)
-        detach_part_to_bin(part);
 }
 
 /*
@@ -1676,62 +1649,46 @@ void untie_rope(struct part *part)
  */
 void detach_belt(struct part *part, uint16_t how)
 {
-    int16_t i;
+    register struct belt *belt;
+    register struct part *next;
+    int16_t i;                          /* [bp-2] */
+    uint16_t slot;                      /* [bp-4] */
+    struct part *a;                     /* [bp-6] */
+    struct part *b;                     /* [bp-8] */
+    struct part *after;                 /* [bp-0xa] */
 
     for (i = 0; i < 2; i++) {
-        struct belt *belt = BELT_PTR(part->belt_ptr[i]);
-        uint16_t other, next;
-        int16_t  slot;
-
-        if (belt == BELT_NONE)
-            continue;
-
-        if (how != 0) {
-            other = belt->end_a_ptr;
-            if (other != 0) {
-                belt->end_a_ptr = 0;
-                belt->home_a_ptr = 0;
-
-                slot = (int16_t)((int8_t)belt->slot_a);
-                PART_PTR(other)->belt_ptr[slot] = 0;
-
-                next = PART_PTR(other)->link_ptr[slot];
-                PART_PTR(other)->link_ptr[slot + 2] = 0;
-                PART_PTR(other)->link_ptr[slot] = 0;
-
-                while (next != 0 && ((int16_t)PART_PTR(next)->kind) == 7) {
-                    uint16_t after = PART_PTR(next)->link_ptr[0];
-                    int16_t  j;
-
-                    for (j = 0; j < 4; j++)
-                        PART_PTR(next)->link_ptr[j] = 0;
-                    PART_PTR(next)->belt_ptr[1] = 0;
+        if ((belt = BELT_PTR(part->belt_ptr[i])) != BELT_NONE) {
+            if (how != 0 && (a = PART_PTR(belt->end_a_ptr)) != PART_NONE) {
+                belt->home_a_ptr = belt->end_a_ptr = 0;
+                slot = belt->slot_a;
+                a->belt_ptr[slot] = 0;
+                next = PART_PTR(a->link_ptr[slot]);
+                a->link_ptr[slot] = a->link_ptr[slot + 2] = 0;
+                while (next != PART_NONE && next->kind == KIND_PULLEY) {
+                    after = PART_PTR(next->link_ptr[0]);
+                    /* the outer loop's own counter: a pulley on the first
+                       belt leaves it at 4, and the second is not looked at */
+                    for (i = 0; i < 4; i++)
+                        next->link_ptr[i] = 0;
+                    next->belt_ptr[1] = 0;
                     next = after;
                 }
             }
-        }
-
-        other = belt->end_b_ptr;
-        if (other != 0) {
-            slot = (int16_t)((int8_t)belt->slot_b);
-            PART_PTR(other)->belt_ptr[slot] = 0;
-
-            belt->end_b_ptr = 0;
-            belt->home_b_ptr = 0;
-
-            next = PART_PTR(other)->link_ptr[slot];
-            PART_PTR(other)->link_ptr[slot + 2] = 0;
-            PART_PTR(other)->link_ptr[slot] = 0;
-
-            if (next != 0 && how == 0) {
-                slot = match_field_5a_5c(PART_PTR(other), PART_PTR(next));
-                PART_PTR(next)->link_ptr[slot + 2] = 0;
-                PART_PTR(next)->link_ptr[slot] = 0;
+            if ((b = PART_PTR(belt->end_b_ptr)) != PART_NONE) {
+                slot = belt->slot_b;
+                b->belt_ptr[slot] = 0;
+                belt->home_b_ptr = belt->end_b_ptr = 0;
+                next = PART_PTR(b->link_ptr[slot]);
+                b->link_ptr[slot] = b->link_ptr[slot + 2] = 0;
+                if (next != PART_NONE && how == 0) {
+                    slot = match_field_5a_5c(b, next);
+                    next->link_ptr[slot] = next->link_ptr[slot + 2] = 0;
+                }
             }
+            if (!(part->flags_06 & 0x800))
+                detach_part_to_bin(part);
         }
-
-        if ((part->flags_06 & 0x800) == 0)
-            detach_part_to_bin(part);
     }
 }
 
@@ -1801,68 +1758,62 @@ void discard_part(struct part *part)
  */
 void finish_part_removal(void)
 {
-    struct part *p = PART_PTR(DG50D3.dragged_part_ptr);
-    struct part *other, *next;
-    struct rope *rope;
-    int16_t  a, b, i;
+    register int16_t i;
+    register struct part *next;
+    int16_t a;                          /* [bp-2] */
+    int16_t b;                          /* [bp-4] */
+    struct part *r;                     /* [bp-6] */
+    struct part *belt;                  /* [bp-8] */
+    struct part *other;                 /* [bp-0xa] */
+    struct rope *rope;                  /* [bp-0xc] */
+    struct belt *slot;                  /* [bp-0xe] */
 
-    if (p == PART_NONE)
-        return;
-    if ((p->flags_06 & 0x800) == 0)
-        return;
+    if (DG50D3.dragged_part_ptr != 0
+        && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x800)) {
+        if (PART_PTR(DG50D3.dragged_part_ptr)->flags_0a & 3)
+            break_second_attachment(PART_PTR(DG50D3.dragged_part_ptr));
 
-    if (p->flags_0a & 3)
-        break_second_attachment(p);
-
-    rope = ROPE_PTR(p->rope_ptr);
-    if (((int16_t)p->kind) != 8 && rope != ROPE_NONE) {
-        struct part *r = PART_PTR(rope->owner_ptr);
-
-        untie_rope(r);
-        discard_part(r);
-    }
-
-    if (((int16_t)p->kind) == 7) {
-        next = PART_PTR(p->link_ptr[0]);
-        if (next != PART_NONE) {
-            a = match_field_5a_5c(p, next);
-            other = PART_PTR(p->link_ptr[1]);
-            b = match_field_5a_5c(p, other);
-
-            next->link_ptr[a + 2] = dg_near(dgroup, other);
-            next->link_ptr[a] = dg_near(dgroup, other);
-            other->link_ptr[b + 2] = dg_near(dgroup, next);
-            other->link_ptr[b] = dg_near(dgroup, next);
-
-            if (((int16_t)next->kind) == 7) {
-                aim_link_at_bisector(next);
-                mark_part_shapes(next, 3);
-            }
-            if (((int16_t)other->kind) == 7) {
-                aim_link_at_bisector(other);
-                mark_part_shapes(other, 3);
-            }
-
-            mark_needs_refile(PART_PTR(BELT_PTR(p->belt_ptr[1])->owner_ptr), 2);
-
-            for (i = 0; i < 4; i++)
-                p->link_ptr[i] = 0;
-            p->belt_ptr[1] = 0;
+        rope = ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr);
+        if (PART_PTR(DG50D3.dragged_part_ptr)->kind != KIND_BELT
+            && rope != ROPE_NONE) {
+            r = PART_PTR(rope->owner_ptr);
+            untie_rope(r);
+            discard_part(r);
         }
-    } else if (((int16_t)p->kind) != 0x0a) {
-        for (i = 0; i < 2; i++) {
-            struct belt *slot = BELT_PTR(p->belt_ptr[i]);
 
-            if (slot != BELT_NONE) {
-                struct part *belt = PART_PTR(slot->owner_ptr);
-
-                detach_belt(belt, 1);
-                discard_part(belt);
+        if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_PULLEY) {
+            if ((next = PART_PTR(PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[0]))
+                != PART_NONE) {
+                a = match_field_5a_5c(PART_PTR(DG50D3.dragged_part_ptr), next);
+                other = PART_PTR(PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[1]);
+                b = match_field_5a_5c(PART_PTR(DG50D3.dragged_part_ptr), other);
+                next->link_ptr[a] = next->link_ptr[a + 2] = dg_near(dgroup, other);
+                other->link_ptr[b] = other->link_ptr[b + 2] = dg_near(dgroup, next);
+                if (next->kind == KIND_PULLEY) {
+                    aim_link_at_bisector(next);
+                    mark_part_shapes(next, 3);
+                }
+                if (other->kind == KIND_PULLEY) {
+                    aim_link_at_bisector(other);
+                    mark_part_shapes(other, 3);
+                }
+                mark_needs_refile(PART_PTR(BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)
+                                                    ->belt_ptr[1])->owner_ptr), 2);
+                for (i = 0; i < 4; i++)
+                    PART_PTR(DG50D3.dragged_part_ptr)->link_ptr[i] = 0;
+                PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[1] = 0;
             }
+        } else if (PART_PTR(DG50D3.dragged_part_ptr)->kind != KIND_ROPE) {
+            for (i = 0; i < 2; i++)
+                if ((slot = BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[i]))
+                    != BELT_NONE) {
+                    belt = PART_PTR(slot->owner_ptr);
+                    detach_belt(belt, 1);
+                    discard_part(belt);
+                }
         }
+        discard_part(PART_PTR(DG50D3.dragged_part_ptr));
     }
-
-    discard_part(p);
 }
 
 /*
@@ -1910,32 +1861,33 @@ void unlink_part(struct part *part)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(struct part *rec, struct part *head)
+void insert_sorted(register struct part *rec, struct part *head)
 {
-    const struct part_kind *kind = &PART_KINDS[rec->kind];
-    int16_t prio = kind->priority;
-    struct part *di = head;
-    int16_t stop = 0;
+    struct part *di;
+    int16_t stop;
+    int16_t kind;                       /* [bp-2] */
+    int16_t kind2;                      /* [bp-4] */
+    int16_t prio;                       /* [bp-6] */
+    int16_t prio2;                      /* [bp-8] */
 
-    for (;;) {
-        if (stop)
-            break;
-
-        if (di->next_ptr == 0) {
+    kind = rec->kind;
+    prio = PART_KINDS[kind].priority;
+    stop = 0;
+    di = head;
+    while (!stop) {
+        if (di->next_ptr == 0)
             stop = 1;
-        } else {
-            const struct part_kind *kind2 = &PART_KINDS[PART_PTR(di->next_ptr)->kind];
-
-            if (head == &DG50D3.parts_bin) {
-                stop = (prio < kind2->priority) ? 1 : 0;
-            } else if (head == &DG5179.moving_parts) {
-                stop = (kind->weight < kind2->weight) ? 1 : 0;
-            } else {
+        else {
+            kind2 = PART_PTR(di->next_ptr)->kind;
+            prio2 = PART_KINDS[kind2].priority;
+            if (head == &DG50D3.parts_bin)
+                stop = prio < prio2;
+            else if (head == &DG5179.moving_parts)
+                stop = PART_KINDS[kind].weight < PART_KINDS[kind2].weight;
+            else
                 stop = 1;
-            }
         }
-
-        if (stop == 0)
+        if (!stop)
             di = PART_PTR(di->next_ptr);
     }
 
@@ -1971,30 +1923,19 @@ void insert_sorted(struct part *rec, struct part *head)
  * `save_machine` zeroes so a dragged part is written down - so "removing" a
  * part is moving it back to where unused parts live, not destroying it.
  */
-void detach_part_to_bin(struct part *part)
+void detach_part_to_bin(register struct part *part)
 {
     int16_t i;
 
-    if (!((DG4E67.tool == 8 || DG4E67.tool == 7)
-          && DG4E67.state == 0x1000)) {
-        if (part->rope_ptr != 0
-            && ((int16_t)part->kind) != 8)
+    if (!((DG4E67.tool == 8 || DG4E67.tool == 7) && DG4E67.state == 0x1000)) {
+        if (part->rope_ptr != 0 && part->kind != KIND_BELT)
             untie_rope(PART_PTR(ROPE_PTR(part->rope_ptr)->owner_ptr));
-
-        if (((int16_t)part->kind) != 0x0a
-            && ((int16_t)part->kind) != 7) {
-            for (i = 0; i < 2; i++) {
-                struct belt *slot = BELT_PTR(part->belt_ptr[i]);
-
-                if (slot != BELT_NONE)
-                    detach_belt(PART_PTR(slot->owner_ptr), 0);
-            }
-        }
+        if (part->kind != KIND_ROPE && part->kind != KIND_PULLEY)
+            for (i = 0; i < 2; i++)
+                if (part->belt_ptr[i] != 0)
+                    detach_belt(PART_PTR(BELT_PTR(part->belt_ptr[i])->owner_ptr), 0);
     }
-
-    part->flags_06 =
-        (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
-
+    part->flags_06 = (part->flags_06 & 0xcfff) | 0x800;
     unlink_part(part);
     insert_sorted(part, &DG50D3.parts_bin);
 }
@@ -2015,25 +1956,18 @@ void detach_part_to_bin(struct part *part)
  * to that node's +2. Only one step: a run of empty nodes would leave it on the
  * second of them, and the original does not loop.
  */
-void refile_part_list(struct part *part)
+void refile_part_list(register struct part *part)
 {
-    struct part *list;
-
     unlink_part(part);
-
     if (part->flags_06 & 0x4000) {
-        part->flags_06 =
-            (uint16_t)((part->flags_06 & 0xf7ff) | 0x2000);
-        list = &DG521B.placed_parts;
+        part->flags_06 = (part->flags_06 & 0xf7ff) | 0x2000;
+        insert_sorted(part, &DG521B.placed_parts);
     } else {
-        part->flags_06 =
-            (uint16_t)((part->flags_06 & 0xf7ff) | 0x1000);
-        list = &DG5179.moving_parts;
+        part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
+        insert_sorted(part, &DG5179.moving_parts);
     }
-
-    insert_sorted(part, list);
-
-    if (PART_PTR(DG50D3.bin_list_ptr) != &DG50D3.parts_bin && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
+    if (PART_PTR(DG50D3.bin_list_ptr) != &DG50D3.parts_bin
+        && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
         DG50D3.bin_list_ptr = PART_PTR(DG50D3.bin_list_ptr)->prev_ptr;
 }
 
@@ -2062,26 +1996,22 @@ void refile_part_list(struct part *part)
  */
 void remove_all_parts(void)
 {
-    struct part *si = pick_by_flag(0x3000);
+    register struct part *si;
 
-    while (si != PART_NONE) {
-        if (si->flags_06 & 0x8000) {
+    for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
+        if (!(si->flags_06 & 0x8000)) {
+            if (si->kind == KIND_BELT)
+                untie_rope(si);
+            else if (si->kind == KIND_ROPE)
+                detach_belt(si, 1);
+            else
+                detach_part_to_bin(si);
+            DG50D3.dragged_part_ptr = dg_near(dgroup, si);
+            finish_part_removal();
+            DG50D3.dragged_part_ptr = 0;
+            si = pick_by_flag(0x3000);
+        } else
             si = pick_for_record(si, 0x1000);
-            continue;
-        }
-
-        if (((int16_t)si->kind) == 8)
-            untie_rope(si);
-        else if (((int16_t)si->kind) == 0x0a)
-            detach_belt(si, 1);
-        else
-            detach_part_to_bin(si);
-
-        DG50D3.dragged_part_ptr = dg_near(dgroup, si);
-        finish_part_removal();
-        DG50D3.dragged_part_ptr = 0;
-
-        si = pick_by_flag(0x3000);
     }
 }
 
@@ -2116,30 +2046,34 @@ void remove_all_parts(void)
  */
 int16_t bin_part_at_index(int16_t index)
 {
-    int16_t dx = 0;
-    uint16_t si, di;
+    register uint16_t si;
+    uint16_t di;
+    int16_t n;
 
     if (index < 0) {
+        n = 0;
         si = DG50D3.bin_list_ptr;
-        while (dx != index) {
+        while (n != index) {
             di = PART_PTR(si)->kind;
             while (PART_PTR(si) != &DG50D3.parts_bin && PART_PTR(si)->kind == di)
-                si = PART_PTR(si)->prev_ptr;
-            dx--;
+                if (PART_PTR(si) != &DG50D3.parts_bin)
+                    si = PART_PTR(si)->prev_ptr;
+            n--;
         }
-        return (int16_t)si;
+    } else {
+        n = 0;
+        si = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
+        while (n != index) {
+            di = PART_PTR(si)->kind;
+            while (si != 0 && PART_PTR(si)->kind == di)
+                if (si != 0)
+                    si = PART_PTR(si)->next_ptr;
+            n++;
+        }
+        if (si != 0)
+            si = PART_PTR(si)->prev_ptr;
     }
-
-    si = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
-    while (dx != index) {
-        di = PART_PTR(si)->kind;
-        while (si != 0 && PART_PTR(si)->kind == di)
-            si = PART_PTR(si)->next_ptr;
-        dx++;
-    }
-    if (si != 0)
-        si = PART_PTR(si)->prev_ptr;
-    return (int16_t)si;
+    return si;
 }
 
 /*
@@ -2160,12 +2094,13 @@ int16_t bin_part_at_index(int16_t index)
  */
 uint16_t bin_scroll_end(void)
 {
-    uint16_t saved = DG50D3.bin_list_ptr;
-    uint16_t si, last;
+    register uint16_t si;
+    uint16_t saved;                     /* [bp-2] */
+    uint16_t last;                      /* [bp-4] */
 
-    while ((si = (uint16_t)bin_part_at_index(5)) != 0)
+    saved = DG50D3.bin_list_ptr;
+    while (si = bin_part_at_index(5), si)
         DG50D3.bin_list_ptr = si;
-
     last = DG50D3.bin_list_ptr;
     DG50D3.bin_list_ptr = saved;
     return last;

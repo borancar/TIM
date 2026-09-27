@@ -585,6 +585,18 @@ Three spellings in physics.c, found on 2026-09-27 by compiling alternatives:
   remaining register, and the rest are laid out from `bp-2` downwards in
   declaration order. `bounce_off_contact` matched once its angle was
   declared before the other locals.
+- **In a routine that calls nothing, CX and DX are registers too, and an
+  explicit `register int` goes to them first.** `bin_part_at_index` has its
+  parameter in CX, its count in DX and the kind it compares in DI. Every
+  order of declarations with the kind declared `register` put the kind in
+  DX and the parameter in DI; ninety-six variants were compiled. With the
+  kind left as an ordinary local, the allocator gave it DI. A pointer
+  declared `register` goes to DX just the same.
+- **An `if` with an empty branch and an `else`** is `je` over a `jmp`, where
+  `if (!x)` gives a single `jne`. `rope_ends_close` tests its second end
+  that way.
+- **`while (x = f(), x)`** tests the register variable after the store
+  (`mov si,ax / or si,si`). `while ((x = f()) != 0)` tests AX.
 
 ### A prototype is what the callers push, not what the callee reads
 
