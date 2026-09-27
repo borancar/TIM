@@ -22,7 +22,7 @@
  * where the goal tests begin, is not proven either - see runloop.c.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -zC_TEXT
  * JUDGE: data 0x283a..0x2849
  */
 #include "tim.h"

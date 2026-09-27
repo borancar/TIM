@@ -19,7 +19,7 @@
  * each carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -zC_TEXT
  * JUDGE: data 0x258c..0x259c
  */
 #include <stdlib.h>

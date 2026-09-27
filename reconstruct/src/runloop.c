@@ -17,7 +17,7 @@
  * them through the level's pointer. No data of its own.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
 #include "io.h"

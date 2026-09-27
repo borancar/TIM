@@ -34,8 +34,9 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
 Segment 0000 (`_TEXT`) is being split out of machine.c one module at a
-time, from the front, each BC++ 3.0 `-mm` (no `-O`: the image keeps the
-`jmp` to the epilogue).
+time, from the front, each BC++ 3.0 `-mm -zC_TEXT` (no `-O`: the image keeps
+the `jmp` to the epilogue; `-zC_TEXT` makes the runtime's long helpers near
+calls).
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
@@ -43,6 +44,8 @@ time, from the front, each BC++ 3.0 `-mm` (no `-O`: the image keeps the
 | `src/stepmach.c` | 0x00f86..0x012ab | 2 of 2 | none |
 | `src/runloop.c` | 0x012ab..0x01476 | 5 of 5 | none |
 | `src/goals.c` | 0x01476..0x02809 (the module may run on) | 94 of 94 | `_DATA` 0x283a..0x2849, `_BSS` 0x5456..0x546c |
+| `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
+| `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went

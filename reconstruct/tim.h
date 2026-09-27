@@ -128,6 +128,7 @@ void set_clip_full_screen(void);                    /* 0x0834b */
 
 /* Apply the kind's gravity, clamp, and compute a Manhattan speed. */
 void apply_gravity_and_speed(struct part *rec);         /* 0x02c39 */
+void touch_vel_y(struct part *rec);                    /* 0x02c83 */
 
 /* Build the swept bounding box of the object at DGROUP 0x5400. */
 void compute_swept_bounds(void);               /* 0x002dd */
@@ -702,6 +703,15 @@ uint8_t *heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint8_t *heap_split(struct heap_block *bx, uint16_t size);    /* 0x0ca62 */
 void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
+/* **A `long` multiply as the compiler writes it**: Borland compiles `a * b`
+   on longs to a call to N_LXMUL@, the routine above, and on the host the
+   call is spelled out - which is also what makes it wrap, as the 16-bit
+   code does, where a host `int32_t` multiply may overflow. Ours. */
+#ifdef __TURBOC__
+#  define LONG_MUL(a, b)  ((a) * (b))
+#else
+#  define LONG_MUL(a, b)  ((int32_t)long_multiply((uint32_t)(a), (uint32_t)(b)))
+#endif
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
 void near read_far(uint8_t huge *dst, int32_t count,

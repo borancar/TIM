@@ -554,6 +554,38 @@ all six of them, and they were reported as this one's. **Wait on the job
 itself, its completion notice or its pid through `tools/waitpids.py`, never
 on files it will rewrite.**
 
+### Segment 0000 is BC++ 3.0 with `-zC_TEXT`, and it merges the tails of an `if` and its `else` even without `-O`
+
+The game's modules in segment 0000 were built with **`-mm -zC_TEXT`, and
+no `-O`**. `-O` would jump straight to the epilogue, and the image keeps the
+`jmp` to it. `-zC_TEXT` names the code segment `_TEXT`, the same name the
+runtime's helpers use. That is why `N_LXMUL@`, `N_LDIV@` and the long
+shifts are reached with a near `call` instead of a far one. Without the
+option, every long multiply mismatches. score.c's multiplies needed one
+more thing. Casting the operands to `uint32_t`, as the host needs, changed
+the code Borland chose. So they are written `LONG_MUL(a, b)`, which is
+`(a)*(b)` under TCC and `long_multiply` on the host.
+
+Three spellings in physics.c, found on 2026-09-27 by compiling alternatives:
+
+- **The tails of an `if` and its `else` are merged when they are
+  identical, with no `-O`.** `apply_contact_friction` pushes a different
+  argument on each branch, `push ax / jmp / push di`, and the two branches
+  share everything after the push. No ternary gives that; every spelling of
+  one puts the value in AX and pushes once. It was written as two whole
+  statements, `if (c) vel_y = mul16x16(s, 0 - v) >> 14; else vel_y =
+  mul16x16(s, v) >> 14;`, and BC++ 3.0 folded their identical ends.
+- **`cwd / xor ax,dx / sub ax,dx` is `abs()`**, the inline `__abs__` from
+  `<stdlib.h>`. It is not an `if (a < 0) a = -a`. (In BC++ 2.0's modules,
+  the same instructions encoded as `31 d0 / 29 d0` are its built-in
+  assembler's, so there they are `asm`.)
+- **Register order.** A `register` parameter takes SI when an ordinary
+  local is the other candidate. It takes DI when a local is also declared
+  `register`. Of the ordinary locals, the **first declared** gets the
+  remaining register, and the rest are laid out from `bp-2` downwards in
+  declaration order. `bounce_off_contact` matched once its angle was
+  declared before the other locals.
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their
