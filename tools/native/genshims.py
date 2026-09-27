@@ -522,7 +522,7 @@ def layers(entries):
 
     where = {}
     ports = set()
-    for path in (glob.glob(os.path.join(ROOT, "reconstruct", "src", "*.c"))
+    for path in (glob.glob(os.path.join(ROOT, "reconstruct", "src", "**", "*.c"), recursive=True)
                  + glob.glob(os.path.join(ROOT, "reconstruct", "*.c"))):
         base = os.path.basename(path)
         text = open(path).read()

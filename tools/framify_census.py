@@ -184,7 +184,7 @@ where = collections.defaultdict(set)
 held = {}
 reserves = []
 walled_noslot = []
-for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
+for path in sorted(glob.glob(os.path.join(R, 'src', '**', '*.c'), recursive=True)
                    + glob.glob(os.path.join(R, '*.c'))):
     lines = open(path).read().split('\n')
     starts = [i for i, l in enumerate(lines) if fn.match(l)
@@ -320,7 +320,7 @@ for p, m in free:
 # whether the far convention becomes a pointer as well - and not transcription.
 bodies = {}
 params = {}
-for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
+for path in sorted(glob.glob(os.path.join(R, 'src', '**', '*.c'), recursive=True)
                    + glob.glob(os.path.join(R, '*.c'))):
     text = open(path).read()
     for m in re.finditer(r'\n([a-zA-Z_][\w ]*[ *](\w+)\(([^;{]*)\)\s*\n\{\n)'

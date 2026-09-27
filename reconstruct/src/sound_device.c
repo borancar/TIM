@@ -26,7 +26,7 @@
  *   The fifth, 0x2928c..0x292f4 (sound_call.c), saves AX round stores, or
  *   every register and the flags, and keeps its answer in the code segment.
  * - **Between the C modules the calls decide**, as in segment 172c
- *   (part_ball.c). A backward call with TLINK's `nop / push cs / call`
+ *   (parts/ball.c). A backward call with TLINK's `nop / push cs / call`
  *   proves a boundary between callee and caller, and one without it rules a
  *   boundary out. Those calls force cuts at 0x28655 (`load_sound_module` is
  *   called from `setup_sound_device`) and 0x28935 (`advance_record` from

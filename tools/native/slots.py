@@ -51,7 +51,7 @@ def frame_sizes():
     """Each routine's frame, as the port's own `dg_alloca` states it."""
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
     out = {}
-    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "src", "*.c"))):
+    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "src", "**", "*.c"), recursive=True)):
         cur = None
         for line in open(path):
             m = fn.match(line)

@@ -172,7 +172,7 @@ def main():
                     help="print the verdict and the counts only")
     args = ap.parse_args()
 
-    sources = sorted(glob.glob(os.path.join(REC, "src", "*.c"))
+    sources = sorted(glob.glob(os.path.join(REC, "src", "**", "*.c"), recursive=True)
                      + glob.glob(os.path.join(REC, "*.c")))
     headers = sorted(glob.glob(os.path.join(REC, "*.h"))
                      + glob.glob(os.path.join(REC, "src", "*.h")))

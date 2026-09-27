@@ -63,7 +63,7 @@ JUDGED = re.compile(r"JUDGE:\s*data\s+0x([0-9a-fA-F]+)\.\.0x([0-9a-fA-F]+)")
 
 def judged_ranges():
     out = []
-    for path in glob.glob(os.path.join(REC, "src", "*.c")):
+    for path in glob.glob(os.path.join(REC, "src", "**", "*.c"), recursive=True):
         for m in JUDGED.finditer(open(path).read()):
             out.append((DGROUP + int(m.group(1), 16),
                         DGROUP + int(m.group(2), 16)))
@@ -78,7 +78,7 @@ def judged_ranges():
 def was_ranges():
     import cparse
     starts, was = set(), set()
-    for path in (glob.glob(os.path.join(REC, "src", "*.c"))
+    for path in (glob.glob(os.path.join(REC, "src", "**", "*.c"), recursive=True)
                  + glob.glob(os.path.join(REC, "*.c"))):
         text_ = open(path).read()
         for _s, name, addr in cparse.placements(path):
@@ -111,7 +111,7 @@ def relocated_image():
 
 def placed_objects():
     """(name, linear address, size, initialised) for every placed object."""
-    objs = glob.glob(os.path.join(REC, "*.o")) + glob.glob(os.path.join(REC, "src", "*.o"))
+    objs = glob.glob(os.path.join(REC, "*.o")) + glob.glob(os.path.join(REC, "src", "**", "*.o"), recursive=True)
     if not objs:
         sys.exit("no objects under reconstruct/ - run make first")
     out = []

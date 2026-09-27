@@ -48,7 +48,7 @@ LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) $(shell pkg-config --libs lua 2>
 # tools/check_native.py runs it as.
 # The game's own modules live under reconstruct/src now; io.c, sdl.c and the
 # Borland runtime are not the game and stayed beside the headers.
-GAME    := machine.c gamemain.c intro.c round.c puzzles.c screen.c levels.c picker.c game.c machine_draw.c part_ball.c part_balloon.c part_bellow.c part_boxing_glove.c part_bucket.c part_bullet.c part_candle.c part_cannon.c part_pokey.c part_bird_cage.c part_christmas_tree.c part_kinds_55_57.c part_dynamite.c part_motor.c part_electric_plug.c part_blast.c part_hook.c part_fan.c part_bob_the_fish.c part_flashlight.c part_generator.c part_gear.c part_gun.c part_conveyor.c part_heart_balloon.c part_ramp.c part_jack_in_the_box.c part_light.c part_monkey.c part_mouse_cage.c part_magnifying_glass.c part_dynamite_plunger.c part_mort_the_mouse.c part_pumpkin.c part_rocket.c part_corner_pipe.c part_scissors.c part_solar_panel.c part_trampoline.c part_seesaw.c part_trigger_things.c part_platform.c part_windmill.c screenshot.c vgadac.c engine.c text.c lowlevel.c vidinit.c vidload.c fontload.c bmpload.c files.c vqtflip.c offbmp.c bitmaps.c \
+GAME    := machine.c gamemain.c intro.c round.c puzzles.c screen.c levels.c picker.c game.c machine_draw.c parts/ball.c parts/balloon.c parts/bellow.c parts/boxing_glove.c parts/bucket.c parts/bullet.c parts/candle.c parts/cannon.c parts/pokey.c parts/bird_cage.c parts/christmas_tree.c parts/kinds_55_57.c parts/dynamite.c parts/motor.c parts/electric_plug.c parts/blast.c parts/hook.c parts/fan.c parts/bob_the_fish.c parts/flashlight.c parts/generator.c parts/gear.c parts/gun.c parts/conveyor.c parts/heart_balloon.c parts/ramp.c parts/jack_in_the_box.c parts/light.c parts/monkey.c parts/mouse_cage.c parts/magnifying_glass.c parts/dynamite_plunger.c parts/mort_the_mouse.c parts/pumpkin.c parts/rocket.c parts/corner_pipe.c parts/scissors.c parts/solar_panel.c parts/trampoline.c parts/seesaw.c parts/trigger_things.c parts/platform.c parts/windmill.c screenshot.c vgadac.c engine.c text.c lowlevel.c vidinit.c vidload.c fontload.c bmpload.c files.c vqtflip.c offbmp.c bitmaps.c \
            sound.c sound_load.c sound_device.c sound_bank.c sound_call.c sound_stop.c sound_file.c trig.c atan2.c vqt.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_adl.c sxovl_sbp.c sxovl.c \
            glue.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
@@ -103,12 +103,12 @@ shims.c: genshims.py routines.def $(REC)/tim.h
 syms.c ovlsyms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
-$(OBJDIR) $(OBJDIR)/game $(OBJDIR)/port:
+$(OBJDIR) $(OBJDIR)/game $(OBJDIR)/game/parts $(OBJDIR)/port:
 	mkdir -p $@
 
 # Order-only on the directory, so creating it does not count as a change that
 # makes every object out of date.
-$(OBJDIR)/game/%.o: $(REC)/src/%.c $(HEADERS) shim.h | $(OBJDIR)/game
+$(OBJDIR)/game/%.o: $(REC)/src/%.c $(HEADERS) shim.h | $(OBJDIR)/game $(OBJDIR)/game/parts
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/port/%.o: $(REC)/%.c $(HEADERS) shim.h | $(OBJDIR)/port

@@ -968,7 +968,7 @@ def main():
     args = ap.parse_args()
 
     paths = args.files or (
-        sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "src", "*.c")))
+        sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "src", "**", "*.c"), recursive=True))
         + sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c"))))
 
     if args.rule == "split-arg":

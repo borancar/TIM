@@ -104,10 +104,11 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   game. What stays a directory up is what is *not* the game - `io.c` the
   hardware, `sdl.c` the window, `borland_*.c` the C library it was linked
   against, and the `dev*.c` files that never ship. A tool that reads the port's
-  sources must glob both.
+  sources must glob both, and `src` recursively: the part kinds' modules are
+  in `src/parts/`.
 
   **The names are ours; the boundaries are the original's.** `machine.c`,
-  `game.c`, `part_*.c` and the rest were called `seg0000.c` and so on until each
+  `game.c`, `parts/*.c` and the rest were called `seg0000.c` and so on until each
   had been read well enough to say what it holds. Every one still names its
   segment and image range in its header, because that is the fact - a file
   called `engine.c` is a judgement about 8,275 lines and the segment number is

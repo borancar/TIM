@@ -72,8 +72,8 @@ code could own it too, so it stays in dgroup.c.
 Segment 172c has 45 modules. All its code is transcribed and every C
 routine matches:
 
-- The part kinds are 43 files, `src/part_*.c`, one module each. All are
-  BC++ 3.0 `-mm`, and all 155 routines match. `part_trigger_things.c` went
+- The part kinds are 43 files, `src/parts/*.c`, one module each. All are
+  BC++ 3.0 `-mm`, and all 155 routines match. `parts/trigger_things.c` went
   through TASM, and so does the judge.
 - `src/screenshot.c` is an ILBM screenshot writer that nothing calls. It is
   BC++ **2.0** `-mm`: 5 of 5 routines match, and so does its `_DATA`

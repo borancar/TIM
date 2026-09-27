@@ -1574,7 +1574,7 @@ struct point8 {
  * **A point table reached by its DGROUP offset**: a run of `point8` whose
  * address the code finds in a record rather than naming it - a kind's hot
  * spots, through `hotspots_ptr`. The part modules' own tables are objects in
- * those modules (part_balloon.c and the rest), named where they are read.
+ * those modules (parts/balloon.c and the rest), named where they are read.
  * Not `volatile`: a point table is constant data in the image, and the timer
  * handler reaches no part or part data at all. See `PARTP` in full.
  */
@@ -1676,7 +1676,7 @@ struct extent16 {
  *
  * The names come from `devdump.c`'s `dump_chain`, which has printed these
  * fields for long enough to be the project's own record of what they are, and
- * from the setups in the part_*.c modules. What neither names keeps `field_XX`.
+ * from the setups in the modules in parts/. What neither names keeps `field_XX`.
  *
  * **Only the sites written `part` are converted.** The same record is also
  * walked through `si`, `di`, `rec` and `obj` - two and a half thousand more

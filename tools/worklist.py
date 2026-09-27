@@ -380,14 +380,14 @@ def main():
     # figure below in exactly the way VM.OVL was, and is counted here instead.
     #
     # A setup counts as transcribed when its offset appears in one of the
-    # tables in the segment's modules (`part_*.c`, one per kind) or in one of
+    # tables in the segment's modules (`parts/*.c`, one per kind) or in one of
     # the `off ==` cases beside them. Both forms are counted because both are
     # how a setup gets reconstructed here - counting only the first said 11 of
     # 39 when the answer was all of them.
     import glob
     srcdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                           "reconstruct", "src")
-    modules = sorted(glob.glob(os.path.join(srcdir, "part_*.c")))
+    modules = sorted(glob.glob(os.path.join(srcdir, "parts", "*.c")))
     src = os.path.join(srcdir, "machine_draw.c")
     if modules:
         text = "".join(open(m).read() for m in modules)

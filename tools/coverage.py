@@ -51,7 +51,7 @@ def port_addresses():
     # The game's own modules moved to reconstruct/src; io.c, sdl.c and the
     # runtime stayed beside the headers, and both hold transcribed addresses.
     paths = sorted(glob.glob(os.path.join(SRC, "*.c"))
-                   + glob.glob(os.path.join(SRC, "src", "*.c")))
+                   + glob.glob(os.path.join(SRC, "src", "**", "*.c"), recursive=True))
     for path in paths:
         lines = open(path).read().split("\n")
         for _, i in provenance.definitions(lines):

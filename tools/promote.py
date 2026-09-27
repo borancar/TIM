@@ -406,7 +406,7 @@ def remaining():
     """Every routine that still holds a frame array, and how big it is."""
     import glob
     out = []
-    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "src", "*.c"))
+    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "src", "**", "*.c"), recursive=True)
                        + glob.glob(os.path.join(ROOT, "reconstruct", "*.c"))):
         src = open(path).read()
         for m in re.finditer(r'\n[a-zA-Z_][\w \*]*\b(\w+)\s*\([^;{]*\)\s*\n\{\n'

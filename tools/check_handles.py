@@ -184,7 +184,7 @@ def scan(path):
 
 def main():
     paths = sys.argv[1:] or (
-        sorted(glob.glob(os.path.join(REPO, "reconstruct", "src", "*.c")))
+        sorted(glob.glob(os.path.join(REPO, "reconstruct", "src", "**", "*.c"), recursive=True))
         + sorted(glob.glob(os.path.join(REPO, "reconstruct", "*.c"))))
     # **A scan of nothing is not a pass.** Run from anywhere but tools/, the
     # default glob found no sources and this printed its all-clear over zero
