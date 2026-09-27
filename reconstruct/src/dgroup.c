@@ -1919,7 +1919,6 @@ struct vmds VMDS DGROUP_AT(0x3890) = {
 struct dg_50bf DG50BF DGROUP_BSS(0x50bf);
 struct dg_4e67 DG4E67 DGROUP_BSS(0x4e67);
 struct dg_5768 DG5768 DGROUP_BSS(0x5768);
-struct dg_53fc DG53FC DGROUP_BSS(0x53fc);
 struct dg_52bd DG52BD DGROUP_WAS(0x52bd);
 struct dg_52ed DG52ED DGROUP_WAS(0x52ed);
 struct dg_52fe DG52FE DGROUP_BSS(0x52fe);

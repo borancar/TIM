@@ -33,6 +33,14 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
+Segment 0000 (`_TEXT`) is being split out of machine.c one module at a
+time, from the front, each BC++ 3.0 `-mm` (no `-O`: the image keeps the
+`jmp` to the epilogue).
+
+| file | image | routines | data |
+| --- | --- | --- | --- |
+| `src/collide.c` | 0x00297..0x00f86 | 16 of 16 | `_DATA` 0x258c..0x259c, `_BSS` 0x53fc..0x5428 |
+
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
 through TASM, because `blit_scaled_a` has inline `asm`: its nibble decoder,

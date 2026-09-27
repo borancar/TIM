@@ -1943,6 +1943,20 @@ struct part {
 } PACKED;
 
 /*
+ * **A part's contact block, as the record the code walks** - `part + 0x84`
+ * taken as an address, which is how `resolve_collisions` and
+ * `set_side_flags` reach it. The same five fields as `struct part`'s
+ * `contact_ptr` to `contact_edge`; see there for what each is.
+ */
+struct part_contact {
+    dg_near_t ptr;               /* +0x00  part +0x84 */
+    uint8_t   no_nudge_plus;     /* +0x02  part +0x86 */
+    uint8_t   no_nudge_minus;    /* +0x03  part +0x87 */
+    int16_t   angle;             /* +0x04  part +0x88 */
+    uint16_t  edge;              /* +0x06  part +0x8a */
+} PACKED;
+
+/*
  * **A part record is not `volatile`, and it is the one record that says so.**
  *
  * The reason every other accessor here is volatile is the timer handler, which
