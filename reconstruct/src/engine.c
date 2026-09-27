@@ -6048,12 +6048,12 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
  * two megabytes it is. Transcribed as the rotate it is rather than as the
  * multiply it stands for.
  */
-struct far_ptr huge_add_positive(struct far_ptr p, uint32_t delta)
+uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta)
 {
     uint16_t lo = (uint16_t)delta;              /* BX */
     uint16_t hi = (uint16_t)(delta >> 16);      /* CX */
-    uint32_t sum = (uint32_t)p.off + lo;
-    uint16_t seg = p.seg;
+    uint32_t sum = (uint32_t)FP_OFF(p) + lo;
+    uint16_t seg = FP_SEG(p);
 
     if (sum > 0xffff)
         seg = (uint16_t)(seg + 0x1000);
@@ -6062,7 +6062,7 @@ struct far_ptr huge_add_positive(struct far_ptr p, uint32_t delta)
        the count here rather than shifted as a whole. */
     seg = (uint16_t)(seg + ((hi >> 5) | ((hi & 0xf) << 12)));
 
-    return (struct far_ptr){ (uint16_t)sum, seg };
+    return MK_FP(seg, (uint16_t)sum);
 }
 
 /*

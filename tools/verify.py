@@ -1135,8 +1135,8 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1, 4],
         # AX:DX is the pointer and CX:BX the count, one long.
-        call=lambda lib, a: _far(lib.huge_add_positive(
-            FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]))),
+        call=lambda lib, a: _farp_answer(lib, lib.huge_add_positive(
+            farp(lib, a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]))),
     ),
     "install_divide_trap": dict(
         addr=0x22394,
@@ -1402,23 +1402,6 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.timer_drop_callback(ctypes.c_uint16(a[0])),
     ),
-    "huge_equal": dict(
-        addr=0x0BD0D,
-        args=[],
-        regs=["ax", "dx", "bx", "cx"],
-        # **No `returns` key, and it is not an oversight.** The routine ends
-        # `cmp dx,cx / jne / cmp ax,bx / retf` - the answer is the zero flag,
-        # not a register. AX holds a masked nibble at that point, incidentally
-        # zero for every call the game makes here, and comparing it says
-        # nothing. `returns=True` was added to find this out and reported
-        # original AX=0 against the port's 1 on all three occurrences, which
-        # is the flag answer being read out of the wrong place.
-        check_occurrences=[0, 1, 4],
-        # The port takes the two pairs the registers hold - AX/DX the first,
-        # BX/CX the second - rather than four words.
-        call=lambda lib, a: lib.huge_equal(FarPtr(a[0], a[1]),
-                                           FarPtr(a[2], a[3])),
-    ),
     "near_memset": dict(
         addr=0x0D543,
         args=[("dst", 4), ("count", 6), ("value", 8)],
@@ -1440,41 +1423,6 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: dgo(lib, lib.heap_calloc_far(*[ctypes.c_uint16(v) for v in a])),
-    ),
-    "huge_add_to": dict(
-        addr=0x0BE82,
-        args=[],
-        regs=["ax", "dx", "bx", "cx"],
-        returns_pair=True,
-        check_occurrences=[0, 1, 4],
-        # the segment in DX is dropped: every call site in the port passes
-        # DGROUP, which is what makes the variable a near pointer. If the
-        # original is ever called with another segment this comparison is
-        # what will say so.
-        call=lambda lib, a: _pair(lib.huge_add_to(
-            dgp(lib, a[0]),
-            ctypes.c_int32((a[3] << 16) | a[2]))),
-    ),
-    "huge_add": dict(
-        addr=0x0BF0A,
-        args=[],
-        regs=["ax", "dx", "bx", "cx"],
-        returns_pair=True,
-        check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _far(lib.huge_add(
-            FarPtr(a[0], a[1]), ctypes.c_int32((a[3] << 16) | a[2]))),
-    ),
-    "huge_post_add": dict(
-        addr=0x0BF6A,
-        args=[],
-        regs=["bx", "es", "ax"],
-        returns_pair=True,
-        check_occurrences=[0, 1, 4],
-        # ES:BX is the *address of* a far pointer the routine steps and
-        # answers the old value of - so it takes a pointer to the pair, not
-        # the pair. AX is the increment.
-        call=lambda lib, a: _far(lib.huge_post_add(
-            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2]))),
     ),
     # NOT VERIFIABLE by this harness, because it has no return to detect. The
     # compiler placed it out of line and replaced its `ret` with `jmp 0x1e89c`,
@@ -5746,20 +5694,16 @@ def declare_restypes(lib):
     lib.game_fgetc.restype = ctypes.c_int16
     lib.game_fputc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
-    lib.huge_equal.restype = ctypes.c_int16
     lib.near_memset.restype = ctypes.c_uint16
     lib.heap_calloc.restype = ctypes.c_void_p
     lib.heap_calloc_far.restype = ctypes.c_void_p
-    lib.huge_add_to.restype = ctypes.c_uint32
-    lib.huge_add.restype = FarPtr
-    lib.huge_post_add.restype = FarPtr
     lib.vm_init.restype = ctypes.c_uint16
     lib.load_video_driver.restype = ctypes.c_void_p
     lib.detect_adapter.restype = ctypes.c_uint16
     lib.read_bmp_info.restype = ctypes.c_uint16
     lib.table_618a_in_use.restype = ctypes.c_uint16
     lib.mouse_move_to.restype = ctypes.c_uint16
-    lib.huge_add_positive.restype = FarPtr
+    lib.huge_add_positive.restype = ctypes.c_void_p
     lib.restore_file_record_from.restype = ctypes.c_int16
     lib.read_tim_cfg.restype = ctypes.c_uint16
     lib.string_concat.restype = ctypes.c_uint16
@@ -5849,7 +5793,7 @@ def declare_restypes(lib):
     lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16
-    lib.normalise_far_ptr_far.restype = FarPtr
+    lib.normalise_far_ptr_far.restype = ctypes.c_void_p
     lib.long_multiply.restype = ctypes.c_uint32
     lib.long_multiply_2.restype = ctypes.c_uint32
     lib.long_shift_right.restype = ctypes.c_int32
@@ -6255,10 +6199,9 @@ def _follow_far_chain(lib, a):
 
 
 def _normalise_far_ptr_far(lib, a):
-    """It takes and answers a `struct far_ptr` now; the guest's two words on
-    the way in and its DX:AX on the way out are unchanged."""
-    r = lib.normalise_far_ptr_far(FarPtr(a[0], a[1]))
-    return r.off, r.seg
+    """It takes and answers a far pointer; the guest's two words on the way
+    in and its DX:AX on the way out are unchanged."""
+    return _farp_answer(lib, lib.normalise_far_ptr_far(farp(lib, a[0], a[1])))
 
 
 def _dos_alloc_bytes(lib, a):

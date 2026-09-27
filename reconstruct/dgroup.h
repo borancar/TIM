@@ -357,20 +357,6 @@ struct far_ptr_rev {
 } PACKED;
 
 /*
- * **Normalise a far pointer**: carry the paragraphs out of the offset into the
- * segment and keep only the remainder, which is what `draw_bitmap` does to
- * every header before it draws and what `decode_vqt_list` does to reach the
- * first plane. Ours as a routine; the two lines are the original's.
- */
-#ifndef __TURBOC__
-static inline struct far_ptr far_normalise(struct far_ptr p)
-{
-    return (struct far_ptr){ (dg_near_t)(p.off & 0x0f),
-                             (dg_seg_t)(p.seg + (p.off >> 4)) };
-}
-#endif
-
-/*
  * **The pair a pointer is filed as.** `FP_SEG` and `FP_OFF` as one value, for
  * the store into a `struct far_ptr` field - the counterpart of the `MK_FP` that
  * reads one. It is the **normalised** pair, which is what the original holds

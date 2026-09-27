@@ -379,7 +379,6 @@
     REG_N (0x0c16e, 4, 2, RET_DXAX, long_multiply),
     REG_N (0x0be3e, 3, 2, RET_DXAX, long_shift_left),
     FAR_R (0x0be62,       RET_DXAX, long_shift_right),
-    FAR_R (0x0bf0a,       RET_DXAX, huge_add),
 
     /*
      * The compressed-bitmap decoder, which is where the emulator spends the

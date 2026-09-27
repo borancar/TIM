@@ -1822,22 +1822,11 @@ union far_or_size dos_alloc_bytes(uint32_t size,
 /* Fill memory through a far pointer, with a 32-bit count. */
 void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
 
-/* Borland's huge-pointer arithmetic - see borland_huge.c. */
-int16_t huge_equal(struct far_ptr a, struct far_ptr b);  /* 0x0bd0d */
-struct far_ptr huge_sub_from(struct far_ptr *var,
-                             int32_t delta);   /* 0x0bec6 */
 void expand_1bpp_to_4bpp(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                     /* 0x23a8a */
+/* Borland's long arithmetic - see borland_huge.c. */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
-/* Every caller's segment is DGROUP - see the note in borland_huge.c - so the
-   variable is a near pointer rather than a far one, and the shim reads one
-   word for it. */
-struct far_ptr huge_add_to(struct far_ptr *var,
-                           int32_t delta);      /* 0x0be82 */
-struct far_ptr huge_add(struct far_ptr p, int32_t delta);  /* 0x0bf0a */
-struct far_ptr huge_post_add(struct far_ptr * var,
-                             uint16_t inc);                  /* 0x0bf6a */
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t resource_read(FILE *handle, uint16_t count); /* 0x1c92b */
@@ -1909,8 +1898,7 @@ uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
-struct far_ptr huge_add_positive(struct far_ptr p,
-                                 uint32_t delta);               /* 0x22190 */
+uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta); /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
 void near set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */

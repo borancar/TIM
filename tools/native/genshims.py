@@ -84,7 +84,6 @@ REGS = {
     # and the segment in the second. It is spelled with `+` rather than `:`
     # because `:` already means the high and low halves of one 32-bit value,
     # and a far pointer is not that: its two words do not concatenate.
-    "huge_add":               "ax+dx cx:bx",
 
     # Four words off the frame and the count in CX - the verifier's spec
     # records exactly that, `args` at 4, 6, 8, 10 and `regs` of ["cx"].
