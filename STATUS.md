@@ -47,6 +47,14 @@ calls).
 | `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
+| `src/geometry.c` | 0x03b17..0x04169 (both ends ours) | 7 of 7 | none |
+
+What pins the next boundaries is `_DATA`, which TLINK lays out in module
+order. After goals.c's 0x283a..0x2849 come 0x284a..0x286e, read only by
+`select_cursor` (0x0467d, the cursor hot spots), and 0x286e, read only by
+`update_button_state` (0x08136), and then levels.c's 0x2870. So the module
+holding `select_cursor` starts somewhere after 0x04169 at the latest cursor
+routine that needs it, and everything from score.c to it has no data.
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
