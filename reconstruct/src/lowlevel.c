@@ -16,11 +16,33 @@
  * these bytes is TASM's to make (not written yet). The functions are in
  * address order and each carries the image offset it was read from.
  *
- * **It is probably several modules**, and where they divide is not settled:
- * nothing in the code separates them, and their data is not contiguous - the
- * joystick's block at 0x4724 and the mouse's position and handler at 0x4740
- * are far from the cursor state at 0x48da. One file stands for the range until the
- * boundaries are found.
+ * **It is probably several modules, and only one boundary is proven.**
+ * Measured 2026-09-27 over every call into, out of and inside the range, and
+ * every DGROUP word each routine names:
+ *
+ *   - `dos_alloc_bytes` (0x21abd) calls `far_memset` (0x22300) through
+ *     TLINK's `nop / push cs / call`, so the two are in different modules.
+ *     That is the only call between the groups below.
+ *   - Inside a group the calls are bare `push cs / call` (TASM's own, so the
+ *     same module) or near: the joystick (0x21b44..0x21e34) calls 0x21d19,
+ *     0x21b44 and 0x21bab; `mouse_init` calls `mouse_set_ranges`;
+ *     `mouse_event` calls the two VGA save routines; and the huge-pointer
+ *     helpers (0x22161..0x22394) near-call 0x22161 and 0x22190.
+ *   - The data follows the code: the joystick's block at 0x4724..0x4740,
+ *     starting on the word after the text module's; the mouse's
+ *     0x4740..0x48ec, one run (0x4748..0x48d8 is the stack `mouse_event`
+ *     switches to, `mov sp,0x48d8`); the divide trap's 0x48ec..0x48f1; then
+ *     `vm_init`'s module at 0x48f2. No word is padded between the joystick,
+ *     the mouse and the divide trap, and the thunks, the DOS memory routines,
+ *     the line clipper, the huge-pointer helpers and the clipped pixels have
+ *     no data at all.
+ *   - No routine is padded to an alignment: each starts on the byte after
+ *     the previous one's return.
+ *
+ * So the groups are plain - thunks and DOS memory, joystick, line clipper,
+ * mouse, huge pointers, divide trap, clipped pixels and a thunk - but
+ * nothing yet says which neighbours shared a file. One file stands for the
+ * range until something does.
  *
  * **0x21b44..0x21e34 is not transcribed**: a joystick driver - port 0x201,
  * timed with `loop` - that nothing on the paths the port runs calls.
