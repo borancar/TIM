@@ -1935,6 +1935,16 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1d983 */
 int16_t restart_resource_stream(int16_t handle);       /* 0x1dae6 */
 int16_t near lzss_open_write(void);                    /* 0x1dba8 */
 int16_t near lzss_flush(int16_t final);                /* 0x1e5ae */
+/* lzhuf.c's encoder and thunks, which nothing the port runs reaches. */
+void    init_tree(void);                               /* 0x1dc3a */
+void    insert_node(int16_t r);                        /* 0x1dc72 */
+void    delete_node(int16_t p);                        /* 0x1de51 */
+void    huff_putcode(int16_t len, uint16_t code);      /* 0x1e04e */
+void    encode_char(uint16_t c);                       /* 0x1e445 */
+void    encode_position(uint16_t c);                   /* 0x1e4a7 */
+void    encode_end(void);                              /* 0x1e4e7 */
+void    vm_call_4_thunk(void);                         /* 0x1e93c */
+void    vm_call_38_thunk(void);                        /* 0x1e948 */
 int16_t near decompress_lzw(void);                     /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
 int16_t huff_get_byte(void);                           /* 0x1e00b */

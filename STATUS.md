@@ -80,8 +80,9 @@ address inside `_DATA`. It has an initialiser now. An image address below
 the start of `_BSS` (0x53fc) should be refused for a `_BSS` object; the
 check is not written yet.
 
-Segment 1c25 is being split out of engine.c one module at a time, from the
-end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
+Segment 1c25 is split into its modules, engine.c gone, and every one of
+them is byte-exact: the C modules Borland C++ 2.0 (`-mm`, some `-G -O`), the
+assembly ones TASM. vidload.c went
 through TASM, because `blit_scaled_a` has inline `asm`: its nibble decoder,
 its driver calls and the page hook. text.c has `asm` too, but BC++ 2.0
 assembled it itself.
@@ -89,7 +90,9 @@ assembled it itself.
 | file | image | routines | data |
 | --- | --- | --- | --- |
 | `src/resource.c` | 0x1c251..0x1ca46, the resource streams (all `near`); `-mm`, no `-zC_TEXT` | 23 of 23, seven of them uncalled and new | `_DATA` 0x3576..0x35b2, `_BSS` 0x5788..0x58b8 |
+| `src/lzw.c` | 0x1ca46..0x1ce1f, the LZW decoder and the RLE decoder over memory: TASM | 3 of 3 | `_DATA` 0x35b2..0x35d6 |
 | `src/resfile.c` | 0x1ce1f..0x1dba8, the resource API and Unix `compress`'s LZW coder and a run-length coder behind it; `-mm` | 18 of 18, the coders and two of the API uncalled | `_DATA` 0x35d6..0x3600, `_BSS` 0x58b8..0x58d2 |
+| `src/lzhuf.c` | 0x1dba8..0x1e967, LZHUF (compiler output edited by hand) and five thunks and `restore_write_mode`: TASM | 22 of 22, the encoder and two thunks uncalled, host stubs | `_DATA` 0x3600..0x3886, `_BSS` 0x58d2..0x591a |
 | `src/palette.c` | 0x1e967..0x1eded | 9 of 9 | `_DATA` 0x445e..0x44cf, `_BSS` 0x591a..0x5956 |
 | `src/polygon.c` | 0x1eded..0x20189, TASM | 10 of 10 | `_DATA` 0x44d0..0x44ea |
 | `src/compbmp.c` | 0x20189..0x20654 | 1 of 1 | whether 0x44ea is its `_DATA` is not settled |

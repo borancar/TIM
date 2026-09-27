@@ -82,6 +82,18 @@ def data_name(off, placed, addrs):
     return "_%s+%s" % (name, hexnum(off - base)) if off != base else "_" + name
 
 
+class Byte:
+    """A byte that is data, standing where an instruction would."""
+    mnemonic = "db"
+    op_str = ""
+
+    def __init__(self, address, value):
+        self.address, self.bytes, self.size = address, bytes([value]), 1
+
+    def group(self, g):
+        return False
+
+
 def is_branch(ins):
     """A relative transfer: capstone leaves `loop` and `jcxz` out of its
     jump group."""
@@ -115,6 +127,12 @@ def main(argv):
     ap.add_argument("--code-lead", action="store_true",
                     help="what precedes the first routine is code (a routine's "
                          "own head, reached by a branch), not data")
+    ap.add_argument("--ds-is-cs", action="store_true",
+                    help="the module's routines run with DS on their own code "
+                         "segment: a direct operand is the code segment's data")
+    ap.add_argument("--table", action="append", default=[],
+                    help="LO:HI of a table inside the range: data, not code, "
+                         "even where the port names its address")
     ap.add_argument("--at", action="append", default=[],
                     help="name=0xADDR for a routine the port has no name for")
     a = ap.parse_args(argv)
@@ -135,7 +153,9 @@ def main(argv):
 
     md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_16)
     md.detail = True
-    starts = sorted(v for v in by_addr if a.lo <= v < a.hi)
+    tables = [tuple(int(x, 0) for x in t.split(":")) for t in a.table]
+    in_table = lambda x: any(lo <= x < hi for lo, hi in tables)
+    starts = sorted(v for v in by_addr if a.lo <= v < a.hi and not in_table(v))
     # **Each routine decoded from its own start**, so data before one - a
     # module's state in its own code segment, as the sound driver keeps it -
     # cannot pull the decoding out of step. What precedes the first routine
@@ -148,9 +168,21 @@ def main(argv):
     else:
         for k in range(a.lo, first):
             pre.append(k)
-    bounds = starts + [a.hi]
-    for k, st in enumerate(starts):
-        insns.extend(md.disasm(img[st:bounds[k + 1]], st))
+    edges = sorted(set(starts + [x for t in tables for x in t if a.lo <= x <= a.hi]
+                       + [a.hi]))
+    for k, st in enumerate(edges[:-1]):
+        if st < first and not a.code_lead:
+            continue
+        if in_table(st):
+            # a table is bytes; one pseudo-instruction per byte
+            for x in range(st, edges[k + 1]):
+                insns.append(Byte(x, img[x]))
+        else:
+            got = list(md.disasm(img[st:edges[k + 1]], st))
+            insns.extend(got)
+            end = got[-1].address + got[-1].size if got else st
+            for x in range(end, edges[k + 1]):
+                insns.append(Byte(x, img[x]))
 
     # labels: every branch target inside the range that is not a routine
     labels = {}
@@ -167,9 +199,12 @@ def main(argv):
     # routine patches. Every `cs:` operand's target inside the range.
     cs_targets = set()
     for ins in insns:
-        mc = re.search(r"cs:\[(0x[0-9a-f]+)\]", ins.op_str)
-        if mc:
-            t = judge.frame_of(ins.address, fr) + int(mc.group(1), 16)
+        for mc in re.finditer(r"(cs:|(?<![a-z]:))\[(?:\w\w \+ )?(0x[0-9a-f]+)\]", ins.op_str):
+            if mc.group(1) != "cs:" and not a.ds_is_cs:
+                continue
+            if re.search(r"\b(es|ss):\[", ins.op_str) and mc.group(1) != "cs:":
+                continue
+            t = judge.frame_of(ins.address, fr) + int(mc.group(2), 16)
             if a.lo <= t < a.hi:
                 cs_targets.add(t)
     externs = {}
@@ -179,7 +214,7 @@ def main(argv):
     out = []
     publics = [by_addr[s] for s in starts]
     out.append("%s segment byte public 'CODE'" % a.segment)
-    out.append("assume cs:%s, ds:DGROUP" % a.segment)
+    out.append("assume cs:%s, ds:%s" % (a.segment, a.segment if a.ds_is_cs else "DGROUP"))
     for i in range(0, len(publics), 4):
         out.append("public " + ", ".join("_" + p for p in publics[i:i + 4]))
     far_procs = {}
@@ -204,18 +239,27 @@ def main(argv):
         body.append("        db " + ", ".join(run))
     open_proc = None
     dead = False
+    last_data_end = None
     for ins in insns:
         at = ins.address
         if at in labels or at in starts:
             dead = False
-        if dead:
+        if dead or isinstance(ins, Byte) or in_table(at):
             # **Bytes no path reaches**: the code segment's own data - a
             # saved vector, a table - between a routine's last transfer and
-            # the next label. Written as bytes, labelled `c_` by their
-            # offset in the image.
-            if body and body[-1] == "c_%05x label byte" % at:
-                body.pop()
-            body.append("c_%05x db %s" % (at, ", ".join(hexnum(x) for x in ins.bytes)))
+            # the next label. Written as bytes, sixteen to a line, with a
+            # `c_` label wherever the code names one or a run begins.
+            vals = [hexnum(x) for x in ins.bytes]
+            if (body and body[-1].startswith("        db ") and not body[-1].endswith("*/")
+                    and body[-1].count(",") < 15 and at not in cs_targets
+                    and last_data_end == at):
+                body[-1] += ", " + ", ".join(vals)
+            else:
+                if body and body[-1] == "c_%05x label byte" % at:
+                    body.pop()
+                body.append("c_%05x label byte" % at)
+                body.append("        db " + ", ".join(vals))
+            last_data_end = at + ins.size
             continue
         if at in by_addr and at in starts:
             if open_proc:
@@ -272,9 +316,14 @@ def main(argv):
     # taken to be in it, and a far call to it becomes TASM's own `push cs /
     # call` - where the image has TLINK's `nop / push cs / call`, the far
     # call the linker rewrote.
-    ext = ["extrn _%s:%s" % (n, kind) for n, kind in sorted(externs.items())]
+    # A near one is the other way round: it is in this segment, and declared
+    # outside it TASM refuses the near call as one to a different CS.
+    ext = ["extrn _%s:%s" % (n, kind) for n, kind in sorted(externs.items())
+           if kind == "far"]
     ext += ["extrn %s:byte" % n for n in sorted(a.data_externs)]
-    out = ext + out
+    near = ["extrn _%s:near" % n for n, kind in sorted(externs.items())
+            if kind == "near"]
+    out = ext + out[:2] + near + out[2:]
     out.extend(body)
     out.append("%s ends" % a.segment)
     if a.data:
@@ -376,11 +425,14 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
             v = struct.unpack_from("<H", b, k)[0]
             if v == DGROUP_PARA:
                 op = re.sub(r"0x%x\b" % v, "DGROUP", op)
+    # capstone writes `les di, ptr [bp + 4]`; TASM wants the size
+    if m in ("les", "lds"):
+        op = re.sub(r"(^|, )ptr ", r"\1dword ptr ", op)
     # direct DS memory operands, and a register plus the module's own data
     mo = re.search(r"(byte|word|dword) ptr (?:ds:)?\[(?:(\w\w) \+ )?(0x[0-9a-f]+)\]", op)
     if b[0] == 0xFF and mo is None:
         mo = None
-    if mo and not re.search(r"\b(es|cs|ss):\[", op):
+    if mo and not re.search(r"\b(es|cs|ss):\[", op) and not a.ds_is_cs:
         off = int(mo.group(3), 16)
         if (a.data and a.data[0] <= off < a.data[1]) or \
                 (a.bss and a.bss[0] <= off < a.bss[1]):
@@ -414,15 +466,18 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
             if nm:
                 a.data_externs.add(nm.split("+")[0])
                 return "mov %s, offset DGROUP:%s" % (mi.group(1), nm)
-    # the code segment's own data, by the label the dead bytes got
-    mc = re.search(r"cs:\[(0x[0-9a-f]+)\]", op)
-    if mc:
-        tgt = judge.frame_of(ins.address, fr) + int(mc.group(1), 16)
+    # the code segment's own data, by the label the dead bytes got - through
+    # a `cs:` override, or through DS where the module keeps DS on CS
+    for mc in list(re.finditer(r"(cs:|(?<![a-z]:))\[(?:(\w\w) \+ )?(0x[0-9a-f]+)\]", op)):
+        if mc.group(1) != "cs:" and not a.ds_is_cs:
+            continue
+        if mc.group(1) != "cs:" and re.search(r"\b(es|ss):\[", op):
+            continue
+        tgt = judge.frame_of(ins.address, fr) + int(mc.group(3), 16)
         if a.lo <= tgt < a.hi:
-            op = op.replace(mc.group(0), "cs:c_%05x" % tgt)
-    # capstone writes `les di, ptr [bp + 4]`; TASM wants the size
-    if m in ("les", "lds"):
-        op = re.sub(r"(^|, )ptr ", r"\1dword ptr ", op)
+            rep = "%sc_%05x%s" % ("cs:" if mc.group(1) == "cs:" else "",
+                                  tgt, "[%s]" % mc.group(2) if mc.group(2) else "")
+            op = op.replace(mc.group(0), rep)
     op = re.sub(r"0x([0-9a-f]+)", lambda x: hexnum(int(x.group(1), 16)), op)
     op = op.replace(" + ", "+").replace(" - ", "-")
     return ("%s %s" % (m, op)).strip()
