@@ -1882,7 +1882,7 @@ ROUTINES = {
                       "the puzzle number, so each needs the game driven to its "
                       "own level. This spec is here because it is the shape "
                       "the rest will be checked in once there is a way to "
-                      "reach them, and because goal_test_puzzles_3_8_27_30_33_45_50_62 was inverted for "
+                      "reach them, and because goal_test_pop_balloons was inverted for "
                       "weeks and no instrument in this tree could have said "
                       "so."),
     ),
