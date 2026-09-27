@@ -47,7 +47,7 @@ calls).
 | `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
-| `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 22 of 71 | `_DATA` 0x284a..0x286e |
+| `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 36 of 72 | `_DATA` 0x284a..0x286e |
 | `src/seg0000.c` | 0x080b9..0x0dff0, what is left: several modules | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a

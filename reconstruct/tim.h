@@ -1219,9 +1219,11 @@ void add_carried_weight(struct part *obj);              /* 0x07c3a */
 void add_mass_capped(struct part *obj, struct part *other); /* 0x07c5b */
 /* **A kind's step and hit hooks, called through its record** - inline in
    the original, `lcall [bx+0x0ecc]` and `lcall [bx+0x0ec8]` with `bx` the
-   kind times 0x3a, which is what these expand to. Ours in name. */
+   kind times 0x3a, which is what these expand to, and the flip hook at
+   `[bx+0x0ed4]` the same way. Ours in name. */
 #define part_step(part)        (PART_KINDS[(part)->kind].step(part))
 #define part_hit(kind, part)   (PART_KINDS[kind].hit(part))
+#define part_flip(part, how)   (PART_KINDS[(part)->kind].flip((part), (how)))
 uint16_t part_hit_bellow(struct part *part);              /* 0x175f2 */
 void     nudge_x_add(struct part *obj, int16_t d);      /* 0x191c8 */
 void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x191e2 */

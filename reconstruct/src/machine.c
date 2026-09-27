@@ -22,6 +22,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: data 0x284a..0x286e
  */
 #include <stdlib.h>
 #include "tim.h"
@@ -487,14 +488,14 @@ int16_t outlines_cross(struct part *a, struct part *b)
  */
 void reverse_link_ends(struct belt *rec)
 {
-    uint16_t t;
-    struct belt *si;
-    struct part *di;
-    uint8_t b;
-    struct point8 pair;
+    register struct belt *si;
+    register struct part *di;
+    uint8_t b;                          /* [bp-1] */
+    int16_t tp;                         /* [bp-4] */
+    struct point8 pair;                 /* [bp-6] */
+    uint16_t t;                         /* [bp-8] */
 
     di = PART_PTR(PART_PTR(rec->end_a_ptr)->link_ptr[rec->slot_a]);
-
     while (di != PART_NONE && di->kind == KIND_PULLEY) {
         t = di->link_ptr[0];
         di->link_ptr[0] = di->link_ptr[1];
@@ -502,46 +503,41 @@ void reverse_link_ends(struct belt *rec)
         di->link_ptr[2] = di->link_ptr[0];
         di->link_ptr[3] = di->link_ptr[1];
 
-        /* the original swaps these with a single 16-bit move, which is the
-           pair and not the byte */
+        /* the pair, not the byte: one 16-bit move */
         pair = di->attach[0];
         di->attach[0] = di->attach[1];
         di->attach[1] = pair;
 
         si = BELT_PTR(di->belt_ptr[0]);
-        t = ((uint16_t)si->pt[0][0].x);
-        si->pt[0][0].x = ((uint16_t)si->pt[0][1].x);
-        si->pt[0][1].x = t;
-        t = ((uint16_t)si->pt[0][0].y);
-        si->pt[0][0].y = ((uint16_t)si->pt[0][1].y);
-        si->pt[0][1].y = t;
-        t = ((uint16_t)si->pt[1][0].x);
-        si->pt[1][0].x = ((uint16_t)si->pt[1][1].x);
-        si->pt[1][1].x = t;
-        t = ((uint16_t)si->pt[1][0].y);
-        si->pt[1][0].y = ((uint16_t)si->pt[1][1].y);
-        si->pt[1][1].y = t;
-        t = ((uint16_t)si->pt[2][0].x);
-        si->pt[2][0].x = ((uint16_t)si->pt[2][1].x);
-        si->pt[2][1].x = t;
-        t = ((uint16_t)si->pt[2][0].y);
-        si->pt[2][0].y = ((uint16_t)si->pt[2][1].y);
-        si->pt[2][1].y = t;
+        tp = si->pt[0][0].x;
+        si->pt[0][0].x = si->pt[0][1].x;
+        si->pt[0][1].x = tp;
+        tp = si->pt[0][0].y;
+        si->pt[0][0].y = si->pt[0][1].y;
+        si->pt[0][1].y = tp;
+        tp = si->pt[1][0].x;
+        si->pt[1][0].x = si->pt[1][1].x;
+        si->pt[1][1].x = tp;
+        tp = si->pt[1][0].y;
+        si->pt[1][0].y = si->pt[1][1].y;
+        si->pt[1][1].y = tp;
+        tp = si->pt[2][0].x;
+        si->pt[2][0].x = si->pt[2][1].x;
+        si->pt[2][1].x = tp;
+        tp = si->pt[2][0].y;
+        si->pt[2][0].y = si->pt[2][1].y;
+        si->pt[2][1].y = tp;
 
         di = PART_PTR(di->link_ptr[1]);
     }
 
-    t = ((uint16_t)rec->end_a_ptr);
-    rec->end_a_ptr = ((uint16_t)rec->end_b_ptr);
-    rec->home_a_ptr = ((uint16_t)rec->end_a_ptr);
-    rec->end_b_ptr = t;
-    rec->home_b_ptr = t;
+    t = rec->end_a_ptr;
+    rec->home_a_ptr = rec->end_a_ptr = rec->end_b_ptr;
+    rec->home_b_ptr = rec->end_b_ptr = t;
 
     b = rec->slot_a;
-    rec->slot_a = rec->slot_b;
-    rec->home_slot_a = rec->slot_a;
-    rec->slot_b = b;
-    rec->home_slot_b = b;
+    rec->home_slot_a = rec->slot_a = rec->slot_b;
+    rec->home_slot_b = rec->slot_b = b;
 
     mark_part_shapes(PART_PTR(rec->owner_ptr), 3);
 }
@@ -575,88 +571,99 @@ void reverse_link_ends(struct belt *rec)
  * +0x58 decides between +0x58 and a flat 0xa, so a short part gets a taller
  * grab area than its own half-height. Transcribed as the branch it is.
  */
-struct part *part_under_pointer(struct part *exclude, struct part *part)
+struct part *part_under_pointer(struct part *exclude, register struct part *part)
 {
-    uint16_t px = ((uint16_t)DG5768.pointer_x), py = ((uint16_t)DG5768.pointer_y);
-    uint16_t ox = (uint16_t)(((uint16_t)part->box[0].x) - ((uint16_t)DG4E67.origin_x));
-    uint16_t oy = (uint16_t)(((uint16_t)part->box[0].y) - ((uint16_t)DG4E67.origin_y));
-    uint16_t x0, y0, x1, y1;
-    struct rope *link = ROPE_PTR(part->rope_ptr);
-    struct part *link_end = link != ROPE_NONE ? PART_PTR(link->owner_ptr) : PART_NONE;
-    struct belt *e0 = BELT_PTR(part->belt_ptr[0]);
-    struct part *e0_part = e0 != BELT_NONE ? PART_PTR(e0->owner_ptr) : PART_NONE;
-    struct belt *e1 = BELT_PTR(part->belt_ptr[1]);
-    struct part *e1_part = e1 != BELT_NONE ? PART_PTR(e1->owner_ptr) : PART_NONE;
-    struct belt *cur;
-    int16_t i;
+    int16_t y0;
+    int16_t pr;                         /* [bp-2] */
+    int16_t pb;                         /* [bp-4] */
+    int16_t pl;                         /* [bp-6] */
+    int16_t pt;                         /* [bp-8] */
+    int16_t x0;                         /* [bp-0xa] */
+    int16_t x1;                         /* [bp-0xc] */
+    int16_t y1;                         /* [bp-0xe] */
+    int16_t i;                          /* [bp-0x10] */
+    int16_t oy;                         /* [bp-0x12] */
+    int16_t ox;                         /* [bp-0x14] */
+    struct rope *link;                  /* [bp-0x16] */
+    struct belt *cur;                   /* [bp-0x18] */
+    struct belt *e0;                    /* [bp-0x1a] */
+    struct belt *e1;                    /* [bp-0x1c] */
+    struct part *link_end;              /* [bp-0x1e] */
+    struct part *e0_part;               /* [bp-0x20] */
+    struct part *e1_part;               /* [bp-0x22] */
 
+    pl = pr = DG5768.pointer_x;
+    pt = pb = DG5768.pointer_y;
+    ox = part->box[0].x - DG4E67.origin_x;
+    oy = part->box[0].y - DG4E67.origin_y;
     x0 = ox;
     y0 = oy;
-    x1 = (uint16_t)(x0 + ((uint16_t)part->size[0].width));
-    y1 = (uint16_t)(y0 + ((uint16_t)part->size[0].height));
+    x1 = x0 + part->size[0].width;
+    y1 = y0 + part->size[0].height;
+
+    if ((link = ROPE_PTR(part->rope_ptr)) != ROPE_NONE)
+        link_end = PART_PTR(link->owner_ptr);
+    else
+        link_end = PART_NONE;
+    if ((e0 = BELT_PTR(part->belt_ptr[0])) != BELT_NONE)
+        e0_part = PART_PTR(e0->owner_ptr);
+    else
+        e0_part = PART_NONE;
+    if ((e1 = BELT_PTR(part->belt_ptr[1])) != BELT_NONE)
+        e1_part = PART_PTR(e1->owner_ptr);
+    else
+        e1_part = PART_NONE;
 
     if (exclude != PART_NONE
         && (exclude == part || exclude == link_end
             || exclude == e0_part || exclude == e1_part)) {
-        x0 = (uint16_t)(x0 - 0xb);
-        y0 = (uint16_t)(y0 - 0xb);
-        x1 = (uint16_t)(x1 + 0xb);
-        y1 = (uint16_t)(y1 + 0xb);
+        x0 -= 0xb;
+        y0 -= 0xb;
+        x1 += 0xb;
+        y1 += 0xb;
     }
 
-    if (!((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
-          && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py))
-        return PART_NONE;
-
-    if (link != ROPE_NONE && DG4E67.tool != 9) {
-        x0 = (uint16_t)(ox + part->grab.x);
-        y0 = (uint16_t)(oy + part->grab.y);
-        x1 = (uint16_t)(x0 + part->grab_size);
-        y1 = ((int16_t)((uint16_t)part->size[0].height) >> 1)
-             < (int16_t)part->grab_size
-             ? (uint16_t)(y0 + 0xa)
-             : (uint16_t)(y0 + part->grab_size);
-
-        if (PART_PTR(link->owner_ptr) == exclude) {
-            x0 = (uint16_t)(x0 - 0xb);
-            y0 = (uint16_t)(y0 - 0xb);
-        }
-
-        if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
-            && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-            if (PART_PTR(link->end_a_ptr) == part) {
-                link->end_a_ptr = link->end_b_ptr;
-                link->end_b_ptr = dg_near(dgroup, part);
+    if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
+        if (link != ROPE_NONE && DG4E67.tool != 9) {
+            x0 = ox + part->grab.x;
+            y0 = oy + part->grab.y;
+            x1 = x0 + part->grab_size;
+            y1 = (part->size[0].height >> 1) < (int16_t)part->grab_size
+                 ? y0 + 0xa : y0 + part->grab_size;
+            if (PART_PTR(link->owner_ptr) == exclude) {
+                x0 -= 0xb;
+                y0 -= 0xb;
             }
-            return PART_PTR(link->owner_ptr);
+            if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
+                if (PART_PTR(link->end_a_ptr) == part) {
+                    link->end_a_ptr = link->end_b_ptr;
+                    link->end_b_ptr = dg_near(dgroup, part);
+                }
+                return PART_PTR(link->owner_ptr);
+            }
         }
+
+        for (cur = e0, i = 0; i < 2; cur = e1, i++) {
+            if (cur != BELT_NONE && DG4E67.tool != 9
+                && part->kind != KIND_PULLEY) {
+                x0 = ox + part->attach[i].x - 8;
+                y0 = oy + part->attach[i].y - 4;
+                x1 = x0 + 0x10;
+                y1 = y0 + 8;
+                if (PART_PTR(cur->owner_ptr) == exclude) {
+                    x0 -= 0xb;
+                    y0 -= 0xb;
+                }
+                if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
+                    if (PART_PTR(cur->end_a_ptr) == part)
+                        reverse_link_ends(cur);
+                    return PART_PTR(cur->owner_ptr);
+                }
+            }
+        }
+        return part;
     }
-
-    cur = e0;
-    for (i = 0; i < 2; i++) {
-        if (cur != BELT_NONE && DG4E67.tool != 9
-            && part->kind != KIND_PULLEY) {
-            x0 = (uint16_t)(ox + part->attach[i].x - 8);
-            y0 = (uint16_t)(oy + part->attach[i].y - 4);
-            x1 = (uint16_t)(x0 + 0x10);
-            y1 = (uint16_t)(y0 + 8);
-
-            if (PART_PTR(cur->owner_ptr) == exclude) {
-                x0 = (uint16_t)(x0 - 0xb);
-                y0 = (uint16_t)(y0 - 0xb);
-            }
-
-            if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
-                && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-                if (PART_PTR(cur->end_a_ptr) == part)
-                    reverse_link_ends(cur);
-                return PART_PTR(cur->owner_ptr);
-            }
-        }
-        cur = e1;
-    }
-
-    return part;
+    return PART_NONE;
 }
 
 /*
@@ -684,49 +691,37 @@ struct part *part_under_pointer(struct part *exclude, struct part *part)
  * - kind 0x0a at 0x50d5, which must land on a part and not on the background -
  * and otherwise `rec`, so a drag that wanders off everything keeps what it had.
  */
-struct part *find_part_from(struct part *rec)
+struct part *find_part_from(register struct part *rec)
 {
-    struct part *di = rec;
-    struct part *si, *best;
-    struct part *cur;
+    register struct part *si;
+    struct part *cur;                   /* [bp-2] */
+    struct part *best;                  /* [bp-4] */
 
-    if (di != PART_NONE) {
-        si = part_under_pointer(di, di);
-        if (si != PART_NONE)
-            return si;
-    }
+    if (rec != PART_NONE && (si = part_under_pointer(rec, rec)) != PART_NONE)
+        return si;
 
     best = PART_NONE;
-    cur = pick_by_flag(0x3000);
-
-    while (cur != PART_NONE) {
-        si = part_under_pointer(di, cur);
-
-        if (si == cur && (cur->flags_06 & 0x8000) != 0
-            && di != PART_NONE) {
+    for (cur = pick_by_flag(0x3000); cur != PART_NONE;
+         cur = pick_for_record(cur, 0x1000)) {
+        si = part_under_pointer(rec, cur);
+        if (si == cur && (cur->flags_06 & 0x8000) && rec != PART_NONE)
             si = PART_NONE;
-        } else if ((si->flags_06 & 0x8000) != 0 && di != PART_NONE) {
+        else if ((si->flags_06 & 0x8000) && rec != PART_NONE)
             si = PART_NONE;
-        }
-
         if (si != PART_NONE) {
-            if ((si->flags_06 & 0x8000) != 0)
+            if (si->flags_06 & 0x8000)
                 best = si;
             else
                 return si;
         }
-
-        cur = pick_for_record(cur, 0x1000);
     }
 
     if (best != PART_NONE)
         return best;
-
     if (DG50D3.dragged_part_ptr != 0
         && PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE)
         return PART_NONE;
-
-    return di;
+    return rec;
 }
 
 /*
@@ -751,42 +746,34 @@ struct part *find_part_from(struct part *rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-struct part *find_belt_anchor(int16_t *out_end, struct part *rec)
+struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
 {
-    struct part *si = find_part_from(rec);
-    int16_t e0, e1, d0, d1;
+    register struct part *si;
+    int16_t e0;                         /* [bp-2] */
+    int16_t e1;                         /* [bp-4] */
 
-    if (si == PART_NONE)
-        return PART_NONE;
+    if ((si = find_part_from(rec)) != PART_NONE) {
+        if (si->flags_08 & 4) {
+            if (si->flags_08 & 8) {
+                e0 = e1 = si->pos[0].x - DG4E67.origin_x;
+                e0 += si->attach[0].x;
+                e1 += si->attach[1].x;
+                if (abs((int16_t)(DG5768.pointer_x - e0))
+                    < abs((int16_t)(DG5768.pointer_x - e1)))
+                    *out_end = 0;
+                else
+                    *out_end = 1;
+            } else
+                *out_end = 0;
 
-    if ((si->flags_08 & 4) == 0)
-        return PART_NONE;
-
-    if (si->flags_08 & 8) {
-        e0 = (int16_t)(((uint16_t)si->pos[0].x) - ((uint16_t)DG4E67.origin_x)
-                       + si->attach[0].x);
-        e1 = (int16_t)(((uint16_t)si->pos[0].x) - ((uint16_t)DG4E67.origin_x)
-                       + si->attach[1].x);
-
-        d0 = (int16_t)((int16_t)((uint16_t)DG5768.pointer_x) - e0);
-        if (d0 < 0)
-            d0 = (int16_t)-d0;
-        d1 = (int16_t)((int16_t)((uint16_t)DG5768.pointer_x) - e1);
-        if (d1 < 0)
-            d1 = (int16_t)-d1;
-
-        *out_end = (d0 >= d1) ? 1 : 0;
-    } else {
-        *out_end = 0;
-    }
-
-    if (si->kind == KIND_PULLEY) {
-        if (si->link_ptr[0] != 0)
+            if (si->kind == KIND_PULLEY) {
+                if (si->link_ptr[0] != 0)
+                    si = PART_NONE;
+            } else if (si->belt_ptr[*out_end] != 0)
+                si = PART_NONE;
+        } else
             si = PART_NONE;
-    } else if (si->belt_ptr[(uint16_t)*out_end] != 0) {
-        si = PART_NONE;
     }
-
     return si;
 }
 
@@ -827,28 +814,23 @@ void restore_cursor(void)
  * 0x285c; from nine up the hot spot is (0, 0). The bitmap itself is the entry
  * in the list at DGROUP 0x52f6, which the start-up loaded from "mouse.bmp".
  */
-void select_cursor(int16_t which)
+void select_cursor(register int16_t which)
 {
-    int16_t si = which;
-    int16_t hot_x, hot_y;
+    int16_t hot_x;
+    int16_t hot_y;                      /* [bp-2] */
 
-    if (si > 0x1a)
-        si = 0;
-
-    if (si == DG4E67.cursor)
-        return;
-
-    DG4E67.cursor = si;
-
-    if (si < 9) {
-        hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[si];
-        hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[si];
-    } else {
-        hot_x = 0;
-        hot_y = 0;
+    if (which > 0x1a)
+        which = 0;
+    if (which != DG4E67.cursor) {
+        DG4E67.cursor = which;
+        if (which < 9) {
+            hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[which];
+            hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
+        } else
+            hot_x = hot_y = 0;
+        set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[which]),
+                   hot_x, hot_y);
     }
-
-    set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[si]), hot_x, hot_y);
 }
 
 /*
@@ -885,26 +867,42 @@ void select_cursor(int16_t which)
  */
 int16_t cursor_for_tool(void)
 {
-    uint16_t tool = DG4E67.tool;
+    int16_t r;
 
-    switch (tool) {
-    case 1:  return 4;
-    case 2:  return 5;
-    case 3:  return 6;
-    case 4:  return 6;
-    case 5:  return 7;
-    case 6:  return 7;
-    case 7:  return 2;
-    case 8:  return 3;
+    switch (DG4E67.tool) {
+    case 1:
+        r = 4;
+        break;
+    case 2:
+        r = 5;
+        break;
+    case 3:
+    case 4:
+        r = 6;
+        break;
+    case 5:
+    case 6:
+        r = 7;
+        break;
+    case 7:
+        r = 2;
+        break;
+    case 8:
+        r = 3;
+        break;
     case 9:
         if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_BELT)
-            return 8;
-        if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE)
-            return 9;
-        return 0;
+            r = 8;
+        else if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE)
+            r = 9;
+        else
+            r = 0;
+        break;
     default:
-        return 0;
+        r = 0;
+        break;
     }
+    return r;
 }
 
 /*
@@ -932,49 +930,44 @@ int16_t cursor_for_tool(void)
  * done after the restoring call as well as the trying one, which is why there
  * are four of those assignments and not two.
  */
-uint16_t part_flip_options(struct part *part)
+uint16_t part_flip_options(register struct part *part)
 {
-    struct part_kind *kind = &PART_KINDS[part->kind];
-    uint16_t di = 0;
+    uint16_t di;
 
     if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
         return 0;
 
+    di = 0;
     if (part->flags_08 & 0x80)
         di |= 1;
     if (part->flags_08 & 0x100)
         di |= 2;
 
     if (part->flags_06 & 0x400) {
-        if (DG4E67.tool == 9) {
+        if (DG4E67.tool == 9)
             di |= 4;
-        } else {
-            kind->flip(part, 1);
+        else {
+            part_flip(part, 1);
             part->start_flags = part->flags_08;
-
-            if (object_overlaps_any(part) == 0)
+            if (!object_overlaps_any(part))
                 di |= 4;
-
-            kind->flip(part, 1);
+            part_flip(part, 1);
             part->start_flags = part->flags_08;
         }
     }
 
     if (part->flags_06 & 0x200) {
-        if (DG4E67.tool == 9) {
+        if (DG4E67.tool == 9)
             di |= 8;
-        } else {
-            kind->flip(part, 2);
+        else {
+            part_flip(part, 2);
             part->start_flags = part->flags_08;
-
-            if (object_overlaps_any(part) == 0)
+            if (!object_overlaps_any(part))
                 di |= 8;
-
-            kind->flip(part, 2);
+            part_flip(part, 2);
             part->start_flags = part->flags_08;
         }
     }
-
     return di;
 }
 
@@ -1006,85 +999,87 @@ uint16_t part_flip_options(struct part *part)
  * corners and the midpoints of the part's own extent, the midpoints pulled
  * back by 6 so the handle straddles them.
  */
-uint16_t part_handle_at_pointer(struct part *part)
+uint16_t part_handle_at_pointer(register struct part *part)
 {
-    int16_t px = (int16_t)((uint16_t)DG5768.pointer_x), py = (int16_t)((uint16_t)DG5768.pointer_y);
-    int16_t di, x_mid, x_end, y0, y_mid, y_end;
-    uint16_t idx;
-    struct part *rec;
-    struct belt *end;
+    int16_t x0;
+    int16_t x_mid;                      /* [bp-2] */
+    int16_t x_end;                      /* [bp-4] */
+    int16_t y0;                         /* [bp-6] */
+    int16_t y_mid;                      /* [bp-8] */
+    int16_t y_end;                      /* [bp-0xa] */
+    uint16_t idx;                       /* [bp-0xc] */
+    struct part *rec;                   /* [bp-0xe] */
+    struct belt *end;                   /* [bp-0x10] */
 
     DG50AF.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
         rec = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
-
-        di = (int16_t)(((uint16_t)rec->box[0].x)
-                       + rec->grab.x - ((uint16_t)DG4E67.origin_x));
-        y0 = (int16_t)(((uint16_t)rec->box[0].y)
-                       + rec->grab.y - ((uint16_t)DG4E67.origin_x));
-
-        if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+        x0 = rec->box[0].x + rec->grab.x - DG4E67.origin_x;
+        /* the original takes origin_x off a y here, and below */
+        y0 = rec->box[0].y + rec->grab.y - DG4E67.origin_x;
+        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
+            && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
             return 8;
-        if (px >= di && di + 10 > px && py >= y0 && y0 + 10 > py)
+        if (DG5768.pointer_x >= x0 && x0 + 10 > DG5768.pointer_x
+            && DG5768.pointer_y >= y0 && y0 + 10 > DG5768.pointer_y)
             return 7;
     }
 
     if (part->kind == KIND_ROPE) {
         end = BELT_PTR(part->belt_ptr[0]);
         rec = PART_PTR(end->end_b_ptr);
-        idx = ((int8_t)end->slot_b);
-
-        di = (int16_t)(((uint16_t)rec->box[0].x)
-                       + rec->attach[idx].x
-                       - ((uint16_t)DG4E67.origin_x) - 8);
-        y0 = (int16_t)(((uint16_t)rec->box[0].y)
-                       + rec->attach[idx].y
-                       - ((uint16_t)DG4E67.origin_x) - 4);
-
-        if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+        idx = end->slot_b;
+        x0 = rec->box[0].x + rec->attach[idx].x - DG4E67.origin_x - 8;
+        y0 = rec->box[0].y + rec->attach[idx].y - DG4E67.origin_x - 4;
+        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
+            && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
             return 8;
-        if (px >= di && di + 15 > px && py >= y0 && y0 + 7 > py)
+        if (DG5768.pointer_x >= x0 && x0 + 15 > DG5768.pointer_x
+            && DG5768.pointer_y >= y0 && y0 + 7 > DG5768.pointer_y)
             return 7;
     }
 
-    di = (int16_t)(((uint16_t)part->box[0].x) - ((uint16_t)DG4E67.origin_x));
-    x_mid = (int16_t)(di + ((int16_t)((uint16_t)part->size[0].width) >> 1) - 6);
-    x_end = (int16_t)(di + (int16_t)((uint16_t)part->size[0].width));
-    y0 = (int16_t)(((uint16_t)part->box[0].y) - ((uint16_t)DG4E67.origin_y));
-    y_mid = (int16_t)(y0 + ((int16_t)((uint16_t)part->size[0].height) >> 1) - 6);
-    y_end = (int16_t)(y0 + (int16_t)((uint16_t)part->size[0].height));
+    x0 = part->box[0].x - DG4E67.origin_x;
+    x_mid = x0 + (part->size[0].width >> 1) - 6;
+    x_end = x0 + part->size[0].width;
+    y0 = part->box[0].y - DG4E67.origin_y;
+    y_mid = y0 + (part->size[0].height >> 1) - 6;
+    y_end = y0 + part->size[0].height;
 
-    if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+    if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
+        && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
         return 8;
 
     if (DG50AF.flip_options & 1) {
-        if (di - 11 <= px && px < di && py >= y_mid && y_mid + 11 > py)
+        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
+            && DG5768.pointer_y >= y_mid && y_mid + 11 > DG5768.pointer_y)
             return 3;
-        if (px > x_end && x_end + 11 > px && py >= y_mid && y_mid + 11 > py)
+        if (DG5768.pointer_x > x_end && x_end + 11 > DG5768.pointer_x
+            && DG5768.pointer_y >= y_mid && y_mid + 11 > DG5768.pointer_y)
             return 4;
     }
-
     if (DG50AF.flip_options & 2) {
-        if (y0 - 11 <= py && py < y0 && px >= x_mid && x_mid + 11 > px)
+        if (y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0
+            && DG5768.pointer_x >= x_mid && x_mid + 11 > DG5768.pointer_x)
             return 5;
-        if (py > y_end && y_end + 11 > py && px >= x_mid && x_mid + 11 > px)
+        if (DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y
+            && DG5768.pointer_x >= x_mid && x_mid + 11 > DG5768.pointer_x)
             return 6;
     }
-
     if (DG50AF.flip_options & 4) {
-        if (di - 11 <= px && px < di && py > y_end && y_end + 11 > py)
+        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
+            && DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y)
             return 1;
     }
-
     if (DG50AF.flip_options & 8) {
-        if (px > x_end && x_end + 11 > px && py > y_end && y_end + 11 > py)
+        if (DG5768.pointer_x > x_end && x_end + 11 > DG5768.pointer_x
+            && DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y)
             return 2;
     }
-
-    if (px >= di && px < x_end && py >= y0 && py < y_end)
+    if (DG5768.pointer_x >= x0 && DG5768.pointer_x < x_end
+        && DG5768.pointer_y >= y0 && DG5768.pointer_y < y_end)
         return 7;
-
     return 0x0a;
 }
 
@@ -1097,21 +1092,13 @@ uint16_t part_handle_at_pointer(struct part *part)
  * extend into DX, exclusive-or, subtract. Both axes must pass; the first
  * failure answers 0 immediately.
  */
-int16_t points_within_140(const struct point16 *a, const struct point16 *b)
+int16_t points_within_140(register const struct point16 *a,
+                          register const struct point16 *b)
 {
-    int16_t d = (int16_t)(a->x - b->x);
-
-    if (d < 0)
-        d = (int16_t)-d;
-    if (d > 0x8C)
+    if (abs((int16_t)(a->x - b->x)) > 0x8c)
         return 0;
-
-    d = (int16_t)(a->y - b->y);
-    if (d < 0)
-        d = (int16_t)-d;
-    if (d > 0x8C)
+    if (abs((int16_t)(a->y - b->y)) > 0x8c)
         return 0;
-
     return 1;
 }
 
@@ -1128,29 +1115,25 @@ int16_t points_within_140(const struct point16 *a, const struct point16 *b)
  */
 int16_t rope_ends_close(struct rope *rope)
 {
-    struct part *si = PART_PTR(rope->end_a_ptr);
-    struct part *di;
+    register struct part *si;
+    register struct part *di;
 
-    if (si == PART_NONE) {
-        si = find_part_from(PART_NONE);
-        if (si == PART_NONE)
+    if ((si = PART_PTR(rope->end_a_ptr)) == PART_NONE) {
+        if ((si = find_part_from(PART_NONE)) == PART_NONE)
             return 0;
-        if ((si->flags_08 & 2) != 0
-            || (si->flags_08 & 1) == 0)
+        if ((si->flags_08 & 2) || !(si->flags_08 & 1))
             return 0;
         return 1;
     }
-
-    di = PART_PTR(rope->end_b_ptr);
-    if (di == PART_NONE) {
-        di = find_part_from(PART_NONE);
-        if (di == PART_NONE)
+    /* an empty branch and an `else`: the image's `je` over a `jmp` is the
+       shape Borland gives exactly that, and not the `if (!di)` it means */
+    if ((di = PART_PTR(rope->end_b_ptr)) != PART_NONE) {
+    } else {
+        if ((di = find_part_from(PART_NONE)) == PART_NONE)
             return 0;
-        if ((di->flags_08 & 2) != 0
-            || (di->flags_08 & 1) == 0)
+        if ((di->flags_08 & 2) || !(di->flags_08 & 1))
             return 0;
     }
-
     return points_within_140(&si->pos[0], &di->pos[0]);
 }
 
@@ -1181,34 +1164,27 @@ int16_t rope_ends_close(struct rope *rope)
  * The differences are sign-extended to longs before the divide, because a part
  * can be further away than a word holds once the view's origin is in it.
  */
-uint16_t angle_between_parts(struct part *part, struct part *other)
+uint16_t angle_between_parts(register struct part *part,
+                             register struct part *other)
 {
-    int32_t dx, dy;
+    uint16_t angle;                     /* [bp-2] */
+    int16_t slot;                       /* [bp-4] */
+    int32_t dx;                         /* [bp-8] */
+    int32_t dy;                         /* [bp-0xc] */
 
-    if (other == PART_NONE) {   /* the offset: `or si,si` at 0x04c1b */
-        dx = (int32_t)(int16_t)(part->pos[0].x
-                                - (DG5768.pointer_x + DG4E67.origin_x));
-        dy = (int32_t)(int16_t)(part->pos[0].y
-                                - (DG5768.pointer_y + DG4E67.origin_y));
-    } else if (((int16_t)other->kind) == 7) {
-        dx = (int32_t)(int16_t)(part->pos[0].x
-                                - other->pos[0].x);
-        dy = (int32_t)(int16_t)(part->pos[0].y
-                                - other->pos[0].y);
+    if (other == PART_NONE) {
+        dx = (int16_t)(part->pos[0].x - (DG5768.pointer_x + DG4E67.origin_x));
+        dy = (int16_t)(part->pos[0].y - (DG5768.pointer_y + DG4E67.origin_y));
+    } else if (other->kind == KIND_PULLEY) {
+        dx = (int16_t)(part->pos[0].x - other->pos[0].x);
+        dy = (int16_t)(part->pos[0].y - other->pos[0].y);
     } else {
-        int16_t slot = match_field_5a_5c(part, other);
-
-        dx = (int32_t)(int16_t)(
-                 part->pos[0].x
-                 - (int16_t)(other->pos[0].x
-                             + other->attach[slot].x));
-        dy = (int32_t)(int16_t)(
-                 part->pos[0].y
-                 - (int16_t)(other->pos[0].y
-                             + other->attach[slot].y));
+        slot = match_field_5a_5c(part, other);
+        dx = (int16_t)(part->pos[0].x - (other->pos[0].x + other->attach[slot].x));
+        dy = (int16_t)(part->pos[0].y - (other->pos[0].y + other->attach[slot].y));
     }
-
-    return (uint16_t)atan2_long(dx, dy);
+    angle = atan2_long(dx, dy);
+    return angle;
 }
 
 /*
@@ -1279,59 +1255,57 @@ void retension_pulleys(struct part *part)
  * The quadrant itself is left at +0x0c and mirrored to +0x90, the same pairing
  * `break_second_attachment` copies.
  */
-void aim_link_at_bisector(struct part *part)
+void aim_link_at_bisector(register struct part *part)
 {
-    struct part *after, *before;
-    uint16_t a1, a2, d, mid;
-    int16_t  quad;
+    int16_t quad;
+    uint16_t a1;                        /* [bp-2] */
+    uint16_t a2;                        /* [bp-4] */
+    uint16_t mid;                       /* [bp-6] */
+    uint16_t d;                         /* [bp-8] */
+    int16_t form;                       /* [bp-0xa] */
+    struct part *after;                 /* [bp-0xc] */
+    struct part *before;                /* [bp-0xe] */
 
-    after = PART_PTR(part->link_ptr[1]);
-    if (after == PART_NONE)
-        return;
+    if ((after = PART_PTR(part->link_ptr[1])) != PART_NONE) {
+        before = PART_PTR(part->link_ptr[0]);
+        a1 = angle_between_parts(part, after);
+        a1 += 0x2000;
+        a2 = angle_between_parts(part, before);
+        a2 += 0x2000;
+        if ((d = a2 - a1) < 0x8000)
+            mid = a1 + (d >> 1);
+        else
+            mid = a2 + ((uint16_t)(0 - d) >> 1);
 
-    before = PART_PTR(part->link_ptr[0]);
-
-    a1 = (uint16_t)(angle_between_parts(part, after) + 0x2000);
-    a2 = (uint16_t)(angle_between_parts(part, before) + 0x2000);
-    d = (uint16_t)(a2 - a1);
-
-    if (d < 0x8000)
-        mid = (uint16_t)(a1 + (d >> 1));
-    else
-        mid = (uint16_t)(a2 + ((uint16_t)(0 - d) >> 1));
-
-    quad = (int16_t)((mid >> 14) & 3);
-
-    if ((quad & 1) == 0) {
-        uint8_t v = (uint8_t)(quad != 0 ? 6 : 0x0a);
-
-        part->attach[1].y = v;
-        part->attach[0].y = v;
-
-        if ((quad == 0 && d < 0x8000) || (quad == 2 && d >= 0x8000)) {
-            part->attach[0].x = 0;
-            part->attach[1].x = 15;
-        } else {
-            part->attach[1].x = 0;
-            part->attach[0].x = 15;
+        quad = (mid >> 14) & 3;
+        switch (quad) {
+        case 0:
+        case 2:
+            part->attach[0].y = part->attach[1].y = quad == 0 ? 0x0a : 6;
+            if ((quad == 0 && d < 0x8000) || (quad == 2 && d >= 0x8000)) {
+                part->attach[0].x = 0;
+                part->attach[1].x = 15;
+            } else {
+                part->attach[1].x = 0;
+                part->attach[0].x = 15;
+            }
+            break;
+        case 1:
+        case 3:
+            part->attach[0].x = part->attach[1].x = quad == 1 ? 6 : 0x0a;
+            if ((quad == 1 && d < 0x8000) || (quad == 3 && d >= 0x8000)) {
+                part->attach[0].y = 0;
+                part->attach[1].y = 15;
+            } else {
+                part->attach[1].y = 0;
+                part->attach[0].y = 15;
+            }
+            break;
         }
-    } else {
-        uint8_t v = (uint8_t)(quad == 1 ? 6 : 0x0a);
 
-        part->attach[1].x = v;
-        part->attach[0].x = v;
-
-        if ((quad == 1 && d < 0x8000) || (quad == 3 && d >= 0x8000)) {
-            part->attach[0].y = 0;
-            part->attach[1].y = 15;
-        } else {
-            part->attach[1].y = 0;
-            part->attach[0].y = 15;
-        }
+        form = quad;
+        part->start_form = part->form = form;
     }
-
-    part->form = (uint16_t)quad;
-    part->start_form = (uint16_t)quad;
 }
 
 /*
@@ -1353,7 +1327,7 @@ void aim_link_at_bisector(struct part *part)
  * The comparison is between the two **absolute** differences, each the
  * branchless `cwd / xor / sub`.
  */
-void compute_link_endpoints(struct rope *link)
+void compute_link_endpoints(register struct rope *link)
 {
     /*
      * **An end can be 0, and the original reads it anyway.** After the first
@@ -1364,51 +1338,47 @@ void compute_link_endpoints(struct rope *link)
      * Borland banner - and the endpoint is those bytes until the second click
      * fills the end. `PART_PTR(0)` is DS:0, so the same read is written here.
      */
-    struct part *a = PART_PTR(link->end_a_ptr);
-    struct part *b = PART_PTR(link->end_b_ptr);
-    const struct part *pa = a;
-    const struct part *pb = b;
-    int16_t dx, dy;
-    int16_t a_dx1, a_dy1, a_dx2, a_dy2;
-    int16_t b_dx1, b_dy1, b_dx2, b_dy2;
+    struct part *a;
+    int16_t a_dx1;                      /* [bp-2] */
+    int16_t a_dy1;                      /* [bp-4] */
+    int16_t a_dx2;                      /* [bp-6] */
+    int16_t a_dy2;                      /* [bp-8] */
+    int16_t b_dx1;                      /* [bp-0xa] */
+    int16_t b_dy1;                      /* [bp-0xc] */
+    int16_t b_dx2;                      /* [bp-0xe] */
+    int16_t b_dy2;                      /* [bp-0x10] */
+    struct part *b;                     /* [bp-0x12] */
 
-    link->pt[0][0].x = (int16_t)(pa->box[0].x + pa->grab.x);
-    link->pt[0][0].y = (int16_t)(pa->box[0].y + pa->grab.y);
-    link->pt[0][1].x = (int16_t)(pb->box[0].x + pb->grab.x);
-    link->pt[0][1].y = (int16_t)(pb->box[0].y + pb->grab.y);
+    a = PART_PTR(link->end_a_ptr);
+    b = PART_PTR(link->end_b_ptr);
+    link->pt[0][0].x = a->box[0].x + a->grab.x;
+    link->pt[0][0].y = a->box[0].y + a->grab.y;
+    link->pt[0][1].x = b->box[0].x + b->grab.x;
+    link->pt[0][1].y = b->box[0].y + b->grab.y;
 
-    dx = (int16_t)(link->pt[0][0].x - link->pt[0][1].x);
-    if (dx < 0)
-        dx = (int16_t)-dx;
-    dy = (int16_t)(link->pt[0][0].y - link->pt[0][1].y);
-    if (dy < 0)
-        dy = (int16_t)-dy;
-
-    if (dx < dy) {
-        b_dx1 = 0;
-        a_dx1 = 0;
-        a_dx2 = ((int16_t)pa->grab_size);
-        a_dy2 = a_dy1 = (int16_t)(a_dx2 >> 1);
-        b_dx2 = ((int16_t)pb->grab_size);
-        b_dy2 = b_dy1 = (int16_t)(b_dx2 >> 1);
+    if (abs((int16_t)(link->pt[0][0].x - link->pt[0][1].x))
+        < abs((int16_t)(link->pt[0][0].y - link->pt[0][1].y))) {
+        a_dx1 = b_dx1 = 0;
+        a_dx2 = a->grab_size;
+        a_dy1 = a_dy2 = a_dx2 >> 1;
+        b_dx2 = b->grab_size;
+        b_dy1 = b_dy2 = b_dx2 >> 1;
     } else {
-        b_dy1 = 0;
-        a_dy1 = 0;
-        a_dy2 = ((int16_t)pa->grab_size);
-        a_dx2 = a_dx1 = (int16_t)(a_dy2 >> 1);
-        b_dy2 = ((int16_t)pb->grab_size);
-        b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
+        a_dy1 = b_dy1 = 0;
+        a_dy2 = a->grab_size;
+        a_dx1 = a_dx2 = a_dy2 >> 1;
+        b_dy2 = b->grab_size;
+        b_dx1 = b_dx2 = b_dy2 >> 1;
     }
 
-    link->pt[0][2].x = (int16_t)(link->pt[0][0].x + a_dx2);
-    link->pt[0][2].y = (int16_t)(link->pt[0][0].y + a_dy2);
-    link->pt[0][3].x = (int16_t)(link->pt[0][1].x + b_dx2);
-    link->pt[0][3].y = (int16_t)(link->pt[0][1].y + b_dy2);
-
-    link->pt[0][0].x   = (int16_t)(link->pt[0][0].x + a_dx1);
-    link->pt[0][0].y = (int16_t)(link->pt[0][0].y + a_dy1);
-    link->pt[0][1].x = (int16_t)(link->pt[0][1].x + b_dx1);
-    link->pt[0][1].y = (int16_t)(link->pt[0][1].y + b_dy1);
+    link->pt[0][2].x = link->pt[0][0].x + a_dx2;
+    link->pt[0][2].y = link->pt[0][0].y + a_dy2;
+    link->pt[0][3].x = link->pt[0][1].x + b_dx2;
+    link->pt[0][3].y = link->pt[0][1].y + b_dy2;
+    link->pt[0][0].x += a_dx1;
+    link->pt[0][0].y += a_dy1;
+    link->pt[0][1].x += b_dx1;
+    link->pt[0][1].y += b_dy1;
 }
 
 /*
