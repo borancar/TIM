@@ -37,6 +37,11 @@ CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-add
 CXX      ?= c++
 CXXFLAGS ?= -O2 -g -std=c++14
 # The headers stay beside io.c; the game's own sources are a directory down.
+# **A comparison that cannot come out true is a transcription gone wrong.**
+# Source written for Turbo C++ compares a 16-bit value with 0x8000 as
+# unsigned; on the host `int16_t == 0x8000` is always false and compiles
+# anyway (docs/lessons.md).
+CFLAGS  += -Werror=type-limits
 CFLAGS  += -I.
 SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
 SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
@@ -47,7 +52,7 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 # game - they are the hardware, the window and the C library it was linked
 # against - and the dev*.c files are not shipped at all.
 SRC  := src
-GAME := $(SRC)/machine.c $(SRC)/gamemain.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
+GAME := $(SRC)/machine.c $(SRC)/gamemain.c $(SRC)/intro.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
         $(SRC)/engine.c $(SRC)/vqtflip.c $(SRC)/offbmp.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c $(SRC)/atan2.c $(SRC)/vqt.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
         $(SRC)/sxovl_asb.c $(SRC)/sxovl_adl.c $(SRC)/sxovl_sbp.c \

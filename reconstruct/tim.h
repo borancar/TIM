@@ -1151,7 +1151,7 @@ void load_all_parts(void);                          /* 0x0f7b6 */
 void draw_frame_corners(struct bmp_set *rec);              /* 0x0ee6e */
 void draw_answer_slot(struct bitmap *bmp, uint16_t slot);  /* 0x0edf1 */
 void redraw_cursor_all(void);                       /* 0x0b078 */
-uint16_t copy_protect_screen(struct bmp_set *bitmaps);                         /* 0x0ea39 */
+void copy_protect_screen(struct bmp_set *bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
@@ -1459,7 +1459,7 @@ void     conveyor_nudge_25(struct part *obj, int16_t mid); /* 172c:2b1e */
 uint16_t part_step_light(struct part *part);             /* 172c:2b99 */
 uint16_t part_step_windmill(struct part *part);             /* 172c:49a1 */
 void game_teardown(int16_t really);                 /* 0x0e34a */
-uint16_t game_intro(void);                          /* 0x0e4be */
+void game_intro(void);                          /* 0x0e4be */
 void game_play(void);                               /* 0x0eed5 */
 void game_setup(void);                              /* 0x0ef19 */
 void game_round(void);                              /* 0x0eff5 */

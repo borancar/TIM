@@ -1110,6 +1110,23 @@ knows the frame, is what covers that half.
 
 The model of the guest's memory as a byte array, and every way a pointer, an offset, a frame or a field width has gone wrong in it.
 
+### A 16-bit comparison with 0x8000 is always false on the host, and it compiles
+
+`game_intro` was rewritten for Turbo C++ on 2026-09-27 and its state word
+`which` declared `int16_t`, compared with `== 0x8000`. Under TCC `int` is 16
+bits, 0x8000 is an `unsigned int`, and the comparison is the `cmp word,0x8000`
+the original has - the judge said MATCH. On the host `int` is 32 bits, 0x8000
+is 32768, and no `int16_t` equals it: the intro's title loop never ran, the
+game went straight on, and every solution stopped solving. The port's version
+had `(uint16_t)which` at each comparison, and the rewrite dropped the casts as
+noise.
+
+GCC said so - `comparison is always false due to limited range of data type`
+- as a warning among warnings. **`-Werror=type-limits` is now in the port's
+build**, and a value only ever assigned and compared for equality with such a
+constant is declared `uint16_t`, which compiles to the same instruction under
+TCC.
+
 ### A record moved off its guest address leaves its near pointers behind
 
 `PALCHUNK` became the host's own layout on 2026-09-27 - a far pointer in it

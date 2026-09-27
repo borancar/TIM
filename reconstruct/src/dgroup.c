@@ -2058,14 +2058,6 @@ struct dg_1bcc DG1BCC DGROUP_AT(0x1bcc) = {
     .solved_all_body = "Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.",
     .path_sep = "\\",
 };
-struct dg_254a DG254A DGROUP_AT(0x254a) = {
-    .sierra_bmp = "sierra.bmp",
-    .sierra_scr = "sierra.scr",
-    .corners_bmp = "corners.bmp",
-    .title_gkc = "title.gkc",
-    .credits_gkc = "credits.gkc",
-    .icons_bmp = "icons.bmp",
-};
 struct dg_2630 DG2630 DGROUP_WAS(0x2630) = {
     .goal_test = {
         goal_test_puzzle_1,
