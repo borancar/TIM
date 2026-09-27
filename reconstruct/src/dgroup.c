@@ -2980,12 +2980,3 @@ struct s1c_huge_move S1C_HUGE_MOVE SEGMENT_AT(0x1c25, 0x5f99);
 
 /* Segment 14de references these; their owner module is not converted
    yet. */
-struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { 0xffff, { 0x00e8, 0x0168 } };
-struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
-    { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },     /* picture */
-    { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },     /* picture_x */
-    { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },     /* picture_y */
-    { 0x0250, 0x0252, 0x0250, 0x0251 },                     /* sprite_x */
-    { 0x001a, 0x0018, 0x001b, 0x0019 },                     /* sprite_y */
-};
-struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6);

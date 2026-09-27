@@ -16,14 +16,17 @@
  *
  * JUDGE: compiler 3.00
  * JUDGE: built-with -mm -d
- * JUDGE: data 0x21e2..0x2234
+ * JUDGE: data 0x259c..0x25e8
  *
  * **Turbo C++ 3.0, `-mm -d`, without `-O`**: a `return` leaves its `jmp` to
  * the epilogue even when the epilogue is next (`ask_yes_no`), the two
  * `"(click button to continue)"` share one copy, and the calls to routines
- * earlier in the file are `push cs / call`. Its data is its literals alone,
- * DGROUP 0x21e2..0x2234 - the records at 0x259c it touches are another
- * module's.
+ * earlier in the file are `push cs / call`. Its data is DGROUP
+ * 0x259c..0x25e8: the message box's tab stops, the menu animation, the
+ * selection's phase, and its literal pool, the three button labels. The
+ * messages it draws - "PUZZLE ", " COMPLETED!" and the rest - are the strings
+ * module's arrays in `DG1BCC`: "PUZZLE " is named from segment 0dff as well,
+ * and a literal belongs to one module.
  */
 
 #include "tim.h"
@@ -35,6 +38,27 @@
  * DGROUP byte array at the address its macro names, like the shared ones in
  * dgroup.h; they are declared here because nothing else uses them.
  */
+
+/* The message box's tab stops, DGROUP 0x259c. */
+struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { 0xffff, { 0x00e8, 0x0168 } };
+/* The menu button's animation, DGROUP 0x25a2. */
+struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
+    { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },     /* picture */
+    { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },     /* picture_x */
+    { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },     /* picture_y */
+    { 0x0250, 0x0252, 0x0250, 0x0251 },                     /* sprite_x */
+    { 0x001a, 0x0018, 0x001b, 0x0019 },                     /* sprite_y */
+};
+/* The selection outline's phase, DGROUP 0x25d6. */
+struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6) = { 0 };
+
+/* The module's literal pool, DGROUP 0x25d8..0x25e8: the message box's three
+   button labels. */
+struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
+    "CONTINUE", /* continue_btn */
+    "YES", /* yes */
+    "NO", /* no */
+};
 
 /*
  * 0x14dec
@@ -582,11 +606,11 @@ void show_level_complete(void)
     char code[40];
 
     repaint_whole_screen();
-    string_copy(line, "PUZZLE ");
+    string_copy(line, DG1BCC.puzzle_prefix);
     int_to_string(DG4E67.round_number, num, 0xa);
     string_concat(line, num);
-    string_concat(line, " COMPLETED!");
-    string_copy(bonus, "Total bonus points: ");
+    string_concat(line, DG1BCC.completed);
+    string_copy(bonus, DG1BCC.total_bonus_points);
     int_to_string(DG50AF.bonus_1 + DG50AF.bonus_2, num, 0xa);
     string_concat(bonus, num);
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
@@ -594,16 +618,16 @@ void show_level_complete(void)
     draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
     if (DG4E67.round_number < DG4E67.level_count) {
         /* The literal ends in a NUL of its own: the image has two after it. */
-        draw_scroll_text("New Password\0", 0xb8, 0xc4, 0xd0);
+        draw_scroll_text(DG1BCC.new_password, 0xb8, 0xc4, 0xd0);
         read_password_line(DG4E67.round_number, code);
         score_to_code(DG4E67.counter, code);
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }
     cursor_redraw_off_thunk();
     VMDS.text_colour = 0;
-    draw_string("(click button to continue)", 0xd3, 0xee);
+    draw_string(DG1BCC.click_button_to_continue, 0xd3, 0xee);
     VMDS.text_colour = 0x0f;
-    draw_string("(click button to continue)", 0xd4, 0xed);
+    draw_string(DG1BCC.click_button_to_continue, 0xd4, 0xed);
     restore_cursor_following();
     present_back_page();
 }

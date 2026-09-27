@@ -38,11 +38,6 @@ struct game_path_sep GAME_PATH_SEP DGROUP_AT(0x1bca) = {
     0x236e, /* path_sep_ptr */
 };
 
-struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
-    "CONTINUE", /* continue_btn */
-    "YES", /* yes */
-    "NO", /* no */
-};
 
 /*
  * **Where Tab sends the pointer on the puzzle picker's controls**, DGROUP 0x260a..0x2620, 0x16 bytes: which
