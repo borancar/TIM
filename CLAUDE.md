@@ -12,8 +12,9 @@ right on screen.
 
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
 `reconstruct/src` file is to compile under the compiler that built it -
-Borland C++ 3.0 for the game (options per module, `-mm -O` and up), Turbo
-C++ 1.0x for a few library modules - to exactly the image's bytes
+Borland C++ 3.0 for most of the game (options per module), Borland C++ 2.0
+for fifteen modules, Turbo C++ 1.01 for `atan2_long`, and TASM 1.01 for the
+assembly - to exactly the image's bytes
 (`tools/judge.py`, whose file markers say which), *and* still build
 with gcc into the working port, which must stay green. Pointer sizes differ
 between the two and that is expected. What exists only because the host is

@@ -24,7 +24,7 @@
  * JUDGE: built-with -mm -O -G -Z
  * JUDGE: data 0x49ba..0x49c6
  * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: assembler tasm1.01
  *
  * **Borland C++ 3.0, `-mm -O -G -Z`, through the assembler.** BC++ 3.0 is
  * the only one of the Borland compilers tried that turns an early `return`

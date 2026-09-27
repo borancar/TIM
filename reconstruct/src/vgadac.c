@@ -18,10 +18,9 @@
  * Only screenshot.c calls into it, and nothing calls `vga_set_dac` at all.
  * The names are ours.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

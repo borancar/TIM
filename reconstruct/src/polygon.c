@@ -20,10 +20,9 @@
  * the end of a module, but nothing proves it, and nothing says which side
  * of that the thunk at 0x20185 is on. Its end is the C body the thunk jumps to.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

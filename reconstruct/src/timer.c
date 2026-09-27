@@ -20,10 +20,9 @@
  * 0x20653. Whether the two thunks at 0x20838 are its last routines or a
  * module of their own is not settled.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

@@ -20,10 +20,9 @@
  * The records it walks are `bitmaps.c`'s: `BITMAPS.walk`, the reader the
  * bitmap and screen loaders point it at.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

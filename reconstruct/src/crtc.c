@@ -16,10 +16,9 @@
  * the saves, and none gives that prologue and that epilogue together.
  * **Nothing proves the module boundary on either side**.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

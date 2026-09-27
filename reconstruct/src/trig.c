@@ -19,7 +19,6 @@
  * host has stubs for them. Functions are in address order and each carries
  * the image offset it was read from.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
  * JUDGE: tasm
  * JUDGE: assembler tasm1.01

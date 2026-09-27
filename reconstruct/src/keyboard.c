@@ -26,10 +26,9 @@
  * 0x21088 before them is its first routine or the previous module's last is
  * not settled. Its end is the text module's first byte.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

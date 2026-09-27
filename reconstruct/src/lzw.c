@@ -16,10 +16,9 @@
  * 0x1ca62 - with its `_DATA` 0x35b2..0x35d6. Its ends are resource.c's last
  * routine and resfile.c's first.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include <string.h>
 

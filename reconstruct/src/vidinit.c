@@ -27,10 +27,9 @@
  * data of its own, so nothing says whether it ends the divide trap's module or
  * starts this one; it stays in engine.c.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

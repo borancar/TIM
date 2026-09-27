@@ -22,6 +22,18 @@ original compilers' output; the assembly ones are TASM source in the same
 `.c` files. Not yet judged: the overlay drivers (VM.OVL's VGA, SX.OVL's
 ASB, ADL, SBP and SPKR), which are separate binaries.
 
+**Four tools build it** (narrowed 2026-09-27): **Borland C++ 3.0** for most
+of the game (72 files, the four Turbo C++ 3.0 was credited with included -
+they match either); **Borland C++ 2.0** for 15 modules, none of which 3.0
+reproduces; **Turbo C++ 1.01** for `atan2_long` alone; and **TASM 1.01** for
+all 17 assembly modules and the three C modules with inline `asm`. The link
+itself was the 3.0 generation's: the startup is 3.0's `C0M.OBJ` (661 of 663
+bytes, the other two TLINK's rewrite of a far call; 2.0's differs from the
+26th byte), and 3.0's `CM.LIB` accounts for 50 runtime modules where 2.0's
+accounts for 33, a subset. TC++ 3.0 and BC++ 3.0 ship the same `C0M.OBJ`
+and match the same library modules, so which of the two linked is not
+settled.
+
 **Byte-exact in the port so far** (`uv run python tools/judge.py <file>`):
 
 | file | module | routines | data |

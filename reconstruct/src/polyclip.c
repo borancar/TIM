@@ -18,10 +18,9 @@
  * `blit_scaled_b`, a C routine. Nothing calls between the two routines here,
  * so nothing says whether they shared a file.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

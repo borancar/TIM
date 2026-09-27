@@ -17,10 +17,9 @@
  * bytes of the code segment before the first routine. The functions are in address order and each
  * carries the image offset it was read from.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

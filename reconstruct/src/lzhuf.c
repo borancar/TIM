@@ -23,10 +23,9 @@
  * The end is ours: whether the four thunks and `restore_write_mode` share
  * the module is not measured.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include <string.h>
 

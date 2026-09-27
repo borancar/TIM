@@ -13,9 +13,10 @@
  * JUDGE: built-with -mm
  *
  * **Turbo C++ 1.0x built it**, not the 3.0 that built the game: it reserves its
- * two flag bytes with `dec sp / dec sp`, which neither TCC 3.0 nor Borland C++
- * 2.0 or 3.0 writes, and only TC++ 1.0x stores a negated `long` low word
- * first as the image does. Compiled here by TC++ 1.01 `-mm` it is the image's
+ * two flag bytes with `dec sp / dec sp`, which 3.0 does not write, and only
+ * TC++ 1.0x stores a negated `long` low word first as the image does - Borland
+ * C++ 2.0 matches everything else, but stores the high word first however the
+ * negation is spelled (`-a`, `0 - a`, `a *= -1` and the cast were all tried). Compiled here by TC++ 1.01 `-mm` it is the image's
  * 289 bytes, far calls and all. So it came into the link already compiled -
  * most likely a library of Dynamix's - and it has no `-O`: the jump over the
  * epilogue's `jmp` is still there.

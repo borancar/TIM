@@ -48,10 +48,9 @@
  * **0x21b44..0x21e34 is not transcribed**: a joystick driver - port 0x201,
  * timed with `loop` - that nothing on the paths the port runs calls.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include <string.h>
 
@@ -497,7 +496,8 @@ L21da3:
         push ax
         mov ax, word ptr [bp+6]
         push ax
-        call _joy_read
+        push cs
+        call near ptr _joy_read
         add sp, 6
         xor ax, ax
         mov bx, word ptr DGROUP:d_473b
@@ -732,8 +732,7 @@ _mouse_init proc far
         push ax
         push ax
         push cs
-        db 0e8h
-        dw _mouse_set_ranges-$-2
+        call near ptr _mouse_set_ranges
         add sp, 8
         mov ax, 0ch
         mov cx, 1fh
@@ -815,12 +814,10 @@ _mouse_event proc far
         or ax, word ptr DGROUP:d_4746
         je L22004
         push cs
-        db 0e8h
-        dw _mouse_save_vga-$-2
+        call near ptr _mouse_save_vga
         call dword ptr DGROUP:d_4744
         push cs
-        db 0e8h
-        dw _mouse_restore_vga-$-2
+        call near ptr _mouse_restore_vga
 L22004:
         cli
         mov ss, si

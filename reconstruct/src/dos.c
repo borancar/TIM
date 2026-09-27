@@ -19,10 +19,9 @@
  * are the game's, not the runtime's: they sit in the game's part of `_TEXT`,
  * before the library begins at 0x0bbfe.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
- * JUDGE: via-assembler
- * JUDGE: assembler bc2.00
+ * JUDGE: tasm
+ * JUDGE: assembler tasm1.01
  */
 #include "tim.h"
 #include "io.h"

@@ -12,7 +12,7 @@
  * 0x25e8..0x260a. Functions are in address order and each carries the image
  * offset it was read from.
  *
- * JUDGE: compiler 3.00
+ * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -d
  * JUDGE: data 0x25e8..0x260a
  */
