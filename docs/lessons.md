@@ -365,6 +365,29 @@ the two differ. The judge read it from the instruction stream in the first
 compile. It is the rule at the top of CLAUDE.md, measured: a transcription
 that agrees with every capture can still be wrong where no capture looked.
 
+### A literal the original writes to is read-only on the host, and only one check went where it is written
+
+`game_screen`'s freeform case calls `load_animation("ff.lev")`, and
+`hash_filename` upper-cases the name it is given in place. In the original
+that is a byte of DGROUP like any other: the pool says "FF.LEV" afterwards,
+for good. The port had kept the literal as a field of a placed record, which
+is writable, and when screen.c went byte-exact on 2026-09-27 the record
+became the plain literal the compiler wants - which gcc puts in `.rodata`.
+The first write killed the port.
+
+`make test` passed, and so did `check_machines` on all 29 levels and
+`check_native` on the whole intro, because none of them enters freeform mode.
+`check_briefing --screen picker` does, and reported "port never reached it"
+for every flip; `gdb` put the fault on the `xor` in `hash_filename`.
+
+**Where the original writes to a literal, the host spells it
+`WRITABLE_LITERAL("...")`** (dgroup.h): the literal itself under Borland, and
+on the host one static array per site - the same single object the original
+changes, not a fresh copy per call. A literal passed to anything that can
+write through its argument needs looking at. After a module's data goes
+from records to literals, run every `check_briefing` screen as well as
+`make test`.
+
 ### A check that polls can miss what it is checking, and then blames the port
 
 **A check that polls can miss what it is checking, and then blames the port.**

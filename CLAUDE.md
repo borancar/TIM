@@ -219,6 +219,7 @@ a case it does not obviously cover.
 - A literal and an extern array compile to the same instruction, so a routine match does not say whose data it is: the judge now checks the module's `_DATA` against other files' objects - [more](docs/lessons.md#a-literal-and-an-extern-array-compile-to-the-same-instruction)
 - Borland lays `_BSS` out in reverse order of first mention, a header `extern` included, and `-d` merges the duplicate literals a pool may need - [more](docs/lessons.md#a-modules-data-layout-is-decided-by-what-the-compiler-saw-not-by-the-order-of-the-definitions)
 - The judge found an inverted comparison that every screen comparison had passed - [more](docs/lessons.md#the-judge-found-a-wrong-comparison-that-every-screen-comparison-had-passed)
+- A literal the original writes to is read-only on the host: spell it `WRITABLE_LITERAL`, and run every `check_briefing` screen after data becomes literals - [more](docs/lessons.md#a-literal-the-original-writes-to-is-read-only-on-the-host-and-only-one-check-went-where-it-is-written)
 
 ### The hybrid runner
 

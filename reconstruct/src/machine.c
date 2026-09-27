@@ -6525,7 +6525,7 @@ uint16_t bin_scroll_end(void)
  * belt is only marked if it was not already, and its geometry is refreshed;
  * outside that state both belts are marked and refreshed unconditionally.
  */
-void mark_needs_refile(struct part *part, uint8_t n)
+void mark_needs_refile(struct part *part, int16_t n)
 {
     int16_t rope;                     /* [bp-4] */
     int16_t i;        /* [bp-2] */

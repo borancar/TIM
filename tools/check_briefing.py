@@ -79,7 +79,7 @@ SCREENS = {
     },
     # The **file picker**, which is four clicks in: dismiss, the wrench to ask
     # for freeform mode, YES to confirm it, then Load Machine. It is behind
-    # freeform because `screen_state_0100` returns at once outside it.
+    # freeform because `game_screen`'s LOAD case does nothing outside it.
     #
     # This is the check that caught `pick_file`'s argument order. The pattern is
     # pushed last and is therefore the third argument; the port had it first,

@@ -160,14 +160,6 @@ _WHOLE_PROGRAM = (
     "covered by the routines they call, which verify individually, and by the "
     "screen comparisons in check_briefing.py.")
 
-_JMP_TARGET = (
-    "it is a jump target, not a routine. game_screen's table dispatches with "
-    "jmp, the handler runs on game_screen's own frame, and it ends by jumping "
-    "back to 0x1145b - so there is no call to stop at and no return to detect. "
-    "What it does is covered by the screen comparisons in check_briefing.py, "
-    "which drive the panel through it with clicks, and by the routines it "
-    "calls, most of which verify individually.")
-
 
 def dgo(lib, p):
     """The inverse of `dgp`: a host pointer as the DGROUP offset the guest sees.
@@ -1984,76 +1976,6 @@ ROUTINES = {
         args=[],
         check_occurrences=[0],
         call=lambda lib, a: lib.puzzle_tab(),
-    ),
-    "screen_state_4000": dict(
-        addr=0x11290,
-        args=[],
-        unverifiable=("the volume knob, up - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_2000": dict(
-        addr=0x112a9,
-        args=[],
-        unverifiable=("the volume knob, down - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_1000": dict(
-        addr=0x112c2,
-        args=[],
-        unverifiable=("quit - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0800": dict(
-        addr=0x112d0,
-        args=[],
-        unverifiable=("restart - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0400": dict(
-        addr=0x112e5,
-        args=[],
-        unverifiable=("enter freeform - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0200": dict(
-        addr=0x11347,
-        args=[],
-        unverifiable=("leave freeform - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0100": dict(
-        addr=0x113a9,
-        args=[],
-        unverifiable=("Load Machine - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0080": dict(
-        addr=0x1141b,
-        args=[],
-        unverifiable=("Save Machine - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0040": dict(
-        addr=0x11458,
-        args=[],
-        unverifiable=("the gravity slider - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
-    ),
-    "screen_state_0020": dict(
-        addr=0x114a0,
-        args=[],
-        unverifiable=("the air-pressure slider - " + _JMP_TARGET),
-        check_occurrences=[0],
-        call=lambda lib, a: None,
     ),
     "ask_yes_no": dict(
         addr=0x1567B,

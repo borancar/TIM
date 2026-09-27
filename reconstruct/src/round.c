@@ -198,7 +198,7 @@ void round_setup(void)
  * than to the round.
  *
  * It is a routine rather than a call because `game_round` ends in one place and
- * `screen_state_0100` and the freeform handlers end a round in others.
+ * `game_screen`'s LOAD case and the freeform handlers end a round in others.
  */
 void round_teardown(void)
 {

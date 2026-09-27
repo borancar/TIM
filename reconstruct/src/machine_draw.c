@@ -1147,7 +1147,7 @@ void step_and_draw_machine(int16_t redraw_all)
  * extents, which is not symmetric and is what the original writes - and handed
  * to `alloc_shape` so the whole decoration can be lifted off again.
  */
-void draw_part_selection(register struct part *part, int16_t which, uint8_t flags)
+void draw_part_selection(register struct part *part, int16_t which, int16_t flags)
 {
     int16_t step;
     int16_t tall;

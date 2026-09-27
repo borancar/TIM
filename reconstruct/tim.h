@@ -1356,7 +1356,7 @@ void move_carried_rope(void);                       /* 0x0fe84 */
 void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
-void draw_part_selection(struct part *part, int16_t which, uint8_t flags); /* 0x16209 */
+void draw_part_selection(struct part *part, int16_t which, int16_t flags); /* 0x16209 */
 void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
@@ -1388,7 +1388,7 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x038b9 */
 void     seg172c_nothing(void);                     /* 172c:0000 */
 void     sound_on_hard_impact(struct part *obj);        /* 0x03009 */
-void     mark_needs_refile(struct part *part, uint8_t n); /* 0x058f3 */
+void     mark_needs_refile(struct part *part, int16_t n); /* 0x058f3 */
 void     mark_belt_shapes(struct part *part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
@@ -1544,8 +1544,6 @@ void select_music_by_key(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x0fbda */
 void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
-void carried_part_grow(void);                       /* 0x10466 */
-void carried_part_shrink(void);                     /* 0x10551 */
 void move_carried_part(void);                       /* 0x101dc */
 void part_key_shortcut(void);                 /* 0x10410 */
 void pick_up_part(void);                            /* 0x10658 */
@@ -1557,7 +1555,7 @@ void flip_carried_end_1(void);                      /* 0x107b6 */
 void flip_carried_end_2(void);                      /* 0x107e6 */
 int16_t settle_carried_part(void);                  /* 0x10bee */
 void region_click_bin(struct region *region);             /* 0x10e14 */
-void region_cursor_bin_above(struct region *region);      /* 0x10da9 */
+void region_cursor_bin_above(struct region *region);      /* 0x10d99 */
 void region_cursor_bin(struct region *region);            /* 0x10dc2 */
 void region_cursor_playfield(struct region *region);      /* 0x10ef1 */
 void region_cursor_freeform(struct region *region);       /* 0x114db */
@@ -1615,38 +1613,6 @@ void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
 uint16_t part_index(struct part *part);                 /* 0x11d00 */
 void write_part_list(FILE *file, struct part *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
-/*
- * The frame `game_screen` shares with the handlers its jump table reaches.
- *
- * They are not functions in the original: the table at CS:0x34bf *jumps* to
- * them and each ends by jumping back into the loop's tail at 0x1145b, so they
- * run in `game_screen`'s own stack frame and read and write its locals. A port
- * that made them `void f(void)` could not express that, and the counters it
- * would have to duplicate are exactly the ones that decide what gets repainted.
- * So the frame is passed instead.
- */
-struct screen_loop {
-    int16_t  held;          /* di          - passes since the button went down */
-    uint16_t repaint_all;   /* si          - the whole screen */
-    uint16_t repaint_e;     /* [bp-0x0a]   - one panel piece each */
-    uint16_t repaint_f;     /* [bp-0x0c] */
-    uint16_t repaint_g;     /* [bp-0x0e] */
-    uint16_t done;          /* [bp-0x08]   - leave the loop */
-    uint16_t reload;        /* [bp-0x06]   - the level wants loading again */
-    uint16_t file_err;      /* [bp-0x10]   - what the last save answered */
-};
-
-void screen_state_4000(struct screen_loop *s);
-void screen_state_2000(struct screen_loop *s);
-void screen_state_1000(struct screen_loop *s);
-void screen_state_0800(struct screen_loop *s);
-void screen_state_0400(struct screen_loop *s);
-void screen_state_0200(struct screen_loop *s);
-void screen_state_0100(struct screen_loop *s);
-void screen_state_0080(struct screen_loop *s);
-void screen_state_0040(struct screen_loop *s);
-void screen_state_0020(struct screen_loop *s);
-
 void game_screen_loop(void);                               /* 0x0f8c2 */
 void run_machine_loop(void);                               /* 0x012ab */
 void finish_level(void);                             /* 0x02710 */

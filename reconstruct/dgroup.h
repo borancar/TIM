@@ -496,6 +496,21 @@ static const struct far_ptr FAR_NULL = { 0, 0 };
 #  define NULL_READ(p)   ((p) != NULL ? (p) : (void *)guest_mem)
 #endif
 
+/*
+ * **A string literal the game writes to.** The original's literals are bytes
+ * in DGROUP like any other, and `hash_filename` upper-cases the name it is
+ * given in place - so `load_animation("ff.lev")` leaves "FF.LEV" in the pool
+ * for good. The host puts a literal in read-only memory, so at such a site
+ * the literal is spelled `WRITABLE_LITERAL("...")`: the literal itself under
+ * the original compiler, and on the host one static array per site, which is
+ * the same single object the original changes. Ours.
+ */
+#ifdef __TURBOC__
+#  define WRITABLE_LITERAL(s)   (s)
+#else
+#  define WRITABLE_LITERAL(s)   (__extension__ ({ static char w_[] = s; w_; }))
+#endif
+
 /* `dg_far_ptr` for the one record that stores the pair segment-first - a
    bitmap's pixels. */
 #ifndef __TURBOC__
@@ -1004,7 +1019,7 @@ struct dg_4e67 {
     uint16_t  word_4ebb;       /* +0x54 */
     int16_t   round_number;        /* +0x56  the puzzle being played; round_setup loads it */
     int16_t   playing;             /* +0x58  game_play runs while this is non-zero */
-    uint16_t  master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
+    int16_t   master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
     /* **The cursor showing, and the one the hourglass replaced.**
        `select_cursor` returns at once when the number it is given is already
        in `cursor`, `wait_cursor` files the outgoing one in `saved_cursor`
@@ -1840,7 +1855,7 @@ struct part {
        `place_object_for_draw` lays a mirrored hot point at `mirror_size.width
        - hot.x - size[0].width`, and the same for y. `make_part`,
        `reset_machine` and `read_record_fields` copy `size[0]` in;
-       `carried_part_grow`, `carried_part_shrink` and `run_drag_frame` copy
+       `part_key_shortcut`'s resize arms and `run_drag_frame` copy
        `set_size` in; `clone_part` copies it as one four-byte unit. Signed, as
        `size` is: nothing reads it unsigned. */
     struct extent16 mirror_size;   /* +0x40 */
@@ -1856,7 +1871,7 @@ struct part {
        is a `sar` or a signed jump, and none is `shr`, `ja` or `jb`. */
     struct extent16 size[3];       /* +0x44  gen 1 at +0x44, 2 at +0x48, 3 at +0x4c */
     /* **The size the player set** - a name that is a guess. It starts as the
-       template's, `carried_part_grow` and `carried_part_shrink` step it by
+       template's, `part_key_shortcut`'s + and - arms step it by
        0x10 within the kind's limits - comparing it `jle`/`jge`, signed -
        `set_object_extent` copies it into `size[0]`, and it is one of the
        fields a machine file saves and loads. */
@@ -2562,8 +2577,8 @@ struct dg_2630 {
        would make them entry 0 of the goal table, but the round is never 0 -
        `game_setup` starts it at 1 and nothing brings it lower - so they are
        only ever these two words, 0000:0000 in the image. */
-    uint16_t  back_held;       /* +0x02  how long the bin's back arrow has been held */
-    uint16_t  forward_held;    /* +0x04  and the forward one */
+    int16_t   back_held;       /* +0x02  how long the bin's back arrow has been held */
+    int16_t   forward_held;    /* +0x04  and the forward one */
     /* **The goal tests, one far pointer per puzzle from 1**, up to 0x27ee. */
     void (far *goal_test[110])(void); /* +0x06 */
 } PACKED;
@@ -4219,9 +4234,9 @@ struct part_kind {
     /* **The velocity clamp, not padding.** `clamp_record_pair` bounds a part's
        `vel_x` and `vel_y` to plus and minus this. */
     int16_t   max_speed;       /* +0x0a */
-    /* the size limits the + and - keys stop at. `carried_part_grow` compares
-       the part's +0x50 against the first and its +0x52 against the second,
-       picking the axis the same way `carried_part_shrink` does against the
+    /* the size limits the + and - keys stop at. `part_key_shortcut`'s +
+       arm compares the part's +0x50 against the first and its +0x52 against
+       the second, picking the axis the same way its - arm does against the
        other pair - which is why the four are a maximum and a minimum per axis
        and not four unrelated words */
     int16_t   max_w;           /* +0x0c */
@@ -4567,20 +4582,6 @@ struct resource {
 #define RESOURCE_NONE RESOURCE_PTR(0)
 
 
-/*
- * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
- * copy of every literal beside the routine that uses it, which is why "*.TIM"
- * is here twice. Named by their users; the bytes are the image's, and the
- * run ends at the hot spots at 0x284a.
- */
-struct game_level_strings {
-    char ff_lev[7];               /* +0x00 [7]  "ff.lev"   screen_state_0400 */
-    char tim_filter_load[6];      /* +0x07 [6]  "*.TIM"    screen_state_0100's pick_file */
-    char tim_filter_save[6];      /* +0x0d [6]  "*.TIM"    screen_state_0080's */
-    char title_sep[3];            /* +0x13 [3]  ": "       paint_panel_frame */
-} PACKED;
-
-extern struct game_level_strings GAME_LEVEL_STRINGS;
 
 /* `finish_level`'s two buttons, DGROUP 0x283a..0x2849: the next module's
    literal pool, placed in machine.c. */
@@ -4645,7 +4646,7 @@ extern struct dg_4ab0 DG4AB0;
  * a colon and a backslash before the path - so byte 0 of each is the drive, and
  * `dos_setdisk(DG8(...))` is handing over that letter.
  *
- * `screen_state_0100` is where the pair earns its keep: it changes to
+ * `game_screen`'s LOAD case is where the pair earns its keep: it changes to
  * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
  * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
  * put the process back. So the picker remembers its own place and the game

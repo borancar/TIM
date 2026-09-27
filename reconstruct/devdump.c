@@ -626,7 +626,7 @@ static void dev_autoplay(int32_t flip)
          * is already up, which is the whole point of extracting one.
          *
          * The three calls are the game's own, in the game's own order: it is
-         * what `screen_state_0040` does at 0x11... after the file picker
+         * what `game_screen`'s LOAD case does at 0x11210 after the file picker
          * returns - `round_teardown`, `load_animation`, `reset_machine`. The
          * level is already loaded, so the goal the machine is judged against
          * is the level's; this only replaces the parts.
