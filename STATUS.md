@@ -49,7 +49,9 @@ calls).
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
 | `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 75 of 75 | `_DATA` 0x284a..0x286e |
 | `src/frame.c` | 0x080b9..0x08546, one module (ends ours) | 21 of 21 | `_DATA` 0x286e..0x2870 |
-| `src/seg0000.c` | 0x08546..0x0dff0, what is left: several modules | not judged | |
+| `src/regions.c` | 0x08546..0x08f27 (both ends ours) | 3 of 3 | none |
+| `src/crtc.c` | 0x08f27..0x08fc3, probably hand-written | assembly: host transcription, not judged | none |
+| `src/seg0000.c` | 0x08fc3..0x0dff0, what is left: several modules | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a
 bare `push cs / call` only for a routine defined earlier in the same file,
