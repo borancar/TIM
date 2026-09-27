@@ -53,11 +53,11 @@ struct machine_cursor_hotspots {
 } PACKED;
 
 struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
-    .hot_x = {
+    {
         0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
         0x0003,
     },
-    .hot_y = { [1] = 0x000a },
+    { 0x0000, 0x000a },
 };
 
 /*
@@ -2450,40 +2450,35 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
  * `set_object_extent` is called first - the flip cannot be computed without
  * them, and it is called before the record's array is even looked at.
  */
-void place_object_for_draw(struct part *obj)
+void place_object_for_draw(register struct part *obj)
 {
-    int16_t type = ((int16_t)obj->kind);
-    const struct part_kind *rec = &PART_KINDS[type];
-    uint16_t idx = obj->form;
-    int16_t flags = ((int16_t)obj->flags_08);
+    const struct point8 *hot;
+    int16_t type;                       /* [bp-2] */
+    uint16_t idx;                       /* [bp-4] */
+    int16_t flags;                      /* [bp-6] */
+    const struct part_kind *rec;        /* [bp-8] */
 
+    type = obj->kind;
+    rec = &PART_KINDS[type];
     obj->box[0].x = obj->pos[0].x;
     obj->box[0].y = obj->pos[0].y;
-
+    idx = obj->form;
+    flags = obj->flags_08;
     set_object_extent(obj);
 
-    if (((int16_t)rec->hotspots_ptr) == 0)
-        return;
-
-    const struct point8 *hot = POINT_TABLE(rec->hotspots_ptr);
-
-    if ((flags & 0x10) != 0)
-        obj->box[0].x = (int16_t)(obj->box[0].x
-                                     + (obj->mirror_size.width
-                                        - (int16_t)(int8_t)hot[idx].x
-                                        - (obj->size[0].width)));
-    else
-        obj->box[0].x = (int16_t)(obj->box[0].x
-                                     + (int16_t)(int8_t)hot[idx].x);
-
-    if ((flags & 0x20) != 0)
-        obj->box[0].y = (int16_t)(obj->box[0].y
-                                     + (obj->mirror_size.height
-                                        - (int16_t)(int8_t)hot[idx].y
-                                        - (obj->size[0].height)));
-    else
-        obj->box[0].y = (int16_t)(obj->box[0].y
-                                     + (int16_t)(int8_t)hot[idx].y);
+    if ((hot = POINT_TABLE(rec->hotspots_ptr)) != POINT_TABLE(0)) {
+        hot += idx;
+        if (flags & 0x10)
+            obj->box[0].x += obj->mirror_size.width - (int8_t)hot->x
+                             - obj->size[0].width;
+        else
+            obj->box[0].x += (int8_t)hot->x;
+        if (flags & 0x20)
+            obj->box[0].y += obj->mirror_size.height - (int8_t)hot->y
+                             - obj->size[0].height;
+        else
+            obj->box[0].y += (int8_t)hot->y;
+    }
 }
 
 /*
@@ -3953,10 +3948,13 @@ void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
     clamp_record_pair(rec);
 }
 
+#ifndef __TURBOC__
+#ifndef __TURBOC__
 /* ours: a call counter for reconstruct/devdump.c. Above this
    routine's comment, not between it and the routine: the
    provenance is the comment *directly* above a definition. */
 int32_t dev_tension_belt_calls;
+#endif
 
 /*
  * 0x072c7
@@ -3993,7 +3991,9 @@ int32_t dev_tension_belt_calls;
  */
 int16_t tension_belt(struct part *part)
 {
+#ifndef __TURBOC__
     dev_tension_belt_calls++;
+#endif
 
     uint16_t belt;   /* [bp-0x3a] */
     uint16_t pC;   /* [bp-0x38] */
@@ -4419,6 +4419,7 @@ void splice_list_4e58_onto_4e56(void)
    routine's comment, not between it and the routine: the
    provenance is the comment *directly* above a definition. */
 int32_t dev_queue_part_calls;
+#endif
 
 /*
  * 0x07b6f
@@ -4437,7 +4438,9 @@ int32_t dev_queue_part_calls;
  */
 int16_t queue_part(struct part *src, uint16_t part)
 {
+#ifndef __TURBOC__
     dev_queue_part_calls++;
+#endif
 
     int32_t key;                       /* [bp-2]:[bp-4], high word first */
     uint16_t si, di;
