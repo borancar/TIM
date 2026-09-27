@@ -598,6 +598,45 @@ Three spellings in physics.c, found on 2026-09-27 by compiling alternatives:
 - **`while (x = f(), x)`** tests the register variable after the store
   (`mov si,ax / or si,si`). `while ((x = f()) != 0)` tests AX.
 
+### A preprocessor block with its `#endif` in the wrong place hid three routines from the judge, and the host could not tell
+
+Making machine.c's two devdump.c call counters host-only on 2026-09-27
+wrapped each in `#ifndef __TURBOC__`. The script did it with a regex, and
+the second one's non-greedy match began at the *first* counter's comment.
+So one block ran from `tension_belt`'s counter to `queue_part`'s and took
+`tension_belt`, `link_endpoint_gap` and `splice_list_4e58_onto_4e56` with
+it. **The host defines no `__TURBOC__`, so it compiled them as before, and
+every check stayed green. Borland never saw them.** The judge judges what
+the compiler wrote, so the three were neither MATCH nor DIFF. They were
+missing from its list. "72 of 72" was reported for a module of 75, and it
+came to light only because a grep for one address in the judge's output
+came back empty.
+
+**The judge now reports MISSING** for any routine the file gives an address
+that is not in the object, and counts it as a failure. When writing a
+host-only block, check that the judge's count of routines in the file has
+not dropped.
+
+### Borland merges identical tails of statements, not of the arms of an expression
+
+`refile_overlapping_parts` stepped its walk with `walk = slot == level ?
+next[0] : next[1]` and did not match: the image stores the loop's first
+`walk` before jumping to the test, and ours jumped into the step's store.
+Written as `if (slot == level) walk = next[0]; else walk = next[1];` it
+matches. Borland merged the two branches' identical stores, which left the
+first store where the image has it. `link_slack`'s choice of link pointer
+is the same shape. Two more places the image shows merging are
+`belt_orientation`'s `return 2 | v0a` / `return 4 | v0a` pairs, and the
+`pop cx` after `free_part(si)` and the setup hook in `reset_machine`. The
+last two branches of `belt_orientation` came out in the image's order only
+once they were written `if (<) return 4 | v0a; return 2 | v0a;`, the same
+test with the returns swapped.
+
+Two routines nothing calls, 0x05dfc and 0x07205, were not in the port at
+all. The descent map starts from calls, so it never reached them. A module
+is only complete when each routine's compiled size equals the distance to
+the next known one, which `judge.py -v` reports.
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their

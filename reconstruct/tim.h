@@ -712,6 +712,14 @@ uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 #else
 #  define LONG_MUL(a, b)  ((int32_t)long_multiply((uint32_t)(a), (uint32_t)(b)))
 #endif
+/* **A signed word shifted left in place**, `shl word ptr [..],cl`: Borland's
+   `x <<= n`, and on the host the same bits through `uint16_t`, because a
+   negative `int` shifted left is undefined there. Ours. */
+#ifdef __TURBOC__
+#  define SHL16_ASSIGN(lv, n)  ((lv) <<= (n))
+#else
+#  define SHL16_ASSIGN(lv, n)  ((lv) = (int16_t)((uint16_t)(lv) << (n)))
+#endif
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
 void near read_far(uint8_t huge *dst, int32_t count,
@@ -932,9 +940,6 @@ void shift_all_histories(void);                     /* 0x07ca2 */
 /* Age every tracked quantity on an object by one step. */
 void shift_state_history(struct part *obj);             /* 0x07ce3 */
 
-/* Classify a link's endpoints against the ones they connect to. */
-int16_t compare_link_ends(struct belt *link, int16_t end,
-                          int16_t reversed);        /* 0x06de9 */
 
 /* Intersect two segments; answers whether the point lies on both. */
 int16_t intersect_segments(const int16_t *seg1, const int16_t *seg2,
@@ -948,7 +953,7 @@ int16_t points_within_140(const struct point16 *a,
                           const struct point16 *b);      /* 0x04b53 */
 
 /* Recompute a record's velocity from its movement, then clamp it. */
-void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
+void update_velocity(struct part *rec, int16_t shift_x, int16_t shift_y,
                      uint16_t which);               /* 0x07283 */
 
 /* Splice one list onto the front of another and empty the first. */
@@ -1214,6 +1219,7 @@ void bounce_off_contact(struct part *obj);              /* 0x03046 */
 void bounce_pair(struct part *obj);                       /* 0x03201 */
 void part_moved(struct part *part);                     /* 0x06d8e */
 void free_all_shapes(void);                             /* 0x05dfc */
+int16_t other_end_direction(struct part *part);         /* 0x07205 */
 void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
@@ -1388,8 +1394,15 @@ uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6);                   /* 172c:2451 */
 uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6);              /* 172c:2c19 */
-uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
-                    uint16_t p4, uint16_t p5, int32_t p6);
+/* **A part's drive hook**, the far pointer at +0x36 of its kind's record,
+   called through the record inline the way `part_step` is. It takes six
+   arguments where the other hooks take one - **six and not seven, because
+   the last is a `long`**: the original pushes seven words and the last two
+   are the driving part's momentum, low half first, which three of the hooks
+   put straight back together to compare against their own. `tools/verify.py`
+   is where the guest's two words become the value. Ours in name. */
+#define part_drive(by, p1, p2, p3, p4, p5, p6) \
+    (PART_KINDS[(by)->kind].drive((p1), (p2), (p3), (p4), (p5), (p6)))
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum);      /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */

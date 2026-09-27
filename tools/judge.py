@@ -464,6 +464,16 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
                 notes.extend("  " + x for x in lines_o)
                 notes.append("image:")
                 notes.extend("  " + x for x in lines_i)
+    # **A routine the file defines that the object does not hold** is one the
+    # compiler never saw - a preprocessor conditional that swallowed it, as a
+    # host-only block with its `#endif` in the wrong place once did three
+    # routines of machine.c. Nothing above can notice: it judges what was
+    # compiled, so the routine was neither a MATCH nor a DIFF, just absent.
+    compiled = {nm.lstrip("_") for nm, _s, _o in mod.publics}
+    for name, addr in sorted(addresses([path]).items(), key=lambda x: x[1]):
+        if name not in compiled:
+            results.append((name, addr, "MISSING: defined in the file, "
+                            "absent from the object the compiler wrote", []))
     results.extend(judge_data(mod, refs, img, placed,
                               JUDGED_DATA.findall(src),
                               os.path.basename(path)))

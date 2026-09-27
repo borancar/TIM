@@ -47,7 +47,7 @@ calls).
 | `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
-| `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 60 of 73 | `_DATA` 0x284a..0x286e |
+| `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 75 of 75 | `_DATA` 0x284a..0x286e |
 | `src/seg0000.c` | 0x080b9..0x0dff0, what is left: several modules | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a
@@ -2136,7 +2136,6 @@ used it.
 | `link_end_distance` | 0x06f8e | - | **transcribed, never called** on these screens |
 | `shift_all_histories` | 0x07ca2 | - | **transcribed, never called** on these screens |
 | `shift_state_history` | 0x07ce3 | - | **transcribed, never called** on these screens |
-| `compare_link_ends` | 0x06de9 | - | **transcribed, never called** on these screens |
 | `intersect_segments` | 0x03ba9 | - | **transcribed, never called** on these screens |
 | `frame_pending` | 0x0b4e2 | - | **transcribed, never called** on these screens |
 | `decode_position` | 0x1e561 | - | **transcribed, not verifiable**: it has no return to detect - the compiler replaced its `ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it jumps back. Covered by decompress_lzss, which runs it on every one of its 226 verified calls. |

@@ -5240,14 +5240,6 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.shift_state_history(dgh(lib, a[0])),
     ),
-    "compare_link_ends": dict(
-        addr=0x06DE9,
-        args=[("link", 4), ("end", 6), ("reversed", 8)],
-        returns=True,
-        check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.compare_link_ends(
-            dgp(lib, a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
-    ),
     "intersect_segments": dict(
         addr=0x03BA9,
         args=[("seg1", 4), ("seg2", 6), ("out", 8)],
@@ -5510,7 +5502,6 @@ def declare_restypes(lib):
     lib.claim_page_slot.restype = ctypes.c_void_p
     lib.angles_same_side.restype = ctypes.c_int16
     lib.intersect_segments.restype = ctypes.c_int16
-    lib.compare_link_ends.restype = ctypes.c_int16
     lib.find_entry_for_pointer.restype = ctypes.c_int16
     lib.link_end_distance.restype = ctypes.c_int16
     lib.link_endpoint_gap.restype = ctypes.c_int16
