@@ -42,6 +42,8 @@
 #  define dg_ptr(base, off)    ((uint8_t *)(base) + (off))
 #  define dg_near(base, p)     ((dg_near_t)(p))
 #  define dg_far_ptr(fp)       (*(uint8_t far * *)&(fp))
+/* Filing a far pointer into a stored pair, the other direction. Ours. */
+#  define DG_FAR_SET(fp, p)    (dg_far_ptr(fp) = (p))
 #  define PART_PTR(p)          ((struct part *)(p))
 #  define FILEREC_PTR(p)       ((struct file_rec *)(p))
 #else
@@ -369,6 +371,9 @@ static inline struct far_ptr far_of(const uint8_t *p)
 
     return r;
 }
+
+/* The other direction of `dg_far_ptr`, as Turbo C has it. Ours. */
+#define DG_FAR_SET(fp, p)     ((fp) = far_of(p))
 #endif
 
 /*
@@ -1637,7 +1642,7 @@ struct pal_chunk_names {
     char none[1];             /* +0x1b  0x44a1  "" */
     char     *by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
     uint8_t far *palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
-    char pal_amg[9];          /* +0x40  0x44c6  "PAL:AMG:" */
+    /* "PAL:AMG:" at 0x44c6 is `load_palette`'s literal, in the module's pool. */
 } PACKED;
 
 extern struct pal_chunk_names PALCHUNK;
@@ -4547,7 +4552,7 @@ extern struct dg_2d06 DG2D06;
 struct dg_440e {
     struct far_ptr ptr_440e;       /* +0x00 */
     struct far_ptr driver_table[19]; /* +0x04  0x4412 */
-    uint8_t   pad_445e[2];         /* +0x50 */
+    /* 0x445e, the palette cycle count, is palette.c's. */
 } PACKED;
 extern struct dg_440e DG440E;
 

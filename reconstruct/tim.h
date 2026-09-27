@@ -1739,6 +1739,11 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
 void restore_write_mode(void);           /* 0x1e94c */
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight);  /* 0x1ec36 */
+int16_t add_palette_cycle(int16_t first, int16_t count, int16_t step);  /* 0x1ec5c */
+void cycle_palettes(void);                                /* 0x1ecd7 */
+void near copy_far_bytes(uint8_t far *src, uint8_t far *dst, int16_t n); /* 0x1eda2 */
+void fill_span_list(uint8_t far *spans);                  /* 0x1edc7 */
+void span_list_nothing(uint8_t far *spans);               /* 0x1edda */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
                     uint16_t count);                 /* VM.OVL VGA:0x0ec1 */
 

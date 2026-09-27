@@ -442,6 +442,13 @@ alternatives rather than by reading:
 - `test byte ptr [mode],2` on an `int` is `(uint8_t)mode & 2`; `mode & 2`
   gives `test word ptr`. The image has both in one routine, word for the
   first test and byte for all the others.
+- BC saves DI in the prologue only if the routine uses it, and a bare
+  `_DI;` counts as a use. `fill_span_list` loads only SI and ES for the
+  driver and still saves both, which is the driver's entry using DI.
+- `far_ptr + (int expression)` loads the pointer's offset into DX and adds.
+  The image's `mov ax,from / add ax,step / add ax,[ptr]` is
+  `from + step + ptr` with `step` **signed**; with it unsigned, BC writes
+  the DX form anyway.
 - A `char` masked and tested for zero is narrowed to `test al,k`; the
   image's `cbw / test ax,k / je` is `!((c = *src) & k)`. `!= 0` and a bare
   truth test both narrow, and `> 0` widens but jumps `jle`

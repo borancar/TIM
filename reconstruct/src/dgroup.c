@@ -1928,18 +1928,6 @@ struct dg_50af DG50AF DGROUP_BSS(0x50af);
 struct dg_5752 DG5752 DGROUP_BSS(0x5752);
 struct dg_5456 DG5456 DGROUP_BSS(0x5456);
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
-struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
-    .pal_vga = "PAL:VGA:",
-    .pal_ega = "PAL:EGA:",
-    .pal_cga = "PAL:CGA:",
-    .by_adapter = {
-        PALCHUNK.none, PALCHUNK.pal_cga, PALCHUNK.pal_ega, PALCHUNK.pal_ega,
-        PALCHUNK.pal_cga, PALCHUNK.pal_vga, PALCHUNK.none, PALCHUNK.pal_vga,
-        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_ega,
-        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga,
-    },
-    .pal_amg = "PAL:AMG:",
-};
 struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
 struct dg_5179 DG5179 DGROUP_BSS(0x5179);
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
