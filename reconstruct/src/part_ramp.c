@@ -13,10 +13,81 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3344..0x3394
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3344..0x334c. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_3344[4] DGROUP_AT(0x3344) = {
+    { 0x00, 0x00 }, { 0x0f, 0x0f }, { 0x0f, 0x1f }, { 0x00, 0x10 },
+};
+
+/*
+ * DGROUP 0x334c..0x3354. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_334C[4] DGROUP_AT(0x334c) = {
+    { 0x00, 0x00 }, { 0x1f, 0x0f }, { 0x1f, 0x1f }, { 0x00, 0x10 },
+};
+
+/*
+ * DGROUP 0x3354..0x335c. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_3354[4] DGROUP_AT(0x3354) = {
+    { 0x00, 0x00 }, { 0x2f, 0x0f }, { 0x2f, 0x1f }, { 0x00, 0x10 },
+};
+
+/*
+ * DGROUP 0x335c..0x3364. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_335C[4] DGROUP_AT(0x335c) = {
+    { 0x00, 0x00 }, { 0x3f, 0x0f }, { 0x3f, 0x1f }, { 0x00, 0x10 },
+};
+
+/*
+ * DGROUP 0x3364..0x336c. **Which table of points, by form**: a near pointer each.
+ */
+struct point8 *RAMP_POINT_TABLE_3364[4] DGROUP_WAS(0x3364) = {
+    RAMP_POINTS_3344, RAMP_POINTS_334C, RAMP_POINTS_3354, RAMP_POINTS_335C,
+};
+
+/*
+ * DGROUP 0x336c..0x3374. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_336C[4] DGROUP_AT(0x336c) = {
+    { 0x00, 0x0f }, { 0x0f, 0x00 }, { 0x0f, 0x10 }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x3374..0x337c. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_3374[4] DGROUP_AT(0x3374) = {
+    { 0x00, 0x0f }, { 0x1f, 0x00 }, { 0x1f, 0x10 }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x337c..0x3384. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_337C[4] DGROUP_AT(0x337c) = {
+    { 0x00, 0x0f }, { 0x2f, 0x00 }, { 0x2f, 0x10 }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x3384..0x338c. Connection points, 4 pairs.
+ */
+struct point8 RAMP_POINTS_3384[4] DGROUP_AT(0x3384) = {
+    { 0x00, 0x0f }, { 0x3f, 0x00 }, { 0x3f, 0x10 }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x338c..0x3394. **Which table of points, by form**: a near pointer each.
+ */
+struct point8 *RAMP_POINT_TABLE_338C[4] DGROUP_WAS(0x338c) = {
+    RAMP_POINTS_336C, RAMP_POINTS_3374, RAMP_POINTS_337C, RAMP_POINTS_3384,
+};
 
 /*
  * 172c:2728, image 0x199e8 - kind 2's setup. The ramp.
@@ -33,9 +104,9 @@ void part_setup_ramp(struct part *part)
     struct part_point *dst;
 
     if (part->flags_08 & 0x10)
-        src = POINT_TABLE(PARTSHAPES.o_338c[part->form]);
+        src = RAMP_POINT_TABLE_338C[part->form];
     else
-        src = POINT_TABLE(PARTSHAPES.o_3364[part->form]);
+        src = RAMP_POINT_TABLE_3364[part->form];
 
     for (i = 0, dst = POINTS(part->points_ptr); i < 4; i++, dst++, src++) {
         dst->x = src->x;

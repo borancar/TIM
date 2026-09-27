@@ -13,10 +13,25 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3222..0x3232
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3222..0x322a. Connection points, 4 pairs.
+ */
+struct point8 BULLET_POINTS_3222[4] DGROUP_AT(0x3222) = {
+    { 0x1c, 0x00 }, { 0x27, 0x01 }, { 0x27, 0x05 }, { 0x1c, 0x06 },
+};
+
+/*
+ * DGROUP 0x322a..0x3232. Connection points, 4 pairs.
+ */
+struct point8 BULLET_POINTS_322A[4] DGROUP_AT(0x322a) = {
+    { 0x00, 0x00 }, { 0x0b, 0x01 }, { 0x0b, 0x05 }, { 0x00, 0x06 },
+};
 
 /*
  * 172c:0867, image 0x17b27 - kind 20's hit test: three kinds get three
@@ -54,9 +69,9 @@ void part_setup_08a1(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10)
-        si = PARTSHAPES.s_322a;
+        si = BULLET_POINTS_322A;
     else
-        si = PARTSHAPES.s_3222;
+        si = BULLET_POINTS_3222;
 
     for (i = 0, di = POINTS(part->points_ptr); i < 4; i++, di++, si++) {
         di->x = si->x;

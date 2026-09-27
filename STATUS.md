@@ -47,8 +47,8 @@ routine matches:
   `chunky_to_planar` agrees with the original's bytes, run under Unicorn, on
   20 random rows.
 
-Left: `PARTSHAPES`, DGROUP 0x3182..0x355a, is still one record in dgroup.c.
-It should be split by module; the pad byte at 0x3335 is the conveyor's.
+The part modules' data, DGROUP 0x3182..0x355a, is split among the 26
+modules that have tables. Each module's `_DATA` matches at its own base.
 
 Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly; its
 host transcription is `src/vqt.c` and its TASM source is not written yet.

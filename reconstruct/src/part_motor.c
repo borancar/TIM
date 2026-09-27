@@ -13,10 +13,27 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x32a4..0x32b8
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x32a4..0x32ae. Connection points, 5 pairs.
+ */
+struct point8 MOTOR_POINTS_32A4[5] DGROUP_AT(0x32a4) = {
+    { 0x00, 0x13 }, { 0x1a, 0x00 }, { 0x35, 0x18 }, { 0x30, 0x2e },
+    { 0x06, 0x2e },
+};
+
+/*
+ * DGROUP 0x32ae..0x32b8. Connection points, 5 pairs.
+ */
+struct point8 MOTOR_POINTS_32AE[5] DGROUP_AT(0x32ae) = {
+    { 0x00, 0x18 }, { 0x1b, 0x00 }, { 0x35, 0x13 }, { 0x2f, 0x2e },
+    { 0x05, 0x2e },
+};
 
 /*
  * 172c:13c9, image 0x18689 - kind 50's step.
@@ -64,10 +81,10 @@ void part_setup_motor(struct part *part)
 
     if (part->flags_08 & 0x10) {
         part->grab.x = 0x25;
-        src = PARTSHAPES.s_32ae;
+        src = MOTOR_POINTS_32AE;
     } else {
         part->grab.x = 0;
-        src = PARTSHAPES.s_32a4;
+        src = MOTOR_POINTS_32A4;
     }
 
     part->grab.y = 0x0d;

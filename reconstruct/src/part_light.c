@@ -13,10 +13,19 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x339a..0x33aa
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x339a..0x33aa. Connection points, 4 points.
+ */
+struct point16 LIGHT_POINTS_339A[4] DGROUP_AT(0x339a) = {
+    { 0x0015, 0x0033 }, { 0x001d, 0x004f }, { 0x0014, 0x0019 },
+    { 0x001c, 0x0023 },
+};
 
 /*
  * 172c:2b58, image 0x19e18 - no connection points, only the grab box, and both
@@ -24,8 +33,8 @@
  */
 void part_setup_light(struct part *part)
 {
-    part->attach[0].x = (uint8_t)PARTSHAPES.p_339a[part->form].x;
-    part->attach[0].y = (uint8_t)PARTSHAPES.p_339a[part->form].y;
+    part->attach[0].x = (uint8_t)LIGHT_POINTS_339A[part->form].x;
+    part->attach[0].y = (uint8_t)LIGHT_POINTS_339A[part->form].y;
 }
 
 /*

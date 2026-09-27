@@ -13,10 +13,27 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x32fc..0x3314
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x32fc..0x3308. Connection points, 6 pairs.
+ */
+struct point8 FLASHLIGHT_POINTS_32FC[6] DGROUP_AT(0x32fc) = {
+    { 0x00, 0x04 }, { 0x17, 0x04 }, { 0x1f, 0x00 }, { 0x1f, 0x10 },
+    { 0x17, 0x0c }, { 0x00, 0x0c },
+};
+
+/*
+ * DGROUP 0x3308..0x3314. Connection points, 6 pairs.
+ */
+struct point8 FLASHLIGHT_POINTS_3308[6] DGROUP_AT(0x3308) = {
+    { 0x08, 0x04 }, { 0x1f, 0x04 }, { 0x1f, 0x0c }, { 0x08, 0x0c },
+    { 0x00, 0x10 }, { 0x00, 0x00 },
+};
 
 /*
  * 172c:1d07, image 0x18fc7 - kind 25's hit test.
@@ -51,9 +68,9 @@ void part_setup_flashlight(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10)
-        si = PARTSHAPES.s_3308;
+        si = FLASHLIGHT_POINTS_3308;
     else
-        si = PARTSHAPES.s_32fc;
+        si = FLASHLIGHT_POINTS_32FC;
 
     for (i = 0, di = POINTS(part->points_ptr); i < 6; i++, di++, si++) {
         di->x = si->x;

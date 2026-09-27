@@ -13,10 +13,19 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3266..0x3274
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3266..0x3274. Connection points, 7 pairs.
+ */
+struct point8 CHRISTMAS_TREE_POINTS_3266[7] DGROUP_AT(0x3266) = {
+    { 0x00, 0x35 }, { 0x14, 0x00 }, { 0x27, 0x37 }, { 0x19, 0x3d },
+    { 0x19, 0x48 }, { 0x10, 0x48 }, { 0x10, 0x3d },
+};
 
 /*
  * 172c:1075, image 0x18335 - a setup.
@@ -30,7 +39,7 @@ void part_setup_christmas_tree(struct part *part)
     const struct point8 *src;
     int16_t i;
 
-    src = PARTSHAPES.s_3266;
+    src = CHRISTMAS_TREE_POINTS_3266;
     for (i = 0, dst = POINTS(part->points_ptr); i < 7; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

@@ -13,10 +13,49 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x31e6..0x3222
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x31e6..0x31f2. How far the boxing glove reaches, by form: -32 -82 0 80 130 0.
+ * `part_step_boxing_glove` indexes it from +1 and from -2.
+ */
+int16_t BOXING_GLOVE_REACH[6] DGROUP_AT(0x31e6) = { -32, -82, 0, 80, 130, 0 };
+
+/*
+ * DGROUP 0x31f2..0x31fe. Connection points, 6 pairs.
+ */
+struct point8 BOXING_GLOVE_POINTS_31F2[6] DGROUP_AT(0x31f2) = {
+    { 0x00, 0x0c }, { 0x10, 0x00 }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
+    { 0x1a, 0x15 }, { 0x09, 0x1b },
+};
+
+/*
+ * DGROUP 0x31fe..0x320a. Connection points, 6 pairs.
+ */
+struct point8 BOXING_GLOVE_POINTS_31FE[6] DGROUP_AT(0x31fe) = {
+    { 0x05, 0x15 }, { 0x11, 0x0a }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
+    { 0x1a, 0x15 }, { 0x09, 0x1b },
+};
+
+/*
+ * DGROUP 0x320a..0x3216. Connection points, 6 pairs.
+ */
+struct point8 BOXING_GLOVE_POINTS_320A[6] DGROUP_AT(0x320a) = {
+    { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
+    { 0x1f, 0x00 }, { 0x2f, 0x0c },
+};
+
+/*
+ * DGROUP 0x3216..0x3222. Connection points, 6 pairs.
+ */
+struct point8 BOXING_GLOVE_POINTS_3216[6] DGROUP_AT(0x3216) = {
+    { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
+    { 0x1e, 0x0a }, { 0x2b, 0x15 },
+};
 
 /*
  * 172c:0552, image 0x17812 - kind 35's hit test.
@@ -67,10 +106,10 @@ void part_step_boxing_glove(struct part *part)
            first two words face left and the next ones right. */
         if (part->flags_08 & 0x10)
             link_objects_in_range(part, 0x3000, 0x30,
-                                  (PARTSHAPES.glove_reach + 1)[part->form], 0, 0x1f);
+                                  (BOXING_GLOVE_REACH + 1)[part->form], 0, 0x1f);
         else
             link_objects_in_range(part, 0x3000,
-                                  (PARTSHAPES.glove_reach - 2)[part->form], 0, 0, 0x1f);
+                                  (BOXING_GLOVE_REACH - 2)[part->form], 0, 0, 0x1f);
 
         for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
              di = PART_PTR(di->next_linked_ptr)) {
@@ -109,14 +148,14 @@ void part_setup_boxing_glove(struct part *part)
     /* Four tables: the flag at +8, and then whether the form is zero. */
     if (part->flags_08 & 0x10) {
         if (part->form == 0)
-            src = PARTSHAPES.s_320a;
+            src = BOXING_GLOVE_POINTS_320A;
         else
-            src = PARTSHAPES.s_3216;
+            src = BOXING_GLOVE_POINTS_3216;
     } else {
         if (part->form == 0)
-            src = PARTSHAPES.s_31f2;
+            src = BOXING_GLOVE_POINTS_31F2;
         else
-            src = PARTSHAPES.s_31fe;
+            src = BOXING_GLOVE_POINTS_31FE;
     }
 
     for (i = 0, dst = POINTS(part->points_ptr); i < 6; i++, dst++, src++) {

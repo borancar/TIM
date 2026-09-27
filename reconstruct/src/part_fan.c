@@ -13,11 +13,28 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x32c8..0x32dc
  */
 #include <stdlib.h>
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x32c8..0x32d2. Connection points, 5 pairs.
+ */
+struct point8 FAN_POINTS_32C8[5] DGROUP_AT(0x32c8) = {
+    { 0x00, 0x0b }, { 0x16, 0x00 }, { 0x1f, 0x0e }, { 0x17, 0x1f },
+    { 0x03, 0x1f },
+};
+
+/*
+ * DGROUP 0x32d2..0x32dc. Connection points, 5 pairs.
+ */
+struct point8 FAN_POINTS_32D2[5] DGROUP_AT(0x32d2) = {
+    { 0x00, 0x0e }, { 0x09, 0x00 }, { 0x1f, 0x0b }, { 0x1c, 0x1f },
+    { 0x08, 0x1f },
+};
 
 /*
  * 172c:1a32, image 0x18cf2 - a setup.
@@ -31,9 +48,9 @@ void part_setup_fan(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10)
-        si = PARTSHAPES.s_32d2;
+        si = FAN_POINTS_32D2;
     else
-        si = PARTSHAPES.s_32c8;
+        si = FAN_POINTS_32C8;
 
     for (i = 0, di = POINTS(part->points_ptr); i < 5; i++, di++, si++) {
         di->x = si->x;

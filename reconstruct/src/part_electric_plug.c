@@ -13,10 +13,25 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x32b8..0x32c8
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x32b8..0x32c0. Connection points, 4 pairs.
+ */
+struct point8 ELECTRIC_PLUG_POINTS_32B8[4] DGROUP_AT(0x32b8) = {
+    { 0x08, 0x08 }, { 0x0f, 0x08 }, { 0x0f, 0x09 }, { 0x08, 0x09 },
+};
+
+/*
+ * DGROUP 0x32c0..0x32c8. Connection points, 4 pairs.
+ */
+struct point8 ELECTRIC_PLUG_POINTS_32C0[4] DGROUP_AT(0x32c0) = {
+    { 0x0f, 0x18 }, { 0x08, 0x18 }, { 0x08, 0x17 }, { 0x0f, 0x17 },
+};
 
 /*
  * 172c:14d3, image 0x18793 - kind 21's hit test. The see-saw.
@@ -89,9 +104,9 @@ void part_setup_electric_plug(struct part *part)
     struct part_point *dst;
 
     if (part->form < 4)
-        src = PARTSHAPES.s_32b8;
+        src = ELECTRIC_PLUG_POINTS_32B8;
     else
-        src = PARTSHAPES.s_32c0;
+        src = ELECTRIC_PLUG_POINTS_32C0;
 
     for (i = 0, dst = POINTS(part->points_ptr); i < 4; i++, dst++, src++) {
         dst->x = src->x;

@@ -13,10 +13,17 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3394..0x339a
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3394..0x339a. How far the jack-in-the-box reaches, by form: -21 -34 -59.
+ * `part_step_jack_in_the_box` indexes it from -8.
+ */
+int16_t JACK_IN_THE_BOX_REACH[3] DGROUP_AT(0x3394) = { -21, -34, -59 };
 
 /*
  * 172c:27e2, image 0x19aa2 - kind 13's step. The conveyor.
@@ -69,7 +76,7 @@ void part_step_jack_in_the_box(struct part *part)
         /* The reach by form, 0x3394, with the first form folded into the
            address: `[bx+0x3384]`. */
         link_objects_in_range(part, 0x3000, 0, 0x1f,
-                              (PARTSHAPES.jack_reach - 8)[part->form], 0);
+                              (JACK_IN_THE_BOX_REACH - 8)[part->form], 0);
 
         for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
              di = PART_PTR(di->next_linked_ptr)) {

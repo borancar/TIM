@@ -13,10 +13,62 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3472..0x34ca
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3472..0x3482. Connection points, 8 pairs.
+ */
+struct point8 SCISSORS_POINTS_3472[8] DGROUP_AT(0x3472) = {
+    { 0x00, 0x04 }, { 0x0a, 0x00 }, { 0x11, 0x0b }, { 0x27, 0x07 },
+    { 0x27, 0x1a }, { 0x11, 0x14 }, { 0x0b, 0x21 }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x3482..0x3492. Connection points, 8 pairs.
+ */
+struct point8 SCISSORS_POINTS_3482[8] DGROUP_AT(0x3482) = {
+    { 0x00, 0x08 }, { 0x09, 0x04 }, { 0x10, 0x0e }, { 0x27, 0x10 },
+    { 0x27, 0x12 }, { 0x10, 0x14 }, { 0x09, 0x1b }, { 0x00, 0x18 },
+};
+
+/*
+ * DGROUP 0x3492..0x3496. **Which table of points, by form**: a near pointer each.
+ */
+struct point8 *SCISSORS_POINT_TABLE_3492[2] DGROUP_WAS(0x3492) = { SCISSORS_POINTS_3472, SCISSORS_POINTS_3482 };
+
+/*
+ * DGROUP 0x3496..0x34a6. Connection points, 8 pairs.
+ */
+struct point8 SCISSORS_POINTS_3496[8] DGROUP_AT(0x3496) = {
+    { 0x00, 0x07 }, { 0x16, 0x0b }, { 0x1d, 0x00 }, { 0x27, 0x04 },
+    { 0x27, 0x1f }, { 0x1c, 0x21 }, { 0x16, 0x14 }, { 0x00, 0x1a },
+};
+
+/*
+ * DGROUP 0x34a6..0x34b6. Connection points, 8 pairs.
+ */
+struct point8 SCISSORS_POINTS_34A6[8] DGROUP_AT(0x34a6) = {
+    { 0x00, 0x10 }, { 0x17, 0x0e }, { 0x1e, 0x04 }, { 0x27, 0x08 },
+    { 0x27, 0x18 }, { 0x1e, 0x1b }, { 0x17, 0x1e }, { 0x00, 0x12 },
+};
+
+/*
+ * DGROUP 0x34b6..0x34ba. **Which table of points, by form**: a near pointer each.
+ */
+struct point8 *SCISSORS_POINT_TABLE_34B6[2] DGROUP_WAS(0x34b6) = { SCISSORS_POINTS_3496, SCISSORS_POINTS_34A6 };
+
+/*
+ * DGROUP 0x34ba..0x34ca. **The scissors' blade**, a segment of four words - x0, y0, x1, y1 -
+ * once as it stands and once mirrored; `part_step_scissors` picks one by the
+ * flip bit and `cut_belts` cuts every belt that crosses it.
+ */
+int16_t SCISSORS_CUT_LINE[2][4] DGROUP_AT(0x34ba) = {
+    { 0x0016, 0x000f, 0x0027, 0x000f }, { 0x0000, 0x000f, 0x0010, 0x000f },
+};
 
 /*
  * 172c:3824, image 0x1aae4 - kind 37's hit test. Closing the scissors.
@@ -63,9 +115,9 @@ void part_setup_scissors(struct part *part)
     struct part_point *dst;
 
     if (part->flags_08 & 0x10)
-        src = POINT_TABLE(PARTSHAPES.o_34b6[part->form]);
+        src = SCISSORS_POINT_TABLE_34B6[part->form];
     else
-        src = POINT_TABLE(PARTSHAPES.o_3492[part->form]);
+        src = SCISSORS_POINT_TABLE_3492[part->form];
 
     for (i = 0, dst = POINTS(part->points_ptr); i < 8; i++, dst++, src++) {
         dst->x = src->x;
@@ -86,8 +138,8 @@ void part_setup_scissors(struct part *part)
 void part_step_scissors(struct part *part)
 {
     if (part->direction != 0 && part->form == 0) {
-        cut_belts(part, (part->flags_08 & 0x10) ? PARTSHAPES.cut_line[1]
-                                                : PARTSHAPES.cut_line[0]);
+        cut_belts(part, (part->flags_08 & 0x10) ? SCISSORS_CUT_LINE[1]
+                                                : SCISSORS_CUT_LINE[0]);
 
         part->form++;
         part_setup_scissors(part);

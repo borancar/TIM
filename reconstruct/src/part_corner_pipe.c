@@ -13,10 +13,43 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3432..0x3472
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3432..0x3442. Connection points, 8 pairs.
+ */
+struct point8 CORNER_PIPE_POINTS_3432[8] DGROUP_AT(0x3432) = {
+    { 0x00, 0x00 }, { 0x13, 0x01 }, { 0x1e, 0x0c }, { 0x1f, 0x1f },
+    { 0x10, 0x1f }, { 0x10, 0x14 }, { 0x0b, 0x0f }, { 0x00, 0x0f },
+};
+
+/*
+ * DGROUP 0x3442..0x3452. Connection points, 8 pairs.
+ */
+struct point8 CORNER_PIPE_POINTS_3442[8] DGROUP_AT(0x3442) = {
+    { 0x00, 0x1f }, { 0x01, 0x0c }, { 0x0c, 0x01 }, { 0x1f, 0x00 },
+    { 0x1f, 0x0f }, { 0x14, 0x0f }, { 0x0f, 0x14 }, { 0x0f, 0x1f },
+};
+
+/*
+ * DGROUP 0x3452..0x3462. Connection points, 8 pairs.
+ */
+struct point8 CORNER_PIPE_POINTS_3452[8] DGROUP_AT(0x3452) = {
+    { 0x00, 0x10 }, { 0x0b, 0x10 }, { 0x10, 0x0b }, { 0x10, 0x00 },
+    { 0x1f, 0x00 }, { 0x1e, 0x13 }, { 0x13, 0x1e }, { 0x00, 0x1f },
+};
+
+/*
+ * DGROUP 0x3462..0x3472. Connection points, 8 pairs.
+ */
+struct point8 CORNER_PIPE_POINTS_3462[8] DGROUP_AT(0x3462) = {
+    { 0x00, 0x00 }, { 0x0f, 0x00 }, { 0x0f, 0x0b }, { 0x14, 0x10 },
+    { 0x1f, 0x10 }, { 0x1f, 0x1f }, { 0x0c, 0x1e }, { 0x01, 0x13 },
+};
 
 /*
  * 172c:377b, image 0x1aa3b - kind 47's setup. The corner pipe.
@@ -32,13 +65,13 @@ void part_setup_corner_pipe(struct part *part)
     struct part_point *dst;
 
     if (part->form == 0)
-        src = PARTSHAPES.s_3432;
+        src = CORNER_PIPE_POINTS_3432;
     else if (part->form == 1)
-        src = PARTSHAPES.s_3442;
+        src = CORNER_PIPE_POINTS_3442;
     else if (part->form == 2)
-        src = PARTSHAPES.s_3452;
+        src = CORNER_PIPE_POINTS_3452;
     else
-        src = PARTSHAPES.s_3462;
+        src = CORNER_PIPE_POINTS_3462;
 
     for (i = 0, dst = POINTS(part->points_ptr); i < 8; i++, dst++, src++) {
         dst->x = src->x;

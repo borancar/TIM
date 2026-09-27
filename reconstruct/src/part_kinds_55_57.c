@@ -13,10 +13,27 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3274..0x3290
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3274..0x3282. Connection points, 7 pairs.
+ */
+struct point8 KINDS_55_57_POINTS_3274[7] DGROUP_AT(0x3274) = {
+    { 0x19, 0x00 }, { 0x19, 0x3c }, { 0x72, 0x3c }, { 0x72, 0x00 },
+    { 0xf8, 0x00 }, { 0xf8, 0xb6 }, { 0x00, 0xb6 },
+};
+
+/*
+ * DGROUP 0x3282..0x3290. Connection points, 7 pairs.
+ */
+struct point8 KINDS_55_57_POINTS_3282[7] DGROUP_AT(0x3282) = {
+    { 0xf0, 0x00 }, { 0xf8, 0x00 }, { 0xf8, 0x10 }, { 0xf6, 0x14 },
+    { 0xf4, 0x14 }, { 0xf2, 0x10 }, { 0xf0, 0x10 },
+};
 
 /*
  * 172c:10b6, image 0x18376 - two tables again, but chosen by the form at
@@ -32,9 +49,9 @@ void part_setup_10b6(struct part *part)
     int16_t i;
 
     if (part->form == 0)
-        si = PARTSHAPES.s_3274;
+        si = KINDS_55_57_POINTS_3274;
     else
-        si = PARTSHAPES.s_3282;
+        si = KINDS_55_57_POINTS_3282;
 
     for (i = 0, di = POINTS(part->points_ptr); i < 7; i++, di++, si++) {
         di->x = si->x;

@@ -13,10 +13,29 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x33aa..0x33ce
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x33aa..0x33bc. Connection points, 9 pairs.
+ */
+struct point8 MONKEY_POINTS_33AA[9] DGROUP_AT(0x33aa) = {
+    { 0x11, 0x2a }, { 0x21, 0x0c }, { 0x28, 0x0d }, { 0x2a, 0x25 },
+    { 0x42, 0x3c }, { 0x42, 0x44 }, { 0x38, 0x4e }, { 0x17, 0x43 },
+    { 0x00, 0x4c },
+};
+
+/*
+ * DGROUP 0x33bc..0x33ce. Connection points, 9 pairs.
+ */
+struct point8 MONKEY_POINTS_33BC[9] DGROUP_AT(0x33bc) = {
+    { 0x31, 0x25 }, { 0x33, 0x0d }, { 0x3a, 0x0c }, { 0x4a, 0x2a },
+    { 0x5b, 0x4c }, { 0x44, 0x43 }, { 0x23, 0x4e }, { 0x19, 0x44 },
+    { 0x19, 0x3c },
+};
 
 /*
  * 172c:2c83, image 0x19f43 - kind 31's hit test, the third way into
@@ -68,11 +87,11 @@ void part_setup_monkey(struct part *part)
     if (part->flags_08 & 0x10) {
         part->attach[0].x = 16;
         part->grab.x = 36;
-        src = PARTSHAPES.s_33bc;
+        src = MONKEY_POINTS_33BC;
     } else {
         part->attach[0].x = 75;
         part->grab.x = 47;
-        src = PARTSHAPES.s_33aa;
+        src = MONKEY_POINTS_33AA;
     }
 
     part->attach[0].y = 45;

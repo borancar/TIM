@@ -13,10 +13,19 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3336..0x3344
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3336..0x3344. Connection points, 7 pairs.
+ */
+struct point8 HEART_BALLOON_POINTS_3336[7] DGROUP_AT(0x3336) = {
+    { 0x00, 0x08 }, { 0x06, 0x00 }, { 0x1e, 0x00 }, { 0x24, 0x07 },
+    { 0x24, 0x10 }, { 0x11, 0x23 }, { 0x00, 0x10 },
+};
 
 /* 172c:2682, image 0x19942 - a setup: seven points from DGROUP 0x3336. */
 void part_setup_heart_balloon(struct part *part)
@@ -25,7 +34,7 @@ void part_setup_heart_balloon(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = PARTSHAPES.s_3336;
+    di = HEART_BALLOON_POINTS_3336;
     for (i = 0, si = POINTS(part->points_ptr); i < 7; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

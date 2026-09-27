@@ -1540,47 +1540,32 @@ struct point8 {
 } PACKED;
 
 /*
- * **A part's point table**: a run of `point8` at a constant DGROUP offset,
- * which the `part_setup_*` routines copy into the part's own `points_ptr`.
- * They are of different lengths and are not one array - and one routine reads
- * its table's address out of a table of addresses indexed by the part's form -
- * so the offset stays at the call site and only its *type* is stated here.
+ * **A point table reached by its DGROUP offset**: a run of `point8` whose
+ * address the code finds in a record rather than naming it - a kind's hot
+ * spots, through `hotspots_ptr`. The part modules' own tables are objects in
+ * those modules (part_balloon.c and the rest), named where they are read.
+ * Not `volatile`: a point table is constant data in the image, and the timer
+ * handler reaches no part or part data at all. See `PARTP` in full.
  */
-/* Not `volatile`, and neither is `POINT16_TABLE` below: a point table is
-   constant data in the image - the `const` says nothing writes it - and the
-   timer handler reaches no part or part data at all. See `PARTP` in full. */
 #define POINT_TABLE(off) \
     ((const struct point8 *)(dgroup + (uint16_t)(off)))
 
 /*
- * **A table of near pointers**, whatever they point at and whatever indexes
- * them. Two shapes use it and they have nothing in common but this: the
- * `part_setup_*` routines read a point table's address out of one, indexed by
- * a part's form - `POINT_TABLE(OFF_TABLE(0x33e6)[form])`, and 0x33e6 holds
- * 0x33ce, 0x33d6, 0x33de, three point tables 8 bytes apart - and
- * `load_palette` reads a chunk name out of one indexed by the adapter, where
- * 0x44a2 holds 0x44a1, 0x4498, 0x448f, which are "", "PAL:CGA:" and
- * "PAL:EGA:".
- *
- * It was called `FORM_TABLE` while only the first was known. The name said the
- * index rather than the shape, so the second use had a choice between a second
- * macro for one shape - the trap recorded in CLAUDE.md, met twice already in
- * this file - and a raw accessor. The index belongs at the call site, which is
- * where it is written.
- *
- * **A base is not always where its table starts, and these sit next to
- * tables of a different kind.** The compiler folds the first index into the
- * address, so `DG16(0x3384 + 2 * form)` with the form pinned to 8..10 reads
- * 0x3394 onward and `0x3384` is nothing but `0x3394 - 16`. That address is
- * also the fourth entry of the offsets at 0x338c, which a different routine
- * reads off its own base. The two tables are **adjacent, not overlapping** -
- * measured after each site's form range was read - so three reads in
- * the part modules keep the original's own base and index rather than being given a
- * name that would have to pick a base the original never mentions. Each says
- * which words it reads and what they are.
+ * **A table of near pointers reached by its DGROUP offset**, whatever it
+ * points at and whatever indexes it: a kind's second bitmap set,
+ * `bitmaps2_ptr`, read by form. The index belongs at the call site, which is
+ * where it is written. A table the code names is an array of real pointers
+ * instead, as the part modules' tables of point tables are.
  */
 #define OFF_TABLE(off) \
     ((const dg_near_t *)(dgroup + (uint16_t)(off)))
+
+/*
+ * **A point table in words, reached by its DGROUP offset**: entries of four
+ * bytes with the coordinate at +0 and +2, as a kind's `sizes_ptr` holds.
+ */
+#define POINT16_TABLE(off) \
+    ((const struct point16 *)(dgroup + (uint16_t)(off)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -3931,153 +3916,6 @@ struct sound_record {
  * offsets and the size are the original's.
  * ---------------------------------------------------------------------------
  */
-/*
- * **A part's point table, in words.** The same thing `POINT_TABLE` names, for
- * the three tables `part_setup_40f0` reads: their entries are four bytes with
- * the coordinate at +0 and +2, and the image says why - every other byte is
- * zero, so they are `point16` and not `point8`. The setup takes each with a
- * byte move, which is a low-byte read of a word and what the original does.
- *
- * **Also indexed by a part's form**, at 0x339a, 0x340a and 0x3416 - three
- * entries each, `{0x72,0} {0x72,5} {0x72,10}` at 0x340a - which is the same
- * table shape reached with a different index. It very nearly got a second name
- * for that; one shape, one macro.
- */
-#define POINT16_TABLE(off) \
-    ((const struct point16 *)(dgroup + (uint16_t)(off)))
-
-/*
- * **The part shape tables**, DGROUP 0x3182 .. 0x3576.
- *
- * Every outline a part is built from lives in this one run: `part_setup_*`
- * copies one into the part's own `points_ptr`, and which one it copies is the
- * part's kind and form. `machine_isr_stack` ends at 0x3182 and `DG3576` begins at
- * 0x3576, so the region is bounded on both sides and this struct covers it
- * with nothing left over.
- *
- * Three kinds of table are interleaved, and the type of each is what the code
- * that reads it says:
- *
- *   `s_` a run of `point8`  - an outline, copied a point at a time;
- *   `p_` a run of `point16`    - the same shape in words, where every other
- *                                byte is zero, read with a byte move;
- *   `o_` a run of `dg_near_t`   - **offsets of the tables above**, indexed by
- *                                a part's form, so one kind reaches several
- *                                outlines.
- *
- * **The extents are measured, not assumed.** Each table runs to the next
- * object in the region; an offset table's length is how many of its words are
- * offsets into this region. The sizes then account for all 1012 bytes with no
- * hole, which is the check - a wrong length would leave one. That matters
- * here: `DG3A2C.blocks` was declared `[9]` from a sentence when the loop
- * wrote index 9, and this is the same shape of claim.
- *
- * The names carry the hex because nothing better is known. What each outline
- * *is* would come from the part it belongs to, and that is not established.
- *
- * **One run nothing in the port reads**, kept as bytes rather than given a
- * type on the strength of its values alone: 0x34ba reads as four `point16` -
- * (22,15) (39,15) (0,15) (16,15). Typed when something is found that reaches
- * it. Two others were typed that way: 0x31e6 is six signed words the boxing
- * glove reads as its reach, and 0x3394 three the jack-in-the-box reads - both
- * reached with the first form folded into the address, `[bx+0x31e8]` and
- * `[bx+0x3384]`, so the index at the site carries the fold. And 0x3330 is
- * five bytes the conveyor reads by width step, not the tail of the gun's
- * point pairs above it, which the gun copies seven of.
- */
-struct part_shapes {
-    struct point8  s_3182[8];              /* 0x000  0x3182  8 pairs */
-    struct point8  s_3192[6];              /* 0x010  0x3192  6 pairs */
-    struct point8  s_319e[6];              /* 0x01c  0x319e  6 pairs */
-    struct point8  s_31aa[6];              /* 0x028  0x31aa  6 pairs */
-    dg_near_t         o_31b6[3];              /* 0x034  0x31b6  3 offsets */
-    struct point8  s_31bc[6];              /* 0x03a  0x31bc  6 pairs */
-    struct point8  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
-    struct point8  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
-    dg_near_t         o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
-    int16_t           glove_reach[6];         /* 0x064  0x31e6  -32 -82 0 80 130 0: how far the
-                                                 boxing glove reaches, `part_step_boxing_glove` */
-    struct point8  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
-    struct point8  s_31fe[6];              /* 0x07c  0x31fe  6 pairs */
-    struct point8  s_320a[6];              /* 0x088  0x320a  6 pairs */
-    struct point8  s_3216[6];              /* 0x094  0x3216  6 pairs */
-    struct point8  s_3222[4];              /* 0x0a0  0x3222  4 pairs */
-    struct point8  s_322a[4];              /* 0x0a8  0x322a  4 pairs */
-    struct point8  s_3232[8];              /* 0x0b0  0x3232  8 pairs */
-    struct point8  s_3242[8];              /* 0x0c0  0x3242  8 pairs */
-    struct point8  s_3252[5];              /* 0x0d0  0x3252  5 pairs */
-    struct point8  s_325c[5];              /* 0x0da  0x325c  5 pairs */
-    struct point8  s_3266[7];              /* 0x0e4  0x3266  7 pairs */
-    struct point8  s_3274[7];              /* 0x0f2  0x3274  7 pairs */
-    struct point8  s_3282[7];              /* 0x100  0x3282  7 pairs */
-    struct point8  s_3290[5];              /* 0x10e  0x3290  5 pairs */
-    struct point8  s_329a[5];              /* 0x118  0x329a  5 pairs */
-    struct point8  s_32a4[5];              /* 0x122  0x32a4  5 pairs */
-    struct point8  s_32ae[5];              /* 0x12c  0x32ae  5 pairs */
-    struct point8  s_32b8[4];              /* 0x136  0x32b8  4 pairs */
-    struct point8  s_32c0[4];              /* 0x13e  0x32c0  4 pairs */
-    struct point8  s_32c8[5];              /* 0x146  0x32c8  5 pairs */
-    struct point8  s_32d2[5];              /* 0x150  0x32d2  5 pairs */
-    struct point16    p_32dc[8];              /* 0x15a  0x32dc  8 points */
-    struct point8  s_32fc[6];              /* 0x17a  0x32fc  6 pairs */
-    struct point8  s_3308[6];              /* 0x186  0x3308  6 pairs */
-    struct point8  s_3314[7];              /* 0x192  0x3314  7 pairs */
-    struct point8  s_3322[7];              /* 0x1a0  0x3322  7 pairs, the gun's points */
-    uint8_t           conveyor_grab_x[5];     /* 0x1ae  0x3330  9 23 38 44 59: the grab x by width step,
-                                                 `part_settle_conveyor` */
-    uint8_t           unread_3335[1];         /* 0x1b3  0x3335 */
-    struct point8  s_3336[7];              /* 0x1b4  0x3336  7 pairs */
-    struct point8  s_3344[4];              /* 0x1c2  0x3344  4 pairs */
-    struct point8  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
-    struct point8  s_3354[4];              /* 0x1d2  0x3354  4 pairs */
-    struct point8  s_335c[4];              /* 0x1da  0x335c  4 pairs */
-    dg_near_t         o_3364[4];              /* 0x1e2  0x3364  4 offsets */
-    struct point8  s_336c[4];              /* 0x1ea  0x336c  4 pairs */
-    struct point8  s_3374[4];              /* 0x1f2  0x3374  4 pairs */
-    struct point8  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
-    struct point8  s_3384[4];              /* 0x202  0x3384  4 pairs */
-    dg_near_t         o_338c[4];              /* 0x20a  0x338c  4 offsets */
-    int16_t           jack_reach[3];          /* 0x212  0x3394  -21 -34 -59: how far the jack-in-the-box
-                                                 reaches by form, `part_step_jack_in_the_box` */
-    struct point16    p_339a[4];              /* 0x218  0x339a  4 points */
-    struct point8  s_33aa[9];              /* 0x228  0x33aa  9 pairs */
-    struct point8  s_33bc[9];              /* 0x23a  0x33bc  9 pairs */
-    struct point8  s_33ce[4];              /* 0x24c  0x33ce  4 pairs */
-    struct point8  s_33d6[4];              /* 0x254  0x33d6  4 pairs */
-    struct point8  s_33de[4];              /* 0x25c  0x33de  4 pairs */
-    dg_near_t         o_33e6[3];              /* 0x264  0x33e6  3 offsets */
-    struct point8  s_33ec[4];              /* 0x26a  0x33ec  4 pairs */
-    struct point8  s_33f4[4];              /* 0x272  0x33f4  4 pairs */
-    struct point8  s_33fc[4];              /* 0x27a  0x33fc  4 pairs */
-    dg_near_t         o_3404[3];              /* 0x282  0x3404  3 offsets */
-    struct point16    p_340a[3];              /* 0x288  0x340a  3 points */
-    struct point16    p_3416[3];              /* 0x294  0x3416  3 points */
-    struct point8  s_3422[8];              /* 0x2a0  0x3422  8 pairs */
-    struct point8  s_3432[8];              /* 0x2b0  0x3432  8 pairs */
-    struct point8  s_3442[8];              /* 0x2c0  0x3442  8 pairs */
-    struct point8  s_3452[8];              /* 0x2d0  0x3452  8 pairs */
-    struct point8  s_3462[8];              /* 0x2e0  0x3462  8 pairs */
-    struct point8  s_3472[8];              /* 0x2f0  0x3472  8 pairs */
-    struct point8  s_3482[8];              /* 0x300  0x3482  8 pairs */
-    dg_near_t         o_3492[2];              /* 0x310  0x3492  2 offsets */
-    struct point8  s_3496[8];              /* 0x314  0x3496  8 pairs */
-    struct point8  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
-    dg_near_t         o_34b6[2];              /* 0x334  0x34b6  2 offsets */
-    /* **The scissors' blade**, a segment of four words - x0, y0, x1, y1 - once
-       as it stands and once mirrored; `part_step_scissors` picks one by the flip
-       bit and `cut_belts` cuts every belt that crosses it. */
-    int16_t           cut_line[2][4];         /* 0x338  0x34ba */
-    struct point16    p_34ca[3];              /* 0x348  0x34ca  3 points */
-    struct point16    p_34d6[3];              /* 0x354  0x34d6  3 points */
-    struct point16    p_34e2[8];              /* 0x360  0x34e2  8 points */
-    struct point16    p_3502[8];              /* 0x380  0x3502  8 points */
-    struct point16    p_3522[8];              /* 0x3a0  0x3522  8 points */
-    /* **The seesaw's shaft by form**, a segment of four words each, which
-       `part_step_seesaw` hands `link_objects_crossing`. */
-    int16_t           shaft_line[3][4];       /* 0x3c0  0x3542 */
-} PACKED;
-
-extern struct part_shapes PARTSHAPES;
 
 
 /*

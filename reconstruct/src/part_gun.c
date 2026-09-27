@@ -13,10 +13,27 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x3314..0x3330
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x3314..0x3322. Connection points, 7 pairs.
+ */
+struct point8 GUN_POINTS_3314[7] DGROUP_AT(0x3314) = {
+    { 0x00, 0x1e }, { 0x07, 0x0a }, { 0x12, 0x01 }, { 0x3f, 0x03 },
+    { 0x3f, 0x09 }, { 0x1b, 0x10 }, { 0x0c, 0x1e },
+};
+
+/*
+ * DGROUP 0x3322..0x3330. Connection points, 7 pairs.
+ */
+struct point8 GUN_POINTS_3322[7] DGROUP_AT(0x3322) = {
+    { 0x00, 0x03 }, { 0x2d, 0x01 }, { 0x38, 0x0a }, { 0x3f, 0x1e },
+    { 0x33, 0x1e }, { 0x24, 0x10 }, { 0x00, 0x09 },
+};
 
 /*
  * 172c:22ae, image 0x1956e - kind 27's step. The gun.
@@ -86,10 +103,10 @@ void part_setup_gun(struct part *part)
 
     if (part->flags_08 & 0x10) {
         part->attach[0].x = 42;
-        src = PARTSHAPES.s_3322;
+        src = GUN_POINTS_3322;
     } else {
         part->attach[0].x = 18;
-        src = PARTSHAPES.s_3314;
+        src = GUN_POINTS_3314;
     }
 
     part->attach[0].y = 18;

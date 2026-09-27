@@ -13,10 +13,20 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
+ * JUDGE: data 0x32dc..0x32fc
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x32dc..0x32fc. Connection points, 8 points.
+ */
+struct point16 BOB_THE_FISH_POINTS_32DC[8] DGROUP_AT(0x32dc) = {
+    { 0x0000, 0x0012 }, { 0x000b, 0x0000 }, { 0x0025, 0x0000 },
+    { 0x002f, 0x0012 }, { 0x002f, 0x0023 }, { 0x0027, 0x002f },
+    { 0x0008, 0x002f }, { 0x0000, 0x0022 },
+};
 
 /*
  * 172c:1be9, image 0x18ea9 - a setup.
@@ -34,8 +44,8 @@ void part_setup_bob_the_fish(struct part *part)
     part->point_count = 8;
 
     for (i = 0, si = POINTS(part->points_ptr); i < 8; i++, si++) {
-        si->x = (uint8_t)PARTSHAPES.p_32dc[i].x;
-        si->y = (uint8_t)PARTSHAPES.p_32dc[i].y;
+        si->x = (uint8_t)BOB_THE_FISH_POINTS_32DC[i].x;
+        si->y = (uint8_t)BOB_THE_FISH_POINTS_32DC[i].y;
     }
 
     part_finish_angles(part);
