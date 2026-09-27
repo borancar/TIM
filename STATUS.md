@@ -52,7 +52,7 @@ calls).
 | `src/regions.c` | 0x08546..0x08f27 (both ends ours) | 3 of 3 | none |
 | `src/crtc.c` | 0x08f27..0x08fc3, probably hand-written | assembly: host transcription, not judged | none |
 | `src/gamefile.c` | 0x08fc3..0x09e4c, one module (end ours) | 24 of 24 | `_DATA` 0x28d2..0x28ec, `_BSS` 0x547a..0x567e |
-| `src/fstring.c` | 0x09e4c..0x0a05f (both ends ours) | not judged yet: four routines found missing | none |
+| `src/fstring.c` | 0x09e4c..0x0a05f, BC++ 2.0 `-mm -zC_TEXT` | 7 of 7 | none |
 | `src/seg0000.c` | 0x0a05f..0x0dff0, what is left: several modules | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a

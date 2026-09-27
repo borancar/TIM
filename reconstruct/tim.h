@@ -1233,6 +1233,10 @@ void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
                                   uint16_t ds, uint16_t es, uint16_t dx,
                                   uint16_t cx, uint16_t bx, uint16_t ax); /* 0x09bdf */
 void draw_xor_rect(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x09c23 */
+int16_t far_strlen(const char far *s);                  /* 0x09e4c */
+char far *far_strcpy(char far *dst, const char far *src); /* 0x09e70 */
+char far *far_strncpy(char far *dst, const char far *src, int16_t n); /* 0x09ea5 */
+int16_t far_strnicmp(const char far *a, const char far *b, uint16_t n); /* 0x09ef8 */
 void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
