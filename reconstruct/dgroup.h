@@ -2609,12 +2609,20 @@ struct game_button_labels {
     char continue_btn[9];             /* +0x00 [9]  'CONTINUE' */
     char yes[4];                      /* +0x09 [4]  'YES' */
     char no[3];                       /* +0x0d [3]  'NO' */
-    char score1_bmp[11];              /* +0x10 [0xb]  'score1.bmp' */
-    char gp_menu_bmp[12];             /* +0x1b [0xc]  'gp_menu.bmp' */
-    char score2_bmp[11];              /* +0x27 [0xb]  'score2.bmp' */
 } PACKED;
 
 extern struct game_button_labels GAME_BUTTON_LABELS;
+
+/* `game_setup`'s literal pool, DGROUP 0x25e8..0x260a: the three bitmaps it
+   loads. Placed in round.c; an object rather than literals for the reason
+   `GAME_STARTUP_NAMES` gives. */
+struct round_setup_names {
+    char score1_bmp[11];              /* +0x00 [0xb]  'score1.bmp' */
+    char gp_menu_bmp[12];             /* +0x0b [0xc]  'gp_menu.bmp' */
+    char score2_bmp[11];              /* +0x17 [0xb]  'score2.bmp' */
+} PACKED;
+
+extern struct round_setup_names ROUND_SETUP_NAMES;
 
 /* The message box's and the machine view's data at 0x259c: another
    module's, which segment 14de only references. Placed from dgroup.c until

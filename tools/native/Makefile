@@ -48,7 +48,7 @@ LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) $(shell pkg-config --libs lua 2>
 # tools/check_native.py runs it as.
 # The game's own modules live under reconstruct/src now; io.c, sdl.c and the
 # Borland runtime are not the game and stayed beside the headers.
-GAME    := machine.c gamemain.c intro.c game.c machine_draw.c parts.c engine.c vqtflip.c offbmp.c bitmaps.c \
+GAME    := machine.c gamemain.c intro.c round.c game.c machine_draw.c parts.c engine.c vqtflip.c offbmp.c bitmaps.c \
            sound.c trig.c atan2.c vqt.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_adl.c sxovl_sbp.c sxovl.c \
            glue.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
