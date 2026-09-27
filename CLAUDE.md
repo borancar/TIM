@@ -216,6 +216,7 @@ a case it does not obviously cover.
 - A check's evidence belongs in the repository, in the game's own format - [more](docs/lessons.md#make-test-stopped-at-its-solutions-step-and-what-that-step-wanted-could-not-be-in-the-repository)
 - A tree-sitter parse of code full of unknown macros is not a parse, and the tool cannot tell - [more](docs/lessons.md#a-tree-sitter-parse-of-code-full-of-unknown-macros-is-not-a-parse-and-the-tool-cannot-tell)
 - Two drivers doing the same job in different units are not the same driver, and a whole-screen difference is a screen to look at - [more](docs/lessons.md#two-drivers-doing-the-same-job-in-different-units-are-not-the-same-driver)
+- A literal and an extern array compile to the same instruction, so a routine match does not say whose data it is: the judge now checks the module's `_DATA` against other files' objects - [more](docs/lessons.md#a-literal-and-an-extern-array-compile-to-the-same-instruction)
 
 ### The hybrid runner
 

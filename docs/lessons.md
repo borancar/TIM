@@ -310,6 +310,23 @@ clock. A pure-emulator comparison alone cannot make that distinction.
 
 How a check can pass over a defect, or fail over a correct port - and how a build that looks fresh is not.
 
+### A literal and an extern array compile to the same instruction
+
+`machine_draw.c` matched byte for byte on 2026-09-26 with its data declared as
+DGROUP 0x21e2..0x2234 - five messages it had written as literals, which the
+judge found at a consistent base and compared equal. They were not its: the
+same bytes are the strings module's arrays, and "PUZZLE " is named from
+segment 0dff too, which no literal can be. `mov ax, offset X` is the same
+instruction whether X is the module's pool or another module's array, so a
+routine match says nothing about whose data it is. The module's real data -
+0x259c..0x25e8 - turned up a day later, when the module next to it in the
+link order could not account for its own neighbours.
+
+**The judge now refuses a module whose `_DATA` covers an object another file
+places**, and says which. Ownership is read off the link order: a module's
+data is its variables and then its pool, contiguous, and the next module's
+starts where it ends.
+
 ### A check that polls can miss what it is checking, and then blames the port
 
 **A check that polls can miss what it is checking, and then blames the port.**

@@ -429,7 +429,8 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
                 notes.append("image:")
                 notes.extend("  " + x for x in lines_i)
     results.extend(judge_data(mod, refs, img, placed,
-                              JUDGED_DATA.findall(src)))
+                              JUDGED_DATA.findall(src),
+                              os.path.basename(path)))
     return results
 
 
@@ -454,7 +455,7 @@ def data_refs(seg, lo, hi, addr, img):
 JUDGED_DATA = re.compile(r"JUDGE:\s*data\s+0x([0-9a-fA-F]+)\.\.0x([0-9a-fA-F]+)")
 
 
-def judge_data(mod, refs, img, placed, declared=()):
+def judge_data(mod, refs, img, placed, declared=(), me=None):
     """**The module's own data, placed and compared.** Each reference from a
     matched routine into the module's `_DATA` or `_BSS` says where that
     segment begins in DGROUP: the image's word less the object's addend. All
@@ -497,6 +498,21 @@ def judge_data(mod, refs, img, placed, declared=()):
                            ", ".join("%s..%s" % d for d in declared)), []))
             continue
         notes = []
+        # **Whose bytes these are.** A literal and an extern array compile to
+        # the same instruction, so a module can match with another module's
+        # data claimed as its own pool - machine_draw.c did, with the strings
+        # module's messages. An object another file places inside this range
+        # says so.
+        if me is not None:
+            alien = sorted((a, n) for n, a in placed.items()
+                           if base <= a < base + seg.length
+                           and OWNERS.get(n) not in (None, me))
+            if alien:
+                out.append(("[%s]" % segname, None,
+                            "DIFF: %04x..%04x holds %s, placed by %s"
+                            % (base, base + seg.length, alien[0][1],
+                               OWNERS[alien[0][1]]), []))
+                continue
         if seg.cls == "DATA" and seg.length:
             masked = set()
             for off, size, *_ in seg.fixups:
@@ -516,6 +532,10 @@ def judge_data(mod, refs, img, placed, declared=()):
     return out
 
 
+# Which file places each object, for the ownership check in `judge_data`.
+OWNERS = {}
+
+
 def placements(paths):
     """Every object the port places in DGROUP, by name: `cparse.placements`
     over every source."""
@@ -524,6 +544,7 @@ def placements(paths):
     for p in paths:
         for _struct, name, addr in cparse.placements(p):
             out[name] = addr
+            OWNERS[name] = os.path.basename(p)
     return out
 
 
