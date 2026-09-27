@@ -5,16 +5,10 @@
 #include "tim.h"
 #include "dgroup.h"
 
-/* **A do-nothing hook in a slot whose calls take an answer.** The original's
-   table holds far code pointers of whatever type; its `retf`-only hooks at
-   0x02a1 and 0x02b0 answer nothing and their callers ignore AX. C needs the
-   types to agree, and `void (*)(void)` is the one GCC lets a cast go through
-   without complaint. Ours. */
-#define NO_ANSWER(fn) ((uint16_t (far *)())(void (far *)(void))(fn))
-
 /* **`part_hook_no` as a drive hook**: it takes the part and answers 0, and
    the drive's caller pushes all six arguments, which the C calling convention
-   lets it ignore. The same cast, for the same reason. Ours. */
+   lets it ignore. C needs the types to agree, and `void (*)(void)` is the one
+   GCC lets a cast go through without complaint. Ours. */
 #define NO_DRIVE ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)
@@ -1163,10 +1157,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0000,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_0001,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BRICK_PLATFORM] = {    /* DGROUP 0x0ee0 */
@@ -1176,7 +1170,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0028,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_48ab,
         .flip = part_hook_none_2ab,
         .settle = part_settle_48f7,
@@ -1189,7 +1183,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x002c,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_ramp,
         .flip = part_flip_ramp,
         .settle = part_settle_ramp,
@@ -1205,7 +1199,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_seesaw,
         .setup = part_setup_seesaw,
         .flip = part_flip_seesaw,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_44fe,
     },
     [KIND_BALLOON] = {    /* DGROUP 0x0f8e */
@@ -1218,7 +1212,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_balloon,
         .setup = part_setup_balloon,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_02cd,
     },
     [KIND_CONVEYOR] = {    /* DGROUP 0x0fc8 */
@@ -1244,7 +1238,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_mouse_cage,
         .setup = part_setup_mouse_cage,
         .flip = part_flip_mouse_cage,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_PULLEY] = {    /* DGROUP 0x103c */
@@ -1254,10 +1248,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0000, .priority = 0x0011,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BELT] = {    /* DGROUP 0x1076 */
@@ -1267,10 +1261,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x01, 0xff }, .point_count = 0x0000, .priority = 0x000a,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BASKETBALL] = {    /* DGROUP 0x10b0 */
@@ -1280,10 +1274,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0001,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_0001,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_ROPE] = {    /* DGROUP 0x10ea */
@@ -1293,10 +1287,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x01, 0xff }, .point_count = 0x0000, .priority = 0x000f,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BIRD_CAGE] = {    /* DGROUP 0x1124 */
@@ -1306,10 +1300,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x000c, .priority = 0x0022,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_bird_cage,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_0ffc,
     },
     [KIND_POKEY] = {    /* DGROUP 0x115e */
@@ -1322,7 +1316,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_pokey,
         .setup = part_setup_pokey,
         .flip = part_flip_pokey,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_JACK_IN_THE_BOX] = {    /* DGROUP 0x1198 */
@@ -1335,7 +1329,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_jack_in_the_box,
         .setup = part_setup_jack_in_the_box,
         .flip = part_flip_jack_in_the_box,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_GEAR] = {    /* DGROUP 0x11d2 */
@@ -1348,7 +1342,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_gear,
         .setup = part_setup_gear,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BOB_THE_FISH] = {    /* DGROUP 0x120c */
@@ -1361,7 +1355,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_bob_the_fish,
         .setup = part_setup_bob_the_fish,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BELLOW] = {    /* DGROUP 0x1246 */
@@ -1374,7 +1368,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_bellow,
         .setup = part_setup_bellow,
         .flip = part_flip_bellow,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BUCKET] = {    /* DGROUP 0x1280 */
@@ -1384,10 +1378,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0006, .priority = 0x0021,
         .hit = part_hit_bucket,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_bucket,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_0802,
     },
     [KIND_CANNON] = {    /* DGROUP 0x12ba */
@@ -1400,7 +1394,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_cannon,
         .setup = part_setup_cannon,
         .flip = part_flip_cannon,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_DYNAMITE] = {    /* DGROUP 0x12f4 */
@@ -1413,7 +1407,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_dynamite,
         .setup = part_setup_dynamite,
         .flip = part_flip_dynamite,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BULLET] = {    /* DGROUP 0x132e */
@@ -1426,7 +1420,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_08f1,
         .setup = part_setup_08a1,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_ELECTRIC_PLUG] = {    /* DGROUP 0x1368 */
@@ -1439,7 +1433,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_electric_plug,
         .setup = part_setup_electric_plug,
         .flip = part_flip_electric_plug,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_DYNAMITE_PLUNGER] = {    /* DGROUP 0x13a2 */
@@ -1452,7 +1446,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_dynamite_plunger,
         .setup = part_setup_dynamite_plunger,
         .flip = part_flip_dynamite_plunger,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_341d,
     },
     [KIND_HOOK] = {    /* DGROUP 0x13dc */
@@ -1462,10 +1456,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x02, 0xff }, .point_count = 0x0000, .priority = 0x0010,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_hook,
         .flip = part_flip_hook,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_FAN] = {    /* DGROUP 0x1416 */
@@ -1478,7 +1472,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_fan,
         .setup = part_setup_fan,
         .flip = part_flip_fan,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_FLASHLIGHT] = {    /* DGROUP 0x1450 */
@@ -1491,7 +1485,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_flashlight,
         .setup = part_setup_flashlight,
         .flip = part_flip_flashlight,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_GENERATOR] = {    /* DGROUP 0x148a */
@@ -1504,7 +1498,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_generator,
         .setup = part_setup_generator,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_GUN] = {    /* DGROUP 0x14c4 */
@@ -1517,7 +1511,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_gun,
         .setup = part_setup_gun,
         .flip = part_flip_gun,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_2451,
     },
     [KIND_BASEBALL] = {    /* DGROUP 0x14fe */
@@ -1527,10 +1521,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0003,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_00c9,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_LIGHT] = {    /* DGROUP 0x1538 */
@@ -1543,7 +1537,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_light,
         .setup = part_setup_light,
         .flip = part_flip_light,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_2c19,
     },
     [KIND_MAGNIFYING_GLASS] = {    /* DGROUP 0x1572 */
@@ -1556,7 +1550,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_magnifying_glass,
         .setup = part_setup_magnifying_glass,
         .flip = part_flip_magnifying_glass,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_MONKEY] = {    /* DGROUP 0x15ac */
@@ -1569,7 +1563,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_monkey,
         .setup = part_setup_monkey,
         .flip = part_flip_monkey,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_2e4b,
     },
     [KIND_PUMPKIN] = {    /* DGROUP 0x15e6 */
@@ -1579,10 +1573,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_pumpkin,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_HEART_BALLOON] = {    /* DGROUP 0x1620 */
@@ -1592,10 +1586,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0007, .priority = 0x0033,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_heart_balloon,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_26c3,
     },
     [KIND_CHRISTMAS_TREE] = {    /* DGROUP 0x165a */
@@ -1605,10 +1599,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0007, .priority = 0x0034,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_christmas_tree,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BOXING_GLOVE] = {    /* DGROUP 0x1694 */
@@ -1621,7 +1615,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_boxing_glove,
         .setup = part_setup_boxing_glove,
         .flip = part_flip_boxing_glove,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_ROCKET] = {    /* DGROUP 0x16ce */
@@ -1634,7 +1628,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_rocket,
         .setup = part_setup_rocket,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_SCISSORS] = {    /* DGROUP 0x1708 */
@@ -1647,7 +1641,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_scissors,
         .setup = part_setup_scissors,
         .flip = part_flip_scissors,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_SOLAR_PANEL] = {    /* DGROUP 0x1742 */
@@ -1660,7 +1654,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_solar_panel,
         .setup = part_setup_solar_panel,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_TRAMPOLINE] = {    /* DGROUP 0x177c */
@@ -1673,7 +1667,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_trampoline,
         .setup = part_setup_trampoline,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_WINDMILL] = {    /* DGROUP 0x17b6 */
@@ -1686,7 +1680,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_windmill,
         .setup = part_setup_windmill,
         .flip = part_flip_windmill,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_BLAST] = {    /* DGROUP 0x17f0 */
@@ -1699,7 +1693,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_1649,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_MORT_THE_MOUSE] = {    /* DGROUP 0x182a */
@@ -1712,7 +1706,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_mort_the_mouse,
         .setup = part_setup_mort_the_mouse,
         .flip = part_flip_mort_the_mouse,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_CANNON_BALL] = {    /* DGROUP 0x1864 */
@@ -1722,10 +1716,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0002,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_cannon_ball,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_TENNIS_BALL] = {    /* DGROUP 0x189e */
@@ -1735,10 +1729,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x03, 0xff }, .point_count = 0x0008, .priority = 0x0004,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_00c9,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_CANDLE] = {    /* DGROUP 0x18d8 */
@@ -1751,7 +1745,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_candle,
         .setup = part_setup_candle,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_PIPE] = {    /* DGROUP 0x1912 */
@@ -1761,7 +1755,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0029,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_48ab,
         .flip = part_hook_none_2ab,
         .settle = part_settle_48f7,
@@ -1774,10 +1768,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0008, .priority = 0x002a,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_corner_pipe,
         .flip = (void (far *)())part_flip_corner_pipe,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_WOODEN_PLATFORM] = {    /* DGROUP 0x1986 */
@@ -1787,7 +1781,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x002b,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_48ab,
         .flip = part_hook_none_2ab,
         .settle = part_settle_48f7,
@@ -1800,10 +1794,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_MOTOR] = {    /* DGROUP 0x19fa */
@@ -1816,7 +1810,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_motor,
         .setup = part_setup_motor,
         .flip = part_flip_motor,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [51] = {    /* DGROUP 0x1a34 */
@@ -1826,10 +1820,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [52] = {    /* DGROUP 0x1a6e */
@@ -1839,10 +1833,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [53] = {    /* DGROUP 0x1aa8 */
@@ -1852,10 +1846,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [54] = {    /* DGROUP 0x1ae2 */
@@ -1865,10 +1859,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0000, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_hook_none_2a6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_55] = {    /* DGROUP 0x1b1c */
@@ -1878,10 +1872,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x04, 0xff }, .point_count = 0x0004, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_1105,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_56] = {    /* DGROUP 0x1b56 */
@@ -1891,10 +1885,10 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .bitmaps_ptr = 0x0000, .bitmaps2_ptr = 0x0000, .hotspots_ptr = 0x0000, .sizes_ptr = 0x0000,
         .refile_level = { 0x05, 0xff }, .point_count = 0x0007, .priority = 0x0032,
         .hit = part_hook_yes,
-        .step = NO_ANSWER(part_hook_none_2a1),
+        .step = part_hook_none_2a1,
         .setup = part_setup_10b6,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = NO_DRIVE,
     },
     [KIND_57] = {    /* DGROUP 0x1b90 */
@@ -1907,7 +1901,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         .step = part_step_11a6,
         .setup = part_setup_1105,
         .flip = part_hook_none_2ab,
-        .settle = NO_ANSWER(part_hook_none_2b0),
+        .settle = part_hook_none_2b0,
         .drive = part_drive_11d2,
     },
 };

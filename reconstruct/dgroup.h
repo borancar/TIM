@@ -1800,8 +1800,8 @@ struct part {
        several hundred sites and the older two at a handful: what reads them
        asks "has the form changed since last frame" (`form != form_prev`) or
        "has it been still for two" (`form_prev == form_prev2`). */
-    uint16_t  form;            /* +0x0c  which shape a part with several is in */
-    uint16_t  form_prev;       /* +0x0e */
+    int16_t   form;            /* +0x0c  which shape a part with several is in */
+    int16_t   form_prev;       /* +0x0e */
     int16_t   form_prev2;      /* +0x10 */
     int16_t   direction;       /* +0x12  devdump prints it as `dir` */
     /* **A redraw countdown**: `mark_part_shapes` sets it to a count and the
@@ -2020,7 +2020,7 @@ struct part {
        `link_end_distance` beside it: `gen` of 1 takes `_prev2` and `pt[2]`,
        and 2 takes `_prev` and `pt[1]`. The two agree, which is what says it is
        the original's numbering rather than an off-by-one. */
-    uint16_t  word_96;         /* +0x96  a head */
+    int16_t   word_96;         /* +0x96  a head */
     int16_t   word_96_prev;    /* +0x98 */
     int16_t   word_96_prev2;   /* +0x9a */
     int16_t   spin;            /* +0x9c  the other */
@@ -4269,10 +4269,10 @@ struct part_kind {
        record's +0x26 and +0x22, the compiler having folded 0x0ea6 into the
        displacement. */
     uint16_t (far *hit)();        /* +0x22 */
-    uint16_t (far *step)();       /* +0x26 */
+    void     (far *step)();       /* +0x26 */
     void     (far *setup)();      /* +0x2a */
     void     (far *flip)();       /* +0x2e */
-    uint16_t (far *settle)();     /* +0x32 */
+    void     (far *settle)();     /* +0x32 */
     uint16_t (far *drive)(struct part *, struct part *, uint16_t, uint16_t,
                           uint16_t, int32_t); /* +0x36  the drive hook - the one `part_drive` calls with seven arguments */
 } PACKED;

@@ -1100,7 +1100,6 @@ uint16_t part_init_motor(struct part *part);           /* 0dff:6c72, 0x14c62 */
 uint16_t part_init_14ca0(struct part *part);           /* 0dff:6cb0, 0x14ca0 */
 uint16_t part_init_14cd9(struct part *part);           /* 0dff:6ce9, 0x14cd9 */
 uint16_t part_init_14d0a(struct part *part);           /* 0dff:6d1a, 0x14d0a */
-void part_finish(uint16_t off, struct part *part);
 void part_finish_angles(struct part *part);             /* 0x05d1e */
 void part_setup_boxing_glove(struct part *part);                /* 172c:065b, 0x1791b */
 void part_setup_10b6(struct part *part);                /* 172c:10b6, 0x18376 */
@@ -1212,14 +1211,14 @@ void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x191e2 */
 void     nudge_y_add(struct part *obj, int16_t d);      /* 0x19200 */
 void     nudge_y_sub(struct part *obj, int16_t d);      /* 0x1921a */
 uint16_t part_hit_gear(struct part *part);              /* 0x19238 */
-uint16_t part_step_monkey(struct part *part);             /* 0x1a000 */
+void part_step_monkey(struct part *part);             /* 0x1a000 */
 uint16_t part_hit_monkey(struct part *part);              /* 0x19f43 */
 uint16_t part_hit_bucket(struct part *part);              /* 0x17a23 */
 uint16_t part_hit_0867(struct part *part);              /* 0x17b27 */
 uint16_t part_hit_dynamite(struct part *part);              /* 0x184f7 */
-uint16_t     part_settle_conveyor(struct part *part);           /* 0x198dd */
-uint16_t     part_settle_ramp(struct part *part);           /* 0x19a49 */
-uint16_t     part_settle_48f7(struct part *part);           /* 0x1bbb7 */
+void         part_settle_conveyor(struct part *part);           /* 0x198dd */
+void         part_settle_ramp(struct part *part);           /* 0x19a49 */
+void         part_settle_48f7(struct part *part);           /* 0x1bbb7 */
 uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x182bc */
 uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3,
@@ -1231,8 +1230,8 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3,
 uint16_t part_hit_dynamite_plunger(struct part *part);              /* 0x1a4ff */
 uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a10b */
-uint16_t part_step_dynamite_plunger(struct part *part);             /* 0x1a5ea */
-uint16_t part_step_solar_panel(struct part *part);             /* 0x1b0c8 */
+void part_step_dynamite_plunger(struct part *part);             /* 0x1a5ea */
+void part_step_solar_panel(struct part *part);             /* 0x1b0c8 */
 uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1758d */
 void     part_flip_bellow(struct part *part);             /* 0x17692 */
@@ -1256,7 +1255,7 @@ void     part_flip_corner_pipe(struct part *part, uint16_t which); /* 0x1aaa5 */
 void     part_flip_scissors(struct part *part);             /* 0x1ac04 */
 void     part_flip_seesaw(struct part *part);             /* 0x1b47b */
 void     part_flip_windmill(struct part *part);             /* 0x1bce2 */
-uint16_t part_step_bellow(struct part *part);             /* 0x176c5 */
+void part_step_bellow(struct part *part);             /* 0x176c5 */
 void goal_test_puzzle_2(void);                          /* 0x01476 */
 void goal_test_puzzle_1(void);                          /* 0x0151b */
 void goal_test_puzzles_3_8_27_30_33_45_50_62(void);                          /* 0x015fa */
@@ -1357,7 +1356,6 @@ void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
 void draw_part_selection(struct part *part, int16_t which, int16_t flags); /* 0x16209 */
-void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
@@ -1375,9 +1373,9 @@ uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t 
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum);      /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
-uint16_t part_step_trampoline(struct part *part);             /* 172c:3fae */
+void part_step_trampoline(struct part *part);             /* 172c:3fae */
 uint16_t part_hit_seesaw(struct part *part);              /* 172c:3fe8 */
-uint16_t part_step_seesaw(struct part *part);             /* 172c:420f */
+void part_step_seesaw(struct part *part);             /* 172c:420f */
 struct part *rope_other_end(struct part *part);             /* 0x06dbf */
 void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
@@ -1402,14 +1400,14 @@ uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
 uint16_t part_hit_generator(struct part *part);              /* 172c:1de0 */
 uint16_t part_hit_light(struct part *part);              /* 172c:2b7e */
 uint16_t part_hit_mouse_cage(struct part *part);              /* 172c:2f25 */
-uint16_t part_step_balloon(struct part *part);             /* 172c:018e */
+void part_step_balloon(struct part *part);             /* 172c:018e */
 uint16_t part_hit_boxing_glove(struct part *part);              /* 172c:0552 */
-uint16_t part_step_boxing_glove(struct part *part);             /* 172c:057e */
-uint16_t part_step_08f1(struct part *part);             /* 172c:08f1 */
-uint16_t part_step_candle(struct part *part);             /* 172c:098a */
-uint16_t part_step_cannon(struct part *part);             /* 172c:0a5d */
-uint16_t part_step_pokey(struct part *part);             /* 172c:0ca3 */
-uint16_t part_step_11a6(struct part *part);             /* 172c:11a6 */
+void part_step_boxing_glove(struct part *part);             /* 172c:057e */
+void part_step_08f1(struct part *part);             /* 172c:08f1 */
+void part_step_candle(struct part *part);             /* 172c:098a */
+void part_step_cannon(struct part *part);             /* 172c:0a5d */
+void part_step_pokey(struct part *part);             /* 172c:0ca3 */
+void part_step_11a6(struct part *part);             /* 172c:11a6 */
 int16_t  bounce_speed_for_mass(struct part *obj);       /* 172c:06f9 */
 void     break_bob_the_fish(struct part *part);              /* 172c:1c9e */
 void     trigger_mouse_cage(struct part *part);             /* 172c:2ffd */
@@ -1417,47 +1415,47 @@ int16_t  push_speed_for_mass(struct part *obj);         /* 172c:271f */
 void     trigger_things_at(struct part *part, int16_t mode,
                            int16_t dx);             /* 172c:277d */
 uint16_t part_hit_pokey(struct part *part);              /* 172c:0c6c */
-uint16_t part_step_dynamite(struct part *part);             /* 172c:12c2 */
+void part_step_dynamite(struct part *part);             /* 172c:12c2 */
 void     burst_dynamite(struct part *part);              /* 172c:1328 */
-uint16_t part_step_motor(struct part *part);             /* 172c:13c9 */
+void part_step_motor(struct part *part);             /* 172c:13c9 */
 uint16_t part_hit_electric_plug(struct part *part);              /* 172c:14d3 */
-uint16_t part_step_electric_plug(struct part *part);             /* 172c:15ce */
-uint16_t part_step_gear(struct part *part);             /* 172c:20fc */
-uint16_t part_step_gun(struct part *part);             /* 172c:22ae */
+void part_step_electric_plug(struct part *part);             /* 172c:15ce */
+void part_step_gear(struct part *part);             /* 172c:20fc */
+void part_step_gun(struct part *part);             /* 172c:22ae */
 uint16_t part_hit_conveyor(struct part *part);              /* 172c:2514 */
-uint16_t part_step_conveyor(struct part *part);             /* 172c:2592 */
-uint16_t part_step_mouse_cage(struct part *part);             /* 172c:2f3e */
+void part_step_conveyor(struct part *part);             /* 172c:2592 */
+void part_step_mouse_cage(struct part *part);             /* 172c:2f3e */
 void     part_setup_magnifying_glass(struct part *part);            /* 172c:3030 */
-uint16_t part_step_magnifying_glass(struct part *part);             /* 172c:3035 */
-uint16_t part_step_mort_the_mouse(struct part *part);             /* 172c:34d0 */
+void part_step_magnifying_glass(struct part *part);             /* 172c:3035 */
+void part_step_mort_the_mouse(struct part *part);             /* 172c:34d0 */
 uint16_t part_hit_scissors(struct part *part);              /* 172c:3824 */
-uint16_t part_step_rocket(struct part *part);             /* 172c:3635 */
-uint16_t part_step_scissors(struct part *part);             /* 172c:38fc */
+void part_step_rocket(struct part *part);             /* 172c:3635 */
+void part_step_scissors(struct part *part);             /* 172c:38fc */
 void     cut_belts(struct part *part, const int16_t *line);   /* 172c:3970 */
 void grab_distance(struct part *a, struct part *b,
-                   uint8_t * out_x, uint8_t * out_y); /* 172c:31dc */
+                   int16_t *out_x, int16_t *out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(struct part *part, int16_t clear); /* 172c:1225 */
-uint16_t part_step_1649(struct part *part);             /* 172c:1649 */
+void part_step_1649(struct part *part);             /* 172c:1649 */
 int16_t  blast_speed_for_mass(struct part *part);       /* 172c:1748 */
 void     split_part_at(struct part *part, struct part *blast); /* 172c:17bc */
 int16_t  angle_between_centres(struct part *a, struct part *b); /* 0x03da5 */
-uint16_t part_step_fan(struct part *part);             /* 172c:1a82 */
+void part_step_fan(struct part *part);             /* 172c:1a82 */
 uint16_t part_hit_bob_the_fish(struct part *part);              /* 172c:1c39 */
 uint16_t part_hit_flashlight(struct part *part);              /* 172c:1d07 */
-uint16_t part_step_flashlight(struct part *part);             /* 172c:1d78 */
-uint16_t part_step_generator(struct part *part);             /* 172c:1e5c */
+void part_step_flashlight(struct part *part);             /* 172c:1d78 */
+void part_step_generator(struct part *part);             /* 172c:1e5c */
 uint16_t part_hit_mort_the_mouse(struct part *part);              /* 172c:34b5 */
-uint16_t part_step_bob_the_fish(struct part *part);             /* 172c:1c5f */
-uint16_t part_step_jack_in_the_box(struct part *part);             /* 172c:27e2 */
+void part_step_bob_the_fish(struct part *part);             /* 172c:1c5f */
+void part_step_jack_in_the_box(struct part *part);             /* 172c:27e2 */
 int16_t  conveyor_speed_for_mass(struct part *obj);     /* 172c:29c6 */
 void     conveyor_nudge_3(struct part *obj, int16_t mid);  /* 172c:2a3a */
 void     conveyor_nudge_10(struct part *obj, int16_t mid); /* 172c:2a91 */
 void     conveyor_nudge_15(struct part *obj, int16_t mid); /* 172c:2acb */
 void     conveyor_nudge_25(struct part *obj, int16_t mid); /* 172c:2b1e */
-uint16_t part_step_light(struct part *part);             /* 172c:2b99 */
-uint16_t part_step_windmill(struct part *part);             /* 172c:49a1 */
+void part_step_light(struct part *part);             /* 172c:2b99 */
+void part_step_windmill(struct part *part);             /* 172c:49a1 */
 void game_teardown(int16_t really);                 /* 0x0e34a */
 void game_intro(void);                          /* 0x0e4be */
 void game_play(void);                               /* 0x0eed5 */
