@@ -13,10 +13,22 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -G -Z
+ * JUDGE: data 0x4a82..0x4ab0
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+/*
+ * **The sound bank, its driver and its module**, DGROUP 0x4a82..0x4ab0: this
+ * module's `_DATA`, or sound_stop.c's - the two are adjacent and their bytes
+ * would be the same either way; this module is the one that starts and ends
+ * sound. The record is described in dgroup.h. Three fields start non-zero:
+ * `voice_word` at -4, `bank_choice` at 1 and `device` at -2.
+ */
+struct dg_4a82 DG4A82 DGROUP_WAS(0x4a82) = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 1, -2,
+};
 
 /*
  * 0x296b4
