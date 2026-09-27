@@ -213,6 +213,41 @@ def assemble(d, base, opts, assembler):
     return r.stdout + r.stderr
 
 
+TASM_ONLY = re.compile(r"JUDGE:\s*tasm\b")
+
+
+def tasm_obj(path, opts, assembler):
+    """**An assembly module straight to TASM** (`JUDGE: tasm`): the file's
+    `#ifdef __TURBOC__` branch is `asm { }` blocks holding the module's TASM
+    source, and they go to the assembler without Borland C++'s front end -
+    which passes such a block through `-S` whole, but holds at most some 64K
+    of a file's `asm` before it gives up with "Compiler table limit
+    exceeded", and sound.c's is more. What the front end added is added
+    here: the two data segments and DGROUP, which the blocks name."""
+    text = open(path).read()
+    branch = text[text.index("#ifdef __TURBOC__"):]
+    branch = branch[:branch.index("\n#else")]
+    body = "\n".join(m.group(1) for m in
+                     re.finditer(r"^asm \{\n(.*?)^\}$", branch, re.M | re.S))
+    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
+    prelude = ("_DATA segment word public 'DATA'\n_DATA ends\n"
+               "_BSS segment word public 'BSS'\n_BSS ends\n"
+               "DGROUP group _DATA,_BSS\n")
+    d = tempfile.mkdtemp(prefix="judge")
+    try:
+        base = os.path.splitext(os.path.basename(path))[0][:8].upper()
+        with open(os.path.join(d, base + ".ASM"), "w", newline="\r\n") as f:
+            f.write(prelude + body + "\nend\n")
+        out = assemble(d, base, opts, assembler)
+        objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
+        if not objs or ERRORS.search(out):
+            sys.stdout.write(out)
+            raise SystemExit("%s: %s did not assemble it" % (path, assembler))
+        return omf.load(os.path.join(d, objs[0]))[0], out
+    finally:
+        shutil.rmtree(d)
+
+
 def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
     d = tempfile.mkdtemp(prefix="judge")
     try:
@@ -433,7 +468,12 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
     a = ASSEMBLER.search(src)
     assembler = (force_assembler or (a.group(1) if a else DEFAULT_ASSEMBLER)) \
         if VIA_ASSEMBLER.search(src) or force_assembler else None
-    mod, _log = compile_obj(path, opts, compiler, assembler)
+    if TASM_ONLY.search(src):
+        a = ASSEMBLER.search(src)
+        mod, _log = tasm_obj(path, opts, force_assembler or
+                             (a.group(1) if a else DEFAULT_ASSEMBLER))
+    else:
+        mod, _log = compile_obj(path, opts, compiler, assembler)
     results = []
     refs = []
     for si, seg in enumerate(mod.segs):

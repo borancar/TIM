@@ -122,13 +122,19 @@ modules are BC++ 3.0 `-mm -O -G -Z`, and all their routines match:
 
 sound_device.c's `_BSS` is 0x6414..0x6430.
 
-`sound.c` (0x26198..0x28580) is the host's transcription of the assembly;
-its TASM source is not written. `sound_call.c` (0x29286..0x292f4, the
+`sound.c` (0x26198..0x28580) is TASM 1.x source, judged directly (`JUDGE:
+tasm`): 33 of 33. Eleven `and si, 0fh` are written as their bytes -
+the image has them with a word immediate that no TASM writes; what the
+source said is open. `sound_call.c` (0x29286..0x292f4, the
 callback cell in its code segment first) is TASM, 3 of 3.
 
 `DG4A82` could be sound_stop's or sound_file's: both give the same bytes.
 Nothing names 0x4ab0..0x4ab4 (`DG4AB0`), and the modules after the sound
 code could own it too, so it stays in dgroup.c.
+
+`src/trig.c`, segment 2a04, 0x2a04a..0x2d290: TASM with its tables and
+its 48-bit scratch in the code segment, 9 of 9, five routines uncalled and
+new (host stubs).
 
 Segment 172c has 45 modules. All its code is transcribed and every C
 routine matches:

@@ -625,6 +625,7 @@ void set_object_extent(struct part *obj);               /* 0x05c77 */
 int16_t object_delta_angle(struct part *obj);           /* 0x004ab */
 
 /* Arctangent table lookup; index is a ratio in 0..511. */
+int16_t arctan_ratio(int16_t x, int16_t y);            /* 0x2a89e */
 int16_t arctan_lookup(uint16_t index);              /* 0x2a941 */
 
 /* Apply contact friction to an object. */
@@ -2117,7 +2118,11 @@ int16_t angle_sin(uint16_t angle);                  /* 0x2a456 */
 int16_t angle_cos(uint16_t angle);                  /* 0x2a47b */
 
 /* Signed 16x16 multiply; answers the 32-bit product in DX:AX. */
+int32_t long_mul_div(void);                            /* 0x2a04a */
+int32_t scale_record_a(void);                          /* 0x2a208 */
+int32_t scale_record_b(void);                          /* 0x2a242 */
 int32_t  mul16x16(int16_t a, int16_t b);            /* 0x2a269 */
+int32_t mul_48(void);                                  /* 0x2a272 */
 
 /* Not transcribed yet; the driver's line drawer. */
 void vm_draw_line(int16_t x1, int16_t y1,

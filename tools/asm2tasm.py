@@ -94,6 +94,25 @@ class Byte:
         return False
 
 
+def pack(body):
+    """Consecutive unlabelled `db` lines of one repeated byte, as `dup`."""
+    out = []
+    for line in body:
+        m = re.fullmatch(r"\tdb (\w+)(?:, \1)*", line)
+        if m and out:
+            n = line.count(",") + 1
+            p = re.fullmatch(r"\tdb (\d+) dup \((\w+)\)", out[-1])
+            if p and p.group(2) == m.group(1):
+                out[-1] = "\tdb %d dup (%s)" % (int(p.group(1)) + n, m.group(1))
+                continue
+            q = re.fullmatch(r"\tdb (\w+)(?:, \1)*", out[-1])
+            if q and q.group(1) == m.group(1):
+                out[-1] = "\tdb %d dup (%s)" % (out[-1].count(",") + 1 + n, m.group(1))
+                continue
+        out.append(line)
+    return out
+
+
 def is_branch(ins):
     """A relative transfer: capstone leaves `loop` and `jcxz` out of its
     jump group."""
@@ -130,6 +149,11 @@ def main(argv):
     ap.add_argument("--ds-is-cs", action="store_true",
                     help="the module's routines run with DS on their own code "
                          "segment: a direct operand is the code segment's data")
+    ap.add_argument("--tasm1", action="store_true",
+                    help="the module is TASM 1.x's, assembled directly "
+                         "(`JUDGE: tasm`): 1.x does not shorten a far call "
+                         "to a proc in the segment, so the image's `push cs "
+                         "/ call` was written out, `call near ptr`")
     ap.add_argument("--table", action="append", default=[],
                     help="LO:HI of a table inside the range: data, not code, "
                          "even where the port names its address")
@@ -199,17 +223,20 @@ def main(argv):
     # routine patches. Every `cs:` operand's target inside the range.
     cs_targets = set()
     for ins in insns:
-        for mc in re.finditer(r"(cs:|(?<![a-z]:))\[(?:\w\w \+ )?(0x[0-9a-f]+)\]", ins.op_str):
-            if mc.group(1) != "cs:" and not a.ds_is_cs:
+        for mc in re.finditer(r"(cs:|(?<![a-z]:))\[(?:(\w\w) \+ )?(0x[0-9a-f]+|\d+)\]", ins.op_str):
+            if mc.group(2) and getattr(ins, "disp_size", 2) != 2:
+                continue
+            if mc.group(1) != "cs:" and (not a.ds_is_cs or mc.group(2) == "bp"):
                 continue
             if re.search(r"\b(es|ss):\[", ins.op_str) and mc.group(1) != "cs:":
                 continue
-            t = judge.frame_of(ins.address, fr) + int(mc.group(2), 16)
+            t = judge.frame_of(ins.address, fr) + int(mc.group(3), 0)
             if a.lo <= t < a.hi:
                 cs_targets.add(t)
     externs = {}
     own = set()
     a.own = own
+    a.consts = {}
     a.data_externs = set()
     out = []
     publics = [by_addr[s] for s in starts]
@@ -229,14 +256,14 @@ def main(argv):
     run = []
     for k in pre:
         if k in cs_targets and run:
-            body.append("        db " + ", ".join(run)); run = []
+            body.append("\tdb " + ", ".join(run)); run = []
         if k in cs_targets:
             body.append("c_%05x label byte" % k)
         run.append(hexnum(img[k]))
         if len(run) == 16:
-            body.append("        db " + ", ".join(run)); run = []
+            body.append("\tdb " + ", ".join(run)); run = []
     if run:
-        body.append("        db " + ", ".join(run))
+        body.append("\tdb " + ", ".join(run))
     open_proc = None
     dead = False
     last_data_end = None
@@ -250,15 +277,19 @@ def main(argv):
             # the next label. Written as bytes, sixteen to a line, with a
             # `c_` label wherever the code names one or a run begins.
             vals = [hexnum(x) for x in ins.bytes]
-            if (body and body[-1].startswith("        db ") and not body[-1].endswith("*/")
+            if (body and body[-1].startswith("\tdb ") and not body[-1].endswith("*/")
                     and body[-1].count(",") < 15 and at not in cs_targets
                     and last_data_end == at):
                 body[-1] += ", " + ", ".join(vals)
             else:
                 if body and body[-1] == "c_%05x label byte" % at:
                     body.pop()
-                body.append("c_%05x label byte" % at)
-                body.append("        db " + ", ".join(vals))
+                # a label where a run begins or the code names one - not on
+                # every line: Borland keeps an `asm` block's labels in a
+                # table of its own, and runs out
+                if last_data_end != at or at in cs_targets:
+                    body.append("c_%05x label byte" % at)
+                body.append("\tdb " + ", ".join(vals))
             last_data_end = at + ins.size
             continue
         if at in by_addr and at in starts:
@@ -300,11 +331,13 @@ def main(argv):
         if (ins.bytes[0] == 0xE8 and line.startswith("call _")
                 and far_procs.get(line[len("call _"):])):
             tgt = int(ins.op_str, 16)
-            if tgt < ins.address and body and body[-1].strip() == "push cs":
+            if a.tasm1:
+                line = "call near ptr " + line[len("call "):]
+            elif tgt < ins.address and body and body[-1].strip() == "push cs":
                 del body[-1]
             elif tgt > ins.address:
-                line = "db 0e8h\n        dw %s-$-2" % line[len("call "):]
-        body.append("        " + line)
+                line = "db 0e8h\n\tdw %s-$-2" % line[len("call "):]
+        body.append("\t" + line)
         for t in sorted(cs_targets):
             if at < t < at + ins.size:
                 body.append("c_%05x equ byte ptr $-%d" % (t, at + ins.size - t))
@@ -324,7 +357,7 @@ def main(argv):
     near = ["extrn _%s:near" % n for n, kind in sorted(externs.items())
             if kind == "near"]
     out = ext + out[:2] + near + out[2:]
-    out.extend(body)
+    out.extend(pack(body))
     out.append("%s ends" % a.segment)
     if a.data:
         dlo, dhi = a.data
@@ -333,16 +366,16 @@ def main(argv):
         base = judge.IMG_DGROUP
         for off in range(dlo, dhi):
             if off in own and run:
-                dat.append("        db " + ", ".join(run))
+                dat.append("\tdb " + ", ".join(run))
                 run = []
             if off in own:
                 dat.append("d_%04x label byte" % off)
             run.append(hexnum(img[base + off]))
             if len(run) == 16:
-                dat.append("        db " + ", ".join(run))
+                dat.append("\tdb " + ", ".join(run))
                 run = []
         if run:
-            dat.append("        db " + ", ".join(run))
+            dat.append("\tdb " + ", ".join(run))
         dat.append("_DATA ends")
         out = dat + [""] + out
     if a.bss:
@@ -414,7 +447,7 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
                 # range. In range it would write EB, or, one-pass and
                 # forward, EB and a NOP; so those are written as bytes.
                 if -128 <= t - (ins.address + 2) <= 127:
-                    return "db 0e9h\n        dw %s-$-2" % tn
+                    return "db 0e9h\n\tdw %s-$-2" % tn
                 return "jmp %s" % tn
             if m == "call":
                 return "call %s" % tn
@@ -468,18 +501,44 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
                 return "mov %s, offset DGROUP:%s" % (mi.group(1), nm)
     # the code segment's own data, by the label the dead bytes got - through
     # a `cs:` override, or through DS where the module keeps DS on CS
-    for mc in list(re.finditer(r"(cs:|(?<![a-z]:))\[(?:(\w\w) \+ )?(0x[0-9a-f]+)\]", op)):
-        if mc.group(1) != "cs:" and not a.ds_is_cs:
+    for mc in list(re.finditer(r"(cs:|(?<![a-z]:))\[(?:(\w\w) \+ )?(0x[0-9a-f]+|\d+)\]", op)):
+        if mc.group(2) and ins.disp_size != 2:
+            continue
+        if mc.group(1) != "cs:" and (not a.ds_is_cs or mc.group(2) == "bp"):
             continue
         if mc.group(1) != "cs:" and re.search(r"\b(es|ss):\[", op):
             continue
-        tgt = judge.frame_of(ins.address, fr) + int(mc.group(3), 16)
+        tgt = judge.frame_of(ins.address, fr) + int(mc.group(3), 0)
         if a.lo <= tgt < a.hi:
             rep = "%sc_%05x%s" % ("cs:" if mc.group(1) == "cs:" else "",
                                   tgt, "[%s]" % mc.group(2) if mc.group(2) else "")
             op = op.replace(mc.group(0), rep)
     op = re.sub(r"0x([0-9a-f]+)", lambda x: hexnum(int(x.group(1), 16)), op)
     op = op.replace(" + ", "+").replace(" - ", "-")
+    # **A small number TASM would have written short**: an `and`, `or` or
+    # `xor` whose imm8-sized value the image has as a word (`81`, where
+    # every TASM from 1.0 to 2.51 writes `83`, QUIRKS and MASM51 included),
+    # or a word displacement a byte would hold. No spelling gets TASM to
+    # write these, so they are the bytes, and say so.
+    opc = next(x for x in b if x not in (0x26, 0x2E, 0x36, 0x3E, 0xF2, 0xF3))
+    if getattr(ins, "imm_size", 0) == 2 and opc == 0x81:
+        v = struct.unpack_from("<h", b, len(b) - 2)[0]
+        if -128 <= v <= 127:
+            return "db %s  /* %s %s, written long */" % (
+                ", ".join(hexnum(x) for x in b), m, op)
+    if getattr(ins, "disp_size", 0) == 2 and -128 <= ins.disp <= 127 and \
+            "c_" not in op and "d_" not in op and "_" not in op.split("[")[0][-1:]:
+        if not re.search(r"\b[cd]_[0-9a-f]+", op) and "DGROUP:" not in op:
+            return "db %s  /* %s %s, displacement written long */" % (
+                ", ".join(hexnum(x) for x in b), m, op)
+    # a register operand already says the size, and the text is budgeted:
+    # Borland's front end holds at most some 64K of a file's `asm`
+    regs = r"(?:[abcd][xlh]|si|di|bp|sp|[cdes]s)"
+    parts = op.split(", ")
+    if len(parts) == 2 and m not in ("les", "lds", "movzx", "movsx") and \
+            any(re.fullmatch(regs, x) for x in parts):
+        op = ", ".join(x if re.search(r"\b[cdL]_?[0-9a-f]{4,5}\b|_[A-Za-z]", x)
+                       else re.sub(r"^(?:byte|word) ptr ", "", x) for x in parts)
     return ("%s %s" % (m, op)).strip()
 
 
