@@ -1470,6 +1470,21 @@ extern struct game_text_lines GAME_TEXT_LINES;
 
 
 /*
+ * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
+ * ONE: slots 1 to 4 are the buffers `claim_buffer_slot` hands out. The
+ * original indexes `[bx + 0x5754]` with `bx = slot * 4`, so its slot 0 would be
+ * the four bytes at 0x5754 - `DG5752.frame_flag` and `size_word` - and it is
+ * never handed out. The array starts at slot 1, and every use subtracts one.
+ */
+struct machine_rect_buffers {
+    uint8_t far *slot[4];       /* +0x00  slots 1 to 4 */
+} PACKED;
+
+/* cursor.c's; declared here, above DG5752, because Borland lays out
+   `_BSS` in reverse order of first mention and this is its place in it. */
+extern struct machine_rect_buffers MACHINE_RECT_BUFFERS;
+
+/*
  * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
  */
 struct dg_5752 {
@@ -2670,7 +2685,7 @@ struct saved_rect {
     int16_t   y;               /* +0x02 */
     int16_t   w;               /* +0x04 */
     int16_t   h;               /* +0x06 */
-    uint16_t  buf;             /* +0x08  index into the table at 0x5754, shifted
+    int16_t   buf;             /* +0x08  index into the table at 0x5754, shifted
                                          left two; zero means a single pixel */
     uint8_t   pixel;           /* +0x0a  that pixel's colour */
     uint8_t   flags;           /* +0x0b  bit 1 says something is saved */

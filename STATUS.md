@@ -54,7 +54,8 @@ calls).
 | `src/gamefile.c` | 0x08fc3..0x09e4c, one module (end ours) | 24 of 24 | `_DATA` 0x28d2..0x28ec, `_BSS` 0x547a..0x567e |
 | `src/fstring.c` | 0x09e4c..0x0a05f, BC++ 2.0 `-mm -zC_TEXT` | 7 of 7 | none |
 | `src/rects.c` | 0x0a05f..0x0a78e, BC++ 2.0 `-mm -zC_TEXT` (end ours) | 13 of 13 | `_DATA` 0x2d06..0x2d32, `_BSS` 0x56b6..0x56e6 |
-| `src/seg0000.c` | 0x0a78e..0x0dff0, what is left: several modules | not judged | |
+| `src/cursor.c` | 0x0a78e..0x0b6b7 (both ends ours) | 25 of 25, one of them (0x0b40d) uncalled | `_DATA` 0x2d32..0x2d48, `_BSS` 0x56e6..0x5788 |
+| `src/seg0000.c` | 0x0b82c..0x0bb1e, what is left: assembly, the monochrome printer, `fread_huge`, `draw_bitmap_scaled` and eleven far thunks | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a
 bare `push cs / call` only for a routine defined earlier in the same file,

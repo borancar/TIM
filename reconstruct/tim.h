@@ -1740,6 +1740,7 @@ int16_t part_by_index(int16_t index);           /* 0x11d44 */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
 
 /* Non-zero while the frame flag has not yet been set by the timer handler. */
+int16_t timer_may_draw_cursor(void);                /* 0x0b40d */
 int16_t frame_pending(void);                        /* 0x0b4e2 */
 
 /* ------------------------------------------------------- VM.OVL, VGA driver
