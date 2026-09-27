@@ -46,6 +46,7 @@ calls).
 | `src/goals.c` | 0x01476..0x02809 (the module may run on) | 94 of 94 | `_DATA` 0x283a..0x2849, `_BSS` 0x5456..0x546c |
 | `src/score.c` | 0x02809..0x02ac0 (both ends ours: no data, no backward call) | 3 of 3 | none |
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
+| `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went

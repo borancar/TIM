@@ -4133,6 +4133,13 @@ struct part_point {
 
 /* Not `volatile`, for the reason `PARTP` gives: a point array is a part's
    own data, reached only from one, and the timer handler touches neither. */
+/*
+ * **A part's velocity as one record**: `vel_x` and `vel_y` at +0x36 are
+ * copied together where the original assigns the pair at once, which BC++
+ * compiles as one 4-byte copy (`collect_carried`). Ours, as a spelling.
+ */
+#define PART_VEL(p) (*(struct point16 *)&(p)->vel_x)
+
 #define POINTS(p) ((struct part_point *)(dgroup + (uint16_t)(p)))
 
 /* **No point list**, as a pointer - see `PART_NONE`. */
