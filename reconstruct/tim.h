@@ -1805,7 +1805,7 @@ union far_or_size dos_alloc_bytes(uint32_t size,
 /* Fill memory through a far pointer, with a 32-bit count. */
 void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
 
-void expand_1bpp_to_4bpp(const uint8_t far * src, uint8_t far * dst,
+void expand_1bpp_to_4bpp(const uint8_t huge * src, uint8_t huge * dst,
                          uint16_t count);                     /* 0x23a8a */
 /* Borland's long arithmetic - see borland_huge.c. */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
@@ -1878,7 +1878,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list,
                              uint8_t colours);     /* 0x243bf */
 void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
 uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
-uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
+uint16_t read_bmp_info(FILE *handle, int16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta); /* 0x22190 */

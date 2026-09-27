@@ -1287,10 +1287,33 @@ static int16_t vm_plot_slot(int16_t x, int16_t y, int16_t colour)
     return (int16_t)vm_plot_pixel(x, y, (uint8_t)colour);
 }
 
+/*
+ * OURS: the two list-loading slots as the game calls them. `load_bitmap_list`
+ * pushes five arguments at each; the VGA driver's entry for slot 14 reads
+ * three of them, and its slot 15 is the entry that does nothing.
+ */
+static void vm_load_list_slot(bmp_ptr_t *list, uint8_t *blk, int32_t size,
+                              uint8_t *tmp, int32_t want)
+{
+    (void)tmp;
+    (void)want;
+    vm_load_bitmap_list(list, blk, (uint32_t)size);
+}
+
+static void vm_chunk_slot(uint8_t *src, uint8_t *dst, int16_t count)
+{
+    (void)src;
+    (void)dst;
+    (void)count;
+    vm_nothing();
+}
+
 void (*vm_vector_host(int16_t slot))(void)
 {
     switch (slot) {
     case 13: return (void (*)(void))vm_bitmap_list_size;   /* VGA:0x0fd4 */
+    case 14: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
+    case 15: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
     case 22: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
     default: break;
     }

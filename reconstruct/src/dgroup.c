@@ -1929,14 +1929,6 @@ struct timer TIMER DGROUP_AT(0x44ee) = { .divisor = -1 };
 struct dg_5752 DG5752 DGROUP_BSS(0x5752);
 struct dg_5456 DG5456 DGROUP_BSS(0x5456);
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
-struct chunk_names CHUNK DGROUP_AT(0x4966) = {
-    .bmp_inf = "BMP:INF:",
-    .bmp_bin = "BMP:BIN:",
-    .mode_r_a = "r",
-    .bmp_vga = "BMP:VGA:",
-    .bmp_amg = "BMP:AMG:",
-    .mode_r_b = "r",
-};
 struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
     .pal_vga = "PAL:VGA:",
     .pal_ega = "PAL:EGA:",

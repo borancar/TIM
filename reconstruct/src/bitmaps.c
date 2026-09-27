@@ -113,7 +113,7 @@ struct bmp_set *load_bitmaps(char *name)
     if (seek_named_chunk(file, "BMP:SCN:", 0) != -1L) {
         copy_file_record(saved_b, file);
         restore_file_record_from(saved_a);
-        if (read_bmp_info(file, (uint16_t *)&count, &list) == 0)
+        if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
         set_field_4_of_each(0xfffe, list);
         restore_file_record_from(saved_b);
@@ -123,7 +123,7 @@ struct bmp_set *load_bitmaps(char *name)
             goto planar;
         game_fread((uint8_t *)&kind, 2, 1, file);
         restore_file_record_from(saved_a);
-        if (read_bmp_info(file, (uint16_t *)&count, &list) == 0)
+        if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
         set_field_4_of_each(0xffff, list);
         if (seek_named_chunk(file, "BMP:VQT:", 0) == -1L)

@@ -1615,35 +1615,6 @@ struct point8 {
  */
 #define STR(off) ((const uint8_t *)(dgroup + (uint16_t)(off)))
 
-/*
- * ---------------------------------------------------------------------------
- * **The chunk paths**, at DGROUP 0x4966: the names `seek_named_chunk` walks a
- * file's nesting along. Each is two four-character tags with no separator,
- * which is what its "non-zero multiple of four" check is about.
- *
- * They are transcribed as what they are - a run of NUL-terminated strings the
- * compiler laid down in the order the routines that use them appear - so the
- * fopen modes it emitted between them are fields here too, and the run ends
- * exactly where the sound device's tag table begins.
- *
- * "BMP:OFF:" is here **twice**, at 0x49cf and 0x49e1: two copies of one
- * literal, and `load_bitmaps` pushes a different one at each of its two call
- * sites.
- * ---------------------------------------------------------------------------
- */
-struct chunk_names {
-    char bmp_inf[9];        /* +0x00  0x4966  "BMP:INF:" */
-    char bmp_bin[9];        /* +0x09  0x496f  "BMP:BIN:" */
-    char mode_r_a[2];       /* +0x12  0x4978  "r" */
-    char bmp_vga[9];        /* +0x14  0x497a  "BMP:VGA:" */
-    char bmp_amg[9];        /* +0x1d  0x4983  "BMP:AMG:" */
-    char mode_r_b[2];       /* +0x26  0x498c  "r" */
-} PACKED;
-
-/* **Not `volatile`.** These are the compiler's string literals; nothing
-   writes them. The two buffers among them are filled by `string_copy_far`,
-   which takes an offset, so even those are not written through this. */
-extern struct chunk_names CHUNK;
 
 
 
@@ -2664,6 +2635,11 @@ extern struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE;
  * port's own routine for a slot (io.c). Ours.
  */
 typedef uint32_t (far *vm_list_size_fn)(bmp_ptr_t *list, uint8_t *out);
+typedef void (far *vm_load_list_fn)(bmp_ptr_t *list, uint8_t huge *blk,
+                                   int32_t size, uint8_t huge *tmp,
+                                   int32_t want);
+typedef void (far *vm_chunk_fn)(uint8_t huge *src, uint8_t huge *dst,
+                                int16_t count);
 #ifdef __TURBOC__
 #  define VM_VECTOR(n, type)   (*(type *)&DG4342.font[n])
 #else
@@ -3624,6 +3600,14 @@ struct bitmap {
    count, free, set the sentinel, point each header at its pixels - are all
    this indexing. The name is ours; the shape is the loop's. */
 #define BMPLIST(p) ((bmp_ptr_t *)(dgroup + (uint16_t)(p)))
+
+/* **No list.** The original tests the near pointer against 0; the host has
+   met a list as C's NULL and as DGROUP:0000, and either is none. Ours. */
+#ifdef __TURBOC__
+#  define BMPLIST_IS_NONE(p) ((p) == 0)
+#else
+#  define BMPLIST_IS_NONE(p) ((p) == NULL || (uint8_t *)(p) == dgroup)
+#endif
 
 /*
  * ---------------------------------------------------------------------------

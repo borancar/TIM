@@ -34,9 +34,12 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
-end. `src/files.c` (0x23b29..0x248fe) is **byte-exact**: Borland C++ 2.0
-`-mm -G -O`, 18 of 18 routines, `_DATA` 0x498e..0x49b9 and `_BSS`
-0x6292..0x63f6.
+end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`:
+
+| file | image | routines | data |
+| --- | --- | --- | --- |
+| `src/bmpload.c` | 0x234d2..0x23b29 | 6 of 6 | `_DATA` 0x4966..0x498e |
+| `src/files.c` | 0x23b29..0x248fe | 18 of 18 | `_DATA` 0x498e..0x49b9, `_BSS` 0x6292..0x63f6 |
 
 Segment 2619 is seven modules: two in assembly and five in C. The five C
 modules are BC++ 3.0 `-mm -O -G -Z`, and all their routines match:

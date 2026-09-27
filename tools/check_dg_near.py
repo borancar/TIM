@@ -19,6 +19,12 @@ and declared `dg_near_t`, the type that says "a near pointer" (see dgroup.h),
 or a typedef of it such as `bmp_ptr_t`.
 A cast around the call is refused: a field of the right type needs none.
 
+**Or a store through a near-pointer slot**: `*slot = dg_near(...)`, where
+`slot` is declared in the same function as a pointer to `dg_near_t` or one
+of its typedefs. That is the same filing into a guest word, reached by a
+cursor over an array of them - `read_bmp_info` walks the list it builds that
+way, as the original does - rather than by a field name.
+
 This file is the port's own tooling; it is not a transcription. GPL-2.0.
 """
 import argparse
@@ -92,6 +98,48 @@ def assigned_field(src, call):
     return text(src, left.child_by_field_name("field")), None
 
 
+def slot_store(src, call, aliases):
+    """True if `call` is the whole right-hand side of `*name = ...` and
+    `name` is declared in the enclosing function as a pointer to a
+    near-pointer type."""
+    parent = call.parent
+    if parent is None or parent.type != "assignment_expression" \
+            or parent.child_by_field_name("right") != call:
+        return False
+    op = parent.child_by_field_name("operator")
+    if op is not None and text(src, op) != "=":
+        return False
+    left = parent.child_by_field_name("left")
+    if left is None or left.type != "pointer_expression" \
+            or not text(src, left).startswith("*"):
+        return False
+    arg = left.child_by_field_name("argument")
+    if arg is None or arg.type != "identifier":
+        return False
+    name = text(src, arg)
+    fn = parent
+    while fn is not None and fn.type != "function_definition":
+        fn = fn.parent
+    if fn is None:
+        return False
+    near = {"dg_near_t"} | set(aliases)
+    for n in walk(fn):
+        if n.type != "declaration":
+            continue
+        t = n.child_by_field_name("type")
+        if t is None or text(src, t) not in near:
+            continue
+        for d in n.children_by_field_name("declarator"):
+            if d.type == "init_declarator":
+                d = d.child_by_field_name("declarator")
+            if d is not None and d.type == "pointer_declarator":
+                inner = d.child_by_field_name("declarator")
+                if inner is not None and inner.type == "identifier" \
+                        and text(src, inner) == name:
+                    return True
+    return False
+
+
 def describe(src, call):
     """Say where a refused call sits, from its nearest telling ancestor."""
     n = call.parent
@@ -146,6 +194,8 @@ def main():
             where = os.path.relpath(path, REC)
             field, why = assigned_field(src, n)
             if field is None:
+                if slot_store(src, n, aliases):
+                    continue
                 bad.append((where, line, describe(src, n), text(src, n)))
                 continue
             declared = types.get(field, set())
