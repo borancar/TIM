@@ -872,16 +872,16 @@ void resource_advance(void);                        /* 0x1c8a7 */
 /* Select a resource by handle; unpack its entry into the loader globals. */
 int16_t select_resource(int16_t handle);            /* 0x1c649 */
 int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
-struct open_file *find_file_record(FILE *handle);         /* 0x23df2 */
+struct open_file *near find_file_record(FILE *handle);         /* 0x23df2 */
 int32_t file_record_size(FILE *handle);         /* 0x242af */
 int16_t file_record_valid(FILE *handle);         /* 0x24308 */
 int16_t close_file_record(FILE *handle);         /* 0x242d9 */
-void reset_file_record(struct open_file *rec);               /* 0x23e23 */
-int16_t string_equal_upto(const char * a, const char * b,
+void near reset_file_record(struct open_file *rec);               /* 0x23e23 */
+int16_t near string_equal_upto(const char * a, const char * b,
                           uint16_t n);              /* 0x23e70 */
 uint8_t *  copy_file_record(uint8_t * dst, FILE *handle); /* 0x23ea8 */
 FILE *open_file_record(char *name);           /* 0x23f2c */
-int32_t restore_file_record(struct open_file *rec);         /* 0x23f90 */
+int32_t near restore_file_record(struct open_file *rec);         /* 0x23f90 */
 int32_t seek_named_chunk(FILE *handle, const char * path,
                           int16_t index);           /* 0x23fc2 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
@@ -1867,12 +1867,12 @@ void clip_polygon(void);                                      /* 0x20c07 */
 
 void free_bitmap_list(bmp_ptr_t * list);         /* 0x23a18 */
 void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
-void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
+void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
                       uint16_t count);                    /* 0x24320 */
-void emit_packed_value(int16_t value);              /* 0x2451f */
-void write_literal_run(uint8_t count, const uint8_t * buf); /* 0x245b9 */
-void compress_row(uint8_t *src, int16_t remaining); /* 0x24639 */
-void compress_bitmap(struct bitmap *bmp);              /* 0x24757 */
+void near emit_packed_value(int16_t value);              /* 0x2451f */
+void near write_literal_run(uint8_t count, const uint8_t * buf); /* 0x245b9 */
+void near compress_row(uint8_t *src, int16_t remaining); /* 0x24639 */
+void near compress_bitmap(struct bitmap *bmp);              /* 0x24757 */
 int32_t compress_bitmap_list(bmp_ptr_t *list,
                              uint8_t colours);     /* 0x243bf */
 void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
