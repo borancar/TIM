@@ -574,30 +574,6 @@ struct engine_font_mode {
 
 struct engine_font_mode ENGINE_FONT_MODE DGROUP_AT(0x495a) = { .mode_r = "r" };
 
-/*
- * **Which chunk a font lives in**, DGROUP 0x495c..0x495e, 0x02 bytes.
- *
- * `load_font` hands it to `seek_named_chunk`, which takes the DGROUP offset of
- * an eight-character name - so this word holds that offset rather than the
- * name. Nothing in the port writes it: the value comes in with the image.
- */
-struct engine_font_chunk {
-    dg_near_t font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
-} PACKED;
-
-struct engine_font_chunk ENGINE_FONT_CHUNK DGROUP_AT(0x495c) = { .font_chunk_name = 0x495e };
-
-/*
- * **The font chunk's name**, DGROUP 0x495e..0x4966, which `ENGINE_FONT_CHUNK`
- * points at, and the "r" `load_font` opens with.
- */
-struct engine_font_tag {
-    char      fnt[5];             /* +0x00  "FNT:" */
-    char      mode_r[2];          /* +0x05  0x4963  "r" */
-    uint8_t   pad_4965;           /* +0x07 */
-} PACKED;
-
-struct engine_font_tag ENGINE_FONT_TAG DGROUP_AT(0x495e) = { .fnt = "FNT:", .mode_r = "r" };
 
 
 /*
@@ -769,89 +745,18 @@ struct engine_row_offsets {
 
 struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
 
-/*
- * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
- * twenty slots `ENGINE_FONTS` holds: `load_font` writes 0 for a plain bitmap
- * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
- * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
- * `kind[slot]` into it the way it copies `font_table_34[slot]` into
- * `font_table_34[0]` - and the drawing routines test bit 0 of that.
- */
-struct engine_font_kinds {
-    uint8_t   kind[0x14];         /* +0x00 [0x14] */
-} PACKED;
 
 struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
 
-/*
- * **The font bodies, a far pointer per font slot**, DGROUP 0x618a..0x61da,
- * 0x50 bytes. Twenty: `set_font` looks for the selected font among slots 1 to
- * 0x13, `load_font` searches from slot 2 and stops at 0x14, and twenty run
- * exactly to `ENGINE_FONT_WIDTHS`.
- *
- * Slot 0 is the selected font - `set_font` copies the chosen slot into it.
- * `vm_init` files the BIOS's answer to INT 10h AX=1130h into slots 0 and 1, and
- * `load_font` starts at slot 2, so slot 1 keeps the BIOS font. A font loaded
- * into DGROUP has DGROUP as its body's segment.
- */
-struct engine_fonts {
-    uint8_t far *body[0x14];    /* +0x00 [0x50] */
-} PACKED;
 
 struct engine_fonts ENGINE_FONTS DGROUP_WAS(0x618a);
 
-/*
- * **Each font slot's width table**, a far pointer per slot, DGROUP
- * 0x61da..0x622a, 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the
- * selected font's, and twenty running exactly to `ENGINE_FONT_SLOTS`. A null
- * one is a fixed-width font. `les bx,[0x61da]` loads the segment too, so a
- * width is a far read.
- */
-struct engine_font_widths {
-    uint8_t far *width[0x14];   /* +0x00 [0x50] */
-} PACKED;
 
 struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_WAS(0x61da);
 
-/*
- * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
- * 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the selected font's,
- * and twenty running exactly to `ENGINE_UNDERLINE_ROWS`. It sits after the
- * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
- * pointers into one block per font: the widths at its base, this one two
- * bytes per glyph on, and the body one byte per glyph after that. `load_font`
- * reads all three the same way, `0x622a + 4 * slot`.
- *
- * What the middle table *holds* is still not established; that it is a slot
- * table of far pointers is.
- */
-struct engine_font_slots {
-    uint8_t far *slot[0x14];    /* +0x00 [0x50] */
-} PACKED;
 
 struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_WAS(0x622a);
 
-/*
- * ---------------------------------------------------------------------------
- * **A fifth font table**, DGROUP 0x627a..0x628e, 0x14 bytes, one byte per slot.
- *
- * `load_font` reads a compressed font's header as single bytes into parallel
- * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
- * `VMDS.font_table_34` and its three neighbours, and this one. Those four
- * are `uint8_t[0x14]`, and `ENGINE_SCALE_STEP` starts at 0x628e, so this is twenty slots
- * as well.
- *
- * What it holds is the row the underline is drawn on: `draw_char` tests
- * `VMDS.text_style & 8` and then this against the row it is about to draw,
- * blanking that pixel. The name is a **reading** of that one use.
- *
- * Element 0 doubles as the current font's value - `select_font` copies the
- * chosen slot's byte down into it - which is what the two bare reads are.
- * ---------------------------------------------------------------------------
- */
-struct engine_underline_rows {
-    uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
-} PACKED;
 
 struct engine_underline_rows ENGINE_UNDERLINE_ROWS DGROUP_BSS(0x627a);
 
@@ -4492,167 +4397,6 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
     return (int16_t)vm_read_pixel(x, y);
 }
 /*
- * 0x2307d
- *
- * Load a font into one of the eighteen slots of the table at DGROUP 0x618a,
- * and answer the slot number - or 0 for any failure, which is why the search
- * starts at 2 and not at 0. Like `load_palette` it takes either a resource name
- * or an already-open file record, and closes only what it opened itself.
- *
- * The font's header is a run of single bytes read into parallel arrays indexed
- * by the slot: 0x38c4, 0x38d8, 0x38ec, 0x3900 and, for a compressed font,
- * 0x627a. The **first** byte read is a marker rather than a field, and it picks
- * one of three shapes:
- *
- *   0xfd, 0xff  compressed. 0x6176 gets the marker negated - 3 or 1 - the rest
- *               of the header follows, then a word of decompressed size, and
- *               the body comes through the resource layer (`open_resource`,
- *               `read_resource`, `close_resource`) into a block from DOS. Three
- *               far pointers into that block are filed: the body at 0x61da, and
- *               two more at 0x622a and 0x618a, stepped past 2 and then 1 byte
- *               per glyph of the count at 0x3900.
- *   0xfe        uncompressed, and the byte after the marker is the width in
- *               bytes as it stands.
- *   anything    uncompressed, and the marker *was* the width, in bits: it is
- *               rounded up to whole bytes with `(w + 7) >> 3`.
- *
- * Both uncompressed shapes read the body into one near-heap block and file it
- * at 0x618a with DGROUP as its segment, leaving the other two pointers null.
- *
- * The failure flag at [bp-8] is set once and tested before each further step,
- * which is how the original writes what would now be an early return.
- */
-uint16_t load_font(char *name)
-{
-    int16_t size[2];      /* [bp-4], read into by fread */
-
-    FILE *di = (FILE *)name;          /* a handle, or a name to open */
-    uint16_t opened = 0;                        /* [bp-2]  */
-    int16_t handle;                             /* [bp-6]  */
-    int16_t failed;                             /* [bp-8]  */
-    uint8_t *blk = FAR_NULL_PTR;                /* [bp-0xa], [bp-0xc] */
-    uint8_t *p;                                 /* [bp-0xe] */
-    int16_t si;
-
-    si = 2;
-    for (;;) {
-        if (ENGINE_FONTS.body[si] == FAR_NULL_PTR)
-            break;
-        if (si >= 0x14)
-            break;
-        si++;
-    }
-
-    if (si >= 0x14) {
-        return 0;
-    }
-
-    if (file_record_valid(di) == 0) {
-        opened = 1;
-        di = open_file_record(name);
-    } else {
-        opened = 0;
-    }
-
-    if (seek_named_chunk(di, (const char *)dg_near_ptr(ENGINE_FONT_CHUNK.font_chunk_name), 0)
-            == -1) {
-        si = 0;
-    } else {
-        game_fread(&VMDS.font_table_34[si], 1, 1, di);
-
-        if (VMDS.font_table_34[si] == 0xfd
-            || VMDS.font_table_34[si] == 0xff) {
-            uint32_t r;
-
-            ENGINE_FONT_KINDS.kind[si] =
-                (uint8_t)(-(int8_t)VMDS.font_table_34[si]);
-
-            game_fread(&VMDS.font_table_34[si], 1, 1, di);
-            game_fread(&VMDS.font_table_48[si], 1, 1, di);
-            game_fread(&ENGINE_UNDERLINE_ROWS.underline_row[si], 1, 1, di);
-            game_fread(&VMDS.font_table_5c[si], 1, 1, di);
-            game_fread(&VMDS.font_table_70[si], 1, 1, di);
-            game_fread((uint8_t *)size, 1, 2, di);
-
-            r = file_record_size(di);
-            handle = open_resource(0xffff, di, ENGINE_FONT_TAG.mode_r, r);
-            failed = (handle < 0) ? 1 : 0;
-
-            if (failed == 0)
-                failed = ((uint16_t)resource_size(handle) == (uint16_t)size[0])
-                         ? 0 : 1;
-
-            if (failed == 0) {
-                blk = dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr;
-                failed = blk == FAR_NULL_PTR ? 1 : 0;
-            }
-
-            if (failed == 0)
-                failed = (read_resource(handle, blk,
-                                        (uint16_t)size[0]) == size[0])
-                         ? 0 : 1;
-
-            if (failed == 0) {
-                /* Three pointers into the one block, two bytes and then
-                   three per glyph in, stepped in the block's own segment. */
-                ENGINE_FONT_WIDTHS.width[si] = blk;
-                ENGINE_FONT_SLOTS.slot[si] = blk + 2 * VMDS.font_table_70[si];
-                ENGINE_FONTS.body[si] = blk + 3 * VMDS.font_table_70[si];
-            }
-
-            close_resource(handle);
-
-            if (failed != 0) {
-                if (blk != FAR_NULL_PTR)
-                    dos_free_far(blk);
-                si = 0;
-            }
-        } else {
-            int16_t glyph_bytes;
-
-            if (VMDS.font_table_34[si] == 0xfe) {
-                ENGINE_FONT_KINDS.kind[si] = 2;
-                game_fread(&VMDS.font_table_34[si], 1, 1, di);
-                glyph_bytes = (int16_t)VMDS.font_table_34[si];
-            } else {
-                ENGINE_FONT_KINDS.kind[si] = 0;
-                glyph_bytes =
-                    (int16_t)((int16_t)(VMDS.font_table_34[si] + 7) >> 3);
-            }
-            size[0] = glyph_bytes;
-
-            game_fread(&VMDS.font_table_48[si], 1, 1, di);
-            game_fread(&VMDS.font_table_5c[si], 1, 1, di);
-            game_fread(&VMDS.font_table_70[si], 1, 1, di);
-
-            size[0] = (int16_t)(size[0]
-                * (int16_t)((int16_t)VMDS.font_table_48[si]
-                            * (int16_t)VMDS.font_table_70[si]));
-
-            p = heap_malloc_far((uint16_t)size[0]);
-            failed = (p == NULL) ? 1 : 0;
-
-            if (failed == 0)
-                game_fread(p, (uint16_t)size[0], 1, di);
-
-            if (failed == 0) {
-                ENGINE_FONTS.body[si] = (uint8_t far *)p;
-                ENGINE_FONT_WIDTHS.width[si] = NULL;
-                ENGINE_FONT_SLOTS.slot[si] = NULL;
-            } else {
-                if (p != NULL)
-                    heap_free_far(p);
-                si = 0;
-            }
-        }
-    }
-
-    if (opened != 0)
-        close_file_record(di);
-    return (uint16_t)si;
-}
-
-/*
  * 0x2244d
  *
  * Plot a pixel if it is inside the driver's clip window, and answer -1 if it
@@ -4768,54 +4512,6 @@ int16_t timer_install(uint16_t rate)
 
     TIMER.installed = 1;
     return 1;
-}
-
-/*
- * 0x233ef
- *
- * Close one of the ten slots in the table at DGROUP 0x618a, which
- * `table_618a_in_use` answers for. A slot that is not in use is left alone.
- *
- * **The slot that matches entry 0 takes the driver's own state down with it**:
- * six bytes and three pairs of words are cleared, including two that belong to
- * the video driver's data at 0x38ec and 0x38c4. That happens only when the
- * slot's pointer equals entry 0's, so entry 0 is the one the rest hang off.
- *
- * Either way the slot itself is freed - through `dos_free_far` when it has a
- * far pointer at 0x61da and through `heap_free_far` when it does not - and its
- * three table entries and its byte at 0x6176 are cleared.
- */
-void close_table_618a_slot(int16_t index)
-{
-    if (table_618a_in_use(index) == 0)
-        return;
-
-    if (ENGINE_FONTS.body[index]
-        == ENGINE_FONTS.body[0]) {
-        ENGINE_FONT_KINDS.kind[0] = 0;
-        VMDS.font_table_70[0] = 0;
-        VMDS.font_table_5c[0] = 0;
-        ENGINE_UNDERLINE_ROWS.underline_row[0] = 0;
-        VMDS.font_table_48[0] = 0;
-        VMDS.font_table_34[0] = 0;
-
-        ENGINE_FONT_WIDTHS.width[0] = NULL;
-        ENGINE_FONT_SLOTS.slot[0]    = NULL;
-        ENGINE_FONTS.body[0]   = NULL;
-    }
-
-    if (ENGINE_FONT_WIDTHS.width[index] != FAR_NULL_PTR)
-        dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
-    else
-        heap_free_far((uint8_t *)ENGINE_FONTS.body[index]);
-
-    ENGINE_FONT_KINDS.kind[index] = 0;
-
-    /* The three slot tables, cleared through the types that name them -
-       which is what `bx = 4 * index` was computing an offset into. */
-    ENGINE_FONTS.body[index]  = NULL;
-    ENGINE_FONT_WIDTHS.width[index] = NULL;
-    ENGINE_FONT_SLOTS.slot[index]   = NULL;
 }
 
 /*

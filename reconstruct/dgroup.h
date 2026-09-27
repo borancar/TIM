@@ -2904,6 +2904,92 @@ struct sound_tick_wait {
 extern struct sound_tick_wait SOUND_TICK_WAIT;
 
 /*
+ * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
+ * twenty slots `ENGINE_FONTS` holds: `load_font` writes 0 for a plain bitmap
+ * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
+ * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
+ * `kind[slot]` into it the way it copies `font_table_34[slot]` into
+ * `font_table_34[0]` - and the drawing routines test bit 0 of that.
+ */
+struct engine_font_kinds {
+    uint8_t   kind[0x14];         /* +0x00 [0x14] */
+} PACKED;
+
+extern struct engine_font_kinds ENGINE_FONT_KINDS;
+
+/*
+ * **The font bodies, a far pointer per font slot**, DGROUP 0x618a..0x61da,
+ * 0x50 bytes. Twenty: `set_font` looks for the selected font among slots 1 to
+ * 0x13, `load_font` searches from slot 2 and stops at 0x14, and twenty run
+ * exactly to `ENGINE_FONT_WIDTHS`.
+ *
+ * Slot 0 is the selected font - `set_font` copies the chosen slot into it.
+ * `vm_init` files the BIOS's answer to INT 10h AX=1130h into slots 0 and 1, and
+ * `load_font` starts at slot 2, so slot 1 keeps the BIOS font. A font loaded
+ * into DGROUP has DGROUP as its body's segment.
+ */
+struct engine_fonts {
+    uint8_t far *body[0x14];    /* +0x00 [0x50] */
+} PACKED;
+
+extern struct engine_fonts ENGINE_FONTS;
+
+/*
+ * **Each font slot's width table**, a far pointer per slot, DGROUP
+ * 0x61da..0x622a, 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the
+ * selected font's, and twenty running exactly to `ENGINE_FONT_SLOTS`. A null
+ * one is a fixed-width font. `les bx,[0x61da]` loads the segment too, so a
+ * width is a far read.
+ */
+struct engine_font_widths {
+    uint8_t far *width[0x14];   /* +0x00 [0x50] */
+} PACKED;
+
+extern struct engine_font_widths ENGINE_FONT_WIDTHS;
+
+/*
+ * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
+ * 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the selected font's,
+ * and twenty running exactly to `ENGINE_UNDERLINE_ROWS`. It sits after the
+ * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
+ * pointers into one block per font: the widths at its base, this one two
+ * bytes per glyph on, and the body one byte per glyph after that. `load_font`
+ * reads all three the same way, `0x622a + 4 * slot`.
+ *
+ * What the middle table *holds* is still not established; that it is a slot
+ * table of far pointers is.
+ */
+struct engine_font_slots {
+    uint8_t far *slot[0x14];    /* +0x00 [0x50] */
+} PACKED;
+
+extern struct engine_font_slots ENGINE_FONT_SLOTS;
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A fifth font table**, DGROUP 0x627a..0x628e, 0x14 bytes, one byte per slot.
+ *
+ * `load_font` reads a compressed font's header as single bytes into parallel
+ * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
+ * `VMDS.font_table_34` and its three neighbours, and this one. Those four
+ * are `uint8_t[0x14]`, and `ENGINE_SCALE_STEP` starts at 0x628e, so this is twenty slots
+ * as well.
+ *
+ * What it holds is the row the underline is drawn on: `draw_char` tests
+ * `VMDS.text_style & 8` and then this against the row it is about to draw,
+ * blanking that pixel. The name is a **reading** of that one use.
+ *
+ * Element 0 doubles as the current font's value - `select_font` copies the
+ * chosen slot's byte down into it - which is what the two bare reads are.
+ * ---------------------------------------------------------------------------
+ */
+struct engine_underline_rows {
+    uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
+} PACKED;
+
+extern struct engine_underline_rows ENGINE_UNDERLINE_ROWS;
+
+/*
  * **The sound module's own code segment, which is where it keeps its state** -
  * two data blocks inside segment 2619's code: 0x0008..0x020d, between a
  * routine's `ret` and the next routine's `push bp`, and the six bytes at

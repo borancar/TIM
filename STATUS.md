@@ -38,6 +38,7 @@ end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`:
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/fontload.c` | 0x2307d..0x234d2 | 2 of 2 | `_DATA` 0x495c..0x4965 |
 | `src/bmpload.c` | 0x234d2..0x23b29 | 6 of 6 | `_DATA` 0x4966..0x498e |
 | `src/files.c` | 0x23b29..0x248fe | 18 of 18 | `_DATA` 0x498e..0x49b9, `_BSS` 0x6292..0x63f6 |
 
