@@ -28,8 +28,10 @@ DGROUP offset. So the host's DGROUP stops mirroring the guest's bytes, one
 record type at a time, and the tools that compare guest memory
 (`check_image_data`, `verify.py`, the hybrid runner) are rescoped as each
 record converts; `check_machines` and `check_solutions` stay the functional
-proof. The *Converting the guest's pointers* section below describes the
-layout-preserving scheme this replaces.
+proof. A converted record is the host's own layout and says where it was with
+`DGROUP_WAS(off)`; a pair survives only at the machine's interface (STATUS.md,
+"What still holds a `struct far_ptr`"). The *Converting the guest's pointers*
+section below describes the layout-preserving scheme this replaces.
 
 ## Keep this file short
 

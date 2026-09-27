@@ -647,6 +647,26 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
+### What still holds a `struct far_ptr`, and why
+
+Since 2026-09-27 the game's records hold real `far`/`huge` pointers and the
+host lays them out itself (`DGROUP_WAS`). What is left as a guest pair is the
+machine's interface, which the hybrid's `io` layer shares with the original's
+game code, or which the startup, the runtime or an overlay owns:
+
+- the video driver's block and tables: `VMDS` (with `dg_3a2c` in it),
+  `DG4342.font`, `DG440E`, `DG48DA.driver`, `VMCS.hooks`, the loaded driver
+  block `ENGINE_DRIVER_BLOCK`;
+- the sound driver's: `DG4A82` (the ASB module's port finds its code through
+  `.module`), `SNDS` (the hybrid binds SX from `.driver`), `SNDCALL`,
+  `sound_play_args.sample`, the ASB module's own `ASBS`;
+- interrupt vectors: `S1C_TIMER`, `S1C_KEYBOARD`, `DG5677.crit_vec`, and the
+  mouse handler `ENGINE_MOUSE`;
+- C0M's and the runtime's: `DOS_STARTUP`, the exit, init and atexit tables.
+
+Each converts when its owner does - a driver interface when the hybrid no
+longer needs the guest's bytes, the runtime's when it is linked from CM.LIB.
+
 ### check_sound cannot say whether the attract loop's samples come in the original's order
 
 Since the hybrid runs the original's game code (2026-09-27), `check_sound`'s
