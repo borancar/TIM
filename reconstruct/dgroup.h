@@ -3445,6 +3445,30 @@ struct region {
 /* **No region**, as a pointer - see `PART_NONE`. */
 #define REGION_NONE REGION_PTR(0)
 
+/*
+ * **The address of a DGROUP object, in a static initialiser.** Borland
+ * writes the object's address, which the linker fixes up; the host stores
+ * the DGROUP offset, from which its own pointers are made. `off` is that
+ * offset. The judge masks the fixup, so the host's number is the one that
+ * is checked against the image's bytes. Ours.
+ */
+#ifdef __TURBOC__
+#  define NEAR_ADDR(lv, off)  ((dg_near_t)&(lv))
+#else
+#  define NEAR_ADDR(lv, off)  (off)
+#endif
+
+/* The saved-rectangle pool's free list, rects.c's, DGROUP 0x56e0. */
+struct machine_rect_free {
+    /* The free list of `rect_list_entry` records. Only ever appended to -
+       here **and in the original**: the builder that fills it, 0x0a05f, is
+       reached only from the creator at 0x0a0d7, and nothing in the image
+       calls that. See `struct rect_list_entry`. */
+    dg_near_t rect_free_ptr;      /* +0x00 [2] */
+    int16_t   draw_x;          /* +0x02 [2] */
+    int16_t   draw_y;          /* +0x04 [2] */
+} PACKED;
+
 
 /*
  * ---------------------------------------------------------------------------
@@ -4500,17 +4524,6 @@ struct resource {
  * comment says otherwise, and the names are ours.
  * ---------------------------------------------------------------------------
  */
-
-/* DGROUP 0x2d06..0x2d0a, after the part templates: two words. */
-struct dg_2d06 {
-    /* **Nothing in the port touches either word**, and the image holds no
-       instruction that names 0x2d06 or 0x2d08 - so whatever reads them, if
-       anything does, reaches them through a pointer. The image's own bytes are
-       the initialisers below and `check_image_data` holds them to that. */
-    uint16_t  _pad_2d06;       /* +0x00 */
-    uint16_t  _pad_2d08;           /* +0x02 */
-} PACKED;
-extern struct dg_2d06 DG2D06;
 
 /*
  * DGROUP 0x440e..0x4460: twenty far pointers after DG4342's, and two bytes.

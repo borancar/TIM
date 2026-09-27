@@ -2058,7 +2058,6 @@ struct dg_4342 DG4342 DGROUP_AT(0x4342) = {
         { .off = 0x2716, .seg = LOAD_SEG + 0x1c25 },
     },
 };
-struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { ._pad_2d06 = 0x0001, ._pad_2d08 = 0xffff };
 
 struct dg_440e DG440E DGROUP_AT(0x440e) = {
     .ptr_440e = { .off = 0x2716, .seg = LOAD_SEG + 0x1c25 },
