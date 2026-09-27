@@ -2916,6 +2916,32 @@ uint16_t dg_alloca(uint16_t bytes);
 void     dg_free(uint16_t bytes);
 
 /*
+ * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
+ * 0x1c bytes. Every loop over them is `i < 7`, and seven run exactly to
+ * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
+ * test the first one's two words to tell whether the seven are allocated.
+ */
+struct sound_voices {
+    struct sequence far *voice[7];      /* +0x00 [0x1c] */
+} PACKED;
+
+extern struct sound_voices SOUND_VOICES;
+
+/*
+ * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
+ */
+struct sound_tick_wait {
+    volatile int16_t ticks_left;         /* +0x00 [2]  set to five; a callback steps it down each tick */
+    /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
+       while `delay_five_ticks` spins on it */
+    struct sound_record far *cursor;        /* +0x02 [4]  a static far pointer, with its
+                                            selector beside it */
+    int16_t   selector;           /* +0x06 [2] */
+} PACKED;
+
+extern struct sound_tick_wait SOUND_TICK_WAIT;
+
+/*
  * **The sound module's own code segment, which is where it keeps its state** -
  * two data blocks inside segment 2619's code: 0x0008..0x020d, between a
  * routine's `ret` and the next routine's `push bp`, and the six bytes at
