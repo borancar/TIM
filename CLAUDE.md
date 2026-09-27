@@ -13,7 +13,7 @@ right on screen.
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
 `reconstruct/src` file is to compile under the compiler that built it -
 Borland C++ 3.0 for most of the game (options per module), Borland C++ 2.0
-for fifteen modules, Turbo C++ 1.01 for `atan2_long`, and TASM 1.01 for the
+for fifteen modules, Turbo C++ 1.01 for `atan2_long`, and TASM 3.0 for the
 assembly - to exactly the image's bytes
 (`tools/judge.py`, whose file markers say which), *and* still build
 with gcc into the working port, which must stay green. Pointer sizes differ
@@ -133,7 +133,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   with no arguments opens the game, not writes a bitmap.
 - **An assembly module is a `.c` file too.** Its `#ifdef __TURBOC__` branch
   is file-level `asm { }` blocks holding the TASM source, which the judge
-  hands to TASM 1.01 directly (`JUDGE: tasm`), and its `#else` is the host's
+  hands to TASM 3.0 directly (`JUDGE: tasm`), and its `#else` is the host's
   transcription. Provenance is a C comment on the line directly above each
   `proc`, the only kind of comment the blocks may carry. `tools/asm2tasm.py`
   drafts the source from the image - a draft the judge then proves or

@@ -22,7 +22,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: assembler tasm1.01
+ * JUDGE: assembler bc3.00
  */
 #include "tim.h"
 #include "io.h"

@@ -344,6 +344,9 @@ def disasm(code, at, n=6):
     return lines
 
 
+CS_LABEL = re.compile(r"^c_[0-9a-f]{5}$")
+
+
 def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose,
                   pubs=()):
     """Compare seg.data[lo:hi] with img[addr:]. Answers (ok, first difference
@@ -487,10 +490,21 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
         if seg is None or seg.cls != "CODE" or not seg.length:
             continue
         pubs = sorted((off, nm) for nm, s, off in mod.publics if s == si)
-        for k, (off, nm) in enumerate(pubs):
-            hi = pubs[k + 1][0] if k + 1 < len(pubs) else seg.length
+        # **A `c_<address>` public is code-segment data** a sibling module
+        # of the same segment names (asm2tasm.py's `--public-labels`). A run
+        # of them ahead of the first routine is one unit, compared at the
+        # address its first name says; one inside a routine is that
+        # routine's, and does not cut its range.
+        units = []
+        for off, nm in pubs:
+            if not (CS_LABEL.match(nm) and units):
+                units.append((off, nm))
+        for k, (off, nm) in enumerate(units):
+            hi = units[k + 1][0] if k + 1 < len(units) else seg.length
             name = nm.lstrip("_")
             addr = known.get(name)
+            if addr is None and CS_LABEL.match(nm):
+                addr = int(nm[2:], 16)
             if addr is None:
                 results.append((name, None, "no address", []))
                 continue

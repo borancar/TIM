@@ -359,6 +359,13 @@ uint16_t install_driver(const uint8_t far * drv);   /* 0x265f2 */
 uint16_t configure_driver(const uint8_t far * drv); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
+/* sound_api.c and sound_drv.c's routines the port had no name for. */
+uint16_t sound_api(uint16_t fn);                       /* 0x2639d */
+void     sound_api_dispatch(void);                     /* 0x263ff */
+void     sound_hold(uint16_t cx);                      /* 0x2666d */
+void     driver_fn13(void);                            /* 0x26686 */
+void     seek_sequence(struct sequence far *seq);      /* 0x26691 */
+uint16_t set_sequence_level(uint8_t cl);               /* 0x26738 */
 void retire_and_tick(struct sequence far * seq);                         /* 0x26a57 */
 
 /* The sound module's own routines over that driver, in address order. */
@@ -410,6 +417,9 @@ uint16_t install_driver_far(const uint8_t far * drv);    /* 0x28458 */
 uint16_t configure_driver_far(const uint8_t far * drv);  /* 0x2846a */
 void retire_and_tick_far(struct sequence far * seq);  /* 0x284ef */
 void silence_driver_far(void);                      /* 0x28559 */
+void seek_sequence_far(struct sequence far * seq);  /* 0x2841f */
+void driver_fn13_far(void);                         /* 0x284b0 */
+void set_sequence_level_far(uint16_t level);        /* 0x2852c */
 
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */

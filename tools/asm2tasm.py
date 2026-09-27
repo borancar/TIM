@@ -154,6 +154,14 @@ def main(argv):
                          "(`JUDGE: tasm`): 1.x does not shorten a far call "
                          "to a proc in the segment, so the image's `push cs "
                          "/ call` was written out, `call near ptr`")
+    ap.add_argument("--cs-ext", default=None,
+                    help="LO:HI of code-segment data a sibling module owns: a "
+                         "cs: operand there is its label, declared extrn")
+    ap.add_argument("--label", action="append", default=[],
+                    help="an address in the range to label, for a sibling "
+                         "module that names it")
+    ap.add_argument("--public-labels", action="store_true",
+                    help="publish the c_ labels, which sibling modules name")
     ap.add_argument("--table", action="append", default=[],
                     help="LO:HI of a table inside the range: data, not code, "
                          "even where the port names its address")
@@ -233,6 +241,11 @@ def main(argv):
             t = judge.frame_of(ins.address, fr) + int(mc.group(3), 0)
             if a.lo <= t < a.hi:
                 cs_targets.add(t)
+    for x in a.label:
+        cs_targets.add(int(x, 0))
+    cs_ext = tuple(int(x, 0) for x in a.cs_ext.split(":")) if a.cs_ext else None
+    a.cs_ext_range = cs_ext
+    a.cs_ext_used = set()
     externs = {}
     own = set()
     a.own = own
@@ -356,6 +369,10 @@ def main(argv):
     ext += ["extrn %s:byte" % n for n in sorted(a.data_externs)]
     near = ["extrn _%s:near" % n for n, kind in sorted(externs.items())
             if kind == "near"]
+    near += ["extrn c_%05x:byte" % t for t in sorted(a.cs_ext_used)]
+    if a.public_labels:
+        labs = sorted(set(re.findall(r"^(c_[0-9a-f]{5}) ", "\n".join(body), re.M)))
+        near += ["public " + ", ".join(labs[i:i + 6]) for i in range(0, len(labs), 6)]
     out = ext + out[:2] + near + out[2:]
     out.extend(pack(body))
     out.append("%s ends" % a.segment)
@@ -509,7 +526,10 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
         if mc.group(1) != "cs:" and re.search(r"\b(es|ss):\[", op):
             continue
         tgt = judge.frame_of(ins.address, fr) + int(mc.group(3), 0)
-        if a.lo <= tgt < a.hi:
+        ext = a.cs_ext_range and a.cs_ext_range[0] <= tgt < a.cs_ext_range[1]
+        if ext:
+            a.cs_ext_used.add(tgt)
+        if a.lo <= tgt < a.hi or ext:
             rep = "%sc_%05x%s" % ("cs:" if mc.group(1) == "cs:" else "",
                                   tgt, "[%s]" % mc.group(2) if mc.group(2) else "")
             op = op.replace(mc.group(0), rep)

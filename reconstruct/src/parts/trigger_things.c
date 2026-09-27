@@ -13,7 +13,7 @@
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm
  * JUDGE: via-assembler
- * JUDGE: assembler tasm1.01
+ * JUDGE: assembler bc3.00
  *
  * **This module went through the assembler, and that is the whole of the
  * evidence for its boundary.** The switch's cases 6 and 0x0f both end in a

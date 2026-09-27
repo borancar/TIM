@@ -18,7 +18,7 @@
  * JUDGE: built-with -mm -G -O
  * JUDGE: data 0x48f8..0x495c
  * JUDGE: via-assembler
- * JUDGE: assembler tasm1.01
+ * JUDGE: assembler bc3.00
  *
  * **The module went through the assembler**: `blit_scaled_a` has four
  * inline `asm` blocks - its nibble decoder and its three calls into the
