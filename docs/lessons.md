@@ -371,6 +371,11 @@ the store. `open_sound_file` clears the file and its kind only when it
 closes the previous file, and the port cleared them every time. Neither
 reaches a screen or a sample on the paths the checks drive.
 
+text.c gave one more the same day. `text_width` stopped at a character
+outside the font. The original skips it: both range tests jump back to the
+loop's own test. Every string the game measures is inside its font, so no
+check could see the difference.
+
 ### Borland C++ 2.0 orders `_BSS` by name, and its `MK_FP` was not the one in its own header
 
 files.c, segment 1c25's last module, matched all eighteen routines under
@@ -443,6 +448,38 @@ alternatives rather than by reading:
 jumps.** Each `jmp` / `nop` pair is TASM's padding on a jump the compiler
 could not size. A jump written inside an `asm` block needs `short` to come
 out as two bytes.
+
+### Borland C++ 2.0 assembles inline `asm` itself, and its assembler reads a name after `call` as a label
+
+text.c matched on 2026-09-27 compiled straight to an object, `asm` and
+all, while vidload.c had needed TASM. **An `asm` block is not evidence of
+TASM.** BC++ 2.0 has its own assembler for inline `asm`, and the evidence
+has to come from the bytes:
+
+- TASM's `jmp` / `nop` pairs on forward jumps say the module went through
+  TASM (vidload.c);
+- TLINK's `nop` in front of `push cs / call` to a routine in the same file
+  says it did not. TASM writes those calls bare (text.c).
+
+The built-in assembler has a trap of its own. **After `call`, it takes a
+name for a C label.** `asm call dword ptr DG4342` failed with "Expression
+syntax" at the function's closing brace, where the labels are resolved.
+`asm call dword ptr DG4342+8` compiled without a word and assembled as
+`DG4342-8`, `ff 1e f8 ff`. The routine still matched, because the judge
+masks fixups, and only its check of where each extern is placed caught it.
+A call through a far pointer in memory with nothing pushed is what C
+compiles anyway, so the glyph call is `VM_VECTOR(1, vm_glyph_fn)()` between
+the `asm` lines that load its registers.
+
+Register allocation needed care too. BC++ 2.0 puts a third register
+variable in CX, or a parameter in DX, in a routine that calls nothing.
+Explicit `register` decides who is allocated first: `glyph_size` gave its
+width SI until its three parameters were declared `register` as well.
+
+**The module's range showed two routines the port never had.** 0x21575
+and 0x21a50 are called from nowhere in the image, so no run reached them
+and nothing asked for them. A module is judged whole, so the judge found
+the gaps: `set_font`'s range ran on into 0x21575's bytes.
 
 ### A prototype is what the callers push, not what the callee reads
 

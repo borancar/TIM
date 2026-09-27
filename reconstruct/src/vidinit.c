@@ -166,8 +166,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      */
     font = io_bios_font_ptr(3);
 
-    ENGINE_FONTS.body[0] = MK_FP(font.es, font.bp);
-    ENGINE_FONTS.body[1] = MK_FP(font.es, font.bp);
+    ENGINE_FONT_BODIES.body[0] = MK_FP(font.es, font.bp);
+    ENGINE_FONT_BODIES.body[1] = MK_FP(font.es, font.bp);
 
     *(int16_t *)(&VMDS.font_table_48[0]) = 0x808;
     *(int16_t *)(&VMDS.font_table_34[0]) = 0x808;

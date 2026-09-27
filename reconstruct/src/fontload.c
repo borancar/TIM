@@ -79,7 +79,7 @@ uint16_t load_font(char *name)
 #endif
 
     /* The first free slot from 2. */
-    for (si = 2; ENGINE_FONTS.body[si] != FAR_NULL_PTR && si < 0x14; si++)
+    for (si = 2; ENGINE_FONT_BODIES.body[si] != FAR_NULL_PTR && si < 0x14; si++)
         ;
 
     if (si < 0x14) {
@@ -121,7 +121,7 @@ uint16_t load_font(char *name)
                     blk += VMDS.font_table_70[si] * 2;
                     ENGINE_FONT_SLOTS.slot[si] = blk;
                     blk += VMDS.font_table_70[si];
-                    ENGINE_FONTS.body[si] = blk;
+                    ENGINE_FONT_BODIES.body[si] = blk;
                 }
 
                 close_resource(handle);
@@ -152,7 +152,7 @@ uint16_t load_font(char *name)
                 if (!failed)
                     game_fread(p, size, 1, di);
                 if (!failed) {
-                    ENGINE_FONTS.body[si] = FAR_OF_NEAR(p);
+                    ENGINE_FONT_BODIES.body[si] = FAR_OF_NEAR(p);
                     ENGINE_FONT_WIDTHS.width[si] = 0;
                     ENGINE_FONT_SLOTS.slot[si] = 0;
                 }
@@ -196,8 +196,8 @@ void close_table_618a_slot(int16_t index)
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (ENGINE_FONTS.body[index]
-        == ENGINE_FONTS.body[0]) {
+    if (ENGINE_FONT_BODIES.body[index]
+        == ENGINE_FONT_BODIES.body[0]) {
         ENGINE_FONT_KINDS.kind[0] = 0;
         VMDS.font_table_5c[0] = VMDS.font_table_70[0] = 0;
         VMDS.font_table_34[0] = VMDS.font_table_48[0] =
@@ -205,19 +205,19 @@ void close_table_618a_slot(int16_t index)
 
         ENGINE_FONT_WIDTHS.width[0] = NULL;
         ENGINE_FONT_SLOTS.slot[0]    = NULL;
-        ENGINE_FONTS.body[0]   = NULL;
+        ENGINE_FONT_BODIES.body[0]   = NULL;
     }
 
     if (ENGINE_FONT_WIDTHS.width[index] != FAR_NULL_PTR)
         dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
     else
-        heap_free_far((uint8_t *)ENGINE_FONTS.body[index]);
+        heap_free_far((uint8_t *)ENGINE_FONT_BODIES.body[index]);
 
     ENGINE_FONT_KINDS.kind[index] = 0;
 
     /* The three slot tables, cleared through the types that name them -
        which is what `bx = 4 * index` was computing an offset into. */
-    ENGINE_FONTS.body[index]  = NULL;
+    ENGINE_FONT_BODIES.body[index]  = NULL;
     ENGINE_FONT_WIDTHS.width[index] = NULL;
     ENGINE_FONT_SLOTS.slot[index]   = NULL;
 }

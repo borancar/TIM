@@ -225,6 +225,7 @@ a case it does not obviously cover.
 - Borland C++ 2.0 orders `_BSS` by name, not by definition, so a module whose routines match may be waiting on a rename - [more](docs/lessons.md#borland-c-20-orders-_bss-by-name-and-its-mk_fp-was-not-the-one-in-its-own-header)
 - A compiler short of memory can write an object with no symbols and exit 0: the judge runs the emulated compilers with the memory a real machine left (`tools/tcrun.py`) and refuses an object with no publics - [more](docs/lessons.md#a-compiler-short-of-memory-can-write-an-object-with-no-symbols-and-exit-0)
 - The C around `asm` blocks is matched by spelling: `!c` on a signed `char` is `cbw`, `(uint8_t)m & 2` is `test byte`, and AX survives into an `if`'s block but not into the next statement - [more](docs/lessons.md#a-routine-with-asm-blocks-still-has-c-around-them-and-the-image-says-how-that-c-was-written)
+- BC++ 2.0 assembles inline `asm` itself, so a module with `asm` went through TASM only if the bytes say so, and its assembler reads a name after `call` as a label (`DG4342+8` became `-8`) - [more](docs/lessons.md#borland-c-20-assembles-inline-asm-itself-and-its-assembler-reads-a-name-after-call-as-a-label)
 
 ### The hybrid runner
 

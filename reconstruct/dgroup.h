@@ -2884,7 +2884,7 @@ extern struct sound_tick_wait SOUND_TICK_WAIT;
 
 /*
  * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
- * twenty slots `ENGINE_FONTS` holds: `load_font` writes 0 for a plain bitmap
+ * twenty slots `ENGINE_FONT_BODIES` holds: `load_font` writes 0 for a plain bitmap
  * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
  * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
  * `kind[slot]` into it the way it copies `font_table_34[slot]` into
@@ -2907,15 +2907,15 @@ extern struct engine_font_kinds ENGINE_FONT_KINDS;
  * `load_font` starts at slot 2, so slot 1 keeps the BIOS font. A font loaded
  * into DGROUP has DGROUP as its body's segment.
  */
-struct engine_fonts {
+struct engine_font_bodies {
     uint8_t far *body[0x14];    /* +0x00 [0x50] */
 } PACKED;
 
-extern struct engine_fonts ENGINE_FONTS;
+extern struct engine_font_bodies ENGINE_FONT_BODIES;
 
 /*
  * **Each font slot's width table**, a far pointer per slot, DGROUP
- * 0x61da..0x622a, 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the
+ * 0x61da..0x622a, 0x50 bytes - indexed like `ENGINE_FONT_BODIES`, with slot 0 the
  * selected font's, and twenty running exactly to `ENGINE_FONT_SLOTS`. A null
  * one is a fixed-width font. `les bx,[0x61da]` loads the segment too, so a
  * width is a far read.
@@ -2928,7 +2928,7 @@ extern struct engine_font_widths ENGINE_FONT_WIDTHS;
 
 /*
  * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
- * 0x50 bytes - indexed like `ENGINE_FONTS`, with slot 0 the selected font's,
+ * 0x50 bytes - indexed like `ENGINE_FONT_BODIES`, with slot 0 the selected font's,
  * and twenty running exactly to `ENGINE_UNDERLINE_ROWS`. It sits after the
  * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
  * pointers into one block per font: the widths at its base, this one two

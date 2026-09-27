@@ -36,10 +36,12 @@ Segment 0dff is byte-exact end to end, all eight of its modules.
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
 through TASM, because `blit_scaled_a` has inline `asm`: its nibble decoder,
-its driver calls and the page hook.
+its driver calls and the page hook. text.c has `asm` too, but BC++ 2.0
+assembled it itself.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/text.c` | 0x2149e..0x21ab5 | 10 of 10 | `_DATA` 0x471e..0x4723, `_BSS` 0x6176..0x628e |
 | `src/lowlevel.c` | 0x21ab5..0x22483 | assembly, probably several modules: host transcription, not judged | `DG48DA` 0x48da..0x48f2, the mouse at 0x4740 |
 | `src/vidinit.c` | 0x22483..0x22790 | assembly: host transcription, not judged | `_DATA` 0x48f2..0x48f8 |
 | `src/vidload.c` | 0x22790..0x2307d | 3 of 3, through TASM | `_DATA` 0x48f8..0x495c, `_BSS` 0x628e..0x6292 |
