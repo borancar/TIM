@@ -7,21 +7,144 @@
  * **The CRTC's split-screen registers**: Line Compare and the vertical
  * display end, each a ten-bit value spread over three registers.
  *
- * The original's **code segment 0000** (`_TEXT`), image 0x08f27..0x08fc3,
- * split out of seg0000.c on 2026-09-27. **Probably hand-written, and so no C
- * compiler judges this file**; it is the host's transcription, as
- * polygon.c's is, and a byte-exact source would be TASM's to make (not
- * written yet). Each routine saves SI and DI though it uses neither, saves
- * AX, BX and DX, and ends `mov sp,bp` with no locals to drop. BC++ 3.0 with
+ * The original's **code segment 0000** (`_TEXT`), image 0x08f27..0x08fc3.
+ * **Hand-written assembly**, and the TASM source is the `#ifdef __TURBOC__`
+ * block below. Each routine saves SI and DI though it uses neither, saves
+ * AX, BX and DX, and ends `mov sp,bp` with no locals to drop: BC++ 3.0 with
  * and without `-k`, and Turbo C++ 1.0x through TASM, were all tried with the
  * body as inline `asm` and with register variables and `_SI`/`_DI` to force
- * the saves. None gives that prologue and that epilogue together, and a TASM
- * `PROC` with `USES si, di` would. That is inference: **nothing proves the
- * module boundary on either side**.
+ * the saves, and none gives that prologue and that epilogue together.
+ * **Nothing proves the module boundary on either side**.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it; the host's transcription is the
+ * `#else`. See glue.c for how the block reaches the assembler.
+ */
+asm {
+_TEXT segment byte public 'CODE'
+assume cs:_TEXT, ds:DGROUP
+public _vm_set_line_compare, _vm_set_display_lines
+
+/* 0x08f27 */
+_vm_set_line_compare proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        push ax
+        push bx
+        push dx
+        mov bx, [bp+6]
+        mov dx, 3d4h
+        mov al, 18h
+        out dx, al
+        inc dx
+        mov al, bl
+        out dx, al
+        dec dx
+        mov al, 7
+        out dx, al
+        inc dx
+        in al, dx
+        and al, 0efh
+        mov bl, bh
+        and bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        or al, bl
+        out dx, al
+        dec dx
+        mov al, 9
+        out dx, al
+        inc dx
+        in al, dx
+        and al, 0bfh
+        mov bl, bh
+        and bl, 2
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        or al, bl
+        out dx, al
+        pop dx
+        pop bx
+        pop ax
+        pop di
+        pop si
+        mov sp, bp
+        pop bp
+        retf
+_vm_set_line_compare endp
+
+/* 0x08f77 */
+_vm_set_display_lines proc far
+        push bp
+        mov bp, sp
+        push si
+        push di
+        push ax
+        push bx
+        push dx
+        mov bx, [bp+6]
+        mov dx, 3d4h
+        mov al, 15h
+        out dx, al
+        inc dx
+        mov al, bl
+        out dx, al
+        dec dx
+        mov al, 7
+        out dx, al
+        inc dx
+        in al, dx
+        and al, 0f7h
+        mov bl, bh
+        and bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        or al, bl
+        out dx, al
+        dec dx
+        mov al, 9
+        out dx, al
+        inc dx
+        in al, dx
+        and al, 0dfh
+        mov bl, bh
+        and bl, 2
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        shl bl, 1
+        or al, bl
+        out dx, al
+        pop dx
+        pop bx
+        pop ax
+        pop di
+        pop si
+        mov sp, bp
+        pop bp
+        retf
+_vm_set_display_lines endp
+_TEXT ends
+}
+#else
 
 /*
  * 0x08f27
@@ -97,3 +220,4 @@ void vm_set_display_lines(uint16_t lines)
     v = (uint8_t)((v & 0xDF) | (((lines >> 8) & 2) << 4));
     io_out8(PORT_CRTC_DATA, v);
 }
+#endif

@@ -173,21 +173,24 @@ def main(argv):
         # source said `call far ptr`.
         if (ins.bytes[0] == 0xE8 and len(body) >= 2
                 and body[-1].strip() == "push cs" and body[-2].strip() == "nop"
-                and line.startswith("call near ptr ")):
+                and line.startswith("call ")):
             del body[-2:]
-            tn = line[len("call near ptr "):]
+            tn = line[len("call "):]
             if tn[1:] in externs:
                 externs[tn[1:]] = "far"
-            line = "call far ptr " + tn
+            line = "call FAR PTR " + tn
         body.append("        " + line)
         if ins.mnemonic in ("ret", "retf", "iret", "jmp", "ljmp"):
             dead = True
     if open_proc:
         body.append("_%s endp" % open_proc)
-    for n, kind in sorted(externs.items()):
-        out.append("extrn _%s:%s" % (n, kind))
-    for n in sorted(a.data_externs):
-        out.append("extrn %s:byte" % n)
+    # **Outside the segment**: an `extrn` declared inside a code segment is
+    # taken to be in it, and a far call to it becomes TASM's own `push cs /
+    # call` - where the image has TLINK's `nop / push cs / call`, the far
+    # call the linker rewrote.
+    ext = ["extrn _%s:%s" % (n, kind) for n, kind in sorted(externs.items())]
+    ext += ["extrn %s:byte" % n for n in sorted(a.data_externs)]
+    out = ext + out
     out.extend(body)
     out.append("%s ends" % a.segment)
     if a.data:
@@ -236,7 +239,7 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
                 ", ".join(hexnum(x) for x in b), seg, off)
         if not (a.lo <= tgt < a.hi):
             externs[name] = "far"
-        return "call far ptr _%s" % name
+        return "call FAR PTR _%s" % name
     if ins.group(capstone.CS_GRP_JUMP) or m == "call":
         if re.fullmatch(r"0x[0-9a-f]+", op):
             t = int(op, 16)
@@ -250,10 +253,19 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
                 return "db %s  /* %s %s outside */" % (
                     ", ".join(hexnum(x) for x in b), m, op)
             if m == "jmp":
-                return ("jmp short %s" % tn) if b[0] == 0xEB \
-                    else ("jmp near ptr %s" % tn)
+                if b[0] == 0xEB:
+                    return "jmp short %s" % tn
+                # **A near jump TASM would not write as one.** Borland's
+                # front end drops the size after `jmp` - `jmp near ptr x`
+                # reaches the assembler as `jmp ptr x` - so the form has to
+                # be one TASM picks unprompted: E9 for a target out of short
+                # range. In range it would write EB, or, one-pass and
+                # forward, EB and a NOP; so those are written as bytes.
+                if -128 <= t - (ins.address + 2) <= 127:
+                    return "db 0e9h\n        dw %s-$-2" % tn
+                return "jmp %s" % tn
             if m == "call":
-                return "call near ptr %s" % tn
+                return "call %s" % tn
             return "%s %s" % (m, tn)
     # segment immediates
     for k in range(1, len(b) - 1):

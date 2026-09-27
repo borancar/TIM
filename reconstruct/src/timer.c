@@ -12,16 +12,335 @@
  * split out of engine.c on 2026-09-27. Its `_DATA` is `TIMER`, DGROUP
  * 0x44ee..0x4579, padded to the word before scale.c's.
  *
- * **So no C compiler judges this file.** The handler is an interrupt routine
- * and every entry is hand-written; it is the host's transcription, and the
- * byte-exact source of these bytes is TASM's to make (not written yet).
+ * **Hand-written assembly**: the handler is an interrupt routine and every
+ * entry is written by hand. The TASM source is the `#ifdef __TURBOC__` block
+ * below, drafted by tools/asm2tasm.py; the old INT 08h vector is kept in
+ * the code segment, in the four bytes after `timer_drop_callback`.
  * Its start is C's end: `draw_compressed_body` (compbmp.c) returns at
  * 0x20653. Whether the two thunks at 0x20838 are its last routines or a
  * module of their own is not settled.
+ *
+ * JUDGE: compiler bc2.00
+ * JUDGE: built-with -mm
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
  */
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it; the host's transcription is the
+ * `#else`. See glue.c for how the block reaches the assembler.
+ */
+asm {
+_DATA segment word public 'DATA'
+d_44ee label byte
+        db 0h
+d_44ef label byte
+        db 0h, 0h
+d_44f1 label byte
+        db 0ffh, 0ffh
+d_44f3 label byte
+        db 0h, 0h
+d_44f5 label byte
+        db 0h, 0h
+d_44f7 label byte
+        db 0h, 0h
+d_44f9 label byte
+        db 0h, 0h
+d_44fb label byte
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+d_4539 label byte
+        db 0h, 0h
+d_453b label byte
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+        db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+_DATA ends
+
+extrn _detect_pcjr:far
+extrn _DG4342:byte
+
+TIMER_TEXT segment byte public 'CODE'
+assume cs:TIMER_TEXT, ds:DGROUP
+public _timer_add_callback, _timer_drop_callback, _timer_install, _timer_remove
+public _timer_tick, _blit_rows_thunk, _blit_rows_alt_thunk
+
+/* 0x20654 */
+_timer_add_callback proc far
+        push bp
+        mov bp, sp
+        sub ax, ax
+        cmp byte ptr DGROUP:d_44ee, al
+        je L2069c
+        mov ax, word ptr DGROUP:d_44f7
+        inc ax
+        je L2069c
+        dec ax
+        sub bx, bx
+        mov cx, 1
+L2066b:
+        shr ax, 1
+        jae L20676
+        shl cx, 1
+        add bl, 4
+        jmp short L2066b
+L20676:
+        mov ax, word ptr [bp+0ah]
+        mov word ptr d_453b[bx], ax
+        mov word ptr d_4539[bx], ax
+        mov ax, word ptr [bp+6]
+        mov word ptr d_44f9[bx], ax
+        mov ax, word ptr [bp+8]
+        mov word ptr d_44fb[bx], ax
+        cli
+        or word ptr DGROUP:d_44f7, cx
+        sti
+        mov ax, bx
+        shr ax, 1
+        shr ax, 1
+        inc ax
+L2069c:
+        pop bp
+        retf
+_timer_add_callback endp
+
+/* 0x2069e */
+_timer_drop_callback proc far
+        push bp
+        mov bp, sp
+        sub ax, ax
+        mov cx, word ptr [bp+6]
+        dec cx
+        test cl, 0f0h
+        jne L206bb
+        stc
+        mov ax, 0fffeh
+        rcl ax, cl
+        cli
+        and word ptr DGROUP:d_44f7, ax
+        sti
+        mov ax, 1
+L206bb:
+        pop bp
+        retf
+c_206bd db 0h, 0h
+c_206bf db 0h, 0h
+_timer_drop_callback endp
+
+/* 0x206c1 */
+_timer_install proc far
+        push bp
+        mov bp, sp
+        sub ax, ax
+        cmp byte ptr DGROUP:d_44ee, al
+        jne L2072c
+        mov word ptr DGROUP:d_44f7, ax
+        call FAR PTR _detect_pcjr
+        mov ax, 3508h
+        int 21h
+        mov word ptr cs:c_206bd, bx
+        mov word ptr cs:c_206bf, es
+        sub ax, ax
+        mov dx, ax
+        mov bx, word ptr [bp+6]
+        cmp bx, 0ffh
+        jg L2072c
+        or bx, bx
+        je L2072c
+        dec ax
+        mov word ptr DGROUP:d_44f3, bx
+        mov word ptr DGROUP:d_44f5, bx
+        div bx
+        mov bx, ax
+        mov word ptr DGROUP:d_44f1, ax
+        cli
+        mov al, 36h
+        out 43h, al
+        mov al, bl
+        out 40h, al
+        mov al, bh
+        out 40h, al
+        in al, 21h
+        and al, 0fch
+        out 21h, al
+        push ds
+        mov ax, cs
+        mov ds, ax
+        mov dx, offset _timer_tick
+        mov ax, 2508h
+        int 21h
+        pop ds
+        sti
+        mov ax, 1
+        mov byte ptr DGROUP:d_44ee, al
+L2072c:
+        pop bp
+        retf
+_timer_install endp
+
+/* 0x2072e */
+_timer_remove proc far
+        mov ax, 0
+        cmp byte ptr DGROUP:d_44ee, al
+        je L20766
+        sub bx, bx
+        cli
+        mov al, 36h
+        out 43h, al
+        mov al, bl
+        out 40h, al
+        mov al, bh
+        out 40h, al
+        in al, 21h
+        and al, 0fch
+        out 21h, al
+        push ds
+        mov dx, word ptr cs:c_206bd
+        mov ds, word ptr cs:c_206bf
+        mov ax, 2508h
+        int 21h
+        pop ds
+        mov ax, 1
+        mov byte ptr DGROUP:d_44ee, 0
+        sti
+L20766:
+        retf
+_timer_remove endp
+
+/* 0x20767 */
+_timer_tick proc near
+        push ax
+        push bx
+        push cx
+        push dx
+        push bp
+        push ds
+        push es
+        push si
+        push di
+        mov ax, DGROUP
+        mov ds, ax
+        mov ax, word ptr DGROUP:d_44ef
+        dec ax
+        cwd
+        xor ax, dx
+        mov word ptr DGROUP:d_44ef, ax
+        sub si, si
+        mov di, word ptr DGROUP:d_44f7
+        mov bp, offset DGROUP:d_4539
+L20788:
+        shr di, 1
+        ja L2079f
+        jae L2080d
+        mov ax, word ptr ds:[bp+si]
+        dec ax
+        jne L2079c
+        call dword ptr d_44f9[si]
+        mov ax, word ptr d_453b[si]
+L2079c:
+        mov word ptr ds:[bp+si], ax
+L2079f:
+        add si, 4
+        shr di, 1
+        ja L207b9
+        jae L2080d
+        mov ax, word ptr ds:[bp+si]
+        dec ax
+        jne L207b6
+        call dword ptr d_44f9[si]
+        mov ax, word ptr d_453b[si]
+L207b6:
+        mov word ptr ds:[bp+si], ax
+L207b9:
+        add si, 4
+        shr di, 1
+        ja L207d3
+        jae L2080d
+        mov ax, word ptr ds:[bp+si]
+        dec ax
+        jne L207d0
+        call dword ptr d_44f9[si]
+        mov ax, word ptr d_453b[si]
+L207d0:
+        mov word ptr ds:[bp+si], ax
+L207d3:
+        add si, 4
+        shr di, 1
+        ja L207ed
+        jae L2080d
+        mov ax, word ptr ds:[bp+si]
+        dec ax
+        jne L207ea
+        call dword ptr d_44f9[si]
+        mov ax, word ptr d_453b[si]
+L207ea:
+        mov word ptr ds:[bp+si], ax
+L207ed:
+        add si, 4
+        shr di, 1
+        ja L20807
+        jae L2080d
+        mov ax, word ptr ds:[bp+si]
+        dec ax
+        jne L20804
+        call dword ptr d_44f9[si]
+        mov ax, word ptr d_453b[si]
+L20804:
+        mov word ptr ds:[bp+si], ax
+L20807:
+        add si, 4
+        jmp L20788
+L2080d:
+        mov ax, word ptr DGROUP:d_44f5
+        dec ax
+        je L20824
+        mov word ptr DGROUP:d_44f5, ax
+        pop di
+        pop si
+        pop es
+        pop ds
+        pop bp
+        pop dx
+        pop cx
+        pop bx
+        mov al, 20h
+        out 20h, al
+        pop ax
+        iret
+L20824:
+        mov ax, word ptr DGROUP:d_44f3
+        mov word ptr DGROUP:d_44f5, ax
+        pop di
+        pop si
+        pop es
+        pop ds
+        pop bp
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        jmp dword ptr cs:c_206bd
+_timer_tick endp
+
+/* 0x20838 */
+_blit_rows_thunk proc near
+        jmp dword ptr DGROUP:_DG4342+48h
+_blit_rows_thunk endp
+
+/* 0x2083c */
+_blit_rows_alt_thunk proc near
+        jmp dword ptr DGROUP:_DG4342+4ch
+_blit_rows_alt_thunk endp
+TIMER_TEXT ends
+}
+#else
 
 /* **This module's `_DATA`**: the timer's state and its callback table. */
 struct timer TIMER DGROUP_AT(0x44ee) = { .divisor = -1 };
@@ -312,3 +631,4 @@ void blit_rows_alt_thunk(const uint8_t far * src, int16_t x, int16_t y,
     (void)src; (void)x; (void)y; (void)w; (void)h;
     vm_nothing();
 }
+#endif

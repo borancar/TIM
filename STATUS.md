@@ -50,7 +50,7 @@ calls).
 | `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 75 of 75 | `_DATA` 0x284a..0x286e |
 | `src/frame.c` | 0x080b9..0x08546, one module (ends ours) | 21 of 21 | `_DATA` 0x286e..0x2870 |
 | `src/regions.c` | 0x08546..0x08f27 (both ends ours) | 3 of 3 | none |
-| `src/crtc.c` | 0x08f27..0x08fc3, probably hand-written | assembly: host transcription, not judged | none |
+| `src/crtc.c` | 0x08f27..0x08fc3, hand-written: TASM | 2 of 2 | none |
 | `src/gamefile.c` | 0x08fc3..0x09e4c, one module (end ours) | 24 of 24 | `_DATA` 0x28d2..0x28ec, `_BSS` 0x547a..0x567e |
 | `src/fstring.c` | 0x09e4c..0x0a05f, BC++ 2.0 `-mm -zC_TEXT` | 7 of 7 | none |
 | `src/rects.c` | 0x0a05f..0x0a78e, BC++ 2.0 `-mm -zC_TEXT` (end ours) | 13 of 13 | `_DATA` 0x2d06..0x2d32, `_BSS` 0x56b6..0x56e6 |
@@ -93,7 +93,7 @@ assembled it itself.
 | `src/palette.c` | 0x1e967..0x1eded | 9 of 9 | `_DATA` 0x445e..0x44cf, `_BSS` 0x591a..0x5956 |
 | `src/polygon.c` | 0x1eded..0x20189 | assembly: host transcription, not judged | 0x44d0..0x44ea |
 | `src/compbmp.c` | 0x20189..0x20654 | 1 of 1 | whether 0x44ea is its `_DATA` is not settled |
-| `src/timer.c` | 0x20654..0x20840 | assembly: host transcription, not judged | `_DATA` 0x44ee..0x457a |
+| `src/timer.c` | 0x20654..0x20840, TASM | 8 of 8 | `_DATA` 0x44ee..0x457a |
 | `src/scale.c` | 0x20840..0x20be0 | 3 of 3 | `_DATA` 0x457a..0x458c, `_BSS` 0x5956..0x6176 |
 | `src/polyclip.c` | 0x20be0..0x21088 | assembly: host transcription, not judged | none |
 | `src/keyboard.c` | 0x21088..0x2149e | assembly: host transcription, not judged | `_DATA` 0x458c..0x471c |
