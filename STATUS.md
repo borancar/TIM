@@ -48,7 +48,8 @@ calls).
 | `src/physics.c` | 0x02ac0..0x03566 (both ends ours) | 9 of 9 | none |
 | `src/links.c` | 0x03566..0x03b17 (both ends ours) | 7 of 7 | none |
 | `src/machine.c` | 0x03b17..0x080b9, one module (ends ours) | 75 of 75 | `_DATA` 0x284a..0x286e |
-| `src/seg0000.c` | 0x080b9..0x0dff0, what is left: several modules | not judged | |
+| `src/frame.c` | 0x080b9..0x08546, one module (ends ours) | 21 of 21 | `_DATA` 0x286e..0x2870 |
+| `src/seg0000.c` | 0x08546..0x0dff0, what is left: several modules | not judged | |
 
 **The bare calls say where segment 0000's modules are.** Borland writes a
 bare `push cs / call` only for a routine defined earlier in the same file,
@@ -62,6 +63,13 @@ machine.c. It was first split by subject at 0x04169, as geometry.c, before
 in one file. Its `_DATA`, the cursor hot spots at 0x284a..0x286e, comes after
 goals.c's in TLINK's order. The module after it holds `update_button_state`
 and 0x286e, then levels.c's 0x2870.
+
+**The judge does not check that an object lands in the right one of
+`_DATA` and `_BSS`.** frame.c's `MACHINE_BUTTON_PREV` had no initialiser, so
+Borland put it in `_BSS`, and the judge called it a match at 0x286e, an
+address inside `_DATA`. It has an initialiser now. An image address below
+the start of `_BSS` (0x53fc) should be refused for a `_BSS` object; the
+check is not written yet.
 
 Segment 1c25 is being split out of engine.c one module at a time, from the
 end. Byte-exact so far, all Borland C++ 2.0 `-mm -G -O`. vidload.c went
