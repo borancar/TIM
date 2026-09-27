@@ -363,9 +363,9 @@ uint16_t alloc_voice_records(void);                    /* 0x28800 */
 void follow_then_tick(struct sequence far * seq,
                       int16_t count);                  /* 0x289ba */
 uint16_t seek_to_sound_record(int16_t handle,
-                              uint16_t want);          /* 0x28bf2 */
+                              uint8_t want);          /* 0x28bf2 */
 struct sound_node far * read_sound_records(int16_t handle);           /* 0x28cf7 */
-uint16_t read_record(FILE *file, uint16_t mode);     /* 0x29da0 */
+uint16_t read_record(FILE *file, uint8_t mode);      /* 0x29da0 */
 uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, FILE *handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
@@ -375,7 +375,7 @@ uint16_t load_sound_module(FILE *handle, const int16_t *number,
 uint8_t far * load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */
 uint8_t far * load_sound_bank(FILE *file, uint32_t size,
-                               uint8_t * out);    /* 0x289e8 */
+                               uint8_t * out, uint16_t kind); /* 0x289e8 */
 uint8_t far * load_resource_block(FILE *file, uint32_t size,
                                    uint8_t * out,
                                    uint16_t kind);      /* 0x28f74 */
@@ -387,7 +387,7 @@ struct sound_node far * insert_by_key(struct sound_node far * head,
 void stop_voice_playing(const uint8_t far * source);   /* 0x290ab */
 uint16_t free_voice_records(void);                     /* 0x29106 */
 struct sequence far * start_on_free_voice(const uint8_t far * source, uint16_t index,
-                                   uint16_t byte_arg);       /* 0x29152 */
+                                   uint8_t byte_arg);        /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(const uint8_t far * cb);   /* 0x2928c */
 void stop_sound(void);                                 /* 0x292f4 */
@@ -396,7 +396,7 @@ void delay_five_ticks(void);                           /* 0x2937f */
 void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
 uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
-uint16_t open_sound_file(char *name, int16_t id);  /* 0x296b4 */
+FILE *open_sound_file(char *name, int16_t id);     /* 0x296b4 */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
 uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
@@ -405,7 +405,7 @@ void set_master_level_far(uint16_t level);             /* 0x28431 */
 uint16_t install_driver_far(const uint8_t far * drv);    /* 0x28458 */
 uint16_t configure_driver_far(const uint8_t far * drv);  /* 0x2846a */
 void retire_and_tick_far(struct sequence far * seq);  /* 0x284ef */
-void silence_driver_far(const uint8_t far * drv);   /* 0x28559 */
+void silence_driver_far(void);                      /* 0x28559 */
 
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */

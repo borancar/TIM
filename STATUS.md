@@ -33,6 +33,25 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
+Segment 2619 is seven modules: two in assembly and five in C. The five C
+modules are BC++ 3.0 `-mm -O -G -Z`, and all their routines match:
+
+| file | image | routines | data |
+| --- | --- | --- | --- |
+| `src/sound_load.c` | 0x28580..0x28655 | 1 of 1 | `_DATA` 0x4a08..0x4a11 |
+| `src/sound_device.c` | 0x28655..0x28935 | 5 of 5 | `_DATA` 0x4a12..0x4a7e |
+| `src/sound_bank.c` | 0x28935..0x2928c | 15 of 15 | `_DATA` 0x4a7e..0x4a82 |
+| `src/sound_stop.c` | 0x292f4..0x296b4 | 6 of 6 | not placed yet |
+| `src/sound_file.c` | 0x296b4..0x2a040 | 8 of 8 | not placed yet |
+
+`sound.c` (0x26198..0x28580) and `sound_call.c` (0x2928c..0x292f4) are the
+host's transcriptions of the assembly. Their TASM source is not written.
+
+`DG4A82` (0x4a82..0x4ab0) and `DG4AB0` are initialised data after
+sound_bank's pool, so they belong to sound_stop or sound_file. So do the
+BSS records `SOUND_VOICES` and `SOUND_TICK_WAIT`. None of these is placed
+in its module yet.
+
 Segment 172c has 45 modules. All its code is transcribed and every C
 routine matches:
 

@@ -10,6 +10,9 @@
  * 0x296b4..0x2a040 - the fifth of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
+ *
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -O -G -Z
  */
 #include "tim.h"
 #include "io.h"
@@ -42,159 +45,105 @@
  * Every failure runs the same cleanup: close the file if this routine opened
  * it, free the directory, and throw away every record read so far.
  */
-uint16_t open_sound_file(char *name, int16_t id)
+FILE *open_sound_file(char *name, int16_t id)
 {
-    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
-    /* [bp-4]:[bp-2], one long: the matching record's file offset. The search
-       below tests it against zero for "nothing matched", which is the value
-       the original's author assumed the slot started at; the original never
-       writes it before the search, so on a miss it read whatever the stack
-       held. The port starts it at the zero the test is written for. */
-    uint32_t found = 0;
-    uint32_t size;               /* [bp-8]:[bp-6], one long */
-    /* [bp-0xc]:[bp-0xa], the walk: one entry at a time, which is the
-       original's `add si,6`. */
-    const struct sound_dir_entry far *cur = NULL;
-    /* The directory block itself. The original reloads `les bx,[0x4a98]`
-       before each of the ten reads below; nothing changes it in between, and
-       the `goto search` above skips the allocation, so it is taken again at
-       that label. */
-    struct sound_dir far *dir;
+    int32_t found;
+    uint32_t size;
+    struct sound_dir_entry far *cur;
     int16_t si;
-    uint16_t r = 0;
 
-    if (id != 0 && handle == FILEREC_PTR(DG4A82.file_ptr) && DG4A82.file_ptr != 0)
+    /* A handle, or a name to open. */
+    if (id != 0 && (FILE *)name == DG4A82.file && DG4A82.file != 0)
         goto search;
 
-    if (FILEREC_PTR(DG4A82.file_ptr) != handle && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
+    if (DG4A82.file != (FILE *)name && DG4A82.file_kind != 0) {
+        close_file_record(DG4A82.file);
+        DG4A82.file = 0;
+        DG4A82.file_kind = 0;
+    }
 
-    DG4A82.file_ptr = 0;
-    DG4A82.file_kind = 0;
-
-    if (file_record_valid(handle) != 0) {
-        DG4A82.file_ptr = dg_near(dgroup, handle);
+    if (file_record_valid((FILE *)name) != 0) {
+        DG4A82.file = (FILE *)name;
     } else {
-        DG4A82.file_ptr = dg_near(dgroup, open_file_record(name));
-        if (DG4A82.file_ptr == 0)
+        if ((DG4A82.file = open_file_record(name)) == 0)
             goto fail;
         DG4A82.file_kind = 1;
     }
 
     remove_and_free_records(0);
 
-    game_fseek(FILEREC_PTR(DG4A82.file_ptr), 0xc, 0);
-
-    if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file_ptr)) != 1)
+    game_fseek(DG4A82.file, 0xcL, 0);
+    if (game_fread((uint8_t *)&size, 4, 1, DG4A82.file) != 1)
         goto fail;
 
-    if (DG4A82.directory != FAR_NULL_PTR)
-        free_for_kind(DG4A82.directory, 0xa);
+    if (DG4A82.directory != 0)
+        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
 
-    /* `size + 4` as one long - the directory image goes after the cursor;
-       the original adds the low word and carries into the high one by hand. */
-    dir = (struct sound_dir *)(void *)
-        alloc_for_kind(size + offsetof(struct sound_dir, magic), 0xa);
-    DG4A82.directory = (uint8_t far *)dir;
-    if ((uint8_t *)dir == FAR_NULL_PTR)
-        goto fail;
-
-    /* The file's own directory image lands after the cursor, over `magic`
+    /* The file's own directory image goes after the cursor, over `magic`
        onwards. */
-    if (fread_huge((uint8_t *)&dir->magic, size, 1,
-                   FILEREC_PTR(DG4A82.file_ptr)) != 1)
+    if ((DG4A82.directory = (struct sound_dir far *)alloc_for_kind(size + 4, 0xa))
+        == 0)
+        goto fail;
+    if (fread_huge((uint8_t far *)&DG4A82.directory->magic, size, 1L, DG4A82.file)
+        != 1L)
+        goto fail;
+    if (DG4A82.directory->magic != 2)
         goto fail;
 
-    if (dir->magic != 2)
-        goto fail;
-
-    /* Where the walk starts: the first entry. */
-    dir->cursor = (uint8_t far *)&dir->entry[0];
+    DG4A82.directory->cursor = DG4A82.directory->entry;
 
 search:
-    dir = (struct sound_dir *)(void *)DG4A82.directory;
-    if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE) {
-        r = DG4A82.file_ptr;
-        goto out;
-    }
+    if (id > 0 && next_matching_record(id) != SOUND_RECORD_NONE)
+        return DG4A82.file;
 
-    cur = (const struct sound_dir_entry *)(void *)dir->cursor;
+    cur = DG4A82.directory->cursor;
 
     if (id > 0) {
-        for (si = 0; ; si++) {
-            if (dir->count <= si)
-                break;
-
+#ifndef __TURBOC__
+        /* **The search leaves `found` unset when nothing matches**, and the
+           test below reads whatever the stack held. The host starts it at
+           the zero the test is written for. Ours. */
+        found = 0;
+#endif
+        for (si = 0; DG4A82.directory->count > si; si++, cur++) {
             if (cur->id == id) {
                 found = cur->at;
                 break;
             }
-            cur++;
         }
 
-        {
-            uint32_t at = found + 4;
-
-            if (game_fseek(FILEREC_PTR(DG4A82.file_ptr), (int32_t)at, 0) != 0)
-                goto fail;
-        }
-
+        if (game_fseek(DG4A82.file, found + 4, 0) != 0)
+            goto fail;
         if (found == 0)
             goto fail;
 
-        {
-            uint16_t ok;
-
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir->kind);
-            if (ok == 0)
-                goto out;
-        }
-
-        r = DG4A82.file_ptr;
-        goto out;
+        if (read_record(DG4A82.file, DG4A82.directory->kind) == 0)
+            return 0;
+        goto done;
     }
 
-    for (si = 0; ; si++) {
-        if (dir->count <= si)
-            break;
-
-        {
-            /* The original loads the two words and adds four to the pair. */
-            uint32_t at = cur->at + 4;
-
-            if (game_fseek(FILEREC_PTR(DG4A82.file_ptr), (int32_t)at, 0) != 0)
-                goto fail;
-        }
-
-        {
-            uint16_t ok;
-
-            ok = read_record(FILEREC_PTR(DG4A82.file_ptr), dir->kind);
-            if (ok == 0)
-                goto fail;
-        }
-
-        cur++;
+    for (si = 0; DG4A82.directory->count > si; si++, cur++) {
+        if (game_fseek(DG4A82.file, cur->at + 4, 0) != 0)
+            goto fail;
+        if (read_record(DG4A82.file, DG4A82.directory->kind) == 0)
+            goto fail;
     }
 
-    r = DG4A82.file_ptr;
-    goto out;
+done:
+    return DG4A82.file;
 
 fail:
-    if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
+    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
+        close_file_record(DG4A82.file);
 
-    if (DG4A82.directory != FAR_NULL_PTR)
-        free_for_kind(DG4A82.directory, 0xa);
+    if (DG4A82.directory != 0)
+        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
 
     remove_and_free_records(0);
 
-    DG4A82.file_ptr = 0;
+    DG4A82.file = 0;
     DG4A82.directory = 0;
-    r = 0;
-
-out:
-    return r;
+    return 0;
 }
 
 /*
@@ -232,7 +181,8 @@ out:
  */
 struct sound_record far *next_matching_record(int16_t selector)
 {
-    int16_t expect = 0, mask = 1;
+    int16_t expect = 0;
+    int16_t mask = 1;
 
     if (selector != -3) {
         SOUND_TICK_WAIT.selector = selector;
@@ -241,34 +191,30 @@ struct sound_record far *next_matching_record(int16_t selector)
         SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
     }
 
-    if (SOUND_TICK_WAIT.selector == -2) {
-        expect = 1;
-    } else if (SOUND_TICK_WAIT.selector == -1) {
-        /* mask 1, expect 0 - the defaults */
-    } else if (SOUND_TICK_WAIT.selector == 0) {
+    switch (SOUND_TICK_WAIT.selector) {
+    case 0:
         mask = 0;
+        /* falls through */
+    case -2:
         expect = 1;
-    } else {
-        /* Match on the identifier. */
-        if (SOUND_TICK_WAIT.cursor == SOUND_RECORD_NONE || selector == -3) {
-            SOUND_TICK_WAIT.cursor = NULL;
-            return SOUND_RECORD_NONE;
-        }
-
-        for (;;) {
-            if (SOUND_TICK_WAIT.cursor == SOUND_RECORD_NONE)
-                break;
-            if (SOUND_TICK_WAIT.cursor->id == selector)
-                break;
+        /* falls through */
+    case -1:
+        while (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE) {
+            if (((SOUND_TICK_WAIT.cursor->flags & mask) ^ expect) != 0)
+                return SOUND_TICK_WAIT.cursor;
             SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
         }
-        return SOUND_TICK_WAIT.cursor;
-    }
+        break;
 
-    while (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE) {
-        if ((((int16_t)SOUND_TICK_WAIT.cursor->flags & mask) ^ expect) != 0)
-            break;
-        SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
+    default:
+        /* Match on the identifier. */
+        if (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE && selector != -3) {
+            while (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE
+                   && SOUND_TICK_WAIT.cursor->id != selector)
+                SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
+        } else {
+            SOUND_TICK_WAIT.cursor = 0;
+        }
     }
 
     return SOUND_TICK_WAIT.cursor;
@@ -305,72 +251,61 @@ struct sound_record far *next_matching_record(int16_t selector)
  */
 uint16_t start_sequence_by_id(int16_t id)
 {
-    struct sound_record *rec = DG4A82.records;
+    struct sound_record far *rec;
+    struct sound_record far *other;
 
-    while (rec != SOUND_RECORD_NONE) {
-        if (rec->id == id)
-            break;
-        rec = rec->next;
-    }
+    for (rec = DG4A82.records; rec != SOUND_RECORD_NONE && rec->id != id;
+         rec = rec->next)
+        ;
 
     if (rec == SOUND_RECORD_NONE)
         return 0;
 
-    if ((rec->flags & 0x10) != 0)
-        return 1;
-    if (rec->data == FAR_NULL_PTR)
-        return 1;
-    if (rec->sequence != NULL)
+    if ((rec->flags & 0x10) != 0 || rec->data == FAR_NULL_PTR
+        || rec->sequence != SEQUENCE_NONE)
         return 1;
 
     if ((rec->flags & 1) != 0) {
-        const struct sound_record *other = DG4A82.records;
-
-        while (other != SOUND_RECORD_NONE) {
-            if ((other->flags & 1) != 0
-                && other->sequence != NULL
+        for (other = DG4A82.records; other != SOUND_RECORD_NONE;
+             other = other->next) {
+            if ((other->flags & 1) != 0 && other->sequence != SEQUENCE_NONE
                 && other->id != id)
                 stop_sequences(other->id);
-
-            other = other->next;
         }
 
-        if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
+        if (DG4A82.voice_word == 0 || DG4A82.voice_word == -1) {
             rec->flags |= 0x10;
             return 1;
         }
 
-        {
-            struct sequence *seq = create_sequence(rec->data);
+        if ((rec->sequence = create_sequence(rec->data)) != SEQUENCE_NONE) {
+            rec->sequence->loop = (rec->flags & 2) != 0;
+            rec->sequence->priority = (uint8_t)rec->priority;
 
-            /* The sequence's pair, as the original files `create_sequence`'s
-               DX:AX - a DOS block starting a segment. */
-            rec->sequence = seq;
-            if (seq == SEQUENCE_NONE)
-                return 0;
+            if (load_and_start_sequence(rec->sequence, 0, 0x7f) != SEQUENCE_NONE)
+                return 1;
+        }
+    } else {
+        if (voice_playing(rec->data) == SEQUENCE_NONE) {
+            if (DG4A82.voice_word == 0 || DG4A82.voice_word == -2) {
+                if ((rec->flags & 2) != 0) {
+                    rec->flags |= 0x10;
+                    return 1;
+                }
+                return 1;
+            }
 
-            seq->loop = (uint8_t)((rec->flags & 2) ? 1 : 0);
-            seq->priority = (uint8_t)rec->priority;
+            {
+                int16_t loop = (rec->flags & 2) ? 1 : 0;
 
-            if (load_and_start_sequence(seq, 0, 0x7f) == SEQUENCE_NONE)
-                return 0;
+                start_on_free_voice(rec->data, 0x7f, loop);
+            }
             return 1;
         }
-    }
-
-    if (voice_playing(rec->data) != SEQUENCE_NONE)
-        return 1;
-
-    if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
-        if ((rec->flags & 2) != 0)
-            rec->flags |= 0x10;
         return 1;
     }
 
-    start_on_free_voice(rec->data,
-                        0x7f,
-                        (uint16_t)((rec->flags & 2) ? 1 : 0));
-    return 1;
+    return 0;
 }
 
 /*
@@ -398,8 +333,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (DG4A82.driver != FAR_NULL_PTR
-        || DG4A82.module != FAR_NULL_PTR)
+    if (DG4A82.driver != FAR_NULL_PTR || DG4A82.module != FAR_NULL_PTR)
         return 1;
 
     if (device == -1) {
@@ -407,27 +341,25 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
         si = 0;
     }
 
-    if (setup_sound_device(device, module_index, callback, handle) == 0)
-        return 0;
+    if (setup_sound_device(device, module_index, callback, handle) != 0) {
+        if (si != 0 && !(int8_t)TIMER.installed) {
+            timer_install(0xd);
+            DG4A82.timer_taken = 1;
+        }
 
-    if (si != 0 && (int16_t)(int8_t)TIMER.installed == 0) {
-        timer_install(0xd);
-        DG4A82.timer_taken = 1;
+        if ((si != 0
+             && (DG4A82.tick_handle = (int16_t)timer_add_callback(sound_service, 4)) != 0)
+            || si == 0) {
+            if (si != 0 && DG4A82.module != FAR_NULL_PTR)
+                DG4A82.module_handle =
+                    (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
+
+            alloc_voice_records();
+            return 1;
+        }
     }
 
-    if (si != 0) {
-        DG4A82.tick_handle = (int16_t)timer_add_callback(sound_service, 4);
-        if (DG4A82.tick_handle == 0 && si != 0)
-            return 0;
-    } else if (si != 0) {
-        return 0;
-    }
-
-    if (si != 0 && (DG4A82.module != FAR_NULL_PTR))
-        DG4A82.module_handle = (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
-
-    alloc_voice_records();
-    return 1;
+    return 0;
 }
 
 /*
@@ -453,11 +385,11 @@ void shutdown_sound(void)
 
     remove_and_free_records(0);
 
-    if (DG4A82.directory != FAR_NULL_PTR)
-        free_for_kind(DG4A82.directory, 0xa);
+    if (DG4A82.directory != 0)
+        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
 
-    if (DG4A82.file_ptr != 0 && DG4A82.file_kind != 0)
-        close_file_record(FILEREC_PTR(DG4A82.file_ptr));
+    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
+        close_file_record(DG4A82.file);
 
     if (((int16_t)DG4A82.tick_handle) != 0) {
         timer_drop_callback(DG4A82.tick_handle);
@@ -503,85 +435,60 @@ void shutdown_sound(void)
  * pointer is left where it was written, which is null on every path that gets
  * there.
  */
-uint16_t read_record(FILE *file, uint16_t mode)
+uint16_t read_record(FILE *file, uint8_t mode)
 {
-    /* The original reserves 0xe and then pushes SI and DI; the port used to
-       reserve all 0x12 so a callee's frame cleared the saved registers too.
-       An array's neighbours are its own bytes, so the size is the locals. */
-    /* **One `long`, not two words.** The original reads four bytes into
-       `[bp-4]` and then takes four off with a `sub`/`sbb` pair, and every use
-       hands the whole thing to a routine that takes a 32-bit size. */
     int32_t len;
-    int16_t out[2];
-    /* **Two bytes read three times, at two widths.** `game_fread` fills it
-       with a word once and with a single byte twice, all at offset 0, so it
-       is a byte buffer with one widening read rather than a record - which
-       is why `framify.py` refuses it and this one is spelled by hand. */
-    uint8_t scratch[6];
-    struct sound_record *rec;
+    uint32_t out;
+    struct sound_record far *rec;
+    int16_t scratch;
     uint16_t kind;
-    uint8_t *p;
-    uint16_t r = 0;
 
     game_fread((uint8_t *)&len, 4, 1, file);
-    game_fread(scratch, 2, 1, file);
+    game_fread((uint8_t *)&scratch, 2, 1, file);
 
-    rec = (struct sound_record *)(void *)alloc_for_kind(sizeof(struct sound_record), 3);
-    if (rec == SOUND_RECORD_NONE)
-        goto out_;
+    if ((rec = (struct sound_record far *)alloc_for_kind(sizeof(struct sound_record), 3))
+        == SOUND_RECORD_NONE)
+        return 0;
 
-    rec->id = *(int16_t *)(scratch);
+    rec->id = scratch;
 
-    game_fread(scratch, 1, 1, file);
-    rec->priority = *scratch;
+    /* Two single bytes into the same word, each widened as a byte. */
+    game_fread((uint8_t *)&scratch, 1, 1, file);
+    rec->priority = *(uint8_t *)&scratch;
 
-    game_fread(scratch, 1, 1, file);
-    rec->flags = *scratch;
+    game_fread((uint8_t *)&scratch, 1, 1, file);
+    rec->flags = *(uint8_t *)&scratch;
 
     kind = (rec->flags & 1) ? 4 : 7;
 
-    /* `sub ax,4 / sbb dx,0` - the borrow the two words needed by hand. */
-    len -= 4;
+    len = len - 4;
 
-    rec->data = NULL;
+    rec->data = 0;
 
-    /* Each payload is a block DOS handed out, so `far_of` files its own
-       pair, as the original files the DX:AX it was answered. */
-    if ((uint8_t)mode == 0x63) {
-        p = alloc_for_kind((uint32_t)len, kind);
-        rec->data = (p);
-
-        if (p == FAR_NULL_PTR)
-            goto fail;
-
-        if (fread_huge(p, (uint32_t)len, 1, file) != 1)
-            goto fail;
-    } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        p = load_sound_bank(file, (uint32_t)len, (uint8_t *)out);
-
-        rec->data = (p);
-        if (p == FAR_NULL_PTR)
-            goto fail;
+    if (mode == 0x63) {
+        if ((rec->data = alloc_for_kind(len, kind)) == FAR_NULL_PTR
+            || fread_huge(rec->data, len, 1L, file) != 1L) {
+            free_for_kind((uint8_t far *)rec, 3);
+            return 0;
+        }
+    } else if (DG4A82.bank_choice != 0) {
+        if ((rec->data = load_sound_bank(file, len, (uint8_t *)&out, kind))
+            == FAR_NULL_PTR) {
+            free_for_kind((uint8_t far *)rec, 3);
+            return 0;
+        }
     } else {
-        p = load_resource_block(file, (uint32_t)len, (uint8_t *)out, kind);
-
-        rec->data = (p);
-        if (p == FAR_NULL_PTR)
-            goto fail;
+        if ((rec->data = load_resource_block(file, len, (uint8_t *)&out, kind))
+            == FAR_NULL_PTR) {
+            free_for_kind((uint8_t far *)rec, 3);
+            return 0;
+        }
     }
 
     rec->next = DG4A82.records;
-    rec->size = (uint16_t)out[0];
-
+    rec->size = (uint16_t)out;
     DG4A82.records = rec;
-    r = 1;
-    goto out_;
-
-fail:
-    free_for_kind((uint8_t *)rec, 3);
-
-out_:
-    return r;
+    return 1;
 }
 
 /*
@@ -608,27 +515,25 @@ out_:
  */
 uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
 {
-    uint8_t *blk;
+    uint8_t far *blk;
+    uint8_t *p;
 
     if (kind == 6 || kind == 8) {
-        /* The near heap takes a word: 0x29f9d pushes `[bp+6]` alone. The
-           pair is DS and the offset `malloc` answered, `mov [bp-2],ds` at
-           0x29fab - so a refusal is DGROUP:0000, not 0000:0000. That pair is
-           not normalised, so a caller filing it as `far_of` would file
-           different bytes; nothing in the game asks for these two kinds. */
-        blk = io_malloc((uint16_t)size);
-        if (blk == NULL)
-            blk = dgroup;
+        /* The near heap takes a word, and its answer is widened with DS - so
+           a refusal is DGROUP:0000, not the far null. Nothing in the game
+           asks for these two kinds. */
+        p = heap_malloc_far((uint16_t)size);
+        blk = FAR_OF_NEAR(p);
     } else {
-        /* **The same Borland `long`, passed straight on.** 0x29fb7 pushes
-           `[bp+8]` then `[bp+6]` into `dos_alloc_bytes` without touching
-           either half. */
-        blk = dos_alloc_bytes(size, 0, 0).ptr;
+        blk = DOS_ALLOC_PTR(DOS_ALLOC(size, 0));
     }
 
     if (blk != FAR_NULL_PTR
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
         far_memset(blk, 0, size);
+
+    if (blk == FAR_NULL_PTR)
+        DG4A82.load_error = 1;
 
     return blk;
 }
@@ -651,10 +556,8 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
 void free_for_kind(uint8_t far * blk, uint16_t kind)
 {
     if (kind == 6 || kind == 8) {
-        /* The near heap takes only the offset, `push [bp+6]`; the pair
-           `alloc_for_kind` answered for these kinds is DS's, so the pointer
-           is that offset in DGROUP. */
-        io_free(blk);
+        /* The near heap takes only the offset. */
+        heap_free_far((uint8_t *)blk);
         return;
     }
     dos_free_far(blk);

@@ -10,6 +10,9 @@
  * 0x292f4..0x296b4 - the fourth of its modules in C; sound_device.c says how the
  * segment's boundaries are known. Functions are in address order and each
  * carries the image offset it was read from.
+ *
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm -O -G -Z
  */
 #include "tim.h"
 #include "io.h"
@@ -39,7 +42,7 @@ struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
 void stop_sound(void)
 {
     if (DG4A82.driver != FAR_NULL_PTR) {
-        silence_driver_far(FAR_NULL_PTR);
+        silence_driver_far();
 
         if (((int16_t)DG4A82.tick_handle) == 0) {
             sound_service();
@@ -100,7 +103,7 @@ void delay_five_ticks(void)
  */
 void tick_delay(void)
 {
-    SOUND_TICK_WAIT.ticks_left = (int16_t)(((uint16_t)SOUND_TICK_WAIT.ticks_left) - 1);
+    SOUND_TICK_WAIT.ticks_left--;
 }
 
 /*
@@ -135,62 +138,51 @@ void tick_delay(void)
 uint16_t remove_and_free_records(int16_t selector)
 {
     /*
-     * **The previous link is a walking far pointer, and both ends of its walk
-     * are host pointers.** It starts at this two-word scratch cell so that
-     * the first unlink writes somewhere harmless, and then becomes each
-     * record's link in turn - only ever written and read through, so a
-     * pointer to the `struct far_ptr` it is, and the cell a C array.
+     * **A whole record on the stack, for its link.** `prev` starts at it so
+     * that the first unlink writes somewhere harmless, and then follows the
+     * list one record behind `cur`.
      */
-    struct sound_record far *cell;      /* [bp-0x1c], the two-word cell */
-    struct sound_record far * far *link_at = &cell;
-    /* The records' own links are pairs filed as DOS handed the blocks out,
-       each starting a segment, so a pointer compares as the pair does. */
-    struct sound_record *cur = DG4A82.records;
-    int16_t found = 0;
+    struct sound_record far *prev;
+    struct sound_record far *cur;
+    struct sound_record dummy;
+    int16_t found;
+
+    found = 0;
+    prev = &dummy;
+    cur = DG4A82.records;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
 
     while (cur != SOUND_RECORD_NONE) {
-        int16_t match;
-
-        if (selector == 0)
-            match = 1;
-        else if (cur->id == selector)
-            match = 1;
-        else if (selector == -1)
-            match = (cur->flags & 1) != 0;
-        else if (selector == -2)
-            match = (cur->flags & 1) == 0;
-        else
-            match = 0;
-
-        if (match) {
+        if (selector == 0 || cur->id == selector
+            || (selector == -1 && (cur->flags & 1) != 0)
+            || (selector == -2 && (cur->flags & 1) == 0)) {
             found = 1;
             stop_sequences(cur->id);
 
             if (cur == DG4A82.records)
                 DG4A82.records = cur->next;
 
-            *link_at = cur->next;
+            prev->next = cur->next;
 
             if ((cur->flags & 1) != 0)
                 free_for_kind(cur->data, 4);
             else
                 free_for_kind(cur->data, 7);
 
-            free_for_kind((uint8_t *)cur, 3);
+            free_for_kind((uint8_t far *)cur, 3);
 
-            if (selector > 0)
-                break;
+            if (found != 0 && selector > 0)
+                return found;
         } else {
-            link_at = &cur->next;
+            prev = cur;
         }
 
-        cur = *link_at;
+        cur = prev->next;
     }
 
-    return (uint16_t)found;
+    return found;
 }
 
 /*
@@ -221,27 +213,24 @@ uint16_t remove_and_free_records(int16_t selector)
  */
 uint16_t stop_sequences(int16_t selector)
 {
-    struct sound_record *rec;
+    struct sound_record far *rec;
 
-    if (selector == -1 || selector == 0) {
+    switch (selector) {
+    case -1:
+    case 0:
         rec = next_matching_record(-1);
-        for (;;) {
-            if (rec == SOUND_RECORD_NONE)
-                break;
-
+        while (rec != SOUND_RECORD_NONE) {
             rec->flags &= 0xffef;
 
-            if (rec->sequence != NULL) {
-                struct sequence *v = rec->sequence;
+            if (rec->sequence != SEQUENCE_NONE) {
+                follow_then_tick(rec->sequence, 0);
 
-                follow_then_tick(v, 0);
+                /* The timer retires it; this waits for that. */
+                while (rec->sequence->state != 0xff)
+                    ;
 
-                do {
-                    v = rec->sequence;
-                } while (v->state != 0xff);
-
-                free_for_kind((uint8_t *)v, 2);
-                rec->sequence = NULL;
+                free_for_kind((uint8_t far *)rec->sequence, 2);
+                rec->sequence = 0;
                 rec = SOUND_RECORD_NONE;
             } else {
                 rec = next_matching_record(-3);
@@ -250,47 +239,39 @@ uint16_t stop_sequences(int16_t selector)
 
         if (selector == -1)
             return 1;
-    }
+        /* falls through */
 
-    if (selector == -1 || selector == 0 || selector == -2) {
+    case -2:
         rec = next_matching_record(-2);
-        for (;;) {
-            if (rec == SOUND_RECORD_NONE)
-                break;
-
+        while (rec != SOUND_RECORD_NONE) {
             rec->flags &= 0xffef;
             rec = next_matching_record(-3);
         }
 
         stop_all_voices();
         return 1;
-    }
 
-    rec = next_matching_record(selector);
-    if (rec == SOUND_RECORD_NONE)
+    default:
+        if ((rec = next_matching_record(selector)) != SOUND_RECORD_NONE) {
+            rec->flags &= 0xffef;
+
+            if ((rec->flags & 1) != 0) {
+                if (rec->sequence != SEQUENCE_NONE) {
+                    follow_then_tick(rec->sequence, 0);
+
+                    while (rec->sequence->state != 0xff)
+                        ;
+
+                    free_for_kind((uint8_t far *)rec->sequence, 2);
+                    rec->sequence = 0;
+                }
+            } else {
+                stop_voice_playing(rec->data);
+            }
+            return 1;
+        }
         return 0;
-
-    rec->flags &= 0xffef;
-
-    if ((rec->flags & 1) == 0) {
-        stop_voice_playing(rec->data);
-        return 1;
     }
-
-    if (rec->sequence != NULL) {
-        struct sequence *v = rec->sequence;
-
-        follow_then_tick(v, 0);
-
-        do {
-            v = rec->sequence;
-        } while (v->state != 0xff);
-
-        free_for_kind((uint8_t *)v, 2);
-        rec->sequence = NULL;
-    }
-
-    return 1;
 }
 
 /*

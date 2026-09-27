@@ -699,6 +699,19 @@ static inline struct far_ptr dg_far(const void *base, const void *p)
 #endif
 
 /*
+ * **A near data pointer widened to far**, as the original compiler widens
+ * one: DS and the offset. So a null near pointer becomes DGROUP:0000 and not
+ * the far null, which is what `alloc_for_kind` answers for a heap block it
+ * could not get. A cast under Borland; on the host a pointer is a pointer,
+ * and only the null needs saying. Ours.
+ */
+#ifdef __TURBOC__
+#  define FAR_OF_NEAR(p)       ((uint8_t far *)(p))
+#else
+#  define FAR_OF_NEAR(p)       ((p) != NULL ? (uint8_t *)(p) : dgroup)
+#endif
+
+/*
  * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
  */
 struct dg_3a2c {
@@ -1162,7 +1175,7 @@ extern struct dg_53fc DG53FC;
 
 
 /*
- * **One entry of the table `bank_ptr` points at**: two bytes per index -
+ * **One entry of the table `bank` points at**: two bytes per index -
  * `start_on_free_voice` doubles the index with `shl ax,1` - read one at a time
  * through AL and never moved as a word. The names are guesses from what the
  * sequencer does with the two voice bytes they land in: `step_sequence` loops a
@@ -1201,9 +1214,9 @@ struct dg_4a82 {
        until 2026-09-18, which said the opposite of what the code does. */
     int16_t   tick_handle;        /* +0x0c  the sequencer's */
     int16_t   module_handle;      /* +0x0e  the loaded module's */
-    dg_near_t bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
-                                            what a voice's +0x15c and +0x15d
-                                            come out of */
+    struct sound_bank_entry *bank; /* +0x10  what a voice's +0x15c and +0x15d
+                                            come out of; nothing in the image
+                                            writes it but its initialiser */
     uint8_t far *driver;          /* +0x12  the loaded driver, installed by
                                             install_driver_far */
     uint8_t far *module;          /* +0x16  offset first, segment second,
@@ -1211,17 +1224,17 @@ struct dg_4a82 {
                                             at 0x0bbde reads */
     uint16_t  load_error;         /* +0x1a  2 on the two failures that mean the resource was missing */
     uint16_t  identifier;         /* +0x1c  the identifier 0x7e takes instead of a constant */
-    uint16_t  voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
+    int16_t   voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
     /* **One far pointer.** +0x20 is the offset and +0x22 the segment: the
        two were tested against zero together at four sites and assigned from
        one allocation. The payload headers are reached at +4 and +8, which is
        a read at an offset and not the pointer being stepped. */
-    uint8_t far *directory;       /* +0x20  the payload directory */
-    dg_near_t file_ptr;           /* +0x24  the file this module opened, if it did */
+    struct sound_dir far *directory; /* +0x20  the payload directory */
+    struct file_rec *file;        /* +0x24  the sound file, opened here or handed in */
     uint16_t  file_kind;          /* +0x26  recorded beside the handle */
     uint16_t  module_live;        /* +0x28  the module is loaded and a callback exists */
     uint16_t  bank_choice;        /* +0x2a  chooses between load_sound_bank and its sibling */
-    uint16_t  device;             /* +0x2c  the device number; 8 is recorded as 3 */
+    int16_t   device;             /* +0x2c  the device number; 8 is recorded as 3 */
 } PACKED;
 
 extern struct dg_4a82 DG4A82;
@@ -3826,7 +3839,7 @@ struct sound_dir_entry {
 
 
 struct sound_dir {
-    uint8_t far *cursor;     /* +0x00  where the walk is, filed by open_sound_file */
+    struct sound_dir_entry far *cursor; /* +0x00  where the walk starts, filed by open_sound_file */
     uint16_t  magic;           /* +0x04  2, or the file is not one of these */
     int16_t   count;           /* +0x06  how many entries follow */
     uint8_t   kind;            /* +0x08  handed to read_record as its mode */

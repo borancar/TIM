@@ -43,21 +43,23 @@
  */
 struct sequence far *create_sequence(const uint8_t far * src)
 {
-    struct sequence *seq = (struct sequence *)(void *)alloc_for_kind(sizeof(struct sequence), 2);
+    struct sequence far *seq;
 
-    if ((uint8_t *)seq == FAR_NULL_PTR)
+    if ((seq = (struct sequence far *)alloc_for_kind(sizeof(struct sequence), 2))
+        != SEQUENCE_NONE) {
+        /* `cursor` and `cursor_at` are stepped inside their blocks' segments:
+           `advance_record` and the `+ 0x16a` move the offset alone. */
+        seq->source = src;
+        seq->cursor = (uint8_t far *)advance_record(src);
+        seq->cursor_at = &seq->cursor;
+
+        seq->volume = 0x7f;
+        seq->next = 0;
+
         return seq;
+    }
 
-    /* `cursor` and `cursor_at` are stepped inside their blocks' segments:
-       `advance_record` and the `+ 0x16a` move the offset alone. */
-    seq->source = src;
-    seq->cursor = (uint8_t far *)advance_record(src);
-    seq->cursor_at = &seq->cursor;
-
-    seq->volume = 0x7f;
-    seq->next = NULL;
-
-    return seq;
+    return SEQUENCE_NONE;
 }
 
 /*
@@ -71,10 +73,8 @@ struct sequence far *create_sequence(const uint8_t far * src)
  */
 void follow_then_tick(struct sequence far * seq, int16_t count)
 {
-    struct sequence *p = follow_far_chain(seq, count);
-
-    if (p != SEQUENCE_NONE)
-        retire_and_tick_far(p);
+    if ((seq = follow_far_chain(seq, count)) != SEQUENCE_NONE)
+        retire_and_tick_far(seq);
 }
 
 /*
@@ -107,120 +107,96 @@ void follow_then_tick(struct sequence far * seq, int16_t count)
  * that opened it.
  */
 uint8_t far *load_sound_bank(FILE *file, uint32_t size,
-                         uint8_t * out)
+                         uint8_t * out, uint16_t kind)
 {
-    uint16_t want;
+    struct sound_node far *walk;
+    uint8_t want;
+    uint32_t len;
+    struct sound_node far *list = SOUND_NODE_NONE;
+    uint8_t far *blk = FAR_NULL_PTR;
     int16_t handle;
-    struct sound_node *list = SOUND_NODE_NONE;
-    uint8_t *blk = FAR_NULL_PTR;
-    uint8_t *r = FAR_NULL_PTR;
-
-    /*
-     * None of this routine's locals has its address taken, but the ones it
-     * calls do, and their frames have to land **below** this one. So the frame
-     * is reserved anyway: 0x12 bytes of locals and the two saved registers.
-     */
+    uint16_t dir;
 
     switch (DG4A82.device) {
-    case 0:    want = 0x12; break;
-    case 1:    want = 0x13; break;
-    case 2:    want = 0;    break;
-    case 3:    want = 0xc;  break;
-    case 5:    want = 0x13; break;
-    case 6:    want = 0;    break;
-    case 0x7e: want = ((uint8_t)DG4A82.identifier); break;
+    case 0:
+        want = 0x12;
+        break;
+    case 1:
+    case 5:
+        want = 0x13;
+        break;
+    case 2:
+    case 6:
+        want = 0;
+        break;
+    case 3:
+        want = 0xc;
+        break;
+    case 0x7e:
+        want = (uint8_t)DG4A82.identifier;
+        break;
 
     /*
-     * The original **falls through here**, and so does this. At 0x28a4c it
-     * stores 7 and the next instruction is 0x28a50, `xor dx,dx / xor ax,ax`,
-     * which is where `default` goes; every other case ends `jmp 0x28a5a` and
-     * goes on to open the resource. So the store is dead and `GMD:` can never
-     * load a sound bank - a bug in Dynamix's code, transcribed as it behaves.
-     *
-     * The port carried a deliberate fix here between 2026-09-04 and the
-     * removal of the General Midi driver later the same day. With `GMD:` gone
-     * the fix had nothing left to fix, so the deviation went with it and this
-     * file is a transcription again.
+     * The original **falls through here**, and so does this: the store is
+     * dead, `default` answers null, and `GMD:` can never load a sound bank -
+     * a bug in Dynamix's code, transcribed as it behaves.
      */
-    case 7:    want = 7;    /* falls through: the store is dead */
-
-    default:   goto out;
+    case 7:
+        want = 7;
+        /* falls through */
+    default:
+        return FAR_NULL_PTR;
     }
 
-    handle = open_resource(0, file, "r", size);
-    if (handle < 0)
-        goto out;
+    if ((handle = open_resource(0, file, "r", size)) < 0)
+        goto done;
 
-    if (seek_to_sound_record(handle, want) == 0) {
-        DG4A82.load_error = 2;
-        close_resource(handle);
-        goto out;
+    if (seek_to_sound_record(handle, want) == 0)
+        goto missing;
+
+    if ((list = read_sound_records(handle)) == SOUND_NODE_NONE)
+        goto missing;
+
+    /* Six bytes of directory per node plus five, rounded up to even and to
+       at least 0x26; the items' own lengths on top. */
+    walk = list;
+    len = 0;
+    dir = 5;
+    while (walk != SOUND_NODE_NONE) {
+        len += walk->length;
+        dir += 6;
+        walk = walk->next;
     }
 
-    {
-        list = read_sound_records(handle);
+    if ((dir & 1) != 0)
+        dir++;
+    dir = dir >= 0x26 ? dir : 0x26;
 
-        if (list == SOUND_NODE_NONE) {
-            DG4A82.load_error = 2;
-            close_resource(handle);
-            goto out;
-        }
-    }
+    len += dir;
 
-    {
-        const struct sound_node *walk = list;
-        /* One 32-bit total. The port had it as two words with the carry
-           tested by hand, which is how the original's `add`/`adc` reads on
-           the way in; every use of it below is of the whole. */
-        uint32_t len = 0;
-        uint16_t si = 5;
+    /* `kind` is its caller's, `read_record` passing the same four words it
+       passes `load_resource_block`; nothing here reads it. */
+    (void)kind;
 
-        while (walk != SOUND_NODE_NONE) {
-            uint16_t n = walk->length;
-
-            len += n;
-
-            si = (uint16_t)(si + 6);
-            walk = walk->next;
-        }
-
-        if ((si & 1) != 0)
-            si++;
-        if (si < 0x26)
-            si = 0x26;
-
-        len += si;
-
-        {
-            blk = alloc_for_kind(len + 1, 4);
-            if (blk == FAR_NULL_PTR) {
-                close_resource(handle);
-                free_node_list(list);
-                goto out;
-            }
-        }
-
-        if (build_sound_index(handle, list,
-                              blk,
-                              si, want) == 0) {
-            close_resource(handle);
-            free_node_list(list);
-            goto out;
-        }
-
+    if ((blk = alloc_for_kind(len + 1, 4)) != FAR_NULL_PTR
+        && build_sound_index(handle, list, blk, dir, want) != 0) {
         free_node_list(list);
 
-        if (out != NULL) {
-            *(int16_t *)(out + 2) = (int16_t)(len >> 16);
-            *(int16_t *)(out) = (int16_t)len;
-        }
+        if (out != NULL)
+            *(uint32_t *)out = len;
+
+        close_resource(handle);
+        return blk;
     }
+    goto close;
 
+missing:
+    DG4A82.load_error = 2;
+close:
     close_resource(handle);
-    r = blk;
-
-out:
-    return r;
+done:
+    free_node_list(list);
+    return FAR_NULL_PTR;
 }
 
 /*
@@ -239,11 +215,12 @@ out:
  */
 void free_node_list(struct sound_node far * list)
 {
-    while (list != SOUND_NODE_NONE) {
-        struct sound_node *cur = list;
+    struct sound_node far *cur;
 
+    while (list != SOUND_NODE_NONE) {
+        cur = list;
         list = list->next;
-        free_for_kind((uint8_t *)cur, 9);
+        free_for_kind((uint8_t far *)cur, 9);
     }
 }
 
@@ -270,51 +247,58 @@ void free_node_list(struct sound_node far * list)
  * The name is a guess from the shape; what the records are is not established
  * here.
  */
-uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
+uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
 {
-    uint16_t fp = dg_alloca(6);            /* four bytes of locals, and SI */
-    uint16_t bp = (uint16_t)(fp + 6);
-    /* The three bytes at [bp-3], [bp-2] and [bp-1], as pointers: the frame
-       has to be the guest's, because `read_resource` takes its destination
-       as a DGROUP address, but nothing here needs their offsets again. */
-    uint8_t *b3 = dg_near_ptr((uint16_t)(bp - 3));
-    uint8_t *b2 = dg_near_ptr((uint16_t)(bp - 2));
-    uint8_t *b1 = dg_near_ptr((uint16_t)(bp - 1));
-    uint16_t r = 0;
+#ifdef __TURBOC__
+    uint8_t id;                         /* [bp-1] */
+    uint8_t skip;                       /* [bp-2] */
+    uint8_t tag;                        /* [bp-3] */
+#  define ID            id
+#  define SKIP          skip
+#  define TAG           tag
+#  define LEAVE(v)      return (v)
+#else
+    /*
+     * **The three bytes have to be the guest's.** `read_resource` files its
+     * destination as the decompressor's cursor at DGROUP 0x5894, a `seg:off`
+     * pair, so on the host they are carved from the guest's stack and given
+     * back at every return. Ours.
+     */
+    uint16_t at = dg_alloca(4);
+#  define ID            (*dg_near_ptr((uint16_t)(at + 3)))
+#  define SKIP          (*dg_near_ptr((uint16_t)(at + 2)))
+#  define TAG           (*dg_near_ptr((uint16_t)(at + 1)))
+#  define LEAVE(v)      do { dg_free(4); return (v); } while (0)
+#endif
 
-    if (read_resource(handle, b3, 1) != 1)
-        goto out;
-    if (*b3 != 0x84)
-        goto out;
-    if (read_resource(handle, b3, 1) != 1)
-        goto out;
-    if (read_resource(handle, b1, 1) != 1)
-        goto out;
+    if (read_resource(handle, &TAG, 1) != 1)
+        LEAVE(0);
+    if (TAG != 0x84)
+        LEAVE(0);
+    if (read_resource(handle, &TAG, 1) != 1)
+        LEAVE(0);
+    if (read_resource(handle, &ID, 1) != 1)
+        LEAVE(0);
 
-    for (;;) {
-        if (*b1 == (uint8_t)want) {
-            r = 1;
-            goto out;
+    while (ID != want) {
+        if (ID == 0xff || read_resource(handle, &SKIP, 1) != 1)
+            LEAVE(0);
+
+        while (SKIP != 0xff) {
+            resource_seek(handle, 5L, 1);
+            if (read_resource(handle, &SKIP, 1) != 1)
+                LEAVE(0);
         }
 
-        if (*b1 == 0xff)
-            goto out;
-        if (read_resource(handle, b2, 1) != 1)
-            goto out;
-
-        while (*b2 != 0xff) {
-            resource_seek(handle, 5, 1);
-            if (read_resource(handle, b2, 1) != 1)
-                goto out;
-        }
-
-        if (read_resource(handle, b1, 1) != 1)
-            goto out;
+        if (read_resource(handle, &ID, 1) != 1)
+            LEAVE(0);
     }
 
-out:
-    dg_free(6);
-    return r;
+    LEAVE(1);
+#undef ID
+#undef SKIP
+#undef TAG
+#undef LEAVE
 }
 
 /*
@@ -341,28 +325,28 @@ out:
  */
 struct sound_node far *read_sound_records(int16_t handle)
 {
-    uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
-    /* The byte at [bp-1], as a pointer - the frame is the guest's because
-       `read_resource` takes a DGROUP address; see `seek_to_sound_record`. */
-    uint8_t *b = dg_near_ptr((uint16_t)(fp + 0xc - 1));
-    struct sound_node *head = SOUND_NODE_NONE;
-    struct sound_node *node;
+#ifdef __TURBOC__
+    uint8_t id;                         /* [bp-1] */
+#  define ID            id
+#else
+    /* The byte has to be the guest's; see `seek_to_sound_record`. Ours. */
+    uint16_t at = dg_alloca(2);
+#  define ID            (*dg_near_ptr((uint16_t)(at + 1)))
+#endif
+    struct sound_node far *head = SOUND_NODE_NONE;
+    struct sound_node far *node;
 
-    read_resource(handle, b, 1);
+    read_resource(handle, &ID, 1);
 
-    for (;;) {
-        if (*b == 0xff)
-            break;
+    while (ID != 0xff
+           && (node = (struct sound_node far *)
+                   alloc_for_kind(sizeof(struct sound_node), 9))
+              != SOUND_NODE_NONE) {
+        node->next = 0;
 
-        node = (struct sound_node *)(void *)alloc_for_kind(sizeof(struct sound_node), 9);
-        if (node == SOUND_NODE_NONE)
-            break;
-
-        node->next = NULL;
-
-        resource_seek(handle, 1, 1);
-        read_resource(handle, (uint8_t *)node, 4);
-        read_resource(handle, b, 1);
+        resource_seek(handle, 1L, 1);
+        read_resource(handle, (uint8_t far *)node, 4);
+        read_resource(handle, &ID, 1);
 
         if (head == SOUND_NODE_NONE)
             head = node;
@@ -370,11 +354,16 @@ struct sound_node far *read_sound_records(int16_t handle)
             head = insert_by_key(head, node);
     }
 
-    if (*b != 0xff)
+    /* A list cut short by a failed allocation is freed, and then answered
+       all the same. */
+    if (ID != 0xff)
         free_node_list(head);
 
-    dg_free(0xc);
+#ifndef __TURBOC__
+    dg_free(2);
+#endif
     return head;
+#undef ID
 }
 
 /*
@@ -395,33 +384,24 @@ struct sound_node far *read_sound_records(int16_t handle)
 struct sound_node far *insert_by_key(struct sound_node far * head,
                                      struct sound_node far * node)
 {
-    struct sound_node *cur, *prev;
-    uint16_t key = node->key;
+    struct sound_node far *cur;
+    struct sound_node far *prev;
 
-    if (head == SOUND_NODE_NONE)
-        return head;
+    if (head != SOUND_NODE_NONE) {
+        if (head->key >= node->key) {
+            node->next = head;
+            head = node;
+        } else {
+            prev = cur = head;
+            do {
+                prev = cur;
+                cur = cur->next;
+            } while (cur != SOUND_NODE_NONE && cur->key < node->key);
 
-    /* The links are filed as each node's own pair - a DOS block starting a
-       segment - so `far_of` files what the original does. */
-    if (head->key >= key) {
-        node->next = head;
-        return node;
+            node->next = cur;
+            prev->next = node;
+        }
     }
-
-    cur = prev = head;
-
-    for (;;) {
-        prev = cur;
-        cur = cur->next;
-
-        if (cur == SOUND_NODE_NONE)
-            break;
-        if (cur->key >= key)
-            break;
-    }
-
-    node->next = cur;
-    prev->next = node;
 
     return head;
 }
@@ -448,34 +428,37 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint8_t far * dst, uint16_t data_at, uint16_t tag)
 {
-    /* The original steps two offsets inside `dst`'s segment; the block is
-       sized in a word, so neither can leave it, and they are pointers. */
-    uint8_t *dir = dst;
-    uint8_t *data = dst + data_at;
+    int32_t pos;                        /* kept, and never read */
+    uint8_t far *data;
+    uint8_t far *dir;
+
+    /* Two cursors stepped inside `dst`'s segment; the block is sized in a
+       word, so neither can leave it. */
+    data = dir = dst;
+    data += data_at;
 
     *dir++ = 0x84;
     *dir++ = 0;
     *dir++ = (uint8_t)tag;
 
     while (list != SOUND_NODE_NONE) {
-        uint16_t len = list->length;
-
         dir[0] = 0;
         dir[1] = 0;
-        *(uint16_t *)(dir + 2) = (uint16_t)(data - dst - 2);
-        *(uint16_t *)(dir + 4) = len;
+        *(uint16_t far *)(dir + 2) = (uint16_t)(data - dst - 2);
+        *(uint16_t far *)(dir + 4) = list->length;
 
-        resource_seek(handle, (uint16_t)(list->key + 2), 0);
+        pos = resource_seek(handle, (uint16_t)(list->key + 2), 0);
 
-        if ((uint16_t)read_resource(handle, data, len) != len)
+        if (read_resource(handle, data, list->length) != list->length)
             return 0;
 
-        data += len;
+        data += list->length;
         list = list->next;
         dir += 6;
     }
 
-    *(uint16_t *)dir = 0xffff;
+    *(uint16_t far *)dir = 0xffff;
+    (void)pos;
     return 1;
 }
 
@@ -498,24 +481,16 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
 uint8_t far *load_resource_block(FILE *file, uint32_t size,
                                  uint8_t * out, uint16_t kind)
 {
-    uint8_t *buf = FAR_NULL_PTR;
-    uint32_t len = 0;
+    uint32_t len;
+    uint8_t far *buf = FAR_NULL_PTR;
     int16_t handle;
 
-    handle = open_resource(0, file, "r", size);
+    if ((handle = open_resource(0, file, "r", size)) >= 0) {
+        len = resource_size(handle);
 
-    if (handle >= 0) {
-        int32_t sz = resource_size(handle);
-
-        len = sz;
-
-        buf = alloc_for_kind(sz, kind);
-
-        if (buf != FAR_NULL_PTR) {
-            uint16_t got = (uint16_t)read_resource(handle, buf, (uint16_t)len);
-
-            /* `len_hi != 0` was "the size does not fit in a word". */
-            if (len > 0xffff || got != (uint16_t)len) {
+        if ((buf = alloc_for_kind(len, kind)) != FAR_NULL_PTR) {
+            /* A size that does not fit in a word never compares equal. */
+            if ((uint16_t)read_resource(handle, buf, (uint16_t)len) != len) {
                 free_for_kind(buf, kind);
                 buf = FAR_NULL_PTR;
             }
@@ -524,10 +499,8 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
         close_resource(handle);
     }
 
-    if (out != NULL && buf != FAR_NULL_PTR) {
-        *(int16_t *)(out + 2) = (int16_t)(len >> 16);
-        *(int16_t *)(out) = (int16_t)len;
-    }
+    if (out != NULL && buf != FAR_NULL_PTR)
+        *(uint32_t *)out = len;
 
     return buf;
 }
@@ -552,16 +525,13 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
 struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t count,
                                              uint16_t volume)
 {
-    struct sequence *r = follow_far_chain(seq, count);
+    if ((seq = follow_far_chain(seq, count)) != SEQUENCE_NONE) {
+        seq->volume = (uint8_t)volume;
+        start_sequence_far(seq, 1);
+        return seq;
+    }
 
-    if (r == SEQUENCE_NONE)
-        return SEQUENCE_NONE;
-
-    r->volume = (uint8_t)volume;
-
-    start_sequence_far(r, 1);
-
-    return r;
+    return SEQUENCE_NONE;
 }
 
 /*
@@ -577,11 +547,7 @@ struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t 
  */
 struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 {
-    for (;;) {
-        if (seq == SEQUENCE_NONE)
-            break;
-        if (count == 0)
-            break;
+    while (seq != SEQUENCE_NONE && count != 0) {
         seq = seq->next;
         count--;
     }
@@ -602,17 +568,17 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 void stop_voice_playing(const uint8_t far * source)
 {
     int16_t i;
+    struct sequence far *v;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SOUND_VOICES.voice[i];
+        v = SOUND_VOICES.voice[i];
 
         /* Which note data this voice is playing - see `voice_playing`. */
-        if ((const uint8_t *)v->source != source)
-            continue;
-
-        retire_and_tick_far(v);
-        v->state = 0xff;
-        return;
+        if (v->source == source) {
+            retire_and_tick_far(v);
+            v->state = 0xff;
+            return;
+        }
     }
 }
 
@@ -632,18 +598,15 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (SOUND_VOICES.voice[0] == NULL)
-        return 0;
-
-    for (i = 0; i < 7; i++) {
-        struct sequence *v = SOUND_VOICES.voice[i];
-
-        if (v == SEQUENCE_NONE)
-            continue;
-        free_for_kind((uint8_t far *)v, 2);
+    if (SOUND_VOICES.voice[0] != SEQUENCE_NONE) {
+        for (i = 0; i < 7; i++) {
+            if (SOUND_VOICES.voice[i] != SEQUENCE_NONE)
+                free_for_kind((uint8_t far *)SOUND_VOICES.voice[i], 2);
+        }
+        return 1;
     }
 
-    return 1;
+    return 0;
 }
 
 /*
@@ -666,39 +629,36 @@ uint16_t free_voice_records(void)
  * voice was busy.
  */
 struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t index,
-                                         uint16_t byte_arg)
+                                         uint8_t byte_arg)
 {
+    struct sequence far *voice = SEQUENCE_NONE;
     int16_t i;
 
-    if (source == FAR_NULL_PTR)
-        return SEQUENCE_NONE;
+    if (source != FAR_NULL_PTR) {
+        for (i = 0; i < 7; i++) {
+            voice = SOUND_VOICES.voice[i];
 
-    for (i = 0; i < 7; i++) {
-        struct sequence *voice = SOUND_VOICES.voice[i];
+            if (voice->state == 0xff) {
+                /* Which note data this voice is playing, and how far into
+                   it - the second a segment beside the offset
+                   `advance_record` stepped. */
+                voice->source = source;
+                voice->cursor = (uint8_t far *)advance_record(source);
 
-        if (voice->state != 0xff)
-            continue;
+                if (DG4A82.bank != 0) {
+                    voice->loop = DG4A82.bank[index].loop;
+                    voice->priority = DG4A82.bank[index].priority;
+                    voice->volume = 0x7f;
+                } else {
+                    voice->loop = (uint8_t)byte_arg;
+                    voice->priority = 1;
+                    voice->volume = (uint8_t)index;
+                }
 
-        /* Which note data this voice is playing, and how far into it - the
-           second a segment beside the offset `advance_record` stepped. */
-        voice->source = source;
-        voice->cursor = (uint8_t far *)advance_record(source);
-
-        if (DG4A82.bank_ptr != 0) {
-            const struct sound_bank_entry *bank =
-                (const struct sound_bank_entry *)dg_near_ptr(DG4A82.bank_ptr);
-
-            voice->loop = bank[index].loop;
-            voice->priority = bank[index].priority;
-            voice->volume = 0x7f;
-        } else {
-            voice->loop = (uint8_t)byte_arg;
-            voice->priority = 1;
-            voice->volume = (uint8_t)index;
+                start_sequence_far(voice, 0);
+                return voice;
+            }
         }
-
-        start_sequence_far(voice, 0);
-        return voice;
     }
 
     return SEQUENCE_NONE;
@@ -717,13 +677,10 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SOUND_VOICES.voice[i];
-
-        if (v->state == 0xff)
-            continue;
-
-        retire_and_tick_far(v);
-        v->state = 0xff;
+        if (SOUND_VOICES.voice[i]->state != 0xff) {
+            retire_and_tick_far(SOUND_VOICES.voice[i]);
+            SOUND_VOICES.voice[i]->state = 0xff;
+        }
     }
 }
 

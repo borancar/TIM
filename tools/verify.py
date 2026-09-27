@@ -821,9 +821,9 @@ ROUTINES = {
     ),
     "silence_driver_far": dict(
         addr=0x28559,
-        args=[("off", 4), ("seg", 6)],
+        args=[],
         check_occurrences=[0],
-        call=lambda lib, a: lib.silence_driver_far(farp(lib, a[0], a[1])),
+        call=lambda lib, a: lib.silence_driver_far(),
     ),
     "voice_playing": dict(
         addr=0x287AD,

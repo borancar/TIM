@@ -221,6 +221,7 @@ a case it does not obviously cover.
 - The judge found an inverted comparison that every screen comparison had passed - [more](docs/lessons.md#the-judge-found-a-wrong-comparison-that-every-screen-comparison-had-passed)
 - A literal the original writes to is read-only on the host: spell it `WRITABLE_LITERAL`, and run every `check_briefing` screen after data becomes literals - [more](docs/lessons.md#a-literal-the-original-writes-to-is-read-only-on-the-host-and-only-one-check-went-where-it-is-written)
 - A `jmp $+2` in the image means the module went through TASM: when a shared tail lands on the wrong copy, read the `-S` listing before rewriting the C - [more](docs/lessons.md#a-tail-the-compiler-will-not-share-the-images-way-may-be-the-assemblers)
+- A prototype is what the callers push: `silence_driver_far` is called with nothing, and `load_sound_bank` with a fourth argument it never reads - [more](docs/lessons.md#a-prototype-is-what-the-callers-push-not-what-the-callee-reads)
 
 ### The hybrid runner
 

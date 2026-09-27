@@ -365,6 +365,34 @@ the two differ. The judge read it from the instruction stream in the first
 compile. It is the rule at the top of CLAUDE.md, measured: a transcription
 that agrees with every capture can still be wrong where no capture looked.
 
+Segment 2619 gave two more on 2026-09-27. `alloc_for_kind` sets
+`DG4A82.load_error` to 1 when an allocation fails, and the port never had
+the store. `open_sound_file` clears the file and its kind only when it
+closes the previous file, and the port cleared them every time. Neither
+reaches a screen or a sample on the paths the checks drive.
+
+### A prototype is what the callers push, not what the callee reads
+
+Two routines in segment 2619 disagreed with their callers about their
+arguments, and the port had believed the callees.
+
+- `silence_driver_far`, the assembly module's far entry, loads `ES:AX` from
+  where a stack argument would be. So the port declared a far pointer and
+  `stop_sound` passed null. `stop_sound` pushes nothing, and the entry never
+  reads what it loaded.
+- `load_sound_bank` reads three arguments. `read_record` pushes four, the
+  fourth being the `kind` it also passes `load_resource_block`.
+
+Borland C++ writes the pushes from the prototype in scope. So under the
+judge the port's prototypes produced the wrong calls, where the image showed
+what the original's declarations said. The fix is to declare what the caller
+pushes: `(void)` for the first, and an unused fourth parameter for the
+second, which does not change the callee's bytes.
+
+**When a callee and its callers disagree about the arguments, the callers
+are the evidence for the declaration.** A routine's own reads say only which
+arguments it uses.
+
 ### A literal the original writes to is read-only on the host, and only one check went where it is written
 
 `game_screen`'s freeform case calls `load_animation("ff.lev")`, and

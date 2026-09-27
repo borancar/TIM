@@ -2163,13 +2163,13 @@ void init_sequence_params(struct sequence far * seq)
 /*
  * 0x28559
  *
- * The ordinary-call face of `silence_driver`. It loads `ES:AX` from the stack
- * argument, and `silence_driver` reads neither - the same dead argument as in
- * 0x2846a, and kept here for the same reason.
+ * The ordinary-call face of `silence_driver`. It loads `ES:AX` from where a
+ * stack argument would be, and `silence_driver` reads neither - the same dead
+ * argument as in 0x2846a. Its one C caller, `stop_sound`, pushes nothing, so
+ * the port declares none.
  */
-void silence_driver_far(const uint8_t far * drv)
+void silence_driver_far(void)
 {
-    (void)drv;
     silence_driver();
 }
 
