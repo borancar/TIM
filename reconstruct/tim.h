@@ -1411,9 +1411,9 @@ void part_step_11a6(struct part *part);             /* 172c:11a6 */
 int16_t  bounce_speed_for_mass(struct part *obj);       /* 172c:06f9 */
 void     break_bob_the_fish(struct part *part);              /* 172c:1c9e */
 void     trigger_mouse_cage(struct part *part);             /* 172c:2ffd */
-int16_t  push_speed_for_mass(struct part *obj);         /* 172c:271f */
+int16_t  push_speed_for_mass(struct part *obj);         /* 172c:471f */
 void     trigger_things_at(struct part *part, int16_t mode,
-                           int16_t dx);             /* 172c:277d */
+                           int16_t dx);             /* 172c:477d */
 uint16_t part_hit_pokey(struct part *part);              /* 172c:0c6c */
 void part_step_dynamite(struct part *part);             /* 172c:12c2 */
 void     burst_dynamite(struct part *part);              /* 172c:1328 */

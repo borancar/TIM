@@ -388,6 +388,28 @@ write through its argument needs looking at. After a module's data goes
 from records to literals, run every `check_briefing` screen as well as
 `make test`.
 
+### A tail the compiler will not share the image's way may be the assembler's
+
+`trigger_things_at`'s switch has two cases ending in a call and a `pop cx`,
+and the image keeps the second copy, `pop cx / jmp $+2`, with the first case
+jumping forward to it. Compiled straight to an object, Borland C++ 3.0 kept
+the first copy every time. A day of rewriting the cases - braces, `continue`,
+`default`, a ternary, gotos - changed nothing, and bisecting on scratch files
+showed only that the shape of an *unrelated* case earlier in the switch
+flipped it.
+
+The listing answered it. `bcc -S` wrote exactly the image's layout, including
+the `jmp` to the next instruction: the compiler's own object writer removes
+that jump and shares the other tail, and TASM keeps what it is given. The
+module went through the assembler (`JUDGE: via-assembler`), as vqtflip.c's
+does because of its inline `asm`. That also placed a module boundary: through
+TASM a forward call inside one file is a bare `push cs / call`, and the
+seesaw's own forward calls carry TLINK's `nop`, so they are in another file.
+
+**A `jmp` to the next instruction in the image is the assembler's mark.**
+When a routine will not match and the difference is where a shared tail
+went, compile it `-S` and look at the listing before rewriting any more C.
+
 ### A check that polls can miss what it is checking, and then blames the port
 
 **A check that polls can miss what it is checking, and then blames the port.**

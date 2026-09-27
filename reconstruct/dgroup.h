@@ -1575,7 +1575,7 @@ struct point8 {
  * also the fourth entry of the offsets at 0x338c, which a different routine
  * reads off its own base. The two tables are **adjacent, not overlapping** -
  * measured after each site's form range was read - so three reads in
- * `parts.c` keep the original's own base and index rather than being given a
+ * the part modules keep the original's own base and index rather than being given a
  * name that would have to pick a base the original never mentions. Each says
  * which words it reads and what they are.
  */
@@ -1767,7 +1767,7 @@ struct extent16 {
  *
  * The names come from `devdump.c`'s `dump_chain`, which has printed these
  * fields for long enough to be the project's own record of what they are, and
- * from the setups in parts.c. What neither names keeps `field_XX`.
+ * from the setups in the part_*.c modules. What neither names keeps `field_XX`.
  *
  * **Only the sites written `part` are converted.** The same record is also
  * walked through `si`, `di`, `rec` and `obj` - two and a half thousand more
@@ -2009,7 +2009,7 @@ struct part {
        chains together and calls them that.
 
        The heads keep their addresses because two kinds of part disagree about
-       them. `parts.c` runs `word_96` as a plain countdown - set to 0x1c, to
+       them. The part modules run `word_96` as a plain countdown - set to 0x1c, to
        0x64, to 5, and stepped to zero - and steps `spin` up towards 0x14,
        while for a belt `refresh_link_geometry` writes both from
        `link_end_distance` and `link_slack` reads them as the rest length each

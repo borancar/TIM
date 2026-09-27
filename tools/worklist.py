@@ -380,13 +380,17 @@ def main():
     # figure below in exactly the way VM.OVL was, and is counted here instead.
     #
     # A setup counts as transcribed when its offset appears in one of the
-    # tables in parts.c or in one of the `off ==` cases beside them. Both
-    # forms are counted because both are how a setup gets reconstructed here -
-    # counting only the first said 11 of 39 when the answer was all of them.
-    src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "reconstruct", "src", "parts.c")
-    if os.path.exists(src):
-        text = open(src).read()
+    # tables in the segment's modules (`part_*.c`, one per kind) or in one of
+    # the `off ==` cases beside them. Both forms are counted because both are
+    # how a setup gets reconstructed here - counting only the first said 11 of
+    # 39 when the answer was all of them.
+    import glob
+    srcdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                          "reconstruct", "src")
+    modules = sorted(glob.glob(os.path.join(srcdir, "part_*.c")))
+    src = os.path.join(srcdir, "machine_draw.c")
+    if modules:
+        text = "".join(open(m).read() for m in modules)
         # **Not `done`.** That name already holds every transcribed routine
         # address, and reusing it here quietly replaced the set that the byte
         # figures below are measured from - which read 4.3% instead of 79%
@@ -398,7 +402,7 @@ def main():
             setups.add(int(m.group(1), 16))
         want = {int(m.group(1), 16) for m in re.finditer(
             r"\{ 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, (0x[0-9a-f]+) \}",
-            open(os.path.join(os.path.dirname(src), "machine_draw.c")).read())}
+            open(src).read())}
         if want:
             print("parts:    %d of the %d part setups segment 172c holds"
                   % (len(setups & want), len(want)))

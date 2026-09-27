@@ -33,6 +33,16 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 
 Segment 0dff is byte-exact end to end, all eight of its modules.
 
+Segment 172c, the part kinds, is 43 files, `src/part_*.c`, one module each,
+all BC++ 3.0 `-mm`: **155 of 155** transcribed routines match.
+`part_trigger_things.c` went through TASM, and so does the judge. Two things
+are left:
+
+- The image's 0x1bd14..0x1c250 is not transcribed. It includes an IFF writer
+  that uses the data at 0x355a.
+- `PARTSHAPES`, DGROUP 0x3182..0x355a, is still one record in dgroup.c. It
+  should be split by module; the pad byte at 0x3335 is the conveyor's.
+
 Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly; its
 host transcription is `src/vqt.c` and its TASM source is not written yet.
 

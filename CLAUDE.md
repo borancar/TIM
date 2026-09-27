@@ -107,7 +107,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   sources must glob both.
 
   **The names are ours; the boundaries are the original's.** `machine.c`,
-  `game.c`, `parts.c` and the rest were called `seg0000.c` and so on until each
+  `game.c`, `part_*.c` and the rest were called `seg0000.c` and so on until each
   had been read well enough to say what it holds. Every one still names its
   segment and image range in its header, because that is the fact - a file
   called `engine.c` is a judgement about 8,275 lines and the segment number is
@@ -220,6 +220,7 @@ a case it does not obviously cover.
 - Borland lays `_BSS` out in reverse order of first mention, a header `extern` included, and `-d` merges the duplicate literals a pool may need - [more](docs/lessons.md#a-modules-data-layout-is-decided-by-what-the-compiler-saw-not-by-the-order-of-the-definitions)
 - The judge found an inverted comparison that every screen comparison had passed - [more](docs/lessons.md#the-judge-found-a-wrong-comparison-that-every-screen-comparison-had-passed)
 - A literal the original writes to is read-only on the host: spell it `WRITABLE_LITERAL`, and run every `check_briefing` screen after data becomes literals - [more](docs/lessons.md#a-literal-the-original-writes-to-is-read-only-on-the-host-and-only-one-check-went-where-it-is-written)
+- A `jmp $+2` in the image means the module went through TASM: when a shared tail lands on the wrong copy, read the `-S` listing before rewriting the C - [more](docs/lessons.md#a-tail-the-compiler-will-not-share-the-images-way-may-be-the-assemblers)
 
 ### The hybrid runner
 

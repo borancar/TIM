@@ -125,7 +125,7 @@ def addresses(paths):
             if name is None or block is None:
                 continue
             first = provenance.first_content_line(text(src, block))
-            # `0x1791b`, or `172c:065b, image 0x1791b` as parts.c has it
+            # `0x1791b`, or `172c:065b, image 0x1791b` as the part_*.c modules have it
             m = re.match(r"(?:[0-9a-fA-F]{4}:[0-9a-fA-F]{4},\s*image\s+)?"
                          r"(0x[0-9a-fA-F]{5})\b", first)
             if m:
