@@ -40,6 +40,7 @@ its driver calls and the page hook.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/lowlevel.c` | 0x21ab5..0x22483 | assembly, probably several modules: host transcription, not judged | `DG48DA` 0x48da..0x48f2, the mouse at 0x4740 |
 | `src/vidinit.c` | 0x22483..0x22790 | assembly: host transcription, not judged | `_DATA` 0x48f2..0x48f8 |
 | `src/vidload.c` | 0x22790..0x2307d | 3 of 3, through TASM | `_DATA` 0x48f8..0x495c, `_BSS` 0x628e..0x6292 |
 | `src/fontload.c` | 0x2307d..0x234d2 | 2 of 2 | `_DATA` 0x495c..0x4965 |

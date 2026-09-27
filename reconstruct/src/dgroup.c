@@ -1947,12 +1947,6 @@ struct dg_5179 DG5179 DGROUP_BSS(0x5179);
    layer, opens files through the archive lookup, and its count and its
    lists have to be the same side's. */
 struct dg_547a DG547A DGROUP_WAS(0x547a);
-struct dg_48da DG48DA DGROUP_AT(0x48da) = {
-    .gc_mode_fill = 0x02,
-    .quarter_a = 0x40,
-    .gc_mode_copy = 0x01,
-    .quarter_b = 0x41,
-};
 struct dg_3576 DG3576 DGROUP_WAS(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
