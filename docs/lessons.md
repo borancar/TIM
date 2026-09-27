@@ -1521,6 +1521,22 @@ build**, and a value only ever assigned and compared for equality with such a
 constant is declared `uint16_t`, which compiles to the same instruction under
 TCC.
 
+### A record that converts still gets allocated at the image's size
+
+`resource.c` turned the resource record's near and far pointers into real
+pointers on 2026-09-27, which made the host's `struct resource` bigger than
+the image's 0x21 bytes. `open_resource_slot` asked for it as
+`heap_calloc_far(1, 0x21)` - the constant the image pushes, transcribed as a
+constant - and every record written after that ran off the end of its own
+block. Nothing complained at compile time; `make test`'s simulated solutions
+died on all 29 levels, the first crash surfacing in `load_bitmap_list`, far
+from the cause.
+
+**A size in an allocation is `sizeof` of the record**, never the image's
+literal: under Borland `sizeof(struct resource)` is 0x21 and compiles to the
+same `mov ax,0x21`, and on the host it is whatever the host's layout needs.
+When a record converts, grep for its image size.
+
 ### A record moved off its guest address leaves its near pointers behind
 
 `PALCHUNK` became the host's own layout on 2026-09-27 - a far pointer in it

@@ -917,11 +917,8 @@ uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
                      struct file_rec *file);                /* 0x0d1c4 */
 
 /* Hand over the next run of bytes from the selected resource. */
-void resource_advance(void);                        /* 0x1c8a7 */
 
 /* Select a resource by handle; unpack its entry into the loader globals. */
-int16_t select_resource(int16_t handle);            /* 0x1c649 */
-int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
 struct open_file *near find_file_record(FILE *handle);         /* 0x23df2 */
 int32_t file_record_size(FILE *handle);         /* 0x242af */
 int16_t file_record_valid(FILE *handle);         /* 0x24308 */
@@ -934,12 +931,8 @@ FILE *open_file_record(char *name);           /* 0x23f2c */
 int32_t near restore_file_record(struct open_file *rec);         /* 0x23f90 */
 int32_t seek_named_chunk(FILE *handle, const char * path,
                           int16_t index);           /* 0x23fc2 */
-int16_t open_resource_slot(void);                   /* 0x1c783 */
-int16_t prepare_resource_slot(int16_t type,
-                              char *name);       /* 0x1c7d5 */
 
 /* Free a pointer unless it is null. */
-void free_if_set(uint16_t p);                       /* 0x1c705 */
 
 /* Hand a block back to DOS; only the pointer's segment is used. */
 void dos_free_far(void far *block);            /* 0x21b34 */
@@ -1828,7 +1821,6 @@ void fill_rect(int16_t x, int16_t y,
                int16_t w, int16_t h);               /* 0x20079 */
 
 /* Does a NUL-terminated string contain 'r'? */
-int16_t string_contains_r(const char *str);            /* 0x1c6e3 */
 
 /* Copy between two far pointers, normalising both first. */
 uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count);  /* 0x221ed */
@@ -1890,11 +1882,8 @@ void expand_1bpp_to_4bpp(const uint8_t huge * src, uint8_t huge * dst,
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 
-int16_t decompress_rle(void);                          /* 0x1c278 */
-int16_t resource_read(FILE *handle, uint16_t count); /* 0x1c92b */
-void lzw_reset(void);                               /* 0x1c970 */
 int16_t restart_resource_stream(int16_t handle);     /* 0x1dae6 */
-int16_t lzss_reset(void);                           /* 0x1dc15 */
+int16_t near lzss_reset(void);                      /* 0x1dc15 */
 int16_t open_resource(uint16_t unused, FILE *file, char *name,
                       uint32_t size);                       /* 0x1d54e */
 int16_t close_resource(int16_t handle);             /* 0x1d798 */
@@ -1902,21 +1891,44 @@ int32_t resource_size(int16_t handle);             /* 0x1d95f */
 int32_t resource_seek(int16_t handle, int32_t by,
                        int16_t whence);                /* 0x1d983 */
 int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count); /* 0x1d868 */
-int16_t read_input_block(uint8_t *dst, uint16_t count); /* 0x1c3e6 */
-int16_t decompress_lzw(void);                          /* 0x1ca62 */
+/* resource.c: the resource streams, near routines of segment 1c25. */
+int16_t near decompress_store(void);                   /* 0x1c251 */
+int16_t near decompress_rle(void);                     /* 0x1c278 */
+int16_t near store_flush(void);                        /* 0x1c2cc */
+int16_t near read_into_huge(uint8_t huge *dst, uint16_t count); /* 0x1c319 */
+int16_t near next_input_byte(void);                    /* 0x1c389 */
+int16_t near read_input_block(uint8_t *dst, uint16_t count); /* 0x1c3e6 */
+int16_t near emit_literal_run(uint16_t n);             /* 0x1c493 */
+int16_t near emit_fill_run(uint16_t value, int16_t n); /* 0x1c51e */
+int16_t near emit_byte(uint16_t value);                /* 0x1c5a3 */
+int16_t near put_output_byte(int16_t c);               /* 0x1c5f5 */
+int16_t near select_resource(int16_t handle);          /* 0x1c649 */
+int16_t near string_contains_r(const char *s);         /* 0x1c6e3 */
+void    near free_if_set(void *p);                     /* 0x1c705 */
+int16_t near close_resource_slot(int16_t slot);        /* 0x1c71a */
+int16_t near open_resource_slot(void);                 /* 0x1c783 */
+int16_t near prepare_resource_slot(int16_t type, char *mode); /* 0x1c7d5 */
+void    near resource_advance(void);                   /* 0x1c8a7 */
+int16_t near resource_read(FILE *handle, uint16_t count); /* 0x1c92b */
+void    near lzw_reset(void);                          /* 0x1c970 */
+void    near resource_nothing_1(void);                 /* 0x1ca3c */
+void    near resource_nothing_2(void);                 /* 0x1ca41 */
+/* The handler table's routines in the modules after it. */
+int16_t near rle_from_memory(void);                    /* 0x1cd2c */
+int16_t near lzw_open_write(void);                     /* 0x1ce9d */
+int16_t near lzw_flush(void);                          /* 0x1cf1b */
+int16_t near rle_flush(void);                          /* 0x1d40d */
+int16_t near lzss_open_write(void);                    /* 0x1dba8 */
+int16_t near lzss_flush(void);                         /* 0x1e5ae */
+int16_t near decompress_lzw(void);                     /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
 int16_t huff_get_byte(void);                           /* 0x1e00b */
 void huffman_start(void);                              /* 0x1e0b3 */
 void huffman_reconst(void);                            /* 0x1e1af */
 void huffman_update(uint16_t c);                       /* 0x1e338 */
 int16_t decode_position(void);                         /* 0x1e561 */
-int16_t decompress_lzss(void);                         /* 0x1e7f2 */
+int16_t near decompress_lzss(void);                    /* 0x1e7f2 */
 int16_t next_lzw_code(void);                           /* 0x1cc65 */
-int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
-int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */
-int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
-int16_t read_into_huge(uint8_t far * dst, uint16_t count);                  /* 0x1c319 */
-int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
 uint8_t far * load_video_driver(int16_t adapter, char *name); /* 0x22efd */

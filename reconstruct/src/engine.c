@@ -31,69 +31,6 @@
  * dgroup.h; they are declared here because nothing else uses them.
  */
 
-/*
- * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece:
- * `prepare_resource_slot` sizes a slot from the first three words - the near
- * buffer, and the far one for a resource opened to read or otherwise;
- * `resource_read` dispatches on the near offset at +6 (0x3580) and
- * `open_resource` and `restart_resource_stream` on the one at +0xc (0x3586).
- * The two words between are the other two entries of the handler's table
- * and nothing in the port dispatches on them yet. Four is `prepare_resource_slot`'s
- * own bound, and the run ends at 0x35b2.
- */
-struct res_handler {
-    uint16_t  near_size;          /* +0x00 */
-    uint16_t  far_size_read;      /* +0x02  when the mode string has an "r" */
-    uint16_t  far_size;           /* +0x04  otherwise */
-    uint16_t  read_off;           /* +0x06  the decoder: rle, lzw, ... */
-    /* **The writing side's two hooks.** +0x08 is called where the port
-       refuses with "flushing a resource opened for writing" - 0x1d7d3, inside
-       `close_resource`'s write branch - and +0x0a where it refuses with
-       "opening a resource for writing": 0x1d671 tests it for zero and 0x1d681
-       calls it. Neither is reached by anything this port does, which is the
-       same side of the resource layer `ENGINE_BIT_STATE` belongs to. */
-    uint16_t  write_start_off;    /* +0x08 */
-    uint16_t  write_open_off;     /* +0x0a */
-    uint16_t  reset_off;          /* +0x0c  the restart */
-} PACKED;
-
-/* DGROUP 0x357a..0x35b2, 0x38 bytes. */
-struct engine_res_handlers {
-    struct res_handler type[4];   /* +0x00 [0x38] */
-} PACKED;
-
-struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_AT(0x357a) = {
-    .type = {
-        [0] = {
-            .near_size = 0x0080,
-            .read_off = 0x0001,
-            .write_start_off = 0x007c,
-        },
-        [1] = {
-            .near_size = 0x0080,
-            .read_off = 0x0028,
-            .write_start_off = 0x11bd,
-        },
-        [2] = {
-            .near_size = 0x0080,
-            .far_size_read = 0x3ab3,
-            .far_size = 0x7566,
-            .read_off = 0x0812,
-            .write_start_off = 0x0ccb,
-            .write_open_off = 0x0c4d,
-            .reset_off = 0x0720,
-        },
-        [3] = {
-            .near_size = 0x0080,
-            .far_size_read = 0x2163,
-            .far_size = 0x2163,
-            .read_off = 0x25a2,
-            .write_start_off = 0x235e,
-            .write_open_off = 0x1958,
-            .reset_off = 0x19c5,
-        },
-    },
-};
 
 /*
  * **Nine bit masks**, DGROUP 0x35b2..0x35bc, `(1 << n) - 1` for n from 0 to 8
@@ -308,89 +245,9 @@ struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS DGROUP_AT(0x3686) = {
     },
 };
 
-/*
- * **The resource reader's flag bits and its handler index**, DGROUP 0x57ba..0x57bf, 0x05 bytes.
- */
-struct engine_resource_flags {
-    uint8_t   flags;              /* +0x00 [1]  bit 0x40 makes the copy happen at all; bit 0x20 picks 0x1cd2c */
-    uint8_t   pad_57bb[1];        /* +0x01 [1] */
-    /* **The stream the reader is on**, the same near pointer to a `file_rec`
-       the selected resource holds; every read below goes through it. */
-    dg_near_t file_ptr;           /* +0x02 [2] */
-    uint8_t   handler;            /* +0x04 [1]  the low five bits of the byte, indexing a table of handlers */
-} PACKED;
 
-struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_BSS(0x57ba);
 
-/*
- * **The staging buffer `read_into_huge` reads through**, DGROUP
- * 0x5788..0x57ba, 0x32 bytes - the 0x32 that routine reads at a time, and
- * exactly the gap between `DG5768`'s end and the flags below. `game_fread`
- * reads into DGROUP, so a destination anywhere else is filled a bufferful at a
- * time through here.
- *
- * Zero in the image, which is why it is `DGROUP_BSS`.
- */
-struct engine_read_staging {
-    uint8_t   buf[0x32];          /* +0x00 [0x32] */
-} PACKED;
 
-struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
-
-/*
- * **The open resource streams**, a near pointer each, DGROUP 0x57c0..0x5888,
- * 0xc8 bytes. 0x64 is the bound `select_resource` and `open_resource_slot` test,
- * and a hundred words run exactly to `ENGINE_STREAM` at 0x5888.
- */
-struct engine_resource_slots {
-    dg_near_t slot_ptr[0x64];     /* +0x00 [0xc8] */
-} PACKED;
-
-struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_BSS(0x57c0);
-
-/*
- * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8, 0x30 bytes.
- *
- * From `n_bits` on it is the state of Unix `compress`'s LZW decoder, and those
- * fields take that program's names for them.
- */
-struct engine_stream {
-    uint8_t   kind;               /* +0x00 [1]  the record's kind, copied by select_resource: the low five
-                                     bits pick the handler, 0x20 reads from memory, 0x40 means
-                                     opened for reading */
-    uint8_t   pad_01;             /* +0x01 [1] */
-    dg_near_t record_ptr;         /* +0x02 [2]  the record being read */
-    uint8_t huge *scratch;      /* +0x04 [4]  the decompressor's block; every
-                                     use is a `huge_add` from its base */
-    uint16_t  wanted;             /* +0x08 [2]  how many bytes the caller still wants */
-    dg_near_t spill_ptr;          /* +0x0a [2]  the record's work_ptr, the buffer a run that does not fit spills into */
-    uint8_t huge *out;          /* +0x0c [4]  the decompression output cursor:
-                                     `read_resource` normalises the caller's
-                                     destination into it and three
-                                     decompressors walk it */
-    uint8_t huge *in;           /* +0x10 [4]  and where they are reading from */
-    int16_t   written;            /* +0x14 [2]  what close_resource answers; the writing side counts into it
-                                     - a name that is a guess, that side is not transcribed */
-    int16_t   n_bits;             /* +0x16 [2]  the code width: 9 at a reset, one more when free_ent passes maxcode */
-    int16_t   free_ent;           /* +0x18 [2]  the next free code: 0x101 at a reset, at most 0x1000 */
-    uint8_t   resume;             /* +0x1a [1]  set when a request fills mid-string; the next call resumes at
-                                     ENGINE_LZW_RESUME.scratch_at */
-    uint8_t   pad_1b;             /* +0x1b [1] */
-    int16_t   clear_flg;          /* +0x1c [2]  set by code 0x100; next_lzw_code resets the width and clears it */
-    int16_t   oldcode;            /* +0x1e [2]  the previous code, prefix of the entry the next one adds */
-    uint8_t huge *de_stack;     /* +0x20 [4]  the scratch block plus 0x3720, where decompress_lzw builds
-                                     each string backwards */
-    int16_t   finchar;            /* +0x24 [2]  the first byte of the last string, the new entry's suffix */
-    uint8_t   first_code;         /* +0x26 [1]  set at a reset: the stream's first code is a literal */
-    uint8_t   pad_27;             /* +0x27 [1] */
-    int16_t   incode;             /* +0x28 [2]  the code just read, oldcode once its entry is added */
-    int16_t   bit_pos;            /* +0x2a [2]  the bit position in the input window, n_bits per code */
-    int16_t   bit_end;            /* +0x2c [2]  where whole codes stop in the window: bytes read * 8 less
-                                     n_bits - 1; zero or less is the end of the input */
-    int16_t   maxcode;            /* +0x2e [2]  the largest code at this width, 0x1000 at twelve bits */
-} PACKED;
-
-struct engine_stream ENGINE_STREAM DGROUP_WAS(0x5888);
 
 /*
  * **An interrupted match, and where it resumes**, DGROUP 0x58e0..0x58e8, 0x08 bytes.
@@ -457,300 +314,6 @@ struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_WAS(0x590a);
 
 
 
-
-/*
- * 0x1c278
- *
- * Decompression type 1: plain run-length coding, and the first of the three
- * handlers the table at DGROUP 0x3580 dispatches to.
- *
- * Each token is one byte. Bit 7 clear means the low seven bits are a count of
- * literal bytes to copy; bit 7 set means they are a count and the **next** byte
- * is the value to repeat. A token of -1 - the end of the input - stops it, and
- * so does either emitter answering 0, which is how the output side says the
- * caller's request has been filled.
- *
- * Bit 0x20 at DGROUP 0x57ba selects a different routine entirely at 0x1cd2c.
- * That is not reached on these screens and is left as a stub.
- *
- * The answer is always 0 on the run-length path: nothing here reports how much
- * it produced, because 0x1c92b works that out from what is left at 0x5890.
- */
-int16_t decompress_rle(void)
-{
-    int16_t di = 1;
-
-    if ((ENGINE_RESOURCE_FLAGS.flags & 0x20) == 0) {
-        not_transcribed("0x1cd2c, the other type-1 path");
-        return 0;
-    }
-
-    while (di != 0) {
-        int16_t si = next_input_byte();
-
-        if (si == -1)
-            break;
-
-        if ((si & 0x80) != 0)
-            di = emit_fill_run((uint16_t)next_input_byte(),
-                               (uint16_t)(si & 0x7f));
-        else
-            di = emit_literal_run((uint16_t)(si & 0x7f));
-    }
-
-    return 0;
-}
-
-/*
- * 0x1c319
- *
- * Copy `count` bytes out of the current resource into a huge pointer, through
- * `ENGINE_READ_STAGING`, the 0x32-byte staging buffer at DGROUP 0x5788.
- *
- * The buffer is why this is a loop at all: `game_fread` reads into DGROUP, and
- * the destination is a huge pointer that may be anywhere, so each pass reads at
- * most 0x32 bytes and then `far_memcpy`s them out.
- *
- * The destination is advanced by `huge_add_to` on **its own argument slot** -
- * `lea ax,[bp+4]` - so the far pointer the caller passed by value is stepped in
- * place as a huge pointer; the port's parameter is one, stepped the same way.
- *
- * The loop ends on a short read as well as on the count running out, and the
- * answer is 0 either way: nothing here reports how much it managed.
- */
-int16_t read_into_huge(uint8_t far * dst, uint16_t count)
-{
-    int16_t si = (int16_t)count;
-    int16_t di = 1;
-
-    while (si != 0 && di > 0) {
-        uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
-
-        di = (int16_t)game_fread(ENGINE_READ_STAGING.buf, 1, n,
-                                 FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
-        si = (int16_t)(si - di);
-
-        far_memcpy(dst, ENGINE_READ_STAGING.buf, (uint16_t)di);
-
-        dst += di;
-    }
-    return 0;
-}
-
-/*
- * 0x1c3e6
- *
- * Read up to `count` bytes of the compressed stream into DGROUP, and answer how
- * many. This is what fills the bit buffer the LZW code reader works out of.
- *
- * How much is left is `+0xe:+0x10` minus `+0xa:+0xc` on the record at DGROUP
- * 0x588a, and the request is cut down to it - a 32-bit comparison that is
- * signed on the high half and unsigned on the low, which is the compiler
- * comparing a `long` against a zero-extended `int`.
- *
- * The position advances by what will be taken **before** anything is taken, and
- * then the same bit 0x20 at DGROUP 0x5888 that `next_input_byte` uses chooses
- * between the file and a block already in memory - there through
- * `huge_add_to` on the cursor at 0x5898.
- */
-int16_t read_input_block(uint8_t *dst, uint16_t count)
-{
-    uint16_t rec = ENGINE_STREAM.record_ptr;
-    /* `sub`/`sbb` on the two halves - one 32-bit subtract, and **signed**,
-       because the compare below is. */
-    int32_t  rem = (int32_t)(RESOURCE_PTR(rec)->end - RESOURCE_PTR(rec)->in);
-    uint32_t n;
-
-    if (rem == 0)
-        return 0;
-
-    /* `xor ax,ax / cmp ax,[bp-2] / jl / jg / cmp di,[bp-4] / jbe` at 0x1c416:
-       one 32-bit compare of `count` against `rem`, signed on the high word
-       and unsigned on the low - the compiler putting a zero-extended `int`
-       beside a `long`. **The smaller is taken**, which is the request being
-       cut down to what is left.
-    
-       Written as two halves this read as `rem_hi > 0 || (rem_hi == 0 &&
-       count > rem_lo)` choosing `rem`, which has the arms of the `min` the
-       wrong way round for every `rem` above 0xffff: `jl` at 0x1c41b goes to
-       0x1c42c, which is `mov ax,di` - the count. The two spellings agree
-       while a chunk's remainder fits in a word, and nothing here has ever
-       given it one that does not. */
-    n = ((int32_t)count < rem) ? count : (uint32_t)rem;
-
-    RESOURCE_PTR(rec)->in += n;
-
-    if ((ENGINE_STREAM.kind & 0x20) != 0)
-        return (int16_t)game_fread(dst, 1, (uint16_t)n,
-                                   FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
-
-    far_memcpy(dst,
-               ENGINE_STREAM.in, (uint16_t)n);
-    ENGINE_STREAM.in += (int32_t)n;
-
-    return (int16_t)n;
-}
-
-/*
- * 0x1c493
- *
- * Deliver a run of `n` literal bytes to the output.
- *
- * The output has two states and DGROUP 0x5890 - what the caller of 0x1c92b
- * still wants - decides between them. While the run fits, the bytes go to the
- * destination huge pointer at 0x5894, which is then stepped by `huge_add_to`,
- * and the answer is 1 meaning "keep going". Once it does not fit they spill
- * into the small buffer at 0x5892 with a count at the record's +0x1a, and the
- * answer is 0.
- *
- * The input position at the record's +0xa:+0xc advances by `n` **before**
- * either, so it counts what was consumed rather than what was delivered.
- *
- * Bit 0x40 at DGROUP 0x57ba is what makes the write happen at all; without it
- * the bytes are skipped in the file instead, by seeking forward over them. That
- * branch is not reached on these screens.
- *
- * The spill writes at the **start** of the buffer, not at the count it has just
- * increased - unlike 0x1c51e, which offsets by the old count. Transcribed as it
- * stands; nothing reaches it here either.
- */
-int16_t emit_literal_run(uint16_t n)
-{
-    uint16_t rec = ENGINE_STREAM.record_ptr;
-
-    RESOURCE_PTR(rec)->in += n;
-
-    if (ENGINE_STREAM.wanted < n) {
-        rec = ENGINE_STREAM.record_ptr;
-        RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
-        read_into_huge(dg_near_ptr(ENGINE_STREAM.spill_ptr), n);
-        return 0;
-    }
-
-    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        read_into_huge(ENGINE_STREAM.out, n);
-    else
-        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), n, 1);
-
-    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
-    ENGINE_STREAM.out += (int32_t)n;
-
-    return 1;
-}
-
-/*
- * 0x1c51e
- *
- * Deliver a run of `n` copies of one byte - the other half of the run-length
- * pair, and the same two output states as `emit_literal_run`, reached the same
- * way and answering the same 1 or 0.
- *
- * Nothing is read here, so nothing advances the input position: that was done
- * by the two `next_input_byte` calls the caller made to get the length and the
- * value.
- *
- * The spill offsets by the record's +0x1a **before** adding to it, which is
- * what 0x1c493's spill does not do. Neither is reached on these screens.
- */
-int16_t emit_fill_run(uint16_t value, uint16_t n)
-{
-    uint16_t rec;
-
-    if (ENGINE_STREAM.wanted < n) {
-        rec = ENGINE_STREAM.record_ptr;
-        far_memset(dg_near_ptr((uint16_t)(ENGINE_STREAM.spill_ptr + RESOURCE_PTR(rec)->spill_end)),
-                   value, (uint32_t)(int16_t)n);
-        rec = ENGINE_STREAM.record_ptr;
-        RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
-        return 0;
-    }
-
-    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memset(ENGINE_STREAM.out, value,
-                   (uint32_t)(int16_t)n);
-
-    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
-    ENGINE_STREAM.out += (int32_t)(int16_t)n;
-
-    return 1;
-}
-
-/*
- * 0x1c5a3
- *
- * Deliver one byte - `emit_literal_run` and `emit_fill_run` written for a run
- * of exactly one, with the same two states and the same answers.
- *
- * The spill half is reached here, unlike in the other two, and it reads the
- * record's +0x1a and increments it in one instruction - `mov al,[bx+0x1a]` then
- * `inc byte [bx+0x1a]` - so the byte lands at the old count.
- */
-int16_t emit_byte(uint16_t value)
-{
-    if (ENGINE_STREAM.wanted >= 1) {
-        if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-            *ENGINE_STREAM.out = (uint8_t)value;
-
-        ENGINE_STREAM.out += 1;
-        ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - 1);
-        return 1;
-    }
-
-    {
-        uint16_t rec = ENGINE_STREAM.record_ptr;
-        uint8_t n = RESOURCE_PTR(rec)->spill_end;
-
-        RESOURCE_PTR(rec)->spill_end = (uint8_t)(n + 1);
-        dg_near_ptr(ENGINE_STREAM.spill_ptr)[n] = (uint8_t)value;
-        return 0;
-    }
-}
-
-/*
- * 0x1c970
- *
- * Reset the LZW state for a new stream: the whole 0x3aa1-byte block cleared,
- * the code width back to nine with its limit at 0x1ff, the first 0x100 codes
- * made into single-byte strings - prefix zero, suffix the code itself - and the
- * next free code set to 0x101, one past the clear code.
- *
- * Every one of those writes goes through the huge-pointer add, because the
- * block is far and the tables run past a segment: the prefixes at twice the
- * code and the suffixes at 0x2720 plus it.
- *
- * The scratch pointer at DGROUP 0x58a8 is set to 0x3720 into the block, which
- * is where `decompress_lzw` builds each decoded string.
- *
- * The flag at 0x58ae says the next code read is the first, and 0x58a2 that no
- * byte is left over.
- */
-void lzw_reset(void)
-{
-    int16_t i;
-    /* The dictionary block; `huge_add` reaches into it from the start. */
-    uint8_t *scratch = ENGINE_STREAM.scratch;
-
-    far_memset(scratch, 0, 0x3aa1);
-
-    ENGINE_STREAM.n_bits = 9;
-    ENGINE_STREAM.maxcode = (int16_t)((1 << 9) - 1);
-
-    for (i = 0xff; i >= 0; i--) {
-        *(uint16_t *)(scratch + (int32_t)i * 2) = 0;
-
-        scratch[(int32_t)i + 0x2720] = (uint8_t)i;
-    }
-
-    ENGINE_STREAM.free_ent = 0x101;
-    ENGINE_STREAM.clear_flg = 0;
-    ENGINE_STREAM.first_code = 1;
-    ENGINE_STREAM.resume = 0;
-    ENGINE_STREAM.bit_pos = 0;
-    ENGINE_STREAM.bit_end = 0;
-
-    /* `huge_add` answers the normalised pair, which is `far_of`'s. */
-    ENGINE_STREAM.de_stack = scratch + 0x3720;
-}
 
 /*
  * 0x1ca62
@@ -887,20 +450,20 @@ int16_t decompress_lzw(void)
             al = *back++;
             if (--cx == 0) {
                 /* 0x1cbf9 - the caller's request is full mid-string. */
-                uint16_t rec;
+                struct resource *rec;
 
                 ENGINE_STREAM.out = out;
                 ENGINE_LZW_RESUME.scratch_at = (int16_t)(back - scratch);
 
-                rec = ENGINE_STREAM.record_ptr;
+                rec = ENGINE_STREAM.rec;
                 {
-                    uint16_t n = RESOURCE_PTR(rec)->spill_end;
+                    uint16_t n = rec->spill_end;
 
                     /* 0x1cc0a is `inc word ptr [si+0x1a]`: a carry out of the
                        end lands in the start. */
-                    if (++RESOURCE_PTR(rec)->spill_end == 0)
-                        RESOURCE_PTR(rec)->spill_start++;
-                    dg_near_ptr(ENGINE_STREAM.spill_ptr)[n] = al;
+                    if (++rec->spill_end == 0)
+                        rec->spill_start++;
+                    ENGINE_STREAM.spill[n] = al;
                 }
 
                 ENGINE_STREAM.wanted = 0;
@@ -936,70 +499,6 @@ step_back:
 
         ENGINE_STREAM.oldcode = ENGINE_STREAM.incode;
     }
-}
-
-/*
- * 0x1c92b
- *
- * Deliver the next `count` bytes of a resource, decompressing as needed, and
- * answer how many were actually delivered.
- *
- * Everything the three decompressors do is bookkeeping around DGROUP 0x5890,
- * which starts as what was asked for and is counted down as bytes are
- * produced; what came out is the difference. `resource_advance` runs first to
- * hand over anything left over from the last call, and again afterwards if the
- * request is still not full.
- *
- * The handler is chosen by the byte at DGROUP 0x57be, indexing a table at
- * DGROUP 0x3580 **fourteen bytes to the entry** with the near offset first.
- * Which entries are live was measured by hooking the indirect call, not read
- * off the table: exactly three, and the port maps their offsets back to the
- * routines rather than pretending to know the whole table.
- *
- * The two words at the record's +0x16:+0x18 are a running total of everything
- * this resource has produced.
- *
- * The first argument is not read. `resource_advance` takes none, and the handle
- * it would name is reached through a global.
- */
-int16_t resource_read(FILE *handle, uint16_t count)
-{
-    uint16_t rec;
-    int16_t got;
-
-    (void)handle;
-
-    ENGINE_STREAM.wanted = (int16_t)count;
-    resource_advance();
-
-    if (((int16_t)ENGINE_STREAM.wanted) != 0) {
-        uint16_t entry = ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].read_off;
-
-        switch (entry) {
-        case 0x0028:                    /* image 0x1c278 */
-            decompress_rle();
-            break;
-        case 0x0812:                    /* image 0x1ca62 */
-            decompress_lzw();
-            break;
-        case 0x25a2:                    /* image 0x1e7f2 */
-            decompress_lzss();
-            break;
-        default:
-            not_transcribed("a handler in the table at DGROUP 0x3580");
-            break;
-        }
-
-        if (((int16_t)ENGINE_STREAM.wanted) != 0)
-            resource_advance();
-    }
-
-    got = (int16_t)(count - ENGINE_STREAM.wanted);
-
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->pos += (uint16_t)got;
-
-    return got;
 }
 
 /*
@@ -1107,309 +606,49 @@ extract:
 }
 
 /*
- * 0x1c649
+ * 0x1cd2c
  *
- * Select a resource by handle and unpack its entry into the globals the rest of
- * the loader reads. A **** call, so its argument is at [bp+4].
- *
- * The table at DGROUP 0x57c0 holds 0x64 near pointers, one per handle, and a
- * handle outside 0..0x63 or naming a null entry answers 0. Note the low bound
- * is a *signed* test, so a negative handle is rejected rather than wrapping.
- *
- * The entry's byte at +0x20 is both a flag set and a small number: the whole
- * byte goes to 0x5888, its low five bits to 0x57be, and bit 0x20 selects
- * between two ways of finding the data.
- *
- * With bit 0x20 set the resource is already somewhere known and only its +6 is
- * kept. Without it, the data lies at a 32-bit offset from a far pointer - +6/+8
- * is the base and +0xa/+0xc the offset - and the two are added and normalised.
- * The original does that through the runtime's huge-pointer add at 0x0bf0a,
- * which folds the sum down until the offset is a single nibble, and then hands
- * the answer to `normalise_far_ptr_far`; so does the port.
+ * Decompression type 1 from a resource in memory, hand-written assembly. NOT TRANSCRIBED YET: a stub, which aborts.
  */
-int16_t select_resource(int16_t handle)
+int16_t near rle_from_memory(void)
 {
-    uint16_t entry;
-
-    if (handle < 0 || handle >= 0x64)
-        return 0;
-
-    entry = ENGINE_RESOURCE_SLOTS.slot_ptr[handle];
-    ENGINE_STREAM.record_ptr = (int16_t)entry;
-    if (entry == 0)
-        return 0;
-
-    ENGINE_STREAM.scratch = RESOURCE_PTR(entry)->scratch;
-    ENGINE_STREAM.spill_ptr = (int16_t)RESOURCE_PTR(entry)->work_ptr;
-
-    ENGINE_STREAM.kind = RESOURCE_PTR(entry)->kind;
-    ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
-
-    if ((ENGINE_STREAM.kind & 0x20) != 0) {
-        ENGINE_RESOURCE_FLAGS.file_ptr = RESOURCE_PTR(entry)->data.file_ptr;
-        ENGINE_RESOURCE_FLAGS.flags = 0x20;
-        return 1;
-    }
-
-    ENGINE_RESOURCE_FLAGS.flags = 0;
-    ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(entry)->data.ptr
-                                             + RESOURCE_PTR(entry)->in);
-    return 1;
-}
-/*
- * 0x1c389
- *
- * The next byte of whatever is being decompressed, or -1 at the end.
- *
- * There are two sources and the bit 0x20 at DGROUP 0x5888 chooses between them:
- * the resource file through `game_fgetc`, or a block already in memory, walked
- * by the huge pointer at DGROUP 0x5898 with `huge_post_add`.
- *
- * Either way the position at +0xa:+0xc of the record at DGROUP 0x588a is
- * stepped first, and the end test compares it against +0xe:+0x10 - so the count
- * is kept by the record and not by the source.
- *
- * The byte is zero-extended: `cbw` then `and ax,0xff`, which is the compiler
- * widening a `char` and then masking the sign back off.
- */
-int16_t next_input_byte(void)
-{
-    uint16_t rec = ENGINE_STREAM.record_ptr;
-
-    if (RESOURCE_PTR(rec)->in == RESOURCE_PTR(rec)->end)
-        return -1;
-
-    RESOURCE_PTR(rec)->in++;
-
-    if ((ENGINE_STREAM.kind & 0x20) != 0)
-        return game_fgetc(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr));
-
-    /* 0x5898 is `ENGINE_STREAM.in`, the read cursor the decompressors
-       walk, stepped as a huge pointer. */
-    return (int16_t)(*ENGINE_STREAM.in++ & 0xff);
-}
-
-/*
- * 0x1c6e3
- *
- * Does this NUL-terminated string contain the letter `r`?
- *
- * A **** function - it ends in `ret`, not `retf` - so its argument sits at
- * [bp+4] and the string is a DGROUP offset. The loop tests for the terminator
- * before each character and steps the pointer before testing it, so an empty
- * string answers no without reading anything.
- */
-int16_t string_contains_r(const char *str)
-{
-    const char *s = str;
-
-    while (*s != 0) {
-        const char *at = s;
-        s++;
-        if (*at == 'r')
-            return 1;
-    }
-    return 0;
-}
-/*
- * 0x1c705
- *
- * Free a pointer unless it is null - the whole routine.
- *
- * A **** call taking a near pointer, so its argument sits at [bp+4] rather
- * than the [bp+6] a far routine would use.
- *
- * The free itself is the C runtime's, which the port does not have; see
- * `io_malloc` in io.c for why it refuses rather than pretending.
- *
- * **Measured: the free path is reached on these screens**, so it cannot be
- * verified by exercising only the other branch. It is checked properly now
- * that the runtime's own allocator is transcribed.
- */
-void free_if_set(uint16_t p)
-{
-    if (p != 0)
-        io_free(dg_near_ptr(p));
-}
-/*
- * 0x1c71a
- *
- * Close a resource slot: give back everything it holds and clear its entry in
- * the table at DGROUP 0x57c0. Always answers -1.
- *
- * The record's +0 is a `calloc`ed block and goes through `free_if_set`. Its
- * +2:+4 is a far block from DOS, and that is only freed when there is **no**
- * shared block at DGROUP 0x3576 - when there is, the record was pointed at it
- * rather than given one of its own, and freeing it would take the shared one
- * away.
- *
- * The record itself is freed last, through the same `free_if_set`, and the slot
- * is zeroed whether or not there was anything in it.
- */
-int16_t close_resource_slot(uint16_t slot)
-{
-    uint16_t rec;
-
-    rec = ENGINE_RESOURCE_SLOTS.slot_ptr[slot];
-    ENGINE_STREAM.record_ptr = (int16_t)rec;
-
-    if (rec != 0) {
-        free_if_set(RESOURCE_PTR(rec)->work_ptr);
-
-        rec = ENGINE_STREAM.record_ptr;
-        if (RESOURCE_PTR(rec)->scratch != FAR_NULL_PTR
-            && DG3576.scratch == FAR_NULL_PTR)
-            dos_free_far(RESOURCE_PTR(rec)->scratch);
-    }
-
-    free_if_set(ENGINE_STREAM.record_ptr);
-    ENGINE_RESOURCE_SLOTS.slot_ptr[slot] = 0;
-
-    return -1;
-}
-
-/*
- * 0x1c783
- *
- * Take a resource slot. Answers its number, or -1 when all hundred are in use
- * or the record cannot be allocated.
- *
- * The table at DGROUP 0x57c0 is a hundred words and a zero means free. The
- * record is 0x21 bytes from `calloc`, so it starts cleared - which matters,
- * because `close_resource_slot` frees whatever pointers it finds in it.
- */
-int16_t open_resource_slot(void)
-{
-    int16_t si;
-    struct resource *rec;
-
-    for (si = 0; si < 0x64; si++) {
-        if (ENGINE_RESOURCE_SLOTS.slot_ptr[si] == 0)
-            break;
-    }
-
-    if (si == 0x64)
-        return -1;
-
-    rec = (struct resource *)(void *)heap_calloc_far(1, sizeof(struct resource));
-    ENGINE_STREAM.record_ptr = dg_near(dgroup, rec);
-    if (rec == NULL)
-        return -1;
-
-    ENGINE_RESOURCE_SLOTS.slot_ptr[si] = dg_near(dgroup, rec);
-    return si;
-}
-
-/*
- * 0x1c7d5
- *
- * Give a slot the working memory its decompression type needs. Answers 0, or -1
- * for a type above 3 or an allocation that failed.
- *
- * The sizes come from the same table the handlers do - fourteen bytes to the
- * entry, based at DGROUP **0x357a**, with the near handler offset six bytes
- * into it. That is where the 0x3580 the dispatcher in 0x1c92b uses comes from.
- *
- * Each entry holds two pairs of sizes and `string_contains_r` on the caller's
- * string chooses between them: a match takes the near size from +0 and the far
- * size from +2, no match takes a default near size of 0x80 and the far size
- * from +4.
- *
- * The near part is `calloc`ed. The far part is only allocated when there is no
- * shared block at DGROUP 0x3576; when there is, the record is pointed at that
- * one instead, which is the arrangement `close_resource_slot` has to know
- * about.
- */
-int16_t prepare_resource_slot(int16_t type, char *name)
-{
-    uint16_t near_size = 0x80;
-    uint16_t far_size;
-    uint16_t rec;
-
-    if (type > 3)
-        return -1;
-
-    if (string_contains_r(name) != 0) {
-        near_size = ENGINE_RES_HANDLERS.type[type].near_size;
-        far_size = ENGINE_RES_HANDLERS.type[type].far_size_read;
-    } else {
-        far_size = ENGINE_RES_HANDLERS.type[type].far_size;
-    }
-
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->work_ptr = dg_near(dgroup, heap_calloc_far(1, near_size));
-    if (RESOURCE_PTR(rec)->work_ptr == 0)
-        return -1;
-
-    if (far_size != 0) {
-        if (DG3576.scratch != FAR_NULL_PTR) {
-            rec = ENGINE_STREAM.record_ptr;
-            RESOURCE_PTR(rec)->scratch = DG3576.scratch;
-            ENGINE_STREAM.scratch = DG3576.scratch;
-        } else {
-            uint8_t far *p = dos_alloc_bytes(far_size, 0, 0).ptr;
-
-            rec = ENGINE_STREAM.record_ptr;
-            RESOURCE_PTR(rec)->scratch = p;
-            ENGINE_STREAM.scratch = p;
-        }
-
-        rec = ENGINE_STREAM.record_ptr;
-        if (RESOURCE_PTR(rec)->scratch == FAR_NULL_PTR)
-            return -1;
-    }
-
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->kind = (uint8_t)type;
+    not_transcribed("0x1cd2c, rle_from_memory");
     return 0;
 }
 
 /*
- * 0x1c8a7
+ * 0x1ce9d
  *
- * Hand over the next run of bytes from the selected resource, up to whatever
- * the caller still wants. A **** call taking nothing: everything is in the
- * globals `select_resource` set up.
- *
- * The entry's bytes at +0x1a and +0x1b are an end and a start, and their
- * difference is what is available. If that is more than the outstanding count
- * at 0x5890, only that much is taken and the start is advanced - by the **low
- * byte** of the count, because the start is a byte and the count is a word.
- * Otherwise the run is exhausted and both bytes are zeroed.
- *
- * The copy happens only with bit 0x40 set at 0x57ba. Without it the counters
- * still move, so a caller can walk a resource without reading it - which is how
- * a seek is done here.
- *
- * The destination far pointer at 0x5894 is advanced by the same amount through
- * the runtime's in-place huge-pointer add at 0x0be82, `huge_add_to`, which the
- * port calls too.
+ * The LZW compressor's start, for a resource opened to write. NOT TRANSCRIBED YET: a stub, which aborts.
  */
-void resource_advance(void)
+int16_t near lzw_open_write(void)
 {
-    uint16_t entry = ENGINE_STREAM.record_ptr;
-    uint16_t di = RESOURCE_PTR(entry)->spill_start;
-    uint16_t si = (uint16_t)(RESOURCE_PTR(entry)->spill_end - di);
-
-    if (si > ENGINE_STREAM.wanted) {
-        si = ENGINE_STREAM.wanted;
-        RESOURCE_PTR(entry)->spill_start = (uint8_t)(RESOURCE_PTR(entry)->spill_start + (uint8_t)si);
-    } else {
-        RESOURCE_PTR(entry)->spill_end = 0;
-        RESOURCE_PTR(entry)->spill_start = 0;
-    }
-
-    if (si == 0)
-        return;
-
-    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
-        far_memcpy(ENGINE_STREAM.out,
-                   dg_near_ptr((uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
-
-    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - si);
-
-    ENGINE_STREAM.out += (int32_t)si;
+    not_transcribed("0x1ce9d, lzw_open_write");
+    return 0;
 }
+
+/*
+ * 0x1cf1b
+ *
+ * The LZW compressor's pass over the spill ring. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+int16_t near lzw_flush(void)
+{
+    not_transcribed("0x1cf1b, lzw_flush");
+    return 0;
+}
+
+/*
+ * 0x1d40d
+ *
+ * The run-length compressor's pass over the spill ring. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+int16_t near rle_flush(void)
+{
+    not_transcribed("0x1d40d, rle_flush");
+    return 0;
+}
+
 /*
  * 0x1d54e
  *
@@ -1441,7 +680,7 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
                       uint32_t size)
 {
     int16_t slot;
-    uint16_t rec;
+    struct resource *rec;
     int16_t type;
     int32_t pos;
 
@@ -1451,15 +690,15 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
     if (slot == -1)
         return -1;
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->data.file_ptr = dg_near(dgroup, file);
+    rec = ENGINE_STREAM.rec;
+    rec->data.file = file;
 
     pos = game_ftell(file);
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->start = (uint32_t)pos;
+    rec = ENGINE_STREAM.rec;
+    rec->start = (uint32_t)pos;
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->in = 5;
+    rec = ENGINE_STREAM.rec;
+    rec->in = 5;
 
     if (string_contains_r(name) == 0) {
         not_transcribed("0x1d633, opening a resource for writing");
@@ -1467,8 +706,8 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
     }
 
     type = (int16_t)(game_fgetc(file) & 0xff);
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->kind = (uint8_t)type;
+    rec = ENGINE_STREAM.rec;
+    rec->kind = (uint8_t)type;
 
     if (prepare_resource_slot(type, name) == -1) {
         game_fseek(file, -1, 1);          /* 0xffff:0xffff is -1 */
@@ -1476,35 +715,20 @@ int16_t open_resource(uint16_t unused, FILE *file, char *name,
         return -1;
     }
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->end = size;
+    rec = ENGINE_STREAM.rec;
+    rec->end = size;
 
-    game_fread((uint8_t *)&RESOURCE_PTR(ENGINE_STREAM.record_ptr)->size,
+    game_fread((uint8_t *)&ENGINE_STREAM.rec->size,
                1, 4, file);
 
-    {
-        uint16_t entry = ENGINE_RES_HANDLERS.type[type].reset_off;
+    if (ENGINE_RES_HANDLERS.type[type].reset)
+        ENGINE_RES_HANDLERS.type[type].reset();
 
-        if (entry != 0) {
-            switch (entry) {
-            case 0x0720:                /* image 0x1c970 */
-                lzw_reset();
-                break;
-            case 0x19c5:                /* image 0x1dc15 */
-                lzss_reset();
-                break;
-            default:
-                not_transcribed("a reset in the table at DGROUP 0x3586");
-                break;
-            }
-        }
-    }
+    rec = ENGINE_STREAM.rec;
+    rec->kind = (uint8_t)(rec->kind | 0x40);
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x40);
-
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x20);
+    rec = ENGINE_STREAM.rec;
+    rec->kind = (uint8_t)(rec->kind | 0x20);
     return slot;
 }
 
@@ -1593,13 +817,13 @@ int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
  */
 int32_t resource_size(int16_t handle)
 {
-    uint16_t rec;
+    struct resource *rec;
 
     if (select_resource(handle) == 0)
         return -1;
 
-    rec = ENGINE_STREAM.record_ptr;
-    return RESOURCE_PTR(rec)->size;
+    rec = ENGINE_STREAM.rec;
+    return rec->size;
 }
 
 /*
@@ -1625,7 +849,7 @@ int32_t resource_size(int16_t handle)
  */
 int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
 {
-    uint16_t rec;
+    struct resource *rec;
     /* The target. Every comparison against it below is **signed** on the high
        word and unsigned on the low, which is one signed 32-bit compare - the
        original's `cmp hi / jg / jl / cmp lo / ja`. */
@@ -1634,20 +858,20 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
     if (select_resource(handle) == 0)
         return -1;
 
-    rec = ENGINE_STREAM.record_ptr;
+    rec = ENGINE_STREAM.rec;
 
     if (whence == 1)
-        t = RESOURCE_PTR(rec)->pos;
+        t = rec->pos;
     else if (whence == 2)
-        t = RESOURCE_PTR(rec)->size;
+        t = rec->size;
 
     t += by;
 
-    rec = ENGINE_STREAM.record_ptr;
-    if (RESOURCE_PTR(rec)->pos == t)
+    rec = ENGINE_STREAM.rec;
+    if (rec->pos == t)
         return t;
 
-    if (RESOURCE_PTR(rec)->pos > t) {
+    if (rec->pos > t) {
         /*
          * Backwards. The stream is started over - its answer is not looked at
          * - and the position is then 0, so the target *is* the distance left
@@ -1658,10 +882,10 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
 
         if (t <= 0)
             return 0;
-    } else if (RESOURCE_PTR(rec)->size > t) {
-        t -= RESOURCE_PTR(rec)->pos;
+    } else if (rec->size > t) {
+        t -= rec->pos;
     } else {
-        t = RESOURCE_PTR(rec)->size - RESOURCE_PTR(rec)->pos;
+        t = rec->size - rec->pos;
     }
 
     for (;;) {
@@ -1680,13 +904,13 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
         if (t == 0)
             break;
 
-        rec = ENGINE_STREAM.record_ptr;
-        ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(rec)->data.ptr
-                                                 + RESOURCE_PTR(rec)->in);
+        rec = ENGINE_STREAM.rec;
+        ENGINE_STREAM.in = (char huge *)normalise_far_ptr_far(
+            (uint8_t huge *)(rec->data.ptr + rec->in));
     }
 
-    rec = ENGINE_STREAM.record_ptr;
-    return RESOURCE_PTR(rec)->pos;
+    rec = ENGINE_STREAM.rec;
+    return rec->pos;
 }
 
 /*
@@ -1709,50 +933,46 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
  */
 int16_t restart_resource_stream(int16_t handle)
 {
-    uint16_t rec;
+    struct resource *rec;
 
     if (select_resource(handle) == 0 || (ENGINE_STREAM.kind & 0x40) == 0)
         return -1;
 
-    {
-        uint16_t entry = ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset_off;
+    if (ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset)
+        ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset();
 
-        if (entry != 0) {
-            switch (entry) {
-            case 0x0720:                /* image 0x1c970 */
-                lzw_reset();
-                break;
-            case 0x19c5:                /* image 0x1dc15 */
-                lzss_reset();
-                break;
-            default:
-                not_transcribed("a reset in the table at DGROUP 0x3586");
-                break;
-            }
-        }
-    }
+    rec = ENGINE_STREAM.rec;
+    rec->in = 5;
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->in = 5;
+    rec = ENGINE_STREAM.rec;
+    if (rec->kind & 0x20) {
+        uint32_t at = rec->start + 5;
 
-    rec = ENGINE_STREAM.record_ptr;
-    if (RESOURCE_PTR(rec)->kind & 0x20) {
-        uint32_t at = RESOURCE_PTR(rec)->start + 5;
-
-        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.file_ptr), (int32_t)at, 0);
+        game_fseek(ENGINE_RESOURCE_FLAGS.file, (int32_t)at, 0);
     } else {
-        ENGINE_STREAM.in = normalise_far_ptr_far(RESOURCE_PTR(rec)->data.ptr + 5);
+        ENGINE_STREAM.in = (char huge *)normalise_far_ptr_far((uint8_t huge *)(rec->data.ptr + 5));
     }
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->pos = 0;
+    rec = ENGINE_STREAM.rec;
+    rec->pos = 0;
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->spill_start = 0;
+    rec = ENGINE_STREAM.rec;
+    rec->spill_start = 0;
 
-    rec = ENGINE_STREAM.record_ptr;
-    RESOURCE_PTR(rec)->spill_end = 0;
+    rec = ENGINE_STREAM.rec;
+    rec->spill_end = 0;
 
+    return 0;
+}
+
+/*
+ * 0x1dba8
+ *
+ * The LZSS compressor's start, for a resource opened to write; assembly. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+int16_t near lzss_open_write(void)
+{
+    not_transcribed("0x1dba8, lzss_open_write");
     return 0;
 }
 
@@ -1768,13 +988,13 @@ int16_t restart_resource_stream(int16_t handle)
  */
 int16_t lzss_reset(void)
 {
-    uint16_t rec = ENGINE_STREAM.record_ptr;
+    struct resource *rec = ENGINE_STREAM.rec;
 
     ENGINE_DECOMPRESS_CACHE.lzss_ready = 0;
     ENGINE_BIT_BUFFER.bits = 0;
     ENGINE_BIT_BUFFER.bit_count = 0;
 
-    ENGINE_DECOMPRESS_CACHE.cache_c = RESOURCE_PTR(rec)->scratch;
+    ENGINE_DECOMPRESS_CACHE.cache_c = rec->scratch;
 
     return 0;
 }
@@ -1870,14 +1090,14 @@ int16_t huff_get_byte(void)
  */
 void huffman_start(void)
 {
-    uint16_t rec = ENGINE_STREAM.record_ptr;
+    struct resource *rec = ENGINE_STREAM.rec;
     uint16_t far *freq, far *prnt, far *son;
     int16_t i, j;
 
     /* Three places inside the scratch block, each in the block's own
        segment - the offset steps and the segment does not. */
     {
-        uint8_t far *scratch = RESOURCE_PTR(rec)->scratch;
+        uint8_t far *scratch = rec->scratch;
 
         ENGINE_DECOMPRESS_CACHE.cache_a = (uint16_t far *)(scratch + 0x103b);
         ENGINE_DECOMPRESS_CACHE.cache_b = (uint16_t far *)(scratch + 0x1523);
@@ -2069,6 +1289,17 @@ int16_t decode_position(void)
 }
 
 /*
+ * 0x1e5ae
+ *
+ * The LZSS compressor's pass over the spill ring. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+int16_t near lzss_flush(void)
+{
+    not_transcribed("0x1e5ae, lzss_flush");
+    return 0;
+}
+
+/*
  * 0x1e7f2
  *
  * Decompression type 3: LZSS over a 4096-byte ring, with the literals and match
@@ -2106,7 +1337,7 @@ int16_t decompress_lzss(void)
     int16_t si;
 
     if (ENGINE_DECOMPRESS_CACHE.lzss_ready == 0) {
-        uint16_t rec;
+        struct resource *rec;
         int16_t i;
 
         ENGINE_MATCH_RESUME.interrupted = 0;
@@ -2118,8 +1349,8 @@ int16_t decompress_lzss(void)
         ENGINE_LZSS_STATE.ring_pos = 0xfc4;
         ENGINE_LZSS_STATE.count = 0;
 
-        rec = ENGINE_STREAM.record_ptr;
-        ENGINE_LZSS_STATE.size = RESOURCE_PTR(rec)->size;
+        rec = ENGINE_STREAM.rec;
+        ENGINE_LZSS_STATE.size = rec->size;
         ENGINE_DECOMPRESS_CACHE.lzss_ready = 1;
     }
 

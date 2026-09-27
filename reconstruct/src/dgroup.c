@@ -1926,7 +1926,6 @@ struct dg_50af DG50AF DGROUP_BSS(0x50af);
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
 struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
 struct dg_5179 DG5179 DGROUP_BSS(0x5179);
-struct dg_3576 DG3576 DGROUP_WAS(0x3576);
 struct dg_521b DG521B DGROUP_BSS(0x521b);
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
 struct dos_program_top DOS_PROGRAM_TOP DGROUP_AT(0x00a0) = { .top_a = 0 };

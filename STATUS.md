@@ -88,6 +88,7 @@ assembled it itself.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/resource.c` | 0x1c251..0x1ca46, the resource streams (all `near`); `-mm`, no `-zC_TEXT` | 23 of 23, seven of them uncalled and new | `_DATA` 0x3576..0x35b2, `_BSS` 0x5788..0x58b8 |
 | `src/palette.c` | 0x1e967..0x1eded | 9 of 9 | `_DATA` 0x445e..0x44cf, `_BSS` 0x591a..0x5956 |
 | `src/polygon.c` | 0x1eded..0x20189 | assembly: host transcription, not judged | 0x44d0..0x44ea |
 | `src/compbmp.c` | 0x20189..0x20654 | 1 of 1 | whether 0x44ea is its `_DATA` is not settled |
