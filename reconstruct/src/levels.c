@@ -110,13 +110,14 @@ uint16_t part_index(struct part *part)
         return 0xffff;
 
     n = 0;
-    for (si = pick_by_flag(0x3000); si != PART_NONE; ) {
+    si = pick_by_flag(0x3000);
+    while (si != PART_NONE) {
         if (si == part) {
             si = PART_NONE;
-            break;
+        } else {
+            si = pick_for_record(si, 0x1000);
+            n++;
         }
-        si = pick_for_record(si, 0x1000);
-        n++;
     }
 
     return n;
@@ -225,19 +226,17 @@ void game_fread_string(FILE *file, char *buf)
  */
 void game_fread_line(FILE *file, char *buf)
 {
-    char *si = buf;
+    register char *si = buf;
 
-    if (game_fread_byte(file, (uint8_t *)si) == 0) {
+    if (game_fread_byte(file, (uint8_t *)si) != 0) {
+        while (*si != '\n') {
+            si++;
+            game_fread_byte(file, (uint8_t *)si);
+        }
+        si[-1] = 0;
+    } else {
         *si = 0;
-        return;
     }
-
-    while (*si != '\n') {
-        si++;
-        game_fread_byte(file, (uint8_t *)si);
-    }
-
-    si[-1] = 0;
 }
 
 /*
@@ -284,15 +283,16 @@ void game_fread_line(FILE *file, char *buf)
  * allocated from it, exactly as `part_init` does, before the far pointer at
  * +0x2a of the same record runs.
  */
-void read_record_fields(FILE *file, struct part *rec)
+void read_record_fields(FILE *file, register struct part *rec)
 {
-    uint16_t v10;       /* [bp-0x10] */
-    uint8_t v0b;                  /* [bp-0x0b] */
-    int16_t v0a;       /* [bp-0x0a] */
-    int16_t v08;       /* [bp-8] */
-    int16_t v06;       /* [bp-6] */
-    int16_t v04;       /* [bp-4] */
-    int16_t v02;       /* [bp-2] */
+    int16_t has_rope;                   /* [bp-2] */
+    int16_t has_belt;                   /* [bp-4] */
+    int16_t index;                      /* [bp-6] */
+    int16_t skip_count;                 /* [bp-8] */
+    int16_t i;                          /* [bp-0xa] */
+    uint8_t skip;                       /* [bp-0xb] */
+    struct rope *rope;                  /* [bp-0xe] */
+    uint16_t pulley;                    /* [bp-0x10] */
     struct belt *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
@@ -311,8 +311,7 @@ void read_record_fields(FILE *file, struct part *rec)
 
     game_fread_far(file, (uint8_t *)&rec->size[0].width);
     game_fread_far(file, (uint8_t *)&rec->size[0].height);
-    rec->mirror_size.height = rec->size[0].height;
-    rec->mirror_size.width = rec->size[0].width;
+    rec->mirror_size = rec->size[0];
 
     game_fread_far(file, (uint8_t *)&rec->set_size.width);
     game_fread_far(file, (uint8_t *)&rec->set_size.height);
@@ -320,24 +319,20 @@ void read_record_fields(FILE *file, struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->start_y);
     game_fread_far(file, (uint8_t *)&rec->word_96);
 
-    game_fread_far(file, (uint8_t *)&v02);
-    game_fread_byte(file, (&rec->grab.x));
-    game_fread_byte(file, (&rec->grab.y));
+    game_fread_far(file, (uint8_t *)&has_rope);
+    game_fread_byte(file, &rec->grab.x);
+    game_fread_byte(file, &rec->grab.y);
     game_fread_far(file, (uint8_t *)&rec->grab_size);
 
-    if (v02 != 0) {
-        struct rope *rope = (struct rope *)(void *)heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
-
-        rec->rope_ptr = dg_near(dgroup, rope);
+    if (has_rope != 0) {
+        rope = ROPE_PTR(rec->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38)));
         rope->owner_ptr = dg_near(dgroup, rec);
 
-        game_fread_far(file, (uint8_t *)&v06);
-        rope->end_a_ptr =
-            (uint16_t)part_by_index((int16_t)v06);
+        game_fread_far(file, (uint8_t *)&index);
+        rope->end_a_ptr = part_by_index(index);
 
-        game_fread_far(file, (uint8_t *)&v06);
-        rope->end_b_ptr =
-            (uint16_t)part_by_index((int16_t)v06);
+        game_fread_far(file, (uint8_t *)&index);
+        rope->end_b_ptr = part_by_index(index);
 
         if (rope->end_a_ptr != 0)
             PART_PTR(rope->end_a_ptr)->rope_ptr = dg_near(dgroup, rope);
@@ -346,70 +341,61 @@ void read_record_fields(FILE *file, struct part *rec)
             PART_PTR(rope->end_b_ptr)->rope_ptr = dg_near(dgroup, rope);
     }
 
-    for (v0a = 0; v0a < 2; v0a++) {
-        game_fread_far(file, (uint8_t *)&v04);
-        game_fread_byte(file, (&rec->attach[(uint16_t)v0a].x));
-        game_fread_byte(file, (&rec->attach[(uint16_t)v0a].y));
+    for (i = 0; i < 2; i++) {
+        game_fread_far(file, (uint8_t *)&has_belt);
+        game_fread_byte(file, &rec->attach[i].x);
+        game_fread_byte(file, &rec->attach[i].y);
 
-        if (v04 == 0)
+        if (has_belt == 0)
             continue;
 
-        di = (struct belt *)(void *)heap_calloc_far(1, 0x2c);
-        rec->belt_ptr[(uint16_t)v0a] = dg_near(dgroup, di);
-        BELT_PTR(rec->belt_ptr[(uint16_t)v0a])->owner_ptr = dg_near(dgroup, rec);
+        di = BELT_PTR(rec->belt_ptr[i] = dg_near(dgroup, heap_calloc_far(1, 0x2c)));
+        BELT_PTR(rec->belt_ptr[i])->owner_ptr = dg_near(dgroup, rec);
 
-        game_fread_far(file, (uint8_t *)&v06);
-        di->end_a_ptr =
-            (uint16_t)part_by_index((int16_t)v06);
+        game_fread_far(file, (uint8_t *)&index);
+        di->end_a_ptr = part_by_index(index);
         di->home_a_ptr = di->end_a_ptr;
 
-        game_fread_far(file, (uint8_t *)&v06);
-        di->end_b_ptr =
-            (uint16_t)part_by_index((int16_t)v06);
+        game_fread_far(file, (uint8_t *)&index);
+        di->end_b_ptr = part_by_index(index);
         di->home_b_ptr = di->end_b_ptr;
 
         game_fread_byte(file, &di->slot_a);
-        di->home_slot_a = ((int8_t)di->slot_a);
+        di->home_slot_a = di->slot_a;
         game_fread_byte(file, &di->slot_b);
-        di->home_slot_b = ((int8_t)di->slot_b);
+        di->home_slot_b = di->slot_b;
 
         if (di->end_a_ptr != 0)
-            PART_PTR(di->end_a_ptr)->belt_ptr[(int8_t)di->slot_a] = dg_near(dgroup, di);
+            PART_PTR(di->end_a_ptr)->belt_ptr[di->slot_a] = dg_near(dgroup, di);
 
         if (di->end_b_ptr != 0)
-            PART_PTR(di->end_b_ptr)->belt_ptr[(int8_t)di->slot_b] = dg_near(dgroup, di);
+            PART_PTR(di->end_b_ptr)->belt_ptr[di->slot_b] = dg_near(dgroup, di);
     }
 
-    for (v0a = 0; v0a < 2; v0a++) {
-        game_fread_far(file, (uint8_t *)&v06);
-        rec->link_ptr[(uint16_t)v0a + 2] =
-            (uint16_t)part_by_index((int16_t)v06);
-        rec->link_ptr[(uint16_t)v0a] =
-            rec->link_ptr[(uint16_t)v0a + 2];
+    for (i = 0; i < 2; i++) {
+        game_fread_far(file, (uint8_t *)&index);
+        rec->link_ptr[i] = rec->link_ptr[i + 2] = part_by_index(index);
     }
 
     if (LEVEL_IO.version >= 0x101) {
-        for (v0a = 4; v0a < 6; v0a++) {
-            game_fread_far(file, (uint8_t *)&v06);
-            rec->link_ptr[(uint16_t)v0a] =
-                (uint16_t)part_by_index((int16_t)v06);
+        for (i = 4; i < 6; i++) {
+            game_fread_far(file, (uint8_t *)&index);
+            rec->link_ptr[i] = part_by_index(index);
         }
     }
 
     if (rec->kind == KIND_PULLEY) {
-        game_fread_far(file, (uint8_t *)&v06);
-        v10 = part_by_index((int16_t)v06);
-        if (v10 != 0)
-            rec->belt_ptr[1] =
-                PART_PTR(v10)->belt_ptr[0];
+        game_fread_far(file, (uint8_t *)&index);
+        if ((pulley = part_by_index(index)) != 0)
+            rec->belt_ptr[1] = PART_PTR(pulley)->belt_ptr[0];
     }
 
     if (LEVEL_IO.version <= 0x101) {
-        game_fread_far(file, (uint8_t *)&v08);
-        if (v08 != 0) {
-            for (v0a = 0; v0a < v08; v0a++) {
-                game_fread_byte(file, &v0b);
-                game_fread_byte(file, &v0b);
+        game_fread_far(file, (uint8_t *)&skip_count);
+        if (skip_count != 0) {
+            for (i = 0; i < skip_count; i++) {
+                game_fread_byte(file, &skip);
+                game_fread_byte(file, &skip);
             }
         }
     }
@@ -417,8 +403,7 @@ void read_record_fields(FILE *file, struct part *rec)
     rec->point_count = PART_KINDS[rec->kind].point_count;
 
     if (rec->point_count != 0)
-        rec->points_ptr =
-            dg_near(dgroup, heap_calloc_far(rec->point_count, 4));
+        rec->points_ptr = dg_near(dgroup, heap_calloc_far(rec->point_count, 4));
 
     PART_KINDS[rec->kind].setup(rec);
 }
@@ -453,7 +438,7 @@ void read_list(FILE *file, register struct part *head, int16_t n)
 {
     struct part *list = head;           /* [bp-2] */
     struct part *rec;                   /* [bp-4] */
-    register int16_t di;
+    int16_t di;
 
     head->next_ptr = head->prev_ptr = 0;
 
@@ -652,14 +637,14 @@ void write_string(FILE *file, char *str)
  * or 0xffff when there is none. That is the one place this writes 0xffff
  * itself; everywhere else it comes back from `part_index`.
  */
-void write_record_fields(FILE *file, struct part *part)
+void write_record_fields(register FILE *file, register struct part *part)
 {
-    int16_t vindex;   /* [bp-6] */
-    int16_t vbelt;   /* [bp-4] */
-    int16_t vrope;/* [bp-2] */
-    struct rope *rope;
-    uint16_t belt;
-    int16_t  i;
+    int16_t vrope;                      /* [bp-2] */
+    int16_t vbelt;                      /* [bp-4] */
+    int16_t vindex;                     /* [bp-6] */
+    int16_t i;                          /* [bp-8] */
+    struct rope *rope;                  /* [bp-0xa] */
+    uint16_t belt;                      /* [bp-0xc] */
 
     write_word(file, (const uint8_t *)&part->kind);
     write_word(file, (const uint8_t *)&part->flags_06);
@@ -675,62 +660,63 @@ void write_record_fields(FILE *file, struct part *part)
     write_word(file, (const uint8_t *)&part->start_y);
     write_word(file, (const uint8_t *)&part->word_96);
 
-    vrope = (int16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
+    if (part->kind == 8)
+        vrope = 1;
+    else
+        vrope = 0;
     write_word(file, (uint8_t *)&vrope);
 
     write_byte(file, (const uint8_t *)&part->grab.x);
     write_byte(file, (const uint8_t *)&part->grab.y);
     write_word(file, (const uint8_t *)&part->grab_size);
 
-    if ((uint16_t)vrope != 0) {
+    if (vrope != 0) {
         rope = ROPE_PTR(part->rope_ptr);
 
-        vindex = (int16_t)part_index(PART_PTR(rope->end_a_ptr));
+        vindex = part_index(PART_PTR(rope->end_a_ptr));
         write_word(file, (uint8_t *)&vindex);
-        vindex = (int16_t)part_index(PART_PTR(rope->end_b_ptr));
+        vindex = part_index(PART_PTR(rope->end_b_ptr));
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 0; i < 2; i++) {
-        vbelt = (int16_t)((i == 0
-                                   && (((int16_t)part->kind) == 0x0a
-                                       || ((int16_t)part->kind) == 7))
-                                  ? 1 : 0);
+        if (i == 0 && (part->kind == 0x0a || part->kind == 7))
+            vbelt = 1;
+        else
+            vbelt = 0;
         write_word(file, (uint8_t *)&vbelt);
 
         write_byte(file, &part->attach[i].x);
         write_byte(file, &part->attach[i].y);
 
-        if ((uint16_t)vbelt != 0) {
+        if (vbelt != 0) {
             belt = part->belt_ptr[0];
 
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
+            vindex = part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
             write_word(file, (uint8_t *)&vindex);
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
+            vindex = part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
             write_word(file, (uint8_t *)&vindex);
 
-            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0a)));
-            write_byte(file, dg_near_ptr((uint16_t)(belt + 0x0b)));
+            write_byte(file, &BELT_PTR(belt)->slot_a);
+            write_byte(file, &BELT_PTR(belt)->slot_b);
         }
     }
 
     for (i = 0; i < 2; i++) {
-        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
+        vindex = part_index(PART_PTR(part->link_ptr[i]));
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        vindex = (int16_t)part_index(PART_PTR(part->link_ptr[i]));
+        vindex = part_index(PART_PTR(part->link_ptr[i]));
         write_word(file, (uint8_t *)&vindex);
     }
 
-    if (((int16_t)part->kind) == 7) {
-        belt = part->belt_ptr[1];
-
-        if (belt != 0)
-            vindex = (int16_t)part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
+    if (part->kind == 7) {
+        if ((belt = part->belt_ptr[1]) != 0)
+            vindex = part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
         else
-            vindex = (int16_t)0xffff;
+            vindex = -1;
 
         write_word(file, (uint8_t *)&vindex);
     }
@@ -827,56 +813,55 @@ void write_part_count(FILE *file, struct part *head)
  * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
  * save handlers set around the picker.
  */
-uint16_t write_level(char *name)
+uint16_t write_level(register char *name)
 {
-    FILE *f;
+    register FILE *f;
 
     LEVEL_IO.error = 0;
     LEVEL_IO.version_out = 0xaced;
     LEVEL_IO.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    f = game_fopen(name, GAME_FILE_NAMES.wb_write_level);
-    if (f == 0) {
+    if ((f = game_fopen(name, GAME_FILE_NAMES.wb_write_level)) != 0) {
+        write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
+        write_word(f, (const uint8_t *)&LEVEL_IO.version);
+
+        if (LEVEL_IO.is_level != 0) {
+            write_string(f, (char *)DG4E67.title);
+            write_string(f, (char *)DG4E67.hint);
+            write_word(f, (const uint8_t *)&DG50AF.bonus_1);
+            write_word(f, (const uint8_t *)&DG50AF.bonus_2);
+        }
+
+        write_word(f, (const uint8_t *)&DG50AF.gravity);
+        write_word(f, (const uint8_t *)&DG50AF.air);
+
+        if (LEVEL_IO.is_level != 0) {
+            write_word(f, (const uint8_t *)&DG50AF.extent_y);
+            write_word(f, (const uint8_t *)&DG50AF.extent_x);
+        }
+
+        write_word(f, (const uint8_t *)&DG50AF.tune);
+
+        write_part_count(f, &DG521B.placed_parts);
+        write_part_count(f, &DG5179.moving_parts);
+        write_part_count(f, &DG50D3.parts_bin);
+
+        write_part_list(f, &DG521B.placed_parts, 0);
+        write_part_list(f, &DG5179.moving_parts, 1);
+        write_part_list(f, &DG50D3.parts_bin, 2);
+
+        if (game_fclose(f) != 0)
+            LEVEL_IO.error = 1;
+
+        if (LEVEL_IO.error != 0)
+            dos_unlink(name);
+
+        DG4E67.file_op_active = 0;
+    } else {
         DG4E67.file_op_active = 0;
         return 1;
     }
-
-    write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
-    write_word(f, (const uint8_t *)&LEVEL_IO.version);
-
-    if (LEVEL_IO.is_level != 0) {
-        write_string(f, (char *)DG4E67.title);
-        write_string(f, (char *)DG4E67.hint);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_1);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_2);
-    }
-
-    write_word(f, (const uint8_t *)&DG50AF.gravity);
-    write_word(f, (const uint8_t *)&DG50AF.air);
-
-    if (LEVEL_IO.is_level != 0) {
-        write_word(f, (const uint8_t *)&DG50AF.extent_y);
-        write_word(f, (const uint8_t *)&DG50AF.extent_x);
-    }
-
-    write_word(f, (const uint8_t *)&DG50AF.tune);
-
-    write_part_count(f, &DG521B.placed_parts);
-    write_part_count(f, &DG5179.moving_parts);
-    write_part_count(f, &DG50D3.parts_bin);
-
-    write_part_list(f, &DG521B.placed_parts, 0);
-    write_part_list(f, &DG5179.moving_parts, 1);
-    write_part_list(f, &DG50D3.parts_bin, 2);
-
-    if (game_fclose(f) != 0)
-        LEVEL_IO.error = 1;
-
-    if (LEVEL_IO.error != 0)
-        dos_unlink(name);
-
-    DG4E67.file_op_active = 0;
     return LEVEL_IO.error;
 }
 
@@ -945,9 +930,10 @@ void load_animation(char *name)
  */
 uint16_t save_machine(char *name)
 {
-    uint16_t held = DG50D3.parts_bin.next_ptr;
-    uint16_t r;
+    uint16_t r;                         /* [bp-2] */
+    uint16_t held;                      /* [bp-4] */
 
+    held = DG50D3.parts_bin.next_ptr;
     DG50D3.parts_bin.next_ptr = 0;
     LEVEL_IO.is_level = 0;
 
@@ -971,20 +957,19 @@ uint16_t save_machine(char *name)
  */
 uint16_t is_machine_file(char *name)
 {
-    int16_t magic;                /* [bp-2] */
-    FILE *file;
-    uint16_t ok    = 0;
+    uint16_t magic;               /* [bp-2] */
+    register FILE *file;
 
-    file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file);
-
-    if (file != 0) {
+    if ((file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file)) != 0) {
         game_fread_far(file, (uint8_t *)&magic);
-        if ((uint16_t)magic == 0xaced)
-            ok = 1;
+        if (magic == 0xaced) {
+            game_fclose(file);
+            return 1;
+        }
     }
 
     game_fclose(file);
-    return ok;
+    return 0;
 }
 
 /*
@@ -1003,24 +988,20 @@ uint16_t is_machine_file(char *name)
  */
 void count_level_files(void)
 {
-    char name[16];                         /* [bp-0x18] */
-    char number[8];    /* [bp-8]    */
-    int16_t done = 0;
+    char number[8];                     /* [bp-8] */
+    FILE *file;                         /* [bp-0xa] */
+    char name[14];                      /* [bp-0x18] */
+    register int16_t done = 0;
 
     DG4E67.level_count = 1;
 
     while (done == 0) {
-        FILE *file;
-
         string_copy(name, GAME_FILE_NAMES.l_count_levels);
-        int_to_string((int16_t)((uint16_t)DG4E67.level_count),
-                      number, 10);
+        int_to_string(DG4E67.level_count, number, 10);
         string_concat(name, number);
         string_concat(name, GAME_FILE_NAMES.lev_count_levels);
 
-        file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels);
-
-        if (file != 0) {
+        if ((file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels)) != 0) {
             DG4E67.level_count++;
             game_fclose(file);
         } else {
@@ -1046,33 +1027,31 @@ void count_level_files(void)
  */
 uint16_t get_puzzle_title(int16_t n, char *buf)
 {
-    char name[14];                 /* [bp-0x1a] */
-    char num[8]; /* [bp-0x0c] */
-    uint8_t skip[2]; /* [bp-4]    */
-    int16_t magic; /* [bp-2]   */
-    FILE *file;
-    uint16_t ok = 0;
+    uint16_t magic;                     /* [bp-2] */
+    uint8_t skip[2];                    /* [bp-4] */
+    char num[8];                        /* [bp-0xc] */
+    char name[14];                      /* [bp-0x1a] */
+    register FILE *file;
 
     string_copy(name, GAME_FILE_NAMES.l_puzzle_title);
     int_to_string(n, num, 10);
     string_concat(name, num);
     string_concat(name, GAME_FILE_NAMES.lev_puzzle_title);
 
-    file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title);
+    if ((file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title)) == 0)
+        return 0;
 
-    if (file != 0) {
-        game_fread_far(file, (uint8_t *)&magic);
+    game_fread_far(file, (uint8_t *)&magic);
 
-        if ((uint16_t)magic != 0xaced) {
-            game_fclose(file);
-        } else {
-            game_fread_far(file, skip);
-            game_fread_string(file, buf);
-            game_fclose(file);
-            ok = 1;
-        }
+    if (magic != 0xaced) {
+        game_fclose(file);
+        return 0;
     }
-    return ok;
+
+    game_fread_far(file, skip);
+    game_fread_string(file, buf);
+    game_fclose(file);
+    return 1;
 }
 
 /*
@@ -1097,13 +1076,13 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
  * Not found is 0xffff, and a file that will not open leaves it at that without
  * reading anything.
  */
-uint16_t password_to_level(char *text)
+uint16_t password_to_level(register char *text)
 {
-    char line[26];                    /* [bp-0x1a] */
-    char *dash;
-    FILE *file;
-    int16_t  n      = 1;                    /* [bp-4] */
-    int16_t  answer = -1;                   /* [bp-2] */
+    int16_t answer;                     /* [bp-2] */
+    int16_t n;                          /* [bp-4] */
+    FILE *file;                         /* [bp-6] */
+    char line[20];                      /* [bp-0x1a] */
+    register char *dash;
 
     string_upper(text);
 
@@ -1111,26 +1090,22 @@ uint16_t password_to_level(char *text)
     if (dash != NULL)
         *dash = 0;
 
-    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, GAME_FILE_NAMES.rb_password_level);
+    answer = -1;
+    n = 1;
 
-    if (file != 0) {
-        game_fread_line(file, line);
-
-        while ((*line) != 0) {
+    if ((file = game_fopen(GAME_FILE_NAMES.password_txt_level,
+                           GAME_FILE_NAMES.rb_password_level)) != 0) {
+        while (game_fread_line(file, line), *line) {
             n++;
-
             if (string_compare_nocase(text, line) == 0)
                 answer = n;
-
-            game_fread_line(file, line);
         }
-
         game_fclose(file);
     }
 
     if (dash != NULL)
         *dash = '-';
-    return (uint16_t)answer;
+    return answer;
 }
 
 /*
@@ -1150,22 +1125,20 @@ uint16_t password_to_level(char *text)
  * count of zero reads nothing at all and any other count reads exactly that
  * many lines.
  */
-void read_password_line(int16_t count, char *buf)
+void read_password_line(register int16_t count, register char *buf)
 {
     FILE *f;
 
     *buf = 0;
 
-    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, GAME_FILE_NAMES.rb_password_line);
-    if (f == 0)
-        return;
-
-    while (count != 0) {
-        count--;
-        game_fread_line(f, buf);
+    if ((f = game_fopen(GAME_FILE_NAMES.password_txt_line,
+                        GAME_FILE_NAMES.rb_password_line)) != 0) {
+        while (count != 0) {
+            count--;
+            game_fread_line(f, buf);
+        }
+        game_fclose(f);
     }
-
-    game_fclose(f);
 }
 
 /*
@@ -1208,9 +1181,9 @@ uint16_t read_tim_cfg(void)
  */
 void write_config(void)
 {
-    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg);
+    register FILE *file;
 
-    if (file != 0) {
+    if ((file = game_fopen(GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg)) != 0) {
         write_word(file, (const uint8_t *)&DG4E67.furthest_level);
         write_word(file, (const uint8_t *)&DG4E67.master_level);
         game_fclose(file);

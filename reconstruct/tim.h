@@ -837,7 +837,7 @@ char *string_reverse(char *s);                /* 0x0de1e */
 char *string_upper(char *s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(const char *a, const char *b,
                            uint16_t n);             /* 0x0dddb */
-char *string_chr(char *s, char c);          /* 0x0dcce */
+char *string_chr(char *s, int16_t c);       /* 0x0dcce */
 int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
 char *string_copy_far(char *dst, const char *src); /* 0x0bb4f */
 char *string_concat_far(char *dst, const char *src); /* 0x0bb3c */

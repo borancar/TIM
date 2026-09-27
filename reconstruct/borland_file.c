@@ -2094,10 +2094,10 @@ char *string_copy(char *dst, const char *src)
  * a pointer to the match or zero - and the two exits differ by the `inc si`
  * that makes `[si-2]` name the high half instead of the low one.
  */
-char *string_chr(char *s, char c)
+char *string_chr(char *s, int16_t c)
 {
     for (;;) {
-        if (*s == c)
+        if (*s == (char)c)
             return s;
         if (*s == 0)
             return NULL;
