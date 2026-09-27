@@ -39,10 +39,10 @@
 
 #ifdef __TURBOC__
 /*
- * The module as TASM assembled it. Borland C++ passes a file-level `asm`
- * block through to the assembler whole (`-S`, then TASM), so this is the
- * source the image's bytes come from; the host's transcription is the
- * `#else`. A C comment is the only kind the block may carry.
+ * The module as TASM assembled it: the judge hands this block to TASM 1.01
+ * (`JUDGE: tasm`), so it is the source the image's bytes come from; the
+ * host's transcription is the `#else`. A C comment is the only kind the
+ * block may carry.
  */
 asm {
 _TEXT segment word public 'CODE'
