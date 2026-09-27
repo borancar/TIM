@@ -1432,6 +1432,21 @@ has checked.
 
 What `tools/native` can and cannot observe.
 
+### A routine that moves to a new file moves out of its hybrid layer
+
+The hybrid chooses which of the port's routines stand in for the machine by
+the file that defines them (`tools/native/genshims.py`): `borland_file.c` is
+the `dos` layer, and `TIM_NATIVE_LAYERS=io` dispatches it. On 2026-09-27 the
+game's DOS helpers moved from `borland_file.c` into their own module file,
+`src/dos.c`, which no rule named - so they fell into `game`, the hybrid left
+them to the original's bytes, and their INT 21h had no DOS to answer. Every
+level of `check_machines` reported that the hybrid did not load, while
+`check_solutions` and the screens, which run the port alone, stayed green.
+
+**A new file that holds machine-facing routines needs its layer in
+`LAYER_OF_FILE`, and one that mixes them needs `LAYER_OF_FN` for the
+exceptions.** Only `check_machines` sees the difference.
+
 ### A hybrid that runs the port's game code compares the port with itself
 
 `check_machines` ran the hybrid with every layer dispatched, the port's game

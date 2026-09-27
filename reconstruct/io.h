@@ -453,6 +453,10 @@ uint16_t io_dos_curdrive(void);
 void     io_dos_getcwd(uint8_t *buf);
 int16_t  io_dos_getattr(const char *name);
 int16_t  io_dos_setattr(const char *name, uint16_t attr);
+int16_t  io_dos_mkdir(const char *path);
+int16_t  io_dos_rmdir(const char *path);
+uint16_t io_dos_drive_fixed(uint8_t drive);
+void     io_dos_disk_reset(void);
 int16_t  io_dos_chdir(const char *path);
 int16_t  io_dos_setdisk(uint8_t drive);
 int16_t  io_dos_findfirst(const char *pattern, uint16_t attr,

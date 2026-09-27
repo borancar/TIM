@@ -1601,6 +1601,14 @@ uint16_t angle_between_parts(struct part *part, struct part *other);  /* 0x04c0d
 void discard_part(struct part *part);                   /* 0x05457 */
 uint16_t select_puzzle_screen(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
+uint16_t diskette_motor_bit(uint16_t bit);            /* 0x0b740 */
+uint16_t dos_mkdir(const char *path);                 /* 0x0b76a */
+uint16_t dos_rmdir(const char *path);                 /* 0x0b77f */
+uint16_t dos_drive_letter(void);                      /* 0x0b7a9 */
+uint16_t dos_drive_fixed(uint16_t drive);             /* 0x0b7db */
+void     dos_disk_reset(void);                        /* 0x0b7eb */
+uint16_t dos_set_attributes(const char *name, uint16_t attr); /* 0x0b7f1 */
+uint16_t dos_get_attributes(const char *name);        /* 0x0b805 */
 void     dos_setdisk(uint8_t letter);               /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */

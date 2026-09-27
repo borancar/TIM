@@ -243,6 +243,7 @@ a case it does not obviously cover.
 - A Unicorn read hook over a `uc_mem_map_ptr` region breaks the guest - [more](docs/lessons.md#a-unicorn-read-hook-over-a-uc_mem_map_ptr-region-breaks-the-guest)
 - The hybrid cannot watch what it has dispatched - [more](docs/lessons.md#the-hybrid-cannot-watch-what-it-has-dispatched)
 - A hybrid that runs the port's game code compares the port with itself: `check_machines` runs it under `io` - [more](docs/lessons.md#a-hybrid-that-runs-the-ports-game-code-compares-the-port-with-itself)
+- A routine that moves to a new file moves out of its hybrid layer: name the file in genshims.py's `LAYER_OF_FILE` - [more](docs/lessons.md#a-routine-that-moves-to-a-new-file-moves-out-of-its-hybrid-layer)
 
 ### DGROUP, frames and pointers
 

@@ -462,6 +462,11 @@ what reaches DOS or a device has to be the port.
 """
 LAYER_OF_FILE = {
     "borland_file.c": "dos",
+    # The game's own DOS helpers - `findfirst`, `chdir`, `unlink` and the rest,
+    # an assembly module of segment 0000 - are INT 21h as much as the
+    # library's are; `isr_stack_switch`, which shares their module, is not
+    # (LAYER_OF_FN).
+    "dos.c": "dos",
     "borland_heap.c": "mem",
     "borland_huge.c": "mem",
 }
@@ -485,6 +490,10 @@ LAYER_OF_FILE = {
 # clock, which is the difference `native.c` already relies on by not calling
 # `io_set_timer`.
 LAYER_OF_FN = {
+    # dos.c's one routine that is not DOS: it swaps SS:SP, which the
+    # original's own bytes do under the emulator as they always have.
+    "isr_stack_switch":      "game",
+
     # INT 21h ah=48h/49h: DOS itself, not the allocator above it.
     "dos_alloc_bytes":       "dos",
     "dos_free_far":          "dos",

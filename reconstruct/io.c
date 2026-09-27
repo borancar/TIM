@@ -1894,6 +1894,40 @@ int16_t io_dos_setattr(const char *name, uint16_t attr)
     return 5;
 }
 
+/*
+ * INT 21h AH=39h and AH=3Ah, `mkdir` and `rmdir`: refused with DOS 5, access
+ * denied, as `io_dos_setattr` refuses. The port serves the game's directory
+ * and a file overlay on it, and has nowhere to keep a directory the game
+ * makes; nothing in the game asks for either.
+ */
+int16_t io_dos_mkdir(const char *path)
+{
+    (void)path;
+    return 5;
+}
+
+int16_t io_dos_rmdir(const char *path)
+{
+    (void)path;
+    return 5;
+}
+
+/*
+ * INT 21h AX=4408h, is the medium removable: 1, fixed, for the one drive the
+ * port serves. The carry is not the caller's business - the game's routine
+ * does not look at it.
+ */
+uint16_t io_dos_drive_fixed(uint8_t drive)
+{
+    (void)drive;
+    return 1;
+}
+
+/* INT 21h AH=0Dh, the disk reset: the host has no DOS buffers to flush. */
+void io_dos_disk_reset(void)
+{
+}
+
 int32_t io_dos_forget(const char *name)
 {
     int32_t i = overlay_find(name);
