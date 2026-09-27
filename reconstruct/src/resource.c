@@ -40,13 +40,14 @@ struct dg_3576 DG3576 DGROUP_WAS(0x3576) = { 0 };
  * with. A null is a type without one. Type 0 is stored, 1 run-length, 2
  * LZW and 3 LZSS.
  *
- * `lzw_reset` answers nothing; the table holds it as the others are held,
- * and nothing reads what the call answers.
+ * `lzw_reset` and `rle_flush` answer nothing; the table holds them as the
+ * others are held, and nothing reads what the call answers.
  */
 struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_WAS(0x357a) = {
     {
         { 0x0080, 0x0000, 0x0000, decompress_store, store_flush, 0, 0 },
-        { 0x0080, 0x0000, 0x0000, decompress_rle, rle_flush, 0, 0 },
+        { 0x0080, 0x0000, 0x0000, decompress_rle,
+          (res_flush_fn)(void (near *)(void))rle_flush, 0, 0 },
         { 0x0080, 0x3ab3, 0x7566, decompress_lzw, lzw_flush,
           lzw_open_write, (res_fn)lzw_reset },
         { 0x0080, 0x2163, 0x2163, decompress_lzss, lzss_flush,
@@ -125,7 +126,7 @@ int16_t near decompress_rle(void)
  * `spill_end`, the index wrapping at 0x80. Type 0's flush in the handler
  * table - the writing side, which nothing reaches.
  */
-int16_t near store_flush(void)
+int16_t near store_flush(int16_t final)
 {
     uint16_t i;
     register uint8_t *buf;
@@ -423,7 +424,7 @@ int16_t near close_resource_slot(int16_t slot)
  * so it starts cleared - which matters, because `close_resource_slot` frees
  * whatever pointers it finds in it.
  */
-int16_t near open_resource_slot(void)
+int16_t near open_resource_slot(char *mode)
 {
     int16_t i;
 
@@ -528,7 +529,7 @@ void near resource_advance(void)
  *
  * The first argument is not read.
  */
-int16_t near resource_read(FILE *handle, uint16_t count)
+int16_t near resource_read(int16_t handle, uint16_t count)
 {
     ENGINE_STREAM.wanted = count;
     resource_advance();

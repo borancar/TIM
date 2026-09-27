@@ -4533,6 +4533,8 @@ struct resource {
 
 /* A handler routine: near in the image, answering a word. */
 typedef int16_t (near *res_fn)(void);
+/* The flush, which takes whether this is the last. */
+typedef int16_t (near *res_flush_fn)(int16_t final);
 
 /*
  * **One resource handler**, fourteen bytes in the image: the near work
@@ -4544,7 +4546,8 @@ struct res_handler {
     uint16_t  far_size_read;      /* +0x02  when the mode string has an "r" */
     uint16_t  far_size;           /* +0x04  otherwise */
     res_fn    read;               /* +0x06  the decoder */
-    res_fn    flush;              /* +0x08  the writing side's, at close */
+    res_flush_fn flush;           /* +0x08  the writing side's: after a write, and with
+                                     `final` set at close */
     res_fn    open_write;         /* +0x0a  and at an open for writing */
     res_fn    reset;              /* +0x0c  a stream's start and restart */
 };

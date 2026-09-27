@@ -1882,19 +1882,11 @@ void expand_1bpp_to_4bpp(const uint8_t huge * src, uint8_t huge * dst,
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 
-int16_t restart_resource_stream(int16_t handle);     /* 0x1dae6 */
 int16_t near lzss_reset(void);                      /* 0x1dc15 */
-int16_t open_resource(uint16_t unused, FILE *file, char *name,
-                      uint32_t size);                       /* 0x1d54e */
-int16_t close_resource(int16_t handle);             /* 0x1d798 */
-int32_t resource_size(int16_t handle);             /* 0x1d95f */
-int32_t resource_seek(int16_t handle, int32_t by,
-                       int16_t whence);                /* 0x1d983 */
-int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count); /* 0x1d868 */
 /* resource.c: the resource streams, near routines of segment 1c25. */
 int16_t near decompress_store(void);                   /* 0x1c251 */
 int16_t near decompress_rle(void);                     /* 0x1c278 */
-int16_t near store_flush(void);                        /* 0x1c2cc */
+int16_t near store_flush(int16_t final);               /* 0x1c2cc */
 int16_t near read_into_huge(uint8_t huge *dst, uint16_t count); /* 0x1c319 */
 int16_t near next_input_byte(void);                    /* 0x1c389 */
 int16_t near read_input_block(uint8_t *dst, uint16_t count); /* 0x1c3e6 */
@@ -1906,20 +1898,35 @@ int16_t near select_resource(int16_t handle);          /* 0x1c649 */
 int16_t near string_contains_r(const char *s);         /* 0x1c6e3 */
 void    near free_if_set(void *p);                     /* 0x1c705 */
 int16_t near close_resource_slot(int16_t slot);        /* 0x1c71a */
-int16_t near open_resource_slot(void);                 /* 0x1c783 */
+int16_t near open_resource_slot(char *mode);           /* 0x1c783 */
 int16_t near prepare_resource_slot(int16_t type, char *mode); /* 0x1c7d5 */
 void    near resource_advance(void);                   /* 0x1c8a7 */
-int16_t near resource_read(FILE *handle, uint16_t count); /* 0x1c92b */
+int16_t near resource_read(int16_t handle, uint16_t count); /* 0x1c92b */
 void    near lzw_reset(void);                          /* 0x1c970 */
 void    near resource_nothing_1(void);                 /* 0x1ca3c */
 void    near resource_nothing_2(void);                 /* 0x1ca41 */
 /* The handler table's routines in the modules after it. */
 int16_t near rle_from_memory(void);                    /* 0x1cd2c */
+/* resfile.c: the resource API and the coders behind it. */
+int16_t near lzw_open_write_ratio(void);               /* 0x1ce1f */
 int16_t near lzw_open_write(void);                     /* 0x1ce9d */
-int16_t near lzw_flush(void);                          /* 0x1cf1b */
-int16_t near rle_flush(void);                          /* 0x1d40d */
+int16_t near lzw_flush(int16_t final);                 /* 0x1cf1b */
+void    near output(int16_t code);                     /* 0x1d133 */
+int32_t long_div(int32_t a, int32_t b);                /* 0x1d2c4 */
+void    near cl_block(void);                           /* 0x1d2dc */
+void    near cl_hash(int32_t hsize);                   /* 0x1d3bf */
+void    near rle_flush(int16_t final);                 /* 0x1d40d */
+int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size); /* 0x1d54e */
+int16_t open_resource_mem(int16_t type, char huge *data, char *mode,
+                          int32_t size);               /* 0x1d698 */
+int16_t close_resource(int16_t handle);                /* 0x1d798 */
+int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count); /* 0x1d868 */
+int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count); /* 0x1d8a4 */
+int32_t resource_size(int16_t handle);                 /* 0x1d95f */
+int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1d983 */
+int16_t restart_resource_stream(int16_t handle);       /* 0x1dae6 */
 int16_t near lzss_open_write(void);                    /* 0x1dba8 */
-int16_t near lzss_flush(void);                         /* 0x1e5ae */
+int16_t near lzss_flush(int16_t final);                /* 0x1e5ae */
 int16_t near decompress_lzw(void);                     /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
 int16_t huff_get_byte(void);                           /* 0x1e00b */
