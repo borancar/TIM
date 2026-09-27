@@ -376,6 +376,12 @@ outside the font. The original skips it: both range tests jump back to the
 loop's own test. Every string the game measures is inside its font, so no
 check could see the difference.
 
+scale.c gave two more. `compute_step` puts 0x8000 in the accumulator
+whenever the step is below 0x8000 (an `and` with 0xffff8000); the port
+did it only for a zero step. And `blit_scaled_b` spaces its columns and
+rows over the full requested size, `w - 1` and `h - 1`, where the port
+used the size clipped to the screen.
+
 ### Borland C++ 2.0 orders `_BSS` by name, and its `MK_FP` was not the one in its own header
 
 files.c, segment 1c25's last module, matched all eighteen routines under
@@ -480,6 +486,35 @@ width SI until its three parameters were declared `register` as well.
 and 0x21a50 are called from nowhere in the image, so no run reached them
 and nothing asked for them. A module is judged whole, so the judge found
 the gaps: `set_font`'s range ran on into 0x21575's bytes.
+
+### A bare `push cs / call` is not TASM's alone, and the built-in assembler's encodings are its fingerprint
+
+scale.c (0x20840..0x20be0) was first judged through TASM on 2026-09-27,
+because its calls to `compute_step` are bare `push cs / call` with no
+TLINK `nop`. That reading was wrong. **BC++ 2.0 writes the bare form
+itself for a call to a routine already defined above it in the same
+file.** A call to one defined further down, like text.c's `set_font` to
+`table_618a_in_use`, goes out as a far call that TLINK turns into
+`nop / push cs / call`. What decided it was an `or word ptr [mode], 2`.
+The compiler's own object writer encodes that with a 16-bit immediate
+(`81`), and TASM shortens it to `83`. The image has `81`.
+
+The built-in assembler has encodings of its own too. `xor ax,dx` and
+`sub ax,dx` come out as `31 d0` and `29 d0`, where the compiler and TASM
+write `33 c2` and `2b c2`. That is how `blit_scaled_b`'s absolute value
+was found to be `asm`, not `abs()`.
+
+**The built-in assembler gets `call` wrong.** Given a symbol with a
+displacement - `call dword ptr DG4342+98h`, `[X+8]`, `X[8]` - it writes the
+displacement negated when the symbol is an array or a large enough struct,
+and it reads a bare struct name as a C label. The routine still matches,
+because fixups are masked, and only the judge's check of where the extern
+is placed shows it. A field name with nothing added (`ss:Y.tail`) and a
+plain `mov` are right. The driver's vectors are one array here, so the
+port makes the call in C, `VM_VECTOR(n, type)()`. Where it needs `ss:`,
+because DS is the bitmap's, the prefix is an `asm db 36h` in front: a
+`_ss` pointer into DGROUP loses its prefix, because the model takes SS to
+be DGROUP.
 
 ### A prototype is what the callers push, not what the callee reads
 

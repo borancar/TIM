@@ -227,6 +227,7 @@ a case it does not obviously cover.
 - A compiler short of memory can write an object with no symbols and exit 0: the judge runs the emulated compilers with the memory a real machine left (`tools/tcrun.py`) and refuses an object with no publics - [more](docs/lessons.md#a-compiler-short-of-memory-can-write-an-object-with-no-symbols-and-exit-0)
 - The C around `asm` blocks is matched by spelling: `!c` on a signed `char` is `cbw`, `(uint8_t)m & 2` is `test byte`, and AX survives into an `if`'s block but not into the next statement - [more](docs/lessons.md#a-routine-with-asm-blocks-still-has-c-around-them-and-the-image-says-how-that-c-was-written)
 - BC++ 2.0 assembles inline `asm` itself, so a module with `asm` went through TASM only if the bytes say so, and its assembler reads a name after `call` as a label (`DG4342+8` became `-8`) - [more](docs/lessons.md#borland-c-20-assembles-inline-asm-itself-and-its-assembler-reads-a-name-after-call-as-a-label)
+- A bare `push cs / call` is BC++ 2.0's own for a callee defined above it, so it is not TASM evidence; `81` against `83` on an immediate is; and the built-in assembler negates a `call`'s displacement on an array or big struct, so make those calls in C - [more](docs/lessons.md#a-bare-push-cs--call-is-not-tasms-alone-and-the-built-in-assemblers-encodings-are-its-fingerprint)
 
 ### The hybrid runner
 

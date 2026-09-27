@@ -80,17 +80,6 @@ struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
 #endif
 
 /*
- * **`compute_step`'s record** - an accumulator and a step, both 16.16 - as
- * the words the caller writes and the longs it adds. Ours: the original's
- * declaration is not known, only that it stores the two high words alone and
- * adds the two longs with `add`/`adc`.
- */
-union scale_step {
-    int32_t l[2];
-    int16_t w[4];
-};
-
-/*
  * 0x22790
  *
  * The distance between two entries of the scaling table at DGROUP 0x5956,
@@ -280,7 +269,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
      */
     rec.w[1] = 0;
     rec.w[3] = w;
-    compute_step(rec.l, bmp->width);
+    compute_step(&rec, bmp->width);
 
     for (col = x2 = 0; bmp->width >= x2; x2++) {
         ENGINE_SCALE_TABLE.entry[x2] = at = rec.w[1] < w ? rec.w[1] : w;
@@ -318,7 +307,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 
     rec.w[1] = 0;
     rec.w[3] = bmp->height - 1;
-    compute_step(rec.l, h - 1);
+    compute_step(&rec, h - 1);
 
     for (;;) {
         op = *src++;

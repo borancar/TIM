@@ -1948,7 +1948,16 @@ void read_mouse_pointer(int16_t *x,
                     int16_t *y);         /* 0x220e9 */
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
-int16_t compute_step(int32_t *v, int16_t count);   /* 0x20840 */
+/* **`compute_step`'s record** - an accumulator and a step, both 16.16 - as
+   the words the callers write and the longs they add. Ours: the original's
+   declaration is not known, only that it is read and written both ways. */
+union scale_step {
+    int32_t l[2];
+    int16_t w[4];
+};
+int16_t compute_step(union scale_step *v, int16_t count);   /* 0x20840 */
+void blit_scaled_centred(struct bitmap *bmp, int16_t x, int16_t y,
+                         uint16_t mode, int16_t scale);  /* 0x20b74 */
 int16_t near scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t read_mouse_button(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */

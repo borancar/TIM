@@ -41,6 +41,9 @@ assembled it itself.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/scale.c` | 0x20840..0x20be0 | 3 of 3 | `_DATA` 0x457a..0x458c, `_BSS` 0x5956..0x6176 |
+| `src/polyclip.c` | 0x20be0..0x21088 | assembly: host transcription, not judged | none |
+| `src/keyboard.c` | 0x21088..0x2149e | assembly: host transcription, not judged | `_DATA` 0x458c..0x471c |
 | `src/text.c` | 0x2149e..0x21ab5 | 10 of 10 | `_DATA` 0x471e..0x4723, `_BSS` 0x6176..0x628e |
 | `src/lowlevel.c` | 0x21ab5..0x22483 | assembly, probably several modules: host transcription, not judged | `DG48DA` 0x48da..0x48f2, the mouse at 0x4740 |
 | `src/vidinit.c` | 0x22483..0x22790 | assembly: host transcription, not judged | `_DATA` 0x48f2..0x48f8 |
