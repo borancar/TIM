@@ -28,10 +28,10 @@
  * test the first one's two words to tell whether the seven are allocated.
  */
 struct sound_voices {
-    struct far_ptr voice[7];      /* +0x00 [0x1c] */
+    struct sequence far *voice[7];      /* +0x00 [0x1c] */
 } PACKED;
 
-struct sound_voices SOUND_VOICES DGROUP_BSS(0x6414);
+struct sound_voices SOUND_VOICES DGROUP_WAS(0x6414);
 
 /*
  * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
@@ -40,12 +40,12 @@ struct sound_tick_wait {
     volatile int16_t ticks_left;         /* +0x00 [2]  set to five; a callback steps it down each tick */
     /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
        while `delay_five_ticks` spins on it */
-    struct far_ptr cursor;        /* +0x02 [4]  a static far pointer, with its
+    struct sound_record far *cursor;        /* +0x02 [4]  a static far pointer, with its
                                             selector beside it */
     int16_t   selector;           /* +0x06 [2] */
 } PACKED;
 
-struct sound_tick_wait SOUND_TICK_WAIT DGROUP_BSS(0x6430);
+struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
 
 
 /*
@@ -324,9 +324,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     {
         /* Both are far pointers stored in records: the sequence's own at
            +8, and the table that one points at, each followed once. */
-        const struct far_ptr *tbl_at = (const struct far_ptr *)(void *)
-            dg_far_ptr(seq->cursor_at);
-        const uint8_t far *tbl = dg_far_ptr(*tbl_at);
+        const uint8_t far *tbl = *seq->cursor_at;
 
         if (tbl[0x20] != 0xff && seq->keep_priority == 0)
             seq->priority = tbl[0x20];
@@ -1246,7 +1244,7 @@ void poll_sequences(void)
 
     for (si = 0; si < 0x40; si += 4) {
         struct sequence far *rec = SEQUENCE_PTR(SNDS.polled[si / 4]);
-        const struct far_ptr *at;
+        const uint8_t far *at;
         const uint8_t far *data;
         uint16_t answer;
         uint8_t cl;
@@ -1261,12 +1259,12 @@ void poll_sequences(void)
          * `lds bp, ds:[bp]` - land on the sequence's own data, and the low
          * nibble of +0x165, less one and doubled, indexes a table of offsets
          * there. `data` - the original's `ds:bp` - ends up on the record the
-         * callback is asked about. The segment of the second pointer, `at`,
-         * is kept: an offset stepped inside it is what the module is handed
+         * callback is asked about. The second pointer, `at`, is kept: an
+         * offset stepped inside its segment is what the module is handed
          * below.
          */
-        at = (const struct far_ptr *)(void *)dg_far_ptr(rec->cursor_at);
-        data = dg_far_ptr(*at);
+        at = *rec->cursor_at;
+        data = at;
 
         cl = (uint8_t)((rec->poll & 0x0f) - 1);
         cl = (uint8_t)(cl << 1);
@@ -1298,7 +1296,7 @@ void poll_sequences(void)
             args.play.volume = rec->volume;
             args.play.loop = rec->loop;
             args.play.rate = *(const uint16_t *)b;
-            args.play.sample = far_from(at->seg, b + 8);
+            args.play.sample = far_from(FP_SEG(at), b + 8);
             args.play.length = *(const uint16_t *)(b + 2);
 
             sound_callback(3, &args);
@@ -1386,11 +1384,8 @@ void step_sequence(struct sequence far * seq, uint16_t di)
          * in segment 77ab. Following it once more lands in the event data and
          * reads a note as if it were a pointer.
          */
-        const struct far_ptr *via = (const struct far_ptr *)(void *)
-            dg_far_ptr(seq->cursor_at);
-
-        base = dg_far_ptr(*via);
-        SNDS.cursor_park = (int16_t)via->off;
+        base = *seq->cursor_at;
+        SNDS.cursor_park = (int16_t)FP_OFF(base);
     }
     data = base;
 
@@ -2118,15 +2113,13 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
  */
 void init_sequence_params(struct sequence far * seq)
 {
-    const struct far_ptr *at;
     uint8_t far *tbl;
     uint16_t si;
 
-    if (seq->cursor_at.off == 0xffff && seq->cursor_at.seg == 0xffff)
+    if (FP_OFF(seq->cursor_at) == 0xffff && FP_SEG(seq->cursor_at) == 0xffff)
         return;
 
-    at = (const struct far_ptr *)(void *)dg_far_ptr(seq->cursor_at);
-    tbl = dg_far_ptr(*at);
+    tbl = *seq->cursor_at;
 
     if (tbl[0x23] == 0xfe && tbl[0x22] == 0xfd && tbl[0x21] == 0xfc)
         return;
@@ -2397,11 +2390,11 @@ struct sequence far *voice_playing(const uint8_t far * source)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SEQUENCE_PTR(SOUND_VOICES.voice[i]);
+        struct sequence *v = SOUND_VOICES.voice[i];
 
         /* Which note data this voice is playing. The pair was filed from a
            pointer to a DOS block, so comparing pointers is comparing pairs. */
-        if ((const uint8_t *)dg_far_ptr(v->source) != source)
+        if ((const uint8_t *)v->source != source)
             continue;
         if (v->state == 0xff)
             continue;
@@ -2430,25 +2423,22 @@ uint16_t alloc_voice_records(void)
 {
     int16_t i;
 
-    if (dg_far_ptr(SOUND_VOICES.voice[0]) != FAR_NULL_PTR)
+    if (SOUND_VOICES.voice[0] != NULL)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *voice = (struct sequence *)(void *)alloc_for_kind(0x17a, 2);
+        struct sequence *voice = (struct sequence *)(void *)alloc_for_kind(sizeof(struct sequence), 2);
 
-        SOUND_VOICES.voice[i] = far_of((uint8_t *)voice);
+        SOUND_VOICES.voice[i] = voice;
 
         if (voice == SEQUENCE_NONE) {
             free_voice_records();
             return 0;
         }
 
-        /* The original reads the pair back out of the table; its segment
-           and offset are the record's own, a DOS block starting a segment,
-           and `cursor_at` is that segment beside the offset stepped to the
-           record's `cursor`. */
+        /* `cursor_at` is where the record's own `cursor` is. */
         voice->state = 0xff;
-        voice->cursor_at = far_from(FP_SEG(voice), &voice->cursor);
+        voice->cursor_at = &voice->cursor;
     }
 
     return 1;
@@ -2613,23 +2603,19 @@ void start_sequence_far(struct sequence far * seq, uint16_t flag)
  */
 struct sequence far *create_sequence(const uint8_t far * src)
 {
-    struct sequence *seq = (struct sequence *)(void *)alloc_for_kind(0x17a, 2);
+    struct sequence *seq = (struct sequence *)(void *)alloc_for_kind(sizeof(struct sequence), 2);
 
     if ((uint8_t *)seq == FAR_NULL_PTR)
         return seq;
 
-    /* `cursor` and `cursor_at` are a segment beside an offset **stepped
-       inside it** - `advance_record` and the `+ 0x16a` move the offset alone
-       - so each is filed as that segment and offset, not as `far_of` of a
-       stepped pointer, which would renormalise. The source and the record
-       are both blocks DOS handed out, so their own pairs are the ones the
-       original holds. */
-    seq->source = far_of(src);
-    seq->cursor = far_from(FP_SEG(src), advance_record(src));
-    seq->cursor_at = far_from(FP_SEG(seq), &seq->cursor);
+    /* `cursor` and `cursor_at` are stepped inside their blocks' segments:
+       `advance_record` and the `+ 0x16a` move the offset alone. */
+    seq->source = src;
+    seq->cursor = (uint8_t far *)advance_record(src);
+    seq->cursor_at = &seq->cursor;
 
     seq->volume = 0x7f;
-    seq->next = FAR_NULL;
+    seq->next = NULL;
 
     return seq;
 }
@@ -2737,7 +2723,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
             len += n;
 
             si = (uint16_t)(si + 6);
-            walk = SOUND_NODE_PTR(walk->next);
+            walk = walk->next;
         }
 
         if ((si & 1) != 0)
@@ -2798,7 +2784,7 @@ void free_node_list(struct sound_node far * list)
     while (list != SOUND_NODE_NONE) {
         struct sound_node *cur = list;
 
-        list = SOUND_NODE_PTR(list->next);
+        list = list->next;
         free_for_kind((uint8_t *)cur, 9);
     }
 }
@@ -2819,15 +2805,15 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (dg_far_ptr(SOUND_VOICES.voice[0]) == FAR_NULL_PTR)
+    if (SOUND_VOICES.voice[0] == NULL)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        uint8_t *v = dg_far_ptr(SOUND_VOICES.voice[i]);
+        struct sequence *v = SOUND_VOICES.voice[i];
 
-        if (v == FAR_NULL_PTR)
+        if (v == SEQUENCE_NONE)
             continue;
-        free_for_kind(v, 2);
+        free_for_kind((uint8_t far *)v, 2);
     }
 
     return 1;
@@ -2861,15 +2847,15 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
         return SEQUENCE_NONE;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *voice = SEQUENCE_PTR(SOUND_VOICES.voice[i]);
+        struct sequence *voice = SOUND_VOICES.voice[i];
 
         if (voice->state != 0xff)
             continue;
 
         /* Which note data this voice is playing, and how far into it - the
            second a segment beside the offset `advance_record` stepped. */
-        voice->source = far_of(source);
-        voice->cursor = far_from(FP_SEG(source), advance_record(source));
+        voice->source = source;
+        voice->cursor = (uint8_t far *)advance_record(source);
 
         if (DG4A82.bank_ptr != 0) {
             const struct sound_bank_entry *bank =
@@ -2904,7 +2890,7 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SEQUENCE_PTR(SOUND_VOICES.voice[i]);
+        struct sequence *v = SOUND_VOICES.voice[i];
 
         if (v->state == 0xff)
             continue;
@@ -3089,11 +3075,11 @@ struct sound_node far *read_sound_records(int16_t handle)
         if (*b == 0xff)
             break;
 
-        node = (struct sound_node *)(void *)alloc_for_kind(8, 9);
+        node = (struct sound_node *)(void *)alloc_for_kind(sizeof(struct sound_node), 9);
         if (node == SOUND_NODE_NONE)
             break;
 
-        node->next = FAR_NULL;
+        node->next = NULL;
 
         resource_seek(handle, 1, 1);
         read_resource(handle, (uint8_t *)node, 4);
@@ -3139,7 +3125,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
     /* The links are filed as each node's own pair - a DOS block starting a
        segment - so `far_of` files what the original does. */
     if (head->key >= key) {
-        node->next = far_of((uint8_t *)head);
+        node->next = head;
         return node;
     }
 
@@ -3147,7 +3133,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 
     for (;;) {
         prev = cur;
-        cur = SOUND_NODE_PTR(cur->next);
+        cur = cur->next;
 
         if (cur == SOUND_NODE_NONE)
             break;
@@ -3155,8 +3141,8 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
             break;
     }
 
-    node->next = far_of((uint8_t *)cur);
-    prev->next = far_of((uint8_t *)node);
+    node->next = cur;
+    prev->next = node;
 
     return head;
 }
@@ -3206,7 +3192,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
             return 0;
 
         data += len;
-        list = SOUND_NODE_PTR(list->next);
+        list = list->next;
         dir += 6;
     }
 
@@ -3315,10 +3301,10 @@ void stop_voice_playing(const uint8_t far * source)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        struct sequence *v = SEQUENCE_PTR(SOUND_VOICES.voice[i]);
+        struct sequence *v = SOUND_VOICES.voice[i];
 
         /* Which note data this voice is playing - see `voice_playing`. */
-        if ((const uint8_t *)dg_far_ptr(v->source) != source)
+        if ((const uint8_t *)v->source != source)
             continue;
 
         retire_and_tick_far(v);
@@ -3345,7 +3331,7 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
             break;
         if (count == 0)
             break;
-        seq = SEQUENCE_PTR(seq->next);
+        seq = seq->next;
         count--;
     }
     return seq;
@@ -3474,8 +3460,8 @@ uint16_t remove_and_free_records(int16_t selector)
      * record's link in turn - only ever written and read through, so a
      * pointer to the `struct far_ptr` it is, and the cell a C array.
      */
-    _Alignas(2) uint8_t cell[4];        /* [bp-0x1c], the two-word cell */
-    struct far_ptr *link_at = (struct far_ptr *)(void *)cell;
+    struct sound_record far *cell;      /* [bp-0x1c], the two-word cell */
+    struct sound_record far * far *link_at = &cell;
     /* The records' own links are pairs filed as DOS handed the blocks out,
        each starting a segment, so a pointer compares as the pair does. */
     struct sound_record *cur = SOUND_RECORD_PTR(DG4A82.records);
@@ -3503,14 +3489,14 @@ uint16_t remove_and_free_records(int16_t selector)
             stop_sequences(cur->id);
 
             if (cur == SOUND_RECORD_PTR(DG4A82.records))
-                DG4A82.records = cur->next;
+                DG4A82.records = far_of((uint8_t *)cur->next);
 
             *link_at = cur->next;
 
             if ((cur->flags & 1) != 0)
-                free_for_kind(dg_far_ptr(cur->data), 4);
+                free_for_kind(cur->data, 4);
             else
-                free_for_kind(dg_far_ptr(cur->data), 7);
+                free_for_kind(cur->data, 7);
 
             free_for_kind((uint8_t *)cur, 3);
 
@@ -3520,7 +3506,7 @@ uint16_t remove_and_free_records(int16_t selector)
             link_at = &cur->next;
         }
 
-        cur = SOUND_RECORD_PTR(*link_at);
+        cur = *link_at;
     }
 
     return (uint16_t)found;
@@ -3564,17 +3550,17 @@ uint16_t stop_sequences(int16_t selector)
 
             rec->flags &= 0xffef;
 
-            if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR) {
-                struct sequence *v = SEQUENCE_PTR(rec->sequence);
+            if (rec->sequence != NULL) {
+                struct sequence *v = rec->sequence;
 
                 follow_then_tick(v, 0);
 
                 do {
-                    v = SEQUENCE_PTR(rec->sequence);
+                    v = rec->sequence;
                 } while (v->state != 0xff);
 
                 free_for_kind((uint8_t *)v, 2);
-                rec->sequence = FAR_NULL;
+                rec->sequence = NULL;
                 rec = SOUND_RECORD_NONE;
             } else {
                 rec = next_matching_record(-3);
@@ -3606,21 +3592,21 @@ uint16_t stop_sequences(int16_t selector)
     rec->flags &= 0xffef;
 
     if ((rec->flags & 1) == 0) {
-        stop_voice_playing(dg_far_ptr(rec->data));
+        stop_voice_playing(rec->data);
         return 1;
     }
 
-    if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR) {
-        struct sequence *v = SEQUENCE_PTR(rec->sequence);
+    if (rec->sequence != NULL) {
+        struct sequence *v = rec->sequence;
 
         follow_then_tick(v, 0);
 
         do {
-            v = SEQUENCE_PTR(rec->sequence);
+            v = rec->sequence;
         } while (v->state != 0xff);
 
         free_for_kind((uint8_t *)v, 2);
-        rec->sequence = FAR_NULL;
+        rec->sequence = NULL;
     }
 
     return 1;
@@ -3702,14 +3688,16 @@ uint16_t open_sound_file(char *name, int16_t id)
     if (dg_far_ptr(DG4A82.directory) != FAR_NULL_PTR)
         free_for_kind(dg_far_ptr(DG4A82.directory), 0xa);
 
-    /* `size + 4` as one long; the original adds the low word and carries
-       into the high one by hand. */
-    dir = (struct sound_dir *)(void *)alloc_for_kind(size + 4, 0xa);
+    /* `size + 4` as one long - the directory image goes after the cursor;
+       the original adds the low word and carries into the high one by hand. */
+    dir = (struct sound_dir *)(void *)
+        alloc_for_kind(size + offsetof(struct sound_dir, magic), 0xa);
     DG4A82.directory = far_of((uint8_t *)dir);
     if ((uint8_t *)dir == FAR_NULL_PTR)
         goto fail;
 
-    /* The file's own directory image lands at +4, over `magic` onwards. */
+    /* The file's own directory image lands after the cursor, over `magic`
+       onwards. */
     if (fread_huge((uint8_t *)&dir->magic, size, 1,
                    FILEREC_PTR(DG4A82.file_ptr)) != 1)
         goto fail;
@@ -3717,8 +3705,8 @@ uint16_t open_sound_file(char *name, int16_t id)
     if (dir->magic != 2)
         goto fail;
 
-    /* Where the walk starts: this block's segment beside its ninth byte. */
-    dir->cursor = far_from(FP_SEG(dir), &dir->entry[0]);
+    /* Where the walk starts: the first entry. */
+    dir->cursor = (uint8_t far *)&dir->entry[0];
 
 search:
     dir = (struct sound_dir *)(void *)dg_far_ptr(DG4A82.directory);
@@ -3727,7 +3715,7 @@ search:
         goto out;
     }
 
-    cur = (const struct sound_dir_entry *)(void *)dg_far_ptr(dir->cursor);
+    cur = (const struct sound_dir_entry *)(void *)dir->cursor;
 
     if (id > 0) {
         for (si = 0; ; si++) {
@@ -3854,7 +3842,7 @@ uint16_t start_sequence_by_id(int16_t id)
     while (rec != SOUND_RECORD_NONE) {
         if (rec->id == id)
             break;
-        rec = SOUND_RECORD_PTR(rec->next);
+        rec = rec->next;
     }
 
     if (rec == SOUND_RECORD_NONE)
@@ -3862,9 +3850,9 @@ uint16_t start_sequence_by_id(int16_t id)
 
     if ((rec->flags & 0x10) != 0)
         return 1;
-    if (dg_far_ptr(rec->data) == FAR_NULL_PTR)
+    if (rec->data == FAR_NULL_PTR)
         return 1;
-    if (dg_far_ptr(rec->sequence) != FAR_NULL_PTR)
+    if (rec->sequence != NULL)
         return 1;
 
     if ((rec->flags & 1) != 0) {
@@ -3872,11 +3860,11 @@ uint16_t start_sequence_by_id(int16_t id)
 
         while (other != SOUND_RECORD_NONE) {
             if ((other->flags & 1) != 0
-                && dg_far_ptr(other->sequence) != FAR_NULL_PTR
+                && other->sequence != NULL
                 && other->id != id)
                 stop_sequences(other->id);
 
-            other = SOUND_RECORD_PTR(other->next);
+            other = other->next;
         }
 
         if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
@@ -3885,11 +3873,11 @@ uint16_t start_sequence_by_id(int16_t id)
         }
 
         {
-            struct sequence *seq = create_sequence(dg_far_ptr(rec->data));
+            struct sequence *seq = create_sequence(rec->data);
 
             /* The sequence's pair, as the original files `create_sequence`'s
                DX:AX - a DOS block starting a segment. */
-            rec->sequence = far_of((uint8_t *)seq);
+            rec->sequence = seq;
             if (seq == SEQUENCE_NONE)
                 return 0;
 
@@ -3902,7 +3890,7 @@ uint16_t start_sequence_by_id(int16_t id)
         }
     }
 
-    if (voice_playing(dg_far_ptr(rec->data)) != SEQUENCE_NONE)
+    if (voice_playing(rec->data) != SEQUENCE_NONE)
         return 1;
 
     if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
@@ -3911,7 +3899,7 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
     }
 
-    start_on_free_voice(dg_far_ptr(rec->data),
+    start_on_free_voice(rec->data,
                         0x7f,
                         (uint16_t)((rec->flags & 2) ? 1 : 0));
     return 1;
@@ -3956,9 +3944,9 @@ struct sound_record far *next_matching_record(int16_t selector)
 
     if (selector != -3) {
         SOUND_TICK_WAIT.selector = selector;
-        SOUND_TICK_WAIT.cursor = DG4A82.records;
-    } else if (dg_far_ptr(SOUND_TICK_WAIT.cursor) != FAR_NULL_PTR) {
-        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
+        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(DG4A82.records);
+    } else if (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE) {
+        SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
     }
 
     if (SOUND_TICK_WAIT.selector == -2) {
@@ -3970,28 +3958,28 @@ struct sound_record far *next_matching_record(int16_t selector)
         expect = 1;
     } else {
         /* Match on the identifier. */
-        if (dg_far_ptr(SOUND_TICK_WAIT.cursor) == FAR_NULL_PTR || selector == -3) {
-            SOUND_TICK_WAIT.cursor = FAR_NULL;
+        if (SOUND_TICK_WAIT.cursor == SOUND_RECORD_NONE || selector == -3) {
+            SOUND_TICK_WAIT.cursor = NULL;
             return SOUND_RECORD_NONE;
         }
 
         for (;;) {
-            if (dg_far_ptr(SOUND_TICK_WAIT.cursor) == FAR_NULL_PTR)
+            if (SOUND_TICK_WAIT.cursor == SOUND_RECORD_NONE)
                 break;
-            if (SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->id == selector)
+            if (SOUND_TICK_WAIT.cursor->id == selector)
                 break;
-            SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
+            SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
         }
-        return SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor);
+        return SOUND_TICK_WAIT.cursor;
     }
 
-    while (dg_far_ptr(SOUND_TICK_WAIT.cursor) != FAR_NULL_PTR) {
-        if ((((int16_t)SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->flags & mask) ^ expect) != 0)
+    while (SOUND_TICK_WAIT.cursor != SOUND_RECORD_NONE) {
+        if ((((int16_t)SOUND_TICK_WAIT.cursor->flags & mask) ^ expect) != 0)
             break;
-        SOUND_TICK_WAIT.cursor = SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor)->next;
+        SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
     }
 
-    return SOUND_RECORD_PTR(SOUND_TICK_WAIT.cursor);
+    return SOUND_TICK_WAIT.cursor;
 }
 
 /*
@@ -4147,7 +4135,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     game_fread((uint8_t *)&len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
-    rec = (struct sound_record *)(void *)alloc_for_kind(0x14, 3);
+    rec = (struct sound_record *)(void *)alloc_for_kind(sizeof(struct sound_record), 3);
     if (rec == SOUND_RECORD_NONE)
         goto out_;
 
@@ -4164,13 +4152,13 @@ uint16_t read_record(FILE *file, uint16_t mode)
     /* `sub ax,4 / sbb dx,0` - the borrow the two words needed by hand. */
     len -= 4;
 
-    rec->data = FAR_NULL;
+    rec->data = NULL;
 
     /* Each payload is a block DOS handed out, so `far_of` files its own
        pair, as the original files the DX:AX it was answered. */
     if ((uint8_t)mode == 0x63) {
         p = alloc_for_kind((uint32_t)len, kind);
-        rec->data = far_of(p);
+        rec->data = (p);
 
         if (p == FAR_NULL_PTR)
             goto fail;
@@ -4180,18 +4168,18 @@ uint16_t read_record(FILE *file, uint16_t mode)
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, (uint32_t)len, (uint8_t *)out);
 
-        rec->data = far_of(p);
+        rec->data = (p);
         if (p == FAR_NULL_PTR)
             goto fail;
     } else {
         p = load_resource_block(file, (uint32_t)len, (uint8_t *)out, kind);
 
-        rec->data = far_of(p);
+        rec->data = (p);
         if (p == FAR_NULL_PTR)
             goto fail;
     }
 
-    rec->next = DG4A82.records;
+    rec->next = SOUND_RECORD_PTR(DG4A82.records);
     rec->size = (uint16_t)out[0];
 
     DG4A82.records = far_of((uint8_t *)rec);

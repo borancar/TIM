@@ -3691,7 +3691,7 @@ extern struct bitmaps_state BITMAPS;
 struct sound_node {
     uint16_t       key;         /* +0x00  insert_by_key orders the list on it */
     uint16_t       length;      /* +0x02  summed to size the index block */
-    struct far_ptr next;        /* +0x04  null-terminated, both halves zero */
+    struct sound_node far *next;        /* +0x04  null-terminated, both halves zero */
 } PACKED;
 
 
@@ -3771,7 +3771,7 @@ struct sequence_channels {
 
 struct sequence {
     uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
-    struct far_ptr cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
+    uint8_t far * far *cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
     uint16_t       position[16];        /* +0x00c  each channel's place in the event data */
     uint16_t       position_saved[16];  /* +0x02c  its shadow, which a checkpoint copies */
     uint16_t       delay[16];           /* +0x04c  ticks to each channel's next event */
@@ -3808,10 +3808,10 @@ struct sequence {
     uint8_t        fade_step;           /* +0x163  the largest step, 0 for no fade */
     uint8_t        skip;                /* +0x164  set: the tick leaves the sequence alone */
     uint8_t        poll;                /* +0x165  how the host is asked about it */
-    struct far_ptr source;              /* +0x166  the note data */
-    struct far_ptr cursor;              /* +0x16a  the record being played */
+    const uint8_t far *source;              /* +0x166  the note data */
+    uint8_t far *cursor;                    /* +0x16a  the record being played */
     uint8_t        unknown_16e[4];      /* +0x16e */
-    struct far_ptr next;                /* +0x172  a chain `follow_far_chain` walks */
+    struct sequence far *next;                /* +0x172  a chain `follow_far_chain` walks */
     uint8_t        unknown_176[4];      /* +0x176 */
 } PACKED;
 
@@ -3842,7 +3842,7 @@ struct sound_dir_entry {
 
 
 struct sound_dir {
-    struct far_ptr cursor;     /* +0x00  where the walk is, filed by open_sound_file */
+    uint8_t far *cursor;     /* +0x00  where the walk is, filed by open_sound_file */
     uint16_t  magic;           /* +0x04  2, or the file is not one of these */
     int16_t   count;           /* +0x06  how many entries follow */
     uint8_t   kind;            /* +0x08  handed to read_record as its mode */
@@ -3866,12 +3866,12 @@ struct sound_dir {
  * ---------------------------------------------------------------------------
  */
 struct sound_record {
-    struct far_ptr next;                /* +0x00  the next record, newest first */
-    struct far_ptr data;                /* +0x04  what it loaded */
+    struct sound_record far *next;                /* +0x00  the next record, newest first */
+    uint8_t far *data;                /* +0x04  what it loaded */
     uint16_t       size;                /* +0x08  the low word of the loaded size */
     int16_t        id;                  /* +0x0a  what `start_sequence_by_id` finds */
     uint16_t       priority;            /* +0x0c  a byte, copied into a sequence's */
-    struct far_ptr sequence;            /* +0x0e  the sequence built for it, while one is */
+    struct sequence far *sequence;            /* +0x0e  the sequence built for it, while one is */
     uint16_t       flags;               /* +0x12  bit 0 sequenced, bit 1 loop, bit 4 start pending */
 } PACKED;
 
