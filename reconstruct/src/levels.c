@@ -24,8 +24,8 @@
 /*
  * **The file names and modes**, DGROUP 0x2870..0x28d2, 0x62 bytes: one "rb", "wb", "l", ".lev",
  * "password.txt" or "tim.cfg" per call site, in the order the routines that
- * open them sit in the segment. The two at 0x287d and 0x287f have no reader
- * in the port. The run ends at the hash order at 0x28d2.
+ * open them sit in the segment. The two at 0x287d and 0x287f are
+ * `save_level`'s, which nothing calls. The run ends at the hash order at 0x28d2.
  *
  * The four names are fields because `game_fopen` uppercases a name in place
  * through `hash_filename` - see `game_startup_names`. The modes and the "l" and ".lev"
@@ -36,8 +36,8 @@ struct game_file_names {
     char wb_write_level[3];       /* +0x03 [3]  write_level */
     char l_load_level[2];         /* +0x06 [2]  load_level builds "l<n>.lev" */
     char lev_load_level[5];       /* +0x08 [5] */
-    char l_287d[2];               /* +0x0d [2]  no reader in the port */
-    char lev_287f[5];             /* +0x0f [5] */
+    char l_save_level[2];         /* +0x0d [2]  save_level, which nothing calls */
+    char lev_save_level[5];       /* +0x0f [5] */
     char rb_is_machine_file[3];   /* +0x14 [3]  is_machine_file */
     char l_count_levels[2];       /* +0x17 [2]  count_level_files */
     char lev_count_levels[5];     /* +0x19 [5] */
@@ -61,8 +61,8 @@ struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
     "wb", /* wb_write_level */
     "l", /* l_load_level */
     ".lev", /* lev_load_level */
-    "l", /* l_287d */
-    ".lev", /* lev_287f */
+    "l", /* l_save_level */
+    ".lev", /* lev_save_level */
     "rb", /* rb_is_machine_file */
     "l", /* l_count_levels */
     ".lev", /* lev_count_levels */
@@ -889,6 +889,28 @@ void load_level(uint16_t number)
 
     LEVEL_IO.is_level = 1;
     read_level(name);
+}
+
+/*
+ * 0x128bc
+ *
+ * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
+ * of its own two strings, the same flag set so a level's whole record is
+ * written, and the machine file writer. Nothing calls it: it is how the
+ * designers wrote the puzzles, left in.
+ */
+void save_level(uint16_t number)
+{
+    char name[14];
+    char digits[8];
+
+    string_copy(name, GAME_FILE_NAMES.l_save_level);
+    int_to_string((int16_t)number, digits, 10);
+    string_concat(name, digits);
+    string_concat(name, GAME_FILE_NAMES.lev_save_level);
+
+    LEVEL_IO.is_level = 1;
+    write_level(name);
 }
 
 /*

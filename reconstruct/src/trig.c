@@ -9,7 +9,7 @@
  * segment's bytes and are data, not code.
  *
  * This file corresponds to the original's **code segment 2a04**, image
- * 0x2a04a..0x2d290 - the segment's frame starts at 0x2a040, inside
+ * 0x2a04a..0x2d296 - the segment's frame starts at 0x2a040, inside
  * sound_file.c's last routine. **Hand-written assembly**, with its tables
  * and its scratch in the code segment: so it is TASM source, the `#ifdef
  * __TURBOC__` block below, with the host's transcription in the `#else`.
@@ -1023,7 +1023,8 @@ c_2c293 label byte
 	db 13h, 0c0h, 12h, 0c0h, 11h, 0c0h, 10h, 0c0h, 0fh, 0c0h, 0eh, 0c0h, 0dh, 0c0h, 0ch, 0c0h
 	db 0bh, 0c0h, 0ah, 0c0h, 9h, 0c0h, 8h, 0c0h, 7h, 0c0h, 6h, 0c0h, 6h, 0c0h, 5h, 0c0h
 	db 4h, 0c0h, 4h, 0c0h, 3h, 0c0h, 3h, 0c0h, 2h, 0c0h, 2h, 0c0h, 1h, 0c0h, 1h, 0c0h
-	db 1h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h
+	db 1h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h
+	db 0h, 0c0h, 0h
 _arctan_lookup endp
 TRIG_TEXT ends
 }

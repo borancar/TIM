@@ -13,6 +13,15 @@ decompilation: the same sources compile under the original compiler to the
 image's bytes, judged per routine and per module's data by `tools/judge.py`,
 and under gcc to the working port, whose behavioural checks stay as they are.
 
+**Every byte of the game's code in TIM.EXE is byte-exact** (2026-09-27):
+all 105 judged files match in full, and a coverage sweep - each judged
+module's compiled segment laid over the image - leaves only Borland's C
+startup (0x00000..0x00297), its runtime library (0x0bbfe..0x0e000) and one
+alignment byte (0x0bb97) outside a matched module. The C modules are the
+original compilers' output; the assembly ones are TASM source in the same
+`.c` files. Not yet judged: the overlay drivers (VM.OVL's VGA, SX.OVL's
+ASB, ADL, SBP and SPKR), which are separate binaries.
+
 **Byte-exact in the port so far** (`uv run python tools/judge.py <file>`):
 
 | file | module | routines | data |

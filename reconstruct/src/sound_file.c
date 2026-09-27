@@ -571,6 +571,10 @@ void free_for_kind(uint8_t far * blk, uint16_t kind)
         /* The near heap takes only the offset. */
         heap_free_far((uint8_t *)blk);
         return;
+    } else {
+        dos_free_far(blk);
     }
-    dos_free_far(blk);
+    /* The image's: this `return` and the first one each get an epilogue of
+       their own, and the function's own is left after them, unreached. */
+    return;
 }
