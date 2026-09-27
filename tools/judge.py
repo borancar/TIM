@@ -130,7 +130,18 @@ def addresses(paths):
                          r"(0x[0-9a-fA-F]{5})\b", first)
             if m:
                 out[name] = int(m.group(1), 16)
+        # **An assembly module's routines** are `proc`s inside a file-level
+        # `asm { }` block, which the parse never sees - cparse blanks every
+        # `#ifdef __TURBOC__` branch. Their provenance is a comment on the
+        # line directly above the `proc`, and the name is the public's, less
+        # the underscore C would have given it.
+        for m in ASM_PROC.finditer(open(path).read()):
+            out.setdefault(m.group(2), int(m.group(1), 16))
     return out
+
+
+ASM_PROC = re.compile(r"/\*[^*]*?\b(0x[0-9a-fA-F]{5})\b[^*]*\*/[ \t]*\n"
+                      r"[ \t]*_?(\w+)[ \t]+proc\b")
 
 
 def runtime_names():
