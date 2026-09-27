@@ -19,9 +19,10 @@
  * **NOSMART**: twelve `and si, 0fh` and `and cx, 0fh` are in the image with
  * a word immediate, `81`, which TASM writes only with SMART off, and none of
  * its logical ops has the short form. (Turbo C++ 1.x and 2.01 and Borland
- * C++ 2.0 write `81` too, in C and in BC++ 2.0's inline `asm`, so the
- * encoding does not rule out C with localised `asm`; that is being tried,
- * STATUS.md.) NOSMART also leaves a far call to a
+ * C++ 2.0 write `81` too, so the encoding alone does not rule out C with
+ * inline `asm`; what does is that 26 of its 42 routines use SI or DI
+ * without the save every Borland compiler wraps around a function whose
+ * `asm` names them - docs/lessons.md.) NOSMART also leaves a far call to a
  * routine of the same file far, and TLINK turns it into `nop / push cs /
  * call` - so here, unlike in a SMART module, that form says nothing about
  * where a file ends; the dispatcher's calls and the seek's are this file's

@@ -166,13 +166,12 @@ assembled **NOSMART**, judged directly (`JUDGE: tasm`): 42 of 42. Twelve
 `81`, which TASM writes only NOSMART - and so do Turbo C++ 1.x/2.01 and
 Borland C++ 2.0, in C and in 2.0's built-in inline assembler, so the
 encoding does not settle that the module is assembly at all; no logical op
-in it has the short `83`. **Open**: a pilot writes three of its routines as
-C with the idioms (`pushf / cli`, the `push ds / di / si` save, the
-driver call through `cs:1e7h`) as small macros. `retire_and_tick` and
-`start_sequence_far` match as C under BC++ 2.0 and 3.0 with `-k-`;
-`midi_event_9`, a register-convention fragment that shifts SI and shifts
-it back, matches but for a `push si` the compiler adds for any SI it sees
-changed. It was split in three on the SMART reading of its far calls
+in it has the short `83`. What settles it is SI and DI: a pilot got
+`retire_and_tick` and `start_sequence_far` to match as C with the idioms
+as macros, but 26 of the 42 routines use SI or DI without the `push si` /
+`push di` every Borland compiler wraps around a function whose `asm` or
+pseudo-registers name them (`start_sequence_far`'s own `push ds / di / si`
+matched only as `__emit__` bytes), so the module is assembly. It was split in three on the SMART reading of its far calls
 and put back the same day (docs/lessons.md). `sound_call.c` (0x29286..0x292f4, the
 callback cell in its code segment first) is TASM, 3 of 3.
 
