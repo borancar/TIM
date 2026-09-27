@@ -270,6 +270,7 @@ a case it does not obviously cover.
 - A typed handle tested as a boolean is always true, and the compiler will not say so - [more](docs/lessons.md#a-typed-handle-tested-as-a-boolean-is-always-true-and-the-compiler-will-not-say-so)
 - An object the linker puts at an odd address is one the compiler assumed was aligned - [more](docs/lessons.md#an-object-the-linker-puts-at-an-odd-address-is-one-the-compiler-assumed-was-aligned)
 - A record moved off its guest address leaves its near pointers behind: a literal DGROUP offset into it reads zeros - [more](docs/lessons.md#a-record-moved-off-its-guest-address-leaves-its-near-pointers-behind)
+- A header line added anywhere can fail a file that matched (the emulated compiler's memory is a real machine's): hide host-only declarations from `__TURBOC__`, and judge every file after a shared header changes - [more](docs/lessons.md#a-header-line-added-anywhere-can-fail-a-file-that-matched-and-only-a-sweep-of-every-file-sees-it)
 - A record that converts is still allocated at the image's size unless the allocation says `sizeof` - [more](docs/lessons.md#a-record-that-converts-still-gets-allocated-at-the-images-size)
 - A 16-bit comparison with 0x8000 is always false on the host and compiles: `-Werror=type-limits` is in the build - [more](docs/lessons.md#a-16-bit-comparison-with-0x8000-is-always-false-on-the-host-and-it-compiles)
 

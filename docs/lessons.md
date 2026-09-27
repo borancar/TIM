@@ -1536,6 +1536,24 @@ build**, and a value only ever assigned and compared for equality with such a
 constant is declared `uint16_t`, which compiles to the same instruction under
 TCC.
 
+### A header line added anywhere can fail a file that matched, and only a sweep of every file sees it
+
+vidload.c had matched under BC++ 2.0 since it was split out. On 2026-09-27
+dos.c added twelve prototypes to tim.h and io.h, and vidload.c stopped
+compiling: "Fatal: Register allocation failure in function
+load_video_driver", with 53,200 bytes free. The judge runs the original
+compilers with the memory a real machine left (tools/tcrun.py), and every
+declaration in a shared header is symbol table in that memory; twelve more
+tipped one large function past what the allocator needed. Nothing in that
+commit touched vidload.c, and nothing judged vidload.c again until a sweep
+over every file four commits later.
+
+**What only the host uses is hidden from Borland**: io.h, the port's IO
+layer, is `#ifndef __TURBOC__` past its first lines - no judged path calls
+it. **And a change to a shared header is followed by judging every file**,
+not the one being worked on: `for f in reconstruct/src/*.c
+reconstruct/src/parts/*.c`, each with a JUDGE marker.
+
 ### A record that converts still gets allocated at the image's size
 
 `resource.c` turned the resource record's near and far pointers into real

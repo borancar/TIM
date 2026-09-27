@@ -36,6 +36,13 @@
 struct far_ptr;
 struct part;
 
+/* **Nothing below is Borland C++'s.** It is the port's IO layer, which only a
+   host branch calls, and a declaration the original compiler has to read is
+   memory it no longer has: BC++ 2.0, run with what a real machine left,
+   failed vidload.c's `load_video_driver` with "Register allocation failure"
+   once dos.c's twelve prototypes had joined the headers. */
+#ifndef __TURBOC__
+
 /*
  * OURS: this layer's whole state, so a machine reached by playing can be
  * replayed by a tool. See the end of io.c for what counts as state and what is
@@ -503,5 +510,7 @@ void     io_trace_begin(void);
 int32_t  io_trace_count(void);
 int32_t  io_trace_full(void);
 const io_event *io_trace_events(void);
+
+#endif /* !__TURBOC__ */
 
 #endif /* IO_H */
