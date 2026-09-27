@@ -17,7 +17,15 @@
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
  * JUDGE: data 0x48f8..0x495c
+ * JUDGE: via-assembler
+ * JUDGE: assembler bc2.00
+ *
+ * **The module went through the assembler**: `blit_scaled_a` has four
+ * inline `asm` blocks - its nibble decoder and its three calls into the
+ * driver, which take their arguments in registers - and the image has
+ * TASM's `jmp` / `nop` wherever the compiler could not size a forward jump.
  */
+#include <stdlib.h>
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
@@ -61,6 +69,26 @@ struct engine_scale_step {
 } PACKED;
 
 struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
+
+#ifdef __TURBOC__
+/*
+ * **This module's `MK_FP` is Turbo C 2.0's**, as files.c's is: the `cwd`
+ * before the bitmap's pointer is built is the segment widened to a long.
+ */
+#undef MK_FP
+#define MK_FP(seg, ofs) ((void far *)(((uint32_t)(seg) << 16) | (uint16_t)(ofs)))
+#endif
+
+/*
+ * **`compute_step`'s record** - an accumulator and a step, both 16.16 - as
+ * the words the caller writes and the longs it adds. Ours: the original's
+ * declaration is not known, only that it stores the two high words alone and
+ * adds the two longs with `add`/`adc`.
+ */
+union scale_step {
+    int32_t l[2];
+    int16_t w[4];
+};
 
 /*
  * 0x22790
@@ -116,8 +144,9 @@ int16_t near scale_table_delta(int16_t n)
  *       bits shifted up by six - peeked at and only consumed if both top bits
  *       are clear.
  *
- * *The row buffer* is 0x172 bytes on the stack: a literal run is decoded into
- * it and handed to the driver whole, and a solid run never touches it.
+ * *The row buffer* is 320 bytes at the bottom of a 0x172-byte frame: a
+ * literal run is decoded into it and handed to the driver whole, and a solid
+ * run never touches it.
  *
  * *A run is clipped by trimming it*, not by testing pixels: the overhang past
  * either edge is subtracted from the length and added to the buffer pointer,
@@ -148,75 +177,91 @@ int16_t near scale_table_delta(int16_t n)
 void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    uint8_t scratch[320];                        /* [bp-0x172] */
-    int32_t vstep32[2];    /* [bp-0x2a], the accumulator and the step, 16.16 */
-    uint8_t *vpage;    /* [bp-0x1e], the page, as the aperture address of its row 0 */
-    int16_t vrow;    /* [bp-0x1c] */
-    uint8_t vclip;    /* [bp-0x1a] */
-    uint8_t vrowok;    /* [bp-0x19] */
-    /* A cursor into `scratch`, not storage - see the note on the same slot
-       in `draw_compressed_bitmap`. The original keeps it in two frame bytes
-       because it has nowhere else; nothing outside the frame reads it. */
-    uint8_t * vp;                                /* [bp-0x18] */
-    int16_t vcut;    /* [bp-0x16] */
-    int16_t vx2;    /* [bp-0x14] */
-    int16_t vydir;    /* [bp-0x12] */
-    int16_t vcol;    /* [bp-0x10] */
-    const uint8_t *vsrc;    /* [bp-0xa], the source; the original steps the offset alone */
-    uint8_t vbase;    /* [bp-0x21] */
-    uint8_t vcolour;    /* [bp-0x22] */
-    int16_t vn;    /* [bp-4] */
-    int16_t vop;    /* [bp-2] */
-    int16_t vx0;    /* [bp-0x30] */
-    int16_t vxrow;    /* [bp-0x2e] */
-    int16_t vcolrow;    /* [bp-0x32] */
-    int16_t vrowacc;    /* [bp-0x2c] */
-    const uint8_t *vsrcrow;    /* [bp-0xe], the row's start */
-    int16_t *vrepeat = &vcut;   /* the same slot as `vcut` */    /* [bp-0x16], reused */
+    int16_t op;                         /* [bp-2] */
+    int16_t n;                          /* [bp-4] */
     /*
      * [bp-6], and it has to be its own slot. The skipped-row loop at 0x22d94
      * keeps its scaled delta here - `mov [bp-6], ax` at 0x22db0 - while the
-     * count of rows still to skip sits in [bp-0x16]. Writing the delta through
-     * `vcut`, which *is* [bp-0x16], overwrote the counter with a pixel
-     * distance: the loop then skipped as many source rows as the sprite was
-     * wide and the decode walked off into the next rows' tags. Every scaled
-     * part on the briefing screen came out as a smear.
+     * count of rows still to skip sits in `cut`. Writing the delta through
+     * `cut` overwrote the counter with a pixel distance: the loop then
+     * skipped as many source rows as the sprite was wide and the decode
+     * walked off into the next rows' tags. Every scaled part on the briefing
+     * screen came out as a smear.
      */
-    int16_t vdelta;    /* [bp-6] */
-    int16_t  i, j;
+    int16_t delta;                      /* [bp-6] */
+    uint8_t far *src;                   /* [bp-0xa] */
+    uint8_t far *srcrow;                /* [bp-0xe], the row's start */
+    uint16_t col;                       /* [bp-0x10] */
+    int16_t ydir;                       /* [bp-0x12] */
+    int16_t x2;                         /* [bp-0x14] */
+    /* The overhang a run is trimmed by, and in the skipped-row loop the
+       number of rows still to skip: the original's one slot for both. */
+    int16_t cut;                        /* [bp-0x16] */
+    uint8_t *p;                         /* [bp-0x18], a cursor into `buf` */
+    uint8_t rowok;                      /* [bp-0x19] */
+    int8_t clip;                        /* [bp-0x1a] */
+#ifdef __TURBOC__
+    int16_t row;                        /* [bp-0x1c] */
+#else
+    /* Ours: only read once `rowok` says it was set, which gcc cannot follow. */
+    int16_t row = 0;
+#endif
+#ifdef __TURBOC__
+    uint16_t page;                      /* [bp-0x1e], the page's segment */
+#else
+    uint8_t *page;
+#endif
+    int16_t at;                         /* [bp-0x20] */
+    uint8_t base;                       /* [bp-0x21] */
+    uint8_t colour;                     /* [bp-0x22] */
+    union scale_step rec;               /* [bp-0x2a] */
+    int16_t rowacc;                     /* [bp-0x2c] */
+    int16_t xrow;                       /* [bp-0x2e] */
+    int16_t x0;                         /* [bp-0x30] */
+    int16_t colrow;                     /* [bp-0x32] */
+    uint8_t buf[320];                   /* [bp-0x172] */
 
-    if (w == 0 || h == 0) {
+    if (w == 0)
         return;
-    }
+    if (h == 0)
+        return;
 
     if (w < 0) {
-        w = (int16_t)-w;
-        x = (int16_t)(x - w);
+        x -= w = abs(w);
         mode ^= 2;
     }
     if (h < 0) {
-        h = (int16_t)-h;
-        y = (int16_t)(y - h);
+        y -= h = abs(h);
         mode ^= 1;
     }
 
     /*
      * The same do-nothing vector `draw_compressed_bitmap` calls, kept for the
      * same reason: a build whose 0x3f72 is clear must not be silently
-     * different from one whose is set.
+     * different from one whose is set. The page goes in and comes back in
+     * `ax`.
      */
-    vpage = MK_FP(VMDS.page_dst_ptr, 0);
+#ifdef __TURBOC__
+    _AX = VMDS.page_dst_ptr;
+    if (VMDS.page_hook != 0) {
+        asm push ax
+        asm call dword ptr DG4342+074h
+        asm add sp, 2
+    }
+    page = _AX;
+#else
+    page = MK_FP(VMDS.page_dst_ptr, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
+#endif
 
-    vclip = VMDS.clip_enabled;
-    if (vclip != 0
-        && x >= VMDS.clip_left && (int16_t)(x + w) <= VMDS.clip_right
-        && y >= VMDS.clip_top && (int16_t)(y + h) <= VMDS.clip_bottom)
-        vclip = 0;
+    if ((clip = VMDS.clip_enabled) != 0
+        && x >= VMDS.clip_left && x + w <= VMDS.clip_right
+        && y >= VMDS.clip_top && y + h <= VMDS.clip_bottom)
+        clip = 0;
 
     if (mode & 2)
-        x = (int16_t)(x + w - 1);
+        x += w - 1;
 
     /*
      * The two column tables. `compute_step` puts the destination-per-source
@@ -233,299 +278,369 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
      * destination - which filled 0x5e56 with -1 and made the row buffer
      * overrun. The row step below has the same two slots.
      */
-    vstep32[0] = 0;
-    vstep32[1] = (int32_t)((uint32_t)(uint16_t)(w) << 16);
-    compute_step(vstep32, bmp->width);
+    rec.w[1] = 0;
+    rec.w[3] = w;
+    compute_step(rec.l, bmp->width);
 
-    i = 0;
-    j = 0;
-    while (bmp->width >= i) {
-        int16_t at = (int16_t)((uint32_t)vstep32[0] >> 16);
-
-        if (at > w)
-            at = w;
-        ENGINE_SCALE_TABLE.entry[i] = at;
-
-        vstep32[0] += vstep32[1];
-
-        while (j < at) {
-            ENGINE_ROW_OFFSETS.row[j] = (uint16_t)(i - 1);
-            j++;
+    for (col = x2 = 0; bmp->width >= x2; x2++) {
+        ENGINE_SCALE_TABLE.entry[x2] = at = rec.w[1] < w ? rec.w[1] : w;
+        rec.l[0] += rec.l[1];
+        while (col < (uint16_t)at) {
+            ENGINE_ROW_OFFSETS.row[col] = x2 - 1;
+            col++;
         }
-        i++;
     }
 
-    vrowacc = 0;
+    rowacc = 0;
 
-    if (mode & 1) {
-        vydir = -1;
-        y = (int16_t)(y + h - 1);
+    if ((uint8_t)mode & 1) {
+        ydir = -1;
+        y += h - 1;
     } else {
-        vydir = 1;
+        ydir = 1;
     }
 
-    if (vclip != 0) {
-        vrowok = (y <= VMDS.clip_bottom && y >= VMDS.clip_top) ? 1 : 0;
-        if (vrowok != 0)
-            vrow = (int16_t)VMDS.row_offset[y];
-    } else {
-        vrow = (int16_t)VMDS.row_offset[y];
-    }
+    if (clip == 0
+        || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
+        row = VMDS.row_offset[y];
 
-    vsrc = dg_far_ptr_rev(bmp->data);
+    src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
 
-    vbase = *vsrc;
-    vsrc++;
+    base = *src;
+    src++;
 
-    vx0   = x;
-    vxrow = x;
-    ENGINE_SCALE_STEP.base = 0;
-    vcolrow = 0;
-    ENGINE_SCALE_STEP.word_6290 = (uint16_t)ENGINE_SCALE_TABLE.entry[0];
+    x0 = x;
+    xrow = x;
+    colrow = ENGINE_SCALE_STEP.base = 0;
+    ENGINE_SCALE_STEP.word_6290 = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
 
-    vsrcrow = vsrc;
+    srcrow = src;
 
-    vstep32[0] = 0;
-    vstep32[1] = (int32_t)((uint32_t)(uint16_t)(bmp->height - 1) << 16);
-    compute_step(vstep32, (int16_t)(h - 1));
+    rec.w[1] = 0;
+    rec.w[3] = bmp->height - 1;
+    compute_step(rec.l, h - 1);
 
     for (;;) {
-        vop = *vsrc;
-        vsrc++;
+        op = *src++;
 
-        if ((vop & 0x80) && (vop & 0x40)) {
-            /* 0x22997 - a run of nibbles, decoded into the row buffer. */
-            vop &= 0x3f;
-            vn = scale_table_delta(vop);
+        if (op & 0x80) {
+            if (op & 0x40) {
+                /* 0x22997 - a run of nibbles, decoded into the row buffer. */
+                op &= 0x3f;
+                n = op;
+                n = scale_table_delta(n);
 
-            if (vop != 0) {
-                int16_t  at    = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
-                int16_t  first = (int16_t)ENGINE_ROW_OFFSETS.row[at];
-                uint8_t *  out   = scratch;
-                int16_t  k     = vn;
-                int16_t  col   = at;
-
-                while (k-- > 0) {
-                    int16_t rel = (int16_t)((int16_t)ENGINE_ROW_OFFSETS.row[col] - first);
-                    uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
-                    uint8_t  b = vsrc[byte_at];
-
+                if (op != 0) {
+                    at = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
+                    col = ENGINE_ROW_OFFSETS.row[at];
                     /*
-                     * `shr` puts bit 0 in the carry and `jae` takes the even
+                     * `shr` puts bit 0 of the column's distance from the
+                     * run's first in the carry and `jae` takes the even
                      * column, so an even column is the *high* nibble.
                      */
-                    *out = (uint8_t)(((rel & 1) ? (b & 0x0f) : (b >> 4))
-                                     + vbase);
-                    out++;
-                    col++;
-                }
+#ifdef __TURBOC__
+                    asm push di
+                    asm push si
+                    asm lea di, buf
+                    asm mov bx, at
+                    asm shl bx, 1
+                    asm mov cx, n
+                    asm or cx, cx
+                    asm jle decoded
+                    asm mov dl, base
+decode:
+                    asm les si, src
+                    asm mov ax, word ptr ENGINE_ROW_OFFSETS[bx]
+                    asm sub ax, col
+                    asm shr ax, 1
+                    asm jae high
+                    asm add si, ax
+                    asm mov al, es:[si]
+                    asm mov si, ds
+                    asm mov es, si
+                    asm and al, 0fh
+                    asm add al, dl
+                    asm stosb
+                    asm add bx, 2
+                    asm loop decode
+                    asm jmp short decoded
+high:
+                    asm add si, ax
+                    asm mov al, es:[si]
+                    asm mov si, ds
+                    asm mov es, si
+                    asm shr al, 1
+                    asm shr al, 1
+                    asm shr al, 1
+                    asm shr al, 1
+                    asm add al, dl
+                    asm stosb
+                    asm add bx, 2
+                    asm loop decode
+decoded:
+                    asm pop si
+                    asm pop di
+#else
+                    {
+                        uint8_t *out = buf;
+                        uint16_t *e = &ENGINE_ROW_OFFSETS.row[at];
+                        int16_t k;
 
-                vsrc += ((vop + 1) >> 1);
-            }
+                        for (k = n; k > 0; k--, e++) {
+                            uint16_t rel = (uint16_t)(*e - col);
+                            uint8_t b = src[rel >> 1];
 
-            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
-            if (vn == 0)
-                continue;
-
-            vp = scratch;
-
-            if (mode & 2) {
-                vx2 = (int16_t)(x - vn);
-
-                if (vclip != 0) {
-                    if (vrowok == 0)
-                        goto next_run;
-                    if (!(vx2 >= VMDS.clip_left && x < VMDS.clip_right)) {
-                        if (vx2 < VMDS.clip_left) {
-                            vcut = (int16_t)(VMDS.clip_left - vx2);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_run;
-                        } else {
-                            /* The `add` at 0x22ab4, as written. */
-                            vcut = (int16_t)(x + VMDS.clip_right);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_run;
-                            vp = vp + vcut;
-                            x = VMDS.clip_right;
+                            *out++ = (uint8_t)(((rel & 1) ? (b & 0x0f)
+                                                          : (b >> 4)) + base);
                         }
                     }
+#endif
+                    src += (op + 1) >> 1;
                 }
 
-                vm_blit_run((uint16_t)x, (uint16_t)vn,
-                            vp,
-                            vpage + (uint16_t)vrow, 1);
-            } else {
-                vx2 = (int16_t)(x + vn);
+                ENGINE_SCALE_STEP.base += op;
+                if (n == 0)
+                    continue;
 
-                if (vclip != 0) {
-                    if (vrowok == 0)
+                p = buf;
+
+                if ((uint8_t)mode & 2) {
+                    x2 = x - n;
+                    if (!clip)
+                        goto draw_mirrored;
+                    if (rowok == 0)
                         goto next_run;
-                    if (!(x >= VMDS.clip_left && vx2 <= VMDS.clip_right)) {
-                        if (x < VMDS.clip_left) {
-                            vcut = (int16_t)(VMDS.clip_left - x);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_run;
-                            vp = vp + vcut;
+                    if (x2 < VMDS.clip_left || x >= VMDS.clip_right)
+                        goto trim_mirrored;
+draw_mirrored:
+#ifdef __TURBOC__
+                    asm push si
+                    asm push di
+                    asm mov cl, byte ptr n
+                    asm xor ah, ah
+                    asm mov ch, ah
+                    asm mov si, p
+                    asm mov di, row
+                    asm mov bx, x
+                    asm mov es, page
+                    asm stc
+                    asm mov dx, y
+                    asm call dword ptr DG4342+09ch
+                    asm pop di
+                    asm pop si
+#else
+                    vm_blit_run((uint16_t)x, (uint8_t)n, p,
+                                page + (uint16_t)row, 1);
+#endif
+                    goto next_run;
+trim_mirrored:
+                    if (x2 < VMDS.clip_left) {
+                        cut = VMDS.clip_left - x2;
+                        if ((n -= cut) > 0)
+                            goto draw_mirrored;
+                        goto next_run;
+                    }
+                    /* The `add` at 0x22ab4, as written. */
+                    cut = x + VMDS.clip_right;
+                    if ((n -= cut) > 0) {
+                        p += cut;
+                        x = VMDS.clip_right;
+                        goto draw_mirrored;
+                    }
+                } else {
+                    x2 = x + n;
+                    if (!clip)
+                        goto draw;
+                    if (rowok == 0)
+                        goto next_run;
+                    if (x < VMDS.clip_left || x2 > VMDS.clip_right)
+                        goto trim;
+draw:
+#ifdef __TURBOC__
+                    asm push si
+                    asm push di
+                    asm mov cl, byte ptr n
+                    asm xor ah, ah
+                    asm mov ch, ah
+                    asm mov si, p
+                    asm mov di, row
+                    asm mov bx, x
+                    asm mov es, page
+                    asm clc
+                    asm mov dx, y
+                    asm call dword ptr DG4342+09ch
+                    asm pop di
+                    asm pop si
+#else
+                    vm_blit_run((uint16_t)x, (uint8_t)n, p,
+                                page + (uint16_t)row, 0);
+#endif
+                    goto next_run;
+trim:
+                    if (x < VMDS.clip_left) {
+                        cut = VMDS.clip_left - x;
+                        if ((n -= cut) > 0) {
+                            p += cut;
                             x = VMDS.clip_left;
-                        } else {
-                            vcut = (int16_t)(vx2 - VMDS.clip_right - 1);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_run;
+                            goto draw;
                         }
+                        goto next_run;
                     }
+                    cut = x2 - VMDS.clip_right - 1;
+                    if ((n -= cut) <= 0)
+                        goto next_run;
+                    goto draw;
                 }
-
-                vm_blit_run((uint16_t)x, (uint16_t)vn,
-                            vp,
-                            vpage + (uint16_t)vrow, 0);
-            }
-
 next_run:
-            x = vx2;
-            continue;
-        }
-
-        if (vop & 0x80) {
-            /* 0x22b5b - a solid run: one colour byte, plus the base. */
-            vop &= 0x3f;
-            vn = scale_table_delta(vop);
-            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
-
-            vcolour = *vsrc;
-            vsrc++;
-
-            if (mode & 2) {
-                vx2 = (int16_t)(x - vn);
-
-                if (vclip != 0) {
-                    if (vrowok == 0)
-                        goto next_solid;
-                    if (!(vx2 >= VMDS.clip_left && x < VMDS.clip_right)) {
-                        if (vx2 < VMDS.clip_left) {
-                            vcut = (int16_t)(VMDS.clip_left - vx2);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_solid;
-                        } else {
-                            vcut = (int16_t)(x - VMDS.clip_right);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_solid;
-                            x = VMDS.clip_right;
-                        }
-                    }
-                }
-
-                vm_span((uint16_t)(uint8_t)(vbase + vcolour),
-                        (uint16_t)(x - vn + 1), vn,
-                        vpage + (uint16_t)vrow);
-            } else {
-                vx2 = (int16_t)(x + vn);
-
-                if (vclip != 0) {
-                    if (vrowok == 0)
-                        goto next_solid;
-                    if (!(x >= VMDS.clip_left && vx2 <= VMDS.clip_right)) {
-                        if (x < VMDS.clip_left) {
-                            vcut = (int16_t)(VMDS.clip_left - x);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_solid;
-                            x = (int16_t)(x + vcut);
-                        } else {
-                            vcut = (int16_t)(vx2 - VMDS.clip_right - 1);
-                            vn = (int16_t)(vn - vcut);
-                            if (vn <= 0)
-                                goto next_solid;
-                        }
-                    }
-                }
-
-                vm_span((uint16_t)(uint8_t)(vcolour + vbase),
-                        (uint16_t)x, vn,
-                vpage + (uint16_t)vrow);
+                x = x2;
+                continue;
             }
 
+            /* 0x22b5b - a solid run: one colour byte, plus the base. */
+            op &= 0x3f;
+            n = scale_table_delta(op);
+            ENGINE_SCALE_STEP.base += op;
+            colour = *src++;
+
+            if ((uint8_t)mode & 2) {
+                x2 = x - n;
+                if (!clip)
+                    goto fill_mirrored;
+                if (rowok == 0)
+                    goto next_solid;
+                if (x2 < VMDS.clip_left || x >= VMDS.clip_right)
+                    goto trim_solid_mirrored;
+fill_mirrored:
+#ifdef __TURBOC__
+                asm push di
+                asm mov al, base
+                asm add al, colour
+                asm xor ah, ah
+                asm mov ch, ah
+                asm mov bx, x
+                asm mov cl, byte ptr n
+                asm sub bx, cx
+                asm inc bx
+                asm mov di, row
+                asm mov es, page
+                asm mov dx, y
+                asm call dword ptr DG4342+02ch
+                asm pop di
+#else
+                vm_span((uint8_t)(base + colour),
+                        (uint16_t)(x - (uint8_t)n + 1), (uint8_t)n,
+                        page + (uint16_t)row);
+#endif
+                goto next_solid;
+trim_solid_mirrored:
+                if (x2 < VMDS.clip_left) {
+                    cut = VMDS.clip_left - x2;
+                    if ((n -= cut) > 0)
+                        goto fill_mirrored;
+                    goto next_solid;
+                }
+                cut = x - VMDS.clip_right;
+                if ((n -= cut) <= 0)
+                    goto next_solid;
+                x = VMDS.clip_right;
+                goto fill_mirrored;
+            } else {
+                x2 = x + n;
+                if (!clip)
+                    goto fill;
+                if (rowok == 0)
+                    goto next_solid;
+                if (x < VMDS.clip_left || x2 > VMDS.clip_right)
+                    goto trim_solid;
+fill:
+#ifdef __TURBOC__
+                asm push di
+                asm mov al, colour
+                asm add al, base
+                asm xor ah, ah
+                asm mov ch, ah
+                asm mov bx, x
+                asm mov cl, byte ptr n
+                asm mov di, row
+                asm mov es, page
+                asm mov dx, y
+                asm call dword ptr DG4342+02ch
+                asm pop di
+#else
+                vm_span((uint8_t)(colour + base), (uint16_t)x, (uint8_t)n,
+                        page + (uint16_t)row);
+#endif
+                goto next_solid;
+trim_solid:
+                if (x < VMDS.clip_left) {
+                    cut = VMDS.clip_left - x;
+                    if ((n -= cut) > 0) {
+                        x += cut;
+                        goto fill;
+                    }
+                    goto next_solid;
+                }
+                cut = x2 - VMDS.clip_right - 1;
+                if ((n -= cut) > 0)
+                    goto fill;
+            }
 next_solid:
-            x = vx2;
+            x = x2;
             continue;
         }
 
-        if (vop & 0x40) {
+        if (op & 0x40) {
             /* 0x22c96 - a move along the row; a count of zero ends it all. */
-            vop &= 0x3f;
-            if (vop == 0)
-                break;
-
-            vn = scale_table_delta(vop);
-            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
-
-            if (mode & 2)
-                x = (int16_t)(x - vn);
+            if ((op &= 0x3f) == 0)
+                return;
+            n = scale_table_delta(op);
+            ENGINE_SCALE_STEP.base += op;
+            if ((uint8_t)mode & 2)
+                x -= n;
             else
-                x = (int16_t)(x + vn);
+                x += n;
             continue;
         }
 
         /* 0x22cc9 - the end of a row. */
-        vop &= 0x3f;
-        vn = scale_table_delta((int16_t)-vop);
-        if (vn < 0)
-            vn = (int16_t)-vn;
-        ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vop);
-
-        if (mode & 2)
-            x = (int16_t)(x + vn);
+        op &= 0x3f;
+        n = abs(scale_table_delta(-op));
+        ENGINE_SCALE_STEP.base -= op;
+        if ((uint8_t)mode & 2)
+            x += n;
         else
-            x = (int16_t)(x - vn);
+            x -= n;
 
         /*
          * Peek at the next tag without consuming it: only one with both top
          * bits clear is taken here, as a second move of its low six bits
          * shifted up by six.
          */
-        vop = *vsrc;
-        if ((vop & 0xc0) == 0) {
-            vcol = (int16_t)(vop & 0x3f);
-            if (vcol != 0) {
-                vsrc++;
-                vcol = (int16_t)(vcol << 6);
-                vn = scale_table_delta(vcol);
-                ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vcol);
-                if (mode & 2)
-                    x = (int16_t)(x + vn);
-                else
-                    x = (int16_t)(x - vn);
-            }
+        if (((op = *src) & 0xc0) == 0 && (col = op & 0x3f) != 0) {
+            src++;
+            col <<= 6;
+            n = scale_table_delta(col);
+            ENGINE_SCALE_STEP.base = ENGINE_SCALE_STEP.base - col;
+            if ((uint8_t)mode & 2)
+                x += n;
+            else
+                x -= n;
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        vstep32[0] += vstep32[1];
+        rec.l[0] += rec.l[1];
+        at = (int16_t)(rec.l[0] >> 16);
 
-        vx2 = (int16_t)((uint32_t)vstep32[0] >> 16);
-
-        if (vrowacc == vx2) {
+        if (rowacc == at) {
             /*
              * The scaled row lands on the same destination row as the last
              * one, so this source row is not drawn at all: the source pointer,
              * x and the column index all go back to where the row began.
              */
-            vsrc = vsrcrow;
-            x = vxrow;
-            ENGINE_SCALE_STEP.base = (uint16_t)vcolrow;
-        } else {
-            int16_t repeat = (int16_t)(vx2 - vrowacc);
-
-            if (repeat < 0)
-                repeat = (int16_t)-repeat;
-            repeat--;
-
-            vrepeat[0] = repeat;
-
+            src = srcrow;
+            x = xrow;
+            ENGINE_SCALE_STEP.base = colrow;
+        } else if ((cut = abs(at - rowacc) - 1) != 0) {
             /*
              * 0x22d94 - a destination row covering more than one source row
              * still has to have those rows' tags stepped over, and their moves
@@ -540,81 +655,62 @@ next_solid:
              * every tag skipped a row after one tag rather than after a row,
              * and the decode walked into the middle of the next row.
              */
-            while (vrepeat[0] != 0) {
-                vop = *vsrc;
-                vsrc++;
-                vn = (int16_t)(vop & 0x3f);
-                vdelta = scale_table_delta(vn);
-                if (mode & 2)
-                    vdelta = (int16_t)-vdelta;
+            while (cut != 0) {
+                op = *src++;
+                n = op & 0x3f;
+                delta = scale_table_delta(n);
+                if ((uint8_t)mode & 2)
+                    delta = -delta;
 
-                if (vop & 0x80) {
-                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vn);
-                    x = (int16_t)(x + vdelta);
-                    if (vop & 0x40)
-                        vsrc += ((vn + 1) >> 1);
-                    else
-                        vsrc++;
-                } else if (vop & 0x40) {
-                    if (vn == 0)
-                        goto done;
-                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vn);
-                    x = (int16_t)(x + vdelta);
-                } else {
-                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vn);
-                    x = (int16_t)(x - vdelta);
-
-                    vop = *vsrc;
-                    if ((vop & 0xc0) == 0) {
-                        vcol = (int16_t)(vop & 0x3f);
-                        if (vcol != 0) {
-                            vsrc++;
-                            vcol = (int16_t)(vcol << 6);
-                            vn = scale_table_delta(vcol);
-                            ENGINE_SCALE_STEP.base =
-                                (uint16_t)(ENGINE_SCALE_STEP.base - vcol);
-                            if (mode & 2)
-                                x = (int16_t)(x + vn);
-                            else
-                                x = (int16_t)(x - vn);
-                        }
+                if (op & 0x80) {
+                    ENGINE_SCALE_STEP.base += n;
+                    if (op & 0x40) {
+                        x += delta;
+                        src += (n + 1) >> 1;
+                    } else {
+                        x += delta;
+                        src++;
                     }
-                    vrepeat[0] = (int16_t)(vrepeat[0] - 1);
+                } else if (op & 0x40) {
+                    if (n == 0)
+                        return;
+                    ENGINE_SCALE_STEP.base += n;
+                    x += delta;
+                } else {
+                    ENGINE_SCALE_STEP.base -= n;
+                    x -= delta;
+                    if (((op = *src) & 0xc0) == 0 && (col = op & 0x3f) != 0) {
+                        src++;
+                        col <<= 6;
+                        n = scale_table_delta(col);
+                        ENGINE_SCALE_STEP.base = ENGINE_SCALE_STEP.base - col;
+                        if ((uint8_t)mode & 2)
+                            x += n;
+                        else
+                            x -= n;
+                    }
+                    cut--;
                 }
             }
         }
 
         /* 0x22e73 - the row is finished; remember where the next one begins. */
-        vsrcrow = vsrc;
-        vrowacc = vx2;
-        vxrow   = x;
-        vcolrow = (int16_t)ENGINE_SCALE_STEP.base;
+        srcrow = src;
+        rowacc = at;
+        xrow = x;
+        colrow = ENGINE_SCALE_STEP.base;
 
-        h--;
-        if (h == 0)
-            break;
+        if (--h == 0)
+            return;
 
-        {
-            int16_t back = ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base];
+        x = x0 + (((uint8_t)mode & 2) ? -ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base]
+                             : ENGINE_SCALE_TABLE.entry[ENGINE_SCALE_STEP.base]);
+        y += ydir;
 
-            if (mode & 2)
-                back = (int16_t)-back;
-            x = (int16_t)(vx0 + back);
-        }
-
-        y = (int16_t)(y + vydir);
-
-        if (vclip != 0) {
-            vrowok = (y <= VMDS.clip_bottom && y >= VMDS.clip_top) ? 1 : 0;
-            if (vrowok == 0)
-                continue;
-        }
-
-        vrow = (int16_t)VMDS.row_offset[y];
+        if (clip == 0
+            || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
+            row = VMDS.row_offset[y];
     }
-
-done:
-    ;
 }
 
 /*

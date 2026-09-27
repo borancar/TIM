@@ -415,6 +415,35 @@ judge runs the emulated compilers through it. The judge also **refuses an
 object with no publics**: every file it judges defines something, so an
 empty one is a compiler that went wrong.
 
+### A routine with `asm` blocks still has C around them, and the image says how that C was written
+
+`blit_scaled_a` matched on 2026-09-27 once its four register-argument
+blocks were `asm`: the nibble decoder, the two literal-run calls into the
+driver and the two span calls, plus the page hook's `push ax / lcall /
+add sp,2`, which BC++ 2.0 never emits for a call it compiled itself (`-G`
+cleans up with `inc sp / inc sp`). The C between the blocks came to within
+four bytes on the first compile. Every one of the differences left was a
+spelling of that C, and each one was settled by compiling a scratch file of
+alternatives rather than by reading:
+
+- `mov al,[c] / cbw / or ax,ax` is `if (!c)` on a signed `char`. `if (c)`,
+  `c != 0`, `(int)c` and `c == 0` all give `cmp byte ptr [c],0`.
+- `test byte ptr [mode],2` on an `int` is `(uint8_t)mode & 2`; `mode & 2`
+  gives `test word ptr`. The image has both in one routine, word for the
+  first test and byte for all the others.
+- Without `-Z`, a value is kept in AX only inside one statement, and an
+  `if` and its block count as one statement. `sub [n],ax / jg L / ...
+  L: add [p],ax` is `if ((n -= cut) > 0) { p += cut; ... }`. A separate
+  `p += cut;` after `if ((n -= cut) <= 0) goto next;` loads `cut` again.
+- `jg L / jmp next / L: jmp draw` is `if ((n -= cut) > 0) goto draw; goto
+  next;`. Written the other way round, `if (... <= 0) goto next; goto
+  draw;`, the compiler chains the jumps and the `jmp draw` disappears.
+
+**Inside a module that went through TASM, the compiler still wrote the
+jumps.** Each `jmp` / `nop` pair is TASM's padding on a jump the compiler
+could not size. A jump written inside an `asm` block needs `short` to come
+out as two bytes.
+
 ### A prototype is what the callers push, not what the callee reads
 
 Two routines in segment 2619 disagreed with their callers about their
