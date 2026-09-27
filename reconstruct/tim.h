@@ -1490,9 +1490,9 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
 void draw_wrapped_text(char *str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,
-                      uint16_t line_height);        /* 0x13ed2 */
-void measure_word(char *str, uint8_t * out_width,
-                  uint8_t * out_length);             /* 0x1401d */
+                      int16_t line_height);        /* 0x13ed2 */
+void measure_word(char *str, int16_t *out_width,
+                  int16_t *out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
 void paint_panel_a(uint16_t frame);                  /* 0x1190d */
@@ -1527,7 +1527,7 @@ uint16_t angle_between_parts(struct part *part, struct part *other);  /* 0x04c0d
 void discard_part(struct part *part);                   /* 0x05457 */
 uint16_t select_puzzle_screen(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
-void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
+void     dos_setdisk(uint8_t letter);               /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
 int16_t heapwalk(struct heapinfo *info);                    /* 0x0ccef */
@@ -1573,16 +1573,16 @@ void puzzle_draw_list(int16_t first, int16_t selected); /* 0x0f6cc */
 void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
-uint16_t pick_file(uint16_t a, uint16_t b, const char *pattern); /* 0x12c26 */
+uint16_t pick_file(uint16_t a, uint16_t b, char *pattern);       /* 0x12c26 */
 uint16_t get_puzzle_title(int16_t n, char *buf);  /* 0x12a2f */
 uint16_t password_to_level(char *text);          /* 0x12ad0 */
 uint16_t is_machine_file(char *name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
-void picker_begin(uint16_t a, uint16_t b, const char *pattern); /* 0x13606 */
+void picker_begin(uint16_t a, uint16_t b, char *pattern);       /* 0x13606 */
 char *listing_to_name(const char far * entry);     /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
-void fill_file_listing(const char *pattern);                   /* 0x13a8a */
+void fill_file_listing(char *pattern);                         /* 0x13a8a */
 void sort_file_listing(void);                               /* 0x13c78 */
 void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */
@@ -2016,7 +2016,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
 void draw_string_body(const char far *str,
                       int16_t x, int16_t y);        /* 0x218eb */
 void draw_string(const char *str, int16_t x, int16_t y); /* 0x218d4 */
-uint16_t text_width(const char *str);                  /* 0x21610 */
+uint16_t text_width(const char far *str);                /* 0x21610 */
 uint16_t text_width_thunk(const char *str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,
                         int16_t x2, int16_t y2);    /* 0x21e34 */

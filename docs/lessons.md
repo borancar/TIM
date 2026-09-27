@@ -327,6 +327,44 @@ places**, and says which. Ownership is read off the link order: a module's
 data is its variables and then its pool, contiguous, and the next module's
 starts where it ends.
 
+### A module's data layout is decided by what the compiler saw, not by the order of the definitions
+
+`picker.c` matched all twenty-six routines on 2026-09-27 while its `_BSS`
+sat four bytes off and its `_DATA` came out at four different bases. Both
+were layout, and neither was in the routines.
+
+**Borland lays `_BSS` out in reverse order of first mention, and an `extern`
+in a header is a mention.** The four uninitialised objects were defined in
+the order that reverses to the image's, but `GAME_TEXT_LINES` and
+`PICKER_CARET` were also declared in `dgroup.h`, which the compiler reads
+first - so the caret, meant to be lowest, was entered second and came out
+next to highest. A test file with the same four definitions, with and
+without the two `extern`s, showed it in one compile. An object whose place
+in `_BSS` matters is declared only in its module, or its header declaration
+is part of the order.
+
+**`-d` merges duplicate strings, so a pool that repeats a literal says the
+module was built without it.** The picker's pool holds `"*"` twice, `"*.*"`
+twice and `".."` twice, each the copy one call site pushes; under `-d` the
+later ones folded into the first and every reference after them moved. The
+two other Borland C++ modules had no duplicate to show the difference.
+
+A `for` whose third expression is a call also moves the pool: the
+compiler emits that expression's literal *before* the body's, and
+`fill_file_listing`'s `dos_findnext("*.*")` is after its `"."` and `".."` in
+the image, so the original was a `while` with the call at the bottom.
+
+### The judge found a wrong comparison that every screen comparison had passed
+
+`wrap_text_to_box` broke a line when `(run != 0 || used == 0)`. The original
+tests `used != 0` - so the first word on the first line never wraps, however
+wide - and the port had carried the inverted test through every check since
+the routine was written. Nothing compared exercised it: the picker's
+messages are short, and a word wider than the box is the only input where
+the two differ. The judge read it from the instruction stream in the first
+compile. It is the rule at the top of CLAUDE.md, measured: a transcription
+that agrees with every capture can still be wrong where no capture looked.
+
 ### A check that polls can miss what it is checking, and then blames the port
 
 **A check that polls can miss what it is checking, and then blames the port.**

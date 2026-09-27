@@ -2790,7 +2790,7 @@ uint16_t dos_chdir(const char *path)
  * a no-op is not the port settling for less than the reference does; it is the
  * same behaviour reached from the other direction.
  */
-void dos_setdisk(uint16_t letter)
+void dos_setdisk(uint8_t letter)
 {
     io_dos_setdisk((uint8_t)(((letter & 0x5f) - 0x41) & 0xff));
 }

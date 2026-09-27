@@ -1,6 +1,6 @@
 # Status
 
-*Last updated 2026-09-06.*
+*Last updated 2026-09-27.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
@@ -21,6 +21,18 @@ and under gcc to the working port, whose behavioural checks stay as they are.
 | `src/vqtflip.c` | segment 248f, first (BC++ 3.0 `-mm -O -G -Z`, via TASM) | 9 of 9 | `_DATA` 0x49ba..0x49c6, `_BSS` 0x63f6..0x6414 |
 | `src/offbmp.c` | segment 248f, second (BC++ 3.0 `-mm -O -G -Z`) | 1 of 1 | none |
 | `src/bitmaps.c` | segment 248f, third (BC++ 3.0 `-mm -O -G -Z`) | 10 of 10 | `_DATA` 0x49c6..0x4a07 |
+| `src/gamemain.c` | segment 0dff, first (TC++ 3.0 `-mm -d`) | 3 of 3 | `_DATA` 0x00aa..0x0116 |
+| `src/intro.c` | segment 0dff, second (TC++ 3.0 `-mm -d`); matches the cracked byte, and `-DTIM_COPY_PROTECTION` compiles the jump the compiler emitted | 5 of 5 | `_DATA` 0x2370..0x258c |
+| `src/machine_draw.c` | segment 14de (TC++ 3.0 `-mm -d`) | 34 of 34 | `_DATA` 0x259c..0x25e8 |
+| `src/round.c` | segment 0dff, third (TC++ 3.0 `-mm -d`) | 5 of 5 | `_DATA` 0x25e8..0x260a |
+| `src/puzzles.c` | segment 0dff, fourth (BC++ 3.0 `-mm -d`) | 13 of 13 | `_DATA` 0x260a..0x262f, `_BSS` 0x5428..0x5456 |
+| `src/levels.c` | segment 0dff, sixth (BC++ 3.0 `-mm -d`) | 27 of 27 | `_DATA` 0x2870..0x28d2, `_BSS` 0x546c..0x547a |
+| `src/picker.c` | segment 0dff, seventh (BC++ 3.0 `-mm`) | 24 of 24 | `_DATA` 0x28ec..0x2966, `_BSS` 0x567e..0x56b6 |
+| `src/game.c` | segment 0dff, eighth (BC++ 3.0 `-mm`) | 56 of 56 | `_DATA` 0x2966..0x2d06 |
+
+Segment 0dff's fifth module, `src/screen.c`, is not matched yet: thirteen of
+its routines are fragments of `game_screen` and `part_key_shortcut` that the
+port split out, and have to be put back first.
 
 Segment 248f's fourth module, 0x25953..0x26198, is hand-written assembly; its
 host transcription is `src/vqt.c` and its TASM source is not written yet.

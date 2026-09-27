@@ -1400,18 +1400,17 @@ extern struct timer TIMER;
 
 
 /*
- * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b8, 0x12 bytes - a near pointer into
+ * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b6, 0x10 bytes - a pointer into
  * the caller's own string for each line `wrap_text_to_box` decided on, and
- * `GAME_PICKER_TEXT.line_count` of them.
+ * `GAME_PICKER_TEXT.line_count` of them, with one more where the last ends.
  *
- * Nine words, settled from three directions that agree. The wrapper caps the
- * box at seven line heights, so seven lines can start inside it and one more
- * is written before the height is re-tested; `draw_wrapped_text` finds a
- * line's end by reading the *next* entry, so the table needs one past the
- * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
+ * Eight words. The wrapper caps the box at seven line heights and adds a
+ * line only while one more fits, so at most seven start inside it, and the
+ * entry past the last is index seven at most. The word after, 0x56b6, is
+ * `MACHINE_RECT_COUNT`, which `rect_pool_count` reads - not a ninth line.
  */
 struct game_text_lines {
-    dg_near_t line_ptr[9];        /* +0x00 [0x12] */
+    char     *line[8];            /* +0x00 [0x10] */
 } PACKED;
 
 extern struct game_text_lines GAME_TEXT_LINES;
@@ -2719,15 +2718,12 @@ void (*vm_vector_host(int16_t slot))(void);
 #define SC_INS    0x52
 
 /*
- * **The critical-error vector and the picker's caret**, at DGROUP 0x5677.
+ * **The critical-error vector**, at DGROUP 0x5677, and what failed.
  */
 struct dg_5677 {
     struct far_ptr crit_vec;      /* +0x00  DOS's 24h, kept so it can be
                                             put back */
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
-    uint8_t   pad_567d[1];
-    uint16_t  caret_blink;        /* +0x07  bumped on every pass; the caret is `*` */
-    uint16_t  caret_blink_b;      /* +0x09  a different counter, and a different asterisk at 0x2954 */
 } PACKED;
 
 extern struct dg_5677 DG5677;
@@ -4668,7 +4664,7 @@ extern struct dg_4ab0 DG4AB0;
 struct game_directories {
     char      picker_dir[0x50];   /* +0x00 [0x50] */
     char      game_dir[0x50];     /* +0x50 [0x50] */
-    char      path_field[0x50];   /* +0xa0 [0x50] */
+    uint8_t   path_field[0x50];   /* +0xa0 [0x50]  unsigned: `pick_file` tests a byte of it zero-extended */
 } PACKED;
 extern struct game_directories GAME_DIRECTORIES;
 
@@ -4682,5 +4678,14 @@ struct game_master_levels {
     uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
 } PACKED;
 extern struct game_master_levels GAME_MASTER_LEVELS;
+
+/*
+ * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
+ * the backslash string, which the path builders concatenate.
+ */
+struct game_path_sep {
+    char     *path_sep;          /* +0x00 [2]  the "\\" at 0x236e, `DG1BCC.path_sep` */
+} PACKED;
+extern struct game_path_sep GAME_PATH_SEP;
 
 #endif /* DGROUP_H */

@@ -216,6 +216,17 @@ struct machine_rect_slots {
 struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
 
 /*
+ * **How many saved-rectangle records the pool has been given**, DGROUP
+ * 0x56b6: `build_rect_pool` adds each block's count and `rect_pool_count`
+ * answers it. Nothing else names the word.
+ */
+struct machine_rect_count {
+    uint16_t  count;              /* +0x00 */
+} PACKED;
+
+struct machine_rect_count MACHINE_RECT_COUNT DGROUP_BSS(0x56b6);
+
+/*
  * **The saved-rect free list, and where the cursor is to be drawn**, DGROUP
  * 0x56e0..0x56e6, 0x06 bytes. The pair is the pointer less the bitmap's hot
  * spot, worked out before the redraw and compared with the slot's own so an
@@ -10978,7 +10989,7 @@ uint16_t build_rect_pool(uint16_t n)
 
     rec->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
     MACHINE_RECT_FREE.rect_free_ptr = dg_near(dgroup, base);
-    GAME_TEXT_LINES.line_ptr[8] = (uint16_t)(GAME_TEXT_LINES.line_ptr[8] + n);
+    MACHINE_RECT_COUNT.count = (uint16_t)(MACHINE_RECT_COUNT.count + n);
     return 1;
 }
 
@@ -11327,7 +11338,7 @@ void free_rect_pool(void)
  */
 uint16_t rect_pool_count(void)
 {
-    return GAME_TEXT_LINES.line_ptr[8];
+    return MACHINE_RECT_COUNT.count;
 }
 
 /*
