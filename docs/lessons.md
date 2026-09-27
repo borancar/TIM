@@ -442,6 +442,10 @@ alternatives rather than by reading:
 - `test byte ptr [mode],2` on an `int` is `(uint8_t)mode & 2`; `mode & 2`
   gives `test word ptr`. The image has both in one routine, word for the
   first test and byte for all the others.
+- A `char` masked and tested for zero is narrowed to `test al,k`; the
+  image's `cbw / test ax,k / je` is `!((c = *src) & k)`. `!= 0` and a bare
+  truth test both narrow, and `> 0` widens but jumps `jle`
+  (`draw_compressed_body`'s peek at the next tag).
 - Without `-Z`, a value is kept in AX only inside one statement, and an
   `if` and its block count as one statement. `sub [n],ax / jg L / ...
   L: add [p],ax` is `if ((n -= cut) > 0) { p += cut; ... }`. A separate

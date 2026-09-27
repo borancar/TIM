@@ -41,6 +41,8 @@ assembled it itself.
 
 | file | image | routines | data |
 | --- | --- | --- | --- |
+| `src/compbmp.c` | 0x20189..0x20654 | 1 of 1 | whether 0x44ea is its `_DATA` is not settled |
+| `src/timer.c` | 0x20654..0x20840 | assembly: host transcription, not judged | `_DATA` 0x44ee..0x457a |
 | `src/scale.c` | 0x20840..0x20be0 | 3 of 3 | `_DATA` 0x457a..0x458c, `_BSS` 0x5956..0x6176 |
 | `src/polyclip.c` | 0x20be0..0x21088 | assembly: host transcription, not judged | none |
 | `src/keyboard.c` | 0x21088..0x2149e | assembly: host transcription, not judged | `_DATA` 0x458c..0x471c |

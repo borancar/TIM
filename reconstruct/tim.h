@@ -184,6 +184,8 @@ void blit_bitmap_thunk(struct bitmap * bmp, int16_t x, int16_t y,
                        uint16_t mode);                  /* 0x1e940 */
 void blit_scaled_thunk(struct bitmap * bmp, int16_t x, int16_t y); /* 0x1e944 */
 void draw_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode); /* 0x25300 */
+void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
+                          uint16_t mode);          /* 0x20189 */
 void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                             uint16_t mode);             /* 0x20185 */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y,

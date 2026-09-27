@@ -1925,7 +1925,6 @@ struct dg_52ed DG52ED DGROUP_WAS(0x52ed);
 struct dg_52fe DG52FE DGROUP_BSS(0x52fe);
 struct dg_4e4e DG4E4E DGROUP_WAS(0x4e4e);
 struct dg_50af DG50AF DGROUP_BSS(0x50af);
-struct timer TIMER DGROUP_AT(0x44ee) = { .divisor = -1 };
 struct dg_5752 DG5752 DGROUP_BSS(0x5752);
 struct dg_5456 DG5456 DGROUP_BSS(0x5456);
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
