@@ -35,6 +35,8 @@
  */
 asm {
 _DATA segment word public 'DATA'
+public _TIMER
+_TIMER label byte
 d_44ee label byte
         db 0h
 d_44ef label byte

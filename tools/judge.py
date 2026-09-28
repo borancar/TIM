@@ -152,6 +152,15 @@ ASM_PROC = re.compile(r"/\*[^*]*?\b(0x[0-9a-fA-F]{5})\b[^*]*\*/[ \t]*\n"
                       r"[ \t]*_?(\w+)[ \t]+proc\b")
 
 
+def turboc_aliases():
+    """**The names Borland sees**: tim.h's `#define`s under `__TURBOC__` that
+    give the port's names for the run-time library's own (`borland_printf`
+    is `printf`) and for `main`. Answers port name -> Borland's."""
+    text = open(os.path.join(RECON, "tim.h")).read()
+    m = re.search(r"#ifdef __TURBOC__\n/\*\n \* \*\*The run-time library's own names.*?#endif", text, re.S)
+    return dict(re.findall(r"^#define (\w+)\s+(\w+)$", m.group(0), re.M)) if m else {}
+
+
 def runtime_names():
     """The C runtime's public names at their image addresses - `F_LDIV@`,
     `N_LXLSH@`, `_lseek` - so a far call into the library is checked like any
@@ -256,9 +265,12 @@ def tasm_obj(path, opts, assembler):
     body = "\n".join(m.group(1) for m in
                      re.finditer(r"^asm \{\n(.*?)^\}$", branch, re.M | re.S))
     body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
-    prelude = ("_DATA segment word public 'DATA'\n_DATA ends\n"
-               "_BSS segment word public 'BSS'\n_BSS ends\n"
-               "DGROUP group _DATA,_BSS\n")
+    # a module that declares a data segment itself - `para`, as the video
+    # interface's is - keeps its own declaration
+    prelude = "".join(
+        "%s segment word public '%s'\n%s ends\n" % (n, c, n)
+        for n, c in (("_DATA", "DATA"), ("_BSS", "BSS"))
+        if not re.search(r"^%s segment" % n, body, re.M)) + "DGROUP group _DATA,_BSS\n"
     d = tempfile.mkdtemp(prefix="judge")
     try:
         base = os.path.splitext(os.path.basename(path))[0][:8].upper()
@@ -583,6 +595,7 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
     # routines of machine.c. Nothing above can notice: it judges what was
     # compiled, so the routine was neither a MATCH nor a DIFF, just absent.
     compiled = {nm.lstrip("_") for nm, _s, _o in mod.publics}
+    compiled |= {port for port, lib in turboc_aliases().items() if lib in compiled}
     for name, addr in sorted(addresses([path]).items(), key=lambda x: x[1]):
         if name not in compiled:
             results.append((name, addr, "MISSING: defined in the file, "
@@ -639,6 +652,13 @@ def judge_data(mod, refs, img, placed, declared=(), me=None):
                 out.append((tgt[4:], None,
                             "DIFF: referenced at %04x, placed at %04x"
                             % (got, want), []))
+    # **Data nothing in the module reads** - a table file's, or a vector
+    # another module jumps through - has no reference to place it by, so it
+    # stands where the file declares it
+    if len(declared) == 1:
+        for x in mod.segs[1:]:
+            if x is not None and x.cls == "DATA" and x.length and x.name not in bases:
+                bases[x.name] = {int(declared[0][0], 16)}
     for segname, found in sorted(bases.items()):
         seg = next(x for x in mod.segs[1:] if x.name == segname)
         if len(found) != 1:
@@ -728,6 +748,10 @@ def main(argv=None):
     img = open(IMAGE, "rb").read()
     known = runtime_names()
     known.update(addresses(port_sources()))
+    # a routine Borland knows by the library's name has the port's address
+    for port, lib in turboc_aliases().items():
+        if port in known:
+            known.setdefault(lib, known[port])
     # a file judged from outside the tree (a draft) names its own routines
     for extra in a.files:
         for name, addr in addresses([extra]).items():

@@ -6,12 +6,10 @@
  *
  * **LZHUF** - Okumura and Yoshizaki's LZSS with adaptive Huffman coding,
  * type 3 of the resource handlers: the encoder's trees, the bit reader and
- * writer, the Huffman tree and its update, and the encoder and decoder -
- * and after them four jumps through the video driver's vectors and
- * `restore_write_mode`.
+ * writer, the Huffman tree and its update, and the encoder and decoder.
  *
  * One module of the original's **code segment 1c25**, image
- * 0x1dba8..0x1e967, with LZHUF.C's own data in its own order - `getbuf`,
+ * 0x1dba8..0x1e93c, with LZHUF.C's own data in its own order - `getbuf`,
  * `getlen`, `putbuf`, `putlen`, `p_len`, `p_code`, `d_code`, `d_len` - as
  * `_DATA` 0x3600..0x3886, and its `_BSS` 0x58d2..0x591a. **It is compiler
  * output edited by hand and assembled**: some routines are Borland C as it
@@ -20,8 +18,8 @@
  * `GetBit`'s `cmp si,0`, `add sp,2` cleanups, and `DecodePosition`, whose
  * `ret` is a jump back into its caller. So it is TASM source, the `#ifdef
  * __TURBOC__` block below, with the host's transcription in the `#else`.
- * The end is ours: whether the four thunks and `restore_write_mode` share
- * the module is not measured.
+ * Its end is where the video driver's interface begins, vmiface.c, whose
+ * data starts a paragraph past this module's.
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
@@ -136,9 +134,7 @@ _DATA ends
 
 extrn _dos_alloc_bytes:far
 extrn _dos_free_far:far
-extrn _DG4342:byte
 extrn _ENGINE_STREAM:byte
-extrn _VMDS:byte
 LZHUF_TEXT segment byte public 'CODE'
 assume cs:LZHUF_TEXT, ds:DGROUP
 extrn _emit_byte:near
@@ -148,8 +144,7 @@ public _lzss_open_write, _lzss_reset, _init_tree, _insert_node
 public _delete_node, _huff_get_bit, _huff_get_byte, _huff_putcode
 public _huffman_start, _huffman_reconst, _huffman_update, _encode_char
 public _encode_position, _encode_end, _decode_position, _lzss_flush
-public _decompress_lzss, _vm_call_4_thunk, _blit_bitmap_thunk, _blit_scaled_thunk
-public _vm_call_38_thunk, _restore_write_mode
+public _decompress_lzss
 
 /* 0x1dba8 */
 _lzss_open_write proc near
@@ -1615,42 +1610,6 @@ L1e939:
         ret
 _decompress_lzss endp
 
-/* 0x1e93c */
-_vm_call_4_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+10h
-_vm_call_4_thunk endp
-
-/* 0x1e940 */
-_blit_bitmap_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+78h
-_blit_bitmap_thunk endp
-
-/* 0x1e944 */
-_blit_scaled_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+88h
-_blit_scaled_thunk endp
-
-/* 0x1e948 */
-_vm_call_38_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+98h
-_vm_call_38_thunk endp
-
-/* 0x1e94c */
-_restore_write_mode proc far
-        cmp byte ptr DGROUP:_VMDS+21h, 10h
-        jne L1e965
-        mov ax, 205h
-        mov dx, 3ceh
-        out dx, ax
-        mov ax, 0ff08h
-        out dx, ax
-        mov dx, 3c4h
-        mov ax, 0f02h
-        out dx, ax
-L1e965:
-        retf
-c_1e966 db 0cbh
-_restore_write_mode endp
 LZHUF_TEXT ends
 }
 #else
@@ -2359,71 +2318,4 @@ int16_t decompress_lzss(void)
     }
 }
 
-/*
- * 0x1e93c
- *
- * A jump through the video driver's vector 4, DGROUP 0x4352. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
- * it. A stub, which aborts; the TASM source above is the original's.
- */
-void vm_call_4_thunk(void)
-{
-    not_transcribed("0x1e93c");
-}
-
-/*
- * 0x1e940
- *
- * A thunk into the video driver: `ljmp [0x43ba]`, which is `vm_blit_bitmap`.
- * It jumps rather than calls, so the driver returns to this routine's caller
- * and reads that caller's arguments off the stack unchanged.
- */
-void blit_bitmap_thunk(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
-{
-    vm_blit_bitmap(bmp, x, y, mode);
-}
-
-/*
- * 0x1e944
- *
- * A thunk into the video driver: `ljmp [0x43ca]`, which is VGA:0x271b. Same
- * arrangement as 0x1e940 - it takes three arguments rather than four, because
- * that is what its caller pushed.
- */
-void blit_scaled_thunk(struct bitmap * bmp, int16_t x, int16_t y)
-{
-    vm_blit_scaled(bmp, x, y);
-}
-
-/*
- * 0x1e948
- *
- * A jump through the video driver's vector 38, DGROUP 0x43da. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
- * it. A stub, which aborts; the TASM source above is the original's.
- */
-void vm_call_38_thunk(void)
-{
-    not_transcribed("0x1e948");
-}
-
-/*
- * 0x1e94c
- *
- * Put the graphics controller back the way the rest of the code expects it,
- * after a routine that changed it to draw. Write mode 2, every bit of the bit
- * mask, every plane of the map mask - the same three registers `vm_blit_bitmap`
- * restores in its epilogue, and the same values.
- *
- * On any adapter but 0x10 it does nothing at all: the whole body is behind that
- * test, and the routine is two `retf`s in a row in the image because the second
- * one is a separate one-byte routine.
- */
-void restore_write_mode(void)
-{
-    if (VMDS.adapter != 0x10)
-        return;
-
-    io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
-    io_out16(PORT_GC_INDEX, 0xff08);            /* bit mask: every bit */
-    io_out16(PORT_SEQ_INDEX, 0x0f02);           /* map mask: every plane */
-}
 #endif

@@ -9,10 +9,13 @@
  * video driver's `copy_rect` and `show_page` thunks at either end.
  *
  * A module of the original's **code segment 1c25**, image 0x21088..0x2149e,
- * split out of engine.c on 2026-09-27. Its `_DATA` is DGROUP 0x458c..0x471c,
+ * split out of engine.c on 2026-09-27. Its `_DATA` is DGROUP 0x458c..0x471e,
  * the handler's state and tables, and it keeps four words in its own code
  * segment at 0x2108c - the saved keyboard and timer vectors - which only
- * these routines name.
+ * these routines name. Its last word, 0x471c, nothing names; it is this
+ * module's because text.c's `_DATA`, the next object's, begins at 0x471e by
+ * its own references, and a `_DATA` that began at 0x471c would not have
+ * been padded.
  *
  * **So it is TASM source**: the handler is an interrupt routine and every
  * entry is hand-written - it even patches its own immediates, `cs:` stores
@@ -89,6 +92,8 @@ d_4705 label byte
         db 47h, 4bh, 50h, 4dh, 53h, 1ch
 d_471b label byte
         db 0h
+d_471c label byte
+        db 0h, 0h
 _DATA ends
 
 extrn _detect_pcjr:far
@@ -129,16 +134,16 @@ L210a4:
         int 21h
         mov word ptr cs:c_21090, bx
         mov word ptr cs:c_21092, es
-        mov dx, 4f46h
-        mov ax, 1c25h
+        mov dx, offset _keyboard_isr
+        mov ax, seg _keyboard_isr
         mov ds, ax
         mov ax, 2509h
         int 21h
         mov ax, word ptr [bp+6]
         neg ax
         jae L210e4
-        mov dx, 5136h
-        mov ax, 1c25h
+        mov dx, offset c_21386
+        mov ax, seg c_21386
         mov ds, ax
         mov ax, 251ch
         int 21h
@@ -448,22 +453,23 @@ L2137e:
         pop bx
         pop ax
         iret
-c_21386 db 50h
-c_21387 db 53h
-c_21388 db 51h
-c_21389 db 52h
-c_2138a db 57h
-c_2138b db 56h
-c_2138c db 55h
-c_2138d db 1eh
-c_2138e db 6h
-c_2138f db 0b8h, 3ch, 2dh
-c_21392 db 8eh, 0d8h
-c_21394 db 0a1h, 0f1h, 46h
-c_21397 db 8eh, 0c0h
-c_21399 db 0bdh, 7fh, 0h
-c_2139c db 0beh, 2h, 0h
-c_2139f db 0b7h, 0h
+c_21386 label byte
+        push ax
+        push bx
+        push cx
+        push dx
+        push di
+        push si
+        push bp
+        push ds
+        push es
+        mov ax, DGROUP
+        mov ds, ax
+        mov ax, word ptr ds:[46f1h]
+        mov es, ax
+        mov bp, 7fh
+        mov si, 2
+        mov bh, 0
 L213a1:
         sub ax, ax
         shr si, 1

@@ -13,7 +13,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -G -Z
- * JUDGE: data 0x4a82..0x4ab0
+ * JUDGE: data 0x4a82..0x4ab4
  */
 #include "tim.h"
 #include "io.h"
@@ -29,6 +29,16 @@
 struct dg_4a82 DG4A82 DGROUP_WAS(0x4a82) = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 1, -2,
 };
+
+/*
+ * DGROUP 0x4ab0..0x4ab4 - **two words nothing in the image names**: -2, and
+ * 0x2b11, 11025, a sample rate. They are the last of the game's data - the
+ * run-time library's begins at 0x4ab4 - and the objects linked after this
+ * one, trig.c and atan2.c, have no `_DATA`; and this module's has no string
+ * literals, which Borland would have put after them. So they are this
+ * module's, defined after the record. What they were for is not known.
+ */
+struct dg_4ab0 DG4AB0 DGROUP_AT(0x4ab0) = { 0xfffe, 0x2b11 };
 
 /*
  * 0x296b4

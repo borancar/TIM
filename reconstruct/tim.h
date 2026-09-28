@@ -26,6 +26,7 @@
  * Six of them are declared below, under `__TURBOC__`, exactly as <stdlib.h>
  * and <string.h> declare them, since some modules include those too.
  */
+#define game_main               main
 #define borland_exit            exit
 #define borland_fclose          fclose
 #define borland_fgetc           fgetc
@@ -1899,6 +1900,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */
 void restore_write_mode(void);           /* 0x1e94c */
+void vm_null_hook(void);                 /* 0x1e966 */
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight);  /* 0x1ec36 */
 int16_t add_palette_cycle(int16_t first, int16_t count, int16_t step);  /* 0x1ec5c */

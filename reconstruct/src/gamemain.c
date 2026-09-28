@@ -111,7 +111,7 @@ void game_startup(void)
     struct file_rec *file;             /* di */
     int16_t i;                         /* si */
 
-    DG52ED.stack_floor = 0x800;
+    STKLEN = 0x800;
 
     free_bytes = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {

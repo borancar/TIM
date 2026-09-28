@@ -1,6 +1,6 @@
 # Status
 
-*Last updated 2026-09-27.*
+*Last updated 2026-09-28.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
@@ -21,6 +21,24 @@ alignment byte (0x0bb97) outside a matched module. The C modules are the
 original compilers' output; the assembly ones are TASM source in the same
 `.c` files. Not yet judged: the overlay drivers (VM.OVL's VGA, SX.OVL's
 ASB, ADL, SBP and SPKR), which are separate binaries.
+
+**TIM.EXE links from the sources, identical to the original** (2026-09-28):
+`tools/link.py` builds every game module as the judge does, links them with
+BC++ 3.0's TLINK behind `C0M.OBJ` against `CM.LIB`, and every byte TLINK
+writes - 205,326 - is the original's, as are all 2,324 relocations, the
+entry and the stack; the original's image is zero from there to the
+stack's end, which TLINK does not write. What lies above that in the
+recovered image is LZEXE's stub and compressed tail, found verbatim in the
+packed file, and three relocations of its own. For that, DGROUP's data left
+dgroup.c for the modules it is: the part tables, `PART_KINDS`, the message
+strings and the game state that starts out zero are `gamedata.c`, a module
+of data and no code between `gamemain.c` and `intro.c` (the file is ours);
+the video driver's interface - its thunks and `VMDS`, `DG4342`, `DG440E` -
+is `vmiface.c`, split out of lzhuf.c on its `para`-aligned data; and
+`DG44EA`, `DG4AB0` and two words of keyboard.c's are the modules' around
+them. The object order is the data's, not the code's (`object_order` in
+link.py). dgroup.c keeps only the start-up's own words and the library's,
+which C0M.OBJ and CM.LIB supply.
 
 **Four tools build it** (narrowed 2026-09-27): **Borland C++ 3.0** for most
 of the game (72 files, the four Turbo C++ 3.0 was credited with included -

@@ -493,7 +493,7 @@ int16_t heap_largest_free(void)
         if (!info.in_use && (uint16_t)(info.size - 4) > best)
             best = info.size - 4;
     }
-    gap = -(int16_t)DG52ED.stack_floor - total;
+    gap = -(int16_t)STKLEN - total;
     if (gap > best)
         best = gap;
     return best;

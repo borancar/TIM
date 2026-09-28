@@ -593,6 +593,47 @@ all - as agreeing. TASM 3.0 loops under the emulator on the `/D` defines
 TCC passes it; the judge now drops them for the emulated assembler, and
 the sweep counts only "N of N routines match".
 
+### Linking the image back together: the data says the object order, and where a module's data ends says whose it is
+
+**What happened.** `tools/link.py` links TIM.EXE from the judged objects.
+The code linked in place at once; DGROUP did not, because a fifth of it
+lived only in the host's dgroup.c. Placing it module by module took these
+rules, each measured on this image:
+
+  - **TLINK lays each segment out in object order, and the object order is
+    not the code's.** `gamemain.c`'s data is first in DGROUP, `collide.c`'s -
+    the first module of segment 0000 - well after. So a module with data goes
+    where its data is, and one without follows its code neighbour.
+  - **Borland C++ puts a module's string literals after all its other
+    initialised data**, `-d` or not. A module whose `_DATA` is only literals
+    cannot own what follows them: the part tables after `gamemain.c`'s
+    literals are another object's - a module with data and no code
+    (`gamedata.c`), which the code layout cannot show.
+  - **A data run that starts on a paragraph a C module's word alignment would
+    not reach is an assembly module's `para` segment.** `VMDS` at 0x3890
+    after lzhuf's data ending at 0x3886 is how the video interface was found
+    to be a module of its own.
+  - **`_BSS` is laid out last mention first (BC++ 3.0), and a header's
+    `extern` - Borland's own <dos.h> included, which names `_stklen` - is a
+    mention.** The defining file hides its own `extern`s (`GAMEDATA_C`) and
+    names two objects before any `#include` to put `_stklen` where the image
+    has it. BC++ 2.0 did not reproduce this block with the real headers
+    (its "by name" order, above, came out neither by address nor
+    alphabetical here), so the module is 3.0's.
+  - **A program that defines a start-up variable takes none from the
+    library**: without `_stklen` the link pulled `STKLEN` and shifted
+    everything after the run-time's data by two bytes.
+  - **Borland C++ has no designated initialisers**, and a definition with no
+    initialiser goes to `_BSS`: `tools/c89init.py` rewrites the port's
+    tables positionally through clang, and an all-zero table gets `= { 0 }`.
+  - **A segment value in the drafted assembly is a relocation**: keyboard.c's
+    `mov ax, 1c25h` was `mov ax, seg _keyboard_isr`, and its timer hook,
+    left as `db`, loaded DGROUP's segment as three plain bytes.
+  - **The recovered image is not the file LZEXE packed**: above the stack it
+    holds the stub's own copy and the compressed tail, and unlzexe.py's
+    header describes that memory. Compare the program up to the stack's end,
+    and only the entry and stack of the header.
+
 ### A cast the judge does not need can be one the host does, and a wait on a check's files can read the previous run
 
 collide.c was committed on 2026-09-27 (ac75438) as byte-exact with

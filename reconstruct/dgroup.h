@@ -913,7 +913,9 @@ struct dg_50bf {
     dg_near_t layer_head_ptr[6];  /* +0x00 */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_50bf DG50BF;
+#endif
 
 /*
  * ---------------------------------------------------------------------------
@@ -1077,7 +1079,9 @@ struct dg_4e67 {
     char      hint[0x190];        /* +0xb8  0x4f1f, up to DG50AF */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_4e67 DG4E67;
+#endif
 
 
 /*
@@ -1293,7 +1297,9 @@ struct dg_52bd {
     uint8_t far *pal_sierra_ptr;  /* +0x28  sierra.pal */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_52bd DG52BD;
+#endif
 
 
 /*
@@ -1316,11 +1322,26 @@ struct dg_52ed {
        it at image 0x5a to size the block it keeps, beside `_heaplen` at
        0x4d32; the game then writes 0x800 into it in `game_start` and
        `heap_largest_free` subtracts it from the top of the heap, so after
-       startup it is what the stack is reserved below. */
+       startup it is what the stack is reserved below. Under Borland it is
+       the variable itself, `_stklen`, defined in gamedata.c right after this
+       record - the start-up's own name, which is why TLINK takes no
+       `_stklen` from the library. */
+#ifndef __TURBOC__
     uint16_t  stack_floor;        /* +0x0f */
+#endif
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_52ed DG52ED;
+#endif
+#ifdef __TURBOC__
+#ifndef GAMEDATA_C
+extern uint16_t _stklen;
+#endif
+#define STKLEN _stklen
+#else
+#define STKLEN DG52ED.stack_floor
+#endif
 
 /*
  * **The machine file the picker chose**, at DGROUP 0x52fe. `pick_file` copies
@@ -1334,7 +1355,9 @@ struct dg_52fe {
     char      name[0xd];          /* +0x00 */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_52fe DG52FE;
+#endif
 
 
 
@@ -1389,7 +1412,9 @@ struct dg_4e4e {
                                      `dg_4e67` */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_4e4e DG4E4E;
+#endif
 
 
 /*
@@ -1412,7 +1437,9 @@ struct dg_50af {
     uint16_t  flip_options;       /* +0x0e  part_flip_options' answer, kept for the handles */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_50af DG50AF;
+#endif
 
 
 /*
@@ -2041,7 +2068,9 @@ struct dg_50d3 {
     struct part parts_bin;        /* +0x04 */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_50d3 DG50D3;
+#endif
 
 
 /*
@@ -2055,7 +2084,9 @@ struct dg_5179 {
     struct part moving_parts;     /* +0x00 */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_5179 DG5179;
+#endif
 
 
 /*
@@ -2249,7 +2280,9 @@ struct dg_521b {
     struct part placed_parts;     /* +0x00 */
 } PACKED;
 
+#ifndef GAMEDATA_C
 extern struct dg_521b DG521B;
+#endif
 
 
 /*
@@ -4649,7 +4682,13 @@ struct dg_440e {
 extern struct dg_440e DG440E;
 
 /* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */
+#ifdef __TURBOC__
+/* compbmp.c's `_DATA`: under Borland the routine's address, which the loader
+   relocates, where the host keeps the guest's pair. */
+extern void (far *DG44EA)();
+#else
 extern struct far_ptr DG44EA;
+#endif
 
 /* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
    sample rate, and that is all that is known. */
@@ -4691,7 +4730,9 @@ struct game_directories {
     char      game_dir[0x50];     /* +0x50 [0x50] */
     uint8_t   path_field[0x50];   /* +0xa0 [0x50]  unsigned: `pick_file` tests a byte of it zero-extended */
 } PACKED;
+#ifndef GAMEDATA_C
 extern struct game_directories GAME_DIRECTORIES;
+#endif
 
 /*
  * **The master-level table**, DGROUP 0x0116..0x0124, 0x0e bytes: a word per master level, 0 to

@@ -9,9 +9,11 @@
  * A module of the original's **code segment 1c25**, image 0x20189..0x20654,
  * split out of engine.c on 2026-09-27. The thunk at 0x20185 that jumps to it
  * through DGROUP 0x44ea, the assembly `fill_rect` before that and the timer
- * after it are all assembly and stay outside. Whether the vector at 0x44ea is
- * this module's `_DATA` is not settled: nothing here reads it, so the judge
- * cannot place it.
+ * after it are all assembly and stay outside. **Its `_DATA` is the vector at
+ * 0x44ea**, the routine's own address: nothing here reads it, but the link
+ * order says so - TLINK lays DGROUP out in object order, and 0x44ea is
+ * between polygon.c's data and timer.c's, as this module's code is between
+ * theirs.
  *
  * Its `asm` is BC++ 2.0's own - `xor ah,ah` is `30 e4`, the built-in
  * assembler's encoding, where TASM writes `32 e4` - and it has no TASM
@@ -19,6 +21,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
+ * JUDGE: data 0x44ea..0x44ee
  */
 #include "tim.h"
 #include "io.h"
@@ -37,6 +40,18 @@
 typedef void (far *vm_hook_fn)(void);
 typedef void (far *vm_run_fn)(void);
 typedef void (far *vm_span_fn)(void);
+#endif
+
+/*
+ * DGROUP 0x44ea - **the vector the thunk at 0x20185 jumps through**, this
+ * module's `_DATA`: the address of `draw_compressed_body` below. Under
+ * Borland it is that address, which the loader relocates; the host keeps
+ * the guest's pair.
+ */
+#ifdef __TURBOC__
+void (far *DG44EA)() = draw_compressed_body;
+#else
+struct far_ptr DG44EA DGROUP_AT(0x44ea) = { .off = 0x3f39, .seg = LOAD_SEG + 0x1c25 };
 #endif
 
 /*
