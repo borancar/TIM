@@ -25,9 +25,10 @@ Linked with `/i` and given the original's `minalloc`, the cracked build is
 the file LZEXE 0.91 (`lzexe/`, not in the repository) packs into the
 shipped TIM.EXE, byte for byte.
 
-Linked with `/i` and given the original's `minalloc`, the cracked build is
-the file LZEXE 0.91 packs into the shipped TIM.EXE, byte for byte, and the
-verdict is its hash (`SHA256`).
+Linked with `/i`, the protected build is the developer's file and the
+cracked build - given the `minalloc` an unpacker left - the cracker's, which
+LZEXE 0.91 packs into the shipped TIM.EXE byte for byte; the verdict is
+each one's hash (`SHA256`).
 
 What is not a judged module is not here: `dgroup.c` is the host's layout of
 DGROUP and does not compile under Borland, so data no module owns yet is
@@ -249,42 +250,33 @@ def compare(built, original, owner):
         all(fb[k] == fo[k] for k in ("cs", "ip", "ss", "sp"))
 
 
-# **The one header word the linker did not write.** TLINK with `/i` asks for
-# no memory past the file (`minalloc` 0); the original asked for 0x182
-# paragraphs more - measured, not read: LZEXE 0.91 packs this link to the
-# shipped TIM.EXE byte for byte only with it. What set it after the link
-# (Borland's EXEMOD, say) is not known.
-MINALLOC = 0x182
+# **The one header word the linker did not write - and it is the crack's.**
+# TLINK with `/i` asks for no memory past the file (`minalloc` 0), and LZEXE
+# 0.91 packs that to 0x19c0: the input's 0, plus the unpacked program less
+# the packed (0x3391 - 0x1b53 paragraphs), plus 0x182 of its own for the
+# decompressor. The shipped file has 0x1b42, which is what packing gives
+# from 0x182 - LZEXE's own allowance, exactly. So the shipped file was
+# packed twice: the developer's file (0) packed, unpacked by a tool that
+# took back the size difference and not the allowance (0x182), patched,
+# and packed again. The cracked build is that unpacked file, 0x182 and
+# all; the protected build is the developer's, TLINK's 0 as it wrote it.
+CRACKER_MINALLOC = 0x182
 
-
-def set_minalloc(exe):
-    data = bytearray(open(exe, "rb").read())
-    struct.pack_into("<H", data, 10, MINALLOC)
-    open(exe, "wb").write(data)
-
-
-# **The one header word the linker did not write.** TLINK with `/i` asks for
-# no memory past the file (`minalloc` 0); the original asked for 0x182
-# paragraphs more - measured, not read: LZEXE 0.91 packs this link to the
-# shipped TIM.EXE byte for byte only with it. What set it after the link
-# (Borland's EXEMOD, say) is not known.
-MINALLOC = 0x182
-
-# **The file itself, by its hash.** The cracked build, `/i` and
-# `MINALLOC` included, is the file LZEXE 0.91 packs into the shipped
-# TIM.EXE (SHA-1 e847c9ae5457be14ad333172ec0153214e8b13ec) byte for byte -
-# measured with LZEXE under DOSBox, 2026-09-28; the protected build is that
-# file with the crack's byte put back. So a link that hashes to these is the
-# original file, header and all, and LZEXE is not needed to say so.
+# **The file itself, by its hash.** The cracked build, `/i` and the
+# cracker's `minalloc` included, is the file LZEXE 0.91 packs into the
+# shipped TIM.EXE (SHA-1 e847c9ae5457be14ad333172ec0153214e8b13ec) byte for
+# byte - measured with LZEXE under DOSBox, 2026-09-28. The protected build
+# is that file with the crack's byte put back and TLINK's `minalloc`: the
+# developer's, as far as it can be known without the developer's file.
 SHA256 = {
     "cracked": "3e0183d8df59febe22946cf973b43eea735f1821001676eeda616041ac1160c2",
-    "protected": "d822976b39a5b81e4b272cbddd18f23295a1ca0f4582df226bdd9b30367c6d7b",
+    "protected": "ed5d15b20fad268834c584b98c5d98abc76f423a718bf636a294d5c36366f683",
 }
 
 
 def set_minalloc(exe):
     data = bytearray(open(exe, "rb").read())
-    struct.pack_into("<H", data, 10, MINALLOC)
+    struct.pack_into("<H", data, 10, CRACKER_MINALLOC)
     open(exe, "wb").write(data)
 
 
@@ -366,8 +358,8 @@ def main(argv):
     print("\n".join(tail[-15:]))
     if not os.path.exists(exe):
         raise SystemExit("TLINK wrote no TIM.EXE")
-    set_minalloc(exe)
-    set_minalloc(exe)
+    if a.cracked:
+        set_minalloc(exe)
     starts = sorted((addr, os.path.relpath(f, REPO)) for addr, f, _o in order)
 
     def owner(off):

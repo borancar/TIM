@@ -34,12 +34,16 @@ compares the source's default with the shipped bytes, and is identical as
 well; the two links differ in that one byte, 0x0ec7a. **The whole file is the
 original's** (2026-09-28): linked with TLINK's `/i`, which writes the
 zero-initialised segments and the stack into the file as the original did,
-and with the header's `minalloc` set to 0x182 - the one word no linker
-option gives; what set it (EXEMOD, say) is not known - the cracked build,
-packed with LZEXE 0.91 under DOSBox, **is the shipped TIM.EXE byte for
-byte** (SHA-1 e847c9ae...). So its SHA-256 and the protected build's (the
-same file, the crack's byte put back) are link.py's verdict, and LZEXE is
-not needed again. The files on disk,
+the cracked build, packed with LZEXE 0.91 under DOSBox, **is the shipped
+TIM.EXE byte for byte** (SHA-1 e847c9ae...) - once its header's `minalloc`
+is 0x182, not TLINK's 0. That word is the crack's: LZEXE adds 0x182
+paragraphs of its own to the input's `minalloc`, the shipped value is what
+0x182 packs to, and 0x182 is what an unpacker that takes back only the size
+difference leaves in a file LZEXE packed from 0. So the shipped file was
+packed twice - the developer's (0), unpacked, patched, packed again - and
+the cracked build is the cracker's unpacked file, the protected build the
+developer's with TLINK's 0. link.py's verdict is each one's SHA-256, and
+LZEXE is not needed again. The files on disk,
 and every screen comparison, keep the crack; the original's image is zero from there to the
 stack's end, which TLINK does not write. What lies above that in the
 recovered image is LZEXE's stub and compressed tail, found verbatim in the
