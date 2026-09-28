@@ -15,6 +15,12 @@ for byte, and its relocations as a set.
     uv run python tools/link.py            # build, link, compare
     uv run python tools/link.py --reuse    # link the objects of the last run
 
+**The protected build is the one compared**: the recovered executable has
+its copy protection cracked in one byte (tools/uncrack.py), which this
+takes out of its own copy, and the sources are built with
+`TIM_COPY_PROTECTION`. `--cracked` links the source's default against the
+shipped bytes instead.
+
 What is not a judged module is not here: `dgroup.c` is the host's layout of
 DGROUP and does not compile under Borland, so data no module owns yet is
 missing from the link, and the comparison says where.
@@ -60,11 +66,12 @@ def first_address(path):
 DATA_AT = re.compile(r"\[_DATA\]\s+MATCH, at DGROUP ([0-9a-f]{4})")
 
 
-def build(path, obj):
+def build(path, obj, cracked=False):
     """The judge on one file, keeping the object it built. Answers the
     verdict and where the judge placed the module's `_DATA`, if it has
     any."""
-    r = subprocess.run([sys.executable, os.path.join(HERE, "judge.py"), path],
+    r = subprocess.run([sys.executable, os.path.join(HERE, "judge.py"), path]
+                       + (["--cracked"] if cracked else []),
                        cwd=REPO, capture_output=True, text=True,
                        env=dict(os.environ, JUDGE_KEEP_OBJ=obj))
     verdict = [l for l in r.stdout.splitlines() if "routines match" in l]
@@ -234,10 +241,31 @@ def compare(built, original, owner):
         all(fb[k] == fo[k] for k in ("cs", "ip", "ss", "sp"))
 
 
+def original(cracked=False):
+    """**The original to compare with: the game as it was built.** The
+    recovered executable keeps the one-byte crack of the copy protection
+    (tools/uncrack.py); by default it is taken out of this copy, and the
+    sources are built with `TIM_COPY_PROTECTION`, the compiler's own jump.
+    `--cracked` compares the shipped bytes with the source's default."""
+    data = open(ORIGINAL, "rb").read()
+    if cracked:
+        return data
+    import uncrack
+    at = uncrack.exe_image_base(data) + uncrack.IMAGE_OFF
+    if data[at] != uncrack.CRACKED:
+        raise SystemExit("%s: the crack's byte is %#x" % (ORIGINAL, data[at]))
+    data = bytearray(data)
+    data[at] = uncrack.ORIGINAL
+    return bytes(data)
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--reuse", action="store_true")
     ap.add_argument("-j", type=int, default=8)
+    ap.add_argument("--cracked", action="store_true",
+                    help="link the source's default, the copy protection "
+                    "cracked as the binary shipped, and compare with that")
     a = ap.parse_args(argv)
     os.makedirs(os.path.join(OUT, "obj"), exist_ok=True)
     files = sorted(game_files())
@@ -248,7 +276,8 @@ def main(argv):
     # was built (the link rewrites every object, so its time says nothing);
     # a header's change needs the full build
     def digest(f):
-        return hashlib.sha1(open(f, "rb").read()).hexdigest()
+        mode = b"cracked" if a.cracked else b"protected"
+        return hashlib.sha1(open(f, "rb").read() + mode).hexdigest()
     old = {}
     if a.reuse and os.path.exists(saved):
         old = {os.path.join(REPO, k): v for k, v in json.load(open(saved)).items()}
@@ -260,7 +289,7 @@ def main(argv):
     if todo:
         bad = []
         with concurrent.futures.ThreadPoolExecutor(a.j) as ex:
-            for path, ok, verdict, at in ex.map(lambda f: build(f, objname[f]), todo):
+            for path, ok, verdict, at in ex.map(lambda f: build(f, objname[f], a.cracked), todo):
                 data[path] = at
                 hashes[path] = digest(path)
                 m = re.search(r"(\d+) of (\d+) routines match", verdict)
@@ -295,7 +324,7 @@ def main(argv):
         if off >= 0x2d400:
             who = "past the code (DGROUP and after)"
         return who
-    ok = compare(open(exe, "rb").read(), open(ORIGINAL, "rb").read(), owner)
+    ok = compare(open(exe, "rb").read(), original(a.cracked), owner)
     print("linked:", os.path.relpath(exe, REPO))
     print("IDENTICAL" if ok else "differs")
     return 0 if ok else 1

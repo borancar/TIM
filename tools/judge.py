@@ -519,7 +519,7 @@ def full_diff(ours, theirs, addr):
 
 def judge(path, known, img, fr, verbose=False, force_opts=None,
           force_compiler=None, placed=None, force_assembler=None,
-          full=False):
+          full=False, defines=()):
     placed = placed or {}
     src = open(path).read()
     c = COMPILER.search(src)
@@ -536,7 +536,8 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
         mod, _log = tasm_obj(path, opts, force_assembler or
                              (a.group(1) if a else DEFAULT_ASSEMBLER))
     else:
-        mod, _log = compile_obj(path, opts, compiler, assembler)
+        mod, _log = compile_obj(path, opts + ["-D" + d for d in defines],
+                                compiler, assembler)
     results = []
     refs = []
     for si, seg in enumerate(mod.segs):
@@ -727,6 +728,26 @@ def placements(paths):
     return out
 
 
+def image(cracked=False):
+    """**What the sources are judged against: the game as it was built.**
+    The copy this project was recovered from has its copy protection cracked
+    in one byte (tools/uncrack.py), and `out/TIM.img` keeps it, since every
+    screen comparison runs against that. The judge and the link take the
+    byte back out of their own copy and compile with `TIM_COPY_PROTECTION`,
+    which is the compiler's own jump; `--cracked` judges the shipped byte and
+    the source's default. Answers the image and the defines."""
+    img = open(IMAGE, "rb").read()
+    if cracked:
+        return img, ()
+    import uncrack
+    if img[uncrack.IMAGE_OFF] != uncrack.CRACKED:
+        raise SystemExit("%s: byte %#x is %#x, neither the shipped crack nor "
+                         "expected" % (IMAGE, uncrack.IMAGE_OFF, img[uncrack.IMAGE_OFF]))
+    img = bytearray(img)
+    img[uncrack.IMAGE_OFF] = uncrack.ORIGINAL
+    return bytes(img), ("TIM_COPY_PROTECTION",)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("files", nargs="+")
@@ -741,11 +762,14 @@ def main(argv=None):
                     "JUDGE: via-assembler")
     ap.add_argument("--compiler", choices=sorted(COMPILERS) + sorted(EMULATED),
                     help="instead of the file's own JUDGE: compiler")
+    ap.add_argument("--cracked", action="store_true",
+                    help="judge the binary as it shipped, the copy protection "
+                    "cracked, rather than as it was built")
     a = ap.parse_args(argv)
     if (a.compiler or DEFAULT_COMPILER) in COMPILERS and not os.path.exists(TCC):
         raise SystemExit("no TCC 3.0 at %s: make tcc in %s/reconstruct/v3.00"
                          % (TCC, TURBOC))
-    img = open(IMAGE, "rb").read()
+    img, defines = image(a.cracked)
     known = runtime_names()
     known.update(addresses(port_sources()))
     # a routine Borland knows by the library's name has the port's address
@@ -763,7 +787,7 @@ def main(argv=None):
         for name, addr, verdict, notes in judge(
                 path, known, img, fr, a.verbose,
                 a.opts.split() if a.opts is not None else None,
-                a.compiler, placed, a.assembler, a.full):
+                a.compiler, placed, a.assembler, a.full, defines):
             if a.only and name not in a.only.split(","):
                 continue
             total += 1

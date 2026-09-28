@@ -493,7 +493,10 @@ void game_intro(void)
  * deviation** rather than a transcription. Pair it with `tools/uncrack.py`,
  * which takes the byte out of the image and the executable: an un-cracked port
  * against a cracked reference disagrees on this screen, and every screen
- * comparison that crosses it fails, so the two want moving together.
+ * comparison that crosses it fails, so the two want moving together. The
+ * judge and tools/link.py compare this build, against their own copy of the
+ * image with the byte put back: the game as it was built, which the link
+ * reproduces whole (`--cracked` for the default and the shipped byte).
  *
  * The labels are guarded too, not just the `goto`. An unused label is a
  * `-Wall` warning, and the build is warning-clean.

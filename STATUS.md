@@ -26,7 +26,13 @@ ASB, ADL, SBP and SPKR), which are separate binaries.
 `tools/link.py` builds every game module as the judge does, links them with
 BC++ 3.0's TLINK behind `C0M.OBJ` against `CM.LIB`, and every byte TLINK
 writes - 205,326 - is the original's, as are all 2,324 relocations, the
-entry and the stack; the original's image is zero from there to the
+entry and the stack. **The original compared is the game as it was built**,
+its copy protection intact: the recovered executable's one-byte crack is
+taken out of the link's and the judge's own copies (tools/uncrack.py's
+byte) and the sources are built with `TIM_COPY_PROTECTION`. `--cracked`
+compares the source's default with the shipped bytes, and is identical as
+well; the two links differ in that one byte, 0x0ec7a. The files on disk,
+and every screen comparison, keep the crack; the original's image is zero from there to the
 stack's end, which TLINK does not write. What lies above that in the
 recovered image is LZEXE's stub and compressed tail, found verbatim in the
 packed file, and three relocations of its own. For that, DGROUP's data left
