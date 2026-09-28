@@ -137,7 +137,7 @@ def one_code_segment(obj, frame):
     open(obj, "wb").write(b"".join(out))
 
 
-def link(objs):
+def link(objs, exe_dir="exe"):
     """TLINK /c /m /s under the emulator: C0M first, the modules in image
     order, CM.LIB. Answers the linker's output."""
     names = ["C0M.OBJ"] + [os.path.basename(o) for o in objs]
@@ -151,7 +151,7 @@ def link(objs):
     lines += ["TIM", "TIM", "CM.LIB"]
     rsp = os.path.join(OUT, "TIM.RSP")
     open(rsp, "w", newline="").write("\r\n".join(lines) + "\r\n")
-    save = os.path.join(OUT, "exe")
+    save = os.path.join(OUT, exe_dir)
     os.makedirs(save, exist_ok=True)
     cmd = ["uv", "run", "--project", TURBOC, "python",
            os.path.join(HERE, "tcrun.py"), "TLINK.EXE", "--save", save,
@@ -159,7 +159,7 @@ def link(objs):
            "--add", os.path.join(LIB, "CM.LIB")]
     for o in objs:
         cmd += ["--add", o]
-    cmd += ["--", "/c", "/m", "/s", "@TIM.RSP"]
+    cmd += ["--", "/c", "/m", "/s", "/i", "@TIM.RSP"]
     r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
                        env=dict(os.environ, TURBOC_VERSION="bc3.00"))
     return r.stdout + r.stderr, os.path.join(save, "TIM.EXE")
@@ -309,7 +309,8 @@ def main(argv):
             one_code_segment(o, judge.frame_of(addr, fr) if addr is not None else 0)
             objs.append(o)
     order = [(addr, f, objname[f]) for f, addr, _d in order if addr is not None]
-    log, exe = link(objs)
+    # the cracked build has a directory of its own, so both can stand
+    log, exe = link(objs, "exe-cracked" if a.cracked else "exe")
     tail = [l for l in log.splitlines() if l.strip() and "VIRTUAL_ENV" not in l]
     print("\n".join(tail[-15:]))
     if not os.path.exists(exe):

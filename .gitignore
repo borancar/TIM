@@ -66,3 +66,4 @@ compile_commands.json
 # with different flags, so its objects live in their own tree rather than
 # beside the sources they share.
 tools/native/obj/
+lzexe/
