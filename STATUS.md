@@ -40,7 +40,41 @@ each of the fifteen left has at least one routine that does. crtc.c
 looks the most like a compiler's and is not: its two routines are the
 C-callable assembly template (SI and DI saved unused, `mov sp, bp` with no
 locals), and no compiler or option tried writes that epilogue - its header
-lists them. **Open**:
+lists them.
+
+Why each assembly module is not C, read from the image's bytes routine by
+routine (2026-09-28). The kinds: **(1)** SI or DI named without the
+compiler's own `push si / push di` first after the frame - unsaved, saved
+DI first, or other registers pushed ahead of them; **(2)** no final `ret`
+of its own - a thunk, a jump into another routine, code-segment data after
+it; **(3)** an interrupt handler not in Borland's `interrupt` push order;
+**(4)** `mov sp, bp` with no locals; **(5)** the frame's own epilogue with
+code after it. BP used as data, `pushf / cli`, a pop of the caller's stack
+and saves of AX-DX or ES in a routine that names neither SI nor DI are all
+things C with inline `asm` can do, so they decide nothing.
+
+| module | the routines that decide it | kind |
+| --- | --- | --- |
+| crtc | both | 4 |
+| dos | `dos_findfirst`, `dos_findnext` (popped frame, then a call and `retf`); `dos_find_to_dgroup` (BX, CX before SI) | 5, 1 |
+| dosmem | its two thunks | 2 |
+| glue | `call_sound_module` (DI, then SI) | 1 |
+| keyboard | `install_keyboard`; `keyboard_isr`; two thunks | 1, 3, 2 |
+| lowlevel | `joy_time_axes`, `mouse_save_vga`, `mouse_restore_vga`, `huge_add_positive`; `divide_error_handler`; `restore_rect_thunk` | 1, 3, 2 |
+| lzhuf | `encode_char`; `encode_end`, `decode_position` (jump into other routines); four thunks | 4, 2 |
+| lzw | `decompress_lzw`, `rle_from_memory` | 1, 2 |
+| polyclip | `clip_polygon` | 1 |
+| polygon | the edge walkers and `poly_walk`; `draw_compressed_bitmap` | 1, 2 |
+| sound | 26 of 42, e.g. `sequencer_tick` | 1 |
+| sound_call | `sound_callback` | 1 |
+| timer | `timer_tick`; two thunks; `timer_drop_callback` | 1, 2 |
+| trig | `angle_cos`, `arctan_lookup` (tables follow in the code segment) | 1, 2 |
+| vqt | `vqt_read_bits`; `far_copy` (DS before SI) | 1 |
+
+**Open**, with dosmem's thunks: dos.c's `dos_find_attr` .. `dos_setdisk`
+and `isr_stack_switch`, and lowlevel.c's joystick, mouse-API and far-pointer
+helpers, pass every test - they would be C if the module ended where they
+begin, and nothing measured puts a boundary there. **Open**:
 the video driver's thunks - a bare `jmp dword ptr` through DG4342, no
 `ret` - stand at the edges of several modules (keyboard.c's ends,
 dosmem.c's front, lowlevel.c's and lzhuf.c's ends, timer.c's), and would
