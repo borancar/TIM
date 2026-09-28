@@ -31,13 +31,15 @@ its copy protection intact: the recovered executable's one-byte crack is
 taken out of the link's and the judge's own copies (tools/uncrack.py's
 byte) and the sources are built with `TIM_COPY_PROTECTION`. `--cracked`
 compares the source's default with the shipped bytes, and is identical as
-well; the two links differ in that one byte, 0x0ec7a. **Packed with LZEXE
-0.91** (`lzexe/`, not in the repository), the cracked link - with TLINK's
-`/i`, which writes the zero-initialised segments and the stack into the
-file as the original did - is the shipped TIM.EXE byte for byte but for
-the header's `minalloc`: 0x19c0 where the shipped file has 0x1b42, so the
-unpacked original asked for 0x182 more paragraphs than TLINK's 0. What set
-that (EXEMOD, say) is not known. The files on disk,
+well; the two links differ in that one byte, 0x0ec7a. **The whole file is the
+original's** (2026-09-28): linked with TLINK's `/i`, which writes the
+zero-initialised segments and the stack into the file as the original did,
+and with the header's `minalloc` set to 0x182 - the one word no linker
+option gives; what set it (EXEMOD, say) is not known - the cracked build,
+packed with LZEXE 0.91 under DOSBox, **is the shipped TIM.EXE byte for
+byte** (SHA-1 e847c9ae...). So its SHA-256 and the protected build's (the
+same file, the crack's byte put back) are link.py's verdict, and LZEXE is
+not needed again. The files on disk,
 and every screen comparison, keep the crack; the original's image is zero from there to the
 stack's end, which TLINK does not write. What lies above that in the
 recovered image is LZEXE's stub and compressed tail, found verbatim in the

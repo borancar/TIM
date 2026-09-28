@@ -21,6 +21,14 @@ takes out of its own copy, and the sources are built with
 `TIM_COPY_PROTECTION`. `--cracked` links the source's default against the
 shipped bytes instead.
 
+Linked with `/i` and given the original's `minalloc`, the cracked build is
+the file LZEXE 0.91 (`lzexe/`, not in the repository) packs into the
+shipped TIM.EXE, byte for byte.
+
+Linked with `/i` and given the original's `minalloc`, the cracked build is
+the file LZEXE 0.91 packs into the shipped TIM.EXE, byte for byte, and the
+verdict is its hash (`SHA256`).
+
 What is not a judged module is not here: `dgroup.c` is the host's layout of
 DGROUP and does not compile under Borland, so data no module owns yet is
 missing from the link, and the comparison says where.
@@ -241,6 +249,45 @@ def compare(built, original, owner):
         all(fb[k] == fo[k] for k in ("cs", "ip", "ss", "sp"))
 
 
+# **The one header word the linker did not write.** TLINK with `/i` asks for
+# no memory past the file (`minalloc` 0); the original asked for 0x182
+# paragraphs more - measured, not read: LZEXE 0.91 packs this link to the
+# shipped TIM.EXE byte for byte only with it. What set it after the link
+# (Borland's EXEMOD, say) is not known.
+MINALLOC = 0x182
+
+
+def set_minalloc(exe):
+    data = bytearray(open(exe, "rb").read())
+    struct.pack_into("<H", data, 10, MINALLOC)
+    open(exe, "wb").write(data)
+
+
+# **The one header word the linker did not write.** TLINK with `/i` asks for
+# no memory past the file (`minalloc` 0); the original asked for 0x182
+# paragraphs more - measured, not read: LZEXE 0.91 packs this link to the
+# shipped TIM.EXE byte for byte only with it. What set it after the link
+# (Borland's EXEMOD, say) is not known.
+MINALLOC = 0x182
+
+# **The file itself, by its hash.** The cracked build, `/i` and
+# `MINALLOC` included, is the file LZEXE 0.91 packs into the shipped
+# TIM.EXE (SHA-1 e847c9ae5457be14ad333172ec0153214e8b13ec) byte for byte -
+# measured with LZEXE under DOSBox, 2026-09-28; the protected build is that
+# file with the crack's byte put back. So a link that hashes to these is the
+# original file, header and all, and LZEXE is not needed to say so.
+SHA256 = {
+    "cracked": "3e0183d8df59febe22946cf973b43eea735f1821001676eeda616041ac1160c2",
+    "protected": "d822976b39a5b81e4b272cbddd18f23295a1ca0f4582df226bdd9b30367c6d7b",
+}
+
+
+def set_minalloc(exe):
+    data = bytearray(open(exe, "rb").read())
+    struct.pack_into("<H", data, 10, MINALLOC)
+    open(exe, "wb").write(data)
+
+
 def original(cracked=False):
     """**The original to compare with: the game as it was built.** The
     recovered executable keeps the one-byte crack of the copy protection
@@ -269,15 +316,19 @@ def main(argv):
     a = ap.parse_args(argv)
     os.makedirs(os.path.join(OUT, "obj"), exist_ok=True)
     files = sorted(game_files())
-    objname = {f: os.path.join(OUT, "obj", "M%03d.OBJ" % k) for k, f in enumerate(files)}
+    # each build keeps objects and a record of its own, so a run stopped
+    # half way through one cannot leave the other's objects behind
+    suffix = "-cracked" if a.cracked else ""
+    os.makedirs(os.path.join(OUT, "obj" + suffix), exist_ok=True)
+    objname = {f: os.path.join(OUT, "obj" + suffix, "M%03d.OBJ" % k)
+               for k, f in enumerate(files)}
     code = {f: first_address(f) for f in files}
-    saved = os.path.join(OUT, "data.json")
+    saved = os.path.join(OUT, "data%s.json" % suffix)
     # `--reuse` still rebuilds a file whose source changed since its object
     # was built (the link rewrites every object, so its time says nothing);
     # a header's change needs the full build
     def digest(f):
-        mode = b"cracked" if a.cracked else b"protected"
-        return hashlib.sha1(open(f, "rb").read() + mode).hexdigest()
+        return hashlib.sha1(open(f, "rb").read()).hexdigest()
     old = {}
     if a.reuse and os.path.exists(saved):
         old = {os.path.join(REPO, k): v for k, v in json.load(open(saved)).items()}
@@ -315,6 +366,8 @@ def main(argv):
     print("\n".join(tail[-15:]))
     if not os.path.exists(exe):
         raise SystemExit("TLINK wrote no TIM.EXE")
+    set_minalloc(exe)
+    set_minalloc(exe)
     starts = sorted((addr, os.path.relpath(f, REPO)) for addr, f, _o in order)
 
     def owner(off):
@@ -325,10 +378,17 @@ def main(argv):
         if off >= 0x2d400:
             who = "past the code (DGROUP and after)"
         return who
-    ok = compare(open(exe, "rb").read(), original(a.cracked), owner)
+    built = open(exe, "rb").read()
+    same = compare(built, original(a.cracked), owner)
+    mode = "cracked" if a.cracked else "protected"
+    digest = hashlib.sha256(built).hexdigest()
     print("linked:", os.path.relpath(exe, REPO))
-    print("IDENTICAL" if ok else "differs")
-    return 0 if ok else 1
+    print("sha256 %s, the original %s build's is %s" % (digest, mode, SHA256[mode]))
+    if digest == SHA256[mode]:
+        print("IDENTICAL to the original file, header and all")
+        return 0
+    print("differs%s" % (" (the program is identical; the file is not)" if same else ""))
+    return 1
 
 
 if __name__ == "__main__":
