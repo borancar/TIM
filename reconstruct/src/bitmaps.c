@@ -516,7 +516,9 @@ void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
     at = list;
     largest = 0;
     while (*at != 0) {
-        chunk = buffer_size_thunk(BMP_PTR(*at)->width, BMP_PTR(*at)->height);
+        /* the thunk declared `unsigned`, as the original did: the high
+           word of the driver's `long` is dropped (tim.h) */
+        chunk = (uint16_t)buffer_size_thunk(BMP_PTR(*at)->width, BMP_PTR(*at)->height);
         if (largest < chunk)
             largest = (uint16_t)chunk;
         at++;

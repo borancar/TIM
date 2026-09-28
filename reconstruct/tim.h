@@ -15,6 +15,58 @@
 
 #include <stdint.h>
 
+#ifdef __TURBOC__
+/*
+ * **The run-time library's own names.** The port calls Borland's run-time
+ * routines by names of its own - the host has a libc of its own whose `printf`
+ * and `strcmp` are not these - but the source the original was built from
+ * called the library, and Borland C++ has to see those names for TLINK to
+ * find them in CM.LIB (tools/link.py). Each is the one its transcription's
+ * comment names. The video driver's three calls are the thunks the image has.
+ * Six of them are declared below, under `__TURBOC__`, exactly as <stdlib.h>
+ * and <string.h> declare them, since some modules include those too.
+ */
+#define borland_exit            exit
+#define borland_fclose          fclose
+#define borland_fgetc           fgetc
+#define borland_fopen           fopen
+#define borland_fputc           fputc
+#define borland_fread           fread
+#define borland_fseek           fseek
+#define borland_ftell           ftell
+#define borland_fwrite          fwrite
+#define borland_printf          printf
+#define borland_read            read
+#define borland_rewind          rewind
+#define borland_setbuf          setbuf
+#define borland_vsprintf        vsprintf
+#define close_handle            close
+#define dos_getdate             getdate
+#define dos_getvect             getvect
+#define dos_setvect             setvect
+#define heap_calloc             calloc
+#define heap_check              heapcheck
+#define heap_free               free
+#define heap_malloc             malloc
+#define int_to_string           itoa
+#define long_int_to_string      ltoa
+#define open_file               open
+#define string_chr              strchr
+#define string_compare          strcmp
+#define string_compare_nocase   stricmp
+#define string_concat           strcat
+#define string_copy             strcpy
+#define string_copy_padded      strncpy
+#define string_length           strlen
+#define string_ncompare_i       strnicmp
+#define string_reverse          strrev
+#define string_upper            strupr
+#define to_lower                tolower
+#define vm_buffer_size          buffer_size_thunk
+#define vm_restore_rect         restore_rect_thunk
+#define vm_show_page            show_page_thunk
+#endif
+
 /* The DGROUP layout, for the record types a prototype below takes by value -
    `struct far_ptr` is the one. dgroup.h includes nothing but <stdint.h>, so
    this is not a cycle. */
@@ -707,7 +759,11 @@ void    heap_ring_unlink(struct heap_block *bx);              /* 0x0c95a */
 void    heap_ring_insert(struct heap_block *bx);              /* 0x0c976 */
 void    heap_free_middle(struct heap_block *bx);              /* 0x0c921 */
 void    heap_free_top(struct heap_block *bx);                 /* 0x0c8e7 */
+#ifdef __TURBOC__
+void    heap_free(void *p);                         /* 0x0c8ca */
+#else
 void    heap_free(uint8_t *p);                      /* 0x0c8ca */
+#endif
 uint8_t *heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
 uint8_t *heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint8_t *heap_grow(uint16_t size);                  /* 0x0ca39 */
@@ -741,7 +797,11 @@ void near fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
 uint16_t near_memset(uint8_t *dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
+#ifdef __TURBOC__
+void   *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
+#else
 uint8_t *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
+#endif
 uint8_t *heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 /* thunks.c: far faces of the runtime's routines, the first twelve uncalled. */
 int16_t open_file_far(const char *name, uint16_t flags);                  /* 0x0ba32 */
@@ -761,10 +821,20 @@ int16_t borland_fclose_far(struct file_rec *file);                        /* 0x0
 uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
+#ifdef __TURBOC__
+char *int_to_string(int16_t value, char *buf,
+                    int16_t radix);                 /* 0x0d4bd */
+#else
 char *int_to_string(int16_t value, char *buf,
                        uint16_t radix);             /* 0x0d4bd */
+#endif
+#ifdef __TURBOC__
+char *long_int_to_string(int32_t value, char *buf,
+                         int16_t radix);            /* 0x0d4ff */
+#else
 char *long_int_to_string(int32_t value, char *buf,
                             uint16_t radix);        /* 0x0d4ff */
+#endif
 void draw_odometer_digit(uint8_t c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
 void draw_counter_word(int16_t value, int16_t x, int16_t y,
@@ -780,7 +850,11 @@ void step_counters(void);                           /* 0x02510 */
 char *long_to_string(uint16_t letters, uint16_t is_signed,
                         uint16_t radix, char *buf,
                         int32_t value);               /* 0x0c029 */
+#ifdef __TURBOC__
+void   *heap_malloc(uint16_t want);                 /* 0x0c999 */
+#else
 uint8_t *heap_malloc(uint16_t want);                /* 0x0c999 */
+#endif
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
 int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
@@ -881,9 +955,8 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
 #ifdef __TURBOC__
 /* **An interrupt vector as Borland has it**, a far pointer to an `interrupt`
-   function, where the host keeps the guest's `struct far_ptr`. Ours. */
-void interrupt (far *dos_getvect(uint16_t n))();         /* 0x0bd70 */
-void dos_setvect(uint16_t n, void interrupt (far *handler)()); /* 0x0bd7f */
+   function, where the host keeps the guest's `struct far_ptr`: `getvect` and
+   `setvect`, which <dos.h> (through dgroup.h) declares. */
 #else
 struct far_ptr dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, struct far_ptr handler);     /* 0x0bd7f */
@@ -894,7 +967,11 @@ char *string_reverse(char *s);                /* 0x0de1e */
 char *string_upper(char *s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(const char *a, const char *b,
                            uint16_t n);             /* 0x0dddb */
+#ifdef __TURBOC__
+char *string_chr(const char *s, int16_t c); /* 0x0dcce */
+#else
 char *string_chr(char *s, int16_t c);       /* 0x0dcce */
+#endif
 int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
 char *string_copy_far(char *dst, const char *src); /* 0x0bb4f */
 char *string_concat_far(char *dst, const char *src); /* 0x0bb3c */
@@ -2028,7 +2105,9 @@ void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
 uint16_t count_list(bmp_ptr_t * list);             /* 0x252e0 */
 void near far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
+#ifndef __TURBOC__
 void dos_getdate(uint8_t * out);                        /* 0x0bd4a */
+#endif
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(const char far * a,
                      const char far * b);              /* 0x09f68 */
@@ -2060,14 +2139,17 @@ void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint8_t * p);                        /* 0x0bb2d */
 void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
-void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(uint8_t far * buf, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
+#ifndef __TURBOC__
+/* Under Borland these three are the `vm_*` declarations above, renamed. */
+void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 /* The driver answers a `long` in DX:AX; the one caller, `decode_vqt_list`,
    declares the thunk `unsigned` and reads AX alone. */
 uint16_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
 void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
+#endif
 uint16_t near bios_video_kind(void);                   /* 0x22764 */
 void near set_colour_text_mode(void);                  /* 0x2277c */
 int16_t detect_pcjr(void);                             /* 0x20be0 */

@@ -156,9 +156,12 @@ def runtime_names():
     """The C runtime's public names at their image addresses - `F_LDIV@`,
     `N_LXLSH@`, `_lseek` - so a far call into the library is checked like any
     other. Measured by turboc's libmatch.py; see tools/runtime_names.json.
-    Stored without the leading underscore, as the port's names are."""
+    Stored without the one leading underscore the compiler adds, as the
+    port's names are - one, not all: `__open` is C's `_open`, and stripping
+    both made it `open`, the routine at another address."""
     j = json.load(open(os.path.join(HERE, "runtime_names.json")))
-    return {k.lstrip("_"): int(v, 16) for k, v in j["names"].items()}
+    return {(k[1:] if k.startswith("_") else k): int(v, 16)
+            for k, v in j["names"].items()}
 
 
 def frames():
@@ -231,6 +234,14 @@ def assemble(d, base, opts, assembler, defines=True):
 TASM_ONLY = re.compile(r"JUDGE:\s*tasm\b")
 
 
+def keep_obj(obj):
+    """`JUDGE_KEEP_OBJ=<path>`: the object the judge built, kept - which is
+    how tools/link.py links exactly what was judged."""
+    keep = os.environ.get("JUDGE_KEEP_OBJ")
+    if keep:
+        shutil.copy(obj, keep)
+
+
 def tasm_obj(path, opts, assembler):
     """**An assembly module straight to TASM** (`JUDGE: tasm`): the file's
     `#ifdef __TURBOC__` branch is `asm { }` blocks holding the module's TASM
@@ -258,6 +269,7 @@ def tasm_obj(path, opts, assembler):
         if not objs or ERRORS.search(out):
             sys.stdout.write(out)
             raise SystemExit("%s: %s did not assemble it" % (path, assembler))
+        keep_obj(os.path.join(d, objs[0]))
         return omf.load(os.path.join(d, objs[0]))[0], out
     finally:
         shutil.rmtree(d)
@@ -304,6 +316,7 @@ def compile_obj(path, opts, compiler=DEFAULT_COMPILER, assembler=None):
         if not objs or ERRORS.search(out):
             sys.stdout.write(out)
             raise SystemExit("%s: %s did not compile it" % (path, compiler))
+        keep_obj(os.path.join(d, objs[0]))
         mod = omf.load(os.path.join(d, objs[0]))[0]
         # **An object without publics is a compiler that went wrong**, not a
         # file with nothing in it: BC++ 2.0 short of memory exited 0 having
@@ -436,6 +449,24 @@ def judge_routine(name, seg, lo, hi, addr, img, known, fr, verbose,
                     notes.append("near call to %s reaches %05x, not %05x"
                                  % (callee, got, want + (target - o)))
                     return False, i - lo, unchecked, notes
+        # **A bare near call** to a routine of this file resolves the same
+        # way. An `E8` can be an operand byte, so it is taken for a call only
+        # when both ends name the same callee at the same address; otherwise
+        # the bytes are compared as they are.
+        if (b == 0xE8 and i + 2 < len(seg.data) and img[at] == 0xE8
+                and not any(k in covered for k in range(i, i + 3))):
+            rel = struct.unpack_from("<h", seg.data, i + 1)[0]
+            target = (i + 3 + rel) & 0xFFFF
+            owner = [(o, n) for o, n in pubs if o <= target]
+            if owner:
+                o, n = owner[-1]
+                want = known.get(n.lstrip("_"))
+                base = frame_of(addr, fr)
+                irel = struct.unpack_from("<h", img, at + 1)[0]
+                got = base + ((at + 3 - base + irel) & 0xFFFF)
+                if want is not None and want + (target - o) == got:
+                    i += 3
+                    continue
         if i in covered:
             if i in fix:
                 unchecked += 1
@@ -697,6 +728,10 @@ def main(argv=None):
     img = open(IMAGE, "rb").read()
     known = runtime_names()
     known.update(addresses(port_sources()))
+    # a file judged from outside the tree (a draft) names its own routines
+    for extra in a.files:
+        for name, addr in addresses([extra]).items():
+            known.setdefault(name, addr)
     fr = frames()
     placed = placements(port_sources())
     total = matched = 0

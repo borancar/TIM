@@ -27,7 +27,7 @@ import argparse
 import re
 import sys
 
-PROC = re.compile(r"^(/\* 0x[0-9a-f]{5} \*/)\n_(\w+) proc (near|far)\n(.*?)^_\2 endp",
+PROC = re.compile(r"^/\*[^*]*?(0x[0-9a-f]{5})(?:[^*]|\*(?!/))*\*/\n_(\w+) proc (near|far)\n(.*?)^_\2 endp",
                   re.M | re.S)
 
 
@@ -45,6 +45,11 @@ def c_operand(line):
     line = re.sub(r"FAR PTR _(\w+)", r"far ptr \1", line)
     line = re.sub(r"\bcall _(\w+)", r"call near ptr \1", line)
     line = re.sub(r"\b_(\w+)\b", r"\1", line)
+    # `name[si]` on a C array loses the array's address to the compiler;
+    # `[si+name]` keeps it
+    line = re.sub(r"\b([A-Za-z_]\w*)\[(si|di|bx|bp)((?:[+-][^\]]*)?)\]",
+                  lambda m: m.group(0) if m.group(1) in ("ptr", "cs", "ds", "es", "ss")
+                  else "[%s%s+%s]" % (m.group(2), m.group(3), m.group(1)), line)
     return line
 
 
@@ -61,8 +66,53 @@ def prototype(name, header):
     return re.sub(r"\s+", " ", m.group(1)).replace("( ", "(")
 
 
+OWN = set()        # labels the module defines for itself (--partial)
+DROPPED = [0]      # `db` runs of undecoded code set aside (--partial)
+CALLED = set()     # labels of other routines called from the asm
+
+
+def sized(line):
+    """A module label with no size of its own, stored to or loaded from a
+    register, gets the register's: `extern char` makes TASM refuse a word."""
+    m = re.match(r"^(\w+) (.*)$", line)
+    if not m or " ptr " in line:
+        return line
+    ops = [x.strip() for x in m.group(2).split(",")]
+    if len(ops) != 2:
+        return line
+    w = {"ax", "bx", "cx", "dx", "si", "di", "bp", "sp"}
+    b = {"al", "ah", "bl", "bh", "cl", "ch", "dl", "dh"}
+    for i, op in enumerate(ops):
+        base = re.match(r"^(\w+)", op)
+        if base and base.group(1) in OWN:
+            other = ops[1 - i]
+            size = "word" if other in w else "byte" if other in b else None
+            if size:
+                ops[i] = "%s ptr %s" % (size, op)
+                return "%s %s" % (m.group(1), ", ".join(ops))
+    return line
+
+
+MIDCALL = {}       # routine -> labels it calls in the middle of another
+
+
 def convert_proc(name, kind, body, why, header=""):
+    if name in MIDCALL:
+        why.append("%s calls into the middle of another routine (%s)"
+                   % (name, ", ".join(MIDCALL[name])))
+        return None
     ls = body_lines(body)
+    # **A jump into another routine** is not something inline `asm` can
+    # make: its labels are its own function's.
+    here = {l[:-1] for l in ls if l.endswith(":")}
+    for l in ls:
+        m = re.match(r"^(j\w+|loop\w*) (?:short |near ptr )?(L[0-9a-f]+|_\w+)$", l)
+        if m and m.group(2).lstrip("_") not in here and m.group(2) not in here:
+            why.append("%s jumps into another routine (%s)" % (name, m.group(2)))
+            return None
+        m = re.match(r"^call (?:near ptr )?(L[0-9a-f]+)$", l)
+        if m and m.group(1) not in here:
+            CALLED.add(m.group(1))
     ins = [l for l in ls if not l.endswith(":")]
     if not ins or not re.match(r"^retf?\b", ins[-1]):
         why.append("%s does not end in a return" % name)
@@ -110,7 +160,14 @@ def convert_proc(name, kind, body, why, header=""):
         if l.endswith(":"):
             out.append(l)
         else:
-            out.append("    asm " + c_operand(l))
+            line = sized(c_operand(l))
+            if locals_:
+                # the locals by name, so the compiler keeps them: `[bp-k]`
+                # is `locals+(N-k)`, the same address
+                line = re.sub(r"\[bp-(\w+)\]", lambda m: "locals+%d" % (
+                    locals_ - (int(m.group(1)[:-1], 16) if m.group(1).endswith("h")
+                               else int(m.group(1)))), line)
+            out.append("    asm " + line)
     if out and out[-1].endswith(":"):
         out.append("    ;")
     proto = prototype(name, header)
@@ -147,6 +204,10 @@ def main(argv):
     ap.add_argument("--data", help="the C object the module's _DATA is: "
                     "its d_ labels become offsets into it, and its "
                     "definition is written by hand in the C branch")
+    ap.add_argument("--partial", action="store_true",
+                    help="draft the routines that can be C and list the "
+                         "rest, with generic signatures and every module "
+                         "label external, for the judge to count")
     ap.add_argument("--install", action="store_true",
                     help="rewrite the port file: the asm block becomes the "
                          "functions, the markers say C through TASM")
@@ -161,13 +222,29 @@ def main(argv):
             DATA_MAP[lab] = a.data + ("+%d" % k if k else "")
     externs = re.findall(r"^extrn _(\w+):(\w+)", blk, re.M)
     procs = PROC.findall(blk)
-    header = open("reconstruct/tim.h").read()
+    if a.partial:
+        procs, DROPPED[0] = split_procs(blk, procs)
+        procs = [(p, n, k or "near", b) for p, n, k, b in procs]
+        # **A call to a label that starts no routine** is a call into the
+        # middle of one, which C cannot make; its caller is refused
+        entries = {n for _p, n, _k, _b in procs}
+        mid = []
+        for p_, n, k, b in procs:
+            bad = [t for t in re.findall(r"\bcall (?:near ptr |FAR PTR |far ptr )?(L[0-9a-f]+)\b", b)
+                   if t not in entries]
+            if bad:
+                MIDCALL[n] = bad
+    header = "" if a.partial else open("reconstruct/tim.h").read()
+    OWN.update(re.findall(r"^([A-Za-z_]\w*)\s+(?:label|db|dw|dd|equ)\b", blk, re.M))
+    OWN.update(re.findall(r"^\s*([cd]_[0-9a-f]+)\b", blk, re.M))
     why = []
     funcs = []
     for prov, name, kind, body in procs:
         c = convert_proc(name, kind, body, why, header)
         if c:
-            funcs.append(c[0] + prov + "\n" + c[1] + c[2])
+            funcs.append(c[0] + "/* %s */\n" % prov + c[1] + c[2])
+    if a.partial:
+        return partial(a, blk, externs, procs, funcs, why)
     if why:
         sys.stderr.write("not C:\n  " + "\n  ".join(why) + "\n")
         return 1
@@ -191,6 +268,85 @@ def main(argv):
         open(a.out, "w").write(text)
     else:
         sys.stdout.write(text)
+    return 0
+
+
+def split_procs(blk, procs):
+    """**The routines a `proc` holds**, for `--partial`: a label something
+    calls, standing after an unconditional return or jump, starts one of
+    its own (the draft lumps what nothing names); a `db` run after a return
+    is code nothing decoded, set aside and counted apart. Answers
+    (address, name, kind, body) and the number of `db` runs dropped."""
+    called = set(re.findall(r"\bcall (?:near ptr |FAR PTR |far ptr )?(L[0-9a-f]+)\b", blk))
+    out, dropped = [], 0
+    for prov, name, kind, body in procs:
+        lines = body.split("\n")
+        cur_name, cur_addr, cur = name, prov, []
+        prev = ""
+        i = 0
+        while i < len(lines):
+            l = lines[i].strip()
+            after_exit = re.match(r"^(retf?|iret|jmp)\b", prev) is not None
+            if after_exit and l.endswith(":") and l[:-1] in called:
+                out.append((cur_addr, cur_name, cur))
+                cur_name, cur_addr, cur = l[:-1], "0x" + l[1:-1], []
+                i += 1
+                continue
+            if after_exit and re.match(r"^(c_[0-9a-f]+ label byte|(c_[0-9a-f]+ )?db\b)", l):
+                # bytes after an exit - undecoded code, a pad, a table: skip
+                # them, with any label, up to the next instruction or label
+                j = i + (1 if "label byte" in l else 0)
+                while j < len(lines) and re.match(r"^(c_[0-9a-f]+ label byte$|(c_[0-9a-f]+ )?db\b)", lines[j].strip()):
+                    j += 1
+                rest = [x.strip() for x in lines[j:] if x.strip()]
+                trailing = not rest or (rest[0].endswith(":") and rest[0][:-1] in called)
+                if j > i and trailing:
+                    dropped += 1
+                    i = j
+                    continue
+            if l:
+                cur.append(lines[i])
+                if not l.endswith(":") and not l.startswith("c_"):
+                    prev = l
+            i += 1
+        out.append((cur_addr, cur_name, cur))
+    res = []
+    for addr, n, body in out:
+        text = "\n".join(body) + "\n"
+        ins = [x.strip() for x in body if x.strip() and not x.strip().endswith(":")]
+        last = ins[-1] if ins else ""
+        k = "far" if last.startswith("retf") else "near" if last.startswith("ret") else None
+        res.append((addr, n, k, text))
+    return res, dropped
+
+
+def partial(a, blk, externs, procs, funcs, why):
+    """The draft `--partial` writes: what converts, with every label the
+    module defines for itself declared external so its references are
+    fixups the judge masks; the refusals go to stderr, one a line."""
+    out = ["/*", " * JUDGE: compiler bc3.00", " * JUDGE: built-with %s" % a.opts,
+           " * JUDGE: via-assembler", " * JUDGE: assembler bc3.00", " */"]
+    procnames = {n for _p, n, _k, _b in procs}
+    own = OWN - procnames
+    for n in sorted(CALLED):
+        out.append("void near %s(void);" % n)
+    for n in sorted(own):
+        out.append("extern char %s[];" % n)
+    for n, k in externs:
+        if k in ("far", "near"):
+            out.append("void %s %s(void);" % (k, n))
+        elif n not in own:
+            out.append("extern char %s[];" % n)
+    for _prov, name, kind, body in procs:
+        frame = body_lines(body)[:2] == ["push bp", "mov bp, sp"]
+        out.append("void %s %s(%s);" % (kind, name, "int a" if frame else "void"))
+    out.append("")
+    out.append("\n".join(funcs))
+    open(a.out, "w").write("\n".join(out))
+    for w in why:
+        sys.stderr.write(w + "\n")
+    sys.stderr.write("# %d routines, %d undecoded db runs set aside\n"
+                     % (len(procs), DROPPED[0]))
     return 0
 
 
