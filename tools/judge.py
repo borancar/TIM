@@ -68,7 +68,7 @@ COMPILERS = {
     "2.01": (os.path.join(TURBOC, "reconstruct", "v2.01", "tcc", "tcc"),
              os.path.join(TC_ROOT, "TC201", "INCLUDE")),
 }
-EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "bc2.00": "BCC.EXE",
+EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "2.00": "TCC.EXE", "bc2.00": "BCC.EXE",
             "bc3.00": "BCC.EXE", "3.00-emu": "TCC.EXE"}
 # Borland C++ 3.0 built the game - it alone turns an early `return` into a
 # copy of the epilogue (`open_bit_reader`) - so it is the default. It runs

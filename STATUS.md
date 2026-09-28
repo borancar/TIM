@@ -36,7 +36,11 @@ last and `mov sp, bp` only after locals, and its interrupt functions push
 in one order - so a module with a routine that breaks one of those, or
 jumps into another routine, or keeps data in its code segment between
 routines, is not C. `vgadac.c` and `vidinit.c` broke none, and are C now;
-each of the fifteen left has at least one routine that does. **Open**:
+each of the fifteen left has at least one routine that does. crtc.c
+looks the most like a compiler's and is not: its two routines are the
+C-callable assembly template (SI and DI saved unused, `mov sp, bp` with no
+locals), and no compiler or option tried writes that epilogue - its header
+lists them. **Open**:
 the video driver's thunks - a bare `jmp dword ptr` through DG4342, no
 `ret` - stand at the edges of several modules (keyboard.c's ends,
 dosmem.c's front, lowlevel.c's and lzhuf.c's ends, timer.c's), and would

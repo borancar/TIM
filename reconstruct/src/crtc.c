@@ -8,12 +8,28 @@
  * display end, each a ten-bit value spread over three registers.
  *
  * The original's **code segment 0000** (`_TEXT`), image 0x08f27..0x08fc3.
- * **Hand-written assembly**, and the TASM source is the `#ifdef __TURBOC__`
- * block below. Each routine saves SI and DI though it uses neither, saves
- * AX, BX and DX, and ends `mov sp,bp` with no locals to drop: BC++ 3.0 with
- * and without `-k`, and Turbo C++ 1.0x through TASM, were all tried with the
- * body as inline `asm` and with register variables and `_SI`/`_DI` to force
- * the saves, and none gives that prologue and that epilogue together.
+ * **Hand-written assembly, to the C-callable template**, and the TASM
+ * source is the `#ifdef __TURBOC__` block below. Each routine is the usual
+ * skeleton of an assembly routine C calls (that it is a manual's is not
+ * checked) -
+ * `push bp / mov bp,sp / push si / push di`, the parameter at `[bp+6]`,
+ * `pop di / pop si / mov sp,bp / pop bp` - which is why it looks like a
+ * compiler's: SI and DI are saved though neither is used, and the epilogue
+ * drops locals there are none of. AX, BX and DX saved on entry are the
+ * author's own, which no compiler writes.
+ *
+ * **No compiler reproduces the epilogue** (measured 2026-09-28). As C with
+ * the body as inline `asm` and two unused `register` variables for the SI
+ * and DI saves, every byte matches but the `mov sp,bp` under BC++ 2.0,
+ * Turbo C 2.0 and 2.01 and Turbo C++ 1.00 and 1.01 (BC++ 3.0 drops the
+ * unused registers), with `-O`, `-G`, `-Z`, `-k`/`-k-`, `-r-`, `-v`,
+ * `-y`, `-N`, `-1`, `-2` and as C++; nor does an unused local, an `asm`
+ * that moves SP, `_saveregs`, or TASM's own procedure frame (`arg`,
+ * `uses si, di`, a zero-size `local`, `masm51`/`quirks`). These two are
+ * the only routines in the image that end `mov sp,bp` with no `sub sp`.
+ * The one C spelling that matches writes the SI/DI saves as `__emit__`
+ * bytes and the `mov sp,bp` as `asm`, which only makes the compiler stay
+ * out of the way - so this stays assembly.
  * **Nothing proves the module boundary on either side**.
  *
  * JUDGE: built-with -mm
