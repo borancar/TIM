@@ -22,6 +22,15 @@ original compilers' output; the assembly ones are TASM source in the same
 `.c` files. Not yet judged: the overlay drivers (VM.OVL's VGA, SX.OVL's
 ASB, ADL, SBP and SPKR), which are separate binaries.
 
+**The hybrid runner is gone** (2026-09-28), with `check_machines`,
+`check_native`, `check_sound`, `verify.py` and `check_image_data`: with the
+image reconstructed and proven by the judge and the link's hash, nothing
+needs the port's memory to mirror the guest's, and the port's records are
+being made real pointers throughout. The functional proof is
+`check_solutions`, with `check_briefing` and `check_save` against the
+emulator running the original. What STATUS.md says below about those tools
+is history.
+
 **TIM.EXE links from the sources, identical to the original** (2026-09-28):
 `tools/link.py` builds every game module as the judge does, links them with
 BC++ 3.0's TLINK behind `C0M.OBJ` against `CM.LIB`, and every byte TLINK

@@ -135,10 +135,6 @@ $(GUEST_LD): $(COMMON_OBJ) $(SRC)/main.o devmain.o ../tools/genld.py
 # flags an editor sees are the flags the build uses: add a source to $(GAME)
 # and it appears here on the next run. `bear` would do the same job by watching
 # a real build; it is not installed here and this needs nothing that is not.
-#
-# The hybrid runner's own units are listed explicitly at the end, because they
-# live under tools/native with a different include path. Its generated sources
-# - shims.c, syms.c, ovlsyms.c - are included only once they exist.
 ROOTDIR := $(abspath $(CURDIR)/..)
 
 compile_commands:
@@ -157,14 +153,7 @@ compile_commands:
 	        "$(CURDIR)" "$(CURDIR)/$$f" \
 	        "$(CXX) $(CXXFLAGS) -I$(CURDIR) -c $$f" \
 	        >> $(ROOTDIR)/compile_commands.json; \
-	done; \
-	for f in native.c dispatch.c shim.c guestbt.c sha256.c shims.c syms.c ovlsyms.c; do \
-	    [ -f "$(ROOTDIR)/tools/native/$$f" ] || continue; \
-	    printf ',\n  {"directory": "%s", "file": "%s", "command": "%s"}' \
-	        "$(ROOTDIR)/tools/native" "$(ROOTDIR)/tools/native/$$f" \
-	        "$(CC) $(CFLAGS) -I$(CURDIR) $(SDL_CFLAGS) -c $$f" \
-	        >> $(ROOTDIR)/compile_commands.json; \
-	done
+	done;
 	@printf '\n]\n' >> $(ROOTDIR)/compile_commands.json
 	@echo "wrote $(ROOTDIR)/compile_commands.json"
 
@@ -308,15 +297,6 @@ test: devtim tim debug
 	    exit 1; \
 	fi; \
 	echo "one display path: SDL3 and nothing else included"
-	@# **The verifier has to still run.** An edit meant to replace one helper
-	@# in tools/verify.py sliced to the wrong boundary and deleted 490 lines
-	@# with `main()` among them; the file still imported, `make test` still
-	@# passed, and the damage was committed. It surfaced only when someone ran
-	@# the tool. `--list` loads the module and walks the whole spec table
-	@# without touching the emulator, in a tenth of a second.
-	@cd .. && uv run python tools/verify.py --list > /dev/null || { \
-	    echo "FAIL: tools/verify.py does not run"; exit 1; }
-	@echo "the verifier loads and its spec table parses"
 	@# **A typed handle is never NULL.** `PART_PTR(0)` is DGROUP:0, so `if (p)`,
 	@# `p ? :`, `!p` and `p &&` on a handle are always true where the original
 	@# tested an offset against 0 - and the compiler accepts them. One landed
@@ -333,13 +313,6 @@ test: devtim tim debug
 	@# solutions step, for the same reason as the one above.
 	@cd .. && uv run python tools/check_dg_near.py || { \
 	    echo "FAIL: a dg_near is not a store into a _ptr field - see tools/check_dg_near.py"; exit 1; }
-	@# **The transcribed data is the image's, where the image had it.** Every
-	@# object placed with DGROUP_AT, DGROUP_BSS or SEGMENT_AT is checked for
-	@# its address and for the relocated image's bytes, so DGROUP stays
-	@# comparable with the original's. Before the solutions step, for the same
-	@# reason as the one above.
-	@cd .. && uv run python tools/check_image_data.py || { \
-	    echo "FAIL: transcribed data differs from the image - see tools/check_image_data.py"; exit 1; }
 	@# **Every solution, simulated.** Each `solutions/S<NN>.TIM` is loaded
 	@# over its own puzzle the way the game loads a machine, and
 	@# `TIM_SIMULATE` then runs it through the game's own per-frame step
@@ -395,8 +368,8 @@ clean:
 
 .PHONY: all clean test debug asan compile_commands
 
-# A shared library so tools/verify.py can call a transcribed routine directly
-# and compare what it does to the hardware against what the original did.
+# A shared library so tools/check_printf.py can call the port's printf engine
+# directly.
 # `covtim` is devtim with gcov instrumentation, for asking which of the port's
 # own routines a run actually enters. tools/coverage.py answers that question
 # for the original by watching blocks; this is the other half, and the two

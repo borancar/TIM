@@ -2442,9 +2442,6 @@ void port_abort(const char *msg)
                 fprintf(stderr, "wrote %s (guest_sp, dgroup_base, stub)\n",
                         sp);
             }
-            fprintf(stderr, "compare with a hybrid snapshot:\n"
-                    "    cmp -l %s <(tail -c +%d out/native.snap "
-                    "| head -c 65536)\n", path, 128 + 0x2E4C0 + 1);
         }
     }
 
@@ -3982,11 +3979,7 @@ int32_t io_write_snapshot(const char *path)
 
     fprintf(stderr, "wrote %s (%d bytes of memory, plus this layer's state)\n",
             path, (int)GUEST_MEM_BYTES);
-    fprintf(stderr, "  DGROUP starts at byte %u; compare with the runner:\n"
-            "    cmp -l <(tail -c +%u %s | head -c 65536)"
-            " <(tail -c +%u out/native.snap | head -c 65536)\n",
-            12 + dgroup_base, 12 + dgroup_base + 1, path,
-            128 + dgroup_base + 1);
+    fprintf(stderr, "  DGROUP starts at byte %u\n", 12 + dgroup_base);
     return 1;
 }
 
