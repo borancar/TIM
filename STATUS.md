@@ -1004,7 +1004,7 @@ game's units - every `DG*` accessor, every struct and pointer macro, every
 prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
 the game has three such loops: the eight-tick spin on `TIMER.frame_budget`,
-`wait_and_latch_frame` on `FRAME_GUARD.frame_flag`, and `delay_five_ticks` on
+`wait_and_latch_frame` on `frame_flag`, and `delay_five_ticks` on
 `SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
 protecting anything - a race on a clip word is a race with or without it -

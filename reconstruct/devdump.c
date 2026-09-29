@@ -604,12 +604,12 @@ static void dev_autoplay(int32_t flip)
 
                 loaded = 1;
                 for (i = 0;
-                     file[i] && i < (int32_t)sizeof PICKED_MACHINE.name - 1; i++)
-                    PICKED_MACHINE.name[i] = file[i];
-                PICKED_MACHINE.name[i] = 0;
+                     file[i] && i < (int32_t)sizeof picked_machine - 1; i++)
+                    picked_machine[i] = file[i];
+                picked_machine[i] = 0;
 
                 round_teardown();
-                load_animation((char *)PICKED_MACHINE.name);
+                load_animation((char *)picked_machine);
 
                 /*
                  * **Over a puzzle, the bin is the file's, and the file's is
@@ -1091,7 +1091,7 @@ void dev_level_scan(void)
         memset(seen, 0, sizeof seen);
         load_level((uint16_t)n);
 
-        for (si = MACHINE_PARTS.placed_parts.next; si != 0 && count < 4096;
+        for (si = placed_parts.next; si != 0 && count < 4096;
              si = si->next, count++) {
             uint16_t kind = si->kind;
 
@@ -1104,7 +1104,7 @@ void dev_level_scan(void)
            bin - what the player is given - at 0x50d7. */
         {
             struct part *heads[3] = {
-                &MACHINE_PARTS.placed_parts, &MOVING_PARTS.moving_parts, &HELD_PARTS.parts_bin,
+                &placed_parts, &moving_parts, &HELD_PARTS.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };
             int32_t h;
@@ -1252,7 +1252,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                MOUSE_DRIVER.buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
+                mouse_buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)
@@ -1329,8 +1329,8 @@ void dev_flip_dump(int32_t flip)
             "queue_part_calls %d\n", flip,
             origin_x, origin_y, round_state,
             dev_tension_belt_calls, dev_queue_part_calls);
-    dump_chain(f, "part", &MACHINE_PARTS.placed_parts);
-    dump_chain(f, "move", &MOVING_PARTS.moving_parts);
+    dump_chain(f, "part", &placed_parts);
+    dump_chain(f, "move", &moving_parts);
     fclose(f);
     fprintf(stderr, "wrote the part list at flip %d to %s\n", flip, want);
 }

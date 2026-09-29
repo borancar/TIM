@@ -42,9 +42,9 @@
  * runtime's huge add on the variable itself, which is a `huge` lvalue.
  */
 #ifdef __TURBOC__
-#  define SCRATCH (*(uint8_t huge **)&SCRATCH_BLOCK.scratch)
+#  define SCRATCH (*(uint8_t huge **)&scratch_block)
 #else
-#  define SCRATCH SCRATCH_BLOCK.scratch
+#  define SCRATCH scratch_block
 #endif
 
 /*
@@ -252,14 +252,14 @@ struct bitmap **load_bitmap_list(char *name)
 
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
        into what it answered, if nothing has one yet. */
-    if (SCRATCH_BLOCK.scratch == NULL) {
+    if (scratch_block == NULL) {
         if ((scratch = malloc_far(0x3cc4)) != NULL) {
             free_far(scratch);
             if ((scratch = malloc_far(0x3ac4)) != NULL) {
-                SCRATCH_BLOCK.scratch = (uint8_t far *)NEAR_ZERO(scratch);
+                scratch_block = (uint8_t far *)NEAR_ZERO(scratch);
                 SCRATCH += 0x10;
-                SCRATCH_BLOCK.scratch = normalise_pointer_far(
-                    FAR_MASK(SCRATCH_BLOCK.scratch, 0xfffffff0L));
+                scratch_block = normalise_pointer_far(
+                    FAR_MASK(scratch_block, 0xfffffff0L));
             }
         }
     }
@@ -314,7 +314,7 @@ done:
 
     if (scratch != NULL) {
         free_far(scratch);
-        SCRATCH_BLOCK.scratch = 0;
+        scratch_block = 0;
     }
 
     if (kind == 0) {

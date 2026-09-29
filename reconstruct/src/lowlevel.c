@@ -1505,16 +1505,40 @@ struct engine_mouse {
 struct engine_mouse ENGINE_MOUSE;
 
 /*
- * **The cursor code's and the divide trap's data**, DGROUP 0x48da..0x48f2.
- * The first pair of graphics-controller mode bytes is write mode 2 and 1,
- * the second the same with the 256-colour shift; see the record.
+ * **The cursor code's, the mouse's and the divide trap's data**, DGROUP
+ * 0x48da..0x48f2, in address order.
+ *
+ * The graphics controller's registers the cursor code saves - 0 and 1, 4,
+ * then 8 - the sequencer's map mask, and register 3.
  */
-struct mouse_driver MOUSE_DRIVER = {
-    .gc_mode_fill = 0x02,
-    .quarter_a = 0x40,
-    .gc_mode_copy = 0x01,
-    .quarter_b = 0x41,
-};
+int16_t saved_gc_0_1;                  /* DGROUP 0x48da */
+int16_t saved_gc_4;                    /* DGROUP 0x48dc */
+int16_t saved_gc_8;                    /* DGROUP 0x48de */
+int16_t saved_seq_map_mask;            /* DGROUP 0x48e0 */
+uint8_t saved_gc_3;                    /* DGROUP 0x48e2 */
+
+/*
+ * **Two graphics-controller mode bytes**, both written to GC register 5 by the
+ * cursor code: VGA write mode 2 - a byte selects a colour - and write mode 1,
+ * the latch copy the routine parks with. The `_256` pair is the same two with
+ * bit 6 set, the 256-colour shift; `mouse_init` copies them over the first
+ * pair when the driver reports eight bits a pixel.
+ */
+uint8_t gc_mode_fill = 0x02;           /* DGROUP 0x48e6 */
+uint8_t gc_mode_fill_256 = 0x40;       /* DGROUP 0x48e7 */
+uint8_t gc_mode_copy = 0x01;           /* DGROUP 0x48e8 */
+uint8_t gc_mode_copy_256 = 0x41;       /* DGROUP 0x48e9 */
+
+/* Whether the mouse driver was taken - `neg al` branches on it - and the
+   button byte `timer_callback` samples on the page flip. */
+uint8_t mouse_taken;                   /* DGROUP 0x48ea */
+uint8_t mouse_buttons;                 /* DGROUP 0x48eb */
+
+/* Whether `install_divide_trap` has run, and the vector 0 it replaced: from
+   0:0 and 0:2, a load and not a store, and stored **segment first** at an odd
+   offset. */
+uint8_t divide_hooked;                 /* DGROUP 0x48ec */
+void interrupt (far *old_divide_vector)();   /* DGROUP 0x48ed */
 
 /*
  * 0x21b44
@@ -1736,11 +1760,11 @@ uint16_t mouse_init(void)
 {
     uint16_t present;
 
-    if (MOUSE_DRIVER.mouse_taken != 0)
+    if (mouse_taken != 0)
         return 0;
 
     present = io_mouse_reset();
-    MOUSE_DRIVER.mouse_taken = (uint8_t)(-(int16_t)present);
+    mouse_taken = (uint8_t)(-(int16_t)present);
 
     if (present == 0)
         return 0;
@@ -1756,8 +1780,8 @@ uint16_t mouse_init(void)
     io_mouse_set_handler(0x1f, (void (far *)(void))mouse_event);
 
     if (((uint8_t)VMDS.pixel_shift) == 8) {
-        MOUSE_DRIVER.gc_mode_fill = MOUSE_DRIVER.quarter_a;
-        MOUSE_DRIVER.gc_mode_copy = MOUSE_DRIVER.quarter_b;
+        gc_mode_fill = gc_mode_fill_256;
+        gc_mode_copy = gc_mode_copy_256;
     }
 
     return 1;
@@ -1822,7 +1846,7 @@ void mouse_set_user_handler(void (far *h)(void))
  */
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 {
-    MOUSE_DRIVER.buttons = (uint8_t)buttons;
+    mouse_buttons = (uint8_t)buttons;
     ENGINE_MOUSE.mouse_x = x;
     ENGINE_MOUSE.mouse_y = y;
 
@@ -1869,7 +1893,7 @@ void mouse_save_vga(void)
     io_out8(PORT_GC_INDEX, 0);
     v = (uint16_t)(io_in8(PORT_GC_INDEX) << 8);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    MOUSE_DRIVER.gc_0_1 = (int16_t)v;
+    saved_gc_0_1 = (int16_t)v;
     io_out8(PORT_GC_INDEX, 0);
     io_out8(PORT_GC_DATA, 0);
 
@@ -1879,27 +1903,27 @@ void mouse_save_vga(void)
 
     io_out8(PORT_GC_INDEX, 4);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    MOUSE_DRIVER.gc_4 = (int16_t)v;
+    saved_gc_4 = (int16_t)v;
 
     io_out8(PORT_GC_INDEX, 5);
     v = (uint16_t)(io_in8(PORT_GC_DATA) << 8);
-    io_out8(PORT_GC_DATA, MOUSE_DRIVER.gc_mode_copy);
-    vga_write(0xffff, MOUSE_DRIVER.gc_mode_copy);          /* park the latches */
-    io_out8(PORT_GC_DATA, MOUSE_DRIVER.gc_mode_fill);
+    io_out8(PORT_GC_DATA, gc_mode_copy);
+    vga_write(0xffff, gc_mode_copy);          /* park the latches */
+    io_out8(PORT_GC_DATA, gc_mode_fill);
 
     io_out8(PORT_GC_INDEX, 8);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    MOUSE_DRIVER.gc_8 = (int16_t)v;
+    saved_gc_8 = (int16_t)v;
     io_out8(PORT_GC_DATA, 0xff);
 
     io_out8(PORT_GC_INDEX, 3);
-    MOUSE_DRIVER.gc_3 = io_in8(PORT_GC_DATA);
+    saved_gc_3 = io_in8(PORT_GC_DATA);
     io_out8(PORT_GC_DATA, 0);
 
     v = (uint16_t)(io_in8(PORT_SEQ_INDEX) << 8);
     io_out8(PORT_SEQ_INDEX, 2);
     v = (uint16_t)(v | io_in8(PORT_SEQ_DATA));
-    MOUSE_DRIVER.seq_map_mask = (int16_t)v;
+    saved_seq_map_mask = (int16_t)v;
     io_out8(PORT_SEQ_DATA, 0x0f);
 }
 
@@ -1918,31 +1942,31 @@ void mouse_restore_vga(void)
     uint16_t v;
 
     io_out8(PORT_SEQ_INDEX, 2);
-    v = (uint16_t)MOUSE_DRIVER.seq_map_mask;
+    v = (uint16_t)saved_seq_map_mask;
     io_out8(PORT_SEQ_DATA, (uint8_t)v);
     io_out8(PORT_SEQ_INDEX, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 3);
-    io_out8(PORT_GC_DATA, MOUSE_DRIVER.gc_3);
+    io_out8(PORT_GC_DATA, saved_gc_3);
 
     io_out8(PORT_GC_INDEX, 8);
-    v = (uint16_t)MOUSE_DRIVER.gc_8;
+    v = (uint16_t)saved_gc_8;
     io_out8(PORT_GC_DATA, (uint8_t)v);
 
     io_out8(PORT_GC_INDEX, 5);
-    io_out8(PORT_GC_DATA, MOUSE_DRIVER.gc_mode_copy);
+    io_out8(PORT_GC_DATA, gc_mode_copy);
     (void)vga_read(0xffff);                  /* pick the latches back up */
     io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 4);
-    v = (uint16_t)MOUSE_DRIVER.gc_4;
+    v = (uint16_t)saved_gc_4;
     io_out8(PORT_GC_DATA, (uint8_t)v);
 
     io_out8(PORT_GC_INDEX, 1);
     io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 0);
-    v = (uint16_t)MOUSE_DRIVER.gc_0_1;
+    v = (uint16_t)saved_gc_0_1;
     io_out8(PORT_GC_DATA, (uint8_t)v);
     io_out8(PORT_GC_INDEX, (uint8_t)(v >> 8));
 }
@@ -1956,10 +1980,10 @@ void mouse_restore_vga(void)
  */
 int16_t remove_mouse(void)
 {
-    if (MOUSE_DRIVER.mouse_taken == 0)
+    if (mouse_taken == 0)
         return 0;
 
-    MOUSE_DRIVER.mouse_taken = 0;
+    mouse_taken = 0;
 
     io_mouse_reset();
     io_mouse_set_handler(0, NULL);
@@ -1979,7 +2003,7 @@ int16_t remove_mouse(void)
  */
 void read_mouse_pointer(int16_t *x, int16_t *y)
 {
-    if (MOUSE_DRIVER.mouse_taken == 0)
+    if (mouse_taken == 0)
         return;
     *x = (int16_t)(ENGINE_MOUSE.mouse_x >> 2);
     *y = (int16_t)(ENGINE_MOUSE.mouse_y >> 2);
@@ -2002,7 +2026,7 @@ void read_mouse_pointer(int16_t *x, int16_t *y)
  */
 uint16_t mouse_move_to(uint16_t x, uint16_t y)
 {
-    if (MOUSE_DRIVER.mouse_taken == 0)
+    if (mouse_taken == 0)
         return 0;
 
     ENGINE_MOUSE.mouse_x = (int16_t)(x << 2);
@@ -2032,12 +2056,12 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
  */
 int16_t read_mouse_button(uint16_t which)
 {
-    uint16_t v = MOUSE_DRIVER.mouse_taken;
+    uint16_t v = mouse_taken;
 
     if (v == 0)
         return 0;
 
-    v = MOUSE_DRIVER.buttons;
+    v = mouse_buttons;
     if (which != 0)
         v >>= 1;
     return (int16_t)(v & 1);
@@ -2283,9 +2307,9 @@ uint8_t far *normalise_pointer_far(uint8_t far *p)
  */
 void install_divide_trap(void)
 {
-    MOUSE_DRIVER.vector_hooked = 1;
+    divide_hooked = 1;
 
-    MOUSE_DRIVER.vector = getvect(0);
+    old_divide_vector = getvect(0);
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
@@ -2322,10 +2346,10 @@ void divide_error_handler(void)
  */
 void restore_int0_vector(void)
 {
-    if (MOUSE_DRIVER.vector_hooked == 0)
+    if (divide_hooked == 0)
         return;
 
-    MOUSE_DRIVER.vector_hooked = 0;
+    divide_hooked = 0;
 }
 
 /*

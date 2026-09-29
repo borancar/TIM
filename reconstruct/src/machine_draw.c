@@ -57,7 +57,7 @@ struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM = {
     { 0x001a, 0x0018, 0x001b, 0x0019 },                     /* sprite_y */
 };
 /* The selection outline's phase, DGROUP 0x25d6. */
-struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE = { 0 };
+uint16_t selection_phase = 0;
 
 /*
  * 0x14dec
@@ -1163,11 +1163,11 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     struct belt *rec;
     struct part *end;
 
-    if (MACHINE_DRAW_SELECTION_PHASE.phase == 3)
-        MACHINE_DRAW_SELECTION_PHASE.phase = 0;
+    if (selection_phase == 3)
+        selection_phase = 0;
     else
-        MACHINE_DRAW_SELECTION_PHASE.phase++;
-    step = 4 - MACHINE_DRAW_SELECTION_PHASE.phase;
+        selection_phase++;
+    step = 4 - selection_phase;
     keep_t = keep_b = keep_l = keep_r = 1;
     VMDS.page_dst = VMDS.page_back;
     if (part->kind == KIND_BELT) {
@@ -1241,16 +1241,16 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     }
     if (keep_t)
         draw_bitmap_scaled(cursor_art[which],
-                           VMDS.clip_left - MACHINE_DRAW_SELECTION_PHASE.phase,
+                           VMDS.clip_left - selection_phase,
                            VMDS.clip_top, 0x110, 1, 0);
     if (keep_r) {
         VMDS.clip_right++;
         draw_bitmap_scaled(((cursor_art + 1)[which]), VMDS.clip_right - 1,
-                           VMDS.clip_top - MACHINE_DRAW_SELECTION_PHASE.phase,
+                           VMDS.clip_top - selection_phase,
                            8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(((cursor_art + 1)[which]), VMDS.clip_right - 1,
-                               VMDS.clip_top - MACHINE_DRAW_SELECTION_PHASE.phase + 0x80,
+                               VMDS.clip_top - selection_phase + 0x80,
                                8, 0x88, 0);
         VMDS.clip_right--;
     }
@@ -1302,12 +1302,12 @@ void clear_layer_heads(void)
 #ifdef __TURBOC__
     /* The count is in AX, Borland's pseudo-register: no register is saved. */
     for (_AX = 5; (int16_t)_AX >= 0; _AX--)
-        DRAW_LAYERS.layer_head[_AX] = 0;
+        layer_head[_AX] = 0;
 #else
     int16_t i;
 
     for (i = 5; i >= 0; i--)
-        DRAW_LAYERS.layer_head[i] = 0;
+        layer_head[i] = 0;
 #endif
 }
 
@@ -1344,8 +1344,8 @@ void link_record_into_buckets(register struct part *rec)
         if ((slot = PART_KINDS[kind].refile_level[_CX]) != 0xff) {
             if (rec == HELD_PARTS.dragged_part)
                 slot = 0;
-            rec->layer_next[_CX] = DRAW_LAYERS.layer_head[slot];
-            DRAW_LAYERS.layer_head[slot] = rec;
+            rec->layer_next[_CX] = layer_head[slot];
+            layer_head[slot] = rec;
             if (_CX == 0)
                 rec->layer_slot = slot;
         }
@@ -1382,7 +1382,7 @@ void draw_machine(register int16_t a, int16_t b)
     set_clip_for_mode();
     for (counter = 6; counter > 0; counter--) {
         level = counter - 1;
-        part = DRAW_LAYERS.layer_head[level];
+        part = layer_head[level];
         while (part != NULL) {
             part->flags_0a &= 0xffdf;
             if (part->kind == KIND_BELT)

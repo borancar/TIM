@@ -479,8 +479,8 @@ void read_level(char *name)
             LEVEL_IO.record_count = 0;
             alloc_part_table(n_machine + n_moving + n_given);
 
-            read_list(file, &MACHINE_PARTS.placed_parts, n_machine);
-            read_list(file, &MOVING_PARTS.moving_parts, n_moving);
+            read_list(file, &placed_parts, n_machine);
+            read_list(file, &moving_parts, n_moving);
             if (LEVEL_IO.is_level != 0)
                 read_list(file, &HELD_PARTS.parts_bin, n_given);
 
@@ -775,12 +775,12 @@ uint16_t write_level(register char *name)
 
         write_word(f, (const uint8_t *)&LEVEL_SETTINGS.tune);
 
-        write_part_count(f, &MACHINE_PARTS.placed_parts);
-        write_part_count(f, &MOVING_PARTS.moving_parts);
+        write_part_count(f, &placed_parts);
+        write_part_count(f, &moving_parts);
         write_part_count(f, &HELD_PARTS.parts_bin);
 
-        write_part_list(f, &MACHINE_PARTS.placed_parts, 0);
-        write_part_list(f, &MOVING_PARTS.moving_parts, 1);
+        write_part_list(f, &placed_parts, 0);
+        write_part_list(f, &moving_parts, 1);
         write_part_list(f, &HELD_PARTS.parts_bin, 2);
 
         if (game_fclose(f) != 0)

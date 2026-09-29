@@ -1057,7 +1057,7 @@ VQT_TEXT ends
  * 0x25953
  *
  * **Read `bits` bits** from the reader `BITMAPS.walk` names, and step its
- * position past them. `DG49BA.read_fn`'s only target.
+ * position past them. `vqt_read_fn`'s only target.
  *
  * The same read `vqt_node` makes for its four: a word at `data.off + (pos >>
  * 3)`, the offset stepped inside the segment, shifted down by the position's

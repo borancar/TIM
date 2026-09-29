@@ -58,7 +58,7 @@ void part_step_gun(struct part *part)
             play_sound(0x0b);
 
         if (part->form == 3 && (si = make_part(KIND_BULLET)) != NULL) {
-            insert_sorted(si, &MOVING_PARTS.moving_parts);
+            insert_sorted(si, &moving_parts);
             si->flags_06 |= 0x10;
 
             if (part->flags_08 & 0x10) {

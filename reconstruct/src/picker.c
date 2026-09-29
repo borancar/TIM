@@ -34,7 +34,7 @@
  * at 0x56a6, the picker text at 0x568f, the name buffer at 0x5682 and the
  * caret at 0x567e.
  */
-struct game_text_lines GAME_TEXT_LINES;
+char *text_line[8];
 
 /*
  * **The characters a filename may not contain**, DGROUP 0x28ec..0x28fa, 0x0e bytes: fourteen
@@ -171,7 +171,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
      */
     strcpy(pat, pattern);
 
-    FREE_LISTS.name_buf[0] = 0;
+    picked_name[0] = 0;
     reload = 2;
     idx = 0;
     GAME_PICKER_TEXT.picker_mode = round_state;
@@ -274,9 +274,9 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
             if (((last_key) != '\r' && round_state == 0x1000)
                 || was != 0x1000) {
                 if (was == 0x1000)
-                    picker_type((last_key), (char *)FREE_LISTS.name_buf, 0x0d);
+                    picker_type((last_key), (char *)picked_name, 0x0d);
             } else {
-                force_extension((char *)FREE_LISTS.name_buf, "TIM");
+                force_extension((char *)picked_name, "TIM");
 
                 if (round_state == 0x1000)
                     round_state = 0x8000;
@@ -329,7 +329,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                 rec = ((char far * far *)GAME_PICKER_TEXT.block)[idx];
 
                 if (*rec != ':' && *rec != '<') {
-                    strcpy((char *)FREE_LISTS.name_buf, listing_to_name(rec));
+                    strcpy((char *)picked_name, listing_to_name(rec));
                     rp_file = 2;
                 } else {
                     /*
@@ -349,7 +349,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
                     file_op_active = 0;
                     reload = 2;
-                    FREE_LISTS.name_buf[0] = 0;
+                    picked_name[0] = 0;
                 }
             }
 
@@ -370,7 +370,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                             round_state = 0x8000;
                         }
                     }
-                } else if (is_machine_file((char *)FREE_LISTS.name_buf) == 0) {
+                } else if (is_machine_file((char *)picked_name) == 0) {
                     picker_draw_action();
                     show_message_box(MESSAGES.wrong_format, MESSAGES.wrong_format_body);
                     wait_cursor();
@@ -436,7 +436,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (GAME_PICKER_TEXT.block != SCRATCH_BLOCK.scratch) {
+    if (GAME_PICKER_TEXT.block != scratch_block) {
         dos_free_far(GAME_PICKER_TEXT.block);
         GAME_PICKER_TEXT.block = NULL;
         GAME_PICKER_TEXT.text_start = NULL;
@@ -444,11 +444,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
     picker_draw_action();
 
-    if (round_state != 0x200 || strlen((char *)FREE_LISTS.name_buf) == 0) {
-        FREE_LISTS.name_buf[0] = 0;
+    if (round_state != 0x200 || strlen((char *)picked_name) == 0) {
+        picked_name[0] = 0;
         return 0;
     } else {
-        strcpy(PICKED_MACHINE.name, (char *)FREE_LISTS.name_buf);
+        strcpy(picked_machine, (char *)picked_name);
         return 1;
     }
 }
@@ -492,7 +492,7 @@ uint16_t validate_filename(void)
     int16_t  bad = 0;
     FILE *file;
 
-    si = (char *)FREE_LISTS.name_buf;
+    si = (char *)picked_name;
 
     if (*si == 0)
         bad = 1;
@@ -509,46 +509,46 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (strchr((char *)FREE_LISTS.name_buf,
+        if (strchr((char *)picked_name,
                        GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
             return 0;
     }
 
-    if (strnicmp((char *)FREE_LISTS.name_buf, "con", 3) == 0
-        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
+    if (strnicmp((char *)picked_name, "con", 3) == 0
+        && (picked_name[3] == 0 || picked_name[3] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "aux", 3) == 0
-        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
+    if (strnicmp((char *)picked_name, "aux", 3) == 0
+        && (picked_name[3] == 0 || picked_name[3] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "com1", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "com1", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "com2", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "com2", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "com3", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "com3", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "com4", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "com4", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "prn", 3) == 0
-        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
+    if (strnicmp((char *)picked_name, "prn", 3) == 0
+        && (picked_name[3] == 0 || picked_name[3] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "lpt1", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "lpt1", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "lpt2", 4) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "lpt2", 4) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "nul", 3) == 0
-        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
+    if (strnicmp((char *)picked_name, "nul", 3) == 0
+        && (picked_name[3] == 0 || picked_name[3] == '.'))
         return 0;
-    if (strnicmp((char *)FREE_LISTS.name_buf, "null", 3) == 0
-        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
+    if (strnicmp((char *)picked_name, "null", 3) == 0
+        && (picked_name[4] == 0 || picked_name[4] == '.'))
         return 0;
 
-    if ((file = game_fopen((char *)FREE_LISTS.name_buf, "rb")) != 0) {
+    if ((file = game_fopen((char *)picked_name, "rb")) != 0) {
         game_fclose(file);
         return 2;
     }
@@ -652,7 +652,7 @@ uint16_t path_is_root(const char *path)
     int16_t  n = 0;
 
     while (*si != 0) {
-        if (*si == *GAME_PATH_SEP.path_sep) {
+        if (*si == *path_separator) {
             last = si;
             n++;
         }
@@ -669,7 +669,7 @@ uint16_t path_is_root(const char *path)
  * 0x13516
  *
  * **Drop the last component of a path**, in place. It walks to the terminator
- * counting separators - the character is not a literal here but `*GAME_PATH_SEP.path_sep`,
+ * counting separators - the character is not a literal here but `*path_separator`,
  * the one-character string "\\" the rest of the module shares - and remembers
  * the last one it saw.
  *
@@ -686,7 +686,7 @@ void path_up(char *path)
     int16_t  n = 0;
 
     while (*si != 0) {
-        if (*si == *GAME_PATH_SEP.path_sep) {
+        if (*si == *path_separator) {
             last = si;
             n++;
         }
@@ -730,7 +730,7 @@ void path_join(char *path, const char far * entry)
     }
 
     if (path_is_root(path) == 0)
-        strcat(path, GAME_PATH_SEP.path_sep);
+        strcat(path, path_separator);
 
     strcat(path, name);
 
@@ -790,7 +790,7 @@ void force_extension(char *name, const char *ext)
  */
 void picker_set_name(const char *name)
 {
-    strcpy((char *)FREE_LISTS.name_buf, name);
+    strcpy((char *)picked_name, name);
 }
 
 /*
@@ -805,8 +805,8 @@ void picker_set_name(const char *name)
  */
 char *picker_name(void)
 {
-    if (FREE_LISTS.name_buf[0] != 0)
-        return (char *)FREE_LISTS.name_buf;
+    if (picked_name[0] != 0)
+        return (char *)picked_name;
     else
         return NULL;
 }
@@ -841,9 +841,9 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
     (void)arg2;
 
     if (GAME_PICKER_TEXT.block == NULL) {
-        if (SCRATCH_BLOCK.scratch != NULL) {
+        if (scratch_block != NULL) {
             GAME_PICKER_TEXT.entry_max = 0x3e8;
-            GAME_PICKER_TEXT.block = SCRATCH_BLOCK.scratch;
+            GAME_PICKER_TEXT.block = scratch_block;
         } else {
             v = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
 
@@ -1031,7 +1031,7 @@ void picker_draw_filename(void)
     char buf[16];                  /* [bp-0x10] */
     char *si  = buf;
 
-    strcpy(si, (const char *)FREE_LISTS.name_buf);
+    strcpy(si, (const char *)picked_name);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -1378,7 +1378,7 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     VMDS.clip_top    = top;
     VMDS.clip_bottom = top + h;
 
-    l       = GAME_TEXT_LINES.line;
+    l       = text_line;
     left_at = GAME_PICKER_TEXT.line_count;
 
     while (*l != 0 && **l != 0 && left_at-- != 0) {
@@ -1459,7 +1459,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
     GAME_PICKER_TEXT.text_width = GAME_PICKER_TEXT.text_height = 0;
 
     if (*at != 0)
-        GAME_TEXT_LINES.line[GAME_PICKER_TEXT.line_count++] = at;
+        text_line[GAME_PICKER_TEXT.line_count++] = at;
 
     space[0] = ' ';
     space[1] = 0;
@@ -1471,7 +1471,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
         if ((run != 0 || used != 0) && run + wide >= w) {
             run = 0;
             used += line_height;
-            GAME_TEXT_LINES.line[GAME_PICKER_TEXT.line_count++] = at;
+            text_line[GAME_PICKER_TEXT.line_count++] = at;
             if (used + line_height >= h)
                 break;
         }
@@ -1487,7 +1487,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
             if (*at == 0x0d) {
                 run = 0;
                 used += line_height;
-                GAME_TEXT_LINES.line[GAME_PICKER_TEXT.line_count++] = at + 1;
+                text_line[GAME_PICKER_TEXT.line_count++] = at + 1;
             } else if (*at == ' ') {
                 run += space_w;
             }
@@ -1502,7 +1502,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
     else
         GAME_PICKER_TEXT.text_height += line_height;
 
-    GAME_TEXT_LINES.line[GAME_PICKER_TEXT.line_count] = at;
+    text_line[GAME_PICKER_TEXT.line_count] = at;
 }
 
 /*

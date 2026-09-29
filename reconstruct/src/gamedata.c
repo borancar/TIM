@@ -31,12 +31,12 @@
    Borland lays `_BSS` out last mention first, and these two follow
    `_stklen` in the image. */
 extern struct game_directories GAME_DIRECTORIES;
-extern struct picked_machine PICKED_MACHINE;
+extern char picked_machine[0xd];
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
 
-struct game_master_levels GAME_MASTER_LEVELS = { { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f } };
+uint16_t master_level_ok[7] = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f };
 
 /* The draw step `draw_part` fills in for a part whose kind has no table. */
 struct draw_step DEFAULT_DRAW_STEP = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
@@ -2626,7 +2626,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
     }
 };
 
-struct game_path_sep GAME_PATH_SEP = { MESSAGES.path_sep };   /* DGROUP 0x1bca */
+char *path_separator = MESSAGES.path_sep;   /* DGROUP 0x1bca */
 struct messages MESSAGES = {
     "\012\012NOT ENOUGH FREE MEMORY\012",    /* not_enough_free_memory */
     "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",    /* you_need_at_least */
@@ -2705,7 +2705,7 @@ struct messages MESSAGES = {
  * itself - so TLINK takes none from the library.
  */
 struct game_directories GAME_DIRECTORIES;   /* DGROUP 0x530b */
-struct picked_machine PICKED_MACHINE;   /* DGROUP 0x52fe */
+char picked_machine[0xd];   /* DGROUP 0x52fe */
 uint16_t _stklen;   /* DGROUP 0x52fc */
 uint16_t stop_requested;   /* DGROUP 0x52fa  game_teardown(0) raises it; the loops above read it */
 FILE     *tim_sx;   /* DGROUP 0x52f8  tim.sx's file record, which open_sound_file reads the sounds from */
@@ -2752,12 +2752,12 @@ int16_t anchor_y;   /* DGROUP 0x52c3 */
 int16_t anchor_x;   /* DGROUP 0x52c1  the far part's anchor: its +0x1e and +0x20 plus +0x56, +0x57 */
 int16_t band_y;   /* DGROUP 0x52bf */
 int16_t band_x;   /* DGROUP 0x52bd  the pointer in play-area coordinates */
-struct machine_parts MACHINE_PARTS;   /* DGROUP 0x521b */
-struct moving_parts MOVING_PARTS;   /* DGROUP 0x5179 */
+struct part placed_parts;   /* DGROUP 0x521b */
+struct part moving_parts;   /* DGROUP 0x5179 */
 struct held_parts HELD_PARTS;   /* DGROUP 0x50d3 */
 /* DGROUP 0x50cb..0x50d3: nothing in the image names these eight bytes. Ours. */
 uint8_t DG50CB[8];
-struct draw_layers DRAW_LAYERS;   /* DGROUP 0x50bf */
+struct part *layer_head[6];   /* DGROUP 0x50bf */
 struct level_settings LEVEL_SETTINGS;   /* DGROUP 0x50af */
 /* **The level's title and hint**, read from the level file by
    `load_level` when it is a level and written back by `write_level`;
@@ -2871,4 +2871,8 @@ uint16_t round_state;   /* DGROUP 0x4e6b  the round and screen state machine's w
    where the name comes from. */
 uint16_t tool;   /* DGROUP 0x4e69 */
 uint16_t freeform;   /* DGROUP 0x4e67  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
-struct free_lists FREE_LISTS;   /* DGROUP 0x4e4e */
+char picked_name[0xd];   /* DGROUP 0x4e5a */
+struct queue_node *parts_queue;   /* DGROUP 0x4e58 */
+struct queue_node *parts_free;   /* DGROUP 0x4e56 */
+struct shape far *shapes_drawn;   /* DGROUP 0x4e52 */
+struct shape far *shape_free;   /* DGROUP 0x4e4e */

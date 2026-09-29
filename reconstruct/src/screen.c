@@ -1837,7 +1837,7 @@ void game_screen(void)
                 if (held % 8 == 0 && master_level != 6) {
                     master_level++;
                     write_config();
-                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[master_level]);
+                    set_master_level_ok(master_level_ok[master_level]);
                 }
                 held++;
             }
@@ -1852,7 +1852,7 @@ void game_screen(void)
                 if (held % 8 == 0 && master_level != 0) {
                     master_level--;
                     write_config();
-                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[master_level]);
+                    set_master_level_ok(master_level_ok[master_level]);
                 }
                 held++;
             }
@@ -1934,7 +1934,7 @@ void game_screen(void)
 
                 if (pick_file(0, 0, "*.TIM")) {
                     round_teardown();
-                    load_animation((char *)PICKED_MACHINE.name);
+                    load_animation((char *)picked_machine);
                     reset_machine();
                 }
 
@@ -1963,7 +1963,7 @@ void game_screen(void)
                 while (file_err != 0) {
                     round_state = 0x80;
                     if (pick_file(0, 0, "*.TIM")) {
-                        file_err = save_machine((char *)PICKED_MACHINE.name);
+                        file_err = save_machine((char *)picked_machine);
                         if (file_err != 0) {
                             show_message_box(MESSAGES.file_error, MESSAGES.disk_write_protected);
                             paint_game_screen(0);

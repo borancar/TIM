@@ -55,7 +55,7 @@ void goal_test_puzzle_2(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL) {
@@ -77,7 +77,7 @@ void goal_test_puzzle_2(void)
  */
 void goal_test_puzzle_20(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     if ((int16_t)((uint16_t)si->pos[0].x) > 0x1e0
         && ((uint16_t)si->pos[0].y) == 0xc8)
@@ -91,7 +91,7 @@ void goal_test_puzzle_20(void)
  */
 void goal_test_puzzle_21(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si->kind != KIND_POKEY)
         si = si->next;
@@ -110,7 +110,7 @@ void goal_test_puzzle_22(void)
     int16_t n;
 
     n = 0;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
@@ -134,7 +134,7 @@ void goal_test_puzzle_22(void)
  */
 void goal_test_puzzle_1(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si->kind != KIND_BASKETBALL)
         si = si->next;
@@ -229,7 +229,7 @@ void goal_test_pop_balloons(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
@@ -293,7 +293,7 @@ void goal_test_puzzle_23(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
@@ -320,7 +320,7 @@ void goal_test_puzzle_23(void)
  */
 void goal_test_puzzle_26(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
@@ -337,7 +337,7 @@ void goal_test_puzzle_26(void)
  */
 void goal_test_puzzle_43(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
@@ -361,7 +361,7 @@ void goal_test_puzzle_39(void)
 
     seen = 0;
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE) {
@@ -392,7 +392,7 @@ void goal_test_puzzles_53_54_63_67_87(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_ROCKET
@@ -416,7 +416,7 @@ void goal_test_puzzle_25(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
@@ -436,7 +436,7 @@ void goal_test_puzzle_25(void)
  */
 void goal_test_puzzle_41(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_POKEY
@@ -459,7 +459,7 @@ void goal_test_puzzles_10_32(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_GUN
@@ -518,7 +518,7 @@ void goal_test_puzzle_34(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_JACK_IN_THE_BOX
@@ -540,7 +540,7 @@ void goal_test_puzzles_14_15_64_73(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON
@@ -569,7 +569,7 @@ void goal_test_puzzle_24(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON) {
@@ -599,7 +599,7 @@ void goal_test_puzzle_55(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOXING_GLOVE
@@ -617,7 +617,7 @@ void goal_test_puzzle_55(void)
  */
 void goal_test_puzzle_38(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
@@ -634,7 +634,7 @@ void goal_test_puzzle_38(void)
  */
 void goal_test_puzzle_44(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
@@ -655,7 +655,7 @@ void goal_test_puzzle_71(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -679,7 +679,7 @@ void goal_test_puzzles_16_56_83(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANDLE
@@ -697,7 +697,7 @@ void goal_test_puzzles_16_56_83(void)
  */
 void goal_test_puzzle_80(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
@@ -722,7 +722,7 @@ void goal_test_puzzle_47(void)
     int16_t right;
 
     left = right = 0;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
@@ -754,7 +754,7 @@ void goal_test_puzzle_70(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
@@ -782,7 +782,7 @@ void goal_test_puzzle_69(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_LIGHT
@@ -801,7 +801,7 @@ void goal_test_puzzle_69(void)
  */
 void goal_test_puzzle_52(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
@@ -830,7 +830,7 @@ void goal_test_puzzles_19_48(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MONKEY
@@ -856,7 +856,7 @@ void goal_test_puzzles_19_48(void)
  */
 void goal_test_puzzle_82(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
@@ -898,7 +898,7 @@ void goal_test_puzzle_81(void)
 #endif
     hit = NULL;
     flagged = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
@@ -933,7 +933,7 @@ void goal_test_puzzle_81(void)
  */
 void goal_test_puzzle_4(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
@@ -949,7 +949,7 @@ void goal_test_puzzle_4(void)
  */
 void goal_test_puzzle_5(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -973,7 +973,7 @@ void goal_test_puzzles_6_58(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MOUSE_CAGE
@@ -1001,7 +1001,7 @@ void goal_test_puzzles_7_51_65(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
@@ -1023,7 +1023,7 @@ void goal_test_puzzle_9(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
@@ -1050,7 +1050,7 @@ void goal_test_puzzle_11(void)
 
     n = 0;
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_FAN) {
@@ -1070,7 +1070,7 @@ void goal_test_puzzle_11(void)
  */
 void goal_test_puzzle_12(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
@@ -1093,7 +1093,7 @@ void goal_test_puzzle_13(void)
     int16_t ok;
 
     ok = 1;
-    si = MACHINE_PARTS.placed_parts.next;
+    si = placed_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_GEAR
@@ -1145,7 +1145,7 @@ void goal_test_puzzle_17(void)
  */
 void goal_test_puzzle_18(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
@@ -1168,7 +1168,7 @@ void goal_test_puzzle_76(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
@@ -1221,7 +1221,7 @@ void goal_test_puzzles_57_74(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
@@ -1243,7 +1243,7 @@ void goal_test_puzzle_31(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
@@ -1264,7 +1264,7 @@ void goal_test_puzzle_31(void)
  */
 void goal_test_puzzle_66(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -1284,7 +1284,7 @@ void goal_test_puzzle_29(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -1302,7 +1302,7 @@ void goal_test_puzzle_29(void)
  */
 void goal_test_puzzle_61(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE && ((uint16_t)si->pos[0].y) == 0xf8)
@@ -1326,7 +1326,7 @@ void goal_test_puzzle_28(void)
     register struct part *si;
 
     row1 = row2 = row3 = row4 = row5 = row6 = 0;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
@@ -1390,7 +1390,7 @@ void goal_test_puzzle_36(void)
  */
 void goal_test_puzzle_86(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
@@ -1417,7 +1417,7 @@ void goal_test_puzzle_77(void)
 
     seen = 0;
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL)
@@ -1444,7 +1444,7 @@ void goal_test_puzzle_77(void)
  */
 void goal_test_puzzle_85(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
@@ -1464,7 +1464,7 @@ void goal_test_puzzle_60(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_POKEY && (int16_t)((uint16_t)si->pos[0].y) < 0xc8)
@@ -1481,7 +1481,7 @@ void goal_test_puzzle_60(void)
  */
 void goal_test_puzzle_37(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
@@ -1510,7 +1510,7 @@ void goal_test_puzzle_84(void)
 
     n = 0;
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
@@ -1548,7 +1548,7 @@ void goal_test_puzzle_68(void)
     int16_t a, b;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 #ifndef __TURBOC__
     a = 0;      /* ours: the original leaves both unset */
     b = 0;
@@ -1580,7 +1580,7 @@ void goal_test_puzzle_72(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -1606,7 +1606,7 @@ void goal_test_puzzle_59(void)
 
     seen = 0;
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL
@@ -1638,7 +1638,7 @@ void goal_test_puzzle_49(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
@@ -1666,7 +1666,7 @@ void goal_test_puzzle_40(void)
     int16_t ok;
 
     ok = 1;
-    si = MOVING_PARTS.moving_parts.next;
+    si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
@@ -1688,7 +1688,7 @@ void goal_test_puzzle_40(void)
  */
 void goal_test_puzzle_35(void)
 {
-    struct part *si = MOVING_PARTS.moving_parts.next;
+    struct part *si = moving_parts.next;
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL

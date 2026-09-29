@@ -146,11 +146,11 @@ static void save_machine_file(const char *name)
 {
     int32_t i;
 
-    for (i = 0; name[i] && i < (int32_t)sizeof PICKED_MACHINE.name - 1; i++)
-        PICKED_MACHINE.name[i] = name[i];
-    PICKED_MACHINE.name[i] = 0;
+    for (i = 0; name[i] && i < (int32_t)sizeof picked_machine - 1; i++)
+        picked_machine[i] = name[i];
+    picked_machine[i] = 0;
 
-    if (save_machine((char *)PICKED_MACHINE.name) != 0)
+    if (save_machine((char *)picked_machine) != 0)
         fprintf(stderr, "io: save_machine reported an error for %s\n", name);
     else
         fprintf(stderr, "io: wrote the machine as %s\n", name);

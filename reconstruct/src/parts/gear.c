@@ -155,7 +155,7 @@ void part_setup_gear(struct part *part)
     for (i = 0; i < 4; i++)
         part->link[i] = 0;
 
-    for (di = MACHINE_PARTS.placed_parts.next; di != NULL;
+    for (di = placed_parts.next; di != NULL;
          di = di->next) {
         if (di != part && di->kind == KIND_GEAR) {
             dx = part->start_x - di->start_x;

@@ -205,7 +205,7 @@ void cut_belts(struct part *part, const int16_t *line)
     struct belt *belt;                  /* [bp-0x24] */
     struct belt *newbelt;               /* [bp-0x26] */
 
-    for (rec = MACHINE_PARTS.placed_parts.next; rec != NULL;
+    for (rec = placed_parts.next; rec != NULL;
          rec = rec->next) {
         if (rec->kind != KIND_ROPE)
             continue;
@@ -247,16 +247,16 @@ fail:
                     goto out;
                 }
 
-                insert_sorted(di, &MOVING_PARTS.moving_parts);
+                insert_sorted(di, &moving_parts);
                 di->flags_06 |= 0x10;
                 di->pos[0].x = at[0] + part->pos[0].x;
                 di->pos[0].y = at[1] + part->pos[0].y;
 
-                insert_sorted(anchorB, &MOVING_PARTS.moving_parts);
+                insert_sorted(anchorB, &moving_parts);
                 anchorB->flags_06 |= 0x10;
                 anchorB->pos[0] = di->pos[0];
 
-                insert_sorted(carrier, &MACHINE_PARTS.placed_parts);
+                insert_sorted(carrier, &placed_parts);
                 carrier->flags_06 |= 0x10;
 
                 newbelt = carrier->belt[0];

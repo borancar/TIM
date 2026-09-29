@@ -1856,7 +1856,7 @@ void insert_sorted(register struct part *rec, struct part *head)
             prio2 = PART_KINDS[kind2].priority;
             if (head == &HELD_PARTS.parts_bin)
                 stop = prio < prio2;
-            else if (head == &MOVING_PARTS.moving_parts)
+            else if (head == &moving_parts)
                 stop = PART_KINDS[kind].weight < PART_KINDS[kind2].weight;
             else
                 stop = 1;
@@ -1935,10 +1935,10 @@ void refile_part_list(register struct part *part)
     unlink_part(part);
     if (part->flags_06 & 0x4000) {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x2000;
-        insert_sorted(part, &MACHINE_PARTS.placed_parts);
+        insert_sorted(part, &placed_parts);
     } else {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
-        insert_sorted(part, &MOVING_PARTS.moving_parts);
+        insert_sorted(part, &moving_parts);
     }
     if (HELD_PARTS.bin_list != &HELD_PARTS.parts_bin
         && HELD_PARTS.bin_list->next == 0)
@@ -2239,10 +2239,10 @@ give_up:
  */
 struct part *pick_by_flag(uint16_t flags)
 {
-    if (MACHINE_PARTS.placed_parts.next != 0 && (flags & 0x2000))
-        return MACHINE_PARTS.placed_parts.next;
-    if (MOVING_PARTS.moving_parts.next != 0 && (flags & 0x1000))
-        return MOVING_PARTS.moving_parts.next;
+    if (placed_parts.next != 0 && (flags & 0x2000))
+        return placed_parts.next;
+    if (moving_parts.next != 0 && (flags & 0x1000))
+        return moving_parts.next;
     if (HELD_PARTS.parts_bin.next != 0 && (flags & 0x0800))
         return HELD_PARTS.parts_bin.next;
     return NULL;
@@ -2437,16 +2437,16 @@ void free_all_shapes(void)
     struct shape far *next;             /* [bp-4] */
     struct shape far *q;                /* [bp-8] */
 
-    if (FREE_LISTS.shapes) {
-        q = FREE_LISTS.shapes;
+    if (shapes_drawn) {
+        q = shapes_drawn;
         next = q->next;
         while (next) {
             q = next;
             next = next->next;
         }
-        q->next = FREE_LISTS.shape_free;
-        FREE_LISTS.shape_free = FREE_LISTS.shapes;
-        FREE_LISTS.shapes = 0;
+        q->next = shape_free;
+        shape_free = shapes_drawn;
+        shapes_drawn = 0;
     }
 }
 
@@ -2730,7 +2730,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 {
     struct shape far *n;                /* [bp-4] */
 
-    n = FREE_LISTS.shape_free;
+    n = shape_free;
     /* Pop from the free list, push onto the used list - before the test for
        an empty list, as the original does it, which then reads and writes
        0000:0000. The host's null is C's and cannot be followed, so there the
@@ -2739,9 +2739,9 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     if (n == NULL)
         return;
 #endif
-    FREE_LISTS.shape_free = FREE_LISTS.shape_free->next;
-    n->next = FREE_LISTS.shapes;
-    FREE_LISTS.shapes = n;
+    shape_free = shape_free->next;
+    n->next = shapes_drawn;
+    shapes_drawn = n;
 
     if (n) {
         n->flags = flags;
@@ -2824,7 +2824,7 @@ void replay_shapes(void)
     VMDS.page_dst = VMDS.page_back;
 
     prev = 0;
-    for (cur = FREE_LISTS.shapes; cur; cur = next) {
+    for (cur = shapes_drawn; cur; cur = next) {
         next = cur->next;
         if (--cur->replays == 0) {
             si = cur->x1;
@@ -2849,9 +2849,9 @@ void replay_shapes(void)
             if (prev)
                 prev->next = next;
             else
-                FREE_LISTS.shapes = next;
-            cur->next = FREE_LISTS.shape_free;
-            FREE_LISTS.shape_free = cur;
+                shapes_drawn = next;
+            cur->next = shape_free;
+            shape_free = cur;
         } else
             prev = cur;
     }
@@ -2920,7 +2920,7 @@ void mark_parts_in_dirty_rects(void)
                 bottom = top + di->size[0].height;
             }
 
-            node = FREE_LISTS.shapes;
+            node = shapes_drawn;
             while (node) {
                 if (node->left < right && node->right > left
                     && node->top < bottom && node->bottom > top) {
@@ -3008,7 +3008,7 @@ void belt_in_dirty_rect(struct part *part)
         if (slack > 0)
             bottom += slack >> 1;
 
-        node = FREE_LISTS.shapes;
+        node = shapes_drawn;
         while (node) {
             if (node->left < right && node->right > left
                 && node->top < bottom && node->bottom > top) {
@@ -3070,7 +3070,7 @@ void refile_overlapping_parts(void)
 
     for (level_n = 6; level_n > 0; level_n--) {
         level = level_n - 1;
-        walk = DRAW_LAYERS.layer_head[level];
+        walk = layer_head[level];
         while (walk != NULL) {
             rec = &PART_KINDS[walk->kind];
             if ((rec->refile_level[0] == 0xff || rec->refile_level[0] >= level
@@ -3856,7 +3856,7 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
  *
  * Splice the whole of one list onto the front of another and empty the first.
  *
- * The queue of parts that asked to move, `FREE_LISTS.parts_queue` at DGROUP
+ * The queue of parts that asked to move, `parts_queue` at DGROUP
  * 0x4e58, is walked to its last node, that node is pointed at the free list
  * `parts_free` at 0x4e56, and the free list then starts where the queue did:
  * the frame's queue goes back to the free list in one move.
@@ -3866,16 +3866,16 @@ void release_part_queue(void)
     register struct queue_node *next;
     register struct queue_node *last;
 
-    if (FREE_LISTS.parts_queue != 0) {
-        last = FREE_LISTS.parts_queue;
+    if (parts_queue != 0) {
+        last = parts_queue;
         next = last->next;
         while (next != 0) {
             last = next;
             next = next->next;
         }
-        last->next = FREE_LISTS.parts_free;
-        FREE_LISTS.parts_free = FREE_LISTS.parts_queue;
-        FREE_LISTS.parts_queue = 0;
+        last->next = parts_free;
+        parts_free = parts_queue;
+        parts_queue = 0;
     }
 }
 
@@ -3914,25 +3914,25 @@ int16_t queue_part(struct part *src, struct part *part)
        high-word `jg`/`jl` and low-word `jae`/`ja` - a signed 32-bit compare. */
     key = src->momentum;
 
-    for (si = FREE_LISTS.parts_queue; si != 0; si = si->next)
+    for (si = parts_queue; si != 0; si = si->next)
         if (si->part == part && si->momentum >= key)
             return 0;
 
-    if (FREE_LISTS.parts_queue == 0
-        || FREE_LISTS.parts_queue->momentum < key) {
-        si = FREE_LISTS.parts_free;
-        FREE_LISTS.parts_free = FREE_LISTS.parts_free->next;
-        si->next = FREE_LISTS.parts_queue;
-        FREE_LISTS.parts_queue = si;
+    if (parts_queue == 0
+        || parts_queue->momentum < key) {
+        si = parts_free;
+        parts_free = parts_free->next;
+        si->next = parts_queue;
+        parts_queue = si;
     } else {
-        di = FREE_LISTS.parts_queue;
-        si = FREE_LISTS.parts_queue->next;
+        di = parts_queue;
+        si = parts_queue->next;
         while (si != 0 && si->momentum > key) {
             di = si;
             si = si->next;
         }
-        si = FREE_LISTS.parts_free;
-        FREE_LISTS.parts_free = FREE_LISTS.parts_free->next;
+        si = parts_free;
+        parts_free = parts_free->next;
         si->next = di->next;
         di->next = si;
     }

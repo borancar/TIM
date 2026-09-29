@@ -73,7 +73,7 @@ char *SOUND_MODULE_TAGS[5] = {
 };
 
 /* The seven voices, DGROUP 0x6414; the record is described in dgroup.h. */
-struct sound_voices SOUND_VOICES;
+struct sequence far *sound_voice[7];
 
 /*
  * 0x28655
@@ -194,9 +194,9 @@ struct sequence far *voice_playing(const uint8_t far * source)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        if (SOUND_VOICES.voice[i]->source == source
-            && SOUND_VOICES.voice[i]->state != 0xff)
-            return SOUND_VOICES.voice[i];
+        if (sound_voice[i]->source == source
+            && sound_voice[i]->state != 0xff)
+            return sound_voice[i];
     }
 
     return NULL;
@@ -222,9 +222,9 @@ uint16_t alloc_voice_records(void)
     int16_t i;
     struct sequence far *voice;
 
-    if (SOUND_VOICES.voice[0] == NULL) {
+    if (sound_voice[0] == NULL) {
         for (i = 0; i < 7; i++) {
-            if ((SOUND_VOICES.voice[i] = (struct sequence far *)
+            if ((sound_voice[i] = (struct sequence far *)
                      alloc_for_kind(sizeof(struct sequence), 2))
                 == NULL) {
                 free_voice_records();
@@ -232,7 +232,7 @@ uint16_t alloc_voice_records(void)
             }
 
             /* `cursor_at` is where the record's own `cursor` is. */
-            voice = SOUND_VOICES.voice[i];
+            voice = sound_voice[i];
             voice->state = 0xff;
             voice->cursor_at = &voice->cursor;
         }

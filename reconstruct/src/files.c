@@ -879,7 +879,7 @@ void near compress_row(uint8_t *src, int16_t remaining)
         while (*si++ == value)
             run++;
 
-        if ((int16_t)run >= DG49BA.min_run) {
+        if ((int16_t)run >= min_run) {
             if ((int16_t)run > remaining)
                 run = (uint8_t)remaining;
 

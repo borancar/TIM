@@ -99,7 +99,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
  * spins on a word the timer thread writes - `TIMER.frame_budget`,
- * `FRAME_GUARD.frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three fields are
+ * `frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three words are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -432,12 +432,8 @@ extern struct vmds VMDS;
  * (0x166d6) empties all six. Six is the extent every walker uses, and the
  * four words between here and 0x50d3 are not read as part of it.
  */
-struct draw_layers {
-    struct part *layer_head[6]; /* +0x00 */
-} PACKED;
-
 #ifndef GAMEDATA_C
-extern struct draw_layers DRAW_LAYERS;
+extern struct part *layer_head[6];
 #endif
 
 /*
@@ -756,12 +752,8 @@ extern uint16_t _stklen;
  * and the picker's own buffer is capped at thirteen by the `0x0d` it hands
  * `picker_type`.
  */
-struct picked_machine {
-    char      name[0xd];          /* +0x00 */
-} PACKED;
-
 #ifndef GAMEDATA_C
-extern struct picked_machine PICKED_MACHINE;
+extern char picked_machine[0xd];
 #endif
 
 /*
@@ -796,25 +788,23 @@ struct shape {
 } PACKED;
 
 /*
- * **The shape and part free lists**, at DGROUP 0x4e4e.
+ * **The shape and part free lists, and the picked file's name**, gamedata.c's,
+ * DGROUP 0x4e4e..0x4e67.
+ *
+ * `shape_free` is the list nodes come off, and `shapes_drawn` the shapes drawn
+ * over, put back in reverse - **one far pointer**, the offset at 0x4e52 and
+ * the segment at 0x4e54, which is what `alloc_shape` files there.
+ * `parts_free` is the head of the part records, and `parts_queue`, folded
+ * onto it, what asked to move this frame. `pick_file` fills `picked_name` and
+ * copies the answer out, and `validate_filename` reads it back: thirteen
+ * bytes, an 8.3 name and its NUL, which is what is left before `freeform`.
  */
-struct free_lists {
-    struct shape far *shape_free; /* +0x00  the free list nodes come off */
-    struct shape far *shapes;     /* +0x04  the shapes drawn over, put back in reverse.
-                                            **One far pointer**, not two near ones: the
-                                            offset is at +0x04 and the segment at +0x06,
-                                            which is what `alloc_shape` files there */
-    struct queue_node *parts_free; /* +0x08  the head; 0x4e58 is the queue folded onto it */
-    struct queue_node *parts_queue; /* +0x0a  what asked to move this frame */
-    char      name_buf[0xd];      /* +0x0c  pick_file fills this and copies the
-                                     answer out; `validate_filename` reads it
-                                     back. Thirteen bytes - an 8.3 name and its
-                                     NUL - which is what is left before
-                                     `dg_4e67` */
-} PACKED;
-
 #ifndef GAMEDATA_C
-extern struct free_lists FREE_LISTS;
+extern struct shape far *shape_free;
+extern struct shape far *shapes_drawn;
+extern struct queue_node *parts_free;
+extern struct queue_node *parts_queue;
+extern char picked_name[0xd];
 #endif
 
 /*
@@ -886,38 +876,33 @@ extern struct timer TIMER;
  * entry past the last is index seven at most. The word after, 0x56b6, is
  * `MACHINE_RECT_COUNT`, which `rect_pool_count` reads - not a ninth line.
  */
-struct game_text_lines {
-    char     *line[8];            /* +0x00 [0x10] */
-} PACKED;
-
-extern struct game_text_lines GAME_TEXT_LINES;
+extern char *text_line[8];
 
 /*
  * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
  * ONE: slots 1 to 4 are the buffers `claim_buffer_slot` hands out. The
  * original indexes `[bx + 0x5754]` with `bx = slot * 4`, so its slot 0 would be
- * the four bytes at 0x5754 - `FRAME_GUARD.frame_flag` and `size_word` - and it is
+ * the four bytes at 0x5754 - `frame_flag` and `size_word` - and it is
  * never handed out. The array starts at slot 1, and every use subtracts one.
  */
-struct machine_rect_buffers {
-    uint8_t far *slot[4];       /* +0x00  slots 1 to 4 */
-} PACKED;
-
-/* cursor.c's; declared here, above FRAME_GUARD, because Borland lays out
+/* cursor.c's; declared here, above `frame_flag`, because Borland lays out
    `_BSS` in reverse order of first mention and this is its place in it. */
-extern struct machine_rect_buffers MACHINE_RECT_BUFFERS;
+extern uint8_t far *rect_buffer[4];
 
 /*
- * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
+ * **The drawing re-entry guard and the frame flag**, cursor.c's, DGROUP
+ * 0x5752..0x5758. Declared last address first: Borland C++ lays `_BSS` out
+ * last mention first, and these externs are the first mention.
+ *
+ * `size_word` is the size `claim_buffer_slot` gives a save buffer, or the
+ * driver's own if this is zero. `frame_flag` is what `wait_and_latch_frame` spins on, set by
+ * the INT 08h handler - on the timer thread, which is why it is **volatile**.
+ * `redraw_guard` is raised across a redraw and put back: a nesting guard, not
+ * a lock.
  */
-struct frame_guard {
-    uint16_t  guard;              /* +0x00  raised across a redraw and put back; a nesting guard, not a lock */
-    volatile int16_t frame_flag;  /* +0x02  what wait_and_latch_frame spins on, set by the INT 08h handler
-                                     - on the timer thread, which is why this one is **volatile** */
-    int16_t   size_word;          /* +0x04  the size, or the driver's own if this is zero */
-} PACKED;
-
-extern struct frame_guard FRAME_GUARD;
+extern int16_t size_word;
+extern volatile int16_t frame_flag;
+extern uint16_t redraw_guard;
 
 /*
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
@@ -929,21 +914,6 @@ extern uint16_t goal_condition[10];
 extern struct part *belt_far_end;
 
 
-/*
- * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
- */
-struct borland_heap {
-    void *first_block;        /* +0x00  the block chain runs from here to the topmost */
-    void *top_block;        /* +0x02  which is where a new block is cut from */
-    void *ring_cursor;        /* +0x04  first fit walks *backward* from here */
-    uint8_t   cr[2];              /* +0x06  "\r", which `fputc` writes before a newline in text mode */
-    int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
-    int16_t   stdout_is_tty;      /* +0x0a */
-    uint16_t  realcvt;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
-                                     `float_formats_missing` in this program */
-} PACKED;
-
-extern struct borland_heap BORLAND_HEAP;
 
 /*
  * **A near-heap block header**: the four bytes *below* every pointer
@@ -1341,18 +1311,13 @@ extern struct held_parts HELD_PARTS;
 #endif
 
 /*
- * **The moving parts**, at DGROUP 0x5179.
+ * **The moving parts: a doubly linked list's head**, at DGROUP 0x5179 - the
+ * second list the level file fills (`n_moving`) - balls, balloons, buckets,
+ * rockets - and what gravity and the step passes walk. A whole part, read the
+ * way the bin's at 0x50d7 is; see `parts_bin`.
  */
-struct moving_parts {
-    /* **The moving parts: a doubly linked list's head**, the second list the
-       level file fills (`n_moving`) - balls, balloons, buckets, rockets - and
-       what gravity and the step passes walk. A whole part, read the way the
-       bin's at 0x50d7 is; see `parts_bin`. */
-    struct part moving_parts;     /* +0x00 */
-} PACKED;
-
 #ifndef GAMEDATA_C
-extern struct moving_parts MOVING_PARTS;
+extern struct part moving_parts;
 #endif
 
 /*
@@ -1466,41 +1431,9 @@ struct archive_entry {
 } PACKED;
 
 /*
- * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
- */
-struct mouse_driver {
-    int16_t   gc_0_1;             /* +0x00  the graphics controller registers the cursor code saves: */
-    int16_t   gc_4;               /* +0x02  0 and 1 here, 4 next, then 8 */
-    int16_t   gc_8;               /* +0x04 */
-    int16_t   seq_map_mask;       /* +0x06  and the sequencer's map mask */
-    uint8_t   gc_3;               /* +0x08 */
-    uint8_t   pad_48e3[3];
-    /* **Two graphics-controller mode bytes**, both written to GC register 5 by
-       the cursor code: 2 and 1 in the image, which are VGA write mode 2 - a
-       byte selects a colour - and write mode 1, the latch copy the routine
-       parks with. The second pair is the same two with bit 6 set, 0x40 and
-       0x41, which is the 256-colour shift; `mouse_init` copies them over the
-       first pair when the driver reports eight bits a pixel. */
-    uint8_t   gc_mode_fill;    /* +0x0c */
-    uint8_t   quarter_a;       /* +0x0d */
-    uint8_t   gc_mode_copy;    /* +0x0e */
-    uint8_t   quarter_b;       /* +0x0f */
-    uint8_t   mouse_taken;        /* +0x10  whether the driver was taken; `neg al` branches on it */
-    uint8_t   buttons;            /* +0x11  the byte timer_callback samples on the page flip */
-    uint8_t   vector_hooked;      /* +0x12  the handler after this routine was installed */
-    /* **Segment first**, as the image stores it - and at an odd offset,
-       which the packed record allows. */
-    void interrupt (far *vector)(); /* +0x13  vector 0, from 0:0 and 0:2 - a
-                                            load, not a store */
-    uint8_t   pad_48f1[1];        /* the word alignment of the next module's `_DATA` */
-} PACKED;
-
-/*
  * **`vm_init`'s module's `_DATA`**, DGROUP 0x48f2..0x48f8 (vidinit.c): the
  * mode the program found the adapter in, a forced adapter, and the loaded
- * driver's entry. The driver pointer stays a `seg:off` pair where the
- * original put it, because the hybrid reads the original's store of it to
- * find VM.OVL.
+ * driver's entry.
  */
 struct vm_start {
     uint8_t   mode_found;         /* +0x00  the mode the program found the adapter in; 0xff none */
@@ -1510,136 +1443,42 @@ struct vm_start {
 
 extern struct vm_start VM_START;
 
-extern struct mouse_driver MOUSE_DRIVER;
-
-/*
- * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
- */
-struct scratch_block {
-    uint8_t far *scratch;       /* +0x00  picker_begin takes this if it is
-                                     not null */
-} PACKED;
-
-extern struct scratch_block SCRATCH_BLOCK;
-
-/*
- * **The machine's own parts**, at DGROUP 0x521b.
- */
-struct machine_parts {
-    /* **The placed parts: a doubly linked list's head**, the first list the
-       level file fills (`n_machine`) and on most levels the largest - the
-       scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the moving
-       ones. A whole part, read the way the bin's at 0x50d7 is; see
-       `parts_bin`. */
-    struct part placed_parts;     /* +0x00 */
-} PACKED;
-
-#ifndef GAMEDATA_C
-extern struct machine_parts MACHINE_PARTS;
+/* lowlevel.c's, host-only: the TASM module names its own. */
+#ifndef __TURBOC__
+extern int16_t saved_gc_0_1;
+extern int16_t saved_gc_4;
+extern int16_t saved_gc_8;
+extern int16_t saved_seq_map_mask;
+extern uint8_t saved_gc_3;
+extern uint8_t gc_mode_fill;
+extern uint8_t gc_mode_fill_256;
+extern uint8_t gc_mode_copy;
+extern uint8_t gc_mode_copy_256;
+extern uint8_t mouse_taken;
+extern uint8_t mouse_buttons;
+extern uint8_t divide_hooked;
+extern void interrupt (far *old_divide_vector)();
 #endif
 
 /*
- * ---------------------------------------------------------------------------
- * **What the DOS startup left behind**, DGROUP 0x0074..0x0094.
- *
- * The port has no DOS startup - `main.c` stands where the original's does - so
- * nothing here writes any of this, and it is declared because the *original*
- * does and DGROUP is described in full. Every field below is read off the
- * startup's own instructions, which `tools/xrefs.py` lists: these twenty-eight
- * bytes are named by eighteen instructions, all of them between image 0x0000
- * and 0x0215.
- *
- * The four vectors are INT 00h, 04h, 05h and 06h - divide by zero, overflow,
- * bound and invalid opcode - fetched with INT 21h AX=35xx at image 0x1ad and
- * put back with AX=25xx at 0x1f0. `argc` and `argv` are what the startup
- * pushes before `lcall 0xdff:0x000f`, which is `game_main`: the segment first,
- * then the offset, then the count, so the last pushed is the first argument
- * and `argv` is one far pointer.
- *
- * **`env` is a far pointer whose offset half is then reused.** `les di,[0x8a]`
- * walks the environment for its end, and the length that walk measures goes
- * straight back into 0x008a, so after the startup the word is a count and not
- * an offset any more. The segment beside it is the PSP's word at +0x2c, read
- * while DS was still the PSP.
- * ---------------------------------------------------------------------------
+ * **The scratch block that is allocated to be freed**, at DGROUP 0x3576:
+ * `picker_begin` takes it if it is not null.
  */
-struct dos_startup {
-    void interrupt (far *int00)(); /* +0x00  0x0074  as the startup found it */
-    void interrupt (far *int04)(); /* +0x04  0x0078 */
-    void interrupt (far *int05)(); /* +0x08  0x007c */
-    void interrupt (far *int06)(); /* +0x0c  0x0080 */
-    int16_t        argc;          /* +0x10  0x0084 */
-    char far * far *argv;         /* +0x12  0x0086 */
-    char far *env;                /* +0x16  0x008a  the offset becomes its length */
-    uint16_t       env_bytes;     /* +0x1a  0x008e  the length rounded up for the copy */
-    dg_seg_t       psp;           /* +0x1c  0x0090  ES at the entry point */
-    uint8_t        os_major;      /* +0x1e  0x0092  INT 21h AH=30h: AL here, AH above.
-                                                    The startup gives up below 3.30 */
-    uint8_t        os_minor;      /* +0x1f  0x0093 */
-} PACKED;
-
-extern struct dos_startup DOS_STARTUP;
+extern uint8_t far *scratch_block;
 
 /*
- * ---------------------------------------------------------------------------
- * **Two of Borland's runtime globals**, at DGROUP 0x0094.
- *
- * `errno` is at +0x00, and `io_error` (0x0dcf2) says so in its own comment: it
- * maps a DOS code through the table at 0x4d36 and files the answer here, with
- * `_doserrno` going to 0x4d34. The near heap writes 8 - ENOMEM - into it on
- * both paths where it refuses to come within 0x200 bytes of the stack.
- *
- * `brklvl` is at +0x08, the near heap's break: `brk_set` (0x0c7c8) writes it
- * and `heap_sbrk` (0x0c7e6) moves it and answers where it was, which is the
- * Unix convention and what makes the caller's block start at the answer.
- *
- * **Four of the six bytes between them are the clock at startup.** The C
- * startup calls INT 1Ah AH=0 at image 0x11d - the BIOS tick count since
- * midnight, CX:DX - and files it with `mov [0x96],dx / mov [0x98],cx`, so
- * 0x0096 is one 32-bit count, low word first. Those two stores are the only
- * instructions in the image that name either word: nothing reads it back, and
- * the port has no DOS startup to write it, so it stays zero here.
- *
- * The two bytes above it are a different matter. A scan of the whole image
- * finds **no instruction naming 0x009a at all**, and what the image leaves
- * there is 0x64ca - the same value as `brklvl` below it, which is what a heap
- * base initialised beside the break would look like. That is a resemblance and
- * not a reading, so it stays padding.
- *
- * The field is `err_no` rather than `errno` because `errno` is a macro in
- * standard C and a struct member cannot carry that name.
- * ---------------------------------------------------------------------------
+ * **The placed parts: a doubly linked list's head**, at DGROUP 0x521b - the
+ * first list the level file fills (`n_machine`) and on most levels the
+ * largest - the scenery: platforms, ramps, pipes, conveyors. `moving_parts`
+ * holds the moving ones. A whole part, read the way the bin's at 0x50d7 is;
+ * see `parts_bin`.
  */
-struct borland_globals {
-    int16_t   err_no;             /* +0x00  `errno` */
-    uint32_t  start_ticks;        /* +0x02  INT 1Ah AH=0's CX:DX at startup */
-    uint8_t   pad_009a[2];
-    void *brklvl;        /* +0x08  the near heap's break */
-} PACKED;
+#ifndef GAMEDATA_C
+extern struct part placed_parts;
+#endif
 
-extern struct borland_globals BORLAND_GLOBALS;
 
-/*
- * **The top of the program, as the startup worked it out**, DGROUP 0x00a0.
- *
- * `bx = di + ds` at image 0x9c is the paragraph one past the stack, and the
- * startup files it at 0x00a0 and again at 0x00a4 before handing the difference
- * to INT 21h AH=4Ah to give the rest back. Each word is named by that one
- * store and nothing reads either, so which of Borland's two globals is which
- * cannot be told apart here.
- *
- * `memory_top` is the PSP's word at +2, read at image 0x0c while DS was still
- * the PSP, and overwritten at 0x104 with the segment INT 21h AH=48h answered.
- */
-struct dos_program_top {
-    dg_seg_t  top_a;              /* +0x00  0x00a0 */
-    uint8_t   pad_00a2[2];
-    dg_seg_t  top_b;              /* +0x04  0x00a4  the same value, filed twice */
-    uint8_t   pad_00a6[2];
-    dg_seg_t  memory_top;         /* +0x08  0x00a8 */
-} PACKED;
 
-extern struct dos_program_top DOS_PROGRAM_TOP;
 
 /*
  * **A draw step**, the record a part's draw list is a chain of: which
@@ -1670,7 +1509,7 @@ extern struct draw_step DEFAULT_DRAW_STEP;
  * and the goodbye, the copy-protection prompt, every message box's title and
  * body, the picker's and the puzzle screen's labels and buttons, the level-
  * complete texts, and the path separator at the end - the one byte
- * `GAME_PATH_SEP.path_sep` points at.
+ * `path_separator` points at.
  * Typed from the image, one array per literal in the order Borland filed
  * them; the names are ours, from the text. The run ends at 0x2370.
  *
@@ -1833,12 +1672,9 @@ struct machine_draw_menu_anim {
  * 0 to 3 and back, stepped once per `draw_part_selection` and turned into the
  * marching-ants offset.
  */
-struct machine_draw_selection_phase {
-    uint16_t  phase;          /* +0x00 [2] */
-} PACKED;
 extern struct game_message_tabs GAME_MESSAGE_TABS;
 extern struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM;
-extern struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE;
+extern uint16_t selection_phase;
 
 /*
  * **The driver's vector, as the code pointers its slots are.** `VM_DRIVER.entry`
@@ -1941,21 +1777,17 @@ typedef void     (far  *bmp_fill_fn)(int16_t x, int16_t y, int16_t w, int16_t h)
 typedef int16_t  (far  *bmp_plot_fn)(int16_t x, int16_t y, int16_t colour);
 typedef uint16_t (near *bmp_read_fn)(uint16_t bits);
 
-struct dg_49ba {
-    int16_t   min_run;            /* +0x00 */
-    /* **Three code pointers the offset-table bitmap draws through**, and
-       nothing in the image writes the first or the last: they come in with
-       the data segment. `draw_offset_bitmap` repoints `plot_fn` before a
-       draw - at the driver's plot, the vector's slot 22, when the bitmap is
-       wholly inside the clip box, and back at `plot_pixel_clipped` when it
-       is not. Defined, with its initialiser, in bitmaps.c: it is that
-       module's data. Names are ours. */
-    bmp_fill_fn fill_fn;          /* +0x02  `fill_rect` */
-    bmp_plot_fn plot_fn;          /* +0x06  `plot_pixel_clipped` */
-    bmp_read_fn read_fn;          /* +0x0a  `vqt_read_bits` */
-};
-
-extern struct dg_49ba DG49BA;
+/* **The shortest run worth encoding, and three code pointers the
+   offset-table bitmap draws through**, vqtflip.c's `_DATA`, DGROUP
+   0x49ba..0x49c6. Nothing in the image writes the first pointer or the last:
+   they come in with the data segment. `draw_offset_bitmap` repoints
+   `vqt_plot_fn` before a draw - at the driver's plot, the vector's slot 22,
+   when the bitmap is wholly inside the clip box, and back at
+   `plot_pixel_clipped` when it is not. Names are ours. */
+extern int16_t min_run;
+extern bmp_fill_fn vqt_fill_fn;
+extern bmp_plot_fn vqt_plot_fn;
+extern bmp_read_fn vqt_read_fn;
 
 /*
  * ---------------------------------------------------------------------------
@@ -2064,11 +1896,7 @@ extern uint16_t guest_sp;
  * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
  * test the first one's two words to tell whether the seven are allocated.
  */
-struct sound_voices {
-    struct sequence far *voice[7];      /* +0x00 [0x1c] */
-} PACKED;
-
-extern struct sound_voices SOUND_VOICES;
+extern struct sequence far *sound_voice[7];
 
 /*
  * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
@@ -3386,7 +3214,7 @@ extern struct part_kind PART_KINDS[PART_KIND_COUNT];
 /*
  * ---------------------------------------------------------------------------
  * **A move-queue node**, eight bytes: `game.c` builds twenty of them with
- * `calloc_far(1, 8)` and threads them on `FREE_LISTS.parts_free`;
+ * `calloc_far(1, 8)` and threads them on `parts_free`;
  * `queue_part` moves one to `parts_queue`, sorted by the part's momentum
  * high word then low. `queue_part` used to read these through `()`, and
  * the field names lined up by offset - +4 was `kind` in one line and `lo` in
@@ -3724,18 +3552,13 @@ extern struct game_directories GAME_DIRECTORIES;
  * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
  * up to the static draw step at 0x124.
  */
-struct game_master_levels {
-    uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
-} PACKED;
-extern struct game_master_levels GAME_MASTER_LEVELS;
+extern uint16_t master_level_ok[7];
 
 /*
  * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
- * the backslash string, which the path builders concatenate.
+ * the backslash string, `MESSAGES.path_sep` at 0x236e, which the path builders
+ * concatenate.
  */
-struct game_path_sep {
-    char     *path_sep;          /* +0x00 [2]  the "\\" at 0x236e, `MESSAGES.path_sep` */
-} PACKED;
-extern struct game_path_sep GAME_PATH_SEP;
+extern char *path_separator;
 
 #endif /* DGROUP_H */

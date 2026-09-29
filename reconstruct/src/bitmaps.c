@@ -531,8 +531,8 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
     }
     if (largest > buffer
         || !(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
-        if (SCRATCH_BLOCK.scratch != NULL && largest <= 0x3ab4) {
-            block = SCRATCH_BLOCK.scratch;
+        if (scratch_block != NULL && largest <= 0x3ab4) {
+            block = scratch_block;
             buffer = 0x3ab4;
         } else
             return;
@@ -573,6 +573,6 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
         at++;
         index++;
     }
-    if (block != SCRATCH_BLOCK.scratch)
+    if (block != scratch_block)
         dos_free_far(block);
 }

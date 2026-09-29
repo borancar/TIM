@@ -158,7 +158,7 @@ void game_startup(void)
     for (i = 1; i <= 0x14; i++)
         open_sound_file((char *)tim_sx, i);
 
-    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[master_level]);
+    set_master_level_ok(master_level_ok[master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -176,11 +176,11 @@ void game_startup(void)
      * Twenty eight-byte records off the near heap, chained through their first
      * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
      */
-    FREE_LISTS.parts_free = FREE_LISTS.parts_queue = 0;
+    parts_free = parts_queue = 0;
     for (i = 0; i < 0x14; i++) {
         node = (struct queue_node *)calloc_far(1, sizeof(struct queue_node));
-        node->next = FREE_LISTS.parts_free;
-        FREE_LISTS.parts_free = node;
+        node->next = parts_free;
+        parts_free = node;
     }
 
     /*
@@ -188,11 +188,11 @@ void game_startup(void)
      * through a far pointer in the first four bytes of each block. 0x4e52 is
      * the second head, cleared here and not filled.
      */
-    FREE_LISTS.shape_free = FREE_LISTS.shapes = NULL;
+    shape_free = shapes_drawn = NULL;
     for (i = 0; i < 0xb4; i++) {
         block = (struct shape far *)DOS_ALLOC_PTR(DOS_ALLOC(sizeof(struct shape), 1));
-        block->next = FREE_LISTS.shape_free;
-        FREE_LISTS.shape_free = block;
+        block->next = shape_free;
+        shape_free = block;
     }
 }
 
@@ -248,12 +248,12 @@ void game_teardown(int16_t really)
     }
 
     /* Each free block's first four bytes are the far pointer to the next. */
-    for (node = FREE_LISTS.shape_free; node != NULL; node = next) {
+    for (node = shape_free; node != NULL; node = next) {
         next = node->next;
         dos_free_far(node);
     }
 
-    for (si = FREE_LISTS.parts_free; si != 0; si = after) {
+    for (si = parts_free; si != 0; si = after) {
         after = si->next;
         free_far(si);
     }
