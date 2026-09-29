@@ -75,8 +75,7 @@
  *
  * **They are a spelling, not a semantics.** On the host a `far` pointer is an
  * ordinary pointer: it does not wrap at 64K the way the real one does. Where
- * the wrap or the stored `seg:off` pair actually matters, the port uses
- * `struct far_ptr` in dgroup.h instead, and says so at the site.
+ * the wrap or the `seg:off` pair actually matters, the site says so.
  */
 /* The tags themselves are defined in dgroup.h, which this header includes
    first and whose records use them. */
@@ -1962,11 +1961,11 @@ int16_t timer_remove(void);                            /* 0x2072e */
 uint16_t timer_add_callback(void (far *cb)(void),
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
-/* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
-uint8_t far *normalise_far_ptr_far(uint8_t far *p);  /* 0x22386 */
+/* The far-callable face of normalise_pointer; answers seg:off in DX:AX. */
+uint8_t far *normalise_pointer_far(uint8_t far *p);  /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */
-void normalise_far_ptr(uint8_t far **p);       /* 0x22161 */
+void normalise_pointer(uint8_t far **p);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
 void read_mouse_pointer(int16_t *x,

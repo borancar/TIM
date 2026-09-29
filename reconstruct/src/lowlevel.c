@@ -171,9 +171,9 @@ public _joy_time_axes, _joy_scale_axis, _joy_init, _joy_read
 public _joy_direction, _joy_button, _joy_axis, _clip_and_draw_line
 public _mouse_init, _mouse_set_ranges, _mouse_set_user_handler, _mouse_event
 public _mouse_save_vga, _mouse_restore_vga, _remove_mouse, _read_mouse_pointer
-public _mouse_move_to, _read_mouse_button, _normalise_far_ptr, _huge_add_positive
+public _mouse_move_to, _read_mouse_button, _normalise_pointer, _huge_add_positive
 public _huge_move, _far_memcpy, _far_memset, _far_ptr_compare
-public _normalise_far_ptr_far, _install_divide_trap, _divide_error_handler, _restore_int0_vector
+public _normalise_pointer_far, _install_divide_trap, _divide_error_handler, _restore_int0_vector
 public _read_pixel_clipped, _plot_pixel_clipped, _restore_rect_thunk
 
 /* 0x21b44 */
@@ -1047,7 +1047,7 @@ L2215a:
 _read_mouse_button endp
 
 /* 0x22161 */
-_normalise_far_ptr proc near
+_normalise_pointer proc near
         push cx
         mov cx, ax
         and ax, 0fh
@@ -1072,7 +1072,7 @@ L22183:
         add ax, dx
         sub dx, dx
         ret
-_normalise_far_ptr endp
+_normalise_pointer endp
 
 /* 0x22190 */
 _huge_add_positive proc near
@@ -1145,12 +1145,12 @@ _huge_move proc far
         mov dx, word ptr [bp+8]
         mov word ptr [bp-4], ax
         mov word ptr [bp-2], dx
-        call _normalise_far_ptr
+        call _normalise_pointer
         mov word ptr [bp+6], ax
         mov word ptr [bp+8], dx
         mov ax, word ptr [bp+0ah]
         mov dx, word ptr [bp+0ch]
-        call _normalise_far_ptr
+        call _normalise_pointer
         cmp dx, word ptr [bp+8]
         ja L2226c
         jb L22233
@@ -1235,12 +1235,12 @@ _far_memcpy proc far
         push ds
         mov ax, word ptr [bp+0ah]
         mov dx, word ptr [bp+0ch]
-        call _normalise_far_ptr
+        call _normalise_pointer
         mov ds, dx
         mov si, ax
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
-        call _normalise_far_ptr
+        call _normalise_pointer
         mov es, dx
         mov di, ax
         test di, 1
@@ -1288,7 +1288,7 @@ L2232c:
         mov bx, cx
         mov ax, di
         mov dx, es
-        call _normalise_far_ptr
+        call _normalise_pointer
         mov di, ax
         mov es, dx
         mov ax, si
@@ -1320,12 +1320,12 @@ _far_ptr_compare proc far
         mov bp, sp
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
-        call _normalise_far_ptr
+        call _normalise_pointer
         mov bx, ax
         mov cx, dx
         mov ax, word ptr [bp+0ah]
         mov dx, word ptr [bp+0ch]
-        call _normalise_far_ptr
+        call _normalise_pointer
         cmp cx, dx
         jb L2237d
         ja L22381
@@ -1342,15 +1342,15 @@ L22381:
 _far_ptr_compare endp
 
 /* 0x22386 */
-_normalise_far_ptr_far proc far
+_normalise_pointer_far proc far
         push bp
         mov bp, sp
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
-        call _normalise_far_ptr
+        call _normalise_pointer
         pop bp
         retf
-_normalise_far_ptr_far endp
+_normalise_pointer_far endp
 
 /* 0x22394 */
 _install_divide_trap proc far
@@ -2064,7 +2064,7 @@ int16_t read_mouse_button(uint16_t which)
  * reference: the segment plus the offset's paragraphs, and the offset's low
  * four bits.
  */
-void normalise_far_ptr(uint8_t far **p)
+void normalise_pointer(uint8_t far **p)
 {
     /* Carry the offset's paragraphs into the segment. A host pointer is one
        address, and normalising changes nothing about it. */
@@ -2146,7 +2146,7 @@ uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta)
  */
 uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count)
 {
-    /* The original's dispatch offsets - `normalise_far_ptr` at 0x22161 and the
+    /* The original's dispatch offsets - `normalise_pointer` at 0x22161 and the
        forward copy at 0x221d6 - stored for the comparison's sake only: this
        body calls neither through them. Overwritten below if the copy has to
        go down. */
@@ -2255,14 +2255,14 @@ int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b)
 /*
  * 0x22386
  *
- * The far-callable face of `normalise_far_ptr` at 0x22161: load the pointer
+ * The far-callable face of `normalise_pointer` at 0x22161: load the pointer
  * into AX and DX, call the near routine, and let its registers be the result.
  * So this answers a normalised far pointer in DX:AX, like any other far
  * routine returning a long.
  */
-uint8_t far *normalise_far_ptr_far(uint8_t far *p)
+uint8_t far *normalise_pointer_far(uint8_t far *p)
 {
-    normalise_far_ptr(&p);
+    normalise_pointer(&p);
     return p;
 }
 

@@ -440,7 +440,7 @@ void puzzle_draw_up(void)
     else
         pressed = 0;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x25)[pressed]),
                 0x1d4, 0x46, 0);
@@ -462,7 +462,7 @@ void puzzle_draw_down(void)
     else
         pressed = 0;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x27)[pressed]),
                 0x1d4, 0x110, 0);
@@ -479,7 +479,7 @@ void puzzle_draw_down(void)
  */
 void puzzle_draw_ok(uint16_t pressed)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x10)[pressed]),
                 0x200, 0x12e, 0);
@@ -518,7 +518,7 @@ void puzzle_draw_password(const char *text)
             strcat(si, GAME_PART_NAMES.star);
     }
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
 
     VMDS.text_colour = 0x0f;
@@ -552,7 +552,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     char title[80];                     /* [bp-0xbe] */
     int16_t i;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {

@@ -1754,8 +1754,8 @@ struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
 
 /*
  * **The son table's far pointer**, DGROUP 0x5900..0x5904. Two words that are
- * one pointer - the offset at 0x5900 and the segment at 0x5902, which is
- * `far_ptr`'s own order - filed by `huffman_start` beside the other two tables
+ * one pointer - the offset at 0x5900 and the segment at 0x5902, a far
+ * pointer's own order - filed by `huffman_start` beside the other two tables
  * it caches at 0x590a and 0x590e.
  */
 struct engine_huffman_tree {

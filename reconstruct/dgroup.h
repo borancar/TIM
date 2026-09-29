@@ -156,25 +156,6 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 
 /*
- * **No raw accessor macro is left** - the family that read DGROUP at a
- * constant offset. DGROUP is read through a field of a struct overlay, through
- * a typed pointer such as `VQTRD`, or through `dg_near_ptr(offset)`, and
- * that last one still reaches a byte by a computed number at dozens of sites:
- * it is what a typed view has not replaced yet, and `dgrules.py` does not
- * count it.
- *
- * They went one at a time, each when the last site using it had a field.
- * `DGS8` never had a caller: the eleven signed-byte sites wrote the cast out,
- * which is the better spelling, because the `cbw` is the original's and a
- * `(int8_t)` at the site says so. `DG16` and `DG32` went when the struct work
- * had taken their sites. `DG8` and `DGU16` went last, once the hybrid runner's
- * autoplay and the three macros built on `DGU16` - `DG_FAR_OFF`, `DG_FAR_SEG`
- * and `span_buffer_seg` - read the fields they were reading.
- * `tools/dgrules.py --rule raw` still looks for all five names, so one coming
- * back is a finding.
- */
-
-/*
  * A far pointer: segment and offset, as the hardware forms an address.
  *
  * **Borland's own name**, because the game was compiled against Borland and
@@ -378,33 +359,6 @@ struct dg_3f78 {
 } PACKED;
 
 /*
- * **An address back into the offset the guest holds it as.** The inverse of
- * `dg_ptr`, and a null pointer stays 0 because the guest's null is offset 0.
- *
- * **It refuses a pointer that is not the guest's.** `dg_near` takes a `void *`,
- * so the compiler will hand it anything - and a frame that became a C local
- * lives on the *host* stack, where the subtraction below is the distance
- * between two unrelated objects. Forty-one call sites were once "fixed" that
- * way in one sitting, every one of them wrong, with a clean build at the end
- * of it: `copy_file_record`, `read_bmp_info`, `far_memcpy` and the rest each
- * write through the address they are given, and would have written into
- * whatever that arithmetic pointed at.
- *
- * The compiler cannot see it and no comparison can either - a wild offset
- * corrupts guest memory somewhere else and the failure surfaces anywhere but
- * here. So the check is at the conversion, where the answer is still known to
- * be wrong. Ours; the original has no such routine, because every address it
- * has is inside its own megabyte.
- *
- * **Only ever the value stored into a `dg_near_t` field named `_ptr`** - never
- * compared, cast, passed or returned; a comparison turns the stored field into
- * a pointer instead. `tools/check_dg_near.py` holds the code to that. `dg_near`
- * and `dg_near_t` were `dg_off` and `dg_off_t` until 2026-09-17.
- */
-#ifndef __TURBOC__
-#endif
-
-/*
  * **Was the near pointer this was widened from null?** Borland widens a near
  * pointer to far as DS and the offset, so a null becomes DGROUP:0000, which
  * `NEAR_ZERO` gives the host too; the original tests the offset word alone,
@@ -468,7 +422,7 @@ struct vmds {
        port transcribes.** `vm_init` pushes 0x3890 - this record's own address
        - to the driver at image 0x224ed, and the driver runs with **DS on this
        record**: every direct reference the dumped VGA overlay makes is an
-       offset into it, `[4]` for `clip_left`, `[0x12]` for `page_back_ptr`,
+       offset into it, `[4]` for `clip_left`, `[0x12]` for `page_back`,
        `[0x21]` for `adapter`. Both sides were scanned for +0x0f, +0x1a, +0x1e,
        +0x20, +0x24 and +0x84 - the game's own code with `tools/xrefs.py`, and
        the overlay's 2,969 reachable instructions the same way - and neither
@@ -480,10 +434,10 @@ struct vmds {
        back. `vm_init` gives it the second page's segment - 0xa800, or 0xa000
        in the 640x480 mode, where there is only one. */
     uint16_t  rect_page;                    /* +0x10 */
-    dg_seg_t  page_back_ptr;                /* +0x12  being drawn into */
-    dg_seg_t  page_front_ptr;               /* +0x14  on screen */
-    dg_seg_t  page_src_ptr;                 /* +0x16  a copy's source */
-    dg_seg_t  page_dst_ptr;                 /* +0x18  what drawing goes into */
+    dg_seg_t  page_back;                /* +0x12  being drawn into */
+    dg_seg_t  page_front;               /* +0x14  on screen */
+    dg_seg_t  page_src;                 /* +0x16  a copy's source */
+    dg_seg_t  page_dst;                 /* +0x18  what drawing goes into */
     uint8_t   unknown_1a[2];                /* +0x1a */
     /* Set by `detect_pcjr`, which reads the two ROM bytes that say so, and
        read by the keyboard ISR. */
@@ -915,8 +869,7 @@ struct dg_4a82 {
        slot number, and these are the two the sound module holds - the
        sequencer's tick at SNDCS:0x193e and the loaded module's at
        IMAGE_BASE:0xbba6. They are set, tested and dropped one at a time and
-       are never paired into an address; the field was a `struct far_ptr`
-       until 2026-09-18, which said the opposite of what the code does. */
+       are never paired into an address. */
     int16_t   tick_handle;        /* +0x0c  the sequencer's */
     int16_t   module_handle;      /* +0x0e  the loaded module's */
     struct sound_bank_entry *bank; /* +0x10  what a voice's +0x15c and +0x15d
@@ -971,8 +924,8 @@ struct dg_52bd {
     /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
        start-up; `set_font` takes it and `game_teardown` gives its slot back. */
     int16_t   memo_font;       /* +0x22 */
-    uint8_t far *pal_black_ptr;   /* +0x24  black.pal, as pal_tim_ptr */
-    uint8_t far *pal_sierra_ptr;  /* +0x28  sierra.pal */
+    uint8_t far *pal_black;   /* +0x24  black.pal, as pal_tim */
+    uint8_t far *pal_sierra;  /* +0x28  sierra.pal */
 } PACKED;
 
 #ifndef GAMEDATA_C
@@ -987,7 +940,7 @@ struct dg_52ed {
      * +0x00  tim.pal: the far pointer `load_palette` answers, stored whole and
      * read whole by `set_palette_pointer` and `free_far_block`.
      */
-    uint8_t far *pal_tim_ptr;
+    uint8_t far *pal_tim;
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
                                    * the assert caught: 0x52f2 follows it at +0x05 */
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
@@ -1219,7 +1172,7 @@ struct dg_4e34 {
     uint8_t   cr[2];              /* +0x06  "\r", which `fputc` writes before a newline in text mode */
     int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
     int16_t   stdout_is_tty;      /* +0x0a */
-    uint16_t  realcvt_ptr;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
+    uint16_t  realcvt;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
                                      `float_formats_missing` in this program */
 } PACKED;
 
@@ -1277,7 +1230,7 @@ struct pal_chunk_names {
     char pal_cga[9];          /* +0x12  0x4498  "PAL:CGA:" */
     char none[1];             /* +0x1b  0x44a1  "" */
     char     *by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
-    uint8_t far *palette_ptr; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
+    uint8_t far *palette; /* +0x3c  0x44c2  the palette `set_palette_pointer` last stored, answered back when it is passed a null */
     /* "PAL:AMG:" at 0x44c6 is `load_palette`'s literal, in the module's pool. */
 } PACKED;
 
@@ -1604,21 +1557,6 @@ struct part_contact {
  * `struct bitmap` is already spelled this way for the same reason, which is
  * why `BMPP` reads as it does.
  */
-/* **A part is an offset into DS, and 0 is an offset like any other.** The
-   original holds a part as a near pointer - one word, an offset into DS - and
-   the links at +0 and +2 are those words. The `dg_` structs name offsets in
-   that segment: the three list heads are DS:0x50d7, DS:0x5179 and DS:0x521b,
-   `write_level` hands each to `write_part_list` as one word, and the walk
-   reads through it with the default DS. A list ends on a `next` of 0,
-   and the original tests the *offset* for that - `or si,si` at 0x126e4,
-   0x14d8c and 0x00f9b - so the port does too, never this pointer. DS:0 is
-   the Borland banner, and where the original reads a part at 0 without a
-   test, as `compute_link_endpoints` does for a rope's empty end, this reads
-   the same bytes. A function rather than a macro so the offset is evaluated
-   once. */
-#ifndef __TURBOC__
-#endif
-
 /*
  * **The parts the game is holding on to**, at DGROUP 0x50d3.
  *
@@ -1799,8 +1737,8 @@ struct dg_48da {
     uint8_t   mouse_taken;        /* +0x10  whether the driver was taken; `neg al` branches on it */
     uint8_t   buttons;            /* +0x11  the byte timer_callback samples on the page flip */
     uint8_t   vector_hooked;      /* +0x12  the handler after this routine was installed */
-    /* **Segment first**, which is `far_ptr_rev` and not `far_ptr` - and at
-       an odd offset, which the packed record allows. */
+    /* **Segment first**, as the image stores it - and at an odd offset,
+       which the packed record allows. */
     void interrupt (far *vector)(); /* +0x13  vector 0, from 0:0 and 0:2 - a
                                             load, not a store */
     uint8_t   pad_48f1[1];        /* the word alignment of the next module's `_DATA` */
@@ -1981,7 +1919,7 @@ extern struct draw_step DG0124;
  * and the goodbye, the copy-protection prompt, every message box's title and
  * body, the picker's and the puzzle screen's labels and buttons, the level-
  * complete texts, and the path separator at the end - the one byte
- * `GAME_PATH_SEP.path_sep_ptr` points at.
+ * `GAME_PATH_SEP.path_sep` points at.
  * Typed from the image, one array per literal in the order Borland filed
  * them; the names are ours, from the text. The run ends at 0x2370.
  *
@@ -2120,8 +2058,9 @@ struct dg_4342 {
     int16_t   detect_allowed;  /* +0x02 */
     /* **Fifty far pointers into the video driver**, at 0x4346: `vm_init`
        copies a hundred words of the driver's own table from its +0x13e and
-       then writes the driver's segment over every second one, which is what
-       fifty `far_ptr`s filled word by word looks like. Up to 0x440e. */
+       then writes the driver's segment over every second one: fifty far
+       pointers filled word by word. The port fills each slot with its own
+       routine for it. Up to 0x440e. */
     void (far *font[50])(void);   /* +0x04 */
 } PACKED;
 
@@ -2765,7 +2704,7 @@ struct s1c_keyboard {
  * `call word ptr cs:[0x5f99]` on each pointer and `call word ptr cs:[0x5f9b]`
  * once per block, at 0x22293, 0x222a0 and 0x222a9.
  *
- * Copying **up** it stores 0x5f11 and 0x5f86 - `normalise_far_ptr` at 0x22161
+ * Copying **up** it stores 0x5f11 and 0x5f86 - `normalise_pointer` at 0x22161
  * and the forward `rep movsw` at 0x221d6. Copying **down** it stores 0x5f23
  * and 0x5f6f - the normalise at 0x22173 that steps a paragraph back first, and
  * the backward copy at 0x221bf, which runs with the direction flag set.
@@ -3154,7 +3093,7 @@ struct bitmap {
 /*
  * ---------------------------------------------------------------------------
  * **The quadtree bit reader**, the record `decode_vqt_list` builds on its own
- * stack and files into `BITMAPS.reader_ptr` for `vqt_node`, `vqt_screen_node`
+ * stack and files into `BITMAPS.walk` for `vqt_node`, `vqt_screen_node`
  * and `fill_quadrant` to fetch back out.
  *
  * `pos` is a bit position, stepped four at a time and read as one 32-bit
@@ -3841,7 +3780,7 @@ extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
 /*
  * ---------------------------------------------------------------------------
  * **A resource stream**, the 0x21-byte record `open_resource_slot` makes and
- * files in the table at DGROUP 0x57c0. `ENGINE_STREAM.record_ptr` points at whichever
+ * files in the table at DGROUP 0x57c0. `ENGINE_STREAM.rec` points at whichever
  * one is selected, and sixteen routines in engine.c read it through that.
  *
  * The size is `calloc_far(1, 0x21)` and the last field is the byte at
@@ -3898,7 +3837,7 @@ struct resource {
                                          against the target **signed** - the
                                          original's `cmp hi / jg / jl / cmp
                                          lo / ja` over the pair. */
-    /* **Two bytes indexing the spill buffer** at `work_ptr`, where a run that
+    /* **Two bytes indexing the spill buffer** at `work`, where a run that
        does not fit the caller's request goes - names that are guesses. The
        emitters and both decompressors advance the end; `resource_advance`
        hands `end - start` over, advances the start, and zeroes both once the

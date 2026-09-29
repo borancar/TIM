@@ -201,26 +201,26 @@ void game_intro(void)
 
     TIMER.frame_budget = 0x2710;
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black);      /* black.pal */
 
     bitmaps = load_bitmaps(DG254A.sierra_bmp);
 
-    VMDS.page_front_ptr = VMDS.page_back_ptr = 0xa000;
+    VMDS.page_front = VMDS.page_back = 0xa000;
 
     for (si = 0; si < 3; si++)
         present_frame(1);
 
-    VMDS.page_back_ptr += 0x12c;
+    VMDS.page_back += 0x12c;
     DG4E67.state = 0x8000;
     DG52BD.music_now = -1;
 
     stage = 0;
     while (stage != 4 && DG4E67.state == 0x8000) {
         if (stage == 0) {
-            VMDS.page_dst_ptr = VMDS.page_front_ptr;
+            VMDS.page_dst = VMDS.page_front;
             cursor_redraw_off_thunk();
             load_screen(DG254A.sierra_scr);
-            set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
+            set_palette_pointer(DG52BD.pal_sierra);  /* sierra.pal */
             stage = 1;
             budget = TIMER.frame_budget + 0xff88;
             step = &GAME_INTRO_STEPS.step[0];
@@ -239,7 +239,7 @@ void game_intro(void)
             VMDS.fill_enabled = 1;
             VMDS.second_colour = VMDS.fill_colour = 0;
 
-            VMDS.page_dst_ptr = VMDS.page_back_ptr;
+            VMDS.page_dst = VMDS.page_back;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
             draw_bitmap(bitmaps[step->bitmap],
@@ -255,8 +255,8 @@ void game_intro(void)
 
             step++;
 
-            VMDS.page_dst_ptr = VMDS.page_front_ptr;
-            VMDS.page_src_ptr = VMDS.page_back_ptr;
+            VMDS.page_dst = VMDS.page_front;
+            VMDS.page_src = VMDS.page_back;
             copy_rect_thunk(0x1c0, 0x1a9, 0xc0, 0x4b);
 
             budget = TIMER.frame_budget;
@@ -287,15 +287,15 @@ void game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap(si);
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black);      /* black.pal */
 
-    VMDS.page_front_ptr = 0xa000;
-    VMDS.page_back_ptr = 0xa820;
+    VMDS.page_front = 0xa000;
+    VMDS.page_back = 0xa820;
 
     for (si = 0; si < 3; si++)
         present_frame(1);
 
-    VMDS.page_dst_ptr = 0xa000;
+    VMDS.page_dst = 0xa000;
     vm_set_display_lines(0x18f);
     update_button_state();
 
@@ -331,7 +331,7 @@ void game_intro(void)
         clear_machine();
         set_clip_full_screen();
 
-        VMDS.page_dst_ptr = VMDS.page_back_ptr;
+        VMDS.page_dst = VMDS.page_back;
         VMDS.second_colour = VMDS.fill_colour = DG52BD.fill_colour;
         VMDS.fill_enabled = 1;
 
@@ -341,8 +341,8 @@ void game_intro(void)
         draw_frame_corners(gkc);
         present_frame(1);
 
-        VMDS.page_src_ptr = VMDS.page_front_ptr;
-        VMDS.page_dst_ptr = VMDS.page_back_ptr;
+        VMDS.page_src = VMDS.page_front;
+        VMDS.page_dst = VMDS.page_back;
         copy_rect_around_cursor(0, 0, 0x280, 0x190);
 
         if (which == 0x8000)
@@ -369,7 +369,7 @@ void game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(DG52ED.pal_tim_ptr);  /* tim.pal */
+                set_palette_pointer(DG52ED.pal_tim);  /* tim.pal */
 
             if (DG52BD.sound_request_01 == 1) stop_music_or_effect(1);
             if (DG52BD.sound_request_02 == 1) stop_music_or_effect(2);
@@ -421,7 +421,7 @@ void game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black);      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(gkc);
@@ -429,8 +429,8 @@ void game_intro(void)
     stop_music_or_effect(0);
     show_cursor_again();
 
-    VMDS.page_front_ptr = 0xa190;
-    VMDS.page_back_ptr = 0xa8c0;
+    VMDS.page_front = 0xa190;
+    VMDS.page_back = 0xa8c0;
     VMDS.screen.screen_height = 0x16f;
 
     vm_set_display_lines(0x1bf);
@@ -550,7 +550,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
     page      = TIMER.frame_budget & 0xf;
 
     set_clip_full_screen();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.second_colour = VMDS.fill_colour = DG52BD.fill_colour;
     VMDS.fill_enabled   = 1;
 
@@ -596,10 +596,10 @@ void copy_protect_screen(struct bitmap **bitmaps)
     select_music(page + 0x3e9);
     present_frame(1);
 
-    VMDS.page_src_ptr = VMDS.page_front_ptr;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_src = VMDS.page_front;
+    VMDS.page_dst = VMDS.page_back;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(DG52ED.pal_tim_ptr);
+    set_palette_pointer(DG52ED.pal_tim);
     show_cursor_again();
 
     done = 0;
@@ -700,7 +700,7 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
 {
     int16_t x;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     x = (int16_t)(slot * 0x60 + 0xc0);
 
@@ -710,8 +710,8 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
     restore_cursor_following();
     present_frame(1);
 
-    VMDS.page_src_ptr = VMDS.page_front_ptr;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_src = VMDS.page_front;
+    VMDS.page_dst = VMDS.page_back;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
 }
 

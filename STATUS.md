@@ -2095,7 +2095,7 @@ used it.
 | `angle_cos` | 0x2a47b | - | **transcribed, never called** on these screens |
 | `angle_to_quadrant` | 0x004d1 | - | **transcribed, never called** on these screens |
 | `chain_contains` | 0x03a61 | - | **transcribed, never called** on these screens |
-| `normalise_far_ptr` | 0x22161 | 0, 4, 30 | agreed |
+| `normalise_pointer` | 0x22161 | 0, 4, 30 | agreed |
 | `follow_far_chain` | 0x2907b | - | **transcribed, never called** on these screens |
 | `step_pair_apart` | 0x03d2e | - | **transcribed, never called** on these screens |
 | `points_within_140` | 0x04b53 | - | **transcribed, never called** on these screens |
@@ -2103,7 +2103,7 @@ used it.
 | `scale_byte_pair` | 0x282cb | - | **transcribed, never called** on these screens |
 | `value_between` | 0x03d67 | - | **transcribed, never called** on these screens |
 | `pick_by_flag` | 0x05b65 | - | **transcribed, never called** on these screens |
-| `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
+| `normalise_pointer_far` | 0x22386 | 0, 3, 20 | agreed |
 | `compute_other_bounds` | 0x00386 | - | **transcribed, never called** on these screens |
 | `pick_for_record` | 0x05ba7 | - | **transcribed, never called** on these screens |
 | `set_side_flags` | 0x004fd | - | **transcribed, never called** on these screens |
@@ -2735,7 +2735,7 @@ shipping binary was the disease.
   so it verified, and the wrong name stood. 0x222c6 settled it: that routine
   calls 0x22161 on the offset and segment halves of *two far pointers* and then
   copies between them, which only makes sense for **far pointer
-  normalisation**. Renamed to `normalise_far_ptr`, and the correction is
+  normalisation**. Renamed to `normalise_pointer`, and the correction is
   recorded in the source rather than quietly applied - a wrong name outlives a
   wrong line.
 
@@ -3019,7 +3019,7 @@ sweep, which is the lesson already in CLAUDE.md arriving by its own door.
 Nothing implements the call on either side. The emulator leaves the registers
 as it found them, so it answers `0000:ffca` - BP, the frame pointer - and the
 game files a "font" aimed at its own stack. The port answers a plain zero
-through `io_bios_font_ptr`, because that accident is not a behaviour worth
+through `io_bios_font`, because that accident is not a behaviour worth
 reproducing, and real fonts are a separate piece of work.
 
 So `vm_init` **differs on purpose** by four bytes, and its spec says so. No
@@ -3055,7 +3055,7 @@ next person does not check it again:
 | `huge_add_to` | **first 400** | agreed |
 | `read_into_huge` | **all 119** | agreed |
 | `resource_read` | 1273 | agreed |
-| `normalise_far_ptr` | 2757 | agreed |
+| `normalise_pointer` | 2757 | agreed |
 | `emit_literal_run` | **all 119** | agreed |
 | `emit_byte` | **first 601** | agreed |
 

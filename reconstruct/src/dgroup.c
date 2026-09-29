@@ -33,7 +33,7 @@ uint16_t guest_sp = 0xFF9E;
  * The DGROUP structs dgroup.h declares, each at its address. Their
  * initialisers are the image's bytes - see DGROUP_AT in dgroup.h.
  */
-struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
+struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt = 0xc884 };
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
 struct dos_program_top DOS_PROGRAM_TOP DGROUP_AT(0x00a0) = { .top_a = 0 };
 /* `brklvl` starts at the end of `_BSS`, 0x64ca, which is an arena

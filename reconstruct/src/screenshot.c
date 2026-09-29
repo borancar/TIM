@@ -177,11 +177,11 @@ void save_screenshot(char *name)
     dg_seg_t dst;
     int16_t clip;
 
-    dst = VMDS.page_dst_ptr;
+    dst = VMDS.page_dst;
     clip = VMDS.clip_enabled;
     VMDS.clip_enabled = 0;
-    VMDS.page_dst_ptr = VMDS.page_src_ptr;
+    VMDS.page_dst = VMDS.page_src;
     iff_save(name);
     VMDS.clip_enabled = (uint8_t)clip;
-    VMDS.page_dst_ptr = dst;
+    VMDS.page_dst = dst;
 }

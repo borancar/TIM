@@ -66,7 +66,7 @@ int16_t point_in_play_area(void)
  *
  * Take the object off both pages.
  *
- * The two words it erases are the driver's own `VMDS.page_back_ptr` and `VMDS.page_front_ptr` -
+ * The two words it erases are the driver's own `VMDS.page_back` and `VMDS.page_front` -
  * the page being drawn into and the page on screen. They are page segments,
  * and `erase_object` takes them as handles, so `claim_page_slot` is what maps
  * a page to the record describing what is drawn on it. There is one such
@@ -79,8 +79,8 @@ void erase_both_pages(void)
 {
     DG52ED.cursor_follows = 0;
     cursor_redraw_off_thunk();
-    erase_object(VMDS.page_back_ptr);
-    erase_object(VMDS.page_front_ptr);
+    erase_object(VMDS.page_back);
+    erase_object(VMDS.page_front);
 }
 
 /*
@@ -211,8 +211,8 @@ void present_back_page(void)
 {
     present_frame(1);
 
-    VMDS.page_src_ptr = VMDS.page_front_ptr;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_src = VMDS.page_front;
+    VMDS.page_dst = VMDS.page_back;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
 }
@@ -233,8 +233,8 @@ void present_back_page(void)
  */
 void repaint_whole_screen(void)
 {
-    VMDS.page_src_ptr = VMDS.page_front_ptr;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_src = VMDS.page_front;
+    VMDS.page_dst = VMDS.page_back;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
     present_frame(1);

@@ -511,7 +511,7 @@ int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count)
 {
     if (!select_resource(handle))
         return -1;
-    ENGINE_STREAM.out = normalise_far_ptr_far(dst);
+    ENGINE_STREAM.out = normalise_pointer_far(dst);
     ENGINE_RESOURCE_FLAGS.flags |= 0x40;
     return resource_read(handle, count);
 }
@@ -605,7 +605,7 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
     else
         t -= ENGINE_STREAM.rec->pos;
     while ((t -= (uint16_t)resource_read(handle, t < 0x7d00L ? (uint16_t)t : 0x7d00)) != 0)
-        ENGINE_STREAM.in = (char huge *)normalise_far_ptr_far(
+        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
             (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + ENGINE_STREAM.rec->in));
     return ENGINE_STREAM.rec->pos;
 }
@@ -629,7 +629,7 @@ int16_t restart_resource_stream(int16_t handle)
     if (ENGINE_STREAM.rec->kind & 0x20)
         game_fseek(ENGINE_RESOURCE_FLAGS.file, ENGINE_STREAM.rec->start + 5, 0);
     else
-        ENGINE_STREAM.in = (char huge *)normalise_far_ptr_far(
+        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
             (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + 5));
     ENGINE_STREAM.rec->spill_end = ENGINE_STREAM.rec->spill_start =
         ENGINE_STREAM.rec->pos = 0;

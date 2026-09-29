@@ -407,12 +407,12 @@ uint16_t io_bios_display_combination(void);
  * **ES:BP** rather than in AX, so it needs a pair; the struct is what a C
  * caller can be handed and what `vm_init` files the way the original does.
  */
-struct bios_font_ptr {
+struct bios_font {
     uint16_t es;
     uint16_t bp;
 };
 
-struct bios_font_ptr io_bios_font_ptr(uint8_t which);
+struct bios_font io_bios_font(uint8_t which);
 /*
  * OURS: the mouse, INT 33h. `io_mouse_reset` answers whether a driver is there
  * - the port says yes, as the reference emulator does. The rest are settings

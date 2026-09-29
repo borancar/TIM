@@ -489,9 +489,9 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      * saving registers is not something the port has to model.
      *
      * The font pointer below is not this routine's BP either, however much it
-     * looks like it - see `io_bios_font_ptr`.
+     * looks like it - see `io_bios_font`.
      */
-    struct bios_font_ptr font;
+    struct bios_font font;
     uint16_t al;
     uint16_t r;
 
@@ -539,8 +539,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
     *(uint16_t *)(guest_mem + 0x4f0) = DGROUP_SEG;
 
-    VMDS.page_src_ptr = ((int16_t)VMDS.page_front_ptr);
-    VMDS.page_dst_ptr = ((int16_t)VMDS.page_back_ptr);
+    VMDS.page_src = ((int16_t)VMDS.page_front);
+    VMDS.page_dst = ((int16_t)VMDS.page_back);
 
     r = ((uint8_t)VMDS.pixel_shift);
     if (r == 0)
@@ -563,9 +563,9 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      * `mov ax,0x1130 / mov bh,3 / int 0x10`, and the answer is in **ES:BP** -
      * so the four words are that pair, filed twice. The emulator does not
      * implement the call, which is why they come back zero; see
-     * `io_bios_font_ptr`.
+     * `io_bios_font`.
      */
-    font = io_bios_font_ptr(3);
+    font = io_bios_font(3);
 
     ENGINE_FONT_BODIES.body[0] = MK_FP(font.es, font.bp);
     ENGINE_FONT_BODIES.body[1] = MK_FP(font.es, font.bp);

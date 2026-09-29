@@ -125,8 +125,7 @@ int16_t CYCLE_LIMIT[10] DGROUP_BSS(0x5942);
  * comes from.
  *
  * The pointer goes back in **DX:AX**, `mov dx,[bp-8] / mov ax,[bp-0xa]` at
- * 0x1eb5e - the segment in DX and the offset in AX, which is a
- * `struct far_ptr` and is answered as one.
+ * 0x1eb5e - the segment in DX and the offset in AX: a far pointer.
  */
 uint8_t far *load_palette(char *name)
 {
@@ -211,9 +210,9 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
         VMDS.palettes.blocks[0] = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes * 2, 0));
 
     if (h == NULL)
-        return PALCHUNK.palette_ptr;
+        return PALCHUNK.palette;
 
-    PALCHUNK.palette_ptr = h;
+    PALCHUNK.palette = h;
 #ifdef __TURBOC__
     ((vm_pal_fn)DG4342.font[20])(h);
 #else

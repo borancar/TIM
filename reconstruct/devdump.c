@@ -1182,7 +1182,7 @@ void dev_part_pics(void)
      * this the icons come out as black rectangles and look like broken art
      * rather than a missing palette, which is exactly how it first appeared.
      */
-    set_palette_pointer(DG52ED.pal_tim_ptr);
+    set_palette_pointer(DG52ED.pal_tim);
 
     list = DG4E67.icons_bmp;
     n = count_list(list);

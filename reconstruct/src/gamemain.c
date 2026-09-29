@@ -180,13 +180,13 @@ void game_startup(void)
         exit(0);
     }
 
-    VMDS.page_front_ptr = 0xa000;
-    VMDS.page_back_ptr = 0xa820;
+    VMDS.page_front = 0xa000;
+    VMDS.page_back = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim_ptr = load_palette(GAME_STARTUP_NAMES.tim_pal);
-    DG52BD.pal_sierra_ptr = load_palette(GAME_STARTUP_NAMES.sierra_pal);
-    set_palette_pointer(DG52BD.pal_black_ptr = load_palette(GAME_STARTUP_NAMES.black_pal));
+    DG52ED.pal_tim = load_palette(GAME_STARTUP_NAMES.tim_pal);
+    DG52BD.pal_sierra = load_palette(GAME_STARTUP_NAMES.sierra_pal);
+    set_palette_pointer(DG52BD.pal_black = load_palette(GAME_STARTUP_NAMES.black_pal));
 
     set_font(DG52BD.memo_font = load_font(GAME_STARTUP_NAMES.memofnt8_fnt));
 
@@ -312,9 +312,9 @@ void game_teardown(int16_t really)
 
     close_table_618a_slot(DG52BD.memo_font);
 
-    free_far_block(DG52BD.pal_black_ptr);
-    free_far_block(DG52BD.pal_sierra_ptr);
-    free_far_block(DG52ED.pal_tim_ptr);
+    free_far_block(DG52BD.pal_black);
+    free_far_block(DG52BD.pal_sierra);
+    free_far_block(DG52ED.pal_tim);
 
     stop_sequences(-2);
     remove_and_free_records(-2);

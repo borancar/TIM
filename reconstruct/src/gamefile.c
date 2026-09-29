@@ -1009,8 +1009,8 @@ void draw_xor_rect(register int16_t x, int16_t y, int16_t w, int16_t h)
 
     if (!VMDS.second_colour && !VMDS.fill_colour)
         return;
-    saved = VMDS.page_src_ptr;
-    VMDS.page_src_ptr = VMDS.page_dst_ptr;
+    saved = VMDS.page_src;
+    VMDS.page_src = VMDS.page_dst;
     outline = VMDS.second_colour;
     fill = VMDS.fill_colour;
     if (VMDS.clip_enabled) {
@@ -1057,5 +1057,5 @@ void draw_xor_rect(register int16_t x, int16_t y, int16_t w, int16_t h)
         if (bottom_in)
             plot_pixel_clipped(si, y_end, read_pixel_clipped(si, y_end) ^ outline);
     }
-    VMDS.page_src_ptr = saved;
+    VMDS.page_src = saved;
 }

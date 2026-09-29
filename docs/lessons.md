@@ -144,7 +144,7 @@ and no call, so the pointer never moved. It was **verified**, because a
 comparison of DGROUP and the return value cannot see an absent interrupt.
 
 The call becomes a named primitive in `io.c` taking what the registers took
-and answering what they answered - `io_bios_font_ptr` answers `{es, bp}` of
+and answering what they answered - `io_bios_font` answers `{es, bp}` of
 zero because fonts are not reconstructed here, and `vm_init` writes out the
 assignment the original makes from ES:BP as it stands. The deviation is then
 in the primitive's comment, in the spec's `deviation=` and in STATUS.md,

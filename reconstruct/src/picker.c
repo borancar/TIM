@@ -886,7 +886,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
  */
 void picker_repaint(void)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
 
@@ -936,7 +936,7 @@ void picker_draw_up(void)
     else
         pressed = 0;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x25)[pressed]),
                 0xc4, 0x78, 0);
@@ -959,7 +959,7 @@ void picker_draw_down(void)
     else
         pressed = 0;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x27)[pressed]),
                 0xc4, 0xe8, 0);
@@ -999,7 +999,7 @@ void picker_draw_name(void)
             strcat(si, "*");
     }
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
 
     VMDS.text_back = 0;
@@ -1042,7 +1042,7 @@ void picker_draw_filename(void)
             strcat(si, "*");
     }
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
@@ -1088,7 +1088,7 @@ void picker_draw_list(void)
 
     fill_panel_area(x, y, w, room, 0);
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.text_style = 1;                    /* transparent text */
     VMDS.text_colour = 0x0f;
 

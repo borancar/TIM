@@ -360,7 +360,7 @@ int16_t near select_resource(int16_t handle)
         ENGINE_RESOURCE_FLAGS.flags = 0x20;
     } else {
         ENGINE_RESOURCE_FLAGS.flags = 0;
-        ENGINE_STREAM.in = (char huge *)normalise_far_ptr_far(
+        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
             (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + ENGINE_STREAM.rec->in));
     }
     return 1;

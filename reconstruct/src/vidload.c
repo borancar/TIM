@@ -231,7 +231,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
      * `ax`.
      */
 #ifdef __TURBOC__
-    _AX = VMDS.page_dst_ptr;
+    _AX = VMDS.page_dst;
     if (VMDS.page_hook != 0) {
         asm push ax
         asm call dword ptr DG4342+074h
@@ -239,7 +239,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     }
     page = _AX;
 #else
-    page = MK_FP(VMDS.page_dst_ptr, 0);
+    page = MK_FP(VMDS.page_dst, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
 #endif

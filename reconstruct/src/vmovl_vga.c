@@ -107,15 +107,15 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
 
     VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;
-    VMDS.page_front_ptr = 0xa000;
-    VMDS.page_back_ptr  = 0xa800;
+    VMDS.page_front = 0xa000;
+    VMDS.page_back  = 0xa800;
     VMDS.rect_page     = 0xa800;
 
     switch ((uint16_t)VMDS.screen.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
-        VMDS.page_back_ptr = 0xa000;
+        VMDS.page_back = 0xa000;
         VMDS.rect_page    = 0xa000;
         break;
     case 0x15e:
@@ -233,7 +233,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
     uint8_t  colour = VMDS.text_colour;
     uint8_t  back   = VMDS.text_back;
     uint8_t  style  = VMDS.text_style;
-    uint8_t *at     = MK_FP(VMDS.page_dst_ptr,
+    uint8_t *at     = MK_FP(VMDS.page_dst,
                             (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3)));
     uint16_t shift  = (uint16_t)(x & 7);
     uint16_t row;
@@ -640,7 +640,7 @@ void vm_save_rect(uint8_t far * buf,
         words++;
 
     for (plane = 3; plane >= 0; plane--) {
-        const uint8_t *si = MK_FP(VMDS.page_src_ptr,
+        const uint8_t *si = MK_FP(VMDS.page_src,
                                   (uint16_t)(VMDS.row_offset[y] + col));
         int16_t row;
 
@@ -728,7 +728,7 @@ void vm_restore_rect(const uint8_t far * buf,
         words++;
 
     for (mask = 8; mask != 0; mask >>= 1) {
-        uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+        uint8_t *di = MK_FP(VMDS.page_dst,
                             (uint16_t)(VMDS.row_offset[y] + col));
         int16_t row;
 
@@ -774,7 +774,7 @@ void vm_restore_rect(const uint8_t far * buf,
  */
 uint16_t vm_read_pixel(int16_t x, int16_t y)
 {
-    const uint8_t *at = MK_FP(VMDS.page_src_ptr,
+    const uint8_t *at = MK_FP(VMDS.page_src,
                               (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
     uint16_t colour = 0;
@@ -826,7 +826,7 @@ uint16_t vm_read_pixel(int16_t x, int16_t y)
  */
 uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
 {
-    uint8_t *di   = MK_FP(VMDS.page_dst_ptr,
+    uint8_t *di   = MK_FP(VMDS.page_dst,
                           (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
 
@@ -858,10 +858,10 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  */
 void vm_show_page(uint16_t wait_retrace)
 {
-    uint16_t shown = VMDS.page_back_ptr;
-    uint16_t other = VMDS.page_front_ptr;
-    VMDS.page_front_ptr = VMDS.page_back_ptr;
-    VMDS.page_back_ptr = other;
+    uint16_t shown = VMDS.page_back;
+    uint16_t other = VMDS.page_front;
+    VMDS.page_front = VMDS.page_back;
+    VMDS.page_back = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
     if (VMDS.screen.screen_height == 400)
@@ -909,8 +909,8 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 
     uint16_t rows = height;
     /* One row offset, in the source page and in the destination. */
-    const uint8_t *si = MK_FP(VMDS.page_src_ptr, (uint16_t)(VMDS.row_offset[y] + col));
-    uint8_t *di       = MK_FP(VMDS.page_dst_ptr, (uint16_t)(VMDS.row_offset[y] + col));
+    const uint8_t *si = MK_FP(VMDS.page_src, (uint16_t)(VMDS.row_offset[y] + col));
+    uint8_t *di       = MK_FP(VMDS.page_dst, (uint16_t)(VMDS.row_offset[y] + col));
 
     do {
         for (uint16_t i = 0; i < span; i++)
@@ -1368,7 +1368,7 @@ void vm_fill_spans(const uint8_t far * spans)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+            uint8_t *di = MK_FP(VMDS.page_dst,
                                 (uint16_t)(VMDS.row_offset[y] + (x1 >> 3)));
             uint16_t bit = (uint16_t)(x1 & 7);
 
@@ -1507,7 +1507,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     VMDS.line_mask = BIT_MASK[x1 & 7];
     colour = (uint8_t)VMDS.line_colour;
     mask = VMDS.line_mask;
-    di = MK_FP(VMDS.page_dst_ptr, (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3)));
+    di = MK_FP(VMDS.page_dst, (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3)));
 
     if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
         line_mask(mask);
@@ -1736,7 +1736,7 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
     /* The original normalises the source into a segment and a four-bit
        offset so its 16-bit index cannot overflow - a huge pointer, which
        the port's is. */
-    uint8_t *di = MK_FP(VMDS.page_dst_ptr,
+    uint8_t *di = MK_FP(VMDS.page_dst,
                         (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3)));
     const uint8_t *si = src;
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
@@ -1839,7 +1839,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     uint8_t  cl;
     int16_t  plane;
 
-    di = MK_FP(VMDS.page_dst_ptr,
+    di = MK_FP(VMDS.page_dst,
                (uint16_t)(((y >= 0) ? VMDS.row_offset[y] : (uint16_t)(y * 80))
                           + (uint16_t)(x >> 3)));
     cl = (uint8_t)(x & 7);
@@ -2118,7 +2118,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
             row = VMDS.row_offset[(uint16_t)y];
         else
             row = (uint16_t)((uint16_t)y * 40u);                /* y*8 + y*32 */
-        di = MK_FP(VMDS.page_dst_ptr, (uint16_t)(row + (uint16_t)(x >> 3)));
+        di = MK_FP(VMDS.page_dst, (uint16_t)(row + (uint16_t)(x >> 3)));
     }
 
     if (VMDS.clip_enabled != 0) {

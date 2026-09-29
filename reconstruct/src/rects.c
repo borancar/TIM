@@ -57,15 +57,15 @@ struct machine_page_pairs {
 
 struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
     {
-        { &DG2D06._pad_2d08, &VMDS.page_front_ptr },
-        { &VMDS.page_back_ptr, &VMDS.page_front_ptr },
-        { &DG2D06._pad_2d08, &VMDS.page_back_ptr },
-        { &VMDS.rect_page, &VMDS.page_back_ptr },
+        { &DG2D06._pad_2d08, &VMDS.page_front },
+        { &VMDS.page_back, &VMDS.page_front },
+        { &DG2D06._pad_2d08, &VMDS.page_back },
+        { &VMDS.rect_page, &VMDS.page_back },
         { &DG2D06._pad_2d08, &VMDS.rect_page },
-        { &VMDS.page_front_ptr, &VMDS.rect_page },
-        { &VMDS.page_front_ptr, &VMDS.page_back_ptr },
-        { &VMDS.page_back_ptr, &VMDS.rect_page },
-        { &VMDS.rect_page, &VMDS.page_front_ptr },
+        { &VMDS.page_front, &VMDS.rect_page },
+        { &VMDS.page_front, &VMDS.page_back },
+        { &VMDS.page_back, &VMDS.rect_page },
+        { &VMDS.rect_page, &VMDS.page_front },
     }
 };
 
@@ -343,8 +343,8 @@ void restore_saved_rect_lists(int16_t which)
     dg_seg_t saved_src;                 /* [bp-6] */
     dg_seg_t saved_dst;                 /* [bp-8] */
 
-    saved_src = VMDS.page_src_ptr;
-    saved_dst = VMDS.page_dst_ptr;
+    saved_src = VMDS.page_src;
+    saved_dst = VMDS.page_dst;
     si = which != 0 ? &MACHINE_PAGE_PAIRS.pair[1] : &MACHINE_PAGE_PAIRS.pair[0];
     while (si->dst != 0) {
         restore_saved_rects(*si->src,
@@ -353,8 +353,8 @@ void restore_saved_rect_lists(int16_t which)
         if (which != 0)
             break;
     }
-    VMDS.page_src_ptr = saved_src;
-    VMDS.page_dst_ptr = saved_dst;
+    VMDS.page_src = saved_src;
+    VMDS.page_dst = saved_dst;
     if (which != 0)
         return;
     for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0;
@@ -540,8 +540,8 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
     if (slot == NULL)
         return;
     if ((rec = (*slot)) != NULL) {
-        VMDS.page_src_ptr = rec->page_src;
-        VMDS.page_dst_ptr = rec->page_dst;
+        VMDS.page_src = rec->page_src;
+        VMDS.page_dst = rec->page_dst;
         while (rec != NULL) {
             x = rec->x << 3;
             rw = rec->w << 3;

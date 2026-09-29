@@ -2102,7 +2102,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
  * Clip to the **counter strip** and draw into the visible page.
  *
  * Full width, rows 0x1b to 0x45 - the band the three counters sit in - and
- * `VMDS.page_dst_ptr` set to 0xa000 rather than to whichever page is being built.
+ * `VMDS.page_dst` set to 0xa000 rather than to whichever page is being built.
  * The counters are drawn straight onto the screen, outside the double
  * buffering, which is what lets them roll while the machine below them is
  * still being composed.
@@ -2116,7 +2116,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
  */
 void set_clip_counter_strip(void)
 {
-    VMDS.page_dst_ptr = 0xa000;
+    VMDS.page_dst = 0xa000;
     VMDS.clip_enabled = 1;
     VMDS.clip_left    = 0;
     VMDS.clip_right   = 0x27f;

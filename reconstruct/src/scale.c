@@ -367,7 +367,7 @@ next_row:
         asm mov ax, ss
         asm mov ds, ax
 #else
-        page = VMDS.page_dst_ptr;
+        page = VMDS.page_dst;
         if (VMDS.page_hook != 0)
             vm_nothing();
 

@@ -954,9 +954,9 @@ int16_t io_dos_setdisk(uint8_t drive)
  *
  * `which` is BH and is not read: there is only one answer to give.
  */
-struct bios_font_ptr io_bios_font_ptr(uint8_t which)
+struct bios_font io_bios_font(uint8_t which)
 {
-    struct bios_font_ptr r = { 0, 0 };
+    struct bios_font r = { 0, 0 };
 
     (void)which;
     return r;

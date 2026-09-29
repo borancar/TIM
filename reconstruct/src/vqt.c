@@ -1122,7 +1122,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         vqt_screen_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
     } else {
         fill_screen_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
-        redraw_cursor(VMDS.page_front_ptr);
+        redraw_cursor(VMDS.page_front);
     }
 
     if (code & 4)
@@ -1156,7 +1156,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * one plane to a pixel.
  *
  * A pixel at x goes into the byte `VMDS.row_offset[y] + (x >> 2)` of the page
- * `VMDS.page_dst_ptr`, and the plane is chosen for each write with the
+ * `VMDS.page_dst`, and the plane is chosen for each write with the
  * Sequencer's map mask - `mov ax,0x102 / shl ah,cl / out dx,ax` with CL the
  * low two bits of x, so plane `1 << (x & 3)`. The three places that write a
  * pixel each spell that out, and so does this.
@@ -1202,7 +1202,7 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         at = (uint16_t)(VMDS.row_offset[y] + (x >> 2));
         io_out16(PORT_SEQ_INDEX,
                  (uint16_t)(((uint16_t)(uint8_t)(1 << (x & 3)) << 8) | 0x02));
-        vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at), colour);
+        vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at), colour);
         return;
     }
 
@@ -1244,7 +1244,7 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
                 io_out16(PORT_SEQ_INDEX,
                          (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                     | 0x02));
-                vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at),
+                vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at),
                           colour);
                 yi++;
             } while (yi < y1);
@@ -1260,7 +1260,7 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         rows = h;                                     /* si */
         do {
             vm_span((uint16_t)((colour << 8) | colour), x, (int16_t)w,
-                    MK_FP((uint16_t)VMDS.page_dst_ptr, row));
+                    MK_FP((uint16_t)VMDS.page_dst, row));
             row = (uint16_t)(row + 0x50);
         } while (--rows != 0);
         return;
@@ -1282,7 +1282,7 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
             io_out16(PORT_SEQ_INDEX,
                      (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                 | 0x02));
-            vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst_ptr) + at),
+            vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at),
                       colour);
             yi++;
         } while (yi < y1);

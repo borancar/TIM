@@ -119,7 +119,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
      * clear is not silently different.
      */
 #ifdef __TURBOC__
-    _AX = VMDS.page_dst_ptr;
+    _AX = VMDS.page_dst;
     if (VMDS.page_hook != 0) {
         asm push ax
         ((vm_hook_fn)DG4342.font[28])();
@@ -127,7 +127,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     }
     page = _AX;
 #else
-    page = MK_FP(VMDS.page_dst_ptr, 0);
+    page = MK_FP(VMDS.page_dst, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
 #endif

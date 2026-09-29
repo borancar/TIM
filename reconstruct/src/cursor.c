@@ -153,7 +153,7 @@ struct machine_page_slots MACHINE_PAGE_SLOTS DGROUP_BSS(0x56e6);
 void cursor_redraw_on(void)
 {
     MACHINE_CURSOR_STATE.timer_draws_cursor = 1;
-    redraw_cursor(VMDS.page_front_ptr);
+    redraw_cursor(VMDS.page_front);
 }
 
 /*
@@ -253,7 +253,7 @@ void timer_callback(void)
 
     if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
-        redraw_cursor(VMDS.page_front_ptr);
+        redraw_cursor(VMDS.page_front);
         isr_stack_switch(0);
     }
 
@@ -317,7 +317,7 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
         DG5768.hot_y = hot_y;
     }
 
-    redraw_cursor(VMDS.page_front_ptr);
+    redraw_cursor(VMDS.page_front);
 
     DG5752.guard = saved;
 }
@@ -429,7 +429,7 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst_ptr = VMDS.page_src_ptr = slot->page;
+    VMDS.page_dst = VMDS.page_src = slot->page;
     VMDS.clip_enabled = 1;
     VMDS.clip_left = VMDS.clip_top = 0;
     VMDS.clip_bottom = VMDS.screen.screen_height - 1;
@@ -578,7 +578,7 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst_ptr = VMDS.page_src_ptr = rec->page;
+    VMDS.page_dst = VMDS.page_src = rec->page;
 
     if (rec->obj.flags & 2) {
         if (rec->obj.buf != 0 && rec->obj.w > 0 && rec->obj.h > 0)
@@ -621,7 +621,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst_ptr = VMDS.page_src_ptr = to_page;
+    VMDS.page_dst = VMDS.page_src = to_page;
 
     if (si->obj.flags & 2) {
         if (si->obj.buf != 0 && si->obj.w > 0 && si->obj.h > 0)
@@ -846,7 +846,7 @@ void redraw_cursor_all(void)
         DG5768.pending_move_x = DG5768.pending_move_y = 0;
     }
 
-    draw_cursor(VMDS.page_back_ptr);
+    draw_cursor(VMDS.page_back);
 
     if (MACHINE_CURSOR_STATE.page != 0)
         show_page_thunk(MACHINE_CURSOR_STATE.pending_pal == NULL
@@ -866,46 +866,46 @@ void redraw_cursor_all(void)
 
     if (MACHINE_CURSOR_STATE.screen_disturbed != 0) {
         if (MACHINE_CURSOR_STATE.page != 0) {
-            VMDS.page_src_ptr = VMDS.page_front_ptr;
-            VMDS.page_dst_ptr = VMDS.page_back_ptr;
+            VMDS.page_src = VMDS.page_front;
+            VMDS.page_dst = VMDS.page_back;
         } else {
-            VMDS.page_src_ptr = VMDS.page_back_ptr;
-            VMDS.page_dst_ptr = VMDS.page_front_ptr;
+            VMDS.page_src = VMDS.page_back;
+            VMDS.page_dst = VMDS.page_front;
         }
 
-        free_saved_rects(VMDS.rect_page, VMDS.page_back_ptr, 0);
-        free_saved_rects(VMDS.rect_page, VMDS.page_front_ptr, MACHINE_CURSOR_STATE.page);
-        free_saved_rects(VMDS.page_src_ptr, VMDS.page_dst_ptr, 0);
+        free_saved_rects(VMDS.rect_page, VMDS.page_back, 0);
+        free_saved_rects(VMDS.rect_page, VMDS.page_front, MACHINE_CURSOR_STATE.page);
+        free_saved_rects(VMDS.page_src, VMDS.page_dst, 0);
 
         copy_rect_thunk(0, 0, VMDS.screen.screen_width, VMDS.screen.screen_height);
 
         if (MACHINE_CURSOR_STATE.page != 0) {
-            restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
-            clear_object_covered(VMDS.page_back_ptr);
+            restore_object_backdrop(VMDS.page_front, VMDS.page_back);
+            clear_object_covered(VMDS.page_back);
         } else {
-            erase_object(VMDS.page_back_ptr);
+            erase_object(VMDS.page_back);
         }
 
         MACHINE_CURSOR_STATE.screen_disturbed = 0;
     } else {
-        erase_object(VMDS.page_back_ptr);
+        erase_object(VMDS.page_back);
     }
 
     if (MACHINE_CURSOR_STATE.page == 0) {
-        clear_object_covered(VMDS.page_front_ptr);
-        draw_cursor(VMDS.page_back_ptr);
-        swap_page_objects(VMDS.page_front_ptr, VMDS.page_back_ptr);
+        clear_object_covered(VMDS.page_front);
+        draw_cursor(VMDS.page_back);
+        swap_page_objects(VMDS.page_front, VMDS.page_back);
 
-        VMDS.page_dst_ptr = VMDS.page_front_ptr;
-        VMDS.page_src_ptr = VMDS.page_back_ptr;
+        VMDS.page_dst = VMDS.page_front;
+        VMDS.page_src = VMDS.page_back;
 
-        if ((rec = claim_page_slot(VMDS.page_front_ptr)) != NULL)
+        if ((rec = claim_page_slot(VMDS.page_front)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
-        if ((rec = claim_page_slot(VMDS.page_back_ptr)) != NULL)
+        if ((rec = claim_page_slot(VMDS.page_back)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
-        restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
+        restore_object_backdrop(VMDS.page_front, VMDS.page_back);
     }
 
     restore_saved_rect_lists(0);
@@ -944,7 +944,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    if ((si = claim_page_slot(VMDS.page_src_ptr)) != NULL
+    if ((si = claim_page_slot(VMDS.page_src)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -954,7 +954,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
             hit_shown = 1;
     }
 
-    if ((si = claim_page_slot(VMDS.page_dst_ptr)) != NULL
+    if ((si = claim_page_slot(VMDS.page_dst)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -966,25 +966,25 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 
     if (MACHINE_CURSOR_STATE.page != 0 || hit_draw == 0) {
         if (hit_draw != 0)
-            erase_object(VMDS.page_dst_ptr);
+            erase_object(VMDS.page_dst);
 
         if (w > 0 && h > 0)
             copy_rect_thunk(x, y, w, h);
 
         if (hit_shown != 0) {
-            restore_object_backdrop(VMDS.page_src_ptr, VMDS.page_dst_ptr);
-            clear_object_covered(VMDS.page_dst_ptr);
+            restore_object_backdrop(VMDS.page_src, VMDS.page_dst);
+            clear_object_covered(VMDS.page_dst);
         }
 
         if (hit_draw != 0)
-            draw_cursor(VMDS.page_dst_ptr);
+            draw_cursor(VMDS.page_dst);
     } else {
-        draw_cursor(VMDS.page_src_ptr);
+        draw_cursor(VMDS.page_src);
 
         if (w > 0 && h > 0)
             copy_rect_thunk(x, y, w, h);
 
-        erase_object(VMDS.page_src_ptr);
+        erase_object(VMDS.page_src);
     }
 
     DG5752.guard = saved;
@@ -1022,13 +1022,13 @@ struct page_slot *claim_page_slot(uint16_t want)
     int16_t i;
 
     if (MACHINE_CURSOR_STATE.slots_unset != 0) {
-        MACHINE_PAGE_SLOTS.slots[0].page = VMDS.page_back_ptr;
-        MACHINE_PAGE_SLOTS.slots[1].page = VMDS.page_front_ptr;
+        MACHINE_PAGE_SLOTS.slots[0].page = VMDS.page_back;
+        MACHINE_PAGE_SLOTS.slots[1].page = VMDS.page_front;
         MACHINE_CURSOR_STATE.slots_unset = 0;
     }
 
     if (want == 0)
-        want = VMDS.page_back_ptr;
+        want = VMDS.page_back;
 
     for (p = MACHINE_PAGE_SLOTS.slots, i = 0; i < 2; i++, p++) {
         if ((want & 0xA800) == (p->page & 0xA800)) {
@@ -1058,16 +1058,16 @@ void save_or_restore_draw_state(int16_t save)
         MACHINE_SAVED_DRAW_STATE.saved_c = VMDS.clip_right;
         MACHINE_SAVED_DRAW_STATE.saved_d = VMDS.clip_top;
         MACHINE_SAVED_DRAW_STATE.saved_e = VMDS.clip_bottom;
-        MACHINE_SAVED_DRAW_STATE.saved_g = VMDS.page_dst_ptr;
-        MACHINE_SAVED_DRAW_STATE.saved_f = VMDS.page_src_ptr;
+        MACHINE_SAVED_DRAW_STATE.saved_g = VMDS.page_dst;
+        MACHINE_SAVED_DRAW_STATE.saved_f = VMDS.page_src;
     } else {
         VMDS.clip_enabled = ((uint8_t)MACHINE_SAVED_DRAW_STATE.saved_a);
         VMDS.clip_left = MACHINE_SAVED_DRAW_STATE.saved_b;
         VMDS.clip_right = MACHINE_SAVED_DRAW_STATE.saved_c;
         VMDS.clip_top = MACHINE_SAVED_DRAW_STATE.saved_d;
         VMDS.clip_bottom = MACHINE_SAVED_DRAW_STATE.saved_e;
-        VMDS.page_dst_ptr = MACHINE_SAVED_DRAW_STATE.saved_g;
-        VMDS.page_src_ptr = MACHINE_SAVED_DRAW_STATE.saved_f;
+        VMDS.page_dst = MACHINE_SAVED_DRAW_STATE.saved_g;
+        VMDS.page_src = MACHINE_SAVED_DRAW_STATE.saved_f;
     }
 }
 

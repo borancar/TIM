@@ -100,7 +100,7 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     int16_t y;
     register int16_t i;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.clip_enabled = 0;
     VMDS.second_colour = VMDS.fill_colour = 0;
     VMDS.fill_enabled = 1;
@@ -241,7 +241,7 @@ void draw_button(const char *str, register int16_t x, int16_t y,
     rounded = (w + 7) & 0xfff8;
     right = x + rounded + 8;
     text_off = ((rounded - w) >> 1) + 8;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x2c)[pressed]),
                 x, y, 0);
@@ -342,7 +342,7 @@ void draw_sunken_box(register int16_t x, int16_t y, int16_t w, int16_t h)
     register int16_t i;
 
     set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     for (j = 8; h - 8 > j; j += 8) {
         for (i = 8; w - 8 > i; i += 8)
@@ -392,7 +392,7 @@ void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
     x2 = x + w;
     y2 = y + h;
     cursor_redraw_off_thunk();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.second_colour = VMDS.fill_colour = colour;
     fill_rect(x, y, w, h);
     for (n = x; n < x2; n += 8) {
@@ -656,7 +656,7 @@ void show_level_complete(void)
  */
 void redraw_machine_area(void)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.second_colour = VMDS.fill_colour = (uint8_t)DG52BD.fill_colour;
     VMDS.fill_enabled = 1;
     VMDS.clip_enabled = 0;
@@ -747,7 +747,7 @@ void draw_machine_layer_b(void)
     register int16_t x;
 
     set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     for (x = 0x10; x < 0x22f; x += 8)
         draw_bitmap(DG4E67.bmp_4ecb[0x6], x, 0, 0);
@@ -769,7 +769,7 @@ void draw_machine_layer_c(void)
     register int16_t x;
 
     set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     for (x = 0x10; x < 0x22f; x += 8)
         draw_bitmap(DG4E67.bmp_4ecb[0x7], x, 0x168, 0);
@@ -793,7 +793,7 @@ void draw_machine_layer_d(void)
     register int16_t y;
 
     set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     for (y = 8; y < 0x162; y += 8)
         draw_bitmap(DG4E67.bmp_4ecb[0x4], 0, y, 0);
@@ -830,7 +830,7 @@ void draw_machine_layer_e(void)
     register int16_t n;
 
     draw_machine_layer_f();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     for (n = 8; n < 0x162; n += 8)
         draw_bitmap(DG4E67.bmp_4ecb[0x5], 0x238, n, 0);
@@ -892,7 +892,7 @@ void draw_machine_layer_a(void)
     register struct part *part;
     register int16_t y;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.clip_enabled = 1;
     set_clip_play_area();
     VMDS.fill_enabled = 1;
@@ -1007,7 +1007,7 @@ void draw_machine_layer_f(void)
         slide_b = ((frame - 4) * 4) % 0x38;
     else
         slide_b = 0;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(DG4E67.menu_bmp[0], 0x240, 0x0a, 0);
     draw_bitmap(DG4E67.menu_bmp[0x1], slide_a + 0x208, 0x1a, 0);
@@ -1060,7 +1060,7 @@ void draw_carried_icon(void)
     set_clip_play_area();
     kind = DG50D3.dragged_part->kind;
     bmp = DG4E67.icons_bmp[kind];
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(bmp, DG5768.pointer_x, DG5768.pointer_y, 0);
     cursor_redraw_off_thunk();
@@ -1179,7 +1179,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         MACHINE_DRAW_SELECTION_PHASE.phase++;
     step = 4 - MACHINE_DRAW_SELECTION_PHASE.phase;
     keep_t = keep_b = keep_l = keep_r = 1;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     if (part->kind == KIND_BELT) {
         end = (part->rope->end_b);
         at.x = end->box[0].x + end->grab.x;
@@ -1378,7 +1378,7 @@ void link_record_into_buckets(register struct part *rec)
  * nothing at all. Everything else goes through the one blitter, which is told
  * the level as well, so a part in two buckets is drawn twice at two depths.
  *
- * The page being drawn into, `VMDS.page_dst_ptr`, is set from `VMDS.page_back_ptr` first, and the
+ * The page being drawn into, `VMDS.page_dst`, is set from `VMDS.page_back` first, and the
  * clip is put back to whatever the mode wants.
  */
 void draw_machine(register int16_t a, int16_t b)
@@ -1387,7 +1387,7 @@ void draw_machine(register int16_t a, int16_t b)
     uint8_t level;
     register struct part *part;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.clip_enabled = 1;
     set_clip_for_mode();
     for (counter = 6; counter > 0; counter--) {

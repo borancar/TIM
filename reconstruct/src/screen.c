@@ -1801,7 +1801,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(DG52ED.pal_tim_ptr);
+    set_palette_pointer(DG52ED.pal_tim);
     repaint_all = repaint_e = repaint_f = repaint_g = reload = done = held = 0;
     show_cursor_again();
 
@@ -2225,7 +2225,7 @@ void paint_game_screen(uint16_t present)
     wait_cursor();
     set_clip_play_area();
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     VMDS.second_colour = VMDS.fill_colour = (uint8_t)DG52BD.fill_colour;
     VMDS.fill_enabled = 1;
 
@@ -2322,7 +2322,7 @@ void paint_panel_frame_rest(void)
     (void)di;
     (void)y;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     si = pick_by_flag(0x3000);
     while (si != NULL) {
@@ -2375,7 +2375,7 @@ void paint_panel_frame(void)
     }
 
     set_clip_play_area();
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
     fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
@@ -2408,7 +2408,7 @@ void paint_panel_frame(void)
  */
 void paint_panel_a(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x10)[frame]),
@@ -2433,7 +2433,7 @@ void paint_panel_a(uint16_t frame)
  */
 void paint_panel_b(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x12)[frame]),
@@ -2458,7 +2458,7 @@ void paint_panel_b(uint16_t frame)
  */
 void paint_panel_c(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x1f)[frame]),
@@ -2483,7 +2483,7 @@ void paint_panel_c(uint16_t frame)
  */
 void paint_panel_d(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x29)[frame]),
@@ -2504,7 +2504,7 @@ void paint_panel_d(uint16_t frame)
  */
 void paint_panel_free_a(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x21)[frame]),
@@ -2527,7 +2527,7 @@ void paint_panel_free_a(uint16_t frame)
  */
 void paint_panel_free_b(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x23)[frame]),
@@ -2546,7 +2546,7 @@ void paint_panel_free_b(uint16_t frame)
  */
 void paint_panel_level(uint16_t frame)
 {
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
     draw_bitmap(((DG52ED.panel_art + 0x1b)[frame]),
@@ -2589,7 +2589,7 @@ void paint_panel_e(void)
     else
         down = 0x27;
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
 
     for (si = 0x84; si < 0xb4; si += 8)
@@ -2623,7 +2623,7 @@ void paint_panel_f(void)
     int16_t at;                         /* [bp-2] */
     int32_t t;                          /* [bp-6] */
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
 
     draw_bitmap(DG52ED.panel_art[0x7], 0x41, 0xc8, 0);
@@ -2654,7 +2654,7 @@ void paint_panel_g(void)
     int16_t at;                         /* [bp-2] */
     int32_t t;                          /* [bp-6] */
 
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
 
     draw_bitmap(DG52ED.panel_art[0x8], 0x41, 0x114, 0);

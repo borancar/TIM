@@ -258,7 +258,7 @@ struct bitmap **load_bitmap_list(char *name)
             if ((scratch = malloc_far(0x3ac4)) != NULL) {
                 DG3576.scratch = (uint8_t far *)NEAR_ZERO(scratch);
                 SCRATCH += 0x10;
-                DG3576.scratch = normalise_far_ptr_far(
+                DG3576.scratch = normalise_pointer_far(
                     FAR_MASK(DG3576.scratch, 0xfffffff0L));
             }
         }

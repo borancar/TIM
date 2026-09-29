@@ -265,7 +265,7 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
         vqt_flip_node(x + x_narrow, y + y_short, w_narrow, h_short);
     else {
         vqt_flip_leaf(x + x_narrow, y + y_short, w_narrow, h_short);
-        redraw_cursor(VMDS.page_front_ptr);
+        redraw_cursor(VMDS.page_front);
     }
     if (code & 4)
         vqt_flip_node(x + x_wide, y + y_short, w_wide, h_short);

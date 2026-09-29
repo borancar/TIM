@@ -2821,7 +2821,7 @@ void replay_shapes(void)
     set_clip_for_mode();
     VMDS.clip_enabled = 1;
     VMDS.fill_colour = VMDS.second_colour = DG52BD.fill_colour;
-    VMDS.page_dst_ptr = VMDS.page_back_ptr;
+    VMDS.page_dst = VMDS.page_back;
 
     prev = 0;
     for (cur = DG4E4E.shapes; cur; cur = next) {

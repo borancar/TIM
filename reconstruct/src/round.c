@@ -60,7 +60,7 @@ void game_setup(void)
     cursor_redraw_off_thunk();
     bar = load_bitmaps((char *)ROUND_SETUP_NAMES.score1_bmp);
 
-    VMDS.page_dst_ptr = 0xa000;
+    VMDS.page_dst = 0xa000;
     VMDS.second_colour = VMDS.fill_colour = 0;
     VMDS.fill_enabled = 1;
 
