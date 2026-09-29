@@ -28,7 +28,7 @@
 #include "dgroup.h"
 
 /* The level reader's and writer's own words - see `struct level_io`. */
-struct level_io LEVEL_IO;   /* DGROUP 0x546c */
+struct level_io g_level_io;   /* DGROUP 0x546c */
 
 /*
  * 0x11d00
@@ -103,7 +103,7 @@ void alloc_part_table(register int16_t n)
 {
     register int16_t si;
 
-    LEVEL_IO.table = dos_alloc_bytes((uint16_t)(n * (2 * sizeof(struct part *))), 0);
+    g_level_io.table = dos_alloc_bytes((uint16_t)(n * (2 * sizeof(struct part *))), 0);
 
     for (si = 0; si < n; si++)
         PART_TABLE->part[(uint16_t)si] =
@@ -248,7 +248,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->start_flags);
     rec->flags_08 = rec->start_flags;
 
-    if (LEVEL_IO.version >= 0x101)
+    if (g_level_io.version >= 0x101)
         game_fread_far(file, (uint8_t *)&rec->flags_0a);
 
     game_fread_far(file, (uint8_t *)&rec->start_form);
@@ -325,7 +325,7 @@ void read_record_fields(FILE *file, register struct part *rec)
         rec->link[i] = rec->link[i + 2] = part_by_index(index);
     }
 
-    if (LEVEL_IO.version >= 0x101) {
+    if (g_level_io.version >= 0x101) {
         for (i = 4; i < 6; i++) {
             game_fread_far(file, (uint8_t *)&index);
             rec->link[i] = part_by_index(index);
@@ -338,7 +338,7 @@ void read_record_fields(FILE *file, register struct part *rec)
             rec->belt[1] = pulley->belt[0];
     }
 
-    if (LEVEL_IO.version <= 0x101) {
+    if (g_level_io.version <= 0x101) {
         game_fread_far(file, (uint8_t *)&skip_count);
         if (skip_count != 0) {
             for (i = 0; i < skip_count; i++) {
@@ -348,12 +348,12 @@ void read_record_fields(FILE *file, register struct part *rec)
         }
     }
 
-    rec->point_count = PART_KINDS[rec->kind].point_count;
+    rec->point_count = g_part_kinds[rec->kind].point_count;
 
     if (rec->point_count != 0)
         rec->points = (calloc_far(rec->point_count, 4));
 
-    PART_KINDS[rec->kind].setup(rec);
+    g_part_kinds[rec->kind].setup(rec);
 }
 
 /*
@@ -391,10 +391,10 @@ void read_list(FILE *file, register struct part *head, int16_t n)
     head->next = head->prev = 0;
 
     for (di = 0; di < n; di++) {
-        rec = (part_by_index(LEVEL_IO.record_count));
+        rec = (part_by_index(g_level_io.record_count));
         read_record_fields(file, rec);
         insert_sorted(rec, list);
-        LEVEL_IO.record_count++;
+        g_level_io.record_count++;
     }
 }
 
@@ -449,48 +449,48 @@ void read_level(char *name)
 
     if ((file = game_fopen(name, "rb")) != 0) {
         game_setbuf(file, (uint8_t *)buf);
-        game_fread_far(file, (uint8_t *)&LEVEL_IO.version_out);
+        game_fread_far(file, (uint8_t *)&g_level_io.version_out);
 
-        if (LEVEL_IO.version_out == 0xaced) {
-            game_fread_far(file, (uint8_t *)&LEVEL_IO.version);
+        if (g_level_io.version_out == 0xaced) {
+            game_fread_far(file, (uint8_t *)&g_level_io.version);
 
-            if (LEVEL_IO.is_level != 0) {
+            if (g_level_io.is_level != 0) {
                 game_fread_string(file, (char *)g_level_title);
                 game_fread_string(file, (char *)g_level_hint);
-                game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_1);
-                game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_2);
+                game_fread_far(file, (uint8_t *)&g_level_settings.bonus_1);
+                game_fread_far(file, (uint8_t *)&g_level_settings.bonus_2);
             }
 
-            game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.gravity);
-            game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.air);
+            game_fread_far(file, (uint8_t *)&g_level_settings.gravity);
+            game_fread_far(file, (uint8_t *)&g_level_settings.air);
             recompute_kind_physics();
 
-            if (LEVEL_IO.is_level != 0) {
-                game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.extent_y);
-                game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.extent_x);
+            if (g_level_io.is_level != 0) {
+                game_fread_far(file, (uint8_t *)&g_level_settings.extent_y);
+                game_fread_far(file, (uint8_t *)&g_level_settings.extent_x);
             }
 
-            game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.tune);
+            game_fread_far(file, (uint8_t *)&g_level_settings.tune);
 
             game_fread_far(file, (uint8_t *)&n_machine);
             game_fread_far(file, (uint8_t *)&n_moving);
             game_fread_far(file, (uint8_t *)&n_given);
 
-            LEVEL_IO.record_count = 0;
+            g_level_io.record_count = 0;
             alloc_part_table(n_machine + n_moving + n_given);
 
             read_list(file, &g_placed_parts, n_machine);
             read_list(file, &g_moving_parts, n_moving);
-            if (LEVEL_IO.is_level != 0)
-                read_list(file, &HELD_PARTS.parts_bin, n_given);
+            if (g_level_io.is_level != 0)
+                read_list(file, &g_held_parts.parts_bin, n_given);
 
-            dos_free_far(LEVEL_IO.table);
+            dos_free_far(g_level_io.table);
         }
 
         game_fclose(file);
     }
 
-    HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
+    g_held_parts.bin_list = (&g_held_parts.parts_bin);
 }
 
 /*
@@ -506,8 +506,8 @@ void read_level(char *name)
  */
 void write_byte(FILE *file, const uint8_t * addr)
 {
-    if (LEVEL_IO.error == 0 && game_fwrite(addr, 1, 1, file) != 1)
-        LEVEL_IO.error = 1;
+    if (g_level_io.error == 0 && game_fwrite(addr, 1, 1, file) != 1)
+        g_level_io.error = 1;
 }
 
 /*
@@ -518,8 +518,8 @@ void write_byte(FILE *file, const uint8_t * addr)
  */
 void write_word(FILE *file, const uint8_t * addr)
 {
-    if (LEVEL_IO.error == 0 && game_fwrite(addr, 2, 1, file) != 1)
-        LEVEL_IO.error = 1;
+    if (g_level_io.error == 0 && game_fwrite(addr, 2, 1, file) != 1)
+        g_level_io.error = 1;
 }
 
 /*
@@ -678,7 +678,7 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
     for (si = head->next; si != NULL; si = si->next) {
         if (which == 2)
             si->flags_06 &= 0x7fff;
-        else if (LEVEL_IO.is_level != 0)
+        else if (g_level_io.is_level != 0)
             si->flags_06 |= 0x8000;
 
         write_record_fields(file, si);
@@ -749,44 +749,44 @@ uint16_t write_level(register char *name)
 {
     register FILE *f;
 
-    LEVEL_IO.error = 0;
-    LEVEL_IO.version_out = 0xaced;
-    LEVEL_IO.version = 0x0102;
+    g_level_io.error = 0;
+    g_level_io.version_out = 0xaced;
+    g_level_io.version = 0x0102;
     g_file_op_active = 1;
 
     if ((f = game_fopen(name, "wb")) != 0) {
-        write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
-        write_word(f, (const uint8_t *)&LEVEL_IO.version);
+        write_word(f, (const uint8_t *)&g_level_io.version_out);
+        write_word(f, (const uint8_t *)&g_level_io.version);
 
-        if (LEVEL_IO.is_level != 0) {
+        if (g_level_io.is_level != 0) {
             write_string(f, (char *)g_level_title);
             write_string(f, (char *)g_level_hint);
-            write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_1);
-            write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_2);
+            write_word(f, (const uint8_t *)&g_level_settings.bonus_1);
+            write_word(f, (const uint8_t *)&g_level_settings.bonus_2);
         }
 
-        write_word(f, (const uint8_t *)&LEVEL_SETTINGS.gravity);
-        write_word(f, (const uint8_t *)&LEVEL_SETTINGS.air);
+        write_word(f, (const uint8_t *)&g_level_settings.gravity);
+        write_word(f, (const uint8_t *)&g_level_settings.air);
 
-        if (LEVEL_IO.is_level != 0) {
-            write_word(f, (const uint8_t *)&LEVEL_SETTINGS.extent_y);
-            write_word(f, (const uint8_t *)&LEVEL_SETTINGS.extent_x);
+        if (g_level_io.is_level != 0) {
+            write_word(f, (const uint8_t *)&g_level_settings.extent_y);
+            write_word(f, (const uint8_t *)&g_level_settings.extent_x);
         }
 
-        write_word(f, (const uint8_t *)&LEVEL_SETTINGS.tune);
+        write_word(f, (const uint8_t *)&g_level_settings.tune);
 
         write_part_count(f, &g_placed_parts);
         write_part_count(f, &g_moving_parts);
-        write_part_count(f, &HELD_PARTS.parts_bin);
+        write_part_count(f, &g_held_parts.parts_bin);
 
         write_part_list(f, &g_placed_parts, 0);
         write_part_list(f, &g_moving_parts, 1);
-        write_part_list(f, &HELD_PARTS.parts_bin, 2);
+        write_part_list(f, &g_held_parts.parts_bin, 2);
 
         if (game_fclose(f) != 0)
-            LEVEL_IO.error = 1;
+            g_level_io.error = 1;
 
-        if (LEVEL_IO.error != 0)
+        if (g_level_io.error != 0)
             dos_unlink(name);
 
         g_file_op_active = 0;
@@ -794,7 +794,7 @@ uint16_t write_level(register char *name)
         g_file_op_active = 0;
         return 1;
     }
-    return LEVEL_IO.error;
+    return g_level_io.error;
 }
 
 /*
@@ -819,7 +819,7 @@ void load_level(uint16_t number)
     strcat(name, digits);
     strcat(name, ".lev");
 
-    LEVEL_IO.is_level = 1;
+    g_level_io.is_level = 1;
     read_level(name);
 }
 
@@ -841,7 +841,7 @@ void save_level(uint16_t number)
     strcat(name, digits);
     strcat(name, ".lev");
 
-    LEVEL_IO.is_level = 1;
+    g_level_io.is_level = 1;
     write_level(name);
 }
 
@@ -862,7 +862,7 @@ void save_level(uint16_t number)
 void load_animation(char *name)
 {
     build_part_list();
-    LEVEL_IO.is_level = 0;
+    g_level_io.is_level = 0;
     read_level(name);
 }
 
@@ -887,13 +887,13 @@ uint16_t save_machine(char *name)
     uint16_t r;                         /* [bp-2] */
     struct part *held;                      /* [bp-4] */
 
-    held = HELD_PARTS.parts_bin.next;
-    HELD_PARTS.parts_bin.next = 0;
-    LEVEL_IO.is_level = 0;
+    held = g_held_parts.parts_bin.next;
+    g_held_parts.parts_bin.next = 0;
+    g_level_io.is_level = 0;
 
     r = write_level(name);
 
-    HELD_PARTS.parts_bin.next = held;
+    g_held_parts.parts_bin.next = held;
     return r;
 }
 

@@ -35,7 +35,7 @@
 /* The driver's page hook (slot 28, DGROUP 0x43b6), run blit (slot 38,
    0x43de) and span fill (slot 10, 0x436e), all taking their arguments in
    registers. Called from C between the `asm` lines that load them, because
-   the built-in assembler writes a `call` through `VM_DRIVER` plus a
+   the built-in assembler writes a `call` through `g_vm_driver` plus a
    displacement with the displacement negated (docs/lessons.md). */
 typedef void (far *vm_hook_fn)(void);
 typedef void (far *vm_run_fn)(void);
@@ -119,22 +119,22 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
      * clear is not silently different.
      */
 #ifdef __TURBOC__
-    _AX = VMDS.page_dst;
-    if (VMDS.page_hook != 0) {
+    _AX = g_vmds.page_dst;
+    if (g_vmds.page_hook != 0) {
         asm push ax
-        ((vm_hook_fn)VM_DRIVER.entry[28])();
+        ((vm_hook_fn)g_vm_driver.entry[28])();
         asm add sp, 2
     }
     page = _AX;
 #else
-    page = vga_window_at(VMDS.page_dst, 0);
-    if (VMDS.page_hook != 0)
+    page = vga_window_at(g_vmds.page_dst, 0);
+    if (g_vmds.page_hook != 0)
         vm_nothing();
 #endif
 
-    if ((clip = VMDS.clip_enabled) != 0
-        && x >= VMDS.clip_left && x + bmp->width <= VMDS.clip_right
-        && y >= VMDS.clip_top && y + bmp->height <= VMDS.clip_bottom)
+    if ((clip = g_vmds.clip_enabled) != 0
+        && x >= g_vmds.clip_left && x + bmp->width <= g_vmds.clip_right
+        && y >= g_vmds.clip_top && y + bmp->height <= g_vmds.clip_bottom)
         clip = 0;
 
     if ((uint8_t)mode & 1) {
@@ -146,8 +146,8 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     if ((uint8_t)mode & 2)
         x += bmp->width - 1;
 
-    if (!clip || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
-        row = VMDS.row_offset[y];
+    if (!clip || (rowok = y <= g_vmds.clip_bottom && y >= g_vmds.clip_top) != 0)
+        row = g_vmds.row_offset[y];
 
     src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
@@ -184,7 +184,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
                         goto run_mirrored;
                     if (rowok == 0)
                         goto next_run;
-                    if (x2 < VMDS.clip_left || x >= VMDS.clip_right)
+                    if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
                         goto trim_run_mirrored;
 run_mirrored:
 #ifdef __TURBOC__
@@ -199,7 +199,7 @@ run_mirrored:
                     asm mov es, page
                     asm stc
                     asm mov dx, y
-                    ((vm_run_fn)VM_DRIVER.entry[38])();
+                    ((vm_run_fn)g_vm_driver.entry[38])();
                     asm pop di
                     asm pop si
 #else
@@ -209,19 +209,19 @@ run_mirrored:
                     goto next_run;
 trim_run_mirrored:
                     /* A trim of more than 0x3f is a run wholly outside. */
-                    if (x2 < VMDS.clip_left) {
-                        if ((cut = VMDS.clip_left - x2) > 0x3f)
+                    if (x2 < g_vmds.clip_left) {
+                        if ((cut = g_vmds.clip_left - x2) > 0x3f)
                             goto next_run;
                         if ((n -= cut) > 0)
                             goto run_mirrored;
                         goto next_run;
                     }
-                    if ((cut = x - VMDS.clip_right) > 0x3f)
+                    if ((cut = x - g_vmds.clip_right) > 0x3f)
                         goto next_run;
                     if ((n -= cut) <= 0)
                         goto next_run;
                     p += cut;
-                    x = VMDS.clip_right;
+                    x = g_vmds.clip_right;
                     goto run_mirrored;
                 } else {
                     x2 = x + n;
@@ -229,7 +229,7 @@ trim_run_mirrored:
                         goto run;
                     if (rowok == 0)
                         goto next_run;
-                    if (x < VMDS.clip_left || x2 > VMDS.clip_right)
+                    if (x < g_vmds.clip_left || x2 > g_vmds.clip_right)
                         goto trim_run;
 run:
 #ifdef __TURBOC__
@@ -244,7 +244,7 @@ run:
                     asm mov es, page
                     asm clc
                     asm mov dx, y
-                    ((vm_run_fn)VM_DRIVER.entry[38])();
+                    ((vm_run_fn)g_vm_driver.entry[38])();
                     asm pop di
                     asm pop si
 #else
@@ -253,16 +253,16 @@ run:
 #endif
                     goto next_run;
 trim_run:
-                    if (x < VMDS.clip_left) {
-                        if ((cut = VMDS.clip_left - x) > 0x3f)
+                    if (x < g_vmds.clip_left) {
+                        if ((cut = g_vmds.clip_left - x) > 0x3f)
                             goto next_run;
                         if ((n -= cut) <= 0)
                             goto next_run;
                         p += cut;
-                        x = VMDS.clip_left;
+                        x = g_vmds.clip_left;
                         goto run;
                     }
-                    if ((cut = x2 - VMDS.clip_right - 1) > 0x3f)
+                    if ((cut = x2 - g_vmds.clip_right - 1) > 0x3f)
                         goto next_run;
                     if ((n -= cut) > 0)
                         goto run;
@@ -283,7 +283,7 @@ next_run:
                     goto fill_mirrored;
                 if (rowok == 0)
                     goto next_fill;
-                if (x2 < VMDS.clip_left || x >= VMDS.clip_right)
+                if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
                     goto trim_fill_mirrored;
 fill_mirrored:
 #ifdef __TURBOC__
@@ -299,7 +299,7 @@ fill_mirrored:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)VM_DRIVER.entry[10])();
+                ((vm_span_fn)g_vm_driver.entry[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(base + b2), (uint16_t)(x - (uint8_t)op + 1),
@@ -307,18 +307,18 @@ fill_mirrored:
 #endif
                 goto next_fill;
 trim_fill_mirrored:
-                if (x2 < VMDS.clip_left) {
-                    if ((cut = VMDS.clip_left - x2) > 0x3f)
+                if (x2 < g_vmds.clip_left) {
+                    if ((cut = g_vmds.clip_left - x2) > 0x3f)
                         goto next_fill;
                     if ((op -= cut) > 0)
                         goto fill_mirrored;
                     goto next_fill;
                 }
-                if ((cut = x - VMDS.clip_right) > 0x3f)
+                if ((cut = x - g_vmds.clip_right) > 0x3f)
                     goto next_fill;
                 if ((op -= cut) <= 0)
                     goto next_fill;
-                x = VMDS.clip_right;
+                x = g_vmds.clip_right;
                 goto fill_mirrored;
             } else {
                 x2 = x + op;
@@ -326,7 +326,7 @@ trim_fill_mirrored:
                     goto fill;
                 if (rowok == 0)
                     goto next_fill;
-                if (x < VMDS.clip_left || x2 > VMDS.clip_right)
+                if (x < g_vmds.clip_left || x2 > g_vmds.clip_right)
                     goto trim_fill;
 fill:
 #ifdef __TURBOC__
@@ -340,7 +340,7 @@ fill:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)VM_DRIVER.entry[10])();
+                ((vm_span_fn)g_vm_driver.entry[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(b2 + base), (uint16_t)x, (uint8_t)op,
@@ -348,15 +348,15 @@ fill:
 #endif
                 goto next_fill;
 trim_fill:
-                if (x < VMDS.clip_left) {
-                    if ((cut = VMDS.clip_left - x) > 0x3f)
+                if (x < g_vmds.clip_left) {
+                    if ((cut = g_vmds.clip_left - x) > 0x3f)
                         goto next_fill;
                     if ((op -= cut) <= 0)
                         goto next_fill;
                     x += cut;
                     goto fill;
                 }
-                if ((cut = x2 - VMDS.clip_right - 1) > 0x3f)
+                if ((cut = x2 - g_vmds.clip_right - 1) > 0x3f)
                     goto next_fill;
                 if ((op -= cut) > 0)
                     goto fill;
@@ -380,8 +380,8 @@ next_fill:
         /* 0x205b4 - the end of a row: step down, and move back along it. */
         op &= 0x3f;
         y += ystep;
-        if (!clip || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
-            row = VMDS.row_offset[y];
+        if (!clip || (rowok = y <= g_vmds.clip_bottom && y >= g_vmds.clip_top) != 0)
+            row = g_vmds.row_offset[y];
         if ((uint8_t)mode & 2)
             x += op;
         else

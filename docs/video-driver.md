@@ -94,7 +94,7 @@ order is easy to get backwards - the pushes are `ds`, 0x4412, 0x3890, so the
 - **0x3890** - the distance from DGROUP to the driver's own data segment. The
   driver keeps it at `cs:0x13c`, shifts it right four and adds DS to get that
   segment, which it keeps at `cs:0x13a`. Measured: 0x2e4c + 0x389 = 0x31d5.
-  This is the `VMDS` the port uses.
+  This is the `g_vmds` the port uses.
 - **0x4412** - a DGROUP address the driver copies **76 bytes** from, into its
   own `cs:0x206`.
 - **DS** - DGROUP itself.
@@ -140,7 +140,7 @@ segments through DGROUP without going near the driver:
 0e189  c706a23820a8    mov word ptr [0x38a2], 0xa820
 ```
 
-`0x38a4` is `VMDS + 0x14` and `0x38a2` is `VMDS + 0x12` - the front and back
+`0x38a4` is `g_vmds + 0x14` and `0x38a2` is `g_vmds + 0x12` - the front and back
 pages. The clip box and colours the game's rectangle routine reads at DGROUP
 0x3893..0x389e are the same block seen from the other side. There is **one**
 shared structure, not two, and the port models it that way.

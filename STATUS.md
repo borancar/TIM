@@ -57,12 +57,12 @@ and every screen comparison, keep the crack; the original's image is zero from t
 stack's end, which TLINK does not write. What lies above that in the
 recovered image is LZEXE's stub and compressed tail, found verbatim in the
 packed file, and three relocations of its own. For that, DGROUP's data left
-dgroup.c for the modules it is: the part tables, `PART_KINDS`, the message
+dgroup.c for the modules it is: the part tables, `g_part_kinds`, the message
 strings and the game state that starts out zero are `gamedata.c`, a module
 of data and no code between `gamemain.c` and `intro.c` (the file is ours);
-the video driver's interface - its thunks and `VMDS`, `VM_DRIVER`, `VM_HOOKS` -
+the video driver's interface - its thunks and `g_vmds`, `g_vm_driver`, `g_vm_hooks` -
 is `vmiface.c`, split out of lzhuf.c on its `para`-aligned data; and
-`DG44EA`, `DG4AB0` and two words of keyboard.c's are the modules' around
+`DG44EA`, `g_dg4ab0` and two words of keyboard.c's are the modules' around
 them. The object order is the data's, not the code's (`object_order` in
 link.py). dgroup.c keeps only the start-up's own words and the library's,
 which C0M.OBJ and CM.LIB supply.
@@ -194,7 +194,7 @@ goals.c's in TLINK's order. The module after it holds `update_button_state`
 and 0x286e, then levels.c's 0x2870.
 
 **The judge does not check that an object lands in the right one of
-`_DATA` and `_BSS`.** frame.c's `MACHINE_BUTTON_PREV` had no initialiser, so
+`_DATA` and `_BSS`.** frame.c's `g_machine_button_prev` had no initialiser, so
 Borland put it in `_BSS`, and the judge called it a match at 0x286e, an
 address inside `_DATA`. It has an initialiser now. An image address below
 the start of `_BSS` (0x53fc) should be refused for a `_BSS` object; the
@@ -258,8 +258,8 @@ matched only as `__emit__` bytes), so the module is assembly. It was split in th
 and put back the same day (docs/lessons.md). `sound_call.c` (0x29286..0x292f4, the
 callback cell in its code segment first) is TASM, 3 of 3.
 
-`SOUND_BANK` could be sound_stop's or sound_file's: both give the same bytes.
-Nothing names 0x4ab0..0x4ab4 (`DG4AB0`), and the modules after the sound
+`g_sound_bank` could be sound_stop's or sound_file's: both give the same bytes.
+Nothing names 0x4ab0..0x4ab4 (`g_dg4ab0`), and the modules after the sound
 code could own it too, so it stays in dgroup.c.
 
 `src/trig.c`, segment 2a04, 0x2a04a..0x2d290: TASM with its tables and
@@ -980,7 +980,7 @@ are free. On a weaker machine they would not be. They work today because of
 the host, not because the C promises it.
 
 **Six macros over DGROUP are not volatile, and one of them is on the timer
-thread.** `STR`, `CHUNK`, `PALCHUNK`, `OVLCHUNK`, `BMPP` and `BMPLIST` were
+thread.** `STR`, `CHUNK`, `g_palchunk`, `OVLCHUNK`, `BMPP` and `BMPLIST` were
 never converted, presumably because they read tables that are built once and
 then only read. That is true of five of them. `BMPP` is not: `timer_callback`
 reaches `redraw_cursor` and then `draw_cursor`, which reads the cursor's
@@ -1003,9 +1003,9 @@ nothing else is.** Six hundred and twenty `volatile` tokens came out of the
 game's units - every `DG*` accessor, every struct and pointer macro, every
 prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
-the game has three such loops: the eight-tick spin on `TIMER.frame_budget`,
+the game has three such loops: the eight-tick spin on `g_timer.frame_budget`,
 `wait_and_latch_frame` on `g_frame_flag`, and `delay_five_ticks` on
-`SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
+`g_sound_tick_wait.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
 protecting anything - a race on a clip word is a race with or without it -
 and it was hiding two things from the optimiser: the original's own
@@ -1023,7 +1023,7 @@ no `io_lock` - where the mouse path wraps `mouse_event` in `io_lock`/
 main thread exactly as a tick does, and this note's argument applies to it
 unchanged.
 
-What it writes from there: `ENGINE_KEYBOARD.state[]`, `held[]` and
+What it writes from there: `g_engine_keyboard.state[]`, `held[]` and
 `word_458e`, and the **BIOS data area** directly - the shift flags at
 0040:0017 and the ring at 0040:001A/001C/001E. None of them is `volatile`,
 and `bios_read_key` reads the same ring on the main thread.
@@ -1190,7 +1190,7 @@ from a second run and from a build of 7763ab4. That ruled out the timer-thread
 race, which differs run to run, and pointed at either the port's pacing or the
 port's code.
 
-**The hybrid told the two apart.** Reading `LEVEL_SETTINGS.bonus_2` and its scroll on
+**The hybrid told the two apart.** Reading `g_level_settings.bonus_2` and its scroll on
 both sides through `TIM_LUA` and `tim.peek16`: the port rolled the counter
 down from 300, while the hybrid - the original's own code, on the port's
 hardware and its tick - left it at 300 with the scroll still zero. Same

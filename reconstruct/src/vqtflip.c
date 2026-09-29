@@ -39,8 +39,8 @@
  *
  * **Its data**: `_DATA` is `g_min_run` and the three `vqt_` code pointers,
  * DGROUP 0x49ba..0x49c6, and `_BSS` is 0x63f6..0x6414. Borland C++ lays a module's uninitialised variables out in
- * reverse order of declaration, so `BITMAPS` is declared before
- * `BITMAPS_FLIP_STATE` and sits above it.
+ * reverse order of declaration, so `g_bitmaps` is declared before
+ * `g_bitmaps_flip_state` and sits above it.
  *
  * **Its own records are real pointers** on both compilers: the bit reader,
  * the three code pointers the offset-table draw calls through, and the leaf's
@@ -72,11 +72,11 @@
  * this one (vqt.c) walks `walk`. Field names are ours; the offsets are the
  * original's.
  */
-struct bitmaps_state BITMAPS;
+struct bitmaps_state g_bitmaps;
 
 /*
  * **The flipped quadtree's state**, 0x63f6..0x6400. `draw_vqt_flipped` sets
- * the two flags from `BITMAPS.draw_flags`; the leaf sets `index_bits` and
+ * the two flags from `g_bitmaps.draw_flags`; the leaf sets `index_bits` and
  * `palette`. Which flag mirrors which axis is read off the fill loops -
  * `fill_rows_mirror_x`, chosen when `flip_x` alone is set, walks x from the
  * right - and the names are ours. `unused` is a word the module declared and
@@ -91,7 +91,7 @@ struct bitmaps_flip_state {
     uint8_t * palette;            /* 0x63fe  the leaf's palette, in its frame */
 };
 
-struct bitmaps_flip_state BITMAPS_FLIP_STATE;
+struct bitmaps_flip_state g_bitmaps_flip_state;
 
 /*
  * **The three code pointers the offset-table bitmap draws through**, and the
@@ -121,12 +121,12 @@ bmp_read_fn g_vqt_read_fn = vqt_read_bits;
  */
 struct vqt_reader *open_bit_reader(uint8_t far *data)
 {
-    if (BITMAPS.in_use != 0)
+    if (g_bitmaps.in_use != 0)
         return 0;
-    BITMAPS.in_use = 1;
-    BITMAPS.reader.data = data;
-    BITMAPS.reader.pos = 0;
-    return (struct vqt_reader *)&BITMAPS.reader;
+    g_bitmaps.in_use = 1;
+    g_bitmaps.reader.data = data;
+    g_bitmaps.reader.pos = 0;
+    return (struct vqt_reader *)&g_bitmaps.reader;
 }
 
 /*
@@ -136,7 +136,7 @@ struct vqt_reader *open_bit_reader(uint8_t far *data)
  */
 void close_bit_reader(void)
 {
-    BITMAPS.in_use = 0;
+    g_bitmaps.in_use = 0;
 }
 
 /*
@@ -145,20 +145,20 @@ void close_bit_reader(void)
  * **One pixel through the leaf's palette**: read an index through
  * `g_vqt_read_fn` and answer the palette byte it names. The palette is the
  * table `vqt_flip_leaf` read into its own frame and filed at
- * `BITMAPS_FLIP_STATE.palette`.
+ * `g_bitmaps_flip_state.palette`.
  *
- * Reached only as `BITMAPS.pixel_fn`, which the leaf points here before
+ * Reached only as `g_bitmaps.pixel_fn`, which the leaf points here before
  * handing a mirrored fill its rectangle. The name is ours.
  */
 pixel_byte_t near read_palette_pixel(uint16_t bits)
 {
-    return BITMAPS_FLIP_STATE.palette[(uint8_t)g_vqt_read_fn(bits)];
+    return g_bitmaps_flip_state.palette[(uint8_t)g_vqt_read_fn(bits)];
 }
 
 /*
  * 0x24954
  *
- * **Draw a quadtree bitmap, mirrored as `BITMAPS.draw_flags` says**, and the
+ * **Draw a quadtree bitmap, mirrored as `g_bitmaps.draw_flags` says**, and the
  * body `draw_offset_bitmap` calls with the reader already open.
  *
  * Bit 1 of the flags mirrors x and bit 0 mirrors y. The pair also chooses the
@@ -182,31 +182,31 @@ void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
 {
     int16_t saved;
 
-    if (BITMAPS.draw_flags & 2)
-        BITMAPS_FLIP_STATE.flip_x = 1;
+    if (g_bitmaps.draw_flags & 2)
+        g_bitmaps_flip_state.flip_x = 1;
     else
-        BITMAPS_FLIP_STATE.flip_x = 0;
-    if (BITMAPS.draw_flags & 1)
-        BITMAPS_FLIP_STATE.flip_y = 1;
+        g_bitmaps_flip_state.flip_x = 0;
+    if (g_bitmaps.draw_flags & 1)
+        g_bitmaps_flip_state.flip_y = 1;
     else
-        BITMAPS_FLIP_STATE.flip_y = 0;
-    if (BITMAPS_FLIP_STATE.flip_x != 0) {
-        if (BITMAPS_FLIP_STATE.flip_y != 0)
-            BITMAPS.fill_fn = fill_rows_mirror_xy;
+        g_bitmaps_flip_state.flip_y = 0;
+    if (g_bitmaps_flip_state.flip_x != 0) {
+        if (g_bitmaps_flip_state.flip_y != 0)
+            g_bitmaps.fill_fn = fill_rows_mirror_xy;
         else
-            BITMAPS.fill_fn = fill_rows_mirror_x;
+            g_bitmaps.fill_fn = fill_rows_mirror_x;
     } else {
-        if (BITMAPS_FLIP_STATE.flip_y != 0)
-            BITMAPS.fill_fn = fill_rows_mirror_y;
+        if (g_bitmaps_flip_state.flip_y != 0)
+            g_bitmaps.fill_fn = fill_rows_mirror_y;
         else
-            BITMAPS.fill_fn = 0;
+            g_bitmaps.fill_fn = 0;
     }
-    saved = (int8_t)VMDS.fill_enabled;
-    VMDS.fill_enabled = 1;
+    saved = (int8_t)g_vmds.fill_enabled;
+    g_vmds.fill_enabled = 1;
     cursor_redraw_off();
     vqt_flip_node(x, y, w, h);
     cursor_redraw_on();
-    VMDS.fill_enabled = (uint8_t)saved;
+    g_vmds.fill_enabled = (uint8_t)saved;
 }
 
 /*
@@ -250,11 +250,11 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
     w_wide = (w + 1) >> 1;
     y_tall = h_short = h >> 1;
     h_tall = (h + 1) >> 1;
-    if (BITMAPS_FLIP_STATE.flip_x != 0) {
+    if (g_bitmaps_flip_state.flip_x != 0) {
         x_narrow = w_wide;
         x_wide = 0;
     }
-    if (BITMAPS_FLIP_STATE.flip_y != 0) {
+    if (g_bitmaps_flip_state.flip_y != 0) {
         y_short = h_tall;
         y_tall = 0;
     }
@@ -263,7 +263,7 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
         vqt_flip_node(x + x_narrow, y + y_short, w_narrow, h_short);
     else {
         vqt_flip_leaf(x + x_narrow, y + y_short, w_narrow, h_short);
-        redraw_cursor(VMDS.page_front);
+        redraw_cursor(g_vmds.page_front);
     }
     if (code & 4)
         vqt_flip_node(x + x_wide, y + y_short, w_wide, h_short);
@@ -284,8 +284,8 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
  *
  * **Fill a rectangle pixel by pixel, x from the right**: x from `x1 - 1` down
  * to `x0`, and for each, y from `y0` up to `y1 - 1`. A colour comes through
- * `BITMAPS.pixel_fn` with `BITMAPS_FLIP_STATE.index_bits`, and goes to
- * `g_vqt_plot_fn` unless it is 0 and `BITMAPS.plot_zero` is clear.
+ * `g_bitmaps.pixel_fn` with `g_bitmaps_flip_state.index_bits`, and goes to
+ * `g_vqt_plot_fn` unless it is 0 and `g_bitmaps.plot_zero` is clear.
  *
  * One of three written out rather than shared, which differ only in which
  * axis counts down; this is the fill for `flip_x` alone. Every compare is
@@ -299,8 +299,8 @@ void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = x1 - 1; xi >= x0; xi--)
         for (yi = y0; yi < y1; yi++)
-            if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
-                || BITMAPS.plot_zero != 0)
+            if ((colour = (uint8_t)g_bitmaps.pixel_fn(g_bitmaps_flip_state.index_bits)) != 0
+                || g_bitmaps.plot_zero != 0)
                 g_vqt_plot_fn(xi, yi, colour);
 }
 
@@ -318,8 +318,8 @@ void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = x0; xi < x1; xi++)
         for (yi = y1 - 1; yi >= y0; yi--)
-            if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
-                || BITMAPS.plot_zero != 0)
+            if ((colour = (uint8_t)g_bitmaps.pixel_fn(g_bitmaps_flip_state.index_bits)) != 0
+                || g_bitmaps.plot_zero != 0)
                 g_vqt_plot_fn(xi, yi, colour);
 }
 
@@ -337,8 +337,8 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = x1 - 1; xi >= x0; xi--)
         for (yi = y1 - 1; yi >= y0; yi--)
-            if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
-                || BITMAPS.plot_zero != 0)
+            if ((colour = (uint8_t)g_bitmaps.pixel_fn(g_bitmaps_flip_state.index_bits)) != 0
+                || g_bitmaps.plot_zero != 0)
                 g_vqt_plot_fn(xi, yi, colour);
 }
 
@@ -354,14 +354,14 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  *
  *   - `bits` is enough to count the pixels - the bit length of `area - 1` when
  *     the area is under 256, and 8 otherwise - and `n` is read with it;
- *   - `BITMAPS_FLIP_STATE.index_bits` is the bit length of `n`, and then `n`
+ *   - `g_bitmaps_flip_state.index_bits` is the bit length of `n`, and then `n`
  *     is a count;
  *   - if `index_bits * area + 8 * n` is **not** less than `8 * area`, a
  *     palette would not pay, and every pixel is 8 bits raw. The compare is
  *     unsigned 32-bit.
  *
  * The raw case, and the palette case once its table is read, hand the
- * rectangle to `BITMAPS.fill_fn` if a mirror is set, and otherwise walk x
+ * rectangle to `g_bitmaps.fill_fn` if a mirror is set, and otherwise walk x
  * outer and y inner, reading with `vqt_read_bits` **directly** and plotting
  * with `plot_pixel_clipped` **directly** - not through the pointers, and with
  * no `plot_zero` test. A palette of one colour fills the rectangle through
@@ -374,7 +374,7 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  * C.
  *
  * The palette is read into the bottom of the frame and its address filed at
- * `BITMAPS_FLIP_STATE.palette` for `read_palette_pixel` to index.
+ * `g_bitmaps_flip_state.palette` for `read_palette_pixel` to index.
  * Unreachable with this game's data; see `draw_vqt_flipped`. The name is ours.
  */
 void near vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
@@ -395,7 +395,7 @@ void near vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
     if (h == 0)
         return;
     if (w == 1 && h == 1) {
-        if ((colour = (uint8_t)g_vqt_read_fn(8)) != 0 || BITMAPS.plot_zero != 0) {
+        if ((colour = (uint8_t)g_vqt_read_fn(8)) != 0 || g_bitmaps.plot_zero != 0) {
             g_vqt_plot_fn(x, y, colour);
             return;
         }
@@ -431,7 +431,7 @@ index:
     asm shr al, 1
     asm jne index
 indexed:
-    BITMAPS_FLIP_STATE.index_bits = _CX;
+    g_bitmaps_flip_state.index_bits = _CX;
 #else
     {
         uint8_t al;
@@ -444,19 +444,19 @@ indexed:
                 bits++;
         }
         n = (uint8_t)g_vqt_read_fn(bits);
-        BITMAPS_FLIP_STATE.index_bits = 0;
+        g_bitmaps_flip_state.index_bits = 0;
         for (al = (uint8_t)n; al != 0; al >>= 1)
-            BITMAPS_FLIP_STATE.index_bits++;
+            g_bitmaps_flip_state.index_bits++;
     }
 #endif
     n++;
-    if (BITMAPS_FLIP_STATE.index_bits * area + (n << 3) >= area << 3) {
+    if (g_bitmaps_flip_state.index_bits * area + (n << 3) >= area << 3) {
         x1 = x + w;
         y1 = y + h;
-        if (BITMAPS.fill_fn != 0) {
-            BITMAPS_FLIP_STATE.index_bits = 8;
-            BITMAPS.pixel_fn = g_vqt_read_fn;
-            BITMAPS.fill_fn(x, y, x1, y1);
+        if (g_bitmaps.fill_fn != 0) {
+            g_bitmaps_flip_state.index_bits = 8;
+            g_bitmaps.pixel_fn = g_vqt_read_fn;
+            g_bitmaps.fill_fn(x, y, x1, y1);
             return;
         }
         for (xi = x; xi < x1; xi++)
@@ -466,29 +466,29 @@ indexed:
         return;
     }
     if (n == 1) {
-        if ((VMDS.second_colour = VMDS.fill_colour = (uint8_t)g_vqt_read_fn(8)) != 0
-            || BITMAPS.plot_zero != 0) {
+        if ((g_vmds.second_colour = g_vmds.fill_colour = (uint8_t)g_vqt_read_fn(8)) != 0
+            || g_bitmaps.plot_zero != 0) {
             g_vqt_fill_fn(x, y, w, h);
             return;
         }
         return;
     }
-    BITMAPS_FLIP_STATE.palette = at = palette;
+    g_bitmaps_flip_state.palette = at = palette;
     while (--n >= 0) {
         *at = (uint8_t)g_vqt_read_fn(8);
         at++;
     }
     x1 = x + w;
     y1 = y + h;
-    if (BITMAPS.fill_fn != 0) {
-        BITMAPS.pixel_fn = read_palette_pixel;
-        BITMAPS.fill_fn(x, y, x1, y1);
+    if (g_bitmaps.fill_fn != 0) {
+        g_bitmaps.pixel_fn = read_palette_pixel;
+        g_bitmaps.fill_fn(x, y, x1, y1);
         return;
     }
     for (xi = x; xi < x1; xi++)
         for (yi = y; yi < y1; yi++)
-            if ((colour = BITMAPS_FLIP_STATE.palette[(uint8_t)vqt_read_bits(
-                     BITMAPS_FLIP_STATE.index_bits)]) != 0)
+            if ((colour = g_bitmaps_flip_state.palette[(uint8_t)vqt_read_bits(
+                     g_bitmaps_flip_state.index_bits)]) != 0)
                 plot_pixel_clipped(xi, yi, colour);
     }
 }

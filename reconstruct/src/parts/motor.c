@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x32a4..0x32ae. Connection points, 5 pairs.
  */
-struct point8 MOTOR_POINTS_32A4[5] = {
+struct point8 g_motor_points_32a4[5] = {
     { 0x00, 0x13 }, { 0x1a, 0x00 }, { 0x35, 0x18 }, { 0x30, 0x2e },
     { 0x06, 0x2e },
 };
@@ -30,7 +30,7 @@ struct point8 MOTOR_POINTS_32A4[5] = {
 /*
  * DGROUP 0x32ae..0x32b8. Connection points, 5 pairs.
  */
-struct point8 MOTOR_POINTS_32AE[5] = {
+struct point8 g_motor_points_32ae[5] = {
     { 0x00, 0x18 }, { 0x1b, 0x00 }, { 0x35, 0x13 }, { 0x2f, 0x2e },
     { 0x05, 0x2e },
 };
@@ -81,10 +81,10 @@ void part_setup_motor(struct part *part)
 
     if (part->flags_08 & 0x10) {
         part->grab.x = 0x25;
-        src = MOTOR_POINTS_32AE;
+        src = g_motor_points_32ae;
     } else {
         part->grab.x = 0;
-        src = MOTOR_POINTS_32A4;
+        src = g_motor_points_32a4;
     }
 
     part->grab.y = 0x0d;

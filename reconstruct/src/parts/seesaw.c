@@ -22,21 +22,21 @@
 /*
  * DGROUP 0x34ca..0x34d6. Connection points, 3 points.
  */
-struct point16 SEESAW_POINTS_34CA[3] = {
+struct point16 g_seesaw_points_34ca[3] = {
     { 0x0005, 0x001b }, { 0x0004, 0x0002 }, { 0x0006, 0x0003 },
 };
 
 /*
  * DGROUP 0x34d6..0x34e2. Connection points, 3 points.
  */
-struct point16 SEESAW_POINTS_34D6[3] = {
+struct point16 g_seesaw_points_34d6[3] = {
     { 0x0049, 0x0003 }, { 0x004b, 0x0002 }, { 0x004a, 0x001b },
 };
 
 /*
  * DGROUP 0x34e2..0x3502. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_34E2[8] = {
+struct point16 g_seesaw_points_34e2[8] = {
     { 0x0000, 0x0020 }, { 0x004f, 0x0003 }, { 0x004f, 0x0008 },
     { 0x002c, 0x0015 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0018 }, { 0x0000, 0x0024 },
@@ -45,7 +45,7 @@ struct point16 SEESAW_POINTS_34E2[8] = {
 /*
  * DGROUP 0x3502..0x3522. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_3502[8] = {
+struct point16 g_seesaw_points_3502[8] = {
     { 0x0000, 0x0011 }, { 0x004f, 0x0011 }, { 0x004f, 0x0015 },
     { 0x002c, 0x0015 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0015 }, { 0x0000, 0x0015 },
@@ -54,7 +54,7 @@ struct point16 SEESAW_POINTS_3502[8] = {
 /*
  * DGROUP 0x3522..0x3542. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_3522[8] = {
+struct point16 g_seesaw_points_3522[8] = {
     { 0x0000, 0x0003 }, { 0x004f, 0x0020 }, { 0x004f, 0x0024 },
     { 0x002c, 0x0018 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0015 }, { 0x0000, 0x0008 },
@@ -64,7 +64,7 @@ struct point16 SEESAW_POINTS_3522[8] = {
  * DGROUP 0x3542..0x355a. The seesaw's shaft by form, a segment of four words - x0, y0, x1, y1 -
  * which `part_step_seesaw` hands `link_objects_crossing`.
  */
-int16_t SEESAW_SHAFT_LINE[3][4] = {
+int16_t g_seesaw_shaft_line[3][4] = {
     { 0x0000, 0x0020, 0x004f, 0x0003 }, { 0x0000, 0x0011, 0x004f, 0x0011 },
     { 0x0000, 0x0003, 0x004f, 0x0020 },
 };
@@ -172,24 +172,24 @@ void part_setup_seesaw(struct part *part)
     struct part_point *di;
     int16_t i;                          /* [bp-2] */
 
-    part->attach[0].x = (uint8_t)SEESAW_POINTS_34CA[part->form].x;
-    part->attach[0].y = (uint8_t)SEESAW_POINTS_34CA[part->form].y;
-    part->attach[1].x = (uint8_t)SEESAW_POINTS_34D6[part->form].x;
-    part->attach[1].y = (uint8_t)SEESAW_POINTS_34D6[part->form].y;
+    part->attach[0].x = (uint8_t)g_seesaw_points_34ca[part->form].x;
+    part->attach[0].y = (uint8_t)g_seesaw_points_34ca[part->form].y;
+    part->attach[1].x = (uint8_t)g_seesaw_points_34d6[part->form].x;
+    part->attach[1].y = (uint8_t)g_seesaw_points_34d6[part->form].y;
 
     for (i = 0, di = part->points; i < 8; i++, di++) {
         switch (part->form) {
         case 0:
-            di->x = (uint8_t)SEESAW_POINTS_34E2[i].x;
-            di->y = (uint8_t)SEESAW_POINTS_34E2[i].y;
+            di->x = (uint8_t)g_seesaw_points_34e2[i].x;
+            di->y = (uint8_t)g_seesaw_points_34e2[i].y;
             break;
         case 1:
-            di->x = (uint8_t)SEESAW_POINTS_3502[i].x;
-            di->y = (uint8_t)SEESAW_POINTS_3502[i].y;
+            di->x = (uint8_t)g_seesaw_points_3502[i].x;
+            di->y = (uint8_t)g_seesaw_points_3502[i].y;
             break;
         case 2:
-            di->x = (uint8_t)SEESAW_POINTS_3522[i].x;
-            di->y = (uint8_t)SEESAW_POINTS_3522[i].y;
+            di->x = (uint8_t)g_seesaw_points_3522[i].x;
+            di->y = (uint8_t)g_seesaw_points_3522[i].y;
             break;
         }
     }
@@ -269,7 +269,7 @@ void part_step_seesaw(struct part *part)
 
             v02 = part->pos[0].x + (part->size[0].width >> 1);
 
-            link_objects_crossing(part, 0x1000, SEESAW_SHAFT_LINE[part->form]);
+            link_objects_crossing(part, 0x1000, g_seesaw_shaft_line[part->form]);
 
             for (di = part->next_linked; di != NULL;
                  di = di->next_linked) {
@@ -523,7 +523,7 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                 v0c = belt_orientation(si, v06, v0e);
                 v0c |= flags;
 
-                v04 = PART_KINDS[v10->kind].drive(part, v10, v0a, v0c, a, momentum);
+                v04 = g_part_kinds[v10->kind].drive(part, v10, v0a, v0c, a, momentum);
             }
         }
     }
@@ -543,7 +543,7 @@ int16_t push_speed_for_mass(struct part *obj)
     int16_t m;                          /* si */
     int16_t r;                          /* cx */
 
-    m = PART_KINDS[obj->kind].weight;
+    m = g_part_kinds[obj->kind].weight;
 
     if (m < 0x0002)
         r = 0x1c00;

@@ -44,7 +44,7 @@ enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL, DRIVER_SBP };
  */
 static const char *driver_banner(void)
 {
-    return SNDS.driver == NULL ? NULL : (const char *)SNDS.driver + 0x0a;
+    return g_snds.driver == NULL ? NULL : (const char *)g_snds.driver + 0x0a;
 }
 
 /* OURS: does the banner contain this text, anywhere in its first 48 bytes? */

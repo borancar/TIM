@@ -23,7 +23,7 @@
 /*
  * DGROUP 0x32c8..0x32d2. Connection points, 5 pairs.
  */
-struct point8 FAN_POINTS_32C8[5] = {
+struct point8 g_fan_points_32c8[5] = {
     { 0x00, 0x0b }, { 0x16, 0x00 }, { 0x1f, 0x0e }, { 0x17, 0x1f },
     { 0x03, 0x1f },
 };
@@ -31,7 +31,7 @@ struct point8 FAN_POINTS_32C8[5] = {
 /*
  * DGROUP 0x32d2..0x32dc. Connection points, 5 pairs.
  */
-struct point8 FAN_POINTS_32D2[5] = {
+struct point8 g_fan_points_32d2[5] = {
     { 0x00, 0x0e }, { 0x09, 0x00 }, { 0x1f, 0x0b }, { 0x1c, 0x1f },
     { 0x08, 0x1f },
 };
@@ -48,9 +48,9 @@ void part_setup_fan(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10)
-        si = FAN_POINTS_32D2;
+        si = g_fan_points_32d2;
     else
-        si = FAN_POINTS_32C8;
+        si = g_fan_points_32c8;
 
     for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;
@@ -114,7 +114,7 @@ void part_step_fan(struct part *part)
                 scale = 0x100 - abs(si->link_dx);
                 force = mul16x16(push, scale);
                 force >>= 8;
-                v = force / PART_KINDS[si->kind].weight;
+                v = force / g_part_kinds[si->kind].weight;
                 si->vel_x += v;
 
                 clamp_record_pair(si);

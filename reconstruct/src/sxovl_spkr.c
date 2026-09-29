@@ -29,7 +29,7 @@
  * with slightly different constants. Transcribed as it is; the port is not the
  * place to retune it.
  */
-static const uint16_t SX_DIVISOR[381] = {
+static const uint16_t g_sx_divisor[381] = {
        37,    37,    38,    38,    39,    39,    40,    41,
        41,    42,    42,    43,    44,    44,    45,    46,
        46,    47,    48,    48,    49,    50,    50,    51,
@@ -166,7 +166,7 @@ void sx_note_on(uint16_t note)
 
     io_out8(0x43, 0xB6);
     {
-        uint32_t divisor = 1331000u / SX_DIVISOR[index];
+        uint32_t divisor = 1331000u / g_sx_divisor[index];
 
         io_out8(0x42, (uint8_t)(divisor & 0xFF));
         io_out8(0x42, (uint8_t)((divisor >> 8) & 0xFF));

@@ -794,7 +794,7 @@ static void vm_slot_missing(void)
 
 /*
  * OURS: **the driver's vector, as the port's own routines.** On the original
- * `vm_init` fills `VM_DRIVER.entry` with the entry points of the driver it loaded,
+ * `vm_init` fills `g_vm_driver.entry` with the entry points of the driver it loaded,
  * and a routine that wants one calls through the slot. The port runs its own
  * transcription of each driver routine, so `vm_init` fills a slot with what
  * this answers; a slot with no routine stops the port when it is called.
@@ -1784,14 +1784,14 @@ static void seq_say(void)
      * what every priority in the arrays below is relative to. */
     fprintf(stderr, "io: seq tbl");
     for (i = 0; i < 8; i++)
-        fprintf(stderr, " %p", (void *)SNDS.playing[i]);
+        fprintf(stderr, " %p", (void *)g_snds.playing[i]);
     fprintf(stderr, "\n");
 
     for (a = 0; a < 4; a++) {
         fprintf(stderr, "io: seq %s", name[a]);
         for (i = 0; i < 0x10; i++)
             fprintf(stderr, " %02x",
-                    ((const uint8_t *)&SNDS)[at[a] - 8 + i]);
+                    ((const uint8_t *)&g_snds)[at[a] - 8 + i]);
         fprintf(stderr, "\n");
     }
 }

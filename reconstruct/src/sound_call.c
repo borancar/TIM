@@ -32,7 +32,7 @@
  * assembler.
  */
 asm {
-extrn _SOUND_BANK:byte
+extrn _g_sound_bank:byte
 SOUND_CALL_TEXT segment byte public 'CODE'
 assume cs:SOUND_CALL_TEXT, ds:DGROUP
 public _set_sound_callback, _sound_callback, _sound_callback_quiet
@@ -73,7 +73,7 @@ _sound_callback proc far
         push di
         mov ax, DGROUP
         mov ds, ax
-        cmp word ptr DGROUP:_SOUND_BANK+28h, 0
+        cmp word ptr DGROUP:_g_sound_bank+28h, 0
         je L292c5
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]
@@ -101,7 +101,7 @@ _sound_callback_quiet proc far
         mov bp, sp
         push si
         push di
-        cmp word ptr DGROUP:_SOUND_BANK+28h, 0
+        cmp word ptr DGROUP:_g_sound_bank+28h, 0
         je L292f0
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]
@@ -127,7 +127,7 @@ SOUND_CALL_TEXT ends
  */
 void set_sound_callback(const uint8_t far * cb)
 {
-    SNDCALL.callback = cb;
+    g_sndcall.callback = cb;
 }
 
 /*
@@ -160,11 +160,11 @@ uint16_t sound_callback(uint16_t ax, union sound_module_args * si)
      */
     uint16_t answer = DGROUP_SEG;
 
-    if (((int16_t)SOUND_BANK.module_live) != 0)
+    if (((int16_t)g_sound_bank.module_live) != 0)
         answer = call_sound_module(ax, si);
 
-    SNDCALL.answer = (int16_t)answer;
-    return (uint16_t)SNDCALL.answer;
+    g_sndcall.answer = (int16_t)answer;
+    return (uint16_t)g_sndcall.answer;
 }
 
 /*
@@ -180,7 +180,7 @@ uint16_t sound_callback(uint16_t ax, union sound_module_args * si)
  */
 void sound_callback_quiet(uint16_t ax, union sound_module_args * si)
 {
-    if (((int16_t)SOUND_BANK.module_live) != 0)
+    if (((int16_t)g_sound_bank.module_live) != 0)
         call_sound_module(ax, si);
 }
 #endif

@@ -367,7 +367,7 @@ _TEXT ends
  * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
  * thirteen bytes `dos_find_to_dgroup` copies out of the DTA and
  * `dos_find_name` answers. The word before it and the 0x1f bytes after, up to
- * BORLAND_FIND_INFO, are not established.
+ * g_borland_find_info, are not established.
  *
  * DGROUP 0x2d48..0x2d76, 0x2e bytes.
  */
@@ -378,7 +378,7 @@ struct borland_find_name {
     uint8_t   unread_2d57[0x1f];  /* +0x0f [0x1f] */
 } PACKED;
 
-struct borland_find_name BORLAND_FIND_NAME;
+struct borland_find_name g_borland_find_name;
 
 /*
  * **Not established**, DGROUP 0x2d76..0x2d7d, 0x07 bytes.
@@ -396,7 +396,7 @@ struct borland_find_info {
     int16_t   dos_result;         /* +0x05 [2] */
 } PACKED;
 
-struct borland_find_info BORLAND_FIND_INFO;
+struct borland_find_info g_borland_find_info;
 
 /*
  * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
@@ -411,7 +411,7 @@ struct machine_isr_stack {
     uint16_t  saved_sp;           /* +0x02 [2] */
 } PACKED;
 
-struct machine_isr_stack MACHINE_ISR_STACK;
+struct machine_isr_stack g_machine_isr_stack;
 
 /*
  * OURS: **the disk transfer area**, as DOS lays it out - 21 bytes of DOS's
@@ -500,11 +500,11 @@ void dos_find_to_dgroup(void)
 {
     uint16_t i;
 
-    BORLAND_FIND_INFO.attr  = g_dta.attr;
-    BORLAND_FIND_INFO.size = g_dta.size;
+    g_borland_find_info.attr  = g_dta.attr;
+    g_borland_find_info.size = g_dta.size;
 
     for (i = 0; i < 0x0d; i++)
-        BORLAND_FIND_NAME.find_name[i] = (char)g_dta.name[i];
+        g_borland_find_name.find_name[i] = (char)g_dta.name[i];
 }
 
 /*
@@ -516,7 +516,7 @@ void dos_find_to_dgroup(void)
  */
 uint16_t dos_find_attr(void)
 {
-    return BORLAND_FIND_INFO.attr;
+    return g_borland_find_info.attr;
 }
 
 /*
@@ -528,7 +528,7 @@ uint16_t dos_find_attr(void)
  */
 char *dos_find_name(void)
 {
-    return (char *)BORLAND_FIND_NAME.find_name;
+    return (char *)g_borland_find_name.find_name;
 }
 
 /*
@@ -539,7 +539,7 @@ char *dos_find_name(void)
  */
 uint32_t dos_find_size(void)
 {
-    return BORLAND_FIND_INFO.size;
+    return g_borland_find_info.size;
 }
 
 /*
@@ -584,7 +584,7 @@ uint16_t dos_chdir(const char *path)
 
     r = io_dos_chdir(name);
 
-    BORLAND_FIND_INFO.dos_result = r;
+    g_borland_find_info.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -599,7 +599,7 @@ uint16_t dos_mkdir(const char *path)
 {
     int16_t r = io_dos_mkdir(path);
 
-    BORLAND_FIND_INFO.dos_result = r;
+    g_borland_find_info.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -614,7 +614,7 @@ uint16_t dos_rmdir(const char *path)
 {
     int16_t r = io_dos_rmdir(path);
 
-    BORLAND_FIND_INFO.dos_result = r;
+    g_borland_find_info.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -643,7 +643,7 @@ uint16_t dos_unlink(const char *path)
 
     r = io_dos_unlink(name);
 
-    BORLAND_FIND_INFO.dos_result = r;
+    g_borland_find_info.dos_result = r;
     return (uint16_t)r;
 }
 
@@ -779,7 +779,7 @@ void isr_stack_switch(int16_t to_private)
     if (to_private != 0) {
         /* SS is DGROUP's; SP is a register the port does not have, so the
            word the original saves it in is left as it is. */
-        MACHINE_ISR_STACK.saved_ss = DGROUP_SEG;
+        g_machine_isr_stack.saved_ss = DGROUP_SEG;
         return;
     }
 

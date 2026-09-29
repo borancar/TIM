@@ -58,7 +58,7 @@ void run_machine_loop(void)
 {
     clear_machine();
     g_elapsed_ticks = 0;
-    TIMER.frame_budget = 0x2710;
+    g_timer.frame_budget = 0x2710;
 
     while (g_round_state == 0x2000) {
         if (((uint16_t)g_sound_request_01) != 0) g_sound_request_01 = 1;
@@ -76,10 +76,10 @@ void run_machine_loop(void)
         replay_shapes();
         step_and_draw_machine(0);
 
-        while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
+        while ((int16_t)(0x2710 - ((uint16_t)g_timer.frame_budget)) < 8)
             ;
-        g_elapsed_ticks += 0x2710 - TIMER.frame_budget;
-        TIMER.frame_budget = 0x2710;
+        g_elapsed_ticks += 0x2710 - g_timer.frame_budget;
+        g_timer.frame_budget = 0x2710;
 
         present_frame(1);
 
@@ -96,9 +96,9 @@ void run_machine_loop(void)
                 g_round_state = 0x200;
         }
 
-        if (POINTER.button_left == 2)
+        if (g_pointer.button_left == 2)
             g_round_state = 0x1000;
-        if (POINTER.button_right == 2)
+        if (g_pointer.button_right == 2)
             g_round_state = 2;
 
         g_machine_frames++;
@@ -123,7 +123,7 @@ void clear_machine(void)
     select_cursor(0);
     erase_both_pages();
 
-    HELD_PARTS.dragged_part = 0;
+    g_held_parts.dragged_part = 0;
     g_machine_frames = 0;
     g_sound_request_01 = g_sound_request_02 =
         g_sound_request_09 = g_sound_request_0c = 0;
@@ -176,5 +176,5 @@ void step_loop_frames(void)
  */
 void check_goal(void)
 {
-    GOAL_TESTS.goal_test[g_round_number - 1]();
+    g_goal_tests.goal_test[g_round_number - 1]();
 }

@@ -26,7 +26,7 @@
  * per kind, which `make_part` copies from, each ending in a far pointer to
  * that kind's init routine below - so the table is this module's.
  */
-struct part_template PART_TEMPLATES[PART_KIND_COUNT] = {
+struct part_template g_part_templates[PART_KIND_COUNT] = {
     /* flags_06, flags_0a, set_size, size, init */
     { 0x0800, 0x0008, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_bowling_ball }, /* 0 */
     { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 1 */
@@ -117,7 +117,7 @@ void build_part_list(void)
 
     g_placed_parts.next = g_placed_parts.prev
         = g_moving_parts.next = g_moving_parts.prev
-        = HELD_PARTS.parts_bin.next = HELD_PARTS.parts_bin.prev = 0;
+        = g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
 
     for (si = 0; si < 0x33; si++) {
         wanted = 0;
@@ -134,15 +134,15 @@ void build_part_list(void)
         }
 
         if (wanted != 0 && (rec = make_part(si)) != NULL)
-            insert_sorted(rec, &HELD_PARTS.parts_bin);
+            insert_sorted(rec, &g_held_parts.parts_bin);
     }
 
-    HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
-    LEVEL_SETTINGS.bonus_1 = LEVEL_SETTINGS.bonus_2 = 0;
-    LEVEL_SETTINGS.gravity = 0x43;
-    LEVEL_SETTINGS.air = 0x110;
-    LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
-    LEVEL_SETTINGS.tune = 0x3e9;
+    g_held_parts.bin_list = (&g_held_parts.parts_bin);
+    g_level_settings.bonus_1 = g_level_settings.bonus_2 = 0;
+    g_level_settings.gravity = 0x43;
+    g_level_settings.air = 0x110;
+    g_level_settings.extent_y = g_level_settings.extent_x = -8;
+    g_level_settings.tune = 0x3e9;
     g_odometer_total = 0;
 
     recompute_kind_physics();
@@ -185,17 +185,17 @@ struct part *make_part(uint16_t kind)
     heap_check_or_hang();
 
     part->kind = kind;
-    part->flags_06 = PART_TEMPLATES[kind].flags_06;
-    part->flags_0a = PART_TEMPLATES[kind].flags_0a;
-    part->set_size.width = PART_TEMPLATES[kind].set_size.width;
-    part->set_size.height = PART_TEMPLATES[kind].set_size.height;
-    part->size[0].width = PART_TEMPLATES[kind].size.width;
-    part->size[0].height = PART_TEMPLATES[kind].size.height;
-    part->point_count = PART_KINDS[kind].point_count;
+    part->flags_06 = g_part_templates[kind].flags_06;
+    part->flags_0a = g_part_templates[kind].flags_0a;
+    part->set_size.width = g_part_templates[kind].set_size.width;
+    part->set_size.height = g_part_templates[kind].set_size.height;
+    part->size[0].width = g_part_templates[kind].size.width;
+    part->size[0].height = g_part_templates[kind].size.height;
+    part->point_count = g_part_kinds[kind].point_count;
     part->start_x = 0xffff;
     part->start_y = 0xffff;
-    if (PART_TEMPLATES[kind].init != NULL
-        && PART_TEMPLATES[kind].init(part) == 1)
+    if (g_part_templates[kind].init != NULL
+        && g_part_templates[kind].init(part) == 1)
         goto fail;
 
     part->start_flags = part->flags_08;
@@ -891,12 +891,12 @@ uint16_t part_init_kind_57(struct part *part)
  */
 void free_all_lists(void)
 {
-    free_part_list(HELD_PARTS.parts_bin.next);
+    free_part_list(g_held_parts.parts_bin.next);
     free_part_list(g_placed_parts.next);
     free_part_list(g_moving_parts.next);
 
     g_placed_parts.next = g_moving_parts.next
-        = HELD_PARTS.parts_bin.next = 0;
+        = g_held_parts.parts_bin.next = 0;
 }
 
 /*

@@ -101,8 +101,8 @@ _DATA ends
 
 extrn _detect_pcjr:far
 extrn _game_teardown:far
-extrn _VM_DRIVER:byte
-extrn _VMDS:byte
+extrn _g_vm_driver:byte
+extrn _g_vmds:byte
 KEYBOARD_TEXT segment byte public 'CODE'
 assume cs:KEYBOARD_TEXT, ds:DGROUP
 public _copy_rect_thunk, _install_keyboard, _remove_keyboard, _keyboard_isr
@@ -110,7 +110,7 @@ public _bios_read_key, _key_is_down, _show_page_thunk
 
 /* 0x21088 */
 _copy_rect_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+14h
+        jmp dword ptr DGROUP:_g_vm_driver+14h
 c_2108c db 0h, 0h
 c_2108e db 0h, 0h
 c_21090 db 0h, 0h
@@ -248,7 +248,7 @@ _keyboard_isr proc near
         mov ax, bx
         and al, 7fh
         and bl, 80h
-        cmp byte ptr DGROUP:_VMDS+1ch, 1
+        cmp byte ptr DGROUP:_g_vmds+1ch, 1
         jne L211ef
         cmp byte ptr DGROUP:d_471b, 1
         je L211e3
@@ -608,7 +608,7 @@ _key_is_down endp
 
 /* 0x2149a */
 _show_page_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+24h
+        jmp dword ptr DGROUP:_g_vm_driver+24h
 _show_page_thunk endp
 KEYBOARD_TEXT ends
 }
@@ -635,7 +635,7 @@ struct engine_keyboard {
     /* **The keyboard's tables**, as `keyboard_isr` reads them. The extents
        are the ISR's own bounds - it drops any scancode at or above 0x59
        before touching a table, and walks the PCjr remap eleven wide - and
-       the record ends where `ENGINE_PCJR_KEYBOARD` begins. The two pads are bytes nothing
+       the record ends where `g_engine_pcjr_keyboard` begins. The two pads are bytes nothing
        in the port reads. What `held` holds is a reading: the ISR files the
        scancode's upper bits there on a press and clears the slot on the
        matching release. */
@@ -649,7 +649,7 @@ struct engine_keyboard {
     uint8_t   pcjr_to[0x0b];      /* +0x184 [0xb]  ... and what they stand for */
 } PACKED;
 
-struct engine_keyboard ENGINE_KEYBOARD = {   /* DGROUP 0x458c */
+struct engine_keyboard g_engine_keyboard = {   /* DGROUP 0x458c */
     .pad_4592 = { 0x01 },
     .ascii = {
         0x00, 0x1b, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
@@ -732,7 +732,7 @@ struct engine_pcjr_keyboard {
     uint8_t   pcjr_keyboard;      /* +0x00 [1] */
 } PACKED;
 
-struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD;
+struct engine_pcjr_keyboard g_engine_pcjr_keyboard;
 
 /*
  * 0x21088
@@ -774,32 +774,32 @@ void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
  */
 uint16_t install_keyboard(int16_t hook_timer)
 {
-    if (ENGINE_KEYBOARD.installed == 0) {
+    if (g_engine_keyboard.installed == 0) {
 
-        S1C_KEYBOARD.old_int9 = getvect(0x09);
-        S1C_KEYBOARD.old_int1c = getvect(0x1c);
+        g_s1c_keyboard.old_int9 = getvect(0x09);
+        g_s1c_keyboard.old_int1c = getvect(0x1c);
 
         setvect(0x09, (void interrupt (far *)())keyboard_isr);
 
         if (hook_timer != 0)
             setvect(0x1c, (void interrupt (far *)())keyboard_tick_isr);
 
-        ENGINE_PCJR_KEYBOARD.pcjr_keyboard = 0;
+        g_engine_pcjr_keyboard.pcjr_keyboard = 0;
 
         if (detect_pcjr() != 0)
             not_transcribed("0x210f3, the PCjr keyboard path - INT 15h, the "
                             "keyboard type at 0040:0096, and the remapping "
                             "at 0x2110c");
 
-        ENGINE_KEYBOARD.installed = 1;
+        g_engine_keyboard.installed = 1;
     }
 
     g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags & 0xdf);
 
-    if (ENGINE_KEYBOARD.hold_caps_lock != 0)
+    if (g_engine_keyboard.hold_caps_lock != 0)
         g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags | 0x40);
 
-    return ENGINE_KEYBOARD.installed;
+    return g_engine_keyboard.installed;
 }
 
 /*
@@ -819,15 +819,15 @@ uint16_t install_keyboard(int16_t hook_timer)
  */
 int16_t remove_keyboard(void)
 {
-    if (ENGINE_KEYBOARD.installed == 0)
+    if (g_engine_keyboard.installed == 0)
         return 0;
 
-    ENGINE_KEYBOARD.installed = 0;
+    g_engine_keyboard.installed = 0;
 
     g_bios.kbd_head = g_bios.kbd_tail;
 
-    setvect(0x09, S1C_KEYBOARD.old_int9);
-    setvect(0x1c, S1C_KEYBOARD.old_int1c);
+    setvect(0x09, g_s1c_keyboard.old_int9);
+    setvect(0x1c, g_s1c_keyboard.old_int1c);
 
     return 1;
 }
@@ -889,8 +889,8 @@ void keyboard_isr(void)
     al = (uint8_t)(raw & 0x7f);
     bl = (uint8_t)(raw & 0x80);
 
-    if (VMDS.is_pcjr == 1) {
-        if (ENGINE_PCJR_KEYBOARD.pcjr_keyboard == 1) {
+    if (g_vmds.is_pcjr == 1) {
+        if (g_engine_pcjr_keyboard.pcjr_keyboard == 1) {
             if (al == 0x29)
                 al = 0x48;
             if (al == 0x2b)
@@ -899,8 +899,8 @@ void keyboard_isr(void)
             int16_t i;
 
             for (i = 0; i < 0xb; i++)
-                if (ENGINE_KEYBOARD.pcjr_from[i] == al) {
-                    al = ENGINE_KEYBOARD.pcjr_to[i];
+                if (g_engine_keyboard.pcjr_from[i] == al) {
+                    al = g_engine_keyboard.pcjr_to[i];
                     break;
                 }
         }
@@ -916,11 +916,11 @@ void keyboard_isr(void)
     }
 
     bx = dl;
-    dl = ENGINE_KEYBOARD.state[bx];          /* the state as it was */
+    dl = g_engine_keyboard.state[bx];          /* the state as it was */
     dh = (uint8_t)((dh & dl) ^ 1);
-    ENGINE_KEYBOARD.state[bx] = dh;
+    g_engine_keyboard.state[bx] = dh;
 
-    if (ENGINE_PCJR_KEYBOARD.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
+    if (g_engine_pcjr_keyboard.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
         al = (uint8_t)bx;                       /* Caps and Num, never a release */
 
     if ((al & 0x80) != 0) {
@@ -929,14 +929,14 @@ void keyboard_isr(void)
             cx = (uint16_t)(dl >> 3);
             di = (uint16_t)(cx & 1);
             cl = (uint8_t)(cx >> 1);
-            ch = ENGINE_KEYBOARD.held[di];
+            ch = g_engine_keyboard.held[di];
             if (ch == cl)
-                ENGINE_KEYBOARD.held[di] = 0;
+                g_engine_keyboard.held[di] = 0;
         }
 
-        ENGINE_KEYBOARD.last_event = 0;
+        g_engine_keyboard.last_event = 0;
 
-        al = ENGINE_KEYBOARD.ascii[al & 0x7f];
+        al = g_engine_keyboard.ascii[al & 0x7f];
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
             al ^= 0x7f;
             g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags & al);
@@ -949,12 +949,12 @@ void keyboard_isr(void)
     if ((dl & 0xf8) != 0) {
         cx = (uint16_t)(dl >> 3);
         di = (uint16_t)(cx & 1);
-        ENGINE_KEYBOARD.held[di] = (uint8_t)(cx >> 1);
+        g_engine_keyboard.held[di] = (uint8_t)(cx >> 1);
     }
 
     cl = al;                                    /* the scancode, for AH later */
     di = al;
-    al = ENGINE_KEYBOARD.ascii[di];
+    al = g_engine_keyboard.ascii[di];
 
     if ((al & 0x80) != 0) {
         al &= 0x7f;
@@ -963,7 +963,7 @@ void keyboard_isr(void)
             io_out8(0x20, 0x20);
             return;
         }
-        if ((al & 0x40) == 0 || ENGINE_KEYBOARD.hold_caps_lock == 0) {
+        if ((al & 0x40) == 0 || g_engine_keyboard.hold_caps_lock == 0) {
             if ((dl & 1) == 0)
                 g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags ^ al);
         }
@@ -979,7 +979,7 @@ void keyboard_isr(void)
         if ((dl & 4) != 0)
             al = (uint8_t)(al - 0x20);
     } else if ((g_bios.kbd_flags & 3) != 0) {
-        al = ENGINE_KEYBOARD.shifted[di];
+        al = g_engine_keyboard.shifted[di];
     }
 
     {
@@ -987,7 +987,7 @@ void keyboard_isr(void)
         uint16_t head, tail;
         int16_t full = 0;
 
-        ENGINE_KEYBOARD.last_event = ax;
+        g_engine_keyboard.last_event = ax;
 
         head = g_bios.kbd_head;
         tail = g_bios.kbd_tail;
@@ -1099,7 +1099,7 @@ uint16_t bios_read_key(void)
  */
 int16_t key_is_down(uint16_t index)
 {
-    return (int16_t)(ENGINE_KEYBOARD.state[index] & 1);
+    return (int16_t)(g_engine_keyboard.state[index] & 1);
 }
 
 /*

@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3336..0x3344. Connection points, 7 pairs.
  */
-struct point8 HEART_BALLOON_POINTS_3336[7] = {
+struct point8 g_heart_balloon_points_3336[7] = {
     { 0x00, 0x08 }, { 0x06, 0x00 }, { 0x1e, 0x00 }, { 0x24, 0x07 },
     { 0x24, 0x10 }, { 0x11, 0x23 }, { 0x00, 0x10 },
 };
@@ -34,7 +34,7 @@ void part_setup_heart_balloon(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = HEART_BALLOON_POINTS_3336;
+    di = g_heart_balloon_points_3336;
     for (i = 0, si = part->points; i < 7; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

@@ -468,7 +468,7 @@ void goal_test_puzzles_10_32(void)
         si = si->next;
     }
 
-    si = HELD_PARTS.parts_bin.next;
+    si = g_held_parts.parts_bin.next;
     while (si != NULL) {
         if (si->kind == KIND_GUN)
             ok = 0;
@@ -1956,7 +1956,7 @@ void step_counters(void)
     set_clip_counter_strip();
 
     if (g_round_state != 0x2000 || g_bonus_1_scroll != 0) {
-        if ((si = LEVEL_SETTINGS.bonus_1) != 0) {
+        if ((si = g_level_settings.bonus_1) != 0) {
             if (si > 0xfa0)
                 g_bonus_1_scroll += 4;
             else if (si > 0xbb8)
@@ -1970,10 +1970,10 @@ void step_counters(void)
                 g_bonus_1_scroll = 0;
                 si--;
             }
-            LEVEL_SETTINGS.bonus_1 = si;
+            g_level_settings.bonus_1 = si;
 
             if (g_bonus_1_scroll > 0)
-                draw_counter_word(LEVEL_SETTINGS.bonus_1, 0x184, g_bonus_1_scroll, 0);
+                draw_counter_word(g_level_settings.bonus_1, 0x184, g_bonus_1_scroll, 0);
         }
     }
 
@@ -1988,14 +1988,14 @@ void step_counters(void)
        The second reel therefore shows the level's bonus and never rolls.
        Transcribed as it behaves - see STATUS.md. */
     if (g_round_state == 0x2000 || g_bonus_2_scroll != 0) {
-        if (LEVEL_SETTINGS.bonus_2 != 0) {
+        if (g_level_settings.bonus_2 != 0) {
             g_bonus_2_scroll++;
             if (g_bonus_2_scroll > 0x15) {
                 g_bonus_2_scroll = 0;
-                LEVEL_SETTINGS.bonus_2--;
+                g_level_settings.bonus_2--;
             }
             if (g_bonus_2_scroll > 0)
-                draw_counter_word(LEVEL_SETTINGS.bonus_2, 0x238, g_bonus_2_scroll, 0);
+                draw_counter_word(g_level_settings.bonus_2, 0x238, g_bonus_2_scroll, 0);
         }
     }
 }
@@ -2015,8 +2015,8 @@ void redraw_counters(void)
 {
     set_clip_counter_strip();
     draw_counter_long(g_odometer_total, 0xd0, 0, 1);
-    draw_counter_word(LEVEL_SETTINGS.bonus_1, 0x184, 0, 1);
-    draw_counter_word(LEVEL_SETTINGS.bonus_2, 0x238, 0, 1);
+    draw_counter_word(g_level_settings.bonus_1, 0x184, 0, 1);
+    draw_counter_word(g_level_settings.bonus_2, 0x238, 0, 1);
 }
 
 /*
@@ -2111,7 +2111,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
  * Clip to the **counter strip** and draw into the visible page.
  *
  * Full width, rows 0x1b to 0x45 - the band the three counters sit in - and
- * `VMDS.page_dst` set to 0xa000 rather than to whichever page is being built.
+ * `g_vmds.page_dst` set to 0xa000 rather than to whichever page is being built.
  * The counters are drawn straight onto the screen, outside the double
  * buffering, which is what lets them roll while the machine below them is
  * still being composed.
@@ -2125,12 +2125,12 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
  */
 void set_clip_counter_strip(void)
 {
-    VMDS.page_dst = 0xa000;
-    VMDS.clip_enabled = 1;
-    VMDS.clip_left    = 0;
-    VMDS.clip_right   = 0x27f;
-    VMDS.clip_top     = 0x1b;
-    VMDS.clip_bottom  = 0x45;
+    g_vmds.page_dst = 0xa000;
+    g_vmds.clip_enabled = 1;
+    g_vmds.clip_left    = 0;
+    g_vmds.clip_right   = 0x27f;
+    g_vmds.clip_top     = 0x1b;
+    g_vmds.clip_bottom  = 0x45;
 }
 
 /*
@@ -2178,7 +2178,7 @@ void finish_level(void)
                      (int16_t)((uint32_t)g_banked_score >> 16));    /* ours */
 #endif
 
-    g_odometer_total += LEVEL_SETTINGS.bonus_1 + LEVEL_SETTINGS.bonus_2;
+    g_odometer_total += g_level_settings.bonus_1 + g_level_settings.bonus_2;
     if (g_round_number < g_level_count) {
         g_banked_score = g_odometer_total;
         g_password_puzzle = g_round_number;
@@ -2188,8 +2188,8 @@ void finish_level(void)
 
     g_bonus_1_scroll = -4;
     g_bonus_2_scroll = -9;
-    LEVEL_SETTINGS.bonus_1 = 0;
-    LEVEL_SETTINGS.bonus_2 = 0;
+    g_level_settings.bonus_1 = 0;
+    g_level_settings.bonus_2 = 0;
 
     redraw_counters();
     play_sound(0x13);
@@ -2198,17 +2198,17 @@ void finish_level(void)
     clicked = 0;
     while (clicked == 0) {
         update_button_state();
-        if (POINTER.button_left == 2)
+        if (g_pointer.button_left == 2)
             clicked = 1;
         present_frame(1);
     }
 
     if (g_round_number >= g_level_count) {
-        title = MESSAGES.solved_all_puzzles;
-        body = (char *)MESSAGES.solved_all_body;
+        title = g_messages.solved_all_puzzles;
+        body = (char *)g_messages.solved_all_body;
     } else {
-        title = MESSAGES.replay_solution;
-        body = (char *)MESSAGES.replay_body;
+        title = g_messages.replay_solution;
+        body = (char *)g_messages.replay_body;
     }
 
     /* The two buttons are this module's literal pool, DGROUP 0x283a. */

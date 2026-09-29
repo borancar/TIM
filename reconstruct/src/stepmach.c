@@ -93,7 +93,7 @@ void step_machine(void)
          si = si->next) {
         if (!(si->flags_08 & 0x2000))
             apply_gravity_and_speed(si);
-        si->weight = PART_KINDS[si->kind].weight;
+        si->weight = g_part_kinds[si->kind].weight;
         si->flags_0a &= 0xffef;
     }
 

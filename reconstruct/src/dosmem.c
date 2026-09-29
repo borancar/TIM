@@ -30,19 +30,19 @@
  */
 asm {
 extrn _far_memset:far
-extrn _VM_DRIVER:byte
+extrn _g_vm_driver:byte
 DOSMEM_TEXT segment byte public 'CODE'
 assume cs:DOSMEM_TEXT, ds:DGROUP
 public _save_rect_thunk, _buffer_size_thunk, _dos_alloc_bytes, _dos_free_far
 
 /* 0x21ab5 */
 _save_rect_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+18h
+        jmp dword ptr DGROUP:_g_vm_driver+18h
 _save_rect_thunk endp
 
 /* 0x21ab9 */
 _buffer_size_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+1ch
+        jmp dword ptr DGROUP:_g_vm_driver+1ch
 _buffer_size_thunk endp
 
 /* 0x21abd */

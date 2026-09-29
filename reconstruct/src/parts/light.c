@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x339a..0x33aa. Connection points, 4 points.
  */
-struct point16 LIGHT_POINTS_339A[4] = {
+struct point16 g_light_points_339a[4] = {
     { 0x0015, 0x0033 }, { 0x001d, 0x004f }, { 0x0014, 0x0019 },
     { 0x001c, 0x0023 },
 };
@@ -33,8 +33,8 @@ struct point16 LIGHT_POINTS_339A[4] = {
  */
 void part_setup_light(struct part *part)
 {
-    part->attach[0].x = (uint8_t)LIGHT_POINTS_339A[part->form].x;
-    part->attach[0].y = (uint8_t)LIGHT_POINTS_339A[part->form].y;
+    part->attach[0].x = (uint8_t)g_light_points_339a[part->form].x;
+    part->attach[0].y = (uint8_t)g_light_points_339a[part->form].y;
 }
 
 /*

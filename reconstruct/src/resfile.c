@@ -59,7 +59,7 @@ struct engine_compress_state {
  * measured, the bytes taken in and the codes put out, and the two bit-mask
  * tables `output` packs codes with.
  */
-struct engine_compress_data ENGINE_COMPRESS = {
+struct engine_compress_data g_engine_compress = {
     5003, 0, 0, 0, 0, 10000, 1, 0,
     { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x00 },
     { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff },
@@ -71,16 +71,16 @@ struct engine_compress_data ENGINE_COMPRESS = {
  * width, the bytes put out, the bit offset into the pack, and whether the
  * next byte is the first.
  */
-struct engine_compress_state ENGINE_COMPRESS_STATE;
+struct engine_compress_state g_engine_compress_state;
 
-#define LZC ENGINE_COMPRESS
-#define LZS ENGINE_COMPRESS_STATE
+#define LZC g_engine_compress
+#define LZS g_engine_compress_state
 
 /* The hash table, `hsize` longs at the front of the stream's scratch block,
    and the code table right after it: `hsize * 4` is 0x4e2c. */
-#define htabof(i)    (((int32_t huge *)ENGINE_STREAM.scratch)[i])
+#define htabof(i)    (((int32_t huge *)g_engine_stream.scratch)[i])
 #define codetabof(i) (*(int16_t huge *)((uint8_t huge *) \
-                        ((int16_t huge *)ENGINE_STREAM.scratch + (i)) + 0x4e2c))
+                        ((int16_t huge *)g_engine_stream.scratch + (i)) + 0x4e2c))
 
 /*
  * 0x1ce1f
@@ -151,9 +151,9 @@ int16_t near lzw_flush(int16_t final)
     register int16_t i = 0;
     register int16_t c;
 
-    buf = ENGINE_STREAM.spill;
-    start = ENGINE_STREAM.rec->spill_start;
-    end = ENGINE_STREAM.rec->spill_end;
+    buf = g_engine_stream.spill;
+    start = g_engine_stream.rec->spill_start;
+    end = g_engine_stream.rec->spill_end;
     while ((start &= 0x7f) != end) {
         c = buf[start++];
         if (LZS.first) {
@@ -188,8 +188,8 @@ probe:
             goto probe;
         }
     }
-    ENGINE_STREAM.rec->spill_start = start;
-    ENGINE_STREAM.rec->spill_end = end;
+    g_engine_stream.rec->spill_start = start;
+    g_engine_stream.rec->spill_end = end;
     if (final) {
         output(LZS.ent);
         LZC.out_count++;
@@ -318,7 +318,7 @@ void near cl_hash(int32_t hsize)
 {
     int32_t huge *p;
 
-    p = (int32_t huge *)ENGINE_STREAM.scratch;
+    p = (int32_t huge *)g_engine_stream.scratch;
     while (--hsize >= 0) {
         *p = -1;
         p++;
@@ -347,9 +347,9 @@ void near rle_flush(int16_t final)
     register uint8_t *buf;
     register int16_t last;
 
-    buf = ENGINE_STREAM.spill;
-    start = ENGINE_STREAM.rec->spill_start;
-    end = ENGINE_STREAM.rec->spill_end;
+    buf = g_engine_stream.spill;
+    start = g_engine_stream.rec->spill_start;
+    end = g_engine_stream.rec->spill_end;
     while ((avail = (end - start) & 0x7f) != 0) {
         last = -1;
         j = start;
@@ -387,8 +387,8 @@ void near rle_flush(int16_t final)
                 start &= 0x7f;
             }
     }
-    ENGINE_STREAM.rec->spill_start = start;
-    ENGINE_STREAM.rec->spill_end = end;
+    g_engine_stream.rec->spill_start = start;
+    g_engine_stream.rec->spill_end = end;
 }
 
 /*
@@ -413,29 +413,29 @@ int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size)
 
     if ((slot = open_resource_slot(mode)) == -1)
         return -1;
-    ENGINE_STREAM.rec->data.file = file;
-    ENGINE_STREAM.rec->start = game_ftell(file);
-    ENGINE_STREAM.rec->in = 5;
+    g_engine_stream.rec->data.file = file;
+    g_engine_stream.rec->start = game_ftell(file);
+    g_engine_stream.rec->in = 5;
     if (string_contains_r(mode)) {
-        if (prepare_resource_slot(type = ENGINE_STREAM.rec->kind = game_fgetc(file),
+        if (prepare_resource_slot(type = g_engine_stream.rec->kind = game_fgetc(file),
                                   mode) == -1) {
             game_fseek(file, -1L, 1);
             return close_resource_slot(slot);
         }
-        ENGINE_STREAM.rec->end = size;
-        game_fread((uint8_t *)&ENGINE_STREAM.rec->size, 1, 4, file);
-        if (ENGINE_RES_HANDLERS.type[type].reset)
-            ENGINE_RES_HANDLERS.type[type].reset();
-        ENGINE_STREAM.rec->kind |= 0x40;
+        g_engine_stream.rec->end = size;
+        game_fread((uint8_t *)&g_engine_stream.rec->size, 1, 4, file);
+        if (g_engine_res_handlers.type[type].reset)
+            g_engine_res_handlers.type[type].reset();
+        g_engine_stream.rec->kind |= 0x40;
     } else {
         if (prepare_resource_slot(type, mode) == -1)
             return close_resource_slot(slot);
         game_fputc(type, file);
         game_fwrite((uint8_t *)&header, 1, 4, file);
-        if (ENGINE_RES_HANDLERS.type[type].open_write)
-            ENGINE_RES_HANDLERS.type[type].open_write();
+        if (g_engine_res_handlers.type[type].open_write)
+            g_engine_res_handlers.type[type].open_write();
     }
-    ENGINE_STREAM.rec->kind |= 0x20;
+    g_engine_stream.rec->kind |= 0x20;
     return slot;
 }
 
@@ -451,22 +451,22 @@ int16_t open_resource_mem(int16_t type, char huge *data, char *mode, int32_t siz
 
     if ((slot = open_resource_slot(mode)) == -1)
         return -1;
-    ENGINE_STREAM.rec->data.ptr = data;
-    ENGINE_STREAM.rec->kind = type;
-    ENGINE_STREAM.rec->in = 5;
+    g_engine_stream.rec->data.ptr = data;
+    g_engine_stream.rec->kind = type;
+    g_engine_stream.rec->in = 5;
     if (string_contains_r(mode)) {
-        if (prepare_resource_slot(type = ENGINE_STREAM.rec->kind = *data++,
+        if (prepare_resource_slot(type = g_engine_stream.rec->kind = *data++,
                                   mode) == -1)
             return close_resource_slot(slot);
-        far_memcpy((uint8_t *)&ENGINE_STREAM.rec->size, (uint8_t huge *)data, 4);
-        ENGINE_STREAM.rec->end = size;
-        if (ENGINE_RES_HANDLERS.type[type].reset)
-            ENGINE_RES_HANDLERS.type[type].reset();
-        ENGINE_STREAM.rec->kind |= 0x40;
+        far_memcpy((uint8_t *)&g_engine_stream.rec->size, (uint8_t huge *)data, 4);
+        g_engine_stream.rec->end = size;
+        if (g_engine_res_handlers.type[type].reset)
+            g_engine_res_handlers.type[type].reset();
+        g_engine_stream.rec->kind |= 0x40;
     } else {
         if (prepare_resource_slot(type, mode) == -1)
             return close_resource_slot(slot);
-        *ENGINE_STREAM.rec->data.ptr = type;
+        *g_engine_stream.rec->data.ptr = type;
     }
     return slot;
 }
@@ -483,20 +483,20 @@ int16_t close_resource(int16_t handle)
 {
     if (!select_resource(handle))
         return -1;
-    ENGINE_STREAM.written = 0;
-    if (!(ENGINE_STREAM.kind & 0x40)) {
-        ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].flush(1);
-        if (ENGINE_STREAM.kind & 0x20) {
-            game_fseek(ENGINE_RESOURCE_FLAGS.file, ENGINE_STREAM.rec->start + 1, 0);
-            game_fwrite((uint8_t *)&ENGINE_STREAM.rec->size, 4, 1,
-                        ENGINE_RESOURCE_FLAGS.file);
-            game_fseek(ENGINE_RESOURCE_FLAGS.file, 0L, 2);
+    g_engine_stream.written = 0;
+    if (!(g_engine_stream.kind & 0x40)) {
+        g_engine_res_handlers.type[g_engine_resource_flags.handler].flush(1);
+        if (g_engine_stream.kind & 0x20) {
+            game_fseek(g_engine_resource_flags.file, g_engine_stream.rec->start + 1, 0);
+            game_fwrite((uint8_t *)&g_engine_stream.rec->size, 4, 1,
+                        g_engine_resource_flags.file);
+            game_fseek(g_engine_resource_flags.file, 0L, 2);
         } else
-            far_memcpy((uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + 1),
-                       (uint8_t *)&ENGINE_STREAM.rec->size, 4);
+            far_memcpy((uint8_t huge *)(g_engine_stream.rec->data.ptr + 1),
+                       (uint8_t *)&g_engine_stream.rec->size, 4);
     }
     close_resource_slot(handle);
-    return ENGINE_STREAM.written;
+    return g_engine_stream.written;
 }
 
 /*
@@ -511,8 +511,8 @@ int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count)
 {
     if (!select_resource(handle))
         return -1;
-    ENGINE_STREAM.out = normalise_pointer_far(dst);
-    ENGINE_RESOURCE_FLAGS.flags |= 0x40;
+    g_engine_stream.out = normalise_pointer_far(dst);
+    g_engine_resource_flags.flags |= 0x40;
     return resource_read(handle, count);
 }
 
@@ -532,13 +532,13 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count)
 
     if (!select_resource(handle))
         return -1;
-    ENGINE_STREAM.written = 0;
-    ENGINE_STREAM.rec->size += count;
-    buf = ENGINE_STREAM.rec->work;
+    g_engine_stream.written = 0;
+    g_engine_stream.rec->size += count;
+    buf = g_engine_stream.rec->work;
     p = src;
     while (count) {
-        end = ENGINE_STREAM.rec->spill_end;
-        stop = (ENGINE_STREAM.rec->spill_start - 1) & 0x7f;
+        end = g_engine_stream.rec->spill_end;
+        stop = (g_engine_stream.rec->spill_start - 1) & 0x7f;
         do {
             buf[end] = *p;
             p++;
@@ -546,10 +546,10 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count)
             count--;
             end &= 0x7f;
         } while (end != stop && count);
-        ENGINE_STREAM.rec->spill_end = end & 0x7f;
-        ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].flush(0);
+        g_engine_stream.rec->spill_end = end & 0x7f;
+        g_engine_res_handlers.type[g_engine_resource_flags.handler].flush(0);
     }
-    return ENGINE_STREAM.written;
+    return g_engine_stream.written;
 }
 
 /*
@@ -562,7 +562,7 @@ int32_t resource_size(int16_t handle)
 {
     if (!select_resource(handle))
         return -1L;
-    return ENGINE_STREAM.rec->size;
+    return g_engine_stream.rec->size;
 }
 
 /*
@@ -587,27 +587,27 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
     t = 0;
     switch (whence) {
     case 1:
-        t = ENGINE_STREAM.rec->pos;
+        t = g_engine_stream.rec->pos;
         break;
     case 2:
-        t = ENGINE_STREAM.rec->size;
+        t = g_engine_stream.rec->size;
         break;
     }
     t += by;
-    if (ENGINE_STREAM.rec->pos == t)
+    if (g_engine_stream.rec->pos == t)
         return t;
-    if (ENGINE_STREAM.rec->pos > t) {
+    if (g_engine_stream.rec->pos > t) {
         restart_resource_stream(handle);
         if (t <= 0)
             return 0L;
-    } else if (ENGINE_STREAM.rec->size <= t)
-        t = ENGINE_STREAM.rec->size - ENGINE_STREAM.rec->pos;
+    } else if (g_engine_stream.rec->size <= t)
+        t = g_engine_stream.rec->size - g_engine_stream.rec->pos;
     else
-        t -= ENGINE_STREAM.rec->pos;
+        t -= g_engine_stream.rec->pos;
     while ((t -= (uint16_t)resource_read(handle, t < 0x7d00L ? (uint16_t)t : 0x7d00)) != 0)
-        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + ENGINE_STREAM.rec->in));
-    return ENGINE_STREAM.rec->pos;
+        g_engine_stream.in = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in));
+    return g_engine_stream.rec->pos;
 }
 
 /*
@@ -621,17 +621,17 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
  */
 int16_t restart_resource_stream(int16_t handle)
 {
-    if (!select_resource(handle) || !(ENGINE_STREAM.kind & 0x40))
+    if (!select_resource(handle) || !(g_engine_stream.kind & 0x40))
         return -1;
-    if (ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset)
-        ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset();
-    ENGINE_STREAM.rec->in = 5;
-    if (ENGINE_STREAM.rec->kind & 0x20)
-        game_fseek(ENGINE_RESOURCE_FLAGS.file, ENGINE_STREAM.rec->start + 5, 0);
+    if (g_engine_res_handlers.type[g_engine_resource_flags.handler].reset)
+        g_engine_res_handlers.type[g_engine_resource_flags.handler].reset();
+    g_engine_stream.rec->in = 5;
+    if (g_engine_stream.rec->kind & 0x20)
+        game_fseek(g_engine_resource_flags.file, g_engine_stream.rec->start + 5, 0);
     else
-        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + 5));
-    ENGINE_STREAM.rec->spill_end = ENGINE_STREAM.rec->spill_start =
-        ENGINE_STREAM.rec->pos = 0;
+        g_engine_stream.in = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_engine_stream.rec->data.ptr + 5));
+    g_engine_stream.rec->spill_end = g_engine_stream.rec->spill_start =
+        g_engine_stream.rec->pos = 0;
     return 0;
 }

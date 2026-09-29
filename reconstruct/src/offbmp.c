@@ -39,7 +39,7 @@
  *
  * The clip switch and the driver's two colour bytes - which a one-colour leaf
  * overwrites - are saved first and put back on every path, including an
- * `open_bit_reader` that refuses, which also leaves `BITMAPS.walk` 0.
+ * `open_bit_reader` that refuses, which also leaves `g_bitmaps.walk` 0.
  *
  * **Which far pointer reaches the reader** is Borland's `MK_FP` with its own
  * evaluation: the normalised segment and the offset's low nibble go into `p`,
@@ -55,27 +55,27 @@ void draw_offset_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
     register int16_t w;
     register int16_t h;
 
-    saved_second = VMDS.second_colour;
-    saved_fill = VMDS.fill_colour;
-    saved_clip = VMDS.clip_enabled;
+    saved_second = g_vmds.second_colour;
+    saved_fill = g_vmds.fill_colour;
+    saved_clip = g_vmds.clip_enabled;
     seg = bmp->data_seg + (bmp->data_off >> 4);
     p = FAR_OF_LONG(seg, bmp->data_off & 0xf);
-    if ((BITMAPS.walk = open_bit_reader(BCC_FAR_ARG(p, seg))) != 0) {
+    if ((g_bitmaps.walk = open_bit_reader(BCC_FAR_ARG(p, seg))) != 0) {
         w = bmp->width;
         h = bmp->height;
-        if (x >= VMDS.clip_left && y >= VMDS.clip_top
-            && x + w <= VMDS.clip_right && y + h <= VMDS.clip_bottom)
-            g_vqt_plot_fn = ((bmp_plot_fn)VM_DRIVER.entry[22]);
+        if (x >= g_vmds.clip_left && y >= g_vmds.clip_top
+            && x + w <= g_vmds.clip_right && y + h <= g_vmds.clip_bottom)
+            g_vqt_plot_fn = ((bmp_plot_fn)g_vm_driver.entry[22]);
         else {
             g_vqt_plot_fn = plot_pixel_clipped;
-            VMDS.clip_enabled = 1;
+            g_vmds.clip_enabled = 1;
         }
-        BITMAPS.plot_zero = 0;
-        BITMAPS.draw_flags = mode;
+        g_bitmaps.plot_zero = 0;
+        g_bitmaps.draw_flags = mode;
         draw_vqt_flipped(x, y, w, h);
         close_bit_reader();
     }
-    VMDS.clip_enabled = saved_clip;
-    VMDS.second_colour = saved_second;
-    VMDS.fill_colour = saved_fill;
+    g_vmds.clip_enabled = saved_clip;
+    g_vmds.second_colour = saved_second;
+    g_vmds.fill_colour = saved_fill;
 }

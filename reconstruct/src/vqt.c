@@ -17,7 +17,7 @@
  * host's transcription in the `#else`. The functions are in address order and each
  * carries the image offset it was read from, as everywhere else.
  *
- * The records it walks are `bitmaps.c`'s: `BITMAPS.walk`, the reader the
+ * The records it walks are `bitmaps.c`'s: `g_bitmaps.walk`, the reader the
  * bitmap and screen loaders point it at.
  *
  * JUDGE: built-with -mm
@@ -36,9 +36,9 @@
  */
 asm {
 extrn _redraw_cursor:far
-extrn _BITMAP_COMPRESS:byte
-extrn _VM_DRIVER:byte
-extrn _VMDS:byte
+extrn _g_bitmap_compress:byte
+extrn _g_vm_driver:byte
+extrn _g_vmds:byte
 VQT_TEXT segment byte public 'CODE'
 assume cs:VQT_TEXT, ds:DGROUP
 public _vqt_read_bits, _vqt_screen_node, _fill_screen_quadrant, _far_copy
@@ -49,7 +49,7 @@ _vqt_read_bits proc near
         push bp
         mov bp, sp
         mov bx, word ptr [bp+4]
-        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
@@ -96,7 +96,7 @@ _vqt_screen_node proc near
         mov ax, si
         or ax, di
         je L2599a
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -135,7 +135,7 @@ _vqt_screen_node proc near
         jmp short L25a1d
 L25a0e:
         call _fill_screen_quadrant
-        mov ax, word ptr DGROUP:_VMDS+14h
+        mov ax, word ptr DGROUP:_g_vmds+14h
         push ax
         call FAR PTR _redraw_cursor
         add sp, 2
@@ -237,7 +237,7 @@ _fill_screen_quadrant proc near
         jne L25b39
         cmp di, 1
         jne L25b39
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -274,7 +274,7 @@ _fill_screen_quadrant proc near
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_VMDS+18h
+        mov ax, word ptr DGROUP:_g_vmds+18h
         mov es, ax
         mov byte ptr es:[bx], ch
         pop di
@@ -299,7 +299,7 @@ L25b4d:
 L25b52:
         push bp
         mov bx, cx
-        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
@@ -358,7 +358,7 @@ L25ba3:
         cmp bx, ax
         ja L25c53
 L25bdc:
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -395,7 +395,7 @@ L25bdc:
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_VMDS+18h
+        mov ax, word ptr DGROUP:_g_vmds+18h
         mov es, ax
         mov byte ptr es:[bx], ch
         inc si
@@ -413,7 +413,7 @@ L25bdc:
 L25c53:
         cmp byte ptr [bp-4], 1
         jne L25cbf
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -439,7 +439,7 @@ L25c53:
         mov bx, word ptr [bp+6]
         shl bx, 1
         mov di, word ptr [bx+3f82h]
-        mov bx, word ptr DGROUP:_VMDS+18h
+        mov bx, word ptr DGROUP:_g_vmds+18h
         mov es, bx
         mov si, word ptr [bp+0ah]
 L25ca3:
@@ -447,7 +447,7 @@ L25ca3:
         mov bx, word ptr [bp+4]
         push di
         mov ah, al
-        call dword ptr DGROUP:_VM_DRIVER+2ch
+        call dword ptr DGROUP:_g_vm_driver+2ch
         pop di
         add di, 50h
         dec si
@@ -460,7 +460,7 @@ L25ca3:
 L25cbf:
         lea di, [bp-10ah]
 L25cc3:
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -492,7 +492,7 @@ L25cc3:
 L25d08:
         push bp
         mov bx, word ptr [bp-2]
-        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
@@ -535,7 +535,7 @@ L25d08:
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_VMDS+18h
+        mov ax, word ptr DGROUP:_g_vmds+18h
         mov es, ax
         mov byte ptr es:[bx], ch
         inc si
@@ -594,7 +594,7 @@ _vqt_node proc near
         mov ax, si
         or ax, di
         je L25db1
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -731,7 +731,7 @@ _fill_quadrant proc near
         jne L25f3f
         cmp di, 1
         jne L25f3f
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -757,7 +757,7 @@ _fill_quadrant proc near
         mov di, word ptr [bp+4]
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
         lea bx, [di+18h]
         mov ax, word ptr [bp+6]
         shl ax, 1
@@ -792,7 +792,7 @@ L25f53:
 L25f58:
         push bp
         mov bx, cx
-        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
@@ -851,7 +851,7 @@ L25fa9:
         cmp bx, ax
         ja L26052
 L25fe2:
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -876,7 +876,7 @@ L25fe2:
         shr ax, cl
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
         lea bx, [di+18h]
         mov ax, si
         shl ax, 1
@@ -904,7 +904,7 @@ L25fe2:
 L26052:
         cmp byte ptr [bp-4], 1
         jne L260c9
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -933,7 +933,7 @@ L26096:
         mov si, word ptr [bp+4]
         mov cx, word ptr [bp+8]
 L2609c:
-        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
         lea bx, [di+18h]
         mov ax, dx
         shl ax, 1
@@ -958,7 +958,7 @@ L2609c:
 L260c9:
         lea di, [bp-10ah]
 L260cd:
-        mov bx, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
         mov cx, ax
@@ -990,7 +990,7 @@ L260cd:
 L26112:
         push bp
         mov bx, word ptr [bp-2]
-        mov bp, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
@@ -1021,7 +1021,7 @@ L26112:
         mov al, byte ptr [bx]
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_BITMAP_COMPRESS+2ah
+        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
         lea bx, [di+18h]
         mov ax, si
         shl ax, 1
@@ -1056,7 +1056,7 @@ VQT_TEXT ends
 /*
  * 0x25953
  *
- * **Read `bits` bits** from the reader `BITMAPS.walk` names, and step its
+ * **Read `bits` bits** from the reader `g_bitmaps.walk` names, and step its
  * position past them. `g_vqt_read_fn`'s only target.
  *
  * The same read `vqt_node` makes for its four: a word at `data.off + (pos >>
@@ -1072,7 +1072,7 @@ VQT_TEXT ends
  */
 uint16_t near vqt_read_bits(uint16_t bits)
 {
-    struct vqt_reader *rd = BITMAPS.walk;
+    struct vqt_reader *rd = g_bitmaps.walk;
     uint16_t turn = (uint16_t)((bits & 0x1f) % 16);
     uint16_t mask = (uint16_t)(((uint16_t)(0xff00u << turn)
                                 | (uint16_t)(0xff00u >> ((16 - turn) & 15)))
@@ -1109,7 +1109,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = BITMAPS.walk;
+    rd = g_bitmaps.walk;
     pos = (uint32_t)rd->pos;
     rd->pos = (int32_t)(pos + 4);
 
@@ -1122,7 +1122,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         vqt_screen_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
     } else {
         fill_screen_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
-        redraw_cursor(VMDS.page_front);
+        redraw_cursor(g_vmds.page_front);
     }
 
     if (code & 4)
@@ -1155,8 +1155,8 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * byte, with a different destination: not a plane buffer but video memory,
  * one plane to a pixel.
  *
- * A pixel at x goes into the byte `VMDS.row_offset[y] + (x >> 2)` of the page
- * `VMDS.page_dst`, and the plane is chosen for each write with the
+ * A pixel at x goes into the byte `g_vmds.row_offset[y] + (x >> 2)` of the page
+ * `g_vmds.page_dst`, and the plane is chosen for each write with the
  * Sequencer's map mask - `mov ax,0x102 / shl ah,cl / out dx,ax` with CL the
  * low two bits of x, so plane `1 << (x & 3)`. The three places that write a
  * pixel each spell that out, and so does this.
@@ -1168,7 +1168,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * palette. The reads are `vqt_read_bits` written out in place, as there.
  *
  * Two things differ. A **one-colour** palette fills each row with one far call
- * through DGROUP 0x436e, `VM_DRIVER.entry[10]`, the driver's span fill at
+ * through DGROUP 0x436e, `g_vm_driver.entry[10]`, the driver's span fill at
  * VGA:0x034f - registers AX the colour in both halves, BX x, CX w, ES:DI the
  * row - stepping DI by 0x50 a row. `vm_init` is the only writer of that table,
  * so this calls `vm_span` directly. And the **palette loop's x test is
@@ -1199,10 +1199,10 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if (w == 1 && h == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        at = (uint16_t)(VMDS.row_offset[y] + (x >> 2));
+        at = (uint16_t)(g_vmds.row_offset[y] + (x >> 2));
         io_out16(PORT_SEQ_INDEX,
                  (uint16_t)(((uint16_t)(uint8_t)(1 << (x & 3)) << 8) | 0x02));
-        vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at), colour);
+        vga_write((uint16_t)(vga_seg_offset(g_vmds.page_dst) + at), colour);
         return;
     }
 
@@ -1239,12 +1239,12 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         do {
             do {
                 colour = (uint8_t)vqt_read_bits(8);
-                at = (uint16_t)(VMDS.row_offset[(uint16_t)yi]
+                at = (uint16_t)(g_vmds.row_offset[(uint16_t)yi]
                                 + ((uint16_t)xi >> 2));
                 io_out16(PORT_SEQ_INDEX,
                          (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                     | 0x02));
-                vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at),
+                vga_write((uint16_t)(vga_seg_offset(g_vmds.page_dst) + at),
                           colour);
                 yi++;
             } while (yi < y1);
@@ -1256,11 +1256,11 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if ((uint8_t)n == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        row = VMDS.row_offset[y];                   /* di */
+        row = g_vmds.row_offset[y];                   /* di */
         rows = h;                                     /* si */
         do {
             vm_span((uint16_t)((colour << 8) | colour), x, (int16_t)w,
-                    vga_window_at((uint16_t)VMDS.page_dst, row));
+                    vga_window_at((uint16_t)g_vmds.page_dst, row));
             row = (uint16_t)(row + 0x50);
         } while (--rows != 0);
         return;
@@ -1277,12 +1277,12 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     do {
         do {
             colour = palette[vqt_read_bits(index_bits)];
-            at = (uint16_t)(VMDS.row_offset[(uint16_t)yi]
+            at = (uint16_t)(g_vmds.row_offset[(uint16_t)yi]
                             + ((uint16_t)xi >> 2));
             io_out16(PORT_SEQ_INDEX,
                      (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
                                 | 0x02));
-            vga_write((uint16_t)(vga_seg_offset(VMDS.page_dst) + at),
+            vga_write((uint16_t)(vga_seg_offset(g_vmds.page_dst) + at),
                       colour);
             yi++;
         } while (yi < y1);
@@ -1362,7 +1362,7 @@ void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = BITMAPS.walk;
+    rd = g_bitmaps.walk;
     pos = (uint32_t)rd->pos;
     rd->pos = (int32_t)(pos + 4);
 
@@ -1404,7 +1404,7 @@ void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  *
  * **The quadtree's leaf: paint one rectangle of the bitmap** from what the bit
  * stream says next. Every pixel goes into the first plane of the reader record
- * `BITMAPS.walk` names, at `plane[0] + row[y] + x` - a 16-bit offset
+ * `g_bitmaps.walk` names, at `plane[0] + row[y] + x` - a 16-bit offset
  * inside the plane's segment - and the other three planes are not touched.
  *
  * Either dimension 0 paints nothing; a 1 by 1 leaf is one byte read and
@@ -1463,7 +1463,7 @@ void near fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 
     if (w == 1 && h == 1) {
         colour = (uint8_t)vqt_read_bits(8);
-        rd = BITMAPS.walk;
+        rd = g_bitmaps.walk;
         rd->plane[0][(uint16_t)rd->row[y] + x] = colour;
         return;
     }
@@ -1501,7 +1501,7 @@ void near fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         do {
             do {
                 colour = (uint8_t)vqt_read_bits(8);
-                rd = BITMAPS.walk;
+                rd = g_bitmaps.walk;
                 rd->plane[0][(uint16_t)rd->row[yi]
                                          + (uint16_t)xi] = colour;
                 yi++;
@@ -1519,7 +1519,7 @@ void near fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
             xi = (int16_t)x;
             count = w;
             do {
-                rd = BITMAPS.walk;
+                rd = g_bitmaps.walk;
                 rd->plane[0][(uint16_t)rd->row[yi]
                                          + (uint16_t)xi] = colour;
                 xi++;
@@ -1540,7 +1540,7 @@ void near fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     do {
         do {
             colour = palette[vqt_read_bits(index_bits)];
-            rd = BITMAPS.walk;
+            rd = g_bitmaps.walk;
             rd->plane[0][(uint16_t)rd->row[yi]
                                      + (uint16_t)xi] = colour;
             yi++;

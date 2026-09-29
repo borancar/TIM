@@ -31,22 +31,24 @@ struct engine_text_colours {
     uint8_t   colour[5];          /* +0x00 [5] */
 } PACKED;
 
-struct engine_text_colours ENGINE_TEXT_COLOURS = { { 0x00, 0x01, 0x02, 0x03, 0x04 } };
+struct engine_text_colours g_engine_text_colours = { { 0x00, 0x01, 0x02, 0x03, 0x04 } };
 
 #ifdef __TURBOC__
 /* The driver's glyph entry, slot 1 (DGROUP 0x434a): everything in
    registers. Called from C, because Borland C++ 2.0's own assembler reads a
-   name after `call` as a C label - `call dword ptr VM_DRIVER+8` assembled as
-   `VM_DRIVER-8`. */
+   name after `call` as a C label - `call dword ptr g_vm_driver+8` assembled as
+   `g_vm_driver-8`. */
 typedef void (far *vm_glyph_fn)(void);
 #endif
 
-/* **This module's `_BSS`**, DGROUP 0x6176..0x628e: the five font tables. */
-struct engine_font_kinds ENGINE_FONT_KINDS;
-struct engine_font_bodies ENGINE_FONT_BODIES;   /* DGROUP 0x618a */
-struct engine_font_widths ENGINE_FONT_WIDTHS;   /* DGROUP 0x61da */
-struct engine_font_slots ENGINE_FONT_SLOTS;   /* DGROUP 0x622a */
-struct engine_underline_rows ENGINE_UNDERLINE_ROWS;   /* DGROUP 0x627a */
+/* **This module's `_BSS`**, DGROUP 0x6176..0x628e: the five font tables. BC++
+   2.0 orders them by name, and these names are ones that order puts where
+   the image has them - `g_engine_font_*` did not; see files.c. */
+struct engine_font_kinds g_font_kinds;
+struct engine_font_bodies g_font_bodies;   /* DGROUP 0x618a */
+struct engine_font_widths g_font_widths;   /* DGROUP 0x61da */
+struct engine_font_slots g_font_slots;   /* DGROUP 0x622a */
+struct engine_underline_rows g_underline_rows;   /* DGROUP 0x627a */
 
 /*
  * 0x2149e
@@ -74,9 +76,9 @@ uint16_t set_font(register int16_t slot)
     uint8_t far *cur;                   /* [bp-6] */
 
     if (slot == 0) {
-        if ((cur = ENGINE_FONT_BODIES.body[0]) != NULL) {
+        if ((cur = g_font_bodies.body[0]) != NULL) {
             /* Which slot holds the same pointer as slot 0. */
-            for (p = &ENGINE_FONT_BODIES.body[found = 1]; found < 0x14; found++, p++)
+            for (p = &g_font_bodies.body[found = 1]; found < 0x14; found++, p++)
                 if (*p == cur)
                     break;
         } else
@@ -84,16 +86,16 @@ uint16_t set_font(register int16_t slot)
     } else if (font_slot_in_use(slot)) {
         found = slot;
 
-        ENGINE_FONT_KINDS.kind[0] = ENGINE_FONT_KINDS.kind[slot];
-        VMDS.font_cell_width[0] = VMDS.font_cell_width[slot];
-        VMDS.font_cell_height[0] = VMDS.font_cell_height[slot];
-        ENGINE_UNDERLINE_ROWS.underline_row[0] = ENGINE_UNDERLINE_ROWS.underline_row[slot];
-        VMDS.font_first_char[0] = VMDS.font_first_char[slot];
-        VMDS.font_char_count[0] = VMDS.font_char_count[slot];
+        g_font_kinds.kind[0] = g_font_kinds.kind[slot];
+        g_vmds.font_cell_width[0] = g_vmds.font_cell_width[slot];
+        g_vmds.font_cell_height[0] = g_vmds.font_cell_height[slot];
+        g_underline_rows.underline_row[0] = g_underline_rows.underline_row[slot];
+        g_vmds.font_first_char[0] = g_vmds.font_first_char[slot];
+        g_vmds.font_char_count[0] = g_vmds.font_char_count[slot];
 
-        ENGINE_FONT_BODIES.body[0] = ENGINE_FONT_BODIES.body[slot];
-        ENGINE_FONT_WIDTHS.width[0] = ENGINE_FONT_WIDTHS.width[slot];
-        ENGINE_FONT_SLOTS.slot[0] = ENGINE_FONT_SLOTS.slot[slot];
+        g_font_bodies.body[0] = g_font_bodies.body[slot];
+        g_font_widths.width[0] = g_font_widths.width[slot];
+        g_font_slots.slot[0] = g_font_slots.slot[slot];
     }
 
     return (uint16_t)found;
@@ -113,7 +115,7 @@ uint16_t font_char_width(register int16_t slot)
     uint8_t w;
 
     if (font_slot_in_use(slot) || slot == 0)
-        w = VMDS.font_cell_width[slot];
+        w = g_vmds.font_cell_width[slot];
     else
         w = 0;
     return w;
@@ -135,7 +137,7 @@ uint16_t font_line_height(register int16_t slot)
     uint8_t h;
 
     if (font_slot_in_use(slot) || slot == 0)
-        h = VMDS.font_cell_height[slot];
+        h = g_vmds.font_cell_height[slot];
     else
         h = 0;
     return h;
@@ -144,7 +146,7 @@ uint16_t font_line_height(register int16_t slot)
 /*
  * 0x215d5
  *
- * Whether a font slot - an entry of `ENGINE_FONT_BODIES`, DGROUP 0x618a - is
+ * Whether a font slot - an entry of `g_font_bodies`, DGROUP 0x618a - is
  * in use.
  * Answers 1 for a non-null far pointer there, 0 otherwise.
  *
@@ -155,7 +157,7 @@ uint16_t font_line_height(register int16_t slot)
 uint16_t font_slot_in_use(register int16_t index)
 {
     return index > 0 && index < 0x14
-           && ENGINE_FONT_BODIES.body[index] != NULL;
+           && g_font_bodies.body[index] != NULL;
 }
 
 /*
@@ -194,16 +196,16 @@ uint16_t text_width(const char far *str)
 {
     register int16_t index;
     register uint16_t width = 0;
-    int16_t proportional = ENGINE_FONT_WIDTHS.width[0] != NULL;
+    int16_t proportional = g_font_widths.width[0] != NULL;
 
     while (*str != 0) {
-        index = (uint8_t)*str++ - VMDS.font_first_char[0];
+        index = (uint8_t)*str++ - g_vmds.font_first_char[0];
         /* A character outside the font is skipped, not the end: both tests
            go back to the loop's own. */
-        if (index >= 0 && VMDS.font_char_count[0] > index)
+        if (index >= 0 && g_vmds.font_char_count[0] > index)
             /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
-            width += proportional ? ENGINE_FONT_SLOTS.slot[0][index]
-                                  : VMDS.font_cell_width[0];
+            width += proportional ? g_font_slots.slot[0][index]
+                                  : g_vmds.font_cell_width[0];
     }
 
     return width;
@@ -278,12 +280,12 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
     bmp_plot_fn plot;                   /* [bp-0x18] */
     register int16_t px;
 
-    entering = VMDS.text_colour;
-    index = c - VMDS.font_first_char[0];
-    if (index < 0 || VMDS.font_char_count[0] <= index)
+    entering = g_vmds.text_colour;
+    index = c - g_vmds.font_first_char[0];
+    if (index < 0 || g_vmds.font_char_count[0] <= index)
         return 0;
 
-    if (ENGINE_FONT_KINDS.kind[0] & 1) {
+    if (g_font_kinds.kind[0] & 1) {
         /*
          * **Both tables are far pointers.** `les bx, [0x622a]` and
          * `les bx, [0x61da]` load a segment as well as an offset, so the width
@@ -294,38 +296,38 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
          * briefing's title bar and its description came out smeared while the
          * panel's labels, which are bitmaps, were right.
          */
-        w = ENGINE_FONT_SLOTS.slot[0][index];
-        h = VMDS.font_cell_height[0];
-        glyph = ENGINE_FONT_BODIES.body[0]
-                + ((const uint16_t far *)ENGINE_FONT_WIDTHS.width[0])[index];
-    } else if (ENGINE_FONT_KINDS.kind[0] == 2) {
-        w = VMDS.font_cell_width[0];
-        h = VMDS.font_cell_height[0];
-        glyph = ENGINE_FONT_BODIES.body[0] + index * w * h;
+        w = g_font_slots.slot[0][index];
+        h = g_vmds.font_cell_height[0];
+        glyph = g_font_bodies.body[0]
+                + ((const uint16_t far *)g_font_widths.width[0])[index];
+    } else if (g_font_kinds.kind[0] == 2) {
+        w = g_vmds.font_cell_width[0];
+        h = g_vmds.font_cell_height[0];
+        glyph = g_font_bodies.body[0] + index * w * h;
     } else {
-        w = VMDS.font_cell_width[0];
-        h = VMDS.font_cell_height[0];
-        glyph = ENGINE_FONT_BODIES.body[0] + ((w + 7) >> 3) * index * h;
+        w = g_vmds.font_cell_width[0];
+        h = g_vmds.font_cell_height[0];
+        glyph = g_font_bodies.body[0] + ((w + 7) >> 3) * index * h;
     }
 
-    if (x < VMDS.clip_left || y < VMDS.clip_top
-        || x + w > (uint16_t)VMDS.clip_right
-        || y + h > (uint16_t)VMDS.clip_bottom)
+    if (x < g_vmds.clip_left || y < g_vmds.clip_top
+        || x + w > (uint16_t)g_vmds.clip_right
+        || y + h > (uint16_t)g_vmds.clip_bottom)
         plot = plot_pixel_clipped;
     else
-        plot = ((bmp_plot_fn)VM_DRIVER.entry[22]);
+        plot = ((bmp_plot_fn)g_vm_driver.entry[22]);
 
-    if (ENGINE_FONT_KINDS.kind[0] <= 1)
+    if (g_font_kinds.kind[0] <= 1)
         one_bit = 1;
     else
         one_bit = 0;
 
-    if (VMDS.text_style & 4)
+    if (g_vmds.text_style & 4)
         x += h / 2;
 
     for (row = 0; row < h; row++, y++, glyph++) {
-        if (!((int8_t)VMDS.text_style & 1)) {
-            VMDS.second_colour = VMDS.text_back;
+        if (!((int8_t)g_vmds.text_style & 1)) {
+            g_vmds.second_colour = g_vmds.text_back;
             clip_and_draw_line(x, y, x + w, y);
         }
 
@@ -340,8 +342,8 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
                 mask >>= 1;
             } else {
                 if ((pixel = *glyph) != 0)
-                    VMDS.text_colour = pixel < 5
-                                       ? ENGINE_TEXT_COLOURS.colour[pixel]
+                    g_vmds.text_colour = pixel < 5
+                                       ? g_engine_text_colours.colour[pixel]
                                        : pixel;
                 if (w - 1 > col)
                     glyph++;
@@ -350,27 +352,27 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
             px = x + col;
 
             if (pixel) {
-                if (VMDS.text_style & 0x10) {
+                if (g_vmds.text_style & 0x10) {
                     /* half-tone: every other pixel, but bold still draws */
                     if ((px + y) & 1)
-                        plot(px, y, (int8_t)VMDS.text_colour);
-                    else if (VMDS.text_style & 2)
-                        plot(px + 1, y, (int8_t)VMDS.text_colour);
+                        plot(px, y, (int8_t)g_vmds.text_colour);
+                    else if (g_vmds.text_style & 2)
+                        plot(px + 1, y, (int8_t)g_vmds.text_colour);
                 } else {
-                    plot(px, y, (int8_t)VMDS.text_colour);
-                    if (VMDS.text_style & 2)
-                        plot(px + 1, y, (int8_t)VMDS.text_colour);
+                    plot(px, y, (int8_t)g_vmds.text_colour);
+                    if (g_vmds.text_style & 2)
+                        plot(px + 1, y, (int8_t)g_vmds.text_colour);
                 }
-            } else if ((VMDS.text_style & 8)
-                       && ENGINE_UNDERLINE_ROWS.underline_row[0] == row)
+            } else if ((g_vmds.text_style & 8)
+                       && g_underline_rows.underline_row[0] == row)
                 plot(px, y, entering);
         }
 
-        if ((VMDS.text_style & 4) && (row & 1))
+        if ((g_vmds.text_style & 4) && (row & 1))
             x--;
     }
 
-    VMDS.text_colour = entering;
+    g_vmds.text_colour = entering;
     return w;
 }
 
@@ -435,7 +437,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
      * not a reading of the structure; the seed at 0x218f8 is there in the
      * prologue because the first pass has no previous width to use.
      */
-    w = VMDS.font_cell_width[0];
+    w = g_vmds.font_cell_width[0];
 
     if (!str)
         return;
@@ -448,8 +450,8 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
      * `jbe`, unsigned. Written as three unsigned tests they would agree on
      * every value this game uses and disagree on a style of 0x80 or more.
      */
-    if ((int8_t)VMDS.text_style <= 1 && !(int8_t)VMDS.clip_enabled
-        && ENGINE_FONT_KINDS.kind[0] <= 1) {
+    if ((int8_t)g_vmds.text_style <= 1 && !(int8_t)g_vmds.clip_enabled
+        && g_font_kinds.kind[0] <= 1) {
         /*
          * The fast path: a character goes straight to the driver, and one
          * **wider than 8 pixels** falls back to `draw_char`, because the
@@ -459,20 +461,20 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
             if (w > 8)
                 x += draw_char(*str, x, y);
             else {
-                index = (uint8_t)*str - VMDS.font_first_char[0];
-                if (ENGINE_FONT_WIDTHS.width[0] != NULL) {
+                index = (uint8_t)*str - g_vmds.font_first_char[0];
+                if (g_font_widths.width[0] != NULL) {
                     /* Far pointers, as in `draw_char`; see the note there. */
-                    w = ENGINE_FONT_SLOTS.slot[0][index];
-                    h = VMDS.font_cell_height[0];
-                    glyph = ENGINE_FONT_BODIES.body[0]
-                            + ((const uint16_t far *)ENGINE_FONT_WIDTHS.width[0])[index];
+                    w = g_font_slots.slot[0][index];
+                    h = g_vmds.font_cell_height[0];
+                    glyph = g_font_bodies.body[0]
+                            + ((const uint16_t far *)g_font_widths.width[0])[index];
                 } else {
                     if (stride == 0) {
-                        w = VMDS.font_cell_width[0];
-                        h = VMDS.font_cell_height[0];
+                        w = g_vmds.font_cell_width[0];
+                        h = g_vmds.font_cell_height[0];
                         stride = ((w + 7) >> 3) * h;
                     }
-                    glyph = ENGINE_FONT_BODIES.body[0] + index * stride;
+                    glyph = g_font_bodies.body[0] + index * stride;
                 }
                 /* The driver's glyph entry (slot 1, DGROUP 0x434a) takes
                    everything in registers, the row in BP. */
@@ -486,7 +488,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 asm mov cx, h
                 asm mov dx, x
                 asm mov bp, y
-                ((vm_glyph_fn)VM_DRIVER.entry[1])();
+                ((vm_glyph_fn)g_vm_driver.entry[1])();
                 asm pop di
                 asm pop si
                 asm pop bp
@@ -501,7 +503,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
         while (*str != 0) {
             w = draw_char(*str, x, y);
             x += w;
-            if (VMDS.text_style & 2)
+            if (g_vmds.text_style & 2)
                 x++;
             str++;
         }
@@ -523,12 +525,12 @@ uint16_t glyph_size(register int16_t c, register uint16_t *w,
     register uint16_t gw;
     uint16_t gh;
 
-    c -= VMDS.font_first_char[0];
-    if (c < 0 || VMDS.font_char_count[0] <= c)
+    c -= g_vmds.font_first_char[0];
+    if (c < 0 || g_vmds.font_char_count[0] <= c)
         return 0;
-    gw = ENGINE_FONT_WIDTHS.width[0] != NULL
-         ? ENGINE_FONT_SLOTS.slot[0][c] : VMDS.font_cell_width[0];
-    gh = VMDS.font_cell_height[0];
+    gw = g_font_widths.width[0] != NULL
+         ? g_font_slots.slot[0][c] : g_vmds.font_cell_width[0];
+    gh = g_vmds.font_cell_height[0];
     if (w)
         *w = gw;
     if (h)

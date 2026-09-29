@@ -257,7 +257,7 @@ like - and with it the two agree over five calls.
 ### What a field *is* is a measurement, not a reading
 
 **A field's name and the comment above it are somebody's earlier reading, and
-a wrong one defends itself.** `SOUND_BANK.tick_cb` was typed `struct far_ptr` and
+a wrong one defends itself.** `g_sound_bank.tick_cb` was typed `struct far_ptr` and
 commented "the timer callback; its segment is a relocation". Both halves are
 handles: `start_sound` stores what `timer_add_callback` *answers*, once per
 callback, and `shutdown_sound` hands each word straight back to
@@ -300,7 +300,7 @@ differed.
 lesson. The emulator pin had to carry the multi-byte video read, or
 `check_briefing` refuses. The screen had to be compared at all - the level
 screen never had been. And the difference had to be told apart from the port's
-own pacing, which is what the **hybrid** does: reading `LEVEL_SETTINGS.bonus_2` on both
+own pacing, which is what the **hybrid** does: reading `g_level_settings.bonus_2` on both
 sides through `TIM_LUA` and `tim.peek16`, the port rolled the counter while the
 hybrid - the original's code on the *port's* hardware and tick - did not. Same
 pacing, different behaviour, so the difference was in our C and not in the
@@ -336,7 +336,7 @@ were layout, and neither was in the routines.
 **Borland lays `_BSS` out in reverse order of first mention, and an `extern`
 in a header is a mention.** The four uninitialised objects were defined in
 the order that reverses to the image's, but `GAME_TEXT_LINES` and
-`PICKER_CARET` were also declared in `dgroup.h`, which the compiler reads
+`g_picker_caret` were also declared in `dgroup.h`, which the compiler reads
 first - so the caret, meant to be lowest, was entered second and came out
 next to highest. A test file with the same four definitions, with and
 without the two `extern`s, showed it in one compile. An object whose place
@@ -366,7 +366,7 @@ compile. It is the rule at the top of CLAUDE.md, measured: a transcription
 that agrees with every capture can still be wrong where no capture looked.
 
 Segment 2619 gave two more on 2026-09-27. `alloc_for_kind` sets
-`SOUND_BANK.load_error` to 1 when an allocation fails, and the port never had
+`g_sound_bank.load_error` to 1 when an allocation fails, and the port never had
 the store. `open_sound_file` clears the file and its kind only when it
 closes the previous file, and the port cleared them every time. Neither
 reaches a screen or a sample on the paths the checks drive.
@@ -391,7 +391,7 @@ order of definition changed that. A scratch file of sixteen `int`s showed
 why: BC++ 2.0 lays `_BSS` out in an order that comes from the names. It is
 neither alphabetical nor by length, and not the reverse first-mention order
 BC++ 3.0 uses (see the account above). Renaming the compressor's record from
-`ENGINE_BITMAP_COMPRESS` to `BITMAP_COMPRESS` put it last, as the image has
+`ENGINE_BITMAP_COMPRESS` to `g_bitmap_compress` put it last, as the image has
 it. The names are ours, so a name is a free choice, and the reason for this
 one is written beside it.
 
@@ -404,6 +404,18 @@ The module defines that `MK_FP` for itself under Borland.
 **A module that matches in its routines and not in its `_BSS` may be
 waiting on a name.** When moving definitions changes nothing, rename one
 object and compile again.
+
+It bit again on 2026-09-29, when every uppercase global took a `g_` prefix:
+`text.c`'s five font tables and `files.c`'s three records reordered and
+the linked image differed in 328 bytes. The order is a hash of the names
+that is not the sum-less-length hash Turbo C 3.0's scanner uses (all six
+orderings of `abc` land in one fixed order, so it is not a sum at all), and
+rather than finish reading it out of BC++ 2.0, the compiler answered: a
+scratch file of `char name[2];` per candidate, compiled under BC++ 2.0,
+gives the order in its publics, and the first natural spelling in the
+image's order was taken - `g_font_kinds` and its neighbours, `g_open_files`
+and `g_saved_file`. **Renaming a global in a BC++ 2.0 module is a byte
+change; `tools/link.py` is the check.**
 
 ### A compiler short of memory can write an object with no symbols, and exit 0
 
@@ -482,7 +494,7 @@ The built-in assembler has a trap of its own. **After `call`, it takes a
 name for a C label.** `asm call dword ptr VM_DRIVER` failed with "Expression
 syntax" at the function's closing brace, where the labels are resolved.
 `asm call dword ptr VM_DRIVER+8` compiled without a word and assembled as
-`VM_DRIVER-8`, `ff 1e f8 ff`. The routine still matched, because the judge
+`g_vm_driver-8`, `ff 1e f8 ff`. The routine still matched, because the judge
 masks fixups, and only its check of where each extern is placed caught it.
 A call through a far pointer in memory with nothing pushed is what C
 compiles anyway, so the glyph call is `VM_VECTOR(1, vm_glyph_fn)()` between
@@ -610,7 +622,7 @@ rules, each measured on this image:
     literals are another object's - a module with data and no code
     (`gamedata.c`), which the code layout cannot show.
   - **A data run that starts on a paragraph a C module's word alignment would
-    not reach is an assembly module's `para` segment.** `VMDS` at 0x3890
+    not reach is an assembly module's `para` segment.** `g_vmds` at 0x3890
     after lzhuf's data ending at 0x3886 is how the video interface was found
     to be a module of its own.
   - **`_BSS` is laid out last mention first (BC++ 3.0), and a header's
@@ -671,8 +683,8 @@ at 29/29: S28 and S30 diverged from the first flip after the machine
 started. Two mistakes met there.
 
 **Rewriting a routine to the image's shape dropped a cast the host
-needed.** `resolve_collisions` compares `COLLISION.contact_ptr`, declared
-`int16_t`, with `COLLISION.other_ptr`, a `dg_near_t`. Borland compares two
+needed.** `resolve_collisions` compares `g_collision.contact_ptr`, declared
+`int16_t`, with `g_collision.other_ptr`, a `dg_near_t`. Borland compares two
 16-bit words and cannot tell signed from unsigned. The host promotes both
 to `int`, so a part above DGROUP 0x8000 is negative on one side and
 positive on the other. The port had carried `(int16_t)` on the pointer,
@@ -1752,7 +1764,7 @@ When a record converts, grep for its image size.
 
 ### A record moved off its guest address leaves its near pointers behind
 
-`PALCHUNK` became the host's own layout on 2026-09-27 - a far pointer in it
+`g_palchunk` became the host's own layout on 2026-09-27 - a far pointer in it
 made it bigger - and the title screen's palette went 26 bytes wrong in the
 hybrid comparison while every pixel still matched. The record's `by_adapter`
 table was sixteen DGROUP offsets, 0x4486 to 0x44a1, naming the record's *own*
@@ -1763,7 +1775,7 @@ longer was: zeros, so the palette chunk looked up was the empty name.
 memory, but a literal offset in an initialiser was never made - it was typed.
 **When a record leaves its placement, every `dg_near_t` that can point into it
 has to become a real pointer with it**, and the initialiser says which member:
-`PALCHUNK.pal_vga`, not 0x4486. Two things were suspected and cleared first,
+`g_palchunk.pal_vga`, not 0x4486. Two things were suspected and cleared first,
 the font tables and the host's `MK_FP`, and the one that said which it was is
 `check_native --frames`: 0 pixels, 26 palette bytes.
 
@@ -1973,7 +1985,7 @@ that it has nothing to say.
 are called.** Converting every `seg`/`off` pair to `struct far_ptr` was driven
 by grepping the names - `_off`, `_seg`, `_lo`, `_hi` - and that finds only the
 pairs somebody had already named consistently. The ones named badly are
-exactly the ones still hiding. `SOUND_BANK.directory_ptr` and `payload_seg` are
+exactly the ones still hiding. `g_sound_bank.directory_ptr` and `payload_seg` are
 one far pointer at +0x20 and +0x22, and a name-based sweep had written the
 second off as "a lone segment, no offset beside it" - it has one, under a
 name ending `_ptr`.
@@ -1995,7 +2007,7 @@ The identifier names are the *weakest* signal of the six and were the one
 the work started from. They find the pairs somebody had already named
 correctly, which are the ones least likely to be wrong.
 
-They found `SOUND_BANK.directory`, `DG48F8` (zero-tested as
+They found `g_sound_bank.directory`, `DG48F8` (zero-tested as
 `huge_equal(off, seg, 0, 0)` and returned as `(seg << 16) | off`), and
 `DG3890.pal_copy_ptr`, which was an anonymous `{dg_near_t off; dg_seg_t seg;}`
 - already that layout, with no name for the type. The same sweep found four
@@ -2414,7 +2426,7 @@ identical. Then every solution segfaulted as its level loaded, in
 `reset_input_state`, on `b->state = 0`.
 
 GCC had compiled the two-button clear into one `movaps` straight to
-`MACHINE_BUTTONS`. The x86-64 ABI lets a compiler assume a global of sixteen
+`g_machine_buttons`. The x86-64 ABI lets a compiler assume a global of sixteen
 bytes or more starts on a sixteen-byte boundary, and GCC acts on it for an
 object it defines; `movaps` faults on an address that is not. DGROUP 0x5742 is
 not, and nothing about the section attribute told the compiler so. The first

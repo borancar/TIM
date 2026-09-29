@@ -9,7 +9,7 @@
  * into the video driver after it.
  *
  * A module of the original's **code segment 1c25**, image 0x20654..0x20840,
- * split out of engine.c on 2026-09-27. Its `_DATA` is `TIMER`, DGROUP
+ * split out of engine.c on 2026-09-27. Its `_DATA` is `g_timer`, DGROUP
  * 0x44ee..0x4579, padded to the word before scale.c's.
  *
  * **Hand-written assembly**: the handler is an interrupt routine and every
@@ -38,8 +38,8 @@
  */
 asm {
 _DATA segment word public 'DATA'
-public _TIMER
-_TIMER label byte
+public _g_timer
+_g_timer label byte
 d_44ee label byte
         db 0h
 d_44ef label byte
@@ -69,7 +69,7 @@ d_453b label byte
 _DATA ends
 
 extrn _detect_pcjr:far
-extrn _VM_DRIVER:byte
+extrn _g_vm_driver:byte
 
 TIMER_TEXT segment byte public 'CODE'
 assume cs:TIMER_TEXT, ds:DGROUP
@@ -335,19 +335,19 @@ _timer_tick endp
 
 /* 0x20838 */
 _blit_rows_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+48h
+        jmp dword ptr DGROUP:_g_vm_driver+48h
 _blit_rows_thunk endp
 
 /* 0x2083c */
 _blit_rows_alt_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+4ch
+        jmp dword ptr DGROUP:_g_vm_driver+4ch
 _blit_rows_alt_thunk endp
 TIMER_TEXT ends
 }
 #else
 
 /* **This module's `_DATA`**: the timer's state and its callback table. */
-struct timer TIMER = { .divisor = -1 };   /* DGROUP 0x44ee */
+struct timer g_timer = { .divisor = -1 };   /* DGROUP 0x44ee */
 
 /* Ours: the callback table the timer keeps at DGROUP 0x44f9, as the host's
    own code pointers - see `struct timer`. */
@@ -379,10 +379,10 @@ uint16_t timer_add_callback(void (far *cb)(void), uint16_t period)
 {
     uint16_t mask, bx, cx;
 
-    if (TIMER.installed == 0)
+    if (g_timer.installed == 0)
         return 0;
 
-    mask = TIMER.slot_mask;
+    mask = g_timer.slot_mask;
     if ((uint16_t)(mask + 1) == 0)
         return 0;
 
@@ -396,13 +396,13 @@ uint16_t timer_add_callback(void (far *cb)(void), uint16_t period)
 
     /* `bx` is the original's 4 * slot, which is how it addressed the two
        tables; the slot is `bx >> 2`, which is also what it answers. */
-    TIMER.tick[bx >> 2].period = (int16_t)period;
-    TIMER.tick[bx >> 2].left = (int16_t)period;
+    g_timer.tick[bx >> 2].period = (int16_t)period;
+    g_timer.tick[bx >> 2].left = (int16_t)period;
     g_timer_callbacks[bx >> 2] = cb;
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
-    TIMER.slot_mask = (int16_t)(TIMER.slot_mask | cx);
+    g_timer.slot_mask = (int16_t)(g_timer.slot_mask | cx);
     io_unlock();
 
     return (uint16_t)((bx >> 2) + 1);
@@ -443,7 +443,7 @@ uint16_t timer_drop_callback(uint16_t handle)
         carry = out;
     }
 
-    TIMER.slot_mask = (int16_t)(TIMER.slot_mask & v);
+    g_timer.slot_mask = (int16_t)(g_timer.slot_mask & v);
 
     return 1;
 }
@@ -472,22 +472,22 @@ int16_t timer_install(uint16_t rate)
 {
     uint16_t divisor;
 
-    if (TIMER.installed != 0)
+    if (g_timer.installed != 0)
         return 0;
 
-    TIMER.slot_mask = 0;
+    g_timer.slot_mask = 0;
     detect_pcjr();
 
-    S1C_TIMER.old_int8 = getvect(8);
+    g_s1c_timer.old_int8 = getvect(8);
 
     if (rate > 0xff || rate == 0)
         return 0;
 
-    TIMER.divider_reload = (int16_t)rate;
-    TIMER.divider = (int16_t)rate;
+    g_timer.divider_reload = (int16_t)rate;
+    g_timer.divider = (int16_t)rate;
 
     divisor = (uint16_t)(0xffffu / rate);
-    TIMER.divisor = (int16_t)divisor;
+    g_timer.divisor = (int16_t)divisor;
 
     /*
      * `cli` from here to just before the flag is set: the 8253 is half
@@ -505,7 +505,7 @@ int16_t timer_install(uint16_t rate)
 
     io_unlock();                                        /* `sti` */
 
-    TIMER.installed = 1;
+    g_timer.installed = 1;
     return 1;
 }
 
@@ -525,7 +525,7 @@ int16_t timer_install(uint16_t rate)
  */
 int16_t timer_remove(void)
 {
-    if (TIMER.installed == 0)
+    if (g_timer.installed == 0)
         return 0;
 
     io_out8(0x43, 0x36);
@@ -533,9 +533,9 @@ int16_t timer_remove(void)
     io_out8(0x40, 0);
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    setvect(8, S1C_TIMER.old_int8);
+    setvect(8, g_s1c_timer.old_int8);
 
-    TIMER.installed = 0;
+    g_timer.installed = 0;
     return 1;
 }
 
@@ -564,14 +564,14 @@ int16_t timer_remove(void)
  */
 void timer_tick(void)
 {
-    uint16_t mask = TIMER.slot_mask;
+    uint16_t mask = g_timer.slot_mask;
     int32_t slot;
     int16_t n;
 
-    n = (int16_t)(TIMER.frame_budget - 1);
+    n = (int16_t)(g_timer.frame_budget - 1);
     if (n < 0)
         n = 0;
-    TIMER.frame_budget = n;
+    g_timer.frame_budget = n;
 
     for (slot = 0; slot < 16; slot++) {
         uint16_t used = (uint16_t)(mask & 1);
@@ -585,25 +585,25 @@ void timer_tick(void)
         }
 
         {
-            int16_t left = (int16_t)(TIMER.tick[slot].left - 1);
+            int16_t left = (int16_t)(g_timer.tick[slot].left - 1);
 
             if (left == 0) {
                 g_timer_callbacks[slot]();
-                left = TIMER.tick[slot].period;
+                left = g_timer.tick[slot].period;
             }
-            TIMER.tick[slot].left = left;
+            g_timer.tick[slot].left = left;
         }
     }
 
-    if (--TIMER.divider != 0) {
+    if (--g_timer.divider != 0) {
         io_out8(0x20, 0x20);            /* end of interrupt */
         return;
     }
 
-    TIMER.divider = TIMER.divider_reload;
+    g_timer.divider = g_timer.divider_reload;
 
     /*
-     * And chain to the vector `timer_install` displaced, at ((int16_t)S1C_TIMER.old_int8.off). That
+     * And chain to the vector `timer_install` displaced, at ((int16_t)g_s1c_timer.old_int8.off). That
      * is the BIOS's own handler, which keeps 0040:006c ticking. The port has no
      * BIOS handler to chain to and does not pretend otherwise - nothing here
      * reads the BIOS tick count.

@@ -32,7 +32,7 @@
 /*
  * **This module's `_BSS`, 0x547a..0x567e, in the order the four are
  * defined below reversed**: Borland lays `_BSS` out in reverse order of
- * first mention, so the highest, CRITICAL_ERROR, is defined first and ARCHIVE_LOOKUP, the
+ * first mention, so the highest, g_critical_error, is defined first and g_archive_lookup, the
  * lowest, last. None of them is declared anywhere else, which would be a
  * mention of its own (docs/lessons.md).
  */
@@ -46,7 +46,7 @@ struct critical_error {
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
 } PACKED;
 
-struct critical_error CRITICAL_ERROR;
+struct critical_error g_critical_error;
 
 /*
  * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
@@ -55,7 +55,7 @@ struct machine_game_files {
     struct game_file files[0xa];  /* +0x00 [0xb4] */
 } PACKED;
 
-struct machine_game_files MACHINE_GAME_FILES;
+struct machine_game_files g_machine_game_files;
 
 /*
  * **The eleven archives**, DGROUP 0x548f..0x55c3, 0x134 bytes. Index 0 is never where a search
@@ -65,7 +65,7 @@ struct machine_archives {
     struct archive slot[0xb];     /* +0x00 [0x134] */
 } PACKED;
 
-struct machine_archives MACHINE_ARCHIVES;
+struct machine_archives g_machine_archives;
 
 /*
  * **The archives' lookup**, at DGROUP 0x547a: its one-entry cache, the
@@ -100,7 +100,7 @@ struct archive_lookup {
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
    layer, opens files through the archive lookup, and its count and its
    lists have to be the same side's. */
-struct archive_lookup ARCHIVE_LOOKUP;   /* DGROUP 0x547a */
+struct archive_lookup g_archive_lookup;   /* DGROUP 0x547a */
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP
@@ -113,7 +113,7 @@ struct machine_hash_order {
     uint8_t   hash_order[4];      /* +0x00 [4] */
 } PACKED;
 
-struct machine_hash_order MACHINE_HASH_ORDER = { { 0x00, 0x01, 0x06, 0x07 } };
+struct machine_hash_order g_machine_hash_order = { { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
  * 0x08fc3
@@ -168,32 +168,32 @@ FILE *game_fopen(char *name, const char *mode)
     int16_t left;                       /* [bp-2] */
     char hdr[14];                       /* [bp-0x10] */
 
-    if (ARCHIVE_LOOKUP.reopen != 0)
+    if (g_archive_lookup.reopen != 0)
         make_file_current(0);
     load_archive_map();
-    CRITICAL_ERROR.failures = 0;
-    if (ARCHIVE_LOOKUP.archive_count == 0)
+    g_critical_error.failures = 0;
+    if (g_archive_lookup.archive_count == 0)
         return fopen(name, mode);
 
-    ARCHIVE_LOOKUP.file_used = 0;
-    ARCHIVE_LOOKUP.file_asked = 0;
-    for (si = &MACHINE_GAME_FILES.files[0], left = 0xa;
+    g_archive_lookup.file_used = 0;
+    g_archive_lookup.file_asked = 0;
+    for (si = &g_machine_game_files.files[0], left = 0xa;
          left != 0 && si->in_use != 0; si++, left--)
         ;
     if (left == 0)
         return NULL;
 
     hash_filename(name);
-    ARCHIVE_LOOKUP.opening = 1;
+    g_archive_lookup.opening = 1;
     do {
-        ARCHIVE_LOOKUP.retry = 0;
+        g_archive_lookup.retry = 0;
         di = fopen(name, mode);
         if (g_file_op_active != 0)
             return di;
-        if (ARCHIVE_LOOKUP.retry != 0 && VMDS.pixel_shift != 0)
-            answer_carry_on(ARCHIVE_LOOKUP.last_record != 0 ? ARCHIVE_LOOKUP.last_record : 1);
-    } while (ARCHIVE_LOOKUP.retry != 0);
-    ARCHIVE_LOOKUP.opening = 0;
+        if (g_archive_lookup.retry != 0 && g_vmds.pixel_shift != 0)
+            answer_carry_on(g_archive_lookup.last_record != 0 ? g_archive_lookup.last_record : 1);
+    } while (g_archive_lookup.retry != 0);
+    g_archive_lookup.opening = 0;
 
     if (di != NULL) {
         si->archive = 0;
@@ -205,17 +205,17 @@ FILE *game_fopen(char *name, const char *mode)
             return NULL;
         make_file_current(si->archive);
         seek_file_to(si->base + si->pos);
-        di = MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record].stream;
+        di = g_machine_archives.slot[g_archive_lookup.last_record].stream;
         fread((uint8_t *)hdr, 0xd, 1, di);
         fread((uint8_t *)&si->size, 4, 1, di);
-        MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record].pos = si->base = ftell(di);
+        g_machine_archives.slot[g_archive_lookup.last_record].pos = si->base = ftell(di);
         if (stricmp(hdr, name))
             return NULL;
         si->pos = 0;
         si->stream = 0;
         si->in_use = 1;
     }
-    ARCHIVE_LOOKUP.open_immediate++;
+    g_archive_lookup.open_immediate++;
     /* An archive entry: the game's FILE is its `game_file` record, and
        `archive_entry_for` tells the two apart by looking for it in the
        table. */
@@ -248,7 +248,7 @@ int16_t game_fclose(FILE *file)
     di = 0;
     if (file == NULL)
         return -1;
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fclose(file);
     else {
@@ -256,9 +256,9 @@ int16_t game_fclose(FILE *file)
         if (si->stream != 0)
             di = fclose(si->stream);
         si->in_use = 0;
-        ARCHIVE_LOOKUP.open_immediate--;
+        g_archive_lookup.open_immediate--;
     }
-    CRITICAL_ERROR.failures |= di == -1;
+    g_critical_error.failures |= di == -1;
     return di;
 }
 
@@ -301,7 +301,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
     uint16_t n;                         /* [bp-2] */
     uint16_t bytes;                     /* [bp-4] */
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (di = archive_entry_for(file)) == NULL)
         return fread(buf, size, count, file);
     if (di->stream != 0)
@@ -313,11 +313,11 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
         ;
     make_file_current(di->archive);
     seek_file_to(di->base + di->pos);
-    file = MACHINE_ARCHIVES.slot[di->archive].stream;
+    file = g_machine_archives.slot[di->archive].stream;
     n = fread(buf, size, count, file);
     bytes = n * size;
     di->pos += bytes;
-    MACHINE_ARCHIVES.slot[di->archive].pos += bytes;
+    g_machine_archives.slot[di->archive].pos += bytes;
     return n;
 }
 
@@ -344,7 +344,7 @@ int16_t game_fseek(FILE *file, int32_t off, register int16_t whence)
 {
     register struct game_file *si;
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return fseek(file, off, whence);
     if (si->stream != 0)
@@ -382,7 +382,7 @@ int32_t game_ftell(register FILE *file)
 {
     register struct game_file *si;
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return ftell(file);
     if (si->stream != 0)
@@ -424,20 +424,20 @@ int16_t game_fgetc(register FILE *file)
     register struct game_file *si;
     int16_t got;                        /* [bp-2] */
 
-    ARCHIVE_LOOKUP.file_asked = file;
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    g_archive_lookup.file_asked = file;
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
-        return fgetc((ARCHIVE_LOOKUP.file_used = file));
+        return fgetc((g_archive_lookup.file_used = file));
     if (si->stream != 0)
-        return fgetc((ARCHIVE_LOOKUP.file_used = si->stream));
+        return fgetc((g_archive_lookup.file_used = si->stream));
     if (si->pos >= si->size)
         return -1;
     make_file_current(si->archive);
     seek_file_to(si->base + si->pos);
-    file = MACHINE_ARCHIVES.slot[si->archive].stream;
-    got = fgetc((ARCHIVE_LOOKUP.file_used = file));
+    file = g_machine_archives.slot[si->archive].stream;
+    got = fgetc((g_archive_lookup.file_used = file));
     si->pos++;
-    MACHINE_ARCHIVES.slot[si->archive].pos++;
+    g_machine_archives.slot[si->archive].pos++;
     return got;
 }
 
@@ -457,7 +457,7 @@ int16_t game_feof(register FILE *file)
 {
     register struct game_file *si;
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return feof(file);
     if (si->stream != 0)
@@ -493,14 +493,14 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
     const uint8_t *p;                   /* [bp-2] */
 
     p = ptr;
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fwrite(p, size, count, file);
     else if (si->stream != 0)
         di = fwrite(p, size, count, si->stream);
     else
         di = 0;
-    CRITICAL_ERROR.failures |= di != count;
+    g_critical_error.failures |= di != count;
     return di;
 }
 
@@ -527,14 +527,14 @@ int16_t game_fputc(int16_t c, FILE *file)
     register struct game_file *si;
     register int16_t di;
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fputc(c, file);
     else if (si->stream != 0)
         di = fputc(c, si->stream);
     else
         di = -1;
-    CRITICAL_ERROR.failures |= di == -1;
+    g_critical_error.failures |= di == -1;
     return di;
 }
 
@@ -557,7 +557,7 @@ void game_setbuf(register FILE *file, uint8_t *buf)
 {
     register struct game_file *si;
 
-    if (ARCHIVE_LOOKUP.archive_count == 0
+    if (g_archive_lookup.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         setbuf(file, (char *)buf);
     else if (si->stream != 0)
@@ -600,18 +600,18 @@ void load_archive_map(void)
     uint32_t hi;                        /* [bp-0x10] and where its data starts */
     char *name;                         /* [bp-0x12] */
 
-    if (ARCHIVE_LOOKUP.scanned == 0) {
-        CRITICAL_ERROR.crit_vec = getvect(0x24);
+    if (g_archive_lookup.scanned == 0) {
+        g_critical_error.crit_vec = getvect(0x24);
         setvect(0x24, (void interrupt (far *)())crit_error_handler);
-        ARCHIVE_LOOKUP.scanned = 1;
+        g_archive_lookup.scanned = 1;
         name = "RESOURCE.MAP";
         if ((si = fopen(name, "rb")) != NULL) {
-            fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, si);
+            fread((uint8_t *)g_machine_hash_order.hash_order, 4, 1, si);
             fread((uint8_t *)&count, 2, 1, si);
-            ARCHIVE_LOOKUP.archive_count += count;
-            for (di = ARCHIVE_LOOKUP.archive_count - count + 1; di <= ARCHIVE_LOOKUP.archive_count;
+            g_archive_lookup.archive_count += count;
+            for (di = g_archive_lookup.archive_count - count + 1; di <= g_archive_lookup.archive_count;
                  di++) {
-                a = &MACHINE_ARCHIVES.slot[di];
+                a = &g_machine_archives.slot[di];
                 fread((uint8_t *)a->name, 0xd, 1, si);
                 fread((uint8_t *)&count, 2, 1, si);
                 /* **Zeroed**, which is what writes the terminator: the block is
@@ -655,15 +655,15 @@ void free_archive_lists(void)
     register int16_t si;
 
     for (si = 0; si <= 10; si++)
-        if (MACHINE_ARCHIVES.slot[si].list != NULL) {
-            dos_free_far(MACHINE_ARCHIVES.slot[si].list);
-            MACHINE_ARCHIVES.slot[si].list = NULL;
+        if (g_machine_archives.slot[si].list != NULL) {
+            dos_free_far(g_machine_archives.slot[si].list);
+            g_machine_archives.slot[si].list = NULL;
         }
-    if (CRITICAL_ERROR.crit_vec) {
-        setvect(0x24, CRITICAL_ERROR.crit_vec);
-        CRITICAL_ERROR.crit_vec = 0;
+    if (g_critical_error.crit_vec) {
+        setvect(0x24, g_critical_error.crit_vec);
+        g_critical_error.crit_vec = 0;
     }
-    ARCHIVE_LOOKUP.scanned = 0;
+    g_archive_lookup.scanned = 0;
 }
 
 /*
@@ -677,7 +677,7 @@ void free_archive_lists(void)
  */
 void request_archive_reopen(void)
 {
-    ARCHIVE_LOOKUP.reopen = 1;
+    g_archive_lookup.reopen = 1;
 }
 
 /*
@@ -709,7 +709,7 @@ int32_t hash_filename(char *name)
     char buf[14];                       /* [bp-0x16] */
 
     if (name == NULL)
-        return ARCHIVE_LOOKUP.name_hash = 0;
+        return g_archive_lookup.name_hash = 0;
 
     sum = eor = 0;
     for (si = (uint8_t *)name; *si != 0; si++) {
@@ -726,9 +726,9 @@ int32_t hash_filename(char *name)
     acc = 0;
     for (di = 0; di < 4; di++)
         acc = (int32_t)((uint32_t)acc << 8)
-              + (uint8_t)buf[MACHINE_HASH_ORDER.hash_order[di]];
+              + (uint8_t)buf[g_machine_hash_order.hash_order[di]];
     acc += (int16_t)(sum * eor);
-    return ARCHIVE_LOOKUP.name_hash = acc;
+    return g_archive_lookup.name_hash = acc;
 }
 
 /*
@@ -770,24 +770,24 @@ int16_t find_entry_for_pointer(register struct game_file *out)
     /* Each walk below starts a list and steps over its eight-byte entries to
        the key it wants or to the zero key that ends it. The original writes
        it out three times, and so does this. */
-    want = ARCHIVE_LOOKUP.name_hash;
-    if ((idx = ARCHIVE_LOOKUP.last_record) == 0)
+    want = g_archive_lookup.name_hash;
+    if ((idx = g_archive_lookup.last_record) == 0)
         idx = 1;
-    for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+    for (at = (const struct archive_entry far *)g_machine_archives.slot[idx].list;
          at->key != 0 && at->key != want; at++)
         ;
-    fwd = ARCHIVE_LOOKUP.last_record + 1;
-    back = ARCHIVE_LOOKUP.last_record - 1;
-    while (at->key != want && (back > 0 || fwd <= ARCHIVE_LOOKUP.archive_count)) {
-        if (fwd <= ARCHIVE_LOOKUP.archive_count) {
+    fwd = g_archive_lookup.last_record + 1;
+    back = g_archive_lookup.last_record - 1;
+    while (at->key != want && (back > 0 || fwd <= g_archive_lookup.archive_count)) {
+        if (fwd <= g_archive_lookup.archive_count) {
             idx = fwd++;
-            for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+            for (at = (const struct archive_entry far *)g_machine_archives.slot[idx].list;
                  at->key != 0 && at->key != want; at++)
                 ;
         }
         if (at->key != want && back > 0) {
             idx = back--;
-            for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
+            for (at = (const struct archive_entry far *)g_machine_archives.slot[idx].list;
                  at->key != 0 && at->key != want; at++)
                 ;
         }
@@ -839,29 +839,29 @@ void make_file_current(register uint16_t index)
     /* Set when the archive *cannot* be opened: `fclose` of a failed
        `fopen` is what answers non-zero. */
     missing = 0;
-    if (!ARCHIVE_LOOKUP.open_immediate && index != 0
-        && fclose(fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
+    if (!g_archive_lookup.open_immediate && index != 0
+        && fclose(fopen((const char *)g_machine_archives.slot[index].name,
                                         "rb")))
         missing = 1;
 
-    if (index != ARCHIVE_LOOKUP.last_record || missing != 0 || ARCHIVE_LOOKUP.reopen != 0) {
-        si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
+    if (index != g_archive_lookup.last_record || missing != 0 || g_archive_lookup.reopen != 0) {
+        si = &g_machine_archives.slot[g_archive_lookup.last_record];
         if (si->stream != 0) {
             fclose(si->stream);
             si->stream = 0;
         }
-        ARCHIVE_LOOKUP.last_record = index;
-        si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
+        g_archive_lookup.last_record = index;
+        si = &g_machine_archives.slot[g_archive_lookup.last_record];
         if (index != 0) {
-            ARCHIVE_LOOKUP.opening = 1;
+            g_archive_lookup.opening = 1;
             while ((si->stream = fopen((const char *)si->name, "rb")) == 0)
-                if (VMDS.pixel_shift != 0)
+                if (g_vmds.pixel_shift != 0)
                     answer_carry_on(index);
-            ARCHIVE_LOOKUP.opening = 0;
+            g_archive_lookup.opening = 0;
         }
         si->pos = 0;
         archive_entry_for(NULL);
-        ARCHIVE_LOOKUP.reopen = 0;
+        g_archive_lookup.reopen = 0;
     }
 }
 
@@ -888,7 +888,7 @@ void seek_file_to(uint32_t at)
 {
     register struct archive *si;
 
-    si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
+    si = &g_machine_archives.slot[g_archive_lookup.last_record];
     if (si->pos != at) {
         fseek(si->stream, at, 0);
         si->pos = at;
@@ -927,23 +927,23 @@ struct game_file *archive_entry_for(FILE *file)
     int16_t n;
 
     if (file == NULL) {
-        ARCHIVE_LOOKUP.cache_key = 0;
-        ARCHIVE_LOOKUP.cache_answer = 0;
+        g_archive_lookup.cache_key = 0;
+        g_archive_lookup.cache_answer = 0;
         return NULL;
     }
-    if (ARCHIVE_LOOKUP.archive_count == 0)
+    if (g_archive_lookup.archive_count == 0)
         return NULL;
-    if (file == ARCHIVE_LOOKUP.cache_key)
-        return ARCHIVE_LOOKUP.cache_answer;
-    ARCHIVE_LOOKUP.cache_key = file;
-    for (si = &MACHINE_GAME_FILES.files[0], n = 0xa; n != 0 && (FILE *)si != file;
+    if (file == g_archive_lookup.cache_key)
+        return g_archive_lookup.cache_answer;
+    g_archive_lookup.cache_key = file;
+    for (si = &g_machine_game_files.files[0], n = 0xa; n != 0 && (FILE *)si != file;
          si++, n--)
         ;
     if (n == 0 || si->in_use == 0) {
         si = NULL;
-        ARCHIVE_LOOKUP.cache_key = 0;
+        g_archive_lookup.cache_key = 0;
     }
-    return (ARCHIVE_LOOKUP.cache_answer = si);
+    return (g_archive_lookup.cache_answer = si);
 }
 
 /*
@@ -967,9 +967,9 @@ void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
     if (g_file_op_active != 0)
         ax = 3;
     else
-        ax = ARCHIVE_LOOKUP.opening ? 3 : 1;
-    ARCHIVE_LOOKUP.retry = 1;
-    ARCHIVE_LOOKUP.reopen = 1;
+        ax = g_archive_lookup.opening ? 3 : 1;
+    g_archive_lookup.retry = 1;
+    g_archive_lookup.reopen = 1;
 #ifndef __TURBOC__
     (void)ax;   /* ours: on the host the answer goes nowhere */
 #endif
@@ -1007,41 +1007,41 @@ void draw_xor_rect(register int16_t x, int16_t y, int16_t w, int16_t h)
     int16_t x_end;                      /* [bp-0x14] */
     int16_t y_end;                      /* [bp-0x16] */
 
-    if (!VMDS.second_colour && !VMDS.fill_colour)
+    if (!g_vmds.second_colour && !g_vmds.fill_colour)
         return;
-    saved = VMDS.page_src;
-    VMDS.page_src = VMDS.page_dst;
-    outline = VMDS.second_colour;
-    fill = VMDS.fill_colour;
-    if (VMDS.clip_enabled) {
+    saved = g_vmds.page_src;
+    g_vmds.page_src = g_vmds.page_dst;
+    outline = g_vmds.second_colour;
+    fill = g_vmds.fill_colour;
+    if (g_vmds.clip_enabled) {
         end = x + w - 1;
-        left_in = x >= VMDS.clip_left && x <= VMDS.clip_right;
-        right_in = end >= VMDS.clip_left && end <= VMDS.clip_right;
-        if (x < VMDS.clip_left) {
-            w -= VMDS.clip_left - x;
-            x = VMDS.clip_enabled;
+        left_in = x >= g_vmds.clip_left && x <= g_vmds.clip_right;
+        right_in = end >= g_vmds.clip_left && end <= g_vmds.clip_right;
+        if (x < g_vmds.clip_left) {
+            w -= g_vmds.clip_left - x;
+            x = g_vmds.clip_enabled;
         }
-        if (x > VMDS.clip_right) {
-            w -= x - VMDS.clip_right;
-            x = VMDS.clip_right;
+        if (x > g_vmds.clip_right) {
+            w -= x - g_vmds.clip_right;
+            x = g_vmds.clip_right;
         }
         end = y + h - 1;
-        top_in = y >= VMDS.clip_top && y <= VMDS.clip_bottom;
-        bottom_in = end >= VMDS.clip_top && end <= VMDS.clip_bottom;
-        if (y < VMDS.clip_top) {
-            h -= VMDS.clip_top - y;
-            y = VMDS.clip_enabled;
+        top_in = y >= g_vmds.clip_top && y <= g_vmds.clip_bottom;
+        bottom_in = end >= g_vmds.clip_top && end <= g_vmds.clip_bottom;
+        if (y < g_vmds.clip_top) {
+            h -= g_vmds.clip_top - y;
+            y = g_vmds.clip_enabled;
         }
-        if (y > VMDS.clip_bottom) {
-            h -= y - VMDS.clip_bottom;
-            y = VMDS.clip_bottom;
+        if (y > g_vmds.clip_bottom) {
+            h -= y - g_vmds.clip_bottom;
+            y = g_vmds.clip_bottom;
         }
     } else
         left_in = right_in = top_in = bottom_in = 1;
 
     x_end = x + w - 1;
     y_end = y + h - 1;
-    if (VMDS.fill_enabled)
+    if (g_vmds.fill_enabled)
         for (yy = y + 1; yy < y_end; yy++)
             for (si = x + 1; si < x_end; si++)
                 plot_pixel_clipped(si, yy, read_pixel_clipped(si, yy) ^ fill);
@@ -1057,5 +1057,5 @@ void draw_xor_rect(register int16_t x, int16_t y, int16_t w, int16_t h)
         if (bottom_in)
             plot_pixel_clipped(si, y_end, read_pixel_clipped(si, y_end) ^ outline);
     }
-    VMDS.page_src = saved;
+    g_vmds.page_src = saved;
 }

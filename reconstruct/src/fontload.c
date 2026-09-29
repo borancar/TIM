@@ -28,7 +28,7 @@
  * and the name and the "r" `load_font` opens with after it, 0x495e..0x4965.
  * This module's `_DATA`.
  */
-char *FONT_CHUNK_NAME = "FNT:";
+char *g_font_chunk_name = "FNT:";
 
 /*
  * 0x2307d
@@ -79,7 +79,7 @@ uint16_t load_font(char *name)
 #endif
 
     /* The first free slot from 2. */
-    for (si = 2; ENGINE_FONT_BODIES.body[si] != NULL && si < 0x14; si++)
+    for (si = 2; g_font_bodies.body[si] != NULL && si < 0x14; si++)
         ;
 
     if (si < 0x14) {
@@ -90,19 +90,19 @@ uint16_t load_font(char *name)
             opened = 0;
         }
 
-        if (seek_named_chunk(di, FONT_CHUNK_NAME, 0) != -1L) {
-            game_fread(&VMDS.font_cell_width[si], 1, 1, di);
+        if (seek_named_chunk(di, g_font_chunk_name, 0) != -1L) {
+            game_fread(&g_vmds.font_cell_width[si], 1, 1, di);
 
-            if (VMDS.font_cell_width[si] == 0xfd || VMDS.font_cell_width[si] == 0xff) {
+            if (g_vmds.font_cell_width[si] == 0xfd || g_vmds.font_cell_width[si] == 0xff) {
                 /* A resource-packed font: glyph widths, slots and bodies in
                    one DOS block. */
-                ENGINE_FONT_KINDS.kind[si] = -VMDS.font_cell_width[si];
+                g_font_kinds.kind[si] = -g_vmds.font_cell_width[si];
 
-                game_fread(&VMDS.font_cell_width[si], 1, 1, di);
-                game_fread(&VMDS.font_cell_height[si], 1, 1, di);
-                game_fread(&ENGINE_UNDERLINE_ROWS.underline_row[si], 1, 1, di);
-                game_fread(&VMDS.font_first_char[si], 1, 1, di);
-                game_fread(&VMDS.font_char_count[si], 1, 1, di);
+                game_fread(&g_vmds.font_cell_width[si], 1, 1, di);
+                game_fread(&g_vmds.font_cell_height[si], 1, 1, di);
+                game_fread(&g_underline_rows.underline_row[si], 1, 1, di);
+                game_fread(&g_vmds.font_first_char[si], 1, 1, di);
+                game_fread(&g_vmds.font_char_count[si], 1, 1, di);
                 game_fread((uint8_t *)&size, 1, 2, di);
 
                 failed = (handle = open_resource(0xffff, di, "r",
@@ -117,11 +117,11 @@ uint16_t load_font(char *name)
                 if (!failed) {
                     /* Three pointers into the one block, stepped in the
                        block's own segment. */
-                    ENGINE_FONT_WIDTHS.width[si] = blk;
-                    blk += VMDS.font_char_count[si] * 2;
-                    ENGINE_FONT_SLOTS.slot[si] = blk;
-                    blk += VMDS.font_char_count[si];
-                    ENGINE_FONT_BODIES.body[si] = blk;
+                    g_font_widths.width[si] = blk;
+                    blk += g_vmds.font_char_count[si] * 2;
+                    g_font_slots.slot[si] = blk;
+                    blk += g_vmds.font_char_count[si];
+                    g_font_bodies.body[si] = blk;
                 }
 
                 close_resource(handle);
@@ -133,28 +133,28 @@ uint16_t load_font(char *name)
                 }
             } else {
                 /* A bitmap font: one near block of glyphs. */
-                if (VMDS.font_cell_width[si] == 0xfe) {
-                    ENGINE_FONT_KINDS.kind[si] = 2;
-                    game_fread(&VMDS.font_cell_width[si], 1, 1, di);
-                    size = VMDS.font_cell_width[si];
+                if (g_vmds.font_cell_width[si] == 0xfe) {
+                    g_font_kinds.kind[si] = 2;
+                    game_fread(&g_vmds.font_cell_width[si], 1, 1, di);
+                    size = g_vmds.font_cell_width[si];
                 } else {
-                    ENGINE_FONT_KINDS.kind[si] = 0;
-                    size = (VMDS.font_cell_width[si] + 7) >> 3;
+                    g_font_kinds.kind[si] = 0;
+                    size = (g_vmds.font_cell_width[si] + 7) >> 3;
                 }
 
-                game_fread(&VMDS.font_cell_height[si], 1, 1, di);
-                game_fread(&VMDS.font_first_char[si], 1, 1, di);
-                game_fread(&VMDS.font_char_count[si], 1, 1, di);
+                game_fread(&g_vmds.font_cell_height[si], 1, 1, di);
+                game_fread(&g_vmds.font_first_char[si], 1, 1, di);
+                game_fread(&g_vmds.font_char_count[si], 1, 1, di);
 
-                size *= VMDS.font_cell_height[si] * VMDS.font_char_count[si];
+                size *= g_vmds.font_cell_height[si] * g_vmds.font_char_count[si];
 
                 failed = (p = malloc_far(size)) == NULL;
                 if (!failed)
                     game_fread(p, size, 1, di);
                 if (!failed) {
-                    ENGINE_FONT_BODIES.body[si] = (uint8_t far *)NEAR_ZERO(p);
-                    ENGINE_FONT_WIDTHS.width[si] = 0;
-                    ENGINE_FONT_SLOTS.slot[si] = 0;
+                    g_font_bodies.body[si] = (uint8_t far *)NEAR_ZERO(p);
+                    g_font_widths.width[si] = 0;
+                    g_font_slots.slot[si] = 0;
                 }
 
                 if (failed) {
@@ -179,7 +179,7 @@ uint16_t load_font(char *name)
 /*
  * 0x233ef
  *
- * Close one of the font slots, `ENGINE_FONT_BODIES` at DGROUP 0x618a, which
+ * Close one of the font slots, `g_font_bodies` at DGROUP 0x618a, which
  * `font_slot_in_use` answers for. A slot that is not in use is left alone.
  *
  * **The slot that matches entry 0 takes the driver's own state down with it**:
@@ -196,28 +196,28 @@ void close_font_slot(int16_t index)
     if (font_slot_in_use(index) == 0)
         return;
 
-    if (ENGINE_FONT_BODIES.body[index]
-        == ENGINE_FONT_BODIES.body[0]) {
-        ENGINE_FONT_KINDS.kind[0] = 0;
-        VMDS.font_first_char[0] = VMDS.font_char_count[0] = 0;
-        VMDS.font_cell_width[0] = VMDS.font_cell_height[0] =
-            ENGINE_UNDERLINE_ROWS.underline_row[0] = 0;
+    if (g_font_bodies.body[index]
+        == g_font_bodies.body[0]) {
+        g_font_kinds.kind[0] = 0;
+        g_vmds.font_first_char[0] = g_vmds.font_char_count[0] = 0;
+        g_vmds.font_cell_width[0] = g_vmds.font_cell_height[0] =
+            g_underline_rows.underline_row[0] = 0;
 
-        ENGINE_FONT_WIDTHS.width[0] = NULL;
-        ENGINE_FONT_SLOTS.slot[0]    = NULL;
-        ENGINE_FONT_BODIES.body[0]   = NULL;
+        g_font_widths.width[0] = NULL;
+        g_font_slots.slot[0]    = NULL;
+        g_font_bodies.body[0]   = NULL;
     }
 
-    if (ENGINE_FONT_WIDTHS.width[index] != NULL)
-        dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
+    if (g_font_widths.width[index] != NULL)
+        dos_free_far(g_font_widths.width[index]);
     else
-        free_far((uint8_t *)ENGINE_FONT_BODIES.body[index]);
+        free_far((uint8_t *)g_font_bodies.body[index]);
 
-    ENGINE_FONT_KINDS.kind[index] = 0;
+    g_font_kinds.kind[index] = 0;
 
     /* The three slot tables, cleared through the types that name them -
        which is what `bx = 4 * index` was computing an offset into. */
-    ENGINE_FONT_BODIES.body[index]  = NULL;
-    ENGINE_FONT_WIDTHS.width[index] = NULL;
-    ENGINE_FONT_SLOTS.slot[index]   = NULL;
+    g_font_bodies.body[index]  = NULL;
+    g_font_widths.width[index] = NULL;
+    g_font_slots.slot[index]   = NULL;
 }

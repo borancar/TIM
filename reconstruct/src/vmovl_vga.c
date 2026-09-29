@@ -48,7 +48,7 @@
 /*
  * OURS, as a type: **the video driver's own code segment**, where
  * `vm_driver_init` records where the driver's data is and keeps the table of
- * hooks it is handed. The driver's data is inside DGROUP - `VMDS`, at 0x3890 -
+ * hooks it is handed. The driver's data is inside DGROUP - `g_vmds`, at 0x3890 -
  * so the offset is a near pointer, and the segment beside it is DGROUP's plus
  * that offset in paragraphs, which is how the driver addresses its data as
  * `driverDS:0`. The rest of the segment is the driver's code.
@@ -57,12 +57,12 @@ struct vm_cs {
     uint8_t   pad_0000[0x13a];
     uint16_t  data_seg;           /* +0x13a  DGROUP's segment + data / 16, as
                                      the original's number - see DGROUP_SEG */
-    const struct vmds *data; /* +0x13c  the driver's data, VMDS */
+    const struct vmds *data; /* +0x13c  the driver's data, g_vmds */
     uint8_t   pad_013e[0xc8];
     void (far *hooks[19])(void);  /* +0x206  copied from the table it is handed */
 } PACKED;
 
-#define VMCS (*(struct vm_cs *)VM_START.driver)
+#define VMCS (*(struct vm_cs *)g_vm_start.driver)
 
 
 /*
@@ -74,7 +74,7 @@ struct vm_cs {
  *
  * Its three arguments are (0x3890, 0x4412, DGROUP) and the order is the
  * opposite of how the pushes read; see docs/video-driver.md. The first is where
- * in DGROUP the driver's own data is - `VMDS` - kept at `cs:0x13c` and turned
+ * in DGROUP the driver's own data is - `g_vmds` - kept at `cs:0x13c` and turned
  * into a segment at `cs:0x13a`. The second is the table of nineteen hooks it
  * copies, 76 bytes, into its own `cs:0x206`.
  *
@@ -102,21 +102,21 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
 
     VMCS.data = data;
     /* The segment the driver addresses its data by: DGROUP's, plus the
-       paragraphs of VMDS's offset in it, 0x3890. */
+       paragraphs of g_vmds's offset in it, 0x3890. */
     VMCS.data_seg = (uint16_t)((0x3890 >> 4) + DGROUP_SEG);
 
-    VMDS.screen.mode_kind    = 1;
-    VMDS.adapter      = 0x10;
-    VMDS.page_front = 0xa000;
-    VMDS.page_back  = 0xa800;
-    VMDS.rect_page     = 0xa800;
+    g_vmds.screen.mode_kind    = 1;
+    g_vmds.adapter      = 0x10;
+    g_vmds.page_front = 0xa000;
+    g_vmds.page_back  = 0xa800;
+    g_vmds.rect_page     = 0xa800;
 
-    switch ((uint16_t)VMDS.screen.screen_height) {
+    switch ((uint16_t)g_vmds.screen.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
-        VMDS.page_back = 0xa000;
-        VMDS.rect_page    = 0xa000;
+        g_vmds.page_back = 0xa000;
+        g_vmds.rect_page    = 0xa000;
         break;
     case 0x15e:
         not_transcribed("VGA:0x00b4, the 0x15e screen height");
@@ -133,7 +133,7 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
         uint16_t row = 0;
 
         for (i = 0; i < 0x1e0; i++) {
-            VMDS.row_offset[i] = row;
+            g_vmds.row_offset[i] = row;
             row = (uint16_t)(row + 0x50);
         }
     }
@@ -141,9 +141,9 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
     io_out16(PORT_SEQ_INDEX, 0x0f02);
     io_out16(PORT_GC_INDEX, 0x0205);
 
-    VMDS.screen.screen_width = 0x280;
-    VMDS.clip_right   = 0x27f;
-    VMDS.clip_bottom  = (int16_t)(VMDS.screen.screen_height - 1);
+    g_vmds.screen.screen_width = 0x280;
+    g_vmds.clip_right   = 0x27f;
+    g_vmds.clip_bottom  = (int16_t)(g_vmds.screen.screen_height - 1);
 
     return 2;
 }
@@ -230,11 +230,11 @@ void vm_nothing(void)
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
-    uint8_t  colour = VMDS.text_colour;
-    uint8_t  back   = VMDS.text_back;
-    uint8_t  style  = VMDS.text_style;
-    uint8_t *at     = vga_window_at(VMDS.page_dst,
-                            (uint16_t)(VMDS.row_offset[(uint16_t)y] + (x >> 3)));
+    uint8_t  colour = g_vmds.text_colour;
+    uint8_t  back   = g_vmds.text_back;
+    uint8_t  style  = g_vmds.text_style;
+    uint8_t *at     = vga_window_at(g_vmds.page_dst,
+                            (uint16_t)(g_vmds.row_offset[(uint16_t)y] + (x >> 3)));
     uint16_t shift  = (uint16_t)(x & 7);
     uint16_t row;
 
@@ -316,7 +316,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
     /* Only the block's segment is loaded; the offsets are from 0. */
-    uint8_t *pal           = MK_FP(FP_SEG(VMDS.palettes.blocks[0]), 0);
+    uint8_t *pal           = MK_FP(FP_SEG(g_vmds.palettes.blocks[0]), 0);
     uint8_t *dst           = pal + (uint16_t)(first * 3);
     const uint8_t *src     = dst + 0x30;
     const uint8_t *col     = pal + (uint16_t)(0x30 + colour * 3);
@@ -640,8 +640,8 @@ void vm_save_rect(uint8_t far * buf,
         words++;
 
     for (plane = 3; plane >= 0; plane--) {
-        const uint8_t *si = vga_window_at(VMDS.page_src,
-                                  (uint16_t)(VMDS.row_offset[y] + col));
+        const uint8_t *si = vga_window_at(g_vmds.page_src,
+                                  (uint16_t)(g_vmds.row_offset[y] + col));
         int16_t row;
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
@@ -728,8 +728,8 @@ void vm_restore_rect(const uint8_t far * buf,
         words++;
 
     for (mask = 8; mask != 0; mask >>= 1) {
-        uint8_t *di = vga_window_at(VMDS.page_dst,
-                            (uint16_t)(VMDS.row_offset[y] + col));
+        uint8_t *di = vga_window_at(g_vmds.page_dst,
+                            (uint16_t)(g_vmds.row_offset[y] + col));
         int16_t row;
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
@@ -774,8 +774,8 @@ void vm_restore_rect(const uint8_t far * buf,
  */
 uint16_t vm_read_pixel(int16_t x, int16_t y)
 {
-    const uint8_t *at = vga_window_at(VMDS.page_src,
-                              (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
+    const uint8_t *at = vga_window_at(g_vmds.page_src,
+                              (uint16_t)(g_vmds.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
     uint16_t colour = 0;
 
@@ -826,8 +826,8 @@ uint16_t vm_read_pixel(int16_t x, int16_t y)
  */
 uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
 {
-    uint8_t *di   = vga_window_at(VMDS.page_dst,
-                          (uint16_t)(VMDS.row_offset[y] + ((uint16_t)x >> 3)));
+    uint8_t *di   = vga_window_at(g_vmds.page_dst,
+                          (uint16_t)(g_vmds.row_offset[y] + ((uint16_t)x >> 3)));
     uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
 
     io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
@@ -851,20 +851,20 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  * low byte is written, to index 0x0C. That is why the page offset is always a
  * multiple of 256 and why the game never writes index 0x0D.
  *
- * `VMDS.screen.screen_height == 400` takes fifteen paragraphs off the start address. It is
+ * `g_vmds.screen.screen_height == 400` takes fifteen paragraphs off the start address. It is
  * never taken in the mode this game runs - the height here is 480, with
  * blanking moved up to 399 - and is transcribed rather than dropped because it
  * is in the original.
  */
 void vm_show_page(uint16_t wait_retrace)
 {
-    uint16_t shown = VMDS.page_back;
-    uint16_t other = VMDS.page_front;
-    VMDS.page_front = VMDS.page_back;
-    VMDS.page_back = other;
+    uint16_t shown = g_vmds.page_back;
+    uint16_t other = g_vmds.page_front;
+    g_vmds.page_front = g_vmds.page_back;
+    g_vmds.page_back = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
-    if (VMDS.screen.screen_height == 400)
+    if (g_vmds.screen.screen_height == 400)
         start = (uint16_t)(start - 0x0F);
 
     io_out16(bios_crtc_base(), (uint16_t)(0x0C | ((start & 0xFF) << 8)));
@@ -909,8 +909,8 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 
     uint16_t rows = height;
     /* One row offset, in the source page and in the destination. */
-    const uint8_t *si = vga_window_at(VMDS.page_src, (uint16_t)(VMDS.row_offset[y] + col));
-    uint8_t *di       = vga_window_at(VMDS.page_dst, (uint16_t)(VMDS.row_offset[y] + col));
+    const uint8_t *si = vga_window_at(g_vmds.page_src, (uint16_t)(g_vmds.row_offset[y] + col));
+    uint8_t *di       = vga_window_at(g_vmds.page_dst, (uint16_t)(g_vmds.row_offset[y] + col));
 
     do {
         for (uint16_t i = 0; i < span; i++)
@@ -932,10 +932,10 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
  * the bits left of b. Transcribed data, and it carries its address for the
  * same reason a routine does.
  */
-static const uint8_t MASK_LEFT[8] = {
+static const uint8_t g_mask_left[8] = {
     0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01
 };
-static const uint8_t MASK_RIGHT[8] = {
+static const uint8_t g_mask_right[8] = {
     0x00, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE
 };
 
@@ -988,7 +988,7 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
     bx &= 7;
 
     if ((uint16_t)(bx + cx) < 8) {
-        uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
+        uint8_t mask = (uint8_t)(g_mask_left[bx] & g_mask_right[(bx + cx) & 7]);
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
         (void)vga_read((uint16_t)(at - g_vga_window));
@@ -1002,7 +1002,7 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
 
     {
         int16_t lead = (int16_t)(8 - bx);
-        uint8_t mask = MASK_LEFT[bx];
+        uint8_t mask = g_mask_left[bx];
         int16_t whole;
 
         cx = (int16_t)(cx - lead);
@@ -1034,7 +1034,7 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
         if (bx == 0)
             return;
 
-        mask = MASK_RIGHT[bx];
+        mask = g_mask_right[bx];
 
         io_out8(PORT_GC_DATA, (uint8_t)(mask & 0xAA));
         (void)vga_read((uint16_t)(at - g_vga_window));
@@ -1088,7 +1088,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
     colour = (uint8_t)(ax & 0xFF);
 
     if ((uint16_t)(bx + cx) < 8) {
-        uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
+        uint8_t mask = (uint8_t)(g_mask_left[bx] & g_mask_right[(bx + cx) & 7]);
         io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
         vga_read((uint16_t)(di - g_vga_window));
         vga_write((uint16_t)(di - g_vga_window), colour);
@@ -1097,7 +1097,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 
     /* The first, partial byte. */
     cx = (int16_t)(cx - (int16_t)(8 - bx));
-    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (MASK_LEFT[bx] << 8)));
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (g_mask_left[bx] << 8)));
     vga_read((uint16_t)(di - g_vga_window));
     vga_write((uint16_t)(di - g_vga_window), colour);
     di++;
@@ -1118,7 +1118,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
     /* The last, partial byte. */
     if (remaining & 7) {
         io_out16(PORT_GC_INDEX,
-                 (uint16_t)(0x08 | (MASK_RIGHT[remaining & 7] << 8)));
+                 (uint16_t)(0x08 | (g_mask_right[remaining & 7] << 8)));
         vga_read((uint16_t)(di - g_vga_window));
         vga_write((uint16_t)(di - g_vga_window), colour);
     }
@@ -1261,7 +1261,7 @@ void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
  * One bit per pixel position within a byte. The blitter rotates this along the
  * row rather than recomputing it.
  */
-static const uint8_t BIT_MASK[8] = {
+static const uint8_t g_bit_mask[8] = {
     0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
 };
 
@@ -1296,7 +1296,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
 {
     /* ES:DI, the row in the video aperture. */
     uint8_t *di = dst + (bx >> 3);
-    uint8_t mask = BIT_MASK[bx & 7];
+    uint8_t mask = g_bit_mask[bx & 7];
 
     io_out8(PORT_GC_INDEX, 0x08);
     do {
@@ -1345,7 +1345,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
  */
 void vm_fill_spans(const uint8_t far * spans)
 {
-    uint8_t colour = VMDS.fill_colour;
+    uint8_t colour = g_vmds.fill_colour;
     uint16_t y, rows;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -1368,13 +1368,13 @@ void vm_fill_spans(const uint8_t far * spans)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint8_t *di = vga_window_at(VMDS.page_dst,
-                                (uint16_t)(VMDS.row_offset[y] + (x1 >> 3)));
+            uint8_t *di = vga_window_at(g_vmds.page_dst,
+                                (uint16_t)(g_vmds.row_offset[y] + (x1 >> 3)));
             uint16_t bit = (uint16_t)(x1 & 7);
 
             if (bit + cx < 8) {
-                uint8_t mask = (uint8_t)(MASK_LEFT[bit]
-                                         & MASK_RIGHT[(bit + cx) & 7]);
+                uint8_t mask = (uint8_t)(g_mask_left[bit]
+                                         & g_mask_right[(bit + cx) & 7]);
                 io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
                 vga_read((uint16_t)(di - g_vga_window));
                 vga_write((uint16_t)(di - g_vga_window), colour);
@@ -1382,7 +1382,7 @@ void vm_fill_spans(const uint8_t far * spans)
                 uint16_t tail;
                 cx = (uint16_t)(cx - (8 - bit));
                 io_out16(PORT_GC_INDEX,
-                         (uint16_t)(0x08 | (MASK_LEFT[bit] << 8)));
+                         (uint16_t)(0x08 | (g_mask_left[bit] << 8)));
                 vga_read((uint16_t)(di - g_vga_window));
                 vga_write((uint16_t)(di - g_vga_window), colour);
                 di++;
@@ -1397,7 +1397,7 @@ void vm_fill_spans(const uint8_t far * spans)
                     }
                 }
                 if (tail) {
-                    io_out8(PORT_GC_DATA, MASK_RIGHT[tail]);
+                    io_out8(PORT_GC_DATA, g_mask_right[tail]);
                     vga_read((uint16_t)(di - g_vga_window));
                     vga_write((uint16_t)(di - g_vga_window), colour);
                 }
@@ -1503,11 +1503,11 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     int16_t run, rest;
 
     /* Both are *stored*, not kept in registers, exactly as the original does. */
-    VMDS.line_colour = VMDS.second_colour;
-    VMDS.line_mask = BIT_MASK[x1 & 7];
-    colour = (uint8_t)VMDS.line_colour;
-    mask = VMDS.line_mask;
-    di = vga_window_at(VMDS.page_dst, (uint16_t)(VMDS.row_offset[y1] + (uint16_t)(x1 >> 3)));
+    g_vmds.line_colour = g_vmds.second_colour;
+    g_vmds.line_mask = g_bit_mask[x1 & 7];
+    colour = (uint8_t)g_vmds.line_colour;
+    mask = g_vmds.line_mask;
+    di = vga_window_at(g_vmds.page_dst, (uint16_t)(g_vmds.row_offset[y1] + (uint16_t)(x1 >> 3)));
 
     if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
         line_mask(mask);
@@ -1586,19 +1586,19 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 
         if ((uint16_t)ey < (uint16_t)ex) {          /* VGA:0x0ab2, x major */
             rest = ex;
-            VMDS.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
-            VMDS.dda_frac = (uint16_t)(
+            g_vmds.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
+            g_vmds.dda_frac = (uint16_t)(
                 ((uint32_t)((uint16_t)ex % (uint16_t)(ey + 1)) << 16)
                 / (uint16_t)(ey + 1));
-            VMDS.dda_acc = 0;
+            g_vmds.dda_acc = 0;
             line_mask(mask);
-            run = (int16_t)(VMDS.dda_whole + 1);
+            run = (int16_t)(g_vmds.dda_whole + 1);
             line_pixel(di, colour);
             for (;;) {
-                VMDS.dda_saved = rest;
+                g_vmds.dda_saved = rest;
                 rest = (int16_t)(rest - run);
                 if (rest < 0) {
-                    run = VMDS.dda_saved;
+                    run = g_vmds.dda_saved;
                     rest = 0;
                 }
                 for (;;) {
@@ -1617,28 +1617,28 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 vga_read((uint16_t)(di - g_vga_window));
                 vga_write((uint16_t)(di - g_vga_window), colour);
                 {
-                    uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
-                    VMDS.dda_acc = (uint16_t)sum;
-                    run = (int16_t)(VMDS.dda_whole + (sum > 0xFFFF ? 1 : 0));
+                    uint32_t sum = (uint32_t)g_vmds.dda_acc + g_vmds.dda_frac;
+                    g_vmds.dda_acc = (uint16_t)sum;
+                    run = (int16_t)(g_vmds.dda_whole + (sum > 0xFFFF ? 1 : 0));
                 }
             }
         }
 
         /* VGA:0x0b35, y major. */
         rest = ey;
-        VMDS.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
-        VMDS.dda_frac = (uint16_t)(
+        g_vmds.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
+        g_vmds.dda_frac = (uint16_t)(
             ((uint32_t)((uint16_t)ey % (uint16_t)(ex + 1)) << 16)
             / (uint16_t)(ex + 1));
-        VMDS.dda_acc = 0;
+        g_vmds.dda_acc = 0;
         line_mask(mask);
-        run = (int16_t)(VMDS.dda_whole + 1);
+        run = (int16_t)(g_vmds.dda_whole + 1);
         line_pixel(di, colour);
         for (;;) {
-            VMDS.dda_saved = rest;
+            g_vmds.dda_saved = rest;
             rest = (int16_t)(rest - run);
             if (rest < 0) {
-                run = VMDS.dda_saved;
+                run = g_vmds.dda_saved;
                 rest = 0;
             }
             for (;;) {
@@ -1665,9 +1665,9 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 line_pixel(di, colour);
             }
             {
-                uint32_t sum = (uint32_t)VMDS.dda_acc + VMDS.dda_frac;
-                VMDS.dda_acc = (uint16_t)sum;
-                run = (int16_t)(VMDS.dda_whole + (sum > 0xFFFF ? 1 : 0));
+                uint32_t sum = (uint32_t)g_vmds.dda_acc + g_vmds.dda_frac;
+                g_vmds.dda_acc = (uint16_t)sum;
+                run = (int16_t)(g_vmds.dda_whole + (sum > 0xFFFF ? 1 : 0));
             }
         }
     }
@@ -1688,7 +1688,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(const uint8_t far * pal)
 {
-    uint8_t *di = VMDS.palettes.blocks[0];
+    uint8_t *di = g_vmds.palettes.blocks[0];
     const uint8_t *si = pal;
     int32_t i;
 
@@ -1735,8 +1735,8 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
     /* The original normalises the source into a segment and a four-bit
        offset so its 16-bit index cannot overflow - a huge pointer, which
        the port's is. */
-    uint8_t *di = vga_window_at(VMDS.page_dst,
-                        (uint16_t)(VMDS.row_offset[y] + (uint16_t)(x >> 3)));
+    uint8_t *di = vga_window_at(g_vmds.page_dst,
+                        (uint16_t)(g_vmds.row_offset[y] + (uint16_t)(x >> 3)));
     const uint8_t *si = src;
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
     uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
@@ -1838,8 +1838,8 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
     uint8_t  cl;
     int16_t  plane;
 
-    di = vga_window_at(VMDS.page_dst,
-               (uint16_t)(((y >= 0) ? VMDS.row_offset[y] : (uint16_t)(y * 80))
+    di = vga_window_at(g_vmds.page_dst,
+               (uint16_t)(((y >= 0) ? g_vmds.row_offset[y] : (uint16_t)(y * 80))
                           + (uint16_t)(x >> 3)));
     cl = (uint8_t)(x & 7);
 
@@ -1856,11 +1856,11 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         mask_p += n;
     }
 
-    if (VMDS.clip_enabled != 0) {
+    if (g_vmds.clip_enabled != 0) {
         int16_t over;
 
         /* off the right-hand edge */
-        over = (int16_t)(VMDS.clip_right + 1 - (x + w));
+        over = (int16_t)(g_vmds.clip_right + 1 - (x + w));
         if (over <= 0) {
             over = (int16_t)(-over);
             if (over >= w)
@@ -1870,7 +1870,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the left-hand edge */
-        over = (int16_t)(x - VMDS.clip_left);
+        over = (int16_t)(x - g_vmds.clip_left);
         if (over < 0) {
             int16_t bx = over;
 
@@ -1887,7 +1887,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the bottom */
-        over = (int16_t)(y + h - VMDS.clip_bottom);
+        over = (int16_t)(y + h - g_vmds.clip_bottom);
         if (over > 0) {
             if (over >= h)
                 goto done;
@@ -1896,7 +1896,7 @@ void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the top */
-        over = (int16_t)(VMDS.clip_top - y);
+        over = (int16_t)(g_vmds.clip_top - y);
         if (over >= 0) {
             int32_t n;
 
@@ -2114,17 +2114,17 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         uint16_t row;
 
         if ((int16_t)((uint16_t)y << 1) >= 0)
-            row = VMDS.row_offset[(uint16_t)y];
+            row = g_vmds.row_offset[(uint16_t)y];
         else
             row = (uint16_t)((uint16_t)y * 40u);                /* y*8 + y*32 */
-        di = vga_window_at(VMDS.page_dst, (uint16_t)(row + (uint16_t)(x >> 3)));
+        di = vga_window_at(g_vmds.page_dst, (uint16_t)(row + (uint16_t)(x >> 3)));
     }
 
-    if (VMDS.clip_enabled != 0) {
+    if (g_vmds.clip_enabled != 0) {
         int16_t a, b;
 
         /* off the right-hand edge */
-        a = (int16_t)(VMDS.clip_right + 1);
+        a = (int16_t)(g_vmds.clip_right + 1);
         b = (int16_t)(x + w);
         if (!(a > b)) {
             a = (int16_t)(b - a);                               /* `neg` */
@@ -2135,7 +2135,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the left-hand edge */
-        a = (int16_t)(x - VMDS.clip_left);
+        a = (int16_t)(x - g_vmds.clip_left);
         if (a < 0) {
             uint16_t bx;
 
@@ -2149,7 +2149,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the bottom */
-        a = (int16_t)(y + h - VMDS.clip_bottom);
+        a = (int16_t)(y + h - g_vmds.clip_bottom);
         if (a >= 0) {
             if (!((int16_t)(a - h) < 0))
                 goto done;
@@ -2157,7 +2157,7 @@ void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
         }
 
         /* off the top */
-        a = (int16_t)(VMDS.clip_top - y);
+        a = (int16_t)(g_vmds.clip_top - y);
         if (a >= 0) {
             if (!((int16_t)(a - h) < 0))
                 goto done;

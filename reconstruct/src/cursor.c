@@ -23,7 +23,7 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-extern struct machine_rect_free MACHINE_RECT_FREE;
+extern struct machine_rect_free g_machine_rect_free;
 
    /* rects.c's */
 
@@ -47,17 +47,17 @@ struct machine_cursor_state {
     int16_t   slots_unset;          /* +0x14 [2] */
 } PACKED;
 
-struct machine_cursor_state MACHINE_CURSOR_STATE = {
+struct machine_cursor_state g_machine_cursor_state = {
     0x0001, 0, 0, 0x0100, 0, 0x0001, 0x000c, 0x0001, 0x0001, 0x0001
 };
 
 /*
  * **This module's `_BSS`, 0x56e6..0x5788.** Borland lays `_BSS` out in
- * reverse order of first mention. dgroup.h mentions POINTER, then
+ * reverse order of first mention. dgroup.h mentions g_pointer, then
  * `g_rect_buffer`, then `g_size_word`, `g_frame_flag` and `g_redraw_guard` -
  * the five highest - and the rest are defined here from the highest down.
  */
-struct pointer POINTER;
+struct pointer g_pointer;
 
 uint8_t far *g_rect_buffer[4];   /* DGROUP 0x5758 */
 int16_t g_size_word;                                  /* DGROUP 0x5756 */
@@ -84,7 +84,7 @@ struct machine_buttons {
     struct button button[2];      /* +0x00 [0x10] */
 } PACKED;
 
-struct machine_buttons MACHINE_BUTTONS;
+struct machine_buttons g_machine_buttons;
 
 /*
  * **The palette request and the fade**, DGROUP 0x5738..0x5742, 0x0a bytes.
@@ -100,12 +100,12 @@ struct machine_palette_fade {
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
 } PACKED;
 
-struct machine_palette_fade MACHINE_PALETTE_FADE;
+struct machine_palette_fade g_machine_palette_fade;
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
  * apiece at 0x5734; the buffers themselves are `g_rect_buffer`, the far
- * pointers at 0x5758 up to `POINTER`. Four is the routine's own bound.
+ * pointers at 0x5758 up to `g_pointer`. Four is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
  */
@@ -113,7 +113,7 @@ struct machine_buffer_used {
     uint8_t   used[4];            /* +0x00 [4] */
 } PACKED;
 
-struct machine_buffer_used MACHINE_BUFFER_USED;
+struct machine_buffer_used g_machine_buffer_used;
 
 /*
  * **The drawing state saved across an interrupt**, DGROUP 0x5726..0x5734, 0x0e bytes.
@@ -128,7 +128,7 @@ struct machine_saved_draw_state {
     uint16_t  saved_g;            /* +0x0c [2] */
 } PACKED;
 
-struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE;
+struct machine_saved_draw_state g_machine_saved_draw_state;
 
 /*
  * **The two page slots**, DGROUP 0x56e6..0x5726, 0x40 bytes.
@@ -142,7 +142,7 @@ struct machine_page_slots {
     struct page_slot slots[2];   /* +0x00 [0x40] */
 } PACKED;
 
-struct machine_page_slots MACHINE_PAGE_SLOTS;
+struct machine_page_slots g_machine_page_slots;
 
 /*
  * 0x0a78e
@@ -154,8 +154,8 @@ struct machine_page_slots MACHINE_PAGE_SLOTS;
  */
 void cursor_redraw_on(void)
 {
-    MACHINE_CURSOR_STATE.timer_draws_cursor = 1;
-    redraw_cursor(VMDS.page_front);
+    g_machine_cursor_state.timer_draws_cursor = 1;
+    redraw_cursor(g_vmds.page_front);
 }
 
 /*
@@ -172,7 +172,7 @@ void cursor_redraw_on(void)
  */
 void cursor_redraw_off(void)
 {
-    MACHINE_CURSOR_STATE.timer_draws_cursor = 0;
+    g_machine_cursor_state.timer_draws_cursor = 0;
 }
 
 /*
@@ -207,10 +207,10 @@ void timer_callback(void)
     int16_t k_end, k_down, k_pgdn, k_left, k_right, k_home, k_up, k_pgup;
     int16_t si, di;
 
-    if (((int16_t)g_redraw_guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
+    if (((int16_t)g_redraw_guard) > 1 || g_machine_palette_fade.busy != 0)
         return;
 
-    MACHINE_PALETTE_FADE.busy = 1;
+    g_machine_palette_fade.busy = 1;
     moved = 0;
 
     k_end   = key_is_down(SC_END);
@@ -224,38 +224,38 @@ void timer_callback(void)
 
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
-        POINTER.cursor_y -= 2;
-        if (POINTER.cursor_y - POINTER.hot_y < 0)
-            POINTER.cursor_y = 0;
+        g_pointer.cursor_y -= 2;
+        if (g_pointer.cursor_y - g_pointer.hot_y < 0)
+            g_pointer.cursor_y = 0;
     }
 
     if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
         moved = 1;
-        POINTER.cursor_y += 2;
-        if (POINTER.cursor_y - POINTER.hot_y > (int16_t)(VMDS.screen.screen_height - 1))
-            POINTER.cursor_y = (int16_t)(VMDS.screen.screen_height - 1);
+        g_pointer.cursor_y += 2;
+        if (g_pointer.cursor_y - g_pointer.hot_y > (int16_t)(g_vmds.screen.screen_height - 1))
+            g_pointer.cursor_y = (int16_t)(g_vmds.screen.screen_height - 1);
     }
 
     if (k_end != 0 || k_left != 0 || k_home != 0) {
         moved = 1;
-        POINTER.cursor_x -= 2;
-        if (POINTER.cursor_x - POINTER.hot_x < 0)
-            POINTER.cursor_x = 0;
+        g_pointer.cursor_x -= 2;
+        if (g_pointer.cursor_x - g_pointer.hot_x < 0)
+            g_pointer.cursor_x = 0;
     }
 
     if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
         moved = 1;
-        POINTER.cursor_x += 2;
-        if (POINTER.cursor_x - POINTER.hot_x > (int16_t)(VMDS.screen.screen_width - 1))
-            POINTER.cursor_x = (int16_t)(VMDS.screen.screen_width - 1);
+        g_pointer.cursor_x += 2;
+        if (g_pointer.cursor_x - g_pointer.hot_x > (int16_t)(g_vmds.screen.screen_width - 1))
+            g_pointer.cursor_x = (int16_t)(g_vmds.screen.screen_width - 1);
     }
 
     if (moved != 0)
-        mouse_move_to(((uint16_t)POINTER.cursor_x), ((uint16_t)POINTER.cursor_y));
+        mouse_move_to(((uint16_t)g_pointer.cursor_x), ((uint16_t)g_pointer.cursor_y));
 
-    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && g_redraw_guard == 0) {
+    if (g_machine_cursor_state.timer_draws_cursor != 0 && g_redraw_guard == 0) {
         isr_stack_switch(1);
-        redraw_cursor(VMDS.page_front);
+        redraw_cursor(g_vmds.page_front);
         isr_stack_switch(0);
     }
 
@@ -268,19 +268,19 @@ void timer_callback(void)
 
     si = button_state(0, di);
     if (si <= 1)
-        si = POINTER.button_accum_b;
-    POINTER.button_accum_b = (int16_t)(di | (si & 0xfffe));
+        si = g_pointer.button_accum_b;
+    g_pointer.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
-    di = (MACHINE_CURSOR_STATE.read_driver != 0 && read_mouse_button(1) != 0) ? 1 : 0;
+    di = (g_machine_cursor_state.read_driver != 0 && read_mouse_button(1) != 0) ? 1 : 0;
     si = key_is_down(1);
     di |= si;
 
     si = button_state(1, di);
     if (si <= 1)
-        si = POINTER.button_accum_a;
-    POINTER.button_accum_a = (int16_t)(di | (si & 0xfffe));
+        si = g_pointer.button_accum_a;
+    g_pointer.button_accum_a = (int16_t)(di | (si & 0xfffe));
 
-    MACHINE_PALETTE_FADE.busy = 0;
+    g_machine_palette_fade.busy = 0;
     g_frame_flag = 1;
 }
 
@@ -303,23 +303,23 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 {
     uint16_t saved;
 
-    if (POINTER.cursor_bitmap == bitmap && POINTER.hot_x == hot_x
-        && POINTER.hot_y == hot_y)
+    if (g_pointer.cursor_bitmap == bitmap && g_pointer.hot_x == hot_x
+        && g_pointer.hot_y == hot_y)
         return;
 
     saved = g_redraw_guard;
     g_redraw_guard = 1;
 
-    POINTER.cursor_bitmap = bitmap;
+    g_pointer.cursor_bitmap = bitmap;
 
     if (bitmap == NULL) {
-        POINTER.hot_x = POINTER.hot_y = 0;
+        g_pointer.hot_x = g_pointer.hot_y = 0;
     } else {
-        POINTER.hot_x = hot_x;
-        POINTER.hot_y = hot_y;
+        g_pointer.hot_x = hot_x;
+        g_pointer.hot_y = hot_y;
     }
 
-    redraw_cursor(VMDS.page_front);
+    redraw_cursor(g_vmds.page_front);
 
     g_redraw_guard = saved;
 }
@@ -344,16 +344,16 @@ void move_pointer_to(int16_t x, int16_t y)
 {
     if (x < 0)
         x = 0;
-    else if ((int16_t)(VMDS.screen.screen_width - 1) < x)
-        x = (int16_t)(VMDS.screen.screen_width - 1);
+    else if ((int16_t)(g_vmds.screen.screen_width - 1) < x)
+        x = (int16_t)(g_vmds.screen.screen_width - 1);
 
     if (y < 0)
         y = 0;
-    else if ((int16_t)(VMDS.screen.screen_height - 1) < y)
-        y = (int16_t)(VMDS.screen.screen_height - 1);
+    else if ((int16_t)(g_vmds.screen.screen_height - 1) < y)
+        y = (int16_t)(g_vmds.screen.screen_height - 1);
 
-    POINTER.cursor_x = POINTER.pointer_x = x;
-    POINTER.cursor_y = POINTER.pointer_y = y;
+    g_pointer.cursor_x = g_pointer.pointer_x = x;
+    g_pointer.cursor_y = g_pointer.pointer_y = y;
 
     mouse_move_to((uint16_t)x, (uint16_t)y);
 }
@@ -376,21 +376,21 @@ void move_pointer_to(int16_t x, int16_t y)
  */
 void wait_and_latch_frame(void)
 {
-    if (TIMER.installed != 0) {
+    if (g_timer.installed != 0) {
         while (frame_pending())
             ;
     }
 
-    if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0) {
-        read_mouse_pointer(&POINTER.pointer_x, &POINTER.pointer_y);
+    if (((int16_t)g_machine_cursor_state.read_driver) != 0) {
+        read_mouse_pointer(&g_pointer.pointer_x, &g_pointer.pointer_y);
     } else {
-        POINTER.pointer_x = POINTER.cursor_x;
-        POINTER.pointer_y = POINTER.cursor_y;
+        g_pointer.pointer_x = g_pointer.cursor_x;
+        g_pointer.pointer_y = g_pointer.cursor_y;
     }
 
-    POINTER.button_left = POINTER.button_accum_b;
-    POINTER.button_right = POINTER.button_accum_a;
-    POINTER.button_accum_b = POINTER.button_accum_a = 0;
+    g_pointer.button_left = g_pointer.button_accum_b;
+    g_pointer.button_right = g_pointer.button_accum_a;
+    g_pointer.button_accum_b = g_pointer.button_accum_a = 0;
     g_frame_flag = 0;
 }
 
@@ -431,11 +431,11 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst = VMDS.page_src = slot->page;
-    VMDS.clip_enabled = 1;
-    VMDS.clip_left = VMDS.clip_top = 0;
-    VMDS.clip_bottom = VMDS.screen.screen_height - 1;
-    VMDS.clip_right = VMDS.screen.screen_width - 1;
+    g_vmds.page_dst = g_vmds.page_src = slot->page;
+    g_vmds.clip_enabled = 1;
+    g_vmds.clip_left = g_vmds.clip_top = 0;
+    g_vmds.clip_bottom = g_vmds.screen.screen_height - 1;
+    g_vmds.clip_right = g_vmds.screen.screen_width - 1;
 
     /* Put back what the last cursor covered. */
     if (slot->cursor.flags & 2) {
@@ -452,7 +452,7 @@ void draw_cursor(uint16_t page)
     }
 
     /* Save what the new one will cover. */
-    if (MACHINE_CURSOR_STATE.cursor_off != 0) {
+    if (g_machine_cursor_state.cursor_off != 0) {
         if (slot->obj.buf != 0 && slot->bitmap != 0) {
             if (slot->obj.w > 0 && slot->obj.h > 0)
                 save_rect_thunk(g_rect_buffer[slot->obj.buf - 1],
@@ -464,20 +464,20 @@ void draw_cursor(uint16_t page)
     }
 
     /* And draw it. */
-    if (MACHINE_CURSOR_STATE.cursor_off != 0) {
+    if (g_machine_cursor_state.cursor_off != 0) {
         if (slot->bitmap != 0 && slot->obj.buf != 0) {
             /*
              * On adapter 8 a negative y is nudged one further up before the
              * blit.
              */
-            if ((uint8_t)VMDS.pixel_shift == 8 && slot->y < 0)
+            if ((uint8_t)g_vmds.pixel_shift == 8 && slot->y < 0)
                 draw_bitmap(slot->bitmap, slot->x, slot->y - 1, 0);
             else
                 draw_bitmap(slot->bitmap, slot->x, slot->y, 0);
         } else {
-            MACHINE_PALETTE_FADE.plot_colour = (MACHINE_PALETTE_FADE.plot_colour + 1) & 0x0f;
+            g_machine_palette_fade.plot_colour = (g_machine_palette_fade.plot_colour + 1) & 0x0f;
             plot_pixel_clipped(slot->x, slot->y,
-                               MACHINE_PALETTE_FADE.plot_colour);
+                               g_machine_palette_fade.plot_colour);
         }
         slot->obj.flags |= 2;
     } else {
@@ -488,7 +488,7 @@ void draw_cursor(uint16_t page)
 
     /* Give back the buffer the erase used, if nothing else wants it. */
     if ((slot->cursor.flags & 1) && slot->cursor.buf != 0
-        && MACHINE_PALETTE_FADE.busy == 0) {
+        && g_machine_palette_fade.busy == 0) {
         release_buffer(slot->cursor.buf);
         slot->cursor.buf = 0;
         slot->cursor.flags &= 0xfe;
@@ -527,16 +527,16 @@ void redraw_cursor(uint16_t page)
     saved = g_redraw_guard;
     g_redraw_guard = 1;
 
-    if (MACHINE_CURSOR_STATE.read_driver != 0)
-        read_mouse_pointer(&POINTER.cursor_x, &POINTER.cursor_y);
+    if (g_machine_cursor_state.read_driver != 0)
+        read_mouse_pointer(&g_pointer.cursor_x, &g_pointer.cursor_y);
 
-    MACHINE_RECT_FREE.draw_x = POINTER.cursor_x - POINTER.hot_x;
-    MACHINE_RECT_FREE.draw_y = POINTER.cursor_y - POINTER.hot_y;
+    g_machine_rect_free.draw_x = g_pointer.cursor_x - g_pointer.hot_x;
+    g_machine_rect_free.draw_y = g_pointer.cursor_y - g_pointer.hot_y;
 
-    if (POINTER.cursor_bitmap == 0
-        || slot->x != MACHINE_RECT_FREE.draw_x
-        || slot->y != MACHINE_RECT_FREE.draw_y
-        || slot->bitmap != POINTER.cursor_bitmap
+    if (g_pointer.cursor_bitmap == 0
+        || slot->x != g_machine_rect_free.draw_x
+        || slot->y != g_machine_rect_free.draw_y
+        || slot->bitmap != g_pointer.cursor_bitmap
         || !(slot->obj.flags & 2))
         draw_cursor(page);
 
@@ -580,7 +580,7 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst = VMDS.page_src = rec->page;
+    g_vmds.page_dst = g_vmds.page_src = rec->page;
 
     if (rec->obj.flags & 2) {
         if (rec->obj.buf != 0 && rec->obj.w > 0 && rec->obj.h > 0)
@@ -623,7 +623,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 
     save_or_restore_draw_state(1);
 
-    VMDS.page_dst = VMDS.page_src = to_page;
+    g_vmds.page_dst = g_vmds.page_src = to_page;
 
     if (si->obj.flags & 2) {
         if (si->obj.buf != 0 && si->obj.w > 0 && si->obj.h > 0)
@@ -732,7 +732,7 @@ void restage_object_rect(uint16_t handle)
     g_redraw_guard = 1;
 
     if ((rec->cursor.flags & 1) && rec->cursor.buf != 0
-        && MACHINE_PALETTE_FADE.busy == 0) {
+        && g_machine_palette_fade.busy == 0) {
         release_buffer(rec->cursor.buf);
         rec->cursor.buf = 0;
         rec->cursor.flags &= 0xfe;
@@ -746,26 +746,26 @@ void restage_object_rect(uint16_t handle)
     rec->cursor.flags = rec->obj.flags;
     rec->cursor.pixel = rec->obj.pixel;
 
-    if (rec->bitmap != POINTER.cursor_bitmap && MACHINE_PALETTE_FADE.busy == 0) {
+    if (rec->bitmap != g_pointer.cursor_bitmap && g_machine_palette_fade.busy == 0) {
         rec->cursor.flags |= 1;
-        if ((rec->bitmap = POINTER.cursor_bitmap) != 0) {
-            size = vm_buffer_size(POINTER.cursor_bitmap->width,
-                                  POINTER.cursor_bitmap->height);
+        if ((rec->bitmap = g_pointer.cursor_bitmap) != 0) {
+            size = vm_buffer_size(g_pointer.cursor_bitmap->width,
+                                  g_pointer.cursor_bitmap->height);
             rec->obj.buf = claim_buffer_slot(size, 0L);
         } else {
             rec->obj.buf = 0;
         }
     }
 
-    if (MACHINE_CURSOR_STATE.read_driver != 0)
-        read_mouse_pointer(&POINTER.cursor_x, &POINTER.cursor_y);
+    if (g_machine_cursor_state.read_driver != 0)
+        read_mouse_pointer(&g_pointer.cursor_x, &g_pointer.cursor_y);
 
-    x = POINTER.cursor_x - POINTER.hot_x;
-    y = POINTER.cursor_y - POINTER.hot_y;
+    x = g_pointer.cursor_x - g_pointer.hot_x;
+    y = g_pointer.cursor_y - g_pointer.hot_y;
 
-    if (POINTER.cursor_bitmap != 0) {
-        w = POINTER.cursor_bitmap->width;
-        h = POINTER.cursor_bitmap->height;
+    if (g_pointer.cursor_bitmap != 0) {
+        w = g_pointer.cursor_bitmap->width;
+        h = g_pointer.cursor_bitmap->height;
     } else {
         w = h = 1;
     }
@@ -777,14 +777,14 @@ void restage_object_rect(uint16_t handle)
         w += x;
         x = 0;
     }
-    if (x + w >= VMDS.screen.screen_width)
-        w = VMDS.screen.screen_width - x;
+    if (x + w >= g_vmds.screen.screen_width)
+        w = g_vmds.screen.screen_width - x;
     if (y < 0) {
         h += y;
         y = 0;
     }
-    if (y + h >= VMDS.screen.screen_height)
-        h = VMDS.screen.screen_height - y;
+    if (y + h >= g_vmds.screen.screen_height)
+        h = g_vmds.screen.screen_height - y;
 
     rec->obj.x = x;
     rec->obj.y = y;
@@ -843,71 +843,71 @@ void redraw_cursor_all(void)
     was = g_redraw_guard;
     g_redraw_guard = 1;
 
-    if (POINTER.pending_move_x != 0 || POINTER.pending_move_y != 0) {
-        move_pointer_to(POINTER.pending_move_x, POINTER.pending_move_y);
-        POINTER.pending_move_x = POINTER.pending_move_y = 0;
+    if (g_pointer.pending_move_x != 0 || g_pointer.pending_move_y != 0) {
+        move_pointer_to(g_pointer.pending_move_x, g_pointer.pending_move_y);
+        g_pointer.pending_move_x = g_pointer.pending_move_y = 0;
     }
 
-    draw_cursor(VMDS.page_back);
+    draw_cursor(g_vmds.page_back);
 
-    if (MACHINE_CURSOR_STATE.page != 0)
-        show_page_thunk(MACHINE_CURSOR_STATE.pending_pal == NULL
-                        && POINTER.fade_weight == MACHINE_PALETTE_FADE.fade_mark ? 1 : 0);
+    if (g_machine_cursor_state.page != 0)
+        show_page_thunk(g_machine_cursor_state.pending_pal == NULL
+                        && g_pointer.fade_weight == g_machine_palette_fade.fade_mark ? 1 : 0);
 
-    if (MACHINE_CURSOR_STATE.pending_pal != NULL) {
-        set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
-        MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
-        MACHINE_CURSOR_STATE.pending_pal = NULL;
-        MACHINE_PALETTE_FADE.fade_mark = 0;
+    if (g_machine_cursor_state.pending_pal != NULL) {
+        set_palette_pointer(g_machine_cursor_state.pending_pal);
+        g_machine_palette_fade.request = g_machine_cursor_state.pending_pal;
+        g_machine_cursor_state.pending_pal = NULL;
+        g_machine_palette_fade.fade_mark = 0;
     }
 
-    if (POINTER.fade_weight != MACHINE_PALETTE_FADE.fade_mark) {
-        fade_palette_run(MACHINE_CURSOR_STATE.fade_first, MACHINE_CURSOR_STATE.fade_count, 0, POINTER.fade_weight);
-        MACHINE_PALETTE_FADE.fade_mark = POINTER.fade_weight;
+    if (g_pointer.fade_weight != g_machine_palette_fade.fade_mark) {
+        fade_palette_run(g_machine_cursor_state.fade_first, g_machine_cursor_state.fade_count, 0, g_pointer.fade_weight);
+        g_machine_palette_fade.fade_mark = g_pointer.fade_weight;
     }
 
-    if (MACHINE_CURSOR_STATE.screen_disturbed != 0) {
-        if (MACHINE_CURSOR_STATE.page != 0) {
-            VMDS.page_src = VMDS.page_front;
-            VMDS.page_dst = VMDS.page_back;
+    if (g_machine_cursor_state.screen_disturbed != 0) {
+        if (g_machine_cursor_state.page != 0) {
+            g_vmds.page_src = g_vmds.page_front;
+            g_vmds.page_dst = g_vmds.page_back;
         } else {
-            VMDS.page_src = VMDS.page_back;
-            VMDS.page_dst = VMDS.page_front;
+            g_vmds.page_src = g_vmds.page_back;
+            g_vmds.page_dst = g_vmds.page_front;
         }
 
-        free_saved_rects(VMDS.rect_page, VMDS.page_back, 0);
-        free_saved_rects(VMDS.rect_page, VMDS.page_front, MACHINE_CURSOR_STATE.page);
-        free_saved_rects(VMDS.page_src, VMDS.page_dst, 0);
+        free_saved_rects(g_vmds.rect_page, g_vmds.page_back, 0);
+        free_saved_rects(g_vmds.rect_page, g_vmds.page_front, g_machine_cursor_state.page);
+        free_saved_rects(g_vmds.page_src, g_vmds.page_dst, 0);
 
-        copy_rect_thunk(0, 0, VMDS.screen.screen_width, VMDS.screen.screen_height);
+        copy_rect_thunk(0, 0, g_vmds.screen.screen_width, g_vmds.screen.screen_height);
 
-        if (MACHINE_CURSOR_STATE.page != 0) {
-            restore_object_backdrop(VMDS.page_front, VMDS.page_back);
-            clear_object_covered(VMDS.page_back);
+        if (g_machine_cursor_state.page != 0) {
+            restore_object_backdrop(g_vmds.page_front, g_vmds.page_back);
+            clear_object_covered(g_vmds.page_back);
         } else {
-            erase_object(VMDS.page_back);
+            erase_object(g_vmds.page_back);
         }
 
-        MACHINE_CURSOR_STATE.screen_disturbed = 0;
+        g_machine_cursor_state.screen_disturbed = 0;
     } else {
-        erase_object(VMDS.page_back);
+        erase_object(g_vmds.page_back);
     }
 
-    if (MACHINE_CURSOR_STATE.page == 0) {
-        clear_object_covered(VMDS.page_front);
-        draw_cursor(VMDS.page_back);
-        swap_page_objects(VMDS.page_front, VMDS.page_back);
+    if (g_machine_cursor_state.page == 0) {
+        clear_object_covered(g_vmds.page_front);
+        draw_cursor(g_vmds.page_back);
+        swap_page_objects(g_vmds.page_front, g_vmds.page_back);
 
-        VMDS.page_dst = VMDS.page_front;
-        VMDS.page_src = VMDS.page_back;
+        g_vmds.page_dst = g_vmds.page_front;
+        g_vmds.page_src = g_vmds.page_back;
 
-        if ((rec = claim_page_slot(VMDS.page_front)) != NULL)
+        if ((rec = claim_page_slot(g_vmds.page_front)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
-        if ((rec = claim_page_slot(VMDS.page_back)) != NULL)
+        if ((rec = claim_page_slot(g_vmds.page_back)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
-        restore_object_backdrop(VMDS.page_front, VMDS.page_back);
+        restore_object_backdrop(g_vmds.page_front, g_vmds.page_back);
     }
 
     restore_saved_rect_lists(0);
@@ -946,7 +946,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     saved = g_redraw_guard;
     g_redraw_guard = 1;
 
-    if ((si = claim_page_slot(VMDS.page_src)) != NULL
+    if ((si = claim_page_slot(g_vmds.page_src)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -956,7 +956,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
             hit_shown = 1;
     }
 
-    if ((si = claim_page_slot(VMDS.page_dst)) != NULL
+    if ((si = claim_page_slot(g_vmds.page_dst)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -966,27 +966,27 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
             hit_draw = 1;
     }
 
-    if (MACHINE_CURSOR_STATE.page != 0 || hit_draw == 0) {
+    if (g_machine_cursor_state.page != 0 || hit_draw == 0) {
         if (hit_draw != 0)
-            erase_object(VMDS.page_dst);
+            erase_object(g_vmds.page_dst);
 
         if (w > 0 && h > 0)
             copy_rect_thunk(x, y, w, h);
 
         if (hit_shown != 0) {
-            restore_object_backdrop(VMDS.page_src, VMDS.page_dst);
-            clear_object_covered(VMDS.page_dst);
+            restore_object_backdrop(g_vmds.page_src, g_vmds.page_dst);
+            clear_object_covered(g_vmds.page_dst);
         }
 
         if (hit_draw != 0)
-            draw_cursor(VMDS.page_dst);
+            draw_cursor(g_vmds.page_dst);
     } else {
-        draw_cursor(VMDS.page_src);
+        draw_cursor(g_vmds.page_src);
 
         if (w > 0 && h > 0)
             copy_rect_thunk(x, y, w, h);
 
-        erase_object(VMDS.page_src);
+        erase_object(g_vmds.page_src);
     }
 
     g_redraw_guard = saved;
@@ -1000,8 +1000,8 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 int16_t timer_may_draw_cursor(void)
 {
-    return MACHINE_CURSOR_STATE.timer_draws_cursor != 0
-        && MACHINE_PALETTE_FADE.busy == 0;
+    return g_machine_cursor_state.timer_draws_cursor != 0
+        && g_machine_palette_fade.busy == 0;
 }
 
 /*
@@ -1023,16 +1023,16 @@ struct page_slot *claim_page_slot(uint16_t want)
     struct page_slot *p;
     int16_t i;
 
-    if (MACHINE_CURSOR_STATE.slots_unset != 0) {
-        MACHINE_PAGE_SLOTS.slots[0].page = VMDS.page_back;
-        MACHINE_PAGE_SLOTS.slots[1].page = VMDS.page_front;
-        MACHINE_CURSOR_STATE.slots_unset = 0;
+    if (g_machine_cursor_state.slots_unset != 0) {
+        g_machine_page_slots.slots[0].page = g_vmds.page_back;
+        g_machine_page_slots.slots[1].page = g_vmds.page_front;
+        g_machine_cursor_state.slots_unset = 0;
     }
 
     if (want == 0)
-        want = VMDS.page_back;
+        want = g_vmds.page_back;
 
-    for (p = MACHINE_PAGE_SLOTS.slots, i = 0; i < 2; i++, p++) {
+    for (p = g_machine_page_slots.slots, i = 0; i < 2; i++, p++) {
         if ((want & 0xA800) == (p->page & 0xA800)) {
             p->page = want;
             return p;
@@ -1048,28 +1048,28 @@ struct page_slot *claim_page_slot(uint16_t want)
  * zero restores. The state is the clip box, whether clipping is on, and the
  * two page segments - seven values, kept at DGROUP 0x5726..0x5732.
  *
- * `VMDS.clip_enabled` is a byte and is saved **zero-extended into a word**, then
+ * `g_vmds.clip_enabled` is a byte and is saved **zero-extended into a word**, then
  * restored as a byte, so the high half of 0x5726 is always zero. Transcribed
  * with the same widths rather than made symmetrical.
  */
 void save_or_restore_draw_state(int16_t save)
 {
     if (save != 0) {
-        MACHINE_SAVED_DRAW_STATE.saved_a = VMDS.clip_enabled;
-        MACHINE_SAVED_DRAW_STATE.saved_b = VMDS.clip_left;
-        MACHINE_SAVED_DRAW_STATE.saved_c = VMDS.clip_right;
-        MACHINE_SAVED_DRAW_STATE.saved_d = VMDS.clip_top;
-        MACHINE_SAVED_DRAW_STATE.saved_e = VMDS.clip_bottom;
-        MACHINE_SAVED_DRAW_STATE.saved_g = VMDS.page_dst;
-        MACHINE_SAVED_DRAW_STATE.saved_f = VMDS.page_src;
+        g_machine_saved_draw_state.saved_a = g_vmds.clip_enabled;
+        g_machine_saved_draw_state.saved_b = g_vmds.clip_left;
+        g_machine_saved_draw_state.saved_c = g_vmds.clip_right;
+        g_machine_saved_draw_state.saved_d = g_vmds.clip_top;
+        g_machine_saved_draw_state.saved_e = g_vmds.clip_bottom;
+        g_machine_saved_draw_state.saved_g = g_vmds.page_dst;
+        g_machine_saved_draw_state.saved_f = g_vmds.page_src;
     } else {
-        VMDS.clip_enabled = ((uint8_t)MACHINE_SAVED_DRAW_STATE.saved_a);
-        VMDS.clip_left = MACHINE_SAVED_DRAW_STATE.saved_b;
-        VMDS.clip_right = MACHINE_SAVED_DRAW_STATE.saved_c;
-        VMDS.clip_top = MACHINE_SAVED_DRAW_STATE.saved_d;
-        VMDS.clip_bottom = MACHINE_SAVED_DRAW_STATE.saved_e;
-        VMDS.page_dst = MACHINE_SAVED_DRAW_STATE.saved_g;
-        VMDS.page_src = MACHINE_SAVED_DRAW_STATE.saved_f;
+        g_vmds.clip_enabled = ((uint8_t)g_machine_saved_draw_state.saved_a);
+        g_vmds.clip_left = g_machine_saved_draw_state.saved_b;
+        g_vmds.clip_right = g_machine_saved_draw_state.saved_c;
+        g_vmds.clip_top = g_machine_saved_draw_state.saved_d;
+        g_vmds.clip_bottom = g_machine_saved_draw_state.saved_e;
+        g_vmds.page_dst = g_machine_saved_draw_state.saved_g;
+        g_vmds.page_src = g_machine_saved_draw_state.saved_f;
     }
 }
 
@@ -1110,15 +1110,15 @@ void reset_input_state(void)
     saved = g_redraw_guard;
     g_redraw_guard = 2;
 
-    for (b = MACHINE_BUTTONS.button, n = 2; n != 0; b++, n--) {
+    for (b = g_machine_buttons.button, n = 2; n != 0; b++, n--) {
         b->state = 0;
         b->was_down = 0;
         b->presses = 0;
         b->delay = 0;
     }
 
-    POINTER.button_accum_b = POINTER.button_accum_a = 0;
-    POINTER.button_left = POINTER.button_right = 0;
+    g_pointer.button_accum_b = g_pointer.button_accum_a = 0;
+    g_pointer.button_left = g_pointer.button_right = 0;
 
     g_redraw_guard = saved;
 }
@@ -1144,7 +1144,7 @@ void reset_input_state(void)
  */
 int16_t button_state(uint16_t index, int16_t down)
 {
-    struct button *b = &MACHINE_BUTTONS.button[index];
+    struct button *b = &g_machine_buttons.button[index];
 
     if (b->was_down != down) {
         b->was_down = down;
@@ -1161,14 +1161,14 @@ int16_t button_state(uint16_t index, int16_t down)
             }
         }
 
-        if (MACHINE_CURSOR_STATE.read_driver != 0) {
-            read_mouse_pointer(&POINTER.button_at_x, &POINTER.button_at_y);
+        if (g_machine_cursor_state.read_driver != 0) {
+            read_mouse_pointer(&g_pointer.button_at_x, &g_pointer.button_at_y);
         } else {
-            POINTER.button_at_x = POINTER.cursor_x;
-            POINTER.button_at_y = POINTER.cursor_y;
+            g_pointer.button_at_x = g_pointer.cursor_x;
+            g_pointer.button_at_y = g_pointer.cursor_y;
         }
 
-        b->delay = MACHINE_CURSOR_STATE.delay_reload;
+        b->delay = g_machine_cursor_state.delay_reload;
     }
 
     if (b->delay != 0)
@@ -1234,9 +1234,9 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     }
 
     for (i = 0; i < 4; i++) {
-        if (!MACHINE_BUFFER_USED.used[i]
+        if (!g_machine_buffer_used.used[i]
             && g_rect_buffer[i] != NULL) {
-            MACHINE_BUFFER_USED.used[i] = 1;
+            g_machine_buffer_used.used[i] = 1;
             return i + 1;
         }
     }
@@ -1259,5 +1259,5 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
 void release_buffer(int16_t n)
 {
     if (n-- != 0 && n < 4)
-        MACHINE_BUFFER_USED.used[n] = 0;
+        g_machine_buffer_used.used[n] = 0;
 }

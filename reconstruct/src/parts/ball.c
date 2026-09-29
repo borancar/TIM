@@ -22,7 +22,7 @@
  *   without it rules a boundary out. The 42 backward calls were checked and
  *   none crosses a line drawn here.
  * - **The kind table.** Between the lines the calls force, a module holds one
- *   kind's hit, setup, step, flip and drive hooks, as `PART_KINDS` names
+ *   kind's hit, setup, step, flip and drive hooks, as `g_part_kinds` names
  *   them. So a module is a kind, and the file is named for it.
  * - **The data.** Each module's `_DATA` is its own run of DGROUP
  *   0x3182..0x355a, in link order: the point tables its setups copy, the

@@ -32,7 +32,7 @@
 /* The driver's page hook (slot 28, DGROUP 0x43b6) and scaled-row entry
    (slot 37, 0x43da), both taking everything in registers. They are called
    from C between the `asm` lines that load those registers, because the
-   built-in assembler writes `call dword ptr VM_DRIVER+98h` as `VM_DRIVER-98h`
+   built-in assembler writes `call dword ptr g_vm_driver+98h` as `g_vm_driver-98h`
    (docs/lessons.md). The row entry is reached through SS - DS is the
    bitmap's by then - and C cannot say that: a `_ss` pointer into DGROUP
    loses its prefix, because the model takes SS to be DGROUP. So the
@@ -46,14 +46,14 @@ typedef void (far *vm_row_fn)(void);
  * bitmap's width by the entry the driver's pixel shift selects - read as
  * `mov al, [bx+0x457a]` with a sign-extended byte in `bx`, so the index can
  * be negative and the table is only known to start here. Fourteen bytes,
- * then four the port never reads, up to ENGINE_KEYBOARD.
+ * then four the port never reads, up to g_engine_keyboard.
  */
 struct engine_stride_shifts {
     uint8_t   stride_shift[14];   /* +0x00 [0xe]  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
     uint8_t   bytes_4588[4] NONSTRING;  /* +0x0e [4] */
 } PACKED;
 
-struct engine_stride_shifts ENGINE_STRIDE_SHIFTS = {
+struct engine_stride_shifts g_engine_stride_shifts = {
     {
         0xff, 0x02, 0x03, 0x01, 0xff, 0x00, 0xff, 0x00, 0x00, 0x03, 0x01,
         0x03, 0x03, 0x03,
@@ -63,8 +63,8 @@ struct engine_stride_shifts ENGINE_STRIDE_SHIFTS = {
 
 
 /* **This module's `_BSS`**: the two tables the scaled blits build. */
-struct engine_scale_table ENGINE_SCALE_TABLE;   /* DGROUP 0x5956 */
-struct engine_row_offsets ENGINE_ROW_OFFSETS;   /* DGROUP 0x5e56 */
+struct engine_scale_table g_engine_scale_table;   /* DGROUP 0x5956 */
+struct engine_row_offsets g_engine_row_offsets;   /* DGROUP 0x5e56 */
 
 /*
  * 0x20840
@@ -231,12 +231,12 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
     compute_step(&rec, w - 1);
 
     for (i = 0; i < right; i++) {
-        ENGINE_SCALE_TABLE.entry[i] = rec.w[1];
+        g_engine_scale_table.entry[i] = rec.w[1];
         rec.l[0] += rec.l[1];
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
-    ENGINE_SCALE_TABLE.entry[i]++;
+    g_engine_scale_table.entry[i]++;
 
     /*
      * The row table, holding each destination row's *byte offset* into the
@@ -249,7 +249,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
     compute_step(&rec, h - 1);
 
     stride = bmp->width
-             >> ENGINE_STRIDE_SHIFTS.stride_shift[(int8_t)VMDS.pixel_shift];
+             >> g_engine_stride_shifts.stride_shift[(int8_t)g_vmds.pixel_shift];
     plane_size = bmp->height * stride;
 
     for (j = row = off = 0; j < bottom; j++) {
@@ -262,9 +262,9 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
 
         if (mode & 1)
-            ENGINE_ROW_OFFSETS.row[bottom - j - 1] = off;   /* `[bx+0x5e54]`, one entry down */
+            g_engine_row_offsets.row[bottom - j - 1] = off;   /* `[bx+0x5e54]`, one entry down */
         else
-            ENGINE_ROW_OFFSETS.row[j] = off;
+            g_engine_row_offsets.row[j] = off;
     }
 
     /* Only now does the rectangle become screen coordinates. */
@@ -279,16 +279,16 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
      * *column offset* into the table rather than by moving the source, which
      * is what makes a clipped scale still sample the columns it would have.
      */
-    if (VMDS.clip_enabled != 0) {
-        if (right > VMDS.clip_right)
-            right -= right - VMDS.clip_right - 1;
-        if (bottom > VMDS.clip_bottom)
-            bottom -= bottom - VMDS.clip_bottom - 1;
-        if (off < VMDS.clip_top)
-            off = VMDS.clip_top;
-        if (left < VMDS.clip_left) {
-            row = VMDS.clip_left - left;
-            left = VMDS.clip_left;
+    if (g_vmds.clip_enabled != 0) {
+        if (right > g_vmds.clip_right)
+            right -= right - g_vmds.clip_right - 1;
+        if (bottom > g_vmds.clip_bottom)
+            bottom -= bottom - g_vmds.clip_bottom - 1;
+        if (off < g_vmds.clip_top)
+            off = g_vmds.clip_top;
+        if (left < g_vmds.clip_left) {
+            row = g_vmds.clip_left - left;
+            left = g_vmds.clip_left;
         }
     }
 
@@ -300,7 +300,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
          * which no other path here does, and which the driver row blit relies
          * on. `restore_write_mode` puts them back.
          */
-        if (VMDS.adapter == 0x10) {
+        if (g_vmds.adapter == 0x10) {
 #ifdef __TURBOC__
             asm mov dx, 3ceh
             asm mov ax, 1
@@ -325,11 +325,11 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
          * the other two blitters call.
          */
 #ifdef __TURBOC__
-        asm mov ax, word ptr VMDS+18h
-        asm cmp word ptr VMDS+6e2h, 0
+        asm mov ax, word ptr g_vmds+18h
+        asm cmp word ptr g_vmds+6e2h, 0
         asm je hooked
         asm push ax
-        ((vm_hook_fn)VM_DRIVER.entry[28])();
+        ((vm_hook_fn)g_vm_driver.entry[28])();
         asm add sp, 2
 hooked:
         asm mov es, ax
@@ -340,12 +340,12 @@ next_row:
         asm mov bx, j
         asm mov cx, bx
         asm shl bx, 1
-        asm mov di, word ptr VMDS+6f2h[bx]
+        asm mov di, word ptr g_vmds+6f2h[bx]
         asm mov ax, y
         asm shl ax, 1
         asm sub bx, ax
         asm mov ax, plane_size
-        asm mov si, word ptr ENGINE_ROW_OFFSETS[bx]
+        asm mov si, word ptr g_engine_row_offsets[bx]
         asm mov bx, cx
         asm add si, word ptr src
         asm mov ds, word ptr src+2
@@ -355,9 +355,9 @@ next_row:
         asm push bp
         asm mov bp, row
         asm shl bp, 1
-        asm lea bp, ENGINE_SCALE_TABLE[bp]
+        asm lea bp, g_engine_scale_table[bp]
         asm db 36h                      /* ss: */
-        ((vm_row_fn)VM_DRIVER.entry[37])();
+        ((vm_row_fn)g_vm_driver.entry[37])();
         asm pop bp
         asm mov ax, j
         asm inc ax
@@ -367,17 +367,17 @@ next_row:
         asm mov ax, ss
         asm mov ds, ax
 #else
-        page = VMDS.page_dst;
-        if (VMDS.page_hook != 0)
+        page = g_vmds.page_dst;
+        if (g_vmds.page_hook != 0)
             vm_nothing();
 
         for (j = off; j < bottom; j++)
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
-                &ENGINE_SCALE_TABLE.entry[row],
-                vga_window_at(page, VMDS.row_offset[j]),
+                &g_engine_scale_table.entry[row],
+                vga_window_at(page, g_vmds.row_offset[j]),
                 left, (int16_t)(right - left),
-                src + ENGINE_ROW_OFFSETS.row[j - y]);
+                src + g_engine_row_offsets.row[j - y]);
 #endif
 
         restore_write_mode();

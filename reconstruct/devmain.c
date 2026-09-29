@@ -47,7 +47,7 @@
  * Four transcribed calls in the original's order with one word set between two
  * of them, and the word is the one the puzzle picker itself writes: `sub_1201d`
  * ends with `0x4ebd = 0x542a`, the row that was chosen. `game_setup` leaves
- * 0x4ebd at 1 and `round_setup` reads it a moment later to build `L<n>.LEV`,
+ * 0x4ebd at 1 and `round_setup` reads it a moment later to build `g_l<n>.LEV`,
  * so between those two is the only place the number can be put.
  *
  * `game_round` rather than `game_play`: one puzzle is what was asked for, and

@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /* The five-tick wait, DGROUP 0x6430; the record is described in dgroup.h. */
-struct sound_tick_wait SOUND_TICK_WAIT;
+struct sound_tick_wait g_sound_tick_wait;
 
 /*
  * 0x292f4
@@ -41,10 +41,10 @@ struct sound_tick_wait SOUND_TICK_WAIT;
  */
 void stop_sound(void)
 {
-    if (SOUND_BANK.driver != NULL) {
+    if (g_sound_bank.driver != NULL) {
         silence_driver_far();
 
-        if (((int16_t)SOUND_BANK.tick_handle) == 0) {
+        if (((int16_t)g_sound_bank.tick_handle) == 0) {
             sound_service();
             sound_service();
         } else {
@@ -52,18 +52,18 @@ void stop_sound(void)
         }
     }
 
-    if (SOUND_BANK.module != NULL) {
+    if (g_sound_bank.module != NULL) {
         stop_loaded_module();
     }
 
-    if (SOUND_BANK.driver != NULL) {
-        free_for_kind(SOUND_BANK.driver, 1);
-        SOUND_BANK.driver = 0;
+    if (g_sound_bank.driver != NULL) {
+        free_for_kind(g_sound_bank.driver, 1);
+        g_sound_bank.driver = 0;
     }
 
-    if (SOUND_BANK.module != NULL) {
-        free_for_kind(SOUND_BANK.module, 1);
-        SOUND_BANK.module = 0;
+    if (g_sound_bank.module != NULL) {
+        free_for_kind(g_sound_bank.module, 1);
+        g_sound_bank.module = 0;
     }
 }
 
@@ -85,11 +85,11 @@ void delay_five_ticks(void)
 {
     uint16_t handle;
 
-    SOUND_TICK_WAIT.ticks_left = 5;
+    g_sound_tick_wait.ticks_left = 5;
 
     handle = timer_add_callback(tick_delay, 4);
 
-    while (SOUND_TICK_WAIT.ticks_left > 0)
+    while (g_sound_tick_wait.ticks_left > 0)
         ;
 
     timer_drop_callback(handle);
@@ -103,7 +103,7 @@ void delay_five_ticks(void)
  */
 void tick_delay(void)
 {
-    SOUND_TICK_WAIT.ticks_left--;
+    g_sound_tick_wait.ticks_left--;
 }
 
 /*
@@ -148,7 +148,7 @@ uint16_t remove_and_free_records(int16_t selector)
 
     found = 0;
     prev = &dummy;
-    cur = SOUND_BANK.records;
+    cur = g_sound_bank.records;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
@@ -160,8 +160,8 @@ uint16_t remove_and_free_records(int16_t selector)
             found = 1;
             stop_sequences(cur->id);
 
-            if (cur == SOUND_BANK.records)
-                SOUND_BANK.records = cur->next;
+            if (cur == g_sound_bank.records)
+                g_sound_bank.records = cur->next;
 
             prev->next = cur->next;
 

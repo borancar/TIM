@@ -501,7 +501,7 @@ static void dev_autoplay(int32_t flip)
                  && strstr(getenv("TIM_TRACE"), "autoplay") != NULL);
     if (trace)
         fprintf(stderr, "io: autoplay flip %d state %04x btn %04x\n",
-                flip, (unsigned)state, (unsigned)POINTER.button_left);
+                flip, (unsigned)state, (unsigned)g_pointer.button_left);
 
     if (!autoplay_past_intro) {
         static int32_t nudged;
@@ -522,7 +522,7 @@ static void dev_autoplay(int32_t flip)
          * is the effect itself and not a proxy for it.
          */
         if (state == 0x2000) {
-            POINTER.button_left = 2;
+            g_pointer.button_left = 2;
             nudged = 1;
         } else if (nudged) {
             autoplay_past_intro = 1;
@@ -595,9 +595,9 @@ static void dev_autoplay(int32_t flip)
                  * reach the heap's limit.
                  */
                 if (g_freeform == 0) {
-                    HELD_PARTS.parts_bin.prev = 0;
-                    HELD_PARTS.parts_bin.next = 0;
-                    HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
+                    g_held_parts.parts_bin.prev = 0;
+                    g_held_parts.parts_bin.next = 0;
+                    g_held_parts.bin_list = (&g_held_parts.parts_bin);
                 }
 
                 reset_machine();
@@ -779,7 +779,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
 
     clear_machine();
     g_elapsed_ticks = 0;
-    TIMER.frame_budget = 0x2710;
+    g_timer.frame_budget = 0x2710;
 
     while (g_round_state == 0x2000 && frames < max_frames) {
         step_machine();
@@ -789,7 +789,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
         step_and_draw_machine(0);
 
         g_elapsed_ticks = (uint16_t)(g_elapsed_ticks + 8);
-        TIMER.frame_budget = 0x2710;
+        g_timer.frame_budget = 0x2710;
 
         shift_all_histories();
 
@@ -1071,7 +1071,7 @@ void dev_level_scan(void)
            bin - what the player is given - at 0x50d7. */
         {
             struct part *heads[3] = {
-                &g_placed_parts, &g_moving_parts, &HELD_PARTS.parts_bin,
+                &g_placed_parts, &g_moving_parts, &g_held_parts.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };
             int32_t h;
@@ -1171,14 +1171,14 @@ void dev_part_pics(void)
         struct bitmap *icon = list[i];
         int32_t row;
 
-        VMDS.clip_enabled = 1;
-        VMDS.clip_left = 0;
-        VMDS.clip_top = 0;
-        VMDS.clip_right = 0x27f;
-        VMDS.clip_bottom = 0x1df;
-        VMDS.fill_enabled = 1;
-        VMDS.fill_colour = 0;
-        VMDS.second_colour = 0;
+        g_vmds.clip_enabled = 1;
+        g_vmds.clip_left = 0;
+        g_vmds.clip_top = 0;
+        g_vmds.clip_right = 0x27f;
+        g_vmds.clip_bottom = 0x1df;
+        g_vmds.fill_enabled = 1;
+        g_vmds.fill_colour = 0;
+        g_vmds.second_colour = 0;
         fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
 
         if (icon != NULL)
@@ -1219,7 +1219,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                g_mouse_buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
+                g_mouse_buttons, (unsigned)g_pointer.button_left, (unsigned)((uint16_t)g_pointer.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)

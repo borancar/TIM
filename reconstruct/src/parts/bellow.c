@@ -23,7 +23,7 @@
 /*
  * DGROUP 0x3192..0x319e. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_3192[6] = {
+struct point8 g_bellow_points_3192[6] = {
     { 0x00, 0x00 }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
     { 0x2c, 0x1d }, { 0x00, 0x2f },
 };
@@ -31,7 +31,7 @@ struct point8 BELLOW_POINTS_3192[6] = {
 /*
  * DGROUP 0x319e..0x31aa. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_319E[6] = {
+struct point8 g_bellow_points_319e[6] = {
     { 0x00, 0x0a }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
     { 0x2c, 0x1d }, { 0x00, 0x25 },
 };
@@ -39,7 +39,7 @@ struct point8 BELLOW_POINTS_319E[6] = {
 /*
  * DGROUP 0x31aa..0x31b6. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_31AA[6] = {
+struct point8 g_bellow_points_31aa[6] = {
     { 0x00, 0x0f }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
     { 0x2c, 0x1d }, { 0x00, 0x20 },
 };
@@ -47,14 +47,14 @@ struct point8 BELLOW_POINTS_31AA[6] = {
 /*
  * DGROUP 0x31b6..0x31bc. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *BELLOW_POINT_TABLE_31B6[3] = {
-    BELLOW_POINTS_3192, BELLOW_POINTS_319E, BELLOW_POINTS_31AA,
+struct point8 *g_bellow_point_table_31b6[3] = {
+    g_bellow_points_3192, g_bellow_points_319e, g_bellow_points_31aa,
 };
 
 /*
  * DGROUP 0x31bc..0x31c8. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_31BC[6] = {
+struct point8 g_bellow_points_31bc[6] = {
     { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x00 }, { 0x3f, 0x2f },
     { 0x13, 0x1d }, { 0x00, 0x1b },
 };
@@ -62,7 +62,7 @@ struct point8 BELLOW_POINTS_31BC[6] = {
 /*
  * DGROUP 0x31c8..0x31d4. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_31C8[6] = {
+struct point8 g_bellow_points_31c8[6] = {
     { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x47, 0x0a }, { 0x47, 0x25 },
     { 0x13, 0x1d }, { 0x00, 0x1b },
 };
@@ -70,7 +70,7 @@ struct point8 BELLOW_POINTS_31C8[6] = {
 /*
  * DGROUP 0x31d4..0x31e0. Connection points, 6 pairs.
  */
-struct point8 BELLOW_POINTS_31D4[6] = {
+struct point8 g_bellow_points_31d4[6] = {
     { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x47, 0x0f }, { 0x47, 0x20 },
     { 0x13, 0x1d }, { 0x00, 0x1b },
 };
@@ -78,8 +78,8 @@ struct point8 BELLOW_POINTS_31D4[6] = {
 /*
  * DGROUP 0x31e0..0x31e6. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *BELLOW_POINT_TABLE_31E0[3] = {
-    BELLOW_POINTS_31BC, BELLOW_POINTS_31C8, BELLOW_POINTS_31D4,
+struct point8 *g_bellow_point_table_31e0[3] = {
+    g_bellow_points_31bc, g_bellow_points_31c8, g_bellow_points_31d4,
 };
 
 /*
@@ -131,9 +131,9 @@ void part_setup_bellow(struct part *part)
     struct part_point *dst;
 
     if (part->flags_08 & 0x10)
-        src = BELLOW_POINT_TABLE_31E0[part->form];
+        src = g_bellow_point_table_31e0[part->form];
     else
-        src = BELLOW_POINT_TABLE_31B6[part->form];
+        src = g_bellow_point_table_31b6[part->form];
 
     for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {
         dst->x = src->x;
@@ -220,7 +220,7 @@ void part_step_bellow(struct part *part)
                     scale = 0x100 - abs(di->link_dx);
                     force = mul16x16(push, scale);
                     force >>= 8;
-                    v = force / PART_KINDS[di->kind].weight;
+                    v = force / g_part_kinds[di->kind].weight;
                     di->vel_x += v;
 
                     clamp_record_pair(di);

@@ -45,10 +45,11 @@
 /*
  * The module's `_BSS`, 0x6292..0x63f6, is these three records. **Borland
  * C++ 2.0 orders `_BSS` by name, not by definition**: the order comes from
- * its symbol table, and moving the definitions changes nothing. So the third
- * is called `BITMAP_COMPRESS`, which that order puts after the other two as
- * the image has it; `ENGINE_BITMAP_COMPRESS` came out second. The names are
- * ours either way.
+ * its symbol table, and moving the definitions changes nothing. So the three
+ * are `g_open_files`, `g_saved_file` and `g_bitmap_compress`, names that order
+ * puts as the image has them; `g_engine_saved_file_record` came out first.
+ * The names are ours either way, and a rename here is a byte change - see
+ * docs/lessons.md.
  */
 /*
  * **The bitmap compressor's stream**, DGROUP 0x63e2..0x63f6, 0x14 bytes.
@@ -71,7 +72,7 @@ struct engine_bitmap_compress {
     uint8_t   pad_13;             /* +0x13 */
 } PACKED;
 
-struct engine_bitmap_compress BITMAP_COMPRESS;
+struct engine_bitmap_compress g_bitmap_compress;
 
 /*
  * **The saved file record**, DGROUP 0x639e..0x63e2, 0x44 bytes. `seek_named_chunk` copies a
@@ -90,18 +91,18 @@ struct engine_saved_file_record {
     uint8_t   pad_43;             /* +0x43 */
 } PACKED;
 
-struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD;
+struct engine_saved_file_record g_saved_file;
 
 /*
  * **The open files**, DGROUP 0x6292..0x639e, 0x10c bytes: four `struct
  * open_file` records. `find_file_record` searches them downwards from index 3,
- * and four records of 0x43 bytes run exactly to `ENGINE_SAVED_FILE_RECORD`.
+ * and four records of 0x43 bytes run exactly to `g_saved_file`.
  */
 struct engine_open_files {
     struct open_file rec[4];      /* +0x00 [0x10c] */
 } PACKED;
 
-struct engine_open_files ENGINE_OPEN_FILES;
+struct engine_open_files g_open_files;
 
 /*
  * 0x23b29
@@ -192,7 +193,7 @@ uint16_t load_screen_plain(char *name)
 
                 kind = 1;
 
-                if (VMDS.vga_chunks != 0) {
+                if (g_vmds.vga_chunks != 0) {
                     close_resource(res);
 
                     if (seek_named_chunk((FILE *)name, "SCR:VGA:", 0) != -1L)
@@ -248,7 +249,7 @@ uint16_t load_screen_plain(char *name)
  *
  * Find the open-file record with a given handle, or NULL.
  *
- * The four records of `ENGINE_OPEN_FILES`, with the handle at each one's +0.
+ * The four records of `g_open_files`, with the handle at each one's +0.
  *
  * The search runs **downwards from index 3**: `si` is loaded with 4 and the
  * loop jumps straight to its test, which decrements before comparing, so all
@@ -260,8 +261,8 @@ struct open_file *near find_file_record(FILE *handle)
     int16_t i = 4;
 
     while (--i >= 0) {
-        if (ENGINE_OPEN_FILES.rec[i].file == handle)
-            return &ENGINE_OPEN_FILES.rec[i];
+        if (g_open_files.rec[i].file == handle)
+            return &g_open_files.rec[i];
     }
 
     return NULL;
@@ -395,7 +396,7 @@ FILE *open_file_record(char *name)
  */
 int32_t near restore_file_record(struct open_file *rec)
 {
-    *rec = ENGINE_SAVED_FILE_RECORD.rec;
+    *rec = g_saved_file.rec;
     game_fseek(rec->file, (int32_t)rec->pos, 0);
     return -1L;
 }
@@ -445,7 +446,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
     if (len == 0 || (len & 3) != 0)
         return -1L;
 
-    ENGINE_SAVED_FILE_RECORD.rec = *rec;
+    g_saved_file.rec = *rec;
 
     if (string_equal_upto(path, (const char *)rec->path, 0x19) != 0) {
         if (index == 0 && (uint32_t)game_ftell(rec->file) == rec->pos)
@@ -691,31 +692,31 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
     register struct bitmap **si;
     register int16_t di;
 
-    BITMAP_COMPRESS.mode = colours - 1;
-    BITMAP_COMPRESS.row_buffer = malloc_far(0x7d0);
+    g_bitmap_compress.mode = colours - 1;
+    g_bitmap_compress.row_buffer = malloc_far(0x7d0);
 
     si = list;
 
     /* The first bitmap's own pixels, which is where the output begins. */
-    BITMAP_COMPRESS.out = BITMAP_COMPRESS.out_start =
+    g_bitmap_compress.out = g_bitmap_compress.out_start =
         MK_FP((dg_sseg_t)list[0]->data_seg, list[0]->data_off);
 
     while (*si != 0) {
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
 #ifdef __TURBOC__
-        seg = FP_SEG(BITMAP_COMPRESS.out);
-        di = FP_OFF(BITMAP_COMPRESS.out);
-        at = BITMAP_COMPRESS.out = MK_FP(seg + (di >> 4), di & 0x0f);
+        seg = FP_SEG(g_bitmap_compress.out);
+        di = FP_OFF(g_bitmap_compress.out);
+        at = g_bitmap_compress.out = MK_FP(seg + (di >> 4), di & 0x0f);
 #else
-        di = FP_OFF(BITMAP_COMPRESS.out);
+        di = FP_OFF(g_bitmap_compress.out);
         /* `seg` is a segment here and a count of them below; on the host a
            segment is a pointer, so it is not kept in `seg`. */
-        at = BITMAP_COMPRESS.out =
-            MK_FP(FP_SEG(BITMAP_COMPRESS.out) + (di >> 4), di & 0x0f);
+        at = g_bitmap_compress.out =
+            MK_FP(FP_SEG(g_bitmap_compress.out) + (di >> 4), di & 0x0f);
 #endif
 
-        if (!(int8_t)VMDS.vga_chunks) {
+        if (!(int8_t)g_vmds.vga_chunks) {
             pixels = (*si)->width * (*si)->height;
             blk = dos_alloc_bytes(pixels, 0);
 
@@ -742,24 +743,24 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
         si++;
     }
 
-    seg = FP_SEG(BITMAP_COMPRESS.out) - FP_SEG(BITMAP_COMPRESS.out_start);
-    di = FP_OFF(BITMAP_COMPRESS.out) - FP_OFF(BITMAP_COMPRESS.out_start);
-    BITMAP_COMPRESS.block_paras = seg + ((di + 0x0f) >> 4);
+    seg = FP_SEG(g_bitmap_compress.out) - FP_SEG(g_bitmap_compress.out_start);
+    di = FP_OFF(g_bitmap_compress.out) - FP_OFF(g_bitmap_compress.out_start);
+    g_bitmap_compress.block_paras = seg + ((di + 0x0f) >> 4);
 
     /* Shrink the block to what the compressed form needed: INT 21h AH=4Ah on
        the first bitmap's segment. */
     resize_seg = list[0]->data_seg;
 #ifdef __TURBOC__
-    _BX = BITMAP_COMPRESS.block_paras;
+    _BX = g_bitmap_compress.block_paras;
     _AX = resize_seg;
     _ES = _AX;
     _AH = 0x4a;
     geninterrupt(0x21);
 #else
-    io_dos_resize(resize_seg, BITMAP_COMPRESS.block_paras);
+    io_dos_resize(resize_seg, g_bitmap_compress.block_paras);
 #endif
 
-    free_far(BITMAP_COMPRESS.row_buffer);
+    free_far(g_bitmap_compress.row_buffer);
 
     return (seg << 4) + di;
 }
@@ -785,31 +786,31 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
  */
 void near emit_packed_value(register int16_t value)
 {
-    if (BITMAP_COMPRESS.pending_rows != 0) {
+    if (g_bitmap_compress.pending_rows != 0) {
         if (value < 0) {
             value = -value;
-            *BITMAP_COMPRESS.out++ = (uint8_t)(value & 0x3f);
+            *g_bitmap_compress.out++ = (uint8_t)(value & 0x3f);
 
             value = (value & 0x1c0) >> 6;
             if (value != 0)
-                *BITMAP_COMPRESS.out++ = (uint8_t)(value & 0x3f);
+                *g_bitmap_compress.out++ = (uint8_t)(value & 0x3f);
 
-            while (--BITMAP_COMPRESS.pending_rows)
-                *BITMAP_COMPRESS.out++ = 0;
+            while (--g_bitmap_compress.pending_rows)
+                *g_bitmap_compress.out++ = 0;
             return;
         }
 
-        while (BITMAP_COMPRESS.pending_rows-- != 0)
-            *BITMAP_COMPRESS.out++ = 0;
-        BITMAP_COMPRESS.pending_rows = 0;
+        while (g_bitmap_compress.pending_rows-- != 0)
+            *g_bitmap_compress.out++ = 0;
+        g_bitmap_compress.pending_rows = 0;
     }
 
     while (value > 0x3f) {
-        *BITMAP_COMPRESS.out++ = 0x7f;
+        *g_bitmap_compress.out++ = 0x7f;
         value -= 0x3f;
     }
 
-    *BITMAP_COMPRESS.out++ = (uint8_t)(0x40 | value);
+    *g_bitmap_compress.out++ = (uint8_t)(0x40 | value);
 }
 
 /*
@@ -832,21 +833,21 @@ void near write_literal_run(register uint8_t count, uint8_t * buf)
     uint8_t v;
     register int16_t si;
 
-    *BITMAP_COMPRESS.out++ = (uint8_t)(count | 0xc0);
+    *g_bitmap_compress.out++ = (uint8_t)(count | 0xc0);
 
     if ((count & 1) != 0) {
         buf[count] = 0;
         count++;
     }
 
-    if (BITMAP_COMPRESS.mode == 0x0f) {
+    if (g_bitmap_compress.mode == 0x0f) {
         for (si = 0; count > si; si += 2) {
             v = (uint8_t)((buf[si] << 4) | buf[si + 1]);
-            *BITMAP_COMPRESS.out++ = v;
+            *g_bitmap_compress.out++ = v;
         }
     } else {
         for (si = 0; count > si; si++)
-            *BITMAP_COMPRESS.out++ = buf[si];
+            *g_bitmap_compress.out++ = buf[si];
     }
 }
 
@@ -901,13 +902,13 @@ void near compress_row(uint8_t *src, int16_t remaining)
 
             while (run > 0x3f) {
                 run += 0xc1;                    /* less 0x3f */
-                *BITMAP_COMPRESS.out++ = 0xbf;
-                *BITMAP_COMPRESS.out++ = value;
+                *g_bitmap_compress.out++ = 0xbf;
+                *g_bitmap_compress.out++ = value;
             }
 
             if (run != 0) {
-                *BITMAP_COMPRESS.out++ = (uint8_t)(0x80 | run);
-                *BITMAP_COMPRESS.out++ = value;
+                *g_bitmap_compress.out++ = (uint8_t)(0x80 | run);
+                *g_bitmap_compress.out++ = value;
             }
             run = 0;
         } else {
@@ -965,15 +966,15 @@ void near compress_bitmap(register struct bitmap *bmp)
     uint8_t far *hdr;
     char rowbuf[0x140];
 
-    BITMAP_COMPRESS.pending_rows = 0;
-    BITMAP_COMPRESS.block_paras = 0;
+    g_bitmap_compress.pending_rows = 0;
+    g_bitmap_compress.block_paras = 0;
 
-    BITMAP_COMPRESS.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
+    g_bitmap_compress.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
-    if (BITMAP_COMPRESS.mode == 0x0f && VMDS.vga_chunks != 0) {
+    if (g_bitmap_compress.mode == 0x0f && g_vmds.vga_chunks != 0) {
         for (y = 0; bmp->height > y; y++) {
             for (x = 0; bmp->width > x; x++) {
-                v = *BITMAP_COMPRESS.src++;
+                v = *g_bitmap_compress.src++;
                 if (v != 0 && (uint8_t)v < least)
                     least = v;
             }
@@ -982,50 +983,50 @@ void near compress_bitmap(register struct bitmap *bmp)
         least = 1;
     }
 
-    BITMAP_COMPRESS.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
+    g_bitmap_compress.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
-    hdr = BITMAP_COMPRESS.out++;
+    hdr = g_bitmap_compress.out++;
 
     for (y = 0; bmp->height > y; y++) {
         at = rowbuf;
-        far_memcpy((uint8_t far *)rowbuf, BITMAP_COMPRESS.src, bmp->width);
-        BITMAP_COMPRESS.src += bmp->width;
+        far_memcpy((uint8_t far *)rowbuf, g_bitmap_compress.src, bmp->width);
+        g_bitmap_compress.src += bmp->width;
 
         for (x = 0; bmp->width > x; x++) {
             v = *at++;
             if (!v) {
                 if (di != 0) {
-                    compress_row(BITMAP_COMPRESS.row_buffer, di);
+                    compress_row(g_bitmap_compress.row_buffer, di);
                     di = 0;
                 }
                 blanks++;
             } else {
-                v = (uint8_t)((v - least) & BITMAP_COMPRESS.mode);
-                BITMAP_COMPRESS.row_buffer[di] = v;
+                v = (uint8_t)((v - least) & g_bitmap_compress.mode);
+                g_bitmap_compress.row_buffer[di] = v;
                 di++;
 
                 if (blanks != 0) {
                     emit_packed_value(blanks);
                     blanks = 0;
-                } else if (BITMAP_COMPRESS.pending_rows != 0) {
-                    while (BITMAP_COMPRESS.pending_rows-- != 0)
-                        *BITMAP_COMPRESS.out++ = 0;
-                    BITMAP_COMPRESS.pending_rows = 0;
+                } else if (g_bitmap_compress.pending_rows != 0) {
+                    while (g_bitmap_compress.pending_rows-- != 0)
+                        *g_bitmap_compress.out++ = 0;
+                    g_bitmap_compress.pending_rows = 0;
                 }
             }
         }
 
         if (di != 0) {
-            compress_row(BITMAP_COMPRESS.row_buffer, di);
+            compress_row(g_bitmap_compress.row_buffer, di);
             di = 0;
         }
 
         blanks -= bmp->width;
-        BITMAP_COMPRESS.pending_rows++;
+        g_bitmap_compress.pending_rows++;
     }
 
     if (di != 0)
-        compress_row(BITMAP_COMPRESS.row_buffer, di);
+        compress_row(g_bitmap_compress.row_buffer, di);
 
     emit_packed_value(0);
 

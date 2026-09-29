@@ -44,7 +44,7 @@ struct machine_button_prev {
 
 /* Initialised, because the image has it in `_DATA`: without one Borland
    puts it in `_BSS`. */
-struct machine_button_prev MACHINE_BUTTON_PREV = { 0 };
+struct machine_button_prev g_machine_button_prev = { 0 };
 
 /*
  * 0x080b9
@@ -54,8 +54,8 @@ struct machine_button_prev MACHINE_BUTTON_PREV = { 0 };
  */
 int16_t point_in_play_area(void)
 {
-    if (POINTER.pointer_x >= 8 && POINTER.pointer_x <= 0x237
-        && POINTER.pointer_y >= 8 && POINTER.pointer_y <= 0x167)
+    if (g_pointer.pointer_x >= 8 && g_pointer.pointer_x <= 0x237
+        && g_pointer.pointer_y >= 8 && g_pointer.pointer_y <= 0x167)
         return 1;
     else
         return 0;
@@ -66,7 +66,7 @@ int16_t point_in_play_area(void)
  *
  * Take the object off both pages.
  *
- * The two words it erases are the driver's own `VMDS.page_back` and `VMDS.page_front` -
+ * The two words it erases are the driver's own `g_vmds.page_back` and `g_vmds.page_front` -
  * the page being drawn into and the page on screen. They are page segments,
  * and `erase_object` takes them as handles, so `claim_page_slot` is what maps
  * a page to the record describing what is drawn on it. There is one such
@@ -79,8 +79,8 @@ void erase_both_pages(void)
 {
     g_cursor_follows = 0;
     cursor_redraw_off_thunk();
-    erase_object(VMDS.page_back);
-    erase_object(VMDS.page_front);
+    erase_object(g_vmds.page_back);
+    erase_object(g_vmds.page_front);
 }
 
 /*
@@ -150,27 +150,27 @@ void update_button_state(void)
     int16_t prev;
 
     wait_and_latch_frame();
-    prev = ((int16_t)POINTER.button_left);
+    prev = ((int16_t)g_pointer.button_left);
 
     if (read_mouse_button(0))
-        POINTER.button_left = 1;
+        g_pointer.button_left = 1;
     if (read_mouse_button(1))
-        POINTER.button_right = 2;
+        g_pointer.button_right = 2;
 
-    if (prev == 2 && MACHINE_BUTTON_PREV.prev != 1) {
-        POINTER.button_left = 2;
-    } else if (((int16_t)POINTER.button_left) == 1 && MACHINE_BUTTON_PREV.prev == 0) {
-        POINTER.button_left = 2;
-    } else if (((int16_t)POINTER.button_left) != 0) {
-        POINTER.button_left = 1;
+    if (prev == 2 && g_machine_button_prev.prev != 1) {
+        g_pointer.button_left = 2;
+    } else if (((int16_t)g_pointer.button_left) == 1 && g_machine_button_prev.prev == 0) {
+        g_pointer.button_left = 2;
+    } else if (((int16_t)g_pointer.button_left) != 0) {
+        g_pointer.button_left = 1;
     } else {
-        POINTER.button_left = 0;
+        g_pointer.button_left = 0;
     }
 
-    if (((int16_t)POINTER.button_left) == 2 && MACHINE_BUTTON_PREV.prev == 2)
-        POINTER.button_left = 1;
+    if (((int16_t)g_pointer.button_left) == 2 && g_machine_button_prev.prev == 2)
+        g_pointer.button_left = 1;
 
-    MACHINE_BUTTON_PREV.prev = ((int16_t)POINTER.button_left);
+    g_machine_button_prev.prev = ((int16_t)g_pointer.button_left);
 }
 
 /*
@@ -211,8 +211,8 @@ void present_back_page(void)
 {
     present_frame(1);
 
-    VMDS.page_src = VMDS.page_front;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_src = g_vmds.page_front;
+    g_vmds.page_dst = g_vmds.page_back;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
 }
@@ -233,8 +233,8 @@ void present_back_page(void)
  */
 void repaint_whole_screen(void)
 {
-    VMDS.page_src = VMDS.page_front;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_src = g_vmds.page_front;
+    g_vmds.page_dst = g_vmds.page_back;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
     present_frame(1);
@@ -299,15 +299,15 @@ void set_clip_for_mode(void)
         || g_round_state == 0x200 || g_round_state == 0x8000
         || g_round_state == 0x4000 || g_round_state == 0x800
         || g_round_state == 0x400) {
-        VMDS.clip_left = g_saved_clip_left;
-        VMDS.clip_right = g_saved_clip_right;
-        VMDS.clip_top = g_saved_clip_top;
-        VMDS.clip_bottom = g_saved_clip_bottom;
+        g_vmds.clip_left = g_saved_clip_left;
+        g_vmds.clip_right = g_saved_clip_right;
+        g_vmds.clip_top = g_saved_clip_top;
+        g_vmds.clip_bottom = g_saved_clip_bottom;
     } else {
-        VMDS.clip_left = 0x110;
-        VMDS.clip_right = 0x20F;
-        VMDS.clip_top = 0x48;
-        VMDS.clip_bottom = 0xE7;
+        g_vmds.clip_left = 0x110;
+        g_vmds.clip_right = 0x20F;
+        g_vmds.clip_top = 0x48;
+        g_vmds.clip_bottom = 0xE7;
     }
 }
 
@@ -320,9 +320,9 @@ void set_clip_for_mode(void)
  */
 void set_clip_play_area(void)
 {
-    VMDS.clip_top = VMDS.clip_left = 0;
-    VMDS.clip_right = 0x27F;
-    VMDS.clip_bottom = 0x16F;
+    g_vmds.clip_top = g_vmds.clip_left = 0;
+    g_vmds.clip_right = 0x27F;
+    g_vmds.clip_bottom = 0x16F;
 }
 
 /*
@@ -334,9 +334,9 @@ void set_clip_play_area(void)
  */
 void set_clip_full_screen(void)
 {
-    VMDS.clip_top = VMDS.clip_left = 0;
-    VMDS.clip_right = 0x27F;
-    VMDS.clip_bottom = 0x18F;
+    g_vmds.clip_top = g_vmds.clip_left = 0;
+    g_vmds.clip_right = 0x27F;
+    g_vmds.clip_bottom = 0x18F;
 }
 
 /*
@@ -445,14 +445,14 @@ int16_t check_room_for_part(void)
 
     si = heap_largest_free();
     if (si < 0x0fa0) {
-        show_message_box(MESSAGES.out_of_memory, (char *)MESSAGES.you_cant_place_any);
+        show_message_box(g_messages.out_of_memory, (char *)g_messages.you_cant_place_any);
         g_memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();
         update_button_state();
         return 0;
     } else if (si < 0x1388 && g_memory_warned == 0) {
-        show_message_box(MESSAGES.memory_low, (char *)MESSAGES.memory_is_getting_low);
+        show_message_box(g_messages.memory_low, (char *)g_messages.memory_is_getting_low);
         g_memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();

@@ -50,9 +50,9 @@ void game_setup(void)
     cursor_redraw_off_thunk();
     bar = load_bitmaps(WRITABLE_LITERAL("score1.bmp"));
 
-    VMDS.page_dst = 0xa000;
-    VMDS.second_colour = VMDS.fill_colour = 0;
-    VMDS.fill_enabled = 1;
+    g_vmds.page_dst = 0xa000;
+    g_vmds.second_colour = g_vmds.fill_colour = 0;
+    g_vmds.fill_enabled = 1;
 
     fill_rect(0, 0, 0x280, 0x50);
 
@@ -171,7 +171,7 @@ void round_setup(void)
         load_level(g_round_number);
     }
 
-    LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
+    g_level_settings.extent_y = g_level_settings.extent_x = -8;
 
     start_counters();
     reset_input_state();

@@ -45,7 +45,7 @@ struct game_forbidden_chars {
     uint8_t   forbidden[14] NONSTRING;  /* +0x00 [0xe]  a set, not a string */
 } PACKED;
 
-struct game_forbidden_chars GAME_FORBIDDEN_CHARS = {
+struct game_forbidden_chars g_game_forbidden_chars = {
     "*/,-[]&@^%?():", /* forbidden */
 };
 
@@ -60,7 +60,7 @@ struct game_picker_tabs {
     int16_t   stop_y[7];          /* +0x10 [0xe] */
 } PACKED;
 
-struct game_picker_tabs GAME_PICKER_TABS = {
+struct game_picker_tabs g_game_picker_tabs = {
     0xffff, /* stop */
     { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 }, /* stop_x */
     { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a }, /* stop_y */
@@ -87,7 +87,7 @@ struct game_picker_text {
     int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
 } PACKED;
 
-struct game_picker_text GAME_PICKER_TEXT;
+struct game_picker_text g_game_picker_text;
 
 /*
  * **The shared name buffer**, DGROUP 0x5682..0x568f, 0x0d bytes. `listing_to_name` strips a
@@ -95,13 +95,13 @@ struct game_picker_text GAME_PICKER_TEXT;
  * caller has a near string it can hand to `strcpy`.
  *
  * Thirteen bytes, which is what a DOS 8.3 name and its NUL take - and what is
- * left between `CRITICAL_ERROR`, which ends at 0x5682, and `game_picker_text`.
+ * left between `g_critical_error`, which ends at 0x5682, and `game_picker_text`.
  */
 struct game_name_buffer {
     char      name[0xd];          /* +0x00 [0xd] */
 } PACKED;
 
-struct game_name_buffer GAME_NAME_BUFFER;
+struct game_name_buffer g_game_name_buffer;
 
 
 /*
@@ -115,7 +115,7 @@ struct picker_caret {
     uint16_t  caret_blink_b;      /* +0x02  a different counter, and a different asterisk at 0x2954 */
 } PACKED;
 
-struct picker_caret PICKER_CARET;
+struct picker_caret g_picker_caret;
 
 /*
  * 0x12c26
@@ -174,7 +174,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
     g_picked_name[0] = 0;
     reload = 2;
     idx = 0;
-    GAME_PICKER_TEXT.picker_mode = g_round_state;
+    g_game_picker_text.picker_mode = g_round_state;
     was = g_round_state = 0x8000;
     repaint = rp_list = rp_file = rp_name = 0;
 #ifndef __TURBOC__
@@ -187,7 +187,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         if (reload != 0) {
             picker_begin(arg1, arg2, pat);
 
-            if (GAME_PICKER_TEXT.entry_max == 0)
+            if (g_game_picker_text.entry_max == 0)
                 return 0;
 
             reload  = 0;
@@ -204,7 +204,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         if (((g_last_key) == '\r' || (g_last_key) == ' '
              || (g_last_key) == 0x1b /* Esc */)
             && g_round_state == 0x4000)
-            POINTER.button_left = 0;
+            g_pointer.button_left = 0;
 
         regions_handle_pointer(g_regions_c);
 
@@ -224,7 +224,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
             if (((g_last_key) != '\r' && g_round_state == 0x4000)
                 || was != 0x4000) {
                 if (was == 0x4000)
-                    picker_type((g_last_key), (char *)GAME_DIRECTORIES.path_field, 0x50);
+                    picker_type((g_last_key), (char *)g_game_directories.path_field, 0x50);
 
                 rp_name = 2;
             } else {
@@ -235,14 +235,14 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                  * and once to go there - and the drive is selected only after
                  * the second succeeds.
                  */
-                if ((GAME_DIRECTORIES.path_field[1] == ':' && !GAME_DIRECTORIES.path_field[2])
-                    || dos_chdir((char *)GAME_DIRECTORIES.path_field) == 0) {
-                    if (dos_chdir((char *)GAME_DIRECTORIES.path_field) == 0) {
-                        dos_setdisk(GAME_DIRECTORIES.path_field[0]);
+                if ((g_game_directories.path_field[1] == ':' && !g_game_directories.path_field[2])
+                    || dos_chdir((char *)g_game_directories.path_field) == 0) {
+                    if (dos_chdir((char *)g_game_directories.path_field) == 0) {
+                        dos_setdisk(g_game_directories.path_field[0]);
                         reload = 2;
                     } else {
-                        dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                        show_message_box(MESSAGES.path_error, MESSAGES.path_error_body);
+                        dos_get_cur_dir((char *)g_game_directories.path_field);
+                        show_message_box(g_messages.path_error, g_messages.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
                         restore_cursor();
@@ -253,8 +253,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     if (g_round_state == 0x4000)
                         g_round_state = 0x8000;
                 } else {
-                    dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                    show_message_box(MESSAGES.path_error, MESSAGES.path_error_body);
+                    dos_get_cur_dir((char *)g_game_directories.path_field);
+                    show_message_box(g_messages.path_error, g_messages.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
@@ -288,11 +288,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
     dispatch:
         switch (g_round_state) {
         case 0x0800:                    /* the up arrow */
-            if (POINTER.button_left == 1 || POINTER.button_left == 2) {
-                v = GAME_PICKER_TEXT.scroll - 1;
+            if (g_pointer.button_left == 1 || g_pointer.button_left == 2) {
+                v = g_game_picker_text.scroll - 1;
 
                 if (v >= 0) {
-                    GAME_PICKER_TEXT.scroll = v;
+                    g_game_picker_text.scroll = v;
                     rp_list = 2;
                 }
             } else {
@@ -302,11 +302,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
             break;
 
         case 0x0400:                    /* the down arrow */
-            if (POINTER.button_left == 1 || POINTER.button_left == 2) {
-                v = GAME_PICKER_TEXT.scroll + 1;
+            if (g_pointer.button_left == 1 || g_pointer.button_left == 2) {
+                v = g_game_picker_text.scroll + 1;
 
-                if (GAME_PICKER_TEXT.entry_count - 12 >= v) {
-                    GAME_PICKER_TEXT.scroll = v;
+                if (g_game_picker_text.entry_count - 12 >= v) {
+                    g_game_picker_text.scroll = v;
                     rp_list = 2;
                 }
             } else {
@@ -321,12 +321,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
              * pointer's y at 0x5782 less the box's top, divided by the ten
              * pixels a row takes, plus the scroll position.
              */
-            idx = GAME_PICKER_TEXT.scroll + (POINTER.pointer_y - 0x7c) / 10;
+            idx = g_game_picker_text.scroll + (g_pointer.pointer_y - 0x7c) / 10;
 
-            if (idx < GAME_PICKER_TEXT.entry_count) {
+            if (idx < g_game_picker_text.entry_count) {
                 /* Entry `idx` of the array of far pointers at the block's
                    front, followed to the text it names. */
-                rec = ((char far * far *)GAME_PICKER_TEXT.block)[idx];
+                rec = ((char far * far *)g_game_picker_text.block)[idx];
 
                 if (*rec != ':' && *rec != '<') {
                     strcpy((char *)g_picked_name, listing_to_name(rec));
@@ -337,15 +337,15 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                      * to tell it from a directory called nothing is that we
                      * are not at a root.
                      */
-                    if (idx != 0 || path_is_root((char *)GAME_DIRECTORIES.path_field) != 0)
-                        path_join((char *)GAME_DIRECTORIES.path_field, rec);
+                    if (idx != 0 || path_is_root((char *)g_game_directories.path_field) != 0)
+                        path_join((char *)g_game_directories.path_field, rec);
                     else
-                        path_up((char *)GAME_DIRECTORIES.path_field);
+                        path_up((char *)g_game_directories.path_field);
 
                     g_file_op_active = 1;
 
-                    if (dos_chdir((char *)GAME_DIRECTORIES.path_field) == 0)
-                        dos_setdisk(GAME_DIRECTORIES.path_field[0]);
+                    if (dos_chdir((char *)g_game_directories.path_field) == 0)
+                        dos_setdisk(g_game_directories.path_field[0]);
 
                     g_file_op_active = 0;
                     reload = 2;
@@ -358,11 +358,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
         case 0x0200:                    /* the LOAD or SAVE button */
             if ((valid = validate_filename()) != 0) {
-                if (GAME_PICKER_TEXT.picker_mode == 0x80) {
+                if (g_game_picker_text.picker_mode == 0x80) {
                     if (valid == 2) {
                         picker_draw_action();
 
-                        if (ask_yes_no(MESSAGES.overwrite_file, MESSAGES.overwrite_body) == 0) {
+                        if (ask_yes_no(g_messages.overwrite_file, g_messages.overwrite_body) == 0) {
                             wait_cursor();
                             paint_panel_frame();
                             restore_cursor();
@@ -372,7 +372,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     }
                 } else if (is_machine_file((char *)g_picked_name) == 0) {
                     picker_draw_action();
-                    show_message_box(MESSAGES.wrong_format, MESSAGES.wrong_format_body);
+                    show_message_box(g_messages.wrong_format, g_messages.wrong_format_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
@@ -381,10 +381,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                 }
             } else {
                 picker_draw_action();
-                show_message_box(MESSAGES.file_error,
-                                 GAME_PICKER_TEXT.picker_mode == 0x100
-                                     ? MESSAGES.cant_open_for_loading
-                                     : MESSAGES.cant_open_for_saving);
+                show_message_box(g_messages.file_error,
+                                 g_game_picker_text.picker_mode == 0x100
+                                     ? g_messages.cant_open_for_loading
+                                     : g_messages.cant_open_for_saving);
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -436,10 +436,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (GAME_PICKER_TEXT.block != g_scratch_block) {
-        dos_free_far(GAME_PICKER_TEXT.block);
-        GAME_PICKER_TEXT.block = NULL;
-        GAME_PICKER_TEXT.text_start = NULL;
+    if (g_game_picker_text.block != g_scratch_block) {
+        dos_free_far(g_game_picker_text.block);
+        g_game_picker_text.block = NULL;
+        g_game_picker_text.text_start = NULL;
     }
 
     picker_draw_action();
@@ -510,7 +510,7 @@ uint16_t validate_filename(void)
 
     for (i = 0; i < 0x0e; i++) {
         if (strchr((char *)g_picked_name,
-                       GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
+                       g_game_forbidden_chars.forbidden[i]) != NULL)
             return 0;
     }
 
@@ -553,7 +553,7 @@ uint16_t validate_filename(void)
         return 2;
     }
 
-    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x80)
+    if (((uint16_t)g_game_picker_text.picker_mode) == 0x80)
         return 1;
 
     return 0;
@@ -574,11 +574,11 @@ uint16_t validate_filename(void)
 void picker_draw_action(void)
 {
     if (g_round_state != 0x200) {
-        draw_button(MESSAGES.cancel, 0xc0, 0x130, 1);
-    } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_button(MESSAGES.load, 0x40, 0x130, 1);
+        draw_button(g_messages.cancel, 0xc0, 0x130, 1);
+    } else if (((uint16_t)g_game_picker_text.picker_mode) == 0x100) {
+        draw_button(g_messages.load, 0x40, 0x130, 1);
     } else {
-        draw_button(MESSAGES.save, 0x40, 0x130, 1);
+        draw_button(g_messages.save, 0x40, 0x130, 1);
     }
 
     present_back_page();
@@ -595,13 +595,13 @@ void picker_draw_action(void)
  */
 void picker_tab(void)
 {
-    GAME_PICKER_TABS.stop++;
+    g_game_picker_tabs.stop++;
 
-    if (GAME_PICKER_TABS.stop == 7)
-        GAME_PICKER_TABS.stop = 0;
+    if (g_game_picker_tabs.stop == 7)
+        g_game_picker_tabs.stop = 0;
 
-    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.stop],
-                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.stop]);
+    move_pointer_to(g_game_picker_tabs.stop_x[g_game_picker_tabs.stop],
+                    g_game_picker_tabs.stop_y[g_game_picker_tabs.stop]);
 }
 
 /*
@@ -840,31 +840,31 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
     (void)arg1;
     (void)arg2;
 
-    if (GAME_PICKER_TEXT.block == NULL) {
+    if (g_game_picker_text.block == NULL) {
         if (g_scratch_block != NULL) {
-            GAME_PICKER_TEXT.entry_max = 0x3e8;
-            GAME_PICKER_TEXT.block = g_scratch_block;
+            g_game_picker_text.entry_max = 0x3e8;
+            g_game_picker_text.block = g_scratch_block;
         } else {
             v = DOS_ALLOC_BYTES(dos_alloc_bytes(0xffffffffUL, 0));
 
             if ((int32_t)v > 0x7530)
                 v = 0x7530;
 
-            GAME_PICKER_TEXT.entry_max = (int32_t)v / 0x16;
+            g_game_picker_text.entry_max = (int32_t)v / 0x16;
 
-            GAME_PICKER_TEXT.block = dos_alloc_bytes(v, 0);
+            g_game_picker_text.block = dos_alloc_bytes(v, 0);
         }
 
         /* The table of pointers sits at the head of the block and the text
            after it, so the start is one pointer a line in, in the block's own
            segment. */
-        GAME_PICKER_TEXT.text_start = (uint8_t far *)
-            ((char far * far *)GAME_PICKER_TEXT.block + GAME_PICKER_TEXT.entry_max);
+        g_game_picker_text.text_start = (uint8_t far *)
+            ((char far * far *)g_game_picker_text.block + g_game_picker_text.entry_max);
     }
 
     fill_file_listing(pattern);
     sort_file_listing();
-    GAME_PICKER_TEXT.scroll = 0;
+    g_game_picker_text.scroll = 0;
 }
 
 /*
@@ -886,19 +886,19 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
  */
 void picker_repaint(void)
 {
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
 
     draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
 
     draw_sunken_box(0x36, 0x129, 0x40, 0x20);
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
-    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_scroll_text(MESSAGES.load_machine, 0x50, 0x34, 0xa0);
-        draw_button(MESSAGES.load, 0x40, 0x130, 0);
+    if (((uint16_t)g_game_picker_text.picker_mode) == 0x100) {
+        draw_scroll_text(g_messages.load_machine, 0x50, 0x34, 0xa0);
+        draw_button(g_messages.load, 0x40, 0x130, 0);
     } else {
-        draw_scroll_text(MESSAGES.save_machine, 0x50, 0x34, 0xa0);
-        draw_button(MESSAGES.save, 0x40, 0x130, 0);
+        draw_scroll_text(g_messages.save_machine, 0x50, 0x34, 0xa0);
+        draw_button(g_messages.save, 0x40, 0x130, 0);
     }
 
     draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
@@ -907,7 +907,7 @@ void picker_repaint(void)
     picker_draw_up();
     picker_draw_down();
 
-    draw_button(MESSAGES.cancel, 0xc0, 0x130, 0);
+    draw_button(g_messages.cancel, 0xc0, 0x130, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -936,7 +936,7 @@ void picker_draw_up(void)
     else
         pressed = 0;
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x25)[pressed]),
                 0xc4, 0x78, 0);
@@ -959,7 +959,7 @@ void picker_draw_down(void)
     else
         pressed = 0;
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x27)[pressed]),
                 0xc4, 0xe8, 0);
@@ -988,22 +988,22 @@ void picker_draw_name(void)
     char buf[90];                  /* [bp-0x5a] */
     char *si  = buf;
 
-    strcpy(si, (const char *)GAME_DIRECTORIES.path_field);
+    strcpy(si, (const char *)g_game_directories.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
 
     if (g_round_state == 0x4000) {
-        PICKER_CARET.caret_blink++;
-        if ((PICKER_CARET.caret_blink & 8) != 0)
+        g_picker_caret.caret_blink++;
+        if ((g_picker_caret.caret_blink & 8) != 0)
             strcat(si, "*");
     }
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
 
-    VMDS.text_back = 0;
-    VMDS.text_colour = 0x0f;
+    g_vmds.text_back = 0;
+    g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x44, 0x5a);
@@ -1037,17 +1037,17 @@ void picker_draw_filename(void)
         si++;
 
     if (g_round_state == 0x1000) {
-        PICKER_CARET.caret_blink_b++;
-        if ((PICKER_CARET.caret_blink_b & 8) != 0)
+        g_picker_caret.caret_blink_b++;
+        if ((g_picker_caret.caret_blink_b & 8) != 0)
             strcat(si, "*");
     }
 
-    VMDS.page_dst = VMDS.page_back;
-    draw_scroll_text(MESSAGES.file_name, 0x30, 0x10c, 0x54);
+    g_vmds.page_dst = g_vmds.page_back;
+    draw_scroll_text(g_messages.file_name, 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
-    VMDS.text_back = 0;
-    VMDS.text_colour = 0x0f;
+    g_vmds.text_back = 0;
+    g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x110);
@@ -1088,27 +1088,27 @@ void picker_draw_list(void)
 
     fill_panel_area(x, y, w, room, 0);
 
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.text_style = 1;                    /* transparent text */
-    VMDS.text_colour = 0x0f;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.text_style = 1;                    /* transparent text */
+    g_vmds.text_colour = 0x0f;
 
-    if (GAME_PICKER_TEXT.entry_count <= 0x0c) {
+    if (g_game_picker_text.entry_count <= 0x0c) {
         i = 0;
     } else {
-        i = GAME_PICKER_TEXT.scroll;
-        if (i > GAME_PICKER_TEXT.entry_count)
-            i = GAME_PICKER_TEXT.entry_count - 12;
+        i = g_game_picker_text.scroll;
+        if (i > g_game_picker_text.entry_count)
+            i = g_game_picker_text.entry_count - 12;
     }
 
-    p = (char far * far *)GAME_PICKER_TEXT.block;
+    p = (char far * far *)g_game_picker_text.block;
     while (i--)                         /* skip the rows scrolled past */
         p++;
 
-    for (i = 0; i < GAME_PICKER_TEXT.entry_count && room >= 0x0a; i++) {
+    for (i = 0; i < g_game_picker_text.entry_count && room >= 0x0a; i++) {
         t = *p;
         p++;
         if (*t == ':')
-            t = MESSAGES.parent_dir;
+            t = g_messages.parent_dir;
 
         cursor_redraw_off_thunk();
         draw_string_body(t, x + 4, y + 4);
@@ -1160,34 +1160,34 @@ void fill_file_listing(char *pattern)
     int16_t  n;                         /* [bp-0xe] */
     char    *name;                      /* di */
 
-    GAME_PICKER_TEXT.entry_count = 0;
-    dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
+    g_game_picker_text.entry_count = 0;
+    dos_get_cur_dir((char *)g_game_directories.path_field);
 
-    ptr = (char far * far *)GAME_PICKER_TEXT.block;
-    txt = (char far *)GAME_PICKER_TEXT.text_start;
+    ptr = (char far * far *)g_game_picker_text.block;
+    txt = (char far *)g_game_picker_text.text_start;
 
     /* The pattern's own extension, or none if it is a wildcard. */
     pattern = strchr(pattern, '.');
     if (pattern != NULL && pattern[1] == '*')
         pattern = NULL;
 
-    if (GAME_DIRECTORIES.path_field[3] != 0) {
+    if (g_game_directories.path_field[3] != 0) {
         *ptr++ = txt;
         *txt++ = ':';
         *txt++ = 0;
-        GAME_PICKER_TEXT.entry_count++;
+        g_game_picker_text.entry_count++;
     }
 
     more = dos_findfirst("*.*", 0x10);
 
-    while (more == 0 && GAME_PICKER_TEXT.entry_count < GAME_PICKER_TEXT.entry_max) {
+    while (more == 0 && g_game_picker_text.entry_count < g_game_picker_text.entry_max) {
         name = dos_find_name();
         ext  = strchr(name, '.');
 
         if (dos_find_attr() & 0x10) {
             if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
                 *ptr++ = txt;
-                GAME_PICKER_TEXT.entry_count++;
+                g_game_picker_text.entry_count++;
 
                 *txt++ = '<';
                 while ((*txt++ = *name++) != 0)
@@ -1200,7 +1200,7 @@ void fill_file_listing(char *pattern)
                        && ext[2] == pattern[2]
                        && ext[3] == pattern[3])) {
             *ptr++ = txt;
-            GAME_PICKER_TEXT.entry_count++;
+            g_game_picker_text.entry_count++;
 
             n = 0;
             while (*name != 0 && *name != '.') {
@@ -1262,7 +1262,7 @@ void sort_file_listing(void)
     while (swapped) {
         swapped = 0;
 
-        p = (char far * far *)GAME_PICKER_TEXT.block;
+        p = (char far * far *)g_game_picker_text.block;
 
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
@@ -1308,7 +1308,7 @@ char *listing_to_name(const char far * entry)
     if (*entry == ':')
         return "..";
 
-    si = (char *)GAME_NAME_BUFFER.name;
+    si = (char *)g_game_name_buffer.name;
 
     while (*entry != 0) {
         if (*entry != '<' && *entry != '>' && *entry != ' ') {
@@ -1319,7 +1319,7 @@ char *listing_to_name(const char far * entry)
     }
 
     *si = 0;
-    return (char *)GAME_NAME_BUFFER.name;
+    return (char *)g_game_name_buffer.name;
 }
 
 /*
@@ -1362,24 +1362,24 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     char   **l;                         /* di */
     char    *end;                       /* si */
 
-    VMDS.text_style = 1;                        /* transparent */
+    g_vmds.text_style = 1;                        /* transparent */
     line_height = font_line_height(0);
 
     wrap_text_to_box(str, w, h, line_height);
 
     left = x;
     top  = y;
-    left += (w - GAME_PICKER_TEXT.text_width - 1) / 2;
-    top  += (h - GAME_PICKER_TEXT.text_height - 1) / 2;
+    left += (w - g_game_picker_text.text_width - 1) / 2;
+    top  += (h - g_game_picker_text.text_height - 1) / 2;
     top++;
 
-    VMDS.clip_left   = left;
-    VMDS.clip_right  = left + w;
-    VMDS.clip_top    = top;
-    VMDS.clip_bottom = top + h;
+    g_vmds.clip_left   = left;
+    g_vmds.clip_right  = left + w;
+    g_vmds.clip_top    = top;
+    g_vmds.clip_bottom = top + h;
 
     l       = g_text_line;
-    left_at = GAME_PICKER_TEXT.line_count;
+    left_at = g_game_picker_text.line_count;
 
     while (*l != 0 && **l != 0 && left_at-- != 0) {
         end = l[1] - 1;
@@ -1392,10 +1392,10 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 
         cursor_redraw_off_thunk();
 
-        VMDS.text_colour = 0x0f;
+        g_vmds.text_colour = 0x0f;
         draw_string(*l, left - 1, top + 1);
 
-        VMDS.text_colour = 5;
+        g_vmds.text_colour = 5;
         draw_string(*l++, left, top);
 
         restore_cursor_following();
@@ -1455,11 +1455,11 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
         h = cap;
 
     run = used = 0;
-    GAME_PICKER_TEXT.line_count = 0;
-    GAME_PICKER_TEXT.text_width = GAME_PICKER_TEXT.text_height = 0;
+    g_game_picker_text.line_count = 0;
+    g_game_picker_text.text_width = g_game_picker_text.text_height = 0;
 
     if (*at != 0)
-        g_text_line[GAME_PICKER_TEXT.line_count++] = at;
+        g_text_line[g_game_picker_text.line_count++] = at;
 
     space[0] = ' ';
     space[1] = 0;
@@ -1471,23 +1471,23 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
         if ((run != 0 || used != 0) && run + wide >= w) {
             run = 0;
             used += line_height;
-            g_text_line[GAME_PICKER_TEXT.line_count++] = at;
+            g_text_line[g_game_picker_text.line_count++] = at;
             if (used + line_height >= h)
                 break;
         }
 
         at += len;
         run += wide;
-        if (run > GAME_PICKER_TEXT.text_width)
-            GAME_PICKER_TEXT.text_width = run;
-        if (GAME_PICKER_TEXT.text_width > w)
-            GAME_PICKER_TEXT.text_width = w;
+        if (run > g_game_picker_text.text_width)
+            g_game_picker_text.text_width = run;
+        if (g_game_picker_text.text_width > w)
+            g_game_picker_text.text_width = w;
 
         while (*at != 0 && (uint8_t)*at <= ' ' && used + line_height < h) {
             if (*at == 0x0d) {
                 run = 0;
                 used += line_height;
-                g_text_line[GAME_PICKER_TEXT.line_count++] = at + 1;
+                g_text_line[g_game_picker_text.line_count++] = at + 1;
             } else if (*at == ' ') {
                 run += space_w;
             }
@@ -1495,14 +1495,14 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
         }
     }
 
-    GAME_PICKER_TEXT.text_height = used;
+    g_game_picker_text.text_height = used;
 
-    if (run == 0 && GAME_PICKER_TEXT.line_count != 0)
-        GAME_PICKER_TEXT.line_count--;
+    if (run == 0 && g_game_picker_text.line_count != 0)
+        g_game_picker_text.line_count--;
     else
-        GAME_PICKER_TEXT.text_height += line_height;
+        g_game_picker_text.text_height += line_height;
 
-    g_text_line[GAME_PICKER_TEXT.line_count] = at;
+    g_text_line[g_game_picker_text.line_count] = at;
 }
 
 /*

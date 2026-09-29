@@ -56,21 +56,21 @@ void recompute_kind_physics(void)
     struct part_kind *k;
     register int16_t s;
 
-    s = LEVEL_SETTINGS.air;
+    s = g_level_settings.air;
     if (s < 0x8c) {
         s >>= 2;
         s++;
     } else if (s > 0x116)
         s <<= 1;
 
-    base = LEVEL_SETTINGS.gravity;
+    base = g_level_settings.gravity;
     if (base < 0x46)
         base >>= 1;
     else
         base <<= 4;
 
     for (i = 0; i < 0x3a; i++) {
-        k = &PART_KINDS[i];
+        k = &g_part_kinds[i];
         v = k->density;
         if (v == base)
             g = 0;
@@ -114,7 +114,7 @@ void clamp_record_pair(struct part *rec)
 {
     const struct part_kind *k;
 
-    k = &PART_KINDS[rec->kind];
+    k = &g_part_kinds[rec->kind];
     if (rec->vel_y > k->max_speed)
         rec->vel_y = k->max_speed;
     else if (rec->vel_y < 0 - k->max_speed)
@@ -144,7 +144,7 @@ void apply_gravity_and_speed(register struct part *rec)
 {
     const struct part_kind *entry;
 
-    entry = &PART_KINDS[rec->kind];
+    entry = &g_part_kinds[rec->kind];
     rec->vel_y += entry->gravity;
     clamp_record_pair(rec);
     rec->momentum = mul16x16(abs(rec->vel_x) + abs(rec->vel_y), rec->weight);
@@ -196,7 +196,7 @@ void integrate_object(register struct part *obj)
     obj->fy += obj->vel_y;
 
     if (obj->flags_06 & 1) {
-        if (PART_KINDS[obj->kind].gravity > 0)
+        if (g_part_kinds[obj->kind].gravity > 0)
             obj->fy += 0x400;
         else
             obj->fy -= 0x400;
@@ -300,8 +300,8 @@ void apply_contact_friction(register struct part *obj)
 
     c = (struct part_contact *)&obj->contact;
     other = c->part;
-    rec_a = &PART_KINDS[obj->kind];
-    rec_b = &PART_KINDS[other->kind];
+    rec_a = &g_part_kinds[obj->kind];
+    rec_b = &g_part_kinds[other->kind];
     load = rec_a->gravity;
     angle = c->angle;
 
@@ -423,8 +423,8 @@ void bounce_off_contact(register struct part *obj)
 
     c = (struct part_contact *)&obj->contact;
     what = c->part;
-    mine = &PART_KINDS[obj->kind];
-    theirs = &PART_KINDS[what->kind];
+    mine = &g_part_kinds[obj->kind];
+    theirs = &g_part_kinds[what->kind];
     angle = c->angle;
 
     if (angle == 0 || angle == (int16_t)0x8000) {
@@ -527,8 +527,8 @@ void bounce_pair(register struct part *obj)
     other = obj->contact;
     obj->flags_06 |= 8;
     other->flags_06 |= 8;
-    mine = &PART_KINDS[obj->kind];
-    theirs = &PART_KINDS[other->kind];
+    mine = &g_part_kinds[obj->kind];
+    theirs = &g_part_kinds[other->kind];
     bounce = mine->bounce < theirs->bounce ? mine->bounce : theirs->bounce;
     (void)bounce;
     myW = mine->weight;
@@ -599,14 +599,14 @@ void bounce_pair(register struct part *obj)
     obj->fx = obj->vel_x >= 0 ? (int32_t)((uint32_t)(x + 1) << 9) - 1
                               : (int32_t)((uint32_t)x << 9);
     y = obj->pos[0].y;
-    obj->fy = PART_KINDS[obj->kind].gravity >= 0
+    obj->fy = g_part_kinds[obj->kind].gravity >= 0
               ? (int32_t)((uint32_t)(y + 1) << 9) - 1
               : (int32_t)((uint32_t)y << 9);
     x = other->pos[0].x;
     other->fx = other->vel_x >= 0 ? (int32_t)((uint32_t)(x + 1) << 9) - 1
                                   : (int32_t)((uint32_t)x << 9);
     y = other->pos[0].y;
-    other->fy = PART_KINDS[other->kind].gravity >= 0
+    other->fy = g_part_kinds[other->kind].gravity >= 0
                 ? (int32_t)((uint32_t)(y + 1) << 9) - 1
                 : (int32_t)((uint32_t)y << 9);
 }

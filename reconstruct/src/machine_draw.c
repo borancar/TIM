@@ -25,7 +25,7 @@
  * 0x259c..0x25e8: the message box's tab stops, the menu animation, the
  * selection's phase, and its literal pool, the three button labels. The
  * messages it draws - "PUZZLE ", " COMPLETED!" and the rest - are the strings
- * module's arrays in `MESSAGES`: "PUZZLE " is named from segment 0dff as well,
+ * module's arrays in `g_messages`: "PUZZLE " is named from segment 0dff as well,
  * and a literal belongs to one module.
  */
 
@@ -47,9 +47,9 @@
  */
 
 /* The message box's tab stops, DGROUP 0x259c. */
-struct game_message_tabs GAME_MESSAGE_TABS = { 0xffff, { 0x00e8, 0x0168 } };
+struct game_message_tabs g_game_message_tabs = { 0xffff, { 0x00e8, 0x0168 } };
 /* The menu button's animation, DGROUP 0x25a2. */
-struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM = {
+struct machine_draw_menu_anim g_machine_draw_menu_anim = {
     { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },     /* picture */
     { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },     /* picture_x */
     { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },     /* picture_y */
@@ -92,10 +92,10 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     int16_t y;
     register int16_t i;
 
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.clip_enabled = 0;
-    VMDS.second_colour = VMDS.fill_colour = 0;
-    VMDS.fill_enabled = 1;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.clip_enabled = 0;
+    g_vmds.second_colour = g_vmds.fill_colour = 0;
+    g_vmds.fill_enabled = 1;
     cursor_redraw_off_thunk();
     if (filled != 0) {
         fill_rect(x1 - 0x0c, y1 + 0x0c, x2 - x1, y2 - y1);
@@ -106,11 +106,11 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
         draw_bitmap(g_border_art[0x27],
                     x2 - 0x20, y2 - 9, 0);
     }
-    VMDS.clip_left = x1;
-    VMDS.clip_right = x2;
-    VMDS.clip_top = y1;
-    VMDS.clip_bottom = y2;
-    VMDS.clip_enabled = 1;
+    g_vmds.clip_left = x1;
+    g_vmds.clip_right = x2;
+    g_vmds.clip_top = y1;
+    g_vmds.clip_bottom = y2;
+    g_vmds.clip_enabled = 1;
     for (y = y1; y < y2; y += 0x40)
         for (i = x1; i < x2; i += 0x80)
             draw_bitmap(g_border_art[0x2a],
@@ -119,7 +119,7 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
         set_clip_full_screen();
     else
         set_clip_play_area();
-    VMDS.clip_enabled = 0;
+    g_vmds.clip_enabled = 0;
     for (i = x1; i < x2; i += 8) {
         draw_bitmap(g_border_art[0x12],
                     i, y1 - 4, 0);
@@ -186,10 +186,10 @@ void draw_scroll_text(const char *str, register int16_t x, register int16_t y,
                     i, y + 2, 0);
     draw_bitmap(g_panel_art[0x2],
                 x + w - 0x18, y, 0);
-    VMDS.text_style = 1;                    /* transparent: no background line */
-    VMDS.text_colour = 0x0f;
+    g_vmds.text_style = 1;                    /* transparent: no background line */
+    g_vmds.text_colour = 0x0f;
     draw_string(str, centre - 1, y + 6);
-    VMDS.text_colour = 5;
+    g_vmds.text_colour = 5;
     /* `str++`: the original steps its own copy of the pointer, to no end. */
     draw_string(str++, centre, y + 5);
     restore_cursor_following();
@@ -233,7 +233,7 @@ void draw_button(const char *str, register int16_t x, int16_t y,
     rounded = (w + 7) & 0xfff8;
     right = x + rounded + 8;
     text_off = ((rounded - w) >> 1) + 8;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x2c)[pressed]),
                 x, y, 0);
@@ -242,8 +242,8 @@ void draw_button(const char *str, register int16_t x, int16_t y,
                     i, y, 0);
     draw_bitmap(((g_panel_art + 0x30)[pressed]),
                 right, y, 0);
-    VMDS.text_style = 1;            /* transparent: no background line */
-    VMDS.text_colour = 5;
+    g_vmds.text_style = 1;            /* transparent: no background line */
+    g_vmds.text_colour = 5;
     draw_string(str, x + text_off - pressed, y + 2 * pressed + 4);
     restore_cursor_following();
 }
@@ -255,8 +255,8 @@ void draw_button(const char *str, register int16_t x, int16_t y,
  * and the ornamented border the game's menus and the copy-protection screen
  * are built out of.
  *
- * The clip box is set to the rectangle first - and `VMDS.clip_bottom` to
- * `y + h - 1`, one less, where `VMDS.clip_right` is `x + w` - so the tiling cannot
+ * The clip box is set to the rectangle first - and `g_vmds.clip_bottom` to
+ * `y + h - 1`, one less, where `g_vmds.clip_right` is `x + w` - so the tiling cannot
  * escape it. The background is the bitmap at +0x74 of the set the game keeps a
  * pointer to at DGROUP 0x52f4, laid down every 0x40 in both directions, which
  * is why a panel of any size costs the same tile.
@@ -277,11 +277,11 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
     int16_t i;
     int16_t j;
 
-    VMDS.clip_left = x;
-    VMDS.clip_right = x + w;
-    VMDS.clip_top = y;
-    VMDS.clip_bottom = y + h - 1;
-    VMDS.clip_enabled = 1;
+    g_vmds.clip_left = x;
+    g_vmds.clip_right = x + w;
+    g_vmds.clip_top = y;
+    g_vmds.clip_bottom = y + h - 1;
+    g_vmds.clip_enabled = 1;
     cursor_redraw_off_thunk();
     for (j = 0; j < h; j += 0x40)
         for (i = 0; i < w; i += 0x40)
@@ -290,12 +290,12 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
         set_clip_full_screen();
     else
         set_clip_play_area();
-    VMDS.second_colour = 0x0f;
+    g_vmds.second_colour = 0x0f;
     clip_and_draw_line(x, y + 1, x + w, y + 1);
     clip_and_draw_line(x + w - 1, y, x + w - 1, y + h);
-    VMDS.second_colour = 0x0e;
+    g_vmds.second_colour = 0x0e;
     clip_and_draw_line(x, y, x + w, y);
-    VMDS.second_colour = 0x06;
+    g_vmds.second_colour = 0x06;
     clip_and_draw_line(x + w, y, x + w, y + h);
     for (i = y + 0x13; i < y + h; i += 8)
         draw_bitmap(g_panel_art[0xe], x - 2, i, 0);
@@ -334,7 +334,7 @@ void draw_sunken_box(register int16_t x, int16_t y, int16_t w, int16_t h)
     register int16_t i;
 
     set_clip_play_area();
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     for (j = 8; h - 8 > j; j += 8) {
         for (i = 8; w - 8 > i; i += 8)
@@ -384,8 +384,8 @@ void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
     x2 = x + w;
     y2 = y + h;
     cursor_redraw_off_thunk();
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.second_colour = VMDS.fill_colour = colour;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.second_colour = g_vmds.fill_colour = colour;
     fill_rect(x, y, w, h);
     for (n = x; n < x2; n += 8) {
         draw_bitmap(g_border_art[0x1a], n, y - 8, 0);
@@ -557,16 +557,16 @@ uint16_t message_box(const char *title, char *body,
  */
 void message_box_tab(const char *button2)
 {
-    GAME_MESSAGE_TABS.stop++;
+    g_game_message_tabs.stop++;
 
     if (button2 != NULL) {
-        if (GAME_MESSAGE_TABS.stop == 2)
-            GAME_MESSAGE_TABS.stop = 0;
+        if (g_game_message_tabs.stop == 2)
+            g_game_message_tabs.stop = 0;
     } else {
-        GAME_MESSAGE_TABS.stop = 0;
+        g_game_message_tabs.stop = 0;
     }
 
-    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.stop],
+    move_pointer_to(g_game_message_tabs.stop_x[g_game_message_tabs.stop],
                     0xde);
 }
 
@@ -605,28 +605,28 @@ void show_level_complete(void)
     char code[40];
 
     repaint_whole_screen();
-    strcpy(line, MESSAGES.puzzle_prefix);
+    strcpy(line, g_messages.puzzle_prefix);
     itoa(g_round_number, num, 0xa);
     strcat(line, num);
-    strcat(line, MESSAGES.completed);
-    strcpy(bonus, MESSAGES.total_bonus_points);
-    itoa(LEVEL_SETTINGS.bonus_1 + LEVEL_SETTINGS.bonus_2, num, 0xa);
+    strcat(line, g_messages.completed);
+    strcpy(bonus, g_messages.total_bonus_points);
+    itoa(g_level_settings.bonus_1 + g_level_settings.bonus_2, num, 0xa);
     strcat(bonus, num);
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
     draw_scroll_text(line, 0xb8, 0x80, 0xd0);
     draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
     if (g_round_number < g_level_count) {
         /* The literal ends in a NUL of its own: the image has two after it. */
-        draw_scroll_text(MESSAGES.new_password, 0xb8, 0xc4, 0xd0);
+        draw_scroll_text(g_messages.new_password, 0xb8, 0xc4, 0xd0);
         read_password_line(g_round_number, code);
         score_to_code(g_odometer_total, code);
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }
     cursor_redraw_off_thunk();
-    VMDS.text_colour = 0;
-    draw_string(MESSAGES.click_button_to_continue, 0xd3, 0xee);
-    VMDS.text_colour = 0x0f;
-    draw_string(MESSAGES.click_button_to_continue, 0xd4, 0xed);
+    g_vmds.text_colour = 0;
+    draw_string(g_messages.click_button_to_continue, 0xd3, 0xee);
+    g_vmds.text_colour = 0x0f;
+    draw_string(g_messages.click_button_to_continue, 0xd4, 0xed);
     restore_cursor_following();
     present_back_page();
 }
@@ -648,10 +648,10 @@ void show_level_complete(void)
  */
 void redraw_machine_area(void)
 {
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.second_colour = VMDS.fill_colour = (uint8_t)g_fill_colour;
-    VMDS.fill_enabled = 1;
-    VMDS.clip_enabled = 0;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.second_colour = g_vmds.fill_colour = (uint8_t)g_fill_colour;
+    g_vmds.fill_enabled = 1;
+    g_vmds.clip_enabled = 0;
     cursor_redraw_off_thunk();
     fill_rect(8, 8, 0x230, 0x160);
     draw_machine_thunk();
@@ -739,7 +739,7 @@ void draw_machine_layer_b(void)
     register int16_t x;
 
     set_clip_play_area();
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     for (x = 0x10; x < 0x22f; x += 8)
         draw_bitmap(g_border_art[0x6], x, 0, 0);
@@ -761,7 +761,7 @@ void draw_machine_layer_c(void)
     register int16_t x;
 
     set_clip_play_area();
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     for (x = 0x10; x < 0x22f; x += 8)
         draw_bitmap(g_border_art[0x7], x, 0x168, 0);
@@ -785,7 +785,7 @@ void draw_machine_layer_d(void)
     register int16_t y;
 
     set_clip_play_area();
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     for (y = 8; y < 0x162; y += 8)
         draw_bitmap(g_border_art[0x4], 0, y, 0);
@@ -822,7 +822,7 @@ void draw_machine_layer_e(void)
     register int16_t n;
 
     draw_machine_layer_f();
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     for (n = 8; n < 0x162; n += 8)
         draw_bitmap(g_border_art[0x5], 0x238, n, 0);
@@ -830,7 +830,7 @@ void draw_machine_layer_e(void)
         draw_bitmap(g_border_art[0x8], 0x278, n, 0);
     draw_bitmap(g_border_art[0x1], 0x230, 0, 0);
     draw_bitmap(g_border_art[0x3], 0x230, 0x160, 0);
-    VMDS.second_colour = 0;
+    g_vmds.second_colour = 0;
     clip_and_draw_line(0x238, 0, 0x27f, 0);
     draw_bitmap(g_border_art[0xa], 0x238, 0, 0);
     draw_bitmap(g_border_art[0xa], 0x238, 0x3b, 0);
@@ -884,21 +884,21 @@ void draw_machine_layer_a(void)
     register struct part *part;
     register int16_t y;
 
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.clip_enabled = 1;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.clip_enabled = 1;
     set_clip_play_area();
-    VMDS.fill_enabled = 1;
-    VMDS.second_colour = VMDS.fill_colour = (uint8_t)g_bin_colour;
+    g_vmds.fill_enabled = 1;
+    g_vmds.second_colour = g_vmds.fill_colour = (uint8_t)g_bin_colour;
     cursor_redraw_off_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
-    VMDS.text_style = 1;                            /* transparent text */
-    part = (HELD_PARTS.bin_list->next);
+    g_vmds.text_style = 1;                            /* transparent text */
+    part = (g_held_parts.bin_list->next);
     y = 0x64;
     while (part != NULL && y <= 0x134) {
         kind = part->kind;
-        if (part == HELD_PARTS.dragged_part)
+        if (part == g_held_parts.dragged_part)
             count = 0;
         else
             count = 1;
@@ -908,7 +908,7 @@ void draw_machine_layer_a(void)
            entered at the step, which is what its bytes do. */
         goto next;
         do {
-            if (part != HELD_PARTS.dragged_part)
+            if (part != g_held_parts.dragged_part)
                 count++;
 next:
             part = part->next;
@@ -922,9 +922,9 @@ next:
         text_x = ((0x38 - (int16_t)text_width_thunk(digits)) >> 1) + 0x240;
         if ((text_y = y + icon->height + ((0x2a - icon->height) >> 1) + 1) > 0x161)
             text_y = 0x161;
-        VMDS.text_colour = 0;
+        g_vmds.text_colour = 0;
         draw_string(digits, text_x - 2, text_y + 1);
-        VMDS.text_colour = 0x0e;
+        g_vmds.text_colour = 0x0e;
         draw_string(digits, text_x - 1, text_y);
         restore_cursor_following();
         y += 0x34;
@@ -985,11 +985,11 @@ void draw_machine_layer_f(void)
     register int16_t frame;
     register int16_t slide_a;
 
-    VMDS.clip_enabled = 1;
-    VMDS.clip_top = 0x0a;
-    VMDS.clip_bottom = 0x3b;
-    VMDS.clip_left = 0x240;
-    VMDS.clip_right = 0x277;
+    g_vmds.clip_enabled = 1;
+    g_vmds.clip_top = 0x0a;
+    g_vmds.clip_bottom = 0x3b;
+    g_vmds.clip_left = 0x240;
+    g_vmds.clip_right = 0x277;
     g_loop_frames = 0;
     if ((frame = g_loop_frames >> 1) >= 4)
         slide_a = ((frame - 4) * 2) % 0x38;
@@ -999,23 +999,23 @@ void draw_machine_layer_f(void)
         slide_b = ((frame - 4) * 4) % 0x38;
     else
         slide_b = 0;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(g_menu_bmp[0], 0x240, 0x0a, 0);
     draw_bitmap(g_menu_bmp[0x1], slide_a + 0x208, 0x1a, 0);
     draw_bitmap(g_menu_bmp[0x2], slide_b + 0x208, 0x20, 0);
     if (frame < 6)
         /* the picture, its x and its y, by frame */
-        draw_bitmap(g_menu_bmp[MACHINE_DRAW_MENU_ANIM.picture[frame]], MACHINE_DRAW_MENU_ANIM.picture_x[frame],
-                    MACHINE_DRAW_MENU_ANIM.picture_y[frame], 0);
+        draw_bitmap(g_menu_bmp[g_machine_draw_menu_anim.picture[frame]], g_machine_draw_menu_anim.picture_x[frame],
+                    g_machine_draw_menu_anim.picture_y[frame], 0);
     if (frame < 4)
         draw_bitmap(g_menu_bmp[0x7], 0x24a, 0x2a, 0);
     else {
         frame &= 3;
         /* the sprite's x and y, by the frame modulo four */
         draw_bitmap(((g_menu_bmp + 8)[frame]),
-                    MACHINE_DRAW_MENU_ANIM.sprite_x[frame],
-                    MACHINE_DRAW_MENU_ANIM.sprite_y[frame], 0);
+                    g_machine_draw_menu_anim.sprite_x[frame],
+                    g_machine_draw_menu_anim.sprite_y[frame], 0);
     }
     restore_cursor_following();
     set_clip_play_area();
@@ -1048,14 +1048,14 @@ void draw_carried_icon(void)
     register struct bitmap *bmp;
 
     set_clip_play_area();
-    kind = HELD_PARTS.dragged_part->kind;
+    kind = g_held_parts.dragged_part->kind;
     bmp = g_icons_bmp[kind];
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(bmp, POINTER.pointer_x, POINTER.pointer_y, 0);
+    draw_bitmap(bmp, g_pointer.pointer_x, g_pointer.pointer_y, 0);
     cursor_redraw_off_thunk();
-    at[0] = POINTER.pointer_x + g_origin_b_x;
-    at[1] = POINTER.pointer_y + g_origin_b_y;
+    at[0] = g_pointer.pointer_x + g_origin_b_x;
+    at[1] = g_pointer.pointer_y + g_origin_b_y;
     ext.width = bmp->width;
     ext.height = bmp->height;
     alloc_shape((uint8_t *)at, (uint8_t *)&ext, 1, 2, 0);
@@ -1081,15 +1081,15 @@ void step_and_draw_machine(int16_t redraw_all)
 {
     struct part *si;
 
-    if (HELD_PARTS.dragged_part != 0 && HELD_PARTS.dragged_part->redraw_count != 0) {
-        link_record_into_buckets(HELD_PARTS.dragged_part);
-        HELD_PARTS.dragged_part->redraw_count--;
+    if (g_held_parts.dragged_part != 0 && g_held_parts.dragged_part->redraw_count != 0) {
+        link_record_into_buckets(g_held_parts.dragged_part);
+        g_held_parts.dragged_part->redraw_count--;
     }
 
     for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
         if ((redraw_all != 0 || si->redraw_count != 0)
-            && si != HELD_PARTS.dragged_part)
+            && si != g_held_parts.dragged_part)
             link_record_into_buckets(si);
 
         if (redraw_all != 0)
@@ -1169,7 +1169,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         g_selection_phase++;
     step = 4 - g_selection_phase;
     keep_t = keep_b = keep_l = keep_r = 1;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     if (part->kind == KIND_BELT) {
         end = (part->rope->end_b);
         at.x = end->box[0].x + end->grab.x;
@@ -1192,71 +1192,71 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         at = part->box[0];
         ext = part->size[0];
     }
-    VMDS.clip_left = at.x - g_origin_x;
-    VMDS.clip_right = at.x + ext.width - g_origin_x - 1;
-    VMDS.clip_top = at.y - g_origin_y;
-    VMDS.clip_bottom = at.y + ext.height - g_origin_y - 1;
-    VMDS.clip_enabled = 1;
-    if (VMDS.clip_left < 8) {
-        VMDS.clip_left = 8;
+    g_vmds.clip_left = at.x - g_origin_x;
+    g_vmds.clip_right = at.x + ext.width - g_origin_x - 1;
+    g_vmds.clip_top = at.y - g_origin_y;
+    g_vmds.clip_bottom = at.y + ext.height - g_origin_y - 1;
+    g_vmds.clip_enabled = 1;
+    if (g_vmds.clip_left < 8) {
+        g_vmds.clip_left = 8;
         keep_l = 0;
     }
-    if (VMDS.clip_right > 0x237) {
-        VMDS.clip_right = 0x237;
+    if (g_vmds.clip_right > 0x237) {
+        g_vmds.clip_right = 0x237;
         keep_r = 0;
     }
-    if (VMDS.clip_top < 8) {
-        VMDS.clip_top = 8;
+    if (g_vmds.clip_top < 8) {
+        g_vmds.clip_top = 8;
         keep_t = 0;
     }
-    if (VMDS.clip_bottom > 0x167) {
-        VMDS.clip_bottom = 0x167;
+    if (g_vmds.clip_bottom > 0x167) {
+        g_vmds.clip_bottom = 0x167;
         keep_b = 0;
     }
     if (which == 0x0e) {
-        VMDS.second_colour = 0;
-        clip_and_draw_line(VMDS.clip_left, VMDS.clip_top + 1,
-                           VMDS.clip_right, VMDS.clip_bottom + 1);
-        clip_and_draw_line(VMDS.clip_left, VMDS.clip_bottom + 1,
-                           VMDS.clip_right, VMDS.clip_top + 1);
-        VMDS.second_colour = 0x0c;
-        clip_and_draw_line(VMDS.clip_left, VMDS.clip_top,
-                           VMDS.clip_right, VMDS.clip_bottom);
-        clip_and_draw_line(VMDS.clip_left, VMDS.clip_bottom,
-                           VMDS.clip_right, VMDS.clip_top);
+        g_vmds.second_colour = 0;
+        clip_and_draw_line(g_vmds.clip_left, g_vmds.clip_top + 1,
+                           g_vmds.clip_right, g_vmds.clip_bottom + 1);
+        clip_and_draw_line(g_vmds.clip_left, g_vmds.clip_bottom + 1,
+                           g_vmds.clip_right, g_vmds.clip_top + 1);
+        g_vmds.second_colour = 0x0c;
+        clip_and_draw_line(g_vmds.clip_left, g_vmds.clip_top,
+                           g_vmds.clip_right, g_vmds.clip_bottom);
+        clip_and_draw_line(g_vmds.clip_left, g_vmds.clip_bottom,
+                           g_vmds.clip_right, g_vmds.clip_top);
     }
-    at.x = VMDS.clip_left + g_origin_x;
-    at.y = VMDS.clip_top + g_origin_y;
-    ext.width = VMDS.clip_right - VMDS.clip_left + 1;
-    if ((ext.height = VMDS.clip_bottom - VMDS.clip_top + 1) > 0x80)
+    at.x = g_vmds.clip_left + g_origin_x;
+    at.y = g_vmds.clip_top + g_origin_y;
+    ext.width = g_vmds.clip_right - g_vmds.clip_left + 1;
+    if ((ext.height = g_vmds.clip_bottom - g_vmds.clip_top + 1) > 0x80)
         tall = 1;
     else
         tall = 0;
     cursor_redraw_off_thunk();
     if (keep_l) {
-        draw_bitmap_scaled(((g_cursor_art + 1)[which]), VMDS.clip_left, VMDS.clip_top - step, 8, 0x88, 0);
+        draw_bitmap_scaled(((g_cursor_art + 1)[which]), g_vmds.clip_left, g_vmds.clip_top - step, 8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(((g_cursor_art + 1)[which]), VMDS.clip_left, VMDS.clip_top - step + 0x80,
+            draw_bitmap_scaled(((g_cursor_art + 1)[which]), g_vmds.clip_left, g_vmds.clip_top - step + 0x80,
                                8, 0x88, 0);
     }
     if (keep_t)
         draw_bitmap_scaled(g_cursor_art[which],
-                           VMDS.clip_left - g_selection_phase,
-                           VMDS.clip_top, 0x110, 1, 0);
+                           g_vmds.clip_left - g_selection_phase,
+                           g_vmds.clip_top, 0x110, 1, 0);
     if (keep_r) {
-        VMDS.clip_right++;
-        draw_bitmap_scaled(((g_cursor_art + 1)[which]), VMDS.clip_right - 1,
-                           VMDS.clip_top - g_selection_phase,
+        g_vmds.clip_right++;
+        draw_bitmap_scaled(((g_cursor_art + 1)[which]), g_vmds.clip_right - 1,
+                           g_vmds.clip_top - g_selection_phase,
                            8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(((g_cursor_art + 1)[which]), VMDS.clip_right - 1,
-                               VMDS.clip_top - g_selection_phase + 0x80,
+            draw_bitmap_scaled(((g_cursor_art + 1)[which]), g_vmds.clip_right - 1,
+                               g_vmds.clip_top - g_selection_phase + 0x80,
                                8, 0x88, 0);
-        VMDS.clip_right--;
+        g_vmds.clip_right--;
     }
     if (keep_b) {
-        VMDS.clip_bottom++;
-        draw_bitmap_scaled(g_cursor_art[which], VMDS.clip_left - step, VMDS.clip_bottom - 1,
+        g_vmds.clip_bottom++;
+        draw_bitmap_scaled(g_cursor_art[which], g_vmds.clip_left - step, g_vmds.clip_bottom - 1,
                            0x110, 1, 0);
     }
     set_clip_for_mode();
@@ -1266,21 +1266,21 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     hy = at.y - g_origin_y - 11;
     hym = hy + (ext.height >> 1) + 6;
     hyb = hy + ext.height + 0x0c;
-    VMDS.fill_enabled = 1;
-    VMDS.second_colour = VMDS.fill_colour = 0x0f;
-    LEVEL_SETTINGS.flip_options = part_flip_options(part);
+    g_vmds.fill_enabled = 1;
+    g_vmds.second_colour = g_vmds.fill_colour = 0x0f;
+    g_level_settings.flip_options = part_flip_options(part);
     draw_bitmap(g_cursor_art[0x1b], hx, hy, 0);
-    if (LEVEL_SETTINGS.flip_options & 1) {
+    if (g_level_settings.flip_options & 1) {
         draw_bitmap(g_cursor_art[0x1c], hx, hym, 0);
         draw_bitmap(g_cursor_art[0x1c], hxr, hym, 0);
     }
-    if (LEVEL_SETTINGS.flip_options & 2) {
+    if (g_level_settings.flip_options & 2) {
         draw_bitmap(g_cursor_art[0x1d], hxm, hy, 0);
         draw_bitmap(g_cursor_art[0x1d], hxm, hyb, 0);
     }
-    if (LEVEL_SETTINGS.flip_options & 4)
+    if (g_level_settings.flip_options & 4)
         draw_bitmap(g_cursor_art[0x1e], hx, hyb, 0);
-    if (LEVEL_SETTINGS.flip_options & 8)
+    if (g_level_settings.flip_options & 8)
         draw_bitmap(g_cursor_art[0x1f], hxr, hyb, 0);
     at.x -= 0x0c;
     at.y -= 0x0c;
@@ -1341,8 +1341,8 @@ void link_record_into_buckets(register struct part *rec)
     rec->flags_0a |= 0x20;
     kind = rec->kind;
     for (_CX = 0; (int16_t)_CX < 2; _CX++) {
-        if ((slot = PART_KINDS[kind].refile_level[_CX]) != 0xff) {
-            if (rec == HELD_PARTS.dragged_part)
+        if ((slot = g_part_kinds[kind].refile_level[_CX]) != 0xff) {
+            if (rec == g_held_parts.dragged_part)
                 slot = 0;
             rec->layer_next[_CX] = g_layer_head[slot];
             g_layer_head[slot] = rec;
@@ -1368,7 +1368,7 @@ void link_record_into_buckets(register struct part *rec)
  * nothing at all. Everything else goes through the one blitter, which is told
  * the level as well, so a part in two buckets is drawn twice at two depths.
  *
- * The page being drawn into, `VMDS.page_dst`, is set from `VMDS.page_back` first, and the
+ * The page being drawn into, `g_vmds.page_dst`, is set from `g_vmds.page_back` first, and the
  * clip is put back to whatever the mode wants.
  */
 void draw_machine(register int16_t a, int16_t b)
@@ -1377,8 +1377,8 @@ void draw_machine(register int16_t a, int16_t b)
     uint8_t level;
     register struct part *part;
 
-    VMDS.page_dst = VMDS.page_back;
-    VMDS.clip_enabled = 1;
+    g_vmds.page_dst = g_vmds.page_back;
+    g_vmds.clip_enabled = 1;
     set_clip_for_mode();
     for (counter = 6; counter > 0; counter--) {
         level = counter - 1;
@@ -1455,7 +1455,7 @@ void draw_rope(struct part *part, register int16_t a)
         y3 = (int16_t)(mul16x16(y3, a) >> 10);
         y3 += 0x48;
     }
-    VMDS.second_colour = 0;
+    g_vmds.second_colour = 0;
     clip_and_draw_line(x0, y0, x1, y1);
     clip_and_draw_line(x2, y2, x3, y3);
     restore_cursor_following();
@@ -1500,7 +1500,7 @@ void draw_curve(uint16_t colour, int16_t shift,
 
     /* A word parameter, of which the colour is the low byte: the caller
        zero-extends it (`mov ah,0`), and only AL is read here. */
-    VMDS.second_colour = (uint8_t)colour;
+    g_vmds.second_colour = (uint8_t)colour;
     ddx = x2 + x0 - x1 * 2;
     ddy = y2 + y0 - y1 * 2;
     dx = (int32_t)((uint32_t)(x1 - x0) << (shift + 1));
@@ -1540,7 +1540,7 @@ void draw_belt_segment(register int16_t x0, register int16_t y0, int16_t x1,
     if (slack > 4) {
         mx = (x0 + x1) >> 1;
         my = ((y0 + y1) >> 1) + slack;
-        draw_curve(VMDS.second_colour, 4, x0, mx, x1, y0, my, y1);
+        draw_curve(g_vmds.second_colour, 4, x0, mx, x1, y0, my, y1);
     } else
         clip_and_draw_line(x0, y0, x1, y1);
 }
@@ -1605,7 +1605,7 @@ void draw_belt(struct part *part, int16_t a)
             y1 = (int16_t)(mul16x16(y1, a) >> 10);
             y1 += 0x48;
         }
-        VMDS.second_colour = 6;
+        g_vmds.second_colour = 6;
         cursor_redraw_off_thunk();
         if (sags != 0) {
             slack = link_slack(cur, belt, 3);
@@ -1687,7 +1687,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
 
     kind = part->kind;
     form = part->form;
-    kindrec = &PART_KINDS[kind];
+    kindrec = &g_part_kinds[kind];
     if ((hot = kindrec->hotspots) != 0)
         hot += form;
     cursor_redraw_off_thunk();
@@ -1737,17 +1737,17 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
         if (part->flags_08 & 0x1000)
             step = (kindrec->bitmaps2[form]);
         else {
-            step = &DEFAULT_DRAW_STEP;
-            DEFAULT_DRAW_STEP.frame[0] = (uint8_t)form;
-            DEFAULT_DRAW_STEP.level = level;
+            step = &g_default_draw_step;
+            g_default_draw_step.frame[0] = (uint8_t)form;
+            g_default_draw_step.level = level;
             if (hot != 0) {
-                DEFAULT_DRAW_STEP.offset[0].x = hot->x;
-                DEFAULT_DRAW_STEP.offset[0].y = hot->y;
+                g_default_draw_step.offset[0].x = hot->x;
+                g_default_draw_step.offset[0].y = hot->y;
             } else
-                DEFAULT_DRAW_STEP.offset[0].x = DEFAULT_DRAW_STEP.offset[0].y = 0;
+                g_default_draw_step.offset[0].x = g_default_draw_step.offset[0].y = 0;
         }
         for (; step != NULL; step = step->next) {
-            if (step->level != level && part != HELD_PARTS.dragged_part)
+            if (step->level != level && part != g_held_parts.dragged_part)
                 continue;
             else
                 frame = 0;
@@ -1812,7 +1812,7 @@ void draw_part_extra(register struct part *part)
 
     if ((held = part->link[4]) == NULL)
         return;
-    VMDS.second_colour = VMDS.fill_colour = 0x0e;
+    g_vmds.second_colour = g_vmds.fill_colour = 0x0e;
     x[1] = held->pos[0].x + held->hold.x - g_origin_x;
     y[0] = part->pos[0].y + 6 - g_origin_y;
     y[1] = held->pos[0].y + held->hold.y - g_origin_y;

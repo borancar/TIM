@@ -134,7 +134,7 @@ _DATA ends
 
 extrn _dos_alloc_bytes:far
 extrn _dos_free_far:far
-extrn _ENGINE_STREAM:byte
+extrn _g_engine_stream:byte
 LZHUF_TEXT segment byte public 'CODE'
 assume cs:LZHUF_TEXT, ds:DGROUP
 extrn _emit_byte:near
@@ -181,7 +181,7 @@ _lzss_open_write proc near
         add sp, 8
         mov word ptr DGROUP:d_5908, dx
         mov word ptr DGROUP:d_5906, ax
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         mov word ptr DGROUP:d_5914, ax
@@ -195,7 +195,7 @@ _lzss_reset proc near
         mov word ptr DGROUP:d_5918, 0
         mov word ptr DGROUP:d_3600, 0
         mov byte ptr DGROUP:d_3602, 0
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         mov word ptr DGROUP:d_5914, ax
@@ -710,19 +710,19 @@ _huffman_start proc near
         mov bp, sp
         push si
         push di
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 103bh
         mov word ptr DGROUP:d_590c, ax
         mov word ptr DGROUP:d_590a, dx
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 1523h
         mov word ptr DGROUP:d_5910, ax
         mov word ptr DGROUP:d_590e, dx
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 1c7dh
@@ -1287,15 +1287,15 @@ _lzss_flush proc near
         sub sp, 4
         push si
         push di
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bx+1bh]
         mov ah, 0
         mov word ptr [bp-2], ax
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bx+1ah]
         mov ah, 0
         mov di, ax
-        mov si, word ptr DGROUP:_ENGINE_STREAM+0ah
+        mov si, word ptr DGROUP:_g_engine_stream+0ah
         mov ax, word ptr [bp-2]
         mov word ptr [bp-4], ax
         cmp word ptr DGROUP:d_58fe, 0
@@ -1342,7 +1342,7 @@ L1e64a:
         cmp word ptr [bp+4], 0
         jne L1e66a
         mov word ptr DGROUP:d_58d2, 1
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
@@ -1443,7 +1443,7 @@ L1e775:
         cmp word ptr [bp+4], 0
         jne L1e7c4
         mov word ptr DGROUP:d_58d2, 1
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
@@ -1476,7 +1476,7 @@ L1e7c4:
         jmp L1e69b
 L1e7db:
         call _encode_end
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
@@ -1507,7 +1507,7 @@ L1e7fe:
         mov word ptr DGROUP:d_58e8, 0fc4h
         mov word ptr DGROUP:d_58ec, 0
         mov word ptr DGROUP:d_58ea, 0
-        mov bx, word ptr DGROUP:_ENGINE_STREAM+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+14h]
         mov dx, word ptr [bx+12h]
         mov word ptr DGROUP:d_58f0, ax
@@ -1622,13 +1622,13 @@ struct engine_bit_buffer {
     uint8_t   bit_count;          /* +0x02 [1]  how many are in it */
 } PACKED;
 
-struct engine_bit_buffer ENGINE_BIT_BUFFER;
+struct engine_bit_buffer g_engine_bit_buffer;
 
 /*
  * **The Huffman coder's position tables**, DGROUP 0x3603..0x3686: three zero
  * bytes, then sixty-four code lengths and sixty-four codes - the shape of
  * LZHUF's `p_len` and `p_code`, which are the *encoder's* half, next to the
- * decoder's `ENGINE_HUFFMAN_POSITIONS`. **Not established** that anything
+ * decoder's `g_engine_huffman_positions`. **Not established** that anything
  * reads them.
  */
 struct engine_huffman_codes {
@@ -1637,7 +1637,7 @@ struct engine_huffman_codes {
     uint8_t   code[64];           /* +0x43  0x3646 */
 } PACKED;
 
-struct engine_huffman_codes ENGINE_HUFFMAN_CODES = {
+struct engine_huffman_codes g_engine_huffman_codes = {
     .len = {
         0x03, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
         0x05, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
@@ -1667,7 +1667,7 @@ struct engine_huffman_positions {
     uint8_t   len[256];           /* +0x100 [0x100] */
 } PACKED;
 
-struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS = {
+struct engine_huffman_positions g_engine_huffman_positions = {
     .high = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1736,7 +1736,7 @@ struct engine_match_resume {
     int16_t   progress;           /* +0x06 [2] */
 } PACKED;
 
-struct engine_match_resume ENGINE_MATCH_RESUME;
+struct engine_match_resume g_engine_match_resume;
 
 /*
  * **The LZSS decoder's progress**, DGROUP 0x58e8..0x58f2, 0x0a bytes.
@@ -1750,7 +1750,7 @@ struct engine_lzss_state {
     int32_t   size;               /* +0x06 [4]  the record's size, copied at the start */
 } PACKED;
 
-struct engine_lzss_state ENGINE_LZSS_STATE;
+struct engine_lzss_state g_engine_lzss_state;
 
 /*
  * **The son table's far pointer**, DGROUP 0x5900..0x5904. Two words that are
@@ -1762,7 +1762,7 @@ struct engine_huffman_tree {
     uint16_t far *son;          /* +0x00 [4] */
 } PACKED;
 
-struct engine_huffman_tree ENGINE_HUFFMAN_TREE;
+struct engine_huffman_tree g_engine_huffman_tree;
 
 /*
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
@@ -1781,7 +1781,7 @@ struct engine_decompress_cache {
     int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
 } PACKED;
 
-struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE;
+struct engine_decompress_cache g_engine_decompress_cache;
 
 /*
  * 0x1dba8
@@ -1806,13 +1806,13 @@ int16_t near lzss_open_write(void)
  */
 int16_t lzss_reset(void)
 {
-    struct resource *rec = ENGINE_STREAM.rec;
+    struct resource *rec = g_engine_stream.rec;
 
-    ENGINE_DECOMPRESS_CACHE.lzss_ready = 0;
-    ENGINE_BIT_BUFFER.bits = 0;
-    ENGINE_BIT_BUFFER.bit_count = 0;
+    g_engine_decompress_cache.lzss_ready = 0;
+    g_engine_bit_buffer.bits = 0;
+    g_engine_bit_buffer.bit_count = 0;
 
-    ENGINE_DECOMPRESS_CACHE.cache_c = rec->scratch;
+    g_engine_decompress_cache.cache_c = rec->scratch;
 
     return 0;
 }
@@ -1871,17 +1871,17 @@ int16_t huff_get_bit(void)
 {
     int16_t si;
 
-    if (ENGINE_BIT_BUFFER.bit_count <= 8) {
+    if (g_engine_bit_buffer.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - ENGINE_BIT_BUFFER.bit_count));
-        ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) | ax);
-        ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count + 8);
+        ax = (uint16_t)(ax << (8 - g_engine_bit_buffer.bit_count));
+        g_engine_bit_buffer.bits = (int16_t)(((uint16_t)g_engine_bit_buffer.bits) | ax);
+        g_engine_bit_buffer.bit_count = (uint8_t)(g_engine_bit_buffer.bit_count + 8);
     }
 
-    si = ENGINE_BIT_BUFFER.bits;
-    ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) << 1);
-    ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count - 1);
+    si = g_engine_bit_buffer.bits;
+    g_engine_bit_buffer.bits = (int16_t)(((uint16_t)g_engine_bit_buffer.bits) << 1);
+    g_engine_bit_buffer.bit_count = (uint8_t)(g_engine_bit_buffer.bit_count - 1);
 
     return (int16_t)(si < 0 ? 1 : 0);
 }
@@ -1898,17 +1898,17 @@ int16_t huff_get_byte(void)
 {
     uint16_t si;
 
-    while (ENGINE_BIT_BUFFER.bit_count <= 8) {
+    while (g_engine_bit_buffer.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - ENGINE_BIT_BUFFER.bit_count));
-        ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) | ax);
-        ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count + 8);
+        ax = (uint16_t)(ax << (8 - g_engine_bit_buffer.bit_count));
+        g_engine_bit_buffer.bits = (int16_t)(((uint16_t)g_engine_bit_buffer.bits) | ax);
+        g_engine_bit_buffer.bit_count = (uint8_t)(g_engine_bit_buffer.bit_count + 8);
     }
 
-    si = ((uint16_t)ENGINE_BIT_BUFFER.bits);
-    ENGINE_BIT_BUFFER.bits = (int16_t)(si << 8);
-    ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count - 8);
+    si = ((uint16_t)g_engine_bit_buffer.bits);
+    g_engine_bit_buffer.bits = (int16_t)(si << 8);
+    g_engine_bit_buffer.bit_count = (uint8_t)(g_engine_bit_buffer.bit_count - 8);
 
     return (int16_t)(si >> 8);
 }
@@ -1956,7 +1956,7 @@ void huff_putcode(int16_t len, uint16_t code)
  */
 void huffman_start(void)
 {
-    struct resource *rec = ENGINE_STREAM.rec;
+    struct resource *rec = g_engine_stream.rec;
     uint16_t far *freq, far *prnt, far *son;
     int16_t i, j;
 
@@ -1965,14 +1965,14 @@ void huffman_start(void)
     {
         uint8_t far *scratch = rec->scratch;
 
-        ENGINE_DECOMPRESS_CACHE.cache_a = (uint16_t far *)(scratch + 0x103b);
-        ENGINE_DECOMPRESS_CACHE.cache_b = (uint16_t far *)(scratch + 0x1523);
-        ENGINE_HUFFMAN_TREE.son         = (uint16_t far *)(scratch + 0x1c7d);
+        g_engine_decompress_cache.cache_a = (uint16_t far *)(scratch + 0x103b);
+        g_engine_decompress_cache.cache_b = (uint16_t far *)(scratch + 0x1523);
+        g_engine_huffman_tree.son         = (uint16_t far *)(scratch + 0x1c7d);
     }
 
-    freq = ENGINE_DECOMPRESS_CACHE.cache_a;
-    prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
-    son  = ENGINE_HUFFMAN_TREE.son;
+    freq = g_engine_decompress_cache.cache_a;
+    prnt = g_engine_decompress_cache.cache_b;
+    son  = g_engine_huffman_tree.son;
 
     for (i = 0; i < 0x13a; i++) {
         freq[i] = 1;
@@ -2018,9 +2018,9 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t *freq = ENGINE_DECOMPRESS_CACHE.cache_a;
-    uint16_t *prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
-    uint16_t *son = ENGINE_HUFFMAN_TREE.son;
+    uint16_t *freq = g_engine_decompress_cache.cache_a;
+    uint16_t *prnt = g_engine_decompress_cache.cache_b;
+    uint16_t *son = g_engine_huffman_tree.son;
     int16_t i, j, k, n;
 
     j = 0;
@@ -2079,9 +2079,9 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t *freq = ENGINE_DECOMPRESS_CACHE.cache_a;
-    uint16_t *prnt = ENGINE_DECOMPRESS_CACHE.cache_b;
-    uint16_t *son = ENGINE_HUFFMAN_TREE.son;
+    uint16_t *freq = g_engine_decompress_cache.cache_a;
+    uint16_t *prnt = g_engine_decompress_cache.cache_b;
+    uint16_t *son = g_engine_huffman_tree.son;
 
     if (freq[0x272] == 0x8000)
         huffman_reconst();
@@ -2180,8 +2180,8 @@ void encode_end(void)
 int16_t decode_position(void)
 {
     uint16_t si = (uint16_t)huff_get_byte();
-    uint16_t high = (uint16_t)(ENGINE_HUFFMAN_POSITIONS.high[si] << 6);
-    int16_t n = (int16_t)(ENGINE_HUFFMAN_POSITIONS.len[si] - 2);
+    uint16_t high = (uint16_t)(g_engine_huffman_positions.high[si] << 6);
+    int16_t n = (int16_t)(g_engine_huffman_positions.len[si] - 2);
 
     while (n-- != 0)
         si = (uint16_t)(2 * si + huff_get_bit());
@@ -2234,36 +2234,36 @@ int16_t decompress_lzss(void)
     /* **The ring**, 0x1000 bytes at the front of the record's own block: the
        window the matches are copied out of, indexed everywhere below by a
        position masked to 0xfff. */
-    uint8_t far * ring = ENGINE_DECOMPRESS_CACHE.cache_c;
+    uint8_t far * ring = g_engine_decompress_cache.cache_c;
     uint16_t di = 0;
     int16_t si;
 
-    if (ENGINE_DECOMPRESS_CACHE.lzss_ready == 0) {
+    if (g_engine_decompress_cache.lzss_ready == 0) {
         struct resource *rec;
         int16_t i;
 
-        ENGINE_MATCH_RESUME.interrupted = 0;
+        g_engine_match_resume.interrupted = 0;
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
             ring[i] = 0x20;
 
-        ENGINE_LZSS_STATE.ring_pos = 0xfc4;
-        ENGINE_LZSS_STATE.count = 0;
+        g_engine_lzss_state.ring_pos = 0xfc4;
+        g_engine_lzss_state.count = 0;
 
-        rec = ENGINE_STREAM.rec;
-        ENGINE_LZSS_STATE.size = rec->size;
-        ENGINE_DECOMPRESS_CACHE.lzss_ready = 1;
+        rec = g_engine_stream.rec;
+        g_engine_lzss_state.size = rec->size;
+        g_engine_decompress_cache.lzss_ready = 1;
     }
 
     for (;;) {
         /* 0x1e91d - is there still something to produce? */
-        if (ENGINE_LZSS_STATE.count >= ENGINE_LZSS_STATE.size)
+        if (g_engine_lzss_state.count >= g_engine_lzss_state.size)
             return 0;
 
-        if (ENGINE_MATCH_RESUME.interrupted == 0) {
+        if (g_engine_match_resume.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
-            const uint16_t *son = ENGINE_HUFFMAN_TREE.son;
+            const uint16_t *son = g_engine_huffman_tree.son;
 
             di = son[0x272];          /* the root */
             while (di < 0x273)
@@ -2276,9 +2276,9 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                ring[ENGINE_LZSS_STATE.ring_pos] = (uint8_t)di;
-                ENGINE_LZSS_STATE.ring_pos = (int16_t)((ENGINE_LZSS_STATE.ring_pos + 1) & 0xfff);
-                ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
+                ring[g_engine_lzss_state.ring_pos] = (uint8_t)di;
+                g_engine_lzss_state.ring_pos = (int16_t)((g_engine_lzss_state.ring_pos + 1) & 0xfff);
+                g_engine_lzss_state.count = (int32_t)((uint32_t)g_engine_lzss_state.count + 1);
 
                 if (si == 0)
                     return 0;
@@ -2289,29 +2289,29 @@ int16_t decompress_lzss(void)
             {
                 uint16_t pos = (uint16_t)decode_position();
 
-                ENGINE_MATCH_RESUME.position = (int16_t)((ENGINE_LZSS_STATE.ring_pos - pos - 1) & 0xfff);
-                ENGINE_MATCH_RESUME.length = (int16_t)(di + 0xff03);
-                ENGINE_MATCH_RESUME.progress = 0;
+                g_engine_match_resume.position = (int16_t)((g_engine_lzss_state.ring_pos - pos - 1) & 0xfff);
+                g_engine_match_resume.length = (int16_t)(di + 0xff03);
+                g_engine_match_resume.progress = 0;
             }
         }
 
-        ENGINE_MATCH_RESUME.interrupted = 0;
+        g_engine_match_resume.interrupted = 0;
 
-        while (ENGINE_MATCH_RESUME.progress < ENGINE_MATCH_RESUME.length) {
-            uint16_t b = ring[(((uint16_t)ENGINE_MATCH_RESUME.position)
-                               + ((uint16_t)ENGINE_MATCH_RESUME.progress))
+        while (g_engine_match_resume.progress < g_engine_match_resume.length) {
+            uint16_t b = ring[(((uint16_t)g_engine_match_resume.position)
+                               + ((uint16_t)g_engine_match_resume.progress))
                               & 0xfff];
 
             si = emit_byte(b);
 
-            ring[ENGINE_LZSS_STATE.ring_pos] = (uint8_t)b;
-            ENGINE_LZSS_STATE.ring_pos = (int16_t)((ENGINE_LZSS_STATE.ring_pos + 1) & 0xfff);
-            ENGINE_LZSS_STATE.count = (int32_t)((uint32_t)ENGINE_LZSS_STATE.count + 1);
+            ring[g_engine_lzss_state.ring_pos] = (uint8_t)b;
+            g_engine_lzss_state.ring_pos = (int16_t)((g_engine_lzss_state.ring_pos + 1) & 0xfff);
+            g_engine_lzss_state.count = (int32_t)((uint32_t)g_engine_lzss_state.count + 1);
 
-            ENGINE_MATCH_RESUME.progress = (int16_t)(((uint16_t)ENGINE_MATCH_RESUME.progress) + 1);
+            g_engine_match_resume.progress = (int16_t)(((uint16_t)g_engine_match_resume.progress) + 1);
 
             if (si == 0) {
-                ENGINE_MATCH_RESUME.interrupted = 1;
+                g_engine_match_resume.interrupted = 1;
                 return 0;
             }
         }

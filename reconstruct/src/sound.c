@@ -9,7 +9,7 @@
  * sequencer, and the far entry points the C calls. This file corresponds to
  * the first module of the original's code segment 2619, image
  * 0x26198..0x28580. The module keeps its state in its own code segment
- * (`SNDS`) and reaches the loaded driver through a
+ * (`g_snds`) and reaches the loaded driver through a
  * far pointer in that segment, with the function number in BP. Its routines
  * take their arguments in registers and save what they use, and its far
  * entry points, 0x2841f..0x28580, are the only ones that build a C frame.
@@ -51,7 +51,7 @@
  */
 asm {
 extrn _sound_callback:far
-extrn _SOUND_BANK:byte
+extrn _g_sound_bank:byte
 nosmart
 SOUND_TEXT segment byte public 'CODE'
 assume cs:SOUND_TEXT, ds:DGROUP
@@ -541,7 +541,7 @@ _install_driver proc far
 	shr dl, 1
 	shr dl, 1
 	shr dl, 1
-	cmp word ptr DGROUP:_SOUND_BANK+28h, 0
+	cmp word ptr DGROUP:_g_sound_bank+28h, 0
 	je L26623
 	or dl, 1
 L26623:
@@ -3908,17 +3908,17 @@ uint16_t install_driver(const uint8_t far * drv)
     uint16_t ax, cx;
     uint8_t dl;
 
-    SNDS.driver = drv;
+    g_snds.driver = drv;
 
     driver_describe_0(&ax, &cx);
 
-    SNDS.cl = (uint8_t)cx;
-    SNDS.ch = (uint8_t)(cx >> 8);
+    g_snds.cl = (uint8_t)cx;
+    g_snds.ch = (uint8_t)(cx >> 8);
 
     dl = (uint8_t)((ax >> 8) >> 4);
-    if (((int16_t)SOUND_BANK.module_live) != 0)
+    if (((int16_t)g_sound_bank.module_live) != 0)
         dl |= 1;
-    SNDS.ah_high = dl;
+    g_snds.ah_high = dl;
 
     return ax;
 }
@@ -3944,8 +3944,8 @@ uint16_t configure_driver(const uint8_t far * drv)
 
     driver_describe_1(drv, &ax, &cx);
 
-    SNDS.voice_lo = (uint8_t)cx;
-    SNDS.voice_hi = (uint8_t)(cx >> 8);
+    g_snds.voice_lo = (uint8_t)cx;
+    g_snds.voice_hi = (uint8_t)(cx >> 8);
 
     driver_param_349(0);
 
@@ -4059,7 +4059,7 @@ static void tick_program_voice(struct sequence far * seq, uint16_t voice,
     cl = seq->ch.program[channel];
     driver_program_change(voice, cl);
 
-    SNDS.pending_volume[voice] = 0xff;
+    g_snds.pending_volume[voice] = 0xff;
 
     cl = scale_byte_pair(seq->ch.volume[channel], seq->volume);
     driver_controller(voice, (uint16_t)((7 << 8) | cl));
@@ -4097,10 +4097,10 @@ static void tick_save_state(void)
     int16_t i;
 
     for (i = 0; i < 0x10; i++) {
-        SNDS.saved_request[i] = SNDS.voice_request[i];
-        SNDS.saved_cost[i] = SNDS.voice_cost[i];
-        SNDS.saved_gives_back[i] = SNDS.voice_gives_back[i];
-        SNDS.saved_keep_own[i] = SNDS.voice_keep_own[i];
+        g_snds.saved_request[i] = g_snds.voice_request[i];
+        g_snds.saved_cost[i] = g_snds.voice_cost[i];
+        g_snds.saved_gives_back[i] = g_snds.voice_gives_back[i];
+        g_snds.saved_keep_own[i] = g_snds.voice_keep_own[i];
     }
 }
 
@@ -4113,10 +4113,10 @@ static void tick_restore_state(void)
     int16_t i;
 
     for (i = 0; i < 0x10; i++) {
-        SNDS.voice_request[i] = SNDS.saved_request[i];
-        SNDS.voice_cost[i] = SNDS.saved_cost[i];
-        SNDS.voice_gives_back[i] = SNDS.saved_gives_back[i];
-        SNDS.voice_keep_own[i] = SNDS.saved_keep_own[i];
+        g_snds.voice_request[i] = g_snds.saved_request[i];
+        g_snds.voice_cost[i] = g_snds.saved_cost[i];
+        g_snds.voice_gives_back[i] = g_snds.saved_gives_back[i];
+        g_snds.voice_keep_own[i] = g_snds.saved_keep_own[i];
     }
 }
 
@@ -4158,7 +4158,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     uint8_t dl, dh, key;
 
     for (di = 0; di < 0x40; di += 4) {
-        if (SNDS.playing[di / 4] == seq) {
+        if (g_snds.playing[di / 4] == seq) {
             remove_sequence(seq);
             sequencer_tick();
             break;
@@ -4224,7 +4224,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
             dl = e[0];
 
             if (dl == 0xfe) {
-                if (SNDS.ah_high != 0) {
+                if (g_snds.ah_high != 0) {
                     seq->poll = (uint8_t)(si + 1);
                     break;
                 }
@@ -4295,9 +4295,9 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     key = seq->priority;
 
     for (di = 0; di < 0x40; di += 4) {
-        if (FP_SEG(SNDS.playing[di / 4]) == 0)
+        if (FP_SEG(g_snds.playing[di / 4]) == 0)
             break;
-        if (SNDS.playing[di / 4]->priority <= key) {
+        if (g_snds.playing[di / 4]->priority <= key) {
             /*
              * **The comparison is 16 bits and has to wrap.** The original
              * computes it in BX - `mov bx,si / add bx,4 / cmp bx,di` at
@@ -4313,7 +4313,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
              * below the first entry's, which is what makes `di` zero.
              */
             for (si = 0x38; (uint16_t)(si + 4) != di; si -= 4) {
-                SNDS.playing[si / 4 + 1] = SNDS.playing[si / 4];
+                g_snds.playing[si / 4 + 1] = g_snds.playing[si / 4];
             }
             break;
         }
@@ -4321,9 +4321,9 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     if (di >= 0x40)
         return;
 
-    SNDS.playing[di / 4] = seq;
+    g_snds.playing[di / 4] = seq;
 
-    if (SNDS.muted != 0)
+    if (g_snds.muted != 0)
         return;
 
     seq->loop_count = 0;
@@ -4394,17 +4394,17 @@ void remove_sequence(struct sequence far * seq)
     /* The table's pairs are filed from pointers to DOS blocks, so comparing
        the pointer is comparing the pair `es:ax` was matched against. */
     for (i = 0; i < 0x10; i++)
-        if (SNDS.playing[i] == seq)
+        if (g_snds.playing[i] == seq)
             break;
     if (i >= 0x10)
         return;
 
-    SNDS.playing[i] = NULL;
+    g_snds.playing[i] = NULL;
 
     if (i != 0xf) {
         for (; i != 0xf; i++)
-            SNDS.playing[i] = SNDS.playing[i + 1];
-        SNDS.playing[i] = NULL;
+            g_snds.playing[i] = g_snds.playing[i + 1];
+        g_snds.playing[i] = NULL;
     }
 
     seq->state = 0xff;
@@ -4478,36 +4478,36 @@ void sequencer_tick(void)
     uint16_t bp_;
     uint8_t al, ah, cl, chh, dl, dh;
 
-    SNDS.busy++;
-    SNDS.voices_changed = 0;
+    g_snds.busy++;
+    g_snds.voices_changed = 0;
 
     for (i = 0; i < 0x10; i++) {
-        SNDS.voice_held[i] = 0xff;
-        SNDS.voice_gives_back[i] = 0;
-        SNDS.voice_keep_own[i] = 0;
-        SNDS.voice_cost[i] = 0;
-        SNDS.voice_request[i] = 0xff;
+        g_snds.voice_held[i] = 0xff;
+        g_snds.voice_gives_back[i] = 0;
+        g_snds.voice_keep_own[i] = 0;
+        g_snds.voice_cost[i] = 0;
+        g_snds.voice_request[i] = 0xff;
     }
-    SNDS.polled[0] = NULL;
+    g_snds.polled[0] = NULL;
 
-    rec = SNDS.playing[0];
+    rec = g_snds.playing[0];
 
     if (rec == NULL) {
         for (i = 0; i < 0x10; i++)
-            SNDS.voice_held[i] = 0xff;
+            g_snds.voice_held[i] = 0xff;
         goto silence_unused;
     }
 
     cl = rec->device_value;
     if (cl == 0x7f)
-        cl = SNDS.param_default;
+        cl = g_snds.param_default;
     driver_param_349(cl);
 
-    al = SNDS.cl;
+    al = g_snds.cl;
 
     bp_ = 0;
     for (seq = 0; seq < 0x40; seq += 4) {
-        rec = SNDS.playing[seq / 4];
+        rec = g_snds.playing[seq / 4];
         if (rec == NULL)
             break;
 
@@ -4515,9 +4515,9 @@ void sequencer_tick(void)
             goto next_sequence;
 
         if (rec->poll != 0) {
-            if (SNDS.polled[0] != NULL)
+            if (g_snds.polled[0] != NULL)
                 goto next_sequence;
-            SNDS.polled[0] = SNDS.playing[seq / 4];
+            g_snds.polled[0] = g_snds.playing[seq / 4];
             goto next_sequence;
         }
 
@@ -4527,7 +4527,7 @@ void sequencer_tick(void)
          * zeroed: the abandon path below reads it back so a sequence that
          * fails leaves the total exactly as it found it.
          */
-        SNDS.saved_total = al;
+        g_snds.saved_total = al;
 
         for (ch_i = 0; ch_i < 0x10; ch_i++) {
             cl = rec->track_channel[ch_i];
@@ -4546,7 +4546,7 @@ void sequencer_tick(void)
                 chh = (uint8_t)(0x10 - chh + bp_);
 
             if ((rec->ch.channel_flags[cl] & 1) != 0
-                && SNDS.voice_request[cl] == 0xff) {
+                && g_snds.voice_request[cl] == 0xff) {
                 dh = cl;
                 goto check_budget;
             }
@@ -4556,11 +4556,11 @@ void sequencer_tick(void)
                 int16_t bl;
 
                 for (bl = 0; bl < 0x10; bl++) {
-                    if (SNDS.voice_request[bl] == 0xff) {
-                        if (bl >= (int16_t)SNDS.voice_lo
-                            && bl <= (int16_t)SNDS.voice_hi)
+                    if (g_snds.voice_request[bl] == 0xff) {
+                        if (bl >= (int16_t)g_snds.voice_lo
+                            && bl <= (int16_t)g_snds.voice_hi)
                             dh = (uint8_t)bl;
-                    } else if (SNDS.voice_request[bl] == dl) {
+                    } else if (g_snds.voice_request[bl] == dl) {
                         goto next_channel;
                     }
                 }
@@ -4593,76 +4593,76 @@ drop_loudest:
 
                 dh = 0xff;
                 for (i = 0; i < 0x10; i++) {
-                    if (most < SNDS.voice_cost[i]) {
-                        most = SNDS.voice_cost[i];
+                    if (most < g_snds.voice_cost[i]) {
+                        most = g_snds.voice_cost[i];
                         dh = (uint8_t)i;
                     }
                 }
                 if (dh == 0xff)
                     goto abandon_sequence;
 
-                al = (uint8_t)(al + SNDS.voice_gives_back[dh]);
-                SNDS.voice_request[dh] = 0xff;
-                SNDS.voice_gives_back[dh] = 0;
-                SNDS.voice_cost[dh] = 0;
-                SNDS.voice_keep_own[dh] = 0;
+                al = (uint8_t)(al + g_snds.voice_gives_back[dh]);
+                g_snds.voice_request[dh] = 0xff;
+                g_snds.voice_gives_back[dh] = 0;
+                g_snds.voice_cost[dh] = 0;
+                g_snds.voice_keep_own[dh] = 0;
             }
             if (ah > al)
                 goto drop_loudest;
 
 have_voice:
-            SNDS.voice_request[dh] = dl;
-            SNDS.voice_gives_back[dh] = ah;
+            g_snds.voice_request[dh] = dl;
+            g_snds.voice_gives_back[dh] = ah;
             al = (uint8_t)(al - ah);
-            SNDS.voice_cost[dh] = chh;
+            g_snds.voice_cost[dh] = chh;
 
             if ((rec->ch.channel_flags[cl] & 1) == 0) {
-                SNDS.voice_keep_own[dh] = 0;
+                g_snds.voice_keep_own[dh] = 0;
                 continue;
             }
 
-            SNDS.voice_keep_own[dh] = 1;
+            g_snds.voice_keep_own[dh] = 1;
             if (dh == cl)
                 continue;
 
-            if (SNDS.voice_keep_own[cl] == 0) {
+            if (g_snds.voice_keep_own[cl] == 0) {
                 uint8_t t;
 
-                t = SNDS.voice_request[dh];
-                SNDS.voice_request[dh] = SNDS.voice_request[cl];
-                SNDS.voice_request[cl] = t;
-                t = SNDS.voice_cost[dh];
-                SNDS.voice_cost[dh] = SNDS.voice_cost[cl];
-                SNDS.voice_cost[cl] = t;
-                t = SNDS.voice_gives_back[dh];
-                SNDS.voice_gives_back[dh] = SNDS.voice_gives_back[cl];
-                SNDS.voice_gives_back[cl] = t;
-                t = SNDS.voice_keep_own[dh];
-                SNDS.voice_keep_own[dh] = SNDS.voice_keep_own[cl];
-                SNDS.voice_keep_own[cl] = t;
+                t = g_snds.voice_request[dh];
+                g_snds.voice_request[dh] = g_snds.voice_request[cl];
+                g_snds.voice_request[cl] = t;
+                t = g_snds.voice_cost[dh];
+                g_snds.voice_cost[dh] = g_snds.voice_cost[cl];
+                g_snds.voice_cost[cl] = t;
+                t = g_snds.voice_gives_back[dh];
+                g_snds.voice_gives_back[dh] = g_snds.voice_gives_back[cl];
+                g_snds.voice_gives_back[cl] = t;
+                t = g_snds.voice_keep_own[dh];
+                g_snds.voice_keep_own[dh] = g_snds.voice_keep_own[cl];
+                g_snds.voice_keep_own[cl] = t;
                 continue;
             }
 
             if (chh != 0) {
-                SNDS.voice_request[dh] = 0xff;
-                SNDS.voice_cost[dh] = 0;
-                SNDS.voice_gives_back[dh] = 0;
-                SNDS.voice_keep_own[dh] = 0;
+                g_snds.voice_request[dh] = 0xff;
+                g_snds.voice_cost[dh] = 0;
+                g_snds.voice_gives_back[dh] = 0;
+                g_snds.voice_keep_own[dh] = 0;
                 al = (uint8_t)(al + ah);
                 continue;
             }
 
-            if (SNDS.voice_cost[cl] != 0)
+            if (g_snds.voice_cost[cl] != 0)
                 goto abandon_sequence;
 
-            al = (uint8_t)(al + SNDS.voice_gives_back[cl]);
-            SNDS.voice_request[dh] = 0xff;
-            SNDS.voice_gives_back[dh] = 0;
-            SNDS.voice_cost[dh] = 0;
-            SNDS.voice_keep_own[dh] = 0;
-            SNDS.voice_request[cl] = dl;
-            SNDS.voice_cost[cl] = chh;
-            SNDS.voice_gives_back[cl] = ah;
+            al = (uint8_t)(al + g_snds.voice_gives_back[cl]);
+            g_snds.voice_request[dh] = 0xff;
+            g_snds.voice_gives_back[dh] = 0;
+            g_snds.voice_cost[dh] = 0;
+            g_snds.voice_keep_own[dh] = 0;
+            g_snds.voice_request[cl] = dl;
+            g_snds.voice_cost[cl] = chh;
+            g_snds.voice_gives_back[cl] = ah;
             al = (uint8_t)(al - ah);
 
 next_channel:
@@ -4672,7 +4672,7 @@ next_channel:
 
 abandon_sequence:
         tick_restore_state();
-        al = SNDS.saved_total;
+        al = g_snds.saved_total;
 
 next_sequence:
         bp_ = (uint16_t)(bp_ + 0x10);
@@ -4680,57 +4680,57 @@ next_sequence:
 
     /* Apply: reprogram every voice whose request differs from what it plays. */
     for (voice = 0; voice < 0x10; voice++) {
-        if (SNDS.voice_request[voice] == 0xff)
+        if (g_snds.voice_request[voice] == 0xff)
             continue;
 
-        if (SNDS.voice_keep_own[voice] == 0) {
-            uint8_t want = SNDS.voice_request[voice];
+        if (g_snds.voice_keep_own[voice] == 0) {
+            uint8_t want = g_snds.voice_request[voice];
             int16_t d;
 
             al = (uint8_t)(want & 0xf);
 
-            d = SNDS.voice_lo;
+            d = g_snds.voice_lo;
             for (;;) {
-                if (SNDS.voice_sequence[d]
-                        == SNDS.playing[want >> 4]
-                    && SNDS.voice_channel[d] == al) {
-                    if (SNDS.voice_keep_own[d] == 0) {
-                        SNDS.voice_held[d] = SNDS.voice_request[voice];
-                        SNDS.voice_request[voice] = 0xff;
+                if (g_snds.voice_sequence[d]
+                        == g_snds.playing[want >> 4]
+                    && g_snds.voice_channel[d] == al) {
+                    if (g_snds.voice_keep_own[d] == 0) {
+                        g_snds.voice_held[d] = g_snds.voice_request[voice];
+                        g_snds.voice_request[voice] = 0xff;
                     }
                     break;
                 }
                 d++;
-                if ((int16_t)SNDS.voice_hi < d - 1)
+                if ((int16_t)g_snds.voice_hi < d - 1)
                     break;
             }
             continue;
         }
 
         {
-            uint8_t want = SNDS.voice_request[voice];
+            uint8_t want = g_snds.voice_request[voice];
 
-            SNDS.voice_request[voice] = 0xff;
-            SNDS.voice_held[voice] = want;
+            g_snds.voice_request[voice] = 0xff;
+            g_snds.voice_held[voice] = want;
 
             al = (uint8_t)(want & 0xf);
 
-            if (SNDS.voice_channel[voice] == al
-                && SNDS.voice_sequence[voice]
-                       == SNDS.playing[want >> 4])
+            if (g_snds.voice_channel[voice] == al
+                && g_snds.voice_sequence[voice]
+                       == g_snds.playing[want >> 4])
                 continue;
 
-            tick_program_voice(SNDS.playing[want >> 4],
+            tick_program_voice(g_snds.playing[want >> 4],
                                (uint16_t)voice, al);
         }
     }
 
     /* Hand out anything still requested to a voice that is still free. */
     {
-        int16_t free_from = (int16_t)(uint8_t)(SNDS.voice_hi + 1);
+        int16_t free_from = (int16_t)(uint8_t)(g_snds.voice_hi + 1);
 
         for (voice = 0; voice < 0x10; voice++) {
-            uint8_t want = SNDS.voice_request[voice];
+            uint8_t want = g_snds.voice_request[voice];
             int16_t d;
 
             if (want == 0xff)
@@ -4739,22 +4739,22 @@ next_sequence:
             d = free_from;
             do {
                 d--;
-            } while (SNDS.voice_held[d] != 0xff);
+            } while (g_snds.voice_held[d] != 0xff);
             free_from = d;
 
-            SNDS.voice_held[d] = want;
+            g_snds.voice_held[d] = want;
             al = (uint8_t)(want & 0xf);
 
-            tick_program_voice(SNDS.playing[want >> 4],
+            tick_program_voice(g_snds.playing[want >> 4],
                                (uint16_t)d, al);
         }
     }
 
 silence_unused:
     for (voice = 0xf; voice >= 0; voice--) {
-        if (SNDS.voice_channel[voice] == 0xf)
+        if (g_snds.voice_channel[voice] == 0xf)
             continue;
-        if (SNDS.voice_held[voice] != 0xff)
+        if (g_snds.voice_held[voice] != 0xff)
             continue;
         driver_controller((uint16_t)voice, 0x4000);
         driver_controller((uint16_t)voice, 0x7b00);
@@ -4764,19 +4764,19 @@ silence_unused:
     /* Eight word moves masked with 0x0f0f in the original; the same sixteen
        bytes one at a time. */
     for (i = 0; i < 0x10; i++)
-        SNDS.voice_channel[i] = (uint8_t)(SNDS.voice_held[i] & 0x0f);
+        g_snds.voice_channel[i] = (uint8_t)(g_snds.voice_held[i] & 0x0f);
 
     for (voice = 0; voice < 0x10; voice++) {
-        uint8_t held = SNDS.voice_held[voice];
+        uint8_t held = g_snds.voice_held[voice];
 
         if (held == 0xff) {
-            SNDS.voice_sequence[voice] = NULL;
+            g_snds.voice_sequence[voice] = NULL;
         } else {
-            SNDS.voice_sequence[voice] = SNDS.playing[held >> 4];
+            g_snds.voice_sequence[voice] = g_snds.playing[held >> 4];
         }
     }
 
-    SNDS.busy--;
+    g_snds.busy--;
 }
 
 /*
@@ -4836,7 +4836,7 @@ void advance_volume_ramp(struct sequence far * seq, uint16_t seq_slot)
 
     if ((seq->fade_target & 0x80) != 0) {
         remove_sequence(seq);
-        SNDS.voices_changed = 1;
+        g_snds.voices_changed = 1;
     }
 }
 
@@ -4871,7 +4871,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
     uint16_t si, di;
     uint8_t want, level;
 
-    SNDS.defer = defer;
+    g_snds.defer = defer;
 
     if (volume == seq->volume)
         return;
@@ -4883,7 +4883,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
     want = (uint8_t)(seq_slot << 2);
 
     for (si = 0; si < 0x10; si++) {
-        uint8_t held = SNDS.voice_held[si];
+        uint8_t held = g_snds.voice_held[si];
 
         if (held == 0xff || (uint8_t)(held & 0xf0) != want)
             continue;
@@ -4891,10 +4891,10 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
         di = (uint16_t)(held & 0xf);
         level = scale_byte_pair(seq->ch.volume[di], seq->volume);
 
-        if (SNDS.defer != 0) {
-            SNDS.pending_volume[si] = level;
+        if (g_snds.defer != 0) {
+            g_snds.pending_volume[si] = level;
         } else {
-            SNDS.pending_volume[si] = 0xff;
+            g_snds.pending_volume[si] = 0xff;
             driver_controller(si, (uint16_t)((7 << 8) | level));
         }
     }
@@ -4905,15 +4905,15 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
             return;
         if ((seq->ch.channel_flags[di] & 2) == 0)
             continue;
-        if (SNDS.voice_held[di] != 0xff)
+        if (g_snds.voice_held[di] != 0xff)
             continue;
 
         level = scale_byte_pair(seq->ch.volume[di], seq->volume);
 
-        if (SNDS.defer != 0) {
-            SNDS.pending_volume[di] = level;
+        if (g_snds.defer != 0) {
+            g_snds.pending_volume[di] = level;
         } else {
-            SNDS.pending_volume[di] = 0xff;
+            g_snds.pending_volume[di] = 0xff;
             driver_controller(di, (uint16_t)((7 << 8) | level));
         }
     }
@@ -4947,14 +4947,14 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
  */
 void flush_pending_volumes(void)
 {
-    uint16_t si = SNDS.scan_stopped;
+    uint16_t si = g_snds.scan_stopped;
     int16_t sent = 0;
 
     for (;;) {
-        uint8_t pending = SNDS.pending_volume[si];
+        uint8_t pending = g_snds.pending_volume[si];
 
         if (pending != 0xff) {
-            SNDS.pending_volume[si] = 0xff;
+            g_snds.pending_volume[si] = 0xff;
             driver_controller(si, (uint16_t)((7 << 8) | pending));
             sent++;
             if (sent == 2)
@@ -4964,11 +4964,11 @@ void flush_pending_volumes(void)
         si++;
         if (si == 0x10)
             si = 0;
-        if (si == SNDS.scan_stopped)
+        if (si == g_snds.scan_stopped)
             break;
     }
 
-    SNDS.scan_stopped = (uint8_t)si;
+    g_snds.scan_stopped = (uint8_t)si;
 }
 
 /*
@@ -5010,17 +5010,17 @@ void sound_service(void)
 {
     uint16_t si, di;
 
-    if (SNDS.busy != 0)
+    if (g_snds.busy != 0)
         return;
 
-    if (SNDS.voices_changed != 0)
+    if (g_snds.voices_changed != 0)
         sequencer_tick();
 
     si = 0;
     di = 0;
 
     while (si != 0x40) {
-        struct sequence far *seq = SNDS.playing[si / 4];
+        struct sequence far *seq = g_snds.playing[si / 4];
 
         if (seq == NULL)
             break;
@@ -5081,11 +5081,11 @@ void drop_unless_polled(struct sequence far * seq)
     int16_t si;
 
     for (si = 0; si < 0x40; si += 4)
-        if (SNDS.polled[si / 4] == seq)
+        if (g_snds.polled[si / 4] == seq)
             return;
 
     remove_sequence(seq);
-    SNDS.voices_changed = 1;
+    g_snds.voices_changed = 1;
 }
 
 /*
@@ -5123,7 +5123,7 @@ void poll_sequences(void)
     int16_t si;
 
     for (si = 0; si < 0x40; si += 4) {
-        struct sequence far *rec = SNDS.polled[si / 4];
+        struct sequence far *rec = g_snds.polled[si / 4];
         const uint8_t far *at;
         const uint8_t far *data;
         uint16_t answer;
@@ -5196,7 +5196,7 @@ void poll_sequences(void)
         if ((uint8_t)answer != 0) {
             rec->poll = 0;
             remove_sequence(rec);
-            SNDS.voices_changed = 1;
+            g_snds.voices_changed = 1;
         }
     }
 }
@@ -5251,7 +5251,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
     uint16_t si;
     int16_t t;
 
-    SNDS.slot_high = (uint8_t)(di * 4);
+    g_snds.slot_high = (uint8_t)(di * 4);
     seq->ticks++;
 
     {
@@ -5264,7 +5264,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
          * reads a note as if it were a pointer.
          */
         base = *seq->cursor_at;
-        SNDS.cursor_park = (int16_t)FP_OFF(base);
+        g_snds.cursor_park = (int16_t)FP_OFF(base);
     }
     data = base;
 
@@ -5279,19 +5279,19 @@ void step_sequence(struct sequence far * seq, uint16_t di)
         if (al == 0xfe)
             continue;
 
-        SNDS.own_voice = 0xff;
-        SNDS.bend_gate = 0;
+        g_snds.own_voice = 0xff;
+        g_snds.bend_gate = 0;
 
         if ((seq->ch.channel_flags[al] & 2) != 0) {
-            SNDS.own_voice = al;
-            SNDS.bend_gate = 1;
+            g_snds.own_voice = al;
+            g_snds.bend_gate = 1;
         } else {
-            uint8_t want = (uint8_t)((al & 0xf) | SNDS.slot_high);
+            uint8_t want = (uint8_t)((al & 0xf) | g_snds.slot_high);
             uint16_t j;
 
             for (j = 0; j < 0x10; j++) {
-                if (SNDS.voice_held[j] == want) {
-                    SNDS.own_voice = (uint8_t)j;
+                if (g_snds.voice_held[j] == want) {
+                    g_snds.own_voice = (uint8_t)j;
                     break;
                 }
             }
@@ -5349,7 +5349,7 @@ void step_sequence(struct sequence far * seq, uint16_t di)
                     break;
             } else {
                 uint16_t ax = (uint16_t)(((uint16_t)hi_nibble << 8)
-                                         | SNDS.own_voice);
+                                         | g_snds.own_voice);
 
                 switch (hi_nibble) {
                 case 0x80: data = midi_note_off_event(data, seq, si, ax); break;
@@ -5394,7 +5394,7 @@ finished:
 
     if (seq->rewind_mark == 0 && seq->loop == 0) {
         remove_sequence(seq);
-        SNDS.voices_changed = 1;
+        g_snds.voices_changed = 1;
         return;
     }
 
@@ -5450,7 +5450,7 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
     if (seq->ch.note[channel] == note)
         seq->ch.note[channel] = 0xff;
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_stop_note((uint16_t)(ax & 0xf),
                          (uint16_t)((note << 8) | velocity));
 
@@ -5480,7 +5480,7 @@ const uint8_t far *midi_event_6(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_nop();
 
     return data;
@@ -5536,14 +5536,14 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
     if (velocity != 0) {
         seq->ch.note[channel] = note;
 
-        if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+        if ((uint8_t)ax != 0xff && g_snds.muted == 0)
             driver_start_note((uint16_t)(ax & 0xf),
                               (uint16_t)((note << 8) | velocity));
     } else {
         if (seq->ch.note[channel] == note)
             seq->ch.note[channel] = 0xff;
 
-        if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+        if ((uint8_t)ax != 0xff && g_snds.muted == 0)
             driver_stop_note((uint16_t)(ax & 0xf),
                              (uint16_t)((note << 8) | velocity));
     }
@@ -5594,7 +5594,7 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
+    if (g_snds.bend_gate != 0 && g_snds.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
     channel = (uint8_t)(seq->track_channel[si] & 0xf);
@@ -5604,7 +5604,7 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
         value = scale_byte_pair(value, seq->volume);
         if ((uint8_t)ax >= 0x20)
             return data;
-        SNDS.pending_volume[(uint8_t)ax] = 0xff;
+        g_snds.pending_volume[(uint8_t)ax] = 0xff;
     } else if (ctrl == 0xa) {
         seq->ch.pan[channel] = value;
     } else if (ctrl == 1) {
@@ -5620,15 +5620,15 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
         uint8_t *p = &seq->ch.voice_budget[channel];
 
         *p = (uint8_t)((*p & 0xf0) | value);
-        SNDS.voices_changed = 1;
+        g_snds.voices_changed = 1;
     } else if (ctrl == 0x4e) {
         uint8_t *p = &seq->ch.no_voice[channel];
 
         *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
-        SNDS.voices_changed = 1;
+        g_snds.voices_changed = 1;
     }
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_controller((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)ctrl << 8) | value));
 
@@ -5661,13 +5661,13 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
+    if (g_snds.bend_gate != 0 && g_snds.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
     channel = (uint8_t)(seq->track_channel[si] & 0xf);
     seq->ch.program[channel] = program;
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_program_change((uint16_t)(ax & 0xf), program);
 
     return data;
@@ -5691,7 +5691,7 @@ const uint8_t far *midi_event_9(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_nop();
 
     return data;
@@ -5743,7 +5743,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
     data++;
     (*counter)++;
 
-    if (SNDS.bend_gate != 0 && SNDS.voice_held[(ax & 0xf)] != 0xff)
+    if (g_snds.bend_gate != 0 && g_snds.voice_held[(ax & 0xf)] != 0xff)
         return data;
 
     channel = (uint8_t)(seq->track_channel[si] & 0xf);
@@ -5756,7 +5756,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
         value |= 0x8000;
     *slot = value;
 
-    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
+    if ((uint8_t)ax != 0xff && g_snds.muted == 0)
         driver_pitch_bend((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)lsb << 8) | msb));
 
@@ -5810,7 +5810,7 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
         (*counter)++;
 
         if (first != 0x7f) {
-            if (SNDS.muted == 0)
+            if (g_snds.muted == 0)
                 seq->state = first;
             return data;
         }
@@ -5853,14 +5853,14 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
 
     if (first == 0x50) {
         if (second == 0x7f)
-            second = SNDS.param_default;
+            second = g_snds.param_default;
         seq->device_value = second;
         driver_param_349(second);
         return data;
     }
 
     if (first == 0x60) {
-        if (SNDS.muted == 0)
+        if (g_snds.muted == 0)
             seq->loop_count++;
         return data;
     }
@@ -6006,15 +6006,15 @@ void init_sequence_params(struct sequence far * seq)
 
     for (si = 0x20; si != 0;) {
         si -= 2;
-        SNDS.scratch[si / 2] = 0;
+        g_snds.scratch[si / 2] = 0;
     }
-    SNDS.scratch_mark = 0xff;
+    g_snds.scratch_mark = 0xff;
 
     {
         uint16_t bp = 0;
 
         if (tbl[bp] == 0xf0) {
-            SNDS.scratch_mark = tbl[bp + 1];
+            g_snds.scratch_mark = tbl[bp + 1];
             bp += 8;
         }
 
@@ -6022,7 +6022,7 @@ void init_sequence_params(struct sequence far * seq)
         for (;;) {
             uint8_t id = tbl[bp];
 
-            if (id == SNDS.ch) {
+            if (id == g_snds.ch) {
                 bp++;
                 for (;;) {
                     uint8_t c = tbl[bp];
@@ -6031,7 +6031,7 @@ void init_sequence_params(struct sequence far * seq)
                     if (c == 0xff)
                         break;
                     bp++;
-                    SNDS.scratch[si / 2] = *(int16_t *)(tbl + bp);
+                    g_snds.scratch[si / 2] = *(int16_t *)(tbl + bp);
                     bp += 4;
                     si += 2;
                 }
@@ -6052,8 +6052,8 @@ void init_sequence_params(struct sequence far * seq)
         }
 
         for (si = 0; si != 0x20; si += 2)
-            *(int16_t *)(tbl + si) = SNDS.scratch[si / 2];
-        tbl[0x20] = SNDS.scratch_mark;
+            *(int16_t *)(tbl + si) = g_snds.scratch[si / 2];
+        tbl[0x20] = g_snds.scratch_mark;
     }
 
     tbl[0x21] = 0xfc;

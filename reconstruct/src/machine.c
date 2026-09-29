@@ -53,7 +53,7 @@ struct machine_cursor_hotspots {
     int16_t   hot_y[9];           /* +0x12 [0x12] */
 } PACKED;
 
-struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS = {
+struct machine_cursor_hotspots g_machine_cursor_hotspots = {
     {
         0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
         0x0003,
@@ -564,8 +564,8 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     struct part *e0_part;               /* [bp-0x20] */
     struct part *e1_part;               /* [bp-0x22] */
 
-    pl = pr = POINTER.pointer_x;
-    pt = pb = POINTER.pointer_y;
+    pl = pr = g_pointer.pointer_x;
+    pt = pb = g_pointer.pointer_y;
     ox = part->box[0].x - g_origin_x;
     oy = part->box[0].y - g_origin_y;
     x0 = ox;
@@ -692,8 +692,8 @@ struct part *find_part_from(register struct part *rec)
 
     if (best != NULL)
         return best;
-    if (HELD_PARTS.dragged_part != 0
-        && HELD_PARTS.dragged_part->kind == KIND_ROPE)
+    if (g_held_parts.dragged_part != 0
+        && g_held_parts.dragged_part->kind == KIND_ROPE)
         return NULL;
     return rec;
 }
@@ -732,8 +732,8 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
                 e0 = e1 = si->pos[0].x - g_origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
-                if (abs((int16_t)(POINTER.pointer_x - e0))
-                    < abs((int16_t)(POINTER.pointer_x - e1)))
+                if (abs((int16_t)(g_pointer.pointer_x - e0))
+                    < abs((int16_t)(g_pointer.pointer_x - e1)))
                     *out_end = 0;
                 else
                     *out_end = 1;
@@ -798,8 +798,8 @@ void select_cursor(register int16_t which)
     if (which != g_cursor) {
         g_cursor = which;
         if (which < 9) {
-            hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[which];
-            hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
+            hot_x = g_machine_cursor_hotspots.hot_x[which];
+            hot_y = g_machine_cursor_hotspots.hot_y[which];
         } else
             hot_x = hot_y = 0;
         set_cursor(g_cursor_art[which],
@@ -865,9 +865,9 @@ int16_t cursor_for_tool(void)
         r = 3;
         break;
     case 9:
-        if (HELD_PARTS.dragged_part->kind == KIND_BELT)
+        if (g_held_parts.dragged_part->kind == KIND_BELT)
             r = 8;
-        else if (HELD_PARTS.dragged_part->kind == KIND_ROPE)
+        else if (g_held_parts.dragged_part->kind == KIND_ROPE)
             r = 9;
         else
             r = 0;
@@ -985,18 +985,18 @@ uint16_t part_handle_at_pointer(register struct part *part)
     struct part *rec;                   /* [bp-0xe] */
     struct belt *end;                   /* [bp-0x10] */
 
-    LEVEL_SETTINGS.flip_options = part_flip_options(part);
+    g_level_settings.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
         rec = (part->rope->end_b);
         x0 = rec->box[0].x + rec->grab.x - g_origin_x;
         /* the original takes origin_x off a y here, and below */
         y0 = rec->box[0].y + rec->grab.y - g_origin_x;
-        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
-            && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
+        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+            && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
             return 8;
-        if (POINTER.pointer_x >= x0 && x0 + 10 > POINTER.pointer_x
-            && POINTER.pointer_y >= y0 && y0 + 10 > POINTER.pointer_y)
+        if (g_pointer.pointer_x >= x0 && x0 + 10 > g_pointer.pointer_x
+            && g_pointer.pointer_y >= y0 && y0 + 10 > g_pointer.pointer_y)
             return 7;
     }
 
@@ -1006,11 +1006,11 @@ uint16_t part_handle_at_pointer(register struct part *part)
         idx = end->slot_b;
         x0 = rec->box[0].x + rec->attach[idx].x - g_origin_x - 8;
         y0 = rec->box[0].y + rec->attach[idx].y - g_origin_x - 4;
-        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
-            && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
+        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+            && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
             return 8;
-        if (POINTER.pointer_x >= x0 && x0 + 15 > POINTER.pointer_x
-            && POINTER.pointer_y >= y0 && y0 + 7 > POINTER.pointer_y)
+        if (g_pointer.pointer_x >= x0 && x0 + 15 > g_pointer.pointer_x
+            && g_pointer.pointer_y >= y0 && y0 + 7 > g_pointer.pointer_y)
             return 7;
     }
 
@@ -1021,38 +1021,38 @@ uint16_t part_handle_at_pointer(register struct part *part)
     y_mid = y0 + (part->size[0].height >> 1) - 6;
     y_end = y0 + part->size[0].height;
 
-    if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
-        && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
+    if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+        && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
         return 8;
 
-    if (LEVEL_SETTINGS.flip_options & 1) {
-        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
-            && POINTER.pointer_y >= y_mid && y_mid + 11 > POINTER.pointer_y)
+    if (g_level_settings.flip_options & 1) {
+        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+            && g_pointer.pointer_y >= y_mid && y_mid + 11 > g_pointer.pointer_y)
             return 3;
-        if (POINTER.pointer_x > x_end && x_end + 11 > POINTER.pointer_x
-            && POINTER.pointer_y >= y_mid && y_mid + 11 > POINTER.pointer_y)
+        if (g_pointer.pointer_x > x_end && x_end + 11 > g_pointer.pointer_x
+            && g_pointer.pointer_y >= y_mid && y_mid + 11 > g_pointer.pointer_y)
             return 4;
     }
-    if (LEVEL_SETTINGS.flip_options & 2) {
-        if (y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0
-            && POINTER.pointer_x >= x_mid && x_mid + 11 > POINTER.pointer_x)
+    if (g_level_settings.flip_options & 2) {
+        if (y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0
+            && g_pointer.pointer_x >= x_mid && x_mid + 11 > g_pointer.pointer_x)
             return 5;
-        if (POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y
-            && POINTER.pointer_x >= x_mid && x_mid + 11 > POINTER.pointer_x)
+        if (g_pointer.pointer_y > y_end && y_end + 11 > g_pointer.pointer_y
+            && g_pointer.pointer_x >= x_mid && x_mid + 11 > g_pointer.pointer_x)
             return 6;
     }
-    if (LEVEL_SETTINGS.flip_options & 4) {
-        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
-            && POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y)
+    if (g_level_settings.flip_options & 4) {
+        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+            && g_pointer.pointer_y > y_end && y_end + 11 > g_pointer.pointer_y)
             return 1;
     }
-    if (LEVEL_SETTINGS.flip_options & 8) {
-        if (POINTER.pointer_x > x_end && x_end + 11 > POINTER.pointer_x
-            && POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y)
+    if (g_level_settings.flip_options & 8) {
+        if (g_pointer.pointer_x > x_end && x_end + 11 > g_pointer.pointer_x
+            && g_pointer.pointer_y > y_end && y_end + 11 > g_pointer.pointer_y)
             return 2;
     }
-    if (POINTER.pointer_x >= x0 && POINTER.pointer_x < x_end
-        && POINTER.pointer_y >= y0 && POINTER.pointer_y < y_end)
+    if (g_pointer.pointer_x >= x0 && g_pointer.pointer_x < x_end
+        && g_pointer.pointer_y >= y0 && g_pointer.pointer_y < y_end)
         return 7;
     return 0x0a;
 }
@@ -1147,8 +1147,8 @@ uint16_t angle_between_parts(register struct part *part,
     int32_t dy;                         /* [bp-0xc] */
 
     if (other == NULL) {
-        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + g_origin_x));
-        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + g_origin_y));
+        dx = (int16_t)(part->pos[0].x - (g_pointer.pointer_x + g_origin_x));
+        dy = (int16_t)(part->pos[0].y - (g_pointer.pointer_y + g_origin_y));
     } else if (other->kind == KIND_PULLEY) {
         dx = (int16_t)(part->pos[0].x - other->pos[0].x);
         dy = (int16_t)(part->pos[0].y - other->pos[0].y);
@@ -1452,12 +1452,12 @@ void rehome_carried_part(void)
        cannot see. The original leaves it as the stack had it. */
     slot = 0;
 #endif
-    old = (HELD_PARTS.dragged_part->link[4]);
-    old_slot = HELD_PARTS.dragged_part->host_slot;
-    HELD_PARTS.dragged_part->link[4] = 0;
-    link_nearby_objects(HELD_PARTS.dragged_part, 0x2000, -8, 8, -8, 8);
+    old = (g_held_parts.dragged_part->link[4]);
+    old_slot = g_held_parts.dragged_part->host_slot;
+    g_held_parts.dragged_part->link[4] = 0;
+    link_nearby_objects(g_held_parts.dragged_part, 0x2000, -8, 8, -8, 8);
 
-    si = (HELD_PARTS.dragged_part->next_linked);
+    si = (g_held_parts.dragged_part->next_linked);
     while (si != NULL) {
         if (si == old) {
             di = old;
@@ -1479,16 +1479,16 @@ void rehome_carried_part(void)
     }
 
     if (old != NULL && di != old) {
-        old->link[HELD_PARTS.dragged_part->host_slot + 4] = 0;
-        HELD_PARTS.dragged_part->link[4] = 0;
-        PART_KINDS[old->kind].setup(old);
+        old->link[g_held_parts.dragged_part->host_slot + 4] = 0;
+        g_held_parts.dragged_part->link[4] = 0;
+        g_part_kinds[old->kind].setup(old);
         old->start_form = old->form;
     }
     if (di != NULL) {
-        di->link[slot + 4] = HELD_PARTS.dragged_part;
-        HELD_PARTS.dragged_part->link[4] = di;
-        HELD_PARTS.dragged_part->host_slot = slot;
-        PART_KINDS[di->kind].setup(di);
+        di->link[slot + 4] = g_held_parts.dragged_part;
+        g_held_parts.dragged_part->link[4] = di;
+        g_held_parts.dragged_part->host_slot = slot;
+        g_part_kinds[di->kind].setup(di);
         di->start_form = di->form;
     }
 }
@@ -1526,15 +1526,15 @@ void break_second_attachment(register struct part *part)
             if ((other = part->link[i]) != NULL) {
                 part->link[i] = 0;
                 other->link[4] = 0;
-                PART_KINDS[other->kind].setup(other);
+                g_part_kinds[other->kind].setup(other);
             }
-        PART_KINDS[part->kind].setup(part);
+        g_part_kinds[part->kind].setup(part);
         part->start_form = part->form;
     } else if ((other = part->link[4]) != NULL) {
         other->link[part->host_slot + 4] = 0;
         part->link[4] = 0;
-        PART_KINDS[part->kind].setup(part);
-        PART_KINDS[other->kind].setup(other);
+        g_part_kinds[part->kind].setup(part);
+        g_part_kinds[other->kind].setup(other);
         other->start_form = other->form;
     }
 }
@@ -1694,8 +1694,8 @@ void discard_part(struct part *part)
         free_part(part);
     }
 
-    if (part == HELD_PARTS.dragged_part)
-        HELD_PARTS.dragged_part = 0;
+    if (part == g_held_parts.dragged_part)
+        g_held_parts.dragged_part = 0;
 }
 
 /*
@@ -1742,25 +1742,25 @@ void finish_part_removal(void)
     struct rope *rope;                  /* [bp-0xc] */
     struct belt *slot;                  /* [bp-0xe] */
 
-    if (HELD_PARTS.dragged_part != 0
-        && (HELD_PARTS.dragged_part->flags_06 & 0x800)) {
-        if (HELD_PARTS.dragged_part->flags_0a & 3)
-            break_second_attachment(HELD_PARTS.dragged_part);
+    if (g_held_parts.dragged_part != 0
+        && (g_held_parts.dragged_part->flags_06 & 0x800)) {
+        if (g_held_parts.dragged_part->flags_0a & 3)
+            break_second_attachment(g_held_parts.dragged_part);
 
-        rope = HELD_PARTS.dragged_part->rope;
-        if (HELD_PARTS.dragged_part->kind != KIND_BELT
+        rope = g_held_parts.dragged_part->rope;
+        if (g_held_parts.dragged_part->kind != KIND_BELT
             && rope != NULL) {
             r = rope->owner;
             untie_rope(r);
             discard_part(r);
         }
 
-        if (HELD_PARTS.dragged_part->kind == KIND_PULLEY) {
-            if ((next = (HELD_PARTS.dragged_part->link[0]))
+        if (g_held_parts.dragged_part->kind == KIND_PULLEY) {
+            if ((next = (g_held_parts.dragged_part->link[0]))
                 != NULL) {
-                a = link_slot_of(HELD_PARTS.dragged_part, next);
-                other = (HELD_PARTS.dragged_part->link[1]);
-                b = link_slot_of(HELD_PARTS.dragged_part, other);
+                a = link_slot_of(g_held_parts.dragged_part, next);
+                other = (g_held_parts.dragged_part->link[1]);
+                b = link_slot_of(g_held_parts.dragged_part, other);
                 next->link[a] = next->link[a + 2] = other;
                 other->link[b] = other->link[b + 2] = next;
                 if (next->kind == KIND_PULLEY) {
@@ -1771,22 +1771,22 @@ void finish_part_removal(void)
                     aim_link_at_bisector(other);
                     mark_part_shapes(other, 3);
                 }
-                mark_needs_refile(((HELD_PARTS.dragged_part
+                mark_needs_refile(((g_held_parts.dragged_part
                                                     ->belt[1])->owner), 2);
                 for (i = 0; i < 4; i++)
-                    HELD_PARTS.dragged_part->link[i] = 0;
-                HELD_PARTS.dragged_part->belt[1] = 0;
+                    g_held_parts.dragged_part->link[i] = 0;
+                g_held_parts.dragged_part->belt[1] = 0;
             }
-        } else if (HELD_PARTS.dragged_part->kind != KIND_ROPE) {
+        } else if (g_held_parts.dragged_part->kind != KIND_ROPE) {
             for (i = 0; i < 2; i++)
-                if ((slot = HELD_PARTS.dragged_part->belt[i])
+                if ((slot = g_held_parts.dragged_part->belt[i])
                     != NULL) {
                     belt = slot->owner;
                     detach_belt(belt, 1);
                     discard_part(belt);
                 }
         }
-        discard_part(HELD_PARTS.dragged_part);
+        discard_part(g_held_parts.dragged_part);
     }
 }
 
@@ -1845,7 +1845,7 @@ void insert_sorted(register struct part *rec, struct part *head)
     int16_t prio2;                      /* [bp-8] */
 
     kind = rec->kind;
-    prio = PART_KINDS[kind].priority;
+    prio = g_part_kinds[kind].priority;
     stop = 0;
     di = head;
     while (!stop) {
@@ -1853,11 +1853,11 @@ void insert_sorted(register struct part *rec, struct part *head)
             stop = 1;
         else {
             kind2 = di->next->kind;
-            prio2 = PART_KINDS[kind2].priority;
-            if (head == &HELD_PARTS.parts_bin)
+            prio2 = g_part_kinds[kind2].priority;
+            if (head == &g_held_parts.parts_bin)
                 stop = prio < prio2;
             else if (head == &g_moving_parts)
-                stop = PART_KINDS[kind].weight < PART_KINDS[kind2].weight;
+                stop = g_part_kinds[kind].weight < g_part_kinds[kind2].weight;
             else
                 stop = 1;
         }
@@ -1911,7 +1911,7 @@ void detach_part_to_bin(register struct part *part)
     }
     part->flags_06 = (part->flags_06 & 0xcfff) | 0x800;
     unlink_part(part);
-    insert_sorted(part, &HELD_PARTS.parts_bin);
+    insert_sorted(part, &g_held_parts.parts_bin);
 }
 
 /*
@@ -1940,9 +1940,9 @@ void refile_part_list(register struct part *part)
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
         insert_sorted(part, &g_moving_parts);
     }
-    if (HELD_PARTS.bin_list != &HELD_PARTS.parts_bin
-        && HELD_PARTS.bin_list->next == 0)
-        HELD_PARTS.bin_list = HELD_PARTS.bin_list->prev;
+    if (g_held_parts.bin_list != &g_held_parts.parts_bin
+        && g_held_parts.bin_list->next == 0)
+        g_held_parts.bin_list = g_held_parts.bin_list->prev;
 }
 
 /*
@@ -1980,9 +1980,9 @@ void remove_all_parts(void)
                 detach_belt(si, 1);
             else
                 detach_part_to_bin(si);
-            HELD_PARTS.dragged_part = si;
+            g_held_parts.dragged_part = si;
             finish_part_removal();
-            HELD_PARTS.dragged_part = 0;
+            g_held_parts.dragged_part = 0;
             si = pick_by_flag(0x3000);
         } else
             si = pick_for_record(si, 0x1000);
@@ -2026,17 +2026,17 @@ struct part *bin_part_at_index(int16_t index)
 
     if (index < 0) {
         n = 0;
-        si = HELD_PARTS.bin_list;
+        si = g_held_parts.bin_list;
         while (n != index) {
             di = si->kind;
-            while (si != &HELD_PARTS.parts_bin && si->kind == di)
-                if (si != &HELD_PARTS.parts_bin)
+            while (si != &g_held_parts.parts_bin && si->kind == di)
+                if (si != &g_held_parts.parts_bin)
                     si = si->prev;
             n--;
         }
     } else {
         n = 0;
-        si = HELD_PARTS.bin_list->next;
+        si = g_held_parts.bin_list->next;
         while (n != index) {
             di = si->kind;
             while (si != 0 && si->kind == di)
@@ -2072,11 +2072,11 @@ struct part *bin_scroll_end(void)
     struct part *saved;                     /* [bp-2] */
     struct part *last;                      /* [bp-4] */
 
-    saved = HELD_PARTS.bin_list;
+    saved = g_held_parts.bin_list;
     while (si = bin_part_at_index(5), si)
-        HELD_PARTS.bin_list = si;
-    last = HELD_PARTS.bin_list;
-    HELD_PARTS.bin_list = saved;
+        g_held_parts.bin_list = si;
+    last = g_held_parts.bin_list;
+    g_held_parts.bin_list = saved;
     return last;
 }
 
@@ -2205,7 +2205,7 @@ give_up:
         si->attach[0] = part->attach[0];
         si->attach[1] = part->attach[1];
 
-        if ((si->point_count = PART_KINDS[part->kind].point_count) != 0) {
+        if ((si->point_count = g_part_kinds[part->kind].point_count) != 0) {
             src_pt = part->points;
             dst_pt = (si->points
                             = (calloc_far(si->point_count, 4)));
@@ -2243,8 +2243,8 @@ struct part *pick_by_flag(uint16_t flags)
         return g_placed_parts.next;
     if (g_moving_parts.next != 0 && (flags & 0x1000))
         return g_moving_parts.next;
-    if (HELD_PARTS.parts_bin.next != 0 && (flags & 0x0800))
-        return HELD_PARTS.parts_bin.next;
+    if (g_held_parts.parts_bin.next != 0 && (flags & 0x0800))
+        return g_held_parts.parts_bin.next;
     return NULL;
 }
 
@@ -2270,7 +2270,7 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
         return pick_by_flag(flags);
 
     if (((int16_t)rec->flags_06 & 0x1000) && (flags & 0x800))
-        return HELD_PARTS.parts_bin.next;
+        return g_held_parts.parts_bin.next;
 
     return NULL;
 }
@@ -2302,7 +2302,7 @@ void place_object_for_draw(register struct part *obj)
     const struct part_kind *rec;        /* [bp-8] */
 
     type = obj->kind;
-    rec = &PART_KINDS[type];
+    rec = &g_part_kinds[type];
     obj->box[0].x = obj->pos[0].x;
     obj->box[0].y = obj->pos[0].y;
     idx = obj->form;
@@ -2359,7 +2359,7 @@ void set_object_extent(register struct part *obj)
         obj->size[0].height = obj->set_size.height;
     } else {
         type = obj->kind;
-        rec = &PART_KINDS[type];
+        rec = &g_part_kinds[type];
         if (rec->sizes != 0) {
             obj->size[0].width = rec->sizes[obj->form].x;
             obj->size[0].height = rec->sizes[obj->form].y;
@@ -2819,9 +2819,9 @@ void replay_shapes(void)
     struct shape far *prev;             /* [bp-0x12] */
 
     set_clip_for_mode();
-    VMDS.clip_enabled = 1;
-    VMDS.fill_colour = VMDS.second_colour = g_fill_colour;
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.clip_enabled = 1;
+    g_vmds.fill_colour = g_vmds.second_colour = g_fill_colour;
+    g_vmds.page_dst = g_vmds.page_back;
 
     prev = 0;
     for (cur = g_shapes_drawn; cur; cur = next) {
@@ -2836,13 +2836,13 @@ void replay_shapes(void)
             if (cur->flags & 4)
                 draw_belt_segment(si, di, a, b, c);
             else {
-                VMDS.fill_enabled = cur->flags & 1;
-                if (di == VMDS.clip_bottom)
+                g_vmds.fill_enabled = cur->flags & 1;
+                if (di == g_vmds.clip_bottom)
                     di--;
-                if (si == VMDS.clip_right)
+                if (si == g_vmds.clip_right)
                     si--;
-                if (si < VMDS.clip_right && (int16_t)(si + a) > VMDS.clip_left
-                    && di < VMDS.clip_bottom && (int16_t)(di + b) > VMDS.clip_top)
+                if (si < g_vmds.clip_right && (int16_t)(si + a) > g_vmds.clip_left
+                    && di < g_vmds.clip_bottom && (int16_t)(di + b) > g_vmds.clip_top)
                     fill_rect(si, di, a, b);
             }
             restore_cursor_following();
@@ -2894,8 +2894,8 @@ void mark_parts_in_dirty_rects(void)
                 if (!rope_ends_close(si))
                     continue;
                 if (g_tool == 9
-                    && (si->end_a == HELD_PARTS.dragged_part
-                        || si->end_b == HELD_PARTS.dragged_part)
+                    && (si->end_a == g_held_parts.dragged_part
+                        || si->end_b == g_held_parts.dragged_part)
                     && !point_in_play_area())
                     continue;
                 if (si->pt[0][0].x < si->pt[0][1].x) {
@@ -3072,7 +3072,7 @@ void refile_overlapping_parts(void)
         level = level_n - 1;
         walk = g_layer_head[level];
         while (walk != NULL) {
-            rec = &PART_KINDS[walk->kind];
+            rec = &g_part_kinds[walk->kind];
             if ((rec->refile_level[0] == 0xff || rec->refile_level[0] >= level
                  || rec->refile_level[0] <= 2)
                 && (rec->refile_level[0] == 0xff || rec->refile_level[1] >= level
@@ -3088,7 +3088,7 @@ void refile_overlapping_parts(void)
                         continue;
                     if (di->kind == KIND_ROPE || di->kind == KIND_ANCHOR)
                         continue;
-                    rec = &PART_KINDS[di->kind];
+                    rec = &g_part_kinds[di->kind];
                     if (rec->refile_level[0] > level && rec->refile_level[0] != 0xff)
                         continue;
                     if (rec->refile_level[1] > level && rec->refile_level[1] != 0xff)
@@ -3099,8 +3099,8 @@ void refile_overlapping_parts(void)
                         if (!rope_ends_close(si))
                             continue;
                         if (g_tool == 9
-                            && (si->end_a == HELD_PARTS.dragged_part
-                                || si->end_b == HELD_PARTS.dragged_part)
+                            && (si->end_a == g_held_parts.dragged_part
+                                || si->end_b == g_held_parts.dragged_part)
                             && !point_in_play_area())
                             continue;
                         if (si->pt[0][0].x < si->pt[0][1].x) {
@@ -3762,7 +3762,7 @@ int16_t tension_belt(register struct part *part)
                     }
                 } else
                     part_drive(other, part, other, 0, orient,
-                               PART_KINDS[part->kind].weight, part->momentum);
+                               g_part_kinds[part->kind].weight, part->momentum);
             }
         }
     }
@@ -3991,12 +3991,12 @@ void shift_all_histories(void)
 {
     struct part *obj;
 
-    if (HELD_PARTS.dragged_part != 0)
-        shift_state_history(HELD_PARTS.dragged_part);
+    if (g_held_parts.dragged_part != 0)
+        shift_state_history(g_held_parts.dragged_part);
 
     obj = pick_by_flag(0x3000);
     while (obj != NULL) {
-        if (obj != HELD_PARTS.dragged_part)
+        if (obj != g_held_parts.dragged_part)
             shift_state_history(obj);
         obj = pick_for_record(obj, 0x1000);
     }
@@ -4125,7 +4125,7 @@ void reset_machine(void)
             place_object_for_draw(si);
             si->box[2] = si->box[1] = si->box[0];
             si->size[2] = si->size[1] = si->size[0];
-            si->weight = PART_KINDS[si->kind].weight;
+            si->weight = g_part_kinds[si->kind].weight;
             si->contact = 0;
             si->direction = si->start_direction;
             si->vel_x = si->vel_y = 0;
@@ -4134,7 +4134,7 @@ void reset_machine(void)
             if (si->kind != KIND_GEAR)
                 for (i = 0; i < 2; i++)
                     si->link[i] = si->link[i + 2];
-            PART_KINDS[si->kind].setup(si);
+            g_part_kinds[si->kind].setup(si);
         }
     }
 

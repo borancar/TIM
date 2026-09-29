@@ -117,7 +117,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     int16_t handle;
     uint16_t dir;
 
-    switch (SOUND_BANK.device) {
+    switch (g_sound_bank.device) {
     case 0:
         want = 0x12;
         break;
@@ -133,7 +133,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
         want = 0xc;
         break;
     case 0x7e:
-        want = (uint8_t)SOUND_BANK.identifier;
+        want = (uint8_t)g_sound_bank.identifier;
         break;
 
     /*
@@ -191,7 +191,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     goto close;
 
 missing:
-    SOUND_BANK.load_error = 2;
+    g_sound_bank.load_error = 2;
 close:
     close_resource(handle);
 done:
@@ -611,9 +611,9 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
                 voice->source = source;
                 voice->cursor = (uint8_t far *)advance_record(source);
 
-                if (SOUND_BANK.bank != 0) {
-                    voice->loop = SOUND_BANK.bank[index].loop;
-                    voice->priority = SOUND_BANK.bank[index].priority;
+                if (g_sound_bank.bank != 0) {
+                    voice->loop = g_sound_bank.bank[index].loop;
+                    voice->priority = g_sound_bank.bank[index].priority;
                     voice->volume = 0x7f;
                 } else {
                     voice->loop = (uint8_t)byte_arg;

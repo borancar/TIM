@@ -22,14 +22,14 @@
 /*
  * DGROUP 0x32b8..0x32c0. Connection points, 4 pairs.
  */
-struct point8 ELECTRIC_PLUG_POINTS_32B8[4] = {
+struct point8 g_electric_plug_points_32b8[4] = {
     { 0x08, 0x08 }, { 0x0f, 0x08 }, { 0x0f, 0x09 }, { 0x08, 0x09 },
 };
 
 /*
  * DGROUP 0x32c0..0x32c8. Connection points, 4 pairs.
  */
-struct point8 ELECTRIC_PLUG_POINTS_32C0[4] = {
+struct point8 g_electric_plug_points_32c0[4] = {
     { 0x0f, 0x18 }, { 0x08, 0x18 }, { 0x08, 0x17 }, { 0x0f, 0x17 },
 };
 
@@ -104,9 +104,9 @@ void part_setup_electric_plug(struct part *part)
     struct part_point *dst;
 
     if (part->form < 4)
-        src = ELECTRIC_PLUG_POINTS_32B8;
+        src = g_electric_plug_points_32b8;
     else
-        src = ELECTRIC_PLUG_POINTS_32C0;
+        src = g_electric_plug_points_32c0;
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;

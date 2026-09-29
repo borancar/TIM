@@ -98,7 +98,7 @@ int16_t blast_speed_for_mass(struct part *part)
     int16_t m;                          /* si */
     int16_t r;                          /* cx */
 
-    m = PART_KINDS[part->kind].weight;
+    m = g_part_kinds[part->kind].weight;
 
     if (m < 2)
         r = 0x1800;

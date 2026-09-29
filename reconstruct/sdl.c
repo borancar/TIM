@@ -609,7 +609,7 @@ static void set_grab(int32_t on)
  * on, which is right: the original's keyboard handler filled the same ring
  * from the same hardware and the game ignored the rest.
  */
-static const struct { int32_t key; uint8_t scan; char ascii; } KEYMAP[] = {
+static const struct { int32_t key; uint8_t scan; char ascii; } g_keymap[] = {
     { SDLK_ESCAPE, 0x01, 27 },   { SDLK_1, 0x02, '1' },  { SDLK_2, 0x03, '2' },
     { SDLK_3, 0x04, '3' },       { SDLK_4, 0x05, '4' },  { SDLK_5, 0x06, '5' },
     { SDLK_6, 0x07, '6' },       { SDLK_7, 0x08, '7' },  { SDLK_8, 0x09, '8' },
@@ -747,26 +747,26 @@ void sdl_pump(void)
         /*
          * **The keyboard, which the port did not have.** Shift+F2 and Ctrl+Alt
          * are taken above and never reach the game; everything else with a row
-         * in KEYMAP goes into the BIOS ring the way a keyboard interrupt would
+         * in g_keymap goes into the BIOS ring the way a keyboard interrupt would
          * have put it there.
          */
         if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
             || e.type == SDL_EVENT_KEY_UP) {
             size_t i;
 
-            for (i = 0; i < sizeof KEYMAP / sizeof KEYMAP[0]; i++)
-                if (KEYMAP[i].key == (int32_t)e.key.key) {
+            for (i = 0; i < sizeof g_keymap / sizeof g_keymap[0]; i++)
+                if (g_keymap[i].key == (int32_t)e.key.key) {
                     /*
                      * The scancode, and the break code on the way up. The
                      * game's own handler turns it into a ring entry and a bit
-                     * in its key-state array; the ASCII in KEYMAP is no longer
+                     * in its key-state array; the ASCII in g_keymap is no longer
                      * used, because the handler works that out of its own
                      * tables.
                      */
                     io_keyboard_scancode(
                         (uint8_t)(e.type == SDL_EVENT_KEY_UP
-                                  ? (KEYMAP[i].scan | 0x80)
-                                  : KEYMAP[i].scan));
+                                  ? (g_keymap[i].scan | 0x80)
+                                  : g_keymap[i].scan));
                     break;
                 }
         }

@@ -30,7 +30,7 @@
 uint16_t g_pad_2d06 = 0x0001;
 
 /* DGROUP 0x2d08: **the page a rect is restored from its own buffer**, the
-   0xffff a mode-4 rect carries as its page. `MACHINE_PAGE_PAIRS` below
+   0xffff a mode-4 rect carries as its page. `g_machine_page_pairs` below
    points at it where a pair starts from the buffer rather than a VGA page. */
 vga_page_t g_buffer_page = 0xffff;
 
@@ -53,24 +53,24 @@ struct machine_page_pairs {
     struct page_pair pair[10];    /* +0x00 [0x28] */
 } PACKED;
 
-struct machine_page_pairs MACHINE_PAGE_PAIRS = {
+struct machine_page_pairs g_machine_page_pairs = {
     {
-        { &g_buffer_page, &VMDS.page_front },
-        { &VMDS.page_back, &VMDS.page_front },
-        { &g_buffer_page, &VMDS.page_back },
-        { &VMDS.rect_page, &VMDS.page_back },
-        { &g_buffer_page, &VMDS.rect_page },
-        { &VMDS.page_front, &VMDS.rect_page },
-        { &VMDS.page_front, &VMDS.page_back },
-        { &VMDS.page_back, &VMDS.rect_page },
-        { &VMDS.rect_page, &VMDS.page_front },
+        { &g_buffer_page, &g_vmds.page_front },
+        { &g_vmds.page_back, &g_vmds.page_front },
+        { &g_buffer_page, &g_vmds.page_back },
+        { &g_vmds.rect_page, &g_vmds.page_back },
+        { &g_buffer_page, &g_vmds.rect_page },
+        { &g_vmds.page_front, &g_vmds.rect_page },
+        { &g_vmds.page_front, &g_vmds.page_back },
+        { &g_vmds.page_back, &g_vmds.rect_page },
+        { &g_vmds.rect_page, &g_vmds.page_front },
     }
 };
 
 /*
  * **This module's `_BSS`, 0x56b6..0x56e4**, defined in the order that
  * reverses to the image's: Borland lays `_BSS` out in reverse order of first
- * mention. `MACHINE_RECT_FREE`'s type is in dgroup.h, for the cursor code
+ * mention. `g_machine_rect_free`'s type is in dgroup.h, for the cursor code
  * that reads it, and a type is not a mention of the object.
  */
 
@@ -81,7 +81,7 @@ struct machine_page_pairs MACHINE_PAGE_PAIRS = {
  * unmoved cursor is not drawn again.
  */
 
-struct machine_rect_free MACHINE_RECT_FREE;
+struct machine_rect_free g_machine_rect_free;
 
 /*
  * **The twenty saved-rectangle slots**, DGROUP 0x56b8..0x56e0, 0x28 bytes. Each is a near
@@ -98,7 +98,7 @@ struct machine_rect_slots {
     struct rect_list_entry *slot[0x14];         /* +0x00 [0x28] */
 } PACKED;
 
-struct machine_rect_slots MACHINE_RECT_SLOTS;
+struct machine_rect_slots g_machine_rect_slots;
 
 /*
  * **How many saved-rectangle records the pool has been given**, DGROUP
@@ -109,7 +109,7 @@ struct machine_rect_count {
     uint16_t  count;              /* +0x00 */
 } PACKED;
 
-struct machine_rect_count MACHINE_RECT_COUNT;
+struct machine_rect_count g_machine_rect_count;
 
 /*
  * 0x0a05f
@@ -139,9 +139,9 @@ uint16_t build_rect_pool(register uint16_t n)
         rec->next = (rec + 1);
         rec++;
     }
-    rec->next = MACHINE_RECT_FREE.rect_free;
-    MACHINE_RECT_FREE.rect_free = base;
-    MACHINE_RECT_COUNT.count += n;
+    rec->next = g_machine_rect_free.rect_free;
+    g_machine_rect_free.rect_free = base;
+    g_machine_rect_count.count += n;
     /* a test with nothing behind it: `cmp di,5 / jne` onto the next
        instruction, as the image has it */
     if (n == 5) {
@@ -158,7 +158,7 @@ uint16_t build_rect_pool(register uint16_t n)
  * are the record's fields in order, which is how the record was typed.
  *
  * A mode-4 rect (restored from `buf`) is filed under source page -1. A mode-1
- * rect (a plain copy) is first cut to the clip box when `VMDS.clip_enabled`
+ * rect (a plain copy) is first cut to the clip box when `g_vmds.clip_enabled`
  * says so, or to the screen otherwise - a rect wholly outside either is
  * dropped - and then `x` and `w` become eight-pixel columns, `w` widened by
  * whatever `x` lost to the rounding. A rect with nothing left is dropped.
@@ -198,26 +198,26 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         return;
 
     if (mode == 1) {
-        if (VMDS.clip_enabled != 0) {
+        if (g_vmds.clip_enabled != 0) {
             /* a bitwise or of the four, each tested for its value */
-            if ((x > VMDS.clip_right) | ((int16_t)(x + w) < VMDS.clip_left)
-                | (y > VMDS.clip_bottom) | ((int16_t)(y + h) < VMDS.clip_top))
+            if ((x > g_vmds.clip_right) | ((int16_t)(x + w) < g_vmds.clip_left)
+                | (y > g_vmds.clip_bottom) | ((int16_t)(y + h) < g_vmds.clip_top))
                 return;
-            if (x < VMDS.clip_left) {
-                w -= VMDS.clip_left - x;
-                x = VMDS.clip_left;
+            if (x < g_vmds.clip_left) {
+                w -= g_vmds.clip_left - x;
+                x = g_vmds.clip_left;
             }
-            if (y < VMDS.clip_top) {
-                h -= VMDS.clip_top - y;
-                y = VMDS.clip_top;
+            if (y < g_vmds.clip_top) {
+                h -= g_vmds.clip_top - y;
+                y = g_vmds.clip_top;
             }
-            if ((int16_t)(x + w - 1) > VMDS.clip_right)
-                w = VMDS.clip_right - x + 1;
-            if ((int16_t)(y + h - 1) > VMDS.clip_bottom)
-                h = VMDS.clip_bottom - y + 1;
+            if ((int16_t)(x + w - 1) > g_vmds.clip_right)
+                w = g_vmds.clip_right - x + 1;
+            if ((int16_t)(y + h - 1) > g_vmds.clip_bottom)
+                h = g_vmds.clip_bottom - y + 1;
         } else {
-            if (VMDS.screen.screen_width - 1 < x || (int16_t)(x + w) < 0
-                || VMDS.screen.screen_height - 1 < y || (int16_t)(y + h) < 0)
+            if (g_vmds.screen.screen_width - 1 < x || (int16_t)(x + w) < 0
+                || g_vmds.screen.screen_height - 1 < y || (int16_t)(y + h) < 0)
                 return;
             if (x < 0) {
                 w -= 0 - x;
@@ -227,10 +227,10 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                 h -= 0 - y;
                 y = 0;
             }
-            if ((int16_t)(x + w - 1) > VMDS.screen.screen_width - 1)
-                w = VMDS.screen.screen_width - 1 - x + 1;
-            if ((int16_t)(y + h - 1) > VMDS.screen.screen_height - 1)
-                h = VMDS.screen.screen_height - 1 - y + 1;
+            if ((int16_t)(x + w - 1) > g_vmds.screen.screen_width - 1)
+                w = g_vmds.screen.screen_width - 1 - x + 1;
+            if ((int16_t)(y + h - 1) > g_vmds.screen.screen_height - 1)
+                h = g_vmds.screen.screen_height - 1 - y + 1;
         }
         w = (w + x % 8 + 7) / 8;
         x = x / 8;
@@ -238,11 +238,11 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 
     if (w == 0 || h == 0)
         return;
-    if (MACHINE_RECT_FREE.rect_free == 0 && !build_rect_pool(5))
+    if (g_machine_rect_free.rect_free == 0 && !build_rect_pool(5))
         return;
 
-    rec = MACHINE_RECT_FREE.rect_free;
-    MACHINE_RECT_FREE.rect_free = rec->next;
+    rec = g_machine_rect_free.rect_free;
+    g_machine_rect_free.rect_free = rec->next;
     rec->next = 0;
     rec->x = x;
     rec->y = y;
@@ -286,8 +286,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                     prev->next = after;
                 else
                     *slot = after;
-                other->next = MACHINE_RECT_FREE.rect_free;
-                MACHINE_RECT_FREE.rect_free = other;
+                other->next = g_machine_rect_free.rect_free;
+                g_machine_rect_free.rect_free = other;
                 from = after;
                 other = stop = prev;
             }
@@ -341,9 +341,9 @@ void restore_saved_rect_lists(int16_t which)
     vga_page_t saved_src;                 /* [bp-6] */
     vga_page_t saved_dst;                 /* [bp-8] */
 
-    saved_src = VMDS.page_src;
-    saved_dst = VMDS.page_dst;
-    si = which != 0 ? &MACHINE_PAGE_PAIRS.pair[1] : &MACHINE_PAGE_PAIRS.pair[0];
+    saved_src = g_vmds.page_src;
+    saved_dst = g_vmds.page_dst;
+    si = which != 0 ? &g_machine_page_pairs.pair[1] : &g_machine_page_pairs.pair[0];
     while (si->dst != 0) {
         restore_saved_rects(*si->src,
                             *si->dst, 0);
@@ -351,11 +351,11 @@ void restore_saved_rect_lists(int16_t which)
         if (which != 0)
             break;
     }
-    VMDS.page_src = saved_src;
-    VMDS.page_dst = saved_dst;
+    g_vmds.page_src = saved_src;
+    g_vmds.page_dst = saved_dst;
     if (which != 0)
         return;
-    for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0;
+    for (slot = &g_machine_rect_slots.slot[0], left = 0x14; left != 0;
          slot++, left--)
         if ((di = *slot) != 0)
             for (; di != 0; di = di->next)
@@ -376,12 +376,12 @@ void discard_saved_rects(void)
     register struct rect_list_entry *rec;
     int16_t left;
 
-    for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0; slot++, left--)
+    for (slot = &g_machine_rect_slots.slot[0], left = 0x14; left != 0; slot++, left--)
         if ((rec = *slot) != 0) {
             while (rec->next != 0)
                 rec = rec->next;
-            rec->next = MACHINE_RECT_FREE.rect_free;
-            MACHINE_RECT_FREE.rect_free = *slot;
+            rec->next = g_machine_rect_free.rect_free;
+            g_machine_rect_free.rect_free = *slot;
             *slot = 0;
         }
 }
@@ -406,7 +406,7 @@ uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
     /* the width in bytes, in the width's own register */
     w = (w + x % 8 + 7) / 8;
     x = x / 8;
-    for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0; slot++, left--)
+    for (slot = &g_machine_rect_slots.slot[0], left = 0x14; left != 0; slot++, left--)
         if ((rec = *slot) != 0 && rec->page_dst == page_dst
             && rec->refcount == refcount)
             for (; rec != 0; rec = rec->next)
@@ -437,7 +437,7 @@ void free_rect_pool(void)
 
     discard_saved_rects();
 
-    for (rec = MACHINE_RECT_FREE.rect_free; rec != 0; rec = rec->next) {
+    for (rec = g_machine_rect_free.rect_free; rec != 0; rec = rec->next) {
         if ((rec->block_head & 1) != 0) {
             rec->block_head = 0;
             free_rect_pool();
@@ -446,7 +446,7 @@ void free_rect_pool(void)
         }
     }
 
-    MACHINE_RECT_FREE.rect_free = 0;
+    g_machine_rect_free.rect_free = 0;
 }
 
 /*
@@ -456,7 +456,7 @@ void free_rect_pool(void)
  */
 uint16_t rect_pool_count(void)
 {
-    return MACHINE_RECT_COUNT.count;
+    return g_machine_rect_count.count;
 }
 
 /*
@@ -485,7 +485,7 @@ struct rect_list_entry **find_saved_rect_slot(vga_page_t page_src, vga_page_t pa
     struct rect_list_entry **empty;
     int16_t left;
 
-    for (slot = &MACHINE_RECT_SLOTS.slot[0], empty = NULL, left = 0x14; left != 0;
+    for (slot = &g_machine_rect_slots.slot[0], empty = NULL, left = 0x14; left != 0;
          slot++, left--)
         if ((rec = *slot) != 0) {
             if (rec->refcount == refcount
@@ -538,8 +538,8 @@ void restore_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refc
     if (slot == NULL)
         return;
     if ((rec = (*slot)) != NULL) {
-        VMDS.page_src = rec->page_src;
-        VMDS.page_dst = rec->page_dst;
+        g_vmds.page_src = rec->page_src;
+        g_vmds.page_dst = rec->page_dst;
         while (rec != NULL) {
             x = rec->x << 3;
             rw = rec->w << 3;
@@ -550,8 +550,8 @@ void restore_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refc
             last = rec;
             rec = rec->next;
         }
-        last->next = MACHINE_RECT_FREE.rect_free;
-        MACHINE_RECT_FREE.rect_free = *slot;
+        last->next = g_machine_rect_free.rect_free;
+        g_machine_rect_free.rect_free = *slot;
         *slot = 0;
     }
 }
@@ -578,8 +578,8 @@ void free_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcoun
         for (rec = *slot; rec->next != 0;
              rec = rec->next)
             ;
-        rec->next = MACHINE_RECT_FREE.rect_free;
-        MACHINE_RECT_FREE.rect_free = *slot;
+        rec->next = g_machine_rect_free.rect_free;
+        g_machine_rect_free.rect_free = *slot;
         *slot = 0;
     }
 }

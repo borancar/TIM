@@ -6,8 +6,8 @@
  *
  * **The video driver's interface**: four jumps through the driver's vectors,
  * `restore_write_mode` and a one-`retf` routine in code, and in data
- * `VMDS`, the drawing state the driver and the game share, `VM_DRIVER`, the
- * driver's vector table, and `VM_HOOKS`, the game's services it is handed -
+ * `g_vmds`, the drawing state the driver and the game share, `g_vm_driver`, the
+ * driver's vector table, and `g_vm_hooks`, the game's services it is handed -
  * file I/O, the heap, strings - as far pointers the loader relocates.
  *
  * One module of the original's **code segment 1c25**, image
@@ -20,7 +20,7 @@
  * 2026-09-28; the name is ours.
  *
  * TASM source, the `#ifdef __TURBOC__` block below, with the host's
- * transcription in the `#else`. `VMDS` is the image's bytes - the host's
+ * transcription in the `#else`. `g_vmds` is the image's bytes - the host's
  * `struct vmds` names its fields.
  *
  * JUDGE: built-with -mm
@@ -56,8 +56,8 @@ extrn _strcat_far:far
 extrn _strcpy_far:far
 extrn _strchr_far:far
 _DATA segment para public 'DATA'
-public _VMDS, _VM_DRIVER, _VM_HOOKS
-_VMDS label byte
+public _g_vmds, _g_vm_driver, _g_vm_hooks
+_g_vmds label byte
         db 6 dup (0)
         db 03fh, 001h
         db 2 dup (0)
@@ -67,11 +67,11 @@ _VMDS label byte
         db 1757 dup (0)
         db 040h, 001h, 0c8h
         db 965 dup (0)
-_VM_DRIVER label byte
+_g_vm_driver label byte
         dw 0
         dw 1
         dd 50 dup (_vm_null_hook)
-_VM_HOOKS label byte
+_g_vm_hooks label byte
         dd _vm_null_hook
         dd _dos_alloc_bytes
         dd _dos_free_far
@@ -101,27 +101,27 @@ public _restore_write_mode, _vm_null_hook
 
 /* 0x1e93c */
 _vm_call_4_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+10h
+        jmp dword ptr DGROUP:_g_vm_driver+10h
 _vm_call_4_thunk endp
 
 /* 0x1e940 */
 _blit_bitmap_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+78h
+        jmp dword ptr DGROUP:_g_vm_driver+78h
 _blit_bitmap_thunk endp
 
 /* 0x1e944 */
 _blit_scaled_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+88h
+        jmp dword ptr DGROUP:_g_vm_driver+88h
 _blit_scaled_thunk endp
 
 /* 0x1e948 */
 _vm_call_38_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+98h
+        jmp dword ptr DGROUP:_g_vm_driver+98h
 _vm_call_38_thunk endp
 
 /* 0x1e94c */
 _restore_write_mode proc far
-        cmp byte ptr DGROUP:_VMDS+21h, 10h
+        cmp byte ptr DGROUP:_g_vmds+21h, 10h
         jne L1e965
         mov ax, 205h
         mov dx, 3ceh
@@ -148,14 +148,14 @@ VMIFACE_TEXT ends
  * call table - every slot `vm_null_hook` until `vm_init` fills it - and the
  * table of the game's routines the driver is handed, the `dd` list above.
  */
-struct vmds VMDS = {
+struct vmds g_vmds = {
     .clip_right = 0x013f,
     .clip_bottom = 0x00c7,
     .fill_enabled = 0x01,
     .screen = { .screen_width = 0x0140, .screen_height = 0x00c8 },
 };
 
-struct vm_driver VM_DRIVER = {   /* DGROUP 0x4342 */
+struct vm_driver g_vm_driver = {   /* DGROUP 0x4342 */
     .detect_allowed = 0x0001,
     .entry = {
         vm_null_hook,
@@ -211,7 +211,7 @@ struct vm_driver VM_DRIVER = {   /* DGROUP 0x4342 */
     },
 };
 
-struct vm_hooks VM_HOOKS = {   /* DGROUP 0x440e */
+struct vm_hooks g_vm_hooks = {   /* DGROUP 0x440e */
     vm_null_hook,
     {
         (void (*)(void))dos_alloc_bytes,
@@ -296,7 +296,7 @@ void vm_call_38_thunk(void)
  */
 void restore_write_mode(void)
 {
-    if (VMDS.adapter != 0x10)
+    if (g_vmds.adapter != 0x10)
         return;
 
     io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
@@ -308,7 +308,7 @@ void restore_write_mode(void)
  * 0x1e966
  *
  * **A far routine that does nothing**, one `retf` - the entry every one of
- * `VM_DRIVER.entry`'s fifty slots and `VM_HOOKS.ptr_440e` hold until the driver
+ * `g_vm_driver.entry`'s fifty slots and `g_vm_hooks.ptr_440e` hold until the driver
  * fills them. The name is ours. NOT TRANSCRIBED YET for the host: nothing
  * calls a slot before `vm_init` has filled it. A stub, which aborts.
  */

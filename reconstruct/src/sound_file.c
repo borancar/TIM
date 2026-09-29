@@ -26,7 +26,7 @@
  * sound. The record is described in dgroup.h. Three fields start non-zero:
  * `voice_word` at -4, `bank_choice` at 1 and `device` at -2.
  */
-struct sound_bank SOUND_BANK = {
+struct sound_bank g_sound_bank = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 1, -2,
 };
 
@@ -38,7 +38,7 @@ struct sound_bank SOUND_BANK = {
  * literals, which Borland would have put after them. So they are this
  * module's, defined after the record. What they were for is not known.
  */
-struct dg_4ab0 DG4AB0 = { 0xfffe, 0x2b11 };
+struct dg_4ab0 g_dg4ab0 = { 0xfffe, 0x2b11 };
 
 /*
  * 0x296b4
@@ -75,50 +75,50 @@ FILE *open_sound_file(char *name, int16_t id)
     int16_t si;
 
     /* A handle, or a name to open. */
-    if (id != 0 && (FILE *)name == SOUND_BANK.file && SOUND_BANK.file != 0)
+    if (id != 0 && (FILE *)name == g_sound_bank.file && g_sound_bank.file != 0)
         goto search;
 
-    if (SOUND_BANK.file != (FILE *)name && SOUND_BANK.file_kind != 0) {
-        close_file_record(SOUND_BANK.file);
-        SOUND_BANK.file = 0;
-        SOUND_BANK.file_kind = 0;
+    if (g_sound_bank.file != (FILE *)name && g_sound_bank.file_kind != 0) {
+        close_file_record(g_sound_bank.file);
+        g_sound_bank.file = 0;
+        g_sound_bank.file_kind = 0;
     }
 
     if (file_record_valid((FILE *)name) != 0) {
-        SOUND_BANK.file = (FILE *)name;
+        g_sound_bank.file = (FILE *)name;
     } else {
-        if ((SOUND_BANK.file = open_file_record(name)) == 0)
+        if ((g_sound_bank.file = open_file_record(name)) == 0)
             goto fail;
-        SOUND_BANK.file_kind = 1;
+        g_sound_bank.file_kind = 1;
     }
 
     remove_and_free_records(0);
 
-    game_fseek(SOUND_BANK.file, 0xcL, 0);
-    if (game_fread((uint8_t *)&size, 4, 1, SOUND_BANK.file) != 1)
+    game_fseek(g_sound_bank.file, 0xcL, 0);
+    if (game_fread((uint8_t *)&size, 4, 1, g_sound_bank.file) != 1)
         goto fail;
 
-    if (SOUND_BANK.directory != 0)
-        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
+    if (g_sound_bank.directory != 0)
+        free_for_kind((uint8_t far *)g_sound_bank.directory, 0xa);
 
     /* The file's own directory image goes after the cursor, over `magic`
        onwards. */
-    if ((SOUND_BANK.directory = (struct sound_dir far *)alloc_for_kind(size + 4, 0xa))
+    if ((g_sound_bank.directory = (struct sound_dir far *)alloc_for_kind(size + 4, 0xa))
         == 0)
         goto fail;
-    if (fread_huge((uint8_t far *)&SOUND_BANK.directory->magic, size, 1L, SOUND_BANK.file)
+    if (fread_huge((uint8_t far *)&g_sound_bank.directory->magic, size, 1L, g_sound_bank.file)
         != 1L)
         goto fail;
-    if (SOUND_BANK.directory->magic != 2)
+    if (g_sound_bank.directory->magic != 2)
         goto fail;
 
-    SOUND_BANK.directory->cursor = SOUND_BANK.directory->entry;
+    g_sound_bank.directory->cursor = g_sound_bank.directory->entry;
 
 search:
     if (id > 0 && next_matching_record(id) != NULL)
-        return SOUND_BANK.file;
+        return g_sound_bank.file;
 
-    cur = SOUND_BANK.directory->cursor;
+    cur = g_sound_bank.directory->cursor;
 
     if (id > 0) {
 #ifndef __TURBOC__
@@ -127,44 +127,44 @@ search:
            the zero the test is written for. Ours. */
         found = 0;
 #endif
-        for (si = 0; SOUND_BANK.directory->count > si; si++, cur++) {
+        for (si = 0; g_sound_bank.directory->count > si; si++, cur++) {
             if (cur->id == id) {
                 found = cur->at;
                 break;
             }
         }
 
-        if (game_fseek(SOUND_BANK.file, found + 4, 0) != 0)
+        if (game_fseek(g_sound_bank.file, found + 4, 0) != 0)
             goto fail;
         if (found == 0)
             goto fail;
 
-        if (read_record(SOUND_BANK.file, SOUND_BANK.directory->kind) == 0)
+        if (read_record(g_sound_bank.file, g_sound_bank.directory->kind) == 0)
             return 0;
         goto done;
     }
 
-    for (si = 0; SOUND_BANK.directory->count > si; si++, cur++) {
-        if (game_fseek(SOUND_BANK.file, cur->at + 4, 0) != 0)
+    for (si = 0; g_sound_bank.directory->count > si; si++, cur++) {
+        if (game_fseek(g_sound_bank.file, cur->at + 4, 0) != 0)
             goto fail;
-        if (read_record(SOUND_BANK.file, SOUND_BANK.directory->kind) == 0)
+        if (read_record(g_sound_bank.file, g_sound_bank.directory->kind) == 0)
             goto fail;
     }
 
 done:
-    return SOUND_BANK.file;
+    return g_sound_bank.file;
 
 fail:
-    if (SOUND_BANK.file != 0 && SOUND_BANK.file_kind != 0)
-        close_file_record(SOUND_BANK.file);
+    if (g_sound_bank.file != 0 && g_sound_bank.file_kind != 0)
+        close_file_record(g_sound_bank.file);
 
-    if (SOUND_BANK.directory != 0)
-        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
+    if (g_sound_bank.directory != 0)
+        free_for_kind((uint8_t far *)g_sound_bank.directory, 0xa);
 
     remove_and_free_records(0);
 
-    SOUND_BANK.file = 0;
-    SOUND_BANK.directory = 0;
+    g_sound_bank.file = 0;
+    g_sound_bank.directory = 0;
     return 0;
 }
 
@@ -207,13 +207,13 @@ struct sound_record far *next_matching_record(int16_t selector)
     int16_t mask = 1;
 
     if (selector != -3) {
-        SOUND_TICK_WAIT.selector = selector;
-        SOUND_TICK_WAIT.cursor = SOUND_BANK.records;
-    } else if (SOUND_TICK_WAIT.cursor != NULL) {
-        SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
+        g_sound_tick_wait.selector = selector;
+        g_sound_tick_wait.cursor = g_sound_bank.records;
+    } else if (g_sound_tick_wait.cursor != NULL) {
+        g_sound_tick_wait.cursor = g_sound_tick_wait.cursor->next;
     }
 
-    switch (SOUND_TICK_WAIT.selector) {
+    switch (g_sound_tick_wait.selector) {
     case 0:
         mask = 0;
         /* falls through */
@@ -221,25 +221,25 @@ struct sound_record far *next_matching_record(int16_t selector)
         expect = 1;
         /* falls through */
     case -1:
-        while (SOUND_TICK_WAIT.cursor != NULL) {
-            if (((SOUND_TICK_WAIT.cursor->flags & mask) ^ expect) != 0)
-                return SOUND_TICK_WAIT.cursor;
-            SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
+        while (g_sound_tick_wait.cursor != NULL) {
+            if (((g_sound_tick_wait.cursor->flags & mask) ^ expect) != 0)
+                return g_sound_tick_wait.cursor;
+            g_sound_tick_wait.cursor = g_sound_tick_wait.cursor->next;
         }
         break;
 
     default:
         /* Match on the identifier. */
-        if (SOUND_TICK_WAIT.cursor != NULL && selector != -3) {
-            while (SOUND_TICK_WAIT.cursor != NULL
-                   && SOUND_TICK_WAIT.cursor->id != selector)
-                SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
+        if (g_sound_tick_wait.cursor != NULL && selector != -3) {
+            while (g_sound_tick_wait.cursor != NULL
+                   && g_sound_tick_wait.cursor->id != selector)
+                g_sound_tick_wait.cursor = g_sound_tick_wait.cursor->next;
         } else {
-            SOUND_TICK_WAIT.cursor = 0;
+            g_sound_tick_wait.cursor = 0;
         }
     }
 
-    return SOUND_TICK_WAIT.cursor;
+    return g_sound_tick_wait.cursor;
 }
 
 /*
@@ -276,7 +276,7 @@ uint16_t start_sequence_by_id(int16_t id)
     struct sound_record far *rec;
     struct sound_record far *other;
 
-    for (rec = SOUND_BANK.records; rec != NULL && rec->id != id;
+    for (rec = g_sound_bank.records; rec != NULL && rec->id != id;
          rec = rec->next)
         ;
 
@@ -288,14 +288,14 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((rec->flags & 1) != 0) {
-        for (other = SOUND_BANK.records; other != NULL;
+        for (other = g_sound_bank.records; other != NULL;
              other = other->next) {
             if ((other->flags & 1) != 0 && other->sequence != NULL
                 && other->id != id)
                 stop_sequences(other->id);
         }
 
-        if (SOUND_BANK.voice_word == 0 || SOUND_BANK.voice_word == -1) {
+        if (g_sound_bank.voice_word == 0 || g_sound_bank.voice_word == -1) {
             rec->flags |= 0x10;
             return 1;
         }
@@ -309,7 +309,7 @@ uint16_t start_sequence_by_id(int16_t id)
         }
     } else {
         if (voice_playing(rec->data) == NULL) {
-            if (SOUND_BANK.voice_word == 0 || SOUND_BANK.voice_word == -2) {
+            if (g_sound_bank.voice_word == 0 || g_sound_bank.voice_word == -2) {
                 if ((rec->flags & 2) != 0) {
                     rec->flags |= 0x10;
                     return 1;
@@ -355,7 +355,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (SOUND_BANK.driver != NULL || SOUND_BANK.module != NULL)
+    if (g_sound_bank.driver != NULL || g_sound_bank.module != NULL)
         return 1;
 
     if (device == -1) {
@@ -364,16 +364,16 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (setup_sound_device(device, module_index, callback, handle) != 0) {
-        if (si != 0 && !(int8_t)TIMER.installed) {
+        if (si != 0 && !(int8_t)g_timer.installed) {
             timer_install(0xd);
-            SOUND_BANK.timer_taken = 1;
+            g_sound_bank.timer_taken = 1;
         }
 
         if ((si != 0
-             && (SOUND_BANK.tick_handle = (int16_t)timer_add_callback(sound_service, 4)) != 0)
+             && (g_sound_bank.tick_handle = (int16_t)timer_add_callback(sound_service, 4)) != 0)
             || si == 0) {
-            if (si != 0 && SOUND_BANK.module != NULL)
-                SOUND_BANK.module_handle =
+            if (si != 0 && g_sound_bank.module != NULL)
+                g_sound_bank.module_handle =
                     (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
 
             alloc_voice_records();
@@ -401,31 +401,31 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (SOUND_BANK.driver == NULL
-        && SOUND_BANK.module == NULL)
+    if (g_sound_bank.driver == NULL
+        && g_sound_bank.module == NULL)
         return;
 
     remove_and_free_records(0);
 
-    if (SOUND_BANK.directory != 0)
-        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
+    if (g_sound_bank.directory != 0)
+        free_for_kind((uint8_t far *)g_sound_bank.directory, 0xa);
 
-    if (SOUND_BANK.file != 0 && SOUND_BANK.file_kind != 0)
-        close_file_record(SOUND_BANK.file);
+    if (g_sound_bank.file != 0 && g_sound_bank.file_kind != 0)
+        close_file_record(g_sound_bank.file);
 
-    if (((int16_t)SOUND_BANK.tick_handle) != 0) {
-        timer_drop_callback(SOUND_BANK.tick_handle);
-        SOUND_BANK.tick_handle = 0;
+    if (((int16_t)g_sound_bank.tick_handle) != 0) {
+        timer_drop_callback(g_sound_bank.tick_handle);
+        g_sound_bank.tick_handle = 0;
     }
 
-    if (((int16_t)SOUND_BANK.module_handle) != 0) {
-        timer_drop_callback(SOUND_BANK.module_handle);
-        SOUND_BANK.module_handle = 0;
+    if (((int16_t)g_sound_bank.module_handle) != 0) {
+        timer_drop_callback(g_sound_bank.module_handle);
+        g_sound_bank.module_handle = 0;
     }
 
-    if (((int16_t)SOUND_BANK.timer_taken) != 0) {
+    if (((int16_t)g_sound_bank.timer_taken) != 0) {
         timer_remove();
-        SOUND_BANK.timer_taken = 0;
+        g_sound_bank.timer_taken = 0;
     }
 
     free_voice_records();
@@ -493,7 +493,7 @@ uint16_t read_record(FILE *file, uint8_t mode)
             free_for_kind((uint8_t far *)rec, 3);
             return 0;
         }
-    } else if (SOUND_BANK.bank_choice != 0) {
+    } else if (g_sound_bank.bank_choice != 0) {
         if ((rec->data = load_sound_bank(file, len, (uint8_t *)&out, kind))
             == NULL) {
             free_for_kind((uint8_t far *)rec, 3);
@@ -507,9 +507,9 @@ uint16_t read_record(FILE *file, uint8_t mode)
         }
     }
 
-    rec->next = SOUND_BANK.records;
+    rec->next = g_sound_bank.records;
     rec->size = (uint16_t)out;
-    SOUND_BANK.records = rec;
+    g_sound_bank.records = rec;
     return 1;
 }
 
@@ -555,7 +555,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
         far_memset(blk, 0, size);
 
     if (blk == NULL)
-        SOUND_BANK.load_error = 1;
+        g_sound_bank.load_error = 1;
 
     return blk;
 }

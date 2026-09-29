@@ -24,7 +24,7 @@
  * `_DATA`. Not only a constant: `load_sound_module` builds the name in
  * place, writing the three digits at +4, +5 and +6 over "000".
  */
-char SOUND_MODULE_NAME[] = "SSM:000:";
+char g_sound_module_name[] = "SSM:000:";
 
 /*
  * 0x28580
@@ -51,16 +51,16 @@ uint16_t load_sound_module(FILE *handle, const int16_t *number, uint16_t index)
     int16_t ok = 1;
 
     if (*number != 0xff) {
-        char *name = SOUND_MODULE_NAME;
+        char *name = g_sound_module_name;
 
-        SOUND_MODULE_NAME[4] = (char)(*number / 100 + '0');
-        SOUND_MODULE_NAME[5] = (char)(*number / 10 % 10 + '0');
-        SOUND_MODULE_NAME[6] = (char)(*number % 10 + '0');
+        g_sound_module_name[4] = (char)(*number / 100 + '0');
+        g_sound_module_name[5] = (char)(*number / 10 % 10 + '0');
+        g_sound_module_name[6] = (char)(*number % 10 + '0');
 
-        if (SOUND_BANK.config != NULL)
-            free_for_kind(SOUND_BANK.config, 1);
+        if (g_sound_bank.config != NULL)
+            free_for_kind(g_sound_bank.config, 1);
 
-        if ((SOUND_BANK.config = load_named_chunk((char *)handle, name, index))
+        if ((g_sound_bank.config = load_named_chunk((char *)handle, name, index))
             == NULL)
             ok = 0;
     }
@@ -68,13 +68,13 @@ uint16_t load_sound_module(FILE *handle, const int16_t *number, uint16_t index)
     /* With no module named, `config` is still null here, and the original
        reads the driver's configuration out of the vector table. */
     if (ok != 0
-        && configure_driver_far(advance_record(ZERO_PAGE(SOUND_BANK.config)))
+        && configure_driver_far(advance_record(ZERO_PAGE(g_sound_bank.config)))
            == 0xffff)
         ok = 0;
 
-    if (SOUND_BANK.config != NULL) {
-        free_for_kind(SOUND_BANK.config, 1);
-        SOUND_BANK.config = 0;
+    if (g_sound_bank.config != NULL) {
+        free_for_kind(g_sound_bank.config, 1);
+        g_sound_bank.config = 0;
     }
 
     return (uint16_t)ok;

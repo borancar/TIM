@@ -53,14 +53,14 @@
  * spaces at +4 first, so the path is eight when it is walked and the fifth
  * space is the room that NUL needs.
  */
-char SOUND_CHUNK_NAME[] = "SSM:     ";
+char g_sound_chunk_name[] = "SSM:     ";
 
 /*
  * **The device tags**, DGROUP 0x4a1c..0x4a2e, indexed by the device byte of
  * RESOURCE.CFG. The tags themselves are the module's literal pool, from
  * 0x4a38 to 0x4a7e, after the two tables.
  */
-char *SOUND_DEVICE_TAGS[9] = {
+char *g_sound_device_tags[9] = {
     "STD:", "TAN:", "ADL:", "M32:", "SBP:", "PS1:", "PRO:", "GMD:", "NLD:",
 };
 
@@ -68,7 +68,7 @@ char *SOUND_DEVICE_TAGS[9] = {
  * **The sound module tags**, DGROUP 0x4a2e..0x4a38, indexed by the module
  * byte of RESOURCE.CFG.
  */
-char *SOUND_MODULE_TAGS[5] = {
+char *g_sound_module_tags[5] = {
     "ASB:", "APS:", "ATD:", "APA:", "ADS:",
 };
 
@@ -116,13 +116,13 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     int16_t failed = 0;
 
     if (module_index != -2) {
-        strcpy_far(SOUND_CHUNK_NAME + 4,
-                        SOUND_MODULE_TAGS[module_index]);
+        strcpy_far(g_sound_chunk_name + 4,
+                        g_sound_module_tags[module_index]);
 
-        if ((SOUND_BANK.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+        if ((g_sound_bank.module = load_named_chunk((char *)handle, g_sound_chunk_name, 0))
             != NULL) {
-            SOUND_BANK.module_live = 1;
-            set_sound_callback(SOUND_BANK.module);
+            g_sound_bank.module_live = 1;
+            set_sound_callback(g_sound_bank.module);
 
             /*
              * **And then on to the driver, whatever this answers.** A
@@ -135,10 +135,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
              * two tables.
              */
             if (sound_module_install(callback, 1) == 0) {
-                SOUND_BANK.module_live = 0;
+                g_sound_bank.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(SOUND_BANK.module, 1);
-                SOUND_BANK.module = 0;
+                free_for_kind(g_sound_bank.module, 1);
+                g_sound_bank.module = 0;
                 module_index = -2;
                 failed = 1;
             }
@@ -149,16 +149,16 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     }
 
     if (device != -2) {
-        strcpy_far(SOUND_CHUNK_NAME + 4,
-                        SOUND_DEVICE_TAGS[device]);
+        strcpy_far(g_sound_chunk_name + 4,
+                        g_sound_device_tags[device]);
 
-        if ((SOUND_BANK.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+        if ((g_sound_bank.driver = load_named_chunk((char *)handle, g_sound_chunk_name, 0))
             != NULL) {
-            SOUND_BANK.driver_number = (uint8_t)install_driver_far(SOUND_BANK.driver);
+            g_sound_bank.driver_number = (uint8_t)install_driver_far(g_sound_bank.driver);
 
-            if (load_sound_module(handle, &SOUND_BANK.driver_number, 0) == 0) {
-                free_for_kind(SOUND_BANK.driver, 1);
-                SOUND_BANK.driver = 0;
+            if (load_sound_module(handle, &g_sound_bank.driver_number, 0) == 0) {
+                free_for_kind(g_sound_bank.driver, 1);
+                g_sound_bank.driver = 0;
                 failed = 1;
             }
         } else {
@@ -168,7 +168,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         device = device == 8 ? 3 : device;
     }
 
-    SOUND_BANK.device = device;
+    g_sound_bank.device = device;
     return !failed;
 }
 

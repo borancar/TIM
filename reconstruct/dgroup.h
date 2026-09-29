@@ -70,8 +70,8 @@ void port_abort(const char *msg);
  * original suspends the game rather than running beside it. What `volatile`
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
- * spins on a word the timer thread writes - `TIMER.frame_budget`,
- * `g_frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three words are
+ * spins on a word the timer thread writes - `g_timer.frame_budget`,
+ * `g_frame_flag` and `g_sound_tick_wait.ticks_left` - so those three words are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -228,7 +228,7 @@ extern uint8_t g_interrupt_table[0x400];
 /*
  * **The screen the driver reported**, at DGROUP 0x3f78 - which is the driver
  * block's own **+0x6e8**, so this struct and `struct vmds` describe the
- * same six bytes, `VMDS.screen`: the mode, and the extent drawing is cut
+ * same six bytes, `g_vmds.screen`: the mode, and the extent drawing is cut
  * back to.
  */
 struct vm_screen {
@@ -279,7 +279,7 @@ struct vm_palettes {
 } PACKED;
 
 /*
- * **The video driver's data**, VMDS, at DGROUP 0x3890: the driver's own state,
+ * **The video driver's data**, g_vmds, at DGROUP 0x3890: the driver's own state,
  * which the game reads and writes through the fields below.
  */
 struct vmds {
@@ -339,7 +339,7 @@ struct vmds {
      * +0x34  **a bitmap font's four header bytes**, one table per font slot,
      * 0x14 apart; slot 0 is the selected font's. The loader reads them in
      * this order and hands their *addresses* to `game_fread` -
-     * `&VMDS.font_cell_width[si]`, which the original wrote as `0x38c4 + si`.
+     * `&g_vmds.font_cell_width[si]`, which the original wrote as `0x38c4 + si`.
      * The width is in pixels, and 0xfe instead says the bytes per row follow;
      * a character's glyph is `c - font_first_char`, and one past
      * `font_char_count` is not drawn. `vm_init` gives the BIOS font 8, 8, 0
@@ -354,9 +354,9 @@ struct vmds {
      * +0xac  the polygon clipper's four arrays, 0x28 bytes and so twenty
      * entries each. `clip_polygon` runs Sutherland and Hodgman's in two
      * passes: left and right out of `poly` into `work`, then top and bottom
-     * back again, with `VMDS.palettes.clip_count` rewritten after each. The callers
+     * back again, with `g_vmds.palettes.clip_count` rewritten after each. The callers
      * hand the arrays' *addresses* to `poly_outline` and `poly_fill`, which
-     * take DGROUP offsets, so those sites read `VMDS.poly_x`.
+     * take DGROUP offsets, so those sites read `g_vmds.poly_x`.
      */
     int16_t   poly_x[20];                   /* +0xac   DGROUP 0x393c */
     int16_t   poly_y[20];                   /* +0xd4   DGROUP 0x3964 */
@@ -395,7 +395,7 @@ struct vmds {
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } PACKED;
 
-extern struct vmds VMDS;
+extern struct vmds g_vmds;
 
 /*
  * **The six drawing layers**, at DGROUP 0x50bf: a list head apiece, each a
@@ -535,7 +535,7 @@ struct pointer {
     int16_t   pointer_y;          /* +0x1a  regions_handle_pointer tests a record's +8 and +0x0c */
     int16_t   pointer_x;          /* +0x1c  against these, and its +6 and +0x0a against x */
     /* **How far the palette should be faded** towards the colour, the weight
-       `fade_palette_run` takes; `MACHINE_PALETTE_FADE.fade_mark` is how far it
+       `fade_palette_run` takes; `g_machine_palette_fade.fade_mark` is how far it
        has been, and `redraw_cursor_all` runs a fade whenever the two differ.
        Nothing in the image writes it - four references, all reads - so it
        holds what the image put there and the fade the two would drive never
@@ -543,7 +543,7 @@ struct pointer {
     uint16_t  fade_weight;     /* +0x1e */
 } PACKED;
 
-extern struct pointer POINTER;
+extern struct pointer g_pointer;
 
 /*
  * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.
@@ -606,7 +606,7 @@ struct collision {
     int16_t   travel_angle;       /* +0x2a */
 } PACKED;
 
-extern struct collision COLLISION;
+extern struct collision g_collision;
 
 /*
  * **One entry of the table `bank` points at**: two bytes per index -
@@ -668,7 +668,7 @@ struct sound_bank {
     int16_t   device;             /* +0x2c  the device number; 8 is recorded as 3 */
 } PACKED;
 
-extern struct sound_bank SOUND_BANK;
+extern struct sound_bank g_sound_bank;
 
 /*
  * **The rubber-band line and the machine's sound requests**, at DGROUP 0x52bd.
@@ -802,7 +802,7 @@ struct level_settings {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct level_settings LEVEL_SETTINGS;
+extern struct level_settings g_level_settings;
 #endif
 
 /*
@@ -838,17 +838,17 @@ struct timer {
     } tick[16];                   /* +0x4b  0x4539 */
 } PACKED;
 
-extern struct timer TIMER;
+extern struct timer g_timer;
 
 /*
  * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b6, 0x10 bytes - a pointer into
  * the caller's own string for each line `wrap_text_to_box` decided on, and
- * `GAME_PICKER_TEXT.line_count` of them, with one more where the last ends.
+ * `g_game_picker_text.line_count` of them, with one more where the last ends.
  *
  * Eight words. The wrapper caps the box at seven line heights and adds a
  * line only while one more fits, so at most seven start inside it, and the
  * entry past the last is index seven at most. The word after, 0x56b6, is
- * `MACHINE_RECT_COUNT`, which `rect_pool_count` reads - not a ninth line.
+ * `g_machine_rect_count`, which `rect_pool_count` reads - not a ninth line.
  */
 extern char *g_text_line[8];
 
@@ -945,7 +945,7 @@ struct pal_chunk_names {
     /* "PAL:AMG:" at 0x44c6 is `load_palette`'s literal, in the module's pool. */
 } PACKED;
 
-extern struct pal_chunk_names PALCHUNK;
+extern struct pal_chunk_names g_palchunk;
 
 /* The four-character tags the two buffers above are completed from. The
    tables hold offsets rather than the tags themselves, which is why these
@@ -1281,7 +1281,7 @@ struct held_parts {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct held_parts HELD_PARTS;
+extern struct held_parts g_held_parts;
 #endif
 
 /*
@@ -1310,21 +1310,21 @@ struct level_io {
     uint16_t  error;              /* +0x0c  every writer checks it, and a file that fails to close is deleted */
 } PACKED;
 
-extern struct level_io LEVEL_IO;
+extern struct level_io g_level_io;
 
-/* The block `LEVEL_IO.table` points at, as the far array of near pointers it is:
+/* The block `g_level_io.table` points at, as the far array of near pointers it is:
    one a part, indexed by part number, `n * 4` bytes allocated for `n`. */
 struct part_table {
     struct part *part[FLEX];
 } PACKED;
-#define PART_TABLE ((struct part_table far *)LEVEL_IO.table)
+#define PART_TABLE ((struct part_table far *)g_level_io.table)
 
 /*
  * ---------------------------------------------------------------------------
  * **A game file**, the 0x12-byte record `game_fopen` hands back and every
  * `game_f*` routine takes. There are ten of them at DGROUP 0x55c3 and the
  * table's extent is settled from both ends: the eleven 0x1c-byte archive
- * records above it end at 0x55c3, and `CRITICAL_ERROR` begins exactly ten records
+ * records above it end at 0x55c3, and `g_critical_error` begins exactly ten records
  * later.
  *
  * A file the archive knows about is described by the four fields below and
@@ -1415,7 +1415,7 @@ struct vm_start {
     uint8_t far *driver;          /* +0x02  the video driver, as vm_init stored it */
 } PACKED;
 
-extern struct vm_start VM_START;
+extern struct vm_start g_vm_start;
 
 /* lowlevel.c's, host-only: the TASM module names its own. */
 #ifndef __TURBOC__
@@ -1476,7 +1476,7 @@ struct draw_step {
 
 /* **The one draw step `draw_part` builds itself**, at DGROUP 0x0124, for a
    part whose kind has no step table of its own. */
-extern struct draw_step DEFAULT_DRAW_STEP;
+extern struct draw_step g_default_draw_step;
 
 /*
  * **The game's message texts**, at DGROUP 0x1bcc: the two startup complaints
@@ -1560,7 +1560,7 @@ struct messages {
     char path_sep[2];                 /* +0x7a2 0x236e '\\' */
 } PACKED;
 
-extern struct messages MESSAGES;
+extern struct messages g_messages;
 
 
 /*
@@ -1581,7 +1581,7 @@ struct goal_tests {
     void (far *goal_test[110])(void); /* +0x06 */
 } PACKED;
 
-extern struct goal_tests GOAL_TESTS;
+extern struct goal_tests g_goal_tests;
 
 /*
  * **The span buffer and the driver's vectors**, at DGROUP 0x4342.
@@ -1612,7 +1612,7 @@ struct vm_driver {
     void (far *entry[50])(void);  /* +0x04 */
 } PACKED;
 
-extern struct vm_driver VM_DRIVER;
+extern struct vm_driver g_vm_driver;
 
 
 
@@ -1646,15 +1646,15 @@ struct machine_draw_menu_anim {
  * 0 to 3 and back, stepped once per `draw_part_selection` and turned into the
  * marching-ants offset.
  */
-extern struct game_message_tabs GAME_MESSAGE_TABS;
-extern struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM;
+extern struct game_message_tabs g_game_message_tabs;
+extern struct machine_draw_menu_anim g_machine_draw_menu_anim;
 extern uint16_t g_selection_phase;
 
 /*
- * **The driver's vector, as the code pointers its slots are.** `VM_DRIVER.entry`
+ * **The driver's vector, as the code pointers its slots are.** `g_vm_driver.entry`
  * is filled by `vm_init` with the entry points of the loaded driver, and the
  * game calls through a slot as a far function pointer - `lcall [0x437a]` is
- * slot 13, `((vm_list_size_fn)VM_DRIVER.entry[13])(...)`. The host fills the slots
+ * slot 13, `((vm_list_size_fn)g_vm_driver.entry[13])(...)`. The host fills the slots
  * with its own routine for each (`vm_vector_host`, hostio.c).
  */
 typedef uint32_t (far *vm_list_size_fn)(struct bitmap **list, uint8_t *out);
@@ -1811,12 +1811,12 @@ extern bmp_read_fn g_vqt_read_fn;
  *
  * The sound driver is a separate loaded block, and its address is not a
  * constant: the game holds a far pointer to it at the sound module's own
- * `cs:[0x1e7]`, `SNDS.driver`, and `SX8`/`SX16` and the driver records below
+ * `cs:[0x1e7]`, `g_snds.driver`, and `SX8`/`SX16` and the driver records below
  * read through that, so the port follows the loader wherever it puts the
  * driver.
  */
-#define SX8(off)    (*(uint8_t *)(SNDS.driver + (off)))
-#define SX16(off)   (*(int16_t *)(SNDS.driver + (off)))
+#define SX8(off)    (*(uint8_t *)(g_snds.driver + (off)))
+#define SX16(off)   (*(int16_t *)(g_snds.driver + (off)))
 
 /*
  * The **loaded sound module** is a second block, separate from the driver and
@@ -1831,15 +1831,15 @@ extern bmp_read_fn g_vqt_read_fn;
  */
 /* The module is a DOS block, so its offset is 0 and the normalised segment
    `FP_SEG` answers is the one the original holds. */
-#define ASB_SEG     FP_SEG(SOUND_BANK.module)
-#define ASB8(off)   (*(uint8_t *)(SOUND_BANK.module + (off)))
-#define ASB16(off)  (*(int16_t *)(SOUND_BANK.module + (off)))
-#define ASBU16(off) (*(uint16_t *)(SOUND_BANK.module + (off)))
+#define ASB_SEG     FP_SEG(g_sound_bank.module)
+#define ASB8(off)   (*(uint8_t *)(g_sound_bank.module + (off)))
+#define ASB16(off)  (*(int16_t *)(g_sound_bank.module + (off)))
+#define ASBU16(off) (*(uint16_t *)(g_sound_bank.module + (off)))
 
 /*
  * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
  * 0x1c bytes. Every loop over them is `i < 7`, and seven run exactly to
- * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
+ * `g_sound_tick_wait` at 0x6430. `alloc_voice_records` and `free_voice_records`
  * test the first one's two words to tell whether the seven are allocated.
  */
 extern struct sequence far *g_sound_voice[7];
@@ -1856,11 +1856,11 @@ struct sound_tick_wait {
     int16_t   selector;           /* +0x06 [2] */
 } PACKED;
 
-extern struct sound_tick_wait SOUND_TICK_WAIT;
+extern struct sound_tick_wait g_sound_tick_wait;
 
 /*
  * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
- * twenty slots `ENGINE_FONT_BODIES` holds: `load_font` writes 0 for a plain bitmap
+ * twenty slots `g_font_bodies` holds: `load_font` writes 0 for a plain bitmap
  * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
  * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
  * `kind[slot]` into it the way it copies `font_cell_width[slot]` into
@@ -1870,13 +1870,13 @@ struct engine_font_kinds {
     uint8_t   kind[0x14];         /* +0x00 [0x14] */
 } PACKED;
 
-extern struct engine_font_kinds ENGINE_FONT_KINDS;
+extern struct engine_font_kinds g_font_kinds;
 
 /*
  * **The font bodies, a far pointer per font slot**, DGROUP 0x618a..0x61da,
  * 0x50 bytes. Twenty: `set_font` looks for the selected font among slots 1 to
  * 0x13, `load_font` searches from slot 2 and stops at 0x14, and twenty run
- * exactly to `ENGINE_FONT_WIDTHS`.
+ * exactly to `g_font_widths`.
  *
  * Slot 0 is the selected font - `set_font` copies the chosen slot into it.
  * `vm_init` files the BIOS's answer to INT 10h AX=1130h into slots 0 and 1, and
@@ -1887,12 +1887,12 @@ struct engine_font_bodies {
     uint8_t far *body[0x14];    /* +0x00 [0x50] */
 } PACKED;
 
-extern struct engine_font_bodies ENGINE_FONT_BODIES;
+extern struct engine_font_bodies g_font_bodies;
 
 /*
  * **Each font slot's width table**, a far pointer per slot, DGROUP
- * 0x61da..0x622a, 0x50 bytes - indexed like `ENGINE_FONT_BODIES`, with slot 0 the
- * selected font's, and twenty running exactly to `ENGINE_FONT_SLOTS`. A null
+ * 0x61da..0x622a, 0x50 bytes - indexed like `g_font_bodies`, with slot 0 the
+ * selected font's, and twenty running exactly to `g_font_slots`. A null
  * one is a fixed-width font. `les bx,[0x61da]` loads the segment too, so a
  * width is a far read.
  */
@@ -1900,12 +1900,12 @@ struct engine_font_widths {
     uint8_t far *width[0x14];   /* +0x00 [0x50] */
 } PACKED;
 
-extern struct engine_font_widths ENGINE_FONT_WIDTHS;
+extern struct engine_font_widths g_font_widths;
 
 /*
  * **The third font slot table**, a far pointer per slot, DGROUP 0x622a..0x627a,
- * 0x50 bytes - indexed like `ENGINE_FONT_BODIES`, with slot 0 the selected font's,
- * and twenty running exactly to `ENGINE_UNDERLINE_ROWS`. It sits after the
+ * 0x50 bytes - indexed like `g_font_bodies`, with slot 0 the selected font's,
+ * and twenty running exactly to `g_underline_rows`. It sits after the
  * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
  * pointers into one block per font: the widths at its base, this one two
  * bytes per glyph on, and the body one byte per glyph after that. `load_font`
@@ -1918,7 +1918,7 @@ struct engine_font_slots {
     uint8_t far *slot[0x14];    /* +0x00 [0x50] */
 } PACKED;
 
-extern struct engine_font_slots ENGINE_FONT_SLOTS;
+extern struct engine_font_slots g_font_slots;
 
 /*
  * ---------------------------------------------------------------------------
@@ -1926,12 +1926,12 @@ extern struct engine_font_slots ENGINE_FONT_SLOTS;
  *
  * `load_font` reads a compressed font's header as single bytes into parallel
  * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
- * `VMDS.font_cell_width` and its three neighbours, and this one. Those four
- * are `uint8_t[0x14]`, and `ENGINE_SCALE_STEP` starts at 0x628e, so this is twenty slots
+ * `g_vmds.font_cell_width` and its three neighbours, and this one. Those four
+ * are `uint8_t[0x14]`, and `g_engine_scale_step` starts at 0x628e, so this is twenty slots
  * as well.
  *
  * What it holds is the row the underline is drawn on: `draw_char` tests
- * `VMDS.text_style & 8` and then this against the row it is about to draw,
+ * `g_vmds.text_style & 8` and then this against the row it is about to draw,
  * blanking that pixel. The name is a **reading** of that one use.
  *
  * Element 0 doubles as the current font's value - `select_font` copies the
@@ -1942,35 +1942,35 @@ struct engine_underline_rows {
     uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
 } PACKED;
 
-extern struct engine_underline_rows ENGINE_UNDERLINE_ROWS;
+extern struct engine_underline_rows g_underline_rows;
 
 /*
  * **The scaling table** `scale_table_delta` takes differences across,
  * DGROUP 0x5956..0x5e56, 0x500 bytes: an entry per destination column, and
  * `step_accumulate` writes one past the last. 640 entries run exactly to
- * `ENGINE_ROW_OFFSETS` at 0x5e56.
+ * `g_engine_row_offsets` at 0x5e56.
  */
 struct engine_scale_table {
     int16_t   entry[0x280];       /* +0x00 [0x500] */
 } PACKED;
 
-extern struct engine_scale_table ENGINE_SCALE_TABLE;
+extern struct engine_scale_table g_engine_scale_table;
 
 /*
  * **One word per output row of a scaled blit**, DGROUP 0x5e56..0x6176, 0x320
  * bytes - the source row's offset into its plane, as `blit_scaled_a` and
  * `blit_scaled_b` work it out from the scaling table. The original also reaches
  * it as `[bx+0x5e54]` with `bx` one entry higher, which is the same table one
- * word lower: `ENGINE_ROW_OFFSETS.row[n - 1]`.
+ * word lower: `g_engine_row_offsets.row[n - 1]`.
  *
- * 400 words is only the run to `ENGINE_FONT_KINDS` at 0x6176: no loop in the
+ * 400 words is only the run to `g_font_kinds` at 0x6176: no loop in the
  * port bounds it.
  */
 struct engine_row_offsets {
     uint16_t  row[0x190];         /* +0x00 [0x320] */
 } PACKED;
 
-extern struct engine_row_offsets ENGINE_ROW_OFFSETS;
+extern struct engine_row_offsets g_engine_row_offsets;
 
 /*
  * **The sound module's own code segment, which is where it keeps its state** -
@@ -2027,7 +2027,7 @@ struct snd_cs {
     uint8_t   scratch_mark;       /* +0x020c  0xff, set with the sixteen words at cs:0x108 */
 } PACKED;
 
-extern struct snd_cs SNDS;
+extern struct snd_cs g_snds;
 
 struct snd_cs_call {
     const uint8_t far *callback;  /* +0x30f6  the cell sound_callback calls
@@ -2035,7 +2035,7 @@ struct snd_cs_call {
     int16_t   answer;             /* +0x30fa  parked before the registers are popped and read back */
 } PACKED;
 
-extern struct snd_cs_call SNDCALL;
+extern struct snd_cs_call g_sndcall;
 
 /*
  * **The digitised-sound module's own code segment**
@@ -2164,7 +2164,7 @@ struct asb_cs {
     uint8_t   probe_irq10;     /* +0x07bd */
 } PACKED;
 
-#define ASBS (*(struct asb_cs *)SOUND_BANK.module)
+#define ASBS (*(struct asb_cs *)g_sound_bank.module)
 
 /*
  * **Segment 1c25, which keeps the displaced vectors inside its own code** -
@@ -2198,14 +2198,14 @@ struct s1c_huge_move {
     uint16_t  copy_off;           /* +0x5f9b  called once per block */
 } PACKED;
 
-extern struct s1c_timer    S1C_TIMER;
-extern struct s1c_keyboard S1C_KEYBOARD;
-extern struct s1c_huge_move    S1C_HUGE_MOVE;
+extern struct s1c_timer    g_s1c_timer;
+extern struct s1c_keyboard g_s1c_keyboard;
+extern struct s1c_huge_move    g_s1c_huge_move;
 
 /*
- * **The PC speaker driver**, laid over whatever `SNDS.driver` points at.
+ * **The PC speaker driver**, laid over whatever `g_snds.driver` points at.
  *
- * One struct per driver, and that is the point: `SNDS.driver` is whichever
+ * One struct per driver, and that is the point: `g_snds.driver` is whichever
  * chunk the loader put there, and the three have different layouts. A
  * single overlay would be right for one of them and quietly wrong for the
  * other two - they share only 0x188d, and that by coincidence.
@@ -2242,12 +2242,12 @@ struct sx_spkr {
     uint8_t   param_349;       /* +0x0349  function 11's byte: stored, never read here */
 } PACKED;
 
-#define SXSPKR (*(struct sx_spkr *)SNDS.driver)
+#define SXSPKR (*(struct sx_spkr *)g_snds.driver)
 
 /*
- * **The AdLib driver**, laid over whatever `SNDS.driver` points at.
+ * **The AdLib driver**, laid over whatever `g_snds.driver` points at.
  *
- * One struct per driver, and that is the point: `SNDS.driver` is whichever
+ * One struct per driver, and that is the point: `g_snds.driver` is whichever
  * chunk the loader put there, and the three have different layouts. A
  * single overlay would be right for one of them and quietly wrong for the
  * other two - they share only 0x188d, and that by coincidence.
@@ -2328,12 +2328,12 @@ struct sx_adl {
     int16_t   wave_select;     /* +0x188d */
 } PACKED;
 
-#define SXADL (*(struct sx_adl *)SNDS.driver)
+#define SXADL (*(struct sx_adl *)g_snds.driver)
 
 /*
- * **The Sound Blaster Pro driver**, laid over whatever `SNDS.driver` points at.
+ * **The Sound Blaster Pro driver**, laid over whatever `g_snds.driver` points at.
  *
- * One struct per driver, and that is the point: `SNDS.driver` is whichever
+ * One struct per driver, and that is the point: `g_snds.driver` is whichever
  * chunk the loader put there, and the three have different layouts. A
  * single overlay would be right for one of them and quietly wrong for the
  * other two - they share only 0x188d, and that by coincidence.
@@ -2394,7 +2394,7 @@ struct sx_sbp {
     int16_t   wave_select;     /* +0x1892 */
 } PACKED;
 
-#define SXSBP (*(struct sx_sbp *)SNDS.driver)
+#define SXSBP (*(struct sx_sbp *)g_snds.driver)
 
 /*
  * ---------------------------------------------------------------------------
@@ -2577,7 +2577,7 @@ struct bitmap {
 /*
  * ---------------------------------------------------------------------------
  * **The quadtree bit reader**, the record `decode_vqt_list` builds on its own
- * stack and files into `BITMAPS.walk` for `vqt_node`, `vqt_screen_node`
+ * stack and files into `g_bitmaps.walk` for `vqt_node`, `vqt_screen_node`
  * and `fill_quadrant` to fetch back out.
  *
  * `pos` is a bit position, stepped four at a time and read as one 32-bit
@@ -2625,7 +2625,7 @@ struct bitmaps_state {
                                      it; only ever cleared */
 };
 
-extern struct bitmaps_state BITMAPS;
+extern struct bitmaps_state g_bitmaps;
 
 /*
  * ---------------------------------------------------------------------------
@@ -2790,7 +2790,7 @@ struct sound_dir {
 /*
  * ---------------------------------------------------------------------------
  * **A sound record**, the 0x14 bytes of kind 3 `read_record` makes for each
- * entry of a sound file and puts on the front of the list at `SOUND_BANK.records`.
+ * entry of a sound file and puts on the front of the list at `g_sound_bank.records`.
  * It lives in a DOS block, not in DGROUP.
  *
  * The header's fields are what `read_record` reads into it - the identifier, a
@@ -3156,7 +3156,7 @@ struct part_kind {
  * Its contents are transcribed in dgroup.c, at that address.
  */
 #define PART_KIND_COUNT 58
-extern struct part_kind PART_KINDS[PART_KIND_COUNT];
+extern struct part_kind g_part_kinds[PART_KIND_COUNT];
 
 /*
  * ---------------------------------------------------------------------------
@@ -3181,8 +3181,8 @@ struct queue_node {
 /*
  * ---------------------------------------------------------------------------
  * **A saved-rectangle list entry**, 0x1a bytes, chained through +0x18 on one
- * of the twenty heads in `MACHINE_RECT_SLOTS.slot[]` and returned whole to
- * `MACHINE_RECT_FREE.rect_free`.
+ * of the twenty heads in `g_machine_rect_slots.slot[]` and returned whole to
+ * `g_machine_rect_free.rect_free`.
  *
  * **Its creator is dead code in the shipped binary.** The record is filled
  * at 0x0a0d7 - the arguments are the fields in order, `[bp+6..0xc]` into
@@ -3243,12 +3243,12 @@ struct part_template {
 
 /* The templates, one per kind, and the two words after them that nothing is
    known to read. */
-extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
+extern struct part_template g_part_templates[PART_KIND_COUNT];
 
 /*
  * ---------------------------------------------------------------------------
  * **A resource stream**, the 0x21-byte record `open_resource_slot` makes and
- * files in the table at DGROUP 0x57c0. `ENGINE_STREAM.rec` points at whichever
+ * files in the table at DGROUP 0x57c0. `g_engine_stream.rec` points at whichever
  * one is selected, and sixteen routines in engine.c read it through that.
  *
  * The size is `calloc_far(1, 0x21)` and the last field is the byte at
@@ -3265,7 +3265,7 @@ extern struct part_template PART_TEMPLATES[PART_KIND_COUNT];
  * +0x06 and +0x08 are a reading and are named as one. `open_resource` writes a
  * file handle into +0x06 alone, and `restart_resource_stream` hands the pair
  * to `huge_add(..., 5)` as if it were a far pointer - which is consistent,
- * because `ENGINE_STREAM.kind & 0x20` is the bit that chooses between reading the
+ * because `g_engine_stream.kind & 0x20` is the bit that chooses between reading the
  * stream from a file and reading it out of memory, and these two routines are
  * on opposite sides of it.
  *
@@ -3352,7 +3352,7 @@ struct engine_res_handlers {
     struct res_handler type[4];
 };
 
-extern struct engine_res_handlers ENGINE_RES_HANDLERS;
+extern struct engine_res_handlers g_engine_res_handlers;
 
 /*
  * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8.
@@ -3414,10 +3414,10 @@ struct engine_read_staging {
 
 /* resource.c's `_BSS`, mentioned from the highest address down - the order
    Borland lays it out in reverse of. */
-extern struct engine_stream ENGINE_STREAM;
-extern struct engine_resource_slots ENGINE_RESOURCE_SLOTS;
-extern struct engine_resource_flags ENGINE_RESOURCE_FLAGS;
-extern struct engine_read_staging ENGINE_READ_STAGING;
+extern struct engine_stream g_engine_stream;
+extern struct engine_resource_slots g_engine_resource_slots;
+extern struct engine_resource_flags g_engine_resource_flags;
+extern struct engine_read_staging g_engine_read_staging;
 
 /*
  * ---------------------------------------------------------------------------
@@ -3428,7 +3428,7 @@ extern struct engine_read_staging ENGINE_READ_STAGING;
  */
 
 /*
- * DGROUP 0x440e..0x4460: twenty far pointers after VM_DRIVER's, and two bytes.
+ * DGROUP 0x440e..0x4460: twenty far pointers after g_vm_driver's, and two bytes.
  * `vm_driver_init(0x3890, 0x4412, DGROUP_SEG)` hands the driver the table from
  * the second, so the last nineteen are the driver's; what the first is is not
  * known. Segment 1c25 and segment 0000 are both code.
@@ -3438,7 +3438,7 @@ struct vm_hooks {
     void (far *driver_table[19])(void); /* +0x04  0x4412 */
     /* 0x445e, the palette cycle count, is palette.c's. */
 } PACKED;
-extern struct vm_hooks VM_HOOKS;
+extern struct vm_hooks g_vm_hooks;
 
 /* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */
 extern void (far *g_compressed_body_vector)();   /* compbmp.c's: `draw_compressed_body`,
@@ -3453,7 +3453,7 @@ struct dg_4ab0 {
     uint16_t  _pad_4ab0;       /* +0x00 */
     uint16_t  _pad_4ab2;           /* +0x02 */
 } PACKED;
-extern struct dg_4ab0 DG4AB0;
+extern struct dg_4ab0 g_dg4ab0;
 
 /*
  * ---------------------------------------------------------------------------
@@ -3485,7 +3485,7 @@ struct game_directories {
     uint8_t   path_field[0x50];   /* +0xa0 [0x50]  unsigned: `pick_file` tests a byte of it zero-extended */
 } PACKED;
 #ifndef GAMEDATA_C
-extern struct game_directories GAME_DIRECTORIES;
+extern struct game_directories g_game_directories;
 #endif
 
 /*
@@ -3498,7 +3498,7 @@ extern uint16_t g_master_level_ok[7];
 
 /*
  * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
- * the backslash string, `MESSAGES.path_sep` at 0x236e, which the path builders
+ * the backslash string, `g_messages.path_sep` at 0x236e, which the path builders
  * concatenate.
  */
 extern char *g_path_separator;

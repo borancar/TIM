@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3422..0x3432. Connection points, 8 pairs.
  */
-struct point8 PUMPKIN_POINTS_3422[8] = {
+struct point8 g_pumpkin_points_3422[8] = {
     { 0x00, 0x0f }, { 0x09, 0x09 }, { 0x1d, 0x09 }, { 0x26, 0x12 },
     { 0x26, 0x16 }, { 0x1b, 0x20 }, { 0x0b, 0x20 }, { 0x00, 0x16 },
 };
@@ -34,7 +34,7 @@ void part_setup_pumpkin(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = PUMPKIN_POINTS_3422;
+    di = g_pumpkin_points_3422;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

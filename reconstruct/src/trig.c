@@ -1034,7 +1034,7 @@ TRIG_TEXT ends
  * image address; the routines that read it come earlier in the segment, and
  * this file is in address order.
  */
-static const int16_t COS_TABLE[0x801];
+static const int16_t g_cos_table[0x801];
 
 /*
  * 0x2a04a
@@ -1117,7 +1117,7 @@ int16_t angle_sin(uint16_t angle)
      * of cosine: cos(2pi - x) == cos(x). */
     if (i & 0x800)
         i = (uint16_t)(0x1000 - i);
-    return COS_TABLE[i];
+    return g_cos_table[i];
 }
 
 /*
@@ -1131,7 +1131,7 @@ int16_t angle_cos(uint16_t angle)
 
     if (i & 0x800)
         i = (uint16_t)(0x1000 - i);
-    return COS_TABLE[i];
+    return g_cos_table[i];
 }
 
 /*
@@ -1147,7 +1147,7 @@ int16_t angle_cos(uint16_t angle)
  * case down a separate path, so the last index it can produce is 511. Reading
  * one past the end here lands in code.
  */
-static const int16_t ARCTAN_TABLE[512] = {
+static const int16_t g_arctan_table[512] = {
         0,     1,     2,     3,     5,     6,     7,     8,
        10,    11,    12,    14,    15,    16,    17,    19,
        20,    21,    22,    24,    25,    26,    27,    29,
@@ -1231,12 +1231,12 @@ int16_t arctan_ratio(int16_t x, int16_t y)
 /*
  * 0x2a941
  *
- * Look up `ARCTAN_TABLE`, and nothing else. The caller has already reduced its
+ * Look up `g_arctan_table`, and nothing else. The caller has already reduced its
  * two magnitudes to a ratio in 0..511.
  */
 int16_t arctan_lookup(uint16_t index)
 {
-    return ARCTAN_TABLE[index];
+    return g_arctan_table[index];
 }
 
 /*
@@ -1248,7 +1248,7 @@ int16_t arctan_lookup(uint16_t index)
  * at 1/4096 of a turn per step, and the result is a signed fraction with 16384
  * standing for 1.
  */
-static const int16_t COS_TABLE[0x801] = {
+static const int16_t g_cos_table[0x801] = {
      16384,  16383,  16383,  16383,  16383,  16383,  16383,  16383,
      16382,  16382,  16382,  16381,  16381,  16380,  16380,  16379,
      16379,  16378,  16377,  16377,  16376,  16375,  16374,  16373,

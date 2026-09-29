@@ -68,9 +68,9 @@ _DATA ends
 
 extrn _clip_and_draw_line:far
 extrn _clip_polygon:far
-extrn _VM_DRIVER:byte
+extrn _g_vm_driver:byte
 extrn _g_compressed_body_vector:byte
-extrn _VMDS:byte
+extrn _g_vmds:byte
 POLYGON_TEXT segment byte public 'CODE'
 assume cs:POLYGON_TEXT, ds:DGROUP
 public _draw_polygon, _poly_outline, _poly_edge_vertical, _poly_edge_steep
@@ -92,36 +92,36 @@ _draw_polygon proc far
         mov ax, word ptr [bp+6]
         or ax, ax
         js L1ee1d
-        mov word ptr DGROUP:_VMDS+19ch, ax
+        mov word ptr DGROUP:_g_vmds+19ch, ax
         mov cx, ax
         mov si, word ptr [bp+8]
-        mov di, offset DGROUP:_VMDS+0ach
+        mov di, offset DGROUP:_g_vmds+0ach
         rep movsw
         mov cx, ax
         mov si, word ptr [bp+0ah]
-        mov di, offset DGROUP:_VMDS+0d4h
+        mov di, offset DGROUP:_g_vmds+0d4h
         rep movsw
 L1ee1d:
         cmp ax, 2
         jg L1ee33
         jl L1ee30
 L1ee24:
-        mov si, offset DGROUP:_VMDS+0ach
-        mov di, offset DGROUP:_VMDS+0d4h
+        mov si, offset DGROUP:_g_vmds+0ach
+        mov di, offset DGROUP:_g_vmds+0d4h
         mov bp, 1
         call _poly_outline
 L1ee30:
         jmp L1f1e0
 L1ee33:
-        mov al, byte ptr DGROUP:_VMDS+0ch
+        mov al, byte ptr DGROUP:_g_vmds+0ch
         or al, al
         jne L1ee57
-        mov ax, word ptr DGROUP:_VMDS+19ch
+        mov ax, word ptr DGROUP:_g_vmds+19ch
         mov bx, ax
         mov bp, ax
         shl bx, 1
-        mov si, offset DGROUP:_VMDS+0ach
-        mov di, offset DGROUP:_VMDS+0d4h
+        mov si, offset DGROUP:_g_vmds+0ach
+        mov di, offset DGROUP:_g_vmds+0d4h
         mov ax, word ptr [si]
         mov word ptr [bx+si], ax
         mov ax, word ptr [di]
@@ -129,45 +129,45 @@ L1ee33:
         call _poly_outline
         jmp L1f1e0
 L1ee57:
-        mov al, byte ptr DGROUP:_VMDS+0eh
-        cmp al, byte ptr DGROUP:_VMDS+0dh
+        mov al, byte ptr DGROUP:_g_vmds+0eh
+        cmp al, byte ptr DGROUP:_g_vmds+0dh
         je L1ee83
-        mov ax, word ptr DGROUP:_VMDS+19ch
+        mov ax, word ptr DGROUP:_g_vmds+19ch
         mov word ptr DGROUP:d_44e4, ax
         mov bx, ax
         dec bx
-        mov si, offset DGROUP:_VMDS+0ach
-        mov di, offset DGROUP:_VMDS+14ch
+        mov si, offset DGROUP:_g_vmds+0ach
+        mov di, offset DGROUP:_g_vmds+14ch
         lodsw
         stosw
         mov cx, bx
         rep movsw
         stosw
-        mov si, offset DGROUP:_VMDS+0d4h
-        mov di, offset DGROUP:_VMDS+174h
+        mov si, offset DGROUP:_g_vmds+0d4h
+        mov di, offset DGROUP:_g_vmds+174h
         lodsw
         stosw
         mov cx, bx
         rep movsw
         stosw
 L1ee83:
-        mov al, byte ptr DGROUP:_VMDS+3h
+        mov al, byte ptr DGROUP:_g_vmds+3h
         or al, al
         je L1ee8f
         call FAR PTR _clip_polygon
 L1ee8f:
-        mov ax, word ptr DGROUP:_VMDS+19ch
+        mov ax, word ptr DGROUP:_g_vmds+19ch
         cmp ax, 2
         je L1ee24
         jl L1ee30
         dec ax
         shl ax, 1
         mov si, ax
-        mov ax, word ptr DGROUP:_VMDS+0d4h
+        mov ax, word ptr DGROUP:_g_vmds+0d4h
         mov word ptr DGROUP:d_44e0, ax
         mov dx, 7fffh
         mov bx, 8001h
-        mov ax, word ptr DGROUP:_VMDS+0ach
+        mov ax, word ptr DGROUP:_g_vmds+0ach
         mov word ptr DGROUP:d_44de, ax
         mov bp, dx
         mov cx, bx
@@ -216,7 +216,7 @@ L1ef17:
         cmp dx, bx
         jne L1ef59
 L1ef20:
-        cmp byte ptr DGROUP:_VMDS+6e8h, 0
+        cmp byte ptr DGROUP:_g_vmds+6e8h, 0
         jne L1ef36
         push dx
         push cx
@@ -227,8 +227,8 @@ L1ef20:
 L1ef33:
         jmp L1f1e0
 L1ef36:
-        shr word ptr DGROUP:_VMDS+8h, 1
-        shr word ptr DGROUP:_VMDS+0ah, 1
+        shr word ptr DGROUP:_g_vmds+8h, 1
+        shr word ptr DGROUP:_g_vmds+0ah, 1
         sar dx, 1
         push dx
         push cx
@@ -237,8 +237,8 @@ L1ef36:
         push bp
         call FAR PTR _clip_and_draw_line
         add sp, 8
-        shl word ptr DGROUP:_VMDS+8h, 1
-        shl word ptr DGROUP:_VMDS+0ah, 1
+        shl word ptr DGROUP:_g_vmds+8h, 1
+        shl word ptr DGROUP:_g_vmds+0ah, 1
         jmp L1f1e0
 L1ef59:
         mov ax, di
@@ -247,7 +247,7 @@ L1ef59:
         je L1ef20
         jl L1ef33
         mov cx, di
-        mov word ptr DGROUP:_VMDS+19ch, ax
+        mov word ptr DGROUP:_g_vmds+19ch, ax
         mov ax, ds
         mov es, ax
         mov ax, word ptr DGROUP:d_44d0
@@ -320,24 +320,24 @@ L1efd3:
         mov byte ptr DGROUP:d_44e9, 1
         mov word ptr DGROUP:d_44e6, cx
         mov dx, cx
-        mov si, offset DGROUP:_VMDS+0fch
-        mov di, offset DGROUP:_VMDS+14ch
+        mov si, offset DGROUP:_g_vmds+0fch
+        mov di, offset DGROUP:_g_vmds+14ch
         shr cx, 1
         rep movsw
         mov cx, dx
-        mov si, offset DGROUP:_VMDS+124h
-        mov di, offset DGROUP:_VMDS+174h
+        mov si, offset DGROUP:_g_vmds+124h
+        mov di, offset DGROUP:_g_vmds+174h
         shr cx, 1
         rep movsw
         mov cx, dx
 L1f01d:
-        mov si, offset DGROUP:_VMDS+0fch
-        mov di, offset DGROUP:_VMDS+0ach
+        mov si, offset DGROUP:_g_vmds+0fch
+        mov di, offset DGROUP:_g_vmds+0ach
         mov dx, cx
         shr cx, 1
         rep movsw
-        mov si, offset DGROUP:_VMDS+124h
-        mov di, offset DGROUP:_VMDS+0d4h
+        mov si, offset DGROUP:_g_vmds+124h
+        mov di, offset DGROUP:_g_vmds+0d4h
         mov cx, dx
         shr cx, 1
         rep movsw
@@ -345,8 +345,8 @@ L1f01d:
         jmp short L1f076
 L1f039:
         mov dx, cx
-        mov si, offset DGROUP:_VMDS+0fch
-        mov di, offset DGROUP:_VMDS+0ach
+        mov si, offset DGROUP:_g_vmds+0fch
+        mov di, offset DGROUP:_g_vmds+0ach
         add di, dx
         shr cx, 1
 L1f045:
@@ -355,8 +355,8 @@ L1f045:
         dec di
         mov word ptr [di], ax
         loop L1f045
-        mov si, offset DGROUP:_VMDS+124h
-        mov di, offset DGROUP:_VMDS+0d4h
+        mov si, offset DGROUP:_g_vmds+124h
+        mov di, offset DGROUP:_g_vmds+0d4h
         add di, dx
         mov cx, dx
         shr cx, 1
@@ -421,7 +421,7 @@ L1f0c8:
         shr ax, 1
         sub ax, word ptr DGROUP:d_44d4
         mov word ptr DGROUP:d_44d6, ax
-        mov ax, word ptr DGROUP:_VM_DRIVER
+        mov ax, word ptr DGROUP:_g_vm_driver
         mov es, ax
         mov word ptr DGROUP:d_44dc, 2
         mov word ptr DGROUP:d_44da, 0
@@ -519,14 +519,14 @@ L1f195:
         add si, 0ch
         mov word ptr es:[si], dx
         mov word ptr es:[si+2], ax
-        call dword ptr DGROUP:_VM_DRIVER+70h
-        mov al, byte ptr DGROUP:_VMDS+0eh
-        cmp al, byte ptr DGROUP:_VMDS+0dh
+        call dword ptr DGROUP:_g_vm_driver+70h
+        mov al, byte ptr DGROUP:_g_vmds+0eh
+        cmp al, byte ptr DGROUP:_g_vmds+0dh
         je L1f1e0
         mov ax, word ptr DGROUP:d_44e4
         mov bp, ax
-        mov si, offset DGROUP:_VMDS+14ch
-        mov di, offset DGROUP:_VMDS+174h
+        mov si, offset DGROUP:_g_vmds+14ch
+        mov di, offset DGROUP:_g_vmds+174h
         call _poly_outline
 L1f1e0:
         mov al, byte ptr DGROUP:d_44e9
@@ -537,13 +537,13 @@ L1f1e0:
         mov es, ax
         mov cx, word ptr DGROUP:d_44e6
         mov dx, cx
-        mov si, offset DGROUP:_VMDS+14ch
-        mov di, offset DGROUP:_VMDS+0fch
+        mov si, offset DGROUP:_g_vmds+14ch
+        mov di, offset DGROUP:_g_vmds+0fch
         shr cx, 1
         rep movsw
         mov cx, dx
-        mov si, offset DGROUP:_VMDS+174h
-        mov di, offset DGROUP:_VMDS+124h
+        mov si, offset DGROUP:_g_vmds+174h
+        mov di, offset DGROUP:_g_vmds+124h
         shr cx, 1
         rep movsw
         mov cx, dx
@@ -559,7 +559,7 @@ _draw_polygon endp
 
 /* 0x1f219 */
 _poly_outline proc near
-        cmp byte ptr DGROUP:_VMDS+6e8h, 0
+        cmp byte ptr DGROUP:_g_vmds+6e8h, 0
         jne L1f237
 L1f220:
         push word ptr [di]
@@ -574,8 +574,8 @@ L1f220:
         jne L1f220
         ret
 L1f237:
-        shr word ptr DGROUP:_VMDS+8h, 1
-        shr word ptr DGROUP:_VMDS+0ah, 1
+        shr word ptr DGROUP:_g_vmds+8h, 1
+        shr word ptr DGROUP:_g_vmds+0ah, 1
 L1f23f:
         mov ax, word ptr [di]
         add di, 2
@@ -592,8 +592,8 @@ L1f23f:
         add sp, 8
         dec bp
         jne L1f23f
-        shl word ptr DGROUP:_VMDS+8h, 1
-        shl word ptr DGROUP:_VMDS+0ah, 1
+        shl word ptr DGROUP:_g_vmds+8h, 1
+        shl word ptr DGROUP:_g_vmds+0ah, 1
         ret
 _poly_outline endp
 
@@ -2703,16 +2703,16 @@ _fill_rect proc far
         add ax, word ptr [bp+8]
         dec ax
         mov word ptr [bp-6], ax
-        cmp byte ptr DGROUP:_VMDS+0ch, 0
+        cmp byte ptr DGROUP:_g_vmds+0ch, 0
         jne L2009f
         jmp L2012f
 L2009f:
         push word ptr [bp+6]
         push word ptr [bp+8]
-        cmp byte ptr DGROUP:_VMDS+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+3h, 0
         je L200f4
         mov ax, word ptr [bp+6]
-        sub ax, word ptr DGROUP:_VMDS+4h
+        sub ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [bp-2], ax
         or ax, ax
         jge L200c0
@@ -2720,21 +2720,21 @@ L2009f:
         add word ptr [bp+0ah], ax
 L200c0:
         mov ax, word ptr [bp+8]
-        sub ax, word ptr DGROUP:_VMDS+8h
+        sub ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [bp-2], ax
         or ax, ax
         jge L200d4
         sub word ptr [bp+8], ax
         add word ptr [bp+0ch], ax
 L200d4:
-        mov ax, word ptr DGROUP:_VMDS+6h
+        mov ax, word ptr DGROUP:_g_vmds+6h
         sub ax, word ptr [bp-4]
         mov word ptr [bp-2], ax
         or ax, ax
         jge L200e4
         add word ptr [bp+0ah], ax
 L200e4:
-        mov ax, word ptr DGROUP:_VMDS+0ah
+        mov ax, word ptr DGROUP:_g_vmds+0ah
         sub ax, word ptr [bp-6]
         mov word ptr [bp-2], ax
         or ax, ax
@@ -2745,7 +2745,7 @@ L200f4:
         jle L20129
         cmp word ptr [bp+0ch], 0
         jle L20129
-        mov es, word ptr DGROUP:_VM_DRIVER
+        mov es, word ptr DGROUP:_g_vm_driver
         xor di, di
         mov ax, word ptr [bp+8]
         stosw
@@ -2764,16 +2764,16 @@ L20119:
         loop L20119
         xor si, si
         push bp
-        call dword ptr DGROUP:_VM_DRIVER+70h
+        call dword ptr DGROUP:_g_vm_driver+70h
         pop bp
 L20129:
         pop word ptr [bp+8]
         pop word ptr [bp+6]
 L2012f:
-        cmp byte ptr DGROUP:_VMDS+0ch, 0
+        cmp byte ptr DGROUP:_g_vmds+0ch, 0
         je L2013f
-        mov al, byte ptr DGROUP:_VMDS+0eh
-        cmp byte ptr DGROUP:_VMDS+0dh, al
+        mov al, byte ptr DGROUP:_g_vmds+0eh
+        cmp byte ptr DGROUP:_g_vmds+0dh, al
         je L2017e
 L2013f:
         mov si, word ptr [bp+6]
@@ -2841,7 +2841,7 @@ struct engine_polygon_chains {
     uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
 } PACKED;
 
-struct engine_polygon_chains ENGINE_POLYGON_CHAINS;
+struct engine_polygon_chains g_engine_polygon_chains;
 
 /*
  * **The polygon walker's own state**, DGROUP 0x44de..0x44ea, 0x0c bytes.
@@ -2866,7 +2866,7 @@ struct engine_polygon_state {
     uint8_t   second_pass;          /* +0x0b [1] */
 } PACKED;
 
-struct engine_polygon_state ENGINE_POLYGON_STATE;
+struct engine_polygon_state g_engine_polygon_state;
 
 /*
  * 172c:2b9d, image 0x1eded
@@ -2908,14 +2908,14 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     int16_t ax, bx, cx, dx, si, di, bp;
     int16_t i;
 
-    ENGINE_POLYGON_STATE.span_seg = 0;
-    ENGINE_POLYGON_STATE.second_pass = 0;
+    g_engine_polygon_state.span_seg = 0;
+    g_engine_polygon_state.second_pass = 0;
 
     if (n >= 0) {
-        VMDS.palettes.clip_count = (uint16_t)n;
+        g_vmds.palettes.clip_count = (uint16_t)n;
         for (i = 0; i < n; i++) {
-            VMDS.poly_x[i] = xs[i];
-            VMDS.poly_y[i] = ys[i];
+            g_vmds.poly_x[i] = xs[i];
+            g_vmds.poly_y[i] = ys[i];
         }
     }
 
@@ -2923,62 +2923,62 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
         goto out;
 
     if (n == 2) {
-        poly_outline(VMDS.poly_x, VMDS.poly_y, 1);
+        poly_outline(g_vmds.poly_x, g_vmds.poly_y, 1);
         goto out;
     }
 
-    if (VMDS.fill_enabled == 0) {
+    if (g_vmds.fill_enabled == 0) {
         /* Filling is off: close the ring and draw it as lines. */
-        n = (int16_t)VMDS.palettes.clip_count;
-        VMDS.poly_x[n] = ((uint16_t)VMDS.poly_x[0]);
-        VMDS.poly_y[n] = ((uint16_t)VMDS.poly_y[0]);
-        poly_outline(VMDS.poly_x, VMDS.poly_y, n);
+        n = (int16_t)g_vmds.palettes.clip_count;
+        g_vmds.poly_x[n] = ((uint16_t)g_vmds.poly_x[0]);
+        g_vmds.poly_y[n] = ((uint16_t)g_vmds.poly_y[0]);
+        poly_outline(g_vmds.poly_x, g_vmds.poly_y, n);
         goto out;
     }
 
-    if (VMDS.second_colour != VMDS.fill_colour) {
-        n = (int16_t)VMDS.palettes.clip_count;
-        ENGINE_POLYGON_STATE.outline_count = (uint16_t)n;
+    if (g_vmds.second_colour != g_vmds.fill_colour) {
+        n = (int16_t)g_vmds.palettes.clip_count;
+        g_engine_polygon_state.outline_count = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
-            VMDS.closed_x[i] = ((uint16_t)VMDS.poly_x[i]);
-            VMDS.closed_y[i] = ((uint16_t)VMDS.poly_y[i]);
+            g_vmds.closed_x[i] = ((uint16_t)g_vmds.poly_x[i]);
+            g_vmds.closed_y[i] = ((uint16_t)g_vmds.poly_y[i]);
         }
-        VMDS.closed_x[n] = ((uint16_t)VMDS.poly_x[0]);
-        VMDS.closed_y[n] = ((uint16_t)VMDS.poly_y[0]);
+        g_vmds.closed_x[n] = ((uint16_t)g_vmds.poly_x[0]);
+        g_vmds.closed_y[n] = ((uint16_t)g_vmds.poly_y[0]);
     }
 
-    if (VMDS.clip_enabled != 0)
+    if (g_vmds.clip_enabled != 0)
         clip_polygon();
 
-    n = (int16_t)VMDS.palettes.clip_count;
+    n = (int16_t)g_vmds.palettes.clip_count;
     if (n < 2)
         goto out;
     if (n == 2) {
-        poly_outline(VMDS.poly_x, VMDS.poly_y, 1);
+        poly_outline(g_vmds.poly_x, g_vmds.poly_y, 1);
         goto out;
     }
 
     si = (int16_t)((n - 1) * 2);
-    ENGINE_POLYGON_STATE.prev_y = ((uint16_t)VMDS.poly_y[0]);
+    g_engine_polygon_state.prev_y = ((uint16_t)g_vmds.poly_y[0]);
     dx = 0x7fff;
     bx = (int16_t)0x8001;
-    ENGINE_POLYGON_STATE.prev_x = ((uint16_t)VMDS.poly_x[0]);
+    g_engine_polygon_state.prev_x = ((uint16_t)g_vmds.poly_x[0]);
     bp = dx;
     cx = bx;
     di = 0;
-    ENGINE_POLYGON_CHAINS.top_at = 0;
-    ENGINE_POLYGON_CHAINS.bottom_at = 0;
+    g_engine_polygon_chains.top_at = 0;
+    g_engine_polygon_chains.bottom_at = 0;
 
     for (; si >= 0; si -= 2) {
-        ax = VMDS.poly_y[si >> 1];
+        ax = g_vmds.poly_y[si >> 1];
 
-        if (ax == ENGINE_POLYGON_STATE.prev_y
-            && VMDS.poly_x[si >> 1] == ENGINE_POLYGON_STATE.prev_x)
+        if (ax == g_engine_polygon_state.prev_y
+            && g_vmds.poly_x[si >> 1] == g_engine_polygon_state.prev_x)
             continue;
 
-        ENGINE_POLYGON_STATE.prev_y = ax;
-        VMDS.work_y[di >> 1] = ax;
+        g_engine_polygon_state.prev_y = ax;
+        g_vmds.work_y[di >> 1] = ax;
 
         /*
          * The tie-breaks go opposite ways, and which way is not a matter of
@@ -2990,36 +2990,36 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
          * the routine leaves behind do not match, which is how it was caught.
          */
         if (ax < dx
-            || (ax == dx && VMDS.poly_x[si >> 1] > cx)) {
-            ENGINE_POLYGON_CHAINS.top_at = (uint16_t)di;
+            || (ax == dx && g_vmds.poly_x[si >> 1] > cx)) {
+            g_engine_polygon_chains.top_at = (uint16_t)di;
             dx = ax;
-            cx = VMDS.poly_x[si >> 1];
+            cx = g_vmds.poly_x[si >> 1];
         }
 
         if (ax > bx
-            || (ax == bx && VMDS.poly_x[si >> 1] <= bp)) {
-            ENGINE_POLYGON_CHAINS.bottom_at = (uint16_t)di;
+            || (ax == bx && g_vmds.poly_x[si >> 1] <= bp)) {
+            g_engine_polygon_chains.bottom_at = (uint16_t)di;
             bx = ax;
-            bp = VMDS.poly_x[si >> 1];
+            bp = g_vmds.poly_x[si >> 1];
         }
 
-        ax = VMDS.poly_x[si >> 1];
-        ENGINE_POLYGON_STATE.prev_x = ax;
-        VMDS.work_x[di >> 1] = ax;
+        ax = g_vmds.poly_x[si >> 1];
+        g_engine_polygon_state.prev_x = ax;
+        g_vmds.work_x[di >> 1] = ax;
         di += 2;
     }
 
     if (dx == bx) {
         /* Every point on one row: one line, and nothing to fill. */
-        if (VMDS.screen.mode_kind == 0) {
+        if (g_vmds.screen.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
-            VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top >> 1);
-            VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom >> 1);
+            g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top >> 1);
+            g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom >> 1);
             clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
                                (int16_t)(dx >> 1));
-            VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top << 1);
-            VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom << 1);
+            g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top << 1);
+            g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom << 1);
         }
         goto out;
     }
@@ -3029,21 +3029,21 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
         goto out;
 
     if (ax == 2) {
-        if (VMDS.screen.mode_kind == 0) {
+        if (g_vmds.screen.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
-            VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top >> 1);
-            VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom >> 1);
+            g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top >> 1);
+            g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom >> 1);
             clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
                                (int16_t)(dx >> 1));
-            VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top << 1);
-            VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom << 1);
+            g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top << 1);
+            g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom << 1);
         }
         goto out;
     }
 
     cx = di;
-    VMDS.palettes.clip_count = (uint16_t)ax;
+    g_vmds.palettes.clip_count = (uint16_t)ax;
 
     /*
      * Which way round is it wound? Compare the slopes of the two edges leaving
@@ -3052,13 +3052,13 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
      * quotient-then-remainder rather than by cross-multiplying, because the
      * product would not fit.
      */
-    si = (int16_t)ENGINE_POLYGON_CHAINS.top_at;
+    si = (int16_t)g_engine_polygon_chains.top_at;
     di = (int16_t)(si + 2);
     if (di >= cx)
         di = 0;
 
-    dx = (int16_t)(VMDS.work_x[di >> 1] - VMDS.work_x[si >> 1]);
-    bp = (int16_t)(VMDS.work_y[di >> 1] - VMDS.work_y[si >> 1]);
+    dx = (int16_t)(g_vmds.work_x[di >> 1] - g_vmds.work_x[si >> 1]);
+    bp = (int16_t)(g_vmds.work_y[di >> 1] - g_vmds.work_y[si >> 1]);
     if (bp == 0) {
         bp = 1;
         dx = (dx >= 0) ? 0x7fff : (int16_t)-0x7fff;
@@ -3068,8 +3068,8 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     if (di < 0)
         di = (int16_t)(di + cx);
 
-    ax = (int16_t)(VMDS.work_x[di >> 1] - VMDS.work_x[si >> 1]);
-    bx = (int16_t)(VMDS.work_y[di >> 1] - VMDS.work_y[si >> 1]);
+    ax = (int16_t)(g_vmds.work_x[di >> 1] - g_vmds.work_x[si >> 1]);
+    bx = (int16_t)(g_vmds.work_y[di >> 1] - g_vmds.work_y[si >> 1]);
     if (bx == 0) {
         bx = 1;
         if (ax < 0) {
@@ -3140,37 +3140,37 @@ compare:
     }
 
     /* Exactly equal: keep a copy for a second pass and go on. */
-    ENGINE_POLYGON_STATE.second_pass = 1;
-    ENGINE_POLYGON_STATE.second_count = (uint16_t)cx;
+    g_engine_polygon_state.second_pass = 1;
+    g_engine_polygon_state.second_count = (uint16_t)cx;
     for (i = 0; i < cx; i += 2) {
-        VMDS.closed_x[i >> 1] = VMDS.work_x[i >> 1];
-        VMDS.closed_y[i >> 1] = VMDS.work_y[i >> 1];
+        g_vmds.closed_x[i >> 1] = g_vmds.work_x[i >> 1];
+        g_vmds.closed_y[i >> 1] = g_vmds.work_y[i >> 1];
     }
 
 keep:
     for (i = 0; i < cx; i += 2) {
-        VMDS.poly_x[i >> 1] = VMDS.work_x[i >> 1];
-        VMDS.poly_y[i >> 1] = VMDS.work_y[i >> 1];
+        g_vmds.poly_x[i >> 1] = g_vmds.work_x[i >> 1];
+        g_vmds.poly_y[i >> 1] = g_vmds.work_y[i >> 1];
     }
     goto chains;
 
 reverse:
     for (i = 0; i < cx; i += 2) {
-        VMDS.poly_x[(cx - 2 - i) >> 1] = VMDS.work_x[i >> 1];
-        VMDS.poly_y[(cx - 2 - i) >> 1] = VMDS.work_y[i >> 1];
+        g_vmds.poly_x[(cx - 2 - i) >> 1] = g_vmds.work_x[i >> 1];
+        g_vmds.poly_y[(cx - 2 - i) >> 1] = g_vmds.work_y[i >> 1];
     }
-    ENGINE_POLYGON_CHAINS.top_at = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.top_at);
-    ENGINE_POLYGON_CHAINS.bottom_at = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.bottom_at);
+    g_engine_polygon_chains.top_at = (uint16_t)(cx - 2 - (int16_t)g_engine_polygon_chains.top_at);
+    g_engine_polygon_chains.bottom_at = (uint16_t)(cx - 2 - (int16_t)g_engine_polygon_chains.bottom_at);
 
 chains:
     /* The right chain: from the bottom vertex up to the top. */
-    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.bottom_at >> 1];
-    si = (int16_t)ENGINE_POLYGON_CHAINS.top_at;
+    dx = g_vmds.poly_y[g_engine_polygon_chains.bottom_at >> 1];
+    si = (int16_t)g_engine_polygon_chains.top_at;
     di = 0;
     for (;;) {
-        VMDS.work_x[di >> 1] = VMDS.poly_x[si >> 1];
-        ax = VMDS.poly_y[si >> 1];
-        VMDS.work_y[di >> 1] = ax;
+        g_vmds.work_x[di >> 1] = g_vmds.poly_x[si >> 1];
+        ax = g_vmds.poly_y[si >> 1];
+        g_vmds.work_y[di >> 1] = ax;
         di += 2;
         if (ax >= dx)
             break;
@@ -3178,15 +3178,15 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    ENGINE_POLYGON_CHAINS.right_count = (uint16_t)((uint16_t)di >> 1);
+    g_engine_polygon_chains.right_count = (uint16_t)((uint16_t)di >> 1);
 
     /* The left chain: from the top vertex down to the bottom. */
-    dx = VMDS.poly_y[ENGINE_POLYGON_CHAINS.top_at >> 1];
-    si = (int16_t)ENGINE_POLYGON_CHAINS.bottom_at;
+    dx = g_vmds.poly_y[g_engine_polygon_chains.top_at >> 1];
+    si = (int16_t)g_engine_polygon_chains.bottom_at;
     for (;;) {
-        VMDS.work_x[di >> 1] = VMDS.poly_x[si >> 1];
-        ax = VMDS.poly_y[si >> 1];
-        VMDS.work_y[di >> 1] = ax;
+        g_vmds.work_x[di >> 1] = g_vmds.poly_x[si >> 1];
+        ax = g_vmds.poly_y[si >> 1];
+        g_vmds.work_y[di >> 1] = ax;
         di += 2;
         if (ax <= dx)
             break;
@@ -3194,37 +3194,37 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    ENGINE_POLYGON_CHAINS.left_count = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.right_count);
+    g_engine_polygon_chains.left_count = (uint16_t)(((uint16_t)di >> 1) - g_engine_polygon_chains.right_count);
 
-    seg = VM_DRIVER.span_buffer_seg;
+    seg = g_vm_driver.span_buffer_seg;
     span = MK_FP(seg, 0);
 
-    ENGINE_POLYGON_CHAINS.chain = 2;
-    ENGINE_POLYGON_CHAINS.at = 0;
-    ax = (int16_t)ENGINE_POLYGON_CHAINS.right_count;
+    g_engine_polygon_chains.chain = 2;
+    g_engine_polygon_chains.at = 0;
+    ax = (int16_t)g_engine_polygon_chains.right_count;
 
     for (;;) {
         ax--;
         if (ax == 0) {
-            if (ENGINE_POLYGON_CHAINS.chain != 0) {
-                ENGINE_POLYGON_CHAINS.at += 2;
-                ENGINE_POLYGON_CHAINS.chain = 0;
-                ax = (int16_t)ENGINE_POLYGON_CHAINS.left_count;
+            if (g_engine_polygon_chains.chain != 0) {
+                g_engine_polygon_chains.at += 2;
+                g_engine_polygon_chains.chain = 0;
+                ax = (int16_t)g_engine_polygon_chains.left_count;
                 continue;
             }
             break;
         }
 
-        ENGINE_POLYGON_CHAINS.remaining = (uint16_t)ax;
+        g_engine_polygon_chains.remaining = (uint16_t)ax;
 
-        si = (int16_t)ENGINE_POLYGON_CHAINS.at;
-        ENGINE_POLYGON_CHAINS.at = (uint16_t)(si + 2);
+        si = (int16_t)g_engine_polygon_chains.at;
+        g_engine_polygon_chains.at = (uint16_t)(si + 2);
 
         {
-            int16_t x1 = VMDS.work_x[si >> 1];
-            int16_t x2 = VMDS.work_x[(si >> 1) + 1];
-            int16_t y1 = VMDS.work_y[si >> 1];
-            int16_t y2 = VMDS.work_y[(si >> 1) + 1];
+            int16_t x1 = g_vmds.work_x[si >> 1];
+            int16_t x2 = g_vmds.work_x[(si >> 1) + 1];
+            int16_t y1 = g_vmds.work_y[si >> 1];
+            int16_t y2 = g_vmds.work_y[(si >> 1) + 1];
             int16_t adx = (int16_t)(x1 - x2);
             int16_t ady;
 
@@ -3242,15 +3242,15 @@ chains:
                     /* One row: write whichever end the side wants. */
                     int16_t lo = (x1 < x2) ? x1 : x2;
                     int16_t hi = (x1 < x2) ? x2 : x1;
-                    uint16_t at = (uint16_t)((y1 << 2) + ENGINE_POLYGON_CHAINS.chain);
+                    uint16_t at = (uint16_t)((y1 << 2) + g_engine_polygon_chains.chain);
 
                     *(int16_t *)(void *)(span + at) =
-                        (ENGINE_POLYGON_CHAINS.chain == 0) ? lo : hi;
+                        (g_engine_polygon_chains.chain == 0) ? lo : hi;
                 } else if (adx < ady) {
                     poly_edge_steep(span, x1, x2, y1, y2);
                 } else if (adx > ady) {
                     /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
-                    if (ENGINE_POLYGON_CHAINS.chain != 0)
+                    if (g_engine_polygon_chains.chain != 0)
                         poly_edge_shallow_right(span, x1, x2, y1, y2);
                     else
                         poly_edge_shallow_left(span, x1, x2, y1, y2);
@@ -3260,13 +3260,13 @@ chains:
             }
         }
 
-        ax = (int16_t)ENGINE_POLYGON_CHAINS.remaining;
+        ax = (int16_t)g_engine_polygon_chains.remaining;
     }
 
     /* Hand the whole buffer to the driver's span filler in one call. */
     {
-        int16_t top = VMDS.poly_y[ENGINE_POLYGON_CHAINS.top_at >> 1];
-        int16_t bottom = VMDS.poly_y[ENGINE_POLYGON_CHAINS.bottom_at >> 1];
+        int16_t top = g_vmds.poly_y[g_engine_polygon_chains.top_at >> 1];
+        int16_t bottom = g_vmds.poly_y[g_engine_polygon_chains.bottom_at >> 1];
         /* The list starts four words before the first row's pair: the
            first row and the row count, in the segment below `seg`. */
         /* The paragraph below the buffer - `seg - 1` - is where the list's
@@ -3274,7 +3274,7 @@ chains:
         uint8_t *spans = span - 0x10 + (uint16_t)((top << 2) + 0x0c);
         int16_t rows = (int16_t)(bottom - top + 1);
 
-        ENGINE_POLYGON_STATE.span_seg = seg;
+        g_engine_polygon_state.span_seg = seg;
 
         spans[0] = (uint8_t)top;
         spans[1] = (uint8_t)((uint16_t)top >> 8);
@@ -3284,17 +3284,17 @@ chains:
         vm_fill_spans(spans);
     }
 
-    if (VMDS.second_colour != VMDS.fill_colour)
-        poly_outline(VMDS.closed_x, VMDS.closed_y, (int16_t)ENGINE_POLYGON_STATE.outline_count);
+    if (g_vmds.second_colour != g_vmds.fill_colour)
+        poly_outline(g_vmds.closed_x, g_vmds.closed_y, (int16_t)g_engine_polygon_state.outline_count);
 
 out:
-    if (ENGINE_POLYGON_STATE.second_pass != 0) {
+    if (g_engine_polygon_state.second_pass != 0) {
         /* The second pass, for a polygon whose two top edges had one slope. */
-        ENGINE_POLYGON_STATE.second_pass = 0;
-        cx = (int16_t)ENGINE_POLYGON_STATE.second_count;
+        g_engine_polygon_state.second_pass = 0;
+        cx = (int16_t)g_engine_polygon_state.second_count;
         for (i = 0; i < cx; i += 2) {
-            VMDS.work_x[i >> 1] = ((uint16_t)VMDS.closed_x[i >> 1]);
-            VMDS.work_y[i >> 1] = ((uint16_t)VMDS.closed_y[i >> 1]);
+            g_vmds.work_x[i >> 1] = ((uint16_t)g_vmds.closed_x[i >> 1]);
+            g_vmds.work_y[i >> 1] = ((uint16_t)g_vmds.closed_y[i >> 1]);
         }
         goto reverse;
     }
@@ -3310,7 +3310,7 @@ out:
  */
 void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
 {
-    if (VMDS.screen.mode_kind == 0) {
+    if (g_vmds.screen.mode_kind == 0) {
         while (n-- > 0) {
             clip_and_draw_line(xs[0], ys[0],
                                xs[1],
@@ -3321,8 +3321,8 @@ void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
         return;
     }
 
-    VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top >> 1);
-    VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom >> 1);
+    g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top >> 1);
+    g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom >> 1);
 
     while (n-- > 0) {
         clip_and_draw_line(xs[0], (int16_t)(ys[0] >> 1),
@@ -3332,8 +3332,8 @@ void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
         ys++;
     }
 
-    VMDS.clip_top = (int16_t)((uint16_t)VMDS.clip_top << 1);
-    VMDS.clip_bottom = (int16_t)((uint16_t)VMDS.clip_bottom << 1);
+    g_vmds.clip_top = (int16_t)((uint16_t)g_vmds.clip_top << 1);
+    g_vmds.clip_bottom = (int16_t)((uint16_t)g_vmds.clip_bottom << 1);
 }
 
 /*
@@ -3352,7 +3352,7 @@ void poly_edge_vertical(uint8_t far * span, int16_t x,
         y2 = t;
     }
 
-    ENGINE_POLYGON_STATE.span_step = 2;
+    g_engine_polygon_state.span_step = 2;
     poly_walk(span, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
 }
 
@@ -3383,7 +3383,7 @@ void poly_edge_steep(uint8_t far * span, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    di = (uint16_t)((y1 << 2) + ENGINE_POLYGON_CHAINS.chain);
+    di = (uint16_t)((y1 << 2) + g_engine_polygon_chains.chain);
 
     dy = (int16_t)(y1 - y2);
     sign = (dy >= 0) ? 0 : -1;
@@ -3451,7 +3451,7 @@ void poly_edge_diagonal(uint8_t far * span, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    ENGINE_POLYGON_STATE.span_step = 2;
+    g_engine_polygon_state.span_step = 2;
     poly_walk(span, x1, 0, (x1 < x2) ? 1 : -1, 0,
               (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
 }
@@ -3674,9 +3674,9 @@ void poly_edge_shallow_left(uint8_t far * span, int16_t x1, int16_t x2,
 void poly_walk(uint8_t far * span, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di)
 {
-    int16_t di_step = (int8_t)ENGINE_POLYGON_STATE.span_step;
+    int16_t di_step = (int8_t)g_engine_polygon_state.span_step;
 
-    di = (uint16_t)((di << 2) + ENGINE_POLYGON_CHAINS.chain);
+    di = (uint16_t)((di << 2) + g_engine_polygon_chains.chain);
 
     while (count-- > 0) {
         uint32_t t;
@@ -3718,30 +3718,30 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
     int16_t right = (int16_t)(x + w - 1);
     int16_t bottom = (int16_t)(y + h - 1);
 
-    if (VMDS.fill_enabled != 0) {
+    if (g_vmds.fill_enabled != 0) {
         int16_t cx = x, cy = y, cw = w, ch = h;
 
-        if (VMDS.clip_enabled != 0) {
-            int16_t d = (int16_t)(cx - VMDS.clip_left);
+        if (g_vmds.clip_enabled != 0) {
+            int16_t d = (int16_t)(cx - g_vmds.clip_left);
             if (d < 0) {
                 cx = (int16_t)(cx - d);
                 cw = (int16_t)(cw + d);
             }
-            d = (int16_t)(cy - VMDS.clip_top);
+            d = (int16_t)(cy - g_vmds.clip_top);
             if (d < 0) {
                 cy = (int16_t)(cy - d);
                 ch = (int16_t)(ch + d);
             }
-            d = (int16_t)(VMDS.clip_right - right);
+            d = (int16_t)(g_vmds.clip_right - right);
             if (d < 0)
                 cw = (int16_t)(cw + d);
-            d = (int16_t)(VMDS.clip_bottom - bottom);
+            d = (int16_t)(g_vmds.clip_bottom - bottom);
             if (d < 0)
                 ch = (int16_t)(ch + d);
         }
 
         if (cw > 0 && ch > 0) {
-            uint8_t *p = MK_FP(VM_DRIVER.span_buffer_seg, 0);
+            uint8_t *p = MK_FP(g_vm_driver.span_buffer_seg, 0);
             int16_t n = ch;
             int16_t x2 = (int16_t)(cx + cw - 1);
 
@@ -3756,11 +3756,11 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
                 *p++ = (uint8_t)((uint16_t)x2 >> 8);
             } while (--n);
 
-            vm_fill_spans(MK_FP(VM_DRIVER.span_buffer_seg, 0));
+            vm_fill_spans(MK_FP(g_vm_driver.span_buffer_seg, 0));
         }
     }
 
-    if (VMDS.fill_enabled != 0 && VMDS.fill_colour == VMDS.second_colour)
+    if (g_vmds.fill_enabled != 0 && g_vmds.fill_colour == g_vmds.second_colour)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }

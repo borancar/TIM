@@ -55,7 +55,7 @@ struct iff_chunk_names {
 } PACKED;
 
 /* This module's whole `_DATA`. */
-struct iff_chunk_names IFF_CHUNK_NAMES = {
+struct iff_chunk_names g_iff_chunk_names = {
     "FORM", /* form */
     "ILBM", /* ilbm */
     "BMHD", /* bmhd */
@@ -99,7 +99,7 @@ void iff_write_cmap(FILE *f)
     uint8_t pal[0x300];
     int16_t i;
 
-    fwrite((const uint8_t *)IFF_CHUNK_NAMES.cmap, 1, 4, f);
+    fwrite((const uint8_t *)g_iff_chunk_names.cmap, 1, 4, f);
     vga_get_dac(pal, 0, 0x100);
     len = 0x300;
     iff_write_be((uint8_t *)&len, 1, 4, f);
@@ -124,7 +124,7 @@ void iff_write_body(FILE *f)
     uint8_t *buf;
     uint8_t *p;
 
-    fwrite((const uint8_t *)IFF_CHUNK_NAMES.body, 4, 1, f);
+    fwrite((const uint8_t *)g_iff_chunk_names.body, 4, 1, f);
     len = 0x46500L;
     iff_write_be((uint8_t *)&len, 1, 4, f);
     buf = p = malloc(0x500);
@@ -152,13 +152,13 @@ void iff_save(char *name)
     int16_t w;
     FILE *f;
 
-    if ((f = fopen(name, IFF_CHUNK_NAMES.mode_wb)) == 0)
+    if ((f = fopen(name, g_iff_chunk_names.mode_wb)) == 0)
         return;
-    fwrite((const uint8_t *)IFF_CHUNK_NAMES.form, 4, 1, f);
+    fwrite((const uint8_t *)g_iff_chunk_names.form, 4, 1, f);
     len = 0x46830L;
     iff_write_be((uint8_t *)&len, 1, 4, f);
-    fwrite((const uint8_t *)IFF_CHUNK_NAMES.ilbm, 4, 1, f);
-    fwrite((const uint8_t *)IFF_CHUNK_NAMES.bmhd, 4, 1, f);
+    fwrite((const uint8_t *)g_iff_chunk_names.ilbm, 4, 1, f);
+    fwrite((const uint8_t *)g_iff_chunk_names.bmhd, 4, 1, f);
     len = 0x14;
     iff_write_be((uint8_t *)&len, 1, 4, f);
     w = 0x280;
@@ -191,11 +191,11 @@ void save_screenshot(char *name)
     vga_page_t dst;
     int16_t clip;
 
-    dst = VMDS.page_dst;
-    clip = VMDS.clip_enabled;
-    VMDS.clip_enabled = 0;
-    VMDS.page_dst = VMDS.page_src;
+    dst = g_vmds.page_dst;
+    clip = g_vmds.clip_enabled;
+    g_vmds.clip_enabled = 0;
+    g_vmds.page_dst = g_vmds.page_src;
     iff_save(name);
-    VMDS.clip_enabled = (uint8_t)clip;
-    VMDS.page_dst = dst;
+    g_vmds.clip_enabled = (uint8_t)clip;
+    g_vmds.page_dst = dst;
 }

@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3232..0x3242. Connection points, 8 pairs.
  */
-struct point8 CANNON_POINTS_3232[8] = {
+struct point8 g_cannon_points_3232[8] = {
     { 0x09, 0x25 }, { 0x12, 0x06 }, { 0x3c, 0x00 }, { 0x3f, 0x14 },
     { 0x2f, 0x1e }, { 0x2f, 0x27 }, { 0x22, 0x33 }, { 0x16, 0x33 },
 };
@@ -30,7 +30,7 @@ struct point8 CANNON_POINTS_3232[8] = {
 /*
  * DGROUP 0x3242..0x3252. Connection points, 8 pairs.
  */
-struct point8 CANNON_POINTS_3242[8] = {
+struct point8 g_cannon_points_3242[8] = {
     { 0x00, 0x14 }, { 0x03, 0x00 }, { 0x2d, 0x06 }, { 0x36, 0x25 },
     { 0x29, 0x33 }, { 0x1d, 0x33 }, { 0x10, 0x27 }, { 0x10, 0x1e },
 };
@@ -117,10 +117,10 @@ void part_setup_cannon(struct part *part)
 
     if (part->flags_08 & 0x10) {
         part->hold.x = 0x3e;
-        src = CANNON_POINTS_3242;
+        src = g_cannon_points_3242;
     } else {
         part->hold.x = 1;
-        src = CANNON_POINTS_3232;
+        src = g_cannon_points_3232;
     }
 
     part->hold.y = 3;

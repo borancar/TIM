@@ -73,13 +73,13 @@ void game_startup(void)
 
     free_bytes = DOS_ALLOC_BYTES(dos_alloc_bytes(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {
-        printf(MESSAGES.not_enough_free_memory);
-        printf(MESSAGES.you_need_at_least);
+        printf(g_messages.not_enough_free_memory);
+        printf(g_messages.you_need_at_least);
         exit(0);
     }
 
-    dos_get_cur_dir((char *)GAME_DIRECTORIES.game_dir);
-    dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
+    dos_get_cur_dir((char *)g_game_directories.game_dir);
+    dos_get_cur_dir((char *)g_game_directories.picker_dir);
     set_holiday_flags();
 
     g_stop_requested = 0;
@@ -132,12 +132,12 @@ void game_startup(void)
 
     vm_ok = vm_init(0x0d, 0x80, (FILE *)WRITABLE_LITERAL("vm.ovl"));
     if (vm_ok == 0) {
-        printf(MESSAGES.unable_to_initialize_vm);
+        printf(g_messages.unable_to_initialize_vm);
         exit(0);
     }
 
-    VMDS.page_front = 0xa000;
-    VMDS.page_back = 0xa820;
+    g_vmds.page_front = 0xa000;
+    g_vmds.page_back = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
     g_pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
@@ -241,7 +241,7 @@ void game_teardown(int16_t really)
     if (g_password_puzzle != 0) {
         read_password_line(g_password_puzzle, code);
         score_to_code(g_banked_score, code);
-        strcpy(msg, MESSAGES.thanks_for_playing);
+        strcpy(msg, g_messages.thanks_for_playing);
         strcat(msg, code);
     } else {
         msg[0] = 0;

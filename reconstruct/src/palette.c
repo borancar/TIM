@@ -38,7 +38,7 @@ typedef void (far *vm_esi_fn)(void);
  * **The number of palette cycles filed**, DGROUP 0x445e: `add_palette_cycle`
  * counts them up to nine and `cycle_palettes` walks them.
  */
-int16_t PALETTE_CYCLES = 0;
+int16_t g_palette_cycles = 0;
 
 /*
  * **What the last palette fade was asked for, and how big a palette is**,
@@ -53,12 +53,12 @@ struct engine_pen {
     int16_t   palette_bytes;   /* +0x04 [2] */
 } PACKED;
 
-struct engine_pen ENGINE_PEN = { 0x003f, 0, 0x0300 };
+struct engine_pen g_engine_pen = { 0x003f, 0, 0x0300 };
 
 /*
  * **How many bytes of palette each pixel depth has**, DGROUP 0x4466..0x4486,
  * 0x20 bytes: sixteen words indexed by the pixel shift, which `load_palette`
- * and `set_palette_pointer` file into `ENGINE_PEN.palette_bytes` and then read
+ * and `set_palette_pointer` file into `g_engine_pen.palette_bytes` and then read
  * that many bytes of file into the block. 0x300 is 256 colours of three bytes
  * and 0x30 is sixteen of three; the header called them pointers, which the
  * values are not. Up to 0x4486, where the chunk names begin.
@@ -67,7 +67,7 @@ struct engine_palette_sizes {
     int16_t   size[16];           /* +0x00 [0x20] */
 } PACKED;
 
-struct engine_palette_sizes ENGINE_PALETTE_SIZES = {
+struct engine_palette_sizes g_engine_palette_sizes = {
     {
         0x0000, 0x0102, 0x0011, 0x0011, 0x0102, 0x0300, 0x0000, 0x0300,
         0x0300, 0x0300, 0x0300, 0x0030, 0x0030, 0x0030, 0x0030, 0x0300,
@@ -75,16 +75,16 @@ struct engine_palette_sizes ENGINE_PALETTE_SIZES = {
 };
 
 
-struct pal_chunk_names PALCHUNK = {
+struct pal_chunk_names g_palchunk = {
     "PAL:VGA:",
     "PAL:EGA:",
     "PAL:CGA:",
     "",
     {
-        PALCHUNK.none, PALCHUNK.pal_cga, PALCHUNK.pal_ega, PALCHUNK.pal_ega,
-        PALCHUNK.pal_cga, PALCHUNK.pal_vga, PALCHUNK.none, PALCHUNK.pal_vga,
-        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_ega,
-        PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga, PALCHUNK.pal_vga,
+        g_palchunk.none, g_palchunk.pal_cga, g_palchunk.pal_ega, g_palchunk.pal_ega,
+        g_palchunk.pal_cga, g_palchunk.pal_vga, g_palchunk.none, g_palchunk.pal_vga,
+        g_palchunk.pal_vga, g_palchunk.pal_vga, g_palchunk.pal_vga, g_palchunk.pal_ega,
+        g_palchunk.pal_vga, g_palchunk.pal_vga, g_palchunk.pal_vga, g_palchunk.pal_vga,
     },
     0,
 };
@@ -97,9 +97,9 @@ struct pal_chunk_names PALCHUNK = {
  * The names are chosen for Borland C++ 2.0's `_BSS` order, which comes from
  * the names (docs/lessons.md): these three land at 0x591a, 0x592e and 0x5942.
  */
-int16_t CYCLE_STEP[10];
-int16_t CYCLE_FROM[10];
-int16_t CYCLE_LIMIT[10];
+int16_t g_cycle_step[10];
+int16_t g_cycle_from[10];
+int16_t g_cycle_limit[10];
 
 /*
  * 0x1e967
@@ -113,7 +113,7 @@ int16_t CYCLE_LIMIT[10];
  * 0x3a30, searched from 1 to 9 for one whose four bytes are zero. When none is
  * free the search ends with the index at 10, and the routine files a null
  * pointer into slot 10 and answers null - the table's last slot, which only
- * this store ever reaches. See `VMDS.palettes.blocks` for why that is storage and not
+ * this store ever reaches. See `g_vmds.palettes.blocks` for why that is storage and not
  * an overrun.
  *
  * The palette's length and the chunk name are both chosen by the byte at
@@ -138,9 +138,9 @@ uint8_t far *load_palette(char *name)
     register int16_t slot;
 
     blk = 0;
-    ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[VMDS.pixel_shift];
+    g_engine_pen.palette_bytes = g_engine_palette_sizes.size[g_vmds.pixel_shift];
 
-    for (slot = 1; VMDS.palettes.blocks[slot] != NULL
+    for (slot = 1; g_vmds.palettes.blocks[slot] != NULL
                    && slot < 10; slot++)
         ;
 
@@ -155,16 +155,16 @@ uint8_t far *load_palette(char *name)
         /* Which palette chunk this adapter wants; entry 0 is the empty
            string, which `seek_named_chunk` refuses. */
         if (seek_named_chunk((FILE *)name,
-                             PALCHUNK.by_adapter[VMDS.pixel_shift], 0) != -1L) {
-            if ((blk = dos_alloc_bytes(ENGINE_PEN.palette_bytes, 0))
+                             g_palchunk.by_adapter[g_vmds.pixel_shift], 0) != -1L) {
+            if ((blk = dos_alloc_bytes(g_engine_pen.palette_bytes, 0))
                 != NULL) {
-                game_fread(buf, 1, ENGINE_PEN.palette_bytes, (FILE *)name);
-                huge_move(blk, buf, ENGINE_PEN.palette_bytes);
+                game_fread(buf, 1, g_engine_pen.palette_bytes, (FILE *)name);
+                huge_move(blk, buf, g_engine_pen.palette_bytes);
             }
-        } else if (VMDS.vga_chunks != 0
+        } else if (g_vmds.vga_chunks != 0
                    && seek_named_chunk((FILE *)name, "PAL:AMG:", 0) != -1L
                    && game_fread((uint8_t *)amg, 1, 0x40, (FILE *)name) != 0
-                   && (blk = dos_alloc_bytes(ENGINE_PEN.palette_bytes, 0))
+                   && (blk = dos_alloc_bytes(g_engine_pen.palette_bytes, 0))
                       != NULL) {
             p = blk;
             for (i = 0; i < 0x20; i++) {
@@ -180,7 +180,7 @@ uint8_t far *load_palette(char *name)
             close_file_record((FILE *)name);
     }
 
-    VMDS.palettes.blocks[slot] = blk;
+    g_vmds.palettes.blocks[slot] = blk;
     return blk;
 }
 
@@ -189,7 +189,7 @@ uint8_t far *load_palette(char *name)
  *
  * Set the current palette, or answer the one already set.
  *
- * It first makes sure a buffer exists: the byte at `VMDS.pixel_shift` - the driver's
+ * It first makes sure a buffer exists: the byte at `g_vmds.pixel_shift` - the driver's
  * own mode number, sign extended - indexes a table of sizes at DGROUP 0x4466,
  * and if the far pointer at 0x3a2e is still null a block of twice that many
  * bytes is allocated for it.
@@ -203,18 +203,18 @@ uint8_t far *load_palette(char *name)
  */
 uint8_t far *set_palette_pointer(uint8_t far *h)
 {
-    ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[VMDS.pixel_shift];
+    g_engine_pen.palette_bytes = g_engine_palette_sizes.size[g_vmds.pixel_shift];
 
-    if (VMDS.palettes.blocks[0] == NULL
-        && ENGINE_PEN.palette_bytes != 0)
-        VMDS.palettes.blocks[0] = dos_alloc_bytes(ENGINE_PEN.palette_bytes * 2, 0);
+    if (g_vmds.palettes.blocks[0] == NULL
+        && g_engine_pen.palette_bytes != 0)
+        g_vmds.palettes.blocks[0] = dos_alloc_bytes(g_engine_pen.palette_bytes * 2, 0);
 
     if (h == NULL)
-        return PALCHUNK.palette;
+        return g_palchunk.palette;
 
-    PALCHUNK.palette = h;
+    g_palchunk.palette = h;
 #ifdef __TURBOC__
-    ((vm_pal_fn)VM_DRIVER.entry[20])(h);
+    ((vm_pal_fn)g_vm_driver.entry[20])(h);
 #else
     vm_load_palette(h);
 #endif
@@ -238,9 +238,9 @@ void free_far_block(uint8_t far *h)
 
     if (h != NULL)
         for (i = 1; i < 10; i++)
-            if (VMDS.palettes.blocks[i] == h) {
-                dos_free_far(VMDS.palettes.blocks[i]);
-                VMDS.palettes.blocks[i] = NULL;
+            if (g_vmds.palettes.blocks[i] == h) {
+                dos_free_far(g_vmds.palettes.blocks[i]);
+                g_vmds.palettes.blocks[i] = NULL;
             }
 }
 
@@ -258,10 +258,10 @@ void free_far_block(uint8_t far *h)
 void fade_palette_run(uint16_t first, uint16_t count, register uint16_t colour,
                       register uint16_t weight)
 {
-    ENGINE_PEN.fade_weight = weight;
-    ENGINE_PEN.fade_colour = colour;
+    g_engine_pen.fade_weight = weight;
+    g_engine_pen.fade_colour = colour;
 #ifdef __TURBOC__
-    ((vm_blend_fn)VM_DRIVER.entry[34])(first, count, colour, weight);
+    ((vm_blend_fn)g_vm_driver.entry[34])(first, count, colour, weight);
 #else
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 #endif
@@ -284,24 +284,24 @@ int16_t add_palette_cycle(register int16_t first, register int16_t count,
                           register int16_t step)
 {
     if (first < 0)
-        PALETTE_CYCLES = count = 0;
+        g_palette_cycles = count = 0;
 
-    if (!(int8_t)VMDS.vga_chunks || PALETTE_CYCLES >= 9 || count <= 1)
+    if (!(int8_t)g_vmds.vga_chunks || g_palette_cycles >= 9 || count <= 1)
         return 0;
 
-    CYCLE_FROM[PALETTE_CYCLES] = first * 3;
-    CYCLE_LIMIT[PALETTE_CYCLES] = (first + count) * 3;
+    g_cycle_from[g_palette_cycles] = first * 3;
+    g_cycle_limit[g_palette_cycles] = (first + count) * 3;
     if (step < 0)
         step = count + step;
-    CYCLE_STEP[PALETTE_CYCLES] = step * 3;
-    return ++PALETTE_CYCLES;
+    g_cycle_step[g_palette_cycles] = step * 3;
+    return ++g_palette_cycles;
 }
 
 /*
  * 0x1ecd7
  *
  * **Turn every filed palette cycle one step**, and hand the result to the
- * driver. The palette block (`VMDS.palettes.blocks[0]`) holds two copies:
+ * driver. The palette block (`g_vmds.palettes.blocks[0]`) holds two copies:
  * the one the driver is given, and 0x300 bytes on the one being turned. The
  * turned copy is laid over the given one whole, and then each range of the
  * given one is copied back into the turned copy rotated by its step. The
@@ -318,27 +318,27 @@ void cycle_palettes(void)
     register int16_t i;
     register int16_t from;
 
-    if (!(int8_t)VMDS.vga_chunks)
+    if (!(int8_t)g_vmds.vga_chunks)
         return;
 
-    shown = turned = VMDS.palettes.blocks[0];
+    shown = turned = g_vmds.palettes.blocks[0];
     turned += 0x300;
     copy_far_bytes(turned, shown, 0x300);
 
-    for (i = 0; i < PALETTE_CYCLES; i++) {
-        from = CYCLE_FROM[i];
-        limit = CYCLE_LIMIT[i];
-        step = CYCLE_STEP[i];
+    for (i = 0; i < g_palette_cycles; i++) {
+        from = g_cycle_from[i];
+        limit = g_cycle_limit[i];
+        step = g_cycle_step[i];
         copy_far_bytes(shown + from, from + step + turned, limit - from - step);
         copy_far_bytes(shown + (limit - step), turned + from, step);
     }
 
 #ifdef __TURBOC__
-    ((vm_blend_fn)VM_DRIVER.entry[34])(0, 0x100, ENGINE_PEN.fade_colour,
-                               ENGINE_PEN.fade_weight);
+    ((vm_blend_fn)g_vm_driver.entry[34])(0, 0x100, g_engine_pen.fade_colour,
+                               g_engine_pen.fade_weight);
 #else
-    vm_blend_palette(0, 0x100, ENGINE_PEN.fade_colour,
-                     (uint8_t)ENGINE_PEN.fade_weight);
+    vm_blend_palette(0, 0x100, g_engine_pen.fade_colour,
+                     (uint8_t)g_engine_pen.fade_weight);
 #endif
 }
 
@@ -366,7 +366,7 @@ void fill_span_list(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)VM_DRIVER.entry[27])();
+    ((vm_esi_fn)g_vm_driver.entry[27])();
 #else
     vm_fill_spans(spans);
 #endif
@@ -384,7 +384,7 @@ void span_list_nothing(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)VM_DRIVER.entry[23])();
+    ((vm_esi_fn)g_vm_driver.entry[23])();
 #else
     (void)spans;
     vm_nothing();

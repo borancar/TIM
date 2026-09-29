@@ -43,7 +43,7 @@ uint8_t far *g_scratch_block = 0;
  * `lzw_reset` and `rle_flush` answer nothing; the table holds them as the
  * others are held, and nothing reads what the call answers.
  */
-struct engine_res_handlers ENGINE_RES_HANDLERS = {
+struct engine_res_handlers g_engine_res_handlers = {
     {
         { 0x0080, 0x0000, 0x0000, decompress_store, store_flush, 0, 0 },
         { 0x0080, 0x0000, 0x0000, decompress_rle,
@@ -60,10 +60,10 @@ struct engine_res_handlers ENGINE_RES_HANDLERS = {
  * reverse order of first mention; dgroup.h mentions the four from the
  * highest down, and they are defined here in the same order.
  */
-struct engine_stream ENGINE_STREAM;   /* DGROUP 0x5888 */
-struct engine_resource_slots ENGINE_RESOURCE_SLOTS;   /* DGROUP 0x57c0 */
-struct engine_resource_flags ENGINE_RESOURCE_FLAGS;   /* DGROUP 0x57ba */
-struct engine_read_staging ENGINE_READ_STAGING;
+struct engine_stream g_engine_stream;   /* DGROUP 0x5888 */
+struct engine_resource_slots g_engine_resource_slots;   /* DGROUP 0x57c0 */
+struct engine_resource_flags g_engine_resource_flags;   /* DGROUP 0x57ba */
+struct engine_read_staging g_engine_read_staging;
 
 /*
  * 0x1c251
@@ -95,7 +95,7 @@ int16_t near decompress_store(void)
  * so does either emitter answering 0, which is how the output side says the
  * caller's request has been filled.
  *
- * Bit 0x20 of `ENGINE_RESOURCE_FLAGS.flags` - a resource read from a file
+ * Bit 0x20 of `g_engine_resource_flags.flags` - a resource read from a file
  * rather than memory - clear, a resource in memory, hands the whole job to
  * the assembly at 0x1cd2c instead, and answers
  * what that does.
@@ -106,7 +106,7 @@ int16_t near decompress_rle(void)
     int16_t more;
 
     more = 1;
-    if (!(ENGINE_RESOURCE_FLAGS.flags & 0x20))
+    if (!(g_engine_resource_flags.flags & 0x20))
         return rle_from_memory();
 
     while (more != 0 && (token = next_input_byte()) != -1) {
@@ -131,13 +131,13 @@ int16_t near store_flush(int16_t final)
     uint16_t i;
     register uint8_t *buf;
 
-    i = ENGINE_STREAM.rec->spill_start;
-    buf = ENGINE_STREAM.spill;
-    while (ENGINE_STREAM.rec->spill_end != i) {
+    i = g_engine_stream.rec->spill_start;
+    buf = g_engine_stream.spill;
+    while (g_engine_stream.rec->spill_end != i) {
         put_output_byte(buf[i++]);
         i &= 0x7f;
     }
-    ENGINE_STREAM.rec->spill_start = i;
+    g_engine_stream.rec->spill_start = i;
     return 0;
 }
 
@@ -145,7 +145,7 @@ int16_t near store_flush(int16_t final)
  * 0x1c319
  *
  * Copy `count` bytes out of the current resource into a huge pointer, through
- * `ENGINE_READ_STAGING`, the 0x32-byte staging buffer at DGROUP 0x5788.
+ * `g_engine_read_staging`, the 0x32-byte staging buffer at DGROUP 0x5788.
  *
  * The buffer is why this is a loop at all: `game_fread` reads into DGROUP, and
  * the destination is a huge pointer that may be anywhere, so each pass reads at
@@ -163,9 +163,9 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
     got = 1;
     while (count > 0 && got > 0) {
         n = count > 0x32 ? 0x32 : count;
-        count -= got = game_fread(ENGINE_READ_STAGING.buf, 1, n,
-                                  ENGINE_RESOURCE_FLAGS.file);
-        far_memcpy(dst, ENGINE_READ_STAGING.buf, got);
+        count -= got = game_fread(g_engine_read_staging.buf, 1, n,
+                                  g_engine_resource_flags.file);
+        far_memcpy(dst, g_engine_read_staging.buf, got);
         dst += got;
     }
     return 0;
@@ -189,12 +189,12 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
  */
 int16_t near next_input_byte(void)
 {
-    if (ENGINE_STREAM.rec->in == ENGINE_STREAM.rec->end)
+    if (g_engine_stream.rec->in == g_engine_stream.rec->end)
         return -1;
-    ENGINE_STREAM.rec->in++;
-    if (ENGINE_STREAM.kind & 0x20)
-        return game_fgetc(ENGINE_RESOURCE_FLAGS.file);
-    return *ENGINE_STREAM.in++ & 0xff;
+    g_engine_stream.rec->in++;
+    if (g_engine_stream.kind & 0x20)
+        return game_fgetc(g_engine_resource_flags.file);
+    return *g_engine_stream.in++ & 0xff;
 }
 
 /*
@@ -215,14 +215,14 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
 {
     int32_t rem;
 
-    if ((rem = ENGINE_STREAM.rec->end - ENGINE_STREAM.rec->in) == 0)
+    if ((rem = g_engine_stream.rec->end - g_engine_stream.rec->in) == 0)
         return 0;
     rem = count > rem ? rem : count;
-    ENGINE_STREAM.rec->in += rem;
-    if (ENGINE_STREAM.kind & 0x20)
-        return game_fread(dst, 1, (uint16_t)rem, ENGINE_RESOURCE_FLAGS.file);
-    far_memcpy(dst, (uint8_t huge *)ENGINE_STREAM.in, (uint16_t)rem);
-    ENGINE_STREAM.in += rem;
+    g_engine_stream.rec->in += rem;
+    if (g_engine_stream.kind & 0x20)
+        return game_fread(dst, 1, (uint16_t)rem, g_engine_resource_flags.file);
+    far_memcpy(dst, (uint8_t huge *)g_engine_stream.in, (uint16_t)rem);
+    g_engine_stream.in += rem;
     return (int16_t)rem;
 }
 
@@ -231,7 +231,7 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  *
  * Deliver a run of `n` literal bytes to the output.
  *
- * The output has two states and `ENGINE_STREAM.wanted` - what the caller of
+ * The output has two states and `g_engine_stream.wanted` - what the caller of
  * `resource_read` still wants - decides between them. While the run fits,
  * the bytes go to the destination huge pointer, which is then stepped, and
  * the answer is 1 meaning "keep going". Once it does not fit they spill into
@@ -249,18 +249,18 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  */
 int16_t near emit_literal_run(uint16_t n)
 {
-    ENGINE_STREAM.rec->in += n;
-    if (ENGINE_STREAM.wanted >= n) {
-        if (ENGINE_RESOURCE_FLAGS.flags & 0x40)
-            read_into_huge(ENGINE_STREAM.out, n);
+    g_engine_stream.rec->in += n;
+    if (g_engine_stream.wanted >= n) {
+        if (g_engine_resource_flags.flags & 0x40)
+            read_into_huge(g_engine_stream.out, n);
         else
-            game_fseek(ENGINE_RESOURCE_FLAGS.file, (uint32_t)n, 1);
-        ENGINE_STREAM.wanted -= n;
-        ENGINE_STREAM.out += n;
+            game_fseek(g_engine_resource_flags.file, (uint32_t)n, 1);
+        g_engine_stream.wanted -= n;
+        g_engine_stream.out += n;
         return 1;
     } else {
-        ENGINE_STREAM.rec->spill_end += n;
-        read_into_huge(ENGINE_STREAM.spill, n);
+        g_engine_stream.rec->spill_end += n;
+        read_into_huge(g_engine_stream.spill, n);
         return 0;
     }
 }
@@ -279,16 +279,16 @@ int16_t near emit_literal_run(uint16_t n)
  */
 int16_t near emit_fill_run(uint16_t value, int16_t n)
 {
-    if (ENGINE_STREAM.wanted >= n) {
-        if (ENGINE_RESOURCE_FLAGS.flags & 0x40)
-            far_memset(ENGINE_STREAM.out, value, (int32_t)n);
-        ENGINE_STREAM.wanted -= n;
-        ENGINE_STREAM.out += n;
+    if (g_engine_stream.wanted >= n) {
+        if (g_engine_resource_flags.flags & 0x40)
+            far_memset(g_engine_stream.out, value, (int32_t)n);
+        g_engine_stream.wanted -= n;
+        g_engine_stream.out += n;
         return 1;
     } else {
-        far_memset(ENGINE_STREAM.spill + ENGINE_STREAM.rec->spill_end,
+        far_memset(g_engine_stream.spill + g_engine_stream.rec->spill_end,
                    value, (int32_t)n);
-        ENGINE_STREAM.rec->spill_end += n;
+        g_engine_stream.rec->spill_end += n;
         return 0;
     }
 }
@@ -303,14 +303,14 @@ int16_t near emit_fill_run(uint16_t value, int16_t n)
  */
 int16_t near emit_byte(uint16_t value)
 {
-    if (ENGINE_STREAM.wanted >= 1) {
-        if (ENGINE_RESOURCE_FLAGS.flags & 0x40)
-            *ENGINE_STREAM.out = value;
-        ENGINE_STREAM.out++;
-        ENGINE_STREAM.wanted--;
+    if (g_engine_stream.wanted >= 1) {
+        if (g_engine_resource_flags.flags & 0x40)
+            *g_engine_stream.out = value;
+        g_engine_stream.out++;
+        g_engine_stream.wanted--;
         return 1;
     } else {
-        ENGINE_STREAM.spill[ENGINE_STREAM.rec->spill_end++] = value;
+        g_engine_stream.spill[g_engine_stream.rec->spill_end++] = value;
         return 0;
     }
 }
@@ -325,11 +325,11 @@ int16_t near emit_byte(uint16_t value)
  */
 int16_t near put_output_byte(int16_t c)
 {
-    ENGINE_STREAM.written++;
-    if (ENGINE_STREAM.kind & 0x20)
-        return game_fputc(c, ENGINE_RESOURCE_FLAGS.file);
+    g_engine_stream.written++;
+    if (g_engine_stream.kind & 0x20)
+        return game_fputc(c, g_engine_resource_flags.file);
     else
-        return ENGINE_STREAM.rec->data.ptr[ENGINE_STREAM.rec->in++] = c;
+        return g_engine_stream.rec->data.ptr[g_engine_stream.rec->in++] = c;
 }
 
 /*
@@ -348,20 +348,20 @@ int16_t near put_output_byte(int16_t c)
 int16_t near select_resource(int16_t handle)
 {
     if (handle < 0 || handle >= 0x64
-        || (ENGINE_STREAM.rec = ENGINE_RESOURCE_SLOTS.slot[handle]) == NULL)
+        || (g_engine_stream.rec = g_engine_resource_slots.slot[handle]) == NULL)
         return 0;
 
-    ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch;
-    ENGINE_STREAM.spill = ENGINE_STREAM.rec->work;
-    ENGINE_RESOURCE_FLAGS.handler =
-        (ENGINE_STREAM.kind = ENGINE_STREAM.rec->kind) & 0x1f;
-    if (ENGINE_STREAM.kind & 0x20) {
-        ENGINE_RESOURCE_FLAGS.file = ENGINE_STREAM.rec->data.file;
-        ENGINE_RESOURCE_FLAGS.flags = 0x20;
+    g_engine_stream.scratch = g_engine_stream.rec->scratch;
+    g_engine_stream.spill = g_engine_stream.rec->work;
+    g_engine_resource_flags.handler =
+        (g_engine_stream.kind = g_engine_stream.rec->kind) & 0x1f;
+    if (g_engine_stream.kind & 0x20) {
+        g_engine_resource_flags.file = g_engine_stream.rec->data.file;
+        g_engine_resource_flags.flags = 0x20;
     } else {
-        ENGINE_RESOURCE_FLAGS.flags = 0;
-        ENGINE_STREAM.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(ENGINE_STREAM.rec->data.ptr + ENGINE_STREAM.rec->in));
+        g_engine_resource_flags.flags = 0;
+        g_engine_stream.in = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in));
     }
     return 1;
 }
@@ -406,13 +406,13 @@ void near free_if_set(void *p)
  */
 int16_t near close_resource_slot(int16_t slot)
 {
-    if ((ENGINE_STREAM.rec = ENGINE_RESOURCE_SLOTS.slot[slot]) != NULL) {
-        free_if_set(ENGINE_STREAM.rec->work);
-        if (ENGINE_STREAM.rec->scratch != NULL && !g_scratch_block)
-            dos_free_far(ENGINE_STREAM.rec->scratch);
+    if ((g_engine_stream.rec = g_engine_resource_slots.slot[slot]) != NULL) {
+        free_if_set(g_engine_stream.rec->work);
+        if (g_engine_stream.rec->scratch != NULL && !g_scratch_block)
+            dos_free_far(g_engine_stream.rec->scratch);
     }
-    free_if_set(ENGINE_STREAM.rec);
-    ENGINE_RESOURCE_SLOTS.slot[slot] = NULL;
+    free_if_set(g_engine_stream.rec);
+    g_engine_resource_slots.slot[slot] = NULL;
     return -1;
 }
 
@@ -429,13 +429,13 @@ int16_t near open_resource_slot(char *mode)
     int16_t i;
 
     for (i = 0; i < 0x64; i++)
-        if (ENGINE_RESOURCE_SLOTS.slot[i] == NULL)
+        if (g_engine_resource_slots.slot[i] == NULL)
             break;
     if (i == 0x64)
         return -1;
-    if ((ENGINE_STREAM.rec = (struct resource *)calloc_far(1, sizeof(struct resource))) == NULL)
+    if ((g_engine_stream.rec = (struct resource *)calloc_far(1, sizeof(struct resource))) == NULL)
         return -1;
-    ENGINE_RESOURCE_SLOTS.slot[i] = ENGINE_STREAM.rec;
+    g_engine_resource_slots.slot[i] = g_engine_stream.rec;
     return i;
 }
 
@@ -460,7 +460,7 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
 
     if (type > 3)
         return -1;
-    h = &ENGINE_RES_HANDLERS.type[type];
+    h = &g_engine_res_handlers.type[type];
     near_size = 0x80;
     if (string_contains_r(mode)) {
         near_size = h->near_size;
@@ -468,19 +468,19 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
     } else
         far_size = h->far_size;
 
-    if ((ENGINE_STREAM.rec->work = (uint8_t *)calloc_far(1, near_size)) == NULL)
+    if ((g_engine_stream.rec->work = (uint8_t *)calloc_far(1, near_size)) == NULL)
         return -1;
     if (far_size) {
         /* Compared as the huge pointer the original held it as. */
         if ((uint8_t huge *)g_scratch_block != NULL)
-            ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch = g_scratch_block;
+            g_engine_stream.scratch = g_engine_stream.rec->scratch = g_scratch_block;
         else
-            ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch =
+            g_engine_stream.scratch = g_engine_stream.rec->scratch =
                 dos_alloc_bytes((uint32_t)far_size, 0);
-        if (!ENGINE_STREAM.rec->scratch)
+        if (!g_engine_stream.rec->scratch)
             return -1;
     }
-    ENGINE_STREAM.rec->kind = type;
+    g_engine_stream.rec->kind = type;
     return 0;
 }
 
@@ -505,17 +505,17 @@ void near resource_advance(void)
     uint16_t n;
     uint16_t start;
 
-    start = ENGINE_STREAM.rec->spill_start;
-    n = ENGINE_STREAM.rec->spill_end - start;
-    if (n > ENGINE_STREAM.wanted)
-        ENGINE_STREAM.rec->spill_start += n = ENGINE_STREAM.wanted;
+    start = g_engine_stream.rec->spill_start;
+    n = g_engine_stream.rec->spill_end - start;
+    if (n > g_engine_stream.wanted)
+        g_engine_stream.rec->spill_start += n = g_engine_stream.wanted;
     else
-        ENGINE_STREAM.rec->spill_start = ENGINE_STREAM.rec->spill_end = 0;
+        g_engine_stream.rec->spill_start = g_engine_stream.rec->spill_end = 0;
     if (n != 0) {
-        if (ENGINE_RESOURCE_FLAGS.flags & 0x40)
-            far_memcpy(ENGINE_STREAM.out, ENGINE_STREAM.spill + start, n);
-        ENGINE_STREAM.wanted -= n;
-        ENGINE_STREAM.out += n;
+        if (g_engine_resource_flags.flags & 0x40)
+            far_memcpy(g_engine_stream.out, g_engine_stream.spill + start, n);
+        g_engine_stream.wanted -= n;
+        g_engine_stream.out += n;
     }
 }
 
@@ -531,15 +531,15 @@ void near resource_advance(void)
  */
 int16_t near resource_read(int16_t handle, uint16_t count)
 {
-    ENGINE_STREAM.wanted = count;
+    g_engine_stream.wanted = count;
     resource_advance();
-    if (ENGINE_STREAM.wanted != 0) {
-        ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].read();
-        if (ENGINE_STREAM.wanted != 0)
+    if (g_engine_stream.wanted != 0) {
+        g_engine_res_handlers.type[g_engine_resource_flags.handler].read();
+        if (g_engine_stream.wanted != 0)
             resource_advance();
     }
-    count -= ENGINE_STREAM.wanted;
-    ENGINE_STREAM.rec->pos += count;
+    count -= g_engine_stream.wanted;
+    g_engine_stream.rec->pos += count;
     return count;
 }
 
@@ -563,19 +563,19 @@ void near lzw_reset(void)
     int16_t i;
 
     (void)unused;
-    far_memset(ENGINE_STREAM.scratch, 0, 0x3aa1L);
-    ENGINE_STREAM.maxcode = (1 << (ENGINE_STREAM.n_bits = 9)) - 1;
+    far_memset(g_engine_stream.scratch, 0, 0x3aa1L);
+    g_engine_stream.maxcode = (1 << (g_engine_stream.n_bits = 9)) - 1;
     for (i = 0xff; i >= 0; i--) {
-        ((int16_t huge *)ENGINE_STREAM.scratch)[i] = 0;
-        *(ENGINE_STREAM.scratch + i + 0x2720L) = i & 0xff;
+        ((int16_t huge *)g_engine_stream.scratch)[i] = 0;
+        *(g_engine_stream.scratch + i + 0x2720L) = i & 0xff;
     }
-    ENGINE_STREAM.free_ent = 0x101;
-    ENGINE_STREAM.clear_flg = 0;
-    ENGINE_STREAM.first_code = 1;
-    ENGINE_STREAM.resume = 0;
-    ENGINE_STREAM.bit_pos = 0;
-    ENGINE_STREAM.bit_end = 0;
-    ENGINE_STREAM.de_stack = ENGINE_STREAM.scratch + 0x3720L;
+    g_engine_stream.free_ent = 0x101;
+    g_engine_stream.clear_flg = 0;
+    g_engine_stream.first_code = 1;
+    g_engine_stream.resume = 0;
+    g_engine_stream.bit_pos = 0;
+    g_engine_stream.bit_end = 0;
+    g_engine_stream.de_stack = g_engine_stream.scratch + 0x3720L;
 }
 
 /*

@@ -23,7 +23,7 @@
  * DGROUP 0x3330..0x3335. The grab x by width step: 9 23 38 44 59. `part_settle_conveyor`.
  * Five bytes; the next module's data starts at the next word, 0x3336.
  */
-uint8_t CONVEYOR_GRAB_X[5] = { 9, 23, 38, 44, 59 };
+uint8_t g_conveyor_grab_x[5] = { 9, 23, 38, 44, 59 };
 
 /*
  * 172c:24d0, image 0x19790 - a setup.
@@ -165,5 +165,5 @@ void part_settle_conveyor(struct part *part)
     part->start_form = part->form = (part->size[0].width - 0x20) / 0x10 * 7;
 
     /* `mov al,[bx+0x3330]`: the grab x by width step. */
-    part->grab.x = CONVEYOR_GRAB_X[(part->size[0].width - 0x20) / 0x10];
+    part->grab.x = g_conveyor_grab_x[(part->size[0].width - 0x20) / 0x10];
 }

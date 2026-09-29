@@ -162,9 +162,9 @@ d_48ef label byte
         db 0h, 0h, 0h
 _DATA ends
 
-extrn _VM_DRIVER:byte
-extrn _TIMER:byte
-extrn _VMDS:byte
+extrn _g_vm_driver:byte
+extrn _g_timer:byte
+extrn _g_vmds:byte
 LOWLEVEL_TEXT segment byte public 'CODE'
 assume cs:LOWLEVEL_TEXT, ds:DGROUP
 public _joy_time_axes, _joy_scale_axis, _joy_init, _joy_read
@@ -313,7 +313,7 @@ L21c01:
         in al, 40h
         xchg al, ah
         mov di, ax
-        mov bx, word ptr DGROUP:_TIMER+3h
+        mov bx, word ptr DGROUP:_g_timer+3h
         mov al, 36h
         out 43h, al
         mov al, bl
@@ -579,18 +579,18 @@ _clip_and_draw_line proc far
         push si
         push di
         push es
-        mov ax, word ptr DGROUP:_VMDS+18h
+        mov ax, word ptr DGROUP:_g_vmds+18h
         mov es, ax
         mov bx, word ptr [bp+6]
         mov cx, word ptr [bp+8]
         mov si, word ptr [bp+0ah]
         mov di, word ptr [bp+0ch]
-        mov al, byte ptr DGROUP:_VMDS+3h
+        mov al, byte ptr DGROUP:_g_vmds+3h
         or al, al
         jne L21e55
         jmp L21f08
 L21e55:
-        mov ax, word ptr DGROUP:_VMDS+8h
+        mov ax, word ptr DGROUP:_g_vmds+8h
         cmp cx, ax
         jl L21e66
         cmp di, ax
@@ -611,10 +611,10 @@ L21e6a:
         imul cx
         idiv bp
         add bx, ax
-        mov ax, word ptr DGROUP:_VMDS+8h
+        mov ax, word ptr DGROUP:_g_vmds+8h
         mov cx, ax
 L21e81:
-        mov ax, word ptr DGROUP:_VMDS+4h
+        mov ax, word ptr DGROUP:_g_vmds+4h
         cmp bx, ax
         jl L21e92
         cmp si, ax
@@ -637,10 +637,10 @@ L21e99:
         imul bx
         idiv bp
         add cx, ax
-        mov ax, word ptr DGROUP:_VMDS+4h
+        mov ax, word ptr DGROUP:_g_vmds+4h
         mov bx, ax
 L21eb0:
-        mov ax, word ptr DGROUP:_VMDS+0ah
+        mov ax, word ptr DGROUP:_g_vmds+0ah
         cmp cx, ax
         ja L21ec1
         cmp di, ax
@@ -661,10 +661,10 @@ L21ec5:
         imul cx
         idiv bp
         add bx, ax
-        mov ax, word ptr DGROUP:_VMDS+0ah
+        mov ax, word ptr DGROUP:_g_vmds+0ah
         mov cx, ax
 L21edc:
-        mov ax, word ptr DGROUP:_VMDS+6h
+        mov ax, word ptr DGROUP:_g_vmds+6h
         cmp bx, ax
         ja L21eed
         cmp si, ax
@@ -685,7 +685,7 @@ L21ef1:
         imul bx
         idiv bp
         add cx, ax
-        mov ax, word ptr DGROUP:_VMDS+6h
+        mov ax, word ptr DGROUP:_g_vmds+6h
         mov bx, ax
 L21f08:
         mov dx, si
@@ -695,7 +695,7 @@ L21f08:
         xchg bx, dx
         xchg cx, si
 L21f14:
-        call dword ptr DGROUP:_VM_DRIVER+0ch
+        call dword ptr DGROUP:_g_vm_driver+0ch
 L21f18:
         pop es
         pop di
@@ -729,8 +729,8 @@ _mouse_init proc far
         xor cx, cx
         mov dx, cx
         int 33h
-        push word ptr DGROUP:_VMDS+6ech
-        push word ptr DGROUP:_VMDS+6eah
+        push word ptr DGROUP:_g_vmds+6ech
+        push word ptr DGROUP:_g_vmds+6eah
         xor ax, ax
         push ax
         push ax
@@ -743,7 +743,7 @@ _mouse_init proc far
         pop es
         mov dx, 5d7fh
         int 33h
-        mov al, byte ptr DGROUP:_VMDS+1dh
+        mov al, byte ptr DGROUP:_g_vmds+1dh
         cmp al, 8
         jne L21f89
         mov al, byte ptr DGROUP:d_48e7
@@ -1434,21 +1434,21 @@ _restore_int0_vector endp
 _read_pixel_clipped proc far
         push bp
         mov bp, sp
-        cmp byte ptr DGROUP:_VMDS+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+3h, 0
         je L22443
         mov ax, word ptr [bp+6]
-        cmp ax, word ptr DGROUP:_VMDS+4h
+        cmp ax, word ptr DGROUP:_g_vmds+4h
         jl L22448
-        cmp ax, word ptr DGROUP:_VMDS+6h
+        cmp ax, word ptr DGROUP:_g_vmds+6h
         jg L22448
         mov ax, word ptr [bp+8]
-        cmp ax, word ptr DGROUP:_VMDS+8h
+        cmp ax, word ptr DGROUP:_g_vmds+8h
         jl L22448
-        cmp ax, word ptr DGROUP:_VMDS+0ah
+        cmp ax, word ptr DGROUP:_g_vmds+0ah
         jg L22448
 L22443:
         pop bp
-        jmp dword ptr DGROUP:_VM_DRIVER+58h
+        jmp dword ptr DGROUP:_g_vm_driver+58h
 L22448:
         pop bp
         mov ax, 0ffffh
@@ -1459,21 +1459,21 @@ _read_pixel_clipped endp
 _plot_pixel_clipped proc far
         push bp
         mov bp, sp
-        cmp byte ptr DGROUP:_VMDS+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+3h, 0
         je L22475
         mov ax, word ptr [bp+6]
-        cmp ax, word ptr DGROUP:_VMDS+4h
+        cmp ax, word ptr DGROUP:_g_vmds+4h
         jl L2247a
-        cmp ax, word ptr DGROUP:_VMDS+6h
+        cmp ax, word ptr DGROUP:_g_vmds+6h
         jg L2247a
         mov ax, word ptr [bp+8]
-        cmp ax, word ptr DGROUP:_VMDS+8h
+        cmp ax, word ptr DGROUP:_g_vmds+8h
         jl L2247a
-        cmp ax, word ptr DGROUP:_VMDS+0ah
+        cmp ax, word ptr DGROUP:_g_vmds+0ah
         jg L2247a
 L22475:
         pop bp
-        jmp dword ptr DGROUP:_VM_DRIVER+5ch
+        jmp dword ptr DGROUP:_g_vm_driver+5ch
 L2247a:
         pop bp
         mov ax, 0ffffh
@@ -1482,7 +1482,7 @@ _plot_pixel_clipped endp
 
 /* 0x2247f */
 _restore_rect_thunk proc near
-        jmp dword ptr DGROUP:_VM_DRIVER+20h
+        jmp dword ptr DGROUP:_g_vm_driver+20h
 _restore_rect_thunk endp
 LOWLEVEL_TEXT ends
 }
@@ -1502,7 +1502,7 @@ struct engine_mouse {
                                                nothing in the image sets it */
 } PACKED;
 
-struct engine_mouse ENGINE_MOUSE;
+struct engine_mouse g_engine_mouse;
 
 /*
  * **The cursor code's, the mouse's and the divide trap's data**, DGROUP
@@ -1665,9 +1665,9 @@ void clip_and_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
     int16_t edge, t;
 
-    if (VMDS.clip_enabled != 0) {
+    if (g_vmds.clip_enabled != 0) {
         /* top */
-        edge = VMDS.clip_top;
+        edge = g_vmds.clip_top;
         if (y1 < edge) {
             if (y2 < edge)
                 return;
@@ -1682,7 +1682,7 @@ void clip_and_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         y1 = edge;
 
 left:
-        edge = VMDS.clip_left;
+        edge = g_vmds.clip_left;
         if (x1 < edge) {
             if (x2 < edge)
                 return;
@@ -1697,7 +1697,7 @@ left:
         x1 = edge;
 
 bottom:
-        edge = VMDS.clip_bottom;
+        edge = g_vmds.clip_bottom;
         if ((uint16_t)y1 > (uint16_t)edge) {
             if ((uint16_t)y2 > (uint16_t)edge)
                 return;
@@ -1712,7 +1712,7 @@ bottom:
         y1 = edge;
 
 right:
-        edge = VMDS.clip_right;
+        edge = g_vmds.clip_right;
         if ((uint16_t)x1 > (uint16_t)edge) {
             if ((uint16_t)x2 > (uint16_t)edge)
                 return;
@@ -1775,11 +1775,11 @@ uint16_t mouse_init(void)
     io_mouse_set_speed(8, 8);
     io_mouse_move_to(0, 0);
 
-    mouse_set_ranges(0, 0, ((uint16_t)VMDS.screen.screen_width), ((uint16_t)VMDS.screen.screen_height));
+    mouse_set_ranges(0, 0, ((uint16_t)g_vmds.screen.screen_width), ((uint16_t)g_vmds.screen.screen_height));
 
     io_mouse_set_handler(0x1f, (void (far *)(void))mouse_event);
 
-    if (((uint8_t)VMDS.pixel_shift) == 8) {
+    if (((uint8_t)g_vmds.pixel_shift) == 8) {
         g_gc_mode_fill = g_gc_mode_fill_256;
         g_gc_mode_copy = g_gc_mode_copy_256;
     }
@@ -1822,7 +1822,7 @@ void mouse_set_ranges(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  */
 void mouse_set_user_handler(void (far *h)(void))
 {
-    ENGINE_MOUSE.mouse_handler_fn = h;
+    g_engine_mouse.mouse_handler_fn = h;
 }
 
 /*
@@ -1847,16 +1847,16 @@ void mouse_set_user_handler(void (far *h)(void))
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 {
     g_mouse_buttons = (uint8_t)buttons;
-    ENGINE_MOUSE.mouse_x = x;
-    ENGINE_MOUSE.mouse_y = y;
+    g_engine_mouse.mouse_x = x;
+    g_engine_mouse.mouse_y = y;
 
-    if (ENGINE_MOUSE.mouse_handler_fn == NULL)
+    if (g_engine_mouse.mouse_handler_fn == NULL)
         return;
 
     mouse_save_vga();
     /* `lcall [0x4744]`. Nothing sets the pointer - see
        `mouse_set_user_handler` - so this is never reached. */
-    ENGINE_MOUSE.mouse_handler_fn();
+    g_engine_mouse.mouse_handler_fn();
     mouse_restore_vga();
 }
 
@@ -2005,8 +2005,8 @@ void read_mouse_pointer(int16_t *x, int16_t *y)
 {
     if (g_mouse_taken == 0)
         return;
-    *x = (int16_t)(ENGINE_MOUSE.mouse_x >> 2);
-    *y = (int16_t)(ENGINE_MOUSE.mouse_y >> 2);
+    *x = (int16_t)(g_engine_mouse.mouse_x >> 2);
+    *y = (int16_t)(g_engine_mouse.mouse_y >> 2);
 }
 
 /*
@@ -2029,8 +2029,8 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
     if (g_mouse_taken == 0)
         return 0;
 
-    ENGINE_MOUSE.mouse_x = (int16_t)(x << 2);
-    ENGINE_MOUSE.mouse_y = (int16_t)(y << 2);
+    g_engine_mouse.mouse_x = (int16_t)(x << 2);
+    g_engine_mouse.mouse_y = (int16_t)(y << 2);
 
     /*
      * `mov ax,4 / int 0x33` - the driver's "set cursor position", with the
@@ -2174,15 +2174,15 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
        forward copy at 0x221d6 - stored for the comparison's sake only: this
        body calls neither through them. Overwritten below if the copy has to
        go down. */
-    S1C_HUGE_MOVE.normalise_off = 0x5f11;
-    S1C_HUGE_MOVE.copy_off = 0x5f86;
+    g_s1c_huge_move.normalise_off = 0x5f11;
+    g_s1c_huge_move.copy_off = 0x5f86;
 
     /* The original compares the two linear addresses; the host's pointers
        are them. */
     if (src < (const uint8_t far *)dst) {
         /* The normalise that steps back a paragraph, and the backward copy. */
-        S1C_HUGE_MOVE.normalise_off = 0x5f23;
-        S1C_HUGE_MOVE.copy_off = 0x5f6f;
+        g_s1c_huge_move.normalise_off = 0x5f23;
+        g_s1c_huge_move.copy_off = 0x5f6f;
     }
 
     memmove((void *)(uintptr_t)dst, (const void *)(uintptr_t)src, count);
@@ -2367,14 +2367,14 @@ void restore_int0_vector(void)
  */
 int16_t read_pixel_clipped(int16_t x, int16_t y)
 {
-    if (VMDS.clip_enabled != 0) {
-        if (x < VMDS.clip_left)
+    if (g_vmds.clip_enabled != 0) {
+        if (x < g_vmds.clip_left)
             return -1;
-        if (x > VMDS.clip_right)
+        if (x > g_vmds.clip_right)
             return -1;
-        if (y < VMDS.clip_top)
+        if (y < g_vmds.clip_top)
             return -1;
-        if (y > VMDS.clip_bottom)
+        if (y > g_vmds.clip_bottom)
             return -1;
     }
 
@@ -2403,14 +2403,14 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
  */
 int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
 {
-    if (VMDS.clip_enabled != 0) {
-        if (x < VMDS.clip_left)
+    if (g_vmds.clip_enabled != 0) {
+        if (x < g_vmds.clip_left)
             return -1;
-        if (x > VMDS.clip_right)
+        if (x > g_vmds.clip_right)
             return -1;
-        if (y < VMDS.clip_top)
+        if (y < g_vmds.clip_top)
             return -1;
-        if (y > VMDS.clip_bottom)
+        if (y > g_vmds.clip_bottom)
             return -1;
     }
 

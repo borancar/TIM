@@ -242,7 +242,7 @@ struct bitmap **load_bitmap_list(char *name)
     if (read_bmp_info(si, &count, &list) == 0)
         goto done;
 
-    want = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&size);
+    want = ((vm_list_size_fn)g_vm_driver.entry[13])(list, (uint8_t *)&size);
 
     if (!(blk = dos_alloc_bytes(want, 0)))
         goto done;
@@ -272,12 +272,12 @@ struct bitmap **load_bitmap_list(char *name)
     while (read_resource(res, walk, 0x7fff) == 0x7fff)
         walk += 0x7fff;
 
-    ((vm_load_list_fn)VM_DRIVER.entry[14])(list, blk, resource_size(res), tmp, want);
+    ((vm_load_list_fn)g_vm_driver.entry[14])(list, blk, resource_size(res), tmp, want);
 
     close_resource(res);
     kind = 1;
 
-    if (VMDS.vga_chunks == 0)
+    if (g_vmds.vga_chunks == 0)
         goto done;
 
     if (seek_named_chunk(si, "BMP:VGA:", 0) != -1L)
@@ -301,7 +301,7 @@ struct bitmap **load_bitmap_list(char *name)
             got <<= 2;
         }
 
-        ((vm_chunk_fn)VM_DRIVER.entry[15])(tmp, walk, got);
+        ((vm_chunk_fn)g_vm_driver.entry[15])(tmp, walk, got);
         walk += want << 1;
     }
 

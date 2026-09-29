@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3432..0x3442. Connection points, 8 pairs.
  */
-struct point8 CORNER_PIPE_POINTS_3432[8] = {
+struct point8 g_corner_pipe_points_3432[8] = {
     { 0x00, 0x00 }, { 0x13, 0x01 }, { 0x1e, 0x0c }, { 0x1f, 0x1f },
     { 0x10, 0x1f }, { 0x10, 0x14 }, { 0x0b, 0x0f }, { 0x00, 0x0f },
 };
@@ -30,7 +30,7 @@ struct point8 CORNER_PIPE_POINTS_3432[8] = {
 /*
  * DGROUP 0x3442..0x3452. Connection points, 8 pairs.
  */
-struct point8 CORNER_PIPE_POINTS_3442[8] = {
+struct point8 g_corner_pipe_points_3442[8] = {
     { 0x00, 0x1f }, { 0x01, 0x0c }, { 0x0c, 0x01 }, { 0x1f, 0x00 },
     { 0x1f, 0x0f }, { 0x14, 0x0f }, { 0x0f, 0x14 }, { 0x0f, 0x1f },
 };
@@ -38,7 +38,7 @@ struct point8 CORNER_PIPE_POINTS_3442[8] = {
 /*
  * DGROUP 0x3452..0x3462. Connection points, 8 pairs.
  */
-struct point8 CORNER_PIPE_POINTS_3452[8] = {
+struct point8 g_corner_pipe_points_3452[8] = {
     { 0x00, 0x10 }, { 0x0b, 0x10 }, { 0x10, 0x0b }, { 0x10, 0x00 },
     { 0x1f, 0x00 }, { 0x1e, 0x13 }, { 0x13, 0x1e }, { 0x00, 0x1f },
 };
@@ -46,7 +46,7 @@ struct point8 CORNER_PIPE_POINTS_3452[8] = {
 /*
  * DGROUP 0x3462..0x3472. Connection points, 8 pairs.
  */
-struct point8 CORNER_PIPE_POINTS_3462[8] = {
+struct point8 g_corner_pipe_points_3462[8] = {
     { 0x00, 0x00 }, { 0x0f, 0x00 }, { 0x0f, 0x0b }, { 0x14, 0x10 },
     { 0x1f, 0x10 }, { 0x1f, 0x1f }, { 0x0c, 0x1e }, { 0x01, 0x13 },
 };
@@ -65,13 +65,13 @@ void part_setup_corner_pipe(struct part *part)
     struct part_point *dst;
 
     if (part->form == 0)
-        src = CORNER_PIPE_POINTS_3432;
+        src = g_corner_pipe_points_3432;
     else if (part->form == 1)
-        src = CORNER_PIPE_POINTS_3442;
+        src = g_corner_pipe_points_3442;
     else if (part->form == 2)
-        src = CORNER_PIPE_POINTS_3452;
+        src = g_corner_pipe_points_3452;
     else
-        src = CORNER_PIPE_POINTS_3462;
+        src = g_corner_pipe_points_3462;
 
     for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;

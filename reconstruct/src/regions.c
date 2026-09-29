@@ -57,14 +57,14 @@ void regions_handle_pointer(register struct region *si)
 {
     while (si != 0) {
         if ((si->mask & g_round_state)
-            && si->x0 <= POINTER.pointer_x
-            && si->x1 >= POINTER.pointer_x
-            && si->y0 <= POINTER.pointer_y
-            && si->y1 >= POINTER.pointer_y) {
+            && si->x0 <= g_pointer.pointer_x
+            && si->x1 >= g_pointer.pointer_x
+            && si->y0 <= g_pointer.pointer_y
+            && si->y1 >= g_pointer.pointer_y) {
             if (si->hover != NULL)
                 si->hover(si);
             select_cursor(si->cursor);
-            if (POINTER.button_left == 2) {
+            if (g_pointer.button_left == 2) {
                 if (si->click != NULL)
                     si->click(si);
                 g_round_state = si->code;

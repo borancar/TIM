@@ -42,7 +42,7 @@ struct game_puzzle_tabs {
     int16_t   stop_y[5];          /* +0x0c [0xa] */
 } PACKED;
 
-struct game_puzzle_tabs GAME_PUZZLE_TABS = {
+struct game_puzzle_tabs g_game_puzzle_tabs = {
     0xffff, /* stop */
     { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 }, /* stop_x */
     { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 }, /* stop_y */
@@ -58,7 +58,7 @@ struct game_typed_text {
     char typed[0x28];             /* +0x00 [0x28] */
 } PACKED;
 
-struct game_typed_text GAME_TYPED_TEXT;
+struct game_typed_text g_game_typed_text;
 
 /*
  * **The picker's own state**, DGROUP 0x5428..0x542e. Declared after the typed
@@ -78,7 +78,7 @@ struct puzzle_state {
     int16_t   puzzle_page;        /* +0x04  0x542c */
 } PACKED;
 
-struct puzzle_state PUZZLE_STATE;
+struct puzzle_state g_puzzle_state;
 
 /*
  * 0x0f0b0
@@ -127,8 +127,8 @@ uint16_t select_puzzle_screen(void)
     saved = g_odometer_total;
     hold = 0;
 
-    PUZZLE_STATE.selected_level = g_round_number;
-    page = PUZZLE_STATE.puzzle_page = puzzle_page_of_score();
+    g_puzzle_state.selected_level = g_round_number;
+    page = g_puzzle_state.puzzle_page = puzzle_page_of_score();
 
     /*
      * The screen **opens the current level** before it draws anything: if the
@@ -153,7 +153,7 @@ uint16_t select_puzzle_screen(void)
         if ((g_last_key == '\r' || g_last_key == ' '
              || g_last_key == 0x1b /* Esc */)
             && g_round_state == 0x800)
-            POINTER.button_left = 0;
+            g_pointer.button_left = 0;
 
         regions_handle_pointer(g_regions_a);
 
@@ -165,7 +165,7 @@ uint16_t select_puzzle_screen(void)
             g_odometer_total = saved;
             start_counters();
             set_clip_play_area();
-            PUZZLE_STATE.selected_level = g_round_number;
+            g_puzzle_state.selected_level = g_round_number;
             g_round_state = 0x400;
 
         /*
@@ -177,37 +177,37 @@ uint16_t select_puzzle_screen(void)
             if ((g_last_key != '\r' && g_round_state == 0x800)
                 || was != 0x800) {
                 if (was == 0x800)
-                    picker_type(g_last_key, GAME_TYPED_TEXT.typed, 0x19);
+                    picker_type(g_last_key, g_game_typed_text.typed, 0x19);
             } else {
                 update_button_state();
 
-                level = password_to_level(GAME_TYPED_TEXT.typed);
+                level = password_to_level(g_game_typed_text.typed);
 
                 if (level == -1) {
-                    show_message_box(MESSAGES.bad_password, MESSAGES.bad_password_body);
+                    show_message_box(g_messages.bad_password, g_messages.bad_password_body);
                     g_round_state = 0x8000;
                     full = 1;
                 } else {
-                    g_odometer_total = score_code_to_score(GAME_TYPED_TEXT.typed);
+                    g_odometer_total = score_code_to_score(g_game_typed_text.typed);
 
                     if (g_odometer_total == -1) {
                         g_odometer_total = 0;
-                        show_message_box(MESSAGES.score_code_invalid, MESSAGES.score_code_body);
+                        show_message_box(g_messages.score_code_invalid, g_messages.score_code_body);
                         full = 1;
                     }
 
-                    PUZZLE_STATE.selected_level = level;
+                    g_puzzle_state.selected_level = level;
 
-                    if (PUZZLE_STATE.selected_level > g_level_count)
-                        PUZZLE_STATE.selected_level = g_level_count;
+                    if (g_puzzle_state.selected_level > g_level_count)
+                        g_puzzle_state.selected_level = g_level_count;
 
                     repaint = 1;
                     start_counters();
                     set_clip_play_area();
 
                     page = puzzle_page_of_score();
-                    if (page != PUZZLE_STATE.puzzle_page) {
-                        PUZZLE_STATE.puzzle_page = page;
+                    if (page != g_puzzle_state.puzzle_page) {
+                        g_puzzle_state.puzzle_page = page;
                         repaint = 1;
                     }
                 }
@@ -231,12 +231,12 @@ uint16_t select_puzzle_screen(void)
         switch (g_round_state) {
         case 0x2000:                    /* the up arrow: a page back */
             if (hold == 0) {
-                if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                if (g_pointer.button_left != 1 && g_pointer.button_left != 2) {
                     g_round_state = 0x8000;
-                } else if (PUZZLE_STATE.puzzle_page > 1) {
-                    PUZZLE_STATE.puzzle_page -= 0x15;
-                    if (PUZZLE_STATE.puzzle_page < 1)
-                        PUZZLE_STATE.puzzle_page = 1;
+                } else if (g_puzzle_state.puzzle_page > 1) {
+                    g_puzzle_state.puzzle_page -= 0x15;
+                    if (g_puzzle_state.puzzle_page < 1)
+                        g_puzzle_state.puzzle_page = 1;
                     repaint = 1;
                     hold = 4;
                 }
@@ -246,10 +246,10 @@ uint16_t select_puzzle_screen(void)
 
         case 0x1000:                    /* the down arrow: a page on */
             if (hold == 0) {
-                if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                if (g_pointer.button_left != 1 && g_pointer.button_left != 2) {
                     g_round_state = 0x8000;
-                } else if (PUZZLE_STATE.puzzle_page + 0x15 <= g_level_count) {
-                    PUZZLE_STATE.puzzle_page += 0x15;
+                } else if (g_puzzle_state.puzzle_page + 0x15 <= g_level_count) {
+                    g_puzzle_state.puzzle_page += 0x15;
                     repaint = 1;
                     hold = 4;
                 }
@@ -258,21 +258,21 @@ uint16_t select_puzzle_screen(void)
             break;
 
         case 0x4000:                    /* a click in the list */
-            row = PUZZLE_STATE.puzzle_page + (POINTER.pointer_y - 0x4c) / 10;
+            row = g_puzzle_state.puzzle_page + (g_pointer.pointer_y - 0x4c) / 10;
 
             if (row <= g_level_count) {
                 if (row > g_furthest_level) {
-                    show_message_box(MESSAGES.need_password, MESSAGES.need_password_body);
+                    show_message_box(g_messages.need_password, g_messages.need_password_body);
                     repaint = 1;
-                } else if (row != PUZZLE_STATE.selected_level) {
-                    PUZZLE_STATE.selected_level = row;
+                } else if (row != g_puzzle_state.selected_level) {
+                    g_puzzle_state.selected_level = row;
 
                     /*
                      * Choosing a puzzle *earlier* than the one being played
                      * zeroes the score, because the score belongs to the run
                      * that got this far.
                      */
-                    if (PUZZLE_STATE.selected_level < g_round_number) {
+                    if (g_puzzle_state.selected_level < g_round_number) {
                         g_odometer_total = 0;
                         start_counters();
                         set_clip_play_area();
@@ -305,9 +305,9 @@ uint16_t select_puzzle_screen(void)
                 rp_down--;
             }
             if (repaint != 0)
-                puzzle_draw_list(PUZZLE_STATE.puzzle_page, PUZZLE_STATE.selected_level);
+                puzzle_draw_list(g_puzzle_state.puzzle_page, g_puzzle_state.selected_level);
             if (rp_pass != 0) {
-                puzzle_draw_password(GAME_TYPED_TEXT.typed);
+                puzzle_draw_password(g_game_typed_text.typed);
                 rp_pass--;
             }
         }
@@ -323,8 +323,8 @@ uint16_t select_puzzle_screen(void)
     puzzle_draw_ok(1);
     present_back_page();
 
-    if (PUZZLE_STATE.selected_level != g_round_number) {
-        g_round_number = PUZZLE_STATE.selected_level;
+    if (g_puzzle_state.selected_level != g_round_number) {
+        g_round_number = g_puzzle_state.selected_level;
         return 1;
     }
     return 0;
@@ -339,13 +339,13 @@ uint16_t select_puzzle_screen(void)
  */
 void puzzle_tab(void)
 {
-    GAME_PUZZLE_TABS.stop++;
+    g_game_puzzle_tabs.stop++;
 
-    if (GAME_PUZZLE_TABS.stop == 5)
-        GAME_PUZZLE_TABS.stop = 0;
+    if (g_game_puzzle_tabs.stop == 5)
+        g_game_puzzle_tabs.stop = 0;
 
-    move_pointer_to(GAME_PUZZLE_TABS.stop_x[GAME_PUZZLE_TABS.stop],
-                    GAME_PUZZLE_TABS.stop_y[GAME_PUZZLE_TABS.stop]);
+    move_pointer_to(g_game_puzzle_tabs.stop_x[g_game_puzzle_tabs.stop],
+                    g_game_puzzle_tabs.stop_y[g_game_puzzle_tabs.stop]);
 }
 
 /*
@@ -362,7 +362,7 @@ uint16_t puzzle_page_of_score(void)
 {
     int16_t page = 1;
 
-    while (page + 0x14 < PUZZLE_STATE.selected_level)
+    while (page + 0x14 < g_puzzle_state.selected_level)
         page += 0x15;
 
     return (uint16_t)page;
@@ -388,8 +388,8 @@ void puzzle_repaint(void)
 {
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
 
-    draw_scroll_text(MESSAGES.select_puzzle, 0xa8, 0x27, 0xc0);
-    draw_scroll_text(MESSAGES.password, 0x20, 0x13c, 0x60);
+    draw_scroll_text(g_messages.select_puzzle, 0xa8, 0x27, 0xc0);
+    draw_scroll_text(g_messages.password, 0x20, 0x13c, 0x60);
 
     draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
     draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
@@ -398,8 +398,8 @@ void puzzle_repaint(void)
     puzzle_draw_up();
     puzzle_draw_down();
     puzzle_draw_ok(0);
-    puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
-    puzzle_draw_list(PUZZLE_STATE.puzzle_page, PUZZLE_STATE.selected_level);
+    puzzle_draw_password((const char *)g_game_typed_text.typed);
+    puzzle_draw_list(g_puzzle_state.puzzle_page, g_puzzle_state.selected_level);
 
     present_back_page();
 }
@@ -420,7 +420,7 @@ void puzzle_draw_up(void)
     else
         pressed = 0;
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x25)[pressed]),
                 0x1d4, 0x46, 0);
@@ -442,7 +442,7 @@ void puzzle_draw_down(void)
     else
         pressed = 0;
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x27)[pressed]),
                 0x1d4, 0x110, 0);
@@ -459,7 +459,7 @@ void puzzle_draw_down(void)
  */
 void puzzle_draw_ok(uint16_t pressed)
 {
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x10)[pressed]),
                 0x200, 0x12e, 0);
@@ -493,15 +493,15 @@ void puzzle_draw_password(const char *text)
         si++;
 
     if (g_round_state == 0x800) {
-        PUZZLE_STATE.password_blink++;
-        if ((PUZZLE_STATE.password_blink & 8) != 0)
+        g_puzzle_state.password_blink++;
+        if ((g_puzzle_state.password_blink & 8) != 0)
             strcat(si, "*");
     }
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
 
-    VMDS.text_colour = 0x0f;
+    g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
     draw_string(si, 0x94, 0x140);
@@ -532,11 +532,11 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     char title[80];                     /* [bp-0xbe] */
     int16_t i;
 
-    VMDS.page_dst = VMDS.page_back;
+    g_vmds.page_dst = g_vmds.page_back;
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {
-        strcpy(name, MESSAGES.puzzle_prefix);
+        strcpy(name, g_messages.puzzle_prefix);
         itoa(first, num, 10);
         strcat(name, num);
         strcat(name, ": ");
@@ -545,11 +545,11 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
             strcat(name, title);
 
             if (first == selected)
-                VMDS.text_colour = 0x0f;
+                g_vmds.text_colour = 0x0f;
             else if (first <= g_furthest_level)
-                VMDS.text_colour = 0x0a;
+                g_vmds.text_colour = 0x0a;
             else
-                VMDS.text_colour = 0x0c;
+                g_vmds.text_colour = 0x0c;
 
             cursor_redraw_off_thunk();
             draw_string(name, 0x34, y);
@@ -607,7 +607,7 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
     cursor_redraw_off_thunk();
 
-    PART_KINDS[n].bitmaps = load_bitmaps(name);
+    g_part_kinds[n].bitmaps = load_bitmaps(name);
 
     restore_cursor_following();
     heap_check_or_hang();
@@ -637,8 +637,8 @@ void free_all_part_bitmaps(void)
  */
 void free_part_bitmap(uint16_t n)
 {
-    if (PART_KINDS[n].bitmaps != 0) {
-        free_bitmaps_thunk(PART_KINDS[n].bitmaps);
-        PART_KINDS[n].bitmaps = 0;
+    if (g_part_kinds[n].bitmaps != 0) {
+        free_bitmaps_thunk(g_part_kinds[n].bitmaps);
+        g_part_kinds[n].bitmaps = 0;
     }
 }

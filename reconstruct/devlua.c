@@ -54,7 +54,7 @@
  * The whole state. One client at a time: this drives a game, and two scripts
  * pressing the mouse at once would be a race with no reason to exist.
  */
-static lua_State *L;
+static lua_State *g_l;
 static int32_t listen_fd = -1;
 static int32_t client_fd = -1;
 static int32_t cur_flip;
@@ -145,7 +145,7 @@ static int32_t l_wait(lua_State *s)
 /*
  * **A global, read by name**, which is what lets a script look before it
  * clicks: `tim.peek16("g_round_state")`, and an optional byte offset into it
- * for a field - `tim.peek8("POINTER", 4)`. The name is looked up in the
+ * for a field - `tim.peek8("g_pointer", 4)`. The name is looked up in the
  * binary's own dynamic table, which `-rdynamic` fills for `devtim`.
  */
 static const uint8_t *peek_at(lua_State *s, lua_Integer *off)
@@ -196,7 +196,7 @@ static int32_t l_quit(lua_State *s)
     _exit(0);
 }
 
-static const luaL_Reg TIM_FNS[] = {
+static const luaL_Reg g_tim_fns[] = {
     { "flip",     l_flip },
     { "press",    l_press },
     { "release",  l_release },
@@ -216,7 +216,7 @@ static const luaL_Reg TIM_FNS[] = {
  * counts are `devdump.c`'s: two flips for a click, four for a key, measured
  * there and not guessed here.
  */
-static const char PRELUDE[] =
+static const char g_prelude[] =
     "function tim.click(x, y)\n"
     "  tim.press(x, y); tim.wait(2); tim.release(x, y)\n"
     "end\n"
@@ -241,19 +241,19 @@ void native_lua_bind(lua_State *s) __attribute__((weak));
 
 static void lua_start(void)
 {
-    L = luaL_newstate();
-    luaL_openlibs(L);
+    g_l = luaL_newstate();
+    luaL_openlibs(g_l);
 
-    lua_newtable(L);
-    luaL_setfuncs(L, (const luaL_Reg *)TIM_FNS, 0);
-    lua_setglobal(L, "tim");
+    lua_newtable(g_l);
+    luaL_setfuncs(g_l, (const luaL_Reg *)g_tim_fns, 0);
+    lua_setglobal(g_l, "tim");
 
     if (native_lua_bind)
-        native_lua_bind(L);
+        native_lua_bind(g_l);
 
-    if (luaL_dostring(L, PRELUDE) != LUA_OK) {
-        fprintf(stderr, "lua: prelude failed: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
+    if (luaL_dostring(g_l, g_prelude) != LUA_OK) {
+        fprintf(stderr, "lua: prelude failed: %s\n", lua_tostring(g_l, -1));
+        lua_pop(g_l, 1);
     }
 }
 
@@ -291,8 +291,8 @@ static void run_chunk(const char *src)
     int32_t nres;
     int32_t rc;
 
-    co = lua_newthread(L);
-    co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    co = lua_newthread(g_l);
+    co_ref = luaL_ref(g_l, LUA_REGISTRYINDEX);
 
     if (luaL_loadstring(co, src) != LUA_OK) {
         reply("error %s\n", lua_tostring(co, -1));
@@ -311,7 +311,7 @@ static void run_chunk(const char *src)
         reply("ok\n");
 
 done:
-    luaL_unref(L, LUA_REGISTRYINDEX, co_ref);
+    luaL_unref(g_l, LUA_REGISTRYINDEX, co_ref);
     co_ref = LUA_NOREF;
     co = NULL;
 }
@@ -331,7 +331,7 @@ static void resume_chunk(void)
     else
         reply("ok\n");
 
-    luaL_unref(L, LUA_REGISTRYINDEX, co_ref);
+    luaL_unref(g_l, LUA_REGISTRYINDEX, co_ref);
     co_ref = LUA_NOREF;
     co = NULL;
 }

@@ -11,7 +11,7 @@
  *
  * A module of the original's **code segment 1c25**, image 0x22483..0x22790,
  * split out of engine.c on 2026-09-27. Its `_DATA` is DGROUP 0x48f2..0x48f8,
- * `VM_START`, and it starts a byte after the divide trap's: the pad at
+ * `g_vm_start`, and it starts a byte after the divide trap's: the pad at
  * 0x48f1 is the word alignment of a new module's data.
  *
  * **C with inline `asm`**, Borland C++ 3.0 `-mm -k-` through TASM: each
@@ -53,21 +53,21 @@
  * **This module's `_DATA`**, DGROUP 0x48f2..0x48f8: nothing recorded yet,
  * nothing forced, and no driver.
  */
-struct vm_start VM_START = { 0xff, 0xff };
+struct vm_start g_vm_start = { 0xff, 0xff };
 /* 0x22483 */
 uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 {
     register int held;
 
     asm mov al, byte ptr [bp+6]
-    asm mov byte ptr VM_START+1, al
+    asm mov byte ptr g_vm_start+1, al
     asm xor ax, ax
-    asm mov byte ptr VMDS+6e8h, al
-    asm mov byte ptr VMDS+1fh, al
-    asm mov word ptr VMDS+6eah, 140h
-    asm mov word ptr VMDS+6ech, 0c8h
-    asm mov ax, word ptr VMDS+19eh
-    asm mov dx, word ptr VMDS+1a0h
+    asm mov byte ptr g_vmds+6e8h, al
+    asm mov byte ptr g_vmds+1fh, al
+    asm mov word ptr g_vmds+6eah, 140h
+    asm mov word ptr g_vmds+6ech, 0c8h
+    asm mov ax, word ptr g_vmds+19eh
+    asm mov dx, word ptr g_vmds+1a0h
     asm mov bx, ax
     asm or bx, dx
     asm je L224c1
@@ -76,13 +76,13 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     asm call far ptr dos_free_far
     asm add sp, 4
     asm xor ax, ax
-    asm mov word ptr VMDS+19eh, ax
-    asm mov word ptr VMDS+1a0h, ax
+    asm mov word ptr g_vmds+19eh, ax
+    asm mov word ptr g_vmds+1a0h, ax
 L224c1:
     asm call near ptr bios_video_kind
-    asm mov byte ptr VM_START, al
+    asm mov byte ptr g_vm_start, al
     asm call near ptr detect_adapter
-    asm mov byte ptr VMDS+1dh, al
+    asm mov byte ptr g_vmds+1dh, al
     asm or ax, ax
     asm je L2251c
     asm push word ptr [bp+0ah]
@@ -91,16 +91,16 @@ L224c1:
     asm add sp, 4
     asm or dx, dx
     asm je L2251c
-    asm mov word ptr VM_START+2, ax
-    asm mov word ptr VM_START+4, dx
+    asm mov word ptr g_vm_start+2, ax
+    asm mov word ptr g_vm_start+4, dx
     asm push ds
     asm mov ax, 4412h
     asm push ax
     asm mov ax, 3890h
     asm push ax
-    asm call dword ptr VM_START+2
+    asm call dword ptr g_vm_start+2
     asm add sp, 6
-    asm mov di, offset VM_DRIVER+4h
+    asm mov di, offset g_vm_driver+4h
     asm push ds
     asm mov ax, ds
     asm mov ds, dx
@@ -110,7 +110,7 @@ L224c1:
     asm shl cx, 1
     asm rep movsw
     asm pop ds
-    asm mov di, offset VM_DRIVER+4h
+    asm mov di, offset g_vm_driver+4h
     asm mov ax, dx
     asm mov cx, 32h
 L22514:
@@ -119,22 +119,22 @@ L22514:
     asm loop L22514
     asm jmp short L22521
 L2251c:
-    asm mov byte ptr VMDS+1dh, 0
+    asm mov byte ptr g_vmds+1dh, 0
 L22521:
     asm xor ax, ax
     asm mov es, ax
     asm mov ax, ds
     asm mov word ptr es:[4f0h], ax
-    asm mov ax, word ptr VMDS+14h
-    asm mov word ptr VMDS+16h, ax
-    asm mov ax, word ptr VMDS+12h
-    asm mov word ptr VMDS+18h, ax
-    asm mov al, byte ptr VMDS+1dh
+    asm mov ax, word ptr g_vmds+14h
+    asm mov word ptr g_vmds+16h, ax
+    asm mov ax, word ptr g_vmds+12h
+    asm mov word ptr g_vmds+18h, ax
+    asm mov al, byte ptr g_vmds+1dh
     asm xor ah, ah
     asm push ax
     asm or ax, ax
     asm je L225a0
-    asm mov ax, word ptr VM_DRIVER
+    asm mov ax, word ptr g_vm_driver
     asm or ax, ax
     asm je L22555
     asm xor bx, bx
@@ -144,7 +144,7 @@ L22521:
     asm call far ptr dos_free_far
     asm add sp, 4
 L22555:
-    asm mov ax, word ptr VMDS+6ech
+    asm mov ax, word ptr g_vmds+6ech
     asm shl ax, 1
     asm shl ax, 1
     asm add ax, 20h
@@ -158,22 +158,22 @@ L22555:
     asm or dx, dx
     asm je L225a0
     asm inc dx
-    asm mov word ptr VM_DRIVER, dx
+    asm mov word ptr g_vm_driver, dx
     asm mov ax, 1130h
     asm mov bh, 3
     asm int 10h
-    asm mov bx, offset ENGINE_FONT_BODIES
+    asm mov bx, offset g_font_bodies
     asm mov word ptr [bx], bp
     asm mov word ptr [bx+2], es
     asm mov word ptr [bx+4], bp
     asm mov word ptr [bx+6], es
     asm mov ax, 808h
-    asm mov word ptr VMDS+48h, ax
-    asm mov word ptr VMDS+34h, ax
+    asm mov word ptr g_vmds+48h, ax
+    asm mov word ptr g_vmds+34h, ax
     asm mov ax, 0
-    asm mov word ptr VMDS+5ch, ax
+    asm mov word ptr g_vmds+5ch, ax
     asm mov ax, 0ffffh
-    asm mov word ptr VMDS+70h, ax
+    asm mov word ptr g_vmds+70h, ax
 L225a0:
     asm pop ax
 }
@@ -192,13 +192,13 @@ void shutdown_input(void)
 void restore_video_mode(void)
 {
     asm xor ax, ax
-    asm mov al, byte ptr VM_START
+    asm mov al, byte ptr g_vm_start
     asm cmp al, 0ffh
     asm je L225d0
     asm push ax
     asm call near ptr set_bios_video_mode
     asm pop ax
-    asm mov byte ptr VM_START, 0ffh
+    asm mov byte ptr g_vm_start, 0ffh
 L225d0:
     ;
 }
@@ -207,8 +207,8 @@ L225d0:
 /* 0x225d2 */
 uint16_t near detect_adapter(void)
 {
-    asm mov al, byte ptr VM_START+1
-    asm cmp word ptr VM_DRIVER+2h, 0
+    asm mov al, byte ptr g_vm_start+1
+    asm cmp word ptr g_vm_driver+2h, 0
     asm jne L225df
     asm xor ah, ah
     asm ret
@@ -243,7 +243,7 @@ L22612:
     asm mov al, 9
     asm jmp L22724
 L2261a:
-    asm cmp byte ptr VM_DRIVER+2h, 0
+    asm cmp byte ptr g_vm_driver+2h, 0
     asm mov ax, 1a00h
     asm int 10h
     asm cmp bl, 7
@@ -258,7 +258,7 @@ L2261a:
 L2263a:
     asm call near ptr set_colour_text_mode
 L2263d:
-    asm mov al, byte ptr VM_START+1
+    asm mov al, byte ptr g_vm_start+1
     asm xor ah, ah
     asm or ax, ax
     asm jne L22648
@@ -302,14 +302,14 @@ L22682:
     asm mov al, byte ptr es:[bx]
     asm and al, 8
     asm jne L226a3
-    asm mov al, byte ptr VM_START+1
+    asm mov al, byte ptr g_vm_start+1
     asm jmp L22724
 L226a3:
     asm call near ptr set_colour_text_mode
-    asm mov al, byte ptr VM_START+1
+    asm mov al, byte ptr g_vm_start+1
     asm jmp short L22724
 L226ab:
-    asm mov al, byte ptr VM_START+1
+    asm mov al, byte ptr g_vm_start+1
     asm or al, al
     asm je L226ba
     asm cmp al, 1
@@ -335,19 +335,19 @@ L226c9:
     asm jne L226f7
     asm call near ptr set_colour_text_mode
     asm call far ptr detect_pcjr
-    asm cmp byte ptr VM_START+1, 1
+    asm cmp byte ptr g_vm_start+1, 1
     asm je L226ec
     asm or al, al
     asm je L226ec
     asm mov al, 3
     asm jmp short L22724
 L226ec:
-    asm cmp byte ptr VM_START+1, 3
+    asm cmp byte ptr g_vm_start+1, 3
     asm je L22722
     asm mov al, 1
     asm jmp short L22724
 L226f7:
-    asm mov al, byte ptr VM_START+1
+    asm mov al, byte ptr g_vm_start+1
     asm or al, al
     asm je L22702
     asm cmp al, 4
@@ -445,7 +445,7 @@ void near set_colour_text_mode(void)
  * **This module's `_DATA`**, DGROUP 0x48f2..0x48f8: nothing recorded yet,
  * nothing forced, and no driver.
  */
-struct vm_start VM_START = {
+struct vm_start g_vm_start = {
     .mode_found = 0xff,
     .mode_forced = 0xff,
 };
@@ -497,66 +497,66 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
     (void)unused;
 
-    VM_START.mode_forced = (uint8_t)adapter;
-    VMDS.screen.mode_kind = 0;
-    VMDS.vga_chunks = 0;
-    VMDS.screen.screen_width = 0x140;
-    VMDS.screen.screen_height = 0xc8;
+    g_vm_start.mode_forced = (uint8_t)adapter;
+    g_vmds.screen.mode_kind = 0;
+    g_vmds.vga_chunks = 0;
+    g_vmds.screen.screen_width = 0x140;
+    g_vmds.screen.screen_height = 0xc8;
 
-    if (VMDS.palettes.blocks[0] != NULL) {
-        dos_free_far(VMDS.palettes.blocks[0]);
-        VMDS.palettes.blocks[0] = NULL;
+    if (g_vmds.palettes.blocks[0] != NULL) {
+        dos_free_far(g_vmds.palettes.blocks[0]);
+        g_vmds.palettes.blocks[0] = NULL;
     }
 
-    VM_START.mode_found = (uint8_t)bios_video_kind();
+    g_vm_start.mode_found = (uint8_t)bios_video_kind();
 
     al = detect_adapter() & 0xff;
-    VMDS.pixel_shift = (uint8_t)al;
+    g_vmds.pixel_shift = (uint8_t)al;
 
     if (al != 0) {
         uint8_t *p = load_video_driver((int16_t)al, (char *)file);
 
         /* Only DX is tested. */
         if (FP_SEG(p) == 0) {
-            VMDS.pixel_shift = 0;
+            g_vmds.pixel_shift = 0;
         } else {
             int16_t i;
 
-            VM_START.driver = p;
+            g_vm_start.driver = p;
 
-            vm_driver_init(&VMDS, VM_HOOKS.driver_table, DGROUP_SEG);
+            vm_driver_init(&g_vmds, g_vm_hooks.driver_table, DGROUP_SEG);
 
             /* The driver's fifty entry points: the original copies the
                offsets from the driver's table at its 0x13e and puts the
                driver's segment beside each. The port runs its own routine
                for each driver entry, so a slot is that routine. */
             for (i = 0; i < 0x32; i++)
-                VM_DRIVER.entry[i] = vm_vector_host(i);
+                g_vm_driver.entry[i] = vm_vector_host(i);
         }
     } else {
-        VMDS.pixel_shift = 0;
+        g_vmds.pixel_shift = 0;
     }
 
     g_bios.intra_app[0] = DGROUP_SEG;
 
-    VMDS.page_src = ((int16_t)VMDS.page_front);
-    VMDS.page_dst = ((int16_t)VMDS.page_back);
+    g_vmds.page_src = ((int16_t)g_vmds.page_front);
+    g_vmds.page_dst = ((int16_t)g_vmds.page_back);
 
-    r = ((uint8_t)VMDS.pixel_shift);
+    r = ((uint8_t)g_vmds.pixel_shift);
     if (r == 0)
         goto out;
 
-    if (VM_DRIVER.span_buffer_seg != 0)
-        dos_free_far(MK_FP(VM_DRIVER.span_buffer_seg - 1, 0));
+    if (g_vm_driver.span_buffer_seg != 0)
+        dos_free_far(MK_FP(g_vm_driver.span_buffer_seg - 1, 0));
 
     {
-        uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0);
+        uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)g_vmds.screen.screen_height) * 4 + 0x20), 0);
 
         /* Only the segment is kept, and tested: `or dx,dx`. */
         if (FP_SEG(p) == 0)
             goto out;
 
-        VM_DRIVER.span_buffer_seg = FP_SEG(p) + 1;
+        g_vm_driver.span_buffer_seg = FP_SEG(p) + 1;
     }
 
     /*
@@ -566,13 +566,13 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      */
     font = io_bios_font(3);
 
-    ENGINE_FONT_BODIES.body[0] = font;
-    ENGINE_FONT_BODIES.body[1] = font;
+    g_font_bodies.body[0] = font;
+    g_font_bodies.body[1] = font;
 
-    *(int16_t *)(&VMDS.font_cell_height[0]) = 0x808;
-    *(int16_t *)(&VMDS.font_cell_width[0]) = 0x808;
-    *(int16_t *)(&VMDS.font_first_char[0]) = 0;
-    *(int16_t *)(&VMDS.font_char_count[0]) = (int16_t)0xffff;
+    *(int16_t *)(&g_vmds.font_cell_height[0]) = 0x808;
+    *(int16_t *)(&g_vmds.font_cell_width[0]) = 0x808;
+    *(int16_t *)(&g_vmds.font_first_char[0]) = 0;
+    *(int16_t *)(&g_vmds.font_char_count[0]) = (int16_t)0xffff;
 
 out:
     return r;
@@ -602,11 +602,11 @@ void shutdown_input(void)
  */
 void restore_video_mode(void)
 {
-    uint16_t mode = VM_START.mode_found;
+    uint16_t mode = g_vm_start.mode_found;
 
     if (mode != 0xff) {
         set_bios_video_mode(mode);
-        VM_START.mode_found = 0xff;
+        g_vm_start.mode_found = 0xff;
     }
 }
 
@@ -632,9 +632,9 @@ void restore_video_mode(void)
  */
 uint16_t detect_adapter(void)
 {
-    uint8_t al = VM_START.mode_forced;
+    uint8_t al = g_vm_start.mode_forced;
 
-    if (VM_DRIVER.detect_allowed == 0)
+    if (g_vm_driver.detect_allowed == 0)
         return 0;
 
     if (al == 0)
@@ -672,7 +672,7 @@ ask_dcc:
         }
     }
 
-    al = VM_START.mode_forced;
+    al = g_vm_start.mode_forced;
     if (al == 0)
         al = 8;
 

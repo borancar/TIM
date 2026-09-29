@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3290..0x329a. Connection points, 5 pairs.
  */
-struct point8 DYNAMITE_POINTS_3290[5] = {
+struct point8 g_dynamite_points_3290[5] = {
     { 0x00, 0x0e }, { 0x05, 0x00 }, { 0x25, 0x12 }, { 0x1b, 0x1b },
     { 0x14, 0x1b },
 };
@@ -30,7 +30,7 @@ struct point8 DYNAMITE_POINTS_3290[5] = {
 /*
  * DGROUP 0x329a..0x32a4. Connection points, 5 pairs.
  */
-struct point8 DYNAMITE_POINTS_329A[5] = {
+struct point8 g_dynamite_points_329a[5] = {
     { 0x0a, 0x12 }, { 0x2a, 0x00 }, { 0x2f, 0x0e }, { 0x1b, 0x1b },
     { 0x14, 0x1b },
 };
@@ -65,10 +65,10 @@ void part_setup_dynamite(struct part *part)
 
     if (part->flags_08 & 0x10) {
         part->hold.x = 1;
-        src = DYNAMITE_POINTS_329A;
+        src = g_dynamite_points_329a;
     } else {
         part->hold.x = 0x2d;
-        src = DYNAMITE_POINTS_3290;
+        src = g_dynamite_points_3290;
     }
 
     part->hold.y = 0x0f;

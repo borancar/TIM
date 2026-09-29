@@ -149,7 +149,7 @@ struct bitmap **load_bitmaps(char *name)
             hdr->data_off = FP_OFF(p);
         }
     } else {
-        size = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&i);
+        size = ((vm_list_size_fn)g_vm_driver.entry[13])(list, (uint8_t *)&i);
         if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         set_mask_of_each(0xfffc, list);
@@ -380,7 +380,7 @@ uint16_t load_screen(char *name)
         if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         read_far(block, size, file);
-        if ((BITMAPS.walk = open_bit_reader(block)) != 0) {
+        if ((g_bitmaps.walk = open_bit_reader(block)) != 0) {
             cursor_redraw_off();
             vqt_screen_node(0, 0, 0x140, 0xc8);
             cursor_redraw_on();
@@ -489,7 +489,7 @@ void near read_far(uint8_t huge *dst, int32_t count, FILE *file)
  * of the buffer is slid down to the front, and as much as will fit is read in
  * behind it.
  *
- * **The reader outlives the call**: its address is filed at `BITMAPS.walk`,
+ * **The reader outlives the call**: its address is filed at `g_bitmaps.walk`,
  * a word nothing clears, and `load_screen` later puts the *other* reader
  * there - the singleton, which has no plane or row table. The format is
  * never exercised: `VQT` does not occur once in the four shipped
@@ -537,9 +537,9 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
         } else
             return;
     }
-    BITMAPS.walk = &reader;
-    BITMAPS.walk->pos = 0;
-    BITMAPS.walk->data = block;
+    g_bitmaps.walk = &reader;
+    g_bitmaps.walk->pos = 0;
+    g_bitmaps.walk->data = block;
     read_far(block, buffer, file);
     file_left -= buffer;
     at = list;
@@ -555,17 +555,17 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
 #endif
         n = (hdr->width * hdr->height) >> 2;
         for (i = 0; i < 4; i++) {
-            BITMAPS.walk->plane[i] = p;
+            g_bitmaps.walk->plane[i] = p;
             p += n;
         }
         for (row = i = 0; hdr->height > i; i++) {
-            BITMAPS.walk->row[i] = row;
+            g_bitmaps.walk->row[i] = row;
             row += hdr->width;
         }
         vqt_node(0, 0, hdr->width, hdr->height);
-        n = (uint16_t)((BITMAPS.walk->pos + 7) >> 3);
-        BITMAPS.walk->pos = 0;
-        cur = BITMAPS.walk->data;
+        n = (uint16_t)((g_bitmaps.walk->pos + 7) >> 3);
+        g_bitmaps.walk->pos = 0;
+        cur = g_bitmaps.walk->data;
         if (file_left != 0) {
             p = cur + n;
             far_copy(cur, p, (uint16_t)buffer - n);
@@ -576,7 +576,7 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
             read_far(cur, chunk, file);
             file_left -= chunk;
         } else
-            BITMAPS.walk->data = cur + n;
+            g_bitmaps.walk->data = cur + n;
         at++;
         index++;
     }

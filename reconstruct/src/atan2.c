@@ -39,7 +39,7 @@
  * 0x1000.
  *
  * Within the octant only a ratio below one is ever looked up, because
- * `ARCTAN_TABLE` has no entry for one. Whichever magnitude is smaller is
+ * `g_arctan_table` has no entry for one. Whichever magnitude is smaller is
  * shifted left by 9 and divided by the larger, giving 0..511; when the first is
  * the smaller the answer is complemented within the octant, `0x400 - x`.
  *

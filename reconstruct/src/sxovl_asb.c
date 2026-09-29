@@ -567,7 +567,7 @@ uint16_t asb_probe_irq(void)
         ASBS.probe_irq10 = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
-    asb_dma_program(SOUND_BANK.module + 0xa6, 0, 0x49);
+    asb_dma_program(g_sound_bank.module + 0xa6, 0, 0x49);
 
     asb_dsp_write(0x40);
     asb_dsp_write(0x64);

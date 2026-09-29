@@ -22,14 +22,14 @@
 /*
  * DGROUP 0x3222..0x322a. Connection points, 4 pairs.
  */
-struct point8 BULLET_POINTS_3222[4] = {
+struct point8 g_bullet_points_3222[4] = {
     { 0x1c, 0x00 }, { 0x27, 0x01 }, { 0x27, 0x05 }, { 0x1c, 0x06 },
 };
 
 /*
  * DGROUP 0x322a..0x3232. Connection points, 4 pairs.
  */
-struct point8 BULLET_POINTS_322A[4] = {
+struct point8 g_bullet_points_322a[4] = {
     { 0x00, 0x00 }, { 0x0b, 0x01 }, { 0x0b, 0x05 }, { 0x00, 0x06 },
 };
 
@@ -69,9 +69,9 @@ void part_setup_bullet(struct part *part)
     int16_t i;
 
     if (part->flags_08 & 0x10)
-        si = BULLET_POINTS_322A;
+        si = g_bullet_points_322a;
     else
-        si = BULLET_POINTS_3222;
+        si = g_bullet_points_3222;
 
     for (i = 0, di = part->points; i < 4; i++, di++, si++) {
         di->x = si->x;

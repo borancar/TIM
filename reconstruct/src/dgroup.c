@@ -8,7 +8,7 @@
 
 /* The sound module's data inside its code segment, and segment 1c25's three
    cells - see `struct snd_cs` and `struct s1c_timer` in dgroup.h. */
-struct snd_cs SNDS = {   /* 2619:0008 */
+struct snd_cs g_snds = {   /* 2619:0008 */
     .voice_held = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
     .voice_request = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
     .saved_request = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
@@ -17,10 +17,10 @@ struct snd_cs SNDS = {   /* 2619:0008 */
     .voice_hi = 0x0f,
     .own_voice = 0xff,
 };
-struct snd_cs_call SNDCALL;   /* 2619:30f6 */
-struct s1c_timer S1C_TIMER;   /* 1c25:446d */
-struct s1c_keyboard S1C_KEYBOARD;   /* 1c25:4e3c */
-struct s1c_huge_move S1C_HUGE_MOVE;   /* 1c25:5f99 */
+struct snd_cs_call g_sndcall;   /* 2619:30f6 */
+struct s1c_timer g_s1c_timer;   /* 1c25:446d */
+struct s1c_keyboard g_s1c_keyboard;   /* 1c25:4e3c */
+struct s1c_huge_move g_s1c_huge_move;   /* 1c25:5f99 */
 
 /*
  * **What a near null reads**: DGROUP from offset 0, which is C0M.OBJ's data -

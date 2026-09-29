@@ -1103,9 +1103,9 @@ void add_mass_capped(struct part *obj, struct part *other); /* 0x07c5b */
    the original, `lcall [bx+0x0ecc]` and `lcall [bx+0x0ec8]` with `bx` the
    kind times 0x3a, which is what these expand to, and the flip hook at
    `[bx+0x0ed4]` the same way. Ours in name. */
-#define part_step(part)        (PART_KINDS[(part)->kind].step(part))
-#define part_hit(kind, part)   (PART_KINDS[kind].hit(part))
-#define part_flip(part, how)   (PART_KINDS[(part)->kind].flip((part), (how)))
+#define part_step(part)        (g_part_kinds[(part)->kind].step(part))
+#define part_hit(kind, part)   (g_part_kinds[kind].hit(part))
+#define part_flip(part, how)   (g_part_kinds[(part)->kind].flip((part), (how)))
 uint16_t part_hit_bellow(struct part *part);              /* 0x175f2 */
 void     nudge_x_add(struct part *obj, int16_t d);      /* 0x191c8 */
 void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x191e2 */
@@ -1277,7 +1277,7 @@ uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
    put straight back together to compare against their own. `tools/verify.py`
    is where the guest's two words become the value. Ours in name. */
 #define part_drive(by, p1, p2, p3, p4, p5, p6) \
-    (PART_KINDS[(by)->kind].drive((p1), (p2), (p3), (p4), (p5), (p6)))
+    (g_part_kinds[(by)->kind].drive((p1), (p2), (p3), (p4), (p5), (p6)))
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum);      /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
