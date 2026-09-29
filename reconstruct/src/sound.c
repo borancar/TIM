@@ -40,7 +40,7 @@
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -3908,7 +3908,7 @@ uint16_t install_driver(const uint8_t far * drv)
     uint16_t ax, cx;
     uint8_t dl;
 
-    SNDS.driver = far_of(drv);
+    SNDS.driver = drv;
 
     driver_describe_0(&ax, &cx);
 

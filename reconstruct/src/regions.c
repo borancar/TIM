@@ -19,7 +19,7 @@
  * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -53,7 +53,7 @@
  * conventions cancelled for the two callers that passed the address: the other
  * five skipped the head of their list.
  */
-void regions_handle_pointer(register uint16_t si)
+void regions_handle_pointer(register dg_near_t si)
 {
     while (si != 0) {
         if ((REGION_PTR(si)->mask & DG4E67.state)
@@ -87,7 +87,7 @@ void regions_handle_pointer(register uint16_t si)
  *
  * 2,283 bytes of straight-line stores, and transcribed as the straight line it
  * is: every statement below is one store of the image's, in the image's order,
- * zeros included - `heap_calloc_far` has already zeroed the record, and the
+ * zeros included - `calloc_far` has already zeroed the record, and the
  * original writes some of them again. Generated from the disassembly, one
  * statement per instruction group, and judged against it.
  *
@@ -98,7 +98,7 @@ void build_screen_regions(void)
 {
     register struct region *si;
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->x0 = 0x0;
     si->y0 = 0x0;
@@ -109,7 +109,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->x0 = 0x240;
     si->y0 = 0x0;
@@ -120,7 +120,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->x0 = 0x240;
     si->y0 = 0x43;
@@ -130,7 +130,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->x0 = 0x260;
     si->y0 = 0x43;
@@ -140,7 +140,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->slot = 0x0;
     si->x0 = 0x240;
@@ -154,7 +154,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->slot = 0x1;
     si->x0 = 0x240;
@@ -168,7 +168,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->slot = 0x2;
     si->x0 = 0x240;
@@ -182,7 +182,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->slot = 0x3;
     si->x0 = 0x240;
@@ -196,7 +196,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
     si->slot = 0x4;
     si->x0 = 0x240;
@@ -210,7 +210,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xc000;
     si->x0 = 0x0;
     si->y0 = 0x0;
@@ -220,7 +220,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_play_ptr;
     DG4E67.regions_play_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x110;
     si->y0 = 0x48;
@@ -231,7 +231,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x3a;
     si->y0 = 0x5b;
@@ -242,7 +242,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0xd8;
     si->y0 = 0x60;
@@ -253,7 +253,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x39;
     si->y0 = 0x86;
@@ -264,7 +264,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x96;
     si->y0 = 0x8c;
@@ -275,7 +275,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x58;
     si->y0 = 0x5d;
@@ -286,7 +286,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x58;
     si->y0 = 0x6f;
@@ -297,7 +297,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0xbc;
     si->y0 = 0x5c;
@@ -308,7 +308,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x6d;
     si->y0 = 0x85;
@@ -319,7 +319,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0xc8;
     si->y0 = 0x8c;
@@ -330,7 +330,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x41;
     si->y0 = 0xc8;
@@ -341,7 +341,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
     si->x0 = 0x41;
     si->y0 = 0x114;
@@ -352,7 +352,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_panel_ptr;
     DG4E67.regions_panel_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0x40;
     si->y0 = 0x56;
@@ -362,7 +362,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0x40;
     si->y0 = 0x7c;
@@ -372,7 +372,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0x90;
     si->y0 = 0x10c;
@@ -382,7 +382,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0xbc;
     si->y0 = 0x74;
@@ -392,7 +392,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0xbc;
     si->y0 = 0xe0;
@@ -402,7 +402,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0x40;
     si->y0 = 0x130;
@@ -412,7 +412,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_c_ptr;
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
     si->x0 = 0xc0;
     si->y0 = 0x130;
@@ -423,7 +423,7 @@ void build_screen_regions(void)
     DG4E67.regions_c_ptr = dg_near(dgroup, si);
 
     DG4E67.region_kept_b_ptr = dg_near(dgroup, si = (struct region *)(void *)
-        heap_calloc_far(1, sizeof(struct region)));
+        calloc_far(1, sizeof(struct region)));
     si->mask = 0x8000;
     si->x0 = 0xc8;
     si->y0 = 0xd4;
@@ -434,7 +434,7 @@ void build_screen_regions(void)
     DG4E67.regions_b_ptr = dg_near(dgroup, si);
 
     DG4E67.region_kept_a_ptr = dg_near(dgroup, si = (struct region *)(void *)
-        heap_calloc_far(1, sizeof(struct region)));
+        calloc_far(1, sizeof(struct region)));
     si->mask = 0x8000;
     si->x0 = 0x178;
     si->y0 = 0xd4;
@@ -444,7 +444,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_b_ptr;
     DG4E67.regions_b_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
     si->x0 = 0x30;
     si->y0 = 0x4c;
@@ -454,7 +454,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_a_ptr;
     DG4E67.regions_a_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
     si->x0 = 0x1cc;
     si->y0 = 0x42;
@@ -464,7 +464,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_a_ptr;
     DG4E67.regions_a_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
     si->x0 = 0x1cc;
     si->y0 = 0x108;
@@ -474,7 +474,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_a_ptr;
     DG4E67.regions_a_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8000;
     si->x0 = 0x90;
     si->y0 = 0x13c;
@@ -484,7 +484,7 @@ void build_screen_regions(void)
     si->link_ptr = DG4E67.regions_a_ptr;
     DG4E67.regions_a_ptr = dg_near(dgroup, si);
 
-    si = (struct region *)(void *)heap_calloc_far(1, sizeof(struct region));
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
     si->x0 = 0x1f0;
     si->y0 = 0x12c;
@@ -508,8 +508,8 @@ void build_screen_regions(void)
  */
 void free_region_lists(void)
 {
-    register uint16_t si;
-    register uint16_t di;
+    register dg_near_t si;
+    register dg_near_t di;
 
     for (si = DG4E67.regions_b_ptr; si != 0; si = di) {
         di = REGION_PTR(si)->link_ptr;

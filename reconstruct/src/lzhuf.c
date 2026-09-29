@@ -28,7 +28,7 @@
 #include <string.h>
 
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__

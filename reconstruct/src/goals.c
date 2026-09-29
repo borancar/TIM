@@ -25,8 +25,13 @@
  * JUDGE: built-with -mm -zC_TEXT
  * JUDGE: data 0x283a..0x2849
  */
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /* **This module's `_BSS`**, DGROUP 0x5456..0x546c: the goal conditions. */
@@ -2047,7 +2052,7 @@ void draw_counter_word(register int16_t value, int16_t x, int16_t y,
     register int16_t si;
 
     value += 0x2710;
-    int_to_string(value, buf, 10);
+    itoa(value, buf, 10);
     buf[5] = '0';
 
     for (si = 5; si > 1; si--, x -= 0x20) {
@@ -2080,7 +2085,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
     register int16_t si;
 
     value += 0xf4240L;
-    long_int_to_string(value, buf, 10);
+    ltoa(value, buf, 10);
     buf[7] = '0';
 
     for (si = 7; si > 1; si--, x -= 0x20) {

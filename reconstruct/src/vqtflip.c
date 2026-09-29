@@ -47,7 +47,7 @@
  * palette.
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifndef __TURBOC__

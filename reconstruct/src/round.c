@@ -17,7 +17,7 @@
  * JUDGE: data 0x25e8..0x260a
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -55,7 +55,7 @@ struct round_setup_names ROUND_SETUP_NAMES DGROUP_AT(0x25e8) = {
  */
 void game_setup(void)
 {
-    struct bmp_set *bar;
+    struct bitmap **bar;
 
     cursor_redraw_off_thunk();
     bar = load_bitmaps((char *)ROUND_SETUP_NAMES.score1_bmp);
@@ -66,15 +66,15 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(BMP_PTR(bar->bmp_ptr[0]), 3, 0, 0);
-    draw_bitmap(BMP_PTR(bar->bmp_ptr[1]), 0x107, 0, 0);
-    draw_bitmap(BMP_PTR(bar->bmp_ptr[2]), 0x1bb, 0, 0);
+    draw_bitmap(bar[0], 3, 0, 0);
+    draw_bitmap(bar[1], 0x107, 0, 0);
+    draw_bitmap(bar[2], 0x1bb, 0, 0);
 
-    free_bitmaps_thunk(bar->bmp_ptr);
+    free_bitmaps_thunk(bar);
 
     cursor_redraw_off_thunk();
-    DG4E67.menu_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)ROUND_SETUP_NAMES.gp_menu_bmp));
-    DG4E67.score2_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)ROUND_SETUP_NAMES.score2_bmp));
+    DG4E67.menu_bmp = load_bitmaps((char *)ROUND_SETUP_NAMES.gp_menu_bmp);
+    DG4E67.score2_bmp = load_bitmaps((char *)ROUND_SETUP_NAMES.score2_bmp);
 
     DG4E67.counter = 0;
     DG4E67.round_number = 1;
@@ -90,8 +90,8 @@ void game_setup(void)
  */
 void free_two_bitmap_lists(void)
 {
-    free_bitmaps_thunk(BMPLIST(DG4E67.score2_bmp_ptr));
-    free_bitmaps_thunk(BMPLIST(DG4E67.menu_bmp_ptr));
+    free_bitmaps_thunk(DG4E67.score2_bmp);
+    free_bitmaps_thunk(DG4E67.menu_bmp);
 }
 
 /*

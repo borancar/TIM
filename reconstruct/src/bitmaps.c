@@ -36,7 +36,7 @@
    `draw_bitmap_scaled_248f`. */
 #define TIM_BITMAPS_C
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifndef __TURBOC__
@@ -84,9 +84,9 @@ void near blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
  * through the runtime (`F_PADD@`, `F_PADA@`) and the header is filed the
  * normalised pair - segment first, as a header keeps it.
  */
-struct bmp_set *load_bitmaps(char *name)
+struct bitmap **load_bitmaps(char *name)
 {
-    bmp_ptr_t *list;
+    struct bitmap **list;
     int16_t count;
     int16_t i;
     int16_t opened;
@@ -95,8 +95,8 @@ struct bmp_set *load_bitmaps(char *name)
     int32_t offset;
     int32_t size;
     int16_t kind;
-    uint8_t saved_a[0x44];
-    uint8_t saved_b[0x44];
+    struct open_file saved_a;
+    struct open_file saved_b;
     FILE *file;
     struct bitmap *hdr;
 
@@ -109,20 +109,20 @@ struct bmp_set *load_bitmaps(char *name)
         if ((file = open_file_record((char *)file)) == 0)
             goto fail;
     }
-    copy_file_record(saved_a, file);
+    copy_file_record(&saved_a, file);
     if (seek_named_chunk(file, "BMP:SCN:", 0) != -1L) {
-        copy_file_record(saved_b, file);
-        restore_file_record_from(saved_a);
+        copy_file_record(&saved_b, file);
+        restore_file_record_from(&saved_a);
         if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
         set_field_4_of_each(0xfffe, list);
-        restore_file_record_from(saved_b);
+        restore_file_record_from(&saved_b);
         kind = 0;
     } else {
         if (seek_named_chunk(file, "BMP:OFF:", 0) == -1L)
             goto planar;
         game_fread((uint8_t *)&kind, 2, 1, file);
-        restore_file_record_from(saved_a);
+        restore_file_record_from(&saved_a);
         if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
         set_field_4_of_each(0xffff, list);
@@ -144,7 +144,7 @@ struct bmp_set *load_bitmaps(char *name)
                 goto fail;
             }
             p = block + offset;
-            hdr = BMP_PTR(list[i]);
+            hdr = list[i];
             hdr->data.seg = FP_SEG(p);
             hdr->data.off = FP_OFF(p);
         }
@@ -154,7 +154,7 @@ struct bmp_set *load_bitmaps(char *name)
             goto fail;
         set_field_4_of_each(0xfffc, list);
         for (i = 0; i < count; i++) {
-            hdr = BMP_PTR(list[i]);
+            hdr = list[i];
             hdr->data.seg = FP_SEG(block);
             hdr->data.off = FP_OFF(block);
             block += (uint16_t)(hdr->width * hdr->height);
@@ -163,7 +163,7 @@ struct bmp_set *load_bitmaps(char *name)
     }
     goto loaded;
 planar:
-    list = load_bitmap_list((char *)file)->bmp_ptr;
+    list = load_bitmap_list((char *)file);
 loaded:
     count = count_list(list);
     if (seek_named_chunk(file, "BMP:RLE:", 0) != -1L)
@@ -177,7 +177,7 @@ fail:
 out:
     if (opened != 0)
         close_file_record(file);
-    return (struct bmp_set *)list;
+    return (struct bitmap **)list;
 }
 
 /*
@@ -190,17 +190,17 @@ out:
  * **The word is held in DX**, which no C variable is ever given - Borland's
  * pseudo-register `_DX`. The host keeps it in a local.
  */
-void near set_field_4_of_each(uint16_t value, bmp_ptr_t *list)
+void near set_field_4_of_each(uint16_t value, struct bitmap **list)
 {
-    bmp_ptr_t *p;
+    struct bitmap **p;
 
 #ifdef __TURBOC__
     _DX = value;
     for (p = list; *p != 0; p++)
-        BMP_PTR(*p)->mask_off = _DX;
+        (*p)->mask_off = _DX;
 #else
     for (p = list; *p != 0; p++)
-        BMP_PTR(*p)->mask_off = value;
+        (*p)->mask_off = value;
 #endif
 }
 
@@ -211,7 +211,7 @@ void near set_field_4_of_each(uint16_t value, bmp_ptr_t *list)
  * `push`, an `lcall` and nothing else. It exists because the two are different
  * translation units and the call has to be far.
  */
-void free_bitmaps_thunk(bmp_ptr_t *list)
+void free_bitmaps_thunk(struct bitmap **list)
 {
     free_bitmaps(list);
 }
@@ -225,19 +225,19 @@ void free_bitmaps_thunk(bmp_ptr_t *list)
  * **In CX and DX**, Borland's pseudo-registers: the list in CX and the count
  * in DX, and no frame beyond BP. The host keeps them in locals.
  */
-uint16_t count_list(bmp_ptr_t *list)
+uint16_t count_list(struct bitmap **list)
 {
 #ifdef __TURBOC__
     _CX = (uint16_t)list;
     _DX = 0;
     if (_CX != 0)
-        while (((bmp_ptr_t *)_CX)[_DX] != 0)
+        while (((struct bitmap **)_CX)[_DX] != 0)
             _DX++;
     return _DX;
 #else
     uint16_t n = 0;
 
-    if (list != NULL && list != BMPLIST(0))
+    if (list != NULL && list != NULL)
         while (list[n] != 0)
             n++;
     return n;
@@ -351,7 +351,7 @@ uint16_t load_screen(char *name)
     int16_t opened;
     uint8_t huge *block;
     int32_t size;
-    uint8_t saved[0x44];
+    struct open_file saved;
     FILE *file;
     uint16_t result;
 
@@ -374,7 +374,7 @@ uint16_t load_screen(char *name)
         if ((file = open_file_record((char *)file)) == 0)
             goto fail;
     }
-    copy_file_record(saved, file);
+    copy_file_record(&saved, file);
     if (seek_named_chunk(file, "SCR:VQT:", 0) != -1L) {
         size = file_record_size(file);
         if (FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
@@ -388,7 +388,7 @@ uint16_t load_screen(char *name)
         } else
             goto fail;
     } else {
-        restore_file_record_from(saved);
+        restore_file_record_from(&saved);
         result = load_screen_plain((char *)file);
         goto close;
 fail:
@@ -433,7 +433,7 @@ void near read_far(uint8_t huge *dst, int32_t count, FILE *file)
     int16_t got;
 
     size = 0x4000;
-    while (size != 0 && (buf = heap_malloc_far(size)) == 0) {
+    while (size != 0 && (buf = malloc_far(size)) == 0) {
         if (size > 0x800)
             size >>= 1;
         else
@@ -464,7 +464,7 @@ void near read_far(uint8_t huge *dst, int32_t count, FILE *file)
         }
     }
     if (buf != 0 && fallback != buf)
-        heap_free_far(buf);
+        free_far(buf);
 }
 
 /*
@@ -495,9 +495,9 @@ void near read_far(uint8_t huge *dst, int32_t count, FILE *file)
  * never exercised: `VQT` does not occur once in the four shipped
  * `RESOURCE.00*` archives.
  */
-void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
+void near decode_vqt_list(FILE *file, struct bitmap **list)
 {
-    bmp_ptr_t *at;
+    struct bitmap **at;
     uint8_t far *p;
     uint8_t huge *cur;
     uint8_t far *block;
@@ -518,7 +518,7 @@ void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
     while (*at != 0) {
         /* the thunk declared `unsigned`, as the original did: the high
            word of the driver's `long` is dropped (tim.h) */
-        chunk = (uint16_t)buffer_size_thunk(BMP_PTR(*at)->width, BMP_PTR(*at)->height);
+        chunk = (uint16_t)buffer_size_thunk((*at)->width, (*at)->height);
         if (largest < chunk)
             largest = (uint16_t)chunk;
         at++;
@@ -543,7 +543,7 @@ void near decode_vqt_list(FILE *file, bmp_ptr_t *list)
     read_far(block, buffer, file);
     file_left -= buffer;
     at = list;
-    while ((hdr = BMP_PTR(*at)) != BMP_NONE) {
+    while ((hdr = *at) != NULL) {
         row = hdr->data.seg + (hdr->data.off >> 4);
         p = FAR_OF_LONG(row, hdr->data.off & 0xf);
         n = (hdr->width * hdr->height) >> 2;

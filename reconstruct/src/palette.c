@@ -20,7 +20,7 @@
  * JUDGE: data 0x445e..0x44cf
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__

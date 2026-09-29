@@ -16,8 +16,10 @@
  * JUDGE: built-with -mm -d
  * JUDGE: data 0x00aa..0x0116
  */
+#include <stdlib.h>
+#include <string.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -32,7 +34,7 @@
  * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
  * the verifier compares them. A C string literal is read-only and would
  * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
- * to `borland_fopen` and not through the hash - is a literal at its call site.
+ * to `fopen` and not through the hash - is a literal at its call site.
  */
 struct game_startup_names {
     char resource_cfg[13];   /* +0x00 [0xd]  "RESOURCE.CFG" (a literal where it is read) */
@@ -108,16 +110,16 @@ void game_startup(void)
     int32_t free_bytes;                /* [bp-0xe] */
     struct queue_node *node;           /* [bp-0x10] */
     struct shape far *block;           /* [bp-0x14] */
-    struct file_rec *file;             /* di */
+    FILE *file;             /* di */
     int16_t i;                         /* si */
 
     STKLEN = 0x800;
 
     free_bytes = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {
-        borland_printf(DG1BCC.not_enough_free_memory);
-        borland_printf(DG1BCC.you_need_at_least);
-        borland_exit(0);
+        printf(DG1BCC.not_enough_free_memory);
+        printf(DG1BCC.you_need_at_least);
+        exit(0);
     }
 
     dos_get_cur_dir((char *)GAME_DIRECTORIES.game_dir);
@@ -148,18 +150,18 @@ void game_startup(void)
     sound_module = -2;
     sound_device = 0;
 
-    file = borland_fopen(GAME_STARTUP_NAMES.resource_cfg, GAME_STARTUP_NAMES.rb);
+    file = fopen(GAME_STARTUP_NAMES.resource_cfg, GAME_STARTUP_NAMES.rb);
     if (file != NULL) {
-        borland_fread((uint8_t *)&cfg_byte, 1, 1, file);
+        fread((uint8_t *)&cfg_byte, 1, 1, file);
         cfg_first = cfg_byte;          /* stored and never read back */
 #ifndef __TURBOC__
         (void)cfg_first;
 #endif
-        borland_fread((uint8_t *)&cfg_byte, 1, 1, file);
+        fread((uint8_t *)&cfg_byte, 1, 1, file);
         sound_device = cfg_byte;
-        borland_fread((uint8_t *)&cfg_byte, 1, 1, file);
+        fread((uint8_t *)&cfg_byte, 1, 1, file);
         sound_module = cfg_byte;
-        borland_fclose(file);
+        fclose(file);
     }
 
     if (read_tim_cfg() == 0) {
@@ -174,8 +176,8 @@ void game_startup(void)
 
     vm_ok = vm_init(0x0d, 0x80, (FILE *)GAME_STARTUP_NAMES.vm_ovl);
     if (vm_ok == 0) {
-        borland_printf(DG1BCC.unable_to_initialize_vm);
-        borland_exit(0);
+        printf(DG1BCC.unable_to_initialize_vm);
+        exit(0);
     }
 
     VMDS.page_front_ptr = 0xa000;
@@ -188,17 +190,17 @@ void game_startup(void)
 
     set_font(DG52BD.memo_font = load_font(GAME_STARTUP_NAMES.memofnt8_fnt));
 
-    DG52ED.cursor_art_ptr = dg_near(dgroup, load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp));          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp));
-    DG4E67.bmp_4ecb_ptr = dg_near(dgroup, load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp));
+    DG52ED.cursor_art = load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp);          /* "mouse.bmp"   */
+    DG52ED.panel_art = load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp);
+    DG4E67.bmp_4ecb = load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp);
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, (FILE *)GAME_STARTUP_NAMES.sx_ovl);     /* "sx.ovl" */
 
-    DG52ED.tim_sx_ptr = dg_near(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
+    DG52ED.tim_sx = open_file_record((char *)GAME_STARTUP_NAMES.tim_sx);
     for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)FILEREC_PTR(DG52ED.tim_sx_ptr), i);
+        open_sound_file((char *)DG52ED.tim_sx, i);
 
     set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
 
@@ -220,7 +222,7 @@ void game_startup(void)
      */
     DG4E4E.parts_free_ptr = DG4E4E.parts_queue_ptr = 0;
     for (i = 0; i < 0x14; i++) {
-        node = (struct queue_node *)heap_calloc_far(1, 8);
+        node = (struct queue_node *)calloc_far(1, sizeof(struct queue_node));
         node->next_ptr = DG4E4E.parts_free_ptr;
         DG4E4E.parts_free_ptr = dg_near(dgroup, node);
     }
@@ -270,10 +272,10 @@ void game_teardown(int16_t really)
 {
     struct shape far *node;            /* [bp-4] */
     struct shape far *next;            /* [bp-8] */
-    uint16_t after;                    /* [bp-0xa] */
+    dg_near_t after;                    /* [bp-0xa] */
     char code[40];                     /* [bp-0x32] */
     char msg[240];                     /* [bp-0x122] */
-    uint16_t si;
+    dg_near_t si;
 
     if (really == 0) {
         DG52ED.stop_requested = 1;
@@ -283,8 +285,8 @@ void game_teardown(int16_t really)
     if (DG4E67.password_puzzle != 0) {
         read_password_line(DG4E67.password_puzzle, code);
         score_to_code(DG4E67.score, code);
-        string_copy(msg, DG1BCC.thanks_for_playing);
-        string_concat(msg, code);
+        strcpy(msg, DG1BCC.thanks_for_playing);
+        strcat(msg, code);
     } else {
         msg[0] = 0;
     }
@@ -297,16 +299,16 @@ void game_teardown(int16_t really)
 
     for (si = DG4E4E.parts_free_ptr; si != 0; si = after) {
         after = QNODE_PTR(si)->next_ptr;
-        heap_free_far(dg_near_ptr(si));
+        free_far(dg_near_ptr(si));
     }
 
     free_region_lists();
     free_all_part_bitmaps();
 
-    free_bitmaps_thunk(BMPLIST(DG4E67.icons_bmp_ptr));
-    free_bitmaps_thunk(BMPLIST(DG4E67.bmp_4ecb_ptr));
-    free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
-    free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
+    free_bitmaps_thunk(DG4E67.icons_bmp);
+    free_bitmaps_thunk(DG4E67.bmp_4ecb);
+    free_bitmaps_thunk(DG52ED.panel_art);
+    free_bitmaps(DG52ED.cursor_art);
 
     close_table_618a_slot(DG52BD.memo_font);
 
@@ -318,13 +320,13 @@ void game_teardown(int16_t really)
     remove_and_free_records(-2);
     shutdown_sound();
 
-    close_file_record(FILEREC_PTR(DG52ED.tim_sx_ptr));
+    close_file_record(DG52ED.tim_sx);
     free_archive_lists();
 
     remove_keyboard();
     shutdown_input();
     restore_video_mode();
 
-    borland_printf(msg);
-    borland_exit(0);
+    printf(msg);
+    exit(0);
 }

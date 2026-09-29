@@ -20,7 +20,7 @@
  * JUDGE: data 0x495c..0x4965
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -148,7 +148,7 @@ uint16_t load_font(char *name)
 
                 size *= VMDS.font_table_48[si] * VMDS.font_table_70[si];
 
-                failed = (p = heap_malloc_far(size)) == NULL;
+                failed = (p = malloc_far(size)) == NULL;
                 if (!failed)
                     game_fread(p, size, 1, di);
                 if (!failed) {
@@ -159,7 +159,7 @@ uint16_t load_font(char *name)
 
                 if (failed) {
                     if (p != NULL)
-                        heap_free_far(p);
+                        free_far(p);
                     si = 0;
                 }
             }
@@ -188,7 +188,7 @@ uint16_t load_font(char *name)
  * slot's pointer equals entry 0's, so entry 0 is the one the rest hang off.
  *
  * Either way the slot itself is freed - through `dos_free_far` when it has a
- * far pointer at 0x61da and through `heap_free_far` when it does not - and its
+ * far pointer at 0x61da and through `free_far` when it does not - and its
  * three table entries and its byte at 0x6176 are cleared.
  */
 void close_table_618a_slot(int16_t index)
@@ -211,7 +211,7 @@ void close_table_618a_slot(int16_t index)
     if (ENGINE_FONT_WIDTHS.width[index] != FAR_NULL_PTR)
         dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
     else
-        heap_free_far((uint8_t *)ENGINE_FONT_BODIES.body[index]);
+        free_far((uint8_t *)ENGINE_FONT_BODIES.body[index]);
 
     ENGINE_FONT_KINDS.kind[index] = 0;
 

@@ -16,7 +16,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /* 172c:3030, image 0x1a2f0 - kind 30's setup, and it does nothing at all:

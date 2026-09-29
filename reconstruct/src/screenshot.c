@@ -32,8 +32,9 @@
  * 3.0 agrees with 3.0 and TC++ 1.01 with none of the rest. A file written
  * earlier and not rebuilt is the likely story.
  */
+#include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -56,17 +57,17 @@ struct iff_chunk_names IFF_CHUNK_NAMES DGROUP_AT(0x355a) = {
  * them. A long is two words, high one first; a word is two bytes, high one
  * first; a byte is itself. Any other size writes nothing but still steps.
  */
-void iff_write_be(uint8_t *p, int16_t count, int16_t size, struct file_rec *f)
+void iff_write_be(uint8_t *p, int16_t count, int16_t size, FILE *f)
 {
     while (count--) {
         if (size == 4) {
             iff_write_be(p + 2, 1, 2, f);
             iff_write_be(p, 1, 2, f);
         } else if (size == 2) {
-            borland_fwrite(p + 1, 1, 1, f);
-            borland_fwrite(p, 1, 1, f);
+            fwrite(p + 1, 1, 1, f);
+            fwrite(p, 1, 1, f);
         } else if (size == 1) {
-            borland_fwrite(p, 1, 1, f);
+            fwrite(p, 1, 1, f);
         }
         p += size;
     }
@@ -78,19 +79,19 @@ void iff_write_be(uint8_t *p, int16_t count, int16_t size, struct file_rec *f)
  * The `CMAP` chunk: all 256 colours read back out of the DAC, each six-bit
  * component shifted up to eight.
  */
-void iff_write_cmap(struct file_rec *f)
+void iff_write_cmap(FILE *f)
 {
     int32_t len;
     uint8_t pal[0x300];
     int16_t i;
 
-    borland_fwrite((const uint8_t *)IFF_CHUNK_NAMES.cmap, 1, 4, f);
+    fwrite((const uint8_t *)IFF_CHUNK_NAMES.cmap, 1, 4, f);
     vga_get_dac(pal, 0, 0x100);
     len = 0x300;
     iff_write_be((uint8_t *)&len, 1, 4, f);
     for (i = 0; i < 0x300; i++)
         pal[i] <<= 2;
-    borland_fwrite(pal, 0x300, 1, f);
+    fwrite(pal, 0x300, 1, f);
 }
 
 /*
@@ -101,7 +102,7 @@ void iff_write_cmap(struct file_rec *f)
  * buffer, turned into eight bitplanes of 0x50 bytes in the second half, and
  * written.
  */
-void iff_write_body(struct file_rec *f)
+void iff_write_body(FILE *f)
 {
     int16_t x;
     int16_t y;
@@ -109,18 +110,18 @@ void iff_write_body(struct file_rec *f)
     uint8_t *buf;
     uint8_t *p;
 
-    borland_fwrite((const uint8_t *)IFF_CHUNK_NAMES.body, 4, 1, f);
+    fwrite((const uint8_t *)IFF_CHUNK_NAMES.body, 4, 1, f);
     len = 0x46500L;
     iff_write_be((uint8_t *)&len, 1, 4, f);
-    buf = p = heap_malloc(0x500);
+    buf = p = malloc(0x500);
     for (y = 0; y < 0x1c2; y++) {
         p = buf;
         for (x = 0; x < 0x280; x++)
             *p++ = (uint8_t)read_pixel_clipped(x, y);
         chunky_to_planar(buf, buf + 0x280);
-        borland_fwrite(buf + 0x280, 0x280, 1, f);
+        fwrite(buf + 0x280, 0x280, 1, f);
     }
-    heap_free(buf);
+    free(buf);
 }
 
 /*
@@ -135,15 +136,15 @@ void iff_save(char *name)
 {
     int32_t len;
     int16_t w;
-    struct file_rec *f;
+    FILE *f;
 
-    if ((f = borland_fopen(name, IFF_CHUNK_NAMES.mode_wb)) == 0)
+    if ((f = fopen(name, IFF_CHUNK_NAMES.mode_wb)) == 0)
         return;
-    borland_fwrite((const uint8_t *)IFF_CHUNK_NAMES.form, 4, 1, f);
+    fwrite((const uint8_t *)IFF_CHUNK_NAMES.form, 4, 1, f);
     len = 0x46830L;
     iff_write_be((uint8_t *)&len, 1, 4, f);
-    borland_fwrite((const uint8_t *)IFF_CHUNK_NAMES.ilbm, 4, 1, f);
-    borland_fwrite((const uint8_t *)IFF_CHUNK_NAMES.bmhd, 4, 1, f);
+    fwrite((const uint8_t *)IFF_CHUNK_NAMES.ilbm, 4, 1, f);
+    fwrite((const uint8_t *)IFF_CHUNK_NAMES.bmhd, 4, 1, f);
     len = 0x14;
     iff_write_be((uint8_t *)&len, 1, 4, f);
     w = 0x280;
@@ -162,7 +163,7 @@ void iff_save(char *name)
     iff_write_be((uint8_t *)&w, 1, 2, f);
     iff_write_cmap(f);
     iff_write_body(f);
-    borland_fclose(f);
+    fclose(f);
 }
 
 /*

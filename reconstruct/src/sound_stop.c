@@ -15,7 +15,7 @@
  * JUDGE: built-with -mm -O -G -Z
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /* The five-tick wait, DGROUP 0x6430; the record is described in dgroup.h. */

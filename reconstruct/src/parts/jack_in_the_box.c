@@ -16,7 +16,7 @@
  * JUDGE: data 0x3394..0x339a
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

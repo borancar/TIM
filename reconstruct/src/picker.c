@@ -21,8 +21,12 @@
  * JUDGE: built-with -mm
  * JUDGE: data 0x28ec..0x2966
  */
+#include <string.h>
+#ifndef __TURBOC__
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -161,11 +165,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
     /*
      * **The pattern is the third argument, and it is copied.** `fill_file_listing`
-     * takes it apart to build the extension filter and `string_chr` walks it in
+     * takes it apart to build the extension filter and `strchr` walks it in
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy(pat, pattern);
+    strcpy(pat, pattern);
 
     DG4E4E.name_buf[0] = 0;
     reload = 2;
@@ -325,7 +329,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                 rec = ((char far * far *)GAME_PICKER_TEXT.block)[idx];
 
                 if (*rec != ':' && *rec != '<') {
-                    string_copy((char *)DG4E4E.name_buf, listing_to_name(rec));
+                    strcpy((char *)DG4E4E.name_buf, listing_to_name(rec));
                     rp_file = 2;
                 } else {
                     /*
@@ -440,11 +444,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state != 0x200 || string_length((char *)DG4E4E.name_buf) == 0) {
+    if (DG4E67.state != 0x200 || strlen((char *)DG4E4E.name_buf) == 0) {
         DG4E4E.name_buf[0] = 0;
         return 0;
     } else {
-        string_copy(DG52FE.name, (char *)DG4E4E.name_buf);
+        strcpy(DG52FE.name, (char *)DG4E4E.name_buf);
         return 1;
     }
 }
@@ -505,42 +509,42 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (string_chr((char *)DG4E4E.name_buf,
+        if (strchr((char *)DG4E4E.name_buf,
                        GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
             return 0;
     }
 
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "con", 3) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "con", 3) == 0
         && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "aux", 3) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "aux", 3) == 0
         && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "com1", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "com1", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "com2", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "com2", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "com3", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "com3", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "com4", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "com4", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "prn", 3) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "prn", 3) == 0
         && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "lpt1", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "lpt1", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "lpt2", 4) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "lpt2", 4) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "nul", 3) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "nul", 3) == 0
         && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
         return 0;
-    if (string_ncompare_i((char *)DG4E4E.name_buf, "null", 3) == 0
+    if (strnicmp((char *)DG4E4E.name_buf, "null", 3) == 0
         && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
         return 0;
 
@@ -623,13 +627,13 @@ void picker_type(uint8_t c, char *buf, int16_t max)
     str[0] = (char)c;
     str[1] = 0;
 
-    len = (int16_t)string_length(buf);
+    len = (int16_t)strlen(buf);
 
     if (c == '\b') {
         if (len != 0)
             *(buf + len - 1) = 0;
     } else if (len < max && c != '\t') {
-        string_concat(buf, str);
+        strcat(buf, str);
     }
 }
 
@@ -726,11 +730,11 @@ void path_join(char *path, const char far * entry)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(path, GAME_PATH_SEP.path_sep);
+        strcat(path, GAME_PATH_SEP.path_sep);
 
-    string_concat(path, name);
+    strcat(path, name);
 
-    *(path + string_length(path) - 1) = 0;
+    *(path + strlen(path) - 1) = 0;
 }
 
 /*
@@ -759,7 +763,7 @@ void force_extension(char *name, const char *ext)
         si[0] = '.';
         si[1] = 0;
 
-        string_concat(name, ext);
+        strcat(name, ext);
     }
 }
 
@@ -786,7 +790,7 @@ void force_extension(char *name, const char *ext)
  */
 void picker_set_name(const char *name)
 {
-    string_copy((char *)DG4E4E.name_buf, name);
+    strcpy((char *)DG4E4E.name_buf, name);
 }
 
 /*
@@ -934,7 +938,7 @@ void picker_draw_up(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x25)[pressed]),
+    draw_bitmap(((DG52ED.panel_art + 0x25)[pressed]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -957,7 +961,7 @@ void picker_draw_down(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x27)[pressed]),
+    draw_bitmap(((DG52ED.panel_art + 0x27)[pressed]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }
@@ -984,7 +988,7 @@ void picker_draw_name(void)
     char buf[90];                  /* [bp-0x5a] */
     char *si  = buf;
 
-    string_copy(si, (const char *)GAME_DIRECTORIES.path_field);
+    strcpy(si, (const char *)GAME_DIRECTORIES.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
@@ -992,7 +996,7 @@ void picker_draw_name(void)
     if (DG4E67.state == 0x4000) {
         PICKER_CARET.caret_blink++;
         if ((PICKER_CARET.caret_blink & 8) != 0)
-            string_concat(si, "*");
+            strcat(si, "*");
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -1027,7 +1031,7 @@ void picker_draw_filename(void)
     char buf[16];                  /* [bp-0x10] */
     char *si  = buf;
 
-    string_copy(si, (const char *)DG4E4E.name_buf);
+    strcpy(si, (const char *)DG4E4E.name_buf);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -1035,7 +1039,7 @@ void picker_draw_filename(void)
     if (DG4E67.state == 0x1000) {
         PICKER_CARET.caret_blink_b++;
         if ((PICKER_CARET.caret_blink_b & 8) != 0)
-            string_concat(si, "*");
+            strcat(si, "*");
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -1163,7 +1167,7 @@ void fill_file_listing(char *pattern)
     txt = (char far *)GAME_PICKER_TEXT.text_start;
 
     /* The pattern's own extension, or none if it is a wildcard. */
-    pattern = string_chr(pattern, '.');
+    pattern = strchr(pattern, '.');
     if (pattern != NULL && pattern[1] == '*')
         pattern = NULL;
 
@@ -1178,10 +1182,10 @@ void fill_file_listing(char *pattern)
 
     while (more == 0 && GAME_PICKER_TEXT.entry_count < GAME_PICKER_TEXT.entry_max) {
         name = dos_find_name();
-        ext  = string_chr(name, '.');
+        ext  = strchr(name, '.');
 
         if (dos_find_attr() & 0x10) {
-            if (string_compare(name, ".") != 0 && string_compare(name, "..") != 0) {
+            if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
                 *ptr++ = txt;
                 GAME_PICKER_TEXT.entry_count++;
 

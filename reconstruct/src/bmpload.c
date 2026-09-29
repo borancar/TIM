@@ -23,7 +23,7 @@
  * JUDGE: data 0x4966..0x498e
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -54,13 +54,17 @@
  */
 /*
  * **A far pointer masked as the long it is**: `and dx,0xfff0 / and ax,0xffff`.
- * The pointer has just been through a huge add, so its offset is 0..15 on
- * both compilers and the host can mask the normalised offset. Ours.
+ * The pointer has just been through a huge add, so its offset is 0..15 and
+ * the mask clears it: the address rounded down to a paragraph. Ours.
  */
 #ifdef __TURBOC__
 #  define FAR_MASK(p, m) ((uint8_t far *)((uint32_t)(p) & (m)))
 #else
-#  define FAR_MASK(p, m) ((uint8_t *)MK_FP(FP_SEG(p), FP_OFF(p) & (uint16_t)(m)))
+/* On the host the linear address is the pointer, and the mask clears its
+   low bits the same way - the block is libc's, not in `guest_mem`, so a
+   `seg:off` of it would mean nothing. */
+#  define FAR_MASK(p, m) \
+    ((uint8_t *)((uintptr_t)(p) & ~(uintptr_t)(uint32_t)~(uint32_t)(m)))
 #endif
 
 #ifdef __TURBOC__
@@ -86,20 +90,20 @@
  * same pair. That is what the two cursors advancing only when the count matches
  * is doing.
  *
- * The pointer array is `(count + 1) * 2` bytes from `calloc`, so the
+ * The pointer array is `count + 1` pointers from `calloc`, so the
  * terminating null is already there before anything is written.
  *
  * Every failure after the first allocation goes through the same cleanup, which
  * frees the records, the array and the temporary in that order.
  */
 uint16_t read_bmp_info(FILE *handle, register int16_t * count_at,
-                       bmp_ptr_t ** out)
+                       struct bitmap *** out)
 {
     int16_t *a;
     int16_t *b;
     int16_t i;
     int16_t rows;
-    bmp_ptr_t *slot;
+    struct bitmap **slot;
     uint8_t *tmp = NULL;
     register struct bitmap *hdr;
 
@@ -114,10 +118,10 @@ uint16_t read_bmp_info(FILE *handle, register int16_t * count_at,
     /* The list, and one run of headers for the whole of it: `list[0]` is
        the run's first byte, which is why `free_bitmap_list` gives it back
        as a heap block. */
-    if ((*out = (bmp_ptr_t *)heap_calloc_far((*count_at + 1) * 2, 1)) == NULL)
+    if ((*out = (struct bitmap **)calloc_far((*count_at + 1) * sizeof **out, 1)) == NULL)
         goto fail;
-    if ((((struct bmp_set *)*out)->bmp_ptr[0] =
-             dg_near(dgroup, heap_calloc_far(sizeof(struct bitmap), *count_at))) == 0)
+    if (((*out)[0] =
+             (struct bitmap *)calloc_far(sizeof(struct bitmap), *count_at)) == NULL)
         goto fail;
 
     /* A width and a height per bitmap if the chunk holds that many, and
@@ -127,7 +131,7 @@ uint16_t read_bmp_info(FILE *handle, register int16_t * count_at,
     else
         rows = *count_at;
 
-    if ((tmp = heap_malloc_far(rows * 4)) == NULL)
+    if ((tmp = malloc_far(rows * 4)) == NULL)
         goto fail;
     if (game_fread(tmp, rows * 4, 1, handle) != 1)
         goto fail;
@@ -136,11 +140,11 @@ uint16_t read_bmp_info(FILE *handle, register int16_t * count_at,
        is a near-heap block, so it is even and a word pointer is safe. */
     a = (int16_t *)tmp;
     b = (int16_t *)tmp + rows;
-    hdr = BMP_PTR((*out)[0]);
+    hdr = (*out)[0];
     slot = *out;
 
     for (i = 0; *count_at > i; i++) {
-        *slot = dg_near(dgroup, hdr);
+        *slot = hdr;
         hdr->width = *a;
         hdr->height = *b;
 
@@ -156,17 +160,17 @@ uint16_t read_bmp_info(FILE *handle, register int16_t * count_at,
     /* The null. With `*count_at` of zero the loop does not run and this
        goes over `list[0]`, as the original's cursor does too. */
     *slot = 0;
-    heap_free_far(tmp);
+    free_far(tmp);
     return 1;
 
 fail:
     if (tmp != NULL)
-        heap_free_far(tmp);
+        free_far(tmp);
 
     if (*out != NULL) {
         if ((*out)[0] != 0)
-            heap_free_far((uint8_t *)BMP_PTR((*out)[0]));
-        heap_free_far((uint8_t *)*out);
+            free_far((uint8_t *)(*out)[0]);
+        free_far((uint8_t *)*out);
     }
 
     return 0;
@@ -206,9 +210,9 @@ fail:
  * The driver call at vector 0x4382 is `vm_nothing` on this adapter, and nine
  * words are pushed at 0x4382 and 0x437e where five are read.
  */
-struct bmp_set *load_bitmap_list(char *name)
+struct bitmap **load_bitmap_list(char *name)
 {
-    bmp_ptr_t *list;
+    struct bitmap **list;
     uint8_t huge *blk;
     uint8_t huge *walk;
     uint8_t huge *tmp;
@@ -249,9 +253,9 @@ struct bmp_set *load_bitmap_list(char *name)
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
        into what it answered, if nothing has one yet. */
     if (DG3576.scratch == FAR_NULL_PTR) {
-        if ((scratch = heap_malloc_far(0x3cc4)) != NULL) {
-            heap_free_far(scratch);
-            if ((scratch = heap_malloc_far(0x3ac4)) != NULL) {
+        if ((scratch = malloc_far(0x3cc4)) != NULL) {
+            free_far(scratch);
+            if ((scratch = malloc_far(0x3ac4)) != NULL) {
                 DG3576.scratch = FAR_OF_NEAR(scratch);
                 SCRATCH += 0x10;
                 DG3576.scratch = normalise_far_ptr_far(
@@ -309,7 +313,7 @@ done:
         dos_free_far(tmp);
 
     if (scratch != NULL) {
-        heap_free_far(scratch);
+        free_far(scratch);
         DG3576.scratch = 0;
     }
 
@@ -326,9 +330,9 @@ done:
         close_file_record(si);
 
 #ifdef __TURBOC__
-    return (struct bmp_set *)list;
+    return (struct bitmap **)list;
 #else
-    return list != NULL ? (struct bmp_set *)list : BMPSET_NONE;
+    return list != NULL ? (struct bitmap **)list : NULL;
 #endif
 }
 
@@ -341,17 +345,17 @@ done:
  * **The first read is through an unchecked pointer, and that is the
  * original.** 0x23a1f is `cmp word ptr [si], 0` before 0x23a2d tests `si`
  * itself, so the list is dereferenced before it is known to be there. Offset 0
- * is `dgroup` rather than a C null pointer, so a caller's `BMPLIST(0)` reads
+ * is `dgroup` rather than a C null pointer, so a caller's `NULL` reads
  * the same two bytes the original would; only a literal `NULL` would differ,
  * and the callers hand over a list they have already tested.
  */
-void free_bitmap_list(bmp_ptr_t * list)
+void free_bitmap_list(struct bitmap ** list)
 {
     if (list[0] != 0)
-        heap_free_far((uint8_t *)BMP_PTR(list[0]));
+        free_far((uint8_t *)list[0]);
 
-    if (!BMPLIST_IS_NONE(list))
-        heap_free_far((uint8_t *)list);
+    if (list != NULL)
+        free_far((uint8_t *)list);
 }
 
 /*
@@ -365,9 +369,9 @@ void free_bitmap_list(bmp_ptr_t * list)
  * routine - because a whole list is *three* allocations rather than two per
  * bitmap, and this pair of routines gives back exactly those three:
  *
- *   the list      `read_bmp_info`: `heap_calloc_far((count + 1) * 2, 1)`,
+ *   the list      `read_bmp_info`: `calloc_far((count + 1) * 2, 1)`,
  *                 count words and a null - freed by `free_bitmap_list`
- *   the headers   `read_bmp_info`: `heap_calloc_far(0xa, count)`, one run of
+ *   the headers   `read_bmp_info`: `calloc_far(0xa, count)`, one run of
  *                 `struct bitmap`, and `list[0]` is its first byte - which is
  *                 why `free_bitmap_list` frees `list[0]` as a heap block
  *   the pixels    one `dos_alloc_bytes` for every bitmap in the list, and the
@@ -387,10 +391,10 @@ void free_bitmap_list(bmp_ptr_t * list)
  * sets DX and the next instruction clears it, and the `adc` adds a carry that
  * `add dx, [di+2]` cannot produce. Transcribed as the two words it reads.
  */
-void free_bitmaps(register bmp_ptr_t * list)
+void free_bitmaps(register struct bitmap ** list)
 {
-    if (!BMPLIST_IS_NONE(list)) {
-        register struct bitmap *hdr = BMP_PTR(list[0]);
+    if (list != NULL) {
+        register struct bitmap *hdr = list[0];
 
         dos_free_far(FAR_FROM_PAIR((int16_t)hdr->data.seg, hdr->data.off));
         free_bitmap_list(list);
@@ -403,11 +407,11 @@ void free_bitmaps(register bmp_ptr_t * list)
  * How many entries a null-terminated list of near pointers has. A null list is
  * zero rather than a fault.
  */
-uint16_t count_list_entries(bmp_ptr_t * list)
+uint16_t count_list_entries(struct bitmap ** list)
 {
     uint16_t n = 0;
 
-    if (!BMPLIST_IS_NONE(list)) {
+    if (list != NULL) {
         while (list[n] != 0)
             n++;
     }

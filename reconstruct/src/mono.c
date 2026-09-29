@@ -19,7 +19,7 @@
 #include <stdarg.h>
 
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -92,10 +92,10 @@ void mono_printf(int16_t x, int16_t y, const char *fmt, ...)
 
     va_start(ap, fmt);
 #ifdef __TURBOC__
-    borland_vsprintf(buf, fmt, (const uint8_t *)ap);
+    vsprintf(buf, fmt, (const uint8_t *)ap);
 #else
     /* Ours: the host's `va_list` is not a pointer into the stack, which is
-       what `borland_vsprintf` walks, so the host's own formats it - the
+       what `vsprintf` walks, so the host's own formats it - the
        builtin, because <stdio.h> has a `FILE` of its own. */
     __builtin_vsnprintf(buf, sizeof buf, fmt, ap);
 #endif

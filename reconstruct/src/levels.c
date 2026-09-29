@@ -17,8 +17,14 @@
  * JUDGE: built-with -mm -d
  * JUDGE: data 0x2870..0x28d2
  */
+#include <string.h>
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -131,7 +137,7 @@ uint16_t part_index(struct part *part)
  * block DOS handed the program - which is why the port models the guest's
  * whole address space rather than only its data segment.
  */
-int16_t part_by_index(int16_t index)
+dg_near_t part_by_index(int16_t index)
 {
     if (index == -1)
         return 0;
@@ -149,17 +155,19 @@ int16_t part_by_index(int16_t index)
  * The table is a **far** array of near pointers - four bytes an entry where the
  * pointer is two - and the game reaches it through `part_by_index`, which
  * is what makes a part number into a record. Two bytes of every four are not
- * written here and are whatever DOS left in the block.
+ * written here and are whatever DOS left in the block. The size is written
+ * `2 * sizeof(struct part *)` an entry, which is the image's four under
+ * Borland C++ and leaves the host room for its wider pointers.
  */
 void alloc_part_table(register int16_t n)
 {
     register int16_t si;
 
-    LEVEL_IO.table = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)(n * 4), 0));
+    LEVEL_IO.table = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)(n * (2 * sizeof(struct part *))), 0));
 
     for (si = 0; si < n; si++)
         PART_TABLE->part_ptr[(uint16_t)si] =
-            dg_near(dgroup, heap_calloc_far(1, 0xa2));
+            dg_near(dgroup, calloc_far(1, sizeof(struct part)));
 }
 
 /*
@@ -292,7 +300,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     int16_t i;                          /* [bp-0xa] */
     uint8_t skip;                       /* [bp-0xb] */
     struct rope *rope;                  /* [bp-0xe] */
-    uint16_t pulley;                    /* [bp-0x10] */
+    dg_near_t pulley;                    /* [bp-0x10] */
     struct belt *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
@@ -325,7 +333,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->grab_size);
 
     if (has_rope != 0) {
-        rope = ROPE_PTR(rec->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38)));
+        rope = ROPE_PTR(rec->rope_ptr = dg_near(dgroup, calloc_far(1, sizeof(struct rope))));
         rope->owner_ptr = dg_near(dgroup, rec);
 
         game_fread_far(file, (uint8_t *)&index);
@@ -349,7 +357,7 @@ void read_record_fields(FILE *file, register struct part *rec)
         if (has_belt == 0)
             continue;
 
-        di = BELT_PTR(rec->belt_ptr[i] = dg_near(dgroup, heap_calloc_far(1, 0x2c)));
+        di = BELT_PTR(rec->belt_ptr[i] = dg_near(dgroup, calloc_far(1, sizeof(struct belt))));
         BELT_PTR(rec->belt_ptr[i])->owner_ptr = dg_near(dgroup, rec);
 
         game_fread_far(file, (uint8_t *)&index);
@@ -403,7 +411,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     rec->point_count = PART_KINDS[rec->kind].point_count;
 
     if (rec->point_count != 0)
-        rec->points_ptr = dg_near(dgroup, heap_calloc_far(rec->point_count, 4));
+        rec->points_ptr = dg_near(dgroup, calloc_far(rec->point_count, 4));
 
     PART_KINDS[rec->kind].setup(rec);
 }
@@ -496,20 +504,7 @@ void read_level(char *name)
     int16_t n_machine;                  /* [bp-2] */
     int16_t n_moving;                   /* [bp-4] */
     int16_t n_given;                    /* [bp-6] */
-#ifdef __TURBOC__
-    char buf[0x210];                    /* [bp-0x216] */
-#else
-    /*
-     * **The buffer has to be the guest's.** `game_setbuf` files its address
-     * into the file record's `read_ptr` at +0x0a - a guest word the C
-     * library then steps as a cursor, compares against the record's own
-     * buffer and frees as a heap handle - and the library is the machine's,
-     * laid out as the guest's. So on the host it is carved from the guest's
-     * stack, where a sixteen-bit address can reach it. Ours.
-     */
-    uint16_t at = dg_alloca(0x210);
-    char *buf = (char *)dg_near_ptr(at);
-#endif
+    char buf[SETBUF_ROOM(0x210)];       /* [bp-0x216] */
     register FILE *file;
 
     if ((file = game_fopen(name, GAME_FILE_NAMES.rb_read_level)) != 0) {
@@ -556,9 +551,6 @@ void read_level(char *name)
     }
 
     DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
-#ifndef __TURBOC__
-    dg_free(0x210);
-#endif
 }
 
 /*
@@ -644,7 +636,7 @@ void write_record_fields(register FILE *file, register struct part *part)
     int16_t vindex;                     /* [bp-6] */
     int16_t i;                          /* [bp-8] */
     struct rope *rope;                  /* [bp-0xa] */
-    uint16_t belt;                      /* [bp-0xc] */
+    dg_near_t belt;                      /* [bp-0xc] */
 
     write_word(file, (const uint8_t *)&part->kind);
     write_word(file, (const uint8_t *)&part->flags_06);
@@ -882,10 +874,10 @@ void load_level(uint16_t number)
     char name[14];
     char digits[8];
 
-    string_copy(name, GAME_FILE_NAMES.l_load_level);
-    int_to_string((int16_t)number, digits, 10);
-    string_concat(name, digits);
-    string_concat(name, GAME_FILE_NAMES.lev_load_level);
+    strcpy(name, GAME_FILE_NAMES.l_load_level);
+    itoa((int16_t)number, digits, 10);
+    strcat(name, digits);
+    strcat(name, GAME_FILE_NAMES.lev_load_level);
 
     LEVEL_IO.is_level = 1;
     read_level(name);
@@ -904,10 +896,10 @@ void save_level(uint16_t number)
     char name[14];
     char digits[8];
 
-    string_copy(name, GAME_FILE_NAMES.l_save_level);
-    int_to_string((int16_t)number, digits, 10);
-    string_concat(name, digits);
-    string_concat(name, GAME_FILE_NAMES.lev_save_level);
+    strcpy(name, GAME_FILE_NAMES.l_save_level);
+    itoa((int16_t)number, digits, 10);
+    strcat(name, digits);
+    strcat(name, GAME_FILE_NAMES.lev_save_level);
 
     LEVEL_IO.is_level = 1;
     write_level(name);
@@ -953,7 +945,7 @@ void load_animation(char *name)
 uint16_t save_machine(char *name)
 {
     uint16_t r;                         /* [bp-2] */
-    uint16_t held;                      /* [bp-4] */
+    dg_near_t held;                      /* [bp-4] */
 
     held = DG50D3.parts_bin.next_ptr;
     DG50D3.parts_bin.next_ptr = 0;
@@ -1018,10 +1010,10 @@ void count_level_files(void)
     DG4E67.level_count = 1;
 
     while (done == 0) {
-        string_copy(name, GAME_FILE_NAMES.l_count_levels);
-        int_to_string(DG4E67.level_count, number, 10);
-        string_concat(name, number);
-        string_concat(name, GAME_FILE_NAMES.lev_count_levels);
+        strcpy(name, GAME_FILE_NAMES.l_count_levels);
+        itoa(DG4E67.level_count, number, 10);
+        strcat(name, number);
+        strcat(name, GAME_FILE_NAMES.lev_count_levels);
 
         if ((file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels)) != 0) {
             DG4E67.level_count++;
@@ -1055,10 +1047,10 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
     char name[14];                      /* [bp-0x1a] */
     register FILE *file;
 
-    string_copy(name, GAME_FILE_NAMES.l_puzzle_title);
-    int_to_string(n, num, 10);
-    string_concat(name, num);
-    string_concat(name, GAME_FILE_NAMES.lev_puzzle_title);
+    strcpy(name, GAME_FILE_NAMES.l_puzzle_title);
+    itoa(n, num, 10);
+    strcat(name, num);
+    strcat(name, GAME_FILE_NAMES.lev_puzzle_title);
 
     if ((file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title)) == 0)
         return 0;
@@ -1106,9 +1098,9 @@ uint16_t password_to_level(register char *text)
     char line[20];                      /* [bp-0x1a] */
     register char *dash;
 
-    string_upper(text);
+    strupr(text);
 
-    dash = string_chr(text, '-');
+    dash = strchr(text, '-');
     if (dash != NULL)
         *dash = 0;
 
@@ -1119,7 +1111,7 @@ uint16_t password_to_level(register char *text)
                            GAME_FILE_NAMES.rb_password_level)) != 0) {
         while (game_fread_line(file, line), *line) {
             n++;
-            if (string_compare_nocase(text, line) == 0)
+            if (stricmp(text, line) == 0)
                 answer = n;
         }
         game_fclose(file);

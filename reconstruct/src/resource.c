@@ -22,7 +22,7 @@
  * JUDGE: built-with -mm
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -388,7 +388,7 @@ int16_t near string_contains_r(const char *s)
 void near free_if_set(void *p)
 {
     if (p)
-        heap_free_far(p);
+        free_far(p);
 }
 
 /*
@@ -433,7 +433,7 @@ int16_t near open_resource_slot(char *mode)
             break;
     if (i == 0x64)
         return -1;
-    if ((ENGINE_STREAM.rec = (struct resource *)heap_calloc_far(1, sizeof(struct resource))) == NULL)
+    if ((ENGINE_STREAM.rec = (struct resource *)calloc_far(1, sizeof(struct resource))) == NULL)
         return -1;
     ENGINE_RESOURCE_SLOTS.slot[i] = ENGINE_STREAM.rec;
     return i;
@@ -468,7 +468,7 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
     } else
         far_size = h->far_size;
 
-    if ((ENGINE_STREAM.rec->work = (uint8_t *)heap_calloc_far(1, near_size)) == NULL)
+    if ((ENGINE_STREAM.rec->work = (uint8_t *)calloc_far(1, near_size)) == NULL)
         return -1;
     if (far_size) {
         /* Compared as the huge pointer the original held it as. */

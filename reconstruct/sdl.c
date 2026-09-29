@@ -40,7 +40,6 @@
  * tools/capture.py uses to take reference frames, which is what makes a frame
  * here and a frame there the same frame.
  */
-#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +48,7 @@
 
 #include <SDL3/SDL.h>
 
-#include "io.h"
+#include "hostio.h"
 #include "sdl.h"
 
 /*

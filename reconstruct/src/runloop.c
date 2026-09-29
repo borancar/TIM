@@ -20,7 +20,7 @@
  * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

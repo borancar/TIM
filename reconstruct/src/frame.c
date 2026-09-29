@@ -24,8 +24,13 @@
  * JUDGE: data 0x286e..0x2870
  */
 #include <stdlib.h>
+#ifdef __TURBOC__
+#include <alloc.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -249,24 +254,24 @@ void repaint_whole_screen(void)
  * All four are cleared first, so a second call on an ordinary day undoes a
  * first one on a holiday.
  *
- * `dos_getdate` leaves the year at the local's +0 and DOS's packed DX at +2, so
+ * `getdate` leaves the year at the local's +0 and DOS's packed DX at +2, so
  * the day is the byte at +2 and the month the byte at +3 - which is why the
  * comparisons read a byte at a time rather than a word.
  */
 void set_holiday_flags(void)
 {
-    uint8_t d[4];
+    struct date d;
 
     DG4E67.holiday_valentine = DG4E67.holiday_stpatrick
         = DG4E67.holiday_halloween = DG4E67.holiday_christmas = 0;
-    dos_getdate((uint8_t *)d);
-    if (d[3] == 2 && d[2] == 0x0e)
+    getdate(&d);
+    if (d.da_mon == 2 && d.da_day == 0x0e)
         DG4E67.holiday_valentine = 1;
-    if (d[3] == 3 && d[2] == 0x11)
+    if (d.da_mon == 3 && d.da_day == 0x11)
         DG4E67.holiday_stpatrick = 1;
-    if (d[3] == 0xa && d[2] == 0x1f)
+    if (d.da_mon == 0xa && d.da_day == 0x1f)
         DG4E67.holiday_halloween = 1;
-    if (d[3] == 0xc && d[2] == 0x19)
+    if (d.da_mon == 0xc && d.da_day == 0x19)
         DG4E67.holiday_christmas = 1;
 }
 
@@ -351,7 +356,7 @@ void select_music(register int16_t id)
             remove_and_free_records(DG52BD.music_now);
         }
         if (id != -1) {
-            open_sound_file((char *)FILEREC_PTR(DG52ED.tim_sx_ptr), id);
+            open_sound_file((char *)DG52ED.tim_sx, id);
             play_sound(id);
         }
         DG52BD.music_now = id;
@@ -483,13 +488,13 @@ int16_t heap_largest_free(void)
     register uint16_t best;
     register uint16_t gap;
     struct heapinfo info;               /* [bp-6], the walk record */
-    int16_t total;                      /* [bp-8] */
+    uint16_t total;                     /* [bp-8] */
 
-    info.block_ptr = 0;
+    info.ptr = NULL;
     best = 0;
     total = 0;
     while (heapwalk(&info) == 2) {
-        total = info.block_ptr + info.size;
+        total = NEAR_OFF(info.ptr) + info.size;
         if (!info.in_use && (uint16_t)(info.size - 4) > best)
             best = info.size - 4;
     }
@@ -509,7 +514,7 @@ int16_t heap_largest_free(void)
 void checked_free(uint8_t *p)
 {
     heap_check_or_hang();
-    heap_free_far(p);
+    free_far(p);
     heap_check_or_hang();
 }
 
@@ -528,7 +533,7 @@ void heap_check_or_hang(void)
 {
     register int16_t si;
 
-    if (heap_check() == -1)
+    if (heapcheck() == -1)
         for (si = 2; si != 3; si += 2)
             ;
 }

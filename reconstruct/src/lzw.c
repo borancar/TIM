@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -572,6 +572,12 @@ struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0
  */
 struct engine_lzw_window {
     uint8_t   window[12];         /* +0x00 [0xc] */
+#ifndef __TURBOC__
+    /* OURS: a code that ends on the window's last byte reads one more and
+       masks it with `mask[0]`, which is 0 - in DGROUP that byte is the mask
+       table's first. The host's object has to have it. */
+    uint8_t   over;
+#endif
 } PACKED;
 
 struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {

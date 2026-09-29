@@ -14,7 +14,7 @@
  * is plain pointer arithmetic. Nothing in the port called them any more.
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

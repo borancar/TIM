@@ -18,7 +18,7 @@
 #include <string.h>
 
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 
 enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL, DRIVER_SBP };
@@ -44,7 +44,7 @@ enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL, DRIVER_SBP };
  */
 static const char *driver_banner(void)
 {
-    return SX_SEG == 0 ? 0 : (const char *)MK_FP(SX_SEG, 0x0a);
+    return SNDS.driver == NULL ? NULL : (const char *)SNDS.driver + 0x0a;
 }
 
 /* OURS: does the banner contain this text, anywhere in its first 48 bytes? */
@@ -294,7 +294,7 @@ uint16_t driver_param_346(uint16_t cl)
  * and the port stands in for the driver, what arrives is a function number in
  * a register, and this is what turns it back into a call. That is the only
  * caller: `tools/native/routines.def` binds it at the far pointer the game
- * itself stores at `((int16_t)SNDS.driver.off)`.
+ * itself stores at `SNDS.driver`.
  *
  * Registers as the drivers read them: AL the channel, CH and CL the two data
  * bytes, ES:AX a far pointer for function 1, and the answer in AX - and in CX

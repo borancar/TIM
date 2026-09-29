@@ -22,7 +22,7 @@
  * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /* DGROUP 0x2d06..0x2d0a, after the part templates: two words. */
@@ -117,10 +117,10 @@ struct machine_rect_count MACHINE_RECT_COUNT DGROUP_BSS(0x56b6);
  * 0x0a05f
  *
  * **Grow the saved-rect pool** by `n` records, rounded up to a multiple of
- * five, in one `heap_calloc_far(n, 0x1a)` block threaded through `next` and
+ * five, in one `calloc_far(n, 0x1a)` block threaded through `next` and
  * pushed whole on the free list. Only the block's **first** record has
  * `block_head` set - that is what `free_rect_pool` tests to hand the block
- * back in one `heap_free_far`. The count at 0x56b6 goes up by `n`. Answers 1,
+ * back in one `free_far`. The count at 0x56b6 goes up by `n`. Answers 1,
  * or 0 when the heap refuses; the `cmp di, 5` before the 1 compares and then
  * ignores the result, and is not reproduced. Called only from
  * `file_saved_rect`, which nothing calls: dead in the shipped binary.
@@ -132,7 +132,7 @@ uint16_t build_rect_pool(register uint16_t n)
     int16_t k;                          /* [bp-4] */
 
     n = ((int16_t)n + 4) / 5 * 5;
-    base = (struct rect_list_entry *)(void *)heap_calloc_far(n, sizeof(struct rect_list_entry));
+    base = (struct rect_list_entry *)(void *)calloc_far(n, sizeof(struct rect_list_entry));
     if (base == NULL)
         return 0;
     rec = base;
@@ -179,13 +179,13 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
                      uint16_t refcount, uint8_t far * buf)
 {
-    register uint16_t rec;
-    register uint16_t other;
+    register dg_near_t rec;
+    register dg_near_t other;
     dg_near_t *slot;                    /* [bp-2] */
-    uint16_t stop;                      /* [bp-4] */
-    uint16_t prev;                      /* [bp-6] */
-    uint16_t after;                     /* [bp-8] */
-    uint16_t from;                      /* [bp-0xa] */
+    dg_near_t stop;                      /* [bp-4] */
+    dg_near_t prev;                      /* [bp-6] */
+    dg_near_t after;                     /* [bp-8] */
+    dg_near_t from;                      /* [bp-0xa] */
     int16_t area;                       /* [bp-0xc] */
     int16_t sum;                        /* [bp-0xe] */
     int16_t ux0;                        /* [bp-0x10] */
@@ -337,7 +337,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 void restore_saved_rect_lists(int16_t which)
 {
     register const struct page_pair *si;
-    register uint16_t di;
+    register dg_near_t di;
     dg_near_t *slot;                    /* [bp-2] */
     int16_t left;                       /* [bp-4] */
     dg_seg_t saved_src;                 /* [bp-6] */
@@ -375,7 +375,7 @@ void restore_saved_rect_lists(int16_t which)
 void discard_saved_rects(void)
 {
     register dg_near_t *slot;
-    register uint16_t rec;
+    register dg_near_t rec;
     int16_t left;
 
     for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0; slot++, left--)
@@ -401,7 +401,7 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
                            int16_t h, dg_seg_t page_dst, uint16_t refcount)
 {
-    register uint16_t rec;
+    register dg_near_t rec;
     dg_near_t *slot;                    /* [bp-2] */
     int16_t left;                       /* [bp-4] */
 
@@ -426,16 +426,16 @@ uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
  *
  * **Free the saved-rect pool.** Everything is discarded onto the free list
  * first, and then the list is walked for a block head - the first record of
- * each `heap_calloc_far` block, marked by `build_rect_pool`. On finding one
+ * each `calloc_far` block, marked by `build_rect_pool`. On finding one
  * the mark is cleared, **the routine calls itself** - which walks on past
  * the cleared mark and frees every later block first - and then this block
- * is freed in one `heap_free_far` and the list head zeroed. That recursion
+ * is freed in one `free_far` and the list head zeroed. That recursion
  * is the original's, at 0x0a5bc, and is kept. Nothing in the image calls
  * this: dead in the shipped binary.
  */
 void free_rect_pool(void)
 {
-    uint16_t rec;
+    dg_near_t rec;
 
     discard_saved_rects();
 
@@ -443,7 +443,7 @@ void free_rect_pool(void)
         if ((RECTENT_PTR(rec)->block_head & 1) != 0) {
             RECTENT_PTR(rec)->block_head = 0;
             free_rect_pool();
-            heap_free_far(dg_near_ptr(rec));
+            free_far(dg_near_ptr(rec));
             break;
         }
     }
@@ -483,7 +483,7 @@ dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                                         uint16_t refcount)
 {
     register dg_near_t *slot;
-    register uint16_t rec;
+    register dg_near_t rec;
     dg_near_t *empty;
     int16_t left;
 
@@ -573,7 +573,7 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
 void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
     register dg_near_t *slot;
-    register uint16_t rec;
+    register dg_near_t rec;
 
     slot = find_saved_rect_slot(page_src, page_dst, refcount);
     if (slot != NULL && *slot != 0) {
@@ -604,7 +604,7 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
                       dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref)
 {
-    register uint16_t rec;
+    register dg_near_t rec;
     register dg_near_t *from_slot;
 
     from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);

@@ -27,7 +27,7 @@
 #include <string.h>
 
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -169,7 +169,7 @@ uint16_t load_screen_plain(char *name)
             /* The heap's answer widened with DS, halving the request until
                it is granted or would be less than a row pair. */
             do
-                buf = FAR_OF_NEAR(heap_malloc_far(bytes));
+                buf = FAR_OF_NEAR(malloc_far(bytes));
             while (FAR_OF_NEAR_NULL(buf) && (bytes >>= 1) >= half);
 
             if (!FAR_OF_NEAR_NULL(buf)) {
@@ -230,7 +230,7 @@ uint16_t load_screen_plain(char *name)
                     }
                 }
 
-                heap_free_far((uint8_t *)buf);
+                free_far((uint8_t *)buf);
             }
 
             close_resource(res);
@@ -260,7 +260,7 @@ struct open_file *near find_file_record(FILE *handle)
     int16_t i = 4;
 
     while (--i >= 0) {
-        if (FILEREC_PTR(ENGINE_OPEN_FILES.rec[i].file_ptr) == handle)
+        if (ENGINE_OPEN_FILES.rec[i].file == handle)
             return &ENGINE_OPEN_FILES.rec[i];
     }
 
@@ -281,14 +281,14 @@ void near reset_file_record(struct open_file *rec)
 {
     register char *p = (char *)rec;
     register int16_t n = sizeof *rec;
-    dg_near_t handle = rec->file_ptr;
+    FILE *handle = rec->file;
     uint32_t keep = rec->bound[0];
 
     while (--n >= 0)
         *p++ = 0;
 
     rec->bound[0] = keep;
-    game_rewind(FILEREC_PTR(rec->file_ptr = handle));
+    game_rewind(rec->file = handle);
 }
 
 /*
@@ -318,14 +318,14 @@ int16_t near string_equal_upto(const char * a, const char * b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-uint8_t * copy_file_record(uint8_t * dst, FILE *handle)
+struct open_file *copy_file_record(struct open_file *dst, FILE *handle)
 {
     struct open_file *rec;
 
     if (handle == 0 || dst == NULL || (rec = find_file_record(handle)) == NULL)
         return NULL;
 
-    *(struct open_file *)dst = *rec;
+    *dst = *rec;
     return dst;
 }
 
@@ -339,16 +339,16 @@ uint8_t * copy_file_record(uint8_t * dst, FILE *handle)
  * The counterpart of `copy_file_record`, and the pair is how a caller saves and
  * restores a position without the record's own fields moving under it.
  */
-int16_t restore_file_record_from(const uint8_t * src)
+int16_t restore_file_record_from(const struct open_file *src)
 {
     struct open_file *rec;
 
-    if (src == NULL || *(const dg_near_t *)src == 0
-        || (rec = find_file_record(FILEREC_PTR(*(const dg_near_t *)src))) == NULL)
+    if (src == NULL || src->file == 0
+        || (rec = find_file_record(src->file)) == NULL)
         return 0;
 
-    *rec = *(const struct open_file *)src;
-    game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
+    *rec = *src;
+    game_fseek(rec->file, (int32_t)rec->pos, 0);
     return 1;
 }
 
@@ -373,14 +373,14 @@ FILE *open_file_record(char *name)
     if ((rec = find_file_record(0)) == NULL)
         return 0;
 
-    if ((rec->file_ptr = dg_near(dgroup, game_fopen(name, "rb"))) == 0)
+    if ((rec->file = (game_fopen(name, "rb"))) == 0)
         return 0;
 
-    game_fseek(FILEREC_PTR(rec->file_ptr), 0L, 2);
-    rec->bound[0] = game_ftell(FILEREC_PTR(rec->file_ptr)) | 0x80000000L;
+    game_fseek(rec->file, 0L, 2);
+    rec->bound[0] = game_ftell(rec->file) | 0x80000000L;
 
     reset_file_record(rec);
-    return FILEREC_PTR(rec->file_ptr);
+    return rec->file;
 }
 
 /*
@@ -396,7 +396,7 @@ FILE *open_file_record(char *name)
 int32_t near restore_file_record(struct open_file *rec)
 {
     *rec = ENGINE_SAVED_FILE_RECORD.rec;
-    game_fseek(FILEREC_PTR(rec->file_ptr), (int32_t)rec->pos, 0);
+    game_fseek(rec->file, (int32_t)rec->pos, 0);
     return -1L;
 }
 
@@ -448,11 +448,11 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
     ENGINE_SAVED_FILE_RECORD.rec = *rec;
 
     if (string_equal_upto(path, (const char *)rec->path, 0x19) != 0) {
-        if (index == 0 && (uint32_t)game_ftell(FILEREC_PTR(rec->file_ptr)) == rec->pos)
+        if (index == 0 && (uint32_t)game_ftell(rec->file) == rec->pos)
             goto at_position;
 
         if (index == -1) {
-            game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
+            game_fseek(rec->file, rec->pos, 0);
             goto at_position;
         }
 
@@ -464,7 +464,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
                 } else if (rec->matched > index) {
                     reset_file_record(rec);
                 } else {
-                    game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
+                    game_fseek(rec->file, rec->pos, 0);
                     goto at_position;
                 }
             } else {
@@ -489,7 +489,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
     /* Step over whatever chunk the record is sitting on. */
     if ((rec->bound[rec->depth >> 2] & 0x80000000L) == 0)
         rec->pos += rec->size;
-    game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
+    game_fseek(rec->file, rec->pos, 0);
 
     while (index-- != 0) {
         for (;;) {
@@ -504,13 +504,13 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
             /* A data chunk is skipped over. */
             if ((rec->bound[rec->depth >> 2] & 0x80000000L) == 0) {
                 rec->pos += rec->size;
-                game_fseek(FILEREC_PTR(rec->file_ptr), rec->pos, 0);
+                game_fseek(rec->file, rec->pos, 0);
                 continue;
             }
 
             /* A container is descended into. */
             if (game_fread(&rec->path[rec->depth], 1, 4,
-                           FILEREC_PTR(rec->file_ptr)) != 4)
+                           rec->file) != 4)
                 return restore_file_record(rec);
 
             if ((rec->depth += 4) >= 0x18)
@@ -520,7 +520,7 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
             rec->pos += 8;
 
             if (game_fread((uint8_t *)&rec->size, 4, 1,
-                           FILEREC_PTR(rec->file_ptr)) != 1)
+                           rec->file) != 1)
                 return restore_file_record(rec);
 
             rec->bound[rec->depth >> 2] = rec->pos + rec->size;
@@ -580,7 +580,7 @@ int16_t close_file_record(FILE *handle)
     if (handle == 0 || (rec = find_file_record(handle)) == NULL)
         return 0;
 
-    rec->file_ptr = 0;
+    rec->file = 0;
     game_fclose(handle);
     return 1;
 }
@@ -681,24 +681,24 @@ void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
  * and handed to INT 21h AH=4Ah, which is the only place the port has to grow a
  * DOS arena that can shrink a block.
  */
-int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
+int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 {
     uint8_t far *at;
     int16_t seg;
     uint16_t resize_seg;
     uint16_t pixels;
     uint8_t far *blk;
-    register bmp_ptr_t *si;
+    register struct bitmap **si;
     register int16_t di;
 
     BITMAP_COMPRESS.mode = colours - 1;
-    BITMAP_COMPRESS.row_buffer = heap_malloc_far(0x7d0);
+    BITMAP_COMPRESS.row_buffer = malloc_far(0x7d0);
 
     si = list;
 
     /* The first bitmap's own pixels, which is where the output begins. */
     BITMAP_COMPRESS.out = BITMAP_COMPRESS.out_start =
-        MK_FP((int16_t)BMP_PTR(list[0])->data.seg, BMP_PTR(list[0])->data.off);
+        MK_FP((int16_t)list[0]->data.seg, list[0]->data.off);
 
     while (*si != 0) {
         /* Normalise, and remember where this bitmap's own data begins. The
@@ -708,28 +708,28 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
         at = BITMAP_COMPRESS.out = MK_FP(seg + (di >> 4), di & 0x0f);
 
         if (!(int8_t)VMDS.vga_chunks) {
-            pixels = BMP_PTR(*si)->width * BMP_PTR(*si)->height;
+            pixels = (*si)->width * (*si)->height;
             blk = DOS_ALLOC_PTR(DOS_ALLOC(pixels, 0));
 
             pixels >>= 3;
 
             planes_to_chunky(blk,
-                             MK_FP((int16_t)BMP_PTR(*si)->data.seg, BMP_PTR(*si)->data.off),
+                             MK_FP((int16_t)(*si)->data.seg, (*si)->data.off),
                              pixels);
 
-            BMP_PTR(*si)->data.seg = FP_SEG(blk);
-            BMP_PTR(*si)->data.off = FP_OFF(blk);
+            (*si)->data.seg = FP_SEG(blk);
+            (*si)->data.off = FP_OFF(blk);
 
-            compress_bitmap(BMP_PTR(*si));
+            compress_bitmap(*si);
 
             dos_free_far(blk);
         } else {
-            compress_bitmap(BMP_PTR(*si));
+            compress_bitmap(*si);
         }
 
-        BMP_PTR(*si)->data.seg = FP_SEG(at);
-        BMP_PTR(*si)->data.off = FP_OFF(at);
-        BMP_PTR(*si)->mask_off = 0xfffe;
+        (*si)->data.seg = FP_SEG(at);
+        (*si)->data.off = FP_OFF(at);
+        (*si)->mask_off = 0xfffe;
 
         si++;
     }
@@ -740,7 +740,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
 
     /* Shrink the block to what the compressed form needed: INT 21h AH=4Ah on
        the first bitmap's segment. */
-    resize_seg = BMP_PTR(list[0])->data.seg;
+    resize_seg = list[0]->data.seg;
 #ifdef __TURBOC__
     _BX = BITMAP_COMPRESS.block_paras;
     _AX = resize_seg;
@@ -751,7 +751,7 @@ int32_t compress_bitmap_list(bmp_ptr_t *list, uint8_t colours)
     io_dos_resize(resize_seg, BITMAP_COMPRESS.block_paras);
 #endif
 
-    heap_free_far(BITMAP_COMPRESS.row_buffer);
+    free_far(BITMAP_COMPRESS.row_buffer);
 
     return (seg << 4) + di;
 }

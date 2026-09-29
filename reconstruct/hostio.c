@@ -1,13 +1,14 @@
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700   /* realpath, and POSIX 2008 */
 /*
  * The port's own hardware boundary. NOT a transcription of anything.
  * See io.h for why the plane model is modelled rather than flattened.
  */
-#define TIM_HOST 1        /* this unit is the host's: it needs the host's <stdio.h> */
 #include <stdarg.h>
 #include <string.h>
 
 #include <errno.h>
+#include <limits.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
@@ -19,12 +20,11 @@
 #include <execinfo.h>
 
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "src/opl.h"
 #include "tim.h"
 
 static uint8_t io_in8_raw(uint16_t port);
-static int32_t overlay_find(const char *name);
 
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
@@ -420,6 +420,8 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
     return 1;
 }
 
+static char     game_dir[PATH_MAX] = "incredible-machine";
+
 /*
  * OURS: what DOS's loader and Borland's startup leave behind besides the
  * image - DGROUP's address, the startup's stack, the arena and the two BIOS
@@ -434,6 +436,21 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
 void io_start_program(void)
 {
     dgroup_base = ((uint32_t)LOAD_SEG << 4) + IMG_DGROUP;
+
+    /*
+     * A DOS game is started in its own directory, and opens its files by name
+     * with the C library - so the host process starts in the game directory
+     * too. Made absolute first: `dos_resolve` builds every path from it.
+     */
+    {
+        char real[PATH_MAX];
+
+        if (realpath(game_dir, real) != NULL)
+            snprintf(game_dir, sizeof game_dir, "%s", real);
+        if (chdir(game_dir) != 0)
+            fprintf(stderr, "io: cannot enter the game directory %s: %s\n",
+                    game_dir, strerror(errno));
+    }
 
     /* The startup's own stack, at the top of a 64 KB DGROUP. */
     guest_sp = 0xFFFE;
@@ -730,31 +747,6 @@ void io_dos_free(uint16_t seg)
 }
 
 /*
- * Borland's own `malloc`, which the port does not have.
- *
- * The runtime's heap is deliberately not transcribed - see STATUS.md - and a
- * port that faked a pointer would also have to fake the block header the real
- * one writes, which the whole-memory comparison would then catch. So this
- * refuses rather than inventing an address, and the routines that call it are
- * only verifiable on the paths that do not.
- */
-uint8_t *io_malloc(uint16_t bytes)
-{
-    return heap_malloc(bytes);
-}
-
-/*
- * Borland's own `free`, the counterpart of `io_malloc` above and refused for
- * the same reason: the port has no heap to give a block back to.
- */
-void io_free(uint8_t *p)
-{
-    heap_free(p);
-}
-
-
-
-/*
  * DOS file services, **read-only**, served from the game directory.
  *
  * The port opens the game's own files rather than being handed their contents,
@@ -772,10 +764,7 @@ void io_free(uint8_t *p)
  * not open as given is retried lower case. Anything else - a path, a wildcard -
  * is left alone and simply fails.
  */
-#define DOS_HANDLES 24
-#define DOS_FIRST_HANDLE 5
 
-static char     game_dir[512] = "incredible-machine";
 
 void io_set_game_dir(const char *path)
 {
@@ -920,6 +909,10 @@ int16_t io_dos_chdir(const char *path)
     if (strncmp(target, game_dir, root) != 0)
         return 3;
 
+    /* The C library opens the game's files relative to where it is. */
+    if (chdir(target) != 0)
+        return 3;
+
     if (target[root] == 0) {
         game_cwd[0] = 0;
         return 0;
@@ -945,96 +938,6 @@ int16_t io_dos_setdisk(uint8_t drive)
     (void)drive;
     return 1;
 }
-
-/* Is this the guest asking for RESOURCE.CFG, whatever case it used? */
-static int32_t is_resource_cfg(const char *name)
-{
-    const char *base = name;
-    const char *p;
-    static const char want[] = "RESOURCE.CFG";
-    size_t i;
-
-    for (p = name; *p; p++)
-        if (*p == '/' || *p == '\\')
-            base = p + 1;
-
-    for (i = 0; want[i]; i++) {
-        char c = base[i];
-
-        if (c >= 'a' && c <= 'z')
-            c = (char)(c - 'a' + 'A');
-        if (c != want[i])
-            return 0;
-    }
-    return base[i] == 0;
-}
-
-/*
- * OURS: the developer build chooses its sound overlays here, and nowhere else.
- *
- * The device and module are two bytes of RESOURCE.CFG, which `game_startup`
- * reads with `borland_fopen` and `borland_fread` like any other file. That routine
- * is a transcription and stays one - so the override goes where the *file*
- * comes from, which is here, and the guest cannot tell the difference. It
- * reads three bytes and gets three bytes.
- *
- * The bytes handed to `dev_sound_cfg` are the real file's when there is one,
- * and otherwise the fallback `game_startup` would have used by itself: device
- * 0 and module -2, the speaker and no digitised module. So `--device` alone
- * keeps whatever module the file named, and works with no file at all.
- *
- * `tim` links `devstub.c`, whose `dev_sound_cfg` never overrides, so the
- * shipping build reads the file and only the file.
- */
-static uint8_t cfg_bytes[3];
-
-static FILE *dos_try(const char *name, int32_t lower)
-{
-    char path[1024];
-    size_t i, n = strlen(name);
-    size_t head;
-    FILE *f;
-
-    if (n > 255)
-        return NULL;
-
-    dos_resolve(name, path, sizeof path);
-
-    if (lower) {
-        head = strlen(path);
-        while (head > 0 && path[head - 1] != '/')
-            head--;
-        for (i = head; path[i]; i++)
-            if (path[i] >= 'A' && path[i] <= 'Z')
-                path[i] = (char)(path[i] - 'A' + 'a');
-    }
-
-    f = fopen(path, "rb");
-
-    if (is_resource_cfg(name)) {
-        cfg_bytes[0] = 0;
-        cfg_bytes[1] = 0;
-        cfg_bytes[2] = 0xfe;            /* -2: the module the game falls back to */
-
-        if (f != NULL && fread(cfg_bytes, 1, 3, f) != 3) {
-            cfg_bytes[0] = 0;
-            cfg_bytes[1] = 0;
-            cfg_bytes[2] = 0xfe;
-        }
-
-        if (dev_sound_cfg(cfg_bytes)) {
-            if (f != NULL)
-                fclose(f);
-            return fmemopen(cfg_bytes, sizeof cfg_bytes, "rb");
-        }
-
-        if (f != NULL)
-            rewind(f);
-    }
-
-    return f;
-}
-
 
 /*
  * The BIOS font pointer, as INT 10h AX=1130h answers it: the character
@@ -1292,7 +1195,7 @@ static int16_t vm_plot_slot(int16_t x, int16_t y, int16_t colour)
  * pushes five arguments at each; the VGA driver's entry for slot 14 reads
  * three of them, and its slot 15 is the entry that does nothing.
  */
-static void vm_load_list_slot(bmp_ptr_t *list, uint8_t *blk, int32_t size,
+static void vm_load_list_slot(struct bitmap **list, uint8_t *blk, int32_t size,
                               uint8_t *tmp, int32_t want)
 {
     (void)tmp;
@@ -1765,120 +1668,13 @@ int16_t io_dos_findnext(uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
 
 int16_t io_dos_getattr(const char *name)
 {
-    FILE *f;
+    char path[1024];
+    struct stat st;
 
-    /*
-     * The overlay answers first, and honestly: a file the game wrote this
-     * session exists, and a game that asks before it opens has to be told so.
-     */
-    if (overlay_find(name) >= 0)
-        return 0x20;
-
-    f = dos_try(name, 0);
-
-    if (f == NULL)
-        f = dos_try(name, 1);
-    if (f == NULL)
+    dos_resolve(name, path, sizeof path);
+    if (stat(path, &st) != 0)
         return -1;
-
-    fclose(f);
-    return 0x20;
-}
-
-/*
- * The device-information word for a handle, as INT 21h AH=44h AL=0 answers it.
- *
- * The port's own, and measured the same way: a disk file answers 0, the
- * console handles 0 to 2 answer 0x80. Bit 7 is the one every caller looks at -
- * it is what `isatty` is.
- */
-int16_t io_dos_devinfo(int16_t handle)
-{
-    if (handle >= 0 && handle < DOS_FIRST_HANDLE)
-        return 0x80;
-
-    return 0;
-}
-
-/*
- * **The write overlay.** The port never writes a host file, and this is how.
- *
- * A file the game creates lives here, in memory, keyed by the DOS path it was
- * created under - upper-cased, as DOS reports names - and it lives until the
- * process ends. Opening that name again finds the overlay before the host, so
- * a machine the player saves can be loaded back in the same session; a save
- * that cannot be re-read is not a save. Nothing is ever applied to the real
- * directory, and the guarantee is structural rather than a check: there is no
- * code here that opens a host file for writing.
- *
- * The port's own, and written to match the emulator, which does exactly this -
- * see its own SAFETY note. Matching it is not caution, it is correctness: the
- * reference is what defines what the game sees when it saves and re-reads.
- *
- * The key is the name **as the guest gave it**, not the resolved path, again
- * because that is what the reference keys on. A guest that creates a file by
- * one spelling and opens it by another finds nothing, on both sides.
- */
-#define OVERLAY_MAX 32
-#define OVERLAY_NAME 80
-
-static struct {
-    char     name[OVERLAY_NAME];
-    uint8_t *data;
-    size_t   len;
-    size_t   cap;
-    int32_t  used;
-} overlay[OVERLAY_MAX];
-
-/* The DOS spelling of a name: backslashes, upper case. */
-static void overlay_key(const char *name, char *out, size_t outn)
-{
-    size_t i;
-
-    for (i = 0; i + 1 < outn && name[i] != 0; i++) {
-        char c = name[i];
-
-        if (c == '/')
-            c = '\\';
-        else if (c >= 'a' && c <= 'z')
-            c = (char)(c - 'a' + 'A');
-        out[i] = c;
-    }
-    out[i] = 0;
-}
-
-static int32_t overlay_find(const char *name)
-{
-    char key[OVERLAY_NAME];
-    int32_t i;
-
-    overlay_key(name, key, sizeof key);
-
-    for (i = 0; i < OVERLAY_MAX; i++)
-        if (overlay[i].used && strcmp(overlay[i].name, key) == 0)
-            return i;
-
-    return -1;
-}
-
-static int32_t overlay_make(const char *name)
-{
-    int32_t i = overlay_find(name);
-
-    if (i >= 0) {
-        overlay[i].len = 0;             /* creating truncates */
-        return i;
-    }
-
-    for (i = 0; i < OVERLAY_MAX; i++)
-        if (!overlay[i].used) {
-            overlay_key(name, overlay[i].name, sizeof overlay[i].name);
-            overlay[i].used = 1;
-            overlay[i].len  = 0;
-            return i;
-        }
-
-    return -1;
+    return S_ISDIR(st.st_mode) ? 0x10 : 0x20;
 }
 
 /*
@@ -1928,419 +1724,15 @@ void io_dos_disk_reset(void)
 {
 }
 
-int32_t io_dos_forget(const char *name)
-{
-    int32_t i = overlay_find(name);
-
-    if (i < 0)
-        return 0;
-
-    overlay[i].used = 0;
-    overlay[i].len = 0;
-    return 1;
-}
-
 /*
- * **A handle is a buffer.** Every open reads the whole file into memory, and
- * every read, write and seek works on that - which is what the emulator does,
- * and is why a file the game opens for writing can be written at all when the
- * host copy is never touched.
- *
- * `ovp` is the overlay index **plus one**, so zero means "this one is not
- * persisted" and the table needs no initialising - a static that has to be set
- * up before it is right is wrong in whichever path forgets. A host file gets a
- * zero: it can be written, and the writes are simply lost, exactly as they are
- * on the other side.
+ * INT 21h AH=41h - delete a file. 0, or DOS 2, file not found.
  */
-static struct {
-    uint8_t *data;
-    size_t   len;
-    size_t   cap;
-    size_t   pos;
-    int32_t  ovp;
-    int32_t  open;
-    int32_t  wrote;
-    char     name[80];      /* the DOS name it was opened under */
-} dos_h[DOS_HANDLES];
-
-static int16_t dos_slot(void)
-{
-    int16_t h;
-
-    for (h = 0; h < DOS_HANDLES; h++)
-        if (!dos_h[h].open)
-            return h;
-
-    return -1;
-}
-
-static int32_t dos_grow(int16_t i, size_t need)
-{
-    size_t cap = dos_h[i].cap ? dos_h[i].cap : 512;
-    uint8_t *grown;
-
-    if (need <= dos_h[i].cap)
-        return 1;
-
-    while (cap < need)
-        cap *= 2;
-
-    grown = realloc(dos_h[i].data, cap);
-    if (grown == NULL)
-        return 0;
-
-    dos_h[i].data = grown;
-    dos_h[i].cap = cap;
-    return 1;
-}
-
-/* Copy a handle's bytes back into the overlay it came from. */
-static void dos_persist(int16_t i)
-{
-    int32_t o;
-
-    if (dos_h[i].ovp == 0)
-        return;
-
-    o = dos_h[i].ovp - 1;
-    if (overlay[o].cap < dos_h[i].len) {
-        uint8_t *grown = realloc(overlay[o].data, dos_h[i].len + 1);
-
-        if (grown == NULL)
-            return;
-        overlay[o].data = grown;
-        overlay[o].cap = dos_h[i].len + 1;
-    }
-    if (dos_h[i].len != 0)
-        memcpy(overlay[o].data, dos_h[i].data, dos_h[i].len);
-    overlay[o].len = dos_h[i].len;
-}
-
-static int16_t dos_take(int16_t i, const uint8_t *bytes, size_t n, int32_t ovp,
-                        const char *name)
-{
-    dos_h[i].data = NULL;
-    dos_h[i].cap = 0;
-    dos_h[i].len = 0;
-    dos_h[i].pos = 0;
-    dos_h[i].ovp = ovp;
-    dos_h[i].open = 1;
-    dos_h[i].wrote = 0;
-    snprintf(dos_h[i].name, sizeof dos_h[i].name, "%s", name);
-
-    if (n != 0) {
-        if (!dos_grow(i, n)) {
-            dos_h[i].open = 0;
-            return -1;
-        }
-        memcpy(dos_h[i].data, bytes, n);
-        dos_h[i].len = n;
-    }
-
-    return (int16_t)(i + DOS_FIRST_HANDLE);
-}
-
-int16_t io_dos_open(const char *name)
-{
-    int16_t h;
-    int32_t ov;
-    FILE *f;
-    long n;
-    uint8_t *buf;
-    int16_t answer;
-
-    h = dos_slot();
-    if (h < 0)
-        return -1;
-
-    /*
-     * The overlay first. A file the game has written this session shadows the
-     * one on disk - which is the whole point of it, and is what lets a saved
-     * machine be loaded back.
-     */
-    ov = overlay_find(name);
-    if (ov >= 0)
-        return dos_take(h, overlay[ov].data, overlay[ov].len, ov + 1, name);
-
-    f = dos_try(name, 0);
-    if (f == NULL)
-        f = dos_try(name, 1);
-    if (f == NULL)
-        return -1;
-
-    if (fseek(f, 0, SEEK_END) != 0) {
-        fclose(f);
-        return -1;
-    }
-    n = ftell(f);
-    rewind(f);
-
-    buf = (n > 0) ? malloc((size_t)n) : NULL;
-    if (n > 0 && buf == NULL) {
-        fclose(f);
-        return -1;
-    }
-    if (n > 0 && fread(buf, 1, (size_t)n, f) != (size_t)n) {
-        free(buf);
-        fclose(f);
-        return -1;
-    }
-    fclose(f);
-
-    answer = dos_take(h, buf, (size_t)(n > 0 ? n : 0), 0, name);
-    free(buf);
-    return answer;
-}
-
-/*
- * INT 21h AH=3Ch - create. Always into the overlay, never onto the host.
- */
-int16_t io_dos_creat(const char *name)
-{
-    int32_t ov = overlay_make(name);
-    int16_t h;
-
-    if (ov < 0)
-        return -1;
-
-    h = dos_slot();
-    if (h < 0)
-        return -1;
-
-    return dos_take(h, NULL, 0, ov + 1, name);
-}
-
-static int16_t dos_index(int16_t handle)
-{
-    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
-
-    if (i < 0 || i >= DOS_HANDLES || !dos_h[i].open)
-        return -1;
-    return i;
-}
-
-int16_t io_dos_read(int16_t handle, uint8_t *buf, uint16_t count)
-{
-    int16_t i = dos_index(handle);
-    size_t got;
-
-    if (i < 0)
-        return -1;
-
-    got = (dos_h[i].pos >= dos_h[i].len) ? 0 : dos_h[i].len - dos_h[i].pos;
-    if (got > count)
-        got = count;
-    if (got != 0)
-        memcpy(buf, dos_h[i].data + dos_h[i].pos, got);
-    dos_h[i].pos += got;
-
-    return (int16_t)got;
-}
-
-/*
- * INT 21h AH=40h - write.
- *
- * **A zero-length write truncates** at the current position. The runtime uses
- * it to empty a file before rewriting it, and a rewrite is not always as long
- * as what it replaces - so ignoring it leaves the old tail behind on a shorter
- * save, which looks like a corrupt file rather than a missing truncate.
- *
- * **Handles 1 and 2 are the console**, and go to the host's stdout and stderr.
- * The port's own. DOS hands them to every program already open, and the game
- * writes to them exactly twice - a fatal message at start-up and the one
- * `game_teardown` prints on the way out, both through `borland_printf`. Before
- * the printf engine was transcribed those went straight to `io_puts`; after
- * it, they reached this function, found no file table entry below
- * `DOS_FIRST_HANDLE` and failed, so quitting said nothing. `io_dos_devinfo`
- * already calls these handles a character device; this is what that means for
- * a write. The bytes go out as the runtime left them - CR LF, which a terminal
- * shows as a line - and a zero-length write, which truncates a file, does
- * nothing to a console.
- */
-int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
-{
-    int16_t i;
-
-    if (handle == 1 || handle == 2) {
-        FILE *con = (handle == 1) ? stdout : stderr;
-
-        if (count != 0) {
-            fwrite(buf, 1, count, con);
-            fflush(con);
-        }
-        return (int16_t)count;
-    }
-
-    i = dos_index(handle);
-    if (i < 0)
-        return -1;
-
-    if (count == 0) {
-        if (dos_h[i].len > dos_h[i].pos) {
-            dos_h[i].len = dos_h[i].pos;
-            dos_h[i].wrote = 1;
-            dos_persist(i);
-        }
-        return 0;
-    }
-
-    if (!dos_grow(i, dos_h[i].pos + count))
-        return -1;
-
-    /* A seek past the end then a write leaves a hole; DOS zero-fills it. */
-    if (dos_h[i].pos > dos_h[i].len)
-        memset(dos_h[i].data + dos_h[i].len, 0,
-               dos_h[i].pos - dos_h[i].len);
-
-    memcpy(dos_h[i].data + dos_h[i].pos, buf, count);
-    dos_h[i].pos += count;
-    if (dos_h[i].pos > dos_h[i].len)
-        dos_h[i].len = dos_h[i].pos;
-
-    dos_h[i].wrote = 1;
-    dos_persist(i);
-    return (int16_t)count;
-}
-
-int32_t io_dos_lseek(int16_t handle, int32_t pos, int16_t whence)
-{
-    int16_t i = dos_index(handle);
-    int32_t base;
-
-    if (i < 0)
-        return -1;
-
-    base = whence == 1 ? (int32_t)dos_h[i].pos
-         : whence == 2 ? (int32_t)dos_h[i].len : 0;
-
-    if (base + pos < 0)
-        return -1;
-
-    dos_h[i].pos = (size_t)(base + pos);
-    return (int32_t)dos_h[i].pos;
-}
-
-/*
- * OURS: the guest's writes, kept.
- *
- * The overlay above is what the game *sees* - keyed on the guest's own
- * spelling, and what the emulator does, so a save is re-readable in the same
- * session and the reference and the port agree. But an overlay dies with the
- * process, so a machine saved in one session was gone in the next, which is
- * the port failing at something the original did.
- *
- * So a handle that was written is written to the host as well, **at close** -
- * the moment the original's DOS finished the file. Not at exit: a DOS game
- * does not exit, and a save made an hour earlier should not depend on how the
- * process ends.
- *
- * **It overwrites, because DOS overwrites.** An earlier version stepped aside
- * from any name that already existed, renaming CATOMATC.TIM to CATOMAT1.TIM to
- * protect the shipped machines. That is a rule the original does not have, and
- * it broke the ordinary case immediately: a player's own HOLIDAYS.TIM from a
- * previous session looks exactly like a shipped file to a test that can only
- * ask "did I create this in *this* process", so saving over it produced
- * HOLIDAY1.TIM and left the original untouched. The job is to transcribe the
- * original with as few deviations as possible, and a save dialog that offers a
- * name and then writes a different one is a large one.
- *
- * What that means for the game directory is what it meant in 1993: saving over
- * CATOMATC.TIM replaces CATOMATC.TIM. `tools/check_save.py` copies the
- * directory before running for exactly that reason.
- */
-static void host_persist(const char *name, const uint8_t *data, size_t len)
+int16_t io_dos_unlink(const char *name)
 {
     char path[1024];
-    FILE *f;
 
     dos_resolve(name, path, sizeof path);
-
-    f = fopen(path, "wb");
-    if (f == NULL) {
-        fprintf(stderr, "could not keep %s: %s\n", path, strerror(errno));
-        return;
-    }
-    if (len != 0)
-        fwrite(data, 1, len, f);
-    fclose(f);
-
-    fprintf(stderr, "saved %s\n", path);
-}
-
-void io_dos_close(int16_t handle)
-{
-    int16_t i = dos_index(handle);
-
-    if (i < 0)
-        return;
-
-    dos_persist(i);
-
-    /*
-     * A file the game wrote, on the way out. The *close* is the moment it is
-     * finished, and it is the guest's business; the dumping is not, which is
-     * why this is a hook and not a flag read here. See `dev_file_written`.
-     *
-     * **The test is "was written", not "is in the overlay".** Overwriting a
-     * file that already exists on the host opens the host copy, which has no
-     * overlay entry - the writes go into the handle's buffer and are dropped at
-     * close, on this side and on the reference's alike. Those are exactly the
-     * bytes worth comparing, so keying the dump on the overlay would miss the
-     * commonest save there is.
-     */
-    if (dos_h[i].wrote) {
-        dev_file_written(dos_h[i].name, dos_h[i].data,
-                         (uint32_t)dos_h[i].len);
-        host_persist(dos_h[i].name, dos_h[i].data, dos_h[i].len);
-    }
-    free(dos_h[i].data);
-    dos_h[i].data = NULL;
-    dos_h[i].cap = 0;
-    dos_h[i].len = 0;
-    dos_h[i].pos = 0;
-    dos_h[i].ovp = 0;
-    dos_h[i].open = 0;
-    dos_h[i].wrote = 0;
-}
-
-/*
- * Put a named file on a given handle at a given offset.
- *
- * tools/verify.py calls this before comparing a routine that reads files. The
- * harness seeds guest memory, but a handle and a file position are not in guest
- * memory, so without this the port arrives with nothing open and every such
- * routine is unverifiable however faithfully it is transcribed. The emulator
- * records what DOS actually opened - see `TimMachine._dos` - and this reopens
- * the same file at the same offset.
- */
-void io_prime_file(int16_t handle, const char *name, int32_t pos)
-{
-    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
-    int16_t h;
-
-    if (i < 0 || i >= DOS_HANDLES)
-        return;
-
-    if (dos_h[i].open)
-        io_dos_close(handle);
-
-    h = io_dos_open(name);
-    if (h < 0)
-        return;
-
-    /*
-     * `io_dos_open` takes the lowest free slot, which need not be the one the
-     * caller asked for. Move it, since the handle number is the whole point.
-     */
-    if (h != handle) {
-        int16_t j = (int16_t)(h - DOS_FIRST_HANDLE);
-
-        dos_h[i] = dos_h[j];
-        dos_h[j].open = 0;
-        dos_h[j].data = NULL;
-    }
-
-    dos_h[i].pos = (size_t)pos;
+    return remove(path) == 0 ? 0 : 2;
 }
 
 /*
@@ -2902,16 +2294,14 @@ static void seq_say(void)
      * what every priority in the arrays below is relative to. */
     fprintf(stderr, "io: seq tbl");
     for (i = 0; i < 8; i++)
-        fprintf(stderr, " %04x:%04x",
-                *(uint16_t *)(guest_mem + SNDCS + 0x0a + 4 * i),
-                *(uint16_t *)(guest_mem + SNDCS + 0x08 + 4 * i));
+        fprintf(stderr, " %04x:%04x", SNDS.playing[i].seg, SNDS.playing[i].off);
     fprintf(stderr, "\n");
 
     for (a = 0; a < 4; a++) {
         fprintf(stderr, "io: seq %s", name[a]);
         for (i = 0; i < 0x10; i++)
             fprintf(stderr, " %02x",
-                    *(uint8_t *)(guest_mem + SNDCS + at[a] + i));
+                    ((const uint8_t *)&SNDS)[at[a] - 8 + i]);
         fprintf(stderr, "\n");
     }
 }
@@ -3021,11 +2411,6 @@ void io_bios_set_mode(uint16_t mode)
 
 void io_reset(void)
 {
-    int32_t h;
-
-    for (h = 0; h < DOS_HANDLES; h++)
-        if (dos_h[h].open)
-            io_dos_close((int16_t)(h + DOS_FIRST_HANDLE));
     port61 = 0x20;
     memset(planes, 0, sizeof planes);
     memset(latch, 0, sizeof latch);
@@ -3642,7 +3027,7 @@ void vga_palette_rgb(uint8_t out[768])
  * the two formats are not interchangeable because the two machines are not.
  *
  * **What is state and what is not.** The planes, the register files and the
- * DAC are the picture. The arena, the open handles and the overlay are what
+ * DAC are the picture. The arena and the current directory are what
  * DOS would have been holding. The mouse's position, range and mask are what
  * the driver would answer. Everything else here is host scaffolding - the
  * display thread, the present rate limiter, the trace buffers, the timer's
@@ -3650,52 +3035,21 @@ void vga_palette_rgb(uint8_t out[768])
  * another. `trace_n` in particular is a diagnostic: a snapshot that restored
  * it would make a replay report the saved run's I/O as its own.
  *
- * **Pointers are not written, contents are.** `arena`, and the `data` of every
- * open handle and overlay file, are host allocations; a saved pointer restored
+ * **Pointers are not written, contents are.** `arena` is a host allocation;
+ * a saved pointer restored
  * into a different process is a wild write that looks like anything but a
  * snapshot bug. Each is written as a length followed by its bytes.
  */
 #define IO_SNAP_MAGIC   0x304d4954u        /* "TIM0" */
-#define IO_SNAP_VERSION 1u
+#define IO_SNAP_VERSION 2u
 
 #define IO_PUT(x) do { if (fwrite(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
 #define IO_GET(x) do { if (fread(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
-
-static int32_t io_put_blob(FILE *f, const uint8_t *p, size_t n)
-{
-    uint32_t len = (uint32_t)n;
-
-    if (fwrite(&len, sizeof len, 1, f) != 1)
-        return 0;
-    return len == 0 || fwrite(p, 1, len, f) == len;
-}
-
-/* Frees whatever was there and installs a fresh allocation of the saved size,
- * so a restore into a process that already had files open cannot leak them. */
-static int32_t io_get_blob(FILE *f, uint8_t **p, size_t *n, size_t *cap)
-{
-    uint32_t len = 0;
-
-    if (fread(&len, sizeof len, 1, f) != 1)
-        return 0;
-    free(*p);
-    *p = NULL;
-    *n = *cap = 0;
-    if (len == 0)
-        return 1;
-    if ((*p = malloc(len)) == NULL)
-        return 0;
-    if (fread(*p, 1, len, f) != len)
-        return 0;
-    *n = *cap = len;
-    return 1;
-}
 
 int32_t io_state_save(void *host_file)
 {
     FILE *f = host_file;
     uint32_t magic = IO_SNAP_MAGIC, version = IO_SNAP_VERSION;
-    int32_t i;
 
     IO_PUT(magic);
     IO_PUT(version);
@@ -3722,23 +3076,6 @@ int32_t io_state_save(void *host_file)
     if (fwrite(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
         return 0;
 
-    for (i = 0; i < DOS_HANDLES; i++) {
-        IO_PUT(dos_h[i].len); IO_PUT(dos_h[i].pos); IO_PUT(dos_h[i].ovp);
-        IO_PUT(dos_h[i].open); IO_PUT(dos_h[i].wrote);
-        if (fwrite(dos_h[i].name, 1, sizeof dos_h[i].name, f)
-            != sizeof dos_h[i].name)
-            return 0;
-        if (!io_put_blob(f, dos_h[i].data, dos_h[i].len))
-            return 0;
-    }
-    for (i = 0; i < OVERLAY_MAX; i++) {
-        IO_PUT(overlay[i].len); IO_PUT(overlay[i].used);
-        if (fwrite(overlay[i].name, 1, sizeof overlay[i].name, f)
-            != sizeof overlay[i].name)
-            return 0;
-        if (!io_put_blob(f, overlay[i].data, overlay[i].len))
-            return 0;
-    }
 
     /* What the drivers would answer. */
     IO_PUT(timer_divisor); IO_PUT(timer_lo_next);
@@ -3754,7 +3091,7 @@ int32_t io_state_load(void *host_file)
 {
     FILE *f = host_file;
     uint32_t magic = 0, version = 0;
-    int32_t i, n = 0, cap = 0;
+    int32_t n = 0, cap = 0;
 
     IO_GET(magic);
     IO_GET(version);
@@ -3796,24 +3133,6 @@ int32_t io_state_load(void *host_file)
     if (fread(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
         return 0;
 
-    for (i = 0; i < DOS_HANDLES; i++) {
-        IO_GET(dos_h[i].len); IO_GET(dos_h[i].pos); IO_GET(dos_h[i].ovp);
-        IO_GET(dos_h[i].open); IO_GET(dos_h[i].wrote);
-        if (fread(dos_h[i].name, 1, sizeof dos_h[i].name, f)
-            != sizeof dos_h[i].name)
-            return 0;
-        if (!io_get_blob(f, &dos_h[i].data, &dos_h[i].len, &dos_h[i].cap))
-            return 0;
-    }
-    for (i = 0; i < OVERLAY_MAX; i++) {
-        IO_GET(overlay[i].len); IO_GET(overlay[i].used);
-        if (fread(overlay[i].name, 1, sizeof overlay[i].name, f)
-            != sizeof overlay[i].name)
-            return 0;
-        if (!io_get_blob(f, &overlay[i].data, &overlay[i].len,
-                         &overlay[i].cap))
-            return 0;
-    }
 
     IO_GET(timer_divisor); IO_GET(timer_lo_next);
     IO_GET(mouse_x); IO_GET(mouse_y);

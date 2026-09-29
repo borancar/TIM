@@ -21,8 +21,14 @@
  * JUDGE: built-with -mm -d
  * JUDGE: data 0x260a..0x262f
  */
+#include <string.h>
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -436,7 +442,7 @@ void puzzle_draw_up(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x25)[pressed]),
+    draw_bitmap(((DG52ED.panel_art + 0x25)[pressed]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -458,7 +464,7 @@ void puzzle_draw_down(void)
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x27)[pressed]),
+    draw_bitmap(((DG52ED.panel_art + 0x27)[pressed]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -475,7 +481,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR((BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr + 0x10)[pressed]),
+    draw_bitmap(((DG52ED.panel_art + 0x10)[pressed]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -501,7 +507,7 @@ void puzzle_draw_password(const char *text)
     char buf[40];                  /* [bp-0x28] */
     register char *si = buf;
 
-    string_copy(si, text);
+    strcpy(si, text);
 
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
@@ -509,7 +515,7 @@ void puzzle_draw_password(const char *text)
     if (DG4E67.state == 0x800) {
         PUZZLE_STATE.password_blink++;
         if ((PUZZLE_STATE.password_blink & 8) != 0)
-            string_concat(si, GAME_PART_NAMES.star);
+            strcat(si, GAME_PART_NAMES.star);
     }
 
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
@@ -550,13 +556,13 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {
-        string_copy(name, DG1BCC.puzzle_prefix);
-        int_to_string(first, num, 10);
-        string_concat(name, num);
-        string_concat(name, GAME_PART_NAMES.title_sep);
+        strcpy(name, DG1BCC.puzzle_prefix);
+        itoa(first, num, 10);
+        strcat(name, num);
+        strcat(name, GAME_PART_NAMES.title_sep);
 
         if (get_puzzle_title(first, title) != 0) {
-            string_concat(name, title);
+            strcat(name, title);
 
             if (first == selected)
                 VMDS.text_colour = 0x0f;
@@ -613,15 +619,15 @@ void load_part_bitmap(uint16_t n)
     char name[14];            /* [bp-0x16] */
     char number[8];          /* [bp-8]    */
 
-    string_copy(name, GAME_PART_NAMES.part);
-    int_to_string((int16_t)n, number, 10);
-    string_concat(name, number);
-    string_concat(name, GAME_PART_NAMES.bmp);
+    strcpy(name, GAME_PART_NAMES.part);
+    itoa((int16_t)n, number, 10);
+    strcat(name, number);
+    strcat(name, GAME_PART_NAMES.bmp);
 
     heap_check_or_hang();
     cursor_redraw_off_thunk();
 
-    PART_KINDS[n].bitmaps_ptr = dg_near(dgroup, load_bitmaps(name));
+    PART_KINDS[n].bitmaps = load_bitmaps(name);
 
     restore_cursor_following();
     heap_check_or_hang();
@@ -651,8 +657,8 @@ void free_all_part_bitmaps(void)
  */
 void free_part_bitmap(uint16_t n)
 {
-    if (PART_KINDS[n].bitmaps_ptr != 0) {
-        free_bitmaps_thunk(BMPLIST(PART_KINDS[n].bitmaps_ptr));
-        PART_KINDS[n].bitmaps_ptr = 0;
+    if (PART_KINDS[n].bitmaps != 0) {
+        free_bitmaps_thunk(PART_KINDS[n].bitmaps);
+        PART_KINDS[n].bitmaps = 0;
     }
 }

@@ -14,7 +14,7 @@
  */
 #include <stdint.h>
 
-#include "io.h"
+#include "hostio.h"
 
 void dev_flip_dump(int32_t flip)
 {
@@ -36,24 +36,11 @@ void dev_level_solved(int16_t level, int16_t score)
     (void)score;
 }
 
-int32_t dev_sound_cfg(uint8_t cfg[3])
-{
-    (void)cfg;
-    return 0;
-}
-
 int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
                           uint16_t *weekday)
 {
     (void)year; (void)monthday; (void)weekday;
     return 0;
-}
-
-void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
-{
-    (void)name;
-    (void)data;
-    (void)len;
 }
 
 int32_t dev_survey_hook(uint16_t off, uint16_t kind)

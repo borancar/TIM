@@ -31,7 +31,6 @@
  * carrying a socket, so `dev_flip_dump` reaches this through a **weak symbol**
  * and does nothing at all where it is absent.
  */
-#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -47,7 +46,7 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 #include "dgroup.h"
 

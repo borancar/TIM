@@ -28,7 +28,7 @@
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -38,23 +38,23 @@
 asm {
 extrn _dos_alloc_bytes:far
 extrn _dos_free_far:far
-extrn _borland_read_far:far
+extrn _readfd_far:far
 extrn _game_fseek:far
 extrn _game_ftell:far
 extrn _game_fwrite:far
 extrn _game_fputc:far
 extrn _game_rewind:far
-extrn _close_handle_far:far
+extrn _close_far:far
 extrn _game_fopen:far
 extrn _game_fread:far
 extrn _game_fclose:far
-extrn _heap_malloc_far:far
-extrn _heap_calloc_far:far
+extrn _malloc_far:far
+extrn _calloc_far:far
 extrn _game_fgetc:far
-extrn _heap_free_far:far
-extrn _string_concat_far:far
-extrn _string_copy_far:far
-extrn _string_chr_far:far
+extrn _free_far:far
+extrn _strcat_far:far
+extrn _strcpy_far:far
+extrn _strchr_far:far
 _DATA segment para public 'DATA'
 public _VMDS, _DG4342, _DG440E
 _VMDS label byte
@@ -75,23 +75,23 @@ _DG440E label byte
         dd _vm_null_hook
         dd _dos_alloc_bytes
         dd _dos_free_far
-        dd _borland_read_far
+        dd _readfd_far
         dd _game_fseek
         dd _game_ftell
         dd _game_fwrite
         dd _game_fputc
         dd _game_rewind
-        dd _close_handle_far
+        dd _close_far
         dd _game_fopen
         dd _game_fread
         dd _game_fclose
-        dd _heap_malloc_far
-        dd _heap_calloc_far
+        dd _malloc_far
+        dd _calloc_far
         dd _game_fgetc
-        dd _heap_free_far
-        dd _string_concat_far
-        dd _string_copy_far
-        dd _string_chr_far
+        dd _free_far
+        dd _strcat_far
+        dd _strcpy_far
+        dd _strchr_far
 _DATA ends
 
 VMIFACE_TEXT segment byte public 'CODE'

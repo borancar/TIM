@@ -20,7 +20,7 @@
  * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 extern struct machine_rect_free MACHINE_RECT_FREE;
@@ -301,16 +301,16 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 {
     uint16_t saved;
 
-    if (BMP_PTR(DG5768.cursor_bitmap_ptr) == bitmap && DG5768.hot_x == hot_x
+    if (DG5768.cursor_bitmap == bitmap && DG5768.hot_x == hot_x
         && DG5768.hot_y == hot_y)
         return;
 
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    DG5768.cursor_bitmap_ptr = dg_near(dgroup, bitmap);
+    DG5768.cursor_bitmap = bitmap;
 
-    if (bitmap == BMP_NONE) {
+    if (bitmap == NULL) {
         DG5768.hot_x = DG5768.hot_y = 0;
     } else {
         DG5768.hot_x = hot_x;
@@ -451,7 +451,7 @@ void draw_cursor(uint16_t page)
 
     /* Save what the new one will cover. */
     if (MACHINE_CURSOR_STATE.cursor_off != 0) {
-        if (slot->obj.buf != 0 && slot->bitmap_ptr != 0) {
+        if (slot->obj.buf != 0 && slot->bitmap != 0) {
             if (slot->obj.w > 0 && slot->obj.h > 0)
                 save_rect_thunk(MACHINE_RECT_BUFFERS.slot[slot->obj.buf - 1],
                                 slot->obj.x, slot->obj.y,
@@ -463,15 +463,15 @@ void draw_cursor(uint16_t page)
 
     /* And draw it. */
     if (MACHINE_CURSOR_STATE.cursor_off != 0) {
-        if (slot->bitmap_ptr != 0 && slot->obj.buf != 0) {
+        if (slot->bitmap != 0 && slot->obj.buf != 0) {
             /*
              * On adapter 8 a negative y is nudged one further up before the
              * blit.
              */
             if ((uint8_t)VMDS.pixel_shift == 8 && slot->y < 0)
-                draw_bitmap(BMP_PTR(slot->bitmap_ptr), slot->x, slot->y - 1, 0);
+                draw_bitmap(slot->bitmap, slot->x, slot->y - 1, 0);
             else
-                draw_bitmap(BMP_PTR(slot->bitmap_ptr), slot->x, slot->y, 0);
+                draw_bitmap(slot->bitmap, slot->x, slot->y, 0);
         } else {
             MACHINE_PALETTE_FADE.plot_colour = (MACHINE_PALETTE_FADE.plot_colour + 1) & 0x0f;
             plot_pixel_clipped(slot->x, slot->y,
@@ -531,10 +531,10 @@ void redraw_cursor(uint16_t page)
     MACHINE_RECT_FREE.draw_x = DG5768.cursor_x - DG5768.hot_x;
     MACHINE_RECT_FREE.draw_y = DG5768.cursor_y - DG5768.hot_y;
 
-    if (DG5768.cursor_bitmap_ptr == 0
+    if (DG5768.cursor_bitmap == 0
         || slot->x != MACHINE_RECT_FREE.draw_x
         || slot->y != MACHINE_RECT_FREE.draw_y
-        || slot->bitmap_ptr != DG5768.cursor_bitmap_ptr
+        || slot->bitmap != DG5768.cursor_bitmap
         || !(slot->obj.flags & 2))
         draw_cursor(page);
 
@@ -744,11 +744,11 @@ void restage_object_rect(uint16_t handle)
     rec->cursor.flags = rec->obj.flags;
     rec->cursor.pixel = rec->obj.pixel;
 
-    if (rec->bitmap_ptr != DG5768.cursor_bitmap_ptr && MACHINE_PALETTE_FADE.busy == 0) {
+    if (rec->bitmap != DG5768.cursor_bitmap && MACHINE_PALETTE_FADE.busy == 0) {
         rec->cursor.flags |= 1;
-        if ((rec->bitmap_ptr = DG5768.cursor_bitmap_ptr) != 0) {
-            size = vm_buffer_size(BMP_PTR(DG5768.cursor_bitmap_ptr)->width,
-                                  BMP_PTR(DG5768.cursor_bitmap_ptr)->height);
+        if ((rec->bitmap = DG5768.cursor_bitmap) != 0) {
+            size = vm_buffer_size(DG5768.cursor_bitmap->width,
+                                  DG5768.cursor_bitmap->height);
             rec->obj.buf = claim_buffer_slot(size, 0L);
         } else {
             rec->obj.buf = 0;
@@ -761,9 +761,9 @@ void restage_object_rect(uint16_t handle)
     x = DG5768.cursor_x - DG5768.hot_x;
     y = DG5768.cursor_y - DG5768.hot_y;
 
-    if (DG5768.cursor_bitmap_ptr != 0) {
-        w = BMP_PTR(DG5768.cursor_bitmap_ptr)->width;
-        h = BMP_PTR(DG5768.cursor_bitmap_ptr)->height;
+    if (DG5768.cursor_bitmap != 0) {
+        w = DG5768.cursor_bitmap->width;
+        h = DG5768.cursor_bitmap->height;
     } else {
         w = h = 1;
     }

@@ -154,10 +154,10 @@ ASM_PROC = re.compile(r"/\*[^*]*?\b(0x[0-9a-fA-F]{5})\b[^*]*\*/[ \t]*\n"
 
 def turboc_aliases():
     """**The names Borland sees**: tim.h's `#define`s under `__TURBOC__` that
-    give the port's names for the run-time library's own (`borland_printf`
-    is `printf`) and for `main`. Answers port name -> Borland's."""
+    give Borland's name where the port's differs - `game_main` is `main`.
+    Answers port name -> Borland's."""
     text = open(os.path.join(RECON, "tim.h")).read()
-    m = re.search(r"#ifdef __TURBOC__\n/\*\n \* \*\*The run-time library's own names.*?#endif", text, re.S)
+    m = re.search(r"#ifdef __TURBOC__\n/\* \*\*The names Borland sees\*\*.*?#endif", text, re.S)
     return dict(re.findall(r"^#define (\w+)\s+(\w+)$", m.group(0), re.M)) if m else {}
 
 

@@ -17,7 +17,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

@@ -12,7 +12,7 @@
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 
 /*

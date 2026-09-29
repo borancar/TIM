@@ -55,7 +55,7 @@
 #include <string.h>
 
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -2140,10 +2140,8 @@ uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta)
  * The two dispatch words *do* survive, and getting them wrong was the first
  * thing the verifier said - `0x5f11/0x5f86` against `0x5f23/0x5f6f`, two bytes
  * of a 578-byte write. They are written from the same comparison the original
- * makes, with a converted frame standing at DGROUP; see below. They are *data*
- * that happens to sit in a code segment, the same as the saved timer vector
- * further up this module, and `S1C16` is how the port reaches that. Nothing
- * reads them back, but they are compared.
+ * makes. They are *data* that happens to sit in a code segment, the same as
+ * the saved timer vector further up this module. Nothing reads them back.
  */
 uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count)
 {
@@ -2154,15 +2152,9 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
     S1C_HUGE_MOVE.normalise_off = 0x5f11;
     S1C_HUGE_MOVE.copy_off = 0x5f86;
 
-    /*
-     * The original compares the two *linear* addresses, and that is a question
-     * about where the operands are, not about their bytes. A pointer into
-     * guest memory answers it directly. A converted frame has no linear
-     * address of its own and stands for the frame it replaced, which was in
-     * DGROUP - so DGROUP is where it is, for this question.
-     */
-    if ((dg_is_guest(src) ? src : dgroup)
-        < (dg_is_guest(dst) ? (const uint8_t *)dst : dgroup)) {
+    /* The original compares the two linear addresses; the host's pointers
+       are them. */
+    if (src < (const uint8_t far *)dst) {
         /* The normalise that steps back a paragraph, and the backward copy. */
         S1C_HUGE_MOVE.normalise_off = 0x5f23;
         S1C_HUGE_MOVE.copy_off = 0x5f6f;

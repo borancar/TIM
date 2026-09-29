@@ -34,7 +34,7 @@
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -153,13 +153,14 @@ _TEXT ends
  *
  * Install the module. Its two arguments are the host callback and a flag, and
  * `asb_install` takes neither: what the original passes on the stack the
- * module reads through SI, and this one reads nothing.
+ * module reads through SI, and this one reads nothing - so, like functions
+ * 1, 2 and 12 below, it is handed no arguments at all.
  */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 {
     (void)callback;
     (void)flag;
-    return call_sound_module(0, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
+    return call_sound_module(0, NULL);
 }
 
 
@@ -190,7 +191,7 @@ uint16_t sound_module_service(union sound_module_args * si)
 /* OURS: `SOUND_MODULE_TICK` on the host - see tim.h. */
 void sound_module_tick(void)
 {
-    sound_module_service((union sound_module_args *)(void *)dg_near_ptr(guest_sp));
+    sound_module_service(NULL);
 }
 
 
@@ -215,7 +216,7 @@ uint16_t sound_module_11(union sound_module_args * si) { return call_sound_modul
  */
 uint16_t stop_loaded_module(void)
 {
-    return call_sound_module(2, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
+    return call_sound_module(2, NULL);
 }
 
 
@@ -224,7 +225,7 @@ uint16_t stop_loaded_module(void)
  */
 uint16_t sound_module_shutdown(void)
 {
-    return call_sound_module(12, (union sound_module_args *)(void *)dg_near_ptr(guest_sp));
+    return call_sound_module(12, NULL);
 }
 
 

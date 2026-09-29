@@ -56,7 +56,8 @@
  * flip N - and a run that ends early simply has no file for the flips it never
  * reached.
  */
-#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
+#define _POSIX_C_SOURCE 200809L   /* fmemopen, for the RESOURCE.CFG override */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +65,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 #include "dgroup.h"
 
@@ -83,7 +84,7 @@ extern int32_t dev_queue_part_calls;
  */
 static void dump_chain(FILE *f, const char *name, const struct part *head)
 {
-    uint16_t si;
+    dg_near_t si;
     int32_t n = 0;
 
     for (si = head->next_ptr; si != 0 && n < 4096;
@@ -326,46 +327,6 @@ static void dump_frame(int32_t flip)
  * Two flips of hold because the game samples the button once a frame and
  * `update_button_state` needs to see it down and then up to call it a click.
  */
-/*
- * `TIM_SAVEDIR=<dir>` writes out every file the game finishes writing, under
- * the DOS name it was written as. Ours.
- *
- * A machine file never reaches a pixel, so the screen comparisons that prove
- * the picker and the panel say nothing at all about the writer - the port
- * could get every field wrong and still draw the same screen afterwards. This
- * is what lets the bytes be compared against the original's, which the
- * emulator holds in its own overlay.
- *
- * It writes on **close**, not at exit: a run that is stopped from outside -
- * which is how the port is always stopped, since a DOS game does not exit -
- * would otherwise lose the file it had just written.
- */
-void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
-{
-    const char *dir = getenv("TIM_SAVEDIR");
-    char path[1024];
-    const char *leaf = name;
-    const char *p;
-    FILE *f;
-
-    if (dir == NULL || dir[0] == 0)
-        return;
-
-    for (p = name; *p; p++)
-        if (*p == '\\' || *p == '/')
-            leaf = p + 1;
-
-    snprintf(path, sizeof path, "%s/%s", dir, leaf);
-
-    f = fopen(path, "wb");
-    if (f == NULL)
-        return;
-
-    if (len != 0)
-        fwrite(data, 1, len, f);
-    fclose(f);
-}
-
 #define DEV_CLICKS 16
 
 static void dev_click(int32_t flip)
@@ -919,7 +880,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
  * OURS: `TIM_DATE=MM-DD` or `TIM_DATE=YYYY-MM-DD`, the date the game is told.
  *
  * Four parts are on the calendar and cannot be reached any other way - they
- * are in no level, and `machine.c` sets their flags from `dos_getdate`:
+ * are in no level, and `machine.c` sets their flags from `getdate`:
  *
  *     TIM_DATE=02-14   the heart balloon, kind 33
  *     TIM_DATE=03-17   sets 0x4e7f, which nothing reads
@@ -985,7 +946,7 @@ static int32_t sound_index(const char *what, const char *spec,
     return 0;
 }
 
-int32_t dev_sound_cfg(uint8_t cfg[3])
+static int32_t dev_sound_cfg(uint8_t cfg[3])
 {
     static int32_t said;
     const char *dev = getenv("TIM_DEVICE");
@@ -1001,10 +962,7 @@ int32_t dev_sound_cfg(uint8_t cfg[3])
         changed = 1;
     }
 
-    /*
-     * Once, however many times the file is opened: `dos_try` is called for
-     * each spelling of the name it is willing to try.
-     */
+    /* Once, however many times the file is opened. */
     if (changed && !said) {
         said = 1;
         fprintf(stderr, "sound: device %d (%s), module %d (%s)\n",
@@ -1015,6 +973,57 @@ int32_t dev_sound_cfg(uint8_t cfg[3])
     }
 
     return changed;
+}
+
+
+/*
+ * OURS: **the developer build's choice of sound overlays**, at the file.
+ *
+ * The device and module are two bytes of RESOURCE.CFG, which `game_startup`
+ * reads with `fopen` and `fread` like any other file. That routine is a
+ * transcription and stays one - so the override goes where the *file* comes
+ * from: `devtim` is linked with `-Wl,--wrap=fopen`, every `fopen` in it comes
+ * here, and a RESOURCE.CFG the environment overrides is answered from memory.
+ * The guest reads three bytes and gets three bytes.
+ *
+ * The bytes are the real file's when there is one, and otherwise the fallback
+ * `game_startup` would have used by itself: device 0 and module -2, the
+ * speaker and no digitised module. So `--device` alone keeps whatever module
+ * the file named, and works with no file at all. `tim` is linked without the
+ * wrap and reads the file and only the file.
+ */
+FILE *__real_fopen(const char *name, const char *mode);
+
+FILE *__wrap_fopen(const char *name, const char *mode)
+{
+    static uint8_t cfg[3];
+    const char *base = name;
+    const char *p;
+    FILE *f;
+
+    for (p = name; *p; p++)
+        if (*p == '/' || *p == '\\')
+            base = p + 1;
+    if (strcasecmp(base, "RESOURCE.CFG") != 0)
+        return __real_fopen(name, mode);
+
+    f = __real_fopen(name, mode);
+    cfg[0] = 0;
+    cfg[1] = 0;
+    cfg[2] = 0xfe;                      /* -2: the module the game falls back to */
+    if (f != NULL && fread(cfg, 1, 3, f) != 3) {
+        cfg[0] = 0;
+        cfg[1] = 0;
+        cfg[2] = 0xfe;
+    }
+    if (!dev_sound_cfg(cfg)) {
+        if (f != NULL)
+            rewind(f);
+        return f;
+    }
+    if (f != NULL)
+        fclose(f);
+    return fmemopen(cfg, sizeof cfg, "rb");
 }
 
 int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
@@ -1076,7 +1085,7 @@ void dev_level_scan(void)
 
     for (n = lo; n <= hi; n++) {
         uint8_t seen[256];
-        uint16_t si;
+        dg_near_t si;
         int32_t k, count = 0;
 
         memset(seen, 0, sizeof seen);
@@ -1151,7 +1160,8 @@ void dev_part_pics(void)
     const char *dir = getenv("TIM_PARTPICS");
     uint8_t *fb;
     uint8_t pal[768];
-    uint16_t list, n, i;
+    struct bitmap **list;
+    uint16_t n, i;
     char path[512];
     FILE *f;
 
@@ -1163,8 +1173,8 @@ void dev_part_pics(void)
      * path the list is empty and the game's own loader is asked for it - with
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
-    if (DG4E67.icons_bmp_ptr == 0)
-        DG4E67.icons_bmp_ptr = dg_near(dgroup, load_bitmaps((char *)DG254A.icons_bmp));
+    if (DG4E67.icons_bmp == 0)
+        DG4E67.icons_bmp = load_bitmaps((char *)DG254A.icons_bmp);
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
@@ -1174,8 +1184,8 @@ void dev_part_pics(void)
      */
     set_palette_pointer(DG52ED.pal_tim_ptr);
 
-    list = DG4E67.icons_bmp_ptr;
-    n = count_list(BMPLIST(list));
+    list = DG4E67.icons_bmp;
+    n = count_list(list);
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
         fprintf(stderr, "part pics: no icon list at 0x4ec7\n");
@@ -1191,7 +1201,7 @@ void dev_part_pics(void)
     }
 
     for (i = 0; i < n; i++) {
-        struct bitmap *icon = BMP_PTR(BMPLIST(list)[i]);
+        struct bitmap *icon = list[i];
         int32_t row;
 
         VMDS.clip_enabled = 1;
@@ -1204,7 +1214,7 @@ void dev_part_pics(void)
         VMDS.second_colour = 0;
         fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
 
-        if (icon != BMP_NONE)
+        if (icon != NULL)
             draw_bitmap_centred(icon, PIC_X, PIC_Y, PIC_W, PIC_H);
 
         vga_compose(fb, FRAME_W, FRAME_H);

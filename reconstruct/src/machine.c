@@ -26,7 +26,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -465,7 +465,7 @@ void reverse_link_ends(struct belt *rec)
     uint8_t b;                          /* [bp-1] */
     int16_t tp;                         /* [bp-4] */
     struct point8 pair;                 /* [bp-6] */
-    uint16_t t;                         /* [bp-8] */
+    dg_near_t t;                         /* [bp-8] */
 
     di = PART_PTR(PART_PTR(rec->end_a_ptr)->link_ptr[rec->slot_a]);
     while (di != PART_NONE && di->kind == KIND_PULLEY) {
@@ -800,7 +800,7 @@ void select_cursor(register int16_t which)
             hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
         } else
             hot_x = hot_y = 0;
-        set_cursor(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp_ptr[which]),
+        set_cursor(DG52ED.cursor_art[which],
                    hot_x, hot_y);
     }
 }
@@ -2016,9 +2016,9 @@ void remove_all_parts(void)
  * *The name is a reading*: what the caller means by the index is not written
  * down, only that region 4 passes its own +4 and that 0x50d7 is the bin.
  */
-int16_t bin_part_at_index(int16_t index)
+dg_near_t bin_part_at_index(int16_t index)
 {
-    register uint16_t si;
+    register dg_near_t si;
     uint16_t di;
     int16_t n;
 
@@ -2064,11 +2064,11 @@ int16_t bin_part_at_index(int16_t index)
  * Five is the page: the same five `bin_scroll_back` and `bin_scroll_forward`
  * move by, so the answer is a position those two can actually land on.
  */
-uint16_t bin_scroll_end(void)
+dg_near_t bin_scroll_end(void)
 {
-    register uint16_t si;
-    uint16_t saved;                     /* [bp-2] */
-    uint16_t last;                      /* [bp-4] */
+    register dg_near_t si;
+    dg_near_t saved;                     /* [bp-2] */
+    dg_near_t last;                      /* [bp-4] */
 
     saved = DG50D3.bin_list_ptr;
     while (si = bin_part_at_index(5), si)
@@ -2145,7 +2145,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
  * The fields are copied one at a time rather than as a block, and the ones
  * left out are as much of the transcription as the ones copied: the position
  * at +0x1e, the histories, the chain links and the shape list are all left at
- * the zeros `heap_calloc_far` gives, so a copy starts nowhere and on no list
+ * the zeros `calloc_far` gives, so a copy starts nowhere and on no list
  * until the caller puts it somewhere.
  *
  * Three things are pointed at rather than held, and each is allocated afresh:
@@ -2167,7 +2167,7 @@ struct part *clone_part(register struct part *part)
     const struct part_point *src_pt;    /* [bp-8] */
 
     failed = 0;
-    if ((si = (struct part *)(void *)heap_calloc_far(1, 0xa2)) == NULL) {
+    if ((si = (struct part *)(void *)calloc_far(1, sizeof(struct part))) == NULL) {
 #ifndef __TURBOC__
         /* Ours: the host's refusal is NULL, and `free_part` below tests
            for offset 0, which is what the original's refusal already is */
@@ -2189,14 +2189,14 @@ give_up:
         si->set_size = part->set_size;
 
         if (si->kind == KIND_BELT) {
-            if ((si->rope_ptr = dg_near(dgroup, heap_calloc_far(1, 0x38))) == 0)
+            if ((si->rope_ptr = dg_near(dgroup, calloc_far(1, sizeof(struct rope)))) == 0)
                 goto give_up;
             ROPE_PTR(si->rope_ptr)->owner_ptr = dg_near(dgroup, si);
         }
         si->grab = part->grab;
         si->grab_size = part->grab_size;
         if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
-            if ((si->belt_ptr[0] = dg_near(dgroup, heap_calloc_far(1, 0x2c))) == 0)
+            if ((si->belt_ptr[0] = dg_near(dgroup, calloc_far(1, sizeof(struct belt)))) == 0)
                 goto give_up;
             BELT_PTR(si->belt_ptr[0])->owner_ptr = dg_near(dgroup, si);
         }
@@ -2206,7 +2206,7 @@ give_up:
         if ((si->point_count = PART_KINDS[part->kind].point_count) != 0) {
             src_pt = POINTS(part->points_ptr);
             dst_pt = POINTS(si->points_ptr
-                            = dg_near(dgroup, heap_calloc_far(si->point_count, 4)));
+                            = dg_near(dgroup, calloc_far(si->point_count, 4)));
             if (dst_pt == POINTS_NONE)
                 goto give_up;
             for (i = 0; (int16_t)si->point_count > i; i++, dst_pt++, src_pt++)
@@ -2237,11 +2237,11 @@ give_up:
  */
 struct part *pick_by_flag(uint16_t flags)
 {
-    if (((int16_t)DG521B.placed_parts.next_ptr) != 0 && (flags & 0x2000))
+    if (DG521B.placed_parts.next_ptr != 0 && (flags & 0x2000))
         return PART_PTR(DG521B.placed_parts.next_ptr);
-    if (((int16_t)DG5179.moving_parts.next_ptr) != 0 && (flags & 0x1000))
+    if (DG5179.moving_parts.next_ptr != 0 && (flags & 0x1000))
         return PART_PTR(DG5179.moving_parts.next_ptr);
-    if (((int16_t)DG50D3.parts_bin.next_ptr) != 0 && (flags & 0x0800))
+    if (DG50D3.parts_bin.next_ptr != 0 && (flags & 0x0800))
         return PART_PTR(DG50D3.parts_bin.next_ptr);
     return PART_NONE;
 }
@@ -2261,7 +2261,7 @@ struct part *pick_by_flag(uint16_t flags)
  */
 struct part *pick_for_record(struct part *rec, uint16_t flags)
 {
-    if ((int16_t)rec->next_ptr != 0)
+    if (rec->next_ptr != 0)
         return PART_PTR(rec->next_ptr);
 
     if ((int16_t)rec->flags_06 & 0x2000)
@@ -2361,8 +2361,8 @@ void set_object_extent(register struct part *obj)
         if (rec->sizes_ptr != 0) {
             obj->size[0].width = POINT16_TABLE(rec->sizes_ptr)[obj->form].x;
             obj->size[0].height = POINT16_TABLE(rec->sizes_ptr)[obj->form].y;
-        } else if (rec->bitmaps_ptr != 0) {
-            target = BMP_PTR(BMPSET_PTR(rec->bitmaps_ptr)->bmp_ptr[obj->form]);
+        } else if (rec->bitmaps != 0) {
+            target = rec->bitmaps[obj->form];
             obj->size[0].width = target->width;
             obj->size[0].height = target->height;
         } else
@@ -3190,7 +3190,7 @@ struct part *rope_other_end(register struct part *part)
  * If the far end's neighbour is the near part itself the belt is a loop of two,
  * and both ends read from this record rather than from the neighbours'.
  */
-int16_t belt_orientation(register uint16_t belt, int16_t which, int16_t dir)
+int16_t belt_orientation(register dg_near_t belt, int16_t which, int16_t dir)
 {
     int16_t di;
     uint16_t v02;                       /* [bp-2]  the near slot */
@@ -3198,11 +3198,11 @@ int16_t belt_orientation(register uint16_t belt, int16_t which, int16_t dir)
     uint16_t v06;                       /* [bp-6]  the near index */
     uint16_t v08;                       /* [bp-8]  the far index */
     int16_t v0a;                        /* [bp-0xa] the first bit */
-    uint16_t v0c;                       /* [bp-0xc] the near record */
-    uint16_t v0e;                       /* [bp-0xe] the far record */
+    dg_near_t v0c;                       /* [bp-0xc] the near record */
+    dg_near_t v0e;                       /* [bp-0xe] the far record */
     struct part *v10;                   /* [bp-0x10] the near part */
-    uint16_t v12;                       /* [bp-0x12] the far part */
-    uint16_t v14;                       /* [bp-0x14] beyond the near end */
+    dg_near_t v12;                       /* [bp-0x12] the far part */
+    dg_near_t v14;                       /* [bp-0x14] beyond the near end */
     struct part *v16;                   /* [bp-0x16] beyond the far end */
 
     di = 1 - which;
@@ -3286,7 +3286,7 @@ int16_t match_field_5a_5c(struct part *value, struct part *obj)
  * Both the "matched" and "did not match" paths funnel through one `jmp` to the
  * epilogue, which is why the disassembly has three jumps to reach two results.
  */
-int16_t select_field_2_or_4(struct part *key, register struct belt *rec)
+dg_near_t select_field_2_or_4(struct part *key, register struct belt *rec)
 {
     /* `or si,si` at 0x06f6f: no belt is an offset of 0, which as a pointer
        is BELT_NONE - DGROUP:0 - and never NULL. */
@@ -3577,10 +3577,10 @@ int16_t tension_belt(register struct part *part)
     /* One long: the original stores DX:AX across [bp-0x32] and [bp-0x30] and
        reads the pair straight back into a divide. */
     int32_t product;                    /* [bp-0x32] */
-    uint16_t other;                     /* [bp-0x34] a part, as the offset queue_part takes */
+    dg_near_t other;                     /* [bp-0x34] a part, as the offset queue_part takes */
     struct part *pB;                    /* [bp-0x36] */
     struct part *pC;                    /* [bp-0x38] */
-    uint16_t belt;                      /* [bp-0x3a] as the offset belt_orientation takes */
+    dg_near_t belt;                      /* [bp-0x3a] as the offset belt_orientation takes */
 
 #ifndef __TURBOC__
     dev_tension_belt_calls++;
@@ -3865,8 +3865,8 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
  */
 void splice_list_4e58_onto_4e56(void)
 {
-    register uint16_t next;
-    register uint16_t last;
+    register dg_near_t next;
+    register dg_near_t last;
 
     if (DG4E4E.parts_queue_ptr != 0) {
         last = DG4E4E.parts_queue_ptr;
@@ -3903,10 +3903,10 @@ int32_t dev_queue_part_calls;
  * The queue is what `step_machine` runs first, so this is how one part asks
  * another to move before the general passes begin.
  */
-int16_t queue_part(struct part *src, uint16_t part)
+int16_t queue_part(struct part *src, dg_near_t part)
 {
-    register uint16_t si;
-    register uint16_t di;
+    register dg_near_t si;
+    register dg_near_t di;
     int32_t key;                        /* [bp-4], high word at [bp-2] */
 
 #ifndef __TURBOC__
@@ -3993,7 +3993,7 @@ void shift_all_histories(void)
 {
     struct part *obj;
 
-    if (((int16_t)DG50D3.dragged_part_ptr) != 0)
+    if (DG50D3.dragged_part_ptr != 0)
         shift_state_history(PART_PTR(DG50D3.dragged_part_ptr));
 
     obj = pick_by_flag(0x3000);

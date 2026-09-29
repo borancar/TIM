@@ -28,14 +28,13 @@
  */
 #define _POSIX_C_SOURCE 200809L   /* setenv, for --device and --module */
 
-#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "sdl.h"
 #include "tim.h"
 
@@ -424,17 +423,6 @@ int main(int argc, char **argv)
         }
 
         io_start_program();
-
-        /*
-         * A restore replaces every byte of this, so the start-up runs only to
-         * settle what the load derives - where DGROUP is, above all - and the
-         * snapshot is laid over the top. `setup_streams` is deliberately not
-         * called on that path: the stream table lives in DGROUP and the file
-         * being restored already has it, opened against the handles
-         * `io_state_load` brings back.
-         */
-        if (!restore)
-            setup_streams();
 
         dev_wav_open();
         dev_sfx_open();

@@ -33,7 +33,7 @@
  * bytes, so the marker above stands in for it.
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

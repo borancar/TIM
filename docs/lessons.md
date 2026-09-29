@@ -634,6 +634,35 @@ rules, each measured on this image:
     header describes that memory. Compare the program up to the stack's end,
     and only the entry and stack of the header.
 
+
+### An address in a data initialiser is a fixup, and fixups move Borland's record boundaries
+
+**What happened.** Turning `gamedata.c`'s 205 near pointers from numbers
+(`0x0133`) into the objects they address (`(dg_near_t)&JACK_IN_THE_BOX_DRAW_STEPS[0]`)
+left every routine and every data byte matching - the judge said MATCH, and
+`tools/link.py` said "0 of the 211216 bytes TLINK wrote differ, 2324
+relocations in both" - and the file's hash was wrong. The relocation table
+held the same entries in a different order from entry 69 on, all of them far
+pointers in `gamedata.c`'s `_DATA`.
+
+**Why.** Borland writes a module's initialised data as LEDATA records of up
+to 0x400 bytes, each followed by its FIXUPP record, and TLINK writes a
+record's relocations in the order of its fixups. An address constant in an
+initialiser is a fixup even when it is near and relocates nothing, and the
+fixups decide where Borland ends a record: with the numbers the records broke
+at 0x400, 0x800, 0xc00; with the addresses at 0x400, 0x7f9, 0xbf3. The far
+pointers then fell into different records and came out in a different order.
+
+**What settled it.** The same tree with those 205 initialisers put back to
+numbers links to the original file's hash, header and all. So the original's
+data module held them as numbers - generated tables, most likely - and
+`NEAR_AT(0x0133, &JACK_IN_THE_BOX_DRAW_STEPS[0])` (dgroup.h) gives Borland the
+number and the host the object.
+
+**The rule.** A data change that the judge passes is not proven until
+`tools/link.py` says IDENTICAL: the judge compares bytes and fixup targets,
+not how the object is split into records.
+
 ### A cast the judge does not need can be one the host does, and a wait on a check's files can read the previous run
 
 collide.c was committed on 2026-09-27 (ac75438) as byte-exact with

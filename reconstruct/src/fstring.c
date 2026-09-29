@@ -20,8 +20,9 @@
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -zC_TEXT
  */
+#include <ctype.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -96,8 +97,8 @@ int16_t far_strnicmp(const char far *a, const char far *b, register uint16_t n)
         return 1;
     if (n != 0)
         do {
-            si = to_lower((uint8_t)*a++);
-            d = to_lower((uint8_t)*b++);
+            si = tolower((uint8_t)*a++);
+            d = tolower((uint8_t)*b++);
         } while (--n != 0 && si != 0 && si == d);
     return si - d;
 }
@@ -131,8 +132,8 @@ int16_t far_stricmp(const char far *a, const char far *b)
     if (b == (const char far *)FAR_NULL_PTR || a == (const char far *)FAR_NULL_PTR)
         return 1;
     do {
-        si = to_lower((uint8_t)*a++);
-        di = to_lower((uint8_t)*b++);
+        si = tolower((uint8_t)*a++);
+        di = tolower((uint8_t)*b++);
     } while (si != 0 && si == di);
     return si - di;
 }

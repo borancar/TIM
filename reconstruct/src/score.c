@@ -19,8 +19,14 @@
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT
  */
+#include <string.h>
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -34,7 +40,7 @@
  * so this both reads its first three characters and extends it.
  *
  * The five hex digits are produced by a trick rather than by padding: the
- * score has 0x100000 added before `long_int_to_string`, which guarantees a
+ * score has 0x100000 added before `ltoa`, which guarantees a
  * sixth digit, and the leading `1` is then overwritten with the dash. So the
  * separator and the fixed width are the same operation, and a score of zero
  * comes out `-00000` rather than `-0`.
@@ -60,16 +66,16 @@ void score_to_code(int32_t score, register char *text)
     register char *si;
 
     sum = score + 0x100000L;
-    long_int_to_string(sum, five, 0x10);
+    ltoa(sum, five, 0x10);
     five[0] = '-';                      /* over the digit the add forced */
     code[0] = 0;
-    string_concat(code, five);
+    strcat(code, five);
 
     sum = LONG_MUL(score, (uint8_t)text[0]);
     sum += LONG_MUL(score, (uint8_t)text[1]);
     sum += LONG_MUL(score, (uint8_t)text[2]);
-    long_int_to_string(sum, sumt, 0x22);
-    string_concat(code, sumt);
+    ltoa(sum, sumt, 0x22);
+    strcat(code, sumt);
 
     for (si = code; *si != 0; si++) {
         if (*si == '0')
@@ -80,8 +86,8 @@ void score_to_code(int32_t score, register char *text)
             *si = 'Y';
     }
 
-    string_concat(text, code);
-    string_upper(text);
+    strcat(text, code);
+    strupr(text);
 }
 
 /*
@@ -120,7 +126,7 @@ int32_t score_code_to_score(register char *text)
     char tail[20];                      /* [bp-0x2c], the checksum text */
     register char *si;
 
-    dash = string_chr(text, '-');
+    dash = strchr(text, '-');
     if (dash == 0)
         return 0;
     dash++;
@@ -135,7 +141,7 @@ int32_t score_code_to_score(register char *text)
     for (i = 0; i < 5; i++)
         five[i] = dash[i];
     five[5] = 0;
-    string_copy(tail, dash + 5);
+    strcpy(tail, dash + 5);
 
     score = parse_base(five, 0x10);
     check = parse_base(tail, 0x22);
@@ -182,7 +188,7 @@ int32_t parse_base(register char *text, int16_t base)
 
     total = 0;
     place = 1;
-    string_reverse(text);
+    strrev(text);
 
     for (si = text; *si != 0; si++) {
         digit = (uint8_t)*si >= 'A' ? (uint8_t)*si - 0x37 : (uint8_t)*si - 0x30;

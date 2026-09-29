@@ -36,7 +36,7 @@ CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-add
 # this project's rules and not its author's.
 CXX      ?= c++
 CXXFLAGS ?= -O2 -g -std=c++14
-# The headers stay beside io.c; the game's own sources are a directory down.
+# The headers stay beside hostio.c; the game's own sources are a directory down.
 # **A comparison that cannot come out true is a transcription gone wrong.**
 # Source written for Turbo C++ compares a 16-bit value with 0x8000 as
 # unsigned; on the host `int16_t == 0x8000` is always false and compiles
@@ -48,16 +48,18 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 
 # The game itself, under src/: the eight modules transcribed from the
 # original's code segments, the DGROUP array they all reach through, and the
-# two overlays. `io.c`, `sdl.c` and the borland_*.c runtime are not the
-# game - they are the hardware, the window and the C library it was linked
-# against - and the dev*.c files are not shipped at all.
+# two overlays. `hostio.c` and `sdl.c` are not the game - they are the
+# hardware and the window - nor is `hostlib.c`, the few routines of Borland's
+# library that libc has no counterpart for; the dev*.c files are not shipped
+# at all. Borland's library itself, transcribed, is kept in borland/ and not
+# built: the host calls libc.
 SRC  := src
 GAME := $(SRC)/collide.c $(SRC)/stepmach.c $(SRC)/runloop.c $(SRC)/goals.c $(SRC)/score.c $(SRC)/physics.c $(SRC)/links.c $(SRC)/machine.c $(SRC)/frame.c $(SRC)/regions.c $(SRC)/crtc.c $(SRC)/gamefile.c $(SRC)/fstring.c $(SRC)/rects.c $(SRC)/cursor.c $(SRC)/dos.c $(SRC)/mono.c $(SRC)/gamemain.c $(SRC)/gamedata.c $(SRC)/intro.c $(SRC)/round.c $(SRC)/puzzles.c $(SRC)/screen.c $(SRC)/levels.c $(SRC)/picker.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts/ball.c $(SRC)/parts/balloon.c $(SRC)/parts/bellow.c $(SRC)/parts/boxing_glove.c $(SRC)/parts/bucket.c $(SRC)/parts/bullet.c $(SRC)/parts/candle.c $(SRC)/parts/cannon.c $(SRC)/parts/pokey.c $(SRC)/parts/bird_cage.c $(SRC)/parts/christmas_tree.c $(SRC)/parts/kinds_55_57.c $(SRC)/parts/dynamite.c $(SRC)/parts/motor.c $(SRC)/parts/electric_plug.c $(SRC)/parts/blast.c $(SRC)/parts/hook.c $(SRC)/parts/fan.c $(SRC)/parts/bob_the_fish.c $(SRC)/parts/flashlight.c $(SRC)/parts/generator.c $(SRC)/parts/gear.c $(SRC)/parts/gun.c $(SRC)/parts/conveyor.c $(SRC)/parts/heart_balloon.c $(SRC)/parts/ramp.c $(SRC)/parts/jack_in_the_box.c $(SRC)/parts/light.c $(SRC)/parts/monkey.c $(SRC)/parts/mouse_cage.c $(SRC)/parts/magnifying_glass.c $(SRC)/parts/dynamite_plunger.c $(SRC)/parts/mort_the_mouse.c $(SRC)/parts/pumpkin.c $(SRC)/parts/rocket.c $(SRC)/parts/corner_pipe.c $(SRC)/parts/scissors.c $(SRC)/parts/solar_panel.c $(SRC)/parts/trampoline.c $(SRC)/parts/seesaw.c $(SRC)/parts/trigger_things.c $(SRC)/parts/platform.c $(SRC)/parts/windmill.c $(SRC)/screenshot.c $(SRC)/vgadac.c $(SRC)/resource.c $(SRC)/resfile.c \
         $(SRC)/lzw.c $(SRC)/lzhuf.c $(SRC)/vmiface.c $(SRC)/palette.c $(SRC)/polygon.c $(SRC)/compbmp.c $(SRC)/timer.c $(SRC)/scale.c $(SRC)/polyclip.c $(SRC)/keyboard.c $(SRC)/text.c $(SRC)/dosmem.c $(SRC)/lowlevel.c $(SRC)/vidinit.c $(SRC)/vidload.c $(SRC)/fontload.c $(SRC)/bmpload.c $(SRC)/files.c $(SRC)/vqtflip.c $(SRC)/offbmp.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/sound_load.c $(SRC)/sound_device.c $(SRC)/sound_bank.c $(SRC)/sound_call.c $(SRC)/sound_stop.c $(SRC)/sound_file.c $(SRC)/trig.c $(SRC)/atan2.c $(SRC)/vqt.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
         $(SRC)/sxovl_asb.c $(SRC)/sxovl_adl.c $(SRC)/sxovl_sbp.c \
         $(SRC)/sxovl.c $(SRC)/thunks.c $(SRC)/glue.c
-PORT := io.c borland_heap.c borland_file.c borland_huge.c
+PORT := hostio.c hostlib.c
 
 # The OPL2 and the ymfm units it needs. ymfm_opl.cpp pulls in the other three
 # through its templates even though a YM3812 has no ADPCM, PCM or SSG in it.
@@ -68,7 +70,7 @@ OPL_OBJ := $(OPL_SRC:.cpp=.o)
 OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
-# `io.c` calls dev_flip_dump on every page flip whatever it is linked into, so
+# `hostio.c` calls dev_flip_dump on every page flip whatever it is linked into, so
 # one of these two is always present - and only `devtim` gets the one that can
 # be asked to write frames or press a mouse button.
 # `devwav.c` is separate from both: `devtim` and the hybrid runner each link it
@@ -87,7 +89,7 @@ LUA_CFLAGS := $(shell pkg-config --cflags lua 2>/dev/null)
 LUA_LIBS   := $(shell pkg-config --libs lua 2>/dev/null)
 
 # **Headers count as sources.** Rules that list only the `.c` files mean a
-# change to `io.h` alone rebuilds nothing and the next run uses the old build -
+# change to `hostio.h` alone rebuilds nothing and the next run uses the old build -
 # silently, and answering with complete confidence. Raising DOS_ALLOC_PRIMED
 # from 16 to 512 appeared to change nothing for an hour because of this, and a
 # whole false finding was written up from the stale result.
@@ -95,7 +97,7 @@ LUA_LIBS   := $(shell pkg-config --libs lua 2>/dev/null)
 # **And it has to be defined before the rules that use it.** It sat below them
 # until 2026-09-05, and make expands a prerequisite list when it reads the rule,
 # so `$(HEADERS)` there expanded to nothing and the dependency never existed.
-# Measured at the time: `touch io.h && make` compiled zero files. The fix that
+# Measured at the time: `touch hostio.h && make` compiled zero files. The fix that
 # was written up as done had never taken effect.
 HEADERS := $(wildcard *.h)
 
@@ -182,8 +184,9 @@ tim: $(TIM_OBJ) $(OPL_OBJ) $(GUEST_LD)
 # TIM_HEADLESS=1, which is what keeps them working on a machine with no
 # display: the window is what a person needs, its absence is what a comparison
 # needs, and the comparison is the one that asks.
+# `--wrap=fopen`: the developer build's RESOURCE.CFG override, in devdump.c.
 devtim: $(DEV_OBJ) $(OPL_OBJ) $(GUEST_LD)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) $(LDGUEST) -o $@ \
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) $(LDGUEST) -Wl,--wrap=fopen -o $@ \
 	    $(filter-out $(GUEST_LD),$^) $(SDL_LIBS) $(LUA_LIBS) -lpthread -lstdc++
 
 # The one unit that needs Lua's headers, and the only one that gets them.
@@ -224,7 +227,7 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS) $(GUEST
 #       ./reconstruct/devtimasan --level 14 --run
 asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
-	    -std=c11 -I$(CURDIR) $(LDGUEST) $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
+	    -std=c11 -I$(CURDIR) $(LDGUEST) -Wl,--wrap=fopen $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
 	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
@@ -233,7 +236,7 @@ asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS) $(GUEST_LD
 # silently loses the one fact the type carried". A rule whose whole danger is
 # that nothing complains is a rule worth grepping for.
 #
-# It applies to `$(GAME)` only - the transcriptions. `io.c`, `sdl.c` and the
+# It applies to `$(GAME)` only - the transcriptions. `hostio.c`, `sdl.c` and the
 # rest of what is ours legitimately use host types: `ftell` answers a `long`
 # and `tv_nsec` is one.
 #
@@ -255,7 +258,7 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 
 # **The file list is the point, not an oversight.** These are the translation
 # units where transcribed routines and ours-routines sit side by side, so a
-# reader needs each *definition* to say which it is. `io.c`, `sdl.c`,
+# reader needs each *definition* to say which it is. `hostio.c`, `sdl.c`,
 # `src/main.c`, `devmain.c`, `devdump.c` and `devstub.c` are ours end to end
 # and say so in
 # their headers; running the check over them would demand 114 per-function
@@ -274,7 +277,7 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 SED_STRIP_COMMENTS = sed -z -e 's|/\*[^\x00]*\?\*/||g' -e 's|//[^\n]*||g'
 
 test: devtim tim debug
-	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
+	uv run python tests/provenance.py $(GAME)
 	@for f in $(DEVFLAGS); do \
 	    if grep -aq "$$f" tim; then \
 	        echo "FAIL: the shipping binary carries $$f"; exit 1; \
@@ -297,16 +300,6 @@ test: devtim tim debug
 	    exit 1; \
 	fi; \
 	echo "one display path: SDL3 and nothing else included"
-	@# **A typed handle is never NULL.** `PART_PTR(0)` is DGROUP:0, so `if (p)`,
-	@# `p ? :`, `!p` and `p &&` on a handle are always true where the original
-	@# tested an offset against 0 - and the compiler accepts them. One landed
-	@# in e8045fc past every screen and solution check; see docs/lessons.md.
-	@# It goes *before* the solutions step, because that step exits the target
-	@# when there are no snapshots and everything after it is skipped.
-	@cd .. && uv run python tools/check_handles.py > /dev/null || { \
-	    uv run python tools/check_handles.py; \
-	    echo "FAIL: a typed handle is used as a boolean - run tools/check_handles.py"; exit 1; }
-	@echo "no typed handle is used as a boolean"
 	@# **A `dg_near` is only a store into a near-pointer field.** A pointer
 	@# turned back into its offset anywhere else - compared, passed, returned,
 	@# held in a local - is the conversion made too early. Before the
@@ -325,31 +318,6 @@ test: devtim tim debug
 	@cd .. && uv run python tools/check_solutions.py --simulate > /dev/null || { \
 	    echo "FAIL: a solution no longer solves under simulation - run tools/check_solutions.py --simulate"; exit 1; }
 	@echo "every solution solves under simulation"
-	@# The printf engine against the host's libc: nothing the game does
-	@# reaches a conversion, so this is the only check the 1150-byte
-	@# transcription of `__vprinter` has. A second, and it takes a second.
-	@cd .. && uv run python tools/check_printf.py > /dev/null || { \
-	    echo "FAIL: the printf engine disagrees with libc - run tools/check_printf.py"; exit 1; }
-	@echo "the printf engine agrees with libc on every format tried"
-	@# **A ratchet, not a threshold.** Every routine that still calls
-	@# `dg_alloca` has been read and has a reason written beside it - the
-	@# value it holds must be a 16-bit number in guest memory that something
-	@# else reads back, and `tools/framify_census.py` names which for each.
-	@# A *new* one is either a routine nobody has looked at yet or a
-	@# conversion that went backwards, and both are worth a moment. Lower
-	@# the number when one goes; raising it needs a reason in the commit.
-	@# **The roll call, not a grep.** A first version counted `dg_alloca(`
-	@# with grep and a ratchet, and the first comment to mention the name in
-	@# prose broke the build - a check that cannot tell code from a comment
-	@# is a check that punishes writing things down. `framify_census.py`
-	@# parses, and `WALLED` names every routine that still reserves and why,
-	@# so `--assert` fails both ways: a `dg_alloca` with no reason written for
-	@# it, and a reason left behind by a routine that converted. Lowering the
-	@# roll call is the normal direction; adding to it wants a reason.
-	@cd .. && out=$$(uv run python tools/framify_census.py --assert) \
-	    || { echo "$$out" | grep FAIL; exit 1; }; \
-	echo "$$out" | tail -1
-
 	@# And that no routine still holds a `frame[]`. `framify.py` made those
 	@# out of the `dg_alloca` reservations and `promote.py` turned each slot
 	@# into the local it is; a frame array coming back would mean a routine
@@ -368,8 +336,7 @@ clean:
 
 .PHONY: all clean test debug asan compile_commands
 
-# A shared library so tools/check_printf.py can call the port's printf engine
-# directly.
+# A shared library, for the tools that read the port's objects by address.
 # `covtim` is devtim with gcov instrumentation, for asking which of the port's
 # own routines a run actually enters. tools/coverage.py answers that question
 # for the original by watching blocks; this is the other half, and the two

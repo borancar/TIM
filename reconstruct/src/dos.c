@@ -24,7 +24,7 @@
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -668,11 +668,7 @@ uint16_t dos_rmdir(const char *path)
  * The same `xor ax,ax` before the call and after it as `chdir`, with only the
  * carry flag choosing between them.
  *
- * **It deletes from the overlay and nothing else.** A name the port never wrote
- * is not there to delete, and answering 0 for it would be claiming to have
- * removed a file that is still on the disk - so a name that is not in the
- * overlay is DOS 2, "file not found". The host copy is never touched, which is
- * also why a failed save cannot destroy the machine it was overwriting.
+ * The DOS call is `io_dos_unlink`'s: 0, or DOS 2, "file not found".
  */
 uint16_t dos_unlink(const char *path)
 {
@@ -684,7 +680,7 @@ uint16_t dos_unlink(const char *path)
         name[i] = path[i];
     name[i] = 0;
 
-    r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
+    r = io_dos_unlink(name);
 
     BORLAND_FIND_INFO.dos_result = r;
     return (uint16_t)r;

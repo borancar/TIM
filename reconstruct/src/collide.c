@@ -24,7 +24,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -310,28 +310,28 @@ int16_t angle_to_quadrant(register int16_t angle)
  * Decide which side of a range a value falls on, and set one of two flag bytes
  * accordingly - or both, when the value is inside the range.
  *
- * `range` is a record whose bounds are at +0 and +4; `out` is a record whose
- * flags are the bytes at +2 and +3. The containment test is `value_between` at
+ * `range` is a record whose bounds are at +0 and +4; `out` is a part's
+ * contact, whose flags are the bytes at +2 and +3. The containment test is `value_between` at
  * 0x03d67, which handles either ordering, so the side test below has to handle
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
 void set_side_flags(register const int16_t *range, int16_t v,
-                    register uint8_t *out)
+                    register struct part_contact *out)
 {
     if (value_between(v, range[0], range[2])) {
-        out[2] = 1;
-        out[3] = 1;
+        out->no_nudge_plus = 1;
+        out->no_nudge_minus = 1;
     } else if (range[0] < range[2]) {
         if (range[0] > v)
-            out[3] = 1;
+            out->no_nudge_minus = 1;
         else
-            out[2] = 1;
+            out->no_nudge_plus = 1;
     } else {
         if (range[2] > v)
-            out[2] = 1;
+            out->no_nudge_plus = 1;
         else
-            out[3] = 1;
+            out->no_nudge_minus = 1;
     }
 }
 
@@ -412,7 +412,7 @@ int16_t resolve_collisions(struct part *obj)
                                                     0x1000))) {
         if (!chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.other_ptr)
             && DG53FC.list_ptr != DG53FC.other_ptr
-            && DG53FC.contact_ptr != (int16_t)DG53FC.other_ptr
+            && DG53FC.contact_ptr != DG53FC.other_ptr
             && PART_PTR(DG53FC.other_ptr)->points_ptr != 0
             && !(PART_PTR(DG53FC.other_ptr)->flags_08 & 0x2000)
             && !(PART_PTR(DG53FC.list_ptr)->kind == 0xc
@@ -517,7 +517,7 @@ int16_t find_edge_contact(int16_t test_only)
     int16_t seg2[4];                    /* [bp-0x34] */
     int16_t seg1[4];                    /* [bp-0x3c] */
     int16_t out[2];                     /* [bp-0x40] */
-    register uint16_t si, di;
+    register dg_near_t si, di;
 
     hit = 0;
     i = 1;
@@ -609,7 +609,7 @@ int16_t find_edge_contact(int16_t test_only)
                             cp->ptr = DG53FC.other_ptr;
                             cp->angle = a_ang;
                             cp->edge = i - 1;
-                            set_side_flags(seg2, DG53FC.mid_x - x0, (uint8_t *)cp);
+                            set_side_flags(seg2, DG53FC.mid_x - x0, cp);
                             hit = 1;
                         }
                     }
@@ -711,7 +711,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
     int16_t seg2[4];                    /* [bp-0x38] */
     int16_t seg1[4];                    /* [bp-0x40] */
     int16_t out[2];                     /* [bp-0x44] */
-    register uint16_t si, di;
+    register dg_near_t si, di;
 
     hit = 0;
     i = 1;

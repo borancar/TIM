@@ -21,8 +21,10 @@
  * writes of nine frames to the instructions that made them found 19
  * instructions, all of them here.
  */
+#include <string.h>
+
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -96,10 +98,10 @@ uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
 
     (void)ds;
 
-    far_move((const uint8_t *)params, (uint8_t *)VMCS.hooks, sizeof VMCS.hooks);
+    memcpy(VMCS.hooks, params, sizeof VMCS.hooks);
 
     VMCS.data_ptr = dg_near(dgroup, data);
-    VMCS.data_seg = (dg_seg_t)((VMCS.data_ptr >> 4) + DGROUP_SEG);
+    VMCS.data_seg = (dg_seg_t)((NEAR_OFF(VMCS.data_ptr) >> 4) + DGROUP_SEG);
 
     VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;
@@ -354,14 +356,14 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
+uint32_t vm_bitmap_list_size(struct bitmap **list, uint8_t * out)
 {
     uint32_t total = 0;
 
     for (;;) {
-        struct bitmap *p = BMP_PTR(*list);
+        struct bitmap *p = *list;
 
-        if (p == BMP_NONE)
+        if (p == NULL)
             break;
 
         total += (uint32_t)((uint16_t)p->width >> 1) * (uint16_t)p->height;
@@ -405,7 +407,7 @@ uint32_t vm_bitmap_list_size(bmp_ptr_t *list, uint8_t * out)
  * why `push cs` plus a **** `ret` is used throughout this family - the
  * pushed CS is part of the frame and the caller disposes of it.
  */
-void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
+void vm_load_bitmap_list(struct bitmap ** list, uint8_t far * dst, uint32_t count)
 {
     /* The step at the foot of the loop is a huge pointer's - offset plus the
        five plane-sizes, then paragraphs into the segment - so `at` is a
@@ -419,10 +421,10 @@ void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst, uint32_t count)
     vm_chunky_to_planar(at, MK_FP(0xa6d6, 0), (uint16_t)quads);
 
     for (;;) {
-        struct bitmap *si = BMP_PTR(*list);
+        struct bitmap *si = *list;
         uint16_t size, prod;
 
-        if (si == BMP_NONE)
+        if (si == NULL)
             break;
 
         prod = (uint16_t)((uint16_t)(si->width >> 1)

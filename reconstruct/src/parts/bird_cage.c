@@ -15,7 +15,7 @@
  * JUDGE: built-with -mm
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

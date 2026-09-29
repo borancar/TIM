@@ -14,64 +14,21 @@
 #define TIM_H
 
 #include <stdint.h>
+/* `FILE`, which the prototypes below take. */
+#include <stdio.h>
 
 #ifdef __TURBOC__
-/*
- * **The run-time library's own names.** The port calls Borland's run-time
- * routines by names of its own - the host has a libc of its own whose `printf`
- * and `strcmp` are not these - but the source the original was built from
- * called the library, and Borland C++ has to see those names for TLINK to
- * find them in CM.LIB (tools/link.py). Each is the one its transcription's
- * comment names. The video driver's three calls are the thunks the image has.
- * Six of them are declared below, under `__TURBOC__`, exactly as <stdlib.h>
- * and <string.h> declare them, since some modules include those too.
- */
+/* **The names Borland sees**, where the port's differ: the game's entry point
+   is C's `main`, and the video driver's three calls are the thunks the image
+   has. tools/judge.py reads this block. */
 #define game_main               main
-#define borland_exit            exit
-#define borland_fclose          fclose
-#define borland_fgetc           fgetc
-#define borland_fopen           fopen
-#define borland_fputc           fputc
-#define borland_fread           fread
-#define borland_fseek           fseek
-#define borland_ftell           ftell
-#define borland_fwrite          fwrite
-#define borland_printf          printf
-#define borland_read            read
-#define borland_rewind          rewind
-#define borland_setbuf          setbuf
-#define borland_vsprintf        vsprintf
-#define close_handle            close
-#define dos_getdate             getdate
-#define dos_getvect             getvect
-#define dos_setvect             setvect
-#define heap_calloc             calloc
-#define heap_check              heapcheck
-#define heap_free               free
-#define heap_malloc             malloc
-#define int_to_string           itoa
-#define long_int_to_string      ltoa
-#define open_file               open
-#define string_chr              strchr
-#define string_compare          strcmp
-#define string_compare_nocase   stricmp
-#define string_concat           strcat
-#define string_copy             strcpy
-#define string_copy_padded      strncpy
-#define string_length           strlen
-#define string_ncompare_i       strnicmp
-#define string_reverse          strrev
-#define string_upper            strupr
-#define to_lower                tolower
 #define vm_buffer_size          buffer_size_thunk
 #define vm_restore_rect         restore_rect_thunk
 #define vm_show_page            show_page_thunk
 #endif
 
-/* The DGROUP layout, for the record types a prototype below takes by value -
-   `struct far_ptr` is the one. dgroup.h includes nothing but <stdint.h>, so
-   this is not a cycle. */
 #include "dgroup.h"
+
 /*
  * **A near pointer, as a parameter type.**
  *
@@ -207,7 +164,7 @@ void clamp_record_pair(struct part *rec);               /* 0x02bcc */
 void rotate_point(int16_t *px, int16_t *py, uint16_t angle); /* 0x03b17 */
 
 /* Is a node on the chain hanging off a record? */
-int16_t chain_contains(struct part *rec, uint16_t node);      /* 0x03a61 */
+int16_t chain_contains(struct part *rec, dg_near_t node);      /* 0x03a61 */
 
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(struct game_file *out);       /* 0x098e0 */
@@ -215,7 +172,7 @@ int16_t find_entry_for_pointer(struct game_file *out);       /* 0x098e0 */
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 /* Chunky 4bpp to planar, through video memory, filling a list of headers. */
-void vm_load_bitmap_list(bmp_ptr_t * list, uint8_t far * dst,
+void vm_load_bitmap_list(struct bitmap ** list, uint8_t far * dst,
                          uint32_t count);                       /* VGA:0x1015 */
 void vm_chunky_to_planar(const uint8_t far * src, uint8_t far * dst,
                          uint16_t count);                       /* VGA:0x10b8 */
@@ -244,7 +201,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                             uint16_t mode);             /* 0x20185 */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                         uint16_t mode);                 /* 0x24e9a */
-uint32_t vm_bitmap_list_size(bmp_ptr_t *list,
+uint32_t vm_bitmap_list_size(struct bitmap **list,
                              uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
@@ -754,31 +711,30 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
 void cursor_redraw_off(void);                         /* 0x0a7a3 */
 void cursor_redraw_off_thunk(void);                   /* 0x0811b */
 
-/* Borland's near heap - NOT part of the reconstruction, see borland_heap.c. */
-int16_t brk_set(const uint8_t *addr);                     /* 0x0c7c4 */
-void    heap_ring_unlink(struct heap_block *bx);              /* 0x0c95a */
-void    heap_ring_insert(struct heap_block *bx);              /* 0x0c976 */
-void    heap_free_middle(struct heap_block *bx);              /* 0x0c921 */
-void    heap_free_top(struct heap_block *bx);                 /* 0x0c8e7 */
-#ifdef __TURBOC__
-void    heap_free(void *p);                         /* 0x0c8ca */
-#else
-void    heap_free(uint8_t *p);                      /* 0x0c8ca */
-#endif
-uint8_t *heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
-uint8_t *heap_init(uint16_t size);                  /* 0x0c9f9 */
-uint8_t *heap_grow(uint16_t size);                  /* 0x0ca39 */
-uint8_t *heap_split(struct heap_block *bx, uint16_t size);    /* 0x0ca62 */
-void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count);    /* 0x0bd2e */
-uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 /* **A `long` multiply as the compiler writes it**: Borland compiles `a * b`
-   on longs to a call to N_LXMUL@, the routine above, and on the host the
-   call is spelled out - which is also what makes it wrap, as the 16-bit
-   code does, where a host `int32_t` multiply may overflow. Ours. */
+   on longs to a call to N_LXMUL@ in CM.LIB, and on the host the multiply is
+   done unsigned - which is also what makes it wrap, as the 16-bit code does,
+   where a host `int32_t` multiply may overflow. Ours. */
 #ifdef __TURBOC__
 #  define LONG_MUL(a, b)  ((a) * (b))
 #else
-#  define LONG_MUL(a, b)  ((int32_t)long_multiply((uint32_t)(a), (uint32_t)(b)))
+#  define LONG_MUL(a, b)  ((int32_t)((uint32_t)(a) * (uint32_t)(b)))
+#endif
+/* **A local the original writes past the end of**, into the one beside it,
+   which by then it no longer needs. The host lays its frame out otherwise,
+   so it is given the bytes; Borland sees the original's size. Ours. */
+#ifdef __TURBOC__
+#  define OVERRUN(n, past)  (n)
+#else
+#  define OVERRUN(n, past)  ((n) + (past))
+#endif
+/* **A buffer handed to `setbuf`**, which takes it to be `BUFSIZ` bytes:
+   Borland's is 512, so the game's 0x210 covers it, and glibc's is 8192.
+   The host's is made big enough; Borland sees the game's size. Ours. */
+#ifdef __TURBOC__
+#  define SETBUF_ROOM(n)  (n)
+#else
+#  define SETBUF_ROOM(n)  ((n) > BUFSIZ ? (n) : BUFSIZ)
 #endif
 /* **A signed word shifted left in place**, `shl word ptr [..],cl`: Borland's
    `x <<= n`, and on the host the same bits through `uint16_t`, because a
@@ -788,54 +744,31 @@ uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 #else
 #  define SHL16_ASSIGN(lv, n)  ((lv) = (int16_t)((uint16_t)(lv) << (n)))
 #endif
-uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
-int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
 void near read_far(uint8_t huge *dst, int32_t count,
               FILE *file);                        /* 0x2551a */
-void near decode_vqt_list(FILE *file, bmp_ptr_t *list); /* 0x25639 */
+void near decode_vqt_list(FILE *file, struct bitmap **list); /* 0x25639 */
 void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
 void near fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
-uint16_t near_memset(uint8_t *dst, uint16_t count,
-                     uint16_t value);               /* 0x0d543 */
-#ifdef __TURBOC__
-void   *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
-#else
-uint8_t *heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
-#endif
-uint8_t *heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
+uint8_t *calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 /* thunks.c: far faces of the runtime's routines, the first twelve uncalled. */
-int16_t open_file_far(const char *name, uint16_t flags);                  /* 0x0ba32 */
+int16_t open_far(const char *name, uint16_t flags);                  /* 0x0ba32 */
 int16_t open_file_perm_far(const char *name, uint16_t flags, uint16_t perm); /* 0x0ba45 */
-int16_t close_handle_far(int16_t handle);                                 /* 0x0ba5b */
-int16_t borland_read_far(int16_t handle, uint8_t *buf, uint16_t count);   /* 0x0ba6a */
-struct file_rec *borland_fopen_far(const char *name, const char *mode);   /* 0x0ba80 */
-int16_t borland_fseek_far(struct file_rec *file, int32_t off, int16_t whence); /* 0x0ba93 */
-int32_t borland_ftell_far(struct file_rec *file);                         /* 0x0baac */
-uint16_t borland_fread_far(uint8_t *buf, uint16_t size, uint16_t count,
-                           struct file_rec *file);                        /* 0x0babb */
-uint16_t borland_fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
-                            struct file_rec *file);                       /* 0x0bad4 */
-int16_t borland_fputc_far(int16_t c, struct file_rec *file);              /* 0x0baed */
-void    borland_rewind_far(struct file_rec *file);                        /* 0x0bb00 */
-int16_t borland_fclose_far(struct file_rec *file);                        /* 0x0bb0f */
-uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
+int16_t close_far(int16_t handle);                                 /* 0x0ba5b */
+int16_t readfd_far(int16_t handle, uint8_t *buf, uint16_t count);   /* 0x0ba6a */
+FILE *fopen_far(const char *name, const char *mode);   /* 0x0ba80 */
+int16_t fseek_far(FILE *file, int32_t off, int16_t whence); /* 0x0ba93 */
+int32_t ftell_far(FILE *file);                         /* 0x0baac */
+uint16_t fread_far(uint8_t *buf, uint16_t size, uint16_t count,
+                           FILE *file);                        /* 0x0babb */
+uint16_t fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
+                            FILE *file);                       /* 0x0bad4 */
+int16_t fputc_far(int16_t c, FILE *file);              /* 0x0baed */
+void    rewind_far(FILE *file);                        /* 0x0bb00 */
+int16_t fclose_far(FILE *file);                        /* 0x0bb0f */
+uint8_t *  malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
-#ifdef __TURBOC__
-char *int_to_string(int16_t value, char *buf,
-                    int16_t radix);                 /* 0x0d4bd */
-#else
-char *int_to_string(int16_t value, char *buf,
-                       uint16_t radix);             /* 0x0d4bd */
-#endif
-#ifdef __TURBOC__
-char *long_int_to_string(int32_t value, char *buf,
-                         int16_t radix);            /* 0x0d4ff */
-#else
-char *long_int_to_string(int32_t value, char *buf,
-                            uint16_t radix);        /* 0x0d4ff */
-#endif
 void draw_odometer_digit(uint8_t c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
 void draw_counter_word(int16_t value, int16_t x, int16_t y,
@@ -848,49 +781,8 @@ int32_t parse_base(char *text, int16_t base);    /* 0x02a34 */
 void score_to_code(int32_t score, char *text); /* 0x02809 */
 int32_t score_code_to_score(char *text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
-char *long_to_string(uint16_t letters, uint16_t is_signed,
-                        uint16_t radix, char *buf,
-                        int32_t value);               /* 0x0c029 */
-#ifdef __TURBOC__
-void   *heap_malloc(uint16_t want);                 /* 0x0c999 */
-#else
-uint8_t *heap_malloc(uint16_t want);                /* 0x0c999 */
-#endif
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
-int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
-int32_t dos_lseek(int16_t handle, int32_t off,
-                  int16_t whence);                  /* 0x0c0c3 */
-int16_t read_translated(int16_t handle, uint8_t *buf,
-                        uint16_t count);            /* 0x0da6d */
-void    flush_all_streams(void);                    /* 0x0d36d */
-int16_t refill_stream(struct file_rec *file);               /* 0x0d396 */
-int16_t borland_fgetc(struct file_rec *file);                 /* 0x0d404 */
-int16_t borland_read(int16_t handle, uint8_t *buf, uint16_t count); /* 0x0db3b */
-void    borland_rewind(struct file_rec *file);              /* 0x0db3e */
-int16_t borland_getchar(void);                              /* 0x0d4b3 */
-int16_t flush_stream(struct file_rec *file);                /* 0x0ce92 */
-int16_t borland_flushall(void);                             /* 0x0cf13 */
-int16_t borland_eof(int16_t handle);                        /* 0x0cd9e */
-void    exit_close_streams(void);                           /* 0x0dfb4 */
-void    exit_flush_streams(void);                           /* 0x0dfdc */
-void    exit_hook_none(void);                               /* 0x0bc63 */
-int16_t borland_atexit(struct far_ptr fn);                  /* 0x0bbfe */
-void    borland_exit_common(int16_t status, int16_t dontexit,
-                            int16_t quick);                 /* 0x0bc64 */
-void    borland_exit_quick(int16_t status);                 /* 0x0bcca */
-void    borland_cexit(void);                                /* 0x0bcdc */
-void    borland_c_exit(void);                               /* 0x0bcea */
-int16_t io_error_code(int16_t code);                        /* 0x0c006 */
-int16_t dos_get_file_attr(const char *name, uint16_t *attr);  /* 0x0bc2b */
-int16_t dos_set_file_attr(const char *name, uint16_t attr);   /* 0x0bc48 */
-char   *tmp_number(char *buf, uint16_t number);             /* 0x0c0a6 */
-char   *string_copy_end(char *dst, const char *src);        /* 0x0c79b */
-char   *tmp_name_build(uint16_t number, const char *prefix,
-                       char *buf);                          /* 0x0c0ec */
-char   *tmp_name_unused(int16_t *counter, char *buf);       /* 0x0c12b */
-int16_t borland_unlink(const char *name);                   /* 0x0c2bf */
-void    float_formats_missing(int16_t from_scanf);          /* 0x0c884 */
 /* The `printf` engine's putter: `(sink, count, bytes)`, answering the count
    or 0. `stream_put_run` for a stream, `string_putn` for a buffer. */
 typedef uint16_t (*putn_fn)(void *sink, uint16_t n, const uint8_t *buf);
@@ -905,33 +797,6 @@ struct printer {
     uint16_t total;              /* [bp-0x12] */
     int16_t  failed;             /* [bp-0x16] */
 };
-void     printer_flush(struct printer *p);                  /* 0x0c31d */
-void     printer_put(struct printer *p, char c);            /* 0x0c314 */
-uint16_t printer_len(const char *s);                        /* 0x0c307 */
-char    *hex_word(char *dst, uint16_t v);                   /* 0x0c2d5 */
-int16_t vprinter(putn_fn put, void *sink, const char *fmt,
-                 const uint8_t *args);                      /* 0x0c2ed */
-uint16_t string_putn(void *sink, uint16_t n, const uint8_t *buf); /* 0x0dc34 */
-int16_t borland_sprintf(char *buf, const char *fmt,
-                        const uint8_t *args);               /* 0x0dc5c */
-int16_t borland_vsprintf(char *buf, const char *fmt,
-                         const uint8_t *args);              /* 0x0dc79 */
-int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
-int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
-int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
-                  uint16_t cx);                     /* 0x0c8a3 */
-int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx); /* 0x0cd3d */
-int16_t dos_open_named(const char *name, uint16_t flags); /* 0x0d707 */
-int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags,
-                        const char *mode);             /* 0x0cf4d */
-int16_t borland_setvbuf(struct file_rec *file, uint8_t *buf, int16_t mode,
-                      uint16_t size);               /* 0x0db5e */
-struct file_rec *find_free_stream(void);                    /* 0x0d0a3 */
-struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
-                          struct file_rec *file);           /* 0x0d007 */
-struct file_rec *borland_fopen(const char *name, const char *mode); /* 0x0d0ce */
-uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
-int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint16_t call_sound_module(uint16_t fn, union sound_module_args * si); /* 0x0bbd4 */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0bb98 */
 uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0bb9f */
@@ -954,56 +819,10 @@ uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
-#ifdef __TURBOC__
-/* **An interrupt vector as Borland has it**, a far pointer to an `interrupt`
-   function, where the host keeps the guest's `struct far_ptr`: `getvect` and
-   `setvect`, which <dos.h> (through dgroup.h) declares. */
-#else
-struct far_ptr dos_getvect(uint16_t n);                   /* 0x0bd70 */
-void dos_setvect(uint16_t n, struct far_ptr handler);     /* 0x0bd7f */
-#endif
-char *string_copy(char *dst, const char *src);    /* 0x0dd33 */
-uint16_t string_length(const char *s);                 /* 0x0dd95 */
-char *string_reverse(char *s);                /* 0x0de1e */
-char *string_upper(char *s);                  /* 0x0de4e */
-int16_t  string_ncompare_i(const char *a, const char *b,
-                           uint16_t n);             /* 0x0dddb */
-#ifdef __TURBOC__
-char *string_chr(const char *s, int16_t c); /* 0x0dcce */
-#else
-char *string_chr(char *s, int16_t c);       /* 0x0dcce */
-#endif
-int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
-char *string_copy_far(char *dst, const char *src); /* 0x0bb4f */
-char *string_concat_far(char *dst, const char *src); /* 0x0bb3c */
-char *string_chr_far(char *s, int16_t c);        /* 0x0bb62 */
-int16_t  borland_fgetc_far(struct file_rec *file);              /* 0x0bb88 */
-int16_t string_compare_nocase(const char *a, const char *b); /* 0x0dd55 */
-char *string_copy_padded(char *dst, const char *src,
-                            uint16_t n);            /* 0x0ddaf */
-#ifdef __TURBOC__
-/* Borland's `open` is variadic, and 0x0ba32 calls it with two arguments. */
-int16_t open_file(const char *name, uint16_t flags, ...); /* 0x0d5af */
-#else
-int16_t open_file(const char *name, uint16_t flags,
-                  uint16_t perm);                   /* 0x0d5af */
-#endif
-int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
-uint8_t *  mem_copy(uint8_t * dst, const uint8_t * src, uint16_t n); /* 0x0d524 */
-int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0df7a */
-int16_t dos_creat(const char *name, uint16_t attr);    /* 0x0d584 */
-void    dos_truncate(int16_t handle);               /* 0x0d59d */
-int16_t close_handle(int16_t handle);               /* 0x0cd58 */
-int16_t borland_fclose(struct file_rec *file);                /* 0x0ce15 */
-int16_t unread_count(struct file_rec *file);                /* 0x0d20f */
-int32_t borland_ftell(struct file_rec *file);                 /* 0x0d2d4 */
-int16_t borland_fseek(struct file_rec *file, int32_t off,
-                    int16_t whence);                /* 0x0d26c */
-int16_t borland_getc(struct file_rec *file);                  /* 0x0d3ef */
-uint16_t buffered_read(struct file_rec *file, uint16_t count,
-                       uint8_t * buf);               /* 0x0d0ed */
-uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
-                     struct file_rec *file);                /* 0x0d1c4 */
+char *strcpy_far(char *dst, const char *src); /* 0x0bb4f */
+char *strcat_far(char *dst, const char *src); /* 0x0bb3c */
+char *strchr_far(char *s, int16_t c);        /* 0x0bb62 */
+int16_t  fgetc_far(FILE *file);              /* 0x0bb88 */
 
 /* Hand over the next run of bytes from the selected resource. */
 
@@ -1015,7 +834,7 @@ int16_t close_file_record(FILE *handle);         /* 0x242d9 */
 void near reset_file_record(struct open_file *rec);               /* 0x23e23 */
 int16_t near string_equal_upto(const char * a, const char * b,
                           uint16_t n);              /* 0x23e70 */
-uint8_t *  copy_file_record(uint8_t * dst, FILE *handle); /* 0x23ea8 */
+struct open_file *copy_file_record(struct open_file *dst, FILE *handle); /* 0x23ea8 */
 FILE *open_file_record(char *name);           /* 0x23f2c */
 int32_t near restore_file_record(struct open_file *rec);         /* 0x23f90 */
 int32_t seek_named_chunk(FILE *handle, const char * path,
@@ -1077,7 +896,7 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 void compute_link_endpoints(struct rope *link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
-void set_side_flags(const int16_t *range, int16_t v, uint8_t * out);   /* 0x004fd */
+void set_side_flags(const int16_t *range, int16_t v, struct part_contact *out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
 void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
@@ -1104,7 +923,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 int16_t match_field_5a_5c(struct part *value, struct part *obj);   /* 0x06f43 */
 
 /* Pick one of two record fields by matching the other. */
-int16_t select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
+dg_near_t select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
 
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
@@ -1277,10 +1096,10 @@ void part_setup_seesaw(struct part *part);                /* 172c:40f0, 0x1b3b0 
 struct part *make_part(uint16_t kind);                     /* 0x14133 */
 void free_part(struct part *part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
-void draw_frame_corners(struct bmp_set *rec);              /* 0x0ee6e */
+void draw_frame_corners(struct bitmap **rec);              /* 0x0ee6e */
 void draw_answer_slot(struct bitmap *bmp, uint16_t slot);  /* 0x0edf1 */
 void redraw_cursor_all(void);                       /* 0x0b078 */
-void copy_protect_screen(struct bmp_set *bitmaps);                         /* 0x0ea39 */
+void copy_protect_screen(struct bitmap **bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
@@ -1306,7 +1125,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */
 void move_pointer_to(int16_t x, int16_t y);         /* 0x0aa76 */
 void vm_set_line_compare(uint16_t line);                         /* 0x08f27 */
-void regions_handle_pointer(uint16_t first);        /* 0x08546 */
+void regions_handle_pointer(dg_near_t first);        /* 0x08546 */
 
 /*
  * OURS: the port cannot call through a far pointer held in guest memory, so a
@@ -1546,9 +1365,9 @@ void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x03e23 */
-int16_t  queue_part(struct part *src, uint16_t part);   /* 0x07b6f */
+int16_t  queue_part(struct part *src, dg_near_t part);   /* 0x07b6f */
 int16_t  tension_belt(struct part *part);               /* 0x072c7 */
-int16_t  belt_orientation(uint16_t belt, int16_t which,
+int16_t  belt_orientation(dg_near_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
 uint16_t part_hit_generator(struct part *part);              /* 172c:1de0 */
@@ -1569,9 +1388,9 @@ int16_t  push_speed_for_mass(struct part *obj);         /* 172c:471f */
 void     trigger_things_at(struct part *part, int16_t mode,
                            int16_t dx);             /* 172c:477d */
 void     iff_write_be(uint8_t *p, int16_t count, int16_t size,
-                      struct file_rec *f);          /* 172c:4a54 */
-void     iff_write_cmap(struct file_rec *f);        /* 172c:4aea */
-void     iff_write_body(struct file_rec *f);        /* 172c:4b6c */
+                      FILE *f);          /* 172c:4a54 */
+void     iff_write_cmap(FILE *f);        /* 172c:4aea */
+void     iff_write_body(FILE *f);        /* 172c:4b6c */
 void     iff_save(char *name);                      /* 172c:4c21 */
 void     save_screenshot(char *name);               /* 172c:4d90 */
 void     vga_set_dac(const uint8_t *rgb, int16_t first,
@@ -1702,14 +1521,13 @@ uint16_t dos_get_attributes(const char *name);        /* 0x0b805 */
 void     dos_setdisk(uint8_t letter);               /* 0x0b819 */
 void reverse_link_ends(struct belt *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
-int16_t heapwalk(struct heapinfo *info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
 void redraw_machine_area(void);                     /* 0x15a2f */
-int16_t bin_part_at_index(int16_t index);           /* 0x05855 */
+dg_near_t bin_part_at_index(int16_t index);           /* 0x05855 */
 void refile_part_list(struct part *part);               /* 0x0578c */
-uint16_t bin_scroll_end(void);                      /* 0x058bb */
+dg_near_t bin_scroll_end(void);                      /* 0x058bb */
 void bin_scroll_back(void);                         /* 0x10cc8 */
 void bin_scroll_forward(void);                      /* 0x10d37 */
 void select_music_by_key(void);                      /* 0x0faf9 */
@@ -1774,12 +1592,6 @@ void write_word(FILE *file, const uint8_t * addr);      /* 0x123e4 */
 void write_string(FILE *file, char *str);        /* 0x12411 */
 uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                      FILE *file);                /* 0x094fb */
-uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
-                   struct file_rec *file);                  /* 0x0d321 */
-uint16_t stream_put_run(struct file_rec *file, uint16_t count, const uint8_t * buf); /* 0x0d8ca */
-int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
-int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
-int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0de6e */
 void write_part_count(FILE *file, struct part *head);       /* 0x126ec */
 void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
 uint16_t part_index(struct part *part);                 /* 0x11d00 */
@@ -1833,8 +1645,8 @@ uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
-struct bmp_set *load_bitmap_list(char *name);           /* 0x2367c */
-struct bmp_set *load_bitmaps(char *name);               /* 0x24f72 */
+struct bitmap **load_bitmap_list(char *name);           /* 0x2367c */
+struct bitmap **load_bitmaps(char *name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 void game_main(void);                               /* 0x0dfff */
@@ -1846,11 +1658,9 @@ uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
-int16_t borland_printf(const char *fmt, ...);        /* 0x0d754 */
-void borland_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
-int16_t part_by_index(int16_t index);           /* 0x11d44 */
+dg_near_t part_by_index(int16_t index);           /* 0x11d44 */
 
 /* Set the number of scan lines the CRTC displays before blanking. */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
@@ -1978,8 +1788,6 @@ void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300
 void expand_1bpp_to_4bpp(const uint8_t huge * src, uint8_t huge * dst,
                          uint16_t count);                     /* 0x23a8a */
 /* Borland's long arithmetic - see borland_huge.c. */
-int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
-uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 
 int16_t near lzss_reset(void);                      /* 0x1dc15 */
 /* resource.c: the resource streams, near routines of segment 1c25. */
@@ -2073,20 +1881,20 @@ void poly_outline(int16_t *xs, int16_t *ys,
                   int16_t n);                             /* 0x1f219 */
 void clip_polygon(void);                                      /* 0x20c07 */
 
-void free_bitmap_list(bmp_ptr_t * list);         /* 0x23a18 */
-void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
+void free_bitmap_list(struct bitmap ** list);         /* 0x23a18 */
+void free_bitmaps(struct bitmap ** list);            /* 0x23a3c */
 void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
                       uint16_t count);                    /* 0x24320 */
 void near emit_packed_value(int16_t value);              /* 0x2451f */
 void near write_literal_run(uint8_t count, uint8_t * buf); /* 0x245b9 */
 void near compress_row(uint8_t *src, int16_t remaining); /* 0x24639 */
 void near compress_bitmap(struct bitmap *bmp);              /* 0x24757 */
-int32_t compress_bitmap_list(bmp_ptr_t *list,
+int32_t compress_bitmap_list(struct bitmap **list,
                              uint8_t colours);     /* 0x243bf */
-void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
-uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
+void free_bitmaps_thunk(struct bitmap ** list);      /* 0x252d0 */
+uint16_t count_list_entries(struct bitmap ** list);  /* 0x23a6a */
 uint16_t read_bmp_info(FILE *handle, int16_t * count_at,
-                       bmp_ptr_t ** out);                        /* 0x234d2 */
+                       struct bitmap *** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta); /* 0x22190 */
 int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b); /* 0x2235a */
@@ -2100,17 +1908,13 @@ void     joy_read(int16_t stick, int16_t *x, int16_t *y); /* 0x21d19 */
 uint16_t joy_direction(int16_t stick);                 /* 0x21d91 */
 uint16_t joy_button(uint16_t n);                       /* 0x21dea */
 int16_t  joy_axis(uint16_t n);                         /* 0x21e04 */
-int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
-void near set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
+int16_t restore_file_record_from(const struct open_file *src);        /* 0x23ee4 */
+void near set_field_4_of_each(uint16_t value, struct bitmap ** list); /* 0x252b4 */
 void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
                              int16_t a, int16_t b, int16_t c);  /* 0x2537d */
-uint16_t count_list(bmp_ptr_t * list);             /* 0x252e0 */
+uint16_t count_list(struct bitmap ** list);             /* 0x252e0 */
 void near far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
-#ifndef __TURBOC__
-void dos_getdate(uint8_t * out);                        /* 0x0bd4a */
-#endif
-uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(const char far * a,
                      const char far * b);              /* 0x09f68 */
 void dos_find_to_dgroup(void);                         /* 0x0b6ef */
@@ -2120,9 +1924,6 @@ uint16_t dos_find_attr(void);                          /* 0x0b72e */
 char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(char *buf);                    /* 0x0b7b3 */
-char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
-int16_t borland_setbuf(struct file_rec *file, uint8_t *buf);     /* 0x0c1b2 */
-int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
 void checked_free(uint8_t *p);                         /* 0x08510 */
 void free_region_lists(void);                          /* 0x08eb5 */
@@ -2136,9 +1937,8 @@ void shutdown_input(void);                             /* 0x225a5 */
 void restore_video_mode(void);                         /* 0x225ba */
 void free_far_block(uint8_t far * h);        /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
-void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
-void heap_free_far(uint8_t * p);                        /* 0x0bb2d */
+void free_far(uint8_t * p);                        /* 0x0bb2d */
 void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void save_rect_thunk(uint8_t far * buf, int16_t x,

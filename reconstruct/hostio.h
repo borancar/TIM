@@ -138,7 +138,7 @@ int32_t  io_state_load(void *host_file);
 /* OURS: the host's formatting and console, for the game's units, which
    include no <stdio.h> - `not_transcribed` messages are built with
    `io_format`, and `main.c` complains through `io_errorf`. `io_puts` is
-   what `borland_printf` wrote through until the engine was transcribed. */
+   what `printf` wrote through until the engine was transcribed. */
 void     io_format(char *buf, uint32_t size, const char *fmt, ...);
 void     io_puts(const char *s);
 void     io_errorf(const char *fmt, ...);
@@ -241,14 +241,6 @@ void     dev_autoplay_past_intro(void);
  * Answers 1 when it filled the three in, 0 to leave the default alone - the
  * shipping binary always answers 0, so a comparison's date cannot move.
  */
-/*
- * The developer build's choice of sound overlays. Called with the three bytes
- * RESOURCE.CFG holds - or the game's own fallback if there is no such file -
- * and may change the device and module bytes. Non-zero if it changed either,
- * in which case the guest reads the changed bytes instead of the file's.
- */
-int32_t  dev_sound_cfg(uint8_t cfg[3]);
-
 int32_t  dev_date_override(uint16_t *year, uint16_t *monthday,
                            uint16_t *weekday);
 
@@ -274,15 +266,6 @@ void     dev_sfx_open(void);
  * OURS: render the OPL while one sound plays, into its own WAV. See devwav.c.
  */
 void     dev_fm_capture(int32_t id, double seconds);
-
-/*
- * Called when the game finishes writing a file - `io_dos_close` on an overlay
- * handle. The shipping binary's version does nothing; `devdump.c` writes the
- * bytes out, so a save can be compared against the original's **byte for
- * byte** rather than only by the screen it leaves behind. A machine file never
- * reaches a pixel, so nothing else can check it.
- */
-void     dev_file_written(const char *name, const uint8_t *data, uint32_t len);
 
 /*
  * A part hook with no transcription. The developer binary can be asked to
@@ -417,14 +400,12 @@ int32_t  io_load_program(const char *img_path, const char *exe_path);
  */
 void     io_start_program(void);
 void     io_dos_free(uint16_t seg);
-uint8_t *io_malloc(uint16_t bytes);
-void     io_free(uint8_t *p);
 
 /*
- * DOS file services, served read-only from the game directory. See io.c.
+ * DOS directory services, on the game directory. See hostio.c. The files
+ * themselves the game opens with the C library.
  */
 void     io_set_game_dir(const char *path);
-void     io_prime_file(int16_t handle, const char *name, int32_t pos);
 void     io_dos_getdate(uint16_t *year, uint16_t *monthday,
                         uint16_t *weekday);
 uint16_t io_bios_display_combination(void);
@@ -471,14 +452,7 @@ int16_t  io_dos_findfirst(const char *pattern, uint16_t attr,
                           uint32_t *size_out);
 int16_t  io_dos_findnext(uint8_t *name, uint8_t *attr_out,
                          uint32_t *size_out);
-int16_t  io_dos_devinfo(int16_t handle);
-int16_t  io_dos_open(const char *name);
-int16_t  io_dos_creat(const char *name);
-int16_t  io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count);
-int32_t  io_dos_forget(const char *name);
-int16_t  io_dos_read(int16_t handle, uint8_t *buf, uint16_t count);
-int32_t  io_dos_lseek(int16_t handle, int32_t pos, int16_t whence);
-void     io_dos_close(int16_t handle);
+int16_t  io_dos_unlink(const char *name);
 
 void     io_bios_set_mode(uint16_t mode);
 void     io_reset(void);

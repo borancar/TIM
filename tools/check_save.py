@@ -12,10 +12,11 @@ Both sides are driven from the program's entry point with the same clicks at
 the same page flips, so neither is started from a state the other did not reach
 the same way.
 
-**Neither side writes a real file.** The port satisfies guest writes from an
-in-memory overlay and the emulator does the same; this reads the bytes out of
-each as they are closed. Running it leaves the game directory exactly as it
-found it.
+**Neither side writes the real game directory.** The port writes its save
+with the C library into a copy of the directory made for the run, and this
+reads back what changed there; the emulator keeps guest writes in memory, and
+this reads them out as each file is closed. Running it leaves the game
+directory exactly as it found it.
 
 This file is the port's own tooling; it is not a transcription.
 """
@@ -78,40 +79,48 @@ INSNS = 400_000_000
 TIMEOUTS = {"empty": 180, "parts": 260}
 
 
-#: Everything this tool puts in the save directory itself - `port.log`, its
-#: capture of the port's stderr, and `game`, the copy of the game directory
-#: `run_port` makes so a save does not land in the real one. Anything else in
-#: there is the game's. Used by the wait *and* by the comparison: a watcher
-#: must not watch what it created, and a comparison must not compare it.
-OURS = {"port.log", "game"}
+def saved(gamedir):
+    """Every file in the run's game directory that is new or no longer the
+    original directory's, as name -> bytes."""
+    out = {}
+    for name in os.listdir(gamedir):
+        path = os.path.join(gamedir, name)
+        if not os.path.isfile(path):
+            continue
+        data = open(path, "rb").read()
+        orig = os.path.join(tim.GAME_DIR, name)
+        if not os.path.isfile(orig) or open(orig, "rb").read() != data:
+            out[name.upper()] = data
+    return out
 
 
 def run_port(outdir, timeout):
-    """Run the port with `TIM_SAVEDIR` and let it write whatever it saves.
+    """Run the port against a copy of the game directory and answer what it
+    saved there, as name -> bytes.
 
-    `devtim`, because `TIM_SAVEDIR` lives in `devdump.c` and the Makefile's rule
-    is that nothing a comparison depends on may reach what ships.
-
-    **Against a copy of the game directory**, because the port now keeps what
-    the guest writes: a handle that was written is written to the host at
-    close, so a save survives the session. That is the right behaviour and it
-    would otherwise leave a CATOMAT1.TIM in the real directory every time this
-    ran, which is exactly what the docstring above promises it does not do. The
+    **Against a copy**, because the port writes its files where the game asks,
+    as the original does: saving over CATOMATC.TIM replaces CATOMATC.TIM. The
     directory is 748K; copying it per run costs nothing worth measuring.
 
     A DOS game does not exit, so the port has to be stopped from outside.
     Waiting out the timeout works and wastes all of it; the file is there within
     a couple of minutes and nothing happens afterwards that this reads. So this
-    polls for a file to appear and to stop growing, and falls back on the
-    timeout only if the save is never reached.
+    polls for a changed file to appear and to stop changing, and falls back on
+    the timeout only if the save is never reached.
+
+    **Watch what is being waited for, not the directory it sits in.** Three
+    earlier versions of this loop watched the output directory and saw their
+    own `port.log` or the copied `game` directory, agreed with themselves
+    twice, and killed the port a second in - reporting "the port wrote
+    nothing", wrongly, each time. Only a file the game changed counts now.
     """
-    # TIM_HEADLESS: `devtim` opens a window by default now.
     gamedir = os.path.join(outdir, "game")
     shutil.copytree(tim.GAME_DIR, gamedir)
 
+    # TIM_HEADLESS: `devtim` opens a window by default now.
     env = dict(os.environ, TIM_HEADLESS="1",
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
-               TIM_SAVEDIR=outdir, TIM_GAMEDIR=gamedir)
+               TIM_GAMEDIR=gamedir)
     # **The port's own stderr is kept.** It says what is wrong when it cannot
     # start - a game directory it cannot read, say - and
     # discarding it turns a missing input into "the port never reached it",
@@ -121,38 +130,16 @@ def run_port(outdir, timeout):
                             cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL,
                             stderr=log)
+    last = None
     try:
         deadline = time.time() + timeout
-        size = -1
         while time.time() < deadline:
             if proc.poll() is not None:
-                return
-            # **Not the log.** `port.log` is created in this directory
-            # before the loop starts, so `os.listdir` is never empty and the
-            # first two passes see a total of 0 bytes twice - "written and no
-            # longer growing" - and the port is killed about a second after it
-            # starts, having reached nothing. Then the port is reported as
-            # writing no file, which is true and is this tool's fault.
-            #
-            # That is the second time this check has blamed the port for its
-            # own polling; the first is in STATUS.md. Watch what is being
-            # waited for, not the directory it happens to sit in.
-            #
-            # **And the third was `game`.** The line above named one file, so
-            # when `run_port` grew a `shutil.copytree` into the same directory
-            # the loop saw a directory that never changes size, agreed with
-            # itself twice, and killed the port a second in - reporting "the
-            # port wrote nothing" for the third time in this file's history,
-            # wrongly for the third time. `OURS` is now one list used by both
-            # the wait and the comparison, so a new artefact is excluded from
-            # both or from neither.
-            names = [n for n in os.listdir(outdir) if n not in OURS]
-            if names:
-                now = sum(os.path.getsize(os.path.join(outdir, n))
-                          for n in names)
-                if now == size:
-                    return              # written and no longer growing
-                size = now
+                break
+            now = saved(gamedir)
+            if now and now == last:
+                break                   # written and no longer changing
+            last = now
             time.sleep(0.5)
     finally:
         proc.terminate()
@@ -160,6 +147,7 @@ def run_port(outdir, timeout):
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
+    return saved(gamedir)
 
 
 def run_reference(insns):
@@ -267,7 +255,7 @@ def main():
     os.makedirs(out, exist_ok=True)
 
     print("port: running ...", flush=True)
-    run_port(out, args.timeout or TIMEOUTS[args.scenario])
+    mine_all = run_port(out, args.timeout or TIMEOUTS[args.scenario])
 
     print("original: running ...", flush=True)
     ref = run_reference(args.insns)
@@ -277,18 +265,14 @@ def main():
               "files, if any, are in %s" % out)
         return 2
 
-    # `OURS` is what this tool put there itself; see the note beside it.
-    # Counting `port.log` made every run report a spurious extra file, and
-    # counting `game` was worse - `open()` on a directory raises, so the run
-    # ended in a traceback after the real comparison had already passed.
-    got = sorted(n for n in os.listdir(out) if n not in OURS)
+    got = sorted(mine_all)
     if not got:
         print("the port wrote nothing")
         return 1
 
     bad = 0
     for name in got:
-        mine = open(os.path.join(out, name), "rb").read()
+        mine = mine_all[name]
         theirs = ref.get(name)
 
         if theirs is None:
@@ -327,7 +311,7 @@ def main():
             bad += 1
 
     if bad:
-        print("the port's files are in %s" % out)
+        print("the port's files are in %s" % os.path.join(out, "game"))
     return 0 if bad == 0 else 1
 
 

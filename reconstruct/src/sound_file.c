@@ -16,7 +16,7 @@
  * JUDGE: data 0x4a82..0x4ab4
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -544,7 +544,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
         /* The near heap takes a word, and its answer is widened with DS - so
            a refusal is DGROUP:0000, not the far null. Nothing in the game
            asks for these two kinds. */
-        p = heap_malloc_far((uint16_t)size);
+        p = malloc_far((uint16_t)size);
         blk = FAR_OF_NEAR(p);
     } else {
         blk = DOS_ALLOC_PTR(DOS_ALLOC(size, 0));
@@ -579,7 +579,7 @@ void free_for_kind(uint8_t far * blk, uint16_t kind)
 {
     if (kind == 6 || kind == 8) {
         /* The near heap takes only the offset. */
-        heap_free_far((uint8_t *)blk);
+        free_far((uint8_t *)blk);
         return;
     } else {
         dos_free_far(blk);

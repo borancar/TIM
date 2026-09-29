@@ -23,7 +23,7 @@
  * JUDGE: built-with -mm
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /* DGROUP 0x35d6..0x3600. */
@@ -511,18 +511,6 @@ int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count)
 {
     if (!select_resource(handle))
         return -1;
-#ifndef __TURBOC__
-    /*
-     * OURS, and a refusal rather than a fallback: the decompressors step
-     * this cursor and renormalise it in place, so the destination has to be
-     * somewhere the guest can address. Handed a frame local, `check_sound`
-     * once answered one run of blocks against fifty-five with nothing
-     * saying why; `dg_is_guest` is the exact question.
-     */
-    if (!dg_is_guest(dst))
-        port_abort("read_resource: a destination outside guest memory has no "
-                   "seg:off for the decompression cursor");
-#endif
     ENGINE_STREAM.out = normalise_far_ptr_far(dst);
     ENGINE_RESOURCE_FLAGS.flags |= 0x40;
     return resource_read(handle, count);

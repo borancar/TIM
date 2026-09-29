@@ -20,7 +20,7 @@
  * JUDGE: data 0x471e..0x4723
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*

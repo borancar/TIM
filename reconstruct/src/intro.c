@@ -18,8 +18,14 @@
  * JUDGE: built-with -mm -d
  * JUDGE: data 0x2370..0x258c
  */
+#include <string.h>
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -188,8 +194,8 @@ void game_intro(void)
     int16_t running;                        /* [bp-6] */
     int16_t frame;                          /* [bp-8] */
     uint16_t which;                         /* [bp-0xa] */
-    struct bmp_set *bitmaps;                /* [bp-0xc] */
-    struct bmp_set *gkc;                    /* [bp-0xe] */
+    struct bitmap **bitmaps;                /* [bp-0xc] */
+    struct bitmap **gkc;                    /* [bp-0xe] */
     register int16_t si;
     register const struct intro_step *step;
 
@@ -236,7 +242,7 @@ void game_intro(void)
             VMDS.page_dst_ptr = VMDS.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(BMP_PTR(bitmaps->bmp_ptr[step->bitmap]),
+            draw_bitmap(bitmaps[step->bitmap],
                         step->x, step->y + 0x19f, 0);
 
             if (step->bitmap == 0)
@@ -244,7 +250,7 @@ void game_intro(void)
 
             step++;
 
-            draw_bitmap(BMP_PTR(bitmaps->bmp_ptr[step->bitmap]),
+            draw_bitmap(bitmaps[step->bitmap],
                         step->x, step->y + 0x19f, 0);
 
             step++;
@@ -268,7 +274,7 @@ void game_intro(void)
             game_teardown(1);
     }
 
-    free_bitmaps_thunk(bitmaps->bmp_ptr);
+    free_bitmaps_thunk(bitmaps);
 
     DG52BD.saved_clip_top = DG52BD.saved_clip_left = 0;
     DG52BD.saved_clip_right = 0x27f;
@@ -408,7 +414,7 @@ void game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap(si);
 
-    DG4E67.icons_bmp_ptr = dg_near(dgroup, load_bitmaps(DG254A.icons_bmp));
+    DG4E67.icons_bmp = load_bitmaps(DG254A.icons_bmp);
     DG4E67.state = 0x8000;
 
     copy_protect_screen(gkc);
@@ -418,7 +424,7 @@ void game_intro(void)
     set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
     present_frame(1);
 
-    free_bitmaps_thunk(gkc->bmp_ptr);
+    free_bitmaps_thunk(gkc);
 
     stop_music_or_effect(0);
     show_cursor_again();
@@ -517,7 +523,7 @@ void game_intro(void)
  * the crack makes it do - so the measurement was of the patch, not of the
  * game.
  */
-void copy_protect_screen(struct bmp_set *bitmaps)
+void copy_protect_screen(struct bitmap **bitmaps)
 {
     int16_t x;                  /* [bp-2] */
     int16_t y;                  /* [bp-4] */
@@ -528,7 +534,9 @@ void copy_protect_screen(struct bmp_set *bitmaps)
     int16_t done;               /* [bp-0x12] */
     int16_t page;               /* [bp-0x14] */
     char numbuf[16];            /* [bp-0x24] */
-    char msg[80];               /* [bp-0x74] */
+    /* The message is 79 bytes and a NUL with a one-digit page, and one more
+       from page 10 - which runs into `numbuf`, spent by then. */
+    char msg[OVERRUN(80, 1)];   /* [bp-0x74] */
     register int16_t si;
     register int16_t pick;      /* the part a click lands on */
 
@@ -559,13 +567,13 @@ void copy_protect_screen(struct bmp_set *bitmaps)
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
     cursor_redraw_off_thunk();
-    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp_ptr[0x12]), 0x24c, 0x15e, 0);
+    draw_bitmap(DG52ED.panel_art[0x12], 0x24c, 0x15e, 0);
     restore_cursor_following();
 
-    int_to_string(page + 1, numbuf, 10);
-    string_copy(msg, DG1BCC.please_select_in_order);
-    string_concat(msg, numbuf);
-    string_concat(msg, DG1BCC.of_the_users_manual);
+    itoa(page + 1, numbuf, 10);
+    strcpy(msg, DG1BCC.please_select_in_order);
+    strcat(msg, numbuf);
+    strcat(msg, DG1BCC.of_the_users_manual);
     draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
@@ -580,7 +588,7 @@ void copy_protect_screen(struct bmp_set *bitmaps)
             part = 0x24;
 
         cursor_redraw_off_thunk();
-        draw_bitmap_centred(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[part]),
+        draw_bitmap_centred(DG4E67.icons_bmp[part],
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -632,7 +640,7 @@ void copy_protect_screen(struct bmp_set *bitmaps)
                     pick = 0x24;
 
                 answers[slot] = pick;
-                draw_answer_slot(BMP_PTR(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp_ptr[pick]),
+                draw_answer_slot(DG4E67.icons_bmp[pick],
                                  slot);
                 slot++;
                 if (slot == 3)
@@ -715,14 +723,14 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
  * 0x175, bottom right at both. The positions are constants in the code, so the
  * frame is the same size whatever is inside it.
  */
-void draw_frame_corners(struct bmp_set *rec)
+void draw_frame_corners(struct bitmap **rec)
 {
     cursor_redraw_off_thunk();
 
-    draw_bitmap(BMP_PTR(rec->bmp_ptr[0]), 0, 0, 0);
-    draw_bitmap(BMP_PTR(rec->bmp_ptr[1]), 0x262, 0, 0);
-    draw_bitmap(BMP_PTR(rec->bmp_ptr[2]), 0, 0x175, 0);
-    draw_bitmap(BMP_PTR(rec->bmp_ptr[3]), 0x262, 0x175, 0);
+    draw_bitmap(rec[0], 0, 0, 0);
+    draw_bitmap(rec[1], 0x262, 0, 0);
+    draw_bitmap(rec[2], 0, 0x175, 0);
+    draw_bitmap(rec[3], 0x262, 0x175, 0);
 
     restore_cursor_following();
 }

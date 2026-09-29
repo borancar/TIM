@@ -27,7 +27,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -768,7 +768,7 @@ uint8_t far *load_video_driver(register int16_t adapter, char *name)
     if (di == 0)
         return FAR_NULL_PTR;
 
-    string_copy_far(OVL_TAG + 4, ADAPTER_TAG[adapter - 1]);
+    strcpy_far(OVL_TAG + 4, ADAPTER_TAG[adapter - 1]);
 
     if (seek_named_chunk(di, OVL_TAG, 0) == -1L)
         return FAR_NULL_PTR;

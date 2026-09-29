@@ -24,8 +24,11 @@
  * JUDGE: tasm
  * JUDGE: assembler bc3.00
  */
+#ifndef __TURBOC__
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -475,7 +478,7 @@ int16_t timer_install(uint16_t rate)
     TIMER.slot_mask = 0;
     detect_pcjr();
 
-    S1C_TIMER.old_int8 = dos_getvect(8);
+    S1C_TIMER.old_int8 = getvect(8);
 
     if (rate > 0xff || rate == 0)
         return 0;
@@ -498,7 +501,7 @@ int16_t timer_install(uint16_t rate)
     io_out8(0x40, (uint8_t)(divisor >> 8));
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    dos_setvect(8, (struct far_ptr){ 0x4517, (uint16_t)(S1C25 >> 4) });
+    setvect(8, (struct far_ptr){ 0x4517, (uint16_t)(S1C25 >> 4) });
 
     io_unlock();                                        /* `sti` */
 
@@ -530,7 +533,7 @@ int16_t timer_remove(void)
     io_out8(0x40, 0);
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    dos_setvect(8, S1C_TIMER.old_int8);
+    setvect(8, S1C_TIMER.old_int8);
 
     TIMER.installed = 0;
     return 1;

@@ -33,8 +33,11 @@
  * JUDGE: tasm
  * JUDGE: assembler bc3.00
  */
+#ifndef __TURBOC__
+#include "hostlib.h"
+#endif
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 #ifdef __TURBOC__
@@ -773,13 +776,13 @@ uint16_t install_keyboard(int16_t hook_timer)
 {
     if (ENGINE_KEYBOARD.installed == 0) {
 
-        S1C_KEYBOARD.old_int9 = dos_getvect(0x09);
-        S1C_KEYBOARD.old_int1c = dos_getvect(0x1c);
+        S1C_KEYBOARD.old_int9 = getvect(0x09);
+        S1C_KEYBOARD.old_int1c = getvect(0x1c);
 
-        dos_setvect(0x09, (struct far_ptr){ 0x4f46, (uint16_t)(S1C25 >> 4) });
+        setvect(0x09, (struct far_ptr){ 0x4f46, (uint16_t)(S1C25 >> 4) });
 
         if (hook_timer != 0)
-            dos_setvect(0x1c, (struct far_ptr){ 0x5136, (uint16_t)(S1C25 >> 4) });
+            setvect(0x1c, (struct far_ptr){ 0x5136, (uint16_t)(S1C25 >> 4) });
 
         ENGINE_PCJR_KEYBOARD.pcjr_keyboard = 0;
 
@@ -812,7 +815,7 @@ uint16_t install_keyboard(int16_t hook_timer)
  *
  * The `push ds` / `pop ds` around the two INT 21h calls is because AH=25h
  * takes the handler in DS:DX and DS has to be restored afterwards; the port
- * hands `dos_setvect` the pair and there is nothing to save.
+ * hands `setvect` the pair and there is nothing to save.
  */
 int16_t remove_keyboard(void)
 {
@@ -823,8 +826,8 @@ int16_t remove_keyboard(void)
 
     FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
 
-    dos_setvect(0x09, S1C_KEYBOARD.old_int9);
-    dos_setvect(0x1c, S1C_KEYBOARD.old_int1c);
+    setvect(0x09, S1C_KEYBOARD.old_int9);
+    setvect(0x1c, S1C_KEYBOARD.old_int1c);
 
     return 1;
 }

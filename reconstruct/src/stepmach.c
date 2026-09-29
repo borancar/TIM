@@ -20,7 +20,7 @@
  * JUDGE: built-with -mm -zC_TEXT
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -56,7 +56,7 @@ void step_machine(void)
     int16_t belt;                       /* [bp-4] */
     struct belt *b;                     /* [bp-6] */
     register struct part *si;
-    register uint16_t di;
+    register dg_near_t di;
 
     for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE;
          si = PART_PTR(si->next_ptr))

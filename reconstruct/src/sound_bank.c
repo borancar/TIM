@@ -16,7 +16,7 @@
  * JUDGE: data 0x4a7e..0x4a82
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -241,64 +241,41 @@ void free_node_list(struct sound_node far * list)
  * running on.
  *
  * The three bytes it reads into are locals, and their addresses are handed to
- * `read_resource` as `SS:offset` - which in this program is a DGROUP address,
- * so the port puts them on the guest stack. See `dg_alloca` in dgroup.h.
+ * `read_resource` as `SS:offset` - which in this program is a DGROUP address.
  *
  * The name is a guess from the shape; what the records are is not established
  * here.
  */
 uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
 {
-#ifdef __TURBOC__
     uint8_t id;                         /* [bp-1] */
     uint8_t skip;                       /* [bp-2] */
     uint8_t tag;                        /* [bp-3] */
-#  define ID            id
-#  define SKIP          skip
-#  define TAG           tag
-#  define LEAVE(v)      return (v)
-#else
-    /*
-     * **The three bytes have to be the guest's.** `read_resource` files its
-     * destination as the decompressor's cursor at DGROUP 0x5894, a `seg:off`
-     * pair, so on the host they are carved from the guest's stack and given
-     * back at every return. Ours.
-     */
-    uint16_t at = dg_alloca(4);
-#  define ID            (*dg_near_ptr((uint16_t)(at + 3)))
-#  define SKIP          (*dg_near_ptr((uint16_t)(at + 2)))
-#  define TAG           (*dg_near_ptr((uint16_t)(at + 1)))
-#  define LEAVE(v)      do { dg_free(4); return (v); } while (0)
-#endif
 
-    if (read_resource(handle, &TAG, 1) != 1)
-        LEAVE(0);
-    if (TAG != 0x84)
-        LEAVE(0);
-    if (read_resource(handle, &TAG, 1) != 1)
-        LEAVE(0);
-    if (read_resource(handle, &ID, 1) != 1)
-        LEAVE(0);
+    if (read_resource(handle, &tag, 1) != 1)
+        return 0;
+    if (tag != 0x84)
+        return 0;
+    if (read_resource(handle, &tag, 1) != 1)
+        return 0;
+    if (read_resource(handle, &id, 1) != 1)
+        return 0;
 
-    while (ID != want) {
-        if (ID == 0xff || read_resource(handle, &SKIP, 1) != 1)
-            LEAVE(0);
+    while (id != want) {
+        if (id == 0xff || read_resource(handle, &skip, 1) != 1)
+            return 0;
 
-        while (SKIP != 0xff) {
+        while (skip != 0xff) {
             resource_seek(handle, 5L, 1);
-            if (read_resource(handle, &SKIP, 1) != 1)
-                LEAVE(0);
+            if (read_resource(handle, &skip, 1) != 1)
+                return 0;
         }
 
-        if (read_resource(handle, &ID, 1) != 1)
-            LEAVE(0);
+        if (read_resource(handle, &id, 1) != 1)
+            return 0;
     }
 
-    LEAVE(1);
-#undef ID
-#undef SKIP
-#undef TAG
-#undef LEAVE
+    return 1;
 }
 
 /*
@@ -325,20 +302,13 @@ uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
  */
 struct sound_node far *read_sound_records(int16_t handle)
 {
-#ifdef __TURBOC__
     uint8_t id;                         /* [bp-1] */
-#  define ID            id
-#else
-    /* The byte has to be the guest's; see `seek_to_sound_record`. Ours. */
-    uint16_t at = dg_alloca(2);
-#  define ID            (*dg_near_ptr((uint16_t)(at + 1)))
-#endif
     struct sound_node far *head = SOUND_NODE_NONE;
     struct sound_node far *node;
 
-    read_resource(handle, &ID, 1);
+    read_resource(handle, &id, 1);
 
-    while (ID != 0xff
+    while (id != 0xff
            && (node = (struct sound_node far *)
                    alloc_for_kind(sizeof(struct sound_node), 9))
               != SOUND_NODE_NONE) {
@@ -346,7 +316,7 @@ struct sound_node far *read_sound_records(int16_t handle)
 
         resource_seek(handle, 1L, 1);
         read_resource(handle, (uint8_t far *)node, 4);
-        read_resource(handle, &ID, 1);
+        read_resource(handle, &id, 1);
 
         if (head == SOUND_NODE_NONE)
             head = node;
@@ -356,14 +326,10 @@ struct sound_node far *read_sound_records(int16_t handle)
 
     /* A list cut short by a failed allocation is freed, and then answered
        all the same. */
-    if (ID != 0xff)
+    if (id != 0xff)
         free_node_list(head);
 
-#ifndef __TURBOC__
-    dg_free(2);
-#endif
     return head;
-#undef ID
 }
 
 /*
@@ -671,15 +637,20 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
  * DGROUP 0x6414 again, the 0xff at +0x158 as the mark, and
  * `retire_and_tick_far` as the retirement - the same three pieces as
  * `stop_voice_playing`, over all of them rather than one.
+ *
+ * It is called before the voices are allocated, when every entry is a far
+ * null, and then it reads and writes the interrupt table's byte at 0000:0158
+ * - the first pass marks it 0xff and the other six find it so. `ZERO_PAGE`
+ * gives the host the same bytes.
  */
 void stop_all_voices(void)
 {
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        if (SOUND_VOICES.voice[i]->state != 0xff) {
-            retire_and_tick_far(SOUND_VOICES.voice[i]);
-            SOUND_VOICES.voice[i]->state = 0xff;
+        if (ZERO_PAGE(SOUND_VOICES.voice[i])->state != 0xff) {
+            retire_and_tick_far(ZERO_PAGE(SOUND_VOICES.voice[i]));
+            ZERO_PAGE(SOUND_VOICES.voice[i])->state = 0xff;
         }
     }
 }

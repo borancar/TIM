@@ -20,7 +20,7 @@
  */
 #include <stdlib.h>
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -367,7 +367,7 @@ void collect_carried(register struct part *obj)
  * +4 is 0x11 have such a chain; anything else answers no without looking.
  * The chain is linked through the near pointer at +0x78.
  */
-int16_t chain_contains(register struct part *rec, uint16_t node)
+int16_t chain_contains(register struct part *rec, dg_near_t node)
 {
     register struct part *p;
 

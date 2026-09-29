@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "sdl.h"
 #include "tim.h"
 
@@ -46,13 +46,6 @@ int main(void)
 {
     io_reset();
     io_start_program();
-
-    /*
-     * What the C runtime does between the loader and `main`: its init table at
-     * DGROUP 0x4e48 has a single entry, and it is `setup_streams`. Without it
-     * every stream looks already-open and no file can be read.
-     */
-    setup_streams();
 
     /*
      * The window, and the guest's own cue to put a frame in it. Registering it

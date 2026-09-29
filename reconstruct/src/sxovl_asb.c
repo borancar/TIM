@@ -19,8 +19,13 @@
  *
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
+#ifndef __TURBOC__
+#include <unistd.h>
+
+#include "hostlib.h"
+#endif
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 
 /*
@@ -381,8 +386,8 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
     uint16_t mask;
     uint8_t  bit, was;
 
-    *(struct far_ptr *)&ASB16(save_at) = dos_getvect(vec);
-    dos_setvect(vec, (struct far_ptr){ handler, ASB_SEG });
+    *(struct far_ptr *)&ASB16(save_at) = getvect(vec);
+    setvect(vec, (struct far_ptr){ handler, ASB_SEG });
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
 
@@ -403,7 +408,7 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
 {
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
-    dos_setvect(vec, (struct far_ptr){ ASBU16(save_at),
+    setvect(vec, (struct far_ptr){ ASBU16(save_at),
                                        ASBU16(save_at + 2) });
     io_out8(((uint16_t)ASBS.pic_port), mask_was);
 
@@ -806,13 +811,13 @@ uint16_t asb_uninstall(void)
 {
     asb_shutdown();
 
-    dos_setvect(0x10, ASBS.old_int10);
-    dos_setvect(0x0d, ASBS.old_int0d);
-    dos_setvect(0x74, ASBS.old_int74);
-    dos_setvect(0x09, ASBS.old_int09);
+    setvect(0x10, ASBS.old_int10);
+    setvect(0x0d, ASBS.old_int0d);
+    setvect(0x74, ASBS.old_int74);
+    setvect(0x09, ASBS.old_int09);
 
     if (((uint16_t)ASBS.file_handle) != 0xffff) {
-        io_dos_close((int16_t)((uint16_t)ASBS.file_handle));
+        close((int16_t)((uint16_t)ASBS.file_handle));
         ASBS.file_handle = (int16_t)0xffff;
     }
 
@@ -925,17 +930,17 @@ uint16_t asb_install(void)
 
     ASBS.stopped = 1;
 
-    ASBS.old_int10 = dos_getvect(0x10);
-    dos_setvect(0x10, (struct far_ptr){ 0x052b, ASB_SEG });
+    ASBS.old_int10 = getvect(0x10);
+    setvect(0x10, (struct far_ptr){ 0x052b, ASB_SEG });
 
-    ASBS.old_int0d = dos_getvect(0x0d);
-    dos_setvect(0x0d, (struct far_ptr){ 0x053e, ASB_SEG });
+    ASBS.old_int0d = getvect(0x0d);
+    setvect(0x0d, (struct far_ptr){ 0x053e, ASB_SEG });
 
-    ASBS.old_int74 = dos_getvect(0x74);
-    dos_setvect(0x74, (struct far_ptr){ 0x0551, ASB_SEG });
+    ASBS.old_int74 = getvect(0x74);
+    setvect(0x74, (struct far_ptr){ 0x0551, ASB_SEG });
 
-    ASBS.old_int09 = dos_getvect(0x09);
-    dos_setvect(0x09, (struct far_ptr){ 0x0564, ASB_SEG });
+    ASBS.old_int09 = getvect(0x09);
+    setvect(0x09, (struct far_ptr){ 0x0564, ASB_SEG });
 
     /*
      * INT 21h AH=34h, the address of the InDOS flag, and the byte below it.

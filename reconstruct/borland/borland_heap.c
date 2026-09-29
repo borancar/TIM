@@ -48,7 +48,7 @@
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
 #include "dgroup.h"
-#include "io.h"
+#include "hostio.h"
 #include "tim.h"
 
 /*
@@ -104,7 +104,7 @@ int16_t brk_set(const uint8_t *addr)
  */
 uint8_t *heap_sbrk(uint16_t lo, uint16_t hi)
 {
-    uint32_t sum = (uint32_t)DG0094.brklvl_ptr + lo + ((uint32_t)hi << 16);
+    uint32_t sum = (uint32_t)NEAR_OFF(DG0094.brklvl_ptr) + lo + ((uint32_t)hi << 16);
     uint16_t cx = (uint16_t)sum;
     uint8_t *old;
 
@@ -115,8 +115,8 @@ uint8_t *heap_sbrk(uint16_t lo, uint16_t hi)
     if ((uint16_t)(cx + 0x200) >= guest_sp)
         goto fail;
 
-    old = dg_near_ptr(DG0094.brklvl_ptr);
-    DG0094.brklvl_ptr = cx;
+    old = DG0094.brklvl_ptr;
+    DG0094.brklvl_ptr = dgroup + cx;
     return old;
 
 fail:

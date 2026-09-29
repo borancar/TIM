@@ -42,7 +42,7 @@
  * like one. The judge would say so only if the data or the code disagreed.
  */
 #include "tim.h"
-#include "io.h"
+#include "hostio.h"
 #include "dgroup.h"
 
 /*
@@ -81,7 +81,7 @@ struct sound_voices SOUND_VOICES DGROUP_WAS(0x6414);
  * Set up the sound device: load its **module** and then its **driver**, and
  * answer 0 if both worked and 1 if either did not.
  *
- * Two names are built the same way - `string_copy_far` puts one of the strings
+ * Two names are built the same way - `strcpy_far` puts one of the strings
  * named by the tables at DGROUP 0x4a2e and 0x4a1c into the buffer at 0x4a16,
  * which the template at 0x4a12 is the head of - and `load_named_chunk` reads
  * the chunk of that name.
@@ -116,7 +116,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     int16_t failed = 0;
 
     if (module_index != -2) {
-        string_copy_far(SOUND_CHUNK_NAME + 4,
+        strcpy_far(SOUND_CHUNK_NAME + 4,
                         SOUND_MODULE_TAGS[module_index]);
 
         if ((DG4A82.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
@@ -149,7 +149,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     }
 
     if (device != -2) {
-        string_copy_far(SOUND_CHUNK_NAME + 4,
+        strcpy_far(SOUND_CHUNK_NAME + 4,
                         SOUND_DEVICE_TAGS[device]);
 
         if ((DG4A82.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
