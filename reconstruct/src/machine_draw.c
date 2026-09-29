@@ -59,14 +59,6 @@ struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM = {
 /* The selection outline's phase, DGROUP 0x25d6. */
 struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE = { 0 };
 
-/* The module's literal pool, DGROUP 0x25d8..0x25e8: the message box's three
-   button labels. */
-struct game_button_labels GAME_BUTTON_LABELS = {
-    "CONTINUE", /* continue_btn */
-    "YES", /* yes */
-    "NO", /* no */
-};
-
 /*
  * 0x14dec
  *
@@ -423,7 +415,7 @@ void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
  */
 void show_message_box(const char *title, char *body)
 {
-    message_box(title, body, GAME_BUTTON_LABELS.continue_btn, NULL);
+    message_box(title, body, "CONTINUE", NULL);
 }
 
 /*
@@ -443,7 +435,7 @@ void show_message_box(const char *title, char *body)
  */
 uint16_t ask_yes_no(const char *title, char *body)
 {
-    return message_box(title, body, GAME_BUTTON_LABELS.yes, GAME_BUTTON_LABELS.no);
+    return message_box(title, body, "YES", "NO");
 }
 
 /*

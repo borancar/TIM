@@ -39,8 +39,22 @@
 
 /*
  * **The IFF chunk names**, DGROUP 0x355a..0x3576, and the mode the file is
- * written with: this module's `_DATA`.
+ * written with. **Declared data, not literals**: written as literals, Borland
+ * C++ lays them out in the order the module first uses them - "CMAP" and
+ * "BODY" from the two writers above `iff_save`, then "wb" - and the image has
+ * FORM, ILBM, BMHD, CMAP, BODY, wb. They were the tail of `p_3522`'s 21
+ * points until the six strings were read as what they are.
  */
+struct iff_chunk_names {
+    char      form[5];            /* +0x00  "FORM" */
+    char      ilbm[5];            /* +0x05  "ILBM" */
+    char      bmhd[5];            /* +0x0a  "BMHD" */
+    char      cmap[5];            /* +0x0f  "CMAP" */
+    char      body[5];            /* +0x14  "BODY" */
+    char      mode_wb[3];         /* +0x19  "wb" */
+} PACKED;
+
+/* This module's whole `_DATA`. */
 struct iff_chunk_names IFF_CHUNK_NAMES = {
     "FORM", /* form */
     "ILBM", /* ilbm */

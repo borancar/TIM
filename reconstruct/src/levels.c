@@ -14,8 +14,8 @@
  * read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d
- * JUDGE: data 0x2870..0x28d2
+ * JUDGE: built-with -mm
+ * JUDGE: data 0x2870..0x28d1
  */
 #include <string.h>
 #ifdef __TURBOC__
@@ -26,66 +26,6 @@
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
-
-/*
- * **The file names and modes**, DGROUP 0x2870..0x28d2, 0x62 bytes: one "rb", "wb", "l", ".lev",
- * "password.txt" or "tim.cfg" per call site, in the order the routines that
- * open them sit in the segment. The two at 0x287d and 0x287f are
- * `save_level`'s, which nothing calls. The run ends at the hash order at 0x28d2.
- *
- * The four names are fields because `game_fopen` uppercases a name in place
- * through `hash_filename` - see `game_startup_names`. The modes and the "l" and ".lev"
- * pieces are only read, and each routine reads its own copy by name.
- */
-struct game_file_names {
-    char rb_read_level[3];        /* +0x00 [3]  read_level */
-    char wb_write_level[3];       /* +0x03 [3]  write_level */
-    char l_load_level[2];         /* +0x06 [2]  load_level builds "l<n>.lev" */
-    char lev_load_level[5];       /* +0x08 [5] */
-    char l_save_level[2];         /* +0x0d [2]  save_level, which nothing calls */
-    char lev_save_level[5];       /* +0x0f [5] */
-    char rb_is_machine_file[3];   /* +0x14 [3]  is_machine_file */
-    char l_count_levels[2];       /* +0x17 [2]  count_level_files */
-    char lev_count_levels[5];     /* +0x19 [5] */
-    char rb_count_levels[3];      /* +0x1e [3] */
-    char l_puzzle_title[2];       /* +0x21 [2]  get_puzzle_title */
-    char lev_puzzle_title[5];     /* +0x23 [5] */
-    char rb_puzzle_title[3];      /* +0x28 [3] */
-    char password_txt_level[13];  /* +0x2b [0xd]  password_to_level */
-    char rb_password_level[3];    /* +0x38 [3] */
-    char password_txt_line[13];   /* +0x3b [0xd]  read_password_line */
-    char rb_password_line[3];     /* +0x48 [3] */
-    char tim_cfg_read[8];         /* +0x4b [8]  read_tim_cfg */
-    char rb_tim_cfg[3];           /* +0x53 [3] */
-    char tim_cfg_write[8];        /* +0x56 [8]  write_config, which writes it */
-    char wb_tim_cfg[3];           /* +0x5e [3] */
-    uint8_t pad_28d1[1];          /* +0x61 [1] */
-} PACKED;
-
-struct game_file_names GAME_FILE_NAMES = {   /* DGROUP 0x2870 */
-    "rb", /* rb_read_level */
-    "wb", /* wb_write_level */
-    "l", /* l_load_level */
-    ".lev", /* lev_load_level */
-    "l", /* l_save_level */
-    ".lev", /* lev_save_level */
-    "rb", /* rb_is_machine_file */
-    "l", /* l_count_levels */
-    ".lev", /* lev_count_levels */
-    "rb", /* rb_count_levels */
-    "l", /* l_puzzle_title */
-    ".lev", /* lev_puzzle_title */
-    "rb", /* rb_puzzle_title */
-    "password.txt", /* password_txt_level */
-    "rb", /* rb_password_level */
-    "password.txt", /* password_txt_line */
-    "rb", /* rb_password_line */
-    "tim.cfg", /* tim_cfg_read */
-    "rb", /* rb_tim_cfg */
-    "tim.cfg", /* tim_cfg_write */
-    "wb", /* wb_tim_cfg */
-    {0}, /* pad_28d1 */
-};
 
 /* The level reader's and writer's own words - see `struct level_io`. */
 struct level_io LEVEL_IO;   /* DGROUP 0x546c */
@@ -507,7 +447,7 @@ void read_level(char *name)
     char buf[SETBUF_ROOM(0x210)];       /* [bp-0x216] */
     register FILE *file;
 
-    if ((file = game_fopen(name, GAME_FILE_NAMES.rb_read_level)) != 0) {
+    if ((file = game_fopen(name, "rb")) != 0) {
         game_setbuf(file, (uint8_t *)buf);
         game_fread_far(file, (uint8_t *)&LEVEL_IO.version_out);
 
@@ -814,7 +754,7 @@ uint16_t write_level(register char *name)
     LEVEL_IO.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    if ((f = game_fopen(name, GAME_FILE_NAMES.wb_write_level)) != 0) {
+    if ((f = game_fopen(name, "wb")) != 0) {
         write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
         write_word(f, (const uint8_t *)&LEVEL_IO.version);
 
@@ -874,10 +814,10 @@ void load_level(uint16_t number)
     char name[14];
     char digits[8];
 
-    strcpy(name, GAME_FILE_NAMES.l_load_level);
+    strcpy(name, "l");
     itoa((int16_t)number, digits, 10);
     strcat(name, digits);
-    strcat(name, GAME_FILE_NAMES.lev_load_level);
+    strcat(name, ".lev");
 
     LEVEL_IO.is_level = 1;
     read_level(name);
@@ -896,10 +836,10 @@ void save_level(uint16_t number)
     char name[14];
     char digits[8];
 
-    strcpy(name, GAME_FILE_NAMES.l_save_level);
+    strcpy(name, "l");
     itoa((int16_t)number, digits, 10);
     strcat(name, digits);
-    strcat(name, GAME_FILE_NAMES.lev_save_level);
+    strcat(name, ".lev");
 
     LEVEL_IO.is_level = 1;
     write_level(name);
@@ -974,7 +914,7 @@ uint16_t is_machine_file(char *name)
     uint16_t magic;               /* [bp-2] */
     register FILE *file;
 
-    if ((file = game_fopen(name, GAME_FILE_NAMES.rb_is_machine_file)) != 0) {
+    if ((file = game_fopen(name, "rb")) != 0) {
         game_fread_far(file, (uint8_t *)&magic);
         if (magic == 0xaced) {
             game_fclose(file);
@@ -1010,12 +950,12 @@ void count_level_files(void)
     DG4E67.level_count = 1;
 
     while (done == 0) {
-        strcpy(name, GAME_FILE_NAMES.l_count_levels);
+        strcpy(name, "l");
         itoa(DG4E67.level_count, number, 10);
         strcat(name, number);
-        strcat(name, GAME_FILE_NAMES.lev_count_levels);
+        strcat(name, ".lev");
 
-        if ((file = game_fopen(name, GAME_FILE_NAMES.rb_count_levels)) != 0) {
+        if ((file = game_fopen(name, "rb")) != 0) {
             DG4E67.level_count++;
             game_fclose(file);
         } else {
@@ -1047,12 +987,12 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
     char name[14];                      /* [bp-0x1a] */
     register FILE *file;
 
-    strcpy(name, GAME_FILE_NAMES.l_puzzle_title);
+    strcpy(name, "l");
     itoa(n, num, 10);
     strcat(name, num);
-    strcat(name, GAME_FILE_NAMES.lev_puzzle_title);
+    strcat(name, ".lev");
 
-    if ((file = game_fopen(name, GAME_FILE_NAMES.rb_puzzle_title)) == 0)
+    if ((file = game_fopen(name, "rb")) == 0)
         return 0;
 
     game_fread_far(file, (uint8_t *)&magic);
@@ -1107,8 +1047,8 @@ uint16_t password_to_level(register char *text)
     answer = -1;
     n = 1;
 
-    if ((file = game_fopen(GAME_FILE_NAMES.password_txt_level,
-                           GAME_FILE_NAMES.rb_password_level)) != 0) {
+    if ((file = game_fopen(WRITABLE_LITERAL("password.txt"),
+                           "rb")) != 0) {
         while (game_fread_line(file, line), *line) {
             n++;
             if (stricmp(text, line) == 0)
@@ -1145,8 +1085,8 @@ void read_password_line(register int16_t count, register char *buf)
 
     *buf = 0;
 
-    if ((f = game_fopen(GAME_FILE_NAMES.password_txt_line,
-                        GAME_FILE_NAMES.rb_password_line)) != 0) {
+    if ((f = game_fopen(WRITABLE_LITERAL("password.txt"),
+                        "rb")) != 0) {
         while (count != 0) {
             count--;
             game_fread_line(f, buf);
@@ -1171,7 +1111,7 @@ uint16_t read_tim_cfg(void)
     register FILE *file;
     register uint16_t found;
 
-    if ((file = game_fopen(GAME_FILE_NAMES.tim_cfg_read, GAME_FILE_NAMES.rb_tim_cfg)) != 0) {
+    if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "rb")) != 0) {
         game_fread_far(file, (uint8_t *)&DG4E67.furthest_level);
         game_fread_far(file, (uint8_t *)&DG4E67.master_level);
         game_fclose(file);
@@ -1197,7 +1137,7 @@ void write_config(void)
 {
     register FILE *file;
 
-    if ((file = game_fopen(GAME_FILE_NAMES.tim_cfg_write, GAME_FILE_NAMES.wb_tim_cfg)) != 0) {
+    if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "wb")) != 0) {
         write_word(file, (const uint8_t *)&DG4E67.furthest_level);
         write_word(file, (const uint8_t *)&DG4E67.master_level);
         game_fclose(file);

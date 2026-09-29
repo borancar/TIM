@@ -23,50 +23,6 @@
 #include "dgroup.h"
 
 /*
- * **The runtime's own file names**, DGROUP 0x00aa..0x0116, 0x6c bytes: the configuration, the
- * two overlays, the palettes, the font, the cursor and the two panel bitmaps
- * `game_startup` opens, in the order Borland filed them. Typed from the
- * image; the names are ours, from the text. The run ends at the master-level
- * table at 0x116.
- *
- * **A name the game opens stays in DGROUP.** `game_fopen` hands it to
- * `hash_filename`, which uppercases it in place - so after the first open the
- * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
- * the verifier compares them. A C string literal is read-only and would
- * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
- * to `fopen` and not through the hash - is a literal at its call site.
- */
-struct game_startup_names {
-    char resource_cfg[13];   /* +0x00 [0xd]  "RESOURCE.CFG" (a literal where it is read) */
-    char rb[3];              /* +0x0d [3]  "rb" */
-    char vm_ovl[7];          /* +0x10 [7]  "vm.ovl" */
-    char tim_pal[8];         /* +0x17 [8]  "tim.pal" */
-    char sierra_pal[11];     /* +0x1f [0xb]  "sierra.pal" */
-    char black_pal[10];      /* +0x2a [0xa]  "black.pal" */
-    char memofnt8_fnt[13];   /* +0x34 [0xd]  "memofnt8.fnt" */
-    char mouse_bmp[10];      /* +0x41 [0xa]  "mouse.bmp" */
-    char cp_bmp[7];          /* +0x4b [7]  "cp.bmp"       game_startup */
-    char gp_bord_bmp[12];    /* +0x52 [0xc]  "gp_bord.bmp"  game_startup */
-    char sx_ovl[7];          /* +0x5e [7]  "sx.ovl" */
-    char tim_sx[7];          /* +0x65 [7]  "tim.sx"       game_startup */
-} PACKED;
-
-struct game_startup_names GAME_STARTUP_NAMES = {   /* DGROUP 0x00aa */
-    "RESOURCE.CFG", /* resource_cfg */
-    "rb", /* rb */
-    "vm.ovl", /* vm_ovl */
-    "tim.pal", /* tim_pal */
-    "sierra.pal", /* sierra_pal */
-    "black.pal", /* black_pal */
-    "memofnt8.fnt", /* memofnt8_fnt */
-    "mouse.bmp", /* mouse_bmp */
-    "cp.bmp", /* cp_bmp */
-    "gp_bord.bmp", /* gp_bord_bmp */
-    "sx.ovl", /* sx_ovl */
-    "tim.sx", /* tim_sx */
-};
-
-/*
  * 0x0dfff
  *
  * **`main`.** The Borland startup calls it at image 0x00155 with argc, argv
@@ -150,7 +106,7 @@ void game_startup(void)
     sound_module = -2;
     sound_device = 0;
 
-    file = fopen(GAME_STARTUP_NAMES.resource_cfg, GAME_STARTUP_NAMES.rb);
+    file = fopen("RESOURCE.CFG", "rb");
     if (file != NULL) {
         fread((uint8_t *)&cfg_byte, 1, 1, file);
         cfg_first = cfg_byte;          /* stored and never read back */
@@ -174,7 +130,7 @@ void game_startup(void)
     DG52BD.fill_colour = 3;
     DG52BD.bin_colour = 0x0b;
 
-    vm_ok = vm_init(0x0d, 0x80, (FILE *)GAME_STARTUP_NAMES.vm_ovl);
+    vm_ok = vm_init(0x0d, 0x80, (FILE *)WRITABLE_LITERAL("vm.ovl"));
     if (vm_ok == 0) {
         printf(DG1BCC.unable_to_initialize_vm);
         exit(0);
@@ -184,21 +140,21 @@ void game_startup(void)
     VMDS.page_back = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim = load_palette(GAME_STARTUP_NAMES.tim_pal);
-    DG52BD.pal_sierra = load_palette(GAME_STARTUP_NAMES.sierra_pal);
-    set_palette_pointer(DG52BD.pal_black = load_palette(GAME_STARTUP_NAMES.black_pal));
+    DG52ED.pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
+    DG52BD.pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
+    set_palette_pointer(DG52BD.pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
 
-    set_font(DG52BD.memo_font = load_font(GAME_STARTUP_NAMES.memofnt8_fnt));
+    set_font(DG52BD.memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
 
-    DG52ED.cursor_art = load_bitmap_list(GAME_STARTUP_NAMES.mouse_bmp);          /* "mouse.bmp"   */
-    DG52ED.panel_art = load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp);
-    DG4E67.bmp_4ecb = load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp);
+    DG52ED.cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
+    DG52ED.panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
+    DG4E67.bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
 
     install_keyboard(0);
 
-    start_sound(sound_device, sound_module, 0, (FILE *)GAME_STARTUP_NAMES.sx_ovl);     /* "sx.ovl" */
+    start_sound(sound_device, sound_module, 0, (FILE *)WRITABLE_LITERAL("sx.ovl"));
 
-    DG52ED.tim_sx = open_file_record((char *)GAME_STARTUP_NAMES.tim_sx);
+    DG52ED.tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
     for (i = 1; i <= 0x14; i++)
         open_sound_file((char *)DG52ED.tim_sx, i);
 

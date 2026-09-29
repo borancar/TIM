@@ -1174,7 +1174,7 @@ void dev_part_pics(void)
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
     if (DG4E67.icons_bmp == 0)
-        DG4E67.icons_bmp = load_bitmaps((char *)DG254A.icons_bmp);
+        DG4E67.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**

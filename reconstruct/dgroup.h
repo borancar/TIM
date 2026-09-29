@@ -1843,22 +1843,6 @@ struct dg_1bcc {
 
 extern struct dg_1bcc DG1BCC;
 
-/*
- * **The intro's file names**, at DGROUP 0x254a - the Sierra screen, the corners,
- * the two animations and the icon set `game_intro` loads.
- * Typed from the image, one array per literal in the order Borland filed
- * them; the names are ours, from the text. The run ends at 0x258c.
- */
-struct dg_254a {
-    char sierra_bmp[11];              /* +0x000 0x254a 'sierra.bmp' */
-    char sierra_scr[11];              /* +0x00b 0x2555 'sierra.scr' */
-    char corners_bmp[12];             /* +0x016 0x2560 'corners.bmp' */
-    char title_gkc[10];               /* +0x022 0x256c 'title.gkc' */
-    char credits_gkc[12];             /* +0x02c 0x2576 'credits.gkc' */
-    char icons_bmp[10];               /* +0x038 0x2582 'icons.bmp' */
-} PACKED;
-
-extern struct dg_254a DG254A;
 
 /*
  * **The goal tests, with three words in front of them**, at DGROUP 0x2630: the
@@ -1911,29 +1895,7 @@ struct dg_4342 {
 
 extern struct dg_4342 DG4342;
 
-/*
- * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
- * Typed from the image, one array per literal in the order Borland filed
- * them; the names are ours, from the text. The run ends at 0x260a.
- */
-struct game_button_labels {
-    char continue_btn[9];             /* +0x00 [9]  'CONTINUE' */
-    char yes[4];                      /* +0x09 [4]  'YES' */
-    char no[3];                       /* +0x0d [3]  'NO' */
-} PACKED;
 
-extern struct game_button_labels GAME_BUTTON_LABELS;
-
-/* `game_setup`'s literal pool, DGROUP 0x25e8..0x260a: the three bitmaps it
-   loads. Placed in round.c; an object rather than literals for the reason
-   `GAME_STARTUP_NAMES` gives. */
-struct round_setup_names {
-    char score1_bmp[11];              /* +0x00 [0xb]  'score1.bmp' */
-    char gp_menu_bmp[12];             /* +0x0b [0xc]  'gp_menu.bmp' */
-    char score2_bmp[11];              /* +0x17 [0xb]  'score2.bmp' */
-} PACKED;
-
-extern struct round_setup_names ROUND_SETUP_NAMES;
 
 /*
  * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
@@ -3213,21 +3175,6 @@ struct sound_record {
  * ---------------------------------------------------------------------------
  */
 
-/*
- * **The IFF chunk names**, DGROUP 0x355a..0x3576, and the mode the file is
- * written with - the ILBM writer's literals, which follow the shape tables
- * rather than belonging to them. They were the tail of `p_3522`'s 21 points
- * until the six strings were read as what they are.
- */
-struct iff_chunk_names {
-    char      form[5];            /* +0x00  "FORM" */
-    char      ilbm[5];            /* +0x05  "ILBM" */
-    char      bmhd[5];            /* +0x0a  "BMHD" */
-    char      cmap[5];            /* +0x0f  "CMAP" */
-    char      body[5];            /* +0x14  "BODY" */
-    char      mode_wb[3];         /* +0x19  "wb" */
-} PACKED;
-extern struct iff_chunk_names IFF_CHUNK_NAMES;
 
 struct belt {
     struct part *owner; /* +0x00  the part this belt hangs off */

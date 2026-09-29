@@ -145,20 +145,6 @@ struct game_copy_protection GAME_COPY_PROTECTION = {
 };
 
 /*
- * **The intro's file names**, DGROUP 0x254a..0x258c: the module's literal
- * pool, kept as an object because `load_bitmaps` uppercases a name in place -
- * see `GAME_STARTUP_NAMES`.
- */
-struct dg_254a DG254A = {
-    "sierra.bmp", /* sierra_bmp */
-    "sierra.scr", /* sierra_scr */
-    "corners.bmp", /* corners_bmp */
-    "title.gkc", /* title_gkc */
-    "credits.gkc", /* credits_gkc */
-    "icons.bmp", /* icons_bmp */
-};
-
-/*
  * 0x0e4be
  *
  * The intros: the Sierra logo, then the title screen and the credits, looping
@@ -203,7 +189,7 @@ void game_intro(void)
 
     set_palette_pointer(DG52BD.pal_black);      /* black.pal */
 
-    bitmaps = load_bitmaps(DG254A.sierra_bmp);
+    bitmaps = load_bitmaps(WRITABLE_LITERAL("sierra.bmp"));
 
     VMDS.page_front = VMDS.page_back = 0xa000;
 
@@ -219,7 +205,7 @@ void game_intro(void)
         if (stage == 0) {
             VMDS.page_dst = VMDS.page_front;
             cursor_redraw_off_thunk();
-            load_screen(DG254A.sierra_scr);
+            load_screen(WRITABLE_LITERAL("sierra.scr"));
             set_palette_pointer(DG52BD.pal_sierra);  /* sierra.pal */
             stage = 1;
             budget = TIMER.frame_budget + 0xff88;
@@ -282,7 +268,7 @@ void game_intro(void)
 
     load_all_parts();
 
-    gkc = load_bitmaps(DG254A.corners_bmp);
+    gkc = load_bitmaps(WRITABLE_LITERAL("corners.bmp"));
 
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap(si);
@@ -320,10 +306,10 @@ void game_intro(void)
          * merged the two arms' identical stores into one after them.
          */
         if (which == 0x8000) {
-            load_animation(DG254A.title_gkc);
+            load_animation(WRITABLE_LITERAL("title.gkc"));
             DG4E67.origin_c_x = DG4E67.origin_b_x = DG4E67.origin_x = -8;
         } else {
-            load_animation(DG254A.credits_gkc);
+            load_animation(WRITABLE_LITERAL("credits.gkc"));
             DG4E67.origin_c_x = DG4E67.origin_b_x = DG4E67.origin_x = -0x10;
         }
         DG4E67.origin_c_y = DG4E67.origin_b_y = DG4E67.origin_y = 0;
@@ -414,7 +400,7 @@ void game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap(si);
 
-    DG4E67.icons_bmp = load_bitmaps(DG254A.icons_bmp);
+    DG4E67.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
     DG4E67.state = 0x8000;
 
     copy_protect_screen(gkc);

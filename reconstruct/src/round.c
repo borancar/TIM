@@ -21,16 +21,6 @@
 #include "dgroup.h"
 
 /*
- * **The three bitmaps `game_setup` loads**, DGROUP 0x25e8..0x260a: the
- * module's literal pool.
- */
-struct round_setup_names ROUND_SETUP_NAMES = {
-    "score1.bmp", /* score1_bmp */
-    "gp_menu.bmp", /* gp_menu_bmp */
-    "score2.bmp", /* score2_bmp */
-};
-
-/*
  * 0x0ef19
  *
  * Set the game up: draw the status bar across the top of the screen, load the
@@ -58,7 +48,7 @@ void game_setup(void)
     struct bitmap **bar;
 
     cursor_redraw_off_thunk();
-    bar = load_bitmaps((char *)ROUND_SETUP_NAMES.score1_bmp);
+    bar = load_bitmaps(WRITABLE_LITERAL("score1.bmp"));
 
     VMDS.page_dst = 0xa000;
     VMDS.second_colour = VMDS.fill_colour = 0;
@@ -73,8 +63,8 @@ void game_setup(void)
     free_bitmaps_thunk(bar);
 
     cursor_redraw_off_thunk();
-    DG4E67.menu_bmp = load_bitmaps((char *)ROUND_SETUP_NAMES.gp_menu_bmp);
-    DG4E67.score2_bmp = load_bitmaps((char *)ROUND_SETUP_NAMES.score2_bmp);
+    DG4E67.menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
+    DG4E67.score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
 
     DG4E67.counter = 0;
     DG4E67.round_number = 1;

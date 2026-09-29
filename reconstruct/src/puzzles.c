@@ -49,26 +49,6 @@ struct game_puzzle_tabs GAME_PUZZLE_TABS = {
 };
 
 /*
- * **The module's literal pool**, DGROUP 0x2620..0x262f: "*", ": ", "part"
- * and ".bmp" - `puzzle_draw_password` the star, `puzzle_draw_list` the
- * separator, and `load_part_bitmap`, which builds "partNN.bmp", the last two.
- * The zero byte after it is the next module's `_DATA` starting on a word.
- */
-struct game_part_names {
-    char      star[2];            /* +0x00  "*" */
-    char      title_sep[3];       /* +0x02  ": " */
-    char      part[5];            /* +0x05  "part" */
-    char      bmp[5];             /* +0x0a  ".bmp" */
-} PACKED;
-
-struct game_part_names GAME_PART_NAMES = {
-    "*", /* star */
-    ": ", /* title_sep */
-    "part", /* part */
-    ".bmp", /* bmp */
-};
-
-/*
  * **The text the player types on the puzzle screen**, DGROUP 0x542e..0x5456, 0x28 bytes - a
  * password or a score code - which `picker_type` fills to 0x19 characters
  * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
@@ -515,7 +495,7 @@ void puzzle_draw_password(const char *text)
     if (DG4E67.state == 0x800) {
         PUZZLE_STATE.password_blink++;
         if ((PUZZLE_STATE.password_blink & 8) != 0)
-            strcat(si, GAME_PART_NAMES.star);
+            strcat(si, "*");
     }
 
     VMDS.page_dst = VMDS.page_back;
@@ -559,7 +539,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
         strcpy(name, DG1BCC.puzzle_prefix);
         itoa(first, num, 10);
         strcat(name, num);
-        strcat(name, GAME_PART_NAMES.title_sep);
+        strcat(name, ": ");
 
         if (get_puzzle_title(first, title) != 0) {
             strcat(name, title);
@@ -619,10 +599,10 @@ void load_part_bitmap(uint16_t n)
     char name[14];            /* [bp-0x16] */
     char number[8];          /* [bp-8]    */
 
-    strcpy(name, GAME_PART_NAMES.part);
+    strcpy(name, "part");
     itoa((int16_t)n, number, 10);
     strcat(name, number);
-    strcat(name, GAME_PART_NAMES.bmp);
+    strcat(name, ".bmp");
 
     heap_check_or_hang();
     cursor_redraw_off_thunk();
