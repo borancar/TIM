@@ -123,8 +123,7 @@ void tick_delay(void)
  * segment beside the offset of a two-word cell at `bp-0x1c`, so the first
  * unlink writes into that scratch rather than into a real node, and reading it
  * back gives the next record. Since SS is DGROUP the cell is an ordinary
- * DGROUP address, which is why the port needs a guest stack of its own - see
- * `dg_alloca` in dgroup.h.
+ * DGROUP address.
  *
  * The list head is fixed up separately, by comparing against it rather than by
  * treating it as another link.

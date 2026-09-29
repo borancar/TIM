@@ -1046,9 +1046,7 @@ void draw_machine_layer_f(void)
  *
  * Then the shape: the point handed to `alloc_shape` is the pointer offset by
  * 0x4e9f and 0x4e9d - the icon's hot spot - and the extent is the bitmap's own
- * +6 and +8. Both go in as **addresses of locals**, which is why this needs a
- * guest frame: `lea ax,[bp-6]` yields a DGROUP offset the callee reads, and a
- * C local has none. See dg_alloca in dgroup.h.
+ * +6 and +8. Both go in as **addresses of locals**: `lea ax,[bp-6]`.
  */
 void draw_carried_icon(void)
 {

@@ -30,75 +30,15 @@
 #include "dgroup.h"
 
 /*
- * **A near pointer, as a parameter type.**
- *
- * A routine handed the address of a local or of a DGROUP record used to take a
- * `uint16_t` offset; it takes the pointer itself now, because the port's stack
- * is the port's own and an offset into it means nothing. The guest still
- * pushes **one word** for such an argument, and a plain `uint8_t *` parameter
- * would be a *far* pointer costing two - so the hybrid's shim generator has to
- * be able to tell them apart, and these are what it reads. See
- * `tools/native/genshims.py`.
- *
- * `volatile` because the bytes are the guest's memory and something else may
- * be writing them; byte-wide because a packed record's field can sit at an odd
- * address, which is what `dg_rd16` below is for.
+ * **Borland's pointer tags**, `near`, `far`, `huge` and `interrupt`, are kept
+ * in the source for the compiler it came from and defined as nothing on the
+ * host (dgroup.h). An untagged data pointer is near, as the medium model has
+ * it. They are a spelling, not a semantics: on the host a `far` pointer is an
+ * ordinary pointer and does not wrap at 64K, so where the wrap or the
+ * `seg:off` pair matters the site says so. `MK_FP`, `FP_SEG` and `FP_OFF`
+ * are Borland's own names for making and taking one apart, and on the host
+ * they mean something only inside `guest_mem`.
  */
-/*
- * **The tags themselves.** Borland's `near`, `far` and `huge` say which of the
- * two pointer kinds a declaration still needs to distinguish; a modern
- * compiler has one kind and they erase to nothing. Keeping them in the source costs the host build
- * nothing and is what would let this be compiled by the compiler it came from.
- *
- * They are defined *after* every system header this program includes - each
- * `.c` puts its `<...>` first - so erasing two identifiers cannot reach
- * anything but this port. Nothing here is named `far` or `huge`.
- *
- * **There is no `near` tag: an untagged pointer is the near one.** Marking
- * only what is far is the smaller thing to write and the smaller thing to get
- * wrong, and `tools/native/genshims.py` reads it that way - `far` is two guest
- * words, anything else with a `*` is one.
- *
- * Measured before the tag was dropped, and the first measurement was wrong in
- * the direction that would have hidden a bug: a check that scanned only the
- * `FAR_*` dispatch entries said **none** of the routines had an untagged
- * pointer parameter. Over all 181 entries of every kind there is exactly one,
- * `vm_set_palette`'s `rgb` - and it was being marshalled as *far*, two words,
- * where its spec says one at `[bp+4]` with `first` and `count` behind it. So
- * the old default was not merely unrelied upon, it was shifting that routine's
- * arguments, and dropping the tag fixes it.
- *
- * The cost is Borland's, and it is worth stating rather than discovering. In
- * the large model a pointer with no tag is `far`, so a rebuild by the original
- * compiler would need `near` put back on the near ones. It buys nothing on the
- * host, where both erase, and this port is not built by that compiler today.
- *
- * **They are a spelling, not a semantics.** On the host a `far` pointer is an
- * ordinary pointer: it does not wrap at 64K the way the real one does. Where
- * the wrap or the `seg:off` pair actually matters, the site says so.
- */
-/* The tags themselves are defined in dgroup.h, which this header includes
-   first and whose records use them. */
-
-/* The typedefs `dg_near`/`dg_cnear` stood here. They are spelled out now -
-   `volatile uint8_t *` - so the tag says which pointer kind it is. */
-
-/*
- * And the **far** pair, which the guest pushes as two words - the offset then
- * the segment, in that order, because the last argument pushed is the first.
- *
- * A plain `uint8_t *` already costs two words in the shim generator, so these
- * are not needed to make that work; they are here so that a far pointer says
- * so at the call site the way `volatile uint8_t *` does, and so that a parameter which
- * used to be spelled `(uint16_t off, uint16_t seg)` reads as the one value it
- * always was. `MK_FP(seg, off)` makes one and `FP_SEG`/`FP_OFF` in dgroup.h
- * take one apart, which are Borland's own names for both halves of the job. Those answer the
- * **normalised** pair and can only answer that one, because a host pointer
- * does not remember which of the many `seg:off` pairs addressing it the guest
- * was holding.
- */
-/* And `dg_far`/`dg_cfar`, likewise spelled out. */
-
 
 /*
  * Widths are transcribed, not chosen. The original is 16-bit code where every
@@ -1750,9 +1690,7 @@ uint8_t far * set_palette_pointer(uint8_t far * h);   /* 0x1eb6a */
  * In the original both are DX:AX. Here the address is the host pointer to the
  * block - `NULL` when DOS refused, the 0000:0000 the guest tests for -
  * and so the two do not overlay: the member the routine did not set is not
- * the other one read differently. A caller filing the address into a far
- * pair uses `far_of`, which is the block's own pair, a DOS block starting a
- * segment.
+ * the other one read differently.
  */
 union far_or_size {
     uint8_t far *ptr;           /* when it allocated */

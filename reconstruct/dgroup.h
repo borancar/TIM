@@ -170,20 +170,6 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
 #endif
 
 /*
- * Set to 1 by the game's INT 08h handler by way of the code at image 0x0aa08,
- * cleared at 0x0ab17. The main loop at 0x0aaca spins until it is set, so it
- * paces the frame. The name is a guess from that behaviour.
- */
-
-/* Read by the frame-presentation routine at 0x081cc to choose between three
- * paths. Names are guesses from that use. */
-
-/*
- * A counter stepped by 0x0144e and wrapped from 0x2a00 back to 0x1c00. What it
- * counts is not established; the name says only where it lives.
- */
-
-/*
  * ---------------------------------------------------------------------------
  * The video driver's data block, which lives **inside DGROUP** at offset
  * 0x3890.
@@ -214,14 +200,9 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
  * compiler, Turbo C++ 3.0, reproducing the instructions that address it byte
  * for byte, and a mistyped padding array moves every displacement after it.
  *
- * **The byte array stays underneath.** DGROUP is still `dgroup[]`, because the
- * game uses near pointers - a word in DGROUP holding an offset into DGROUP -
- * and a set of C globals cannot express that. This overlays a struct on the
- * bytes; a field and a pointer dereference still reach the same byte.
- *
- * Names ending `_ptr` hold an address, and the type says which kind: `dg_near_t`
- * is a near pointer, an offset into DGROUP, and `dg_seg_t` is a real-mode
- * segment. Everything else is the narrowest type the code actually uses -
+ * A field that holds an address is the pointer it is, and `dg_seg_t` is a
+ * real-mode segment. Everything else is the narrowest type the code actually
+ * uses -
  * `int16_t` where the original does signed compares, `uint8_t` for a flag byte.
  *
  * `unknown_XX` is a field whose purpose has not been established, named for its
@@ -272,28 +253,6 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
 #  define WRITABLE_LITERAL(s)   (__extension__ ({ static char w_[] = s; w_; }))
 #endif
 
-/* `const volatile`, because the struct overlays are volatile - see the note on
- * `volatile` above for why - and a plain `const void *` parameter would make every
- * call site discard the qualifier. */
-/*
- * **A word in the guest's memory is read through `*(int16_t *)`**, and a
- * long through `*(int32_t *)`, wherever a routine is handed the address of one
- * rather than a field. The guest's records are packed and heap-allocated, so
- * the address can be odd; the host does the unaligned load, which is what the
- * original's `mov ax, [si+4]` did too. There used to be `dg_rd16`/`dg_wr16`
- * helpers here assembling the bytes by hand, retired on 2026-09-12: they said
- * the width where a cast says it as well, and a sanitizer's "misaligned"
- * report on such a read describes the model, not a defect.
- */
-
-/*
- * **A null pointer is the offset zero**, and not the distance from the base to
- * address nothing. `strchr` answers NULL where the original answers 0, and
- * every caller of it tests the answer against zero; taking the difference for
- * a null would hand back `-base` truncated, which is a large offset into
- * DGROUP and tests as *found*. The one number the original never uses as an
- * address is 0, which is why it can mean "no".
- */
 /*
  * **The screen the driver reported**, at DGROUP 0x3f78 - which is the driver
  * block's own **+0x6e8**, so this struct and `struct vmds` describe the
@@ -409,10 +368,8 @@ struct vmds {
     uint8_t   unknown_24[0x10];             /* +0x24 */
     /*
      * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
-     * slot. The loader hands their *addresses* to `game_fread`, which takes a
-     * DGROUP offset - so the call sites read `dg_near(&VMDS.font_table_34[si])`
-     * rather than `0x38c4 + si`, which says the same thing and says which
-     * table it is.
+     * slot. The loader hands their *addresses* to `game_fread` -
+     * `&VMDS.font_table_34[si]`, which the original wrote as `0x38c4 + si`.
      */
     uint8_t   font_table_34[0x14];          /* +0x34  DGROUP 0x38c4 */
     uint8_t   font_table_48[0x14];          /* +0x48  DGROUP 0x38d8 */
@@ -466,28 +423,6 @@ struct vmds {
 
 extern struct vmds VMDS;
 
-/* The names above are the struct's fields now; there are no macros for
- * them, because a macro named for a field re-expands inside `VMDS.field`
- * and the compiler says only "expected identifier". */
-
-/*
- * The line drawer's own scratch, all inside the same block: the colour it is
- * drawing with, its current bit mask, and the four words its fixed-point DDA
- * keeps between rows. The original stores these rather than holding them in
- * registers, and the port has to as well or the memory comparison sees the
- * difference - which is how they were found.
- */
-
-/* Where VGA:0x0f15 keeps the copy of the current palette. */
-
-/* The byte offset of each scan line, indexed by y. Measured: [y] == y*80. */
-
-/*
- * Measured over 2,108 calls to the rectangle routine while the intro screens
- * run: fill is always enabled, clipping always on, and the two colour bytes
- * always equal - which is the condition that skips the outline.
- */
-
 /*
  * **The six drawing layers**, at DGROUP 0x50bf: a list head apiece, each a
  * chain of parts. `link_record_into_buckets` files a part on the layer, or
@@ -504,30 +439,6 @@ struct dg_50bf {
 #ifndef GAMEDATA_C
 extern struct dg_50bf DG50BF;
 #endif
-
-/*
- * ---------------------------------------------------------------------------
- * **Bare tables**: a run of same-sized entries at a fixed DGROUP address, with
- * no record around them. A pointer says what a raw word accessor cannot - the
- * element's width and that indexing is by element and not by byte - and none
- * of them claims a length, because nothing in the code states one.
- *
- * `rect_buffer` is the exception worth reading twice. Its entries are four
- * bytes and its index is **one-based**: entry 0 would sit on `DG5752.frame_flag`
- * and `DG5752.size_word`, and the only thing keeping the two apart is that
- * every caller guards on the index being non-zero. That is the original's
- * arrangement, not a mistake in the transcription.
- * ---------------------------------------------------------------------------
- */
-
-/* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
-
-/*
- * A near pointer at DGROUP 0x5400 to a structure, and three words beside it,
- * all used by the routine at 0x002be. What the structure is has not been
- * established; only the offsets it touches are known.
- */
-/* These are `DG53FC.list` and its neighbours now; see the struct. */
 
 /*
  * The four holiday flags, set by `set_holiday_flags` from `getdate` and
@@ -554,8 +465,8 @@ extern struct dg_50bf DG50BF;
  * The types are the narrowest the code uses. `int16_t` where the original
  * compares signed - the three origin pairs are set to -8 by `round_setup` and
  * `game_play` tests its round number with `jle` - and `uint16_t` for the
- * counters and state words. `dg_near_t` marks the eight near pointers: five
- * region-list heads, two records kept beside them, and the bitmap lists.
+ * counters and state words. Eight are near pointers: five region-list
+ * heads, two records kept beside them, and the bitmap lists.
  * ---------------------------------------------------------------------------
  */
 struct dg_4e67 {
@@ -1492,22 +1403,6 @@ struct part_contact {
 } PACKED;
 
 /*
- * **A part record is not `volatile`, and it is the one record that says so.**
- *
- * The reason every other accessor here is volatile is the timer handler, which
- * runs on a thread of its own and shares DGROUP with the main thread - see the
- * note above `DG8`. What it touches is a short list: the clip box, the two page
- * pointers, its own guards, and the two words the frame spins on. It reaches no
- * part record. `timer_callback` goes to `redraw_cursor` and then `draw_cursor`,
- * and neither that nor `restage_object_rect`, `save_or_restore_draw_state` or
- * the rect thunks under it touches a `PART` at all.
- *
- * So the qualifier would buy nothing and cost a good deal: a part is read in
- * the tightest loops in the game - `machine.c` alone reaches one at 397 sites.
- * `struct bitmap` is already spelled this way for the same reason, which is
- * why `BMPP` reads as it does.
- */
-/*
  * **The parts the game is holding on to**, at DGROUP 0x50d3.
  *
  * Here rather than in address order because `parts_bin` is a `struct part`,
@@ -2040,9 +1935,6 @@ struct round_setup_names {
 
 extern struct round_setup_names ROUND_SETUP_NAMES;
 
-/* The message box's and the machine view's data at 0x259c: another
-   module's, which segment 14de only references. Placed from dgroup.c until
-   its owner converts. */
 /*
  * **Where Tab sends the pointer on a message box's two buttons**, DGROUP 0x259c..0x25a2, 0x06 bytes: which
  * stop it is on - 0xffff until the first Tab, and back to 0 past the last
@@ -3411,8 +3303,6 @@ struct part_point {
     int16_t   angle;           /* +0x02  towards the next point */
 } PACKED;
 
-/* Not `volatile`, for the reason `PARTP` gives: a point array is a part's
-   own data, reached only from one, and the timer handler touches neither. */
 /*
  * **A part's velocity as one record**: `vel_x` and `vel_y` at +0x36 are
  * copied together where the original assigns the pair at once, which BC++

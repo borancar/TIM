@@ -485,9 +485,6 @@ int16_t resolve_collisions(struct part *obj)
  * object's +8 has the top bit or the outer object's +6 has 0x4000, and bit 2
  * set otherwise. The contact is written into the link at +0x84 - the other
  * object, the angle, and the edge index - and `set_side_flags` finishes it.
- *
- * The locals here are on the guest's stack because their addresses are passed
- * on; see `dg_alloca` in dgroup.h for why the port needs a stack of its own.
  */
 int16_t find_edge_contact(int16_t test_only)
 {

@@ -102,8 +102,8 @@ def run_one(devtim, name, level, game, flips, simulate=0):
     # **A port that solves and then dies is not a pass.** The run exits 0 when
     # it finishes; anything else is the port falling over, and this check used
     # to score it on whatever it managed to print first. Measured on
-    # 2026-09-10, with `dg_near` newly refusing a non-guest pointer: the port
-    # aborted with SIGABRT on every level and this printed **33 of 33 solved**,
+    # 2026-09-10, when a new check in the port aborted on every level: it
+    # died with SIGABRT and this printed **33 of 33 solved**,
     # because "io: level solved" really was in the output - four lines before
     # the crash.
     crashed = p.returncode != 0 or "io: PORT ABORTED" in err

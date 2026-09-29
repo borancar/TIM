@@ -250,7 +250,6 @@ a case it does not obviously cover.
 ### Still open, so recorded in STATUS.md
 
 - STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does - [more](STATUS.md#statusmds-table-is-only-as-fresh-as-the-last---all-sweep-and-it-can-say-agreed-about-a-routine-that-no-longer-does)
-- What is left after all of that, and why each one is left - [more](STATUS.md#what-is-left-after-all-of-that-and-why-each-one-is-left)
 - An interrupt is exclusive; a thread is not - [more](STATUS.md#an-interrupt-is-exclusive-a-thread-is-not)
 - The reference run from the entry point never presents a page - [more](STATUS.md#the-reference-run-from-the-entry-point-never-presents-a-page)
 - A sequence's channel tables are read one entry past their end, for a channel that has no entry - [more](STATUS.md#a-sequences-channel-tables-are-read-one-entry-past-their-end-for-a-channel-that-has-no-entry)
