@@ -322,8 +322,8 @@ void     not_transcribed(const char *what);
 void     port_abort(const char *msg);
 
 /*
- * OURS: DOS memory allocation, INT 21h AH=48h, the resize and the free, over
- * the arena `io_dos_arena_reset` hands out.
+ * OURS: DOS memory allocation, INT 21h AH=48h, the resize and the free; each
+ * block is the host's own, from the heap. See hostio.c.
  */
 struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
                                int32_t *failed);
@@ -331,19 +331,11 @@ void     io_dos_free(struct paragraph *block);
 uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs);
 
 /*
- * OURS: DOS memory's physical addresses, which only the DMA controller wants:
- * a pointer's, the pointer at one (NULL outside DOS memory), and a block's
- * segment number, which `BCC_FAR_ARG` needs the sign of.
+ * OURS: the block DMA channel 1 is to read, where the original programs its
+ * page and address registers: the host's Sound Blaster driver hands the
+ * controller the block itself. See hostio.c.
  */
-uint32_t io_dos_linear(const void *p);
-uint8_t *io_dos_at_linear(uint32_t lin);
-uint16_t io_dos_segment(const struct paragraph *seg);
-
-/*
- * OURS: hand the arena the memory the program's own block does not use, which
- * is what Borland's startup does with INT 21h AH=4Ah before it calls main.
- */
-void     io_dos_arena_reset(uint16_t first_free, uint16_t mem_top);
+void     io_dma1_memory(const void *block);
 
 /*
  * OURS: DGROUP's address, the stack, the arena and the BIOS bytes - what

@@ -122,8 +122,8 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Nothing places them: under Borland C++ the linker puts each where the image
   has it, which `tools/link.py` proves, and on the host they are ordinary
   objects. What the image held there is the initialiser, `LOAD_SEG + seg` for
-  a relocated word. There is no guest memory on the host: DOS's arena is
-  `g_dos_memory`, video memory `g_vga_window`, the BIOS data area `g_bios`,
+  a relocated word. There is no guest memory on the host: a DOS block is a
+  heap block, video memory `g_vga_window`, the BIOS data area `g_bios`,
   and a null the original follows reads `g_dgroup_start` or
   `g_interrupt_table`.
 - Where a name or a type is a guess, **say so**.

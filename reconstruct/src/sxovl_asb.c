@@ -198,46 +198,28 @@ void asb_set_block_size(uint16_t n)
 }
 
 /*
- * SX.OVL ASB:0x0355
- *
- * A far pointer to the 20-bit address the DMA controller wants: the segment
- * rotated left four, its top nibble becoming the page and the rest adding into
- * the offset. Returns the page in the high half and the offset in the low.
+ * OURS: **the block the card is playing**, a pointer and nothing else. The
+ * module turns a sample's far pointer into the DMA controller's page and
+ * offset (ASB:0x0355) and hands a sample that crosses a 64K page over in two
+ * halves; a host pointer has no page, so the host's controller is given the
+ * block itself (`io_dma1_memory`) and a sample is always one half.
  */
-uint32_t asb_linear(const uint8_t far *p)
-{
-    /* The DMA controller addresses physical memory, which on the host only
-       DOS's blocks have; the arena says where this one is. */
-    uint32_t lin = io_dos_linear(p);
-    uint16_t seg = (uint16_t)(lin >> 4);
-    uint16_t dx = (uint16_t)((seg << 4) | (seg >> 12));
-    uint16_t cx = (uint16_t)(dx & 0xfff0);
-    uint16_t page = (uint16_t)(dx & 0x000f);
-    uint32_t sum = (uint32_t)(lin & 0xf) + cx;
-
-    if (sum > 0xffff)
-        page++;
-
-    return ((uint32_t)page << 16) | (uint16_t)sum;
-}
+static const uint8_t *asb_sample;
 
 /*
  * SX.OVL ASB:0x08ec
  *
- * Program DMA channel 1 and unmask it. AX is the offset within the page, CX
- * the count the hardware wants - one less than the length - DH the mode byte
- * and DL the page.
+ * Program DMA channel 1 and unmask it: CX the count the hardware wants - one
+ * less than the length - and DH the mode byte. The address is the block's.
  */
-void asb_dma_program(uint16_t off, uint16_t count, uint8_t mode, uint8_t page)
+void asb_dma_program(const uint8_t far *block, uint16_t count, uint8_t mode)
 {
     io_out8(0x0a, 5);                       /* mask channel 1 */
     io_out8(0x0c, 0);                       /* clear the flip-flop */
     io_out8(0x0b, mode);
-    io_out8(0x02, (uint8_t)off);
-    io_out8(0x02, (uint8_t)(off >> 8));
+    io_dma1_memory(block);
     io_out8(0x03, (uint8_t)count);
     io_out8(0x03, (uint8_t)(count >> 8));
-    io_out8(0x83, page);
     io_out8(0x0a, 1);                       /* unmask */
 }
 
@@ -245,9 +227,9 @@ void asb_dma_program(uint16_t off, uint16_t count, uint8_t mode, uint8_t page)
  * SX.OVL ASB:0x025d
  *
  * Hand the card the block that `asb_arm_block` selected: channel 1 masked,
- * flip-flop cleared, address, mode 0x49 - single transfer, read from memory,
- * channel 1 - page, count less one, unmask, and then DSP 0x14 with the length
- * less one.
+ * flip-flop cleared, the block, mode 0x49 - single transfer, read from
+ * memory, channel 1 - count less one, unmask, and then DSP 0x14 with the
+ * length less one.
  *
  * The order is the original's and is not the same as `asb_dma_program`'s: the
  * mode goes out *after* the address here and before it there. Transcribed as
@@ -259,13 +241,11 @@ void asb_dma_start(void)
 
     io_out8(0x0a, 5);
     io_out8(0x0c, 0);
-    io_out8(0x02, (uint8_t)((uint16_t)ASBS.offset));
-    io_out8(0x02, (uint8_t)(((uint16_t)ASBS.offset) >> 8));
+    io_dma1_memory(asb_sample);
 
     cx = ((uint16_t)ASBS.length);
     ASBS.block_length = (int16_t)cx;
     io_out8(0x0b, 0x49);
-    io_out8(0x83, ASBS.page);
     io_out8(0x03, (uint8_t)(cx - 1));
     io_out8(0x03, (uint8_t)((cx - 1) >> 8));
     io_out8(0x0a, 1);
@@ -279,22 +259,16 @@ void asb_dma_start(void)
 /*
  * SX.OVL ASB:0x0224
  *
- * Choose which of the two halves to play next and start it. A sample that
- * crosses a 64K DMA page is split in two when it is handed over, and
+ * Choose which of the two halves to play next and start it. In the original a
+ * sample that crosses a 64K DMA page is split in two when it is handed over
+ * (on the host it never is - see `asb_sample`), and
  * `cs:[0x4c]` says which half is current: zero takes the page, offset and
  * length at 0x34/0x58/0x56, one takes 0x35/0x5c/0x5a.
  */
 void asb_arm_block(void)
 {
-    if (ASBS.half == 0) {
-        ASBS.page = ASBS.page_a;
-        ASBS.offset = (int16_t)ASBS.offset_a;
-        ASBS.length = (int16_t)((uint16_t)ASBS.length_a);
-    } else {
-        ASBS.page = ASBS.page_b;
-        ASBS.offset = (int16_t)((uint16_t)ASBS.offset_b);
-        ASBS.length = (int16_t)((uint16_t)ASBS.length_b);
-    }
+    /* The host's sample is always the one half; see `asb_sample`. */
+    ASBS.length = (int16_t)((uint16_t)ASBS.length_a);
 
     asb_dma_start();
 }
@@ -567,7 +541,6 @@ void asb_probe_isr_10(void) { asb_probe_isr(10); }
  */
 uint16_t asb_probe_irq(void)
 {
-    uint32_t lin;
     uint16_t cx, answer;
 
     /*
@@ -594,8 +567,7 @@ uint16_t asb_probe_irq(void)
         ASBS.probe_irq10 = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
-    lin = asb_linear(SOUND_BANK.module + 0xa6);
-    asb_dma_program((uint16_t)lin, 0, 0x49, (uint8_t)(lin >> 16));
+    asb_dma_program(SOUND_BANK.module + 0xa6, 0, 0x49);
 
     asb_dsp_write(0x40);
     asb_dsp_write(0x64);
@@ -750,7 +722,6 @@ uint16_t asb_shutdown(void)
  */
 void asb_play(const struct sound_play_args *si)
 {
-    uint32_t lin;
     uint16_t ax;
 
     asb_shutdown();
@@ -762,22 +733,11 @@ void asb_play(const struct sound_play_args *si)
 
     asb_set_rate(si->rate);
 
-    lin = asb_linear(si->sample);
-    ASBS.page_a  = (uint8_t)(lin >> 16);
-    ASBS.offset_a = (int16_t)lin;
-
+    /* One block, never two halves: see `asb_sample`. */
+    asb_sample = si->sample;
     ax = si->length;
     ASBS.length_a = (int16_t)ax;
-
-    if ((uint32_t)ax + ASBS.offset_a > 0xffff) {
-        ax = (uint16_t)(ax + ASBS.offset_a);
-        ASBS.length_b = (int16_t)ax;
-        ASBS.length_a = (int16_t)(((uint16_t)ASBS.length_a) - ax);
-        ASBS.offset_b = 0;
-        ASBS.page_b  = (uint8_t)((lin >> 16) + 1);
-    } else {
-        ASBS.length_b = 0;
-    }
+    ASBS.length_b = 0;
 
     ASBS.irq_saved = asb_hook_irq(ASBS.irq, 0x8a, 0x02b7);
     ASBS.half = 0;

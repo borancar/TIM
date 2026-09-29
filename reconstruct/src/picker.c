@@ -845,14 +845,14 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
             GAME_PICKER_TEXT.entry_max = 0x3e8;
             GAME_PICKER_TEXT.block = g_scratch_block;
         } else {
-            v = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
+            v = DOS_ALLOC_BYTES(dos_alloc_bytes(0xffffffffUL, 0));
 
             if ((int32_t)v > 0x7530)
                 v = 0x7530;
 
             GAME_PICKER_TEXT.entry_max = (int32_t)v / 0x16;
 
-            GAME_PICKER_TEXT.block = DOS_ALLOC_PTR(DOS_ALLOC(v, 0));
+            GAME_PICKER_TEXT.block = dos_alloc_bytes(v, 0);
         }
 
         /* The table of pointers sits at the head of the block and the text

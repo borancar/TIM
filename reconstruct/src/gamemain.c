@@ -71,7 +71,7 @@ void game_startup(void)
 
     _stklen = 0x800;
 
-    free_bytes = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
+    free_bytes = DOS_ALLOC_BYTES(dos_alloc_bytes(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {
         printf(MESSAGES.not_enough_free_memory);
         printf(MESSAGES.you_need_at_least);
@@ -190,7 +190,7 @@ void game_startup(void)
      */
     g_shape_free = g_shapes_drawn = NULL;
     for (i = 0; i < 0xb4; i++) {
-        block = (struct shape far *)DOS_ALLOC_PTR(DOS_ALLOC(sizeof(struct shape), 1));
+        block = (struct shape far *)dos_alloc_bytes(sizeof(struct shape), DOS_ZERO_FILL);
         block->next = g_shape_free;
         g_shape_free = block;
     }

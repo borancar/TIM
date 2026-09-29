@@ -170,20 +170,16 @@ uint16_t buffer_size_thunk(uint16_t w, uint16_t h)
  * DOS reports back into bytes. So one routine both allocates and asks how much
  * there is, told apart by its argument.
  *
- * Bit 0 of the flags asks for the block to be zeroed, which it does through
- * `far_memset` at 0x22300. The flags are the **fourth** argument, at [bp+0xc];
- * the third is pushed by every caller and never read. Reading the third as the
- * flags was an error here that verified anyway, because the callers seen so
- * far push zero into both. Two callers ask for zeroing - `game_startup`'s
- * 0x18-byte block and `load_archive_map`'s entry lists - and the second had the
- * two swapped in the port until it was checked against the pushes.
+ * Bit 0 of the flags' high word asks for the block to be zeroed, which it
+ * does through `far_memset` at 0x22300. The flags are one `long` whose high
+ * word, [bp+0xc], is the only part read. Two callers ask for zeroing -
+ * `game_startup`'s 0x18-byte block and `load_archive_map`'s entry lists.
  *
- * The DOS call itself is IO - `io_dos_alloc`, over the arena in hostio.c.
+ * The count goes back through the same answer as the pointer does; see
+ * `DOS_ALLOC_BYTES`. The DOS call itself is IO - `io_dos_alloc`, in hostio.c.
  */
-union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
-                                  uint16_t flags)
+uint8_t far *dos_alloc_bytes(uint32_t size, uint32_t flags)
 {
-    (void)unused;
     uint16_t paras, remainder, largest;
     dg_seg_t seg;
     int32_t failed;
@@ -193,14 +189,9 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
        32-bit shift and not two 16-bit ones; the test above it is
        `cmp ax,bx / jne / cmp ax,0xffff`, the pair against 0xffffffff. */
     if (size == 0xFFFFFFFFu) {
-        /* The "how much is free" question. */
+        /* The "how much is free" question: the bytes in DX:AX. */
         io_dos_alloc(0xFFFF, &largest, &failed);
-        {
-            union far_or_size r;
-
-            r.bytes = (uint32_t)largest << 4;
-            return r;
-        }
+        return (uint8_t far *)(uintptr_t)((uint32_t)largest << 4);
     }
 
     /* Bytes to paragraphs, rounded up. The high half of the shifted pair
@@ -213,22 +204,13 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
         paras = (uint16_t)(paras + 1);
 
     seg = io_dos_alloc(paras, &largest, &failed);
-    if (failed) {
-        union far_or_size r;
+    if (failed)
+        return NULL;
 
-        r.ptr = NULL;
-        return r;
-    }
-
-    if (flags & 1)
+    if ((flags >> 16) & 1)
         far_memset(MK_FP(seg, 0), 0, size);
 
-    {
-        union far_or_size r;
-
-        r.ptr = MK_FP(seg, 0);
-        return r;
-    }
+    return MK_FP(seg, 0);
 }
 
 /*
@@ -247,8 +229,7 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
  * AX, and the routine returns whatever DOS left there without looking, so a
  * double free or a corrupted arena passes silently.
  *
- * The DOS call is IO - `io_dos_free`, which gives the block back to the
- * arena in hostio.c.
+ * The DOS call is IO - `io_dos_free`, in hostio.c.
  */
 void dos_free_far(void far *block)
 {

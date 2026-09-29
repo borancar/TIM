@@ -780,7 +780,7 @@ uint8_t far *load_video_driver(register int16_t adapter, char *name)
     if (VIDEO_DRIVER != NULL)
         dos_free_far(VIDEO_DRIVER);
 
-    if ((VIDEO_DRIVER = DOS_ALLOC_PTR(DOS_ALLOC(len, 0))) != NULL) {
+    if ((VIDEO_DRIVER = dos_alloc_bytes(len, 0)) != NULL) {
         read_resource(handle, VIDEO_DRIVER, (uint16_t)len);
         close_resource(handle);
 

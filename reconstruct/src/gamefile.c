@@ -618,7 +618,7 @@ void load_archive_map(void)
                    one entry longer than the count and the lookup stops on an
                    all-zero key. */
                 e = (struct archive_entry far *)
-                    DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)((count + 1) << 3), 1));
+                    dos_alloc_bytes((uint16_t)((count + 1) << 3), DOS_ZERO_FILL);
                 a->list = (uint8_t far *)e;
                 a->index = di;
                 while (count--) {

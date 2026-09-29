@@ -244,9 +244,9 @@ struct bitmap **load_bitmap_list(char *name)
 
     want = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&size);
 
-    if (!(blk = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))))
+    if (!(blk = dos_alloc_bytes(want, 0)))
         goto done;
-    if (size != 0 && !(tmp = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0))))
+    if (size != 0 && !(tmp = dos_alloc_bytes((int32_t)size, 0)))
         goto done;
 
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
@@ -291,7 +291,7 @@ struct bitmap **load_bitmap_list(char *name)
         goto done;
 
     /* Halve the request until DOS grants one; a signed shift of the long. */
-    for (want = 0x7fffL; !(tmp = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))); want >>= 1)
+    for (want = 0x7fffL; !(tmp = dos_alloc_bytes(want, 0)); want >>= 1)
         ;
 
     walk = blk;

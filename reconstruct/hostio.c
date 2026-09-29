@@ -260,63 +260,11 @@ static const uint8_t CRTC_MODE12[25] = {
     0xFF
 };
 
-/*
- * OURS: **DOS's arena**, the memory the game allocates from: from the end of
- * the program's own block - DGROUP's segment plus 64 KB, which is what
- * Borland's startup keeps before it hands the tail back - up to the top of
- * conventional memory, the paragraph below the video aperture. The arena
- * below keeps its books in segment numbers, which is what DOS answers and
- * what decides where a block goes; the memory is `g_dos_memory`, and what
- * the game is handed is a pointer into it.
- */
-#define ARENA_FIRST  (DGROUP_SEG + 0x1000u)
-#define MEM_TOP      0x9FFFu
-
-struct paragraph g_dos_memory[MEM_TOP - ARENA_FIRST];
-
-static struct paragraph *arena_at(uint16_t seg)
-{
-    return &g_dos_memory[seg - ARENA_FIRST];
-}
-
-static uint16_t arena_seg(const struct paragraph *p)
-{
-    return (uint16_t)(p - g_dos_memory + ARENA_FIRST);
-}
-
-/*
- * OURS: **the physical address of a byte of DOS memory**, and back - what the
- * DMA controller is programmed with. Only DOS blocks have one; anything else
- * handed to the DMA is a fault the port cannot express, so it stops.
- */
-uint32_t io_dos_linear(const void *p)
-{
-    const uint8_t *b = (const uint8_t *)p, *base = (const uint8_t *)g_dos_memory;
-
-    if (b < base || b >= base + sizeof g_dos_memory)
-        port_abort("a physical address for memory that is not DOS's");
-    return ((uint32_t)ARENA_FIRST << 4) + (uint32_t)(b - base);
-}
-
-uint8_t *io_dos_at_linear(uint32_t lin)
-{
-    if (lin < ((uint32_t)ARENA_FIRST << 4)
-        || lin >= ((uint32_t)ARENA_FIRST << 4) + sizeof g_dos_memory)
-        return NULL;
-    return (uint8_t *)g_dos_memory + (lin - ((uint32_t)ARENA_FIRST << 4));
-}
-
-uint16_t io_dos_segment(const struct paragraph *seg)
-{
-    return seg == NULL ? 0 : arena_seg(seg);
-}
-
 static char     game_dir[PATH_MAX] = "incredible-machine";
 
 /*
  * OURS: what DOS's loader and Borland's startup leave behind besides the
- * image - DGROUP's address, the startup's stack, the arena and the two BIOS
- * bytes the game reads.
+ * image - the game directory and the two BIOS bytes the game reads.
  *
  * **The port calls this and not `io_load_program`.** Nothing the game needs
  * comes from the image any more: DGROUP's initialised data and the sound
@@ -339,9 +287,6 @@ void io_start_program(void)
                     game_dir, strerror(errno));
     }
 
-    /* The program keeps everything up to the end of DGROUP; the rest becomes
-       the arena. */
-    io_dos_arena_reset(ARENA_FIRST, MEM_TOP);
 
     /* The BIOS data area the game reads: keyboard flags and the video mode. */
     g_bios.kbd_flags = 0;
@@ -349,204 +294,83 @@ void io_start_program(void)
 }
 
 /*
- * OURS: DOS's memory arena, where the game's two hundred allocations come
- * from.
+ * OURS: **DOS memory**, INT 21h AH=48h, 49h and 4Ah.
  *
- * First fit over a list of blocks, split on allocation, coalesced on free -
- * which is what the shared emulator does, and what DOS did. A stub that handed
- * out the same segment every time would give two live allocations the same
- * memory, and the game frees and reallocates often enough to notice.
+ * Each block is the host's, from the heap, aligned to a paragraph so that a
+ * pointer into it normalises as it would in real mode (see `MK_FP` in
+ * dgroup.h). The paragraph in front of it holds its size, which is what DOS
+ * keeps in its memory control block, and the free figure is kept against
+ * the 400 KB the game had left of conventional memory - DOS's largest free
+ * block, which is what AH=48h answers when it refuses. There is no arena, so
+ * the largest free block is all of what is free.
  *
- * The arena starts **above the program's own block**, not just above the image.
- * The recovered header asks for every paragraph it can get, so DOS gives the
- * program all of conventional memory and nothing is free until Borland's
- * startup hands the tail back. Modelling it the other way puts DOS's blocks
- * inside DGROUP, where the startup has already put the stack - see CLAUDE.md,
- * which records how that failure looked from the outside.
+ * A block is zeroed when it is allocated: DOS memory holds whatever was there
+ * before, and the host's answer is the same every run.
  */
-struct arena_block { uint16_t seg, paras; uint8_t used; };
+#define DOS_FREE_AT_START 0x61b3u      /* paragraphs: 0x3e4c up to 0x9fff */
 
-/*
- * The block table **grows**. It was a fixed 256 entries, and the game holds
- * more live blocks than that - one per part's bitmaps alone is fifty-odd -
- * so it filled, and a full table meant an allocation could not be split off
- * the front of a free block. The code then handed out the block *whole* and
- * shrank its record to the size asked for, which loses the tail: after that
- * every large free block was swallowed by the next small request. The symptom
- * was the last dozen part bitmaps failing to load, and then a part drawn from
- * a null bitmap list painting the screen white.
- *
- * A table that cannot grow must at least refuse; this one grows, and refuses
- * only if it cannot.
- */
-static struct arena_block *arena;
-static int32_t arena_n, arena_cap;
-static uint16_t arena_top;
+static uint32_t dos_free_paras = DOS_FREE_AT_START;
 
-static int32_t arena_room(void)
+static uint16_t *dos_block_size(struct paragraph *block)
 {
-    struct arena_block *bigger;
-    int32_t want;
-
-    if (arena_n < arena_cap)
-        return 1;
-
-    want = arena_cap ? arena_cap * 2 : 256;
-    bigger = realloc(arena, (size_t)want * sizeof *arena);
-    if (bigger == NULL)
-        return 0;
-
-    arena = bigger;
-    arena_cap = want;
-    return 1;
-}
-
-void io_dos_arena_reset(uint16_t first_free, uint16_t mem_top)
-{
-    arena_n = 0;
-    arena_top = mem_top;
-    if (mem_top > first_free && arena_room()) {
-        arena[0].seg = first_free;
-        arena[0].paras = (uint16_t)(mem_top - first_free);
-        arena[0].used = 0;
-        arena_n = 1;
-    }
-}
-
-/* Merge neighbouring free blocks, so a freed block can be used again. */
-static void arena_coalesce(void)
-{
-    int32_t i, j;
-
-    for (i = 0; i < arena_n; i++)
-        for (j = i + 1; j < arena_n; j++)
-            if (arena[j].seg < arena[i].seg) {
-                struct arena_block t = arena[i];
-
-                arena[i] = arena[j];
-                arena[j] = t;
-            }
-
-    for (i = 0; i + 1 < arena_n; ) {
-        if (!arena[i].used && !arena[i + 1].used
-            && (uint16_t)(arena[i].seg + arena[i].paras) == arena[i + 1].seg) {
-            arena[i].paras = (uint16_t)(arena[i].paras + arena[i + 1].paras);
-            for (j = i + 1; j + 1 < arena_n; j++)
-                arena[j] = arena[j + 1];
-            arena_n--;
-        } else {
-            i++;
-        }
-    }
-}
-
-static uint16_t arena_largest(void)
-{
-    uint16_t best = 0;
-    int32_t i;
-
-    for (i = 0; i < arena_n; i++)
-        if (!arena[i].used && arena[i].paras > best)
-            best = arena[i].paras;
-
-    return best;
+    return (uint16_t *)(block - 1);
 }
 
 struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
                                int32_t *failed)
 {
-    int32_t i;
-
-    if (arena_n == 0) {
-        not_transcribed("a DOS allocation with no arena");
-        *failed = 1;
-        *largest = 0;
-        return NULL;
-    }
+    struct paragraph *mcb;
 
     /* DOS refuses 0 and 0xffff paragraphs; 0xffff is the "how much" probe. */
-    if (paragraphs != 0 && paragraphs != 0xFFFF) {
-        for (i = 0; i < arena_n; i++) {
-            if (!arena[i].used && arena[i].paras >= paragraphs) {
-                uint16_t seg = arena[i].seg;
-
-                if (arena[i].paras > paragraphs) {
-                    if (!arena_room())
-                        break;          /* refuse rather than lose the tail */
-                    arena[arena_n].seg = (uint16_t)(seg + paragraphs);
-                    arena[arena_n].paras =
-                        (uint16_t)(arena[i].paras - paragraphs);
-                    arena[arena_n].used = 0;
-                    arena_n++;
-                }
-                arena[i].paras = paragraphs;
-                arena[i].used = 1;
-                arena_coalesce();
-                *failed = 0;
-                *largest = arena_largest();
-                return arena_at(seg);
-            }
-        }
+    if (paragraphs == 0 || paragraphs == 0xFFFF || paragraphs > dos_free_paras
+        || (mcb = aligned_alloc(16, ((size_t)paragraphs + 1) * 16)) == NULL) {
+        *failed = 1;
+        *largest = (uint16_t)dos_free_paras;
+        return NULL;
     }
-
-    *failed = 1;
-    *largest = arena_largest();
-    return NULL;
+    memset(mcb, 0, ((size_t)paragraphs + 1) * 16);
+    *dos_block_size(mcb + 1) = paragraphs;
+    dos_free_paras -= paragraphs;
+    *failed = 0;
+    *largest = (uint16_t)dos_free_paras;
+    return mcb + 1;
 }
 
 /*
- * Shrink or grow a DOS block in place, INT 21h AH=4Ah. Answers 0 on success and
- * the largest size available on failure, which is what DOS puts in BX.
- *
- * Only shrinking happens here, and only from a routine that has just measured
- * how much of a block it actually filled - so the tail goes back to the arena
- * and the next allocation can have it.
+ * Shrink a DOS block in place, INT 21h AH=4Ah. Answers 0 on success and the
+ * largest size available on failure, which is what DOS puts in BX. Only
+ * shrinking happens, from a routine that has just measured how much of a
+ * block it filled; growing in place is refused.
  */
 uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs)
 {
-    uint16_t seg = arena_seg(block);
-    int32_t i;
+    uint16_t *size = dos_block_size(block);
 
-    for (i = 0; i < arena_n; i++) {
-        if (!arena[i].used || arena[i].seg != seg)
-            continue;
-
-        if (paragraphs <= arena[i].paras) {
-            /*
-             * A shrink whose tail cannot be recorded leaves the block as it is
-             * rather than losing it. DOS answers 0 either way - the caller only
-             * asked for the block to be no larger than this, and it is not.
-             */
-            if (paragraphs < arena[i].paras) {
-                if (!arena_room())
-                    return 0;
-                arena[arena_n].seg = (uint16_t)(seg + paragraphs);
-                arena[arena_n].paras =
-                    (uint16_t)(arena[i].paras - paragraphs);
-                arena[arena_n].used = 0;
-                arena_n++;
-            }
-            arena[i].paras = paragraphs;
-            arena_coalesce();
-            return 0;
-        }
-        return arena[i].paras;         /* cannot grow in place */
-    }
-
-    return 0;                          /* not ours: nothing to do */
+    if (paragraphs > *size)
+        return *size;
+    dos_free_paras += (uint32_t)(*size - paragraphs);
+    *size = paragraphs;
+    return 0;
 }
 
 void io_dos_free(struct paragraph *block)
 {
-    uint16_t seg = arena_seg(block);
-    int32_t i;
+    if (block == NULL)
+        return;
+    dos_free_paras += *dos_block_size(block);
+    free(block - 1);
+}
 
-    for (i = 0; i < arena_n; i++)
-        if (arena[i].used && arena[i].seg == seg) {
-            arena[i].used = 0;
-            arena_coalesce();
-            return;
-        }
+/*
+ * OURS: **the block DMA channel 1 reads**, handed over by the Sound Blaster
+ * driver in place of the page and address registers, which a host pointer
+ * does not fit.
+ */
+static const uint8_t *dma1_block;
+
+void io_dma1_memory(const void *block)
+{
+    dma1_block = block;
 }
 
 /*
@@ -1595,7 +1419,7 @@ void not_transcribed(const char *what)
  */
 #define SB_BASE 0x220
 
-static uint16_t dma1_addr, dma1_count, dma1_page;
+static uint16_t dma1_count;
 static uint8_t  dma1_mode, dma1_masked = 1, dma_flipflop;
 static uint8_t  dsp_cmd, dsp_args, dsp_nargs, dsp_arg[2];
 static uint16_t sb_rate = 11025;
@@ -1760,22 +1584,15 @@ static void sb_say(const char *what, uint16_t a, uint16_t b)
 }
 
 /*
- * OURS: the block the module just handed over, out of DOS memory at the
- * physical address the DMA controller was given.
- *
- * The 8237 addresses a 64K page and wraps inside it, so the page register is
- * the top four bits and the address the rest. A block that is not all DOS
- * memory stops the port: the module never asks for one, and reading past a
- * block would hide it if it did.
+ * OURS: the block the module just handed over - see `io_dma1_memory`.
  */
 static void sb_play_block(uint16_t count)
 {
-    uint32_t at = ((uint32_t)dma1_page << 16) | dma1_addr;
-    const uint8_t *mem = io_dos_at_linear(at);
+    const uint8_t *mem = dma1_block;
     int32_t n = (int32_t)count + 1;
 
-    if (mem == NULL || io_dos_at_linear(at + (uint32_t)n - 1) == NULL)
-        port_abort("a DMA block outside DOS memory");
+    if (mem == NULL)
+        port_abort("a DMA block the driver never handed over");
 
     /*
      * The checksum is what makes the trace a comparison rather than a tally.
@@ -1793,9 +1610,6 @@ static void sb_play_block(uint16_t count)
             b = (uint16_t)((b + a) % 255);
         }
         sb_say("play", (uint16_t)n, sb_rate);
-        /* Where it starts, so a sample the module cut at a 64K page can be
-           joined back up: `check_sound.py` does, from the two sums. */
-        sb_say("play at", (uint16_t)(at >> 16), (uint16_t)at);
         sb_say("play sum", (uint16_t)((b << 8) | a), (uint16_t)n);
     }
 
@@ -2203,17 +2017,10 @@ void io_out8(uint16_t port, uint8_t value)
     case 0x61:            port61 = value; speaker_changed(); break;
 
     /*
-     * The 8237, channel 1 only - the one `audblast` uses. The address and the
-     * count are each two writes through a shared flip-flop, which port 0x0c
-     * clears; that is why the driver clears it before programming either.
+     * The 8237, channel 1 only - the one `audblast` uses. The count is two
+     * writes through a flip-flop, which port 0x0c clears; that is why the
+     * driver clears it first. The address is `io_dma1_memory`'s.
      */
-    case 0x02:
-        if (dma_flipflop)
-            dma1_addr = (uint16_t)((dma1_addr & 0x00ff) | (value << 8));
-        else
-            dma1_addr = (uint16_t)((dma1_addr & 0xff00) | value);
-        dma_flipflop = (uint8_t)!dma_flipflop;
-        break;
     case 0x03:
         if (dma_flipflop)
             dma1_count = (uint16_t)((dma1_count & 0x00ff) | (value << 8));
@@ -2224,7 +2031,6 @@ void io_out8(uint16_t port, uint8_t value)
     case 0x0a: dma1_masked = (uint8_t)((value & 4) != 0); break;
     case 0x0b: dma1_mode = value; break;
     case 0x0c: dma_flipflop = 0; break;
-    case 0x83: dma1_page = value; break;
 
     /* The DSP. Only the write port and the reset do anything here. */
     case OPL_ADDR:       opl_index = value; break;

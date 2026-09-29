@@ -103,7 +103,7 @@ void alloc_part_table(register int16_t n)
 {
     register int16_t si;
 
-    LEVEL_IO.table = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)(n * (2 * sizeof(struct part *))), 0));
+    LEVEL_IO.table = dos_alloc_bytes((uint16_t)(n * (2 * sizeof(struct part *))), 0);
 
     for (si = 0; si < n; si++)
         PART_TABLE->part[(uint16_t)si] =

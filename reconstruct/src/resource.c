@@ -476,7 +476,7 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
             ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch = g_scratch_block;
         else
             ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch =
-                DOS_ALLOC_PTR(DOS_ALLOC((uint32_t)far_size, 0));
+                dos_alloc_bytes((uint32_t)far_size, 0);
         if (!ENGINE_STREAM.rec->scratch)
             return -1;
     }

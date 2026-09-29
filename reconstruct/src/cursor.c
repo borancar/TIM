@@ -1230,7 +1230,7 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
 
     for (i = 0; i < 4; i++) {
         if (g_rect_buffer[i] == NULL)
-            g_rect_buffer[i] = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0));
+            g_rect_buffer[i] = dos_alloc_bytes((int32_t)size, 0);
     }
 
     for (i = 0; i < 4; i++) {

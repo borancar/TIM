@@ -519,9 +519,8 @@ void     asb_dma_continue(void);                /* SX.OVL ASB:0x0370 */
 void     asb_speaker_on(void);                  /* SX.OVL ASB:0x079e */
 void     asb_set_rate(uint16_t rate);           /* SX.OVL ASB:0x031b */
 void     asb_set_block_size(uint16_t n);        /* SX.OVL ASB:0x033a */
-uint32_t asb_linear(const uint8_t far *p);   /* SX.OVL ASB:0x0355 */
-void     asb_dma_program(uint16_t off, uint16_t count,
-                         uint8_t mode, uint8_t page);  /* SX.OVL ASB:0x08ec */
+void     asb_dma_program(const uint8_t far *block, uint16_t count,
+                         uint8_t mode);         /* SX.OVL ASB:0x08ec */
 void     asb_dma_start(void);                   /* SX.OVL ASB:0x025d */
 void     asb_arm_block(void);                   /* SX.OVL ASB:0x0224 */
 void     asb_dma_stop(void);                    /* SX.OVL ASB:0x02a9 */
@@ -1674,46 +1673,26 @@ void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count);    
 /* Set the current palette, or answer the one already set. */
 uint8_t far * set_palette_pointer(uint8_t far * h);   /* 0x1eb6a */
 
-/* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
 /*
- * **An address or a size, and only the caller knows which.** `dos_alloc_bytes`
- * answers a far pointer when it allocates and a *byte count* when it is asked
- * `(0xffff, 0xffff)`, which is how the game finds out how much memory is free -
- * the original's own `if` at the top of the routine is the fork. Neither type
- * is right for both, so the caller picks the member and the choice is written
- * at the site rather than guessed at by the signature.
+ * **Allocate from DOS by byte count**, answering seg:0000 in DX:AX - or, asked
+ * for 0xffffffff bytes, how many are free, in the same DX:AX. A caller takes
+ * the answer as the one it wants.
  *
- * In the original both are DX:AX. Here the address is the host pointer to the
- * block - `NULL` when DOS refused, the 0000:0000 the guest tests for -
- * and so the two do not overlay: the member the routine did not set is not
- * the other one read differently.
+ * The flags are the high word of one `long` - `bitmaps.c` pushes `0L` with one
+ * `xor ax,ax` and two `push ax` - and the routine reads only that word,
+ * [bp+0xc]; bit 0 of it asks for the block zeroed, `DOS_ZERO_FILL`.
+ *
+ * `DOS_ALLOC_BYTES` reads the count: the four bytes as they stand under
+ * Borland C++, and on the host the pointer-sized value the routine put it in,
+ * which a cast straight to `uint32_t` would truncate from the wrong side of a
+ * warning. Ours.
  */
-union far_or_size {
-    uint8_t far *ptr;           /* when it allocated */
-    uint32_t     bytes;         /* when it was asked how much is free */
-};
-
-#ifdef __TURBOC__
-/* **The original's answer is one DX:AX**, a far pointer when it allocated and
-   a count when it was asked how much is free, and a caller takes it as the
-   one it wants. TCC returns a union through memory, so under TCC the routine
-   answers the pointer and a caller reads the count as the same four bytes;
-   the host keeps the union. `DOS_ALLOC_PTR` and `DOS_ALLOC_BYTES` are the two
-   readings. Ours. */
 uint8_t far *dos_alloc_bytes(uint32_t size, uint32_t flags); /* 0x21abd */
-/* A caller passes the flags as the high word of one `long` - `bitmaps.c`
-   pushes `0L` with one `xor ax,ax` and two `push ax` - and the routine
-   reads only that word, [bp+0xc]. */
-#  define DOS_ALLOC(size, flags) dos_alloc_bytes((size), (uint32_t)(flags) << 16)
-#  define DOS_ALLOC_PTR(r)     (r)
+#define DOS_ZERO_FILL 0x10000UL
+#ifdef __TURBOC__
 #  define DOS_ALLOC_BYTES(r)   ((uint32_t)(r))
 #else
-union far_or_size dos_alloc_bytes(uint32_t size,
-                         uint16_t unused,
-                         uint16_t flags);           /* 0x21abd */
-#  define DOS_ALLOC(size, flags) dos_alloc_bytes((size), 0, (flags))
-#  define DOS_ALLOC_PTR(r)     ((r).ptr)
-#  define DOS_ALLOC_BYTES(r)   ((r).bytes)
+#  define DOS_ALLOC_BYTES(r)   ((uint32_t)(uintptr_t)(r))
 #endif
 
 /* Fill memory through a far pointer, with a 32-bit count. */

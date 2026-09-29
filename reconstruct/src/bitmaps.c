@@ -131,7 +131,7 @@ struct bitmap **load_bitmaps(char *name)
     }
     if (kind == 0) {
         size = file_record_size(file);
-        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         read_far(block, size, file);
         if (seek_named_chunk(file, "BMP:OFF:", 0) == -1L) {
@@ -150,7 +150,7 @@ struct bitmap **load_bitmaps(char *name)
         }
     } else {
         size = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&i);
-        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         set_mask_of_each(0xfffc, list);
         for (i = 0; i < count; i++) {
@@ -377,7 +377,7 @@ uint16_t load_screen(char *name)
     copy_file_record(&saved, file);
     if (seek_named_chunk(file, "SCR:VQT:", 0) != -1L) {
         size = file_record_size(file);
-        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         read_far(block, size, file);
         if ((BITMAPS.walk = open_bit_reader(block)) != 0) {
@@ -523,14 +523,14 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
             largest = (uint16_t)chunk;
         at++;
     }
-    buffer = DOS_ALLOC_BYTES(DOS_ALLOC(-1L, 0));
+    buffer = DOS_ALLOC_BYTES(dos_alloc_bytes(-1L, 0));
     file_left = file_record_size(file);
     if (file_left <= buffer) {
         buffer = file_left;
         largest = 0;
     }
     if (largest > buffer
-        || !(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
+        || !(block = dos_alloc_bytes(buffer, 0))) {
         if (g_scratch_block != NULL && largest <= 0x3ab4) {
             block = g_scratch_block;
             buffer = 0x3ab4;

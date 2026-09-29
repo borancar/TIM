@@ -156,7 +156,7 @@ uint8_t far *load_palette(char *name)
            string, which `seek_named_chunk` refuses. */
         if (seek_named_chunk((FILE *)name,
                              PALCHUNK.by_adapter[VMDS.pixel_shift], 0) != -1L) {
-            if ((blk = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes, 0)))
+            if ((blk = dos_alloc_bytes(ENGINE_PEN.palette_bytes, 0))
                 != NULL) {
                 game_fread(buf, 1, ENGINE_PEN.palette_bytes, (FILE *)name);
                 huge_move(blk, buf, ENGINE_PEN.palette_bytes);
@@ -164,7 +164,7 @@ uint8_t far *load_palette(char *name)
         } else if (VMDS.vga_chunks != 0
                    && seek_named_chunk((FILE *)name, "PAL:AMG:", 0) != -1L
                    && game_fread((uint8_t *)amg, 1, 0x40, (FILE *)name) != 0
-                   && (blk = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes, 0)))
+                   && (blk = dos_alloc_bytes(ENGINE_PEN.palette_bytes, 0))
                       != NULL) {
             p = blk;
             for (i = 0; i < 0x20; i++) {
@@ -207,7 +207,7 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
 
     if (VMDS.palettes.blocks[0] == NULL
         && ENGINE_PEN.palette_bytes != 0)
-        VMDS.palettes.blocks[0] = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes * 2, 0));
+        VMDS.palettes.blocks[0] = dos_alloc_bytes(ENGINE_PEN.palette_bytes * 2, 0);
 
     if (h == NULL)
         return PALCHUNK.palette;

@@ -547,7 +547,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
         p = malloc_far((uint16_t)size);
         blk = (uint8_t far *)NEAR_ZERO(p);
     } else {
-        blk = DOS_ALLOC_PTR(DOS_ALLOC(size, 0));
+        blk = dos_alloc_bytes(size, 0);
     }
 
     if (blk != NULL

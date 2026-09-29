@@ -717,7 +717,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 
         if (!(int8_t)VMDS.vga_chunks) {
             pixels = (*si)->width * (*si)->height;
-            blk = DOS_ALLOC_PTR(DOS_ALLOC(pixels, 0));
+            blk = dos_alloc_bytes(pixels, 0);
 
             pixels >>= 3;
 

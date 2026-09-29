@@ -110,7 +110,7 @@ uint16_t load_font(char *name)
                 if (!failed)
                     failed = (int16_t)resource_size(handle) != size;
                 if (!failed)
-                    failed = (blk = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)size, 0)))
+                    failed = (blk = dos_alloc_bytes((uint16_t)size, 0))
                              == NULL;
                 if (!failed)
                     failed = read_resource(handle, blk, size) != size;

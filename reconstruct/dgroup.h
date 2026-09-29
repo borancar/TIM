@@ -123,19 +123,19 @@ typedef struct paragraph *dg_sseg_t;
  * `seg + n` is n of them further on, as it is on the 8086. `MK_FP` adds the
  * offset in bytes; `FP_SEG` answers the paragraph a pointer is in and
  * `FP_OFF` how far into it - the normalised pair, which is what a pointer on
- * its own can say (see tim.h). DOS hands out whole paragraphs from
- * `g_dos_memory`, which is aligned to them, so normalising a pointer into a
- * block means exactly what it does in real mode. A null segment is C's null,
+ * its own can say (see tim.h). DOS hands out whole paragraphs, and the
+ * host's blocks are aligned to them, so normalising a pointer into a block
+ * means exactly what it does in real mode. A null segment is C's null,
  * and `MK_FP` of it is null again. Ours.
  */
 #  define MK_FP(seg, off)   ((uint8_t *)(seg) + (uint16_t)(off))
 #  define FP_SEG(p)         ((dg_seg_t)((uintptr_t)(p) & ~(uintptr_t)0xf))
 #  define FP_OFF(p)         ((uint16_t)((uintptr_t)(p) & 0xf))
 #  define FAR_OF_LONG(seg, off) MK_FP(seg, off)
-/* The sign of the segment is the arena's number for it. */
-uint16_t io_dos_segment(const struct paragraph *seg);
-#  define BCC_FAR_ARG(p, seg) \
-    ((void)(p), MK_FP(seg, (io_dos_segment(seg) & 0x8000u) ? 0xffffu : 0u))
+/* Borland's offset is the sign of the segment, 0xffff at 0x8000 and above;
+   a host block has no DOS segment, so it is 0, as for every block DOS puts
+   in the lower 512 KB. */
+#  define BCC_FAR_ARG(p, seg)   ((void)(p), MK_FP(seg, 0))
 #endif
 
 /*

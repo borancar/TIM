@@ -550,7 +550,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         dos_free_far(MK_FP(VM_DRIVER.span_buffer_seg - 1, 0));
 
     {
-        uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
+        uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0);
 
         /* Only the segment is kept, and tested: `or dx,dx`. */
         if (FP_SEG(p) == 0)
