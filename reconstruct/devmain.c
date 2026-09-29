@@ -5,7 +5,7 @@
  * original's start-up was. tools/ calls this binary, never ./tim.
  *
  * **It behaves as `tim` does**: with no options it opens the window, captures
- * the mouse and plays, and Shift+F2 writes a snapshot. That was the other way
+ * the mouse and plays. That was the other way
  * round until now - headless unless `TIM_WINDOW` was set - and the asymmetry
  * was a nuisance every time a state had to be reached by playing. The tools
  * that drive this binary in batch set `TIM_HEADLESS=1`, which is the honest
@@ -42,121 +42,6 @@
 #define H 480
 
 /*
- * OURS: Shift+F2, the same as main.c's. `TIM_SNAP=<path>` moves the file.
- */
-static void on_hotkey(int32_t id)
-{
-    char path[512];
-
-    if (id != SDL_HOTKEY_SNAPSHOT)
-        return;
-    io_next_snapshot_path(path, sizeof path, "devtim");
-    io_write_snapshot(path);
-}
-
-/*
- * OURS: pick up a restored machine and keep playing it.
- *
- * A snapshot holds the machine and not the port's call stack, so something has
- * to choose where to start executing. This is `game_round` at 0x0eff5 **minus
- * its `round_setup`** - the dispatch, the two states that end a round, and the
- * teardown - because `round_setup` is what would load the level again and
- * throw away the very state being restored.
- *
- * Below it is `game_play`'s tail at 0x0eed5, which is what advances the puzzle
- * count and writes the record out, so a resumed session can finish its round
- * and go on to the next one exactly as a fresh run would. Rounds after the
- * first are the transcribed `game_round`, not this copy.
- *
- * Both are transcribed routines written out a second time, which is normally
- * the thing this project refuses to do; they are here because the alternative
- * is a resume that either restarts the round or stops after it. Keep them
- * matching their originals if either changes - the addresses above are where
- * to look.
- *
- * What does **not** come back is anything a C local was holding: the button
- * repeat counters in the screen loops, whether a repaint was pending, the part
- * being dragged. A resumed round starts those afresh, so a snapshot taken
- * mid-drag comes back with the part put down.
- */
-static void resume_from_snapshot(void)
-{
-    while (g_round_state != 0x200 && g_round_state != 1) {
-        heap_check_or_hang();
-
-        if (g_round_state == 2)
-            game_screen();
-        else if (g_round_state == 0x2000)
-            run_machine_loop();
-        else
-            game_screen_loop();
-    }
-
-    if (g_round_state == 0x200)
-        finish_level();
-
-    round_teardown();
-
-    while (g_playing != 0) {
-        if (((int16_t)g_round_state) == 1) {
-            g_playing = 0;
-        } else {
-            g_round_number = (int16_t)(g_round_number + 1);
-            if (g_round_number > g_furthest_level) {
-                g_furthest_level = g_round_number;
-                write_config();
-            }
-            game_round();
-        }
-    }
-
-    /*
-     * And out the same way `game_main` goes, which this had been leaving off:
-     * a resumed session that quit ran the rounds and then simply returned, so
-     * `game_teardown` - the password on the way out, the frees, the vectors
-     * handed back - was never reached from here. It was reachable by playing
-     * from the start and not by resuming, which is the sort of difference a
-     * harness introduces and then hides.
-     */
-    game_teardown(1);
-}
-
-/*
- * OURS: `TIM_SAVEMACHINE=<name>` - write the restored machine out as a `.TIM`
- * file through the game's own writer, and stop.
- *
- * Why it exists: a port snapshot is *our* memory and hardware with no CPU, so
- * only the port can open one, and the only question that can be asked of a
- * solved puzzle is "did it solve". The hybrid cannot load one at all, which was
- * tried and abandoned: the port installs its timer by dispatch and so its
- * memory carries an empty interrupt table, and even with that filled in the
- * guest ran off into unmapped code.
- *
- * A machine *file* has none of those problems. It is what the game itself
- * writes and reads - `save_machine` at 0x1292d and `load_animation` at 0x12915
- * - so both sides can reach the same machine through the game's own loader,
- * with no CPU state to invent. The goal test comes from the level, which is
- * what `--level` already selects, so a solution is a level number and a file.
- *
- * The name goes at DGROUP 0x52fe because that is where the file picker leaves
- * it and where `save_machine` reads it; this is standing in for the picker,
- * not for the writer.
- */
-static void save_machine_file(const char *name)
-{
-    int32_t i;
-
-    for (i = 0; name[i] && i < (int32_t)sizeof g_picked_machine - 1; i++)
-        g_picked_machine[i] = name[i];
-    g_picked_machine[i] = 0;
-
-    if (save_machine((char *)g_picked_machine) != 0)
-        fprintf(stderr, "io: save_machine reported an error for %s\n", name);
-    else
-        fprintf(stderr, "io: wrote the machine as %s\n", name);
-}
-
-/*
  * OURS: `--level <n>` - start on a puzzle instead of on round 1.
  *
  * Four transcribed calls in the original's order with one word set between two
@@ -190,29 +75,24 @@ static void play_level(int32_t level)
 static void usage(void)
 {
     printf(
-"usage: devtim [--restore FILE] [--level N] [--run]\n"
+"usage: devtim [--level N] [--run]\n"
 "              [--raw FILE [--lines N]]\n"
 "              [--device NAME] [--module NAME]\n"
 "\n"
 "The developer build of the port. It plays exactly as ./tim does - a window,\n"
-"the mouse captured, Shift+F2 for a snapshot - and adds what a comparison\n"
+"the mouse captured - and adds what a comparison\n"
 "needs. ./tim itself takes no arguments on purpose: a DOS game has no command\n"
 "line.\n"
 "\n"
 "options:\n"
 "  -h, --help      this text\n"
-"  --restore FILE  start from a snapshot written by Shift+F2 instead of from\n"
-"                  the beginning. Memory and hardware come back; the port's\n"
-"                  own call stack cannot, so the round is re-entered at the\n"
-"                  screen the snapshot was on and C locals start afresh.\n"
 "  --level N       play puzzle N instead of round 1, with no pointer and no\n"
 "                  keyboard: the intro, the briefing and the puzzle screen\n"
 "                  are all stepped through by writing the state word the\n"
 "                  game's own regions write. The same as TIM_LEVEL.\n"
 "  --run           start the machine as well, the way clicking the box above\n"
-"                  the parts bin does - and DO NOTHING if it is already\n"
-"                  running, which a restored snapshot may well be. Clicking\n"
-"                  that control a second time is a stop. The same as TIM_RUN.\n"
+"                  the parts bin does. Clicking that control a second time\n"
+"                  is a stop. The same as TIM_RUN.\n"
 "  --raw FILE      write the composed frame as 8-bit palette indices and exit.\n"
 "                  Indices, not a picture: two of them can share a colour.\n"
 "  --lines N       CRTC blanking line for --raw (default 399).\n"
@@ -254,22 +134,12 @@ static void usage(void)
 "  TIM_HEADLESS=1  open no window. What the tools in tools/ set, so a batch\n"
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
-"  TIM_RESTORE=F   the same as --restore\n"
 "  TIM_SIMULATE=N    run the machine for up to N frames through the game's\n"
 "                  own per-frame step, with no clock, input, display or timer\n"
 "                  thread, and report `io: simulate solved=...` - the goal\n"
-"                  test, in seconds. The machine is whichever of the two ways\n"
-"                  of supplying one was used: TIM_LOADMACHINE, which loads a\n"
-"                  .TIM the way the game loads one, or --restore, which picks\n"
-"                  up a snapshot. With TIM_LOADMACHINE the clock runs until\n"
-"                  the play screen is up, because the game has to get there.\n"
-"  TIM_SAVEMACHINE=NAME  with --restore, write the restored machine out as\n"
-"                  that .TIM file through the game's own `save_machine` and\n"
-"                  stop. A machine file can be loaded by either side through\n"
-"                  the game's own loader, which a port snapshot cannot: it\n"
-"                  carries no CPU state and no interrupt table. Pair it with\n"
-"                  --level N, which supplies the goal the machine is judged\n"
-"                  against. TIM_SAVEDIR says where the bytes land.\n"
+"                  test, in seconds. The machine is TIM_LOADMACHINE's, loaded\n"
+"                  the way the game loads one; the clock runs until the play\n"
+"                  screen is up, because the game has to get there.\n"
 "  TIM_LOADMACHINE=NAME  load that .TIM over the level already up, once the\n"
 "                  play screen is reached - the game's own round_teardown,\n"
 "                  load_animation and reset_machine, in that order, which is\n"
@@ -286,10 +156,6 @@ static void usage(void)
 "                  of RESOURCE.CFG without editing it; the file itself is\n"
 "                  untouched, the guest simply reads different bytes.\n"
 "  TIM_MODULE=N    the digitised-sound overlay, byte 2. The same.\n"
-"  TIM_SNAP=PATH   write Shift+F2's snapshot here instead of numbering one\n"
-"  TIM_SNAPDIR=DIR where the numbered snapshots go (default out)\n"
-"  TIM_SNAPAT=N    write a snapshot at flip N without anyone pressing a key\n"
-"  TIM_ABORTDUMP=F where a stub's abort dumps memory and registers\n"
 "  TIM_GAMEDIR=DIR the directory the guest sees as its own, instead of\n"
 "                  incredible-machine. The comparison tools set it so a\n"
 "                  sound device in RESOURCE.CFG cannot change what they\n"
@@ -368,7 +234,6 @@ static void usage(void)
 int main(int argc, char **argv)
 {
     const char *raw = NULL;
-    const char *restore = getenv("TIM_RESTORE");
     int32_t lines = 399;
 
     for (int32_t i = 1; i < argc; i++) {
@@ -378,8 +243,6 @@ int main(int argc, char **argv)
         }
         if (!strcmp(argv[i], "--raw") && i + 1 < argc)
             raw = argv[++i];
-        else if (!strcmp(argv[i], "--restore") && i + 1 < argc)
-            restore = argv[++i];
         else if (!strcmp(argv[i], "--level") && i + 1 < argc)
             setenv("TIM_LEVEL", argv[++i], 1);
         else if (!strcmp(argv[i], "--run"))
@@ -432,24 +295,11 @@ int main(int argc, char **argv)
                 return 1;
             io_on_present(sdl_present);
             io_on_abort(sdl_hold);
-            sdl_on_hotkey(on_hotkey);
         } else {
             io_on_abort(dev_final_frame);
         }
 
-        if (restore && !io_read_snapshot(restore))
-            return 1;
-
-        /*
-         * A simulation has no clock - but only a simulation that starts from a
-         * snapshot can do without one from the first instruction. Loading a
-         * machine the way the game loads one needs the game to *run* as far as
-         * the play screen first, and the frame spins it waits on are released
-         * by the timer. So the clock stays for that path and `dev_autoplay`
-         * stops it at the moment it takes over.
-         */
-        if (getenv("TIM_SIMULATE") == NULL || restore == NULL)
-            io_set_timer(timer_tick);
+        io_set_timer(timer_tick);
 
         /*
          * `TIM_SFXALL=N` asks the game for each sound identifier in turn
@@ -464,32 +314,7 @@ int main(int argc, char **argv)
          * The alternative - decoding the container ourselves - would be
          * writing our own version of something the original already does.
          */
-        if (restore) {
-            /*
-             * A snapshot is always past the intro, and it is also the case
-             * `--run` has to be careful about: the machine may already be
-             * going. `dev_autoplay` reads that off 0x4e6b and says so rather
-             * than clicking the run control again, which would stop it.
-             */
-            dev_autoplay_past_intro();
-            {
-                const char *sim = getenv("TIM_SIMULATE");
-
-                if (sim != NULL && *sim) {
-                    dev_simulate_machine((int32_t)strtol(sim, NULL, 0));
-                    return 0;
-                }
-            }
-            {
-                const char *out = getenv("TIM_SAVEMACHINE");
-
-                if (out != NULL && *out) {
-                    save_machine_file(out);
-                    return 0;
-                }
-            }
-            resume_from_snapshot();
-        } else if (getenv("TIM_LEVEL") != NULL) {
+        if (getenv("TIM_LEVEL") != NULL) {
             play_level((int32_t)strtol(getenv("TIM_LEVEL"), NULL, 0));
         } else if (getenv("TIM_LEVELSCAN") != NULL) {
             game_startup();

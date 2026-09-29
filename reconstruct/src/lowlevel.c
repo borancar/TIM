@@ -2298,8 +2298,8 @@ uint8_t far *normalise_pointer_far(uint8_t far *p)
  * that begins immediately after this routine. DGROUP 0x48ec records that it
  * has been done.
  *
- * The port writes the vector table directly; it is at absolute 0 and is seeded
- * and compared like the rest of memory.
+ * The original writes the vector table directly, at absolute 0; the port
+ * hands the handler to `setvect`, whose table stands for it.
  *
  * The two halves are stored the other way round from how they are read: the
  * offset from 0:0 goes to 0x48ef and the segment from 0:2 to 0x48ed, so the
@@ -2311,8 +2311,7 @@ void install_divide_trap(void)
 
     g_old_divide_vector = getvect(0);
 
-    *(uint16_t *)(g_guest_mem + 0) = 0x616e;
-    *(uint16_t *)(g_guest_mem + 2) = (uint16_t)(S1C25 >> 4);
+    setvect(0, (void interrupt (far *)())divide_error_handler);
 }
 
 /*

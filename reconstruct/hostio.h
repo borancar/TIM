@@ -36,24 +36,6 @@ struct part;
    once dos.c's twelve prototypes had joined the headers. */
 #ifndef __TURBOC__
 
-/*
- * OURS: this layer's whole state, so a machine reached by playing can be
- * replayed by a tool. See the end of io.c for what counts as state and what is
- * host scaffolding. 1 on success, 0 on a short read, a bad magic or a version
- * this build does not know.
- */
-/*
- * OURS: the whole port, written out on a keypress, so a state reached by
- * playing can be compared against the runner. See io.c.
- */
-void     io_next_snapshot_path(char *buf, size_t n, const char *prefix);
-int32_t  io_write_snapshot(const char *path);
-int32_t  io_read_snapshot(const char *path);
-
-/*
- * OURS: a key into the BIOS ring, scancode in the high byte and ASCII in
- * the low one. `bios_read_key` is the guest end of it.
- */
 /* One scancode into the game's own keyboard interrupt; bit 7 is a break. */
 void     io_keyboard_scancode(uint8_t code);
 void     io_bios_init(void);
@@ -85,26 +67,6 @@ void     io_on_pcm_tap2(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
  */
 long     io_keyon_count(void);
 /*
- * OURS: page flips the guest itself made - the CRTC 0x0C writes. Distinct from
- * anything counting presents, which on a paced backend is mostly the clock.
- * See io.c.
- */
-unsigned long io_flip_count(void);
-
-/*
- * OURS: the rate the guest programmed the 8253's counter 0 to, in hertz -
- * 1193182 over the divisor it wrote to port 0x40. For a runner that delivers
- * INT 08h itself and has no timer thread to sleep on. See io.c.
- */
-double   io_timer_hz(void);
-
-/*
- * OURS: the rate `io_service_display` presents at, for a caller that needs to
- * express something per displayed frame. See io.c.
- */
-double   io_display_hz(void);
-
-/*
  * The card's completion interrupt. A driver registers the handler for the IRQ
  * it thinks the card is on; only the one the card is actually on is kept.
  * `io_sb_poll` fires it once the block it is playing has had time to play out,
@@ -120,22 +82,9 @@ void     io_sb_wait(void);
  * registered for it. `io_sb_poll` handles the C case and leaves this one.
  */
 int32_t  io_sb_irq_take(uint8_t *irq);
-int32_t  io_sb_irq_owed(void);
-void     io_sb_irq_delivered(void);
-
-/* The host's stream, opaque here: io.h is included by the game's translation
-   units, which see Borland's `FILE` and not the host's. */
-int32_t  io_state_save(void *host_file);
-int32_t  io_state_load(void *host_file);
-
-/* OURS: the host's formatting and console, for the game's units, which
-   include no <stdio.h> - `not_transcribed` messages are built with
-   `io_format`, and `main.c` complains through `io_errorf`. `io_puts` is
-   what `printf` wrote through until the engine was transcribed. */
+/* OURS: the host's formatting, for the game's units, which include no
+   <stdio.h> - `not_transcribed` messages are built with `io_format`. */
 void     io_format(char *buf, uint32_t size, const char *fmt, ...);
-void     io_puts(const char *s);
-void     io_errorf(const char *fmt, ...);
-
 #define VGA_PLANE_BYTES 0x10000
 #define VGA_PLANES      4
 
@@ -227,7 +176,6 @@ void     dev_level_scan(void);
  * state word, because the animations and the running machine both sit at
  * 0x2000. See devdump.c.
  */
-void     dev_autoplay_past_intro(void);
 
 /*
  * OURS: a date for `io_dos_getdate` to answer instead of its fixed one.
@@ -309,16 +257,6 @@ uint16_t vga_start_address(void);
 void     vga_palette_rgb(uint8_t out[768]);
 
 /*
- * OURS, for verification. A routine that *reads* video memory - the latch copy
- * does nothing else - can only be compared against the original if it is
- * looking at the same pixels, so tools/verify.py loads the original's planes
- * in before the call and reads them back out after.
- */
-void     vga_load_plane(int32_t plane, const uint8_t *src, int32_t len);
-void     vga_load_regs(const uint8_t *gc9, uint8_t map_mask);
-void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
-
-/*
  * OURS. Called where a transcribed routine branches into one that has not been
  * transcribed yet. It aborts rather than returning, because a silently wrong
  * pixel is exactly what this project exists to avoid.
@@ -327,46 +265,9 @@ void     not_transcribed(const char *what);
 void     port_abort(const char *msg);
 
 /*
- * OURS: the verifier's allocation-underrun flag. Armed, an allocation with
- * nothing primed is recorded and answered as a failure instead of aborting the
- * process the library is loaded into - see the note in io.c. `tim` and
- * `devtim` never arm it and abort exactly as before.
+ * OURS: DOS memory allocation, INT 21h AH=48h, the resize and the free, over
+ * the arena `io_dos_arena_reset` hands out.
  */
-void     io_arm_stub_trap(void);
-void     io_disarm_stub_trap(void);
-int16_t  io_stub_reached(void);   /* how many ran past the primed list */
-int32_t  io_primed_allocs(void);  /* how many were primed */
-
-/*
- * OURS: DOS memory allocation, INT 21h AH=48h. There is no DOS here and no
- * arena, so the port cannot decide where a block goes. tools/verify.py primes
- * these with what DOS actually answered during the original's own call, which
- * leaves everything around the allocation - the size arithmetic, the rounding,
- * the zero fill - genuinely compared, rather than declaring the whole routine
- * unverifiable.
- */
-/*
- * How many of the original's DOS allocations `tools/verify.py` can replay for
- * one compared call. It was 16, and `load_all_parts` makes far more than that
- * - it loads every part bitmap - so it exhausted the list on every run and
- * could never be verified. Truncation is silent in `io_prime_dos_alloc`, but
- * it is no longer invisible: running off the end sets the harness's underrun
- * flag and the comparison reports RAN OUT rather than a difference.
- *
- * At 512 it verifies. An earlier version of this note said it still ran out
- * and built a "finding" on top of that - the port asking for more allocations
- * than the original made, narrowed to something about running the calls in
- * sequence. **All of it was wrong**, and the cause was one line in the
- * Makefile: `libtim.so` depended on the `.c` files and not the headers, so
- * raising this constant rebuilt nothing and the run used the sixteen-entry
- * library. It only took effect when an unrelated edit to io.c forced a
- * rebuild. The dependency is fixed; the lesson is that a stale build answers
- * confidently and a header-only change is exactly when to distrust it.
- */
-#define DOS_ALLOC_PRIMED 512
-
-void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
-                            const uint8_t *failed, int32_t n);
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
 uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs);
@@ -374,21 +275,12 @@ uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs);
 /*
  * OURS: hand the arena the memory the program's own block does not use, which
  * is what Borland's startup does with INT 21h AH=4Ah before it calls main.
- * Under the verifier this is never called and primed allocations answer
- * instead.
  */
 void     io_dos_arena_reset(uint16_t first_free, uint16_t mem_top);
 
 /*
- * OURS: put the recovered image in memory the way DOS's loader would, apply its
- * relocations, and set DGROUP, the stack and the arena. Answers 0 if either
- * file could not be read. See io.c.
- */
-int32_t  io_load_program(const char *img_path, const char *exe_path);
-
-/*
- * OURS: DGROUP's address, the stack, the arena and the BIOS bytes - everything
- * `io_load_program` does except loading. What the port calls; see io.c.
+ * OURS: DGROUP's address, the stack, the arena and the BIOS bytes - what
+ * DOS's loader and Borland's startup leave behind. See hostio.c.
  */
 void     io_start_program(void);
 void     io_dos_free(uint16_t seg);
@@ -448,34 +340,6 @@ int16_t  io_dos_unlink(const char *name);
 
 void     io_bios_set_mode(uint16_t mode);
 void     io_reset(void);
-
-/*
- * A trace of everything a routine did to the hardware, which is how a
- * transcription is proved against the original: the emulator records the same
- * sequence from the real code, and the two are compared event for event. This
- * needs no mapping of the original's whole machine state into the port's,
- * which a register-level comparison would.
- */
-/*
- * Big enough for a whole frame of the machine: `draw_machine` alone writes
- * 125,896 times, and the trace holds reads as well. At 65,536 it filled part
- * way through and the comparison then read as "the port stopped early", which
- * is the most misleading shape a limit can take - the verifier now says when
- * the trace was cut off rather than letting it look like a difference.
- */
-#define IO_TRACE_MAX (1 << 20)
-
-typedef struct {
-    uint16_t port;      /* or 0xA000 for a video memory access */
-    uint16_t offset;    /* video memory offset, else 0 */
-    uint8_t  value;
-    uint8_t  is_read;
-} io_event;
-
-void     io_trace_begin(void);
-int32_t  io_trace_count(void);
-int32_t  io_trace_full(void);
-const io_event *io_trace_events(void);
 
 #endif /* !__TURBOC__ */
 

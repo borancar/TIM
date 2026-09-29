@@ -3145,8 +3145,9 @@ found what the tooling could not.
 
 ## Every puzzle, and what it takes to run one
 
-`tools/puzzles.py` drives the game's own SELECT PUZZLE screen from a briefing
-snapshot, picks a puzzle, starts the level and runs the machine. The clicks are
+`tools/puzzles.py` (removed 2026-09-29 with the port snapshot it started
+from; `check_solutions` is what runs every level now) drove the game's own
+SELECT PUZZLE screen from a briefing snapshot, picks a puzzle, starts the level and runs the machine. The clicks are
 the game's - the picker's five regions read out of a snapshot of it, and the
 row arithmetic `(y - 0x4c) / 10 + page` that `puzzle_screen` uses at 0x0f0b0 -
 so the same sequence would drive the original, which writing the puzzle number
@@ -3195,8 +3196,9 @@ those goals have the parts the locals would have been set from.
 ### The part routines
 
 Every hook a kind's table names is transcribed: the six slots at 0xec8 through
-0xedc across all 58 kinds. `tools/freeform.py` places every part in the bin,
-flips both axes and runs the machine - 45 of 45, no traps.
+0xedc across all 58 kinds. `tools/freeform.py` placed every part in the bin,
+flipped both axes and ran the machine - 45 of 45, no traps. It started from a
+port snapshot, and went with them on 2026-09-29.
 
 ## The bitmap formats, and which of them this game uses
 

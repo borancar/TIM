@@ -167,7 +167,7 @@ tim: $(TIM_OBJ) $(OPL_OBJ)
 	    $^ $(SDL_LIBS) -lpthread -lstdc++
 
 # devtim links sdl.c too, and opens a window by default exactly as tim does,
-# so it can be played and Shift+F2 pressed. The tools in tools/ set
+# so it can be played. The tools in tools/ set
 # TIM_HEADLESS=1, which is what keeps them working on a machine with no
 # display: the window is what a person needs, its absence is what a comparison
 # needs, and the comparison is the one that asks.
@@ -241,7 +241,7 @@ asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS)
 # Makefile. So it is checked rather than asserted.
 DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY_HOOKS TIM_GAMEDIR \
             TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS TIM_WAV TIM_SFXDIR TIM_SFXALL TIM_FMDIR TIM_PARTPICS TIM_LEVELSCAN TIM_DATE \
-            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN TIM_SAVEMACHINE TIM_LOADMACHINE TIM_SIMULATE TIM_LUA
+            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN TIM_LOADMACHINE TIM_SIMULATE TIM_LUA
 
 # **The file list is the point, not an oversight.** These are the translation
 # units where transcribed routines and ours-routines sit side by side, so a

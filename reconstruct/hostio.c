@@ -55,11 +55,6 @@ static uint8_t  crtc[32];
  */
 static unsigned long flip_count;
 
-unsigned long io_flip_count(void)
-{
-    return flip_count;
-}
-
 
 /* OURS: a monotonic clock, for the tick rate and the window's refresh. */
 static double io_now(void)
@@ -251,25 +246,6 @@ static int32_t  dac_phase;
 static uint8_t  dac_latch[3];
 static int32_t  dac_write_mode = 1;
 
-static io_event trace[IO_TRACE_MAX];
-static int32_t  trace_n = -1;      /* -1 = not tracing */
-
-void io_trace_begin(void)      { trace_n = 0; }
-int32_t io_trace_count(void)   { return trace_n < 0 ? 0 : trace_n; }
-int32_t io_trace_full(void)    { return trace_n >= IO_TRACE_MAX; }
-const io_event *io_trace_events(void) { return trace; }
-
-static void trace_add(uint16_t port, uint16_t offset, uint8_t value, uint8_t rd)
-{
-    if (trace_n < 0 || trace_n >= IO_TRACE_MAX)
-        return;
-    trace[trace_n].port = port;
-    trace[trace_n].offset = offset;
-    trace[trace_n].value = value;
-    trace[trace_n].is_read = rd;
-    trace_n++;
-}
-
 /*
  * The VGA BIOS's own CRTC table for mode 12h. The game read-modify-writes
  * three of these registers, so they have to start at the values the BIOS left
@@ -281,147 +257,11 @@ static const uint8_t CRTC_MODE12[25] = {
     0xFF
 };
 
-void vga_load_plane(int32_t plane, const uint8_t *src, int32_t len)
-{
-    if (plane >= 0 && plane < VGA_PLANES && len <= VGA_PLANE_BYTES)
-        memcpy(planes[plane], src, (size_t)len);
-}
-
-void vga_load_regs(const uint8_t *gc9, uint8_t map_mask)
-{
-    for (int32_t i = 0; i < 9; i++)
-        gc[i] = gc9[i];
-    seq[2] = (uint8_t)(map_mask & 0x0F);
-}
-
-void vga_store_plane(int32_t plane, uint8_t *dst, int32_t len)
-{
-    if (plane >= 0 && plane < VGA_PLANES && len <= VGA_PLANE_BYTES)
-        memcpy(dst, planes[plane], (size_t)len);
-}
-
-static uint16_t alloc_seg[DOS_ALLOC_PRIMED];
-static uint16_t alloc_largest[DOS_ALLOC_PRIMED];
-static uint8_t  alloc_failed[DOS_ALLOC_PRIMED];
-static int32_t  alloc_n, alloc_at;
-
-void io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
-                        const uint8_t *failed, int32_t n)
-{
-    if (n > DOS_ALLOC_PRIMED)
-        n = DOS_ALLOC_PRIMED;
-    for (int32_t i = 0; i < n; i++) {
-        alloc_seg[i] = segs[i];
-        alloc_largest[i] = largest[i];
-        alloc_failed[i] = failed[i];
-    }
-    alloc_n = n;
-    alloc_at = 0;
-}
-
 /*
- * OURS: load the recovered image the way DOS's loader would.
- *
- * The port has no EXE loader of its own and needs one to run at all: the game's
- * code, its initialised data and the whole of DGROUP live in `out/TIM.img`, and
- * the segment immediates in it are **paragraph counts from the load address**,
- * not values. The relocation table that says which words those are is measured
- * rather than decoded - `tools/unlzexe.py` runs the LZEXE stub twice at
- * different load segments and diffs - and it is carried in the recovered
- * executable's own header, which is where this reads it from.
- *
- * The load segment is 0x0110, a PSP at 0x0100 and the usual 0x10 paragraphs of
- * it, which is where the reference emulator puts the program. It matters that
- * the two agree: a captured DGROUP address means nothing if the port put DGROUP
- * somewhere else.
- *
- * Everything after the copy is what Borland's startup does before it reaches
- * main, and the port does it here because the startup itself is not the game:
- * the program block is cut down to DGROUP + 64 KB, the tail becomes the arena,
- * and SS:SP points at the top of DGROUP.
+ * OURS: the top of conventional memory, the paragraph below the video
+ * aperture, which is where DOS's arena ends.
  */
-#define PSP_SEG    0x0100u
 #define MEM_TOP    0x9FFFu
-
-static int32_t read_file(const char *path, uint8_t **out, int32_t *len)
-{
-    FILE *f = fopen(path, "rb");
-    long n;
-
-    *out = NULL;
-    *len = 0;
-    if (!f)
-        return 0;
-
-    fseek(f, 0, SEEK_END);
-    n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    *out = (uint8_t *)malloc((size_t)n);
-    if (!*out || fread(*out, 1, (size_t)n, f) != (size_t)n) {
-        free(*out);
-        *out = NULL;
-        fclose(f);
-        return 0;
-    }
-    fclose(f);
-    *len = (int32_t)n;
-    return 1;
-}
-
-int32_t io_load_program(const char *img_path, const char *exe_path)
-{
-    uint8_t *img = NULL, *exe = NULL;
-    int32_t img_len = 0, exe_len = 0;
-    uint32_t base = (uint32_t)LOAD_SEG << 4;
-    uint16_t nrel, tbl;
-    int32_t i;
-
-    if (!read_file(img_path, &img, &img_len))
-        return 0;
-    if (!read_file(exe_path, &exe, &exe_len)) {
-        free(img);
-        return 0;
-    }
-    if (base + (uint32_t)img_len > GUEST_MEM_BYTES || exe_len < 0x20) {
-        free(img);
-        free(exe);
-        return 0;
-    }
-
-    memcpy(g_guest_mem + base, img, (size_t)img_len);
-
-    nrel = (uint16_t)(exe[6] | (exe[7] << 8));
-    tbl  = (uint16_t)(exe[0x18] | (exe[0x19] << 8));
-
-    for (i = 0; i < (int32_t)nrel; i++) {
-        int32_t at = tbl + 4 * i;
-        uint16_t off, seg;
-        uint32_t where;
-
-        if (at + 4 > exe_len)
-            break;
-        off = (uint16_t)(exe[at] | (exe[at + 1] << 8));
-        seg = (uint16_t)(exe[at + 2] | (exe[at + 3] << 8));
-        where = base + ((uint32_t)seg << 4) + off;
-        if (where + 1 >= GUEST_MEM_BYTES)
-            continue;
-        {
-            uint16_t v = (uint16_t)(g_guest_mem[where]
-                                    | (g_guest_mem[where + 1] << 8));
-
-            v = (uint16_t)(v + LOAD_SEG);
-            g_guest_mem[where] = (uint8_t)v;
-            g_guest_mem[where + 1] = (uint8_t)(v >> 8);
-        }
-    }
-
-    free(img);
-    free(exe);
-
-    io_start_program();
-    return 1;
-}
 
 static char     game_dir[PATH_MAX] = "incredible-machine";
 
@@ -578,81 +418,12 @@ static uint16_t arena_largest(void)
     return best;
 }
 
-/*
- * OURS: the harness's underrun flag, and the three calls that work it.
- *
- * Only `tools/verify.py` uses these, through `libtim.so`. They exist so a
- * sweep can report "this routine ran out of primed allocations" for one
- * routine instead of losing every result it has.
- */
-static int16_t stub_trap_armed;
-static int16_t stub_trap_hit;
-
-void io_arm_stub_trap(void)
-{
-    stub_trap_armed = 1;
-    stub_trap_hit = 0;
-}
-
-void io_disarm_stub_trap(void)
-{
-    stub_trap_armed = 0;
-}
-
-int16_t io_stub_reached(void)
-{
-    return stub_trap_hit;
-}
-
-int32_t io_primed_allocs(void)
-{
-    return alloc_n;
-}
-
-
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
 {
     int32_t i;
 
-    /* What the original's own run answered, when the verifier has it. */
-    if (alloc_at < alloc_n) {
-        *largest = alloc_largest[alloc_at];
-        *failed = alloc_failed[alloc_at];
-        return alloc_seg[alloc_at++];
-    }
-
     if (arena_n == 0) {
-        /*
-         * **Under the verifier this is not a stub, it is an underrun.** The
-         * primed answers above are the original's own, recorded for the call
-         * being compared; a routine that allocates more times than the
-         * harness primed falls through to here. Aborting then kills the whole
-         * process, and `libtim.so` lives inside `tools/verify.py`, so a run
-         * loses every result it has collected - a 55-minute sweep died this
-         * way at 2580 of 2600 million instructions, and a seventeen-routine
-         * batch with eight already collected.
-         *
-         * So when the harness has armed the flag, this records what happened
-         * and answers a failed allocation. That is **not** the silent no-op
-         * the stub rule forbids: `io_stub_reached()` is read after every
-         * comparison and the routine is reported as having run out of primed
-         * allocations, which is a fact about the harness and not about the
-         * port. `tim` and `devtim` never arm it and abort exactly as before.
-         */
-        if (stub_trap_armed) {
-            /*
-             * Count them rather than just noting one. "The port asked for more
-             * than were primed" does not say whether it asked for one more at
-             * the end or a few more per call, and those point at different
-             * causes - see the note on DOS_ALLOC_PRIMED in io.h.
-             */
-            stub_trap_hit++;
-            *failed = 1;
-            *largest = 0;
-            return 0;
-        }
-
-        not_transcribed("a DOS allocation with no arena and nothing primed");
+        not_transcribed("a DOS allocation with no arena");
         *failed = 1;
         *largest = 0;
         return 0;
@@ -688,12 +459,6 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
     return 0;
 }
 
-/*
- * Release a DOS block. The port has no DOS arena - allocations are primed by
- * the verifier rather than served - so there is nothing to give back and this
- * does nothing. It exists so the transcribed routine that calls it reads the
- * way the original does instead of having the call quietly dropped.
- */
 /*
  * Shrink or grow a DOS block in place, INT 21h AH=4Ah. Answers 0 on success and
  * the largest size available on failure, which is what DOS puts in BX.
@@ -1017,26 +782,6 @@ uint16_t io_bios_display_combination(void)
 static void (*timer_handler)(void);
 static uint16_t timer_divisor;
 
-/*
- * OURS: the rate the guest has programmed the 8253's counter 0 to, in hertz.
- *
- * The divisor is whatever the game wrote to port 0x40, and 1193182 is the
- * PC's timer crystal. A runner that delivers INT 08h itself has no business
- * inventing a rate when the guest has stated one - `timer_loop` above already
- * sleeps by exactly this, and this is the same number for a caller that has no
- * thread to sleep on.
- *
- * Zero means the divisor is unset, which the hardware reads as 65536.
- */
-double io_display_hz(void)
-{
-    return VGA_FRAME_HZ;
-}
-
-double io_timer_hz(void)
-{
-    return 1193182.0 / (double)(timer_divisor ? timer_divisor : 0x10000);
-}
 static int32_t  timer_lo_next = 1;
 
 /*
@@ -1725,8 +1470,7 @@ int16_t io_dos_unlink(const char *name)
 
 /*
  * OURS. The abort itself, so a refusal that is *not* about a missing
- * transcription can have the same snapshot, backtrace and DGROUP dump without
- * claiming to be a stub. `read_resource` is the first caller: a destination
+ * transcription can have the same backtrace without claiming to be a stub. `read_resource` is the first caller: a destination
  * outside guest memory has no `seg:off` for DGROUP 0x5894 to hold, which is a
  * value this port cannot represent rather than code nobody has written.
  */
@@ -1767,64 +1511,6 @@ void port_abort(const char *msg)
      * frame in it says far more about where the port got to than the line
      * above does. devtim registers nothing here and aborts straight away.
      */
-    /*
-     * **And the state it got there with**, for comparing against the original.
-     *
-     * A backtrace says which routines ran; it does not say what they left
-     * behind, and a stub is exactly the moment that matters - the port and the
-     * emulator have taken the same path up to here and either agree about
-     * memory or do not. So `TIM_ABORTDUMP=<path>` writes the whole of DGROUP
-     * flat, 0x10000 bytes and nothing else, which is directly comparable with
-     * the same slice of a hybrid snapshot or of the emulator's memory: a
-     * `cmp -l` names every byte the two disagree about.
-     *
-     * The port's stand-in stack pointer goes in a sidecar `.sp` file rather
-     * than a header, so the dump stays a flat image with no offset to remember
-     * - `g_guest_sp` is the port's whole notion of a register that the original
-     * has and C does not, and it is worth having beside the memory because a
-     * frame reserved at the wrong place is what makes two DGROUPs differ in a
-     * way nothing in the transcription explains.
-     *
-     * **Always written, not on request.** It was behind `TIM_ABORTDUMP` and
-     * that is the wrong way round for a crash dump: the run that matters is
-     * the one nobody expected to fail, and being told afterwards to set a
-     * variable and reproduce it is the thing this exists to avoid. It goes to
-     * `out/abort.dgroup` by default and the variable now only *moves* it; the
-     * cost is 64 KB on a path that is about to call `abort` anyway.
-     *
-     * Written before `abort_hook` so a window that blocks on the last frame
-     * cannot stop the dump happening.
-     */
-    {
-        const char *path = getenv("TIM_ABORTDUMP");
-
-        if (path == NULL || *path == 0)
-            path = "out/abort.dgroup";
-
-        {
-            FILE *f = fopen(path, "wb");
-            char sp[512];
-
-            if (f) {
-                fwrite(dgroup, 1, DGROUP_BYTES, f);
-                fclose(f);
-                fprintf(stderr, "wrote %s (DGROUP, %d bytes)\n",
-                        path, (int)DGROUP_BYTES);
-            } else {
-                fprintf(stderr, "cannot write %s\n", path);
-            }
-
-            snprintf(sp, sizeof sp, "%s.sp", path);
-            if ((f = fopen(sp, "w")) != NULL) {
-                fprintf(f, "guest_sp %04x\ndgroup_base %05x\nstub %s\n",
-                        g_guest_sp, g_dgroup_base, msg);
-                fclose(f);
-                fprintf(stderr, "wrote %s (guest_sp, dgroup_base, stub)\n",
-                        sp);
-            }
-        }
-    }
-
     if (abort_hook)
         abort_hook();
 
@@ -1989,25 +1675,6 @@ void io_sb_poll(void)
     fn();
 }
 
-/*
- * OURS: hand a pending completion to a runner that can deliver a real
- * interrupt, and say which line it is on.
- *
- * `tools/native/native.c` runs the original's own code, which hooks the IVT
- * and expects the card to raise IRQ 7; it has `deliver_int` already and this
- * is the only thing it was missing. Answers 0 when nothing is due, or when a C
- * handler is registered and `io_sb_poll` will call it.
- */
-/*
- * OURS: is the card going to raise an interrupt that only a runner can
- * deliver? A runner steps in smaller slices while this is true, so the guest's
- * handler runs while the code that provoked it is still waiting.
- */
-int32_t io_sb_irq_owed(void)
-{
-    return sb_irq_due != 0.0 && sb_irq_hook == 0;
-}
-
 int32_t io_sb_irq_take(uint8_t *irq)
 {
     if (sb_irq_due == 0.0 || sb_irq_hook != 0)
@@ -2032,19 +1699,6 @@ int32_t io_sb_irq_take(uint8_t *irq)
      */
     *irq = SB_IRQ;
     return 1;
-}
-
-/*
- * OURS: the runner delivered it. **Separate from the take**, because
- * `deliver_int` can refuse - the guest may have interrupts off, or be inside
- * the handler already - and an interrupt that was not delivered has not
- * happened. Clearing it on the way out of `io_sb_irq_take` dropped exactly the
- * ones the guest was not ready for, which is every one raised inside a `cli`.
- */
-void io_sb_irq_delivered(void)
-{
-    sb_irq_due = 0.0;
-    sb_say("irq to guest", SB_IRQ, 0);
 }
 
 void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
@@ -2434,13 +2088,6 @@ void io_reset(void)
 
 /*
  * OURS: the four words the BIOS leaves in its data area for the keyboard ring.
- *
- * Called again after `io_read_snapshot`, because a restore writes every byte of
- * guest memory and a snapshot taken before this existed has zeros here - which
- * reads as a keyboard that is permanently empty. The ring belongs to the BIOS
- * and not to the game, so putting it back is a repair and not a change of the
- * state being restored; a keystroke in flight when the snapshot was taken is
- * not worth preserving.
  */
 void io_bios_init(void)
 {
@@ -2483,7 +2130,6 @@ void io_keyboard_scancode(uint8_t code)
 void io_out8(uint16_t port, uint8_t value)
 {
     io_service_display();
-    trace_add(port, 0, value, 0);
     switch (port) {
     case PORT_SEQ_INDEX:  seq_index  = value & 0x07; break;
     case PORT_SEQ_DATA:   seq[seq_index] = value;    break;
@@ -2681,7 +2327,6 @@ uint16_t vga_seg_offset(uint16_t seg)
 uint8_t io_in8(uint16_t port)
 {
     uint8_t v = io_in8_raw(port);
-    trace_add(port, 0, v, 1);
     return v;
 }
 
@@ -2772,7 +2417,6 @@ static uint8_t io_in8_raw(uint16_t port)
 /* A read loads all four latches and returns the plane the GC selects. */
 uint8_t vga_read(uint16_t offset)
 {
-    trace_add(0xA000, offset, 0, 1);
     for (int32_t p = 0; p < VGA_PLANES; p++)
         latch[p] = planes[p][offset];
     return latch[gc[4] & 0x03];
@@ -2859,7 +2503,6 @@ void vga_write(uint16_t offset, uint8_t value)
                         "rotate=%02x mask=%02x mapmask=%02x\n",
                 offset, value, gc[5] & 3, gc[0], gc[1], gc[3], gc[8], seq[2]);
 
-    trace_add(0xA000, offset, value, 0);
     vga_write_raw(offset, value);
 }
 
@@ -2872,7 +2515,6 @@ void vga_write(uint16_t offset, uint8_t value)
  */
 void vga_write16(uint16_t offset, uint16_t value)
 {
-    trace_add(0xA000, offset, (uint8_t)(value & 0xFF), 0);
     vga_write_raw(offset, (uint8_t)(value & 0xFF));
     vga_write_raw((uint16_t)(offset + 1), (uint8_t)(value >> 8));
 }
@@ -3003,295 +2645,8 @@ void vga_palette_rgb(uint8_t out[768])
     }
 }
 
-/*
- * OURS: the whole of this layer's state, written out and read back.
- *
- * The original had none of this. It exists because the intros are all a run
- * from the entry point reaches on its own, and everything past them - the
- * menu, the editor, the game - is behind a person pressing keys. Reaching
- * those by hand for every measurement is what leaves them untested. So: play
- * once, capture, and start there from then on. `tools/snapshot.py` does the
- * same for the Python emulator; this is the hybrid runner's equivalent, and
- * the two formats are not interchangeable because the two machines are not.
- *
- * **What is state and what is not.** The planes, the register files and the
- * DAC are the picture. The arena and the current directory are what
- * DOS would have been holding. The mouse's position, range and mask are what
- * the driver would answer. Everything else here is host scaffolding - the
- * display thread, the present rate limiter, the trace buffers, the timer's
- * pthread - and restoring any of it would carry one run's history into
- * another. `trace_n` in particular is a diagnostic: a snapshot that restored
- * it would make a replay report the saved run's I/O as its own.
- *
- * **Pointers are not written, contents are.** `arena` is a host allocation;
- * a saved pointer restored
- * into a different process is a wild write that looks like anything but a
- * snapshot bug. Each is written as a length followed by its bytes.
- */
-#define IO_SNAP_MAGIC   0x304d4954u        /* "TIM0" */
-#define IO_SNAP_VERSION 2u
-
-#define IO_PUT(x) do { if (fwrite(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
-#define IO_GET(x) do { if (fread(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
-
-int32_t io_state_save(void *host_file)
-{
-    FILE *f = host_file;
-    uint32_t magic = IO_SNAP_MAGIC, version = IO_SNAP_VERSION;
-
-    IO_PUT(magic);
-    IO_PUT(version);
-
-    /* The picture. */
-    if (fwrite(planes, 1, sizeof planes, f) != sizeof planes)
-        return 0;
-    IO_PUT(latch);
-    IO_PUT(seq_index); IO_PUT(gc_index); IO_PUT(crtc_index);
-    IO_PUT(seq); IO_PUT(gc); IO_PUT(crtc);
-    IO_PUT(dac); IO_PUT(attr_pal);
-    IO_PUT(attr_index); IO_PUT(attr_expect_data);
-    IO_PUT(dac_index); IO_PUT(dac_phase); IO_PUT(dac_latch);
-    IO_PUT(dac_write_mode);
-    IO_PUT(port61);
-
-    /* What DOS would be holding. */
-    IO_PUT(alloc_seg); IO_PUT(alloc_largest); IO_PUT(alloc_failed);
-    IO_PUT(alloc_n); IO_PUT(alloc_at);
-    IO_PUT(arena_n); IO_PUT(arena_cap); IO_PUT(arena_top);
-    if (arena_n > 0 && fwrite(arena, sizeof *arena, (size_t)arena_n, f)
-        != (size_t)arena_n)
-        return 0;
-    if (fwrite(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
-        return 0;
-
-
-    /* What the drivers would answer. */
-    IO_PUT(timer_divisor); IO_PUT(timer_lo_next);
-    IO_PUT(mouse_x); IO_PUT(mouse_y);
-    IO_PUT(mouse_x_lo); IO_PUT(mouse_x_hi);
-    IO_PUT(mouse_y_lo); IO_PUT(mouse_y_hi);
-    IO_PUT(mouse_mask); IO_PUT(mouse_installed);
-
-    return 1;
-}
-
-int32_t io_state_load(void *host_file)
-{
-    FILE *f = host_file;
-    uint32_t magic = 0, version = 0;
-    int32_t n = 0, cap = 0;
-
-    IO_GET(magic);
-    IO_GET(version);
-    if (magic != IO_SNAP_MAGIC || version != IO_SNAP_VERSION)
-        return 0;
-
-    if (fread(planes, 1, sizeof planes, f) != sizeof planes)
-        return 0;
-    IO_GET(latch);
-    IO_GET(seq_index); IO_GET(gc_index); IO_GET(crtc_index);
-    IO_GET(seq); IO_GET(gc); IO_GET(crtc);
-    IO_GET(dac); IO_GET(attr_pal);
-    IO_GET(attr_index); IO_GET(attr_expect_data);
-    IO_GET(dac_index); IO_GET(dac_phase); IO_GET(dac_latch);
-    IO_GET(dac_write_mode);
-    IO_GET(port61);
-
-    IO_GET(alloc_seg); IO_GET(alloc_largest); IO_GET(alloc_failed);
-    IO_GET(alloc_n); IO_GET(alloc_at);
-    IO_GET(n); IO_GET(cap); IO_GET(arena_top);
-    {
-        /* The table grows; a restore sizes it to what was saved rather than
-         * assuming the running process happens to have room. */
-        struct arena_block *fresh = NULL;
-
-        if (cap < n)
-            cap = n;
-        if (cap > 0 && (fresh = malloc((size_t)cap * sizeof *fresh)) == NULL)
-            return 0;
-        if (n > 0 && fread(fresh, sizeof *fresh, (size_t)n, f) != (size_t)n) {
-            free(fresh);
-            return 0;
-        }
-        free(arena);
-        arena = fresh;
-        arena_n = n;
-        arena_cap = cap;
-    }
-    if (fread(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
-        return 0;
-
-
-    IO_GET(timer_divisor); IO_GET(timer_lo_next);
-    IO_GET(mouse_x); IO_GET(mouse_y);
-    IO_GET(mouse_x_lo); IO_GET(mouse_x_hi);
-    IO_GET(mouse_y_lo); IO_GET(mouse_y_hi);
-    IO_GET(mouse_mask); IO_GET(mouse_installed);
-
-    return 1;
-}
-
-/*
- * OURS: write everything this port is, at any moment, for comparing against
- * the hybrid runner.
- *
- * The abort dump answers "what did the machine look like where it gave up".
- * This answers the same question anywhere, on a keypress, which is what makes
- * a state reached by *playing* comparable - and playing is the only way to
- * reach most of the game.
- *
- * The whole megabyte goes down rather than just DGROUP, so an address seen in
- * a backtrace can be looked at without a second capture, and `io_state_save`
- * follows it so the planes, the arena and the open files come too. There are
- * no registers: the port is C, and `g_guest_sp` - its one register-shaped thing -
- * goes in the sidecar beside `g_dgroup_base`, exactly as the abort dump does it.
- *
- * **Not the runner's format.** That one carries Unicorn's registers and this
- * one cannot; what the two share is the megabyte, so a DGROUP slice out of
- * either compares with a DGROUP slice out of the other, and the sidecar says
- * where that slice starts.
- */
-/*
- * OURS: read back what `io_write_snapshot` wrote.
- *
- * **This does not resume a run, and cannot.** The port's own C call stack is
- * not in the file and there is nowhere to put it: the original's state is a
- * CPU that can be saved and reloaded, and ours is a program counter inside
- * compiled C. What comes back is the *machine* - guest memory, the planes and
- * the DAC, the DOS arena and the open files, the timer and the mouse - and a
- * caller has to decide for itself where in the game to start executing again.
- * `devtim --restore` does that by re-entering the round's dispatch, which is
- * why it is a developer flag and not something `tim` offers.
- *
- * The load order mirrors the save exactly, and the version is refused rather
- * than guessed at: a snapshot written by an older build has a different
- * `io_state_save` behind it and would restore into the wrong fields.
- */
-int32_t io_read_snapshot(const char *path)
-{
-    static const char want[8] = { 'T','I','M','P','O','R','T','1' };
-    char magic[8];
-    uint32_t version = 0;
-    FILE *f = fopen(path, "rb");
-
-    if (!f) {
-        fprintf(stderr, "cannot read %s\n", path);
-        return 0;
-    }
-
-    if (fread(magic, 1, sizeof magic, f) != sizeof magic
-        || memcmp(magic, want, sizeof want) != 0
-        || fread(&version, sizeof version, 1, f) != 1) {
-        fprintf(stderr, "%s is not a port snapshot\n", path);
-        fclose(f);
-        return 0;
-    }
-
-    if (version != 1) {
-        fprintf(stderr, "%s is version %u; this build writes 1\n",
-                path, (unsigned)version);
-        fclose(f);
-        return 0;
-    }
-
-    if (fread(g_guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
-        || !io_state_load(f)) {
-        fprintf(stderr, "%s is short or its I/O state did not load\n", path);
-        fclose(f);
-        return 0;
-    }
-
-    fclose(f);
-    io_bios_init();
-    fprintf(stderr, "restored %s\n", path);
-    return 1;
-}
-
-/*
- * OURS: the next free capture for this binary - `tim000.snap`,
- * `devtim000.snap`, `native000.snap` - so a session can take as many as it
- * likes without naming any of them.
- *
- * **Each program numbers its own.** A single shared sequence was the first
- * attempt and it is worse: the files are the one place the two kinds are
- * visible at a glance, and `snap004.snap` does not say whether it came from
- * the port or the runner. It can be read out of the magic inside, but a name
- * that answers without opening the file is worth more, and the sequences are
- * then independent - deleting the runner's captures does not renumber the
- * port's.
- *
- * The number is found by looking, not remembered, so it survives a restart and
- * never overwrites a capture from an earlier run. That is a `stat` per
- * existing file at each capture, which against writing a megabyte is nothing.
- *
- * `TIM_SNAP` still names a fixed file and turns the numbering off, which is
- * what the checks use: a test that reads back what it just wrote cannot be
- * guessing at a sequence number.
- */
-void io_next_snapshot_path(char *buf, size_t n, const char *prefix)
-{
-    const char *fixed = getenv("TIM_SNAP");
-    const char *dir = getenv("TIM_SNAPDIR");
-    int32_t i;
-
-    if (fixed && *fixed) {
-        snprintf(buf, n, "%s", fixed);
-        return;
-    }
-
-    if (!dir || !*dir)
-        dir = "out";
-
-    for (i = 0; i < 1000; i++) {
-        FILE *f;
-
-        snprintf(buf, n, "%s/%s%03d.snap", dir, prefix, (int)i);
-        if ((f = fopen(buf, "rb")) == NULL)
-            return;
-        fclose(f);
-    }
-
-    /* A thousand is enough; the last is reused rather than writing nothing. */
-    snprintf(buf, n, "%s/%s999.snap", dir, prefix);
-}
-
-int32_t io_write_snapshot(const char *path)
-{
-    static const char magic[8] = { 'T','I','M','P','O','R','T','1' };
-    uint32_t version = 1;
-    char sp[512];
-    FILE *f = fopen(path, "wb");
-
-    if (!f) {
-        fprintf(stderr, "cannot write %s\n", path);
-        return 0;
-    }
-
-    if (fwrite(magic, 1, sizeof magic, f) != sizeof magic
-        || fwrite(&version, sizeof version, 1, f) != 1
-        || fwrite(g_guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
-        || !io_state_save(f)) {
-        fprintf(stderr, "%s is short - the write failed\n", path);
-        fclose(f);
-        return 0;
-    }
-    fclose(f);
-
-    snprintf(sp, sizeof sp, "%s.sp", path);
-    if ((f = fopen(sp, "w")) != NULL) {
-        fprintf(f, "guest_sp %04x\ndgroup_base %05x\nmem_at 12\n",
-                g_guest_sp, g_dgroup_base);
-        fclose(f);
-    }
-
-    fprintf(stderr, "wrote %s (%d bytes of memory, plus this layer's state)\n",
-            path, (int)GUEST_MEM_BYTES);
-    fprintf(stderr, "  DGROUP starts at byte %u\n", 12 + g_dgroup_base);
-    return 1;
-}
-
-/* OURS: see io.h. The game's units include no <stdio.h>, because `FILE` is
-   Borland's there; what they need of the host's is these three. */
+/* OURS: see hostio.h. The game's units include no <stdio.h>, because `FILE`
+   is Borland's there; what they need of the host's is this. */
 void io_format(char *buf, uint32_t size, const char *fmt, ...)
 {
     va_list ap;
@@ -3301,17 +2656,3 @@ void io_format(char *buf, uint32_t size, const char *fmt, ...)
     va_end(ap);
 }
 
-void io_puts(const char *s)
-{
-    fputs(s, stdout);
-    fflush(stdout);
-}
-
-void io_errorf(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}

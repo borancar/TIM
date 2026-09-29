@@ -26,11 +26,11 @@
  * asked for. Without that a script could only ever poke at one instant, which
  * is the limitation `TIM_CLICK` already has.
  *
- * This file links into `devtim` alone. `libtim.so` - the library the verifier
- * calls - links the other dev*.c files, and a verification run has no business
- * carrying a socket, so `dev_flip_dump` reaches this through a **weak symbol**
- * and does nothing at all where it is absent.
+ * This file links into `devtim` alone, and `dev_flip_dump` reaches it through a
+ * **weak symbol**, so it does nothing at all where it is absent.
  */
+#define _GNU_SOURCE        /* RTLD_DEFAULT */
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -142,36 +142,47 @@ static int32_t l_wait(lua_State *s)
     return lua_yield(s, 0);
 }
 
-/* DGROUP, read as bytes. This is what lets a script look before it clicks. */
+/*
+ * **A global, read by name**, which is what lets a script look before it
+ * clicks: `tim.peek16("g_round_state")`, and an optional byte offset into it
+ * for a field - `tim.peek8("POINTER", 4)`. The name is looked up in the
+ * binary's own dynamic table, which `-rdynamic` fills for `devtim`.
+ */
+static const uint8_t *peek_at(lua_State *s, lua_Integer *off)
+{
+    const char *name = luaL_checkstring(s, 1);
+    const uint8_t *at = dlsym(RTLD_DEFAULT, name);
+
+    *off = luaL_optinteger(s, 2, 0);
+    if (at == NULL)
+        luaL_error(s, "no global called %s", name);
+    return at + *off;
+}
+
 static int32_t l_peek(lua_State *s)
 {
-    lua_Integer off = luaL_checkinteger(s, 1);
-    lua_Integer len = luaL_optinteger(s, 2, 1);
+    lua_Integer off;
+    const uint8_t *at = peek_at(s, &off);
+    lua_Integer len = luaL_optinteger(s, 3, 1);
 
-    if (off < 0 || len < 0 || off + len > 0x10000)
-        return luaL_error(s, "peek outside DGROUP: 0x%x+%d",
-                          (unsigned)off, (int)len);
-    lua_pushlstring(s, (const char *)dgroup + off, (size_t)len);
+    lua_pushlstring(s, (const char *)at, (size_t)len);
     return 1;
 }
 
 static int32_t l_peek8(lua_State *s)
 {
-    lua_Integer off = luaL_checkinteger(s, 1);
+    lua_Integer off;
 
-    if (off < 0 || off >= 0x10000)
-        return luaL_error(s, "peek8 outside DGROUP: 0x%x", (unsigned)off);
-    lua_pushinteger(s, dgroup[off]);
+    lua_pushinteger(s, *peek_at(s, &off));
     return 1;
 }
 
 static int32_t l_peek16(lua_State *s)
 {
-    lua_Integer off = luaL_checkinteger(s, 1);
+    lua_Integer off;
+    const uint8_t *at = peek_at(s, &off);
 
-    if (off < 0 || off + 1 >= 0x10000)
-        return luaL_error(s, "peek16 outside DGROUP: 0x%x", (unsigned)off);
-    lua_pushinteger(s, (lua_Integer)*(uint16_t *)(dgroup + off));
+    lua_pushinteger(s, (lua_Integer)(at[0] | (at[1] << 8)));
     return 1;
 }
 

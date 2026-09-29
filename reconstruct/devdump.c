@@ -124,32 +124,6 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
  * black palette is a palette fault, not a drawing one - but the colours travel
  * with them.
  */
-/*
- * `TIM_SNAPAT=<flip>` - write the port's whole state at that page flip.
- *
- * The same file Shift+F2 writes in a window, taken from the clock instead of
- * the key, and it exists for the same reason the runner's does: a capture that
- * can only be made by pressing a key cannot be made by a check, and a feature
- * no check exercises does not stay correct. `TIM_SNAP` moves the path for
- * both.
- */
-static void snapshot_at(int32_t flip)
-{
-    static int32_t at = -2;
-    char path[512];
-
-    if (at == -2) {
-        const char *spec = getenv("TIM_SNAPAT");
-
-        at = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
-    }
-    if (at < 0 || flip != at)
-        return;
-
-    io_next_snapshot_path(path, sizeof path, "devtim");
-    io_write_snapshot(path);
-}
-
 static void note_flip(int32_t flip)
 {
     static const char *path = (const char *)-1;
@@ -490,19 +464,12 @@ static void dev_pointer(int32_t flip)
  * page flip happens in between.
  *
  * **Which screen we are on is read from the state, not counted.** The phases
- * are ordered, but a restored snapshot can begin on any of them - the point
- * the user made when this was asked for - so the only thing carried across
- * flips is whether the intro is behind us, which a restore sets on the spot.
- * A snapshot taken with the machine already running is then reported as such
- * and left alone, rather than being "started" a second time - which on the run
- * control is a *stop*.
+ * are ordered, so the only thing carried across flips is whether the intro is
+ * behind us. A machine already running is reported as such and left alone,
+ * rather than being "started" a second time - which on the run control is a
+ * *stop*.
  */
 static int32_t autoplay_past_intro;
-
-void dev_autoplay_past_intro(void)
-{
-    autoplay_past_intro = 1;
-}
 
 static void dev_autoplay(int32_t flip)
 {
@@ -640,10 +607,9 @@ static void dev_autoplay(int32_t flip)
         }
 
         /*
-         * **`TIM_SIMULATE` without a snapshot.** The machine above was loaded
-         * the way the game loads one - `round_teardown`, `load_animation`,
-         * `reset_machine`, and the bin emptied - so the level is the machine's
-         * to run and there is nothing a snapshot would add.
+         * **`TIM_SIMULATE`.** The machine above was loaded the way the game
+         * loads one - `round_teardown`, `load_animation`, `reset_machine`, and
+         * the bin emptied - so the level is the machine's to run.
          * `dev_simulate_machine` takes it from here with no clock, no input
          * and no timer thread, and the process leaves through `_exit` because
          * the timer thread must not outlive the sound chip - see
@@ -776,8 +742,8 @@ void dev_level_solved(int16_t level, int16_t score)
 /*
  * OURS: `TIM_SIMULATE=<frames>` - run the machine that is up with no clock,
  * no input and no display, and say whether the goal test fired. The machine
- * arrives either through `TIM_LOADMACHINE`, which loads a .TIM the way the
- * game loads one, or through `--restore`, which picks up a snapshot.
+ * arrives through `TIM_LOADMACHINE`, which loads a .TIM the way the game
+ * loads one.
  *
  * `run_machine_loop` at 0x012ab is the game's own loop and this is **not a
  * second copy of it**: it is the same per-frame sequence with the hardware
@@ -1271,8 +1237,6 @@ void dev_flip_dump(int32_t flip)
     static const char *want = (const char *)-1;
     static int32_t at;
     FILE *f;
-
-    snapshot_at(flip);
 
     note_flip(flip);
     hash_frame(flip);

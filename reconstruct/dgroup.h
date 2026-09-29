@@ -1851,17 +1851,6 @@ extern bmp_read_fn g_vqt_read_fn;
  * driver.
  */
 #define IMAGE_BASE  (g_dgroup_base - 0x2D3C0)
-/*
- * Segment 0x1c25 keeps a little of its own state inside its code, the way the
- * sound module does - the saved timer vector, and the divisor table the tick
- * handler reads. `S1C8`/`S1C16` reach it.
- */
-#define S1C25       (IMAGE_BASE + 0x1c250)
-#define S1C8(off)   (*(uint8_t *)(g_guest_mem + S1C25 + (off)))
-#define S1C16(off)  (*(int16_t *)(g_guest_mem + S1C25 + (off)))
-
-#define SNDCS       (IMAGE_BASE + 0x26190)
-
 #define SX8(off)    (*(uint8_t *)(SNDS.driver + (off)))
 #define SX16(off)   (*(int16_t *)(SNDS.driver + (off)))
 
