@@ -25,21 +25,19 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-/* DGROUP 0x2d06..0x2d0a, after the part templates: two words. */
-struct dg_2d06 {
-    /* **Nothing in the port touches either word**, and the image holds no
-       instruction that names 0x2d06 or 0x2d08 - so whatever reads them, if
-       anything does, reaches them through a pointer. The image's own bytes are
-       the initialisers below and `check_image_data` holds them to that. */
-    uint16_t  _pad_2d06;       /* +0x00 */
-    uint16_t  _pad_2d08;           /* +0x02 */
-} PACKED;
-struct dg_2d06 DG2D06 = { 0x0001, 0xffff };
+/* DGROUP 0x2d06, after the part templates: a word nothing names - no
+   instruction in the image reads or writes 0x2d06. */
+uint16_t g_pad_2d06 = 0x0001;
+
+/* DGROUP 0x2d08: **the page a rect is restored from its own buffer**, the
+   0xffff a mode-4 rect carries as its page. `MACHINE_PAGE_PAIRS` below
+   points at it where a pair starts from the buffer rather than a VGA page. */
+vga_page_t g_buffer_page = 0xffff;
 
 /*
  * **Which page pointers the saved-rect lists are restored between**, at
  * DGROUP 0x2d0a: pairs of addresses of the driver's page words at
- * 0x38a0..0x38a4 (and of the word at 0x2d08), walked by
+ * 0x38a0..0x38a4 (and of `g_buffer_page`), walked by
  * `restore_saved_rect_lists` from pair 0 - or from pair 1 alone - until
  * the next pair's second word is 0. Nine pairs and the terminating pair
  * fill the run to 0x2d32.
@@ -47,8 +45,8 @@ struct dg_2d06 DG2D06 = { 0x0001, 0xffff };
  * DGROUP 0x2d0a..0x2d32, 0x28 bytes.
  */
 struct page_pair {
-    uint16_t *src;                 /* +0x00  the address of a page word */
-    uint16_t *dst;                 /* +0x02 */
+    vga_page_t *src;               /* +0x00  the address of a page word */
+    vga_page_t *dst;               /* +0x02 */
 } PACKED;
 
 struct machine_page_pairs {
@@ -57,11 +55,11 @@ struct machine_page_pairs {
 
 struct machine_page_pairs MACHINE_PAGE_PAIRS = {
     {
-        { &DG2D06._pad_2d08, &VMDS.page_front },
+        { &g_buffer_page, &VMDS.page_front },
         { &VMDS.page_back, &VMDS.page_front },
-        { &DG2D06._pad_2d08, &VMDS.page_back },
+        { &g_buffer_page, &VMDS.page_back },
         { &VMDS.rect_page, &VMDS.page_back },
-        { &DG2D06._pad_2d08, &VMDS.rect_page },
+        { &g_buffer_page, &VMDS.rect_page },
         { &VMDS.page_front, &VMDS.rect_page },
         { &VMDS.page_front, &VMDS.page_back },
         { &VMDS.page_back, &VMDS.rect_page },

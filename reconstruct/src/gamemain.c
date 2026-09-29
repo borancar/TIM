@@ -148,7 +148,7 @@ void game_startup(void)
 
     g_cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
     g_panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
-    g_bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
+    g_border_art = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
 
     install_keyboard(0);
 
@@ -262,7 +262,7 @@ void game_teardown(int16_t really)
     free_all_part_bitmaps();
 
     free_bitmaps_thunk(g_icons_bmp);
-    free_bitmaps_thunk(g_bmp_4ecb);
+    free_bitmaps_thunk(g_border_art);
     free_bitmaps_thunk(g_panel_art);
     free_bitmaps(g_cursor_art);
 

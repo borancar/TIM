@@ -569,10 +569,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     ENGINE_FONT_BODIES.body[0] = font;
     ENGINE_FONT_BODIES.body[1] = font;
 
-    *(int16_t *)(&VMDS.font_table_48[0]) = 0x808;
-    *(int16_t *)(&VMDS.font_table_34[0]) = 0x808;
-    *(int16_t *)(&VMDS.font_table_5c[0]) = 0;
-    *(int16_t *)(&VMDS.font_table_70[0]) = (int16_t)0xffff;
+    *(int16_t *)(&VMDS.font_cell_height[0]) = 0x808;
+    *(int16_t *)(&VMDS.font_cell_width[0]) = 0x808;
+    *(int16_t *)(&VMDS.font_first_char[0]) = 0;
+    *(int16_t *)(&VMDS.font_char_count[0]) = (int16_t)0xffff;
 
 out:
     return r;

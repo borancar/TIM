@@ -47,7 +47,7 @@ typedef void (far *vm_span_fn)(void);
  * module's `_DATA`: the address of `draw_compressed_body` below, which
  * the loader relocates.
  */
-void (far *DG44EA)() = (void (far *)())draw_compressed_body;
+void (far *g_compressed_body_vector)() = (void (far *)())draw_compressed_body;
 
 /*
  * 0x20189

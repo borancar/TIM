@@ -2769,7 +2769,7 @@ struct level_settings LEVEL_SETTINGS;   /* DGROUP 0x50af */
 char g_level_hint[0x190];   /* DGROUP 0x4f1f, up to LEVEL_SETTINGS */
 char g_level_title[0x50];   /* DGROUP 0x4ecf */
 struct bitmap **g_score2_bmp;   /* DGROUP 0x4ecd  score2.bmp's - draw_odometer_digit's strips */
-struct bitmap **g_bmp_4ecb;   /* DGROUP 0x4ecb  gp_bord.bmp's */
+struct bitmap **g_border_art;   /* DGROUP 0x4ecb  gp_bord.bmp's */
 struct bitmap **g_menu_bmp;   /* DGROUP 0x4ec9  gp_menu.bmp's */
 struct bitmap **g_icons_bmp;   /* DGROUP 0x4ec7  icons.bmp's list */
 int16_t g_cursor;   /* DGROUP 0x4ec5 */

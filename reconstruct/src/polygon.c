@@ -69,7 +69,7 @@ _DATA ends
 extrn _clip_and_draw_line:far
 extrn _clip_polygon:far
 extrn _VM_DRIVER:byte
-extrn _DG44EA:byte
+extrn _g_compressed_body_vector:byte
 extrn _VMDS:byte
 POLYGON_TEXT segment byte public 'CODE'
 assume cs:POLYGON_TEXT, ds:DGROUP
@@ -2814,7 +2814,7 @@ _fill_rect endp
 
 /* 0x20185 */
 _draw_compressed_bitmap proc near
-        jmp dword ptr DGROUP:_DG44EA
+        jmp dword ptr DGROUP:_g_compressed_body_vector
 _draw_compressed_bitmap endp
 POLYGON_TEXT ends
 }

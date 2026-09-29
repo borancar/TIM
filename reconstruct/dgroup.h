@@ -228,13 +228,10 @@ extern uint8_t g_interrupt_table[0x400];
 /*
  * **The screen the driver reported**, at DGROUP 0x3f78 - which is the driver
  * block's own **+0x6e8**, so this struct and `struct vmds` describe the
- * same six bytes. They were written twice under two names: `game.c` set
- * `DG3F78.screen_height = 0x16f` in one routine and
- * `VMDS.screen_height = 0x18f` in another, and `set_full_clip` read
- * `VMDS.clip_bottom = DG3F78.screen_height - 1` with both names on one
- * line. `vmds` carries this as a field now, so there is one name.
+ * same six bytes, `VMDS.screen`: the mode, and the extent drawing is cut
+ * back to.
  */
-struct dg_3f78 {
+struct vm_screen {
     uint8_t   mode_kind;          /* +0x00  a byte saying which */
     uint8_t   pad_3f79[1];
     int16_t   screen_width;       /* +0x02  an extent past these is cut back to the edge */
@@ -258,7 +255,7 @@ struct dg_3f78 {
 /*
  * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
  */
-struct dg_3a2c {
+struct vm_palettes {
     uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
     /* **Eleven slots of four bytes.** Slot 0 is `set_palette_pointer`'s, which
        the driver reaches on its own as driverDS:0x1a0 - the segment half
@@ -339,20 +336,25 @@ struct vmds {
     uint16_t  line_colour;                  /* +0x22 */
     uint8_t   unknown_24[0x10];             /* +0x24 */
     /*
-     * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
-     * slot. The loader hands their *addresses* to `game_fread` -
-     * `&VMDS.font_table_34[si]`, which the original wrote as `0x38c4 + si`.
+     * +0x34  **a bitmap font's four header bytes**, one table per font slot,
+     * 0x14 apart; slot 0 is the selected font's. The loader reads them in
+     * this order and hands their *addresses* to `game_fread` -
+     * `&VMDS.font_cell_width[si]`, which the original wrote as `0x38c4 + si`.
+     * The width is in pixels, and 0xfe instead says the bytes per row follow;
+     * a character's glyph is `c - font_first_char`, and one past
+     * `font_char_count` is not drawn. `vm_init` gives the BIOS font 8, 8, 0
+     * and 0xff.
      */
-    uint8_t   font_table_34[0x14];          /* +0x34  DGROUP 0x38c4 */
-    uint8_t   font_table_48[0x14];          /* +0x48  DGROUP 0x38d8 */
-    uint8_t   font_table_5c[0x14];          /* +0x5c  DGROUP 0x38ec */
-    uint8_t   font_table_70[0x14];          /* +0x70  DGROUP 0x3900 */
+    uint8_t   font_cell_width[0x14];        /* +0x34  DGROUP 0x38c4 */
+    uint8_t   font_cell_height[0x14];       /* +0x48  DGROUP 0x38d8 */
+    uint8_t   font_first_char[0x14];        /* +0x5c  DGROUP 0x38ec */
+    uint8_t   font_char_count[0x14];        /* +0x70  DGROUP 0x3900 */
     uint8_t   unknown_84[0x28];             /* +0x84 */
     /*
      * +0xac  the polygon clipper's four arrays, 0x28 bytes and so twenty
      * entries each. `clip_polygon` runs Sutherland and Hodgman's in two
      * passes: left and right out of `poly` into `work`, then top and bottom
-     * back again, with `DG3A2C.clip_count` rewritten after each. The callers
+     * back again, with `VMDS.palettes.clip_count` rewritten after each. The callers
      * hand the arrays' *addresses* to `poly_outline` and `poly_fill`, which
      * take DGROUP offsets, so those sites read `VMDS.poly_x`.
      */
@@ -366,7 +368,7 @@ struct vmds {
     /* **The game's clip count and palette slots, inside the driver's data.**
        The game reaches them at DGROUP 0x3a2c; the driver reaches slot 0 on its
        own as VGA:0x0f15's palette, driverDS:0x19e. One block, two readers. */
-    struct dg_3a2c palettes;                /* +0x19c  DGROUP 0x3a2c */
+    struct vm_palettes palettes;                /* +0x19c  DGROUP 0x3a2c */
     uint8_t   unknown_1ca[0x4f2];           /* +0x1ca */
     uint16_t  dda_whole;                    /* +0x6bc */
     uint16_t  dda_frac;                     /* +0x6be */
@@ -388,7 +390,7 @@ struct vmds {
      * before this they were two structs over one record, and the mode's
      * height had a name in each.
      */
-    struct dg_3f78 screen;                  /* +0x6e8  DGROUP 0x3f78 */
+    struct vm_screen screen;                  /* +0x6e8  DGROUP 0x3f78 */
     uint8_t   unknown_6ee[4];               /* +0x6ee */
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } PACKED;
@@ -485,7 +487,7 @@ extern int16_t g_saved_cursor;
 extern int16_t g_cursor;
 extern struct bitmap **g_icons_bmp;
 extern struct bitmap **g_menu_bmp;
-extern struct bitmap **g_bmp_4ecb;
+extern struct bitmap **g_border_art;
 extern struct bitmap **g_score2_bmp;
 extern char g_level_title[0x50];
 extern char g_level_hint[0x190];
@@ -1768,7 +1770,7 @@ extern bmp_read_fn g_vqt_read_fn;
  *
  * Four are word writes into the font's byte tables: `DG16(0x38d8) = 0x808`
  * sets two slots in one instruction, which is what the original does. Writing
- * `font_table_48[0] = 8; font_table_48[1] = 8;` would be two instructions and
+ * `font_cell_height[0] = 8; font_cell_height[1] = 8;` would be two instructions and
  * a different transcription, so the raw form stays and says what the original
  * says.
  *
@@ -1861,8 +1863,8 @@ extern struct sound_tick_wait SOUND_TICK_WAIT;
  * twenty slots `ENGINE_FONT_BODIES` holds: `load_font` writes 0 for a plain bitmap
  * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
  * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
- * `kind[slot]` into it the way it copies `font_table_34[slot]` into
- * `font_table_34[0]` - and the drawing routines test bit 0 of that.
+ * `kind[slot]` into it the way it copies `font_cell_width[slot]` into
+ * `font_cell_width[0]` - and the drawing routines test bit 0 of that.
  */
 struct engine_font_kinds {
     uint8_t   kind[0x14];         /* +0x00 [0x14] */
@@ -1924,7 +1926,7 @@ extern struct engine_font_slots ENGINE_FONT_SLOTS;
  *
  * `load_font` reads a compressed font's header as single bytes into parallel
  * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
- * `VMDS.font_table_34` and its three neighbours, and this one. Those four
+ * `VMDS.font_cell_width` and its three neighbours, and this one. Those four
  * are `uint8_t[0x14]`, and `ENGINE_SCALE_STEP` starts at 0x628e, so this is twenty slots
  * as well.
  *
@@ -3439,13 +3441,8 @@ struct vm_hooks {
 extern struct vm_hooks VM_HOOKS;
 
 /* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */
-#ifdef __TURBOC__
-/* compbmp.c's `_DATA`: under Borland the routine's address, which the loader
-   relocates, where the host keeps the guest's pair. */
-extern void (far *DG44EA)();
-#else
-extern void (far *DG44EA)();
-#endif
+extern void (far *g_compressed_body_vector)();   /* compbmp.c's: `draw_compressed_body`,
+                                                    the vector the thunk at 0x20185 jumps through */
 
 /* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
    sample rate, and that is all that is known. */

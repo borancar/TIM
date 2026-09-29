@@ -1725,7 +1725,7 @@ void discard_part(struct part *part)
  * `detach_belt(belt, 1)`, the outright form - and a rope, if it has one and is
  * not one, is untied first.
  *
- * Every path ends at `sub_05457` on the part itself, and the belt and rope paths
+ * Every path ends at `discard_part` on the part itself, and the belt and rope paths
  * call it on what they detached as well. So that is what actually disposes of
  * one, and everything above it is about leaving the things it was attached to in
  * a consistent state first.

@@ -85,11 +85,11 @@ uint16_t set_font(register int16_t slot)
         found = slot;
 
         ENGINE_FONT_KINDS.kind[0] = ENGINE_FONT_KINDS.kind[slot];
-        VMDS.font_table_34[0] = VMDS.font_table_34[slot];
-        VMDS.font_table_48[0] = VMDS.font_table_48[slot];
+        VMDS.font_cell_width[0] = VMDS.font_cell_width[slot];
+        VMDS.font_cell_height[0] = VMDS.font_cell_height[slot];
         ENGINE_UNDERLINE_ROWS.underline_row[0] = ENGINE_UNDERLINE_ROWS.underline_row[slot];
-        VMDS.font_table_5c[0] = VMDS.font_table_5c[slot];
-        VMDS.font_table_70[0] = VMDS.font_table_70[slot];
+        VMDS.font_first_char[0] = VMDS.font_first_char[slot];
+        VMDS.font_char_count[0] = VMDS.font_char_count[slot];
 
         ENGINE_FONT_BODIES.body[0] = ENGINE_FONT_BODIES.body[slot];
         ENGINE_FONT_WIDTHS.width[0] = ENGINE_FONT_WIDTHS.width[slot];
@@ -113,7 +113,7 @@ uint16_t font_char_width(register int16_t slot)
     uint8_t w;
 
     if (font_slot_in_use(slot) || slot == 0)
-        w = VMDS.font_table_34[slot];
+        w = VMDS.font_cell_width[slot];
     else
         w = 0;
     return w;
@@ -135,7 +135,7 @@ uint16_t font_line_height(register int16_t slot)
     uint8_t h;
 
     if (font_slot_in_use(slot) || slot == 0)
-        h = VMDS.font_table_48[slot];
+        h = VMDS.font_cell_height[slot];
     else
         h = 0;
     return h;
@@ -197,13 +197,13 @@ uint16_t text_width(const char far *str)
     int16_t proportional = ENGINE_FONT_WIDTHS.width[0] != NULL;
 
     while (*str != 0) {
-        index = (uint8_t)*str++ - VMDS.font_table_5c[0];
+        index = (uint8_t)*str++ - VMDS.font_first_char[0];
         /* A character outside the font is skipped, not the end: both tests
            go back to the loop's own. */
-        if (index >= 0 && VMDS.font_table_70[0] > index)
+        if (index >= 0 && VMDS.font_char_count[0] > index)
             /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
             width += proportional ? ENGINE_FONT_SLOTS.slot[0][index]
-                                  : VMDS.font_table_34[0];
+                                  : VMDS.font_cell_width[0];
     }
 
     return width;
@@ -279,8 +279,8 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
     register int16_t px;
 
     entering = VMDS.text_colour;
-    index = c - VMDS.font_table_5c[0];
-    if (index < 0 || VMDS.font_table_70[0] <= index)
+    index = c - VMDS.font_first_char[0];
+    if (index < 0 || VMDS.font_char_count[0] <= index)
         return 0;
 
     if (ENGINE_FONT_KINDS.kind[0] & 1) {
@@ -295,16 +295,16 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
          * panel's labels, which are bitmaps, were right.
          */
         w = ENGINE_FONT_SLOTS.slot[0][index];
-        h = VMDS.font_table_48[0];
+        h = VMDS.font_cell_height[0];
         glyph = ENGINE_FONT_BODIES.body[0]
                 + ((const uint16_t far *)ENGINE_FONT_WIDTHS.width[0])[index];
     } else if (ENGINE_FONT_KINDS.kind[0] == 2) {
-        w = VMDS.font_table_34[0];
-        h = VMDS.font_table_48[0];
+        w = VMDS.font_cell_width[0];
+        h = VMDS.font_cell_height[0];
         glyph = ENGINE_FONT_BODIES.body[0] + index * w * h;
     } else {
-        w = VMDS.font_table_34[0];
-        h = VMDS.font_table_48[0];
+        w = VMDS.font_cell_width[0];
+        h = VMDS.font_cell_height[0];
         glyph = ENGINE_FONT_BODIES.body[0] + ((w + 7) >> 3) * index * h;
     }
 
@@ -435,7 +435,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
      * not a reading of the structure; the seed at 0x218f8 is there in the
      * prologue because the first pass has no previous width to use.
      */
-    w = VMDS.font_table_34[0];
+    w = VMDS.font_cell_width[0];
 
     if (!str)
         return;
@@ -459,17 +459,17 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
             if (w > 8)
                 x += draw_char(*str, x, y);
             else {
-                index = (uint8_t)*str - VMDS.font_table_5c[0];
+                index = (uint8_t)*str - VMDS.font_first_char[0];
                 if (ENGINE_FONT_WIDTHS.width[0] != NULL) {
                     /* Far pointers, as in `draw_char`; see the note there. */
                     w = ENGINE_FONT_SLOTS.slot[0][index];
-                    h = VMDS.font_table_48[0];
+                    h = VMDS.font_cell_height[0];
                     glyph = ENGINE_FONT_BODIES.body[0]
                             + ((const uint16_t far *)ENGINE_FONT_WIDTHS.width[0])[index];
                 } else {
                     if (stride == 0) {
-                        w = VMDS.font_table_34[0];
-                        h = VMDS.font_table_48[0];
+                        w = VMDS.font_cell_width[0];
+                        h = VMDS.font_cell_height[0];
                         stride = ((w + 7) >> 3) * h;
                     }
                     glyph = ENGINE_FONT_BODIES.body[0] + index * stride;
@@ -523,12 +523,12 @@ uint16_t glyph_size(register int16_t c, register uint16_t *w,
     register uint16_t gw;
     uint16_t gh;
 
-    c -= VMDS.font_table_5c[0];
-    if (c < 0 || VMDS.font_table_70[0] <= c)
+    c -= VMDS.font_first_char[0];
+    if (c < 0 || VMDS.font_char_count[0] <= c)
         return 0;
     gw = ENGINE_FONT_WIDTHS.width[0] != NULL
-         ? ENGINE_FONT_SLOTS.slot[0][c] : VMDS.font_table_34[0];
-    gh = VMDS.font_table_48[0];
+         ? ENGINE_FONT_SLOTS.slot[0][c] : VMDS.font_cell_width[0];
+    gh = VMDS.font_cell_height[0];
     if (w)
         *w = gw;
     if (h)

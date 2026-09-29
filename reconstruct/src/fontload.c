@@ -91,18 +91,18 @@ uint16_t load_font(char *name)
         }
 
         if (seek_named_chunk(di, FONT_CHUNK_NAME, 0) != -1L) {
-            game_fread(&VMDS.font_table_34[si], 1, 1, di);
+            game_fread(&VMDS.font_cell_width[si], 1, 1, di);
 
-            if (VMDS.font_table_34[si] == 0xfd || VMDS.font_table_34[si] == 0xff) {
+            if (VMDS.font_cell_width[si] == 0xfd || VMDS.font_cell_width[si] == 0xff) {
                 /* A resource-packed font: glyph widths, slots and bodies in
                    one DOS block. */
-                ENGINE_FONT_KINDS.kind[si] = -VMDS.font_table_34[si];
+                ENGINE_FONT_KINDS.kind[si] = -VMDS.font_cell_width[si];
 
-                game_fread(&VMDS.font_table_34[si], 1, 1, di);
-                game_fread(&VMDS.font_table_48[si], 1, 1, di);
+                game_fread(&VMDS.font_cell_width[si], 1, 1, di);
+                game_fread(&VMDS.font_cell_height[si], 1, 1, di);
                 game_fread(&ENGINE_UNDERLINE_ROWS.underline_row[si], 1, 1, di);
-                game_fread(&VMDS.font_table_5c[si], 1, 1, di);
-                game_fread(&VMDS.font_table_70[si], 1, 1, di);
+                game_fread(&VMDS.font_first_char[si], 1, 1, di);
+                game_fread(&VMDS.font_char_count[si], 1, 1, di);
                 game_fread((uint8_t *)&size, 1, 2, di);
 
                 failed = (handle = open_resource(0xffff, di, "r",
@@ -118,9 +118,9 @@ uint16_t load_font(char *name)
                     /* Three pointers into the one block, stepped in the
                        block's own segment. */
                     ENGINE_FONT_WIDTHS.width[si] = blk;
-                    blk += VMDS.font_table_70[si] * 2;
+                    blk += VMDS.font_char_count[si] * 2;
                     ENGINE_FONT_SLOTS.slot[si] = blk;
-                    blk += VMDS.font_table_70[si];
+                    blk += VMDS.font_char_count[si];
                     ENGINE_FONT_BODIES.body[si] = blk;
                 }
 
@@ -133,20 +133,20 @@ uint16_t load_font(char *name)
                 }
             } else {
                 /* A bitmap font: one near block of glyphs. */
-                if (VMDS.font_table_34[si] == 0xfe) {
+                if (VMDS.font_cell_width[si] == 0xfe) {
                     ENGINE_FONT_KINDS.kind[si] = 2;
-                    game_fread(&VMDS.font_table_34[si], 1, 1, di);
-                    size = VMDS.font_table_34[si];
+                    game_fread(&VMDS.font_cell_width[si], 1, 1, di);
+                    size = VMDS.font_cell_width[si];
                 } else {
                     ENGINE_FONT_KINDS.kind[si] = 0;
-                    size = (VMDS.font_table_34[si] + 7) >> 3;
+                    size = (VMDS.font_cell_width[si] + 7) >> 3;
                 }
 
-                game_fread(&VMDS.font_table_48[si], 1, 1, di);
-                game_fread(&VMDS.font_table_5c[si], 1, 1, di);
-                game_fread(&VMDS.font_table_70[si], 1, 1, di);
+                game_fread(&VMDS.font_cell_height[si], 1, 1, di);
+                game_fread(&VMDS.font_first_char[si], 1, 1, di);
+                game_fread(&VMDS.font_char_count[si], 1, 1, di);
 
-                size *= VMDS.font_table_48[si] * VMDS.font_table_70[si];
+                size *= VMDS.font_cell_height[si] * VMDS.font_char_count[si];
 
                 failed = (p = malloc_far(size)) == NULL;
                 if (!failed)
@@ -199,8 +199,8 @@ void close_font_slot(int16_t index)
     if (ENGINE_FONT_BODIES.body[index]
         == ENGINE_FONT_BODIES.body[0]) {
         ENGINE_FONT_KINDS.kind[0] = 0;
-        VMDS.font_table_5c[0] = VMDS.font_table_70[0] = 0;
-        VMDS.font_table_34[0] = VMDS.font_table_48[0] =
+        VMDS.font_first_char[0] = VMDS.font_char_count[0] = 0;
+        VMDS.font_cell_width[0] = VMDS.font_cell_height[0] =
             ENGINE_UNDERLINE_ROWS.underline_row[0] = 0;
 
         ENGINE_FONT_WIDTHS.width[0] = NULL;

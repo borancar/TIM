@@ -95,7 +95,7 @@ struct game_picker_text GAME_PICKER_TEXT;
  * caller has a near string it can hand to `strcpy`.
  *
  * Thirteen bytes, which is what a DOS 8.3 name and its NUL take - and what is
- * left between `dg_5677`, which ends at 0x5682, and `game_picker_text`.
+ * left between `CRITICAL_ERROR`, which ends at 0x5682, and `game_picker_text`.
  */
 struct game_name_buffer {
     char      name[0xd];          /* +0x00 [0xd] */
