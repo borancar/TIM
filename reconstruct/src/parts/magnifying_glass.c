@@ -61,12 +61,12 @@ void part_step_magnifying_glass(struct part *part)
 
     link_nearby_objects(part, 0x3000, -0x20, 0x20, 0, 0);
 
-    v0e = PART_NONE;
+    v0e = NULL;
     v04 = v02 = 0;
     v06 = 0x190;
 
-    si = PART_PTR(part->next_linked_ptr);
-    while (si != PART_NONE) {
+    si = part->next_linked;
+    while (si != NULL) {
         if ((si->kind == KIND_LIGHT || si->kind == KIND_FLASHLIGHT
              || si->kind == KIND_CANDLE) && si->form != 0) {
             if (part->flags_08 & 0x10) {
@@ -101,7 +101,7 @@ void part_step_magnifying_glass(struct part *part)
                 v08 = 0;
 
             if (v08 != 0) {
-                if (PART_PTR(part->link_ptr[4]) == si) {
+                if (part->link[4] == si) {
                     v0e = si;
                     v04 = 1;
                 } else if (abs(si->link_dx) < abs(v06)) {
@@ -112,15 +112,15 @@ void part_step_magnifying_glass(struct part *part)
         }
 
         if (v02 != 0 && v04 != 0)
-            si = PART_NONE;
+            si = NULL;
         else
-            si = PART_PTR(si->next_linked_ptr);
+            si = si->next_linked;
     }
 
     if (v02 == 0)
-        v0e = PART_NONE;
+        v0e = NULL;
 
-    if ((part->link_ptr[4] = dg_near(dgroup, v0e)) != 0) {
+    if ((part->link[4] = v0e) != 0) {
         v0e->spin++;
         part_moved(part);
     }

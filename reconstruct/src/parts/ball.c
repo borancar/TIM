@@ -48,7 +48,7 @@
  */
 void part_setup_0001(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 8;
     si->y = 0;
@@ -84,7 +84,7 @@ void part_setup_0001(struct part *part)
  */
 void part_setup_cannon_ball(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 7;
     si->y = 0;
@@ -120,7 +120,7 @@ void part_setup_cannon_ball(struct part *part)
  */
 void part_setup_00c9(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 3;
     si->y = 0;

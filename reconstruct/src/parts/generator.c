@@ -28,7 +28,7 @@
  */
 uint16_t part_hit_generator(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);   /* read, and never used */
+    struct part *other = part->contact;   /* read, and never used */
 
     (void)other;
     return 1;
@@ -54,7 +54,7 @@ void part_setup_generator(struct part *part)
     part->grab.y = 18;
     part->grab_size = 0x0c;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
 
     si->x = 21;
     si->y = 0;
@@ -72,10 +72,10 @@ void part_setup_generator(struct part *part)
 
     part->form &= 3;
 
-    if (part->link_ptr[4] != 0)
+    if (part->link[4] != 0)
         part->form |= 4;
 
-    if (part->link_ptr[5] != 0)
+    if (part->link[5] != 0)
         part->form |= 8;
 }
 
@@ -94,7 +94,7 @@ void part_step_generator(struct part *part)
     struct part *di;
     int16_t i;                          /* [bp-2] */
 
-    if (part->direction != 0 && (di = rope_other_end(part)) != PART_NONE
+    if (part->direction != 0 && (di = rope_other_end(part)) != NULL
         && di->kind == KIND_GEAR && di->form_prev == di->form_prev2)
         part->direction = 0;
 
@@ -120,6 +120,6 @@ void part_step_generator(struct part *part)
     }
 
     for (i = 4; i < 6; i++)
-        if ((di = PART_PTR(part->link_ptr[i])) != PART_NONE)
+        if ((di = part->link[i]) != NULL)
             di->direction = part->direction;
 }

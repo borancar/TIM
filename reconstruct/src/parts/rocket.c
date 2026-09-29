@@ -34,7 +34,7 @@ void part_step_rocket(struct part *part)
 {
     struct part *di;
 
-    part->contact_ptr = 0;
+    part->contact = 0;
 
     if (part->direction == 0 && part->spin > 0x14)
         part->direction = 1;
@@ -57,16 +57,16 @@ void part_step_rocket(struct part *part)
         if (part->form >= 7) {
             link_objects_at_point(part, -4, 0x12, 0x30, 0x51);
 
-            for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-                 di = PART_PTR(di->next_linked_ptr))
+            for (di = part->next_linked; di != NULL;
+                 di = di->next_linked)
                 if (di->direction == 0)
                     di->direction = 1;
 
             if (part->form & 1) {
                 link_objects_in_range(part, 0x1000, -4, 0x12, 0x30, 0x51);
 
-                for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-                     di = PART_PTR(di->next_linked_ptr)) {
+                for (di = part->next_linked; di != NULL;
+                     di = di->next_linked) {
                     if (di->kind == KIND_BALLOON) {
                         di->direction = 1;
                     } else if (di->kind == KIND_POKEY && di->form == 0) {
@@ -94,7 +94,7 @@ void part_setup_rocket(struct part *part)
     part->hold.x = 0x0b;
     part->hold.y = 0x3c;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = 4;
     si->y = 0;
     si++;

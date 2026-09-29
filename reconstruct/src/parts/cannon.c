@@ -71,7 +71,7 @@ void part_step_cannon(struct part *part)
         if (part->form == 8)
             play_sound(6);
 
-        if (part->form == 9 && (si = make_part(KIND_CANNON_BALL)) != PART_NONE) {
+        if (part->form == 9 && (si = make_part(KIND_CANNON_BALL)) != NULL) {
             insert_sorted(si, &DG5179.moving_parts);
             si->flags_06 |= 0x10;
 
@@ -125,7 +125,7 @@ void part_setup_cannon(struct part *part)
 
     part->hold.y = 3;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 8; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

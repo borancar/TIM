@@ -54,8 +54,8 @@ void part_step_1649(struct part *part)
     if (part->form == 2) {
         link_nearby_objects(part, 0x3000, -0x14, 0x14, -0x18, 0x18);
 
-        for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-             si = PART_PTR(si->next_linked_ptr)) {
+        for (si = part->next_linked; si != NULL;
+             si = si->next_linked) {
             if (si->flags_06 & 0x1000) {
                 if (si->kind == KIND_BALLOON) {
                     si->direction = 1;
@@ -169,7 +169,7 @@ void split_part_at(struct part *part, struct part *blast)
 
         if (part->pos[0].x < v04) {
             if (part->pos[0].x + part->size[0].width > v06) {
-                if ((di = clone_part(part)) == PART_NONE)
+                if ((di = clone_part(part)) == NULL)
                     goto out;
 
                 insert_sorted(di, &DG521B.placed_parts);
@@ -203,7 +203,7 @@ void split_part_at(struct part *part, struct part *blast)
 
         if (part->pos[0].y < v0a) {
             if (part->pos[0].y + part->size[0].height > v0c) {
-                if ((di = clone_part(part)) == PART_NONE)
+                if ((di = clone_part(part)) == NULL)
                     goto out;
 
                 insert_sorted(di, &DG521B.placed_parts);

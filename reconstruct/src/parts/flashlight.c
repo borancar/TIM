@@ -47,7 +47,7 @@ struct point8 FLASHLIGHT_POINTS_3308[6] DGROUP_AT(0x3308) = {
  */
 uint16_t part_hit_flashlight(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
 
     if (((uint16_t)part->contact_angle) == 0)
         other->direction = 1;
@@ -72,7 +72,7 @@ void part_setup_flashlight(struct part *part)
     else
         si = FLASHLIGHT_POINTS_32FC;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 6; i++, di++, si++) {
+    for (i = 0, di = part->points; i < 6; i++, di++, si++) {
         di->x = si->x;
         di->y = si->y;
     }

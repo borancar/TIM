@@ -36,7 +36,7 @@ uint16_t guest_sp = 0xFF9E;
 struct dg_4e34 DG4E34 DGROUP_AT(0x4e34) = { .cr = { 0x0d }, .realcvt_ptr = 0xc884 };
 struct dos_startup DOS_STARTUP DGROUP_AT(0x0074) = { .argc = 0 };
 struct dos_program_top DOS_PROGRAM_TOP DGROUP_AT(0x00a0) = { .top_a = 0 };
-/* `brklvl_ptr` starts at the end of `_BSS`, 0x64ca, which is an arena
+/* `brklvl` starts at the end of `_BSS`, 0x64ca, which is an arena
    address the host only knows at startup: `io_start_program` sets it. */
 struct dg_0094 DG0094 DGROUP_AT(0x0094) = { .pad_009a = { 0xca, 0x64 } };
 

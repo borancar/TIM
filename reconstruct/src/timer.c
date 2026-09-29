@@ -501,7 +501,7 @@ int16_t timer_install(uint16_t rate)
     io_out8(0x40, (uint8_t)(divisor >> 8));
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    setvect(8, (struct far_ptr){ 0x4517, (uint16_t)(S1C25 >> 4) });
+    setvect(8, (void interrupt (far *)())timer_tick);
 
     io_unlock();                                        /* `sti` */
 

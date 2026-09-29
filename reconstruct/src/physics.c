@@ -298,8 +298,8 @@ void apply_contact_friction(register struct part *obj)
     const struct part_kind *rec_b;      /* [bp-0x2a] */
     int16_t v;
 
-    c = (struct part_contact *)&obj->contact_ptr;
-    other = PART_PTR(c->ptr);
+    c = (struct part_contact *)&obj->contact;
+    other = c->part;
     rec_a = &PART_KINDS[obj->kind];
     rec_b = &PART_KINDS[other->kind];
     load = rec_a->gravity;
@@ -421,8 +421,8 @@ void bounce_off_contact(register struct part *obj)
 
     sound_on_hard_impact(obj);
 
-    c = (struct part_contact *)&obj->contact_ptr;
-    what = PART_PTR(c->ptr);
+    c = (struct part_contact *)&obj->contact;
+    what = c->part;
     mine = &PART_KINDS[obj->kind];
     theirs = &PART_KINDS[what->kind];
     angle = c->angle;
@@ -524,7 +524,7 @@ void bounce_pair(register struct part *obj)
 
     sound_on_hard_impact(obj);
 
-    other = PART_PTR(obj->contact_ptr);
+    other = obj->contact;
     obj->flags_06 |= 8;
     other->flags_06 |= 8;
     mine = &PART_KINDS[obj->kind];

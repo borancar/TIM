@@ -106,16 +106,16 @@ void getdate(struct date *d)
    puts back on the way out. On the host nothing dispatches through it - the
    timer and keyboard reach the game's handlers by name - so it is a table
    and no more. Ours. */
-static struct far_ptr vectors[256];
+static void interrupt (far *vectors[256])();
 
 /* OURS: `getvect`, from the table above. */
-struct far_ptr getvect(uint16_t n)
+void interrupt (far *getvect(uint16_t n))()
 {
     return vectors[n & 0xff];
 }
 
 /* OURS: `setvect`, into the table above. */
-void setvect(uint16_t n, struct far_ptr handler)
+void setvect(uint16_t n, void interrupt (far *handler)())
 {
     vectors[n & 0xff] = handler;
 }

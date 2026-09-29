@@ -53,7 +53,7 @@ void part_setup_10b6(struct part *part)
     else
         si = KINDS_55_57_POINTS_3282;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 7; i++, di++, si++) {
+    for (i = 0, di = part->points; i < 7; i++, di++, si++) {
         di->x = si->x;
         di->y = si->y;
     }
@@ -95,7 +95,7 @@ void part_setup_1105(struct part *part)
     else
         c = part->size[0].height - 1;
 
-    di = POINTS(part->points_ptr);
+    di = part->points;
     di->x = 0;
     di->y = b;
     di++;
@@ -147,7 +147,7 @@ void part_step_11a6(struct part *part)
 uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
-    struct belt *belt = BELT_PTR(part->belt_ptr[0]);   /* [bp-2] */
+    struct belt *belt = part->belt[0];   /* [bp-2] */
 
     if (flags == 1) {
         belt->v[0]++;

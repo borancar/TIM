@@ -41,12 +41,8 @@
  * **The critical-error vector**, at DGROUP 0x5677, and what failed.
  */
 struct dg_5677 {
-#ifdef __TURBOC__
-    void interrupt (far *crit_vec)(); /* +0x00 */
-#else
-    struct far_ptr crit_vec;      /* +0x00  DOS's 24h, kept so it can be
+    void interrupt (far *crit_vec)(); /* +0x00  DOS's 24h, kept so it can be
                                             put back */
-#endif
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
 } PACKED;
 
@@ -77,7 +73,7 @@ struct machine_archives MACHINE_ARCHIVES DGROUP_WAS(0x548f);
  */
 struct dg_547a {
     FILE     *cache_key;      /* +0x00  the one-entry cache in front of find_entry_for_pointer: */
-    dg_near_t cache_answer_ptr;   /* +0x02  the pointer last asked about, and the answer */
+    struct game_file *cache_answer; /* +0x02  the pointer last asked about, and the answer */
     int16_t   archive_count;      /* +0x04  how many archives, accumulated; zero means none is open */
     uint16_t  last_record;        /* +0x06  where the search starts, so record 0 is never returned */
     /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
@@ -98,7 +94,7 @@ struct dg_547a {
     uint8_t   opening;         /* +0x0f */
     uint8_t   scanned;            /* +0x10  the archives have been counted once */
     FILE     *file_used;      /* +0x11  the FILE it actually read from */
-    dg_near_t file_asked_ptr;     /* +0x13  and the one it was asked about */
+    FILE     *file_asked;     /* +0x13  and the one it was asked about */
 } PACKED;
 
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
@@ -180,7 +176,7 @@ FILE *game_fopen(char *name, const char *mode)
         return fopen(name, mode);
 
     DG547A.file_used = 0;
-    DG547A.file_asked_ptr = 0;
+    DG547A.file_asked = 0;
     for (si = &MACHINE_GAME_FILES.files[0], left = 0xa;
          left != 0 && si->in_use != 0; si++, left--)
         ;
@@ -253,7 +249,7 @@ int16_t game_fclose(FILE *file)
     if (file == NULL)
         return -1;
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         di = fclose(file);
     else {
         archive_entry_for(NULL);
@@ -306,7 +302,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
     uint16_t bytes;                     /* [bp-4] */
 
     if (DG547A.archive_count == 0
-        || (di = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (di = archive_entry_for(file)) == NULL)
         return fread(buf, size, count, file);
     if (di->stream != 0)
         return fread(buf, size, count, di->stream);
@@ -349,7 +345,7 @@ int16_t game_fseek(FILE *file, int32_t off, register int16_t whence)
     register struct game_file *si;
 
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         return fseek(file, off, whence);
     if (si->stream != 0)
         return fseek(si->stream, off, whence);
@@ -387,7 +383,7 @@ int32_t game_ftell(register FILE *file)
     register struct game_file *si;
 
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         return ftell(file);
     if (si->stream != 0)
         return ftell(si->stream);
@@ -428,9 +424,9 @@ int16_t game_fgetc(register FILE *file)
     register struct game_file *si;
     int16_t got;                        /* [bp-2] */
 
-    DG547A.file_asked_ptr = dg_near(dgroup, file);
+    DG547A.file_asked = file;
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         return fgetc((DG547A.file_used = file));
     if (si->stream != 0)
         return fgetc((DG547A.file_used = si->stream));
@@ -462,7 +458,7 @@ int16_t game_feof(register FILE *file)
     register struct game_file *si;
 
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         return feof(file);
     if (si->stream != 0)
         return feof(si->stream);
@@ -498,7 +494,7 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
 
     p = ptr;
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         di = fwrite(p, size, count, file);
     else if (si->stream != 0)
         di = fwrite(p, size, count, si->stream);
@@ -532,7 +528,7 @@ int16_t game_fputc(int16_t c, FILE *file)
     register int16_t di;
 
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         di = fputc(c, file);
     else if (si->stream != 0)
         di = fputc(c, si->stream);
@@ -562,7 +558,7 @@ void game_setbuf(register FILE *file, uint8_t *buf)
     register struct game_file *si;
 
     if (DG547A.archive_count == 0
-        || (si = archive_entry_for(file)) == GAME_FILE_NONE)
+        || (si = archive_entry_for(file)) == NULL)
         setbuf(file, buf);
     else if (si->stream != 0)
         setbuf(si->stream, buf);
@@ -606,11 +602,7 @@ void load_archive_map(void)
 
     if (DG547A.scanned == 0) {
         DG5677.crit_vec = getvect(0x24);
-#ifdef __TURBOC__
-        setvect(0x24, crit_error_handler);
-#else
-        setvect(0x24, (struct far_ptr){ 0x9bdf, (uint16_t)(IMAGE_BASE >> 4) });
-#endif
+        setvect(0x24, (void interrupt (far *)())crit_error_handler);
         DG547A.scanned = 1;
         name = "RESOURCE.MAP";
         if ((si = fopen(name, "rb")) != NULL) {
@@ -667,17 +659,10 @@ void free_archive_lists(void)
             dos_free_far(MACHINE_ARCHIVES.slot[si].list);
             MACHINE_ARCHIVES.slot[si].list = NULL;
         }
-#ifdef __TURBOC__
     if (DG5677.crit_vec) {
         setvect(0x24, DG5677.crit_vec);
         DG5677.crit_vec = 0;
     }
-#else
-    if (dg_far_ptr(DG5677.crit_vec) != FAR_NULL_PTR) {
-        setvect(0x24, DG5677.crit_vec);
-        DG5677.crit_vec = FAR_NULL;
-    }
-#endif
     DG547A.scanned = 0;
 }
 
@@ -943,22 +928,22 @@ struct game_file *archive_entry_for(FILE *file)
 
     if (file == NULL) {
         DG547A.cache_key = 0;
-        DG547A.cache_answer_ptr = 0;
-        return GAME_FILE_NONE;
+        DG547A.cache_answer = 0;
+        return NULL;
     }
     if (DG547A.archive_count == 0)
-        return GAME_FILE_NONE;
+        return NULL;
     if (file == DG547A.cache_key)
-        return GAME_FILE_PTR(DG547A.cache_answer_ptr);
+        return DG547A.cache_answer;
     DG547A.cache_key = file;
     for (si = &MACHINE_GAME_FILES.files[0], n = 0xa; n != 0 && (FILE *)si != file;
          si++, n--)
         ;
     if (n == 0 || si->in_use == 0) {
-        si = GAME_FILE_NONE;
+        si = NULL;
         DG547A.cache_key = 0;
     }
-    return GAME_FILE_PTR(DG547A.cache_answer_ptr = dg_near(dgroup, si));
+    return (DG547A.cache_answer = si);
 }
 
 /*

@@ -494,7 +494,7 @@ int16_t heap_largest_free(void)
     best = 0;
     total = 0;
     while (heapwalk(&info) == 2) {
-        total = NEAR_OFF(info.ptr) + info.size;
+        total = (uint16_t)(uintptr_t)info.ptr + info.size;
         if (!info.in_use && (uint16_t)(info.size - 4) > best)
             best = info.size - 4;
     }
@@ -511,7 +511,7 @@ int16_t heap_largest_free(void)
  * that hangs on a broken heap, so a free that corrupts the ring stops the game
  * at the free rather than somewhere unrelated later.
  */
-void checked_free(uint8_t *p)
+void checked_free(void *p)
 {
     heap_check_or_hang();
     free_far(p);

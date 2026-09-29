@@ -89,7 +89,7 @@ int16_t SEESAW_SHAFT_LINE[3][4] DGROUP_AT(0x3542) = {
  */
 uint16_t part_hit_seesaw(struct part *part)
 {
-    struct part *si = PART_PTR(part->contact_ptr);
+    struct part *si = part->contact;
     int16_t face;                       /* [bp-2] */
     int16_t along;                      /* [bp-4] */
     int16_t dir;                        /* [bp-6] */
@@ -138,10 +138,10 @@ uint16_t part_hit_seesaw(struct part *part)
     }
 
     if (plain == 0) {
-        if (queue_part(part, part->contact_ptr) != 0) {
+        if (queue_part(part, part->contact) != 0) {
             si->direction = dir;
             si->momentum = part->momentum;
-            part->contact_ptr = 0;
+            part->contact = 0;
         } else {
             plain = 1;
         }
@@ -177,7 +177,7 @@ void part_setup_seesaw(struct part *part)
     part->attach[1].x = (uint8_t)SEESAW_POINTS_34D6[part->form].x;
     part->attach[1].y = (uint8_t)SEESAW_POINTS_34D6[part->form].y;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 8; i++, di++) {
+    for (i = 0, di = part->points; i < 8; i++, di++) {
         switch (part->form) {
         case 0:
             di->x = (uint8_t)SEESAW_POINTS_34E2[i].x;
@@ -252,10 +252,10 @@ void part_step_seesaw(struct part *part)
 
         if (part->flags_08 & 0x400)
             part->form += part->direction;
-        else if (drive_belts(PART_NONE, part, 0x8000, 0x3e8, part->momentum) != 0)
+        else if (drive_belts(NULL, part, 0x8000, 0x3e8, part->momentum) != 0)
             part->flags_08 |= 0x200;
         else {
-            drive_belts(PART_NONE, part, 0, 0x3e8, part->momentum);
+            drive_belts(NULL, part, 0, 0x3e8, part->momentum);
             part->form += part->direction;
         }
 
@@ -271,8 +271,8 @@ void part_step_seesaw(struct part *part)
 
             link_objects_crossing(part, 0x1000, SEESAW_SHAFT_LINE[part->form]);
 
-            for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-                 di = PART_PTR(di->next_linked_ptr)) {
+            for (di = part->next_linked; di != NULL;
+                 di = di->next_linked) {
                 v04 = di->pos[0].x + (di->size[0].width >> 1);
                 v06 = push_speed_for_mass(di);
 
@@ -394,7 +394,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     uint16_t mode;                      /* [bp-6] */
     struct belt *chain;                 /* [bp-8] */
 
-    chain = BELT_PTR(p2->belt_ptr[p3]);
+    chain = p2->belt[p3];
     p4 &= 0x8007;
     mode = p4 & 0x7fff;
 
@@ -479,7 +479,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
 uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum)
 {
-    dg_near_t si;                       /* the belt */
+    struct belt *si;                       /* the belt */
     int16_t  v02;                       /* [bp-2]    the belt */
     uint16_t v04;                       /* [bp-4]    the answer */
     int16_t  v06;                       /* [bp-6]    which end */
@@ -495,17 +495,17 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
     v04 = 0;
 
     for (v02 = 0; v02 < 2 && v04 == 0; v02++) {
-        if ((si = part->belt_ptr[v02]) != 0) {
-            v10 = PART_PTR(select_field_2_or_4(part, BELT_PTR(si)));
+        if ((si = part->belt[v02]) != 0) {
+            v10 = (select_field_2_or_4(part, si));
             if (v10 != from) {
-                if (PART_PTR(BELT_PTR(si)->end_a_ptr) == part) {
+                if ((si->end_a) == part) {
                     v06 = 0;
-                    v08 = BELT_PTR(si)->slot_a;
-                    v0a = BELT_PTR(si)->slot_b;
+                    v08 = si->slot_a;
+                    v0a = si->slot_b;
                 } else {
                     v06 = 1;
-                    v08 = BELT_PTR(si)->slot_b;
-                    v0a = BELT_PTR(si)->slot_a;
+                    v08 = si->slot_b;
+                    v0a = si->slot_a;
                 }
 
                 if (part->direction > 0) {

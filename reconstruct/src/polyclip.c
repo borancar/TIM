@@ -515,7 +515,7 @@ int16_t detect_pcjr(void)
  * 172c:39b7, image 0x20c07
  *
  * Clip the polygon against the window, in two passes: left and right into the
- * working arrays at 0x398c and dg_near(dgroup, VMDS.work_y), then top and bottom back into 0x393c and
+ * working arrays at 0x398c and VMDS.work_y, then top and bottom back into 0x393c and
  * 0x3964. Sutherland and Hodgman's, and the count at 0x3a2c is rewritten after
  * each pass.
  *

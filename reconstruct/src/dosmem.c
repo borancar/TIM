@@ -216,7 +216,7 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
     if (failed) {
         union far_or_size r;
 
-        r.ptr = FAR_NULL_PTR;
+        r.ptr = NULL;
         return r;
     }
 

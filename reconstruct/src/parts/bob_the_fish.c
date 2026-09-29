@@ -43,7 +43,7 @@ void part_setup_bob_the_fish(struct part *part)
 
     part->point_count = 8;
 
-    for (i = 0, si = POINTS(part->points_ptr); i < 8; i++, si++) {
+    for (i = 0, si = part->points; i < 8; i++, si++) {
         si->x = (uint8_t)BOB_THE_FISH_POINTS_32DC[i].x;
         si->y = (uint8_t)BOB_THE_FISH_POINTS_32DC[i].y;
     }
@@ -60,7 +60,7 @@ void part_setup_bob_the_fish(struct part *part)
  */
 uint16_t part_hit_bob_the_fish(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
 
     if (((int16_t)other->form) >= 0x0b)
         return 1;
@@ -116,7 +116,7 @@ void break_bob_the_fish(struct part *part)
 
         part->point_count = 3;
 
-        di = POINTS(part->points_ptr);
+        di = part->points;
         p1 = di + 1;
         p2 = p1 + 1;
 

@@ -52,7 +52,7 @@ void part_setup_pokey(struct part *part)
     else
         si = POKEY_POINTS_3252;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 5; i++, di++, si++) {
+    for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;
         di->y = si->y;
     }
@@ -68,7 +68,7 @@ void part_setup_pokey(struct part *part)
  */
 uint16_t part_hit_pokey(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
 
     if (other->form == 0) {
         other->form = 1;
@@ -183,8 +183,8 @@ void part_step_pokey(struct part *part)
             else
                 link_nearby_objects(part, 0x3000, (int16_t)0xff10, 0, 0, 0);
 
-            di = PART_PTR(part->next_linked_ptr);
-            while (di != PART_NONE) {
+            di = part->next_linked;
+            while (di != NULL) {
                 switch (di->kind) {
                 case KIND_MORT_THE_MOUSE:
                     dx = di->pos[0].x - part->pos[0].x + 0x10;
@@ -229,11 +229,11 @@ void part_step_pokey(struct part *part)
                         part->form = 2;
                     }
 
-                    di = PART_NONE;
+                    di = NULL;
                     part->fx = part->pos[0].x;
                     part->fx <<= 9;
                 } else {
-                    di = PART_PTR(di->next_linked_ptr);
+                    di = di->next_linked;
                 }
             }
         }

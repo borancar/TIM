@@ -65,7 +65,7 @@ struct point8 BOXING_GLOVE_POINTS_3216[6] DGROUP_AT(0x3216) = {
  */
 uint16_t part_hit_boxing_glove(struct part *part)
 {
-    struct part *di = PART_PTR(part->contact_ptr);
+    struct part *di = part->contact;
     int16_t edge = part->contact_edge;          /* [bp-2] */
 
     if (edge == 2)
@@ -111,8 +111,8 @@ void part_step_boxing_glove(struct part *part)
             link_objects_in_range(part, 0x3000,
                                   (BOXING_GLOVE_REACH - 2)[part->form], 0, 0, 0x1f);
 
-        for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-             di = PART_PTR(di->next_linked_ptr)) {
+        for (di = part->next_linked; di != NULL;
+             di = di->next_linked) {
             if (di->flags_06 & 0x1000) {
                 v = bounce_speed_for_mass(di);
                 di->vel_x = (part->flags_08 & 0x10) ? v : 0 - v;
@@ -158,7 +158,7 @@ void part_setup_boxing_glove(struct part *part)
             src = BOXING_GLOVE_POINTS_31FE;
     }
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 6; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

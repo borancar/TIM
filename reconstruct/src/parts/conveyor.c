@@ -36,7 +36,7 @@ void part_setup_conveyor(struct part *part)
 {
     struct part_point *si;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = si->y = 0;
     si++;
     si->x = part->size[0].width;
@@ -69,7 +69,7 @@ uint16_t part_hit_conveyor(struct part *part)
     int16_t v;                          /* dx */
     struct part *other;                 /* di */
 
-    other = PART_PTR(part->contact_ptr);
+    other = part->contact;
     dir = other->direction;
 
     if (part->contact_edge == 0) {
@@ -113,7 +113,7 @@ void part_step_conveyor(struct part *part)
 {
     struct part *di;
 
-    if (part->direction != 0 && (di = rope_other_end(part)) != PART_NONE
+    if (part->direction != 0 && (di = rope_other_end(part)) != NULL
         && di->kind == KIND_GEAR && di->form_prev == di->form_prev2)
         part->direction = 0;
 
@@ -158,7 +158,7 @@ void part_settle_conveyor(struct part *part)
     part->size[0].width = part->set_size.width;
     part->size[0].height = part->set_size.height;
 
-    di = POINTS(part->points_ptr) + 1;
+    di = part->points + 1;
     p2 = di + 1;
     di->x = p2->x = part->size[0].width;
 

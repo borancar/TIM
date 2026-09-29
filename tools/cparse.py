@@ -48,9 +48,9 @@ BLANK_RE = re.compile(r"\b(?:DGROUP_AT|DGROUP_BSS|DGROUP_WAS|SEGMENT_AT)"
 # An offsetof has to leave a `0` behind, or the `_Static_assert` around it
 # loses its operand and the error comes back one line further on.
 OFFSETOF_RE = re.compile(r"\b__builtin_offsetof\s*\([^()]*\)")
-# `far` and `huge` are the Borland tags, defined as nothing on the host, and
+# `far`, `huge`, `near` and `interrupt` are the Borland tags, defined as nothing on the host, and
 # `SDLCALL` is SDL's calling-convention tag in the same position.
-TAG_RE = re.compile(r"\b(?:far|huge|near)\b")
+TAG_RE = re.compile(r"\b(?:far|huge|near|interrupt)\b")
 # **What only Turbo C++ reads**: the body of an `#ifdef __TURBOC__` branch -
 # inline `asm`, the pseudo-registers `_CX`/`_DX`, a declaration the original
 # made its own way. The tools that parse are about the host's code, so the

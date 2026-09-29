@@ -45,7 +45,7 @@ struct draw_step DG0124 DGROUP_AT(0x0124) = { 0, 0, { 0, 0xff }, { { 0 } } };
  * DGROUP 0x0133..0x0ea6 - **the kinds' drawing tables**, which `PART_KINDS`
  * points into and nothing else does. A kind that draws in steps has a run of
  * `draw_step`s, then three tables indexed by form: the first step
- * (`bitmaps2_ptr`), the size (`sizes_ptr`) and the hot spot (`hotspots_ptr`); a kind
+ * (`bitmaps2`), the size (`sizes`) and the hot spot (`hotspots`); a kind
  * that draws one bitmap per form has at most the last two. The boundaries are
  * where the kind records point, and they tile the range with nothing left
  * over. The `next` links and the table entries are near pointers, as the
@@ -167,7 +167,7 @@ struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] DGROUP_AT(0x0133) = {
         { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
     }
 };
-dg_near_t JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
+struct draw_step *JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
     NEAR_AT(0x0133, &JACK_IN_THE_BOX_DRAW_STEPS[0]),
     NEAR_AT(0x0142, &JACK_IN_THE_BOX_DRAW_STEPS[1]),
     NEAR_AT(0x0151, &JACK_IN_THE_BOX_DRAW_STEPS[2]),
@@ -355,7 +355,7 @@ struct draw_step BOB_THE_FISH_DRAW_STEPS[23] DGROUP_AT(0x02e8) = {
         { { 0xe4, 0x19 }, { 0x05, 0x26 } }    /* offset */
     }
 };
-dg_near_t BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
+struct draw_step *BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
     NEAR_AT(0x02e8, &BOB_THE_FISH_DRAW_STEPS[0]),
     NEAR_AT(0x02f7, &BOB_THE_FISH_DRAW_STEPS[1]),
     NEAR_AT(0x0306, &BOB_THE_FISH_DRAW_STEPS[2]),
@@ -502,7 +502,7 @@ struct draw_step CANNON_DRAW_STEPS[15] DGROUP_AT(0x04f9) = {
         { { 0 }, { 0x09, 0x0d }, { 0, 0x02 } }    /* offset */
     }
 };
-dg_near_t CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
+struct draw_step *CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
     NEAR_AT(0x04f9, &CANNON_DRAW_STEPS[0]),
     NEAR_AT(0x0508, &CANNON_DRAW_STEPS[1]),
     NEAR_AT(0x0517, &CANNON_DRAW_STEPS[2]),
@@ -551,7 +551,7 @@ struct draw_step DYNAMITE_DRAW_STEPS[6] DGROUP_AT(0x063a) = {
     { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x25, 0x0d } } },
     { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x26, 0x0c } } }
 };
-dg_near_t DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { NEAR_AT(0x063a, &DYNAMITE_DRAW_STEPS[0]), NEAR_AT(0x0649, &DYNAMITE_DRAW_STEPS[1]), NEAR_AT(0x0658, &DYNAMITE_DRAW_STEPS[2]), NEAR_AT(0x0667, &DYNAMITE_DRAW_STEPS[3]), NEAR_AT(0x0676, &DYNAMITE_DRAW_STEPS[4]), NEAR_AT(0x0685, &DYNAMITE_DRAW_STEPS[5]) };
+struct draw_step *DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { NEAR_AT(0x063a, &DYNAMITE_DRAW_STEPS[0]), NEAR_AT(0x0649, &DYNAMITE_DRAW_STEPS[1]), NEAR_AT(0x0658, &DYNAMITE_DRAW_STEPS[2]), NEAR_AT(0x0667, &DYNAMITE_DRAW_STEPS[3]), NEAR_AT(0x0676, &DYNAMITE_DRAW_STEPS[4]), NEAR_AT(0x0685, &DYNAMITE_DRAW_STEPS[5]) };
 struct point16 DYNAMITE_FORM_SIZES[6] DGROUP_AT(0x06a0) = {
     { 0x0030, 0x001c },
     { 0x0038, 0x001c },
@@ -601,7 +601,7 @@ struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] DGROUP_AT(0x06c4) = {
         { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
     }
 };
-dg_near_t ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { NEAR_AT(0x06c4, &ELECTRIC_PLUG_DRAW_STEPS[0]), NEAR_AT(0x06d3, &ELECTRIC_PLUG_DRAW_STEPS[1]), NEAR_AT(0x06e2, &ELECTRIC_PLUG_DRAW_STEPS[2]), NEAR_AT(0x06f1, &ELECTRIC_PLUG_DRAW_STEPS[3]), NEAR_AT(0x0700, &ELECTRIC_PLUG_DRAW_STEPS[4]), NEAR_AT(0x070f, &ELECTRIC_PLUG_DRAW_STEPS[5]), NEAR_AT(0x071e, &ELECTRIC_PLUG_DRAW_STEPS[6]), NEAR_AT(0x072d, &ELECTRIC_PLUG_DRAW_STEPS[7]) };
+struct draw_step *ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { NEAR_AT(0x06c4, &ELECTRIC_PLUG_DRAW_STEPS[0]), NEAR_AT(0x06d3, &ELECTRIC_PLUG_DRAW_STEPS[1]), NEAR_AT(0x06e2, &ELECTRIC_PLUG_DRAW_STEPS[2]), NEAR_AT(0x06f1, &ELECTRIC_PLUG_DRAW_STEPS[3]), NEAR_AT(0x0700, &ELECTRIC_PLUG_DRAW_STEPS[4]), NEAR_AT(0x070f, &ELECTRIC_PLUG_DRAW_STEPS[5]), NEAR_AT(0x071e, &ELECTRIC_PLUG_DRAW_STEPS[6]), NEAR_AT(0x072d, &ELECTRIC_PLUG_DRAW_STEPS[7]) };
 struct point16 ELECTRIC_PLUG_FORM_SIZES[8] DGROUP_AT(0x074c) = {
     { 0x0030, 0x0020 },
     { 0x0030, 0x0020 },
@@ -632,7 +632,7 @@ struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] DGROUP_AT(0x076c) = {
         { { 0x67, 0x0a }, { 0x28, 0x10 } }    /* offset */
     }
 };
-dg_near_t DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { NEAR_AT(0x076c, &DYNAMITE_PLUNGER_DRAW_STEPS[0]), NEAR_AT(0x077b, &DYNAMITE_PLUNGER_DRAW_STEPS[1]), NEAR_AT(0x078a, &DYNAMITE_PLUNGER_DRAW_STEPS[2]) };
+struct draw_step *DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { NEAR_AT(0x076c, &DYNAMITE_PLUNGER_DRAW_STEPS[0]), NEAR_AT(0x077b, &DYNAMITE_PLUNGER_DRAW_STEPS[1]), NEAR_AT(0x078a, &DYNAMITE_PLUNGER_DRAW_STEPS[2]) };
 struct point16 DYNAMITE_PLUNGER_FORM_SIZES[3] DGROUP_AT(0x079f) = { { 0x0087, 0x0030 }, { 0x0087, 0x002e }, { 0x0087, 0x0029 } };
 struct point8 DYNAMITE_PLUNGER_HOT_SPOTS[3] DGROUP_AT(0x07ab) = { 0 };
 struct draw_step FAN_DRAW_STEPS[4] DGROUP_AT(0x07b1) = {
@@ -641,7 +641,7 @@ struct draw_step FAN_DRAW_STEPS[4] DGROUP_AT(0x07b1) = {
     { 0, 0x04, { 0x00, 0x03, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
     { 0, 0x04, { 0x00, 0x04, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } }
 };
-dg_near_t FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { NEAR_AT(0x07b1, &FAN_DRAW_STEPS[0]), NEAR_AT(0x07c0, &FAN_DRAW_STEPS[1]), NEAR_AT(0x07cf, &FAN_DRAW_STEPS[2]), NEAR_AT(0x07de, &FAN_DRAW_STEPS[3]) };
+struct draw_step *FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { NEAR_AT(0x07b1, &FAN_DRAW_STEPS[0]), NEAR_AT(0x07c0, &FAN_DRAW_STEPS[1]), NEAR_AT(0x07cf, &FAN_DRAW_STEPS[2]), NEAR_AT(0x07de, &FAN_DRAW_STEPS[3]) };
 struct point16 FAN_FORM_SIZES[4] DGROUP_AT(0x07f5) = {
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
@@ -726,7 +726,7 @@ struct draw_step GENERATOR_DRAW_STEPS[16] DGROUP_AT(0x0805) = {
         { { 0 }, { 0x15, 0xfb }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
     }
 };
-dg_near_t GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
+struct draw_step *GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
     NEAR_AT(0x0805, &GENERATOR_DRAW_STEPS[0]),
     NEAR_AT(0x0814, &GENERATOR_DRAW_STEPS[1]),
     NEAR_AT(0x0823, &GENERATOR_DRAW_STEPS[2]),
@@ -789,7 +789,7 @@ struct draw_step GUN_DRAW_STEPS[7] DGROUP_AT(0x0975) = {
     { 0, 0x04, { 0x00, 0x05, 0xff, 0xff }, { { 0xfe, 0 }, { 0x40, 0xf4 } } },
     { 0, 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } }
 };
-dg_near_t GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { NEAR_AT(0x0975, &GUN_DRAW_STEPS[0]), NEAR_AT(0x0984, &GUN_DRAW_STEPS[1]), NEAR_AT(0x0993, &GUN_DRAW_STEPS[2]), NEAR_AT(0x09a2, &GUN_DRAW_STEPS[3]), NEAR_AT(0x09b1, &GUN_DRAW_STEPS[4]), NEAR_AT(0x09c0, &GUN_DRAW_STEPS[5]), NEAR_AT(0x09cf, &GUN_DRAW_STEPS[6]) };
+struct draw_step *GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { NEAR_AT(0x0975, &GUN_DRAW_STEPS[0]), NEAR_AT(0x0984, &GUN_DRAW_STEPS[1]), NEAR_AT(0x0993, &GUN_DRAW_STEPS[2]), NEAR_AT(0x09a2, &GUN_DRAW_STEPS[3]), NEAR_AT(0x09b1, &GUN_DRAW_STEPS[4]), NEAR_AT(0x09c0, &GUN_DRAW_STEPS[5]), NEAR_AT(0x09cf, &GUN_DRAW_STEPS[6]) };
 struct point16 GUN_FORM_SIZES[7] DGROUP_AT(0x09ec) = {
     { 0x0040, 0x001f },
     { 0x0038, 0x0024 },
@@ -818,7 +818,7 @@ struct draw_step LIGHT_DRAW_STEPS[4] DGROUP_AT(0x0a16) = {
     { 0, 0x02, { 0x02, 0x04, 0xff, 0xff }, { { 0 }, { 0x13, 0x02 } } },
     { 0, 0x02, { 0x03, 0x05, 0xff, 0xff }, { { 0xf8, 0 }, { 0x13, 0x02 } } }
 };
-dg_near_t LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { NEAR_AT(0x0a16, &LIGHT_DRAW_STEPS[0]), NEAR_AT(0x0a25, &LIGHT_DRAW_STEPS[1]), NEAR_AT(0x0a34, &LIGHT_DRAW_STEPS[2]), NEAR_AT(0x0a43, &LIGHT_DRAW_STEPS[3]) };
+struct draw_step *LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { NEAR_AT(0x0a16, &LIGHT_DRAW_STEPS[0]), NEAR_AT(0x0a25, &LIGHT_DRAW_STEPS[1]), NEAR_AT(0x0a34, &LIGHT_DRAW_STEPS[2]), NEAR_AT(0x0a43, &LIGHT_DRAW_STEPS[3]) };
 struct point16 LIGHT_FORM_SIZES[4] DGROUP_AT(0x0a5a) = {
     { 0x0020, 0x0036 },
     { 0x002f, 0x0048 },
@@ -881,7 +881,7 @@ struct draw_step MONKEY_DRAW_STEPS[13] DGROUP_AT(0x0a72) = {
         { { 0, 0x0c }, { 0x28, 0x06 }, { 0x0e, 0x01 } }    /* offset */
     }
 };
-dg_near_t MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
+struct draw_step *MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
     NEAR_AT(0x0a72, &MONKEY_DRAW_STEPS[0]),
     NEAR_AT(0x0a81, &MONKEY_DRAW_STEPS[1]),
     NEAR_AT(0x0a90, &MONKEY_DRAW_STEPS[2]),
@@ -923,7 +923,7 @@ struct draw_step ROCKET_DRAW_STEPS[10] DGROUP_AT(0x0b83) = {
     { 0, 0x03, { 0x00, 0x09, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } },
     { 0, 0x03, { 0x00, 0x0a, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } }
 };
-dg_near_t ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
+struct draw_step *ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
     NEAR_AT(0x0b83, &ROCKET_DRAW_STEPS[0]),
     NEAR_AT(0x0b92, &ROCKET_DRAW_STEPS[1]),
     NEAR_AT(0x0ba1, &ROCKET_DRAW_STEPS[2]),
@@ -953,7 +953,7 @@ struct draw_step SCISSORS_DRAW_STEPS[3] DGROUP_AT(0x0c69) = {
     { NEAR_AT(0x0c69, &SCISSORS_DRAW_STEPS[0]), 0, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0xfe, 0x04 } } }
 };
-dg_near_t SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { NEAR_AT(0x0c78, &SCISSORS_DRAW_STEPS[1]), NEAR_AT(0x0c87, &SCISSORS_DRAW_STEPS[2]) };
+struct draw_step *SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { NEAR_AT(0x0c78, &SCISSORS_DRAW_STEPS[1]), NEAR_AT(0x0c87, &SCISSORS_DRAW_STEPS[2]) };
 struct point16 SCISSORS_FORM_SIZES[2] DGROUP_AT(0x0c9a) = { { 0x0028, 0x0022 }, { 0x0030, 0x0018 } };
 struct point8 SCISSORS_HOT_SPOTS[2] DGROUP_AT(0x0ca2) = { { 0 }, { 0xfe, 0 } };
 struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
@@ -967,7 +967,7 @@ struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
         { { 0 }, { 0x34, 0x04 }, { 0x34, 0x12 } }    /* offset */
     }
 };
-dg_near_t SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { NEAR_AT(0x0ca6, &SOLAR_PANEL_DRAW_STEPS[0]), NEAR_AT(0x0cb5, &SOLAR_PANEL_DRAW_STEPS[1]), NEAR_AT(0x0cc4, &SOLAR_PANEL_DRAW_STEPS[2]), NEAR_AT(0x0cd3, &SOLAR_PANEL_DRAW_STEPS[3]) };
+struct draw_step *SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { NEAR_AT(0x0ca6, &SOLAR_PANEL_DRAW_STEPS[0]), NEAR_AT(0x0cb5, &SOLAR_PANEL_DRAW_STEPS[1]), NEAR_AT(0x0cc4, &SOLAR_PANEL_DRAW_STEPS[2]), NEAR_AT(0x0cd3, &SOLAR_PANEL_DRAW_STEPS[3]) };
 struct point16 SOLAR_PANEL_FORM_SIZES[4] DGROUP_AT(0x0cea) = {
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 },
@@ -986,7 +986,7 @@ struct draw_step TRAMPOLINE_DRAW_STEPS[10] DGROUP_AT(0x0cfa) = {
     { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
     { NEAR_AT(0x0d72, &TRAMPOLINE_DRAW_STEPS[8]), 0x04, { 0x07, 0xff, 0xff, 0xff }, { { 0, 0xfd } } }
 };
-dg_near_t TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { NEAR_AT(0x0d09, &TRAMPOLINE_DRAW_STEPS[1]), NEAR_AT(0x0d27, &TRAMPOLINE_DRAW_STEPS[3]), NEAR_AT(0x0d45, &TRAMPOLINE_DRAW_STEPS[5]), NEAR_AT(0x0d63, &TRAMPOLINE_DRAW_STEPS[7]), NEAR_AT(0x0d81, &TRAMPOLINE_DRAW_STEPS[9]) };
+struct draw_step *TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { NEAR_AT(0x0d09, &TRAMPOLINE_DRAW_STEPS[1]), NEAR_AT(0x0d27, &TRAMPOLINE_DRAW_STEPS[3]), NEAR_AT(0x0d45, &TRAMPOLINE_DRAW_STEPS[5]), NEAR_AT(0x0d63, &TRAMPOLINE_DRAW_STEPS[7]), NEAR_AT(0x0d81, &TRAMPOLINE_DRAW_STEPS[9]) };
 struct point16 TRAMPOLINE_FORM_SIZES[5] DGROUP_AT(0x0d9a) = {
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
@@ -1003,7 +1003,7 @@ struct draw_step CANDLE_DRAW_STEPS[6] DGROUP_AT(0x0db8) = {
     { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
     { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } }
 };
-dg_near_t CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { NEAR_AT(0x0db8, &CANDLE_DRAW_STEPS[0]), NEAR_AT(0x0dc7, &CANDLE_DRAW_STEPS[1]), NEAR_AT(0x0dd6, &CANDLE_DRAW_STEPS[2]), NEAR_AT(0x0de5, &CANDLE_DRAW_STEPS[3]), NEAR_AT(0x0df4, &CANDLE_DRAW_STEPS[4]), NEAR_AT(0x0e03, &CANDLE_DRAW_STEPS[5]) };
+struct draw_step *CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { NEAR_AT(0x0db8, &CANDLE_DRAW_STEPS[0]), NEAR_AT(0x0dc7, &CANDLE_DRAW_STEPS[1]), NEAR_AT(0x0dd6, &CANDLE_DRAW_STEPS[2]), NEAR_AT(0x0de5, &CANDLE_DRAW_STEPS[3]), NEAR_AT(0x0df4, &CANDLE_DRAW_STEPS[4]), NEAR_AT(0x0e03, &CANDLE_DRAW_STEPS[5]) };
 struct point16 CANDLE_FORM_SIZES[6] DGROUP_AT(0x0e1e) = {
     { 0x0022, 0x0020 },
     { 0x0022, 0x0024 },
@@ -1090,9 +1090,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0000,    /* priority */
@@ -1117,9 +1117,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0010,    /* min_w */
         0x0010,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0028,    /* priority */
@@ -1144,9 +1144,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0010,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x002c,    /* priority */
@@ -1171,9 +1171,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e42, &SEESAW_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e42, &SEESAW_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0006,    /* priority */
@@ -1196,9 +1196,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e48, &BALLOON_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e48, &BALLOON_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0005,    /* priority */
@@ -1221,9 +1221,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x000c,    /* priority */
@@ -1248,9 +1248,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0025,    /* priority */
@@ -1275,9 +1275,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0011,    /* priority */
@@ -1302,9 +1302,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x01, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x000a,    /* priority */
@@ -1329,9 +1329,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0001,    /* priority */
@@ -1356,9 +1356,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x01, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x000f,    /* priority */
@@ -1383,9 +1383,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x000c,    /* point_count */
         0x0022,    /* priority */
@@ -1408,9 +1408,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e56, &POKEY_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e56, &POKEY_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x0023,    /* priority */
@@ -1435,9 +1435,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0250, &JACK_IN_THE_BOX_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x02c2, &JACK_IN_THE_BOX_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0276, &JACK_IN_THE_BOX_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0250, &JACK_IN_THE_BOX_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x02c2, &JACK_IN_THE_BOX_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0276, &JACK_IN_THE_BOX_FORM_SIZES[0]),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x000d,    /* priority */
@@ -1462,9 +1462,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x000b,    /* priority */
@@ -1489,9 +1489,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0441, &BOB_THE_FISH_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x04cb, &BOB_THE_FISH_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x046f, &BOB_THE_FISH_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0441, &BOB_THE_FISH_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x04cb, &BOB_THE_FISH_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x046f, &BOB_THE_FISH_FORM_SIZES[0]),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0026,    /* priority */
@@ -1516,9 +1516,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e6a, &BELLOW_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e6a, &BELLOW_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0006,    /* point_count */
         0x0007,    /* priority */
@@ -1543,9 +1543,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0006,    /* point_count */
         0x0021,    /* priority */
@@ -1568,9 +1568,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x05da, &CANNON_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0622, &CANNON_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x05f2, &CANNON_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x05da, &CANNON_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0622, &CANNON_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x05f2, &CANNON_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0008,    /* point_count */
         0x001c,    /* priority */
@@ -1595,9 +1595,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0694, &DYNAMITE_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x06b8, &DYNAMITE_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x06a0, &DYNAMITE_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0694, &DYNAMITE_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x06b8, &DYNAMITE_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x06a0, &DYNAMITE_FORM_SIZES[0]),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x001d,    /* priority */
@@ -1622,9 +1622,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e70, &BULLET_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e70, &BULLET_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0032,    /* priority */
@@ -1649,9 +1649,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x073c, &ELECTRIC_PLUG_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        NEAR_AT(0x074c, &ELECTRIC_PLUG_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x073c, &ELECTRIC_PLUG_FORM_STEPS[0]),    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        NEAR_AT(0x074c, &ELECTRIC_PLUG_FORM_SIZES[0]),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0014,    /* priority */
@@ -1676,9 +1676,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0799, &DYNAMITE_PLUNGER_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x07ab, &DYNAMITE_PLUNGER_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x079f, &DYNAMITE_PLUNGER_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0799, &DYNAMITE_PLUNGER_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x07ab, &DYNAMITE_PLUNGER_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x079f, &DYNAMITE_PLUNGER_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0020,    /* priority */
@@ -1701,9 +1701,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0010,    /* priority */
@@ -1728,9 +1728,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x07ed, &FAN_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        NEAR_AT(0x07f5, &FAN_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x07ed, &FAN_FORM_STEPS[0]),    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        NEAR_AT(0x07f5, &FAN_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x0017,    /* priority */
@@ -1755,9 +1755,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e76, &FLASHLIGHT_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e76, &FLASHLIGHT_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0006,    /* point_count */
         0x001a,    /* priority */
@@ -1782,9 +1782,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x08f5, &GENERATOR_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0955, &GENERATOR_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0915, &GENERATOR_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x08f5, &GENERATOR_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0955, &GENERATOR_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0915, &GENERATOR_FORM_SIZES[0]),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0015,    /* priority */
@@ -1809,9 +1809,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x09de, &GUN_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0a08, &GUN_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x09ec, &GUN_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x09de, &GUN_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0a08, &GUN_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x09ec, &GUN_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0007,    /* point_count */
         0x0012,    /* priority */
@@ -1834,9 +1834,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0003,    /* priority */
@@ -1861,9 +1861,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0a52, &LIGHT_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0a6a, &LIGHT_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0a5a, &LIGHT_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0a52, &LIGHT_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0a6a, &LIGHT_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0a5a, &LIGHT_FORM_SIZES[0]),    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x001b,    /* priority */
@@ -1886,9 +1886,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0019,    /* priority */
@@ -1913,9 +1913,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0b35, &MONKEY_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        NEAR_AT(0x0b4f, &MONKEY_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0b35, &MONKEY_FORM_STEPS[0]),    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        NEAR_AT(0x0b4f, &MONKEY_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0009,    /* point_count */
         0x0027,    /* priority */
@@ -1938,9 +1938,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0032,    /* priority */
@@ -1965,9 +1965,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0007,    /* point_count */
         0x0033,    /* priority */
@@ -1990,9 +1990,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0007,    /* point_count */
         0x0034,    /* priority */
@@ -2017,9 +2017,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e7a, &BOXING_GLOVE_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e7a, &BOXING_GLOVE_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0006,    /* point_count */
         0x0008,    /* priority */
@@ -2044,9 +2044,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0c19, &ROCKET_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0c55, &ROCKET_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0c2d, &ROCKET_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0c19, &ROCKET_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0c55, &ROCKET_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0c2d, &ROCKET_FORM_SIZES[0]),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x001e,    /* priority */
@@ -2071,9 +2071,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0c96, &SCISSORS_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0ca2, &SCISSORS_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0c9a, &SCISSORS_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0c96, &SCISSORS_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0ca2, &SCISSORS_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0c9a, &SCISSORS_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0008,    /* point_count */
         0x0013,    /* priority */
@@ -2098,9 +2098,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0ce2, &SOLAR_PANEL_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        NEAR_AT(0x0cea, &SOLAR_PANEL_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0ce2, &SOLAR_PANEL_FORM_STEPS[0]),    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        NEAR_AT(0x0cea, &SOLAR_PANEL_FORM_SIZES[0]),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0016,    /* priority */
@@ -2125,9 +2125,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0d90, &TRAMPOLINE_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0dae, &TRAMPOLINE_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0d9a, &TRAMPOLINE_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0d90, &TRAMPOLINE_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0dae, &TRAMPOLINE_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0d9a, &TRAMPOLINE_FORM_SIZES[0]),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0004,    /* point_count */
         0x0009,    /* priority */
@@ -2152,9 +2152,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e8e, &WINDMILL_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e8e, &WINDMILL_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0003,    /* point_count */
         0x000e,    /* priority */
@@ -2179,9 +2179,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0e96, &BLAST_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0e96, &BLAST_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x00, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2206,9 +2206,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        NEAR_AT(0x0ea2, &MORT_THE_MOUSE_HOT_SPOTS[0]),    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        NEAR_AT(0x0ea2, &MORT_THE_MOUSE_HOT_SPOTS[0]),    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x0024,    /* priority */
@@ -2233,9 +2233,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0002,    /* priority */
@@ -2260,9 +2260,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0004,    /* priority */
@@ -2287,9 +2287,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0e12, &CANDLE_FORM_STEPS[0]),    /* bitmaps2_ptr */
-        NEAR_AT(0x0e36, &CANDLE_HOT_SPOTS[0]),    /* hotspots_ptr */
-        NEAR_AT(0x0e1e, &CANDLE_FORM_SIZES[0]),    /* sizes_ptr */
+        NEAR_AT(0x0e12, &CANDLE_FORM_STEPS[0]),    /* bitmaps2 */
+        NEAR_AT(0x0e36, &CANDLE_HOT_SPOTS[0]),    /* hotspots */
+        NEAR_AT(0x0e1e, &CANDLE_FORM_SIZES[0]),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0003,    /* point_count */
         0x001f,    /* priority */
@@ -2314,9 +2314,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0029,    /* priority */
@@ -2341,9 +2341,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x002a,    /* priority */
@@ -2368,9 +2368,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x002b,    /* priority */
@@ -2395,9 +2395,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2422,9 +2422,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x0018,    /* priority */
@@ -2449,9 +2449,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2476,9 +2476,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2503,9 +2503,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2530,9 +2530,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x0020,    /* min_w */
         0x0020,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0032,    /* priority */
@@ -2557,9 +2557,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0032,    /* priority */
@@ -2584,9 +2584,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0007,    /* point_count */
         0x0032,    /* priority */
@@ -2611,9 +2611,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2_ptr */
-        0x0000,    /* hotspots_ptr */
-        0x0000,    /* sizes_ptr */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
         { 0x00, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0032,    /* priority */

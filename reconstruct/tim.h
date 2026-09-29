@@ -164,7 +164,7 @@ void clamp_record_pair(struct part *rec);               /* 0x02bcc */
 void rotate_point(int16_t *px, int16_t *py, uint16_t angle); /* 0x03b17 */
 
 /* Is a node on the chain hanging off a record? */
-int16_t chain_contains(struct part *rec, dg_near_t node);      /* 0x03a61 */
+int16_t chain_contains(struct part *rec, struct part *node);      /* 0x03a61 */
 
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(struct game_file *out);       /* 0x098e0 */
@@ -316,7 +316,7 @@ struct sound_play_args {                /* function 3 */
     uint8_t        volume;              /* +0 */
     uint8_t        loop;                /* +1  non-zero plays it again */
     uint16_t       rate;                /* +2 */
-    struct far_ptr sample;              /* +4  a segment and an offset inside it */
+    const uint8_t far *sample;          /* +4  a segment and an offset inside it */
     uint16_t       length;              /* +8 */
 } PACKED;
 
@@ -584,7 +584,7 @@ void     asb_dma_continue(void);                /* SX.OVL ASB:0x0370 */
 void     asb_speaker_on(void);                  /* SX.OVL ASB:0x079e */
 void     asb_set_rate(uint16_t rate);           /* SX.OVL ASB:0x031b */
 void     asb_set_block_size(uint16_t n);        /* SX.OVL ASB:0x033a */
-uint32_t asb_linear(struct far_ptr h);   /* SX.OVL ASB:0x0355 */
+uint32_t asb_linear(const uint8_t far *p);   /* SX.OVL ASB:0x0355 */
 void     asb_dma_program(uint16_t off, uint16_t count,
                          uint8_t mode, uint8_t page);  /* SX.OVL ASB:0x08ec */
 void     asb_dma_start(void);                   /* SX.OVL ASB:0x025d */
@@ -652,7 +652,7 @@ int16_t arctan_lookup(uint16_t index);              /* 0x2a941 */
 void apply_contact_friction(struct part *obj);          /* 0x02da0 */
 
 /* Read one pixel's colour from the source page; no clipping. */
-uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
+uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void),
                         uint16_t ds);           /* VM.OVL VGA:0x0000 */
 void vm_reset_attributes(void);                     /* VM.OVL VGA:0x011d */
 uint16_t vm_read_pixel(int16_t x, int16_t y);       /* VM.OVL VGA:0x1453 */
@@ -750,7 +750,7 @@ void near decode_vqt_list(FILE *file, struct bitmap **list); /* 0x25639 */
 void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
 void near fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
-uint8_t *calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
+void    *calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 /* thunks.c: far faces of the runtime's routines, the first twelve uncalled. */
 int16_t open_far(const char *name, uint16_t flags);                  /* 0x0ba32 */
 int16_t open_file_perm_far(const char *name, uint16_t flags, uint16_t perm); /* 0x0ba45 */
@@ -766,7 +766,7 @@ uint16_t fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
 int16_t fputc_far(int16_t c, FILE *file);              /* 0x0baed */
 void    rewind_far(FILE *file);                        /* 0x0bb00 */
 int16_t fclose_far(FILE *file);                        /* 0x0bb0f */
-uint8_t *  malloc_far(uint16_t bytes);            /* 0x0bb1e */
+void    *malloc_far(uint16_t bytes);             /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
 void draw_odometer_digit(uint8_t c, int16_t x, int16_t y); /* 0x15a7e */
@@ -923,7 +923,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 int16_t match_field_5a_5c(struct part *value, struct part *obj);   /* 0x06f43 */
 
 /* Pick one of two record fields by matching the other. */
-dg_near_t select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
+struct part *select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
 
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
@@ -945,6 +945,7 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 uint16_t load_screen(char *name);                /* 0x253e7 */
 void     keyboard_isr(void);                        /* 0x21196 */
+void     keyboard_tick_isr(void);                   /* ours: the hook at 0x21386 */
 uint16_t bios_read_key(void);                       /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x21088 */
@@ -1105,7 +1106,7 @@ void restore_object_backdrop(uint16_t from_page,
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
 void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a62c */
 void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a6d7 */
-dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+struct rect_list_entry **find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
 char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
 char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
@@ -1125,7 +1126,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */
 void move_pointer_to(int16_t x, int16_t y);         /* 0x0aa76 */
 void vm_set_line_compare(uint16_t line);                         /* 0x08f27 */
-void regions_handle_pointer(dg_near_t first);        /* 0x08546 */
+void regions_handle_pointer(struct region *first);        /* 0x08546 */
 
 /*
  * OURS: the port cannot call through a far pointer held in guest memory, so a
@@ -1365,9 +1366,9 @@ void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x03e23 */
-int16_t  queue_part(struct part *src, dg_near_t part);   /* 0x07b6f */
+int16_t  queue_part(struct part *src, struct part *part);   /* 0x07b6f */
 int16_t  tension_belt(struct part *part);               /* 0x072c7 */
-int16_t  belt_orientation(dg_near_t belt, int16_t which,
+int16_t  belt_orientation(struct belt *belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
 uint16_t part_hit_generator(struct part *part);              /* 172c:1de0 */
@@ -1525,9 +1526,9 @@ void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
 void redraw_machine_area(void);                     /* 0x15a2f */
-dg_near_t bin_part_at_index(int16_t index);           /* 0x05855 */
+struct part *bin_part_at_index(int16_t index);           /* 0x05855 */
 void refile_part_list(struct part *part);               /* 0x0578c */
-dg_near_t bin_scroll_end(void);                      /* 0x058bb */
+struct part *bin_scroll_end(void);                      /* 0x058bb */
 void bin_scroll_back(void);                         /* 0x10cc8 */
 void bin_scroll_forward(void);                      /* 0x10d37 */
 void select_music_by_key(void);                      /* 0x0faf9 */
@@ -1660,7 +1661,7 @@ uint16_t set_font(int16_t slot);                    /* 0x2149e */
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
-dg_near_t part_by_index(int16_t index);           /* 0x11d44 */
+struct part *part_by_index(int16_t index);           /* 0x11d44 */
 
 /* Set the number of scan lines the CRTC displays before blanking. */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
@@ -1748,7 +1749,7 @@ uint8_t far * set_palette_pointer(uint8_t far * h);   /* 0x1eb6a */
  * at the site rather than guessed at by the signature.
  *
  * In the original both are DX:AX. Here the address is the host pointer to the
- * block - `FAR_NULL_PTR` when DOS refused, the 0000:0000 the guest tests for -
+ * block - `NULL` when DOS refused, the 0000:0000 the guest tests for -
  * and so the two do not overlay: the member the routine did not set is not
  * the other one read differently. A caller filing the address into a far
  * pair uses `far_of`, which is the block's own pair, a DOS block starting a
@@ -1925,7 +1926,7 @@ char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(char *buf);                    /* 0x0b7b3 */
 void heap_check_or_hang(void);                         /* 0x08528 */
-void checked_free(uint8_t *p);                         /* 0x08510 */
+void checked_free(void *p);                            /* 0x08510 */
 void free_region_lists(void);                          /* 0x08eb5 */
 void free_archive_lists(void);                         /* 0x09784 */
 int16_t remove_keyboard(void);                         /* 0x21158 */
@@ -1938,7 +1939,7 @@ void restore_video_mode(void);                         /* 0x225ba */
 void free_far_block(uint8_t far * h);        /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void set_holiday_flags(void);                          /* 0x08259 */
-void free_far(uint8_t * p);                        /* 0x0bb2d */
+void free_far(void *p);                              /* 0x0bb2d */
 void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void save_rect_thunk(uint8_t far * buf, int16_t x,
@@ -1965,7 +1966,7 @@ uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 uint8_t far *normalise_far_ptr_far(uint8_t far *p);  /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */
-void normalise_far_ptr(struct far_ptr *p);       /* 0x22161 */
+void normalise_far_ptr(uint8_t far **p);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
 void read_mouse_pointer(int16_t *x,
@@ -1986,7 +1987,7 @@ int16_t near scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t read_mouse_button(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */
 void mouse_restore_vga(void);                       /* 0x22074 */
-void mouse_set_user_handler(struct far_ptr h); /* 0x21fbe */
+void mouse_set_user_handler(void (far *h)(void)); /* 0x21fbe */
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y); /* 0x21fcf */
 
 /* Bit 0 of the byte array at DGROUP 0x468c. */

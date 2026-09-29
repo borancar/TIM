@@ -300,12 +300,6 @@ test: devtim tim debug
 	    exit 1; \
 	fi; \
 	echo "one display path: SDL3 and nothing else included"
-	@# **A `dg_near` is only a store into a near-pointer field.** A pointer
-	@# turned back into its offset anywhere else - compared, passed, returned,
-	@# held in a local - is the conversion made too early. Before the
-	@# solutions step, for the same reason as the one above.
-	@cd .. && uv run python tools/check_dg_near.py || { \
-	    echo "FAIL: a dg_near is not a store into a _ptr field - see tools/check_dg_near.py"; exit 1; }
 	@# **Every solution, simulated.** Each `solutions/S<NN>.TIM` is loaded
 	@# over its own puzzle the way the game loads a machine, and
 	@# `TIM_SIMULATE` then runs it through the game's own per-frame step

@@ -40,7 +40,7 @@
  */
 uint16_t part_hit_trampoline(struct part *part)
 {
-    struct part *di = PART_PTR(part->contact_ptr);
+    struct part *di = part->contact;
     int16_t edge = part->contact_edge;  /* [bp-2] */
     int16_t apart;                      /* [bp-4] */
 
@@ -56,7 +56,7 @@ uint16_t part_hit_trampoline(struct part *part)
         if (abs(part->vel_x) >= 0x400)
             part->vel_x >>= 1;
 
-        part->contact_ptr = 0;
+        part->contact = 0;
         part->flags_06 &= 0xfffe;
 
         part->fy = part->pos[0].y;
@@ -81,7 +81,7 @@ uint16_t part_hit_trampoline(struct part *part)
  */
 void part_setup_trampoline(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 0;
     si->y = 11;

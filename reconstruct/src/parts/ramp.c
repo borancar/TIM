@@ -108,7 +108,7 @@ void part_setup_ramp(struct part *part)
     else
         src = RAMP_POINT_TABLE_3364[part->form];
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 4; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

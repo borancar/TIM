@@ -74,7 +74,7 @@ uint16_t set_font(register int16_t slot)
     uint8_t far *cur;                   /* [bp-6] */
 
     if (slot == 0) {
-        if ((cur = ENGINE_FONT_BODIES.body[0]) != FAR_NULL_PTR) {
+        if ((cur = ENGINE_FONT_BODIES.body[0]) != NULL) {
             /* Which slot holds the same pointer as slot 0. */
             for (p = &ENGINE_FONT_BODIES.body[found = 1]; found < 0x14; found++, p++)
                 if (*p == cur)
@@ -154,7 +154,7 @@ uint16_t font_line_height(register int16_t slot)
 uint16_t table_618a_in_use(register int16_t index)
 {
     return index > 0 && index < 0x14
-           && ENGINE_FONT_BODIES.body[index] != FAR_NULL_PTR;
+           && ENGINE_FONT_BODIES.body[index] != NULL;
 }
 
 /*
@@ -193,7 +193,7 @@ uint16_t text_width(const char far *str)
 {
     register int16_t index;
     register uint16_t width = 0;
-    int16_t proportional = ENGINE_FONT_WIDTHS.width[0] != FAR_NULL_PTR;
+    int16_t proportional = ENGINE_FONT_WIDTHS.width[0] != NULL;
 
     while (*str != 0) {
         index = (uint8_t)*str++ - VMDS.font_table_5c[0];
@@ -312,7 +312,7 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
         || y + h > (uint16_t)VMDS.clip_bottom)
         plot = plot_pixel_clipped;
     else
-        plot = VM_VECTOR(22, bmp_plot_fn);
+        plot = ((bmp_plot_fn)DG4342.font[22]);
 
     if (ENGINE_FONT_KINDS.kind[0] <= 1)
         one_bit = 1;
@@ -459,7 +459,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 x += draw_char(*str, x, y);
             else {
                 index = (uint8_t)*str - VMDS.font_table_5c[0];
-                if (ENGINE_FONT_WIDTHS.width[0] != FAR_NULL_PTR) {
+                if (ENGINE_FONT_WIDTHS.width[0] != NULL) {
                     /* Far pointers, as in `draw_char`; see the note there. */
                     w = ENGINE_FONT_SLOTS.slot[0][index];
                     h = VMDS.font_table_48[0];
@@ -485,7 +485,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 asm mov cx, h
                 asm mov dx, x
                 asm mov bp, y
-                VM_VECTOR(1, vm_glyph_fn)();
+                ((vm_glyph_fn)DG4342.font[1])();
                 asm pop di
                 asm pop si
                 asm pop bp
@@ -525,7 +525,7 @@ uint16_t glyph_size(register int16_t c, register uint16_t *w,
     c -= VMDS.font_table_5c[0];
     if (c < 0 || VMDS.font_table_70[0] <= c)
         return 0;
-    gw = ENGINE_FONT_WIDTHS.width[0] != FAR_NULL_PTR
+    gw = ENGINE_FONT_WIDTHS.width[0] != NULL
          ? ENGINE_FONT_SLOTS.slot[0][c] : VMDS.font_table_34[0];
     gh = VMDS.font_table_48[0];
     if (w)

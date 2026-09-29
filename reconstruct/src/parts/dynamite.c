@@ -43,7 +43,7 @@ struct point8 DYNAMITE_POINTS_329A[5] DGROUP_AT(0x329a) = {
  */
 uint16_t part_hit_dynamite(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
 
     if (part->kind == KIND_BULLET)
         burst_dynamite(other);
@@ -73,7 +73,7 @@ void part_setup_dynamite(struct part *part)
 
     part->hold.y = 0x0f;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 5; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -136,7 +136,7 @@ void burst_dynamite(struct part *part)
 
     part->form = 5;
 
-    if ((si = make_part(KIND_BLAST)) == PART_NONE)
+    if ((si = make_part(KIND_BLAST)) == NULL)
         goto done;
 
     play_sound(8);

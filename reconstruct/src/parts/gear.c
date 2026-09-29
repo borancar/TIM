@@ -102,7 +102,7 @@ uint16_t part_hit_gear(struct part *part)
     int16_t  face;                      /* [bp-6] */
     struct part *other;                 /* [bp-8] */
 
-    other = PART_PTR(part->contact_ptr);
+    other = part->contact;
     dir = other->form - other->form_prev;
 
     if (dir > 1)
@@ -153,24 +153,24 @@ void part_setup_gear(struct part *part)
     part_setup_0001(part);
 
     for (i = 0; i < 4; i++)
-        part->link_ptr[i] = 0;
+        part->link[i] = 0;
 
-    for (di = PART_PTR(DG521B.placed_parts.next_ptr); di != PART_NONE;
-         di = PART_PTR(di->next_ptr)) {
+    for (di = DG521B.placed_parts.next; di != NULL;
+         di = di->next) {
         if (di != part && di->kind == KIND_GEAR) {
             dx = part->start_x - di->start_x;
             dy = part->start_y - di->start_y;
 
             if (dy == 0) {
                 if (dx == 0x20)
-                    part->link_ptr[0] = dg_near(dgroup, di);
+                    part->link[0] = di;
                 else if (dx == -0x20)
-                    part->link_ptr[1] = dg_near(dgroup, di);
+                    part->link[1] = di;
             } else if (dx == 0) {
                 if (dy == 0x20)
-                    part->link_ptr[2] = dg_near(dgroup, di);
+                    part->link[2] = di;
                 else if (dy == -0x20)
-                    part->link_ptr[3] = dg_near(dgroup, di);
+                    part->link[3] = di;
             }
         }
     }
@@ -197,7 +197,7 @@ void part_step_gear(struct part *part)
 
         di = 0;
         for (v02 = 0; v02 < 4; v02++)
-            if ((v04 = PART_PTR(part->link_ptr[v02])) != PART_NONE)
+            if ((v04 = part->link[v02]) != NULL)
                 di = spread_gear_signal(part, v04, 2, di);
 
         if (di != 0)
@@ -247,11 +247,11 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                 v06 = rope_other_end(to);
                 v04 = 1;
             } else {
-                v06 = PART_PTR(to->link_ptr[v02]);
+                v06 = to->link[v02];
                 v04 = 2;
             }
 
-            if (v06 != PART_NONE && !(v06->flags_08 & 0x800))
+            if (v06 != NULL && !(v06->flags_08 & 0x800))
                 flag = spread_gear_signal(to, v06, v04, flag);
         }
     }
@@ -288,9 +288,9 @@ void settle_gear_signal(struct part *part, int16_t clear)
         if (v02 == 4)
             di = rope_other_end(part);
         else
-            di = PART_PTR(part->link_ptr[v02]);
+            di = part->link[v02];
 
-        if (di != PART_NONE && di->direction != 0 && !(di->flags_08 & 0x800)) {
+        if (di != NULL && di->direction != 0 && !(di->flags_08 & 0x800)) {
             if (clear != 0)
                 di->direction = 0;
 

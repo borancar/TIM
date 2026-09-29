@@ -106,7 +106,7 @@ struct point16 DYNAMITE_PLUNGER_POINTS_3416[3] DGROUP_AT(0x3416) = {
  */
 uint16_t part_hit_dynamite_plunger(struct part *part)
 {
-    struct part *di = PART_PTR(part->contact_ptr);
+    struct part *di = part->contact;
     int16_t face = part->contact_edge;  /* [bp-2] */
 
     if (face == 0)
@@ -143,7 +143,7 @@ void part_setup_dynamite_plunger(struct part *part)
         part->attach[0].y = (uint8_t)DYNAMITE_PLUNGER_POINTS_340A[part->form].y;
     }
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 4; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -174,7 +174,7 @@ void part_step_dynamite_plunger(struct part *part)
         if (part->form == 1) {
             play_sound(8);
 
-            if ((si = make_part(KIND_BLAST)) == PART_NONE)
+            if ((si = make_part(KIND_BLAST)) == NULL)
                 goto done;
 
             insert_sorted(si, &DG521B.placed_parts);
@@ -228,7 +228,7 @@ void part_flip_dynamite_plunger(struct part *part)
 uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *di = BELT_PTR(p2->belt_ptr[0]);
+    struct belt *di = p2->belt[0];
     uint16_t low;                       /* cx */
 
     if (p4 == 1) {

@@ -35,7 +35,7 @@ void part_setup_pumpkin(struct part *part)
     int16_t i;
 
     di = PUMPKIN_POINTS_3422;
-    for (i = 0, si = POINTS(part->points_ptr); i < 8; i++, si++, di++) {
+    for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;
     }

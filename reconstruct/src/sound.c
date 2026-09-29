@@ -4158,7 +4158,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     uint8_t dl, dh, key;
 
     for (di = 0; di < 0x40; di += 4) {
-        if (SEQUENCE_PTR(SNDS.playing[di / 4]) == seq) {
+        if (SNDS.playing[di / 4] == seq) {
             remove_sequence(seq);
             sequencer_tick();
             break;
@@ -4295,9 +4295,9 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     key = seq->priority;
 
     for (di = 0; di < 0x40; di += 4) {
-        if (SNDS.playing[di / 4].seg == 0)
+        if (FP_SEG(SNDS.playing[di / 4]) == 0)
             break;
-        if (SEQUENCE_PTR(SNDS.playing[di / 4])->priority <= key) {
+        if (SNDS.playing[di / 4]->priority <= key) {
             /*
              * **The comparison is 16 bits and has to wrap.** The original
              * computes it in BX - `mov bx,si / add bx,4 / cmp bx,di` at
@@ -4321,7 +4321,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
     if (di >= 0x40)
         return;
 
-    SNDS.playing[di / 4] = far_of((uint8_t *)seq);
+    SNDS.playing[di / 4] = seq;
 
     if (SNDS.muted != 0)
         return;
@@ -4394,17 +4394,17 @@ void remove_sequence(struct sequence far * seq)
     /* The table's pairs are filed from pointers to DOS blocks, so comparing
        the pointer is comparing the pair `es:ax` was matched against. */
     for (i = 0; i < 0x10; i++)
-        if (SEQUENCE_PTR(SNDS.playing[i]) == seq)
+        if (SNDS.playing[i] == seq)
             break;
     if (i >= 0x10)
         return;
 
-    SNDS.playing[i] = FAR_NULL;
+    SNDS.playing[i] = NULL;
 
     if (i != 0xf) {
         for (; i != 0xf; i++)
             SNDS.playing[i] = SNDS.playing[i + 1];
-        SNDS.playing[i] = FAR_NULL;
+        SNDS.playing[i] = NULL;
     }
 
     seq->state = 0xff;
@@ -4488,11 +4488,11 @@ void sequencer_tick(void)
         SNDS.voice_cost[i] = 0;
         SNDS.voice_request[i] = 0xff;
     }
-    SNDS.polled[0] = FAR_NULL;
+    SNDS.polled[0] = NULL;
 
-    rec = SEQUENCE_PTR(SNDS.playing[0]);
+    rec = SNDS.playing[0];
 
-    if (rec == SEQUENCE_NONE) {
+    if (rec == NULL) {
         for (i = 0; i < 0x10; i++)
             SNDS.voice_held[i] = 0xff;
         goto silence_unused;
@@ -4507,15 +4507,15 @@ void sequencer_tick(void)
 
     bp_ = 0;
     for (seq = 0; seq < 0x40; seq += 4) {
-        rec = SEQUENCE_PTR(SNDS.playing[seq / 4]);
-        if (rec == SEQUENCE_NONE)
+        rec = SNDS.playing[seq / 4];
+        if (rec == NULL)
             break;
 
         if (rec->skip != 0)
             goto next_sequence;
 
         if (rec->poll != 0) {
-            if (dg_far_ptr(SNDS.polled[0]) != FAR_NULL_PTR)
+            if (SNDS.polled[0] != NULL)
                 goto next_sequence;
             SNDS.polled[0] = SNDS.playing[seq / 4];
             goto next_sequence;
@@ -4691,8 +4691,8 @@ next_sequence:
 
             d = SNDS.voice_lo;
             for (;;) {
-                if (dg_far_ptr(SNDS.voice_sequence[d])
-                        == dg_far_ptr(SNDS.playing[want >> 4])
+                if (SNDS.voice_sequence[d]
+                        == SNDS.playing[want >> 4]
                     && SNDS.voice_channel[d] == al) {
                     if (SNDS.voice_keep_own[d] == 0) {
                         SNDS.voice_held[d] = SNDS.voice_request[voice];
@@ -4716,11 +4716,11 @@ next_sequence:
             al = (uint8_t)(want & 0xf);
 
             if (SNDS.voice_channel[voice] == al
-                && dg_far_ptr(SNDS.voice_sequence[voice])
-                       == dg_far_ptr(SNDS.playing[want >> 4]))
+                && SNDS.voice_sequence[voice]
+                       == SNDS.playing[want >> 4])
                 continue;
 
-            tick_program_voice(SEQUENCE_PTR(SNDS.playing[want >> 4]),
+            tick_program_voice(SNDS.playing[want >> 4],
                                (uint16_t)voice, al);
         }
     }
@@ -4745,7 +4745,7 @@ next_sequence:
             SNDS.voice_held[d] = want;
             al = (uint8_t)(want & 0xf);
 
-            tick_program_voice(SEQUENCE_PTR(SNDS.playing[want >> 4]),
+            tick_program_voice(SNDS.playing[want >> 4],
                                (uint16_t)d, al);
         }
     }
@@ -4770,7 +4770,7 @@ silence_unused:
         uint8_t held = SNDS.voice_held[voice];
 
         if (held == 0xff) {
-            SNDS.voice_sequence[voice] = FAR_NULL;
+            SNDS.voice_sequence[voice] = NULL;
         } else {
             SNDS.voice_sequence[voice] = SNDS.playing[held >> 4];
         }
@@ -5020,9 +5020,9 @@ void sound_service(void)
     di = 0;
 
     while (si != 0x40) {
-        struct sequence far *seq = SEQUENCE_PTR(SNDS.playing[si / 4]);
+        struct sequence far *seq = SNDS.playing[si / 4];
 
-        if (seq == SEQUENCE_NONE)
+        if (seq == NULL)
             break;
 
         if (seq->skip != 0) {
@@ -5081,7 +5081,7 @@ void drop_unless_polled(struct sequence far * seq)
     int16_t si;
 
     for (si = 0; si < 0x40; si += 4)
-        if (SEQUENCE_PTR(SNDS.polled[si / 4]) == seq)
+        if (SNDS.polled[si / 4] == seq)
             return;
 
     remove_sequence(seq);
@@ -5123,13 +5123,13 @@ void poll_sequences(void)
     int16_t si;
 
     for (si = 0; si < 0x40; si += 4) {
-        struct sequence far *rec = SEQUENCE_PTR(SNDS.polled[si / 4]);
+        struct sequence far *rec = SNDS.polled[si / 4];
         const uint8_t far *at;
         const uint8_t far *data;
         uint16_t answer;
         uint8_t cl;
 
-        if (rec == SEQUENCE_NONE)
+        if (rec == NULL)
             return;
 
         rec->ticks++;
@@ -5168,15 +5168,14 @@ void poll_sequences(void)
             /*
              * The five words the module reads through SI, pushed length first
              * so the last pushed - the volume and the loop - is what SI points
-             * at. The sample is filed as `at`'s segment beside the offset `b`
-             * has been stepped to within it.
+             * at. The sample is where `b` has been stepped to.
              */
             union sound_module_args args;
 
             args.play.volume = rec->volume;
             args.play.loop = rec->loop;
             args.play.rate = *(const uint16_t *)b;
-            args.play.sample = far_from(FP_SEG(at), b + 8);
+            args.play.sample = b + 8;
             args.play.length = *(const uint16_t *)(b + 2);
 
             sound_callback(3, &args);

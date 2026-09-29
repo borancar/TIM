@@ -60,8 +60,8 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
 
     x = part->pos[0].x + dx;
 
-    for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_linked_ptr)) {
+    for (si = part->next_linked; si != NULL;
+         si = si->next_linked) {
         d = x - si->pos[0].x;
 
         switch (si->kind) {

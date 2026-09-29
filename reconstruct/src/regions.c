@@ -53,26 +53,26 @@
  * conventions cancelled for the two callers that passed the address: the other
  * five skipped the head of their list.
  */
-void regions_handle_pointer(register dg_near_t si)
+void regions_handle_pointer(register struct region *si)
 {
     while (si != 0) {
-        if ((REGION_PTR(si)->mask & DG4E67.state)
-            && REGION_PTR(si)->x0 <= DG5768.pointer_x
-            && REGION_PTR(si)->x1 >= DG5768.pointer_x
-            && REGION_PTR(si)->y0 <= DG5768.pointer_y
-            && REGION_PTR(si)->y1 >= DG5768.pointer_y) {
-            if (REGION_PTR(si)->hover != NULL)
-                REGION_PTR(si)->hover(REGION_PTR(si));
-            select_cursor(REGION_PTR(si)->cursor);
+        if ((si->mask & DG4E67.state)
+            && si->x0 <= DG5768.pointer_x
+            && si->x1 >= DG5768.pointer_x
+            && si->y0 <= DG5768.pointer_y
+            && si->y1 >= DG5768.pointer_y) {
+            if (si->hover != NULL)
+                si->hover(si);
+            select_cursor(si->cursor);
             if (DG5768.button_left == 2) {
-                if (REGION_PTR(si)->click != NULL)
-                    REGION_PTR(si)->click(REGION_PTR(si));
-                DG4E67.state = REGION_PTR(si)->code;
+                if (si->click != NULL)
+                    si->click(si);
+                DG4E67.state = si->code;
             }
             /* acted on: the rest of the list is not looked at */
             si = 0;
         }
-        if (si != 0 && (si = REGION_PTR(si)->link_ptr) == 0)
+        if (si != 0 && (si = si->link) == 0)
             select_cursor(0);
     }
 }
@@ -106,8 +106,8 @@ void build_screen_regions(void)
     si->y1 = 0x16f;
     si->code = 0x1000;
     si->hover = region_cursor_playfield;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -117,8 +117,8 @@ void build_screen_regions(void)
     si->y1 = 0x3f;
     si->cursor = 0x1a;
     si->hover = region_cursor_bin_above;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -127,8 +127,8 @@ void build_screen_regions(void)
     si->x1 = 0x25b;
     si->y1 = 0x5a;
     si->code = 0x800;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -137,8 +137,8 @@ void build_screen_regions(void)
     si->x1 = 0x27f;
     si->y1 = 0x5a;
     si->code = 0x400;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -151,8 +151,8 @@ void build_screen_regions(void)
     si->code = 0x1000;
     si->hover = region_cursor_bin;
     si->click = region_click_bin;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -165,8 +165,8 @@ void build_screen_regions(void)
     si->code = 0x1000;
     si->hover = region_cursor_bin;
     si->click = region_click_bin;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -179,8 +179,8 @@ void build_screen_regions(void)
     si->code = 0x1000;
     si->hover = region_cursor_bin;
     si->click = region_click_bin;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -193,8 +193,8 @@ void build_screen_regions(void)
     si->code = 0x1000;
     si->hover = region_cursor_bin;
     si->click = region_click_bin;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x1000;
@@ -207,8 +207,8 @@ void build_screen_regions(void)
     si->code = 0x1000;
     si->hover = region_cursor_bin;
     si->click = region_click_bin;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xc000;
@@ -217,8 +217,8 @@ void build_screen_regions(void)
     si->x1 = 0x27f;
     si->y1 = 0x18f;
     si->code = 0x1000;
-    si->link_ptr = DG4E67.regions_play_ptr;
-    DG4E67.regions_play_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_play;
+    DG4E67.regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -228,8 +228,8 @@ void build_screen_regions(void)
     si->y1 = 0xe8;
     si->cursor = 0x10;
     si->code = 0x8000;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -239,8 +239,8 @@ void build_screen_regions(void)
     si->y1 = 0x7e;
     si->cursor = 0x10;
     si->code = 0x8000;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -250,8 +250,8 @@ void build_screen_regions(void)
     si->y1 = 0x77;
     si->cursor = 0x15;
     si->code = 0x1000;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -261,8 +261,8 @@ void build_screen_regions(void)
     si->y1 = 0xab;
     si->code = 0x400;
     si->hover = region_cursor_freeform;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -272,8 +272,8 @@ void build_screen_regions(void)
     si->y1 = 0xa4;
     si->code = 0x100;
     si->hover = region_cursor_load;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -283,8 +283,8 @@ void build_screen_regions(void)
     si->y1 = 0x6d;
     si->cursor = 0x11;
     si->code = 0x4000;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -294,8 +294,8 @@ void build_screen_regions(void)
     si->y1 = 0x7e;
     si->cursor = 0x11;
     si->code = 0x2000;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -305,8 +305,8 @@ void build_screen_regions(void)
     si->y1 = 0x7b;
     si->cursor = 0x12;
     si->code = 0x800;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -316,8 +316,8 @@ void build_screen_regions(void)
     si->y1 = 0xa3;
     si->cursor = 0x13;
     si->code = 0x200;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -327,8 +327,8 @@ void build_screen_regions(void)
     si->y1 = 0xa4;
     si->code = 0x80;
     si->hover = region_cursor_save;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -338,8 +338,8 @@ void build_screen_regions(void)
     si->y1 = 0xf8;
     si->code = 0x40;
     si->hover = region_cursor_gravity;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x2;
@@ -349,8 +349,8 @@ void build_screen_regions(void)
     si->y1 = 0x144;
     si->code = 0x20;
     si->hover = region_cursor_air;
-    si->link_ptr = DG4E67.regions_panel_ptr;
-    DG4E67.regions_panel_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_panel;
+    DG4E67.regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -359,8 +359,8 @@ void build_screen_regions(void)
     si->x1 = 0xf8;
     si->y1 = 0x66;
     si->code = 0x4000;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -369,8 +369,8 @@ void build_screen_regions(void)
     si->x1 = 0xb0;
     si->y1 = 0xf3;
     si->code = 0x2000;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -379,8 +379,8 @@ void build_screen_regions(void)
     si->x1 = 0x100;
     si->y1 = 0x11c;
     si->code = 0x1000;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -389,8 +389,8 @@ void build_screen_regions(void)
     si->x1 = 0xdc;
     si->y1 = 0x94;
     si->code = 0x800;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -399,8 +399,8 @@ void build_screen_regions(void)
     si->x1 = 0xdc;
     si->y1 = 0x100;
     si->code = 0x400;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -409,8 +409,8 @@ void build_screen_regions(void)
     si->x1 = 0x90;
     si->y1 = 0x144;
     si->code = 0x200;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0xd000;
@@ -419,10 +419,10 @@ void build_screen_regions(void)
     si->x1 = 0x110;
     si->y1 = 0x144;
     si->code = 0x100;
-    si->link_ptr = DG4E67.regions_c_ptr;
-    DG4E67.regions_c_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_c;
+    DG4E67.regions_c = si;
 
-    DG4E67.region_kept_b_ptr = dg_near(dgroup, si = (struct region *)(void *)
+    DG4E67.region_kept_b = (si = (struct region *)(void *)
         calloc_far(1, sizeof(struct region)));
     si->mask = 0x8000;
     si->x0 = 0xc8;
@@ -430,10 +430,10 @@ void build_screen_regions(void)
     si->x1 = 0xc8;
     si->y1 = 0xe4;
     si->code = 0x4000;
-    si->link_ptr = DG4E67.regions_b_ptr;
-    DG4E67.regions_b_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_b;
+    DG4E67.regions_b = si;
 
-    DG4E67.region_kept_a_ptr = dg_near(dgroup, si = (struct region *)(void *)
+    DG4E67.region_kept_a = (si = (struct region *)(void *)
         calloc_far(1, sizeof(struct region)));
     si->mask = 0x8000;
     si->x0 = 0x178;
@@ -441,8 +441,8 @@ void build_screen_regions(void)
     si->x1 = 0x178;
     si->y1 = 0xe4;
     si->code = 0x2000;
-    si->link_ptr = DG4E67.regions_b_ptr;
-    DG4E67.regions_b_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_b;
+    DG4E67.regions_b = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
@@ -451,8 +451,8 @@ void build_screen_regions(void)
     si->x1 = 0x1c0;
     si->y1 = 0x11d;
     si->code = 0x4000;
-    si->link_ptr = DG4E67.regions_a_ptr;
-    DG4E67.regions_a_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_a;
+    DG4E67.regions_a = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
@@ -461,8 +461,8 @@ void build_screen_regions(void)
     si->x1 = 0x1ec;
     si->y1 = 0x62;
     si->code = 0x2000;
-    si->link_ptr = DG4E67.regions_a_ptr;
-    DG4E67.regions_a_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_a;
+    DG4E67.regions_a = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
@@ -471,8 +471,8 @@ void build_screen_regions(void)
     si->x1 = 0x1ec;
     si->y1 = 0x128;
     si->code = 0x1000;
-    si->link_ptr = DG4E67.regions_a_ptr;
-    DG4E67.regions_a_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_a;
+    DG4E67.regions_a = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8000;
@@ -481,8 +481,8 @@ void build_screen_regions(void)
     si->x1 = 0x158;
     si->y1 = 0x14c;
     si->code = 0x800;
-    si->link_ptr = DG4E67.regions_a_ptr;
-    DG4E67.regions_a_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_a;
+    DG4E67.regions_a = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
     si->mask = 0x8800;
@@ -491,8 +491,8 @@ void build_screen_regions(void)
     si->x1 = 0x218;
     si->y1 = 0x154;
     si->code = 0x400;
-    si->link_ptr = DG4E67.regions_a_ptr;
-    DG4E67.regions_a_ptr = dg_near(dgroup, si);
+    si->link = DG4E67.regions_a;
+    DG4E67.regions_a = si;
 }
 
 /*
@@ -508,27 +508,27 @@ void build_screen_regions(void)
  */
 void free_region_lists(void)
 {
-    register dg_near_t si;
-    register dg_near_t di;
+    register struct region *si;
+    register struct region *di;
 
-    for (si = DG4E67.regions_b_ptr; si != 0; si = di) {
-        di = REGION_PTR(si)->link_ptr;
-        checked_free((uint8_t *)REGION_PTR(si));
+    for (si = DG4E67.regions_b; si != 0; si = di) {
+        di = si->link;
+        checked_free((uint8_t *)si);
     }
-    for (si = DG4E67.regions_a_ptr; si != 0; si = di) {
-        di = REGION_PTR(si)->link_ptr;
-        checked_free((uint8_t *)REGION_PTR(si));
+    for (si = DG4E67.regions_a; si != 0; si = di) {
+        di = si->link;
+        checked_free((uint8_t *)si);
     }
-    for (si = DG4E67.regions_c_ptr; si != 0; si = di) {
-        di = REGION_PTR(si)->link_ptr;
-        checked_free((uint8_t *)REGION_PTR(si));
+    for (si = DG4E67.regions_c; si != 0; si = di) {
+        di = si->link;
+        checked_free((uint8_t *)si);
     }
-    for (si = DG4E67.regions_panel_ptr; si != 0; si = di) {
-        di = REGION_PTR(si)->link_ptr;
-        checked_free((uint8_t *)REGION_PTR(si));
+    for (si = DG4E67.regions_panel; si != 0; si = di) {
+        di = si->link;
+        checked_free((uint8_t *)si);
     }
-    for (si = DG4E67.regions_play_ptr; si != 0; si = di) {
-        di = REGION_PTR(si)->link_ptr;
-        checked_free((uint8_t *)REGION_PTR(si));
+    for (si = DG4E67.regions_play; si != 0; si = di) {
+        di = si->link;
+        checked_free((uint8_t *)si);
     }
 }

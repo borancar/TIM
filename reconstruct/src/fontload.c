@@ -75,11 +75,11 @@ uint16_t load_font(char *name)
 #ifndef __TURBOC__
     /* **The original frees `blk` unset when the resource will not open**,
        whatever the stack held. The host starts it null. Ours. */
-    blk = FAR_NULL_PTR;
+    blk = NULL;
 #endif
 
     /* The first free slot from 2. */
-    for (si = 2; ENGINE_FONT_BODIES.body[si] != FAR_NULL_PTR && si < 0x14; si++)
+    for (si = 2; ENGINE_FONT_BODIES.body[si] != NULL && si < 0x14; si++)
         ;
 
     if (si < 0x14) {
@@ -111,7 +111,7 @@ uint16_t load_font(char *name)
                     failed = (int16_t)resource_size(handle) != size;
                 if (!failed)
                     failed = (blk = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)size, 0)))
-                             == FAR_NULL_PTR;
+                             == NULL;
                 if (!failed)
                     failed = read_resource(handle, blk, size) != size;
                 if (!failed) {
@@ -127,7 +127,7 @@ uint16_t load_font(char *name)
                 close_resource(handle);
 
                 if (failed) {
-                    if (blk != FAR_NULL_PTR)
+                    if (blk != NULL)
                         dos_free_far(blk);
                     si = 0;
                 }
@@ -152,7 +152,7 @@ uint16_t load_font(char *name)
                 if (!failed)
                     game_fread(p, size, 1, di);
                 if (!failed) {
-                    ENGINE_FONT_BODIES.body[si] = FAR_OF_NEAR(p);
+                    ENGINE_FONT_BODIES.body[si] = (uint8_t far *)NEAR_ZERO(p);
                     ENGINE_FONT_WIDTHS.width[si] = 0;
                     ENGINE_FONT_SLOTS.slot[si] = 0;
                 }
@@ -208,7 +208,7 @@ void close_table_618a_slot(int16_t index)
         ENGINE_FONT_BODIES.body[0]   = NULL;
     }
 
-    if (ENGINE_FONT_WIDTHS.width[index] != FAR_NULL_PTR)
+    if (ENGINE_FONT_WIDTHS.width[index] != NULL)
         dos_free_far(ENGINE_FONT_WIDTHS.width[index]);
     else
         free_far((uint8_t *)ENGINE_FONT_BODIES.body[index]);

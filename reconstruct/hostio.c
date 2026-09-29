@@ -1178,12 +1178,21 @@ void io_service_timer(void)
 }
 
 /*
+ * OURS: a driver slot the port has no routine for. `vm_init` fills every slot,
+ * and one that is called and has no body stops the port rather than doing
+ * nothing - a missing draw would look like a blitter fault.
+ */
+static void vm_slot_missing(void)
+{
+    not_transcribed("a video driver slot the port has no routine for");
+}
+
+/*
  * OURS: **the driver's vector, as the port's own routines.** On the original
  * `vm_init` fills `DG4342.font` with the entry points of the driver it loaded,
- * and a routine that wants one calls through the slot. The port has no loaded
- * driver to point into, so a slot a converted routine calls through is
- * answered here with the port's transcription of that driver routine - see
- * `VM_VECTOR` in dgroup.h. A slot nobody has asked for stops the port.
+ * and a routine that wants one calls through the slot. The port runs its own
+ * transcription of each driver routine, so `vm_init` fills a slot with what
+ * this answers; a slot with no routine stops the port when it is called.
  */
 static int16_t vm_plot_slot(int16_t x, int16_t y, int16_t colour)
 {
@@ -1218,30 +1227,8 @@ void (*vm_vector_host(int16_t slot))(void)
     case 14: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
     case 15: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
     case 22: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
-    default: break;
+    default: return vm_slot_missing;
     }
-    {
-        static char what[64];
-
-        snprintf(what, sizeof what, "the driver vector's slot %d", slot);
-        not_transcribed(what);
-    }
-    return 0;
-}
-
-/*
- * OURS: not a transcription. The call `mouse_event` makes through the far
- * pointer at DGROUP 0x4744 - `lcall [0x4744]` at 0x21ffc. C cannot call through
- * a guest far pointer, so this would have to dispatch on the value; but
- * nothing in the image ever sets that pointer,
- * so there is no handler to dispatch to and every value aborts, naming itself.
- */
-void call_mouse_handler(struct far_ptr h)
-{
-    static char what[64];
-
-    snprintf(what, sizeof what, "the mouse handler at %04x:%04x", h.seg, h.off);
-    not_transcribed(what);
 }
 
 /*
@@ -1325,7 +1312,7 @@ void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
  * port that delivered events the game never asked for would be inventing
  * input.
  */
-void io_mouse_set_handler(uint16_t mask, struct far_ptr handler)
+void io_mouse_set_handler(uint16_t mask, void (*handler)(void))
 {
     (void)handler;
     mouse_mask = mask;
@@ -2294,7 +2281,7 @@ static void seq_say(void)
      * what every priority in the arrays below is relative to. */
     fprintf(stderr, "io: seq tbl");
     for (i = 0; i < 8; i++)
-        fprintf(stderr, " %04x:%04x", SNDS.playing[i].seg, SNDS.playing[i].off);
+        fprintf(stderr, " %p", (void *)SNDS.playing[i]);
     fprintf(stderr, "\n");
 
     for (a = 0; a < 4; a++) {

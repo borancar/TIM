@@ -26,7 +26,7 @@
  */
 void part_setup_mort_the_mouse(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 0;
     si->y = 6;
@@ -54,7 +54,7 @@ void part_setup_mort_the_mouse(struct part *part)
  */
 uint16_t part_hit_mort_the_mouse(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);   /* read, and never used */
+    struct part *other = part->contact;   /* read, and never used */
 
     (void)other;
     return 1;
@@ -101,8 +101,8 @@ void part_step_mort_the_mouse(struct part *part)
 
         slowest = 0x190;
 
-        for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-             di = PART_PTR(di->next_linked_ptr))
+        for (di = part->next_linked; di != NULL;
+             di = di->next_linked)
             if (di->kind == KIND_POKEY && abs(di->link_dx) < abs(slowest))
                 slowest = di->link_dx;
 

@@ -73,7 +73,7 @@ void part_setup_corner_pipe(struct part *part)
     else
         src = CORNER_PIPE_POINTS_3462;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 8; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

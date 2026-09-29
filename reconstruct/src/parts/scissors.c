@@ -82,7 +82,7 @@ int16_t SCISSORS_CUT_LINE[2][4] DGROUP_AT(0x34ba) = {
  */
 uint16_t part_hit_scissors(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
     int16_t face = ((int16_t)part->contact_edge);
 
     if (other->flags_08 & 0x10) {
@@ -119,7 +119,7 @@ void part_setup_scissors(struct part *part)
     else
         src = SCISSORS_POINT_TABLE_3492[part->form];
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 8; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -205,19 +205,19 @@ void cut_belts(struct part *part, const int16_t *line)
     struct belt *belt;                  /* [bp-0x24] */
     struct belt *newbelt;               /* [bp-0x26] */
 
-    for (rec = PART_PTR(DG521B.placed_parts.next_ptr); rec != PART_NONE;
-         rec = PART_PTR(rec->next_ptr)) {
+    for (rec = DG521B.placed_parts.next; rec != NULL;
+         rec = rec->next) {
         if (rec->kind != KIND_ROPE)
             continue;
 
-        belt = BELT_PTR(rec->belt_ptr[0]);
-        prev = endA = PART_PTR(belt->end_a_ptr);
-        endB = PART_PTR(belt->end_b_ptr);
+        belt = rec->belt[0];
+        prev = endA = belt->end_a;
+        endB = belt->end_b;
         slotA = belt->slot_a;
         slotB = 0;
-        next = PART_PTR(prev->link_ptr[slotA]);
+        next = prev->link[slotA];
 
-        while (prev != PART_NONE && next != PART_NONE) {
+        while (prev != NULL && next != NULL) {
             if (prev != endA)
                 slotA = 1;
 
@@ -233,14 +233,14 @@ void cut_belts(struct part *part, const int16_t *line)
             if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
                 saved = DG4E67.state;
                 DG4E67.state = 0x1000;
-                mark_belt_shapes(PART_PTR(belt->owner_ptr), 3);
+                mark_belt_shapes(belt->owner, 3);
                 DG4E67.state = saved;
 
-                if ((di = make_part(KIND_ANCHOR)) == PART_NONE)
+                if ((di = make_part(KIND_ANCHOR)) == NULL)
                     goto out;
-                if ((anchorB = make_part(KIND_ANCHOR)) == PART_NONE)
+                if ((anchorB = make_part(KIND_ANCHOR)) == NULL)
                     goto fail;
-                if ((carrier = make_part(KIND_ROPE)) == PART_NONE) {
+                if ((carrier = make_part(KIND_ROPE)) == NULL) {
                     free_part(anchorB);
 fail:
                     free_part(di);
@@ -259,34 +259,34 @@ fail:
                 insert_sorted(carrier, &DG521B.placed_parts);
                 carrier->flags_06 |= 0x10;
 
-                newbelt = BELT_PTR(carrier->belt_ptr[0]);
-                newbelt->end_a_ptr = dg_near(dgroup, anchorB);
-                newbelt->end_b_ptr = dg_near(dgroup, endB);
+                newbelt = carrier->belt[0];
+                newbelt->end_a = anchorB;
+                newbelt->end_b = endB;
                 newbelt->slot_a = 0;
                 newbelt->slot_b = belt->slot_b;
 
-                anchorB->link_ptr[0] = dg_near(dgroup, next);
-                anchorB->belt_ptr[0] = dg_near(dgroup, newbelt);
+                anchorB->link[0] = next;
+                anchorB->belt[0] = newbelt;
 
                 if (next->kind == KIND_PULLEY) {
-                    next->belt_ptr[1] = dg_near(dgroup, newbelt);
-                    next->link_ptr[1] = dg_near(dgroup, anchorB);
+                    next->belt[1] = newbelt;
+                    next->link[1] = anchorB;
                 } else {
-                    next->belt_ptr[slotB] = dg_near(dgroup, newbelt);
-                    next->link_ptr[slotB] = dg_near(dgroup, anchorB);
+                    next->belt[slotB] = newbelt;
+                    next->link[slotB] = anchorB;
                 }
 
-                endB->belt_ptr[newbelt->slot_b] = dg_near(dgroup, newbelt);
+                endB->belt[newbelt->slot_b] = newbelt;
 
-                belt->end_b_ptr = dg_near(dgroup, di);
+                belt->end_b = di;
                 belt->slot_b = 0;
-                di->link_ptr[0] = dg_near(dgroup, prev);
-                di->belt_ptr[0] = dg_near(dgroup, belt);
+                di->link[0] = prev;
+                di->belt[0] = belt;
 
                 if (prev->kind == KIND_PULLEY)
-                    prev->link_ptr[0] = dg_near(dgroup, di);
+                    prev->link[0] = di;
                 else
-                    prev->link_ptr[slotA] = dg_near(dgroup, di);
+                    prev->link[slotA] = di;
 
                 di->pos[2].x = di->pos[1].x = di->pos[0].x;
                 di->fx = di->pos[0].x;
@@ -315,12 +315,12 @@ fail:
                     newbelt->pt[2][k] = newbelt->pt[1][k] = newbelt->pt[0][k];
 
                 DG4E67.state = saved;
-                prev = next = PART_NONE;
+                prev = next = NULL;
             } else if (next == endB) {
-                prev = next = PART_NONE;
+                prev = next = NULL;
             } else {
                 prev = next;
-                next = PART_PTR(next->link_ptr[0]);
+                next = next->link[0];
             }
         }
     }

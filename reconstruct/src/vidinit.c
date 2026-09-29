@@ -503,9 +503,9 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     VMDS.screen.screen_width = 0x140;
     VMDS.screen.screen_height = 0xc8;
 
-    if (dg_far_ptr(VMDS.palettes.blocks[0]) != FAR_NULL_PTR) {
-        dos_free_far(dg_far_ptr(VMDS.palettes.blocks[0]));
-        VMDS.palettes.blocks[0] = FAR_NULL;
+    if (VMDS.palettes.blocks[0] != NULL) {
+        dos_free_far(VMDS.palettes.blocks[0]);
+        VMDS.palettes.blocks[0] = NULL;
     }
 
     VM_START.mode_found = (uint8_t)bios_video_kind();
@@ -520,26 +520,18 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         if (FP_SEG(p) == 0) {
             VMDS.pixel_shift = 0;
         } else {
-            uint16_t seg;
             int16_t i;
 
-            VM_START.driver = far_of(p);
+            VM_START.driver = p;
 
             vm_driver_init(&VMDS, DG440E.driver_table, DGROUP_SEG);
-            seg = VM_START.driver.seg;
 
-            /* a hundred words of the driver's table at its 0x13e, word by
-               word, and then the driver's segment over every second one */
-            {
-                const int16_t far *table = (const int16_t far *)(void *)
-                    MK_FP(seg, 0x13e);
-
-                for (i = 0; i < 0x64; i++)
-                    ((int16_t *)DG4342.font)[i] = table[i];
-            }
-
+            /* The driver's fifty entry points: the original copies the
+               offsets from the driver's table at its 0x13e and puts the
+               driver's segment beside each. The port runs its own routine
+               for each driver entry, so a slot is that routine. */
             for (i = 0; i < 0x32; i++)
-                DG4342.font[i].seg = seg;
+                DG4342.font[i] = vm_vector_host(i);
         }
     } else {
         VMDS.pixel_shift = 0;

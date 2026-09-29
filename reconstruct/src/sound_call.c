@@ -127,7 +127,7 @@ SOUND_CALL_TEXT ends
  */
 void set_sound_callback(const uint8_t far * cb)
 {
-    SNDCALL.callback = far_of(cb);
+    SNDCALL.callback = cb;
 }
 
 /*

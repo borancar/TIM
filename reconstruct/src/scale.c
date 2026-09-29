@@ -292,7 +292,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
     }
 
-    src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
+    src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
 
     if (bottom - off > 0 && right - left > 1) {
         /*
@@ -329,7 +329,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         asm cmp word ptr VMDS+6e2h, 0
         asm je hooked
         asm push ax
-        VM_VECTOR(28, vm_hook_fn)();
+        ((vm_hook_fn)DG4342.font[28])();
         asm add sp, 2
 hooked:
         asm mov es, ax
@@ -357,7 +357,7 @@ next_row:
         asm shl bp, 1
         asm lea bp, ENGINE_SCALE_TABLE[bp]
         asm db 36h                      /* ss: */
-        VM_VECTOR(37, vm_row_fn)();
+        ((vm_row_fn)DG4342.font[37])();
         asm pop bp
         asm mov ax, j
         asm inc ax

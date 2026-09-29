@@ -71,13 +71,13 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
     int16_t hi;                         /* [bp-0x18] */
     int16_t lo;                         /* [bp-0x1a] */
 
-    obj->next_linked_ptr = 0;
+    obj->next_linked = 0;
     ax0 = obj->pos[0].x;
     ax1 = ax0 + obj->size[0].width;
     ay0 = obj->pos[0].y;
     ay1 = ay0 + obj->size[0].height;
 
-    for (si = pick_by_flag(flags); si != PART_NONE;
+    for (si = pick_by_flag(flags); si != NULL;
          si = pick_for_record(si, flags & 0x1000)) {
         if (obj == si)
             continue;
@@ -121,8 +121,8 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
             lo = near_;
         dy = abs(near_) < abs(dy) ? lo : hi;
 
-        si->next_linked_ptr = obj->next_linked_ptr;
-        obj->next_linked_ptr = dg_near(dgroup, si);
+        si->next_linked = obj->next_linked;
+        obj->next_linked = si;
         si->link_dx = dx;
         si->link_dy = dy;
     }
@@ -149,13 +149,13 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
     int16_t t;                          /* [bp-6] */
     int16_t b;                          /* [bp-8] */
 
-    obj->next_linked_ptr = 0;
+    obj->next_linked = 0;
     x0 += obj->pos[0].x;
     x1 += obj->pos[0].x;
     y0 += obj->pos[0].y;
     y1 += obj->pos[0].y;
 
-    for (si = pick_by_flag(flags); si != PART_NONE;
+    for (si = pick_by_flag(flags); si != NULL;
          si = pick_for_record(si, flags & 0x1000)) {
         if (obj == si)
             continue;
@@ -168,8 +168,8 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
         b = t + si->size[0].height;
 
         if (l < x1 && r > x0 && t < y1 && b > y0) {
-            si->next_linked_ptr = obj->next_linked_ptr;
-            obj->next_linked_ptr = dg_near(dgroup, si);
+            si->next_linked = obj->next_linked;
+            obj->next_linked = si;
         }
     }
 }
@@ -206,32 +206,32 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
     int16_t seg[4];                     /* [bp-0x16] the segment */
     uint8_t cross[4];                   /* [bp-0x1a] where they crossed */
 
-    obj->next_linked_ptr = 0;
+    obj->next_linked = 0;
 
-    for (si = pick_by_flag(flags); si != PART_NONE;
+    for (si = pick_by_flag(flags); si != NULL;
          si = pick_for_record(si, flags & 0x1000)) {
         n = 1;
-        pt = POINTS(si->points_ptr);
+        pt = NEAR_ZERO(si->points);
         x_first = x_last = si->pos[0].x + pt[0].x;
         y_first = y_last = si->pos[0].y + pt[0].y;
         x_this = si->pos[0].x + pt[1].x;
         y_this = si->pos[0].y + pt[1].y;
 
-        while (pt != POINTS(0)) {
+        while (pt != NEAR_ZERO((struct part_point *)0)) {
             seg[0] = x_last - obj->pos[0].x;
             seg[1] = y_last - obj->pos[0].y;
             seg[2] = x_this - obj->pos[0].x;
             seg[3] = y_this - obj->pos[0].y;
 
             if (intersect_segments(line, seg, cross)) {
-                si->next_linked_ptr = obj->next_linked_ptr;
-                obj->next_linked_ptr = dg_near(dgroup, si);
+                si->next_linked = obj->next_linked;
+                obj->next_linked = si;
                 n = si->point_count;
             }
 
             n++;
             if ((int16_t)si->point_count < n) {
-                pt = POINTS(0);
+                pt = NEAR_ZERO((struct part_point *)0);
             } else {
                 pt++;
                 x_last = x_this;
@@ -268,13 +268,13 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
     int16_t px;                         /* [bp-2] */
     int16_t py;                         /* [bp-4] */
 
-    obj->next_linked_ptr = 0;
+    obj->next_linked = 0;
     x0 += obj->pos[0].x;
     x1 += obj->pos[0].x;
     y0 += obj->pos[0].y;
     y1 += obj->pos[0].y;
 
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
+    for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
         if (obj == si)
             continue;
@@ -285,8 +285,8 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
             px = si->pos[0].x + si->hold.x;
             py = si->pos[0].y + si->hold.y;
             if (px >= x0 && px <= x1 && ((py >= y0) & (py <= y1))) {
-                si->next_linked_ptr = obj->next_linked_ptr;
-                obj->next_linked_ptr = dg_near(dgroup, si);
+                si->next_linked = obj->next_linked;
+                obj->next_linked = si;
             }
         }
     }
@@ -324,14 +324,14 @@ void collect_carried(register struct part *obj)
     int16_t their_bottom;               /* [bp-0xc] */
 
     if (obj->kind == KIND_BUCKET) {
-        obj->next_linked_ptr = 0;
+        obj->next_linked = 0;
         left = obj->pos[1].x + 4;
         right = left + 0x1c;
         top = obj->pos[1].y;
         bottom = top + obj->size[0].height;
 
-        for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-             si = PART_PTR(si->next_ptr)) {
+        for (si = DG5179.moving_parts.next; si != NULL;
+             si = si->next) {
             if (obj == si)
                 continue;
             if (si->flags_08 & 0x2000)
@@ -343,7 +343,7 @@ void collect_carried(register struct part *obj)
             their_bottom = si->pos[1].y + si->size[0].height;
 
             carried = 0;
-            if (si->contact_ptr != 0 && PART_PTR(si->contact_ptr) == obj
+            if (si->contact != 0 && si->contact == obj
                 && si->vel_y > 0 && their_mid > left && their_mid < right)
                 carried = 1;
             if (!carried && their_mid > left && their_mid < right
@@ -351,8 +351,8 @@ void collect_carried(register struct part *obj)
                 carried = 1;
 
             if (carried) {
-                si->next_linked_ptr = obj->next_linked_ptr;
-                obj->next_linked_ptr = dg_near(dgroup, si);
+                si->next_linked = obj->next_linked;
+                obj->next_linked = si;
                 si->flags_0a |= 0x10;
                 PART_VEL(si) = PART_VEL(obj);
             }
@@ -367,14 +367,14 @@ void collect_carried(register struct part *obj)
  * +4 is 0x11 have such a chain; anything else answers no without looking.
  * The chain is linked through the near pointer at +0x78.
  */
-int16_t chain_contains(register struct part *rec, dg_near_t node)
+int16_t chain_contains(register struct part *rec, struct part *node)
 {
     register struct part *p;
 
     if (rec->kind == 0x11)
-        for (p = PART_PTR(rec->next_linked_ptr); p != PART_NONE;
-             p = PART_PTR(p->next_linked_ptr))
-            if (p == PART_PTR(node))
+        for (p = rec->next_linked; p != NULL;
+             p = p->next_linked)
+            if (p == node)
                 return 1;
     return 0;
 }
@@ -401,8 +401,8 @@ void carry_riders_along(register struct part *obj)
         dx = obj->pos[0].x - obj->pos[1].x;
         dy = obj->pos[0].y - obj->pos[1].y;
         if (dx != 0 || dy != 0)
-            for (si = PART_PTR(obj->next_linked_ptr); si != PART_NONE;
-                 si = PART_PTR(si->next_linked_ptr)) {
+            for (si = obj->next_linked; si != NULL;
+                 si = si->next_linked) {
                 si->pos[0].x += dx;
                 si->pos[0].y += dy;
                 place_object_for_draw(si);

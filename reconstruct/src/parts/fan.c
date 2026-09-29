@@ -52,7 +52,7 @@ void part_setup_fan(struct part *part)
     else
         si = FAN_POINTS_32C8;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 5; i++, di++, si++) {
+    for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;
         di->y = si->y;
     }
@@ -103,8 +103,8 @@ void part_step_fan(struct part *part)
             push = 0x1000;
         }
 
-        for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-             si = PART_PTR(si->next_linked_ptr)) {
+        for (si = part->next_linked; si != NULL;
+             si = si->next_linked) {
             if (si->flags_06 & 0x2000) {
                 if (si->kind == KIND_WINDMILL && abs(si->link_dx) < 0xc8) {
                     si->direction = 1;

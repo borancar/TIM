@@ -56,13 +56,13 @@ static const uint8_t *const vga_aperture = guest_mem + 0xA0000;
  */
 struct vm_cs {
     uint8_t   pad_0000[0x13a];
-    dg_seg_t  data_seg;           /* +0x13a  DGROUP's segment + data_ptr / 16 */
-    dg_near_t data_ptr;           /* +0x13c  the driver's data, VMDS */
+    dg_seg_t  data_seg;           /* +0x13a  DGROUP's segment + data / 16 */
+    const struct vmds *data; /* +0x13c  the driver's data, VMDS */
     uint8_t   pad_013e[0xc8];
-    struct far_ptr hooks[19];     /* +0x206  copied from the table it is handed */
+    void (far *hooks[19])(void);  /* +0x206  copied from the table it is handed */
 } PACKED;
 
-#define VMCS (*(struct vm_cs *)MK_FP(VM_START.driver.seg, 0))
+#define VMCS (*(struct vm_cs *)VM_START.driver)
 
 
 /*
@@ -91,7 +91,7 @@ struct vm_cs {
  * controller to write mode 2, which is the mode every blit in this driver
  * assumes.
  */
-uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
+uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void),
                         uint16_t ds)
 {
     int16_t i;
@@ -100,8 +100,10 @@ uint16_t vm_driver_init(const struct vmds *data, const struct far_ptr *params,
 
     memcpy(VMCS.hooks, params, sizeof VMCS.hooks);
 
-    VMCS.data_ptr = dg_near(dgroup, data);
-    VMCS.data_seg = (dg_seg_t)((NEAR_OFF(VMCS.data_ptr) >> 4) + DGROUP_SEG);
+    VMCS.data = data;
+    /* The segment the driver addresses its data by: DGROUP's, plus the
+       paragraphs of VMDS's offset in it, 0x3890. */
+    VMCS.data_seg = (dg_seg_t)((0x3890 >> 4) + DGROUP_SEG);
 
     VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;
@@ -314,7 +316,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
     /* Only the block's segment is loaded; the offsets are from 0. */
-    uint8_t *pal           = MK_FP(VMDS.palettes.blocks[0].seg, 0);
+    uint8_t *pal           = MK_FP(FP_SEG(VMDS.palettes.blocks[0]), 0);
     uint8_t *dst           = pal + (uint16_t)(first * 3);
     const uint8_t *src     = dst + 0x30;
     const uint8_t *col     = pal + (uint16_t)(0x30 + colour * 3);
@@ -431,7 +433,8 @@ void vm_load_bitmap_list(struct bitmap ** list, uint8_t far * dst, uint32_t coun
                           * (uint16_t)si->height);
         size = (uint16_t)(prod >> 2);
 
-        si->data = far_to_rev(far_of(at));
+        si->data_seg = FP_SEG(at);
+        si->data_off = FP_OFF(at);
         /* The mask is kept as an offset in the planes' own segment. */
         si->mask_off = (uint16_t)(FP_OFF(at) + size * 4);
 
@@ -1685,7 +1688,7 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(const uint8_t far * pal)
 {
-    uint8_t *di = dg_far_ptr(VMDS.palettes.blocks[0]);
+    uint8_t *di = VMDS.palettes.blocks[0];
     const uint8_t *si = pal;
     int32_t i;
 
@@ -1820,8 +1823,8 @@ void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     /* The planes and the mask, both in the segment the header names. */
-    const uint8_t *src     = dg_far_ptr_rev(bmp->data);
-    const uint8_t *mask_at = MK_FP(bmp->data.seg, bmp->mask_off);
+    const uint8_t *src     = MK_FP(bmp->data_seg, bmp->data_off);
+    const uint8_t *mask_at = MK_FP(bmp->data_seg, bmp->mask_off);
     int16_t  w        = bmp->width;
     int16_t  h        = bmp->height;
 
@@ -2096,7 +2099,7 @@ done:
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 {
     /* [bp-0xa] -> cs:[0x2ae1] and [bp-8], the header's pair */
-    const uint8_t *si  = dg_far_ptr_rev(bmp->data);
+    const uint8_t *si  = MK_FP(bmp->data_seg, bmp->data_off);
     int16_t  w         = bmp->width;                            /* [bp-4] */
     int16_t  h         = bmp->height;                           /* [bp-2] */
     uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */

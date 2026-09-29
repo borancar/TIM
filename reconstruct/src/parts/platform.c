@@ -29,7 +29,7 @@ void part_setup_48ab(struct part *part)
 {
     struct part_point *si;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = si->y = 0;
     si++;
     si->x = part->size[0].width - 1;
@@ -79,7 +79,7 @@ void part_settle_48f7(struct part *part)
     part->size[0].width = part->set_size.width;
     part->size[0].height = part->set_size.height;
 
-    p1 = POINTS(part->points_ptr) + 1;
+    p1 = part->points + 1;
     p2 = p1 + 1;
     p3 = p2 + 1;
 

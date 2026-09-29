@@ -99,7 +99,7 @@ struct point8 *BELLOW_POINT_TABLE_31E0[3] DGROUP_WAS(0x31e0) = {
  */
 uint16_t part_hit_bellow(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
     int16_t  face = ((int16_t)part->contact_edge);
 
     if ((other->flags_08 & 0x10) != 0) {
@@ -135,7 +135,7 @@ void part_setup_bellow(struct part *part)
     else
         src = BELLOW_POINT_TABLE_31B6[part->form];
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 6; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -214,8 +214,8 @@ void part_step_bellow(struct part *part)
                 push = 0x0800;
             }
 
-            for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-                 di = PART_PTR(di->next_linked_ptr)) {
+            for (di = part->next_linked; di != NULL;
+                 di = di->next_linked) {
                 if (di->flags_06 & 0x1000) {
                     scale = 0x100 - abs(di->link_dx);
                     force = mul16x16(push, scale);

@@ -243,20 +243,20 @@ struct bitmap **load_bitmap_list(char *name)
     if (read_bmp_info(si, &count, &list) == 0)
         goto done;
 
-    want = VM_VECTOR(13, vm_list_size_fn)(list, (uint8_t *)&size);
+    want = ((vm_list_size_fn)DG4342.font[13])(list, (uint8_t *)&size);
 
-    if (FAR_IS_NULL(blk = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))))
+    if (!(blk = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))))
         goto done;
-    if (size != 0 && FAR_IS_NULL(tmp = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0))))
+    if (size != 0 && !(tmp = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0))))
         goto done;
 
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
        into what it answered, if nothing has one yet. */
-    if (DG3576.scratch == FAR_NULL_PTR) {
+    if (DG3576.scratch == NULL) {
         if ((scratch = malloc_far(0x3cc4)) != NULL) {
             free_far(scratch);
             if ((scratch = malloc_far(0x3ac4)) != NULL) {
-                DG3576.scratch = FAR_OF_NEAR(scratch);
+                DG3576.scratch = (uint8_t far *)NEAR_ZERO(scratch);
                 SCRATCH += 0x10;
                 DG3576.scratch = normalise_far_ptr_far(
                     FAR_MASK(DG3576.scratch, 0xfffffff0L));
@@ -273,7 +273,7 @@ struct bitmap **load_bitmap_list(char *name)
     while (read_resource(res, walk, 0x7fff) == 0x7fff)
         walk += 0x7fff;
 
-    VM_VECTOR(14, vm_load_list_fn)(list, blk, resource_size(res), tmp, want);
+    ((vm_load_list_fn)DG4342.font[14])(list, blk, resource_size(res), tmp, want);
 
     close_resource(res);
     kind = 1;
@@ -292,7 +292,7 @@ struct bitmap **load_bitmap_list(char *name)
         goto done;
 
     /* Halve the request until DOS grants one; a signed shift of the long. */
-    for (want = 0x7fffL; FAR_IS_NULL(tmp = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))); want >>= 1)
+    for (want = 0x7fffL; !(tmp = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))); want >>= 1)
         ;
 
     walk = blk;
@@ -302,14 +302,14 @@ struct bitmap **load_bitmap_list(char *name)
             got <<= 2;
         }
 
-        VM_VECTOR(15, vm_chunk_fn)(tmp, walk, got);
+        ((vm_chunk_fn)DG4342.font[15])(tmp, walk, got);
         walk += want << 1;
     }
 
     close_resource(res);
 
 done:
-    if (tmp != FAR_NULL_PTR)
+    if (tmp != NULL)
         dos_free_far(tmp);
 
     if (scratch != NULL) {
@@ -318,7 +318,7 @@ done:
     }
 
     if (kind == 0) {
-        if (blk != FAR_NULL_PTR)
+        if (blk != NULL)
             dos_free_far(blk);
         if (res != 0)
             close_resource(res);
@@ -396,7 +396,7 @@ void free_bitmaps(register struct bitmap ** list)
     if (list != NULL) {
         register struct bitmap *hdr = list[0];
 
-        dos_free_far(FAR_FROM_PAIR((int16_t)hdr->data.seg, hdr->data.off));
+        dos_free_far(FAR_FROM_PAIR((int16_t)hdr->data_seg, hdr->data_off));
         free_bitmap_list(list);
     }
 }

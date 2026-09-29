@@ -46,7 +46,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
     struct sequence far *seq;
 
     if ((seq = (struct sequence far *)alloc_for_kind(sizeof(struct sequence), 2))
-        != SEQUENCE_NONE) {
+        != NULL) {
         /* `cursor` and `cursor_at` are stepped inside their blocks' segments:
            `advance_record` and the `+ 0x16a` move the offset alone. */
         seq->source = src;
@@ -59,7 +59,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
         return seq;
     }
 
-    return SEQUENCE_NONE;
+    return NULL;
 }
 
 /*
@@ -73,7 +73,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
  */
 void follow_then_tick(struct sequence far * seq, int16_t count)
 {
-    if ((seq = follow_far_chain(seq, count)) != SEQUENCE_NONE)
+    if ((seq = follow_far_chain(seq, count)) != NULL)
         retire_and_tick_far(seq);
 }
 
@@ -112,8 +112,8 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     struct sound_node far *walk;
     uint8_t want;
     uint32_t len;
-    struct sound_node far *list = SOUND_NODE_NONE;
-    uint8_t far *blk = FAR_NULL_PTR;
+    struct sound_node far *list = NULL;
+    uint8_t far *blk = NULL;
     int16_t handle;
     uint16_t dir;
 
@@ -145,7 +145,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
         want = 7;
         /* falls through */
     default:
-        return FAR_NULL_PTR;
+        return NULL;
     }
 
     if ((handle = open_resource(0, file, "r", size)) < 0)
@@ -154,7 +154,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     if (seek_to_sound_record(handle, want) == 0)
         goto missing;
 
-    if ((list = read_sound_records(handle)) == SOUND_NODE_NONE)
+    if ((list = read_sound_records(handle)) == NULL)
         goto missing;
 
     /* Six bytes of directory per node plus five, rounded up to even and to
@@ -162,7 +162,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     walk = list;
     len = 0;
     dir = 5;
-    while (walk != SOUND_NODE_NONE) {
+    while (walk != NULL) {
         len += walk->length;
         dir += 6;
         walk = walk->next;
@@ -178,7 +178,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
        passes `load_resource_block`; nothing here reads it. */
     (void)kind;
 
-    if ((blk = alloc_for_kind(len + 1, 4)) != FAR_NULL_PTR
+    if ((blk = alloc_for_kind(len + 1, 4)) != NULL
         && build_sound_index(handle, list, blk, dir, want) != 0) {
         free_node_list(list);
 
@@ -196,7 +196,7 @@ close:
     close_resource(handle);
 done:
     free_node_list(list);
-    return FAR_NULL_PTR;
+    return NULL;
 }
 
 /*
@@ -217,7 +217,7 @@ void free_node_list(struct sound_node far * list)
 {
     struct sound_node far *cur;
 
-    while (list != SOUND_NODE_NONE) {
+    while (list != NULL) {
         cur = list;
         list = list->next;
         free_for_kind((uint8_t far *)cur, 9);
@@ -303,7 +303,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
 struct sound_node far *read_sound_records(int16_t handle)
 {
     uint8_t id;                         /* [bp-1] */
-    struct sound_node far *head = SOUND_NODE_NONE;
+    struct sound_node far *head = NULL;
     struct sound_node far *node;
 
     read_resource(handle, &id, 1);
@@ -311,14 +311,14 @@ struct sound_node far *read_sound_records(int16_t handle)
     while (id != 0xff
            && (node = (struct sound_node far *)
                    alloc_for_kind(sizeof(struct sound_node), 9))
-              != SOUND_NODE_NONE) {
+              != NULL) {
         node->next = 0;
 
         resource_seek(handle, 1L, 1);
         read_resource(handle, (uint8_t far *)node, 4);
         read_resource(handle, &id, 1);
 
-        if (head == SOUND_NODE_NONE)
+        if (head == NULL)
             head = node;
         else
             head = insert_by_key(head, node);
@@ -353,7 +353,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
     struct sound_node far *cur;
     struct sound_node far *prev;
 
-    if (head != SOUND_NODE_NONE) {
+    if (head != NULL) {
         if (head->key >= node->key) {
             node->next = head;
             head = node;
@@ -362,7 +362,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
             do {
                 prev = cur;
                 cur = cur->next;
-            } while (cur != SOUND_NODE_NONE && cur->key < node->key);
+            } while (cur != NULL && cur->key < node->key);
 
             node->next = cur;
             prev->next = node;
@@ -407,7 +407,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
     *dir++ = 0;
     *dir++ = (uint8_t)tag;
 
-    while (list != SOUND_NODE_NONE) {
+    while (list != NULL) {
         dir[0] = 0;
         dir[1] = 0;
         *(uint16_t far *)(dir + 2) = (uint16_t)(data - dst - 2);
@@ -448,24 +448,24 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
                                  uint8_t * out, uint16_t kind)
 {
     uint32_t len;
-    uint8_t far *buf = FAR_NULL_PTR;
+    uint8_t far *buf = NULL;
     int16_t handle;
 
     if ((handle = open_resource(0, file, "r", size)) >= 0) {
         len = resource_size(handle);
 
-        if ((buf = alloc_for_kind(len, kind)) != FAR_NULL_PTR) {
+        if ((buf = alloc_for_kind(len, kind)) != NULL) {
             /* A size that does not fit in a word never compares equal. */
             if ((uint16_t)read_resource(handle, buf, (uint16_t)len) != len) {
                 free_for_kind(buf, kind);
-                buf = FAR_NULL_PTR;
+                buf = NULL;
             }
         }
 
         close_resource(handle);
     }
 
-    if (out != NULL && buf != FAR_NULL_PTR)
+    if (out != NULL && buf != NULL)
         *(uint32_t *)out = len;
 
     return buf;
@@ -491,13 +491,13 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
 struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t count,
                                              uint16_t volume)
 {
-    if ((seq = follow_far_chain(seq, count)) != SEQUENCE_NONE) {
+    if ((seq = follow_far_chain(seq, count)) != NULL) {
         seq->volume = (uint8_t)volume;
         start_sequence_far(seq, 1);
         return seq;
     }
 
-    return SEQUENCE_NONE;
+    return NULL;
 }
 
 /*
@@ -513,7 +513,7 @@ struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t 
  */
 struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 {
-    while (seq != SEQUENCE_NONE && count != 0) {
+    while (seq != NULL && count != 0) {
         seq = seq->next;
         count--;
     }
@@ -564,9 +564,9 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (SOUND_VOICES.voice[0] != SEQUENCE_NONE) {
+    if (SOUND_VOICES.voice[0] != NULL) {
         for (i = 0; i < 7; i++) {
-            if (SOUND_VOICES.voice[i] != SEQUENCE_NONE)
+            if (SOUND_VOICES.voice[i] != NULL)
                 free_for_kind((uint8_t far *)SOUND_VOICES.voice[i], 2);
         }
         return 1;
@@ -597,10 +597,10 @@ uint16_t free_voice_records(void)
 struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t index,
                                          uint8_t byte_arg)
 {
-    struct sequence far *voice = SEQUENCE_NONE;
+    struct sequence far *voice = NULL;
     int16_t i;
 
-    if (source != FAR_NULL_PTR) {
+    if (source != NULL) {
         for (i = 0; i < 7; i++) {
             voice = SOUND_VOICES.voice[i];
 
@@ -627,7 +627,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
         }
     }
 
-    return SEQUENCE_NONE;
+    return NULL;
 }
 
 /*

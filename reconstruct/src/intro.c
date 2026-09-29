@@ -267,7 +267,7 @@ void game_intro(void)
             }
         }
 
-        regions_handle_pointer(DG4E67.regions_play_ptr);
+        regions_handle_pointer(DG4E67.regions_play);
         update_button_state();
 
         if (DG52ED.stop_requested != 0)

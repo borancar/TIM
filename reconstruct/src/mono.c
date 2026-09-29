@@ -154,8 +154,8 @@ uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
 void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h, uint16_t mode)
 {
-    hdr->data.seg = hdr->data.seg + (hdr->data.off >> 4);
-    hdr->data.off &= 0xf;
+    hdr->data_seg = hdr->data_seg + (hdr->data_off >> 4);
+    hdr->data_off &= 0xf;
 
     switch (hdr->mask_off) {
     case 0xffff:

@@ -49,7 +49,7 @@ struct point8 ELECTRIC_PLUG_POINTS_32C0[4] DGROUP_AT(0x32c0) = {
  */
 uint16_t part_hit_electric_plug(struct part *part)
 {
-    struct part *si = PART_PTR(part->contact_ptr);
+    struct part *si = part->contact;
     uint16_t turned;                    /* [bp-2] */
 
     turned = part->contact_angle;
@@ -108,7 +108,7 @@ void part_setup_electric_plug(struct part *part)
     else
         src = ELECTRIC_PLUG_POINTS_32C0;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 4; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -118,9 +118,9 @@ void part_setup_electric_plug(struct part *part)
     part->point_count = 1;
 
     part->form &= 4;
-    if (part->link_ptr[4] != 0)
+    if (part->link[4] != 0)
         part->form |= 1;
-    if (part->link_ptr[5] != 0)
+    if (part->link[5] != 0)
         part->form |= 2;
 }
 
@@ -139,7 +139,7 @@ void part_step_electric_plug(struct part *part)
     part->flags_08 |= 0x40;
 
     for (i = 4; i < 6; i++)
-        if ((di = PART_PTR(part->link_ptr[i])) != PART_NONE)
+        if ((di = part->link[i]) != NULL)
             di->direction = part->direction;
 }
 

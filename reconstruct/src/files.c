@@ -169,7 +169,7 @@ uint16_t load_screen_plain(char *name)
             /* The heap's answer widened with DS, halving the request until
                it is granted or would be less than a row pair. */
             do
-                buf = FAR_OF_NEAR(malloc_far(bytes));
+                buf = (uint8_t far *)NEAR_ZERO(malloc_far(bytes));
             while (FAR_OF_NEAR_NULL(buf) && (bytes >>= 1) >= half);
 
             if (!FAR_OF_NEAR_NULL(buf)) {
@@ -698,7 +698,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 
     /* The first bitmap's own pixels, which is where the output begins. */
     BITMAP_COMPRESS.out = BITMAP_COMPRESS.out_start =
-        MK_FP((int16_t)list[0]->data.seg, list[0]->data.off);
+        MK_FP((int16_t)list[0]->data_seg, list[0]->data_off);
 
     while (*si != 0) {
         /* Normalise, and remember where this bitmap's own data begins. The
@@ -714,11 +714,11 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
             pixels >>= 3;
 
             planes_to_chunky(blk,
-                             MK_FP((int16_t)(*si)->data.seg, (*si)->data.off),
+                             MK_FP((int16_t)(*si)->data_seg, (*si)->data_off),
                              pixels);
 
-            (*si)->data.seg = FP_SEG(blk);
-            (*si)->data.off = FP_OFF(blk);
+            (*si)->data_seg = FP_SEG(blk);
+            (*si)->data_off = FP_OFF(blk);
 
             compress_bitmap(*si);
 
@@ -727,8 +727,8 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
             compress_bitmap(*si);
         }
 
-        (*si)->data.seg = FP_SEG(at);
-        (*si)->data.off = FP_OFF(at);
+        (*si)->data_seg = FP_SEG(at);
+        (*si)->data_off = FP_OFF(at);
         (*si)->mask_off = 0xfffe;
 
         si++;
@@ -740,7 +740,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 
     /* Shrink the block to what the compressed form needed: INT 21h AH=4Ah on
        the first bitmap's segment. */
-    resize_seg = list[0]->data.seg;
+    resize_seg = list[0]->data_seg;
 #ifdef __TURBOC__
     _BX = BITMAP_COMPRESS.block_paras;
     _AX = resize_seg;
@@ -960,7 +960,7 @@ void near compress_bitmap(register struct bitmap *bmp)
     BITMAP_COMPRESS.pending_rows = 0;
     BITMAP_COMPRESS.block_paras = 0;
 
-    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
+    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
 
     if (BITMAP_COMPRESS.mode == 0x0f && VMDS.vga_chunks != 0) {
         for (y = 0; bmp->height > y; y++) {
@@ -974,7 +974,7 @@ void near compress_bitmap(register struct bitmap *bmp)
         least = 1;
     }
 
-    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
+    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
 
     hdr = BITMAP_COMPRESS.out++;
 

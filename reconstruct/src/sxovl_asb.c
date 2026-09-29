@@ -204,12 +204,13 @@ void asb_set_block_size(uint16_t n)
  * rotated left four, its top nibble becoming the page and the rest adding into
  * the offset. Returns the page in the high half and the offset in the low.
  */
-uint32_t asb_linear(struct far_ptr h)
+uint32_t asb_linear(const uint8_t far *p)
 {
-    uint16_t dx = (uint16_t)((h.seg << 4) | (h.seg >> 12));
+    uint16_t seg = FP_SEG(p);
+    uint16_t dx = (uint16_t)((seg << 4) | (seg >> 12));
     uint16_t cx = (uint16_t)(dx & 0xfff0);
     uint16_t page = (uint16_t)(dx & 0x000f);
-    uint32_t sum = (uint32_t)h.off + cx;
+    uint32_t sum = (uint32_t)FP_OFF(p) + cx;
 
     if (sum > 0xffff)
         page++;
@@ -365,6 +366,10 @@ static void (*asb_handler_for(uint16_t off))(void)
     return 0;
 }
 
+/* OURS: the vectors `asb_hook_irq` displaces, by IRQ, for `asb_unhook_irq`
+   to put back - see the note on the first. */
+static void interrupt (far *asb_saved_vector[16])();
+
 /*
  * SX.OVL ASB:0x03a5
  *
@@ -379,6 +384,10 @@ static void (*asb_handler_for(uint16_t off))(void)
  * hardware by `io_on_sb_irq` instead - the same shape as the timer. The near
  * offset is the module's own, so which routine is meant is read off the
  * module, not decided here.
+ *
+ * The old vector goes into `asb_saved_vector`, not into the module's four
+ * bytes at `save_at`: a host's handler is wider than the slot, and the slots
+ * sit four bytes apart.
  */
 uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
 {
@@ -386,8 +395,9 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
     uint16_t mask;
     uint8_t  bit, was;
 
-    *(struct far_ptr *)&ASB16(save_at) = getvect(vec);
-    setvect(vec, (struct far_ptr){ handler, ASB_SEG });
+    (void)save_at;
+    asb_saved_vector[irq & 0xf] = getvect(vec);
+    setvect(vec, (void interrupt (far *)())asb_handler_for(handler));
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
 
@@ -408,8 +418,8 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
 {
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
-    setvect(vec, (struct far_ptr){ ASBU16(save_at),
-                                       ASBU16(save_at + 2) });
+    (void)save_at;
+    setvect(vec, asb_saved_vector[irq & 0xf]);
     io_out8(((uint16_t)ASBS.pic_port), mask_was);
 
     io_on_sb_irq(irq, 0);
@@ -581,7 +591,7 @@ uint16_t asb_probe_irq(void)
         ASBS.probe_irq10 = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
-    lin = asb_linear((struct far_ptr){ 0xa6, ASB_SEG });
+    lin = asb_linear(DG4A82.module + 0xa6);
     asb_dma_program((uint16_t)lin, 0, 0x49, (uint8_t)(lin >> 16));
 
     asb_dsp_write(0x40);
@@ -691,8 +701,8 @@ uint8_t asb_safe_to_call(void)
 {
     uint8_t al;
 
-    al  = *dg_far_ptr(ASBS.criterr);
-    al |= *dg_far_ptr(ASBS.indos);
+    al  = *ZERO_PAGE(ASBS.criterr);
+    al |= *ZERO_PAGE(ASBS.indos);
     al |= ASBS.busy_int10;
     al |= ASBS.busy_int0d;
     al |= ASBS.busy_int74;
@@ -931,16 +941,16 @@ uint16_t asb_install(void)
     ASBS.stopped = 1;
 
     ASBS.old_int10 = getvect(0x10);
-    setvect(0x10, (struct far_ptr){ 0x052b, ASB_SEG });
+    setvect(0x10, (void interrupt (far *)())asb_int10_hook);
 
     ASBS.old_int0d = getvect(0x0d);
-    setvect(0x0d, (struct far_ptr){ 0x053e, ASB_SEG });
+    setvect(0x0d, (void interrupt (far *)())asb_int0d_hook);
 
     ASBS.old_int74 = getvect(0x74);
-    setvect(0x74, (struct far_ptr){ 0x0551, ASB_SEG });
+    setvect(0x74, (void interrupt (far *)())asb_int74_hook);
 
     ASBS.old_int09 = getvect(0x09);
-    setvect(0x09, (struct far_ptr){ 0x0564, ASB_SEG });
+    setvect(0x09, (void interrupt (far *)())asb_int09_hook);
 
     /*
      * INT 21h AH=34h, the address of the InDOS flag, and the byte below it.
@@ -949,8 +959,8 @@ uint16_t asb_install(void)
      * is safe - which is the truth here rather than a shortcut.
      */
     indos = 0;
-    ASBS.indos = (struct far_ptr){ 1, 0 };
-    ASBS.criterr = FAR_NULL;
+    ASBS.indos = ZERO_PAGE((uint8_t far *)NULL) + 1;
+    ASBS.criterr = NULL;
     (void)indos;
 
     ASBS.rate = 0x2b11;          /* 11025 Hz */

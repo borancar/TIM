@@ -35,7 +35,7 @@ void part_setup_heart_balloon(struct part *part)
     int16_t i;
 
     di = HEART_BALLOON_POINTS_3336;
-    for (i = 0, si = POINTS(part->points_ptr); i < 7; i++, si++, di++) {
+    for (i = 0, si = part->points; i < 7; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;
     }
@@ -52,7 +52,7 @@ void part_setup_heart_balloon(struct part *part)
 uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *belt = BELT_PTR(p2->belt_ptr[0]);   /* [bp-2] */
+    struct belt *belt = p2->belt[0];   /* [bp-2] */
 
     if (p4 == 1) {
         belt->v[0]++;

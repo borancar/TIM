@@ -68,7 +68,7 @@ void run_machine_loop(void)
 
         update_button_state();
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        regions_handle_pointer(DG4E67.regions_play_ptr);
+        regions_handle_pointer(DG4E67.regions_play);
 
         step_machine();
         mark_parts_in_dirty_rects();
@@ -123,7 +123,7 @@ void clear_machine(void)
     select_cursor(0);
     erase_both_pages();
 
-    DG50D3.dragged_part_ptr = 0;
+    DG50D3.dragged_part = 0;
     DG4E67.machine_frames = 0;
     DG52BD.sound_request_01 = DG52BD.sound_request_02 =
         DG52BD.sound_request_09 = DG52BD.sound_request_0c = 0;

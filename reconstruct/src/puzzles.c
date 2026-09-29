@@ -175,7 +175,7 @@ uint16_t select_puzzle_screen(void)
             && DG4E67.state == 0x800)
             DG5768.button_left = 0;
 
-        regions_handle_pointer(DG4E67.regions_a_ptr);
+        regions_handle_pointer(DG4E67.regions_a);
 
         if (DG52ED.last_key == 0x1b /* Esc */) {
             /*

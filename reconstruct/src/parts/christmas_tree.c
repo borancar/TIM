@@ -40,7 +40,7 @@ void part_setup_christmas_tree(struct part *part)
     int16_t i;
 
     src = CHRISTMAS_TREE_POINTS_3266;
-    for (i = 0, dst = POINTS(part->points_ptr); i < 7; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 7; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

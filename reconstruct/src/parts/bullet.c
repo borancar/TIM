@@ -44,7 +44,7 @@ struct point8 BULLET_POINTS_322A[4] DGROUP_AT(0x322a) = {
  */
 uint16_t part_hit_0867(struct part *part)
 {
-    struct part *di = PART_PTR(part->contact_ptr);
+    struct part *di = part->contact;
 
     if (part->kind == KIND_BALLOON)
         part->direction = 1;
@@ -73,7 +73,7 @@ void part_setup_08a1(struct part *part)
     else
         si = BULLET_POINTS_3222;
 
-    for (i = 0, di = POINTS(part->points_ptr); i < 4; i++, di++, si++) {
+    for (i = 0, di = part->points; i < 4; i++, di++, si++) {
         di->x = si->x;
         di->y = si->y;
     }

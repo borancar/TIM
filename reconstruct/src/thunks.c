@@ -154,7 +154,7 @@ int16_t fclose_far(FILE *file)
  * The far-callable face of `malloc`: one argument off the stack and straight
  * on to `malloc`.
  */
-uint8_t * malloc_far(uint16_t bytes)
+void *malloc_far(uint16_t bytes)
 {
     /*
      * **The `far` is the call, not the pointer.** 0x0bb1e is a thunk - one
@@ -174,7 +174,7 @@ uint8_t * malloc_far(uint16_t bytes)
  * to `free`. The `inc sp` twice that cleans it is two bytes shorter than
  * an `add sp,2` and does the same.
  */
-void free_far(uint8_t * p)
+void free_far(void *p)
 {
     free(p);
 }
@@ -222,7 +222,7 @@ char *strchr_far(char *s, int16_t c)
  * The far-callable face of `calloc`: it takes the two words off the stack and
  * hands them straight on. Four instructions and a `retf`.
  */
-uint8_t *calloc_far(uint16_t count, uint16_t size)
+void *calloc_far(uint16_t count, uint16_t size)
 {
     return calloc(count, size);
 }

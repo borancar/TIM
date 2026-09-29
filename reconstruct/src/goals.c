@@ -46,16 +46,16 @@ void goal_test_puzzle_2(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL) {
             if (((uint16_t)si->pos[0].y) != 0x108
                 || ((uint16_t)si->pos[0].y)
                    != ((uint16_t)si->pos[1].y))
                 ok = 0;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -68,7 +68,7 @@ void goal_test_puzzle_2(void)
  */
 void goal_test_puzzle_20(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
     if ((int16_t)((uint16_t)si->pos[0].x) > 0x1e0
         && ((uint16_t)si->pos[0].y) == 0xc8)
@@ -82,10 +82,10 @@ void goal_test_puzzle_20(void)
  */
 void goal_test_puzzle_21(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
     while (si->kind != KIND_POKEY)
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
 
     if ((int16_t)((uint16_t)si->pos[0].y) > 0x12c)
         DG4E67.state = 0x200;
@@ -101,13 +101,13 @@ void goal_test_puzzle_22(void)
     int16_t n;
 
     n = 0;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && si->form == 0)
             n++;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (n < 2)
@@ -125,10 +125,10 @@ void goal_test_puzzle_22(void)
  */
 void goal_test_puzzle_1(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
     while (si->kind != KIND_BASKETBALL)
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
 
     if ((int16_t)((uint16_t)si->pos[0].x) > 0x1a8
         && (int16_t)((uint16_t)si->pos[0].x) < 0x1da
@@ -161,7 +161,7 @@ void goal_test_puzzle_78(void)
     ok = 1;
     si = pick_by_flag(0x3000);
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_POKEY) {
             if ((int16_t)((uint16_t)si->pos[0].x)
                 <= (int16_t)si->start_x
@@ -220,14 +220,14 @@ void goal_test_pop_balloons(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && (si->flags_06 & 0x8000) != 0
             && (si->flags_08 & 0x2000) == 0)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -253,9 +253,9 @@ void goal_test_puzzle_79(void)
     register struct part *zero;
 
 #ifndef __TURBOC__
-    zero = nine = PART_NONE;    /* ours: the original leaves both unset */
+    zero = nine = NULL;    /* ours: the original leaves both unset */
 #endif
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
+    for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
         if (si->kind == KIND_BOWLING_BALL)
             zero = si;
@@ -284,9 +284,9 @@ void goal_test_puzzle_23(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
             if ((int16_t)((uint16_t)si->pos[0].x) < 0x1e8
                 || (int16_t)((uint16_t)si->pos[0].x) > 0x210
@@ -297,7 +297,7 @@ void goal_test_puzzle_23(void)
                 || (int16_t)((uint16_t)si->pos[0].y) < 0x110)
                 ok = 0;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -311,15 +311,15 @@ void goal_test_puzzle_23(void)
  */
 void goal_test_puzzle_26(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
             && (int16_t)si->start_y > 0x64
             && (uint16_t)(((uint16_t)si->pos[0].y)
                           - si->start_y) == 0x40)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -328,13 +328,13 @@ void goal_test_puzzle_26(void)
  */
 void goal_test_puzzle_43(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BUCKET
             && ((uint16_t)si->pos[0].y) == 0x118)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -352,9 +352,9 @@ void goal_test_puzzle_39(void)
 
     seen = 0;
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE) {
             if (((uint16_t)si->pos[0].y) != 0xf8)
                 ok = 0;
@@ -366,7 +366,7 @@ void goal_test_puzzle_39(void)
             if ((si->flags_0a & 0x10) == 0)
                 ok = 0;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && seen)
@@ -383,13 +383,13 @@ void goal_test_puzzles_53_54_63_67_87(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_ROCKET
             && (int16_t)((uint16_t)si->pos[0].y) > -0x30)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -407,15 +407,15 @@ void goal_test_puzzle_25(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && (int16_t)si->start_x > 0x12c
             && (si->flags_06 & 0x8000) != 0
             && (si->flags_08 & 0x2000) == 0)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -427,14 +427,14 @@ void goal_test_puzzle_25(void)
  */
 void goal_test_puzzle_41(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_POKEY
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1ba
             && ((uint16_t)si->pos[0].y) == 0x11f)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -450,20 +450,20 @@ void goal_test_puzzles_10_32(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_GUN
             && (int16_t)si->form < 6)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
-    si = PART_PTR(DG50D3.parts_bin.next_ptr);
-    while (si != PART_NONE) {
+    si = DG50D3.parts_bin.next;
+    while (si != NULL) {
         if (si->kind == KIND_GUN)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -485,7 +485,7 @@ void goal_test_puzzle_46(void)
     ok = 1;
     si = pick_by_flag(0x3000);
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
             && (int16_t)si->form >= 0x0b)
             ok = 0;
@@ -509,13 +509,13 @@ void goal_test_puzzle_34(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_JACK_IN_THE_BOX
             && si->form != 0x12)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -531,13 +531,13 @@ void goal_test_puzzles_14_15_64_73(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANNON
             && si->form != 0x0b)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -560,9 +560,9 @@ void goal_test_puzzle_24(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BALLOON) {
             if (si->form != 0)
                 ok = 0;
@@ -574,7 +574,7 @@ void goal_test_puzzle_24(void)
         if ((int16_t)DG4E67.machine_frames < 0x14)
             ok = 0;
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -590,13 +590,13 @@ void goal_test_puzzle_55(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOXING_GLOVE
             && si->form != 9)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -608,15 +608,15 @@ void goal_test_puzzle_55(void)
  */
 void goal_test_puzzle_38(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x148
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x168
             && ((uint16_t)si->pos[0].y) == 0xe8)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -625,14 +625,14 @@ void goal_test_puzzle_38(void)
  */
 void goal_test_puzzle_44(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x118
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x5b)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -646,15 +646,15 @@ void goal_test_puzzle_71(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && ((int16_t)((uint16_t)si->pos[0].x) < 0x168
                 || (int16_t)((uint16_t)si->pos[0].x) > 0x17a
                 || (int16_t)((uint16_t)si->pos[0].y) < 0xc1))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -670,13 +670,13 @@ void goal_test_puzzles_16_56_83(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANDLE
             && si->form == 0)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -688,16 +688,16 @@ void goal_test_puzzles_16_56_83(void)
  */
 void goal_test_puzzle_80(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1a8
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x1b9
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x68
             && (int16_t)((uint16_t)si->pos[0].y) <= 0x79)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -713,9 +713,9 @@ void goal_test_puzzle_47(void)
     int16_t right;
 
     left = right = 0;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BUCKET
             && ((uint16_t)si->pos[0].y) == 0x118) {
             if ((int16_t)((uint16_t)si->pos[0].x) <= 0x74)
@@ -723,7 +723,7 @@ void goal_test_puzzle_47(void)
             if ((int16_t)((uint16_t)si->pos[0].x) >= 0x198)
                 right = 1;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (left && right)
@@ -745,9 +745,9 @@ void goal_test_puzzle_70(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
             && (int16_t)si->form >= 0x0b)
             ok = 0;
@@ -755,7 +755,7 @@ void goal_test_puzzle_70(void)
         if ((int16_t)((uint16_t)DG4E67.loop_frames) < 0x134)
             ok = 0;
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -773,14 +773,14 @@ void goal_test_puzzle_69(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_LIGHT
             && (si->form == 0
                 || si->form == 2))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -792,13 +792,13 @@ void goal_test_puzzle_69(void)
  */
 void goal_test_puzzle_52(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
             && ((uint16_t)si->pos[0].y) == 0x108)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -821,14 +821,14 @@ void goal_test_puzzles_19_48(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MONKEY
             && (si->form == 0
                 || (int16_t)si->form >= 5))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -847,15 +847,15 @@ void goal_test_puzzles_19_48(void)
  */
 void goal_test_puzzle_82(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 8
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x28
             && ((uint16_t)si->pos[0].y) == 0x28)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -885,13 +885,13 @@ void goal_test_puzzle_81(void)
     struct part *other;
 
 #ifndef __TURBOC__
-    other = PART_NONE;  /* ours: the original leaves it unset */
+    other = NULL;  /* ours: the original leaves it unset */
 #endif
-    hit = PART_NONE;
+    hit = NULL;
     flagged = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
             hit = si;
             if ((si->flags_0a & 0x10) == 0)
@@ -899,10 +899,10 @@ void goal_test_puzzle_81(void)
         }
         if (si->kind == KIND_BUCKET)
             other = si;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
-    if (hit != PART_NONE) {
+    if (hit != NULL) {
         if (flagged != 0)
             DG4E67.state = 0x200;
         else {
@@ -924,13 +924,13 @@ void goal_test_puzzle_81(void)
  */
 void goal_test_puzzle_4(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
             && (int16_t)((uint16_t)si->pos[0].y) > 0x170)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -940,15 +940,15 @@ void goal_test_puzzle_4(void)
  */
 void goal_test_puzzle_5(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x18
             && (int16_t)((uint16_t)si->pos[0].x) <= 0xf3
             && ((uint16_t)si->pos[0].y) == 0xf9)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -964,13 +964,13 @@ void goal_test_puzzles_6_58(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MOUSE_CAGE
             && ((uint16_t)si->direction) == 0)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -992,13 +992,13 @@ void goal_test_puzzles_7_51_65(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
             && (int16_t)si->form < 0x0b)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1014,13 +1014,13 @@ void goal_test_puzzle_9(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BUCKET
             && ((uint16_t)si->pos[0].y) != 0xf8)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1041,15 +1041,15 @@ void goal_test_puzzle_11(void)
 
     n = 0;
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_FAN) {
             n++;
             if (((uint16_t)si->direction) == 0)
                 ok = 0;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && n == 3)
@@ -1061,14 +1061,14 @@ void goal_test_puzzle_11(void)
  */
 void goal_test_puzzle_12(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x154
             && ((uint16_t)si->pos[0].y) == 0x139)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1084,13 +1084,13 @@ void goal_test_puzzle_13(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG521B.placed_parts.next_ptr);
+    si = DG521B.placed_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_GEAR
             && si->form == ((uint16_t)si->form_prev2))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1114,7 +1114,7 @@ void goal_test_puzzle_17(void)
     ok = 1;
     si = pick_by_flag(0x3000);
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_DYNAMITE_PLUNGER
             && si->form != 2)
             ok = 0;
@@ -1136,14 +1136,14 @@ void goal_test_puzzle_17(void)
  */
 void goal_test_puzzle_18(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x199
             && ((uint16_t)si->pos[0].y) == 0x10d)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1159,9 +1159,9 @@ void goal_test_puzzle_76(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && (si->flags_06 & 0x8000) != 0
             && si->form != 0)
@@ -1170,7 +1170,7 @@ void goal_test_puzzle_76(void)
         if ((int16_t)DG4E67.machine_frames < 0x82)
             ok = 0;
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1189,7 +1189,7 @@ void goal_test_puzzles_42_75(void)
     ok = 1;
     si = pick_by_flag(0x3000);
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_DYNAMITE
             && (si->flags_08 & 0x2000) == 0)
             ok = 0;
@@ -1212,12 +1212,12 @@ void goal_test_puzzles_57_74(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1234,15 +1234,15 @@ void goal_test_puzzle_31(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
             && ((int16_t)((uint16_t)si->pos[0].x) < 0x156
                 || (int16_t)((uint16_t)si->pos[0].x) > 0x1ba
                 || (int16_t)((uint16_t)si->pos[0].y) < 0xda))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1255,14 +1255,14 @@ void goal_test_puzzle_31(void)
  */
 void goal_test_puzzle_66(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && si->start_x == 0x219
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x40)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1275,13 +1275,13 @@ void goal_test_puzzle_29(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1293,12 +1293,12 @@ void goal_test_puzzle_29(void)
  */
 void goal_test_puzzle_61(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE && ((uint16_t)si->pos[0].y) == 0xf8)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1317,9 +1317,9 @@ void goal_test_puzzle_28(void)
     register struct part *si;
 
     row1 = row2 = row3 = row4 = row5 = row6 = 0;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
             if (si->pos[0].y == 0x39)
                 row1 = 1;
@@ -1334,7 +1334,7 @@ void goal_test_puzzle_28(void)
             if (si->pos[0].y == 0x129)
                 row6 = 1;
         }
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (row1 && row2 && row3 && row4 && row5 && row6)
@@ -1356,7 +1356,7 @@ void goal_test_puzzle_36(void)
     ok = 1;
     si = pick_by_flag(0x3000);
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_GUN
             && (int16_t)si->form < 6)
             ok = 0;
@@ -1381,14 +1381,14 @@ void goal_test_puzzle_36(void)
  */
 void goal_test_puzzle_86(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x19b && (int16_t)((uint16_t)si->pos[0].x) <= 0x1cc
             && ((uint16_t)si->pos[0].y) == 0x12d)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1408,9 +1408,9 @@ void goal_test_puzzle_77(void)
 
     seen = 0;
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL)
             seen = 1;
 
@@ -1423,7 +1423,7 @@ void goal_test_puzzle_77(void)
                 ok = 0;
         }
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && seen)
@@ -1435,14 +1435,14 @@ void goal_test_puzzle_77(void)
  */
 void goal_test_puzzle_85(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1b6 && (int16_t)((uint16_t)si->pos[0].x) <= 0x1c0
             && ((uint16_t)si->pos[0].y) == 0x108)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1455,12 +1455,12 @@ void goal_test_puzzle_60(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_POKEY && (int16_t)((uint16_t)si->pos[0].y) < 0xc8)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1472,15 +1472,15 @@ void goal_test_puzzle_60(void)
  */
 void goal_test_puzzle_37(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x20
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x78
             && (int16_t)((uint16_t)si->pos[0].y) > 0x120)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 
@@ -1501,9 +1501,9 @@ void goal_test_puzzle_84(void)
 
     n = 0;
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
             n++;
             if ((si->flags_0a & 0x10) == 0)
@@ -1514,7 +1514,7 @@ void goal_test_puzzle_84(void)
             && (int16_t)((uint16_t)si->pos[0].y) < 0x1388)
             ok = 0;
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && n == 2)
@@ -1539,13 +1539,13 @@ void goal_test_puzzle_68(void)
     int16_t a, b;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 #ifndef __TURBOC__
     a = 0;      /* ours: the original leaves both unset */
     b = 0;
 #endif
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE)
             a = si->pos[0].x;
 
@@ -1555,7 +1555,7 @@ void goal_test_puzzle_68(void)
                 ok = 0;
         }
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && a > b && (int16_t)(b + 0x32) > a)
@@ -1571,13 +1571,13 @@ void goal_test_puzzle_72(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && (si->flags_0a & 0x10) == 0)
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1597,9 +1597,9 @@ void goal_test_puzzle_59(void)
 
     seen = 0;
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL
             && (si->flags_0a & 0x10) != 0)
             seen = 1;
@@ -1611,7 +1611,7 @@ void goal_test_puzzle_59(void)
                 ok = 0;
         }
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok && seen)
@@ -1629,9 +1629,9 @@ void goal_test_puzzle_49(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASEBALL
             && ((int16_t)((uint16_t)si->pos[0].x) > 0x4a || (int16_t)((uint16_t)si->pos[0].y) < 0x124))
             ok = 0;
@@ -1640,7 +1640,7 @@ void goal_test_puzzle_49(void)
             && ((int16_t)((uint16_t)si->pos[0].x) < 0x1c6 || (int16_t)((uint16_t)si->pos[0].y) < 0x124))
             ok = 0;
 
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1657,15 +1657,15 @@ void goal_test_puzzle_40(void)
     int16_t ok;
 
     ok = 1;
-    si = PART_PTR(DG5179.moving_parts.next_ptr);
+    si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
             && ((int16_t)((uint16_t)si->pos[0].x) < 0xf6
                 || (int16_t)((uint16_t)si->pos[0].x) > 0x14c
                 || ((uint16_t)si->pos[0].y) != 0xe8))
             ok = 0;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 
     if (ok)
@@ -1679,16 +1679,16 @@ void goal_test_puzzle_40(void)
  */
 void goal_test_puzzle_35(void)
 {
-    struct part *si = PART_PTR(DG5179.moving_parts.next_ptr);
+    struct part *si = DG5179.moving_parts.next;
 
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1d6
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x1fc
             && (int16_t)((uint16_t)si->pos[0].y) >= 0xc6
             && (int16_t)((uint16_t)si->pos[0].y) <= 0xd0)
             DG4E67.state = 0x200;
-        si = PART_PTR(si->next_ptr);
+        si = si->next;
     }
 }
 

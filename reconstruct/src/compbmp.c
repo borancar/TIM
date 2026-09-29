@@ -44,15 +44,10 @@ typedef void (far *vm_span_fn)(void);
 
 /*
  * DGROUP 0x44ea - **the vector the thunk at 0x20185 jumps through**, this
- * module's `_DATA`: the address of `draw_compressed_body` below. Under
- * Borland it is that address, which the loader relocates; the host keeps
- * the guest's pair.
+ * module's `_DATA`: the address of `draw_compressed_body` below, which
+ * the loader relocates.
  */
-#ifdef __TURBOC__
-void (far *DG44EA)() = draw_compressed_body;
-#else
-struct far_ptr DG44EA DGROUP_AT(0x44ea) = { .off = 0x3f39, .seg = LOAD_SEG + 0x1c25 };
-#endif
+void (far *DG44EA)() = (void (far *)())draw_compressed_body;
 
 /*
  * 0x20189
@@ -127,7 +122,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     _AX = VMDS.page_dst_ptr;
     if (VMDS.page_hook != 0) {
         asm push ax
-        VM_VECTOR(28, vm_hook_fn)();
+        ((vm_hook_fn)DG4342.font[28])();
         asm add sp, 2
     }
     page = _AX;
@@ -154,7 +149,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     if (!clip || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
         row = VMDS.row_offset[y];
 
-    src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
+    src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
 
     base = *src;
     src++;
@@ -204,7 +199,7 @@ run_mirrored:
                     asm mov es, page
                     asm stc
                     asm mov dx, y
-                    VM_VECTOR(38, vm_run_fn)();
+                    ((vm_run_fn)DG4342.font[38])();
                     asm pop di
                     asm pop si
 #else
@@ -249,7 +244,7 @@ run:
                     asm mov es, page
                     asm clc
                     asm mov dx, y
-                    VM_VECTOR(38, vm_run_fn)();
+                    ((vm_run_fn)DG4342.font[38])();
                     asm pop di
                     asm pop si
 #else
@@ -304,7 +299,7 @@ fill_mirrored:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                VM_VECTOR(10, vm_span_fn)();
+                ((vm_span_fn)DG4342.font[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(base + b2), (uint16_t)(x - (uint8_t)op + 1),
@@ -345,7 +340,7 @@ fill:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                VM_VECTOR(10, vm_span_fn)();
+                ((vm_span_fn)DG4342.font[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(b2 + base), (uint16_t)x, (uint8_t)op,

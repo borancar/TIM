@@ -17,5 +17,7 @@ typedef int            int16_t;
 typedef unsigned int   uint16_t;
 typedef long           int32_t;
 typedef unsigned long  uint32_t;
+/* A data pointer is near in the medium model: sixteen bits. */
+typedef unsigned int   uintptr_t;
 
 #endif

@@ -117,9 +117,9 @@ void build_part_list(void)
     int16_t si;                         /* si */
     int16_t wanted;                     /* di */
 
-    DG521B.placed_parts.next_ptr = DG521B.placed_parts.prev_ptr
-        = DG5179.moving_parts.next_ptr = DG5179.moving_parts.prev_ptr
-        = DG50D3.parts_bin.next_ptr = DG50D3.parts_bin.prev_ptr = 0;
+    DG521B.placed_parts.next = DG521B.placed_parts.prev
+        = DG5179.moving_parts.next = DG5179.moving_parts.prev
+        = DG50D3.parts_bin.next = DG50D3.parts_bin.prev = 0;
 
     for (si = 0; si < 0x33; si++) {
         wanted = 0;
@@ -135,11 +135,11 @@ void build_part_list(void)
             wanted = 1;
         }
 
-        if (wanted != 0 && (rec = make_part(si)) != PART_NONE)
+        if (wanted != 0 && (rec = make_part(si)) != NULL)
             insert_sorted(rec, &DG50D3.parts_bin);
     }
 
-    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+    DG50D3.bin_list = (&DG50D3.parts_bin);
     DG50AF.bonus_1 = DG50AF.bonus_2 = 0;
     DG50AF.gravity = 0x43;
     DG50AF.air = 0x110;
@@ -164,7 +164,7 @@ void build_part_list(void)
  *
  * Each part may also have an **init function** in the table, at +12 of its
  * entry, and a part that answers 1 from it is refused - the record is freed and
- * the answer is `PART_NONE`, offset 0. The port dispatches that far pointer on
+ * the answer is `NULL`, offset 0. The port dispatches that far pointer on
  * its value, as it does everywhere else it cannot call one.
  *
  * The heap is checked three times: before the allocation, after it, and at the
@@ -182,7 +182,7 @@ struct part *make_part(uint16_t kind)
 #ifndef __TURBOC__
         /* The original's refusal is offset 0, which is what `free_part`
            tests; the host's null is not DGROUP:0. */
-        part = PART_NONE;
+        part = NULL;
 #endif
     fail:
         failed = 1;
@@ -216,7 +216,7 @@ struct part *make_part(uint16_t kind)
 done:
     if (failed != 0) {
         free_part(part);
-        return PART_NONE;
+        return NULL;
     }
 
     return part;
@@ -256,7 +256,7 @@ done:
 /* 0x14236 */
 uint16_t part_init_bowling_ball(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_0001(part);
@@ -269,7 +269,7 @@ uint16_t part_init_14267(struct part *part)
     part->flags_06 |= 0x0040;
     part->flags_08 |= 0x0180;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_48ab(part);
@@ -283,7 +283,7 @@ uint16_t part_init_ramp(struct part *part)
     part->flags_08 |= 0x0080;
     part->start_form = part->form = 0x0001;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_ramp(part);
@@ -296,7 +296,7 @@ uint16_t part_init_seesaw(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x000c;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_seesaw(part);
@@ -311,7 +311,7 @@ uint16_t part_init_balloon(struct part *part)
     part->attach[0].x = 16;
     part->attach[0].y = 47;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_balloon(part);
@@ -327,7 +327,7 @@ uint16_t part_init_conveyor(struct part *part)
     part->grab.x = 59;
     part->grab_size = 0x000e;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_conveyor(part);
@@ -343,7 +343,7 @@ uint16_t part_init_mouse_cage(struct part *part)
     part->grab.y = 4;
     part->grab_size = 0x000c;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_mouse_cage(part);
@@ -359,25 +359,25 @@ uint16_t part_init_pulley(struct part *part)
     part->attach[1].x = 15;
     part->attach[1].y = 8;
 
-    if ((part->belt_ptr[0] = dg_near(dgroup, calloc_far(1, sizeof(struct belt)))) == 0)
+    if ((part->belt[0] = (calloc_far(1, sizeof(struct belt)))) == 0)
         return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
+    part->belt[0]->owner = part;
     return 0;
 }
 
 /* 0x1443d */
 uint16_t part_init_belt(struct part *part)
 {
-    if ((part->rope_ptr = dg_near(dgroup, calloc_far(1, sizeof(struct rope)))) == 0)
+    if ((part->rope = (calloc_far(1, sizeof(struct rope)))) == 0)
         return 1;
-    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_near(dgroup, part);
+    part->rope->owner = part;
     return 0;
 }
 
 /* 0x1446c */
 uint16_t part_init_basketball(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_0001(part);
@@ -387,9 +387,9 @@ uint16_t part_init_basketball(struct part *part)
 /* 0x1449d */
 uint16_t part_init_rope(struct part *part)
 {
-    if ((part->belt_ptr[0] = dg_near(dgroup, calloc_far(1, sizeof(struct belt)))) == 0)
+    if ((part->belt[0] = (calloc_far(1, sizeof(struct belt)))) == 0)
         return 1;
-    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_near(dgroup, part);
+    part->belt[0]->owner = part;
     return 0;
 }
 
@@ -401,7 +401,7 @@ uint16_t part_init_bird_cage(struct part *part)
     part->attach[0].x = 21;
     part->attach[0].y = 2;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_bird_cage(part);
@@ -414,7 +414,7 @@ uint16_t part_init_pokey(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x8000;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_pokey(part);
@@ -430,7 +430,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
     part->grab.y = 9;
     part->grab_size = 0x000e;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_jack_in_the_box(part);
@@ -444,7 +444,7 @@ uint16_t part_init_gear(struct part *part)
     part->grab.x = part->grab.y = 13;
     part->grab_size = 0x0008;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_0001(part);
@@ -456,7 +456,7 @@ uint16_t part_init_bob_the_fish(struct part *part)
 {
     part->flags_08 |= 0x1000;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_bob_the_fish(part);
@@ -468,7 +468,7 @@ uint16_t part_init_bellow(struct part *part)
 {
     part->flags_06 |= 0x0400;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_bellow(part);
@@ -483,7 +483,7 @@ uint16_t part_init_bucket(struct part *part)
     part->attach[0].x = 18;
     part->attach[0].y = 0;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_bucket(part);
@@ -497,7 +497,7 @@ uint16_t part_init_cannon(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_cannon(part);
@@ -511,7 +511,7 @@ uint16_t part_init_dynamite(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_dynamite(part);
@@ -521,7 +521,7 @@ uint16_t part_init_dynamite(struct part *part)
 /* 0x146fc */
 uint16_t part_init_146fc(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_08a1(part);
@@ -535,7 +535,7 @@ uint16_t part_init_electric_plug(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0002;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_electric_plug(part);
@@ -548,7 +548,7 @@ uint16_t part_init_dynamite_plunger(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x1004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_dynamite_plunger(part);
@@ -572,7 +572,7 @@ uint16_t part_init_fan(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0001;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_fan(part);
@@ -584,7 +584,7 @@ uint16_t part_init_flashlight(struct part *part)
 {
     part->flags_06 |= 0x0400;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_flashlight(part);
@@ -597,7 +597,7 @@ uint16_t part_init_generator(struct part *part)
     part->flags_08 |= 0x1001;
     part->flags_0a |= 0x0002;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_generator(part);
@@ -610,7 +610,7 @@ uint16_t part_init_gun(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x1004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_gun(part);
@@ -620,7 +620,7 @@ uint16_t part_init_gun(struct part *part)
 /* 0x148af */
 uint16_t part_init_baseball(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_00c9(part);
@@ -652,7 +652,7 @@ uint16_t part_init_monkey(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x1805;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_monkey(part);
@@ -662,7 +662,7 @@ uint16_t part_init_monkey(struct part *part)
 /* 0x14954 */
 uint16_t part_init_pumpkin(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_pumpkin(part);
@@ -677,7 +677,7 @@ uint16_t part_init_heart_balloon(struct part *part)
     part->attach[0].x = 18;
     part->attach[0].y = 35;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_heart_balloon(part);
@@ -687,7 +687,7 @@ uint16_t part_init_heart_balloon(struct part *part)
 /* 0x149c6 */
 uint16_t part_init_christmas_tree(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_christmas_tree(part);
@@ -699,7 +699,7 @@ uint16_t part_init_boxing_glove(struct part *part)
 {
     part->flags_06 |= 0x0400;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_boxing_glove(part);
@@ -712,7 +712,7 @@ uint16_t part_init_rocket(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_rocket(part);
@@ -725,7 +725,7 @@ uint16_t part_init_scissors(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x1000;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_scissors(part);
@@ -746,7 +746,7 @@ uint16_t part_init_trampoline(struct part *part)
 {
     part->flags_08 |= 0x1000;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_trampoline(part);
@@ -762,7 +762,7 @@ uint16_t part_init_windmill(struct part *part)
     part->grab.y = 15;
     part->grab_size = 0x0008;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_windmill(part);
@@ -775,7 +775,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
     part->flags_06 |= 0x0400;
     part->flags_08 |= 0x8000;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_mort_the_mouse(part);
@@ -785,7 +785,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
 /* 0x14b72 */
 uint16_t part_init_cannon_ball(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_cannon_ball(part);
@@ -795,7 +795,7 @@ uint16_t part_init_cannon_ball(struct part *part)
 /* 0x14ba3 */
 uint16_t part_init_tennis_ball(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_00c9(part);
@@ -809,7 +809,7 @@ uint16_t part_init_candle(struct part *part)
     part->flags_08 |= 0x1000;
     part->flags_0a |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_candle(part);
@@ -821,7 +821,7 @@ uint16_t part_init_corner_pipe(struct part *part)
 {
     part->flags_06 |= 0x0600;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_corner_pipe(part);
@@ -845,7 +845,7 @@ uint16_t part_init_motor(struct part *part)
     part->flags_08 |= 0x0001;
     part->flags_0a |= 0x0001;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_motor(part);
@@ -858,7 +858,7 @@ uint16_t part_init_14ca0(struct part *part)
     part->flags_06 |= 0x0020;
     part->flags_08 |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_1105(part);
@@ -868,7 +868,7 @@ uint16_t part_init_14ca0(struct part *part)
 /* 0x14cd9 */
 uint16_t part_init_14cd9(struct part *part)
 {
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_10b6(part);
@@ -881,7 +881,7 @@ uint16_t part_init_14d0a(struct part *part)
     part->flags_06 |= 0x0020;
     part->flags_08 |= 0x0004;
 
-    if ((part->points_ptr = dg_near(dgroup, calloc_far(part->point_count, 4))) == 0)
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
     part_setup_1105(part);
@@ -898,12 +898,12 @@ uint16_t part_init_14d0a(struct part *part)
  */
 void free_all_lists(void)
 {
-    free_part_list(PART_PTR(DG50D3.parts_bin.next_ptr));
-    free_part_list(PART_PTR(DG521B.placed_parts.next_ptr));
-    free_part_list(PART_PTR(DG5179.moving_parts.next_ptr));
+    free_part_list(DG50D3.parts_bin.next);
+    free_part_list(DG521B.placed_parts.next);
+    free_part_list(DG5179.moving_parts.next);
 
-    DG521B.placed_parts.next_ptr = DG5179.moving_parts.next_ptr
-        = DG50D3.parts_bin.next_ptr = 0;
+    DG521B.placed_parts.next = DG5179.moving_parts.next
+        = DG50D3.parts_bin.next = 0;
 }
 
 /*
@@ -916,9 +916,9 @@ void free_all_lists(void)
 void free_part_list(struct part *si)
 {
     /* `or si,si` at 0x14d8c: the list ends on an offset of 0, which as a
-       pointer is `PART_NONE` and never NULL. */
-    while (si != PART_NONE) {
-        struct part *next = PART_PTR(si->next_ptr);
+       pointer is `NULL` and never NULL. */
+    while (si != NULL) {
+        struct part *next = si->next;
 
         free_part(si);
         si = next;
@@ -943,18 +943,18 @@ void free_part_list(struct part *si)
  */
 void free_part(struct part *part)
 {
-    if (part != PART_NONE) {   /* the offset: `or si,si` at 0x14d9c */
-        if (part->points_ptr != 0)
-            checked_free(dg_near_ptr(part->points_ptr));
+    if (part != NULL) {   /* the offset: `or si,si` at 0x14d9c */
+        if (part->points != 0)
+            checked_free(part->points);
 
-        if (part->rope_ptr != 0
+        if (part->rope != 0
             && (part->flags_08 & 1) == 0)
-            checked_free(dg_near_ptr(part->rope_ptr));
+            checked_free(part->rope);
 
-        if (part->belt_ptr[0] != 0
+        if (part->belt[0] != 0
             && (part->kind == KIND_PULLEY
                 || part->kind == KIND_ROPE))
-            checked_free(dg_near_ptr(part->belt_ptr[0]));
+            checked_free(part->belt[0]);
 
         checked_free((uint8_t *)part);
     }

@@ -120,7 +120,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                         SOUND_MODULE_TAGS[module_index]);
 
         if ((DG4A82.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
-            != FAR_NULL_PTR) {
+            != NULL) {
             DG4A82.module_live = 1;
             set_sound_callback(DG4A82.module);
 
@@ -153,7 +153,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                         SOUND_DEVICE_TAGS[device]);
 
         if ((DG4A82.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
-            != FAR_NULL_PTR) {
+            != NULL) {
             DG4A82.driver_number = (uint8_t)install_driver_far(DG4A82.driver);
 
             if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
@@ -199,7 +199,7 @@ struct sequence far *voice_playing(const uint8_t far * source)
             return SOUND_VOICES.voice[i];
     }
 
-    return SEQUENCE_NONE;
+    return NULL;
 }
 
 /*
@@ -222,11 +222,11 @@ uint16_t alloc_voice_records(void)
     int16_t i;
     struct sequence far *voice;
 
-    if (SOUND_VOICES.voice[0] == SEQUENCE_NONE) {
+    if (SOUND_VOICES.voice[0] == NULL) {
         for (i = 0; i < 7; i++) {
             if ((SOUND_VOICES.voice[i] = (struct sequence far *)
                      alloc_for_kind(sizeof(struct sequence), 2))
-                == SEQUENCE_NONE) {
+                == NULL) {
                 free_voice_records();
                 return 0;
             }
@@ -264,7 +264,7 @@ uint8_t far *load_named_chunk(char *name, const char * path,
                               uint16_t index)
 {
     int16_t opened = 0;
-    uint8_t far *r = FAR_NULL_PTR;
+    uint8_t far *r = NULL;
     FILE *si;
 
     /* A handle, or a name to open. */

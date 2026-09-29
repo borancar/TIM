@@ -125,8 +125,8 @@ uint16_t part_hook_no(struct part *part)
  */
 void compute_moved(void)
 {
-    DG53FC.moved_x = (int16_t)(DG53FC.cur_x - PART_PTR(DG53FC.list_ptr)->pos[1].x);
-    DG53FC.moved_y = (int16_t)(DG53FC.cur_y - PART_PTR(DG53FC.list_ptr)->pos[1].y);
+    DG53FC.moved_x = (int16_t)(DG53FC.cur_x - DG53FC.list->pos[1].x);
+    DG53FC.moved_y = (int16_t)(DG53FC.cur_y - DG53FC.list->pos[1].y);
 }
 
 /*
@@ -151,19 +151,19 @@ void compute_moved(void)
  */
 void compute_swept_bounds(void)
 {
-    DG53FC.swept_left = DG53FC.cur_x = PART_PTR(DG53FC.list_ptr)->pos[0].x;
-    DG53FC.swept_top = DG53FC.cur_y = PART_PTR(DG53FC.list_ptr)->pos[0].y;
-    DG53FC.swept_right = DG53FC.cur_x + PART_PTR(DG53FC.list_ptr)->size[0].width;
-    DG53FC.swept_bottom = DG53FC.cur_y + PART_PTR(DG53FC.list_ptr)->size[0].height;
-    DG53FC.mid_x = DG53FC.cur_x + (PART_PTR(DG53FC.list_ptr)->size[0].width >> 1);
-    DG53FC.mid_y = DG53FC.cur_y + (PART_PTR(DG53FC.list_ptr)->size[0].height >> 1);
+    DG53FC.swept_left = DG53FC.cur_x = DG53FC.list->pos[0].x;
+    DG53FC.swept_top = DG53FC.cur_y = DG53FC.list->pos[0].y;
+    DG53FC.swept_right = DG53FC.cur_x + DG53FC.list->size[0].width;
+    DG53FC.swept_bottom = DG53FC.cur_y + DG53FC.list->size[0].height;
+    DG53FC.mid_x = DG53FC.cur_x + (DG53FC.list->size[0].width >> 1);
+    DG53FC.mid_y = DG53FC.cur_y + (DG53FC.list->size[0].height >> 1);
 
     compute_moved();
 
-    if (PART_PTR(DG53FC.list_ptr)->pos[1].x < DG53FC.cur_x)
-        DG53FC.swept_left = PART_PTR(DG53FC.list_ptr)->pos[1].x;
-    if (PART_PTR(DG53FC.list_ptr)->pos[1].y < DG53FC.cur_y)
-        DG53FC.swept_top = PART_PTR(DG53FC.list_ptr)->pos[1].y;
+    if (DG53FC.list->pos[1].x < DG53FC.cur_x)
+        DG53FC.swept_left = DG53FC.list->pos[1].x;
+    if (DG53FC.list->pos[1].y < DG53FC.cur_y)
+        DG53FC.swept_top = DG53FC.list->pos[1].y;
 
     DG53FC.swept_right += abs(DG53FC.moved_x);
     DG53FC.swept_bottom += abs(DG53FC.moved_y);
@@ -191,14 +191,14 @@ void compute_swept_bounds(void)
  */
 void compute_other_bounds(void)
 {
-    DG53FC.other_left = PART_PTR(DG53FC.other_ptr)->pos[0].x;
-    DG53FC.other_top = PART_PTR(DG53FC.other_ptr)->pos[0].y;
-    DG53FC.other_right = (int16_t)(DG53FC.other_left + PART_PTR(DG53FC.other_ptr)->size[0].width);
-    DG53FC.other_bottom = (int16_t)(DG53FC.other_top + PART_PTR(DG53FC.other_ptr)->size[0].height);
+    DG53FC.other_left = DG53FC.other->pos[0].x;
+    DG53FC.other_top = DG53FC.other->pos[0].y;
+    DG53FC.other_right = (int16_t)(DG53FC.other_left + DG53FC.other->size[0].width);
+    DG53FC.other_bottom = (int16_t)(DG53FC.other_top + DG53FC.other->size[0].height);
     DG53FC.other_mid_x = (int16_t)(DG53FC.other_left
-                             + (int16_t)(PART_PTR(DG53FC.other_ptr)->size[0].width >> 1));
+                             + (int16_t)(DG53FC.other->size[0].width >> 1));
     DG53FC.other_mid_y = (int16_t)(DG53FC.other_top
-                             + (int16_t)(PART_PTR(DG53FC.other_ptr)->size[0].height >> 1));
+                             + (int16_t)(DG53FC.other->size[0].height >> 1));
 }
 
 /*
@@ -226,7 +226,7 @@ int16_t angles_same_side(int16_t angle)
     int16_t ok;                         /* [bp-4] */
     register int16_t si, di;
 
-    if (DG53FC.contact_ptr == 0)
+    if (DG53FC.contact == 0)
         return 0;
     quadrant = angle_to_quadrant(angle);
     if (quadrant != DG53FC.contact_quadrant)
@@ -372,68 +372,67 @@ int16_t resolve_collisions(struct part *obj)
     register struct part_contact *c;
     register int16_t hit;
 
-    DG53FC.list_ptr = dg_near(dgroup, obj);
-    if (PART_PTR(DG53FC.list_ptr)->points_ptr == 0)
+    DG53FC.list = obj;
+    if (DG53FC.list->points == 0)
         return 0;
 
-    c = (struct part_contact *)&PART_PTR(DG53FC.list_ptr)->contact_ptr;
-    if ((DG53FC.contact_ptr = PART_PTR(DG53FC.list_ptr)->contact_ptr) != 0) {
+    c = (struct part_contact *)&DG53FC.list->contact;
+    if ((DG53FC.contact = DG53FC.list->contact) != 0) {
         DG53FC.contact_angle = c->angle;
         DG53FC.contact_quadrant = angle_to_quadrant(DG53FC.contact_angle);
     }
     c->no_nudge_plus = c->no_nudge_minus = 0;
 
-    DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
+    DG53FC.travel_angle = object_delta_angle(DG53FC.list);
     compute_swept_bounds();
 
     hit = 0;
-    if (DG53FC.contact_ptr != 0
-        && !chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.contact_ptr)) {
-        DG53FC.other_ptr = DG53FC.contact_ptr;
-        if (PART_PTR(DG53FC.other_ptr)->points_ptr != 0
-            && !(PART_PTR(DG53FC.other_ptr)->flags_08 & 0x2000)) {
+    if (DG53FC.contact != 0
+        && !chain_contains(DG53FC.list, DG53FC.contact)) {
+        DG53FC.other = DG53FC.contact;
+        if (DG53FC.other->points != 0
+            && !(DG53FC.other->flags_08 & 0x2000)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
+                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
             }
             if (BOXES_MEET_STRICT && find_edge_contact_reversed(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
+                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
             }
         }
     }
 
-    for (DG53FC.other_ptr = dg_near(dgroup, pick_by_flag(0x3000));
-         DG53FC.other_ptr != 0;
-         DG53FC.other_ptr = dg_near(dgroup,
-                                    pick_for_record(PART_PTR(DG53FC.other_ptr),
+    for (DG53FC.other = (pick_by_flag(0x3000));
+         DG53FC.other != 0;
+         DG53FC.other = (pick_for_record(DG53FC.other,
                                                     0x1000))) {
-        if (!chain_contains(PART_PTR(DG53FC.list_ptr), DG53FC.other_ptr)
-            && DG53FC.list_ptr != DG53FC.other_ptr
-            && DG53FC.contact_ptr != DG53FC.other_ptr
-            && PART_PTR(DG53FC.other_ptr)->points_ptr != 0
-            && !(PART_PTR(DG53FC.other_ptr)->flags_08 & 0x2000)
-            && !(PART_PTR(DG53FC.list_ptr)->kind == 0xc
-                 && PART_PTR(DG53FC.other_ptr)->kind == 0x2a)) {
+        if (!chain_contains(DG53FC.list, DG53FC.other)
+            && DG53FC.list != DG53FC.other
+            && DG53FC.contact != DG53FC.other
+            && DG53FC.other->points != 0
+            && !(DG53FC.other->flags_08 & 0x2000)
+            && !(DG53FC.list->kind == 0xc
+                 && DG53FC.other->kind == 0x2a)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
+                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
             }
             if (BOXES_MEET && find_edge_contact_reversed(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(PART_PTR(DG53FC.list_ptr));
+                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
             }
         }
     }
 
     if (!hit)
-        c->ptr = 0;
+        c->part = 0;
     else if (angles_same_side(c->angle))
-        PART_PTR(DG53FC.list_ptr)->flags_06 |= 1;
+        DG53FC.list->flags_06 |= 1;
 
     return hit;
 }
@@ -517,35 +516,36 @@ int16_t find_edge_contact(int16_t test_only)
     int16_t seg2[4];                    /* [bp-0x34] */
     int16_t seg1[4];                    /* [bp-0x3c] */
     int16_t out[2];                     /* [bp-0x40] */
-    register dg_near_t si, di;
+    register struct part_point *si;
+    register struct part_point *di;
 
     hit = 0;
     i = 1;
-    si = PART_PTR(DG53FC.other_ptr)->points_ptr;
-    fx0 = x0 = DG53FC.other_left + POINTS(si)[0].x;
-    fy0 = y0 = DG53FC.other_top + POINTS(si)[0].y;
-    x1 = DG53FC.other_left + POINTS(si)[1].x;
-    y1 = DG53FC.other_top + POINTS(si)[1].y;
-    a_ang = POINTS(si)[0].angle;
+    si = DG53FC.other->points;
+    fx0 = x0 = DG53FC.other_left + si[0].x;
+    fy0 = y0 = DG53FC.other_top + si[0].y;
+    x1 = DG53FC.other_left + si[1].x;
+    y1 = DG53FC.other_top + si[1].y;
+    a_ang = si[0].angle;
 
     while (si) {
         quad = angle_to_quadrant(a_ang);
         d = DG53FC.travel_angle - a_ang + 0x4000;
         if (d > 0) {
-            di = PART_PTR(DG53FC.list_ptr)->points_ptr;
-            b_ang = POINTS(di)->angle;
-            di += 4;
+            di = DG53FC.list->points;
+            b_ang = di->angle;
+            di++;
             j = 1;
 
             while (di) {
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
-                    d = POINTS(di)->angle - a_ang + 0x8000;
+                    d = di->angle - a_ang + 0x8000;
                     if (d <= 0 && (DG53FC.moved_x || DG53FC.moved_y)) {
-                        seg1[0] = PART_PTR(DG53FC.list_ptr)->pos[1].x
-                                  + POINTS(di)->x - x0;
-                        seg1[1] = PART_PTR(DG53FC.list_ptr)->pos[1].y
-                                  + POINTS(di)->y - y0;
+                        seg1[0] = DG53FC.list->pos[1].x
+                                  + di->x - x0;
+                        seg1[1] = DG53FC.list->pos[1].y
+                                  + di->y - y0;
                         tx = seg1[2] = seg1[0] + DG53FC.moved_x;
                         ty = seg1[3] = seg1[1] + DG53FC.moved_y;
 
@@ -568,13 +568,13 @@ int16_t find_edge_contact(int16_t test_only)
                             same = angles_same_side(a_ang);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].x;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].y;
+                                    DG53FC.list->pos[0].x =
+                                        DG53FC.list->pos[1].x;
+                                    DG53FC.list->pos[0].y =
+                                        DG53FC.list->pos[1].y;
                                 } else {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x += out[0] - tx;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y += out[1] - ty;
+                                    DG53FC.list->pos[0].x += out[0] - tx;
+                                    DG53FC.list->pos[0].y += out[1] - ty;
                                 }
                             } else {
                                 p = seg1[2];
@@ -584,29 +584,29 @@ int16_t find_edge_contact(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y += out[1] - ty;
+                                    DG53FC.list->pos[0].y += out[1] - ty;
                                 } else {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].x;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].y;
+                                    DG53FC.list->pos[0].x =
+                                        DG53FC.list->pos[1].x;
+                                    DG53FC.list->pos[0].y =
+                                        DG53FC.list->pos[1].y;
                                 }
                             }
 
-                            place_object_for_draw(PART_PTR(DG53FC.list_ptr));
+                            place_object_for_draw(DG53FC.list);
                             compute_swept_bounds();
 
-                            PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
-                            if ((PART_PTR(DG53FC.list_ptr)->flags_08
-                                 | PART_PTR(DG53FC.other_ptr)->flags_08) & 0x8000
-                                || PART_PTR(DG53FC.other_ptr)->flags_06 & 0x4000)
-                                PART_PTR(DG53FC.list_ptr)->flags_06 |= 2;
+                            DG53FC.list->flags_06 &= 0xfff9;
+                            if ((DG53FC.list->flags_08
+                                 | DG53FC.other->flags_08) & 0x8000
+                                || DG53FC.other->flags_06 & 0x4000)
+                                DG53FC.list->flags_06 |= 2;
                             else
-                                PART_PTR(DG53FC.list_ptr)->flags_06 |= 4;
+                                DG53FC.list->flags_06 |= 4;
 
                             cp = (struct part_contact *)
-                                 &PART_PTR(DG53FC.list_ptr)->contact_ptr;
-                            cp->ptr = DG53FC.other_ptr;
+                                 &DG53FC.list->contact;
+                            cp->part = DG53FC.other;
                             cp->angle = a_ang;
                             cp->edge = i - 1;
                             set_side_flags(seg2, DG53FC.mid_x - x0, cp);
@@ -616,32 +616,32 @@ int16_t find_edge_contact(int16_t test_only)
                 }
 
                 j++;
-                if ((int16_t)PART_PTR(DG53FC.list_ptr)->point_count < j)
+                if ((int16_t)DG53FC.list->point_count < j)
                     di = 0;
                 else {
-                    b_ang = POINTS(di)->angle;
-                    if ((int16_t)PART_PTR(DG53FC.list_ptr)->point_count == j)
-                        di = PART_PTR(DG53FC.list_ptr)->points_ptr;
+                    b_ang = di->angle;
+                    if ((int16_t)DG53FC.list->point_count == j)
+                        di = DG53FC.list->points;
                     else
-                        di += 4;
+                        di++;
                 }
             }
         }
 
         i++;
-        if ((int16_t)PART_PTR(DG53FC.other_ptr)->point_count < i)
+        if ((int16_t)DG53FC.other->point_count < i)
             si = 0;
         else {
-            si += 4;
+            si++;
             x0 = x1;
             y0 = y1;
-            a_ang = POINTS(si)[0].angle;
-            if ((int16_t)PART_PTR(DG53FC.other_ptr)->point_count == i) {
+            a_ang = si[0].angle;
+            if ((int16_t)DG53FC.other->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = DG53FC.other_left + POINTS(si)[1].x;
-                y1 = DG53FC.other_top + POINTS(si)[1].y;
+                x1 = DG53FC.other_left + si[1].x;
+                y1 = DG53FC.other_top + si[1].y;
             }
         }
     }
@@ -711,37 +711,38 @@ int16_t find_edge_contact_reversed(int16_t test_only)
     int16_t seg2[4];                    /* [bp-0x38] */
     int16_t seg1[4];                    /* [bp-0x40] */
     int16_t out[2];                     /* [bp-0x44] */
-    register dg_near_t si, di;
+    register struct part_point *di;
+    register struct part_point *si;
 
     hit = 0;
     i = 1;
-    di = PART_PTR(DG53FC.list_ptr)->points_ptr;
-    fx0 = x0 = DG53FC.cur_x + POINTS(di)[0].x;
-    fy0 = y0 = DG53FC.cur_y + POINTS(di)[0].y;
-    x1 = DG53FC.cur_x + POINTS(di)[1].x;
-    y1 = DG53FC.cur_y + POINTS(di)[1].y;
-    a_ang = POINTS(di)[0].angle;
+    di = DG53FC.list->points;
+    fx0 = x0 = DG53FC.cur_x + di[0].x;
+    fy0 = y0 = DG53FC.cur_y + di[0].y;
+    x1 = DG53FC.cur_x + di[1].x;
+    y1 = DG53FC.cur_y + di[1].y;
+    a_ang = di[0].angle;
 
     while (di) {
         quad = angle_to_quadrant(a_ang + 0x8000);
         d = DG53FC.travel_angle + 0x8000 - a_ang + 0x4000;
         if (d > 0) {
-            si = PART_PTR(DG53FC.other_ptr)->points_ptr;
-            b_ang = POINTS(si)->angle;
-            si += 4;
+            si = DG53FC.other->points;
+            b_ang = si->angle;
+            si++;
             j = 1;
 
             while (si) {
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
-                    d = POINTS(si)->angle - a_ang + 0x8000;
+                    d = si->angle - a_ang + 0x8000;
                     if (d <= 0 && (DG53FC.moved_x || DG53FC.moved_y)) {
-                        px = POINTS(si)->x;
-                        py = POINTS(si)->y;
-                        sx = seg1[2] = PART_PTR(DG53FC.other_ptr)->pos[0].x
-                                       + POINTS(si)->x - x0;
-                        sy = seg1[3] = PART_PTR(DG53FC.other_ptr)->pos[0].y
-                                       + POINTS(si)->y - y0;
+                        px = si->x;
+                        py = si->y;
+                        sx = seg1[2] = DG53FC.other->pos[0].x
+                                       + si->x - x0;
+                        sy = seg1[3] = DG53FC.other->pos[0].y
+                                       + si->y - y0;
                         seg1[0] = seg1[2] + DG53FC.moved_x;
                         seg1[1] = seg1[3] + DG53FC.moved_y;
 #ifndef __TURBOC__
@@ -768,13 +769,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             same = angles_same_side(a_ang + 0x8000);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].x;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].y;
+                                    DG53FC.list->pos[0].x =
+                                        DG53FC.list->pos[1].x;
+                                    DG53FC.list->pos[0].y =
+                                        DG53FC.list->pos[1].y;
                                 } else {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x -= out[0] - sx;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y -= out[1] - sy;
+                                    DG53FC.list->pos[0].x -= out[0] - sx;
+                                    DG53FC.list->pos[0].y -= out[1] - sy;
                                 }
                             } else {
                                 p = seg1[2];
@@ -784,76 +785,76 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y -= out[1] - sy;
+                                    DG53FC.list->pos[0].y -= out[1] - sy;
                                 } else {
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].x =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].x;
-                                    PART_PTR(DG53FC.list_ptr)->pos[0].y =
-                                        PART_PTR(DG53FC.list_ptr)->pos[1].y;
+                                    DG53FC.list->pos[0].x =
+                                        DG53FC.list->pos[1].x;
+                                    DG53FC.list->pos[0].y =
+                                        DG53FC.list->pos[1].y;
                                 }
                             }
 
                             v = DG53FC.mid_x - x0;
 
-                            place_object_for_draw(PART_PTR(DG53FC.list_ptr));
+                            place_object_for_draw(DG53FC.list);
                             compute_swept_bounds();
 
-                            PART_PTR(DG53FC.list_ptr)->flags_06 &= 0xfff9;
-                            if ((PART_PTR(DG53FC.list_ptr)->flags_08
-                                 | PART_PTR(DG53FC.other_ptr)->flags_08) & 0x8000
-                                || PART_PTR(DG53FC.other_ptr)->flags_06 & 0x4000)
-                                PART_PTR(DG53FC.list_ptr)->flags_06 |= 2;
+                            DG53FC.list->flags_06 &= 0xfff9;
+                            if ((DG53FC.list->flags_08
+                                 | DG53FC.other->flags_08) & 0x8000
+                                || DG53FC.other->flags_06 & 0x4000)
+                                DG53FC.list->flags_06 |= 2;
                             else
-                                PART_PTR(DG53FC.list_ptr)->flags_06 |= 4;
+                                DG53FC.list->flags_06 |= 4;
 
-                            PART_PTR(DG53FC.list_ptr)->contact_ptr = DG53FC.other_ptr;
-                            PART_PTR(DG53FC.list_ptr)->contact_angle = a_ang + 0x8000;
+                            DG53FC.list->contact = DG53FC.other;
+                            DG53FC.list->contact_angle = a_ang + 0x8000;
 
                             if (x0 > x1) {
                                 if (v > out[0])
-                                    PART_PTR(DG53FC.list_ptr)->no_nudge_plus = 1;
+                                    DG53FC.list->no_nudge_plus = 1;
                                 else
-                                    PART_PTR(DG53FC.list_ptr)->no_nudge_minus = 1;
+                                    DG53FC.list->no_nudge_minus = 1;
                             } else {
                                 if (v > out[0])
-                                    PART_PTR(DG53FC.list_ptr)->no_nudge_minus = 1;
+                                    DG53FC.list->no_nudge_minus = 1;
                                 else
-                                    PART_PTR(DG53FC.list_ptr)->no_nudge_plus = 1;
+                                    DG53FC.list->no_nudge_plus = 1;
                             }
 
-                            PART_PTR(DG53FC.list_ptr)->contact_edge = j - 1;
+                            DG53FC.list->contact_edge = j - 1;
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if ((int16_t)PART_PTR(DG53FC.other_ptr)->point_count < j)
+                if ((int16_t)DG53FC.other->point_count < j)
                     si = 0;
                 else {
-                    b_ang = POINTS(si)->angle;
-                    if ((int16_t)PART_PTR(DG53FC.other_ptr)->point_count == j)
-                        si = PART_PTR(DG53FC.other_ptr)->points_ptr;
+                    b_ang = si->angle;
+                    if ((int16_t)DG53FC.other->point_count == j)
+                        si = DG53FC.other->points;
                     else
-                        si += 4;
+                        si++;
                 }
             }
         }
 
         i++;
-        if ((int16_t)PART_PTR(DG53FC.list_ptr)->point_count < i)
+        if ((int16_t)DG53FC.list->point_count < i)
             di = 0;
         else {
-            di += 4;
+            di++;
             x0 = x1;
             y0 = y1;
-            a_ang = POINTS(di)[0].angle;
-            if ((int16_t)PART_PTR(DG53FC.list_ptr)->point_count == i) {
+            a_ang = di[0].angle;
+            if ((int16_t)DG53FC.list->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = DG53FC.cur_x + POINTS(di)[1].x;
-                y1 = DG53FC.cur_y + POINTS(di)[1].y;
+                x1 = DG53FC.cur_x + di[1].x;
+                y1 = DG53FC.cur_y + di[1].y;
             }
         }
     }

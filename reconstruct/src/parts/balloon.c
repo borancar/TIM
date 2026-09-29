@@ -44,7 +44,7 @@ void part_setup_balloon(struct part *part)
     int16_t i;
 
     di = BALLOON_POINTS_3182;
-    for (i = 0, si = POINTS(part->points_ptr); i < 8; i++, si++, di++) {
+    for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;
     }
@@ -61,7 +61,7 @@ void part_setup_balloon(struct part *part)
  */
 uint16_t part_hit_balloon(struct part *part)
 {
-    struct part *di = PART_PTR(part->contact_ptr);
+    struct part *di = part->contact;
 
     if (part->kind == KIND_BULLET)
         di->direction = 1;
@@ -101,23 +101,23 @@ void part_step_balloon(struct part *part)
             part->flags_08 |= 0x2000;
         } else {
             if (part->direction == 1
-                && (belt = BELT_PTR(part->belt_ptr[0])) != BELT_NONE
-                && (si = make_part(KIND_ANCHOR)) != PART_NONE) {
+                && (belt = part->belt[0]) != NULL
+                && (si = make_part(KIND_ANCHOR)) != NULL) {
                 insert_sorted(si, &DG5179.moving_parts);
                 si->flags_06 |= 0x10;
-                si->belt_ptr[0] = dg_near(dgroup, belt);
-                si->link_ptr[0] = part->link_ptr[0];
-                link = PART_PTR(si->link_ptr[0]);
+                si->belt[0] = belt;
+                si->link[0] = part->link[0];
+                link = si->link[0];
 
                 if ((k = match_field_5a_5c(part, link)) != 0xffff)
-                    link->link_ptr[k] = dg_near(dgroup, si);
+                    link->link[k] = si;
 
-                if (PART_PTR(belt->end_a_ptr) == part) {
-                    belt->end_a_ptr = dg_near(dgroup, si);
+                if (belt->end_a == part) {
+                    belt->end_a = si;
                     si->pos[0].x = belt->pt[0][0].x;
                     si->pos[0].y = belt->pt[0][0].y;
                 } else {
-                    belt->end_b_ptr = dg_near(dgroup, si);
+                    belt->end_b = si;
                     si->pos[0].x = belt->pt[0][1].x;
                     si->pos[0].y = belt->pt[0][1].y;
                 }
@@ -129,8 +129,8 @@ void part_step_balloon(struct part *part)
 
                 place_object_for_draw(si);
 
-                part->belt_ptr[0] = 0;
-                part->link_ptr[0] = 0;
+                part->belt[0] = 0;
+                part->link[0] = 0;
             }
 
             if (part->form == 0)
@@ -161,7 +161,7 @@ void part_step_balloon(struct part *part)
 uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *belt = BELT_PTR(p2->belt_ptr[0]);   /* [bp-2] */
+    struct belt *belt = p2->belt[0];   /* [bp-2] */
 
     if (p4 == 1) {
         belt->v[0]++;

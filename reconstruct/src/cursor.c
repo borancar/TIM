@@ -420,7 +420,7 @@ void draw_cursor(uint16_t page)
     struct page_slot *slot;
     uint16_t saved;
 
-    if ((slot = claim_page_slot(page)) == PAGESLOT_NONE)
+    if ((slot = claim_page_slot(page)) == NULL)
         return;
 
     saved = DG5752.guard;
@@ -519,7 +519,7 @@ void redraw_cursor(uint16_t page)
     struct page_slot *slot;
     uint16_t saved;
 
-    if ((slot = claim_page_slot(page)) == PAGESLOT_NONE)
+    if ((slot = claim_page_slot(page)) == NULL)
         return;
 
     saved = DG5752.guard;
@@ -570,7 +570,7 @@ void erase_object(uint16_t handle)
     struct page_slot *rec;
     int16_t saved;
 
-    if ((rec = claim_page_slot(handle)) == PAGESLOT_NONE)
+    if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
     saved = DG5752.guard;
@@ -613,7 +613,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     int16_t saved;
     struct page_slot *si;
 
-    if ((si = claim_page_slot(from_page)) == PAGESLOT_NONE)
+    if ((si = claim_page_slot(from_page)) == NULL)
         return;
 
     saved = DG5752.guard;
@@ -657,8 +657,8 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
     uint16_t was;
     uint16_t head;
 
-    if ((slot_a = claim_page_slot(page_b)) == PAGESLOT_NONE
-        || (slot_b = claim_page_slot(page_a)) == PAGESLOT_NONE)
+    if ((slot_a = claim_page_slot(page_b)) == NULL
+        || (slot_b = claim_page_slot(page_a)) == NULL)
         return;
 
     was = DG5752.guard;
@@ -681,7 +681,7 @@ void clear_object_covered(uint16_t page)
 {
     struct page_slot *si;
 
-    if ((si = claim_page_slot(page)) != PAGESLOT_NONE)
+    if ((si = claim_page_slot(page)) != NULL)
         si->obj.flags &= 0xfd;
 }
 
@@ -723,7 +723,7 @@ void restage_object_rect(uint16_t handle)
     struct page_slot *rec;
     int16_t x, y, w, h, saved, size;
 
-    if ((rec = claim_page_slot(handle)) == PAGESLOT_NONE)
+    if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
     saved = DG5752.guard;
@@ -849,13 +849,13 @@ void redraw_cursor_all(void)
     draw_cursor(VMDS.page_back_ptr);
 
     if (MACHINE_CURSOR_STATE.page != 0)
-        show_page_thunk(MACHINE_CURSOR_STATE.pending_pal == FAR_NULL_PTR
+        show_page_thunk(MACHINE_CURSOR_STATE.pending_pal == NULL
                         && DG5768.fade_weight == MACHINE_PALETTE_FADE.fade_mark ? 1 : 0);
 
-    if (MACHINE_CURSOR_STATE.pending_pal != FAR_NULL_PTR) {
+    if (MACHINE_CURSOR_STATE.pending_pal != NULL) {
         set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
         MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
-        MACHINE_CURSOR_STATE.pending_pal = FAR_NULL_PTR;
+        MACHINE_CURSOR_STATE.pending_pal = NULL;
         MACHINE_PALETTE_FADE.fade_mark = 0;
     }
 
@@ -899,10 +899,10 @@ void redraw_cursor_all(void)
         VMDS.page_dst_ptr = VMDS.page_front_ptr;
         VMDS.page_src_ptr = VMDS.page_back_ptr;
 
-        if ((rec = claim_page_slot(VMDS.page_front_ptr)) != PAGESLOT_NONE)
+        if ((rec = claim_page_slot(VMDS.page_front_ptr)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
-        if ((rec = claim_page_slot(VMDS.page_back_ptr)) != PAGESLOT_NONE)
+        if ((rec = claim_page_slot(VMDS.page_back_ptr)) != NULL)
             copy_rect_thunk(rec->obj.x, rec->obj.y, rec->obj.w, rec->obj.h);
 
         restore_object_backdrop(VMDS.page_front_ptr, VMDS.page_back_ptr);
@@ -944,7 +944,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    if ((si = claim_page_slot(VMDS.page_src_ptr)) != PAGESLOT_NONE
+    if ((si = claim_page_slot(VMDS.page_src_ptr)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -954,7 +954,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
             hit_shown = 1;
     }
 
-    if ((si = claim_page_slot(VMDS.page_dst_ptr)) != PAGESLOT_NONE
+    if ((si = claim_page_slot(VMDS.page_dst_ptr)) != NULL
         && (si->obj.flags & 2)) {
         ox = si->obj.x;
         oy = si->obj.y;
@@ -1012,7 +1012,7 @@ int16_t timer_may_draw_cursor(void)
  *
  * The match is on bits **0xa800** only, not on the whole word, so a slot
  * matches a page that differs from it in the low bits. Answers the slot, or
- * PAGESLOT_NONE - the original's 0 - if neither matched.
+ * NULL - the original's 0 - if neither matched.
  *
  * A `want` of 0 means "the page currently being drawn into".
  */
@@ -1036,7 +1036,7 @@ struct page_slot *claim_page_slot(uint16_t want)
             return p;
         }
     }
-    return PAGESLOT_NONE;
+    return NULL;
 }
 
 /*
@@ -1227,13 +1227,13 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     size = DG5752.size_word != 0 ? DG5752.size_word : (int16_t)vm_buffer_size(0x40, 0x40);
 
     for (i = 0; i < 4; i++) {
-        if (MACHINE_RECT_BUFFERS.slot[i] == FAR_NULL_PTR)
+        if (MACHINE_RECT_BUFFERS.slot[i] == NULL)
             MACHINE_RECT_BUFFERS.slot[i] = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0));
     }
 
     for (i = 0; i < 4; i++) {
         if (!MACHINE_BUFFER_USED.used[i]
-            && MACHINE_RECT_BUFFERS.slot[i] != FAR_NULL_PTR) {
+            && MACHINE_RECT_BUFFERS.slot[i] != NULL) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return i + 1;
         }

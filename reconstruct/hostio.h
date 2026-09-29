@@ -27,13 +27,6 @@
 #  define WEAK __attribute__((weak))
 #endif
 
-/* **The tag, so it is the same type here as in dgroup.h.** Two of the region
-   and part dispatchers below take a `struct far_ptr` by value; without this
-   the compiler declares a *different* struct inside each parameter list and
-   says so - which is why the build is grepped for warnings and not only for
-   errors. This header cannot include dgroup.h: dgroup.h is the memory model
-   and io.h is the hardware boundary, and the dependency runs the other way. */
-struct far_ptr;
 struct part;
 
 /* **Nothing below is Borland C++'s.** It is the port's IO layer, which only a
@@ -305,7 +298,6 @@ void     io_stop_timer(void);
  */
 void     io_lock(void);
 void     io_unlock(void);
-void     call_mouse_handler(struct far_ptr h);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);
@@ -433,7 +425,7 @@ void     io_mouse_move_to(uint16_t x, uint16_t y);
 void     io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys);
 void     io_mouse_set_x_range(uint16_t lo, uint16_t hi);
 void     io_mouse_set_y_range(uint16_t lo, uint16_t hi);
-void     io_mouse_set_handler(uint16_t mask, struct far_ptr handler);
+void     io_mouse_set_handler(uint16_t mask, void (*handler)(void));
 /* OURS: the host's pointer, delivered as the driver's event. */
 void     io_mouse_input(int32_t x, int32_t y, uint16_t buttons);
 

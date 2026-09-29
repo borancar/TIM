@@ -78,8 +78,8 @@ void part_step_jack_in_the_box(struct part *part)
         link_objects_in_range(part, 0x3000, 0, 0x1f,
                               (JACK_IN_THE_BOX_REACH - 8)[part->form], 0);
 
-        for (di = PART_PTR(part->next_linked_ptr); di != PART_NONE;
-             di = PART_PTR(di->next_linked_ptr)) {
+        for (di = part->next_linked; di != NULL;
+             di = di->next_linked) {
             if (di->flags_06 & 0x1000) {
                 push = conveyor_speed_for_mass(di);
                 di->vel_x = (part->flags_08 & 0x10) ? push : 0 - push;
@@ -111,7 +111,7 @@ void part_setup_jack_in_the_box(struct part *part)
 {
     struct part_point *si;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = si->y = 0;
     si++;
     si->x = 31;

@@ -494,11 +494,11 @@ uint16_t message_box(const char *title, char *body,
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
     draw_button(button1, 0xc8, 0xd4, 0);
-    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 = text_width_thunk(button1) + 0xd8;
+    DG4E67.region_kept_b->x1 = text_width_thunk(button1) + 0xd8;
     if (button2 != NULL) {
         second_x = 0x168 - ((text_width_thunk(button2) + 7) & 0xfff8);
         draw_button(button2, second_x, 0xd4, 0);
-        REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
+        DG4E67.region_kept_a->x0 = second_x;
     }
     present_back_page();
     restore_cursor();
@@ -527,7 +527,7 @@ uint16_t message_box(const char *title, char *body,
                     DG4E67.state = 0x4000;
             }
         }
-        regions_handle_pointer(DG4E67.regions_b_ptr);
+        regions_handle_pointer(DG4E67.regions_b);
         if (button2 == NULL && DG4E67.state == 0x2000)
             DG4E67.state = 0x8000;
         present_frame(1);
@@ -902,11 +902,11 @@ void draw_machine_layer_a(void)
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
     VMDS.text_style = 1;                            /* transparent text */
-    part = PART_PTR(PART_PTR(DG50D3.bin_list_ptr)->next_ptr);
+    part = (DG50D3.bin_list->next);
     y = 0x64;
-    while (part != PART_NONE && y <= 0x134) {
+    while (part != NULL && y <= 0x134) {
         kind = part->kind;
-        if (part == PART_PTR(DG50D3.dragged_part_ptr))
+        if (part == DG50D3.dragged_part)
             count = 0;
         else
             count = 1;
@@ -916,11 +916,11 @@ void draw_machine_layer_a(void)
            entered at the step, which is what its bytes do. */
         goto next;
         do {
-            if (part != PART_PTR(DG50D3.dragged_part_ptr))
+            if (part != DG50D3.dragged_part)
                 count++;
 next:
-            part = PART_PTR(part->next_ptr);
-        } while (part != PART_NONE && part->kind == kind);
+            part = part->next;
+        } while (part != NULL && part->kind == kind);
         if (count == 0)
             continue;
         cursor_redraw_off_thunk();
@@ -1058,7 +1058,7 @@ void draw_carried_icon(void)
     register struct bitmap *bmp;
 
     set_clip_play_area();
-    kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+    kind = DG50D3.dragged_part->kind;
     bmp = DG4E67.icons_bmp[kind];
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     cursor_redraw_off_thunk();
@@ -1091,15 +1091,15 @@ void step_and_draw_machine(int16_t redraw_all)
 {
     struct part *si;
 
-    if (DG50D3.dragged_part_ptr != 0 && PART_PTR(DG50D3.dragged_part_ptr)->redraw_count != 0) {
-        link_record_into_buckets(PART_PTR(DG50D3.dragged_part_ptr));
-        PART_PTR(DG50D3.dragged_part_ptr)->redraw_count--;
+    if (DG50D3.dragged_part != 0 && DG50D3.dragged_part->redraw_count != 0) {
+        link_record_into_buckets(DG50D3.dragged_part);
+        DG50D3.dragged_part->redraw_count--;
     }
 
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
+    for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
         if ((redraw_all != 0 || si->redraw_count != 0)
-            && si != PART_PTR(DG50D3.dragged_part_ptr))
+            && si != DG50D3.dragged_part)
             link_record_into_buckets(si);
 
         if (redraw_all != 0)
@@ -1181,7 +1181,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     keep_t = keep_b = keep_l = keep_r = 1;
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
     if (part->kind == KIND_BELT) {
-        end = PART_PTR(ROPE_PTR(part->rope_ptr)->end_b_ptr);
+        end = (part->rope->end_b);
         at.x = end->box[0].x + end->grab.x;
         at.y = end->box[0].y + end->grab.y;
         ext.width = end->grab_size;
@@ -1191,8 +1191,8 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         else
             ext.height = end->grab_size;
     } else if (part->kind == KIND_ROPE) {
-        rec = BELT_PTR(part->belt_ptr[0]);
-        end = PART_PTR(rec->end_b_ptr);
+        rec = part->belt[0];
+        end = rec->end_b;
         idx = rec->slot_b;
         at.x = end->box[0].x + end->attach[idx].x - 8;
         at.y = end->box[0].y + end->attach[idx].y - 4;
@@ -1312,12 +1312,12 @@ void clear_layer_heads(void)
 #ifdef __TURBOC__
     /* The count is in AX, Borland's pseudo-register: no register is saved. */
     for (_AX = 5; (int16_t)_AX >= 0; _AX--)
-        DG50BF.layer_head_ptr[_AX] = 0;
+        DG50BF.layer_head[_AX] = 0;
 #else
     int16_t i;
 
     for (i = 5; i >= 0; i--)
-        DG50BF.layer_head_ptr[i] = 0;
+        DG50BF.layer_head[i] = 0;
 #endif
 }
 
@@ -1352,10 +1352,10 @@ void link_record_into_buckets(register struct part *rec)
     kind = rec->kind;
     for (_CX = 0; (int16_t)_CX < 2; _CX++) {
         if ((slot = PART_KINDS[kind].refile_level[_CX]) != 0xff) {
-            if (rec == PART_PTR(DG50D3.dragged_part_ptr))
+            if (rec == DG50D3.dragged_part)
                 slot = 0;
-            rec->layer_next_ptr[_CX] = DG50BF.layer_head_ptr[slot];
-            DG50BF.layer_head_ptr[slot] = dg_near(dgroup, rec);
+            rec->layer_next[_CX] = DG50BF.layer_head[slot];
+            DG50BF.layer_head[slot] = rec;
             if (_CX == 0)
                 rec->layer_slot = slot;
         }
@@ -1392,8 +1392,8 @@ void draw_machine(register int16_t a, int16_t b)
     set_clip_for_mode();
     for (counter = 6; counter > 0; counter--) {
         level = counter - 1;
-        part = PART_PTR(DG50BF.layer_head_ptr[level]);
-        while (part != PART_NONE) {
+        part = DG50BF.layer_head[level];
+        while (part != NULL) {
             part->flags_0a &= 0xffdf;
             if (part->kind == KIND_BELT)
                 draw_rope(part, a);
@@ -1402,9 +1402,9 @@ void draw_machine(register int16_t a, int16_t b)
             else if (part->kind != KIND_ANCHOR)
                 draw_part(part, level, a, b);
             if (part->layer_slot == level)
-                part = PART_PTR(part->layer_next_ptr[0]);
+                part = part->layer_next[0];
             else
-                part = PART_PTR(part->layer_next_ptr[1]);
+                part = part->layer_next[1];
         }
     }
     clear_layer_heads();
@@ -1433,10 +1433,10 @@ void draw_rope(struct part *part, register int16_t a)
     int16_t y3;
     register struct rope *rope;
 
-    rope = ROPE_PTR(part->rope_ptr);
-    if (rope->end_a_ptr == 0)
+    rope = part->rope;
+    if (rope->end_a == 0)
         return;
-    if (rope->end_b_ptr == 0)
+    if (rope->end_b == 0)
         return;
     cursor_redraw_off_thunk();
     x0 = rope->pt[0][0].x - DG4E67.origin_x;
@@ -1583,23 +1583,23 @@ void draw_belt(struct part *part, int16_t a)
     register struct part *next;
     register struct part *cur;
 
-    belt = BELT_PTR(part->belt_ptr[0]);
-    cur = PART_PTR(belt->end_a_ptr);
-    if ((next = PART_PTR(cur->link_ptr[belt->slot_a])) == PART_NONE)
-        next = PART_PTR(belt->end_b_ptr);
-    while (cur != PART_NONE && next != PART_NONE) {
+    belt = part->belt[0];
+    cur = belt->end_a;
+    if ((next = cur->link[belt->slot_a]) == NULL)
+        next = belt->end_b;
+    while (cur != NULL && next != NULL) {
         sags = 0;
         if (cur->kind == KIND_PULLEY) {
-            x0 = BELT_PTR(cur->belt_ptr[0])->pt[0][1].x - DG4E67.origin_x;
-            y0 = BELT_PTR(cur->belt_ptr[0])->pt[0][1].y - DG4E67.origin_y;
+            x0 = cur->belt[0]->pt[0][1].x - DG4E67.origin_x;
+            y0 = cur->belt[0]->pt[0][1].y - DG4E67.origin_y;
         } else {
             x0 = belt->pt[0][0].x - DG4E67.origin_x;
             y0 = belt->pt[0][0].y - DG4E67.origin_y;
             sags = 1;
         }
         if (next->kind == KIND_PULLEY) {
-            x1 = BELT_PTR(next->belt_ptr[0])->pt[0][0].x - DG4E67.origin_x;
-            y1 = BELT_PTR(next->belt_ptr[0])->pt[0][0].y - DG4E67.origin_y;
+            x1 = next->belt[0]->pt[0][0].x - DG4E67.origin_x;
+            y1 = next->belt[0]->pt[0][0].y - DG4E67.origin_y;
         } else {
             x1 = belt->pt[0][1].x - DG4E67.origin_x;
             y1 = belt->pt[0][1].y - DG4E67.origin_y;
@@ -1633,9 +1633,9 @@ void draw_belt(struct part *part, int16_t a)
         restore_cursor_following();
         cur = next;
         if (cur->kind != KIND_PULLEY)
-            next = PART_NONE;
+            next = NULL;
         else
-            next = PART_PTR(next->link_ptr[0]);
+            next = next->link[0];
     }
 }
 
@@ -1689,7 +1689,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     uint16_t px;
     uint16_t py;
     uint8_t frame;
-    dg_near_t hot;          /* the kind's hot spot for this form, a table offset */
+    const struct point8 *hot;          /* the kind's hot spot for this form, a table offset */
     int16_t i;
     const struct part_kind *kindrec;
     const struct draw_step *step;
@@ -1698,8 +1698,8 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     kind = part->kind;
     form = part->form;
     kindrec = &PART_KINDS[kind];
-    if ((hot = kindrec->hotspots_ptr) != 0)
-        hot += form << 1;
+    if ((hot = kindrec->hotspots) != 0)
+        hot += form;
     cursor_redraw_off_thunk();
     if (part->flags_06 & 0x40) {
         cols = part->size[0].width >> 4;
@@ -1707,8 +1707,8 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
         x0 = part->pos[0].x - DG4E67.origin_x;
         y = part->pos[0].y - DG4E67.origin_y;
         if (hot != 0) {
-            x0 += (int8_t)POINT_TABLE(hot)->x;
-            y = (int8_t)POINT_TABLE(hot)->y;
+            x0 += (int8_t)hot->x;
+            y = (int8_t)hot->y;
         }
         px = (x0 & 0x10) >> 4;
         py = (y & 0x10) >> 4;
@@ -1745,19 +1745,19 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
             }
     } else {
         if (part->flags_08 & 0x1000)
-            step = DRAWSTEP_PTR(OFF_TABLE(kindrec->bitmaps2_ptr)[form]);
+            step = (kindrec->bitmaps2[form]);
         else {
             step = &DG0124;
             DG0124.frame[0] = (uint8_t)form;
             DG0124.level = level;
             if (hot != 0) {
-                DG0124.offset[0].x = POINT_TABLE(hot)->x;
-                DG0124.offset[0].y = POINT_TABLE(hot)->y;
+                DG0124.offset[0].x = hot->x;
+                DG0124.offset[0].y = hot->y;
             } else
                 DG0124.offset[0].x = DG0124.offset[0].y = 0;
         }
-        for (; step != DRAWSTEP_NONE; step = DRAWSTEP_PTR(step->next)) {
-            if (step->level != level && part != PART_PTR(DG50D3.dragged_part_ptr))
+        for (; step != NULL; step = step->next) {
+            if (step->level != level && part != DG50D3.dragged_part)
                 continue;
             else
                 frame = 0;
@@ -1820,7 +1820,7 @@ void draw_part_extra(register struct part *part)
     int16_t size[2];
     struct part *held;
 
-    if ((held = PART_PTR(part->link_ptr[4])) == PART_NONE)
+    if ((held = part->link[4]) == NULL)
         return;
     VMDS.second_colour = VMDS.fill_colour = 0x0e;
     x[1] = held->pos[0].x + held->hold.x - DG4E67.origin_x;

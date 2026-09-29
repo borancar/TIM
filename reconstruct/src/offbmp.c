@@ -58,14 +58,14 @@ void draw_offset_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
     saved_second = VMDS.second_colour;
     saved_fill = VMDS.fill_colour;
     saved_clip = VMDS.clip_enabled;
-    seg = bmp->data.seg + (bmp->data.off >> 4);
-    p = FAR_OF_LONG(seg, bmp->data.off & 0xf);
+    seg = bmp->data_seg + (bmp->data_off >> 4);
+    p = FAR_OF_LONG(seg, bmp->data_off & 0xf);
     if ((BITMAPS.walk = open_bit_reader(BCC_FAR_ARG(p, seg))) != 0) {
         w = bmp->width;
         h = bmp->height;
         if (x >= VMDS.clip_left && y >= VMDS.clip_top
             && x + w <= VMDS.clip_right && y + h <= VMDS.clip_bottom)
-            DG49BA.plot_fn = VM_VECTOR(22, bmp_plot_fn);
+            DG49BA.plot_fn = ((bmp_plot_fn)DG4342.font[22]);
         else {
             DG49BA.plot_fn = plot_pixel_clipped;
             VMDS.clip_enabled = 1;

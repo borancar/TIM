@@ -54,6 +54,9 @@
  */
 #include <string.h>
 
+#ifndef __TURBOC__
+#include "hostlib.h"
+#endif
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
@@ -1495,7 +1498,7 @@ struct engine_mouse {
     uint16_t  mouse_x;            /* +0x00 [2]  four times the pixel x: `mouse_move_to` stores `x << 2`
                                                and `read_mouse_pointer` answers `>> 2` */
     uint16_t  mouse_y;            /* +0x02 [2]  the same for y */
-    struct far_ptr mouse_handler_fn; /* +0x04 [4]  the game's own handler, called by `mouse_event`;
+    void (far *mouse_handler_fn)(void); /* +0x04 [4]  the game's own handler, called by `mouse_event`;
                                                nothing in the image sets it */
 } PACKED;
 
@@ -1750,8 +1753,7 @@ uint16_t mouse_init(void)
 
     mouse_set_ranges(0, 0, ((uint16_t)VMDS.screen.screen_width), ((uint16_t)VMDS.screen.screen_height));
 
-    io_mouse_set_handler(0x1f, (struct far_ptr){ 0x5d7f,
-                                                 (uint16_t)(S1C25 >> 4) });
+    io_mouse_set_handler(0x1f, (void (far *)(void))mouse_event);
 
     if (((uint8_t)VMDS.pixel_shift) == 8) {
         DG48DA.gc_mode_fill = DG48DA.quarter_a;
@@ -1794,7 +1796,7 @@ void mouse_set_ranges(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * is there and the branch has to be right if it is ever reached; marked
  * unreachable because it is.
  */
-void mouse_set_user_handler(struct far_ptr h)
+void mouse_set_user_handler(void (far *h)(void))
 {
     ENGINE_MOUSE.mouse_handler_fn = h;
 }
@@ -1824,13 +1826,13 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
     ENGINE_MOUSE.mouse_x = x;
     ENGINE_MOUSE.mouse_y = y;
 
-    if (dg_far_ptr(ENGINE_MOUSE.mouse_handler_fn) == FAR_NULL_PTR)
+    if (ENGINE_MOUSE.mouse_handler_fn == NULL)
         return;
 
     mouse_save_vga();
-    /* `lcall [0x4744]`: nothing sets the pointer - see `mouse_set_user_handler` -
-       so `call_mouse_handler` has no target to dispatch to and aborts. */
-    call_mouse_handler(ENGINE_MOUSE.mouse_handler_fn);
+    /* `lcall [0x4744]`. Nothing sets the pointer - see
+       `mouse_set_user_handler` - so this is never reached. */
+    ENGINE_MOUSE.mouse_handler_fn();
     mouse_restore_vga();
 }
 
@@ -1960,7 +1962,7 @@ int16_t remove_mouse(void)
     DG48DA.mouse_taken = 0;
 
     io_mouse_reset();
-    io_mouse_set_handler(0, FAR_NULL);
+    io_mouse_set_handler(0, NULL);
 
     return 1;
 }
@@ -2059,15 +2061,14 @@ int16_t read_mouse_button(uint16_t which)
  *
  * A near routine taking and answering registers - AX and DX, the offset and
  * the segment of one far pointer - so the port passes that pointer by
- * reference. Both reads use the original AX, which is why the addition is done
- * before the mask.
+ * reference: the segment plus the offset's paragraphs, and the offset's low
+ * four bits.
  */
-void normalise_far_ptr(struct far_ptr *p)
+void normalise_far_ptr(uint8_t far **p)
 {
-    uint16_t ax = p->off;
-
-    p->seg = (uint16_t)(p->seg + (ax >> 4));
-    p->off = (uint16_t)(ax & 0x0F);
+    /* Carry the offset's paragraphs into the segment. A host pointer is one
+       address, and normalising changes nothing about it. */
+    (void)p;
 }
 
 /*
@@ -2261,17 +2262,8 @@ int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b)
  */
 uint8_t far *normalise_far_ptr_far(uint8_t far *p)
 {
-#ifdef __TURBOC__
-    struct far_ptr q;
-
-    q.off = FP_OFF(p);
-    q.seg = FP_SEG(p);
-    normalise_far_ptr(&q);
-    return MK_FP(q.seg, q.off);
-#else
-    /* A host pointer is one address, which is all normalising changes. */
+    normalise_far_ptr(&p);
     return p;
-#endif
 }
 
 /*
@@ -2293,8 +2285,7 @@ void install_divide_trap(void)
 {
     DG48DA.vector_hooked = 1;
 
-    /* Vector 0 as the table holds it, offset then segment. */
-    DG48DA.vector = far_to_rev(*(const struct far_ptr *)(void *)guest_mem);
+    DG48DA.vector = getvect(0);
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);

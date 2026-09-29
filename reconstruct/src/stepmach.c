@@ -56,91 +56,91 @@ void step_machine(void)
     int16_t belt;                       /* [bp-4] */
     struct belt *b;                     /* [bp-6] */
     register struct part *si;
-    register dg_near_t di;
+    register struct queue_node *di;
 
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG521B.placed_parts.next; si != NULL;
+         si = si->next)
         si->flags_08 &= 0xf9bf;
 
-    for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next_ptr) {
-        si = PART_PTR(QNODE_PTR(di)->part);
+    for (di = DG4E4E.parts_queue; di != 0; di = di->next) {
+        si = (di->part);
         if (!(si->flags_08 & 0x40))
             part_step(si);
     }
 
     splice_list_4e58_onto_4e56();
 
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr)) {
+    for (si = DG521B.placed_parts.next; si != NULL;
+         si = si->next) {
         flags = si->flags_08;
         if (flags & 0x800 && !(flags & 0x2040))
             part_step(si);
     }
 
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG521B.placed_parts.next; si != NULL;
+         si = si->next)
         if (si->kind == KIND_GEAR && !(si->flags_08 & 0x2040))
             part_step(si);
 
-    for (si = PART_PTR(DG521B.placed_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr)) {
+    for (si = DG521B.placed_parts.next; si != NULL;
+         si = si->next) {
         flags = si->flags_08;
         if (!(flags & 0x2840))
             part_step(si);
     }
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr)) {
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next) {
         if (!(si->flags_08 & 0x2000))
             apply_gravity_and_speed(si);
         si->weight = PART_KINDS[si->kind].weight;
         si->flags_0a &= 0xffef;
     }
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next)
         if (si->kind != KIND_BUCKET)
             step_moving_object(si);
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             add_carried_weight(si);
         }
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             step_moving_object(si);
         }
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr))
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             carry_riders_along(si);
         }
 
-    for (si = PART_PTR(DG5179.moving_parts.next_ptr); si != PART_NONE;
-         si = PART_PTR(si->next_ptr)) {
+    for (si = DG5179.moving_parts.next; si != NULL;
+         si = si->next) {
         if (!(si->flags_06 & 8) && !(si->flags_08 & 0x2000)) {
             if (si->flags_06 & 2) {
-                if (part_hit(PART_PTR(si->contact_ptr)->kind, si)) {
+                if (part_hit(si->contact->kind, si)) {
                     if (si->flags_06 & 1)
                         apply_contact_friction(si);
                     else
                         bounce_off_contact(si);
                 }
             } else if (si->flags_06 & 4) {
-                if (part_hit(PART_PTR(si->contact_ptr)->kind, si))
+                if (part_hit(si->contact->kind, si))
                     bounce_pair(si);
             }
         }
     }
 
-    for (si = pick_by_flag(0x3000); si != PART_NONE;
+    for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
         if (!(si->flags_08 & 0x2000)) {
             if (si->pos[0].x != si->pos[2].x || si->pos[0].y != si->pos[2].y
@@ -150,7 +150,7 @@ void step_machine(void)
                        && si->pos[0].y == si->pos[1].y
                        && si->form == si->form_prev))
                 for (belt = 0; belt < 2; belt++)
-                    if ((b = BELT_PTR(si->belt_ptr[belt])) != BELT_NONE) {
+                    if ((b = si->belt[belt]) != NULL) {
                         b->pt[0][0] = b->pt[2][0];
                         b->pt[0][1] = b->pt[2][1];
                     }
@@ -179,14 +179,14 @@ void step_moving_object(register struct part *obj)
     int16_t pulled;                     /* [bp-2] */
     uint8_t plus;                       /* [bp-3] */
     uint8_t minus;                      /* [bp-4] */
-    dg_near_t saved;                    /* [bp-6] */
+    struct part *saved;                    /* [bp-6] */
 #ifdef __TURBOC__
     struct part_contact *c;
 #else
     /* Ours: the original reads `c` below on a path that never set it, and
        gets away with it because the test after it fails anyway; the host
        cannot read an unset pointer. */
-    struct part_contact *c = (struct part_contact *)&obj->contact_ptr;
+    struct part_contact *c = (struct part_contact *)&obj->contact;
 #endif
 
     if (!(obj->flags_08 & 0x2000)) {
@@ -194,20 +194,20 @@ void step_moving_object(register struct part *obj)
         integrate_object(obj);
         obj->flags_06 &= 0xfff0;
         resolve_collisions(obj);
-        if (obj->belt_ptr[0] != 0) {
+        if (obj->belt[0] != 0) {
             pulled = tension_belt(obj);
             if (pulled != 0)
                 obj->flags_06 &= 0xfff0;
             else {
-                c = (struct part_contact *)&obj->contact_ptr;
-                saved = c->ptr;
+                c = (struct part_contact *)&obj->contact;
+                saved = c->part;
                 plus = c->no_nudge_plus;
                 minus = c->no_nudge_minus;
-                c->ptr = 0;
+                c->part = 0;
             }
             resolve_collisions(obj);
-            if (c->ptr == 0 && pulled == 0) {
-                c->ptr = saved;
+            if (c->part == 0 && pulled == 0) {
+                c->part = saved;
                 c->no_nudge_plus = plus;
                 c->no_nudge_minus = minus;
             }

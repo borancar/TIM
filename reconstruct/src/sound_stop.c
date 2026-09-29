@@ -41,7 +41,7 @@ struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
  */
 void stop_sound(void)
 {
-    if (DG4A82.driver != FAR_NULL_PTR) {
+    if (DG4A82.driver != NULL) {
         silence_driver_far();
 
         if (((int16_t)DG4A82.tick_handle) == 0) {
@@ -52,16 +52,16 @@ void stop_sound(void)
         }
     }
 
-    if (DG4A82.module != FAR_NULL_PTR) {
+    if (DG4A82.module != NULL) {
         stop_loaded_module();
     }
 
-    if (DG4A82.driver != FAR_NULL_PTR) {
+    if (DG4A82.driver != NULL) {
         free_for_kind(DG4A82.driver, 1);
         DG4A82.driver = 0;
     }
 
-    if (DG4A82.module != FAR_NULL_PTR) {
+    if (DG4A82.module != NULL) {
         free_for_kind(DG4A82.module, 1);
         DG4A82.module = 0;
     }
@@ -154,7 +154,7 @@ uint16_t remove_and_free_records(int16_t selector)
     if (selector == 0 || selector == -2)
         stop_all_voices();
 
-    while (cur != SOUND_RECORD_NONE) {
+    while (cur != NULL) {
         if (selector == 0 || cur->id == selector
             || (selector == -1 && (cur->flags & 1) != 0)
             || (selector == -2 && (cur->flags & 1) == 0)) {
@@ -219,10 +219,10 @@ uint16_t stop_sequences(int16_t selector)
     case -1:
     case 0:
         rec = next_matching_record(-1);
-        while (rec != SOUND_RECORD_NONE) {
+        while (rec != NULL) {
             rec->flags &= 0xffef;
 
-            if (rec->sequence != SEQUENCE_NONE) {
+            if (rec->sequence != NULL) {
                 follow_then_tick(rec->sequence, 0);
 
                 /* The timer retires it; this waits for that. */
@@ -231,7 +231,7 @@ uint16_t stop_sequences(int16_t selector)
 
                 free_for_kind((uint8_t far *)rec->sequence, 2);
                 rec->sequence = 0;
-                rec = SOUND_RECORD_NONE;
+                rec = NULL;
             } else {
                 rec = next_matching_record(-3);
             }
@@ -243,7 +243,7 @@ uint16_t stop_sequences(int16_t selector)
 
     case -2:
         rec = next_matching_record(-2);
-        while (rec != SOUND_RECORD_NONE) {
+        while (rec != NULL) {
             rec->flags &= 0xffef;
             rec = next_matching_record(-3);
         }
@@ -252,11 +252,11 @@ uint16_t stop_sequences(int16_t selector)
         return 1;
 
     default:
-        if ((rec = next_matching_record(selector)) != SOUND_RECORD_NONE) {
+        if ((rec = next_matching_record(selector)) != NULL) {
             rec->flags &= 0xffef;
 
             if ((rec->flags & 1) != 0) {
-                if (rec->sequence != SEQUENCE_NONE) {
+                if (rec->sequence != NULL) {
                     follow_then_tick(rec->sequence, 0);
 
                     while (rec->sequence->state != 0xff)

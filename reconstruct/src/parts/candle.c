@@ -31,7 +31,7 @@ void part_setup_candle(struct part *part)
     part->hold.x = 0x0f;
     part->hold.y = 0x02;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = 8;
     si->y = 31;
     si++;
@@ -72,16 +72,16 @@ void part_step_candle(struct part *part)
 
         link_objects_at_point(part, 9, 0x12, -10, 5);
 
-        for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-             si = PART_PTR(si->next_linked_ptr))
+        for (si = part->next_linked; si != NULL;
+             si = si->next_linked)
             if (si->direction == 0)
                 si->direction = 1;
 
         if (part->form & 1) {
             link_objects_in_range(part, 0x1000, 9, 0x12, -10, 5);
 
-            for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-                 si = PART_PTR(si->next_linked_ptr)) {
+            for (si = part->next_linked; si != NULL;
+                 si = si->next_linked) {
                 if (si->kind == KIND_BALLOON) {
                     si->direction = 1;
                 } else if (si->kind == KIND_POKEY && si->form == 0) {

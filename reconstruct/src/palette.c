@@ -141,7 +141,7 @@ uint8_t far *load_palette(char *name)
     blk = 0;
     ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[VMDS.pixel_shift];
 
-    for (slot = 1; dg_far_ptr(VMDS.palettes.blocks[slot]) != FAR_NULL_PTR
+    for (slot = 1; VMDS.palettes.blocks[slot] != NULL
                    && slot < 10; slot++)
         ;
 
@@ -158,7 +158,7 @@ uint8_t far *load_palette(char *name)
         if (seek_named_chunk((FILE *)name,
                              PALCHUNK.by_adapter[VMDS.pixel_shift], 0) != -1L) {
             if ((blk = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes, 0)))
-                != FAR_NULL_PTR) {
+                != NULL) {
                 game_fread(buf, 1, ENGINE_PEN.palette_bytes, (FILE *)name);
                 huge_move(blk, buf, ENGINE_PEN.palette_bytes);
             }
@@ -166,7 +166,7 @@ uint8_t far *load_palette(char *name)
                    && seek_named_chunk((FILE *)name, "PAL:AMG:", 0) != -1L
                    && game_fread((uint8_t *)amg, 1, 0x40, (FILE *)name) != 0
                    && (blk = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes, 0)))
-                      != FAR_NULL_PTR) {
+                      != NULL) {
             p = blk;
             for (i = 0; i < 0x20; i++) {
                 *p++ = ((amg[i] >> 8) & 0xf) << 2;
@@ -181,7 +181,7 @@ uint8_t far *load_palette(char *name)
             close_file_record((FILE *)name);
     }
 
-    DG_FAR_SET(VMDS.palettes.blocks[slot], blk);
+    VMDS.palettes.blocks[slot] = blk;
     return blk;
 }
 
@@ -206,17 +206,16 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
 {
     ENGINE_PEN.palette_bytes = ENGINE_PALETTE_SIZES.size[VMDS.pixel_shift];
 
-    if (dg_far_ptr(VMDS.palettes.blocks[0]) == FAR_NULL_PTR
+    if (VMDS.palettes.blocks[0] == NULL
         && ENGINE_PEN.palette_bytes != 0)
-        DG_FAR_SET(VMDS.palettes.blocks[0],
-                   DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes * 2, 0)));
+        VMDS.palettes.blocks[0] = DOS_ALLOC_PTR(DOS_ALLOC(ENGINE_PEN.palette_bytes * 2, 0));
 
-    if (h == FAR_NULL_PTR)
+    if (h == NULL)
         return PALCHUNK.palette_ptr;
 
     PALCHUNK.palette_ptr = h;
 #ifdef __TURBOC__
-    VM_VECTOR(20, vm_pal_fn)(h);
+    ((vm_pal_fn)DG4342.font[20])(h);
 #else
     vm_load_palette(h);
 #endif
@@ -238,11 +237,11 @@ void free_far_block(uint8_t far *h)
 {
     register int16_t i;
 
-    if (h != FAR_NULL_PTR)
+    if (h != NULL)
         for (i = 1; i < 10; i++)
-            if (dg_far_ptr(VMDS.palettes.blocks[i]) == h) {
-                dos_free_far(dg_far_ptr(VMDS.palettes.blocks[i]));
-                DG_FAR_SET(VMDS.palettes.blocks[i], FAR_NULL_PTR);
+            if (VMDS.palettes.blocks[i] == h) {
+                dos_free_far(VMDS.palettes.blocks[i]);
+                VMDS.palettes.blocks[i] = NULL;
             }
 }
 
@@ -263,7 +262,7 @@ void fade_palette_run(uint16_t first, uint16_t count, register uint16_t colour,
     ENGINE_PEN.fade_weight = weight;
     ENGINE_PEN.fade_colour = colour;
 #ifdef __TURBOC__
-    VM_VECTOR(34, vm_blend_fn)(first, count, colour, weight);
+    ((vm_blend_fn)DG4342.font[34])(first, count, colour, weight);
 #else
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 #endif
@@ -323,7 +322,7 @@ void cycle_palettes(void)
     if (!(int8_t)VMDS.vga_chunks)
         return;
 
-    shown = turned = dg_far_ptr(VMDS.palettes.blocks[0]);
+    shown = turned = VMDS.palettes.blocks[0];
     turned += 0x300;
     copy_far_bytes(turned, shown, 0x300);
 
@@ -336,7 +335,7 @@ void cycle_palettes(void)
     }
 
 #ifdef __TURBOC__
-    VM_VECTOR(34, vm_blend_fn)(0, 0x100, ENGINE_PEN.fade_colour,
+    ((vm_blend_fn)DG4342.font[34])(0, 0x100, ENGINE_PEN.fade_colour,
                                ENGINE_PEN.fade_weight);
 #else
     vm_blend_palette(0, 0x100, ENGINE_PEN.fade_colour,
@@ -368,7 +367,7 @@ void fill_span_list(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    VM_VECTOR(27, vm_esi_fn)();
+    ((vm_esi_fn)DG4342.font[27])();
 #else
     vm_fill_spans(spans);
 #endif
@@ -386,7 +385,7 @@ void span_list_nothing(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    VM_VECTOR(23, vm_esi_fn)();
+    ((vm_esi_fn)DG4342.font[23])();
 #else
     (void)spans;
     vm_nothing();

@@ -102,7 +102,7 @@ struct bitmap **load_bitmaps(char *name)
 
     file = (FILE *)name;
     list = 0;
-    block = FAR_NULL_PTR;
+    block = NULL;
     opened = 0;
     if (file_record_valid(file) == 0) {
         opened = 1;
@@ -131,7 +131,7 @@ struct bitmap **load_bitmaps(char *name)
     }
     if (kind == 0) {
         size = file_record_size(file);
-        if (FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
             goto fail;
         read_far(block, size, file);
         if (seek_named_chunk(file, "BMP:OFF:", 0) == -1L) {
@@ -145,18 +145,18 @@ struct bitmap **load_bitmaps(char *name)
             }
             p = block + offset;
             hdr = list[i];
-            hdr->data.seg = FP_SEG(p);
-            hdr->data.off = FP_OFF(p);
+            hdr->data_seg = FP_SEG(p);
+            hdr->data_off = FP_OFF(p);
         }
     } else {
-        size = VM_VECTOR(13, vm_list_size_fn)(list, (uint8_t *)&i);
-        if (FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        size = ((vm_list_size_fn)DG4342.font[13])(list, (uint8_t *)&i);
+        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
             goto fail;
         set_field_4_of_each(0xfffc, list);
         for (i = 0; i < count; i++) {
             hdr = list[i];
-            hdr->data.seg = FP_SEG(block);
-            hdr->data.off = FP_OFF(block);
+            hdr->data_seg = FP_SEG(block);
+            hdr->data_off = FP_OFF(block);
             block += (uint16_t)(hdr->width * hdr->height);
         }
         decode_vqt_list(file, list);
@@ -268,8 +268,8 @@ uint16_t count_list(struct bitmap **list)
  */
 void draw_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    bmp->data.seg = bmp->data.seg + (bmp->data.off >> 4);
-    bmp->data.off &= 0xf;
+    bmp->data_seg = bmp->data_seg + (bmp->data_off >> 4);
+    bmp->data_off &= 0xf;
     switch (bmp->mask_off) {
     case 0xffff:
         draw_offset_bitmap(bmp, x, y, mode);
@@ -306,8 +306,8 @@ void draw_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
 void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
                              int16_t a, int16_t b, int16_t c)
 {
-    bmp->data.seg = bmp->data.seg + (bmp->data.off >> 4);
-    bmp->data.off &= 0xf;
+    bmp->data_seg = bmp->data_seg + (bmp->data_off >> 4);
+    bmp->data_off &= 0xf;
     switch (bmp->mask_off) {
     case 0xffff:
         break;
@@ -356,7 +356,7 @@ uint16_t load_screen(char *name)
     uint16_t result;
 
     file = (FILE *)name;
-    block = FAR_NULL_PTR;
+    block = NULL;
     opened = 0;
     result = 0;
 #ifdef __TURBOC__
@@ -377,7 +377,7 @@ uint16_t load_screen(char *name)
     copy_file_record(&saved, file);
     if (seek_named_chunk(file, "SCR:VQT:", 0) != -1L) {
         size = file_record_size(file);
-        if (FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
+        if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
             goto fail;
         read_far(block, size, file);
         if ((BITMAPS.walk = open_bit_reader(block)) != 0) {
@@ -397,7 +397,7 @@ fail:
 close:
     if (opened != 0)
         close_file_record(file);
-    if (block != FAR_NULL_PTR)
+    if (block != NULL)
         dos_free_far(block);
     return result;
 }
@@ -530,8 +530,8 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
         largest = 0;
     }
     if (largest > buffer
-        || FAR_IS_NULL(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
-        if (DG3576.scratch != FAR_NULL_PTR && largest <= 0x3ab4) {
+        || !(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
+        if (DG3576.scratch != NULL && largest <= 0x3ab4) {
             block = DG3576.scratch;
             buffer = 0x3ab4;
         } else
@@ -544,8 +544,8 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
     file_left -= buffer;
     at = list;
     while ((hdr = *at) != NULL) {
-        row = hdr->data.seg + (hdr->data.off >> 4);
-        p = FAR_OF_LONG(row, hdr->data.off & 0xf);
+        row = hdr->data_seg + (hdr->data_off >> 4);
+        p = FAR_OF_LONG(row, hdr->data_off & 0xf);
         n = (hdr->width * hdr->height) >> 2;
         for (i = 0; i < 4; i++) {
             BITMAPS.walk->plane[i] = p;

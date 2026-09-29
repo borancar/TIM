@@ -293,7 +293,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
         || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
         row = VMDS.row_offset[y];
 
-    src = MK_FP((int16_t)bmp->data.seg, bmp->data.off);
+    src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
 
     base = *src;
     src++;
@@ -766,21 +766,21 @@ uint8_t far *load_video_driver(register int16_t adapter, char *name)
     }
 
     if (di == 0)
-        return FAR_NULL_PTR;
+        return NULL;
 
     strcpy_far(OVL_TAG + 4, ADAPTER_TAG[adapter - 1]);
 
     if (seek_named_chunk(di, OVL_TAG, 0) == -1L)
-        return FAR_NULL_PTR;
+        return NULL;
     if ((handle = open_resource(0xffff, di, "r", file_record_size(di))) < 0)
-        return FAR_NULL_PTR;
+        return NULL;
 
     len = resource_size(handle);
 
-    if (VIDEO_DRIVER != FAR_NULL_PTR)
+    if (VIDEO_DRIVER != NULL)
         dos_free_far(VIDEO_DRIVER);
 
-    if ((VIDEO_DRIVER = DOS_ALLOC_PTR(DOS_ALLOC(len, 0))) != FAR_NULL_PTR) {
+    if ((VIDEO_DRIVER = DOS_ALLOC_PTR(DOS_ALLOC(len, 0))) != NULL) {
         read_resource(handle, VIDEO_DRIVER, (uint16_t)len);
         close_resource(handle);
 
@@ -790,5 +790,5 @@ uint8_t far *load_video_driver(register int16_t adapter, char *name)
         return VIDEO_DRIVER;
     }
 
-    return FAR_NULL_PTR;
+    return NULL;
 }

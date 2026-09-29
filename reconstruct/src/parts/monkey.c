@@ -52,7 +52,7 @@ struct point8 MONKEY_POINTS_33BC[9] DGROUP_AT(0x33bc) = {
  */
 uint16_t part_hit_monkey(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);
+    struct part *other = part->contact;
     int16_t  face = ((int16_t)part->contact_edge);
 
     if (other->word_96 == 0 && face < 3) {
@@ -98,7 +98,7 @@ void part_setup_monkey(struct part *part)
     part->grab.y = 60;
     part->grab_size = 9;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 9; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 9; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -133,7 +133,7 @@ void part_step_monkey(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != PART_NONE && !(di->flags_08 & 0x800))
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800))
         di->direction = part->direction;
 
     if (part->word_96 != 0) {
@@ -221,7 +221,7 @@ uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t
     uint16_t kept;                      /* [bp-2] */
     struct belt *belt;                  /* [bp-4] */
 
-    belt = BELT_PTR(p2->belt_ptr[0]);
+    belt = p2->belt[0];
 
     if (p4 == 1) {
         belt->v[0]++;

@@ -112,14 +112,14 @@ uint16_t part_index(struct part *part)
     register struct part *si;
     register uint16_t n;
 
-    if (part == PART_NONE)
+    if (part == NULL)
         return 0xffff;
 
     n = 0;
     si = pick_by_flag(0x3000);
-    while (si != PART_NONE) {
+    while (si != NULL) {
         if (si == part) {
-            si = PART_NONE;
+            si = NULL;
         } else {
             si = pick_for_record(si, 0x1000);
             n++;
@@ -137,12 +137,12 @@ uint16_t part_index(struct part *part)
  * block DOS handed the program - which is why the port models the guest's
  * whole address space rather than only its data segment.
  */
-dg_near_t part_by_index(int16_t index)
+struct part *part_by_index(int16_t index)
 {
     if (index == -1)
         return 0;
     else
-        return PART_TABLE->part_ptr[index];
+        return PART_TABLE->part[index];
 }
 
 /*
@@ -166,8 +166,8 @@ void alloc_part_table(register int16_t n)
     LEVEL_IO.table = DOS_ALLOC_PTR(DOS_ALLOC((uint16_t)(n * (2 * sizeof(struct part *))), 0));
 
     for (si = 0; si < n; si++)
-        PART_TABLE->part_ptr[(uint16_t)si] =
-            dg_near(dgroup, calloc_far(1, sizeof(struct part)));
+        PART_TABLE->part[(uint16_t)si] =
+            (calloc_far(1, sizeof(struct part)));
 }
 
 /*
@@ -300,7 +300,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     int16_t i;                          /* [bp-0xa] */
     uint8_t skip;                       /* [bp-0xb] */
     struct rope *rope;                  /* [bp-0xe] */
-    dg_near_t pulley;                    /* [bp-0x10] */
+    struct part *pulley;                    /* [bp-0x10] */
     struct belt *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
@@ -333,20 +333,20 @@ void read_record_fields(FILE *file, register struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->grab_size);
 
     if (has_rope != 0) {
-        rope = ROPE_PTR(rec->rope_ptr = dg_near(dgroup, calloc_far(1, sizeof(struct rope))));
-        rope->owner_ptr = dg_near(dgroup, rec);
+        rope = (rec->rope = (calloc_far(1, sizeof(struct rope))));
+        rope->owner = rec;
 
         game_fread_far(file, (uint8_t *)&index);
-        rope->end_a_ptr = part_by_index(index);
+        rope->end_a = part_by_index(index);
 
         game_fread_far(file, (uint8_t *)&index);
-        rope->end_b_ptr = part_by_index(index);
+        rope->end_b = part_by_index(index);
 
-        if (rope->end_a_ptr != 0)
-            PART_PTR(rope->end_a_ptr)->rope_ptr = dg_near(dgroup, rope);
+        if (rope->end_a != 0)
+            rope->end_a->rope = rope;
 
-        if (rope->end_b_ptr != 0)
-            PART_PTR(rope->end_b_ptr)->rope_ptr = dg_near(dgroup, rope);
+        if (rope->end_b != 0)
+            rope->end_b->rope = rope;
     }
 
     for (i = 0; i < 2; i++) {
@@ -357,45 +357,45 @@ void read_record_fields(FILE *file, register struct part *rec)
         if (has_belt == 0)
             continue;
 
-        di = BELT_PTR(rec->belt_ptr[i] = dg_near(dgroup, calloc_far(1, sizeof(struct belt))));
-        BELT_PTR(rec->belt_ptr[i])->owner_ptr = dg_near(dgroup, rec);
+        di = (rec->belt[i] = (calloc_far(1, sizeof(struct belt))));
+        rec->belt[i]->owner = rec;
 
         game_fread_far(file, (uint8_t *)&index);
-        di->end_a_ptr = part_by_index(index);
-        di->home_a_ptr = di->end_a_ptr;
+        di->end_a = part_by_index(index);
+        di->home_a = di->end_a;
 
         game_fread_far(file, (uint8_t *)&index);
-        di->end_b_ptr = part_by_index(index);
-        di->home_b_ptr = di->end_b_ptr;
+        di->end_b = part_by_index(index);
+        di->home_b = di->end_b;
 
         game_fread_byte(file, &di->slot_a);
         di->home_slot_a = di->slot_a;
         game_fread_byte(file, &di->slot_b);
         di->home_slot_b = di->slot_b;
 
-        if (di->end_a_ptr != 0)
-            PART_PTR(di->end_a_ptr)->belt_ptr[di->slot_a] = dg_near(dgroup, di);
+        if (di->end_a != 0)
+            di->end_a->belt[di->slot_a] = di;
 
-        if (di->end_b_ptr != 0)
-            PART_PTR(di->end_b_ptr)->belt_ptr[di->slot_b] = dg_near(dgroup, di);
+        if (di->end_b != 0)
+            di->end_b->belt[di->slot_b] = di;
     }
 
     for (i = 0; i < 2; i++) {
         game_fread_far(file, (uint8_t *)&index);
-        rec->link_ptr[i] = rec->link_ptr[i + 2] = part_by_index(index);
+        rec->link[i] = rec->link[i + 2] = part_by_index(index);
     }
 
     if (LEVEL_IO.version >= 0x101) {
         for (i = 4; i < 6; i++) {
             game_fread_far(file, (uint8_t *)&index);
-            rec->link_ptr[i] = part_by_index(index);
+            rec->link[i] = part_by_index(index);
         }
     }
 
     if (rec->kind == KIND_PULLEY) {
         game_fread_far(file, (uint8_t *)&index);
         if ((pulley = part_by_index(index)) != 0)
-            rec->belt_ptr[1] = PART_PTR(pulley)->belt_ptr[0];
+            rec->belt[1] = pulley->belt[0];
     }
 
     if (LEVEL_IO.version <= 0x101) {
@@ -411,7 +411,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     rec->point_count = PART_KINDS[rec->kind].point_count;
 
     if (rec->point_count != 0)
-        rec->points_ptr = dg_near(dgroup, calloc_far(rec->point_count, 4));
+        rec->points = (calloc_far(rec->point_count, 4));
 
     PART_KINDS[rec->kind].setup(rec);
 }
@@ -448,10 +448,10 @@ void read_list(FILE *file, register struct part *head, int16_t n)
     struct part *rec;                   /* [bp-4] */
     int16_t di;
 
-    head->next_ptr = head->prev_ptr = 0;
+    head->next = head->prev = 0;
 
     for (di = 0; di < n; di++) {
-        rec = PART_PTR(part_by_index(LEVEL_IO.record_count));
+        rec = (part_by_index(LEVEL_IO.record_count));
         read_record_fields(file, rec);
         insert_sorted(rec, list);
         LEVEL_IO.record_count++;
@@ -550,7 +550,7 @@ void read_level(char *name)
         game_fclose(file);
     }
 
-    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+    DG50D3.bin_list = (&DG50D3.parts_bin);
 }
 
 /*
@@ -636,7 +636,7 @@ void write_record_fields(register FILE *file, register struct part *part)
     int16_t vindex;                     /* [bp-6] */
     int16_t i;                          /* [bp-8] */
     struct rope *rope;                  /* [bp-0xa] */
-    dg_near_t belt;                      /* [bp-0xc] */
+    struct belt *belt;                      /* [bp-0xc] */
 
     write_word(file, (const uint8_t *)&part->kind);
     write_word(file, (const uint8_t *)&part->flags_06);
@@ -663,11 +663,11 @@ void write_record_fields(register FILE *file, register struct part *part)
     write_word(file, (const uint8_t *)&part->grab_size);
 
     if (vrope != 0) {
-        rope = ROPE_PTR(part->rope_ptr);
+        rope = part->rope;
 
-        vindex = part_index(PART_PTR(rope->end_a_ptr));
+        vindex = part_index(rope->end_a);
         write_word(file, (uint8_t *)&vindex);
-        vindex = part_index(PART_PTR(rope->end_b_ptr));
+        vindex = part_index(rope->end_b);
         write_word(file, (uint8_t *)&vindex);
     }
 
@@ -682,31 +682,31 @@ void write_record_fields(register FILE *file, register struct part *part)
         write_byte(file, &part->attach[i].y);
 
         if (vbelt != 0) {
-            belt = part->belt_ptr[0];
+            belt = part->belt[0];
 
-            vindex = part_index(PART_PTR(BELT_PTR(belt)->end_a_ptr));
+            vindex = part_index((belt->end_a));
             write_word(file, (uint8_t *)&vindex);
-            vindex = part_index(PART_PTR(BELT_PTR(belt)->end_b_ptr));
+            vindex = part_index((belt->end_b));
             write_word(file, (uint8_t *)&vindex);
 
-            write_byte(file, &BELT_PTR(belt)->slot_a);
-            write_byte(file, &BELT_PTR(belt)->slot_b);
+            write_byte(file, &belt->slot_a);
+            write_byte(file, &belt->slot_b);
         }
     }
 
     for (i = 0; i < 2; i++) {
-        vindex = part_index(PART_PTR(part->link_ptr[i]));
+        vindex = part_index(part->link[i]);
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        vindex = part_index(PART_PTR(part->link_ptr[i]));
+        vindex = part_index(part->link[i]);
         write_word(file, (uint8_t *)&vindex);
     }
 
     if (part->kind == 7) {
-        if ((belt = part->belt_ptr[1]) != 0)
-            vindex = part_index(PART_PTR(BELT_PTR(belt)->owner_ptr));
+        if ((belt = part->belt[1]) != 0)
+            vindex = part_index((belt->owner));
         else
             vindex = -1;
 
@@ -735,7 +735,7 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
 {
     struct part *si;
 
-    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr)) {
+    for (si = head->next; si != NULL; si = si->next) {
         if (which == 2)
             si->flags_06 &= 0x7fff;
         else if (LEVEL_IO.is_level != 0)
@@ -768,7 +768,7 @@ void write_part_count(FILE *file, struct part *head)
     struct part *si;
 
     vn = 0;
-    for (si = PART_PTR(head->next_ptr); si != PART_NONE; si = PART_PTR(si->next_ptr))
+    for (si = head->next; si != NULL; si = si->next)
         vn++;
 
     write_word(file, (uint8_t *)&vn);
@@ -945,15 +945,15 @@ void load_animation(char *name)
 uint16_t save_machine(char *name)
 {
     uint16_t r;                         /* [bp-2] */
-    dg_near_t held;                      /* [bp-4] */
+    struct part *held;                      /* [bp-4] */
 
-    held = DG50D3.parts_bin.next_ptr;
-    DG50D3.parts_bin.next_ptr = 0;
+    held = DG50D3.parts_bin.next;
+    DG50D3.parts_bin.next = 0;
     LEVEL_IO.is_level = 0;
 
     r = write_level(name);
 
-    DG50D3.parts_bin.next_ptr = held;
+    DG50D3.parts_bin.next = held;
     return r;
 }
 

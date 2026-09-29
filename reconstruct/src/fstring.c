@@ -38,7 +38,7 @@ int16_t far_strlen(const char far *s)
     register int16_t si;
 
     si = 0;
-    if (s != (const char far *)FAR_NULL_PTR)
+    if (s != (const char far *)NULL)
         while (*s != 0) {
             si++;
             s++;
@@ -55,7 +55,7 @@ int16_t far_strlen(const char far *s)
  */
 char far *far_strcpy(char far *dst, const char far *src)
 {
-    if (src != (const char far *)FAR_NULL_PTR && dst != (char far *)FAR_NULL_PTR)
+    if (src != (const char far *)NULL && dst != (char far *)NULL)
         while ((*dst++ = *src++) != 0)
             ;
     return dst;
@@ -69,8 +69,8 @@ char far *far_strcpy(char far *dst, const char far *src)
  */
 char far *far_strncpy(char far *dst, const char far *src, register int16_t n)
 {
-    if (src == (const char far *)FAR_NULL_PTR || dst == (char far *)FAR_NULL_PTR)
-        return (char far *)FAR_NULL_PTR;
+    if (src == (const char far *)NULL || dst == (char far *)NULL)
+        return (char far *)NULL;
     while (*src != 0 && n--) {
         *dst = *src;
         src++;
@@ -93,7 +93,7 @@ int16_t far_strnicmp(const char far *a, const char far *b, register uint16_t n)
 
     si = 0;
     d = 0;
-    if (b == (const char far *)FAR_NULL_PTR || a == (const char far *)FAR_NULL_PTR)
+    if (b == (const char far *)NULL || a == (const char far *)NULL)
         return 1;
     if (n != 0)
         do {
@@ -129,7 +129,7 @@ int16_t far_stricmp(const char far *a, const char far *b)
     /* **0000:0000, not a C null pointer.** The original's guard is
        `(off | seg) == 0`, and that address is the first byte of the guest's
        memory - written as `b == NULL` it would never fire. */
-    if (b == (const char far *)FAR_NULL_PTR || a == (const char far *)FAR_NULL_PTR)
+    if (b == (const char far *)NULL || a == (const char far *)NULL)
         return 1;
     do {
         si = tolower((uint8_t)*a++);
@@ -143,21 +143,21 @@ int16_t far_stricmp(const char far *a, const char far *b)
  *
  * **Borland's `_fstrchr`**, linked in and never called - nothing in the image
  * reaches it by call or by address. A null pointer answers 0000:0000, the
- * guest's null, which is `FAR_NULL_PTR` here and not a C null; searching for
+ * guest's null, which is `NULL` here and not a C null; searching for
  * NUL itself answers null too, because the loop stops at the terminator and
  * the test after it is for a non-NUL byte.
  */
 
 char far *far_strchr(const char far *s, char c)
 {
-    if (s == (const char far *)FAR_NULL_PTR)
-        return (char far *)FAR_NULL_PTR;
+    if (s == (const char far *)NULL)
+        return (char far *)NULL;
     while (*s != 0 && *s != c)
         s++;
     if (*s != 0)
         return (char far *)s;
     else
-        return (char far *)FAR_NULL_PTR;
+        return (char far *)NULL;
 }
 
 /*
@@ -174,8 +174,8 @@ char far *far_strcat(char far *dst, const char far *src)
     char far *d;                        /* [bp-4] */
 
     d = dst;
-    if (src == (const char far *)FAR_NULL_PTR || dst == (char far *)FAR_NULL_PTR)
-        return (char far *)FAR_NULL_PTR;
+    if (src == (const char far *)NULL || dst == (char far *)NULL)
+        return (char far *)NULL;
     while (*d != 0)
         d++;
     while ((*d++ = *src++) != 0)

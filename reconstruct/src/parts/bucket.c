@@ -35,7 +35,7 @@ uint16_t part_hit_bucket(struct part *part)
     int16_t hi;                         /* [bp-2] */
     struct part *other;                 /* [bp-4] */
 
-    other = PART_PTR(part->contact_ptr);
+    other = part->contact;
     lo = other->pos[1].x + 4;
     hi = lo + 0x1c;
     mid = part->pos[1].x + (part->size[0].width >> 1);
@@ -54,7 +54,7 @@ uint16_t part_hit_bucket(struct part *part)
  */
 void part_setup_bucket(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 0;
     si->y = 19;
@@ -93,7 +93,7 @@ void part_setup_bucket(struct part *part)
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
-    struct belt *belt = BELT_PTR(part->belt_ptr[0]);   /* [bp-2] */
+    struct belt *belt = part->belt[0];   /* [bp-2] */
 
     if (flags == 1) {
         belt->v[0]++;

@@ -47,8 +47,8 @@ struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { 0x0001, 0xffff };
  * DGROUP 0x2d0a..0x2d32, 0x28 bytes.
  */
 struct page_pair {
-    dg_near_t src;                 /* +0x00  the address of a page word */
-    dg_near_t dst;                 /* +0x02 */
+    uint16_t *src;                 /* +0x00  the address of a page word */
+    uint16_t *dst;                 /* +0x02 */
 } PACKED;
 
 struct machine_page_pairs {
@@ -57,15 +57,15 @@ struct machine_page_pairs {
 
 struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
     {
-        { NEAR_ADDR(DG2D06._pad_2d08, 0x2d08), NEAR_ADDR(VMDS.page_front_ptr, 0x38a4) },
-        { NEAR_ADDR(VMDS.page_back_ptr, 0x38a2), NEAR_ADDR(VMDS.page_front_ptr, 0x38a4) },
-        { NEAR_ADDR(DG2D06._pad_2d08, 0x2d08), NEAR_ADDR(VMDS.page_back_ptr, 0x38a2) },
-        { NEAR_ADDR(VMDS.rect_page, 0x38a0), NEAR_ADDR(VMDS.page_back_ptr, 0x38a2) },
-        { NEAR_ADDR(DG2D06._pad_2d08, 0x2d08), NEAR_ADDR(VMDS.rect_page, 0x38a0) },
-        { NEAR_ADDR(VMDS.page_front_ptr, 0x38a4), NEAR_ADDR(VMDS.rect_page, 0x38a0) },
-        { NEAR_ADDR(VMDS.page_front_ptr, 0x38a4), NEAR_ADDR(VMDS.page_back_ptr, 0x38a2) },
-        { NEAR_ADDR(VMDS.page_back_ptr, 0x38a2), NEAR_ADDR(VMDS.rect_page, 0x38a0) },
-        { NEAR_ADDR(VMDS.rect_page, 0x38a0), NEAR_ADDR(VMDS.page_front_ptr, 0x38a4) },
+        { &DG2D06._pad_2d08, &VMDS.page_front_ptr },
+        { &VMDS.page_back_ptr, &VMDS.page_front_ptr },
+        { &DG2D06._pad_2d08, &VMDS.page_back_ptr },
+        { &VMDS.rect_page, &VMDS.page_back_ptr },
+        { &DG2D06._pad_2d08, &VMDS.rect_page },
+        { &VMDS.page_front_ptr, &VMDS.rect_page },
+        { &VMDS.page_front_ptr, &VMDS.page_back_ptr },
+        { &VMDS.page_back_ptr, &VMDS.rect_page },
+        { &VMDS.rect_page, &VMDS.page_front_ptr },
     }
 };
 
@@ -97,7 +97,7 @@ struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
  * rect_list_entry`.
  */
 struct machine_rect_slots {
-    dg_near_t slot[0x14];         /* +0x00 [0x28] */
+    struct rect_list_entry *slot[0x14];         /* +0x00 [0x28] */
 } PACKED;
 
 struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
@@ -138,11 +138,11 @@ uint16_t build_rect_pool(register uint16_t n)
     rec = base;
     rec->block_head = 1;
     for (k = 1; k < (int16_t)n; k++) {
-        rec->next_ptr = dg_near(dgroup, rec + 1);
+        rec->next = (rec + 1);
         rec++;
     }
-    rec->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
-    MACHINE_RECT_FREE.rect_free_ptr = dg_near(dgroup, base);
+    rec->next = MACHINE_RECT_FREE.rect_free;
+    MACHINE_RECT_FREE.rect_free = base;
     MACHINE_RECT_COUNT.count += n;
     /* a test with nothing behind it: `cmp di,5 / jne` onto the next
        instruction, as the image has it */
@@ -179,13 +179,13 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
                      uint16_t refcount, uint8_t far * buf)
 {
-    register dg_near_t rec;
-    register dg_near_t other;
-    dg_near_t *slot;                    /* [bp-2] */
-    dg_near_t stop;                      /* [bp-4] */
-    dg_near_t prev;                      /* [bp-6] */
-    dg_near_t after;                     /* [bp-8] */
-    dg_near_t from;                      /* [bp-0xa] */
+    register struct rect_list_entry *rec;
+    register struct rect_list_entry *other;
+    struct rect_list_entry **slot;                    /* [bp-2] */
+    struct rect_list_entry *stop;                      /* [bp-4] */
+    struct rect_list_entry *prev;                      /* [bp-6] */
+    struct rect_list_entry *after;                     /* [bp-8] */
+    struct rect_list_entry *from;                      /* [bp-0xa] */
     int16_t area;                       /* [bp-0xc] */
     int16_t sum;                        /* [bp-0xe] */
     int16_t ux0;                        /* [bp-0x10] */
@@ -240,22 +240,22 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 
     if (w == 0 || h == 0)
         return;
-    if (MACHINE_RECT_FREE.rect_free_ptr == 0 && !build_rect_pool(5))
+    if (MACHINE_RECT_FREE.rect_free == 0 && !build_rect_pool(5))
         return;
 
-    rec = MACHINE_RECT_FREE.rect_free_ptr;
-    MACHINE_RECT_FREE.rect_free_ptr = RECTENT_PTR(rec)->next_ptr;
-    RECTENT_PTR(rec)->next_ptr = 0;
-    RECTENT_PTR(rec)->x = x;
-    RECTENT_PTR(rec)->y = y;
-    RECTENT_PTR(rec)->w = w;
-    RECTENT_PTR(rec)->h = h;
-    RECTENT_PTR(rec)->mode = mode;
-    RECTENT_PTR(rec)->page_src = page_src;
-    RECTENT_PTR(rec)->page_dst = page_dst;
-    RECTENT_PTR(rec)->refcount = refcount;
-    RECTENT_PTR(rec)->buf = buf;
-    RECTENT_PTR(rec)->area = w * h;
+    rec = MACHINE_RECT_FREE.rect_free;
+    MACHINE_RECT_FREE.rect_free = rec->next;
+    rec->next = 0;
+    rec->x = x;
+    rec->y = y;
+    rec->w = w;
+    rec->h = h;
+    rec->mode = mode;
+    rec->page_src = page_src;
+    rec->page_dst = page_dst;
+    rec->refcount = refcount;
+    rec->buf = buf;
+    rec->area = w * h;
 
     if (mode == 1) {
         other = *slot;
@@ -263,33 +263,33 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         prev = 0;
         while (other != stop) {
             stop = from;
-            after = RECTENT_PTR(other)->next_ptr;
-            sum = RECTENT_PTR(other)->area + RECTENT_PTR(rec)->area;
-            ux0 = RECTENT_PTR(other)->x < RECTENT_PTR(rec)->x
-                  ? RECTENT_PTR(other)->x : RECTENT_PTR(rec)->x;
-            ux1 = (int16_t)(RECTENT_PTR(other)->x + RECTENT_PTR(other)->w)
-                      > (int16_t)(RECTENT_PTR(rec)->x + RECTENT_PTR(rec)->w)
-                  ? RECTENT_PTR(other)->x + RECTENT_PTR(other)->w
-                  : RECTENT_PTR(rec)->x + RECTENT_PTR(rec)->w;
-            uy0 = RECTENT_PTR(other)->y < RECTENT_PTR(rec)->y
-                  ? RECTENT_PTR(other)->y : RECTENT_PTR(rec)->y;
-            uy1 = (int16_t)(RECTENT_PTR(other)->y + RECTENT_PTR(other)->h)
-                      > (int16_t)(RECTENT_PTR(rec)->y + RECTENT_PTR(rec)->h)
-                  ? RECTENT_PTR(other)->y + RECTENT_PTR(other)->h
-                  : RECTENT_PTR(rec)->y + RECTENT_PTR(rec)->h;
+            after = other->next;
+            sum = other->area + rec->area;
+            ux0 = other->x < rec->x
+                  ? other->x : rec->x;
+            ux1 = (int16_t)(other->x + other->w)
+                      > (int16_t)(rec->x + rec->w)
+                  ? other->x + other->w
+                  : rec->x + rec->w;
+            uy0 = other->y < rec->y
+                  ? other->y : rec->y;
+            uy1 = (int16_t)(other->y + other->h)
+                      > (int16_t)(rec->y + rec->h)
+                  ? other->y + other->h
+                  : rec->y + rec->h;
             area = (ux1 - ux0) * (uy1 - uy0);
             if ((int16_t)(sum + 0x14) >= area) {
-                RECTENT_PTR(rec)->x = ux0;
-                RECTENT_PTR(rec)->y = uy0;
-                RECTENT_PTR(rec)->w = ux1 - ux0;
-                RECTENT_PTR(rec)->h = uy1 - uy0;
-                RECTENT_PTR(rec)->area = area;
+                rec->x = ux0;
+                rec->y = uy0;
+                rec->w = ux1 - ux0;
+                rec->h = uy1 - uy0;
+                rec->area = area;
                 if (prev != 0)
-                    RECTENT_PTR(prev)->next_ptr = after;
+                    prev->next = after;
                 else
                     *slot = after;
-                RECTENT_PTR(other)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
-                MACHINE_RECT_FREE.rect_free_ptr = other;
+                other->next = MACHINE_RECT_FREE.rect_free;
+                MACHINE_RECT_FREE.rect_free = other;
                 from = after;
                 other = stop = prev;
             }
@@ -301,7 +301,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
             }
         }
     }
-    RECTENT_PTR(rec)->next_ptr = *slot;
+    rec->next = *slot;
     *slot = rec;
 }
 
@@ -337,8 +337,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 void restore_saved_rect_lists(int16_t which)
 {
     register const struct page_pair *si;
-    register dg_near_t di;
-    dg_near_t *slot;                    /* [bp-2] */
+    register struct rect_list_entry *di;
+    struct rect_list_entry **slot;                    /* [bp-2] */
     int16_t left;                       /* [bp-4] */
     dg_seg_t saved_src;                 /* [bp-6] */
     dg_seg_t saved_dst;                 /* [bp-8] */
@@ -347,8 +347,8 @@ void restore_saved_rect_lists(int16_t which)
     saved_dst = VMDS.page_dst_ptr;
     si = which != 0 ? &MACHINE_PAGE_PAIRS.pair[1] : &MACHINE_PAGE_PAIRS.pair[0];
     while (si->dst != 0) {
-        restore_saved_rects(*(const dg_seg_t *)dg_near_ptr(si->src),
-                            *(const dg_seg_t *)dg_near_ptr(si->dst), 0);
+        restore_saved_rects(*si->src,
+                            *si->dst, 0);
         si++;
         if (which != 0)
             break;
@@ -360,8 +360,8 @@ void restore_saved_rect_lists(int16_t which)
     for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0;
          slot++, left--)
         if ((di = *slot) != 0)
-            for (; di != 0; di = RECTENT_PTR(di)->next_ptr)
-                RECTENT_PTR(di)->refcount--;
+            for (; di != 0; di = di->next)
+                di->refcount--;
 }
 
 /*
@@ -374,16 +374,16 @@ void restore_saved_rect_lists(int16_t which)
  */
 void discard_saved_rects(void)
 {
-    register dg_near_t *slot;
-    register dg_near_t rec;
+    register struct rect_list_entry **slot;
+    register struct rect_list_entry *rec;
     int16_t left;
 
     for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0; slot++, left--)
         if ((rec = *slot) != 0) {
-            while (RECTENT_PTR(rec)->next_ptr != 0)
-                rec = RECTENT_PTR(rec)->next_ptr;
-            RECTENT_PTR(rec)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
-            MACHINE_RECT_FREE.rect_free_ptr = *slot;
+            while (rec->next != 0)
+                rec = rec->next;
+            rec->next = MACHINE_RECT_FREE.rect_free;
+            MACHINE_RECT_FREE.rect_free = *slot;
             *slot = 0;
         }
 }
@@ -401,23 +401,23 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
                            int16_t h, dg_seg_t page_dst, uint16_t refcount)
 {
-    register dg_near_t rec;
-    dg_near_t *slot;                    /* [bp-2] */
+    register struct rect_list_entry *rec;
+    struct rect_list_entry **slot;                    /* [bp-2] */
     int16_t left;                       /* [bp-4] */
 
     /* the width in bytes, in the width's own register */
     w = (w + x % 8 + 7) / 8;
     x = x / 8;
     for (slot = &MACHINE_RECT_SLOTS.slot[0], left = 0x14; left != 0; slot++, left--)
-        if ((rec = *slot) != 0 && RECTENT_PTR(rec)->page_dst == page_dst
-            && RECTENT_PTR(rec)->refcount == refcount)
-            for (; rec != 0; rec = RECTENT_PTR(rec)->next_ptr)
-                if (RECTENT_PTR(rec)->mode == 1
-                    && RECTENT_PTR(rec)->x < (int16_t)(x + w)
-                    && (int16_t)(RECTENT_PTR(rec)->x + RECTENT_PTR(rec)->w) > x
-                    && RECTENT_PTR(rec)->y < (int16_t)(y + h)
-                    && (int16_t)(RECTENT_PTR(rec)->y + RECTENT_PTR(rec)->h) > y)
-                    return RECTENT_PTR(rec)->mode;
+        if ((rec = *slot) != 0 && rec->page_dst == page_dst
+            && rec->refcount == refcount)
+            for (; rec != 0; rec = rec->next)
+                if (rec->mode == 1
+                    && rec->x < (int16_t)(x + w)
+                    && (int16_t)(rec->x + rec->w) > x
+                    && rec->y < (int16_t)(y + h)
+                    && (int16_t)(rec->y + rec->h) > y)
+                    return rec->mode;
     return 0;
 }
 
@@ -435,20 +435,20 @@ uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
  */
 void free_rect_pool(void)
 {
-    dg_near_t rec;
+    struct rect_list_entry *rec;
 
     discard_saved_rects();
 
-    for (rec = MACHINE_RECT_FREE.rect_free_ptr; rec != 0; rec = RECTENT_PTR(rec)->next_ptr) {
-        if ((RECTENT_PTR(rec)->block_head & 1) != 0) {
-            RECTENT_PTR(rec)->block_head = 0;
+    for (rec = MACHINE_RECT_FREE.rect_free; rec != 0; rec = rec->next) {
+        if ((rec->block_head & 1) != 0) {
+            rec->block_head = 0;
             free_rect_pool();
-            free_far(dg_near_ptr(rec));
+            free_far(rec);
             break;
         }
     }
 
-    MACHINE_RECT_FREE.rect_free_ptr = 0;
+    MACHINE_RECT_FREE.rect_free = 0;
 }
 
 /*
@@ -479,20 +479,20 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+struct rect_list_entry **find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                                         uint16_t refcount)
 {
-    register dg_near_t *slot;
-    register dg_near_t rec;
-    dg_near_t *empty;
+    register struct rect_list_entry **slot;
+    register struct rect_list_entry *rec;
+    struct rect_list_entry **empty;
     int16_t left;
 
     for (slot = &MACHINE_RECT_SLOTS.slot[0], empty = NULL, left = 0x14; left != 0;
          slot++, left--)
         if ((rec = *slot) != 0) {
-            if (RECTENT_PTR(rec)->refcount == refcount
-                && RECTENT_PTR(rec)->page_src == page_src
-                && RECTENT_PTR(rec)->page_dst == page_dst)
+            if (rec->refcount == refcount
+                && rec->page_src == page_src
+                && rec->page_dst == page_dst)
                 return slot;
         } else if (empty == NULL)
             empty = slot;
@@ -531,7 +531,7 @@ dg_near_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
 void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
     register struct rect_list_entry *rec;
-    register dg_near_t *slot;
+    register struct rect_list_entry **slot;
     struct rect_list_entry *last;       /* [bp-2] */
     int16_t x;                          /* [bp-4] */
     int16_t rw;                         /* [bp-6] */
@@ -539,10 +539,10 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
     slot = find_saved_rect_slot(page_src, page_dst, refcount);
     if (slot == NULL)
         return;
-    if ((rec = RECTENT_PTR(*slot)) != RECTENT_NONE) {
+    if ((rec = (*slot)) != NULL) {
         VMDS.page_src_ptr = rec->page_src;
         VMDS.page_dst_ptr = rec->page_dst;
-        while (rec != RECTENT_NONE) {
+        while (rec != NULL) {
             x = rec->x << 3;
             rw = rec->w << 3;
             if (rec->mode == 1)
@@ -550,10 +550,10 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
             else if (rec->mode == 4)
                 restore_rect_thunk(rec->buf, rec->x, rec->y, rec->w, rec->h);
             last = rec;
-            rec = RECTENT_PTR(rec->next_ptr);
+            rec = rec->next;
         }
-        last->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
-        MACHINE_RECT_FREE.rect_free_ptr = *slot;
+        last->next = MACHINE_RECT_FREE.rect_free;
+        MACHINE_RECT_FREE.rect_free = *slot;
         *slot = 0;
     }
 }
@@ -572,16 +572,16 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
  */
 void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
-    register dg_near_t *slot;
-    register dg_near_t rec;
+    register struct rect_list_entry **slot;
+    register struct rect_list_entry *rec;
 
     slot = find_saved_rect_slot(page_src, page_dst, refcount);
     if (slot != NULL && *slot != 0) {
-        for (rec = *slot; RECTENT_PTR(rec)->next_ptr != 0;
-             rec = RECTENT_PTR(rec)->next_ptr)
+        for (rec = *slot; rec->next != 0;
+             rec = rec->next)
             ;
-        RECTENT_PTR(rec)->next_ptr = MACHINE_RECT_FREE.rect_free_ptr;
-        MACHINE_RECT_FREE.rect_free_ptr = *slot;
+        rec->next = MACHINE_RECT_FREE.rect_free;
+        MACHINE_RECT_FREE.rect_free = *slot;
         *slot = 0;
     }
 }
@@ -604,8 +604,8 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
                       dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref)
 {
-    register dg_near_t rec;
-    register dg_near_t *from_slot;
+    register struct rect_list_entry *rec;
+    register struct rect_list_entry **from_slot;
 
     from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);
     if (find_saved_rect_slot(to_src, to_dst, to_ref) == from_slot)
@@ -613,11 +613,11 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
     if (from_slot != NULL && *from_slot != 0) {
         rec = *from_slot;
         while (rec != 0)
-            file_saved_rect(RECTENT_PTR(rec)->x << 3, RECTENT_PTR(rec)->y,
-                            RECTENT_PTR(rec)->w << 3, RECTENT_PTR(rec)->h,
-                            RECTENT_PTR(rec)->mode, to_src, to_dst, to_ref,
-                            FAR_NULL_PTR);
+            file_saved_rect(rec->x << 3, rec->y,
+                            rec->w << 3, rec->h,
+                            rec->mode, to_src, to_dst, to_ref,
+                            NULL);
         /* the step, after the loop: see above */
-        rec = RECTENT_PTR(rec)->next_ptr;
+        rec = rec->next;
     }
 }

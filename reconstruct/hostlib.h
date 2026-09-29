@@ -43,7 +43,7 @@ struct date {
     char    da_mon;
 };
 void getdate(struct date *d);
-struct far_ptr getvect(uint16_t n);
-void setvect(uint16_t n, struct far_ptr handler);
+void interrupt (far *getvect(uint16_t n))();
+void setvect(uint16_t n, void interrupt (far *handler)());
 
 #endif

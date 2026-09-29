@@ -25,7 +25,7 @@
  */
 void part_setup_windmill(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 8;
     si->y = 47;
@@ -64,7 +64,7 @@ void part_step_windmill(struct part *part)
             part->direction = 1;
     }
 
-    if ((di = rope_other_end(part)) != PART_NONE && !(di->flags_08 & 0x800)) {
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800)) {
         if (part->direction != 0) {
             if (part->flags_08 & 0x10)
                 di->direction = -1;

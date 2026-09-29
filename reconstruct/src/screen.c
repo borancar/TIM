@@ -40,7 +40,7 @@
  * at every use rather than keeping it in a register, and a call in between
  * can change it, so this is a macro and not a local.
  */
-#define CARRIED PART_PTR(DG50D3.dragged_part_ptr)
+#define CARRIED DG50D3.dragged_part
 
 /*
  * **The game screen's own words and the goal tests**, DGROUP 0x2630..0x27ee -
@@ -324,7 +324,7 @@ void game_screen_loop(void)
         if (DG4E67.freeform != 0)
             select_music_by_key();
 
-        regions_handle_pointer(DG4E67.regions_play_ptr);
+        regions_handle_pointer(DG4E67.regions_play);
 
         if (DG4E67.state == 0x800)
             bin_scroll_back();
@@ -335,9 +335,9 @@ void game_screen_loop(void)
             pointer_frame();
             si = 0;
         } else {
-            if (DG50D3.dragged_part_ptr != 0 && si == 0) {
-                mark_joined_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
-                mark_part_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
+            if (DG50D3.dragged_part != 0 && si == 0) {
+                mark_joined_shapes(DG50D3.dragged_part, 3);
+                mark_part_shapes(DG50D3.dragged_part, 3);
             }
             edge_scroll_flags();
             si = 1;
@@ -353,8 +353,8 @@ void game_screen_loop(void)
         replay_shapes();
         step_and_draw_machine(0);
 
-        if (DG50D3.dragged_part_ptr != 0 && DG52BD.drop_cursor != -1)
-            draw_part_selection(PART_PTR(DG50D3.dragged_part_ptr), DG52BD.drop_cursor, 1);
+        if (DG50D3.dragged_part != 0 && DG52BD.drop_cursor != -1)
+            draw_part_selection(DG50D3.dragged_part, DG52BD.drop_cursor, 1);
 
         if (DG52BD.band_colour != -1) {
             cursor_redraw_off_thunk();
@@ -384,13 +384,13 @@ void game_screen_loop(void)
             DG4E67.state = 2;
     }
 
-    if (DG50D3.dragged_part_ptr != 0
-        && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x800) != 0) {
-        if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_BELT
-            && ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr)->end_a_ptr != 0)
+    if (DG50D3.dragged_part != 0
+        && (DG50D3.dragged_part->flags_06 & 0x800) != 0) {
+        if (DG50D3.dragged_part->kind == KIND_BELT
+            && DG50D3.dragged_part->rope->end_a != 0)
             discard_carried_part();
-        else if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE
-                 && BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0])->end_a_ptr != 0)
+        else if (DG50D3.dragged_part->kind == KIND_ROPE
+                 && DG50D3.dragged_part->belt[0]->end_a != 0)
             discard_carried_part();
         else
             finish_part_removal();
@@ -467,7 +467,7 @@ void reset_level_state(void)
     DG4E67.redraw_e = DG4E67.redraw_d = DG4E67.redraw_c = DG4E67.redraw_b
         = DG4E67.redraw_a = DG4E67.redraw_carried = DG4E67.loop_frames
         = DG4E67.tool = 0;
-    DG50D3.dragged_part_ptr = 0;
+    DG50D3.dragged_part = 0;
 
     clear_layer_heads();
     reset_machine();
@@ -508,18 +508,18 @@ void pointer_frame(void)
         si = 0;
 
     if (si == 0) {
-        DG50D3.dragged_part_ptr = dg_near(dgroup, find_part_from(PART_PTR(DG50D3.dragged_part_ptr)));
-        if (DG50D3.dragged_part_ptr != 0
-            && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000) != 0)
-            DG50D3.dragged_part_ptr = 0;
+        DG50D3.dragged_part = (find_part_from(DG50D3.dragged_part));
+        if (DG50D3.dragged_part != 0
+            && (DG50D3.dragged_part->flags_06 & 0x8000) != 0)
+            DG50D3.dragged_part = 0;
     }
 
-    if (DG50D3.dragged_part_ptr != 0) {
+    if (DG50D3.dragged_part != 0) {
         if (DG4E67.tool != 9)
             DG52BD.drop_cursor = 0x0a;
 
         if (si == 0)
-            DG4E67.tool = part_handle_at_pointer(PART_PTR(DG50D3.dragged_part_ptr));
+            DG4E67.tool = part_handle_at_pointer(DG50D3.dragged_part);
 
         switch (DG4E67.tool & 0x7fff) {
         case 9:
@@ -549,7 +549,7 @@ void pointer_frame(void)
             break;
         case 10:
             if (DG5768.button_left == 2)
-                DG50D3.dragged_part_ptr = 0;
+                DG50D3.dragged_part = 0;
             break;
         }
     } else {
@@ -579,8 +579,8 @@ void edge_scroll_flags(void)
 {
     uint16_t kind;                      /* dx */
 
-    if (DG4E67.tool == 9 && DG50D3.dragged_part_ptr != 0) {
-        kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
+    if (DG4E67.tool == 9 && DG50D3.dragged_part != 0) {
+        kind = DG50D3.dragged_part->kind;
         if (kind != 8 && kind != 0x0a) {
             DG4E67.redraw_carried = 1;
 
@@ -658,7 +658,7 @@ void scroll_play_area(void)
 
     if (moved != 0) {
         si = pick_by_flag(0x3000);
-        while (si != PART_NONE) {
+        while (si != NULL) {
             if ((si->flags_08 & 0x2000) == 0) {
                 mark_needs_refile(si, 2);
                 mark_part_shapes(si, 3);
@@ -683,12 +683,12 @@ void scroll_play_area(void)
  */
 void move_carried(void)
 {
-    PART_PTR(DG50D3.dragged_part_ptr)->pos[0].x
-        = PART_PTR(DG50D3.dragged_part_ptr)->pos[0].y = -1;
+    DG50D3.dragged_part->pos[0].x
+        = DG50D3.dragged_part->pos[0].y = -1;
 
-    if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_BELT)
+    if (DG50D3.dragged_part->kind == KIND_BELT)
         move_carried_rope();
-    else if (PART_PTR(DG50D3.dragged_part_ptr)->kind == KIND_ROPE)
+    else if (DG50D3.dragged_part->kind == KIND_ROPE)
         move_carried_belt();
     else
         move_carried_part();
@@ -722,36 +722,36 @@ void move_carried_rope(void)
     int16_t close;                      /* [bp-2] */
     struct rope *link;                  /* [bp-4] */
 
-    link = ROPE_PTR(PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr);
-    di = PART_PTR(link->end_a_ptr);
+    link = DG50D3.dragged_part->rope;
+    di = link->end_a;
     close = rope_ends_close(link);
 
     if (DG5768.button_left == 2) {
         if (close == 0) {
-            if (di != PART_NONE)
+            if (di != NULL)
                 discard_carried_part();
         } else {
-            si = find_part_from(PART_NONE);
+            si = find_part_from(NULL);
 
-            if (di != PART_NONE) {
+            if (di != NULL) {
                 si->flags_08 |= 2;
                 si->start_flags = si->flags_08;
-                link->end_b_ptr = dg_near(dgroup, si);
-                si->rope_ptr = dg_near(dgroup, link);
+                link->end_b = si;
+                si->rope = link;
 
                 compute_link_endpoints(link);
-                mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
-                refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
+                mark_needs_refile(DG50D3.dragged_part, 2);
+                refile_part_list(DG50D3.dragged_part);
                 DG4E67.tool = 0;
-                DG50D3.dragged_part_ptr = 0;
+                DG50D3.dragged_part = 0;
             } else {
                 si->flags_08 |= 2;
                 si->start_flags = si->flags_08;
-                link->end_a_ptr = dg_near(dgroup, si);
-                si->rope_ptr = dg_near(dgroup, link);
+                link->end_a = si;
+                si->rope = link;
             }
         }
-    } else if (di != PART_NONE) {
+    } else if (di != NULL) {
         DG52BD.anchor_x = di->pos[0].x + di->grab.x;
         DG52BD.anchor_y = di->pos[0].y + di->grab.y;
         DG52BD.band_x = DG5768.pointer_x + DG4E67.origin_x;
@@ -801,79 +801,79 @@ void move_carried_belt(void)
     int16_t end;                        /* [bp-2] */
     struct part *far_;                  /* [bp-4] */
 
-    si = BELT_PTR(PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0]);
-    far_ = PART_PTR(si->end_a_ptr);
+    si = DG50D3.dragged_part->belt[0];
+    far_ = si->end_a;
 
-    di = find_belt_anchor(&end, PART_PTR(DG2630.belt_anchor_ptr));
+    di = find_belt_anchor(&end, DG2630.belt_anchor);
 
-    if (di == PART_PTR(DG5456.belt_far_end_ptr) && far_ != PART_NONE)
-        di = PART_NONE;
-    else if (di == far_ && far_ != PART_NONE)
-        di = PART_NONE;
+    if (di == DG5456.belt_far_end && far_ != NULL)
+        di = NULL;
+    else if (di == far_ && far_ != NULL)
+        di = NULL;
 
-    DG2630.belt_anchor_ptr = dg_near(dgroup, di);
+    DG2630.belt_anchor = di;
 
     if (DG5768.button_left == 2) {
-        if (di == PART_NONE) {
-            if (far_ != PART_NONE)
+        if (di == NULL) {
+            if (far_ != NULL)
                 discard_carried_part();
-        } else if (far_ != PART_NONE) {
-            if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
-                PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[2]
-                    = PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[0] = dg_near(dgroup, di);
-                mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-                mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-                mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
+        } else if (far_ != NULL) {
+            if (DG5456.belt_far_end->kind == KIND_PULLEY) {
+                DG5456.belt_far_end->link[2]
+                    = DG5456.belt_far_end->link[0] = di;
+                mark_joined_shapes(DG5456.belt_far_end, 3);
+                mark_part_shapes(DG5456.belt_far_end, 3);
+                mark_needs_refile(DG5456.belt_far_end, 2);
             } else {
-                PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[si->slot_a + 2]
-                    = PART_PTR(DG5456.belt_far_end_ptr)->link_ptr[si->slot_a] = dg_near(dgroup, di);
+                DG5456.belt_far_end->link[si->slot_a + 2]
+                    = DG5456.belt_far_end->link[si->slot_a] = di;
             }
 
             refresh_link_geometry(si);
-            mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
+            mark_needs_refile(DG50D3.dragged_part, 2);
 
             if (di->kind == KIND_PULLEY) {
-                di->link_ptr[3] = di->link_ptr[1] = DG5456.belt_far_end_ptr;
-                di->belt_ptr[1] = dg_near(dgroup, si);
-                if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
-                    aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-                DG5456.belt_far_end_ptr = dg_near(dgroup, di);
+                di->link[3] = di->link[1] = DG5456.belt_far_end;
+                di->belt[1] = si;
+                if (DG5456.belt_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(DG5456.belt_far_end);
+                DG5456.belt_far_end = di;
             } else {
-                di->link_ptr[end + 2] = di->link_ptr[end] = DG5456.belt_far_end_ptr;
-                di->belt_ptr[end] = dg_near(dgroup, si);
-                si->home_b_ptr = si->end_b_ptr = dg_near(dgroup, di);
+                di->link[end + 2] = di->link[end] = DG5456.belt_far_end;
+                di->belt[end] = si;
+                si->home_b = si->end_b = di;
                 si->home_slot_b = si->slot_b = end;
-                if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY)
-                    aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-                refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
+                if (DG5456.belt_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(DG5456.belt_far_end);
+                refile_part_list(DG50D3.dragged_part);
                 DG4E67.tool = 0;
-                DG50D3.dragged_part_ptr = 0;
+                DG50D3.dragged_part = 0;
             }
         } else if (di->kind != KIND_PULLEY) {
-            di->belt_ptr[end] = dg_near(dgroup, si);
-            si->home_a_ptr = si->end_a_ptr = dg_near(dgroup, di);
+            di->belt[end] = si;
+            si->home_a = si->end_a = di;
             si->home_slot_a = si->slot_a = end;
-            DG5456.belt_far_end_ptr = dg_near(dgroup, di);
+            DG5456.belt_far_end = di;
         }
-    } else if (far_ != PART_NONE) {
-        if (PART_PTR(DG5456.belt_far_end_ptr)->kind == KIND_PULLEY) {
+    } else if (far_ != NULL) {
+        if (DG5456.belt_far_end->kind == KIND_PULLEY) {
             end = 1;
-            aim_link_at_bisector(PART_PTR(DG5456.belt_far_end_ptr));
-            mark_joined_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-            mark_part_shapes(PART_PTR(DG5456.belt_far_end_ptr), 3);
-            mark_needs_refile(PART_PTR(DG5456.belt_far_end_ptr), 2);
+            aim_link_at_bisector(DG5456.belt_far_end);
+            mark_joined_shapes(DG5456.belt_far_end, 3);
+            mark_part_shapes(DG5456.belt_far_end, 3);
+            mark_needs_refile(DG5456.belt_far_end, 2);
         } else {
             end = si->slot_a;
         }
 
-        DG52BD.anchor_x = PART_PTR(DG5456.belt_far_end_ptr)->pos[0].x
-                        + PART_PTR(DG5456.belt_far_end_ptr)->attach[end].x;
-        DG52BD.anchor_y = PART_PTR(DG5456.belt_far_end_ptr)->pos[0].y
-                        + PART_PTR(DG5456.belt_far_end_ptr)->attach[end].y;
+        DG52BD.anchor_x = DG5456.belt_far_end->pos[0].x
+                        + DG5456.belt_far_end->attach[end].x;
+        DG52BD.anchor_y = DG5456.belt_far_end->pos[0].y
+                        + DG5456.belt_far_end->attach[end].y;
         DG52BD.band_x = DG5768.pointer_x + DG4E67.origin_x;
         DG52BD.band_y = DG5768.pointer_y + DG4E67.origin_y;
 
-        if (di != PART_NONE)
+        if (di != NULL)
             DG52BD.band_colour = 0x0a;
         else
             DG52BD.band_colour = 0x0c;
@@ -946,7 +946,7 @@ void move_carried_part(void)
     place_object_for_draw(CARRIED);
     retension_pulleys(CARRIED);
 
-    if ((si = ROPE_PTR(CARRIED->rope_ptr)) != ROPE_NONE)
+    if ((si = CARRIED->rope) != NULL)
         di = !rope_ends_close(si);
     else
         di = 0;
@@ -962,8 +962,8 @@ void move_carried_part(void)
         mark_joined_shapes(CARRIED, 3);
 
         if (di != 0) {
-            untie_rope(PART_PTR(si->owner_ptr));
-            discard_part(PART_PTR(si->owner_ptr));
+            untie_rope(si->owner);
+            discard_part(si->owner);
             DG4E67.redraw_e = 2;
         }
 
@@ -972,7 +972,7 @@ void move_carried_part(void)
         CARRIED->start_y = CARRIED->pos[0].y;
         refile_part_list(CARRIED);
         DG4E67.tool = 0;
-        DG50D3.dragged_part_ptr = 0;
+        DG50D3.dragged_part = 0;
     } else {
         DG52BD.drop_cursor = 0x0c;
     }
@@ -1105,11 +1105,11 @@ void pick_up_part(void)
     DG4E67.drag_offset_x = DG5768.pointer_x - CARRIED->pos[0].x + DG4E67.origin_x;
     DG4E67.drag_offset_y = DG5768.pointer_y - CARRIED->pos[0].y + DG4E67.origin_y;
 
-    if ((di = ROPE_PTR(CARRIED->rope_ptr)) != ROPE_NONE)
-        si = PART_PTR(di->end_a_ptr);
+    if ((di = CARRIED->rope) != NULL)
+        si = di->end_a;
 #ifndef __TURBOC__
     else
-        si = PART_NONE;     /* never read: only a part with a rope reaches the use */
+        si = NULL;     /* never read: only a part with a rope reaches the use */
 #endif
 
     mark_joined_shapes(CARRIED, 3);
@@ -1118,18 +1118,18 @@ void pick_up_part(void)
     if (CARRIED->kind == KIND_BELT) {
         untie_rope(CARRIED);
     } else if (CARRIED->kind == KIND_ROPE) {
-        rec = BELT_PTR(CARRIED->belt_ptr[0]);
-        DG5456.belt_far_end_ptr = PART_PTR(rec->end_b_ptr)->link_ptr[rec->slot_b];
+        rec = CARRIED->belt[0];
+        DG5456.belt_far_end = rec->end_b->link[rec->slot_b];
         detach_belt(CARRIED, 0);
     } else {
         detach_part_to_bin(CARRIED);
     }
 
     if (CARRIED->kind == KIND_BELT) {
-        di->end_a_ptr = dg_near(dgroup, si);
+        di->end_a = si;
         si->flags_08 |= 2;
         si->start_flags = si->flags_08;
-        si->rope_ptr = dg_near(dgroup, di);
+        si->rope = di;
     }
 
     DG4E67.tool = 9;
@@ -1258,7 +1258,7 @@ void run_drag_frame(void)
 
         if (DG5768.button_left == 2) {
             DG4E67.tool = 0;
-            DG50D3.dragged_part_ptr = 0;
+            DG50D3.dragged_part = 0;
         }
     } else if (DG5768.button_left == 2) {
         DG4E67.tool |= 0x8000;
@@ -1514,7 +1514,7 @@ int16_t settle_carried_part(void)
  */
 void bin_scroll_back(void)
 {
-    dg_near_t si;
+    struct part *si;
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
         DG2630.back_held = 0;
@@ -1526,13 +1526,13 @@ void bin_scroll_back(void)
         if (bin_repeat_due(DG2630.back_held)) {         /* deviation: see above */
 #endif
             si = bin_part_at_index(-5);
-            if (si != DG50D3.bin_list_ptr) {
-                DG50D3.bin_list_ptr = si;
+            if (si != DG50D3.bin_list) {
+                DG50D3.bin_list = si;
                 DG4E67.redraw_e = 2;
             } else {
                 si = bin_scroll_end();
-                if (si != DG50D3.bin_list_ptr) {
-                    DG50D3.bin_list_ptr = si;
+                if (si != DG50D3.bin_list) {
+                    DG50D3.bin_list = si;
                     DG4E67.redraw_e = 2;
                 }
             }
@@ -1559,7 +1559,7 @@ void bin_scroll_back(void)
  */
 void bin_scroll_forward(void)
 {
-    dg_near_t p;                         /* [bp-2] */
+    struct part *p;                         /* [bp-2] */
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
         DG2630.forward_held = 0;
@@ -1571,9 +1571,9 @@ void bin_scroll_forward(void)
         if (bin_repeat_due(DG2630.forward_held)) {      /* deviation: see above */
 #endif
             if ((p = bin_part_at_index(5)) != 0)
-                DG50D3.bin_list_ptr = p;
+                DG50D3.bin_list = p;
             else
-                DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+                DG50D3.bin_list = (&DG50D3.parts_bin);
             DG4E67.redraw_e = 2;
         }
 
@@ -1684,7 +1684,7 @@ void region_cursor_bin(struct region *region)
 void region_click_bin(struct region *region)
 {
     struct part *si;                    /* the clone */
-    dg_near_t saved;                    /* [bp-2] */
+    struct part *saved;                    /* [bp-2] */
 
     if (DG4E67.tool == 9) {
         if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
@@ -1695,26 +1695,26 @@ void region_click_bin(struct region *region)
     } else {
         DG4E67.drag_offset_x = DG4E67.drag_offset_y = 0;
 
-        if ((DG50D3.dragged_part_ptr
-                 = PART_PTR(bin_part_at_index(region->slot))->next_ptr) != 0) {
+        if ((DG50D3.dragged_part
+                 = (bin_part_at_index(region->slot))->next) != 0) {
             if (DG4E67.freeform != 0) {
                 si = clone_part(CARRIED);
-                saved = DG50D3.dragged_part_ptr;
-                DG50D3.dragged_part_ptr = 0;
+                saved = DG50D3.dragged_part;
+                DG50D3.dragged_part = 0;
 
                 if (check_room_for_part() != 0) {
-                    DG50D3.dragged_part_ptr = saved;
-                    if ((si->next_ptr = CARRIED->next_ptr) != 0)
-                        PART_PTR(si->next_ptr)->prev_ptr = dg_near(dgroup, si);
-                    si->prev_ptr = DG50D3.dragged_part_ptr;
-                    CARRIED->next_ptr = dg_near(dgroup, si);
-                    DG50D3.dragged_part_ptr = dg_near(dgroup, si);
+                    DG50D3.dragged_part = saved;
+                    if ((si->next = CARRIED->next) != 0)
+                        si->next->prev = si;
+                    si->prev = DG50D3.dragged_part;
+                    CARRIED->next = si;
+                    DG50D3.dragged_part = si;
                 } else {
                     free_part(si);
                 }
             }
 
-            if (DG50D3.dragged_part_ptr != 0) {
+            if (DG50D3.dragged_part != 0) {
                 DG4E67.tool = 9;
                 if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
                     DG4E67.redraw_e = 2;
@@ -1812,7 +1812,7 @@ void game_screen(void)
         if (DG52ED.last_key == SC_TAB)
             tab_move_pointer();
 
-        regions_handle_pointer(DG4E67.regions_panel_ptr);
+        regions_handle_pointer(DG4E67.regions_panel);
 
         if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
             show_message_box(DG1BCC.version_number, DG1BCC.this_is_version);
@@ -2325,7 +2325,7 @@ void paint_panel_frame_rest(void)
     VMDS.page_dst_ptr = VMDS.page_back_ptr;
 
     si = pick_by_flag(0x3000);
-    while (si != PART_NONE) {
+    while (si != NULL) {
         link_record_into_buckets(si);
         si = pick_for_record(si, 0x1000);
     }

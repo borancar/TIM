@@ -26,7 +26,7 @@
  */
 void part_setup_bird_cage(struct part *part)
 {
-    struct part_point *si = POINTS(part->points_ptr);
+    struct part_point *si = part->points;
 
     si->x = 0;
     si->y = 24;
@@ -82,7 +82,7 @@ void part_setup_bird_cage(struct part *part)
 uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *belt = BELT_PTR(p2->belt_ptr[0]);   /* [bp-2] */
+    struct belt *belt = p2->belt[0];   /* [bp-2] */
 
     if (p4 == 1) {
         belt->v[0]++;

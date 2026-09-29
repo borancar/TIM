@@ -206,7 +206,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
             && DG4E67.state == 0x4000)
             DG5768.button_left = 0;
 
-        regions_handle_pointer(DG4E67.regions_c_ptr);
+        regions_handle_pointer(DG4E67.regions_c);
 
         if (DG4E67.state == 0x100)
             goto dispatch;
@@ -840,8 +840,8 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
     (void)arg1;
     (void)arg2;
 
-    if (GAME_PICKER_TEXT.block == FAR_NULL_PTR) {
-        if (DG3576.scratch != FAR_NULL_PTR) {
+    if (GAME_PICKER_TEXT.block == NULL) {
+        if (DG3576.scratch != NULL) {
             GAME_PICKER_TEXT.entry_max = 0x3e8;
             GAME_PICKER_TEXT.block = DG3576.scratch;
         } else {

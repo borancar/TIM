@@ -779,10 +779,10 @@ uint16_t install_keyboard(int16_t hook_timer)
         S1C_KEYBOARD.old_int9 = getvect(0x09);
         S1C_KEYBOARD.old_int1c = getvect(0x1c);
 
-        setvect(0x09, (struct far_ptr){ 0x4f46, (uint16_t)(S1C25 >> 4) });
+        setvect(0x09, (void interrupt (far *)())keyboard_isr);
 
         if (hook_timer != 0)
-            setvect(0x1c, (struct far_ptr){ 0x5136, (uint16_t)(S1C25 >> 4) });
+            setvect(0x1c, (void interrupt (far *)())keyboard_tick_isr);
 
         ENGINE_PCJR_KEYBOARD.pcjr_keyboard = 0;
 
@@ -1034,6 +1034,18 @@ void keyboard_isr(void)
         io_out8(0x20, 0x20);
         game_teardown((int16_t)bx);
     }
+}
+
+/*
+ * OURS: a name for the INT 1Ch hook `install_keyboard` puts in at 1c25:5136,
+ * image 0x21386 - a label inside `keyboard_isr`'s module, `c_21386` above,
+ * not a routine of its own. Nothing the port runs asks for it and nothing on
+ * the host dispatches through a vector, so it is the name the vector is set
+ * to and aborts if it is ever called.
+ */
+void keyboard_tick_isr(void)
+{
+    not_transcribed("0x21386");
 }
 
 /*

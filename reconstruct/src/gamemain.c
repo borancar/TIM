@@ -220,11 +220,11 @@ void game_startup(void)
      * Twenty eight-byte records off the near heap, chained through their first
      * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
      */
-    DG4E4E.parts_free_ptr = DG4E4E.parts_queue_ptr = 0;
+    DG4E4E.parts_free = DG4E4E.parts_queue = 0;
     for (i = 0; i < 0x14; i++) {
         node = (struct queue_node *)calloc_far(1, sizeof(struct queue_node));
-        node->next_ptr = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = dg_near(dgroup, node);
+        node->next = DG4E4E.parts_free;
+        DG4E4E.parts_free = node;
     }
 
     /*
@@ -272,10 +272,10 @@ void game_teardown(int16_t really)
 {
     struct shape far *node;            /* [bp-4] */
     struct shape far *next;            /* [bp-8] */
-    dg_near_t after;                    /* [bp-0xa] */
+    struct queue_node *after;           /* [bp-0xa] */
     char code[40];                     /* [bp-0x32] */
     char msg[240];                     /* [bp-0x122] */
-    dg_near_t si;
+    struct queue_node *si;
 
     if (really == 0) {
         DG52ED.stop_requested = 1;
@@ -297,9 +297,9 @@ void game_teardown(int16_t really)
         dos_free_far(node);
     }
 
-    for (si = DG4E4E.parts_free_ptr; si != 0; si = after) {
-        after = QNODE_PTR(si)->next_ptr;
-        free_far(dg_near_ptr(si));
+    for (si = DG4E4E.parts_free; si != 0; si = after) {
+        after = si->next;
+        free_far(si);
     }
 
     free_region_lists();

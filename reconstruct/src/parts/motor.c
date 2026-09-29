@@ -47,7 +47,7 @@ void part_step_motor(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != PART_NONE && !(di->flags_08 & 0x800)) {
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800)) {
         if (part->direction == 0)
             di->direction = 0;
         else if (part->flags_08 & 0x10)
@@ -90,7 +90,7 @@ void part_setup_motor(struct part *part)
     part->grab.y = 0x0d;
     part->grab_size = 0x12;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 5; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }

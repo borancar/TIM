@@ -84,12 +84,12 @@ extern int32_t dev_queue_part_calls;
  */
 static void dump_chain(FILE *f, const char *name, const struct part *head)
 {
-    dg_near_t si;
+    const struct part *si;
     int32_t n = 0;
 
-    for (si = head->next_ptr; si != 0 && n < 4096;
-         si = PART_PTR(si)->next_ptr, n++) {
-        const struct part *p = PART_PTR(si);
+    for (si = head->next; si != 0 && n < 4096;
+         si = si->next, n++) {
+        const struct part *p = si;
 
         fprintf(f,
                 "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
@@ -106,8 +106,8 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
                 p->vel_x, p->vel_y, p->weight,
                 (uint32_t)p->momentum,
                 p->spin,
-                p->link_ptr[4], p->belt_ptr[0], p->next_linked_ptr,
-                p->contact_ptr);
+                p->link[4], p->belt[0], p->next_linked,
+                p->contact);
     }
 }
 
@@ -627,9 +627,9 @@ static void dev_autoplay(int32_t flip)
                  * reach the heap's limit.
                  */
                 if (DG4E67.freeform == 0) {
-                    DG50D3.parts_bin.prev_ptr = 0;
-                    DG50D3.parts_bin.next_ptr = 0;
-                    DG50D3.bin_list_ptr = dg_near(dgroup, &DG50D3.parts_bin);
+                    DG50D3.parts_bin.prev = 0;
+                    DG50D3.parts_bin.next = 0;
+                    DG50D3.bin_list = (&DG50D3.parts_bin);
                 }
 
                 reset_machine();
@@ -1085,15 +1085,15 @@ void dev_level_scan(void)
 
     for (n = lo; n <= hi; n++) {
         uint8_t seen[256];
-        dg_near_t si;
+        struct part *si;
         int32_t k, count = 0;
 
         memset(seen, 0, sizeof seen);
         load_level((uint16_t)n);
 
-        for (si = DG521B.placed_parts.next_ptr; si != 0 && count < 4096;
-             si = PART_PTR(si)->next_ptr, count++) {
-            uint16_t kind = PART_PTR(si)->kind;
+        for (si = DG521B.placed_parts.next; si != 0 && count < 4096;
+             si = si->next, count++) {
+            uint16_t kind = si->kind;
 
             if (kind < 256)
                 seen[kind] = 1;
@@ -1114,9 +1114,9 @@ void dev_level_scan(void)
                 int32_t c = 0;
 
                 printf(" %s", names[h]);
-                for (si = heads[h]->next_ptr; si != 0 && c < 4096; si = PART_PTR(si)->next_ptr) {
-                    printf("%c%d/%x", c ? ',' : ' ', PART_PTR(si)->kind,
-                           PART_PTR(si)->flags_06 & 0x3800);   /* kind / list bits */
+                for (si = heads[h]->next; si != 0 && c < 4096; si = si->next) {
+                    printf("%c%d/%x", c ? ',' : ' ', si->kind,
+                           si->flags_06 & 0x3800);   /* kind / list bits */
                     c++;
                 }
                 printf(" (%d) ", c);

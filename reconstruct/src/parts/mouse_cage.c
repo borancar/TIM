@@ -28,7 +28,7 @@ void part_setup_mouse_cage(struct part *part)
 {
     struct part_point *si;
 
-    si = POINTS(part->points_ptr);
+    si = part->points;
     si->x = si->y = 0;
     si++;
     si->x = part->size[0].width;
@@ -52,7 +52,7 @@ void part_setup_mouse_cage(struct part *part)
  */
 uint16_t part_hit_mouse_cage(struct part *part)
 {
-    trigger_mouse_cage(PART_PTR(part->contact_ptr));
+    trigger_mouse_cage(part->contact);
     return 1;
 }
 
@@ -73,18 +73,18 @@ void part_step_mouse_cage(struct part *part)
     if (part->direction == 0) {
         link_nearby_objects(part, 0x1000, -0x10, 0x10, 0, 0);
 
-        di = PART_PTR(part->next_linked_ptr);
-        while (di != PART_NONE) {
+        di = part->next_linked;
+        while (di != NULL) {
             if (di->kind == KIND_POKEY) {
                 part->direction = 1;
-                di = PART_NONE;
+                di = NULL;
             } else {
-                di = PART_PTR(di->next_linked_ptr);
+                di = di->next_linked;
             }
         }
     }
 
-    if ((di = rope_other_end(part)) != PART_NONE && !(di->flags_08 & 0x800))
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800))
         di->direction = part->direction;
 
     if (part->direction != 0) {

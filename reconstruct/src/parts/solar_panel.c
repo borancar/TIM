@@ -27,9 +27,9 @@
 void part_setup_solar_panel(struct part *part)
 {
     part->form = 0;
-    if (part->link_ptr[4] != 0)
+    if (part->link[4] != 0)
         part->form |= 1;
-    if (part->link_ptr[5] != 0)
+    if (part->link[5] != 0)
         part->form |= 2;
 }
 
@@ -61,8 +61,8 @@ void part_step_solar_panel(struct part *part)
 
         link_nearby_objects(part, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);
 
-        for (si = PART_PTR(part->next_linked_ptr); si != PART_NONE;
-             si = PART_PTR(si->next_linked_ptr)) {
+        for (si = part->next_linked; si != NULL;
+             si = si->next_linked) {
             if (si->direction != 0) {
                 if (si->kind == KIND_LIGHT || si->kind == KIND_CANDLE
                     || si->kind == KIND_BLAST) {
@@ -81,6 +81,6 @@ void part_step_solar_panel(struct part *part)
     }
 
     for (i = 4; i < 6; i++)
-        if ((si = PART_PTR(part->link_ptr[i])) != PART_NONE)
+        if ((si = part->link[i]) != NULL)
             si->direction = part->direction;
 }

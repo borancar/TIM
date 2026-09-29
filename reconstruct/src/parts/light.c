@@ -44,7 +44,7 @@ void part_setup_light(struct part *part)
  */
 uint16_t part_hit_light(struct part *part)
 {
-    struct part *other = PART_PTR(part->contact_ptr);   /* read, and never used */
+    struct part *other = part->contact;   /* read, and never used */
 
     (void)other;
     return 1;
@@ -106,7 +106,7 @@ uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
     uint16_t kept;                      /* [bp-2] */
     struct belt *belt;                  /* [bp-4] */
 
-    belt = BELT_PTR(si->belt_ptr[0]);
+    belt = si->belt[0];
 
     if (flags == 1) {
         belt->v[0]++;

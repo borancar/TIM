@@ -57,7 +57,7 @@ void part_step_gun(struct part *part)
         if (part->form == 2)
             play_sound(0x0b);
 
-        if (part->form == 3 && (si = make_part(KIND_BULLET)) != PART_NONE) {
+        if (part->form == 3 && (si = make_part(KIND_BULLET)) != NULL) {
             insert_sorted(si, &DG5179.moving_parts);
             si->flags_06 |= 0x10;
 
@@ -111,7 +111,7 @@ void part_setup_gun(struct part *part)
 
     part->attach[0].y = 18;
 
-    for (i = 0, dst = POINTS(part->points_ptr); i < 7; i++, dst++, src++) {
+    for (i = 0, dst = part->points; i < 7; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
     }
@@ -154,7 +154,7 @@ void part_flip_gun(struct part *part)
 uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6)
 {
-    struct belt *di = BELT_PTR(si->belt_ptr[0]);
+    struct belt *di = si->belt[0];
     uint16_t low;                       /* cx */
 
     if (flags == 1) {
