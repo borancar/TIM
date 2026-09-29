@@ -63,13 +63,13 @@ void game_setup(void)
     free_bitmaps_thunk(bar);
 
     cursor_redraw_off_thunk();
-    GAME_STATE.menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
-    GAME_STATE.score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
+    menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
+    score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
 
-    GAME_STATE.counter = 0;
-    GAME_STATE.round_number = 1;
-    GAME_STATE.playing = 1;
-    GAME_STATE.freeform = 0;
+    odometer_total = 0;
+    round_number = 1;
+    playing = 1;
+    freeform = 0;
 }
 
 /*
@@ -80,8 +80,8 @@ void game_setup(void)
  */
 void free_two_bitmap_lists(void)
 {
-    free_bitmaps_thunk(GAME_STATE.score2_bmp);
-    free_bitmaps_thunk(GAME_STATE.menu_bmp);
+    free_bitmaps_thunk(score2_bmp);
+    free_bitmaps_thunk(menu_bmp);
 }
 
 /*
@@ -111,10 +111,10 @@ void game_round(void)
 {
     round_setup();
 
-    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 1) {
+    while (round_state != 0x200 && round_state != 1) {
         heap_check_or_hang();
 
-        switch (GAME_STATE.state) {
+        switch (round_state) {
         case 2:
             game_screen();
             break;
@@ -127,7 +127,7 @@ void game_round(void)
         }
     }
 
-    if (GAME_STATE.state == 0x200)
+    if (round_state == 0x200)
         finish_level();
 
     round_teardown();
@@ -158,17 +158,17 @@ void game_round(void)
  */
 void round_setup(void)
 {
-    GAME_STATE.origin_c_x = GAME_STATE.origin_c_y = GAME_STATE.origin_b_x
-        = GAME_STATE.origin_b_y = GAME_STATE.origin_x = GAME_STATE.origin_y = -8;
-    GAME_STATE.word_4ebb = 0;
+    origin_c_x = origin_c_y = origin_b_x
+        = origin_b_y = origin_x = origin_y = -8;
+    word_4ebb = 0;
 
     heap_check_or_hang();
 
-    if (GAME_STATE.freeform != 0) {
+    if (freeform != 0) {
         build_part_list();
         reset_machine();
     } else {
-        load_level(GAME_STATE.round_number);
+        load_level(round_number);
     }
 
     LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
@@ -176,7 +176,7 @@ void round_setup(void)
     start_counters();
     reset_input_state();
 
-    GAME_STATE.state = 2;
+    round_state = 2;
 }
 
 /*

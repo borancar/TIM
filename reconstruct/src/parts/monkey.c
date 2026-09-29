@@ -142,7 +142,7 @@ void part_step_monkey(struct part *part)
         if (part->kind_state == 0) {
             if (part->form > 8) {
                 play_sound(2);
-                DG52BD.sound_request_02 = 2;
+                sound_request_02 = 2;
                 if (part->flags_08 & 0x10)
                     part->direction = -1;
                 else
@@ -176,7 +176,7 @@ void part_step_monkey(struct part *part)
 
         if (part->form != part->form_prev) {
             place_object_for_draw(part);
-            DG52BD.sound_request_02 = 2;
+            sound_request_02 = 2;
         }
     }
 }
@@ -243,7 +243,7 @@ yes:
             p2->form += 4;
         } else {
             play_sound(2);
-            DG52BD.sound_request_02 = 2;
+            sound_request_02 = 2;
             if (p2->flags_08 & 0x10)
                 p2->direction = -1;
             else

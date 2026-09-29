@@ -69,7 +69,7 @@ void game_startup(void)
     FILE *file;             /* di */
     int16_t i;                         /* si */
 
-    STKLEN = 0x800;
+    _stklen = 0x800;
 
     free_bytes = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {
@@ -82,9 +82,9 @@ void game_startup(void)
     dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
     set_holiday_flags();
 
-    DG52ED.stop_requested = 0;
-    GAME_STATE.file_op_active = 0;
-    GAME_STATE.cursor = 0xffff;
+    stop_requested = 0;
+    file_op_active = 0;
+    cursor = 0xffff;
 
     load_archive_map();
 
@@ -121,14 +121,14 @@ void game_startup(void)
     }
 
     if (read_tim_cfg() == 0) {
-        GAME_STATE.furthest_level = 1;
-        GAME_STATE.master_level = 6;
+        furthest_level = 1;
+        master_level = 6;
     }
 
-    GAME_STATE.password_puzzle = 0;
-    GAME_STATE.score = 0;
-    DG52BD.fill_colour = 3;
-    DG52BD.bin_colour = 0x0b;
+    password_puzzle = 0;
+    banked_score = 0;
+    fill_colour = 3;
+    bin_colour = 0x0b;
 
     vm_ok = vm_init(0x0d, 0x80, (FILE *)WRITABLE_LITERAL("vm.ovl"));
     if (vm_ok == 0) {
@@ -140,25 +140,25 @@ void game_startup(void)
     VMDS.page_back = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
-    DG52BD.pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
-    set_palette_pointer(DG52BD.pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
+    pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
+    pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
+    set_palette_pointer(pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
 
-    set_font(DG52BD.memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
+    set_font(memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
 
-    DG52ED.cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
-    DG52ED.panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
-    GAME_STATE.bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
+    cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
+    panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
+    bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, (FILE *)WRITABLE_LITERAL("sx.ovl"));
 
-    DG52ED.tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
+    tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
     for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)DG52ED.tim_sx, i);
+        open_sound_file((char *)tim_sx, i);
 
-    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[GAME_STATE.master_level]);
+    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -234,13 +234,13 @@ void game_teardown(int16_t really)
     struct queue_node *si;
 
     if (really == 0) {
-        DG52ED.stop_requested = 1;
+        stop_requested = 1;
         return;
     }
 
-    if (GAME_STATE.password_puzzle != 0) {
-        read_password_line(GAME_STATE.password_puzzle, code);
-        score_to_code(GAME_STATE.score, code);
+    if (password_puzzle != 0) {
+        read_password_line(password_puzzle, code);
+        score_to_code(banked_score, code);
         strcpy(msg, MESSAGES.thanks_for_playing);
         strcat(msg, code);
     } else {
@@ -261,22 +261,22 @@ void game_teardown(int16_t really)
     free_region_lists();
     free_all_part_bitmaps();
 
-    free_bitmaps_thunk(GAME_STATE.icons_bmp);
-    free_bitmaps_thunk(GAME_STATE.bmp_4ecb);
-    free_bitmaps_thunk(DG52ED.panel_art);
-    free_bitmaps(DG52ED.cursor_art);
+    free_bitmaps_thunk(icons_bmp);
+    free_bitmaps_thunk(bmp_4ecb);
+    free_bitmaps_thunk(panel_art);
+    free_bitmaps(cursor_art);
 
-    close_font_slot(DG52BD.memo_font);
+    close_font_slot(memo_font);
 
-    free_far_block(DG52BD.pal_black);
-    free_far_block(DG52BD.pal_sierra);
-    free_far_block(DG52ED.pal_tim);
+    free_far_block(pal_black);
+    free_far_block(pal_sierra);
+    free_far_block(pal_tim);
 
     stop_sequences(-2);
     remove_and_free_records(-2);
     shutdown_sound();
 
-    close_file_record(DG52ED.tim_sx);
+    close_file_record(tim_sx);
     free_archive_lists();
 
     remove_keyboard();

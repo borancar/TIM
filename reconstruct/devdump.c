@@ -518,7 +518,7 @@ static void dev_autoplay(int32_t flip)
     if (!armed)
         return;
 
-    state = GAME_STATE.state;
+    state = round_state;
 
     /*
      * `TIM_TRACE=autoplay` prints the state word at every flip. Which screen
@@ -578,7 +578,7 @@ static void dev_autoplay(int32_t flip)
          * the screen in the message would have been a guess that is wrong half
          * the time.
          */
-        GAME_STATE.state = 0x8000;
+        round_state = 0x8000;
         fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
                 flip);
     } else if (state == 0x1000) {
@@ -626,7 +626,7 @@ static void dev_autoplay(int32_t flip)
                  * The 45 freeform parts are not freed: one load a run does not
                  * reach the heap's limit.
                  */
-                if (GAME_STATE.freeform == 0) {
+                if (freeform == 0) {
                     HELD_PARTS.parts_bin.prev = 0;
                     HELD_PARTS.parts_bin.next = 0;
                     HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
@@ -661,7 +661,7 @@ static void dev_autoplay(int32_t flip)
         }
 
         if (want_run) {
-            GAME_STATE.state = 0x2000;
+            round_state = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
                     flip);
         } else {
@@ -770,7 +770,7 @@ void dev_level_solved(int16_t level, int16_t score)
         on = trace_asks_level();
     if (on)
         fprintf(stderr, "io: level solved=%d score=%d frames=%d\n",
-                (int)level, (int)score, (int)GAME_STATE.machine_frames);
+                (int)level, (int)score, (int)machine_frames);
 }
 
 /*
@@ -807,38 +807,38 @@ int32_t dev_simulate_machine(int32_t max_frames)
 {
     int32_t frames = 0;
 
-    if (GAME_STATE.state != 0x2000)
-        GAME_STATE.state = 0x2000;       /* what --run does once the puzzle is up */
+    if (round_state != 0x2000)
+        round_state = 0x2000;       /* what --run does once the puzzle is up */
 
     clear_machine();
-    GAME_STATE.elapsed_ticks = 0;
+    elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (GAME_STATE.state == 0x2000 && frames < max_frames) {
+    while (round_state == 0x2000 && frames < max_frames) {
         step_machine();
         mark_parts_in_dirty_rects();
         step_loop_frames();
         replay_shapes();
         step_and_draw_machine(0);
 
-        GAME_STATE.elapsed_ticks = (uint16_t)(GAME_STATE.elapsed_ticks + 8);
+        elapsed_ticks = (uint16_t)(elapsed_ticks + 8);
         TIMER.frame_budget = 0x2710;
 
         shift_all_histories();
 
-        if (GAME_STATE.freeform == 0)
+        if (freeform == 0)
             check_goal();
 
-        GAME_STATE.machine_frames++;
+        machine_frames++;
         frames++;
     }
 
-    if (GAME_STATE.state == 0x200)
+    if (round_state == 0x200)
         fprintf(stderr, "io: simulate solved=1 level=%d frames=%d score=%d\n",
-                (int)GAME_STATE.round_number, (int)frames, (int)GAME_STATE.score);
+                (int)round_number, (int)frames, (int)banked_score);
     else
         fprintf(stderr, "io: simulate solved=0 level=%d frames=%d state=%04x\n",
-                (int)GAME_STATE.round_number, (int)frames, (unsigned)GAME_STATE.state);
+                (int)round_number, (int)frames, (unsigned)round_state);
     return frames;
 }
 
@@ -1173,8 +1173,8 @@ void dev_part_pics(void)
      * path the list is empty and the game's own loader is asked for it - with
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
-    if (GAME_STATE.icons_bmp == 0)
-        GAME_STATE.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
+    if (icons_bmp == 0)
+        icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
@@ -1182,9 +1182,9 @@ void dev_part_pics(void)
      * this the icons come out as black rectangles and look like broken art
      * rather than a missing palette, which is exactly how it first appeared.
      */
-    set_palette_pointer(DG52ED.pal_tim);
+    set_palette_pointer(pal_tim);
 
-    list = GAME_STATE.icons_bmp;
+    list = icons_bmp;
     n = count_list(list);
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
@@ -1327,7 +1327,7 @@ void dev_flip_dump(int32_t flip)
      */
     fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
             "queue_part_calls %d\n", flip,
-            GAME_STATE.origin_x, GAME_STATE.origin_y, GAME_STATE.state,
+            origin_x, origin_y, round_state,
             dev_tension_belt_calls, dev_queue_part_calls);
     dump_chain(f, "part", &MACHINE_PARTS.placed_parts);
     dump_chain(f, "move", &MOVING_PARTS.moving_parts);

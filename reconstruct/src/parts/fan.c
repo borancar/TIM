@@ -86,7 +86,7 @@ void part_step_fan(struct part *part)
     int32_t force;                      /* [bp-0xa] */
 
     if (part->direction != 0) {
-        DG52BD.sound_request_09 = 2;
+        sound_request_09 = 2;
 
         if (part->form == part->form_prev)
             play_sound(9);

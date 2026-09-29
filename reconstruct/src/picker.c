@@ -174,8 +174,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
     FREE_LISTS.name_buf[0] = 0;
     reload = 2;
     idx = 0;
-    GAME_PICKER_TEXT.picker_mode = GAME_STATE.state;
-    was = GAME_STATE.state = 0x8000;
+    GAME_PICKER_TEXT.picker_mode = round_state;
+    was = round_state = 0x8000;
     repaint = rp_list = rp_file = rp_name = 0;
 #ifndef __TURBOC__
     /* The original never sets these two before the first pass reads them,
@@ -183,7 +183,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
     rp_up = rp_down = 0;
 #endif
 
-    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 0x100) {
+    while (round_state != 0x200 && round_state != 0x100) {
         if (reload != 0) {
             picker_begin(arg1, arg2, pat);
 
@@ -195,20 +195,20 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         }
 
         update_button_state();
-        DG52ED.last_key = (uint8_t)bios_read_key();
+        last_key = (uint8_t)bios_read_key();
 
-        if ((DG52ED.last_key) == '\t' && GAME_STATE.state != 0x4000
-            && GAME_STATE.state != 0x1000)
+        if ((last_key) == '\t' && round_state != 0x4000
+            && round_state != 0x1000)
             picker_tab();
 
-        if (((DG52ED.last_key) == '\r' || (DG52ED.last_key) == ' '
-             || (DG52ED.last_key) == 0x1b /* Esc */)
-            && GAME_STATE.state == 0x4000)
+        if (((last_key) == '\r' || (last_key) == ' '
+             || (last_key) == 0x1b /* Esc */)
+            && round_state == 0x4000)
             POINTER.button_left = 0;
 
-        regions_handle_pointer(GAME_STATE.regions_c);
+        regions_handle_pointer(regions_c);
 
-        if (GAME_STATE.state == 0x100)
+        if (round_state == 0x100)
             goto dispatch;
 
         /*
@@ -218,13 +218,13 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
          * path, and by then 0x4e6b no longer says the field. The original
          * tests the mode twice on the way in, once in each half of the `||`.
          */
-        if ((GAME_STATE.state != 0x4000 && was == 0x4000) || GAME_STATE.state == 0x4000) {
-            GAME_STATE.file_op_active = 1;
+        if ((round_state != 0x4000 && was == 0x4000) || round_state == 0x4000) {
+            file_op_active = 1;
 
-            if (((DG52ED.last_key) != '\r' && GAME_STATE.state == 0x4000)
+            if (((last_key) != '\r' && round_state == 0x4000)
                 || was != 0x4000) {
                 if (was == 0x4000)
-                    picker_type((DG52ED.last_key), (char *)GAME_DIRECTORIES.path_field, 0x50);
+                    picker_type((last_key), (char *)GAME_DIRECTORIES.path_field, 0x50);
 
                 rp_name = 2;
             } else {
@@ -250,8 +250,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                         rp_name = 2;
                     }
 
-                    if (GAME_STATE.state == 0x4000)
-                        GAME_STATE.state = 0x8000;
+                    if (round_state == 0x4000)
+                        round_state = 0x8000;
                 } else {
                     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
                     show_message_box(MESSAGES.path_error, MESSAGES.path_error_body);
@@ -261,32 +261,32 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     repaint = 1;
                     rp_name = 2;
 
-                    if (GAME_STATE.state == 0x4000)
-                        GAME_STATE.state = 0x8000;
+                    if (round_state == 0x4000)
+                        round_state = 0x8000;
                 }
             }
 
-            GAME_STATE.file_op_active = 0;
+            file_op_active = 0;
         }
 
         /* The name field, the same shape and a different buffer. */
-        if ((GAME_STATE.state != 0x1000 && was == 0x1000) || GAME_STATE.state == 0x1000) {
-            if (((DG52ED.last_key) != '\r' && GAME_STATE.state == 0x1000)
+        if ((round_state != 0x1000 && was == 0x1000) || round_state == 0x1000) {
+            if (((last_key) != '\r' && round_state == 0x1000)
                 || was != 0x1000) {
                 if (was == 0x1000)
-                    picker_type((DG52ED.last_key), (char *)FREE_LISTS.name_buf, 0x0d);
+                    picker_type((last_key), (char *)FREE_LISTS.name_buf, 0x0d);
             } else {
                 force_extension((char *)FREE_LISTS.name_buf, "TIM");
 
-                if (GAME_STATE.state == 0x1000)
-                    GAME_STATE.state = 0x8000;
+                if (round_state == 0x1000)
+                    round_state = 0x8000;
             }
 
             rp_file = 2;
         }
 
     dispatch:
-        switch (GAME_STATE.state) {
+        switch (round_state) {
         case 0x0800:                    /* the up arrow */
             if (POINTER.button_left == 1 || POINTER.button_left == 2) {
                 v = GAME_PICKER_TEXT.scroll - 1;
@@ -296,7 +296,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     rp_list = 2;
                 }
             } else {
-                GAME_STATE.state = 0x8000;
+                round_state = 0x8000;
             }
             rp_up = 2;
             break;
@@ -310,7 +310,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     rp_list = 2;
                 }
             } else {
-                GAME_STATE.state = 0x8000;
+                round_state = 0x8000;
             }
             rp_down = 2;
             break;
@@ -342,18 +342,18 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     else
                         path_up((char *)GAME_DIRECTORIES.path_field);
 
-                    GAME_STATE.file_op_active = 1;
+                    file_op_active = 1;
 
                     if (dos_chdir((char *)GAME_DIRECTORIES.path_field) == 0)
                         dos_setdisk(GAME_DIRECTORIES.path_field[0]);
 
-                    GAME_STATE.file_op_active = 0;
+                    file_op_active = 0;
                     reload = 2;
                     FREE_LISTS.name_buf[0] = 0;
                 }
             }
 
-            GAME_STATE.state = 0x8000;
+            round_state = 0x8000;
             break;
 
         case 0x0200:                    /* the LOAD or SAVE button */
@@ -367,7 +367,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                             paint_panel_frame();
                             restore_cursor();
                             repaint = 1;
-                            GAME_STATE.state = 0x8000;
+                            round_state = 0x8000;
                         }
                     }
                 } else if (is_machine_file((char *)FREE_LISTS.name_buf) == 0) {
@@ -377,7 +377,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     paint_panel_frame();
                     restore_cursor();
                     repaint = 1;
-                    GAME_STATE.state = 0x8000;
+                    round_state = 0x8000;
                 }
             } else {
                 picker_draw_action();
@@ -389,12 +389,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                 paint_panel_frame();
                 restore_cursor();
                 repaint = 1;
-                GAME_STATE.state = 0x8000;
+                round_state = 0x8000;
             }
             break;
         }
 
-        was = GAME_STATE.state;
+        was = round_state;
 
         /*
          * **A whole repaint is not one of the partial ones.** When it happens
@@ -444,7 +444,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
     picker_draw_action();
 
-    if (GAME_STATE.state != 0x200 || strlen((char *)FREE_LISTS.name_buf) == 0) {
+    if (round_state != 0x200 || strlen((char *)FREE_LISTS.name_buf) == 0) {
         FREE_LISTS.name_buf[0] = 0;
         return 0;
     } else {
@@ -573,7 +573,7 @@ uint16_t validate_filename(void)
  */
 void picker_draw_action(void)
 {
-    if (GAME_STATE.state != 0x200) {
+    if (round_state != 0x200) {
         draw_button(MESSAGES.cancel, 0xc0, 0x130, 1);
     } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
         draw_button(MESSAGES.load, 0x40, 0x130, 1);
@@ -931,14 +931,14 @@ void picker_draw_up(void)
 {
     int16_t pressed;
 
-    if (GAME_STATE.state == 0x800)
+    if (round_state == 0x800)
         pressed = 1;
     else
         pressed = 0;
 
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((DG52ED.panel_art + 0x25)[pressed]),
+    draw_bitmap(((panel_art + 0x25)[pressed]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -954,14 +954,14 @@ void picker_draw_down(void)
 {
     int16_t pressed;
 
-    if (GAME_STATE.state == 0x400)
+    if (round_state == 0x400)
         pressed = 1;
     else
         pressed = 0;
 
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((DG52ED.panel_art + 0x27)[pressed]),
+    draw_bitmap(((panel_art + 0x27)[pressed]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }
@@ -993,7 +993,7 @@ void picker_draw_name(void)
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
 
-    if (GAME_STATE.state == 0x4000) {
+    if (round_state == 0x4000) {
         PICKER_CARET.caret_blink++;
         if ((PICKER_CARET.caret_blink & 8) != 0)
             strcat(si, "*");
@@ -1036,7 +1036,7 @@ void picker_draw_filename(void)
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
 
-    if (GAME_STATE.state == 0x1000) {
+    if (round_state == 0x1000) {
         PICKER_CARET.caret_blink_b++;
         if ((PICKER_CARET.caret_blink_b & 8) != 0)
             strcat(si, "*");

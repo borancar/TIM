@@ -455,8 +455,8 @@ void read_level(char *name)
             game_fread_far(file, (uint8_t *)&LEVEL_IO.version);
 
             if (LEVEL_IO.is_level != 0) {
-                game_fread_string(file, (char *)GAME_STATE.title);
-                game_fread_string(file, (char *)GAME_STATE.hint);
+                game_fread_string(file, (char *)level_title);
+                game_fread_string(file, (char *)level_hint);
                 game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_1);
                 game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_2);
             }
@@ -752,15 +752,15 @@ uint16_t write_level(register char *name)
     LEVEL_IO.error = 0;
     LEVEL_IO.version_out = 0xaced;
     LEVEL_IO.version = 0x0102;
-    GAME_STATE.file_op_active = 1;
+    file_op_active = 1;
 
     if ((f = game_fopen(name, "wb")) != 0) {
         write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
         write_word(f, (const uint8_t *)&LEVEL_IO.version);
 
         if (LEVEL_IO.is_level != 0) {
-            write_string(f, (char *)GAME_STATE.title);
-            write_string(f, (char *)GAME_STATE.hint);
+            write_string(f, (char *)level_title);
+            write_string(f, (char *)level_hint);
             write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_1);
             write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_2);
         }
@@ -789,9 +789,9 @@ uint16_t write_level(register char *name)
         if (LEVEL_IO.error != 0)
             dos_unlink(name);
 
-        GAME_STATE.file_op_active = 0;
+        file_op_active = 0;
     } else {
-        GAME_STATE.file_op_active = 0;
+        file_op_active = 0;
         return 1;
     }
     return LEVEL_IO.error;
@@ -947,19 +947,19 @@ void count_level_files(void)
     char name[14];                      /* [bp-0x18] */
     register int16_t done = 0;
 
-    GAME_STATE.level_count = 1;
+    level_count = 1;
 
     while (done == 0) {
         strcpy(name, "l");
-        itoa(GAME_STATE.level_count, number, 10);
+        itoa(level_count, number, 10);
         strcat(name, number);
         strcat(name, ".lev");
 
         if ((file = game_fopen(name, "rb")) != 0) {
-            GAME_STATE.level_count++;
+            level_count++;
             game_fclose(file);
         } else {
-            GAME_STATE.level_count--;
+            level_count--;
             done = 1;
         }
     }
@@ -1112,8 +1112,8 @@ uint16_t read_tim_cfg(void)
     register uint16_t found;
 
     if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "rb")) != 0) {
-        game_fread_far(file, (uint8_t *)&GAME_STATE.furthest_level);
-        game_fread_far(file, (uint8_t *)&GAME_STATE.master_level);
+        game_fread_far(file, (uint8_t *)&furthest_level);
+        game_fread_far(file, (uint8_t *)&master_level);
         game_fclose(file);
         found = 1;
     } else {
@@ -1138,8 +1138,8 @@ void write_config(void)
     register FILE *file;
 
     if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "wb")) != 0) {
-        write_word(file, (const uint8_t *)&GAME_STATE.furthest_level);
-        write_word(file, (const uint8_t *)&GAME_STATE.master_level);
+        write_word(file, (const uint8_t *)&furthest_level);
+        write_word(file, (const uint8_t *)&master_level);
         game_fclose(file);
     }
 }

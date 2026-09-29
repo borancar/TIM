@@ -81,29 +81,29 @@ static void on_hotkey(int32_t id)
  */
 static void resume_from_snapshot(void)
 {
-    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 1) {
+    while (round_state != 0x200 && round_state != 1) {
         heap_check_or_hang();
 
-        if (GAME_STATE.state == 2)
+        if (round_state == 2)
             game_screen();
-        else if (GAME_STATE.state == 0x2000)
+        else if (round_state == 0x2000)
             run_machine_loop();
         else
             game_screen_loop();
     }
 
-    if (GAME_STATE.state == 0x200)
+    if (round_state == 0x200)
         finish_level();
 
     round_teardown();
 
-    while (GAME_STATE.playing != 0) {
-        if (((int16_t)GAME_STATE.state) == 1) {
-            GAME_STATE.playing = 0;
+    while (playing != 0) {
+        if (((int16_t)round_state) == 1) {
+            playing = 0;
         } else {
-            GAME_STATE.round_number = (int16_t)(GAME_STATE.round_number + 1);
-            if (GAME_STATE.round_number > GAME_STATE.furthest_level) {
-                GAME_STATE.furthest_level = GAME_STATE.round_number;
+            round_number = (int16_t)(round_number + 1);
+            if (round_number > furthest_level) {
+                furthest_level = round_number;
                 write_config();
             }
             game_round();
@@ -179,7 +179,7 @@ static void play_level(int32_t level)
     game_startup();
     game_intro();
     game_setup();
-    GAME_STATE.round_number = (uint16_t)level;
+    round_number = (uint16_t)level;
     game_round();
     game_teardown(1);
 }

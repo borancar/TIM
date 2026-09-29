@@ -99,7 +99,7 @@ void part_step_generator(struct part *part)
         part->direction = 0;
 
     if (part->direction != 0) {
-        DG52BD.sound_request_0c = 2;
+        sound_request_0c = 2;
 
         if (part->form == part->form_prev)
             play_sound(0x0c);

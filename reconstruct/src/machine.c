@@ -566,8 +566,8 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
 
     pl = pr = POINTER.pointer_x;
     pt = pb = POINTER.pointer_y;
-    ox = part->box[0].x - GAME_STATE.origin_x;
-    oy = part->box[0].y - GAME_STATE.origin_y;
+    ox = part->box[0].x - origin_x;
+    oy = part->box[0].y - origin_y;
     x0 = ox;
     y0 = oy;
     x1 = x0 + part->size[0].width;
@@ -596,7 +596,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     }
 
     if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
-        if (link != NULL && GAME_STATE.tool != 9) {
+        if (link != NULL && tool != 9) {
             x0 = ox + part->grab.x;
             y0 = oy + part->grab.y;
             x1 = x0 + part->grab_size;
@@ -616,7 +616,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
         }
 
         for (cur = e0, i = 0; i < 2; cur = e1, i++) {
-            if (cur != NULL && GAME_STATE.tool != 9
+            if (cur != NULL && tool != 9
                 && part->kind != KIND_PULLEY) {
                 x0 = ox + part->attach[i].x - 8;
                 y0 = oy + part->attach[i].y - 4;
@@ -729,7 +729,7 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
     if ((si = find_part_from(rec)) != NULL) {
         if (si->flags_08 & 4) {
             if (si->flags_08 & 8) {
-                e0 = e1 = si->pos[0].x - GAME_STATE.origin_x;
+                e0 = e1 = si->pos[0].x - origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
                 if (abs((int16_t)(POINTER.pointer_x - e0))
@@ -761,8 +761,8 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
  */
 void wait_cursor(void)
 {
-    if (GAME_STATE.cursor != 1)
-        GAME_STATE.saved_cursor = GAME_STATE.cursor;
+    if (cursor != 1)
+        saved_cursor = cursor;
 
     select_cursor(1);
 }
@@ -774,7 +774,7 @@ void wait_cursor(void)
  */
 void restore_cursor(void)
 {
-    select_cursor(GAME_STATE.saved_cursor);
+    select_cursor(saved_cursor);
 }
 
 /*
@@ -795,14 +795,14 @@ void select_cursor(register int16_t which)
 
     if (which > 0x1a)
         which = 0;
-    if (which != GAME_STATE.cursor) {
-        GAME_STATE.cursor = which;
+    if (which != cursor) {
+        cursor = which;
         if (which < 9) {
             hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[which];
             hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
         } else
             hot_x = hot_y = 0;
-        set_cursor(DG52ED.cursor_art[which],
+        set_cursor(cursor_art[which],
                    hot_x, hot_y);
     }
 }
@@ -843,7 +843,7 @@ int16_t cursor_for_tool(void)
 {
     int16_t r;
 
-    switch (GAME_STATE.tool) {
+    switch (tool) {
     case 1:
         r = 4;
         break;
@@ -918,7 +918,7 @@ uint16_t part_flip_options(register struct part *part)
         di |= 2;
 
     if (part->flags_06 & 0x400) {
-        if (GAME_STATE.tool == 9)
+        if (tool == 9)
             di |= 4;
         else {
             part_flip(part, 1);
@@ -931,7 +931,7 @@ uint16_t part_flip_options(register struct part *part)
     }
 
     if (part->flags_06 & 0x200) {
-        if (GAME_STATE.tool == 9)
+        if (tool == 9)
             di |= 8;
         else {
             part_flip(part, 2);
@@ -989,9 +989,9 @@ uint16_t part_handle_at_pointer(register struct part *part)
 
     if (part->kind == KIND_BELT) {
         rec = (part->rope->end_b);
-        x0 = rec->box[0].x + rec->grab.x - GAME_STATE.origin_x;
+        x0 = rec->box[0].x + rec->grab.x - origin_x;
         /* the original takes origin_x off a y here, and below */
-        y0 = rec->box[0].y + rec->grab.y - GAME_STATE.origin_x;
+        y0 = rec->box[0].y + rec->grab.y - origin_x;
         if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
             && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
@@ -1004,8 +1004,8 @@ uint16_t part_handle_at_pointer(register struct part *part)
         end = part->belt[0];
         rec = end->end_b;
         idx = end->slot_b;
-        x0 = rec->box[0].x + rec->attach[idx].x - GAME_STATE.origin_x - 8;
-        y0 = rec->box[0].y + rec->attach[idx].y - GAME_STATE.origin_x - 4;
+        x0 = rec->box[0].x + rec->attach[idx].x - origin_x - 8;
+        y0 = rec->box[0].y + rec->attach[idx].y - origin_x - 4;
         if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
             && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
@@ -1014,10 +1014,10 @@ uint16_t part_handle_at_pointer(register struct part *part)
             return 7;
     }
 
-    x0 = part->box[0].x - GAME_STATE.origin_x;
+    x0 = part->box[0].x - origin_x;
     x_mid = x0 + (part->size[0].width >> 1) - 6;
     x_end = x0 + part->size[0].width;
-    y0 = part->box[0].y - GAME_STATE.origin_y;
+    y0 = part->box[0].y - origin_y;
     y_mid = y0 + (part->size[0].height >> 1) - 6;
     y_end = y0 + part->size[0].height;
 
@@ -1147,8 +1147,8 @@ uint16_t angle_between_parts(register struct part *part,
     int32_t dy;                         /* [bp-0xc] */
 
     if (other == NULL) {
-        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + GAME_STATE.origin_x));
-        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + GAME_STATE.origin_y));
+        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + origin_x));
+        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + origin_y));
     } else if (other->kind == KIND_PULLEY) {
         dx = (int16_t)(part->pos[0].x - other->pos[0].x);
         dy = (int16_t)(part->pos[0].y - other->pos[0].y);
@@ -1408,7 +1408,7 @@ void refresh_link_geometry(register struct belt *link)
                 a->belt[0]->pt[0][j].y = a->pos[0].y + a->attach[j].y;
             }
 
-        if (GAME_STATE.state != 0x2000) {
+        if (round_state != 0x2000) {
             link->owner->kind_state = link_end_distance(link, 3, 0);
             link->owner->spin = link_end_distance(link, 3, 1);
         }
@@ -1689,7 +1689,7 @@ void detach_belt(struct part *part, uint16_t how)
  */
 void discard_part(struct part *part)
 {
-    if (GAME_STATE.freeform != 0) {
+    if (freeform != 0) {
         unlink_part(part);
         free_part(part);
     }
@@ -1901,7 +1901,7 @@ void detach_part_to_bin(register struct part *part)
 {
     int16_t i;
 
-    if (!((GAME_STATE.tool == 8 || GAME_STATE.tool == 7) && GAME_STATE.state == 0x1000)) {
+    if (!((tool == 8 || tool == 7) && round_state == 0x1000)) {
         if (part->rope != 0 && part->kind != KIND_BELT)
             untie_rope((part->rope->owner));
         if (part->kind != KIND_ROPE && part->kind != KIND_PULLEY)
@@ -2110,7 +2110,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
             si->owner->redraw_count = n;
     } else {
         if ((rope = part->rope) != NULL) {
-            if (GAME_STATE.state == 0x1000) {
+            if (round_state == 0x1000) {
                 compute_link_endpoints(rope);
                 if (rope_ends_close(rope))
                     rope->owner->redraw_count = n;
@@ -2118,7 +2118,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
                 rope->owner->redraw_count = n;
         }
 
-        if (GAME_STATE.state == 0x2000) {
+        if (round_state == 0x2000) {
             if ((si = part->belt[0]) != NULL
                 && !si->owner->redraw_count) {
                 si->owner->redraw_count = n;
@@ -2472,7 +2472,7 @@ void mark_joined_shapes(register struct part *part, uint16_t mode)
         if ((di = part->belt[1]) != NULL)
             mark_belt_shapes(di->owner, mode);
     } else if (part->kind != KIND_BELT && part->kind != KIND_ROPE) {
-        if (GAME_STATE.state != 0x2000
+        if (round_state != 0x2000
             && (rope = part->rope) != NULL)
             add_sub_object_shapes(rope->owner, mode);
         if ((di = part->belt[0]) != NULL)
@@ -2552,7 +2552,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
     box[0] = 0x10;
     box[1] = 0x10;
 
-    if (GAME_STATE.state == 0x2000) {
+    if (round_state == 0x2000) {
         near_part = si->end_a;
         far_part = near_part->link[si->slot_a];
         if (mode & 1) {
@@ -2750,18 +2750,18 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
         *(struct point16 far *)&n->x2 = *(const struct point16 *)pt2;
         n->width = width;
         if (which == 1) {
-            n->x1 -= GAME_STATE.origin_c_x;
-            n->y1 -= GAME_STATE.origin_c_y;
+            n->x1 -= origin_c_x;
+            n->y1 -= origin_c_y;
             if (flags & 4) {
-                n->x2 -= GAME_STATE.origin_c_x;
-                n->y2 -= GAME_STATE.origin_c_y;
+                n->x2 -= origin_c_x;
+                n->y2 -= origin_c_y;
             }
         } else {
-            n->x1 -= GAME_STATE.origin_b_x;
-            n->y1 -= GAME_STATE.origin_b_y;
+            n->x1 -= origin_b_x;
+            n->y1 -= origin_b_y;
             if (flags & 4) {
-                n->x2 -= GAME_STATE.origin_b_x;
-                n->y2 -= GAME_STATE.origin_b_y;
+                n->x2 -= origin_b_x;
+                n->y2 -= origin_b_y;
             }
         }
 
@@ -2820,7 +2820,7 @@ void replay_shapes(void)
 
     set_clip_for_mode();
     VMDS.clip_enabled = 1;
-    VMDS.fill_colour = VMDS.second_colour = DG52BD.fill_colour;
+    VMDS.fill_colour = VMDS.second_colour = fill_colour;
     VMDS.page_dst = VMDS.page_back;
 
     prev = 0;
@@ -2893,29 +2893,29 @@ void mark_parts_in_dirty_rects(void)
                 si = di->rope;
                 if (!rope_ends_close(si))
                     continue;
-                if (GAME_STATE.tool == 9
+                if (tool == 9
                     && (si->end_a == HELD_PARTS.dragged_part
                         || si->end_b == HELD_PARTS.dragged_part)
                     && !point_in_play_area())
                     continue;
                 if (si->pt[0][0].x < si->pt[0][1].x) {
-                    right = left = si->pt[0][0].x - GAME_STATE.origin_x;
+                    right = left = si->pt[0][0].x - origin_x;
                     right += si->pt[0][3].x - si->pt[0][0].x;
                 } else {
-                    right = left = si->pt[0][1].x - GAME_STATE.origin_x;
+                    right = left = si->pt[0][1].x - origin_x;
                     right += si->pt[0][2].x - si->pt[0][1].x;
                 }
                 /* origin_x on the y axis too, as the original has it */
                 if (si->pt[0][0].y < si->pt[0][1].y) {
-                    bottom = top = si->pt[0][0].y - GAME_STATE.origin_x;
+                    bottom = top = si->pt[0][0].y - origin_x;
                     bottom += si->pt[0][3].y - si->pt[0][0].y;
                 } else {
-                    bottom = top = si->pt[0][1].y - GAME_STATE.origin_x;
+                    bottom = top = si->pt[0][1].y - origin_x;
                     bottom += si->pt[0][2].y - si->pt[0][1].y;
                 }
             } else {
-                left = di->box[0].x - GAME_STATE.origin_x;
-                top = di->box[0].y - GAME_STATE.origin_y;
+                left = di->box[0].x - origin_x;
+                top = di->box[0].y - origin_y;
                 right = left + di->size[0].width;
                 bottom = top + di->size[0].height;
             }
@@ -2992,18 +2992,18 @@ void belt_in_dirty_rect(struct part *part)
         by = si->box[0].y + si->attach[slotB].y;
 
         if (ax < bx) {
-            left = ax - GAME_STATE.origin_x;
-            right = bx - GAME_STATE.origin_x;
+            left = ax - origin_x;
+            right = bx - origin_x;
         } else {
-            left = bx - GAME_STATE.origin_x;
-            right = ax - GAME_STATE.origin_x;
+            left = bx - origin_x;
+            right = ax - origin_x;
         }
         if (ay < by) {
-            top = ay - GAME_STATE.origin_y;
-            bottom = by - GAME_STATE.origin_y;
+            top = ay - origin_y;
+            bottom = by - origin_y;
         } else {
-            top = by - GAME_STATE.origin_y;
-            bottom = ay - GAME_STATE.origin_y;
+            top = by - origin_y;
+            bottom = ay - origin_y;
         }
         if (slack > 0)
             bottom += slack >> 1;
@@ -3098,7 +3098,7 @@ void refile_overlapping_parts(void)
                         si = di->rope;
                         if (!rope_ends_close(si))
                             continue;
-                        if (GAME_STATE.tool == 9
+                        if (tool == 9
                             && (si->end_a == HELD_PARTS.dragged_part
                                 || si->end_b == HELD_PARTS.dragged_part)
                             && !point_in_play_area())
@@ -3687,10 +3687,10 @@ int16_t tension_belt(register struct part *part)
                     di->kind_state -= dA;
                     if ((int16_t)di->kind_state < 0) {
                         dA += (int16_t)di->kind_state;
-                        saved = GAME_STATE.state;
-                        GAME_STATE.state = 0x1000;
+                        saved = round_state;
+                        round_state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        GAME_STATE.state = saved;
+                        round_state = saved;
                         pB = (other->link[belt->slot_a]);
                         pC = pB->link[0];
                         k = link_slot_of(pB, pC);
@@ -3705,10 +3705,10 @@ int16_t tension_belt(register struct part *part)
                     di->spin -= dA;
                     if (di->spin < 0) {
                         dA += di->spin;
-                        saved = GAME_STATE.state;
-                        GAME_STATE.state = 0x1000;
+                        saved = round_state;
+                        round_state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        GAME_STATE.state = saved;
+                        round_state = saved;
                         pB = (other->link[belt->slot_b]);
                         pC = pB->link[1];
                         k = link_slot_of(pB, pC);
@@ -4041,7 +4041,7 @@ void shift_state_history(register struct part *obj)
     obj->form_prev2 = obj->form_prev;
     obj->form_prev = obj->form;
 
-    if (obj->kind == KIND_BELT && GAME_STATE.state == 0x1000) {
+    if (obj->kind == KIND_BELT && round_state == 0x1000) {
         rope = obj->rope;
         rope->pt[2][0] = rope->pt[1][0];
         rope->pt[1][0] = rope->pt[0][0];

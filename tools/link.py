@@ -38,6 +38,7 @@ This file is the port's own tooling, not a transcription.
 """
 import argparse
 import concurrent.futures
+import glob
 import hashlib
 import json
 import os
@@ -317,10 +318,17 @@ def main(argv):
     code = {f: first_address(f) for f in files}
     saved = os.path.join(OUT, "data%s.json" % suffix)
     # `--reuse` still rebuilds a file whose source changed since its object
-    # was built (the link rewrites every object, so its time says nothing);
-    # a header's change needs the full build
+    # was built (the link rewrites every object, so its time says nothing) -
+    # or whose headers did: every game file includes these, and a change to
+    # one can change how any of them compiles, so they are part of each
+    # file's digest.
+    shared = b"".join(open(h, "rb").read() for h in sorted(
+        glob.glob(os.path.join(judge.RECON, "*.h")) +
+        glob.glob(os.path.join(judge.RECON, "src", "*.h")) +
+        glob.glob(os.path.join(judge.RECON, "tc", "*.h"))))
+
     def digest(f):
-        return hashlib.sha1(open(f, "rb").read()).hexdigest()
+        return hashlib.sha1(open(f, "rb").read() + shared).hexdigest()
     old = {}
     if a.reuse and os.path.exists(saved):
         old = {os.path.join(REPO, k): v for k, v in json.load(open(saved)).items()}

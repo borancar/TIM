@@ -231,10 +231,10 @@ void cut_belts(struct part *part, const int16_t *line)
             seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
 
             if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
-                saved = GAME_STATE.state;
-                GAME_STATE.state = 0x1000;
+                saved = round_state;
+                round_state = 0x1000;
                 mark_belt_shapes(belt->owner, 3);
-                GAME_STATE.state = saved;
+                round_state = saved;
 
                 if ((di = make_part(KIND_ANCHOR)) == NULL)
                     goto out;
@@ -304,7 +304,7 @@ fail:
                 anchorB->fy <<= 9;
                 place_object_for_draw(anchorB);
 
-                GAME_STATE.state = 0x1000;
+                round_state = 0x1000;
 
                 refresh_link_geometry(belt);
                 for (k = 0; k < 2; k++)
@@ -314,7 +314,7 @@ fail:
                 for (k = 0; k < 2; k++)
                     newbelt->pt[2][k] = newbelt->pt[1][k] = newbelt->pt[0][k];
 
-                GAME_STATE.state = saved;
+                round_state = saved;
                 prev = next = NULL;
             } else if (next == endB) {
                 prev = next = NULL;

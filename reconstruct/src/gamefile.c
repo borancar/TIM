@@ -188,7 +188,7 @@ FILE *game_fopen(char *name, const char *mode)
     do {
         ARCHIVE_LOOKUP.retry = 0;
         di = fopen(name, mode);
-        if (GAME_STATE.file_op_active != 0)
+        if (file_op_active != 0)
             return di;
         if (ARCHIVE_LOOKUP.retry != 0 && VMDS.pixel_shift != 0)
             answer_carry_on(ARCHIVE_LOOKUP.last_record != 0 ? ARCHIVE_LOOKUP.last_record : 1);
@@ -964,7 +964,7 @@ void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
                                   uint16_t ds, uint16_t es, uint16_t dx,
                                   uint16_t cx, uint16_t bx, uint16_t ax)
 {
-    if (GAME_STATE.file_op_active != 0)
+    if (file_op_active != 0)
         ax = 3;
     else
         ax = ARCHIVE_LOOKUP.opening ? 3 : 1;

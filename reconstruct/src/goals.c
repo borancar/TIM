@@ -10,8 +10,8 @@
  * A module of the original's **code segment 0000** (`_TEXT`), from image
  * 0x01476; split out of machine.c on 2026-09-27. Its `_DATA` is
  * `finish_level`'s literal pool, DGROUP 0x283a..0x2849, between screen.c's
- * and the next module's in the link order, and its `_BSS` is `DG5456` at
- * 0x5456..0x546c, between puzzles.c's and levels.c's - which is what puts
+ * and the next module's in the link order, and its `_BSS` is `belt_far_end` and
+ * `goal_condition`, 0x5456..0x546c, between puzzles.c's and levels.c's - which is what puts
  * the goal tests and `finish_level` in one module.
  *
  * **Where it ends is not settled.** This file stops after `finish_level`,
@@ -35,7 +35,16 @@
 #include "dgroup.h"
 
 /* **This module's `_BSS`**, DGROUP 0x5456..0x546c: the goal conditions. */
-struct dg_5456 DG5456;
+struct part *belt_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed while it is detached */
+/* **Ten words the goal tests keep between frames**, and what each means
+   depends on the test. `goal_test_puzzles_19_48` at 0x01bb4 does
+   `inc word ptr [0x5458]` - a count of frames the goal has held, and
+   passing 0xc wins. `goal_test_puzzle_78` at 0x015bf does
+   `cmp word ptr [bx + 0x5458], 0` with `bx` twice the mouse-cage count: a
+   flag per cage. The ten is `clear_machine`'s, which zeroes them with
+   `cmp si, 0xa / jl` over a word stride; nothing yet says the table is no
+   longer than that. */
+uint16_t goal_condition[10];   /* DGROUP 0x5458..0x546c */
 
 /*
  * 0x01476 - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.
@@ -59,7 +68,7 @@ void goal_test_puzzle_2(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -72,7 +81,7 @@ void goal_test_puzzle_20(void)
 
     if ((int16_t)((uint16_t)si->pos[0].x) > 0x1e0
         && ((uint16_t)si->pos[0].y) == 0xc8)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -88,7 +97,7 @@ void goal_test_puzzle_21(void)
         si = si->next;
 
     if ((int16_t)((uint16_t)si->pos[0].y) > 0x12c)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -111,7 +120,7 @@ void goal_test_puzzle_22(void)
     }
 
     if (n < 2)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -134,7 +143,7 @@ void goal_test_puzzle_1(void)
         && (int16_t)((uint16_t)si->pos[0].x) < 0x1da
         && (int16_t)((uint16_t)si->pos[0].y) > 0x88
         && (int16_t)((uint16_t)si->pos[0].y) < 0x98)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -181,10 +190,10 @@ void goal_test_puzzle_78(void)
         if (si->kind == KIND_MOUSE_CAGE
             && (si->flags_06 & 0x8000) != 0) {
             if (si->direction == 0) {
-                if (DG5456.goal_condition[n] == 0)
+                if (goal_condition[n] == 0)
                     ok = 0;
             } else
-                DG5456.goal_condition[n] = 1;
+                goal_condition[n] = 1;
 
             n++;
         }
@@ -193,7 +202,7 @@ void goal_test_puzzle_78(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -231,7 +240,7 @@ void goal_test_pop_balloons(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -269,7 +278,7 @@ void goal_test_puzzle_79(void)
         && zero->pos[0].x > 0x1c8
         && zero->pos[0].x < 0x21a
         && zero->pos[0].y > 0x11c)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -301,7 +310,7 @@ void goal_test_puzzle_23(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -318,7 +327,7 @@ void goal_test_puzzle_26(void)
             && (int16_t)si->start_y > 0x64
             && (uint16_t)(((uint16_t)si->pos[0].y)
                           - si->start_y) == 0x40)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -333,7 +342,7 @@ void goal_test_puzzle_43(void)
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
             && ((uint16_t)si->pos[0].y) == 0x118)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -370,7 +379,7 @@ void goal_test_puzzle_39(void)
     }
 
     if (ok && seen)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -393,7 +402,7 @@ void goal_test_puzzles_53_54_63_67_87(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -419,7 +428,7 @@ void goal_test_puzzle_25(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -433,7 +442,7 @@ void goal_test_puzzle_41(void)
         if (si->kind == KIND_POKEY
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1ba
             && ((uint16_t)si->pos[0].y) == 0x11f)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -467,7 +476,7 @@ void goal_test_puzzles_10_32(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -496,7 +505,7 @@ void goal_test_puzzle_46(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -519,7 +528,7 @@ void goal_test_puzzle_34(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -541,7 +550,7 @@ void goal_test_puzzles_14_15_64_73(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -571,14 +580,14 @@ void goal_test_puzzle_24(void)
                 ok = 0;
         }
 
-        if ((int16_t)GAME_STATE.machine_frames < 0x14)
+        if ((int16_t)machine_frames < 0x14)
             ok = 0;
 
         si = si->next;
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -600,7 +609,7 @@ void goal_test_puzzle_55(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -615,7 +624,7 @@ void goal_test_puzzle_38(void)
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x148
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x168
             && ((uint16_t)si->pos[0].y) == 0xe8)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -631,7 +640,7 @@ void goal_test_puzzle_44(void)
         if (si->kind == KIND_TENNIS_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x118
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x5b)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -658,7 +667,7 @@ void goal_test_puzzle_71(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -680,7 +689,7 @@ void goal_test_puzzles_16_56_83(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -696,7 +705,7 @@ void goal_test_puzzle_80(void)
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x1b9
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x68
             && (int16_t)((uint16_t)si->pos[0].y) <= 0x79)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -727,7 +736,7 @@ void goal_test_puzzle_47(void)
     }
 
     if (left && right)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -752,14 +761,14 @@ void goal_test_puzzle_70(void)
             && (int16_t)si->form >= 0x0b)
             ok = 0;
 
-        if ((int16_t)((uint16_t)GAME_STATE.loop_frames) < 0x134)
+        if ((int16_t)((uint16_t)loop_frames) < 0x134)
             ok = 0;
 
         si = si->next;
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -784,7 +793,7 @@ void goal_test_puzzle_69(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -797,7 +806,7 @@ void goal_test_puzzle_52(void)
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
             && ((uint16_t)si->pos[0].y) == 0x108)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -832,13 +841,13 @@ void goal_test_puzzles_19_48(void)
     }
 
     if (ok)
-        DG5456.goal_condition[0]++;
+        goal_condition[0]++;
 
-    if ((int16_t)DG5456.goal_condition[0] > 0x0c)
-        GAME_STATE.state = 0x200;
+    if ((int16_t)goal_condition[0] > 0x0c)
+        round_state = 0x200;
 
-    if (!ok && DG5456.goal_condition[0] != 0)
-        GAME_STATE.state = 0x200;
+    if (!ok && goal_condition[0] != 0)
+        round_state = 0x200;
 }
 
 /*
@@ -854,7 +863,7 @@ void goal_test_puzzle_82(void)
             && (int16_t)((uint16_t)si->pos[0].x) >= 8
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x28
             && ((uint16_t)si->pos[0].y) == 0x28)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -904,7 +913,7 @@ void goal_test_puzzle_81(void)
 
     if (hit != NULL) {
         if (flagged != 0)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         else {
             l = other->pos[1].x;
             r = l + other->size[0].width;
@@ -913,7 +922,7 @@ void goal_test_puzzle_81(void)
             mid = hit->pos[1].x + (hit->size[0].width >> 1);
             bot = hit->pos[1].y + hit->size[0].height;
             if (mid + 5 > l && mid - 5 < r && t + 0x16 < bot && bot < b)
-                GAME_STATE.state = 0x200;
+                round_state = 0x200;
         }
     }
 }
@@ -929,7 +938,7 @@ void goal_test_puzzle_4(void)
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
             && (int16_t)((uint16_t)si->pos[0].y) > 0x170)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -947,7 +956,7 @@ void goal_test_puzzle_5(void)
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x18
             && (int16_t)((uint16_t)si->pos[0].x) <= 0xf3
             && ((uint16_t)si->pos[0].y) == 0xf9)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -974,12 +983,12 @@ void goal_test_puzzles_6_58(void)
     }
 
     if (ok)
-        DG5456.goal_condition[0]++;
+        goal_condition[0]++;
     else
-        DG5456.goal_condition[0] = 0;
+        goal_condition[0] = 0;
 
-    if ((int16_t)DG5456.goal_condition[0] > 4)
-        GAME_STATE.state = 0x200;
+    if ((int16_t)goal_condition[0] > 4)
+        round_state = 0x200;
 }
 
 /*
@@ -1002,7 +1011,7 @@ void goal_test_puzzles_7_51_65(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1024,7 +1033,7 @@ void goal_test_puzzle_9(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1053,7 +1062,7 @@ void goal_test_puzzle_11(void)
     }
 
     if (ok && n == 3)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1067,7 +1076,7 @@ void goal_test_puzzle_12(void)
         if (si->kind == KIND_TENNIS_BALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x154
             && ((uint16_t)si->pos[0].y) == 0x139)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1094,10 +1103,10 @@ void goal_test_puzzle_13(void)
     }
 
     if (ok)
-        DG5456.goal_condition[0]++;
+        goal_condition[0]++;
 
-    if ((int16_t)DG5456.goal_condition[0] > 0x0c)
-        GAME_STATE.state = 0x200;
+    if ((int16_t)goal_condition[0] > 0x0c)
+        round_state = 0x200;
 }
 
 /*
@@ -1128,7 +1137,7 @@ void goal_test_puzzle_17(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1142,7 +1151,7 @@ void goal_test_puzzle_18(void)
         if (si->kind == KIND_MORT_THE_MOUSE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x199
             && ((uint16_t)si->pos[0].y) == 0x10d)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1167,14 +1176,14 @@ void goal_test_puzzle_76(void)
             && si->form != 0)
             ok = 0;
 
-        if ((int16_t)GAME_STATE.machine_frames < 0x82)
+        if ((int16_t)machine_frames < 0x82)
             ok = 0;
 
         si = si->next;
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1200,7 +1209,7 @@ void goal_test_puzzles_42_75(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1221,7 +1230,7 @@ void goal_test_puzzles_57_74(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1246,7 +1255,7 @@ void goal_test_puzzle_31(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1261,7 +1270,7 @@ void goal_test_puzzle_66(void)
         if (si->kind == KIND_BASEBALL
             && si->start_x == 0x219
             && (int16_t)((uint16_t)si->pos[0].y) >= 0x40)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1285,7 +1294,7 @@ void goal_test_puzzle_29(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1297,7 +1306,7 @@ void goal_test_puzzle_61(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE && ((uint16_t)si->pos[0].y) == 0xf8)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1338,7 +1347,7 @@ void goal_test_puzzle_28(void)
     }
 
     if (row1 && row2 && row3 && row4 && row5 && row6)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1365,15 +1374,15 @@ void goal_test_puzzle_36(void)
             ok = 0;
         if (si->kind == KIND_POKEY
             && si->form != 0)
-            DG5456.goal_condition[0] = 1;
+            goal_condition[0] = 1;
         if (si->kind == KIND_BULLET
             && (si->flags_08 & 0x2000) == 0)
             ok = 0;
         si = pick_for_record(si, 0x1000);
     }
 
-    if (ok && DG5456.goal_condition[0] == 0)
-        GAME_STATE.state = 0x200;
+    if (ok && goal_condition[0] == 0)
+        round_state = 0x200;
 }
 
 /*
@@ -1387,7 +1396,7 @@ void goal_test_puzzle_86(void)
         if (si->kind == KIND_MORT_THE_MOUSE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x19b && (int16_t)((uint16_t)si->pos[0].x) <= 0x1cc
             && ((uint16_t)si->pos[0].y) == 0x12d)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1427,7 +1436,7 @@ void goal_test_puzzle_77(void)
     }
 
     if (ok && seen)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1441,7 +1450,7 @@ void goal_test_puzzle_85(void)
         if (si->kind == KIND_BIRD_CAGE
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x1b6 && (int16_t)((uint16_t)si->pos[0].x) <= 0x1c0
             && ((uint16_t)si->pos[0].y) == 0x108)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1464,7 +1473,7 @@ void goal_test_puzzle_60(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1479,7 +1488,7 @@ void goal_test_puzzle_37(void)
             && (int16_t)((uint16_t)si->pos[0].x) >= 0x20
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x78
             && (int16_t)((uint16_t)si->pos[0].y) > 0x120)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1518,7 +1527,7 @@ void goal_test_puzzle_84(void)
     }
 
     if (ok && n == 2)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1559,7 +1568,7 @@ void goal_test_puzzle_68(void)
     }
 
     if (ok && a > b && (int16_t)(b + 0x32) > a)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1581,7 +1590,7 @@ void goal_test_puzzle_72(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1615,7 +1624,7 @@ void goal_test_puzzle_59(void)
     }
 
     if (ok && seen)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1644,7 +1653,7 @@ void goal_test_puzzle_49(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1669,7 +1678,7 @@ void goal_test_puzzle_40(void)
     }
 
     if (ok)
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
 }
 
 /*
@@ -1687,7 +1696,7 @@ void goal_test_puzzle_35(void)
             && (int16_t)((uint16_t)si->pos[0].x) <= 0x1fc
             && (int16_t)((uint16_t)si->pos[0].y) >= 0xc6
             && (int16_t)((uint16_t)si->pos[0].y) <= 0xd0)
-            GAME_STATE.state = 0x200;
+            round_state = 0x200;
         si = si->next;
     }
 }
@@ -1901,8 +1910,8 @@ void goal_test_puzzle_110(void)
  */
 void start_counters(void)
 {
-    GAME_STATE.bonus_1_scroll = -4;
-    GAME_STATE.bonus_2_scroll = 0;
+    bonus_1_scroll = -4;
+    bonus_2_scroll = 0;
     redraw_counters();
 }
 
@@ -1946,25 +1955,25 @@ void step_counters(void)
 
     set_clip_counter_strip();
 
-    if (GAME_STATE.state != 0x2000 || GAME_STATE.bonus_1_scroll != 0) {
+    if (round_state != 0x2000 || bonus_1_scroll != 0) {
         if ((si = LEVEL_SETTINGS.bonus_1) != 0) {
             if (si > 0xfa0)
-                GAME_STATE.bonus_1_scroll += 4;
+                bonus_1_scroll += 4;
             else if (si > 0xbb8)
-                GAME_STATE.bonus_1_scroll += 3;
+                bonus_1_scroll += 3;
             else if (si > 0x708)
-                GAME_STATE.bonus_1_scroll += 2;
+                bonus_1_scroll += 2;
             else
-                GAME_STATE.bonus_1_scroll++;
+                bonus_1_scroll++;
 
-            if (GAME_STATE.bonus_1_scroll > 0x15) {
-                GAME_STATE.bonus_1_scroll = 0;
+            if (bonus_1_scroll > 0x15) {
+                bonus_1_scroll = 0;
                 si--;
             }
             LEVEL_SETTINGS.bonus_1 = si;
 
-            if (GAME_STATE.bonus_1_scroll > 0)
-                draw_counter_word(LEVEL_SETTINGS.bonus_1, 0x184, GAME_STATE.bonus_1_scroll, 0);
+            if (bonus_1_scroll > 0)
+                draw_counter_word(LEVEL_SETTINGS.bonus_1, 0x184, bonus_1_scroll, 0);
         }
     }
 
@@ -1978,15 +1987,15 @@ void step_counters(void)
        counters first, so the `bonus_2 != 0` test below stops it there.
        The second reel therefore shows the level's bonus and never rolls.
        Transcribed as it behaves - see STATUS.md. */
-    if (GAME_STATE.state == 0x2000 || GAME_STATE.bonus_2_scroll != 0) {
+    if (round_state == 0x2000 || bonus_2_scroll != 0) {
         if (LEVEL_SETTINGS.bonus_2 != 0) {
-            GAME_STATE.bonus_2_scroll++;
-            if (GAME_STATE.bonus_2_scroll > 0x15) {
-                GAME_STATE.bonus_2_scroll = 0;
+            bonus_2_scroll++;
+            if (bonus_2_scroll > 0x15) {
+                bonus_2_scroll = 0;
                 LEVEL_SETTINGS.bonus_2--;
             }
-            if (GAME_STATE.bonus_2_scroll > 0)
-                draw_counter_word(LEVEL_SETTINGS.bonus_2, 0x238, GAME_STATE.bonus_2_scroll, 0);
+            if (bonus_2_scroll > 0)
+                draw_counter_word(LEVEL_SETTINGS.bonus_2, 0x238, bonus_2_scroll, 0);
         }
     }
 }
@@ -2005,7 +2014,7 @@ void step_counters(void)
 void redraw_counters(void)
 {
     set_clip_counter_strip();
-    draw_counter_long(GAME_STATE.counter, 0xd0, 0, 1);
+    draw_counter_long(odometer_total, 0xd0, 0, 1);
     draw_counter_word(LEVEL_SETTINGS.bonus_1, 0x184, 0, 1);
     draw_counter_word(LEVEL_SETTINGS.bonus_2, 0x238, 0, 1);
 }
@@ -2165,20 +2174,20 @@ void finish_level(void)
     register const char *title;
 
 #ifndef __TURBOC__
-    dev_level_solved(GAME_STATE.round_number,
-                     (int16_t)((uint32_t)GAME_STATE.score >> 16));    /* ours */
+    dev_level_solved(round_number,
+                     (int16_t)((uint32_t)banked_score >> 16));    /* ours */
 #endif
 
-    GAME_STATE.counter += LEVEL_SETTINGS.bonus_1 + LEVEL_SETTINGS.bonus_2;
-    if (GAME_STATE.round_number < GAME_STATE.level_count) {
-        GAME_STATE.score = GAME_STATE.counter;
-        GAME_STATE.password_puzzle = GAME_STATE.round_number;
+    odometer_total += LEVEL_SETTINGS.bonus_1 + LEVEL_SETTINGS.bonus_2;
+    if (round_number < level_count) {
+        banked_score = odometer_total;
+        password_puzzle = round_number;
     }
 
     show_level_complete();
 
-    GAME_STATE.bonus_1_scroll = -4;
-    GAME_STATE.bonus_2_scroll = -9;
+    bonus_1_scroll = -4;
+    bonus_2_scroll = -9;
     LEVEL_SETTINGS.bonus_1 = 0;
     LEVEL_SETTINGS.bonus_2 = 0;
 
@@ -2194,7 +2203,7 @@ void finish_level(void)
         present_frame(1);
     }
 
-    if (GAME_STATE.round_number >= GAME_STATE.level_count) {
+    if (round_number >= level_count) {
         title = MESSAGES.solved_all_puzzles;
         body = (char *)MESSAGES.solved_all_body;
     } else {
@@ -2204,17 +2213,17 @@ void finish_level(void)
 
     /* The two buttons are this module's literal pool, DGROUP 0x283a. */
     while (message_box(title, body, "REPLAY", "ADVANCE")) {
-        GAME_STATE.state = 0x2000;
+        round_state = 0x2000;
         clear_layer_heads();
         reset_machine();
         redraw_machine_area();
         run_machine_loop();
-        GAME_STATE.state = 0x200;
+        round_state = 0x200;
         repaint_whole_screen();
     }
 
-    if (GAME_STATE.round_number >= GAME_STATE.level_count) {
-        GAME_STATE.freeform = 1;
-        GAME_STATE.round_number--;
+    if (round_number >= level_count) {
+        freeform = 1;
+        round_number--;
     }
 }

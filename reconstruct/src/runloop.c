@@ -57,18 +57,18 @@
 void run_machine_loop(void)
 {
     clear_machine();
-    GAME_STATE.elapsed_ticks = 0;
+    elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (GAME_STATE.state == 0x2000) {
-        if (((uint16_t)DG52BD.sound_request_01) != 0) DG52BD.sound_request_01 = 1;
-        if (((uint16_t)DG52BD.sound_request_02) != 0) DG52BD.sound_request_02 = 1;
-        if (((uint16_t)DG52BD.sound_request_09) != 0) DG52BD.sound_request_09 = 1;
-        if (((uint16_t)DG52BD.sound_request_0c) != 0) DG52BD.sound_request_0c = 1;
+    while (round_state == 0x2000) {
+        if (((uint16_t)sound_request_01) != 0) sound_request_01 = 1;
+        if (((uint16_t)sound_request_02) != 0) sound_request_02 = 1;
+        if (((uint16_t)sound_request_09) != 0) sound_request_09 = 1;
+        if (((uint16_t)sound_request_0c) != 0) sound_request_0c = 1;
 
         update_button_state();
-        DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        regions_handle_pointer(GAME_STATE.regions_play);
+        last_key = (uint8_t)(bios_read_key() >> 8);
+        regions_handle_pointer(regions_play);
 
         step_machine();
         mark_parts_in_dirty_rects();
@@ -78,30 +78,30 @@ void run_machine_loop(void)
 
         while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
             ;
-        GAME_STATE.elapsed_ticks += 0x2710 - TIMER.frame_budget;
+        elapsed_ticks += 0x2710 - TIMER.frame_budget;
         TIMER.frame_budget = 0x2710;
 
         present_frame(1);
 
-        if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
-        if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
-        if (((uint16_t)DG52BD.sound_request_09) == 1) stop_music_or_effect(9);
-        if (((uint16_t)DG52BD.sound_request_0c) == 1) stop_music_or_effect(0x0c);
+        if (((uint16_t)sound_request_01) == 1) stop_music_or_effect(1);
+        if (((uint16_t)sound_request_02) == 1) stop_music_or_effect(2);
+        if (((uint16_t)sound_request_09) == 1) stop_music_or_effect(9);
+        if (((uint16_t)sound_request_0c) == 1) stop_music_or_effect(0x0c);
 
         shift_all_histories();
 
-        if (GAME_STATE.freeform == 0) {
+        if (freeform == 0) {
             check_goal();
-            if ((DG52ED.last_key) == SC_V)
-                GAME_STATE.state = 0x200;
+            if ((last_key) == SC_V)
+                round_state = 0x200;
         }
 
         if (POINTER.button_left == 2)
-            GAME_STATE.state = 0x1000;
+            round_state = 0x1000;
         if (POINTER.button_right == 2)
-            GAME_STATE.state = 2;
+            round_state = 2;
 
-        GAME_STATE.machine_frames++;
+        machine_frames++;
     }
 
     restart_machine();
@@ -124,12 +124,12 @@ void clear_machine(void)
     erase_both_pages();
 
     HELD_PARTS.dragged_part = 0;
-    GAME_STATE.machine_frames = 0;
-    DG52BD.sound_request_01 = DG52BD.sound_request_02 =
-        DG52BD.sound_request_09 = DG52BD.sound_request_0c = 0;
+    machine_frames = 0;
+    sound_request_01 = sound_request_02 =
+        sound_request_09 = sound_request_0c = 0;
 
     for (si = 0; si < 10; si++)
-        DG5456.goal_condition[si] = 0;
+        goal_condition[si] = 0;
 }
 
 /*
@@ -159,9 +159,9 @@ void restart_machine(void)
  */
 void step_loop_frames(void)
 {
-    GAME_STATE.loop_frames++;
-    if (GAME_STATE.loop_frames == 0x2a00)
-        GAME_STATE.loop_frames = 0x1c00;
+    loop_frames++;
+    if (loop_frames == 0x2a00)
+        loop_frames = 0x1c00;
 }
 
 /*
@@ -176,5 +176,5 @@ void step_loop_frames(void)
  */
 void check_goal(void)
 {
-    GOAL_TESTS.goal_test[GAME_STATE.round_number - 1]();
+    GOAL_TESTS.goal_test[round_number - 1]();
 }

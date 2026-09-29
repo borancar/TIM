@@ -123,11 +123,11 @@ void build_part_list(void)
         wanted = 0;
 
         if (si == 0x20 || si == 0x21 || si == 0x22) {
-            if (si == 0x20 && GAME_STATE.holiday_halloween != 0)
+            if (si == 0x20 && holiday_halloween != 0)
                 wanted = 1;
-            if (si == 0x21 && GAME_STATE.holiday_valentine != 0)
+            if (si == 0x21 && holiday_valentine != 0)
                 wanted = 1;
-            if (si == 0x22 && GAME_STATE.holiday_christmas != 0)
+            if (si == 0x22 && holiday_christmas != 0)
                 wanted = 1;
         } else if (si != 0x14 && si != 0x29 && si != 0x31) {
             wanted = 1;
@@ -143,7 +143,7 @@ void build_part_list(void)
     LEVEL_SETTINGS.air = 0x110;
     LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
     LEVEL_SETTINGS.tune = 0x3e9;
-    GAME_STATE.counter = 0;
+    odometer_total = 0;
 
     recompute_kind_physics();
 }
