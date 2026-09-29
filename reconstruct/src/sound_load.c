@@ -24,7 +24,7 @@
  * `_DATA`. Not only a constant: `load_sound_module` builds the name in
  * place, writing the three digits at +4, +5 and +6 over "000".
  */
-char SOUND_MODULE_NAME[] DGROUP_AT(0x4a08) = "SSM:000:";
+char SOUND_MODULE_NAME[] = "SSM:000:";
 
 /*
  * 0x28580

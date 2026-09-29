@@ -518,9 +518,8 @@ def full_diff(ours, theirs, addr):
 
 
 def judge(path, known, img, fr, verbose=False, force_opts=None,
-          force_compiler=None, placed=None, force_assembler=None,
+          force_compiler=None, force_assembler=None,
           full=False, defines=()):
-    placed = placed or {}
     src = open(path).read()
     c = COMPILER.search(src)
     compiler = force_compiler or (c.group(1) if c else DEFAULT_COMPILER)
@@ -601,9 +600,7 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
         if name not in compiled:
             results.append((name, addr, "MISSING: defined in the file, "
                             "absent from the object the compiler wrote", []))
-    results.extend(judge_data(mod, refs, img, placed,
-                              JUDGED_DATA.findall(src),
-                              os.path.basename(path)))
+    results.extend(judge_data(mod, refs, img, JUDGED_DATA.findall(src)))
     return results
 
 
@@ -628,7 +625,7 @@ def data_refs(seg, lo, hi, addr, img):
 JUDGED_DATA = re.compile(r"JUDGE:\s*data\s+0x([0-9a-fA-F]+)\.\.0x([0-9a-fA-F]+)")
 
 
-def judge_data(mod, refs, img, placed, declared=(), me=None):
+def judge_data(mod, refs, img, declared=()):
     """**The module's own data, placed and compared.** Each reference from a
     matched routine into the module's `_DATA` or `_BSS` says where that
     segment begins in DGROUP: the image's word less the object's addend. All
@@ -637,8 +634,8 @@ def judge_data(mod, refs, img, placed, declared=(), me=None):
     compared with the image's at that base, fixups masked. `_BSS` is past the
     image's initialised data and only its base can be checked.
 
-    A reference to an *extern* is checked against the port's placement of
-    that object (`DGROUP_AT`/`DGROUP_BSS`), when it has one."""
+    Where an *extern* lands, and whose object sits inside this module's
+    range, is `tools/link.py`'s to prove: the whole image, byte for byte."""
     out = []
     bases = {}
     for tgt, addend, got in refs:
@@ -647,12 +644,6 @@ def judge_data(mod, refs, img, placed, declared=(), me=None):
             if seg is None or seg.cls == "CODE":
                 continue    # an offset into the module's own code
             bases.setdefault(tgt[4:], set()).add((got - addend) & 0xFFFF)
-        elif tgt.startswith("ext:") and tgt[4:].lstrip("_") in placed:
-            want = (placed[tgt[4:].lstrip("_")] + addend) & 0xFFFF
-            if want != got:
-                out.append((tgt[4:], None,
-                            "DIFF: referenced at %04x, placed at %04x"
-                            % (got, want), []))
     # **Data nothing in the module reads** - a table file's, or a vector
     # another module jumps through - has no reference to place it by, so it
     # stands where the file declares it
@@ -678,21 +669,6 @@ def judge_data(mod, refs, img, placed, declared=(), me=None):
                            ", ".join("%s..%s" % d for d in declared)), []))
             continue
         notes = []
-        # **Whose bytes these are.** A literal and an extern array compile to
-        # the same instruction, so a module can match with another module's
-        # data claimed as its own pool - machine_draw.c did, with the strings
-        # module's messages. An object another file places inside this range
-        # says so.
-        if me is not None:
-            alien = sorted((a, n) for n, a in placed.items()
-                           if base <= a < base + seg.length
-                           and OWNERS.get(n) not in (None, me))
-            if alien:
-                out.append(("[%s]" % segname, None,
-                            "DIFF: %04x..%04x holds %s, placed by %s"
-                            % (base, base + seg.length, alien[0][1],
-                               OWNERS[alien[0][1]]), []))
-                continue
         if seg.cls == "DATA" and seg.length:
             masked = set()
             for off, size, *_ in seg.fixups:
@@ -709,22 +685,6 @@ def judge_data(mod, refs, img, placed, declared=(), me=None):
         else:
             verdict = "MATCH, " + verdict
         out.append(("[%s]" % segname, None, verdict, notes))
-    return out
-
-
-# Which file places each object, for the ownership check in `judge_data`.
-OWNERS = {}
-
-
-def placements(paths):
-    """Every object the port places in DGROUP, by name: `cparse.placements`
-    over every source."""
-    import cparse
-    out = {}
-    for p in paths:
-        for _struct, name, addr in cparse.placements(p):
-            out[name] = addr
-            OWNERS[name] = os.path.basename(p)
     return out
 
 
@@ -781,13 +741,12 @@ def main(argv=None):
         for name, addr in addresses([extra]).items():
             known.setdefault(name, addr)
     fr = frames()
-    placed = placements(port_sources())
     total = matched = 0
     for path in a.files:
         for name, addr, verdict, notes in judge(
                 path, known, img, fr, a.verbose,
                 a.opts.split() if a.opts is not None else None,
-                a.compiler, placed, a.assembler, a.full, defines):
+                a.compiler, a.assembler, a.full, defines):
             if a.only and name not in a.only.split(","):
                 continue
             total += 1

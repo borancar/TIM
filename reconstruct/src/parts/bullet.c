@@ -22,14 +22,14 @@
 /*
  * DGROUP 0x3222..0x322a. Connection points, 4 pairs.
  */
-struct point8 BULLET_POINTS_3222[4] DGROUP_AT(0x3222) = {
+struct point8 BULLET_POINTS_3222[4] = {
     { 0x1c, 0x00 }, { 0x27, 0x01 }, { 0x27, 0x05 }, { 0x1c, 0x06 },
 };
 
 /*
  * DGROUP 0x322a..0x3232. Connection points, 4 pairs.
  */
-struct point8 BULLET_POINTS_322A[4] DGROUP_AT(0x322a) = {
+struct point8 BULLET_POINTS_322A[4] = {
     { 0x00, 0x00 }, { 0x0b, 0x01 }, { 0x0b, 0x05 }, { 0x00, 0x06 },
 };
 

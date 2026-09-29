@@ -9,8 +9,7 @@
  *
  * What is here is what DOS did before the program's first instruction, less
  * the loading: give the program a stack and an arena. The image's data is
- * already in `guest_mem`, placed there by the linker (see `DGROUP_AT` in
- * dgroup.h), so the game needs no file but its own. Then `game_main`, which is
+ * transcribed as C objects, so the game needs no file but its own. Then `game_main`, which is
  * the game's own `main` at image 0x0dfff.
  */
 #include <stdlib.h>

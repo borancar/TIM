@@ -562,7 +562,7 @@ struct engine_bit_masks {
     uint8_t   pad_35bb;           /* +0x09 */
 } PACKED;
 
-struct engine_bit_masks ENGINE_BIT_MASKS DGROUP_AT(0x35b2) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
+struct engine_bit_masks ENGINE_BIT_MASKS = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
 
 
 /*
@@ -580,7 +580,7 @@ struct engine_lzw_window {
 #endif
 } PACKED;
 
-struct engine_lzw_window ENGINE_LZW_WINDOW DGROUP_AT(0x35bc) = {
+struct engine_lzw_window ENGINE_LZW_WINDOW = {
     .window = {
         0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,
         0x0c,
@@ -595,7 +595,7 @@ struct engine_lzw_masks {
     uint8_t   mask[9];            /* +0x00 [9] */
 } PACKED;
 
-struct engine_lzw_masks ENGINE_LZW_MASKS DGROUP_AT(0x35c8) = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
+struct engine_lzw_masks ENGINE_LZW_MASKS = { .mask = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff } };
 
 /*
  * **Where the LZW string had got to**, DGROUP 0x35d1..0x35d3, 0x02 bytes.
@@ -609,7 +609,7 @@ struct engine_lzw_resume {
     int16_t   scratch_at;         /* +0x00 [2] */
 } PACKED;
 
-struct engine_lzw_resume ENGINE_LZW_RESUME DGROUP_AT(0x35d1);
+struct engine_lzw_resume ENGINE_LZW_RESUME;
 
 /*
  * **Three bytes before the LZW coder's data**, DGROUP 0x35d3..0x35d6: the
@@ -620,7 +620,7 @@ struct engine_bit_state {
     uint8_t   pad_35d3[3];        /* +0x00 */
 } PACKED;
 
-struct engine_bit_state ENGINE_BIT_STATE DGROUP_AT(0x35d3);
+struct engine_bit_state ENGINE_BIT_STATE;
 
 /*
  * 0x1ca62

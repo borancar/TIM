@@ -24,7 +24,7 @@
  * **The three bitmaps `game_setup` loads**, DGROUP 0x25e8..0x260a: the
  * module's literal pool.
  */
-struct round_setup_names ROUND_SETUP_NAMES DGROUP_AT(0x25e8) = {
+struct round_setup_names ROUND_SETUP_NAMES = {
     "score1.bmp", /* score1_bmp */
     "gp_menu.bmp", /* gp_menu_bmp */
     "score2.bmp", /* score2_bmp */

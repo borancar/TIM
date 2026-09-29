@@ -23,7 +23,7 @@
 /*
  * DGROUP 0x3252..0x325c. Connection points, 5 pairs.
  */
-struct point8 POKEY_POINTS_3252[5] DGROUP_AT(0x3252) = {
+struct point8 POKEY_POINTS_3252[5] = {
     { 0x00, 0x07 }, { 0x0a, 0x00 }, { 0x24, 0x1a }, { 0x24, 0x25 },
     { 0x0a, 0x28 },
 };
@@ -31,7 +31,7 @@ struct point8 POKEY_POINTS_3252[5] DGROUP_AT(0x3252) = {
 /*
  * DGROUP 0x325c..0x3266. Connection points, 5 pairs.
  */
-struct point8 POKEY_POINTS_325C[5] DGROUP_AT(0x325c) = {
+struct point8 POKEY_POINTS_325C[5] = {
     { 0x03, 0x1a }, { 0x1d, 0x00 }, { 0x27, 0x0a }, { 0x1d, 0x28 },
     { 0x03, 0x25 },
 };

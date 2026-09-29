@@ -1622,7 +1622,7 @@ struct engine_bit_buffer {
     uint8_t   bit_count;          /* +0x02 [1]  how many are in it */
 } PACKED;
 
-struct engine_bit_buffer ENGINE_BIT_BUFFER DGROUP_AT(0x3600);
+struct engine_bit_buffer ENGINE_BIT_BUFFER;
 
 /*
  * **The Huffman coder's position tables**, DGROUP 0x3603..0x3686: three zero
@@ -1637,7 +1637,7 @@ struct engine_huffman_codes {
     uint8_t   code[64];           /* +0x43  0x3646 */
 } PACKED;
 
-struct engine_huffman_codes ENGINE_HUFFMAN_CODES DGROUP_AT(0x3603) = {
+struct engine_huffman_codes ENGINE_HUFFMAN_CODES = {
     .len = {
         0x03, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
         0x05, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
@@ -1667,7 +1667,7 @@ struct engine_huffman_positions {
     uint8_t   len[256];           /* +0x100 [0x100] */
 } PACKED;
 
-struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS DGROUP_AT(0x3686) = {
+struct engine_huffman_positions ENGINE_HUFFMAN_POSITIONS = {
     .high = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1736,7 +1736,7 @@ struct engine_match_resume {
     int16_t   progress;           /* +0x06 [2] */
 } PACKED;
 
-struct engine_match_resume ENGINE_MATCH_RESUME DGROUP_BSS(0x58e0);
+struct engine_match_resume ENGINE_MATCH_RESUME;
 
 /*
  * **The LZSS decoder's progress**, DGROUP 0x58e8..0x58f2, 0x0a bytes.
@@ -1750,7 +1750,7 @@ struct engine_lzss_state {
     int32_t   size;               /* +0x06 [4]  the record's size, copied at the start */
 } PACKED;
 
-struct engine_lzss_state ENGINE_LZSS_STATE DGROUP_BSS(0x58e8);
+struct engine_lzss_state ENGINE_LZSS_STATE;
 
 /*
  * **The son table's far pointer**, DGROUP 0x5900..0x5904. Two words that are
@@ -1762,7 +1762,7 @@ struct engine_huffman_tree {
     uint16_t far *son;          /* +0x00 [4] */
 } PACKED;
 
-struct engine_huffman_tree ENGINE_HUFFMAN_TREE DGROUP_WAS(0x5900);
+struct engine_huffman_tree ENGINE_HUFFMAN_TREE;
 
 /*
  * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
@@ -1781,7 +1781,7 @@ struct engine_decompress_cache {
     int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
 } PACKED;
 
-struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE DGROUP_WAS(0x590a);
+struct engine_decompress_cache ENGINE_DECOMPRESS_CACHE;
 
 /*
  * 0x1dba8

@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x32fc..0x3308. Connection points, 6 pairs.
  */
-struct point8 FLASHLIGHT_POINTS_32FC[6] DGROUP_AT(0x32fc) = {
+struct point8 FLASHLIGHT_POINTS_32FC[6] = {
     { 0x00, 0x04 }, { 0x17, 0x04 }, { 0x1f, 0x00 }, { 0x1f, 0x10 },
     { 0x17, 0x0c }, { 0x00, 0x0c },
 };
@@ -30,7 +30,7 @@ struct point8 FLASHLIGHT_POINTS_32FC[6] DGROUP_AT(0x32fc) = {
 /*
  * DGROUP 0x3308..0x3314. Connection points, 6 pairs.
  */
-struct point8 FLASHLIGHT_POINTS_3308[6] DGROUP_AT(0x3308) = {
+struct point8 FLASHLIGHT_POINTS_3308[6] = {
     { 0x08, 0x04 }, { 0x1f, 0x04 }, { 0x1f, 0x0c }, { 0x08, 0x0c },
     { 0x00, 0x10 }, { 0x00, 0x00 },
 };

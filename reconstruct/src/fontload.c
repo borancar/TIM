@@ -28,7 +28,7 @@
  * and the name and the "r" `load_font` opens with after it, 0x495e..0x4965.
  * This module's `_DATA`.
  */
-char *FONT_CHUNK_NAME DGROUP_WAS(0x495c) = "FNT:";
+char *FONT_CHUNK_NAME = "FNT:";
 
 /*
  * 0x2307d

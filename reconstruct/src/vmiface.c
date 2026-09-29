@@ -148,14 +148,14 @@ VMIFACE_TEXT ends
  * call table - every slot `vm_null_hook` until `vm_init` fills it - and the
  * table of the game's routines the driver is handed, the `dd` list above.
  */
-struct vmds VMDS DGROUP_AT(0x3890) = {
+struct vmds VMDS = {
     .clip_right = 0x013f,
     .clip_bottom = 0x00c7,
     .fill_enabled = 0x01,
     .screen = { .screen_width = 0x0140, .screen_height = 0x00c8 },
 };
 
-struct dg_4342 DG4342 DGROUP_AT(0x4342) = {
+struct dg_4342 DG4342 = {   /* DGROUP 0x4342 */
     .detect_allowed = 0x0001,
     .font = {
         vm_null_hook,
@@ -211,7 +211,7 @@ struct dg_4342 DG4342 DGROUP_AT(0x4342) = {
     },
 };
 
-struct dg_440e DG440E DGROUP_AT(0x440e) = {
+struct dg_440e DG440E = {   /* DGROUP 0x440e */
     vm_null_hook,
     {
         (void (*)(void))dos_alloc_bytes,

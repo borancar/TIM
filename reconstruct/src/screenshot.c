@@ -41,7 +41,7 @@
  * **The IFF chunk names**, DGROUP 0x355a..0x3576, and the mode the file is
  * written with: this module's `_DATA`.
  */
-struct iff_chunk_names IFF_CHUNK_NAMES DGROUP_AT(0x355a) = {
+struct iff_chunk_names IFF_CHUNK_NAMES = {
     "FORM", /* form */
     "ILBM", /* ilbm */
     "BMHD", /* bmhd */

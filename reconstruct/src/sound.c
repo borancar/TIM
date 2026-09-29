@@ -9,7 +9,7 @@
  * sequencer, and the far entry points the C calls. This file corresponds to
  * the first module of the original's code segment 2619, image
  * 0x26198..0x28580. The module keeps its state in its own code segment
- * (`SNDS`, placed with `SEGMENT_AT`) and reaches the loaded driver through a
+ * (`SNDS`) and reaches the loaded driver through a
  * far pointer in that segment, with the function number in BP. Its routines
  * take their arguments in registers and save what they use, and its far
  * entry points, 0x2841f..0x28580, are the only ones that build a C frame.

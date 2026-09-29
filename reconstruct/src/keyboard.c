@@ -649,7 +649,7 @@ struct engine_keyboard {
     uint8_t   pcjr_to[0x0b];      /* +0x184 [0xb]  ... and what they stand for */
 } PACKED;
 
-struct engine_keyboard ENGINE_KEYBOARD DGROUP_AT(0x458c) = {
+struct engine_keyboard ENGINE_KEYBOARD = {   /* DGROUP 0x458c */
     .pad_4592 = { 0x01 },
     .ascii = {
         0x00, 0x1b, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
@@ -732,7 +732,7 @@ struct engine_pcjr_keyboard {
     uint8_t   pcjr_keyboard;      /* +0x00 [1] */
 } PACKED;
 
-struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD DGROUP_AT(0x471b);
+struct engine_pcjr_keyboard ENGINE_PCJR_KEYBOARD;
 
 /*
  * 0x21088

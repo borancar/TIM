@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /* The five-tick wait, DGROUP 0x6430; the record is described in dgroup.h. */
-struct sound_tick_wait SOUND_TICK_WAIT DGROUP_WAS(0x6430);
+struct sound_tick_wait SOUND_TICK_WAIT;
 
 /*
  * 0x292f4

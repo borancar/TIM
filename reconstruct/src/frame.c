@@ -44,7 +44,7 @@ struct machine_button_prev {
 
 /* Initialised, because the image has it in `_DATA`: without one Borland
    puts it in `_BSS`. */
-struct machine_button_prev MACHINE_BUTTON_PREV DGROUP_AT(0x286e) = { 0 };
+struct machine_button_prev MACHINE_BUTTON_PREV = { 0 };
 
 /*
  * 0x080b9

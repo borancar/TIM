@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x32a4..0x32ae. Connection points, 5 pairs.
  */
-struct point8 MOTOR_POINTS_32A4[5] DGROUP_AT(0x32a4) = {
+struct point8 MOTOR_POINTS_32A4[5] = {
     { 0x00, 0x13 }, { 0x1a, 0x00 }, { 0x35, 0x18 }, { 0x30, 0x2e },
     { 0x06, 0x2e },
 };
@@ -30,7 +30,7 @@ struct point8 MOTOR_POINTS_32A4[5] DGROUP_AT(0x32a4) = {
 /*
  * DGROUP 0x32ae..0x32b8. Connection points, 5 pairs.
  */
-struct point8 MOTOR_POINTS_32AE[5] DGROUP_AT(0x32ae) = {
+struct point8 MOTOR_POINTS_32AE[5] = {
     { 0x00, 0x18 }, { 0x1b, 0x00 }, { 0x35, 0x13 }, { 0x2f, 0x2e },
     { 0x05, 0x2e },
 };

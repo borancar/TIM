@@ -53,7 +53,7 @@ struct machine_cursor_hotspots {
     int16_t   hot_y[9];           /* +0x12 [0x12] */
 } PACKED;
 
-struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS DGROUP_AT(0x284a) = {
+struct machine_cursor_hotspots MACHINE_CURSOR_HOTSPOTS = {
     {
         0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
         0x0003,

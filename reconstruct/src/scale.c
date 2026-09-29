@@ -53,7 +53,7 @@ struct engine_stride_shifts {
     uint8_t   bytes_4588[4] NONSTRING;  /* +0x0e [4] */
 } PACKED;
 
-struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
+struct engine_stride_shifts ENGINE_STRIDE_SHIFTS = {
     {
         0xff, 0x02, 0x03, 0x01, 0xff, 0x00, 0xff, 0x00, 0x00, 0x03, 0x01,
         0x03, 0x03, 0x03,
@@ -63,8 +63,8 @@ struct engine_stride_shifts ENGINE_STRIDE_SHIFTS DGROUP_AT(0x457a) = {
 
 
 /* **This module's `_BSS`**: the two tables the scaled blits build. */
-struct engine_scale_table ENGINE_SCALE_TABLE DGROUP_BSS(0x5956);
-struct engine_row_offsets ENGINE_ROW_OFFSETS DGROUP_BSS(0x5e56);
+struct engine_scale_table ENGINE_SCALE_TABLE;   /* DGROUP 0x5956 */
+struct engine_row_offsets ENGINE_ROW_OFFSETS;   /* DGROUP 0x5e56 */
 
 /*
  * 0x20840

@@ -23,12 +23,12 @@
  * DGROUP 0x31e6..0x31f2. How far the boxing glove reaches, by form: -32 -82 0 80 130 0.
  * `part_step_boxing_glove` indexes it from +1 and from -2.
  */
-int16_t BOXING_GLOVE_REACH[6] DGROUP_AT(0x31e6) = { -32, -82, 0, 80, 130, 0 };
+int16_t BOXING_GLOVE_REACH[6] = { -32, -82, 0, 80, 130, 0 };
 
 /*
  * DGROUP 0x31f2..0x31fe. Connection points, 6 pairs.
  */
-struct point8 BOXING_GLOVE_POINTS_31F2[6] DGROUP_AT(0x31f2) = {
+struct point8 BOXING_GLOVE_POINTS_31F2[6] = {
     { 0x00, 0x0c }, { 0x10, 0x00 }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
     { 0x1a, 0x15 }, { 0x09, 0x1b },
 };
@@ -36,7 +36,7 @@ struct point8 BOXING_GLOVE_POINTS_31F2[6] DGROUP_AT(0x31f2) = {
 /*
  * DGROUP 0x31fe..0x320a. Connection points, 6 pairs.
  */
-struct point8 BOXING_GLOVE_POINTS_31FE[6] DGROUP_AT(0x31fe) = {
+struct point8 BOXING_GLOVE_POINTS_31FE[6] = {
     { 0x05, 0x15 }, { 0x11, 0x0a }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
     { 0x1a, 0x15 }, { 0x09, 0x1b },
 };
@@ -44,7 +44,7 @@ struct point8 BOXING_GLOVE_POINTS_31FE[6] DGROUP_AT(0x31fe) = {
 /*
  * DGROUP 0x320a..0x3216. Connection points, 6 pairs.
  */
-struct point8 BOXING_GLOVE_POINTS_320A[6] DGROUP_AT(0x320a) = {
+struct point8 BOXING_GLOVE_POINTS_320A[6] = {
     { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
     { 0x1f, 0x00 }, { 0x2f, 0x0c },
 };
@@ -52,7 +52,7 @@ struct point8 BOXING_GLOVE_POINTS_320A[6] DGROUP_AT(0x320a) = {
 /*
  * DGROUP 0x3216..0x3222. Connection points, 6 pairs.
  */
-struct point8 BOXING_GLOVE_POINTS_3216[6] DGROUP_AT(0x3216) = {
+struct point8 BOXING_GLOVE_POINTS_3216[6] = {
     { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
     { 0x1e, 0x0a }, { 0x2b, 0x15 },
 };

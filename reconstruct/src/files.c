@@ -71,7 +71,7 @@ struct engine_bitmap_compress {
     uint8_t   pad_13;             /* +0x13 */
 } PACKED;
 
-struct engine_bitmap_compress BITMAP_COMPRESS DGROUP_WAS(0x63e2);
+struct engine_bitmap_compress BITMAP_COMPRESS;
 
 /*
  * **The saved file record**, DGROUP 0x639e..0x63e2, 0x44 bytes. `seek_named_chunk` copies a
@@ -90,7 +90,7 @@ struct engine_saved_file_record {
     uint8_t   pad_43;             /* +0x43 */
 } PACKED;
 
-struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD DGROUP_BSS(0x639e);
+struct engine_saved_file_record ENGINE_SAVED_FILE_RECORD;
 
 /*
  * **The open files**, DGROUP 0x6292..0x639e, 0x10c bytes: four `struct
@@ -101,7 +101,7 @@ struct engine_open_files {
     struct open_file rec[4];      /* +0x00 [0x10c] */
 } PACKED;
 
-struct engine_open_files ENGINE_OPEN_FILES DGROUP_BSS(0x6292);
+struct engine_open_files ENGINE_OPEN_FILES;
 
 /*
  * 0x23b29

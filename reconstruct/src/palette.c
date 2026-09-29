@@ -38,7 +38,7 @@ typedef void (far *vm_esi_fn)(void);
  * **The number of palette cycles filed**, DGROUP 0x445e: `add_palette_cycle`
  * counts them up to nine and `cycle_palettes` walks them.
  */
-int16_t PALETTE_CYCLES DGROUP_AT(0x445e) = 0;
+int16_t PALETTE_CYCLES = 0;
 
 /*
  * **What the last palette fade was asked for, and how big a palette is**,
@@ -53,7 +53,7 @@ struct engine_pen {
     int16_t   palette_bytes;   /* +0x04 [2] */
 } PACKED;
 
-struct engine_pen ENGINE_PEN DGROUP_AT(0x4460) = { 0x003f, 0, 0x0300 };
+struct engine_pen ENGINE_PEN = { 0x003f, 0, 0x0300 };
 
 /*
  * **How many bytes of palette each pixel depth has**, DGROUP 0x4466..0x4486,
@@ -67,7 +67,7 @@ struct engine_palette_sizes {
     int16_t   size[16];           /* +0x00 [0x20] */
 } PACKED;
 
-struct engine_palette_sizes ENGINE_PALETTE_SIZES DGROUP_AT(0x4466) = {
+struct engine_palette_sizes ENGINE_PALETTE_SIZES = {
     {
         0x0000, 0x0102, 0x0011, 0x0011, 0x0102, 0x0300, 0x0000, 0x0300,
         0x0300, 0x0300, 0x0300, 0x0030, 0x0030, 0x0030, 0x0030, 0x0300,
@@ -75,7 +75,7 @@ struct engine_palette_sizes ENGINE_PALETTE_SIZES DGROUP_AT(0x4466) = {
 };
 
 
-struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
+struct pal_chunk_names PALCHUNK = {
     "PAL:VGA:",
     "PAL:EGA:",
     "PAL:CGA:",
@@ -97,9 +97,9 @@ struct pal_chunk_names PALCHUNK DGROUP_WAS(0x4486) = {
  * The names are chosen for Borland C++ 2.0's `_BSS` order, which comes from
  * the names (docs/lessons.md): these three land at 0x591a, 0x592e and 0x5942.
  */
-int16_t CYCLE_STEP[10] DGROUP_BSS(0x591a);
-int16_t CYCLE_FROM[10] DGROUP_BSS(0x592e);
-int16_t CYCLE_LIMIT[10] DGROUP_BSS(0x5942);
+int16_t CYCLE_STEP[10];
+int16_t CYCLE_FROM[10];
+int16_t CYCLE_LIMIT[10];
 
 /*
  * 0x1e967

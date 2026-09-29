@@ -59,7 +59,7 @@ struct engine_compress_state {
  * measured, the bytes taken in and the codes put out, and the two bit-mask
  * tables `output` packs codes with.
  */
-struct engine_compress_data ENGINE_COMPRESS DGROUP_AT(0x35d6) = {
+struct engine_compress_data ENGINE_COMPRESS = {
     5003, 0, 0, 0, 0, 10000, 1, 0,
     { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x00 },
     { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff },
@@ -71,7 +71,7 @@ struct engine_compress_data ENGINE_COMPRESS DGROUP_AT(0x35d6) = {
  * width, the bytes put out, the bit offset into the pack, and whether the
  * next byte is the first.
  */
-struct engine_compress_state ENGINE_COMPRESS_STATE DGROUP_BSS(0x58b8);
+struct engine_compress_state ENGINE_COMPRESS_STATE;
 
 #define LZC ENGINE_COMPRESS
 #define LZS ENGINE_COMPRESS_STATE

@@ -21,10 +21,10 @@ What it knows, and from where:
   one: its segment word is in the relocation table.
 - **A segment immediate** - a word the relocation table names - is written as
   the segment it is (`DGROUP` for DGROUP's paragraph).
-- **A direct DS operand** is written as the DGROUP object the port places
-  there plus the offset into it, `DGROUP:_VMDS+12h`, from the placements
-  (`DGROUP_AT`/`_BSS`/`_WAS`) in the port's sources; an offset no object
-  covers stays a number and says so in a comment.
+- **A direct DS operand** is written as the DGROUP object there plus the
+  offset into it, `DGROUP:_VMDS+12h`, from the map of the last link
+  (`tools/link.py`); an offset no object covers stays a number and says so
+  in a comment.
 
 What it cannot know: whether an **immediate** was an address. `mov ax,
 2d4ah` and `mov ax, offset find_name` assemble to the same three bytes, and
@@ -61,12 +61,9 @@ def relocations():
 
 
 def placements():
-    """(address, name) for every DGROUP object the port places, sorted."""
-    out = []
-    for path in judge.port_sources():
-        for _struct, name, addr in cparse.placements(path):
-            out.append((addr, name))
-    return sorted(set(out))
+    """(address, name) for every public DGROUP object, sorted: the map of the
+    last `tools/link.py`."""
+    return sorted(set((addr, name) for _s, name, addr in cparse.placements()))
 
 
 def data_name(off, placed, addrs):

@@ -46,7 +46,7 @@
  * **The game screen's own words and the goal tests**, DGROUP 0x2630..0x27ee -
  * the first of this module's data.
  */
-struct dg_2630 DG2630 DGROUP_WAS(0x2630) = {
+struct dg_2630 DG2630 = {
     0, 0, 0,
     {
         goal_test_puzzle_1,
@@ -175,7 +175,7 @@ struct game_play_tabs {
                                             reads as that */
 } PACKED;
 
-struct game_play_tabs GAME_PLAY_TABS DGROUP_AT(0x27ee) = {
+struct game_play_tabs GAME_PLAY_TABS = {
     0xffff, /* stop */
     {
         0x0042, 0x0064, 0x0064, 0x00c4, 0x00e6, 0x0051, 0x0079, 0x009e,
@@ -198,7 +198,7 @@ struct game_master_level_x {
     int16_t   level_x[6];         /* +0x00 [0xc]  level 1 first */
 } PACKED;
 
-struct game_master_level_x GAME_MASTER_LEVEL_X DGROUP_AT(0x2818) = {
+struct game_master_level_x GAME_MASTER_LEVEL_X = {
     { 0x0085, 0x0088, 0x008e, 0x0094, 0x009b, 0x00a3 }, /* level_x */
 };
 

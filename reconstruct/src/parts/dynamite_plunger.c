@@ -22,28 +22,28 @@
 /*
  * DGROUP 0x33ce..0x33d6. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33CE[4] DGROUP_AT(0x33ce) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33CE[4] = {
     { 0x67, 0x00 }, { 0x86, 0x00 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
 };
 
 /*
  * DGROUP 0x33d6..0x33de. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33D6[4] DGROUP_AT(0x33d6) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33D6[4] = {
     { 0x67, 0x05 }, { 0x86, 0x05 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
 };
 
 /*
  * DGROUP 0x33de..0x33e6. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33DE[4] DGROUP_AT(0x33de) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33DE[4] = {
     { 0x67, 0x0a }, { 0x86, 0x0a }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
 };
 
 /*
  * DGROUP 0x33e6..0x33ec. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_33E6[3] DGROUP_WAS(0x33e6) = {
+struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_33E6[3] = {
     DYNAMITE_PLUNGER_POINTS_33CE, DYNAMITE_PLUNGER_POINTS_33D6,
     DYNAMITE_PLUNGER_POINTS_33DE,
 };
@@ -51,28 +51,28 @@ struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_33E6[3] DGROUP_WAS(0x33e6) = {
 /*
  * DGROUP 0x33ec..0x33f4. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33EC[4] DGROUP_AT(0x33ec) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33EC[4] = {
     { 0x00, 0x00 }, { 0x1f, 0x00 }, { 0x18, 0x2f }, { 0x08, 0x2f },
 };
 
 /*
  * DGROUP 0x33f4..0x33fc. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33F4[4] DGROUP_AT(0x33f4) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33F4[4] = {
     { 0x00, 0x05 }, { 0x1f, 0x05 }, { 0x18, 0x2f }, { 0x08, 0x2f },
 };
 
 /*
  * DGROUP 0x33fc..0x3404. Connection points, 4 pairs.
  */
-struct point8 DYNAMITE_PLUNGER_POINTS_33FC[4] DGROUP_AT(0x33fc) = {
+struct point8 DYNAMITE_PLUNGER_POINTS_33FC[4] = {
     { 0x00, 0x0a }, { 0x1f, 0x0a }, { 0x18, 0x2f }, { 0x08, 0x2f },
 };
 
 /*
  * DGROUP 0x3404..0x340a. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_3404[3] DGROUP_WAS(0x3404) = {
+struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_3404[3] = {
     DYNAMITE_PLUNGER_POINTS_33EC, DYNAMITE_PLUNGER_POINTS_33F4,
     DYNAMITE_PLUNGER_POINTS_33FC,
 };
@@ -80,14 +80,14 @@ struct point8 *DYNAMITE_PLUNGER_POINT_TABLE_3404[3] DGROUP_WAS(0x3404) = {
 /*
  * DGROUP 0x340a..0x3416. Connection points, 3 points.
  */
-struct point16 DYNAMITE_PLUNGER_POINTS_340A[3] DGROUP_AT(0x340a) = {
+struct point16 DYNAMITE_PLUNGER_POINTS_340A[3] = {
     { 0x0072, 0x0000 }, { 0x0072, 0x0005 }, { 0x0072, 0x000a },
 };
 
 /*
  * DGROUP 0x3416..0x3422. Connection points, 3 points.
  */
-struct point16 DYNAMITE_PLUNGER_POINTS_3416[3] DGROUP_AT(0x3416) = {
+struct point16 DYNAMITE_PLUNGER_POINTS_3416[3] = {
     { 0x000b, 0x0000 }, { 0x000b, 0x0005 }, { 0x000b, 0x000a },
 };
 

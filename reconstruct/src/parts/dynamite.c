@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3290..0x329a. Connection points, 5 pairs.
  */
-struct point8 DYNAMITE_POINTS_3290[5] DGROUP_AT(0x3290) = {
+struct point8 DYNAMITE_POINTS_3290[5] = {
     { 0x00, 0x0e }, { 0x05, 0x00 }, { 0x25, 0x12 }, { 0x1b, 0x1b },
     { 0x14, 0x1b },
 };
@@ -30,7 +30,7 @@ struct point8 DYNAMITE_POINTS_3290[5] DGROUP_AT(0x3290) = {
 /*
  * DGROUP 0x329a..0x32a4. Connection points, 5 pairs.
  */
-struct point8 DYNAMITE_POINTS_329A[5] DGROUP_AT(0x329a) = {
+struct point8 DYNAMITE_POINTS_329A[5] = {
     { 0x0a, 0x12 }, { 0x2a, 0x00 }, { 0x2f, 0x0e }, { 0x1b, 0x1b },
     { 0x14, 0x1b },
 };

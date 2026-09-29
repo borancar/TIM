@@ -42,7 +42,7 @@ struct game_puzzle_tabs {
     int16_t   stop_y[5];          /* +0x0c [0xa] */
 } PACKED;
 
-struct game_puzzle_tabs GAME_PUZZLE_TABS DGROUP_AT(0x260a) = {
+struct game_puzzle_tabs GAME_PUZZLE_TABS = {
     0xffff, /* stop */
     { 0x0080, 0x00d0, 0x01e0, 0x01e0, 0x0208 }, /* stop_x */
     { 0x0052, 0x0142, 0x004e, 0x0114, 0x0140 }, /* stop_y */
@@ -61,7 +61,7 @@ struct game_part_names {
     char      bmp[5];             /* +0x0a  ".bmp" */
 } PACKED;
 
-struct game_part_names GAME_PART_NAMES DGROUP_AT(0x2620) = {
+struct game_part_names GAME_PART_NAMES = {
     "*", /* star */
     ": ", /* title_sep */
     "part", /* part */
@@ -78,7 +78,7 @@ struct game_typed_text {
     char typed[0x28];             /* +0x00 [0x28] */
 } PACKED;
 
-struct game_typed_text GAME_TYPED_TEXT DGROUP_BSS(0x542e);
+struct game_typed_text GAME_TYPED_TEXT;
 
 /*
  * **The picker's own state**, DGROUP 0x5428..0x542e. Declared after the typed
@@ -98,7 +98,7 @@ struct puzzle_state {
     int16_t   puzzle_page;        /* +0x04  0x542c */
 } PACKED;
 
-struct puzzle_state PUZZLE_STATE DGROUP_BSS(0x5428);
+struct puzzle_state PUZZLE_STATE;
 
 /*
  * 0x0f0b0

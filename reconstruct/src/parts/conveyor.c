@@ -23,7 +23,7 @@
  * DGROUP 0x3330..0x3335. The grab x by width step: 9 23 38 44 59. `part_settle_conveyor`.
  * Five bytes; the next module's data starts at the next word, 0x3336.
  */
-uint8_t CONVEYOR_GRAB_X[5] DGROUP_AT(0x3330) = { 9, 23, 38, 44, 59 };
+uint8_t CONVEYOR_GRAB_X[5] = { 9, 23, 38, 44, 59 };
 
 /*
  * 172c:24d0, image 0x19790 - a setup.

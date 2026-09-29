@@ -37,7 +37,7 @@ struct machine_quadrant_steps {
     int16_t   dy[4];              /* +0x08 [8] */
 } PACKED;
 
-struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { { 0, -1, 0, 1 }, { -1, 0, 1, 0 } };
+struct machine_quadrant_steps MACHINE_QUADRANT_STEPS = { { 0, -1, 0, 1 }, { -1, 0, 1, 0 } };
 
 /*
  * **Whether the moving part's swept box and the other part's box overlap.**
@@ -60,7 +60,7 @@ struct machine_quadrant_steps MACHINE_QUADRANT_STEPS DGROUP_AT(0x258c) = { { 0, 
      && DG53FC.other_bottom >= DG53FC.swept_top)
 
 /* **This module's `_BSS`**: the collision state the routines below share. */
-struct dg_53fc DG53FC DGROUP_BSS(0x53fc);
+struct dg_53fc DG53FC;
 
 /*
  * 0x00297

@@ -26,6 +26,9 @@
 
 static uint8_t io_in8_raw(uint16_t port);
 
+/* OURS: the machine's first megabyte - see dgroup.h. */
+uint8_t guest_mem[GUEST_MEM_BYTES];
+
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
 
@@ -429,9 +432,7 @@ static char     game_dir[PATH_MAX] = "incredible-machine";
  *
  * **The port calls this and not `io_load_program`.** Nothing the game needs
  * comes from the image any more: DGROUP's initialised data and the sound
- * module's tables are C objects the linker puts in `guest_mem` at the addresses
- * the image had them (`DGROUP_AT` in dgroup.h), and the code is the port's
- * own. Only the hybrid runner still loads the image, because it runs it.
+ * module's tables are C objects, and the code is the port's own.
  */
 void io_start_program(void)
 {

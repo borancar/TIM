@@ -22,70 +22,70 @@
 /*
  * DGROUP 0x3344..0x334c. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_3344[4] DGROUP_AT(0x3344) = {
+struct point8 RAMP_POINTS_3344[4] = {
     { 0x00, 0x00 }, { 0x0f, 0x0f }, { 0x0f, 0x1f }, { 0x00, 0x10 },
 };
 
 /*
  * DGROUP 0x334c..0x3354. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_334C[4] DGROUP_AT(0x334c) = {
+struct point8 RAMP_POINTS_334C[4] = {
     { 0x00, 0x00 }, { 0x1f, 0x0f }, { 0x1f, 0x1f }, { 0x00, 0x10 },
 };
 
 /*
  * DGROUP 0x3354..0x335c. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_3354[4] DGROUP_AT(0x3354) = {
+struct point8 RAMP_POINTS_3354[4] = {
     { 0x00, 0x00 }, { 0x2f, 0x0f }, { 0x2f, 0x1f }, { 0x00, 0x10 },
 };
 
 /*
  * DGROUP 0x335c..0x3364. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_335C[4] DGROUP_AT(0x335c) = {
+struct point8 RAMP_POINTS_335C[4] = {
     { 0x00, 0x00 }, { 0x3f, 0x0f }, { 0x3f, 0x1f }, { 0x00, 0x10 },
 };
 
 /*
  * DGROUP 0x3364..0x336c. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *RAMP_POINT_TABLE_3364[4] DGROUP_WAS(0x3364) = {
+struct point8 *RAMP_POINT_TABLE_3364[4] = {
     RAMP_POINTS_3344, RAMP_POINTS_334C, RAMP_POINTS_3354, RAMP_POINTS_335C,
 };
 
 /*
  * DGROUP 0x336c..0x3374. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_336C[4] DGROUP_AT(0x336c) = {
+struct point8 RAMP_POINTS_336C[4] = {
     { 0x00, 0x0f }, { 0x0f, 0x00 }, { 0x0f, 0x10 }, { 0x00, 0x1f },
 };
 
 /*
  * DGROUP 0x3374..0x337c. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_3374[4] DGROUP_AT(0x3374) = {
+struct point8 RAMP_POINTS_3374[4] = {
     { 0x00, 0x0f }, { 0x1f, 0x00 }, { 0x1f, 0x10 }, { 0x00, 0x1f },
 };
 
 /*
  * DGROUP 0x337c..0x3384. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_337C[4] DGROUP_AT(0x337c) = {
+struct point8 RAMP_POINTS_337C[4] = {
     { 0x00, 0x0f }, { 0x2f, 0x00 }, { 0x2f, 0x10 }, { 0x00, 0x1f },
 };
 
 /*
  * DGROUP 0x3384..0x338c. Connection points, 4 pairs.
  */
-struct point8 RAMP_POINTS_3384[4] DGROUP_AT(0x3384) = {
+struct point8 RAMP_POINTS_3384[4] = {
     { 0x00, 0x0f }, { 0x3f, 0x00 }, { 0x3f, 0x10 }, { 0x00, 0x1f },
 };
 
 /*
  * DGROUP 0x338c..0x3394. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *RAMP_POINT_TABLE_338C[4] DGROUP_WAS(0x338c) = {
+struct point8 *RAMP_POINT_TABLE_338C[4] = {
     RAMP_POINTS_336C, RAMP_POINTS_3374, RAMP_POINTS_337C, RAMP_POINTS_3384,
 };
 

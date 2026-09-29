@@ -1,21 +1,13 @@
 /*
- * The original's DGROUP: one 64 KB data segment.
+ * The original's DGROUP: one 64 KB data segment, and the records in it.
  *
- * It is modelled as a **byte array**, not as a set of C globals, because the
- * game uses *near pointers* - a word in DGROUP holding an offset into DGROUP,
- * dereferenced as `[bx + 0x22]`. Named globals cannot express that; an array
- * can, and it is what the original actually has.
- *
- * Named variables are objects the linker places *inside* the array - see
- * `DGROUP_AT` below - so a name and a pointer dereference reach the same byte.
- * Where a name is a guess it says so; the offsets are read from the
- * disassembly and are not.
+ * Each record is a C object and each stored pointer a real pointer, on both
+ * compilers; the address an object has in the image is written beside it,
+ * and Borland C++ puts it there, which `tools/link.py` proves. Where a name
+ * is a guess it says so; the offsets are read from the disassembly and are
+ * not.
  *
  * DGROUP is at image 0x2d3c0, so a DGROUP offset plus that is an image offset.
- *
- * This arrangement also makes verification stronger: tools/verify.py seeds the
- * **whole** segment before a call and compares the whole of it afterwards, so
- * a routine that touches state nobody declared is caught rather than missed.
  */
 #ifndef DGROUP_H
 #define DGROUP_H
@@ -60,32 +52,25 @@
 #define GUEST_MEM_BYTES 0x100000
 #define DGROUP_BYTES    0x10000
 
-/* Defined by the linker script `tools/genld.py` writes, not in C - see below. */
+/* The machine's first megabyte, for what the port still keeps as memory:
+   DOS's arena, the interrupt table's page, the DGROUP arena. Defined in
+   hostio.c. */
 #ifndef __TURBOC__
 extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 #endif
 
 /*
- * **Where the program sits, and what of it the port carries.** DOS loaded the
- * image at segment 0x0110 - the PSP at 0x0100 and its 0x10 paragraphs below it,
- * which is where the reference emulator puts it too - and DGROUP is at image
- * offset 0x2d3c0 of that, so linear 0x2e4c0. Borland's startup zeroes DGROUP
- * from 0x4e4e to 0x64ca (`rep stosb` at 0x000cd), so everything the image
- * gives DGROUP is below 0x4e4e.
+ * **Where the program sits.** DOS loaded the image at segment 0x0110 - the
+ * PSP at 0x0100 and its 0x10 paragraphs below it, which is where the
+ * reference emulator puts it too - and DGROUP is at image offset 0x2d3c0 of
+ * that, so linear 0x2e4c0. Borland's startup zeroes DGROUP from 0x4e4e to
+ * 0x64ca (`rep stosb` at 0x000cd), so everything the image gives DGROUP is
+ * below 0x4e4e.
  *
- * The port does not load the image. What the game needs of it is transcribed
- * as C objects, each marked with where it goes:
- *
- *   DGROUP_AT(off)       initialised DGROUP data, below DGROUP_INIT_END
- *   DGROUP_BSS(off)      DGROUP state the startup zeroes, from DGROUP_INIT_END
- *   SEGMENT_AT(seg, off) data a code segment keeps inside itself
- *
- * `tools/genld.py` reads those sections back out of the objects and writes the
- * linker script that lays `guest_mem` out with each object at its address, so
- * a DGROUP offset and a named object reach the same byte - which is what lets
- * the verifier seed and compare the whole segment - and the linker refuses two
- * that overlap. **An offset is written with four hex digits** (`0x0ea6`, not
- * `0xea6`): it becomes the section name, and the script matches it exactly.
+ * The port does not load the image: what the game needs of it is
+ * transcribed as C objects, and a DGROUP object's address is a comment
+ * beside it - where it is, the linker puts it under Borland C++, which
+ * `tools/link.py` proves.
  *
  * A segment the image relocated is the load segment plus the image's own
  * value, and is transcribed as `LOAD_SEG + 0x172c`, never as the sum.
@@ -94,40 +79,7 @@ extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 #define IMG_DGROUP      0x2D3C0u
 #define DGROUP_INIT_END 0x4e4e
 
-/*
- * **`aligned(1)` is not decoration.** The x86-64 ABI lets the compiler assume a
- * global of sixteen bytes or more is on a sixteen-byte boundary, and GCC acts
- * on it: `reset_input_state` cleared `MACHINE_BUTTONS` with one `movaps`, which
- * faults on an address that is not - and a DGROUP offset usually is not. The
- * linker script's `SUBALIGN(1)` puts the object where it belongs; this is what
- * stops the code that uses it assuming otherwise. genld refuses a guest section
- * whose alignment is not 1.
- */
-#ifdef __TURBOC__
-/* Under the original compiler an object is placed by the linker, in the
-   order the modules define them, and that order is the proof. */
-#  define DGROUP_AT(off)
-#  define DGROUP_BSS(off)
-#  define SEGMENT_AT(seg, off)
-#  define DGROUP_WAS(off)
-#else
-/* **Nothing is placed any more** (2026-09-28): the image is proven by the
-   judge and the link, so an object is an ordinary one on the host too and
-   these say only where it was. Being removed. */
-#  define DGROUP_AT(off)
-#  define DGROUP_BSS(off)
-#  define SEGMENT_AT(seg, off)
-/* **Where a record was, for a record that is no longer there.** One that
-   holds real pointers is the host's own layout and cannot sit over the
-   guest's bytes, so it is an ordinary object; this keeps its original
-   address beside it, for `tools/judge.py` to hold the original compiler's
-   references to, and places nothing. Ours. */
-#  define DGROUP_WAS(off)
-#endif
-
-/* Declared in io.h, which this header deliberately does not include: `dg_near`
-   below refuses a pointer that is not the guest's, and the refusal has to be
-   loud. */
+/* Declared in hostio.h, which this header deliberately does not include. */
 void port_abort(const char *msg);
 extern uint32_t dgroup_base;        /* linear address of DGROUP */
 
@@ -849,9 +801,7 @@ struct sound_bank_entry {
 /*
  * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
  *
- * Its five far pointers are real pointers on both compilers, so on the host
- * the record is laid out by the host and not over the guest's bytes
- * (`DGROUP_WAS`).
+ * Its five far pointers are real pointers on both compilers.
  */
 struct dg_4a82 {
     int16_t   driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */

@@ -62,7 +62,7 @@ struct game_file_names {
     uint8_t pad_28d1[1];          /* +0x61 [1] */
 } PACKED;
 
-struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
+struct game_file_names GAME_FILE_NAMES = {   /* DGROUP 0x2870 */
     "rb", /* rb_read_level */
     "wb", /* wb_write_level */
     "l", /* l_load_level */
@@ -88,7 +88,7 @@ struct game_file_names GAME_FILE_NAMES DGROUP_AT(0x2870) = {
 };
 
 /* The level reader's and writer's own words - see `struct level_io`. */
-struct level_io LEVEL_IO DGROUP_WAS(0x546c);
+struct level_io LEVEL_IO;   /* DGROUP 0x546c */
 
 /*
  * 0x11d00

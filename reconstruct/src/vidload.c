@@ -36,17 +36,17 @@
  * The block the adapter's driver is read into, 0x48f8: a `huge` pointer,
  * which is why the tests against it call the runtime's `F_PCMP@`.
  */
-uint8_t huge *VIDEO_DRIVER DGROUP_WAS(0x48f8) = 0;
+uint8_t huge *VIDEO_DRIVER = 0;
 
 /* "BAD:", 0x48fc, which the sixth tag points back at. */
-char BAD_ADAPTER_TAG[] DGROUP_AT(0x48fc) = "BAD:";
+char BAD_ADAPTER_TAG[] = "BAD:";
 
 /*
  * **The adapter tags**, 0x4901..0x4919: twelve near pointers, indexed from 1
  * - the compiler folds the first index into the base, `[si*2 + 0x48ff]`. The
  * tags themselves are the literal pool at 0x4923.
  */
-char *ADAPTER_TAG[12] DGROUP_WAS(0x4901) = {
+char *ADAPTER_TAG[12] = {
     "CGA:", "EGA:", "TAN:", "HER:", "MCG:", BAD_ADAPTER_TAG,
     "EVA:", "VGA:", "EVG:", "HVG:", "HEG:", "NEW:",
 };
@@ -55,7 +55,7 @@ char *ADAPTER_TAG[12] DGROUP_WAS(0x4901) = {
  * **The overlay chunk's name**, 0x4919: "OVL:" and room for the tag, which
  * `load_video_driver` copies in at +4 before it searches.
  */
-char OVL_TAG[] DGROUP_AT(0x4919) = "OVL:     ";
+char OVL_TAG[] = "OVL:     ";
 
 /*
  * **The base the two indexes are taken from**, DGROUP 0x628e..0x6292, 0x04 bytes.
@@ -68,7 +68,7 @@ struct engine_scale_step {
     uint16_t  word_6290;          /* +0x02 [2] */
 } PACKED;
 
-struct engine_scale_step ENGINE_SCALE_STEP DGROUP_BSS(0x628e);
+struct engine_scale_step ENGINE_SCALE_STEP;
 
 #ifdef __TURBOC__
 /*

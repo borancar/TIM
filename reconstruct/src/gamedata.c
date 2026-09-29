@@ -36,10 +36,10 @@ extern struct dg_52fe DG52FE;
 #include "hostio.h"
 #include "dgroup.h"
 
-struct game_master_levels GAME_MASTER_LEVELS DGROUP_AT(0x0116) = { { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f } };
+struct game_master_levels GAME_MASTER_LEVELS = { { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f } };
 
 /* The draw step `draw_part` fills in for a part whose kind has no table. */
-struct draw_step DG0124 DGROUP_AT(0x0124) = { 0, 0, { 0, 0xff }, { { 0 } } };
+struct draw_step DG0124 = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
 
 /*
  * DGROUP 0x0133..0x0ea6 - **the kinds' drawing tables**, which `PART_KINDS`
@@ -51,7 +51,7 @@ struct draw_step DG0124 DGROUP_AT(0x0124) = { 0, 0, { 0, 0xff }, { { 0 } } };
  * over. The `next` links and the table entries are near pointers, as the
  * image has them.
  */
-struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] DGROUP_AT(0x0133) = {
+struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] = {
     {
         0,    /* next */
         0x03,    /* level */
@@ -167,7 +167,7 @@ struct draw_step JACK_IN_THE_BOX_DRAW_STEPS[19] DGROUP_AT(0x0133) = {
         { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
     }
 };
-struct draw_step *JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
+struct draw_step *JACK_IN_THE_BOX_FORM_STEPS[19] = {   /* DGROUP 0x0250 */
     NEAR_AT(0x0133, &JACK_IN_THE_BOX_DRAW_STEPS[0]),
     NEAR_AT(0x0142, &JACK_IN_THE_BOX_DRAW_STEPS[1]),
     NEAR_AT(0x0151, &JACK_IN_THE_BOX_DRAW_STEPS[2]),
@@ -188,7 +188,7 @@ struct draw_step *JACK_IN_THE_BOX_FORM_STEPS[19] DGROUP_AT(0x0250) = {
     NEAR_AT(0x0232, &JACK_IN_THE_BOX_DRAW_STEPS[17]),
     NEAR_AT(0x0241, &JACK_IN_THE_BOX_DRAW_STEPS[18])
 };
-struct point16 JACK_IN_THE_BOX_FORM_SIZES[19] DGROUP_AT(0x0276) = {
+struct point16 JACK_IN_THE_BOX_FORM_SIZES[19] = {   /* DGROUP 0x0276 */
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
@@ -209,7 +209,7 @@ struct point16 JACK_IN_THE_BOX_FORM_SIZES[19] DGROUP_AT(0x0276) = {
     { 0x0024, 0x0039 },
     { 0x0024, 0x0039 }
 };
-struct point8 JACK_IN_THE_BOX_HOT_SPOTS[19] DGROUP_AT(0x02c2) = {
+struct point8 JACK_IN_THE_BOX_HOT_SPOTS[19] = {   /* DGROUP 0x02c2 */
     { 0 },
     { 0 },
     { 0 },
@@ -230,7 +230,7 @@ struct point8 JACK_IN_THE_BOX_HOT_SPOTS[19] DGROUP_AT(0x02c2) = {
     { 0xfc, 0xe7 },
     { 0xfc, 0xe7 }
 };
-struct draw_step BOB_THE_FISH_DRAW_STEPS[23] DGROUP_AT(0x02e8) = {
+struct draw_step BOB_THE_FISH_DRAW_STEPS[23] = {   /* DGROUP 0x02e8 */
     {
         0,    /* next */
         0x03,    /* level */
@@ -355,7 +355,7 @@ struct draw_step BOB_THE_FISH_DRAW_STEPS[23] DGROUP_AT(0x02e8) = {
         { { 0xe4, 0x19 }, { 0x05, 0x26 } }    /* offset */
     }
 };
-struct draw_step *BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
+struct draw_step *BOB_THE_FISH_FORM_STEPS[23] = {   /* DGROUP 0x0441 */
     NEAR_AT(0x02e8, &BOB_THE_FISH_DRAW_STEPS[0]),
     NEAR_AT(0x02f7, &BOB_THE_FISH_DRAW_STEPS[1]),
     NEAR_AT(0x0306, &BOB_THE_FISH_DRAW_STEPS[2]),
@@ -380,7 +380,7 @@ struct draw_step *BOB_THE_FISH_FORM_STEPS[23] DGROUP_AT(0x0441) = {
     NEAR_AT(0x0423, &BOB_THE_FISH_DRAW_STEPS[21]),
     NEAR_AT(0x0432, &BOB_THE_FISH_DRAW_STEPS[22])
 };
-struct point16 BOB_THE_FISH_FORM_SIZES[23] DGROUP_AT(0x046f) = {
+struct point16 BOB_THE_FISH_FORM_SIZES[23] = {   /* DGROUP 0x046f */
     { 0x0030, 0x0030 },
     { 0x0030, 0x0030 },
     { 0x0030, 0x0030 },
@@ -405,7 +405,7 @@ struct point16 BOB_THE_FISH_FORM_SIZES[23] DGROUP_AT(0x046f) = {
     { 0x0068, 0x0020 },
     { 0x0068, 0x0020 }
 };
-struct point8 BOB_THE_FISH_HOT_SPOTS[23] DGROUP_AT(0x04cb) = {
+struct point8 BOB_THE_FISH_HOT_SPOTS[23] = {   /* DGROUP 0x04cb */
     { 0 },
     { 0 },
     { 0 },
@@ -430,7 +430,7 @@ struct point8 BOB_THE_FISH_HOT_SPOTS[23] DGROUP_AT(0x04cb) = {
     { 0xe4, 0x19 },
     { 0xe4, 0x19 }
 };
-struct draw_step CANNON_DRAW_STEPS[15] DGROUP_AT(0x04f9) = {
+struct draw_step CANNON_DRAW_STEPS[15] = {   /* DGROUP 0x04f9 */
     { 0, 0x04, { 0x00, 0x09, 0xff, 0xff }, { { 0 }, { 0x09, 0x0d } } },
     {
         0,    /* next */
@@ -502,7 +502,7 @@ struct draw_step CANNON_DRAW_STEPS[15] DGROUP_AT(0x04f9) = {
         { { 0 }, { 0x09, 0x0d }, { 0, 0x02 } }    /* offset */
     }
 };
-struct draw_step *CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
+struct draw_step *CANNON_FORM_STEPS[12] = {   /* DGROUP 0x05da */
     NEAR_AT(0x04f9, &CANNON_DRAW_STEPS[0]),
     NEAR_AT(0x0508, &CANNON_DRAW_STEPS[1]),
     NEAR_AT(0x0517, &CANNON_DRAW_STEPS[2]),
@@ -516,7 +516,7 @@ struct draw_step *CANNON_FORM_STEPS[12] DGROUP_AT(0x05da) = {
     NEAR_AT(0x05bc, &CANNON_DRAW_STEPS[13]),
     NEAR_AT(0x05cb, &CANNON_DRAW_STEPS[14])
 };
-struct point16 CANNON_FORM_SIZES[12] DGROUP_AT(0x05f2) = {
+struct point16 CANNON_FORM_SIZES[12] = {   /* DGROUP 0x05f2 */
     { 0x0040, 0x0034 },
     { 0x0049, 0x003a },
     { 0x0049, 0x003a },
@@ -530,7 +530,7 @@ struct point16 CANNON_FORM_SIZES[12] DGROUP_AT(0x05f2) = {
     { 0x00c7, 0x0054 },
     { 0x0040, 0x0034 }
 };
-struct point8 CANNON_HOT_SPOTS[12] DGROUP_AT(0x0622) = {
+struct point8 CANNON_HOT_SPOTS[12] = {   /* DGROUP 0x0622 */
     { 0 },
     { 0xf7, 0xfa },
     { 0xf7, 0xfa },
@@ -543,7 +543,7 @@ struct point8 CANNON_HOT_SPOTS[12] DGROUP_AT(0x0622) = {
     { 0xfe, 0xd2 },
     { 0xfd, 0xdf }
 };
-struct draw_step DYNAMITE_DRAW_STEPS[6] DGROUP_AT(0x063a) = {
+struct draw_step DYNAMITE_DRAW_STEPS[6] = {   /* DGROUP 0x063a */
     { 0, 0x03, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x28, 0x09 } } },
     { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x27, 0x0a } } },
@@ -551,8 +551,8 @@ struct draw_step DYNAMITE_DRAW_STEPS[6] DGROUP_AT(0x063a) = {
     { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x25, 0x0d } } },
     { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x26, 0x0c } } }
 };
-struct draw_step *DYNAMITE_FORM_STEPS[6] DGROUP_AT(0x0694) = { NEAR_AT(0x063a, &DYNAMITE_DRAW_STEPS[0]), NEAR_AT(0x0649, &DYNAMITE_DRAW_STEPS[1]), NEAR_AT(0x0658, &DYNAMITE_DRAW_STEPS[2]), NEAR_AT(0x0667, &DYNAMITE_DRAW_STEPS[3]), NEAR_AT(0x0676, &DYNAMITE_DRAW_STEPS[4]), NEAR_AT(0x0685, &DYNAMITE_DRAW_STEPS[5]) };
-struct point16 DYNAMITE_FORM_SIZES[6] DGROUP_AT(0x06a0) = {
+struct draw_step *DYNAMITE_FORM_STEPS[6] = { NEAR_AT(0x063a, &DYNAMITE_DRAW_STEPS[0]), NEAR_AT(0x0649, &DYNAMITE_DRAW_STEPS[1]), NEAR_AT(0x0658, &DYNAMITE_DRAW_STEPS[2]), NEAR_AT(0x0667, &DYNAMITE_DRAW_STEPS[3]), NEAR_AT(0x0676, &DYNAMITE_DRAW_STEPS[4]), NEAR_AT(0x0685, &DYNAMITE_DRAW_STEPS[5]) };   /* DGROUP 0x0694 */
+struct point16 DYNAMITE_FORM_SIZES[6] = {   /* DGROUP 0x06a0 */
     { 0x0030, 0x001c },
     { 0x0038, 0x001c },
     { 0x0038, 0x001c },
@@ -560,8 +560,8 @@ struct point16 DYNAMITE_FORM_SIZES[6] DGROUP_AT(0x06a0) = {
     { 0x0038, 0x001c },
     { 0x0038, 0x001c }
 };
-struct point8 DYNAMITE_HOT_SPOTS[6] DGROUP_AT(0x06b8) = { 0 };
-struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] DGROUP_AT(0x06c4) = {
+struct point8 DYNAMITE_HOT_SPOTS[6] = { 0 };   /* DGROUP 0x06b8 */
+struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] = {   /* DGROUP 0x06c4 */
     { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x08, 0x08 } } },
     {
         0,    /* next */
@@ -601,8 +601,8 @@ struct draw_step ELECTRIC_PLUG_DRAW_STEPS[8] DGROUP_AT(0x06c4) = {
         { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
     }
 };
-struct draw_step *ELECTRIC_PLUG_FORM_STEPS[8] DGROUP_AT(0x073c) = { NEAR_AT(0x06c4, &ELECTRIC_PLUG_DRAW_STEPS[0]), NEAR_AT(0x06d3, &ELECTRIC_PLUG_DRAW_STEPS[1]), NEAR_AT(0x06e2, &ELECTRIC_PLUG_DRAW_STEPS[2]), NEAR_AT(0x06f1, &ELECTRIC_PLUG_DRAW_STEPS[3]), NEAR_AT(0x0700, &ELECTRIC_PLUG_DRAW_STEPS[4]), NEAR_AT(0x070f, &ELECTRIC_PLUG_DRAW_STEPS[5]), NEAR_AT(0x071e, &ELECTRIC_PLUG_DRAW_STEPS[6]), NEAR_AT(0x072d, &ELECTRIC_PLUG_DRAW_STEPS[7]) };
-struct point16 ELECTRIC_PLUG_FORM_SIZES[8] DGROUP_AT(0x074c) = {
+struct draw_step *ELECTRIC_PLUG_FORM_STEPS[8] = { NEAR_AT(0x06c4, &ELECTRIC_PLUG_DRAW_STEPS[0]), NEAR_AT(0x06d3, &ELECTRIC_PLUG_DRAW_STEPS[1]), NEAR_AT(0x06e2, &ELECTRIC_PLUG_DRAW_STEPS[2]), NEAR_AT(0x06f1, &ELECTRIC_PLUG_DRAW_STEPS[3]), NEAR_AT(0x0700, &ELECTRIC_PLUG_DRAW_STEPS[4]), NEAR_AT(0x070f, &ELECTRIC_PLUG_DRAW_STEPS[5]), NEAR_AT(0x071e, &ELECTRIC_PLUG_DRAW_STEPS[6]), NEAR_AT(0x072d, &ELECTRIC_PLUG_DRAW_STEPS[7]) };   /* DGROUP 0x073c */
+struct point16 ELECTRIC_PLUG_FORM_SIZES[8] = {   /* DGROUP 0x074c */
     { 0x0030, 0x0020 },
     { 0x0030, 0x0020 },
     { 0x0030, 0x0020 },
@@ -612,7 +612,7 @@ struct point16 ELECTRIC_PLUG_FORM_SIZES[8] DGROUP_AT(0x074c) = {
     { 0x0030, 0x0020 },
     { 0x0030, 0x0020 }
 };
-struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] DGROUP_AT(0x076c) = {
+struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] = {   /* DGROUP 0x076c */
     {
         0,    /* next */
         0x04,    /* level */
@@ -632,23 +632,23 @@ struct draw_step DYNAMITE_PLUNGER_DRAW_STEPS[3] DGROUP_AT(0x076c) = {
         { { 0x67, 0x0a }, { 0x28, 0x10 } }    /* offset */
     }
 };
-struct draw_step *DYNAMITE_PLUNGER_FORM_STEPS[3] DGROUP_AT(0x0799) = { NEAR_AT(0x076c, &DYNAMITE_PLUNGER_DRAW_STEPS[0]), NEAR_AT(0x077b, &DYNAMITE_PLUNGER_DRAW_STEPS[1]), NEAR_AT(0x078a, &DYNAMITE_PLUNGER_DRAW_STEPS[2]) };
-struct point16 DYNAMITE_PLUNGER_FORM_SIZES[3] DGROUP_AT(0x079f) = { { 0x0087, 0x0030 }, { 0x0087, 0x002e }, { 0x0087, 0x0029 } };
-struct point8 DYNAMITE_PLUNGER_HOT_SPOTS[3] DGROUP_AT(0x07ab) = { 0 };
-struct draw_step FAN_DRAW_STEPS[4] DGROUP_AT(0x07b1) = {
+struct draw_step *DYNAMITE_PLUNGER_FORM_STEPS[3] = { NEAR_AT(0x076c, &DYNAMITE_PLUNGER_DRAW_STEPS[0]), NEAR_AT(0x077b, &DYNAMITE_PLUNGER_DRAW_STEPS[1]), NEAR_AT(0x078a, &DYNAMITE_PLUNGER_DRAW_STEPS[2]) };   /* DGROUP 0x0799 */
+struct point16 DYNAMITE_PLUNGER_FORM_SIZES[3] = { { 0x0087, 0x0030 }, { 0x0087, 0x002e }, { 0x0087, 0x0029 } };   /* DGROUP 0x079f */
+struct point8 DYNAMITE_PLUNGER_HOT_SPOTS[3] = { 0 };   /* DGROUP 0x07ab */
+struct draw_step FAN_DRAW_STEPS[4] = {   /* DGROUP 0x07b1 */
     { 0, 0x04, { 0x00, 0x01, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
     { 0, 0x04, { 0x00, 0x02, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
     { 0, 0x04, { 0x00, 0x03, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
     { 0, 0x04, { 0x00, 0x04, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } }
 };
-struct draw_step *FAN_FORM_STEPS[4] DGROUP_AT(0x07ed) = { NEAR_AT(0x07b1, &FAN_DRAW_STEPS[0]), NEAR_AT(0x07c0, &FAN_DRAW_STEPS[1]), NEAR_AT(0x07cf, &FAN_DRAW_STEPS[2]), NEAR_AT(0x07de, &FAN_DRAW_STEPS[3]) };
-struct point16 FAN_FORM_SIZES[4] DGROUP_AT(0x07f5) = {
+struct draw_step *FAN_FORM_STEPS[4] = { NEAR_AT(0x07b1, &FAN_DRAW_STEPS[0]), NEAR_AT(0x07c0, &FAN_DRAW_STEPS[1]), NEAR_AT(0x07cf, &FAN_DRAW_STEPS[2]), NEAR_AT(0x07de, &FAN_DRAW_STEPS[3]) };   /* DGROUP 0x07ed */
+struct point16 FAN_FORM_SIZES[4] = {   /* DGROUP 0x07f5 */
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 }
 };
-struct draw_step GENERATOR_DRAW_STEPS[16] DGROUP_AT(0x0805) = {
+struct draw_step GENERATOR_DRAW_STEPS[16] = {   /* DGROUP 0x0805 */
     { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x15, 0 } } },
     { 0, 0x05, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x15, 0xfa } } },
     { 0, 0x05, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x15, 0x01 } } },
@@ -726,7 +726,7 @@ struct draw_step GENERATOR_DRAW_STEPS[16] DGROUP_AT(0x0805) = {
         { { 0 }, { 0x15, 0xfb }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
     }
 };
-struct draw_step *GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
+struct draw_step *GENERATOR_FORM_STEPS[16] = {   /* DGROUP 0x08f5 */
     NEAR_AT(0x0805, &GENERATOR_DRAW_STEPS[0]),
     NEAR_AT(0x0814, &GENERATOR_DRAW_STEPS[1]),
     NEAR_AT(0x0823, &GENERATOR_DRAW_STEPS[2]),
@@ -744,7 +744,7 @@ struct draw_step *GENERATOR_FORM_STEPS[16] DGROUP_AT(0x08f5) = {
     NEAR_AT(0x08d7, &GENERATOR_DRAW_STEPS[14]),
     NEAR_AT(0x08e6, &GENERATOR_DRAW_STEPS[15])
 };
-struct point16 GENERATOR_FORM_SIZES[16] DGROUP_AT(0x0915) = {
+struct point16 GENERATOR_FORM_SIZES[16] = {   /* DGROUP 0x0915 */
     { 0x0050, 0x0020 },
     { 0x0050, 0x0026 },
     { 0x0050, 0x0020 },
@@ -762,7 +762,7 @@ struct point16 GENERATOR_FORM_SIZES[16] DGROUP_AT(0x0915) = {
     { 0x0050, 0x0020 },
     { 0x0050, 0x0025 }
 };
-struct point8 GENERATOR_HOT_SPOTS[16] DGROUP_AT(0x0955) = {
+struct point8 GENERATOR_HOT_SPOTS[16] = {   /* DGROUP 0x0955 */
     { 0 },
     { 0, 0xfa },
     { 0 },
@@ -780,7 +780,7 @@ struct point8 GENERATOR_HOT_SPOTS[16] DGROUP_AT(0x0955) = {
     { 0 },
     { 0, 0xfb }
 };
-struct draw_step GUN_DRAW_STEPS[7] DGROUP_AT(0x0975) = {
+struct draw_step GUN_DRAW_STEPS[7] = {   /* DGROUP 0x0975 */
     { 0, 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x04, { 0x01, 0xff, 0xff, 0xff }, { { 0xff, 0xfb } } },
     { 0, 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0xfe, 0xfd } } },
@@ -789,8 +789,8 @@ struct draw_step GUN_DRAW_STEPS[7] DGROUP_AT(0x0975) = {
     { 0, 0x04, { 0x00, 0x05, 0xff, 0xff }, { { 0xfe, 0 }, { 0x40, 0xf4 } } },
     { 0, 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } }
 };
-struct draw_step *GUN_FORM_STEPS[7] DGROUP_AT(0x09de) = { NEAR_AT(0x0975, &GUN_DRAW_STEPS[0]), NEAR_AT(0x0984, &GUN_DRAW_STEPS[1]), NEAR_AT(0x0993, &GUN_DRAW_STEPS[2]), NEAR_AT(0x09a2, &GUN_DRAW_STEPS[3]), NEAR_AT(0x09b1, &GUN_DRAW_STEPS[4]), NEAR_AT(0x09c0, &GUN_DRAW_STEPS[5]), NEAR_AT(0x09cf, &GUN_DRAW_STEPS[6]) };
-struct point16 GUN_FORM_SIZES[7] DGROUP_AT(0x09ec) = {
+struct draw_step *GUN_FORM_STEPS[7] = { NEAR_AT(0x0975, &GUN_DRAW_STEPS[0]), NEAR_AT(0x0984, &GUN_DRAW_STEPS[1]), NEAR_AT(0x0993, &GUN_DRAW_STEPS[2]), NEAR_AT(0x09a2, &GUN_DRAW_STEPS[3]), NEAR_AT(0x09b1, &GUN_DRAW_STEPS[4]), NEAR_AT(0x09c0, &GUN_DRAW_STEPS[5]), NEAR_AT(0x09cf, &GUN_DRAW_STEPS[6]) };   /* DGROUP 0x09de */
+struct point16 GUN_FORM_SIZES[7] = {   /* DGROUP 0x09ec */
     { 0x0040, 0x001f },
     { 0x0038, 0x0024 },
     { 0x0080, 0x0025 },
@@ -799,7 +799,7 @@ struct point16 GUN_FORM_SIZES[7] DGROUP_AT(0x09ec) = {
     { 0x0080, 0x002b },
     { 0x0040, 0x001f }
 };
-struct point8 GUN_HOT_SPOTS[7] DGROUP_AT(0x0a08) = {
+struct point8 GUN_HOT_SPOTS[7] = {   /* DGROUP 0x0a08 */
     { 0 },
     { 0xff, 0xfb },
     { 0xfe, 0xfd },
@@ -807,7 +807,7 @@ struct point8 GUN_HOT_SPOTS[7] DGROUP_AT(0x0a08) = {
     { 0xf5, 0xfd },
     { 0xfe, 0xf4 }
 };
-struct draw_step LIGHT_DRAW_STEPS[4] DGROUP_AT(0x0a16) = {
+struct draw_step LIGHT_DRAW_STEPS[4] = {   /* DGROUP 0x0a16 */
     { 0, 0x02, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x14, 0x1c } } },
     {
         0,    /* next */
@@ -818,15 +818,15 @@ struct draw_step LIGHT_DRAW_STEPS[4] DGROUP_AT(0x0a16) = {
     { 0, 0x02, { 0x02, 0x04, 0xff, 0xff }, { { 0 }, { 0x13, 0x02 } } },
     { 0, 0x02, { 0x03, 0x05, 0xff, 0xff }, { { 0xf8, 0 }, { 0x13, 0x02 } } }
 };
-struct draw_step *LIGHT_FORM_STEPS[4] DGROUP_AT(0x0a52) = { NEAR_AT(0x0a16, &LIGHT_DRAW_STEPS[0]), NEAR_AT(0x0a25, &LIGHT_DRAW_STEPS[1]), NEAR_AT(0x0a34, &LIGHT_DRAW_STEPS[2]), NEAR_AT(0x0a43, &LIGHT_DRAW_STEPS[3]) };
-struct point16 LIGHT_FORM_SIZES[4] DGROUP_AT(0x0a5a) = {
+struct draw_step *LIGHT_FORM_STEPS[4] = { NEAR_AT(0x0a16, &LIGHT_DRAW_STEPS[0]), NEAR_AT(0x0a25, &LIGHT_DRAW_STEPS[1]), NEAR_AT(0x0a34, &LIGHT_DRAW_STEPS[2]), NEAR_AT(0x0a43, &LIGHT_DRAW_STEPS[3]) };   /* DGROUP 0x0a52 */
+struct point16 LIGHT_FORM_SIZES[4] = {   /* DGROUP 0x0a5a */
     { 0x0020, 0x0036 },
     { 0x002f, 0x0048 },
     { 0x0020, 0x0026 },
     { 0x002f, 0x0032 }
 };
-struct point8 LIGHT_HOT_SPOTS[4] DGROUP_AT(0x0a6a) = { { 0 }, { 0xf8, 0xee }, { 0 }, { 0xf8, 0 } };
-struct draw_step MONKEY_DRAW_STEPS[13] DGROUP_AT(0x0a72) = {
+struct point8 LIGHT_HOT_SPOTS[4] = { { 0 }, { 0xf8, 0xee }, { 0 }, { 0xf8, 0 } };   /* DGROUP 0x0a6a */
+struct draw_step MONKEY_DRAW_STEPS[13] = {   /* DGROUP 0x0a72 */
     { 0, 0x04, { 0x00, 0x04, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0 } } },
     { 0, 0x04, { 0x00, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
     { 0, 0x04, { 0x01, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
@@ -881,7 +881,7 @@ struct draw_step MONKEY_DRAW_STEPS[13] DGROUP_AT(0x0a72) = {
         { { 0, 0x0c }, { 0x28, 0x06 }, { 0x0e, 0x01 } }    /* offset */
     }
 };
-struct draw_step *MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
+struct draw_step *MONKEY_FORM_STEPS[13] = {   /* DGROUP 0x0b35 */
     NEAR_AT(0x0a72, &MONKEY_DRAW_STEPS[0]),
     NEAR_AT(0x0a81, &MONKEY_DRAW_STEPS[1]),
     NEAR_AT(0x0a90, &MONKEY_DRAW_STEPS[2]),
@@ -896,7 +896,7 @@ struct draw_step *MONKEY_FORM_STEPS[13] DGROUP_AT(0x0b35) = {
     NEAR_AT(0x0b17, &MONKEY_DRAW_STEPS[11]),
     NEAR_AT(0x0b26, &MONKEY_DRAW_STEPS[12])
 };
-struct point16 MONKEY_FORM_SIZES[13] DGROUP_AT(0x0b4f) = {
+struct point16 MONKEY_FORM_SIZES[13] = {   /* DGROUP 0x0b4f */
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
@@ -911,7 +911,7 @@ struct point16 MONKEY_FORM_SIZES[13] DGROUP_AT(0x0b4f) = {
     { 0x005c, 0x004f },
     { 0x005c, 0x004f }
 };
-struct draw_step ROCKET_DRAW_STEPS[10] DGROUP_AT(0x0b83) = {
+struct draw_step ROCKET_DRAW_STEPS[10] = {   /* DGROUP 0x0b83 */
     { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x03, 0x2d } } },
     { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x02, 0x2d } } },
     { 0, 0x03, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x02, 0x2d } } },
@@ -923,7 +923,7 @@ struct draw_step ROCKET_DRAW_STEPS[10] DGROUP_AT(0x0b83) = {
     { 0, 0x03, { 0x00, 0x09, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } },
     { 0, 0x03, { 0x00, 0x0a, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } }
 };
-struct draw_step *ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
+struct draw_step *ROCKET_FORM_STEPS[10] = {   /* DGROUP 0x0c19 */
     NEAR_AT(0x0b83, &ROCKET_DRAW_STEPS[0]),
     NEAR_AT(0x0b92, &ROCKET_DRAW_STEPS[1]),
     NEAR_AT(0x0ba1, &ROCKET_DRAW_STEPS[2]),
@@ -935,7 +935,7 @@ struct draw_step *ROCKET_FORM_STEPS[10] DGROUP_AT(0x0c19) = {
     NEAR_AT(0x0bfb, &ROCKET_DRAW_STEPS[8]),
     NEAR_AT(0x0c0a, &ROCKET_DRAW_STEPS[9])
 };
-struct point16 ROCKET_FORM_SIZES[10] DGROUP_AT(0x0c2d) = {
+struct point16 ROCKET_FORM_SIZES[10] = {   /* DGROUP 0x0c2d */
     { 0x0010, 0x0042 },
     { 0x0010, 0x004a },
     { 0x0010, 0x0046 },
@@ -947,16 +947,16 @@ struct point16 ROCKET_FORM_SIZES[10] DGROUP_AT(0x0c2d) = {
     { 0x0010, 0x0053 },
     { 0x0010, 0x0052 }
 };
-struct point8 ROCKET_HOT_SPOTS[10] DGROUP_AT(0x0c55) = { { 0 }, { 0 }, { 0 }, { 0 }, { 0xfe, 0 }, { 0xfe, 0 } };
-struct draw_step SCISSORS_DRAW_STEPS[3] DGROUP_AT(0x0c69) = {
+struct point8 ROCKET_HOT_SPOTS[10] = { { 0 }, { 0 }, { 0 }, { 0 }, { 0xfe, 0 }, { 0xfe, 0 } };   /* DGROUP 0x0c55 */
+struct draw_step SCISSORS_DRAW_STEPS[3] = {   /* DGROUP 0x0c69 */
     { 0, 0x04, { 0x01, 0xff, 0xff, 0xff }, { { 0x15, 0x11 } } },
     { NEAR_AT(0x0c69, &SCISSORS_DRAW_STEPS[0]), 0, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0xfe, 0x04 } } }
 };
-struct draw_step *SCISSORS_FORM_STEPS[2] DGROUP_AT(0x0c96) = { NEAR_AT(0x0c78, &SCISSORS_DRAW_STEPS[1]), NEAR_AT(0x0c87, &SCISSORS_DRAW_STEPS[2]) };
-struct point16 SCISSORS_FORM_SIZES[2] DGROUP_AT(0x0c9a) = { { 0x0028, 0x0022 }, { 0x0030, 0x0018 } };
-struct point8 SCISSORS_HOT_SPOTS[2] DGROUP_AT(0x0ca2) = { { 0 }, { 0xfe, 0 } };
-struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
+struct draw_step *SCISSORS_FORM_STEPS[2] = { NEAR_AT(0x0c78, &SCISSORS_DRAW_STEPS[1]), NEAR_AT(0x0c87, &SCISSORS_DRAW_STEPS[2]) };   /* DGROUP 0x0c96 */
+struct point16 SCISSORS_FORM_SIZES[2] = { { 0x0028, 0x0022 }, { 0x0030, 0x0018 } };   /* DGROUP 0x0c9a */
+struct point8 SCISSORS_HOT_SPOTS[2] = { { 0 }, { 0xfe, 0 } };   /* DGROUP 0x0ca2 */
+struct draw_step SOLAR_PANEL_DRAW_STEPS[4] = {   /* DGROUP 0x0ca6 */
     { 0, 0x05, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x34, 0x04 } } },
     { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x34, 0x12 } } },
@@ -967,14 +967,14 @@ struct draw_step SOLAR_PANEL_DRAW_STEPS[4] DGROUP_AT(0x0ca6) = {
         { { 0 }, { 0x34, 0x04 }, { 0x34, 0x12 } }    /* offset */
     }
 };
-struct draw_step *SOLAR_PANEL_FORM_STEPS[4] DGROUP_AT(0x0ce2) = { NEAR_AT(0x0ca6, &SOLAR_PANEL_DRAW_STEPS[0]), NEAR_AT(0x0cb5, &SOLAR_PANEL_DRAW_STEPS[1]), NEAR_AT(0x0cc4, &SOLAR_PANEL_DRAW_STEPS[2]), NEAR_AT(0x0cd3, &SOLAR_PANEL_DRAW_STEPS[3]) };
-struct point16 SOLAR_PANEL_FORM_SIZES[4] DGROUP_AT(0x0cea) = {
+struct draw_step *SOLAR_PANEL_FORM_STEPS[4] = { NEAR_AT(0x0ca6, &SOLAR_PANEL_DRAW_STEPS[0]), NEAR_AT(0x0cb5, &SOLAR_PANEL_DRAW_STEPS[1]), NEAR_AT(0x0cc4, &SOLAR_PANEL_DRAW_STEPS[2]), NEAR_AT(0x0cd3, &SOLAR_PANEL_DRAW_STEPS[3]) };   /* DGROUP 0x0ce2 */
+struct point16 SOLAR_PANEL_FORM_SIZES[4] = {   /* DGROUP 0x0cea */
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 }
 };
-struct draw_step TRAMPOLINE_DRAW_STEPS[10] DGROUP_AT(0x0cfa) = {
+struct draw_step TRAMPOLINE_DRAW_STEPS[10] = {   /* DGROUP 0x0cfa */
     { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
     { NEAR_AT(0x0cfa, &TRAMPOLINE_DRAW_STEPS[0]), 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0, { 0x03, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
@@ -986,16 +986,16 @@ struct draw_step TRAMPOLINE_DRAW_STEPS[10] DGROUP_AT(0x0cfa) = {
     { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
     { NEAR_AT(0x0d72, &TRAMPOLINE_DRAW_STEPS[8]), 0x04, { 0x07, 0xff, 0xff, 0xff }, { { 0, 0xfd } } }
 };
-struct draw_step *TRAMPOLINE_FORM_STEPS[5] DGROUP_AT(0x0d90) = { NEAR_AT(0x0d09, &TRAMPOLINE_DRAW_STEPS[1]), NEAR_AT(0x0d27, &TRAMPOLINE_DRAW_STEPS[3]), NEAR_AT(0x0d45, &TRAMPOLINE_DRAW_STEPS[5]), NEAR_AT(0x0d63, &TRAMPOLINE_DRAW_STEPS[7]), NEAR_AT(0x0d81, &TRAMPOLINE_DRAW_STEPS[9]) };
-struct point16 TRAMPOLINE_FORM_SIZES[5] DGROUP_AT(0x0d9a) = {
+struct draw_step *TRAMPOLINE_FORM_STEPS[5] = { NEAR_AT(0x0d09, &TRAMPOLINE_DRAW_STEPS[1]), NEAR_AT(0x0d27, &TRAMPOLINE_DRAW_STEPS[3]), NEAR_AT(0x0d45, &TRAMPOLINE_DRAW_STEPS[5]), NEAR_AT(0x0d63, &TRAMPOLINE_DRAW_STEPS[7]), NEAR_AT(0x0d81, &TRAMPOLINE_DRAW_STEPS[9]) };   /* DGROUP 0x0d90 */
+struct point16 TRAMPOLINE_FORM_SIZES[5] = {   /* DGROUP 0x0d9a */
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
     { 0x0030, 0x001f }
 };
-struct point8 TRAMPOLINE_HOT_SPOTS[5] DGROUP_AT(0x0dae) = { { 0 }, { 0 }, { 0 }, { 0 }, { 0, 0xfd } };
-struct draw_step CANDLE_DRAW_STEPS[6] DGROUP_AT(0x0db8) = {
+struct point8 TRAMPOLINE_HOT_SPOTS[5] = { { 0 }, { 0 }, { 0 }, { 0 }, { 0, 0xfd } };   /* DGROUP 0x0dae */
+struct draw_step CANDLE_DRAW_STEPS[6] = {   /* DGROUP 0x0db8 */
     { 0, 0x03, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
     { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
     { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
@@ -1003,8 +1003,8 @@ struct draw_step CANDLE_DRAW_STEPS[6] DGROUP_AT(0x0db8) = {
     { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
     { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } }
 };
-struct draw_step *CANDLE_FORM_STEPS[6] DGROUP_AT(0x0e12) = { NEAR_AT(0x0db8, &CANDLE_DRAW_STEPS[0]), NEAR_AT(0x0dc7, &CANDLE_DRAW_STEPS[1]), NEAR_AT(0x0dd6, &CANDLE_DRAW_STEPS[2]), NEAR_AT(0x0de5, &CANDLE_DRAW_STEPS[3]), NEAR_AT(0x0df4, &CANDLE_DRAW_STEPS[4]), NEAR_AT(0x0e03, &CANDLE_DRAW_STEPS[5]) };
-struct point16 CANDLE_FORM_SIZES[6] DGROUP_AT(0x0e1e) = {
+struct draw_step *CANDLE_FORM_STEPS[6] = { NEAR_AT(0x0db8, &CANDLE_DRAW_STEPS[0]), NEAR_AT(0x0dc7, &CANDLE_DRAW_STEPS[1]), NEAR_AT(0x0dd6, &CANDLE_DRAW_STEPS[2]), NEAR_AT(0x0de5, &CANDLE_DRAW_STEPS[3]), NEAR_AT(0x0df4, &CANDLE_DRAW_STEPS[4]), NEAR_AT(0x0e03, &CANDLE_DRAW_STEPS[5]) };   /* DGROUP 0x0e12 */
+struct point16 CANDLE_FORM_SIZES[6] = {   /* DGROUP 0x0e1e */
     { 0x0022, 0x0020 },
     { 0x0022, 0x0024 },
     { 0x0022, 0x0024 },
@@ -1012,9 +1012,9 @@ struct point16 CANDLE_FORM_SIZES[6] DGROUP_AT(0x0e1e) = {
     { 0x0022, 0x0024 },
     { 0x0022, 0x0024 }
 };
-struct point8 CANDLE_HOT_SPOTS[6] DGROUP_AT(0x0e36) = { { 0 }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc } };
-struct point8 SEESAW_HOT_SPOTS[3] DGROUP_AT(0x0e42) = { { 0 }, { 0, 0x0c } };
-struct point8 BALLOON_HOT_SPOTS[7] DGROUP_AT(0x0e48) = {
+struct point8 CANDLE_HOT_SPOTS[6] = { { 0 }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc } };   /* DGROUP 0x0e36 */
+struct point8 SEESAW_HOT_SPOTS[3] = { { 0 }, { 0, 0x0c } };   /* DGROUP 0x0e42 */
+struct point8 BALLOON_HOT_SPOTS[7] = {   /* DGROUP 0x0e48 */
     { 0 },
     { 0xf1, 0xf7 },
     { 0xec, 0xfb },
@@ -1023,7 +1023,7 @@ struct point8 BALLOON_HOT_SPOTS[7] DGROUP_AT(0x0e48) = {
     { 0xe6, 0x29 },
     { 0xe6, 0x38 }
 };
-struct point8 POKEY_HOT_SPOTS[10] DGROUP_AT(0x0e56) = {
+struct point8 POKEY_HOT_SPOTS[10] = {   /* DGROUP 0x0e56 */
     { 0 },
     { 0xfa, 0xf0 },
     { 0x13, 0xff },
@@ -1035,10 +1035,10 @@ struct point8 POKEY_HOT_SPOTS[10] DGROUP_AT(0x0e56) = {
     { 0xfb, 0xfe },
     { 0xf7, 0xfd }
 };
-struct point8 BELLOW_HOT_SPOTS[3] DGROUP_AT(0x0e6a) = { { 0 }, { 0xf8, 0x08 }, { 0xf5, 0x0c } };
-struct point8 BULLET_HOT_SPOTS[3] DGROUP_AT(0x0e70) = { { 0 }, { 0x04, 0xfd }, { 0x01, 0xf4 } };
-struct point8 FLASHLIGHT_HOT_SPOTS[2] DGROUP_AT(0x0e76) = { { 0 }, { 0, 0xf6 } };
-struct point8 BOXING_GLOVE_HOT_SPOTS[10] DGROUP_AT(0x0e7a) = {
+struct point8 BELLOW_HOT_SPOTS[3] = { { 0 }, { 0xf8, 0x08 }, { 0xf5, 0x0c } };   /* DGROUP 0x0e6a */
+struct point8 BULLET_HOT_SPOTS[3] = { { 0 }, { 0x04, 0xfd }, { 0x01, 0xf4 } };   /* DGROUP 0x0e70 */
+struct point8 FLASHLIGHT_HOT_SPOTS[2] = { { 0 }, { 0, 0xf6 } };   /* DGROUP 0x0e76 */
+struct point8 BOXING_GLOVE_HOT_SPOTS[10] = {   /* DGROUP 0x0e7a */
     { 0 },
     { 0x07, 0xf4 },
     { 0xe3, 0xfd },
@@ -1050,8 +1050,8 @@ struct point8 BOXING_GLOVE_HOT_SPOTS[10] DGROUP_AT(0x0e7a) = {
     { 0xe7, 0x06 },
     { 0xeb, 0x06 }
 };
-struct point8 WINDMILL_HOT_SPOTS[4] DGROUP_AT(0x0e8e) = { { 0 }, { 0xfd, 0xfd }, { 0xfc, 0xfc }, { 0xfd, 0xfd } };
-struct point8 BLAST_HOT_SPOTS[6] DGROUP_AT(0x0e96) = {
+struct point8 WINDMILL_HOT_SPOTS[4] = { { 0 }, { 0xfd, 0xfd }, { 0xfc, 0xfc }, { 0xfd, 0xfd } };   /* DGROUP 0x0e8e */
+struct point8 BLAST_HOT_SPOTS[6] = {   /* DGROUP 0x0e96 */
     { 0 },
     { 0xfc, 0xf3 },
     { 0, 0xfa },
@@ -1059,7 +1059,7 @@ struct point8 BLAST_HOT_SPOTS[6] DGROUP_AT(0x0e96) = {
     { 0x14, 0x13 },
     { 0x14, 0x14 }
 };
-struct point8 MORT_THE_MOUSE_HOT_SPOTS[2] DGROUP_AT(0x0ea2) = { { 0 }, { 0, 0x01 } };
+struct point8 MORT_THE_MOUSE_HOT_SPOTS[2] = { { 0 }, { 0, 0x01 } };   /* DGROUP 0x0ea2 */
 
 
 /*
@@ -1077,7 +1077,7 @@ struct point8 MORT_THE_MOUSE_HOT_SPOTS[2] DGROUP_AT(0x0ea2) = { { 0 }, { 0, 0x01
  * The `word_*` fields are words nothing has been read for yet, transcribed as
  * they are.
  */
-struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
+struct part_kind PART_KINDS[PART_KIND_COUNT] = {
     {
         0x0b10,    /* density */
         0x00c8,    /* weight */
@@ -2626,8 +2626,8 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] DGROUP_WAS(0x0ea6) = {
     }
 };
 
-struct game_path_sep GAME_PATH_SEP DGROUP_WAS(0x1bca) = { DG1BCC.path_sep };
-struct dg_1bcc DG1BCC DGROUP_AT(0x1bcc) = {
+struct game_path_sep GAME_PATH_SEP = { DG1BCC.path_sep };   /* DGROUP 0x1bca */
+struct dg_1bcc DG1BCC = {
     "\012\012NOT ENOUGH FREE MEMORY\012",    /* not_enough_free_memory */
     "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",    /* you_need_at_least */
     "Unable to initialize vm.",    /* unable_to_initialize_vm */
@@ -2705,21 +2705,21 @@ struct dg_1bcc DG1BCC DGROUP_AT(0x1bcc) = {
  * itself - so TLINK takes none from the library - and the host keeps as
  * `DG52ED.stack_floor`, the word it is the image's of (`STKLEN`).
  */
-struct game_directories GAME_DIRECTORIES DGROUP_BSS(0x530b);
-struct dg_52fe DG52FE DGROUP_BSS(0x52fe);
+struct game_directories GAME_DIRECTORIES;   /* DGROUP 0x530b */
+struct dg_52fe DG52FE;   /* DGROUP 0x52fe */
 #ifdef __TURBOC__
 uint16_t _stklen;
 #endif
-struct dg_52ed DG52ED DGROUP_WAS(0x52ed);
+struct dg_52ed DG52ED;
 /* DGROUP 0x52e9..0x52ed: nothing in the image names these four bytes. Ours. */
-uint8_t DG52E9[4] DGROUP_BSS(0x52e9);
-struct dg_52bd DG52BD DGROUP_WAS(0x52bd);
-struct dg_521b DG521B DGROUP_BSS(0x521b);
-struct dg_5179 DG5179 DGROUP_BSS(0x5179);
-struct dg_50d3 DG50D3 DGROUP_BSS(0x50d3);
+uint8_t DG52E9[4];
+struct dg_52bd DG52BD;   /* DGROUP 0x52bd */
+struct dg_521b DG521B;   /* DGROUP 0x521b */
+struct dg_5179 DG5179;   /* DGROUP 0x5179 */
+struct dg_50d3 DG50D3;   /* DGROUP 0x50d3 */
 /* DGROUP 0x50cb..0x50d3: nothing in the image names these eight bytes. Ours. */
-uint8_t DG50CB[8] DGROUP_BSS(0x50cb);
-struct dg_50bf DG50BF DGROUP_BSS(0x50bf);
-struct dg_50af DG50AF DGROUP_BSS(0x50af);
-struct dg_4e67 DG4E67 DGROUP_BSS(0x4e67);
-struct dg_4e4e DG4E4E DGROUP_WAS(0x4e4e);
+uint8_t DG50CB[8];
+struct dg_50bf DG50BF;   /* DGROUP 0x50bf */
+struct dg_50af DG50AF;   /* DGROUP 0x50af */
+struct dg_4e67 DG4E67;   /* DGROUP 0x4e67 */
+struct dg_4e4e DG4E4E;   /* DGROUP 0x4e4e */

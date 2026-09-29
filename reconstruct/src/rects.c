@@ -34,7 +34,7 @@ struct dg_2d06 {
     uint16_t  _pad_2d06;       /* +0x00 */
     uint16_t  _pad_2d08;           /* +0x02 */
 } PACKED;
-struct dg_2d06 DG2D06 DGROUP_AT(0x2d06) = { 0x0001, 0xffff };
+struct dg_2d06 DG2D06 = { 0x0001, 0xffff };
 
 /*
  * **Which page pointers the saved-rect lists are restored between**, at
@@ -55,7 +55,7 @@ struct machine_page_pairs {
     struct page_pair pair[10];    /* +0x00 [0x28] */
 } PACKED;
 
-struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
+struct machine_page_pairs MACHINE_PAGE_PAIRS = {
     {
         { &DG2D06._pad_2d08, &VMDS.page_front },
         { &VMDS.page_back, &VMDS.page_front },
@@ -83,7 +83,7 @@ struct machine_page_pairs MACHINE_PAGE_PAIRS DGROUP_AT(0x2d0a) = {
  * unmoved cursor is not drawn again.
  */
 
-struct machine_rect_free MACHINE_RECT_FREE DGROUP_BSS(0x56e0);
+struct machine_rect_free MACHINE_RECT_FREE;
 
 /*
  * **The twenty saved-rectangle slots**, DGROUP 0x56b8..0x56e0, 0x28 bytes. Each is a near
@@ -100,7 +100,7 @@ struct machine_rect_slots {
     struct rect_list_entry *slot[0x14];         /* +0x00 [0x28] */
 } PACKED;
 
-struct machine_rect_slots MACHINE_RECT_SLOTS DGROUP_BSS(0x56b8);
+struct machine_rect_slots MACHINE_RECT_SLOTS;
 
 /*
  * **How many saved-rectangle records the pool has been given**, DGROUP
@@ -111,7 +111,7 @@ struct machine_rect_count {
     uint16_t  count;              /* +0x00 */
 } PACKED;
 
-struct machine_rect_count MACHINE_RECT_COUNT DGROUP_BSS(0x56b6);
+struct machine_rect_count MACHINE_RECT_COUNT;
 
 /*
  * 0x0a05f

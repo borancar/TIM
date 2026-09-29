@@ -30,7 +30,7 @@
  * the bitmap loader may leave here, which a resource slot borrows rather
  * than allocating one of its own.
  */
-struct dg_3576 DG3576 DGROUP_WAS(0x3576) = { 0 };
+struct dg_3576 DG3576 = { 0 };
 
 /*
  * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece
@@ -43,7 +43,7 @@ struct dg_3576 DG3576 DGROUP_WAS(0x3576) = { 0 };
  * `lzw_reset` and `rle_flush` answer nothing; the table holds them as the
  * others are held, and nothing reads what the call answers.
  */
-struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_WAS(0x357a) = {
+struct engine_res_handlers ENGINE_RES_HANDLERS = {
     {
         { 0x0080, 0x0000, 0x0000, decompress_store, store_flush, 0, 0 },
         { 0x0080, 0x0000, 0x0000, decompress_rle,
@@ -60,10 +60,10 @@ struct engine_res_handlers ENGINE_RES_HANDLERS DGROUP_WAS(0x357a) = {
  * reverse order of first mention; dgroup.h mentions the four from the
  * highest down, and they are defined here in the same order.
  */
-struct engine_stream ENGINE_STREAM DGROUP_WAS(0x5888);
-struct engine_resource_slots ENGINE_RESOURCE_SLOTS DGROUP_WAS(0x57c0);
-struct engine_resource_flags ENGINE_RESOURCE_FLAGS DGROUP_WAS(0x57ba);
-struct engine_read_staging ENGINE_READ_STAGING DGROUP_BSS(0x5788);
+struct engine_stream ENGINE_STREAM;   /* DGROUP 0x5888 */
+struct engine_resource_slots ENGINE_RESOURCE_SLOTS;   /* DGROUP 0x57c0 */
+struct engine_resource_flags ENGINE_RESOURCE_FLAGS;   /* DGROUP 0x57ba */
+struct engine_read_staging ENGINE_READ_STAGING;
 
 /*
  * 0x1c251

@@ -378,7 +378,7 @@ struct borland_find_name {
     uint8_t   unread_2d57[0x1f];  /* +0x0f [0x1f] */
 } PACKED;
 
-struct borland_find_name BORLAND_FIND_NAME DGROUP_AT(0x2d48);
+struct borland_find_name BORLAND_FIND_NAME;
 
 /*
  * **Not established**, DGROUP 0x2d76..0x2d7d, 0x07 bytes.
@@ -396,7 +396,7 @@ struct borland_find_info {
     int16_t   dos_result;         /* +0x05 [2] */
 } PACKED;
 
-struct borland_find_info BORLAND_FIND_INFO DGROUP_AT(0x2d76);
+struct borland_find_info BORLAND_FIND_INFO;
 
 /*
  * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
@@ -411,7 +411,7 @@ struct machine_isr_stack {
     uint16_t  saved_sp;           /* +0x02 [2] */
 } PACKED;
 
-struct machine_isr_stack MACHINE_ISR_STACK DGROUP_AT(0x317e);
+struct machine_isr_stack MACHINE_ISR_STACK;
 
 /*
  * NOT a transcription: where the port keeps the find result between the DOS

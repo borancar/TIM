@@ -53,14 +53,14 @@
  * spaces at +4 first, so the path is eight when it is walked and the fifth
  * space is the room that NUL needs.
  */
-char SOUND_CHUNK_NAME[] DGROUP_AT(0x4a12) = "SSM:     ";
+char SOUND_CHUNK_NAME[] = "SSM:     ";
 
 /*
  * **The device tags**, DGROUP 0x4a1c..0x4a2e, indexed by the device byte of
  * RESOURCE.CFG. The tags themselves are the module's literal pool, from
  * 0x4a38 to 0x4a7e, after the two tables.
  */
-char *SOUND_DEVICE_TAGS[9] DGROUP_WAS(0x4a1c) = {
+char *SOUND_DEVICE_TAGS[9] = {
     "STD:", "TAN:", "ADL:", "M32:", "SBP:", "PS1:", "PRO:", "GMD:", "NLD:",
 };
 
@@ -68,12 +68,12 @@ char *SOUND_DEVICE_TAGS[9] DGROUP_WAS(0x4a1c) = {
  * **The sound module tags**, DGROUP 0x4a2e..0x4a38, indexed by the module
  * byte of RESOURCE.CFG.
  */
-char *SOUND_MODULE_TAGS[5] DGROUP_WAS(0x4a2e) = {
+char *SOUND_MODULE_TAGS[5] = {
     "ASB:", "APS:", "ATD:", "APA:", "ADS:",
 };
 
 /* The seven voices, DGROUP 0x6414; the record is described in dgroup.h. */
-struct sound_voices SOUND_VOICES DGROUP_WAS(0x6414);
+struct sound_voices SOUND_VOICES;
 
 /*
  * 0x28655

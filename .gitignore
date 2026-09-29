@@ -15,7 +15,6 @@ reconstruct/timasan
 reconstruct/devtimasan
 reconstruct/covtim
 reconstruct/libtim.so
-reconstruct/guest.ld
 *.gcno
 *.gcda
 
@@ -24,11 +23,6 @@ reconstruct/guest.ld
 # pins, and it is reproduced by playing to the state again. Keep the ones you
 # need; do not expect them to survive a pin move.
 snaps/
-tools/native/native
-tools/native/syms.c
-tools/native/ovlsyms.c
-tools/native/shims.c
-tools/native/guest.ld
 
 # **The game itself.** `incredible-machine/` is the original 1993 release -
 # TIM.EXE, the RESOURCE archives and the shipped .TIM machines - and it is
@@ -62,8 +56,4 @@ solution_snaps/
 compile_commands.json
 .cache/
 
-# The hybrid runner compiles the same reconstruct units as reconstruct/ but
-# with different flags, so its objects live in their own tree rather than
-# beside the sources they share.
-tools/native/obj/
 lzexe/

@@ -31,7 +31,7 @@ struct engine_text_colours {
     uint8_t   colour[5];          /* +0x00 [5] */
 } PACKED;
 
-struct engine_text_colours ENGINE_TEXT_COLOURS DGROUP_AT(0x471e) = { { 0x00, 0x01, 0x02, 0x03, 0x04 } };
+struct engine_text_colours ENGINE_TEXT_COLOURS = { { 0x00, 0x01, 0x02, 0x03, 0x04 } };
 
 #ifdef __TURBOC__
 /* The driver's glyph entry, slot 1 (DGROUP 0x434a): everything in
@@ -42,11 +42,11 @@ typedef void (far *vm_glyph_fn)(void);
 #endif
 
 /* **This module's `_BSS`**, DGROUP 0x6176..0x628e: the five font tables. */
-struct engine_font_kinds ENGINE_FONT_KINDS DGROUP_BSS(0x6176);
-struct engine_font_bodies ENGINE_FONT_BODIES DGROUP_WAS(0x618a);
-struct engine_font_widths ENGINE_FONT_WIDTHS DGROUP_WAS(0x61da);
-struct engine_font_slots ENGINE_FONT_SLOTS DGROUP_WAS(0x622a);
-struct engine_underline_rows ENGINE_UNDERLINE_ROWS DGROUP_BSS(0x627a);
+struct engine_font_kinds ENGINE_FONT_KINDS;
+struct engine_font_bodies ENGINE_FONT_BODIES;   /* DGROUP 0x618a */
+struct engine_font_widths ENGINE_FONT_WIDTHS;   /* DGROUP 0x61da */
+struct engine_font_slots ENGINE_FONT_SLOTS;   /* DGROUP 0x622a */
+struct engine_underline_rows ENGINE_UNDERLINE_ROWS;   /* DGROUP 0x627a */
 
 /*
  * 0x2149e

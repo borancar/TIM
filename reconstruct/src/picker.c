@@ -34,7 +34,7 @@
  * at 0x56a6, the picker text at 0x568f, the name buffer at 0x5682 and the
  * caret at 0x567e.
  */
-struct game_text_lines GAME_TEXT_LINES DGROUP_WAS(0x56a6);
+struct game_text_lines GAME_TEXT_LINES;
 
 /*
  * **The characters a filename may not contain**, DGROUP 0x28ec..0x28fa, 0x0e bytes: fourteen
@@ -45,7 +45,7 @@ struct game_forbidden_chars {
     uint8_t   forbidden[14] NONSTRING;  /* +0x00 [0xe]  a set, not a string */
 } PACKED;
 
-struct game_forbidden_chars GAME_FORBIDDEN_CHARS DGROUP_AT(0x28ec) = {
+struct game_forbidden_chars GAME_FORBIDDEN_CHARS = {
     "*/,-[]&@^%?():", /* forbidden */
 };
 
@@ -60,7 +60,7 @@ struct game_picker_tabs {
     int16_t   stop_y[7];          /* +0x10 [0xe] */
 } PACKED;
 
-struct game_picker_tabs GAME_PICKER_TABS DGROUP_AT(0x28fa) = {
+struct game_picker_tabs GAME_PICKER_TABS = {
     0xffff, /* stop */
     { 0x0090, 0x0080, 0x00c0, 0x00d0, 0x00d0, 0x0060, 0x00e0 }, /* stop_x */
     { 0x005c, 0x0082, 0x0112, 0x0080, 0x00ec, 0x013a, 0x013a }, /* stop_y */
@@ -87,7 +87,7 @@ struct game_picker_text {
     int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
 } PACKED;
 
-struct game_picker_text GAME_PICKER_TEXT DGROUP_WAS(0x568f);
+struct game_picker_text GAME_PICKER_TEXT;
 
 /*
  * **The shared name buffer**, DGROUP 0x5682..0x568f, 0x0d bytes. `listing_to_name` strips a
@@ -101,7 +101,7 @@ struct game_name_buffer {
     char      name[0xd];          /* +0x00 [0xd] */
 } PACKED;
 
-struct game_name_buffer GAME_NAME_BUFFER DGROUP_BSS(0x5682);
+struct game_name_buffer GAME_NAME_BUFFER;
 
 
 /*
@@ -115,7 +115,7 @@ struct picker_caret {
     uint16_t  caret_blink_b;      /* +0x02  a different counter, and a different asterisk at 0x2954 */
 } PACKED;
 
-struct picker_caret PICKER_CARET DGROUP_BSS(0x567e);
+struct picker_caret PICKER_CARET;
 
 /*
  * 0x12c26

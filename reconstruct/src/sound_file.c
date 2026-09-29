@@ -26,7 +26,7 @@
  * sound. The record is described in dgroup.h. Three fields start non-zero:
  * `voice_word` at -4, `bank_choice` at 1 and `device` at -2.
  */
-struct dg_4a82 DG4A82 DGROUP_WAS(0x4a82) = {
+struct dg_4a82 DG4A82 = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 1, -2,
 };
 
@@ -38,7 +38,7 @@ struct dg_4a82 DG4A82 DGROUP_WAS(0x4a82) = {
  * literals, which Borland would have put after them. So they are this
  * module's, defined after the record. What they were for is not known.
  */
-struct dg_4ab0 DG4AB0 DGROUP_AT(0x4ab0) = { 0xfffe, 0x2b11 };
+struct dg_4ab0 DG4AB0 = { 0xfffe, 0x2b11 };
 
 /*
  * 0x296b4

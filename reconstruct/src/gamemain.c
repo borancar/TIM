@@ -51,7 +51,7 @@ struct game_startup_names {
     char tim_sx[7];          /* +0x65 [7]  "tim.sx"       game_startup */
 } PACKED;
 
-struct game_startup_names GAME_STARTUP_NAMES DGROUP_AT(0x00aa) = {
+struct game_startup_names GAME_STARTUP_NAMES = {   /* DGROUP 0x00aa */
     "RESOURCE.CFG", /* resource_cfg */
     "rb", /* rb */
     "vm.ovl", /* vm_ovl */

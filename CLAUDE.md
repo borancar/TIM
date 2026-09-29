@@ -117,14 +117,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   called `engine.c` is a judgement about 8,275 lines and the segment number is
   not. Do not move a routine between files to suit a name: the file it belongs
   in is the one whose address range contains it.
-- **DGROUP is a byte array, and its names are objects the linker puts in it.**
-  The game uses near pointers - a word in DGROUP holding an offset into
-  DGROUP - so the guest's megabyte is one block, `guest_mem`, and a named
-  struct is a C object placed at its offset by `DGROUP_AT(off)` (or
-  `DGROUP_BSS`, or `SEGMENT_AT` for a code segment's own data), so a name and
-  a pointer dereference reach the same byte. What the image held there is the
-  object's initialiser, `LOAD_SEG + seg` for a relocated word. The video
-  driver's data is part of the same segment, at offset 0x3890.
+- **DGROUP's records are C objects, and each one's image address is a
+  comment beside it** (`/* DGROUP 0x4e34 */`, or in the comment above).
+  Nothing places them: under Borland C++ the linker puts each where the image
+  has it, which `tools/link.py` proves, and on the host they are ordinary
+  objects. What the image held there is the initialiser, `LOAD_SEG + seg` for
+  a relocated word. `guest_mem` is still the machine's megabyte, for what the
+  port keeps as memory - DOS's arena, the interrupt table's page, the loaded
+  overlays and the DGROUP arena.
 - Where a name or a type is a guess, **say so**.
 - **No licence header on reconstructed code.** A provenance header naming the
   binary instead. Our own tooling is a different matter and is GPL-2.0.
@@ -145,35 +145,28 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   mirrors that. Every developer flag goes in `devmain.c`. `tools/` calls the
   dev binary, so nothing a comparison depends on can become part of what ships.
 
-## Converting the guest's pointers
+## Pointers
 
-The method is the `dos-game-reconstruction` skill's; what this port settled on:
-
-- **Two passes.** Every `seg:off` pair becomes a `struct far_ptr` first, split
-  fields included, so the layout stays byte-identical; *then* parameters,
-  returns and locals lift to `uint8_t far *` or a typed record pointer.
-- **Convert where the pair is read out, including into parameters.** A routine
-  taking `uint16_t es, uint16_t bx` and doing `MK_FP` inside is 16-bit
-  assembly written in C.
-- **`dg_near_t` and `struct far_ptr` survive only for what is written into
-  DGROUP**, because that memory is compared with the original's. A pointer
-  that is only followed has no reason to be a pair.
-- **Both directions are named**: `dg_near`/`dg_far` and `far_of` file a
-  pointer, `dg_near_ptr`/`dg_far_ptr` and the typed `X_PTR(fp)` read one back.
-- **Anything stepped gets a type that steps**: a `uint16_t *` for a word
-  table, a `struct entry *` for a record. No helper that wraps arithmetic -
-  `&voice->cursor`, `&dir->entry[0]`, `blk + 3 * n` and `advance_record(src)`
-  are the step, at the site, in the type.
-- **A pair that is filed keeps the segment it was given**: `far_from(seg, p)`
-  is `far_of` against a segment of your choosing - the offset is the distance
-  from that segment's first byte - and it does no stepping of its own.
-  `far_of` can only answer the *normalised* pair, and a big offset climbing
-  into the segment is different bytes in guest memory, which is compared with
-  the original's.
-- **Split pairs run both ways**: two `int16_t` fields used as a segment and an
-  offset are one pointer - `tools/dgrules.py --rule split-pair` finds those -
-  and a `struct far_ptr` whose halves are two unrelated values is found only
-  by reading what the code does with each half.
+- **A stored pointer is typed by what it points at**, on both compilers:
+  `struct part *next`, `struct bitmap **icons_bmp`, `uint8_t far *driver`,
+  `void interrupt (far *old_int8)()`. No `_ptr` suffix; the type says it. A
+  near pointer is two bytes under Borland C++ and eight on the host, and
+  that is expected.
+- **Anything stepped steps by its type.** Retyping a byte pointer changes
+  what `+= 4` means - the judge catches it, as `add di, 0x10` where the image
+  has `add di, 4`.
+- **An allocation of a record says `sizeof`**, never the image's byte count:
+  the host's record is wider.
+- **A record laid over a loaded module's bytes** (`ASBS`, `VMCS`, the
+  `SX*` drivers) keeps the module's layout up to the fields the host reads
+  from it; a pointer that would not fit a slot is kept on the host's side.
+- **Where the two compilers must differ, a macro says so, and nothing else
+  is one**: `NEAR_AT` (a number under Borland, where the original's data held
+  one), `NEAR_ZERO` and `ZERO_PAGE` (a null the original follows reads
+  memory), `FAR_OF_LONG` and `BCC_FAR_ARG`, `FAR_OF_NEAR_NULL`, `DOS_ALLOC`,
+  `SETBUF_ROOM`, `OVERRUN` and `WRITABLE_LITERAL`. Each vanishes under TCC.
+  `MK_FP`, `FP_SEG` and `FP_OFF` are Borland's own, and on the host they mean
+  something only inside `guest_mem`.
 
 ## The traps this project has already hit
 
@@ -243,28 +236,13 @@ a case it does not obviously cover.
 - DGROUP's order is the objects', not the code's; a module's literals are last in its `_DATA`; a `para`-aligned start is an assembly module; `_BSS` is last mention first, headers included - `tools/link.py` relinks TIM.EXE and says what differs - [more](docs/lessons.md#linking-the-image-back-together-the-data-says-the-object-order-and-where-a-modules-data-ends-says-whose-it-is)
 - An address in a data initialiser is a fixup, and fixups move Borland's data record boundaries and so the relocation order: `NEAR_AT(number, &object)` where the original held the number, and only `tools/link.py`'s IDENTICAL proves a data change - [more](docs/lessons.md#an-address-in-a-data-initialiser-is-a-fixup-and-fixups-move-borlands-record-boundaries)
 
-### DGROUP, frames and pointers
+### Pointers
 
-- A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its locals over live memory - [more](docs/lessons.md#a-routine-that-calls-dg_alloca-needs-guest_sp-set-or-it-writes-its-locals-over-live-memory)
-- Promoting a frame's slots to C locals spends `frames.py` - [more](docs/lessons.md#promoting-a-frames-slots-to-c-locals-spends-framespy)
-- A `_seg`/`_off` pair with arithmetic on one half is a pointer - [more](docs/lessons.md#a-_seg_off-pair-with-arithmetic-on-one-half-is-a-pointer)
-- `dg_near` on a pointer that is not in DGROUP is a number, and the compiler will hand it to you without complaint - [more](docs/lessons.md#dg_near-on-a-pointer-that-is-not-in-dgroup-is-a-number-and-the-compiler-will-hand-it-to-you-without-complaint)
-- A frame slot whose value is filed into DGROUP must stay an offset, and getting that wrong reads exactly like the timer defect - [more](docs/lessons.md#a-frame-slot-whose-value-is-filed-into-dgroup-must-stay-an-offset-and-getting-that-wrong-reads-exactly-like-the-timer-defect)
+- A null the original follows reads real memory - DGROUP:0000, the interrupt table - and on the host it crashes, only on the path that reaches it: `NEAR_ZERO`/`ZERO_PAGE` at the read - [more](docs/lessons.md#a-null-the-original-follows-reads-real-memory-and-the-host-crashes-only-where-a-path-reaches-it)
+- A host address turned into a 16-bit number or a `seg:off` pair is garbage that moves with the heap, and the failure is intermittent: `rr record --chaos` catches it - [more](docs/lessons.md#a-host-address-made-into-a-guest-number-fails-intermittently-and-rr-finds-it)
 - A fix for undefined behaviour is where a value change hides, and the cast has to be the field's own width - [more](docs/lessons.md#a-fix-for-undefined-behaviour-is-where-a-value-change-hides-and-the-cast-has-to-be-the-fields-own-width)
-- Deleting the two lines that copied a pair out left the declaration that made them necessary, and C called that a new variable - [more](docs/lessons.md#deleting-the-two-lines-that-copied-a-pair-out-left-the-declaration-that-made-them-necessary-and-c-called-that-a-new-variable)
-- A pair is found by what the code does with it, not by what the two halves are called - [more](docs/lessons.md#a-pair-is-found-by-what-the-code-does-with-it-not-by-what-the-two-halves-are-called)
 - Two halves compared separately are safe to fold only when the test is equality - [more](docs/lessons.md#two-halves-compared-separately-are-safe-to-fold-only-when-the-test-is-equality)
 - A struct field is a claim about width, and a narrower one is a short read that compiles - [more](docs/lessons.md#a-struct-field-is-a-claim-about-width-and-a-narrower-one-is-a-short-read-that-compiles)
-- An empty evidence set is not evidence for the wider type - [more](docs/lessons.md#an-empty-evidence-set-is-not-evidence-for-the-wider-type)
-- A frame stops being convertible for three reasons, and only two are about the code - [more](docs/lessons.md#a-frame-stops-being-convertible-for-three-reasons-and-only-two-are-about-the-code)
-- A frame is walled slot by slot, not routine by routine - [more](docs/lessons.md#a-frame-is-walled-slot-by-slot-not-routine-by-routine)
-- Filing one slot's address into another slot of the same frame is not filing - [more](docs/lessons.md#filing-one-slots-address-into-another-slot-of-the-same-frame-is-not-filing)
-- A `seg:off` pair held in two variables is one pointer if it is only dereferenced - [more](docs/lessons.md#a-segoff-pair-held-in-two-variables-is-one-pointer-if-it-is-only-dereferenced)
-- The line that separates the frames that convert from the ones that do not - [more](docs/lessons.md#the-line-that-separates-the-frames-that-convert-from-the-ones-that-do-not)
-- `dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison nobody makes - [more](docs/lessons.md#dg_calldg_uncall-are-gone-and-they-were-bookkeeping-for-a-comparison-nobody-makes)
-- `dg_near` refuses a pointer that is not the guest's, and the first thing it caught had been in the tree for weeks - [more](docs/lessons.md#dg_near-refuses-a-pointer-that-is-not-the-guests-and-the-first-thing-it-caught-had-been-in-the-tree-for-weeks)
-- An object the linker puts at an odd address is one the compiler assumed was aligned - [more](docs/lessons.md#an-object-the-linker-puts-at-an-odd-address-is-one-the-compiler-assumed-was-aligned)
-- A record moved off its guest address leaves its near pointers behind: a literal DGROUP offset into it reads zeros - [more](docs/lessons.md#a-record-moved-off-its-guest-address-leaves-its-near-pointers-behind)
 - A header line added anywhere can fail a file that matched (the emulated compiler's memory is a real machine's): hide host-only declarations from `__TURBOC__`, and judge every file after a shared header changes - [more](docs/lessons.md#a-header-line-added-anywhere-can-fail-a-file-that-matched-and-only-a-sweep-of-every-file-sees-it)
 - A record that converts is still allocated at the image's size unless the allocation says `sizeof` - [more](docs/lessons.md#a-record-that-converts-still-gets-allocated-at-the-images-size)
 - A 16-bit comparison with 0x8000 is always false on the host and compiles: `-Werror=type-limits` is in the build - [more](docs/lessons.md#a-16-bit-comparison-with-0x8000-is-always-false-on-the-host-and-it-compiles)
@@ -296,13 +274,8 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/capture.py` | reference frames, captured on the guest's own page-flip cue |
 | `tools/diff_png.py` | the three-image comparison; always look at the images |
 | `tools/codemap.py` | recursive descent from the entry point; `--run` adds what the game reached |
-| `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips; `--audit` says which of them `verify.py` has a spec for, and which rest on the screen comparison alone |
+| `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips |
 | `tools/resources.py` | reads and extracts the resource archive |
-| `tools/dgrules.py` | **what the DGROUP structs have not swallowed yet**, over a tree-sitter parse rather than a regex, because both its rules are about *shape*: `raw` lists every remaining `DG*` accessor split by constant offset - which a field can replace - against computed, which is a record needing its type known first; `offset-arg` finds a near pointer hidden as arithmetic in an argument, `game_fread((uint16_t)(0x627a + si), ...)`, which `dg_near(&STRUCT.field[si])` says better. Neither is a failure; both are a worklist, sorted so the biggest cluster is the next struct to write ; `const-addr` finds the third shape, a four-digit constant assigned to a variable that is *then* used as an address - `mov si, 0x53ab` seen from the C side, which `raw` cannot find because there is no accessor carrying the constant to group on ; `long-halves` finds **two fields or two arguments written as the halves of one 32-bit value** - a store of `x >> 16` beside a store of `x`, which is one `int32_t` and not two words ; `near-const` finds constants that **are** a placed object's own address - `.hotspots_ptr = 0x02c2` is `JACK_IN_THE_BOX_HOT_SPOTS`, which a static initialiser cannot say, so the rule resolves them rather than changing them ; `split-pair` finds **two fields of one struct used as a segment and an offset** - one far pointer written as two words - following the locals and the frame slots the halves are copied through, because only one of the four found by hand was written as a direct argument|
-| `tools/frames.py` | **what each routine reserves for its locals**, from the binary's `sub sp,N` and from the port's `dg_alloca(N)`. The two should agree, and where they do not the report says which of the two rules the port followed. It also flags a named slot at or past the frame's end, which cannot be a local ; it also separates the two shapes that are *not* a mismatch - a frame **split** between an array and C locals (`read_far` is 0x100 of `sub sp,0x10a`), and a frame that **is the caller's argument slots** (`read_into_huge` and `expand_1bpp_to_4bpp` reserve because `huge_add_to` steps the far pointer the caller passed by value, so the original's `sub sp` is 0)|
-| `tools/framify.py` | turns a routine's `dg_alloca` frame into the `uint8_t frame[N]` it is, one named routine at a time. **Its refusals are the point**: a slot whose value is *filed* anywhere rather than only read through, a slot spelled in a way it cannot read, a `bp` that derives nothing. Each was written after that shape broke something |
-| `tools/framify_fixups.py` | the shapes a frame conversion leaves behind - an unsigned read used as an lvalue, a `dg_ptr` on something that is already a pointer, a byte slot still read with `DG8`. Per *function*, because slot names are per function. **The `(?!=)` on every write rule is the one thing to get right**: without it a comparison `DG16(x) == 0` becomes `dg_wr16(x, = 0`, which has broken the build three times from three hand-retyped copies |
-| `tools/promote.py` | **turns a frame's slots into the C locals they are**, which is what `framify.py`'s `uint8_t frame[N]` was a staging post for. A slot nothing indexes past `[0]` and nothing hands to a callee is one variable; one that is indexed further or passed on is a buffer and gets the whole extent, because then its size is the caller's business. **Its refusals are the point**: an array with no slots is a real array (`draw_rope` builds a table of pointers into its own frame), and two slots at one offset are the original *reusing* a slot - `blit_scaled_a` calls `[bp-0x16]` `vcut` while clipping and `vrepeat` while repeating rows, so they alias rather than split |
 | `tools/judge.py` | **proves a source is the original's**: compiles a port file with the compiler that built it - the host port of TCC 3.0 in the sibling `turboc` checkout by default, or an original under turboc's emulator (`JUDGE: compiler 1.01`) - and compares every routine with the image, fixups masked, far calls checked against the callee's address (as `9A` or as TLINK's `nop / push cs / call`). `JUDGE: built-with <options>` overrides `-mm -O`. It judges the game as built: `TIM_COPY_PROTECTION` defined and the crack's byte taken out of its copy of the image; `--cracked` judges the shipped byte |
 | `tools/asm2c.py` | **drafts an assembly module as C with inline `asm`**: each `proc` becomes a function whose body is `asm` statements, with the frame, the SI/DI save, locals and the final return left for Borland C++ to write, so a judge MATCH is evidence of C and not of transcription. It refuses, naming the routine, what no C source can produce; `--install` rewrites the port file, `--data NAME` maps the module's `d_` labels onto its C data object |
 | `tools/link.py` | **links TIM.EXE from the sources and compares it with the original** - the game as built, copy protection intact (`TIM_COPY_PROTECTION`, and the crack's byte taken out of its copy; `--cracked` for the shipped bytes): every game module built as the judge builds it (`JUDGE_KEEP_OBJ`), each code segment's modules given one segment name, the objects in the order DGROUP's data says, BC++ 3.0's TLINK (`/i`) behind `C0M.OBJ` against `CM.LIB`, `minalloc` set to the original's 0x182; the verdict is the file's SHA-256 against the original's - the cracked build's proven by packing it with LZEXE 0.91 into the shipped TIM.EXE byte for byte - with a byte, relocation and header comparison against the unpacked original to say where a difference is. `--reuse` rebuilds only files whose source changed; each build keeps its own objects |
@@ -311,9 +284,8 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |
 | `tools/check_save.py` | **proves the file the game saves**, byte for byte. A machine file never reaches a pixel, so no screen comparison can see the writer |
 | `tools/check_solutions.py` | **proves every solution still solves its level.** A solution is `solutions/S<NN>.TIM`, a machine file the game's own `save_machine` wrote, loaded over its puzzle the way the game loads one - `--level N` for the goal, `TIM_LOADMACHINE` for the parts - into a staged copy of the game directory, because the guest's file layer treats that directory as a floor. `--run` plays each through the real loop and reads the one signal the game gives - `finish_level`. `--simulate` runs the same machine through the game's own per-frame step with no clock, input, display or timer thread (`TIM_SIMULATE` in `devmain.c`): deterministic, and measured to solve at the same frame as the real loop on every level compared. Both run the levels in parallel, so the set takes seconds simulated and minutes real. `make test` runs the simulated form; the real one stays the check before a commit, because it is the only one that exercises the loop's own input and presentation |
-| `tools/genld.py` | **writes the linker script that lays out `guest_mem`.** The image's data is transcribed as C objects marked `DGROUP_AT`, `DGROUP_BSS` or `SEGMENT_AT` (dgroup.h); this reads those sections back out of the compiled objects and places each at its address, so a DGROUP offset and a named object are the same byte and the linker refuses an overlap. Every link takes it |
-| `tools/cparse.py` | **the port's C, parsed** - the one door to tree-sitter for every tool that reads the sources: `dgrules.py` and `reconstruct/tests/provenance.py`. Four things here are macros the C grammar has no rule for: `DGROUP_AT` between a declarator and its `=`, `__builtin_offsetof` taking a *type* as an argument (the layout assertions that used it are gone), and `far`, which `tim.h` defines as nothing. Each makes tree-sitter abandon the construct and read what follows as loose expressions - a plain parse of this tree is **7,188 ERROR nodes**, 6,112 of them in `dgroup.c`, and inside an ERROR subtree the node types are wrong, so a rule walking it is reading soup and cannot tell. Expanding them, space for space so every offset is the file's own, leaves **none**: the last two were a preprocessor conditional around a label inside `copy_protect_screen`, whose damage was not local - brace matching ran past the routine's end and took game.c from three hundred top-level definitions to five - and SDL's own calling-convention tag. A tool that parses reports what it could not parse, and these four now do |
-| `tools/xrefs.py` | **which instructions name a DGROUP word**, over capstone's operand detail on every instruction recursive descent reaches. A field keeps its address for a name when nothing says what it is for, and grepping the port answers about the *port* - a field read from code this port has not transcribed looks exactly like a field nothing reads. **An empty answer is the answer that justifies a `pad_`**: it found 0x0096 written once by the C startup with the BIOS tick count, and 0x009a named by no instruction at all. It sees direct operands only, so a reference computed into a register is `dgrules --rule const-addr`'s, and an overlay is a separate binary. **`--audit` turns the question round**: every offset the original names, resolved against the port's field at that address in the built `libtim.so` - a hit inside a `pad_` is a field hiding in padding, which is how `_heaplen` and the DOS startup's block were found, and an offset in no object at all is DGROUP the port has not described |
+| `tools/cparse.py` | **the port's C, parsed** - the one door to tree-sitter for every tool that reads the sources, `reconstruct/tests/provenance.py` among them. `far`, `huge`, `near` and `interrupt` (which `tim.h` defines as nothing) and `__builtin_offsetof` are expanded first, space for space so every offset is the file's own, because each makes tree-sitter abandon the construct and read what follows as loose expressions, and inside an ERROR subtree the node types are wrong. A tool that parses reports what it could not parse. `placements()` answers every DGROUP public and its address, from the last link's map |
+| `tools/xrefs.py` | **which instructions name a DGROUP word**, over capstone's operand detail on every instruction recursive descent reaches. A field keeps its address for a name when nothing says what it is for, and grepping the port answers about the *port* - a field read from code this port has not transcribed looks exactly like a field nothing reads. **An empty answer is the answer that justifies a `pad_`**: it found 0x0096 written once by the C startup with the BIOS tick count, and 0x009a named by no instruction at all. It sees direct operands only, so a reference computed into a register is not found, and an overlay is a separate binary |
 | `tools/waitpids.py` | **waits for a long check to finish, on a pidfd rather than a pid number.** The obvious `until pgrep -f check_machines.py` loop matches the *watcher's own* command line, so it either returns at once or never fires - four watches in one session expired having never seen the run they were watching, and a wait that misses looks exactly like a quiet one. A pidfd is a handle to one process, `poll()` says POLLIN exactly when it exits, and a reused pid cannot take its place |
 | `tools/fixture.py` | a game directory with the things the real one happens not to have - a subdirectory, a `password.txt` - so the routines behind them can be reached at all |
 | `reconstruct/devlua.c` | **drives the developer build from a script.** `TIM_LUA=<port>` listens on 127.0.0.1 and runs what is sent as Lua *inside the game*, a line at a time, polled on the page flip: a script can read DGROUP before it clicks and wait for flips, which `TIM_CLICK`'s flip-numbered clicks cannot. Dev-only: `devtim` links it, `libtim.so` and `tim` do not |

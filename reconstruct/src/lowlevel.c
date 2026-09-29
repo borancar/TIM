@@ -1502,14 +1502,14 @@ struct engine_mouse {
                                                nothing in the image sets it */
 } PACKED;
 
-struct engine_mouse ENGINE_MOUSE DGROUP_AT(0x4740);
+struct engine_mouse ENGINE_MOUSE;
 
 /*
  * **The cursor code's and the divide trap's data**, DGROUP 0x48da..0x48f2.
  * The first pair of graphics-controller mode bytes is write mode 2 and 1,
  * the second the same with the 256-colour shift; see the record.
  */
-struct dg_48da DG48DA DGROUP_AT(0x48da) = {
+struct dg_48da DG48DA = {
     .gc_mode_fill = 0x02,
     .quarter_a = 0x40,
     .gc_mode_copy = 0x01,

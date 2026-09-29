@@ -15,7 +15,7 @@ struct member's name in a comment, so the table still reads.
     uv run python tools/c89init.py reconstruct/src/dgroup.c NAME [NAME ...]
 
 prints the definitions, with the positional initialisers in place of the
-designated ones. The declarator - type, name, `DGROUP_AT` and the rest - is
+designated ones. The declarator - type, name and the rest - is
 kept as written. `--spans` prints JSON instead: each definition's new text
 and the byte range it replaces in the file.
 

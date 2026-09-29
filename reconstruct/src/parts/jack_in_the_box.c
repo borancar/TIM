@@ -23,7 +23,7 @@
  * DGROUP 0x3394..0x339a. How far the jack-in-the-box reaches, by form: -21 -34 -59.
  * `part_step_jack_in_the_box` indexes it from -8.
  */
-int16_t JACK_IN_THE_BOX_REACH[3] DGROUP_AT(0x3394) = { -21, -34, -59 };
+int16_t JACK_IN_THE_BOX_REACH[3] = { -21, -34, -59 };
 
 /*
  * 172c:27e2, image 0x19aa2 - kind 13's step. The conveyor.

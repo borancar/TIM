@@ -445,7 +445,7 @@ void near set_colour_text_mode(void)
  * **This module's `_DATA`**, DGROUP 0x48f2..0x48f8: nothing recorded yet,
  * nothing forced, and no driver.
  */
-struct vm_start VM_START DGROUP_AT(0x48f2) = {
+struct vm_start VM_START = {
     .mode_found = 0xff,
     .mode_forced = 0xff,
 };

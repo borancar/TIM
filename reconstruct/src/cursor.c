@@ -47,7 +47,7 @@ struct machine_cursor_state {
     int16_t   slots_unset;          /* +0x14 [2] */
 } PACKED;
 
-struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_WAS(0x2d32) = {
+struct machine_cursor_state MACHINE_CURSOR_STATE = {
     0x0001, 0, 0, 0x0100, 0, 0x0001, 0x000c, 0x0001, 0x0001, 0x0001
 };
 
@@ -57,10 +57,10 @@ struct machine_cursor_state MACHINE_CURSOR_STATE DGROUP_WAS(0x2d32) = {
  * `MACHINE_RECT_BUFFERS`, then DG5752 - the three highest - and the rest
  * are defined here from the highest down.
  */
-struct dg_5768 DG5768 DGROUP_BSS(0x5768);
+struct dg_5768 DG5768;
 
-struct machine_rect_buffers MACHINE_RECT_BUFFERS DGROUP_WAS(0x5758);
-struct dg_5752 DG5752 DGROUP_BSS(0x5752);
+struct machine_rect_buffers MACHINE_RECT_BUFFERS;   /* DGROUP 0x5758 */
+struct dg_5752 DG5752;
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
@@ -82,7 +82,7 @@ struct machine_buttons {
     struct button button[2];      /* +0x00 [0x10] */
 } PACKED;
 
-struct machine_buttons MACHINE_BUTTONS DGROUP_BSS(0x5742);
+struct machine_buttons MACHINE_BUTTONS;
 
 /*
  * **The palette request and the fade**, DGROUP 0x5738..0x5742, 0x0a bytes.
@@ -98,7 +98,7 @@ struct machine_palette_fade {
     int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
 } PACKED;
 
-struct machine_palette_fade MACHINE_PALETTE_FADE DGROUP_WAS(0x5738);
+struct machine_palette_fade MACHINE_PALETTE_FADE;
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
@@ -111,7 +111,7 @@ struct machine_buffer_used {
     uint8_t   used[4];            /* +0x00 [4] */
 } PACKED;
 
-struct machine_buffer_used MACHINE_BUFFER_USED DGROUP_BSS(0x5734);
+struct machine_buffer_used MACHINE_BUFFER_USED;
 
 /*
  * **The drawing state saved across an interrupt**, DGROUP 0x5726..0x5734, 0x0e bytes.
@@ -126,7 +126,7 @@ struct machine_saved_draw_state {
     uint16_t  saved_g;            /* +0x0c [2] */
 } PACKED;
 
-struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE DGROUP_BSS(0x5726);
+struct machine_saved_draw_state MACHINE_SAVED_DRAW_STATE;
 
 /*
  * **The two page slots**, DGROUP 0x56e6..0x5726, 0x40 bytes.
@@ -140,7 +140,7 @@ struct machine_page_slots {
     struct page_slot slots[2];   /* +0x00 [0x40] */
 } PACKED;
 
-struct machine_page_slots MACHINE_PAGE_SLOTS DGROUP_BSS(0x56e6);
+struct machine_page_slots MACHINE_PAGE_SLOTS;
 
 /*
  * 0x0a78e

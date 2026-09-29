@@ -22,21 +22,21 @@
 /*
  * DGROUP 0x34ca..0x34d6. Connection points, 3 points.
  */
-struct point16 SEESAW_POINTS_34CA[3] DGROUP_AT(0x34ca) = {
+struct point16 SEESAW_POINTS_34CA[3] = {
     { 0x0005, 0x001b }, { 0x0004, 0x0002 }, { 0x0006, 0x0003 },
 };
 
 /*
  * DGROUP 0x34d6..0x34e2. Connection points, 3 points.
  */
-struct point16 SEESAW_POINTS_34D6[3] DGROUP_AT(0x34d6) = {
+struct point16 SEESAW_POINTS_34D6[3] = {
     { 0x0049, 0x0003 }, { 0x004b, 0x0002 }, { 0x004a, 0x001b },
 };
 
 /*
  * DGROUP 0x34e2..0x3502. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_34E2[8] DGROUP_AT(0x34e2) = {
+struct point16 SEESAW_POINTS_34E2[8] = {
     { 0x0000, 0x0020 }, { 0x004f, 0x0003 }, { 0x004f, 0x0008 },
     { 0x002c, 0x0015 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0018 }, { 0x0000, 0x0024 },
@@ -45,7 +45,7 @@ struct point16 SEESAW_POINTS_34E2[8] DGROUP_AT(0x34e2) = {
 /*
  * DGROUP 0x3502..0x3522. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_3502[8] DGROUP_AT(0x3502) = {
+struct point16 SEESAW_POINTS_3502[8] = {
     { 0x0000, 0x0011 }, { 0x004f, 0x0011 }, { 0x004f, 0x0015 },
     { 0x002c, 0x0015 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0015 }, { 0x0000, 0x0015 },
@@ -54,7 +54,7 @@ struct point16 SEESAW_POINTS_3502[8] DGROUP_AT(0x3502) = {
 /*
  * DGROUP 0x3522..0x3542. Connection points, 8 points.
  */
-struct point16 SEESAW_POINTS_3522[8] DGROUP_AT(0x3522) = {
+struct point16 SEESAW_POINTS_3522[8] = {
     { 0x0000, 0x0003 }, { 0x004f, 0x0020 }, { 0x004f, 0x0024 },
     { 0x002c, 0x0018 }, { 0x002c, 0x0022 }, { 0x0024, 0x0022 },
     { 0x0024, 0x0015 }, { 0x0000, 0x0008 },
@@ -64,7 +64,7 @@ struct point16 SEESAW_POINTS_3522[8] DGROUP_AT(0x3522) = {
  * DGROUP 0x3542..0x355a. The seesaw's shaft by form, a segment of four words - x0, y0, x1, y1 -
  * which `part_step_seesaw` hands `link_objects_crossing`.
  */
-int16_t SEESAW_SHAFT_LINE[3][4] DGROUP_AT(0x3542) = {
+int16_t SEESAW_SHAFT_LINE[3][4] = {
     { 0x0000, 0x0020, 0x004f, 0x0003 }, { 0x0000, 0x0011, 0x004f, 0x0011 },
     { 0x0000, 0x0003, 0x004f, 0x0020 },
 };

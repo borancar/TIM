@@ -47,9 +47,9 @@
  */
 
 /* The message box's tab stops, DGROUP 0x259c. */
-struct game_message_tabs GAME_MESSAGE_TABS DGROUP_AT(0x259c) = { 0xffff, { 0x00e8, 0x0168 } };
+struct game_message_tabs GAME_MESSAGE_TABS = { 0xffff, { 0x00e8, 0x0168 } };
 /* The menu button's animation, DGROUP 0x25a2. */
-struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
+struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM = {
     { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },     /* picture */
     { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },     /* picture_x */
     { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },     /* picture_y */
@@ -57,11 +57,11 @@ struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM DGROUP_AT(0x25a2) = {
     { 0x001a, 0x0018, 0x001b, 0x0019 },                     /* sprite_y */
 };
 /* The selection outline's phase, DGROUP 0x25d6. */
-struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE DGROUP_AT(0x25d6) = { 0 };
+struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE = { 0 };
 
 /* The module's literal pool, DGROUP 0x25d8..0x25e8: the message box's three
    button labels. */
-struct game_button_labels GAME_BUTTON_LABELS DGROUP_AT(0x25d8) = {
+struct game_button_labels GAME_BUTTON_LABELS = {
     "CONTINUE", /* continue_btn */
     "YES", /* yes */
     "NO", /* no */

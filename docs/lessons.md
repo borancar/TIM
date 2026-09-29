@@ -1653,6 +1653,50 @@ knows the frame, is what covers that half.
 
 ## DGROUP, frames and pointers
 
+### A null the original follows reads real memory, and the host crashes only where a path reaches it
+
+**What happened.** Once every stored pointer was a real pointer, a null was
+C's null - and the original follows nulls. `stop_all_voices` runs before any
+voice exists and reads and writes byte 0x158 of the interrupt table;
+`link_objects_crossing` takes two points off a part that has none;
+`find_part_from` reads the flags of "no part"; `compute_link_endpoints` reads
+the far end of a rope that has only been clicked once; `free_bitmap_list`
+reads a list's first word before testing the list. In DOS every one of those
+is DGROUP:0000 or 0000:0000 - the Borland banner, the vector table - and the
+values read are harmless or never used. On the host each is a segfault, and
+only on the path that reaches it: the solutions all passed while starting a
+level and connecting a rope by hand crashed.
+
+**What settled it.** `NEAR_ZERO(p)` and `ZERO_PAGE(p)` at the read: the
+pointer itself under Borland C++, so the image does not move, and on the host
+the start of the DGROUP arena or of `guest_mem` when the pointer is null. A
+test against a null through the same macro still holds, because both sides
+land in the same place.
+
+**The rule.** When the host crashes on a NULL dereference in a transcribed
+routine, read the original first: if it reads through the null too, the fix
+is the macro at that read, not a guard.
+
+### A host address made into a guest number fails intermittently, and rr finds it
+
+**What happened.** After the pointer conversion the simulated solutions
+passed 26, 28 or 29 of 29 depending on the run, and valgrind and ASan runs
+were clean. Three causes, all the same shape - a host address put through
+16-bit arithmetic: `POINTS(p)` still meant `dgroup + (uint16_t)p`;
+`(int16_t)ptr != 0` called any pointer with zero low bits null; and
+`FAR_MASK` rounded a libc heap block to a paragraph through `FP_SEG`/`FP_OFF`,
+which only mean something inside `guest_mem`. The answer moved with where
+ASLR put the heap, and a slower run under a sanitizer moved it out of harm's
+way.
+
+**What settled it.** `rr record --chaos` in a loop until a run died - the
+second run did - and a replay to the crash, which pointed straight at the
+scratch block `FAR_MASK` had produced.
+
+**The rule.** A result that varies between runs of a deterministic simulation
+is a host address leaking into arithmetic until shown otherwise; record it
+with rr rather than reasoning about it.
+
 The model of the guest's memory as a byte array, and every way a pointer, an offset, a frame or a field width has gone wrong in it.
 
 ### A 16-bit comparison with 0x8000 is always false on the host, and it compiles

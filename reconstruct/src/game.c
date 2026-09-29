@@ -24,11 +24,9 @@
 /*
  * **The part templates**, DGROUP 0x2966..0x2d06, the module's whole data: one
  * per kind, which `make_part` copies from, each ending in a far pointer to
- * that kind's init routine below - so the table is this module's, and its
- * layout is the host's (`DGROUP_WAS`), because a host function pointer is
- * not four bytes.
+ * that kind's init routine below - so the table is this module's.
  */
-struct part_template PART_TEMPLATES[PART_KIND_COUNT] DGROUP_WAS(0x2966) = {
+struct part_template PART_TEMPLATES[PART_KIND_COUNT] = {
     /* flags_06, flags_0a, set_size, size, init */
     { 0x0800, 0x0008, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_bowling_ball }, /* 0 */
     { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_14267 }, /* 1 */

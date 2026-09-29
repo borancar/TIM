@@ -2841,7 +2841,7 @@ struct engine_polygon_chains {
     uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
 } PACKED;
 
-struct engine_polygon_chains ENGINE_POLYGON_CHAINS DGROUP_AT(0x44d0);
+struct engine_polygon_chains ENGINE_POLYGON_CHAINS;
 
 /*
  * **The polygon walker's own state**, DGROUP 0x44de..0x44ea, 0x0c bytes.
@@ -2866,7 +2866,7 @@ struct engine_polygon_state {
     uint8_t   second_pass;          /* +0x0b [1] */
 } PACKED;
 
-struct engine_polygon_state ENGINE_POLYGON_STATE DGROUP_AT(0x44de);
+struct engine_polygon_state ENGINE_POLYGON_STATE;
 
 /*
  * 172c:2b9d, image 0x1eded

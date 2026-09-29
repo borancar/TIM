@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x339a..0x33aa. Connection points, 4 points.
  */
-struct point16 LIGHT_POINTS_339A[4] DGROUP_AT(0x339a) = {
+struct point16 LIGHT_POINTS_339A[4] = {
     { 0x0015, 0x0033 }, { 0x001d, 0x004f }, { 0x0014, 0x0019 },
     { 0x001c, 0x0023 },
 };

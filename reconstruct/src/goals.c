@@ -35,7 +35,7 @@
 #include "dgroup.h"
 
 /* **This module's `_BSS`**, DGROUP 0x5456..0x546c: the goal conditions. */
-struct dg_5456 DG5456 DGROUP_BSS(0x5456);
+struct dg_5456 DG5456;
 
 /*
  * 0x01476 - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.

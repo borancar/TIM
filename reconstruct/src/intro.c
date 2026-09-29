@@ -48,7 +48,7 @@ struct game_intro_steps {
     struct intro_step step[63];   /* +0x00 [0x17a] */
 } PACKED;
 
-struct game_intro_steps GAME_INTRO_STEPS DGROUP_AT(0x2370) = {
+struct game_intro_steps GAME_INTRO_STEPS = {
     {
         { 0x0278, 0x000e, 0x0003 },
         { 0x0280, 0x002f, 0x0007 },
@@ -126,7 +126,7 @@ struct game_copy_protection {
     int16_t   answer[3][16];      /* +0x00 [0x60]  [icon][page] */
 } PACKED;
 
-struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
+struct game_copy_protection GAME_COPY_PROTECTION = {
     {
         {
             0x000f, 0x0024, 0x001d, 0x000f, 0x0007, 0x0013, 0x0019, 0x0010,
@@ -149,7 +149,7 @@ struct game_copy_protection GAME_COPY_PROTECTION DGROUP_AT(0x24ea) = {
  * pool, kept as an object because `load_bitmaps` uppercases a name in place -
  * see `GAME_STARTUP_NAMES`.
  */
-struct dg_254a DG254A DGROUP_AT(0x254a) = {
+struct dg_254a DG254A = {
     "sierra.bmp", /* sierra_bmp */
     "sierra.scr", /* sierra_scr */
     "corners.bmp", /* corners_bmp */

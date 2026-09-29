@@ -46,7 +46,7 @@ struct dg_5677 {
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
 } PACKED;
 
-struct dg_5677 DG5677 DGROUP_BSS(0x5677);
+struct dg_5677 DG5677;
 
 /*
  * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
@@ -55,7 +55,7 @@ struct machine_game_files {
     struct game_file files[0xa];  /* +0x00 [0xb4] */
 } PACKED;
 
-struct machine_game_files MACHINE_GAME_FILES DGROUP_BSS(0x55c3);
+struct machine_game_files MACHINE_GAME_FILES;
 
 /*
  * **The eleven archives**, DGROUP 0x548f..0x55c3, 0x134 bytes. Index 0 is never where a search
@@ -65,7 +65,7 @@ struct machine_archives {
     struct archive slot[0xb];     /* +0x00 [0x134] */
 } PACKED;
 
-struct machine_archives MACHINE_ARCHIVES DGROUP_WAS(0x548f);
+struct machine_archives MACHINE_ARCHIVES;
 
 /*
  * **The archives' lookup**, at DGROUP 0x547a: its one-entry cache, the
@@ -100,7 +100,7 @@ struct dg_547a {
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
    layer, opens files through the archive lookup, and its count and its
    lists have to be the same side's. */
-struct dg_547a DG547A DGROUP_WAS(0x547a);
+struct dg_547a DG547A;   /* DGROUP 0x547a */
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP
@@ -113,7 +113,7 @@ struct machine_hash_order {
     uint8_t   hash_order[4];      /* +0x00 [4] */
 } PACKED;
 
-struct machine_hash_order MACHINE_HASH_ORDER DGROUP_AT(0x28d2) = { { 0x00, 0x01, 0x06, 0x07 } };
+struct machine_hash_order MACHINE_HASH_ORDER = { { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
  * 0x08fc3

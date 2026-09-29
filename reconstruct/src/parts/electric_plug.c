@@ -22,14 +22,14 @@
 /*
  * DGROUP 0x32b8..0x32c0. Connection points, 4 pairs.
  */
-struct point8 ELECTRIC_PLUG_POINTS_32B8[4] DGROUP_AT(0x32b8) = {
+struct point8 ELECTRIC_PLUG_POINTS_32B8[4] = {
     { 0x08, 0x08 }, { 0x0f, 0x08 }, { 0x0f, 0x09 }, { 0x08, 0x09 },
 };
 
 /*
  * DGROUP 0x32c0..0x32c8. Connection points, 4 pairs.
  */
-struct point8 ELECTRIC_PLUG_POINTS_32C0[4] DGROUP_AT(0x32c0) = {
+struct point8 ELECTRIC_PLUG_POINTS_32C0[4] = {
     { 0x0f, 0x18 }, { 0x08, 0x18 }, { 0x08, 0x17 }, { 0x0f, 0x17 },
 };
 

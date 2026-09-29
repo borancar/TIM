@@ -22,7 +22,7 @@
 /*
  * DGROUP 0x3472..0x3482. Connection points, 8 pairs.
  */
-struct point8 SCISSORS_POINTS_3472[8] DGROUP_AT(0x3472) = {
+struct point8 SCISSORS_POINTS_3472[8] = {
     { 0x00, 0x04 }, { 0x0a, 0x00 }, { 0x11, 0x0b }, { 0x27, 0x07 },
     { 0x27, 0x1a }, { 0x11, 0x14 }, { 0x0b, 0x21 }, { 0x00, 0x1f },
 };
@@ -30,7 +30,7 @@ struct point8 SCISSORS_POINTS_3472[8] DGROUP_AT(0x3472) = {
 /*
  * DGROUP 0x3482..0x3492. Connection points, 8 pairs.
  */
-struct point8 SCISSORS_POINTS_3482[8] DGROUP_AT(0x3482) = {
+struct point8 SCISSORS_POINTS_3482[8] = {
     { 0x00, 0x08 }, { 0x09, 0x04 }, { 0x10, 0x0e }, { 0x27, 0x10 },
     { 0x27, 0x12 }, { 0x10, 0x14 }, { 0x09, 0x1b }, { 0x00, 0x18 },
 };
@@ -38,12 +38,12 @@ struct point8 SCISSORS_POINTS_3482[8] DGROUP_AT(0x3482) = {
 /*
  * DGROUP 0x3492..0x3496. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *SCISSORS_POINT_TABLE_3492[2] DGROUP_WAS(0x3492) = { SCISSORS_POINTS_3472, SCISSORS_POINTS_3482 };
+struct point8 *SCISSORS_POINT_TABLE_3492[2] = { SCISSORS_POINTS_3472, SCISSORS_POINTS_3482 };
 
 /*
  * DGROUP 0x3496..0x34a6. Connection points, 8 pairs.
  */
-struct point8 SCISSORS_POINTS_3496[8] DGROUP_AT(0x3496) = {
+struct point8 SCISSORS_POINTS_3496[8] = {
     { 0x00, 0x07 }, { 0x16, 0x0b }, { 0x1d, 0x00 }, { 0x27, 0x04 },
     { 0x27, 0x1f }, { 0x1c, 0x21 }, { 0x16, 0x14 }, { 0x00, 0x1a },
 };
@@ -51,7 +51,7 @@ struct point8 SCISSORS_POINTS_3496[8] DGROUP_AT(0x3496) = {
 /*
  * DGROUP 0x34a6..0x34b6. Connection points, 8 pairs.
  */
-struct point8 SCISSORS_POINTS_34A6[8] DGROUP_AT(0x34a6) = {
+struct point8 SCISSORS_POINTS_34A6[8] = {
     { 0x00, 0x10 }, { 0x17, 0x0e }, { 0x1e, 0x04 }, { 0x27, 0x08 },
     { 0x27, 0x18 }, { 0x1e, 0x1b }, { 0x17, 0x1e }, { 0x00, 0x12 },
 };
@@ -59,14 +59,14 @@ struct point8 SCISSORS_POINTS_34A6[8] DGROUP_AT(0x34a6) = {
 /*
  * DGROUP 0x34b6..0x34ba. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *SCISSORS_POINT_TABLE_34B6[2] DGROUP_WAS(0x34b6) = { SCISSORS_POINTS_3496, SCISSORS_POINTS_34A6 };
+struct point8 *SCISSORS_POINT_TABLE_34B6[2] = { SCISSORS_POINTS_3496, SCISSORS_POINTS_34A6 };
 
 /*
  * DGROUP 0x34ba..0x34ca. **The scissors' blade**, a segment of four words - x0, y0, x1, y1 -
  * once as it stands and once mirrored; `part_step_scissors` picks one by the
  * flip bit and `cut_belts` cuts every belt that crosses it.
  */
-int16_t SCISSORS_CUT_LINE[2][4] DGROUP_AT(0x34ba) = {
+int16_t SCISSORS_CUT_LINE[2][4] = {
     { 0x0016, 0x000f, 0x0027, 0x000f }, { 0x0000, 0x000f, 0x0010, 0x000f },
 };
 
