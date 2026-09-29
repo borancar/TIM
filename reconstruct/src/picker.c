@@ -171,11 +171,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
      */
     strcpy(pat, pattern);
 
-    DG4E4E.name_buf[0] = 0;
+    FREE_LISTS.name_buf[0] = 0;
     reload = 2;
     idx = 0;
-    GAME_PICKER_TEXT.picker_mode = DG4E67.state;
-    was = DG4E67.state = 0x8000;
+    GAME_PICKER_TEXT.picker_mode = GAME_STATE.state;
+    was = GAME_STATE.state = 0x8000;
     repaint = rp_list = rp_file = rp_name = 0;
 #ifndef __TURBOC__
     /* The original never sets these two before the first pass reads them,
@@ -183,7 +183,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
     rp_up = rp_down = 0;
 #endif
 
-    while (DG4E67.state != 0x200 && DG4E67.state != 0x100) {
+    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 0x100) {
         if (reload != 0) {
             picker_begin(arg1, arg2, pat);
 
@@ -197,18 +197,18 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         update_button_state();
         DG52ED.last_key = (uint8_t)bios_read_key();
 
-        if ((DG52ED.last_key) == '\t' && DG4E67.state != 0x4000
-            && DG4E67.state != 0x1000)
+        if ((DG52ED.last_key) == '\t' && GAME_STATE.state != 0x4000
+            && GAME_STATE.state != 0x1000)
             picker_tab();
 
         if (((DG52ED.last_key) == '\r' || (DG52ED.last_key) == ' '
              || (DG52ED.last_key) == 0x1b /* Esc */)
-            && DG4E67.state == 0x4000)
-            DG5768.button_left = 0;
+            && GAME_STATE.state == 0x4000)
+            POINTER.button_left = 0;
 
-        regions_handle_pointer(DG4E67.regions_c);
+        regions_handle_pointer(GAME_STATE.regions_c);
 
-        if (DG4E67.state == 0x100)
+        if (GAME_STATE.state == 0x100)
             goto dispatch;
 
         /*
@@ -218,10 +218,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
          * path, and by then 0x4e6b no longer says the field. The original
          * tests the mode twice on the way in, once in each half of the `||`.
          */
-        if ((DG4E67.state != 0x4000 && was == 0x4000) || DG4E67.state == 0x4000) {
-            DG4E67.file_op_active = 1;
+        if ((GAME_STATE.state != 0x4000 && was == 0x4000) || GAME_STATE.state == 0x4000) {
+            GAME_STATE.file_op_active = 1;
 
-            if (((DG52ED.last_key) != '\r' && DG4E67.state == 0x4000)
+            if (((DG52ED.last_key) != '\r' && GAME_STATE.state == 0x4000)
                 || was != 0x4000) {
                 if (was == 0x4000)
                     picker_type((DG52ED.last_key), (char *)GAME_DIRECTORIES.path_field, 0x50);
@@ -242,7 +242,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                         reload = 2;
                     } else {
                         dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                        show_message_box(DG1BCC.path_error, DG1BCC.path_error_body);
+                        show_message_box(MESSAGES.path_error, MESSAGES.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
                         restore_cursor();
@@ -250,45 +250,45 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                         rp_name = 2;
                     }
 
-                    if (DG4E67.state == 0x4000)
-                        DG4E67.state = 0x8000;
+                    if (GAME_STATE.state == 0x4000)
+                        GAME_STATE.state = 0x8000;
                 } else {
                     dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
-                    show_message_box(DG1BCC.path_error, DG1BCC.path_error_body);
+                    show_message_box(MESSAGES.path_error, MESSAGES.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
                     repaint = 1;
                     rp_name = 2;
 
-                    if (DG4E67.state == 0x4000)
-                        DG4E67.state = 0x8000;
+                    if (GAME_STATE.state == 0x4000)
+                        GAME_STATE.state = 0x8000;
                 }
             }
 
-            DG4E67.file_op_active = 0;
+            GAME_STATE.file_op_active = 0;
         }
 
         /* The name field, the same shape and a different buffer. */
-        if ((DG4E67.state != 0x1000 && was == 0x1000) || DG4E67.state == 0x1000) {
-            if (((DG52ED.last_key) != '\r' && DG4E67.state == 0x1000)
+        if ((GAME_STATE.state != 0x1000 && was == 0x1000) || GAME_STATE.state == 0x1000) {
+            if (((DG52ED.last_key) != '\r' && GAME_STATE.state == 0x1000)
                 || was != 0x1000) {
                 if (was == 0x1000)
-                    picker_type((DG52ED.last_key), (char *)DG4E4E.name_buf, 0x0d);
+                    picker_type((DG52ED.last_key), (char *)FREE_LISTS.name_buf, 0x0d);
             } else {
-                force_extension((char *)DG4E4E.name_buf, "TIM");
+                force_extension((char *)FREE_LISTS.name_buf, "TIM");
 
-                if (DG4E67.state == 0x1000)
-                    DG4E67.state = 0x8000;
+                if (GAME_STATE.state == 0x1000)
+                    GAME_STATE.state = 0x8000;
             }
 
             rp_file = 2;
         }
 
     dispatch:
-        switch (DG4E67.state) {
+        switch (GAME_STATE.state) {
         case 0x0800:                    /* the up arrow */
-            if (DG5768.button_left == 1 || DG5768.button_left == 2) {
+            if (POINTER.button_left == 1 || POINTER.button_left == 2) {
                 v = GAME_PICKER_TEXT.scroll - 1;
 
                 if (v >= 0) {
@@ -296,13 +296,13 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     rp_list = 2;
                 }
             } else {
-                DG4E67.state = 0x8000;
+                GAME_STATE.state = 0x8000;
             }
             rp_up = 2;
             break;
 
         case 0x0400:                    /* the down arrow */
-            if (DG5768.button_left == 1 || DG5768.button_left == 2) {
+            if (POINTER.button_left == 1 || POINTER.button_left == 2) {
                 v = GAME_PICKER_TEXT.scroll + 1;
 
                 if (GAME_PICKER_TEXT.entry_count - 12 >= v) {
@@ -310,7 +310,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     rp_list = 2;
                 }
             } else {
-                DG4E67.state = 0x8000;
+                GAME_STATE.state = 0x8000;
             }
             rp_down = 2;
             break;
@@ -321,7 +321,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
              * pointer's y at 0x5782 less the box's top, divided by the ten
              * pixels a row takes, plus the scroll position.
              */
-            idx = GAME_PICKER_TEXT.scroll + (DG5768.pointer_y - 0x7c) / 10;
+            idx = GAME_PICKER_TEXT.scroll + (POINTER.pointer_y - 0x7c) / 10;
 
             if (idx < GAME_PICKER_TEXT.entry_count) {
                 /* Entry `idx` of the array of far pointers at the block's
@@ -329,7 +329,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                 rec = ((char far * far *)GAME_PICKER_TEXT.block)[idx];
 
                 if (*rec != ':' && *rec != '<') {
-                    strcpy((char *)DG4E4E.name_buf, listing_to_name(rec));
+                    strcpy((char *)FREE_LISTS.name_buf, listing_to_name(rec));
                     rp_file = 2;
                 } else {
                     /*
@@ -342,18 +342,18 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     else
                         path_up((char *)GAME_DIRECTORIES.path_field);
 
-                    DG4E67.file_op_active = 1;
+                    GAME_STATE.file_op_active = 1;
 
                     if (dos_chdir((char *)GAME_DIRECTORIES.path_field) == 0)
                         dos_setdisk(GAME_DIRECTORIES.path_field[0]);
 
-                    DG4E67.file_op_active = 0;
+                    GAME_STATE.file_op_active = 0;
                     reload = 2;
-                    DG4E4E.name_buf[0] = 0;
+                    FREE_LISTS.name_buf[0] = 0;
                 }
             }
 
-            DG4E67.state = 0x8000;
+            GAME_STATE.state = 0x8000;
             break;
 
         case 0x0200:                    /* the LOAD or SAVE button */
@@ -362,39 +362,39 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     if (valid == 2) {
                         picker_draw_action();
 
-                        if (ask_yes_no(DG1BCC.overwrite_file, DG1BCC.overwrite_body) == 0) {
+                        if (ask_yes_no(MESSAGES.overwrite_file, MESSAGES.overwrite_body) == 0) {
                             wait_cursor();
                             paint_panel_frame();
                             restore_cursor();
                             repaint = 1;
-                            DG4E67.state = 0x8000;
+                            GAME_STATE.state = 0x8000;
                         }
                     }
-                } else if (is_machine_file((char *)DG4E4E.name_buf) == 0) {
+                } else if (is_machine_file((char *)FREE_LISTS.name_buf) == 0) {
                     picker_draw_action();
-                    show_message_box(DG1BCC.wrong_format, DG1BCC.wrong_format_body);
+                    show_message_box(MESSAGES.wrong_format, MESSAGES.wrong_format_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
                     repaint = 1;
-                    DG4E67.state = 0x8000;
+                    GAME_STATE.state = 0x8000;
                 }
             } else {
                 picker_draw_action();
-                show_message_box(DG1BCC.file_error,
+                show_message_box(MESSAGES.file_error,
                                  GAME_PICKER_TEXT.picker_mode == 0x100
-                                     ? DG1BCC.cant_open_for_loading
-                                     : DG1BCC.cant_open_for_saving);
+                                     ? MESSAGES.cant_open_for_loading
+                                     : MESSAGES.cant_open_for_saving);
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
                 repaint = 1;
-                DG4E67.state = 0x8000;
+                GAME_STATE.state = 0x8000;
             }
             break;
         }
 
-        was = DG4E67.state;
+        was = GAME_STATE.state;
 
         /*
          * **A whole repaint is not one of the partial ones.** When it happens
@@ -436,7 +436,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (GAME_PICKER_TEXT.block != DG3576.scratch) {
+    if (GAME_PICKER_TEXT.block != SCRATCH_BLOCK.scratch) {
         dos_free_far(GAME_PICKER_TEXT.block);
         GAME_PICKER_TEXT.block = NULL;
         GAME_PICKER_TEXT.text_start = NULL;
@@ -444,11 +444,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state != 0x200 || strlen((char *)DG4E4E.name_buf) == 0) {
-        DG4E4E.name_buf[0] = 0;
+    if (GAME_STATE.state != 0x200 || strlen((char *)FREE_LISTS.name_buf) == 0) {
+        FREE_LISTS.name_buf[0] = 0;
         return 0;
     } else {
-        strcpy(DG52FE.name, (char *)DG4E4E.name_buf);
+        strcpy(PICKED_MACHINE.name, (char *)FREE_LISTS.name_buf);
         return 1;
     }
 }
@@ -492,7 +492,7 @@ uint16_t validate_filename(void)
     int16_t  bad = 0;
     FILE *file;
 
-    si = (char *)DG4E4E.name_buf;
+    si = (char *)FREE_LISTS.name_buf;
 
     if (*si == 0)
         bad = 1;
@@ -509,46 +509,46 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (strchr((char *)DG4E4E.name_buf,
+        if (strchr((char *)FREE_LISTS.name_buf,
                        GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
             return 0;
     }
 
-    if (strnicmp((char *)DG4E4E.name_buf, "con", 3) == 0
-        && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "con", 3) == 0
+        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "aux", 3) == 0
-        && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "aux", 3) == 0
+        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "com1", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "com1", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "com2", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "com2", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "com3", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "com3", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "com4", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "com4", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "prn", 3) == 0
-        && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "prn", 3) == 0
+        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "lpt1", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "lpt1", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "lpt2", 4) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "lpt2", 4) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "nul", 3) == 0
-        && (DG4E4E.name_buf[3] == 0 || DG4E4E.name_buf[3] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "nul", 3) == 0
+        && (FREE_LISTS.name_buf[3] == 0 || FREE_LISTS.name_buf[3] == '.'))
         return 0;
-    if (strnicmp((char *)DG4E4E.name_buf, "null", 3) == 0
-        && (DG4E4E.name_buf[4] == 0 || DG4E4E.name_buf[4] == '.'))
+    if (strnicmp((char *)FREE_LISTS.name_buf, "null", 3) == 0
+        && (FREE_LISTS.name_buf[4] == 0 || FREE_LISTS.name_buf[4] == '.'))
         return 0;
 
-    if ((file = game_fopen((char *)DG4E4E.name_buf, "rb")) != 0) {
+    if ((file = game_fopen((char *)FREE_LISTS.name_buf, "rb")) != 0) {
         game_fclose(file);
         return 2;
     }
@@ -573,12 +573,12 @@ uint16_t validate_filename(void)
  */
 void picker_draw_action(void)
 {
-    if (DG4E67.state != 0x200) {
-        draw_button(DG1BCC.cancel, 0xc0, 0x130, 1);
+    if (GAME_STATE.state != 0x200) {
+        draw_button(MESSAGES.cancel, 0xc0, 0x130, 1);
     } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_button(DG1BCC.load, 0x40, 0x130, 1);
+        draw_button(MESSAGES.load, 0x40, 0x130, 1);
     } else {
-        draw_button(DG1BCC.save, 0x40, 0x130, 1);
+        draw_button(MESSAGES.save, 0x40, 0x130, 1);
     }
 
     present_back_page();
@@ -790,7 +790,7 @@ void force_extension(char *name, const char *ext)
  */
 void picker_set_name(const char *name)
 {
-    strcpy((char *)DG4E4E.name_buf, name);
+    strcpy((char *)FREE_LISTS.name_buf, name);
 }
 
 /*
@@ -805,8 +805,8 @@ void picker_set_name(const char *name)
  */
 char *picker_name(void)
 {
-    if (DG4E4E.name_buf[0] != 0)
-        return (char *)DG4E4E.name_buf;
+    if (FREE_LISTS.name_buf[0] != 0)
+        return (char *)FREE_LISTS.name_buf;
     else
         return NULL;
 }
@@ -841,9 +841,9 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
     (void)arg2;
 
     if (GAME_PICKER_TEXT.block == NULL) {
-        if (DG3576.scratch != NULL) {
+        if (SCRATCH_BLOCK.scratch != NULL) {
             GAME_PICKER_TEXT.entry_max = 0x3e8;
-            GAME_PICKER_TEXT.block = DG3576.scratch;
+            GAME_PICKER_TEXT.block = SCRATCH_BLOCK.scratch;
         } else {
             v = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
 
@@ -894,11 +894,11 @@ void picker_repaint(void)
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
     if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
-        draw_scroll_text(DG1BCC.load_machine, 0x50, 0x34, 0xa0);
-        draw_button(DG1BCC.load, 0x40, 0x130, 0);
+        draw_scroll_text(MESSAGES.load_machine, 0x50, 0x34, 0xa0);
+        draw_button(MESSAGES.load, 0x40, 0x130, 0);
     } else {
-        draw_scroll_text(DG1BCC.save_machine, 0x50, 0x34, 0xa0);
-        draw_button(DG1BCC.save, 0x40, 0x130, 0);
+        draw_scroll_text(MESSAGES.save_machine, 0x50, 0x34, 0xa0);
+        draw_button(MESSAGES.save, 0x40, 0x130, 0);
     }
 
     draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
@@ -907,7 +907,7 @@ void picker_repaint(void)
     picker_draw_up();
     picker_draw_down();
 
-    draw_button(DG1BCC.cancel, 0xc0, 0x130, 0);
+    draw_button(MESSAGES.cancel, 0xc0, 0x130, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -931,7 +931,7 @@ void picker_draw_up(void)
 {
     int16_t pressed;
 
-    if (DG4E67.state == 0x800)
+    if (GAME_STATE.state == 0x800)
         pressed = 1;
     else
         pressed = 0;
@@ -954,7 +954,7 @@ void picker_draw_down(void)
 {
     int16_t pressed;
 
-    if (DG4E67.state == 0x400)
+    if (GAME_STATE.state == 0x400)
         pressed = 1;
     else
         pressed = 0;
@@ -993,7 +993,7 @@ void picker_draw_name(void)
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
 
-    if (DG4E67.state == 0x4000) {
+    if (GAME_STATE.state == 0x4000) {
         PICKER_CARET.caret_blink++;
         if ((PICKER_CARET.caret_blink & 8) != 0)
             strcat(si, "*");
@@ -1031,19 +1031,19 @@ void picker_draw_filename(void)
     char buf[16];                  /* [bp-0x10] */
     char *si  = buf;
 
-    strcpy(si, (const char *)DG4E4E.name_buf);
+    strcpy(si, (const char *)FREE_LISTS.name_buf);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
 
-    if (DG4E67.state == 0x1000) {
+    if (GAME_STATE.state == 0x1000) {
         PICKER_CARET.caret_blink_b++;
         if ((PICKER_CARET.caret_blink_b & 8) != 0)
             strcat(si, "*");
     }
 
     VMDS.page_dst = VMDS.page_back;
-    draw_scroll_text(DG1BCC.file_name, 0x30, 0x10c, 0x54);
+    draw_scroll_text(MESSAGES.file_name, 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
     VMDS.text_back = 0;
@@ -1108,7 +1108,7 @@ void picker_draw_list(void)
         t = *p;
         p++;
         if (*t == ':')
-            t = DG1BCC.parent_dir;
+            t = MESSAGES.parent_dir;
 
         cursor_redraw_off_thunk();
         draw_string_body(t, x + 4, y + 4);

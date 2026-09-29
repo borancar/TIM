@@ -591,7 +591,7 @@ uint16_t asb_probe_irq(void)
         ASBS.probe_irq10 = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
-    lin = asb_linear(DG4A82.module + 0xa6);
+    lin = asb_linear(SOUND_BANK.module + 0xa6);
     asb_dma_program((uint16_t)lin, 0, 0x49, (uint8_t)(lin >> 16));
 
     asb_dsp_write(0x40);

@@ -26,7 +26,7 @@
  * sound. The record is described in dgroup.h. Three fields start non-zero:
  * `voice_word` at -4, `bank_choice` at 1 and `device` at -2.
  */
-struct dg_4a82 DG4A82 = {
+struct sound_bank SOUND_BANK = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 1, -2,
 };
 
@@ -75,50 +75,50 @@ FILE *open_sound_file(char *name, int16_t id)
     int16_t si;
 
     /* A handle, or a name to open. */
-    if (id != 0 && (FILE *)name == DG4A82.file && DG4A82.file != 0)
+    if (id != 0 && (FILE *)name == SOUND_BANK.file && SOUND_BANK.file != 0)
         goto search;
 
-    if (DG4A82.file != (FILE *)name && DG4A82.file_kind != 0) {
-        close_file_record(DG4A82.file);
-        DG4A82.file = 0;
-        DG4A82.file_kind = 0;
+    if (SOUND_BANK.file != (FILE *)name && SOUND_BANK.file_kind != 0) {
+        close_file_record(SOUND_BANK.file);
+        SOUND_BANK.file = 0;
+        SOUND_BANK.file_kind = 0;
     }
 
     if (file_record_valid((FILE *)name) != 0) {
-        DG4A82.file = (FILE *)name;
+        SOUND_BANK.file = (FILE *)name;
     } else {
-        if ((DG4A82.file = open_file_record(name)) == 0)
+        if ((SOUND_BANK.file = open_file_record(name)) == 0)
             goto fail;
-        DG4A82.file_kind = 1;
+        SOUND_BANK.file_kind = 1;
     }
 
     remove_and_free_records(0);
 
-    game_fseek(DG4A82.file, 0xcL, 0);
-    if (game_fread((uint8_t *)&size, 4, 1, DG4A82.file) != 1)
+    game_fseek(SOUND_BANK.file, 0xcL, 0);
+    if (game_fread((uint8_t *)&size, 4, 1, SOUND_BANK.file) != 1)
         goto fail;
 
-    if (DG4A82.directory != 0)
-        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
+    if (SOUND_BANK.directory != 0)
+        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
 
     /* The file's own directory image goes after the cursor, over `magic`
        onwards. */
-    if ((DG4A82.directory = (struct sound_dir far *)alloc_for_kind(size + 4, 0xa))
+    if ((SOUND_BANK.directory = (struct sound_dir far *)alloc_for_kind(size + 4, 0xa))
         == 0)
         goto fail;
-    if (fread_huge((uint8_t far *)&DG4A82.directory->magic, size, 1L, DG4A82.file)
+    if (fread_huge((uint8_t far *)&SOUND_BANK.directory->magic, size, 1L, SOUND_BANK.file)
         != 1L)
         goto fail;
-    if (DG4A82.directory->magic != 2)
+    if (SOUND_BANK.directory->magic != 2)
         goto fail;
 
-    DG4A82.directory->cursor = DG4A82.directory->entry;
+    SOUND_BANK.directory->cursor = SOUND_BANK.directory->entry;
 
 search:
     if (id > 0 && next_matching_record(id) != NULL)
-        return DG4A82.file;
+        return SOUND_BANK.file;
 
-    cur = DG4A82.directory->cursor;
+    cur = SOUND_BANK.directory->cursor;
 
     if (id > 0) {
 #ifndef __TURBOC__
@@ -127,44 +127,44 @@ search:
            the zero the test is written for. Ours. */
         found = 0;
 #endif
-        for (si = 0; DG4A82.directory->count > si; si++, cur++) {
+        for (si = 0; SOUND_BANK.directory->count > si; si++, cur++) {
             if (cur->id == id) {
                 found = cur->at;
                 break;
             }
         }
 
-        if (game_fseek(DG4A82.file, found + 4, 0) != 0)
+        if (game_fseek(SOUND_BANK.file, found + 4, 0) != 0)
             goto fail;
         if (found == 0)
             goto fail;
 
-        if (read_record(DG4A82.file, DG4A82.directory->kind) == 0)
+        if (read_record(SOUND_BANK.file, SOUND_BANK.directory->kind) == 0)
             return 0;
         goto done;
     }
 
-    for (si = 0; DG4A82.directory->count > si; si++, cur++) {
-        if (game_fseek(DG4A82.file, cur->at + 4, 0) != 0)
+    for (si = 0; SOUND_BANK.directory->count > si; si++, cur++) {
+        if (game_fseek(SOUND_BANK.file, cur->at + 4, 0) != 0)
             goto fail;
-        if (read_record(DG4A82.file, DG4A82.directory->kind) == 0)
+        if (read_record(SOUND_BANK.file, SOUND_BANK.directory->kind) == 0)
             goto fail;
     }
 
 done:
-    return DG4A82.file;
+    return SOUND_BANK.file;
 
 fail:
-    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(DG4A82.file);
+    if (SOUND_BANK.file != 0 && SOUND_BANK.file_kind != 0)
+        close_file_record(SOUND_BANK.file);
 
-    if (DG4A82.directory != 0)
-        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
+    if (SOUND_BANK.directory != 0)
+        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
 
     remove_and_free_records(0);
 
-    DG4A82.file = 0;
-    DG4A82.directory = 0;
+    SOUND_BANK.file = 0;
+    SOUND_BANK.directory = 0;
     return 0;
 }
 
@@ -208,7 +208,7 @@ struct sound_record far *next_matching_record(int16_t selector)
 
     if (selector != -3) {
         SOUND_TICK_WAIT.selector = selector;
-        SOUND_TICK_WAIT.cursor = DG4A82.records;
+        SOUND_TICK_WAIT.cursor = SOUND_BANK.records;
     } else if (SOUND_TICK_WAIT.cursor != NULL) {
         SOUND_TICK_WAIT.cursor = SOUND_TICK_WAIT.cursor->next;
     }
@@ -276,7 +276,7 @@ uint16_t start_sequence_by_id(int16_t id)
     struct sound_record far *rec;
     struct sound_record far *other;
 
-    for (rec = DG4A82.records; rec != NULL && rec->id != id;
+    for (rec = SOUND_BANK.records; rec != NULL && rec->id != id;
          rec = rec->next)
         ;
 
@@ -288,14 +288,14 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((rec->flags & 1) != 0) {
-        for (other = DG4A82.records; other != NULL;
+        for (other = SOUND_BANK.records; other != NULL;
              other = other->next) {
             if ((other->flags & 1) != 0 && other->sequence != NULL
                 && other->id != id)
                 stop_sequences(other->id);
         }
 
-        if (DG4A82.voice_word == 0 || DG4A82.voice_word == -1) {
+        if (SOUND_BANK.voice_word == 0 || SOUND_BANK.voice_word == -1) {
             rec->flags |= 0x10;
             return 1;
         }
@@ -309,7 +309,7 @@ uint16_t start_sequence_by_id(int16_t id)
         }
     } else {
         if (voice_playing(rec->data) == NULL) {
-            if (DG4A82.voice_word == 0 || DG4A82.voice_word == -2) {
+            if (SOUND_BANK.voice_word == 0 || SOUND_BANK.voice_word == -2) {
                 if ((rec->flags & 2) != 0) {
                     rec->flags |= 0x10;
                     return 1;
@@ -355,7 +355,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (DG4A82.driver != NULL || DG4A82.module != NULL)
+    if (SOUND_BANK.driver != NULL || SOUND_BANK.module != NULL)
         return 1;
 
     if (device == -1) {
@@ -366,14 +366,14 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     if (setup_sound_device(device, module_index, callback, handle) != 0) {
         if (si != 0 && !(int8_t)TIMER.installed) {
             timer_install(0xd);
-            DG4A82.timer_taken = 1;
+            SOUND_BANK.timer_taken = 1;
         }
 
         if ((si != 0
-             && (DG4A82.tick_handle = (int16_t)timer_add_callback(sound_service, 4)) != 0)
+             && (SOUND_BANK.tick_handle = (int16_t)timer_add_callback(sound_service, 4)) != 0)
             || si == 0) {
-            if (si != 0 && DG4A82.module != NULL)
-                DG4A82.module_handle =
+            if (si != 0 && SOUND_BANK.module != NULL)
+                SOUND_BANK.module_handle =
                     (int16_t)timer_add_callback(SOUND_MODULE_TICK, 2);
 
             alloc_voice_records();
@@ -401,31 +401,31 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (DG4A82.driver == NULL
-        && DG4A82.module == NULL)
+    if (SOUND_BANK.driver == NULL
+        && SOUND_BANK.module == NULL)
         return;
 
     remove_and_free_records(0);
 
-    if (DG4A82.directory != 0)
-        free_for_kind((uint8_t far *)DG4A82.directory, 0xa);
+    if (SOUND_BANK.directory != 0)
+        free_for_kind((uint8_t far *)SOUND_BANK.directory, 0xa);
 
-    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(DG4A82.file);
+    if (SOUND_BANK.file != 0 && SOUND_BANK.file_kind != 0)
+        close_file_record(SOUND_BANK.file);
 
-    if (((int16_t)DG4A82.tick_handle) != 0) {
-        timer_drop_callback(DG4A82.tick_handle);
-        DG4A82.tick_handle = 0;
+    if (((int16_t)SOUND_BANK.tick_handle) != 0) {
+        timer_drop_callback(SOUND_BANK.tick_handle);
+        SOUND_BANK.tick_handle = 0;
     }
 
-    if (((int16_t)DG4A82.module_handle) != 0) {
-        timer_drop_callback(DG4A82.module_handle);
-        DG4A82.module_handle = 0;
+    if (((int16_t)SOUND_BANK.module_handle) != 0) {
+        timer_drop_callback(SOUND_BANK.module_handle);
+        SOUND_BANK.module_handle = 0;
     }
 
-    if (((int16_t)DG4A82.timer_taken) != 0) {
+    if (((int16_t)SOUND_BANK.timer_taken) != 0) {
         timer_remove();
-        DG4A82.timer_taken = 0;
+        SOUND_BANK.timer_taken = 0;
     }
 
     free_voice_records();
@@ -493,7 +493,7 @@ uint16_t read_record(FILE *file, uint8_t mode)
             free_for_kind((uint8_t far *)rec, 3);
             return 0;
         }
-    } else if (DG4A82.bank_choice != 0) {
+    } else if (SOUND_BANK.bank_choice != 0) {
         if ((rec->data = load_sound_bank(file, len, (uint8_t *)&out, kind))
             == NULL) {
             free_for_kind((uint8_t far *)rec, 3);
@@ -507,9 +507,9 @@ uint16_t read_record(FILE *file, uint8_t mode)
         }
     }
 
-    rec->next = DG4A82.records;
+    rec->next = SOUND_BANK.records;
     rec->size = (uint16_t)out;
-    DG4A82.records = rec;
+    SOUND_BANK.records = rec;
     return 1;
 }
 
@@ -555,7 +555,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
         far_memset(blk, 0, size);
 
     if (blk == NULL)
-        DG4A82.load_error = 1;
+        SOUND_BANK.load_error = 1;
 
     return blk;
 }

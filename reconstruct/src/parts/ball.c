@@ -46,7 +46,7 @@
  *
  * Eight points round a 32 by 32 part, written straight out.
  */
-void part_setup_0001(struct part *part)
+void part_setup_big_ball(struct part *part)
 {
     struct part_point *si = part->points;
 
@@ -118,7 +118,7 @@ void part_setup_cannon_ball(struct part *part)
  *
  * The same again, smaller still - 15 by 15.
  */
-void part_setup_00c9(struct part *part)
+void part_setup_small_ball(struct part *part)
 {
     struct part_point *si = part->points;
 

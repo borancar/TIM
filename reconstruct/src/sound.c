@@ -51,7 +51,7 @@
  */
 asm {
 extrn _sound_callback:far
-extrn _DG4A82:byte
+extrn _SOUND_BANK:byte
 nosmart
 SOUND_TEXT segment byte public 'CODE'
 assume cs:SOUND_TEXT, ds:DGROUP
@@ -541,7 +541,7 @@ _install_driver proc far
 	shr dl, 1
 	shr dl, 1
 	shr dl, 1
-	cmp word ptr DGROUP:_DG4A82+28h, 0
+	cmp word ptr DGROUP:_SOUND_BANK+28h, 0
 	je L26623
 	or dl, 1
 L26623:
@@ -3916,7 +3916,7 @@ uint16_t install_driver(const uint8_t far * drv)
     SNDS.ch = (uint8_t)(cx >> 8);
 
     dl = (uint8_t)((ax >> 8) >> 4);
-    if (((int16_t)DG4A82.module_live) != 0)
+    if (((int16_t)SOUND_BANK.module_live) != 0)
         dl |= 1;
     SNDS.ah_high = dl;
 

@@ -37,7 +37,7 @@
  * offsets sit in the code segment and are reached by a computed `jmp`, which
  * is why nothing static finds them.
  */
-void part_step_1649(struct part *part)
+void part_step_blast(struct part *part)
 {
     struct part *si;
     int16_t  v02;                       /* [bp-2] the speed */
@@ -172,7 +172,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if ((di = clone_part(part)) == NULL)
                     goto out;
 
-                insert_sorted(di, &DG521B.placed_parts);
+                insert_sorted(di, &MACHINE_PARTS.placed_parts);
                 di->flags_06 |= 0x10;
 
                 di->size[0].width = part->pos[0].x + part->size[0].width - v06;
@@ -181,17 +181,17 @@ void split_part_at(struct part *part, struct part *blast)
 
                 part->size[0].width = v04 - part->pos[0].x;
 
-                part_setup_48ab(di);
+                part_setup_platform(di);
             } else if (part->pos[0].x + part->size[0].width > v04) {
                 part->size[0].width = v04 - part->pos[0].x;
             }
 
-            part_setup_48ab(part);
+            part_setup_platform(part);
         } else if (part->pos[0].x + part->size[0].width > v06) {
             if (part->pos[0].x < v06) {
                 part->size[0].width = part->pos[0].x + part->size[0].width - v06;
                 part->box[0].x = part->pos[0].x = v06;
-                part_setup_48ab(part);
+                part_setup_platform(part);
             }
         } else if (part->pos[0].x < v06
                    && part->pos[0].x + part->size[0].width > v04) {
@@ -206,7 +206,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if ((di = clone_part(part)) == NULL)
                     goto out;
 
-                insert_sorted(di, &DG521B.placed_parts);
+                insert_sorted(di, &MACHINE_PARTS.placed_parts);
                 di->flags_06 |= 0x10;
 
                 di->size[0].height = part->pos[0].y + part->size[0].height - v0c;
@@ -215,17 +215,17 @@ void split_part_at(struct part *part, struct part *blast)
 
                 part->size[0].height = v0a - part->pos[0].y;
 
-                part_setup_48ab(di);
+                part_setup_platform(di);
             } else if (part->pos[0].y + part->size[0].height > v0a) {
                 part->size[0].height = v0a - part->pos[0].y;
             }
 
-            part_setup_48ab(part);
+            part_setup_platform(part);
         } else if (part->pos[0].y + part->size[0].height > v0c) {
             if (part->pos[0].y < v0c) {
                 part->size[0].height = part->pos[0].y + part->size[0].height - v0c;
                 part->box[0].y = part->pos[0].y = v0c;
-                part_setup_48ab(part);
+                part_setup_platform(part);
             }
         } else if (part->pos[0].y < v0c
                    && part->pos[0].y + part->size[0].height > v0a) {

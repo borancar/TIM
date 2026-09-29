@@ -40,13 +40,13 @@
  * at every use rather than keeping it in a register, and a call in between
  * can change it, so this is a macro and not a local.
  */
-#define CARRIED DG50D3.dragged_part
+#define CARRIED HELD_PARTS.dragged_part
 
 /*
  * **The game screen's own words and the goal tests**, DGROUP 0x2630..0x27ee -
  * the first of this module's data.
  */
-struct dg_2630 DG2630 = {
+struct goal_tests GOAL_TESTS = {
     0, 0, 0,
     {
         goal_test_puzzle_1,
@@ -312,7 +312,7 @@ void game_screen_loop(void)
     si = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (DG4E67.state != 0x2000 && DG4E67.state != 2) {
+    while (GAME_STATE.state != 0x2000 && GAME_STATE.state != 2) {
         DG52BD.drop_cursor = DG52BD.band_colour = 0xffff;
 
         DG52ED.last_key = bios_read_key() >> 8;
@@ -321,55 +321,55 @@ void game_screen_loop(void)
         scroll_play_area();
         step_counters();
 
-        if (DG4E67.freeform != 0)
+        if (GAME_STATE.freeform != 0)
             select_music_by_key();
 
-        regions_handle_pointer(DG4E67.regions_play);
+        regions_handle_pointer(GAME_STATE.regions_play);
 
-        if (DG4E67.state == 0x800)
+        if (GAME_STATE.state == 0x800)
             bin_scroll_back();
-        else if (DG4E67.state == 0x400)
+        else if (GAME_STATE.state == 0x400)
             bin_scroll_forward();
 
         if (point_in_play_area() != 0) {
             pointer_frame();
             si = 0;
         } else {
-            if (DG50D3.dragged_part != 0 && si == 0) {
-                mark_joined_shapes(DG50D3.dragged_part, 3);
-                mark_part_shapes(DG50D3.dragged_part, 3);
+            if (HELD_PARTS.dragged_part != 0 && si == 0) {
+                mark_joined_shapes(HELD_PARTS.dragged_part, 3);
+                mark_part_shapes(HELD_PARTS.dragged_part, 3);
             }
             edge_scroll_flags();
             si = 1;
         }
 
-        if (DG4E67.redraw_e != 0) { draw_machine_layer_a(); DG4E67.redraw_e--; }
-        if (DG4E67.redraw_d != 0) { draw_machine_layer_b(); DG4E67.redraw_d--; }
-        if (DG4E67.redraw_c != 0) { draw_machine_layer_c(); DG4E67.redraw_c--; }
-        if (DG4E67.redraw_b != 0) { draw_machine_layer_d(); DG4E67.redraw_b--; }
-        if (DG4E67.redraw_a != 0) { draw_machine_layer_e(); DG4E67.redraw_a--; }
+        if (GAME_STATE.redraw_e != 0) { draw_machine_layer_a(); GAME_STATE.redraw_e--; }
+        if (GAME_STATE.redraw_d != 0) { draw_machine_layer_b(); GAME_STATE.redraw_d--; }
+        if (GAME_STATE.redraw_c != 0) { draw_machine_layer_c(); GAME_STATE.redraw_c--; }
+        if (GAME_STATE.redraw_b != 0) { draw_machine_layer_d(); GAME_STATE.redraw_b--; }
+        if (GAME_STATE.redraw_a != 0) { draw_machine_layer_e(); GAME_STATE.redraw_a--; }
 
         mark_parts_in_dirty_rects();
         replay_shapes();
         step_and_draw_machine(0);
 
-        if (DG50D3.dragged_part != 0 && DG52BD.drop_cursor != -1)
-            draw_part_selection(DG50D3.dragged_part, DG52BD.drop_cursor, 1);
+        if (HELD_PARTS.dragged_part != 0 && DG52BD.drop_cursor != -1)
+            draw_part_selection(HELD_PARTS.dragged_part, DG52BD.drop_cursor, 1);
 
         if (DG52BD.band_colour != -1) {
             cursor_redraw_off_thunk();
             VMDS.second_colour = (uint8_t)DG52BD.band_colour;
-            clip_and_draw_line(DG52BD.anchor_x - DG4E67.origin_x,
-                               DG52BD.anchor_y - DG4E67.origin_y,
-                               DG52BD.band_x - DG4E67.origin_x,
-                               DG52BD.band_y - DG4E67.origin_y);
+            clip_and_draw_line(DG52BD.anchor_x - GAME_STATE.origin_x,
+                               DG52BD.anchor_y - GAME_STATE.origin_y,
+                               DG52BD.band_x - GAME_STATE.origin_x,
+                               DG52BD.band_y - GAME_STATE.origin_y);
             restore_cursor_following();
             alloc_shape((const uint8_t *)&DG52BD.anchor_x,
                         (const uint8_t *)&DG52BD.band_x,
                         4, 2, 0);
         }
 
-        if (DG4E67.redraw_carried != 0) { draw_carried_icon(); DG4E67.redraw_carried--; }
+        if (GAME_STATE.redraw_carried != 0) { draw_carried_icon(); GAME_STATE.redraw_carried--; }
 
         seg172c_nothing();
 
@@ -380,17 +380,17 @@ void game_screen_loop(void)
         present_frame(1);
         shift_all_histories();
 
-        if (DG5768.button_right == 2)
-            DG4E67.state = 2;
+        if (POINTER.button_right == 2)
+            GAME_STATE.state = 2;
     }
 
-    if (DG50D3.dragged_part != 0
-        && (DG50D3.dragged_part->flags_06 & 0x800) != 0) {
-        if (DG50D3.dragged_part->kind == KIND_BELT
-            && DG50D3.dragged_part->rope->end_a != 0)
+    if (HELD_PARTS.dragged_part != 0
+        && (HELD_PARTS.dragged_part->flags_06 & 0x800) != 0) {
+        if (HELD_PARTS.dragged_part->kind == KIND_BELT
+            && HELD_PARTS.dragged_part->rope->end_a != 0)
             discard_carried_part();
-        else if (DG50D3.dragged_part->kind == KIND_ROPE
-                 && DG50D3.dragged_part->belt[0]->end_a != 0)
+        else if (HELD_PARTS.dragged_part->kind == KIND_ROPE
+                 && HELD_PARTS.dragged_part->belt[0]->end_a != 0)
             discard_carried_part();
         else
             finish_part_removal();
@@ -446,8 +446,8 @@ void select_music_by_key(void)
     }
 
     if (si != -1) {
-        DG50AF.tune = si;
-        select_music(DG50AF.tune);
+        LEVEL_SETTINGS.tune = si;
+        select_music(LEVEL_SETTINGS.tune);
     }
 }
 
@@ -464,10 +464,10 @@ void select_music_by_key(void)
  */
 void reset_level_state(void)
 {
-    DG4E67.redraw_e = DG4E67.redraw_d = DG4E67.redraw_c = DG4E67.redraw_b
-        = DG4E67.redraw_a = DG4E67.redraw_carried = DG4E67.loop_frames
-        = DG4E67.tool = 0;
-    DG50D3.dragged_part = 0;
+    GAME_STATE.redraw_e = GAME_STATE.redraw_d = GAME_STATE.redraw_c = GAME_STATE.redraw_b
+        = GAME_STATE.redraw_a = GAME_STATE.redraw_carried = GAME_STATE.loop_frames
+        = GAME_STATE.tool = 0;
+    HELD_PARTS.dragged_part = 0;
 
     clear_layer_heads();
     reset_machine();
@@ -502,43 +502,43 @@ void pointer_frame(void)
 {
     int16_t si;
 
-    if (DG4E67.tool == 9 || (DG4E67.tool & 0x8000) != 0)
+    if (GAME_STATE.tool == 9 || (GAME_STATE.tool & 0x8000) != 0)
         si = 1;
     else
         si = 0;
 
     if (si == 0) {
-        DG50D3.dragged_part = (find_part_from(DG50D3.dragged_part));
-        if (DG50D3.dragged_part != 0
-            && (DG50D3.dragged_part->flags_06 & 0x8000) != 0)
-            DG50D3.dragged_part = 0;
+        HELD_PARTS.dragged_part = (find_part_from(HELD_PARTS.dragged_part));
+        if (HELD_PARTS.dragged_part != 0
+            && (HELD_PARTS.dragged_part->flags_06 & 0x8000) != 0)
+            HELD_PARTS.dragged_part = 0;
     }
 
-    if (DG50D3.dragged_part != 0) {
-        if (DG4E67.tool != 9)
+    if (HELD_PARTS.dragged_part != 0) {
+        if (GAME_STATE.tool != 9)
             DG52BD.drop_cursor = 0x0a;
 
         if (si == 0)
-            DG4E67.tool = part_handle_at_pointer(DG50D3.dragged_part);
+            GAME_STATE.tool = part_handle_at_pointer(HELD_PARTS.dragged_part);
 
-        switch (DG4E67.tool & 0x7fff) {
+        switch (GAME_STATE.tool & 0x7fff) {
         case 9:
             move_carried();
             break;
         case 7:
-            if (DG5768.button_left == 2)
+            if (POINTER.button_left == 2)
                 pick_up_part();
             break;
         case 8:
-            if (DG5768.button_left == 2)
+            if (POINTER.button_left == 2)
                 discard_carried_part();
             break;
         case 1:
-            if (DG5768.button_left == 2)
+            if (POINTER.button_left == 2)
                 flip_carried_end_1();
             break;
         case 2:
-            if (DG5768.button_left == 2)
+            if (POINTER.button_left == 2)
                 flip_carried_end_2();
             break;
         case 3:
@@ -548,12 +548,12 @@ void pointer_frame(void)
             run_drag_frame();
             break;
         case 10:
-            if (DG5768.button_left == 2)
-                DG50D3.dragged_part = 0;
+            if (POINTER.button_left == 2)
+                HELD_PARTS.dragged_part = 0;
             break;
         }
     } else {
-        DG4E67.tool = 0;
+        GAME_STATE.tool = 0;
     }
 }
 
@@ -579,19 +579,19 @@ void edge_scroll_flags(void)
 {
     uint16_t kind;                      /* dx */
 
-    if (DG4E67.tool == 9 && DG50D3.dragged_part != 0) {
-        kind = DG50D3.dragged_part->kind;
+    if (GAME_STATE.tool == 9 && HELD_PARTS.dragged_part != 0) {
+        kind = HELD_PARTS.dragged_part->kind;
         if (kind != 8 && kind != 0x0a) {
-            DG4E67.redraw_carried = 1;
+            GAME_STATE.redraw_carried = 1;
 
-            if (DG5768.pointer_y < 8)
-                DG4E67.redraw_d = 3;
-            if (DG5768.pointer_y > 0x12f)
-                DG4E67.redraw_c = 3;
-            if (DG5768.pointer_x < 8)
-                DG4E67.redraw_b = 3;
-            if (DG5768.pointer_x > 0x1ff)
-                DG4E67.redraw_a = DG4E67.redraw_e = 3;
+            if (POINTER.pointer_y < 8)
+                GAME_STATE.redraw_d = 3;
+            if (POINTER.pointer_y > 0x12f)
+                GAME_STATE.redraw_c = 3;
+            if (POINTER.pointer_x < 8)
+                GAME_STATE.redraw_b = 3;
+            if (POINTER.pointer_x > 0x1ff)
+                GAME_STATE.redraw_a = GAME_STATE.redraw_e = 3;
         }
     }
 }
@@ -630,28 +630,28 @@ void scroll_play_area(void)
     int16_t  y;                         /* [bp-2] */
     int16_t  moved;                     /* [bp-4] */
 
-    DG4E67.origin_c_x = DG4E67.origin_b_x;
-    DG4E67.origin_c_y = DG4E67.origin_b_y;
-    DG4E67.origin_b_x = DG4E67.origin_x;
-    DG4E67.origin_b_y = DG4E67.origin_y;
+    GAME_STATE.origin_c_x = GAME_STATE.origin_b_x;
+    GAME_STATE.origin_c_y = GAME_STATE.origin_b_y;
+    GAME_STATE.origin_b_x = GAME_STATE.origin_x;
+    GAME_STATE.origin_b_y = GAME_STATE.origin_y;
 
-    x = DG4E67.origin_x;
-    y = DG4E67.origin_y;
+    x = GAME_STATE.origin_x;
+    y = GAME_STATE.origin_y;
     moved = 0;
 
-    if (DG5768.pointer_x <= 0 && DG4E67.origin_x != -8) {
+    if (POINTER.pointer_x <= 0 && GAME_STATE.origin_x != -8) {
         moved = 1;
         x -= 0x10;
     }
-    if (DG5768.pointer_x >= 0x27f && DG4E67.origin_x != DG50AF.extent_y) {
+    if (POINTER.pointer_x >= 0x27f && GAME_STATE.origin_x != LEVEL_SETTINGS.extent_y) {
         moved = 1;
         x += 0x10;
     }
-    if (DG5768.pointer_y <= 0 && DG4E67.origin_y != -8) {
+    if (POINTER.pointer_y <= 0 && GAME_STATE.origin_y != -8) {
         moved = 1;
         y -= 0x10;
     }
-    if (DG5768.pointer_y >= 0x16f && DG4E67.origin_y != DG50AF.extent_x) {
+    if (POINTER.pointer_y >= 0x16f && GAME_STATE.origin_y != LEVEL_SETTINGS.extent_x) {
         moved = 1;
         y += 0x10;
     }
@@ -666,8 +666,8 @@ void scroll_play_area(void)
             si = pick_for_record(si, 0x1000);
         }
 
-        DG4E67.origin_x = x;
-        DG4E67.origin_y = y;
+        GAME_STATE.origin_x = x;
+        GAME_STATE.origin_y = y;
     }
 }
 
@@ -683,12 +683,12 @@ void scroll_play_area(void)
  */
 void move_carried(void)
 {
-    DG50D3.dragged_part->pos[0].x
-        = DG50D3.dragged_part->pos[0].y = -1;
+    HELD_PARTS.dragged_part->pos[0].x
+        = HELD_PARTS.dragged_part->pos[0].y = -1;
 
-    if (DG50D3.dragged_part->kind == KIND_BELT)
+    if (HELD_PARTS.dragged_part->kind == KIND_BELT)
         move_carried_rope();
-    else if (DG50D3.dragged_part->kind == KIND_ROPE)
+    else if (HELD_PARTS.dragged_part->kind == KIND_ROPE)
         move_carried_belt();
     else
         move_carried_part();
@@ -722,11 +722,11 @@ void move_carried_rope(void)
     int16_t close;                      /* [bp-2] */
     struct rope *link;                  /* [bp-4] */
 
-    link = DG50D3.dragged_part->rope;
+    link = HELD_PARTS.dragged_part->rope;
     di = link->end_a;
     close = rope_ends_close(link);
 
-    if (DG5768.button_left == 2) {
+    if (POINTER.button_left == 2) {
         if (close == 0) {
             if (di != NULL)
                 discard_carried_part();
@@ -740,10 +740,10 @@ void move_carried_rope(void)
                 si->rope = link;
 
                 compute_link_endpoints(link);
-                mark_needs_refile(DG50D3.dragged_part, 2);
-                refile_part_list(DG50D3.dragged_part);
-                DG4E67.tool = 0;
-                DG50D3.dragged_part = 0;
+                mark_needs_refile(HELD_PARTS.dragged_part, 2);
+                refile_part_list(HELD_PARTS.dragged_part);
+                GAME_STATE.tool = 0;
+                HELD_PARTS.dragged_part = 0;
             } else {
                 si->flags_08 |= 2;
                 si->start_flags = si->flags_08;
@@ -754,8 +754,8 @@ void move_carried_rope(void)
     } else if (di != NULL) {
         DG52BD.anchor_x = di->pos[0].x + di->grab.x;
         DG52BD.anchor_y = di->pos[0].y + di->grab.y;
-        DG52BD.band_x = DG5768.pointer_x + DG4E67.origin_x;
-        DG52BD.band_y = DG5768.pointer_y + DG4E67.origin_y;
+        DG52BD.band_x = POINTER.pointer_x + GAME_STATE.origin_x;
+        DG52BD.band_y = POINTER.pointer_y + GAME_STATE.origin_y;
 
         if (close != 0)
             DG52BD.band_colour = 0x0a;
@@ -801,19 +801,19 @@ void move_carried_belt(void)
     int16_t end;                        /* [bp-2] */
     struct part *far_;                  /* [bp-4] */
 
-    si = DG50D3.dragged_part->belt[0];
+    si = HELD_PARTS.dragged_part->belt[0];
     far_ = si->end_a;
 
-    di = find_belt_anchor(&end, DG2630.belt_anchor);
+    di = find_belt_anchor(&end, GOAL_TESTS.belt_anchor);
 
     if (di == DG5456.belt_far_end && far_ != NULL)
         di = NULL;
     else if (di == far_ && far_ != NULL)
         di = NULL;
 
-    DG2630.belt_anchor = di;
+    GOAL_TESTS.belt_anchor = di;
 
-    if (DG5768.button_left == 2) {
+    if (POINTER.button_left == 2) {
         if (di == NULL) {
             if (far_ != NULL)
                 discard_carried_part();
@@ -830,7 +830,7 @@ void move_carried_belt(void)
             }
 
             refresh_link_geometry(si);
-            mark_needs_refile(DG50D3.dragged_part, 2);
+            mark_needs_refile(HELD_PARTS.dragged_part, 2);
 
             if (di->kind == KIND_PULLEY) {
                 di->link[3] = di->link[1] = DG5456.belt_far_end;
@@ -845,9 +845,9 @@ void move_carried_belt(void)
                 si->home_slot_b = si->slot_b = end;
                 if (DG5456.belt_far_end->kind == KIND_PULLEY)
                     aim_link_at_bisector(DG5456.belt_far_end);
-                refile_part_list(DG50D3.dragged_part);
-                DG4E67.tool = 0;
-                DG50D3.dragged_part = 0;
+                refile_part_list(HELD_PARTS.dragged_part);
+                GAME_STATE.tool = 0;
+                HELD_PARTS.dragged_part = 0;
             }
         } else if (di->kind != KIND_PULLEY) {
             di->belt[end] = si;
@@ -870,8 +870,8 @@ void move_carried_belt(void)
                         + DG5456.belt_far_end->attach[end].x;
         DG52BD.anchor_y = DG5456.belt_far_end->pos[0].y
                         + DG5456.belt_far_end->attach[end].y;
-        DG52BD.band_x = DG5768.pointer_x + DG4E67.origin_x;
-        DG52BD.band_y = DG5768.pointer_y + DG4E67.origin_y;
+        DG52BD.band_x = POINTER.pointer_x + GAME_STATE.origin_x;
+        DG52BD.band_y = POINTER.pointer_y + GAME_STATE.origin_y;
 
         if (di != NULL)
             DG52BD.band_colour = 0x0a;
@@ -922,24 +922,24 @@ void move_carried_part(void)
     part_key_shortcut();
 
     if (CARRIED->flags_0a & 8) {
-        CARRIED->pos[0].x = DG5768.pointer_x - DG4E67.drag_offset_x + DG4E67.origin_x;
-        if (CARRIED->pos[0].x + CARRIED->size[0].width <= DG4E67.origin_x + 0x0c)
-            CARRIED->pos[0].x = DG4E67.origin_x - CARRIED->size[0].width + 0x0c;
-        if (CARRIED->pos[0].x >= DG4E67.origin_x + 0x235)
-            CARRIED->pos[0].x = DG4E67.origin_x + 0x235;
+        CARRIED->pos[0].x = POINTER.pointer_x - GAME_STATE.drag_offset_x + GAME_STATE.origin_x;
+        if (CARRIED->pos[0].x + CARRIED->size[0].width <= GAME_STATE.origin_x + 0x0c)
+            CARRIED->pos[0].x = GAME_STATE.origin_x - CARRIED->size[0].width + 0x0c;
+        if (CARRIED->pos[0].x >= GAME_STATE.origin_x + 0x235)
+            CARRIED->pos[0].x = GAME_STATE.origin_x + 0x235;
 
-        CARRIED->pos[0].y = DG5768.pointer_y - DG4E67.drag_offset_y + DG4E67.origin_y;
-        if (CARRIED->pos[0].y + CARRIED->size[0].height <= DG4E67.origin_y + 0x0c)
-            CARRIED->pos[0].y = DG4E67.origin_y - CARRIED->size[0].height + 0x0c;
-        if (CARRIED->pos[0].y >= DG4E67.origin_y + 0x165)
-            CARRIED->pos[0].y = DG4E67.origin_y + 0x165;
+        CARRIED->pos[0].y = POINTER.pointer_y - GAME_STATE.drag_offset_y + GAME_STATE.origin_y;
+        if (CARRIED->pos[0].y + CARRIED->size[0].height <= GAME_STATE.origin_y + 0x0c)
+            CARRIED->pos[0].y = GAME_STATE.origin_y - CARRIED->size[0].height + 0x0c;
+        if (CARRIED->pos[0].y >= GAME_STATE.origin_y + 0x165)
+            CARRIED->pos[0].y = GAME_STATE.origin_y + 0x165;
     } else {
-        CARRIED->pos[0].x = ((DG5768.pointer_x - DG4E67.drag_offset_x) & 0xfff0) + DG4E67.origin_x;
-        if (CARRIED->pos[0].x + CARRIED->size[0].width <= DG4E67.origin_x)
+        CARRIED->pos[0].x = ((POINTER.pointer_x - GAME_STATE.drag_offset_x) & 0xfff0) + GAME_STATE.origin_x;
+        if (CARRIED->pos[0].x + CARRIED->size[0].width <= GAME_STATE.origin_x)
             CARRIED->pos[0].x += 0x10;
 
-        CARRIED->pos[0].y = ((DG5768.pointer_y - DG4E67.drag_offset_y) & 0xfff0) + DG4E67.origin_y;
-        if (CARRIED->pos[0].y + CARRIED->size[0].height <= DG4E67.origin_y)
+        CARRIED->pos[0].y = ((POINTER.pointer_y - GAME_STATE.drag_offset_y) & 0xfff0) + GAME_STATE.origin_y;
+        if (CARRIED->pos[0].y + CARRIED->size[0].height <= GAME_STATE.origin_y)
             CARRIED->pos[0].y += 0x10;
     }
 
@@ -958,26 +958,26 @@ void move_carried_part(void)
 
     if (object_overlaps_any(CARRIED) != 0) {
         DG52BD.drop_cursor = 0x0e;
-    } else if (DG5768.button_left == 2) {
+    } else if (POINTER.button_left == 2) {
         mark_joined_shapes(CARRIED, 3);
 
         if (di != 0) {
             untie_rope(si->owner);
             discard_part(si->owner);
-            DG4E67.redraw_e = 2;
+            GAME_STATE.redraw_e = 2;
         }
 
         mark_needs_refile(CARRIED, 2);
         CARRIED->start_x = CARRIED->pos[0].x;
         CARRIED->start_y = CARRIED->pos[0].y;
         refile_part_list(CARRIED);
-        DG4E67.tool = 0;
-        DG50D3.dragged_part = 0;
+        GAME_STATE.tool = 0;
+        HELD_PARTS.dragged_part = 0;
     } else {
         DG52BD.drop_cursor = 0x0c;
     }
 
-    if (DG5768.button_left != 2)
+    if (POINTER.button_left != 2)
         part_moved(CARRIED);
 }
 
@@ -1102,8 +1102,8 @@ void pick_up_part(void)
     struct rope *di;
     struct belt *rec;                   /* [bp-2] */
 
-    DG4E67.drag_offset_x = DG5768.pointer_x - CARRIED->pos[0].x + DG4E67.origin_x;
-    DG4E67.drag_offset_y = DG5768.pointer_y - CARRIED->pos[0].y + DG4E67.origin_y;
+    GAME_STATE.drag_offset_x = POINTER.pointer_x - CARRIED->pos[0].x + GAME_STATE.origin_x;
+    GAME_STATE.drag_offset_y = POINTER.pointer_y - CARRIED->pos[0].y + GAME_STATE.origin_y;
 
     if ((di = CARRIED->rope) != NULL)
         si = di->end_a;
@@ -1132,7 +1132,7 @@ void pick_up_part(void)
         si->rope = di;
     }
 
-    DG4E67.tool = 9;
+    GAME_STATE.tool = 9;
 }
 
 /*
@@ -1173,8 +1173,8 @@ void discard_carried_part(void)
         finish_part_removal();
     }
 
-    DG4E67.redraw_e = 2;
-    DG4E67.tool = 0;
+    GAME_STATE.redraw_e = 2;
+    GAME_STATE.tool = 0;
 }
 
 /*
@@ -1236,10 +1236,10 @@ void run_drag_frame(void)
 {
     int16_t si;
 
-    if (DG4E67.tool & 0x8000) {
+    if (GAME_STATE.tool & 0x8000) {
         si = 0;
 
-        switch (DG4E67.tool) {
+        switch (GAME_STATE.tool) {
         case 0x8003: si = drag_carried_part_first();   break;
         case 0x8004: si = settle_carried_part_first(); break;
         case 0x8005: si = drag_carried_part_pair();    break;
@@ -1256,12 +1256,12 @@ void run_drag_frame(void)
             mark_needs_refile(CARRIED, 2);
         }
 
-        if (DG5768.button_left == 2) {
-            DG4E67.tool = 0;
-            DG50D3.dragged_part = 0;
+        if (POINTER.button_left == 2) {
+            GAME_STATE.tool = 0;
+            HELD_PARTS.dragged_part = 0;
         }
-    } else if (DG5768.button_left == 2) {
-        DG4E67.tool |= 0x8000;
+    } else if (POINTER.button_left == 2) {
+        GAME_STATE.tool |= 0x8000;
     }
 }
 
@@ -1289,7 +1289,7 @@ int16_t drag_carried_part_first(void)
 
     moved = 0;
     was = CARRIED->pos[0].x;
-    si = (DG5768.pointer_x & 0xfff0) + DG4E67.origin_x;
+    si = (POINTER.pointer_x & 0xfff0) + GAME_STATE.origin_x;
     lo = PART_KINDS[CARRIED->kind].min_w;
     hi = PART_KINDS[CARRIED->kind].max_w;
     di = was - si + CARRIED->set_size.width;
@@ -1343,7 +1343,7 @@ int16_t settle_carried_part_first(void)
 
     moved = 0;
     di = CARRIED->set_size.width;
-    si = (DG5768.pointer_x & 0xfff0) + DG4E67.origin_x + 0x10 - CARRIED->pos[0].x;
+    si = (POINTER.pointer_x & 0xfff0) + GAME_STATE.origin_x + 0x10 - CARRIED->pos[0].x;
     lo = PART_KINDS[CARRIED->kind].min_w;
     hi = PART_KINDS[CARRIED->kind].max_w;
 
@@ -1398,7 +1398,7 @@ int16_t drag_carried_part_pair(void)
 
     moved = 0;
     was = CARRIED->pos[0].y;
-    si = (DG5768.pointer_y & 0xfff0) + DG4E67.origin_y;
+    si = (POINTER.pointer_y & 0xfff0) + GAME_STATE.origin_y;
     lo = PART_KINDS[CARRIED->kind].min_h;
     hi = PART_KINDS[CARRIED->kind].max_h;
     di = was - si + CARRIED->set_size.height;
@@ -1469,7 +1469,7 @@ int16_t settle_carried_part(void)
     di = CARRIED->set_size.height;
     /* **origin_x, not origin_y**, at 0x10c08: the original adds the
        horizontal scroll to the pointer's y here. */
-    si = (DG5768.pointer_y & 0xfff0) + DG4E67.origin_x + 0x10 - CARRIED->pos[0].y;
+    si = (POINTER.pointer_y & 0xfff0) + GAME_STATE.origin_x + 0x10 - CARRIED->pos[0].y;
     lo = PART_KINDS[CARRIED->kind].min_h;
     hi = PART_KINDS[CARRIED->kind].max_h;
 
@@ -1516,32 +1516,32 @@ void bin_scroll_back(void)
 {
     struct part *si;
 
-    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.back_held = 0;
-        DG4E67.state = 0x1000;
+    if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+        GOAL_TESTS.back_held = 0;
+        GAME_STATE.state = 0x1000;
     } else {
 #ifdef __TURBOC__
-        if (DG2630.back_held % 3 == 0) {
+        if (GOAL_TESTS.back_held % 3 == 0) {
 #else
-        if (bin_repeat_due(DG2630.back_held)) {         /* deviation: see above */
+        if (bin_repeat_due(GOAL_TESTS.back_held)) {         /* deviation: see above */
 #endif
             si = bin_part_at_index(-5);
-            if (si != DG50D3.bin_list) {
-                DG50D3.bin_list = si;
-                DG4E67.redraw_e = 2;
+            if (si != HELD_PARTS.bin_list) {
+                HELD_PARTS.bin_list = si;
+                GAME_STATE.redraw_e = 2;
             } else {
                 si = bin_scroll_end();
-                if (si != DG50D3.bin_list) {
-                    DG50D3.bin_list = si;
-                    DG4E67.redraw_e = 2;
+                if (si != HELD_PARTS.bin_list) {
+                    HELD_PARTS.bin_list = si;
+                    GAME_STATE.redraw_e = 2;
                 }
             }
         }
 
-        DG2630.back_held++;
+        GOAL_TESTS.back_held++;
     }
 
-    DG4E67.redraw_a = 2;
+    GAME_STATE.redraw_a = 2;
 }
 
 /*
@@ -1561,26 +1561,26 @@ void bin_scroll_forward(void)
 {
     struct part *p;                         /* [bp-2] */
 
-    if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DG2630.forward_held = 0;
-        DG4E67.state = 0x1000;
+    if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+        GOAL_TESTS.forward_held = 0;
+        GAME_STATE.state = 0x1000;
     } else {
 #ifdef __TURBOC__
-        if (DG2630.forward_held % 3 == 0) {
+        if (GOAL_TESTS.forward_held % 3 == 0) {
 #else
-        if (bin_repeat_due(DG2630.forward_held)) {      /* deviation: see above */
+        if (bin_repeat_due(GOAL_TESTS.forward_held)) {      /* deviation: see above */
 #endif
             if ((p = bin_part_at_index(5)) != 0)
-                DG50D3.bin_list = p;
+                HELD_PARTS.bin_list = p;
             else
-                DG50D3.bin_list = (&DG50D3.parts_bin);
-            DG4E67.redraw_e = 2;
+                HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
+            GAME_STATE.redraw_e = 2;
         }
 
-        DG2630.forward_held++;
+        GOAL_TESTS.forward_held++;
     }
 
-    DG4E67.redraw_a = 2;
+    GAME_STATE.redraw_a = 2;
 }
 
 /*
@@ -1605,7 +1605,7 @@ void bin_scroll_forward(void)
  */
 void region_cursor_bin_above(struct region *region)
 {
-    if (DG4E67.tool == 9) {
+    if (GAME_STATE.tool == 9) {
         region_cursor_bin(region);
         region->code = 0x1000;
     } else {
@@ -1635,7 +1635,7 @@ void region_cursor_bin(struct region *region)
 {
     uint16_t di;                        /* the carried part's kind */
 
-    if (DG4E67.tool == 9) {
+    if (GAME_STATE.tool == 9) {
         di = CARRIED->kind;
         if (di == 8)
             region->cursor = 8;
@@ -1686,38 +1686,38 @@ void region_click_bin(struct region *region)
     struct part *si;                    /* the clone */
     struct part *saved;                    /* [bp-2] */
 
-    if (DG4E67.tool == 9) {
+    if (GAME_STATE.tool == 9) {
         if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
-            DG4E67.redraw_e = 2;
+            GAME_STATE.redraw_e = 2;
 
         discard_carried_part();
-        DG4E67.tool = 0;
+        GAME_STATE.tool = 0;
     } else {
-        DG4E67.drag_offset_x = DG4E67.drag_offset_y = 0;
+        GAME_STATE.drag_offset_x = GAME_STATE.drag_offset_y = 0;
 
-        if ((DG50D3.dragged_part
+        if ((HELD_PARTS.dragged_part
                  = (bin_part_at_index(region->slot))->next) != 0) {
-            if (DG4E67.freeform != 0) {
+            if (GAME_STATE.freeform != 0) {
                 si = clone_part(CARRIED);
-                saved = DG50D3.dragged_part;
-                DG50D3.dragged_part = 0;
+                saved = HELD_PARTS.dragged_part;
+                HELD_PARTS.dragged_part = 0;
 
                 if (check_room_for_part() != 0) {
-                    DG50D3.dragged_part = saved;
+                    HELD_PARTS.dragged_part = saved;
                     if ((si->next = CARRIED->next) != 0)
                         si->next->prev = si;
-                    si->prev = DG50D3.dragged_part;
+                    si->prev = HELD_PARTS.dragged_part;
                     CARRIED->next = si;
-                    DG50D3.dragged_part = si;
+                    HELD_PARTS.dragged_part = si;
                 } else {
                     free_part(si);
                 }
             }
 
-            if (DG50D3.dragged_part != 0) {
-                DG4E67.tool = 9;
+            if (HELD_PARTS.dragged_part != 0) {
+                GAME_STATE.tool = 9;
                 if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
-                    DG4E67.redraw_e = 2;
+                    GAME_STATE.redraw_e = 2;
             }
         }
     }
@@ -1812,32 +1812,32 @@ void game_screen(void)
         if (DG52ED.last_key == SC_TAB)
             tab_move_pointer();
 
-        regions_handle_pointer(DG4E67.regions_panel);
+        regions_handle_pointer(GAME_STATE.regions_panel);
 
         if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
-            show_message_box(DG1BCC.version_number, DG1BCC.this_is_version);
+            show_message_box(MESSAGES.version_number, MESSAGES.this_is_version);
             repaint_all = 1;
-            DG4E67.state = 2;
+            GAME_STATE.state = 2;
         }
 
         /* Signed: the table at 0x114af sorts 0x8000 first. */
-        switch ((int16_t)DG4E67.state) {
+        switch ((int16_t)GAME_STATE.state) {
         case (int16_t)0x8000:
             paint_panel_a(1);
             present_back_page();
-            DG4E67.state = 0x1000;
+            GAME_STATE.state = 0x1000;
             done = 1;
             break;
 
         case 0x4000:                    /* the master level's up arrow */
-            if (DG5768.button_left != 1 && DG5768.button_left != 2) {
+            if (POINTER.button_left != 1 && POINTER.button_left != 2) {
                 held = 0;
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
             } else {
-                if (held % 8 == 0 && DG4E67.master_level != 6) {
-                    DG4E67.master_level++;
+                if (held % 8 == 0 && GAME_STATE.master_level != 6) {
+                    GAME_STATE.master_level++;
                     write_config();
-                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
+                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[GAME_STATE.master_level]);
                 }
                 held++;
             }
@@ -1845,14 +1845,14 @@ void game_screen(void)
             break;
 
         case 0x2000:                    /* and its down arrow */
-            if (DG5768.button_left != 1 && DG5768.button_left != 2) {
+            if (POINTER.button_left != 1 && POINTER.button_left != 2) {
                 held = 0;
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
             } else {
-                if (held % 8 == 0 && DG4E67.master_level != 0) {
-                    DG4E67.master_level--;
+                if (held % 8 == 0 && GAME_STATE.master_level != 0) {
+                    GAME_STATE.master_level--;
                     write_config();
-                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
+                    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[GAME_STATE.master_level]);
                 }
                 held++;
             }
@@ -1862,11 +1862,11 @@ void game_screen(void)
         case 0x1000:                    /* QUIT */
             paint_panel_b(1);
             present_back_page();
-            if (ask_yes_no(DG1BCC.quit_game, DG1BCC.quit_body)) {
-                DG4E67.state = 1;
+            if (ask_yes_no(MESSAGES.quit_game, MESSAGES.quit_body)) {
+                GAME_STATE.state = 1;
                 done = 1;
             } else {
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
                 repaint_all = 1;
             }
             break;
@@ -1874,98 +1874,98 @@ void game_screen(void)
         case 0x0800:                    /* RESTART */
             paint_panel_c(1);
             present_back_page();
-            if (ask_yes_no(DG1BCC.restart_level, DG1BCC.restart_body)) {
+            if (ask_yes_no(MESSAGES.restart_level, MESSAGES.restart_body)) {
                 remove_all_parts();
-                DG4E67.state = 0x1000;
+                GAME_STATE.state = 0x1000;
                 done = 1;
             } else {
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
                 repaint_all = 1;
             }
             break;
 
         case 0x0400:                    /* FREEFORM */
-            if (DG4E67.freeform == 0) {
+            if (GAME_STATE.freeform == 0) {
                 paint_panel_level(1);
                 present_back_page();
-                if (ask_yes_no(DG1BCC.freeform_mode, DG1BCC.freeform_body)) {
+                if (ask_yes_no(MESSAGES.freeform_mode, MESSAGES.freeform_body)) {
                     round_teardown();
                     load_animation(WRITABLE_LITERAL("ff.lev"));
                     reset_machine();
-                    DG4E67.freeform = 1;
-                    DG4E67.counter = 0;
-                    DG50AF.bonus_1 = DG50AF.bonus_2 = 0;
+                    GAME_STATE.freeform = 1;
+                    GAME_STATE.counter = 0;
+                    LEVEL_SETTINGS.bonus_1 = LEVEL_SETTINGS.bonus_2 = 0;
                     start_counters();
                 }
                 repaint_all = 1;
             }
-            DG4E67.state = 2;
+            GAME_STATE.state = 2;
             break;
 
         case 0x0200:                    /* the puzzle picker, or leaving freeform */
             paint_panel_d(1);
             present_back_page();
-            if (DG4E67.freeform != 0
-                && ask_yes_no(DG1BCC.leave_freeform_mode, DG1BCC.leave_freeform_body)) {
-                DG4E67.freeform = 0;
+            if (GAME_STATE.freeform != 0
+                && ask_yes_no(MESSAGES.leave_freeform_mode, MESSAGES.leave_freeform_body)) {
+                GAME_STATE.freeform = 0;
                 reload = 1;
             }
-            if (DG4E67.freeform == 0
+            if (GAME_STATE.freeform == 0
                 && (select_puzzle_screen() != 0 || reload != 0)) {
                 round_teardown();
-                load_level(DG4E67.round_number);
+                load_level(GAME_STATE.round_number);
                 reset_machine();
                 reload = 0;
                 start_counters();
             }
             repaint_all = 1;
-            DG4E67.state = 2;
+            GAME_STATE.state = 2;
             break;
 
         case 0x0100:                    /* LOAD */
-            if (DG4E67.freeform != 0) {
+            if (GAME_STATE.freeform != 0) {
                 paint_panel_free_a(1);
                 present_back_page();
 
-                DG4E67.file_op_active = 1;
+                GAME_STATE.file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.picker_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.picker_dir[0]);
-                DG4E67.file_op_active = 0;
+                GAME_STATE.file_op_active = 0;
 
                 if (pick_file(0, 0, "*.TIM")) {
                     round_teardown();
-                    load_animation((char *)DG52FE.name);
+                    load_animation((char *)PICKED_MACHINE.name);
                     reset_machine();
                 }
 
-                DG4E67.file_op_active = 1;
+                GAME_STATE.file_op_active = 1;
                 dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
                 if (dos_chdir((char *)GAME_DIRECTORIES.game_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.game_dir[0]);
-                DG4E67.file_op_active = 0;
+                GAME_STATE.file_op_active = 0;
 
                 repaint_all = 1;
             }
-            DG4E67.state = 2;
+            GAME_STATE.state = 2;
             break;
 
         case 0x0080:                    /* SAVE */
-            if (DG4E67.freeform != 0) {
+            if (GAME_STATE.freeform != 0) {
                 paint_panel_free_b(1);
                 present_back_page();
 
-                DG4E67.file_op_active = 1;
+                GAME_STATE.file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.picker_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.picker_dir[0]);
-                DG4E67.file_op_active = 0;
+                GAME_STATE.file_op_active = 0;
 
                 file_err = 1;
                 while (file_err != 0) {
-                    DG4E67.state = 0x80;
+                    GAME_STATE.state = 0x80;
                     if (pick_file(0, 0, "*.TIM")) {
-                        file_err = save_machine((char *)DG52FE.name);
+                        file_err = save_machine((char *)PICKED_MACHINE.name);
                         if (file_err != 0) {
-                            show_message_box(DG1BCC.file_error, DG1BCC.disk_write_protected);
+                            show_message_box(MESSAGES.file_error, MESSAGES.disk_write_protected);
                             paint_game_screen(0);
                         }
                     } else {
@@ -1974,32 +1974,32 @@ void game_screen(void)
                 }
 
                 dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
-                DG4E67.file_op_active = 1;
+                GAME_STATE.file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.game_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.game_dir[0]);
-                DG4E67.file_op_active = 0;
+                GAME_STATE.file_op_active = 0;
 
                 repaint_all = 1;
             }
-            DG4E67.state = 2;
+            GAME_STATE.state = 2;
             break;
 
         case 0x0040:                    /* the gravity slider, which sets 0x50b5 */
-            if (DG4E67.freeform == 0) {
-                show_message_box(DG1BCC.cant_change_gravity, DG1BCC.gravity_body);
+            if (GAME_STATE.freeform == 0) {
+                show_message_box(MESSAGES.cant_change_gravity, MESSAGES.gravity_body);
                 repaint_all = 1;
-                DG4E67.state = 2;
-            } else if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
+            } else if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                GAME_STATE.state = 2;
             } else {
-                t = mul16x16(DG5768.pointer_x - 0x43, 0x200);
+                t = mul16x16(POINTER.pointer_x - 0x43, 0x200);
                 air = t / 0xa0;
                 if (air < 0)
                     air = 0;
                 else if (air > 0x200)
                     air = 0x200;
-                if (air != DG50AF.air) {
-                    DG50AF.air = air;
+                if (air != LEVEL_SETTINGS.air) {
+                    LEVEL_SETTINGS.air = air;
                     repaint_f = 2;
                     recompute_kind_physics();
                 }
@@ -2007,21 +2007,21 @@ void game_screen(void)
             break;
 
         case 0x0020:                    /* the air slider, which sets 0x50b3 */
-            if (DG4E67.freeform == 0) {
-                show_message_box(DG1BCC.cant_change_air_pressure, DG1BCC.air_pressure_body);
+            if (GAME_STATE.freeform == 0) {
+                show_message_box(MESSAGES.cant_change_air_pressure, MESSAGES.air_pressure_body);
                 repaint_all = 1;
-                DG4E67.state = 2;
-            } else if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-                DG4E67.state = 2;
+                GAME_STATE.state = 2;
+            } else if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                GAME_STATE.state = 2;
             } else {
-                t = mul16x16(DG5768.pointer_x - 0x43, 0x80);
+                t = mul16x16(POINTER.pointer_x - 0x43, 0x80);
                 gravity = t / 0xa0;
                 if (gravity < 0)
                     gravity = 0;
                 else if (gravity > 0x80)
                     gravity = 0x80;
-                if (gravity != DG50AF.gravity) {
-                    DG50AF.gravity = gravity;
+                if (gravity != LEVEL_SETTINGS.gravity) {
+                    LEVEL_SETTINGS.gravity = gravity;
                     repaint_g = 2;
                     recompute_kind_physics();
                 }
@@ -2079,7 +2079,7 @@ void game_screen(void)
  */
 void region_cursor_freeform(struct region *region)
 {
-    if (DG4E67.freeform != 0)
+    if (GAME_STATE.freeform != 0)
         region->cursor = 0;
     else
         region->cursor = 0x14;
@@ -2093,7 +2093,7 @@ void region_cursor_freeform(struct region *region)
  */
 void region_cursor_load(struct region *region)
 {
-    if (DG4E67.freeform != 0)
+    if (GAME_STATE.freeform != 0)
         region->cursor = 0x17;
     else
         region->cursor = 0;
@@ -2106,7 +2106,7 @@ void region_cursor_load(struct region *region)
  */
 void region_cursor_save(struct region *region)
 {
-    if (DG4E67.freeform != 0)
+    if (GAME_STATE.freeform != 0)
         region->cursor = 0x16;
     else
         region->cursor = 0;
@@ -2119,7 +2119,7 @@ void region_cursor_save(struct region *region)
  */
 void region_cursor_gravity(struct region *region)
 {
-    if (DG4E67.freeform != 0)
+    if (GAME_STATE.freeform != 0)
         region->cursor = 0x18;
     else
         region->cursor = 0;
@@ -2132,7 +2132,7 @@ void region_cursor_gravity(struct region *region)
  */
 void region_cursor_air(struct region *region)
 {
-    if (DG4E67.freeform != 0)
+    if (GAME_STATE.freeform != 0)
         region->cursor = 0x19;
     else
         region->cursor = 0;
@@ -2166,7 +2166,7 @@ void tab_move_pointer(void)
 
     GAME_PLAY_TABS.stop++;
 
-    if (DG4E67.freeform != 0) {
+    if (GAME_STATE.freeform != 0) {
         if (GAME_PLAY_TABS.stop == 5)
             GAME_PLAY_TABS.stop = 6;
     } else if (GAME_PLAY_TABS.stop == 7) {
@@ -2177,11 +2177,11 @@ void tab_move_pointer(void)
         GAME_PLAY_TABS.stop = 0;
 
     if (GAME_PLAY_TABS.stop == 9) {
-        t = mul16x16(DG50AF.air, 0xa0);
+        t = mul16x16(LEVEL_SETTINGS.air, 0xa0);
         si = t / 0x200;
         si += 0x43;
     } else if (GAME_PLAY_TABS.stop == 0x0a) {
-        t = mul16x16(DG50AF.gravity, 0xa0);
+        t = mul16x16(LEVEL_SETTINGS.gravity, 0xa0);
         si = t / 0x80;
         si += 0x43;
     } else {
@@ -2242,7 +2242,7 @@ void paint_game_screen(uint16_t present)
     paint_panel_c(0);
     paint_panel_d(0);
 
-    if (DG4E67.freeform != 0) {
+    if (GAME_STATE.freeform != 0) {
         paint_panel_free_a(0);
         paint_panel_free_b(0);
     } else {
@@ -2259,7 +2259,7 @@ void paint_game_screen(uint16_t present)
     draw_bitmap(DG52ED.panel_art[4], 0x5b, 0xfe, 0);
     restore_cursor_following();
 
-    select_music(DG50AF.tune);
+    select_music(LEVEL_SETTINGS.tune);
 
     if (present != 0)
         present_back_page();
@@ -2315,7 +2315,7 @@ void paint_panel_frame_rest(void)
 
     di = 0x100;
     y = 0xa0;
-    extent = ((DG50AF.extent_y > DG50AF.extent_x) ? DG50AF.extent_y : DG50AF.extent_x) + 0x230;
+    extent = ((LEVEL_SETTINGS.extent_y > LEVEL_SETTINGS.extent_x) ? LEVEL_SETTINGS.extent_y : LEVEL_SETTINGS.extent_x) + 0x230;
     scale = 0x40000L / extent;
     di += 2;
     y += 2;
@@ -2364,14 +2364,14 @@ void paint_panel_frame(void)
     char title[120];
     char digits[8];
 
-    if (DG4E67.freeform != 0) {
-        strcpy(title, DG1BCC.freeform_mode_title);
+    if (GAME_STATE.freeform != 0) {
+        strcpy(title, MESSAGES.freeform_mode_title);
     } else {
-        strcpy(title, DG1BCC.puzzle_prefix);
-        itoa(DG4E67.round_number, digits, 10);
+        strcpy(title, MESSAGES.puzzle_prefix);
+        itoa(GAME_STATE.round_number, digits, 10);
         strcat(title, digits);
         strcat(title, ": ");
-        strcat(title, (const char *)DG4E67.title);
+        strcat(title, (const char *)GAME_STATE.title);
     }
 
     set_clip_play_area();
@@ -2383,10 +2383,10 @@ void paint_panel_frame(void)
     draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
-    if (DG4E67.freeform != 0)
-        draw_wrapped_text((char *)DG1BCC.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
+    if (GAME_STATE.freeform != 0)
+        draw_wrapped_text((char *)MESSAGES.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
     else
-        draw_wrapped_text((char *)DG4E67.hint, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)GAME_STATE.hint, 0x114, 0x104, 0xf8, 0x44);
 
     paint_panel_frame_rest();
 }
@@ -2580,11 +2580,11 @@ void paint_panel_e(void)
     int16_t up;                         /* [bp-4] */
     int16_t down;                       /* [bp-6] */
 
-    if (DG4E67.state == 0x4000)
+    if (GAME_STATE.state == 0x4000)
         up = 0x26;
     else
         up = 0x25;
-    if (DG4E67.state == 0x2000)
+    if (GAME_STATE.state == 0x2000)
         down = 0x28;
     else
         down = 0x27;
@@ -2600,7 +2600,7 @@ void paint_panel_e(void)
     draw_bitmap(DG52ED.panel_art[down], 0x58, 0x6f, 0);
     draw_bitmap(DG52ED.panel_art[0x14], 0x6e, 0x60, 0);
 
-    for (si = 1, y = 0x69; si <= DG4E67.master_level; si++, y -= 2)
+    for (si = 1, y = 0x69; si <= GAME_STATE.master_level; si++, y -= 2)
         draw_bitmap(((DG52ED.panel_art + 0x14)[si]),
                     GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
 
@@ -2629,7 +2629,7 @@ void paint_panel_f(void)
     draw_bitmap(DG52ED.panel_art[0x7], 0x41, 0xc8, 0);
     draw_bitmap(DG52ED.panel_art[0x9], 0x3d, 0xe5, 0);
 
-    t = mul16x16(DG50AF.air, 0xa0);
+    t = mul16x16(LEVEL_SETTINGS.air, 0xa0);
     at = t / 0x200;
 
     draw_bitmap(DG52ED.panel_art[0x6],
@@ -2660,7 +2660,7 @@ void paint_panel_g(void)
     draw_bitmap(DG52ED.panel_art[0x8], 0x41, 0x114, 0);
     draw_bitmap(DG52ED.panel_art[0x9], 0x3d, 0x131, 0);
 
-    t = mul16x16(DG50AF.gravity, 0xa0);
+    t = mul16x16(LEVEL_SETTINGS.gravity, 0xa0);
     at = t / 0x80;
 
     draw_bitmap(DG52ED.panel_art[0x6],

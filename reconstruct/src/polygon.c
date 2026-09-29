@@ -68,7 +68,7 @@ _DATA ends
 
 extrn _clip_and_draw_line:far
 extrn _clip_polygon:far
-extrn _DG4342:byte
+extrn _VM_DRIVER:byte
 extrn _DG44EA:byte
 extrn _VMDS:byte
 POLYGON_TEXT segment byte public 'CODE'
@@ -421,7 +421,7 @@ L1f0c8:
         shr ax, 1
         sub ax, word ptr DGROUP:d_44d4
         mov word ptr DGROUP:d_44d6, ax
-        mov ax, word ptr DGROUP:_DG4342
+        mov ax, word ptr DGROUP:_VM_DRIVER
         mov es, ax
         mov word ptr DGROUP:d_44dc, 2
         mov word ptr DGROUP:d_44da, 0
@@ -519,7 +519,7 @@ L1f195:
         add si, 0ch
         mov word ptr es:[si], dx
         mov word ptr es:[si+2], ax
-        call dword ptr DGROUP:_DG4342+70h
+        call dword ptr DGROUP:_VM_DRIVER+70h
         mov al, byte ptr DGROUP:_VMDS+0eh
         cmp al, byte ptr DGROUP:_VMDS+0dh
         je L1f1e0
@@ -2745,7 +2745,7 @@ L200f4:
         jle L20129
         cmp word ptr [bp+0ch], 0
         jle L20129
-        mov es, word ptr DGROUP:_DG4342
+        mov es, word ptr DGROUP:_VM_DRIVER
         xor di, di
         mov ax, word ptr [bp+8]
         stosw
@@ -2764,7 +2764,7 @@ L20119:
         loop L20119
         xor si, si
         push bp
-        call dword ptr DGROUP:_DG4342+70h
+        call dword ptr DGROUP:_VM_DRIVER+70h
         pop bp
 L20129:
         pop word ptr [bp+8]
@@ -3196,7 +3196,7 @@ chains:
     }
     ENGINE_POLYGON_CHAINS.left_count = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.right_count);
 
-    seg = DG4342.span_buffer_seg;
+    seg = VM_DRIVER.span_buffer_seg;
     span = MK_FP(seg, 0);
 
     ENGINE_POLYGON_CHAINS.chain = 2;
@@ -3741,7 +3741,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
 
         if (cw > 0 && ch > 0) {
-            uint8_t *p = MK_FP(DG4342.span_buffer_seg, 0);
+            uint8_t *p = MK_FP(VM_DRIVER.span_buffer_seg, 0);
             int16_t n = ch;
             int16_t x2 = (int16_t)(cx + cw - 1);
 
@@ -3756,7 +3756,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
                 *p++ = (uint8_t)((uint16_t)x2 >> 8);
             } while (--n);
 
-            vm_fill_spans(MK_FP(DG4342.span_buffer_seg, 0));
+            vm_fill_spans(MK_FP(VM_DRIVER.span_buffer_seg, 0));
         }
     }
 

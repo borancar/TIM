@@ -214,7 +214,7 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
 
     PALCHUNK.palette = h;
 #ifdef __TURBOC__
-    ((vm_pal_fn)DG4342.font[20])(h);
+    ((vm_pal_fn)VM_DRIVER.entry[20])(h);
 #else
     vm_load_palette(h);
 #endif
@@ -261,7 +261,7 @@ void fade_palette_run(uint16_t first, uint16_t count, register uint16_t colour,
     ENGINE_PEN.fade_weight = weight;
     ENGINE_PEN.fade_colour = colour;
 #ifdef __TURBOC__
-    ((vm_blend_fn)DG4342.font[34])(first, count, colour, weight);
+    ((vm_blend_fn)VM_DRIVER.entry[34])(first, count, colour, weight);
 #else
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 #endif
@@ -334,7 +334,7 @@ void cycle_palettes(void)
     }
 
 #ifdef __TURBOC__
-    ((vm_blend_fn)DG4342.font[34])(0, 0x100, ENGINE_PEN.fade_colour,
+    ((vm_blend_fn)VM_DRIVER.entry[34])(0, 0x100, ENGINE_PEN.fade_colour,
                                ENGINE_PEN.fade_weight);
 #else
     vm_blend_palette(0, 0x100, ENGINE_PEN.fade_colour,
@@ -366,7 +366,7 @@ void fill_span_list(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)DG4342.font[27])();
+    ((vm_esi_fn)VM_DRIVER.entry[27])();
 #else
     vm_fill_spans(spans);
 #endif
@@ -384,7 +384,7 @@ void span_list_nothing(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)DG4342.font[23])();
+    ((vm_esi_fn)VM_DRIVER.entry[23])();
 #else
     (void)spans;
     vm_nothing();

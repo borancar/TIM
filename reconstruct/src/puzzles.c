@@ -124,10 +124,10 @@ uint16_t select_puzzle_screen(void)
     register int16_t repaint;
     register int16_t hold;
 
-    saved = DG4E67.counter;
+    saved = GAME_STATE.counter;
     hold = 0;
 
-    PUZZLE_STATE.selected_level = DG4E67.round_number;
+    PUZZLE_STATE.selected_level = GAME_STATE.round_number;
     page = PUZZLE_STATE.puzzle_page = puzzle_page_of_score();
 
     /*
@@ -136,45 +136,45 @@ uint16_t select_puzzle_screen(void)
      * catches up. So arriving here is itself enough to unlock the row you are
      * standing on, and the list's colours are right on the first paint.
      */
-    if (DG4E67.round_number > DG4E67.furthest_level)
-        DG4E67.furthest_level = DG4E67.round_number;
+    if (GAME_STATE.round_number > GAME_STATE.furthest_level)
+        GAME_STATE.furthest_level = GAME_STATE.round_number;
 
     full = 1;
     rp_up = rp_down = repaint = rp_pass = 0;
-    was = DG4E67.state = 0x8000;
+    was = GAME_STATE.state = 0x8000;
 
-    while (DG4E67.state != 0x400) {
+    while (GAME_STATE.state != 0x400) {
         update_button_state();
         DG52ED.last_key = bios_read_key();
 
-        if (DG52ED.last_key == '\t' && DG4E67.state != 0x800)
+        if (DG52ED.last_key == '\t' && GAME_STATE.state != 0x800)
             puzzle_tab();
 
         if ((DG52ED.last_key == '\r' || DG52ED.last_key == ' '
              || DG52ED.last_key == 0x1b /* Esc */)
-            && DG4E67.state == 0x800)
-            DG5768.button_left = 0;
+            && GAME_STATE.state == 0x800)
+            POINTER.button_left = 0;
 
-        regions_handle_pointer(DG4E67.regions_a);
+        regions_handle_pointer(GAME_STATE.regions_a);
 
         if (DG52ED.last_key == 0x1b /* Esc */) {
             /*
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
              */
-            DG4E67.counter = saved;
+            GAME_STATE.counter = saved;
             start_counters();
             set_clip_play_area();
-            PUZZLE_STATE.selected_level = DG4E67.round_number;
-            DG4E67.state = 0x400;
+            PUZZLE_STATE.selected_level = GAME_STATE.round_number;
+            GAME_STATE.state = 0x400;
 
         /*
          * The password field, entered while it has focus or had it last pass -
          * `pick_file`'s trick, and for the same reason.
          */
-        } else if ((DG4E67.state != 0x800 && was == 0x800)
-                   || DG4E67.state == 0x800) {
-            if ((DG52ED.last_key != '\r' && DG4E67.state == 0x800)
+        } else if ((GAME_STATE.state != 0x800 && was == 0x800)
+                   || GAME_STATE.state == 0x800) {
+            if ((DG52ED.last_key != '\r' && GAME_STATE.state == 0x800)
                 || was != 0x800) {
                 if (was == 0x800)
                     picker_type(DG52ED.last_key, GAME_TYPED_TEXT.typed, 0x19);
@@ -184,22 +184,22 @@ uint16_t select_puzzle_screen(void)
                 level = password_to_level(GAME_TYPED_TEXT.typed);
 
                 if (level == -1) {
-                    show_message_box(DG1BCC.bad_password, DG1BCC.bad_password_body);
-                    DG4E67.state = 0x8000;
+                    show_message_box(MESSAGES.bad_password, MESSAGES.bad_password_body);
+                    GAME_STATE.state = 0x8000;
                     full = 1;
                 } else {
-                    DG4E67.counter = score_code_to_score(GAME_TYPED_TEXT.typed);
+                    GAME_STATE.counter = score_code_to_score(GAME_TYPED_TEXT.typed);
 
-                    if (DG4E67.counter == -1) {
-                        DG4E67.counter = 0;
-                        show_message_box(DG1BCC.score_code_invalid, DG1BCC.score_code_body);
+                    if (GAME_STATE.counter == -1) {
+                        GAME_STATE.counter = 0;
+                        show_message_box(MESSAGES.score_code_invalid, MESSAGES.score_code_body);
                         full = 1;
                     }
 
                     PUZZLE_STATE.selected_level = level;
 
-                    if (PUZZLE_STATE.selected_level > DG4E67.level_count)
-                        PUZZLE_STATE.selected_level = DG4E67.level_count;
+                    if (PUZZLE_STATE.selected_level > GAME_STATE.level_count)
+                        PUZZLE_STATE.selected_level = GAME_STATE.level_count;
 
                     repaint = 1;
                     start_counters();
@@ -212,14 +212,14 @@ uint16_t select_puzzle_screen(void)
                     }
                 }
 
-                if (level > DG4E67.furthest_level) {
-                    DG4E67.furthest_level = level;
+                if (level > GAME_STATE.furthest_level) {
+                    GAME_STATE.furthest_level = level;
                     write_config();            /* write tim.cfg */
                     repaint = 1;
                 }
 
-                if (DG4E67.state == 0x800)
-                    DG4E67.state = 0x8000;
+                if (GAME_STATE.state == 0x800)
+                    GAME_STATE.state = 0x8000;
             }
 
             rp_pass = 2;
@@ -228,11 +228,11 @@ uint16_t select_puzzle_screen(void)
         if (hold != 0)
             hold--;
 
-        switch (DG4E67.state) {
+        switch (GAME_STATE.state) {
         case 0x2000:                    /* the up arrow: a page back */
             if (hold == 0) {
-                if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-                    DG4E67.state = 0x8000;
+                if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                    GAME_STATE.state = 0x8000;
                 } else if (PUZZLE_STATE.puzzle_page > 1) {
                     PUZZLE_STATE.puzzle_page -= 0x15;
                     if (PUZZLE_STATE.puzzle_page < 1)
@@ -246,9 +246,9 @@ uint16_t select_puzzle_screen(void)
 
         case 0x1000:                    /* the down arrow: a page on */
             if (hold == 0) {
-                if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-                    DG4E67.state = 0x8000;
-                } else if (PUZZLE_STATE.puzzle_page + 0x15 <= DG4E67.level_count) {
+                if (POINTER.button_left != 1 && POINTER.button_left != 2) {
+                    GAME_STATE.state = 0x8000;
+                } else if (PUZZLE_STATE.puzzle_page + 0x15 <= GAME_STATE.level_count) {
                     PUZZLE_STATE.puzzle_page += 0x15;
                     repaint = 1;
                     hold = 4;
@@ -258,11 +258,11 @@ uint16_t select_puzzle_screen(void)
             break;
 
         case 0x4000:                    /* a click in the list */
-            row = PUZZLE_STATE.puzzle_page + (DG5768.pointer_y - 0x4c) / 10;
+            row = PUZZLE_STATE.puzzle_page + (POINTER.pointer_y - 0x4c) / 10;
 
-            if (row <= DG4E67.level_count) {
-                if (row > DG4E67.furthest_level) {
-                    show_message_box(DG1BCC.need_password, DG1BCC.need_password_body);
+            if (row <= GAME_STATE.level_count) {
+                if (row > GAME_STATE.furthest_level) {
+                    show_message_box(MESSAGES.need_password, MESSAGES.need_password_body);
                     repaint = 1;
                 } else if (row != PUZZLE_STATE.selected_level) {
                     PUZZLE_STATE.selected_level = row;
@@ -272,8 +272,8 @@ uint16_t select_puzzle_screen(void)
                      * zeroes the score, because the score belongs to the run
                      * that got this far.
                      */
-                    if (PUZZLE_STATE.selected_level < DG4E67.round_number) {
-                        DG4E67.counter = 0;
+                    if (PUZZLE_STATE.selected_level < GAME_STATE.round_number) {
+                        GAME_STATE.counter = 0;
                         start_counters();
                         set_clip_play_area();
                     }
@@ -282,11 +282,11 @@ uint16_t select_puzzle_screen(void)
                 }
             }
 
-            DG4E67.state = 0x8000;
+            GAME_STATE.state = 0x8000;
             break;
         }
 
-        was = DG4E67.state;
+        was = GAME_STATE.state;
 
         if (full != 0) {
             wait_cursor();
@@ -323,8 +323,8 @@ uint16_t select_puzzle_screen(void)
     puzzle_draw_ok(1);
     present_back_page();
 
-    if (PUZZLE_STATE.selected_level != DG4E67.round_number) {
-        DG4E67.round_number = PUZZLE_STATE.selected_level;
+    if (PUZZLE_STATE.selected_level != GAME_STATE.round_number) {
+        GAME_STATE.round_number = PUZZLE_STATE.selected_level;
         return 1;
     }
     return 0;
@@ -388,8 +388,8 @@ void puzzle_repaint(void)
 {
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
 
-    draw_scroll_text(DG1BCC.select_puzzle, 0xa8, 0x27, 0xc0);
-    draw_scroll_text(DG1BCC.password, 0x20, 0x13c, 0x60);
+    draw_scroll_text(MESSAGES.select_puzzle, 0xa8, 0x27, 0xc0);
+    draw_scroll_text(MESSAGES.password, 0x20, 0x13c, 0x60);
 
     draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
     draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
@@ -415,7 +415,7 @@ void puzzle_draw_up(void)
 {
     register int16_t pressed;
 
-    if (DG4E67.state == 0x2000)
+    if (GAME_STATE.state == 0x2000)
         pressed = 1;
     else
         pressed = 0;
@@ -437,7 +437,7 @@ void puzzle_draw_down(void)
 {
     register int16_t pressed;
 
-    if (DG4E67.state == 0x1000)
+    if (GAME_STATE.state == 0x1000)
         pressed = 1;
     else
         pressed = 0;
@@ -492,7 +492,7 @@ void puzzle_draw_password(const char *text)
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
 
-    if (DG4E67.state == 0x800) {
+    if (GAME_STATE.state == 0x800) {
         PUZZLE_STATE.password_blink++;
         if ((PUZZLE_STATE.password_blink & 8) != 0)
             strcat(si, "*");
@@ -536,7 +536,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {
-        strcpy(name, DG1BCC.puzzle_prefix);
+        strcpy(name, MESSAGES.puzzle_prefix);
         itoa(first, num, 10);
         strcat(name, num);
         strcat(name, ": ");
@@ -546,7 +546,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
 
             if (first == selected)
                 VMDS.text_colour = 0x0f;
-            else if (first <= DG4E67.furthest_level)
+            else if (first <= GAME_STATE.furthest_level)
                 VMDS.text_colour = 0x0a;
             else
                 VMDS.text_colour = 0x0c;

@@ -58,38 +58,38 @@ void step_machine(void)
     register struct part *si;
     register struct queue_node *di;
 
-    for (si = DG521B.placed_parts.next; si != NULL;
+    for (si = MACHINE_PARTS.placed_parts.next; si != NULL;
          si = si->next)
         si->flags_08 &= 0xf9bf;
 
-    for (di = DG4E4E.parts_queue; di != 0; di = di->next) {
+    for (di = FREE_LISTS.parts_queue; di != 0; di = di->next) {
         si = (di->part);
         if (!(si->flags_08 & 0x40))
             part_step(si);
     }
 
-    splice_list_4e58_onto_4e56();
+    release_part_queue();
 
-    for (si = DG521B.placed_parts.next; si != NULL;
+    for (si = MACHINE_PARTS.placed_parts.next; si != NULL;
          si = si->next) {
         flags = si->flags_08;
         if (flags & 0x800 && !(flags & 0x2040))
             part_step(si);
     }
 
-    for (si = DG521B.placed_parts.next; si != NULL;
+    for (si = MACHINE_PARTS.placed_parts.next; si != NULL;
          si = si->next)
         if (si->kind == KIND_GEAR && !(si->flags_08 & 0x2040))
             part_step(si);
 
-    for (si = DG521B.placed_parts.next; si != NULL;
+    for (si = MACHINE_PARTS.placed_parts.next; si != NULL;
          si = si->next) {
         flags = si->flags_08;
         if (!(flags & 0x2840))
             part_step(si);
     }
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next) {
         if (!(si->flags_08 & 0x2000))
             apply_gravity_and_speed(si);
@@ -97,33 +97,33 @@ void step_machine(void)
         si->flags_0a &= 0xffef;
     }
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next)
         if (si->kind != KIND_BUCKET)
             step_moving_object(si);
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             add_carried_weight(si);
         }
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             step_moving_object(si);
         }
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next)
         if (si->kind == KIND_BUCKET) {
             collect_carried(si);
             carry_riders_along(si);
         }
 
-    for (si = DG5179.moving_parts.next; si != NULL;
+    for (si = MOVING_PARTS.moving_parts.next; si != NULL;
          si = si->next) {
         if (!(si->flags_06 & 8) && !(si->flags_08 & 0x2000)) {
             if (si->flags_06 & 2) {

@@ -71,7 +71,7 @@ void part_step_rocket(struct part *part)
                         di->direction = 1;
                     } else if (di->kind == KIND_POKEY && di->form == 0) {
                         di->form = 1;
-                        di->word_96 = 0;
+                        di->kind_state = 0;
                         place_object_for_draw(di);
                         play_sound(7);
                     }

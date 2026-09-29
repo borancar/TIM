@@ -41,10 +41,10 @@ struct sound_tick_wait SOUND_TICK_WAIT;
  */
 void stop_sound(void)
 {
-    if (DG4A82.driver != NULL) {
+    if (SOUND_BANK.driver != NULL) {
         silence_driver_far();
 
-        if (((int16_t)DG4A82.tick_handle) == 0) {
+        if (((int16_t)SOUND_BANK.tick_handle) == 0) {
             sound_service();
             sound_service();
         } else {
@@ -52,18 +52,18 @@ void stop_sound(void)
         }
     }
 
-    if (DG4A82.module != NULL) {
+    if (SOUND_BANK.module != NULL) {
         stop_loaded_module();
     }
 
-    if (DG4A82.driver != NULL) {
-        free_for_kind(DG4A82.driver, 1);
-        DG4A82.driver = 0;
+    if (SOUND_BANK.driver != NULL) {
+        free_for_kind(SOUND_BANK.driver, 1);
+        SOUND_BANK.driver = 0;
     }
 
-    if (DG4A82.module != NULL) {
-        free_for_kind(DG4A82.module, 1);
-        DG4A82.module = 0;
+    if (SOUND_BANK.module != NULL) {
+        free_for_kind(SOUND_BANK.module, 1);
+        SOUND_BANK.module = 0;
     }
 }
 
@@ -148,7 +148,7 @@ uint16_t remove_and_free_records(int16_t selector)
 
     found = 0;
     prev = &dummy;
-    cur = DG4A82.records;
+    cur = SOUND_BANK.records;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
@@ -160,8 +160,8 @@ uint16_t remove_and_free_records(int16_t selector)
             found = 1;
             stop_sequences(cur->id);
 
-            if (cur == DG4A82.records)
-                DG4A82.records = cur->next;
+            if (cur == SOUND_BANK.records)
+                SOUND_BANK.records = cur->next;
 
             prev->next = cur->next;
 

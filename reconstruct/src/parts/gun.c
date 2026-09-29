@@ -58,12 +58,12 @@ void part_step_gun(struct part *part)
             play_sound(0x0b);
 
         if (part->form == 3 && (si = make_part(KIND_BULLET)) != NULL) {
-            insert_sorted(si, &DG5179.moving_parts);
+            insert_sorted(si, &MOVING_PARTS.moving_parts);
             si->flags_06 |= 0x10;
 
             if (part->flags_08 & 0x10) {
                 si->flags_08 |= 0x10;
-                part_setup_08a1(si);
+                part_setup_bullet(si);
 
                 si->pos[0].x = part->pos[0].x - 0x20;
                 si->pos[1].x = si->pos[2].x = si->pos[0].x + 0x18;
@@ -151,7 +151,7 @@ void part_flip_gun(struct part *part)
  * clear, it starts: +0x12 becomes 1 and the answer is 0 so the walk goes on
  * past it.
  */
-uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
+uint16_t part_drive_gun(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6)
 {
     struct belt *di = si->belt[0];

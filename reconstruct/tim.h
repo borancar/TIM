@@ -826,7 +826,7 @@ void update_velocity(struct part *rec, int16_t shift_x, int16_t shift_y,
                      uint16_t which);               /* 0x07283 */
 
 /* Splice one list onto the front of another and empty the first. */
-void splice_list_4e58_onto_4e56(void);              /* 0x07b3e */
+void release_part_queue(void);              /* 0x07b3e */
 
 /* Is a value between two bounds, whichever way round they are? */
 int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
@@ -859,10 +859,10 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  int16_t width);                    /* 0x064b4 */
 
 /* Which of two structure fields matches a value. */
-int16_t match_field_5a_5c(struct part *value, struct part *obj);   /* 0x06f43 */
+int16_t link_slot_of(struct part *value, struct part *obj);   /* 0x06f43 */
 
 /* Pick one of two record fields by matching the other. */
-struct part *select_field_2_or_4(struct part *key, struct belt *rec);   /* 0x06f68 */
+struct part *belt_other_end(struct part *key, struct belt *rec);   /* 0x06f68 */
 
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
@@ -939,7 +939,7 @@ void free_all_part_bitmaps(void);                   /* 0x0f86e */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
 uint16_t part_init_bowling_ball(struct part *part);           /* 0dff:6246, 0x14236 */
-uint16_t part_init_14267(struct part *part);           /* 0dff:6277, 0x14267 */
+uint16_t part_init_platform(struct part *part);           /* 0dff:6277, 0x14267 */
 uint16_t part_init_ramp(struct part *part);           /* 0dff:62b1, 0x142a1 */
 uint16_t part_init_seesaw(struct part *part);           /* 0dff:62f6, 0x142e6 */
 uint16_t part_init_balloon(struct part *part);           /* 0dff:6330, 0x14320 */
@@ -958,7 +958,7 @@ uint16_t part_init_bellow(struct part *part);           /* 0dff:6617, 0x14607 */
 uint16_t part_init_bucket(struct part *part);           /* 0dff:664d, 0x1463d */
 uint16_t part_init_cannon(struct part *part);           /* 0dff:668e, 0x1467e */
 uint16_t part_init_dynamite(struct part *part);           /* 0dff:66cd, 0x146bd */
-uint16_t part_init_146fc(struct part *part);           /* 0dff:670c, 0x146fc */
+uint16_t part_init_bullet(struct part *part);           /* 0dff:670c, 0x146fc */
 uint16_t part_init_electric_plug(struct part *part);           /* 0dff:673d, 0x1472d */
 uint16_t part_init_dynamite_plunger(struct part *part);           /* 0dff:677c, 0x1476c */
 uint16_t part_init_hook(struct part *part);           /* 0dff:67b7, 0x147a7 */
@@ -984,23 +984,23 @@ uint16_t part_init_cannon_ball(struct part *part);           /* 0dff:6b82, 0x14b
 uint16_t part_init_tennis_ball(struct part *part);           /* 0dff:6bb3, 0x14ba3 */
 uint16_t part_init_candle(struct part *part);           /* 0dff:6be4, 0x14bd4 */
 uint16_t part_init_corner_pipe(struct part *part);           /* 0dff:6c22, 0x14c12 */
-uint16_t part_init_14c48(struct part *part);           /* 0dff:6c58, 0x14c48 */
+uint16_t part_init_anchor(struct part *part);           /* 0dff:6c58, 0x14c48 */
 uint16_t part_init_motor(struct part *part);           /* 0dff:6c72, 0x14c62 */
-uint16_t part_init_14ca0(struct part *part);           /* 0dff:6cb0, 0x14ca0 */
-uint16_t part_init_14cd9(struct part *part);           /* 0dff:6ce9, 0x14cd9 */
-uint16_t part_init_14d0a(struct part *part);           /* 0dff:6d1a, 0x14d0a */
+uint16_t part_init_kind_55(struct part *part);           /* 0dff:6cb0, 0x14ca0 */
+uint16_t part_init_kind_56(struct part *part);           /* 0dff:6ce9, 0x14cd9 */
+uint16_t part_init_kind_57(struct part *part);           /* 0dff:6d1a, 0x14d0a */
 void part_finish_angles(struct part *part);             /* 0x05d1e */
 void part_setup_boxing_glove(struct part *part);                /* 172c:065b, 0x1791b */
-void part_setup_10b6(struct part *part);                /* 172c:10b6, 0x18376 */
-void part_setup_1105(struct part *part);                /* 172c:1105, 0x183c5 */
+void part_setup_kind_56(struct part *part);                /* 172c:10b6, 0x18376 */
+void part_setup_kinds_55_57(struct part *part);                /* 172c:1105, 0x183c5 */
 void part_setup_motor(struct part *part);                /* 172c:1435, 0x186f5 */
 void part_setup_electric_plug(struct part *part);                /* 172c:1556, 0x18816 */
 void part_setup_gear(struct part *part);                /* 172c:2068, 0x19328 */
 void part_setup_light(struct part *part);                /* 172c:2b58, 0x19e18 */
 void part_setup_solar_panel(struct part *part);                /* 172c:3de5, 0x1b0a5 */
-void part_setup_0001(struct part *part);                /* 172c:0001, 0x172c1 */
+void part_setup_big_ball(struct part *part);                /* 172c:0001, 0x172c1 */
 void part_setup_cannon_ball(struct part *part);                /* 172c:0065, 0x17325 */
-void part_setup_00c9(struct part *part);                /* 172c:00c9, 0x17389 */
+void part_setup_small_ball(struct part *part);                /* 172c:00c9, 0x17389 */
 void part_setup_bucket(struct part *part);                /* 172c:07b2, 0x17a72 */
 void part_setup_candle(struct part *part);                /* 172c:0950, 0x17c10 */
 void part_setup_bird_cage(struct part *part);                /* 172c:0f70, 0x18230 */
@@ -1010,11 +1010,11 @@ void part_setup_mouse_cage(struct part *part);                /* 172c:2ee1, 0x1a
 void part_setup_mort_the_mouse(struct part *part);                /* 172c:346f, 0x1a72f */
 void part_setup_rocket(struct part *part);                /* 172c:3737, 0x1a9f7 */
 void part_setup_trampoline(struct part *part);                /* 172c:3f72, 0x1b232 */
-void part_setup_48ab(struct part *part);                /* 172c:48ab, 0x1bb6b */
+void part_setup_platform(struct part *part);                /* 172c:48ab, 0x1bb6b */
 void part_setup_windmill(struct part *part);                /* 172c:496f, 0x1bc2f */
 void part_setup_balloon(struct part *part);                /* 172c:012d, 0x173ed */
 void part_setup_bellow(struct part *part);                /* 172c:0371, 0x17631 */
-void part_setup_08a1(struct part *part);                /* 172c:08a1, 0x17b61 */
+void part_setup_bullet(struct part *part);                /* 172c:08a1, 0x17b61 */
 void part_setup_cannon(struct part *part);                /* 172c:0b88, 0x17e48 */
 void part_setup_gun(struct part *part);                /* 172c:23b1, 0x19671 */
 void part_setup_dynamite_plunger(struct part *part);                /* 172c:3294, 0x1a554 */
@@ -1120,25 +1120,25 @@ uint16_t part_hit_gear(struct part *part);              /* 0x19238 */
 void part_step_monkey(struct part *part);             /* 0x1a000 */
 uint16_t part_hit_monkey(struct part *part);              /* 0x19f43 */
 uint16_t part_hit_bucket(struct part *part);              /* 0x17a23 */
-uint16_t part_hit_0867(struct part *part);              /* 0x17b27 */
+uint16_t part_hit_bullet(struct part *part);              /* 0x17b27 */
 uint16_t part_hit_dynamite(struct part *part);              /* 0x184f7 */
 void         part_settle_conveyor(struct part *part);           /* 0x198dd */
 void         part_settle_ramp(struct part *part);           /* 0x19a49 */
-void         part_settle_48f7(struct part *part);           /* 0x1bbb7 */
-uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3,
+void         part_settle_platform(struct part *part);           /* 0x1bbb7 */
+uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x182bc */
-uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3,
+uint16_t part_drive_heart_balloon(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x19983 */
-uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3,
+uint16_t part_drive_dynamite_plunger(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a6dd */
-uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3,
+uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1b7be */
 uint16_t part_hit_dynamite_plunger(struct part *part);              /* 0x1a4ff */
-uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3,
+uint16_t part_drive_monkey(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a10b */
 void part_step_dynamite_plunger(struct part *part);             /* 0x1a5ea */
 void part_step_solar_panel(struct part *part);             /* 0x1b0c8 */
-uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3,
+uint16_t part_drive_balloon(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1758d */
 void     part_flip_bellow(struct part *part);             /* 0x17692 */
 void     part_flip_boxing_glove(struct part *part);             /* 0x17986 */
@@ -1264,15 +1264,15 @@ void draw_carried_icon(void);                       /* 0x160fc */
 void draw_part_selection(struct part *part, int16_t which, int16_t flags); /* 0x16209 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
-uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
+uint16_t part_drive_bucket(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5,
                          int32_t momentum);              /* 172c:0802 */
-uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
+uint16_t part_drive_kind_57(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5,
                          int32_t momentum);              /* 172c:11d2 */
-uint16_t part_drive_2451(struct part *p1, struct part *si, uint16_t p3,
+uint16_t part_drive_gun(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6);                   /* 172c:2451 */
-uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
+uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6);              /* 172c:2c19 */
 /* **A part's drive hook**, the far pointer at +0x36 of its kind's record,
    called through the record inline the way `part_step` is. It takes six
@@ -1316,11 +1316,11 @@ uint16_t part_hit_mouse_cage(struct part *part);              /* 172c:2f25 */
 void part_step_balloon(struct part *part);             /* 172c:018e */
 uint16_t part_hit_boxing_glove(struct part *part);              /* 172c:0552 */
 void part_step_boxing_glove(struct part *part);             /* 172c:057e */
-void part_step_08f1(struct part *part);             /* 172c:08f1 */
+void part_step_bullet(struct part *part);             /* 172c:08f1 */
 void part_step_candle(struct part *part);             /* 172c:098a */
 void part_step_cannon(struct part *part);             /* 172c:0a5d */
 void part_step_pokey(struct part *part);             /* 172c:0ca3 */
-void part_step_11a6(struct part *part);             /* 172c:11a6 */
+void part_step_kind_57(struct part *part);             /* 172c:11a6 */
 int16_t  bounce_speed_for_mass(struct part *obj);       /* 172c:06f9 */
 void     break_bob_the_fish(struct part *part);              /* 172c:1c9e */
 void     trigger_mouse_cage(struct part *part);             /* 172c:2ffd */
@@ -1361,7 +1361,7 @@ void grab_distance(struct part *a, struct part *b,
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(struct part *part, int16_t clear); /* 172c:1225 */
-void part_step_1649(struct part *part);             /* 172c:1649 */
+void part_step_blast(struct part *part);             /* 172c:1649 */
 int16_t  blast_speed_for_mass(struct part *part);       /* 172c:1748 */
 void     split_part_at(struct part *part, struct part *blast); /* 172c:17bc */
 int16_t  angle_between_centres(struct part *a, struct part *b); /* 0x03da5 */
@@ -1791,7 +1791,7 @@ void huffman_update(uint16_t c);                       /* 0x1e338 */
 int16_t decode_position(void);                         /* 0x1e561 */
 int16_t near decompress_lzss(void);                    /* 0x1e7f2 */
 int16_t next_lzw_code(void);                           /* 0x1cc65 */
-uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
+uint16_t font_slot_in_use(int16_t index);             /* 0x215d5 */
 uint16_t near detect_adapter(void);                    /* 0x225d2 */
 uint8_t far * load_video_driver(int16_t adapter, char *name); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
@@ -1847,7 +1847,7 @@ uint16_t joy_direction(int16_t stick);                 /* 0x21d91 */
 uint16_t joy_button(uint16_t n);                       /* 0x21dea */
 int16_t  joy_axis(uint16_t n);                         /* 0x21e04 */
 int16_t restore_file_record_from(const struct open_file *src);        /* 0x23ee4 */
-void near set_field_4_of_each(uint16_t value, struct bitmap ** list); /* 0x252b4 */
+void near set_mask_of_each(uint16_t value, struct bitmap ** list); /* 0x252b4 */
 void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
                              int16_t a, int16_t b, int16_t c);  /* 0x2537d */
 uint16_t count_list(struct bitmap ** list);             /* 0x252e0 */
@@ -1874,7 +1874,7 @@ void near set_bios_video_mode(uint16_t bits);          /* 0x22741 */
 void shutdown_input(void);                             /* 0x225a5 */
 void restore_video_mode(void);                         /* 0x225ba */
 void free_far_block(uint8_t far * h);        /* 0x1ebdc */
-void close_table_618a_slot(int16_t index);             /* 0x233ef */
+void close_font_slot(int16_t index);             /* 0x233ef */
 void set_holiday_flags(void);                          /* 0x08259 */
 void free_far(void *p);                              /* 0x0bb2d */
 void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */

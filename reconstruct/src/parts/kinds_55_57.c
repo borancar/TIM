@@ -42,7 +42,7 @@ struct point8 KINDS_55_57_POINTS_3282[7] = {
  * uses, so all three are one array of seven-pair rows and this picks the
  * second or the third.
  */
-void part_setup_10b6(struct part *part)
+void part_setup_kind_56(struct part *part)
 {
     const struct point8 *si;
     struct part_point *di;
@@ -73,7 +73,7 @@ void part_setup_10b6(struct part *part)
  * Afterwards, and unlike every other setup, it goes on to set +0x6a to half
  * the width and +0x6b to zero.
  */
-void part_setup_1105(struct part *part)
+void part_setup_kinds_55_57(struct part *part)
 {
     uint8_t a;                          /* [bp-1] */
     uint8_t c;                          /* [bp-2] */
@@ -121,7 +121,7 @@ void part_setup_1105(struct part *part)
  * velocity at +0x36, it goes to form 3 and plays sound 3. Nothing else happens
  * to it at all.
  */
-void part_step_11a6(struct part *part)
+void part_step_kind_57(struct part *part)
 {
     if (part->form == 1 && part->vel_x != 0) {
         part->form = 3;
@@ -133,7 +133,7 @@ void part_step_11a6(struct part *part)
 /*
  * 172c:11d2, image 0x18492 - kind 57's drive hook.
  *
- * Flags of exactly 1 is the counting pass `part_drive_2c19` also recognises:
+ * Flags of exactly 1 is the counting pass `part_drive_light` also recognises:
  * the belt's +0x0e goes up and the answer is 0, so the walk carries on.
  *
  * Otherwise it is a contest of momentum. The part's own at +0x3c - the long
@@ -144,7 +144,7 @@ void part_step_11a6(struct part *part)
  * it counts *twice*, so the same drive that turns a thing directly can fail to
  * turn it at one more remove.
  */
-uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
+uint16_t part_drive_kind_57(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
     struct belt *belt = part->belt[0];   /* [bp-2] */

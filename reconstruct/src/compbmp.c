@@ -35,7 +35,7 @@
 /* The driver's page hook (slot 28, DGROUP 0x43b6), run blit (slot 38,
    0x43de) and span fill (slot 10, 0x436e), all taking their arguments in
    registers. Called from C between the `asm` lines that load them, because
-   the built-in assembler writes a `call` through `DG4342` plus a
+   the built-in assembler writes a `call` through `VM_DRIVER` plus a
    displacement with the displacement negated (docs/lessons.md). */
 typedef void (far *vm_hook_fn)(void);
 typedef void (far *vm_run_fn)(void);
@@ -122,7 +122,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     _AX = VMDS.page_dst;
     if (VMDS.page_hook != 0) {
         asm push ax
-        ((vm_hook_fn)DG4342.font[28])();
+        ((vm_hook_fn)VM_DRIVER.entry[28])();
         asm add sp, 2
     }
     page = _AX;
@@ -199,7 +199,7 @@ run_mirrored:
                     asm mov es, page
                     asm stc
                     asm mov dx, y
-                    ((vm_run_fn)DG4342.font[38])();
+                    ((vm_run_fn)VM_DRIVER.entry[38])();
                     asm pop di
                     asm pop si
 #else
@@ -244,7 +244,7 @@ run:
                     asm mov es, page
                     asm clc
                     asm mov dx, y
-                    ((vm_run_fn)DG4342.font[38])();
+                    ((vm_run_fn)VM_DRIVER.entry[38])();
                     asm pop di
                     asm pop si
 #else
@@ -299,7 +299,7 @@ fill_mirrored:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)DG4342.font[10])();
+                ((vm_span_fn)VM_DRIVER.entry[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(base + b2), (uint16_t)(x - (uint8_t)op + 1),
@@ -340,7 +340,7 @@ fill:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)DG4342.font[10])();
+                ((vm_span_fn)VM_DRIVER.entry[10])();
                 asm pop di
 #else
                 vm_span((uint8_t)(b2 + base), (uint16_t)x, (uint8_t)op,

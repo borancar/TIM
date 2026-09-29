@@ -51,7 +51,7 @@ public _sound_module_install, _sound_module_set_rate, _sound_module_service
 public _sound_module_9, _sound_module_10, _sound_module_11
 public _stop_loaded_module, _sound_module_shutdown
 public _call_sound_module, _sound_module_position
-extrn _DG4A82:byte
+extrn _SOUND_BANK:byte
 
 /* 0x0bb98 */
 _sound_module_install proc far
@@ -119,7 +119,7 @@ _call_sound_module proc near
     push si
     mov si, bp
     add si, 8
-    call dword ptr DGROUP:_DG4A82+16h
+    call dword ptr DGROUP:_SOUND_BANK+16h
     pop si
     pop di
     pop bp
@@ -135,7 +135,7 @@ _sound_module_position proc far
     push si
     sub sp, 6
     mov si, sp
-    call dword ptr DGROUP:_DG4A82+16h
+    call dword ptr DGROUP:_SOUND_BANK+16h
     pop ax
     pop ax
     pop dx

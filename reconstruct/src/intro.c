@@ -197,11 +197,11 @@ void game_intro(void)
         present_frame(1);
 
     VMDS.page_back += 0x12c;
-    DG4E67.state = 0x8000;
+    GAME_STATE.state = 0x8000;
     DG52BD.music_now = -1;
 
     stage = 0;
-    while (stage != 4 && DG4E67.state == 0x8000) {
+    while (stage != 4 && GAME_STATE.state == 0x8000) {
         if (stage == 0) {
             VMDS.page_dst = VMDS.page_front;
             cursor_redraw_off_thunk();
@@ -253,7 +253,7 @@ void game_intro(void)
             }
         }
 
-        regions_handle_pointer(DG4E67.regions_play);
+        regions_handle_pointer(GAME_STATE.regions_play);
         update_button_state();
 
         if (DG52ED.stop_requested != 0)
@@ -285,16 +285,16 @@ void game_intro(void)
     vm_set_display_lines(0x18f);
     update_button_state();
 
-    if (DG5768.button_left == 2 || DG5768.button_right == 2)
-        which = DG4E67.state = 2;
+    if (POINTER.button_left == 2 || POINTER.button_right == 2)
+        which = GAME_STATE.state = 2;
 
     frame = 0x3f6;
 
-    if (DG4E67.state == 0x8000) {
+    if (GAME_STATE.state == 0x8000) {
         which = 0x8000;
-        DG4E67.state = 0x2000;
+        GAME_STATE.state = 0x2000;
     } else {
-        which = DG4E67.state = 2;
+        which = GAME_STATE.state = 2;
     }
 
     while (which == 0x8000 || which == 0x4000) {
@@ -307,12 +307,12 @@ void game_intro(void)
          */
         if (which == 0x8000) {
             load_animation(WRITABLE_LITERAL("title.gkc"));
-            DG4E67.origin_c_x = DG4E67.origin_b_x = DG4E67.origin_x = -8;
+            GAME_STATE.origin_c_x = GAME_STATE.origin_b_x = GAME_STATE.origin_x = -8;
         } else {
             load_animation(WRITABLE_LITERAL("credits.gkc"));
-            DG4E67.origin_c_x = DG4E67.origin_b_x = DG4E67.origin_x = -0x10;
+            GAME_STATE.origin_c_x = GAME_STATE.origin_b_x = GAME_STATE.origin_x = -0x10;
         }
-        DG4E67.origin_c_y = DG4E67.origin_b_y = DG4E67.origin_y = 0;
+        GAME_STATE.origin_c_y = GAME_STATE.origin_b_y = GAME_STATE.origin_y = 0;
 
         clear_machine();
         set_clip_full_screen();
@@ -354,7 +354,7 @@ void game_intro(void)
             draw_frame_corners(gkc);
             present_frame(1);
 
-            if (DG4E67.machine_frames == 0)
+            if (GAME_STATE.machine_frames == 0)
                 set_palette_pointer(DG52ED.pal_tim);  /* tim.pal */
 
             if (DG52BD.sound_request_01 == 1) stop_music_or_effect(1);
@@ -364,22 +364,22 @@ void game_intro(void)
 
             shift_all_histories();
 
-            if (DG5768.button_left == 2 || DG5768.button_right == 2) {
-                which = DG4E67.state = 2;
+            if (POINTER.button_left == 2 || POINTER.button_right == 2) {
+                which = GAME_STATE.state = 2;
                 running = 0;
             }
 
-            DG4E67.machine_frames++;
+            GAME_STATE.machine_frames++;
 
             if (which == 0x8000) {
-                if ((int16_t)DG4E67.machine_frames > 0x110)
+                if ((int16_t)GAME_STATE.machine_frames > 0x110)
                     running = 0;
-            } else if ((int16_t)DG4E67.machine_frames > 0x152) {
+            } else if ((int16_t)GAME_STATE.machine_frames > 0x152) {
                 running = 0;
             }
         }
 
-        splice_list_4e58_onto_4e56();
+        release_part_queue();
         reset_machine();
 
         for (si = 1; si <= 0x14; si++)
@@ -400,12 +400,12 @@ void game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap(si);
 
-    DG4E67.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
-    DG4E67.state = 0x8000;
+    GAME_STATE.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
+    GAME_STATE.state = 0x8000;
 
     copy_protect_screen(gkc);
 
-    DG4E67.state = 2;
+    GAME_STATE.state = 2;
 
     set_palette_pointer(DG52BD.pal_black);      /* black.pal */
     present_frame(1);
@@ -557,9 +557,9 @@ void copy_protect_screen(struct bitmap **bitmaps)
     restore_cursor_following();
 
     itoa(page + 1, numbuf, 10);
-    strcpy(msg, DG1BCC.please_select_in_order);
+    strcpy(msg, MESSAGES.please_select_in_order);
     strcat(msg, numbuf);
-    strcat(msg, DG1BCC.of_the_users_manual);
+    strcat(msg, MESSAGES.of_the_users_manual);
     draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
@@ -574,7 +574,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
             part = 0x24;
 
         cursor_redraw_off_thunk();
-        draw_bitmap_centred(DG4E67.icons_bmp[part],
+        draw_bitmap_centred(GAME_STATE.icons_bmp[part],
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -610,14 +610,14 @@ void copy_protect_screen(struct bitmap **bitmaps)
                           (uint16_t)((highlight / 8) * 0x30 + 0x30));
         }
 
-        select_cursor((DG5768.pointer_x >= 0x248 && DG5768.pointer_y >= 0x158)
+        select_cursor((POINTER.pointer_x >= 0x248 && POINTER.pointer_y >= 0x158)
                       ? 0x15 : 0);
 
-        if (((int16_t)DG5768.button_left) == 2) {            /* the frame of a click */
-            if (DG5768.pointer_x >= 0x40 && DG5768.pointer_x < 0x240
-                && DG5768.pointer_y >= 0x20 && DG5768.pointer_y < 0xe0) {
-                pick = (DG5768.pointer_x - 0x40) / 0x40
-                       + (DG5768.pointer_y - 0x20) / 0x30 * 8;
+        if (((int16_t)POINTER.button_left) == 2) {            /* the frame of a click */
+            if (POINTER.pointer_x >= 0x40 && POINTER.pointer_x < 0x240
+                && POINTER.pointer_y >= 0x20 && POINTER.pointer_y < 0xe0) {
+                pick = (POINTER.pointer_x - 0x40) / 0x40
+                       + (POINTER.pointer_y - 0x20) / 0x30 * 8;
                 if (pick > 0x13)
                     pick++;
                 if (pick == 0x1e)
@@ -626,14 +626,14 @@ void copy_protect_screen(struct bitmap **bitmaps)
                     pick = 0x24;
 
                 answers[slot] = pick;
-                draw_answer_slot(DG4E67.icons_bmp[pick],
+                draw_answer_slot(GAME_STATE.icons_bmp[pick],
                                  slot);
                 slot++;
                 if (slot == 3)
                     slot = 0;
             }
 
-            if (DG5768.pointer_x >= 0x248 && DG5768.pointer_y >= 0x158)
+            if (POINTER.pointer_x >= 0x248 && POINTER.pointer_y >= 0x158)
                 game_teardown(1);
         }
 
@@ -745,15 +745,15 @@ void game_play(void)
 {
     game_setup();
 
-    while (DG4E67.playing != 0) {
+    while (GAME_STATE.playing != 0) {
         game_round();
 
-        if (((int16_t)DG4E67.state) == 1) {
-            DG4E67.playing = 0;
+        if (((int16_t)GAME_STATE.state) == 1) {
+            GAME_STATE.playing = 0;
         } else {
-            DG4E67.round_number++;
-            if (DG4E67.round_number > DG4E67.furthest_level) {
-                DG4E67.furthest_level = DG4E67.round_number;
+            GAME_STATE.round_number++;
+            if (GAME_STATE.round_number > GAME_STATE.furthest_level) {
+                GAME_STATE.furthest_level = GAME_STATE.round_number;
                 write_config();
             }
         }

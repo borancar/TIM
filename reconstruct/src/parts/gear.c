@@ -150,12 +150,12 @@ void part_setup_gear(struct part *part)
     int16_t dy;                         /* [bp-4] */
     int16_t i;                          /* [bp-6] */
 
-    part_setup_0001(part);
+    part_setup_big_ball(part);
 
     for (i = 0; i < 4; i++)
         part->link[i] = 0;
 
-    for (di = DG521B.placed_parts.next; di != NULL;
+    for (di = MACHINE_PARTS.placed_parts.next; di != NULL;
          di = di->next) {
         if (di != part && di->kind == KIND_GEAR) {
             dx = part->start_x - di->start_x;

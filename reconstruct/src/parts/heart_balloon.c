@@ -44,12 +44,12 @@ void part_setup_heart_balloon(struct part *part)
 }
 
 /*
- * 172c:26c3, image 0x19983 - kind 33's drive, and it is `part_drive_02cd`
+ * 172c:26c3, image 0x19983 - kind 33's drive, and it is `part_drive_balloon`
  * again with nothing added: mode 1 steps +0x0e of what +0x66 points at, and
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
  * is kind 3 - answers 1 when it is past the limit.
  */
-uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_heart_balloon(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     struct belt *belt = p2->belt[0];   /* [bp-2] */

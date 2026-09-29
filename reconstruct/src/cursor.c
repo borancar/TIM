@@ -53,14 +53,14 @@ struct machine_cursor_state MACHINE_CURSOR_STATE = {
 
 /*
  * **This module's `_BSS`, 0x56e6..0x5788.** Borland lays `_BSS` out in
- * reverse order of first mention. dgroup.h mentions DG5768, then
- * `MACHINE_RECT_BUFFERS`, then DG5752 - the three highest - and the rest
+ * reverse order of first mention. dgroup.h mentions POINTER, then
+ * `MACHINE_RECT_BUFFERS`, then FRAME_GUARD - the three highest - and the rest
  * are defined here from the highest down.
  */
-struct dg_5768 DG5768;
+struct pointer POINTER;
 
 struct machine_rect_buffers MACHINE_RECT_BUFFERS;   /* DGROUP 0x5758 */
-struct dg_5752 DG5752;
+struct frame_guard FRAME_GUARD;
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
@@ -103,7 +103,7 @@ struct machine_palette_fade MACHINE_PALETTE_FADE;
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
  * apiece at 0x5734; the buffers themselves are `MACHINE_RECT_BUFFERS.slot`, the far
- * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
+ * pointers at 0x5758 up to `POINTER`. Four is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
  */
@@ -205,7 +205,7 @@ void timer_callback(void)
     int16_t k_end, k_down, k_pgdn, k_left, k_right, k_home, k_up, k_pgup;
     int16_t si, di;
 
-    if (((int16_t)DG5752.guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
+    if (((int16_t)FRAME_GUARD.guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
         return;
 
     MACHINE_PALETTE_FADE.busy = 1;
@@ -222,36 +222,36 @@ void timer_callback(void)
 
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
-        DG5768.cursor_y -= 2;
-        if (DG5768.cursor_y - DG5768.hot_y < 0)
-            DG5768.cursor_y = 0;
+        POINTER.cursor_y -= 2;
+        if (POINTER.cursor_y - POINTER.hot_y < 0)
+            POINTER.cursor_y = 0;
     }
 
     if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
         moved = 1;
-        DG5768.cursor_y += 2;
-        if (DG5768.cursor_y - DG5768.hot_y > (int16_t)(VMDS.screen.screen_height - 1))
-            DG5768.cursor_y = (int16_t)(VMDS.screen.screen_height - 1);
+        POINTER.cursor_y += 2;
+        if (POINTER.cursor_y - POINTER.hot_y > (int16_t)(VMDS.screen.screen_height - 1))
+            POINTER.cursor_y = (int16_t)(VMDS.screen.screen_height - 1);
     }
 
     if (k_end != 0 || k_left != 0 || k_home != 0) {
         moved = 1;
-        DG5768.cursor_x -= 2;
-        if (DG5768.cursor_x - DG5768.hot_x < 0)
-            DG5768.cursor_x = 0;
+        POINTER.cursor_x -= 2;
+        if (POINTER.cursor_x - POINTER.hot_x < 0)
+            POINTER.cursor_x = 0;
     }
 
     if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
         moved = 1;
-        DG5768.cursor_x += 2;
-        if (DG5768.cursor_x - DG5768.hot_x > (int16_t)(VMDS.screen.screen_width - 1))
-            DG5768.cursor_x = (int16_t)(VMDS.screen.screen_width - 1);
+        POINTER.cursor_x += 2;
+        if (POINTER.cursor_x - POINTER.hot_x > (int16_t)(VMDS.screen.screen_width - 1))
+            POINTER.cursor_x = (int16_t)(VMDS.screen.screen_width - 1);
     }
 
     if (moved != 0)
-        mouse_move_to(((uint16_t)DG5768.cursor_x), ((uint16_t)DG5768.cursor_y));
+        mouse_move_to(((uint16_t)POINTER.cursor_x), ((uint16_t)POINTER.cursor_y));
 
-    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && DG5752.guard == 0) {
+    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && FRAME_GUARD.guard == 0) {
         isr_stack_switch(1);
         redraw_cursor(VMDS.page_front);
         isr_stack_switch(0);
@@ -266,8 +266,8 @@ void timer_callback(void)
 
     si = button_state(0, di);
     if (si <= 1)
-        si = DG5768.button_accum_b;
-    DG5768.button_accum_b = (int16_t)(di | (si & 0xfffe));
+        si = POINTER.button_accum_b;
+    POINTER.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
     di = (MACHINE_CURSOR_STATE.read_driver != 0 && read_mouse_button(1) != 0) ? 1 : 0;
     si = key_is_down(1);
@@ -275,11 +275,11 @@ void timer_callback(void)
 
     si = button_state(1, di);
     if (si <= 1)
-        si = DG5768.button_accum_a;
-    DG5768.button_accum_a = (int16_t)(di | (si & 0xfffe));
+        si = POINTER.button_accum_a;
+    POINTER.button_accum_a = (int16_t)(di | (si & 0xfffe));
 
     MACHINE_PALETTE_FADE.busy = 0;
-    DG5752.frame_flag = 1;
+    FRAME_GUARD.frame_flag = 1;
 }
 
 /*
@@ -301,25 +301,25 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 {
     uint16_t saved;
 
-    if (DG5768.cursor_bitmap == bitmap && DG5768.hot_x == hot_x
-        && DG5768.hot_y == hot_y)
+    if (POINTER.cursor_bitmap == bitmap && POINTER.hot_x == hot_x
+        && POINTER.hot_y == hot_y)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
-    DG5768.cursor_bitmap = bitmap;
+    POINTER.cursor_bitmap = bitmap;
 
     if (bitmap == NULL) {
-        DG5768.hot_x = DG5768.hot_y = 0;
+        POINTER.hot_x = POINTER.hot_y = 0;
     } else {
-        DG5768.hot_x = hot_x;
-        DG5768.hot_y = hot_y;
+        POINTER.hot_x = hot_x;
+        POINTER.hot_y = hot_y;
     }
 
     redraw_cursor(VMDS.page_front);
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -350,8 +350,8 @@ void move_pointer_to(int16_t x, int16_t y)
     else if ((int16_t)(VMDS.screen.screen_height - 1) < y)
         y = (int16_t)(VMDS.screen.screen_height - 1);
 
-    DG5768.cursor_x = DG5768.pointer_x = x;
-    DG5768.cursor_y = DG5768.pointer_y = y;
+    POINTER.cursor_x = POINTER.pointer_x = x;
+    POINTER.cursor_y = POINTER.pointer_y = y;
 
     mouse_move_to((uint16_t)x, (uint16_t)y);
 }
@@ -380,16 +380,16 @@ void wait_and_latch_frame(void)
     }
 
     if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0) {
-        read_mouse_pointer(&DG5768.pointer_x, &DG5768.pointer_y);
+        read_mouse_pointer(&POINTER.pointer_x, &POINTER.pointer_y);
     } else {
-        DG5768.pointer_x = DG5768.cursor_x;
-        DG5768.pointer_y = DG5768.cursor_y;
+        POINTER.pointer_x = POINTER.cursor_x;
+        POINTER.pointer_y = POINTER.cursor_y;
     }
 
-    DG5768.button_left = DG5768.button_accum_b;
-    DG5768.button_right = DG5768.button_accum_a;
-    DG5768.button_accum_b = DG5768.button_accum_a = 0;
-    DG5752.frame_flag = 0;
+    POINTER.button_left = POINTER.button_accum_b;
+    POINTER.button_right = POINTER.button_accum_a;
+    POINTER.button_accum_b = POINTER.button_accum_a = 0;
+    FRAME_GUARD.frame_flag = 0;
 }
 
 /*
@@ -423,8 +423,8 @@ void draw_cursor(uint16_t page)
     if ((slot = claim_page_slot(page)) == NULL)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     restage_object_rect(page);
     save_or_restore_draw_state(1);
@@ -492,7 +492,7 @@ void draw_cursor(uint16_t page)
         slot->cursor.flags &= 0xfe;
     }
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -522,23 +522,23 @@ void redraw_cursor(uint16_t page)
     if ((slot = claim_page_slot(page)) == NULL)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     if (MACHINE_CURSOR_STATE.read_driver != 0)
-        read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
+        read_mouse_pointer(&POINTER.cursor_x, &POINTER.cursor_y);
 
-    MACHINE_RECT_FREE.draw_x = DG5768.cursor_x - DG5768.hot_x;
-    MACHINE_RECT_FREE.draw_y = DG5768.cursor_y - DG5768.hot_y;
+    MACHINE_RECT_FREE.draw_x = POINTER.cursor_x - POINTER.hot_x;
+    MACHINE_RECT_FREE.draw_y = POINTER.cursor_y - POINTER.hot_y;
 
-    if (DG5768.cursor_bitmap == 0
+    if (POINTER.cursor_bitmap == 0
         || slot->x != MACHINE_RECT_FREE.draw_x
         || slot->y != MACHINE_RECT_FREE.draw_y
-        || slot->bitmap != DG5768.cursor_bitmap
+        || slot->bitmap != POINTER.cursor_bitmap
         || !(slot->obj.flags & 2))
         draw_cursor(page);
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -573,8 +573,8 @@ void erase_object(uint16_t handle)
     if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     save_or_restore_draw_state(1);
 
@@ -591,7 +591,7 @@ void erase_object(uint16_t handle)
     }
 
     save_or_restore_draw_state(0);
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -616,8 +616,8 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     if ((si = claim_page_slot(from_page)) == NULL)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     save_or_restore_draw_state(1);
 
@@ -632,7 +632,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     }
 
     save_or_restore_draw_state(0);
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -661,14 +661,14 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
         || (slot_b = claim_page_slot(page_a)) == NULL)
         return;
 
-    was = DG5752.guard;
-    DG5752.guard = 1;
+    was = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     head = slot_a->page;
     slot_a->page = slot_b->page;
     slot_b->page = head;
 
-    DG5752.guard = was;
+    FRAME_GUARD.guard = was;
 }
 
 /*
@@ -726,8 +726,8 @@ void restage_object_rect(uint16_t handle)
     if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     if ((rec->cursor.flags & 1) && rec->cursor.buf != 0
         && MACHINE_PALETTE_FADE.busy == 0) {
@@ -744,11 +744,11 @@ void restage_object_rect(uint16_t handle)
     rec->cursor.flags = rec->obj.flags;
     rec->cursor.pixel = rec->obj.pixel;
 
-    if (rec->bitmap != DG5768.cursor_bitmap && MACHINE_PALETTE_FADE.busy == 0) {
+    if (rec->bitmap != POINTER.cursor_bitmap && MACHINE_PALETTE_FADE.busy == 0) {
         rec->cursor.flags |= 1;
-        if ((rec->bitmap = DG5768.cursor_bitmap) != 0) {
-            size = vm_buffer_size(DG5768.cursor_bitmap->width,
-                                  DG5768.cursor_bitmap->height);
+        if ((rec->bitmap = POINTER.cursor_bitmap) != 0) {
+            size = vm_buffer_size(POINTER.cursor_bitmap->width,
+                                  POINTER.cursor_bitmap->height);
             rec->obj.buf = claim_buffer_slot(size, 0L);
         } else {
             rec->obj.buf = 0;
@@ -756,14 +756,14 @@ void restage_object_rect(uint16_t handle)
     }
 
     if (MACHINE_CURSOR_STATE.read_driver != 0)
-        read_mouse_pointer(&DG5768.cursor_x, &DG5768.cursor_y);
+        read_mouse_pointer(&POINTER.cursor_x, &POINTER.cursor_y);
 
-    x = DG5768.cursor_x - DG5768.hot_x;
-    y = DG5768.cursor_y - DG5768.hot_y;
+    x = POINTER.cursor_x - POINTER.hot_x;
+    y = POINTER.cursor_y - POINTER.hot_y;
 
-    if (DG5768.cursor_bitmap != 0) {
-        w = DG5768.cursor_bitmap->width;
-        h = DG5768.cursor_bitmap->height;
+    if (POINTER.cursor_bitmap != 0) {
+        w = POINTER.cursor_bitmap->width;
+        h = POINTER.cursor_bitmap->height;
     } else {
         w = h = 1;
     }
@@ -789,7 +789,7 @@ void restage_object_rect(uint16_t handle)
     rec->obj.w = w;
     rec->obj.h = h;
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -838,19 +838,19 @@ void redraw_cursor_all(void)
     uint16_t was;
     struct page_slot *rec;
 
-    was = DG5752.guard;
-    DG5752.guard = 1;
+    was = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
-    if (DG5768.pending_move_x != 0 || DG5768.pending_move_y != 0) {
-        move_pointer_to(DG5768.pending_move_x, DG5768.pending_move_y);
-        DG5768.pending_move_x = DG5768.pending_move_y = 0;
+    if (POINTER.pending_move_x != 0 || POINTER.pending_move_y != 0) {
+        move_pointer_to(POINTER.pending_move_x, POINTER.pending_move_y);
+        POINTER.pending_move_x = POINTER.pending_move_y = 0;
     }
 
     draw_cursor(VMDS.page_back);
 
     if (MACHINE_CURSOR_STATE.page != 0)
         show_page_thunk(MACHINE_CURSOR_STATE.pending_pal == NULL
-                        && DG5768.fade_weight == MACHINE_PALETTE_FADE.fade_mark ? 1 : 0);
+                        && POINTER.fade_weight == MACHINE_PALETTE_FADE.fade_mark ? 1 : 0);
 
     if (MACHINE_CURSOR_STATE.pending_pal != NULL) {
         set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
@@ -859,9 +859,9 @@ void redraw_cursor_all(void)
         MACHINE_PALETTE_FADE.fade_mark = 0;
     }
 
-    if (DG5768.fade_weight != MACHINE_PALETTE_FADE.fade_mark) {
-        fade_palette_run(MACHINE_CURSOR_STATE.fade_first, MACHINE_CURSOR_STATE.fade_count, 0, DG5768.fade_weight);
-        MACHINE_PALETTE_FADE.fade_mark = DG5768.fade_weight;
+    if (POINTER.fade_weight != MACHINE_PALETTE_FADE.fade_mark) {
+        fade_palette_run(MACHINE_CURSOR_STATE.fade_first, MACHINE_CURSOR_STATE.fade_count, 0, POINTER.fade_weight);
+        MACHINE_PALETTE_FADE.fade_mark = POINTER.fade_weight;
     }
 
     if (MACHINE_CURSOR_STATE.screen_disturbed != 0) {
@@ -910,7 +910,7 @@ void redraw_cursor_all(void)
 
     restore_saved_rect_lists(0);
 
-    DG5752.guard = was;
+    FRAME_GUARD.guard = was;
 }
 
 /*
@@ -941,8 +941,8 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 
     hit_draw = 0;
     hit_shown = 0;
-    saved = DG5752.guard;
-    DG5752.guard = 1;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 1;
 
     if ((si = claim_page_slot(VMDS.page_src)) != NULL
         && (si->obj.flags & 2)) {
@@ -987,7 +987,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
         erase_object(VMDS.page_src);
     }
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -1074,7 +1074,7 @@ void save_or_restore_draw_state(int16_t save)
 /*
  * 0x0b4e2
  *
- * Non-zero while `DG5752.frame_flag` is still clear. The original is
+ * Non-zero while `FRAME_GUARD.frame_flag` is still clear. The original is
  * `neg ax / sbb ax,ax / inc ax`, which is Borland's idiom for `ax = (ax == 0)`.
  *
  * The caller at 0x0aaca spins on this waiting for the INT 08h handler to set
@@ -1083,7 +1083,7 @@ void save_or_restore_draw_state(int16_t save)
  */
 int16_t frame_pending(void)
 {
-    return !DG5752.frame_flag;
+    return !FRAME_GUARD.frame_flag;
 }
 
 /*
@@ -1105,8 +1105,8 @@ void reset_input_state(void)
     struct button *b;
     register int16_t n;
 
-    saved = DG5752.guard;
-    DG5752.guard = 2;
+    saved = FRAME_GUARD.guard;
+    FRAME_GUARD.guard = 2;
 
     for (b = MACHINE_BUTTONS.button, n = 2; n != 0; b++, n--) {
         b->state = 0;
@@ -1115,10 +1115,10 @@ void reset_input_state(void)
         b->delay = 0;
     }
 
-    DG5768.button_accum_b = DG5768.button_accum_a = 0;
-    DG5768.button_left = DG5768.button_right = 0;
+    POINTER.button_accum_b = POINTER.button_accum_a = 0;
+    POINTER.button_left = POINTER.button_right = 0;
 
-    DG5752.guard = saved;
+    FRAME_GUARD.guard = saved;
 }
 
 /*
@@ -1160,10 +1160,10 @@ int16_t button_state(uint16_t index, int16_t down)
         }
 
         if (MACHINE_CURSOR_STATE.read_driver != 0) {
-            read_mouse_pointer(&DG5768.button_at_x, &DG5768.button_at_y);
+            read_mouse_pointer(&POINTER.button_at_x, &POINTER.button_at_y);
         } else {
-            DG5768.button_at_x = DG5768.cursor_x;
-            DG5768.button_at_y = DG5768.cursor_y;
+            POINTER.button_at_x = POINTER.cursor_x;
+            POINTER.button_at_y = POINTER.cursor_y;
         }
 
         b->delay = MACHINE_CURSOR_STATE.delay_reload;
@@ -1220,11 +1220,11 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     /* Two Borland `long`s the routine does not use - its one caller passes
        the size in the first and zero in the second. The image copies each
        onto itself, which is what these two lines compile to. It sizes the
-       buffer from `DG5752.size_word` or `vm_buffer_size` instead. */
+       buffer from `FRAME_GUARD.size_word` or `vm_buffer_size` instead. */
     a = a;
     b = b;
 
-    size = DG5752.size_word != 0 ? DG5752.size_word : (int16_t)vm_buffer_size(0x40, 0x40);
+    size = FRAME_GUARD.size_word != 0 ? FRAME_GUARD.size_word : (int16_t)vm_buffer_size(0x40, 0x40);
 
     for (i = 0; i < 4; i++) {
         if (MACHINE_RECT_BUFFERS.slot[i] == NULL)

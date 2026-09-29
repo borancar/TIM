@@ -73,8 +73,8 @@ void game_startup(void)
 
     free_bytes = DOS_ALLOC_BYTES(DOS_ALLOC(0xffffffffUL, 0));
     if (free_bytes < 0x44d90L) {
-        printf(DG1BCC.not_enough_free_memory);
-        printf(DG1BCC.you_need_at_least);
+        printf(MESSAGES.not_enough_free_memory);
+        printf(MESSAGES.you_need_at_least);
         exit(0);
     }
 
@@ -83,8 +83,8 @@ void game_startup(void)
     set_holiday_flags();
 
     DG52ED.stop_requested = 0;
-    DG4E67.file_op_active = 0;
-    DG4E67.cursor = 0xffff;
+    GAME_STATE.file_op_active = 0;
+    GAME_STATE.cursor = 0xffff;
 
     load_archive_map();
 
@@ -121,18 +121,18 @@ void game_startup(void)
     }
 
     if (read_tim_cfg() == 0) {
-        DG4E67.furthest_level = 1;
-        DG4E67.master_level = 6;
+        GAME_STATE.furthest_level = 1;
+        GAME_STATE.master_level = 6;
     }
 
-    DG4E67.password_puzzle = 0;
-    DG4E67.score = 0;
+    GAME_STATE.password_puzzle = 0;
+    GAME_STATE.score = 0;
     DG52BD.fill_colour = 3;
     DG52BD.bin_colour = 0x0b;
 
     vm_ok = vm_init(0x0d, 0x80, (FILE *)WRITABLE_LITERAL("vm.ovl"));
     if (vm_ok == 0) {
-        printf(DG1BCC.unable_to_initialize_vm);
+        printf(MESSAGES.unable_to_initialize_vm);
         exit(0);
     }
 
@@ -148,7 +148,7 @@ void game_startup(void)
 
     DG52ED.cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
     DG52ED.panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
-    DG4E67.bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
+    GAME_STATE.bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
 
     install_keyboard(0);
 
@@ -158,7 +158,7 @@ void game_startup(void)
     for (i = 1; i <= 0x14; i++)
         open_sound_file((char *)DG52ED.tim_sx, i);
 
-    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
+    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[GAME_STATE.master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -176,11 +176,11 @@ void game_startup(void)
      * Twenty eight-byte records off the near heap, chained through their first
      * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
      */
-    DG4E4E.parts_free = DG4E4E.parts_queue = 0;
+    FREE_LISTS.parts_free = FREE_LISTS.parts_queue = 0;
     for (i = 0; i < 0x14; i++) {
         node = (struct queue_node *)calloc_far(1, sizeof(struct queue_node));
-        node->next = DG4E4E.parts_free;
-        DG4E4E.parts_free = node;
+        node->next = FREE_LISTS.parts_free;
+        FREE_LISTS.parts_free = node;
     }
 
     /*
@@ -188,11 +188,11 @@ void game_startup(void)
      * through a far pointer in the first four bytes of each block. 0x4e52 is
      * the second head, cleared here and not filled.
      */
-    DG4E4E.shape_free = DG4E4E.shapes = NULL;
+    FREE_LISTS.shape_free = FREE_LISTS.shapes = NULL;
     for (i = 0; i < 0xb4; i++) {
         block = (struct shape far *)DOS_ALLOC_PTR(DOS_ALLOC(sizeof(struct shape), 1));
-        block->next = DG4E4E.shape_free;
-        DG4E4E.shape_free = block;
+        block->next = FREE_LISTS.shape_free;
+        FREE_LISTS.shape_free = block;
     }
 }
 
@@ -238,22 +238,22 @@ void game_teardown(int16_t really)
         return;
     }
 
-    if (DG4E67.password_puzzle != 0) {
-        read_password_line(DG4E67.password_puzzle, code);
-        score_to_code(DG4E67.score, code);
-        strcpy(msg, DG1BCC.thanks_for_playing);
+    if (GAME_STATE.password_puzzle != 0) {
+        read_password_line(GAME_STATE.password_puzzle, code);
+        score_to_code(GAME_STATE.score, code);
+        strcpy(msg, MESSAGES.thanks_for_playing);
         strcat(msg, code);
     } else {
         msg[0] = 0;
     }
 
     /* Each free block's first four bytes are the far pointer to the next. */
-    for (node = DG4E4E.shape_free; node != NULL; node = next) {
+    for (node = FREE_LISTS.shape_free; node != NULL; node = next) {
         next = node->next;
         dos_free_far(node);
     }
 
-    for (si = DG4E4E.parts_free; si != 0; si = after) {
+    for (si = FREE_LISTS.parts_free; si != 0; si = after) {
         after = si->next;
         free_far(si);
     }
@@ -261,12 +261,12 @@ void game_teardown(int16_t really)
     free_region_lists();
     free_all_part_bitmaps();
 
-    free_bitmaps_thunk(DG4E67.icons_bmp);
-    free_bitmaps_thunk(DG4E67.bmp_4ecb);
+    free_bitmaps_thunk(GAME_STATE.icons_bmp);
+    free_bitmaps_thunk(GAME_STATE.bmp_4ecb);
     free_bitmaps_thunk(DG52ED.panel_art);
     free_bitmaps(DG52ED.cursor_art);
 
-    close_table_618a_slot(DG52BD.memo_font);
+    close_font_slot(DG52BD.memo_font);
 
     free_far_block(DG52BD.pal_black);
     free_far_block(DG52BD.pal_sierra);

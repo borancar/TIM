@@ -80,7 +80,7 @@ uint16_t part_hit_balloon(struct part *part)
  * puts it on the list at DGROUP 0x5179, and moves its belt across: the anchor
  * takes the belt at +0x66 and the link at +0x5a, the part on the far side of
  * that link is pointed back at the anchor through whichever of its own two
- * links matched - `match_field_5a_5c` - and the belt record's own end, +2 or
+ * links matched - `link_slot_of` - and the belt record's own end, +2 or
  * +4, is repointed too. The anchor lands on the belt's tangent point for that
  * end, carried in sixteenths the usual way, and this part lets go of both.
  *
@@ -103,13 +103,13 @@ void part_step_balloon(struct part *part)
             if (part->direction == 1
                 && (belt = part->belt[0]) != NULL
                 && (si = make_part(KIND_ANCHOR)) != NULL) {
-                insert_sorted(si, &DG5179.moving_parts);
+                insert_sorted(si, &MOVING_PARTS.moving_parts);
                 si->flags_06 |= 0x10;
                 si->belt[0] = belt;
                 si->link[0] = part->link[0];
                 link = si->link[0];
 
-                if ((k = match_field_5a_5c(part, link)) != 0xffff)
+                if ((k = link_slot_of(part, link)) != 0xffff)
                     link->link[k] = si;
 
                 if (belt->end_a == part) {
@@ -158,7 +158,7 @@ void part_step_balloon(struct part *part)
  * two arms. The compare is signed on the high word and unsigned on the low,
  * which is what a 32-bit signed compare is, so it is written as one.
  */
-uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_balloon(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     struct belt *belt = p2->belt[0];   /* [bp-2] */

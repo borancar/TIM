@@ -83,8 +83,8 @@ void part_step_mort_the_mouse(struct part *part)
     int16_t slowest;                    /* [bp-2] */
     int16_t step;                       /* [bp-4] */
 
-    if (part->word_96 != 0) {
-        part->word_96--;
+    if (part->kind_state != 0) {
+        part->kind_state--;
         part->form ^= 1;
 
         if (part->form != 0)
@@ -108,7 +108,7 @@ void part_step_mort_the_mouse(struct part *part)
 
         if (slowest != 0x190) {
             part->form = 1;
-            part->word_96 = 5;
+            part->kind_state = 5;
 
             if (slowest > 0) {
                 part->flags_08 &= 0xffef;

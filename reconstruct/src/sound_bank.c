@@ -117,7 +117,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     int16_t handle;
     uint16_t dir;
 
-    switch (DG4A82.device) {
+    switch (SOUND_BANK.device) {
     case 0:
         want = 0x12;
         break;
@@ -133,7 +133,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
         want = 0xc;
         break;
     case 0x7e:
-        want = (uint8_t)DG4A82.identifier;
+        want = (uint8_t)SOUND_BANK.identifier;
         break;
 
     /*
@@ -191,7 +191,7 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     goto close;
 
 missing:
-    DG4A82.load_error = 2;
+    SOUND_BANK.load_error = 2;
 close:
     close_resource(handle);
 done:
@@ -611,9 +611,9 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
                 voice->source = source;
                 voice->cursor = (uint8_t far *)advance_record(source);
 
-                if (DG4A82.bank != 0) {
-                    voice->loop = DG4A82.bank[index].loop;
-                    voice->priority = DG4A82.bank[index].priority;
+                if (SOUND_BANK.bank != 0) {
+                    voice->loop = SOUND_BANK.bank[index].loop;
+                    voice->priority = SOUND_BANK.bank[index].priority;
                     voice->volume = 0x7f;
                 } else {
                     voice->loop = (uint8_t)byte_arg;

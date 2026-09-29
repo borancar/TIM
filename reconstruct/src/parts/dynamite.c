@@ -141,7 +141,7 @@ void burst_dynamite(struct part *part)
 
     play_sound(8);
 
-    insert_sorted(si, &DG521B.placed_parts);
+    insert_sorted(si, &MACHINE_PARTS.placed_parts);
     si->flags_06 |= 0x10;
 
     si->pos[0].x = part->pos[0].x - 15;

@@ -119,10 +119,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         strcpy_far(SOUND_CHUNK_NAME + 4,
                         SOUND_MODULE_TAGS[module_index]);
 
-        if ((DG4A82.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+        if ((SOUND_BANK.module = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
             != NULL) {
-            DG4A82.module_live = 1;
-            set_sound_callback(DG4A82.module);
+            SOUND_BANK.module_live = 1;
+            set_sound_callback(SOUND_BANK.module);
 
             /*
              * **And then on to the driver, whatever this answers.** A
@@ -135,10 +135,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
              * two tables.
              */
             if (sound_module_install(callback, 1) == 0) {
-                DG4A82.module_live = 0;
+                SOUND_BANK.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(DG4A82.module, 1);
-                DG4A82.module = 0;
+                free_for_kind(SOUND_BANK.module, 1);
+                SOUND_BANK.module = 0;
                 module_index = -2;
                 failed = 1;
             }
@@ -152,13 +152,13 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         strcpy_far(SOUND_CHUNK_NAME + 4,
                         SOUND_DEVICE_TAGS[device]);
 
-        if ((DG4A82.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
+        if ((SOUND_BANK.driver = load_named_chunk((char *)handle, SOUND_CHUNK_NAME, 0))
             != NULL) {
-            DG4A82.driver_number = (uint8_t)install_driver_far(DG4A82.driver);
+            SOUND_BANK.driver_number = (uint8_t)install_driver_far(SOUND_BANK.driver);
 
-            if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
-                free_for_kind(DG4A82.driver, 1);
-                DG4A82.driver = 0;
+            if (load_sound_module(handle, &SOUND_BANK.driver_number, 0) == 0) {
+                free_for_kind(SOUND_BANK.driver, 1);
+                SOUND_BANK.driver = 0;
                 failed = 1;
             }
         } else {
@@ -168,7 +168,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         device = device == 8 ? 3 : device;
     }
 
-    DG4A82.device = device;
+    SOUND_BANK.device = device;
     return !failed;
 }
 

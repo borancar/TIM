@@ -72,7 +72,7 @@ uint16_t part_hit_pokey(struct part *part)
 
     if (other->form == 0) {
         other->form = 1;
-        other->word_96 = 0;
+        other->kind_state = 0;
         place_object_for_draw(other);
         play_sound(7);
     }
@@ -130,21 +130,21 @@ void part_step_pokey(struct part *part)
             part->form = 0;
         }
     } else if (still == 0 && part->form < 2) {
-        if (part->word_96 > 4) {
+        if (part->kind_state > 4) {
             part->flags_08 |= 0x20;
             part->form = 1;
-            part->word_96 = 0;
+            part->kind_state = 0;
         } else {
-            part->word_96++;
+            part->kind_state++;
         }
     } else if (part->form == 1) {
-        part->word_96++;
-        if (part->word_96 > 0x0c) {
+        part->kind_state++;
+        if (part->kind_state > 0x0c) {
             if (part->flags_08 & 0x10)
                 step = 0x20;
             else
                 step = -0x20;
-            part->word_96 = 0;
+            part->kind_state = 0;
             part->pos[0].x += step;
             place_object_for_draw(part);
 
@@ -217,7 +217,7 @@ void part_step_pokey(struct part *part)
                         step = 0x20;
                     else
                         step = -0x20;
-                    part->word_96 = 0;
+                    part->kind_state = 0;
                     part->pos[0].x += step;
                     place_object_for_draw(part);
 

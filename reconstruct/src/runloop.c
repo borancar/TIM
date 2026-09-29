@@ -57,10 +57,10 @@
 void run_machine_loop(void)
 {
     clear_machine();
-    DG4E67.elapsed_ticks = 0;
+    GAME_STATE.elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (DG4E67.state == 0x2000) {
+    while (GAME_STATE.state == 0x2000) {
         if (((uint16_t)DG52BD.sound_request_01) != 0) DG52BD.sound_request_01 = 1;
         if (((uint16_t)DG52BD.sound_request_02) != 0) DG52BD.sound_request_02 = 1;
         if (((uint16_t)DG52BD.sound_request_09) != 0) DG52BD.sound_request_09 = 1;
@@ -68,7 +68,7 @@ void run_machine_loop(void)
 
         update_button_state();
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        regions_handle_pointer(DG4E67.regions_play);
+        regions_handle_pointer(GAME_STATE.regions_play);
 
         step_machine();
         mark_parts_in_dirty_rects();
@@ -78,7 +78,7 @@ void run_machine_loop(void)
 
         while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
             ;
-        DG4E67.elapsed_ticks += 0x2710 - TIMER.frame_budget;
+        GAME_STATE.elapsed_ticks += 0x2710 - TIMER.frame_budget;
         TIMER.frame_budget = 0x2710;
 
         present_frame(1);
@@ -90,18 +90,18 @@ void run_machine_loop(void)
 
         shift_all_histories();
 
-        if (DG4E67.freeform == 0) {
+        if (GAME_STATE.freeform == 0) {
             check_goal();
             if ((DG52ED.last_key) == SC_V)
-                DG4E67.state = 0x200;
+                GAME_STATE.state = 0x200;
         }
 
-        if (DG5768.button_left == 2)
-            DG4E67.state = 0x1000;
-        if (DG5768.button_right == 2)
-            DG4E67.state = 2;
+        if (POINTER.button_left == 2)
+            GAME_STATE.state = 0x1000;
+        if (POINTER.button_right == 2)
+            GAME_STATE.state = 2;
 
-        DG4E67.machine_frames++;
+        GAME_STATE.machine_frames++;
     }
 
     restart_machine();
@@ -123,8 +123,8 @@ void clear_machine(void)
     select_cursor(0);
     erase_both_pages();
 
-    DG50D3.dragged_part = 0;
-    DG4E67.machine_frames = 0;
+    HELD_PARTS.dragged_part = 0;
+    GAME_STATE.machine_frames = 0;
     DG52BD.sound_request_01 = DG52BD.sound_request_02 =
         DG52BD.sound_request_09 = DG52BD.sound_request_0c = 0;
 
@@ -140,7 +140,7 @@ void clear_machine(void)
  */
 void restart_machine(void)
 {
-    splice_list_4e58_onto_4e56();
+    release_part_queue();
     reset_machine();
     show_cursor_again();
     stop_music_or_effect(0);
@@ -159,9 +159,9 @@ void restart_machine(void)
  */
 void step_loop_frames(void)
 {
-    DG4E67.loop_frames++;
-    if (DG4E67.loop_frames == 0x2a00)
-        DG4E67.loop_frames = 0x1c00;
+    GAME_STATE.loop_frames++;
+    if (GAME_STATE.loop_frames == 0x2a00)
+        GAME_STATE.loop_frames = 0x1c00;
 }
 
 /*
@@ -176,5 +176,5 @@ void step_loop_frames(void)
  */
 void check_goal(void)
 {
-    DG2630.goal_test[DG4E67.round_number - 1]();
+    GOAL_TESTS.goal_test[GAME_STATE.round_number - 1]();
 }

@@ -385,7 +385,7 @@ void part_step_seesaw(struct part *part)
  * every run rather than differently each time. Recorded because it is a real
  * difference and not a transcription slip.
  */
-uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     int16_t  di;
@@ -466,7 +466,7 @@ uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t
  * refused.
  *
  * Each of the two belts at +0x66 leads to another part, which
- * `select_field_2_or_4` names. The one the caller came *from* is skipped, which is
+ * `belt_other_end` names. The one the caller came *from* is skipped, which is
  * what stops the walk going back on itself. `belt_orientation` says how the
  * belt runs between them - which way round the tangent points are - and that,
  * or-ed with the caller's own flags, is handed on with the part.
@@ -496,7 +496,7 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
 
     for (v02 = 0; v02 < 2 && v04 == 0; v02++) {
         if ((si = part->belt[v02]) != 0) {
-            v10 = (select_field_2_or_4(part, si));
+            v10 = (belt_other_end(part, si));
             if (v10 != from) {
                 if ((si->end_a) == part) {
                     v06 = 0;

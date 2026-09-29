@@ -70,7 +70,7 @@ void part_setup_bird_cage(struct part *part)
 /*
  * 172c:0ffc, image 0x182bc - kind 11's drive.
  *
- * `part_drive_02cd` with a tail. Mode 1 steps +0x0e of what +0x66 points at;
+ * `part_drive_balloon` with a tail. Mode 1 steps +0x0e of what +0x66 points at;
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
  * is kind 3 - is compared against the limit in the sixth and seventh
  * arguments, and past it the answer is 1.
@@ -79,7 +79,7 @@ void part_setup_bird_cage(struct part *part)
  * lifted 0x14, its +0x12 stepped, and it is redrawn. So this drive moves the
  * thing it was asked about.
  */
-uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     struct belt *belt = p2->belt[0];   /* [bp-2] */

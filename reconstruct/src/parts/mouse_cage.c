@@ -89,8 +89,8 @@ void part_step_mouse_cage(struct part *part)
 
     if (part->direction != 0) {
         part->form ^= 1;
-        part->word_96--;
-        if (part->word_96 == 0)
+        part->kind_state--;
+        if (part->kind_state == 0)
             part->direction = 0;
     }
 }
@@ -138,5 +138,5 @@ void trigger_mouse_cage(struct part *part)
     else
         part->direction = 1;
 
-    part->word_96 = 0x64;
+    part->kind_state = 0x64;
 }

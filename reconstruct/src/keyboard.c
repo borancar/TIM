@@ -101,7 +101,7 @@ _DATA ends
 
 extrn _detect_pcjr:far
 extrn _game_teardown:far
-extrn _DG4342:byte
+extrn _VM_DRIVER:byte
 extrn _VMDS:byte
 KEYBOARD_TEXT segment byte public 'CODE'
 assume cs:KEYBOARD_TEXT, ds:DGROUP
@@ -110,7 +110,7 @@ public _bios_read_key, _key_is_down, _show_page_thunk
 
 /* 0x21088 */
 _copy_rect_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+14h
+        jmp dword ptr DGROUP:_VM_DRIVER+14h
 c_2108c db 0h, 0h
 c_2108e db 0h, 0h
 c_21090 db 0h, 0h
@@ -608,7 +608,7 @@ _key_is_down endp
 
 /* 0x2149a */
 _show_page_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+24h
+        jmp dword ptr DGROUP:_VM_DRIVER+24h
 _show_page_thunk endp
 KEYBOARD_TEXT ends
 }

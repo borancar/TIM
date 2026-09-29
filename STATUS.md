@@ -60,7 +60,7 @@ packed file, and three relocations of its own. For that, DGROUP's data left
 dgroup.c for the modules it is: the part tables, `PART_KINDS`, the message
 strings and the game state that starts out zero are `gamedata.c`, a module
 of data and no code between `gamemain.c` and `intro.c` (the file is ours);
-the video driver's interface - its thunks and `VMDS`, `DG4342`, `DG440E` -
+the video driver's interface - its thunks and `VMDS`, `VM_DRIVER`, `VM_HOOKS` -
 is `vmiface.c`, split out of lzhuf.c on its `para`-aligned data; and
 `DG44EA`, `DG4AB0` and two words of keyboard.c's are the modules' around
 them. The object order is the data's, not the code's (`object_order` in
@@ -120,7 +120,7 @@ things C with inline `asm` can do, so they decide nothing.
 and `isr_stack_switch`, and lowlevel.c's joystick, mouse-API and far-pointer
 helpers, pass every test - they would be C if the module ended where they
 begin, and nothing measured puts a boundary there. **Open**:
-the video driver's thunks - a bare `jmp dword ptr` through DG4342, no
+the video driver's thunks - a bare `jmp dword ptr` through VM_DRIVER, no
 `ret` - stand at the edges of several modules (keyboard.c's ends,
 dosmem.c's front, lowlevel.c's and lzhuf.c's ends, timer.c's), and would
 be the whole reason dosmem.c is not C: without its two thunks,
@@ -258,7 +258,7 @@ matched only as `__emit__` bytes), so the module is assembly. It was split in th
 and put back the same day (docs/lessons.md). `sound_call.c` (0x29286..0x292f4, the
 callback cell in its code segment first) is TASM, 3 of 3.
 
-`DG4A82` could be sound_stop's or sound_file's: both give the same bytes.
+`SOUND_BANK` could be sound_stop's or sound_file's: both give the same bytes.
 Nothing names 0x4ab0..0x4ab4 (`DG4AB0`), and the modules after the sound
 code could own it too, so it stays in dgroup.c.
 
@@ -1004,7 +1004,7 @@ game's units - every `DG*` accessor, every struct and pointer macro, every
 prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
 the game has three such loops: the eight-tick spin on `TIMER.frame_budget`,
-`wait_and_latch_frame` on `DG5752.frame_flag`, and `delay_five_ticks` on
+`wait_and_latch_frame` on `FRAME_GUARD.frame_flag`, and `delay_five_ticks` on
 `SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
 protecting anything - a race on a clip word is a race with or without it -
@@ -1190,7 +1190,7 @@ from a second run and from a build of 7763ab4. That ruled out the timer-thread
 race, which differs run to run, and pointed at either the port's pacing or the
 port's code.
 
-**The hybrid told the two apart.** Reading `DG50AF.bonus_2` and its scroll on
+**The hybrid told the two apart.** Reading `LEVEL_SETTINGS.bonus_2` and its scroll on
 both sides through `TIM_LUA` and `tim.peek16`: the port rolled the counter
 down from 300, while the hybrid - the original's own code, on the port's
 hardware and its tick - left it at 300 with the scroll still zero. Same
@@ -1328,7 +1328,7 @@ per-routine check in this session used `--only`.
 
 **What makes it fifty minutes is nine routines.** 83 specs carry an explicit
 budget and nine of them ask for the full 2.6 billion - `split_part_at`,
-`clone_part`, `draw_machine`, `part_step_1649` and the rest of that family -
+`clone_part`, `draw_machine`, `part_step_blast` and the rest of that family -
 because they are only reached with a machine actually running. `collect_all`
 makes one pass at the largest budget any wanted routine asks for, so those nine
 set the length of every full sweep.
@@ -1650,12 +1650,12 @@ used it.
 | `load_video_driver` | 0x22efd | 0 | agreed |
 | `detect_adapter` | 0x225d2 | 0 | agreed |
 | `read_bmp_info` | 0x234d2 | 0, 1, 2 | agreed |
-| `table_618a_in_use` | 0x215d5 | 0 | agreed |
+| `font_slot_in_use` | 0x215d5 | 0 | agreed |
 | `mouse_move_to` | 0x22113 | 0 | agreed |
 | `huge_add_positive` | 0x22190 | 0, 1, 4 | agreed |
 | `install_divide_trap` | 0x22394 | 0 | agreed |
 | `restore_file_record_from` | 0x23ee4 | 0, 1 (missed 4) | **not verified** |
-| `set_field_4_of_each` | 0x252b4 | 0, 1 | agreed |
+| `set_mask_of_each` | 0x252b4 | 0, 1 | agreed |
 | `count_list` | 0x252e0 | 0, 1 (missed 4) | **not verified** |
 | `far_copy` | 0x25d96 | 0, 1, 2 | agreed |
 | `string_concat` | 0x0dc95 | 0, 1, 4 | agreed |
@@ -1916,11 +1916,11 @@ used it.
 | `clear_word_array_50bf` | 0x166d6 | - | **transcribed, never called** on these screens |
 | `key_is_down` | 0x2147d | 0, 4, 25 | agreed |
 | `advance_record` | 0x2891a | 0 (missed 2) | **not verified** |
-| `match_field_5a_5c` | 0x06f43 | - | **transcribed, never called** on these screens |
+| `link_slot_of` | 0x06f43 | - | **transcribed, never called** on these screens |
 | `part_by_index` | 0x11d44 | - | **transcribed, never called** on these screens |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `read_mouse_button` | 0x2213e | 0, 4 (missed 30) | **not verified** |
-| `select_field_2_or_4` | 0x06f68 | - | **transcribed, never called** on these screens |
+| `belt_other_end` | 0x06f68 | - | **transcribed, never called** on these screens |
 | `read_mouse_pointer` | 0x220e9 | 0 (missed 2, 15) | **not verified** |
 | `angle_sin` | 0x2a456 | - | **transcribed, never called** on these screens |
 | `angle_cos` | 0x2a47b | - | **transcribed, never called** on these screens |
@@ -1930,7 +1930,7 @@ used it.
 | `follow_far_chain` | 0x2907b | - | **transcribed, never called** on these screens |
 | `step_pair_apart` | 0x03d2e | - | **transcribed, never called** on these screens |
 | `points_within_140` | 0x04b53 | - | **transcribed, never called** on these screens |
-| `splice_list_4e58_onto_4e56` | 0x07b3e | - | **transcribed, never called** on these screens |
+| `release_part_queue` | 0x07b3e | - | **transcribed, never called** on these screens |
 | `scale_byte_pair` | 0x282cb | - | **transcribed, never called** on these screens |
 | `value_between` | 0x03d67 | - | **transcribed, never called** on these screens |
 | `pick_by_flag` | 0x05b65 | - | **transcribed, never called** on these screens |
@@ -1983,7 +1983,7 @@ used it.
 | `part_step_0a5d` | 0x17d1d | - | **transcribed, never called** on these screens |
 | `part_hit_0c6c` | 0x17f2c | - | **transcribed, never called** on these screens |
 | `part_step_0ca3` | 0x17f63 | - | **transcribed, never called** on these screens |
-| `part_step_11a6` | 0x18466 | - | **transcribed, never called** on these screens |
+| `part_step_kind_57` | 0x18466 | - | **transcribed, never called** on these screens |
 | `part_step_12c2` | 0x18582 | - | **transcribed, never called** on these screens |
 | `part_step_13c9` | 0x18689 | - | **transcribed, never called** on these screens |
 | `part_hit_14d3` | 0x18793 | - | **transcribed, never called** on these screens |
@@ -2020,16 +2020,16 @@ used it.
 | `tension_belt` | 0x072c7 | - | **transcribed, never called** on these screens |
 | `draw_part_extra` | 0x171b5 | - | **transcribed, never called** on these screens |
 | `draw_polygon` | 0x1eded | - | **transcribed, never called** on these screens |
-| `part_step_1649` | 0x18909 | - | **transcribed, never called** on these screens |
+| `part_step_blast` | 0x18909 | - | **transcribed, never called** on these screens |
 | `blast_speed_for_mass` | 0x18a08 | - | **transcribed, never called** on these screens |
 | `split_part_at` | 0x18a7c | - | **transcribed, never called** on these screens |
 | `clone_part` | 0x059e4 | - | **transcribed, never called** on these screens |
 | `angle_between_centres` | 0x03da5 | - | **transcribed, never called** on these screens |
 | `queue_part` | 0x07b6f | - | **transcribed, never called** on these screens |
 | `bounce_pair` | 0x03201 | - | **transcribed, never called** on these screens |
-| `part_step_08f1` | 0x17bb1 | - | **transcribed, never called** on these screens |
-| `part_drive_0802` | 0x17ac2 | - | **transcribed, never called** on these screens |
-| `part_drive_2451` | 0x19711 | - | **transcribed, never called** on these screens |
+| `part_step_bullet` | 0x17bb1 | - | **transcribed, never called** on these screens |
+| `part_drive_bucket` | 0x17ac2 | - | **transcribed, never called** on these screens |
+| `part_drive_gun` | 0x19711 | - | **transcribed, never called** on these screens |
 | `collect_carried` | 0x03972 | - | **transcribed, never called** on these screens |
 | `add_carried_weight` | 0x07c3a | - | **transcribed, never called** on these screens |
 | `add_mass_capped` | 0x07c5b | - | **transcribed, never called** on these screens |
@@ -3050,12 +3050,12 @@ case.
 | `0x173ed` | `0x012d` | `part_setup_012d` | **yes** |
 | `0x17631` | `0x0371` | `part_setup_0371` | **yes** |
 | `0x1791b` | `0x065b` | `part_setup_065b` | **yes** |
-| `0x17b61` | `0x08a1` | `part_setup_08a1` | **yes** |
+| `0x17b61` | `0x08a1` | `part_setup_bullet` | **yes** |
 | `0x17e48` | `0x0b88` | `part_setup_0b88` | **yes** |
 | `0x17edc` | `0x0c1c` | `part_setup_0c1c` | **yes** |
 | `0x18335` | `0x1075` | `part_setup_1075` | **yes** |
-| `0x18376` | `0x10b6` | `part_setup_10b6` | **yes** |
-| `0x183c5` | `0x1105` | `part_setup_1105` | **yes** |
+| `0x18376` | `0x10b6` | `part_setup_kind_56` | **yes** |
+| `0x183c5` | `0x1105` | `part_setup_kinds_55_57` | **yes** |
 | `0x18521` | `0x1261` | `part_setup_1261` | **yes** |
 | `0x186f5` | `0x1435` | `part_setup_1435` | **yes** |
 | `0x18816` | `0x1556` | `part_setup_1556` | **yes** |

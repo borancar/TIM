@@ -42,7 +42,7 @@ struct point8 BULLET_POINTS_322A[4] = {
  * **collision record**. A kind-0x15 has one taken off its +0x36, which is a
  * nudge left. The answer is 1 whichever happened.
  */
-uint16_t part_hit_0867(struct part *part)
+uint16_t part_hit_bullet(struct part *part)
 {
     struct part *di = part->contact;
 
@@ -62,7 +62,7 @@ uint16_t part_hit_0867(struct part *part)
  * Four points, from DGROUP 0x322a or 0x3222 as bit 4 of +8 says. The
  * two tables are eight bytes apart, which is those four points.
  */
-void part_setup_08a1(struct part *part)
+void part_setup_bullet(struct part *part)
 {
     const struct point8 *si;
     struct part_point *di;
@@ -95,7 +95,7 @@ void part_setup_08a1(struct part *part)
  * redrawn and sound 0x0b plays. Two exact comparisons rather than a range, so
  * a speed one away from either starts it.
  */
-void part_step_08f1(struct part *part)
+void part_step_bullet(struct part *part)
 {
     if (part->form == 2) {
         mark_part_shapes(part, 3);

@@ -31,7 +31,7 @@
    Borland lays `_BSS` out last mention first, and these two follow
    `_stklen` in the image. */
 extern struct game_directories GAME_DIRECTORIES;
-extern struct dg_52fe DG52FE;
+extern struct picked_machine PICKED_MACHINE;
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
@@ -39,7 +39,7 @@ extern struct dg_52fe DG52FE;
 struct game_master_levels GAME_MASTER_LEVELS = { { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f } };
 
 /* The draw step `draw_part` fills in for a part whose kind has no table. */
-struct draw_step DG0124 = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
+struct draw_step DEFAULT_DRAW_STEP = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
 
 /*
  * DGROUP 0x0133..0x0ea6 - **the kinds' drawing tables**, which `PART_KINDS`
@@ -1098,7 +1098,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0000,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_0001,    /* setup */
+        part_setup_big_ball,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -1125,9 +1125,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0028,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_48ab,    /* setup */
+        part_setup_platform,    /* setup */
         part_hook_none_2ab,    /* flip */
-        part_settle_48f7,    /* settle */
+        part_settle_platform,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
@@ -1182,7 +1182,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_seesaw,    /* setup */
         part_flip_seesaw,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_44fe    /* drive */
+        part_drive_seesaw    /* drive */
     },
     {
         0x0009,    /* density */
@@ -1207,7 +1207,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_balloon,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_02cd    /* drive */
+        part_drive_balloon    /* drive */
     },
     {
         0x0ec0,    /* density */
@@ -1337,7 +1337,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0001,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_0001,    /* setup */
+        part_setup_big_ball,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -1394,7 +1394,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_bird_cage,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_0ffc    /* drive */
+        part_drive_bird_cage    /* drive */
     },
     {
         0x07d0,    /* density */
@@ -1554,7 +1554,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_bucket,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_0802    /* drive */
+        part_drive_bucket    /* drive */
     },
     {
         0x3986,    /* density */
@@ -1628,9 +1628,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0032,    /* priority */
-        part_hit_0867,    /* hit */
-        part_step_08f1,    /* step */
-        part_setup_08a1,    /* setup */
+        part_hit_bullet,    /* hit */
+        part_step_bullet,    /* step */
+        part_setup_bullet,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -1687,7 +1687,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_dynamite_plunger,    /* setup */
         part_flip_dynamite_plunger,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_341d    /* drive */
+        part_drive_dynamite_plunger    /* drive */
     },
     {
         0x1d80,    /* density */
@@ -1820,7 +1820,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_gun,    /* setup */
         part_flip_gun,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_2451    /* drive */
+        part_drive_gun    /* drive */
     },
     {
         0x07d0,    /* density */
@@ -1842,7 +1842,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0003,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_00c9,    /* setup */
+        part_setup_small_ball,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -1872,7 +1872,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_light,    /* setup */
         part_flip_light,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_2c19    /* drive */
+        part_drive_light    /* drive */
     },
     {
         0x0ec0,    /* density */
@@ -1924,7 +1924,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_monkey,    /* setup */
         part_flip_monkey,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_2e4b    /* drive */
+        part_drive_monkey    /* drive */
     },
     {
         0x0960,    /* density */
@@ -1976,7 +1976,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         part_setup_heart_balloon,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_26c3    /* drive */
+        part_drive_heart_balloon    /* drive */
     },
     {
         0x1d80,    /* density */
@@ -2186,7 +2186,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0000,    /* point_count */
         0x0032,    /* priority */
         part_hook_yes,    /* hit */
-        part_step_1649,    /* step */
+        part_step_blast,    /* step */
         part_hook_none_2a6,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
@@ -2268,7 +2268,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0004,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_00c9,    /* setup */
+        part_setup_small_ball,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -2322,9 +2322,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0029,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_48ab,    /* setup */
+        part_setup_platform,    /* setup */
         part_hook_none_2ab,    /* flip */
-        part_settle_48f7,    /* settle */
+        part_settle_platform,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
@@ -2376,9 +2376,9 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x002b,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_48ab,    /* setup */
+        part_setup_platform,    /* setup */
         part_hook_none_2ab,    /* flip */
-        part_settle_48f7,    /* settle */
+        part_settle_platform,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
@@ -2565,7 +2565,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0032,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_1105,    /* setup */
+        part_setup_kinds_55_57,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -2592,7 +2592,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0032,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_setup_10b6,    /* setup */
+        part_setup_kind_56,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
@@ -2618,16 +2618,16 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
         0x0004,    /* point_count */
         0x0032,    /* priority */
         part_hook_yes,    /* hit */
-        part_step_11a6,    /* step */
-        part_setup_1105,    /* setup */
+        part_step_kind_57,    /* step */
+        part_setup_kinds_55_57,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_11d2    /* drive */
+        part_drive_kind_57    /* drive */
     }
 };
 
-struct game_path_sep GAME_PATH_SEP = { DG1BCC.path_sep };   /* DGROUP 0x1bca */
-struct dg_1bcc DG1BCC = {
+struct game_path_sep GAME_PATH_SEP = { MESSAGES.path_sep };   /* DGROUP 0x1bca */
+struct messages MESSAGES = {
     "\012\012NOT ENOUGH FREE MEMORY\012",    /* not_enough_free_memory */
     "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",    /* you_need_at_least */
     "Unable to initialize vm.",    /* unable_to_initialize_vm */
@@ -2706,7 +2706,7 @@ struct dg_1bcc DG1BCC = {
  * `DG52ED.stack_floor`, the word it is the image's of (`STKLEN`).
  */
 struct game_directories GAME_DIRECTORIES;   /* DGROUP 0x530b */
-struct dg_52fe DG52FE;   /* DGROUP 0x52fe */
+struct picked_machine PICKED_MACHINE;   /* DGROUP 0x52fe */
 #ifdef __TURBOC__
 uint16_t _stklen;
 #endif
@@ -2714,12 +2714,12 @@ struct dg_52ed DG52ED;
 /* DGROUP 0x52e9..0x52ed: nothing in the image names these four bytes. Ours. */
 uint8_t DG52E9[4];
 struct dg_52bd DG52BD;   /* DGROUP 0x52bd */
-struct dg_521b DG521B;   /* DGROUP 0x521b */
-struct dg_5179 DG5179;   /* DGROUP 0x5179 */
-struct dg_50d3 DG50D3;   /* DGROUP 0x50d3 */
+struct machine_parts MACHINE_PARTS;   /* DGROUP 0x521b */
+struct moving_parts MOVING_PARTS;   /* DGROUP 0x5179 */
+struct held_parts HELD_PARTS;   /* DGROUP 0x50d3 */
 /* DGROUP 0x50cb..0x50d3: nothing in the image names these eight bytes. Ours. */
 uint8_t DG50CB[8];
-struct dg_50bf DG50BF;   /* DGROUP 0x50bf */
-struct dg_50af DG50AF;   /* DGROUP 0x50af */
-struct dg_4e67 DG4E67;   /* DGROUP 0x4e67 */
-struct dg_4e4e DG4E4E;   /* DGROUP 0x4e4e */
+struct draw_layers DRAW_LAYERS;   /* DGROUP 0x50bf */
+struct level_settings LEVEL_SETTINGS;   /* DGROUP 0x50af */
+struct game_state GAME_STATE;   /* DGROUP 0x4e67 */
+struct free_lists FREE_LISTS;   /* DGROUP 0x4e4e */

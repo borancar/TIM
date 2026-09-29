@@ -518,7 +518,7 @@ static void dev_autoplay(int32_t flip)
     if (!armed)
         return;
 
-    state = DG4E67.state;
+    state = GAME_STATE.state;
 
     /*
      * `TIM_TRACE=autoplay` prints the state word at every flip. Which screen
@@ -533,7 +533,7 @@ static void dev_autoplay(int32_t flip)
                  && strstr(getenv("TIM_TRACE"), "autoplay") != NULL);
     if (trace)
         fprintf(stderr, "io: autoplay flip %d state %04x btn %04x\n",
-                flip, (unsigned)state, (unsigned)DG5768.button_left);
+                flip, (unsigned)state, (unsigned)POINTER.button_left);
 
     if (!autoplay_past_intro) {
         static int32_t nudged;
@@ -554,7 +554,7 @@ static void dev_autoplay(int32_t flip)
          * is the effect itself and not a proxy for it.
          */
         if (state == 0x2000) {
-            DG5768.button_left = 2;
+            POINTER.button_left = 2;
             nudged = 1;
         } else if (nudged) {
             autoplay_past_intro = 1;
@@ -578,7 +578,7 @@ static void dev_autoplay(int32_t flip)
          * the screen in the message would have been a guess that is wrong half
          * the time.
          */
-        DG4E67.state = 0x8000;
+        GAME_STATE.state = 0x8000;
         fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
                 flip);
     } else if (state == 0x1000) {
@@ -604,12 +604,12 @@ static void dev_autoplay(int32_t flip)
 
                 loaded = 1;
                 for (i = 0;
-                     file[i] && i < (int32_t)sizeof DG52FE.name - 1; i++)
-                    DG52FE.name[i] = file[i];
-                DG52FE.name[i] = 0;
+                     file[i] && i < (int32_t)sizeof PICKED_MACHINE.name - 1; i++)
+                    PICKED_MACHINE.name[i] = file[i];
+                PICKED_MACHINE.name[i] = 0;
 
                 round_teardown();
-                load_animation((char *)DG52FE.name);
+                load_animation((char *)PICKED_MACHINE.name);
 
                 /*
                  * **Over a puzzle, the bin is the file's, and the file's is
@@ -626,10 +626,10 @@ static void dev_autoplay(int32_t flip)
                  * The 45 freeform parts are not freed: one load a run does not
                  * reach the heap's limit.
                  */
-                if (DG4E67.freeform == 0) {
-                    DG50D3.parts_bin.prev = 0;
-                    DG50D3.parts_bin.next = 0;
-                    DG50D3.bin_list = (&DG50D3.parts_bin);
+                if (GAME_STATE.freeform == 0) {
+                    HELD_PARTS.parts_bin.prev = 0;
+                    HELD_PARTS.parts_bin.next = 0;
+                    HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
                 }
 
                 reset_machine();
@@ -661,7 +661,7 @@ static void dev_autoplay(int32_t flip)
         }
 
         if (want_run) {
-            DG4E67.state = 0x2000;
+            GAME_STATE.state = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
                     flip);
         } else {
@@ -770,7 +770,7 @@ void dev_level_solved(int16_t level, int16_t score)
         on = trace_asks_level();
     if (on)
         fprintf(stderr, "io: level solved=%d score=%d frames=%d\n",
-                (int)level, (int)score, (int)DG4E67.machine_frames);
+                (int)level, (int)score, (int)GAME_STATE.machine_frames);
 }
 
 /*
@@ -807,38 +807,38 @@ int32_t dev_simulate_machine(int32_t max_frames)
 {
     int32_t frames = 0;
 
-    if (DG4E67.state != 0x2000)
-        DG4E67.state = 0x2000;       /* what --run does once the puzzle is up */
+    if (GAME_STATE.state != 0x2000)
+        GAME_STATE.state = 0x2000;       /* what --run does once the puzzle is up */
 
     clear_machine();
-    DG4E67.elapsed_ticks = 0;
+    GAME_STATE.elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (DG4E67.state == 0x2000 && frames < max_frames) {
+    while (GAME_STATE.state == 0x2000 && frames < max_frames) {
         step_machine();
         mark_parts_in_dirty_rects();
         step_loop_frames();
         replay_shapes();
         step_and_draw_machine(0);
 
-        DG4E67.elapsed_ticks = (uint16_t)(DG4E67.elapsed_ticks + 8);
+        GAME_STATE.elapsed_ticks = (uint16_t)(GAME_STATE.elapsed_ticks + 8);
         TIMER.frame_budget = 0x2710;
 
         shift_all_histories();
 
-        if (DG4E67.freeform == 0)
+        if (GAME_STATE.freeform == 0)
             check_goal();
 
-        DG4E67.machine_frames++;
+        GAME_STATE.machine_frames++;
         frames++;
     }
 
-    if (DG4E67.state == 0x200)
+    if (GAME_STATE.state == 0x200)
         fprintf(stderr, "io: simulate solved=1 level=%d frames=%d score=%d\n",
-                (int)DG4E67.round_number, (int)frames, (int)DG4E67.score);
+                (int)GAME_STATE.round_number, (int)frames, (int)GAME_STATE.score);
     else
         fprintf(stderr, "io: simulate solved=0 level=%d frames=%d state=%04x\n",
-                (int)DG4E67.round_number, (int)frames, (unsigned)DG4E67.state);
+                (int)GAME_STATE.round_number, (int)frames, (unsigned)GAME_STATE.state);
     return frames;
 }
 
@@ -1091,7 +1091,7 @@ void dev_level_scan(void)
         memset(seen, 0, sizeof seen);
         load_level((uint16_t)n);
 
-        for (si = DG521B.placed_parts.next; si != 0 && count < 4096;
+        for (si = MACHINE_PARTS.placed_parts.next; si != 0 && count < 4096;
              si = si->next, count++) {
             uint16_t kind = si->kind;
 
@@ -1104,7 +1104,7 @@ void dev_level_scan(void)
            bin - what the player is given - at 0x50d7. */
         {
             struct part *heads[3] = {
-                &DG521B.placed_parts, &DG5179.moving_parts, &DG50D3.parts_bin,
+                &MACHINE_PARTS.placed_parts, &MOVING_PARTS.moving_parts, &HELD_PARTS.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };
             int32_t h;
@@ -1173,8 +1173,8 @@ void dev_part_pics(void)
      * path the list is empty and the game's own loader is asked for it - with
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
-    if (DG4E67.icons_bmp == 0)
-        DG4E67.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
+    if (GAME_STATE.icons_bmp == 0)
+        GAME_STATE.icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
@@ -1184,7 +1184,7 @@ void dev_part_pics(void)
      */
     set_palette_pointer(DG52ED.pal_tim);
 
-    list = DG4E67.icons_bmp;
+    list = GAME_STATE.icons_bmp;
     n = count_list(list);
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
@@ -1252,7 +1252,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                DG48DA.buttons, (unsigned)DG5768.button_left, (unsigned)((uint16_t)DG5768.button_accum_a));
+                MOUSE_DRIVER.buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)
@@ -1327,10 +1327,10 @@ void dev_flip_dump(int32_t flip)
      */
     fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
             "queue_part_calls %d\n", flip,
-            DG4E67.origin_x, DG4E67.origin_y, DG4E67.state,
+            GAME_STATE.origin_x, GAME_STATE.origin_y, GAME_STATE.state,
             dev_tension_belt_calls, dev_queue_part_calls);
-    dump_chain(f, "part", &DG521B.placed_parts);
-    dump_chain(f, "move", &DG5179.moving_parts);
+    dump_chain(f, "part", &MACHINE_PARTS.placed_parts);
+    dump_chain(f, "move", &MOVING_PARTS.moving_parts);
     fclose(f);
     fprintf(stderr, "wrote the part list at flip %d to %s\n", flip, want);
 }

@@ -6,8 +6,8 @@
  *
  * **The video driver's interface**: four jumps through the driver's vectors,
  * `restore_write_mode` and a one-`retf` routine in code, and in data
- * `VMDS`, the drawing state the driver and the game share, `DG4342`, the
- * driver's vector table, and `DG440E`, the game's services it is handed -
+ * `VMDS`, the drawing state the driver and the game share, `VM_DRIVER`, the
+ * driver's vector table, and `VM_HOOKS`, the game's services it is handed -
  * file I/O, the heap, strings - as far pointers the loader relocates.
  *
  * One module of the original's **code segment 1c25**, image
@@ -56,7 +56,7 @@ extrn _strcat_far:far
 extrn _strcpy_far:far
 extrn _strchr_far:far
 _DATA segment para public 'DATA'
-public _VMDS, _DG4342, _DG440E
+public _VMDS, _VM_DRIVER, _VM_HOOKS
 _VMDS label byte
         db 6 dup (0)
         db 03fh, 001h
@@ -67,11 +67,11 @@ _VMDS label byte
         db 1757 dup (0)
         db 040h, 001h, 0c8h
         db 965 dup (0)
-_DG4342 label byte
+_VM_DRIVER label byte
         dw 0
         dw 1
         dd 50 dup (_vm_null_hook)
-_DG440E label byte
+_VM_HOOKS label byte
         dd _vm_null_hook
         dd _dos_alloc_bytes
         dd _dos_free_far
@@ -101,22 +101,22 @@ public _restore_write_mode, _vm_null_hook
 
 /* 0x1e93c */
 _vm_call_4_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+10h
+        jmp dword ptr DGROUP:_VM_DRIVER+10h
 _vm_call_4_thunk endp
 
 /* 0x1e940 */
 _blit_bitmap_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+78h
+        jmp dword ptr DGROUP:_VM_DRIVER+78h
 _blit_bitmap_thunk endp
 
 /* 0x1e944 */
 _blit_scaled_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+88h
+        jmp dword ptr DGROUP:_VM_DRIVER+88h
 _blit_scaled_thunk endp
 
 /* 0x1e948 */
 _vm_call_38_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+98h
+        jmp dword ptr DGROUP:_VM_DRIVER+98h
 _vm_call_38_thunk endp
 
 /* 0x1e94c */
@@ -155,9 +155,9 @@ struct vmds VMDS = {
     .screen = { .screen_width = 0x0140, .screen_height = 0x00c8 },
 };
 
-struct dg_4342 DG4342 = {   /* DGROUP 0x4342 */
+struct vm_driver VM_DRIVER = {   /* DGROUP 0x4342 */
     .detect_allowed = 0x0001,
-    .font = {
+    .entry = {
         vm_null_hook,
         vm_null_hook,
         vm_null_hook,
@@ -211,7 +211,7 @@ struct dg_4342 DG4342 = {   /* DGROUP 0x4342 */
     },
 };
 
-struct dg_440e DG440E = {   /* DGROUP 0x440e */
+struct vm_hooks VM_HOOKS = {   /* DGROUP 0x440e */
     vm_null_hook,
     {
         (void (*)(void))dos_alloc_bytes,
@@ -308,7 +308,7 @@ void restore_write_mode(void)
  * 0x1e966
  *
  * **A far routine that does nothing**, one `retf` - the entry every one of
- * `DG4342.font`'s fifty slots and `DG440E.ptr_440e` hold until the driver
+ * `VM_DRIVER.entry`'s fifty slots and `VM_HOOKS.ptr_440e` hold until the driver
  * fills them. The name is ours. NOT TRANSCRIBED YET for the host: nothing
  * calls a slot before `vm_init` has filled it. A stub, which aborts.
  */

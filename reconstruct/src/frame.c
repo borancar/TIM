@@ -54,8 +54,8 @@ struct machine_button_prev MACHINE_BUTTON_PREV = { 0 };
  */
 int16_t point_in_play_area(void)
 {
-    if (DG5768.pointer_x >= 8 && DG5768.pointer_x <= 0x237
-        && DG5768.pointer_y >= 8 && DG5768.pointer_y <= 0x167)
+    if (POINTER.pointer_x >= 8 && POINTER.pointer_x <= 0x237
+        && POINTER.pointer_y >= 8 && POINTER.pointer_y <= 0x167)
         return 1;
     else
         return 0;
@@ -150,27 +150,27 @@ void update_button_state(void)
     int16_t prev;
 
     wait_and_latch_frame();
-    prev = ((int16_t)DG5768.button_left);
+    prev = ((int16_t)POINTER.button_left);
 
     if (read_mouse_button(0))
-        DG5768.button_left = 1;
+        POINTER.button_left = 1;
     if (read_mouse_button(1))
-        DG5768.button_right = 2;
+        POINTER.button_right = 2;
 
     if (prev == 2 && MACHINE_BUTTON_PREV.prev != 1) {
-        DG5768.button_left = 2;
-    } else if (((int16_t)DG5768.button_left) == 1 && MACHINE_BUTTON_PREV.prev == 0) {
-        DG5768.button_left = 2;
-    } else if (((int16_t)DG5768.button_left) != 0) {
-        DG5768.button_left = 1;
+        POINTER.button_left = 2;
+    } else if (((int16_t)POINTER.button_left) == 1 && MACHINE_BUTTON_PREV.prev == 0) {
+        POINTER.button_left = 2;
+    } else if (((int16_t)POINTER.button_left) != 0) {
+        POINTER.button_left = 1;
     } else {
-        DG5768.button_left = 0;
+        POINTER.button_left = 0;
     }
 
-    if (((int16_t)DG5768.button_left) == 2 && MACHINE_BUTTON_PREV.prev == 2)
-        DG5768.button_left = 1;
+    if (((int16_t)POINTER.button_left) == 2 && MACHINE_BUTTON_PREV.prev == 2)
+        POINTER.button_left = 1;
 
-    MACHINE_BUTTON_PREV.prev = ((int16_t)DG5768.button_left);
+    MACHINE_BUTTON_PREV.prev = ((int16_t)POINTER.button_left);
 }
 
 /*
@@ -262,17 +262,17 @@ void set_holiday_flags(void)
 {
     struct date d;
 
-    DG4E67.holiday_valentine = DG4E67.holiday_stpatrick
-        = DG4E67.holiday_halloween = DG4E67.holiday_christmas = 0;
+    GAME_STATE.holiday_valentine = GAME_STATE.holiday_stpatrick
+        = GAME_STATE.holiday_halloween = GAME_STATE.holiday_christmas = 0;
     getdate(&d);
     if (d.da_mon == 2 && d.da_day == 0x0e)
-        DG4E67.holiday_valentine = 1;
+        GAME_STATE.holiday_valentine = 1;
     if (d.da_mon == 3 && d.da_day == 0x11)
-        DG4E67.holiday_stpatrick = 1;
+        GAME_STATE.holiday_stpatrick = 1;
     if (d.da_mon == 0xa && d.da_day == 0x1f)
-        DG4E67.holiday_halloween = 1;
+        GAME_STATE.holiday_halloween = 1;
     if (d.da_mon == 0xc && d.da_day == 0x19)
-        DG4E67.holiday_christmas = 1;
+        GAME_STATE.holiday_christmas = 1;
 }
 
 /*
@@ -295,10 +295,10 @@ void set_holiday_flags(void)
 void set_clip_for_mode(void)
 {
     /* the screen state, not a video mode */
-    if (DG4E67.state == 0x2000 || DG4E67.state == 0x1000
-        || DG4E67.state == 0x200 || DG4E67.state == 0x8000
-        || DG4E67.state == 0x4000 || DG4E67.state == 0x800
-        || DG4E67.state == 0x400) {
+    if (GAME_STATE.state == 0x2000 || GAME_STATE.state == 0x1000
+        || GAME_STATE.state == 0x200 || GAME_STATE.state == 0x8000
+        || GAME_STATE.state == 0x4000 || GAME_STATE.state == 0x800
+        || GAME_STATE.state == 0x400) {
         VMDS.clip_left = DG52BD.saved_clip_left;
         VMDS.clip_right = DG52BD.saved_clip_right;
         VMDS.clip_top = DG52BD.saved_clip_top;
@@ -389,7 +389,7 @@ void play_sound(register int16_t id)
 #endif
     if (id == 0x10 || id == 0x12 || id == 9 || id == 0x13 || id == 0x14
         || id == 4) {
-        if (DG4E67.master_level != 0)
+        if (GAME_STATE.master_level != 0)
             start_sequence_by_id(id);
     } else
         start_sequence_by_id(id);
@@ -445,20 +445,20 @@ int16_t check_room_for_part(void)
 
     si = heap_largest_free();
     if (si < 0x0fa0) {
-        show_message_box(DG1BCC.out_of_memory, (char *)DG1BCC.you_cant_place_any);
-        DG4E67.memory_warned = 1;
+        show_message_box(MESSAGES.out_of_memory, (char *)MESSAGES.you_cant_place_any);
+        GAME_STATE.memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();
         update_button_state();
         return 0;
-    } else if (si < 0x1388 && DG4E67.memory_warned == 0) {
-        show_message_box(DG1BCC.memory_low, (char *)DG1BCC.memory_is_getting_low);
-        DG4E67.memory_warned = 1;
+    } else if (si < 0x1388 && GAME_STATE.memory_warned == 0) {
+        show_message_box(MESSAGES.memory_low, (char *)MESSAGES.memory_is_getting_low);
+        GAME_STATE.memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();
         update_button_state();
     } else if (si > 0x1770)
-        DG4E67.memory_warned = 0;
+        GAME_STATE.memory_warned = 0;
     return 1;
 }
 

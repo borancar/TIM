@@ -115,7 +115,7 @@ struct bitmap **load_bitmaps(char *name)
         restore_file_record_from(&saved_a);
         if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
-        set_field_4_of_each(0xfffe, list);
+        set_mask_of_each(0xfffe, list);
         restore_file_record_from(&saved_b);
         kind = 0;
     } else {
@@ -125,7 +125,7 @@ struct bitmap **load_bitmaps(char *name)
         restore_file_record_from(&saved_a);
         if (read_bmp_info(file, (int16_t *)&count, &list) == 0)
             goto fail;
-        set_field_4_of_each(0xffff, list);
+        set_mask_of_each(0xffff, list);
         if (seek_named_chunk(file, "BMP:VQT:", 0) == -1L)
             goto fail;
     }
@@ -149,10 +149,10 @@ struct bitmap **load_bitmaps(char *name)
             hdr->data_off = FP_OFF(p);
         }
     } else {
-        size = ((vm_list_size_fn)DG4342.font[13])(list, (uint8_t *)&i);
+        size = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&i);
         if (!(block = DOS_ALLOC_PTR(DOS_ALLOC(size, 0))))
             goto fail;
-        set_field_4_of_each(0xfffc, list);
+        set_mask_of_each(0xfffc, list);
         for (i = 0; i < count; i++) {
             hdr = list[i];
             hdr->data_seg = FP_SEG(block);
@@ -169,7 +169,7 @@ loaded:
     if (seek_named_chunk(file, "BMP:RLE:", 0) != -1L)
         compress_bitmap_list(list, 0x10);
     if (seek_named_chunk(file, "BMP:SCL:", 0) != -1L)
-        set_field_4_of_each(0xfffd, list);
+        set_mask_of_each(0xfffd, list);
     goto out;
 fail:
     free_bitmaps_thunk(list);
@@ -190,7 +190,7 @@ out:
  * **The word is held in DX**, which no C variable is ever given - Borland's
  * pseudo-register `_DX`. The host keeps it in a local.
  */
-void near set_field_4_of_each(uint16_t value, struct bitmap **list)
+void near set_mask_of_each(uint16_t value, struct bitmap **list)
 {
     struct bitmap **p;
 
@@ -531,8 +531,8 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
     }
     if (largest > buffer
         || !(block = DOS_ALLOC_PTR(DOS_ALLOC(buffer, 0)))) {
-        if (DG3576.scratch != NULL && largest <= 0x3ab4) {
-            block = DG3576.scratch;
+        if (SCRATCH_BLOCK.scratch != NULL && largest <= 0x3ab4) {
+            block = SCRATCH_BLOCK.scratch;
             buffer = 0x3ab4;
         } else
             return;
@@ -573,6 +573,6 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
         at++;
         index++;
     }
-    if (block != DG3576.scratch)
+    if (block != SCRATCH_BLOCK.scratch)
         dos_free_far(block);
 }

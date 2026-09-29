@@ -29,12 +29,12 @@ uint16_t guest_sp = 0xFF9E;
  * The DGROUP structs dgroup.h declares, with the address each has in the
  * image. Their initialisers are the image's bytes.
  */
-struct dg_4e34 DG4E34 = { .cr = { 0x0d }, .realcvt = 0xc884 };   /* DGROUP 0x4e34 */
+struct borland_heap BORLAND_HEAP = { .cr = { 0x0d }, .realcvt = 0xc884 };   /* DGROUP 0x4e34 */
 struct dos_startup DOS_STARTUP = { .argc = 0 };   /* DGROUP 0x0074 */
 struct dos_program_top DOS_PROGRAM_TOP = { .top_a = 0 };   /* DGROUP 0x00a0 */
 /* `brklvl` starts at the end of `_BSS`, 0x64ca, which is an arena
    address the host only knows at startup: `io_start_program` sets it. */
-struct dg_0094 DG0094 = { .pad_009a = { 0xca, 0x64 } };   /* DGROUP 0x0094 */
+struct borland_globals BORLAND_GLOBALS = { .pad_009a = { 0xca, 0x64 } };   /* DGROUP 0x0094 */
 
 
 /* The sound module's data inside its code segment, and segment 1c25's three

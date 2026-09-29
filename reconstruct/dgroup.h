@@ -99,7 +99,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
  * spins on a word the timer thread writes - `TIMER.frame_budget`,
- * `DG5752.frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three fields are
+ * `FRAME_GUARD.frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three fields are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -432,12 +432,12 @@ extern struct vmds VMDS;
  * (0x166d6) empties all six. Six is the extent every walker uses, and the
  * four words between here and 0x50d3 are not read as part of it.
  */
-struct dg_50bf {
+struct draw_layers {
     struct part *layer_head[6]; /* +0x00 */
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_50bf DG50BF;
+extern struct draw_layers DRAW_LAYERS;
 #endif
 
 /*
@@ -449,7 +449,7 @@ extern struct dg_50bf DG50BF;
  * - so the calendar is the only way to reach them, which is what `TIM_DATE`
  * is for.
  */
-/* The four holiday flags are `DG4E67.holiday_*` now; see the struct. */
+/* The four holiday flags are `GAME_STATE.holiday_*` now; see the struct. */
 
 /*
  * ---------------------------------------------------------------------------
@@ -469,7 +469,7 @@ extern struct dg_50bf DG50BF;
  * heads, two records kept beside them, and the bitmap lists.
  * ---------------------------------------------------------------------------
  */
-struct dg_4e67 {
+struct game_state {
     uint16_t  freeform;            /* +0x00  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
     /* **Which handle the pointer is on**, and the only word that says what a
        click in the play area will do. 0 is nothing, 1 to 8 are the handles
@@ -575,17 +575,17 @@ struct dg_4e67 {
        (`game_fread_string`, a length byte then the bytes) can put at most
        255 in it. */
     char      title[0x50];        /* +0x68  0x4ecf */
-    char      hint[0x190];        /* +0xb8  0x4f1f, up to DG50AF */
+    char      hint[0x190];        /* +0xb8  0x4f1f, up to LEVEL_SETTINGS */
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_4e67 DG4E67;
+extern struct game_state GAME_STATE;
 #endif
 
 /*
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
  */
-struct dg_5768 {
+struct pointer {
     int16_t   button_accum_a;     /* +0x00  the two the timer handler accumulates into */
     int16_t   button_accum_b;     /* +0x02 */
     int16_t   cursor_y;           /* +0x04  the live pointer `timer_callback` moves and clamps to the
@@ -631,12 +631,12 @@ struct dg_5768 {
     uint16_t  fade_weight;     /* +0x1e */
 } PACKED;
 
-extern struct dg_5768 DG5768;
+extern struct pointer POINTER;
 
 /*
  * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.
  */
-struct dg_53fc {
+struct collision {
     /* **The collision sweep's own block**, and the two parts it is working on.
        `resolve_collisions` sets `list` from `pick_by_flag` and walks every
        other part into `other`; `compute_swept_bounds` fills the first
@@ -694,7 +694,7 @@ struct dg_53fc {
     int16_t   travel_angle;       /* +0x2a */
 } PACKED;
 
-extern struct dg_53fc DG53FC;
+extern struct collision COLLISION;
 
 /*
  * **One entry of the table `bank` points at**: two bytes per index -
@@ -714,7 +714,7 @@ struct sound_bank_entry {
  *
  * Its five far pointers are real pointers on both compilers.
  */
-struct dg_4a82 {
+struct sound_bank {
     int16_t   driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
     /* A far pointer: allocated and freed as one block, tested
        `(off != 0 || seg != 0)`, and handed to `configure_driver_far`. */
@@ -756,7 +756,7 @@ struct dg_4a82 {
     int16_t   device;             /* +0x2c  the device number; 8 is recorded as 3 */
 } PACKED;
 
-extern struct dg_4a82 DG4A82;
+extern struct sound_bank SOUND_BANK;
 
 /*
  * **The rubber-band line and the machine's sound requests**, at DGROUP 0x52bd.
@@ -842,12 +842,12 @@ extern uint16_t _stklen;
  * and the picker's own buffer is capped at thirteen by the `0x0d` it hands
  * `picker_type`.
  */
-struct dg_52fe {
+struct picked_machine {
     char      name[0xd];          /* +0x00 */
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_52fe DG52FE;
+extern struct picked_machine PICKED_MACHINE;
 #endif
 
 /*
@@ -884,7 +884,7 @@ struct shape {
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
  */
-struct dg_4e4e {
+struct free_lists {
     struct shape far *shape_free; /* +0x00  the free list nodes come off */
     struct shape far *shapes;     /* +0x04  the shapes drawn over, put back in reverse.
                                             **One far pointer**, not two near ones: the
@@ -900,13 +900,13 @@ struct dg_4e4e {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_4e4e DG4E4E;
+extern struct free_lists FREE_LISTS;
 #endif
 
 /*
  * **The level's own settings and its two bonus counters**, at DGROUP 0x50af.
  */
-struct dg_50af {
+struct level_settings {
     int16_t   bonus_1;            /* +0x00  the left bonus counter on the play screen, drawn at x 0x184;
                                      `step_counters` walks it down into the 32-bit score at 0x4ead
                                      first, and `finish_level` adds the two as words for the total */
@@ -924,7 +924,7 @@ struct dg_50af {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_50af DG50AF;
+extern struct level_settings LEVEL_SETTINGS;
 #endif
 
 /*
@@ -982,28 +982,28 @@ extern struct game_text_lines GAME_TEXT_LINES;
  * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
  * ONE: slots 1 to 4 are the buffers `claim_buffer_slot` hands out. The
  * original indexes `[bx + 0x5754]` with `bx = slot * 4`, so its slot 0 would be
- * the four bytes at 0x5754 - `DG5752.frame_flag` and `size_word` - and it is
+ * the four bytes at 0x5754 - `FRAME_GUARD.frame_flag` and `size_word` - and it is
  * never handed out. The array starts at slot 1, and every use subtracts one.
  */
 struct machine_rect_buffers {
     uint8_t far *slot[4];       /* +0x00  slots 1 to 4 */
 } PACKED;
 
-/* cursor.c's; declared here, above DG5752, because Borland lays out
+/* cursor.c's; declared here, above FRAME_GUARD, because Borland lays out
    `_BSS` in reverse order of first mention and this is its place in it. */
 extern struct machine_rect_buffers MACHINE_RECT_BUFFERS;
 
 /*
  * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
  */
-struct dg_5752 {
+struct frame_guard {
     uint16_t  guard;              /* +0x00  raised across a redraw and put back; a nesting guard, not a lock */
     volatile int16_t frame_flag;  /* +0x02  what wait_and_latch_frame spins on, set by the INT 08h handler
                                      - on the timer thread, which is why this one is **volatile** */
     int16_t   size_word;          /* +0x04  the size, or the driver's own if this is zero */
 } PACKED;
 
-extern struct dg_5752 DG5752;
+extern struct frame_guard FRAME_GUARD;
 
 /*
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
@@ -1026,7 +1026,7 @@ extern struct dg_5456 DG5456;
 /*
  * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
  */
-struct dg_4e34 {
+struct borland_heap {
     void *first_block;        /* +0x00  the block chain runs from here to the topmost */
     void *top_block;        /* +0x02  which is where a new block is cut from */
     void *ring_cursor;        /* +0x04  first fit walks *backward* from here */
@@ -1037,7 +1037,7 @@ struct dg_4e34 {
                                      `float_formats_missing` in this program */
 } PACKED;
 
-extern struct dg_4e34 DG4E34;
+extern struct borland_heap BORLAND_HEAP;
 
 /*
  * **A near-heap block header**: the four bytes *below* every pointer
@@ -1045,12 +1045,12 @@ extern struct dg_4e34 DG4E34;
  * The size is always even and its low bit is the in-use flag - set by `inc`,
  * cleared by `dec`, and masked off with 0xfffe wherever the size is walked.
  * `prev` is the block below by address, for coalescing; the chain runs
- * from `DG4E34.first_block` up to `top_block`.
+ * from `BORLAND_HEAP.first_block` up to `top_block`.
  *
  * The two ring links exist only while the block is free: they are the first
  * four bytes of its own payload, which is why nothing smaller than eight
  * bytes is ever cut, and why a block in use has them overwritten by whatever
- * the caller stored. `DG4E34.ring_cursor` is where the ring is entered
+ * the caller stored. `BORLAND_HEAP.ring_cursor` is where the ring is entered
  * and first fit walks it through `back`. Layout from the disassembly of
  * Borland's allocator at 0x0c8ca..0x0cbdd; the header only, not the game.
  */
@@ -1258,7 +1258,7 @@ struct part {
        carrier's own belt is always the first. */
     struct belt *belt[2]; /* +0x66 */
     /* **The two attachment offsets, a byte pair each.** Written a byte at a
-       time by the setups - `part_setup_1105` puts half the width in the first
+       time by the setups - `part_setup_kinds_55_57` puts half the width in the first
        and zero in the second - and read as a pair by the belt routines, which
        index them: `refresh_link_geometry` adds `+0x6a + 2 * slot` to the
        part's x and `+0x6b + 2 * slot` to its y. `reverse_link_ends` swaps the
@@ -1362,27 +1362,27 @@ struct part {
     uint16_t  start_flags;     /* +0x94  the flags at +8 as they were placed */
     /* **Two three-deep histories, and what each head *means* is the part's
        kind's business.** The shape is not in doubt: `shift_state_history` ages
-       both unconditionally, for every part, `word_96_prev2 = word_96_prev;
-       word_96_prev = word_96` and the same for `spin` - the record's own
+       both unconditionally, for every part, `kind_state_prev2 = kind_state_prev;
+       kind_state_prev = kind_state` and the same for `spin` - the record's own
        `form`/`form_prev`/`form_prev2` idiom, one word at a time where `pos`,
        `box` and `size` are 32-bit and use arrays. `reset_machine` clears both
        chains together and calls them that.
 
-       The heads keep their addresses because two kinds of part disagree about
-       them. The part modules run `word_96` as a plain countdown - set to 0x1c, to
-       0x64, to 5, and stepped to zero - and steps `spin` up towards 0x14,
-       while for a belt `refresh_link_geometry` writes both from
-       `link_end_distance` and `link_slack` reads them as the rest length each
-       end was given. `spin` is what devdump prints it as and is a guess about
+       `kind_state` is the word a part's kind keeps for itself, and two kinds
+       of part use it for different things: the part modules run it as a plain
+       countdown - set to 0x1c, to 0x64, to 5, and stepped to zero - and step
+       `spin` up towards 0x14, while for a belt `refresh_link_geometry` writes
+       both from `link_end_distance` and `link_slack` reads them as the rest
+       length each end was given. `spin` is what devdump prints it as and is a guess about
        one kind, kept because renaming it would only move the guess.
 
        **`link_slack` numbers its generations backwards**, and so does
        `link_end_distance` beside it: `gen` of 1 takes `_prev2` and `pt[2]`,
        and 2 takes `_prev` and `pt[1]`. The two agree, which is what says it is
        the original's numbering rather than an off-by-one. */
-    int16_t   word_96;         /* +0x96  a head */
-    int16_t   word_96_prev;    /* +0x98 */
-    int16_t   word_96_prev2;   /* +0x9a */
+    int16_t   kind_state;      /* +0x96  a head */
+    int16_t   kind_state_prev;    /* +0x98 */
+    int16_t   kind_state_prev2;   /* +0x9a */
     int16_t   spin;            /* +0x9c  the other */
     int16_t   spin_prev;       /* +0x9e */
     int16_t   spin_prev2;      /* +0xa0 */
@@ -1408,7 +1408,7 @@ struct part_contact {
  * Here rather than in address order because `parts_bin` is a `struct part`,
  * and a member needs its type complete.
  */
-struct dg_50d3 {
+struct held_parts {
     struct part *bin_list; /* +0x00  the list draw_bin walks; defaults to &parts_bin */
     struct part *dragged_part; /* +0x02  the part being dragged - drawn last, and not counted */
     /* **The parts bin: a doubly linked list's head, and the head is a whole
@@ -1431,13 +1431,13 @@ struct dg_50d3 {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_50d3 DG50D3;
+extern struct held_parts HELD_PARTS;
 #endif
 
 /*
  * **The moving parts**, at DGROUP 0x5179.
  */
-struct dg_5179 {
+struct moving_parts {
     /* **The moving parts: a doubly linked list's head**, the second list the
        level file fills (`n_moving`) - balls, balloons, buckets, rockets - and
        what gravity and the step passes walk. A whole part, read the way the
@@ -1446,7 +1446,7 @@ struct dg_5179 {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_5179 DG5179;
+extern struct moving_parts MOVING_PARTS;
 #endif
 
 /*
@@ -1479,7 +1479,7 @@ struct part_table {
  * **A game file**, the 0x12-byte record `game_fopen` hands back and every
  * `game_f*` routine takes. There are ten of them at DGROUP 0x55c3 and the
  * table's extent is settled from both ends: the eleven 0x1c-byte archive
- * records above it end at 0x55c3, and `DG5677` begins exactly ten records
+ * records above it end at 0x55c3, and `CRITICAL_ERROR` begins exactly ten records
  * later.
  *
  * A file the archive knows about is described by the four fields below and
@@ -1562,7 +1562,7 @@ struct archive_entry {
 /*
  * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
  */
-struct dg_48da {
+struct mouse_driver {
     int16_t   gc_0_1;             /* +0x00  the graphics controller registers the cursor code saves: */
     int16_t   gc_4;               /* +0x02  0 and 1 here, 4 next, then 8 */
     int16_t   gc_8;               /* +0x04 */
@@ -1604,22 +1604,22 @@ struct vm_start {
 
 extern struct vm_start VM_START;
 
-extern struct dg_48da DG48DA;
+extern struct mouse_driver MOUSE_DRIVER;
 
 /*
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
  */
-struct dg_3576 {
+struct scratch_block {
     uint8_t far *scratch;       /* +0x00  picker_begin takes this if it is
                                      not null */
 } PACKED;
 
-extern struct dg_3576 DG3576;
+extern struct scratch_block SCRATCH_BLOCK;
 
 /*
  * **The machine's own parts**, at DGROUP 0x521b.
  */
-struct dg_521b {
+struct machine_parts {
     /* **The placed parts: a doubly linked list's head**, the first list the
        level file fills (`n_machine`) and on most levels the largest - the
        scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the moving
@@ -1629,7 +1629,7 @@ struct dg_521b {
 } PACKED;
 
 #ifndef GAMEDATA_C
-extern struct dg_521b DG521B;
+extern struct machine_parts MACHINE_PARTS;
 #endif
 
 /*
@@ -1704,14 +1704,14 @@ extern struct dos_startup DOS_STARTUP;
  * standard C and a struct member cannot carry that name.
  * ---------------------------------------------------------------------------
  */
-struct dg_0094 {
+struct borland_globals {
     int16_t   err_no;             /* +0x00  `errno` */
     uint32_t  start_ticks;        /* +0x02  INT 1Ah AH=0's CX:DX at startup */
     uint8_t   pad_009a[2];
     void *brklvl;        /* +0x08  the near heap's break */
 } PACKED;
 
-extern struct dg_0094 DG0094;
+extern struct borland_globals BORLAND_GLOBALS;
 
 /*
  * **The top of the program, as the startup worked it out**, DGROUP 0x00a0.
@@ -1757,7 +1757,7 @@ struct draw_step {
 
 /* **The one draw step `draw_part` builds itself**, at DGROUP 0x0124, for a
    part whose kind has no step table of its own. */
-extern struct draw_step DG0124;
+extern struct draw_step DEFAULT_DRAW_STEP;
 
 /*
  * **The game's message texts**, at DGROUP 0x1bcc: the two startup complaints
@@ -1776,7 +1776,7 @@ extern struct draw_step DG0124;
  * on. A title or a button label is only drawn, so it is a literal at its
  * call site and its field here is the layout's record of where it was.
  */
-struct dg_1bcc {
+struct messages {
     char not_enough_free_memory[26];  /* +0x000 0x1bcc '\n\nNOT ENOUGH FREE MEMORY\n' */
     char you_need_at_least[74];       /* +0x01a 0x1be6 "\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n" */
     char unable_to_initialize_vm[25]; /* +0x064 0x1c30 'Unable to initialize vm.' */
@@ -1841,7 +1841,7 @@ struct dg_1bcc {
     char path_sep[2];                 /* +0x7a2 0x236e '\\' */
 } PACKED;
 
-extern struct dg_1bcc DG1BCC;
+extern struct messages MESSAGES;
 
 
 /*
@@ -1849,7 +1849,7 @@ extern struct dg_1bcc DG1BCC;
  * part a belt being placed is anchored to, and how long each of the bin's two
  * arrows has been held down.
  */
-struct dg_2630 {
+struct goal_tests {
     struct part *belt_anchor; /* +0x00  the part a belt being placed is anchored to */
     /* The two bin-scroll repeat counters `bin_scroll_back` and its twin step.
        `check_goal`'s `lcall [bx + 0x2632]` with `bx` four times the round
@@ -1862,12 +1862,12 @@ struct dg_2630 {
     void (far *goal_test[110])(void); /* +0x06 */
 } PACKED;
 
-extern struct dg_2630 DG2630;
+extern struct goal_tests GOAL_TESTS;
 
 /*
  * **The span buffer and the driver's vectors**, at DGROUP 0x4342.
  */
-struct dg_4342 {
+struct vm_driver {
     /* **The segment of the block the game builds span lists in** - a separate
        allocation, not part of DGROUP, reached as `MK_FP(span_buffer_seg, 0)`
        in the guest's address space, exactly where the original puts it.
@@ -1890,10 +1890,10 @@ struct dg_4342 {
        then writes the driver's segment over every second one: fifty far
        pointers filled word by word. The port fills each slot with its own
        routine for it. Up to 0x440e. */
-    void (far *font[50])(void);   /* +0x04 */
+    void (far *entry[50])(void);  /* +0x04 */
 } PACKED;
 
-extern struct dg_4342 DG4342;
+extern struct vm_driver VM_DRIVER;
 
 
 
@@ -1935,10 +1935,10 @@ extern struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM;
 extern struct machine_draw_selection_phase MACHINE_DRAW_SELECTION_PHASE;
 
 /*
- * **The driver's vector, as the code pointers its slots are.** `DG4342.font`
+ * **The driver's vector, as the code pointers its slots are.** `VM_DRIVER.entry`
  * is filled by `vm_init` with the entry points of the loaded driver, and the
  * game calls through a slot as a far function pointer - `lcall [0x437a]` is
- * slot 13, `((vm_list_size_fn)DG4342.font[13])(...)`. The host fills the slots
+ * slot 13, `((vm_list_size_fn)VM_DRIVER.entry[13])(...)`. The host fills the slots
  * with its own routine for each (`vm_vector_host`, hostio.c).
  */
 typedef uint32_t (far *vm_list_size_fn)(struct bitmap **list, uint8_t *out);
@@ -2140,10 +2140,10 @@ extern struct dg_49ba DG49BA;
  */
 /* The module is a DOS block, so its offset is 0 and the normalised segment
    `FP_SEG` answers is the one the original holds. */
-#define ASB_SEG     FP_SEG(DG4A82.module)
-#define ASB8(off)   (*(uint8_t *)(DG4A82.module + (off)))
-#define ASB16(off)  (*(int16_t *)(DG4A82.module + (off)))
-#define ASBU16(off) (*(uint16_t *)(DG4A82.module + (off)))
+#define ASB_SEG     FP_SEG(SOUND_BANK.module)
+#define ASB8(off)   (*(uint8_t *)(SOUND_BANK.module + (off)))
+#define ASB16(off)  (*(int16_t *)(SOUND_BANK.module + (off)))
+#define ASBU16(off) (*(uint16_t *)(SOUND_BANK.module + (off)))
 
 /*
  * NOT a transcription: **the guest's SP**, where the port needs a value for
@@ -2484,7 +2484,7 @@ struct asb_cs {
     uint8_t   probe_irq10;     /* +0x07bd */
 } PACKED;
 
-#define ASBS (*(struct asb_cs *)DG4A82.module)
+#define ASBS (*(struct asb_cs *)SOUND_BANK.module)
 
 /*
  * **Segment 1c25, which keeps the displaced vectors inside its own code** -
@@ -2839,8 +2839,8 @@ struct open_file {
  * live at once and they hold different art.
  *
  *     DG52ED.panel_art       "cp.bmp"       the panel's own pieces
- *     DG4E67.bmp_4ecb        "gp_bord.bmp"  the play screen's border
- *     DG4E67.menu_bmp        "gp_menu.bmp"  the menu strip
+ *     GAME_STATE.bmp_4ecb        "gp_bord.bmp"  the play screen's border
+ *     GAME_STATE.menu_bmp        "gp_menu.bmp"  the menu strip
  *
  * So entry 10 means whatever the file it came out of put there, and the type
  * is the whole of what is worth saying: **every word in this list is a near
@@ -3110,7 +3110,7 @@ struct sound_dir {
 /*
  * ---------------------------------------------------------------------------
  * **A sound record**, the 0x14 bytes of kind 3 `read_record` makes for each
- * entry of a sound file and puts on the front of the list at `DG4A82.records`.
+ * entry of a sound file and puts on the front of the list at `SOUND_BANK.records`.
  * It lives in a DOS block, not in DGROUP.
  *
  * The header's fields are what `read_record` reads into it - the identifier, a
@@ -3426,7 +3426,7 @@ struct part_kind {
 #define KIND_ANCHOR            49
 #define KIND_MOTOR             50
 /* No icon and no name, but real: 55, 56 and 57 carry initialisers, and
-   `part_setup_1105` serves 55 and 57 and tells the two apart. They carry
+   `part_setup_kinds_55_57` serves 55 and 57 and tells the two apart. They carry
    their numbers until something says what they are. */
 #define KIND_55                55
 #define KIND_56                56
@@ -3443,7 +3443,7 @@ struct part_kind {
  * to check one - kind 37 draws a pair of scissors.
  *
  * Kinds 20, 41, 49 and 51..57 have no icon and no name; the last of those
- * still have initialisers, which is why `part_init_14ca0` and its two
+ * still have initialisers, which is why `part_init_kind_55` and its two
  * neighbours keep their addresses for names.
  *
  *     0 bowling_ball          1 brick_platform        2 ramp
@@ -3480,7 +3480,7 @@ extern struct part_kind PART_KINDS[PART_KIND_COUNT];
 /*
  * ---------------------------------------------------------------------------
  * **A move-queue node**, eight bytes: `game.c` builds twenty of them with
- * `calloc_far(1, 8)` and threads them on `DG4E4E.parts_free`;
+ * `calloc_far(1, 8)` and threads them on `FREE_LISTS.parts_free`;
  * `queue_part` moves one to `parts_queue`, sorted by the part's momentum
  * high word then low. `queue_part` used to read these through `()`, and
  * the field names lined up by offset - +4 was `kind` in one line and `lo` in
@@ -3747,17 +3747,17 @@ extern struct engine_read_staging ENGINE_READ_STAGING;
  */
 
 /*
- * DGROUP 0x440e..0x4460: twenty far pointers after DG4342's, and two bytes.
+ * DGROUP 0x440e..0x4460: twenty far pointers after VM_DRIVER's, and two bytes.
  * `vm_driver_init(0x3890, 0x4412, DGROUP_SEG)` hands the driver the table from
  * the second, so the last nineteen are the driver's; what the first is is not
  * known. Segment 1c25 and segment 0000 are both code.
  */
-struct dg_440e {
+struct vm_hooks {
     void (far *ptr_440e)(void);    /* +0x00 */
     void (far *driver_table[19])(void); /* +0x04  0x4412 */
     /* 0x445e, the palette cycle count, is palette.c's. */
 } PACKED;
-extern struct dg_440e DG440E;
+extern struct vm_hooks VM_HOOKS;
 
 /* DGROUP 0x44ea..0x44ee: one far pointer, into segment 1c25's code. */
 #ifdef __TURBOC__
@@ -3828,7 +3828,7 @@ extern struct game_master_levels GAME_MASTER_LEVELS;
  * the backslash string, which the path builders concatenate.
  */
 struct game_path_sep {
-    char     *path_sep;          /* +0x00 [2]  the "\\" at 0x236e, `DG1BCC.path_sep` */
+    char     *path_sep;          /* +0x00 [2]  the "\\" at 0x236e, `MESSAGES.path_sep` */
 } PACKED;
 extern struct game_path_sep GAME_PATH_SEP;
 

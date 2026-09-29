@@ -63,13 +63,13 @@ void game_setup(void)
     free_bitmaps_thunk(bar);
 
     cursor_redraw_off_thunk();
-    DG4E67.menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
-    DG4E67.score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
+    GAME_STATE.menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
+    GAME_STATE.score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
 
-    DG4E67.counter = 0;
-    DG4E67.round_number = 1;
-    DG4E67.playing = 1;
-    DG4E67.freeform = 0;
+    GAME_STATE.counter = 0;
+    GAME_STATE.round_number = 1;
+    GAME_STATE.playing = 1;
+    GAME_STATE.freeform = 0;
 }
 
 /*
@@ -80,8 +80,8 @@ void game_setup(void)
  */
 void free_two_bitmap_lists(void)
 {
-    free_bitmaps_thunk(DG4E67.score2_bmp);
-    free_bitmaps_thunk(DG4E67.menu_bmp);
+    free_bitmaps_thunk(GAME_STATE.score2_bmp);
+    free_bitmaps_thunk(GAME_STATE.menu_bmp);
 }
 
 /*
@@ -111,10 +111,10 @@ void game_round(void)
 {
     round_setup();
 
-    while (DG4E67.state != 0x200 && DG4E67.state != 1) {
+    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 1) {
         heap_check_or_hang();
 
-        switch (DG4E67.state) {
+        switch (GAME_STATE.state) {
         case 2:
             game_screen();
             break;
@@ -127,7 +127,7 @@ void game_round(void)
         }
     }
 
-    if (DG4E67.state == 0x200)
+    if (GAME_STATE.state == 0x200)
         finish_level();
 
     round_teardown();
@@ -158,25 +158,25 @@ void game_round(void)
  */
 void round_setup(void)
 {
-    DG4E67.origin_c_x = DG4E67.origin_c_y = DG4E67.origin_b_x
-        = DG4E67.origin_b_y = DG4E67.origin_x = DG4E67.origin_y = -8;
-    DG4E67.word_4ebb = 0;
+    GAME_STATE.origin_c_x = GAME_STATE.origin_c_y = GAME_STATE.origin_b_x
+        = GAME_STATE.origin_b_y = GAME_STATE.origin_x = GAME_STATE.origin_y = -8;
+    GAME_STATE.word_4ebb = 0;
 
     heap_check_or_hang();
 
-    if (DG4E67.freeform != 0) {
+    if (GAME_STATE.freeform != 0) {
         build_part_list();
         reset_machine();
     } else {
-        load_level(DG4E67.round_number);
+        load_level(GAME_STATE.round_number);
     }
 
-    DG50AF.extent_y = DG50AF.extent_x = -8;
+    LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
 
     start_counters();
     reset_input_state();
 
-    DG4E67.state = 2;
+    GAME_STATE.state = 2;
 }
 
 /*

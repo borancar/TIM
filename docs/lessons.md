@@ -257,7 +257,7 @@ like - and with it the two agree over five calls.
 ### What a field *is* is a measurement, not a reading
 
 **A field's name and the comment above it are somebody's earlier reading, and
-a wrong one defends itself.** `DG4A82.tick_cb` was typed `struct far_ptr` and
+a wrong one defends itself.** `SOUND_BANK.tick_cb` was typed `struct far_ptr` and
 commented "the timer callback; its segment is a relocation". Both halves are
 handles: `start_sound` stores what `timer_add_callback` *answers*, once per
 callback, and `shutdown_sound` hands each word straight back to
@@ -300,7 +300,7 @@ differed.
 lesson. The emulator pin had to carry the multi-byte video read, or
 `check_briefing` refuses. The screen had to be compared at all - the level
 screen never had been. And the difference had to be told apart from the port's
-own pacing, which is what the **hybrid** does: reading `DG50AF.bonus_2` on both
+own pacing, which is what the **hybrid** does: reading `LEVEL_SETTINGS.bonus_2` on both
 sides through `TIM_LUA` and `tim.peek16`, the port rolled the counter while the
 hybrid - the original's code on the *port's* hardware and tick - did not. Same
 pacing, different behaviour, so the difference was in our C and not in the
@@ -366,7 +366,7 @@ compile. It is the rule at the top of CLAUDE.md, measured: a transcription
 that agrees with every capture can still be wrong where no capture looked.
 
 Segment 2619 gave two more on 2026-09-27. `alloc_for_kind` sets
-`DG4A82.load_error` to 1 when an allocation fails, and the port never had
+`SOUND_BANK.load_error` to 1 when an allocation fails, and the port never had
 the store. `open_sound_file` clears the file and its kind only when it
 closes the previous file, and the port cleared them every time. Neither
 reaches a screen or a sample on the paths the checks drive.
@@ -479,10 +479,10 @@ has to come from the bytes:
   says it did not. TASM writes those calls bare (text.c).
 
 The built-in assembler has a trap of its own. **After `call`, it takes a
-name for a C label.** `asm call dword ptr DG4342` failed with "Expression
+name for a C label.** `asm call dword ptr VM_DRIVER` failed with "Expression
 syntax" at the function's closing brace, where the labels are resolved.
-`asm call dword ptr DG4342+8` compiled without a word and assembled as
-`DG4342-8`, `ff 1e f8 ff`. The routine still matched, because the judge
+`asm call dword ptr VM_DRIVER+8` compiled without a word and assembled as
+`VM_DRIVER-8`, `ff 1e f8 ff`. The routine still matched, because the judge
 masks fixups, and only its check of where each extern is placed caught it.
 A call through a far pointer in memory with nothing pushed is what C
 compiles anyway, so the glyph call is `VM_VECTOR(1, vm_glyph_fn)()` between
@@ -505,7 +505,7 @@ because its calls to `compute_step` are bare `push cs / call` with no
 TLINK `nop`. That reading was wrong. **BC++ 2.0 writes the bare form
 itself for a call to a routine already defined above it in the same
 file.** A call to one defined further down, like text.c's `set_font` to
-`table_618a_in_use`, goes out as a far call that TLINK turns into
+`font_slot_in_use`, goes out as a far call that TLINK turns into
 `nop / push cs / call`. What decided it was an `or word ptr [mode], 2`.
 The compiler's own object writer encodes that with a 16-bit immediate
 (`81`), and TASM shortens it to `83`. The image has `81`.
@@ -516,7 +516,7 @@ write `33 c2` and `2b c2`. That is how `blit_scaled_b`'s absolute value
 was found to be `asm`, not `abs()`.
 
 **The built-in assembler gets `call` wrong.** Given a symbol with a
-displacement - `call dword ptr DG4342+98h`, `[X+8]`, `X[8]` - it writes the
+displacement - `call dword ptr VM_DRIVER+98h`, `[X+8]`, `X[8]` - it writes the
 displacement negated when the symbol is an array or a large enough struct,
 and it reads a bare struct name as a C label. The routine still matches,
 because fixups are masked, and only the judge's check of where the extern
@@ -671,8 +671,8 @@ at 29/29: S28 and S30 diverged from the first flip after the machine
 started. Two mistakes met there.
 
 **Rewriting a routine to the image's shape dropped a cast the host
-needed.** `resolve_collisions` compares `DG53FC.contact_ptr`, declared
-`int16_t`, with `DG53FC.other_ptr`, a `dg_near_t`. Borland compares two
+needed.** `resolve_collisions` compares `COLLISION.contact_ptr`, declared
+`int16_t`, with `COLLISION.other_ptr`, a `dg_near_t`. Borland compares two
 16-bit words and cannot tell signed from unsigned. The host promotes both
 to `int`, so a part above DGROUP 0x8000 is negative on one side and
 positive on the other. The port had carried `(int16_t)` on the pointer,
@@ -740,7 +740,7 @@ Making machine.c's two devdump.c call counters host-only on 2026-09-27
 wrapped each in `#ifndef __TURBOC__`. The script did it with a regex, and
 the second one's non-greedy match began at the *first* counter's comment.
 So one block ran from `tension_belt`'s counter to `queue_part`'s and took
-`tension_belt`, `link_endpoint_gap` and `splice_list_4e58_onto_4e56` with
+`tension_belt`, `link_endpoint_gap` and `release_part_queue` with
 it. **The host defines no `__TURBOC__`, so it compiled them as before, and
 every check stayed green. Borland never saw them.** The judge judges what
 the compiler wrote, so the three were neither MATCH nor DIFF. They were
@@ -1532,7 +1532,7 @@ parse of the port's sources yields **7,188 ERROR nodes**, 6,112 of them in
 **What it was.** Four things in this tree are macros the C grammar has no rule
 for, and each one makes the parser abandon the construct it is in:
 
-    struct draw_step DG0124 DGROUP_AT(0x0124) = { ... };   /* between the
+    struct draw_step DEFAULT_DRAW_STEP DGROUP_AT(0x0124) = { ... };   /* between the
                                        declarator and its `=` */
     DG_ASSERT_AT(struct part, kind, 0x04);       /* a type as an argument */
     _Static_assert(__builtin_offsetof(struct vm_cs, data_seg) == 0x13a, "");
@@ -1973,7 +1973,7 @@ that it has nothing to say.
 are called.** Converting every `seg`/`off` pair to `struct far_ptr` was driven
 by grepping the names - `_off`, `_seg`, `_lo`, `_hi` - and that finds only the
 pairs somebody had already named consistently. The ones named badly are
-exactly the ones still hiding. `DG4A82.directory_ptr` and `payload_seg` are
+exactly the ones still hiding. `SOUND_BANK.directory_ptr` and `payload_seg` are
 one far pointer at +0x20 and +0x22, and a name-based sweep had written the
 second off as "a lone segment, no offset beside it" - it has one, under a
 name ending `_ptr`.
@@ -1995,7 +1995,7 @@ The identifier names are the *weakest* signal of the six and were the one
 the work started from. They find the pairs somebody had already named
 correctly, which are the ones least likely to be wrong.
 
-They found `DG4A82.directory`, `DG48F8` (zero-tested as
+They found `SOUND_BANK.directory`, `DG48F8` (zero-tested as
 `huge_equal(off, seg, 0, 0)` and returned as `(seg << 16) | off`), and
 `DG3890.pal_copy_ptr`, which was an anonymous `{dg_near_t off; dg_seg_t seg;}`
 - already that layout, with no name for the type. The same sweep found four
@@ -2004,7 +2004,7 @@ sites reaching a table by raw arithmetic where a typed array already existed:
 `bx = 4 * index` is `FONTSLOT[index]`.
 
 **And reading the diff found two more things the greps could not.**
-`close_table_618a_slot` ends with six further `bx` accessors clearing the
+`close_font_slot` ends with six further `bx` accessors clearing the
 same three slot tables, and retiring those retires `bx`; and
 `alloc_voice_records` reads its pointer *back out of* `VOICES[i]` after
 storing it, where a first pass had substituted the local it came from - the
@@ -2014,7 +2014,7 @@ whether the change is right.
 **And converting the type is not the same as retiring the idiom.** With
 every field converted, the tells still found 19 sites where the type was
 already `struct far_ptr` and the call site went on taking it apart -
-`if (DG4A82.config.off != 0 || DG4A82.config.seg != 0)` and
+`if (SOUND_BANK.config.off != 0 || SOUND_BANK.config.seg != 0)` and
 `X.seg = p.seg; X.off = p.off;`. A name-based sweep reports such a file as
 finished, because no identifier ends in `_off` any more.
 

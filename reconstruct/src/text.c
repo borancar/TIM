@@ -36,8 +36,8 @@ struct engine_text_colours ENGINE_TEXT_COLOURS = { { 0x00, 0x01, 0x02, 0x03, 0x0
 #ifdef __TURBOC__
 /* The driver's glyph entry, slot 1 (DGROUP 0x434a): everything in
    registers. Called from C, because Borland C++ 2.0's own assembler reads a
-   name after `call` as a C label - `call dword ptr DG4342+8` assembled as
-   `DG4342-8`. */
+   name after `call` as a C label - `call dword ptr VM_DRIVER+8` assembled as
+   `VM_DRIVER-8`. */
 typedef void (far *vm_glyph_fn)(void);
 #endif
 
@@ -81,7 +81,7 @@ uint16_t set_font(register int16_t slot)
                     break;
         } else
             found = 0;
-    } else if (table_618a_in_use(slot)) {
+    } else if (font_slot_in_use(slot)) {
         found = slot;
 
         ENGINE_FONT_KINDS.kind[0] = ENGINE_FONT_KINDS.kind[slot];
@@ -112,7 +112,7 @@ uint16_t font_char_width(register int16_t slot)
 {
     uint8_t w;
 
-    if (table_618a_in_use(slot) || slot == 0)
+    if (font_slot_in_use(slot) || slot == 0)
         w = VMDS.font_table_34[slot];
     else
         w = 0;
@@ -125,7 +125,7 @@ uint16_t font_char_width(register int16_t slot)
  * The height of a font's characters, for a font named by slot: the byte at
  * 0x38d8 + slot, which is the same table `load_font` fills.
  *
- * A slot that `table_618a_in_use` says is empty answers 0 - **except slot 0**,
+ * A slot that `font_slot_in_use` says is empty answers 0 - **except slot 0**,
  * which answers its height anyway. The test is `if (!in_use(slot) && slot != 0)
  * return 0`, so the current font is always measurable whether or not it is
  * filed in the table.
@@ -134,7 +134,7 @@ uint16_t font_line_height(register int16_t slot)
 {
     uint8_t h;
 
-    if (table_618a_in_use(slot) || slot == 0)
+    if (font_slot_in_use(slot) || slot == 0)
         h = VMDS.font_table_48[slot];
     else
         h = 0;
@@ -144,14 +144,15 @@ uint16_t font_line_height(register int16_t slot)
 /*
  * 0x215d5
  *
- * Whether the entry at a given index in the table at DGROUP 0x618a is in use.
+ * Whether a font slot - an entry of `ENGINE_FONT_BODIES`, DGROUP 0x618a - is
+ * in use.
  * Answers 1 for a non-null far pointer there, 0 otherwise.
  *
  * The index is refused at both ends - not positive, or 0x14 and over - so the
  * table is twenty entries and index 0 is never accepted, which is what makes 0
  * usable as "no entry".
  */
-uint16_t table_618a_in_use(register int16_t index)
+uint16_t font_slot_in_use(register int16_t index)
 {
     return index > 0 && index < 0x14
            && ENGINE_FONT_BODIES.body[index] != NULL;
@@ -312,7 +313,7 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
         || y + h > (uint16_t)VMDS.clip_bottom)
         plot = plot_pixel_clipped;
     else
-        plot = ((bmp_plot_fn)DG4342.font[22]);
+        plot = ((bmp_plot_fn)VM_DRIVER.entry[22]);
 
     if (ENGINE_FONT_KINDS.kind[0] <= 1)
         one_bit = 1;
@@ -485,7 +486,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 asm mov cx, h
                 asm mov dx, x
                 asm mov bp, y
-                ((vm_glyph_fn)DG4342.font[1])();
+                ((vm_glyph_fn)VM_DRIVER.entry[1])();
                 asm pop di
                 asm pop si
                 asm pop bp

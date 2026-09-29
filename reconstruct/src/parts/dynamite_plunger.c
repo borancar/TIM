@@ -177,7 +177,7 @@ void part_step_dynamite_plunger(struct part *part)
             if ((si = make_part(KIND_BLAST)) == NULL)
                 goto done;
 
-            insert_sorted(si, &DG521B.placed_parts);
+            insert_sorted(si, &MACHINE_PARTS.placed_parts);
             si->flags_06 |= 0x10;
             si->pos[0].x = part->pos[0].x - 0x10;
             si->pos[0].y = part->pos[0].y;
@@ -225,7 +225,7 @@ void part_flip_dynamite_plunger(struct part *part)
  * answers 0 - so this is the drive that starts a kind 22 rather than reporting
  * on it.
  */
-uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_dynamite_plunger(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     struct belt *di = p2->belt[0];

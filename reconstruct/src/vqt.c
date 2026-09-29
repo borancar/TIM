@@ -37,7 +37,7 @@
 asm {
 extrn _redraw_cursor:far
 extrn _BITMAP_COMPRESS:byte
-extrn _DG4342:byte
+extrn _VM_DRIVER:byte
 extrn _VMDS:byte
 VQT_TEXT segment byte public 'CODE'
 assume cs:VQT_TEXT, ds:DGROUP
@@ -447,7 +447,7 @@ L25ca3:
         mov bx, word ptr [bp+4]
         push di
         mov ah, al
-        call dword ptr DGROUP:_DG4342+2ch
+        call dword ptr DGROUP:_VM_DRIVER+2ch
         pop di
         add di, 50h
         dec si
@@ -1168,7 +1168,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * palette. The reads are `vqt_read_bits` written out in place, as there.
  *
  * Two things differ. A **one-colour** palette fills each row with one far call
- * through DGROUP 0x436e, `DG4342.font[10]`, the driver's span fill at
+ * through DGROUP 0x436e, `VM_DRIVER.entry[10]`, the driver's span fill at
  * VGA:0x034f - registers AX the colour in both halves, BX x, CX w, ES:DI the
  * row - stepping DI by 0x50 a row. `vm_init` is the only writer of that table,
  * so this calls `vm_span` directly. And the **palette loop's x test is

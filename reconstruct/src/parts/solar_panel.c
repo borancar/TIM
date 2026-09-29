@@ -56,7 +56,7 @@ void part_step_solar_panel(struct part *part)
 
     part->flags_08 |= 0x40;
 
-    if ((DG4E67.machine_frames & 7) == 4) {
+    if ((GAME_STATE.machine_frames & 7) == 4) {
         part->direction = 0;
 
         link_nearby_objects(part, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);

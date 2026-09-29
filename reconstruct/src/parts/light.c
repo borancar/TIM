@@ -100,7 +100,7 @@ void part_flip_light(struct part *part)
  * stops the drive: it answers 1 and the caller's walk ends. Bit 2 on a part
  * that is *not* going starts it instead, with sound 0x11, and answers 0.
  */
-uint16_t part_drive_2c19(struct part *p1, struct part *si, uint16_t p3,
+uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6)
 {
     uint16_t kept;                      /* [bp-2] */

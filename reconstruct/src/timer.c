@@ -69,7 +69,7 @@ d_453b label byte
 _DATA ends
 
 extrn _detect_pcjr:far
-extrn _DG4342:byte
+extrn _VM_DRIVER:byte
 
 TIMER_TEXT segment byte public 'CODE'
 assume cs:TIMER_TEXT, ds:DGROUP
@@ -335,12 +335,12 @@ _timer_tick endp
 
 /* 0x20838 */
 _blit_rows_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+48h
+        jmp dword ptr DGROUP:_VM_DRIVER+48h
 _blit_rows_thunk endp
 
 /* 0x2083c */
 _blit_rows_alt_thunk proc near
-        jmp dword ptr DGROUP:_DG4342+4ch
+        jmp dword ptr DGROUP:_VM_DRIVER+4ch
 _blit_rows_alt_thunk endp
 TIMER_TEXT ends
 }

@@ -30,7 +30,7 @@
  * the bitmap loader may leave here, which a resource slot borrows rather
  * than allocating one of its own.
  */
-struct dg_3576 DG3576 = { 0 };
+struct scratch_block SCRATCH_BLOCK = { 0 };
 
 /*
  * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece
@@ -408,7 +408,7 @@ int16_t near close_resource_slot(int16_t slot)
 {
     if ((ENGINE_STREAM.rec = ENGINE_RESOURCE_SLOTS.slot[slot]) != NULL) {
         free_if_set(ENGINE_STREAM.rec->work);
-        if (ENGINE_STREAM.rec->scratch != NULL && !DG3576.scratch)
+        if (ENGINE_STREAM.rec->scratch != NULL && !SCRATCH_BLOCK.scratch)
             dos_free_far(ENGINE_STREAM.rec->scratch);
     }
     free_if_set(ENGINE_STREAM.rec);
@@ -472,8 +472,8 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
         return -1;
     if (far_size) {
         /* Compared as the huge pointer the original held it as. */
-        if ((uint8_t huge *)DG3576.scratch != NULL)
-            ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch = DG3576.scratch;
+        if ((uint8_t huge *)SCRATCH_BLOCK.scratch != NULL)
+            ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch = SCRATCH_BLOCK.scratch;
         else
             ENGINE_STREAM.scratch = ENGINE_STREAM.rec->scratch =
                 DOS_ALLOC_PTR(DOS_ALLOC((uint32_t)far_size, 0));

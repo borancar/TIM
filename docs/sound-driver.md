@@ -1582,20 +1582,20 @@ Every `play_sound` call site in the port is a constant, so the mapping is
 static:
 
      1  part_step_2592
-     2  part_drive_2e4b, part_step_2d40
-     3  part_step_057e, part_step_11a6, part_step_27e2, part_step_3fae
+     2  part_drive_monkey, part_step_2d40
+     3  part_step_057e, part_step_kind_57, part_step_27e2, part_step_3fae
      6  part_step_0a5d
      7  part_hit_0c6c, part_step_098a, part_step_3635
      8  burst_kind_19, part_step_332a
      9  part_step_1a82
     10  break_kind_15
-    11  part_step_08f1, part_step_22ae
+    11  part_step_bullet, part_step_22ae
     12  part_step_13c9, part_step_1e5c
     13  part_step_0ca3, trigger_kind_6
     14  part_step_018e
     15  part_step_3635
     16  part_step_38fc
-    17  conveyor_nudge_15, part_drive_2c19, part_hit_14d3, part_step_1d78
+    17  conveyor_nudge_15, part_drive_light, part_hit_14d3, part_step_1d78
     18  part_step_0405, part_step_420f
     19  finish_level, game_intro
     20  game_intro, sound_on_hard_impact
@@ -1682,7 +1682,7 @@ far agrees: cannon, bob the fish, scissors, belt.
 
 The count predicted that 2, 11 and 12 - two callers each - would be actions
 rather than parts, and two of the three have since been named that way: **2 is
-the monkey pedalling** (`part_drive_2e4b`, `part_step_2d40` - "drive" is the
+the monkey pedalling** (`part_drive_monkey`, `part_step_2d40` - "drive" is the
 pedalling) and **12 is the electricity hum**, shared by the motor and the
 generator (`part_step_13c9`, `part_step_1e5c`). 11 is still unnamed and the
 count says it is another shared action.
@@ -1743,10 +1743,10 @@ switch, the mouse cage, bob the fish and three still unnamed.
 
 What did work, every time, was reading which routine queues the sound:
 `burst_kind_19` for the dynamite, `break_kind_15` for bob the fish,
-`sound_on_hard_impact` for the ball, `part_drive_2e4b` for the pedalling, and a
+`sound_on_hard_impact` for the ball, `part_drive_monkey` for the pedalling, and a
 labelled snapshot for the cannon. The caller *count* worked too, separating
 sounds owned by one part from actions shared across several, and it predicted
-11 would be shared before it was named - it has two callers, `part_step_08f1`
+11 would be shared before it was named - it has two callers, `part_step_bullet`
 and `part_step_22ae`, so two parts fire a gun.
 
 ### Where the envelope measure was right

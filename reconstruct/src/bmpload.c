@@ -42,9 +42,9 @@
  * runtime's huge add on the variable itself, which is a `huge` lvalue.
  */
 #ifdef __TURBOC__
-#  define SCRATCH (*(uint8_t huge **)&DG3576.scratch)
+#  define SCRATCH (*(uint8_t huge **)&SCRATCH_BLOCK.scratch)
 #else
-#  define SCRATCH DG3576.scratch
+#  define SCRATCH SCRATCH_BLOCK.scratch
 #endif
 
 /*
@@ -243,7 +243,7 @@ struct bitmap **load_bitmap_list(char *name)
     if (read_bmp_info(si, &count, &list) == 0)
         goto done;
 
-    want = ((vm_list_size_fn)DG4342.font[13])(list, (uint8_t *)&size);
+    want = ((vm_list_size_fn)VM_DRIVER.entry[13])(list, (uint8_t *)&size);
 
     if (!(blk = DOS_ALLOC_PTR(DOS_ALLOC(want, 0))))
         goto done;
@@ -252,14 +252,14 @@ struct bitmap **load_bitmap_list(char *name)
 
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
        into what it answered, if nothing has one yet. */
-    if (DG3576.scratch == NULL) {
+    if (SCRATCH_BLOCK.scratch == NULL) {
         if ((scratch = malloc_far(0x3cc4)) != NULL) {
             free_far(scratch);
             if ((scratch = malloc_far(0x3ac4)) != NULL) {
-                DG3576.scratch = (uint8_t far *)NEAR_ZERO(scratch);
+                SCRATCH_BLOCK.scratch = (uint8_t far *)NEAR_ZERO(scratch);
                 SCRATCH += 0x10;
-                DG3576.scratch = normalise_pointer_far(
-                    FAR_MASK(DG3576.scratch, 0xfffffff0L));
+                SCRATCH_BLOCK.scratch = normalise_pointer_far(
+                    FAR_MASK(SCRATCH_BLOCK.scratch, 0xfffffff0L));
             }
         }
     }
@@ -273,7 +273,7 @@ struct bitmap **load_bitmap_list(char *name)
     while (read_resource(res, walk, 0x7fff) == 0x7fff)
         walk += 0x7fff;
 
-    ((vm_load_list_fn)DG4342.font[14])(list, blk, resource_size(res), tmp, want);
+    ((vm_load_list_fn)VM_DRIVER.entry[14])(list, blk, resource_size(res), tmp, want);
 
     close_resource(res);
     kind = 1;
@@ -302,7 +302,7 @@ struct bitmap **load_bitmap_list(char *name)
             got <<= 2;
         }
 
-        ((vm_chunk_fn)DG4342.font[15])(tmp, walk, got);
+        ((vm_chunk_fn)VM_DRIVER.entry[15])(tmp, walk, got);
         walk += want << 1;
     }
 
@@ -314,7 +314,7 @@ done:
 
     if (scratch != NULL) {
         free_far(scratch);
-        DG3576.scratch = 0;
+        SCRATCH_BLOCK.scratch = 0;
     }
 
     if (kind == 0) {

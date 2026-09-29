@@ -29,7 +29,7 @@
 struct part_template PART_TEMPLATES[PART_KIND_COUNT] = {
     /* flags_06, flags_0a, set_size, size, init */
     { 0x0800, 0x0008, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_bowling_ball }, /* 0 */
-    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_14267 }, /* 1 */
+    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 1 */
     { 0x4800, 0x0000, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_ramp }, /* 2 */
     { 0x4800, 0x0000, { 0x0050, 0x0020 }, { 0x0050, 0x0020 }, part_init_seesaw }, /* 3 */
     { 0x0800, 0x0008, { 0x0020, 0x0030 }, { 0x0020, 0x0030 }, part_init_balloon }, /* 4 */
@@ -48,7 +48,7 @@ struct part_template PART_TEMPLATES[PART_KIND_COUNT] = {
     { 0x0800, 0x0008, { 0x0025, 0x0030 }, { 0x0028, 0x0030 }, part_init_bucket }, /* 17 */
     { 0x4800, 0x0008, { 0x0040, 0x0034 }, { 0x0040, 0x0034 }, part_init_cannon }, /* 18 */
     { 0x0800, 0x0008, { 0x0030, 0x001c }, { 0x0030, 0x001c }, part_init_dynamite }, /* 19 */
-    { 0x0800, 0x0008, { 0x0028, 0x0007 }, { 0x0028, 0x0007 }, part_init_146fc }, /* 20 */
+    { 0x0800, 0x0008, { 0x0028, 0x0007 }, { 0x0028, 0x0007 }, part_init_bullet }, /* 20 */
     { 0x4800, 0x0000, { 0x0030, 0x0020 }, { 0x0030, 0x0020 }, part_init_electric_plug }, /* 21 */
     { 0x4800, 0x0008, { 0x0087, 0x002f }, { 0x0087, 0x002f }, part_init_dynamite_plunger }, /* 22 */
     { 0x4800, 0x0008, { 0x0010, 0x0010 }, { 0x0010, 0x0010 }, part_init_hook }, /* 23 */
@@ -74,18 +74,18 @@ struct part_template PART_TEMPLATES[PART_KIND_COUNT] = {
     { 0x0800, 0x0008, { 0x0018, 0x0017 }, { 0x0018, 0x0017 }, part_init_cannon_ball }, /* 43 */
     { 0x0800, 0x0008, { 0x000f, 0x000f }, { 0x000f, 0x000f }, part_init_tennis_ball }, /* 44 */
     { 0x0800, 0x0008, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_candle }, /* 45 */
-    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_14267 }, /* 46 */
+    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 46 */
     { 0x4800, 0x0000, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_corner_pipe }, /* 47 */
-    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_14267 }, /* 48 */
-    { 0x0800, 0x0008, { 0, 0 }, { 0, 0 }, part_init_14c48 }, /* 49 */
+    { 0x4800, 0x0000, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 48 */
+    { 0x0800, 0x0008, { 0, 0 }, { 0, 0 }, part_init_anchor }, /* 49 */
     { 0x4800, 0x0008, { 0x0038, 0x002f }, { 0x0038, 0x002f }, part_init_motor }, /* 50 */
     { 0x0000, 0x0008, { 0, 0 }, { 0, 0 }, 0 }, /* 51 */
     { 0x0000, 0x0008, { 0, 0 }, { 0, 0 }, 0 }, /* 52 */
     { 0x0000, 0x0008, { 0, 0 }, { 0, 0 }, 0 }, /* 53 */
     { 0x0000, 0x0008, { 0, 0 }, { 0, 0 }, 0 }, /* 54 */
-    { 0x0800, 0x0008, { 0x0060, 0x0010 }, { 0x0060, 0x0010 }, part_init_14ca0 }, /* 55 */
-    { 0x4800, 0x0008, { 0x00d4, 0x0010 }, { 0x00d4, 0x0010 }, part_init_14cd9 }, /* 56 */
-    { 0x0800, 0x0008, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_14d0a }, /* 57 */
+    { 0x0800, 0x0008, { 0x0060, 0x0010 }, { 0x0060, 0x0010 }, part_init_kind_55 }, /* 55 */
+    { 0x4800, 0x0008, { 0x00d4, 0x0010 }, { 0x00d4, 0x0010 }, part_init_kind_56 }, /* 56 */
+    { 0x0800, 0x0008, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_kind_57 }, /* 57 */
 };
 
 /*
@@ -115,35 +115,35 @@ void build_part_list(void)
     int16_t si;                         /* si */
     int16_t wanted;                     /* di */
 
-    DG521B.placed_parts.next = DG521B.placed_parts.prev
-        = DG5179.moving_parts.next = DG5179.moving_parts.prev
-        = DG50D3.parts_bin.next = DG50D3.parts_bin.prev = 0;
+    MACHINE_PARTS.placed_parts.next = MACHINE_PARTS.placed_parts.prev
+        = MOVING_PARTS.moving_parts.next = MOVING_PARTS.moving_parts.prev
+        = HELD_PARTS.parts_bin.next = HELD_PARTS.parts_bin.prev = 0;
 
     for (si = 0; si < 0x33; si++) {
         wanted = 0;
 
         if (si == 0x20 || si == 0x21 || si == 0x22) {
-            if (si == 0x20 && DG4E67.holiday_halloween != 0)
+            if (si == 0x20 && GAME_STATE.holiday_halloween != 0)
                 wanted = 1;
-            if (si == 0x21 && DG4E67.holiday_valentine != 0)
+            if (si == 0x21 && GAME_STATE.holiday_valentine != 0)
                 wanted = 1;
-            if (si == 0x22 && DG4E67.holiday_christmas != 0)
+            if (si == 0x22 && GAME_STATE.holiday_christmas != 0)
                 wanted = 1;
         } else if (si != 0x14 && si != 0x29 && si != 0x31) {
             wanted = 1;
         }
 
         if (wanted != 0 && (rec = make_part(si)) != NULL)
-            insert_sorted(rec, &DG50D3.parts_bin);
+            insert_sorted(rec, &HELD_PARTS.parts_bin);
     }
 
-    DG50D3.bin_list = (&DG50D3.parts_bin);
-    DG50AF.bonus_1 = DG50AF.bonus_2 = 0;
-    DG50AF.gravity = 0x43;
-    DG50AF.air = 0x110;
-    DG50AF.extent_y = DG50AF.extent_x = -8;
-    DG50AF.tune = 0x3e9;
-    DG4E67.counter = 0;
+    HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
+    LEVEL_SETTINGS.bonus_1 = LEVEL_SETTINGS.bonus_2 = 0;
+    LEVEL_SETTINGS.gravity = 0x43;
+    LEVEL_SETTINGS.air = 0x110;
+    LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
+    LEVEL_SETTINGS.tune = 0x3e9;
+    GAME_STATE.counter = 0;
 
     recompute_kind_physics();
 }
@@ -252,12 +252,12 @@ uint16_t part_init_bowling_ball(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_0001(part);
+    part_setup_big_ball(part);
     return 0;
 }
 
 /* 0x14267 */
-uint16_t part_init_14267(struct part *part)
+uint16_t part_init_platform(struct part *part)
 {
     part->flags_06 |= 0x0040;
     part->flags_08 |= 0x0180;
@@ -265,7 +265,7 @@ uint16_t part_init_14267(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_48ab(part);
+    part_setup_platform(part);
     return 0;
 }
 
@@ -373,7 +373,7 @@ uint16_t part_init_basketball(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_0001(part);
+    part_setup_big_ball(part);
     return 0;
 }
 
@@ -440,7 +440,7 @@ uint16_t part_init_gear(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_0001(part);
+    part_setup_big_ball(part);
     return 0;
 }
 
@@ -512,12 +512,12 @@ uint16_t part_init_dynamite(struct part *part)
 }
 
 /* 0x146fc */
-uint16_t part_init_146fc(struct part *part)
+uint16_t part_init_bullet(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_08a1(part);
+    part_setup_bullet(part);
     return 0;
 }
 
@@ -616,7 +616,7 @@ uint16_t part_init_baseball(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_00c9(part);
+    part_setup_small_ball(part);
     return 0;
 }
 
@@ -791,7 +791,7 @@ uint16_t part_init_tennis_ball(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_00c9(part);
+    part_setup_small_ball(part);
     return 0;
 }
 
@@ -822,7 +822,7 @@ uint16_t part_init_corner_pipe(struct part *part)
 }
 
 /* 0x14c48 */
-uint16_t part_init_14c48(struct part *part)
+uint16_t part_init_anchor(struct part *part)
 {
     part->flags_08 |= 0x0004;
     part->attach[0].x = 0;
@@ -846,7 +846,7 @@ uint16_t part_init_motor(struct part *part)
 }
 
 /* 0x14ca0 */
-uint16_t part_init_14ca0(struct part *part)
+uint16_t part_init_kind_55(struct part *part)
 {
     part->flags_06 |= 0x0020;
     part->flags_08 |= 0x0004;
@@ -854,22 +854,22 @@ uint16_t part_init_14ca0(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_1105(part);
+    part_setup_kinds_55_57(part);
     return 0;
 }
 
 /* 0x14cd9 */
-uint16_t part_init_14cd9(struct part *part)
+uint16_t part_init_kind_56(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_10b6(part);
+    part_setup_kind_56(part);
     return 0;
 }
 
 /* 0x14d0a */
-uint16_t part_init_14d0a(struct part *part)
+uint16_t part_init_kind_57(struct part *part)
 {
     part->flags_06 |= 0x0020;
     part->flags_08 |= 0x0004;
@@ -877,7 +877,7 @@ uint16_t part_init_14d0a(struct part *part)
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
 
-    part_setup_1105(part);
+    part_setup_kinds_55_57(part);
     return 0;
 }
 
@@ -891,12 +891,12 @@ uint16_t part_init_14d0a(struct part *part)
  */
 void free_all_lists(void)
 {
-    free_part_list(DG50D3.parts_bin.next);
-    free_part_list(DG521B.placed_parts.next);
-    free_part_list(DG5179.moving_parts.next);
+    free_part_list(HELD_PARTS.parts_bin.next);
+    free_part_list(MACHINE_PARTS.placed_parts.next);
+    free_part_list(MOVING_PARTS.moving_parts.next);
 
-    DG521B.placed_parts.next = DG5179.moving_parts.next
-        = DG50D3.parts_bin.next = 0;
+    MACHINE_PARTS.placed_parts.next = MOVING_PARTS.moving_parts.next
+        = HELD_PARTS.parts_bin.next = 0;
 }
 
 /*

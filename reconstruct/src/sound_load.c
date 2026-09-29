@@ -57,10 +57,10 @@ uint16_t load_sound_module(FILE *handle, const int16_t *number, uint16_t index)
         SOUND_MODULE_NAME[5] = (char)(*number / 10 % 10 + '0');
         SOUND_MODULE_NAME[6] = (char)(*number % 10 + '0');
 
-        if (DG4A82.config != NULL)
-            free_for_kind(DG4A82.config, 1);
+        if (SOUND_BANK.config != NULL)
+            free_for_kind(SOUND_BANK.config, 1);
 
-        if ((DG4A82.config = load_named_chunk((char *)handle, name, index))
+        if ((SOUND_BANK.config = load_named_chunk((char *)handle, name, index))
             == NULL)
             ok = 0;
     }
@@ -68,13 +68,13 @@ uint16_t load_sound_module(FILE *handle, const int16_t *number, uint16_t index)
     /* With no module named, `config` is still null here, and the original
        reads the driver's configuration out of the vector table. */
     if (ok != 0
-        && configure_driver_far(advance_record(ZERO_PAGE(DG4A82.config)))
+        && configure_driver_far(advance_record(ZERO_PAGE(SOUND_BANK.config)))
            == 0xffff)
         ok = 0;
 
-    if (DG4A82.config != NULL) {
-        free_for_kind(DG4A82.config, 1);
-        DG4A82.config = 0;
+    if (SOUND_BANK.config != NULL) {
+        free_for_kind(SOUND_BANK.config, 1);
+        SOUND_BANK.config = 0;
     }
 
     return (uint16_t)ok;

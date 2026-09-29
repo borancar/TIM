@@ -86,7 +86,7 @@ void part_step_candle(struct part *part)
                     si->direction = 1;
                 } else if (si->kind == KIND_POKEY && si->form == 0) {
                     si->form = 1;
-                    si->word_96 = 0;
+                    si->kind_state = 0;
                     place_object_for_draw(si);
                     play_sound(7);
                 }

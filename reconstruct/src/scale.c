@@ -32,7 +32,7 @@
 /* The driver's page hook (slot 28, DGROUP 0x43b6) and scaled-row entry
    (slot 37, 0x43da), both taking everything in registers. They are called
    from C between the `asm` lines that load those registers, because the
-   built-in assembler writes `call dword ptr DG4342+98h` as `DG4342-98h`
+   built-in assembler writes `call dword ptr VM_DRIVER+98h` as `VM_DRIVER-98h`
    (docs/lessons.md). The row entry is reached through SS - DS is the
    bitmap's by then - and C cannot say that: a `_ss` pointer into DGROUP
    loses its prefix, because the model takes SS to be DGROUP. So the
@@ -329,7 +329,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         asm cmp word ptr VMDS+6e2h, 0
         asm je hooked
         asm push ax
-        ((vm_hook_fn)DG4342.font[28])();
+        ((vm_hook_fn)VM_DRIVER.entry[28])();
         asm add sp, 2
 hooked:
         asm mov es, ax
@@ -357,7 +357,7 @@ next_row:
         asm shl bp, 1
         asm lea bp, ENGINE_SCALE_TABLE[bp]
         asm db 36h                      /* ss: */
-        ((vm_row_fn)DG4342.font[37])();
+        ((vm_row_fn)VM_DRIVER.entry[37])();
         asm pop bp
         asm mov ax, j
         asm inc ax

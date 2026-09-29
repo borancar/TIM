@@ -10,7 +10,7 @@
  * split out of engine.c on 2026-09-27. Its `_DATA` is DGROUP 0x495c..0x4965
  * - a pointer to the chunk name, then its pool - between the video driver
  * loader's and the pad byte that ends it; bmpload.c's begins at 0x4966.
- * Whether `close_table_618a_slot` is this module's or the next one's, no
+ * Whether `close_font_slot` is this module's or the next one's, no
  * call or data reference says; it is a font slot's, so it is here.
  * Functions are in address order and each carries the image offset it was
  * read from.
@@ -179,8 +179,8 @@ uint16_t load_font(char *name)
 /*
  * 0x233ef
  *
- * Close one of the ten slots in the table at DGROUP 0x618a, which
- * `table_618a_in_use` answers for. A slot that is not in use is left alone.
+ * Close one of the font slots, `ENGINE_FONT_BODIES` at DGROUP 0x618a, which
+ * `font_slot_in_use` answers for. A slot that is not in use is left alone.
  *
  * **The slot that matches entry 0 takes the driver's own state down with it**:
  * six bytes and three pairs of words are cleared, including two that belong to
@@ -191,9 +191,9 @@ uint16_t load_font(char *name)
  * far pointer at 0x61da and through `free_far` when it does not - and its
  * three table entries and its byte at 0x6176 are cleared.
  */
-void close_table_618a_slot(int16_t index)
+void close_font_slot(int16_t index)
 {
-    if (table_618a_in_use(index) == 0)
+    if (font_slot_in_use(index) == 0)
         return;
 
     if (ENGINE_FONT_BODIES.body[index]

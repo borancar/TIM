@@ -564,10 +564,10 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     struct part *e0_part;               /* [bp-0x20] */
     struct part *e1_part;               /* [bp-0x22] */
 
-    pl = pr = DG5768.pointer_x;
-    pt = pb = DG5768.pointer_y;
-    ox = part->box[0].x - DG4E67.origin_x;
-    oy = part->box[0].y - DG4E67.origin_y;
+    pl = pr = POINTER.pointer_x;
+    pt = pb = POINTER.pointer_y;
+    ox = part->box[0].x - GAME_STATE.origin_x;
+    oy = part->box[0].y - GAME_STATE.origin_y;
     x0 = ox;
     y0 = oy;
     x1 = x0 + part->size[0].width;
@@ -596,7 +596,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     }
 
     if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
-        if (link != NULL && DG4E67.tool != 9) {
+        if (link != NULL && GAME_STATE.tool != 9) {
             x0 = ox + part->grab.x;
             y0 = oy + part->grab.y;
             x1 = x0 + part->grab_size;
@@ -616,7 +616,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
         }
 
         for (cur = e0, i = 0; i < 2; cur = e1, i++) {
-            if (cur != NULL && DG4E67.tool != 9
+            if (cur != NULL && GAME_STATE.tool != 9
                 && part->kind != KIND_PULLEY) {
                 x0 = ox + part->attach[i].x - 8;
                 y0 = oy + part->attach[i].y - 4;
@@ -692,8 +692,8 @@ struct part *find_part_from(register struct part *rec)
 
     if (best != NULL)
         return best;
-    if (DG50D3.dragged_part != 0
-        && DG50D3.dragged_part->kind == KIND_ROPE)
+    if (HELD_PARTS.dragged_part != 0
+        && HELD_PARTS.dragged_part->kind == KIND_ROPE)
         return NULL;
     return rec;
 }
@@ -729,11 +729,11 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
     if ((si = find_part_from(rec)) != NULL) {
         if (si->flags_08 & 4) {
             if (si->flags_08 & 8) {
-                e0 = e1 = si->pos[0].x - DG4E67.origin_x;
+                e0 = e1 = si->pos[0].x - GAME_STATE.origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
-                if (abs((int16_t)(DG5768.pointer_x - e0))
-                    < abs((int16_t)(DG5768.pointer_x - e1)))
+                if (abs((int16_t)(POINTER.pointer_x - e0))
+                    < abs((int16_t)(POINTER.pointer_x - e1)))
                     *out_end = 0;
                 else
                     *out_end = 1;
@@ -761,8 +761,8 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
  */
 void wait_cursor(void)
 {
-    if (DG4E67.cursor != 1)
-        DG4E67.saved_cursor = DG4E67.cursor;
+    if (GAME_STATE.cursor != 1)
+        GAME_STATE.saved_cursor = GAME_STATE.cursor;
 
     select_cursor(1);
 }
@@ -774,7 +774,7 @@ void wait_cursor(void)
  */
 void restore_cursor(void)
 {
-    select_cursor(DG4E67.saved_cursor);
+    select_cursor(GAME_STATE.saved_cursor);
 }
 
 /*
@@ -795,8 +795,8 @@ void select_cursor(register int16_t which)
 
     if (which > 0x1a)
         which = 0;
-    if (which != DG4E67.cursor) {
-        DG4E67.cursor = which;
+    if (which != GAME_STATE.cursor) {
+        GAME_STATE.cursor = which;
         if (which < 9) {
             hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[which];
             hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
@@ -843,7 +843,7 @@ int16_t cursor_for_tool(void)
 {
     int16_t r;
 
-    switch (DG4E67.tool) {
+    switch (GAME_STATE.tool) {
     case 1:
         r = 4;
         break;
@@ -865,9 +865,9 @@ int16_t cursor_for_tool(void)
         r = 3;
         break;
     case 9:
-        if (DG50D3.dragged_part->kind == KIND_BELT)
+        if (HELD_PARTS.dragged_part->kind == KIND_BELT)
             r = 8;
-        else if (DG50D3.dragged_part->kind == KIND_ROPE)
+        else if (HELD_PARTS.dragged_part->kind == KIND_ROPE)
             r = 9;
         else
             r = 0;
@@ -918,7 +918,7 @@ uint16_t part_flip_options(register struct part *part)
         di |= 2;
 
     if (part->flags_06 & 0x400) {
-        if (DG4E67.tool == 9)
+        if (GAME_STATE.tool == 9)
             di |= 4;
         else {
             part_flip(part, 1);
@@ -931,7 +931,7 @@ uint16_t part_flip_options(register struct part *part)
     }
 
     if (part->flags_06 & 0x200) {
-        if (DG4E67.tool == 9)
+        if (GAME_STATE.tool == 9)
             di |= 8;
         else {
             part_flip(part, 2);
@@ -985,18 +985,18 @@ uint16_t part_handle_at_pointer(register struct part *part)
     struct part *rec;                   /* [bp-0xe] */
     struct belt *end;                   /* [bp-0x10] */
 
-    DG50AF.flip_options = part_flip_options(part);
+    LEVEL_SETTINGS.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
         rec = (part->rope->end_b);
-        x0 = rec->box[0].x + rec->grab.x - DG4E67.origin_x;
+        x0 = rec->box[0].x + rec->grab.x - GAME_STATE.origin_x;
         /* the original takes origin_x off a y here, and below */
-        y0 = rec->box[0].y + rec->grab.y - DG4E67.origin_x;
-        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
-            && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
+        y0 = rec->box[0].y + rec->grab.y - GAME_STATE.origin_x;
+        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
+            && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
-        if (DG5768.pointer_x >= x0 && x0 + 10 > DG5768.pointer_x
-            && DG5768.pointer_y >= y0 && y0 + 10 > DG5768.pointer_y)
+        if (POINTER.pointer_x >= x0 && x0 + 10 > POINTER.pointer_x
+            && POINTER.pointer_y >= y0 && y0 + 10 > POINTER.pointer_y)
             return 7;
     }
 
@@ -1004,55 +1004,55 @@ uint16_t part_handle_at_pointer(register struct part *part)
         end = part->belt[0];
         rec = end->end_b;
         idx = end->slot_b;
-        x0 = rec->box[0].x + rec->attach[idx].x - DG4E67.origin_x - 8;
-        y0 = rec->box[0].y + rec->attach[idx].y - DG4E67.origin_x - 4;
-        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
-            && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
+        x0 = rec->box[0].x + rec->attach[idx].x - GAME_STATE.origin_x - 8;
+        y0 = rec->box[0].y + rec->attach[idx].y - GAME_STATE.origin_x - 4;
+        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
+            && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
-        if (DG5768.pointer_x >= x0 && x0 + 15 > DG5768.pointer_x
-            && DG5768.pointer_y >= y0 && y0 + 7 > DG5768.pointer_y)
+        if (POINTER.pointer_x >= x0 && x0 + 15 > POINTER.pointer_x
+            && POINTER.pointer_y >= y0 && y0 + 7 > POINTER.pointer_y)
             return 7;
     }
 
-    x0 = part->box[0].x - DG4E67.origin_x;
+    x0 = part->box[0].x - GAME_STATE.origin_x;
     x_mid = x0 + (part->size[0].width >> 1) - 6;
     x_end = x0 + part->size[0].width;
-    y0 = part->box[0].y - DG4E67.origin_y;
+    y0 = part->box[0].y - GAME_STATE.origin_y;
     y_mid = y0 + (part->size[0].height >> 1) - 6;
     y_end = y0 + part->size[0].height;
 
-    if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
-        && y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0)
+    if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
+        && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
         return 8;
 
-    if (DG50AF.flip_options & 1) {
-        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
-            && DG5768.pointer_y >= y_mid && y_mid + 11 > DG5768.pointer_y)
+    if (LEVEL_SETTINGS.flip_options & 1) {
+        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
+            && POINTER.pointer_y >= y_mid && y_mid + 11 > POINTER.pointer_y)
             return 3;
-        if (DG5768.pointer_x > x_end && x_end + 11 > DG5768.pointer_x
-            && DG5768.pointer_y >= y_mid && y_mid + 11 > DG5768.pointer_y)
+        if (POINTER.pointer_x > x_end && x_end + 11 > POINTER.pointer_x
+            && POINTER.pointer_y >= y_mid && y_mid + 11 > POINTER.pointer_y)
             return 4;
     }
-    if (DG50AF.flip_options & 2) {
-        if (y0 - 11 <= DG5768.pointer_y && DG5768.pointer_y < y0
-            && DG5768.pointer_x >= x_mid && x_mid + 11 > DG5768.pointer_x)
+    if (LEVEL_SETTINGS.flip_options & 2) {
+        if (y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0
+            && POINTER.pointer_x >= x_mid && x_mid + 11 > POINTER.pointer_x)
             return 5;
-        if (DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y
-            && DG5768.pointer_x >= x_mid && x_mid + 11 > DG5768.pointer_x)
+        if (POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y
+            && POINTER.pointer_x >= x_mid && x_mid + 11 > POINTER.pointer_x)
             return 6;
     }
-    if (DG50AF.flip_options & 4) {
-        if (x0 - 11 <= DG5768.pointer_x && DG5768.pointer_x < x0
-            && DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y)
+    if (LEVEL_SETTINGS.flip_options & 4) {
+        if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
+            && POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y)
             return 1;
     }
-    if (DG50AF.flip_options & 8) {
-        if (DG5768.pointer_x > x_end && x_end + 11 > DG5768.pointer_x
-            && DG5768.pointer_y > y_end && y_end + 11 > DG5768.pointer_y)
+    if (LEVEL_SETTINGS.flip_options & 8) {
+        if (POINTER.pointer_x > x_end && x_end + 11 > POINTER.pointer_x
+            && POINTER.pointer_y > y_end && y_end + 11 > POINTER.pointer_y)
             return 2;
     }
-    if (DG5768.pointer_x >= x0 && DG5768.pointer_x < x_end
-        && DG5768.pointer_y >= y0 && DG5768.pointer_y < y_end)
+    if (POINTER.pointer_x >= x0 && POINTER.pointer_x < x_end
+        && POINTER.pointer_y >= y0 && POINTER.pointer_y < y_end)
         return 7;
     return 0x0a;
 }
@@ -1129,7 +1129,7 @@ int16_t rope_ends_close(struct rope *rope)
  * **Another kind-7 part** and it is that part's own position, plainly.
  *
  * **Anything else** and the point aimed at is offset by the two bytes at that
- * part's +0x6a and +0x6b for the slot this one occupies - `match_field_5a_5c`
+ * part's +0x6a and +0x6b for the slot this one occupies - `link_slot_of`
  * says which slot - so a chain hangs from where it is attached rather than from
  * the middle of what it is attached to. Those are the same four bytes
  * `aim_link_at_bisector` writes, which is what makes the two routines a pair: one decides
@@ -1147,13 +1147,13 @@ uint16_t angle_between_parts(register struct part *part,
     int32_t dy;                         /* [bp-0xc] */
 
     if (other == NULL) {
-        dx = (int16_t)(part->pos[0].x - (DG5768.pointer_x + DG4E67.origin_x));
-        dy = (int16_t)(part->pos[0].y - (DG5768.pointer_y + DG4E67.origin_y));
+        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + GAME_STATE.origin_x));
+        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + GAME_STATE.origin_y));
     } else if (other->kind == KIND_PULLEY) {
         dx = (int16_t)(part->pos[0].x - other->pos[0].x);
         dy = (int16_t)(part->pos[0].y - other->pos[0].y);
     } else {
-        slot = match_field_5a_5c(part, other);
+        slot = link_slot_of(part, other);
         dx = (int16_t)(part->pos[0].x - (other->pos[0].x + other->attach[slot].x));
         dy = (int16_t)(part->pos[0].y - (other->pos[0].y + other->attach[slot].y));
     }
@@ -1408,8 +1408,8 @@ void refresh_link_geometry(register struct belt *link)
                 a->belt[0]->pt[0][j].y = a->pos[0].y + a->attach[j].y;
             }
 
-        if (DG4E67.state != 0x2000) {
-            link->owner->word_96 = link_end_distance(link, 3, 0);
+        if (GAME_STATE.state != 0x2000) {
+            link->owner->kind_state = link_end_distance(link, 3, 0);
             link->owner->spin = link_end_distance(link, 3, 1);
         }
     }
@@ -1452,12 +1452,12 @@ void rehome_carried_part(void)
        cannot see. The original leaves it as the stack had it. */
     slot = 0;
 #endif
-    old = (DG50D3.dragged_part->link[4]);
-    old_slot = DG50D3.dragged_part->host_slot;
-    DG50D3.dragged_part->link[4] = 0;
-    link_nearby_objects(DG50D3.dragged_part, 0x2000, -8, 8, -8, 8);
+    old = (HELD_PARTS.dragged_part->link[4]);
+    old_slot = HELD_PARTS.dragged_part->host_slot;
+    HELD_PARTS.dragged_part->link[4] = 0;
+    link_nearby_objects(HELD_PARTS.dragged_part, 0x2000, -8, 8, -8, 8);
 
-    si = (DG50D3.dragged_part->next_linked);
+    si = (HELD_PARTS.dragged_part->next_linked);
     while (si != NULL) {
         if (si == old) {
             di = old;
@@ -1479,15 +1479,15 @@ void rehome_carried_part(void)
     }
 
     if (old != NULL && di != old) {
-        old->link[DG50D3.dragged_part->host_slot + 4] = 0;
-        DG50D3.dragged_part->link[4] = 0;
+        old->link[HELD_PARTS.dragged_part->host_slot + 4] = 0;
+        HELD_PARTS.dragged_part->link[4] = 0;
         PART_KINDS[old->kind].setup(old);
         old->start_form = old->form;
     }
     if (di != NULL) {
-        di->link[slot + 4] = DG50D3.dragged_part;
-        DG50D3.dragged_part->link[4] = di;
-        DG50D3.dragged_part->host_slot = slot;
+        di->link[slot + 4] = HELD_PARTS.dragged_part;
+        HELD_PARTS.dragged_part->link[4] = di;
+        HELD_PARTS.dragged_part->host_slot = slot;
         PART_KINDS[di->kind].setup(di);
         di->start_form = di->form;
     }
@@ -1613,7 +1613,7 @@ void untie_rope(struct part *part)
  * and the walk stops at the first thing that is not one.
  *
  * The second end does one step instead of a walk, and only when `how` is zero:
- * `match_field_5a_5c` says which of the pair to clear. So the chain is followed
+ * `link_slot_of` says which of the pair to clear. So the chain is followed
  * when the belt is going and a single link is cut when it is not, which is the
  * same asymmetry `how` sets up above.
  *
@@ -1656,7 +1656,7 @@ void detach_belt(struct part *part, uint16_t how)
                 next = b->link[slot];
                 b->link[slot] = b->link[slot + 2] = 0;
                 if (next != NULL && how == 0) {
-                    slot = match_field_5a_5c(b, next);
+                    slot = link_slot_of(b, next);
                     next->link[slot] = next->link[slot + 2] = 0;
                 }
             }
@@ -1689,13 +1689,13 @@ void detach_belt(struct part *part, uint16_t how)
  */
 void discard_part(struct part *part)
 {
-    if (DG4E67.freeform != 0) {
+    if (GAME_STATE.freeform != 0) {
         unlink_part(part);
         free_part(part);
     }
 
-    if (part == DG50D3.dragged_part)
-        DG50D3.dragged_part = 0;
+    if (part == HELD_PARTS.dragged_part)
+        HELD_PARTS.dragged_part = 0;
 }
 
 /*
@@ -1714,7 +1714,7 @@ void discard_part(struct part *part)
  * Three kinds of work, and which one depends on the part's kind at +4.
  *
  * A part of kind 7 is **spliced out of a chain rather than removed from it**.
- * Its two neighbours are at +0x5a and +0x5c; `match_field_5a_5c` asks each which
+ * Its two neighbours are at +0x5a and +0x5c; `link_slot_of` asks each which
  * of its own slots points back, and each is then pointed at the other - so the
  * chain closes over the gap. Both writes are done twice, to `slot` and to
  * `slot + 2`, which is the pair that field is. Then any neighbour that is itself
@@ -1742,25 +1742,25 @@ void finish_part_removal(void)
     struct rope *rope;                  /* [bp-0xc] */
     struct belt *slot;                  /* [bp-0xe] */
 
-    if (DG50D3.dragged_part != 0
-        && (DG50D3.dragged_part->flags_06 & 0x800)) {
-        if (DG50D3.dragged_part->flags_0a & 3)
-            break_second_attachment(DG50D3.dragged_part);
+    if (HELD_PARTS.dragged_part != 0
+        && (HELD_PARTS.dragged_part->flags_06 & 0x800)) {
+        if (HELD_PARTS.dragged_part->flags_0a & 3)
+            break_second_attachment(HELD_PARTS.dragged_part);
 
-        rope = DG50D3.dragged_part->rope;
-        if (DG50D3.dragged_part->kind != KIND_BELT
+        rope = HELD_PARTS.dragged_part->rope;
+        if (HELD_PARTS.dragged_part->kind != KIND_BELT
             && rope != NULL) {
             r = rope->owner;
             untie_rope(r);
             discard_part(r);
         }
 
-        if (DG50D3.dragged_part->kind == KIND_PULLEY) {
-            if ((next = (DG50D3.dragged_part->link[0]))
+        if (HELD_PARTS.dragged_part->kind == KIND_PULLEY) {
+            if ((next = (HELD_PARTS.dragged_part->link[0]))
                 != NULL) {
-                a = match_field_5a_5c(DG50D3.dragged_part, next);
-                other = (DG50D3.dragged_part->link[1]);
-                b = match_field_5a_5c(DG50D3.dragged_part, other);
+                a = link_slot_of(HELD_PARTS.dragged_part, next);
+                other = (HELD_PARTS.dragged_part->link[1]);
+                b = link_slot_of(HELD_PARTS.dragged_part, other);
                 next->link[a] = next->link[a + 2] = other;
                 other->link[b] = other->link[b + 2] = next;
                 if (next->kind == KIND_PULLEY) {
@@ -1771,22 +1771,22 @@ void finish_part_removal(void)
                     aim_link_at_bisector(other);
                     mark_part_shapes(other, 3);
                 }
-                mark_needs_refile(((DG50D3.dragged_part
+                mark_needs_refile(((HELD_PARTS.dragged_part
                                                     ->belt[1])->owner), 2);
                 for (i = 0; i < 4; i++)
-                    DG50D3.dragged_part->link[i] = 0;
-                DG50D3.dragged_part->belt[1] = 0;
+                    HELD_PARTS.dragged_part->link[i] = 0;
+                HELD_PARTS.dragged_part->belt[1] = 0;
             }
-        } else if (DG50D3.dragged_part->kind != KIND_ROPE) {
+        } else if (HELD_PARTS.dragged_part->kind != KIND_ROPE) {
             for (i = 0; i < 2; i++)
-                if ((slot = DG50D3.dragged_part->belt[i])
+                if ((slot = HELD_PARTS.dragged_part->belt[i])
                     != NULL) {
                     belt = slot->owner;
                     detach_belt(belt, 1);
                     discard_part(belt);
                 }
         }
-        discard_part(DG50D3.dragged_part);
+        discard_part(HELD_PARTS.dragged_part);
     }
 }
 
@@ -1854,9 +1854,9 @@ void insert_sorted(register struct part *rec, struct part *head)
         else {
             kind2 = di->next->kind;
             prio2 = PART_KINDS[kind2].priority;
-            if (head == &DG50D3.parts_bin)
+            if (head == &HELD_PARTS.parts_bin)
                 stop = prio < prio2;
-            else if (head == &DG5179.moving_parts)
+            else if (head == &MOVING_PARTS.moving_parts)
                 stop = PART_KINDS[kind].weight < PART_KINDS[kind2].weight;
             else
                 stop = 1;
@@ -1901,7 +1901,7 @@ void detach_part_to_bin(register struct part *part)
 {
     int16_t i;
 
-    if (!((DG4E67.tool == 8 || DG4E67.tool == 7) && DG4E67.state == 0x1000)) {
+    if (!((GAME_STATE.tool == 8 || GAME_STATE.tool == 7) && GAME_STATE.state == 0x1000)) {
         if (part->rope != 0 && part->kind != KIND_BELT)
             untie_rope((part->rope->owner));
         if (part->kind != KIND_ROPE && part->kind != KIND_PULLEY)
@@ -1911,7 +1911,7 @@ void detach_part_to_bin(register struct part *part)
     }
     part->flags_06 = (part->flags_06 & 0xcfff) | 0x800;
     unlink_part(part);
-    insert_sorted(part, &DG50D3.parts_bin);
+    insert_sorted(part, &HELD_PARTS.parts_bin);
 }
 
 /*
@@ -1935,14 +1935,14 @@ void refile_part_list(register struct part *part)
     unlink_part(part);
     if (part->flags_06 & 0x4000) {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x2000;
-        insert_sorted(part, &DG521B.placed_parts);
+        insert_sorted(part, &MACHINE_PARTS.placed_parts);
     } else {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
-        insert_sorted(part, &DG5179.moving_parts);
+        insert_sorted(part, &MOVING_PARTS.moving_parts);
     }
-    if (DG50D3.bin_list != &DG50D3.parts_bin
-        && DG50D3.bin_list->next == 0)
-        DG50D3.bin_list = DG50D3.bin_list->prev;
+    if (HELD_PARTS.bin_list != &HELD_PARTS.parts_bin
+        && HELD_PARTS.bin_list->next == 0)
+        HELD_PARTS.bin_list = HELD_PARTS.bin_list->prev;
 }
 
 /*
@@ -1980,9 +1980,9 @@ void remove_all_parts(void)
                 detach_belt(si, 1);
             else
                 detach_part_to_bin(si);
-            DG50D3.dragged_part = si;
+            HELD_PARTS.dragged_part = si;
             finish_part_removal();
-            DG50D3.dragged_part = 0;
+            HELD_PARTS.dragged_part = 0;
             si = pick_by_flag(0x3000);
         } else
             si = pick_for_record(si, 0x1000);
@@ -2026,17 +2026,17 @@ struct part *bin_part_at_index(int16_t index)
 
     if (index < 0) {
         n = 0;
-        si = DG50D3.bin_list;
+        si = HELD_PARTS.bin_list;
         while (n != index) {
             di = si->kind;
-            while (si != &DG50D3.parts_bin && si->kind == di)
-                if (si != &DG50D3.parts_bin)
+            while (si != &HELD_PARTS.parts_bin && si->kind == di)
+                if (si != &HELD_PARTS.parts_bin)
                     si = si->prev;
             n--;
         }
     } else {
         n = 0;
-        si = DG50D3.bin_list->next;
+        si = HELD_PARTS.bin_list->next;
         while (n != index) {
             di = si->kind;
             while (si != 0 && si->kind == di)
@@ -2072,11 +2072,11 @@ struct part *bin_scroll_end(void)
     struct part *saved;                     /* [bp-2] */
     struct part *last;                      /* [bp-4] */
 
-    saved = DG50D3.bin_list;
+    saved = HELD_PARTS.bin_list;
     while (si = bin_part_at_index(5), si)
-        DG50D3.bin_list = si;
-    last = DG50D3.bin_list;
-    DG50D3.bin_list = saved;
+        HELD_PARTS.bin_list = si;
+    last = HELD_PARTS.bin_list;
+    HELD_PARTS.bin_list = saved;
     return last;
 }
 
@@ -2110,7 +2110,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
             si->owner->redraw_count = n;
     } else {
         if ((rope = part->rope) != NULL) {
-            if (DG4E67.state == 0x1000) {
+            if (GAME_STATE.state == 0x1000) {
                 compute_link_endpoints(rope);
                 if (rope_ends_close(rope))
                     rope->owner->redraw_count = n;
@@ -2118,7 +2118,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
                 rope->owner->redraw_count = n;
         }
 
-        if (DG4E67.state == 0x2000) {
+        if (GAME_STATE.state == 0x2000) {
             if ((si = part->belt[0]) != NULL
                 && !si->owner->redraw_count) {
                 si->owner->redraw_count = n;
@@ -2239,12 +2239,12 @@ give_up:
  */
 struct part *pick_by_flag(uint16_t flags)
 {
-    if (DG521B.placed_parts.next != 0 && (flags & 0x2000))
-        return DG521B.placed_parts.next;
-    if (DG5179.moving_parts.next != 0 && (flags & 0x1000))
-        return DG5179.moving_parts.next;
-    if (DG50D3.parts_bin.next != 0 && (flags & 0x0800))
-        return DG50D3.parts_bin.next;
+    if (MACHINE_PARTS.placed_parts.next != 0 && (flags & 0x2000))
+        return MACHINE_PARTS.placed_parts.next;
+    if (MOVING_PARTS.moving_parts.next != 0 && (flags & 0x1000))
+        return MOVING_PARTS.moving_parts.next;
+    if (HELD_PARTS.parts_bin.next != 0 && (flags & 0x0800))
+        return HELD_PARTS.parts_bin.next;
     return NULL;
 }
 
@@ -2270,7 +2270,7 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
         return pick_by_flag(flags);
 
     if (((int16_t)rec->flags_06 & 0x1000) && (flags & 0x800))
-        return DG50D3.parts_bin.next;
+        return HELD_PARTS.parts_bin.next;
 
     return NULL;
 }
@@ -2426,7 +2426,7 @@ void part_finish_angles(register struct part *part)
  * **Every shape on the drawn list back on the free list**: walk the list at
  * DGROUP 0x4e52 to its last node, point that at the free list at 0x4e4e, make
  * the whole list the free list's head, and empty 0x4e52. The far-pointer
- * twin of `splice_list_4e58_onto_4e56`.
+ * twin of `release_part_queue`.
  *
  * **Nothing in the image calls it**: no near call from segment 0000, and no
  * far call to it anywhere. It is transcribed because the module holds it.
@@ -2437,16 +2437,16 @@ void free_all_shapes(void)
     struct shape far *next;             /* [bp-4] */
     struct shape far *q;                /* [bp-8] */
 
-    if (DG4E4E.shapes) {
-        q = DG4E4E.shapes;
+    if (FREE_LISTS.shapes) {
+        q = FREE_LISTS.shapes;
         next = q->next;
         while (next) {
             q = next;
             next = next->next;
         }
-        q->next = DG4E4E.shape_free;
-        DG4E4E.shape_free = DG4E4E.shapes;
-        DG4E4E.shapes = 0;
+        q->next = FREE_LISTS.shape_free;
+        FREE_LISTS.shape_free = FREE_LISTS.shapes;
+        FREE_LISTS.shapes = 0;
     }
 }
 
@@ -2472,7 +2472,7 @@ void mark_joined_shapes(register struct part *part, uint16_t mode)
         if ((di = part->belt[1]) != NULL)
             mark_belt_shapes(di->owner, mode);
     } else if (part->kind != KIND_BELT && part->kind != KIND_ROPE) {
-        if (DG4E67.state != 0x2000
+        if (GAME_STATE.state != 0x2000
             && (rope = part->rope) != NULL)
             add_sub_object_shapes(rope->owner, mode);
         if ((di = part->belt[0]) != NULL)
@@ -2552,7 +2552,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
     box[0] = 0x10;
     box[1] = 0x10;
 
-    if (DG4E67.state == 0x2000) {
+    if (GAME_STATE.state == 0x2000) {
         near_part = si->end_a;
         far_part = near_part->link[si->slot_a];
         if (mode & 1) {
@@ -2730,7 +2730,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 {
     struct shape far *n;                /* [bp-4] */
 
-    n = DG4E4E.shape_free;
+    n = FREE_LISTS.shape_free;
     /* Pop from the free list, push onto the used list - before the test for
        an empty list, as the original does it, which then reads and writes
        0000:0000. The host's null is C's and cannot be followed, so there the
@@ -2739,9 +2739,9 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     if (n == NULL)
         return;
 #endif
-    DG4E4E.shape_free = DG4E4E.shape_free->next;
-    n->next = DG4E4E.shapes;
-    DG4E4E.shapes = n;
+    FREE_LISTS.shape_free = FREE_LISTS.shape_free->next;
+    n->next = FREE_LISTS.shapes;
+    FREE_LISTS.shapes = n;
 
     if (n) {
         n->flags = flags;
@@ -2750,18 +2750,18 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
         *(struct point16 far *)&n->x2 = *(const struct point16 *)pt2;
         n->width = width;
         if (which == 1) {
-            n->x1 -= DG4E67.origin_c_x;
-            n->y1 -= DG4E67.origin_c_y;
+            n->x1 -= GAME_STATE.origin_c_x;
+            n->y1 -= GAME_STATE.origin_c_y;
             if (flags & 4) {
-                n->x2 -= DG4E67.origin_c_x;
-                n->y2 -= DG4E67.origin_c_y;
+                n->x2 -= GAME_STATE.origin_c_x;
+                n->y2 -= GAME_STATE.origin_c_y;
             }
         } else {
-            n->x1 -= DG4E67.origin_b_x;
-            n->y1 -= DG4E67.origin_b_y;
+            n->x1 -= GAME_STATE.origin_b_x;
+            n->y1 -= GAME_STATE.origin_b_y;
             if (flags & 4) {
-                n->x2 -= DG4E67.origin_b_x;
-                n->y2 -= DG4E67.origin_b_y;
+                n->x2 -= GAME_STATE.origin_b_x;
+                n->y2 -= GAME_STATE.origin_b_y;
             }
         }
 
@@ -2824,7 +2824,7 @@ void replay_shapes(void)
     VMDS.page_dst = VMDS.page_back;
 
     prev = 0;
-    for (cur = DG4E4E.shapes; cur; cur = next) {
+    for (cur = FREE_LISTS.shapes; cur; cur = next) {
         next = cur->next;
         if (--cur->replays == 0) {
             si = cur->x1;
@@ -2849,9 +2849,9 @@ void replay_shapes(void)
             if (prev)
                 prev->next = next;
             else
-                DG4E4E.shapes = next;
-            cur->next = DG4E4E.shape_free;
-            DG4E4E.shape_free = cur;
+                FREE_LISTS.shapes = next;
+            cur->next = FREE_LISTS.shape_free;
+            FREE_LISTS.shape_free = cur;
         } else
             prev = cur;
     }
@@ -2893,34 +2893,34 @@ void mark_parts_in_dirty_rects(void)
                 si = di->rope;
                 if (!rope_ends_close(si))
                     continue;
-                if (DG4E67.tool == 9
-                    && (si->end_a == DG50D3.dragged_part
-                        || si->end_b == DG50D3.dragged_part)
+                if (GAME_STATE.tool == 9
+                    && (si->end_a == HELD_PARTS.dragged_part
+                        || si->end_b == HELD_PARTS.dragged_part)
                     && !point_in_play_area())
                     continue;
                 if (si->pt[0][0].x < si->pt[0][1].x) {
-                    right = left = si->pt[0][0].x - DG4E67.origin_x;
+                    right = left = si->pt[0][0].x - GAME_STATE.origin_x;
                     right += si->pt[0][3].x - si->pt[0][0].x;
                 } else {
-                    right = left = si->pt[0][1].x - DG4E67.origin_x;
+                    right = left = si->pt[0][1].x - GAME_STATE.origin_x;
                     right += si->pt[0][2].x - si->pt[0][1].x;
                 }
                 /* origin_x on the y axis too, as the original has it */
                 if (si->pt[0][0].y < si->pt[0][1].y) {
-                    bottom = top = si->pt[0][0].y - DG4E67.origin_x;
+                    bottom = top = si->pt[0][0].y - GAME_STATE.origin_x;
                     bottom += si->pt[0][3].y - si->pt[0][0].y;
                 } else {
-                    bottom = top = si->pt[0][1].y - DG4E67.origin_x;
+                    bottom = top = si->pt[0][1].y - GAME_STATE.origin_x;
                     bottom += si->pt[0][2].y - si->pt[0][1].y;
                 }
             } else {
-                left = di->box[0].x - DG4E67.origin_x;
-                top = di->box[0].y - DG4E67.origin_y;
+                left = di->box[0].x - GAME_STATE.origin_x;
+                top = di->box[0].y - GAME_STATE.origin_y;
                 right = left + di->size[0].width;
                 bottom = top + di->size[0].height;
             }
 
-            node = DG4E4E.shapes;
+            node = FREE_LISTS.shapes;
             while (node) {
                 if (node->left < right && node->right > left
                     && node->top < bottom && node->bottom > top) {
@@ -2992,23 +2992,23 @@ void belt_in_dirty_rect(struct part *part)
         by = si->box[0].y + si->attach[slotB].y;
 
         if (ax < bx) {
-            left = ax - DG4E67.origin_x;
-            right = bx - DG4E67.origin_x;
+            left = ax - GAME_STATE.origin_x;
+            right = bx - GAME_STATE.origin_x;
         } else {
-            left = bx - DG4E67.origin_x;
-            right = ax - DG4E67.origin_x;
+            left = bx - GAME_STATE.origin_x;
+            right = ax - GAME_STATE.origin_x;
         }
         if (ay < by) {
-            top = ay - DG4E67.origin_y;
-            bottom = by - DG4E67.origin_y;
+            top = ay - GAME_STATE.origin_y;
+            bottom = by - GAME_STATE.origin_y;
         } else {
-            top = by - DG4E67.origin_y;
-            bottom = ay - DG4E67.origin_y;
+            top = by - GAME_STATE.origin_y;
+            bottom = ay - GAME_STATE.origin_y;
         }
         if (slack > 0)
             bottom += slack >> 1;
 
-        node = DG4E4E.shapes;
+        node = FREE_LISTS.shapes;
         while (node) {
             if (node->left < right && node->right > left
                 && node->top < bottom && node->bottom > top) {
@@ -3070,7 +3070,7 @@ void refile_overlapping_parts(void)
 
     for (level_n = 6; level_n > 0; level_n--) {
         level = level_n - 1;
-        walk = DG50BF.layer_head[level];
+        walk = DRAW_LAYERS.layer_head[level];
         while (walk != NULL) {
             rec = &PART_KINDS[walk->kind];
             if ((rec->refile_level[0] == 0xff || rec->refile_level[0] >= level
@@ -3098,9 +3098,9 @@ void refile_overlapping_parts(void)
                         si = di->rope;
                         if (!rope_ends_close(si))
                             continue;
-                        if (DG4E67.tool == 9
-                            && (si->end_a == DG50D3.dragged_part
-                                || si->end_b == DG50D3.dragged_part)
+                        if (GAME_STATE.tool == 9
+                            && (si->end_a == HELD_PARTS.dragged_part
+                                || si->end_b == HELD_PARTS.dragged_part)
                             && !point_in_play_area())
                             continue;
                         if (si->pt[0][0].x < si->pt[0][1].x) {
@@ -3265,11 +3265,10 @@ int16_t belt_orientation(register struct belt *belt, int16_t which, int16_t dir)
 /*
  * 0x06f43
  *
- * Say which of two fields of a structure matches a value: 0 for the field at
- * +0x5a, 1 for the one at +0x5c, and -1 for neither. The structure is reached
- * by a **** pointer - a DGROUP offset - so it is indexed off DGROUP here.
+ * Which of a part's first two links is the given part: 0 for `link[0]`
+ * (+0x5a), 1 for `link[1]` (+0x5c), and -1 for neither.
  */
-int16_t match_field_5a_5c(struct part *value, struct part *obj)
+int16_t link_slot_of(struct part *value, struct part *obj)
 {
     if (obj->link[0] == value)
         return 0;
@@ -3281,17 +3280,15 @@ int16_t match_field_5a_5c(struct part *value, struct part *obj)
 /*
  * 0x06f68
  *
- * Given a record reached by a **** pointer, answer the word at +4 if the
- * word at +2 matches, and the word at +2 itself if it does not. A null record
- * answers 0.
+ * The other end of a belt from a given part: `end_b` (+4) if `end_a` (+2)
+ * is the part, and `end_a` if it is not. No belt answers 0.
  *
  * Both the "matched" and "did not match" paths funnel through one `jmp` to the
  * epilogue, which is why the disassembly has three jumps to reach two results.
  */
-struct part *select_field_2_or_4(struct part *key, register struct belt *rec)
+struct part *belt_other_end(struct part *key, register struct belt *rec)
 {
-    /* `or si,si` at 0x06f6f: no belt is an offset of 0, which as a pointer
-       is NULL - DGROUP:0 - and never NULL. */
+    /* `or si,si` at 0x06f6f. */
     if (rec != NULL) {
         if (rec->end_a == key)
             return rec->end_b;
@@ -3414,11 +3411,11 @@ int16_t link_slack(struct part *obj, register struct belt *link, int16_t gen)
 
     if (link->end_a == obj) {
         if (gen == 1)
-            rest = holder->word_96_prev2;
+            rest = holder->kind_state_prev2;
         else if (gen == 2)
-            rest = holder->word_96_prev;
+            rest = holder->kind_state_prev;
         else
-            rest = holder->word_96;
+            rest = holder->kind_state;
         d = rest - link_end_distance(link, gen, 0);
     } else if (ent != NULL && link->end_b == ent) {
         if (gen == 1)
@@ -3601,17 +3598,17 @@ int16_t tension_belt(register struct part *part)
 
     belt = part->belt[0];
     di = (belt->owner);
-    other = select_field_2_or_4(part, belt);
+    other = belt_other_end(part, belt);
     if ((belt->end_a) == part) {
         end = 0;
         slot = belt->slot_b;
-        slackA = di->word_96;
+        slackA = di->kind_state;
         slackB = di->spin;
     } else {
         end = 1;
         slot = belt->slot_a;
         slackA = di->spin;
-        slackB = di->word_96;
+        slackB = di->kind_state;
     }
     gapB = link_endpoint_gap(belt, other, dx2, dy2);
     gapA = link_endpoint_gap(belt, part, (uint8_t *)&dx1, (uint8_t *)&dy1);
@@ -3628,11 +3625,11 @@ int16_t tension_belt(register struct part *part)
                 dA = 0;
             }
             if ((belt->end_a) == part) {
-                di->word_96 = slackA = gapA - dA;
+                di->kind_state = slackA = gapA - dA;
                 di->spin = slackB = gapB - dB;
             } else {
                 di->spin = slackA = gapA - dA;
-                di->word_96 = slackB = gapB - dB;
+                di->kind_state = slackB = gapB - dB;
             }
         }
     }
@@ -3657,20 +3654,20 @@ int16_t tension_belt(register struct part *part)
                     give -= dB;
                 }
                 if (give != 0) {
-                    di->word_96 += give;
-                    slackA = di->word_96;
+                    di->kind_state += give;
+                    slackA = di->kind_state;
                     dA = gapA - slackA;
                 }
             } else {
-                di->word_96 -= give;
-                slackB = di->word_96;
+                di->kind_state -= give;
+                slackB = di->kind_state;
                 tension_belt(other);
                 other->flags_06 &= 0xfff0;
                 resolve_collisions(other);
                 gapB = link_endpoint_gap(belt, other, dx2, dy2);
                 dB = gapB - slackB;
                 if (dB != 0) {
-                    di->word_96 += dB;
+                    di->kind_state += dB;
                     give -= dB;
                 }
                 if (give != 0) {
@@ -3687,41 +3684,41 @@ int16_t tension_belt(register struct part *part)
             /* The far end is an anchor: take the belt off the pulley instead. */
             if (pulley) {
                 if (belt->end_a == other) {
-                    di->word_96 -= dA;
-                    if ((int16_t)di->word_96 < 0) {
-                        dA += (int16_t)di->word_96;
-                        saved = DG4E67.state;
-                        DG4E67.state = 0x1000;
+                    di->kind_state -= dA;
+                    if ((int16_t)di->kind_state < 0) {
+                        dA += (int16_t)di->kind_state;
+                        saved = GAME_STATE.state;
+                        GAME_STATE.state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        DG4E67.state = saved;
+                        GAME_STATE.state = saved;
                         pB = (other->link[belt->slot_a]);
                         pC = pB->link[0];
-                        k = match_field_5a_5c(pB, pC);
+                        k = link_slot_of(pB, pC);
                         other->link[belt->slot_a] = pC;
                         pC->link[k] = other;
                         for (i = 0; i < 2; i++)
                             pB->link[i] = 0;
-                        (belt->owner)->word_96 = link_end_distance(belt, 3, 0);
+                        (belt->owner)->kind_state = link_end_distance(belt, 3, 0);
                     }
                     di->spin += dA;
                 } else {
                     di->spin -= dA;
                     if (di->spin < 0) {
                         dA += di->spin;
-                        saved = DG4E67.state;
-                        DG4E67.state = 0x1000;
+                        saved = GAME_STATE.state;
+                        GAME_STATE.state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        DG4E67.state = saved;
+                        GAME_STATE.state = saved;
                         pB = (other->link[belt->slot_b]);
                         pC = pB->link[1];
-                        k = match_field_5a_5c(pB, pC);
+                        k = link_slot_of(pB, pC);
                         other->link[belt->slot_b] = pC;
                         pC->link[k] = other;
                         for (i = 0; i < 2; i++)
                             pB->link[i] = 0;
                         (belt->owner)->spin = link_end_distance(belt, 3, 1);
                     }
-                    di->word_96 += dA;
+                    di->kind_state += dA;
                 }
             }
         } else {
@@ -3789,7 +3786,7 @@ int16_t tension_belt(register struct part *part)
  * index. The offsets are zero-extended, so an endpoint is never left of or
  * above the object's own position.
  *
- * The far side comes from the object named at +0x5a, and `match_field_5a_5c`
+ * The far side comes from the object named at +0x5a, and `link_slot_of`
  * says which of its ends faces back. Type 7 is the exception: that object's
  * endpoint is a point in the array at +0x66, indexed by the *opposite* end,
  * and read as full words rather than byte offsets.
@@ -3820,7 +3817,7 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
         x1 = obj->box[0].x + obj->attach[a].x;
         y1 = obj->box[0].y + obj->attach[a].y;
         other = obj->link[a];
-        b = match_field_5a_5c(obj, other);
+        b = link_slot_of(obj, other);
         if (other->kind == KIND_PULLEY) {
             x2 = other->belt[0]->pt[0][1 - b].x;
             y2 = other->belt[0]->pt[0][1 - b].y;
@@ -3834,7 +3831,7 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
         x1 = other->box[0].x + other->attach[b].x;
         y1 = other->box[0].y + other->attach[b].y;
         obj = other->link[b];
-        a = match_field_5a_5c(other, obj);
+        a = link_slot_of(other, obj);
         if (obj->kind == KIND_PULLEY) {
             x2 = obj->belt[0]->pt[0][1 - a].x;
             y2 = obj->belt[0]->pt[0][1 - a].y;
@@ -3859,27 +3856,26 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
  *
  * Splice the whole of one list onto the front of another and empty the first.
  *
- * The list at DGROUP 0x4e58 is walked to its last node - the link is the first
- * word of each node - that node is pointed at the head of the list at DGROUP
- * 0x4e56, and 0x4e56 is then pointed at what 0x4e58 held. Returning a batch of
- * nodes to a free list in one move, by the shape of it, though the names are
- * not established.
+ * The queue of parts that asked to move, `FREE_LISTS.parts_queue` at DGROUP
+ * 0x4e58, is walked to its last node, that node is pointed at the free list
+ * `parts_free` at 0x4e56, and the free list then starts where the queue did:
+ * the frame's queue goes back to the free list in one move.
  */
-void splice_list_4e58_onto_4e56(void)
+void release_part_queue(void)
 {
     register struct queue_node *next;
     register struct queue_node *last;
 
-    if (DG4E4E.parts_queue != 0) {
-        last = DG4E4E.parts_queue;
+    if (FREE_LISTS.parts_queue != 0) {
+        last = FREE_LISTS.parts_queue;
         next = last->next;
         while (next != 0) {
             last = next;
             next = next->next;
         }
-        last->next = DG4E4E.parts_free;
-        DG4E4E.parts_free = DG4E4E.parts_queue;
-        DG4E4E.parts_queue = 0;
+        last->next = FREE_LISTS.parts_free;
+        FREE_LISTS.parts_free = FREE_LISTS.parts_queue;
+        FREE_LISTS.parts_queue = 0;
     }
 }
 
@@ -3918,25 +3914,25 @@ int16_t queue_part(struct part *src, struct part *part)
        high-word `jg`/`jl` and low-word `jae`/`ja` - a signed 32-bit compare. */
     key = src->momentum;
 
-    for (si = DG4E4E.parts_queue; si != 0; si = si->next)
+    for (si = FREE_LISTS.parts_queue; si != 0; si = si->next)
         if (si->part == part && si->momentum >= key)
             return 0;
 
-    if (DG4E4E.parts_queue == 0
-        || DG4E4E.parts_queue->momentum < key) {
-        si = DG4E4E.parts_free;
-        DG4E4E.parts_free = DG4E4E.parts_free->next;
-        si->next = DG4E4E.parts_queue;
-        DG4E4E.parts_queue = si;
+    if (FREE_LISTS.parts_queue == 0
+        || FREE_LISTS.parts_queue->momentum < key) {
+        si = FREE_LISTS.parts_free;
+        FREE_LISTS.parts_free = FREE_LISTS.parts_free->next;
+        si->next = FREE_LISTS.parts_queue;
+        FREE_LISTS.parts_queue = si;
     } else {
-        di = DG4E4E.parts_queue;
-        si = DG4E4E.parts_queue->next;
+        di = FREE_LISTS.parts_queue;
+        si = FREE_LISTS.parts_queue->next;
         while (si != 0 && si->momentum > key) {
             di = si;
             si = si->next;
         }
-        si = DG4E4E.parts_free;
-        DG4E4E.parts_free = DG4E4E.parts_free->next;
+        si = FREE_LISTS.parts_free;
+        FREE_LISTS.parts_free = FREE_LISTS.parts_free->next;
         si->next = di->next;
         di->next = si;
     }
@@ -3995,12 +3991,12 @@ void shift_all_histories(void)
 {
     struct part *obj;
 
-    if (DG50D3.dragged_part != 0)
-        shift_state_history(DG50D3.dragged_part);
+    if (HELD_PARTS.dragged_part != 0)
+        shift_state_history(HELD_PARTS.dragged_part);
 
     obj = pick_by_flag(0x3000);
     while (obj != NULL) {
-        if (obj != DG50D3.dragged_part)
+        if (obj != HELD_PARTS.dragged_part)
             shift_state_history(obj);
         obj = pick_for_record(obj, 0x1000);
     }
@@ -4045,7 +4041,7 @@ void shift_state_history(register struct part *obj)
     obj->form_prev2 = obj->form_prev;
     obj->form_prev = obj->form;
 
-    if (obj->kind == KIND_BELT && DG4E67.state == 0x1000) {
+    if (obj->kind == KIND_BELT && GAME_STATE.state == 0x1000) {
         rope = obj->rope;
         rope->pt[2][0] = rope->pt[1][0];
         rope->pt[1][0] = rope->pt[0][0];
@@ -4066,8 +4062,8 @@ void shift_state_history(register struct part *obj)
         belt->pt[2][1] = belt->pt[1][1];
         belt->pt[1][1] = belt->pt[0][1];
     }
-    obj->word_96_prev2 = obj->word_96_prev;
-    obj->word_96_prev = obj->word_96;
+    obj->kind_state_prev2 = obj->kind_state_prev;
+    obj->kind_state_prev = obj->kind_state;
     obj->spin_prev2 = obj->spin_prev;
     obj->spin_prev = obj->spin;
 }
@@ -4133,7 +4129,7 @@ void reset_machine(void)
             si->contact = 0;
             si->direction = si->start_direction;
             si->vel_x = si->vel_y = 0;
-            si->word_96 = si->word_96_prev = si->word_96_prev2 = 0;
+            si->kind_state = si->kind_state_prev = si->kind_state_prev2 = 0;
             si->spin = si->spin_prev = si->spin_prev2 = 0;
             if (si->kind != KIND_GEAR)
                 for (i = 0; i < 2; i++)
@@ -4169,7 +4165,7 @@ void reset_machine(void)
             }
 
             refresh_link_geometry(di);
-            si->word_96 = si->word_96_prev = si->word_96_prev2
+            si->kind_state = si->kind_state_prev = si->kind_state_prev2
                 = link_end_distance(di, 3, 0);
             si->spin = si->spin_prev = si->spin_prev2
                 = link_end_distance(di, 3, 1);

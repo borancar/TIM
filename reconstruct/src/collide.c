@@ -49,18 +49,18 @@ struct machine_quadrant_steps MACHINE_QUADRANT_STEPS = { { 0, -1, 0, 1 }, { -1, 
  * box's, filled by `compute_other_bounds` and `compute_swept_bounds`.
  */
 #define BOXES_MEET_STRICT                                               \
-    (DG53FC.other_left < DG53FC.swept_right                             \
-     && DG53FC.other_right > DG53FC.swept_left                          \
-     && DG53FC.other_top < DG53FC.swept_bottom                          \
-     && DG53FC.other_bottom > DG53FC.swept_top)
+    (COLLISION.other_left < COLLISION.swept_right                             \
+     && COLLISION.other_right > COLLISION.swept_left                          \
+     && COLLISION.other_top < COLLISION.swept_bottom                          \
+     && COLLISION.other_bottom > COLLISION.swept_top)
 #define BOXES_MEET                                                      \
-    (DG53FC.other_left <= DG53FC.swept_right                            \
-     && DG53FC.other_right >= DG53FC.swept_left                         \
-     && DG53FC.other_top <= DG53FC.swept_bottom                         \
-     && DG53FC.other_bottom >= DG53FC.swept_top)
+    (COLLISION.other_left <= COLLISION.swept_right                            \
+     && COLLISION.other_right >= COLLISION.swept_left                         \
+     && COLLISION.other_top <= COLLISION.swept_bottom                         \
+     && COLLISION.other_bottom >= COLLISION.swept_top)
 
 /* **This module's `_BSS`**: the collision state the routines below share. */
-struct dg_53fc DG53FC;
+struct collision COLLISION;
 
 /*
  * 0x00297
@@ -125,8 +125,8 @@ uint16_t part_hook_no(struct part *part)
  */
 void compute_moved(void)
 {
-    DG53FC.moved_x = (int16_t)(DG53FC.cur_x - DG53FC.list->pos[1].x);
-    DG53FC.moved_y = (int16_t)(DG53FC.cur_y - DG53FC.list->pos[1].y);
+    COLLISION.moved_x = (int16_t)(COLLISION.cur_x - COLLISION.list->pos[1].x);
+    COLLISION.moved_y = (int16_t)(COLLISION.cur_y - COLLISION.list->pos[1].y);
 }
 
 /*
@@ -151,22 +151,22 @@ void compute_moved(void)
  */
 void compute_swept_bounds(void)
 {
-    DG53FC.swept_left = DG53FC.cur_x = DG53FC.list->pos[0].x;
-    DG53FC.swept_top = DG53FC.cur_y = DG53FC.list->pos[0].y;
-    DG53FC.swept_right = DG53FC.cur_x + DG53FC.list->size[0].width;
-    DG53FC.swept_bottom = DG53FC.cur_y + DG53FC.list->size[0].height;
-    DG53FC.mid_x = DG53FC.cur_x + (DG53FC.list->size[0].width >> 1);
-    DG53FC.mid_y = DG53FC.cur_y + (DG53FC.list->size[0].height >> 1);
+    COLLISION.swept_left = COLLISION.cur_x = COLLISION.list->pos[0].x;
+    COLLISION.swept_top = COLLISION.cur_y = COLLISION.list->pos[0].y;
+    COLLISION.swept_right = COLLISION.cur_x + COLLISION.list->size[0].width;
+    COLLISION.swept_bottom = COLLISION.cur_y + COLLISION.list->size[0].height;
+    COLLISION.mid_x = COLLISION.cur_x + (COLLISION.list->size[0].width >> 1);
+    COLLISION.mid_y = COLLISION.cur_y + (COLLISION.list->size[0].height >> 1);
 
     compute_moved();
 
-    if (DG53FC.list->pos[1].x < DG53FC.cur_x)
-        DG53FC.swept_left = DG53FC.list->pos[1].x;
-    if (DG53FC.list->pos[1].y < DG53FC.cur_y)
-        DG53FC.swept_top = DG53FC.list->pos[1].y;
+    if (COLLISION.list->pos[1].x < COLLISION.cur_x)
+        COLLISION.swept_left = COLLISION.list->pos[1].x;
+    if (COLLISION.list->pos[1].y < COLLISION.cur_y)
+        COLLISION.swept_top = COLLISION.list->pos[1].y;
 
-    DG53FC.swept_right += abs(DG53FC.moved_x);
-    DG53FC.swept_bottom += abs(DG53FC.moved_y);
+    COLLISION.swept_right += abs(COLLISION.moved_x);
+    COLLISION.swept_bottom += abs(COLLISION.moved_y);
 }
 
 /*
@@ -191,14 +191,14 @@ void compute_swept_bounds(void)
  */
 void compute_other_bounds(void)
 {
-    DG53FC.other_left = DG53FC.other->pos[0].x;
-    DG53FC.other_top = DG53FC.other->pos[0].y;
-    DG53FC.other_right = (int16_t)(DG53FC.other_left + DG53FC.other->size[0].width);
-    DG53FC.other_bottom = (int16_t)(DG53FC.other_top + DG53FC.other->size[0].height);
-    DG53FC.other_mid_x = (int16_t)(DG53FC.other_left
-                             + (int16_t)(DG53FC.other->size[0].width >> 1));
-    DG53FC.other_mid_y = (int16_t)(DG53FC.other_top
-                             + (int16_t)(DG53FC.other->size[0].height >> 1));
+    COLLISION.other_left = COLLISION.other->pos[0].x;
+    COLLISION.other_top = COLLISION.other->pos[0].y;
+    COLLISION.other_right = (int16_t)(COLLISION.other_left + COLLISION.other->size[0].width);
+    COLLISION.other_bottom = (int16_t)(COLLISION.other_top + COLLISION.other->size[0].height);
+    COLLISION.other_mid_x = (int16_t)(COLLISION.other_left
+                             + (int16_t)(COLLISION.other->size[0].width >> 1));
+    COLLISION.other_mid_y = (int16_t)(COLLISION.other_top
+                             + (int16_t)(COLLISION.other->size[0].height >> 1));
 }
 
 /*
@@ -226,26 +226,26 @@ int16_t angles_same_side(int16_t angle)
     int16_t ok;                         /* [bp-4] */
     register int16_t si, di;
 
-    if (DG53FC.contact == 0)
+    if (COLLISION.contact == 0)
         return 0;
     quadrant = angle_to_quadrant(angle);
-    if (quadrant != DG53FC.contact_quadrant)
+    if (quadrant != COLLISION.contact_quadrant)
         return 0;
 
     ok = 0;
     si = angle + 0x2000;
-    di = DG53FC.contact_angle + 0x2000;
+    di = COLLISION.contact_angle + 0x2000;
     if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000)
         ok = 1;
     else {
         si = angle + 0xA000;
-        di = DG53FC.contact_angle + 0xA000;
+        di = COLLISION.contact_angle + 0xA000;
         if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000)
             ok = 1;
     }
 
     if (ok) {
-        if (angle == DG53FC.contact_angle)
+        if (angle == COLLISION.contact_angle)
             return 1;
         if (si == 0x2000 || di == 0x2000)
             return 1;
@@ -372,59 +372,59 @@ int16_t resolve_collisions(struct part *obj)
     register struct part_contact *c;
     register int16_t hit;
 
-    DG53FC.list = obj;
-    if (DG53FC.list->points == 0)
+    COLLISION.list = obj;
+    if (COLLISION.list->points == 0)
         return 0;
 
-    c = (struct part_contact *)&DG53FC.list->contact;
-    if ((DG53FC.contact = DG53FC.list->contact) != 0) {
-        DG53FC.contact_angle = c->angle;
-        DG53FC.contact_quadrant = angle_to_quadrant(DG53FC.contact_angle);
+    c = (struct part_contact *)&COLLISION.list->contact;
+    if ((COLLISION.contact = COLLISION.list->contact) != 0) {
+        COLLISION.contact_angle = c->angle;
+        COLLISION.contact_quadrant = angle_to_quadrant(COLLISION.contact_angle);
     }
     c->no_nudge_plus = c->no_nudge_minus = 0;
 
-    DG53FC.travel_angle = object_delta_angle(DG53FC.list);
+    COLLISION.travel_angle = object_delta_angle(COLLISION.list);
     compute_swept_bounds();
 
     hit = 0;
-    if (DG53FC.contact != 0
-        && !chain_contains(DG53FC.list, DG53FC.contact)) {
-        DG53FC.other = DG53FC.contact;
-        if (DG53FC.other->points != 0
-            && !(DG53FC.other->flags_08 & 0x2000)) {
+    if (COLLISION.contact != 0
+        && !chain_contains(COLLISION.list, COLLISION.contact)) {
+        COLLISION.other = COLLISION.contact;
+        if (COLLISION.other->points != 0
+            && !(COLLISION.other->flags_08 & 0x2000)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
+                COLLISION.travel_angle = object_delta_angle(COLLISION.list);
             }
             if (BOXES_MEET_STRICT && find_edge_contact_reversed(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
+                COLLISION.travel_angle = object_delta_angle(COLLISION.list);
             }
         }
     }
 
-    for (DG53FC.other = (pick_by_flag(0x3000));
-         DG53FC.other != 0;
-         DG53FC.other = (pick_for_record(DG53FC.other,
+    for (COLLISION.other = (pick_by_flag(0x3000));
+         COLLISION.other != 0;
+         COLLISION.other = (pick_for_record(COLLISION.other,
                                                     0x1000))) {
-        if (!chain_contains(DG53FC.list, DG53FC.other)
-            && DG53FC.list != DG53FC.other
-            && DG53FC.contact != DG53FC.other
-            && DG53FC.other->points != 0
-            && !(DG53FC.other->flags_08 & 0x2000)
-            && !(DG53FC.list->kind == 0xc
-                 && DG53FC.other->kind == 0x2a)) {
+        if (!chain_contains(COLLISION.list, COLLISION.other)
+            && COLLISION.list != COLLISION.other
+            && COLLISION.contact != COLLISION.other
+            && COLLISION.other->points != 0
+            && !(COLLISION.other->flags_08 & 0x2000)
+            && !(COLLISION.list->kind == 0xc
+                 && COLLISION.other->kind == 0x2a)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
+                COLLISION.travel_angle = object_delta_angle(COLLISION.list);
             }
             if (BOXES_MEET && find_edge_contact_reversed(0)) {
                 hit = 1;
-                DG53FC.travel_angle = object_delta_angle(DG53FC.list);
+                COLLISION.travel_angle = object_delta_angle(COLLISION.list);
             }
         }
     }
@@ -432,7 +432,7 @@ int16_t resolve_collisions(struct part *obj)
     if (!hit)
         c->part = 0;
     else if (angles_same_side(c->angle))
-        DG53FC.list->flags_06 |= 1;
+        COLLISION.list->flags_06 |= 1;
 
     return hit;
 }
@@ -518,18 +518,18 @@ int16_t find_edge_contact(int16_t test_only)
 
     hit = 0;
     i = 1;
-    si = DG53FC.other->points;
-    fx0 = x0 = DG53FC.other_left + si[0].x;
-    fy0 = y0 = DG53FC.other_top + si[0].y;
-    x1 = DG53FC.other_left + si[1].x;
-    y1 = DG53FC.other_top + si[1].y;
+    si = COLLISION.other->points;
+    fx0 = x0 = COLLISION.other_left + si[0].x;
+    fy0 = y0 = COLLISION.other_top + si[0].y;
+    x1 = COLLISION.other_left + si[1].x;
+    y1 = COLLISION.other_top + si[1].y;
     a_ang = si[0].angle;
 
     while (si) {
         quad = angle_to_quadrant(a_ang);
-        d = DG53FC.travel_angle - a_ang + 0x4000;
+        d = COLLISION.travel_angle - a_ang + 0x4000;
         if (d > 0) {
-            di = DG53FC.list->points;
+            di = COLLISION.list->points;
             b_ang = di->angle;
             di++;
             j = 1;
@@ -538,13 +538,13 @@ int16_t find_edge_contact(int16_t test_only)
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = di->angle - a_ang + 0x8000;
-                    if (d <= 0 && (DG53FC.moved_x || DG53FC.moved_y)) {
-                        seg1[0] = DG53FC.list->pos[1].x
+                    if (d <= 0 && (COLLISION.moved_x || COLLISION.moved_y)) {
+                        seg1[0] = COLLISION.list->pos[1].x
                                   + di->x - x0;
-                        seg1[1] = DG53FC.list->pos[1].y
+                        seg1[1] = COLLISION.list->pos[1].y
                                   + di->y - y0;
-                        tx = seg1[2] = seg1[0] + DG53FC.moved_x;
-                        ty = seg1[3] = seg1[1] + DG53FC.moved_y;
+                        tx = seg1[2] = seg1[0] + COLLISION.moved_x;
+                        ty = seg1[3] = seg1[1] + COLLISION.moved_y;
 
                         seg2[0] = 0;
                         seg2[1] = 0;
@@ -565,13 +565,13 @@ int16_t find_edge_contact(int16_t test_only)
                             same = angles_same_side(a_ang);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    DG53FC.list->pos[0].x =
-                                        DG53FC.list->pos[1].x;
-                                    DG53FC.list->pos[0].y =
-                                        DG53FC.list->pos[1].y;
+                                    COLLISION.list->pos[0].x =
+                                        COLLISION.list->pos[1].x;
+                                    COLLISION.list->pos[0].y =
+                                        COLLISION.list->pos[1].y;
                                 } else {
-                                    DG53FC.list->pos[0].x += out[0] - tx;
-                                    DG53FC.list->pos[0].y += out[1] - ty;
+                                    COLLISION.list->pos[0].x += out[0] - tx;
+                                    COLLISION.list->pos[0].y += out[1] - ty;
                                 }
                             } else {
                                 p = seg1[2];
@@ -581,44 +581,44 @@ int16_t find_edge_contact(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    DG53FC.list->pos[0].y += out[1] - ty;
+                                    COLLISION.list->pos[0].y += out[1] - ty;
                                 } else {
-                                    DG53FC.list->pos[0].x =
-                                        DG53FC.list->pos[1].x;
-                                    DG53FC.list->pos[0].y =
-                                        DG53FC.list->pos[1].y;
+                                    COLLISION.list->pos[0].x =
+                                        COLLISION.list->pos[1].x;
+                                    COLLISION.list->pos[0].y =
+                                        COLLISION.list->pos[1].y;
                                 }
                             }
 
-                            place_object_for_draw(DG53FC.list);
+                            place_object_for_draw(COLLISION.list);
                             compute_swept_bounds();
 
-                            DG53FC.list->flags_06 &= 0xfff9;
-                            if ((DG53FC.list->flags_08
-                                 | DG53FC.other->flags_08) & 0x8000
-                                || DG53FC.other->flags_06 & 0x4000)
-                                DG53FC.list->flags_06 |= 2;
+                            COLLISION.list->flags_06 &= 0xfff9;
+                            if ((COLLISION.list->flags_08
+                                 | COLLISION.other->flags_08) & 0x8000
+                                || COLLISION.other->flags_06 & 0x4000)
+                                COLLISION.list->flags_06 |= 2;
                             else
-                                DG53FC.list->flags_06 |= 4;
+                                COLLISION.list->flags_06 |= 4;
 
                             cp = (struct part_contact *)
-                                 &DG53FC.list->contact;
-                            cp->part = DG53FC.other;
+                                 &COLLISION.list->contact;
+                            cp->part = COLLISION.other;
                             cp->angle = a_ang;
                             cp->edge = i - 1;
-                            set_side_flags(seg2, DG53FC.mid_x - x0, cp);
+                            set_side_flags(seg2, COLLISION.mid_x - x0, cp);
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if ((int16_t)DG53FC.list->point_count < j)
+                if ((int16_t)COLLISION.list->point_count < j)
                     di = 0;
                 else {
                     b_ang = di->angle;
-                    if ((int16_t)DG53FC.list->point_count == j)
-                        di = DG53FC.list->points;
+                    if ((int16_t)COLLISION.list->point_count == j)
+                        di = COLLISION.list->points;
                     else
                         di++;
                 }
@@ -626,19 +626,19 @@ int16_t find_edge_contact(int16_t test_only)
         }
 
         i++;
-        if ((int16_t)DG53FC.other->point_count < i)
+        if ((int16_t)COLLISION.other->point_count < i)
             si = 0;
         else {
             si++;
             x0 = x1;
             y0 = y1;
             a_ang = si[0].angle;
-            if ((int16_t)DG53FC.other->point_count == i) {
+            if ((int16_t)COLLISION.other->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = DG53FC.other_left + si[1].x;
-                y1 = DG53FC.other_top + si[1].y;
+                x1 = COLLISION.other_left + si[1].x;
+                y1 = COLLISION.other_top + si[1].y;
             }
         }
     }
@@ -713,18 +713,18 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
     hit = 0;
     i = 1;
-    di = DG53FC.list->points;
-    fx0 = x0 = DG53FC.cur_x + di[0].x;
-    fy0 = y0 = DG53FC.cur_y + di[0].y;
-    x1 = DG53FC.cur_x + di[1].x;
-    y1 = DG53FC.cur_y + di[1].y;
+    di = COLLISION.list->points;
+    fx0 = x0 = COLLISION.cur_x + di[0].x;
+    fy0 = y0 = COLLISION.cur_y + di[0].y;
+    x1 = COLLISION.cur_x + di[1].x;
+    y1 = COLLISION.cur_y + di[1].y;
     a_ang = di[0].angle;
 
     while (di) {
         quad = angle_to_quadrant(a_ang + 0x8000);
-        d = DG53FC.travel_angle + 0x8000 - a_ang + 0x4000;
+        d = COLLISION.travel_angle + 0x8000 - a_ang + 0x4000;
         if (d > 0) {
-            si = DG53FC.other->points;
+            si = COLLISION.other->points;
             b_ang = si->angle;
             si++;
             j = 1;
@@ -733,15 +733,15 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = si->angle - a_ang + 0x8000;
-                    if (d <= 0 && (DG53FC.moved_x || DG53FC.moved_y)) {
+                    if (d <= 0 && (COLLISION.moved_x || COLLISION.moved_y)) {
                         px = si->x;
                         py = si->y;
-                        sx = seg1[2] = DG53FC.other->pos[0].x
+                        sx = seg1[2] = COLLISION.other->pos[0].x
                                        + si->x - x0;
-                        sy = seg1[3] = DG53FC.other->pos[0].y
+                        sy = seg1[3] = COLLISION.other->pos[0].y
                                        + si->y - y0;
-                        seg1[0] = seg1[2] + DG53FC.moved_x;
-                        seg1[1] = seg1[3] + DG53FC.moved_y;
+                        seg1[0] = seg1[2] + COLLISION.moved_x;
+                        seg1[1] = seg1[3] + COLLISION.moved_y;
 #ifndef __TURBOC__
                         (void)px;   /* the dead stores above are the original's */
                         (void)py;
@@ -766,13 +766,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             same = angles_same_side(a_ang + 0x8000);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    DG53FC.list->pos[0].x =
-                                        DG53FC.list->pos[1].x;
-                                    DG53FC.list->pos[0].y =
-                                        DG53FC.list->pos[1].y;
+                                    COLLISION.list->pos[0].x =
+                                        COLLISION.list->pos[1].x;
+                                    COLLISION.list->pos[0].y =
+                                        COLLISION.list->pos[1].y;
                                 } else {
-                                    DG53FC.list->pos[0].x -= out[0] - sx;
-                                    DG53FC.list->pos[0].y -= out[1] - sy;
+                                    COLLISION.list->pos[0].x -= out[0] - sx;
+                                    COLLISION.list->pos[0].y -= out[1] - sy;
                                 }
                             } else {
                                 p = seg1[2];
@@ -782,56 +782,56 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    DG53FC.list->pos[0].y -= out[1] - sy;
+                                    COLLISION.list->pos[0].y -= out[1] - sy;
                                 } else {
-                                    DG53FC.list->pos[0].x =
-                                        DG53FC.list->pos[1].x;
-                                    DG53FC.list->pos[0].y =
-                                        DG53FC.list->pos[1].y;
+                                    COLLISION.list->pos[0].x =
+                                        COLLISION.list->pos[1].x;
+                                    COLLISION.list->pos[0].y =
+                                        COLLISION.list->pos[1].y;
                                 }
                             }
 
-                            v = DG53FC.mid_x - x0;
+                            v = COLLISION.mid_x - x0;
 
-                            place_object_for_draw(DG53FC.list);
+                            place_object_for_draw(COLLISION.list);
                             compute_swept_bounds();
 
-                            DG53FC.list->flags_06 &= 0xfff9;
-                            if ((DG53FC.list->flags_08
-                                 | DG53FC.other->flags_08) & 0x8000
-                                || DG53FC.other->flags_06 & 0x4000)
-                                DG53FC.list->flags_06 |= 2;
+                            COLLISION.list->flags_06 &= 0xfff9;
+                            if ((COLLISION.list->flags_08
+                                 | COLLISION.other->flags_08) & 0x8000
+                                || COLLISION.other->flags_06 & 0x4000)
+                                COLLISION.list->flags_06 |= 2;
                             else
-                                DG53FC.list->flags_06 |= 4;
+                                COLLISION.list->flags_06 |= 4;
 
-                            DG53FC.list->contact = DG53FC.other;
-                            DG53FC.list->contact_angle = a_ang + 0x8000;
+                            COLLISION.list->contact = COLLISION.other;
+                            COLLISION.list->contact_angle = a_ang + 0x8000;
 
                             if (x0 > x1) {
                                 if (v > out[0])
-                                    DG53FC.list->no_nudge_plus = 1;
+                                    COLLISION.list->no_nudge_plus = 1;
                                 else
-                                    DG53FC.list->no_nudge_minus = 1;
+                                    COLLISION.list->no_nudge_minus = 1;
                             } else {
                                 if (v > out[0])
-                                    DG53FC.list->no_nudge_minus = 1;
+                                    COLLISION.list->no_nudge_minus = 1;
                                 else
-                                    DG53FC.list->no_nudge_plus = 1;
+                                    COLLISION.list->no_nudge_plus = 1;
                             }
 
-                            DG53FC.list->contact_edge = j - 1;
+                            COLLISION.list->contact_edge = j - 1;
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if ((int16_t)DG53FC.other->point_count < j)
+                if ((int16_t)COLLISION.other->point_count < j)
                     si = 0;
                 else {
                     b_ang = si->angle;
-                    if ((int16_t)DG53FC.other->point_count == j)
-                        si = DG53FC.other->points;
+                    if ((int16_t)COLLISION.other->point_count == j)
+                        si = COLLISION.other->points;
                     else
                         si++;
                 }
@@ -839,19 +839,19 @@ int16_t find_edge_contact_reversed(int16_t test_only)
         }
 
         i++;
-        if ((int16_t)DG53FC.list->point_count < i)
+        if ((int16_t)COLLISION.list->point_count < i)
             di = 0;
         else {
             di++;
             x0 = x1;
             y0 = y1;
             a_ang = di[0].angle;
-            if ((int16_t)DG53FC.list->point_count == i) {
+            if ((int16_t)COLLISION.list->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = DG53FC.cur_x + di[1].x;
-                y1 = DG53FC.cur_y + di[1].y;
+                x1 = COLLISION.cur_x + di[1].x;
+                y1 = COLLISION.cur_y + di[1].y;
             }
         }
     }

@@ -1111,7 +1111,7 @@ void io_unlock(void)
  * taking it around the blits as well would still not be: the clip is only the
  * visible half. The handler also moves the pointer at 0x576c/0x576e, keeps the
  * button accumulators at 0x5768/0x576a, and `timer_tick` under it steps 0x44ef
- * and raises `DG5752.frame_flag` - all read by the main thread with nothing
+ * and raises `FRAME_GUARD.frame_flag` - all read by the main thread with nothing
  * between them, and two of those reads are spin loops. Those two are safe:
  * the words they spin on are volatile - the only words in DGROUP that are - so
  * neither loop can be hoisted, and on
@@ -1190,7 +1190,7 @@ static void vm_slot_missing(void)
 
 /*
  * OURS: **the driver's vector, as the port's own routines.** On the original
- * `vm_init` fills `DG4342.font` with the entry points of the driver it loaded,
+ * `vm_init` fills `VM_DRIVER.entry` with the entry points of the driver it loaded,
  * and a routine that wants one calls through the slot. The port runs its own
  * transcription of each driver routine, so `vm_init` fills a slot with what
  * this answers; a slot with no routine stops the port when it is called.
@@ -1382,7 +1382,7 @@ void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
     mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
     io_unlock();
     if (trace_mouse_on)
-        fprintf(stderr, "io:   48eb now %02x\n", DG48DA.buttons);
+        fprintf(stderr, "io:   48eb now %02x\n", MOUSE_DRIVER.buttons);
 }
 
 /*

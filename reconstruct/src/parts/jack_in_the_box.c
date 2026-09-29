@@ -58,13 +58,13 @@ void part_step_jack_in_the_box(struct part *part)
 
         if (part->form == 8) {
             part->form = 0;
-            part->word_96++;
+            part->kind_state++;
         } else if (part->form == -1) {
             part->form = 7;
-            part->word_96++;
+            part->kind_state++;
         }
 
-        if (part->word_96 == 6) {
+        if (part->kind_state == 6) {
             play_sound(3);
             part->form = 8;
         }

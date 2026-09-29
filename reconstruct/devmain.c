@@ -81,29 +81,29 @@ static void on_hotkey(int32_t id)
  */
 static void resume_from_snapshot(void)
 {
-    while (DG4E67.state != 0x200 && DG4E67.state != 1) {
+    while (GAME_STATE.state != 0x200 && GAME_STATE.state != 1) {
         heap_check_or_hang();
 
-        if (DG4E67.state == 2)
+        if (GAME_STATE.state == 2)
             game_screen();
-        else if (DG4E67.state == 0x2000)
+        else if (GAME_STATE.state == 0x2000)
             run_machine_loop();
         else
             game_screen_loop();
     }
 
-    if (DG4E67.state == 0x200)
+    if (GAME_STATE.state == 0x200)
         finish_level();
 
     round_teardown();
 
-    while (DG4E67.playing != 0) {
-        if (((int16_t)DG4E67.state) == 1) {
-            DG4E67.playing = 0;
+    while (GAME_STATE.playing != 0) {
+        if (((int16_t)GAME_STATE.state) == 1) {
+            GAME_STATE.playing = 0;
         } else {
-            DG4E67.round_number = (int16_t)(DG4E67.round_number + 1);
-            if (DG4E67.round_number > DG4E67.furthest_level) {
-                DG4E67.furthest_level = DG4E67.round_number;
+            GAME_STATE.round_number = (int16_t)(GAME_STATE.round_number + 1);
+            if (GAME_STATE.round_number > GAME_STATE.furthest_level) {
+                GAME_STATE.furthest_level = GAME_STATE.round_number;
                 write_config();
             }
             game_round();
@@ -146,11 +146,11 @@ static void save_machine_file(const char *name)
 {
     int32_t i;
 
-    for (i = 0; name[i] && i < (int32_t)sizeof DG52FE.name - 1; i++)
-        DG52FE.name[i] = name[i];
-    DG52FE.name[i] = 0;
+    for (i = 0; name[i] && i < (int32_t)sizeof PICKED_MACHINE.name - 1; i++)
+        PICKED_MACHINE.name[i] = name[i];
+    PICKED_MACHINE.name[i] = 0;
 
-    if (save_machine((char *)DG52FE.name) != 0)
+    if (save_machine((char *)PICKED_MACHINE.name) != 0)
         fprintf(stderr, "io: save_machine reported an error for %s\n", name);
     else
         fprintf(stderr, "io: wrote the machine as %s\n", name);
@@ -179,7 +179,7 @@ static void play_level(int32_t level)
     game_startup();
     game_intro();
     game_setup();
-    DG4E67.round_number = (uint16_t)level;
+    GAME_STATE.round_number = (uint16_t)level;
     game_round();
     game_teardown(1);
 }

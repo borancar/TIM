@@ -55,8 +55,8 @@ uint16_t part_hit_monkey(struct part *part)
     struct part *other = part->contact;
     int16_t  face = ((int16_t)part->contact_edge);
 
-    if (other->word_96 == 0 && face < 3) {
-        other->word_96 = 0x1c;
+    if (other->kind_state == 0 && face < 3) {
+        other->kind_state = 0x1c;
         other->direction = 0;
 
         if (other->form == 0)
@@ -136,10 +136,10 @@ void part_step_monkey(struct part *part)
     if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800))
         di->direction = part->direction;
 
-    if (part->word_96 != 0) {
-        part->word_96--;
+    if (part->kind_state != 0) {
+        part->kind_state--;
 
-        if (part->word_96 == 0) {
+        if (part->kind_state == 0) {
             if (part->form > 8) {
                 play_sound(2);
                 DG52BD.sound_request_02 = 2;
@@ -215,7 +215,7 @@ void part_flip_monkey(struct part *part)
  * The `+0x12 != 0` test at 0x1a15e cannot be reached with +0x12 set, because
  * mode 4 has already answered yes in that case. Transcribed anyway.
  */
-uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_monkey(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
     uint16_t kept;                      /* [bp-2] */

@@ -100,7 +100,7 @@ L224c1:
     asm push ax
     asm call dword ptr VM_START+2
     asm add sp, 6
-    asm mov di, offset DG4342+4h
+    asm mov di, offset VM_DRIVER+4h
     asm push ds
     asm mov ax, ds
     asm mov ds, dx
@@ -110,7 +110,7 @@ L224c1:
     asm shl cx, 1
     asm rep movsw
     asm pop ds
-    asm mov di, offset DG4342+4h
+    asm mov di, offset VM_DRIVER+4h
     asm mov ax, dx
     asm mov cx, 32h
 L22514:
@@ -134,7 +134,7 @@ L22521:
     asm push ax
     asm or ax, ax
     asm je L225a0
-    asm mov ax, word ptr DG4342
+    asm mov ax, word ptr VM_DRIVER
     asm or ax, ax
     asm je L22555
     asm xor bx, bx
@@ -158,7 +158,7 @@ L22555:
     asm or dx, dx
     asm je L225a0
     asm inc dx
-    asm mov word ptr DG4342, dx
+    asm mov word ptr VM_DRIVER, dx
     asm mov ax, 1130h
     asm mov bh, 3
     asm int 10h
@@ -208,7 +208,7 @@ L225d0:
 uint16_t near detect_adapter(void)
 {
     asm mov al, byte ptr VM_START+1
-    asm cmp word ptr DG4342+2h, 0
+    asm cmp word ptr VM_DRIVER+2h, 0
     asm jne L225df
     asm xor ah, ah
     asm ret
@@ -243,7 +243,7 @@ L22612:
     asm mov al, 9
     asm jmp L22724
 L2261a:
-    asm cmp byte ptr DG4342+2h, 0
+    asm cmp byte ptr VM_DRIVER+2h, 0
     asm mov ax, 1a00h
     asm int 10h
     asm cmp bl, 7
@@ -524,14 +524,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 
             VM_START.driver = p;
 
-            vm_driver_init(&VMDS, DG440E.driver_table, DGROUP_SEG);
+            vm_driver_init(&VMDS, VM_HOOKS.driver_table, DGROUP_SEG);
 
             /* The driver's fifty entry points: the original copies the
                offsets from the driver's table at its 0x13e and puts the
                driver's segment beside each. The port runs its own routine
                for each driver entry, so a slot is that routine. */
             for (i = 0; i < 0x32; i++)
-                DG4342.font[i] = vm_vector_host(i);
+                VM_DRIVER.entry[i] = vm_vector_host(i);
         }
     } else {
         VMDS.pixel_shift = 0;
@@ -546,8 +546,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     if (r == 0)
         goto out;
 
-    if (DG4342.span_buffer_seg != 0)
-        dos_free_far(MK_FP((uint16_t)(DG4342.span_buffer_seg - 1), 0));
+    if (VM_DRIVER.span_buffer_seg != 0)
+        dos_free_far(MK_FP((uint16_t)(VM_DRIVER.span_buffer_seg - 1), 0));
 
     {
         uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
@@ -556,7 +556,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         if (FP_SEG(p) == 0)
             goto out;
 
-        DG4342.span_buffer_seg = (int16_t)(FP_SEG(p) + 1);
+        VM_DRIVER.span_buffer_seg = (int16_t)(FP_SEG(p) + 1);
     }
 
     /*
@@ -635,7 +635,7 @@ uint16_t detect_adapter(void)
 {
     uint8_t al = VM_START.mode_forced;
 
-    if (DG4342.detect_allowed == 0)
+    if (VM_DRIVER.detect_allowed == 0)
         return 0;
 
     if (al == 0)

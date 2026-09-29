@@ -25,7 +25,7 @@
  * (0,H-1). The subtraction is `add al, 0xff` in the original, which is the
  * same byte and is transcribed as the -1 it is.
  */
-void part_setup_48ab(struct part *part)
+void part_setup_platform(struct part *part)
 {
     struct part_point *si;
 
@@ -57,7 +57,7 @@ void part_setup_48ab(struct part *part)
  * +0x82 plus 4, plus 8 and plus 0x0c - take the width and height **less one**,
  * because a point sits inside the edge rather than on it.
  */
-void part_settle_48f7(struct part *part)
+void part_settle_platform(struct part *part)
 {
     /* Three cursors four bytes apart - points 1, 2 and 3 of the part's own
        table. */
@@ -65,7 +65,7 @@ void part_settle_48f7(struct part *part)
     struct part_point *p2;              /* di */
     struct part_point *p3;              /* [bp-2] */
 
-    switch (DG4E67.tool) {
+    switch (GAME_STATE.tool) {
     case 0x8003:
     case 0x8004:
         part->set_size.height = 0x10;

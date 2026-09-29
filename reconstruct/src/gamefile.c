@@ -32,7 +32,7 @@
 /*
  * **This module's `_BSS`, 0x547a..0x567e, in the order the four are
  * defined below reversed**: Borland lays `_BSS` out in reverse order of
- * first mention, so the highest, DG5677, is defined first and DG547A, the
+ * first mention, so the highest, CRITICAL_ERROR, is defined first and ARCHIVE_LOOKUP, the
  * lowest, last. None of them is declared anywhere else, which would be a
  * mention of its own (docs/lessons.md).
  */
@@ -40,13 +40,13 @@
 /*
  * **The critical-error vector**, at DGROUP 0x5677, and what failed.
  */
-struct dg_5677 {
+struct critical_error {
     void interrupt (far *crit_vec)(); /* +0x00  DOS's 24h, kept so it can be
                                             put back */
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
 } PACKED;
 
-struct dg_5677 DG5677;
+struct critical_error CRITICAL_ERROR;
 
 /*
  * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
@@ -71,7 +71,7 @@ struct machine_archives MACHINE_ARCHIVES;
  * **The archives' lookup**, at DGROUP 0x547a: its one-entry cache, the
  * archive count, the name hash and the files it read. segment 0000's.
  */
-struct dg_547a {
+struct archive_lookup {
     FILE     *cache_key;      /* +0x00  the one-entry cache in front of find_entry_for_pointer: */
     struct game_file *cache_answer; /* +0x02  the pointer last asked about, and the answer */
     int16_t   archive_count;      /* +0x04  how many archives, accumulated; zero means none is open */
@@ -100,7 +100,7 @@ struct dg_547a {
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
    layer, opens files through the archive lookup, and its count and its
    lists have to be the same side's. */
-struct dg_547a DG547A;   /* DGROUP 0x547a */
+struct archive_lookup ARCHIVE_LOOKUP;   /* DGROUP 0x547a */
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP
@@ -168,15 +168,15 @@ FILE *game_fopen(char *name, const char *mode)
     int16_t left;                       /* [bp-2] */
     char hdr[14];                       /* [bp-0x10] */
 
-    if (DG547A.reopen != 0)
+    if (ARCHIVE_LOOKUP.reopen != 0)
         make_file_current(0);
     load_archive_map();
-    DG5677.failures = 0;
-    if (DG547A.archive_count == 0)
+    CRITICAL_ERROR.failures = 0;
+    if (ARCHIVE_LOOKUP.archive_count == 0)
         return fopen(name, mode);
 
-    DG547A.file_used = 0;
-    DG547A.file_asked = 0;
+    ARCHIVE_LOOKUP.file_used = 0;
+    ARCHIVE_LOOKUP.file_asked = 0;
     for (si = &MACHINE_GAME_FILES.files[0], left = 0xa;
          left != 0 && si->in_use != 0; si++, left--)
         ;
@@ -184,16 +184,16 @@ FILE *game_fopen(char *name, const char *mode)
         return NULL;
 
     hash_filename(name);
-    DG547A.opening = 1;
+    ARCHIVE_LOOKUP.opening = 1;
     do {
-        DG547A.retry = 0;
+        ARCHIVE_LOOKUP.retry = 0;
         di = fopen(name, mode);
-        if (DG4E67.file_op_active != 0)
+        if (GAME_STATE.file_op_active != 0)
             return di;
-        if (DG547A.retry != 0 && VMDS.pixel_shift != 0)
-            answer_carry_on(DG547A.last_record != 0 ? DG547A.last_record : 1);
-    } while (DG547A.retry != 0);
-    DG547A.opening = 0;
+        if (ARCHIVE_LOOKUP.retry != 0 && VMDS.pixel_shift != 0)
+            answer_carry_on(ARCHIVE_LOOKUP.last_record != 0 ? ARCHIVE_LOOKUP.last_record : 1);
+    } while (ARCHIVE_LOOKUP.retry != 0);
+    ARCHIVE_LOOKUP.opening = 0;
 
     if (di != NULL) {
         si->archive = 0;
@@ -205,17 +205,17 @@ FILE *game_fopen(char *name, const char *mode)
             return NULL;
         make_file_current(si->archive);
         seek_file_to(si->base + si->pos);
-        di = MACHINE_ARCHIVES.slot[DG547A.last_record].stream;
+        di = MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record].stream;
         fread((uint8_t *)hdr, 0xd, 1, di);
         fread((uint8_t *)&si->size, 4, 1, di);
-        MACHINE_ARCHIVES.slot[DG547A.last_record].pos = si->base = ftell(di);
+        MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record].pos = si->base = ftell(di);
         if (stricmp(hdr, name))
             return NULL;
         si->pos = 0;
         si->stream = 0;
         si->in_use = 1;
     }
-    DG547A.open_immediate++;
+    ARCHIVE_LOOKUP.open_immediate++;
     /* An archive entry: the game's FILE is its `game_file` record, and
        `archive_entry_for` tells the two apart by looking for it in the
        table. */
@@ -248,7 +248,7 @@ int16_t game_fclose(FILE *file)
     di = 0;
     if (file == NULL)
         return -1;
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fclose(file);
     else {
@@ -256,9 +256,9 @@ int16_t game_fclose(FILE *file)
         if (si->stream != 0)
             di = fclose(si->stream);
         si->in_use = 0;
-        DG547A.open_immediate--;
+        ARCHIVE_LOOKUP.open_immediate--;
     }
-    DG5677.failures |= di == -1;
+    CRITICAL_ERROR.failures |= di == -1;
     return di;
 }
 
@@ -301,7 +301,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
     uint16_t n;                         /* [bp-2] */
     uint16_t bytes;                     /* [bp-4] */
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (di = archive_entry_for(file)) == NULL)
         return fread(buf, size, count, file);
     if (di->stream != 0)
@@ -344,7 +344,7 @@ int16_t game_fseek(FILE *file, int32_t off, register int16_t whence)
 {
     register struct game_file *si;
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return fseek(file, off, whence);
     if (si->stream != 0)
@@ -382,7 +382,7 @@ int32_t game_ftell(register FILE *file)
 {
     register struct game_file *si;
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return ftell(file);
     if (si->stream != 0)
@@ -424,18 +424,18 @@ int16_t game_fgetc(register FILE *file)
     register struct game_file *si;
     int16_t got;                        /* [bp-2] */
 
-    DG547A.file_asked = file;
-    if (DG547A.archive_count == 0
+    ARCHIVE_LOOKUP.file_asked = file;
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
-        return fgetc((DG547A.file_used = file));
+        return fgetc((ARCHIVE_LOOKUP.file_used = file));
     if (si->stream != 0)
-        return fgetc((DG547A.file_used = si->stream));
+        return fgetc((ARCHIVE_LOOKUP.file_used = si->stream));
     if (si->pos >= si->size)
         return -1;
     make_file_current(si->archive);
     seek_file_to(si->base + si->pos);
     file = MACHINE_ARCHIVES.slot[si->archive].stream;
-    got = fgetc((DG547A.file_used = file));
+    got = fgetc((ARCHIVE_LOOKUP.file_used = file));
     si->pos++;
     MACHINE_ARCHIVES.slot[si->archive].pos++;
     return got;
@@ -457,7 +457,7 @@ int16_t game_feof(register FILE *file)
 {
     register struct game_file *si;
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         return feof(file);
     if (si->stream != 0)
@@ -493,14 +493,14 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
     const uint8_t *p;                   /* [bp-2] */
 
     p = ptr;
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fwrite(p, size, count, file);
     else if (si->stream != 0)
         di = fwrite(p, size, count, si->stream);
     else
         di = 0;
-    DG5677.failures |= di != count;
+    CRITICAL_ERROR.failures |= di != count;
     return di;
 }
 
@@ -527,14 +527,14 @@ int16_t game_fputc(int16_t c, FILE *file)
     register struct game_file *si;
     register int16_t di;
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         di = fputc(c, file);
     else if (si->stream != 0)
         di = fputc(c, si->stream);
     else
         di = -1;
-    DG5677.failures |= di == -1;
+    CRITICAL_ERROR.failures |= di == -1;
     return di;
 }
 
@@ -557,7 +557,7 @@ void game_setbuf(register FILE *file, uint8_t *buf)
 {
     register struct game_file *si;
 
-    if (DG547A.archive_count == 0
+    if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
         setbuf(file, buf);
     else if (si->stream != 0)
@@ -600,16 +600,16 @@ void load_archive_map(void)
     uint32_t hi;                        /* [bp-0x10] and where its data starts */
     char *name;                         /* [bp-0x12] */
 
-    if (DG547A.scanned == 0) {
-        DG5677.crit_vec = getvect(0x24);
+    if (ARCHIVE_LOOKUP.scanned == 0) {
+        CRITICAL_ERROR.crit_vec = getvect(0x24);
         setvect(0x24, (void interrupt (far *)())crit_error_handler);
-        DG547A.scanned = 1;
+        ARCHIVE_LOOKUP.scanned = 1;
         name = "RESOURCE.MAP";
         if ((si = fopen(name, "rb")) != NULL) {
             fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, si);
             fread((uint8_t *)&count, 2, 1, si);
-            DG547A.archive_count += count;
-            for (di = DG547A.archive_count - count + 1; di <= DG547A.archive_count;
+            ARCHIVE_LOOKUP.archive_count += count;
+            for (di = ARCHIVE_LOOKUP.archive_count - count + 1; di <= ARCHIVE_LOOKUP.archive_count;
                  di++) {
                 a = &MACHINE_ARCHIVES.slot[di];
                 fread((uint8_t *)a->name, 0xd, 1, si);
@@ -659,11 +659,11 @@ void free_archive_lists(void)
             dos_free_far(MACHINE_ARCHIVES.slot[si].list);
             MACHINE_ARCHIVES.slot[si].list = NULL;
         }
-    if (DG5677.crit_vec) {
-        setvect(0x24, DG5677.crit_vec);
-        DG5677.crit_vec = 0;
+    if (CRITICAL_ERROR.crit_vec) {
+        setvect(0x24, CRITICAL_ERROR.crit_vec);
+        CRITICAL_ERROR.crit_vec = 0;
     }
-    DG547A.scanned = 0;
+    ARCHIVE_LOOKUP.scanned = 0;
 }
 
 /*
@@ -677,7 +677,7 @@ void free_archive_lists(void)
  */
 void request_archive_reopen(void)
 {
-    DG547A.reopen = 1;
+    ARCHIVE_LOOKUP.reopen = 1;
 }
 
 /*
@@ -709,7 +709,7 @@ int32_t hash_filename(char *name)
     char buf[14];                       /* [bp-0x16] */
 
     if (name == NULL)
-        return DG547A.name_hash = 0;
+        return ARCHIVE_LOOKUP.name_hash = 0;
 
     sum = eor = 0;
     for (si = (uint8_t *)name; *si != 0; si++) {
@@ -728,7 +728,7 @@ int32_t hash_filename(char *name)
         acc = (int32_t)((uint32_t)acc << 8)
               + (uint8_t)buf[MACHINE_HASH_ORDER.hash_order[di]];
     acc += (int16_t)(sum * eor);
-    return DG547A.name_hash = acc;
+    return ARCHIVE_LOOKUP.name_hash = acc;
 }
 
 /*
@@ -770,16 +770,16 @@ int16_t find_entry_for_pointer(register struct game_file *out)
     /* Each walk below starts a list and steps over its eight-byte entries to
        the key it wants or to the zero key that ends it. The original writes
        it out three times, and so does this. */
-    want = DG547A.name_hash;
-    if ((idx = DG547A.last_record) == 0)
+    want = ARCHIVE_LOOKUP.name_hash;
+    if ((idx = ARCHIVE_LOOKUP.last_record) == 0)
         idx = 1;
     for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
          at->key != 0 && at->key != want; at++)
         ;
-    fwd = DG547A.last_record + 1;
-    back = DG547A.last_record - 1;
-    while (at->key != want && (back > 0 || fwd <= DG547A.archive_count)) {
-        if (fwd <= DG547A.archive_count) {
+    fwd = ARCHIVE_LOOKUP.last_record + 1;
+    back = ARCHIVE_LOOKUP.last_record - 1;
+    while (at->key != want && (back > 0 || fwd <= ARCHIVE_LOOKUP.archive_count)) {
+        if (fwd <= ARCHIVE_LOOKUP.archive_count) {
             idx = fwd++;
             for (at = (const struct archive_entry far *)MACHINE_ARCHIVES.slot[idx].list;
                  at->key != 0 && at->key != want; at++)
@@ -839,29 +839,29 @@ void make_file_current(register uint16_t index)
     /* Set when the archive *cannot* be opened: `fclose` of a failed
        `fopen` is what answers non-zero. */
     missing = 0;
-    if (!DG547A.open_immediate && index != 0
+    if (!ARCHIVE_LOOKUP.open_immediate && index != 0
         && fclose(fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
                                         "rb")))
         missing = 1;
 
-    if (index != DG547A.last_record || missing != 0 || DG547A.reopen != 0) {
-        si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+    if (index != ARCHIVE_LOOKUP.last_record || missing != 0 || ARCHIVE_LOOKUP.reopen != 0) {
+        si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
         if (si->stream != 0) {
             fclose(si->stream);
             si->stream = 0;
         }
-        DG547A.last_record = index;
-        si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+        ARCHIVE_LOOKUP.last_record = index;
+        si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
         if (index != 0) {
-            DG547A.opening = 1;
+            ARCHIVE_LOOKUP.opening = 1;
             while ((si->stream = fopen((const char *)si->name, "rb")) == 0)
                 if (VMDS.pixel_shift != 0)
                     answer_carry_on(index);
-            DG547A.opening = 0;
+            ARCHIVE_LOOKUP.opening = 0;
         }
         si->pos = 0;
         archive_entry_for(NULL);
-        DG547A.reopen = 0;
+        ARCHIVE_LOOKUP.reopen = 0;
     }
 }
 
@@ -888,7 +888,7 @@ void seek_file_to(uint32_t at)
 {
     register struct archive *si;
 
-    si = &MACHINE_ARCHIVES.slot[DG547A.last_record];
+    si = &MACHINE_ARCHIVES.slot[ARCHIVE_LOOKUP.last_record];
     if (si->pos != at) {
         fseek(si->stream, at, 0);
         si->pos = at;
@@ -927,23 +927,23 @@ struct game_file *archive_entry_for(FILE *file)
     int16_t n;
 
     if (file == NULL) {
-        DG547A.cache_key = 0;
-        DG547A.cache_answer = 0;
+        ARCHIVE_LOOKUP.cache_key = 0;
+        ARCHIVE_LOOKUP.cache_answer = 0;
         return NULL;
     }
-    if (DG547A.archive_count == 0)
+    if (ARCHIVE_LOOKUP.archive_count == 0)
         return NULL;
-    if (file == DG547A.cache_key)
-        return DG547A.cache_answer;
-    DG547A.cache_key = file;
+    if (file == ARCHIVE_LOOKUP.cache_key)
+        return ARCHIVE_LOOKUP.cache_answer;
+    ARCHIVE_LOOKUP.cache_key = file;
     for (si = &MACHINE_GAME_FILES.files[0], n = 0xa; n != 0 && (FILE *)si != file;
          si++, n--)
         ;
     if (n == 0 || si->in_use == 0) {
         si = NULL;
-        DG547A.cache_key = 0;
+        ARCHIVE_LOOKUP.cache_key = 0;
     }
-    return (DG547A.cache_answer = si);
+    return (ARCHIVE_LOOKUP.cache_answer = si);
 }
 
 /*
@@ -964,12 +964,12 @@ void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
                                   uint16_t ds, uint16_t es, uint16_t dx,
                                   uint16_t cx, uint16_t bx, uint16_t ax)
 {
-    if (DG4E67.file_op_active != 0)
+    if (GAME_STATE.file_op_active != 0)
         ax = 3;
     else
-        ax = DG547A.opening ? 3 : 1;
-    DG547A.retry = 1;
-    DG547A.reopen = 1;
+        ax = ARCHIVE_LOOKUP.opening ? 3 : 1;
+    ARCHIVE_LOOKUP.retry = 1;
+    ARCHIVE_LOOKUP.reopen = 1;
 #ifndef __TURBOC__
     (void)ax;   /* ours: on the host the answer goes nowhere */
 #endif

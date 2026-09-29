@@ -56,14 +56,14 @@ void recompute_kind_physics(void)
     struct part_kind *k;
     register int16_t s;
 
-    s = DG50AF.air;
+    s = LEVEL_SETTINGS.air;
     if (s < 0x8c) {
         s >>= 2;
         s++;
     } else if (s > 0x116)
         s <<= 1;
 
-    base = DG50AF.gravity;
+    base = LEVEL_SETTINGS.gravity;
     if (base < 0x46)
         base >>= 1;
     else

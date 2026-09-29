@@ -90,7 +90,7 @@ void part_setup_bucket(struct part *part)
  * two addresses - so a verifier run naming 172c:0802 would be checking
  * something that, as far as the file is concerned, is at 172c:11d2.
  */
-uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
+uint16_t part_drive_bucket(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
     struct belt *belt = part->belt[0];   /* [bp-2] */
