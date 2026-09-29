@@ -794,10 +794,10 @@ uint16_t install_keyboard(int16_t hook_timer)
         ENGINE_KEYBOARD.installed = 1;
     }
 
-    FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & 0xdf);
+    g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags & 0xdf);
 
     if (ENGINE_KEYBOARD.hold_caps_lock != 0)
-        FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
+        g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags | 0x40);
 
     return ENGINE_KEYBOARD.installed;
 }
@@ -824,7 +824,7 @@ int16_t remove_keyboard(void)
 
     ENGINE_KEYBOARD.installed = 0;
 
-    FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
+    g_bios.kbd_head = g_bios.kbd_tail;
 
     setvect(0x09, S1C_KEYBOARD.old_int9);
     setvect(0x1c, S1C_KEYBOARD.old_int1c);
@@ -939,7 +939,7 @@ void keyboard_isr(void)
         al = ENGINE_KEYBOARD.ascii[al & 0x7f];
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
             al ^= 0x7f;
-            FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & al);
+            g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags & al);
         }
         io_out8(0x20, 0x20);
         return;
@@ -959,26 +959,26 @@ void keyboard_isr(void)
     if ((al & 0x80) != 0) {
         al &= 0x7f;
         if ((al & 0x70) == 0) {
-            FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | al);
+            g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags | al);
             io_out8(0x20, 0x20);
             return;
         }
         if ((al & 0x40) == 0 || ENGINE_KEYBOARD.hold_caps_lock == 0) {
             if ((dl & 1) == 0)
-                FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) ^ al);
+                g_bios.kbd_flags = (uint8_t)(g_bios.kbd_flags ^ al);
         }
         io_out8(0x20, 0x20);
         return;
     }
 
-    if ((FAR8(0x40, 0x17) & 4) != 0) {
+    if ((g_bios.kbd_flags & 4) != 0) {
         al |= 0x80;
         if ((dl & 4) != 0)
             al = (uint8_t)(al - 0x20);
-    } else if ((FAR8(0x40, 0x17) & 0x40) != 0) {
+    } else if ((g_bios.kbd_flags & 0x40) != 0) {
         if ((dl & 4) != 0)
             al = (uint8_t)(al - 0x20);
-    } else if ((FAR8(0x40, 0x17) & 3) != 0) {
+    } else if ((g_bios.kbd_flags & 3) != 0) {
         al = ENGINE_KEYBOARD.shifted[di];
     }
 
@@ -989,8 +989,8 @@ void keyboard_isr(void)
 
         ENGINE_KEYBOARD.last_event = ax;
 
-        head = (uint16_t)FAR16(0x40, 0x1a);
-        tail = (uint16_t)FAR16(0x40, 0x1c);
+        head = g_bios.kbd_head;
+        tail = g_bios.kbd_tail;
 
         if (head == 0x3c) {
             if (tail == 0x1e)
@@ -1000,14 +1000,14 @@ void keyboard_isr(void)
         }
 
         if (!full) {
-            FAR16(0x40, tail) = (int16_t)ax;
+            g_bios.kbd_buffer[(tail - 0x1e) >> 1] = ax;
             if (tail == 0x3c)
                 tail = 0x1c;
             tail = (uint16_t)(tail + 2);
-            FAR16(0x40, 0x1c) = (int16_t)tail;
+            g_bios.kbd_tail = tail;
         }
 
-        if ((ax >> 8) == 0x20 && (FAR8(0x40, 0x17) & 4) != 0) {
+        if ((ax >> 8) == 0x20 && (g_bios.kbd_flags & 4) != 0) {
             io_out8(0x20, 0x20);
             return;
         }
@@ -1015,12 +1015,12 @@ void keyboard_isr(void)
         bx = 0;
         if (ax != 0x19b) {
             bx = 1;
-            if (ax != 0x5380 || (FAR8(0x40, 0x17) & 8) == 0) {
+            if (ax != 0x5380 || (g_bios.kbd_flags & 8) == 0) {
                 io_out8(0x20, 0x20);
                 return;
             }
         }
-        if ((FAR8(0x40, 0x17) & 4) == 0) {
+        if ((g_bios.kbd_flags & 4) == 0) {
             io_out8(0x20, 0x20);
             return;
         }
@@ -1028,8 +1028,8 @@ void keyboard_isr(void)
         tail = (uint16_t)(tail - 2);
         if (tail == 0x1c)
             tail = 0x3c;
-        FAR16(0x40, tail) = 0;
-        FAR16(0x40, 0x1a) = FAR16(0x40, 0x1c);
+        g_bios.kbd_buffer[(tail - 0x1e) >> 1] = 0;
+        g_bios.kbd_head = g_bios.kbd_tail;
 
         io_out8(0x20, 0x20);
         game_teardown((int16_t)bx);
@@ -1068,18 +1068,18 @@ void keyboard_tick_isr(void)
  */
 uint16_t bios_read_key(void)
 {
-    uint16_t head = (uint16_t)FAR16(0x40, 0x1a);
-    uint16_t tail = (uint16_t)FAR16(0x40, 0x1c);
+    uint16_t head = g_bios.kbd_head;
+    uint16_t tail = g_bios.kbd_tail;
     uint16_t key;
 
     if (head == tail)
         return 0;
 
-    key = (uint16_t)FAR16(0x40, head);
+    key = g_bios.kbd_buffer[(head - 0x1e) >> 1];
     head = (uint16_t)(head + 2);
-    if (head == (uint16_t)FAR16(0x40, 0x82))
-        head = (uint16_t)FAR16(0x40, 0x80);
-    FAR16(0x40, 0x1a) = (int16_t)head;
+    if (head == g_bios.kbd_end)
+        head = g_bios.kbd_start;
+    g_bios.kbd_head = head;
 
     return key;
 }

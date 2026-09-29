@@ -26,6 +26,12 @@
 
 static uint8_t io_in8_raw(uint16_t port);
 
+/* OURS: the BIOS data area, two ROM bytes and the mono screen - see hostio.h. */
+struct bios_data_area g_bios;
+const uint8_t g_rom_model = 0xfc;
+const uint8_t g_rom_c000 = 0;
+uint16_t g_mono_screen[0x800];
+
 /* OURS: the machine's first megabyte - see dgroup.h. */
 uint8_t g_guest_mem[GUEST_MEM_BYTES];
 
@@ -304,8 +310,8 @@ void io_start_program(void)
     io_dos_arena_reset((uint16_t)((g_dgroup_base >> 4) + 0x1000), MEM_TOP);
 
     /* The BIOS data area the game reads: keyboard flags and the video mode. */
-    g_guest_mem[0x400 + 0x17] = 0;
-    g_guest_mem[0x400 + 0x49] = 0x03;
+    g_bios.kbd_flags = 0;
+    g_bios.video_mode = 0x03;
 }
 
 /*
@@ -2048,7 +2054,7 @@ void io_bios_set_mode(uint16_t mode)
      * ordinary memory the verifier compares - so a mode set that does not
      * write it differs from the original by exactly one byte.
      */
-    g_guest_mem[0x449] = (uint8_t)mode;
+    g_bios.video_mode = (uint8_t)mode;
 }
 
 void io_reset(void)
@@ -2091,10 +2097,10 @@ void io_reset(void)
  */
 void io_bios_init(void)
 {
-    FAR16(0x40, 0x80) = 0x1E;
-    FAR16(0x40, 0x82) = 0x3E;
-    FAR16(0x40, 0x1A) = 0x1E;
-    FAR16(0x40, 0x1C) = 0x1E;
+    g_bios.kbd_start = 0x1E;
+    g_bios.kbd_end = 0x3E;
+    g_bios.kbd_head = 0x1E;
+    g_bios.kbd_tail = 0x1E;
 }
 
 /*

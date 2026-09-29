@@ -499,13 +499,11 @@ POLYCLIP_TEXT ends
  * F000:C000 being 0x21. Answers the flag, sign-extended - and it is only ever
  * **set**, never cleared, so asking twice cannot unset it.
  *
- * Both addresses are ordinary memory as far as the port is concerned: the
- * verifier seeds all of it, ROM included.
+ * The port's ROM is `g_rom_model` and `g_rom_c000`, and it is an AT's.
  */
 int16_t detect_pcjr(void)
 {
-    if (*MK_FP(0xf000, 0xfffe) == 0xff
-        && *MK_FP(0xf000, 0xc000) == 0x21)
+    if (g_rom_model == 0xff && g_rom_c000 == 0x21)
         VMDS.is_pcjr = 1;
 
     return (int16_t)(int8_t)VMDS.is_pcjr;

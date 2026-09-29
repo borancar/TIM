@@ -694,9 +694,9 @@ ask_dcc:
  */
 void set_bios_video_mode(uint16_t equipment_bits)
 {
-    uint8_t eq = FAR8(0x40, 0x10);
+    uint8_t eq = g_bios.equipment;
 
-    FAR8(0x40, 0x10) = (uint8_t)((eq & 0xcf)
+    g_bios.equipment = (uint8_t)((eq & 0xcf)
                                  | (uint8_t)((equipment_bits << 4) & 0x30));
 
     io_bios_set_mode(3);
@@ -708,12 +708,10 @@ void set_bios_video_mode(uint16_t equipment_bits)
  * The BIOS video mode the machine booted in, as bits 4 and 5 of the equipment
  * word at 0040:0010 shifted down - so 0 to 3, of which 3 is monochrome.
  *
- * The port reads that byte out of guest memory. The BIOS data area is at
- * absolute 0x400 and is part of what the verifier seeds and compares, so this
- * needs nothing invented.
+ * The port reads it out of `g_bios`, the BIOS data area.
  */
 uint16_t bios_video_kind(void)
 {
-    return (uint16_t)((*MK_FP(0x40, 0x10) & 0x30) >> 4);
+    return (uint16_t)((g_bios.equipment & 0x30) >> 4);
 }
 #endif

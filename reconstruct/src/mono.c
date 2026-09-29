@@ -22,6 +22,14 @@
 #include "hostio.h"
 #include "dgroup.h"
 
+/* The monochrome adapter's text screen, B000:0000; `g_mono_screen` on the
+   host. Ours, as a spelling. */
+#ifdef __TURBOC__
+#  define MONO_SCREEN MK_FP(0xb000, 0)
+#else
+#  define MONO_SCREEN ((void *)g_mono_screen)
+#endif
+
 /*
  * 0x0b859
  *
@@ -54,7 +62,7 @@ void mono_clear(void)
     uint16_t huge *p;
     int16_t n;
 
-    p = (uint16_t huge *)MK_FP(0xb000, 0);
+    p = (uint16_t huge *)MONO_SCREEN;
     for (n = 0x780; n != 0; n--)
         *p++ = 7;
 }
@@ -70,7 +78,7 @@ void mono_puts(const char *s, int16_t x, int16_t y)
 {
     uint8_t huge *p;
 
-    p = MK_FP(0xb000, 0);
+    p = MONO_SCREEN;
     x += y * 80;
     p += x * 2;
     while (*s) {

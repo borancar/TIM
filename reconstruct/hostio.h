@@ -36,6 +36,45 @@ struct part;
    once dos.c's twelve prototypes had joined the headers. */
 #ifndef __TURBOC__
 
+/*
+ * OURS: **the BIOS data area**, 0040:0000, as much of it as the game reads -
+ * the equipment word, the keyboard flags and ring, the diskette motor bits
+ * and the video mode. The ring's head and tail are offsets from 0040:0000,
+ * which is what the BIOS stores, so `kbd_buffer` is indexed `(off - 0x1e) / 2`.
+ */
+struct bios_data_area {
+    uint8_t   pad_00[0x10];
+    uint8_t   equipment;          /* 0x10  the equipment word's low byte; bits
+                                     4-5 are the initial video mode */
+    uint8_t   equipment_high;     /* 0x11 */
+    uint8_t   pad_12[5];
+    uint8_t   kbd_flags;          /* 0x17  shift, ctrl, alt, the locks */
+    uint8_t   kbd_flags2;         /* 0x18 */
+    uint8_t   alt_keypad;         /* 0x19 */
+    uint16_t  kbd_head;           /* 0x1a  the next key to read */
+    uint16_t  kbd_tail;           /* 0x1c  where the next key goes */
+    uint16_t  kbd_buffer[16];     /* 0x1e..0x3e */
+    uint8_t   pad_3e;
+    uint16_t  motor_status;       /* 0x3f  diskette motors, one bit a drive */
+    uint8_t   pad_41[8];
+    uint8_t   video_mode;         /* 0x49 */
+    uint8_t   pad_4a[0x36];
+    uint16_t  kbd_start;          /* 0x80  the ring's first word */
+    uint16_t  kbd_end;            /* 0x82  one past its last */
+} __attribute__((packed));
+
+extern struct bios_data_area g_bios;
+
+/*
+ * OURS: the two ROM bytes `detect_pcjr` reads - the model byte at F000:FFFE,
+ * an AT's 0xfc here, and F000:C000, where a PCjr has its 0x21 - and the
+ * monochrome adapter's text screen at B000:0000, which `mono_clear` and
+ * `mono_puts` write.
+ */
+extern const uint8_t g_rom_model;
+extern const uint8_t g_rom_c000;
+extern uint16_t g_mono_screen[0x800];
+
 /* One scancode into the game's own keyboard interrupt; bit 7 is a break. */
 void     io_keyboard_scancode(uint8_t code);
 void     io_bios_init(void);

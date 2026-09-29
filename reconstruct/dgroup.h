@@ -161,9 +161,6 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
                            : (uint32_t)((const uint8_t *)(p) - g_guest_mem))
 #define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
 #define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
-#define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
-#define FAR16(seg, off)   (*(int16_t *)MK_FP(seg, off))
-#define FARU16(seg, off)  (*(uint16_t *)MK_FP(seg, off))
 #define FAR_OF_LONG(seg, off) MK_FP((uint16_t)(seg), (uint16_t)(off))
 #define BCC_FAR_ARG(p, seg) \
     ((void)(p), MK_FP((uint16_t)(seg), (int16_t)(seg) < 0 ? 0xffffu : 0u))
@@ -229,13 +226,13 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
 /* **Where a far null leads.** A far pointer of 0000:0000 is the interrupt
    table on a real machine, and a routine that follows one reads and writes
    those bytes - `stop_all_voices` does, before any voice exists. On the host
-   a null is not memory, so this sends it to `g_guest_mem`, which stands for
-   the machine's first megabyte; under Borland C++ it is the pointer itself.
-   Ours. */
+   a null is not memory, so this sends it to `g_interrupt_table`, which is
+   those bytes; under Borland C++ it is the pointer itself. Ours. */
 #ifdef __TURBOC__
 #  define ZERO_PAGE(p)   (p)
 #else
-#  define ZERO_PAGE(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)g_guest_mem)
+extern uint8_t g_interrupt_table[0x400];
+#  define ZERO_PAGE(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)g_interrupt_table)
 #endif
 
 /*
@@ -2983,13 +2980,14 @@ struct part_point {
 /* **Where a near null leads.** A near null is DGROUP:0000, which is memory,
    and the original reads it: `link_objects_crossing` takes two points off a
    part that has none before its loop finds the list empty. The host's null
-   is not memory, so there it is the start of the DGROUP arena, which is -
+   is not memory, so there it is `g_dgroup_start`, what DGROUP begins with -
    and a null compared through it lands in the same place, so the test
    still holds. Under Borland C++ it is the pointer itself. Ours. */
 #ifdef __TURBOC__
 #  define NEAR_ZERO(p)   (p)
 #else
-#  define NEAR_ZERO(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)dgroup)
+extern uint8_t g_dgroup_start[0x200];
+#  define NEAR_ZERO(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)g_dgroup_start)
 #endif
 
 /*
