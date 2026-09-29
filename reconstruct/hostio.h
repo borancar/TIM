@@ -165,6 +165,18 @@ uint16_t bios_crtc_base(void);
 uint16_t vga_seg_offset(uint16_t seg);
 
 /* A000 segment access, going through the latches exactly as the hardware does. */
+/*
+ * OURS: **the CPU's view of video memory**, from A000:0000. A drawing routine
+ * forms a pointer into it from a page segment and an offset - `vga_window_at`
+ * is `MK_FP` for those - and hands `vga_read`/`vga_write` the distance from
+ * the start, cut to sixteen bits, because the planes behind it are the
+ * card's, in hostio.c, and are not bytes the CPU can read. A page at A820
+ * with a whole screen on it reaches past A000's 64 KB, so the window runs on
+ * to AFFF:FFFF as the address space did.
+ */
+extern uint8_t g_vga_window[0x20000];
+uint8_t *vga_window_at(uint16_t seg, uint16_t off);
+
 void     vga_write(uint16_t offset, uint8_t value);
 void     vga_write16(uint16_t offset, uint16_t value);
 uint8_t  vga_read(uint16_t offset);

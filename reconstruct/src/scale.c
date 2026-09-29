@@ -375,7 +375,7 @@ next_row:
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
                 &ENGINE_SCALE_TABLE.entry[row],
-                MK_FP(page, VMDS.row_offset[j]),
+                vga_window_at(page, VMDS.row_offset[j]),
                 left, (int16_t)(right - left),
                 src + ENGINE_ROW_OFFSETS.row[j - y]);
 #endif

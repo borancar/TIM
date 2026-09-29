@@ -2421,6 +2421,13 @@ static uint8_t io_in8_raw(uint16_t port)
 }
 
 /* A read loads all four latches and returns the plane the GC selects. */
+uint8_t g_vga_window[0x20000];
+
+uint8_t *vga_window_at(uint16_t seg, uint16_t off)
+{
+    return g_vga_window + ((uint32_t)(uint16_t)(seg - 0xa000) << 4) + off;
+}
+
 uint8_t vga_read(uint16_t offset)
 {
     for (int32_t p = 0; p < VGA_PLANES; p++)

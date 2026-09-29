@@ -239,7 +239,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     }
     page = _AX;
 #else
-    page = MK_FP(VMDS.page_dst, 0);
+    page = vga_window_at(VMDS.page_dst, 0);
     if (VMDS.page_hook != 0)
         vm_nothing();
 #endif
