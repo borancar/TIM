@@ -344,14 +344,12 @@ done:
  *
  * **The first read is through an unchecked pointer, and that is the
  * original.** 0x23a1f is `cmp word ptr [si], 0` before 0x23a2d tests `si`
- * itself, so the list is dereferenced before it is known to be there. Offset 0
- * is `dgroup` rather than a C null pointer, so a caller's `NULL` reads
- * the same two bytes the original would; only a literal `NULL` would differ,
- * and the callers hand over a list they have already tested.
+ * itself, so the list is dereferenced before it is known to be there, and a
+ * null list reads DGROUP:0000 - `NEAR_ZERO` gives the host the same read.
  */
 void free_bitmap_list(struct bitmap ** list)
 {
-    if (list[0] != 0)
+    if (NEAR_ZERO(list)[0] != 0)
         free_far((uint8_t *)list[0]);
 
     if (list != NULL)

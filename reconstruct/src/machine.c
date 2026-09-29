@@ -1310,7 +1310,7 @@ void compute_link_endpoints(register struct rope *link)
      * listing loads both ends at 0x04e70/0x04e73 and reads `[bx+0x56]` and
      * `[bx+0x2a]` through them with no test, so an empty end reads DS:0 - the
      * Borland banner - and the endpoint is those bytes until the second click
-     * fills the end. `0` is DS:0, so the same read is written here.
+     * fills the end. `NEAR_ZERO` gives the host the same read.
      */
     struct part *a;
     int16_t a_dx1;                      /* [bp-2] */
@@ -1323,8 +1323,8 @@ void compute_link_endpoints(register struct rope *link)
     int16_t b_dy2;                      /* [bp-0x10] */
     struct part *b;                     /* [bp-0x12] */
 
-    a = link->end_a;
-    b = link->end_b;
+    a = NEAR_ZERO(link->end_a);
+    b = NEAR_ZERO(link->end_b);
     link->pt[0][0].x = a->box[0].x + a->grab.x;
     link->pt[0][0].y = a->box[0].y + a->grab.y;
     link->pt[0][1].x = b->box[0].x + b->grab.x;

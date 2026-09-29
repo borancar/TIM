@@ -179,11 +179,6 @@ struct part *make_part(uint16_t kind)
     heap_check_or_hang();
 
     if ((part = (struct part *)(void *)calloc_far(1, sizeof(struct part))) == NULL) {
-#ifndef __TURBOC__
-        /* The original's refusal is offset 0, which is what `free_part`
-           tests; the host's null is not DGROUP:0. */
-        part = NULL;
-#endif
     fail:
         failed = 1;
         goto done;
