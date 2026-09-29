@@ -188,7 +188,7 @@ void iff_save(char *name)
  */
 void save_screenshot(char *name)
 {
-    dg_seg_t dst;
+    vga_page_t dst;
     int16_t clip;
 
     dst = VMDS.page_dst;

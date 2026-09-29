@@ -32,9 +32,6 @@ const uint8_t g_rom_model = 0xfc;
 const uint8_t g_rom_c000 = 0;
 uint16_t g_mono_screen[0x800];
 
-/* OURS: the machine's first megabyte - see dgroup.h. */
-uint8_t g_guest_mem[GUEST_MEM_BYTES];
-
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
 
@@ -264,10 +261,55 @@ static const uint8_t CRTC_MODE12[25] = {
 };
 
 /*
- * OURS: the top of conventional memory, the paragraph below the video
- * aperture, which is where DOS's arena ends.
+ * OURS: **DOS's arena**, the memory the game allocates from: from the end of
+ * the program's own block - DGROUP's segment plus 64 KB, which is what
+ * Borland's startup keeps before it hands the tail back - up to the top of
+ * conventional memory, the paragraph below the video aperture. The arena
+ * below keeps its books in segment numbers, which is what DOS answers and
+ * what decides where a block goes; the memory is `g_dos_memory`, and what
+ * the game is handed is a pointer into it.
  */
-#define MEM_TOP    0x9FFFu
+#define ARENA_FIRST  (DGROUP_SEG + 0x1000u)
+#define MEM_TOP      0x9FFFu
+
+struct paragraph g_dos_memory[MEM_TOP - ARENA_FIRST];
+
+static struct paragraph *arena_at(uint16_t seg)
+{
+    return &g_dos_memory[seg - ARENA_FIRST];
+}
+
+static uint16_t arena_seg(const struct paragraph *p)
+{
+    return (uint16_t)(p - g_dos_memory + ARENA_FIRST);
+}
+
+/*
+ * OURS: **the physical address of a byte of DOS memory**, and back - what the
+ * DMA controller is programmed with. Only DOS blocks have one; anything else
+ * handed to the DMA is a fault the port cannot express, so it stops.
+ */
+uint32_t io_dos_linear(const void *p)
+{
+    const uint8_t *b = (const uint8_t *)p, *base = (const uint8_t *)g_dos_memory;
+
+    if (b < base || b >= base + sizeof g_dos_memory)
+        port_abort("a physical address for memory that is not DOS's");
+    return ((uint32_t)ARENA_FIRST << 4) + (uint32_t)(b - base);
+}
+
+uint8_t *io_dos_at_linear(uint32_t lin)
+{
+    if (lin < ((uint32_t)ARENA_FIRST << 4)
+        || lin >= ((uint32_t)ARENA_FIRST << 4) + sizeof g_dos_memory)
+        return NULL;
+    return (uint8_t *)g_dos_memory + (lin - ((uint32_t)ARENA_FIRST << 4));
+}
+
+uint16_t io_dos_segment(const struct paragraph *seg)
+{
+    return seg == NULL ? 0 : arena_seg(seg);
+}
 
 static char     game_dir[PATH_MAX] = "incredible-machine";
 
@@ -282,8 +324,6 @@ static char     game_dir[PATH_MAX] = "incredible-machine";
  */
 void io_start_program(void)
 {
-    g_dgroup_base = ((uint32_t)LOAD_SEG << 4) + IMG_DGROUP;
-
     /*
      * A DOS game is started in its own directory, and opens its files by name
      * with the C library - so the host process starts in the game directory
@@ -299,15 +339,9 @@ void io_start_program(void)
                     game_dir, strerror(errno));
     }
 
-    /* The startup's own stack, at the top of a 64 KB DGROUP. */
-    g_guest_sp = 0xFFFE;
-
-    /*
-     * The program keeps everything up to the end of DGROUP; the rest becomes
-     * the arena. `g_dgroup_base` is a linear address, so the paragraph above it
-     * plus 0x1000 is where the program's block ends.
-     */
-    io_dos_arena_reset((uint16_t)((g_dgroup_base >> 4) + 0x1000), MEM_TOP);
+    /* The program keeps everything up to the end of DGROUP; the rest becomes
+       the arena. */
+    io_dos_arena_reset(ARENA_FIRST, MEM_TOP);
 
     /* The BIOS data area the game reads: keyboard flags and the video mode. */
     g_bios.kbd_flags = 0;
@@ -315,16 +349,10 @@ void io_start_program(void)
 }
 
 /*
- * OURS: a DOS memory arena, for when the port runs on its own.
+ * OURS: DOS's memory arena, where the game's two hundred allocations come
+ * from.
  *
- * The verifier primes allocations with what DOS actually answered during the
- * original's own call, and that stays the better answer when it is available -
- * it keeps a routine's arithmetic comparable without the port having to agree
- * with DOS about *where* a block goes. But a port that only ever runs under the
- * verifier is not a port, and running the game needs somewhere for its two
- * hundred allocations to come from.
- *
- * So: first fit over a list of blocks, split on allocation, coalesced on free -
+ * First fit over a list of blocks, split on allocation, coalesced on free -
  * which is what the shared emulator does, and what DOS did. A stub that handed
  * out the same segment every time would give two live allocations the same
  * memory, and the game frees and reallocates often enough to notice.
@@ -424,7 +452,8 @@ static uint16_t arena_largest(void)
     return best;
 }
 
-uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
+struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
+                               int32_t *failed)
 {
     int32_t i;
 
@@ -432,7 +461,7 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
         not_transcribed("a DOS allocation with no arena");
         *failed = 1;
         *largest = 0;
-        return 0;
+        return NULL;
     }
 
     /* DOS refuses 0 and 0xffff paragraphs; 0xffff is the "how much" probe. */
@@ -455,14 +484,14 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
                 arena_coalesce();
                 *failed = 0;
                 *largest = arena_largest();
-                return seg;
+                return arena_at(seg);
             }
         }
     }
 
     *failed = 1;
     *largest = arena_largest();
-    return 0;
+    return NULL;
 }
 
 /*
@@ -473,8 +502,9 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
  * how much of a block it actually filled - so the tail goes back to the arena
  * and the next allocation can have it.
  */
-uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs)
+uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs)
 {
+    uint16_t seg = arena_seg(block);
     int32_t i;
 
     for (i = 0; i < arena_n; i++) {
@@ -506,8 +536,9 @@ uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs)
     return 0;                          /* not ours: nothing to do */
 }
 
-void io_dos_free(uint16_t seg)
+void io_dos_free(struct paragraph *block)
 {
+    uint16_t seg = arena_seg(block);
     int32_t i;
 
     for (i = 0; i < arena_n; i++)
@@ -719,19 +750,17 @@ int16_t io_dos_setdisk(uint8_t drive)
  * The port's own, and **measured against the emulator, which does not
  * implement the call at all**: it leaves ES and BP as it found them, so the
  * game files whatever was in those registers as a font pointer. Answering
- * zeroes is that behaviour said plainly, and it is what the caller then
+ * null is that behaviour said plainly, and it is what the caller then
  * stores. On real hardware a BIOS would answer a ROM font here and those four
  * DGROUP words would differ - recorded in STATUS.md as a known divergence from
  * a real machine rather than hidden.
  *
  * `which` is BH and is not read: there is only one answer to give.
  */
-struct bios_font io_bios_font(uint8_t which)
+uint8_t *io_bios_font(uint8_t which)
 {
-    struct bios_font r = { 0, 0 };
-
     (void)which;
-    return r;
+    return NULL;
 }
 
 /*
@@ -1731,20 +1760,22 @@ static void sb_say(const char *what, uint16_t a, uint16_t b)
 }
 
 /*
- * OURS: the block the module just handed over, straight out of guest memory.
+ * OURS: the block the module just handed over, out of DOS memory at the
+ * physical address the DMA controller was given.
  *
  * The 8237 addresses a 64K page and wraps inside it, so the page register is
- * the top four bits and the address the rest; a block that would run off the
- * end is clipped rather than wrapped, because the module never asks for one
- * and silently wrapping would hide it if it did.
+ * the top four bits and the address the rest. A block that is not all DOS
+ * memory stops the port: the module never asks for one, and reading past a
+ * block would hide it if it did.
  */
 static void sb_play_block(uint16_t count)
 {
     uint32_t at = ((uint32_t)dma1_page << 16) | dma1_addr;
+    const uint8_t *mem = io_dos_at_linear(at);
     int32_t n = (int32_t)count + 1;
 
-    if (at + (uint32_t)n > GUEST_MEM_BYTES)
-        n = (int32_t)(GUEST_MEM_BYTES - at);
+    if (mem == NULL || io_dos_at_linear(at + (uint32_t)n - 1) == NULL)
+        port_abort("a DMA block outside DOS memory");
 
     /*
      * The checksum is what makes the trace a comparison rather than a tally.
@@ -1758,7 +1789,7 @@ static void sb_play_block(uint16_t count)
         int32_t i;
 
         for (i = 0; i < n; i++) {
-            a = (uint16_t)((a + g_guest_mem[at + i]) % 255);
+            a = (uint16_t)((a + mem[i]) % 255);
             b = (uint16_t)((b + a) % 255);
         }
         sb_say("play", (uint16_t)n, sb_rate);
@@ -1769,11 +1800,11 @@ static void sb_play_block(uint16_t count)
     }
 
     if (pcm_hook && n > 0)
-        pcm_hook(g_guest_mem + at, n, sb_rate);
+        pcm_hook(mem, n, sb_rate);
     if (pcm_tap && n > 0)
-        pcm_tap(g_guest_mem + at, n, sb_rate);
+        pcm_tap(mem, n, sb_rate);
     if (pcm_tap2 && n > 0)
-        pcm_tap2(g_guest_mem + at, n, sb_rate);
+        pcm_tap2(mem, n, sb_rate);
 
     /* The block is done when it has had time to play out. */
     sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);
@@ -1919,10 +1950,7 @@ static void opl_say(uint8_t chip, uint8_t reg, uint8_t val)
  * ordering value, `cs:0x138` whether it is pinned - so the first byte that
  * differs between two runs names the routine that wrote it.
  *
- * It lives here, in `io.c`, because **both sides run this file**: the hybrid
- * executes the guest's sequencer and the port its own transcription, and the
- * table is at the same place in `g_guest_mem` either way. That is what makes the
- * two comparable without a Unicorn hook on the runner's side.
+ * It lives here, in hostio.c, beside the sound card it traces.
  */
 static int32_t seq_trace = -1;
 
@@ -2050,9 +2078,8 @@ void io_bios_set_mode(uint16_t mode)
     gc[8]  = 0xFF;
 
     /*
-     * The BIOS records the mode it just set at 0040:0049, and that byte is
-     * ordinary memory the verifier compares - so a mode set that does not
-     * write it differs from the original by exactly one byte.
+     * The BIOS records the mode it just set at 0040:0049, and the game reads
+     * it back there.
      */
     g_bios.video_mode = (uint8_t)mode;
 }

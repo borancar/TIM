@@ -149,7 +149,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     if (!clip || (rowok = y <= VMDS.clip_bottom && y >= VMDS.clip_top) != 0)
         row = VMDS.row_offset[y];
 
-    src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
+    src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
     base = *src;
     src++;

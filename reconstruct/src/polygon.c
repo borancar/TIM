@@ -2859,7 +2859,7 @@ struct engine_polygon_chains ENGINE_POLYGON_CHAINS;
 struct engine_polygon_state {
     int16_t   prev_x;          /* +0x00 [2] */
     int16_t   prev_y;          /* +0x02 [2] */
-    uint16_t  span_seg;          /* +0x04 [2] */
+    dg_seg_t  span_seg;          /* +0x04 [2] */
     uint16_t  outline_count;          /* +0x06 [2] */
     uint16_t  second_count;          /* +0x08 [2] */
     uint8_t   span_step;          /* +0x0a [1] */
@@ -2899,7 +2899,7 @@ struct engine_polygon_state ENGINE_POLYGON_STATE;
  */
 void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 {
-    uint16_t seg;
+    dg_seg_t seg;
     /* The span buffer's first byte. The edge routines step a 16-bit offset
        inside it, exactly as the original steps `di` against a segment, so the
        base and the offset stay apart; `seg` itself is still filed at

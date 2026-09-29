@@ -43,23 +43,6 @@
 #include <stdio.h>          /* FILE, which records below hold */
 
 /*
- * DGROUP is a **window into the guest's address space**, not storage of its
- * own. The game holds far pointers - `les bx, [0x546c]` - into blocks DOS gave
- * it, which are outside DGROUP entirely, so a DGROUP-only array cannot express
- * them. Real mode is a flat megabyte with segments as sixteen-byte units, and
- * that is what this models.
- */
-#define GUEST_MEM_BYTES 0x100000
-#define DGROUP_BYTES    0x10000
-
-/* The machine's first megabyte, for what the port still keeps as memory:
-   DOS's arena, the interrupt table's page, the DGROUP arena. Defined in
-   hostio.c. */
-#ifndef __TURBOC__
-extern uint8_t  g_guest_mem[GUEST_MEM_BYTES];
-#endif
-
-/*
  * **Where the program sits.** DOS loaded the image at segment 0x0110 - the
  * PSP at 0x0100 and its 0x10 paragraphs below it, which is where the
  * reference emulator puts it too - and DGROUP is at image offset 0x2d3c0 of
@@ -76,24 +59,13 @@ extern uint8_t  g_guest_mem[GUEST_MEM_BYTES];
  * value, and is transcribed as `LOAD_SEG + 0x172c`, never as the sum.
  */
 #define LOAD_SEG        0x0110u
-#define IMG_DGROUP      0x2D3C0u
-#define DGROUP_INIT_END 0x4e4e
 
 /* Declared in hostio.h, which this header deliberately does not include. */
 void port_abort(const char *msg);
-extern uint32_t g_dgroup_base;        /* linear address of DGROUP */
-
-#ifdef __TURBOC__
-/* A near pointer is the offset: DGROUP starts at 0, so `dgroup + off` is
-   the pointer `off` and costs no instruction. */
-#  define dgroup    ((uint8_t *)0)
-#else
-#  define dgroup    (g_guest_mem + g_dgroup_base)
-#endif
 
 /*
- * **The struct overlays are not `volatile`, and the three words that are say
- * so on their fields.** The guest's memory is shared with exactly one other thread, the
+ * **The game's globals are not `volatile`, and the three words that are say
+ * so on their fields.** The game's memory is shared with exactly one other thread, the
  * timer's, and that thread is the port's own doing - an interrupt on the
  * original suspends the game rather than running beside it. What `volatile`
  * buys is one thing: a loop that reads a word and does nothing else cannot
@@ -115,6 +87,21 @@ extern uint32_t g_dgroup_base;        /* linear address of DGROUP */
  * was ours and said the same thing in a spelling nobody who reads the original
  * would recognise.
  */
+/*
+ * **A real-mode segment.** A word under Borland C++; on the host, a pointer to
+ * the paragraph it names - see `MK_FP` below. `dg_sseg_t` is the same where a
+ * caller casts the segment signed, which only Borland's arithmetic notices.
+ */
+#ifdef __TURBOC__
+typedef uint16_t dg_seg_t;
+typedef int16_t  dg_sseg_t;
+#else
+#include <stdint.h>
+struct paragraph { uint8_t byte[16]; } __attribute__((aligned(16)));
+typedef struct paragraph *dg_seg_t;
+typedef struct paragraph *dg_sseg_t;
+#endif
+
 #ifdef __TURBOC__
 #include <dos.h>   /* MK_FP, FP_SEG and FP_OFF are Borland's own */
 /*
@@ -131,39 +118,24 @@ extern uint32_t g_dgroup_base;        /* linear address of DGROUP */
     ((uint8_t far *)(((int32_t)(seg) << 16) | (uint16_t)(off)))
 #  define BCC_FAR_ARG(p, seg)   (p)
 #else
-/* 0000:0000 is the guest's null and the host's is C's, both ways round:
-   `FP_LIN(NULL)` is 0 and this answers NULL for it. */
-static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
-{
-    if (seg == 0 && off == 0)
-        return NULL;
-    return g_guest_mem + (((uint32_t)seg) << 4) + off;
-}
-#define MK_FP(seg, off) mk_fp((uint16_t)(seg), (uint16_t)(off))
-
 /*
- * **And Borland's spelling for taking one apart.** `FP_SEG` and `FP_OFF`
- * answer the halves of what `MK_FP` built.
- *
- * `FP_SEG`/`FP_OFF` answer the **normalised** pair, the linear address split
- * at the paragraph, because that is the only pair a host pointer can be asked
- * for on its own - it does not remember which of the many `seg:off` pairs
- * addressing it the guest was holding, which is the caveat in tim.h.
- *
- * A routine that holds a fixed segment and steps only the offset - the usual
- * shape of a copy loop - wants the offset *within that segment*, which is not
- * one of these three and is not a Borland macro at all: in the original it is
- * simply the register. `out - MK_FP(seg, 0)` says it where it is needed, and
- * reads the same as the `back - scratch` beside it.
+ * **On the host a segment is a pointer to a paragraph**: sixteen bytes, and
+ * `seg + n` is n of them further on, as it is on the 8086. `MK_FP` adds the
+ * offset in bytes; `FP_SEG` answers the paragraph a pointer is in and
+ * `FP_OFF` how far into it - the normalised pair, which is what a pointer on
+ * its own can say (see tim.h). DOS hands out whole paragraphs from
+ * `g_dos_memory`, which is aligned to them, so normalising a pointer into a
+ * block means exactly what it does in real mode. A null segment is C's null,
+ * and `MK_FP` of it is null again. Ours.
  */
-/* C's null is the guest's 0000:0000, and so is a pair filed from it. */
-#define FP_LIN(p)         ((const void *)(p) == NULL ? 0u \
-                           : (uint32_t)((const uint8_t *)(p) - g_guest_mem))
-#define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
-#define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
-#define FAR_OF_LONG(seg, off) MK_FP((uint16_t)(seg), (uint16_t)(off))
-#define BCC_FAR_ARG(p, seg) \
-    ((void)(p), MK_FP((uint16_t)(seg), (int16_t)(seg) < 0 ? 0xffffu : 0u))
+#  define MK_FP(seg, off)   ((uint8_t *)(seg) + (uint16_t)(off))
+#  define FP_SEG(p)         ((dg_seg_t)((uintptr_t)(p) & ~(uintptr_t)0xf))
+#  define FP_OFF(p)         ((uint16_t)((uintptr_t)(p) & 0xf))
+#  define FAR_OF_LONG(seg, off) MK_FP(seg, off)
+/* The sign of the segment is the arena's number for it. */
+uint16_t io_dos_segment(const struct paragraph *seg);
+#  define BCC_FAR_ARG(p, seg) \
+    ((void)(p), MK_FP(seg, (io_dos_segment(seg) & 0x8000u) ? 0xffffu : 0u))
 #endif
 
 /*
@@ -221,7 +193,10 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
    wherever it keeps a bitmap, and a null-terminated array of them is a
    bitmap list. */
 struct bitmap;
-typedef uint16_t dg_seg_t;      /* a real-mode segment */
+/* **A video page**, named by the segment the driver draws it at - 0xa000,
+   0xa800 or 0xa820 - and swapped, compared and filed as that number. The
+   driver's host code forms the address; see `vga_window_at`. */
+typedef uint16_t vga_page_t;
 
 /* **Where a far null leads.** A far pointer of 0000:0000 is the interrupt
    table on a real machine, and a routine that follows one reads and writes
@@ -277,7 +252,7 @@ struct dg_3f78 {
 #ifdef __TURBOC__
 #  define FAR_OF_NEAR_NULL(p)  (FP_OFF(p) == 0)
 #else
-#  define FAR_OF_NEAR_NULL(p)  ((uint8_t *)(p) == dgroup)
+#  define FAR_OF_NEAR_NULL(p)  ((uint8_t *)(p) == g_dgroup_start)
 #endif
 
 /*
@@ -342,10 +317,10 @@ struct vmds {
        back. `vm_init` gives it the second page's segment - 0xa800, or 0xa000
        in the 640x480 mode, where there is only one. */
     uint16_t  rect_page;                    /* +0x10 */
-    dg_seg_t  page_back;                /* +0x12  being drawn into */
-    dg_seg_t  page_front;               /* +0x14  on screen */
-    dg_seg_t  page_src;                 /* +0x16  a copy's source */
-    dg_seg_t  page_dst;                 /* +0x18  what drawing goes into */
+    vga_page_t  page_back;                /* +0x12  being drawn into */
+    vga_page_t  page_front;               /* +0x14  on screen */
+    vga_page_t  page_src;                 /* +0x16  a copy's source */
+    vga_page_t  page_dst;                 /* +0x18  what drawing goes into */
     uint8_t   unknown_1a[2];                /* +0x1a */
     /* Set by `detect_pcjr`, which reads the two ROM bytes that say so, and
        read by the keyboard ISR. */
@@ -663,8 +638,8 @@ struct sound_bank {
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
     /* **Two timer handles, not a far pointer.** `timer_add_callback` answers a
        slot number, and these are the two the sound module holds - the
-       sequencer's tick at SNDCS:0x193e and the loaded module's at
-       IMAGE_BASE:0xbba6. They are set, tested and dropped one at a time and
+       sequencer's tick at 2619:193e and the loaded module's at
+       image 0xbba6. They are set, tested and dropped one at a time and
        are never paired into an address. */
     int16_t   tick_handle;        /* +0x0c  the sequencer's */
     int16_t   module_handle;      /* +0x0e  the loaded module's */
@@ -1622,7 +1597,7 @@ struct vm_driver {
        conventional memory rather than only DGROUP, and then `fill_rect` and
        `vm_fill_spans` both failed at once: the original's span list was being
        written somewhere the port never touched. */
-    uint16_t  span_buffer_seg;    /* +0x00 */
+    dg_seg_t  span_buffer_seg;    /* +0x00 */
     /* **Adapter detection is allowed**: `detect_adapter` answers 0 without
        asking anything when this is clear. The image holds 1 and nothing in it
        writes the offset, so it is on and stays on. */
@@ -1752,7 +1727,7 @@ struct saved_rect {
 } PACKED;
 
 struct page_slot {
-    dg_seg_t  page;            /* +0x00  the page this slot belongs to */
+    vga_page_t  page;            /* +0x00  the page this slot belongs to */
     struct bitmap *bitmap;    /* +0x02  the bitmap the slot was staged for, re-staged when the cursor's changes */
     int16_t   x;               /* +0x04  where the cursor's bitmap is drawn, unclipped */
     int16_t   y;               /* +0x06 */
@@ -1807,12 +1782,12 @@ extern bmp_read_fn g_vqt_read_fn;
  */
 
 /*
- * NOT a transcription: DGROUP's own segment number, which the original never
- * has to compute because it is sitting in SS and DS. A routine that takes the
- * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -
- * needs the segment half, and this is where it comes from.
+ * **DGROUP's segment, as the number the original holds in DS**: the image's
+ * 0x2d3c relocated by the load segment. The host has no segment for DGROUP
+ * - its objects are separate globals - so this is only ever *stored*, where
+ * the original stores DS, and never turned into an address. Ours.
  */
-#define DGROUP_SEG        ((uint16_t)(g_dgroup_base >> 4))
+#define DGROUP_SEG        (LOAD_SEG + 0x2d3cu)
 
 /* **A near pointer the original's data held as a number.** The game's data
    module (gamedata.c) was built with these addresses written in, not as
@@ -1827,19 +1802,10 @@ extern bmp_read_fn g_vqt_read_fn;
 #  define NEAR_AT(off, p)   (p)
 #endif
 
-/* **A pointer into DGROUP's own arena as the offset it is** - the near
-   heap's blocks and break and the stack, which the original measures
-   against each other as numbers. Only for those: an object the port defines
-   is not in the arena. Ours. */
-#ifdef __TURBOC__
-#else
-#endif
-
 /*
  * The sound module keeps its state in **its own code segment**, segment 0x2619,
  * the same way the video driver keeps its data inside DGROUP - `struct snd_cs`,
- * below. The image base is derived from `g_dgroup_base` because that is the
- * one thing tools/verify.py sets from the run it captured.
+ * below.
  *
  * The sound driver is a separate loaded block, and its address is not a
  * constant: the game holds a far pointer to it at the sound module's own
@@ -1847,7 +1813,6 @@ extern bmp_read_fn g_vqt_read_fn;
  * read through that, so the port follows the loader wherever it puts the
  * driver.
  */
-#define IMAGE_BASE  (g_dgroup_base - 0x2D3C0)
 #define SX8(off)    (*(uint8_t *)(SNDS.driver + (off)))
 #define SX16(off)   (*(int16_t *)(SNDS.driver + (off)))
 
@@ -1868,13 +1833,6 @@ extern bmp_read_fn g_vqt_read_fn;
 #define ASB8(off)   (*(uint8_t *)(SOUND_BANK.module + (off)))
 #define ASB16(off)  (*(int16_t *)(SOUND_BANK.module + (off)))
 #define ASBU16(off) (*(uint16_t *)(SOUND_BANK.module + (off)))
-
-/*
- * NOT a transcription: **the guest's SP**, where the port needs a value for
- * it - the sound module is handed its arguments as the words on the stack,
- * and the ISR's stack switch saves one. Ours.
- */
-extern uint16_t g_guest_sp;
 
 /*
  * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
@@ -2607,7 +2565,7 @@ struct open_file {
  * ---------------------------------------------------------------------------
  */
 struct bitmap {
-    uint16_t  data_seg;           /* +0x00  the pixel block, segment first */
+    dg_seg_t  data_seg;           /* +0x00  the pixel block, segment first */
     uint16_t  data_off;           /* +0x02 */
     uint16_t  mask_off;           /* +0x04  the mask, or a sentinel above */
     int16_t   width;              /* +0x06  also the row stride */
@@ -3251,8 +3209,8 @@ struct rect_list_entry {
     int16_t   y;               /* +0x02 */
     int16_t   w;               /* +0x04  in eight-pixel columns */
     int16_t   h;               /* +0x06 */
-    dg_seg_t  page_src;        /* +0x08  the pages the rect is restored between: */
-    dg_seg_t  page_dst;        /* +0x0a  0xa000, 0xa800 or 0xa820, or 0xffff for mode 4 */
+    vga_page_t  page_src;        /* +0x08  the pages the rect is restored between: */
+    vga_page_t  page_dst;        /* +0x0a  0xa000, 0xa800 or 0xa820, or 0xffff for mode 4 */
     uint16_t  mode;            /* +0x0c  1 copies the rect, 4 restores it from `buf` */
     int16_t   refcount;             /* +0x0e  how many hold the slot; stepped down once a frame, reusable at 0 */
     uint16_t  area;            /* +0x10  w * h, from the creator's imul */

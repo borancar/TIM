@@ -685,7 +685,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 {
     uint8_t far *at;
     int16_t seg;
-    uint16_t resize_seg;
+    dg_seg_t resize_seg;
     uint16_t pixels;
     uint8_t far *blk;
     register struct bitmap **si;
@@ -698,14 +698,22 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 
     /* The first bitmap's own pixels, which is where the output begins. */
     BITMAP_COMPRESS.out = BITMAP_COMPRESS.out_start =
-        MK_FP((int16_t)list[0]->data_seg, list[0]->data_off);
+        MK_FP((dg_sseg_t)list[0]->data_seg, list[0]->data_off);
 
     while (*si != 0) {
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
+#ifdef __TURBOC__
         seg = FP_SEG(BITMAP_COMPRESS.out);
         di = FP_OFF(BITMAP_COMPRESS.out);
         at = BITMAP_COMPRESS.out = MK_FP(seg + (di >> 4), di & 0x0f);
+#else
+        di = FP_OFF(BITMAP_COMPRESS.out);
+        /* `seg` is a segment here and a count of them below; on the host a
+           segment is a pointer, so it is not kept in `seg`. */
+        at = BITMAP_COMPRESS.out =
+            MK_FP(FP_SEG(BITMAP_COMPRESS.out) + (di >> 4), di & 0x0f);
+#endif
 
         if (!(int8_t)VMDS.vga_chunks) {
             pixels = (*si)->width * (*si)->height;
@@ -714,7 +722,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
             pixels >>= 3;
 
             planes_to_chunky(blk,
-                             MK_FP((int16_t)(*si)->data_seg, (*si)->data_off),
+                             MK_FP((dg_sseg_t)(*si)->data_seg, (*si)->data_off),
                              pixels);
 
             (*si)->data_seg = FP_SEG(blk);
@@ -960,7 +968,7 @@ void near compress_bitmap(register struct bitmap *bmp)
     BITMAP_COMPRESS.pending_rows = 0;
     BITMAP_COMPRESS.block_paras = 0;
 
-    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
+    BITMAP_COMPRESS.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
     if (BITMAP_COMPRESS.mode == 0x0f && VMDS.vga_chunks != 0) {
         for (y = 0; bmp->height > y; y++) {
@@ -974,7 +982,7 @@ void near compress_bitmap(register struct bitmap *bmp)
         least = 1;
     }
 
-    BITMAP_COMPRESS.src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
+    BITMAP_COMPRESS.src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
     hdr = BITMAP_COMPRESS.out++;
 

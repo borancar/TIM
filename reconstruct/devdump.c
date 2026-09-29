@@ -79,8 +79,9 @@ extern int32_t g_dev_queue_part_calls;
 /*
  * One line per part on a list, in walk order, from its head cell. The line
  * is what `tools/parts.py` prints for the original, field for field, so the
- * two can be diffed; `near` is the pair at +0x7a printed signed, which is
- * how it was read before the fields had names.
+ * two can be diffed, except where a field is a pointer, which the host can
+ * only print as its own address; `near` is the pair at +0x7a printed signed,
+ * which is how it was read before the fields had names.
  */
 static void dump_chain(FILE *f, const char *name, const struct part *head)
 {
@@ -92,11 +93,11 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
         const struct part *p = si;
 
         fprintf(f,
-                "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
+                "%s %p kind %2u form %2u pos %5d,%5d size %4d,%4d "
                 "f6 %04x f8 %04x a %04x near %5d,%5d "
                 "dir %5d vel %5d,%5d wt %5d mom %08x spin %5d "
-                "x62 %04x x66 %04x x78 %04x x84 %04x\n",
-                name, si,
+                "x62 %p x66 %p x78 %p x84 %p\n",
+                name, (const void *)si,
                 p->kind, p->form,
                 p->pos[0].x, p->pos[0].y,
                 p->size[0].width, p->size[0].height,
@@ -106,8 +107,8 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
                 p->vel_x, p->vel_y, p->weight,
                 (uint32_t)p->momentum,
                 p->spin,
-                p->link[4], p->belt[0], p->next_linked,
-                p->contact);
+                (void *)p->link[4], (void *)p->belt[0],
+                (void *)p->next_linked, (void *)p->contact);
     }
 }
 

@@ -61,8 +61,7 @@
 #  define FAR_MASK(p, m) ((uint8_t far *)((uint32_t)(p) & (m)))
 #else
 /* On the host the linear address is the pointer, and the mask clears its
-   low bits the same way - the block is libc's, not in `g_guest_mem`, so a
-   `seg:off` of it would mean nothing. */
+   low bits the same way. */
 #  define FAR_MASK(p, m) \
     ((uint8_t *)((uintptr_t)(p) & ~(uintptr_t)(uint32_t)~(uint32_t)(m)))
 #endif
@@ -394,7 +393,7 @@ void free_bitmaps(register struct bitmap ** list)
     if (list != NULL) {
         register struct bitmap *hdr = list[0];
 
-        dos_free_far(FAR_FROM_PAIR((int16_t)hdr->data_seg, hdr->data_off));
+        dos_free_far(FAR_FROM_PAIR((dg_sseg_t)hdr->data_seg, hdr->data_off));
         free_bitmap_list(list);
     }
 }

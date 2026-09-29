@@ -491,7 +491,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      * The font pointer below is not this routine's BP either, however much it
      * looks like it - see `io_bios_font`.
      */
-    struct bios_font font;
+    uint8_t *font;
     uint16_t al;
     uint16_t r;
 
@@ -537,7 +537,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         VMDS.pixel_shift = 0;
     }
 
-    *(uint16_t *)(g_guest_mem + 0x4f0) = DGROUP_SEG;
+    g_bios.intra_app[0] = DGROUP_SEG;
 
     VMDS.page_src = ((int16_t)VMDS.page_front);
     VMDS.page_dst = ((int16_t)VMDS.page_back);
@@ -547,7 +547,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         goto out;
 
     if (VM_DRIVER.span_buffer_seg != 0)
-        dos_free_far(MK_FP((uint16_t)(VM_DRIVER.span_buffer_seg - 1), 0));
+        dos_free_far(MK_FP(VM_DRIVER.span_buffer_seg - 1, 0));
 
     {
         uint8_t *p = dos_alloc_bytes((uint16_t)(((uint16_t)VMDS.screen.screen_height) * 4 + 0x20), 0, 0).ptr;
@@ -556,19 +556,18 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         if (FP_SEG(p) == 0)
             goto out;
 
-        VM_DRIVER.span_buffer_seg = (int16_t)(FP_SEG(p) + 1);
+        VM_DRIVER.span_buffer_seg = FP_SEG(p) + 1;
     }
 
     /*
      * `mov ax,0x1130 / mov bh,3 / int 0x10`, and the answer is in **ES:BP** -
-     * so the four words are that pair, filed twice. The emulator does not
-     * implement the call, which is why they come back zero; see
-     * `io_bios_font`.
+     * a far pointer, filed twice. The emulator does not implement the call,
+     * which is why it comes back null; see `io_bios_font`.
      */
     font = io_bios_font(3);
 
-    ENGINE_FONT_BODIES.body[0] = MK_FP(font.es, font.bp);
-    ENGINE_FONT_BODIES.body[1] = MK_FP(font.es, font.bp);
+    ENGINE_FONT_BODIES.body[0] = font;
+    ENGINE_FONT_BODIES.body[1] = font;
 
     *(int16_t *)(&VMDS.font_table_48[0]) = 0x808;
     *(int16_t *)(&VMDS.font_table_34[0]) = 0x808;

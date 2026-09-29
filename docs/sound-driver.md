@@ -1174,10 +1174,10 @@ sequencer's own state did, immediately.
 
 `io.c` prints the sound module's four voice arrays - `cs:0x168` owner,
 `cs:0x158` priority, `cs:0x148` ordering, `cs:0x138` pinned - and the playing
-table at `cs:8`, at every key event. It lives in `io.c` because **both sides
-run that file**: the hybrid executes the guest's sequencer and the port its own
-transcription, and the table is at the same address in `g_guest_mem` either way.
-No hook on the runner is needed.
+table at `cs:8`, at every key event. It lived in `io.c` because **both sides
+ran that file**: the hybrid executed the guest's sequencer and the port its own
+transcription, and the table was at the same address in guest memory either
+way. No hook on the runner was needed.
 
 The first difference is at **key event 14** - eighty-odd events before anything
 is audible:

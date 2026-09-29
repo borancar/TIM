@@ -772,13 +772,14 @@ void dos_setdisk(uint8_t letter)
  *
  * **The switch itself means nothing here.** The port's handler runs on a real
  * thread with a real stack of its own, which is what the private stack was for.
- * The two DGROUP words are still written, because anything else can read them.
+ * SS is still written, because anything else can read it.
  */
 void isr_stack_switch(int16_t to_private)
 {
     if (to_private != 0) {
+        /* SS is DGROUP's; SP is a register the port does not have, so the
+           word the original saves it in is left as it is. */
         MACHINE_ISR_STACK.saved_ss = DGROUP_SEG;
-        MACHINE_ISR_STACK.saved_sp = g_guest_sp;
         return;
     }
 

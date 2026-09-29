@@ -28,10 +28,10 @@
 #include "dgroup.h"
 
 /*
- * OURS: **the start of the VGA aperture**, A000:0000. Video memory is not kept
- * in `g_guest_mem` - the planes are behind `vga_read` and `vga_write`, which take
- * the offset the card decodes - so a pointer into the aperture is only ever
- * subtracted from this, never read through.
+ * OURS: **the VGA aperture** is `g_vga_window`, from A000:0000. The planes are
+ * behind `vga_read` and `vga_write`, which take the offset the card decodes,
+ * so a pointer into the window is only ever subtracted from its start, never
+ * read through.
  */
 
 /*
@@ -55,7 +55,8 @@
  */
 struct vm_cs {
     uint8_t   pad_0000[0x13a];
-    dg_seg_t  data_seg;           /* +0x13a  DGROUP's segment + data / 16 */
+    uint16_t  data_seg;           /* +0x13a  DGROUP's segment + data / 16, as
+                                     the original's number - see DGROUP_SEG */
     const struct vmds *data; /* +0x13c  the driver's data, VMDS */
     uint8_t   pad_013e[0xc8];
     void (far *hooks[19])(void);  /* +0x206  copied from the table it is handed */
@@ -102,7 +103,7 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
     VMCS.data = data;
     /* The segment the driver addresses its data by: DGROUP's, plus the
        paragraphs of VMDS's offset in it, 0x3890. */
-    VMCS.data_seg = (dg_seg_t)((0x3890 >> 4) + DGROUP_SEG);
+    VMCS.data_seg = (uint16_t)((0x3890 >> 4) + DGROUP_SEG);
 
     VMDS.screen.mode_kind    = 1;
     VMDS.adapter      = 0x10;
@@ -1692,10 +1693,9 @@ void vm_load_palette(const uint8_t far * pal)
     int32_t i;
 
     /* **The guard is on the segment alone**: `or ax,[bp+8]` with nothing of
-       the offset. Every pair with a zero segment is below linear 0x10000,
-       which is the interrupt table and DOS and never a palette, so the
-       pointer is refused there. */
-    if (FP_LIN(pal) < 0x10000)
+       the offset. A zero segment is a block that was never allocated, and
+       `pal` is then null. */
+    if (pal == NULL)
         return;
 
     vm_set_palette(pal, 0, 0x10);

@@ -5995,8 +5995,9 @@ void init_sequence_params(struct sequence far * seq)
     uint8_t far *tbl;
     uint16_t si;
 
-    if (FP_OFF(seq->cursor_at) == 0xffff && FP_SEG(seq->cursor_at) == 0xffff)
-        return;
+    /* The original returns here when `cursor_at` is FFFF:FFFF. No host
+       pointer is that pair - it is set to the record's own `cursor` and to
+       nothing else - so the test has nothing to find. */
 
     tbl = *seq->cursor_at;
 

@@ -176,7 +176,7 @@ uint16_t build_rect_pool(register uint16_t n)
  * restart has no tidier spelling that is provably the same.
  */
 void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
+                     uint16_t mode, vga_page_t page_src, vga_page_t page_dst,
                      uint16_t refcount, uint8_t far * buf)
 {
     register struct rect_list_entry *rec;
@@ -340,8 +340,8 @@ void restore_saved_rect_lists(int16_t which)
     register struct rect_list_entry *di;
     struct rect_list_entry **slot;                    /* [bp-2] */
     int16_t left;                       /* [bp-4] */
-    dg_seg_t saved_src;                 /* [bp-6] */
-    dg_seg_t saved_dst;                 /* [bp-8] */
+    vga_page_t saved_src;                 /* [bp-6] */
+    vga_page_t saved_dst;                 /* [bp-8] */
 
     saved_src = VMDS.page_src;
     saved_dst = VMDS.page_dst;
@@ -399,7 +399,7 @@ void discard_saved_rects(void)
  * the image calls it: dead in the shipped binary.
  */
 uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
-                           int16_t h, dg_seg_t page_dst, uint16_t refcount)
+                           int16_t h, vga_page_t page_dst, uint16_t refcount)
 {
     register struct rect_list_entry *rec;
     struct rect_list_entry **slot;                    /* [bp-2] */
@@ -479,7 +479,7 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-struct rect_list_entry **find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+struct rect_list_entry **find_saved_rect_slot(vga_page_t page_src, vga_page_t page_dst,
                                         uint16_t refcount)
 {
     register struct rect_list_entry **slot;
@@ -528,7 +528,7 @@ struct rect_list_entry **find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_d
  * The whole chain then goes onto the free list at 0x56e0 in one splice, using
  * the last record the walk saw rather than walking it again.
  */
-void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
+void restore_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcount)
 {
     register struct rect_list_entry *rec;
     register struct rect_list_entry **slot;
@@ -570,7 +570,7 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
  * pushed on the front, so the freed records come back in the reverse of the
  * order they were taken - which nothing depends on, but it is what happens.
  */
-void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
+void free_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcount)
 {
     register struct rect_list_entry **slot;
     register struct rect_list_entry *rec;
@@ -601,8 +601,8 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
  * no near or far call, no occurrence of its address as data, and the code
  * map from the entry point never reaches it - so no run ever met the defect.
  */
-void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
-                      dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref)
+void copy_saved_rects(vga_page_t from_src, vga_page_t from_dst, uint16_t from_ref,
+                      vga_page_t to_src, vga_page_t to_dst, uint16_t to_ref)
 {
     register struct rect_list_entry *rec;
     register struct rect_list_entry **from_slot;

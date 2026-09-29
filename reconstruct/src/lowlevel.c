@@ -2118,14 +2118,14 @@ uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta)
     uint16_t lo = (uint16_t)delta;              /* BX */
     uint16_t hi = (uint16_t)(delta >> 16);      /* CX */
     uint32_t sum = (uint32_t)FP_OFF(p) + lo;
-    uint16_t seg = FP_SEG(p);
+    dg_seg_t seg = FP_SEG(p);
 
     if (sum > 0xffff)
-        seg = (uint16_t)(seg + 0x1000);
+        seg = seg + 0x1000;
 
     /* The rotate takes the high word alone, which is why it is split out of
        the count here rather than shifted as a whole. */
-    seg = (uint16_t)(seg + ((hi >> 5) | ((hi & 0xf) << 12)));
+    seg = seg + (uint16_t)((hi >> 5) | ((hi & 0xf) << 12));
 
     return MK_FP(seg, (uint16_t)sum);
 }

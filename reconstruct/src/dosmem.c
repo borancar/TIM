@@ -178,14 +178,14 @@ uint16_t buffer_size_thunk(uint16_t w, uint16_t h)
  * 0x18-byte block and `load_archive_map`'s entry lists - and the second had the
  * two swapped in the port until it was checked against the pushes.
  *
- * The DOS call itself is IO - see io.h - and is primed by the verifier with
- * what DOS actually answered, because the port has no arena of its own.
+ * The DOS call itself is IO - `io_dos_alloc`, over the arena in hostio.c.
  */
 union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
                                   uint16_t flags)
 {
     (void)unused;
-    uint16_t paras, remainder, seg, largest;
+    uint16_t paras, remainder, largest;
+    dg_seg_t seg;
     int32_t failed;
 
     /* **One Borland `long`**, low word at [bp+6]. 0x21ad1 shifts the pair
@@ -247,8 +247,8 @@ union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
  * AX, and the routine returns whatever DOS left there without looking, so a
  * double free or a corrupted arena passes silently.
  *
- * The DOS call is IO - see io.h. The port has no arena to give the block back
- * to, so this changes no guest memory.
+ * The DOS call is IO - `io_dos_free`, which gives the block back to the
+ * arena in hostio.c.
  */
 void dos_free_far(void far *block)
 {

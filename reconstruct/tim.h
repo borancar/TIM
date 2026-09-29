@@ -36,8 +36,8 @@
  * it. They are a spelling, not a semantics: on the host a `far` pointer is an
  * ordinary pointer and does not wrap at 64K, so where the wrap or the
  * `seg:off` pair matters the site says so. `MK_FP`, `FP_SEG` and `FP_OFF`
- * are Borland's own names for making and taking one apart, and on the host
- * they mean something only inside `g_guest_mem`.
+ * are Borland's own names for making and taking one apart; on the host a
+ * segment is a pointer to its paragraph (dgroup.h).
  */
 
 /*
@@ -504,10 +504,6 @@ void     driver_pitch_bend(uint16_t ax, uint16_t cx);
 uint16_t driver_param_349(uint16_t cl);
 uint16_t driver_param_345(uint16_t cl);
 uint16_t driver_param_346(uint16_t cl);
-/* OURS: the driver's single entry by function number - the shape the hybrid
- * needs, because a guest call arrives as a number in BP. See sxovl.c. */
-void     sx_driver_call(uint16_t fn, uint16_t *ax, uint16_t *cx, uint16_t es);
-
 /*
  * `ASB:`, the digitised-sound module, in reconstruct/src/sxovl_asb.c. A module
  * is not a driver: the game loads one of each and this one plays sampled bytes
@@ -1043,23 +1039,23 @@ void copy_protect_screen(struct bitmap **bitmaps);                         /* 0x
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
-void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a62c */
-void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount); /* 0x0a6d7 */
-struct rect_list_entry **find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
+void restore_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcount); /* 0x0a62c */
+void free_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcount); /* 0x0a6d7 */
+struct rect_list_entry **find_saved_rect_slot(vga_page_t page_src, vga_page_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
 char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
 char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
 uint16_t build_rect_pool(uint16_t n);                             /* 0x0a05f */
 void     file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
-                         uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
+                         uint16_t mode, vga_page_t page_src, vga_page_t page_dst,
                          uint16_t refcount, uint8_t far * buf);  /* 0x0a0d7 */
 void     discard_saved_rects(void);                               /* 0x0a4bf */
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
-                           dg_seg_t page_dst, uint16_t refcount); /* 0x0a4f9 */
+                           vga_page_t page_dst, uint16_t refcount); /* 0x0a4f9 */
 void     free_rect_pool(void);                                    /* 0x0a5a1 */
 uint16_t rect_pool_count(void);                                   /* 0x0a5d8 */
-void     copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
-                          dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref); /* 0x0a717 */
+void     copy_saved_rects(vga_page_t from_src, vga_page_t from_dst, uint16_t from_ref,
+                          vga_page_t to_src, vga_page_t to_dst, uint16_t to_ref); /* 0x0a717 */
 void clear_object_covered(uint16_t page);           /* 0x0aedc */
 void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */

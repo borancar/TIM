@@ -122,9 +122,10 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Nothing places them: under Borland C++ the linker puts each where the image
   has it, which `tools/link.py` proves, and on the host they are ordinary
   objects. What the image held there is the initialiser, `LOAD_SEG + seg` for
-  a relocated word. `g_guest_mem` is still the machine's megabyte, for what the
-  port keeps as memory - DOS's arena, the interrupt table's page, the loaded
-  overlays and the DGROUP arena.
+  a relocated word. There is no guest memory on the host: DOS's arena is
+  `g_dos_memory`, video memory `g_vga_window`, the BIOS data area `g_bios`,
+  and a null the original follows reads `g_dgroup_start` or
+  `g_interrupt_table`.
 - Where a name or a type is a guess, **say so**.
 - **No licence header on reconstructed code.** A provenance header naming the
   binary instead. Our own tooling is a different matter and is GPL-2.0.
@@ -165,8 +166,11 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   one), `NEAR_ZERO` and `ZERO_PAGE` (a null the original follows reads
   memory), `FAR_OF_LONG` and `BCC_FAR_ARG`, `FAR_OF_NEAR_NULL`, `DOS_ALLOC`,
   `SETBUF_ROOM`, `OVERRUN` and `WRITABLE_LITERAL`. Each vanishes under TCC.
-  `MK_FP`, `FP_SEG` and `FP_OFF` are Borland's own, and on the host they mean
-  something only inside `g_guest_mem`.
+  `MK_FP`, `FP_SEG` and `FP_OFF` are Borland's own. On the host **a segment
+  is a pointer to its paragraph** (`dg_seg_t`, `struct paragraph *`), so
+  `seg + n`, normalising and `MK_FP(seg, off)` mean what they do in real
+  mode; a video page is `vga_page_t`, a number the driver turns into an
+  address with `vga_window_at`.
 
 ## The traps this project has already hit
 

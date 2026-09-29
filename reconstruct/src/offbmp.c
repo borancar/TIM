@@ -51,7 +51,7 @@ void draw_offset_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
     uint8_t saved_clip;
     uint8_t saved_second;
     uint8_t saved_fill;
-    int16_t seg;
+    dg_sseg_t seg;
     register int16_t w;
     register int16_t h;
 

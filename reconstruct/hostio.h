@@ -36,10 +36,13 @@ struct part;
    once dos.c's twelve prototypes had joined the headers. */
 #ifndef __TURBOC__
 
+/* A real-mode paragraph, sixteen bytes; see dgroup.h. */
+struct paragraph;
+
 /*
  * OURS: **the BIOS data area**, 0040:0000, as much of it as the game reads -
- * the equipment word, the keyboard flags and ring, the diskette motor bits
- * and the video mode. The ring's head and tail are offsets from 0040:0000,
+ * the equipment word, the keyboard flags and ring, the diskette motor bits,
+ * the video mode and the intra-application area. The ring's head and tail are offsets from 0040:0000,
  * which is what the BIOS stores, so `kbd_buffer` is indexed `(off - 0x1e) / 2`.
  */
 struct bios_data_area {
@@ -61,6 +64,9 @@ struct bios_data_area {
     uint8_t   pad_4a[0x36];
     uint16_t  kbd_start;          /* 0x80  the ring's first word */
     uint16_t  kbd_end;            /* 0x82  one past its last */
+    uint8_t   pad_84[0x6c];
+    uint16_t  intra_app[8];       /* 0xf0  the intra-application area, which
+                                     `vm_init` files DGROUP's segment in */
 } __attribute__((packed));
 
 extern struct bios_data_area g_bios;
@@ -319,9 +325,19 @@ void     port_abort(const char *msg);
  * OURS: DOS memory allocation, INT 21h AH=48h, the resize and the free, over
  * the arena `io_dos_arena_reset` hands out.
  */
-uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
-void     io_dos_free(uint16_t seg);
-uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs);
+struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
+                               int32_t *failed);
+void     io_dos_free(struct paragraph *block);
+uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs);
+
+/*
+ * OURS: DOS memory's physical addresses, which only the DMA controller wants:
+ * a pointer's, the pointer at one (NULL outside DOS memory), and a block's
+ * segment number, which `BCC_FAR_ARG` needs the sign of.
+ */
+uint32_t io_dos_linear(const void *p);
+uint8_t *io_dos_at_linear(uint32_t lin);
+uint16_t io_dos_segment(const struct paragraph *seg);
 
 /*
  * OURS: hand the arena the memory the program's own block does not use, which
@@ -334,7 +350,6 @@ void     io_dos_arena_reset(uint16_t first_free, uint16_t mem_top);
  * DOS's loader and Borland's startup leave behind. See hostio.c.
  */
 void     io_start_program(void);
-void     io_dos_free(uint16_t seg);
 
 /*
  * DOS directory services, on the game directory. See hostio.c. The files
@@ -346,16 +361,10 @@ void     io_dos_getdate(uint16_t *year, uint16_t *monthday,
 uint16_t io_bios_display_combination(void);
 
 /*
- * OURS: the BIOS font-pointer service, INT 10h AX=1130h. It answers in
- * **ES:BP** rather than in AX, so it needs a pair; the struct is what a C
- * caller can be handed and what `vm_init` files the way the original does.
+ * OURS: the BIOS font-pointer service, INT 10h AX=1130h, which answers the
+ * font's address in ES:BP - here, the pointer.
  */
-struct bios_font {
-    uint16_t es;
-    uint16_t bp;
-};
-
-struct bios_font io_bios_font(uint8_t which);
+uint8_t *io_bios_font(uint8_t which);
 /*
  * OURS: the mouse, INT 33h. `io_mouse_reset` answers whether a driver is there
  * - the port says yes, as the reference emulator does. The rest are settings

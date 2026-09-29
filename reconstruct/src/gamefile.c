@@ -559,9 +559,9 @@ void game_setbuf(register FILE *file, uint8_t *buf)
 
     if (ARCHIVE_LOOKUP.archive_count == 0
         || (si = archive_entry_for(file)) == NULL)
-        setbuf(file, buf);
+        setbuf(file, (char *)buf);
     else if (si->stream != 0)
-        setbuf(si->stream, buf);
+        setbuf(si->stream, (char *)buf);
 }
 
 /*

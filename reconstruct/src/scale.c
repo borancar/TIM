@@ -292,7 +292,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         }
     }
 
-    src = MK_FP((int16_t)bmp->data_seg, bmp->data_off);
+    src = MK_FP((dg_sseg_t)bmp->data_seg, bmp->data_off);
 
     if (bottom - off > 0 && right - left > 1) {
         /*

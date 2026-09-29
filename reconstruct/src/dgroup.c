@@ -1,23 +1,10 @@
 /*
- * The host's own globals that have no module of the original to live in:
- * where DGROUP would sit in the machine's megabyte, the port's stack
- * pointer, and the records the assembly modules keep in their code segments.
- * Ours.
+ * The host's own globals that have no module of the original to live in: the
+ * records the assembly modules keep in their code segments, and what a null
+ * pointer reads. Ours.
  */
 #include "tim.h"
 #include "dgroup.h"
-
-/*
- * Where DGROUP sits in the machine's megabyte. The original's loader decides
- * it - 0x110 paragraphs for the program, so DGROUP lands at 0x2e4c0.
- */
-uint32_t g_dgroup_base = 0x2E4C0;
-
-/*
- * The port's own stack pointer - see dgroup.h. The default is the top of
- * DGROUP.
- */
-uint16_t g_guest_sp = 0xFF9E;
 
 /* The sound module's data inside its code segment, and segment 1c25's three
    cells - see `struct snd_cs` and `struct s1c_timer` in dgroup.h. */

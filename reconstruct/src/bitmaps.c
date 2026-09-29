@@ -544,8 +544,15 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
     file_left -= buffer;
     at = list;
     while ((hdr = *at) != NULL) {
+#ifdef __TURBOC__
         row = hdr->data_seg + (hdr->data_off >> 4);
         p = FAR_OF_LONG(row, hdr->data_off & 0xf);
+#else
+        /* `row` holds the segment for a moment and then row offsets; on
+           the host a segment is a pointer, so it is not kept in `row`. */
+        p = FAR_OF_LONG(hdr->data_seg + (hdr->data_off >> 4),
+                        hdr->data_off & 0xf);
+#endif
         n = (hdr->width * hdr->height) >> 2;
         for (i = 0; i < 4; i++) {
             BITMAPS.walk->plane[i] = p;

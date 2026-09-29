@@ -206,11 +206,14 @@ void asb_set_block_size(uint16_t n)
  */
 uint32_t asb_linear(const uint8_t far *p)
 {
-    uint16_t seg = FP_SEG(p);
+    /* The DMA controller addresses physical memory, which on the host only
+       DOS's blocks have; the arena says where this one is. */
+    uint32_t lin = io_dos_linear(p);
+    uint16_t seg = (uint16_t)(lin >> 4);
     uint16_t dx = (uint16_t)((seg << 4) | (seg >> 12));
     uint16_t cx = (uint16_t)(dx & 0xfff0);
     uint16_t page = (uint16_t)(dx & 0x000f);
-    uint32_t sum = (uint32_t)FP_OFF(p) + cx;
+    uint32_t sum = (uint32_t)(lin & 0xf) + cx;
 
     if (sum > 0xffff)
         page++;
