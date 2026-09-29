@@ -73,8 +73,8 @@
 #define FRAME_W 640
 #define FRAME_H 480
 
-extern int32_t dev_tension_belt_calls;
-extern int32_t dev_queue_part_calls;
+extern int32_t g_dev_tension_belt_calls;
+extern int32_t g_dev_queue_part_calls;
 
 /*
  * One line per part on a list, in walk order, from its head cell. The line
@@ -518,7 +518,7 @@ static void dev_autoplay(int32_t flip)
     if (!armed)
         return;
 
-    state = round_state;
+    state = g_round_state;
 
     /*
      * `TIM_TRACE=autoplay` prints the state word at every flip. Which screen
@@ -578,7 +578,7 @@ static void dev_autoplay(int32_t flip)
          * the screen in the message would have been a guess that is wrong half
          * the time.
          */
-        round_state = 0x8000;
+        g_round_state = 0x8000;
         fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
                 flip);
     } else if (state == 0x1000) {
@@ -604,12 +604,12 @@ static void dev_autoplay(int32_t flip)
 
                 loaded = 1;
                 for (i = 0;
-                     file[i] && i < (int32_t)sizeof picked_machine - 1; i++)
-                    picked_machine[i] = file[i];
-                picked_machine[i] = 0;
+                     file[i] && i < (int32_t)sizeof g_picked_machine - 1; i++)
+                    g_picked_machine[i] = file[i];
+                g_picked_machine[i] = 0;
 
                 round_teardown();
-                load_animation((char *)picked_machine);
+                load_animation((char *)g_picked_machine);
 
                 /*
                  * **Over a puzzle, the bin is the file's, and the file's is
@@ -626,7 +626,7 @@ static void dev_autoplay(int32_t flip)
                  * The 45 freeform parts are not freed: one load a run does not
                  * reach the heap's limit.
                  */
-                if (freeform == 0) {
+                if (g_freeform == 0) {
                     HELD_PARTS.parts_bin.prev = 0;
                     HELD_PARTS.parts_bin.next = 0;
                     HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
@@ -661,7 +661,7 @@ static void dev_autoplay(int32_t flip)
         }
 
         if (want_run) {
-            round_state = 0x2000;
+            g_round_state = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
                     flip);
         } else {
@@ -770,7 +770,7 @@ void dev_level_solved(int16_t level, int16_t score)
         on = trace_asks_level();
     if (on)
         fprintf(stderr, "io: level solved=%d score=%d frames=%d\n",
-                (int)level, (int)score, (int)machine_frames);
+                (int)level, (int)score, (int)g_machine_frames);
 }
 
 /*
@@ -786,8 +786,8 @@ void dev_level_solved(int16_t level, int16_t score)
  * things that are the machine - `step_machine`, `mark_parts_in_dirty_rects`,
  * `step_loop_frames`, `replay_shapes`, `step_and_draw_machine`,
  * `shift_all_histories` - before `check_goal`. The physics reads
- * `machine_frames` and nothing else about time: the eight-tick spin the loop
- * paces itself with, and the tick total it banks into `elapsed_ticks`, feed
+ * `g_machine_frames` and nothing else about time: the eight-tick spin the loop
+ * paces itself with, and the tick total it banks into `g_elapsed_ticks`, feed
  * the score and the display, not the parts. So here the spin is replaced by
  * the eight ticks it waits for, the frame is not presented, no sound is
  * started or stopped, and there is no pointer, button or key - which means no
@@ -807,38 +807,38 @@ int32_t dev_simulate_machine(int32_t max_frames)
 {
     int32_t frames = 0;
 
-    if (round_state != 0x2000)
-        round_state = 0x2000;       /* what --run does once the puzzle is up */
+    if (g_round_state != 0x2000)
+        g_round_state = 0x2000;       /* what --run does once the puzzle is up */
 
     clear_machine();
-    elapsed_ticks = 0;
+    g_elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (round_state == 0x2000 && frames < max_frames) {
+    while (g_round_state == 0x2000 && frames < max_frames) {
         step_machine();
         mark_parts_in_dirty_rects();
         step_loop_frames();
         replay_shapes();
         step_and_draw_machine(0);
 
-        elapsed_ticks = (uint16_t)(elapsed_ticks + 8);
+        g_elapsed_ticks = (uint16_t)(g_elapsed_ticks + 8);
         TIMER.frame_budget = 0x2710;
 
         shift_all_histories();
 
-        if (freeform == 0)
+        if (g_freeform == 0)
             check_goal();
 
-        machine_frames++;
+        g_machine_frames++;
         frames++;
     }
 
-    if (round_state == 0x200)
+    if (g_round_state == 0x200)
         fprintf(stderr, "io: simulate solved=1 level=%d frames=%d score=%d\n",
-                (int)round_number, (int)frames, (int)banked_score);
+                (int)g_round_number, (int)frames, (int)g_banked_score);
     else
         fprintf(stderr, "io: simulate solved=0 level=%d frames=%d state=%04x\n",
-                (int)round_number, (int)frames, (unsigned)round_state);
+                (int)g_round_number, (int)frames, (unsigned)g_round_state);
     return frames;
 }
 
@@ -1091,7 +1091,7 @@ void dev_level_scan(void)
         memset(seen, 0, sizeof seen);
         load_level((uint16_t)n);
 
-        for (si = placed_parts.next; si != 0 && count < 4096;
+        for (si = g_placed_parts.next; si != 0 && count < 4096;
              si = si->next, count++) {
             uint16_t kind = si->kind;
 
@@ -1104,7 +1104,7 @@ void dev_level_scan(void)
            bin - what the player is given - at 0x50d7. */
         {
             struct part *heads[3] = {
-                &placed_parts, &moving_parts, &HELD_PARTS.parts_bin,
+                &g_placed_parts, &g_moving_parts, &HELD_PARTS.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };
             int32_t h;
@@ -1173,8 +1173,8 @@ void dev_part_pics(void)
      * path the list is empty and the game's own loader is asked for it - with
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
-    if (icons_bmp == 0)
-        icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
+    if (g_icons_bmp == 0)
+        g_icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
@@ -1182,9 +1182,9 @@ void dev_part_pics(void)
      * this the icons come out as black rectangles and look like broken art
      * rather than a missing palette, which is exactly how it first appeared.
      */
-    set_palette_pointer(pal_tim);
+    set_palette_pointer(g_pal_tim);
 
-    list = icons_bmp;
+    list = g_icons_bmp;
     n = count_list(list);
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
@@ -1252,7 +1252,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                mouse_buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
+                g_mouse_buttons, (unsigned)POINTER.button_left, (unsigned)((uint16_t)POINTER.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)
@@ -1327,10 +1327,10 @@ void dev_flip_dump(int32_t flip)
      */
     fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
             "queue_part_calls %d\n", flip,
-            origin_x, origin_y, round_state,
-            dev_tension_belt_calls, dev_queue_part_calls);
-    dump_chain(f, "part", &placed_parts);
-    dump_chain(f, "move", &moving_parts);
+            g_origin_x, g_origin_y, g_round_state,
+            g_dev_tension_belt_calls, g_dev_queue_part_calls);
+    dump_chain(f, "part", &g_placed_parts);
+    dump_chain(f, "move", &g_moving_parts);
     fclose(f);
     fprintf(stderr, "wrote the part list at flip %d to %s\n", flip, want);
 }

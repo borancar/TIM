@@ -537,7 +537,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         VMDS.pixel_shift = 0;
     }
 
-    *(uint16_t *)(guest_mem + 0x4f0) = DGROUP_SEG;
+    *(uint16_t *)(g_guest_mem + 0x4f0) = DGROUP_SEG;
 
     VMDS.page_src = ((int16_t)VMDS.page_front);
     VMDS.page_dst = ((int16_t)VMDS.page_back);

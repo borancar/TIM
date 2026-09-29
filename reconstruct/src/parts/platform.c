@@ -65,7 +65,7 @@ void part_settle_platform(struct part *part)
     struct part_point *p2;              /* di */
     struct part_point *p3;              /* [bp-2] */
 
-    switch (tool) {
+    switch (g_tool) {
     case 0x8003:
     case 0x8004:
         part->set_size.height = 0x10;

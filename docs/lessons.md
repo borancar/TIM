@@ -1641,7 +1641,7 @@ used one way is not evidence that the other way works.
 ### The hybrid cannot watch what it has dispatched
 
 **The hybrid cannot watch what it has dispatched.** A routine running as the
-port's C writes `guest_mem` directly and never passes through Unicorn, so no
+port's C writes `g_guest_mem` directly and never passes through Unicorn, so no
 emulator hook sees it. That is worth stating before building any measurement
 into `tools/native/`: the hybrid observes the *emulated* side, which shrinks
 every time a routine is transcribed. `TIM_SLOTS` was built to find which
@@ -1669,7 +1669,7 @@ level and connecting a rope by hand crashed.
 
 **What settled it.** `NEAR_ZERO(p)` and `ZERO_PAGE(p)` at the read: the
 pointer itself under Borland C++, so the image does not move, and on the host
-the start of the DGROUP arena or of `guest_mem` when the pointer is null. A
+the start of the DGROUP arena or of `g_guest_mem` when the pointer is null. A
 test against a null through the same macro still holds, because both sides
 land in the same place.
 
@@ -1685,7 +1685,7 @@ were clean. Three causes, all the same shape - a host address put through
 16-bit arithmetic: `POINTS(p)` still meant `dgroup + (uint16_t)p`;
 `(int16_t)ptr != 0` called any pointer with zero low bits null; and
 `FAR_MASK` rounded a libc heap block to a paragraph through `FP_SEG`/`FP_OFF`,
-which only mean something inside `guest_mem`. The answer moved with where
+which only mean something inside `g_guest_mem`. The answer moved with where
 ASLR put the heap, and a slower run under a sanitizer moved it out of harm's
 way.
 
@@ -1767,14 +1767,14 @@ has to become a real pointer with it**, and the initialiser says which member:
 the font tables and the host's `MK_FP`, and the one that said which it was is
 `check_native --frames`: 0 pixels, 26 palette bytes.
 
-### A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its locals over live memory
+### A routine that calls `dg_alloca` needs `g_guest_sp` set, or it writes its locals over live memory
 
-**A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its
+**A routine that calls `dg_alloca` needs `g_guest_sp` set, or it writes its
 locals over live memory.** In the large model SS and DS are one segment, so a
 routine building a structure on the stack hands out an ordinary DGROUP offset
 and the callee cannot tell it from a pointer to a global. A C local has none,
 so the port carries its own stack pointer and `dg_alloca` reserves below it.
-`tools/verify.py` sets `guest_sp` at every entry and `dgroup.h` says so; the
+`tools/verify.py` sets `g_guest_sp` at every entry and `dgroup.h` says so; the
 hybrid runner did not, and `load_bitmaps` - which reserves 0xa2 bytes - took
 the intro from identical to 76,817 pixels out the moment it was dispatched.
 
@@ -1783,7 +1783,7 @@ The lesson is not the one routine. **Three routines already dispatched use
 frames happened to land on stack nobody was using. A caller that sets up less
 than the verifier does is not a lighter version of it, it is a different
 thing that agrees for a while. Auditing the rest of what `verify.py` sets -
-`dgroup_base`, the open files, the VGA registers and planes - found nothing
+`g_dgroup_base`, the open files, the VGA registers and planes - found nothing
 else missing, and that audit is worth repeating whenever the port gains a
 new piece of state.
 
@@ -2135,7 +2135,7 @@ is under it stops needing DGROUP.
 **The far wall came down first, and it was the model that was already
 chosen.** "Offsets from the dgroup for near pointers, and offsets from 0 for
 far pointers" is the instruction this work started from, and a far pointer as
-an offset from 0 *is* a host pointer into `guest_mem`. So `dg_far`/`dg_cfar`
+an offset from 0 *is* a host pointer into `g_guest_mem`. So `dg_far`/`dg_cfar`
 join `dg_near`/`dg_cnear` in tim.h: one C parameter where the guest pushes
 two words, offset then segment, which is what `aptr` in the hybrid's shims
 already builds. `draw_string_body` took `(str, seg)` and takes one pointer;
@@ -2147,7 +2147,7 @@ holding.
 
 One thing to transcribe carefully on the way: `draw_string_body` opens
 `if ((str | seg) == 0) return;`, and that is a far pointer of 0000:0000,
-which is `guest_mem` and **not** a C null pointer. Written as `str == NULL`
+which is `g_guest_mem` and **not** a C null pointer. Written as `str == NULL`
 the guard never fires.
 
 **A far pointer is only convertible if the callee `*`s it.** `huge_move`
@@ -2313,7 +2313,7 @@ sentence beside the frame.**
 ### `dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison nobody makes
 
 **`dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison
-nobody makes.** They moved `guest_sp` by the bytes a call itself pushes -
+nobody makes.** They moved `g_guest_sp` by the bytes a call itself pushes -
 the arguments and the return address - so that a callee's `dg_alloca` frame
 landed exactly where the original's did. That only matters if a frame's
 *address* is compared, and the stack is deliberately not matched: only the
@@ -2344,7 +2344,7 @@ recorded further up this file.
 caught had been in the tree for weeks.** The forty-one wrong `dg_near` sites
 further up this file were found by reading; nothing stopped a forty-second,
 because `dg_near` takes a `void *` and the compiler has no opinion. It now
-calls `port_abort` when the pointer is outside `guest_mem`, which was tested
+calls `port_abort` when the pointer is outside `g_guest_mem`, which was tested
 the only way worth testing a guard - by handing it a C local on purpose and
 watching it fire.
 

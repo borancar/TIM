@@ -72,7 +72,7 @@ void part_step_cannon(struct part *part)
             play_sound(6);
 
         if (part->form == 9 && (si = make_part(KIND_CANNON_BALL)) != NULL) {
-            insert_sorted(si, &moving_parts);
+            insert_sorted(si, &g_moving_parts);
             si->flags_06 |= 0x10;
 
             if (part->flags_08 & 0x10) {

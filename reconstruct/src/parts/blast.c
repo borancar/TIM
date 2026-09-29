@@ -172,7 +172,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if ((di = clone_part(part)) == NULL)
                     goto out;
 
-                insert_sorted(di, &placed_parts);
+                insert_sorted(di, &g_placed_parts);
                 di->flags_06 |= 0x10;
 
                 di->size[0].width = part->pos[0].x + part->size[0].width - v06;
@@ -206,7 +206,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if ((di = clone_part(part)) == NULL)
                     goto out;
 
-                insert_sorted(di, &placed_parts);
+                insert_sorted(di, &g_placed_parts);
                 di->flags_06 |= 0x10;
 
                 di->size[0].height = part->pos[0].y + part->size[0].height - v0c;

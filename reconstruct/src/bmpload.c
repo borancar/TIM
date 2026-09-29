@@ -42,9 +42,9 @@
  * runtime's huge add on the variable itself, which is a `huge` lvalue.
  */
 #ifdef __TURBOC__
-#  define SCRATCH (*(uint8_t huge **)&scratch_block)
+#  define SCRATCH (*(uint8_t huge **)&g_scratch_block)
 #else
-#  define SCRATCH scratch_block
+#  define SCRATCH g_scratch_block
 #endif
 
 /*
@@ -61,7 +61,7 @@
 #  define FAR_MASK(p, m) ((uint8_t far *)((uint32_t)(p) & (m)))
 #else
 /* On the host the linear address is the pointer, and the mask clears its
-   low bits the same way - the block is libc's, not in `guest_mem`, so a
+   low bits the same way - the block is libc's, not in `g_guest_mem`, so a
    `seg:off` of it would mean nothing. */
 #  define FAR_MASK(p, m) \
     ((uint8_t *)((uintptr_t)(p) & ~(uintptr_t)(uint32_t)~(uint32_t)(m)))
@@ -252,14 +252,14 @@ struct bitmap **load_bitmap_list(char *name)
 
     /* A paragraph-aligned scratch block from the near heap, sixteen bytes
        into what it answered, if nothing has one yet. */
-    if (scratch_block == NULL) {
+    if (g_scratch_block == NULL) {
         if ((scratch = malloc_far(0x3cc4)) != NULL) {
             free_far(scratch);
             if ((scratch = malloc_far(0x3ac4)) != NULL) {
-                scratch_block = (uint8_t far *)NEAR_ZERO(scratch);
+                g_scratch_block = (uint8_t far *)NEAR_ZERO(scratch);
                 SCRATCH += 0x10;
-                scratch_block = normalise_pointer_far(
-                    FAR_MASK(scratch_block, 0xfffffff0L));
+                g_scratch_block = normalise_pointer_far(
+                    FAR_MASK(g_scratch_block, 0xfffffff0L));
             }
         }
     }
@@ -314,7 +314,7 @@ done:
 
     if (scratch != NULL) {
         free_far(scratch);
-        scratch_block = 0;
+        g_scratch_block = 0;
     }
 
     if (kind == 0) {

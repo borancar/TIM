@@ -122,7 +122,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Nothing places them: under Borland C++ the linker puts each where the image
   has it, which `tools/link.py` proves, and on the host they are ordinary
   objects. What the image held there is the initialiser, `LOAD_SEG + seg` for
-  a relocated word. `guest_mem` is still the machine's megabyte, for what the
+  a relocated word. `g_guest_mem` is still the machine's megabyte, for what the
   port keeps as memory - DOS's arena, the interrupt table's page, the loaded
   overlays and the DGROUP arena.
 - Where a name or a type is a guess, **say so**.
@@ -166,7 +166,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   memory), `FAR_OF_LONG` and `BCC_FAR_ARG`, `FAR_OF_NEAR_NULL`, `DOS_ALLOC`,
   `SETBUF_ROOM`, `OVERRUN` and `WRITABLE_LITERAL`. Each vanishes under TCC.
   `MK_FP`, `FP_SEG` and `FP_OFF` are Borland's own, and on the host they mean
-  something only inside `guest_mem`.
+  something only inside `g_guest_mem`.
 
 ## The traps this project has already hit
 

@@ -81,29 +81,29 @@ static void on_hotkey(int32_t id)
  */
 static void resume_from_snapshot(void)
 {
-    while (round_state != 0x200 && round_state != 1) {
+    while (g_round_state != 0x200 && g_round_state != 1) {
         heap_check_or_hang();
 
-        if (round_state == 2)
+        if (g_round_state == 2)
             game_screen();
-        else if (round_state == 0x2000)
+        else if (g_round_state == 0x2000)
             run_machine_loop();
         else
             game_screen_loop();
     }
 
-    if (round_state == 0x200)
+    if (g_round_state == 0x200)
         finish_level();
 
     round_teardown();
 
-    while (playing != 0) {
-        if (((int16_t)round_state) == 1) {
-            playing = 0;
+    while (g_playing != 0) {
+        if (((int16_t)g_round_state) == 1) {
+            g_playing = 0;
         } else {
-            round_number = (int16_t)(round_number + 1);
-            if (round_number > furthest_level) {
-                furthest_level = round_number;
+            g_round_number = (int16_t)(g_round_number + 1);
+            if (g_round_number > g_furthest_level) {
+                g_furthest_level = g_round_number;
                 write_config();
             }
             game_round();
@@ -146,11 +146,11 @@ static void save_machine_file(const char *name)
 {
     int32_t i;
 
-    for (i = 0; name[i] && i < (int32_t)sizeof picked_machine - 1; i++)
-        picked_machine[i] = name[i];
-    picked_machine[i] = 0;
+    for (i = 0; name[i] && i < (int32_t)sizeof g_picked_machine - 1; i++)
+        g_picked_machine[i] = name[i];
+    g_picked_machine[i] = 0;
 
-    if (save_machine((char *)picked_machine) != 0)
+    if (save_machine((char *)g_picked_machine) != 0)
         fprintf(stderr, "io: save_machine reported an error for %s\n", name);
     else
         fprintf(stderr, "io: wrote the machine as %s\n", name);
@@ -179,7 +179,7 @@ static void play_level(int32_t level)
     game_startup();
     game_intro();
     game_setup();
-    round_number = (uint16_t)level;
+    g_round_number = (uint16_t)level;
     game_round();
     game_teardown(1);
 }

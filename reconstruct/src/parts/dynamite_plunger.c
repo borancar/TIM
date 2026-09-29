@@ -177,7 +177,7 @@ void part_step_dynamite_plunger(struct part *part)
             if ((si = make_part(KIND_BLAST)) == NULL)
                 goto done;
 
-            insert_sorted(si, &placed_parts);
+            insert_sorted(si, &g_placed_parts);
             si->flags_06 |= 0x10;
             si->pos[0].x = part->pos[0].x - 0x10;
             si->pos[0].y = part->pos[0].y;

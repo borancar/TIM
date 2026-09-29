@@ -312,23 +312,23 @@ void game_screen_loop(void)
     si = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (round_state != 0x2000 && round_state != 2) {
-        drop_cursor = band_colour = 0xffff;
+    while (g_round_state != 0x2000 && g_round_state != 2) {
+        g_drop_cursor = g_band_colour = 0xffff;
 
-        last_key = bios_read_key() >> 8;
+        g_last_key = bios_read_key() >> 8;
 
         update_button_state();
         scroll_play_area();
         step_counters();
 
-        if (freeform != 0)
+        if (g_freeform != 0)
             select_music_by_key();
 
-        regions_handle_pointer(regions_play);
+        regions_handle_pointer(g_regions_play);
 
-        if (round_state == 0x800)
+        if (g_round_state == 0x800)
             bin_scroll_back();
-        else if (round_state == 0x400)
+        else if (g_round_state == 0x400)
             bin_scroll_forward();
 
         if (point_in_play_area() != 0) {
@@ -343,33 +343,33 @@ void game_screen_loop(void)
             si = 1;
         }
 
-        if (redraw_e != 0) { draw_machine_layer_a(); redraw_e--; }
-        if (redraw_d != 0) { draw_machine_layer_b(); redraw_d--; }
-        if (redraw_c != 0) { draw_machine_layer_c(); redraw_c--; }
-        if (redraw_b != 0) { draw_machine_layer_d(); redraw_b--; }
-        if (redraw_a != 0) { draw_machine_layer_e(); redraw_a--; }
+        if (g_redraw_e != 0) { draw_machine_layer_a(); g_redraw_e--; }
+        if (g_redraw_d != 0) { draw_machine_layer_b(); g_redraw_d--; }
+        if (g_redraw_c != 0) { draw_machine_layer_c(); g_redraw_c--; }
+        if (g_redraw_b != 0) { draw_machine_layer_d(); g_redraw_b--; }
+        if (g_redraw_a != 0) { draw_machine_layer_e(); g_redraw_a--; }
 
         mark_parts_in_dirty_rects();
         replay_shapes();
         step_and_draw_machine(0);
 
-        if (HELD_PARTS.dragged_part != 0 && drop_cursor != -1)
-            draw_part_selection(HELD_PARTS.dragged_part, drop_cursor, 1);
+        if (HELD_PARTS.dragged_part != 0 && g_drop_cursor != -1)
+            draw_part_selection(HELD_PARTS.dragged_part, g_drop_cursor, 1);
 
-        if (band_colour != -1) {
+        if (g_band_colour != -1) {
             cursor_redraw_off_thunk();
-            VMDS.second_colour = (uint8_t)band_colour;
-            clip_and_draw_line(anchor_x - origin_x,
-                               anchor_y - origin_y,
-                               band_x - origin_x,
-                               band_y - origin_y);
+            VMDS.second_colour = (uint8_t)g_band_colour;
+            clip_and_draw_line(g_anchor_x - g_origin_x,
+                               g_anchor_y - g_origin_y,
+                               g_band_x - g_origin_x,
+                               g_band_y - g_origin_y);
             restore_cursor_following();
-            alloc_shape((const uint8_t *)&anchor_x,
-                        (const uint8_t *)&band_x,
+            alloc_shape((const uint8_t *)&g_anchor_x,
+                        (const uint8_t *)&g_band_x,
                         4, 2, 0);
         }
 
-        if (redraw_carried != 0) { draw_carried_icon(); redraw_carried--; }
+        if (g_redraw_carried != 0) { draw_carried_icon(); g_redraw_carried--; }
 
         seg172c_nothing();
 
@@ -381,7 +381,7 @@ void game_screen_loop(void)
         shift_all_histories();
 
         if (POINTER.button_right == 2)
-            round_state = 2;
+            g_round_state = 2;
     }
 
     if (HELD_PARTS.dragged_part != 0
@@ -425,7 +425,7 @@ void select_music_by_key(void)
 {
     int16_t si;
 
-    switch (last_key) {
+    switch (g_last_key) {
     case 2:  si = 0x3e9; break;
     case 3:  si = 0x3ea; break;
     case 4:  si = 0x3eb; break;
@@ -464,9 +464,9 @@ void select_music_by_key(void)
  */
 void reset_level_state(void)
 {
-    redraw_e = redraw_d = redraw_c = redraw_b
-        = redraw_a = redraw_carried = loop_frames
-        = tool = 0;
+    g_redraw_e = g_redraw_d = g_redraw_c = g_redraw_b
+        = g_redraw_a = g_redraw_carried = g_loop_frames
+        = g_tool = 0;
     HELD_PARTS.dragged_part = 0;
 
     clear_layer_heads();
@@ -502,7 +502,7 @@ void pointer_frame(void)
 {
     int16_t si;
 
-    if (tool == 9 || (tool & 0x8000) != 0)
+    if (g_tool == 9 || (g_tool & 0x8000) != 0)
         si = 1;
     else
         si = 0;
@@ -515,13 +515,13 @@ void pointer_frame(void)
     }
 
     if (HELD_PARTS.dragged_part != 0) {
-        if (tool != 9)
-            drop_cursor = 0x0a;
+        if (g_tool != 9)
+            g_drop_cursor = 0x0a;
 
         if (si == 0)
-            tool = part_handle_at_pointer(HELD_PARTS.dragged_part);
+            g_tool = part_handle_at_pointer(HELD_PARTS.dragged_part);
 
-        switch (tool & 0x7fff) {
+        switch (g_tool & 0x7fff) {
         case 9:
             move_carried();
             break;
@@ -553,7 +553,7 @@ void pointer_frame(void)
             break;
         }
     } else {
-        tool = 0;
+        g_tool = 0;
     }
 }
 
@@ -579,19 +579,19 @@ void edge_scroll_flags(void)
 {
     uint16_t kind;                      /* dx */
 
-    if (tool == 9 && HELD_PARTS.dragged_part != 0) {
+    if (g_tool == 9 && HELD_PARTS.dragged_part != 0) {
         kind = HELD_PARTS.dragged_part->kind;
         if (kind != 8 && kind != 0x0a) {
-            redraw_carried = 1;
+            g_redraw_carried = 1;
 
             if (POINTER.pointer_y < 8)
-                redraw_d = 3;
+                g_redraw_d = 3;
             if (POINTER.pointer_y > 0x12f)
-                redraw_c = 3;
+                g_redraw_c = 3;
             if (POINTER.pointer_x < 8)
-                redraw_b = 3;
+                g_redraw_b = 3;
             if (POINTER.pointer_x > 0x1ff)
-                redraw_a = redraw_e = 3;
+                g_redraw_a = g_redraw_e = 3;
         }
     }
 }
@@ -630,28 +630,28 @@ void scroll_play_area(void)
     int16_t  y;                         /* [bp-2] */
     int16_t  moved;                     /* [bp-4] */
 
-    origin_c_x = origin_b_x;
-    origin_c_y = origin_b_y;
-    origin_b_x = origin_x;
-    origin_b_y = origin_y;
+    g_origin_c_x = g_origin_b_x;
+    g_origin_c_y = g_origin_b_y;
+    g_origin_b_x = g_origin_x;
+    g_origin_b_y = g_origin_y;
 
-    x = origin_x;
-    y = origin_y;
+    x = g_origin_x;
+    y = g_origin_y;
     moved = 0;
 
-    if (POINTER.pointer_x <= 0 && origin_x != -8) {
+    if (POINTER.pointer_x <= 0 && g_origin_x != -8) {
         moved = 1;
         x -= 0x10;
     }
-    if (POINTER.pointer_x >= 0x27f && origin_x != LEVEL_SETTINGS.extent_y) {
+    if (POINTER.pointer_x >= 0x27f && g_origin_x != LEVEL_SETTINGS.extent_y) {
         moved = 1;
         x += 0x10;
     }
-    if (POINTER.pointer_y <= 0 && origin_y != -8) {
+    if (POINTER.pointer_y <= 0 && g_origin_y != -8) {
         moved = 1;
         y -= 0x10;
     }
-    if (POINTER.pointer_y >= 0x16f && origin_y != LEVEL_SETTINGS.extent_x) {
+    if (POINTER.pointer_y >= 0x16f && g_origin_y != LEVEL_SETTINGS.extent_x) {
         moved = 1;
         y += 0x10;
     }
@@ -666,8 +666,8 @@ void scroll_play_area(void)
             si = pick_for_record(si, 0x1000);
         }
 
-        origin_x = x;
-        origin_y = y;
+        g_origin_x = x;
+        g_origin_y = y;
     }
 }
 
@@ -742,7 +742,7 @@ void move_carried_rope(void)
                 compute_link_endpoints(link);
                 mark_needs_refile(HELD_PARTS.dragged_part, 2);
                 refile_part_list(HELD_PARTS.dragged_part);
-                tool = 0;
+                g_tool = 0;
                 HELD_PARTS.dragged_part = 0;
             } else {
                 si->flags_08 |= 2;
@@ -752,15 +752,15 @@ void move_carried_rope(void)
             }
         }
     } else if (di != NULL) {
-        anchor_x = di->pos[0].x + di->grab.x;
-        anchor_y = di->pos[0].y + di->grab.y;
-        band_x = POINTER.pointer_x + origin_x;
-        band_y = POINTER.pointer_y + origin_y;
+        g_anchor_x = di->pos[0].x + di->grab.x;
+        g_anchor_y = di->pos[0].y + di->grab.y;
+        g_band_x = POINTER.pointer_x + g_origin_x;
+        g_band_y = POINTER.pointer_y + g_origin_y;
 
         if (close != 0)
-            band_colour = 0x0a;
+            g_band_colour = 0x0a;
         else
-            band_colour = 0x0c;
+            g_band_colour = 0x0c;
     }
 }
 
@@ -806,7 +806,7 @@ void move_carried_belt(void)
 
     di = find_belt_anchor(&end, GOAL_TESTS.belt_anchor);
 
-    if (di == belt_far_end && far_ != NULL)
+    if (di == g_belt_far_end && far_ != NULL)
         di = NULL;
     else if (di == far_ && far_ != NULL)
         di = NULL;
@@ -818,65 +818,65 @@ void move_carried_belt(void)
             if (far_ != NULL)
                 discard_carried_part();
         } else if (far_ != NULL) {
-            if (belt_far_end->kind == KIND_PULLEY) {
-                belt_far_end->link[2]
-                    = belt_far_end->link[0] = di;
-                mark_joined_shapes(belt_far_end, 3);
-                mark_part_shapes(belt_far_end, 3);
-                mark_needs_refile(belt_far_end, 2);
+            if (g_belt_far_end->kind == KIND_PULLEY) {
+                g_belt_far_end->link[2]
+                    = g_belt_far_end->link[0] = di;
+                mark_joined_shapes(g_belt_far_end, 3);
+                mark_part_shapes(g_belt_far_end, 3);
+                mark_needs_refile(g_belt_far_end, 2);
             } else {
-                belt_far_end->link[si->slot_a + 2]
-                    = belt_far_end->link[si->slot_a] = di;
+                g_belt_far_end->link[si->slot_a + 2]
+                    = g_belt_far_end->link[si->slot_a] = di;
             }
 
             refresh_link_geometry(si);
             mark_needs_refile(HELD_PARTS.dragged_part, 2);
 
             if (di->kind == KIND_PULLEY) {
-                di->link[3] = di->link[1] = belt_far_end;
+                di->link[3] = di->link[1] = g_belt_far_end;
                 di->belt[1] = si;
-                if (belt_far_end->kind == KIND_PULLEY)
-                    aim_link_at_bisector(belt_far_end);
-                belt_far_end = di;
+                if (g_belt_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(g_belt_far_end);
+                g_belt_far_end = di;
             } else {
-                di->link[end + 2] = di->link[end] = belt_far_end;
+                di->link[end + 2] = di->link[end] = g_belt_far_end;
                 di->belt[end] = si;
                 si->home_b = si->end_b = di;
                 si->home_slot_b = si->slot_b = end;
-                if (belt_far_end->kind == KIND_PULLEY)
-                    aim_link_at_bisector(belt_far_end);
+                if (g_belt_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(g_belt_far_end);
                 refile_part_list(HELD_PARTS.dragged_part);
-                tool = 0;
+                g_tool = 0;
                 HELD_PARTS.dragged_part = 0;
             }
         } else if (di->kind != KIND_PULLEY) {
             di->belt[end] = si;
             si->home_a = si->end_a = di;
             si->home_slot_a = si->slot_a = end;
-            belt_far_end = di;
+            g_belt_far_end = di;
         }
     } else if (far_ != NULL) {
-        if (belt_far_end->kind == KIND_PULLEY) {
+        if (g_belt_far_end->kind == KIND_PULLEY) {
             end = 1;
-            aim_link_at_bisector(belt_far_end);
-            mark_joined_shapes(belt_far_end, 3);
-            mark_part_shapes(belt_far_end, 3);
-            mark_needs_refile(belt_far_end, 2);
+            aim_link_at_bisector(g_belt_far_end);
+            mark_joined_shapes(g_belt_far_end, 3);
+            mark_part_shapes(g_belt_far_end, 3);
+            mark_needs_refile(g_belt_far_end, 2);
         } else {
             end = si->slot_a;
         }
 
-        anchor_x = belt_far_end->pos[0].x
-                        + belt_far_end->attach[end].x;
-        anchor_y = belt_far_end->pos[0].y
-                        + belt_far_end->attach[end].y;
-        band_x = POINTER.pointer_x + origin_x;
-        band_y = POINTER.pointer_y + origin_y;
+        g_anchor_x = g_belt_far_end->pos[0].x
+                        + g_belt_far_end->attach[end].x;
+        g_anchor_y = g_belt_far_end->pos[0].y
+                        + g_belt_far_end->attach[end].y;
+        g_band_x = POINTER.pointer_x + g_origin_x;
+        g_band_y = POINTER.pointer_y + g_origin_y;
 
         if (di != NULL)
-            band_colour = 0x0a;
+            g_band_colour = 0x0a;
         else
-            band_colour = 0x0c;
+            g_band_colour = 0x0c;
     }
 }
 
@@ -922,24 +922,24 @@ void move_carried_part(void)
     part_key_shortcut();
 
     if (CARRIED->flags_0a & 8) {
-        CARRIED->pos[0].x = POINTER.pointer_x - drag_offset_x + origin_x;
-        if (CARRIED->pos[0].x + CARRIED->size[0].width <= origin_x + 0x0c)
-            CARRIED->pos[0].x = origin_x - CARRIED->size[0].width + 0x0c;
-        if (CARRIED->pos[0].x >= origin_x + 0x235)
-            CARRIED->pos[0].x = origin_x + 0x235;
+        CARRIED->pos[0].x = POINTER.pointer_x - g_drag_offset_x + g_origin_x;
+        if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x + 0x0c)
+            CARRIED->pos[0].x = g_origin_x - CARRIED->size[0].width + 0x0c;
+        if (CARRIED->pos[0].x >= g_origin_x + 0x235)
+            CARRIED->pos[0].x = g_origin_x + 0x235;
 
-        CARRIED->pos[0].y = POINTER.pointer_y - drag_offset_y + origin_y;
-        if (CARRIED->pos[0].y + CARRIED->size[0].height <= origin_y + 0x0c)
-            CARRIED->pos[0].y = origin_y - CARRIED->size[0].height + 0x0c;
-        if (CARRIED->pos[0].y >= origin_y + 0x165)
-            CARRIED->pos[0].y = origin_y + 0x165;
+        CARRIED->pos[0].y = POINTER.pointer_y - g_drag_offset_y + g_origin_y;
+        if (CARRIED->pos[0].y + CARRIED->size[0].height <= g_origin_y + 0x0c)
+            CARRIED->pos[0].y = g_origin_y - CARRIED->size[0].height + 0x0c;
+        if (CARRIED->pos[0].y >= g_origin_y + 0x165)
+            CARRIED->pos[0].y = g_origin_y + 0x165;
     } else {
-        CARRIED->pos[0].x = ((POINTER.pointer_x - drag_offset_x) & 0xfff0) + origin_x;
-        if (CARRIED->pos[0].x + CARRIED->size[0].width <= origin_x)
+        CARRIED->pos[0].x = ((POINTER.pointer_x - g_drag_offset_x) & 0xfff0) + g_origin_x;
+        if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x)
             CARRIED->pos[0].x += 0x10;
 
-        CARRIED->pos[0].y = ((POINTER.pointer_y - drag_offset_y) & 0xfff0) + origin_y;
-        if (CARRIED->pos[0].y + CARRIED->size[0].height <= origin_y)
+        CARRIED->pos[0].y = ((POINTER.pointer_y - g_drag_offset_y) & 0xfff0) + g_origin_y;
+        if (CARRIED->pos[0].y + CARRIED->size[0].height <= g_origin_y)
             CARRIED->pos[0].y += 0x10;
     }
 
@@ -957,24 +957,24 @@ void move_carried_part(void)
         break_second_attachment(CARRIED);
 
     if (object_overlaps_any(CARRIED) != 0) {
-        drop_cursor = 0x0e;
+        g_drop_cursor = 0x0e;
     } else if (POINTER.button_left == 2) {
         mark_joined_shapes(CARRIED, 3);
 
         if (di != 0) {
             untie_rope(si->owner);
             discard_part(si->owner);
-            redraw_e = 2;
+            g_redraw_e = 2;
         }
 
         mark_needs_refile(CARRIED, 2);
         CARRIED->start_x = CARRIED->pos[0].x;
         CARRIED->start_y = CARRIED->pos[0].y;
         refile_part_list(CARRIED);
-        tool = 0;
+        g_tool = 0;
         HELD_PARTS.dragged_part = 0;
     } else {
-        drop_cursor = 0x0c;
+        g_drop_cursor = 0x0c;
     }
 
     if (POINTER.button_left != 2)
@@ -1013,7 +1013,7 @@ void part_key_shortcut(void)
 
     si = CARRIED->kind;
 
-    switch (last_key) {
+    switch (g_last_key) {
     case 0x2d:                          /* X */
         if (CARRIED->flags_06 & 0x400)
             flip_carried_end_1();
@@ -1102,8 +1102,8 @@ void pick_up_part(void)
     struct rope *di;
     struct belt *rec;                   /* [bp-2] */
 
-    drag_offset_x = POINTER.pointer_x - CARRIED->pos[0].x + origin_x;
-    drag_offset_y = POINTER.pointer_y - CARRIED->pos[0].y + origin_y;
+    g_drag_offset_x = POINTER.pointer_x - CARRIED->pos[0].x + g_origin_x;
+    g_drag_offset_y = POINTER.pointer_y - CARRIED->pos[0].y + g_origin_y;
 
     if ((di = CARRIED->rope) != NULL)
         si = di->end_a;
@@ -1119,7 +1119,7 @@ void pick_up_part(void)
         untie_rope(CARRIED);
     } else if (CARRIED->kind == KIND_ROPE) {
         rec = CARRIED->belt[0];
-        belt_far_end = rec->end_b->link[rec->slot_b];
+        g_belt_far_end = rec->end_b->link[rec->slot_b];
         detach_belt(CARRIED, 0);
     } else {
         detach_part_to_bin(CARRIED);
@@ -1132,7 +1132,7 @@ void pick_up_part(void)
         si->rope = di;
     }
 
-    tool = 9;
+    g_tool = 9;
 }
 
 /*
@@ -1173,8 +1173,8 @@ void discard_carried_part(void)
         finish_part_removal();
     }
 
-    redraw_e = 2;
-    tool = 0;
+    g_redraw_e = 2;
+    g_tool = 0;
 }
 
 /*
@@ -1236,10 +1236,10 @@ void run_drag_frame(void)
 {
     int16_t si;
 
-    if (tool & 0x8000) {
+    if (g_tool & 0x8000) {
         si = 0;
 
-        switch (tool) {
+        switch (g_tool) {
         case 0x8003: si = drag_carried_part_first();   break;
         case 0x8004: si = settle_carried_part_first(); break;
         case 0x8005: si = drag_carried_part_pair();    break;
@@ -1257,11 +1257,11 @@ void run_drag_frame(void)
         }
 
         if (POINTER.button_left == 2) {
-            tool = 0;
+            g_tool = 0;
             HELD_PARTS.dragged_part = 0;
         }
     } else if (POINTER.button_left == 2) {
-        tool |= 0x8000;
+        g_tool |= 0x8000;
     }
 }
 
@@ -1289,7 +1289,7 @@ int16_t drag_carried_part_first(void)
 
     moved = 0;
     was = CARRIED->pos[0].x;
-    si = (POINTER.pointer_x & 0xfff0) + origin_x;
+    si = (POINTER.pointer_x & 0xfff0) + g_origin_x;
     lo = PART_KINDS[CARRIED->kind].min_w;
     hi = PART_KINDS[CARRIED->kind].max_w;
     di = was - si + CARRIED->set_size.width;
@@ -1343,7 +1343,7 @@ int16_t settle_carried_part_first(void)
 
     moved = 0;
     di = CARRIED->set_size.width;
-    si = (POINTER.pointer_x & 0xfff0) + origin_x + 0x10 - CARRIED->pos[0].x;
+    si = (POINTER.pointer_x & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].x;
     lo = PART_KINDS[CARRIED->kind].min_w;
     hi = PART_KINDS[CARRIED->kind].max_w;
 
@@ -1398,7 +1398,7 @@ int16_t drag_carried_part_pair(void)
 
     moved = 0;
     was = CARRIED->pos[0].y;
-    si = (POINTER.pointer_y & 0xfff0) + origin_y;
+    si = (POINTER.pointer_y & 0xfff0) + g_origin_y;
     lo = PART_KINDS[CARRIED->kind].min_h;
     hi = PART_KINDS[CARRIED->kind].max_h;
     di = was - si + CARRIED->set_size.height;
@@ -1469,7 +1469,7 @@ int16_t settle_carried_part(void)
     di = CARRIED->set_size.height;
     /* **origin_x, not origin_y**, at 0x10c08: the original adds the
        horizontal scroll to the pointer's y here. */
-    si = (POINTER.pointer_y & 0xfff0) + origin_x + 0x10 - CARRIED->pos[0].y;
+    si = (POINTER.pointer_y & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].y;
     lo = PART_KINDS[CARRIED->kind].min_h;
     hi = PART_KINDS[CARRIED->kind].max_h;
 
@@ -1518,7 +1518,7 @@ void bin_scroll_back(void)
 
     if (POINTER.button_left != 1 && POINTER.button_left != 2) {
         GOAL_TESTS.back_held = 0;
-        round_state = 0x1000;
+        g_round_state = 0x1000;
     } else {
 #ifdef __TURBOC__
         if (GOAL_TESTS.back_held % 3 == 0) {
@@ -1528,12 +1528,12 @@ void bin_scroll_back(void)
             si = bin_part_at_index(-5);
             if (si != HELD_PARTS.bin_list) {
                 HELD_PARTS.bin_list = si;
-                redraw_e = 2;
+                g_redraw_e = 2;
             } else {
                 si = bin_scroll_end();
                 if (si != HELD_PARTS.bin_list) {
                     HELD_PARTS.bin_list = si;
-                    redraw_e = 2;
+                    g_redraw_e = 2;
                 }
             }
         }
@@ -1541,7 +1541,7 @@ void bin_scroll_back(void)
         GOAL_TESTS.back_held++;
     }
 
-    redraw_a = 2;
+    g_redraw_a = 2;
 }
 
 /*
@@ -1563,7 +1563,7 @@ void bin_scroll_forward(void)
 
     if (POINTER.button_left != 1 && POINTER.button_left != 2) {
         GOAL_TESTS.forward_held = 0;
-        round_state = 0x1000;
+        g_round_state = 0x1000;
     } else {
 #ifdef __TURBOC__
         if (GOAL_TESTS.forward_held % 3 == 0) {
@@ -1574,13 +1574,13 @@ void bin_scroll_forward(void)
                 HELD_PARTS.bin_list = p;
             else
                 HELD_PARTS.bin_list = (&HELD_PARTS.parts_bin);
-            redraw_e = 2;
+            g_redraw_e = 2;
         }
 
         GOAL_TESTS.forward_held++;
     }
 
-    redraw_a = 2;
+    g_redraw_a = 2;
 }
 
 /*
@@ -1605,7 +1605,7 @@ void bin_scroll_forward(void)
  */
 void region_cursor_bin_above(struct region *region)
 {
-    if (tool == 9) {
+    if (g_tool == 9) {
         region_cursor_bin(region);
         region->code = 0x1000;
     } else {
@@ -1635,7 +1635,7 @@ void region_cursor_bin(struct region *region)
 {
     uint16_t di;                        /* the carried part's kind */
 
-    if (tool == 9) {
+    if (g_tool == 9) {
         di = CARRIED->kind;
         if (di == 8)
             region->cursor = 8;
@@ -1686,18 +1686,18 @@ void region_click_bin(struct region *region)
     struct part *si;                    /* the clone */
     struct part *saved;                    /* [bp-2] */
 
-    if (tool == 9) {
+    if (g_tool == 9) {
         if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
-            redraw_e = 2;
+            g_redraw_e = 2;
 
         discard_carried_part();
-        tool = 0;
+        g_tool = 0;
     } else {
-        drag_offset_x = drag_offset_y = 0;
+        g_drag_offset_x = g_drag_offset_y = 0;
 
         if ((HELD_PARTS.dragged_part
                  = (bin_part_at_index(region->slot))->next) != 0) {
-            if (freeform != 0) {
+            if (g_freeform != 0) {
                 si = clone_part(CARRIED);
                 saved = HELD_PARTS.dragged_part;
                 HELD_PARTS.dragged_part = 0;
@@ -1715,9 +1715,9 @@ void region_click_bin(struct region *region)
             }
 
             if (HELD_PARTS.dragged_part != 0) {
-                tool = 9;
+                g_tool = 9;
                 if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
-                    redraw_e = 2;
+                    g_redraw_e = 2;
             }
         }
     }
@@ -1801,43 +1801,43 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(pal_tim);
+    set_palette_pointer(g_pal_tim);
     repaint_all = repaint_e = repaint_f = repaint_g = reload = done = held = 0;
     show_cursor_again();
 
     while (done == 0) {
         update_button_state();
 
-        last_key = bios_read_key() >> 8;
-        if (last_key == SC_TAB)
+        g_last_key = bios_read_key() >> 8;
+        if (g_last_key == SC_TAB)
             tab_move_pointer();
 
-        regions_handle_pointer(regions_panel);
+        regions_handle_pointer(g_regions_panel);
 
         if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
             show_message_box(MESSAGES.version_number, MESSAGES.this_is_version);
             repaint_all = 1;
-            round_state = 2;
+            g_round_state = 2;
         }
 
         /* Signed: the table at 0x114af sorts 0x8000 first. */
-        switch ((int16_t)round_state) {
+        switch ((int16_t)g_round_state) {
         case (int16_t)0x8000:
             paint_panel_a(1);
             present_back_page();
-            round_state = 0x1000;
+            g_round_state = 0x1000;
             done = 1;
             break;
 
         case 0x4000:                    /* the master level's up arrow */
             if (POINTER.button_left != 1 && POINTER.button_left != 2) {
                 held = 0;
-                round_state = 2;
+                g_round_state = 2;
             } else {
-                if (held % 8 == 0 && master_level != 6) {
-                    master_level++;
+                if (held % 8 == 0 && g_master_level != 6) {
+                    g_master_level++;
                     write_config();
-                    set_master_level_ok(master_level_ok[master_level]);
+                    set_master_level_ok(g_master_level_ok[g_master_level]);
                 }
                 held++;
             }
@@ -1847,12 +1847,12 @@ void game_screen(void)
         case 0x2000:                    /* and its down arrow */
             if (POINTER.button_left != 1 && POINTER.button_left != 2) {
                 held = 0;
-                round_state = 2;
+                g_round_state = 2;
             } else {
-                if (held % 8 == 0 && master_level != 0) {
-                    master_level--;
+                if (held % 8 == 0 && g_master_level != 0) {
+                    g_master_level--;
                     write_config();
-                    set_master_level_ok(master_level_ok[master_level]);
+                    set_master_level_ok(g_master_level_ok[g_master_level]);
                 }
                 held++;
             }
@@ -1863,10 +1863,10 @@ void game_screen(void)
             paint_panel_b(1);
             present_back_page();
             if (ask_yes_no(MESSAGES.quit_game, MESSAGES.quit_body)) {
-                round_state = 1;
+                g_round_state = 1;
                 done = 1;
             } else {
-                round_state = 2;
+                g_round_state = 2;
                 repaint_all = 1;
             }
             break;
@@ -1876,94 +1876,94 @@ void game_screen(void)
             present_back_page();
             if (ask_yes_no(MESSAGES.restart_level, MESSAGES.restart_body)) {
                 remove_all_parts();
-                round_state = 0x1000;
+                g_round_state = 0x1000;
                 done = 1;
             } else {
-                round_state = 2;
+                g_round_state = 2;
                 repaint_all = 1;
             }
             break;
 
         case 0x0400:                    /* FREEFORM */
-            if (freeform == 0) {
+            if (g_freeform == 0) {
                 paint_panel_level(1);
                 present_back_page();
                 if (ask_yes_no(MESSAGES.freeform_mode, MESSAGES.freeform_body)) {
                     round_teardown();
                     load_animation(WRITABLE_LITERAL("ff.lev"));
                     reset_machine();
-                    freeform = 1;
-                    odometer_total = 0;
+                    g_freeform = 1;
+                    g_odometer_total = 0;
                     LEVEL_SETTINGS.bonus_1 = LEVEL_SETTINGS.bonus_2 = 0;
                     start_counters();
                 }
                 repaint_all = 1;
             }
-            round_state = 2;
+            g_round_state = 2;
             break;
 
         case 0x0200:                    /* the puzzle picker, or leaving freeform */
             paint_panel_d(1);
             present_back_page();
-            if (freeform != 0
+            if (g_freeform != 0
                 && ask_yes_no(MESSAGES.leave_freeform_mode, MESSAGES.leave_freeform_body)) {
-                freeform = 0;
+                g_freeform = 0;
                 reload = 1;
             }
-            if (freeform == 0
+            if (g_freeform == 0
                 && (select_puzzle_screen() != 0 || reload != 0)) {
                 round_teardown();
-                load_level(round_number);
+                load_level(g_round_number);
                 reset_machine();
                 reload = 0;
                 start_counters();
             }
             repaint_all = 1;
-            round_state = 2;
+            g_round_state = 2;
             break;
 
         case 0x0100:                    /* LOAD */
-            if (freeform != 0) {
+            if (g_freeform != 0) {
                 paint_panel_free_a(1);
                 present_back_page();
 
-                file_op_active = 1;
+                g_file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.picker_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.picker_dir[0]);
-                file_op_active = 0;
+                g_file_op_active = 0;
 
                 if (pick_file(0, 0, "*.TIM")) {
                     round_teardown();
-                    load_animation((char *)picked_machine);
+                    load_animation((char *)g_picked_machine);
                     reset_machine();
                 }
 
-                file_op_active = 1;
+                g_file_op_active = 1;
                 dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
                 if (dos_chdir((char *)GAME_DIRECTORIES.game_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.game_dir[0]);
-                file_op_active = 0;
+                g_file_op_active = 0;
 
                 repaint_all = 1;
             }
-            round_state = 2;
+            g_round_state = 2;
             break;
 
         case 0x0080:                    /* SAVE */
-            if (freeform != 0) {
+            if (g_freeform != 0) {
                 paint_panel_free_b(1);
                 present_back_page();
 
-                file_op_active = 1;
+                g_file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.picker_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.picker_dir[0]);
-                file_op_active = 0;
+                g_file_op_active = 0;
 
                 file_err = 1;
                 while (file_err != 0) {
-                    round_state = 0x80;
+                    g_round_state = 0x80;
                     if (pick_file(0, 0, "*.TIM")) {
-                        file_err = save_machine((char *)picked_machine);
+                        file_err = save_machine((char *)g_picked_machine);
                         if (file_err != 0) {
                             show_message_box(MESSAGES.file_error, MESSAGES.disk_write_protected);
                             paint_game_screen(0);
@@ -1974,23 +1974,23 @@ void game_screen(void)
                 }
 
                 dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
-                file_op_active = 1;
+                g_file_op_active = 1;
                 if (dos_chdir((char *)GAME_DIRECTORIES.game_dir) == 0)
                     dos_setdisk(GAME_DIRECTORIES.game_dir[0]);
-                file_op_active = 0;
+                g_file_op_active = 0;
 
                 repaint_all = 1;
             }
-            round_state = 2;
+            g_round_state = 2;
             break;
 
         case 0x0040:                    /* the gravity slider, which sets 0x50b5 */
-            if (freeform == 0) {
+            if (g_freeform == 0) {
                 show_message_box(MESSAGES.cant_change_gravity, MESSAGES.gravity_body);
                 repaint_all = 1;
-                round_state = 2;
+                g_round_state = 2;
             } else if (POINTER.button_left != 1 && POINTER.button_left != 2) {
-                round_state = 2;
+                g_round_state = 2;
             } else {
                 t = mul16x16(POINTER.pointer_x - 0x43, 0x200);
                 air = t / 0xa0;
@@ -2007,12 +2007,12 @@ void game_screen(void)
             break;
 
         case 0x0020:                    /* the air slider, which sets 0x50b3 */
-            if (freeform == 0) {
+            if (g_freeform == 0) {
                 show_message_box(MESSAGES.cant_change_air_pressure, MESSAGES.air_pressure_body);
                 repaint_all = 1;
-                round_state = 2;
+                g_round_state = 2;
             } else if (POINTER.button_left != 1 && POINTER.button_left != 2) {
-                round_state = 2;
+                g_round_state = 2;
             } else {
                 t = mul16x16(POINTER.pointer_x - 0x43, 0x80);
                 gravity = t / 0xa0;
@@ -2079,7 +2079,7 @@ void game_screen(void)
  */
 void region_cursor_freeform(struct region *region)
 {
-    if (freeform != 0)
+    if (g_freeform != 0)
         region->cursor = 0;
     else
         region->cursor = 0x14;
@@ -2093,7 +2093,7 @@ void region_cursor_freeform(struct region *region)
  */
 void region_cursor_load(struct region *region)
 {
-    if (freeform != 0)
+    if (g_freeform != 0)
         region->cursor = 0x17;
     else
         region->cursor = 0;
@@ -2106,7 +2106,7 @@ void region_cursor_load(struct region *region)
  */
 void region_cursor_save(struct region *region)
 {
-    if (freeform != 0)
+    if (g_freeform != 0)
         region->cursor = 0x16;
     else
         region->cursor = 0;
@@ -2119,7 +2119,7 @@ void region_cursor_save(struct region *region)
  */
 void region_cursor_gravity(struct region *region)
 {
-    if (freeform != 0)
+    if (g_freeform != 0)
         region->cursor = 0x18;
     else
         region->cursor = 0;
@@ -2132,7 +2132,7 @@ void region_cursor_gravity(struct region *region)
  */
 void region_cursor_air(struct region *region)
 {
-    if (freeform != 0)
+    if (g_freeform != 0)
         region->cursor = 0x19;
     else
         region->cursor = 0;
@@ -2166,7 +2166,7 @@ void tab_move_pointer(void)
 
     GAME_PLAY_TABS.stop++;
 
-    if (freeform != 0) {
+    if (g_freeform != 0) {
         if (GAME_PLAY_TABS.stop == 5)
             GAME_PLAY_TABS.stop = 6;
     } else if (GAME_PLAY_TABS.stop == 7) {
@@ -2226,7 +2226,7 @@ void paint_game_screen(uint16_t present)
     set_clip_play_area();
 
     VMDS.page_dst = VMDS.page_back;
-    VMDS.second_colour = VMDS.fill_colour = (uint8_t)fill_colour;
+    VMDS.second_colour = VMDS.fill_colour = (uint8_t)g_fill_colour;
     VMDS.fill_enabled = 1;
 
     cursor_redraw_off_thunk();
@@ -2242,7 +2242,7 @@ void paint_game_screen(uint16_t present)
     paint_panel_c(0);
     paint_panel_d(0);
 
-    if (freeform != 0) {
+    if (g_freeform != 0) {
         paint_panel_free_a(0);
         paint_panel_free_b(0);
     } else {
@@ -2254,9 +2254,9 @@ void paint_game_screen(uint16_t present)
     paint_panel_g();
 
     cursor_redraw_off_thunk();
-    draw_bitmap(panel_art[3], 0x53, 0x42, 0);
-    draw_bitmap(panel_art[5], 0x64, 0xb2, 0);
-    draw_bitmap(panel_art[4], 0x5b, 0xfe, 0);
+    draw_bitmap(g_panel_art[3], 0x53, 0x42, 0);
+    draw_bitmap(g_panel_art[5], 0x64, 0xb2, 0);
+    draw_bitmap(g_panel_art[4], 0x5b, 0xfe, 0);
     restore_cursor_following();
 
     select_music(LEVEL_SETTINGS.tune);
@@ -2364,29 +2364,29 @@ void paint_panel_frame(void)
     char title[120];
     char digits[8];
 
-    if (freeform != 0) {
+    if (g_freeform != 0) {
         strcpy(title, MESSAGES.freeform_mode_title);
     } else {
         strcpy(title, MESSAGES.puzzle_prefix);
-        itoa(round_number, digits, 10);
+        itoa(g_round_number, digits, 10);
         strcat(title, digits);
         strcat(title, ": ");
-        strcat(title, (const char *)level_title);
+        strcat(title, (const char *)g_level_title);
     }
 
     set_clip_play_area();
     VMDS.page_dst = VMDS.page_back;
 
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
-    fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)fill_colour));
+    fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)g_fill_colour));
 
     draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
-    if (freeform != 0)
+    if (g_freeform != 0)
         draw_wrapped_text((char *)MESSAGES.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
     else
-        draw_wrapped_text((char *)level_hint, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44);
 
     paint_panel_frame_rest();
 }
@@ -2411,7 +2411,7 @@ void paint_panel_a(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x10)[frame]),
+    draw_bitmap(((g_panel_art + 0x10)[frame]),
                 0x3a, 0x5b, 0);
     restore_cursor_following();
 }
@@ -2436,7 +2436,7 @@ void paint_panel_b(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x12)[frame]),
+    draw_bitmap(((g_panel_art + 0x12)[frame]),
                 0xd8, 0x60, 0);
     restore_cursor_following();
 }
@@ -2461,7 +2461,7 @@ void paint_panel_c(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x1f)[frame]),
+    draw_bitmap(((g_panel_art + 0x1f)[frame]),
                 0xbc, 0x5c, 0);
     restore_cursor_following();
 }
@@ -2486,7 +2486,7 @@ void paint_panel_d(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x29)[frame]),
+    draw_bitmap(((g_panel_art + 0x29)[frame]),
                 0x6d, 0x85, 0);
     restore_cursor_following();
 }
@@ -2507,9 +2507,9 @@ void paint_panel_free_a(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x21)[frame]),
+    draw_bitmap(((g_panel_art + 0x21)[frame]),
                 0x96, 0x8c, 0);
-    draw_bitmap(((panel_art + 0x1d)[frame]),
+    draw_bitmap(((g_panel_art + 0x1d)[frame]),
                 0xa6, 0x8b, 0);
     restore_cursor_following();
 }
@@ -2530,9 +2530,9 @@ void paint_panel_free_b(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x23)[frame]),
+    draw_bitmap(((g_panel_art + 0x23)[frame]),
                 0xc8, 0x8c, 0);
-    draw_bitmap(((panel_art + 0x1d)[frame]),
+    draw_bitmap(((g_panel_art + 0x1d)[frame]),
                 0xd8, 0x8b, 0);
     restore_cursor_following();
 }
@@ -2549,7 +2549,7 @@ void paint_panel_level(uint16_t frame)
     VMDS.page_dst = VMDS.page_back;
 
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x1b)[frame]),
+    draw_bitmap(((g_panel_art + 0x1b)[frame]),
                 0x39, 0x86, 0);
     restore_cursor_following();
 }
@@ -2580,11 +2580,11 @@ void paint_panel_e(void)
     int16_t up;                         /* [bp-4] */
     int16_t down;                       /* [bp-6] */
 
-    if (round_state == 0x4000)
+    if (g_round_state == 0x4000)
         up = 0x26;
     else
         up = 0x25;
-    if (round_state == 0x2000)
+    if (g_round_state == 0x2000)
         down = 0x28;
     else
         down = 0x27;
@@ -2594,14 +2594,14 @@ void paint_panel_e(void)
 
     for (si = 0x84; si < 0xb4; si += 8)
         for (di = 0x5f; di <= 0x77; di += 8)
-            draw_bitmap(panel_art[0x2b], si, di, 0);
+            draw_bitmap(g_panel_art[0x2b], si, di, 0);
 
-    draw_bitmap(panel_art[up],   0x58, 0x5d, 0);
-    draw_bitmap(panel_art[down], 0x58, 0x6f, 0);
-    draw_bitmap(panel_art[0x14], 0x6e, 0x60, 0);
+    draw_bitmap(g_panel_art[up],   0x58, 0x5d, 0);
+    draw_bitmap(g_panel_art[down], 0x58, 0x6f, 0);
+    draw_bitmap(g_panel_art[0x14], 0x6e, 0x60, 0);
 
-    for (si = 1, y = 0x69; si <= master_level; si++, y -= 2)
-        draw_bitmap(((panel_art + 0x14)[si]),
+    for (si = 1, y = 0x69; si <= g_master_level; si++, y -= 2)
+        draw_bitmap(((g_panel_art + 0x14)[si]),
                     GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
 
     restore_cursor_following();
@@ -2626,13 +2626,13 @@ void paint_panel_f(void)
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
 
-    draw_bitmap(panel_art[0x7], 0x41, 0xc8, 0);
-    draw_bitmap(panel_art[0x9], 0x3d, 0xe5, 0);
+    draw_bitmap(g_panel_art[0x7], 0x41, 0xc8, 0);
+    draw_bitmap(g_panel_art[0x9], 0x3d, 0xe5, 0);
 
     t = mul16x16(LEVEL_SETTINGS.air, 0xa0);
     at = t / 0x200;
 
-    draw_bitmap(panel_art[0x6],
+    draw_bitmap(g_panel_art[0x6],
                 at + 0x3d, 0xe0, 0);
 
     restore_cursor_following();
@@ -2657,13 +2657,13 @@ void paint_panel_g(void)
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
 
-    draw_bitmap(panel_art[0x8], 0x41, 0x114, 0);
-    draw_bitmap(panel_art[0x9], 0x3d, 0x131, 0);
+    draw_bitmap(g_panel_art[0x8], 0x41, 0x114, 0);
+    draw_bitmap(g_panel_art[0x9], 0x3d, 0x131, 0);
 
     t = mul16x16(LEVEL_SETTINGS.gravity, 0xa0);
     at = t / 0x80;
 
-    draw_bitmap(panel_art[0x6],
+    draw_bitmap(g_panel_art[0x6],
                 at + 0x3d, 0x12c, 0);
 
     restore_cursor_following();

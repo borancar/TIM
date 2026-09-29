@@ -31,12 +31,12 @@
    Borland lays `_BSS` out last mention first, and these two follow
    `_stklen` in the image. */
 extern struct game_directories GAME_DIRECTORIES;
-extern char picked_machine[0xd];
+extern char g_picked_machine[0xd];
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
 
-uint16_t master_level_ok[7] = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f };
+uint16_t g_master_level_ok[7] = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f };
 
 /* The draw step `draw_part` fills in for a part whose kind has no table. */
 struct draw_step DEFAULT_DRAW_STEP = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
@@ -2626,7 +2626,7 @@ struct part_kind PART_KINDS[PART_KIND_COUNT] = {
     }
 };
 
-char *path_separator = MESSAGES.path_sep;   /* DGROUP 0x1bca */
+char *g_path_separator = MESSAGES.path_sep;   /* DGROUP 0x1bca */
 struct messages MESSAGES = {
     "\012\012NOT ENOUGH FREE MEMORY\012",    /* not_enough_free_memory */
     "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",    /* you_need_at_least */
@@ -2705,59 +2705,59 @@ struct messages MESSAGES = {
  * itself - so TLINK takes none from the library.
  */
 struct game_directories GAME_DIRECTORIES;   /* DGROUP 0x530b */
-char picked_machine[0xd];   /* DGROUP 0x52fe */
+char g_picked_machine[0xd];   /* DGROUP 0x52fe */
 uint16_t _stklen;   /* DGROUP 0x52fc */
-uint16_t stop_requested;   /* DGROUP 0x52fa  game_teardown(0) raises it; the loops above read it */
-FILE     *tim_sx;   /* DGROUP 0x52f8  tim.sx's file record, which open_sound_file reads the sounds from */
-struct bitmap **cursor_art;   /* DGROUP 0x52f6  mouse.bmp's list */
-struct bitmap **panel_art;   /* DGROUP 0x52f4  the art set the panel's pieces come out of */
-uint16_t cursor_follows;   /* DGROUP 0x52f2  restore_cursor_following is guarded by this */
-uint8_t last_key;   /* DGROUP 0x52f1  the last key the screen loops took - a **byte**:
-                       `cursor_follows` is at 0x52f2 */
+uint16_t g_stop_requested;   /* DGROUP 0x52fa  game_teardown(0) raises it; the loops above read it */
+FILE     *g_tim_sx;   /* DGROUP 0x52f8  tim.sx's file record, which open_sound_file reads the sounds from */
+struct bitmap **g_cursor_art;   /* DGROUP 0x52f6  mouse.bmp's list */
+struct bitmap **g_panel_art;   /* DGROUP 0x52f4  the art set the panel's pieces come out of */
+uint16_t g_cursor_follows;   /* DGROUP 0x52f2  restore_cursor_following is guarded by this */
+uint8_t g_last_key;   /* DGROUP 0x52f1  the last key the screen loops took - a **byte**:
+                       `g_cursor_follows` is at 0x52f2 */
 /*
  * DGROUP 0x52ed  tim.pal: the far pointer `load_palette` answers, stored whole and
  * read whole by `set_palette_pointer` and `free_far_block`.
  */
-uint8_t far *pal_tim;
+uint8_t far *g_pal_tim;
 /* DGROUP 0x52e9..0x52ed: nothing in the image names these four bytes. Ours. */
 uint8_t DG52E9[4];
-uint8_t far *pal_sierra;   /* DGROUP 0x52e5  sierra.pal */
-uint8_t far *pal_black;   /* DGROUP 0x52e1  black.pal, as pal_tim */
+uint8_t far *g_pal_sierra;   /* DGROUP 0x52e5  sierra.pal */
+uint8_t far *g_pal_black;   /* DGROUP 0x52e1  black.pal, as pal_tim */
 /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
    start-up; `set_font` takes it and `game_teardown` gives its slot back. */
-int16_t memo_font;   /* DGROUP 0x52df */
+int16_t g_memo_font;   /* DGROUP 0x52df */
 /* **The saved clip rectangle**, stored in descending order - 0x52dd is the
    left edge and 0x52d7 the bottom, which looks like a transcription error
    and is not. */
-int16_t saved_clip_left;   /* DGROUP 0x52dd */
-int16_t saved_clip_right;   /* DGROUP 0x52db */
-int16_t saved_clip_top;   /* DGROUP 0x52d9 */
-int16_t saved_clip_bottom;   /* DGROUP 0x52d7 */
-int16_t music_now;   /* DGROUP 0x52d5  the tune opened and started, remembered */
+int16_t g_saved_clip_left;   /* DGROUP 0x52dd */
+int16_t g_saved_clip_right;   /* DGROUP 0x52db */
+int16_t g_saved_clip_top;   /* DGROUP 0x52d9 */
+int16_t g_saved_clip_bottom;   /* DGROUP 0x52d7 */
+int16_t g_music_now;   /* DGROUP 0x52d5  the tune opened and started, remembered */
 /* **Four request-and-acknowledge words**, one per machine sound: something
    sets one to 2, and `run_machine_loop`, which does all four every frame,
    turns it to 1 and then stops the sound. */
-int16_t sound_request_01;   /* DGROUP 0x52d3 */
-int16_t sound_request_02;   /* DGROUP 0x52d1 */
-int16_t sound_request_09;   /* DGROUP 0x52cf */
-int16_t sound_request_0c;   /* DGROUP 0x52cd */
-int16_t fill_colour;   /* DGROUP 0x52cb  the colour the panel and the title box are filled in */
+int16_t g_sound_request_01;   /* DGROUP 0x52d3 */
+int16_t g_sound_request_02;   /* DGROUP 0x52d1 */
+int16_t g_sound_request_09;   /* DGROUP 0x52cf */
+int16_t g_sound_request_0c;   /* DGROUP 0x52cd */
+int16_t g_fill_colour;   /* DGROUP 0x52cb  the colour the panel and the title box are filled in */
 /* **The colour the parts bin's column is cleared to**, 0x0b, filed once by
    `game_setup` and read only by `draw_machine_layer_a`, which puts it in
    both of the driver's fill colours before its two `fill_rect`s. */
-int16_t bin_colour;   /* DGROUP 0x52c9 */
-int16_t drop_cursor;   /* DGROUP 0x52c7  0xa on every frame the hand is not already carrying */
-int16_t band_colour;   /* DGROUP 0x52c5  0xa where it would attach, -1 for no line */
-int16_t anchor_y;   /* DGROUP 0x52c3 */
-int16_t anchor_x;   /* DGROUP 0x52c1  the far part's anchor: its +0x1e and +0x20 plus +0x56, +0x57 */
-int16_t band_y;   /* DGROUP 0x52bf */
-int16_t band_x;   /* DGROUP 0x52bd  the pointer in play-area coordinates */
-struct part placed_parts;   /* DGROUP 0x521b */
-struct part moving_parts;   /* DGROUP 0x5179 */
+int16_t g_bin_colour;   /* DGROUP 0x52c9 */
+int16_t g_drop_cursor;   /* DGROUP 0x52c7  0xa on every frame the hand is not already carrying */
+int16_t g_band_colour;   /* DGROUP 0x52c5  0xa where it would attach, -1 for no line */
+int16_t g_anchor_y;   /* DGROUP 0x52c3 */
+int16_t g_anchor_x;   /* DGROUP 0x52c1  the far part's anchor: its +0x1e and +0x20 plus +0x56, +0x57 */
+int16_t g_band_y;   /* DGROUP 0x52bf */
+int16_t g_band_x;   /* DGROUP 0x52bd  the pointer in play-area coordinates */
+struct part g_placed_parts;   /* DGROUP 0x521b */
+struct part g_moving_parts;   /* DGROUP 0x5179 */
 struct held_parts HELD_PARTS;   /* DGROUP 0x50d3 */
 /* DGROUP 0x50cb..0x50d3: nothing in the image names these eight bytes. Ours. */
 uint8_t DG50CB[8];
-struct part *layer_head[6];   /* DGROUP 0x50bf */
+struct part *g_layer_head[6];   /* DGROUP 0x50bf */
 struct level_settings LEVEL_SETTINGS;   /* DGROUP 0x50af */
 /* **The level's title and hint**, read from the level file by
    `load_level` when it is a level and written back by `write_level`;
@@ -2766,113 +2766,113 @@ struct level_settings LEVEL_SETTINGS;   /* DGROUP 0x50af */
    hint's extent is the gap to the next record at 0x50af, and the reader
    (`game_fread_string`, a length byte then the bytes) can put at most
    255 in it. */
-char level_hint[0x190];   /* DGROUP 0x4f1f, up to LEVEL_SETTINGS */
-char level_title[0x50];   /* DGROUP 0x4ecf */
-struct bitmap **score2_bmp;   /* DGROUP 0x4ecd  score2.bmp's - draw_odometer_digit's strips */
-struct bitmap **bmp_4ecb;   /* DGROUP 0x4ecb  gp_bord.bmp's */
-struct bitmap **menu_bmp;   /* DGROUP 0x4ec9  gp_menu.bmp's */
-struct bitmap **icons_bmp;   /* DGROUP 0x4ec7  icons.bmp's list */
-int16_t cursor;   /* DGROUP 0x4ec5 */
+char g_level_hint[0x190];   /* DGROUP 0x4f1f, up to LEVEL_SETTINGS */
+char g_level_title[0x50];   /* DGROUP 0x4ecf */
+struct bitmap **g_score2_bmp;   /* DGROUP 0x4ecd  score2.bmp's - draw_odometer_digit's strips */
+struct bitmap **g_bmp_4ecb;   /* DGROUP 0x4ecb  gp_bord.bmp's */
+struct bitmap **g_menu_bmp;   /* DGROUP 0x4ec9  gp_menu.bmp's */
+struct bitmap **g_icons_bmp;   /* DGROUP 0x4ec7  icons.bmp's list */
+int16_t g_cursor;   /* DGROUP 0x4ec5 */
 /* **The cursor showing, and the one the hourglass replaced.**
    `select_cursor` returns at once when the number it is given is already
-   in `cursor`, `wait_cursor` files the outgoing one in `saved_cursor`
+   in `cursor`, `wait_cursor` files the outgoing one in `g_saved_cursor`
    unless it is the hourglass itself, and `restore_cursor` selects what is
    there. */
-int16_t saved_cursor;   /* DGROUP 0x4ec3 */
-int16_t master_level;   /* DGROUP 0x4ec1  the volume knob's setting; in tim.cfg */
-int16_t playing;   /* DGROUP 0x4ebf  game_play runs while this is non-zero */
-int16_t round_number;   /* DGROUP 0x4ebd  the puzzle being played; round_setup loads it */
+int16_t g_saved_cursor;   /* DGROUP 0x4ec3 */
+int16_t g_master_level;   /* DGROUP 0x4ec1  the volume knob's setting; in tim.cfg */
+int16_t g_playing;   /* DGROUP 0x4ebf  game_play runs while this is non-zero */
+int16_t g_round_number;   /* DGROUP 0x4ebd  the puzzle being played; round_setup loads it */
 /* **Written once and never read**, and that is the whole of what is known:
    `round_setup` stores 0 here, and the two bytes of this offset occur
    exactly once in the image - that store. A dead store of the original's,
    kept because DGROUP is compared with the original's memory. */
-uint16_t word_4ebb;   /* DGROUP 0x4ebb */
-int16_t level_count;   /* DGROUP 0x4eb9  how many L<n>.LEV there are */
-int16_t furthest_level;   /* DGROUP 0x4eb7  how far the player has reached; in tim.cfg */
-int16_t password_puzzle;   /* DGROUP 0x4eb5  the puzzle game_teardown prints a password for */
+uint16_t g_word_4ebb;   /* DGROUP 0x4ebb */
+int16_t g_level_count;   /* DGROUP 0x4eb9  how many L<n>.LEV there are */
+int16_t g_furthest_level;   /* DGROUP 0x4eb7  how far the player has reached; in tim.cfg */
+int16_t g_password_puzzle;   /* DGROUP 0x4eb5  the puzzle game_teardown prints a password for */
 /* **How far each bonus counter has rolled**, 0 to 0x15 - one digit cell -
    and back to 0 with one off the counter's value. `start_counters` puts
    the first at -4, which is four steps of nothing before it moves, and
    `step_counters` draws the band only while the scroll is positive. The
    second reel's is never armed in the shipped game; see `step_counters`
    and STATUS.md. */
-int16_t bonus_1_scroll;   /* DGROUP 0x4eb3 */
-int16_t bonus_2_scroll;   /* DGROUP 0x4eb1 */
-int32_t odometer_total;   /* DGROUP 0x4ead  the odometer's running total */
-/* **Two 32-bit scores.** `finish_level` copies `odometer_total` into
-   `banked_score` a word at a time, and each is read as one `int32_t`, by
+int16_t g_bonus_1_scroll;   /* DGROUP 0x4eb3 */
+int16_t g_bonus_2_scroll;   /* DGROUP 0x4eb1 */
+int32_t g_odometer_total;   /* DGROUP 0x4ead  the odometer's running total */
+/* **Two 32-bit scores.** `finish_level` copies `g_odometer_total` into
+   `g_banked_score` a word at a time, and each is read as one `int32_t`, by
    `score_to_code` and by the odometer. */
-int32_t banked_score;   /* DGROUP 0x4ea9  what finish_level banks for the password */
-/* `run_machine_loop` accumulates the ticks a frame took in `elapsed_ticks`
-   and counts its frames in `machine_frames`. */
-uint16_t machine_frames;   /* DGROUP 0x4ea7 */
-uint16_t elapsed_ticks;   /* DGROUP 0x4ea5 */
+int32_t g_banked_score;   /* DGROUP 0x4ea9  what finish_level banks for the password */
+/* `run_machine_loop` accumulates the ticks a frame took in `g_elapsed_ticks`
+   and counts its frames in `g_machine_frames`. */
+uint16_t g_machine_frames;   /* DGROUP 0x4ea7 */
+uint16_t g_elapsed_ticks;   /* DGROUP 0x4ea5 */
 /* **Three origin pairs**, y then x, all set to -8 by `round_setup`; which
    is which role is not established, only that the live one is the third,
-   `origin_y`/`origin_x`: the play area's scroll origin, which
+   `g_origin_y`/`g_origin_x`: the play area's scroll origin, which
    `draw_part_clip` takes from world coordinates to get the screen's. */
-int16_t origin_x;   /* DGROUP 0x4ea3 */
-int16_t origin_y;   /* DGROUP 0x4ea1 */
-int16_t origin_b_x;   /* DGROUP 0x4e9f */
-int16_t origin_b_y;   /* DGROUP 0x4e9d */
-int16_t origin_c_x;   /* DGROUP 0x4e9b */
-int16_t origin_c_y;   /* DGROUP 0x4e99 */
-uint16_t drag_offset_x;   /* DGROUP 0x4e97 */
+int16_t g_origin_x;   /* DGROUP 0x4ea3 */
+int16_t g_origin_y;   /* DGROUP 0x4ea1 */
+int16_t g_origin_b_x;   /* DGROUP 0x4e9f */
+int16_t g_origin_b_y;   /* DGROUP 0x4e9d */
+int16_t g_origin_c_x;   /* DGROUP 0x4e9b */
+int16_t g_origin_c_y;   /* DGROUP 0x4e99 */
+uint16_t g_drag_offset_x;   /* DGROUP 0x4e97 */
 /* **Where in the part the player took hold of it**: the pointer less the
    part's own origin, filed when a part is picked up and subtracted again
    every frame, so a part grabbed by its corner stays held by its corner.
    The y is first, which is the order the original writes them in. */
-uint16_t drag_offset_y;   /* DGROUP 0x4e95 */
+uint16_t g_drag_offset_y;   /* DGROUP 0x4e95 */
 /* **Five deferred redraws**, one layer each: a change asks for N frames and
    gets one a frame. Counts, not flags - `game_screen_loop` decrements each
    by one rather than clearing it. */
-uint16_t redraw_e;   /* DGROUP 0x4e93 */
-uint16_t redraw_d;   /* DGROUP 0x4e91 */
-uint16_t redraw_c;   /* DGROUP 0x4e8f */
-uint16_t redraw_b;   /* DGROUP 0x4e8d */
-uint16_t redraw_a;   /* DGROUP 0x4e8b */
+uint16_t g_redraw_e;   /* DGROUP 0x4e93 */
+uint16_t g_redraw_d;   /* DGROUP 0x4e91 */
+uint16_t g_redraw_c;   /* DGROUP 0x4e8f */
+uint16_t g_redraw_b;   /* DGROUP 0x4e8d */
+uint16_t g_redraw_a;   /* DGROUP 0x4e8b */
 /* **A countdown for the carried part's icon**, the same shape as a part's
    own `redraw_count`: the editor loop draws the icon and steps it down
    while it is not zero. */
-uint16_t redraw_carried;   /* DGROUP 0x4e89 */
+uint16_t g_redraw_carried;   /* DGROUP 0x4e89 */
 /* **Frames the loop that is running has run.** `step_loop_frames` adds one
    a frame from the intro's loop and from `run_machine_loop`, `round_setup`
    clears it, and `draw_machine_layer_f` clears it on its way in - which is
    what freezes the bin's header animation at frame 0, the one thing that
    reads it as a phase. The other reader is `goal_test_puzzle_70`, which
    wants 0x134 of them before it will pass, so on that puzzle it is
-   elapsed time. Not `machine_frames`: that one `clear_machine` resets at
+   elapsed time. Not `g_machine_frames`: that one `clear_machine` resets at
    every start and this one only a new round does. */
-int16_t loop_frames;   /* DGROUP 0x4e87  wraps 0x2a00 to 0x1c00 */
-uint16_t file_op_active;   /* DGROUP 0x4e85  GUESS: 1 around the chdir a file dialog does */
+int16_t g_loop_frames;   /* DGROUP 0x4e87  wraps 0x2a00 to 0x1c00 */
+uint16_t g_file_op_active;   /* DGROUP 0x4e85  GUESS: 1 around the chdir a file dialog does */
 /* **The "memory is getting low" box has been shown.** Set with the box and
    cleared again only when the largest free block climbs back over 0x1770,
    which is the hysteresis that stops a machine hovering near the edge
    being told twice. */
-uint16_t memory_warned;   /* DGROUP 0x4e83 */
-int16_t holiday_valentine;   /* DGROUP 0x4e81  14 February - kind 33, the heart */
-int16_t holiday_stpatrick;   /* DGROUP 0x4e7f  17 March    - read by nothing */
-int16_t holiday_halloween;   /* DGROUP 0x4e7d  31 October  - kind 32, the pumpkin */
-int16_t holiday_christmas;   /* DGROUP 0x4e7b  25 December - kind 34, the tree */
-struct region *regions_play;   /* DGROUP 0x4e79  the play screen's */
-struct region *regions_panel;   /* DGROUP 0x4e77  the briefing's controls */
-struct region *regions_c;   /* DGROUP 0x4e75 */
-struct region *regions_b;   /* DGROUP 0x4e73 */
-struct region *regions_a;   /* DGROUP 0x4e71  the five region lists, heads of */
-struct region *region_kept_b;   /* DGROUP 0x4e6f */
-struct region *region_kept_a;   /* DGROUP 0x4e6d  two records kept on their own as well */
-uint16_t round_state;   /* DGROUP 0x4e6b  the round and screen state machine's word */
+uint16_t g_memory_warned;   /* DGROUP 0x4e83 */
+int16_t g_holiday_valentine;   /* DGROUP 0x4e81  14 February - kind 33, the heart */
+int16_t g_holiday_stpatrick;   /* DGROUP 0x4e7f  17 March    - read by nothing */
+int16_t g_holiday_halloween;   /* DGROUP 0x4e7d  31 October  - kind 32, the pumpkin */
+int16_t g_holiday_christmas;   /* DGROUP 0x4e7b  25 December - kind 34, the tree */
+struct region *g_regions_play;   /* DGROUP 0x4e79  the play screen's */
+struct region *g_regions_panel;   /* DGROUP 0x4e77  the briefing's controls */
+struct region *g_regions_c;   /* DGROUP 0x4e75 */
+struct region *g_regions_b;   /* DGROUP 0x4e73 */
+struct region *g_regions_a;   /* DGROUP 0x4e71  the five region lists, heads of */
+struct region *g_region_kept_b;   /* DGROUP 0x4e6f */
+struct region *g_region_kept_a;   /* DGROUP 0x4e6d  two records kept on their own as well */
+uint16_t g_round_state;   /* DGROUP 0x4e6b  the round and screen state machine's word */
 /* **Which handle the pointer is on**, and the only word that says what a
    click in the play area will do. 0 is nothing, 1 to 8 are the handles
    `part_handle_at_pointer` answers - the two flips, the four resize
    corners and the two ends - and 9 is "carrying a part". Bit 0x8000 says
-   the handle is engaged, so `tool & 0x7fff` is the handle and the bit is
+   the handle is engaged, so `g_tool & 0x7fff` is the handle and the bit is
    the drag. `cursor_for_tool` turns the nine into cursor numbers, which is
    where the name comes from. */
-uint16_t tool;   /* DGROUP 0x4e69 */
-uint16_t freeform;   /* DGROUP 0x4e67  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
-char picked_name[0xd];   /* DGROUP 0x4e5a */
-struct queue_node *parts_queue;   /* DGROUP 0x4e58 */
-struct queue_node *parts_free;   /* DGROUP 0x4e56 */
-struct shape far *shapes_drawn;   /* DGROUP 0x4e52 */
-struct shape far *shape_free;   /* DGROUP 0x4e4e */
+uint16_t g_tool;   /* DGROUP 0x4e69 */
+uint16_t g_freeform;   /* DGROUP 0x4e67  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
+char g_picked_name[0xd];   /* DGROUP 0x4e5a */
+struct queue_node *g_parts_queue;   /* DGROUP 0x4e58 */
+struct queue_node *g_parts_free;   /* DGROUP 0x4e56 */
+struct shape far *g_shapes_drawn;   /* DGROUP 0x4e52 */
+struct shape far *g_shape_free;   /* DGROUP 0x4e4e */

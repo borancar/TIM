@@ -330,7 +330,7 @@ void collect_carried(register struct part *obj)
         top = obj->pos[1].y;
         bottom = top + obj->size[0].height;
 
-        for (si = moving_parts.next; si != NULL;
+        for (si = g_moving_parts.next; si != NULL;
              si = si->next) {
             if (obj == si)
                 continue;

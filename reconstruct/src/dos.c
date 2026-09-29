@@ -434,9 +434,9 @@ struct machine_isr_stack MACHINE_ISR_STACK;
  */
 #define DTA_ADDR ((uint32_t)IMAGE_BASE - 0x80u)
 
-static uint8_t  dta_attr;
-static uint32_t dta_size;
-static uint8_t  dta_name[13];
+static uint8_t  g_dta_attr;
+static uint32_t g_dta_size;
+static uint8_t  g_dta_name[13];
 
 /*
  * NOT a transcription: the port's own. DOS lays this block out; the original
@@ -456,14 +456,14 @@ static void dta_publish(void)
 {
     uint16_t i;
 
-    guest_mem[DTA_ADDR + 0x15] = dta_attr;
-    guest_mem[DTA_ADDR + 0x1a] = (uint8_t)dta_size;
-    guest_mem[DTA_ADDR + 0x1b] = (uint8_t)(dta_size >> 8);
-    guest_mem[DTA_ADDR + 0x1c] = (uint8_t)(dta_size >> 16);
-    guest_mem[DTA_ADDR + 0x1d] = (uint8_t)(dta_size >> 24);
+    g_guest_mem[DTA_ADDR + 0x15] = g_dta_attr;
+    g_guest_mem[DTA_ADDR + 0x1a] = (uint8_t)g_dta_size;
+    g_guest_mem[DTA_ADDR + 0x1b] = (uint8_t)(g_dta_size >> 8);
+    g_guest_mem[DTA_ADDR + 0x1c] = (uint8_t)(g_dta_size >> 16);
+    g_guest_mem[DTA_ADDR + 0x1d] = (uint8_t)(g_dta_size >> 24);
 
     for (i = 0; i < 13; i++)
-        guest_mem[DTA_ADDR + 0x1e + i] = dta_name[i];
+        g_guest_mem[DTA_ADDR + 0x1e + i] = g_dta_name[i];
 }
 
 /*
@@ -491,7 +491,7 @@ uint16_t dos_findfirst(const char *pattern, uint16_t attr)
      * found, which `verify.py` caught as `fill_file_listing` differing on the twelve
      * bytes of "TONSOFUN.TIM" after the listing loop ran off the end.
      */
-    r = io_dos_findfirst(name, attr, dta_name, &dta_attr, &dta_size);
+    r = io_dos_findfirst(name, attr, g_dta_name, &g_dta_attr, &g_dta_size);
 
     dta_publish();
     dos_find_to_dgroup();
@@ -514,7 +514,7 @@ uint16_t dos_findnext(const char *pattern, uint16_t attr)
     (void)attr;
 
     /* Nothing cleared, for the reason given in `dos_findfirst`. */
-    r = io_dos_findnext(dta_name, &dta_attr, &dta_size);
+    r = io_dos_findnext(g_dta_name, &g_dta_attr, &g_dta_size);
 
     dta_publish();
     dos_find_to_dgroup();
@@ -539,11 +539,11 @@ void dos_find_to_dgroup(void)
 {
     uint16_t i;
 
-    BORLAND_FIND_INFO.attr  = dta_attr;
-    BORLAND_FIND_INFO.size = dta_size;
+    BORLAND_FIND_INFO.attr  = g_dta_attr;
+    BORLAND_FIND_INFO.size = g_dta_size;
 
     for (i = 0; i < 0x0d; i++)
-        BORLAND_FIND_NAME.find_name[i] = (char)dta_name[i];
+        BORLAND_FIND_NAME.find_name[i] = (char)g_dta_name[i];
 }
 
 /*
@@ -591,7 +591,7 @@ uint32_t dos_find_size(void)
 uint16_t diskette_motor_bit(uint16_t bit)
 {
     return (uint16_t)((1u << (bit & 0xff)) &
-                      (guest_mem[0x43f] | (guest_mem[0x440] << 8)));
+                      (g_guest_mem[0x43f] | (g_guest_mem[0x440] << 8)));
 }
 
 /*
@@ -817,7 +817,7 @@ void isr_stack_switch(int16_t to_private)
 {
     if (to_private != 0) {
         MACHINE_ISR_STACK.saved_ss = DGROUP_SEG;
-        MACHINE_ISR_STACK.saved_sp = guest_sp;
+        MACHINE_ISR_STACK.saved_sp = g_guest_sp;
         return;
     }
 

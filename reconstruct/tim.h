@@ -37,7 +37,7 @@
  * ordinary pointer and does not wrap at 64K, so where the wrap or the
  * `seg:off` pair matters the site says so. `MK_FP`, `FP_SEG` and `FP_OFF`
  * are Borland's own names for making and taking one apart, and on the host
- * they mean something only inside `guest_mem`.
+ * they mean something only inside `g_guest_mem`.
  */
 
 /*

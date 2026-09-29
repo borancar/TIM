@@ -1176,7 +1176,7 @@ sequencer's own state did, immediately.
 `cs:0x158` priority, `cs:0x148` ordering, `cs:0x138` pinned - and the playing
 table at `cs:8`, at every key event. It lives in `io.c` because **both sides
 run that file**: the hybrid executes the guest's sequencer and the port its own
-transcription, and the table is at the same address in `guest_mem` either way.
+transcription, and the table is at the same address in `g_guest_mem` either way.
 No hook on the runner is needed.
 
 The first difference is at **key event 14** - eighty-odd events before anything

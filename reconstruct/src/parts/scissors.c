@@ -205,7 +205,7 @@ void cut_belts(struct part *part, const int16_t *line)
     struct belt *belt;                  /* [bp-0x24] */
     struct belt *newbelt;               /* [bp-0x26] */
 
-    for (rec = placed_parts.next; rec != NULL;
+    for (rec = g_placed_parts.next; rec != NULL;
          rec = rec->next) {
         if (rec->kind != KIND_ROPE)
             continue;
@@ -231,10 +231,10 @@ void cut_belts(struct part *part, const int16_t *line)
             seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
 
             if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
-                saved = round_state;
-                round_state = 0x1000;
+                saved = g_round_state;
+                g_round_state = 0x1000;
                 mark_belt_shapes(belt->owner, 3);
-                round_state = saved;
+                g_round_state = saved;
 
                 if ((di = make_part(KIND_ANCHOR)) == NULL)
                     goto out;
@@ -247,16 +247,16 @@ fail:
                     goto out;
                 }
 
-                insert_sorted(di, &moving_parts);
+                insert_sorted(di, &g_moving_parts);
                 di->flags_06 |= 0x10;
                 di->pos[0].x = at[0] + part->pos[0].x;
                 di->pos[0].y = at[1] + part->pos[0].y;
 
-                insert_sorted(anchorB, &moving_parts);
+                insert_sorted(anchorB, &g_moving_parts);
                 anchorB->flags_06 |= 0x10;
                 anchorB->pos[0] = di->pos[0];
 
-                insert_sorted(carrier, &placed_parts);
+                insert_sorted(carrier, &g_placed_parts);
                 carrier->flags_06 |= 0x10;
 
                 newbelt = carrier->belt[0];
@@ -304,7 +304,7 @@ fail:
                 anchorB->fy <<= 9;
                 place_object_for_draw(anchorB);
 
-                round_state = 0x1000;
+                g_round_state = 0x1000;
 
                 refresh_link_geometry(belt);
                 for (k = 0; k < 2; k++)
@@ -314,7 +314,7 @@ fail:
                 for (k = 0; k < 2; k++)
                     newbelt->pt[2][k] = newbelt->pt[1][k] = newbelt->pt[0][k];
 
-                round_state = saved;
+                g_round_state = saved;
                 prev = next = NULL;
             } else if (next == endB) {
                 prev = next = NULL;

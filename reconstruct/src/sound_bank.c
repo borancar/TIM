@@ -537,7 +537,7 @@ void stop_voice_playing(const uint8_t far * source)
     struct sequence far *v;
 
     for (i = 0; i < 7; i++) {
-        v = sound_voice[i];
+        v = g_sound_voice[i];
 
         /* Which note data this voice is playing - see `voice_playing`. */
         if (v->source == source) {
@@ -564,10 +564,10 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (sound_voice[0] != NULL) {
+    if (g_sound_voice[0] != NULL) {
         for (i = 0; i < 7; i++) {
-            if (sound_voice[i] != NULL)
-                free_for_kind((uint8_t far *)sound_voice[i], 2);
+            if (g_sound_voice[i] != NULL)
+                free_for_kind((uint8_t far *)g_sound_voice[i], 2);
         }
         return 1;
     }
@@ -602,7 +602,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
 
     if (source != NULL) {
         for (i = 0; i < 7; i++) {
-            voice = sound_voice[i];
+            voice = g_sound_voice[i];
 
             if (voice->state == 0xff) {
                 /* Which note data this voice is playing, and how far into
@@ -648,9 +648,9 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        if (ZERO_PAGE(sound_voice[i])->state != 0xff) {
-            retire_and_tick_far(ZERO_PAGE(sound_voice[i]));
-            ZERO_PAGE(sound_voice[i])->state = 0xff;
+        if (ZERO_PAGE(g_sound_voice[i])->state != 0xff) {
+            retire_and_tick_far(ZERO_PAGE(g_sound_voice[i]));
+            ZERO_PAGE(g_sound_voice[i])->state = 0xff;
         }
     }
 }

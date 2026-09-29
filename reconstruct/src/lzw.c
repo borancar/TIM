@@ -668,7 +668,7 @@ int16_t decompress_lzw(void)
      * paragraphs, because the block's offset is zero.
      *
      * **It is zero by construction, not by luck.** `select_resource` files
-     * either a DOS block, which starts a segment, or `scratch_block`, which
+     * either a DOS block, which starts a segment, or `g_scratch_block`, which
      * is masked to a paragraph with `& 0xfff0` and then normalised where it is
      * built. Every use here reads that invariant, and the clear loop below
      * writes the offset itself into the dictionary, which is what makes it

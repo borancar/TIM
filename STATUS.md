@@ -961,7 +961,7 @@ somebody tries it.** The clip is only the visible half. `timer_callback`
 reads and writes a good deal of shared DGROUP besides - the pointer at
 0x576c/0x576e, the button accumulators at 0x5768/0x576a, its own guards at
 0x5740 and 0x5752 - and `timer_tick` below it steps the frame counter at
-0x44ef and raises `frame_flag` at 0x5754. Every one of those is read by the
+0x44ef and raises `g_frame_flag` at 0x5754. Every one of those is read by the
 main thread with nothing between them.
 
 Two of those reads are the frame pacing, and they are spins:
@@ -992,7 +992,7 @@ without settling it.
 
 **This paragraph claimed the opposite until 2026-09-11**, and it was wrong
 the day it was written: it called `DGU16` "a plain read through a pointer
-into `guest_mem`, not a volatile one" five days after the commit that made
+into `g_guest_mem`, not a volatile one" five days after the commit that made
 every one of them volatile, in a tree whose `dgroup.h` said `volatile` on
 the line above. It also quoted `DGU16(0x44ef)`, a spelling the struct work
 had already retired. Nothing re-read it against the code, which is what the
@@ -1004,7 +1004,7 @@ game's units - every `DG*` accessor, every struct and pointer macro, every
 prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
 the game has three such loops: the eight-tick spin on `TIMER.frame_budget`,
-`wait_and_latch_frame` on `frame_flag`, and `delay_five_ticks` on
+`wait_and_latch_frame` on `g_frame_flag`, and `delay_five_ticks` on
 `SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
 protecting anything - a race on a clip word is a race with or without it -

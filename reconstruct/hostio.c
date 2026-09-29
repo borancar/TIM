@@ -27,7 +27,7 @@
 static uint8_t io_in8_raw(uint16_t port);
 
 /* OURS: the machine's first megabyte - see dgroup.h. */
-uint8_t guest_mem[GUEST_MEM_BYTES];
+uint8_t g_guest_mem[GUEST_MEM_BYTES];
 
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
@@ -389,7 +389,7 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
         return 0;
     }
 
-    memcpy(guest_mem + base, img, (size_t)img_len);
+    memcpy(g_guest_mem + base, img, (size_t)img_len);
 
     nrel = (uint16_t)(exe[6] | (exe[7] << 8));
     tbl  = (uint16_t)(exe[0x18] | (exe[0x19] << 8));
@@ -407,12 +407,12 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
         if (where + 1 >= GUEST_MEM_BYTES)
             continue;
         {
-            uint16_t v = (uint16_t)(guest_mem[where]
-                                    | (guest_mem[where + 1] << 8));
+            uint16_t v = (uint16_t)(g_guest_mem[where]
+                                    | (g_guest_mem[where + 1] << 8));
 
             v = (uint16_t)(v + LOAD_SEG);
-            guest_mem[where] = (uint8_t)v;
-            guest_mem[where + 1] = (uint8_t)(v >> 8);
+            g_guest_mem[where] = (uint8_t)v;
+            g_guest_mem[where + 1] = (uint8_t)(v >> 8);
         }
     }
 
@@ -436,7 +436,7 @@ static char     game_dir[PATH_MAX] = "incredible-machine";
  */
 void io_start_program(void)
 {
-    dgroup_base = ((uint32_t)LOAD_SEG << 4) + IMG_DGROUP;
+    g_dgroup_base = ((uint32_t)LOAD_SEG << 4) + IMG_DGROUP;
 
     /*
      * A DOS game is started in its own directory, and opens its files by name
@@ -454,18 +454,18 @@ void io_start_program(void)
     }
 
     /* The startup's own stack, at the top of a 64 KB DGROUP. */
-    guest_sp = 0xFFFE;
+    g_guest_sp = 0xFFFE;
 
     /*
      * The program keeps everything up to the end of DGROUP; the rest becomes
-     * the arena. `dgroup_base` is a linear address, so the paragraph above it
+     * the arena. `g_dgroup_base` is a linear address, so the paragraph above it
      * plus 0x1000 is where the program's block ends.
      */
-    io_dos_arena_reset((uint16_t)((dgroup_base >> 4) + 0x1000), MEM_TOP);
+    io_dos_arena_reset((uint16_t)((g_dgroup_base >> 4) + 0x1000), MEM_TOP);
 
     /* The BIOS data area the game reads: keyboard flags and the video mode. */
-    guest_mem[0x400 + 0x17] = 0;
-    guest_mem[0x400 + 0x49] = 0x03;
+    g_guest_mem[0x400 + 0x17] = 0;
+    g_guest_mem[0x400 + 0x49] = 0x03;
 }
 
 /*
@@ -1111,7 +1111,7 @@ void io_unlock(void)
  * taking it around the blits as well would still not be: the clip is only the
  * visible half. The handler also moves the pointer at 0x576c/0x576e, keeps the
  * button accumulators at 0x5768/0x576a, and `timer_tick` under it steps 0x44ef
- * and raises `frame_flag` - all read by the main thread with nothing
+ * and raises `g_frame_flag` - all read by the main thread with nothing
  * between them, and two of those reads are spin loops. Those two are safe:
  * the words they spin on are volatile - the only words in DGROUP that are - so
  * neither loop can be hoisted, and on
@@ -1382,7 +1382,7 @@ void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
     mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
     io_unlock();
     if (trace_mouse_on)
-        fprintf(stderr, "io:   48eb now %02x\n", mouse_buttons);
+        fprintf(stderr, "io:   48eb now %02x\n", g_mouse_buttons);
 }
 
 /*
@@ -1780,7 +1780,7 @@ void port_abort(const char *msg)
      *
      * The port's stand-in stack pointer goes in a sidecar `.sp` file rather
      * than a header, so the dump stays a flat image with no offset to remember
-     * - `guest_sp` is the port's whole notion of a register that the original
+     * - `g_guest_sp` is the port's whole notion of a register that the original
      * has and C does not, and it is worth having beside the memory because a
      * frame reserved at the wrong place is what makes two DGROUPs differ in a
      * way nothing in the transcription explains.
@@ -1817,7 +1817,7 @@ void port_abort(const char *msg)
             snprintf(sp, sizeof sp, "%s.sp", path);
             if ((f = fopen(sp, "w")) != NULL) {
                 fprintf(f, "guest_sp %04x\ndgroup_base %05x\nstub %s\n",
-                        guest_sp, dgroup_base, msg);
+                        g_guest_sp, g_dgroup_base, msg);
                 fclose(f);
                 fprintf(stderr, "wrote %s (guest_sp, dgroup_base, stub)\n",
                         sp);
@@ -2098,7 +2098,7 @@ static void sb_play_block(uint16_t count)
         int32_t i;
 
         for (i = 0; i < n; i++) {
-            a = (uint16_t)((a + guest_mem[at + i]) % 255);
+            a = (uint16_t)((a + g_guest_mem[at + i]) % 255);
             b = (uint16_t)((b + a) % 255);
         }
         sb_say("play", (uint16_t)n, sb_rate);
@@ -2109,11 +2109,11 @@ static void sb_play_block(uint16_t count)
     }
 
     if (pcm_hook && n > 0)
-        pcm_hook(guest_mem + at, n, sb_rate);
+        pcm_hook(g_guest_mem + at, n, sb_rate);
     if (pcm_tap && n > 0)
-        pcm_tap(guest_mem + at, n, sb_rate);
+        pcm_tap(g_guest_mem + at, n, sb_rate);
     if (pcm_tap2 && n > 0)
-        pcm_tap2(guest_mem + at, n, sb_rate);
+        pcm_tap2(g_guest_mem + at, n, sb_rate);
 
     /* The block is done when it has had time to play out. */
     sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);
@@ -2261,7 +2261,7 @@ static void opl_say(uint8_t chip, uint8_t reg, uint8_t val)
  *
  * It lives here, in `io.c`, because **both sides run this file**: the hybrid
  * executes the guest's sequencer and the port its own transcription, and the
- * table is at the same place in `guest_mem` either way. That is what makes the
+ * table is at the same place in `g_guest_mem` either way. That is what makes the
  * two comparable without a Unicorn hook on the runner's side.
  */
 static int32_t seq_trace = -1;
@@ -2394,7 +2394,7 @@ void io_bios_set_mode(uint16_t mode)
      * ordinary memory the verifier compares - so a mode set that does not
      * write it differs from the original by exactly one byte.
      */
-    guest_mem[0x449] = (uint8_t)mode;
+    g_guest_mem[0x449] = (uint8_t)mode;
 }
 
 void io_reset(void)
@@ -3143,8 +3143,8 @@ int32_t io_state_load(void *host_file)
  * The whole megabyte goes down rather than just DGROUP, so an address seen in
  * a backtrace can be looked at without a second capture, and `io_state_save`
  * follows it so the planes, the arena and the open files come too. There are
- * no registers: the port is C, and `guest_sp` - its one register-shaped thing -
- * goes in the sidecar beside `dgroup_base`, exactly as the abort dump does it.
+ * no registers: the port is C, and `g_guest_sp` - its one register-shaped thing -
+ * goes in the sidecar beside `g_dgroup_base`, exactly as the abort dump does it.
  *
  * **Not the runner's format.** That one carries Unicorn's registers and this
  * one cannot; what the two share is the megabyte, so a DGROUP slice out of
@@ -3194,7 +3194,7 @@ int32_t io_read_snapshot(const char *path)
         return 0;
     }
 
-    if (fread(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+    if (fread(g_guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
         || !io_state_load(f)) {
         fprintf(stderr, "%s is short or its I/O state did not load\n", path);
         fclose(f);
@@ -3269,7 +3269,7 @@ int32_t io_write_snapshot(const char *path)
 
     if (fwrite(magic, 1, sizeof magic, f) != sizeof magic
         || fwrite(&version, sizeof version, 1, f) != 1
-        || fwrite(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+        || fwrite(g_guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
         || !io_state_save(f)) {
         fprintf(stderr, "%s is short - the write failed\n", path);
         fclose(f);
@@ -3280,13 +3280,13 @@ int32_t io_write_snapshot(const char *path)
     snprintf(sp, sizeof sp, "%s.sp", path);
     if ((f = fopen(sp, "w")) != NULL) {
         fprintf(f, "guest_sp %04x\ndgroup_base %05x\nmem_at 12\n",
-                guest_sp, dgroup_base);
+                g_guest_sp, g_dgroup_base);
         fclose(f);
     }
 
     fprintf(stderr, "wrote %s (%d bytes of memory, plus this layer's state)\n",
             path, (int)GUEST_MEM_BYTES);
-    fprintf(stderr, "  DGROUP starts at byte %u\n", 12 + dgroup_base);
+    fprintf(stderr, "  DGROUP starts at byte %u\n", 12 + g_dgroup_base);
     return 1;
 }
 

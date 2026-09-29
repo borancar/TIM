@@ -115,19 +115,19 @@ void build_part_list(void)
     int16_t si;                         /* si */
     int16_t wanted;                     /* di */
 
-    placed_parts.next = placed_parts.prev
-        = moving_parts.next = moving_parts.prev
+    g_placed_parts.next = g_placed_parts.prev
+        = g_moving_parts.next = g_moving_parts.prev
         = HELD_PARTS.parts_bin.next = HELD_PARTS.parts_bin.prev = 0;
 
     for (si = 0; si < 0x33; si++) {
         wanted = 0;
 
         if (si == 0x20 || si == 0x21 || si == 0x22) {
-            if (si == 0x20 && holiday_halloween != 0)
+            if (si == 0x20 && g_holiday_halloween != 0)
                 wanted = 1;
-            if (si == 0x21 && holiday_valentine != 0)
+            if (si == 0x21 && g_holiday_valentine != 0)
                 wanted = 1;
-            if (si == 0x22 && holiday_christmas != 0)
+            if (si == 0x22 && g_holiday_christmas != 0)
                 wanted = 1;
         } else if (si != 0x14 && si != 0x29 && si != 0x31) {
             wanted = 1;
@@ -143,7 +143,7 @@ void build_part_list(void)
     LEVEL_SETTINGS.air = 0x110;
     LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
     LEVEL_SETTINGS.tune = 0x3e9;
-    odometer_total = 0;
+    g_odometer_total = 0;
 
     recompute_kind_physics();
 }
@@ -892,10 +892,10 @@ uint16_t part_init_kind_57(struct part *part)
 void free_all_lists(void)
 {
     free_part_list(HELD_PARTS.parts_bin.next);
-    free_part_list(placed_parts.next);
-    free_part_list(moving_parts.next);
+    free_part_list(g_placed_parts.next);
+    free_part_list(g_moving_parts.next);
 
-    placed_parts.next = moving_parts.next
+    g_placed_parts.next = g_moving_parts.next
         = HELD_PARTS.parts_bin.next = 0;
 }
 

@@ -566,8 +566,8 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
 
     pl = pr = POINTER.pointer_x;
     pt = pb = POINTER.pointer_y;
-    ox = part->box[0].x - origin_x;
-    oy = part->box[0].y - origin_y;
+    ox = part->box[0].x - g_origin_x;
+    oy = part->box[0].y - g_origin_y;
     x0 = ox;
     y0 = oy;
     x1 = x0 + part->size[0].width;
@@ -596,7 +596,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     }
 
     if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
-        if (link != NULL && tool != 9) {
+        if (link != NULL && g_tool != 9) {
             x0 = ox + part->grab.x;
             y0 = oy + part->grab.y;
             x1 = x0 + part->grab_size;
@@ -616,7 +616,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
         }
 
         for (cur = e0, i = 0; i < 2; cur = e1, i++) {
-            if (cur != NULL && tool != 9
+            if (cur != NULL && g_tool != 9
                 && part->kind != KIND_PULLEY) {
                 x0 = ox + part->attach[i].x - 8;
                 y0 = oy + part->attach[i].y - 4;
@@ -729,7 +729,7 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
     if ((si = find_part_from(rec)) != NULL) {
         if (si->flags_08 & 4) {
             if (si->flags_08 & 8) {
-                e0 = e1 = si->pos[0].x - origin_x;
+                e0 = e1 = si->pos[0].x - g_origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
                 if (abs((int16_t)(POINTER.pointer_x - e0))
@@ -761,8 +761,8 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
  */
 void wait_cursor(void)
 {
-    if (cursor != 1)
-        saved_cursor = cursor;
+    if (g_cursor != 1)
+        g_saved_cursor = g_cursor;
 
     select_cursor(1);
 }
@@ -774,7 +774,7 @@ void wait_cursor(void)
  */
 void restore_cursor(void)
 {
-    select_cursor(saved_cursor);
+    select_cursor(g_saved_cursor);
 }
 
 /*
@@ -795,14 +795,14 @@ void select_cursor(register int16_t which)
 
     if (which > 0x1a)
         which = 0;
-    if (which != cursor) {
-        cursor = which;
+    if (which != g_cursor) {
+        g_cursor = which;
         if (which < 9) {
             hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[which];
             hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[which];
         } else
             hot_x = hot_y = 0;
-        set_cursor(cursor_art[which],
+        set_cursor(g_cursor_art[which],
                    hot_x, hot_y);
     }
 }
@@ -843,7 +843,7 @@ int16_t cursor_for_tool(void)
 {
     int16_t r;
 
-    switch (tool) {
+    switch (g_tool) {
     case 1:
         r = 4;
         break;
@@ -918,7 +918,7 @@ uint16_t part_flip_options(register struct part *part)
         di |= 2;
 
     if (part->flags_06 & 0x400) {
-        if (tool == 9)
+        if (g_tool == 9)
             di |= 4;
         else {
             part_flip(part, 1);
@@ -931,7 +931,7 @@ uint16_t part_flip_options(register struct part *part)
     }
 
     if (part->flags_06 & 0x200) {
-        if (tool == 9)
+        if (g_tool == 9)
             di |= 8;
         else {
             part_flip(part, 2);
@@ -989,9 +989,9 @@ uint16_t part_handle_at_pointer(register struct part *part)
 
     if (part->kind == KIND_BELT) {
         rec = (part->rope->end_b);
-        x0 = rec->box[0].x + rec->grab.x - origin_x;
+        x0 = rec->box[0].x + rec->grab.x - g_origin_x;
         /* the original takes origin_x off a y here, and below */
-        y0 = rec->box[0].y + rec->grab.y - origin_x;
+        y0 = rec->box[0].y + rec->grab.y - g_origin_x;
         if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
             && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
@@ -1004,8 +1004,8 @@ uint16_t part_handle_at_pointer(register struct part *part)
         end = part->belt[0];
         rec = end->end_b;
         idx = end->slot_b;
-        x0 = rec->box[0].x + rec->attach[idx].x - origin_x - 8;
-        y0 = rec->box[0].y + rec->attach[idx].y - origin_x - 4;
+        x0 = rec->box[0].x + rec->attach[idx].x - g_origin_x - 8;
+        y0 = rec->box[0].y + rec->attach[idx].y - g_origin_x - 4;
         if (x0 - 11 <= POINTER.pointer_x && POINTER.pointer_x < x0
             && y0 - 11 <= POINTER.pointer_y && POINTER.pointer_y < y0)
             return 8;
@@ -1014,10 +1014,10 @@ uint16_t part_handle_at_pointer(register struct part *part)
             return 7;
     }
 
-    x0 = part->box[0].x - origin_x;
+    x0 = part->box[0].x - g_origin_x;
     x_mid = x0 + (part->size[0].width >> 1) - 6;
     x_end = x0 + part->size[0].width;
-    y0 = part->box[0].y - origin_y;
+    y0 = part->box[0].y - g_origin_y;
     y_mid = y0 + (part->size[0].height >> 1) - 6;
     y_end = y0 + part->size[0].height;
 
@@ -1147,8 +1147,8 @@ uint16_t angle_between_parts(register struct part *part,
     int32_t dy;                         /* [bp-0xc] */
 
     if (other == NULL) {
-        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + origin_x));
-        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + origin_y));
+        dx = (int16_t)(part->pos[0].x - (POINTER.pointer_x + g_origin_x));
+        dy = (int16_t)(part->pos[0].y - (POINTER.pointer_y + g_origin_y));
     } else if (other->kind == KIND_PULLEY) {
         dx = (int16_t)(part->pos[0].x - other->pos[0].x);
         dy = (int16_t)(part->pos[0].y - other->pos[0].y);
@@ -1408,7 +1408,7 @@ void refresh_link_geometry(register struct belt *link)
                 a->belt[0]->pt[0][j].y = a->pos[0].y + a->attach[j].y;
             }
 
-        if (round_state != 0x2000) {
+        if (g_round_state != 0x2000) {
             link->owner->kind_state = link_end_distance(link, 3, 0);
             link->owner->spin = link_end_distance(link, 3, 1);
         }
@@ -1689,7 +1689,7 @@ void detach_belt(struct part *part, uint16_t how)
  */
 void discard_part(struct part *part)
 {
-    if (freeform != 0) {
+    if (g_freeform != 0) {
         unlink_part(part);
         free_part(part);
     }
@@ -1856,7 +1856,7 @@ void insert_sorted(register struct part *rec, struct part *head)
             prio2 = PART_KINDS[kind2].priority;
             if (head == &HELD_PARTS.parts_bin)
                 stop = prio < prio2;
-            else if (head == &moving_parts)
+            else if (head == &g_moving_parts)
                 stop = PART_KINDS[kind].weight < PART_KINDS[kind2].weight;
             else
                 stop = 1;
@@ -1901,7 +1901,7 @@ void detach_part_to_bin(register struct part *part)
 {
     int16_t i;
 
-    if (!((tool == 8 || tool == 7) && round_state == 0x1000)) {
+    if (!((g_tool == 8 || g_tool == 7) && g_round_state == 0x1000)) {
         if (part->rope != 0 && part->kind != KIND_BELT)
             untie_rope((part->rope->owner));
         if (part->kind != KIND_ROPE && part->kind != KIND_PULLEY)
@@ -1935,10 +1935,10 @@ void refile_part_list(register struct part *part)
     unlink_part(part);
     if (part->flags_06 & 0x4000) {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x2000;
-        insert_sorted(part, &placed_parts);
+        insert_sorted(part, &g_placed_parts);
     } else {
         part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
-        insert_sorted(part, &moving_parts);
+        insert_sorted(part, &g_moving_parts);
     }
     if (HELD_PARTS.bin_list != &HELD_PARTS.parts_bin
         && HELD_PARTS.bin_list->next == 0)
@@ -2110,7 +2110,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
             si->owner->redraw_count = n;
     } else {
         if ((rope = part->rope) != NULL) {
-            if (round_state == 0x1000) {
+            if (g_round_state == 0x1000) {
                 compute_link_endpoints(rope);
                 if (rope_ends_close(rope))
                     rope->owner->redraw_count = n;
@@ -2118,7 +2118,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
                 rope->owner->redraw_count = n;
         }
 
-        if (round_state == 0x2000) {
+        if (g_round_state == 0x2000) {
             if ((si = part->belt[0]) != NULL
                 && !si->owner->redraw_count) {
                 si->owner->redraw_count = n;
@@ -2239,10 +2239,10 @@ give_up:
  */
 struct part *pick_by_flag(uint16_t flags)
 {
-    if (placed_parts.next != 0 && (flags & 0x2000))
-        return placed_parts.next;
-    if (moving_parts.next != 0 && (flags & 0x1000))
-        return moving_parts.next;
+    if (g_placed_parts.next != 0 && (flags & 0x2000))
+        return g_placed_parts.next;
+    if (g_moving_parts.next != 0 && (flags & 0x1000))
+        return g_moving_parts.next;
     if (HELD_PARTS.parts_bin.next != 0 && (flags & 0x0800))
         return HELD_PARTS.parts_bin.next;
     return NULL;
@@ -2437,16 +2437,16 @@ void free_all_shapes(void)
     struct shape far *next;             /* [bp-4] */
     struct shape far *q;                /* [bp-8] */
 
-    if (shapes_drawn) {
-        q = shapes_drawn;
+    if (g_shapes_drawn) {
+        q = g_shapes_drawn;
         next = q->next;
         while (next) {
             q = next;
             next = next->next;
         }
-        q->next = shape_free;
-        shape_free = shapes_drawn;
-        shapes_drawn = 0;
+        q->next = g_shape_free;
+        g_shape_free = g_shapes_drawn;
+        g_shapes_drawn = 0;
     }
 }
 
@@ -2472,7 +2472,7 @@ void mark_joined_shapes(register struct part *part, uint16_t mode)
         if ((di = part->belt[1]) != NULL)
             mark_belt_shapes(di->owner, mode);
     } else if (part->kind != KIND_BELT && part->kind != KIND_ROPE) {
-        if (round_state != 0x2000
+        if (g_round_state != 0x2000
             && (rope = part->rope) != NULL)
             add_sub_object_shapes(rope->owner, mode);
         if ((di = part->belt[0]) != NULL)
@@ -2552,7 +2552,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
     box[0] = 0x10;
     box[1] = 0x10;
 
-    if (round_state == 0x2000) {
+    if (g_round_state == 0x2000) {
         near_part = si->end_a;
         far_part = near_part->link[si->slot_a];
         if (mode & 1) {
@@ -2730,7 +2730,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 {
     struct shape far *n;                /* [bp-4] */
 
-    n = shape_free;
+    n = g_shape_free;
     /* Pop from the free list, push onto the used list - before the test for
        an empty list, as the original does it, which then reads and writes
        0000:0000. The host's null is C's and cannot be followed, so there the
@@ -2739,9 +2739,9 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     if (n == NULL)
         return;
 #endif
-    shape_free = shape_free->next;
-    n->next = shapes_drawn;
-    shapes_drawn = n;
+    g_shape_free = g_shape_free->next;
+    n->next = g_shapes_drawn;
+    g_shapes_drawn = n;
 
     if (n) {
         n->flags = flags;
@@ -2750,18 +2750,18 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
         *(struct point16 far *)&n->x2 = *(const struct point16 *)pt2;
         n->width = width;
         if (which == 1) {
-            n->x1 -= origin_c_x;
-            n->y1 -= origin_c_y;
+            n->x1 -= g_origin_c_x;
+            n->y1 -= g_origin_c_y;
             if (flags & 4) {
-                n->x2 -= origin_c_x;
-                n->y2 -= origin_c_y;
+                n->x2 -= g_origin_c_x;
+                n->y2 -= g_origin_c_y;
             }
         } else {
-            n->x1 -= origin_b_x;
-            n->y1 -= origin_b_y;
+            n->x1 -= g_origin_b_x;
+            n->y1 -= g_origin_b_y;
             if (flags & 4) {
-                n->x2 -= origin_b_x;
-                n->y2 -= origin_b_y;
+                n->x2 -= g_origin_b_x;
+                n->y2 -= g_origin_b_y;
             }
         }
 
@@ -2820,11 +2820,11 @@ void replay_shapes(void)
 
     set_clip_for_mode();
     VMDS.clip_enabled = 1;
-    VMDS.fill_colour = VMDS.second_colour = fill_colour;
+    VMDS.fill_colour = VMDS.second_colour = g_fill_colour;
     VMDS.page_dst = VMDS.page_back;
 
     prev = 0;
-    for (cur = shapes_drawn; cur; cur = next) {
+    for (cur = g_shapes_drawn; cur; cur = next) {
         next = cur->next;
         if (--cur->replays == 0) {
             si = cur->x1;
@@ -2849,9 +2849,9 @@ void replay_shapes(void)
             if (prev)
                 prev->next = next;
             else
-                shapes_drawn = next;
-            cur->next = shape_free;
-            shape_free = cur;
+                g_shapes_drawn = next;
+            cur->next = g_shape_free;
+            g_shape_free = cur;
         } else
             prev = cur;
     }
@@ -2893,34 +2893,34 @@ void mark_parts_in_dirty_rects(void)
                 si = di->rope;
                 if (!rope_ends_close(si))
                     continue;
-                if (tool == 9
+                if (g_tool == 9
                     && (si->end_a == HELD_PARTS.dragged_part
                         || si->end_b == HELD_PARTS.dragged_part)
                     && !point_in_play_area())
                     continue;
                 if (si->pt[0][0].x < si->pt[0][1].x) {
-                    right = left = si->pt[0][0].x - origin_x;
+                    right = left = si->pt[0][0].x - g_origin_x;
                     right += si->pt[0][3].x - si->pt[0][0].x;
                 } else {
-                    right = left = si->pt[0][1].x - origin_x;
+                    right = left = si->pt[0][1].x - g_origin_x;
                     right += si->pt[0][2].x - si->pt[0][1].x;
                 }
                 /* origin_x on the y axis too, as the original has it */
                 if (si->pt[0][0].y < si->pt[0][1].y) {
-                    bottom = top = si->pt[0][0].y - origin_x;
+                    bottom = top = si->pt[0][0].y - g_origin_x;
                     bottom += si->pt[0][3].y - si->pt[0][0].y;
                 } else {
-                    bottom = top = si->pt[0][1].y - origin_x;
+                    bottom = top = si->pt[0][1].y - g_origin_x;
                     bottom += si->pt[0][2].y - si->pt[0][1].y;
                 }
             } else {
-                left = di->box[0].x - origin_x;
-                top = di->box[0].y - origin_y;
+                left = di->box[0].x - g_origin_x;
+                top = di->box[0].y - g_origin_y;
                 right = left + di->size[0].width;
                 bottom = top + di->size[0].height;
             }
 
-            node = shapes_drawn;
+            node = g_shapes_drawn;
             while (node) {
                 if (node->left < right && node->right > left
                     && node->top < bottom && node->bottom > top) {
@@ -2992,23 +2992,23 @@ void belt_in_dirty_rect(struct part *part)
         by = si->box[0].y + si->attach[slotB].y;
 
         if (ax < bx) {
-            left = ax - origin_x;
-            right = bx - origin_x;
+            left = ax - g_origin_x;
+            right = bx - g_origin_x;
         } else {
-            left = bx - origin_x;
-            right = ax - origin_x;
+            left = bx - g_origin_x;
+            right = ax - g_origin_x;
         }
         if (ay < by) {
-            top = ay - origin_y;
-            bottom = by - origin_y;
+            top = ay - g_origin_y;
+            bottom = by - g_origin_y;
         } else {
-            top = by - origin_y;
-            bottom = ay - origin_y;
+            top = by - g_origin_y;
+            bottom = ay - g_origin_y;
         }
         if (slack > 0)
             bottom += slack >> 1;
 
-        node = shapes_drawn;
+        node = g_shapes_drawn;
         while (node) {
             if (node->left < right && node->right > left
                 && node->top < bottom && node->bottom > top) {
@@ -3070,7 +3070,7 @@ void refile_overlapping_parts(void)
 
     for (level_n = 6; level_n > 0; level_n--) {
         level = level_n - 1;
-        walk = layer_head[level];
+        walk = g_layer_head[level];
         while (walk != NULL) {
             rec = &PART_KINDS[walk->kind];
             if ((rec->refile_level[0] == 0xff || rec->refile_level[0] >= level
@@ -3098,7 +3098,7 @@ void refile_overlapping_parts(void)
                         si = di->rope;
                         if (!rope_ends_close(si))
                             continue;
-                        if (tool == 9
+                        if (g_tool == 9
                             && (si->end_a == HELD_PARTS.dragged_part
                                 || si->end_b == HELD_PARTS.dragged_part)
                             && !point_in_play_area())
@@ -3511,7 +3511,7 @@ void update_velocity(register struct part *rec, int16_t shift_x, int16_t shift_y
 /* ours: a call counter for reconstruct/devdump.c. Above this
    routine's comment, not between it and the routine: the
    provenance is the comment *directly* above a definition. */
-int32_t dev_tension_belt_calls;
+int32_t g_dev_tension_belt_calls;
 #endif
 
 /*
@@ -3582,7 +3582,7 @@ int16_t tension_belt(register struct part *part)
     struct belt *belt;                    /* [bp-0x3a] as the offset belt_orientation takes */
 
 #ifndef __TURBOC__
-    dev_tension_belt_calls++;
+    g_dev_tension_belt_calls++;
 #endif
     answer = 0;
     if (part->link[0]->kind == KIND_PULLEY)
@@ -3687,10 +3687,10 @@ int16_t tension_belt(register struct part *part)
                     di->kind_state -= dA;
                     if ((int16_t)di->kind_state < 0) {
                         dA += (int16_t)di->kind_state;
-                        saved = round_state;
-                        round_state = 0x1000;
+                        saved = g_round_state;
+                        g_round_state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        round_state = saved;
+                        g_round_state = saved;
                         pB = (other->link[belt->slot_a]);
                         pC = pB->link[0];
                         k = link_slot_of(pB, pC);
@@ -3705,10 +3705,10 @@ int16_t tension_belt(register struct part *part)
                     di->spin -= dA;
                     if (di->spin < 0) {
                         dA += di->spin;
-                        saved = round_state;
-                        round_state = 0x1000;
+                        saved = g_round_state;
+                        g_round_state = 0x1000;
                         mark_belt_shapes(di, 3);
-                        round_state = saved;
+                        g_round_state = saved;
                         pB = (other->link[belt->slot_b]);
                         pC = pB->link[1];
                         k = link_slot_of(pB, pC);
@@ -3856,9 +3856,9 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
  *
  * Splice the whole of one list onto the front of another and empty the first.
  *
- * The queue of parts that asked to move, `parts_queue` at DGROUP
+ * The queue of parts that asked to move, `g_parts_queue` at DGROUP
  * 0x4e58, is walked to its last node, that node is pointed at the free list
- * `parts_free` at 0x4e56, and the free list then starts where the queue did:
+ * `g_parts_free` at 0x4e56, and the free list then starts where the queue did:
  * the frame's queue goes back to the free list in one move.
  */
 void release_part_queue(void)
@@ -3866,16 +3866,16 @@ void release_part_queue(void)
     register struct queue_node *next;
     register struct queue_node *last;
 
-    if (parts_queue != 0) {
-        last = parts_queue;
+    if (g_parts_queue != 0) {
+        last = g_parts_queue;
         next = last->next;
         while (next != 0) {
             last = next;
             next = next->next;
         }
-        last->next = parts_free;
-        parts_free = parts_queue;
-        parts_queue = 0;
+        last->next = g_parts_free;
+        g_parts_free = g_parts_queue;
+        g_parts_queue = 0;
     }
 }
 
@@ -3883,7 +3883,7 @@ void release_part_queue(void)
 /* ours: a call counter for reconstruct/devdump.c. Above this
    routine's comment, not between it and the routine: the
    provenance is the comment *directly* above a definition. */
-int32_t dev_queue_part_calls;
+int32_t g_dev_queue_part_calls;
 #endif
 
 /*
@@ -3908,31 +3908,31 @@ int16_t queue_part(struct part *src, struct part *part)
     int32_t key;                        /* [bp-4], high word at [bp-2] */
 
 #ifndef __TURBOC__
-    dev_queue_part_calls++;
+    g_dev_queue_part_calls++;
 #endif
     /* The pair is one `long`, and every test on it below is the original's
        high-word `jg`/`jl` and low-word `jae`/`ja` - a signed 32-bit compare. */
     key = src->momentum;
 
-    for (si = parts_queue; si != 0; si = si->next)
+    for (si = g_parts_queue; si != 0; si = si->next)
         if (si->part == part && si->momentum >= key)
             return 0;
 
-    if (parts_queue == 0
-        || parts_queue->momentum < key) {
-        si = parts_free;
-        parts_free = parts_free->next;
-        si->next = parts_queue;
-        parts_queue = si;
+    if (g_parts_queue == 0
+        || g_parts_queue->momentum < key) {
+        si = g_parts_free;
+        g_parts_free = g_parts_free->next;
+        si->next = g_parts_queue;
+        g_parts_queue = si;
     } else {
-        di = parts_queue;
-        si = parts_queue->next;
+        di = g_parts_queue;
+        si = g_parts_queue->next;
         while (si != 0 && si->momentum > key) {
             di = si;
             si = si->next;
         }
-        si = parts_free;
-        parts_free = parts_free->next;
+        si = g_parts_free;
+        g_parts_free = g_parts_free->next;
         si->next = di->next;
         di->next = si;
     }
@@ -4041,7 +4041,7 @@ void shift_state_history(register struct part *obj)
     obj->form_prev2 = obj->form_prev;
     obj->form_prev = obj->form;
 
-    if (obj->kind == KIND_BELT && round_state == 0x1000) {
+    if (obj->kind == KIND_BELT && g_round_state == 0x1000) {
         rope = obj->rope;
         rope->pt[2][0] = rope->pt[1][0];
         rope->pt[1][0] = rope->pt[0][0];

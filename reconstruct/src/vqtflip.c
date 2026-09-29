@@ -37,7 +37,7 @@
  * one-pass TASM shortened it afterwards. Which TASM is not settled; 2.51
  * reproduces it.
  *
- * **Its data**: `_DATA` is `min_run` and the three `vqt_` code pointers,
+ * **Its data**: `_DATA` is `g_min_run` and the three `vqt_` code pointers,
  * DGROUP 0x49ba..0x49c6, and `_BSS` is 0x63f6..0x6414. Borland C++ lays a module's uninitialised variables out in
  * reverse order of declaration, so `BITMAPS` is declared before
  * `BITMAPS_FLIP_STATE` and sits above it.
@@ -96,17 +96,17 @@ struct bitmaps_flip_state BITMAPS_FLIP_STATE;
 /*
  * **The three code pointers the offset-table bitmap draws through**, and the
  * shortest run worth encoding, DGROUP 0x49ba - this module's initialised
- * data, and the first of it. `vqt_read_fn` is a *near* pointer to a routine of
- * this segment, which only this module could have initialised; `min_run` is
+ * data, and the first of it. `g_vqt_read_fn` is a *near* pointer to a routine of
+ * this segment, which only this module could have initialised; `g_min_run` is
  * read by `compress_row` in segment 1c25. `draw_offset_bitmap` repoints
- * `vqt_plot_fn` before a draw - at the driver's plot when the bitmap is wholly
+ * `g_vqt_plot_fn` before a draw - at the driver's plot when the bitmap is wholly
  * inside the clip box, back at `plot_pixel_clipped` when it is not. Names are
  * ours.
  */
-int16_t min_run = 6;
-bmp_fill_fn vqt_fill_fn = fill_rect;
-bmp_plot_fn vqt_plot_fn = plot_pixel_clipped;
-bmp_read_fn vqt_read_fn = vqt_read_bits;
+int16_t g_min_run = 6;
+bmp_fill_fn g_vqt_fill_fn = fill_rect;
+bmp_plot_fn g_vqt_plot_fn = plot_pixel_clipped;
+bmp_read_fn g_vqt_read_fn = vqt_read_bits;
 
 
 /*
@@ -143,7 +143,7 @@ void close_bit_reader(void)
  * 0x2493b
  *
  * **One pixel through the leaf's palette**: read an index through
- * `vqt_read_fn` and answer the palette byte it names. The palette is the
+ * `g_vqt_read_fn` and answer the palette byte it names. The palette is the
  * table `vqt_flip_leaf` read into its own frame and filed at
  * `BITMAPS_FLIP_STATE.palette`.
  *
@@ -152,7 +152,7 @@ void close_bit_reader(void)
  */
 pixel_byte_t near read_palette_pixel(uint16_t bits)
 {
-    return BITMAPS_FLIP_STATE.palette[(uint8_t)vqt_read_fn(bits)];
+    return BITMAPS_FLIP_STATE.palette[(uint8_t)g_vqt_read_fn(bits)];
 }
 
 /*
@@ -213,7 +213,7 @@ void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
  * 0x249ed
  *
  * **One node of the mirrored quadtree**: `vqt_node`'s shape - four bits
- * through `vqt_read_fn`, and for each quadrant recurse on a set bit or
+ * through `g_vqt_read_fn`, and for each quadrant recurse on a set bit or
  * hand it to `vqt_flip_leaf` on a clear one - with each quadrant's origin
  * moved when an axis is mirrored.
  *
@@ -258,7 +258,7 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
         y_short = h_tall;
         y_tall = 0;
     }
-    code = (uint8_t)vqt_read_fn(4);
+    code = (uint8_t)g_vqt_read_fn(4);
     if (code & 8)
         vqt_flip_node(x + x_narrow, y + y_short, w_narrow, h_short);
     else {
@@ -285,7 +285,7 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
  * **Fill a rectangle pixel by pixel, x from the right**: x from `x1 - 1` down
  * to `x0`, and for each, y from `y0` up to `y1 - 1`. A colour comes through
  * `BITMAPS.pixel_fn` with `BITMAPS_FLIP_STATE.index_bits`, and goes to
- * `vqt_plot_fn` unless it is 0 and `BITMAPS.plot_zero` is clear.
+ * `g_vqt_plot_fn` unless it is 0 and `BITMAPS.plot_zero` is clear.
  *
  * One of three written out rather than shared, which differ only in which
  * axis counts down; this is the fill for `flip_x` alone. Every compare is
@@ -301,7 +301,7 @@ void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         for (yi = y0; yi < y1; yi++)
             if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
                 || BITMAPS.plot_zero != 0)
-                vqt_plot_fn(xi, yi, colour);
+                g_vqt_plot_fn(xi, yi, colour);
 }
 
 /*
@@ -320,7 +320,7 @@ void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         for (yi = y1 - 1; yi >= y0; yi--)
             if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
                 || BITMAPS.plot_zero != 0)
-                vqt_plot_fn(xi, yi, colour);
+                g_vqt_plot_fn(xi, yi, colour);
 }
 
 /*
@@ -339,7 +339,7 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         for (yi = y1 - 1; yi >= y0; yi--)
             if ((colour = (uint8_t)BITMAPS.pixel_fn(BITMAPS_FLIP_STATE.index_bits)) != 0
                 || BITMAPS.plot_zero != 0)
-                vqt_plot_fn(xi, yi, colour);
+                g_vqt_plot_fn(xi, yi, colour);
 }
 
 /*
@@ -349,7 +349,7 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  * stream says next.
  *
  * Either dimension 0 paints nothing. A 1 by 1 leaf is one colour read with 8
- * bits and plotted through `vqt_plot_fn`, skipped if 0 and `plot_zero` is
+ * bits and plotted through `g_vqt_plot_fn`, skipped if 0 and `plot_zero` is
  * clear. Anything larger starts with a palette size:
  *
  *   - `bits` is enough to count the pixels - the bit length of `area - 1` when
@@ -365,7 +365,7 @@ void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  * outer and y inner, reading with `vqt_read_bits` **directly** and plotting
  * with `plot_pixel_clipped` **directly** - not through the pointers, and with
  * no `plot_zero` test. A palette of one colour fills the rectangle through
- * `vqt_fill_fn` instead, having set both of the driver's colour bytes.
+ * `g_vqt_fill_fn` instead, having set both of the driver's colour bytes.
  *
  * **The two bit lengths are counted in `asm`**, and read back through `_CX`:
  * the area comes from a `mul` the compiler would have made a call to
@@ -395,8 +395,8 @@ void near vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
     if (h == 0)
         return;
     if (w == 1 && h == 1) {
-        if ((colour = (uint8_t)vqt_read_fn(8)) != 0 || BITMAPS.plot_zero != 0) {
-            vqt_plot_fn(x, y, colour);
+        if ((colour = (uint8_t)g_vqt_read_fn(8)) != 0 || BITMAPS.plot_zero != 0) {
+            g_vqt_plot_fn(x, y, colour);
             return;
         }
         return;
@@ -420,7 +420,7 @@ count:
     asm jne count
 counted:
     bits = _CX;
-    vqt_read_fn(bits);
+    g_vqt_read_fn(bits);
     asm xor cx, cx
     asm xor ah, ah
     asm mov n, ax
@@ -443,7 +443,7 @@ indexed:
             for (al = (uint8_t)((uint8_t)area - 1); al != 0; al >>= 1)
                 bits++;
         }
-        n = (uint8_t)vqt_read_fn(bits);
+        n = (uint8_t)g_vqt_read_fn(bits);
         BITMAPS_FLIP_STATE.index_bits = 0;
         for (al = (uint8_t)n; al != 0; al >>= 1)
             BITMAPS_FLIP_STATE.index_bits++;
@@ -455,7 +455,7 @@ indexed:
         y1 = y + h;
         if (BITMAPS.fill_fn != 0) {
             BITMAPS_FLIP_STATE.index_bits = 8;
-            BITMAPS.pixel_fn = vqt_read_fn;
+            BITMAPS.pixel_fn = g_vqt_read_fn;
             BITMAPS.fill_fn(x, y, x1, y1);
             return;
         }
@@ -466,16 +466,16 @@ indexed:
         return;
     }
     if (n == 1) {
-        if ((VMDS.second_colour = VMDS.fill_colour = (uint8_t)vqt_read_fn(8)) != 0
+        if ((VMDS.second_colour = VMDS.fill_colour = (uint8_t)g_vqt_read_fn(8)) != 0
             || BITMAPS.plot_zero != 0) {
-            vqt_fill_fn(x, y, w, h);
+            g_vqt_fill_fn(x, y, w, h);
             return;
         }
         return;
     }
     BITMAPS_FLIP_STATE.palette = at = palette;
     while (--n >= 0) {
-        *at = (uint8_t)vqt_read_fn(8);
+        *at = (uint8_t)g_vqt_read_fn(8);
         at++;
     }
     x1 = x + w;

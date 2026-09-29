@@ -57,18 +57,18 @@
 void run_machine_loop(void)
 {
     clear_machine();
-    elapsed_ticks = 0;
+    g_elapsed_ticks = 0;
     TIMER.frame_budget = 0x2710;
 
-    while (round_state == 0x2000) {
-        if (((uint16_t)sound_request_01) != 0) sound_request_01 = 1;
-        if (((uint16_t)sound_request_02) != 0) sound_request_02 = 1;
-        if (((uint16_t)sound_request_09) != 0) sound_request_09 = 1;
-        if (((uint16_t)sound_request_0c) != 0) sound_request_0c = 1;
+    while (g_round_state == 0x2000) {
+        if (((uint16_t)g_sound_request_01) != 0) g_sound_request_01 = 1;
+        if (((uint16_t)g_sound_request_02) != 0) g_sound_request_02 = 1;
+        if (((uint16_t)g_sound_request_09) != 0) g_sound_request_09 = 1;
+        if (((uint16_t)g_sound_request_0c) != 0) g_sound_request_0c = 1;
 
         update_button_state();
-        last_key = (uint8_t)(bios_read_key() >> 8);
-        regions_handle_pointer(regions_play);
+        g_last_key = (uint8_t)(bios_read_key() >> 8);
+        regions_handle_pointer(g_regions_play);
 
         step_machine();
         mark_parts_in_dirty_rects();
@@ -78,30 +78,30 @@ void run_machine_loop(void)
 
         while ((int16_t)(0x2710 - ((uint16_t)TIMER.frame_budget)) < 8)
             ;
-        elapsed_ticks += 0x2710 - TIMER.frame_budget;
+        g_elapsed_ticks += 0x2710 - TIMER.frame_budget;
         TIMER.frame_budget = 0x2710;
 
         present_frame(1);
 
-        if (((uint16_t)sound_request_01) == 1) stop_music_or_effect(1);
-        if (((uint16_t)sound_request_02) == 1) stop_music_or_effect(2);
-        if (((uint16_t)sound_request_09) == 1) stop_music_or_effect(9);
-        if (((uint16_t)sound_request_0c) == 1) stop_music_or_effect(0x0c);
+        if (((uint16_t)g_sound_request_01) == 1) stop_music_or_effect(1);
+        if (((uint16_t)g_sound_request_02) == 1) stop_music_or_effect(2);
+        if (((uint16_t)g_sound_request_09) == 1) stop_music_or_effect(9);
+        if (((uint16_t)g_sound_request_0c) == 1) stop_music_or_effect(0x0c);
 
         shift_all_histories();
 
-        if (freeform == 0) {
+        if (g_freeform == 0) {
             check_goal();
-            if ((last_key) == SC_V)
-                round_state = 0x200;
+            if ((g_last_key) == SC_V)
+                g_round_state = 0x200;
         }
 
         if (POINTER.button_left == 2)
-            round_state = 0x1000;
+            g_round_state = 0x1000;
         if (POINTER.button_right == 2)
-            round_state = 2;
+            g_round_state = 2;
 
-        machine_frames++;
+        g_machine_frames++;
     }
 
     restart_machine();
@@ -124,12 +124,12 @@ void clear_machine(void)
     erase_both_pages();
 
     HELD_PARTS.dragged_part = 0;
-    machine_frames = 0;
-    sound_request_01 = sound_request_02 =
-        sound_request_09 = sound_request_0c = 0;
+    g_machine_frames = 0;
+    g_sound_request_01 = g_sound_request_02 =
+        g_sound_request_09 = g_sound_request_0c = 0;
 
     for (si = 0; si < 10; si++)
-        goal_condition[si] = 0;
+        g_goal_condition[si] = 0;
 }
 
 /*
@@ -159,9 +159,9 @@ void restart_machine(void)
  */
 void step_loop_frames(void)
 {
-    loop_frames++;
-    if (loop_frames == 0x2a00)
-        loop_frames = 0x1c00;
+    g_loop_frames++;
+    if (g_loop_frames == 0x2a00)
+        g_loop_frames = 0x1c00;
 }
 
 /*
@@ -176,5 +176,5 @@ void step_loop_frames(void)
  */
 void check_goal(void)
 {
-    GOAL_TESTS.goal_test[round_number - 1]();
+    GOAL_TESTS.goal_test[g_round_number - 1]();
 }

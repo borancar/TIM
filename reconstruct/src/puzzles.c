@@ -52,7 +52,7 @@ struct game_puzzle_tabs GAME_PUZZLE_TABS = {
  * **The text the player types on the puzzle screen**, DGROUP 0x542e..0x5456, 0x28 bytes - a
  * password or a score code - which `picker_type` fills to 0x19 characters
  * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
- * read. Forty bytes, up to `belt_far_end` at 0x5456.
+ * read. Forty bytes, up to `g_belt_far_end` at 0x5456.
  */
 struct game_typed_text {
     char typed[0x28];             /* +0x00 [0x28] */
@@ -124,10 +124,10 @@ uint16_t select_puzzle_screen(void)
     register int16_t repaint;
     register int16_t hold;
 
-    saved = odometer_total;
+    saved = g_odometer_total;
     hold = 0;
 
-    PUZZLE_STATE.selected_level = round_number;
+    PUZZLE_STATE.selected_level = g_round_number;
     page = PUZZLE_STATE.puzzle_page = puzzle_page_of_score();
 
     /*
@@ -136,48 +136,48 @@ uint16_t select_puzzle_screen(void)
      * catches up. So arriving here is itself enough to unlock the row you are
      * standing on, and the list's colours are right on the first paint.
      */
-    if (round_number > furthest_level)
-        furthest_level = round_number;
+    if (g_round_number > g_furthest_level)
+        g_furthest_level = g_round_number;
 
     full = 1;
     rp_up = rp_down = repaint = rp_pass = 0;
-    was = round_state = 0x8000;
+    was = g_round_state = 0x8000;
 
-    while (round_state != 0x400) {
+    while (g_round_state != 0x400) {
         update_button_state();
-        last_key = bios_read_key();
+        g_last_key = bios_read_key();
 
-        if (last_key == '\t' && round_state != 0x800)
+        if (g_last_key == '\t' && g_round_state != 0x800)
             puzzle_tab();
 
-        if ((last_key == '\r' || last_key == ' '
-             || last_key == 0x1b /* Esc */)
-            && round_state == 0x800)
+        if ((g_last_key == '\r' || g_last_key == ' '
+             || g_last_key == 0x1b /* Esc */)
+            && g_round_state == 0x800)
             POINTER.button_left = 0;
 
-        regions_handle_pointer(regions_a);
+        regions_handle_pointer(g_regions_a);
 
-        if (last_key == 0x1b /* Esc */) {
+        if (g_last_key == 0x1b /* Esc */) {
             /*
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
              */
-            odometer_total = saved;
+            g_odometer_total = saved;
             start_counters();
             set_clip_play_area();
-            PUZZLE_STATE.selected_level = round_number;
-            round_state = 0x400;
+            PUZZLE_STATE.selected_level = g_round_number;
+            g_round_state = 0x400;
 
         /*
          * The password field, entered while it has focus or had it last pass -
          * `pick_file`'s trick, and for the same reason.
          */
-        } else if ((round_state != 0x800 && was == 0x800)
-                   || round_state == 0x800) {
-            if ((last_key != '\r' && round_state == 0x800)
+        } else if ((g_round_state != 0x800 && was == 0x800)
+                   || g_round_state == 0x800) {
+            if ((g_last_key != '\r' && g_round_state == 0x800)
                 || was != 0x800) {
                 if (was == 0x800)
-                    picker_type(last_key, GAME_TYPED_TEXT.typed, 0x19);
+                    picker_type(g_last_key, GAME_TYPED_TEXT.typed, 0x19);
             } else {
                 update_button_state();
 
@@ -185,21 +185,21 @@ uint16_t select_puzzle_screen(void)
 
                 if (level == -1) {
                     show_message_box(MESSAGES.bad_password, MESSAGES.bad_password_body);
-                    round_state = 0x8000;
+                    g_round_state = 0x8000;
                     full = 1;
                 } else {
-                    odometer_total = score_code_to_score(GAME_TYPED_TEXT.typed);
+                    g_odometer_total = score_code_to_score(GAME_TYPED_TEXT.typed);
 
-                    if (odometer_total == -1) {
-                        odometer_total = 0;
+                    if (g_odometer_total == -1) {
+                        g_odometer_total = 0;
                         show_message_box(MESSAGES.score_code_invalid, MESSAGES.score_code_body);
                         full = 1;
                     }
 
                     PUZZLE_STATE.selected_level = level;
 
-                    if (PUZZLE_STATE.selected_level > level_count)
-                        PUZZLE_STATE.selected_level = level_count;
+                    if (PUZZLE_STATE.selected_level > g_level_count)
+                        PUZZLE_STATE.selected_level = g_level_count;
 
                     repaint = 1;
                     start_counters();
@@ -212,14 +212,14 @@ uint16_t select_puzzle_screen(void)
                     }
                 }
 
-                if (level > furthest_level) {
-                    furthest_level = level;
+                if (level > g_furthest_level) {
+                    g_furthest_level = level;
                     write_config();            /* write tim.cfg */
                     repaint = 1;
                 }
 
-                if (round_state == 0x800)
-                    round_state = 0x8000;
+                if (g_round_state == 0x800)
+                    g_round_state = 0x8000;
             }
 
             rp_pass = 2;
@@ -228,11 +228,11 @@ uint16_t select_puzzle_screen(void)
         if (hold != 0)
             hold--;
 
-        switch (round_state) {
+        switch (g_round_state) {
         case 0x2000:                    /* the up arrow: a page back */
             if (hold == 0) {
                 if (POINTER.button_left != 1 && POINTER.button_left != 2) {
-                    round_state = 0x8000;
+                    g_round_state = 0x8000;
                 } else if (PUZZLE_STATE.puzzle_page > 1) {
                     PUZZLE_STATE.puzzle_page -= 0x15;
                     if (PUZZLE_STATE.puzzle_page < 1)
@@ -247,8 +247,8 @@ uint16_t select_puzzle_screen(void)
         case 0x1000:                    /* the down arrow: a page on */
             if (hold == 0) {
                 if (POINTER.button_left != 1 && POINTER.button_left != 2) {
-                    round_state = 0x8000;
-                } else if (PUZZLE_STATE.puzzle_page + 0x15 <= level_count) {
+                    g_round_state = 0x8000;
+                } else if (PUZZLE_STATE.puzzle_page + 0x15 <= g_level_count) {
                     PUZZLE_STATE.puzzle_page += 0x15;
                     repaint = 1;
                     hold = 4;
@@ -260,8 +260,8 @@ uint16_t select_puzzle_screen(void)
         case 0x4000:                    /* a click in the list */
             row = PUZZLE_STATE.puzzle_page + (POINTER.pointer_y - 0x4c) / 10;
 
-            if (row <= level_count) {
-                if (row > furthest_level) {
+            if (row <= g_level_count) {
+                if (row > g_furthest_level) {
                     show_message_box(MESSAGES.need_password, MESSAGES.need_password_body);
                     repaint = 1;
                 } else if (row != PUZZLE_STATE.selected_level) {
@@ -272,8 +272,8 @@ uint16_t select_puzzle_screen(void)
                      * zeroes the score, because the score belongs to the run
                      * that got this far.
                      */
-                    if (PUZZLE_STATE.selected_level < round_number) {
-                        odometer_total = 0;
+                    if (PUZZLE_STATE.selected_level < g_round_number) {
+                        g_odometer_total = 0;
                         start_counters();
                         set_clip_play_area();
                     }
@@ -282,11 +282,11 @@ uint16_t select_puzzle_screen(void)
                 }
             }
 
-            round_state = 0x8000;
+            g_round_state = 0x8000;
             break;
         }
 
-        was = round_state;
+        was = g_round_state;
 
         if (full != 0) {
             wait_cursor();
@@ -323,8 +323,8 @@ uint16_t select_puzzle_screen(void)
     puzzle_draw_ok(1);
     present_back_page();
 
-    if (PUZZLE_STATE.selected_level != round_number) {
-        round_number = PUZZLE_STATE.selected_level;
+    if (PUZZLE_STATE.selected_level != g_round_number) {
+        g_round_number = PUZZLE_STATE.selected_level;
         return 1;
     }
     return 0;
@@ -415,14 +415,14 @@ void puzzle_draw_up(void)
 {
     register int16_t pressed;
 
-    if (round_state == 0x2000)
+    if (g_round_state == 0x2000)
         pressed = 1;
     else
         pressed = 0;
 
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x25)[pressed]),
+    draw_bitmap(((g_panel_art + 0x25)[pressed]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -437,14 +437,14 @@ void puzzle_draw_down(void)
 {
     register int16_t pressed;
 
-    if (round_state == 0x1000)
+    if (g_round_state == 0x1000)
         pressed = 1;
     else
         pressed = 0;
 
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x27)[pressed]),
+    draw_bitmap(((g_panel_art + 0x27)[pressed]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -461,7 +461,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     VMDS.page_dst = VMDS.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((panel_art + 0x10)[pressed]),
+    draw_bitmap(((g_panel_art + 0x10)[pressed]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -492,7 +492,7 @@ void puzzle_draw_password(const char *text)
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
 
-    if (round_state == 0x800) {
+    if (g_round_state == 0x800) {
         PUZZLE_STATE.password_blink++;
         if ((PUZZLE_STATE.password_blink & 8) != 0)
             strcat(si, "*");
@@ -546,7 +546,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
 
             if (first == selected)
                 VMDS.text_colour = 0x0f;
-            else if (first <= furthest_level)
+            else if (first <= g_furthest_level)
                 VMDS.text_colour = 0x0a;
             else
                 VMDS.text_colour = 0x0c;

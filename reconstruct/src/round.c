@@ -63,13 +63,13 @@ void game_setup(void)
     free_bitmaps_thunk(bar);
 
     cursor_redraw_off_thunk();
-    menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
-    score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
+    g_menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
+    g_score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
 
-    odometer_total = 0;
-    round_number = 1;
-    playing = 1;
-    freeform = 0;
+    g_odometer_total = 0;
+    g_round_number = 1;
+    g_playing = 1;
+    g_freeform = 0;
 }
 
 /*
@@ -80,8 +80,8 @@ void game_setup(void)
  */
 void free_two_bitmap_lists(void)
 {
-    free_bitmaps_thunk(score2_bmp);
-    free_bitmaps_thunk(menu_bmp);
+    free_bitmaps_thunk(g_score2_bmp);
+    free_bitmaps_thunk(g_menu_bmp);
 }
 
 /*
@@ -111,10 +111,10 @@ void game_round(void)
 {
     round_setup();
 
-    while (round_state != 0x200 && round_state != 1) {
+    while (g_round_state != 0x200 && g_round_state != 1) {
         heap_check_or_hang();
 
-        switch (round_state) {
+        switch (g_round_state) {
         case 2:
             game_screen();
             break;
@@ -127,7 +127,7 @@ void game_round(void)
         }
     }
 
-    if (round_state == 0x200)
+    if (g_round_state == 0x200)
         finish_level();
 
     round_teardown();
@@ -158,17 +158,17 @@ void game_round(void)
  */
 void round_setup(void)
 {
-    origin_c_x = origin_c_y = origin_b_x
-        = origin_b_y = origin_x = origin_y = -8;
-    word_4ebb = 0;
+    g_origin_c_x = g_origin_c_y = g_origin_b_x
+        = g_origin_b_y = g_origin_x = g_origin_y = -8;
+    g_word_4ebb = 0;
 
     heap_check_or_hang();
 
-    if (freeform != 0) {
+    if (g_freeform != 0) {
         build_part_list();
         reset_machine();
     } else {
-        load_level(round_number);
+        load_level(g_round_number);
     }
 
     LEVEL_SETTINGS.extent_y = LEVEL_SETTINGS.extent_x = -8;
@@ -176,7 +176,7 @@ void round_setup(void)
     start_counters();
     reset_input_state();
 
-    round_state = 2;
+    g_round_state = 2;
 }
 
 /*

@@ -351,7 +351,7 @@ struct timer TIMER = { .divisor = -1 };   /* DGROUP 0x44ee */
 
 /* Ours: the callback table the timer keeps at DGROUP 0x44f9, as the host's
    own code pointers - see `struct timer`. */
-static void (far *timer_callbacks[16])(void);
+static void (far *g_timer_callbacks[16])(void);
 
 /*
  * 0x20654
@@ -398,7 +398,7 @@ uint16_t timer_add_callback(void (far *cb)(void), uint16_t period)
        tables; the slot is `bx >> 2`, which is also what it answers. */
     TIMER.tick[bx >> 2].period = (int16_t)period;
     TIMER.tick[bx >> 2].left = (int16_t)period;
-    timer_callbacks[bx >> 2] = cb;
+    g_timer_callbacks[bx >> 2] = cb;
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
@@ -588,7 +588,7 @@ void timer_tick(void)
             int16_t left = (int16_t)(TIMER.tick[slot].left - 1);
 
             if (left == 0) {
-                timer_callbacks[slot]();
+                g_timer_callbacks[slot]();
                 left = TIMER.tick[slot].period;
             }
             TIMER.tick[slot].left = left;

@@ -455,8 +455,8 @@ void read_level(char *name)
             game_fread_far(file, (uint8_t *)&LEVEL_IO.version);
 
             if (LEVEL_IO.is_level != 0) {
-                game_fread_string(file, (char *)level_title);
-                game_fread_string(file, (char *)level_hint);
+                game_fread_string(file, (char *)g_level_title);
+                game_fread_string(file, (char *)g_level_hint);
                 game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_1);
                 game_fread_far(file, (uint8_t *)&LEVEL_SETTINGS.bonus_2);
             }
@@ -479,8 +479,8 @@ void read_level(char *name)
             LEVEL_IO.record_count = 0;
             alloc_part_table(n_machine + n_moving + n_given);
 
-            read_list(file, &placed_parts, n_machine);
-            read_list(file, &moving_parts, n_moving);
+            read_list(file, &g_placed_parts, n_machine);
+            read_list(file, &g_moving_parts, n_moving);
             if (LEVEL_IO.is_level != 0)
                 read_list(file, &HELD_PARTS.parts_bin, n_given);
 
@@ -752,15 +752,15 @@ uint16_t write_level(register char *name)
     LEVEL_IO.error = 0;
     LEVEL_IO.version_out = 0xaced;
     LEVEL_IO.version = 0x0102;
-    file_op_active = 1;
+    g_file_op_active = 1;
 
     if ((f = game_fopen(name, "wb")) != 0) {
         write_word(f, (const uint8_t *)&LEVEL_IO.version_out);
         write_word(f, (const uint8_t *)&LEVEL_IO.version);
 
         if (LEVEL_IO.is_level != 0) {
-            write_string(f, (char *)level_title);
-            write_string(f, (char *)level_hint);
+            write_string(f, (char *)g_level_title);
+            write_string(f, (char *)g_level_hint);
             write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_1);
             write_word(f, (const uint8_t *)&LEVEL_SETTINGS.bonus_2);
         }
@@ -775,12 +775,12 @@ uint16_t write_level(register char *name)
 
         write_word(f, (const uint8_t *)&LEVEL_SETTINGS.tune);
 
-        write_part_count(f, &placed_parts);
-        write_part_count(f, &moving_parts);
+        write_part_count(f, &g_placed_parts);
+        write_part_count(f, &g_moving_parts);
         write_part_count(f, &HELD_PARTS.parts_bin);
 
-        write_part_list(f, &placed_parts, 0);
-        write_part_list(f, &moving_parts, 1);
+        write_part_list(f, &g_placed_parts, 0);
+        write_part_list(f, &g_moving_parts, 1);
         write_part_list(f, &HELD_PARTS.parts_bin, 2);
 
         if (game_fclose(f) != 0)
@@ -789,9 +789,9 @@ uint16_t write_level(register char *name)
         if (LEVEL_IO.error != 0)
             dos_unlink(name);
 
-        file_op_active = 0;
+        g_file_op_active = 0;
     } else {
-        file_op_active = 0;
+        g_file_op_active = 0;
         return 1;
     }
     return LEVEL_IO.error;
@@ -947,19 +947,19 @@ void count_level_files(void)
     char name[14];                      /* [bp-0x18] */
     register int16_t done = 0;
 
-    level_count = 1;
+    g_level_count = 1;
 
     while (done == 0) {
         strcpy(name, "l");
-        itoa(level_count, number, 10);
+        itoa(g_level_count, number, 10);
         strcat(name, number);
         strcat(name, ".lev");
 
         if ((file = game_fopen(name, "rb")) != 0) {
-            level_count++;
+            g_level_count++;
             game_fclose(file);
         } else {
-            level_count--;
+            g_level_count--;
             done = 1;
         }
     }
@@ -1112,8 +1112,8 @@ uint16_t read_tim_cfg(void)
     register uint16_t found;
 
     if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "rb")) != 0) {
-        game_fread_far(file, (uint8_t *)&furthest_level);
-        game_fread_far(file, (uint8_t *)&master_level);
+        game_fread_far(file, (uint8_t *)&g_furthest_level);
+        game_fread_far(file, (uint8_t *)&g_master_level);
         game_fclose(file);
         found = 1;
     } else {
@@ -1138,8 +1138,8 @@ void write_config(void)
     register FILE *file;
 
     if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "wb")) != 0) {
-        write_word(file, (const uint8_t *)&furthest_level);
-        write_word(file, (const uint8_t *)&master_level);
+        write_word(file, (const uint8_t *)&g_furthest_level);
+        write_word(file, (const uint8_t *)&g_master_level);
         game_fclose(file);
     }
 }

@@ -29,11 +29,11 @@
 
 /*
  * OURS: **the start of the VGA aperture**, A000:0000. Video memory is not kept
- * in `guest_mem` - the planes are behind `vga_read` and `vga_write`, which take
+ * in `g_guest_mem` - the planes are behind `vga_read` and `vga_write`, which take
  * the offset the card decodes - so a pointer into the aperture is only ever
  * subtracted from this, never read through.
  */
-static const uint8_t *const vga_aperture = guest_mem + 0xA0000;
+static const uint8_t *const vga_aperture = g_guest_mem + 0xA0000;
 
 /*
  * The driver's own data segment, which it loads from `cs:[0x13a]`. These are

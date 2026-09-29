@@ -368,7 +368,7 @@ static void (*asb_handler_for(uint16_t off))(void)
 
 /* OURS: the vectors `asb_hook_irq` displaces, by IRQ, for `asb_unhook_irq`
    to put back - see the note on the first. */
-static void interrupt (far *asb_saved_vector[16])();
+static void interrupt (far *g_asb_saved_vector[16])();
 
 /*
  * SX.OVL ASB:0x03a5
@@ -385,7 +385,7 @@ static void interrupt (far *asb_saved_vector[16])();
  * offset is the module's own, so which routine is meant is read off the
  * module, not decided here.
  *
- * The old vector goes into `asb_saved_vector`, not into the module's four
+ * The old vector goes into `g_asb_saved_vector`, not into the module's four
  * bytes at `save_at`: a host's handler is wider than the slot, and the slots
  * sit four bytes apart.
  */
@@ -396,7 +396,7 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
     uint8_t  bit, was;
 
     (void)save_at;
-    asb_saved_vector[irq & 0xf] = getvect(vec);
+    g_asb_saved_vector[irq & 0xf] = getvect(vec);
     setvect(vec, (void interrupt (far *)())asb_handler_for(handler));
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
@@ -419,7 +419,7 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
     (void)save_at;
-    setvect(vec, asb_saved_vector[irq & 0xf]);
+    setvect(vec, g_asb_saved_vector[irq & 0xf]);
     io_out8(((uint16_t)ASBS.pic_port), mask_was);
 
     io_on_sb_irq(irq, 0);

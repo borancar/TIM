@@ -54,15 +54,15 @@ struct machine_cursor_state MACHINE_CURSOR_STATE = {
 /*
  * **This module's `_BSS`, 0x56e6..0x5788.** Borland lays `_BSS` out in
  * reverse order of first mention. dgroup.h mentions POINTER, then
- * `rect_buffer`, then `size_word`, `frame_flag` and `redraw_guard` -
+ * `g_rect_buffer`, then `g_size_word`, `g_frame_flag` and `g_redraw_guard` -
  * the five highest - and the rest are defined here from the highest down.
  */
 struct pointer POINTER;
 
-uint8_t far *rect_buffer[4];   /* DGROUP 0x5758 */
-int16_t size_word;                                  /* DGROUP 0x5756 */
-volatile int16_t frame_flag;                        /* DGROUP 0x5754 */
-uint16_t redraw_guard;                              /* DGROUP 0x5752 */
+uint8_t far *g_rect_buffer[4];   /* DGROUP 0x5758 */
+int16_t g_size_word;                                  /* DGROUP 0x5756 */
+volatile int16_t g_frame_flag;                        /* DGROUP 0x5754 */
+uint16_t g_redraw_guard;                              /* DGROUP 0x5752 */
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
@@ -104,7 +104,7 @@ struct machine_palette_fade MACHINE_PALETTE_FADE;
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734; the buffers themselves are `rect_buffer`, the far
+ * apiece at 0x5734; the buffers themselves are `g_rect_buffer`, the far
  * pointers at 0x5758 up to `POINTER`. Four is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
@@ -207,7 +207,7 @@ void timer_callback(void)
     int16_t k_end, k_down, k_pgdn, k_left, k_right, k_home, k_up, k_pgup;
     int16_t si, di;
 
-    if (((int16_t)redraw_guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
+    if (((int16_t)g_redraw_guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
         return;
 
     MACHINE_PALETTE_FADE.busy = 1;
@@ -253,7 +253,7 @@ void timer_callback(void)
     if (moved != 0)
         mouse_move_to(((uint16_t)POINTER.cursor_x), ((uint16_t)POINTER.cursor_y));
 
-    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && redraw_guard == 0) {
+    if (MACHINE_CURSOR_STATE.timer_draws_cursor != 0 && g_redraw_guard == 0) {
         isr_stack_switch(1);
         redraw_cursor(VMDS.page_front);
         isr_stack_switch(0);
@@ -281,7 +281,7 @@ void timer_callback(void)
     POINTER.button_accum_a = (int16_t)(di | (si & 0xfffe));
 
     MACHINE_PALETTE_FADE.busy = 0;
-    frame_flag = 1;
+    g_frame_flag = 1;
 }
 
 /*
@@ -307,8 +307,8 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
         && POINTER.hot_y == hot_y)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     POINTER.cursor_bitmap = bitmap;
 
@@ -321,7 +321,7 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 
     redraw_cursor(VMDS.page_front);
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -391,7 +391,7 @@ void wait_and_latch_frame(void)
     POINTER.button_left = POINTER.button_accum_b;
     POINTER.button_right = POINTER.button_accum_a;
     POINTER.button_accum_b = POINTER.button_accum_a = 0;
-    frame_flag = 0;
+    g_frame_flag = 0;
 }
 
 /*
@@ -425,8 +425,8 @@ void draw_cursor(uint16_t page)
     if ((slot = claim_page_slot(page)) == NULL)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     restage_object_rect(page);
     save_or_restore_draw_state(1);
@@ -441,7 +441,7 @@ void draw_cursor(uint16_t page)
     if (slot->cursor.flags & 2) {
         if (slot->cursor.buf != 0) {
             if (slot->cursor.w > 0 && slot->cursor.h > 0)
-                restore_rect_thunk(rect_buffer[slot->cursor.buf - 1],
+                restore_rect_thunk(g_rect_buffer[slot->cursor.buf - 1],
                                    slot->cursor.x, slot->cursor.y,
                                    slot->cursor.w, slot->cursor.h);
         } else {
@@ -455,7 +455,7 @@ void draw_cursor(uint16_t page)
     if (MACHINE_CURSOR_STATE.cursor_off != 0) {
         if (slot->obj.buf != 0 && slot->bitmap != 0) {
             if (slot->obj.w > 0 && slot->obj.h > 0)
-                save_rect_thunk(rect_buffer[slot->obj.buf - 1],
+                save_rect_thunk(g_rect_buffer[slot->obj.buf - 1],
                                 slot->obj.x, slot->obj.y,
                                 slot->obj.w, slot->obj.h);
         } else {
@@ -494,7 +494,7 @@ void draw_cursor(uint16_t page)
         slot->cursor.flags &= 0xfe;
     }
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -524,8 +524,8 @@ void redraw_cursor(uint16_t page)
     if ((slot = claim_page_slot(page)) == NULL)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     if (MACHINE_CURSOR_STATE.read_driver != 0)
         read_mouse_pointer(&POINTER.cursor_x, &POINTER.cursor_y);
@@ -540,7 +540,7 @@ void redraw_cursor(uint16_t page)
         || !(slot->obj.flags & 2))
         draw_cursor(page);
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -575,8 +575,8 @@ void erase_object(uint16_t handle)
     if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     save_or_restore_draw_state(1);
 
@@ -584,7 +584,7 @@ void erase_object(uint16_t handle)
 
     if (rec->obj.flags & 2) {
         if (rec->obj.buf != 0 && rec->obj.w > 0 && rec->obj.h > 0)
-            vm_restore_rect(rect_buffer[rec->obj.buf - 1],
+            vm_restore_rect(g_rect_buffer[rec->obj.buf - 1],
                             rec->obj.x, rec->obj.y,
                             rec->obj.w, rec->obj.h);
         else
@@ -593,7 +593,7 @@ void erase_object(uint16_t handle)
     }
 
     save_or_restore_draw_state(0);
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -618,8 +618,8 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     if ((si = claim_page_slot(from_page)) == NULL)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     save_or_restore_draw_state(1);
 
@@ -627,14 +627,14 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 
     if (si->obj.flags & 2) {
         if (si->obj.buf != 0 && si->obj.w > 0 && si->obj.h > 0)
-            restore_rect_thunk(rect_buffer[si->obj.buf - 1],
+            restore_rect_thunk(g_rect_buffer[si->obj.buf - 1],
                                si->obj.x, si->obj.y, si->obj.w, si->obj.h);
         else
             plot_pixel_clipped(si->obj.x, si->obj.y, si->obj.pixel);
     }
 
     save_or_restore_draw_state(0);
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -663,14 +663,14 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
         || (slot_b = claim_page_slot(page_a)) == NULL)
         return;
 
-    was = redraw_guard;
-    redraw_guard = 1;
+    was = g_redraw_guard;
+    g_redraw_guard = 1;
 
     head = slot_a->page;
     slot_a->page = slot_b->page;
     slot_b->page = head;
 
-    redraw_guard = was;
+    g_redraw_guard = was;
 }
 
 /*
@@ -728,8 +728,8 @@ void restage_object_rect(uint16_t handle)
     if ((rec = claim_page_slot(handle)) == NULL)
         return;
 
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     if ((rec->cursor.flags & 1) && rec->cursor.buf != 0
         && MACHINE_PALETTE_FADE.busy == 0) {
@@ -791,7 +791,7 @@ void restage_object_rect(uint16_t handle)
     rec->obj.w = w;
     rec->obj.h = h;
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -840,8 +840,8 @@ void redraw_cursor_all(void)
     uint16_t was;
     struct page_slot *rec;
 
-    was = redraw_guard;
-    redraw_guard = 1;
+    was = g_redraw_guard;
+    g_redraw_guard = 1;
 
     if (POINTER.pending_move_x != 0 || POINTER.pending_move_y != 0) {
         move_pointer_to(POINTER.pending_move_x, POINTER.pending_move_y);
@@ -912,7 +912,7 @@ void redraw_cursor_all(void)
 
     restore_saved_rect_lists(0);
 
-    redraw_guard = was;
+    g_redraw_guard = was;
 }
 
 /*
@@ -943,8 +943,8 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 
     hit_draw = 0;
     hit_shown = 0;
-    saved = redraw_guard;
-    redraw_guard = 1;
+    saved = g_redraw_guard;
+    g_redraw_guard = 1;
 
     if ((si = claim_page_slot(VMDS.page_src)) != NULL
         && (si->obj.flags & 2)) {
@@ -989,7 +989,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
         erase_object(VMDS.page_src);
     }
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -1076,7 +1076,7 @@ void save_or_restore_draw_state(int16_t save)
 /*
  * 0x0b4e2
  *
- * Non-zero while `frame_flag` is still clear. The original is
+ * Non-zero while `g_frame_flag` is still clear. The original is
  * `neg ax / sbb ax,ax / inc ax`, which is Borland's idiom for `ax = (ax == 0)`.
  *
  * The caller at 0x0aaca spins on this waiting for the INT 08h handler to set
@@ -1085,7 +1085,7 @@ void save_or_restore_draw_state(int16_t save)
  */
 int16_t frame_pending(void)
 {
-    return !frame_flag;
+    return !g_frame_flag;
 }
 
 /*
@@ -1107,8 +1107,8 @@ void reset_input_state(void)
     struct button *b;
     register int16_t n;
 
-    saved = redraw_guard;
-    redraw_guard = 2;
+    saved = g_redraw_guard;
+    g_redraw_guard = 2;
 
     for (b = MACHINE_BUTTONS.button, n = 2; n != 0; b++, n--) {
         b->state = 0;
@@ -1120,7 +1120,7 @@ void reset_input_state(void)
     POINTER.button_accum_b = POINTER.button_accum_a = 0;
     POINTER.button_left = POINTER.button_right = 0;
 
-    redraw_guard = saved;
+    g_redraw_guard = saved;
 }
 
 /*
@@ -1222,20 +1222,20 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     /* Two Borland `long`s the routine does not use - its one caller passes
        the size in the first and zero in the second. The image copies each
        onto itself, which is what these two lines compile to. It sizes the
-       buffer from `size_word` or `vm_buffer_size` instead. */
+       buffer from `g_size_word` or `vm_buffer_size` instead. */
     a = a;
     b = b;
 
-    size = size_word != 0 ? size_word : (int16_t)vm_buffer_size(0x40, 0x40);
+    size = g_size_word != 0 ? g_size_word : (int16_t)vm_buffer_size(0x40, 0x40);
 
     for (i = 0; i < 4; i++) {
-        if (rect_buffer[i] == NULL)
-            rect_buffer[i] = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0));
+        if (g_rect_buffer[i] == NULL)
+            g_rect_buffer[i] = DOS_ALLOC_PTR(DOS_ALLOC((int32_t)size, 0));
     }
 
     for (i = 0; i < 4; i++) {
         if (!MACHINE_BUFFER_USED.used[i]
-            && rect_buffer[i] != NULL) {
+            && g_rect_buffer[i] != NULL) {
             MACHINE_BUFFER_USED.used[i] = 1;
             return i + 1;
         }

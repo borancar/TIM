@@ -56,7 +56,7 @@
    DOS's arena, the interrupt table's page, the DGROUP arena. Defined in
    hostio.c. */
 #ifndef __TURBOC__
-extern uint8_t  guest_mem[GUEST_MEM_BYTES];
+extern uint8_t  g_guest_mem[GUEST_MEM_BYTES];
 #endif
 
 /*
@@ -81,14 +81,14 @@ extern uint8_t  guest_mem[GUEST_MEM_BYTES];
 
 /* Declared in hostio.h, which this header deliberately does not include. */
 void port_abort(const char *msg);
-extern uint32_t dgroup_base;        /* linear address of DGROUP */
+extern uint32_t g_dgroup_base;        /* linear address of DGROUP */
 
 #ifdef __TURBOC__
 /* A near pointer is the offset: DGROUP starts at 0, so `dgroup + off` is
    the pointer `off` and costs no instruction. */
 #  define dgroup    ((uint8_t *)0)
 #else
-#  define dgroup    (guest_mem + dgroup_base)
+#  define dgroup    (g_guest_mem + g_dgroup_base)
 #endif
 
 /*
@@ -99,7 +99,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
  * spins on a word the timer thread writes - `TIMER.frame_budget`,
- * `frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three words are
+ * `g_frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three words are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -137,7 +137,7 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
 {
     if (seg == 0 && off == 0)
         return NULL;
-    return guest_mem + (((uint32_t)seg) << 4) + off;
+    return g_guest_mem + (((uint32_t)seg) << 4) + off;
 }
 #define MK_FP(seg, off) mk_fp((uint16_t)(seg), (uint16_t)(off))
 
@@ -158,7 +158,7 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
  */
 /* C's null is the guest's 0000:0000, and so is a pair filed from it. */
 #define FP_LIN(p)         ((const void *)(p) == NULL ? 0u \
-                           : (uint32_t)((const uint8_t *)(p) - guest_mem))
+                           : (uint32_t)((const uint8_t *)(p) - g_guest_mem))
 #define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
 #define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
 #define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
@@ -213,7 +213,7 @@ static inline uint8_t *mk_fp(uint16_t seg, uint16_t off)
  * DGROUP has words at odd addresses - the game's own state block starts at
  * 0x4e67 - so a `uint16_t` after a byte field lands on an odd offset, and a
  * compiler is entitled to align it and move everything after it. That happened
- * the first time the record at 0x52ed was written: `last_key` is a byte at 0x52f1, the
+ * the first time the record at 0x52ed was written: `g_last_key` is a byte at 0x52f1, the
  * word after it belongs at 0x52f2, and unpacked it went to 0x52f3 with the
  * five fields behind it following. The asserts of the time caught all six;
  * `packed` is what stops it happening again on the host.
@@ -229,13 +229,13 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
 /* **Where a far null leads.** A far pointer of 0000:0000 is the interrupt
    table on a real machine, and a routine that follows one reads and writes
    those bytes - `stop_all_voices` does, before any voice exists. On the host
-   a null is not memory, so this sends it to `guest_mem`, which stands for
+   a null is not memory, so this sends it to `g_guest_mem`, which stands for
    the machine's first megabyte; under Borland C++ it is the pointer itself.
    Ours. */
 #ifdef __TURBOC__
 #  define ZERO_PAGE(p)   (p)
 #else
-#  define ZERO_PAGE(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)guest_mem)
+#  define ZERO_PAGE(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)g_guest_mem)
 #endif
 
 /*
@@ -433,7 +433,7 @@ extern struct vmds VMDS;
  * four words between here and 0x50d3 are not read as part of it.
  */
 #ifndef GAMEDATA_C
-extern struct part *layer_head[6];
+extern struct part *g_layer_head[6];
 #endif
 
 /*
@@ -465,58 +465,58 @@ extern struct part *layer_head[6];
  * ---------------------------------------------------------------------------
  */
 #ifndef GAMEDATA_C
-extern uint16_t freeform;
-extern uint16_t tool;
-extern uint16_t round_state;
-extern struct region *region_kept_a;
-extern struct region *region_kept_b;
-extern struct region *regions_a;
-extern struct region *regions_b;
-extern struct region *regions_c;
-extern struct region *regions_panel;
-extern struct region *regions_play;
-extern int16_t holiday_christmas;
-extern int16_t holiday_halloween;
-extern int16_t holiday_stpatrick;
-extern int16_t holiday_valentine;
-extern uint16_t memory_warned;
-extern uint16_t file_op_active;
-extern int16_t loop_frames;
-extern uint16_t redraw_carried;
-extern uint16_t redraw_a;
-extern uint16_t redraw_b;
-extern uint16_t redraw_c;
-extern uint16_t redraw_d;
-extern uint16_t redraw_e;
-extern uint16_t drag_offset_y;
-extern uint16_t drag_offset_x;
-extern int16_t origin_c_y;
-extern int16_t origin_c_x;
-extern int16_t origin_b_y;
-extern int16_t origin_b_x;
-extern int16_t origin_y;
-extern int16_t origin_x;
-extern uint16_t elapsed_ticks;
-extern uint16_t machine_frames;
-extern int32_t banked_score;
-extern int32_t odometer_total;
-extern int16_t bonus_2_scroll;
-extern int16_t bonus_1_scroll;
-extern int16_t password_puzzle;
-extern int16_t furthest_level;
-extern int16_t level_count;
-extern uint16_t word_4ebb;
-extern int16_t round_number;
-extern int16_t playing;
-extern int16_t master_level;
-extern int16_t saved_cursor;
-extern int16_t cursor;
-extern struct bitmap **icons_bmp;
-extern struct bitmap **menu_bmp;
-extern struct bitmap **bmp_4ecb;
-extern struct bitmap **score2_bmp;
-extern char level_title[0x50];
-extern char level_hint[0x190];
+extern uint16_t g_freeform;
+extern uint16_t g_tool;
+extern uint16_t g_round_state;
+extern struct region *g_region_kept_a;
+extern struct region *g_region_kept_b;
+extern struct region *g_regions_a;
+extern struct region *g_regions_b;
+extern struct region *g_regions_c;
+extern struct region *g_regions_panel;
+extern struct region *g_regions_play;
+extern int16_t g_holiday_christmas;
+extern int16_t g_holiday_halloween;
+extern int16_t g_holiday_stpatrick;
+extern int16_t g_holiday_valentine;
+extern uint16_t g_memory_warned;
+extern uint16_t g_file_op_active;
+extern int16_t g_loop_frames;
+extern uint16_t g_redraw_carried;
+extern uint16_t g_redraw_a;
+extern uint16_t g_redraw_b;
+extern uint16_t g_redraw_c;
+extern uint16_t g_redraw_d;
+extern uint16_t g_redraw_e;
+extern uint16_t g_drag_offset_y;
+extern uint16_t g_drag_offset_x;
+extern int16_t g_origin_c_y;
+extern int16_t g_origin_c_x;
+extern int16_t g_origin_b_y;
+extern int16_t g_origin_b_x;
+extern int16_t g_origin_y;
+extern int16_t g_origin_x;
+extern uint16_t g_elapsed_ticks;
+extern uint16_t g_machine_frames;
+extern int32_t g_banked_score;
+extern int32_t g_odometer_total;
+extern int16_t g_bonus_2_scroll;
+extern int16_t g_bonus_1_scroll;
+extern int16_t g_password_puzzle;
+extern int16_t g_furthest_level;
+extern int16_t g_level_count;
+extern uint16_t g_word_4ebb;
+extern int16_t g_round_number;
+extern int16_t g_playing;
+extern int16_t g_master_level;
+extern int16_t g_saved_cursor;
+extern int16_t g_cursor;
+extern struct bitmap **g_icons_bmp;
+extern struct bitmap **g_menu_bmp;
+extern struct bitmap **g_bmp_4ecb;
+extern struct bitmap **g_score2_bmp;
+extern char g_level_title[0x50];
+extern char g_level_hint[0x190];
 #endif
 
 
@@ -700,26 +700,26 @@ extern struct sound_bank SOUND_BANK;
  * **The rubber-band line and the machine's sound requests**, at DGROUP 0x52bd.
  */
 #ifndef GAMEDATA_C
-extern int16_t band_x;
-extern int16_t band_y;
-extern int16_t anchor_x;
-extern int16_t anchor_y;
-extern int16_t band_colour;
-extern int16_t drop_cursor;
-extern int16_t bin_colour;
-extern int16_t fill_colour;
-extern int16_t sound_request_0c;
-extern int16_t sound_request_09;
-extern int16_t sound_request_02;
-extern int16_t sound_request_01;
-extern int16_t music_now;
-extern int16_t saved_clip_bottom;
-extern int16_t saved_clip_top;
-extern int16_t saved_clip_right;
-extern int16_t saved_clip_left;
-extern int16_t memo_font;
-extern uint8_t far *pal_black;
-extern uint8_t far *pal_sierra;
+extern int16_t g_band_x;
+extern int16_t g_band_y;
+extern int16_t g_anchor_x;
+extern int16_t g_anchor_y;
+extern int16_t g_band_colour;
+extern int16_t g_drop_cursor;
+extern int16_t g_bin_colour;
+extern int16_t g_fill_colour;
+extern int16_t g_sound_request_0c;
+extern int16_t g_sound_request_09;
+extern int16_t g_sound_request_02;
+extern int16_t g_sound_request_01;
+extern int16_t g_music_now;
+extern int16_t g_saved_clip_bottom;
+extern int16_t g_saved_clip_top;
+extern int16_t g_saved_clip_right;
+extern int16_t g_saved_clip_left;
+extern int16_t g_memo_font;
+extern uint8_t far *g_pal_black;
+extern uint8_t far *g_pal_sierra;
 #endif
 
 
@@ -727,13 +727,13 @@ extern uint8_t far *pal_sierra;
  * **The palettes, the last key, and the art sets**, at DGROUP 0x52ed.
  */
 #ifndef GAMEDATA_C
-extern uint8_t far *pal_tim;
-extern uint8_t last_key;
-extern uint16_t cursor_follows;
-extern struct bitmap **panel_art;
-extern struct bitmap **cursor_art;
-extern FILE     *tim_sx;
-extern uint16_t stop_requested;
+extern uint8_t far *g_pal_tim;
+extern uint8_t g_last_key;
+extern uint16_t g_cursor_follows;
+extern struct bitmap **g_panel_art;
+extern struct bitmap **g_cursor_art;
+extern FILE     *g_tim_sx;
+extern uint16_t g_stop_requested;
 #endif
 
 /* **`_stklen`**, the start-up's stack length, which the program defines
@@ -753,7 +753,7 @@ extern uint16_t _stklen;
  * `picker_type`.
  */
 #ifndef GAMEDATA_C
-extern char picked_machine[0xd];
+extern char g_picked_machine[0xd];
 #endif
 
 /*
@@ -791,20 +791,20 @@ struct shape {
  * **The shape and part free lists, and the picked file's name**, gamedata.c's,
  * DGROUP 0x4e4e..0x4e67.
  *
- * `shape_free` is the list nodes come off, and `shapes_drawn` the shapes drawn
+ * `g_shape_free` is the list nodes come off, and `g_shapes_drawn` the shapes drawn
  * over, put back in reverse - **one far pointer**, the offset at 0x4e52 and
  * the segment at 0x4e54, which is what `alloc_shape` files there.
- * `parts_free` is the head of the part records, and `parts_queue`, folded
- * onto it, what asked to move this frame. `pick_file` fills `picked_name` and
+ * `g_parts_free` is the head of the part records, and `g_parts_queue`, folded
+ * onto it, what asked to move this frame. `pick_file` fills `g_picked_name` and
  * copies the answer out, and `validate_filename` reads it back: thirteen
- * bytes, an 8.3 name and its NUL, which is what is left before `freeform`.
+ * bytes, an 8.3 name and its NUL, which is what is left before `g_freeform`.
  */
 #ifndef GAMEDATA_C
-extern struct shape far *shape_free;
-extern struct shape far *shapes_drawn;
-extern struct queue_node *parts_free;
-extern struct queue_node *parts_queue;
-extern char picked_name[0xd];
+extern struct shape far *g_shape_free;
+extern struct shape far *g_shapes_drawn;
+extern struct queue_node *g_parts_free;
+extern struct queue_node *g_parts_queue;
+extern char g_picked_name[0xd];
 #endif
 
 /*
@@ -854,7 +854,7 @@ struct timer {
 
        **The pointers are not kept here on the host.** They are code
        pointers, which only the timer's own routines read, and the port's
-       are real ones in `timer_callbacks` (engine.c); these bytes stay in
+       are real ones in `g_timer_callbacks` (engine.c); these bytes stay in
        the record because the original's game code reads the words either
        side of them in guest memory. */
     uint8_t   callback_slots[0x40]; /* +0x0b  0x44f9 */
@@ -876,33 +876,33 @@ extern struct timer TIMER;
  * entry past the last is index seven at most. The word after, 0x56b6, is
  * `MACHINE_RECT_COUNT`, which `rect_pool_count` reads - not a ninth line.
  */
-extern char *text_line[8];
+extern char *g_text_line[8];
 
 /*
  * **A far pointer per saved rectangle**, DGROUP 0x5758..0x5768, indexed from
  * ONE: slots 1 to 4 are the buffers `claim_buffer_slot` hands out. The
  * original indexes `[bx + 0x5754]` with `bx = slot * 4`, so its slot 0 would be
- * the four bytes at 0x5754 - `frame_flag` and `size_word` - and it is
+ * the four bytes at 0x5754 - `g_frame_flag` and `g_size_word` - and it is
  * never handed out. The array starts at slot 1, and every use subtracts one.
  */
-/* cursor.c's; declared here, above `frame_flag`, because Borland lays out
+/* cursor.c's; declared here, above `g_frame_flag`, because Borland lays out
    `_BSS` in reverse order of first mention and this is its place in it. */
-extern uint8_t far *rect_buffer[4];
+extern uint8_t far *g_rect_buffer[4];
 
 /*
  * **The drawing re-entry guard and the frame flag**, cursor.c's, DGROUP
  * 0x5752..0x5758. Declared last address first: Borland C++ lays `_BSS` out
  * last mention first, and these externs are the first mention.
  *
- * `size_word` is the size `claim_buffer_slot` gives a save buffer, or the
- * driver's own if this is zero. `frame_flag` is what `wait_and_latch_frame` spins on, set by
+ * `g_size_word` is the size `claim_buffer_slot` gives a save buffer, or the
+ * driver's own if this is zero. `g_frame_flag` is what `wait_and_latch_frame` spins on, set by
  * the INT 08h handler - on the timer thread, which is why it is **volatile**.
- * `redraw_guard` is raised across a redraw and put back: a nesting guard, not
+ * `g_redraw_guard` is raised across a redraw and put back: a nesting guard, not
  * a lock.
  */
-extern int16_t size_word;
-extern volatile int16_t frame_flag;
-extern uint16_t redraw_guard;
+extern int16_t g_size_word;
+extern volatile int16_t g_frame_flag;
+extern uint16_t g_redraw_guard;
 
 /*
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
@@ -910,8 +910,8 @@ extern uint16_t redraw_guard;
  * Declared last address first: Borland C++ lays `_BSS` out last mention
  * first, and these externs are the first mention.
  */
-extern uint16_t goal_condition[10];
-extern struct part *belt_far_end;
+extern uint16_t g_goal_condition[10];
+extern struct part *g_belt_far_end;
 
 
 
@@ -1013,7 +1013,7 @@ struct extent16 {
  */
 struct part {
     /* **The next part on its list, and the previous.** A list's head is a
-       part itself - `parts_bin`, `moving_parts`, `placed_parts`, each a whole
+       part itself - `parts_bin`, `g_moving_parts`, `g_placed_parts`, each a whole
        `struct part` - and the game treats it as the record before the first:
        `insert_sorted` files the head's *address* into the first part's
        `prev`, and `unlink_part` writes `prev->next`
@@ -1294,7 +1294,7 @@ struct held_parts {
        one of every kind for freeform.
 
        **0xa2 bytes, not the two links.** The three heads sit exactly one part
-       apart - 0x50d7, 0x5179, 0x521b, and `band_x` is at 0x52bd - with
+       apart - 0x50d7, 0x5179, 0x521b, and `g_band_x` is at 0x52bd - with
        nothing else declared between them, and the game reads a head through
        the part layout: `bin_list` is set to 0x50d7 (0x10d7f, 0x123ac,
        0x140f3) and `bin_part_at_index` reads `kind` through it.
@@ -1317,7 +1317,7 @@ extern struct held_parts HELD_PARTS;
  * way the bin's at 0x50d7 is; see `parts_bin`.
  */
 #ifndef GAMEDATA_C
-extern struct part moving_parts;
+extern struct part g_moving_parts;
 #endif
 
 /*
@@ -1445,36 +1445,36 @@ extern struct vm_start VM_START;
 
 /* lowlevel.c's, host-only: the TASM module names its own. */
 #ifndef __TURBOC__
-extern int16_t saved_gc_0_1;
-extern int16_t saved_gc_4;
-extern int16_t saved_gc_8;
-extern int16_t saved_seq_map_mask;
-extern uint8_t saved_gc_3;
-extern uint8_t gc_mode_fill;
-extern uint8_t gc_mode_fill_256;
-extern uint8_t gc_mode_copy;
-extern uint8_t gc_mode_copy_256;
-extern uint8_t mouse_taken;
-extern uint8_t mouse_buttons;
-extern uint8_t divide_hooked;
-extern void interrupt (far *old_divide_vector)();
+extern int16_t g_saved_gc_0_1;
+extern int16_t g_saved_gc_4;
+extern int16_t g_saved_gc_8;
+extern int16_t g_saved_seq_map_mask;
+extern uint8_t g_saved_gc_3;
+extern uint8_t g_gc_mode_fill;
+extern uint8_t g_gc_mode_fill_256;
+extern uint8_t g_gc_mode_copy;
+extern uint8_t g_gc_mode_copy_256;
+extern uint8_t g_mouse_taken;
+extern uint8_t g_mouse_buttons;
+extern uint8_t g_divide_hooked;
+extern void interrupt (far *g_old_divide_vector)();
 #endif
 
 /*
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576:
  * `picker_begin` takes it if it is not null.
  */
-extern uint8_t far *scratch_block;
+extern uint8_t far *g_scratch_block;
 
 /*
  * **The placed parts: a doubly linked list's head**, at DGROUP 0x521b - the
  * first list the level file fills (`n_machine`) and on most levels the
- * largest - the scenery: platforms, ramps, pipes, conveyors. `moving_parts`
+ * largest - the scenery: platforms, ramps, pipes, conveyors. `g_moving_parts`
  * holds the moving ones. A whole part, read the way the bin's at 0x50d7 is;
  * see `parts_bin`.
  */
 #ifndef GAMEDATA_C
-extern struct part placed_parts;
+extern struct part g_placed_parts;
 #endif
 
 
@@ -1509,7 +1509,7 @@ extern struct draw_step DEFAULT_DRAW_STEP;
  * and the goodbye, the copy-protection prompt, every message box's title and
  * body, the picker's and the puzzle screen's labels and buttons, the level-
  * complete texts, and the path separator at the end - the one byte
- * `path_separator` points at.
+ * `g_path_separator` points at.
  * Typed from the image, one array per literal in the order Borland filed
  * them; the names are ours, from the text. The run ends at 0x2370.
  *
@@ -1674,7 +1674,7 @@ struct machine_draw_menu_anim {
  */
 extern struct game_message_tabs GAME_MESSAGE_TABS;
 extern struct machine_draw_menu_anim MACHINE_DRAW_MENU_ANIM;
-extern uint16_t selection_phase;
+extern uint16_t g_selection_phase;
 
 /*
  * **The driver's vector, as the code pointers its slots are.** `VM_DRIVER.entry`
@@ -1781,13 +1781,13 @@ typedef uint16_t (near *bmp_read_fn)(uint16_t bits);
    offset-table bitmap draws through**, vqtflip.c's `_DATA`, DGROUP
    0x49ba..0x49c6. Nothing in the image writes the first pointer or the last:
    they come in with the data segment. `draw_offset_bitmap` repoints
-   `vqt_plot_fn` before a draw - at the driver's plot, the vector's slot 22,
+   `g_vqt_plot_fn` before a draw - at the driver's plot, the vector's slot 22,
    when the bitmap is wholly inside the clip box, and back at
    `plot_pixel_clipped` when it is not. Names are ours. */
-extern int16_t min_run;
-extern bmp_fill_fn vqt_fill_fn;
-extern bmp_plot_fn vqt_plot_fn;
-extern bmp_read_fn vqt_read_fn;
+extern int16_t g_min_run;
+extern bmp_fill_fn g_vqt_fill_fn;
+extern bmp_plot_fn g_vqt_plot_fn;
+extern bmp_read_fn g_vqt_read_fn;
 
 /*
  * ---------------------------------------------------------------------------
@@ -1815,7 +1815,7 @@ extern bmp_read_fn vqt_read_fn;
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -
  * needs the segment half, and this is where it comes from.
  */
-#define DGROUP_SEG        ((uint16_t)(dgroup_base >> 4))
+#define DGROUP_SEG        ((uint16_t)(g_dgroup_base >> 4))
 
 /* **A near pointer the original's data held as a number.** The game's data
    module (gamedata.c) was built with these addresses written in, not as
@@ -1841,7 +1841,7 @@ extern bmp_read_fn vqt_read_fn;
 /*
  * The sound module keeps its state in **its own code segment**, segment 0x2619,
  * the same way the video driver keeps its data inside DGROUP - `struct snd_cs`,
- * below. The image base is derived from `dgroup_base` because that is the
+ * below. The image base is derived from `g_dgroup_base` because that is the
  * one thing tools/verify.py sets from the run it captured.
  *
  * The sound driver is a separate loaded block, and its address is not a
@@ -1850,15 +1850,15 @@ extern bmp_read_fn vqt_read_fn;
  * read through that, so the port follows the loader wherever it puts the
  * driver.
  */
-#define IMAGE_BASE  (dgroup_base - 0x2D3C0)
+#define IMAGE_BASE  (g_dgroup_base - 0x2D3C0)
 /*
  * Segment 0x1c25 keeps a little of its own state inside its code, the way the
  * sound module does - the saved timer vector, and the divisor table the tick
  * handler reads. `S1C8`/`S1C16` reach it.
  */
 #define S1C25       (IMAGE_BASE + 0x1c250)
-#define S1C8(off)   (*(uint8_t *)(guest_mem + S1C25 + (off)))
-#define S1C16(off)  (*(int16_t *)(guest_mem + S1C25 + (off)))
+#define S1C8(off)   (*(uint8_t *)(g_guest_mem + S1C25 + (off)))
+#define S1C16(off)  (*(int16_t *)(g_guest_mem + S1C25 + (off)))
 
 #define SNDCS       (IMAGE_BASE + 0x26190)
 
@@ -1888,7 +1888,7 @@ extern bmp_read_fn vqt_read_fn;
  * it - the sound module is handed its arguments as the words on the stack,
  * and the ISR's stack switch saves one. Ours.
  */
-extern uint16_t guest_sp;
+extern uint16_t g_guest_sp;
 
 /*
  * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
@@ -1896,7 +1896,7 @@ extern uint16_t guest_sp;
  * `SOUND_TICK_WAIT` at 0x6430. `alloc_voice_records` and `free_voice_records`
  * test the first one's two words to tell whether the seven are allocated.
  */
-extern struct sequence far *sound_voice[7];
+extern struct sequence far *g_sound_voice[7];
 
 /*
  * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
@@ -2582,7 +2582,7 @@ struct open_file {
  * `draw_bitmap` and to nothing else.
  *
  * Entry `n` is at `+2n`, which is how a site here reads back against the
- * disassembly - `panel_art[0x25]` is `[si+0x4a]`.
+ * disassembly - `g_panel_art[0x25]` is `[si+0x4a]`.
  * ---------------------------------------------------------------------------
  */
 
@@ -3214,8 +3214,8 @@ extern struct part_kind PART_KINDS[PART_KIND_COUNT];
 /*
  * ---------------------------------------------------------------------------
  * **A move-queue node**, eight bytes: `game.c` builds twenty of them with
- * `calloc_far(1, 8)` and threads them on `parts_free`;
- * `queue_part` moves one to `parts_queue`, sorted by the part's momentum
+ * `calloc_far(1, 8)` and threads them on `g_parts_free`;
+ * `queue_part` moves one to `g_parts_queue`, sorted by the part's momentum
  * high word then low. `queue_part` used to read these through `()`, and
  * the field names lined up by offset - +4 was `kind` in one line and `lo` in
  * the next, +6 `flags_06` and `hi` - which is the same bytes under two types
@@ -3552,13 +3552,13 @@ extern struct game_directories GAME_DIRECTORIES;
  * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
  * up to the static draw step at 0x124.
  */
-extern uint16_t master_level_ok[7];
+extern uint16_t g_master_level_ok[7];
 
 /*
  * **The path separator**, DGROUP 0x1bca..0x1bcc, 0x02 bytes: a near pointer to
  * the backslash string, `MESSAGES.path_sep` at 0x236e, which the path builders
  * concatenate.
  */
-extern char *path_separator;
+extern char *g_path_separator;
 
 #endif /* DGROUP_H */

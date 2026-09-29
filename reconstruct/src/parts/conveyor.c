@@ -118,7 +118,7 @@ void part_step_conveyor(struct part *part)
         part->direction = 0;
 
     if (part->direction != 0) {
-        sound_request_01 = 2;
+        g_sound_request_01 = 2;
 
         if (part->form == part->form_prev)
             play_sound(1);

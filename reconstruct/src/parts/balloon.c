@@ -103,7 +103,7 @@ void part_step_balloon(struct part *part)
             if (part->direction == 1
                 && (belt = part->belt[0]) != NULL
                 && (si = make_part(KIND_ANCHOR)) != NULL) {
-                insert_sorted(si, &moving_parts);
+                insert_sorted(si, &g_moving_parts);
                 si->flags_06 |= 0x10;
                 si->belt[0] = belt;
                 si->link[0] = part->link[0];

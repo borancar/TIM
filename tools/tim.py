@@ -311,7 +311,7 @@ class TimMachine(VgaDos):
         """Write the whole machine out, for `shift+F2` in a windowed run.
 
         The emulator's window loop offers the key and asks the machine whether
-        it can do anything with it, the same way `stop_requested` is offered -
+        it can do anything with it, the same way `g_stop_requested` is offered -
         so what a snapshot *is* stays here, where the game is known, and the
         window stays generic.
 

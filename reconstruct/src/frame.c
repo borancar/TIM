@@ -77,7 +77,7 @@ int16_t point_in_play_area(void)
  */
 void erase_both_pages(void)
 {
-    cursor_follows = 0;
+    g_cursor_follows = 0;
     cursor_redraw_off_thunk();
     erase_object(VMDS.page_back);
     erase_object(VMDS.page_front);
@@ -97,7 +97,7 @@ void erase_both_pages(void)
  */
 void show_cursor_again(void)
 {
-    cursor_follows = 1;
+    g_cursor_follows = 1;
     restore_cursor_following();
 }
 
@@ -124,7 +124,7 @@ void cursor_redraw_off_thunk(void)
  */
 void restore_cursor_following(void)
 {
-    if (cursor_follows != 0)
+    if (g_cursor_follows != 0)
         cursor_redraw_on();
 }
 
@@ -182,10 +182,10 @@ void update_button_state(void)
  */
 void present_frame(uint16_t wait_retrace)
 {
-    if (stop_requested != 0)
+    if (g_stop_requested != 0)
         game_teardown(1);
 
-    if (cursor_follows != 0)
+    if (g_cursor_follows != 0)
         redraw_cursor_all();
     else
         vm_show_page(wait_retrace);
@@ -262,17 +262,17 @@ void set_holiday_flags(void)
 {
     struct date d;
 
-    holiday_valentine = holiday_stpatrick
-        = holiday_halloween = holiday_christmas = 0;
+    g_holiday_valentine = g_holiday_stpatrick
+        = g_holiday_halloween = g_holiday_christmas = 0;
     getdate(&d);
     if (d.da_mon == 2 && d.da_day == 0x0e)
-        holiday_valentine = 1;
+        g_holiday_valentine = 1;
     if (d.da_mon == 3 && d.da_day == 0x11)
-        holiday_stpatrick = 1;
+        g_holiday_stpatrick = 1;
     if (d.da_mon == 0xa && d.da_day == 0x1f)
-        holiday_halloween = 1;
+        g_holiday_halloween = 1;
     if (d.da_mon == 0xc && d.da_day == 0x19)
-        holiday_christmas = 1;
+        g_holiday_christmas = 1;
 }
 
 /*
@@ -295,14 +295,14 @@ void set_holiday_flags(void)
 void set_clip_for_mode(void)
 {
     /* the screen state, not a video mode */
-    if (round_state == 0x2000 || round_state == 0x1000
-        || round_state == 0x200 || round_state == 0x8000
-        || round_state == 0x4000 || round_state == 0x800
-        || round_state == 0x400) {
-        VMDS.clip_left = saved_clip_left;
-        VMDS.clip_right = saved_clip_right;
-        VMDS.clip_top = saved_clip_top;
-        VMDS.clip_bottom = saved_clip_bottom;
+    if (g_round_state == 0x2000 || g_round_state == 0x1000
+        || g_round_state == 0x200 || g_round_state == 0x8000
+        || g_round_state == 0x4000 || g_round_state == 0x800
+        || g_round_state == 0x400) {
+        VMDS.clip_left = g_saved_clip_left;
+        VMDS.clip_right = g_saved_clip_right;
+        VMDS.clip_top = g_saved_clip_top;
+        VMDS.clip_bottom = g_saved_clip_bottom;
     } else {
         VMDS.clip_left = 0x110;
         VMDS.clip_right = 0x20F;
@@ -350,16 +350,16 @@ void set_clip_full_screen(void)
  */
 void select_music(register int16_t id)
 {
-    if (id != music_now) {
-        if (music_now != -1) {
-            stop_music_or_effect(music_now);
-            remove_and_free_records(music_now);
+    if (id != g_music_now) {
+        if (g_music_now != -1) {
+            stop_music_or_effect(g_music_now);
+            remove_and_free_records(g_music_now);
         }
         if (id != -1) {
-            open_sound_file((char *)tim_sx, id);
+            open_sound_file((char *)g_tim_sx, id);
             play_sound(id);
         }
-        music_now = id;
+        g_music_now = id;
     }
 }
 
@@ -389,7 +389,7 @@ void play_sound(register int16_t id)
 #endif
     if (id == 0x10 || id == 0x12 || id == 9 || id == 0x13 || id == 0x14
         || id == 4) {
-        if (master_level != 0)
+        if (g_master_level != 0)
             start_sequence_by_id(id);
     } else
         start_sequence_by_id(id);
@@ -446,19 +446,19 @@ int16_t check_room_for_part(void)
     si = heap_largest_free();
     if (si < 0x0fa0) {
         show_message_box(MESSAGES.out_of_memory, (char *)MESSAGES.you_cant_place_any);
-        memory_warned = 1;
+        g_memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();
         update_button_state();
         return 0;
-    } else if (si < 0x1388 && memory_warned == 0) {
+    } else if (si < 0x1388 && g_memory_warned == 0) {
         show_message_box(MESSAGES.memory_low, (char *)MESSAGES.memory_is_getting_low);
-        memory_warned = 1;
+        g_memory_warned = 1;
         redraw_machine_area();
         repaint_whole_screen();
         update_button_state();
     } else if (si > 0x1770)
-        memory_warned = 0;
+        g_memory_warned = 0;
     return 1;
 }
 

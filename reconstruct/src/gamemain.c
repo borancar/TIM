@@ -82,9 +82,9 @@ void game_startup(void)
     dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
     set_holiday_flags();
 
-    stop_requested = 0;
-    file_op_active = 0;
-    cursor = 0xffff;
+    g_stop_requested = 0;
+    g_file_op_active = 0;
+    g_cursor = 0xffff;
 
     load_archive_map();
 
@@ -121,14 +121,14 @@ void game_startup(void)
     }
 
     if (read_tim_cfg() == 0) {
-        furthest_level = 1;
-        master_level = 6;
+        g_furthest_level = 1;
+        g_master_level = 6;
     }
 
-    password_puzzle = 0;
-    banked_score = 0;
-    fill_colour = 3;
-    bin_colour = 0x0b;
+    g_password_puzzle = 0;
+    g_banked_score = 0;
+    g_fill_colour = 3;
+    g_bin_colour = 0x0b;
 
     vm_ok = vm_init(0x0d, 0x80, (FILE *)WRITABLE_LITERAL("vm.ovl"));
     if (vm_ok == 0) {
@@ -140,25 +140,25 @@ void game_startup(void)
     VMDS.page_back = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
-    pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
-    set_palette_pointer(pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
+    g_pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
+    g_pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
+    set_palette_pointer(g_pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
 
-    set_font(memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
+    set_font(g_memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
 
-    cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
-    panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
-    bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
+    g_cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
+    g_panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
+    g_bmp_4ecb = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, (FILE *)WRITABLE_LITERAL("sx.ovl"));
 
-    tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
+    g_tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
     for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)tim_sx, i);
+        open_sound_file((char *)g_tim_sx, i);
 
-    set_master_level_ok(master_level_ok[master_level]);
+    set_master_level_ok(g_master_level_ok[g_master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -176,11 +176,11 @@ void game_startup(void)
      * Twenty eight-byte records off the near heap, chained through their first
      * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
      */
-    parts_free = parts_queue = 0;
+    g_parts_free = g_parts_queue = 0;
     for (i = 0; i < 0x14; i++) {
         node = (struct queue_node *)calloc_far(1, sizeof(struct queue_node));
-        node->next = parts_free;
-        parts_free = node;
+        node->next = g_parts_free;
+        g_parts_free = node;
     }
 
     /*
@@ -188,11 +188,11 @@ void game_startup(void)
      * through a far pointer in the first four bytes of each block. 0x4e52 is
      * the second head, cleared here and not filled.
      */
-    shape_free = shapes_drawn = NULL;
+    g_shape_free = g_shapes_drawn = NULL;
     for (i = 0; i < 0xb4; i++) {
         block = (struct shape far *)DOS_ALLOC_PTR(DOS_ALLOC(sizeof(struct shape), 1));
-        block->next = shape_free;
-        shape_free = block;
+        block->next = g_shape_free;
+        g_shape_free = block;
     }
 }
 
@@ -234,13 +234,13 @@ void game_teardown(int16_t really)
     struct queue_node *si;
 
     if (really == 0) {
-        stop_requested = 1;
+        g_stop_requested = 1;
         return;
     }
 
-    if (password_puzzle != 0) {
-        read_password_line(password_puzzle, code);
-        score_to_code(banked_score, code);
+    if (g_password_puzzle != 0) {
+        read_password_line(g_password_puzzle, code);
+        score_to_code(g_banked_score, code);
         strcpy(msg, MESSAGES.thanks_for_playing);
         strcat(msg, code);
     } else {
@@ -248,12 +248,12 @@ void game_teardown(int16_t really)
     }
 
     /* Each free block's first four bytes are the far pointer to the next. */
-    for (node = shape_free; node != NULL; node = next) {
+    for (node = g_shape_free; node != NULL; node = next) {
         next = node->next;
         dos_free_far(node);
     }
 
-    for (si = parts_free; si != 0; si = after) {
+    for (si = g_parts_free; si != 0; si = after) {
         after = si->next;
         free_far(si);
     }
@@ -261,22 +261,22 @@ void game_teardown(int16_t really)
     free_region_lists();
     free_all_part_bitmaps();
 
-    free_bitmaps_thunk(icons_bmp);
-    free_bitmaps_thunk(bmp_4ecb);
-    free_bitmaps_thunk(panel_art);
-    free_bitmaps(cursor_art);
+    free_bitmaps_thunk(g_icons_bmp);
+    free_bitmaps_thunk(g_bmp_4ecb);
+    free_bitmaps_thunk(g_panel_art);
+    free_bitmaps(g_cursor_art);
 
-    close_font_slot(memo_font);
+    close_font_slot(g_memo_font);
 
-    free_far_block(pal_black);
-    free_far_block(pal_sierra);
-    free_far_block(pal_tim);
+    free_far_block(g_pal_black);
+    free_far_block(g_pal_sierra);
+    free_far_block(g_pal_tim);
 
     stop_sequences(-2);
     remove_and_free_records(-2);
     shutdown_sound();
 
-    close_file_record(tim_sx);
+    close_file_record(g_tim_sx);
     free_archive_lists();
 
     remove_keyboard();

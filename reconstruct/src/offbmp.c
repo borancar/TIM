@@ -65,9 +65,9 @@ void draw_offset_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
         h = bmp->height;
         if (x >= VMDS.clip_left && y >= VMDS.clip_top
             && x + w <= VMDS.clip_right && y + h <= VMDS.clip_bottom)
-            vqt_plot_fn = ((bmp_plot_fn)VM_DRIVER.entry[22]);
+            g_vqt_plot_fn = ((bmp_plot_fn)VM_DRIVER.entry[22]);
         else {
-            vqt_plot_fn = plot_pixel_clipped;
+            g_vqt_plot_fn = plot_pixel_clipped;
             VMDS.clip_enabled = 1;
         }
         BITMAPS.plot_zero = 0;

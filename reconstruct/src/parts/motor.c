@@ -57,7 +57,7 @@ void part_step_motor(struct part *part)
     }
 
     if (part->direction != 0) {
-        sound_request_0c = 2;
+        g_sound_request_0c = 2;
 
         if (part->form == part->form_prev)
             play_sound(0x0c);
