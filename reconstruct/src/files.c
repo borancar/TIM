@@ -22,7 +22,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
- * JUDGE: data 0x498e..0x49b9
+ * JUDGE: data 0x458e..0x45b9
  */
 #include <string.h>
 

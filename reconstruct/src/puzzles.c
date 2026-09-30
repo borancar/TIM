@@ -19,7 +19,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -d -O -Z
- * JUDGE: data 0x260a..0x262f
+ * JUDGE: data 0x1ff2..0x2017
  */
 #include <string.h>
 #ifdef __TURBOC__

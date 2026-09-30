@@ -19,7 +19,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
- * JUDGE: data 0x28d2..0x28ec
+ * JUDGE: data 0x23ee..0x2408
  */
 #include <string.h>
 #ifndef __TURBOC__

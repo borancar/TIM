@@ -17,7 +17,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
- * JUDGE: data 0x495c..0x4965
+ * JUDGE: data 0x455c..0x4565
  */
 #include "tim.h"
 #include "hostio.h"

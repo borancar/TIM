@@ -24,7 +24,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x355a..0x3576
+ * JUDGE: data 0x3184..0x31a0
  *
  * **Borland C++ 2.0, not the 3.0 the part kinds were built with.** The one
  * byte that says so is `iff_write_be`'s `p + 2`: 2.0 adds 2 to a pointer as

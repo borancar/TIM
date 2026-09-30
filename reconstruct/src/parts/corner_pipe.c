@@ -13,7 +13,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x3432..0x3472
+ * JUDGE: data 0x2fd4..0x3014
  */
 #include "tim.h"
 #include "hostio.h"

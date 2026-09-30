@@ -16,7 +16,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
- * JUDGE: data 0x48f8..0x495c
+ * JUDGE: data 0x44f8..0x455c
  * JUDGE: via-assembler
  * JUDGE: assembler bc3.00
  *

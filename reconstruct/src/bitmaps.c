@@ -23,7 +23,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -G -Z
- * JUDGE: data 0x49c6..0x4a07
+ * JUDGE: data 0x45c6..0x4607
  *
  * **Its data** is its string literals, DGROUP 0x49c6..0x4a07, in the order
  * the code names them, and one word nothing names.

@@ -16,7 +16,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
- * JUDGE: data 0x457a..0x458c
+ * JUDGE: data 0x417a..0x418c
  */
 #include <stdlib.h>
 #include "tim.h"

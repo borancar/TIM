@@ -22,7 +22,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -G -Z
- * JUDGE: data 0x49ba..0x49c6
+ * JUDGE: data 0x45ba..0x45c6
  * JUDGE: via-assembler
  * JUDGE: assembler bc3.00
  *
