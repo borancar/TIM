@@ -1974,6 +1974,10 @@ uint16_t part_hit_kind_61(struct part *part);      /* 0x1da61 */
 void part_setup_kind_61(struct part *part);        /* 0x1dc13 */
 void part_step_kind_61(struct part *part);         /* 0x1dc63 */
 void part_flip_kind_61(struct part *part);         /* 0x1dd85 */
+void kind_61_tip_seesaw(struct part *seesaw, int16_t mouth);       /* 0x1ddb1 */
+void kind_61_press_bellow(struct part *bellow, int16_t mouth);     /* 0x1ddec */
+void kind_61_pull_plug(struct part *plug, int16_t mouth);          /* 0x1de23 */
+void kind_61_close_scissors(struct part *scissors, int16_t mouth); /* 0x1de76 */
 uint16_t part_hit_kind_64(struct part *part);      /* 0x1dead */
 void part_setup_kind_64(struct part *part);        /* 0x1df70 */
 void part_step_kind_64(struct part *part);         /* 0x1dfb1 */
