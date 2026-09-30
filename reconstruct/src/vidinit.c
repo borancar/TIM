@@ -94,9 +94,9 @@ L224c1:
     asm mov word ptr g_vm_start+2, ax
     asm mov word ptr g_vm_start+4, dx
     asm push ds
-    asm mov ax, 4412h
+    asm mov ax, offset g_vm_driver + 0d0h
     asm push ax
-    asm mov ax, 3890h
+    asm mov ax, offset g_vmds
     asm push ax
     asm call dword ptr g_vm_start+2
     asm add sp, 6
@@ -375,7 +375,7 @@ L22724:
     asm xor ah, ah
 }
 
-/* 0x22727 */
+/* 0x243b1 */
 void near crtc_present(void)
 {
     asm mov al, 0fh
@@ -429,7 +429,7 @@ uint16_t near bios_video_kind(void)
 }
 #pragma option -k-
 
-/* 0x2277c */
+/* 0x24406 */
 void near set_colour_text_mode(void)
 {
     asm mov bx, 10h

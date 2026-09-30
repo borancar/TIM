@@ -135,7 +135,7 @@ L1e965:
         retf
 _restore_write_mode endp
 
-/* 0x1e966 (1.00's; not yet placed in 1.11) */
+/* 0x205f0 */
 _vm_null_hook proc far
         retf
 _vm_null_hook endp
@@ -305,7 +305,7 @@ void restore_write_mode(void)
 }
 
 /*
- * 0x1e966 (1.00's; not yet placed in 1.11)
+ * 0x205f0
  *
  * **A far routine that does nothing**, one `retf` - the entry every one of
  * `g_vm_driver.entry`'s fifty slots and `g_vm_hooks.ptr_440e` hold until the driver
@@ -314,6 +314,6 @@ void restore_write_mode(void)
  */
 void vm_null_hook(void)
 {
-    not_transcribed("0x1e966");
+    not_transcribed("0x205f0");
 }
 #endif

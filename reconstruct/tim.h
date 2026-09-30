@@ -1722,7 +1722,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */
 void restore_write_mode(void);           /* 0x205d6 */
-void vm_null_hook(void);                 /* 0x1e966 */
+void vm_null_hook(void);                 /* 0x205f0 */
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight);  /* 0x208c0 */
 int16_t add_palette_cycle(int16_t first, int16_t count, int16_t step);  /* 0x208e6 */
@@ -1921,7 +1921,7 @@ void free_archive_lists(void);                         /* 0x0a3dc */
 int16_t remove_keyboard(void);                         /* 0x22de2 */
 int16_t remove_mouse(void);                            /* 0x23d57 */
 void restore_int0_vector(void);                        /* 0x24081 */
-void near crtc_present(void);                          /* 0x22727 */
+void near crtc_present(void);                          /* 0x243b1 */
 void near set_bios_video_mode(uint16_t bits);          /* 0x243cb */
 void shutdown_input(void);                             /* 0x2422f */
 void restore_video_mode(void);                         /* 0x24244 */
@@ -1944,7 +1944,7 @@ void restore_rect_thunk(const uint8_t far * buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x24109 */
 #endif
 uint16_t near bios_video_kind(void);                   /* 0x243ee */
-void near set_colour_text_mode(void);                  /* 0x2277c */
+void near set_colour_text_mode(void);                  /* 0x24406 */
 int16_t detect_pcjr(void);                             /* 0x2286a */
 void timer_tick(void);                              /* 0x223f1 */
 int16_t timer_install(uint16_t rate);                  /* 0x2234b */
