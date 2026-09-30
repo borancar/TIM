@@ -1086,8 +1086,8 @@ void step_and_draw_machine(int16_t redraw_all)
         g_held_parts.dragged_part->redraw_count--;
     }
 
-    for (si = pick_by_flag(0x3000); si != NULL;
-         si = pick_for_record(si, 0x1000)) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
         if ((redraw_all != 0 || si->redraw_count != 0)
             && si != g_held_parts.dragged_part)
             link_record_into_buckets(si);
@@ -1338,7 +1338,7 @@ void link_record_into_buckets(register struct part *rec)
     uint16_t _CX;               /* the count: CX, Borland's pseudo-register */
 #endif
 
-    rec->flags_0a |= 0x20;
+    rec->flags_0a |= PART_FILED;
     kind = rec->kind;
     for (_CX = 0; (int16_t)_CX < 2; _CX++) {
         if ((slot = g_part_kinds[kind].refile_level[_CX]) != 0xff) {
@@ -1384,7 +1384,7 @@ void draw_machine(register int16_t a, int16_t b)
         level = counter - 1;
         part = g_layer_head[level];
         while (part != NULL) {
-            part->flags_0a &= 0xffdf;
+            part->flags_0a &= ~PART_FILED;
             if (part->kind == KIND_BELT)
                 draw_rope(part, a);
             else if (part->kind == KIND_ROPE)
@@ -1691,7 +1691,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     if ((hot = kindrec->hotspots) != 0)
         hot += form;
     cursor_redraw_off_thunk();
-    if (part->flags_06 & 0x40) {
+    if (part->flags_06 & PART_TILED) {
         cols = part->size[0].width >> 4;
         rows = part->size[0].height >> 4;
         x0 = part->pos[0].x - g_origin_x;
@@ -1734,7 +1734,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
                                 x, y, 0);
             }
     } else {
-        if (part->flags_08 & 0x1000)
+        if (part->flags_08 & PART_DRAW_STEPS)
             step = (kindrec->bitmaps2[form]);
         else {
             step = &g_default_draw_step;

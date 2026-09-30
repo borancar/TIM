@@ -142,7 +142,7 @@ void burst_dynamite(struct part *part)
     play_sound(8);
 
     insert_sorted(si, &g_placed_parts);
-    si->flags_06 |= 0x10;
+    si->flags_06 |= PART_SPAWNED;
 
     si->pos[0].x = part->pos[0].x - 15;
     si->pos[0].y = part->pos[0].y - 19;

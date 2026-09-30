@@ -251,7 +251,7 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                 v04 = 2;
             }
 
-            if (v06 != NULL && !(v06->flags_08 & 0x800))
+            if (v06 != NULL && !(v06->flags_08 & PART_SELF_DRIVEN))
                 flag = spread_gear_signal(to, v06, v04, flag);
         }
     }
@@ -290,7 +290,7 @@ void settle_gear_signal(struct part *part, int16_t clear)
         else
             di = part->link[v02];
 
-        if (di != NULL && di->direction != 0 && !(di->flags_08 & 0x800)) {
+        if (di != NULL && di->direction != 0 && !(di->flags_08 & PART_SELF_DRIVEN)) {
             if (clear != 0)
                 di->direction = 0;
 

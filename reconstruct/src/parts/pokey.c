@@ -125,8 +125,8 @@ void part_step_pokey(struct part *part)
         still = 1;
 
     if (part->flags_08 & PART_FLIP_VERTICAL) {
-        if (part->flags_06 & 2) {
-            part->flags_08 &= 0xffdf;
+        if (part->flags_06 & PART_HIT_FIXED) {
+            part->flags_08 &= ~PART_FLIP_VERTICAL;
             part->form = 0;
         }
     } else if (still == 0 && part->form < 2) {
@@ -179,9 +179,9 @@ void part_step_pokey(struct part *part)
 
         if (part->form == 0) {
             if (part->flags_08 & PART_FLIP_HORIZONTAL)
-                link_nearby_objects(part, 0x3000, 0, 0xf0, 0, 0);
+                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0xf0, 0, 0);
             else
-                link_nearby_objects(part, 0x3000, (int16_t)0xff10, 0, 0, 0);
+                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), (int16_t)0xff10, 0, 0, 0);
 
             di = part->next_linked;
             while (di != NULL) {

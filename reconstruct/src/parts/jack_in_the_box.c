@@ -75,12 +75,12 @@ void part_step_jack_in_the_box(struct part *part)
 
         /* The reach by form, 0x3394, with the first form folded into the
            address: `[bx+0x3384]`. */
-        link_objects_in_range(part, 0x3000, 0, 0x1f,
+        link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x1f,
                               (g_jack_in_the_box_reach - 8)[part->form], 0);
 
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {
-            if (di->flags_06 & 0x1000) {
+            if (di->flags_06 & PART_IN_MOVING_LIST) {
                 push = conveyor_speed_for_mass(di);
                 di->vel_x = (part->flags_08 & PART_FLIP_HORIZONTAL) ? push : 0 - push;
                 di->vel_y = 0 - push;

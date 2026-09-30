@@ -96,8 +96,8 @@ void part_step_mort_the_mouse(struct part *part)
             part->pos[0].x += step;
         else
             part->pos[0].x -= step;
-    } else if (part->flags_06 & 1) {
-        link_nearby_objects(part, 0x1000, (int16_t)0xff80, 0x80, -8, 8);
+    } else if (part->flags_06 & PART_ON_SURFACE) {
+        link_nearby_objects(part, PART_IN_MOVING_LIST, (int16_t)0xff80, 0x80, -8, 8);
 
         slowest = 0x190;
 
@@ -111,7 +111,7 @@ void part_step_mort_the_mouse(struct part *part)
             part->kind_state = 5;
 
             if (slowest > 0) {
-                part->flags_08 &= 0xffef;
+                part->flags_08 &= ~PART_FLIP_HORIZONTAL;
                 part->pos[0].x -= 3;
             } else {
                 part->flags_08 |= PART_FLIP_HORIZONTAL;

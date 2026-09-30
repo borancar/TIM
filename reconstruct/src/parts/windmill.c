@@ -64,7 +64,7 @@ void part_step_windmill(struct part *part)
             part->direction = 1;
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800)) {
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN)) {
         if (part->direction != 0) {
             if (part->flags_08 & PART_FLIP_HORIZONTAL)
                 di->direction = -1;

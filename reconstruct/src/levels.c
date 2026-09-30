@@ -35,7 +35,7 @@ struct level_io g_level_io;   /* DGROUP 0x546c */
  *
  * **A part's index among all parts**, which is how the machine file refers to
  * one: a pointer means nothing to a reload, so every reference is written as the
- * position the part has in the walk `pick_by_flag(0x3000)` makes.
+ * position the part has in the walk `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` makes.
  *
  * A null part answers 0xffff, and that is the file's "no part here".
  *
@@ -56,12 +56,12 @@ uint16_t part_index(struct part *part)
         return 0xffff;
 
     n = 0;
-    si = pick_by_flag(0x3000);
+    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
     while (si != NULL) {
         if (si == part) {
             si = NULL;
         } else {
-            si = pick_for_record(si, 0x1000);
+            si = pick_for_record(si, PART_IN_MOVING_LIST);
             n++;
         }
     }
@@ -677,9 +677,9 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
 
     for (si = head->next; si != NULL; si = si->next) {
         if (which == 2)
-            si->flags_06 &= 0x7fff;
+            si->flags_06 &= ~PART_FROM_LEVEL;
         else if (g_level_io.is_level != 0)
-            si->flags_06 |= 0x8000;
+            si->flags_06 |= PART_FROM_LEVEL;
 
         write_record_fields(file, si);
     }

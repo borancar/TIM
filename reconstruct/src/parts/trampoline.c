@@ -57,7 +57,7 @@ uint16_t part_hit_trampoline(struct part *part)
             part->vel_x >>= 1;
 
         part->contact = 0;
-        part->flags_06 &= 0xfffe;
+        part->flags_06 &= ~PART_ON_SURFACE;
 
         part->fy = part->pos[0].y;
         part->fy <<= 9;

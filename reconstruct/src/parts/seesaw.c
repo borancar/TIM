@@ -95,7 +95,7 @@ uint16_t part_hit_seesaw(struct part *part)
     int16_t dir;                        /* [bp-6] */
     int16_t plain;                      /* [bp-8] */
 
-    if (si->flags_08 & 0x200)
+    if (si->flags_08 & PART_HELD)
         return 1;
 
     face = part->contact_edge;
@@ -250,10 +250,10 @@ void part_step_seesaw(struct part *part)
     if (part->direction != 0) {
         part->flags_08 |= PART_STEPPED;
 
-        if (part->flags_08 & 0x400)
+        if (part->flags_08 & PART_TURNS_FREE)
             part->form += part->direction;
         else if (drive_belts(NULL, part, 0x8000, 0x3e8, part->momentum) != 0)
-            part->flags_08 |= 0x200;
+            part->flags_08 |= PART_HELD;
         else {
             drive_belts(NULL, part, 0, 0x3e8, part->momentum);
             part->form += part->direction;
@@ -269,7 +269,7 @@ void part_step_seesaw(struct part *part)
 
             v02 = part->pos[0].x + (part->size[0].width >> 1);
 
-            link_objects_crossing(part, 0x1000, g_seesaw_shaft_line[part->form]);
+            link_objects_crossing(part, PART_IN_MOVING_LIST, g_seesaw_shaft_line[part->form]);
 
             for (di = part->next_linked; di != NULL;
                  di = di->next_linked) {
@@ -306,7 +306,7 @@ void part_step_seesaw(struct part *part)
                     di->pos[1].y = di->pos[0].y + 0x10;
                     part->flags_08 |= PART_GONE;
                     resolve_collisions(di);
-                    part->flags_08 &= 0xdfff;
+                    part->flags_08 &= ~PART_GONE;
 
                     di->pos[1].y = di->pos[0].y;
 
@@ -319,7 +319,7 @@ void part_step_seesaw(struct part *part)
                     di->pos[1].y = di->pos[0].y - 0x10;
                     part->flags_08 |= PART_GONE;
                     resolve_collisions(di);
-                    part->flags_08 &= 0xdfff;
+                    part->flags_08 &= ~PART_GONE;
 
                     di->pos[1].y = di->pos[0].y;
 
@@ -340,16 +340,16 @@ void part_step_seesaw(struct part *part)
      * is followed by a `trigger_things_at` for the point it was measured from.
      */
     if (part->form_prev == 0 && part->form_prev2 != 0) {
-        link_objects_in_range(part, 0x2000, 0x4a, 0x4f, -2, 2);
+        link_objects_in_range(part, PART_IN_PLACED_LIST, 0x4a, 0x4f, -2, 2);
         trigger_things_at(part, 0, 0x4a);
 
-        link_objects_in_range(part, 0x2000, 0, 6, 0x20, 0x24);
+        link_objects_in_range(part, PART_IN_PLACED_LIST, 0, 6, 0x20, 0x24);
         trigger_things_at(part, 1, 0);
     } else if (part->form_prev == 2 && part->form_prev2 != 2) {
-        link_objects_in_range(part, 0x2000, 0x4a, 0x4f, 0x20, 0x24);
+        link_objects_in_range(part, PART_IN_PLACED_LIST, 0x4a, 0x4f, 0x20, 0x24);
         trigger_things_at(part, 1, 0x4a);
 
-        link_objects_in_range(part, 0x2000, 0, 6, -2, 2);
+        link_objects_in_range(part, PART_IN_PLACED_LIST, 0, 6, -2, 2);
         trigger_things_at(part, 0, 0);
     }
 }
@@ -444,13 +444,13 @@ uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3, uint16
         if (p4 & 0x8000)
             p2->direction = was;
         else if (di == 0)
-            p2->flags_08 |= 0x400;
+            p2->flags_08 |= PART_TURNS_FREE;
     }
 
     if (di != 0)
-        p2->flags_08 |= 0x200;
+        p2->flags_08 |= PART_HELD;
 
-    if (p2->flags_08 & 0x200)
+    if (p2->flags_08 & PART_HELD)
         return 1;
 
     if (p4 == 1)
@@ -489,7 +489,7 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
     int16_t  v0e;                       /* [bp-0xe]  which way */
     struct part *v10;                   /* [bp-0x10] the far part */
 
-    if (part->flags_08 & 0x200)
+    if (part->flags_08 & PART_HELD)
         return 1;
 
     v04 = 0;

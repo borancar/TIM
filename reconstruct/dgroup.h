@@ -967,28 +967,120 @@ struct extent16 {
 } PACKED;
 
 /*
- * **Six bits of a part's `flags_08`**, named where the code says what they
- * are. The rest of the word, and all of `flags_06` and `flags_0a` - which the
- * kind's template seeds - keep their numbers until they are read as well.
+ * ---------------------------------------------------------------------------
+ * **A part's three flag words, bit by bit.** Names are ours, each from what the
+ * code that sets and tests the bit does with it.
  *
- * `PART_FLIP_HORIZONTAL` is what every kind's flip hook toggles, the X key's
- * flip, and what a part that faces a way reads to know which;
- * `PART_FLIP_VERTICAL` is the hook's other axis, the Y key's.
- * `PART_CAN_FLIP_HORIZONTAL` and `PART_CAN_FLIP_VERTICAL` say which of the
- * two the part allows - `part_flip_options` answers them as bits 0 and 1.
- * `PART_STEPPED` says the part's step has run this frame: `step_machine`
- * clears it on every placed part (with 0x200 and 0x400, the 0xf9bf there)
- * and skips a queued part that has it. `PART_GONE` is set, with the part's
- * shapes marked for erasing, when it is used up - a spent bullet, a finished
- * blast, a burst balloon, fired dynamite, a mouse Pokey has caught - and
- * every overlap search passes over it. Names are ours.
+ * `flags_06` - the kind's template seeds 0x4800 or 0x0800 into it, and its
+ * init adds what the kind can do:
+ *
+ *   PART_ON_SURFACE     its contact runs along the surface (`angles_same_side`),
+ *                       so the step applies friction rather than a bounce
+ *   PART_HIT_FIXED      it hit something that does not move - a static part,
+ *                       or one with PART_SOLID
+ *   PART_HIT_MOVING     it hit a moving part, which `bounce_pair` resolves
+ *   PART_CONTACT_DONE   the contact is resolved this frame; `bounce_pair` sets
+ *                       it on both parts. The four are cleared every frame.
+ *   PART_SPAWNED        made while the machine ran - a cannonball, a bullet,
+ *                       a blast's pieces, cut ends - which `reset_machine`
+ *                       deletes rather than puts back
+ *   PART_SLIDES         slides rather than rolls - a bucket, a cage, dynamite,
+ *                       a candle - and takes the larger friction push
+ *   PART_TILED          drawn as 16x16 tiles at whatever size it was given: the
+ *                       platforms, whose extent is their `set_size`
+ *   PART_CAN_FLIP_VERTICAL / _HORIZONTAL  the Y and X keys' flips are allowed:
+ *                       `part_key_shortcut` and `part_flip_options` test them
+ *   PART_IN_BIN, PART_IN_MOVING_LIST, PART_IN_PLACED_LIST  which of the three
+ *                       lists it is on - one at a time; `detach_part_to_bin`
+ *                       and `refile_part_list` move it. `pick_by_flag` and the
+ *                       overlap searches take the same bits to say which
+ *                       lists to walk
+ *   PART_STATIC         the kind stays where it is put: it goes on the placed
+ *                       list, and hitting it is hitting something fixed
+ *   PART_FROM_LEVEL     the level placed it - writing a level sets it, saving a
+ *                       machine clears it - so it cannot be picked up, "remove
+ *                       all" leaves it, and the goals count only such parts
+ *
+ * 0x0080 and 0x0100 are never tested; they appear only inside a mask.
+ *
+ * `flags_08` - the part's state, which `reset_machine` puts back from
+ * `start_flags`:
+ *
+ *   PART_TAKES_ROPE     a rope (`struct rope`) can go round it - the motor, the
+ *                       mouse cage, the conveyor, the gear, the windmill
+ *   PART_HAS_ROPE       one does; `untie_rope` clears it
+ *   PART_TAKES_BELT     a belt (`struct belt`) can be tied to it -
+ *                       `find_belt_anchor` - the balloon, the bucket, the hook
+ *   PART_TWO_BELT_ENDS  it has a second place to tie one: the seesaw
+ *   PART_FLIP_HORIZONTAL / _VERTICAL  it is flipped - what the kind's flip hook
+ *                       toggles, the X key's and the Y key's
+ *   PART_STEPPED        its step ran this frame; `step_machine` clears it and
+ *                       does not step the part twice
+ *   PART_RESIZE_HORIZONTAL / _VERTICAL  it can be stretched that way:
+ *                       `part_flip_options` offers the handles for it
+ *   PART_HELD           a rope held it still this frame (the seesaw)
+ *   PART_TURNS_FREE     its ropes drove nothing this frame, so it turns on its
+ *                       own (the seesaw). The two, with PART_STEPPED, are
+ *                       cleared every frame
+ *   PART_SELF_DRIVEN    it turns itself - the mouse cage, the windmill, the
+ *                       monkey - and a rope does not drive it
+ *   PART_DRAW_STEPS     drawn from its kind's step table, not one frame
+ *   PART_GONE           used up - a spent bullet, a finished blast, a burst
+ *                       balloon - with its shapes marked for erasing, and every
+ *                       overlap search passes over it
+ *   PART_SOLID          hitting it is hitting something fixed, though it moves:
+ *                       Pokey and Mort
+ *
+ * `flags_0a` - the template seeds 0x0008 or 0:
+ *
+ *   PART_PLUGS_IN       it has a cord (the fan, the motor); carried, it looks
+ *                       for a free socket near it
+ *   PART_HAS_SOCKETS    it has sockets: the plug, the generator, the solar panel
+ *   PART_IGNITES        it can be set alight - the candle, the cannon's fuse,
+ *                       dynamite, the rocket
+ *   PART_FREE_PLACED    carried, it follows the pointer to the pixel; without it
+ *                       it snaps to the 16-pixel grid
+ *   PART_IN_BUCKET      it is in a bucket this frame (`collect_carried`)
+ *   PART_FILED          filed in the drawing buckets this frame
+ * ---------------------------------------------------------------------------
  */
+#define PART_ON_SURFACE          0x0001  /* flags_06 */
+#define PART_HIT_FIXED           0x0002
+#define PART_HIT_MOVING          0x0004
+#define PART_CONTACT_DONE        0x0008
+#define PART_SPAWNED             0x0010
+#define PART_SLIDES              0x0020
+#define PART_TILED               0x0040
+#define PART_CAN_FLIP_VERTICAL   0x0200
+#define PART_CAN_FLIP_HORIZONTAL 0x0400
+#define PART_IN_BIN              0x0800
+#define PART_IN_MOVING_LIST      0x1000
+#define PART_IN_PLACED_LIST      0x2000
+#define PART_STATIC              0x4000
+#define PART_FROM_LEVEL          0x8000
+
+#define PART_TAKES_ROPE          0x0001  /* flags_08 */
+#define PART_HAS_ROPE            0x0002
+#define PART_TAKES_BELT          0x0004
+#define PART_TWO_BELT_ENDS       0x0008
 #define PART_FLIP_HORIZONTAL     0x0010
 #define PART_FLIP_VERTICAL       0x0020
 #define PART_STEPPED             0x0040
-#define PART_CAN_FLIP_HORIZONTAL 0x0080
-#define PART_CAN_FLIP_VERTICAL   0x0100
+#define PART_RESIZE_HORIZONTAL   0x0080
+#define PART_RESIZE_VERTICAL     0x0100
+#define PART_HELD                0x0200
+#define PART_TURNS_FREE          0x0400
+#define PART_SELF_DRIVEN         0x0800
+#define PART_DRAW_STEPS          0x1000
 #define PART_GONE                0x2000
+#define PART_SOLID               0x8000
+
+#define PART_PLUGS_IN            0x0001  /* flags_0a */
+#define PART_HAS_SOCKETS         0x0002
+#define PART_IGNITES             0x0004
+#define PART_FREE_PLACED         0x0008
+#define PART_IN_BUCKET           0x0010
+#define PART_FILED               0x0020
 
 /* **A bitmap's draw flags**, the `mode` `draw_bitmap` and its blitters take:
    bit 1 draws it flipped horizontally and bit 0 vertically. Names are ours. */
@@ -1030,7 +1122,7 @@ struct part {
     struct part *prev; /* +0x02 */
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
-    uint16_t  flags_08;        /* +0x08  the part's state: see PART_FLIP_HORIZONTAL above */
+    uint16_t  flags_08;        /* +0x08  the part's state: see the bits above */
     uint16_t  flags_0a;        /* +0x0a */
     /* **The form, and the two generations behind it** - the same
        three-generation shape as `pos`, `box` and `size` below, aged by

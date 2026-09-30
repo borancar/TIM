@@ -283,8 +283,8 @@ int16_t object_overlaps_any(register struct part *obj)
     x2 = x0 + obj->size[0].width;
     y2 = y0 + obj->size[0].height;
 
-    for (si = pick_by_flag(0x3000); si != NULL;
-         si = pick_for_record(si, 0x1000)) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
         if (obj->kind == KIND_POKEY && si->kind == KIND_MORT_THE_MOUSE)
             continue;
         if (si->kind == KIND_POKEY && obj->kind == KIND_MORT_THE_MOUSE)
@@ -301,7 +301,7 @@ int16_t object_overlaps_any(register struct part *obj)
         sx2 = sx0 + si->size[0].width;
         sy2 = sy0 + si->size[0].height;
 
-        if (!(obj->flags_06 & 0x4000) || !(si->flags_06 & 0x4000)) {
+        if (!(obj->flags_06 & PART_STATIC) || !(si->flags_06 & PART_STATIC)) {
             if (sx0 < x2 && sx2 > x0 && sy0 < y2 && sy2 > y0
                 && outlines_cross(obj, si))
                 return 1;
@@ -647,8 +647,8 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
  * pointer is on it, that is the answer and nothing is walked. That is what
  * makes dragging stick to what you already have hold of.
  *
- * Otherwise every part is tried, `pick_by_flag(0x3000)` first and
- * `pick_for_record(cur, 0x1000)` after. A hit whose +6 has bit 0x8000 clear
+ * Otherwise every part is tried, `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` first and
+ * `pick_for_record(cur, PART_IN_MOVING_LIST)` after. A hit whose +6 has bit 0x8000 clear
  * wins outright and ends the walk; one with it set is only *remembered*, in
  * `best`, and the walk goes on. So a part carrying that bit is the answer only
  * when nothing else was hit at all - it is the fallback, not a match.
@@ -675,15 +675,15 @@ struct part *find_part_from(register struct part *rec)
         return si;
 
     best = NULL;
-    for (cur = pick_by_flag(0x3000); cur != NULL;
-         cur = pick_for_record(cur, 0x1000)) {
+    for (cur = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); cur != NULL;
+         cur = pick_for_record(cur, PART_IN_MOVING_LIST)) {
         si = part_under_pointer(rec, cur);
-        if (si == cur && (cur->flags_06 & 0x8000) && rec != NULL)
+        if (si == cur && (cur->flags_06 & PART_FROM_LEVEL) && rec != NULL)
             si = NULL;
-        else if ((NEAR_ZERO(si)->flags_06 & 0x8000) && rec != NULL)
+        else if ((NEAR_ZERO(si)->flags_06 & PART_FROM_LEVEL) && rec != NULL)
             si = NULL;
         if (si != NULL) {
-            if (si->flags_06 & 0x8000)
+            if (si->flags_06 & PART_FROM_LEVEL)
                 best = si;
             else
                 return si;
@@ -727,8 +727,8 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
     int16_t e1;                         /* [bp-4] */
 
     if ((si = find_part_from(rec)) != NULL) {
-        if (si->flags_08 & 4) {
-            if (si->flags_08 & 8) {
+        if (si->flags_08 & PART_TAKES_BELT) {
+            if (si->flags_08 & PART_TWO_BELT_ENDS) {
                 e0 = e1 = si->pos[0].x - g_origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
@@ -912,12 +912,12 @@ uint16_t part_flip_options(register struct part *part)
         return 0;
 
     di = 0;
-    if (part->flags_08 & PART_CAN_FLIP_HORIZONTAL)
+    if (part->flags_08 & PART_RESIZE_HORIZONTAL)
         di |= 1;
-    if (part->flags_08 & PART_CAN_FLIP_VERTICAL)
+    if (part->flags_08 & PART_RESIZE_VERTICAL)
         di |= 2;
 
-    if (part->flags_06 & 0x400) {
+    if (part->flags_06 & PART_CAN_FLIP_HORIZONTAL) {
         if (g_tool == 9)
             di |= 4;
         else {
@@ -930,7 +930,7 @@ uint16_t part_flip_options(register struct part *part)
         }
     }
 
-    if (part->flags_06 & 0x200) {
+    if (part->flags_06 & PART_CAN_FLIP_VERTICAL) {
         if (g_tool == 9)
             di |= 8;
         else {
@@ -1095,7 +1095,7 @@ int16_t rope_ends_close(struct rope *rope)
     if ((si = rope->end_a) == NULL) {
         if ((si = find_part_from(NULL)) == NULL)
             return 0;
-        if ((si->flags_08 & 2) || !(si->flags_08 & 1))
+        if ((si->flags_08 & PART_HAS_ROPE) || !(si->flags_08 & PART_TAKES_ROPE))
             return 0;
         return 1;
     }
@@ -1105,7 +1105,7 @@ int16_t rope_ends_close(struct rope *rope)
     } else {
         if ((di = find_part_from(NULL)) == NULL)
             return 0;
-        if ((di->flags_08 & 2) || !(di->flags_08 & 1))
+        if ((di->flags_08 & PART_HAS_ROPE) || !(di->flags_08 & PART_TAKES_ROPE))
             return 0;
     }
     return points_within_140(&si->pos[0], &di->pos[0]);
@@ -1423,7 +1423,7 @@ void refresh_link_geometry(register struct belt *link)
  *
  * The old host and slot are saved first and +0x62 is cleared, so the search
  * cannot find the part still attached to where it was.
- * `link_nearby_objects(part, 0x2000, -8, 8, -8, 8)` fills the +0x78 chain with
+ * `link_nearby_objects(part, PART_IN_PLACED_LIST, -8, 8, -8, 8)` fills the +0x78 chain with
  * candidates - a margin of 8 in every direction - and the chain is walked
  * once.
  *
@@ -1455,7 +1455,7 @@ void rehome_carried_part(void)
     old = (g_held_parts.dragged_part->link[4]);
     old_slot = g_held_parts.dragged_part->host_slot;
     g_held_parts.dragged_part->link[4] = 0;
-    link_nearby_objects(g_held_parts.dragged_part, 0x2000, -8, 8, -8, 8);
+    link_nearby_objects(g_held_parts.dragged_part, PART_IN_PLACED_LIST, -8, 8, -8, 8);
 
     si = (g_held_parts.dragged_part->next_linked);
     while (si != NULL) {
@@ -1463,7 +1463,7 @@ void rehome_carried_part(void)
             di = old;
             slot = old_slot;
             si = NULL;
-        } else if (si->flags_0a & 2) {
+        } else if (si->flags_0a & PART_HAS_SOCKETS) {
             if (si->link[4] == 0) {
                 di = si;
                 slot = 0;
@@ -1521,7 +1521,7 @@ void break_second_attachment(register struct part *part)
     struct part *other;
     int16_t i;                          /* [bp-2] */
 
-    if (part->flags_0a & 2) {
+    if (part->flags_0a & PART_HAS_SOCKETS) {
         for (i = 4; i < 6; i++)
             if ((other = part->link[i]) != NULL) {
                 part->link[i] = 0;
@@ -1573,18 +1573,18 @@ void untie_rope(struct part *part)
 
     if ((rope = part->rope) != NULL) {
         if ((a = rope->end_a) != NULL) {
-            a->flags_08 &= 0xfffd;
+            a->flags_08 &= ~PART_HAS_ROPE;
             a->start_flags = a->flags_08;
             a->rope = 0;
             rope->end_a = 0;
         }
         if ((b = rope->end_b) != NULL) {
-            b->flags_08 &= 0xfffd;
+            b->flags_08 &= ~PART_HAS_ROPE;
             b->start_flags = b->flags_08;
             b->rope = 0;
             rope->end_b = 0;
         }
-        if (!(part->flags_06 & 0x800))
+        if (!(part->flags_06 & PART_IN_BIN))
             detach_part_to_bin(part);
     }
 }
@@ -1660,7 +1660,7 @@ void detach_belt(struct part *part, uint16_t how)
                     next->link[slot] = next->link[slot + 2] = 0;
                 }
             }
-            if (!(part->flags_06 & 0x800))
+            if (!(part->flags_06 & PART_IN_BIN))
                 detach_part_to_bin(part);
         }
     }
@@ -1743,8 +1743,8 @@ void finish_part_removal(void)
     struct belt *slot;                  /* [bp-0xe] */
 
     if (g_held_parts.dragged_part != 0
-        && (g_held_parts.dragged_part->flags_06 & 0x800)) {
-        if (g_held_parts.dragged_part->flags_0a & 3)
+        && (g_held_parts.dragged_part->flags_06 & PART_IN_BIN)) {
+        if (g_held_parts.dragged_part->flags_0a & (PART_PLUGS_IN | PART_HAS_SOCKETS))
             break_second_attachment(g_held_parts.dragged_part);
 
         rope = g_held_parts.dragged_part->rope;
@@ -1909,7 +1909,8 @@ void detach_part_to_bin(register struct part *part)
                 if (part->belt[i] != 0)
                     detach_belt((part->belt[i]->owner), 0);
     }
-    part->flags_06 = (part->flags_06 & 0xcfff) | 0x800;
+    part->flags_06 = (part->flags_06 & ~(PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))
+                     | PART_IN_BIN;
     unlink_part(part);
     insert_sorted(part, &g_held_parts.parts_bin);
 }
@@ -1933,11 +1934,11 @@ void detach_part_to_bin(register struct part *part)
 void refile_part_list(register struct part *part)
 {
     unlink_part(part);
-    if (part->flags_06 & 0x4000) {
-        part->flags_06 = (part->flags_06 & 0xf7ff) | 0x2000;
+    if (part->flags_06 & PART_STATIC) {
+        part->flags_06 = (part->flags_06 & ~PART_IN_BIN) | PART_IN_PLACED_LIST;
         insert_sorted(part, &g_placed_parts);
     } else {
-        part->flags_06 = (part->flags_06 & 0xf7ff) | 0x1000;
+        part->flags_06 = (part->flags_06 & ~PART_IN_BIN) | PART_IN_MOVING_LIST;
         insert_sorted(part, &g_moving_parts);
     }
     if (g_held_parts.bin_list != &g_held_parts.parts_bin
@@ -1954,7 +1955,7 @@ void refile_part_list(register struct part *part)
  * only what was added goes.
  *
  * **A part that is taken out restarts the walk.** The removal path ends by
- * calling `pick_by_flag(0x3000)` again rather than walking on from where it
+ * calling `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` again rather than walking on from where it
  * was, because taking a part out relinks the list under it - `pick_for_record`
  * would then be walking from a record that is no longer in it. The skip path,
  * which changes nothing, walks on normally. That asymmetry is the whole shape
@@ -1972,8 +1973,8 @@ void remove_all_parts(void)
 {
     register struct part *si;
 
-    for (si = pick_by_flag(0x3000); si != NULL; ) {
-        if (!(si->flags_06 & 0x8000)) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL; ) {
+        if (!(si->flags_06 & PART_FROM_LEVEL)) {
             if (si->kind == KIND_BELT)
                 untie_rope(si);
             else if (si->kind == KIND_ROPE)
@@ -1983,9 +1984,9 @@ void remove_all_parts(void)
             g_held_parts.dragged_part = si;
             finish_part_removal();
             g_held_parts.dragged_part = 0;
-            si = pick_by_flag(0x3000);
+            si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
         } else
-            si = pick_for_record(si, 0x1000);
+            si = pick_for_record(si, PART_IN_MOVING_LIST);
     }
 }
 
@@ -2239,11 +2240,11 @@ give_up:
  */
 struct part *pick_by_flag(uint16_t flags)
 {
-    if (g_placed_parts.next != 0 && (flags & 0x2000))
+    if (g_placed_parts.next != 0 && (flags & PART_IN_PLACED_LIST))
         return g_placed_parts.next;
-    if (g_moving_parts.next != 0 && (flags & 0x1000))
+    if (g_moving_parts.next != 0 && (flags & PART_IN_MOVING_LIST))
         return g_moving_parts.next;
-    if (g_held_parts.parts_bin.next != 0 && (flags & 0x0800))
+    if (g_held_parts.parts_bin.next != 0 && (flags & PART_IN_BIN))
         return g_held_parts.parts_bin.next;
     return NULL;
 }
@@ -2266,10 +2267,10 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
     if (rec->next != 0)
         return rec->next;
 
-    if ((int16_t)rec->flags_06 & 0x2000)
+    if ((int16_t)rec->flags_06 & PART_IN_PLACED_LIST)
         return pick_by_flag(flags);
 
-    if (((int16_t)rec->flags_06 & 0x1000) && (flags & 0x800))
+    if (((int16_t)rec->flags_06 & PART_IN_MOVING_LIST) && (flags & PART_IN_BIN))
         return g_held_parts.parts_bin.next;
 
     return NULL;
@@ -2311,12 +2312,12 @@ void place_object_for_draw(register struct part *obj)
 
     if ((hot = rec->hotspots) != 0) {
         hot += idx;
-        if (flags & 0x10)
+        if (flags & PART_FLIP_HORIZONTAL)
             obj->box[0].x += obj->flip_size.width - (int8_t)hot->x
                              - obj->size[0].width;
         else
             obj->box[0].x += (int8_t)hot->x;
-        if (flags & 0x20)
+        if (flags & PART_FLIP_VERTICAL)
             obj->box[0].y += obj->flip_size.height - (int8_t)hot->y
                              - obj->size[0].height;
         else
@@ -2354,7 +2355,7 @@ void set_object_extent(register struct part *obj)
 
     if (obj->kind == KIND_BELT || obj->kind == KIND_ROPE)
         obj->size[0].width = obj->size[0].height = 0;
-    else if (obj->flags_06 & 0x40) {
+    else if (obj->flags_06 & PART_TILED) {
         obj->size[0].width = obj->set_size.width;
         obj->size[0].height = obj->set_size.height;
     } else {
@@ -2881,8 +2882,8 @@ void mark_parts_in_dirty_rects(void)
     int16_t bottom;                     /* [bp-8] */
     struct shape far *node;             /* [bp-0xc] */
 
-    for (di = pick_by_flag(0x3000); di != NULL;
-         di = pick_for_record(di, 0x1000)) {
+    for (di = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); di != NULL;
+         di = pick_for_record(di, PART_IN_MOVING_LIST)) {
         if (!di->redraw_count && !(di->flags_08 & PART_GONE)) {
             if (di->kind == KIND_ROPE) {
                 belt_in_dirty_rect(di);
@@ -3082,9 +3083,9 @@ void refile_overlapping_parts(void)
                 x1 = x0 + walk->size[0].width;
                 y1 = y0 + walk->size[0].height;
 
-                for (di = pick_by_flag(0x3000); di != NULL;
-                     di = pick_for_record(di, 0x1000)) {
-                    if ((di->flags_0a & 0x20) || (di->flags_08 & PART_GONE))
+                for (di = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); di != NULL;
+                     di = pick_for_record(di, PART_IN_MOVING_LIST)) {
+                    if ((di->flags_0a & PART_FILED) || (di->flags_08 & PART_GONE))
                         continue;
                     if (di->kind == KIND_ROPE || di->kind == KIND_ANCHOR)
                         continue;
@@ -3634,7 +3635,7 @@ int16_t tension_belt(register struct part *part)
         }
     }
 
-    if (dA > 0 && (other->flags_06 & 0x1000) && other->kind != KIND_ANCHOR
+    if (dA > 0 && (other->flags_06 & PART_IN_MOVING_LIST) && other->kind != KIND_ANCHOR
         && part->kind != KIND_ANCHOR && part->weight > other->weight) {
         product = mul16x16(abs(dA), part->weight - other->weight);
         give = (product + part->weight) / part->weight;
@@ -3645,7 +3646,7 @@ int16_t tension_belt(register struct part *part)
                 di->spin -= give;
                 slackB = di->spin;
                 tension_belt(other);
-                other->flags_06 &= 0xfff0;
+                other->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
                 resolve_collisions(other);
                 gapB = link_endpoint_gap(belt, other, dx2, dy2);
                 dB = gapB - slackB;
@@ -3662,7 +3663,7 @@ int16_t tension_belt(register struct part *part)
                 di->kind_state -= give;
                 slackB = di->kind_state;
                 tension_belt(other);
-                other->flags_06 &= 0xfff0;
+                other->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
                 resolve_collisions(other);
                 gapB = link_endpoint_gap(belt, other, dx2, dy2);
                 dB = gapB - slackB;
@@ -3994,11 +3995,11 @@ void shift_all_histories(void)
     if (g_held_parts.dragged_part != 0)
         shift_state_history(g_held_parts.dragged_part);
 
-    obj = pick_by_flag(0x3000);
+    obj = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
     while (obj != NULL) {
         if (obj != g_held_parts.dragged_part)
             shift_state_history(obj);
-        obj = pick_for_record(obj, 0x1000);
+        obj = pick_for_record(obj, PART_IN_MOVING_LIST);
     }
 }
 
@@ -4104,13 +4105,13 @@ void reset_machine(void)
     struct part *walk;                  /* [bp-6] */
     struct part *after;                 /* [bp-8] */
 
-    for (si = pick_by_flag(0x3000); si != NULL; si = next) {
-        next = pick_for_record(si, 0x1000);
-        if (si->flags_06 & 0x10) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL; si = next) {
+        next = pick_for_record(si, PART_IN_MOVING_LIST);
+        if (si->flags_06 & PART_SPAWNED) {
             unlink_part(si);
             free_part(si);
         } else {
-            si->flags_06 &= 0xfff0;
+            si->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
             si->flags_08 = si->start_flags;
             si->pos[0].x = si->pos[1].x = si->pos[2].x = si->start_x;
             si->pos[0].y = si->pos[1].y = si->pos[2].y = si->start_y;
@@ -4138,8 +4139,8 @@ void reset_machine(void)
         }
     }
 
-    for (si = pick_by_flag(0x3000); si != NULL;
-         si = pick_for_record(si, 0x1000)) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
         if (si->kind == KIND_BELT)
             compute_link_endpoints(si->rope);
         else if (si->kind == KIND_ROPE) {

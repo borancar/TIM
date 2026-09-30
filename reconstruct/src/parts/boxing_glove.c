@@ -105,15 +105,15 @@ void part_step_boxing_glove(struct part *part)
         /* Forms 2 and 3 only: the reach is `glove_reach` at 0x31e6, whose
            first two words face left and the next ones right. */
         if (part->flags_08 & PART_FLIP_HORIZONTAL)
-            link_objects_in_range(part, 0x3000, 0x30,
+            link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0x30,
                                   (g_boxing_glove_reach + 1)[part->form], 0, 0x1f);
         else
-            link_objects_in_range(part, 0x3000,
+            link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST),
                                   (g_boxing_glove_reach - 2)[part->form], 0, 0, 0x1f);
 
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {
-            if (di->flags_06 & 0x1000) {
+            if (di->flags_06 & PART_IN_MOVING_LIST) {
                 v = bounce_speed_for_mass(di);
                 di->vel_x = (part->flags_08 & PART_FLIP_HORIZONTAL) ? v : 0 - v;
             } else {

@@ -248,16 +248,16 @@ fail:
                 }
 
                 insert_sorted(di, &g_moving_parts);
-                di->flags_06 |= 0x10;
+                di->flags_06 |= PART_SPAWNED;
                 di->pos[0].x = at[0] + part->pos[0].x;
                 di->pos[0].y = at[1] + part->pos[0].y;
 
                 insert_sorted(anchorB, &g_moving_parts);
-                anchorB->flags_06 |= 0x10;
+                anchorB->flags_06 |= PART_SPAWNED;
                 anchorB->pos[0] = di->pos[0];
 
                 insert_sorted(carrier, &g_placed_parts);
-                carrier->flags_06 |= 0x10;
+                carrier->flags_06 |= PART_SPAWNED;
 
                 newbelt = carrier->belt[0];
                 newbelt->end_a = anchorB;

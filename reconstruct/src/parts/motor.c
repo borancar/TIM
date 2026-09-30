@@ -47,7 +47,7 @@ void part_step_motor(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800)) {
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN)) {
         if (part->direction == 0)
             di->direction = 0;
         else if (part->flags_08 & PART_FLIP_HORIZONTAL)

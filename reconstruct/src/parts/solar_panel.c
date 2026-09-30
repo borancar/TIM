@@ -59,7 +59,7 @@ void part_step_solar_panel(struct part *part)
     if ((g_machine_frames & 7) == 4) {
         part->direction = 0;
 
-        link_nearby_objects(part, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);
+        link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x1a, 0x1a, -0x1a, 0x1a);
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked) {

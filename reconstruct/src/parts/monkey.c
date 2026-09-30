@@ -133,7 +133,7 @@ void part_step_monkey(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800))
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->kind_state != 0) {

@@ -73,7 +73,7 @@ void part_step_cannon(struct part *part)
 
         if (part->form == 9 && (si = make_part(KIND_CANNON_BALL)) != NULL) {
             insert_sorted(si, &g_moving_parts);
-            si->flags_06 |= 0x10;
+            si->flags_06 |= PART_SPAWNED;
 
             if (part->flags_08 & PART_FLIP_HORIZONTAL) {
                 si->pos[0].x = part->pos[0].x - 0x30;

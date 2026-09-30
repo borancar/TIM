@@ -71,7 +71,7 @@ void part_step_mouse_cage(struct part *part)
     struct part *di;
 
     if (part->direction == 0) {
-        link_nearby_objects(part, 0x1000, -0x10, 0x10, 0, 0);
+        link_nearby_objects(part, PART_IN_MOVING_LIST, -0x10, 0x10, 0, 0);
 
         di = part->next_linked;
         while (di != NULL) {
@@ -84,7 +84,7 @@ void part_step_mouse_cage(struct part *part)
         }
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800))
+    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->direction != 0) {

@@ -207,16 +207,16 @@ void part_step_bellow(struct part *part)
             part->form++;
 
             if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-                link_nearby_objects(part, 0x3000, -0x80, 0, -10, 0);
+                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x80, 0, -10, 0);
                 push = (int16_t)0xf800;
             } else {
-                link_nearby_objects(part, 0x3000, 0, 0x80, -10, 0);
+                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x80, -10, 0);
                 push = 0x0800;
             }
 
             for (di = part->next_linked; di != NULL;
                  di = di->next_linked) {
-                if (di->flags_06 & 0x1000) {
+                if (di->flags_06 & PART_IN_MOVING_LIST) {
                     scale = 0x100 - abs(di->link_dx);
                     force = mul16x16(push, scale);
                     force >>= 8;

@@ -96,16 +96,16 @@ void part_step_fan(struct part *part)
             part->form = 0;
 
         if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-            link_nearby_objects(part, 0x3000, (int16_t)0xff00, 0, -10, 0);
+            link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), (int16_t)0xff00, 0, -10, 0);
             push = (int16_t)0xf000;
         } else {
-            link_nearby_objects(part, 0x3000, 0, 0x100, -10, 0);
+            link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x100, -10, 0);
             push = 0x1000;
         }
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked) {
-            if (si->flags_06 & 0x2000) {
+            if (si->flags_06 & PART_IN_PLACED_LIST) {
                 if (si->kind == KIND_WINDMILL && abs(si->link_dx) < 0xc8) {
                     si->direction = 1;
                     si->spin = 0x14;

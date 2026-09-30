@@ -405,10 +405,10 @@ int16_t resolve_collisions(struct part *obj)
         }
     }
 
-    for (g_collision.other = (pick_by_flag(0x3000));
+    for (g_collision.other = (pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)));
          g_collision.other != 0;
          g_collision.other = (pick_for_record(g_collision.other,
-                                                    0x1000))) {
+                                                    PART_IN_MOVING_LIST))) {
         if (!chain_contains(g_collision.list, g_collision.other)
             && g_collision.list != g_collision.other
             && g_collision.contact != g_collision.other
@@ -432,7 +432,7 @@ int16_t resolve_collisions(struct part *obj)
     if (!hit)
         c->part = 0;
     else if (angles_same_side(c->angle))
-        g_collision.list->flags_06 |= 1;
+        g_collision.list->flags_06 |= PART_ON_SURFACE;
 
     return hit;
 }
@@ -593,13 +593,13 @@ int16_t find_edge_contact(int16_t test_only)
                             place_object_for_draw(g_collision.list);
                             compute_swept_bounds();
 
-                            g_collision.list->flags_06 &= 0xfff9;
+                            g_collision.list->flags_06 &= ~(PART_HIT_FIXED | PART_HIT_MOVING);
                             if ((g_collision.list->flags_08
-                                 | g_collision.other->flags_08) & 0x8000
-                                || g_collision.other->flags_06 & 0x4000)
-                                g_collision.list->flags_06 |= 2;
+                                 | g_collision.other->flags_08) & PART_SOLID
+                                || g_collision.other->flags_06 & PART_STATIC)
+                                g_collision.list->flags_06 |= PART_HIT_FIXED;
                             else
-                                g_collision.list->flags_06 |= 4;
+                                g_collision.list->flags_06 |= PART_HIT_MOVING;
 
                             cp = (struct part_contact *)
                                  &g_collision.list->contact;
@@ -796,13 +796,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             place_object_for_draw(g_collision.list);
                             compute_swept_bounds();
 
-                            g_collision.list->flags_06 &= 0xfff9;
+                            g_collision.list->flags_06 &= ~(PART_HIT_FIXED | PART_HIT_MOVING);
                             if ((g_collision.list->flags_08
-                                 | g_collision.other->flags_08) & 0x8000
-                                || g_collision.other->flags_06 & 0x4000)
-                                g_collision.list->flags_06 |= 2;
+                                 | g_collision.other->flags_08) & PART_SOLID
+                                || g_collision.other->flags_06 & PART_STATIC)
+                                g_collision.list->flags_06 |= PART_HIT_FIXED;
                             else
-                                g_collision.list->flags_06 |= 4;
+                                g_collision.list->flags_06 |= PART_HIT_MOVING;
 
                             g_collision.list->contact = g_collision.other;
                             g_collision.list->contact_angle = a_ang + 0x8000;

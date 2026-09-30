@@ -60,7 +60,7 @@ void step_machine(void)
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next)
-        si->flags_08 &= 0xf9bf;
+        si->flags_08 &= ~(PART_STEPPED | PART_HELD | PART_TURNS_FREE);
 
     for (di = g_parts_queue; di != 0; di = di->next) {
         si = (di->part);
@@ -73,19 +73,19 @@ void step_machine(void)
     for (si = g_placed_parts.next; si != NULL;
          si = si->next) {
         flags = si->flags_08;
-        if (flags & 0x800 && !(flags & 0x2040))
+        if (flags & PART_SELF_DRIVEN && !(flags & (PART_GONE | PART_STEPPED)))
             part_step(si);
     }
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next)
-        if (si->kind == KIND_GEAR && !(si->flags_08 & 0x2040))
+        if (si->kind == KIND_GEAR && !(si->flags_08 & (PART_STEPPED | PART_GONE)))
             part_step(si);
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next) {
         flags = si->flags_08;
-        if (!(flags & 0x2840))
+        if (!(flags & (PART_GONE | PART_SELF_DRIVEN | PART_STEPPED)))
             part_step(si);
     }
 
@@ -94,7 +94,7 @@ void step_machine(void)
         if (!(si->flags_08 & PART_GONE))
             apply_gravity_and_speed(si);
         si->weight = g_part_kinds[si->kind].weight;
-        si->flags_0a &= 0xffef;
+        si->flags_0a &= ~PART_IN_BUCKET;
     }
 
     for (si = g_moving_parts.next; si != NULL;
@@ -125,23 +125,23 @@ void step_machine(void)
 
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
-        if (!(si->flags_06 & 8) && !(si->flags_08 & PART_GONE)) {
-            if (si->flags_06 & 2) {
+        if (!(si->flags_06 & PART_CONTACT_DONE) && !(si->flags_08 & PART_GONE)) {
+            if (si->flags_06 & PART_HIT_FIXED) {
                 if (part_hit(si->contact->kind, si)) {
-                    if (si->flags_06 & 1)
+                    if (si->flags_06 & PART_ON_SURFACE)
                         apply_contact_friction(si);
                     else
                         bounce_off_contact(si);
                 }
-            } else if (si->flags_06 & 4) {
+            } else if (si->flags_06 & PART_HIT_MOVING) {
                 if (part_hit(si->contact->kind, si))
                     bounce_pair(si);
             }
         }
     }
 
-    for (si = pick_by_flag(0x3000); si != NULL;
-         si = pick_for_record(si, 0x1000)) {
+    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
         if (!(si->flags_08 & PART_GONE)) {
             if (si->pos[0].x != si->pos[2].x || si->pos[0].y != si->pos[2].y
                 || si->form != si->form_prev2)
@@ -192,12 +192,12 @@ void step_moving_object(register struct part *obj)
     if (!(obj->flags_08 & PART_GONE)) {
         part_step(obj);
         integrate_object(obj);
-        obj->flags_06 &= 0xfff0;
+        obj->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
         resolve_collisions(obj);
         if (obj->belt[0] != 0) {
             pulled = tension_belt(obj);
             if (pulled != 0)
-                obj->flags_06 &= 0xfff0;
+                obj->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
             else {
                 c = (struct part_contact *)&obj->contact;
                 saved = c->part;

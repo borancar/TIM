@@ -104,7 +104,7 @@ void part_step_balloon(struct part *part)
                 && (belt = part->belt[0]) != NULL
                 && (si = make_part(KIND_ANCHOR)) != NULL) {
                 insert_sorted(si, &g_moving_parts);
-                si->flags_06 |= 0x10;
+                si->flags_06 |= PART_SPAWNED;
                 si->belt[0] = belt;
                 si->link[0] = part->link[0];
                 link = si->link[0];
