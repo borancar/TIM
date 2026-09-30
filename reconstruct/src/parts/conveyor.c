@@ -72,7 +72,9 @@ uint16_t part_hit_conveyor(struct part *part)
     other = part->contact;
     dir = other->direction;
 
-    if (part->contact_edge == 0) {
+    /* 1.11: or any contact within 0x800 either way of flat */
+    if (part->contact_edge == 0
+        || (part->contact_angle >= -0x800 && part->contact_angle <= 0x800)) {
         v = 0x1000;
         if (dir > 0) {
             if ((part->vel_x += v) > v)

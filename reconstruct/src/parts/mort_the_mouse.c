@@ -54,9 +54,7 @@ void part_setup_mort_the_mouse(struct part *part)
  */
 uint16_t part_hit_mort_the_mouse(struct part *part)
 {
-    struct part *other = part->contact;   /* read, and never used */
-
-    (void)other;
+    /* 1.00 read `part->contact` here and never used it; 1.11 does not. */
     return 1;
 }
 
@@ -81,7 +79,8 @@ void part_step_mort_the_mouse(struct part *part)
 {
     struct part *di;
     int16_t slowest;                    /* [bp-2] */
-    int16_t step;                       /* [bp-4] */
+    int16_t cat;                        /* [bp-4] */
+    int16_t step;                       /* [bp-6] */
 
     if (part->kind_state != 0) {
         part->kind_state--;
@@ -97,14 +96,24 @@ void part_step_mort_the_mouse(struct part *part)
         else
             part->pos[0].x -= step;
     } else if (part->traits & TRAIT_ON_SURFACE) {
-        link_nearby_objects(part, TRAIT_IN_MOVING_LIST, (int16_t)0xff80, 0x80, -8, 8);
+        /* 1.11 looks twice as far, and runs from kind 52 as well */
+        link_nearby_objects(part, TRAIT_IN_MOVING_LIST, (int16_t)0xff00, 0x100, -8, 8);
 
-        slowest = 0x190;
+        slowest = cat = 0x190;
 
         for (di = part->next_linked; di != NULL;
-             di = di->next_linked)
-            if (di->kind == KIND_POKEY && abs(di->link_dx) < abs(slowest))
+             di = di->next_linked) {
+            if (di->kind == KIND_POKEY && abs(di->link_dx) <= 0x80
+                && abs(di->link_dx) < abs(slowest))
                 slowest = di->link_dx;
+            if (di->kind == 52 && abs(di->link_dx) < abs(cat)
+                && (part->pos[0].x < di->pos[0].x
+                    || di->pos[0].x + part->size[0].width < part->pos[0].x))
+                cat = di->link_dx;
+        }
+
+        if (slowest == 0x190 && cat != 0x190)
+            slowest = 0 - cat;
 
         if (slowest != 0x190) {
             part->form = 1;

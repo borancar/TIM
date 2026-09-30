@@ -177,7 +177,7 @@ void part_step_pokey(struct part *part)
             busy = 0;
         }
 
-        if (part->form == 0) {
+        if (part->form == 0 || part->form >= 8) {   /* 1.11: 1.00 only in form 0 */
             if (part->state & STATE_FLIP_HORIZONTAL)
                 link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0xf0, 0, 0);
             else
@@ -191,8 +191,10 @@ void part_step_pokey(struct part *part)
                     dy = di->pos[0].y - part->pos[0].y;
 
                     if (dx > 0 && dx < 0x38 && dy > 0 && dy < 0x28) {
+                        part->traits2 |= 0x80;          /* 1.11: caught */
                         mark_part_shapes(di, 3);
                         di->state |= STATE_GONE;
+                        di->traits2 |= 0x200;           /* 1.11: swallowed */
                         play_sound(0x0d);
                         range = -1;
                     } else if (busy != 0) {
@@ -212,7 +214,7 @@ void part_step_pokey(struct part *part)
                     break;
                 }
 
-                if (abs(di->link_dx) < range) {
+                if (abs(di->link_dx) < range && part->form == 0) {
                     if (part->state & STATE_FLIP_HORIZONTAL)
                         step = 0x20;
                     else

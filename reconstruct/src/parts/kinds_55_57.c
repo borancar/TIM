@@ -75,38 +75,45 @@ void part_setup_kind_56(struct part *part)
  */
 void part_setup_kinds_55_57(struct part *part)
 {
-    uint8_t a;                          /* [bp-1] */
-    uint8_t c;                          /* [bp-2] */
-    uint8_t b;                          /* [bp-3] */
+    uint8_t right;                      /* [bp-1] */
+    uint8_t bottom;                     /* [bp-2] */
+    uint8_t left;                       /* [bp-3] */
+    uint8_t top;                        /* [bp-4] */
     struct part_point *di;
 
-    b = 0;
+    left = top = 0;
     if (part->kind == KIND_55) {
-        a = 0x54;
+        right = 0x54;
     } else if (part->kind == KIND_57 && part->form == 8) {
-        a = 0x69;
-        b = 0x0a;
+        right = 0x69;
+        top = 0x0a;
     } else {
-        a = part->size[0].width - 1;
+        right = part->size[0].width - 1;
     }
 
-    if (part->kind == KIND_57 && part->form == 0)
-        c = 1;
-    else
-        c = part->size[0].height - 1;
+    /* 1.11: kind 57's form 0 is a narrow strip at the far end */
+    if (part->kind == KIND_57 && part->form == 0) {
+        left = 0x6e;
+        right = 0x6f;
+        bottom = 1;
+    } else
+        bottom = part->size[0].height - 1;
 
-    di = part->points;
-    di->x = 0;
-    di->y = b;
-    di++;
-    di->x = a;
-    di->y = b;
-    di++;
-    di->x = a;
-    di->y = c;
-    di++;
-    di->x = 0;
-    di->y = c;
+    /* 1.11: kind 55 in form 1 keeps the points it has */
+    if (!(part->kind == KIND_55 && part->form == 1)) {
+        di = part->points;
+        di->x = left;
+        di->y = top;
+        di++;
+        di->x = right;
+        di->y = top;
+        di++;
+        di->x = right;
+        di->y = bottom;
+        di++;
+        di->x = left;
+        di->y = bottom;
+    }
 
     part_finish_angles(part);
 

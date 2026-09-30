@@ -76,7 +76,7 @@ void part_step_mouse_cage(struct part *part)
         di = part->next_linked;
         while (di != NULL) {
             if (di->kind == KIND_POKEY) {
-                part->direction = 1;
+                trigger_mouse_cage(part);       /* 1.11; 1.00 set +0x12 itself */
                 di = NULL;
             } else {
                 di = di->next_linked;

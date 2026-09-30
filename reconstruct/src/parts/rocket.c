@@ -34,8 +34,6 @@ void part_step_rocket(struct part *part)
 {
     struct part *di;
 
-    part->contact = 0;
-
     if (part->direction == 0 && part->spin > 0x14)
         part->direction = 1;
 
@@ -48,6 +46,7 @@ void part_step_rocket(struct part *part)
             play_sound(0x0f);
 
         if (part->form >= 7) {
+            part->contact = 0;                  /* 1.11: 1.00 cleared it first thing */
             part->vel_y -= 0x400;
             clamp_record_pair(part);
         }
@@ -68,6 +67,8 @@ void part_step_rocket(struct part *part)
                 for (di = part->next_linked; di != NULL;
                      di = di->next_linked) {
                     if (di->kind == KIND_BALLOON) {
+                        di->direction = 1;
+                    } else if (di->kind == 62) {     /* 1.11 */
                         di->direction = 1;
                     } else if (di->kind == KIND_POKEY && di->form == 0) {
                         di->form = 1;

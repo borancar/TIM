@@ -151,6 +151,7 @@ void part_step_monkey(struct part *part)
             } else {
                 part->form = 0;
             }
+            place_object_for_draw(part);
         } else {
             if (part->form >= 9)
                 part->attach[0].y = 53;
@@ -161,9 +162,8 @@ void part_step_monkey(struct part *part)
                 part->form = 5;
             else if (part->form == 0x0d)
                 part->form = 9;
+            place_object_for_draw(part);
         }
-
-        place_object_for_draw(part);
     } else {
         if (part->direction != 0) {
             part->attach[0].y = 53;

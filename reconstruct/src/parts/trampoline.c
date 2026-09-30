@@ -45,11 +45,20 @@ uint16_t part_hit_trampoline(struct part *part)
     int16_t apart;                      /* [bp-4] */
 
     if (edge == 0) {
-        apart = part->pos[0].x + (part->size[0].width >> 1);
+        /* 1.11: kind 54 is measured by its set size */
+        apart = part->pos[0].x
+                + ((part->kind == 54 ? part->set_size.width : part->size[0].width) >> 1);
         apart -= di->pos[0].x + (di->size[0].width >> 1);
 
-        if (apart < -0x0e || apart > 0x0e)
+        if (apart < -0x0e || apart > 0x0e) {
+            if (part->kind == 54) {             /* 1.11 */
+                part->vel_y = 0;
+                if (part->form >= 6 && part->form <= 8)
+                    part->form = 9;
+                place_object_for_draw(part);
+            }
             return 1;
+        }
 
         di->direction = 1;
 

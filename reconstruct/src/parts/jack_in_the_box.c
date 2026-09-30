@@ -13,7 +13,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x3394..0x339a
+ * JUDGE: data 0x2f36..0x2f3c
  */
 #include "tim.h"
 #include "hostio.h"
@@ -53,7 +53,10 @@ void part_step_jack_in_the_box(struct part *part)
         if (part->form != 0x12)
             part->form++;
     } else if (part->direction != 0) {
-        dir = (part->state & STATE_FLIP_HORIZONTAL) ? 0 - part->direction : part->direction;
+        if (part->state & STATE_FLIP_HORIZONTAL)
+            dir = 0 - part->direction;
+        else
+            dir = part->direction;
         part->form += dir;
 
         if (part->form == 8) {
@@ -82,7 +85,10 @@ void part_step_jack_in_the_box(struct part *part)
              di = di->next_linked) {
             if (di->traits & TRAIT_IN_MOVING_LIST) {
                 push = conveyor_speed_for_mass(di);
-                di->vel_x = (part->state & STATE_FLIP_HORIZONTAL) ? push : 0 - push;
+                if (part->state & STATE_FLIP_HORIZONTAL)
+                    di->vel_x = push;
+                else
+                    di->vel_x = 0 - push;
                 di->vel_y = 0 - push;
             } else {
                 switch (di->kind) {

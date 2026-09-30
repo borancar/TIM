@@ -495,36 +495,36 @@ uint16_t drive_ropes(struct part *from, struct part *part, uint16_t flags,
     v04 = 0;
 
     for (v02 = 0; v02 < 2 && v04 == 0; v02++) {
-        if ((si = part->rope[v02]) != 0) {
-            v10 = (rope_other_end(part, si));
-            if (v10 != from) {
-                if ((si->end_a) == part) {
-                    v06 = 0;
-                    v08 = si->slot_a;
-                    v0a = si->slot_b;
-                } else {
-                    v06 = 1;
-                    v08 = si->slot_b;
-                    v0a = si->slot_a;
-                }
-
-                if (part->direction > 0) {
-                    if (v08 == 0)
-                        v0e = 0;
-                    else
-                        v0e = 1;
-                } else {
-                    if (v08 == 0)
-                        v0e = 1;
-                    else
-                        v0e = 0;
-                }
-
-                v0c = rope_orientation(si, v06, v0e);
-                v0c |= flags;
-
-                v04 = g_part_kinds[v10->kind].drive(part, v10, v0a, v0c, a, momentum);
+        if ((si = part->rope[v02]) == 0)
+            continue;
+        v10 = (rope_other_end(part, si));
+        if (v10 != from) {
+            if ((si->end_a) == part) {
+                v06 = 0;
+                v08 = si->slot_a;
+                v0a = si->slot_b;
+            } else {
+                v06 = 1;
+                v08 = si->slot_b;
+                v0a = si->slot_a;
             }
+
+            if (part->direction > 0) {
+                if (v08 == 0)
+                    v0e = 0;
+                else
+                    v0e = 1;
+            } else {
+                if (v08 == 0)
+                    v0e = 1;
+                else
+                    v0e = 0;
+            }
+
+            v0c = rope_orientation(si, v06, v0e);
+            v0c |= flags;
+
+            v04 = g_part_kinds[v10->kind].drive(part, v10, v0a, v0c, a, momentum);
         }
     }
 

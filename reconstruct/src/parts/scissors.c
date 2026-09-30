@@ -205,124 +205,127 @@ void cut_ropes(struct part *part, const int16_t *line)
     struct rope *rope;                  /* [bp-0x24] */
     struct rope *newrope;               /* [bp-0x26] */
 
-    for (rec = g_placed_parts.next; rec != NULL;
-         rec = rec->next) {
-        if (rec->kind != KIND_ROPE)
-            continue;
+    rec = g_placed_parts.next;
+    while (rec != NULL) {
+        if (rec->kind == KIND_ROPE) {
+            rope = rec->rope[0];
+            prev = endA = rope->end_a;
+            endB = rope->end_b;
+            slotA = rope->slot_a;
+            slotB = 0;
+            next = prev->link[slotA];
 
-        rope = rec->rope[0];
-        prev = endA = rope->end_a;
-        endB = rope->end_b;
-        slotA = rope->slot_a;
-        slotB = 0;
-        next = prev->link[slotA];
+            while (prev != NULL && next != NULL) {
+                if (prev != endA)
+                    slotA = 1;
 
-        while (prev != NULL && next != NULL) {
-            if (prev != endA)
-                slotA = 1;
+                seg[0] = prev->box[0].x + prev->attach[slotA].x - part->pos[0].x;
+                seg[1] = prev->box[0].y + prev->attach[slotA].y - part->pos[0].y;
 
-            seg[0] = prev->box[0].x + prev->attach[slotA].x - part->pos[0].x;
-            seg[1] = prev->box[0].y + prev->attach[slotA].y - part->pos[0].y;
+                if (next == endB)
+                    slotB = rope->slot_b;
 
-            if (next == endB)
-                slotB = rope->slot_b;
+                seg[2] = next->box[0].x + next->attach[slotB].x - part->pos[0].x;
+                seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
 
-            seg[2] = next->box[0].x + next->attach[slotB].x - part->pos[0].x;
-            seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
+                if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
+                    saved = g_round_state;
+                    g_round_state = 0x1000;
+                    mark_rope_shapes(rope->owner, 3);
+                    g_round_state = saved;
 
-            if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
-                saved = g_round_state;
-                g_round_state = 0x1000;
-                mark_rope_shapes(rope->owner, 3);
-                g_round_state = saved;
+                    if ((di = make_part(KIND_ANCHOR)) == NULL)
+                        goto out;
+                    if ((anchorB = make_part(KIND_ANCHOR)) == NULL) {
+                        free_part(di);
+                        goto out;
+                    }
+                    if ((carrier = make_part(KIND_ROPE)) == NULL) {
+                        free_part(anchorB);
+                        free_part(di);
+                        goto out;
+                    }
 
-                if ((di = make_part(KIND_ANCHOR)) == NULL)
-                    goto out;
-                if ((anchorB = make_part(KIND_ANCHOR)) == NULL)
-                    goto fail;
-                if ((carrier = make_part(KIND_ROPE)) == NULL) {
-                    free_part(anchorB);
-fail:
-                    free_part(di);
-                    goto out;
-                }
+                    insert_sorted(di, &g_moving_parts);
+                    di->traits |= TRAIT_SPAWNED;
+                    di->pos[0].x = at[0] + part->pos[0].x;
+                    di->pos[0].y = at[1] + part->pos[0].y;
 
-                insert_sorted(di, &g_moving_parts);
-                di->traits |= TRAIT_SPAWNED;
-                di->pos[0].x = at[0] + part->pos[0].x;
-                di->pos[0].y = at[1] + part->pos[0].y;
+                    insert_sorted(anchorB, &g_moving_parts);
+                    anchorB->traits |= TRAIT_SPAWNED;
+                    anchorB->pos[0] = di->pos[0];
 
-                insert_sorted(anchorB, &g_moving_parts);
-                anchorB->traits |= TRAIT_SPAWNED;
-                anchorB->pos[0] = di->pos[0];
+                    insert_sorted(carrier, &g_placed_parts);
+                    carrier->traits |= TRAIT_SPAWNED;
 
-                insert_sorted(carrier, &g_placed_parts);
-                carrier->traits |= TRAIT_SPAWNED;
+                    newrope = carrier->rope[0];
+                    newrope->end_a = anchorB;
+                    newrope->end_b = endB;
+                    newrope->slot_a = 0;
+                    newrope->slot_b = rope->slot_b;
 
-                newrope = carrier->rope[0];
-                newrope->end_a = anchorB;
-                newrope->end_b = endB;
-                newrope->slot_a = 0;
-                newrope->slot_b = rope->slot_b;
+                    anchorB->link[0] = next;
+                    anchorB->rope[0] = newrope;
 
-                anchorB->link[0] = next;
-                anchorB->rope[0] = newrope;
+                    if (next->kind == KIND_PULLEY) {
+                        next->rope[1] = newrope;
+                        next->link[1] = anchorB;
+                    } else {
+                        next->rope[slotB] = newrope;
+                        next->link[slotB] = anchorB;
+                    }
 
-                if (next->kind == KIND_PULLEY) {
-                    next->rope[1] = newrope;
-                    next->link[1] = anchorB;
+                    endB->rope[newrope->slot_b] = newrope;
+
+                    rope->end_b = di;
+                    rope->slot_b = 0;
+                    di->link[0] = prev;
+                    di->rope[0] = rope;
+
+                    if (prev->kind == KIND_PULLEY)
+                        prev->link[0] = di;
+                    else
+                        prev->link[slotA] = di;
+
+                    di->pos[2].x = di->pos[1].x = di->pos[0].x;
+                    di->fx = di->pos[0].x;
+                    di->fx <<= 9;
+                    di->pos[2].y = di->pos[1].y = di->pos[0].y;
+                    di->fy = di->pos[0].y;
+                    di->fy <<= 9;
+                    place_object_for_draw(di);
+
+                    anchorB->pos[2].x = anchorB->pos[1].x = anchorB->pos[0].x;
+                    anchorB->fx = anchorB->pos[0].x;
+                    anchorB->fx <<= 9;
+                    anchorB->pos[2].y = anchorB->pos[1].y = anchorB->pos[0].y;
+                    anchorB->fy = anchorB->pos[0].y;
+                    anchorB->fy <<= 9;
+                    place_object_for_draw(anchorB);
+
+                    g_round_state = 0x1000;
+
+                    refresh_link_geometry(rope);
+                    for (k = 0; k < 2; k++)
+                        rope->pt[2][k] = rope->pt[1][k] = rope->pt[0][k];
+
+                    refresh_link_geometry(newrope);
+                    for (k = 0; k < 2; k++)
+                        newrope->pt[2][k] = newrope->pt[1][k] = newrope->pt[0][k];
+
+                    g_round_state = saved;
+                    prev = next = rec = NULL;
+                } else if (next == endB) {
+                    prev = next = NULL;
                 } else {
-                    next->rope[slotB] = newrope;
-                    next->link[slotB] = anchorB;
+                    prev = next;
+                    next = next->link[0];
                 }
-
-                endB->rope[newrope->slot_b] = newrope;
-
-                rope->end_b = di;
-                rope->slot_b = 0;
-                di->link[0] = prev;
-                di->rope[0] = rope;
-
-                if (prev->kind == KIND_PULLEY)
-                    prev->link[0] = di;
-                else
-                    prev->link[slotA] = di;
-
-                di->pos[2].x = di->pos[1].x = di->pos[0].x;
-                di->fx = di->pos[0].x;
-                di->fx <<= 9;
-                di->pos[2].y = di->pos[1].y = di->pos[0].y;
-                di->fy = di->pos[0].y;
-                di->fy <<= 9;
-                place_object_for_draw(di);
-
-                anchorB->pos[2].x = anchorB->pos[1].x = anchorB->pos[0].x;
-                anchorB->fx = anchorB->pos[0].x;
-                anchorB->fx <<= 9;
-                anchorB->pos[2].y = anchorB->pos[1].y = anchorB->pos[0].y;
-                anchorB->fy = anchorB->pos[0].y;
-                anchorB->fy <<= 9;
-                place_object_for_draw(anchorB);
-
-                g_round_state = 0x1000;
-
-                refresh_link_geometry(rope);
-                for (k = 0; k < 2; k++)
-                    rope->pt[2][k] = rope->pt[1][k] = rope->pt[0][k];
-
-                refresh_link_geometry(newrope);
-                for (k = 0; k < 2; k++)
-                    newrope->pt[2][k] = newrope->pt[1][k] = newrope->pt[0][k];
-
-                g_round_state = saved;
-                prev = next = NULL;
-            } else if (next == endB) {
-                prev = next = NULL;
-            } else {
-                prev = next;
-                next = next->link[0];
             }
         }
+        /* 1.11: a cut clears `rec` too, so one rope is cut a call */
+        if (rec != NULL)
+            rec = rec->next;
     }
 
 out:

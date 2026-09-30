@@ -114,15 +114,21 @@ void part_step_boxing_glove(struct part *part)
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {
             if (di->traits & TRAIT_IN_MOVING_LIST) {
+                di->traits2 |= 0x400;           /* 1.11: punched */
                 v = bounce_speed_for_mass(di);
-                di->vel_x = (part->state & STATE_FLIP_HORIZONTAL) ? v : 0 - v;
+                if (part->state & STATE_FLIP_HORIZONTAL)
+                    di->vel_x = v;
+                else
+                    di->vel_x = 0 - v;
             } else {
                 switch (di->kind) {
                 case KIND_BOB_THE_FISH:
                     break_bob_the_fish(di);
+                    di->traits2 |= 0x400;
                     break;
                 case KIND_MOUSE_CAGE:
                     trigger_mouse_cage(di);
+                    di->traits2 |= 0x400;
                     break;
                 }
             }

@@ -28,9 +28,7 @@
  */
 uint16_t part_hit_generator(struct part *part)
 {
-    struct part *other = part->contact;   /* read, and never used */
-
-    (void)other;
+    /* 1.00 read `part->contact` here and never used it; 1.11 does not. */
     return 1;
 }
 

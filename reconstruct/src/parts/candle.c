@@ -84,6 +84,8 @@ void part_step_candle(struct part *part)
                  si = si->next_linked) {
                 if (si->kind == KIND_BALLOON) {
                     si->direction = 1;
+                } else if (si->kind == 62) {     /* 1.11 */
+                    si->direction = 1;
                 } else if (si->kind == KIND_POKEY && si->form == 0) {
                     si->form = 1;
                     si->kind_state = 0;
