@@ -166,6 +166,8 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
         r = l + si->size[0].width;
         t = si->pos[0].y;
         b = t + si->size[0].height;
+        if (si->kind == 62)                     /* 1.11: only its first 0x1e */
+            r = l + 0x1e;
 
         if (l < x1 && r > x0 && t < y1 && b > y0) {
             si->next_linked = obj->next_linked;
@@ -321,7 +323,9 @@ void collect_carried(register struct part *obj)
     int16_t top;                        /* [bp-6] */
     int16_t bottom;                     /* [bp-8] */
     int16_t their_mid;                  /* [bp-0xa] */
-    int16_t their_bottom;               /* [bp-0xc] */
+    int16_t their_top;                  /* [bp-0xc] */
+    int16_t their_bottom;               /* [bp-0xe] */
+    int16_t rim;                        /* [bp-0x10] */
 
     if (obj->kind == KIND_BUCKET) {
         obj->next_linked = 0;
@@ -329,6 +333,7 @@ void collect_carried(register struct part *obj)
         right = left + 0x1c;
         top = obj->pos[1].y;
         bottom = top + obj->size[0].height;
+        rim = obj->pos[0].y + 0x14;             /* 1.11 */
 
         for (si = g_moving_parts.next; si != NULL;
              si = si->next) {
@@ -340,14 +345,17 @@ void collect_carried(register struct part *obj)
                 continue;
 
             their_mid = si->pos[1].x + (si->size[0].width >> 1);
-            their_bottom = si->pos[1].y + si->size[0].height;
+            their_top = si->pos[1].y;
+            their_bottom = their_top + si->size[0].height;
+            if (si->kind == KIND_ROCKET)        /* 1.11 */
+                their_bottom -= 0x0c;
 
             carried = 0;
             if (si->contact != 0 && si->contact == obj
                 && si->vel_y > 0 && their_mid > left && their_mid < right)
                 carried = 1;
             if (!carried && their_mid > left && their_mid < right
-                && top + 0x14 < their_bottom && their_bottom < bottom)
+                && top + 0x14 < their_bottom && their_bottom - 4 < bottom)
                 carried = 1;
 
             if (carried) {
@@ -355,6 +363,7 @@ void collect_carried(register struct part *obj)
                 obj->next_linked = si;
                 si->traits2 |= TRAIT2_IN_BUCKET;
                 PART_VEL(si) = PART_VEL(obj);
+                si->kind_state = rim;           /* 1.11 */
             }
         }
     }
