@@ -452,6 +452,7 @@ extern struct part *g_layer_head[6];
  * ---------------------------------------------------------------------------
  */
 #ifndef GAMEDATA_C
+extern uint16_t g_machine_has_bin;
 extern uint16_t g_freeform;
 extern uint16_t g_tool;
 extern uint16_t g_round_state;

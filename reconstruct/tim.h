@@ -1385,8 +1385,8 @@ void game_setup(void);                              /* 0x0fe81 */
 void game_round(void);                              /* 0x0ff5e */
 void round_setup(void);                             /* 0x0ffb2 */
 void round_teardown(void);                          /* 0x10021 */
-void load_level(uint16_t number);                   /* 0x14144 */
-void save_level(uint16_t number);                   /* 0x140de */
+void load_level(uint16_t number);                   /* 0x140de */
+void save_level(uint16_t number);                   /* 0x14144 */
 void read_level(char *name);                 /* 0x13a82 */
 void paint_game_screen(uint16_t present);           /* 0x128b3 */
 void draw_machine_thunk(void);                      /* 0x179c8 */

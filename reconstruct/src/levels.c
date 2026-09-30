@@ -7,15 +7,20 @@
  * **Levels and settings on disk**: reading and writing a level or a machine,
  * counting the levels, a puzzle's title, the passwords, and `tim.cfg`.
  *
- * The sixth module of the original's **code segment 0dff**, image
- * 0x11d00..0x12c26. Its data is its literal pool alone, DGROUP
- * 0x2870..0x28d2, and its uninitialised data is DGROUP 0x546c..0x547a.
- * Functions are in address order and each carries the image offset it was
- * read from.
+ * In 1.11, image 0x1351f..0x144ee, in the code segment that starts at
+ * 0x0ecc0 (1.00: the sixth module of segment 0dff, 0x11d00..0x12c26). Its
+ * data is its literal pool alone, DGROUP 0x238a..0x23ee, and its
+ * uninitialised data is DGROUP 0x5086..0x5094. Functions are in address
+ * order and each carries the image offset it was read from.
+ *
+ * **1.11's machine files are version 0x105 with the magic 0xacee** (1.00
+ * wrote 0x102 and 0xaced; both magics are read): a machine carries its
+ * description from 0x104 and, from 0x105, whether it carries its parts bin
+ * (`g_machine_has_bin`) - and then the bin itself.
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x2870..0x28d1
+ * JUDGE: data 0x238a..0x23ee
  */
 #include <string.h>
 #ifdef __TURBOC__
@@ -450,12 +455,13 @@ void read_level(char *name)
     int16_t n_given;                    /* [bp-6] */
     char buf[SETBUF_ROOM(0x210)];       /* [bp-0x216] */
     register FILE *file;
+    register int16_t i;
 
     if ((file = game_fopen(name, "rb")) != 0) {
         game_setbuf(file, (uint8_t *)buf);
         game_fread_far(file, (uint8_t *)&g_level_io.version_out);
 
-        if (g_level_io.version_out == 0xaced) {
+        if (g_level_io.version_out == 0xaced || g_level_io.version_out == 0xacee) {
             game_fread_far(file, (uint8_t *)&g_level_io.version);
 
             if (g_level_io.is_level != 0) {
@@ -463,6 +469,12 @@ void read_level(char *name)
                 game_fread_string(file, (char *)g_level_hint);
                 game_fread_far(file, (uint8_t *)&g_level_settings.bonus_1);
                 game_fread_far(file, (uint8_t *)&g_level_settings.bonus_2);
+            } else if (g_level_io.version >= 0x104) {
+                /* A machine from 0x104 on carries its description. */
+                game_fread_string(file, (char *)g_level_hint);
+            } else {
+                for (i = 0; i < 0x190; i++)
+                    g_level_hint[i] = 0;
             }
 
             game_fread_far(file, (uint8_t *)&g_level_settings.gravity);
@@ -485,7 +497,13 @@ void read_level(char *name)
 
             read_list(file, &g_placed_parts, n_machine);
             read_list(file, &g_moving_parts, n_moving);
-            if (g_level_io.is_level != 0)
+
+            /* ...and from 0x105 on, whether it carries its parts bin. */
+            if (g_level_io.version >= 0x105)
+                game_fread_far(file, (uint8_t *)&g_machine_has_bin);
+            else
+                g_machine_has_bin = 0;
+            if (g_level_io.is_level != 0 || g_machine_has_bin != 0)
                 read_list(file, &g_held_parts.parts_bin, n_given);
 
             dos_free_far(g_level_io.table);
@@ -754,8 +772,8 @@ uint16_t write_level(register char *name)
     register FILE *f;
 
     g_level_io.error = 0;
-    g_level_io.version_out = 0xaced;
-    g_level_io.version = 0x0102;
+    g_level_io.version_out = 0xacee;
+    g_level_io.version = 0x0105;
     g_file_op_active = 1;
 
     if ((f = game_fopen(name, "wb")) != 0) {
@@ -767,6 +785,8 @@ uint16_t write_level(register char *name)
             write_string(f, (char *)g_level_hint);
             write_word(f, (const uint8_t *)&g_level_settings.bonus_1);
             write_word(f, (const uint8_t *)&g_level_settings.bonus_2);
+        } else {
+            write_string(f, (char *)g_level_hint);
         }
 
         write_word(f, (const uint8_t *)&g_level_settings.gravity);
@@ -785,6 +805,7 @@ uint16_t write_level(register char *name)
 
         write_part_list(f, &g_placed_parts, 0);
         write_part_list(f, &g_moving_parts, 1);
+        write_word(f, (const uint8_t *)&g_machine_has_bin);
         write_part_list(f, &g_held_parts.parts_bin, 2);
 
         if (game_fclose(f) != 0)
@@ -802,23 +823,25 @@ uint16_t write_level(register char *name)
 }
 
 /*
- * 0x14144
+ * 0x140de
  *
  * Load a level by number: build its name and hand it to `read_level`.
  *
- * The name is assembled a piece at a time out of DGROUP - "l" at 0x2876, the
- * number in decimal, ".lev" at 0x2878 - into a 0x16-byte buffer on the stack.
+ * The name is assembled a piece at a time - "l" (or "nl" for level 17 in
+ * 1.11), the number in decimal, ".lev" - into a 0x16-byte buffer on the
+ * stack.
  * `round_setup` passes the round count at 0x4ebd, so the first round asks for
  * "l1.lev", which is the name the resource archive holds.
  *
  * The flag at 0x5472 is set to 1 before the read and is not cleared here.
  */
-void load_level(uint16_t number)
+void load_level(register uint16_t number)
 {
     char name[14];
     char digits[8];
 
-    strcpy(name, "l");
+    /* 1.11 reads level 17 from "nl17.lev": that one puzzle was replaced. */
+    strcpy(name, number == 0x11 ? "nl" : "l");
     itoa((int16_t)number, digits, 10);
     strcat(name, digits);
     strcat(name, ".lev");
@@ -828,7 +851,7 @@ void load_level(uint16_t number)
 }
 
 /*
- * 0x140de
+ * 0x14144
  *
  * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
  * of its own two strings, the same flag set so a level's whole record is
@@ -850,24 +873,34 @@ void save_level(uint16_t number)
 }
 
 /*
- * 0x1419d (1.11's; the body below is still 1.00's, from 0x12915)
+ * 0x1419d
  *
- * Load an animation file: build the part list first, clear DGROUP 0x5472, and
- * read it. Every load in the image comes here - the title and credits
- * animations, freeform's `ff.lev`, and the file picker.
+ * Load an animation file: clear the level flag and read it. Every load in
+ * the image comes here - the title and credits animations, freeform's
+ * `ff.lev`, and the file picker.
  *
- * **The bin is `build_part_list`'s and stays so.** With 0x5472 clear,
- * `read_level` reads a file's placed and moving lists but not its given one,
- * so the bin after a load is freeform's one-of-every-kind. This comment once
- * said a routine three bytes below loaded while *preserving* 0x50d7; those
- * bytes are the tail of the routine before, which ends by calling the machine
- * writer at 0x1271c.
+ * **1.11 reads first and builds the bin after, if the file brought none.**
+ * A machine file from version 0x105 on can carry its own parts bin
+ * (`g_machine_has_bin`); when it does not, the bin is emptied and
+ * `build_part_list` fills it with freeform's one-of-every-kind, as 1.00 did
+ * before every load. The largest free block is taken on either side of that
+ * and nothing reads it - a measurement left in.
  */
 void load_animation(char *name)
 {
-    build_part_list();
+    int16_t largest;                    /* [bp-2], written and never read */
+
     g_level_io.is_level = 0;
     read_level(name);
+    if (g_machine_has_bin == 0) {
+        g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
+        largest = heap_largest_free();
+        build_part_list();
+        largest = heap_largest_free();
+#ifndef __TURBOC__
+        (void)largest;
+#endif
+    }
 }
 
 /*
@@ -886,18 +919,22 @@ void load_animation(char *name)
  * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
  * single exit; transcribed as the fall-through it is.
  */
-uint16_t save_machine(char *name)
+uint16_t save_machine(register char *name)
 {
-    uint16_t r;                         /* [bp-2] */
-    struct part *held;                      /* [bp-4] */
+    struct part *held;                  /* [bp-2] */
+    uint16_t r;
 
-    held = g_held_parts.parts_bin.next;
-    g_held_parts.parts_bin.next = 0;
-    g_level_io.is_level = 0;
-
-    r = write_level(name);
-
-    g_held_parts.parts_bin.next = held;
+    /* 1.11: a machine that carries its own bin is written with it. */
+    if (g_machine_has_bin != 0) {
+        g_level_io.is_level = 0;
+        r = write_level(name);
+    } else {
+        held = g_held_parts.parts_bin.next;
+        g_held_parts.parts_bin.next = 0;
+        g_level_io.is_level = 0;
+        r = write_level(name);
+        g_held_parts.parts_bin.next = held;
+    }
     return r;
 }
 
@@ -920,7 +957,7 @@ uint16_t is_machine_file(char *name)
 
     if ((file = game_fopen(name, "rb")) != 0) {
         game_fread_far(file, (uint8_t *)&magic);
-        if (magic == 0xaced) {
+        if (magic == 0xaced || magic == 0xacee) {
             game_fclose(file);
             return 1;
         }
@@ -1001,7 +1038,9 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
 
     game_fread_far(file, (uint8_t *)&magic);
 
-    if (magic != 0xaced) {
+    /* 1.11 takes both magics - and still names level 17 "l17.lev" here,
+       where `load_level` reads "nl17.lev". */
+    if (magic != 0xaced && magic != 0xacee) {
         game_fclose(file);
         return 0;
     }

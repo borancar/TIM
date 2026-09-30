@@ -1,9 +1,5 @@
 {
  "_comment": "Placements read off the image by hand, which tools/addrmap.py takes over any pass: name -> [1.11 address, why]. Each was checked against the bytes.",
- "save_level": [
-  "0x140de",
-  "1.11 has it before load_level: prologue at 0x140de, builds the l<N>.lev name and calls write_level"
- ],
  "load_animation": [
   "0x1419d",
   "called by game_intro at 0x0f679; 1.11's body clears the level flag and reads the level"
@@ -55,5 +51,13 @@
  "conveyor_nudge_10": [
   "0x1bb2e",
   "the first of the three nudges, before 0x1bb65 and 0x1bbb8"
+ ],
+ "load_level": [
+  "0x140de",
+  "builds l<N>.lev (or another prefix for level 17) and calls read_level at 0x13a82 - the pattern pass took the look-alike save_level at 0x14144"
+ ],
+ "save_level": [
+  "0x14144",
+  "builds l<N>.lev and calls write_level at 0x13f83"
  ]
 }
