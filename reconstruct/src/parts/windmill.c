@@ -64,9 +64,9 @@ void part_step_windmill(struct part *part)
             part->direction = 1;
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN)) {
+    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN)) {
         if (part->direction != 0) {
-            if (part->flags_08 & PART_FLIP_HORIZONTAL)
+            if (part->state & STATE_FLIP_HORIZONTAL)
                 di->direction = -1;
             else
                 di->direction = 1;
@@ -92,7 +92,7 @@ void part_step_windmill(struct part *part)
  */
 void part_flip_windmill(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);

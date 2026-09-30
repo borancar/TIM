@@ -47,7 +47,7 @@ void part_setup_pokey(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         si = g_pokey_points_325c;
     else
         si = g_pokey_points_3252;
@@ -124,14 +124,14 @@ void part_step_pokey(struct part *part)
     else
         still = 1;
 
-    if (part->flags_08 & PART_FLIP_VERTICAL) {
-        if (part->flags_06 & PART_HIT_FIXED) {
-            part->flags_08 &= ~PART_FLIP_VERTICAL;
+    if (part->state & STATE_FLIP_VERTICAL) {
+        if (part->traits & TRAIT_HIT_FIXED) {
+            part->state &= ~STATE_FLIP_VERTICAL;
             part->form = 0;
         }
     } else if (still == 0 && part->form < 2) {
         if (part->kind_state > 4) {
-            part->flags_08 |= PART_FLIP_VERTICAL;
+            part->state |= STATE_FLIP_VERTICAL;
             part->form = 1;
             part->kind_state = 0;
         } else {
@@ -140,7 +140,7 @@ void part_step_pokey(struct part *part)
     } else if (part->form == 1) {
         part->kind_state++;
         if (part->kind_state > 0x0c) {
-            if (part->flags_08 & PART_FLIP_HORIZONTAL)
+            if (part->state & STATE_FLIP_HORIZONTAL)
                 step = 0x20;
             else
                 step = -0x20;
@@ -158,7 +158,7 @@ void part_step_pokey(struct part *part)
                     part->form = 0;
                 } else {
                     part->form = 2;
-                    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+                    part->state ^= STATE_FLIP_HORIZONTAL;
                 }
             } else {
                 part->form = 2;
@@ -178,10 +178,10 @@ void part_step_pokey(struct part *part)
         }
 
         if (part->form == 0) {
-            if (part->flags_08 & PART_FLIP_HORIZONTAL)
-                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0xf0, 0, 0);
+            if (part->state & STATE_FLIP_HORIZONTAL)
+                link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0xf0, 0, 0);
             else
-                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), (int16_t)0xff10, 0, 0, 0);
+                link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), (int16_t)0xff10, 0, 0, 0);
 
             di = part->next_linked;
             while (di != NULL) {
@@ -192,7 +192,7 @@ void part_step_pokey(struct part *part)
 
                     if (dx > 0 && dx < 0x38 && dy > 0 && dy < 0x28) {
                         mark_part_shapes(di, 3);
-                        di->flags_08 |= PART_GONE;
+                        di->state |= STATE_GONE;
                         play_sound(0x0d);
                         range = -1;
                     } else if (busy != 0) {
@@ -213,7 +213,7 @@ void part_step_pokey(struct part *part)
                 }
 
                 if (abs(di->link_dx) < range) {
-                    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+                    if (part->state & STATE_FLIP_HORIZONTAL)
                         step = 0x20;
                     else
                         step = -0x20;
@@ -253,7 +253,7 @@ void part_step_pokey(struct part *part)
  */
 void part_flip_pokey(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_pokey(part);
 

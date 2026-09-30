@@ -101,7 +101,7 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
                 p->kind, p->form,
                 p->pos[0].x, p->pos[0].y,
                 p->size[0].width, p->size[0].height,
-                p->flags_06, p->flags_08, p->flags_0a,
+                p->traits, p->state, p->traits2,
                 (int16_t)p->link_dx, (int16_t)p->link_dy,
                 p->direction,
                 p->vel_x, p->vel_y, p->weight,
@@ -1083,7 +1083,7 @@ void dev_level_scan(void)
                 printf(" %s", names[h]);
                 for (si = heads[h]->next; si != 0 && c < 4096; si = si->next) {
                     printf("%c%d/%x", c ? ',' : ' ', si->kind,
-                           si->flags_06 & 0x3800);   /* kind / list bits */
+                           si->traits & 0x3800);   /* kind / list bits */
                     c++;
                 }
                 printf(" (%d) ", c);

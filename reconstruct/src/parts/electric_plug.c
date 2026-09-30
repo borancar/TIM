@@ -136,7 +136,7 @@ void part_step_electric_plug(struct part *part)
     int16_t i;                          /* dx */
     struct part *di;
 
-    part->flags_08 |= PART_STEPPED;
+    part->state |= STATE_STEPPED;
 
     for (i = 4; i < 6; i++)
         if ((di = part->link[i]) != NULL)

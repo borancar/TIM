@@ -53,7 +53,7 @@ void part_step_jack_in_the_box(struct part *part)
         if (part->form != 0x12)
             part->form++;
     } else if (part->direction != 0) {
-        dir = (part->flags_08 & PART_FLIP_HORIZONTAL) ? 0 - part->direction : part->direction;
+        dir = (part->state & STATE_FLIP_HORIZONTAL) ? 0 - part->direction : part->direction;
         part->form += dir;
 
         if (part->form == 8) {
@@ -75,14 +75,14 @@ void part_step_jack_in_the_box(struct part *part)
 
         /* The reach by form, 0x3394, with the first form folded into the
            address: `[bx+0x3384]`. */
-        link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x1f,
+        link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0x1f,
                               (g_jack_in_the_box_reach - 8)[part->form], 0);
 
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {
-            if (di->flags_06 & PART_IN_MOVING_LIST) {
+            if (di->traits & TRAIT_IN_MOVING_LIST) {
                 push = conveyor_speed_for_mass(di);
-                di->vel_x = (part->flags_08 & PART_FLIP_HORIZONTAL) ? push : 0 - push;
+                di->vel_x = (part->state & STATE_FLIP_HORIZONTAL) ? push : 0 - push;
                 di->vel_y = 0 - push;
             } else {
                 switch (di->kind) {
@@ -133,7 +133,7 @@ void part_setup_jack_in_the_box(struct part *part)
  */
 void part_flip_jack_in_the_box(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -207,7 +207,7 @@ void conveyor_nudge_3(struct part *obj, int16_t mid)
 void conveyor_nudge_10(struct part *obj, int16_t mid)
 {
     if (obj->form == 0) {
-        if (obj->flags_08 & PART_FLIP_HORIZONTAL) {
+        if (obj->state & STATE_FLIP_HORIZONTAL) {
             if (obj->pos[0].x + 0x0c < mid)
                 obj->direction = 1;
         } else {
@@ -248,7 +248,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
 void conveyor_nudge_25(struct part *obj, int16_t mid)
 {
     if (obj->form == 0) {
-        if (obj->flags_08 & PART_FLIP_HORIZONTAL) {
+        if (obj->state & STATE_FLIP_HORIZONTAL) {
             if (obj->pos[0].x + 0x12 < mid)
                 obj->direction = 1;
         } else {

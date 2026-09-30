@@ -78,10 +78,10 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
     ay1 = ay0 + obj->size[0].height;
 
     for (si = pick_by_flag(flags); si != NULL;
-         si = pick_for_record(si, flags & PART_IN_MOVING_LIST)) {
+         si = pick_for_record(si, flags & TRAIT_IN_MOVING_LIST)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & PART_GONE)
+        if (si->state & STATE_GONE)
             continue;
 
         bx0 = si->pos[0].x;
@@ -156,10 +156,10 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
     y1 += obj->pos[0].y;
 
     for (si = pick_by_flag(flags); si != NULL;
-         si = pick_for_record(si, flags & PART_IN_MOVING_LIST)) {
+         si = pick_for_record(si, flags & TRAIT_IN_MOVING_LIST)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & PART_GONE)
+        if (si->state & STATE_GONE)
             continue;
 
         l = si->pos[0].x;
@@ -209,7 +209,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
     obj->next_linked = 0;
 
     for (si = pick_by_flag(flags); si != NULL;
-         si = pick_for_record(si, flags & PART_IN_MOVING_LIST)) {
+         si = pick_for_record(si, flags & TRAIT_IN_MOVING_LIST)) {
         n = 1;
         pt = NEAR_ZERO(si->points);
         x_first = x_last = si->pos[0].x + pt[0].x;
@@ -274,14 +274,14 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
     y0 += obj->pos[0].y;
     y1 += obj->pos[0].y;
 
-    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
-         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
+    for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & PART_GONE)
+        if (si->state & STATE_GONE)
             continue;
 
-        if (si->flags_0a & PART_IGNITES) {
+        if (si->traits2 & TRAIT2_IGNITES) {
             px = si->pos[0].x + si->hold.x;
             py = si->pos[0].y + si->hold.y;
             if (px >= x0 && px <= x1 && ((py >= y0) & (py <= y1))) {
@@ -334,7 +334,7 @@ void collect_carried(register struct part *obj)
              si = si->next) {
             if (obj == si)
                 continue;
-            if (si->flags_08 & PART_GONE)
+            if (si->state & STATE_GONE)
                 continue;
             if (si->kind == KIND_BIRD_CAGE)
                 continue;
@@ -353,7 +353,7 @@ void collect_carried(register struct part *obj)
             if (carried) {
                 si->next_linked = obj->next_linked;
                 obj->next_linked = si;
-                si->flags_0a |= PART_IN_BUCKET;
+                si->traits2 |= TRAIT2_IN_BUCKET;
                 PART_VEL(si) = PART_VEL(obj);
             }
         }

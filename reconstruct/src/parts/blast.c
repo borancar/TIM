@@ -45,18 +45,18 @@ void part_step_blast(struct part *part)
 
     if (part->form == 5) {
         mark_part_shapes(part, 3);
-        part->flags_08 |= PART_GONE;
+        part->state |= STATE_GONE;
     } else {
         part->form++;
         place_object_for_draw(part);
     }
 
     if (part->form == 2) {
-        link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x14, 0x14, -0x18, 0x18);
+        link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), -0x14, 0x14, -0x18, 0x18);
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked) {
-            if (si->flags_06 & PART_IN_MOVING_LIST) {
+            if (si->traits & TRAIT_IN_MOVING_LIST) {
                 if (si->kind == KIND_BALLOON) {
                     si->direction = 1;
                 } else if (si->kind == KIND_DYNAMITE) {
@@ -173,7 +173,7 @@ void split_part_at(struct part *part, struct part *blast)
                     goto out;
 
                 insert_sorted(di, &g_placed_parts);
-                di->flags_06 |= PART_SPAWNED;
+                di->traits |= TRAIT_SPAWNED;
 
                 di->size[0].width = part->pos[0].x + part->size[0].width - v06;
                 di->box[0].x = di->pos[0].x = v06;
@@ -195,7 +195,7 @@ void split_part_at(struct part *part, struct part *blast)
             }
         } else if (part->pos[0].x < v06
                    && part->pos[0].x + part->size[0].width > v04) {
-            part->flags_08 |= PART_GONE;
+            part->state |= STATE_GONE;
         }
     } else {
         v0a = ((v08 - 0x20) & 0xfff0) + 8;
@@ -207,7 +207,7 @@ void split_part_at(struct part *part, struct part *blast)
                     goto out;
 
                 insert_sorted(di, &g_placed_parts);
-                di->flags_06 |= PART_SPAWNED;
+                di->traits |= TRAIT_SPAWNED;
 
                 di->size[0].height = part->pos[0].y + part->size[0].height - v0c;
                 di->box[0].x = di->pos[0].x = part->pos[0].x;
@@ -229,7 +229,7 @@ void split_part_at(struct part *part, struct part *blast)
             }
         } else if (part->pos[0].y < v0c
                    && part->pos[0].y + part->size[0].height > v0a) {
-            part->flags_08 |= PART_GONE;
+            part->state |= STATE_GONE;
         }
     }
 

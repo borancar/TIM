@@ -47,7 +47,7 @@ void part_setup_fan(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         si = g_fan_points_32d2;
     else
         si = g_fan_points_32c8;
@@ -95,17 +95,17 @@ void part_step_fan(struct part *part)
         if (part->form == 4)
             part->form = 0;
 
-        if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-            link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), (int16_t)0xff00, 0, -10, 0);
+        if (part->state & STATE_FLIP_HORIZONTAL) {
+            link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), (int16_t)0xff00, 0, -10, 0);
             push = (int16_t)0xf000;
         } else {
-            link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x100, -10, 0);
+            link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0x100, -10, 0);
             push = 0x1000;
         }
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked) {
-            if (si->flags_06 & PART_IN_PLACED_LIST) {
+            if (si->traits & TRAIT_IN_PLACED_LIST) {
                 if (si->kind == KIND_WINDMILL && abs(si->link_dx) < 0xc8) {
                     si->direction = 1;
                     si->spin = 0x14;
@@ -134,7 +134,7 @@ void part_step_fan(struct part *part)
  */
 void part_flip_fan(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_fan(part);
 

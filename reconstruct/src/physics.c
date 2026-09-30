@@ -195,7 +195,7 @@ void integrate_object(register struct part *obj)
     obj->fx += obj->vel_x;
     obj->fy += obj->vel_y;
 
-    if (obj->flags_06 & PART_ON_SURFACE) {
+    if (obj->traits & TRAIT_ON_SURFACE) {
         if (g_part_kinds[obj->kind].gravity > 0)
             obj->fy += 0x400;
         else
@@ -332,7 +332,7 @@ void apply_contact_friction(register struct part *obj)
     dragl = mul16x16(abs(normal) + abs(tangent), grip);
     drag = dragl >> 8;
     push = mul16x16(cos_a, drag) >> 14;
-    push = obj->flags_06 & PART_SLIDES ? abs(push) + 0x20 : abs(push) + 2;
+    push = obj->traits & TRAIT_SLIDES ? abs(push) + 0x20 : abs(push) + 2;
 
     perp = mul16x16(sin_a, aload) >> 14;
     nudge = mul16x16(abs(cos_a), perp) >> 14;
@@ -525,8 +525,8 @@ void bounce_pair(register struct part *obj)
     sound_on_hard_impact(obj);
 
     other = obj->contact;
-    obj->flags_06 |= PART_CONTACT_DONE;
-    other->flags_06 |= PART_CONTACT_DONE;
+    obj->traits |= TRAIT_CONTACT_DONE;
+    other->traits |= TRAIT_CONTACT_DONE;
     mine = &g_part_kinds[obj->kind];
     theirs = &g_part_kinds[other->kind];
     bounce = mine->bounce < theirs->bounce ? mine->bounce : theirs->bounce;
@@ -564,9 +564,9 @@ void bounce_pair(register struct part *obj)
     apart = 0;
     if (abs(obj->vel_x) < 0x100 && abs(other->vel_x) < 0x100)
         apart = 1;
-    if (obj->flags_06 & PART_ON_SURFACE)
+    if (obj->traits & TRAIT_ON_SURFACE)
         apart = 1;
-    if (obj->flags_0a & PART_IN_BUCKET)
+    if (obj->traits2 & TRAIT2_IN_BUCKET)
         apart = 1;
 
     if (apart) {
@@ -576,12 +576,12 @@ void bounce_pair(register struct part *obj)
         if (myMid < theirMid) {
             if (obj->vel_x > (int16_t)0xfe00)
                 obj->vel_x = (int16_t)0xfe00;
-            if (!(obj->flags_0a & PART_IN_BUCKET) && other->vel_x < 0x200)
+            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x < 0x200)
                 other->vel_x = 0x200;
         } else {
             if (obj->vel_x < 0x200)
                 obj->vel_x = 0x200;
-            if (!(obj->flags_0a & PART_IN_BUCKET) && other->vel_x > (int16_t)0xfe00)
+            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x > (int16_t)0xfe00)
                 other->vel_x = (int16_t)0xfe00;
         }
     }

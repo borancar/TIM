@@ -968,119 +968,131 @@ struct extent16 {
 
 /*
  * ---------------------------------------------------------------------------
- * **A part's three flag words, bit by bit.** Names are ours, each from what the
- * code that sets and tests the bit does with it.
+ * **A part's three flag words, bit by bit.** Three words and not one field per
+ * bit because the original handles each as a word - copied from the kind's
+ * template, saved and loaded as three words, cleared with masks that span
+ * unrelated bits - and TCC's bytes are that. They are named by where they come
+ * from and how long they last; the bits by what the code that sets and tests
+ * them does. Names are ours.
  *
- * `flags_06` - the kind's template seeds 0x4800 or 0x0800 into it, and its
- * init adds what the kind can do:
+ * `traits`, +0x06 - what the part is. The kind's template seeds 0x4800 or
+ * 0x0800 and its init adds what the kind can do; saved with the part.
  *
- *   PART_ON_SURFACE     its contact runs along the surface (`angles_same_side`),
- *                       so the step applies friction rather than a bounce
- *   PART_HIT_FIXED      it hit something that does not move - a static part,
- *                       or one with PART_SOLID
- *   PART_HIT_MOVING     it hit a moving part, which `bounce_pair` resolves
- *   PART_CONTACT_DONE   the contact is resolved this frame; `bounce_pair` sets
- *                       it on both parts. The four are cleared every frame.
- *   PART_SPAWNED        made while the machine ran - a cannonball, a bullet,
- *                       a blast's pieces, cut ends - which `reset_machine`
- *                       deletes rather than puts back
- *   PART_SLIDES         slides rather than rolls - a bucket, a cage, dynamite,
- *                       a candle - and takes the larger friction push
- *   PART_TILED          drawn as 16x16 tiles at whatever size it was given: the
- *                       platforms, whose extent is their `set_size`
- *   PART_CAN_FLIP_VERTICAL / _HORIZONTAL  the Y and X keys' flips are allowed:
- *                       `part_key_shortcut` and `part_flip_options` test them
- *   PART_IN_BIN, PART_IN_MOVING_LIST, PART_IN_PLACED_LIST  which of the three
- *                       lists it is on - one at a time; `detach_part_to_bin`
- *                       and `refile_part_list` move it. `pick_by_flag` and the
- *                       overlap searches take the same bits to say which
- *                       lists to walk
- *   PART_STATIC         the kind stays where it is put: it goes on the placed
- *                       list, and hitting it is hitting something fixed
- *   PART_FROM_LEVEL     the level placed it - writing a level sets it, saving a
- *                       machine clears it - so it cannot be picked up, "remove
- *                       all" leaves it, and the goals count only such parts
+ *   TRAIT_ON_SURFACE      its contact runs along the surface
+ *                         (`angles_same_side`), so the step applies friction
+ *                         rather than a bounce
+ *   TRAIT_HIT_FIXED       it hit something that does not move - a static
+ *                         part, or one with STATE_SOLID
+ *   TRAIT_HIT_MOVING      it hit a moving part, which `bounce_pair` resolves
+ *   TRAIT_CONTACT_DONE    the contact is resolved this frame; `bounce_pair`
+ *                         sets it on both parts. These four are this frame's
+ *                         contact, cleared every frame
+ *   TRAIT_SPAWNED         made while the machine ran - a cannonball, a bullet,
+ *                         a blast's pieces, cut ends - which `reset_machine`
+ *                         deletes rather than puts back
+ *   TRAIT_SLIDES          slides rather than rolls - a bucket, a cage,
+ *                         dynamite, a candle - and takes the larger friction
+ *                         push
+ *   TRAIT_TILED           drawn as 16x16 tiles at whatever size it was given:
+ *                         the platforms, whose extent is their `set_size`
+ *   TRAIT_CAN_FLIP_VERTICAL / _HORIZONTAL  the Y and X keys' flips are allowed:
+ *                         `part_key_shortcut` and `part_flip_options` test them
+ *   TRAIT_IN_BIN, TRAIT_IN_MOVING_LIST, TRAIT_IN_PLACED_LIST  which of the three
+ *                         lists it is on - one at a time; `detach_part_to_bin`
+ *                         and `refile_part_list` move it. `pick_by_flag` and
+ *                         the overlap searches take the same bits to say which
+ *                         lists to walk
+ *   TRAIT_STATIC          the kind stays where it is put: it goes on the
+ *                         placed list, and hitting it is hitting something
+ *                         fixed
+ *   TRAIT_FROM_LEVEL      the level placed it - writing a level sets it, saving
+ *                         a machine clears it - so it cannot be picked up,
+ *                         "remove all" leaves it, and the goals count only such
+ *                         parts
  *
  * 0x0080 and 0x0100 are never tested; they appear only inside a mask.
  *
- * `flags_08` - the part's state, which `reset_machine` puts back from
- * `start_flags`:
+ * `state`, +0x08 - how the part is now. Saved as `start_state`, loaded into
+ * both, and put back from `start_state` by every reset; the editor copies it
+ * across after each change it makes, and a run changes only `state`.
  *
- *   PART_TAKES_ROPE     a rope (`struct rope`) can go round it - the motor, the
- *                       mouse cage, the conveyor, the gear, the windmill
- *   PART_HAS_ROPE       one does; `untie_rope` clears it
- *   PART_TAKES_BELT     a belt (`struct belt`) can be tied to it -
- *                       `find_belt_anchor` - the balloon, the bucket, the hook
- *   PART_TWO_BELT_ENDS  it has a second place to tie one: the seesaw
- *   PART_FLIP_HORIZONTAL / _VERTICAL  it is flipped - what the kind's flip hook
- *                       toggles, the X key's and the Y key's
- *   PART_STEPPED        its step ran this frame; `step_machine` clears it and
- *                       does not step the part twice
- *   PART_RESIZE_HORIZONTAL / _VERTICAL  it can be stretched that way:
- *                       `part_flip_options` offers the handles for it
- *   PART_HELD           a rope held it still this frame (the seesaw)
- *   PART_TURNS_FREE     its ropes drove nothing this frame, so it turns on its
- *                       own (the seesaw). The two, with PART_STEPPED, are
- *                       cleared every frame
- *   PART_SELF_DRIVEN    it turns itself - the mouse cage, the windmill, the
- *                       monkey - and a rope does not drive it
- *   PART_DRAW_STEPS     drawn from its kind's step table, not one frame
- *   PART_GONE           used up - a spent bullet, a finished blast, a burst
- *                       balloon - with its shapes marked for erasing, and every
- *                       overlap search passes over it
- *   PART_SOLID          hitting it is hitting something fixed, though it moves:
- *                       Pokey and Mort
+ *   STATE_TAKES_ROPE      a rope (`struct rope`) can go round it - the motor,
+ *                         the mouse cage, the conveyor, the gear, the windmill
+ *   STATE_HAS_ROPE        one does; `untie_rope` clears it
+ *   STATE_TAKES_BELT      a belt (`struct belt`) can be tied to it -
+ *                         `find_belt_anchor` - the balloon, the bucket, the hook
+ *   STATE_TWO_BELT_ENDS   it has a second place to tie one: the seesaw
+ *   STATE_FLIP_HORIZONTAL / _VERTICAL  it is flipped - what the kind's flip
+ *                         hook toggles, the X key's and the Y key's
+ *   STATE_STEPPED         its step ran this frame; `step_machine` clears it and
+ *                         does not step the part twice
+ *   STATE_RESIZE_HORIZONTAL / _VERTICAL  it can be stretched that way:
+ *                         `part_flip_options` offers the handles for it
+ *   STATE_HELD            a rope held it still this frame (the seesaw)
+ *   STATE_TURNS_FREE      its ropes drove nothing this frame, so it turns on
+ *                         its own (the seesaw). The two, with STATE_STEPPED,
+ *                         are cleared every frame
+ *   STATE_SELF_DRIVEN     it turns itself - the mouse cage, the windmill, the
+ *                         monkey - and a rope does not drive it
+ *   STATE_DRAW_STEPS      drawn from its kind's step table, not one frame
+ *   STATE_GONE            used up - a spent bullet, a finished blast, a burst
+ *                         balloon - with its shapes marked for erasing, and
+ *                         every overlap search passes over it
+ *   STATE_SOLID           hitting it is hitting something fixed, though it
+ *                         moves: Pokey and Mort
  *
- * `flags_0a` - the template seeds 0x0008 or 0:
+ * `traits2`, +0x0a - more of what the part is, a word the file format gained
+ * at version 1.01. The template seeds 0x0008 or 0:
  *
- *   PART_PLUGS_IN       it has a cord (the fan, the motor); carried, it looks
- *                       for a free socket near it
- *   PART_HAS_SOCKETS    it has sockets: the plug, the generator, the solar panel
- *   PART_IGNITES        it can be set alight - the candle, the cannon's fuse,
- *                       dynamite, the rocket
- *   PART_FREE_PLACED    carried, it follows the pointer to the pixel; without it
- *                       it snaps to the 16-pixel grid
- *   PART_IN_BUCKET      it is in a bucket this frame (`collect_carried`)
- *   PART_FILED          filed in the drawing buckets this frame
+ *   TRAIT2_PLUGS_IN       it has a cord (the fan, the motor); carried, it looks
+ *                         for a free socket near it
+ *   TRAIT2_HAS_SOCKETS    it has sockets: the plug, the generator, the solar
+ *                         panel
+ *   TRAIT2_IGNITES        it can be set alight - the candle, the cannon's fuse,
+ *                         dynamite, the rocket
+ *   TRAIT2_FREE_PLACED    carried, it follows the pointer to the pixel; without
+ *                         it it snaps to the 16-pixel grid
+ *   TRAIT2_IN_BUCKET      it is in a bucket this frame (`collect_carried`)
+ *   TRAIT2_FILED          filed in the drawing buckets this frame
  * ---------------------------------------------------------------------------
  */
-#define PART_ON_SURFACE          0x0001  /* flags_06 */
-#define PART_HIT_FIXED           0x0002
-#define PART_HIT_MOVING          0x0004
-#define PART_CONTACT_DONE        0x0008
-#define PART_SPAWNED             0x0010
-#define PART_SLIDES              0x0020
-#define PART_TILED               0x0040
-#define PART_CAN_FLIP_VERTICAL   0x0200
-#define PART_CAN_FLIP_HORIZONTAL 0x0400
-#define PART_IN_BIN              0x0800
-#define PART_IN_MOVING_LIST      0x1000
-#define PART_IN_PLACED_LIST      0x2000
-#define PART_STATIC              0x4000
-#define PART_FROM_LEVEL          0x8000
+#define TRAIT_ON_SURFACE          0x0001
+#define TRAIT_HIT_FIXED           0x0002
+#define TRAIT_HIT_MOVING          0x0004
+#define TRAIT_CONTACT_DONE        0x0008
+#define TRAIT_SPAWNED             0x0010
+#define TRAIT_SLIDES              0x0020
+#define TRAIT_TILED               0x0040
+#define TRAIT_CAN_FLIP_VERTICAL   0x0200
+#define TRAIT_CAN_FLIP_HORIZONTAL 0x0400
+#define TRAIT_IN_BIN              0x0800
+#define TRAIT_IN_MOVING_LIST      0x1000
+#define TRAIT_IN_PLACED_LIST      0x2000
+#define TRAIT_STATIC              0x4000
+#define TRAIT_FROM_LEVEL          0x8000
 
-#define PART_TAKES_ROPE          0x0001  /* flags_08 */
-#define PART_HAS_ROPE            0x0002
-#define PART_TAKES_BELT          0x0004
-#define PART_TWO_BELT_ENDS       0x0008
-#define PART_FLIP_HORIZONTAL     0x0010
-#define PART_FLIP_VERTICAL       0x0020
-#define PART_STEPPED             0x0040
-#define PART_RESIZE_HORIZONTAL   0x0080
-#define PART_RESIZE_VERTICAL     0x0100
-#define PART_HELD                0x0200
-#define PART_TURNS_FREE          0x0400
-#define PART_SELF_DRIVEN         0x0800
-#define PART_DRAW_STEPS          0x1000
-#define PART_GONE                0x2000
-#define PART_SOLID               0x8000
+#define STATE_TAKES_ROPE          0x0001
+#define STATE_HAS_ROPE            0x0002
+#define STATE_TAKES_BELT          0x0004
+#define STATE_TWO_BELT_ENDS       0x0008
+#define STATE_FLIP_HORIZONTAL     0x0010
+#define STATE_FLIP_VERTICAL       0x0020
+#define STATE_STEPPED             0x0040
+#define STATE_RESIZE_HORIZONTAL   0x0080
+#define STATE_RESIZE_VERTICAL     0x0100
+#define STATE_HELD                0x0200
+#define STATE_TURNS_FREE          0x0400
+#define STATE_SELF_DRIVEN         0x0800
+#define STATE_DRAW_STEPS          0x1000
+#define STATE_GONE                0x2000
+#define STATE_SOLID               0x8000
 
-#define PART_PLUGS_IN            0x0001  /* flags_0a */
-#define PART_HAS_SOCKETS         0x0002
-#define PART_IGNITES             0x0004
-#define PART_FREE_PLACED         0x0008
-#define PART_IN_BUCKET           0x0010
-#define PART_FILED               0x0020
+#define TRAIT2_PLUGS_IN           0x0001
+#define TRAIT2_HAS_SOCKETS        0x0002
+#define TRAIT2_IGNITES            0x0004
+#define TRAIT2_FREE_PLACED        0x0008
+#define TRAIT2_IN_BUCKET          0x0010
+#define TRAIT2_FILED              0x0020
 
 /* **A bitmap's draw flags**, the `mode` `draw_bitmap` and its blitters take:
    bit 1 draws it flipped horizontally and bit 0 vertically. Names are ours. */
@@ -1121,9 +1133,9 @@ struct part {
        to step backwards from the sentinel at 0x50d7. */
     struct part *prev; /* +0x02 */
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
-    uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
-    uint16_t  flags_08;        /* +0x08  the part's state: see the bits above */
-    uint16_t  flags_0a;        /* +0x0a */
+    uint16_t  traits;          /* +0x06  what it is: TRAIT_ above */
+    uint16_t  state;           /* +0x08  how it is now: STATE_ above */
+    uint16_t  traits2;         /* +0x0a  more of what it is: TRAIT2_ above */
     /* **The form, and the two generations behind it** - the same
        three-generation shape as `pos`, `box` and `size` below, aged by
        `shift_state_history` with `form_prev2 = form_prev; form_prev = form`.
@@ -1330,7 +1342,7 @@ struct part {
     uint16_t  start_y;         /* +0x8e */
     uint16_t  start_form;      /* +0x90 */
     uint16_t  start_direction; /* +0x92 */
-    uint16_t  start_flags;     /* +0x94  the flags at +8 as they were placed */
+    uint16_t  start_state;     /* +0x94  `state` as the part was placed */
     /* **Two three-deep histories, and what each head *means* is the part's
        kind's business.** The shape is not in doubt: `shift_state_history` ages
        both unconditionally, for every part, `kind_state_prev2 = kind_state_prev;
@@ -1579,7 +1591,7 @@ extern struct part g_placed_parts;
  * **A draw step**, the record a part's draw list is a chain of: which
  * frames to draw at what offsets, and on which level. `draw_part` walks
  * the chain the kind's `bitmaps2` names for the form when bit 12 of
- * `flags_08` is set; otherwise it fills in **the one static step at DGROUP
+ * `state` is set; otherwise it fills in **the one static step at DGROUP
  * 0x124** - the level, the form as its first frame, the kind's hot spot as
  * its first offset - and walks that. The image holds the static step with
  * its `next` 0 and `frame[1]` 0xff, which is how a frame list ends; four
@@ -3286,7 +3298,7 @@ extern struct part_kind g_part_kinds[PART_KIND_COUNT];
  * `queue_part` moves one to `g_parts_queue`, sorted by the part's momentum
  * high word then low. `queue_part` used to read these through `()`, and
  * the field names lined up by offset - +4 was `kind` in one line and `lo` in
- * the next, +6 `flags_06` and `hi` - which is the same bytes under two types
+ * the next, +6 `traits` and `hi` - which is the same bytes under two types
  * with nothing able to object. The momentum halves are the part's own
  * `momentum_lo`/`momentum_hi`, copied in at +0x3c/+0x3e.
  * ---------------------------------------------------------------------------
@@ -3354,8 +3366,8 @@ struct rect_list_entry {
  * ---------------------------------------------------------------------------
  */
 struct part_template {
-    uint16_t  flags_06;        /* +0x00  goes to the part's +0x06 */
-    uint16_t  flags_0a;        /* +0x02  ... +0x0a */
+    uint16_t  traits;          /* +0x00  goes to the part's `traits` */
+    uint16_t  traits2;         /* +0x02  ... `traits2` */
     struct extent16 set_size;  /* +0x04  ... the part's set_size at +0x50 */
     struct extent16 size;      /* +0x08  ... the part's size[0] at +0x44 */
     uint16_t (far *init)();    /* +0x0c  the kind's init routine, called

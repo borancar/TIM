@@ -94,17 +94,17 @@ void part_step_balloon(struct part *part)
     struct belt *belt;                  /* [bp-6] */
 
     if (part->direction != 0) {
-        part->flags_08 |= PART_STEPPED;
+        part->state |= STATE_STEPPED;
 
         if (part->form == 6) {
             mark_part_shapes(part, 3);
-            part->flags_08 |= PART_GONE;
+            part->state |= STATE_GONE;
         } else {
             if (part->direction == 1
                 && (belt = part->belt[0]) != NULL
                 && (si = make_part(KIND_ANCHOR)) != NULL) {
                 insert_sorted(si, &g_moving_parts);
-                si->flags_06 |= PART_SPAWNED;
+                si->traits |= TRAIT_SPAWNED;
                 si->belt[0] = belt;
                 si->link[0] = part->link[0];
                 link = si->link[0];

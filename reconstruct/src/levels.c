@@ -35,7 +35,7 @@ struct level_io g_level_io;   /* DGROUP 0x546c */
  *
  * **A part's index among all parts**, which is how the machine file refers to
  * one: a pointer means nothing to a reload, so every reference is written as the
- * position the part has in the walk `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` makes.
+ * position the part has in the walk `pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))` makes.
  *
  * A null part answers 0xffff, and that is the file's "no part here".
  *
@@ -56,12 +56,12 @@ uint16_t part_index(struct part *part)
         return 0xffff;
 
     n = 0;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
     while (si != NULL) {
         if (si == part) {
             si = NULL;
         } else {
-            si = pick_for_record(si, PART_IN_MOVING_LIST);
+            si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
             n++;
         }
     }
@@ -244,12 +244,12 @@ void read_record_fields(FILE *file, register struct part *rec)
     struct belt *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
-    game_fread_far(file, (uint8_t *)&rec->flags_06);
-    game_fread_far(file, (uint8_t *)&rec->start_flags);
-    rec->flags_08 = rec->start_flags;
+    game_fread_far(file, (uint8_t *)&rec->traits);
+    game_fread_far(file, (uint8_t *)&rec->start_state);
+    rec->state = rec->start_state;
 
     if (g_level_io.version >= 0x101)
-        game_fread_far(file, (uint8_t *)&rec->flags_0a);
+        game_fread_far(file, (uint8_t *)&rec->traits2);
 
     game_fread_far(file, (uint8_t *)&rec->start_form);
     rec->form = rec->start_form;
@@ -579,9 +579,9 @@ void write_record_fields(register FILE *file, register struct part *part)
     struct belt *belt;                      /* [bp-0xc] */
 
     write_word(file, (const uint8_t *)&part->kind);
-    write_word(file, (const uint8_t *)&part->flags_06);
-    write_word(file, (const uint8_t *)&part->start_flags);
-    write_word(file, (const uint8_t *)&part->flags_0a);
+    write_word(file, (const uint8_t *)&part->traits);
+    write_word(file, (const uint8_t *)&part->start_state);
+    write_word(file, (const uint8_t *)&part->traits2);
     write_word(file, (const uint8_t *)&part->start_form);
     write_word(file, (const uint8_t *)&part->start_direction);
     write_word(file, (const uint8_t *)&part->size[0].width);
@@ -677,9 +677,9 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
 
     for (si = head->next; si != NULL; si = si->next) {
         if (which == 2)
-            si->flags_06 &= ~PART_FROM_LEVEL;
+            si->traits &= ~TRAIT_FROM_LEVEL;
         else if (g_level_io.is_level != 0)
-            si->flags_06 |= PART_FROM_LEVEL;
+            si->traits |= TRAIT_FROM_LEVEL;
 
         write_record_fields(file, si);
     }

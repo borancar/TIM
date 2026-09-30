@@ -73,9 +73,9 @@ void part_step_cannon(struct part *part)
 
         if (part->form == 9 && (si = make_part(KIND_CANNON_BALL)) != NULL) {
             insert_sorted(si, &g_moving_parts);
-            si->flags_06 |= PART_SPAWNED;
+            si->traits |= TRAIT_SPAWNED;
 
-            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+            if (part->state & STATE_FLIP_HORIZONTAL) {
                 si->pos[0].x = part->pos[0].x - 0x30;
                 si->pos[1].x = si->pos[2].x = si->pos[0].x + 0x18;
                 si->vel_x = (int16_t)0xd000;
@@ -115,7 +115,7 @@ void part_setup_cannon(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (part->state & STATE_FLIP_HORIZONTAL) {
         part->hold.x = 0x3e;
         src = g_cannon_points_3242;
     } else {
@@ -143,7 +143,7 @@ void part_setup_cannon(struct part *part)
  */
 void part_flip_cannon(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_cannon(part);
 

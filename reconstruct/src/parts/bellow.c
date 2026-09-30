@@ -102,7 +102,7 @@ uint16_t part_hit_bellow(struct part *part)
     struct part *other = part->contact;
     int16_t  face = ((int16_t)part->contact_edge);
 
-    if ((other->flags_08 & PART_FLIP_HORIZONTAL) != 0) {
+    if ((other->state & STATE_FLIP_HORIZONTAL) != 0) {
         if (face == 1 || face == 3)
             other->direction = 1;
     } else {
@@ -130,7 +130,7 @@ void part_setup_bellow(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         src = g_bellow_point_table_31e0[part->form];
     else
         src = g_bellow_point_table_31b6[part->form];
@@ -153,7 +153,7 @@ void part_setup_bellow(struct part *part)
  */
 void part_flip_bellow(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_bellow(part);
 
@@ -200,23 +200,23 @@ void part_step_bellow(struct part *part)
     int16_t scale;                      /* [bp-6] */
     int32_t force;                      /* [bp-0xa] */
 
-    part->flags_08 |= PART_STEPPED;
+    part->state |= STATE_STEPPED;
 
     if (part->direction == 1) {
         if (part->form != 2) {
             part->form++;
 
-            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x80, 0, -10, 0);
+            if (part->state & STATE_FLIP_HORIZONTAL) {
+                link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), -0x80, 0, -10, 0);
                 push = (int16_t)0xf800;
             } else {
-                link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0, 0x80, -10, 0);
+                link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0x80, -10, 0);
                 push = 0x0800;
             }
 
             for (di = part->next_linked; di != NULL;
                  di = di->next_linked) {
-                if (di->flags_06 & PART_IN_MOVING_LIST) {
+                if (di->traits & TRAIT_IN_MOVING_LIST) {
                     scale = 0x100 - abs(di->link_dx);
                     force = mul16x16(push, scale);
                     force >>= 8;

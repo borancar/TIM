@@ -78,7 +78,7 @@ void part_step_candle(struct part *part)
                 si->direction = 1;
 
         if (part->form & 1) {
-            link_objects_in_range(part, PART_IN_MOVING_LIST, 9, 0x12, -10, 5);
+            link_objects_in_range(part, TRAIT_IN_MOVING_LIST, 9, 0x12, -10, 5);
 
             for (si = part->next_linked; si != NULL;
                  si = si->next_linked) {

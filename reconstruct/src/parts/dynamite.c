@@ -63,7 +63,7 @@ void part_setup_dynamite(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (part->state & STATE_FLIP_HORIZONTAL) {
         part->hold.x = 1;
         src = g_dynamite_points_329a;
     } else {
@@ -110,7 +110,7 @@ void part_step_dynamite(struct part *part)
  */
 void part_flip_dynamite(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_dynamite(part);
 
@@ -142,7 +142,7 @@ void burst_dynamite(struct part *part)
     play_sound(8);
 
     insert_sorted(si, &g_placed_parts);
-    si->flags_06 |= PART_SPAWNED;
+    si->traits |= TRAIT_SPAWNED;
 
     si->pos[0].x = part->pos[0].x - 15;
     si->pos[0].y = part->pos[0].y - 19;
@@ -156,5 +156,5 @@ void burst_dynamite(struct part *part)
 
 done:
     mark_part_shapes(part, 3);
-    part->flags_08 |= PART_GONE;
+    part->state |= STATE_GONE;
 }

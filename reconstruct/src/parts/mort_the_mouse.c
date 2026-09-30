@@ -92,12 +92,12 @@ void part_step_mort_the_mouse(struct part *part)
         else
             step = 3;
 
-        if (part->flags_08 & PART_FLIP_HORIZONTAL)
+        if (part->state & STATE_FLIP_HORIZONTAL)
             part->pos[0].x += step;
         else
             part->pos[0].x -= step;
-    } else if (part->flags_06 & PART_ON_SURFACE) {
-        link_nearby_objects(part, PART_IN_MOVING_LIST, (int16_t)0xff80, 0x80, -8, 8);
+    } else if (part->traits & TRAIT_ON_SURFACE) {
+        link_nearby_objects(part, TRAIT_IN_MOVING_LIST, (int16_t)0xff80, 0x80, -8, 8);
 
         slowest = 0x190;
 
@@ -111,10 +111,10 @@ void part_step_mort_the_mouse(struct part *part)
             part->kind_state = 5;
 
             if (slowest > 0) {
-                part->flags_08 &= ~PART_FLIP_HORIZONTAL;
+                part->state &= ~STATE_FLIP_HORIZONTAL;
                 part->pos[0].x -= 3;
             } else {
-                part->flags_08 |= PART_FLIP_HORIZONTAL;
+                part->state |= STATE_FLIP_HORIZONTAL;
                 part->pos[0].x += 3;
             }
         }
@@ -132,7 +132,7 @@ void part_step_mort_the_mouse(struct part *part)
  */
 void part_flip_mort_the_mouse(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);

@@ -59,10 +59,10 @@ void part_step_gun(struct part *part)
 
         if (part->form == 3 && (si = make_part(KIND_BULLET)) != NULL) {
             insert_sorted(si, &g_moving_parts);
-            si->flags_06 |= PART_SPAWNED;
+            si->traits |= TRAIT_SPAWNED;
 
-            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-                si->flags_08 |= PART_FLIP_HORIZONTAL;
+            if (part->state & STATE_FLIP_HORIZONTAL) {
+                si->state |= STATE_FLIP_HORIZONTAL;
                 part_setup_bullet(si);
 
                 si->pos[0].x = part->pos[0].x - 0x20;
@@ -101,7 +101,7 @@ void part_setup_gun(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (part->state & STATE_FLIP_HORIZONTAL) {
         part->attach[0].x = 42;
         src = g_gun_points_3322;
     } else {
@@ -125,7 +125,7 @@ void part_setup_gun(struct part *part)
  */
 void part_flip_gun(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     part_setup_gun(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
@@ -165,7 +165,7 @@ uint16_t part_drive_gun(struct part *p1, struct part *si, uint16_t p3,
     flags &= 0x8018;
     low = flags & 0x7fff;
 
-    if (si->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (si->state & STATE_FLIP_HORIZONTAL) {
         if (low == 8)
             goto yes;
         if (low == 0x10 && si->direction != 0)

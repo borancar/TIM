@@ -71,7 +71,7 @@ void part_step_mouse_cage(struct part *part)
     struct part *di;
 
     if (part->direction == 0) {
-        link_nearby_objects(part, PART_IN_MOVING_LIST, -0x10, 0x10, 0, 0);
+        link_nearby_objects(part, TRAIT_IN_MOVING_LIST, -0x10, 0x10, 0, 0);
 
         di = part->next_linked;
         while (di != NULL) {
@@ -84,7 +84,7 @@ void part_step_mouse_cage(struct part *part)
         }
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN))
+    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->direction != 0) {
@@ -109,9 +109,9 @@ void part_step_mouse_cage(struct part *part)
  */
 void part_flip_mouse_cage(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         part->grab.x = 3;
     else
         part->grab.x = 30;
@@ -133,7 +133,7 @@ void trigger_mouse_cage(struct part *part)
     if (part->direction == 0)
         play_sound(0x0d);
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         part->direction = -1;
     else
         part->direction = 1;

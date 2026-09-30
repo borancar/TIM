@@ -63,7 +63,7 @@ void part_step_rocket(struct part *part)
                     di->direction = 1;
 
             if (part->form & 1) {
-                link_objects_in_range(part, PART_IN_MOVING_LIST, -4, 0x12, 0x30, 0x51);
+                link_objects_in_range(part, TRAIT_IN_MOVING_LIST, -4, 0x12, 0x30, 0x51);
 
                 for (di = part->next_linked; di != NULL;
                      di = di->next_linked) {

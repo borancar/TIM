@@ -54,12 +54,12 @@ void part_step_solar_panel(struct part *part)
     struct part *si;
     int16_t i;                          /* [bp-2] */
 
-    part->flags_08 |= PART_STEPPED;
+    part->state |= STATE_STEPPED;
 
     if ((g_machine_frames & 7) == 4) {
         part->direction = 0;
 
-        link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x1a, 0x1a, -0x1a, 0x1a);
+        link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), -0x1a, 0x1a, -0x1a, 0x1a);
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked) {
@@ -69,10 +69,10 @@ void part_step_solar_panel(struct part *part)
                     part->direction = 1;
                 } else if (si->kind == KIND_FLASHLIGHT) {
                     if (si->link_dx < 0) {
-                        if (!(si->flags_08 & PART_FLIP_HORIZONTAL))
+                        if (!(si->state & STATE_FLIP_HORIZONTAL))
                             part->direction = 1;
                     } else {
-                        if (si->flags_08 & PART_FLIP_HORIZONTAL)
+                        if (si->state & STATE_FLIP_HORIZONTAL)
                             part->direction = 1;
                     }
                 }

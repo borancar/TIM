@@ -103,7 +103,7 @@ void part_setup_ramp(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         src = g_ramp_point_table_338c[part->form];
     else
         src = g_ramp_point_table_3364[part->form];
@@ -148,7 +148,7 @@ void part_settle_ramp(struct part *part)
  */
 void part_flip_ramp(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_ramp(part);
     mark_part_shapes(part, 3);

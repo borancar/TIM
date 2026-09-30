@@ -60,11 +60,11 @@ void step_machine(void)
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next)
-        si->flags_08 &= ~(PART_STEPPED | PART_HELD | PART_TURNS_FREE);
+        si->state &= ~(STATE_STEPPED | STATE_HELD | STATE_TURNS_FREE);
 
     for (di = g_parts_queue; di != 0; di = di->next) {
         si = (di->part);
-        if (!(si->flags_08 & PART_STEPPED))
+        if (!(si->state & STATE_STEPPED))
             part_step(si);
     }
 
@@ -72,29 +72,29 @@ void step_machine(void)
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next) {
-        flags = si->flags_08;
-        if (flags & PART_SELF_DRIVEN && !(flags & (PART_GONE | PART_STEPPED)))
+        flags = si->state;
+        if (flags & STATE_SELF_DRIVEN && !(flags & (STATE_GONE | STATE_STEPPED)))
             part_step(si);
     }
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next)
-        if (si->kind == KIND_GEAR && !(si->flags_08 & (PART_STEPPED | PART_GONE)))
+        if (si->kind == KIND_GEAR && !(si->state & (STATE_STEPPED | STATE_GONE)))
             part_step(si);
 
     for (si = g_placed_parts.next; si != NULL;
          si = si->next) {
-        flags = si->flags_08;
-        if (!(flags & (PART_GONE | PART_SELF_DRIVEN | PART_STEPPED)))
+        flags = si->state;
+        if (!(flags & (STATE_GONE | STATE_SELF_DRIVEN | STATE_STEPPED)))
             part_step(si);
     }
 
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
-        if (!(si->flags_08 & PART_GONE))
+        if (!(si->state & STATE_GONE))
             apply_gravity_and_speed(si);
         si->weight = g_part_kinds[si->kind].weight;
-        si->flags_0a &= ~PART_IN_BUCKET;
+        si->traits2 &= ~TRAIT2_IN_BUCKET;
     }
 
     for (si = g_moving_parts.next; si != NULL;
@@ -125,24 +125,24 @@ void step_machine(void)
 
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
-        if (!(si->flags_06 & PART_CONTACT_DONE) && !(si->flags_08 & PART_GONE)) {
-            if (si->flags_06 & PART_HIT_FIXED) {
+        if (!(si->traits & TRAIT_CONTACT_DONE) && !(si->state & STATE_GONE)) {
+            if (si->traits & TRAIT_HIT_FIXED) {
                 if (part_hit(si->contact->kind, si)) {
-                    if (si->flags_06 & PART_ON_SURFACE)
+                    if (si->traits & TRAIT_ON_SURFACE)
                         apply_contact_friction(si);
                     else
                         bounce_off_contact(si);
                 }
-            } else if (si->flags_06 & PART_HIT_MOVING) {
+            } else if (si->traits & TRAIT_HIT_MOVING) {
                 if (part_hit(si->contact->kind, si))
                     bounce_pair(si);
             }
         }
     }
 
-    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
-         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
-        if (!(si->flags_08 & PART_GONE)) {
+    for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
+        if (!(si->state & STATE_GONE)) {
             if (si->pos[0].x != si->pos[2].x || si->pos[0].y != si->pos[2].y
                 || si->form != si->form_prev2)
                 part_moved(si);
@@ -189,15 +189,15 @@ void step_moving_object(register struct part *obj)
     struct part_contact *c = (struct part_contact *)&obj->contact;
 #endif
 
-    if (!(obj->flags_08 & PART_GONE)) {
+    if (!(obj->state & STATE_GONE)) {
         part_step(obj);
         integrate_object(obj);
-        obj->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
+        obj->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
         resolve_collisions(obj);
         if (obj->belt[0] != 0) {
             pulled = tension_belt(obj);
             if (pulled != 0)
-                obj->flags_06 &= ~(PART_ON_SURFACE | PART_HIT_FIXED | PART_HIT_MOVING | PART_CONTACT_DONE);
+                obj->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
             else {
                 c = (struct part_contact *)&obj->contact;
                 saved = c->part;

@@ -104,18 +104,18 @@ void part_step_boxing_glove(struct part *part)
     if (part->form == 2 || part->form == 3) {
         /* Forms 2 and 3 only: the reach is `glove_reach` at 0x31e6, whose
            first two words face left and the next ones right. */
-        if (part->flags_08 & PART_FLIP_HORIZONTAL)
-            link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), 0x30,
+        if (part->state & STATE_FLIP_HORIZONTAL)
+            link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0x30,
                                   (g_boxing_glove_reach + 1)[part->form], 0, 0x1f);
         else
-            link_objects_in_range(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST),
+            link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST),
                                   (g_boxing_glove_reach - 2)[part->form], 0, 0, 0x1f);
 
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {
-            if (di->flags_06 & PART_IN_MOVING_LIST) {
+            if (di->traits & TRAIT_IN_MOVING_LIST) {
                 v = bounce_speed_for_mass(di);
-                di->vel_x = (part->flags_08 & PART_FLIP_HORIZONTAL) ? v : 0 - v;
+                di->vel_x = (part->state & STATE_FLIP_HORIZONTAL) ? v : 0 - v;
             } else {
                 switch (di->kind) {
                 case KIND_BOB_THE_FISH:
@@ -146,7 +146,7 @@ void part_setup_boxing_glove(struct part *part)
     struct part_point *dst;
 
     /* Four tables: the flag at +8, and then whether the form is zero. */
-    if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (part->state & STATE_FLIP_HORIZONTAL) {
         if (part->form == 0)
             src = g_boxing_glove_points_320a;
         else
@@ -176,7 +176,7 @@ void part_setup_boxing_glove(struct part *part)
  */
 void part_flip_boxing_glove(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
 
     part_setup_boxing_glove(part);
 

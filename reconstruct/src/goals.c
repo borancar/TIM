@@ -168,7 +168,7 @@ void goal_test_puzzle_78(void)
 
     n = 0;
     ok = 1;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
 
     while (si != NULL) {
         if (si->kind == KIND_POKEY) {
@@ -188,7 +188,7 @@ void goal_test_puzzle_78(void)
             ok = 0;
 
         if (si->kind == KIND_MOUSE_CAGE
-            && (si->flags_06 & PART_FROM_LEVEL) != 0) {
+            && (si->traits & TRAIT_FROM_LEVEL) != 0) {
             if (si->direction == 0) {
                 if (g_goal_condition[n] == 0)
                     ok = 0;
@@ -198,7 +198,7 @@ void goal_test_puzzle_78(void)
             n++;
         }
 
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     if (ok)
@@ -233,8 +233,8 @@ void goal_test_pop_balloons(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
-            && (si->flags_06 & PART_FROM_LEVEL) != 0
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->traits & TRAIT_FROM_LEVEL) != 0
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
         si = si->next;
     }
@@ -264,8 +264,8 @@ void goal_test_puzzle_79(void)
 #ifndef __TURBOC__
     zero = nine = NULL;    /* ours: the original leaves both unset */
 #endif
-    for (si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST)); si != NULL;
-         si = pick_for_record(si, PART_IN_MOVING_LIST)) {
+    for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
         if (si->kind == KIND_BOWLING_BALL)
             zero = si;
         if (si->kind == KIND_BASKETBALL)
@@ -372,7 +372,7 @@ void goal_test_puzzle_39(void)
                 ok = 0;
         } else if (si->kind == KIND_CANNON_BALL) {
             seen = 1;
-            if ((si->flags_0a & PART_IN_BUCKET) == 0)
+            if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
                 ok = 0;
         }
         si = si->next;
@@ -421,8 +421,8 @@ void goal_test_puzzle_25(void)
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && (int16_t)si->start_x > 0x12c
-            && (si->flags_06 & PART_FROM_LEVEL) != 0
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->traits & TRAIT_FROM_LEVEL) != 0
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
         si = si->next;
     }
@@ -481,7 +481,7 @@ void goal_test_puzzles_10_32(void)
 
 /*
  * 0x01888 - **the first of these to walk with the picker rather than the
- * link.** `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` gives the first record and `pick_for_record`
+ * link.** `pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))` gives the first record and `pick_for_record`
  * the next, which is a different set from the plain `+0` chain the others
  * follow. Kind 0xf must be under 0xb in its +0x0c and kind 0x2b at 0x170 or
  * beyond in y.
@@ -492,7 +492,7 @@ void goal_test_puzzle_46(void)
     int16_t ok;
 
     ok = 1;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
 
     while (si != NULL) {
         if (si->kind == KIND_BOB_THE_FISH
@@ -501,7 +501,7 @@ void goal_test_puzzle_46(void)
         if (si->kind == KIND_CANNON_BALL
             && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
             ok = 0;
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     if (ok)
@@ -903,7 +903,7 @@ void goal_test_puzzle_81(void)
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
             hit = si;
-            if ((si->flags_0a & PART_IN_BUCKET) == 0)
+            if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
                 flagged = 0;
         }
         if (si->kind == KIND_BUCKET)
@@ -1121,19 +1121,19 @@ void goal_test_puzzle_17(void)
     int16_t ok;
 
     ok = 1;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
 
     while (si != NULL) {
         if (si->kind == KIND_DYNAMITE_PLUNGER
             && si->form != 2)
             ok = 0;
         if (si->kind == KIND_BLAST
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
         if (si->kind == KIND_DYNAMITE
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     if (ok)
@@ -1172,7 +1172,7 @@ void goal_test_puzzle_76(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
-            && (si->flags_06 & PART_FROM_LEVEL) != 0
+            && (si->traits & TRAIT_FROM_LEVEL) != 0
             && si->form != 0)
             ok = 0;
 
@@ -1196,16 +1196,16 @@ void goal_test_puzzles_42_75(void)
     int16_t ok;
 
     ok = 1;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
 
     while (si != NULL) {
         if (si->kind == KIND_DYNAMITE
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
         if (si->kind == KIND_BLAST
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     if (ok)
@@ -1363,7 +1363,7 @@ void goal_test_puzzle_36(void)
     int16_t ok;
 
     ok = 1;
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
 
     while (si != NULL) {
         if (si->kind == KIND_GUN
@@ -1376,9 +1376,9 @@ void goal_test_puzzle_36(void)
             && si->form != 0)
             g_goal_condition[0] = 1;
         if (si->kind == KIND_BULLET
-            && (si->flags_08 & PART_GONE) == 0)
+            && (si->state & STATE_GONE) == 0)
             ok = 0;
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     if (ok && g_goal_condition[0] == 0)
@@ -1515,7 +1515,7 @@ void goal_test_puzzle_84(void)
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL) {
             n++;
-            if ((si->flags_0a & PART_IN_BUCKET) == 0)
+            if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
                 ok = 0;
         }
 
@@ -1584,7 +1584,7 @@ void goal_test_puzzle_72(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && (si->flags_0a & PART_IN_BUCKET) == 0)
+            && (si->traits2 & TRAIT2_IN_BUCKET) == 0)
             ok = 0;
         si = si->next;
     }
@@ -1610,7 +1610,7 @@ void goal_test_puzzle_59(void)
 
     while (si != NULL) {
         if (si->kind == KIND_CANNON_BALL
-            && (si->flags_0a & PART_IN_BUCKET) != 0)
+            && (si->traits2 & TRAIT2_IN_BUCKET) != 0)
             seen = 1;
 
         if (si->kind == KIND_BUCKET) {

@@ -385,7 +385,7 @@ void game_screen_loop(void)
     }
 
     if (g_held_parts.dragged_part != 0
-        && (g_held_parts.dragged_part->flags_06 & PART_IN_BIN) != 0) {
+        && (g_held_parts.dragged_part->traits & TRAIT_IN_BIN) != 0) {
         if (g_held_parts.dragged_part->kind == KIND_BELT
             && g_held_parts.dragged_part->rope->end_a != 0)
             discard_carried_part();
@@ -510,7 +510,7 @@ void pointer_frame(void)
     if (si == 0) {
         g_held_parts.dragged_part = (find_part_from(g_held_parts.dragged_part));
         if (g_held_parts.dragged_part != 0
-            && (g_held_parts.dragged_part->flags_06 & PART_FROM_LEVEL) != 0)
+            && (g_held_parts.dragged_part->traits & TRAIT_FROM_LEVEL) != 0)
             g_held_parts.dragged_part = 0;
     }
 
@@ -615,7 +615,7 @@ void edge_scroll_flags(void)
  * corner scrolls diagonally.
  *
  * Nothing is written back unless something moved. When it did, every part is
- * walked - `pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST))` then `pick_for_record(si, PART_IN_MOVING_LIST)` - and
+ * walked - `pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))` then `pick_for_record(si, TRAIT_IN_MOVING_LIST)` - and
  * each one that does not have bit 0x2000 in +8 is marked for re-filing and its
  * shapes re-marked. The parts do not move; the window over them does, so what
  * was drawn where is no longer true.
@@ -657,13 +657,13 @@ void scroll_play_area(void)
     }
 
     if (moved != 0) {
-        si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+        si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
         while (si != NULL) {
-            if ((si->flags_08 & PART_GONE) == 0) {
+            if ((si->state & STATE_GONE) == 0) {
                 mark_needs_refile(si, 2);
                 mark_part_shapes(si, 3);
             }
-            si = pick_for_record(si, PART_IN_MOVING_LIST);
+            si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
         }
 
         g_origin_x = x;
@@ -734,8 +734,8 @@ void move_carried_rope(void)
             si = find_part_from(NULL);
 
             if (di != NULL) {
-                si->flags_08 |= PART_HAS_ROPE;
-                si->start_flags = si->flags_08;
+                si->state |= STATE_HAS_ROPE;
+                si->start_state = si->state;
                 link->end_b = si;
                 si->rope = link;
 
@@ -745,8 +745,8 @@ void move_carried_rope(void)
                 g_tool = 0;
                 g_held_parts.dragged_part = 0;
             } else {
-                si->flags_08 |= PART_HAS_ROPE;
-                si->start_flags = si->flags_08;
+                si->state |= STATE_HAS_ROPE;
+                si->start_state = si->state;
                 link->end_a = si;
                 si->rope = link;
             }
@@ -921,7 +921,7 @@ void move_carried_part(void)
 
     part_key_shortcut();
 
-    if (CARRIED->flags_0a & PART_FREE_PLACED) {
+    if (CARRIED->traits2 & TRAIT2_FREE_PLACED) {
         CARRIED->pos[0].x = g_pointer.pointer_x - g_drag_offset_x + g_origin_x;
         if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x + 0x0c)
             CARRIED->pos[0].x = g_origin_x - CARRIED->size[0].width + 0x0c;
@@ -951,9 +951,9 @@ void move_carried_part(void)
     else
         di = 0;
 
-    if (CARRIED->flags_0a & PART_PLUGS_IN)
+    if (CARRIED->traits2 & TRAIT2_PLUGS_IN)
         rehome_carried_part();
-    else if (CARRIED->flags_0a & PART_HAS_SOCKETS)
+    else if (CARRIED->traits2 & TRAIT2_HAS_SOCKETS)
         break_second_attachment(CARRIED);
 
     if (object_overlaps_any(CARRIED) != 0) {
@@ -1015,11 +1015,11 @@ void part_key_shortcut(void)
 
     switch (g_last_key) {
     case 0x2d:                          /* X */
-        if (CARRIED->flags_06 & PART_CAN_FLIP_HORIZONTAL)
+        if (CARRIED->traits & TRAIT_CAN_FLIP_HORIZONTAL)
             flip_carried_horizontal();
         break;
     case 0x15:                          /* Y */
-        if (CARRIED->flags_06 & PART_CAN_FLIP_VERTICAL)
+        if (CARRIED->traits & TRAIT_CAN_FLIP_VERTICAL)
             flip_carried_vertical();
         break;
     case 0x0d:                          /* = */
@@ -1127,8 +1127,8 @@ void pick_up_part(void)
 
     if (CARRIED->kind == KIND_BELT) {
         di->end_a = si;
-        si->flags_08 |= PART_HAS_ROPE;
-        si->start_flags = si->flags_08;
+        si->state |= STATE_HAS_ROPE;
+        si->start_state = si->state;
         si->rope = di;
     }
 
@@ -1191,7 +1191,7 @@ void discard_carried_part(void)
 void flip_carried_horizontal(void)
 {
     g_part_kinds[CARRIED->kind].flip(CARRIED, 1);
-    CARRIED->start_flags = CARRIED->flags_08;
+    CARRIED->start_state = CARRIED->state;
 }
 
 /*
@@ -1205,7 +1205,7 @@ void flip_carried_horizontal(void)
 void flip_carried_vertical(void)
 {
     g_part_kinds[CARRIED->kind].flip(CARRIED, 2);
-    CARRIED->start_flags = CARRIED->flags_08;
+    CARRIED->start_state = CARRIED->state;
 }
 
 /*
@@ -2325,10 +2325,10 @@ void paint_panel_frame_rest(void)
 
     g_vmds.page_dst = g_vmds.page_back;
 
-    si = pick_by_flag((PART_IN_PLACED_LIST | PART_IN_MOVING_LIST));
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
     while (si != NULL) {
         link_record_into_buckets(si);
-        si = pick_for_record(si, PART_IN_MOVING_LIST);
+        si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
 
     draw_machine(scale, 0x200);

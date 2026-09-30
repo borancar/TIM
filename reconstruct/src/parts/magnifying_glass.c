@@ -59,7 +59,7 @@ void part_step_magnifying_glass(struct part *part)
     int16_t v0c;                        /* [bp-0xc] the drop */
     struct part *v0e;                   /* [bp-0xe] the one held */
 
-    link_nearby_objects(part, (PART_IN_PLACED_LIST | PART_IN_MOVING_LIST), -0x20, 0x20, 0, 0);
+    link_nearby_objects(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), -0x20, 0x20, 0, 0);
 
     v0e = NULL;
     v04 = v02 = 0;
@@ -69,7 +69,7 @@ void part_step_magnifying_glass(struct part *part)
     while (si != NULL) {
         if ((si->kind == KIND_LIGHT || si->kind == KIND_FLASHLIGHT
              || si->kind == KIND_CANDLE) && si->form != 0) {
-            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+            if (part->state & STATE_FLIP_HORIZONTAL) {
                 if (si->link_dx > 0)
                     v02 = 1;
             } else {
@@ -79,15 +79,15 @@ void part_step_magnifying_glass(struct part *part)
 
             /* A flashlight facing the *other* way takes the block back. */
             if (si->kind == KIND_FLASHLIGHT) {
-                if ((si->flags_08 ^ part->flags_08) & PART_FLIP_HORIZONTAL)
+                if ((si->state ^ part->state) & STATE_FLIP_HORIZONTAL)
                     v02 = 0;
             } else if (si->kind == KIND_LIGHT && si->form == 2) {
                 v02 = 0;
             }
-        } else if ((si->flags_0a & PART_IGNITES) && si->form == 0 && v04 == 0) {
+        } else if ((si->traits2 & TRAIT2_IGNITES) && si->form == 0 && v04 == 0) {
             v08 = 0;
 
-            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+            if (part->state & STATE_FLIP_HORIZONTAL) {
                 if (si->link_dx < 0)
                     v08 = 1;
             } else {
@@ -131,7 +131,7 @@ void part_step_magnifying_glass(struct part *part)
  */
 void part_flip_magnifying_glass(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -155,7 +155,7 @@ void grab_distance(struct part *a, struct part *b, int16_t *out_x, int16_t *out_
     int16_t x;                          /* cx */
 
     x = a->pos[0].x;
-    if (!(a->flags_08 & PART_FLIP_HORIZONTAL))
+    if (!(a->state & STATE_FLIP_HORIZONTAL))
         x += a->size[0].width;
     y = a->pos[0].y + 8;
     hx = b->pos[0].x + b->hold.x;

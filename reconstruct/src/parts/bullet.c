@@ -68,7 +68,7 @@ void part_setup_bullet(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         si = g_bullet_points_322a;
     else
         si = g_bullet_points_3222;
@@ -99,7 +99,7 @@ void part_step_bullet(struct part *part)
 {
     if (part->form == 2) {
         mark_part_shapes(part, 3);
-        part->flags_08 |= PART_GONE;
+        part->state |= STATE_GONE;
     } else if (part->form == 0) {
         if (part->vel_x != 0x3000 && part->vel_x != (int16_t)0xd000) {
             part->point_count = 0;

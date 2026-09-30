@@ -84,7 +84,7 @@ void part_setup_monkey(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (part->state & STATE_FLIP_HORIZONTAL) {
         part->attach[0].x = 16;
         part->grab.x = 36;
         src = g_monkey_points_33bc;
@@ -133,7 +133,7 @@ void part_step_monkey(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & PART_SELF_DRIVEN))
+    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->kind_state != 0) {
@@ -143,7 +143,7 @@ void part_step_monkey(struct part *part)
             if (part->form > 8) {
                 play_sound(2);
                 g_sound_request_02 = 2;
-                if (part->flags_08 & PART_FLIP_HORIZONTAL)
+                if (part->state & STATE_FLIP_HORIZONTAL)
                     part->direction = -1;
                 else
                     part->direction = 1;
@@ -186,7 +186,7 @@ void part_step_monkey(struct part *part)
  */
 void part_flip_monkey(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     part_setup_monkey(part);
     place_object_for_draw(part);
     mark_joined_shapes(part, 3);
@@ -244,7 +244,7 @@ yes:
         } else {
             play_sound(2);
             g_sound_request_02 = 2;
-            if (p2->flags_08 & PART_FLIP_HORIZONTAL)
+            if (p2->state & STATE_FLIP_HORIZONTAL)
                 p2->direction = -1;
             else
                 p2->direction = 1;

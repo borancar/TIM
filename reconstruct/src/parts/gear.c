@@ -193,7 +193,7 @@ void part_step_gear(struct part *part)
     struct part *v04;                   /* [bp-4] */
 
     if (part->direction != 0) {
-        part->flags_08 |= PART_STEPPED;
+        part->state |= STATE_STEPPED;
 
         di = 0;
         for (v02 = 0; v02 < 4; v02++)
@@ -239,8 +239,8 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
         to->direction = (how == 1) ? from->direction : 0 - from->direction;
     }
 
-    if (to->kind == KIND_GEAR && !(to->flags_08 & PART_STEPPED)) {
-        to->flags_08 |= PART_STEPPED;
+    if (to->kind == KIND_GEAR && !(to->state & STATE_STEPPED)) {
+        to->state |= STATE_STEPPED;
 
         for (v02 = 0; v02 < 5; v02++) {
             if (v02 == 4) {
@@ -251,7 +251,7 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                 v04 = 2;
             }
 
-            if (v06 != NULL && !(v06->flags_08 & PART_SELF_DRIVEN))
+            if (v06 != NULL && !(v06->state & STATE_SELF_DRIVEN))
                 flag = spread_gear_signal(to, v06, v04, flag);
         }
     }
@@ -290,7 +290,7 @@ void settle_gear_signal(struct part *part, int16_t clear)
         else
             di = part->link[v02];
 
-        if (di != NULL && di->direction != 0 && !(di->flags_08 & PART_SELF_DRIVEN)) {
+        if (di != NULL && di->direction != 0 && !(di->state & STATE_SELF_DRIVEN)) {
             if (clear != 0)
                 di->direction = 0;
 

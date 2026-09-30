@@ -85,7 +85,7 @@ uint16_t part_hit_scissors(struct part *part)
     struct part *other = part->contact;
     int16_t face = ((int16_t)part->contact_edge);
 
-    if (other->flags_08 & PART_FLIP_HORIZONTAL) {
+    if (other->state & STATE_FLIP_HORIZONTAL) {
         if (face == 1 || face == 2 || face == 4 || face == 5)
             other->direction = 1;
         else if (face == 7 && part->kind == KIND_BALLOON)
@@ -114,7 +114,7 @@ void part_setup_scissors(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_FLIP_HORIZONTAL)
+    if (part->state & STATE_FLIP_HORIZONTAL)
         src = g_scissors_point_table_34b6[part->form];
     else
         src = g_scissors_point_table_3492[part->form];
@@ -138,7 +138,7 @@ void part_setup_scissors(struct part *part)
 void part_step_scissors(struct part *part)
 {
     if (part->direction != 0 && part->form == 0) {
-        cut_belts(part, (part->flags_08 & PART_FLIP_HORIZONTAL) ? g_scissors_cut_line[1]
+        cut_belts(part, (part->state & STATE_FLIP_HORIZONTAL) ? g_scissors_cut_line[1]
                                                 : g_scissors_cut_line[0]);
 
         part->form++;
@@ -153,7 +153,7 @@ void part_step_scissors(struct part *part)
  */
 void part_flip_scissors(struct part *part)
 {
-    part->flags_08 ^= PART_FLIP_HORIZONTAL;
+    part->state ^= STATE_FLIP_HORIZONTAL;
     part_setup_scissors(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -248,16 +248,16 @@ fail:
                 }
 
                 insert_sorted(di, &g_moving_parts);
-                di->flags_06 |= PART_SPAWNED;
+                di->traits |= TRAIT_SPAWNED;
                 di->pos[0].x = at[0] + part->pos[0].x;
                 di->pos[0].y = at[1] + part->pos[0].y;
 
                 insert_sorted(anchorB, &g_moving_parts);
-                anchorB->flags_06 |= PART_SPAWNED;
+                anchorB->traits |= TRAIT_SPAWNED;
                 anchorB->pos[0] = di->pos[0];
 
                 insert_sorted(carrier, &g_placed_parts);
-                carrier->flags_06 |= PART_SPAWNED;
+                carrier->traits |= TRAIT_SPAWNED;
 
                 newbelt = carrier->belt[0];
                 newbelt->end_a = anchorB;
