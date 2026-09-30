@@ -199,7 +199,7 @@ void conveyor_nudge_3(struct part *obj, int16_t mid)
 }
 
 /*
- * 190f:2ac8, image 0x1bbb8 - a kind-0x10 on the conveyor.
+ * 190f:2a3e, image 0x1bb2e - a kind-0x10 on the conveyor.
  *
  * Only in form 0, and the offset it measures from and the direction of the
  * comparison both come from its mirror bit.
@@ -218,7 +218,7 @@ void conveyor_nudge_10(struct part *obj, int16_t mid)
 }
 
 /*
- * 172c:2acb, image 0x19d8b (1.00's; not yet placed in 1.11) - a kind-0x15 see-saw on the conveyor.
+ * 190f:2a75, image 0x1bb65 - a kind-0x15 see-saw on the conveyor.
  *
  * A see-saw already tipped one way and sitting between two and twenty pixels
  * of the conveyor's middle is tipped back - four off the form, its own setup
@@ -240,7 +240,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
 }
 
 /*
- * 190f:2acb, image 0x1bbbb (1.00's; not yet placed in 1.11) - a kind-0x25 on the conveyor.
+ * 190f:2ac8, image 0x1bbb8 - a kind-0x25 on the conveyor.
  *
  * The same shape as the kind-0x10 nudge with different offsets: 0x12 mirrored
  * and 0x18 not.

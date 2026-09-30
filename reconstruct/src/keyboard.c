@@ -610,7 +610,7 @@ _border_colour_thunk proc near
 _border_colour_thunk endp
 c_21496 db 0ffh, 2eh, 0aeh, 43h
 
-/* 0x23124 (1.00's; not yet placed in 1.11) */
+/* 0x23124 */
 _show_page_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+24h
 _show_page_thunk endp
@@ -1119,7 +1119,7 @@ void border_colour_thunk(uint16_t colour)
 }
 
 /*
- * 0x23124 (1.00's; not yet placed in 1.11)
+ * 0x23124
  *
  * A thunk into the video driver: `ljmp [0x3f66]`, which is `vm_show_page`.
  *

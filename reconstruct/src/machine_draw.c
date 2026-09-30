@@ -952,7 +952,7 @@ void draw_bitmap_centred(register struct bitmap *bmp, register int16_t x,
 }
 
 /*
- * 0x15faa (1.00's; not yet placed in 1.11)
+ * 0x17e5b
  *
  * The **animated header** at the top of the parts bin, clipped to
  * (0x240, 0xa)..(0x277, 0x3b) and drawn from the set at DGROUP 0x4ec9 - the

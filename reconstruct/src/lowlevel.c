@@ -1480,7 +1480,7 @@ L2247a:
         retf
 _plot_pixel_clipped endp
 
-/* 0x2247f (1.00's; not yet placed in 1.11) */
+/* 0x24109 */
 _restore_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+20h
 _restore_rect_thunk endp
@@ -2418,7 +2418,7 @@ int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
 }
 
 /*
- * 0x2247f (1.00's; not yet placed in 1.11)
+ * 0x24109
  *
  * A thunk into the video driver: `ljmp [0x4362]`, which is `vm_restore_rect`.
  * Same arrangement as 0x2149a.

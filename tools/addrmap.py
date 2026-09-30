@@ -377,13 +377,94 @@ def build():
         r["new"], r["how"] = b, "kind table"
         r.pop("ratio", None)
 
+    # **Callers vote for their callees.** A placed routine and its 1.00
+    # original line up instruction for instruction wherever they agree, and
+    # a call in such a run names the same routine in both: 1.00's target and
+    # 1.11's are one routine's two addresses. Every call pair votes, and a
+    # routine the passes above left unsettled - or placed elsewhere than a
+    # clear majority of its callers call - takes what they call. Twice, as
+    # a routine placed by its callers can then vote for its own callees.
+    frames_new = frames_111()
+    def targets(img, a, n, frames):
+        out = []
+        for ins in MD.disasm(img[a:a + n], a):
+            b = img[ins.address]
+            if b == 0x9A and ins.size == 5:
+                o, sg = struct.unpack_from("<HH", img, ins.address + 1)
+                out.append((norm(ins), sg * 16 + o))
+            elif b == 0xE8 and ins.size == 3:
+                f = max(x for x in frames if x <= ins.address) if frames else 0
+                t = (ins.address + 3 - f + struct.unpack_from("<h", img, ins.address + 1)[0]) & 0xFFFF
+                out.append((norm(ins), f + t))
+            else:
+                out.append((norm(ins), None))
+        return out
+    frames_old = sorted({0} | {r["old"] for r in rows})  # refined below
+    exe_old = open(OLD_EXE, "rb").read()
+    n, hdr, tbl = (struct.unpack_from("<H", exe_old, 6)[0],
+                   struct.unpack_from("<H", exe_old, 8)[0] * 16,
+                   struct.unpack_from("<H", exe_old, 0x18)[0])
+    fo = {0}
+    for i in range(n):
+        off, sg = struct.unpack_from("<HH", exe_old, tbl + 4 * i)
+        at = sg * 16 + off
+        if at >= 3 and old[at - 3] == 0x9A:
+            fo.add(struct.unpack_from("<H", old, at)[0] * 16)
+    frames_old = sorted(fo)
+    ends = sorted(starts) + [NEW_DGROUP]
+    for _round in range(2):
+        votes = {}
+        for r in rows:
+            if not settled(r) or r["size"] < 4:
+                continue
+            ext = min(ends[bisect.bisect_right(ends, r["new"])] - r["new"], r["size"] * 2 + 64)
+            ta = targets(old, r["old"], r["size"], frames_old)
+            tb = targets(new, r["new"], ext, frames_new)
+            sm = difflib.SequenceMatcher(None, [x for x, _ in ta], [x for x, _ in tb],
+                                         autojunk=False)
+            for tag, i1, i2, j1, j2 in sm.get_opcodes():
+                if tag != "equal" or i2 - i1 < 3:
+                    continue
+                for (_, oa), (_, na) in zip(ta[i1:i2], tb[j1:j2]):
+                    if oa is not None and na is not None and na in starts:
+                        votes.setdefault(oa, []).append(na)
+        import collections
+        for r in rows:
+            v = votes.get(r["old"])
+            if not v or r["how"] in ("exact", "exact in order", "kind table"):
+                continue
+            at, agree = collections.Counter(v).most_common(1)[0]
+            if agree * 2 <= len(v):
+                continue
+            # A placement already good enough moves only on two callers
+            # and a two-thirds majority; one call can pair wrongly where
+            # the alignment slips, and that is not enough to overrule.
+            if settled(r) and r.get("new") != at and (agree < 2 or agree * 3 < len(v) * 2):
+                continue
+            if r.get("new") != at:
+                r["was"] = r.get("new")
+            r["new"], r["how"] = at, "called"
+            r["calls"] = "%d/%d" % (agree, len(v))
+            r.pop("ratio", None)
+
+    # **Pins**, last and over everything: placements read off the image by
+    # hand, each with its reason, in tools/addrmap_pins.json.
+    pins = json.load(open(os.path.join(HERE, "addrmap_pins.json")))
+    for r in rows:
+        if r["name"] in pins:
+            at = int(pins[r["name"]][0], 16)
+            if r.get("new") != at:
+                r["was"] = r.get("new")
+            r["new"], r["how"] = at, "pinned"
+            r.pop("ratio", None)
+
     for r in rows:
         if "new" in r:
             r["entry"] = r["new"] in starts
     return rows
 
 
-SURE = ("exact", "exact in order", "kind table")
+SURE = ("exact", "exact in order", "kind table", "called", "pinned")
 # A resemblance is only ever at a routine's entry (`entries`), so it is a
 # choice between whole routines, and the one it picks at 0.6 has been the
 # routine the callers call wherever that was checked.

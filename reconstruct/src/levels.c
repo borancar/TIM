@@ -248,8 +248,12 @@ void read_record_fields(FILE *file, register struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->start_state);
     rec->state = rec->start_state;
 
-    if (g_level_io.version >= 0x101)
+    /* 1.11 does not believe a file that says a part is in a bucket: that
+       is the bucket's to say, once the level is running. */
+    if (g_level_io.version >= 0x101) {
         game_fread_far(file, (uint8_t *)&rec->traits2);
+        rec->traits2 &= ~TRAIT2_IN_BUCKET;
+    }
 
     game_fread_far(file, (uint8_t *)&rec->start_form);
     rec->form = rec->start_form;
@@ -824,7 +828,7 @@ void load_level(uint16_t number)
 }
 
 /*
- * 0x142f6
+ * 0x140de
  *
  * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
  * of its own two strings, the same flag set so a level's whole record is
@@ -846,7 +850,7 @@ void save_level(uint16_t number)
 }
 
 /*
- * 0x1419d (1.00's; not yet placed in 1.11) (1.11's; the body below is still 1.00's, from 0x12915)
+ * 0x1419d (1.11's; the body below is still 1.00's, from 0x12915)
  *
  * Load an animation file: build the part list first, clear DGROUP 0x5472, and
  * read it. Every load in the image comes here - the title and credits
@@ -867,7 +871,7 @@ void load_animation(char *name)
 }
 
 /*
- * 0x1292d (1.00's; not yet placed in 1.11)
+ * 0x141d9
  *
  * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
  * Answers zero on success - the caller shows "FILE ERROR" and asks again for
@@ -898,7 +902,7 @@ uint16_t save_machine(char *name)
 }
 
 /*
- * 0x14223 (1.00's; not yet placed in 1.11)
+ * 0x14223
  *
  * **Is this file one of ours?** It opens the name, reads one word, and answers
  * whether that word is **0xaced** - the machine file's magic, and the only
@@ -966,7 +970,7 @@ void count_level_files(void)
 }
 
 /*
- * 0x142dd (1.00's; not yet placed in 1.11)
+ * 0x142f6
  *
  * **A puzzle's title, out of its own level file.** The name is built rather
  * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
@@ -1009,7 +1013,7 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
 }
 
 /*
- * 0x1439c (1.00's; not yet placed in 1.11)
+ * 0x1439c
  *
  * **A password into a level number**, by finding it in `password.txt`.
  *

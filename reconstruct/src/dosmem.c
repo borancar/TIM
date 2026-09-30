@@ -35,12 +35,12 @@ DOSMEM_TEXT segment byte public 'CODE'
 assume cs:DOSMEM_TEXT, ds:DGROUP
 public _save_rect_thunk, _buffer_size_thunk, _dos_alloc_bytes, _dos_free_far
 
-/* 0x21ab5 (1.00's; not yet placed in 1.11) */
+/* 0x2373f */
 _save_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+18h
 _save_rect_thunk endp
 
-/* 0x21ab9 (1.00's; not yet placed in 1.11) */
+/* 0x23743 */
 _buffer_size_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+1ch
 _buffer_size_thunk endp
@@ -132,7 +132,7 @@ DOSMEM_TEXT ends
 
 
 /*
- * 0x21ab5 (1.00's; not yet placed in 1.11)
+ * 0x2373f
  *
  * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
  * Same arrangement as 0x2149a.
@@ -144,7 +144,7 @@ void save_rect_thunk(uint8_t far * buf, int16_t x, int16_t y,
 }
 
 /*
- * 0x21ab9 (1.00's; not yet placed in 1.11)
+ * 0x23743
  *
  * A thunk into the video driver: `ljmp [0x435e]`, which is `vm_buffer_size`.
  * Same arrangement as 0x2149a.

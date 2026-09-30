@@ -282,7 +282,7 @@ int16_t object_delta_angle(register struct part *obj)
 }
 
 /*
- * 0x00486 (1.00's; not yet placed in 1.11)
+ * 0x00486
  *
  * Reduce a 16-bit angle to one of four directions. Two exact values are
  * answered directly - 0x2000 gives 0 and 0xa000 gives 2 - and everything else

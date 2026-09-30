@@ -141,13 +141,13 @@ _dos_find_attr proc far
         retf
 _dos_find_attr endp
 
-/* 0x0b734 (1.00's; not yet placed in 1.11) */
+/* 0x0c376 */
 _dos_find_name proc far
         mov ax, offset DGROUP:find_name
         retf
 _dos_find_name endp
 
-/* 0x0c376 */
+/* 0x0c37a */
 _dos_find_size proc far
         mov ax, find_size
         mov dx, find_size+2
@@ -520,7 +520,7 @@ uint16_t dos_find_attr(void)
 }
 
 /*
- * 0x0b734 (1.00's; not yet placed in 1.11)
+ * 0x0c376
  *
  * The name of the entry just found: the *address* 0x2d4a, not a copy. Two
  * instructions. Every caller reads through it before the next `findnext`
@@ -532,7 +532,7 @@ char *dos_find_name(void)
 }
 
 /*
- * 0x0c376
+ * 0x0c37a
  *
  * The size of the entry just found, as a long in DX:AX out of the long at
  * 0x2d77.

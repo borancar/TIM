@@ -364,7 +364,7 @@ void select_music(register int16_t id)
 }
 
 /*
- * 0x083ab (1.00's; not yet placed in 1.11)
+ * 0x08ea6
  *
  * Play a sound, and hold six of them back when the music is off.
  *

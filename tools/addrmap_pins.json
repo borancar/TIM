@@ -1,0 +1,59 @@
+{
+ "_comment": "Placements read off the image by hand, which tools/addrmap.py takes over any pass: name -> [1.11 address, why]. Each was checked against the bytes.",
+ "save_level": [
+  "0x140de",
+  "1.11 has it before load_level: prologue at 0x140de, builds the l<N>.lev name and calls write_level"
+ ],
+ "load_animation": [
+  "0x1419d",
+  "called by game_intro at 0x0f679; 1.11's body clears the level flag and reads the level"
+ ],
+ "save_machine": [
+  "0x141d9",
+  "after load_animation as in 1.00; saves and restores 0x4cdb around write_level"
+ ],
+ "is_machine_file": [
+  "0x14223",
+  "after save_machine as in 1.00; opens the file and checks the 0xaced/0xacee magic"
+ ],
+ "get_puzzle_title": [
+  "0x142f6",
+  "between count_level_files and password_to_level, as in 1.00"
+ ],
+ "password_to_level": [
+  "0x1439c",
+  "the resemblance pass gave it to is_machine_file"
+ ],
+ "dos_find_name": [
+  "0x0c376",
+  "mov ax, 0x28ec / retf, after the drive-letter getter as in 1.00"
+ ],
+ "dos_find_size": [
+  "0x0c37a",
+  "the DX:AX pair from 0x2919/0x291b, straight after dos_find_name"
+ ],
+ "vm_call_4_thunk": [
+  "0x205c6",
+  "ljmp [0x3f52], the first of 1.11's four driver thunks"
+ ],
+ "blit_bitmap_thunk": [
+  "0x205ca",
+  "ljmp [0x3fba]"
+ ],
+ "blit_scaled_thunk": [
+  "0x205ce",
+  "ljmp [0x3fca]"
+ ],
+ "vm_call_38_thunk": [
+  "0x205d2",
+  "ljmp [0x3fda]"
+ ],
+ "restore_write_mode": [
+  "0x205d6",
+  "cmp byte [0x34b1], 0x10 after the four thunks, as in 1.00"
+ ],
+ "conveyor_nudge_10": [
+  "0x1bb2e",
+  "the first of the three nudges, before 0x1bb65 and 0x1bbb8"
+ ]
+}

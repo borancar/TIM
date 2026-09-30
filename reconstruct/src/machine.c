@@ -1813,7 +1813,7 @@ void unlink_part(struct part *part)
 }
 
 /*
- * 0x05646 (1.00's; not yet placed in 1.11)
+ * 0x0629d
  *
  * Insert a record into a doubly-linked list, threaded through the words at +0
  * (next) and +2 (previous). The walk holds a pointer to the *link cell* rather
@@ -2326,7 +2326,7 @@ void place_object_for_draw(register struct part *obj)
 }
 
 /*
- * 0x05c77 (1.00's; not yet placed in 1.11)
+ * 0x06940
  *
  * Set an object's extent - the pair at +0x44 and +0x46 - from wherever its
  * kind keeps that information. There are five answers and they are tried in

@@ -2812,7 +2812,7 @@ L2017e:
 c_20184 db 90h
 _fill_rect endp
 
-/* 0x20185 (1.00's; not yet placed in 1.11) */
+/* 0x21e0f */
 _draw_compressed_bitmap proc near
         jmp dword ptr DGROUP:_g_compressed_body_vector
 _draw_compressed_bitmap endp
@@ -3766,7 +3766,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x20185 (1.00's; not yet placed in 1.11)
+ * 0x21e0f
  *
  * A thunk - `ljmp [0x44ea]` - and 0x44ea was measured pointing at the
  * instruction after it, `draw_compressed_body` at 0x20189, so the vector

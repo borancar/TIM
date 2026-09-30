@@ -85,7 +85,7 @@ void part_step_blast(struct part *part)
 }
 
 /*
- * 190f:1738, image 0x1a828 (1.00's; not yet placed in 1.11)
+ * 190f:1746, image 0x1a836
  *
  * How fast the blast throws a thing: a ladder on the weight its kind's record
  * keeps at +2 - the same word `step_machine` copies into every object's +0x3a

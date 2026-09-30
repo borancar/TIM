@@ -274,7 +274,7 @@ uint16_t stop_sequences(int16_t selector)
 }
 
 /*
- * 0x2ad2c (1.00's; not yet placed in 1.11)
+ * 0x2ad2c
  *
  * Set the master level and answer 1. The 1 is unconditional - nothing below
  * reports failure, so this cannot either.

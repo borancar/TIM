@@ -398,7 +398,7 @@ void game_screen_loop(void)
 }
 
 /*
- * 0x0faf9 (1.00's; not yet placed in 1.11)
+ * 0x10ac6
  *
  * **Pick a tune from the keyboard.** DGROUP 0x52f1 is the last key the loop
  * read, *not* a level number, and this is a jump table on it at CS:0x1b8c -
@@ -982,7 +982,7 @@ void move_carried_part(void)
 }
 
 /*
- * 0x10410 (1.00's; not yet placed in 1.11)
+ * 0x11395
  *
  * **The keyboard shortcuts for the part in your hand.** DGROUP 0x52f1 is the
  * last key, and six scancodes have a meaning here; every other key falls
@@ -1324,7 +1324,7 @@ int16_t drag_carried_part_first(void)
 }
 
 /*
- * 0x10a00 (1.00's; not yet placed in 1.11)
+ * 0x11925
  *
  * Settle the carried part on its **first** axis - `settle_carried_part`'s
  * sibling, on +0x50 and +0x1e rather than +0x52 and +0x20, taking its target
@@ -1433,7 +1433,7 @@ int16_t drag_carried_part_pair(void)
 }
 
 /*
- * 0x10bee (1.00's; not yet placed in 1.11)
+ * 0x11bdc
  *
  * Drop the carried part onto something solid, and say whether it moved.
  *

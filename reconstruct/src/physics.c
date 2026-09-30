@@ -97,7 +97,7 @@ void recompute_kind_physics(void)
 }
 
 /*
- * 0x02bcc (1.00's; not yet placed in 1.11)
+ * 0x037bc
  *
  * Clamp the two signed words at +0x36 and +0x38 of a record to plus or minus
  * a limit that depends on the record's kind.
