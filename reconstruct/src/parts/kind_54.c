@@ -126,7 +126,11 @@ void part_step_kind_54(register struct part *part)
             part->form++;
             if (part->form == 6)
                 part->form = 0;
-            if (part->contact->direction == 0 || part->contact->kind != KIND_CONVEYOR) {
+            /* Standing on nothing, `contact` is null, and the original
+               reads DGROUP:0000 - Borland's copyright - which is never a
+               conveyor, so it walks. */
+            if (NEAR_ZERO(part->contact)->direction == 0
+                || NEAR_ZERO(part->contact)->kind != KIND_CONVEYOR) {
                 if (part->state & STATE_FLIP_HORIZONTAL)
                     part->pos[0].x -= g_kind_54_strides[part->form];
                 else

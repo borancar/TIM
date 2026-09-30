@@ -1732,7 +1732,17 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
             else
                 frame = 0;
             frame = step->frame[0];
+            /* After the fourth frame the original reads `frame[4]`, the
+               byte past the array - `offset[0].x` - and then stops on
+               `i < 4`. The host reads that byte by name: indexing past
+               the array is undefined, and gcc took it as leave to drop the
+               bound, so a step with four frames ran on. */
+#ifdef __TURBOC__
             for (i = 0; i < 4 && frame != 0xff; frame = step->frame[i + 1], i++) {
+#else
+            for (i = 0; i < 4 && frame != 0xff;
+                 frame = i + 1 < 4 ? step->frame[i + 1] : step->offset[0].x, i++) {
+#endif
                 bmp = kindrec->bitmaps[frame];
                 x = part->pos[0].x - g_origin_x;
                 y = part->pos[0].y - g_origin_y;

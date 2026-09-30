@@ -89,6 +89,47 @@ struct point8 *g_ramp_point_table_338c[4] = {
     g_ramp_points_336c, g_ramp_points_3374, g_ramp_points_337c, g_ramp_points_3384,
 };
 
+#ifndef __TURBOC__
+/*
+ * OURS: **what the original reads for form -1.** Puzzles 117 and 143 have
+ * a ramp whose form is 0xffff in the level file, and the original indexes
+ * its table of point tables at -1: the word before the table, which is the
+ * last point of the table in front of it read as a near pointer - 0x1000
+ * for the plain table, 0x1f00 for the mirrored one - and four points from
+ * there. Both land in constant data: 0x1000 is the last byte of
+ * `g_kind_51_draw_steps[4]` and the first seven of `[5]` (its null `next`,
+ * its level and its four frames), 0x1f00 is `g_game_copy_protection`'s
+ * `answer[0][5..8]`. A draw step holds a pointer, so its host layout is not
+ * the image's and the eight bytes are put together from the same fields;
+ * the answers are words on both, so they are read where they are.
+ */
+extern struct draw_step g_kind_51_draw_steps[9];    /* gamedata.c */
+struct game_copy_protection {                       /* intro.c's */
+    int16_t   answer[3][16];
+} PACKED;
+extern struct game_copy_protection g_game_copy_protection;
+
+static const struct point8 *ramp_points_before_table(int16_t flipped)
+{
+    static struct point8 at_1000[4];
+    const struct draw_step *a = &g_kind_51_draw_steps[4];
+    const struct draw_step *b = &g_kind_51_draw_steps[5];
+
+    if (flipped)
+        return (const struct point8 *)&g_game_copy_protection.answer[0][5];
+
+    at_1000[0].x = a->offset[3].y;
+    at_1000[0].y = 0;                   /* `b->next`, null: two zero bytes */
+    at_1000[1].x = 0;
+    at_1000[1].y = b->level;
+    at_1000[2].x = b->frame[0];
+    at_1000[2].y = b->frame[1];
+    at_1000[3].x = b->frame[2];
+    at_1000[3].y = b->frame[3];
+    return at_1000;
+}
+#endif
+
 /*
  * 190f:26e1, image 0x1b7d1 - kind 2's setup. The ramp.
  *
@@ -103,10 +144,19 @@ void part_setup_ramp(struct part *part)
     int16_t i;
     struct part_point *dst;
 
+#ifdef __TURBOC__
     if (part->state & STATE_FLIP_HORIZONTAL)
         src = g_ramp_point_table_338c[part->form];
     else
         src = g_ramp_point_table_3364[part->form];
+#else
+    if (part->state & STATE_FLIP_HORIZONTAL)
+        src = part->form >= 0 ? g_ramp_point_table_338c[part->form]
+                              : ramp_points_before_table(1);
+    else
+        src = part->form >= 0 ? g_ramp_point_table_3364[part->form]
+                              : ramp_points_before_table(0);
+#endif
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;

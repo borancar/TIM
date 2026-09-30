@@ -2466,6 +2466,20 @@ void set_object_extent(register struct part *obj)
             obj->size[0].width = rec->sizes[obj->form].x;
             obj->size[0].height = rec->sizes[obj->form].y;
         } else if (rec->bitmaps != 0) {
+#ifndef __TURBOC__
+            /*
+             * OURS: **a form of -1.** Puzzles 117 and 143 each have a ramp
+             * whose form is 0xffff, and the original reads the word before
+             * the kind's bitmap list - the heap's own bookkeeping - as a
+             * bitmap and takes its extent from wherever that points. The
+             * host has no such heap to read. What the original computed is
+             * on record, though: the level file stores `size[0]` as it was
+             * when the level was saved, 0 by -2 for both, so the host keeps
+             * the size the file gave.
+             */
+            if (obj->form < 0)
+                return;
+#endif
             target = rec->bitmaps[obj->form];
             obj->size[0].width = target->width;
             obj->size[0].height = target->height;
