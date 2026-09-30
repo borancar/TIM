@@ -468,7 +468,7 @@ c_21386 label byte
         push es
         mov ax, DGROUP
         mov ds, ax
-        mov ax, word ptr ds:[46f1h]
+        mov ax, word ptr d_46ed+4
         mov es, ax
         mov bp, 7fh
         mov si, 2
@@ -582,9 +582,9 @@ c_21467 db 2bh, 0dbh
 c_21469 db 8bh, 46h, 4h
 c_2146c db 0f7h, 0d8h
 c_2146e db 0d1h, 0d3h
-c_21470 db 8ah, 9fh, 90h, 45h
+c_21470 db 8ah, 9fh, 90h, 41h
 c_21474 db 8ah, 0e7h
-c_21476 db 8ah, 87h, 0fbh, 46h
+c_21476 db 8ah, 87h, 0fbh, 42h
 c_2147a db 8bh, 0eah
 c_2147c db 0cbh
 _bios_read_key endp
@@ -608,7 +608,7 @@ _key_is_down endp
 _border_colour_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+68h
 _border_colour_thunk endp
-c_21496 db 0ffh, 2eh, 0aeh, 43h
+c_21496 db 0ffh, 2eh, 0aeh, 3fh
 
 /* 0x23124 */
 _show_page_thunk proc near
