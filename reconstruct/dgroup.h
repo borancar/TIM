@@ -697,6 +697,8 @@ extern int16_t g_drop_cursor;
 extern int16_t g_bin_colour;
 extern int16_t g_fill_colour;
 extern int16_t g_sound_request_0c;
+extern int16_t g_sound_request_15;
+extern int16_t g_sound_request_19;
 extern int16_t g_sound_request_09;
 extern int16_t g_sound_request_02;
 extern int16_t g_sound_request_01;

@@ -4083,6 +4083,10 @@ int16_t g_sound_request_01;   /* DGROUP 0x52d3 */
 int16_t g_sound_request_02;   /* DGROUP 0x52d1 */
 int16_t g_sound_request_09;   /* DGROUP 0x52cf */
 int16_t g_sound_request_0c;   /* DGROUP 0x52cd */
+/* 1.11 adds two, at DGROUP 0x4ed3 and 0x4ed1 (0x4ed5 is 1.00's 0x52cd): for
+   sound 0x15, which kind 51 holds while it runs, and 0x19, kind 62's. */
+int16_t g_sound_request_15;
+int16_t g_sound_request_19;
 int16_t g_fill_colour;   /* DGROUP 0x52cb  the colour the panel and the title box are filled in */
 /* **The colour the parts bin's column is cleared to**, 0x0b, filed once by
    `game_setup` and read only by `draw_machine_layer_a`, which puts it in

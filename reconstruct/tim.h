@@ -1993,6 +1993,7 @@ void part_setup_kind_65(struct part *part);        /* 0x1e33d */
 void part_setup_kind_62(struct part *part);        /* 0x1e37e */
 void part_flip_kind_62(struct part *part);         /* 0x1e3bf */
 void part_step_kind_62(struct part *part);         /* 0x1e3f2 */
+int16_t kind_62_push(struct part *what);            /* 0x1e578 */
 uint16_t part_hit_kind_51(struct part *part);      /* 0x1e5af */
 void part_setup_kind_51(struct part *part);        /* 0x1e5f3 */
 void part_step_kind_51(struct part *part);         /* 0x1e643 */
