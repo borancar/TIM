@@ -249,8 +249,8 @@ L2a1d7:
 	pop bp
 	ret
 c_2a1e4 label byte
-	db 8bh, 0dch, 36h, 8bh, 5fh, 4h, 2eh, 0a1h, 0a6h, 9h, 99h, 1h, 7h, 11h, 57h, 2h
-	db 2eh, 0a1h, 0a8h, 9h, 99h, 2bh, 47h, 4h, 1bh, 57h, 6h, 89h, 47h, 4h, 89h, 57h, 6h
+	db 8bh, 0dch, 36h, 8bh, 5fh, 4h, 2eh, 0a1h, 0a0h, 9h, 99h, 1h, 7h, 11h, 57h, 2h
+	db 2eh, 0a1h, 0a2h, 9h, 99h, 2bh, 47h, 4h, 1bh, 57h, 6h, 89h, 47h, 4h, 89h, 57h, 6h
 	db 8bh, 0c3h, 0cbh
 _long_mul_div endp
 

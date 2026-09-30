@@ -125,9 +125,9 @@ void vm_nothing(void);                              /* VGA:0x0252 */
 void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VGA:0x15d0 */
 void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
-                     int16_t w, int16_t h);         /* 0x20838 */
+                     int16_t w, int16_t h);         /* 0x224c2 */
 void blit_rows_alt_thunk(const uint8_t far * src, int16_t x, int16_t y,
-                         int16_t w, int16_t h);  /* 0x2083c */
+                         int16_t w, int16_t h);  /* 0x224c6 */
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                     uint16_t mode);                     /* VGA:0x1707 */
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y); /* VGA:0x271b */

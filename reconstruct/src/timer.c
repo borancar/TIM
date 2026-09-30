@@ -17,7 +17,7 @@
  * below, drafted by tools/asm2tasm.py; the old INT 08h vector is kept in
  * the code segment, in the four bytes after `timer_drop_callback`.
  * Its start is C's end: `draw_compressed_body` (compbmp.c) returns at
- * 0x20653. Whether the two thunks at 0x20838 are its last routines or a
+ * 0x20653. Whether the two thunks at 0x20838 (0x224c2 in 1.11) are its last routines or a
  * module of their own is not settled.
  *
  * JUDGE: built-with -mm
@@ -333,12 +333,12 @@ L20824:
         jmp dword ptr cs:c_206bd
 _timer_tick endp
 
-/* 0x20838 (1.00's; not yet placed in 1.11) */
+/* 0x224c2 */
 _blit_rows_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+48h
 _blit_rows_thunk endp
 
-/* 0x2083c (1.00's; not yet placed in 1.11) */
+/* 0x224c6 */
 _blit_rows_alt_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+4ch
 _blit_rows_alt_thunk endp
@@ -611,7 +611,7 @@ void timer_tick(void)
 }
 
 /*
- * 0x20838 (1.00's; not yet placed in 1.11)
+ * 0x224c2
  *
  * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
  */
@@ -622,7 +622,7 @@ void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
 }
 
 /*
- * 0x2083c (1.00's; not yet placed in 1.11)
+ * 0x224c6
  *
  * A thunk into the video driver: `ljmp [0x438e]`, which on this adapter is
  * VGA:0x0252 - the entry that does nothing at all.
