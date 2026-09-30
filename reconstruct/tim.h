@@ -358,7 +358,7 @@ void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x2b0bf */
 uint16_t stop_sequences(int16_t selector);             /* 0x2b6cd */
 FILE *open_sound_file(char *name, int16_t id);     /* 0x2ae14 */
-uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
+uint16_t set_master_level_ok(uint16_t level);          /* 0x2ad2c */
 uint16_t start_sequence_by_id(int16_t id);             /* 0x2b418 */
 
 /* The ordinary-call faces of the hand-written routines above. */
@@ -883,6 +883,7 @@ void     keyboard_isr(void);                        /* 0x22e20 */
 void     keyboard_tick_isr(void);                   /* ours: the hook at 0x21386 */
 uint16_t bios_read_key(void);                       /* 0x230be */
 uint16_t translate_key(uint16_t key);               /* 0x0905a */
+int16_t  read_resource_cfg(void);                   /* 0x0f0ef */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x22d12 */
 void step_and_draw_machine(int16_t redraw_all);     /* 0x17f2d */

@@ -28,6 +28,21 @@ static uint8_t io_in8_raw(uint16_t port);
 
 /* OURS: the BIOS data area, two ROM bytes and the mono screen - see hostio.h. */
 struct bios_data_area g_bios;
+
+/*
+ * OURS: `LOW_MEMORY` on the host - a byte of 0000:0000..0000:04ff, which on
+ * a real machine is the interrupt table and then the BIOS data area, and
+ * here is `g_interrupt_table` and `g_bios`. Anything past them is a fault.
+ */
+uint8_t *io_low_memory(uint16_t off)
+{
+    if (off < sizeof g_interrupt_table)
+        return &g_interrupt_table[off];
+    if (off - 0x400u < sizeof g_bios)
+        return (uint8_t *)&g_bios + (off - 0x400u);
+    fprintf(stderr, "LOW_MEMORY(0x%04x): past the BIOS data area\n", off);
+    abort();
+}
 const uint8_t g_rom_model = 0xfc;
 const uint8_t g_rom_c000 = 0;
 uint16_t g_mono_screen[0x800];

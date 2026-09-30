@@ -2737,6 +2737,9 @@ uint16_t g_last_key;
    largest DOS block over 1000 - what `g_preload_sound_need` is measured in.
    The name is a guess. */
 int32_t  g_memory_k;
+/* DGROUP 0x14ee in 1.11: "\n", which `game_teardown` prints after the
+   password. Its neighbour at 0x14ec is the path separator. */
+char    *g_newline = "\n";
 /*
  * DGROUP 0x52ed  tim.pal: the far pointer `load_palette` answers, stored whole and
  * read whole by `set_palette_pointer` and `free_far_block`.

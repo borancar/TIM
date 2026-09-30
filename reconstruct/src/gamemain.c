@@ -7,14 +7,16 @@
  * **The program**: `main`'s body, the bring-up and the teardown that prints
  * your password.
  *
- * The first module of the original's **code segment 0dff**, image
- * 0x0dfff..0x0e4be, and the first object linked after the C startup: its data
- * is DGROUP 0x00aa..0x0116, straight after C0M's. Functions are in address
- * order and each carries the image offset it was read from.
+ * In 1.11, image 0x0eccf..0x0f0ef, the first module of the code segment that
+ * starts at 0x0ecc0 (1.00: segment 0dff, 0x0dfff..0x0e4be), and the first
+ * object linked after the C startup: its data is its literal pool, DGROUP
+ * 0x00aa..0x00f8, straight after C0M's. `rescfg.c` follows it, in the code
+ * and in DGROUP. Functions are in address order and each carries the image
+ * offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d -O -Z
- * JUDGE: data 0x00aa..0x0116
+ * JUDGE: built-with -mm -O -Z
+ * JUDGE: data 0x00aa..0x00f7
  */
 #include <stdlib.h>
 #include <string.h>
@@ -46,33 +48,42 @@ void game_main(void)
  * 0x0eced
  *
  * The whole bring-up, in the original's order: refuse to run without enough
- * memory, read the two configuration files, start the video driver, load the
- * palettes, the font and the first bitmaps, start sound, install the timer,
- * and build two free lists.
+ * memory, read the configuration files, start the video driver, load the
+ * palettes, the font and the pointer's bitmaps, start sound, install the
+ * timer, and build two free lists.
  *
- * The memory check is a signed 32-bit compare against 0x44d90 - 282,000 bytes
- * - written as a high-word signed test and a low-word unsigned one, which is
- * how the compiler emits `long < constant`. `dos_alloc_bytes` is asked for
- * 0xffffffff bytes with flags 0, which is the "how much is free" call rather
- * than an allocation.
+ * **1.11 measures the memory in thousands of bytes and keeps the answer**:
+ * `dos_alloc_bytes` asked for 0xffffffff bytes with flags 0 - the "how much
+ * is free" call - over 1000, as an `int`, into `g_memory_k`, which
+ * `game_intro` later weighs each sound against. Under 297 (0x129) it prints
+ * the two lines and exits; 1.00 compared the bytes with 282,000.
+ *
+ * Also new in 1.11: the BIOS keyboard flags at 0040:0017 lose Insert, Caps,
+ * Num and Scroll Lock (`& 0x8f`) before anything else; RESOURCE.CFG is read
+ * as text by `read_resource_cfg`, in a module of its own, which leaves the
+ * sound device and module in DGROUP; the first 88 levels - 1.00's - are open
+ * from the start; the master level defaults to 4 where 1.00's was 6; the
+ * pointer is `newmouse.bmp`; the panel's art is `game_intro`'s to load; and
+ * the 180 shape records are one zero-filled block from DOS, chained in place,
+ * where 1.00 asked DOS for each.
  */
 void game_startup(void)
 {
-    int8_t cfg_byte;                   /* [bp-1] */
-    int16_t vm_ok;                     /* [bp-4] */
-    int16_t cfg_first;                 /* [bp-6] */
-    int16_t sound_device;              /* [bp-8] */
-    int16_t sound_module;              /* [bp-0xa] */
-    int32_t free_bytes;                /* [bp-0xe] */
-    struct queue_node *node;           /* [bp-0x10] */
-    struct shape far *block;           /* [bp-0x14] */
-    FILE *file;             /* di */
-    int16_t i;                         /* si */
+    int16_t vm_ok;                     /* [bp-2] */
+    int32_t free_bytes;                /* [bp-6] */
+    uint8_t far *kb_flags;             /* [bp-0xa] */
+    struct shape far *block;           /* [bp-0xe] */
+    register int16_t i;                /* si */
+    register struct queue_node *node;  /* di */
 
     _stklen = 0x800;
 
+    kb_flags = LOW_MEMORY(0x417);
+    *kb_flags &= 0x8f;
+
     free_bytes = DOS_ALLOC_BYTES(dos_alloc_bytes(0xffffffffUL, 0));
-    if (free_bytes < 0x44d90L) {
+    g_memory_k = (int16_t)(free_bytes / 1000);
+    if (g_memory_k < 0x129) {
         printf(g_messages.not_enough_free_memory);
         printf(g_messages.you_need_at_least);
         exit(0);
@@ -87,43 +98,14 @@ void game_startup(void)
     g_cursor = 0xffff;
 
     load_archive_map();
-
-    /*
-     * What RESOURCE.CFG would have said, if it is not there.
-     *
-     * **NOT A TRANSCRIPTION for the two sound bytes. A deliberate deviation,
-     * chosen by the project owner on 2026-09-04**, and the second of the two
-     * in `reconstruct/src` - the other is `load_sound_bank`'s device 7.
-     *
-     * The original falls back to device 0 and module -2: the PC speaker, and
-     * no digitised module. So does this, again - the port briefly fell back to
-     * General Midi and `ASB:` instead, which was a deliberate deviation and
-     * stopped meaning anything when the `GMD:` driver was removed.
-     *
-     * A RESOURCE.CFG decides in practice, and the game ships one.
-     */
-    cfg_first = 0;
-    sound_module = -2;
-    sound_device = 0;
-
-    file = fopen("RESOURCE.CFG", "rb");
-    if (file != NULL) {
-        fread((uint8_t *)&cfg_byte, 1, 1, file);
-        cfg_first = cfg_byte;          /* stored and never read back */
-#ifndef __TURBOC__
-        (void)cfg_first;
-#endif
-        fread((uint8_t *)&cfg_byte, 1, 1, file);
-        sound_device = cfg_byte;
-        fread((uint8_t *)&cfg_byte, 1, 1, file);
-        sound_module = cfg_byte;
-        fclose(file);
-    }
+    read_resource_cfg();
 
     if (read_tim_cfg() == 0) {
         g_furthest_level = 1;
-        g_master_level = 6;
+        g_master_level = 4;
     }
+    if (g_furthest_level < 0x58)
+        g_furthest_level = 0x58;
 
     g_password_puzzle = 0;
     g_banked_score = 0;
@@ -138,25 +120,21 @@ void game_startup(void)
 
     g_vmds.page_front = 0xa000;
     g_vmds.page_back = 0xa820;
-    vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
+    vm_set_display_lines(0x1d6);                /* 470 - the Dynamix screen */
 
     g_pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
-    g_pal_dynamix = load_palette(WRITABLE_LITERAL("sierra.pal"));
+    g_pal_dynamix = load_palette(WRITABLE_LITERAL("dynamix.pal"));
     set_palette_pointer(g_pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
 
     set_font(g_memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
 
-    g_cursor_art = load_bitmap_list(WRITABLE_LITERAL("mouse.bmp"));
-    g_panel_art = load_bitmaps(WRITABLE_LITERAL("cp.bmp"));
-    g_border_art = load_bitmaps(WRITABLE_LITERAL("gp_bord.bmp"));
+    g_cursor_art = load_bitmaps(WRITABLE_LITERAL("newmouse.bmp"));
 
     install_keyboard(0);
 
-    start_sound(sound_device, sound_module, 0, (FILE *)WRITABLE_LITERAL("sx.ovl"));
+    start_sound(g_sound_device, g_sound_module, 0, (FILE *)WRITABLE_LITERAL("sx.ovl"));
 
     g_tim_sx = open_file_record(WRITABLE_LITERAL("tim.sx"));
-    for (i = 1; i <= 0x14; i++)
-        open_sound_file((char *)g_tim_sx, i);
 
     set_master_level_ok(g_master_level_ok[g_master_level]);
 
@@ -174,7 +152,7 @@ void game_startup(void)
 
     /*
      * Twenty eight-byte records off the near heap, chained through their first
-     * word. 0x4e56 is the head; 0x4e58 is cleared with it and left alone.
+     * word.
      */
     g_parts_free = g_parts_queue = 0;
     for (i = 0; i < 0x14; i++) {
@@ -184,15 +162,16 @@ void game_startup(void)
     }
 
     /*
-     * And 180 twenty-four-byte records from DOS, chained the same way but
-     * through a far pointer in the first four bytes of each block. 0x4e52 is
-     * the second head, cleared here and not filled.
+     * And 180 shape records in one block from DOS, zero-filled, each pointing
+     * at the next through the far pointer in its first four bytes; the last
+     * one's stays null.
      */
-    g_shape_free = g_shapes_drawn = NULL;
-    for (i = 0; i < 0xb4; i++) {
-        block = (struct shape far *)dos_alloc_bytes(sizeof(struct shape), DOS_ZERO_FILL);
-        block->next = g_shape_free;
-        g_shape_free = block;
+    g_shapes_drawn = NULL;
+    g_shape_free = block = (struct shape far *)dos_alloc_bytes(
+        0xb4 * sizeof(struct shape), DOS_ZERO_FILL);
+    for (i = 0; i < 0xb3; i++) {
+        block->next = block + 1;
+        block++;
     }
 }
 
@@ -226,12 +205,10 @@ void game_startup(void)
  */
 void game_teardown(int16_t really)
 {
-    struct shape far *node;            /* [bp-4] */
-    struct shape far *next;            /* [bp-8] */
-    struct queue_node *after;           /* [bp-0xa] */
-    char code[40];                     /* [bp-0x32] */
-    char msg[240];                     /* [bp-0x122] */
-    struct queue_node *si;
+    struct queue_node *after;           /* [bp-2] */
+    char code[40];                     /* [bp-0x2a] */
+    char msg[240];                     /* [bp-0x11a] */
+    register struct queue_node *si;
 
     if (really == 0) {
         g_stop_requested = 1;
@@ -247,11 +224,8 @@ void game_teardown(int16_t really)
         msg[0] = 0;
     }
 
-    /* Each free block's first four bytes are the far pointer to the next. */
-    for (node = g_shape_free; node != NULL; node = next) {
-        next = node->next;
-        dos_free_far(node);
-    }
+    /* The shape records are the one block `game_startup` took. */
+    dos_free_far(g_shape_free);
 
     for (si = g_parts_free; si != 0; si = after) {
         after = si->next;
@@ -284,5 +258,6 @@ void game_teardown(int16_t really)
     restore_video_mode();
 
     printf(msg);
+    printf(g_newline);
     exit(0);
 }

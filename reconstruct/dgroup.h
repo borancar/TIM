@@ -210,6 +210,19 @@ extern uint8_t g_interrupt_table[0x400];
 #  define ZERO_PAGE(p)   ((p) != NULL ? (p) : (__typeof__(p))(void *)g_interrupt_table)
 #endif
 
+/* **A byte of low memory the game names outright** - `0000:0417`, the BIOS
+   keyboard flags 1.11's start-up clears the locks in. Under Borland C++ it
+   is the far pointer the image builds, segment 0 and the offset; on the
+   host the first 0x500 bytes are two objects, `g_interrupt_table` and
+   `g_bios`, and `io_low_memory` answers the byte in whichever it falls.
+   Ours. */
+#ifdef __TURBOC__
+#  define LOW_MEMORY(off)  ((uint8_t far *)MK_FP(0, (off)))
+#else
+uint8_t *io_low_memory(uint16_t off);
+#  define LOW_MEMORY(off)  io_low_memory(off)
+#endif
+
 /*
  * **A string literal the game writes to.** The original's literals are bytes
  * in DGROUP like any other, and `hash_filename` upper-cases the name it is
@@ -704,6 +717,9 @@ extern uint8_t far *g_pal_dynamix;
 extern uint8_t far *g_pal_tim;
 extern uint16_t g_last_key;
 extern int32_t  g_memory_k;
+extern char    *g_newline;
+extern int16_t  g_sound_module;
+extern int16_t  g_sound_device;
 extern int16_t  g_preload_sound_ids[26];
 extern int16_t  g_preload_sound_need[26];
 extern uint16_t g_cursor_follows;
