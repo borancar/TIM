@@ -76,7 +76,7 @@ char *g_sound_module_tags[5] = {
 struct sequence far *g_sound_voice[7];
 
 /*
- * 0x2b29e
+ * 0x2b2d0
  *
  * Set up the sound device: load its **module** and then its **driver**, and
  * answer 0 if both worked and 1 if either did not.
@@ -173,7 +173,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
 }
 
 /*
- * 0x287ad (1.00's; not yet placed in 1.11)
+ * 0x28850
  *
  * Which of the seven voices is playing a given sequence. The argument is the
  * sequence's far pointer; the answer is the voice's record, also as a far
@@ -203,7 +203,7 @@ struct sequence far *voice_playing(const uint8_t far * source)
 }
 
 /*
- * 0x28800 (1.00's; not yet placed in 1.11)
+ * 0x287d6
  *
  * Allocate the seven voice records - 0x17a bytes each, kind 2 - and put them in
  * the table at DGROUP 0x6414.

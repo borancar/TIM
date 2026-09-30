@@ -561,7 +561,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
 }
 
 /*
- * 0x2a017 (1.00's; not yet placed in 1.11)
+ * 0x16c79
  *
  * Release a block the sound module allocated, and the exact counterpart of
  * `alloc_for_kind` at 0x29f89: the same `kind` argument picks the same two

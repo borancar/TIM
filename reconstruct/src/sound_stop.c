@@ -22,7 +22,7 @@
 struct sound_tick_wait g_sound_tick_wait;
 
 /*
- * 0x292f4 (1.00's; not yet placed in 1.11)
+ * 0x2b608
  *
  * Shut the sound down: silence the driver, let whatever is playing finish, and
  * give both blocks back.
@@ -96,7 +96,7 @@ void delay_five_ticks(void)
 }
 
 /*
- * 0x293b8 (1.00's; not yet placed in 1.11)
+ * 0x2b6c8
  *
  * The callback `delay_five_ticks` registers: one instruction of work, counting
  * DGROUP 0x6430 down by one each tick.

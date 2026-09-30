@@ -4,15 +4,17 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **The sound module, which was written in assembly**: its state, a far
- * entry and its dispatcher, the interface to the loaded driver, the
- * sequencer, and the far entry points the C calls. This file corresponds to
- * the first module of the original's code segment 2619, image
- * 0x26198..0x28580. The module keeps its state in its own code segment
- * (`g_snds`) and reaches the loaded driver through a
- * far pointer in that segment, with the function number in BP. Its routines
- * take their arguments in registers and save what they use, and its far
- * entry points, 0x2841f..0x28580, are the only ones that build a C frame.
+ * **The sound module, which was written in assembly**: its far entry
+ * points, its state, a far entry and its dispatcher, the interface to the
+ * loaded driver, the sequencer. In 1.11 it is **code segment 2893** on its
+ * own, image 0x28936..0x2ad2b, word-aligned (the zero at 0x28935 is the
+ * alignment): twenty far entry points first, 0x28936..0x28aea, the only
+ * routines that build a C frame - nine of them 1.00's and eleven more, one
+ * for each of the API's functions 0x0a..0x17 the dispatcher reaches, which
+ * nothing in the game calls - then its state, `g_snds`, 0x28aea..0x28cef,
+ * then the code. It reaches the loaded driver through a far pointer in that
+ * segment, with the function number in BP. Its routines take their
+ * arguments in registers and save what they use.
  *
  * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
  * host's transcription in the `#else`. It is TASM 3.0's, assembled
@@ -29,8 +31,9 @@
  * own. Where the image has a far call as a bare `push cs / call` the source
  * wrote both. Too long for Borland C++'s front end to pass through (it
  * holds some 64K of a file's `asm`), it goes to TASM directly (`JUDGE:
- * tasm`). The C that follows it in the segment is in sound_load.c,
- * sound_device.c, sound_bank.c, sound_stop.c and sound_file.c.
+ * tasm`). The sound library's C, a module per segment in 1.11, is in
+ * sound_load.c, sound_device.c, sound_bank.c, sound_stop.c and
+ * sound_file.c.
  *
  * Functions are in address order and each carries the image offset it was
  * read from.
@@ -53,8 +56,13 @@ asm {
 extrn _sound_callback:far
 extrn _g_sound_bank:byte
 nosmart
-SOUND_TEXT segment byte public 'CODE'
+SOUND_TEXT segment word public 'CODE'
 assume cs:SOUND_TEXT, ds:DGROUP
+public _sound_fn11_far, _sound_fn0f_far, _sound_fn12_far, _seek_sequence_far
+public _set_master_level_far, _sound_fn0a_far, _install_driver_far, _configure_driver_far
+public _start_sequence_far, _sound_fn0b_far, _driver_fn13_far, _sound_fn0e_far
+public _sound_fn17_far, _retire_and_tick_far, _sound_fn0c_far, _sound_fn10_far
+public _set_sequence_level_far, _sound_fn15_far, _silence_driver_far, _sound_fn0d_far
 public _sound_api, _sound_api_dispatch, _install_driver, _configure_driver
 public _silence_driver, _sound_hold, _driver_fn13, _seek_sequence
 public _set_master_level, _set_sequence_level, _start_sequence, _retire_and_tick
@@ -63,241 +71,581 @@ public _flush_pending_volumes, _sound_service, _drop_unless_polled, _poll_sequen
 public _step_sequence, _midi_note_off_event, _midi_note_event, _midi_event_6
 public _midi_controller_event, _midi_program_event, _midi_event_9, _midi_bend_event
 public _midi_skip_event, _midi_meta_event, _skip_unknown_event, _scale_byte_pair
-public _init_sequence_params, _seek_sequence_far, _set_master_level_far, _install_driver_far
-public _configure_driver_far, _start_sequence_far, _driver_fn13_far, _retire_and_tick_far
-public _set_sequence_level_far, _silence_driver_far
-c_26198 label byte
+public _init_sequence_params
+
+/* 0x28936 */
+_sound_fn11_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR L2956a
+	mov ax, cx
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn11_far endp
+
+/* 0x2894b */
+_sound_fn0f_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cl, [bp+0ah]
+	call FAR PTR L29496
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn0f_far endp
+
+/* 0x28961 */
+_sound_fn12_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR L29574
+	xor dh, dh
+	mov ax, cx
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn12_far endp
+
+/* 0x28978 */
+_seek_sequence_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR _seek_sequence
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_seek_sequence_far endp
+
+/* 0x2898b */
+_set_master_level_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	mov cx, [bp+6]
+	call FAR PTR _set_master_level
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_set_master_level_far endp
+
+/* 0x2899e */
+_sound_fn0a_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cl, [bp+0ah]
+	call FAR PTR L293b3
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn0a_far endp
+
+/* 0x289b4 */
+_install_driver_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR _install_driver
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_install_driver_far endp
+
+/* 0x289c7 */
+_configure_driver_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	push bx
+	xor bx, bx
+	les ax, dword ptr [bp+6]
+	call FAR PTR _configure_driver
+	pop bx
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_configure_driver_far endp
+
+/* 0x289de */
+_start_sequence_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cx, [bp+0ah]
+	call FAR PTR _start_sequence
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_start_sequence_far endp
+
+/* 0x289f4 */
+_sound_fn0b_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov dl, [bp+0ah]
+	mov cl, [bp+0ch]
+	mov ch, [bp+0eh]
+	call FAR PTR L2941b
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn0b_far endp
+
+/* 0x28a10 */
+_driver_fn13_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	mov cx, [bp+6]
+	call FAR PTR _driver_fn13
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_driver_fn13_far endp
+
+/* 0x28a23 */
+_sound_fn0e_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cl, [bp+0ah]
+	call FAR PTR L29486
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn0e_far endp
+
+/* 0x28a39 */
+_sound_fn17_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cx, [bp+0ah]
+	mov dl, [bp+0ch]
+	call FAR PTR L29767
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn17_far endp
+
+/* 0x28a52 */
+_retire_and_tick_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR _retire_and_tick
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_retire_and_tick_far endp
+
+/* 0x28a65 */
+_sound_fn0c_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cl, [bp+0ah]
+	call FAR PTR L2943f
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn0c_far endp
+
+/* 0x28a7b */
+_sound_fn10_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR L29554
+	pop si
+	pop di
+	pop ds
+	pop bp
+	xor ah, ah
+	mov al, cl
+	retf
+_sound_fn10_far endp
+
+/* 0x28a92 */
+_set_sequence_level_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	mov cl, [bp+6]
+	call FAR PTR _set_sequence_level
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_set_sequence_level_far endp
+
+/* 0x28aa5 */
+_sound_fn15_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov ch, [bp+0ah]
+	mov cl, [bp+0ch]
+	mov dl, [bp+0eh]
+	call FAR PTR L29638
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_sound_fn15_far endp
+
+/* 0x28ac1 */
+_silence_driver_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	call FAR PTR _silence_driver
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+_silence_driver_far endp
+
+/* 0x28ad4 */
+_sound_fn0d_far proc far
+	push bp
+	mov bp, sp
+	push ds
+	push di
+	push si
+	les ax, dword ptr [bp+6]
+	mov cx, [bp+0ah]
+	call FAR PTR L29449
+	pop si
+	pop di
+	pop ds
+	pop bp
+	retf
+c_28aea label byte
 	db 0h, 0h
-c_2619a label byte
+c_28aec label byte
 	db 0h, 0h
-c_2619c label byte
+c_28aee label byte
 	db 0h, 0h
-c_2619e label byte
+c_28af0 label byte
 	db 58 dup (0h)
-c_261d8 label byte
+c_28b2a label byte
 	db 0h, 0h
-c_261da label byte
+c_28b2c label byte
 	db 62 dup (0h)
-c_26218 label byte
+c_28b6a label byte
 	db 0h, 0h
-c_2621a label byte
+c_28b6c label byte
 	db 126 dup (0h)
-c_26298 label byte
+c_28bea label byte
 	db 32 dup (0h)
-c_262b8 label byte
+c_28c0a label byte
 	db 0ffh, 0ffh
-c_262ba label byte
+c_28c0c label byte
 	db 0ffh, 0ffh
-c_262bc label byte
+c_28c0e label byte
 	db 0ffh, 0ffh
-c_262be label byte
+c_28c10 label byte
 	db 0ffh, 0ffh
-c_262c0 label byte
+c_28c12 label byte
 	db 0ffh, 0ffh
-c_262c2 label byte
+c_28c14 label byte
 	db 0ffh, 0ffh
-c_262c4 label byte
+c_28c16 label byte
 	db 0ffh, 0ffh
-c_262c6 label byte
+c_28c18 label byte
 	db 0ffh, 0ffh
-c_262c8 label byte
+c_28c1a label byte
 	db 0h, 0h
-c_262ca label byte
+c_28c1c label byte
 	db 0h, 0h
-c_262cc label byte
+c_28c1e label byte
 	db 0h, 0h
-c_262ce label byte
+c_28c20 label byte
 	db 0h, 0h
-c_262d0 label byte
+c_28c22 label byte
 	db 0h, 0h
-c_262d2 label byte
+c_28c24 label byte
 	db 0h, 0h
-c_262d4 label byte
+c_28c26 label byte
 	db 0h, 0h
-c_262d6 label byte
+c_28c28 label byte
 	db 0h, 0h
-c_262d8 label byte
+c_28c2a label byte
 	db 0h, 0h
-c_262da label byte
+c_28c2c label byte
 	db 0h, 0h
-c_262dc label byte
+c_28c2e label byte
 	db 0h, 0h
-c_262de label byte
+c_28c30 label byte
 	db 0h, 0h
-c_262e0 label byte
+c_28c32 label byte
 	db 0h, 0h
-c_262e2 label byte
+c_28c34 label byte
 	db 0h, 0h
-c_262e4 label byte
+c_28c36 label byte
 	db 0h, 0h
-c_262e6 label byte
+c_28c38 label byte
 	db 0h, 0h
-c_262e8 label byte
+c_28c3a label byte
 	db 0h, 0h
-c_262ea label byte
+c_28c3c label byte
 	db 0h, 0h
-c_262ec label byte
+c_28c3e label byte
 	db 0h, 0h
-c_262ee label byte
+c_28c40 label byte
 	db 0h, 0h
-c_262f0 label byte
+c_28c42 label byte
 	db 0h, 0h
-c_262f2 label byte
+c_28c44 label byte
 	db 0h, 0h
-c_262f4 label byte
+c_28c46 label byte
 	db 0h, 0h
-c_262f6 label byte
+c_28c48 label byte
 	db 0h, 0h
-c_262f8 label byte
+c_28c4a label byte
 	db 0ffh, 0ffh
-c_262fa label byte
+c_28c4c label byte
 	db 0ffh, 0ffh
-c_262fc label byte
+c_28c4e label byte
 	db 0ffh, 0ffh
-c_262fe label byte
+c_28c50 label byte
 	db 0ffh, 0ffh
-c_26300 label byte
+c_28c52 label byte
 	db 0ffh, 0ffh
-c_26302 label byte
+c_28c54 label byte
 	db 0ffh, 0ffh
-c_26304 label byte
+c_28c56 label byte
 	db 0ffh, 0ffh
-c_26306 label byte
+c_28c58 label byte
 	db 0ffh, 0ffh
-c_26308 label byte
+c_28c5a label byte
 	db 0h, 0h
-c_2630a label byte
+c_28c5c label byte
 	db 0h, 0h
-c_2630c label byte
+c_28c5e label byte
 	db 0h, 0h
-c_2630e label byte
+c_28c60 label byte
 	db 0h, 0h
-c_26310 label byte
+c_28c62 label byte
 	db 0h, 0h
-c_26312 label byte
+c_28c64 label byte
 	db 0h, 0h
-c_26314 label byte
+c_28c66 label byte
 	db 0h, 0h
-c_26316 label byte
+c_28c68 label byte
 	db 0h, 0h
-c_26318 label byte
+c_28c6a label byte
 	db 0h, 0h
-c_2631a label byte
+c_28c6c label byte
 	db 0h, 0h
-c_2631c label byte
+c_28c6e label byte
 	db 0h, 0h
-c_2631e label byte
+c_28c70 label byte
 	db 0h, 0h
-c_26320 label byte
+c_28c72 label byte
 	db 0h, 0h
-c_26322 label byte
+c_28c74 label byte
 	db 0h, 0h
-c_26324 label byte
+c_28c76 label byte
 	db 0h, 0h
-c_26326 label byte
+c_28c78 label byte
 	db 0h, 0h
-c_26328 label byte
+c_28c7a label byte
 	db 0h, 0h
-c_2632a label byte
+c_28c7c label byte
 	db 0h, 0h
-c_2632c label byte
+c_28c7e label byte
 	db 0h, 0h
-c_2632e label byte
+c_28c80 label byte
 	db 0h, 0h
-c_26330 label byte
+c_28c82 label byte
 	db 0h, 0h
-c_26332 label byte
+c_28c84 label byte
 	db 0h, 0h
-c_26334 label byte
+c_28c86 label byte
 	db 0h, 0h
-c_26336 label byte
+c_28c88 label byte
 	db 0h, 0h
-c_26338 label byte
+c_28c8a label byte
 	db 0ffh, 0ffh
-c_2633a label byte
+c_28c8c label byte
 	db 0ffh, 0ffh
-c_2633c label byte
+c_28c8e label byte
 	db 0ffh, 0ffh
-c_2633e label byte
+c_28c90 label byte
 	db 0ffh, 0ffh
-c_26340 label byte
+c_28c92 label byte
 	db 0ffh, 0ffh
-c_26342 label byte
+c_28c94 label byte
 	db 0ffh, 0ffh
-c_26344 label byte
+c_28c96 label byte
 	db 0ffh, 0ffh
-c_26346 label byte
+c_28c98 label byte
 	db 0ffh, 0ffh
-c_26348 label byte
+c_28c9a label byte
 	db 0fh, 0fh
-c_2634a label byte
+c_28c9c label byte
 	db 0fh, 0fh
-c_2634c label byte
+c_28c9e label byte
 	db 0fh, 0fh
-c_2634e label byte
+c_28ca0 label byte
 	db 0fh, 0fh
-c_26350 label byte
+c_28ca2 label byte
 	db 0fh, 0fh
-c_26352 label byte
+c_28ca4 label byte
 	db 0fh, 0fh
-c_26354 label byte
+c_28ca6 label byte
 	db 0fh, 0fh
-c_26356 label byte
+c_28ca8 label byte
 	db 0fh, 0fh
-c_26358 label byte
+c_28caa label byte
 	db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
-c_26368 label byte
+c_28cba label byte
 	db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
-c_26377 label byte
+c_28cc9 label byte
 	db 0h, 0h
-c_26379 label byte
+c_28ccb label byte
 	db 0h, 0h
-c_2637b label byte
+c_28ccd label byte
 	db 0h, 0h
-c_2637d label byte
+c_28ccf label byte
 	db 0h, 0h
-c_2637f label byte
+c_28cd1 label byte
 	db 0h, 0h
-c_26381 label byte
+c_28cd3 label byte
 	db 0h, 0h
-c_26383 label byte
+c_28cd5 label byte
 	db 0h, 0h
-c_26385 label byte
+c_28cd7 label byte
 	db 0h, 0h
-c_26387 label byte
+c_28cd9 label byte
 	db 0h, 0h
-c_26389 label byte
+c_28cdb label byte
 	db 0h
-c_2638a label byte
+c_28cdc label byte
 	db 0h
-c_2638b label byte
+c_28cdd label byte
 	db 0fh
-c_2638c label byte
+c_28cde label byte
 	db 0h
-c_2638d label byte
+c_28cdf label byte
 	db 0ffh
-c_2638e label byte
+c_28ce0 label byte
 	db 0h
-c_2638f label byte
+c_28ce1 label byte
 	db 0h
-c_26390 label byte
+c_28ce2 label byte
 	db 0h
-c_26391 label byte
+c_28ce3 label byte
 	db 0h
-c_26392 label byte
+c_28ce4 label byte
 	db 0h
-c_26393 label byte
+c_28ce5 label byte
 	db 0h
-c_26394 label byte
+c_28ce6 label byte
 	db 0h
-c_26395 label byte
+c_28ce7 label byte
 	db 0h
-c_26396 label byte
+c_28ce8 label byte
 	db 0h, 0h, 0h
-c_26399 label byte
+c_28ceb label byte
 	db 0h, 0h, 0h
-c_2639c label byte
+c_28cee label byte
 	db 0h
+_sound_fn0d_far endp
 
 /* 0x28cef */
 _sound_api proc far
@@ -309,30 +657,30 @@ _sound_api proc far
 	push si
 	les ax, dword ptr [bp+8]
 	mov cx, [bp+0ch]
-	mov word ptr cs:c_2637b, cx
+	mov word ptr cs:c_28ccd, cx
 	mov cx, [bp+0eh]
-	mov word ptr cs:c_2637d, cx
+	mov word ptr cs:c_28ccf, cx
 	mov cx, [bp+10h]
-	mov word ptr cs:c_2637f, cx
+	mov word ptr cs:c_28cd1, cx
 	mov cx, [bp+12h]
-	mov word ptr cs:c_26381, cx
+	mov word ptr cs:c_28cd3, cx
 	mov cx, [bp+14h]
-	mov word ptr cs:c_26383, cx
+	mov word ptr cs:c_28cd5, cx
 	mov cx, [bp+16h]
-	mov word ptr cs:c_26385, cx
+	mov word ptr cs:c_28cd7, cx
 	mov cx, [bp+6]
 	cmp cl, 6
-	je L263ee
+	je L28d40
 	cmp cl, 3
-	je L263ee
+	je L28d40
 	cmp cl, 4
-	je L263ee
+	je L28d40
 	cmp cl, 7
-	jne L263f6
-L263ee:
+	jne L28d48
+L28d40:
 	mov dx, [bp+8]
-	mov word ptr cs:c_2637b, dx
-L263f6:
+	mov word ptr cs:c_28ccd, dx
+L28d48:
 	call _sound_api_dispatch
 	pop si
 	pop di
@@ -345,207 +693,207 @@ _sound_api endp
 /* 0x28d51 */
 _sound_api_dispatch proc near
 	cmp cl, 0
-	jne L2643b
+	jne L28d8d
 	call FAR PTR _install_driver
 	xor ah, ah
 	cmp al, 0ffh
-	jne L26411
+	jne L28d63
 	mov ah, al
-L26411:
+L28d63:
 	xor cx, cx
-	mov cl, byte ptr cs:c_2638f
-	les bx, dword ptr cs:c_2637b
+	mov cl, byte ptr cs:c_28ce1
+	les bx, dword ptr cs:c_28ccd
 	mov es:[bx], cx
-	mov cl, byte ptr cs:c_26390
-	les bx, dword ptr cs:c_2637f
+	mov cl, byte ptr cs:c_28ce2
+	les bx, dword ptr cs:c_28cd1
 	mov es:[bx], cx
-	mov cl, byte ptr cs:c_2638c
-	les bx, dword ptr cs:c_26383
+	mov cl, byte ptr cs:c_28cde
+	les bx, dword ptr cs:c_28cd5
 	mov es:[bx], cx
 	ret
-L2643b:
+L28d8d:
 	cmp cl, 1
-	jne L2644b
-	mov bx, word ptr cs:c_2637b
+	jne L28d9d
+	mov bx, word ptr cs:c_28ccd
 	call FAR PTR _configure_driver
 	ret
-L2644b:
+L28d9d:
 	cmp cl, 2
-	jne L26456
+	jne L28da8
 	call FAR PTR _silence_driver
 	ret
-L26456:
+L28da8:
 	cmp cl, 3
-	jne L26466
-	mov cx, word ptr cs:c_2637b
+	jne L28db8
+	mov cx, word ptr cs:c_28ccd
 	call FAR PTR _sound_hold
 	ret
-L26466:
+L28db8:
 	cmp cl, 4
-	jne L26476
-	mov cx, word ptr cs:c_2637b
+	jne L28dc8
+	mov cx, word ptr cs:c_28ccd
 	call FAR PTR _driver_fn13
 	ret
-L26476:
+L28dc8:
 	cmp cl, 5
-	jne L26481
+	jne L28dd3
 	call FAR PTR _seek_sequence
 	ret
-L26481:
+L28dd3:
 	cmp cl, 6
-	jne L26491
-	mov cx, word ptr cs:c_2637b
+	jne L28de3
+	mov cx, word ptr cs:c_28ccd
 	call FAR PTR _set_master_level
 	ret
-L26491:
+L28de3:
 	cmp cl, 7
-	jne L264a1
-	mov cx, word ptr cs:c_2637b
+	jne L28df3
+	mov cx, word ptr cs:c_28ccd
 	call FAR PTR _set_sequence_level
 	ret
-L264a1:
+L28df3:
 	cmp cl, 8
-	jne L264b1
-	mov cx, word ptr cs:c_2637b
+	jne L28e03
+	mov cx, word ptr cs:c_28ccd
 	call FAR PTR _start_sequence
 	ret
-L264b1:
+L28e03:
 	cmp cl, 9
-	jne L264bc
+	jne L28e0e
 	call FAR PTR _retire_and_tick
 	ret
-L264bc:
+L28e0e:
 	cmp cl, 0ah
-	jne L264cc
-	mov cl, byte ptr cs:c_2637b
-	call FAR PTR L26a61
+	jne L28e1e
+	mov cl, byte ptr cs:c_28ccd
+	call FAR PTR L293b3
 	ret
-L264cc:
+L28e1e:
 	cmp cl, 0bh
-	jne L264e6
-	mov dl, byte ptr cs:c_2637b
-	mov cl, byte ptr cs:c_2637d
-	mov ch, byte ptr cs:c_2637f
-	call FAR PTR L26ac9
+	jne L28e38
+	mov dl, byte ptr cs:c_28ccd
+	mov cl, byte ptr cs:c_28ccf
+	mov ch, byte ptr cs:c_28cd1
+	call FAR PTR L2941b
 	ret
-L264e6:
+L28e38:
 	cmp cl, 0ch
-	jne L264f6
-	mov cl, byte ptr cs:c_2637b
-	call FAR PTR L26aed
+	jne L28e48
+	mov cl, byte ptr cs:c_28ccd
+	call FAR PTR L2943f
 	ret
-L264f6:
+L28e48:
 	cmp cl, 0dh
-	jne L26506
-	mov cx, word ptr cs:c_2637b
-	call FAR PTR L26af7
+	jne L28e58
+	mov cx, word ptr cs:c_28ccd
+	call FAR PTR L29449
 	ret
-L26506:
+L28e58:
 	cmp cl, 0eh
-	jne L26516
-	mov cx, word ptr cs:c_2637b
-	call FAR PTR L26b34
+	jne L28e68
+	mov cx, word ptr cs:c_28ccd
+	call FAR PTR L29486
 	ret
-L26516:
+L28e68:
 	cmp cl, 0fh
-	jne L26525
-	mov cx, word ptr cs:c_2637b
-	call FAR PTR L26b44
-L26525:
+	jne L28e77
+	mov cx, word ptr cs:c_28ccd
+	call FAR PTR L29496
+L28e77:
 	cmp cl, 11h
-	jne L26531
-	call FAR PTR L26c18
+	jne L28e83
+	call FAR PTR L2956a
 	mov ax, cx
-L26531:
+L28e83:
 	cmp cl, 10h
-	jne L26540
-	call FAR PTR L26c02
+	jne L28e92
+	call FAR PTR L29554
 	mov al, cl
 	xor ah, ah
 	ret
-L26540:
+L28e92:
 	cmp cl, 19h
-	jne L2654f
-	call FAR PTR L26c0c
+	jne L28ea1
+	call FAR PTR L2955e
 	mov al, cl
 	xor ah, ah
 	ret
-L2654f:
+L28ea1:
 	cmp cl, 12h
-	jne L26579
-	call FAR PTR L26c22
+	jne L28ecb
+	call FAR PTR L29574
 	xor ah, ah
-	les bx, dword ptr cs:c_2637b
+	les bx, dword ptr cs:c_28ccd
 	mov al, dl
 	mov es:[bx], ax
-	les bx, dword ptr cs:c_2637f
+	les bx, dword ptr cs:c_28cd1
 	mov al, ch
 	mov es:[bx], ax
-	les bx, dword ptr cs:c_26383
+	les bx, dword ptr cs:c_28cd5
 	mov al, cl
 	mov es:[bx], ax
-L26579:
+L28ecb:
 	cmp cl, 13h
-	jne L26593
-	mov dl, byte ptr cs:c_2637b
-	mov ch, byte ptr cs:c_2637d
-	mov cl, byte ptr cs:c_2637f
-	call FAR PTR L26c43
+	jne L28ee5
+	mov dl, byte ptr cs:c_28ccd
+	mov ch, byte ptr cs:c_28ccf
+	mov cl, byte ptr cs:c_28cd1
+	call FAR PTR L29595
 	ret
-L26593:
+L28ee5:
 	cmp cl, 14h
-	jne L265ad
-	mov dl, byte ptr cs:c_2637b
-	mov ch, byte ptr cs:c_2637d
-	mov cl, byte ptr cs:c_2637f
-	call FAR PTR L26c95
+	jne L28eff
+	mov dl, byte ptr cs:c_28ccd
+	mov ch, byte ptr cs:c_28ccf
+	mov cl, byte ptr cs:c_28cd1
+	call FAR PTR L295e7
 	ret
-L265ad:
+L28eff:
 	cmp cl, 15h
-	jne L265c7
-	mov dl, byte ptr cs:c_2637b
-	mov ch, byte ptr cs:c_2637d
-	mov cl, byte ptr cs:c_2637f
-	call FAR PTR L26ce6
+	jne L28f19
+	mov dl, byte ptr cs:c_28ccd
+	mov ch, byte ptr cs:c_28ccf
+	mov cl, byte ptr cs:c_28cd1
+	call FAR PTR L29638
 	ret
-L265c7:
+L28f19:
 	cmp cl, 16h
-	jne L265dc
-	mov dl, byte ptr cs:c_2637b
-	mov cl, byte ptr cs:c_2637d
-	call FAR PTR L26dc4
+	jne L28f2e
+	mov dl, byte ptr cs:c_28ccd
+	mov cl, byte ptr cs:c_28ccf
+	call FAR PTR L29716
 	ret
-L265dc:
+L28f2e:
 	cmp cl, 17h
-	jne L265f1
-	mov dl, byte ptr cs:c_2637b
-	mov cx, word ptr cs:c_2637d
-	call FAR PTR L26e15
+	jne L28f43
+	mov dl, byte ptr cs:c_28ccd
+	mov cx, word ptr cs:c_28ccf
+	call FAR PTR L29767
 	ret
-L265f1:
+L28f43:
 	ret
 _sound_api_dispatch endp
 
 /* 0x28f44 */
 _install_driver proc far
-	mov word ptr cs:c_26377, ax
-	mov word ptr cs:c_26379, es
+	mov word ptr cs:c_28cc9, ax
+	mov word ptr cs:c_28ccb, es
 	push bp
 	mov bp, 0
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-	mov byte ptr cs:c_2638f, cl
-	mov byte ptr cs:c_2638c, ch
+	mov byte ptr cs:c_28ce1, cl
+	mov byte ptr cs:c_28cde, ch
 	mov dl, ah
 	shr dl, 1
 	shr dl, 1
 	shr dl, 1
 	shr dl, 1
 	cmp word ptr DGROUP:_g_sound_bank+28h, 0
-	je L26623
+	je L28f75
 	or dl, 1
-L26623:
-	mov byte ptr cs:c_26390, dl
+L28f75:
+	mov byte ptr cs:c_28ce2, dl
 	retf
 _install_driver endp
 
@@ -554,15 +902,15 @@ _configure_driver proc far
 	push cx
 	push bp
 	mov bp, 1
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-	mov byte ptr cs:c_2638a, cl
-	mov byte ptr cs:c_2638b, ch
+	mov byte ptr cs:c_28cdc, cl
+	mov byte ptr cs:c_28cdd, ch
 	push ax
 	xor cl, cl
 	push bp
 	mov bp, 0bh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop ax
 	pop cx
@@ -578,11 +926,11 @@ _silence_driver proc far
 	mov cl, 0fh
 	push bp
 	mov bp, 0ch
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	push bp
 	mov bp, 2
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop si
 	pop es
@@ -594,14 +942,14 @@ _silence_driver endp
 /* 0x28fbf */
 _sound_hold proc far
 	cmp cx, 0
-	jne L26678
-	inc byte ptr cs:c_26389
+	jne L28fca
+	inc byte ptr cs:c_28cdb
 	retf
-L26678:
-	cmp byte ptr cs:c_26389, 0
-	je L26685
-	dec byte ptr cs:c_26389
-L26685:
+L28fca:
+	cmp byte ptr cs:c_28cdb, 0
+	je L28fd7
+	dec byte ptr cs:c_28cdb
+L28fd7:
 	retf
 _sound_hold endp
 
@@ -609,7 +957,7 @@ _sound_hold endp
 _driver_fn13 proc far
 	push bp
 	mov bp, 0dh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	retf
 _driver_fn13 endp
@@ -628,40 +976,40 @@ _seek_sequence proc far
 	mov cl, es:[bx+159h]
 	dec cl
 	mov si, 0eh
-L266a6:
+L28ff8:
 	mov dl, es:[bx+si+143h]
 	and dl, 0f0h
-	mov byte ptr cs:c_26368[si], dl
+	mov byte ptr cs:c_28cba[si], dl
 	dec si
-	jns L266a6
-	mov byte ptr cs:c_26399, 1
+	jns L28ff8
+	mov byte ptr cs:c_28ceb, 1
 	call FAR PTR _start_sequence
 	mov cx, es:[bx+154h]
 	mov word ptr es:[bx+154h], 0
 	mov al, es:[bx+15dh]
 	mov byte ptr es:[bx+15dh], 1
 	cmp cx, 0
-	je L266fc
-L266dd:
+	je L2904e
+L2902f:
 	mov dx, es:[bx+154h]
 	call _step_sequence
 	cmp dx, es:[bx+154h]
-	jb L266f5
-	je L266fc
+	jb L29047
+	je L2904e
 	sub dx, es:[bx+154h]
 	sub cx, dx
-L266f5:
+L29047:
 	cmp cx, es:[bx+154h]
-	jne L266dd
-L266fc:
+	jne L2902f
+L2904e:
 	mov es:[bx+15dh], al
-	mov byte ptr cs:c_26399, 0
+	mov byte ptr cs:c_28ceb, 0
 	mov si, 0eh
-L2670a:
-	mov dl, byte ptr cs:c_26368[si]
+L2905c:
+	mov dl, byte ptr cs:c_28cba[si]
 	or es:[bx+si+143h], dl
 	dec si
-	jns L2670a
+	jns L2905c
 	call _sequencer_tick
 	pop dx
 	pop cx
@@ -675,14 +1023,14 @@ _seek_sequence endp
 /* 0x29073 */
 _set_master_level proc far
 	cmp cl, 0ffh
-	je L2672d
+	je L2907f
 	cmp cl, 0fh
-	jbe L2672d
+	jbe L2907f
 	mov cl, 0fh
-L2672d:
+L2907f:
 	push bp
 	mov bp, 0ch
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	retf
 _set_master_level endp
@@ -690,36 +1038,36 @@ _set_master_level endp
 /* 0x2908a */
 _set_sequence_level proc far
 	cmp cl, 0ffh
-	jne L26748
+	jne L2909a
 	push bp
 	mov bp, 0bh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	retf
-L26748:
+L2909a:
 	cmp cl, 0ah
-	jbe L26754
-	mov al, byte ptr cs:c_26392
+	jbe L290a6
+	mov al, byte ptr cs:c_28ce4
 	xor ah, ah
 	retf
-L26754:
-	mov al, byte ptr cs:c_26392
+L290a6:
+	mov al, byte ptr cs:c_28ce4
 	push es
 	push ax
 	push bx
 	push dx
-	mov byte ptr cs:c_26392, cl
-	les bx, dword ptr cs:c_26198
+	mov byte ptr cs:c_28ce4, cl
+	les bx, dword ptr cs:c_28aea
 	mov dx, es
 	or dx, bx
-	je L2677e
+	je L290d0
 	cmp byte ptr es:[bx+15fh], 7fh
-	jne L2677e
+	jne L290d0
 	push bp
 	mov bp, 0bh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L2677e:
+L290d0:
 	pop dx
 	pop bx
 	pop ax
@@ -735,32 +1083,32 @@ _start_sequence proc far
 	push cx
 	mov cx, es
 	xor di, di
-L2678b:
-	cmp word ptr cs:c_26198[di], ax
-	jne L267a1
-	cmp word ptr cs:c_2619a[di], cx
-	jne L267a1
+L290dd:
+	cmp word ptr cs:c_28aea[di], ax
+	jne L290f3
+	cmp word ptr cs:c_28aec[di], cx
+	jne L290f3
 	call _remove_sequence
 	call _sequencer_tick
-	jmp short L267a9
-L267a1:
+	jmp short L290fb
+L290f3:
 	add di, 4
 	cmp di, 40h
-	jne L2678b
-L267a9:
+	jne L290dd
+L290fb:
 	pop cx
 	mov bx, ax
 	mov byte ptr es:[bx+159h], 1
 	cmp cx, 0
-	je L267bc
+	je L2910e
 	inc byte ptr es:[bx+159h]
-L267bc:
+L2910e:
 	call _init_sequence_params
 	mov bx, ax
 	xor si, si
 	xor cx, cx
 	dec ch
-L267c7:
+L29119:
 	shl si, 1
 	mov word ptr es:[bx+si+0ch], 0dh
 	mov word ptr es:[bx+si+2ch], 3
@@ -781,7 +1129,7 @@ L267c7:
 	mov es:[bx+si+143h], cl
 	inc si
 	cmp si, 0fh
-	jne L267c7
+	jne L29119
 	mov es:[bx+si+8ch], ch
 	mov es:[bx+si+9ch], cl
 	mov es:[bx+si+0ach], cl
@@ -800,37 +1148,37 @@ L267c7:
 	lds bp, dword ptr es:[bx+8]
 	lds bp, dword ptr ds:[bp]
 	cmp byte ptr ds:[bp+20h], 0ffh
-	je L26886
+	je L291d8
 	cmp byte ptr es:[bx+15bh], 0
-	jne L26886
+	jne L291d8
 	mov cl, ds:[bp+20h]
 	mov es:[bx+15ch], cl
-L26886:
+L291d8:
 	mov cx, bp
-L26888:
+L291da:
 	mov dx, ds:[bp]
 	cmp dx, 0
-	je L268c7
+	je L29219
 	mov bp, cx
 	add bp, dx
 	mov dl, ds:[bp]
 	cmp dl, 0feh
-	jne L268ca
-	cmp byte ptr cs:c_26390, 0
-	jne L268bf
+	jne L2921c
+	cmp byte ptr cs:c_28ce2, 0
+	jne L29211
 	shl si, 1
 	mov word ptr es:[bx+si+0ch], 0
 	mov word ptr es:[bx+si+2ch], 0
 	shr si, 1
 	mov byte ptr es:[bx+si+8ch], 0feh
-	jmp L2699a
-L268bf:
+	jmp L292ec
+L29211:
 	mov dx, si
 	inc dx
 	mov es:[bx+165h], dl
-L268c7:
-	jmp L269ab
-L268ca:
+L29219:
+	jmp L292fd
+L2921c:
 	mov es:[bx+si+8ch], dl
 	mov dh, dl
 	or dh, 0b0h
@@ -838,10 +1186,10 @@ L268ca:
 	mov dl, ds:[bp+0ch]
 	xor dh, dh
 	cmp dl, 0f8h
-	jne L268e8
+	jne L2923a
 	mov dl, 0f0h
 	mov dh, 80h
-L268e8:
+L2923a:
 	shl si, 1
 	mov es:[bx+si+4ch], dx
 	shr si, 1
@@ -849,7 +1197,7 @@ L268e8:
 	mov dl, es:[bx+si+8ch]
 	and byte ptr es:[bx+si+8ch], 0fh
 	test dl, 10h
-	je L2691f
+	je L29271
 	shl si, 1
 	mov word ptr es:[bx+si+0ch], 3
 	mov word ptr es:[bx+si+4ch], 0
@@ -857,105 +1205,105 @@ L268e8:
 	mov si, dx
 	and si, 0fh
 	or byte ptr es:[bx+si+134h], 2
-	jmp short L26999
-L2691f:
+	jmp short L292eb
+L29271:
 	xor dh, dh
 	mov si, dx
 	and si, 0fh
 	test dl, 20h
-	je L26932
+	je L29284
 	or byte ptr es:[bx+si+134h], 1
-L26932:
+L29284:
 	test dl, 40h
-	je L2693d
+	je L2928f
 	mov byte ptr es:[bx+si+143h], 1
-L2693d:
+L2928f:
 	cmp si, 0fh
-	jne L26955
+	jne L292a7
 	cmp byte ptr es:[bx+15fh], 7fh
-	jne L26988
+	jne L292da
 	mov al, ds:[bp+8]
 	mov es:[bx+15fh], al
-	jmp short L26999
-L26955:
+	jmp short L292eb
+L292a7:
 	cmp byte ptr es:[bx+si+0dah], 0ffh
-	jne L26966
+	jne L292b8
 	mov al, ds:[bp+1]
 	mov es:[bx+si+0dah], al
-L26966:
+L292b8:
 	cmp byte ptr es:[bx+si+116h], 0ffh
-	jne L26977
+	jne L292c9
 	mov al, ds:[bp+4]
 	mov es:[bx+si+116h], al
-L26977:
+L292c9:
 	cmp byte ptr es:[bx+si+107h], 0ffh
-	jne L26988
+	jne L292da
 	mov al, ds:[bp+8]
 	mov es:[bx+si+107h], al
-L26988:
+L292da:
 	cmp byte ptr es:[bx+si+0f8h], 0ffh
-	jne L26999
+	jne L292eb
 	mov al, ds:[bp+0bh]
 	mov es:[bx+si+0f8h], al
-L26999:
+L292eb:
 	pop si
-L2699a:
+L292ec:
 	inc si
 	shl si, 1
 	mov bp, cx
 	add bp, si
 	shr si, 1
 	cmp si, 10h
-	je L269ab
-	jmp L26888
-L269ab:
+	je L292fd
+	jmp L291da
+L292fd:
 	pop ds
 	pop bp
 	pop ax
 	cmp byte ptr es:[bx+159h], 2
-	jne L269c2
+	jne L29314
 	mov di, 0eh
-L269b9:
+L2930b:
 	or byte ptr es:[bx+di+134h], 1
 	dec di
-	jns L269b9
-L269c2:
+	jns L2930b
+L29314:
 	mov ax, bx
 	mov dl, es:[bx+15ch]
 	push es
 	xor di, di
-L269cc:
-	cmp word ptr cs:c_2619a[di], 0
-	je L26a10
-	les bx, dword ptr cs:c_26198[di]
+L2931e:
+	cmp word ptr cs:c_28aec[di], 0
+	je L29362
+	les bx, dword ptr cs:c_28aea[di]
 	cmp es:[bx+15ch], dl
-	jbe L269eb
+	jbe L2933d
 	add di, 4
 	cmp di, 40h
-	jne L269cc
+	jne L2931e
 	pop es
-	jmp short L26a54
-L269eb:
+	jmp short L293a6
+L2933d:
 	mov si, 38h
-L269ee:
+L29340:
 	mov bx, si
 	add bx, 4
 	cmp bx, di
-	je L26a10
-	mov bx, word ptr cs:c_26198[si]
-	mov word ptr cs:c_2619c[si], bx
-	mov bx, word ptr cs:c_2619a[si]
-	mov word ptr cs:c_2619e[si], bx
+	je L29362
+	mov bx, word ptr cs:c_28aea[si]
+	mov word ptr cs:c_28aee[si], bx
+	mov bx, word ptr cs:c_28aec[si]
+	mov word ptr cs:c_28af0[si], bx
 	sub si, 4
-	jmp short L269ee
-L26a10:
+	jmp short L29340
+L29362:
 	pop es
 	mov bx, ax
 	mov ax, es
-	mov word ptr cs:c_26198[di], bx
-	mov word ptr cs:c_2619a[di], ax
-	cmp byte ptr cs:c_26399, 0
-	jne L26a54
+	mov word ptr cs:c_28aea[di], bx
+	mov word ptr cs:c_28aec[di], ax
+	cmp byte ptr cs:c_28ceb, 0
+	jne L293a6
 	xor cx, cx
 	mov es:[bx+152h], cx
 	mov es:[bx+154h], cx
@@ -966,7 +1314,7 @@ L26a10:
 	mov es:[bx+163h], cl
 	mov es:[bx+164h], cl
 	call _sequencer_tick
-L26a54:
+L293a6:
 	pop cx
 	popf
 	retf
@@ -980,7 +1328,7 @@ _retire_and_tick proc far
 	call _sequencer_tick
 	popf
 	retf
-L26a61:
+L293b3:
 	pushf
 	cli
 	push ax
@@ -988,115 +1336,115 @@ L26a61:
 	push si
 	mov bx, es
 	or bx, ax
-	jne L26aa6
+	jne L293f8
 	xor si, si
-L26a6e:
-	les bx, dword ptr cs:c_26198[si]
+L293c0:
+	les bx, dword ptr cs:c_28aea[si]
 	mov ax, es
 	or ax, bx
-	jne L26a83
+	jne L293d5
 	cmp si, 0
-	jne L26ac1
+	jne L29413
 	mov si, 4
-	jmp short L26a6e
-L26a83:
+	jmp short L293c0
+L293d5:
 	mov al, es:[bx+164h]
 	cmp cl, 0
-	je L26a91
+	je L293e3
 	inc al
-	jmp short L26a97
-L26a91:
+	jmp short L293e9
+L293e3:
 	cmp al, 0
-	je L26a97
+	je L293e9
 	dec al
-L26a97:
+L293e9:
 	mov es:[bx+164h], al
 	add si, 4
 	cmp si, 40h
-	jne L26a6e
-	jmp short L26ac1
-L26aa6:
+	jne L293c0
+	jmp short L29413
+L293f8:
 	mov bx, ax
 	mov al, es:[bx+164h]
 	cmp cl, 0
-	je L26ab6
+	je L29408
 	inc al
-	jmp short L26abc
-L26ab6:
+	jmp short L2940e
+L29408:
 	cmp al, 0
-	je L26abc
+	je L2940e
 	dec al
-L26abc:
+L2940e:
 	mov es:[bx+164h], al
-L26ac1:
+L29413:
 	call _sequencer_tick
 	pop si
 	pop bx
 	pop ax
 	popf
 	retf
-L26ac9:
+L2941b:
 	pushf
 	cli
 	push bx
 	mov bx, ax
 	cmp es:[bx+15eh], dl
-	je L26aea
+	je L2943c
 	mov es:[bx+160h], dl
 	mov es:[bx+161h], cl
 	mov es:[bx+163h], ch
 	mov byte ptr es:[bx+162h], 0
-L26aea:
+L2943c:
 	pop bx
 	popf
 	retf
-L26aed:
+L2943f:
 	push bx
 	mov bx, ax
 	mov es:[bx+15ah], cl
 	pop bx
 	retf
-L26af7:
+L29449:
 	push bx
 	push dx
 	push si
-	inc byte ptr cs:c_26389
+	inc byte ptr cs:c_28cdb
 	mov bx, ax
 	mov si, 0eh
-L26b04:
+L29456:
 	mov dl, es:[bx+si+143h]
 	cmp cx, 0
-	jne L26b18
+	jne L2946a
 	cmp dl, 0fh
-	jbe L26b20
+	jbe L29472
 	sub dl, 10h
-	jmp short L26b20
-L26b18:
+	jmp short L29472
+L2946a:
 	cmp dl, 0f0h
-	jae L26b20
+	jae L29472
 	add dl, 10h
-L26b20:
+L29472:
 	mov es:[bx+si+143h], dl
 	dec si
-	jns L26b04
+	jns L29456
 	call _sequencer_tick
-	dec byte ptr cs:c_26389
+	dec byte ptr cs:c_28cdb
 	pop si
 	pop dx
 	pop bx
 	retf
-L26b34:
+L29486:
 	pushf
 	cli
 	push bx
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	xor ch, ch
 	call _set_sequence_volume
 	pop bx
 	popf
 	retf
-L26b44:
+L29496:
 	pushf
 	cli
 	push bx
@@ -1106,61 +1454,61 @@ L26b44:
 	push di
 	mov bx, ax
 	cmp es:[bx+15ch], cl
-	jne L26b57
-	jmp L26bfb
-L26b57:
+	jne L294a9
+	jmp L2954d
+L294a9:
 	mov es:[bx+15ch], cl
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	jne L26b68
-	jmp L26bfb
-L26b68:
-	mov word ptr cs:c_26198[si], 0
-	mov word ptr cs:c_2619a[si], 0
+	jne L294ba
+	jmp L2954d
+L294ba:
+	mov word ptr cs:c_28aea[si], 0
+	mov word ptr cs:c_28aec[si], 0
 	cmp si, 3ch
-	je L26ba5
-L26b7b:
-	mov cx, word ptr cs:c_2619c[si]
-	mov word ptr cs:c_26198[si], cx
-	mov cx, word ptr cs:c_2619e[si]
-	mov word ptr cs:c_2619a[si], cx
+	je L294f7
+L294cd:
+	mov cx, word ptr cs:c_28aee[si]
+	mov word ptr cs:c_28aea[si], cx
+	mov cx, word ptr cs:c_28af0[si]
+	mov word ptr cs:c_28aec[si], cx
 	add si, 4
 	cmp si, 3ch
-	jne L26b7b
-	mov word ptr cs:c_26198[si], 0
-	mov word ptr cs:c_2619a[si], 0
-L26ba5:
+	jne L294cd
+	mov word ptr cs:c_28aea[si], 0
+	mov word ptr cs:c_28aec[si], 0
+L294f7:
 	mov dl, es:[bx+15ch]
 	push es
 	xor di, di
-L26bad:
-	cmp word ptr cs:c_2619a[di], 0
-	je L26beb
-	les bx, dword ptr cs:c_26198[di]
+L294ff:
+	cmp word ptr cs:c_28aec[di], 0
+	je L2953d
+	les bx, dword ptr cs:c_28aea[di]
 	mov es:[bx+15ch], dl
-	jbe L26bc6
+	jbe L29518
 	add di, 4
-	jmp short L26bad
-L26bc6:
+	jmp short L294ff
+L29518:
 	mov si, 38h
-L26bc9:
+L2951b:
 	mov bx, si
 	add bx, 4
 	cmp bx, di
-	je L26beb
-	mov bx, word ptr cs:c_26198[si]
-	mov word ptr cs:c_2619c[si], bx
-	mov bx, word ptr cs:c_2619a[si]
-	mov word ptr cs:c_2619e[si], bx
+	je L2953d
+	mov bx, word ptr cs:c_28aea[si]
+	mov word ptr cs:c_28aee[si], bx
+	mov bx, word ptr cs:c_28aec[si]
+	mov word ptr cs:c_28af0[si], bx
 	sub si, 4
-	jmp short L26bc9
-L26beb:
+	jmp short L2951b
+L2953d:
 	pop es
-	mov word ptr cs:c_26198[di], ax
+	mov word ptr cs:c_28aea[di], ax
 	mov cx, es
-	mov word ptr cs:c_2619a[di], cx
+	mov word ptr cs:c_28aec[di], cx
 	call _sequencer_tick
-L26bfb:
+L2954d:
 	pop di
 	pop si
 	pop dx
@@ -1168,26 +1516,26 @@ L26bfb:
 	pop bx
 	popf
 	retf
-L26c02:
+L29554:
 	push bx
 	mov bx, ax
 	mov cl, es:[bx+158h]
 	pop bx
 	retf
-L26c0c:
+L2955e:
 	push bx
 	mov bx, ax
 	xor cl, cl
 	xchg es:[bx+158h], cl
 	pop bx
 	retf
-L26c18:
+L2956a:
 	push bx
 	mov bx, ax
 	mov cx, es:[bx+152h]
 	pop bx
 	retf
-L26c22:
+L29574:
 	push ax
 	push bx
 	mov bx, ax
@@ -1206,16 +1554,16 @@ L26c22:
 	pop bx
 	pop ax
 	retf
-L26c43:
+L29595:
 	push ax
 	push bx
 	push dx
 	push si
-	inc byte ptr cs:c_26389
+	inc byte ptr cs:c_28cdb
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	je L26c8b
+	je L295dd
 	push si
 	xor dh, dh
 	mov si, dx
@@ -1227,38 +1575,38 @@ L26c43:
 	shl dl, 1
 	or dl, al
 	xor si, si
-	jmp short L26c78
-c_26c71 label byte
+	jmp short L295ca
+c_295c3 label byte
 	db 90h
-L26c72:
+L295c4:
 	inc si
 	cmp si, 10h
-	je L26c8b
-L26c78:
-	cmp byte ptr cs:c_262b8[si], dl
-	jne L26c72
+	je L295dd
+L295ca:
+	cmp byte ptr cs:c_28c0a[si], dl
+	jne L295c4
 	mov ax, si
 	push bp
 	mov bp, 4
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L26c8b:
-	dec byte ptr cs:c_26389
+L295dd:
+	dec byte ptr cs:c_28cdb
 	pop dx
 	pop bx
 	pop ax
 	pop si
 	retf
-L26c95:
+L295e7:
 	push ax
 	push bx
 	push dx
 	push si
-	inc byte ptr cs:c_26389
+	inc byte ptr cs:c_28cdb
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	je L26cdc
+	je L2962e
 	push si
 	xor dh, dh
 	mov si, dx
@@ -1270,29 +1618,29 @@ L26c95:
 	shl dl, 1
 	or dl, al
 	xor si, si
-	jmp short L26cc9
-c_26cc2 label byte
+	jmp short L2961b
+c_29614 label byte
 	db 90h
-L26cc3:
+L29615:
 	inc si
 	cmp si, 10h
-	je L26cdc
-L26cc9:
-	cmp byte ptr cs:c_262b8[si], dl
-	jne L26cc3
+	je L2962e
+L2961b:
+	cmp byte ptr cs:c_28c0a[si], dl
+	jne L29615
 	mov ax, si
 	push bp
 	mov bp, 5
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L26cdc:
-	dec byte ptr cs:c_26389
+L2962e:
+	dec byte ptr cs:c_28cdb
 	pop dx
 	pop bx
 	pop ax
 	pop si
 	retf
-L26ce6:
+L29638:
 	pushf
 	cli
 	push ax
@@ -1301,70 +1649,70 @@ L26ce6:
 	push dx
 	push si
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	jne L26cfb
-	jmp L26dbd
-L26cfb:
+	jne L2964d
+	jmp L2970f
+L2964d:
 	push si
 	xor dh, dh
 	mov si, dx
 	cmp ch, 7
-	jne L26d14
+	jne L29666
 	mov es:[bx+si+107h], cl
 	mov dl, es:[bx+15eh]
 	call _scale_byte_pair
-	jmp short L26d84
-L26d14:
+	jmp short L296d6
+L29666:
 	cmp ch, 0ah
-	jne L26d20
+	jne L29672
 	mov es:[bx+si+0f8h], cl
-	jmp short L26d84
-L26d20:
+	jmp short L296d6
+L29672:
 	cmp ch, 1
-	jne L26d2c
+	jne L2967e
 	mov es:[bx+si+0e9h], cl
-	jmp short L26d84
-L26d2c:
+	jmp short L296d6
+L2967e:
 	cmp ch, 40h
-	jne L26d4c
+	jne L2969e
 	shl si, 1
 	mov ax, es:[bx+si+0bch]
 	and ah, 7fh
 	cmp cl, 0
-	je L26d43
+	je L29695
 	or ah, 80h
-L26d43:
+L29695:
 	mov es:[bx+si+0bch], ax
 	shr si, 1
-	jmp short L26d84
-L26d4c:
+	jmp short L296d6
+L2969e:
 	cmp ch, 4eh
-	jne L26d7a
+	jne L296cc
 	push dx
 	mov dl, es:[bx+si+143h]
 	cmp cl, 0
-	jne L26d66
+	jne L296b8
 	cmp dl, 0fh
-	jbe L26d76
+	jbe L296c8
 	sub dl, 10h
-	jmp short L26d6e
-L26d66:
+	jmp short L296c0
+L296b8:
 	cmp dl, 0f0h
-	jae L26d76
+	jae L296c8
 	add dl, 10h
-L26d6e:
+L296c0:
 	mov es:[bx+si+143h], dl
 	call _sequencer_tick
-L26d76:
+L296c8:
 	pop dx
 	pop si
-	jmp short L26dbd
-L26d7a:
+	jmp short L2970f
+L296cc:
 	cmp ch, 7fh
-	jne L26d84
+	jne L296d6
 	mov es:[bx+si+116h], cl
-L26d84:
+L296d6:
 	mov ax, si
 	pop si
 	mov dx, si
@@ -1372,28 +1720,28 @@ L26d84:
 	shl dl, 1
 	or dl, al
 	xor si, si
-L26d91:
-	cmp byte ptr cs:c_262b8[si], dl
-	je L26da0
+L296e3:
+	cmp byte ptr cs:c_28c0a[si], dl
+	je L296f2
 	inc si
 	cmp si, 10h
-	jne L26d91
-	jmp short L26dbd
-L26da0:
+	jne L296e3
+	jmp short L2970f
+L296f2:
 	mov ax, si
 	cmp ch, 7fh
-	jne L26db3
+	jne L29705
 	push bp
 	mov bp, 8
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-	jmp short L26dbd
-L26db3:
+	jmp short L2970f
+L29705:
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L26dbd:
+L2970f:
 	pop si
 	pop dx
 	pop cx
@@ -1401,16 +1749,16 @@ L26dbd:
 	pop ax
 	popf
 	retf
-L26dc4:
+L29716:
 	push ax
 	push bx
 	push dx
 	push si
-	inc byte ptr cs:c_26389
+	inc byte ptr cs:c_28cdb
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	je L26e0b
+	je L2975d
 	push si
 	xor dh, dh
 	mov si, dx
@@ -1422,47 +1770,47 @@ L26dc4:
 	shl dl, 1
 	or dl, al
 	xor si, si
-	jmp short L26df8
-c_26df1 label byte
+	jmp short L2974a
+c_29743 label byte
 	db 90h
-L26df2:
+L29744:
 	inc si
 	cmp si, 10h
-	je L26e0b
-L26df8:
-	cmp byte ptr cs:c_262b8[si], dl
-	jne L26df2
+	je L2975d
+L2974a:
+	cmp byte ptr cs:c_28c0a[si], dl
+	jne L29744
 	mov ax, si
 	push bp
 	mov bp, 8
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L26e0b:
-	dec byte ptr cs:c_26389
+L2975d:
+	dec byte ptr cs:c_28cdb
 	pop dx
 	pop bx
 	pop ax
 	pop si
 	retf
-L26e15:
+L29767:
 	push ax
 	push bx
 	push cx
 	push dx
 	push si
 	mov bx, ax
-	call L282e3
+	call L2ac2f
 	cmp si, 0ffh
-	je L26e75
+	je L297c7
 	push si
 	xor dh, dh
 	mov si, dx
 	shl si, 1
 	mov ax, cx
 	cmp byte ptr es:[bx+si+0bdh], 80h
-	jb L26e39
+	jb L2978b
 	or ah, 80h
-L26e39:
+L2978b:
 	mov es:[bx+si+0bch], ax
 	shr si, 1
 	mov dx, si
@@ -1471,27 +1819,27 @@ L26e39:
 	shl si, 1
 	or dx, si
 	xor si, si
-L26e4b:
-	cmp byte ptr cs:c_262b8[si], dl
-	je L26e5a
+L2979d:
+	cmp byte ptr cs:c_28c0a[si], dl
+	je L297ac
 	inc si
 	cmp si, 10h
-	jne L26e4b
-	jmp short L26e75
-L26e5a:
+	jne L2979d
+	jmp short L297c7
+L297ac:
 	shl ch, 1
 	cmp cl, 80h
-	jb L26e64
+	jb L297b6
 	or ch, 1
-L26e64:
+L297b6:
 	and cl, 7fh
 	xchg ch, cl
 	mov ax, si
 	push bp
 	mov bp, 0ah
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L26e75:
+L297c7:
 	pop si
 	pop dx
 	pop cx
@@ -1500,7 +1848,7 @@ L26e75:
 	retf
 _retire_and_tick endp
 
-/* 0x297cd (1.00's; not yet placed in 1.11) */
+/* 0x297cd */
 _remove_sequence proc near
 	push si
 	push es
@@ -1510,42 +1858,42 @@ _remove_sequence proc near
 	push bp
 	xor si, si
 	mov cx, es
-L26e85:
-	cmp ax, word ptr cs:c_26198[si]
-	jne L26e93
-	cmp cx, word ptr cs:c_2619a[si]
-	je L26e9e
-L26e93:
+L297d7:
+	cmp ax, word ptr cs:c_28aea[si]
+	jne L297e5
+	cmp cx, word ptr cs:c_28aec[si]
+	je L297f0
+L297e5:
 	add si, 4
 	cmp si, 40h
-	jne L26e85
-	jmp L26f23
-L26e9e:
-	mov word ptr cs:c_26198[si], 0
-	mov word ptr cs:c_2619a[si], 0
+	jne L297d7
+	jmp L29875
+L297f0:
+	mov word ptr cs:c_28aea[si], 0
+	mov word ptr cs:c_28aec[si], 0
 	cmp si, 3ch
-	je L26edb
-L26eb1:
-	mov cx, word ptr cs:c_2619c[si]
-	mov word ptr cs:c_26198[si], cx
-	mov cx, word ptr cs:c_2619e[si]
-	mov word ptr cs:c_2619a[si], cx
+	je L2982d
+L29803:
+	mov cx, word ptr cs:c_28aee[si]
+	mov word ptr cs:c_28aea[si], cx
+	mov cx, word ptr cs:c_28af0[si]
+	mov word ptr cs:c_28aec[si], cx
 	add si, 4
 	cmp si, 3ch
-	jne L26eb1
-	mov word ptr cs:c_26198[si], 0
-	mov word ptr cs:c_2619a[si], 0
-L26edb:
+	jne L29803
+	mov word ptr cs:c_28aea[si], 0
+	mov word ptr cs:c_28aec[si], 0
+L2982d:
 	mov bx, ax
 	mov byte ptr es:[bx+158h], 0ffh
 	mov byte ptr es:[bx+159h], 0
 	cmp byte ptr es:[bx+165h], 0
-	je L26f23
+	je L29875
 	lds bp, dword ptr es:[bx+8]
 	lds bp, dword ptr ds:[bp]
 	mov al, es:[bx+165h]
 	cmp al, 80h
-	jb L26f23
+	jb L29875
 	and ax, 0fh
 	dec ax
 	shl ax, 1
@@ -1561,7 +1909,7 @@ L26edb:
 	push ax
 	call FAR PTR _sound_callback
 	add sp, 4
-L26f23:
+L29875:
 	pop bp
 	pop ds
 	pop bx
@@ -1581,201 +1929,201 @@ _sequencer_tick proc near
 	push si
 	push bp
 	push es
-	inc byte ptr cs:c_26389
-	mov byte ptr cs:c_26394, 0
+	inc byte ptr cs:c_28cdb
+	mov byte ptr cs:c_28ce6, 0
 	xor ax, ax
 	mov bx, 0ffffh
-	mov word ptr cs:c_262b8, bx
-	mov word ptr cs:c_262ba, bx
-	mov word ptr cs:c_262bc, bx
-	mov word ptr cs:c_262be, bx
-	mov word ptr cs:c_262c0, bx
-	mov word ptr cs:c_262c2, bx
-	mov word ptr cs:c_262c4, bx
-	mov word ptr cs:c_262c6, bx
-	mov word ptr cs:c_262e8, ax
-	mov word ptr cs:c_262ea, ax
-	mov word ptr cs:c_262ec, ax
-	mov word ptr cs:c_262ee, ax
-	mov word ptr cs:c_262f0, ax
-	mov word ptr cs:c_262f2, ax
-	mov word ptr cs:c_262f4, ax
-	mov word ptr cs:c_262f6, ax
-	mov word ptr cs:c_262c8, ax
-	mov word ptr cs:c_262ca, ax
-	mov word ptr cs:c_262cc, ax
-	mov word ptr cs:c_262ce, ax
-	mov word ptr cs:c_262d0, ax
-	mov word ptr cs:c_262d2, ax
-	mov word ptr cs:c_262d4, ax
-	mov word ptr cs:c_262d6, ax
-	mov word ptr cs:c_262d8, ax
-	mov word ptr cs:c_262da, ax
-	mov word ptr cs:c_262dc, ax
-	mov word ptr cs:c_262de, ax
-	mov word ptr cs:c_262e0, ax
-	mov word ptr cs:c_262e2, ax
-	mov word ptr cs:c_262e4, ax
-	mov word ptr cs:c_262e6, ax
-	mov word ptr cs:c_262f8, bx
-	mov word ptr cs:c_262fa, bx
-	mov word ptr cs:c_262fc, bx
-	mov word ptr cs:c_262fe, bx
-	mov word ptr cs:c_26300, bx
-	mov word ptr cs:c_26302, bx
-	mov word ptr cs:c_26304, bx
-	mov word ptr cs:c_26306, bx
-	mov word ptr cs:c_261d8, ax
-	mov word ptr cs:c_261da, ax
-	les bx, dword ptr cs:c_26198
+	mov word ptr cs:c_28c0a, bx
+	mov word ptr cs:c_28c0c, bx
+	mov word ptr cs:c_28c0e, bx
+	mov word ptr cs:c_28c10, bx
+	mov word ptr cs:c_28c12, bx
+	mov word ptr cs:c_28c14, bx
+	mov word ptr cs:c_28c16, bx
+	mov word ptr cs:c_28c18, bx
+	mov word ptr cs:c_28c3a, ax
+	mov word ptr cs:c_28c3c, ax
+	mov word ptr cs:c_28c3e, ax
+	mov word ptr cs:c_28c40, ax
+	mov word ptr cs:c_28c42, ax
+	mov word ptr cs:c_28c44, ax
+	mov word ptr cs:c_28c46, ax
+	mov word ptr cs:c_28c48, ax
+	mov word ptr cs:c_28c1a, ax
+	mov word ptr cs:c_28c1c, ax
+	mov word ptr cs:c_28c1e, ax
+	mov word ptr cs:c_28c20, ax
+	mov word ptr cs:c_28c22, ax
+	mov word ptr cs:c_28c24, ax
+	mov word ptr cs:c_28c26, ax
+	mov word ptr cs:c_28c28, ax
+	mov word ptr cs:c_28c2a, ax
+	mov word ptr cs:c_28c2c, ax
+	mov word ptr cs:c_28c2e, ax
+	mov word ptr cs:c_28c30, ax
+	mov word ptr cs:c_28c32, ax
+	mov word ptr cs:c_28c34, ax
+	mov word ptr cs:c_28c36, ax
+	mov word ptr cs:c_28c38, ax
+	mov word ptr cs:c_28c4a, bx
+	mov word ptr cs:c_28c4c, bx
+	mov word ptr cs:c_28c4e, bx
+	mov word ptr cs:c_28c50, bx
+	mov word ptr cs:c_28c52, bx
+	mov word ptr cs:c_28c54, bx
+	mov word ptr cs:c_28c56, bx
+	mov word ptr cs:c_28c58, bx
+	mov word ptr cs:c_28b2a, ax
+	mov word ptr cs:c_28b2c, ax
+	les bx, dword ptr cs:c_28aea
 	mov dx, es
 	or dx, bx
-	jne L27033
+	jne L29985
 	mov dx, 0ffffh
-	mov word ptr cs:c_262b8, dx
-	mov word ptr cs:c_262ba, dx
-	mov word ptr cs:c_262bc, dx
-	mov word ptr cs:c_262be, dx
-	mov word ptr cs:c_262c0, dx
-	mov word ptr cs:c_262c2, dx
-	mov word ptr cs:c_262c4, dx
-	mov word ptr cs:c_262c6, dx
-	jmp L27801
-L27033:
+	mov word ptr cs:c_28c0a, dx
+	mov word ptr cs:c_28c0c, dx
+	mov word ptr cs:c_28c0e, dx
+	mov word ptr cs:c_28c10, dx
+	mov word ptr cs:c_28c12, dx
+	mov word ptr cs:c_28c14, dx
+	mov word ptr cs:c_28c16, dx
+	mov word ptr cs:c_28c18, dx
+	jmp L2a153
+L29985:
 	mov cl, es:[bx+15fh]
 	cmp cl, 7fh
-	jne L27042
-	mov cl, byte ptr cs:c_26392
-L27042:
+	jne L29994
+	mov cl, byte ptr cs:c_28ce4
+L29994:
 	push bp
 	mov bp, 0bh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	xor bp, bp
 	xor si, si
-	mov al, byte ptr cs:c_2638f
-L27054:
-	les bx, dword ptr cs:c_26198[si]
+	mov al, byte ptr cs:c_28ce1
+L299a6:
+	les bx, dword ptr cs:c_28aea[si]
 	mov dx, es
 	or dx, bx
-	jne L27062
-	jmp L2754c
-L27062:
-	les bx, dword ptr cs:c_26198[si]
+	jne L299b4
+	jmp L29e9e
+L299b4:
+	les bx, dword ptr cs:c_28aea[si]
 	cmp byte ptr es:[bx+164h], 0
-	je L27072
-	jmp L2753e
-L27072:
+	je L299c4
+	jmp L29e90
+L299c4:
 	cmp byte ptr es:[bx+165h], 0
-	je L2709f
-	cmp word ptr cs:c_261d8, 0
-	je L27085
-	jmp L2753e
-L27085:
-	cmp word ptr cs:c_261da, 0
-	je L27090
-	jmp L2753e
-L27090:
-	mov word ptr cs:c_261d8, bx
+	je L299f1
+	cmp word ptr cs:c_28b2a, 0
+	je L299d7
+	jmp L29e90
+L299d7:
+	cmp word ptr cs:c_28b2c, 0
+	je L299e2
+	jmp L29e90
+L299e2:
+	mov word ptr cs:c_28b2a, bx
 	mov bx, es
-	mov word ptr cs:c_261da, bx
-	jmp L2753e
-L2709f:
+	mov word ptr cs:c_28b2c, bx
+	jmp L29e90
+L299f1:
 	push ax
-	mov ax, word ptr cs:c_262f8
-	mov word ptr cs:c_26338, ax
-	mov ax, word ptr cs:c_262fa
-	mov word ptr cs:c_2633a, ax
-	mov ax, word ptr cs:c_262fc
-	mov word ptr cs:c_2633c, ax
-	mov ax, word ptr cs:c_262fe
-	mov word ptr cs:c_2633e, ax
-	mov ax, word ptr cs:c_26300
-	mov word ptr cs:c_26340, ax
-	mov ax, word ptr cs:c_26302
-	mov word ptr cs:c_26342, ax
-	mov ax, word ptr cs:c_26304
-	mov word ptr cs:c_26344, ax
-	mov ax, word ptr cs:c_26306
-	mov word ptr cs:c_26346, ax
-	mov ax, word ptr cs:c_262d8
-	mov word ptr cs:c_26318, ax
-	mov ax, word ptr cs:c_262da
-	mov word ptr cs:c_2631a, ax
-	mov ax, word ptr cs:c_262dc
-	mov word ptr cs:c_2631c, ax
-	mov ax, word ptr cs:c_262de
-	mov word ptr cs:c_2631e, ax
-	mov ax, word ptr cs:c_262e0
-	mov word ptr cs:c_26320, ax
-	mov ax, word ptr cs:c_262e2
-	mov word ptr cs:c_26322, ax
-	mov ax, word ptr cs:c_262e4
-	mov word ptr cs:c_26324, ax
-	mov ax, word ptr cs:c_262e6
-	mov word ptr cs:c_26326, ax
-	mov ax, word ptr cs:c_262e8
-	mov word ptr cs:c_26328, ax
-	mov ax, word ptr cs:c_262ea
-	mov word ptr cs:c_2632a, ax
-	mov ax, word ptr cs:c_262ec
-	mov word ptr cs:c_2632c, ax
-	mov ax, word ptr cs:c_262ee
-	mov word ptr cs:c_2632e, ax
-	mov ax, word ptr cs:c_262f0
-	mov word ptr cs:c_26330, ax
-	mov ax, word ptr cs:c_262f2
-	mov word ptr cs:c_26332, ax
-	mov ax, word ptr cs:c_262f4
-	mov word ptr cs:c_26334, ax
-	mov ax, word ptr cs:c_262f6
-	mov word ptr cs:c_26336, ax
-	mov ax, word ptr cs:c_262c8
-	mov word ptr cs:c_26308, ax
-	mov ax, word ptr cs:c_262ca
-	mov word ptr cs:c_2630a, ax
-	mov ax, word ptr cs:c_262cc
-	mov word ptr cs:c_2630c, ax
-	mov ax, word ptr cs:c_262ce
-	mov word ptr cs:c_2630e, ax
-	mov ax, word ptr cs:c_262d0
-	mov word ptr cs:c_26310, ax
-	mov ax, word ptr cs:c_262d2
-	mov word ptr cs:c_26312, ax
-	mov ax, word ptr cs:c_262d4
-	mov word ptr cs:c_26314, ax
-	mov ax, word ptr cs:c_262d6
-	mov word ptr cs:c_26316, ax
+	mov ax, word ptr cs:c_28c4a
+	mov word ptr cs:c_28c8a, ax
+	mov ax, word ptr cs:c_28c4c
+	mov word ptr cs:c_28c8c, ax
+	mov ax, word ptr cs:c_28c4e
+	mov word ptr cs:c_28c8e, ax
+	mov ax, word ptr cs:c_28c50
+	mov word ptr cs:c_28c90, ax
+	mov ax, word ptr cs:c_28c52
+	mov word ptr cs:c_28c92, ax
+	mov ax, word ptr cs:c_28c54
+	mov word ptr cs:c_28c94, ax
+	mov ax, word ptr cs:c_28c56
+	mov word ptr cs:c_28c96, ax
+	mov ax, word ptr cs:c_28c58
+	mov word ptr cs:c_28c98, ax
+	mov ax, word ptr cs:c_28c2a
+	mov word ptr cs:c_28c6a, ax
+	mov ax, word ptr cs:c_28c2c
+	mov word ptr cs:c_28c6c, ax
+	mov ax, word ptr cs:c_28c2e
+	mov word ptr cs:c_28c6e, ax
+	mov ax, word ptr cs:c_28c30
+	mov word ptr cs:c_28c70, ax
+	mov ax, word ptr cs:c_28c32
+	mov word ptr cs:c_28c72, ax
+	mov ax, word ptr cs:c_28c34
+	mov word ptr cs:c_28c74, ax
+	mov ax, word ptr cs:c_28c36
+	mov word ptr cs:c_28c76, ax
+	mov ax, word ptr cs:c_28c38
+	mov word ptr cs:c_28c78, ax
+	mov ax, word ptr cs:c_28c3a
+	mov word ptr cs:c_28c7a, ax
+	mov ax, word ptr cs:c_28c3c
+	mov word ptr cs:c_28c7c, ax
+	mov ax, word ptr cs:c_28c3e
+	mov word ptr cs:c_28c7e, ax
+	mov ax, word ptr cs:c_28c40
+	mov word ptr cs:c_28c80, ax
+	mov ax, word ptr cs:c_28c42
+	mov word ptr cs:c_28c82, ax
+	mov ax, word ptr cs:c_28c44
+	mov word ptr cs:c_28c84, ax
+	mov ax, word ptr cs:c_28c46
+	mov word ptr cs:c_28c86, ax
+	mov ax, word ptr cs:c_28c48
+	mov word ptr cs:c_28c88, ax
+	mov ax, word ptr cs:c_28c1a
+	mov word ptr cs:c_28c5a, ax
+	mov ax, word ptr cs:c_28c1c
+	mov word ptr cs:c_28c5c, ax
+	mov ax, word ptr cs:c_28c1e
+	mov word ptr cs:c_28c5e, ax
+	mov ax, word ptr cs:c_28c20
+	mov word ptr cs:c_28c60, ax
+	mov ax, word ptr cs:c_28c22
+	mov word ptr cs:c_28c62, ax
+	mov ax, word ptr cs:c_28c24
+	mov word ptr cs:c_28c64, ax
+	mov ax, word ptr cs:c_28c26
+	mov word ptr cs:c_28c66, ax
+	mov ax, word ptr cs:c_28c28
+	mov word ptr cs:c_28c68, ax
 	pop ax
-	mov byte ptr cs:c_26393, al
+	mov byte ptr cs:c_28ce5, al
 	xor di, di
-L271a7:
+L29af9:
 	mov cl, es:[bx+di+8ch]
 	cmp cl, 0ffh
-	jne L271b4
-	jmp L2742c
-L271b4:
+	jne L29b06
+	jmp L29d7e
+L29b06:
 	cmp cl, 0feh
-	jne L271bc
-	jmp L2742c
-L271bc:
+	jne L29b0e
+	jmp L29d7e
+L29b0e:
 	cmp cl, 0fh
-	jne L271c4
-	jmp L2742c
-L271c4:
+	jne L29b16
+	jmp L29d7e
+L29b16:
 	push di
 	mov di, cx
 	and di, 0ffh
 	test byte ptr es:[bx+di+134h], 2
-	je L271d7
+	je L29b29
 	pop di
-	jmp L2742c
-L271d7:
+	jmp L29d7e
+L29b29:
 	test byte ptr es:[bx+di+143h], 0ffh
 	pop di
-	je L271e3
-	jmp L2742c
-L271e3:
+	je L29b35
+	jmp L29d7e
+L29b35:
 	mov dx, si
 	shl dl, 1
 	shl dl, 1
@@ -1791,324 +2139,324 @@ L271e3:
 	shr ch, 1
 	shr ch, 1
 	shr ch, 1
-	je L27215
+	je L29b67
 	push dx
 	mov dx, 10h
 	sub dl, ch
 	add dx, bp
 	mov ch, dl
 	pop dx
-L27215:
+L29b67:
 	push di
 	mov di, cx
 	and di, 0ffh
 	test byte ptr es:[bx+di+134h], 1
-	je L27232
-	cmp byte ptr cs:c_262f8[di], 0ffh
-	jne L27232
+	je L29b84
+	cmp byte ptr cs:c_28c4a[di], 0ffh
+	jne L29b84
 	pop di
 	mov dh, cl
-	jmp L272c2
-L27232:
+	jmp L29c14
+L29b84:
 	pop di
 	mov dh, 0ffh
 	push bx
 	xor bx, bx
-L27238:
-	cmp byte ptr cs:c_262f8[bx], 0ffh
-	je L2724b
-	cmp byte ptr cs:c_262f8[bx], dl
-	jne L2725b
+L29b8a:
+	cmp byte ptr cs:c_28c4a[bx], 0ffh
+	je L29b9d
+	cmp byte ptr cs:c_28c4a[bx], dl
+	jne L29bad
 	pop bx
-	jmp L2742c
-L2724b:
-	cmp bl, byte ptr cs:c_2638a
-	jb L2725b
-	cmp bl, byte ptr cs:c_2638b
-	ja L2725b
+	jmp L29d7e
+L29b9d:
+	cmp bl, byte ptr cs:c_28cdc
+	jb L29bad
+	cmp bl, byte ptr cs:c_28cdd
+	ja L29bad
 	mov dh, bl
-L2725b:
+L29bad:
 	inc bl
 	cmp bl, 10h
-	jne L27238
+	jne L29b8a
 	pop bx
 	cmp dh, 0ffh
-	jne L272c2
+	jne L29c14
 	cmp ch, 0
-	je L27270
-	jmp L2753e
-L27270:
+	je L29bc2
+	jmp L29e90
+L29bc2:
 	push di
 	push cx
 	push ax
 	mov dh, 0ffh
 	xor ax, ax
 	xor di, di
-L27279:
-	cmp al, byte ptr cs:c_262d8[di]
-	jae L27289
-	mov al, byte ptr cs:c_262d8[di]
+L29bcb:
+	cmp al, byte ptr cs:c_28c2a[di]
+	jae L29bdb
+	mov al, byte ptr cs:c_28c2a[di]
 	mov cx, di
 	mov dh, cl
-L27289:
+L29bdb:
 	inc di
 	cmp di, 10h
-	jne L27279
+	jne L29bcb
 	pop ax
 	cmp dh, 0ffh
-	je L272b8
+	je L29c0a
 	xor cx, cx
 	mov cl, dh
 	mov di, cx
-	add al, byte ptr cs:c_262e8[di]
-	mov byte ptr cs:c_262f8[di], 0ffh
-	mov byte ptr cs:c_262e8[di], 0
-	mov byte ptr cs:c_262d8[di], 0
-	mov byte ptr cs:c_262c8[di], 0
-L272b8:
+	add al, byte ptr cs:c_28c3a[di]
+	mov byte ptr cs:c_28c4a[di], 0ffh
+	mov byte ptr cs:c_28c3a[di], 0
+	mov byte ptr cs:c_28c2a[di], 0
+	mov byte ptr cs:c_28c1a[di], 0
+L29c0a:
 	pop cx
 	pop di
 	cmp dh, 0ffh
-	jne L272c2
-	jmp L27438
-L272c2:
+	jne L29c14
+	jmp L29d8a
+L29c14:
 	cmp ah, al
-	jbe L27324
+	jbe L29c76
 	cmp ch, 0
-	je L272ce
-	jmp L2742c
-L272ce:
+	je L29c20
+	jmp L29d7e
+L29c20:
 	push di
 	push cx
 	push ax
 	mov dh, 0ffh
 	xor ax, ax
 	xor di, di
-L272d7:
-	cmp al, byte ptr cs:c_262d8[di]
-	jae L272e7
-	mov al, byte ptr cs:c_262d8[di]
+L29c29:
+	cmp al, byte ptr cs:c_28c2a[di]
+	jae L29c39
+	mov al, byte ptr cs:c_28c2a[di]
 	mov cx, di
 	mov dh, cl
-L272e7:
+L29c39:
 	inc di
 	cmp di, 10h
-	jne L272d7
+	jne L29c29
 	pop ax
 	cmp dh, 0ffh
-	je L27316
+	je L29c68
 	xor cx, cx
 	mov cl, dh
 	mov di, cx
-	add al, byte ptr cs:c_262e8[di]
-	mov byte ptr cs:c_262f8[di], 0ffh
-	mov byte ptr cs:c_262e8[di], 0
-	mov byte ptr cs:c_262d8[di], 0
-	mov byte ptr cs:c_262c8[di], 0
-L27316:
+	add al, byte ptr cs:c_28c3a[di]
+	mov byte ptr cs:c_28c4a[di], 0ffh
+	mov byte ptr cs:c_28c3a[di], 0
+	mov byte ptr cs:c_28c2a[di], 0
+	mov byte ptr cs:c_28c1a[di], 0
+L29c68:
 	pop cx
 	pop di
 	cmp dh, 0ffh
-	jne L27320
-	jmp L27438
-L27320:
+	jne L29c72
+	jmp L29d8a
+L29c72:
 	cmp ah, al
-	ja L272ce
-L27324:
+	ja L29c20
+L29c76:
 	push di
 	xchg dl, dh
 	mov di, dx
 	xchg dl, dh
 	and di, 0ffh
-	mov byte ptr cs:c_262f8[di], dl
-	mov byte ptr cs:c_262e8[di], ah
+	mov byte ptr cs:c_28c4a[di], dl
+	mov byte ptr cs:c_28c3a[di], ah
 	sub al, ah
-	mov byte ptr cs:c_262d8[di], ch
+	mov byte ptr cs:c_28c2a[di], ch
 	push di
 	mov di, cx
 	and di, 0ffh
 	test byte ptr es:[bx+di+134h], 1
 	pop di
-	jne L2735a
-	mov byte ptr cs:c_262c8[di], 0
+	jne L29cac
+	mov byte ptr cs:c_28c1a[di], 0
 	pop di
-	jmp L2742c
-L2735a:
-	mov byte ptr cs:c_262c8[di], 1
+	jmp L29d7e
+L29cac:
+	mov byte ptr cs:c_28c1a[di], 1
 	cmp dh, cl
-	jne L27368
+	jne L29cba
 	pop di
-	jmp L2742c
-L27368:
+	jmp L29d7e
+L29cba:
 	push si
 	mov si, cx
 	and si, 0ffh
-	cmp byte ptr cs:c_262c8[si], 0
-	jne L273cd
+	cmp byte ptr cs:c_28c1a[si], 0
+	jne L29d1f
 	push ax
-	mov al, byte ptr cs:c_262f8[di]
-	mov ah, byte ptr cs:c_262f8[si]
-	mov byte ptr cs:c_262f8[di], ah
-	mov byte ptr cs:c_262f8[si], al
-	mov al, byte ptr cs:c_262d8[di]
-	mov ah, byte ptr cs:c_262d8[si]
-	mov byte ptr cs:c_262d8[di], ah
-	mov byte ptr cs:c_262d8[si], al
-	mov al, byte ptr cs:c_262e8[di]
-	mov ah, byte ptr cs:c_262e8[si]
-	mov byte ptr cs:c_262e8[di], ah
-	mov byte ptr cs:c_262e8[si], al
-	mov al, byte ptr cs:c_262c8[di]
-	mov ah, byte ptr cs:c_262c8[si]
-	mov byte ptr cs:c_262c8[di], ah
-	mov byte ptr cs:c_262c8[si], al
+	mov al, byte ptr cs:c_28c4a[di]
+	mov ah, byte ptr cs:c_28c4a[si]
+	mov byte ptr cs:c_28c4a[di], ah
+	mov byte ptr cs:c_28c4a[si], al
+	mov al, byte ptr cs:c_28c2a[di]
+	mov ah, byte ptr cs:c_28c2a[si]
+	mov byte ptr cs:c_28c2a[di], ah
+	mov byte ptr cs:c_28c2a[si], al
+	mov al, byte ptr cs:c_28c3a[di]
+	mov ah, byte ptr cs:c_28c3a[si]
+	mov byte ptr cs:c_28c3a[di], ah
+	mov byte ptr cs:c_28c3a[si], al
+	mov al, byte ptr cs:c_28c1a[di]
+	mov ah, byte ptr cs:c_28c1a[si]
+	mov byte ptr cs:c_28c1a[di], ah
+	mov byte ptr cs:c_28c1a[si], al
 	pop ax
 	pop si
 	pop di
-	jmp short L2742c
-L273cd:
+	jmp short L29d7e
+L29d1f:
 	cmp ch, 0
-	je L273f0
-	mov byte ptr cs:c_262f8[di], 0ffh
-	mov byte ptr cs:c_262d8[di], 0
-	mov byte ptr cs:c_262e8[di], 0
-	mov byte ptr cs:c_262c8[di], 0
+	je L29d42
+	mov byte ptr cs:c_28c4a[di], 0ffh
+	mov byte ptr cs:c_28c2a[di], 0
+	mov byte ptr cs:c_28c3a[di], 0
+	mov byte ptr cs:c_28c1a[di], 0
 	add al, ah
 	pop si
 	pop di
-	jmp short L2742c
-L273f0:
-	cmp byte ptr cs:c_262d8[si], 0
-	jne L273fc
+	jmp short L29d7e
+L29d42:
+	cmp byte ptr cs:c_28c2a[si], 0
+	jne L29d4e
 	pop si
 	pop di
-	jmp short L27438
-L273fc:
-	add al, byte ptr cs:c_262e8[si]
-	mov byte ptr cs:c_262f8[di], 0ffh
-	mov byte ptr cs:c_262e8[di], 0
-	mov byte ptr cs:c_262d8[di], 0
-	mov byte ptr cs:c_262c8[di], 0
-	mov byte ptr cs:c_262f8[si], dl
-	mov byte ptr cs:c_262d8[si], ch
-	mov byte ptr cs:c_262e8[si], ah
+	jmp short L29d8a
+L29d4e:
+	add al, byte ptr cs:c_28c3a[si]
+	mov byte ptr cs:c_28c4a[di], 0ffh
+	mov byte ptr cs:c_28c3a[di], 0
+	mov byte ptr cs:c_28c2a[di], 0
+	mov byte ptr cs:c_28c1a[di], 0
+	mov byte ptr cs:c_28c4a[si], dl
+	mov byte ptr cs:c_28c2a[si], ch
+	mov byte ptr cs:c_28c3a[si], ah
 	sub al, ah
 	pop si
 	pop di
-L2742c:
+L29d7e:
 	inc di
 	cmp di, 10h
-	jne L27435
-	jmp L2753e
-L27435:
-	jmp L271a7
-L27438:
+	jne L29d87
+	jmp L29e90
+L29d87:
+	jmp L29af9
+L29d8a:
 	push ax
-	mov ax, word ptr cs:c_26338
-	mov word ptr cs:c_262f8, ax
-	mov ax, word ptr cs:c_2633a
-	mov word ptr cs:c_262fa, ax
-	mov ax, word ptr cs:c_2633c
-	mov word ptr cs:c_262fc, ax
-	mov ax, word ptr cs:c_2633e
-	mov word ptr cs:c_262fe, ax
-	mov ax, word ptr cs:c_26340
-	mov word ptr cs:c_26300, ax
-	mov ax, word ptr cs:c_26342
-	mov word ptr cs:c_26302, ax
-	mov ax, word ptr cs:c_26344
-	mov word ptr cs:c_26304, ax
-	mov ax, word ptr cs:c_26346
-	mov word ptr cs:c_26306, ax
-	mov ax, word ptr cs:c_26318
-	mov word ptr cs:c_262d8, ax
-	mov ax, word ptr cs:c_2631a
-	mov word ptr cs:c_262da, ax
-	mov ax, word ptr cs:c_2631c
-	mov word ptr cs:c_262dc, ax
-	mov ax, word ptr cs:c_2631e
-	mov word ptr cs:c_262de, ax
-	mov ax, word ptr cs:c_26320
-	mov word ptr cs:c_262e0, ax
-	mov ax, word ptr cs:c_26322
-	mov word ptr cs:c_262e2, ax
-	mov ax, word ptr cs:c_26324
-	mov word ptr cs:c_262e4, ax
-	mov ax, word ptr cs:c_26326
-	mov word ptr cs:c_262e6, ax
-	mov ax, word ptr cs:c_26328
-	mov word ptr cs:c_262e8, ax
-	mov ax, word ptr cs:c_2632a
-	mov word ptr cs:c_262ea, ax
-	mov ax, word ptr cs:c_2632c
-	mov word ptr cs:c_262ec, ax
-	mov ax, word ptr cs:c_2632e
-	mov word ptr cs:c_262ee, ax
-	mov ax, word ptr cs:c_26330
-	mov word ptr cs:c_262f0, ax
-	mov ax, word ptr cs:c_26332
-	mov word ptr cs:c_262f2, ax
-	mov ax, word ptr cs:c_26334
-	mov word ptr cs:c_262f4, ax
-	mov ax, word ptr cs:c_26336
-	mov word ptr cs:c_262f6, ax
-	mov ax, word ptr cs:c_26308
-	mov word ptr cs:c_262c8, ax
-	mov ax, word ptr cs:c_2630a
-	mov word ptr cs:c_262ca, ax
-	mov ax, word ptr cs:c_2630c
-	mov word ptr cs:c_262cc, ax
-	mov ax, word ptr cs:c_2630e
-	mov word ptr cs:c_262ce, ax
-	mov ax, word ptr cs:c_26310
-	mov word ptr cs:c_262d0, ax
-	mov ax, word ptr cs:c_26312
-	mov word ptr cs:c_262d2, ax
-	mov ax, word ptr cs:c_26314
-	mov word ptr cs:c_262d4, ax
-	mov ax, word ptr cs:c_26316
-	mov word ptr cs:c_262d6, ax
+	mov ax, word ptr cs:c_28c8a
+	mov word ptr cs:c_28c4a, ax
+	mov ax, word ptr cs:c_28c8c
+	mov word ptr cs:c_28c4c, ax
+	mov ax, word ptr cs:c_28c8e
+	mov word ptr cs:c_28c4e, ax
+	mov ax, word ptr cs:c_28c90
+	mov word ptr cs:c_28c50, ax
+	mov ax, word ptr cs:c_28c92
+	mov word ptr cs:c_28c52, ax
+	mov ax, word ptr cs:c_28c94
+	mov word ptr cs:c_28c54, ax
+	mov ax, word ptr cs:c_28c96
+	mov word ptr cs:c_28c56, ax
+	mov ax, word ptr cs:c_28c98
+	mov word ptr cs:c_28c58, ax
+	mov ax, word ptr cs:c_28c6a
+	mov word ptr cs:c_28c2a, ax
+	mov ax, word ptr cs:c_28c6c
+	mov word ptr cs:c_28c2c, ax
+	mov ax, word ptr cs:c_28c6e
+	mov word ptr cs:c_28c2e, ax
+	mov ax, word ptr cs:c_28c70
+	mov word ptr cs:c_28c30, ax
+	mov ax, word ptr cs:c_28c72
+	mov word ptr cs:c_28c32, ax
+	mov ax, word ptr cs:c_28c74
+	mov word ptr cs:c_28c34, ax
+	mov ax, word ptr cs:c_28c76
+	mov word ptr cs:c_28c36, ax
+	mov ax, word ptr cs:c_28c78
+	mov word ptr cs:c_28c38, ax
+	mov ax, word ptr cs:c_28c7a
+	mov word ptr cs:c_28c3a, ax
+	mov ax, word ptr cs:c_28c7c
+	mov word ptr cs:c_28c3c, ax
+	mov ax, word ptr cs:c_28c7e
+	mov word ptr cs:c_28c3e, ax
+	mov ax, word ptr cs:c_28c80
+	mov word ptr cs:c_28c40, ax
+	mov ax, word ptr cs:c_28c82
+	mov word ptr cs:c_28c42, ax
+	mov ax, word ptr cs:c_28c84
+	mov word ptr cs:c_28c44, ax
+	mov ax, word ptr cs:c_28c86
+	mov word ptr cs:c_28c46, ax
+	mov ax, word ptr cs:c_28c88
+	mov word ptr cs:c_28c48, ax
+	mov ax, word ptr cs:c_28c5a
+	mov word ptr cs:c_28c1a, ax
+	mov ax, word ptr cs:c_28c5c
+	mov word ptr cs:c_28c1c, ax
+	mov ax, word ptr cs:c_28c5e
+	mov word ptr cs:c_28c1e, ax
+	mov ax, word ptr cs:c_28c60
+	mov word ptr cs:c_28c20, ax
+	mov ax, word ptr cs:c_28c62
+	mov word ptr cs:c_28c22, ax
+	mov ax, word ptr cs:c_28c64
+	mov word ptr cs:c_28c24, ax
+	mov ax, word ptr cs:c_28c66
+	mov word ptr cs:c_28c26, ax
+	mov ax, word ptr cs:c_28c68
+	mov word ptr cs:c_28c28, ax
 	pop ax
-	mov al, byte ptr cs:c_26393
-L2753e:
+	mov al, byte ptr cs:c_28ce5
+L29e90:
 	add bp, 10h
 	add si, 4
 	cmp si, 40h
-	je L2754c
-	jmp L27054
-L2754c:
+	je L29e9e
+	jmp L299a6
+L29e9e:
 	xor si, si
-L2754e:
-	cmp byte ptr cs:c_262f8[si], 0ffh
-	jne L27559
-	jmp L276e1
-L27559:
-	cmp byte ptr cs:c_262c8[si], 0
-	jne L27564
-	jmp L27672
-L27564:
+L29ea0:
+	cmp byte ptr cs:c_28c4a[si], 0ffh
+	jne L29eab
+	jmp L2a033
+L29eab:
+	cmp byte ptr cs:c_28c1a[si], 0
+	jne L29eb6
+	jmp L29fc4
+L29eb6:
 	xor ax, ax
-	mov al, byte ptr cs:c_262f8[si]
-	mov byte ptr cs:c_262f8[si], 0ffh
-	mov byte ptr cs:c_262b8[si], al
+	mov al, byte ptr cs:c_28c4a[si]
+	mov byte ptr cs:c_28c4a[si], 0ffh
+	mov byte ptr cs:c_28c0a[si], al
 	mov di, ax
 	and di, 0f0h
 	shr di, 1
 	shr di, 1
-	les bx, dword ptr cs:c_26198[di]
+	les bx, dword ptr cs:c_28aea[di]
 	and al, 0fh
-	cmp byte ptr cs:c_26348[si], al
-	jne L275a7
+	cmp byte ptr cs:c_28c9a[si], al
+	jne L29ef9
 	mov di, si
 	shl di, 1
 	shl di, 1
-	cmp word ptr cs:c_26218[di], bx
-	jne L275a7
+	cmp word ptr cs:c_28b6a[di], bx
+	jne L29ef9
 	mov cx, es
-	cmp word ptr cs:c_2621a[di], cx
-	jne L275a7
-	jmp L276e1
-L275a7:
+	cmp word ptr cs:c_28b6c[di], cx
+	jne L29ef9
+	jmp L2a033
+L29ef9:
 	push ax
 	push dx
 	push si
@@ -2117,23 +2465,23 @@ L275a7:
 	mov cx, 7b00h
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+0dah]
 	and cl, 0fh
 	mov ch, 4bh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+116h]
 	push bp
 	mov bp, 8
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	push si
 	mov si, ax
-	mov byte ptr cs:c_26358[si], 0ffh
+	mov byte ptr cs:c_28caa[si], 0ffh
 	pop si
 	mov cl, es:[bx+si+107h]
 	mov dl, es:[bx+15eh]
@@ -2141,124 +2489,124 @@ L275a7:
 	mov ch, 7
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov ch, 0ah
 	mov cl, es:[bx+si+0f8h]
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov ch, 1
 	mov cl, es:[bx+si+0e9h]
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	shl si, 1
 	mov cx, 4000h
 	cmp byte ptr es:[bx+si+0bdh], 80h
-	jb L27631
+	jb L29f83
 	mov cl, 7fh
-L27631:
+L29f83:
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cx, es:[bx+si+0bch]
 	shr si, 1
 	xchg cl, ch
 	shl cl, 1
 	cmp ch, 80h
-	jb L2764e
+	jb L29fa0
 	or cl, 1
-L2764e:
+L29fa0:
 	and cx, 7f7fh
 	push bp
 	mov bp, 0ah
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+125h]
 	mov ch, 4eh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop si
 	pop dx
 	pop ax
-	jmp short L276e1
-L27672:
-	mov al, byte ptr cs:c_262f8[si]
+	jmp short L2a033
+L29fc4:
+	mov al, byte ptr cs:c_28c4a[si]
 	mov bl, al
 	and ax, 0fh
 	and bx, 0f0h
 	shr bl, 1
 	shr bl, 1
-	les bx, dword ptr cs:c_26198[bx]
-	mov cl, byte ptr cs:c_2638a
+	les bx, dword ptr cs:c_28aea[bx]
+	mov cl, byte ptr cs:c_28cdc
 	xor ch, ch
 	mov di, cx
 	shl di, 1
 	shl di, 1
-L27696:
-	cmp word ptr cs:c_26218[di], bx
-	jne L276b5
+L29fe8:
+	cmp word ptr cs:c_28b6a[di], bx
+	jne L2a007
 	mov cx, es
-	cmp word ptr cs:c_2621a[di], cx
-	jne L276b5
+	cmp word ptr cs:c_28b6c[di], cx
+	jne L2a007
 	shr di, 1
 	shr di, 1
-	cmp byte ptr cs:c_26348[di], al
-	je L276c9
+	cmp byte ptr cs:c_28c9a[di], al
+	je L2a01b
 	shl di, 1
 	shl di, 1
-L276b5:
+L2a007:
 	add di, 4
 	mov cx, di
 	shr cl, 1
 	shr cl, 1
 	dec cl
-	cmp byte ptr cs:c_2638b, cl
-	jne L27696
-	jmp short L276e1
-L276c9:
-	cmp byte ptr cs:c_262c8[di], 0
-	jne L276e1
-	mov cl, byte ptr cs:c_262f8[si]
-	mov byte ptr cs:c_262b8[di], cl
-	mov byte ptr cs:c_262f8[si], 0ffh
-L276e1:
+	cmp byte ptr cs:c_28cdd, cl
+	jne L29fe8
+	jmp short L2a033
+L2a01b:
+	cmp byte ptr cs:c_28c1a[di], 0
+	jne L2a033
+	mov cl, byte ptr cs:c_28c4a[si]
+	mov byte ptr cs:c_28c0a[di], cl
+	mov byte ptr cs:c_28c4a[si], 0ffh
+L2a033:
 	inc si
 	cmp si, 10h
-	je L276ea
-	jmp L2754e
-L276ea:
-	mov al, byte ptr cs:c_2638b
+	je L2a03c
+	jmp L29ea0
+L2a03c:
+	mov al, byte ptr cs:c_28cdd
 	inc al
 	xor ah, ah
 	mov di, ax
 	xor al, al
 	xor si, si
-L276f8:
-	cmp byte ptr cs:c_262f8[si], 0ffh
-	jne L27703
-	jmp L277f8
-L27703:
+L2a04a:
+	cmp byte ptr cs:c_28c4a[si], 0ffh
+	jne L2a055
+	jmp L2a14a
+L2a055:
 	mov bx, di
-L27705:
+L2a057:
 	dec bx
-	cmp byte ptr cs:c_262b8[bx], 0ffh
-	jne L27705
+	cmp byte ptr cs:c_28c0a[bx], 0ffh
+	jne L2a057
 	mov di, bx
-	mov al, byte ptr cs:c_262f8[si]
-	mov byte ptr cs:c_262b8[di], al
+	mov al, byte ptr cs:c_28c4a[si]
+	mov byte ptr cs:c_28c0a[di], al
 	mov bl, al
 	and al, 0fh
 	and bx, 0f0h
 	shr bx, 1
 	shr bx, 1
-	les bx, dword ptr cs:c_26198[bx]
+	les bx, dword ptr cs:c_28aea[bx]
 	push si
 	mov si, di
 	push ax
@@ -2269,23 +2617,23 @@ L27705:
 	mov cx, 7b00h
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+0dah]
 	and cl, 0fh
 	mov ch, 4bh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+116h]
 	push bp
 	mov bp, 8
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	push si
 	mov si, ax
-	mov byte ptr cs:c_26358[si], 0ffh
+	mov byte ptr cs:c_28caa[si], 0ffh
 	pop si
 	mov cl, es:[bx+si+107h]
 	mov dl, es:[bx+15eh]
@@ -2293,131 +2641,131 @@ L27705:
 	mov ch, 7
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov ch, 0ah
 	mov cl, es:[bx+si+0f8h]
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov ch, 1
 	mov cl, es:[bx+si+0e9h]
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	shl si, 1
 	mov cx, 4000h
 	cmp byte ptr es:[bx+si+0bdh], 80h
-	jb L277b8
+	jb L2a10a
 	mov cl, 7fh
-L277b8:
+L2a10a:
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cx, es:[bx+si+0bch]
 	shr si, 1
 	xchg cl, ch
 	shl cl, 1
 	cmp ch, 80h
-	jb L277d5
+	jb L2a127
 	or cl, 1
-L277d5:
+L2a127:
 	and cx, 7f7fh
 	push bp
 	mov bp, 0ah
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cl, es:[bx+si+125h]
 	mov ch, 4eh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop si
 	pop dx
 	pop ax
 	pop si
-L277f8:
+L2a14a:
 	inc si
 	cmp si, 10h
-	je L27801
-	jmp L276f8
-L27801:
+	je L2a153
+	jmp L2a04a
+L2a153:
 	mov si, 0fh
-L27804:
-	cmp byte ptr cs:c_26348[si], 0fh
-	je L2783d
-	cmp byte ptr cs:c_262b8[si], 0ffh
-	jne L2783d
+L2a156:
+	cmp byte ptr cs:c_28c9a[si], 0fh
+	je L2a18f
+	cmp byte ptr cs:c_28c0a[si], 0ffh
+	jne L2a18f
 	mov ax, si
 	mov cx, 4000h
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cx, 7b00h
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	mov cx, 4b00h
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L2783d:
+L2a18f:
 	dec si
-	jns L27804
-	mov ax, word ptr cs:c_262b8
+	jns L2a156
+	mov ax, word ptr cs:c_28c0a
 	and ax, 0f0fh
-	mov word ptr cs:c_26348, ax
-	mov ax, word ptr cs:c_262ba
+	mov word ptr cs:c_28c9a, ax
+	mov ax, word ptr cs:c_28c0c
 	and ax, 0f0fh
-	mov word ptr cs:c_2634a, ax
-	mov ax, word ptr cs:c_262bc
+	mov word ptr cs:c_28c9c, ax
+	mov ax, word ptr cs:c_28c0e
 	and ax, 0f0fh
-	mov word ptr cs:c_2634c, ax
-	mov ax, word ptr cs:c_262be
+	mov word ptr cs:c_28c9e, ax
+	mov ax, word ptr cs:c_28c10
 	and ax, 0f0fh
-	mov word ptr cs:c_2634e, ax
-	mov ax, word ptr cs:c_262c0
+	mov word ptr cs:c_28ca0, ax
+	mov ax, word ptr cs:c_28c12
 	and ax, 0f0fh
-	mov word ptr cs:c_26350, ax
-	mov ax, word ptr cs:c_262c2
+	mov word ptr cs:c_28ca2, ax
+	mov ax, word ptr cs:c_28c14
 	and ax, 0f0fh
-	mov word ptr cs:c_26352, ax
-	mov ax, word ptr cs:c_262c4
+	mov word ptr cs:c_28ca4, ax
+	mov ax, word ptr cs:c_28c16
 	and ax, 0f0fh
-	mov word ptr cs:c_26354, ax
-	mov ax, word ptr cs:c_262c6
+	mov word ptr cs:c_28ca6, ax
+	mov ax, word ptr cs:c_28c18
 	and ax, 0f0fh
-	mov word ptr cs:c_26356, ax
+	mov word ptr cs:c_28ca8, ax
 	xor si, si
 	xor di, di
-L2789c:
-	mov bl, byte ptr cs:c_262b8[si]
+L2a1ee:
+	mov bl, byte ptr cs:c_28c0a[si]
 	cmp bl, 0ffh
-	jne L278b6
-	mov word ptr cs:c_26218[di], 0
-	mov word ptr cs:c_2621a[di], 0
-	jmp short L278d2
-L278b6:
+	jne L2a208
+	mov word ptr cs:c_28b6a[di], 0
+	mov word ptr cs:c_28b6c[di], 0
+	jmp short L2a224
+L2a208:
 	and bx, 0f0h
 	shr bx, 1
 	shr bx, 1
-	mov ax, word ptr cs:c_26198[bx]
-	mov word ptr cs:c_26218[di], ax
-	mov ax, word ptr cs:c_2619a[bx]
-	mov word ptr cs:c_2621a[di], ax
-L278d2:
+	mov ax, word ptr cs:c_28aea[bx]
+	mov word ptr cs:c_28b6a[di], ax
+	mov ax, word ptr cs:c_28aec[bx]
+	mov word ptr cs:c_28b6c[di], ax
+L2a224:
 	add di, 4
 	inc si
 	cmp si, 10h
-	jne L2789c
-	dec byte ptr cs:c_26389
+	jne L2a1ee
+	dec byte ptr cs:c_28cdb
 	pop es
 	pop bp
 	pop si
@@ -2434,63 +2782,63 @@ _advance_volume_ramp proc near
 	push bx
 	push cx
 	cmp byte ptr es:[bx+162h], 0
-	je L278fb
+	je L2a24d
 	dec byte ptr es:[bx+162h]
-	jmp L279a6
-L278fb:
+	jmp L2a2f8
+L2a24d:
 	mov cl, es:[bx+161h]
 	mov es:[bx+162h], cl
 	mov cl, es:[bx+160h]
 	and cl, 7fh
 	cmp cl, es:[bx+15eh]
-	je L27982
-	ja L2794c
+	je L2a2d4
+	ja L2a29e
 	mov cl, es:[bx+15eh]
 	mov ch, es:[bx+160h]
 	and ch, 7fh
 	sub cl, ch
 	cmp cl, es:[bx+163h]
-	ja L2793b
+	ja L2a28d
 	mov cl, es:[bx+160h]
 	and cl, 7fh
 	mov ch, 1
 	call _set_sequence_volume
-	jmp short L27982
-L2793b:
+	jmp short L2a2d4
+L2a28d:
 	mov cl, es:[bx+15eh]
 	sub cl, es:[bx+163h]
 	mov ch, 1
 	call _set_sequence_volume
-	jmp short L279a6
-L2794c:
+	jmp short L2a2f8
+L2a29e:
 	mov cl, es:[bx+160h]
 	and cl, 7fh
 	mov ch, es:[bx+15eh]
 	sub cl, ch
 	cmp cl, es:[bx+163h]
-	ja L27971
+	ja L2a2c3
 	mov cl, es:[bx+160h]
 	and cl, 7fh
 	mov ch, 1
 	call _set_sequence_volume
-	jmp short L27982
-L27971:
+	jmp short L2a2d4
+L2a2c3:
 	mov cl, es:[bx+15eh]
 	add cl, es:[bx+163h]
 	mov ch, 1
 	call _set_sequence_volume
-	jmp short L279a6
-L27982:
+	jmp short L2a2f8
+L2a2d4:
 	mov byte ptr es:[bx+158h], 0feh
 	mov byte ptr es:[bx+163h], 0
 	mov cl, es:[bx+160h]
 	and cl, 80h
 	cmp cl, 0
-	je L279a6
+	je L2a2f8
 	mov ax, bx
 	call _remove_sequence
-	mov byte ptr cs:c_26394, 1
-L279a6:
+	mov byte ptr cs:c_28ce6, 1
+L2a2f8:
 	pop cx
 	pop bx
 	ret
@@ -2504,28 +2852,28 @@ _set_sequence_volume proc near
 	push dx
 	push si
 	push di
-	mov byte ptr cs:c_26395, ch
+	mov byte ptr cs:c_28ce7, ch
 	cmp cl, es:[bx+15eh]
-	jne L279be
-	jmp L27a7f
-L279be:
+	jne L2a310
+	jmp L2a3d1
+L2a310:
 	mov es:[bx+15eh], cl
 	cmp si, 0ffh
-	jne L279cc
-	jmp L27a7f
-L279cc:
+	jne L2a31e
+	jmp L2a3d1
+L2a31e:
 	mov dx, si
 	shl dl, 1
 	shl dl, 1
 	xor si, si
-L279d4:
-	mov cl, byte ptr cs:c_262b8[si]
+L2a326:
+	mov cl, byte ptr cs:c_28c0a[si]
 	cmp cl, 0ffh
-	je L27a21
+	je L2a373
 	mov ch, cl
 	and cl, 0f0h
 	cmp cl, dl
-	jne L27a21
+	jne L2a373
 	mov cl, ch
 	and cx, 0fh
 	mov di, cx
@@ -2533,56 +2881,56 @@ L279d4:
 	push dx
 	mov dl, es:[bx+15eh]
 	call _scale_byte_pair
-	cmp byte ptr cs:c_26395, 0
-	je L27a0c
-	mov byte ptr cs:c_26358[si], cl
-	jmp short L27a20
-L27a0c:
+	cmp byte ptr cs:c_28ce7, 0
+	je L2a35e
+	mov byte ptr cs:c_28caa[si], cl
+	jmp short L2a372
+L2a35e:
 	mov ch, 7
 	mov ax, si
-	mov byte ptr cs:c_26358[si], 0ffh
+	mov byte ptr cs:c_28caa[si], 0ffh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L27a20:
+L2a372:
 	pop dx
-L27a21:
+L2a373:
 	inc si
 	cmp si, 10h
-	jne L279d4
+	jne L2a326
 	xor ch, ch
 	xor si, si
-L27a2b:
+L2a37d:
 	mov cl, es:[bx+si+8ch]
 	cmp cl, 0ffh
-	je L27a7f
+	je L2a3d1
 	mov di, cx
 	test byte ptr es:[bx+di+134h], 2
-	je L27a79
-	cmp byte ptr cs:c_262b8[di], 0ffh
-	jne L27a79
+	je L2a3cb
+	cmp byte ptr cs:c_28c0a[di], 0ffh
+	jne L2a3cb
 	mov al, cl
 	mov cl, es:[bx+di+107h]
 	mov dl, es:[bx+15eh]
 	call _scale_byte_pair
-	cmp byte ptr cs:c_26395, 0
-	je L27a65
-	mov byte ptr cs:c_26358[di], cl
-	jmp short L27a79
-L27a65:
+	cmp byte ptr cs:c_28ce7, 0
+	je L2a3b7
+	mov byte ptr cs:c_28caa[di], cl
+	jmp short L2a3cb
+L2a3b7:
 	mov ch, 7
 	mov ax, di
-	mov byte ptr cs:c_26358[di], 0ffh
+	mov byte ptr cs:c_28caa[di], 0ffh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L27a79:
+L2a3cb:
 	inc si
 	cmp si, 10h
-	jne L27a2b
-L27a7f:
+	jne L2a37d
+L2a3d1:
 	pop di
 	pop si
 	pop dx
@@ -2595,45 +2943,45 @@ _set_sequence_volume endp
 /* 0x2a3d8 */
 _flush_pending_volumes proc near
 	xor bl, bl
-	mov al, byte ptr cs:c_26396
+	mov al, byte ptr cs:c_28ce8
 	xor ah, ah
 	mov si, ax
-L27a90:
-	mov cl, byte ptr cs:c_26358[si]
+L2a3e2:
+	mov cl, byte ptr cs:c_28caa[si]
 	cmp cl, 0ffh
-	je L27ab5
-	mov byte ptr cs:c_26358[si], 0ffh
+	je L2a407
+	mov byte ptr cs:c_28caa[si], 0ffh
 	mov ch, 7
 	mov ax, si
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	inc bl
 	cmp bl, 2
-	je L27ac7
-L27ab5:
+	je L2a419
+L2a407:
 	inc si
 	cmp si, 10h
-	jne L27abd
+	jne L2a40f
 	xor si, si
-L27abd:
-	mov al, byte ptr cs:c_26396
+L2a40f:
+	mov al, byte ptr cs:c_28ce8
 	xor ah, ah
 	cmp si, ax
-	jne L27a90
-L27ac7:
+	jne L2a3e2
+L2a419:
 	mov ax, si
-	mov byte ptr cs:c_26396, al
+	mov byte ptr cs:c_28ce8, al
 	ret
 _flush_pending_volumes endp
 
 /* 0x2a420 */
 _sound_service proc far
-	cmp byte ptr cs:c_26389, 0
-	je L27ad7
+	cmp byte ptr cs:c_28cdb, 0
+	je L2a429
 	retf
-L27ad7:
+L2a429:
 	pushf
 	cli
 	push si
@@ -2641,48 +2989,48 @@ L27ad7:
 	push es
 	push ds
 	push bp
-	cmp byte ptr cs:c_26394, 0
-	je L27ae9
+	cmp byte ptr cs:c_28ce6, 0
+	je L2a43b
 	call _sequencer_tick
-L27ae9:
+L2a43b:
 	xor si, si
 	xor di, di
-L27aed:
-	les bx, dword ptr cs:c_26198[si]
+L2a43f:
+	les bx, dword ptr cs:c_28aea[si]
 	mov ax, es
 	or ax, bx
-	je L27b3b
+	je L2a48d
 	cmp byte ptr es:[bx+164h], 0
-	jne L27b30
+	jne L2a482
 	cmp byte ptr es:[bx+163h], 0
-	je L27b18
+	je L2a46a
 	call _advance_volume_ramp
 	cmp byte ptr es:[bx+158h], 0ffh
-	jne L27b18
+	jne L2a46a
 	sub si, 4
-	jmp short L27b30
-L27b18:
+	jmp short L2a482
+L2a46a:
 	cmp byte ptr es:[bx+165h], 0
-	je L27b25
+	je L2a477
 	call _drop_unless_polled
-	jmp short L27b28
-L27b25:
+	jmp short L2a47a
+L2a477:
 	call _step_sequence
-L27b28:
+L2a47a:
 	cmp byte ptr es:[bx+158h], 0ffh
-	je L27b33
-L27b30:
+	je L2a485
+L2a482:
 	add si, 4
-L27b33:
+L2a485:
 	add di, 4
 	cmp si, 40h
-	jne L27aed
-L27b3b:
+	jne L2a43f
+L2a48d:
 	call _poll_sequences
 	call _flush_pending_volumes
 	push bp
 	mov bp, 3
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop bp
 	pop ds
@@ -2700,38 +3048,38 @@ _drop_unless_polled proc near
 	push ax
 	mov cx, es
 	xor si, si
-L27b59:
-	cmp word ptr cs:c_261d8[si], bx
-	jne L27b67
-	cmp word ptr cs:c_261da[si], cx
-	je L27b7a
-L27b67:
+L2a4ab:
+	cmp word ptr cs:c_28b2a[si], bx
+	jne L2a4b9
+	cmp word ptr cs:c_28b2c[si], cx
+	je L2a4cc
+L2a4b9:
 	add si, 4
 	cmp si, 40h
-	jne L27b59
+	jne L2a4ab
 	mov ax, bx
 	call _remove_sequence
-	mov byte ptr cs:c_26394, 1
-L27b7a:
+	mov byte ptr cs:c_28ce6, 1
+L2a4cc:
 	pop ax
 	pop si
 	pop cx
 	ret
 _drop_unless_polled endp
 
-/* 0x2a4d0 (1.00's; not yet placed in 1.11) */
+/* 0x2a4d0 */
 _poll_sequences proc near
 	push ds
 	xor si, si
-L27b81:
-	les bx, dword ptr cs:c_261d8[si]
+L2a4d3:
+	les bx, dword ptr cs:c_28b2a[si]
 	mov cx, es
 	cmp cx, 0
-	jne L27b95
+	jne L2a4e7
 	cmp bx, 0
-	jne L27b95
-	jmp L27c4c
-L27b95:
+	jne L2a4e7
+	jmp L2a598
+L2a4e7:
 	inc word ptr es:[bx+154h]
 	lds bp, dword ptr es:[bx+8]
 	lds bp, dword ptr ds:[bp]
@@ -2747,16 +3095,15 @@ L27b95:
 	add bp, cx
 	mov ax, bp
 	cmp byte ptr es:[bx+165h], 10h
-	ja L27c06
+	ja L2a552
 	or byte ptr es:[bx+165h], 80h
-	mov cx, bx
 	push bx
 	mov bx, ax
 	inc bx
 	cmp byte ptr [bx], 0feh
-	jne L27bd6
+	jne L2a526
 	inc bx
-L27bd6:
+L2a526:
 	inc bx
 	mov ax, [bx+2]
 	push ax
@@ -2766,11 +3113,8 @@ L27bd6:
 	push ax
 	mov ax, [bx]
 	push ax
-	push bx
-	mov bx, cx
 	mov cl, es:[bx+15eh]
 	mov ch, es:[bx+15dh]
-	pop bx
 	push cx
 	mov ax, sp
 	push ax
@@ -2779,8 +3123,8 @@ L27bd6:
 	call FAR PTR _sound_callback
 	add sp, 0eh
 	pop bx
-	jmp short L27c41
-L27c06:
+	jmp short L2a58d
+L2a552:
 	mov ch, es:[bx+15dh]
 	mov cl, es:[bx+15eh]
 	push cx
@@ -2791,21 +3135,21 @@ L27c06:
 	call FAR PTR _sound_callback
 	add sp, 6
 	cmp ah, 0
-	je L27c2c
+	je L2a578
 	mov word ptr es:[bx+154h], 0
-L27c2c:
+L2a578:
 	cmp al, 0
-	je L27c41
+	je L2a58d
 	mov byte ptr es:[bx+165h], 0
 	mov ax, bx
 	call _remove_sequence
-	mov byte ptr cs:c_26394, 1
-L27c41:
+	mov byte ptr cs:c_28ce6, 1
+L2a58d:
 	add si, 4
 	cmp si, 40h
-	je L27c4c
-	jmp L27b81
-L27c4c:
+	je L2a598
+	jmp L2a4d3
+L2a598:
 	pop ds
 	ret
 _poll_sequences endp
@@ -2823,66 +3167,66 @@ _step_sequence proc near
 	shl di, 1
 	shl di, 1
 	mov cx, di
-	mov byte ptr cs:c_26391, cl
+	mov byte ptr cs:c_28ce3, cl
 	inc word ptr es:[bx+154h]
 	lds bp, dword ptr es:[bx+8]
 	lds bp, dword ptr ds:[bp]
-	mov word ptr cs:c_26387, bp
+	mov word ptr cs:c_28cd9, bp
 	xor si, si
-L27c75:
+L2a5c1:
 	mov al, es:[bx+si+8ch]
 	cmp al, 0ffh
-	jne L27c81
-	jmp L27e1f
-L27c81:
+	jne L2a5cd
+	jmp L2a76b
+L2a5cd:
 	cmp al, 0feh
-	jne L27c88
-	jmp L27e16
-L27c88:
-	mov byte ptr cs:c_2638d, 0ffh
-	mov byte ptr cs:c_2638e, 0
+	jne L2a5d4
+	jmp L2a762
+L2a5d4:
+	mov byte ptr cs:c_28cdf, 0ffh
+	mov byte ptr cs:c_28ce0, 0
 	push si
 	mov si, ax
 	and si, 0ffh
 	test byte ptr es:[bx+si+134h], 2
 	pop si
-	je L27cb0
-	mov byte ptr cs:c_2638d, al
-	mov byte ptr cs:c_2638e, 1
-	jmp short L27cd1
-L27cb0:
+	je L2a5fc
+	mov byte ptr cs:c_28cdf, al
+	mov byte ptr cs:c_28ce0, 1
+	jmp short L2a61d
+L2a5fc:
 	and al, 0fh
 	mov cl, al
-	or cl, byte ptr cs:c_26391
+	or cl, byte ptr cs:c_28ce3
 	xor di, di
-L27cbb:
-	cmp byte ptr cs:c_262b8[di], cl
-	je L27cca
+L2a607:
+	cmp byte ptr cs:c_28c0a[di], cl
+	je L2a616
 	inc di
 	cmp di, 10h
-	jne L27cbb
-	jmp short L27cd1
-L27cca:
+	jne L2a607
+	jmp short L2a61d
+L2a616:
 	mov dx, di
-	mov byte ptr cs:c_2638d, dl
-L27cd1:
-	mov bp, word ptr cs:c_26387
+	mov byte ptr cs:c_28cdf, dl
+L2a61d:
+	mov bp, word ptr cs:c_28cd9
 	shl si, 1
 	mov dx, ds:[bp+si]
 	add bp, dx
 	add bp, es:[bx+si+0ch]
 	cmp word ptr es:[bx+si+0ch], 0
-	jne L27ced
+	jne L2a639
 	shr si, 1
-	jmp L27e16
-L27ced:
+	jmp L2a762
+L2a639:
 	shr si, 1
 	shl si, 1
 	cmp word ptr es:[bx+si+4ch], 0
-	je L27d29
+	je L2a675
 	dec word ptr es:[bx+si+4ch]
 	cmp word ptr es:[bx+si+4ch], 8000h
-	jne L27d24
+	jne L2a670
 	xor dh, dh
 	shr si, 1
 	mov dl, ds:[bp]
@@ -2892,153 +3236,153 @@ L27ced:
 	shr si, 1
 	shl si, 1
 	cmp dl, 0f8h
-	jne L27d20
+	jne L2a66c
 	mov dl, 0f0h
 	mov dh, 80h
-L27d20:
+L2a66c:
 	mov es:[bx+si+4ch], dx
-L27d24:
+L2a670:
 	shr si, 1
-	jmp L27e16
-L27d29:
+	jmp L2a762
+L2a675:
 	shr si, 1
-L27d2b:
+L2a677:
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp dl, 80h
-	jb L27d44
+	jb L2a690
 	mov es:[bx+si+9ch], dl
-	jmp short L27d52
-L27d44:
+	jmp short L2a69e
+L2a690:
 	mov dl, es:[bx+si+9ch]
 	dec bp
 	shl si, 1
 	dec word ptr es:[bx+si+0ch]
 	shr si, 1
-L27d52:
+L2a69e:
 	mov al, dl
 	mov ah, al
 	and ah, 0f0h
 	and al, 0fh
 	cmp dl, 0fch
-	jne L27d6d
+	jne L2a6b9
 	shl si, 1
 	mov word ptr es:[bx+si+0ch], 0
 	shr si, 1
-	jmp L27e16
-L27d6d:
+	jmp L2a762
+L2a6b9:
 	cmp al, 0fh
-	jne L27d84
+	jne L2a6d0
 	call _midi_meta_event
 	shl si, 1
 	mov dx, es:[bx+si+0ch]
 	shr si, 1
 	cmp dx, 0
-	jne L27de4
-	jmp L27e16
-L27d84:
-	mov al, byte ptr cs:c_2638d
+	jne L2a730
+	jmp L2a762
+L2a6d0:
+	mov al, byte ptr cs:c_28cdf
 	cmp ah, 80h
-	jne L27d92
+	jne L2a6de
 	call _midi_note_off_event
-	jmp short L27de4
-L27d92:
+	jmp short L2a730
+L2a6de:
 	cmp ah, 90h
-	jne L27d9c
+	jne L2a6e8
 	call _midi_note_event
-	jmp short L27de4
-L27d9c:
+	jmp short L2a730
+L2a6e8:
 	cmp ah, 0a0h
-	jne L27da6
+	jne L2a6f2
 	call _midi_event_6
-	jmp short L27de4
-L27da6:
+	jmp short L2a730
+L2a6f2:
 	cmp ah, 0b0h
-	jne L27db0
+	jne L2a6fc
 	call _midi_controller_event
-	jmp short L27de4
-L27db0:
+	jmp short L2a730
+L2a6fc:
 	cmp ah, 0c0h
-	jne L27dba
+	jne L2a706
 	call _midi_program_event
-	jmp short L27de4
-L27dba:
+	jmp short L2a730
+L2a706:
 	cmp ah, 0d0h
-	jne L27dc4
+	jne L2a710
 	call _midi_event_9
-	jmp short L27de4
-L27dc4:
+	jmp short L2a730
+L2a710:
 	cmp ah, 0e0h
-	jne L27dce
+	jne L2a71a
 	call _midi_bend_event
-	jmp short L27de4
-L27dce:
+	jmp short L2a730
+L2a71a:
 	cmp ah, 0f0h
-	jne L27dd8
+	jne L2a724
 	call _midi_skip_event
-	jmp short L27de4
-L27dd8:
+	jmp short L2a730
+L2a724:
 	shl si, 1
 	mov word ptr es:[bx+si+0ch], 0
 	shr si, 1
-	jmp short L27e16
-L27de4:
+	jmp short L2a762
+L2a730:
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp dl, 0
-	jne L27df9
-	jmp L27d2b
-L27df9:
+	jne L2a745
+	jmp L2a677
+L2a745:
 	shl si, 1
 	cmp dl, 0f8h
-	jne L27e0c
+	jne L2a758
 	mov dl, 0efh
 	mov dh, 80h
 	mov es:[bx+si+4ch], dx
 	shr si, 1
-	jmp short L27e16
-L27e0c:
+	jmp short L2a762
+L2a758:
 	xor dh, dh
 	dec dl
 	mov es:[bx+si+4ch], dx
 	shr si, 1
-L27e16:
+L2a762:
 	inc si
 	cmp si, 10h
-	je L27e1f
-	jmp L27c75
-L27e1f:
+	je L2a76b
+	jmp L2a5c1
+L2a76b:
 	xor si, si
-L27e21:
+L2a76d:
 	cmp byte ptr es:[bx+si+8ch], 0ffh
-	je L27e3a
+	je L2a786
 	shl si, 1
 	cmp word ptr es:[bx+si+0ch], 0
-	jne L27e89
+	jne L2a7d5
 	shr si, 1
 	inc si
 	cmp si, 10h
-	jne L27e21
-L27e3a:
+	jne L2a76d
+L2a786:
 	cmp byte ptr es:[bx+15ah], 0
-	jne L27e57
+	jne L2a7a3
 	cmp byte ptr es:[bx+15dh], 0
-	jne L27e57
+	jne L2a7a3
 	mov ax, bx
 	call _remove_sequence
-	mov byte ptr cs:c_26394, 1
-	jmp short L27e89
-L27e57:
+	mov byte ptr cs:c_28ce6, 1
+	jmp short L2a7d5
+L2a7a3:
 	mov dx, es:[bx+156h]
 	mov es:[bx+154h], dx
 	xor si, si
-L27e63:
+L2a7af:
 	mov dx, es:[bx+si+2ch]
 	mov es:[bx+si+0ch], dx
 	mov dx, es:[bx+si+6ch]
@@ -3049,8 +3393,8 @@ L27e63:
 	shl si, 1
 	add si, 2
 	cmp si, 20h
-	jne L27e63
-L27e89:
+	jne L2a7af
+L2a7d5:
 	pop ds
 	pop dx
 	pop cx
@@ -3081,19 +3425,19 @@ _midi_note_off_event proc near
 	and si, 0fh
 	pop ax
 	cmp es:[bx+si+125h], ch
-	jne L27ec7
+	jne L2a813
 	mov byte ptr es:[bx+si+125h], 0ffh
-L27ec7:
+L2a813:
 	cmp al, 0ffh
-	je L27edf
-	cmp byte ptr cs:c_26399, 0
-	jne L27edf
+	je L2a82b
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2a82b
 	and al, 0fh
 	push bp
 	mov bp, 4
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L27edf:
+L2a82b:
 	pop si
 	ret
 _midi_note_off_event endp
@@ -3117,33 +3461,33 @@ _midi_note_event proc near
 	and si, 0fh
 	pop ax
 	cmp cl, 0
-	je L27f2d
+	je L2a879
 	mov es:[bx+si+125h], ch
 	cmp al, 0ffh
-	je L27f52
-	cmp byte ptr cs:c_26399, 0
-	jne L27f52
+	je L2a89e
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2a89e
 	and al, 0fh
 	push bp
 	mov bp, 5
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-	jmp short L27f52
-L27f2d:
+	jmp short L2a89e
+L2a879:
 	cmp es:[bx+si+125h], ch
-	jne L27f3a
+	jne L2a886
 	mov byte ptr es:[bx+si+125h], 0ffh
-L27f3a:
+L2a886:
 	cmp al, 0ffh
-	je L27f52
-	cmp byte ptr cs:c_26399, 0
-	jne L27f52
+	je L2a89e
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2a89e
 	and al, 0fh
 	push bp
 	mov bp, 4
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L27f52:
+L2a89e:
 	pop si
 	ret
 _midi_note_event endp
@@ -3161,14 +3505,14 @@ _midi_event_6 proc near
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp al, 0ffh
-	je L27f84
-	cmp byte ptr cs:c_26399, 0
-	jne L27f84
+	je L2a8d0
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2a8d0
 	push bp
 	mov bp, 6
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L27f84:
+L2a8d0:
 	ret
 _midi_event_6 endp
 
@@ -3185,97 +3529,97 @@ _midi_controller_event proc near
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
-	test byte ptr cs:c_2638e, 0ffh
-	je L27fbb
+	test byte ptr cs:c_28ce0, 0ffh
+	je L2a907
 	push si
 	mov si, ax
 	and si, 0fh
-	cmp byte ptr cs:c_262b8[si], 0ffh
+	cmp byte ptr cs:c_28c0a[si], 0ffh
 	pop si
-	je L27fbb
-	jmp L28084
-L27fbb:
+	je L2a907
+	jmp L2a9d0
+L2a907:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
 	and si, 0fh
 	pop ax
 	cmp ch, 7
-	jne L27ff1
+	jne L2a93d
 	mov es:[bx+si+107h], cl
 	mov dl, es:[bx+15eh]
 	call _scale_byte_pair
 	cmp al, 20h
-	jb L27fe1
-	jmp L28084
-L27fe1:
+	jb L2a92d
+	jmp L2a9d0
+L2a92d:
 	push si
 	mov si, ax
 	and si, 0ffh
-	mov byte ptr cs:c_26358[si], 0ffh
+	mov byte ptr cs:c_28caa[si], 0ffh
 	pop si
-	jmp short L2806c
-L27ff1:
+	jmp short L2a9b8
+L2a93d:
 	cmp ch, 0ah
-	jne L27ffd
+	jne L2a949
 	mov es:[bx+si+0f8h], cl
-	jmp short L2806c
-L27ffd:
+	jmp short L2a9b8
+L2a949:
 	cmp ch, 1
-	jne L28009
+	jne L2a955
 	mov es:[bx+si+0e9h], cl
-	jmp short L2806c
-L28009:
+	jmp short L2a9b8
+L2a955:
 	cmp ch, 40h
-	jne L2802b
+	jne L2a977
 	push dx
 	shl si, 1
 	mov dx, es:[bx+si+0bch]
 	or dh, 80h
 	cmp cl, 0
-	jne L28021
+	jne L2a96d
 	and dh, 7fh
-L28021:
+L2a96d:
 	mov es:[bx+si+0bch], dx
 	shr si, 1
 	pop dx
-	jmp short L2806c
-L2802b:
+	jmp short L2a9b8
+L2a977:
 	cmp ch, 4bh
-	jne L28049
+	jne L2a995
 	push cx
 	mov ch, es:[bx+si+0dah]
 	and ch, 0f0h
 	or ch, cl
 	mov es:[bx+si+0dah], ch
 	pop cx
-	mov byte ptr cs:c_26394, 1
-	jmp short L2806c
-L28049:
+	mov byte ptr cs:c_28ce6, 1
+	jmp short L2a9b8
+L2a995:
 	cmp ch, 4eh
-	jne L2806c
+	jne L2a9b8
 	push cx
 	mov ch, es:[bx+si+143h]
 	and ch, 0f0h
 	test cl, 0ffh
-	je L2805e
+	je L2a9aa
 	mov cl, 1
-L2805e:
+L2a9aa:
 	or ch, cl
 	mov es:[bx+si+143h], ch
 	pop cx
-	mov byte ptr cs:c_26394, 1
-L2806c:
+	mov byte ptr cs:c_28ce6, 1
+L2a9b8:
 	cmp al, 0ffh
-	jae L28084
-	cmp byte ptr cs:c_26399, 0
-	jne L28084
+	jae L2a9d0
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2a9d0
 	and al, 0fh
 	push bp
 	mov bp, 7
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L28084:
+L2a9d0:
 	pop si
 	ret
 _midi_controller_event endp
@@ -3288,16 +3632,16 @@ _midi_program_event proc near
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
-	test byte ptr cs:c_2638e, 0ffh
-	je L280ae
+	test byte ptr cs:c_28ce0, 0ffh
+	je L2a9fa
 	push si
 	mov si, ax
 	and si, 0fh
-	cmp byte ptr cs:c_262b8[si], 0ffh
+	cmp byte ptr cs:c_28c0a[si], 0ffh
 	pop si
-	je L280ae
-	jmp short L280d8
-L280ae:
+	je L2a9fa
+	jmp short L2aa24
+L2a9fa:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
@@ -3305,15 +3649,15 @@ L280ae:
 	pop ax
 	mov es:[bx+si+116h], cl
 	cmp al, 0ffh
-	jae L280d8
-	cmp byte ptr cs:c_26399, 0
-	jne L280d8
+	jae L2aa24
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2aa24
 	and al, 0fh
 	push bp
 	mov bp, 8
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L280d8:
+L2aa24:
 	pop si
 	ret
 _midi_program_event endp
@@ -3326,14 +3670,14 @@ _midi_event_9 proc near
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp al, 0ffh
-	jae L280fd
-	cmp byte ptr cs:c_26399, 0
-	jne L280fd
+	jae L2aa49
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2aa49
 	push bp
 	mov bp, 9
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L280fd:
+L2aa49:
 	ret
 _midi_event_9 endp
 
@@ -3350,16 +3694,16 @@ _midi_bend_event proc near
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
-	test byte ptr cs:c_2638e, 0ffh
-	je L28133
+	test byte ptr cs:c_28ce0, 0ffh
+	je L2aa7f
 	push si
 	mov si, ax
 	and si, 0fh
-	cmp byte ptr cs:c_262b8[si], 0ffh
+	cmp byte ptr cs:c_28c0a[si], 0ffh
 	pop si
-	je L28133
-	jmp short L28178
-L28133:
+	je L2aa7f
+	jmp short L2aac4
+L2aa7f:
 	push ax
 	mov al, es:[bx+si+8ch]
 	mov si, ax
@@ -3368,32 +3712,32 @@ L28133:
 	push cx
 	xchg ch, cl
 	shr ch, 1
-	jae L2814a
+	jae L2aa96
 	or cl, 80h
-L2814a:
+L2aa96:
 	shl si, 1
 	cmp word ptr es:[bx+si+0bch], 8000h
-	jb L28158
+	jb L2aaa4
 	or ch, 80h
-L28158:
+L2aaa4:
 	mov es:[bx+si+0bch], cx
 	shr si, 1
 	pop cx
 	cmp al, 0ffh
-	jae L28178
-	cmp byte ptr cs:c_26399, 0
-	jne L28178
+	jae L2aac4
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2aac4
 	and al, 0fh
 	push bp
 	mov bp, 0ah
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
-L28178:
+L2aac4:
 	pop si
 	ret
 _midi_bend_event endp
 
-/* 0x2817a (1.00's; not yet placed in 1.11) */
+/* 0x2aac6 */
 _midi_skip_event proc near
 	call _skip_unknown_event
 	ret
@@ -3402,21 +3746,21 @@ _midi_skip_event endp
 /* 0x2aaca */
 _midi_meta_event proc near
 	cmp ah, 0c0h
-	je L28191
+	je L2aadd
 	cmp ah, 0b0h
-	jne L2818b
-	jmp L2821f
-L2818b:
+	jne L2aad7
+	jmp L2ab6b
+L2aad7:
 	call _skip_unknown_event
-	jmp L2828d
-L28191:
+	jmp L2abd9
+L2aadd:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp ch, 7fh
-	jne L28210
+	jne L2ab5c
 	push dx
 	mov dl, ds:[bp]
 	inc bp
@@ -3425,10 +3769,10 @@ L28191:
 	shr si, 1
 	xor dh, dh
 	cmp dl, 0f8h
-	jne L281bc
+	jne L2ab08
 	mov dh, 80h
 	mov dl, 0f0h
-L281bc:
+L2ab08:
 	shl si, 1
 	mov es:[bx+si+4ch], dx
 	shr si, 1
@@ -3437,7 +3781,7 @@ L281bc:
 	push si
 	push dx
 	xor si, si
-L281cf:
+L2ab1b:
 	shl si, 1
 	mov dx, es:[bx+si+0ch]
 	mov es:[bx+si+2ch], dx
@@ -3448,7 +3792,7 @@ L281cf:
 	mov es:[bx+si+0ach], dl
 	inc si
 	cmp si, 10h
-	jne L281cf
+	jne L2ab1b
 	mov dx, es:[bx+154h]
 	mov es:[bx+156h], dx
 	pop dx
@@ -3458,13 +3802,13 @@ L281cf:
 	dec bp
 	mov word ptr es:[bx+si+4ch], 0
 	shr si, 1
-	jmp short L2828d
-L28210:
-	cmp byte ptr cs:c_26399, 0
-	jne L2828d
+	jmp short L2abd9
+L2ab5c:
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2abd9
 	mov es:[bx+158h], ch
-	jmp short L2828d
-L2821f:
+	jmp short L2abd9
+L2ab6b:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
@@ -3476,67 +3820,67 @@ L2821f:
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp ch, 50h
-	jne L2825b
+	jne L2aba7
 	cmp cl, 7fh
-	jne L28248
-	mov cl, byte ptr cs:c_26392
-L28248:
+	jne L2ab94
+	mov cl, byte ptr cs:c_28ce4
+L2ab94:
 	mov es:[bx+15fh], cl
 	push ax
 	push bp
 	mov bp, 0bh
-	call dword ptr cs:c_26377
+	call dword ptr cs:c_28cc9
 	pop bp
 	pop ax
-	jmp short L2828d
-L2825b:
+	jmp short L2abd9
+L2aba7:
 	cmp ch, 60h
-	jne L2826f
-	cmp byte ptr cs:c_26399, 0
-	jne L2828d
+	jne L2abbb
+	cmp byte ptr cs:c_28ceb, 0
+	jne L2abd9
 	inc word ptr es:[bx+152h]
-	jmp short L2828d
-L2826f:
+	jmp short L2abd9
+L2abbb:
 	cmp ch, 52h
-	jne L2828d
+	jne L2abd9
 	cmp es:[bx+15ah], cl
-	jne L2828d
+	jne L2abd9
 	push si
 	xor si, si
-L2827e:
+L2abca:
 	mov word ptr es:[bx+si+0ch], 0
 	add si, 2
 	cmp si, 20h
-	jne L2827e
+	jne L2abca
 	pop si
-L2828d:
+L2abd9:
 	ret
 _midi_meta_event endp
 
 /* 0x2abda */
 _skip_unknown_event proc near
 	cmp ah, 0f0h
-	jne L282a6
-L28293:
+	jne L2abf2
+L2abdf:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
 	cmp ch, 0f7h
-	jne L28293
+	jne L2abdf
 	ret
-L282a6:
+L2abf2:
 	cmp ah, 0c0h
-	je L282bd
+	je L2ac09
 	cmp ah, 0d0h
-	je L282bd
+	je L2ac09
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
 	inc word ptr es:[bx+si+0ch]
 	shr si, 1
-L282bd:
+L2ac09:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
@@ -3556,32 +3900,32 @@ _scale_byte_pair proc near
 	shl ah, 1
 	mov cl, ah
 	cmp cl, 0
-	je L282e1
+	je L2ac2d
 	dec cl
-L282e1:
+L2ac2d:
 	pop ax
 	ret
-L282e3:
+L2ac2f:
 	push cx
 	mov cx, es
 	xor si, si
-L282e8:
-	cmp word ptr cs:c_26198[si], bx
-	jne L282f8
-	cmp word ptr cs:c_2619a[si], cx
-	jne L282f8
-	jmp short L28303
-L282f8:
+L2ac34:
+	cmp word ptr cs:c_28aea[si], bx
+	jne L2ac44
+	cmp word ptr cs:c_28aec[si], cx
+	jne L2ac44
+	jmp short L2ac4f
+L2ac44:
 	add si, 4
 	cmp si, 40h
-	jne L282e8
+	jne L2ac34
 	mov si, 0ffh
-L28303:
+L2ac4f:
 	pop cx
 	ret
 _scale_byte_pair endp
 
-/* 0x28305 (1.00's; not yet placed in 1.11) */
+/* 0x2ac51 */
 _init_sequence_params proc near
 	push bx
 	push cx
@@ -3590,270 +3934,88 @@ _init_sequence_params proc near
 	push ds
 	mov bx, ax
 	cmp word ptr es:[bx+8], -1
-	jne L2831d
+	jne L2ac69
 	cmp word ptr es:[bx+0ah], -1
-	jne L2831d
-	jmp L283d9
-L2831d:
+	jne L2ac69
+	jmp L2ad25
+L2ac69:
 	lds bp, dword ptr es:[bx+8]
 	lds bp, dword ptr ds:[bp]
 	cmp byte ptr ds:[bp+23h], 0feh
-	jne L2833d
+	jne L2ac89
 	cmp byte ptr ds:[bp+22h], 0fdh
-	jne L2833d
+	jne L2ac89
 	cmp byte ptr ds:[bp+21h], 0fch
-	jne L2833d
-	jmp L283d9
-L2833d:
+	jne L2ac89
+	jmp L2ad25
+L2ac89:
 	push bp
 	mov si, 20h
-L28341:
+L2ac8d:
 	sub si, 2
-	mov word ptr cs:c_26298[si], 0
+	mov word ptr cs:c_28bea[si], 0
 	cmp si, 0
-	jne L28341
-	mov byte ptr cs:c_2639c, 0ffh
+	jne L2ac8d
+	mov byte ptr cs:c_28cee, 0ffh
 	cmp byte ptr ds:[bp], 0f0h
-	jne L28369
+	jne L2acb5
 	mov cl, ds:[bp+1]
-	mov byte ptr cs:c_2639c, cl
+	mov byte ptr cs:c_28cee, cl
 	add bp, 8
-L28369:
+L2acb5:
 	mov cl, ds:[bp]
-	cmp cl, byte ptr cs:c_2638c
-	je L2838b
+	cmp cl, byte ptr cs:c_28cde
+	je L2acd7
 	cmp cl, 0ffh
-	je L283a8
+	je L2acf4
 	inc bp
-L2837a:
+L2acc6:
 	mov cl, ds:[bp]
 	inc bp
 	cmp cl, 0ffh
-	jne L28386
-	jmp short L28369
-L28386:
+	jne L2acd2
+	jmp short L2acb5
+L2acd2:
 	add bp, 5
-	jmp short L2837a
-L2838b:
+	jmp short L2acc6
+L2acd7:
 	inc bp
-L2838c:
+L2acd8:
 	mov cl, ds:[bp]
 	inc bp
 	cmp cl, 0ffh
-	je L283a8
+	je L2acf4
 	inc bp
 	mov cx, ds:[bp]
 	add bp, 4
-	mov word ptr cs:c_26298[si], cx
+	mov word ptr cs:c_28bea[si], cx
 	add si, 2
-	jmp short L2838c
-L283a8:
+	jmp short L2acd8
+L2acf4:
 	pop bp
 	push bp
 	xor si, si
-L283ac:
-	mov cx, word ptr cs:c_26298[si]
+L2acf8:
+	mov cx, word ptr cs:c_28bea[si]
 	mov ds:[bp], cx
 	add si, 2
 	add bp, 2
 	cmp si, 20h
-	jne L283ac
-	mov cl, byte ptr cs:c_2639c
+	jne L2acf8
+	mov cl, byte ptr cs:c_28cee
 	mov ds:[bp], cl
 	pop bp
 	mov byte ptr ds:[bp+21h], 0fch
 	mov byte ptr ds:[bp+22h], 0fdh
 	mov byte ptr ds:[bp+23h], 0feh
-L283d9:
+L2ad25:
 	pop ds
 	pop bp
 	pop dx
 	pop cx
 	pop bx
 	ret
-c_283df label byte
-	db 0h, 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 0eh, 0e8h, 2bh, 0e8h, 8bh, 0c1h
-	db 5eh, 5fh, 1fh, 5dh, 0cbh, 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 4eh, 0ah
-	db 0eh, 0e8h, 40h, 0e7h, 5eh, 5fh, 1fh, 5dh, 0cbh, 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h
-	db 0eh, 0e8h, 0ch, 0e8h, 32h, 0f6h, 8bh, 0c1h, 5eh, 5fh, 1fh, 5dh, 0cbh
 _init_sequence_params endp
-
-/* 0x2841f (1.00's; not yet placed in 1.11) */
-_seek_sequence_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	les ax, dword ptr [bp+6]
-	push cs
-	call near ptr _seek_sequence
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-_seek_sequence_far endp
-
-/* 0x28431 (1.00's; not yet placed in 1.11) */
-_set_master_level_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	mov cx, [bp+6]
-	push cs
-	call near ptr _set_master_level
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_28443 label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 4eh, 0ah, 0eh, 0e8h, 0eh, 0e6h
-	db 5eh, 5fh, 1fh, 5dh, 0cbh
-_set_master_level_far endp
-
-/* 0x28458 (1.00's; not yet placed in 1.11) */
-_install_driver_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	les ax, dword ptr [bp+6]
-	push cs
-	call near ptr _install_driver
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-_install_driver_far endp
-
-/* 0x2846a (1.00's; not yet placed in 1.11) */
-_configure_driver_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	push bx
-	xor bx, bx
-	les ax, dword ptr [bp+6]
-	push cs
-	call near ptr _configure_driver
-	pop bx
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-_configure_driver_far endp
-
-/* 0x28480 (1.00's; not yet placed in 1.11) */
-_start_sequence_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	les ax, dword ptr [bp+6]
-	mov cx, [bp+0ah]
-	push cs
-	call near ptr _start_sequence
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_28495 label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 56h, 0ah, 8ah, 4eh, 0ch, 8ah, 6eh, 0eh
-	db 0eh, 0e8h, 1eh, 0e6h, 5eh, 5fh, 1fh, 5dh, 0cbh
-_start_sequence_far endp
-
-/* 0x284b0 (1.00's; not yet placed in 1.11) */
-_driver_fn13_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	mov cx, [bp+6]
-	push cs
-	call near ptr _driver_fn13
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_284c2 label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 4eh, 0ah, 0eh, 0e8h, 62h, 0e6h
-	db 5eh, 5fh, 1fh, 5dh, 0cbh, 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8bh, 4eh, 0ah
-	db 8ah, 56h, 0ch, 0eh, 0e8h, 2bh, 0e9h, 5eh, 5fh, 1fh, 5dh, 0cbh
-_driver_fn13_far endp
-
-/* 0x284ef (1.00's; not yet placed in 1.11) */
-_retire_and_tick_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	les ax, dword ptr [bp+6]
-	push cs
-	call near ptr _retire_and_tick
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_28501 label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 4eh, 0ah, 0eh, 0e8h, 0dch, 0e5h
-	db 5eh, 5fh, 1fh, 5dh, 0cbh, 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 0eh, 0e8h, 0dfh, 0e6h
-	db 5eh, 5fh, 1fh, 5dh, 32h, 0e4h, 8ah, 0c1h, 0cbh
-_retire_and_tick_far endp
-
-/* 0x2852c (1.00's; not yet placed in 1.11) */
-_set_sequence_level_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	mov cl, [bp+6]
-	push cs
-	call near ptr _set_sequence_level
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_2853e label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8ah, 6eh, 0ah, 8ah, 4eh, 0ch, 8ah, 56h, 0eh
-	db 0eh, 0e8h, 92h, 0e7h, 5eh, 5fh, 1fh, 5dh, 0cbh
-_set_sequence_level_far endp
-
-/* 0x28559 (1.00's; not yet placed in 1.11) */
-_silence_driver_far proc far
-	push bp
-	mov bp, sp
-	push ds
-	push di
-	push si
-	les ax, dword ptr [bp+6]
-	push cs
-	call near ptr _silence_driver
-	pop si
-	pop di
-	pop ds
-	pop bp
-	retf
-c_2856b label byte
-	db 55h, 8bh, 0ech, 1eh, 57h, 56h, 0c4h, 46h, 6h, 8bh, 4eh, 0ah, 0eh, 0e8h, 7ch, 0e5h
-	db 5eh, 5fh, 1fh, 5dh, 0cbh
-_silence_driver_far endp
 SOUND_TEXT ends
 }
 #else
@@ -5874,7 +6036,7 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
 }
 
 /*
- * 0x2817a (1.00's; not yet placed in 1.11)
+ * 0x2aac6
  *
  * A one-instruction forwarder to `skip_unknown_event`. It exists so that the
  * dispatch that reaches it has an entry of its own rather than sharing one.
@@ -5955,7 +6117,7 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
     return out;
 }
 /*
- * 0x28305 (1.00's; not yet placed in 1.11)
+ * 0x2ac51
  *
  * Parse a sequence's device-specific parameter table once, and cache the result
  * in place. Hand-written assembly: `es:ax` is the record, and nothing is
@@ -6062,7 +6224,7 @@ void init_sequence_params(struct sequence far * seq)
 }
 
 /*
- * 0x28559 (1.00's; not yet placed in 1.11)
+ * 0x28ac1
  *
  * The ordinary-call face of `silence_driver`. It loads `ES:AX` from where a
  * stack argument would be, and `silence_driver` reads neither - the same dead
@@ -6075,7 +6237,7 @@ void silence_driver_far(void)
 }
 
 /*
- * 0x28431 (1.00's; not yet placed in 1.11)
+ * 0x2898b
  *
  * The ordinary-call face of `set_master_level`. The level arrives as a word on
  * the stack and goes into `CX`; only `CL` is read. DS, DI and SI are saved
@@ -6087,7 +6249,7 @@ void set_master_level_far(uint16_t level)
 }
 
 /*
- * 0x28458 (1.00's; not yet placed in 1.11)
+ * 0x289b4
  *
  * The ordinary-call face of `install_driver`. The driver's far pointer arrives
  * on the stack and is loaded into `ES:AX` with one `les`, and `AX` comes back
@@ -6099,7 +6261,7 @@ uint16_t install_driver_far(const uint8_t far * drv)
 }
 
 /*
- * 0x2846a (1.00's; not yet placed in 1.11)
+ * 0x289c7
  *
  * The ordinary-call face of `configure_driver`. It loads `ES:AX` from the
  * stack argument and zeroes `BX` before the call. `AX` passes back out, and
@@ -6117,7 +6279,7 @@ uint16_t configure_driver_far(const uint8_t far * drv)
 }
 
 /*
- * 0x284ef (1.00's; not yet placed in 1.11)
+ * 0x28a52
  *
  * The ordinary-call face of `retire_and_tick`, which reads its record from
  * `ES:AX` - loaded here from the stack argument with one `les`.
@@ -6128,7 +6290,7 @@ void retire_and_tick_far(struct sequence far * seq)
 }
 
 /*
- * 0x28480 (1.00's; not yet placed in 1.11)
+ * 0x289de
  *
  * The ordinary-call face of `start_sequence`. The original takes its record in
  * `es:ax` and its flag in `cx`, which no C caller can arrange, so this takes
@@ -6144,7 +6306,7 @@ void start_sequence_far(struct sequence far * seq, uint16_t flag)
 }
 
 /*
- * 0x2841f (1.00's; not yet placed in 1.11)
+ * 0x28978
  *
  * The ordinary-call face of `seek_sequence`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source
@@ -6157,7 +6319,7 @@ void seek_sequence_far(struct sequence far * seq)
 }
 
 /*
- * 0x284b0 (1.00's; not yet placed in 1.11)
+ * 0x28a10
  *
  * The ordinary-call face of `driver_fn13`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source
@@ -6169,7 +6331,7 @@ void driver_fn13_far(void)
 }
 
 /*
- * 0x2852c (1.00's; not yet placed in 1.11)
+ * 0x28a92
  *
  * The ordinary-call face of `set_sequence_level`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source

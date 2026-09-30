@@ -12,7 +12,7 @@
  * carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -O -G -Z
+ * JUDGE: built-with -mm -O2
  * JUDGE: data 0x4a7e..0x4a82
  */
 #include "tim.h"
@@ -63,7 +63,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
 }
 
 /*
- * 0x289ba (1.00's; not yet placed in 1.11)
+ * 0x2b888
  *
  * Follow a chain to its end and, if anything is there, retire and tick.
  *
@@ -472,7 +472,7 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
 }
 
 /*
- * 0x29034 (1.00's; not yet placed in 1.11)
+ * 0x2b8e4
  *
  * Load a sequence and start it: follow the chain of far pointers to the record,
  * set its default volume, and hand it to `start_sequence`.
@@ -549,7 +549,7 @@ void stop_voice_playing(const uint8_t far * source)
 }
 
 /*
- * 0x29106 (1.00's; not yet placed in 1.11)
+ * 0x28194
  *
  * Give the seven voice records back to the allocator, as kind 2.
  *
@@ -631,7 +631,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
 }
 
 /*
- * 0x2923d (1.00's; not yet placed in 1.11)
+ * 0x2b29e
  *
  * Retire every voice that is still marked as playing. The seven-entry table at
  * DGROUP 0x6414 again, the 0xff at +0x158 as the mark, and
@@ -653,5 +653,6 @@ void stop_all_voices(void)
             ZERO_PAGE(g_sound_voice[i])->state = 0xff;
         }
     }
+    (void)i;
 }
 
