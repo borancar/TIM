@@ -797,6 +797,21 @@ void wait_cursor(void)
 }
 
 /*
+ * 0x0520f
+ *
+ * **`wait_cursor` with cursor 0x23**, new in 1.11 and put up while the
+ * machine is paused: the cursor it replaces is remembered the same way, and
+ * `restore_cursor` puts it back. The name is ours.
+ */
+void pause_cursor(void)
+{
+    if (g_cursor != 1)
+        g_saved_cursor = g_cursor;
+
+    select_cursor(0x23);
+}
+
+/*
  * 0x0522b
  *
  * And put back whatever `wait_cursor` remembered.

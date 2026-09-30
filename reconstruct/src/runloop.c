@@ -19,6 +19,7 @@
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
+#include <ctype.h>
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
@@ -65,9 +66,11 @@ void run_machine_loop(void)
         if (((uint16_t)g_sound_request_02) != 0) g_sound_request_02 = 1;
         if (((uint16_t)g_sound_request_09) != 0) g_sound_request_09 = 1;
         if (((uint16_t)g_sound_request_0c) != 0) g_sound_request_0c = 1;
+        if (((uint16_t)g_sound_request_15) != 0) g_sound_request_15 = 1;
+        if (((uint16_t)g_sound_request_19) != 0) g_sound_request_19 = 1;
 
         update_button_state();
-        g_last_key = (uint8_t)(bios_read_key() >> 8);
+        g_last_key = translate_key(bios_read_key());
         regions_handle_pointer(g_regions_play);
 
         step_machine();
@@ -87,12 +90,14 @@ void run_machine_loop(void)
         if (((uint16_t)g_sound_request_02) == 1) stop_music_or_effect(2);
         if (((uint16_t)g_sound_request_09) == 1) stop_music_or_effect(9);
         if (((uint16_t)g_sound_request_0c) == 1) stop_music_or_effect(0x0c);
+        if (((uint16_t)g_sound_request_15) == 1) stop_music_or_effect(0x15);
+        if (((uint16_t)g_sound_request_19) == 1) stop_music_or_effect(0x19);
 
         shift_all_histories();
 
         if (g_freeform == 0) {
             check_goal();
-            if ((g_last_key) == SC_V)
+            if (toupper(g_last_key & 0x7f) == 'V')
                 g_round_state = 0x200;
         }
 
@@ -100,6 +105,9 @@ void run_machine_loop(void)
             g_round_state = 0x1000;
         if (g_pointer.button_right == 2)
             g_round_state = 2;
+
+        if (toupper(g_last_key & 0x7f) == 'P')     /* 1.11 */
+            pause_machine();
 
         g_machine_frames++;
     }
@@ -126,7 +134,8 @@ void clear_machine(void)
     g_held_parts.dragged_part = 0;
     g_machine_frames = 0;
     g_sound_request_01 = g_sound_request_02 =
-        g_sound_request_09 = g_sound_request_0c = 0;
+        g_sound_request_09 = g_sound_request_0c =
+        g_sound_request_15 = g_sound_request_19 = 0;
 
     for (si = 0; si < 10; si++)
         g_goal_condition[si] = 0;
@@ -144,6 +153,30 @@ void restart_machine(void)
     reset_machine();
     show_cursor_again();
     stop_music_or_effect(0);
+}
+
+/*
+ * 0x01438
+ *
+ * **Pause the running machine**, new in 1.11: P in the run loop. The pause
+ * cursor goes up and the loop only reads the buttons and a key, and keeps
+ * the frame clock paced, until either button is clicked. The name is ours.
+ */
+void pause_machine(void)
+{
+    show_cursor_again();
+    pause_cursor();
+    update_button_state();
+    while (g_pointer.button_left != 2 && g_pointer.button_right != 2) {
+        update_button_state();
+        g_last_key = translate_key(bios_read_key());
+        while ((int16_t)(0x2710 - ((uint16_t)g_timer.frame_budget)) < 8)
+            ;
+        g_elapsed_ticks += 0x2710 - g_timer.frame_budget;
+        g_timer.frame_budget = 0x2710;
+    }
+    restore_cursor();
+    erase_both_pages();
 }
 
 /*

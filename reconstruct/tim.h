@@ -1079,6 +1079,7 @@ void reset_machine(void);                           /* 0x0892b */
 void replay_shapes(void);                           /* 0x0729d */
 void clear_machine(void);                           /* 0x013cd */
 void restart_machine(void);                         /* 0x0141b */
+void pause_machine(void);                           /* 0x01438 */
 void unlink_part(struct part *part);                /* 0x0627f */
 void step_machine(void);                            /* 0x00e89 */
 void step_moving_object(struct part *obj);              /* 0x0118c */
@@ -1610,6 +1611,7 @@ void finish_level(void);                             /* 0x032c6 */
 void write_config(void);                               /* 0x144b5 */
 void count_level_files(void);                       /* 0x14271 */
 void wait_cursor(void);                             /* 0x051f3 */
+void pause_cursor(void);                            /* 0x0520f */
 void restore_cursor(void);                          /* 0x0522b */
 int16_t cursor_for_tool(void);                      /* 0x0529f */
 void select_cursor(int16_t which);                  /* 0x0523a */
