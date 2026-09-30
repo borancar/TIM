@@ -846,7 +846,7 @@ void save_level(uint16_t number)
 }
 
 /*
- * 0x1419d (1.11's; the body below is still 1.00's, from 0x12915)
+ * 0x1419d (1.00's; not yet placed in 1.11) (1.11's; the body below is still 1.00's, from 0x12915)
  *
  * Load an animation file: build the part list first, clear DGROUP 0x5472, and
  * read it. Every load in the image comes here - the title and credits

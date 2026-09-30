@@ -845,7 +845,7 @@ uint16_t part_init_motor(struct part *part)
     return 0;
 }
 
-/* 0x1689e */
+/* 0x1696d */
 uint16_t part_init_kind_55(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -858,7 +858,7 @@ uint16_t part_init_kind_55(struct part *part)
     return 0;
 }
 
-/* 0x168db */
+/* 0x169b7 */
 uint16_t part_init_kind_56(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -868,7 +868,7 @@ uint16_t part_init_kind_56(struct part *part)
     return 0;
 }
 
-/* 0x1696d */
+/* 0x169e6 */
 uint16_t part_init_kind_57(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;

@@ -63,7 +63,7 @@ struct machine_quadrant_steps g_machine_quadrant_steps = { { 0, -1, 0, 1 }, { -1
 struct collision g_collision;
 
 /*
- * 0x0029f
+ * 0x00297
  *
  * A part hook that agrees to everything: it answers 1 and does nothing else.
  * The six routines from here to 0x002b5 are the kind table's do-nothing
@@ -77,32 +77,32 @@ uint16_t part_hook_yes(struct part *part)
     return 1;
 }
 
-/* 0x002a4 */
+/* 0x0029f */
 void part_hook_none_2a1(struct part *part)
 {
     (void)part;
 }
 
-/* 0x002a9 */
+/* 0x002a4 */
 void part_hook_none_2a6(struct part *part)
 {
     (void)part;
 }
 
-/* 0x002ae */
+/* 0x002a9 */
 void part_hook_none_2ab(struct part *part)
 {
     (void)part;
 }
 
-/* 0x002b3 */
+/* 0x002ae */
 void part_hook_none_2b0(struct part *part)
 {
     (void)part;
 }
 
 /*
- * 0x00486
+ * 0x002b3
  *
  * The other half of the pair: answers 0.
  */
@@ -282,7 +282,7 @@ int16_t object_delta_angle(register struct part *obj)
 }
 
 /*
- * 0x004d1 (1.00's; not yet placed in 1.11)
+ * 0x00486 (1.00's; not yet placed in 1.11)
  *
  * Reduce a 16-bit angle to one of four directions. Two exact values are
  * answered directly - 0x2000 gives 0 and 0xa000 gives 2 - and everything else

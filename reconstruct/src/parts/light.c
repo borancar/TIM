@@ -38,7 +38,7 @@ void part_setup_light(struct part *part)
 }
 
 /*
- * 172c:2b7e, image 0x19e3e (1.00's; not yet placed in 1.11) - kind 29's hit test.
+ * 190f:2b25, image 0x1bc15 - kind 29's hit test.
  *
  * The same do-nothing as `part_hit_generator`, down to the unused local.
  */

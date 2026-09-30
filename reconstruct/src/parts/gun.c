@@ -134,7 +134,7 @@ void part_flip_gun(struct part *part)
 }
 
 /*
- * 172c:2451, image 0x19711 (1.00's; not yet placed in 1.11) - kind 27's drive hook.
+ * 190f:2410, image 0x1b500 - kind 27's drive hook.
  *
  * Flags of exactly 1 is the counting pass the other drive hooks recognise: the
  * rope's +0x0e goes up and the answer is 0, so the walk carries on.

@@ -53,12 +53,12 @@
  * established - see STATUS.md.
  */
 
-uint16_t part_hook_yes(struct part *part);              /* 0x0029f */
-void     part_hook_none_2a1(struct part *part);         /* 0x002a4 */
-void     part_hook_none_2a6(struct part *part);         /* 0x002a9 */
-void     part_hook_none_2ab(struct part *part);         /* 0x002ae */
-void     part_hook_none_2b0(struct part *part);         /* 0x002b3 */
-uint16_t part_hook_no(struct part *part);               /* 0x00486 */
+uint16_t part_hook_yes(struct part *part);              /* 0x00297 */
+void     part_hook_none_2a1(struct part *part);         /* 0x0029f */
+void     part_hook_none_2a6(struct part *part);         /* 0x002a4 */
+void     part_hook_none_2ab(struct part *part);         /* 0x002a9 */
+void     part_hook_none_2b0(struct part *part);         /* 0x002ae */
+uint16_t part_hook_no(struct part *part);               /* 0x002b3 */
 
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
 void compute_moved(void);                               /* 0x002ba */
@@ -90,7 +90,7 @@ void compute_other_bounds(void);                     /* 0x0035c */
 int16_t angles_same_side(int16_t angle);            /* 0x003a1 */
 
 /* Reduce a 16-bit angle to one of four directions. */
-int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
+int16_t angle_to_quadrant(int16_t angle);           /* 0x00486 */
 
 /* Recompute gravity and the velocity limit for every kind. */
 void recompute_kind_physics(void);                  /* 0x0369c */
@@ -937,56 +937,56 @@ void free_all_part_bitmaps(void);                   /* 0x107f0 */
 void free_part_bitmap(uint16_t n);                  /* 0x10808 */
 void load_part_bitmap(uint16_t n);                  /* 0x10770 */
 uint16_t part_init_bowling_ball(struct part *part);           /* 0ecc:71d4, 0x15e94 */
-uint16_t part_init_platform(struct part *part);           /* 0ecc:71f7, 0x15eb7 */
-uint16_t part_init_ramp(struct part *part);           /* 0ecc:722f, 0x15eef */
-uint16_t part_init_seesaw(struct part *part);           /* 0ecc:723b, 0x15efb */
-uint16_t part_init_balloon(struct part *part);           /* 0ecc:72aa, 0x15f6a */
-uint16_t part_init_conveyor(struct part *part);           /* 0ecc:72e9, 0x15fa9 */
-uint16_t part_init_mouse_cage(struct part *part);           /* 0ecc:7339, 0x15ff9 */
-uint16_t part_init_pulley(struct part *part);           /* 0ecc:737f, 0x1603f */
-uint16_t part_init_belt(struct part *part);           /* 0ecc:738b, 0x1604b */
+uint16_t part_init_platform(struct part *part);           /* 0ecc:7203, 0x15ec3 */
+uint16_t part_init_ramp(struct part *part);           /* 0ecc:723b, 0x15efb */
+uint16_t part_init_seesaw(struct part *part);           /* 0ecc:727e, 0x15f3e */
+uint16_t part_init_balloon(struct part *part);           /* 0ecc:72b6, 0x15f76 */
+uint16_t part_init_conveyor(struct part *part);           /* 0ecc:72f5, 0x15fb5 */
+uint16_t part_init_mouse_cage(struct part *part);           /* 0ecc:7345, 0x16005 */
+uint16_t part_init_pulley(struct part *part);           /* 0ecc:738b, 0x1604b */
+uint16_t part_init_belt(struct part *part);           /* 0ecc:73cb, 0x1608b */
 uint16_t part_init_basketball(struct part *part);           /* 0ecc:73f8, 0x160b8 */
 uint16_t part_init_rope(struct part *part);           /* 0ecc:7427, 0x160e7 */
 uint16_t part_init_bird_cage(struct part *part);           /* 0ecc:7453, 0x16113 */
-uint16_t part_init_pokey(struct part *part);           /* 0ecc:7486, 0x16146 */
-uint16_t part_init_jack_in_the_box(struct part *part);           /* 0ecc:74bf, 0x1617f */
-uint16_t part_init_gear(struct part *part);           /* 0ecc:7505, 0x161c5 */
-uint16_t part_init_bob_the_fish(struct part *part);           /* 0ecc:7511, 0x161d1 */
-uint16_t part_init_bellow(struct part *part);           /* 0ecc:7545, 0x16205 */
-uint16_t part_init_bucket(struct part *part);           /* 0ecc:75ad, 0x1626d */
-uint16_t part_init_cannon(struct part *part);           /* 0ecc:75ec, 0x162ac */
-uint16_t part_init_dynamite(struct part *part);           /* 0ecc:75f8, 0x162b8 */
-uint16_t part_init_bullet(struct part *part);           /* 0ecc:7635, 0x162f5 */
-uint16_t part_init_electric_plug(struct part *part);           /* 0ecc:7695, 0x16355 */
-uint16_t part_init_dynamite_plunger(struct part *part);           /* 0ecc:76a1, 0x16361 */
+uint16_t part_init_pokey(struct part *part);           /* 0ecc:7492, 0x16152 */
+uint16_t part_init_jack_in_the_box(struct part *part);           /* 0ecc:74cb, 0x1618b */
+uint16_t part_init_gear(struct part *part);           /* 0ecc:7511, 0x161d1 */
+uint16_t part_init_bob_the_fish(struct part *part);           /* 0ecc:7551, 0x16211 */
+uint16_t part_init_bellow(struct part *part);           /* 0ecc:7585, 0x16245 */
+uint16_t part_init_bucket(struct part *part);           /* 0ecc:75b9, 0x16279 */
+uint16_t part_init_cannon(struct part *part);           /* 0ecc:75f8, 0x162b8 */
+uint16_t part_init_dynamite(struct part *part);           /* 0ecc:7635, 0x162f5 */
+uint16_t part_init_bullet(struct part *part);           /* 0ecc:7672, 0x16332 */
+uint16_t part_init_electric_plug(struct part *part);           /* 0ecc:76a1, 0x16361 */
+uint16_t part_init_dynamite_plunger(struct part *part);           /* 0ecc:76de, 0x1639e */
 uint16_t part_init_hook(struct part *part);           /* 0ecc:7717, 0x163d7 */
-uint16_t part_init_fan(struct part *part);           /* 0ecc:7727, 0x163e7 */
-uint16_t part_init_flashlight(struct part *part);           /* 0ecc:7733, 0x163f3 */
-uint16_t part_init_generator(struct part *part);           /* 0ecc:7798, 0x16458 */
-uint16_t part_init_gun(struct part *part);           /* 0ecc:77a4, 0x16464 */
-uint16_t part_init_baseball(struct part *part);           /* 0ecc:77dc, 0x1649c */
+uint16_t part_init_fan(struct part *part);           /* 0ecc:7733, 0x163f3 */
+uint16_t part_init_flashlight(struct part *part);           /* 0ecc:7770, 0x16430 */
+uint16_t part_init_generator(struct part *part);           /* 0ecc:77a4, 0x16464 */
+uint16_t part_init_gun(struct part *part);           /* 0ecc:77dc, 0x1649c */
+uint16_t part_init_baseball(struct part *part);           /* 0ecc:7815, 0x164d5 */
 uint16_t part_init_light(struct part *part);           /* 0ecc:7844, 0x16504 */
 uint16_t part_init_magnifying_glass(struct part *part);           /* 0ecc:7861, 0x16521 */
-uint16_t part_init_monkey(struct part *part);           /* 0ecc:786d, 0x1652d */
-uint16_t part_init_pumpkin(struct part *part);           /* 0ecc:7879, 0x16539 */
-uint16_t part_init_heart_balloon(struct part *part);           /* 0ecc:78d5, 0x16595 */
-uint16_t part_init_christmas_tree(struct part *part);           /* 0ecc:78e1, 0x165a1 */
-uint16_t part_init_boxing_glove(struct part *part);           /* 0ecc:7943, 0x16603 */
-uint16_t part_init_rocket(struct part *part);           /* 0ecc:7977, 0x16637 */
-uint16_t part_init_scissors(struct part *part);           /* 0ecc:7983, 0x16643 */
+uint16_t part_init_monkey(struct part *part);           /* 0ecc:7879, 0x16539 */
+uint16_t part_init_pumpkin(struct part *part);           /* 0ecc:78b2, 0x16572 */
+uint16_t part_init_heart_balloon(struct part *part);           /* 0ecc:78e1, 0x165a1 */
+uint16_t part_init_christmas_tree(struct part *part);           /* 0ecc:7920, 0x165e0 */
+uint16_t part_init_boxing_glove(struct part *part);           /* 0ecc:794f, 0x1660f */
+uint16_t part_init_rocket(struct part *part);           /* 0ecc:7983, 0x16643 */
+uint16_t part_init_scissors(struct part *part);           /* 0ecc:79bb, 0x1667b */
 uint16_t part_init_solar_panel(struct part *part);           /* 0ecc:79f4, 0x166b4 */
 uint16_t part_init_trampoline(struct part *part);           /* 0ecc:7a09, 0x166c9 */
-uint16_t part_init_windmill(struct part *part);           /* 0ecc:7a31, 0x166f1 */
-uint16_t part_init_mort_the_mouse(struct part *part);           /* 0ecc:7a3d, 0x166fd */
-uint16_t part_init_cannon_ball(struct part *part);           /* 0ecc:7a83, 0x16743 */
-uint16_t part_init_tennis_ball(struct part *part);           /* 0ecc:7abc, 0x1677c */
-uint16_t part_init_candle(struct part *part);           /* 0ecc:7b0e, 0x167ce */
-uint16_t part_init_corner_pipe(struct part *part);           /* 0ecc:7b1a, 0x167da */
+uint16_t part_init_windmill(struct part *part);           /* 0ecc:7a3d, 0x166fd */
+uint16_t part_init_mort_the_mouse(struct part *part);           /* 0ecc:7a83, 0x16743 */
+uint16_t part_init_cannon_ball(struct part *part);           /* 0ecc:7abc, 0x1677c */
+uint16_t part_init_tennis_ball(struct part *part);           /* 0ecc:7aeb, 0x167ab */
+uint16_t part_init_candle(struct part *part);           /* 0ecc:7b1a, 0x167da */
+uint16_t part_init_corner_pipe(struct part *part);           /* 0ecc:7b56, 0x16816 */
 uint16_t part_init_anchor(struct part *part);           /* 0ecc:7b8a, 0x1684a */
 uint16_t part_init_motor(struct part *part);           /* 0ecc:7ba2, 0x16862 */
-uint16_t part_init_kind_55(struct part *part);           /* 0ecc:7bde, 0x1689e */
-uint16_t part_init_kind_56(struct part *part);           /* 0ecc:7c1b, 0x168db */
-uint16_t part_init_kind_57(struct part *part);           /* 0ecc:7cad, 0x1696d */
+uint16_t part_init_kind_55(struct part *part);           /* 0ecc:7cad, 0x1696d */
+uint16_t part_init_kind_56(struct part *part);           /* 0ecc:7cf7, 0x169b7 */
+uint16_t part_init_kind_57(struct part *part);           /* 0ecc:7d26, 0x169e6 */
 void part_finish_angles(struct part *part);             /* 0x069e8 */
 void part_setup_boxing_glove(struct part *part);                /* 190f:064c, 0x1973c */
 void part_setup_kind_56(struct part *part);                /* 190f:10bd, 0x1a1ad */
@@ -1013,8 +1013,8 @@ void part_setup_windmill(struct part *part);                /* 190f:488a, 0x1d97
 void part_setup_balloon(struct part *part);                /* 190f:0138, 0x19228 */
 void part_setup_bellow(struct part *part);                /* 190f:035f, 0x1944f */
 void part_setup_bullet(struct part *part);                /* 190f:088d, 0x1997d */
-void part_setup_cannon(struct part *part);                /* 190f:0b6f, 0x19c5f */
-void part_setup_gun(struct part *part);                /* 190f:2368, 0x1b458 */
+void part_setup_cannon(struct part *part);                /* 190f:0b7a, 0x19c6a */
+void part_setup_gun(struct part *part);                /* 190f:2373, 0x1b463 */
 void part_setup_dynamite_plunger(struct part *part);                /* 190f:3216, 0x1c306 */
 void part_setup_dynamite(struct part *part);                /* 190f:127e, 0x1a36e */
 void part_setup_hook(struct part *part);                /* 190f:19ba, 0x1aaaa */
@@ -1030,7 +1030,7 @@ void part_setup_ramp(struct part *part);                          /* 190f:26e1, 
 void part_setup_pumpkin(struct part *part);                /* 190f:35bf, 0x1c6af */
 void part_setup_scissors(struct part *part);                /* 190f:3861, 0x1c951 */
 void part_setup_christmas_tree(struct part *part);                /* 190f:107c, 0x1a16c */
-void part_setup_seesaw(struct part *part);                /* 190f:4039, 0x1d129 */
+void part_setup_seesaw(struct part *part);                /* 190f:406d, 0x1d15d */
 struct part *make_part(uint16_t kind);                     /* 0x15d9b */
 void free_part(struct part *part);                      /* 0x16b94 */
 void load_all_parts(void);                          /* 0x10722 */

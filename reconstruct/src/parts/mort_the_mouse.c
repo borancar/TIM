@@ -47,7 +47,7 @@ void part_setup_mort_the_mouse(struct part *part)
 }
 
 /*
- * 172c:34b5, image 0x1a775 (1.00's; not yet placed in 1.11) - kind 42's hit test.
+ * 190f:3430, image 0x1c520 - kind 42's hit test.
  *
  * It reads the thing that hit it and does nothing with it: the mouse is solid
  * and that is all. Answers 1.
@@ -61,7 +61,7 @@ uint16_t part_hit_mort_the_mouse(struct part *part)
 }
 
 /*
- * 172c:34d0, image 0x1a790 (1.00's; not yet placed in 1.11) - kind 42's step. The mouse.
+ * 190f:3438, image 0x1c528 - kind 42's step. The mouse.
  *
  * It runs when it is startled and then stops. The countdown at +0x96 is how
  * many steps of running are left; each one flips the form between 0 and 1 and

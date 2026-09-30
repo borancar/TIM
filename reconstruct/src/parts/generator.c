@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:1de0, image 0x190a0 (1.00's; not yet placed in 1.11) - kind 26's hit test. The pulley wheel.
+ * 190f:1dbb, image 0x1aeab - kind 26's hit test. The pulley wheel.
  *
  * Nothing happens. The original still loads the part at the object's +0x84 into
  * a local and then never reads it, which is a hook written from the same

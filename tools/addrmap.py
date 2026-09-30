@@ -52,6 +52,12 @@ NEW_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
 OUT = os.path.join(REPO, "out", "addrmap.json")
 OVERLAYS = ("sxovl", "vmovl")
 OLD_DGROUP, NEW_DGROUP = 0x2D3C0, 0x2FE10
+# The part kinds' records: in DGROUP in 1.00, in a far segment of their own
+# in 1.11 (tools/kindtables.py). 1.00 has 58 kinds; 1.11 keeps them first.
+OLD_KIND_TABLE, NEW_KIND_TABLE, OLD_KINDS = OLD_DGROUP + 0x0EA6, 0x2EF10, 58
+# The part templates, 16 bytes a kind, ending in the init routine's far
+# pointer: DGROUP 0x2966 in 1.00, 0x2488 in 1.11.
+OLD_TEMPLATES, NEW_TEMPLATES = OLD_DGROUP + 0x2966, NEW_DGROUP + 0x2488
 
 MD = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_16)
 MD.detail = True
@@ -339,13 +345,45 @@ def build():
         r["new"], r["how"], r["ratio"] = e, "resembles, moved", round(ratio, 3)
         taken.add(e)
 
+    # **The kind table outranks all of it.** Each kind's record holds six far
+    # pointers to its handlers, in both builds, so a 1.00 handler and its
+    # 1.11 counterpart are the same slot of the same kind's record: an exact
+    # pairing, where resemblance guessed - and got some wrong, as the
+    # handlers of a kind are short and alike. Where slots disagree the
+    # clear majority wins: kinds 51..54 had the shared do-nothing handlers
+    # in 1.00 and have routines of their own in 1.11, and every other kind
+    # still names the shared ones.
+    by_old = {r["old"]: r for r in rows}
+    seen = {}
+    for k in range(OLD_KINDS):
+        for i in range(6):
+            o, sg = struct.unpack_from("<HH", old, OLD_KIND_TABLE + k * 0x3A + 0x22 + 4 * i)
+            o2, sg2 = struct.unpack_from("<HH", new, NEW_KIND_TABLE + k * 0x3A + 0x22 + 4 * i)
+            seen.setdefault(sg * 16 + o, []).append(sg2 * 16 + o2)
+        o, sg = struct.unpack_from("<HH", old, OLD_TEMPLATES + 16 * k + 12)
+        o2, sg2 = struct.unpack_from("<HH", new, NEW_TEMPLATES + 16 * k + 12)
+        if o or sg:
+            seen.setdefault(sg * 16 + o, []).append(sg2 * 16 + o2)
+    for a, bs in seen.items():
+        r = by_old.get(a)
+        if r is None:
+            continue
+        import collections
+        b, votes = collections.Counter(bs).most_common(1)[0]
+        if votes * 2 <= len(bs):
+            continue
+        if r.get("new") != b:
+            r["was"] = r.get("new")
+        r["new"], r["how"] = b, "kind table"
+        r.pop("ratio", None)
+
     for r in rows:
         if "new" in r:
             r["entry"] = r["new"] in starts
     return rows
 
 
-SURE = ("exact", "exact in order")
+SURE = ("exact", "exact in order", "kind table")
 # A resemblance is only ever at a routine's entry (`entries`), so it is a
 # choice between whole routines, and the one it picks at 0.6 has been the
 # routine the callers call wherever that was checked.
@@ -434,17 +472,24 @@ def apply(rows, dry):
             changed += 1
             if not dry:
                 open(path, "w").write(out)
-    # tim.h: `name(...);   /* 0x..... */`
+    # tim.h: `name(...);   /* 0x..... */` or `/* seg:off, 0x..... */`,
+    # rewritten by name to the settled address whatever it says now - the
+    # prototypes are copies, and a copy can hold an address the source no
+    # longer does.
     th = os.path.join(REPO, "reconstruct", "tim.h")
     text = open(th).read()
     out = text
     for r in rows:
         if not settled(r):
             continue
-        if r.get("cur") is None:
-            continue
-        out = re.sub(r"(\b" + re.escape(r["name"]) + r"\s*\([^;]*\);[ \t]*/\* *)0x%05x\b" % r["cur"],
-                     lambda m: m.group(1) + "0x%05x" % r["new"], out)
+        def rep(m, r=r):
+            at = "0x%05x" % r["new"]
+            if m.group(2):
+                f = max(x for x in fr if x <= r["new"])
+                at = "%04x:%04x, %s" % (f >> 4, r["new"] - f, at)
+            return m.group(1) + at
+        out = re.sub(r"(\b" + re.escape(r["name"]) + r"\s*\([^;]*\);[ \t]*/\* *)"
+                     r"(?:([0-9a-f]{4}):([0-9a-f]{4}), )?0x[0-9a-f]{5}\b", rep, out)
     if out != text:
         changed += 1
         if not dry:
