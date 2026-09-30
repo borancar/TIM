@@ -1137,7 +1137,12 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         at.x = end->box[0].x + end->grab.x;
         at.y = end->box[0].y + end->grab.y;
         ext.width = end->grab_size;
-        /* Reads the height before it is written: the original's. */
+        /* Reads the height before it is written: the original's, which
+           finds whatever the stack held there. The host starts it at 0,
+           so the answer is 0x0a whenever there is a grab box. */
+#ifndef __TURBOC__
+        ext.height = 0;
+#endif
         if ((ext.height >> 1) < (int16_t)end->grab_size)
             ext.height = 0x0a;
         else

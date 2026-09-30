@@ -8,11 +8,17 @@
  * `finish_level`, which scores a solved level and offers the next.
  *
  * A module of the original's **code segment 0000** (`_TEXT`), from image
- * 0x01476; split out of machine.c on 2026-09-27. Its `_DATA` is
+ * 0x01476; split out of machine.c on 2026-09-27. In 1.00 its `_DATA` was
  * `finish_level`'s literal pool, DGROUP 0x283a..0x2849, between screen.c's
- * and the next module's in the link order, and its `_BSS` is `g_rope_far_end` and
- * `g_goal_condition`, 0x5456..0x546c, between puzzles.c's and levels.c's - which is what puts
- * the goal tests and `finish_level` in one module.
+ * and the next module's in the link order; 1.11 took the two button words
+ * into `g_messages` and the module has no `_DATA` left. Its `_BSS` is
+ * `g_rope_far_end` and `g_goal_condition`, 0x5066..0x507c in 1.11
+ * (0x5456..0x546c in 1.00), between screen.c's and binadjust.c's - which is
+ * what puts the goal tests and `finish_level` in one module.
+ *
+ * 1.11 has 160 puzzles to 1.00's 110. Puzzles 1 to 87 keep their tests;
+ * every puzzle from 88 on has a routine of its own, 0x024a1..0x030b0, a
+ * third of them a call of an earlier test.
  *
  * **Where it ends is not settled.** This file stops after `finish_level`,
  * at 0x02809, but nothing proves a module ends there: the next proven
@@ -23,7 +29,6 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
- * JUDGE: data 0x283a..0x2849
  */
 #ifdef __TURBOC__
 #include <stdlib.h>
@@ -613,7 +618,8 @@ void goal_test_puzzle_55(void)
 }
 
 /*
- * 0x019f1 - a kind-0 part between 0x148 and 0x168 in x and at exactly 0xe8.
+ * 0x019f1 - a kind-0 part in the box 0x148..0x168 by 0xd6..0xe8; 1.00's
+ * test was y exactly 0xe8.
  */
 void goal_test_puzzle_38(void)
 {
@@ -621,9 +627,8 @@ void goal_test_puzzle_38(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x148
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0x168
-            && ((uint16_t)si->pos[0].y) == 0xe8)
+            && si->pos[0].x >= 0x148 && si->pos[0].x <= 0x168
+            && si->pos[0].y >= 0xd6 && si->pos[0].y <= 0xe8)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1683,8 +1688,7 @@ void goal_test_puzzle_40(void)
 
 /*
  * 0x02466 - a kind-0 part inside a box: 0x1d6 to 0x1fc in x, 0xc6 to 0xd0 in
- * y. The last of the goal tests with a body of its own; the entries for
- * puzzles 88 to 110 below it only reuse one or do nothing.
+ * y.
  */
 void goal_test_puzzle_35(void)
 {
@@ -1702,44 +1706,87 @@ void goal_test_puzzle_35(void)
 }
 
 /*
- * 0x02512 - puzzle 88's goal is `goal_test_puzzle_86`'s: `push cs` and a near call to
- * 0x02172, which is the far call that routine returns from.
+ * 0x024a1 - a kind-54 part caught (traits2 bit 0x80) for more than eight frames running.
  */
 void goal_test_puzzle_88(void)
 {
-    goal_test_puzzle_86();
+    register struct part *si;
+    int16_t ok;
+
+    ok = 0;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 54 && (si->traits2 & 0x80) != 0)
+            ok = 1;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+    else
+        g_goal_condition[0] = 0;
+
+    if ((int16_t)g_goal_condition[0] > 8)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02552 - puzzle 89's goal is `goal_test_puzzle_55`'s: `push cs` and a near call to
- * 0x0197e, which is the far call that routine returns from.
+ * 0x024e3 - every kind-61 part placed has caught something (traits2 bit 0x80).
  */
 void goal_test_puzzle_89(void)
 {
-    goal_test_puzzle_55();
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 61 && (si->traits2 & 0x80) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x0266b - puzzle 90's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call to
- * 0x017ad, which is the far call that routine returns from.
+ * 0x02512 - puzzle 90's goal is `goal_test_pop_balloons`'s: `push cs` and a near call.
  */
 void goal_test_puzzle_90(void)
-{
-    goal_test_puzzles_53_54_63_67_87();
-}
-
-/*
- * 0x026ab - puzzle 91's goal is `goal_test_pop_balloons`'s: `push cs` and a near call to
- * 0x015fa, which is the far call that routine returns from.
- */
-void goal_test_puzzle_91(void)
 {
     goal_test_pop_balloons();
 }
 
 /*
- * 0x02716 - puzzle 92's goal is `goal_test_puzzle_29`'s: `push cs` and a near call to
- * 0x02010, which is the far call that routine returns from.
+ * 0x0251b - every tennis ball in a bucket and at x 0x4c or less.
+ */
+void goal_test_puzzle_91(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_TENNIS_BALL) {
+            if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
+                ok = 0;
+            if (si->pos[0].x > 0x4c)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02552 - puzzle 92's goal is `goal_test_puzzle_29`'s: `push cs` and a near call.
  */
 void goal_test_puzzle_92(void)
 {
@@ -1747,150 +1794,1168 @@ void goal_test_puzzle_92(void)
 }
 
 /*
- * 0x02846 - puzzle 93's goal is `goal_test_puzzle_61`'s: `push cs` and a near call to
- * 0x0203f, which is the far call that routine returns from.
+ * 0x0255b - every pokey swallowed something (traits2 bit 0x400).
  */
 void goal_test_puzzle_93(void)
 {
-    goal_test_puzzle_61();
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_POKEY && (si->traits2 & 0x400) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x0287d - puzzle 94's goal is `goal_test_puzzles_57_74`'s: `push cs` and a near call to
- * 0x01f77, which is the far call that routine returns from.
+ * 0x0258a - every Mort the mouse swallowed (traits2 bit 0x200).
  */
 void goal_test_puzzle_94(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE && (si->traits2 & 0x200) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x025b9 - every kind-54 part caught (traits2 bit 0x80), for more than eight frames running.
+ */
+void goal_test_puzzle_95(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 54 && (si->traits2 & 0x80) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+    else
+        g_goal_condition[0] = 0;
+
+    if ((int16_t)g_goal_condition[0] > 8)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x025fb - a cannon ball below y 0x170.
+ */
+void goal_test_puzzle_96(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_CANNON_BALL && si->pos[0].y > 0x170)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02621 - every Mort the mouse has moved in both x and y since two frames ago, and is above y 0x166, after more than 0x78 frames.
+ */
+void goal_test_puzzle_97(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE) {
+            if (si->pos[0].x == si->pos[2].x)
+                ok = 0;
+            if (si->pos[0].y == si->pos[2].y)
+                ok = 0;
+            if (si->pos[0].y > 0x166)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok && (int16_t)g_machine_frames > 0x78)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x0266b - puzzle 98's goal is `goal_test_pop_balloons`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_98(void)
+{
+    goal_test_pop_balloons();
+}
+
+/*
+ * 0x02674 - there is a cannon ball, and every cannon ball is at y -8 or above.
+ */
+void goal_test_puzzle_99(void)
+{
+    register struct part *si;
+    int16_t ok;
+    int16_t found;
+
+    found = 0;
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_CANNON_BALL) {
+            found = 1;
+            if (si->pos[0].y > -8)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok && found)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x026ab - puzzle 100's goal is `goal_test_puzzles_7_51_65`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_100(void)
+{
+    goal_test_puzzles_7_51_65();
+}
+
+/*
+ * 0x026b4 - the brick platforms showing are at least a third of their set length: the larger of each one's set width and height, summed, against the larger of its shown width and height, summed over the ones not gone.
+ */
+void goal_test_puzzle_101(void)
+{
+    register struct part *si;
+    register int16_t total;
+    int16_t shown;
+
+    total = shown = 0;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BRICK_PLATFORM) {
+            total += si->set_size.width > si->set_size.height
+                     ? si->set_size.width : si->set_size.height;
+            if ((si->state & STATE_GONE) == 0
+                && si->size[0].width != 0 && si->size[0].height != 0)
+                shown += si->size[0].width > si->size[0].height
+                         ? si->size[0].width : si->size[0].height;
+        }
+        si = si->next;
+    }
+
+    if (total / shown >= 3)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02716 - puzzle 102's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_102(void)
+{
+    goal_test_puzzle_95();
+}
+
+/*
+ * 0x0271f - six Mort the mice in the box 0x1e..0x66 by 0xd8..0x122.
+ */
+void goal_test_puzzle_103(void)
+{
+    register struct part *si;
+    int16_t n;
+
+    n = 0;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE
+            && si->pos[0].x >= 0x1e && si->pos[0].x <= 0x66
+            && si->pos[0].y >= 0xd8 && si->pos[0].y <= 0x122)
+            n++;
+        si = si->next;
+    }
+
+    if (n >= 6)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02760 - there is a cannon ball, and every cannon ball is in a bucket.
+ */
+void goal_test_puzzle_104(void)
+{
+    register struct part *si;
+    int16_t ok;
+    int16_t found;
+
+    found = 0;
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_CANNON_BALL) {
+            found = 1;
+            if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok && found)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02798 - every mouse cage turned and every bob the fish's bowl broken (form 0xb on), for more than four frames running.
+ */
+void goal_test_puzzle_105(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MOUSE_CAGE && si->direction == 0)
+            ok = 0;
+        if (si->kind == KIND_BOB_THE_FISH && si->form >= 0x0b)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+    else
+        g_goal_condition[0] = 0;
+
+    if ((int16_t)g_goal_condition[0] > 4)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x027e7 - a bucket more than 0x20 below where it was placed.
+ */
+void goal_test_puzzle_106(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BUCKET
+            && si->pos[0].y - 0x20 > (int16_t)si->start_y)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02812 - every bird cage raised by more than 0x10 from where it was placed.
+ */
+void goal_test_puzzle_107(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BIRD_CAGE
+            && si->pos[0].y + 0x10 >= (int16_t)si->start_y)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02846 - puzzle 108's goal is `goal_test_puzzles_7_51_65`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_108(void)
+{
+    goal_test_puzzles_7_51_65();
+}
+
+/*
+ * 0x0284f - every windmill in form 3.
+ */
+void goal_test_puzzle_109(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_WINDMILL && si->form != 3)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x0287d - puzzle 110's goal is `goal_test_puzzles_57_74`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_110(void)
 {
     goal_test_puzzles_57_74();
 }
 
 /*
- * 0x02ad3 - puzzle 95's goal is `goal_test_puzzle_13`'s: `push cs` and a near call to
- * 0x01e1e, which is the far call that routine returns from.
+ * 0x02886 - every rocket above y -0x30 and every bob the fish swallowed (traits2 bit 0x400), over both lists.
  */
-void goal_test_puzzle_95(void)
+void goal_test_puzzle_111(void)
 {
-    goal_test_puzzle_13();
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+
+    for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
+        if (si->kind == KIND_ROCKET && si->pos[0].y > -0x30)
+            ok = 0;
+        if (si->kind == KIND_BOB_THE_FISH && (si->traits2 & 0x400) == 0)
+            ok = 0;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02adc - puzzle 96 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x028d7 - every kind-63 part in the box 6..0x52 by 0x14..0x44, for more than 0x5a frames running.
  */
-void goal_test_puzzle_96(void)
+void goal_test_puzzle_112(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 63
+            && (si->pos[0].x < 6 || si->pos[0].x > 0x52
+                || si->pos[0].y < 0x14 || si->pos[0].y > 0x44))
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+    else
+        g_goal_condition[0] = 0;
+
+    if ((int16_t)g_goal_condition[0] > 0x5a)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02ae5 - puzzle 97 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x0292a - a bowling ball has hit a monkey, and every monkey is in form 5 or later.
  */
-void goal_test_puzzle_97(void)
+void goal_test_puzzle_113(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+
+    for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
+         si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
+        if (si->kind == KIND_BOWLING_BALL && (si->traits & TRAIT_HIT_FIXED) != 0
+            && si->contact->kind == KIND_MONKEY)
+            g_goal_condition[0] = 1;
+        if (si->kind == KIND_MONKEY && si->form < 5)
+            ok = 0;
+    }
+
+    if (ok && g_goal_condition[0] != 0)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02aee - puzzle 98 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02990 - every tennis ball swallowed (traits2 bit 0x100).
  */
-void goal_test_puzzle_98(void)
+void goal_test_puzzle_114(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_TENNIS_BALL && (si->traits2 & 0x100) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02af7 - puzzle 99 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x029bf - a baseball off the screen: left of -8, right of 0x230 or at y 0x166 or below.
  */
-void goal_test_puzzle_99(void)
+void goal_test_puzzle_115(void)
 {
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASEBALL
+            && (si->pos[0].x < -8 || si->pos[0].x > 0x230
+                || si->pos[0].y >= 0x166))
+            g_round_state = 0x200;
+        si = si->next;
+    }
 }
 
 /*
- * 0x02b34 - puzzle 100 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x029f2 - a basketball between 0x1a6 and 0x1ce in x at exactly 0x58 in y.
  */
-void goal_test_puzzle_100(void)
+void goal_test_puzzle_116(void)
 {
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASKETBALL
+            && si->pos[0].x >= 0x1a6 && si->pos[0].x <= 0x1ce
+            && si->pos[0].y == 0x58)
+            g_round_state = 0x200;
+        si = si->next;
+    }
 }
 
 /*
- * 0x02b6c - puzzle 101 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02a25 - every gear turning (form not what it was two frames ago) and every flashlight on, for more than 0xc frames - counted, never reset.
  */
-void goal_test_puzzle_101(void)
+void goal_test_puzzle_117(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_GEAR && si->form == si->form_prev2)
+            ok = 0;
+        if (si->kind == KIND_FLASHLIGHT && si->form == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+
+    if ((int16_t)g_goal_condition[0] > 0xc)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02bab - puzzle 102 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02a6e - every basketball in a bucket.
  */
-void goal_test_puzzle_102(void)
+void goal_test_puzzle_118(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASKETBALL && (si->traits2 & TRAIT2_IN_BUCKET) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02bb4 - puzzle 103 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02a9d - every balloon not burst is at y 0xb0 or above.
  */
-void goal_test_puzzle_103(void)
+void goal_test_puzzle_119(void)
 {
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BALLOON && (si->state & STATE_GONE) == 0
+            && si->pos[0].y > 0xb0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
 }
 
 /*
- * 0x02bbd - puzzle 104 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02ad3 - puzzle 120's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_104(void)
+void goal_test_puzzle_120(void)
 {
+    goal_test_puzzle_95();
 }
 
 /*
- * 0x02c35 - puzzle 105 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02adc - puzzle 121's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_105(void)
+void goal_test_puzzle_121(void)
 {
+    goal_test_puzzles_53_54_63_67_87();
 }
 
 /*
- * 0x02d7c - puzzle 106 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02ae5 - puzzle 122's goal is `goal_test_puzzle_4`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_106(void)
+void goal_test_puzzle_122(void)
 {
+    goal_test_puzzle_4();
 }
 
 /*
- * 0x02e25 - puzzle 107 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02aee - puzzle 123's goal is `goal_test_puzzles_19_48`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_107(void)
+void goal_test_puzzle_123(void)
 {
+    goal_test_puzzles_19_48();
 }
 
 /*
- * 0x02e84 - puzzle 108 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02af7 - puzzle 124's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_108(void)
+void goal_test_puzzle_124(void)
 {
+    goal_test_puzzles_53_54_63_67_87();
 }
 
 /*
- * 0x02e8d - puzzle 109 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02b00 - a Mort the mouse between 0x194 and 0x1a4 in x, at y 0x13a or below.
  */
-void goal_test_puzzle_109(void)
+void goal_test_puzzle_125(void)
 {
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE
+            && si->pos[0].x >= 0x194 && si->pos[0].x <= 0x1a4
+            && si->pos[0].y >= 0x13a)
+            g_round_state = 0x200;
+        si = si->next;
+    }
 }
 
 /*
- * 0x02ed9 - puzzle 110 has no goal test: the routine sets up a frame and
- * returns, so the state is never set to 0x200 from here.
+ * 0x02b34 - puzzle 126's goal is `goal_test_puzzles_14_15_64_73`'s: `push cs` and a near call.
  */
-void goal_test_puzzle_110(void)
+void goal_test_puzzle_126(void)
 {
+    goal_test_puzzles_14_15_64_73();
+}
+
+/*
+ * 0x02b3d - every Mort the mouse swallowed (traits2 bit 0x100).
+ */
+void goal_test_puzzle_127(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE && (si->traits2 & 0x100) == 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02b6c - puzzle 128's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_128(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02b75 - every balloon in form 0 and at y 0 or above.
+ */
+void goal_test_puzzle_129(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BALLOON) {
+            if (si->form != 0)
+                ok = 0;
+            if (si->pos[0].y > 0)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02bab - puzzle 130's goal is `goal_test_puzzles_14_15_64_73`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_130(void)
+{
+    goal_test_puzzles_14_15_64_73();
+}
+
+/*
+ * 0x02bb4 - puzzle 131's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_131(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02bbd - puzzle 132's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_132(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02bc6 - a basketball in the box 0x1d6..0x1ec by 0xd4..0xe2.
+ */
+void goal_test_puzzle_133(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASKETBALL
+            && si->pos[0].x >= 0x1d6 && si->pos[0].x <= 0x1ec
+            && si->pos[0].y >= 0xd4 && si->pos[0].y <= 0xe2)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02c01 - a bowling ball between 0x1c6 and 0x1fa in x at exactly 0x128 in y.
+ */
+void goal_test_puzzle_134(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BOWLING_BALL
+            && si->pos[0].x >= 0x1c6 && si->pos[0].x <= 0x1fa
+            && si->pos[0].y == 0x128)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02c35 - puzzle 135's goal is `goal_test_puzzle_72`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_135(void)
+{
+    goal_test_puzzle_72();
+}
+
+/*
+ * 0x02c3e - no brick platform left showing: `goal_test_puzzle_101`'s two sums, and only the shown one is looked at.
+ */
+void goal_test_puzzle_136(void)
+{
+    register struct part *si;
+    int16_t shown;
+    int16_t total;
+
+    total = shown = 0;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BRICK_PLATFORM) {
+            total += si->set_size.width > si->set_size.height
+                     ? si->set_size.width : si->set_size.height;
+            if ((si->state & STATE_GONE) == 0
+                && si->size[0].width != 0 && si->size[0].height != 0)
+                shown += si->size[0].width > si->size[0].height
+                         ? si->size[0].width : si->size[0].height;
+        }
+        si = si->next;
+    }
+
+#ifndef __TURBOC__
+    (void)total;                        /* summed and never read: the original's */
+#endif
+    if (shown == 0)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02c98 - every kind-59 part in the box 6..0xc0 by 0x32..0xa6, for more than 0x5a frames running.
+ */
+void goal_test_puzzle_137(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 59
+            && (si->pos[0].x < 6 || si->pos[0].x > 0xc0
+                || si->pos[0].y < 0x32 || si->pos[0].y > 0xa6))
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_goal_condition[0]++;
+    else
+        g_goal_condition[0] = 0;
+
+    if ((int16_t)g_goal_condition[0] > 0x5a)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02ced - a cannon ball resting on each of the two kind-64 parts, for more than four frames running. The first two kind-64 parts on the placed list are kept, and a ball on the first sets condition 0, on any other condition 1.
+ */
+void goal_test_puzzle_138(void)
+{
+    register struct part *si;
+    register struct part *on;
+    struct part *pair[2];               /* [bp-4] */
+    int16_t n;
+
+    n = 0;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 64) {
+            pair[n] = si;
+            if (n == 0)
+                n++;
+        }
+        si = si->next;
+    }
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_CANNON_BALL && (si->traits & TRAIT_HIT_FIXED) != 0) {
+            on = si->contact;
+            if (on->kind == 64) {
+                if (on == pair[0])
+                    g_goal_condition[0] = 1;
+                else
+                    g_goal_condition[1] = 1;
+            }
+        }
+        si = si->next;
+    }
+
+    if (g_goal_condition[0] != 0 && g_goal_condition[1] != 0)
+        g_goal_condition[2]++;
+    else
+        g_goal_condition[2] = 0;
+
+    if ((int16_t)g_goal_condition[2] > 4)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02d7c - puzzle 139's goal is `goal_test_puzzles_7_51_65`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_139(void)
+{
+    goal_test_puzzles_7_51_65();
+}
+
+/*
+ * 0x02d85 - a ball resting on each of five shelves: some bowling ball, basketball, baseball, cannon ball or tennis ball has its bottom at y 0x18, 0x78, 0xc8, 0xe8 and 0x138.
+ */
+void goal_test_puzzle_140(void)
+{
+    register struct part *si;
+    int16_t at_18;
+    int16_t at_78;
+    int16_t at_c8;
+    int16_t at_e8;
+    int16_t at_138;
+    int16_t bottom;
+
+    at_18 = at_78 = at_c8 = at_e8 = at_138 = 0;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BOWLING_BALL || si->kind == KIND_BASKETBALL
+            || si->kind == KIND_BASEBALL || si->kind == KIND_CANNON_BALL
+            || si->kind == KIND_TENNIS_BALL) {
+            bottom = si->pos[0].y + si->size[0].height;
+            if (bottom == 0x18)
+                at_18 = 1;
+            if (bottom == 0x78)
+                at_78 = 1;
+            if (bottom == 0xc8)
+                at_c8 = 1;
+            if (bottom == 0xe8)
+                at_e8 = 1;
+            if (bottom == 0x138)
+                at_138 = 1;
+        }
+        si = si->next;
+    }
+
+    if (at_18 && at_78 && at_c8 && at_e8 && at_138)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02e25 - puzzle 141's goal is `goal_test_puzzle_89`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_141(void)
+{
+    goal_test_puzzle_89();
+}
+
+/*
+ * 0x02e2e - every balloon in form 0 and either still since two frames ago or off the screen in y, and the frame count not negative.
+ */
+void goal_test_puzzle_142(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BALLOON) {
+            if (si->form != 0)
+                ok = 0;
+            if ((si->pos[0].y != si->pos[2].y || si->pos[0].x != si->pos[2].x)
+                && si->pos[0].y > -0x18 && si->pos[0].y < 0x166)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if ((int16_t)g_machine_frames < 0)
+        ok = 0;
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02e84 - puzzle 143's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_143(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02e8d - puzzle 144's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_144(void)
+{
+    goal_test_puzzle_95();
+}
+
+/*
+ * 0x02e96 - every balloon still in form 0 is off the screen: at x 0 or less or 0x230 or more, and above y -0x2c.
+ */
+void goal_test_puzzle_145(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BALLOON && si->form == 0) {
+            if (si->pos[0].x > 0 && si->pos[0].x < 0x230)
+                ok = 0;
+            if (si->pos[0].y > -0x2c)
+                ok = 0;
+        }
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02ed9 - puzzle 146's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_146(void)
+{
+    goal_test_puzzle_95();
+}
+
+/*
+ * 0x02ee2 - no wooden platform at x 0x1c8 or right of it is left showing.
+ */
+void goal_test_puzzle_147(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_WOODEN_PLATFORM && si->pos[0].x >= 0x1c8
+            && (si->state & STATE_GONE) == 0
+            && si->size[0].width != 0 && si->size[0].height != 0)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02f24 - puzzle 148's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_148(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x02f2d - puzzle 149's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_149(void)
+{
+    goal_test_puzzle_95();
+}
+
+/*
+ * 0x02f36 - every kind-62 part in form 6 or later.
+ */
+void goal_test_puzzle_150(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 62 && si->form < 6)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x02f64 - a basketball in the box 0x56..0xba by 0x132..0x13c.
+ */
+void goal_test_puzzle_151(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASKETBALL
+            && si->pos[0].x >= 0x56 && si->pos[0].x <= 0xba
+            && si->pos[0].y >= 0x132 && si->pos[0].y <= 0x13c)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02f9e - a balloon in the box 0x1b8..0x1ec by 0xf2..0x120.
+ */
+void goal_test_puzzle_152(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BALLOON
+            && si->pos[0].x >= 0x1b8 && si->pos[0].x <= 0x1ec
+            && si->pos[0].y >= 0xf2 && si->pos[0].y <= 0x120)
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x02fd9 - a basketball off the screen: outside -0x20..0x22e by -0x20..0x166.
+ */
+void goal_test_puzzle_153(void)
+{
+    register struct part *si;
+
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_BASKETBALL
+            && (si->pos[0].x < -0x20 || si->pos[0].x > 0x22e
+                || si->pos[0].y < -0x20 || si->pos[0].y > 0x166))
+            g_round_state = 0x200;
+        si = si->next;
+    }
+}
+
+/*
+ * 0x03012 - puzzle 154's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_154(void)
+{
+    goal_test_puzzle_95();
+}
+
+/*
+ * 0x0301b - every Mort the mouse in the box 0xa..0x8c by 0xf6..0x140.
+ */
+void goal_test_puzzle_155(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_moving_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == KIND_MORT_THE_MOUSE
+            && (si->pos[0].x < 0x0a || si->pos[0].x > 0x8c
+                || si->pos[0].y < 0xf6 || si->pos[0].y > 0x140))
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x0305e - every kind-58 part placed in form 6 or later.
+ */
+void goal_test_puzzle_156(void)
+{
+    register struct part *si;
+    int16_t ok;
+
+    ok = 1;
+    si = g_placed_parts.next;
+
+    while (si != NULL) {
+        if (si->kind == 58 && si->form < 6)
+            ok = 0;
+        si = si->next;
+    }
+
+    if (ok)
+        g_round_state = 0x200;
+}
+
+/*
+ * 0x0308c - puzzle 157's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_157(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x03095 - puzzle 158's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_158(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x0309e - puzzle 159's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_159(void)
+{
+    goal_test_puzzles_53_54_63_67_87();
+}
+
+/*
+ * 0x030a7 - puzzle 160's goal is `goal_test_puzzle_95`'s: `push cs` and a near call.
+ */
+void goal_test_puzzle_160(void)
+{
+    goal_test_puzzle_95();
 }
 
 /*
@@ -2169,9 +3234,10 @@ void set_clip_counter_strip(void)
  */
 void finish_level(void)
 {
-    char *body;                         /* [bp-2] */
+    const char *title;                  /* [bp-2] */
+    char *body;                         /* [bp-4] */
+    register int16_t i;
     register int16_t clicked;
-    register const char *title;
 
 #ifndef __TURBOC__
     dev_level_solved(g_round_number,
@@ -2206,12 +3272,15 @@ void finish_level(void)
     if (g_round_number >= g_level_count) {
         title = g_messages.solved_all_puzzles;
         body = (char *)g_messages.solved_all_body;
+        for (i = 0; i < 0x190; i++)
+            g_level_hint[i] = 0;
     } else {
         title = g_messages.replay_solution;
         body = (char *)g_messages.replay_body;
     }
 
-    /* The two buttons are this module's literal pool, DGROUP 0x283a. */
+    /* The two buttons were this module's literal pool in 1.00, DGROUP
+       0x283a; 1.11 has them in `g_messages`. */
     while (message_box(title, body, g_messages.button_replay, g_messages.button_advance)) {
         g_round_state = 0x2000;
         clear_layer_heads();
@@ -2225,5 +3294,8 @@ void finish_level(void)
     if (g_round_number >= g_level_count) {
         g_freeform = 1;
         g_round_number--;
+        g_machine_has_bin = 0;
+        for (i = 0; i < 0x190; i++)
+            g_level_hint[i] = 0;
     }
 }

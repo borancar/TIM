@@ -1757,8 +1757,9 @@ struct goal_tests {
        only ever these two words, 0000:0000 in the image. */
     int16_t   back_held;       /* +0x02  how long the bin's back arrow has been held */
     int16_t   forward_held;    /* +0x04  and the forward one */
-    /* **The goal tests, one far pointer per puzzle from 1**, up to 0x27ee. */
-    void (far *goal_test[110])(void); /* +0x06 */
+    /* **The goal tests, one far pointer per puzzle from 1**: 160 in 1.11,
+       to 0x229e (1.00 had 110, to 0x27ee). */
+    void (far *goal_test[160])(void); /* +0x06 */
 } PACKED;
 
 extern struct goal_tests g_goal_tests;
