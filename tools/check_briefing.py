@@ -77,6 +77,15 @@ SCREENS = {
         "flips": (210, 230, 260),
         "insns": 150_000_000,
     },
+    # **1.11's briefing**, three clicks in: the copy-protection screen wants
+    # three parts picked, and the crack takes any three. The screen is up by
+    # flip 210; the first three icons of the top row are clicked.
+    "briefing-1.11": {
+        "clicks": [(235, 100, 60), (255, 160, 60), (275, 220, 60),
+                   (295, 280, 60)],
+        "flips": (380, 400, 430),
+        "insns": 600_000_000,
+    },
     # The **file picker**, which is four clicks in: dismiss, the wrench to ask
     # for freeform mode, YES to confirm it, then Load Machine. It is behind
     # freeform because `game_screen`'s LOAD case does nothing outside it.

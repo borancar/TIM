@@ -85,6 +85,14 @@ def build(out, seed="CATOMATC.TIM", sound_device=None,
         cfg = os.path.join(out, "RESOURCE.CFG")
         with open(cfg, "rb") as f:
             b = bytearray(f.read())
+        # **1.11's file is text** - `soundDrv = SBPRO.DRV` and so on, which
+        # `read_resource_cfg` reads line by line - and three bytes patched into
+        # its start leave the other lines choosing their drivers. Its three
+        # bytes are the whole file here: no line of them is a key, so 1.11
+        # chooses no driver and plays on the speaker, and 1.00 reads the
+        # device and module it always did.
+        if b"=" in b:
+            b = bytearray()
 
         # Three bytes: something the game stores and never reads, the sound
         # device, and the sound module. A short file is padded with the
