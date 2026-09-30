@@ -1998,5 +1998,7 @@ uint16_t part_hit_kind_51(struct part *part);      /* 0x1e5af */
 void part_setup_kind_51(struct part *part);        /* 0x1e5f3 */
 void part_step_kind_51(struct part *part);         /* 0x1e643 */
 void part_flip_kind_51(struct part *part);         /* 0x1e822 */
+int16_t kind_51_pull(struct part *what);            /* 0x1e84e */
+void kind_51_swallow(struct part *what);            /* 0x1e8bb */
 
 #endif /* TIM_H */
