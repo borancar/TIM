@@ -784,9 +784,22 @@ void sdl_pump(void)
             uint16_t buttons;
 
             if (grabbed) {
+                /*
+                 * **SDL3's relative motion is a float, and often less than a
+                 * pixel** - a high-resolution mouse, or a scaled desktop,
+                 * reports many small steps. Truncating each to an integer
+                 * threw the fractions away, so a slow move hardly moved the
+                 * pointer at all; the remainder is carried to the next event.
+                 */
                 if (e.type == SDL_EVENT_MOUSE_MOTION) {
-                    ptr_x += (int32_t)e.motion.xrel;
-                    ptr_y += (int32_t)e.motion.yrel;
+                    static float rem_x, rem_y;
+                    float dx = e.motion.xrel + rem_x;
+                    float dy = e.motion.yrel + rem_y;
+
+                    ptr_x += (int32_t)dx;
+                    ptr_y += (int32_t)dy;
+                    rem_x = dx - (float)(int32_t)dx;
+                    rem_y = dy - (float)(int32_t)dy;
                 }
             } else {
                 float fx = 0.0f, fy = 0.0f;
