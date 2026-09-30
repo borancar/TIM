@@ -605,32 +605,32 @@ void load_archive_map(void)
         setvect(0x24, (void interrupt (far *)())crit_error_handler);
         g_archive_lookup.scanned = 1;
         name = "RESOURCE.MAP";
-        if ((si = fopen(name, "rb")) != NULL) {
-            fread((uint8_t *)g_machine_hash_order.hash_order, 4, 1, si);
+        if ((si = fopen(name, "rb")) == NULL)
+            return;
+        fread((uint8_t *)g_machine_hash_order.hash_order, 4, 1, si);
+        fread((uint8_t *)&count, 2, 1, si);
+        g_archive_lookup.archive_count += count;
+        for (di = g_archive_lookup.archive_count - count + 1; di <= g_archive_lookup.archive_count;
+             di++) {
+            a = &g_machine_archives.slot[di];
+            fread((uint8_t *)a->name, 0xd, 1, si);
             fread((uint8_t *)&count, 2, 1, si);
-            g_archive_lookup.archive_count += count;
-            for (di = g_archive_lookup.archive_count - count + 1; di <= g_archive_lookup.archive_count;
-                 di++) {
-                a = &g_machine_archives.slot[di];
-                fread((uint8_t *)a->name, 0xd, 1, si);
-                fread((uint8_t *)&count, 2, 1, si);
-                /* **Zeroed**, which is what writes the terminator: the block is
-                   one entry longer than the count and the lookup stops on an
-                   all-zero key. */
-                e = (struct archive_entry far *)
-                    dos_alloc_bytes((uint16_t)((count + 1) << 3), DOS_ZERO_FILL);
-                a->list = (uint8_t far *)e;
-                a->index = di;
-                while (count--) {
-                    fread((uint8_t *)&lo, 4, 1, si);
-                    fread((uint8_t *)&hi, 4, 1, si);
-                    e->key = lo;
-                    e->base = hi;
-                    e++;
-                }
+            /* **Zeroed**, which is what writes the terminator: the block is
+               one entry longer than the count and the lookup stops on an
+               all-zero key. */
+            e = (struct archive_entry far *)
+                dos_alloc_bytes((uint16_t)((count + 1) << 3), DOS_ZERO_FILL);
+            a->list = (uint8_t far *)e;
+            a->index = di;
+            while (count--) {
+                fread((uint8_t *)&lo, 4, 1, si);
+                fread((uint8_t *)&hi, 4, 1, si);
+                e->key = lo;
+                e->base = hi;
+                e++;
             }
-            fclose(si);
         }
+        fclose(si);
     }
 }
 
