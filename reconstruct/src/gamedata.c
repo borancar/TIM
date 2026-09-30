@@ -4205,10 +4205,11 @@ uint16_t g_file_op_active;   /* DGROUP 0x4e85  GUESS: 1 around the chdir a file 
    which is the hysteresis that stops a machine hovering near the edge
    being told twice. */
 uint16_t g_memory_warned;   /* DGROUP 0x4e83 */
-int16_t g_holiday_valentine;   /* DGROUP 0x4e81  14 February - kind 33, the heart */
-int16_t g_holiday_stpatrick;   /* DGROUP 0x4e7f  17 March    - read by nothing */
-int16_t g_holiday_halloween;   /* DGROUP 0x4e7d  31 October  - kind 32, the pumpkin */
-int16_t g_holiday_christmas;   /* DGROUP 0x4e7b  25 December - kind 34, the tree */
+int16_t g_holiday_valentine;   /* DGROUP 0x4a85 (1.00: 0x4e81)  14 February - kind 33, the heart */
+int16_t g_holiday_stpatrick;   /* DGROUP 0x4a83 (1.00: 0x4e7f)  17 March    - kind 65 in 1.11 */
+int16_t g_holiday_halloween;   /* DGROUP 0x4a81 (1.00: 0x4e7d)  31 October  - kind 32, the pumpkin */
+int16_t g_holiday_christmas;   /* DGROUP 0x4a7f (1.00: 0x4e7b)  25 December - kind 34, the tree */
+int16_t g_holiday_july4;       /* DGROUP 0x4a7d, new in 1.11   4 July      - read by nothing */
 struct region *g_regions_play;   /* DGROUP 0x4e79  the play screen's */
 struct region *g_regions_panel;   /* DGROUP 0x4e77  the briefing's controls */
 struct region *g_regions_c;   /* DGROUP 0x4e75 */

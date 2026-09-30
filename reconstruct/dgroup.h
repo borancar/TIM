@@ -464,6 +464,7 @@ extern struct region *g_regions_c;
 extern struct region *g_regions_panel;
 extern struct region *g_regions_play;
 extern int16_t g_holiday_christmas;
+extern int16_t g_holiday_july4;
 extern int16_t g_holiday_halloween;
 extern int16_t g_holiday_stpatrick;
 extern int16_t g_holiday_valentine;

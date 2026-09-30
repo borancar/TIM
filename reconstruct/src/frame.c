@@ -263,7 +263,7 @@ void set_holiday_flags(void)
     struct date d;
 
     g_holiday_valentine = g_holiday_stpatrick
-        = g_holiday_halloween = g_holiday_christmas = 0;
+        = g_holiday_halloween = g_holiday_christmas = g_holiday_july4 = 0;
     getdate(&d);
     if (d.da_mon == 2 && d.da_day == 0x0e)
         g_holiday_valentine = 1;
@@ -271,6 +271,8 @@ void set_holiday_flags(void)
         g_holiday_stpatrick = 1;
     if (d.da_mon == 0xa && d.da_day == 0x1f)
         g_holiday_halloween = 1;
+    if (d.da_mon == 7 && d.da_day == 4)                /* 1.11 */
+        g_holiday_july4 = 1;
     if (d.da_mon == 0xc && d.da_day == 0x19)
         g_holiday_christmas = 1;
 }
@@ -297,8 +299,8 @@ void set_clip_for_mode(void)
     /* the screen state, not a video mode */
     if (g_round_state == 0x2000 || g_round_state == 0x1000
         || g_round_state == 0x200 || g_round_state == 0x8000
-        || g_round_state == 0x4000 || g_round_state == 0x800
-        || g_round_state == 0x400) {
+        || g_round_state == 0x4000 || g_round_state == 0x10
+        || g_round_state == 8) {        /* 1.11's bin scroll states; 1.00's were 0x800 and 0x400 */
         g_vmds.clip_left = g_saved_clip_left;
         g_vmds.clip_right = g_saved_clip_right;
         g_vmds.clip_top = g_saved_clip_top;
@@ -387,12 +389,16 @@ void play_sound(register int16_t id)
      */
     dev_sound_played(id);
 #endif
-    if (id == 0x10 || id == 0x12 || id == 9 || id == 0x13 || id == 0x14
-        || id == 4) {
-        if (g_master_level != 0)
+    /* 1.11: at master level 0 only the tunes play; an effect is played
+       through the preload table, and only when the memory it needs was
+       free at start-up. */
+    if (g_master_level != 0 || id >= 0x3e9) {
+        if (id < 0x3e9) {
+            if ((int32_t)g_preload_sound_need[id - 1] <= g_memory_k)
+                start_sequence_by_id(g_preload_sound_ids[id - 1]);
+        } else
             start_sequence_by_id(id);
-    } else
-        start_sequence_by_id(id);
+    }
 }
 
 /*
@@ -400,21 +406,24 @@ void play_sound(register int16_t id)
  *
  * Stop a sound, or all of them.
  *
- * A number of its own stops that one sequence. Zero stops all twenty of the
- * effects, 1 to 0x14; -2 stops those *and* the seven pieces of music, 0x3e9 to
- * 0x3ef. Nothing else is a special value.
+ * A number of its own stops that one sequence. Zero stops all of the
+ * effects - 1.11's twenty-six, through the preload table, where 1.00 stopped
+ * 1 to 0x14 directly; -2 stops those *and* the music, 0x3e9 to 0x3fd (1.00:
+ * seven pieces, to 0x3ef). Nothing else is a special value.
  */
 void stop_music_or_effect(register int16_t id)
 {
     register int16_t si;
 
     if (id == 0 || id == -2) {
-        for (si = 1; si <= 0x14; si++)
-            stop_sequences(si);
+        for (si = 1; si <= 0x1a; si++)
+            stop_sequences(g_preload_sound_ids[si - 1]);
         if (id == -2)
-            for (si = 0x3e9; si <= 0x3ef; si++)
+            for (si = 0x3e9; si <= 0x3fd; si++)
                 stop_sequences(si);
-    } else
+    } else if (id < 0x3e9)
+        stop_sequences(g_preload_sound_ids[id - 1]);
+    else
         stop_sequences(id);
 }
 
