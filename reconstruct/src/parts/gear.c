@@ -213,14 +213,14 @@ void part_step_gear(struct part *part)
  * Push one gear's direction on to the next, and answer whether the chain
  * disagrees with itself.
  *
- * `how` says how the two are joined: 1 is a rope, which carries the direction
+ * `how` says how the two are joined: 1 is a belt, which carries the direction
  * unchanged, and 2 is a mesh, which reverses it. A gear that is not turning yet
  * takes the direction; one that is already turning is checked against it, and
  * a mismatch - the same direction through a mesh, or a different one through a
- * rope - is the jam this answers 1 for.
+ * belt - is the jam this answers 1 for.
  *
  * From a gear, kind 0x0e, it goes on to that gear's own four links and its
- * rope, marking each as it goes so a ring of gears is walked once. `flag` is
+ * belt, marking each as it goes so a ring of gears is walked once. `flag` is
  * carried through and comes back, so one answer covers the whole chain.
  */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
@@ -244,7 +244,7 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
 
         for (v02 = 0; v02 < 5; v02++) {
             if (v02 == 4) {
-                v06 = rope_other_end(to);
+                v06 = belt_other_end(to);
                 v04 = 1;
             } else {
                 v06 = to->link[v02];
@@ -286,7 +286,7 @@ void settle_gear_signal(struct part *part, int16_t clear)
 
     for (v02 = 0; v02 < 5; v02++) {
         if (v02 == 4)
-            di = rope_other_end(part);
+            di = belt_other_end(part);
         else
             di = part->link[v02];
 

@@ -202,20 +202,20 @@ void game_fread_line(FILE *file, char *buf)
  *
  * Three things are not flat:
  *
- *  - **The rope.** A non-zero word read just before +0x56 means the part
+ *  - **The belt.** A non-zero word read just before +0x56 means the part
  *    carries one: 0x38 bytes off the near heap at +0x54, whose +2 points back
  *    at the part and whose +4 and +6 are the two parts it ties together, each
  *    stored in the file as a part number and resolved through
- *    `part_by_index`. Each end that exists is pointed back at the rope
+ *    `part_by_index`. Each end that exists is pointed back at the belt
  *    through its own +0x54.
  *
- *  - **Two belts**, at +0x66 and +0x68. Each one present is 0x2c bytes off the
+ *  - **Two ropes**, at +0x66 and +0x68. Each one present is 0x2c bytes off the
  *    near heap naming the two parts it runs between - at +2 and +4, copied
  *    again to +6 and +8 - and, in the bytes at +0x0a and +0x0b, which of each
- *    part's two belt slots it occupies, those two also copied to +0x0c and
- *    +0x0d. Each of those parts is pointed back at the belt through that slot.
+ *    part's two rope slots it occupies, those two also copied to +0x0c and
+ *    +0x0d. Each of those parts is pointed back at the rope through that slot.
  *    The pair of slot bytes is read into the part at +0x6a + 2i and +0x6b + 2i
- *    first, and the belt's own copies are read separately afterwards.
+ *    first, and the rope's own copies are read separately afterwards.
  *
  *  - **The version gate**, the word at DGROUP 0x5474. From 0x101 the file
  *    carries the field at +0x0a and four more part numbers into +0x62..+0x68;
@@ -223,7 +223,7 @@ void game_fread_line(FILE *file, char *buf)
  *    the floor. Either way the first two slots at +0x5a and +0x5c are read,
  *    and each is stored **twice**, into +0x5e and +0x60 as well.
  *
- * Kind 7 gets one extra part number, and takes that part's first belt as its
+ * Kind 7 gets one extra part number, and takes that part's first rope as its
  * own second.
  *
  * The last two fields are not read at all: the count at +0x80 comes from the
@@ -233,15 +233,15 @@ void game_fread_line(FILE *file, char *buf)
  */
 void read_record_fields(FILE *file, register struct part *rec)
 {
-    int16_t has_rope;                   /* [bp-2] */
-    int16_t has_belt;                   /* [bp-4] */
+    int16_t has_belt;                   /* [bp-2] */
+    int16_t has_rope;                   /* [bp-4] */
     int16_t index;                      /* [bp-6] */
     int16_t skip_count;                 /* [bp-8] */
     int16_t i;                          /* [bp-0xa] */
     uint8_t skip;                       /* [bp-0xb] */
-    struct rope *rope;                  /* [bp-0xe] */
+    struct belt *belt;                  /* [bp-0xe] */
     struct part *pulley;                    /* [bp-0x10] */
-    struct belt *di;
+    struct rope *di;
 
     game_fread_far(file, (uint8_t *)&rec->kind);
     game_fread_far(file, (uint8_t *)&rec->traits);
@@ -267,38 +267,38 @@ void read_record_fields(FILE *file, register struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->start_y);
     game_fread_far(file, (uint8_t *)&rec->kind_state);
 
-    game_fread_far(file, (uint8_t *)&has_rope);
+    game_fread_far(file, (uint8_t *)&has_belt);
     game_fread_byte(file, &rec->grab.x);
     game_fread_byte(file, &rec->grab.y);
     game_fread_far(file, (uint8_t *)&rec->grab_size);
 
-    if (has_rope != 0) {
-        rope = (rec->rope = (calloc_far(1, sizeof(struct rope))));
-        rope->owner = rec;
+    if (has_belt != 0) {
+        belt = (rec->belt = (calloc_far(1, sizeof(struct belt))));
+        belt->owner = rec;
 
         game_fread_far(file, (uint8_t *)&index);
-        rope->end_a = part_by_index(index);
+        belt->end_a = part_by_index(index);
 
         game_fread_far(file, (uint8_t *)&index);
-        rope->end_b = part_by_index(index);
+        belt->end_b = part_by_index(index);
 
-        if (rope->end_a != 0)
-            rope->end_a->rope = rope;
+        if (belt->end_a != 0)
+            belt->end_a->belt = belt;
 
-        if (rope->end_b != 0)
-            rope->end_b->rope = rope;
+        if (belt->end_b != 0)
+            belt->end_b->belt = belt;
     }
 
     for (i = 0; i < 2; i++) {
-        game_fread_far(file, (uint8_t *)&has_belt);
+        game_fread_far(file, (uint8_t *)&has_rope);
         game_fread_byte(file, &rec->attach[i].x);
         game_fread_byte(file, &rec->attach[i].y);
 
-        if (has_belt == 0)
+        if (has_rope == 0)
             continue;
 
-        di = (rec->belt[i] = (calloc_far(1, sizeof(struct belt))));
-        rec->belt[i]->owner = rec;
+        di = (rec->rope[i] = (calloc_far(1, sizeof(struct rope))));
+        rec->rope[i]->owner = rec;
 
         game_fread_far(file, (uint8_t *)&index);
         di->end_a = part_by_index(index);
@@ -314,10 +314,10 @@ void read_record_fields(FILE *file, register struct part *rec)
         di->home_slot_b = di->slot_b;
 
         if (di->end_a != 0)
-            di->end_a->belt[di->slot_a] = di;
+            di->end_a->rope[di->slot_a] = di;
 
         if (di->end_b != 0)
-            di->end_b->belt[di->slot_b] = di;
+            di->end_b->rope[di->slot_b] = di;
     }
 
     for (i = 0; i < 2; i++) {
@@ -335,7 +335,7 @@ void read_record_fields(FILE *file, register struct part *rec)
     if (rec->kind == KIND_PULLEY) {
         game_fread_far(file, (uint8_t *)&index);
         if ((pulley = part_by_index(index)) != 0)
-            rec->belt[1] = pulley->belt[0];
+            rec->rope[1] = pulley->rope[0];
     }
 
     if (g_level_io.version <= 0x101) {
@@ -546,22 +546,22 @@ void write_string(FILE *file, char *str)
  *
  * **Three of its locals have their addresses taken**, because `write_word`
  * writes from an address and the values here are computed rather than fields of
- * the part: whether there is a rope, whether there is a belt, and each index in
+ * the part: whether there is a belt, whether there is a rope, and each index in
  * turn. So the port takes a guest frame for those three and keeps the rest as
  * ordinary locals - which is the same split `write_part_count` needed for its count.
  *
- * **The rope flag is written whether or not there is a rope**, and the belt flag
+ * **The belt flag is written whether or not there is a belt**, and the rope flag
  * twice, once per slot. That is what makes the record fixed-width up to the
  * flags and self-describing after them: a reader takes the flag and knows
  * whether two more indices follow.
  *
- * The belt flag can only be true on the **first** slot - `i == 0` and the kind
- * being 0x0a or 7 - which is why the belt it then reads is at +0x66 flatly and
+ * The rope flag can only be true on the **first** slot - `i == 0` and the kind
+ * being 0x0a or 7 - which is why the rope it then reads is at +0x66 flatly and
  * not at +0x66 + 2i. The second pass writes the flag as zero and the two bytes
  * at +0x6a and +0x6b, and nothing else.
  *
  * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
- * skipping 2 and 3, which are the second half of the pairs `detach_belt` and
+ * skipping 2 and 3, which are the second half of the pairs `detach_rope` and
  * `finish_part_removal` clear together. A file that stored them would be storing the same
  * links twice.
  *
@@ -571,12 +571,12 @@ void write_string(FILE *file, char *str)
  */
 void write_record_fields(register FILE *file, register struct part *part)
 {
-    int16_t vrope;                      /* [bp-2] */
-    int16_t vbelt;                      /* [bp-4] */
+    int16_t vbelt;                      /* [bp-2] */
+    int16_t vrope;                      /* [bp-4] */
     int16_t vindex;                     /* [bp-6] */
     int16_t i;                          /* [bp-8] */
-    struct rope *rope;                  /* [bp-0xa] */
-    struct belt *belt;                      /* [bp-0xc] */
+    struct belt *belt;                  /* [bp-0xa] */
+    struct rope *rope;                      /* [bp-0xc] */
 
     write_word(file, (const uint8_t *)&part->kind);
     write_word(file, (const uint8_t *)&part->traits);
@@ -593,44 +593,44 @@ void write_record_fields(register FILE *file, register struct part *part)
     write_word(file, (const uint8_t *)&part->kind_state);
 
     if (part->kind == 8)
-        vrope = 1;
+        vbelt = 1;
     else
-        vrope = 0;
-    write_word(file, (uint8_t *)&vrope);
+        vbelt = 0;
+    write_word(file, (uint8_t *)&vbelt);
 
     write_byte(file, (const uint8_t *)&part->grab.x);
     write_byte(file, (const uint8_t *)&part->grab.y);
     write_word(file, (const uint8_t *)&part->grab_size);
 
-    if (vrope != 0) {
-        rope = part->rope;
+    if (vbelt != 0) {
+        belt = part->belt;
 
-        vindex = part_index(rope->end_a);
+        vindex = part_index(belt->end_a);
         write_word(file, (uint8_t *)&vindex);
-        vindex = part_index(rope->end_b);
+        vindex = part_index(belt->end_b);
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 0; i < 2; i++) {
         if (i == 0 && (part->kind == 0x0a || part->kind == 7))
-            vbelt = 1;
+            vrope = 1;
         else
-            vbelt = 0;
-        write_word(file, (uint8_t *)&vbelt);
+            vrope = 0;
+        write_word(file, (uint8_t *)&vrope);
 
         write_byte(file, &part->attach[i].x);
         write_byte(file, &part->attach[i].y);
 
-        if (vbelt != 0) {
-            belt = part->belt[0];
+        if (vrope != 0) {
+            rope = part->rope[0];
 
-            vindex = part_index((belt->end_a));
+            vindex = part_index((rope->end_a));
             write_word(file, (uint8_t *)&vindex);
-            vindex = part_index((belt->end_b));
+            vindex = part_index((rope->end_b));
             write_word(file, (uint8_t *)&vindex);
 
-            write_byte(file, &belt->slot_a);
-            write_byte(file, &belt->slot_b);
+            write_byte(file, &rope->slot_a);
+            write_byte(file, &rope->slot_b);
         }
     }
 
@@ -645,8 +645,8 @@ void write_record_fields(register FILE *file, register struct part *part)
     }
 
     if (part->kind == 7) {
-        if ((belt = part->belt[1]) != 0)
-            vindex = part_index((belt->owner));
+        if ((rope = part->rope[1]) != 0)
+            vindex = part_index((rope->owner));
         else
             vindex = -1;
 

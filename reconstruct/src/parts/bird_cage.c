@@ -82,10 +82,10 @@ void part_setup_bird_cage(struct part *part)
 uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *belt = p2->belt[0];   /* [bp-2] */
+    struct rope *rope = p2->rope[0];   /* [bp-2] */
 
     if (p4 == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

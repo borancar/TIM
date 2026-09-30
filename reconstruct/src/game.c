@@ -233,7 +233,7 @@ done:
  * Three skip step 2 - 0x147a7, 0x148e0 and 0x148ff call their setup with no
  * allocation. Two more skip both: 0x14aa2 and 0x14c48 only set flags and
  * bytes. And three allocate something else instead - 0x143fb and 0x1449d a
- * 0x2c-byte belt at +0x66, 0x1443d a 0x38-byte rope at +0x54 - each writing
+ * 0x2c-byte rope at +0x66, 0x1443d a 0x38-byte belt at +0x54 - each writing
  * the part's own address into the new record as its back-pointer.
  *
  * **They were a table until 2026-09-11**, six columns standing in for the
@@ -287,7 +287,7 @@ uint16_t part_init_ramp(struct part *part)
 uint16_t part_init_seesaw(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_BELT | STATE_TWO_BELT_ENDS);
+    part->state |= (STATE_TAKES_ROPE | STATE_TWO_ROPE_ENDS);
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -300,7 +300,7 @@ uint16_t part_init_seesaw(struct part *part)
 uint16_t part_init_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 16;
     part->attach[0].y = 47;
 
@@ -314,7 +314,7 @@ uint16_t part_init_balloon(struct part *part)
 /* 0x14361 */
 uint16_t part_init_conveyor(struct part *part)
 {
-    part->state |= (STATE_TAKES_ROPE | STATE_RESIZE_HORIZONTAL);
+    part->state |= (STATE_TAKES_BELT | STATE_RESIZE_HORIZONTAL);
     part->start_form = part->form = 0x001c;
     part->start_direction = part->direction = 0x0000;
     part->grab.x = 59;
@@ -331,7 +331,7 @@ uint16_t part_init_conveyor(struct part *part)
 uint16_t part_init_mouse_cage(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_ROPE | STATE_SELF_DRIVEN);
+    part->state |= (STATE_TAKES_BELT | STATE_SELF_DRIVEN);
     part->grab.x = 30;
     part->grab.y = 4;
     part->grab_size = 0x000c;
@@ -346,24 +346,24 @@ uint16_t part_init_mouse_cage(struct part *part)
 /* 0x143fb */
 uint16_t part_init_pulley(struct part *part)
 {
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 0;
     part->attach[0].y = 8;
     part->attach[1].x = 15;
     part->attach[1].y = 8;
 
-    if ((part->belt[0] = (calloc_far(1, sizeof(struct belt)))) == 0)
+    if ((part->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0)
         return 1;
-    part->belt[0]->owner = part;
+    part->rope[0]->owner = part;
     return 0;
 }
 
 /* 0x1443d */
 uint16_t part_init_belt(struct part *part)
 {
-    if ((part->rope = (calloc_far(1, sizeof(struct rope)))) == 0)
+    if ((part->belt = (calloc_far(1, sizeof(struct belt)))) == 0)
         return 1;
-    part->rope->owner = part;
+    part->belt->owner = part;
     return 0;
 }
 
@@ -380,9 +380,9 @@ uint16_t part_init_basketball(struct part *part)
 /* 0x1449d */
 uint16_t part_init_rope(struct part *part)
 {
-    if ((part->belt[0] = (calloc_far(1, sizeof(struct belt)))) == 0)
+    if ((part->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0)
         return 1;
-    part->belt[0]->owner = part;
+    part->rope[0]->owner = part;
     return 0;
 }
 
@@ -390,7 +390,7 @@ uint16_t part_init_rope(struct part *part)
 uint16_t part_init_bird_cage(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 21;
     part->attach[0].y = 2;
 
@@ -418,7 +418,7 @@ uint16_t part_init_pokey(struct part *part)
 uint16_t part_init_jack_in_the_box(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_ROPE | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
     part->grab.x = 8;
     part->grab.y = 9;
     part->grab_size = 0x000e;
@@ -433,7 +433,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
 /* 0x1458f */
 uint16_t part_init_gear(struct part *part)
 {
-    part->state |= STATE_TAKES_ROPE;
+    part->state |= STATE_TAKES_BELT;
     part->grab.x = part->grab.y = 13;
     part->grab_size = 0x0008;
 
@@ -472,7 +472,7 @@ uint16_t part_init_bellow(struct part *part)
 uint16_t part_init_bucket(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 18;
     part->attach[0].y = 0;
 
@@ -539,7 +539,7 @@ uint16_t part_init_electric_plug(struct part *part)
 uint16_t part_init_dynamite_plunger(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_ROPE | STATE_DRAW_STEPS);
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -552,7 +552,7 @@ uint16_t part_init_dynamite_plunger(struct part *part)
 uint16_t part_init_hook(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
 
     part_setup_hook(part);
     return 0;
@@ -587,7 +587,7 @@ uint16_t part_init_flashlight(struct part *part)
 /* 0x1483a */
 uint16_t part_init_generator(struct part *part)
 {
-    part->state |= (STATE_TAKES_ROPE | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
     part->traits2 |= TRAIT2_HAS_SOCKETS;
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -601,7 +601,7 @@ uint16_t part_init_generator(struct part *part)
 uint16_t part_init_gun(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_ROPE | STATE_DRAW_STEPS);
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -624,7 +624,7 @@ uint16_t part_init_baseball(struct part *part)
 uint16_t part_init_light(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
-    part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_ROPE | STATE_DRAW_STEPS);
 
     part_setup_light(part);
     return 0;
@@ -643,7 +643,7 @@ uint16_t part_init_magnifying_glass(struct part *part)
 uint16_t part_init_monkey(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_ROPE | STATE_TAKES_BELT | STATE_SELF_DRIVEN | STATE_DRAW_STEPS);
+    part->state |= (STATE_TAKES_BELT | STATE_TAKES_ROPE | STATE_SELF_DRIVEN | STATE_DRAW_STEPS);
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -666,7 +666,7 @@ uint16_t part_init_pumpkin(struct part *part)
 uint16_t part_init_heart_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 18;
     part->attach[0].y = 35;
 
@@ -750,7 +750,7 @@ uint16_t part_init_trampoline(struct part *part)
 uint16_t part_init_windmill(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= (STATE_TAKES_ROPE | STATE_SELF_DRIVEN);
+    part->state |= (STATE_TAKES_BELT | STATE_SELF_DRIVEN);
     part->grab.x = 15;
     part->grab.y = 15;
     part->grab_size = 0x0008;
@@ -824,7 +824,7 @@ uint16_t part_init_corner_pipe(struct part *part)
 /* 0x14c48 */
 uint16_t part_init_anchor(struct part *part)
 {
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
     part->attach[0].x = 0;
     part->attach[0].y = 0;
 
@@ -835,7 +835,7 @@ uint16_t part_init_anchor(struct part *part)
 uint16_t part_init_motor(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
-    part->state |= STATE_TAKES_ROPE;
+    part->state |= STATE_TAKES_BELT;
     part->traits2 |= TRAIT2_PLUGS_IN;
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -849,7 +849,7 @@ uint16_t part_init_motor(struct part *part)
 uint16_t part_init_kind_55(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -872,7 +872,7 @@ uint16_t part_init_kind_56(struct part *part)
 uint16_t part_init_kind_57(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
-    part->state |= STATE_TAKES_BELT;
+    part->state |= STATE_TAKES_ROPE;
 
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
         return 1;
@@ -940,14 +940,14 @@ void free_part(struct part *part)
         if (part->points != 0)
             checked_free(part->points);
 
-        if (part->rope != 0
-            && (part->state & STATE_TAKES_ROPE) == 0)
-            checked_free(part->rope);
+        if (part->belt != 0
+            && (part->state & STATE_TAKES_BELT) == 0)
+            checked_free(part->belt);
 
-        if (part->belt[0] != 0
+        if (part->rope[0] != 0
             && (part->kind == KIND_PULLEY
                 || part->kind == KIND_ROPE))
-            checked_free(part->belt[0]);
+            checked_free(part->rope[0]);
 
         checked_free((uint8_t *)part);
     }

@@ -34,7 +34,7 @@ int16_t g_jack_in_the_box_reach[3] = { -21, -34, -59 };
  * a lap at +0x96 each time. Six laps play sound 3 and put it into form 8, which
  * is where the winding-down starts.
  *
- * From form 8 up it reaches out over the belt: a box `0x3384 + 2 * form` wide
+ * From form 8 up it reaches out over the rope: a box `0x3384 + 2 * form` wide
  * and 0x1f down, and everything in it is dealt with by kind. One that can be
  * knocked along gets a speed from `conveyor_speed_for_mass`, negative sideways
  * *and* negative downwards - which is what tips a thing off the end. The rest

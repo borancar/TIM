@@ -72,16 +72,16 @@ uint16_t part_hit_balloon(struct part *part)
 /*
  * 172c:018e, image 0x1744e - kind 4's step.
  *
- * A part that hands its belt over to something else and then disappears. At
+ * A part that hands its rope over to something else and then disappears. At
  * form 6 it registers its shapes one last time and hides itself - bit 13 of
  * +8 - and that is the end of it.
  *
  * Before then, and only while +0x12 is exactly 1, it makes a kind-0x31 anchor,
- * puts it on the list at DGROUP 0x5179, and moves its belt across: the anchor
- * takes the belt at +0x66 and the link at +0x5a, the part on the far side of
+ * puts it on the list at DGROUP 0x5179, and moves its rope across: the anchor
+ * takes the rope at +0x66 and the link at +0x5a, the part on the far side of
  * that link is pointed back at the anchor through whichever of its own two
- * links matched - `link_slot_of` - and the belt record's own end, +2 or
- * +4, is repointed too. The anchor lands on the belt's tangent point for that
+ * links matched - `link_slot_of` - and the rope record's own end, +2 or
+ * +4, is repointed too. The anchor lands on the rope's tangent point for that
  * end, carried in sixteenths the usual way, and this part lets go of both.
  *
  * Either way the form steps on, and the first step plays sound 0x0e.
@@ -91,7 +91,7 @@ void part_step_balloon(struct part *part)
     struct part *si;
     uint16_t k;                         /* [bp-2] */
     struct part *link;                  /* [bp-4] */
-    struct belt *belt;                  /* [bp-6] */
+    struct rope *rope;                  /* [bp-6] */
 
     if (part->direction != 0) {
         part->state |= STATE_STEPPED;
@@ -101,25 +101,25 @@ void part_step_balloon(struct part *part)
             part->state |= STATE_GONE;
         } else {
             if (part->direction == 1
-                && (belt = part->belt[0]) != NULL
+                && (rope = part->rope[0]) != NULL
                 && (si = make_part(KIND_ANCHOR)) != NULL) {
                 insert_sorted(si, &g_moving_parts);
                 si->traits |= TRAIT_SPAWNED;
-                si->belt[0] = belt;
+                si->rope[0] = rope;
                 si->link[0] = part->link[0];
                 link = si->link[0];
 
                 if ((k = link_slot_of(part, link)) != 0xffff)
                     link->link[k] = si;
 
-                if (belt->end_a == part) {
-                    belt->end_a = si;
-                    si->pos[0].x = belt->pt[0][0].x;
-                    si->pos[0].y = belt->pt[0][0].y;
+                if (rope->end_a == part) {
+                    rope->end_a = si;
+                    si->pos[0].x = rope->pt[0][0].x;
+                    si->pos[0].y = rope->pt[0][0].y;
                 } else {
-                    belt->end_b = si;
-                    si->pos[0].x = belt->pt[0][1].x;
-                    si->pos[0].y = belt->pt[0][1].y;
+                    rope->end_b = si;
+                    si->pos[0].x = rope->pt[0][1].x;
+                    si->pos[0].y = rope->pt[0][1].y;
                 }
 
                 si->fx = si->pos[0].x;
@@ -129,7 +129,7 @@ void part_step_balloon(struct part *part)
 
                 place_object_for_draw(si);
 
-                part->belt[0] = 0;
+                part->rope[0] = 0;
                 part->link[0] = 0;
             }
 
@@ -161,10 +161,10 @@ void part_step_balloon(struct part *part)
 uint16_t part_drive_balloon(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *belt = p2->belt[0];   /* [bp-2] */
+    struct rope *rope = p2->rope[0];   /* [bp-2] */
 
     if (p4 == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

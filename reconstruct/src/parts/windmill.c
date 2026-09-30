@@ -43,7 +43,7 @@ void part_setup_windmill(struct part *part)
  * 172c:49a1, image 0x1bc61 - kind 40's step.
  *
  * A countdown at +0x9c: while it is running the part is "on", which it says in
- * the word at +0x12 and passes to whatever its rope is tied to - as 1, or -1
+ * the word at +0x12 and passes to whatever its belt is tied to - as 1, or -1
  * when bit 4 of its flags at +8 is set, which is the mirrored form. The other
  * end is only told if it is not already busy, bit 11 of its own +8.
  *
@@ -64,7 +64,7 @@ void part_step_windmill(struct part *part)
             part->direction = 1;
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN)) {
+    if ((di = belt_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN)) {
         if (part->direction != 0) {
             if (part->state & STATE_FLIP_HORIZONTAL)
                 di->direction = -1;

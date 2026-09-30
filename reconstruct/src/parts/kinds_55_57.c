@@ -134,7 +134,7 @@ void part_step_kind_57(struct part *part)
  * 172c:11d2, image 0x18492 - kind 57's drive hook.
  *
  * Flags of exactly 1 is the counting pass `part_drive_light` also recognises:
- * the belt's +0x0e goes up and the answer is 0, so the walk carries on.
+ * the rope's +0x0e goes up and the answer is 0, so the walk carries on.
  *
  * Otherwise it is a contest of momentum. The part's own at +0x3c - the long
  * the record doc calls speed, weight times how fast it is going - is measured
@@ -147,10 +147,10 @@ void part_step_kind_57(struct part *part)
 uint16_t part_drive_kind_57(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
-    struct belt *belt = part->belt[0];   /* [bp-2] */
+    struct rope *rope = part->rope[0];   /* [bp-2] */
 
     if (flags == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

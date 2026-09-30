@@ -39,7 +39,7 @@ struct point8 g_monkey_points_33bc[9] = {
 
 /*
  * 172c:2c83, image 0x19f43 - kind 31's hit test, the third way into
- * `part_step_monkey`'s timer after its own drive and its rope.
+ * `part_step_monkey`'s timer after its own drive and its belt.
  *
  * It only fires when the timer at +0x96 is already at rest, and only on faces
  * 0, 1 and 2 - a strike from behind does nothing. Then the timer is loaded
@@ -109,7 +109,7 @@ void part_setup_monkey(struct part *part)
 /*
  * 172c:2d40, image 0x1a000 - kind 31's step.
  *
- * Whatever is on the other end of its rope is told what this part is doing -
+ * Whatever is on the other end of its belt is told what this part is doing -
  * +0x12 copied straight across - unless that end is already busy, bit 11 of
  * its +8. `part_step_windmill` below does the same thing for kind 40.
  *
@@ -133,7 +133,7 @@ void part_step_monkey(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
+    if ((di = belt_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->kind_state != 0) {
@@ -219,12 +219,12 @@ uint16_t part_drive_monkey(struct part *p1, struct part *p2, uint16_t p3, uint16
                          uint16_t p5, int32_t p6)
 {
     uint16_t kept;                      /* [bp-2] */
-    struct belt *belt;                  /* [bp-4] */
+    struct rope *rope;                  /* [bp-4] */
 
-    belt = p2->belt[0];
+    rope = p2->rope[0];
 
     if (p4 == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

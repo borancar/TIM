@@ -9,7 +9,7 @@
  * and the panels around the play area.
  *
  * The fifth module of the original's **code segment 0dff**, image
- * 0x0f8c2..0x11d00. Its data is DGROUP 0x2630..0x283a: the belt anchor, the
+ * 0x0f8c2..0x11d00. Its data is DGROUP 0x2630..0x283a: the rope anchor, the
  * bin's two repeat counters and the table of goal tests, the play screen's tab
  * stops, the master levels' marker positions, and its literal pool. Where it
  * begins is a choice - see puzzles.c. Functions are in address order and each
@@ -300,9 +300,9 @@ static int32_t bin_repeat_due(int16_t n)
  * and it is why the two clocks differ there.
  *
  * On the way out, a part still in hand with bit 0x800 in +6 is thrown away if
- * it is a rope or a belt that reached something, and otherwise handed to
- * finish_part_removal. A rope that never reached anything takes the second path, because
- * the kind test falls through to the belt test and then out.
+ * it is a belt or a rope that reached something, and otherwise handed to
+ * finish_part_removal. A belt that never reached anything takes the second path, because
+ * the kind test falls through to the rope test and then out.
  */
 void game_screen_loop(void)
 {
@@ -387,10 +387,10 @@ void game_screen_loop(void)
     if (g_held_parts.dragged_part != 0
         && (g_held_parts.dragged_part->traits & TRAIT_IN_BIN) != 0) {
         if (g_held_parts.dragged_part->kind == KIND_BELT
-            && g_held_parts.dragged_part->rope->end_a != 0)
+            && g_held_parts.dragged_part->belt->end_a != 0)
             discard_carried_part();
         else if (g_held_parts.dragged_part->kind == KIND_ROPE
-                 && g_held_parts.dragged_part->belt[0]->end_a != 0)
+                 && g_held_parts.dragged_part->rope[0]->end_a != 0)
             discard_carried_part();
         else
             finish_part_removal();
@@ -563,7 +563,7 @@ void pointer_frame(void)
  * **Carrying a part off the edge of the play area asks for a redraw.**
  *
  * Only while a part is in hand - tool 9 with something at 0x50d5 - and only
- * for a part that is neither a rope nor a belt, because those two are drawn
+ * for a part that is neither a belt nor a rope, because those two are drawn
  * from their endpoints and do not hang off the pointer.
  *
  * 0x4e89 is set to 1 unconditionally, and then each edge the pointer has gone
@@ -687,9 +687,9 @@ void move_carried(void)
         = g_held_parts.dragged_part->pos[0].y = -1;
 
     if (g_held_parts.dragged_part->kind == KIND_BELT)
-        move_carried_rope();
-    else if (g_held_parts.dragged_part->kind == KIND_ROPE)
         move_carried_belt();
+    else if (g_held_parts.dragged_part->kind == KIND_ROPE)
+        move_carried_rope();
     else
         move_carried_part();
 }
@@ -697,16 +697,16 @@ void move_carried(void)
 /*
  * 0x0fe84
  *
- * Move a carried **rope** with the pointer, and drop it when the button goes
+ * Move a carried **belt** with the pointer, and drop it when the button goes
  * down.
  *
- * Two halves. With the button down, `rope_ends_close` decides what happens:
- * ends too far apart and the rope is thrown away, but only if it had a far
- * part - `di` non-zero - because a rope attached to nothing has nothing to
+ * Two halves. With the button down, `belt_ends_close` decides what happens:
+ * ends too far apart and the belt is thrown away, but only if it had a far
+ * part - `di` non-zero - because a belt attached to nothing has nothing to
  * come apart. Close enough, and `find_part_from(0)` is asked what is under the
- * pointer and the rope is joined to it: bit 2 into that part's +8, +0x94
+ * pointer and the belt is joined to it: bit 2 into that part's +8, +0x94
  * refreshed, and the link's **+6 or +4** set depending on whether the far end
- * was already taken. Then the endpoints are recomputed, the rope re-filed, and
+ * was already taken. Then the endpoints are recomputed, the belt re-filed, and
  * both the tool and the carried part cleared.
  *
  * With the button up it is only preview: 0x52c1 and 0x52c3 take the far part's
@@ -715,16 +715,16 @@ void move_carried(void)
  * draw the rubber-band line. 0x52c5 is the colour, 0xa when the ends are close
  * enough to join and 0xc when they are not.
  */
-void move_carried_rope(void)
+void move_carried_belt(void)
 {
     struct part *si;
     struct part *di;
     int16_t close;                      /* [bp-2] */
-    struct rope *link;                  /* [bp-4] */
+    struct belt *link;                  /* [bp-4] */
 
-    link = g_held_parts.dragged_part->rope;
+    link = g_held_parts.dragged_part->belt;
     di = link->end_a;
-    close = rope_ends_close(link);
+    close = belt_ends_close(link);
 
     if (g_pointer.button_left == 2) {
         if (close == 0) {
@@ -734,10 +734,10 @@ void move_carried_rope(void)
             si = find_part_from(NULL);
 
             if (di != NULL) {
-                si->state |= STATE_HAS_ROPE;
+                si->state |= STATE_HAS_BELT;
                 si->start_state = si->state;
                 link->end_b = si;
-                si->rope = link;
+                si->belt = link;
 
                 compute_link_endpoints(link);
                 mark_needs_refile(g_held_parts.dragged_part, 2);
@@ -745,10 +745,10 @@ void move_carried_rope(void)
                 g_tool = 0;
                 g_held_parts.dragged_part = 0;
             } else {
-                si->state |= STATE_HAS_ROPE;
+                si->state |= STATE_HAS_BELT;
                 si->start_state = si->state;
                 link->end_a = si;
-                si->rope = link;
+                si->belt = link;
             }
         }
     } else if (di != NULL) {
@@ -767,22 +767,22 @@ void move_carried_rope(void)
 /*
  * 0x0ff80
  *
- * Move a carried **belt** with the pointer, attach it when the button goes
+ * Move a carried **rope** with the pointer, attach it when the button goes
  * down, and preview it when the button is up.
  *
- * `find_belt_anchor` says what is under the pointer and which of its ends;
+ * `find_rope_anchor` says what is under the pointer and which of its ends;
  * 0x2630 remembers that between frames. Two anchors are refused outright: the
- * one already at the belt's other end (0x5456) and the far part it is already
+ * one already at the rope's other end (0x5456) and the far part it is already
  * joined to, and both only when there *is* a far part - so the first end can
  * legally land on anything.
  *
- * With the button down and no anchor, a belt that already had a far part is
+ * With the button down and no anchor, a rope that already had a far part is
  * thrown away and one that did not is simply left alone.
  *
  * **The two ends are not symmetric.** The first end - no far part yet - just
  * records itself in the anchor's +0x66 pair and in the link's +2, +6, +0xa and
  * +0xc, and refuses a pulley outright. The second end does the geometry: a
- * pulley anchor takes the belt in its single socket at +0x5a and +0x5e, any
+ * pulley anchor takes the rope in its single socket at +0x5a and +0x5e, any
  * other part takes it at the end named by the link's +0xa **and again two
  * slots further on**, then the link is re-measured and the whole thing
  * re-filed and let go of. A pulley on the far side is passed to aim_link_at_bisector
@@ -794,82 +794,82 @@ void move_carried_rope(void)
  * in play-area coordinates, 0x52c5 the colour - 0xa where it would attach and
  * 0xc where it would not.
  */
-void move_carried_belt(void)
+void move_carried_rope(void)
 {
-    struct belt *si;
+    struct rope *si;
     struct part *di;
     int16_t end;                        /* [bp-2] */
     struct part *far_;                  /* [bp-4] */
 
-    si = g_held_parts.dragged_part->belt[0];
+    si = g_held_parts.dragged_part->rope[0];
     far_ = si->end_a;
 
-    di = find_belt_anchor(&end, g_goal_tests.belt_anchor);
+    di = find_rope_anchor(&end, g_goal_tests.rope_anchor);
 
-    if (di == g_belt_far_end && far_ != NULL)
+    if (di == g_rope_far_end && far_ != NULL)
         di = NULL;
     else if (di == far_ && far_ != NULL)
         di = NULL;
 
-    g_goal_tests.belt_anchor = di;
+    g_goal_tests.rope_anchor = di;
 
     if (g_pointer.button_left == 2) {
         if (di == NULL) {
             if (far_ != NULL)
                 discard_carried_part();
         } else if (far_ != NULL) {
-            if (g_belt_far_end->kind == KIND_PULLEY) {
-                g_belt_far_end->link[2]
-                    = g_belt_far_end->link[0] = di;
-                mark_joined_shapes(g_belt_far_end, 3);
-                mark_part_shapes(g_belt_far_end, 3);
-                mark_needs_refile(g_belt_far_end, 2);
+            if (g_rope_far_end->kind == KIND_PULLEY) {
+                g_rope_far_end->link[2]
+                    = g_rope_far_end->link[0] = di;
+                mark_joined_shapes(g_rope_far_end, 3);
+                mark_part_shapes(g_rope_far_end, 3);
+                mark_needs_refile(g_rope_far_end, 2);
             } else {
-                g_belt_far_end->link[si->slot_a + 2]
-                    = g_belt_far_end->link[si->slot_a] = di;
+                g_rope_far_end->link[si->slot_a + 2]
+                    = g_rope_far_end->link[si->slot_a] = di;
             }
 
             refresh_link_geometry(si);
             mark_needs_refile(g_held_parts.dragged_part, 2);
 
             if (di->kind == KIND_PULLEY) {
-                di->link[3] = di->link[1] = g_belt_far_end;
-                di->belt[1] = si;
-                if (g_belt_far_end->kind == KIND_PULLEY)
-                    aim_link_at_bisector(g_belt_far_end);
-                g_belt_far_end = di;
+                di->link[3] = di->link[1] = g_rope_far_end;
+                di->rope[1] = si;
+                if (g_rope_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(g_rope_far_end);
+                g_rope_far_end = di;
             } else {
-                di->link[end + 2] = di->link[end] = g_belt_far_end;
-                di->belt[end] = si;
+                di->link[end + 2] = di->link[end] = g_rope_far_end;
+                di->rope[end] = si;
                 si->home_b = si->end_b = di;
                 si->home_slot_b = si->slot_b = end;
-                if (g_belt_far_end->kind == KIND_PULLEY)
-                    aim_link_at_bisector(g_belt_far_end);
+                if (g_rope_far_end->kind == KIND_PULLEY)
+                    aim_link_at_bisector(g_rope_far_end);
                 refile_part_list(g_held_parts.dragged_part);
                 g_tool = 0;
                 g_held_parts.dragged_part = 0;
             }
         } else if (di->kind != KIND_PULLEY) {
-            di->belt[end] = si;
+            di->rope[end] = si;
             si->home_a = si->end_a = di;
             si->home_slot_a = si->slot_a = end;
-            g_belt_far_end = di;
+            g_rope_far_end = di;
         }
     } else if (far_ != NULL) {
-        if (g_belt_far_end->kind == KIND_PULLEY) {
+        if (g_rope_far_end->kind == KIND_PULLEY) {
             end = 1;
-            aim_link_at_bisector(g_belt_far_end);
-            mark_joined_shapes(g_belt_far_end, 3);
-            mark_part_shapes(g_belt_far_end, 3);
-            mark_needs_refile(g_belt_far_end, 2);
+            aim_link_at_bisector(g_rope_far_end);
+            mark_joined_shapes(g_rope_far_end, 3);
+            mark_part_shapes(g_rope_far_end, 3);
+            mark_needs_refile(g_rope_far_end, 2);
         } else {
             end = si->slot_a;
         }
 
-        g_anchor_x = g_belt_far_end->pos[0].x
-                        + g_belt_far_end->attach[end].x;
-        g_anchor_y = g_belt_far_end->pos[0].y
-                        + g_belt_far_end->attach[end].y;
+        g_anchor_x = g_rope_far_end->pos[0].x
+                        + g_rope_far_end->attach[end].x;
+        g_anchor_y = g_rope_far_end->pos[0].y
+                        + g_rope_far_end->attach[end].y;
         g_band_x = g_pointer.pointer_x + g_origin_x;
         g_band_y = g_pointer.pointer_y + g_origin_y;
 
@@ -884,7 +884,7 @@ void move_carried_belt(void)
  * 0x101dc
  *
  * **Move an ordinary carried part** with the pointer - everything that is not
- * a rope or a belt - and put it down when the button goes down.
+ * a belt or a rope - and put it down when the button goes down.
  *
  * The level's own opinion is asked first, through `part_key_shortcut`,
  * which does nothing at all on all but six levels.
@@ -897,8 +897,8 @@ void move_carried_belt(void)
  * rather than clamping. Both take the grab offset at 0x4e97 and 0x4e95 off
  * first, so the part stays held where it was picked up.
  *
- * `di` is whether the part's rope is *not* close enough to stay joined -
- * `neg/sbb/inc` around `rope_ends_close`, which is Borland's `== 0` - and it
+ * `di` is whether the part's belt is *not* close enough to stay joined -
+ * `neg/sbb/inc` around `belt_ends_close`, which is Borland's `== 0` - and it
  * is only consulted when the part is actually put down.
  *
  * Then +0xa again: bit 1 re-homes the part onto whatever it is near, bit 2
@@ -906,7 +906,7 @@ void move_carried_belt(void)
  *
  * The ending is three-way. Overlapping something sets the cursor colour at
  * 0x52c7 to 0xe and nothing else happens - you cannot drop a part inside
- * another. The button down commits: marks, then **a rope that has come too far
+ * another. The button down commits: marks, then **a belt that has come too far
  * apart is untied and thrown away**, then +0x8c and +0x8e remember where the
  * part landed, it is re-filed, and the hand is emptied. Neither of those and
  * the colour is 0xc, meaning it would drop cleanly.
@@ -916,7 +916,7 @@ void move_carried_belt(void)
  */
 void move_carried_part(void)
 {
-    struct rope *si;
+    struct belt *si;
     int16_t di;
 
     part_key_shortcut();
@@ -946,8 +946,8 @@ void move_carried_part(void)
     place_object_for_draw(CARRIED);
     retension_pulleys(CARRIED);
 
-    if ((si = CARRIED->rope) != NULL)
-        di = !rope_ends_close(si);
+    if ((si = CARRIED->belt) != NULL)
+        di = !belt_ends_close(si);
     else
         di = 0;
 
@@ -962,7 +962,7 @@ void move_carried_part(void)
         mark_joined_shapes(CARRIED, 3);
 
         if (di != 0) {
-            untie_rope(si->owner);
+            untie_belt(si->owner);
             discard_part(si->owner);
             g_redraw_e = 2;
         }
@@ -1083,53 +1083,53 @@ void part_key_shortcut(void)
  *
  * `di` is the part's +0x54 and `si` **its +4, read only if +0x54 is not zero**.
  * `si` is used again at the end, and only on the branch where the part is a
- * rope - which is exactly when +0x54 is set - so the original's conditional
+ * belt - which is exactly when +0x54 is set - so the original's conditional
  * load is safe. It is initialised to 0 here because C says so; the original
  * would be carrying whatever SI held.
  *
- * The part is unmarked, then detached according to kind: a rope untied, a belt
+ * The part is unmarked, then detached according to kind: a belt untied, a rope
  * detached with `how` 0 after stashing its far end's +0x5a at 0x5456, anything
- * else through detach_part_to_bin. A rope then has its link put back the other way
+ * else through detach_part_to_bin. A belt then has its link put back the other way
  * round - `di->+4 = si`, `si->+0x54 = di` - with bit 2 set in the far part's
- * +8 and +0x94 refreshed to match, so the rope is now held by the end you did
+ * +8 and +0x94 refreshed to match, so the belt is now held by the end you did
  * not grab.
  *
  * Tool 9 last, which is what makes everything else treat this as carried.
  */
 void pick_up_part(void)
 {
-    struct part *si;                    /* what the rope's end A holds */
-    struct rope *di;
-    struct belt *rec;                   /* [bp-2] */
+    struct part *si;                    /* what the belt's end A holds */
+    struct belt *di;
+    struct rope *rec;                   /* [bp-2] */
 
     g_drag_offset_x = g_pointer.pointer_x - CARRIED->pos[0].x + g_origin_x;
     g_drag_offset_y = g_pointer.pointer_y - CARRIED->pos[0].y + g_origin_y;
 
-    if ((di = CARRIED->rope) != NULL)
+    if ((di = CARRIED->belt) != NULL)
         si = di->end_a;
 #ifndef __TURBOC__
     else
-        si = NULL;     /* never read: only a part with a rope reaches the use */
+        si = NULL;     /* never read: only a part with a belt reaches the use */
 #endif
 
     mark_joined_shapes(CARRIED, 3);
     mark_part_shapes(CARRIED, 3);
 
     if (CARRIED->kind == KIND_BELT) {
-        untie_rope(CARRIED);
+        untie_belt(CARRIED);
     } else if (CARRIED->kind == KIND_ROPE) {
-        rec = CARRIED->belt[0];
-        g_belt_far_end = rec->end_b->link[rec->slot_b];
-        detach_belt(CARRIED, 0);
+        rec = CARRIED->rope[0];
+        g_rope_far_end = rec->end_b->link[rec->slot_b];
+        detach_rope(CARRIED, 0);
     } else {
         detach_part_to_bin(CARRIED);
     }
 
     if (CARRIED->kind == KIND_BELT) {
         di->end_a = si;
-        si->state |= STATE_HAS_ROPE;
+        si->state |= STATE_HAS_BELT;
         si->start_state = si->state;
-        si->rope = di;
+        si->belt = di;
     }
 
     g_tool = 9;
@@ -1145,12 +1145,12 @@ void pick_up_part(void)
  * both with mode 3 - so nothing that was drawn for it is left claiming space.
  * Then three ways to go, on the kind at +4:
  *
- *   a rope, kind 8      untie it from both ends, then discard
- *   a belt, kind 0x0a   detach it with `how` 1, then discard
+ *   a belt, kind 8      untie it from both ends, then discard
+ *   a rope, kind 0x0a   detach it with `how` 1, then discard
  *   anything else       detach_part_to_bin and finish_part_removal
  *
  * The two ends of the first two are why they need untying before discarding: a
- * rope or a belt is joined to parts that outlive it, and freeing the record
+ * belt or a rope is joined to parts that outlive it, and freeing the record
  * without breaking the joins leaves those parts pointing at it.
  *
  * It closes by setting 0x4e93 to 2 and the tool at 0x4e69 to 0 - the hand is
@@ -1163,10 +1163,10 @@ void discard_carried_part(void)
     mark_part_shapes(CARRIED, 3);
 
     if (CARRIED->kind == KIND_BELT) {
-        untie_rope(CARRIED);
+        untie_belt(CARRIED);
         discard_part(CARRIED);
     } else if (CARRIED->kind == KIND_ROPE) {
-        detach_belt(CARRIED, 1);
+        detach_rope(CARRIED, 1);
         discard_part(CARRIED);
     } else {
         detach_part_to_bin(CARRIED);
@@ -1622,7 +1622,7 @@ void region_cursor_bin_above(struct region *region)
  * click handler is 0x10e14 alongside it.
  *
  * Carrying a part, tool 9, the cursor says what is in your hand, by the kind
- * at +4 of the part at DGROUP 0x50d5: a rope, kind 8, gets cursor 8; a belt,
+ * at +4 of the part at DGROUP 0x50d5: a belt, kind 8, gets cursor 8; a rope,
  * kind 0x0a, gets 9; anything else 0. That is the same question
  * `cursor_for_tool` asks for its own ninth tool, asked again here rather than
  * shared, and the pointer is loaded once into DI instead of twice - the two
@@ -1658,7 +1658,7 @@ void region_cursor_bin(struct region *region)
  * `region_cursor_bin`, filed at +0x16 of the same row.
  *
  * With a part already in hand it is a bin: the part is thrown away by
- * `discard_carried_part` and the tool is cleared. A rope or a belt sets 0x4e93
+ * `discard_carried_part` and the tool is cleared. A belt or a rope sets 0x4e93
  * to 2 on the way, which the discard would set anyway - the original tests the
  * kind twice, here and inside, and both are transcribed.
  *

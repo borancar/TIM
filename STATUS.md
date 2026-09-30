@@ -470,8 +470,8 @@ than left looking unfinished.
   port's.
 
   **The parts come back reversed.** Walking both files by the record flags -
-  `write_record_fields` writes four more bytes for a part with a rope and six more for one
-  with a belt, so a fixed stride lands in the wrong field - the fifteen records
+  `write_record_fields` writes four more bytes for a part with a belt and six more for one
+  with a rope, so a fixed stride lands in the wrong field - the fifteen records
   from offset 0x10 read:
 
       loaded   15 39  2  5  2  2  2 50 21  1  1  3  8 | 4 12
@@ -1405,7 +1405,7 @@ captured, and the honest form of the number always carries the count.
 The title screen carried a stripe of dashes across rows 332 to 342, from x=462
 to the right edge, in one of the two pages - which is why the difference
 alternated between 402 and 533 indices. It was read first as a moving part left
-un-erased and then as a belt, and it was neither; what settled it was a
+un-erased and then as a rope, and it was neither; what settled it was a
 backtrace on **every** write the driver makes to those rows, which named
 `vm_fill_spans` under `draw_polygon` and nothing else.
 
@@ -1870,8 +1870,8 @@ used it.
 | `compute_step` | 0x20840 | - | **transcribed, never called** on these screens |
 | `draw_compressed_bitmap` | 0x20185 | - | **transcribed, never called** on these screens |
 | `draw_part` | 0x16db1 | - | **transcribed, never called** on these screens |
-| `draw_rope` | 0x167fa | - | **transcribed, never called** on these screens |
-| `draw_belt` | 0x16baf | - | **transcribed, never called** on these screens |
+| `draw_belt` | 0x167fa | - | **transcribed, never called** on these screens |
+| `draw_rope` | 0x16baf | - | **transcribed, never called** on these screens |
 | `draw_machine` | 0x1675e | - | **transcribed, never called** on these screens |
 | `step_and_draw_machine` | 0x16181 | - | **transcribed, never called** on these screens |
 | `refile_overlapping_parts` | 0x06b5b | - | **transcribed, never called** on these screens |
@@ -1920,7 +1920,7 @@ used it.
 | `part_by_index` | 0x11d44 | - | **transcribed, never called** on these screens |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `read_mouse_button` | 0x2213e | 0, 4 (missed 30) | **not verified** |
-| `belt_other_end` | 0x06f68 | - | **transcribed, never called** on these screens |
+| `rope_other_end` | 0x06f68 | - | **transcribed, never called** on these screens |
 | `read_mouse_pointer` | 0x220e9 | 0 (missed 2, 15) | **not verified** |
 | `angle_sin` | 0x2a456 | - | **transcribed, never called** on these screens |
 | `angle_cos` | 0x2a47b | - | **transcribed, never called** on these screens |
@@ -2014,10 +2014,10 @@ used it.
 | `part_hit_016e` | 0x1742e | - | **transcribed, never called** on these screens |
 | `part_hit_1de0` | 0x190a0 | - | **transcribed, never called** on these screens |
 | `part_hit_2b7e` | 0x19e3e | - | **transcribed, never called** on these screens |
-| `mark_belt_shapes` | 0x05f87 | - | **transcribed, never called** on these screens |
-| `draw_belt_segment` | 0x16b39 | - | **transcribed, never called** on these screens |
-| `belt_orientation` | 0x06de9 | - | **transcribed, never called** on these screens |
-| `tension_belt` | 0x072c7 | - | **transcribed, never called** on these screens |
+| `mark_rope_shapes` | 0x05f87 | - | **transcribed, never called** on these screens |
+| `draw_rope_segment` | 0x16b39 | - | **transcribed, never called** on these screens |
+| `rope_orientation` | 0x06de9 | - | **transcribed, never called** on these screens |
+| `tension_rope` | 0x072c7 | - | **transcribed, never called** on these screens |
 | `draw_part_extra` | 0x171b5 | - | **transcribed, never called** on these screens |
 | `draw_polygon` | 0x1eded | - | **transcribed, never called** on these screens |
 | `part_step_blast` | 0x18909 | - | **transcribed, never called** on these screens |
@@ -2110,9 +2110,9 @@ used it.
 | `game_setbuf` | 0x095cf | - | **transcribed, never called** on these screens |
 | `restart_resource_stream` | 0x1dae6 | - | **transcribed, never called** on these screens |
 | `sound_on_hard_impact` | 0x03009 | - | **transcribed, never called** on these screens |
-| `rope_ends_close` | 0x04b8f | - | **transcribed, never called** on these screens |
+| `belt_ends_close` | 0x04b8f | - | **transcribed, never called** on these screens |
 | `mark_parts_in_dirty_rects` | 0x06806 | - | **transcribed, never called** on these screens |
-| `belt_in_dirty_rect` | 0x06994 | - | **transcribed, never called** on these screens |
+| `rope_in_dirty_rect` | 0x06994 | - | **transcribed, never called** on these screens |
 | `restore_cursor_following` | 0x08125 | - | **transcribed, never called** on these screens |
 | `select_music` | 0x08364 | - | **transcribed, never called** on these screens |
 | `play_sound` | 0x083ab | - | **transcribed, never called** on these screens |

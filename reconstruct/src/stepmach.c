@@ -47,14 +47,14 @@
  *     bouncing or sliding; bit 2 asks the same question and takes a third
  *     answer. Bit 3 or being hidden skips it.
  *  7. Finally, over the 0x3000 list, each part that has moved since last step
- *     is told so, and each that has not still copies its belts' positions
+ *     is told so, and each that has not still copies its ropes' positions
  *     forward.
  */
 void step_machine(void)
 {
     uint16_t flags;                     /* [bp-2] */
-    int16_t belt;                       /* [bp-4] */
-    struct belt *b;                     /* [bp-6] */
+    int16_t rope;                       /* [bp-4] */
+    struct rope *b;                     /* [bp-6] */
     register struct part *si;
     register struct queue_node *di;
 
@@ -149,8 +149,8 @@ void step_machine(void)
             else if (!(si->pos[0].x == si->pos[1].x
                        && si->pos[0].y == si->pos[1].y
                        && si->form == si->form_prev))
-                for (belt = 0; belt < 2; belt++)
-                    if ((b = si->belt[belt]) != NULL) {
+                for (rope = 0; rope < 2; rope++)
+                    if ((b = si->rope[rope]) != NULL) {
                         b->pt[0][0] = b->pt[2][0];
                         b->pt[0][1] = b->pt[2][1];
                     }
@@ -164,11 +164,11 @@ void step_machine(void)
  * One moving object's step: run its kind's own handler, integrate it, clear the
  * low nibble of its contact flags at +6, and settle it against whatever it hits.
  *
- * Then, if it hangs from a belt, `tension_belt` is asked whether that pulled it
+ * Then, if it hangs from a rope, `tension_rope` is asked whether that pulled it
  * somewhere. If it did, the contact flags are cleared again - the position it
  * was settled at is no longer where it is. If it did not, the contact record at
  * +0x84 is *saved and cleared* across a second `resolve_collisions`, and put
- * back only if that second pass found nothing: a part that the belt did not
+ * back only if that second pass found nothing: a part that the rope did not
  * move keeps the contact it already had, rather than losing it to a settle that
  * was only run to check.
  *
@@ -194,8 +194,8 @@ void step_moving_object(register struct part *obj)
         integrate_object(obj);
         obj->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
         resolve_collisions(obj);
-        if (obj->belt[0] != 0) {
-            pulled = tension_belt(obj);
+        if (obj->rope[0] != 0) {
+            pulled = tension_rope(obj);
             if (pulled != 0)
                 obj->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
             else {

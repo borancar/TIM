@@ -89,13 +89,13 @@ void part_flip_light(struct part *part)
 /*
  * 172c:2c19, image 0x19ed9 - kind 29's drive hook.
  *
- * The arguments are the seven `drive_belts` hands over; this one uses only the
+ * The arguments are the seven `drive_ropes` hands over; this one uses only the
  * part at +8 and the flags at +0x0c.
  *
- * Flags of exactly 1 means "count how many belts reach here": the belt's +0x0e
+ * Flags of exactly 1 means "count how many ropes reach here": the rope's +0x0e
  * goes up and the answer is 0, so the walk carries on.
  *
- * Otherwise only bits 1, 2 and 15 of the flags are kept. A belt running that
+ * Otherwise only bits 1, 2 and 15 of the flags are kept. A rope running that
  * way over a part already going - or bit 1 on its own - refuses, which is what
  * stops the drive: it answers 1 and the caller's walk ends. Bit 2 on a part
  * that is *not* going starts it instead, with sound 0x11, and answers 0.
@@ -104,12 +104,12 @@ uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6)
 {
     uint16_t kept;                      /* [bp-2] */
-    struct belt *belt;                  /* [bp-4] */
+    struct rope *rope;                  /* [bp-4] */
 
-    belt = si->belt[0];
+    rope = si->rope[0];
 
     if (flags == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

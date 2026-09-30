@@ -103,7 +103,7 @@ uint16_t part_hit_conveyor(struct part *part)
  * past a multiple of seven goes back six, and a multiple of seven goes forward
  * six. So the seven frames cycle in either direction without a table.
  *
- * A crank whose rope reaches a gear that is not turning - kind 0x0e with its
+ * A crank whose belt reaches a gear that is not turning - kind 0x0e with its
  * last two forms equal - gives up before any of that: nothing is on the other
  * end to turn.
  *
@@ -113,7 +113,7 @@ void part_step_conveyor(struct part *part)
 {
     struct part *di;
 
-    if (part->direction != 0 && (di = rope_other_end(part)) != NULL
+    if (part->direction != 0 && (di = belt_other_end(part)) != NULL
         && di->kind == KIND_GEAR && di->form_prev == di->form_prev2)
         part->direction = 0;
 

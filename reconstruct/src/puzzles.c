@@ -52,7 +52,7 @@ struct game_puzzle_tabs g_game_puzzle_tabs = {
  * **The text the player types on the puzzle screen**, DGROUP 0x542e..0x5456, 0x28 bytes - a
  * password or a score code - which `picker_type` fills to 0x19 characters
  * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
- * read. Forty bytes, up to `g_belt_far_end` at 0x5456.
+ * read. Forty bytes, up to `g_rope_far_end` at 0x5456.
  */
 struct game_typed_text {
     char typed[0x28];             /* +0x00 [0x28] */

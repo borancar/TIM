@@ -93,10 +93,10 @@ void part_setup_bucket(struct part *part)
 uint16_t part_drive_bucket(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t momentum)
 {
-    struct belt *belt = part->belt[0];   /* [bp-2] */
+    struct rope *rope = part->rope[0];   /* [bp-2] */
 
     if (flags == 1) {
-        belt->v[0]++;
+        rope->v[0]++;
         return 0;
     }
 

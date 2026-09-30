@@ -4,7 +4,7 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **The seesaw**: its hit, setup, flip, step and drive, the belts it drives.
+ * **The seesaw**: its hit, setup, flip, step and drive, the ropes it drives.
  *
  * The fortieth module of the original's **code segment 172c**, image
  * 0x1b2a8..0x1ba3d - one module for each kind of part; parts/ball.c says how
@@ -72,7 +72,7 @@ int16_t g_seesaw_shaft_line[3][4] = {
 /*
  * 172c:3fe8, image 0x1b2a8 - kind 3's hit test. Standing on the motor.
  *
- * A motor whose belt is held - bit 9 of +8 - answers 1 at once and does
+ * A motor whose rope is held - bit 9 of +8 - answers 1 at once and does
  * nothing: it cannot be turned by being stood on.
  *
  * Otherwise the face that was touched, +0x8a of the thing that hit, decides.
@@ -222,8 +222,8 @@ void part_flip_seesaw(struct part *part)
  *
  * Nothing happens unless +0x12 says it is on. Then it marks itself done - bit
  * 6 of +8 - and either turns freely, when bit 10 of +8 is set, or asks its
- * belts first: `drive_belts` twice, once with 0x8000 in the flags and once
- * without, and an answer from the first means the belt is being held, which
+ * ropes first: `drive_ropes` twice, once with 0x8000 in the flags and once
+ * without, and an answer from the first means the rope is being held, which
  * sets bit 9 of +8 and stops it turning. Otherwise the second call goes out
  * anyway and the form steps by the direction.
  *
@@ -252,10 +252,10 @@ void part_step_seesaw(struct part *part)
 
         if (part->state & STATE_TURNS_FREE)
             part->form += part->direction;
-        else if (drive_belts(NULL, part, 0x8000, 0x3e8, part->momentum) != 0)
+        else if (drive_ropes(NULL, part, 0x8000, 0x3e8, part->momentum) != 0)
             part->state |= STATE_HELD;
         else {
-            drive_belts(NULL, part, 0, 0x3e8, part->momentum);
+            drive_ropes(NULL, part, 0, 0x3e8, part->momentum);
             part->form += part->direction;
         }
 
@@ -362,7 +362,7 @@ void part_step_seesaw(struct part *part)
  * each independently.
  *
  * The mode is masked to 0x8007 and then to 0x7fff; the 0x8000 bit is kept
- * apart and carried into `drive_belts` and tested again afterwards, so it is
+ * apart and carried into `drive_ropes` and tested again afterwards, so it is
  * "ask, do not act". Away from mode 1, a non-zero counter at +0x0e of the
  * chosen pointer is decremented and the answer is 0 - unless the 0x8000 bit is
  * set, when it is left alone. That is the "already busy" path.
@@ -370,10 +370,10 @@ void part_step_seesaw(struct part *part)
  * Modes 2 and 4 are the two directions, and each asks whether the form at
  * +0x0c is already at the end it would be driven to: at that end `di` is set
  * and nothing is driven, otherwise +0x12 is loaded with 1 or -1 and
- * `drive_belts` is asked to carry it. `p3` swaps which end counts, which is
+ * `drive_ropes` is asked to carry it. `p3` swaps which end counts, which is
  * what makes the two ends opposite.
  *
- * Afterwards the 0x8000 bit puts +0x12 back to what it was, and a `drive_belts`
+ * Afterwards the 0x8000 bit puts +0x12 back to what it was, and a `drive_ropes`
  * that answered nothing sets bit 10 of +8. Bit 9 is set when `di` is non-zero,
  * and bit 9 being set at the end is the answer 1.
  *
@@ -392,9 +392,9 @@ uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3, uint16
     int16_t  drive;                     /* [bp-2] */
     int16_t  was;                       /* [bp-4] */
     uint16_t mode;                      /* [bp-6] */
-    struct belt *chain;                 /* [bp-8] */
+    struct rope *chain;                 /* [bp-8] */
 
-    chain = p2->belt[p3];
+    chain = p2->rope[p3];
     p4 &= 0x8007;
     mode = p4 & 0x7fff;
 
@@ -439,7 +439,7 @@ uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3, uint16
     if (di == 0 && mode != 1) {
         p2->direction = drive;
 
-        di = drive_belts(p1, p2, p4 & 0x8000, p5, p6);
+        di = drive_ropes(p1, p2, p4 & 0x8000, p5, p6);
 
         if (p4 & 0x8000)
             p2->direction = was;
@@ -462,30 +462,30 @@ uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3, uint16
 /*
  * 172c:461a, image 0x1b8da
  *
- * Push a part's motion out along its belts, and answer whether anything
+ * Push a part's motion out along its ropes, and answer whether anything
  * refused.
  *
- * Each of the two belts at +0x66 leads to another part, which
- * `belt_other_end` names. The one the caller came *from* is skipped, which is
- * what stops the walk going back on itself. `belt_orientation` says how the
- * belt runs between them - which way round the tangent points are - and that,
+ * Each of the two ropes at +0x66 leads to another part, which
+ * `rope_other_end` names. The one the caller came *from* is skipped, which is
+ * what stops the walk going back on itself. `rope_orientation` says how the
+ * rope runs between them - which way round the tangent points are - and that,
  * or-ed with the caller's own flags, is handed on with the part.
  *
  * The handler is the far pointer at +0x36 of the *far* part's kind record, so
  * what happens next is that part's business and not this one's. A part already
  * marked with bit 9 of +8 answers 1 straight away, and the walk stops at the
- * first belt that answers anything at all.
+ * first rope that answers anything at all.
  */
-uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
+uint16_t drive_ropes(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum)
 {
-    struct belt *si;                       /* the belt */
-    int16_t  v02;                       /* [bp-2]    the belt */
+    struct rope *si;                       /* the rope */
+    int16_t  v02;                       /* [bp-2]    the rope */
     uint16_t v04;                       /* [bp-4]    the answer */
     int16_t  v06;                       /* [bp-6]    which end */
     uint16_t v08;                       /* [bp-8]    the near slot */
     uint16_t v0a;                       /* [bp-0xa]  the far slot */
-    uint16_t v0c;                       /* [bp-0xc]  how the belt runs */
+    uint16_t v0c;                       /* [bp-0xc]  how the rope runs */
     int16_t  v0e;                       /* [bp-0xe]  which way */
     struct part *v10;                   /* [bp-0x10] the far part */
 
@@ -495,8 +495,8 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
     v04 = 0;
 
     for (v02 = 0; v02 < 2 && v04 == 0; v02++) {
-        if ((si = part->belt[v02]) != 0) {
-            v10 = (belt_other_end(part, si));
+        if ((si = part->rope[v02]) != 0) {
+            v10 = (rope_other_end(part, si));
             if (v10 != from) {
                 if ((si->end_a) == part) {
                     v06 = 0;
@@ -520,7 +520,7 @@ uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
                         v0e = 0;
                 }
 
-                v0c = belt_orientation(si, v06, v0e);
+                v0c = rope_orientation(si, v06, v0e);
                 v0c |= flags;
 
                 v04 = g_part_kinds[v10->kind].drive(part, v10, v0a, v0c, a, momentum);

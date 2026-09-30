@@ -4,7 +4,7 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **Drawing the machine**: its five layers, the ropes, belts and
+ * **Drawing the machine**: its five layers, the belts, ropes and
  * curves between parts, the part being carried, and the panels, buttons and
  * odometer around it. Part allocation lives here too, next to the drawing
  * that depends on it.
@@ -1113,15 +1113,15 @@ void step_and_draw_machine(int16_t redraw_all)
  * pattern walks by a pixel a frame. It is stepped **once per call**, at the
  * top, before anything is drawn.
  *
- * The box comes from three different places depending on kind. A rope takes
- * its link's far part and that part's +0x56/+0x57 anchor; a belt takes its
+ * The box comes from three different places depending on kind. A belt takes
+ * its link's far part and that part's +0x56/+0x57 anchor; a rope takes its
  * +0x66 record's part and the end its +0xb names, offset by -8 and -4; and
  * everything else takes the part's own +0x2a/+0x2c and +0x44/+0x46.
  *
- * **The rope arm reads `[bp-0x20]` before anything has written it.** It uses
+ * **The belt arm reads `[bp-0x20]` before anything has written it.** It uses
  * it in `([bp-0x20] >> 1) < si->+0x58`, the same shape of test
  * `part_handle_at_pointer` makes against the part's +0x46 - which is what that
- * local holds on *every other* path through this routine. On the rope path it
+ * local holds on *every other* path through this routine. On the belt path it
  * is whatever the previous call left on the stack. It is transcribed as the
  * uninitialised read it is, because the alternative is inventing the height
  * the original never fetched; the C reads a local that is only assigned later,
@@ -1160,7 +1160,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     uint16_t idx;
     struct point16 at;
     struct extent16 ext;
-    struct belt *rec;
+    struct rope *rec;
     struct part *end;
 
     if (g_selection_phase == 3)
@@ -1171,7 +1171,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     keep_t = keep_b = keep_l = keep_r = 1;
     g_vmds.page_dst = g_vmds.page_back;
     if (part->kind == KIND_BELT) {
-        end = (part->rope->end_b);
+        end = (part->belt->end_b);
         at.x = end->box[0].x + end->grab.x;
         at.y = end->box[0].y + end->grab.y;
         ext.width = end->grab_size;
@@ -1181,7 +1181,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         else
             ext.height = end->grab_size;
     } else if (part->kind == KIND_ROPE) {
-        rec = part->belt[0];
+        rec = part->rope[0];
         end = rec->end_b;
         idx = rec->slot_b;
         at.x = end->box[0].x + end->attach[idx].x - 8;
@@ -1364,7 +1364,7 @@ void link_record_into_buckets(register struct part *rec)
  * lists are emptied by being drawn; `clear_layer_heads` at the end takes
  * the heads with them.
  *
- * A rope, kind 8, and a belt, kind 0x0a, each draw themselves; kind 0x31 draws
+ * A belt, kind 8, and a rope, kind 0x0a, each draw themselves; kind 0x31 draws
  * nothing at all. Everything else goes through the one blitter, which is told
  * the level as well, so a part in two buckets is drawn twice at two depths.
  *
@@ -1386,9 +1386,9 @@ void draw_machine(register int16_t a, int16_t b)
         while (part != NULL) {
             part->traits2 &= ~TRAIT2_FILED;
             if (part->kind == KIND_BELT)
-                draw_rope(part, a);
-            else if (part->kind == KIND_ROPE)
                 draw_belt(part, a);
+            else if (part->kind == KIND_ROPE)
+                draw_rope(part, a);
             else if (part->kind != KIND_ANCHOR)
                 draw_part(part, level, a, b);
             if (part->layer_slot == level)
@@ -1403,15 +1403,15 @@ void draw_machine(register int16_t a, int16_t b)
 /*
  * 0x167fa
  *
- * Draw a rope: two straight lines in colour 0, from the four points its record
- * keeps at +8 through +0x16. Two lines and not one because a rope over a pulley
- * has a corner in it; a rope with nothing at either end - +4 or +6 zero - draws
+ * Draw a belt: two straight lines in colour 0, from the four points its record
+ * keeps at +8 through +0x16. Two lines and not one because a belt over a pulley
+ * has a corner in it; a belt with nothing at either end - +4 or +6 zero - draws
  * nothing at all.
  *
  * With `a` set all eight coordinates are scaled into the preview window first,
- * exactly as `draw_belt` and `draw_part` scale theirs.
+ * exactly as `draw_rope` and `draw_part` scale theirs.
  */
-void draw_rope(struct part *part, register int16_t a)
+void draw_belt(struct part *part, register int16_t a)
 {
     int16_t x0;
     int16_t y0;
@@ -1421,22 +1421,22 @@ void draw_rope(struct part *part, register int16_t a)
     int16_t y2;
     int16_t x3;
     int16_t y3;
-    register struct rope *rope;
+    register struct belt *belt;
 
-    rope = part->rope;
-    if (rope->end_a == 0)
+    belt = part->belt;
+    if (belt->end_a == 0)
         return;
-    if (rope->end_b == 0)
+    if (belt->end_b == 0)
         return;
     cursor_redraw_off_thunk();
-    x0 = rope->pt[0][0].x - g_origin_x;
-    y0 = rope->pt[0][0].y - g_origin_y;
-    x1 = rope->pt[0][1].x - g_origin_x;
-    y1 = rope->pt[0][1].y - g_origin_y;
-    x2 = rope->pt[0][2].x - g_origin_x;
-    y2 = rope->pt[0][2].y - g_origin_y;
-    x3 = rope->pt[0][3].x - g_origin_x;
-    y3 = rope->pt[0][3].y - g_origin_y;
+    x0 = belt->pt[0][0].x - g_origin_x;
+    y0 = belt->pt[0][0].y - g_origin_y;
+    x1 = belt->pt[0][1].x - g_origin_x;
+    y1 = belt->pt[0][1].y - g_origin_y;
+    x2 = belt->pt[0][2].x - g_origin_x;
+    y2 = belt->pt[0][2].y - g_origin_y;
+    x3 = belt->pt[0][3].x - g_origin_x;
+    y3 = belt->pt[0][3].y - g_origin_y;
     if (a != 0) {
         x0 = (int16_t)(mul16x16(x0, a) >> 10);
         x0 += 0x110;
@@ -1527,11 +1527,11 @@ void draw_curve(uint16_t colour, int16_t shift,
 /*
  * 0x16b39
  *
- * One length of belt between two points. Slack of four or less is a straight
+ * One length of rope between two points. Slack of four or less is a straight
  * line; anything more is a curve whose middle control point is the midpoint
- * pushed **down** by the slack, so a loose belt sags.
+ * pushed **down** by the slack, so a loose rope sags.
  */
-void draw_belt_segment(register int16_t x0, register int16_t y0, int16_t x1,
+void draw_rope_segment(register int16_t x0, register int16_t y0, int16_t x1,
                        int16_t y1, int16_t slack)
 {
     int16_t mx;
@@ -1548,12 +1548,12 @@ void draw_belt_segment(register int16_t x0, register int16_t y0, int16_t x1,
 /*
  * 0x16baf
  *
- * Draw a belt: every length of it, from the part it starts at to the part it
+ * Draw a rope: every length of it, from the part it starts at to the part it
  * ends at, following the chain of pulleys through each one's +0x5a links.
  *
- * Each end of a length is either a pulley - kind 7, whose own belt record
- * carries the tangent points at +0x14 and +0x18 - or the part the belt is
- * fastened to, whose points come from the belt record itself. The two cases
+ * Each end of a length is either a pulley - kind 7, whose own rope record
+ * carries the tangent points at +0x14 and +0x18 - or the part the rope is
+ * fastened to, whose points come from the rope record itself. The two cases
  * differ in more than the source: an end that is *not* a pulley sets the flag
  * that makes the length sag, because that is the length whose slack was
  * measured. A length between two pulleys is drawn straight.
@@ -1561,7 +1561,7 @@ void draw_belt_segment(register int16_t x0, register int16_t y0, int16_t x1,
  * With `a` set every point is scaled into the preview window before drawing,
  * and the little cap bitmap that marks a fastening is left off.
  */
-void draw_belt(struct part *part, int16_t a)
+void draw_rope(struct part *part, int16_t a)
 {
     int16_t x0;
     int16_t y0;
@@ -1569,30 +1569,30 @@ void draw_belt(struct part *part, int16_t a)
     int16_t y1;
     int16_t sags;
     int16_t slack;
-    struct belt *belt;
+    struct rope *rope;
     register struct part *next;
     register struct part *cur;
 
-    belt = part->belt[0];
-    cur = belt->end_a;
-    if ((next = cur->link[belt->slot_a]) == NULL)
-        next = belt->end_b;
+    rope = part->rope[0];
+    cur = rope->end_a;
+    if ((next = cur->link[rope->slot_a]) == NULL)
+        next = rope->end_b;
     while (cur != NULL && next != NULL) {
         sags = 0;
         if (cur->kind == KIND_PULLEY) {
-            x0 = cur->belt[0]->pt[0][1].x - g_origin_x;
-            y0 = cur->belt[0]->pt[0][1].y - g_origin_y;
+            x0 = cur->rope[0]->pt[0][1].x - g_origin_x;
+            y0 = cur->rope[0]->pt[0][1].y - g_origin_y;
         } else {
-            x0 = belt->pt[0][0].x - g_origin_x;
-            y0 = belt->pt[0][0].y - g_origin_y;
+            x0 = rope->pt[0][0].x - g_origin_x;
+            y0 = rope->pt[0][0].y - g_origin_y;
             sags = 1;
         }
         if (next->kind == KIND_PULLEY) {
-            x1 = next->belt[0]->pt[0][0].x - g_origin_x;
-            y1 = next->belt[0]->pt[0][0].y - g_origin_y;
+            x1 = next->rope[0]->pt[0][0].x - g_origin_x;
+            y1 = next->rope[0]->pt[0][0].y - g_origin_y;
         } else {
-            x1 = belt->pt[0][1].x - g_origin_x;
-            y1 = belt->pt[0][1].y - g_origin_y;
+            x1 = rope->pt[0][1].x - g_origin_x;
+            y1 = rope->pt[0][1].y - g_origin_y;
             sags = 1;
         }
         if (a != 0) {
@@ -1608,8 +1608,8 @@ void draw_belt(struct part *part, int16_t a)
         g_vmds.second_colour = 6;
         cursor_redraw_off_thunk();
         if (sags != 0) {
-            slack = link_slack(cur, belt, 3);
-            draw_belt_segment(x0, y0, x1, y1, slack);
+            slack = link_slack(cur, rope, 3);
+            draw_rope_segment(x0, y0, x1, y1, slack);
         } else
             clip_and_draw_line(x0, y0, x1, y1);
         if (a == 0) {

@@ -780,22 +780,22 @@ int32_t seek_named_chunk(FILE *handle, const char * path,
 void dos_free_far(void far *block);            /* 0x21b34 */
 
 /* Recompute a link's endpoints, then the rest lengths they imply. */
-void refresh_link_geometry(struct belt *link);          /* 0x04f7f */
+void refresh_link_geometry(struct rope *link);          /* 0x04f7f */
 
 /* Set an object's vector at +0x36/+0x38 from angle and magnitude. */
 void set_vector_from_angle(struct part *obj, uint16_t angle,
                            int16_t mag);            /* 0x07223 */
 
 /* Rest length less actual separation, at one end of a link. */
-int16_t link_slack(struct part *obj, struct belt *link,
+int16_t link_slack(struct part *obj, struct rope *link,
                    int16_t gen);                    /* 0x0713d */
 
 /* The vector a link has to close, and its approximate length. */
-int16_t link_endpoint_gap(struct belt *link, struct part *obj, uint8_t * out_dx,
+int16_t link_endpoint_gap(struct rope *link, struct part *obj, uint8_t * out_dx,
                           uint8_t * out_dy);         /* 0x07947 */
 
 /* Distance from a link's endpoint to the endpoint it joins. */
-int16_t link_end_distance(struct belt *link, int16_t gen,
+int16_t link_end_distance(struct rope *link, int16_t gen,
                           int16_t end);             /* 0x06f8e */
 
 /* Age the state histories of everything about to be stepped. */
@@ -827,7 +827,7 @@ void release_part_queue(void);              /* 0x07b3e */
 int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 
 /* Work out the endpoints of the link between a pair of objects. */
-void compute_link_endpoints(struct rope *link);         /* 0x04e65 */
+void compute_link_endpoints(struct belt *link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
 void set_side_flags(const int16_t *range, int16_t v, struct part_contact *out);   /* 0x004fd */
@@ -857,7 +857,7 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
 int16_t link_slot_of(struct part *value, struct part *obj);   /* 0x06f43 */
 
 /* Pick one of two record fields by matching the other. */
-struct part *belt_other_end(struct part *key, struct belt *rec);   /* 0x06f68 */
+struct part *rope_other_end(struct part *key, struct rope *rec);   /* 0x06f68 */
 
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
@@ -886,13 +886,13 @@ void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
 void step_and_draw_machine(int16_t redraw_all);     /* 0x16181 */
 void refile_overlapping_parts(void);                /* 0x06b5b */
 void draw_machine(int16_t a, int16_t b);            /* 0x1675e */
-void draw_rope(struct part *part, int16_t a);           /* 0x167fa */
+void draw_belt(struct part *part, int16_t a);           /* 0x167fa */
 void draw_curve(uint16_t colour, int16_t shift,
                 int32_t x0, int32_t x1, int32_t x2,
                 int32_t y0, int32_t y1, int32_t y2); /* 0x1697d */
-void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+void draw_rope_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        int16_t slack);              /* 0x16b39 */
-void draw_belt(struct part *part, int16_t a);           /* 0x16baf */
+void draw_rope(struct part *part, int16_t a);           /* 0x16baf */
 void draw_part(struct part *part, uint8_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
 void draw_part_extra(struct part *part);                /* 0x171b5 */
@@ -910,7 +910,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h); /* 0x208f3 */
 struct part *find_part_from(struct part *rec);              /* 0x04500 */
-int16_t  rope_ends_close(struct rope *rope);            /* 0x04b8f */
+int16_t  belt_ends_close(struct belt *belt);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void draw_bitmap_centred(struct bitmap *bmp, int16_t x, int16_t y,
                          int16_t w, int16_t h); /* 0x15f76 */
@@ -1095,7 +1095,7 @@ int16_t far_strlen(const char far *s);                  /* 0x09e4c */
 char far *far_strcpy(char far *dst, const char far *src); /* 0x09e70 */
 char far *far_strncpy(char far *dst, const char far *src, int16_t n); /* 0x09ea5 */
 int16_t far_strnicmp(const char far *a, const char far *b, uint16_t n); /* 0x09ef8 */
-void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
+void rope_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void add_carried_weight(struct part *obj);              /* 0x07c3a */
 void add_mass_capped(struct part *obj, struct part *other); /* 0x07c5b */
@@ -1245,15 +1245,15 @@ void goal_test_puzzle_72(void);                            /* 0x02322 */
 void goal_test_puzzle_59(void);                            /* 0x02351 */
 void goal_test_puzzle_49(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
-struct part *find_belt_anchor(int16_t *out_end, struct part *rec); /* 0x045b8 */
+struct part *find_rope_anchor(int16_t *out_end, struct part *rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(struct part *part);          /* 0x04748 */
 uint16_t part_handle_at_pointer(struct part *part);     /* 0x04830 */
 void pointer_frame(void);                           /* 0x0fc0e */
 void move_carried(void);                            /* 0x0fe47 */
-void move_carried_rope(void);                       /* 0x0fe84 */
-void move_carried_belt(void);                       /* 0x0ff80 */
+void move_carried_belt(void);                       /* 0x0fe84 */
+void move_carried_rope(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
 void draw_part_selection(struct part *part, int16_t which, int16_t flags); /* 0x16209 */
@@ -1278,13 +1278,13 @@ uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
    is where the guest's two words become the value. Ours in name. */
 #define part_drive(by, p1, p2, p3, p4, p5, p6) \
     (g_part_kinds[(by)->kind].drive((p1), (p2), (p3), (p4), (p5), (p6)))
-uint16_t drive_belts(struct part *from, struct part *part, uint16_t flags,
+uint16_t drive_ropes(struct part *from, struct part *part, uint16_t flags,
                      uint16_t a, int32_t momentum);      /* 172c:461a */
 uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
 void part_step_trampoline(struct part *part);             /* 172c:3fae */
 uint16_t part_hit_seesaw(struct part *part);              /* 172c:3fe8 */
 void part_step_seesaw(struct part *part);             /* 172c:420f */
-struct part *rope_other_end(struct part *part);             /* 0x06dbf */
+struct part *belt_other_end(struct part *part);             /* 0x06dbf */
 void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
@@ -1295,14 +1295,14 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
 void     seg172c_nothing(void);                     /* 172c:0000 */
 void     sound_on_hard_impact(struct part *obj);        /* 0x03009 */
 void     mark_needs_refile(struct part *part, int16_t n); /* 0x058f3 */
-void     mark_belt_shapes(struct part *part, uint16_t mode); /* 0x05f87 */
+void     mark_rope_shapes(struct part *part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x03e23 */
 int16_t  queue_part(struct part *src, struct part *part);   /* 0x07b6f */
-int16_t  tension_belt(struct part *part);               /* 0x072c7 */
-int16_t  belt_orientation(struct belt *belt, int16_t which,
+int16_t  tension_rope(struct part *part);               /* 0x072c7 */
+int16_t  rope_orientation(struct rope *rope, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
 uint16_t part_hit_generator(struct part *part);              /* 172c:1de0 */
@@ -1350,7 +1350,7 @@ void part_step_mort_the_mouse(struct part *part);             /* 172c:34d0 */
 uint16_t part_hit_scissors(struct part *part);              /* 172c:3824 */
 void part_step_rocket(struct part *part);             /* 172c:3635 */
 void part_step_scissors(struct part *part);             /* 172c:38fc */
-void     cut_belts(struct part *part, const int16_t *line);   /* 172c:3970 */
+void     cut_ropes(struct part *part, const int16_t *line);   /* 172c:3970 */
 void grab_distance(struct part *a, struct part *b,
                    int16_t *out_x, int16_t *out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
@@ -1435,8 +1435,8 @@ void message_box_tab(const char *button2);             /* 0x1588c */
 void draw_button(const char *str, int16_t x, int16_t y,
                  int16_t pressed);                 /* 0x150db */
 void remove_all_parts(void);                        /* 0x057e6 */
-void untie_rope(struct part *part);                     /* 0x0527f */
-void detach_belt(struct part *part, uint16_t how);      /* 0x052f5 */
+void untie_belt(struct part *part);                     /* 0x0527f */
+void detach_rope(struct part *part, uint16_t how);      /* 0x052f5 */
 void detach_part_to_bin(struct part *part);                      /* 0x05704 */
 void finish_part_removal(void);                               /* 0x05482 */
 void break_second_attachment(struct part *part);                      /* 0x051cb */
@@ -1454,7 +1454,7 @@ void     dos_disk_reset(void);                        /* 0x0b7eb */
 uint16_t dos_set_attributes(const char *name, uint16_t attr); /* 0x0b7f1 */
 uint16_t dos_get_attributes(const char *name);        /* 0x0b805 */
 void     dos_setdisk(uint8_t letter);               /* 0x0b819 */
-void reverse_link_ends(struct belt *rec);               /* 0x04169 */
+void reverse_link_ends(struct rope *rec);               /* 0x04169 */
 struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x042a2 */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */

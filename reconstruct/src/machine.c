@@ -5,7 +5,7 @@
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
  * **The machine**: the geometry of parts and their outlines, what is under
- * the pointer and which cursor shows, ropes, belts and pulleys and the
+ * the pointer and which cursor shows, belts, ropes and pulleys and the
  * tension between their ends, taking parts out and filing them, the lists
  * the machine is walked by, the shapes that are redrawn, the history each
  * part keeps, and `reset_machine`.
@@ -443,7 +443,7 @@ int16_t outlines_cross(struct part *a, struct part *b)
  * `[rec+0xa]`, indexing the pair of ends at +0x5a, and follows +0x5c for as
  * long as the part it lands on is **kind 7, the pulley** - which is the same
  * kind `mark_joined_shapes` singles out for passing a mark through its second
- * belt only. Each pulley has its own pair at +0x5a/+0x5c swapped, +0x5e and
+ * rope only. Each pulley has its own pair at +0x5a/+0x5c swapped, +0x5e and
  * +0x60 rewritten from them, its +0x6a/+0x6c swapped, and six pairs swapped in
  * the record at its +0x66.
  *
@@ -458,9 +458,9 @@ int16_t outlines_cross(struct part *a, struct part *b)
  * *The name is a reading.* Nothing says "reverse"; it is what swapping both
  * ends of a run of pulleys amounts to.
  */
-void reverse_link_ends(struct belt *rec)
+void reverse_link_ends(struct rope *rec)
 {
-    register struct belt *si;
+    register struct rope *si;
     register struct part *di;
     uint8_t b;                          /* [bp-1] */
     int16_t tp;                         /* [bp-4] */
@@ -480,7 +480,7 @@ void reverse_link_ends(struct belt *rec)
         di->attach[0] = di->attach[1];
         di->attach[1] = pair;
 
-        si = di->belt[0];
+        si = di->rope[0];
         tp = si->pt[0][0].x;
         si->pt[0][0].x = si->pt[0][1].x;
         si->pt[0][1].x = tp;
@@ -556,10 +556,10 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     int16_t i;                          /* [bp-0x10] */
     int16_t oy;                         /* [bp-0x12] */
     int16_t ox;                         /* [bp-0x14] */
-    struct rope *link;                  /* [bp-0x16] */
-    struct belt *cur;                   /* [bp-0x18] */
-    struct belt *e0;                    /* [bp-0x1a] */
-    struct belt *e1;                    /* [bp-0x1c] */
+    struct belt *link;                  /* [bp-0x16] */
+    struct rope *cur;                   /* [bp-0x18] */
+    struct rope *e0;                    /* [bp-0x1a] */
+    struct rope *e1;                    /* [bp-0x1c] */
     struct part *link_end;              /* [bp-0x1e] */
     struct part *e0_part;               /* [bp-0x20] */
     struct part *e1_part;               /* [bp-0x22] */
@@ -573,15 +573,15 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     x1 = x0 + part->size[0].width;
     y1 = y0 + part->size[0].height;
 
-    if ((link = part->rope) != NULL)
+    if ((link = part->belt) != NULL)
         link_end = link->owner;
     else
         link_end = NULL;
-    if ((e0 = part->belt[0]) != NULL)
+    if ((e0 = part->rope[0]) != NULL)
         e0_part = e0->owner;
     else
         e0_part = NULL;
-    if ((e1 = part->belt[1]) != NULL)
+    if ((e1 = part->rope[1]) != NULL)
         e1_part = e1->owner;
     else
         e1_part = NULL;
@@ -661,7 +661,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
  * answered as none, which reads DGROUP:0006, two bytes of the Borland banner
  * with the bit clear. Transcribed as written, through `NEAR_ZERO`.
  *
- * With nothing found and nothing remembered: 0 if a **belt** is being carried
+ * With nothing found and nothing remembered: 0 if a **rope** is being carried
  * - kind 0x0a at 0x50d5, which must land on a part and not on the background -
  * and otherwise `rec`, so a drag that wanders off everything keeps what it had.
  */
@@ -701,10 +701,10 @@ struct part *find_part_from(register struct part *rec)
 /*
  * 0x045b8
  *
- * **Where a belt end could attach**: the part under the pointer that will take
+ * **Where a rope end could attach**: the part under the pointer that will take
  * one, and which of its two ends, written through `out_end`.
  *
- * `find_part_from` finds the part; bit 4 of +8 is what says it can take a belt
+ * `find_part_from` finds the part; bit 4 of +8 is what says it can take a rope
  * at all, and without it the answer is 0. Bit 8 says it has *two* ends worth
  * choosing between, and then the nearer one wins - both distances are taken
  * along the **x axis only**, `abs(0x5784 - end)`, with the ends at +0x6a and
@@ -720,15 +720,15 @@ struct part *find_part_from(register struct part *rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
+struct part *find_rope_anchor(register int16_t *out_end, struct part *rec)
 {
     register struct part *si;
     int16_t e0;                         /* [bp-2] */
     int16_t e1;                         /* [bp-4] */
 
     if ((si = find_part_from(rec)) != NULL) {
-        if (si->state & STATE_TAKES_BELT) {
-            if (si->state & STATE_TWO_BELT_ENDS) {
+        if (si->state & STATE_TAKES_ROPE) {
+            if (si->state & STATE_TWO_ROPE_ENDS) {
                 e0 = e1 = si->pos[0].x - g_origin_x;
                 e0 += si->attach[0].x;
                 e1 += si->attach[1].x;
@@ -743,7 +743,7 @@ struct part *find_belt_anchor(register int16_t *out_end, struct part *rec)
             if (si->kind == KIND_PULLEY) {
                 if (si->link[0] != 0)
                     si = NULL;
-            } else if (si->belt[*out_end] != 0)
+            } else if (si->rope[*out_end] != 0)
                 si = NULL;
         } else
             si = NULL;
@@ -829,8 +829,8 @@ void select_cursor(register int16_t which)
  *
  * **Tool 9 is the one that asks a question**: it looks at the part being
  * dragged - the near pointer at DGROUP 0x50d5 - and answers by its kind at
- * +4, the same kind `draw_machine` switches on. A rope, kind 8, wants cursor
- * 8; a belt, kind 0x0a, wants cursor 9; anything else, including no part at
+ * +4, the same kind `draw_machine` switches on. A belt, kind 8, wants cursor
+ * 8; a rope, kind 0x0a, wants cursor 9; anything else, including no part at
  * all, wants 0. The pointer is loaded twice, once for each comparison, and it
  * is transcribed that way.
  *
@@ -884,7 +884,7 @@ int16_t cursor_for_tool(void)
  *
  * **Which of a part's two ends could move**, as a bitmask.
  *
- * A rope or a belt - kinds 8 and 0x0a - has no ends of its own to move and
+ * A belt or a rope - kinds 8 and 0x0a - has no ends of its own to move and
  * answers 0 before anything else is looked at.
  *
  * Two of the four bits are read straight off the part: +8 bit 0x80 gives 1 and
@@ -955,17 +955,17 @@ uint16_t part_flip_options(register struct part *part)
  * because four of the six handles only exist if the corresponding end could
  * move - bits 1, 2, 4 and 8 gate the pairs 3/4, 5/6, 1 and 2.
  *
- * A rope and a belt are special-cased before the general box, and both look at
- * the *other* end of their link rather than at themselves: a rope through its
- * +0x54 record's +6, a belt through its +0x66 record's +4 with the end index
- * from that record's +0xb. Their boxes are not the same size either - the rope
- * end is 10 by 10 and the belt end 15 by 7.
+ * A belt and a rope are special-cased before the general box, and both look at
+ * the *other* end of their link rather than at themselves: a belt through its
+ * +0x54 record's +6, a rope through its +0x66 record's +4 with the end index
+ * from that record's +0xb. Their boxes are not the same size either - the belt
+ * end is 10 by 10 and the rope end 15 by 7.
  *
- * **The rope and belt branches subtract 0x4ea3 from the *y* coordinate**,
+ * **The belt and rope branches subtract 0x4ea3 from the *y* coordinate**,
  * where every other place subtracts 0x4ea1. That is what the original does,
  * twice each, and it is transcribed as written rather than corrected. It
  * cannot be seen on level one, where both origins are -8; it would show as a
- * rope end whose grab box is offset vertically on a level whose window has
+ * belt end whose grab box is offset vertically on a level whose window has
  * scrolled. Recorded here because a reader who "fixes" it will be changing
  * behaviour, not repairing it.
  *
@@ -983,12 +983,12 @@ uint16_t part_handle_at_pointer(register struct part *part)
     int16_t y_end;                      /* [bp-0xa] */
     uint16_t idx;                       /* [bp-0xc] */
     struct part *rec;                   /* [bp-0xe] */
-    struct belt *end;                   /* [bp-0x10] */
+    struct rope *end;                   /* [bp-0x10] */
 
     g_level_settings.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
-        rec = (part->rope->end_b);
+        rec = (part->belt->end_b);
         x0 = rec->box[0].x + rec->grab.x - g_origin_x;
         /* the original takes origin_x off a y here, and below */
         y0 = rec->box[0].y + rec->grab.y - g_origin_x;
@@ -1001,7 +1001,7 @@ uint16_t part_handle_at_pointer(register struct part *part)
     }
 
     if (part->kind == KIND_ROPE) {
-        end = part->belt[0];
+        end = part->rope[0];
         rec = end->end_b;
         idx = end->slot_b;
         x0 = rec->box[0].x + rec->attach[idx].x - g_origin_x - 8;
@@ -1079,33 +1079,33 @@ int16_t points_within_140(register const struct point16 *a,
 /*
  * 0x04b8f
  *
- * Are a rope's two ends close enough together to matter?
+ * Are a belt's two ends close enough together to matter?
  *
- * The two parts it joins are at +4 and +6 of the rope. Either being zero means
+ * The two parts it joins are at +4 and +6 of the belt. Either being zero means
  * that end is not attached to anything, and `find_part_from` is asked for a
  * part instead - which has to answer with one whose flags at +8 have bit 0 or
  * bit 1 set, or the whole thing is 0. With both ends in hand it is
  * `points_within_140` on the positions at +0x1e.
  */
-int16_t rope_ends_close(struct rope *rope)
+int16_t belt_ends_close(struct belt *belt)
 {
     register struct part *si;
     register struct part *di;
 
-    if ((si = rope->end_a) == NULL) {
+    if ((si = belt->end_a) == NULL) {
         if ((si = find_part_from(NULL)) == NULL)
             return 0;
-        if ((si->state & STATE_HAS_ROPE) || !(si->state & STATE_TAKES_ROPE))
+        if ((si->state & STATE_HAS_BELT) || !(si->state & STATE_TAKES_BELT))
             return 0;
         return 1;
     }
     /* an empty branch and an `else`: the image's `je` over a `jmp` is the
        shape Borland gives exactly that, and not the `if (!di)` it means */
-    if ((di = rope->end_b) != NULL) {
+    if ((di = belt->end_b) != NULL) {
     } else {
         if ((di = find_part_from(NULL)) == NULL)
             return 0;
-        if ((di->state & STATE_HAS_ROPE) || !(di->state & STATE_TAKES_ROPE))
+        if ((di->state & STATE_HAS_BELT) || !(di->state & STATE_TAKES_BELT))
             return 0;
     }
     return points_within_140(&si->pos[0], &di->pos[0]);
@@ -1301,12 +1301,12 @@ void aim_link_at_bisector(register struct part *part)
  * The comparison is between the two **absolute** differences, each the
  * branchless `cwd / xor / sub`.
  */
-void compute_link_endpoints(register struct rope *link)
+void compute_link_endpoints(register struct belt *link)
 {
     /*
      * **An end can be 0, and the original reads it anyway.** After the first
-     * click of a rope the far end is still empty, and `mark_needs_refile` in
-     * state 0x1000 comes here before `rope_ends_close` asks about it. The
+     * click of a belt the far end is still empty, and `mark_needs_refile` in
+     * state 0x1000 comes here before `belt_ends_close` asks about it. The
      * listing loads both ends at 0x04e70/0x04e73 and reads `[bx+0x56]` and
      * `[bx+0x2a]` through them with no test, so an empty end reads DS:0 - the
      * Borland banner - and the endpoint is those bytes until the second click
@@ -1361,7 +1361,7 @@ void compute_link_endpoints(register struct rope *link)
  * Recompute a link's endpoint coordinates from the objects it joins, and then
  * set the rest lengths those endpoints imply.
  *
- * The endpoints land in the +0x14 array `belt_orientation` and
+ * The endpoints land in the +0x14 array `rope_orientation` and
  * `link_end_distance` read as generation zero - +0x14/+0x16 for the first end,
  * +0x18/+0x1a for the second. Each is the object's position at +0x2a/+0x2c
  * plus the zero-extended byte pair at +0x6a/+0x6b. A link with no object at +2
@@ -1382,7 +1382,7 @@ void compute_link_endpoints(register struct rope *link)
  * The global at 0x4e6b holding 0x2000 skips the rest lengths entirely, leaving
  * whatever they were.
  */
-void refresh_link_geometry(register struct belt *link)
+void refresh_link_geometry(register struct rope *link)
 {
     register struct part *a;            /* the first end, then the chain */
     uint16_t idx;                       /* [bp-2] */
@@ -1404,8 +1404,8 @@ void refresh_link_geometry(register struct belt *link)
              a != NULL && a->kind == KIND_PULLEY;
              a = a->link[0])
             for (j = 0; j < 2; j++) {
-                a->belt[0]->pt[0][j].x = a->pos[0].x + a->attach[j].x;
-                a->belt[0]->pt[0][j].y = a->pos[0].y + a->attach[j].y;
+                a->rope[0]->pt[0][j].x = a->pos[0].x + a->attach[j].x;
+                a->rope[0]->pt[0][j].y = a->pos[0].y + a->attach[j].y;
             }
 
         if (g_round_state != 0x2000) {
@@ -1497,7 +1497,7 @@ void rehome_carried_part(void)
  * 0x051cb
  *
  * **Break the second kind of attachment**, the one at +0x62 and slots 4 and 5
- * of the +0x5a array - not the ropes and belts the rest of the removal chain
+ * of the +0x5a array - not the belts and ropes the rest of the removal chain
  * deals with.
  *
  * Bit 1 of +0x0a says which end of it this part is, and the two halves are
@@ -1542,15 +1542,15 @@ void break_second_attachment(register struct part *part)
 /*
  * 0x0527f
  *
- * **Untie a rope from both the parts it joins**, before the rope itself goes.
+ * **Untie a belt from both the parts it joins**, before the belt itself goes.
  * `remove_all_parts` calls it for kind 8, which is the kind `draw_machine`
- * already names a rope, and the record at the part's +0x54 holds one part at +4
+ * already names a belt, and the record at the part's +0x54 holds one part at +4
  * and another at +6 - so the name is read off the shape, not guessed from the
  * caller.
  *
  * Each end is let go the same way: bit 1 of its flags at +8 is cleared, the
- * result copied to +0x94, and its own +0x54 - the link back to this rope -
- * zeroed. Then the rope's reference to it is zeroed too, so neither end can be
+ * result copied to +0x94, and its own +0x54 - the link back to this belt -
+ * zeroed. Then the belt's reference to it is zeroed too, so neither end can be
  * reached from the other afterwards.
  *
  * **The two ends are written out twice rather than looped**, because there are
@@ -1562,27 +1562,27 @@ void break_second_attachment(register struct part *part)
  * were when something last drew.
  *
  * Then, unless bit 11 of the part's own +6 is set, the generic removal runs on
- * top. So a rope is not a special case *instead* of the ordinary one; it is a
+ * top. So a belt is not a special case *instead* of the ordinary one; it is a
  * special case *before* it.
  */
-void untie_rope(struct part *part)
+void untie_belt(struct part *part)
 {
     register struct part *a;
     register struct part *b;
-    struct rope *rope;                  /* [bp-2] */
+    struct belt *belt;                  /* [bp-2] */
 
-    if ((rope = part->rope) != NULL) {
-        if ((a = rope->end_a) != NULL) {
-            a->state &= ~STATE_HAS_ROPE;
+    if ((belt = part->belt) != NULL) {
+        if ((a = belt->end_a) != NULL) {
+            a->state &= ~STATE_HAS_BELT;
             a->start_state = a->state;
-            a->rope = 0;
-            rope->end_a = 0;
+            a->belt = 0;
+            belt->end_a = 0;
         }
-        if ((b = rope->end_b) != NULL) {
-            b->state &= ~STATE_HAS_ROPE;
+        if ((b = belt->end_b) != NULL) {
+            b->state &= ~STATE_HAS_BELT;
             b->start_state = b->state;
-            b->rope = 0;
-            rope->end_b = 0;
+            b->belt = 0;
+            belt->end_b = 0;
         }
         if (!(part->traits & TRAIT_IN_BIN))
             detach_part_to_bin(part);
@@ -1592,38 +1592,38 @@ void untie_rope(struct part *part)
 /*
  * 0x052f5
  *
- * **Take a part off the belts it runs on**, and there are two slots, so the
+ * **Take a part off the ropes it runs on**, and there are two slots, so the
  * whole body runs twice - +0x66 and +0x68.
  *
- * A belt record has *two* ends and each end knows which slot of its own part it
+ * A rope record has *two* ends and each end knows which slot of its own part it
  * sits in: the first end's part is at +2 with its slot index in the byte at
  * +0xa, the second's at +4 with its index at +0xb. So letting an end go means
- * clearing three things - the part's slot, the belt's reference to the part, and
+ * clearing three things - the part's slot, the rope's reference to the part, and
  * the pair of words at that part's +0x5a - and the two ends are not symmetrical
  * enough to share code, which is why the original writes them out separately.
  *
  * **`how` decides whether the first end is let go at all.** With it non-zero -
- * `remove_all_parts`, removing the belt outright - both ends go. With it zero -
+ * `remove_all_parts`, removing the rope outright - both ends go. With it zero -
  * `detach_part_to_bin`, taking some other part off - only the second end does, and the
  * first is left attached to whatever it was on.
  *
  * The first end walks a chain: while the next record is kind 7, four words at
  * its +0x5a and the word at +0x68 are cleared and the walk goes on through
- * +0x5a. So a run of kind-7 records hanging off a belt end is cleared with it,
+ * +0x5a. So a run of kind-7 records hanging off a rope end is cleared with it,
  * and the walk stops at the first thing that is not one.
  *
  * The second end does one step instead of a walk, and only when `how` is zero:
  * `link_slot_of` says which of the pair to clear. So the chain is followed
- * when the belt is going and a single link is cut when it is not, which is the
+ * when the rope is going and a single link is cut when it is not, which is the
  * same asymmetry `how` sets up above.
  *
  * Both slots end by calling `detach_part_to_bin` on the part unless bit 11 of its +6 is
  * set - the same guard, and the same fall-through into the common path, that
- * `untie_rope` has.
+ * `untie_belt` has.
  */
-void detach_belt(struct part *part, uint16_t how)
+void detach_rope(struct part *part, uint16_t how)
 {
-    register struct belt *belt;
+    register struct rope *rope;
     register struct part *next;
     int16_t i;                          /* [bp-2] */
     uint16_t slot;                      /* [bp-4] */
@@ -1632,27 +1632,27 @@ void detach_belt(struct part *part, uint16_t how)
     struct part *after;                 /* [bp-0xa] */
 
     for (i = 0; i < 2; i++) {
-        if ((belt = part->belt[i]) != NULL) {
-            if (how != 0 && (a = belt->end_a) != NULL) {
-                belt->home_a = belt->end_a = 0;
-                slot = belt->slot_a;
-                a->belt[slot] = 0;
+        if ((rope = part->rope[i]) != NULL) {
+            if (how != 0 && (a = rope->end_a) != NULL) {
+                rope->home_a = rope->end_a = 0;
+                slot = rope->slot_a;
+                a->rope[slot] = 0;
                 next = a->link[slot];
                 a->link[slot] = a->link[slot + 2] = 0;
                 while (next != NULL && next->kind == KIND_PULLEY) {
                     after = next->link[0];
                     /* the outer loop's own counter: a pulley on the first
-                       belt leaves it at 4, and the second is not looked at */
+                       rope leaves it at 4, and the second is not looked at */
                     for (i = 0; i < 4; i++)
                         next->link[i] = 0;
-                    next->belt[1] = 0;
+                    next->rope[1] = 0;
                     next = after;
                 }
             }
-            if ((b = belt->end_b) != NULL) {
-                slot = belt->slot_b;
-                b->belt[slot] = 0;
-                belt->home_b = belt->end_b = 0;
+            if ((b = rope->end_b) != NULL) {
+                slot = rope->slot_b;
+                b->rope[slot] = 0;
+                rope->home_b = rope->end_b = 0;
                 next = b->link[slot];
                 b->link[slot] = b->link[slot + 2] = 0;
                 if (next != NULL && how == 0) {
@@ -1670,7 +1670,7 @@ void detach_belt(struct part *part, uint16_t how)
  * 0x05457
  *
  * **Discard a part - but only really in freeform mode.** Every path through
- * `finish_part_removal` ends here, and the rope and belt paths call it on what they
+ * `finish_part_removal` ends here, and the belt and rope paths call it on what they
  * detached as well.
  *
  * The free is behind DGROUP 0x4e67, the freeform flag. In a level the part is
@@ -1707,8 +1707,8 @@ void discard_part(struct part *part)
  *
  * **It requires bit 11 of +6 to be set and leaves at once otherwise** - and that
  * is the bit `detach_part_to_bin` sets. So the two are a sequence and not alternatives:
- * detach first, which marks the part, then this. The guards in `untie_rope` and
- * `detach_belt` test the same bit the other way, to avoid detaching a part that
+ * detach first, which marks the part, then this. The guards in `untie_belt` and
+ * `detach_rope` test the same bit the other way, to avoid detaching a part that
  * has already been through it.
  *
  * Three kinds of work, and which one depends on the part's kind at +4.
@@ -1721,11 +1721,11 @@ void discard_part(struct part *part)
  * kind 7 is told to rebuild, its four link words are cleared and its +0x68 with
  * them.
  *
- * A part that is not kind 7 or 0x0a has its two belt slots emptied - each with
- * `detach_belt(belt, 1)`, the outright form - and a rope, if it has one and is
+ * A part that is not kind 7 or 0x0a has its two rope slots emptied - each with
+ * `detach_rope(rope, 1)`, the outright form - and a belt, if it has one and is
  * not one, is untied first.
  *
- * Every path ends at `discard_part` on the part itself, and the belt and rope paths
+ * Every path ends at `discard_part` on the part itself, and the rope and belt paths
  * call it on what they detached as well. So that is what actually disposes of
  * one, and everything above it is about leaving the things it was attached to in
  * a consistent state first.
@@ -1737,21 +1737,21 @@ void finish_part_removal(void)
     int16_t a;                          /* [bp-2] */
     int16_t b;                          /* [bp-4] */
     struct part *r;                     /* [bp-6] */
-    struct part *belt;                  /* [bp-8] */
+    struct part *rope;                  /* [bp-8] */
     struct part *other;                 /* [bp-0xa] */
-    struct rope *rope;                  /* [bp-0xc] */
-    struct belt *slot;                  /* [bp-0xe] */
+    struct belt *belt;                  /* [bp-0xc] */
+    struct rope *slot;                  /* [bp-0xe] */
 
     if (g_held_parts.dragged_part != 0
         && (g_held_parts.dragged_part->traits & TRAIT_IN_BIN)) {
         if (g_held_parts.dragged_part->traits2 & (TRAIT2_PLUGS_IN | TRAIT2_HAS_SOCKETS))
             break_second_attachment(g_held_parts.dragged_part);
 
-        rope = g_held_parts.dragged_part->rope;
+        belt = g_held_parts.dragged_part->belt;
         if (g_held_parts.dragged_part->kind != KIND_BELT
-            && rope != NULL) {
-            r = rope->owner;
-            untie_rope(r);
+            && belt != NULL) {
+            r = belt->owner;
+            untie_belt(r);
             discard_part(r);
         }
 
@@ -1772,18 +1772,18 @@ void finish_part_removal(void)
                     mark_part_shapes(other, 3);
                 }
                 mark_needs_refile(((g_held_parts.dragged_part
-                                                    ->belt[1])->owner), 2);
+                                                    ->rope[1])->owner), 2);
                 for (i = 0; i < 4; i++)
                     g_held_parts.dragged_part->link[i] = 0;
-                g_held_parts.dragged_part->belt[1] = 0;
+                g_held_parts.dragged_part->rope[1] = 0;
             }
         } else if (g_held_parts.dragged_part->kind != KIND_ROPE) {
             for (i = 0; i < 2; i++)
-                if ((slot = g_held_parts.dragged_part->belt[i])
+                if ((slot = g_held_parts.dragged_part->rope[i])
                     != NULL) {
-                    belt = slot->owner;
-                    detach_belt(belt, 1);
-                    discard_part(belt);
+                    rope = slot->owner;
+                    detach_rope(rope, 1);
+                    discard_part(rope);
                 }
         }
         discard_part(g_held_parts.dragged_part);
@@ -1876,20 +1876,20 @@ void insert_sorted(register struct part *rec, struct part *head)
  * 0x05704
  *
  * **Detach a part from everything holding it, and put it back in the bin.**
- * The common path: `remove_all_parts` sends every kind but a rope and a belt
- * straight here, and `untie_rope` finishes by coming here too.
+ * The common path: `remove_all_parts` sends every kind but a belt and a rope
+ * straight here, and `untie_belt` finishes by coming here too.
  *
  * **The detaching is skipped on two screens.** If the round's state at DGROUP
  * 0x4e69 is 8 or 7 *and* the screen's at 0x4e6b is 0x1000, everything below the
  * first branch is jumped over and only the last three lines run. Both
  * conditions, not either: the same round state on another screen still detaches.
  *
- * What it detaches from is two different things. A rope, if the part has one at
- * +0x54 and is not itself a rope - and it is the rope *record's* +2 that goes
- * to `untie_rope`, not this part, because that routine wants the rope. And up
- * to two belts, from the slots at +0x66 and +0x68, each holding a record whose
- * first word is the belt. Kinds 0x0a and 7 skip the belt loop, which is a belt
- * and whatever 7 is not looking for belts of their own.
+ * What it detaches from is two different things. A belt, if the part has one at
+ * +0x54 and is not itself a belt - and it is the belt *record's* +2 that goes
+ * to `untie_belt`, not this part, because that routine wants the belt. And up
+ * to two ropes, from the slots at +0x66 and +0x68, each holding a record whose
+ * first word is the rope. Kinds 0x0a and 7 skip the rope loop, which is a rope
+ * and whatever 7 is not looking for ropes of their own.
  *
  * Then three things that always happen: bits 12 and 13 of +6 are cleared and
  * bit 11 set, the part is unlinked from wherever it was, and it is inserted
@@ -1902,12 +1902,12 @@ void detach_part_to_bin(register struct part *part)
     int16_t i;
 
     if (!((g_tool == 8 || g_tool == 7) && g_round_state == 0x1000)) {
-        if (part->rope != 0 && part->kind != KIND_BELT)
-            untie_rope((part->rope->owner));
+        if (part->belt != 0 && part->kind != KIND_BELT)
+            untie_belt((part->belt->owner));
         if (part->kind != KIND_ROPE && part->kind != KIND_PULLEY)
             for (i = 0; i < 2; i++)
-                if (part->belt[i] != 0)
-                    detach_belt((part->belt[i]->owner), 0);
+                if (part->rope[i] != 0)
+                    detach_rope((part->rope[i]->owner), 0);
     }
     part->traits = (part->traits & ~(TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))
                      | TRAIT_IN_BIN;
@@ -1962,7 +1962,7 @@ void refile_part_list(register struct part *part)
  * of the loop and it is not an accident of the disassembly.
  *
  * Three ways out by kind, and the kinds are the ones `draw_machine` already
- * names: 8 is a rope and 0x0a is a belt, each with its own routine because each
+ * names: 8 is a belt and 0x0a is a rope, each with its own routine because each
  * is attached to two other parts rather than standing on its own; everything
  * else goes through one. Then the part is made the *current* one at DGROUP
  * 0x50d5 for the length of one call and put back to zero - the same word the
@@ -1976,9 +1976,9 @@ void remove_all_parts(void)
     for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL; ) {
         if (!(si->traits & TRAIT_FROM_LEVEL)) {
             if (si->kind == KIND_BELT)
-                untie_rope(si);
+                untie_belt(si);
             else if (si->kind == KIND_ROPE)
-                detach_belt(si, 1);
+                detach_rope(si, 1);
             else
                 detach_part_to_bin(si);
             g_held_parts.dragged_part = si;
@@ -2086,53 +2086,53 @@ struct part *bin_scroll_end(void)
  *
  * Say that a part and everything joined to it needs re-filing: the byte at
  * +0x14 is the countdown `step_and_draw_machine` reads, and this sets it on
- * the part and on the parts at the other end of its rope and its belts.
+ * the part and on the parts at the other end of its belt and its ropes.
  *
  * Kind 0x31 does not take the mark itself - it draws nothing - and kind 7, the
- * pulley, passes it only through its second belt and stops there.
+ * pulley, passes it only through its second rope and stops there.
  *
  * What the rest do depends on the machine's state at DGROUP 0x4e6b. In 0x1000
- * a rope's endpoints are recomputed first and the far end is only marked if the
+ * a belt's endpoints are recomputed first and the far end is only marked if the
  * two are close enough to matter; otherwise it is marked outright. In 0x2000 a
- * belt is only marked if it was not already, and its geometry is refreshed;
- * outside that state both belts are marked and refreshed unconditionally.
+ * rope is only marked if it was not already, and its geometry is refreshed;
+ * outside that state both ropes are marked and refreshed unconditionally.
  */
 void mark_needs_refile(register struct part *part, int16_t n)
 {
-    register struct belt *si;
+    register struct rope *si;
     int16_t i;                          /* [bp-2] */
-    struct rope *rope;                  /* [bp-4] */
+    struct belt *belt;                  /* [bp-4] */
 
     if (part->kind != KIND_ANCHOR)
         part->redraw_count = n;
 
     if (part->kind == KIND_PULLEY) {
-        if ((si = part->belt[1]) != NULL)
+        if ((si = part->rope[1]) != NULL)
             si->owner->redraw_count = n;
     } else {
-        if ((rope = part->rope) != NULL) {
+        if ((belt = part->belt) != NULL) {
             if (g_round_state == 0x1000) {
-                compute_link_endpoints(rope);
-                if (rope_ends_close(rope))
-                    rope->owner->redraw_count = n;
+                compute_link_endpoints(belt);
+                if (belt_ends_close(belt))
+                    belt->owner->redraw_count = n;
             } else
-                rope->owner->redraw_count = n;
+                belt->owner->redraw_count = n;
         }
 
         if (g_round_state == 0x2000) {
-            if ((si = part->belt[0]) != NULL
+            if ((si = part->rope[0]) != NULL
                 && !si->owner->redraw_count) {
                 si->owner->redraw_count = n;
                 refresh_link_geometry(si);
             }
-            if ((si = part->belt[1]) != NULL
+            if ((si = part->rope[1]) != NULL
                 && !si->owner->redraw_count) {
                 si->owner->redraw_count = n;
                 refresh_link_geometry(si);
             }
         } else
             for (i = 0; i < 2; i++)
-                if ((si = part->belt[i]) != NULL) {
+                if ((si = part->rope[i]) != NULL) {
                     si->owner->redraw_count = n;
                     refresh_link_geometry(si);
                 }
@@ -2152,7 +2152,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
  * until the caller puts it somewhere.
  *
  * Three things are pointed at rather than held, and each is allocated afresh:
- * a rope's sub-object at +0x54 for kind 8, a belt's at +0x66 for kinds 7 and
+ * a belt's sub-object at +0x54 for kind 8, a rope's at +0x66 for kinds 7 and
  * 0x0a, and the connection points at +0x82 - as many as the kind's record says
  * at +0x1e, four bytes each, copied two words at a time. Each new block is
  * pointed back at the copy.
@@ -2192,16 +2192,16 @@ give_up:
         si->set_size = part->set_size;
 
         if (si->kind == KIND_BELT) {
-            if ((si->rope = (calloc_far(1, sizeof(struct rope)))) == 0)
+            if ((si->belt = (calloc_far(1, sizeof(struct belt)))) == 0)
                 goto give_up;
-            si->rope->owner = si;
+            si->belt->owner = si;
         }
         si->grab = part->grab;
         si->grab_size = part->grab_size;
         if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
-            if ((si->belt[0] = (calloc_far(1, sizeof(struct belt)))) == 0)
+            if ((si->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0)
                 goto give_up;
-            si->belt[0]->owner = si;
+            si->rope[0]->owner = si;
         }
         si->attach[0] = part->attach[0];
         si->attach[1] = part->attach[1];
@@ -2456,30 +2456,30 @@ void free_all_shapes(void)
  *
  * Register the shapes for everything a part is joined to.
  *
- * A pulley, kind 7, only has its second belt done. A rope, kind 8, and a belt,
+ * A pulley, kind 7, only has its second rope done. A belt, kind 8, and a rope,
  * kind 0x0a, are not asked at all - they are the things being registered, not
- * the things that hold them. Everything else does its rope, unless the machine
- * is in state 0x2000, and then both of its belts.
+ * the things that hold them. Everything else does its belt, unless the machine
+ * is in state 0x2000, and then both of its ropes.
  *
- * Each belt is reached through the *part* its record names at +0, not through
- * this one, so the shapes come out in the belt's own terms.
+ * Each rope is reached through the *part* its record names at +0, not through
+ * this one, so the shapes come out in the rope's own terms.
  */
 void mark_joined_shapes(register struct part *part, uint16_t mode)
 {
-    struct belt *di;
-    struct rope *rope;                  /* [bp-2] */
+    struct rope *di;
+    struct belt *belt;                  /* [bp-2] */
 
     if (part->kind == KIND_PULLEY) {
-        if ((di = part->belt[1]) != NULL)
-            mark_belt_shapes(di->owner, mode);
+        if ((di = part->rope[1]) != NULL)
+            mark_rope_shapes(di->owner, mode);
     } else if (part->kind != KIND_BELT && part->kind != KIND_ROPE) {
         if (g_round_state != 0x2000
-            && (rope = part->rope) != NULL)
-            add_sub_object_shapes(rope->owner, mode);
-        if ((di = part->belt[0]) != NULL)
-            mark_belt_shapes(di->owner, mode);
-        if ((di = part->belt[1]) != NULL)
-            mark_belt_shapes(di->owner, mode);
+            && (belt = part->belt) != NULL)
+            add_sub_object_shapes(belt->owner, mode);
+        if ((di = part->rope[0]) != NULL)
+            mark_rope_shapes(di->owner, mode);
+        if ((di = part->rope[1]) != NULL)
+            mark_rope_shapes(di->owner, mode);
     }
 }
 
@@ -2503,7 +2503,7 @@ void mark_joined_shapes(register struct part *part, uint16_t mode)
  */
 void add_sub_object_shapes(struct part *obj, int16_t mask)
 {
-    struct rope *sub = obj->rope;
+    struct belt *sub = obj->belt;
 
     if ((mask & 1) != 0) {
         alloc_shape((const uint8_t *)&sub->pt[2][0], (const uint8_t *)&sub->pt[2][1], 4, 1, 0);
@@ -2519,27 +2519,27 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
 /*
  * 0x05f87
  *
- * Register the rectangles a belt covers, so what it drew can be erased again.
+ * Register the rectangles a rope covers, so what it drew can be erased again.
  *
- * The belt is the record at the part's +0x66. Two shapes come out of each
+ * The rope is the record at the part's +0x66. Two shapes come out of each
  * length: the line itself, given to `alloc_shape` as its two endpoints and the
  * slack `link_slack` measured, and a 16 by 16 box at each of the two points the
- * belt is fastened at. The mode's bit 0 does the first side of the belt and
+ * rope is fastened at. The mode's bit 0 does the first side of the rope and
  * bit 1 the second, and they are written out separately rather than looped
  * because each takes a different pair of fields.
  *
  * Which fields depends on the part at the far end: a pulley, kind 7, keeps the
- * tangent points in its own belt record, and anything else keeps them in this
+ * tangent points in its own rope record, and anything else keeps them in this
  * one.
  *
  * The whole thing is written twice. In state 0x2000 - DGROUP 0x4e6b - only the
- * two ends of this belt are done, because that state moves one part at a time.
- * Outside it the chain of pulleys is walked to its end, so a belt over three
+ * two ends of this rope are done, because that state moves one part at a time.
+ * Outside it the chain of pulleys is walked to its end, so a rope over three
  * wheels registers every length of itself.
  */
-void mark_belt_shapes(struct part *part, uint16_t mode)
+void mark_rope_shapes(struct part *part, uint16_t mode)
 {
-    register struct belt *si;
+    register struct rope *si;
     register int16_t di;
     int16_t slack;                      /* [bp-2] */
     int16_t corner[2];                  /* [bp-6] */
@@ -2549,7 +2549,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
     struct part *near_part;             /* [bp-0x10] */
     struct part *far_part;              /* [bp-0x12] */
 
-    si = part->belt[0];
+    si = part->rope[0];
     box[0] = 0x10;
     box[1] = 0x10;
 
@@ -2558,7 +2558,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
         far_part = near_part->link[si->slot_a];
         if (mode & 1) {
             far_pt = far_part->kind == KIND_PULLEY
-                     ? &far_part->belt[0]->pt[2][0] : &si->pt[2][1];
+                     ? &far_part->rope[0]->pt[2][0] : &si->pt[2][1];
             slack = link_slack(near_part, si, 1);
             alloc_shape((const uint8_t *)&si->pt[2][0], (const uint8_t *)far_pt,
                         4, 1, slack);
@@ -2570,7 +2570,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
         }
         if (mode & 2) {
             far_pt = far_part->kind == KIND_PULLEY
-                     ? &far_part->belt[0]->pt[1][0] : &si->pt[1][1];
+                     ? &far_part->rope[0]->pt[1][0] : &si->pt[1][1];
             slack = link_slack(near_part, si, 2);
             alloc_shape((const uint8_t *)&si->pt[1][0], (const uint8_t *)far_pt,
                         4, 2, slack);
@@ -2586,7 +2586,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             near_part = far_part->link[si->slot_b];
             if (mode & 1) {
                 near_pt = near_part->kind == KIND_PULLEY
-                          ? &near_part->belt[0]->pt[2][1] : &si->pt[2][0];
+                          ? &near_part->rope[0]->pt[2][1] : &si->pt[2][0];
                 slack = link_slack(near_part, si, 1);
                 alloc_shape((const uint8_t *)near_pt, (const uint8_t *)&si->pt[2][1],
                             4, 1, slack);
@@ -2597,9 +2597,9 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
                 }
             }
             if (mode & 2) {
-                /* the far end's kind decides, and the near end's belt is read */
+                /* the far end's kind decides, and the near end's rope is read */
                 near_pt = far_part->kind == KIND_PULLEY
-                          ? &near_part->belt[0]->pt[1][1] : &si->pt[1][0];
+                          ? &near_part->rope[0]->pt[1][1] : &si->pt[1][0];
                 slack = link_slack(near_part, si, 2);
                 alloc_shape((const uint8_t *)near_pt, (const uint8_t *)&si->pt[1][1],
                             4, 2, slack);
@@ -2616,9 +2616,9 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             far_part = near_part->link[si->slot_a];
             while (near_part != NULL && far_part != NULL) {
                 near_pt = near_part->kind == KIND_PULLEY
-                          ? &near_part->belt[0]->pt[2][1] : &si->pt[2][0];
+                          ? &near_part->rope[0]->pt[2][1] : &si->pt[2][0];
                 far_pt = far_part->kind == KIND_PULLEY
-                         ? &far_part->belt[0]->pt[2][0] : &si->pt[2][1];
+                         ? &far_part->rope[0]->pt[2][0] : &si->pt[2][1];
                 slack = link_slack(near_part, si, 1);
                 alloc_shape((const uint8_t *)near_pt, (const uint8_t *)far_pt,
                             4, 1, slack);
@@ -2639,9 +2639,9 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             far_part = near_part->link[si->slot_a];
             while (near_part != NULL && far_part != NULL) {
                 near_pt = near_part->kind == KIND_PULLEY
-                          ? &near_part->belt[0]->pt[1][1] : &si->pt[1][0];
+                          ? &near_part->rope[0]->pt[1][1] : &si->pt[1][0];
                 far_pt = far_part->kind == KIND_PULLEY
-                         ? &far_part->belt[0]->pt[1][0] : &si->pt[1][1];
+                         ? &far_part->rope[0]->pt[1][0] : &si->pt[1][1];
                 slack = link_slack(near_part, si, 2);
                 alloc_shape((const uint8_t *)near_pt, (const uint8_t *)far_pt,
                             4, 2, slack);
@@ -2684,8 +2684,8 @@ void add_record_shapes(struct part *rec, uint16_t which)
 /*
  * 0x0647f
  *
- * Register a part's shapes, by kind: a rope, kind 8, through
- * `add_sub_object_shapes`; a belt, kind 0x0a, through `mark_belt_shapes`;
+ * Register a part's shapes, by kind: a belt, kind 8, through
+ * `add_sub_object_shapes`; a rope, kind 0x0a, through `mark_rope_shapes`;
  * everything else through `add_record_shapes`. Three lines and a dispatch, and
  * fifteen callers.
  */
@@ -2694,7 +2694,7 @@ void mark_part_shapes(register struct part *part, register uint16_t mode)
     if (part->kind == KIND_BELT)
         add_sub_object_shapes(part, mode);
     else if (part->kind == KIND_ROPE)
-        mark_belt_shapes(part, mode);
+        mark_rope_shapes(part, mode);
     else
         add_record_shapes(part, mode);
 }
@@ -2797,8 +2797,8 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
  * Put back what was drawn over: walk the shape list at DGROUP 0x4e52, step each
  * record's `replays` at +5, and act on the ones that have run out.
  *
- * A record with bit 2 of +4 is a belt length and is redrawn by
- * `draw_belt_segment`; everything else is a rectangle filled in the background
+ * A record with bit 2 of +4 is a rope length and is redrawn by
+ * `draw_rope_segment`; everything else is a rectangle filled in the background
  * colour, clipped against the window at 0x3894 first and with bit 0 of +4
  * deciding the second fill colour. A rectangle whose far edge is exactly on the
  * window's is pulled in by one, which is the original's own fencepost and not
@@ -2835,7 +2835,7 @@ void replay_shapes(void)
             c = cur->width;
             cursor_redraw_off_thunk();
             if (cur->flags & 4)
-                draw_belt_segment(si, di, a, b, c);
+                draw_rope_segment(si, di, a, b, c);
             else {
                 g_vmds.fill_enabled = cur->flags & 1;
                 if (di == g_vmds.clip_bottom)
@@ -2864,8 +2864,8 @@ void replay_shapes(void)
  * Which parts have to be redrawn: walk the 0x3000 list and mark every one that
  * lies in a rectangle on the list at DGROUP 0x4e52.
  *
- * A part already marked - the byte at +0x14 - or hidden is skipped. A belt goes
- * to `belt_in_dirty_rect`, which has to walk its lengths. A rope has no box of
+ * A part already marked - the byte at +0x14 - or hidden is skipped. A rope goes
+ * to `rope_in_dirty_rect`, which has to walk its lengths. A belt has no box of
  * its own and gets one from the four corners its record keeps at +8 through
  * +0x16, taking the smaller of each pair as the origin - the same construction
  * `refile_overlapping_parts` makes, and skipped entirely unless its ends are
@@ -2874,7 +2874,7 @@ void replay_shapes(void)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    register struct rope *si;
+    register struct belt *si;
     register struct part *di;
     int16_t left;                       /* [bp-2] */
     int16_t top;                        /* [bp-4] */
@@ -2886,13 +2886,13 @@ void mark_parts_in_dirty_rects(void)
          di = pick_for_record(di, TRAIT_IN_MOVING_LIST)) {
         if (!di->redraw_count && !(di->state & STATE_GONE)) {
             if (di->kind == KIND_ROPE) {
-                belt_in_dirty_rect(di);
+                rope_in_dirty_rect(di);
                 continue;
             }
 
             if (di->kind == KIND_BELT) {
-                si = di->rope;
-                if (!rope_ends_close(si))
+                si = di->belt;
+                if (!belt_ends_close(si))
                     continue;
                 if (g_tool == 9
                     && (si->end_a == g_held_parts.dragged_part
@@ -2937,20 +2937,20 @@ void mark_parts_in_dirty_rects(void)
 /*
  * 0x06994
  *
- * A belt's version of the dirty-rectangle test: walk the belt from pulley to
+ * A rope's version of the dirty-rectangle test: walk the rope from pulley to
  * pulley and mark the *part* if any length of it lies in a rectangle that has
  * to be redrawn.
  *
- * Each length runs between two of the belt's fastening points - the pairs of
+ * Each length runs between two of the rope's fastening points - the pairs of
  * bytes at +0x6a - and its box is the two points made into a rectangle, in
  * screen coordinates. `link_slack` adds half its slack to the bottom, because a
- * sagging belt reaches below the straight line between its ends.
+ * sagging rope reaches below the straight line between its ends.
  *
  * The rectangles are the far-pointer list at DGROUP 0x4e52; the first that
  * overlaps marks the part and ends the walk, which is what setting `si` to the
- * belt's far end does.
+ * rope's far end does.
  */
-void belt_in_dirty_rect(struct part *part)
+void rope_in_dirty_rect(struct part *part)
 {
     register struct part *si;
     register struct part *di;
@@ -2967,16 +2967,16 @@ void belt_in_dirty_rect(struct part *part)
     uint16_t slotB;                     /* [bp-0x16] */
     struct part *endA;                  /* [bp-0x18] */
     struct part *endB;                  /* [bp-0x1a] */
-    struct belt *belt;                  /* [bp-0x1c] */
+    struct rope *rope;                  /* [bp-0x1c] */
     struct shape far *node;             /* [bp-0x20] */
 
-    belt = part->belt[0];
-    di = endA = belt->end_a;
-    endB = belt->end_b;
-    slotA = belt->slot_a;
+    rope = part->rope[0];
+    di = endA = rope->end_a;
+    endB = rope->end_b;
+    slotA = rope->slot_a;
     slotB = 0;
     si = di->link[slotA];
-    slack = link_slack(di, belt, 3);
+    slack = link_slack(di, rope, 3);
 
     while (di != NULL && si != NULL) {
         if (di != endA) {
@@ -2986,8 +2986,8 @@ void belt_in_dirty_rect(struct part *part)
         ax = di->box[0].x + di->attach[slotA].x;
         ay = di->box[0].y + di->attach[slotA].y;
         if (si == endB) {
-            slotB = belt->slot_b;
-            slack = link_slack(di, belt, 3);
+            slotB = rope->slot_b;
+            slack = link_slack(di, rope, 3);
         }
         bx = si->box[0].x + si->attach[slotB].x;
         by = si->box[0].y + si->attach[slotB].y;
@@ -3044,17 +3044,17 @@ void belt_in_dirty_rect(struct part *part)
  * level at all: +0x1c and +0x1d, both compared unsigned, with 0xff meaning
  * "always" and a value of 2 or less meaning "at every level". A part being
  * dragged or hidden - bit 5 of +0x0a, or bit 13 of +8 - is skipped, and so are
- * kinds 0x0a and 0x31, which are the belt and the one that draws nothing.
+ * kinds 0x0a and 0x31, which are the rope and the one that draws nothing.
  *
- * A rope, kind 8, has no box of its own: its extent is worked out from the
+ * A belt, kind 8, has no box of its own: its extent is worked out from the
  * four corners its record holds at +8..+0x16, taking whichever of each pair is
  * the smaller as the origin. It is also skipped entirely unless its ends are
- * close - `rope_ends_close` - and, while the machine is in state 9 with one of
+ * close - `belt_ends_close` - and, while the machine is in state 9 with one of
  * its ends being dragged, unless the pointer is still in the play area.
  */
 void refile_overlapping_parts(void)
 {
-    register struct rope *si;
+    register struct belt *si;
     register struct part *di;
     uint8_t level_n;                    /* [bp-1] the counter */
     uint8_t level;                      /* [bp-2] */
@@ -3096,8 +3096,8 @@ void refile_overlapping_parts(void)
                         continue;
 
                     if (di->kind == KIND_BELT) {
-                        si = di->rope;
-                        if (!rope_ends_close(si))
+                        si = di->belt;
+                        if (!belt_ends_close(si))
                             continue;
                         if (g_tool == 9
                             && (si->end_a == g_held_parts.dragged_part
@@ -3156,16 +3156,16 @@ void part_moved(struct part *part)
 /*
  * 0x06dbf
  *
- * The part at the other end of a part's rope: the rope record at +0x54 names
+ * The part at the other end of a part's belt: the belt record at +0x54 names
  * both ends at +4 and +6, and this answers whichever is not the one asked
- * about. A part with no rope answers 0, and so does one whose rope names it at
+ * about. A part with no belt answers 0, and so does one whose belt names it at
  * neither end - the `xor ax, ax` is reached from both.
  */
-struct part *rope_other_end(register struct part *part)
+struct part *belt_other_end(register struct part *part)
 {
-    register struct rope *si;
+    register struct belt *si;
 
-    if ((si = part->rope) != NULL) {
+    if ((si = part->belt) != NULL) {
         if (si->end_a == part)
             return si->end_b;
         else
@@ -3177,23 +3177,23 @@ struct part *rope_other_end(register struct part *part)
 /*
  * 0x06de9
  *
- * How a belt runs between two parts, as a small bit set.
+ * How a rope runs between two parts, as a small bit set.
  *
- * `which` says which end of the belt record to start from - +2 and its slot at
+ * `which` says which end of the rope record to start from - +2 and its slot at
  * +0x0a, or +4 and +0x0b - and the other end follows. The two tangent points of
- * each end are at +0x14 and +0x16 of the belt records involved, four bytes to
+ * each end are at +0x14 and +0x16 of the rope records involved, four bytes to
  * the pair, and the answer compares them.
  *
  * Bit 3 or bit 4 says which of the two the near end is above; bits 1 and 2 say
- * the same for the far end, and an answer of 1 means the belt crosses itself,
+ * the same for the far end, and an answer of 1 means the rope crosses itself,
  * which is the only one returned without the first bit or-ed in. `dir` turns
- * every comparison round, which is how the same routine serves a belt read from
+ * every comparison round, which is how the same routine serves a rope read from
  * either side.
  *
- * If the far end's neighbour is the near part itself the belt is a loop of two,
+ * If the far end's neighbour is the near part itself the rope is a loop of two,
  * and both ends read from this record rather than from the neighbours'.
  */
-int16_t belt_orientation(register struct belt *belt, int16_t which, int16_t dir)
+int16_t rope_orientation(register struct rope *rope, int16_t which, int16_t dir)
 {
     int16_t di;
     uint16_t v02;                       /* [bp-2]  the near slot */
@@ -3201,8 +3201,8 @@ int16_t belt_orientation(register struct belt *belt, int16_t which, int16_t dir)
     uint16_t v06;                       /* [bp-6]  the near index */
     uint16_t v08;                       /* [bp-8]  the far index */
     int16_t v0a;                        /* [bp-0xa] the first bit */
-    struct belt *v0c;                       /* [bp-0xc] the near record */
-    struct belt *v0e;                       /* [bp-0xe] the far record */
+    struct rope *v0c;                       /* [bp-0xc] the near record */
+    struct rope *v0e;                       /* [bp-0xe] the far record */
     struct part *v10;                   /* [bp-0x10] the near part */
     struct part *v12;                       /* [bp-0x12] the far part */
     struct part *v14;                       /* [bp-0x14] beyond the near end */
@@ -3210,55 +3210,55 @@ int16_t belt_orientation(register struct belt *belt, int16_t which, int16_t dir)
 
     di = 1 - which;
     if (which) {
-        v10 = (belt->end_b);
-        v02 = belt->slot_b;
-        v12 = belt->end_a;
-        v04 = belt->slot_a;
+        v10 = (rope->end_b);
+        v02 = rope->slot_b;
+        v12 = rope->end_a;
+        v04 = rope->slot_a;
     } else {
-        v10 = (belt->end_a);
-        v02 = belt->slot_a;
-        v12 = belt->end_b;
-        v04 = belt->slot_b;
+        v10 = (rope->end_a);
+        v02 = rope->slot_a;
+        v12 = rope->end_b;
+        v04 = rope->slot_b;
     }
     v14 = v10->link[v02];
     v16 = (v12->link[v04]);
 
     if (v12 == v14) {
-        v0c = v0e = belt;
+        v0c = v0e = rope;
         v06 = di;
         v08 = which;
     } else {
-        v0c = v14->belt[0];
-        v0e = v16->belt[0];
+        v0c = v14->rope[0];
+        v0e = v16->rope[0];
         v06 = 1 - which;
         v08 = 1 - di;
     }
 
-    if (belt->pt[0][di].x > v0e->pt[0][v08].x)
+    if (rope->pt[0][di].x > v0e->pt[0][v08].x)
         v0a = 8;
     else
         v0a = 0x10;
 
     if (dir == 0) {
-        if (belt->pt[0][which].y > v0c->pt[0][v06].y)
+        if (rope->pt[0][which].y > v0c->pt[0][v06].y)
             return 1;
-        if (belt->pt[0][di].y > v0e->pt[0][v08].y)
+        if (rope->pt[0][di].y > v0e->pt[0][v08].y)
             return 2 | v0a;
         return 4 | v0a;
     }
-    if (belt->pt[0][which].y < v0c->pt[0][v06].y)
+    if (rope->pt[0][which].y < v0c->pt[0][v06].y)
         return 1;
     /*
      * `jge`, not `jl`. The two halves are **not** mirror images: with the
      * direction set the first test is `<` and the second `>=`, where with
      * it clear both are `>`. Reading the second as the first one flipped
      * gives 2 where the original gives 4, so the answer loses bit 2 - and
-     * bit 2 is what `tension_belt` reads to decide which way a lever is
+     * bit 2 is what `tension_rope` reads to decide which way a lever is
      * driven. The lever then never turns, and on the credits screen the
      * gun it is tied to never fires. Written as `<` answering 4, which is
      * the same test in the order the image has its two returns.
      */
-    if (belt->pt[0][di].y < v0e->pt[0][v08].y)
+    if (rope->pt[0][di].y < v0e->pt[0][v08].y)
         return 4 | v0a;
     return 2 | v0a;
 }
@@ -3281,13 +3281,13 @@ int16_t link_slot_of(struct part *value, struct part *obj)
 /*
  * 0x06f68
  *
- * The other end of a belt from a given part: `end_b` (+4) if `end_a` (+2)
- * is the part, and `end_a` if it is not. No belt answers 0.
+ * The other end of a rope from a given part: `end_b` (+4) if `end_a` (+2)
+ * is the part, and `end_a` if it is not. No rope answers 0.
  *
  * Both the "matched" and "did not match" paths funnel through one `jmp` to the
  * epilogue, which is why the disassembly has three jumps to reach two results.
  */
-struct part *belt_other_end(struct part *key, register struct belt *rec)
+struct part *rope_other_end(struct part *key, register struct rope *rec)
 {
     /* `or si,si` at 0x06f6f. */
     if (rec != NULL) {
@@ -3305,7 +3305,7 @@ struct part *belt_other_end(struct part *key, register struct belt *rec)
  * Measure how far a link's endpoint is from the endpoint it joins, in
  * whichever coordinate array `mode` names.
  *
- * The partner is found the same way `belt_orientation` finds it: the byte
+ * The partner is found the same way `rope_orientation` finds it: the byte
  * index at +0xa or +0xb selects a word from the object's table at +0x5a, and
  * either the link is its own partner or that entry's +0x66 names one. Which
  * index each side is read with is not symmetric - when the link partners
@@ -3324,16 +3324,16 @@ struct part *belt_other_end(struct part *key, register struct belt *rec)
  * of |dx| and |dy| plus three eighths of the smaller, as `>> 2` plus `>> 3`.
  * It never divides and is within about six per cent of the true length.
  */
-int16_t link_end_distance(register struct belt *link, int16_t gen, int16_t end)
+int16_t link_end_distance(register struct rope *link, int16_t gen, int16_t end)
 {
-    struct belt *partner;
+    struct rope *partner;
     int16_t dx;                         /* [bp-2] */
     int16_t dy;                         /* [bp-4] */
     int16_t d;                          /* [bp-6] */
     uint16_t near_i;                    /* [bp-8] */
     uint16_t far_i;                     /* [bp-0xa] */
     struct part *ent;                   /* [bp-0xc] */
-    struct belt *l;                     /* [bp-0xe] the same link */
+    struct rope *l;                     /* [bp-0xe] the same link */
 
     l = link;
     if (end == 0) {
@@ -3343,7 +3343,7 @@ int16_t link_end_distance(register struct belt *link, int16_t gen, int16_t end)
             partner = link;
             far_i = 1;
         } else {
-            partner = ent->belt[0];
+            partner = ent->rope[0];
             far_i = 0;
         }
     } else {
@@ -3353,7 +3353,7 @@ int16_t link_end_distance(register struct belt *link, int16_t gen, int16_t end)
             partner = link;
             far_i = 0;
         } else {
-            partner = ent->belt[0];
+            partner = ent->rope[0];
             far_i = 1;
         }
     }
@@ -3397,7 +3397,7 @@ int16_t link_end_distance(register struct belt *link, int16_t gen, int16_t end)
  * The rest lengths live on the object the link names at +0, which is neither
  * of the two ends.
  */
-int16_t link_slack(struct part *obj, register struct belt *link, int16_t gen)
+int16_t link_slack(struct part *obj, register struct rope *link, int16_t gen)
 {
     register struct part *holder;
     int16_t d;                          /* [bp-2] */
@@ -3434,8 +3434,8 @@ int16_t link_slack(struct part *obj, register struct belt *link, int16_t gen)
 /*
  * 0x07205
  *
- * **The direction of whatever a rope's other end is tied to**: `rope_other_end`
- * for the part, and that part's +0x12, or 0 when the rope has no other end.
+ * **The direction of whatever a belt's other end is tied to**: `belt_other_end`
+ * for the part, and that part's +0x12, or 0 when the belt has no other end.
  *
  * **Nothing in the image calls it**: no near call from segment 0000 and no far
  * call anywhere, so the descent map never reached it. It is transcribed
@@ -3445,7 +3445,7 @@ int16_t other_end_direction(struct part *part)
 {
     register struct part *si;
 
-    if ((si = rope_other_end(part)) != NULL)
+    if ((si = belt_other_end(part)) != NULL)
         return si->direction;
     return 0;
 }
@@ -3512,18 +3512,18 @@ void update_velocity(register struct part *rec, int16_t shift_x, int16_t shift_y
 /* ours: a call counter for reconstruct/devdump.c. Above this
    routine's comment, not between it and the routine: the
    provenance is the comment *directly* above a definition. */
-int32_t g_dev_tension_belt_calls;
+int32_t g_dev_tension_rope_calls;
 #endif
 
 /*
  * 0x072c7
  *
- * Settle one part against the belt it hangs from, and answer whether the part
+ * Settle one part against the rope it hangs from, and answer whether the part
  * had to move.
  *
- * The belt at +0x66 has a length of slack at each end - +0x96 and +0x9c of the
- * part the belt record names at +0 - and `link_endpoint_gap` measures how far
- * apart the two ends actually are. The difference is how much the belt is
+ * The rope at +0x66 has a length of slack at each end - +0x96 and +0x9c of the
+ * part the rope record names at +0 - and `link_endpoint_gap` measures how far
+ * apart the two ends actually are. The difference is how much the rope is
  * over-stretched at this end.
  *
  * There are three ways to take up the stretch, tried in order.
@@ -3538,17 +3538,17 @@ int32_t g_dev_tension_belt_calls;
  *     exactly the slack's distance, and the velocity is recomputed.
  *
  * A fourth case sits between the second and the third: a far part of kind 0x31
- * is an anchor and cannot be pulled, so the belt is *unthreaded* from the
+ * is an anchor and cannot be pulled, so the rope is *unthreaded* from the
  * pulley instead - the pulley's link is spliced out, its own two links cleared,
- * and the slack recomputed from what is left. That is how a belt comes off a
+ * and the slack recomputed from what is left. That is how a rope comes off a
  * wheel when it is pulled too hard.
  *
  * Afterwards, unless the part is standing still, the far part is told which
- * way the belt is now running: kind 3, the motor, is put on the move queue with
- * a direction that depends on which side of it the belt leaves; everything else
+ * way the rope is now running: kind 3, the motor, is put on the move queue with
+ * a direction that depends on which side of it the rope leaves; everything else
  * goes through its own drive hook.
  */
-int16_t tension_belt(register struct part *part)
+int16_t tension_rope(register struct part *part)
 {
     struct part *di;
     int16_t slackA;                     /* [bp-2] */
@@ -3580,10 +3580,10 @@ int16_t tension_belt(register struct part *part)
     struct part *other;                   /* [bp-0x34] a part, as the offset queue_part takes */
     struct part *pB;                    /* [bp-0x36] */
     struct part *pC;                    /* [bp-0x38] */
-    struct belt *belt;                    /* [bp-0x3a] as the offset belt_orientation takes */
+    struct rope *rope;                    /* [bp-0x3a] as the offset rope_orientation takes */
 
 #ifndef __TURBOC__
-    g_dev_tension_belt_calls++;
+    g_dev_tension_rope_calls++;
 #endif
     answer = 0;
     if (part->link[0]->kind == KIND_PULLEY)
@@ -3597,22 +3597,22 @@ int16_t tension_belt(register struct part *part)
     else
         moving = -1;
 
-    belt = part->belt[0];
-    di = (belt->owner);
-    other = belt_other_end(part, belt);
-    if ((belt->end_a) == part) {
+    rope = part->rope[0];
+    di = (rope->owner);
+    other = rope_other_end(part, rope);
+    if ((rope->end_a) == part) {
         end = 0;
-        slot = belt->slot_b;
+        slot = rope->slot_b;
         slackA = di->kind_state;
         slackB = di->spin;
     } else {
         end = 1;
-        slot = belt->slot_a;
+        slot = rope->slot_a;
         slackA = di->spin;
         slackB = di->kind_state;
     }
-    gapB = link_endpoint_gap(belt, other, dx2, dy2);
-    gapA = link_endpoint_gap(belt, part, (uint8_t *)&dx1, (uint8_t *)&dy1);
+    gapB = link_endpoint_gap(rope, other, dx2, dy2);
+    gapA = link_endpoint_gap(rope, part, (uint8_t *)&dx1, (uint8_t *)&dy1);
     dA = gapA - slackA;
 
     if (part->kind != KIND_ANCHOR) {
@@ -3625,7 +3625,7 @@ int16_t tension_belt(register struct part *part)
                 dB = dA;
                 dA = 0;
             }
-            if ((belt->end_a) == part) {
+            if ((rope->end_a) == part) {
                 di->kind_state = slackA = gapA - dA;
                 di->spin = slackB = gapB - dB;
             } else {
@@ -3642,13 +3642,13 @@ int16_t tension_belt(register struct part *part)
         give = abs(slackB) > (give > 1 ? give : 1) ? (give > 1 ? give : 1)
                                                    : abs(slackB);
         if (give != 0) {
-            if ((belt->end_a) == part) {
+            if ((rope->end_a) == part) {
                 di->spin -= give;
                 slackB = di->spin;
-                tension_belt(other);
+                tension_rope(other);
                 other->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
                 resolve_collisions(other);
-                gapB = link_endpoint_gap(belt, other, dx2, dy2);
+                gapB = link_endpoint_gap(rope, other, dx2, dy2);
                 dB = gapB - slackB;
                 if (dB != 0) {
                     di->spin += dB;
@@ -3662,10 +3662,10 @@ int16_t tension_belt(register struct part *part)
             } else {
                 di->kind_state -= give;
                 slackB = di->kind_state;
-                tension_belt(other);
+                tension_rope(other);
                 other->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
                 resolve_collisions(other);
-                gapB = link_endpoint_gap(belt, other, dx2, dy2);
+                gapB = link_endpoint_gap(rope, other, dx2, dy2);
                 dB = gapB - slackB;
                 if (dB != 0) {
                     di->kind_state += dB;
@@ -3682,24 +3682,24 @@ int16_t tension_belt(register struct part *part)
 
     if (dA > 0) {
         if (other->kind == KIND_ANCHOR && part->kind != KIND_ANCHOR) {
-            /* The far end is an anchor: take the belt off the pulley instead. */
+            /* The far end is an anchor: take the rope off the pulley instead. */
             if (pulley) {
-                if (belt->end_a == other) {
+                if (rope->end_a == other) {
                     di->kind_state -= dA;
                     if ((int16_t)di->kind_state < 0) {
                         dA += (int16_t)di->kind_state;
                         saved = g_round_state;
                         g_round_state = 0x1000;
-                        mark_belt_shapes(di, 3);
+                        mark_rope_shapes(di, 3);
                         g_round_state = saved;
-                        pB = (other->link[belt->slot_a]);
+                        pB = (other->link[rope->slot_a]);
                         pC = pB->link[0];
                         k = link_slot_of(pB, pC);
-                        other->link[belt->slot_a] = pC;
+                        other->link[rope->slot_a] = pC;
                         pC->link[k] = other;
                         for (i = 0; i < 2; i++)
                             pB->link[i] = 0;
-                        (belt->owner)->kind_state = link_end_distance(belt, 3, 0);
+                        (rope->owner)->kind_state = link_end_distance(rope, 3, 0);
                     }
                     di->spin += dA;
                 } else {
@@ -3708,16 +3708,16 @@ int16_t tension_belt(register struct part *part)
                         dA += di->spin;
                         saved = g_round_state;
                         g_round_state = 0x1000;
-                        mark_belt_shapes(di, 3);
+                        mark_rope_shapes(di, 3);
                         g_round_state = saved;
-                        pB = (other->link[belt->slot_b]);
+                        pB = (other->link[rope->slot_b]);
                         pC = pB->link[1];
                         k = link_slot_of(pB, pC);
-                        other->link[belt->slot_b] = pC;
+                        other->link[rope->slot_b] = pC;
                         pC->link[k] = other;
                         for (i = 0; i < 2; i++)
                             pB->link[i] = 0;
-                        (belt->owner)->spin = link_end_distance(belt, 3, 1);
+                        (rope->owner)->spin = link_end_distance(rope, 3, 1);
                     }
                     di->kind_state += dA;
                 }
@@ -3740,7 +3740,7 @@ int16_t tension_belt(register struct part *part)
                 part->vel_y = 0;
 
             if (part->kind != KIND_ANCHOR && moving != -1) {
-                orient = belt_orientation(belt, end,
+                orient = rope_orientation(rope, end,
                                           moving == 0 ? 0 : 1);
                 if (other->kind == 3) {
                     dir = 0;
@@ -3798,7 +3798,7 @@ int16_t tension_belt(register struct part *part)
  * same address for both, the second store lands on the first and the length is
  * measured from the aliased pair.
  */
-int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
+int16_t link_endpoint_gap(struct rope *link, register struct part *obj,
                           uint8_t * out_dx, uint8_t * out_dy)
 {
     struct part *other;
@@ -3820,8 +3820,8 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
         other = obj->link[a];
         b = link_slot_of(obj, other);
         if (other->kind == KIND_PULLEY) {
-            x2 = other->belt[0]->pt[0][1 - b].x;
-            y2 = other->belt[0]->pt[0][1 - b].y;
+            x2 = other->rope[0]->pt[0][1 - b].x;
+            y2 = other->rope[0]->pt[0][1 - b].y;
         } else {
             x2 = other->box[0].x + other->attach[b].x;
             y2 = other->box[0].y + other->attach[b].y;
@@ -3834,8 +3834,8 @@ int16_t link_endpoint_gap(struct belt *link, register struct part *obj,
         obj = other->link[b];
         a = link_slot_of(other, obj);
         if (obj->kind == KIND_PULLEY) {
-            x2 = obj->belt[0]->pt[0][1 - a].x;
-            y2 = obj->belt[0]->pt[0][1 - a].y;
+            x2 = obj->rope[0]->pt[0][1 - a].x;
+            y2 = obj->rope[0]->pt[0][1 - a].y;
         } else {
             x2 = obj->box[0].x + obj->attach[a].x;
             y2 = obj->box[0].y + obj->attach[a].y;
@@ -4029,8 +4029,8 @@ void shift_all_histories(void)
  */
 void shift_state_history(register struct part *obj)
 {
-    struct rope *rope;
     struct belt *belt;
+    struct rope *rope;
 
     /* one 32-bit move per generation, which is what a `struct point16` is */
     obj->pos[2] = obj->pos[1];
@@ -4043,25 +4043,25 @@ void shift_state_history(register struct part *obj)
     obj->form_prev = obj->form;
 
     if (obj->kind == KIND_BELT && g_round_state == 0x1000) {
-        rope = obj->rope;
-        rope->pt[2][0] = rope->pt[1][0];
-        rope->pt[1][0] = rope->pt[0][0];
-        rope->pt[2][1] = rope->pt[1][1];
-        rope->pt[1][1] = rope->pt[0][1];
-        rope->pt[2][2] = rope->pt[1][2];
-        rope->pt[1][2] = rope->pt[0][2];
-        rope->pt[2][3] = rope->pt[1][3];
-        rope->pt[1][3] = rope->pt[0][3];
-    }
-    if (obj->kind == KIND_ROPE || obj->kind == KIND_PULLEY) {
-        belt = obj->belt[0];
-        belt->v[2] = belt->v[1];
-        belt->v[1] = belt->v[0];
-        /* one 32-bit move per point, which is what a `struct belt_end` is */
+        belt = obj->belt;
         belt->pt[2][0] = belt->pt[1][0];
         belt->pt[1][0] = belt->pt[0][0];
         belt->pt[2][1] = belt->pt[1][1];
         belt->pt[1][1] = belt->pt[0][1];
+        belt->pt[2][2] = belt->pt[1][2];
+        belt->pt[1][2] = belt->pt[0][2];
+        belt->pt[2][3] = belt->pt[1][3];
+        belt->pt[1][3] = belt->pt[0][3];
+    }
+    if (obj->kind == KIND_ROPE || obj->kind == KIND_PULLEY) {
+        rope = obj->rope[0];
+        rope->v[2] = rope->v[1];
+        rope->v[1] = rope->v[0];
+        /* one 32-bit move per point, which is what a `struct rope_end` is */
+        rope->pt[2][0] = rope->pt[1][0];
+        rope->pt[1][0] = rope->pt[0][0];
+        rope->pt[2][1] = rope->pt[1][1];
+        rope->pt[1][1] = rope->pt[0][1];
     }
     obj->kind_state_prev2 = obj->kind_state_prev;
     obj->kind_state_prev = obj->kind_state;
@@ -4089,17 +4089,17 @@ void shift_state_history(register struct part *obj)
  * were kept. Then the kind's setup runs again, exactly as it did when the part
  * was read.
  *
- * The second pass exists because a rope or a belt joins two parts, so it can
- * only be rebuilt once both ends have been reset. Kind 8 recomputes its rope's
- * endpoints; kind 0x0a rebuilds its belt from the copies at +6, +8, +0x0c and
- * +0x0d, points both parts back at it, walks the chain of parts the belt runs
- * over so a kind 7 among them takes it as its second belt, and measures both
+ * The second pass exists because a belt or a rope joins two parts, so it can
+ * only be rebuilt once both ends have been reset. Kind 8 recomputes its belt's
+ * endpoints; kind 0x0a rebuilds its rope from the copies at +6, +8, +0x0c and
+ * +0x0d, points both parts back at it, walks the chain of parts the rope runs
+ * over so a kind 7 among them takes it as its second rope, and measures both
  * ends into the two histories.
  */
 void reset_machine(void)
 {
     register struct part *si;
-    register struct belt *di;
+    register struct rope *di;
     int16_t i;                          /* [bp-2] */
     struct part *next;                  /* [bp-4] */
     struct part *walk;                  /* [bp-6] */
@@ -4142,21 +4142,21 @@ void reset_machine(void)
     for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
          si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
         if (si->kind == KIND_BELT)
-            compute_link_endpoints(si->rope);
+            compute_link_endpoints(si->belt);
         else if (si->kind == KIND_ROPE) {
-            di = si->belt[0];
+            di = si->rope[0];
             di->end_a = di->home_a;
             di->end_b = di->home_b;
             di->slot_a = di->home_slot_a;
             di->slot_b = di->home_slot_b;
-            di->end_a->belt[di->slot_a] = di;
-            di->end_b->belt[di->slot_b] = di;
+            di->end_a->rope[di->slot_a] = di;
+            di->end_b->rope[di->slot_b] = di;
 
             walk = di->end_a;
             after = walk->link[di->slot_a];
             while (walk != NULL) {
                 if (walk->kind == KIND_PULLEY)
-                    walk->belt[1] = di;
+                    walk->rope[1] = di;
                 if (di->end_b == walk)
                     walk = NULL;
                 else {

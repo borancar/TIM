@@ -741,7 +741,7 @@ Three spellings in physics.c, found on 2026-09-27 by compiling alternatives:
   kind left as an ordinary local, the allocator gave it DI. A pointer
   declared `register` goes to DX just the same.
 - **An `if` with an empty branch and an `else`** is `je` over a `jmp`, where
-  `if (!x)` gives a single `jne`. `rope_ends_close` tests its second end
+  `if (!x)` gives a single `jne`. `belt_ends_close` tests its second end
   that way.
 - **`while (x = f(), x)`** tests the register variable after the store
   (`mov si,ax / or si,si`). `while ((x = f()) != 0)` tests AX.
@@ -751,8 +751,8 @@ Three spellings in physics.c, found on 2026-09-27 by compiling alternatives:
 Making machine.c's two devdump.c call counters host-only on 2026-09-27
 wrapped each in `#ifndef __TURBOC__`. The script did it with a regex, and
 the second one's non-greedy match began at the *first* counter's comment.
-So one block ran from `tension_belt`'s counter to `queue_part`'s and took
-`tension_belt`, `link_endpoint_gap` and `release_part_queue` with
+So one block ran from `tension_rope`'s counter to `queue_part`'s and took
+`tension_rope`, `link_endpoint_gap` and `release_part_queue` with
 it. **The host defines no `__TURBOC__`, so it compiled them as before, and
 every check stayed green. Borland never saw them.** The judge judges what
 the compiler wrote, so the three were neither MATCH nor DIFF. They were
@@ -774,9 +774,9 @@ Written as `if (slot == level) walk = next[0]; else walk = next[1];` it
 matches. Borland merged the two branches' identical stores, which left the
 first store where the image has it. `link_slack`'s choice of link pointer
 is the same shape. Two more places the image shows merging are
-`belt_orientation`'s `return 2 | v0a` / `return 4 | v0a` pairs, and the
+`rope_orientation`'s `return 2 | v0a` / `return 4 | v0a` pairs, and the
 `pop cx` after `free_part(si)` and the setup hook in `reset_machine`. The
-last two branches of `belt_orientation` came out in the image's order only
+last two branches of `rope_orientation` came out in the image's order only
 once they were written `if (<) return 4 | v0a; return 2 | v0a;`, the same
 test with the returns swapped.
 
@@ -1672,12 +1672,12 @@ C's null - and the original follows nulls. `stop_all_voices` runs before any
 voice exists and reads and writes byte 0x158 of the interrupt table;
 `link_objects_crossing` takes two points off a part that has none;
 `find_part_from` reads the flags of "no part"; `compute_link_endpoints` reads
-the far end of a rope that has only been clicked once; `free_bitmap_list`
+the far end of a belt that has only been clicked once; `free_bitmap_list`
 reads a list's first word before testing the list. In DOS every one of those
 is DGROUP:0000 or 0000:0000 - the Borland banner, the vector table - and the
 values read are harmless or never used. On the host each is a segfault, and
 only on the path that reaches it: the solutions all passed while starting a
-level and connecting a rope by hand crashed.
+level and connecting a belt by hand crashed.
 
 **What settled it.** `NEAR_ZERO(p)` and `ZERO_PAGE(p)` at the read: the
 pointer itself under Borland C++, so the image does not move, and on the host
@@ -2386,16 +2386,16 @@ happened.** Solving and then dying is not solving.
 ### A typed handle tested as a boolean is always true, and the compiler will not say so
 
 **What happened.** Converting handle locals from DGROUP offsets to typed
-pointers - `uint16_t link` becoming `struct rope *link` - left one line in
+pointers - `uint16_t link` becoming `struct belt *link` - left one line in
 `part_under_pointer` untouched:
 
 ```c
 uint16_t link_end = link ? link->owner_ptr : 0;
 ```
 
-As an offset, `link ?` asked the original's question: is there a rope, i.e. is
+As an offset, `link ?` asked the original's question: is there a belt, i.e. is
 the offset non-zero. As a pointer it asks whether `link` is NULL, and it never
-is: `ROPE_PTR(0)` is `dgroup + 0`, a real address. So for a part with no rope
+is: `BELT_PTR(0)` is `dgroup + 0`, a real address. So for a part with no belt
 the test passed and `link_end` became whatever word sits at DGROUP:0 plus the
 field's offset - the Borland banner - instead of 0. It compiled without a
 warning, because a pointer in a boolean context is legal C.
@@ -2403,7 +2403,7 @@ warning, because a pointer in a boolean context is legal C.
 **What it cost.** It landed in a commit (e8045fc) that had passed every check
 the project has: both builds, `make test`, the full verification sweep, the
 intro byte for byte over 601 flips, and all 29 solutions identical and solved.
-None of them could see it. The difference only matters when a part has no rope
+None of them could see it. The difference only matters when a part has no belt
 *and* the `exclude` argument equals that stray word, which no captured run
 reached. It was found by reading the routine for an unrelated change.
 

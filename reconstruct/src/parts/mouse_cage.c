@@ -61,7 +61,7 @@ uint16_t part_hit_mouse_cage(struct part *part)
  *
  * A trap that is not already going looks for a mouse - kind 0x0c - within
  * 0x10 either side, and the first one it finds sets it off. Going or not, it
- * passes its own state along its rope to whatever is not already busy.
+ * passes its own state along its belt to whatever is not already busy.
  *
  * While it is going the form flips between two and the countdown at +0x96 runs
  * out; reaching zero switches it off again.
@@ -84,7 +84,7 @@ void part_step_mouse_cage(struct part *part)
         }
     }
 
-    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
+    if ((di = belt_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN))
         di->direction = part->direction;
 
     if (part->direction != 0) {

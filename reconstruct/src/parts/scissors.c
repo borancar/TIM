@@ -4,7 +4,7 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **The scissors**: its hit, setup, step and flip, and the belts they cut.
+ * **The scissors**: its hit, setup, step and flip, and the ropes they cut.
  *
  * The thirty-seventh module of the original's **code segment 172c**, image
  * 0x1aae4..0x1b0a5 - one module for each kind of part; parts/ball.c says how
@@ -64,7 +64,7 @@ struct point8 *g_scissors_point_table_34b6[2] = { g_scissors_points_3496, g_scis
 /*
  * DGROUP 0x34ba..0x34ca. **The scissors' blade**, a segment of four words - x0, y0, x1, y1 -
  * once as it stands and once mirrored; `part_step_scissors` picks one by the
- * flip bit and `cut_belts` cuts every belt that crosses it.
+ * flip bit and `cut_ropes` cuts every rope that crosses it.
  */
 int16_t g_scissors_cut_line[2][4] = {
     { 0x0016, 0x000f, 0x0027, 0x000f }, { 0x0000, 0x000f, 0x0010, 0x000f },
@@ -132,13 +132,13 @@ void part_setup_scissors(struct part *part)
  *
  * They cut once: only in form 0, and only while +0x12 says go. The line they
  * cut along is one of two in DGROUP - 0x34c2 mirrored, 0x34ba not - and
- * `cut_belts` does the work. Then the form steps, its own setup runs again
+ * `cut_ropes` does the work. Then the form steps, its own setup runs again
  * because the shape has changed, and sound 0x10 plays.
  */
 void part_step_scissors(struct part *part)
 {
     if (part->direction != 0 && part->form == 0) {
-        cut_belts(part, (part->state & STATE_FLIP_HORIZONTAL) ? g_scissors_cut_line[1]
+        cut_ropes(part, (part->state & STATE_FLIP_HORIZONTAL) ? g_scissors_cut_line[1]
                                                 : g_scissors_cut_line[0]);
 
         part->form++;
@@ -162,31 +162,31 @@ void part_flip_scissors(struct part *part)
 /*
  * 172c:3970, image 0x1ac30
  *
- * Cut every belt that crosses a line.
+ * Cut every rope that crosses a line.
  *
- * The list at DGROUP 0x521b is walked for belts - kind 0x0a - and each one's
+ * The list at DGROUP 0x521b is walked for ropes - kind 0x0a - and each one's
  * lengths in turn: from the part the record names at +2, along the chain of
  * pulleys, to the part at +4. Each length is turned into two points in the
  * scissors' own frame and handed to `intersect_segments`.
  *
  * A cut makes three parts: two kind-0x31 anchors, both at the point the cut
- * fell, and a kind-0x0a to carry the second half of the belt. If any of the
+ * fell, and a kind-0x0a to carry the second half of the rope. If any of the
  * three cannot be had the ones already made are given back and nothing is cut -
- * so a machine that runs out of memory keeps its belt whole rather than losing
+ * so a machine that runs out of memory keeps its rope whole rather than losing
  * half of it.
  *
- * The rethreading is the fiddly part. The old belt record keeps the near half
+ * The rethreading is the fiddly part. The old rope record keeps the near half
  * and ends at the first anchor; the new one takes the second anchor and the old
  * far end, and the pulley the cut length was heading for is pointed at it. A
  * pulley - kind 7 - is repointed through its own +0x68 and +0x5c rather than
  * through the slot the walk was using, because a pulley's two links are not
  * interchangeable.
  *
- * Both anchors get their positions wound into sixteenths, both belts have their
+ * Both anchors get their positions wound into sixteenths, both ropes have their
  * geometry refreshed with the machine forced into state 0x1000, and the walk
- * ends: a belt is only cut once per pass.
+ * ends: a rope is only cut once per pass.
  */
-void cut_belts(struct part *part, const int16_t *line)
+void cut_ropes(struct part *part, const int16_t *line)
 {
     struct part *di;                    /* the near anchor */
     int16_t k;                          /* [bp-2] */
@@ -202,18 +202,18 @@ void cut_belts(struct part *part, const int16_t *line)
     struct part *carrier;               /* [bp-0x1e] */
     struct part *endA;                  /* [bp-0x20] */
     struct part *endB;                  /* [bp-0x22] */
-    struct belt *belt;                  /* [bp-0x24] */
-    struct belt *newbelt;               /* [bp-0x26] */
+    struct rope *rope;                  /* [bp-0x24] */
+    struct rope *newrope;               /* [bp-0x26] */
 
     for (rec = g_placed_parts.next; rec != NULL;
          rec = rec->next) {
         if (rec->kind != KIND_ROPE)
             continue;
 
-        belt = rec->belt[0];
-        prev = endA = belt->end_a;
-        endB = belt->end_b;
-        slotA = belt->slot_a;
+        rope = rec->rope[0];
+        prev = endA = rope->end_a;
+        endB = rope->end_b;
+        slotA = rope->slot_a;
         slotB = 0;
         next = prev->link[slotA];
 
@@ -225,7 +225,7 @@ void cut_belts(struct part *part, const int16_t *line)
             seg[1] = prev->box[0].y + prev->attach[slotA].y - part->pos[0].y;
 
             if (next == endB)
-                slotB = belt->slot_b;
+                slotB = rope->slot_b;
 
             seg[2] = next->box[0].x + next->attach[slotB].x - part->pos[0].x;
             seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
@@ -233,7 +233,7 @@ void cut_belts(struct part *part, const int16_t *line)
             if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
                 saved = g_round_state;
                 g_round_state = 0x1000;
-                mark_belt_shapes(belt->owner, 3);
+                mark_rope_shapes(rope->owner, 3);
                 g_round_state = saved;
 
                 if ((di = make_part(KIND_ANCHOR)) == NULL)
@@ -259,29 +259,29 @@ fail:
                 insert_sorted(carrier, &g_placed_parts);
                 carrier->traits |= TRAIT_SPAWNED;
 
-                newbelt = carrier->belt[0];
-                newbelt->end_a = anchorB;
-                newbelt->end_b = endB;
-                newbelt->slot_a = 0;
-                newbelt->slot_b = belt->slot_b;
+                newrope = carrier->rope[0];
+                newrope->end_a = anchorB;
+                newrope->end_b = endB;
+                newrope->slot_a = 0;
+                newrope->slot_b = rope->slot_b;
 
                 anchorB->link[0] = next;
-                anchorB->belt[0] = newbelt;
+                anchorB->rope[0] = newrope;
 
                 if (next->kind == KIND_PULLEY) {
-                    next->belt[1] = newbelt;
+                    next->rope[1] = newrope;
                     next->link[1] = anchorB;
                 } else {
-                    next->belt[slotB] = newbelt;
+                    next->rope[slotB] = newrope;
                     next->link[slotB] = anchorB;
                 }
 
-                endB->belt[newbelt->slot_b] = newbelt;
+                endB->rope[newrope->slot_b] = newrope;
 
-                belt->end_b = di;
-                belt->slot_b = 0;
+                rope->end_b = di;
+                rope->slot_b = 0;
                 di->link[0] = prev;
-                di->belt[0] = belt;
+                di->rope[0] = rope;
 
                 if (prev->kind == KIND_PULLEY)
                     prev->link[0] = di;
@@ -306,13 +306,13 @@ fail:
 
                 g_round_state = 0x1000;
 
-                refresh_link_geometry(belt);
+                refresh_link_geometry(rope);
                 for (k = 0; k < 2; k++)
-                    belt->pt[2][k] = belt->pt[1][k] = belt->pt[0][k];
+                    rope->pt[2][k] = rope->pt[1][k] = rope->pt[0][k];
 
-                refresh_link_geometry(newbelt);
+                refresh_link_geometry(newrope);
                 for (k = 0; k < 2; k++)
-                    newbelt->pt[2][k] = newbelt->pt[1][k] = newbelt->pt[0][k];
+                    newrope->pt[2][k] = newrope->pt[1][k] = newrope->pt[0][k];
 
                 g_round_state = saved;
                 prev = next = NULL;

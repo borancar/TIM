@@ -26,7 +26,7 @@
  * routine later in the same file is a bare `push cs / call`, where the image
  * has TLINK's `nop` in front of every one, and `part_setup_seesaw`'s jumps
  * are sized differently. So a module ends before this routine. Whether
- * `drive_belts` and `push_speed_for_mass` are on this side of that boundary
+ * `drive_ropes` and `push_speed_for_mass` are on this side of that boundary
  * or the seesaw's is not settled: both are byte-exact either way, and no
  * call or data reference tells them apart. The original presumably held an
  * `asm` statement to send it through TASM; nothing of one is left in the

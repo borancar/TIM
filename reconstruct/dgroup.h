@@ -743,7 +743,7 @@ extern char g_picked_machine[0xd];
  */
 struct shape {
     struct shape far *next;    /* +0x00  the link, in the block's own first four bytes */
-    uint8_t        flags;      /* +0x04  bit 0 the second fill colour, bit 2 a belt length */
+    uint8_t        flags;      /* +0x04  bit 0 the second fill colour, bit 2 a rope length */
     uint8_t        replays;    /* +0x05  how many passes of `replay_shapes` it waits for:
                                          1 or 2 at every call site, stepped down once per
                                          pass, and put back and freed when it reaches 0 -
@@ -754,7 +754,7 @@ struct shape {
     int16_t        y1;         /* +0x08 */
     int16_t        x2;         /* +0x0a  the second point - an extent, without bit 2 */
     int16_t        y2;         /* +0x0c */
-    int16_t        width;      /* +0x0e  a belt's width; half of it widens the box below */
+    int16_t        width;      /* +0x0e  a rope's width; half of it widens the box below */
     int16_t        left;       /* +0x10  the box the dirty-rectangle tests read */
     int16_t        right;      /* +0x12 */
     int16_t        top;        /* +0x14 */
@@ -879,13 +879,13 @@ extern volatile int16_t g_frame_flag;
 extern uint16_t g_redraw_guard;
 
 /*
- * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
+ * **The rope's far end and the goal tests' state**, at DGROUP 0x5456.
  *
  * Declared last address first: Borland C++ lays `_BSS` out last mention
  * first, and these externs are the first mention.
  */
 extern uint16_t g_goal_condition[10];
-extern struct part *g_belt_far_end;
+extern struct part *g_rope_far_end;
 
 
 
@@ -952,7 +952,7 @@ extern struct pal_chunk_names g_palchunk;
    stay `OFF_TABLE` and not a run of `char[5]`. */
 
 /* A signed 16-bit point: a part's position, box and size generations, a
-   belt's and a rope's corners. Declared here because `struct part` is the
+   rope's and a belt's corners. Declared here because `struct part` is the
    first to hold one. */
 struct point16 {
     int16_t x;                 /* +0x00 */
@@ -1016,24 +1016,24 @@ struct extent16 {
  * both, and put back from `start_state` by every reset; the editor copies it
  * across after each change it makes, and a run changes only `state`.
  *
- *   STATE_TAKES_ROPE      a rope (`struct rope`) can go round it - the motor,
+ *   STATE_TAKES_BELT      a belt (`struct belt`) can go round it - the motor,
  *                         the mouse cage, the conveyor, the gear, the windmill
- *   STATE_HAS_ROPE        one does; `untie_rope` clears it
- *   STATE_TAKES_BELT      a belt (`struct belt`) can be tied to it -
- *                         `find_belt_anchor` - the balloon, the bucket, the hook
- *   STATE_TWO_BELT_ENDS   it has a second place to tie one: the seesaw
+ *   STATE_HAS_BELT        one does; `untie_belt` clears it
+ *   STATE_TAKES_ROPE      a rope (`struct rope`) can be tied to it -
+ *                         `find_rope_anchor` - the balloon, the bucket, the hook
+ *   STATE_TWO_ROPE_ENDS   it has a second place to tie one: the seesaw
  *   STATE_FLIP_HORIZONTAL / _VERTICAL  it is flipped - what the kind's flip
  *                         hook toggles, the X key's and the Y key's
  *   STATE_STEPPED         its step ran this frame; `step_machine` clears it and
  *                         does not step the part twice
  *   STATE_RESIZE_HORIZONTAL / _VERTICAL  it can be stretched that way:
  *                         `part_flip_options` offers the handles for it
- *   STATE_HELD            a rope held it still this frame (the seesaw)
- *   STATE_TURNS_FREE      its ropes drove nothing this frame, so it turns on
+ *   STATE_HELD            a belt held it still this frame (the seesaw)
+ *   STATE_TURNS_FREE      its belts drove nothing this frame, so it turns on
  *                         its own (the seesaw). The two, with STATE_STEPPED,
  *                         are cleared every frame
  *   STATE_SELF_DRIVEN     it turns itself - the mouse cage, the windmill, the
- *                         monkey - and a rope does not drive it
+ *                         monkey - and a belt does not drive it
  *   STATE_DRAW_STEPS      drawn from its kind's step table, not one frame
  *   STATE_GONE            used up - a spent bullet, a finished blast, a burst
  *                         balloon - with its shapes marked for erasing, and
@@ -1071,10 +1071,10 @@ struct extent16 {
 #define TRAIT_STATIC              0x4000
 #define TRAIT_FROM_LEVEL          0x8000
 
-#define STATE_TAKES_ROPE          0x0001
-#define STATE_HAS_ROPE            0x0002
-#define STATE_TAKES_BELT          0x0004
-#define STATE_TWO_BELT_ENDS       0x0008
+#define STATE_TAKES_BELT          0x0001
+#define STATE_HAS_BELT            0x0002
+#define STATE_TAKES_ROPE          0x0004
+#define STATE_TWO_ROPE_ENDS       0x0008
 #define STATE_FLIP_HORIZONTAL     0x0010
 #define STATE_FLIP_VERTICAL       0x0020
 #define STATE_STEPPED             0x0040
@@ -1219,12 +1219,12 @@ struct part {
        `set_object_extent` copies it into `size[0]`, and it is one of the
        fields a machine file saves and loads. */
     struct extent16 set_size;      /* +0x50 */
-    /* The rope this part is tied to: the 0x38-byte record `calloc_far`
+    /* The belt this part is tied to: the 0x38-byte record `calloc_far`
        gives a kind-8 part, and both ends' parts point at it too. 0 when none. */
-    struct rope *rope; /* +0x54 */
+    struct belt *belt; /* +0x54 */
     struct point8 grab;        /* +0x56  the grab box's corner */
     /* **And the grab box's size**, one word used for both extents:
-       `draw_part_selection` takes it as the width and, for a belt, as the
+       `draw_part_selection` takes it as the width and, for a rope, as the
        height unless half the height is smaller. Only the kinds that are
        grabbed by a handle rather than by their body set it - the conveyor
        0x0e, the mouse cage 0x0c, and three more. */
@@ -1236,20 +1236,20 @@ struct part {
        direction - right, left, down, up - and `[4]`, `[5]` the pair
        `part_setup_3de5` turns into form bits. */
     struct part *link[6]; /* +0x5a */
-    /* **The belt records this part is an end of**, indexed the same way as
-       `link` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
-       carrier's own belt is always the first. */
-    struct belt *belt[2]; /* +0x66 */
+    /* **The rope records this part is an end of**, indexed the same way as
+       `link` above - `cut_ropes` writes `+0x66 + 2 * slot`. A kind-0xa
+       carrier's own rope is always the first. */
+    struct rope *rope[2]; /* +0x66 */
     /* **The two attachment offsets, a byte pair each.** Written a byte at a
        time by the setups - `part_setup_kinds_55_57` puts half the width in the first
-       and zero in the second - and read as a pair by the belt routines, which
+       and zero in the second - and read as a pair by the rope routines, which
        index them: `refresh_link_geometry` adds `+0x6a + 2 * slot` to the
        part's x and `+0x6b + 2 * slot` to its y. `reverse_link_ends` swaps the
        two pairs with one 16-bit move, which is what `attach[0]` and
        `attach[1]` say and what four separate bytes cannot. */
     struct point8 attach[2];   /* +0x6a */
     uint8_t   pad_6e[4];
-    /* **Where this kind is held** - the point a gripper, a rope or the line
+    /* **Where this kind is held** - the point a gripper, a belt or the line
        drawn from a host reaches for, as an offset from the part's own
        position. `grab_distance` measures a gripper's own edge against
        `pos[0] + hold` and says so in as many words; `draw_part_extra` draws to
@@ -1354,7 +1354,7 @@ struct part {
        `kind_state` is the word a part's kind keeps for itself, and two kinds
        of part use it for different things: the part modules run it as a plain
        countdown - set to 0x1c, to 0x64, to 5, and stepped to zero - and step
-       `spin` up towards 0x14, while for a belt `refresh_link_geometry` writes
+       `spin` up towards 0x14, while for a rope `refresh_link_geometry` writes
        both from `link_end_distance` and `link_slack` reads them as the rest
        length each end was given. `spin` is what devdump prints it as and is a guess about
        one kind, kept because renaming it would only move the guess.
@@ -1396,7 +1396,7 @@ struct held_parts {
     struct part *dragged_part; /* +0x02  the part being dragged - drawn last, and not counted */
     /* **The parts bin: a doubly linked list's head, and the head is a whole
        part.** The level file fills it last, with `n_given` - the tools
-       handed to the player, belts, ropes, pulleys, bellows, measured with
+       handed to the player, ropes, belts, pulleys, bellows, measured with
        TIM_LEVELSCAN over twenty levels - and `build_part_list` fills it with
        one of every kind for freeform.
 
@@ -1698,11 +1698,11 @@ extern struct messages g_messages;
 
 /*
  * **The goal tests, with three words in front of them**, at DGROUP 0x2630: the
- * part a belt being placed is anchored to, and how long each of the bin's two
+ * part a rope being placed is anchored to, and how long each of the bin's two
  * arrows has been held down.
  */
 struct goal_tests {
-    struct part *belt_anchor; /* +0x00  the part a belt being placed is anchored to */
+    struct part *rope_anchor; /* +0x00  the part a rope being placed is anchored to */
     /* The two bin-scroll repeat counters `bin_scroll_back` and its twin step.
        `check_goal`'s `lcall [bx + 0x2632]` with `bx` four times the round
        would make them entry 0 of the goal table, but the round is never 0 -
@@ -2947,7 +2947,7 @@ struct sound_record {
 
 /*
  * ---------------------------------------------------------------------------
- * **A belt**, the 0x2c-byte record a part hangs off `belt[0]` and `belt[1]`.
+ * **A rope**, the 0x2c-byte record a part hangs off `rope[0]` and `rope[1]`.
  *
  * The size is not a reading: `machine_draw.c` builds one with
  * `calloc_far(1, 0x2c)` and writes the part straight into `+0x00`, which
@@ -2977,11 +2977,11 @@ struct sound_record {
  *
  * **A part's `+0x54` is a different record and must not be moved onto this
  * one.** `shift_state_history` is where the two stand side by side: kind 8
- * takes `rope` and ages four chains whose generations are 0x10 apart, kinds
- * 7 and 0xa take `belt[0]` and age this one's, whose generations are 8 apart.
+ * takes `belt` and ages four chains whose generations are 0x10 apart, kinds
+ * 7 and 0xa take `rope[0]` and age this one's, whose generations are 8 apart.
  * `compute_link_endpoints` reads the `+0x54` record's parts at `+0x04` and
  * `+0x06` and writes coordinates over `+0x08` to `+0x16`, so its `+0x0a` is a
- * word where a belt has two bytes. It has not been read yet.
+ * word where a rope has two bytes. It has not been read yet.
  *
  * Field names are ours, from what the routines above do with them; the
  * offsets and the size are the original's.
@@ -2989,8 +2989,8 @@ struct sound_record {
  */
 
 
-struct belt {
-    struct part *owner; /* +0x00  the part this belt hangs off */
+struct rope {
+    struct part *owner; /* +0x00  the part this rope hangs off */
     struct part *end_a; /* +0x02  the part end A is attached to */
     struct part *end_b; /* +0x04  the part end B is attached to */
     struct part *home_a; /* +0x06  the attachment the level file gave */
@@ -3007,12 +3007,20 @@ struct belt {
 } PACKED;
 
 /*
+ * **Belt and rope are the game's words.** A belt loops round the wheels of a
+ * motor, a mouse cage or a conveyor; a rope ties a balloon or a bucket and
+ * runs over pulleys - "hook up the pulley belt to the conveyor belt" and
+ * "connect two of the teeter-totters with a rope passing through the pulleys"
+ * are the puzzles' own text (RESOURCE.004, RESOURCE.002). The port had the two
+ * the other way round until 2026-09-30, everywhere but the kind constants.
+ */
+/*
  * ---------------------------------------------------------------------------
- * **A rope**, the 0x38-byte record a kind-8 part hangs off `rope` - not a
- * belt, which is `struct belt` above and hangs off `belt[0]`.
+ * **A belt**, the 0x38-byte record a kind-8 part hangs off `belt` - not a
+ * rope, which is `struct rope` above and hangs off `rope[0]`.
  * `shift_state_history` is where the two stand side by side and is what tells
  * them apart: kind 8 ages four chains whose generations are 0x10 bytes apart,
- * kinds 7 and 0xa age a belt's two, whose generations are 8 apart.
+ * kinds 7 and 0xa age a rope's two, whose generations are 8 apart.
  *
  * `clone_part` gives the size with `calloc_far(1, 0x38)` and writes the
  * part straight into +0x02, which is what makes that field the owner.
@@ -3022,18 +3030,18 @@ struct belt {
  * 0x30 is the record's end. `compute_link_endpoints` fills the first
  * generation - the two parts' own attachment positions into points 0 and 1,
  * and each offset by half the part's +0x58 into points 2 and 3, along whichever
- * axis the two ends are further apart on. So a rope is drawn as a quadrilateral
- * and a belt as a line, which is why one keeps four corners and the other two.
+ * axis the two ends are further apart on. So a belt is drawn as a quadrilateral
+ * and a rope as a line, which is why one keeps four corners and the other two.
  *
  * Field names are ours; the offsets and the size are the original's.
  * ---------------------------------------------------------------------------
  */
-struct rope {
-    /* **Nothing in the port reads or writes it**, and a rope is a heap record
+struct belt {
+    /* **Nothing in the port reads or writes it**, and a belt is a heap record
        reached through a pointer, so the image cannot be searched for a use
        the way a DGROUP offset can. Named for what is known. */
     uint16_t  _pad_00;         /* +0x00 */
-    struct part *owner; /* +0x02  the part this rope hangs off */
+    struct part *owner; /* +0x02  the part this belt hangs off */
     struct part *end_a; /* +0x04  the part end A is attached to */
     struct part *end_b; /* +0x06  the part end B is attached to */
     struct point16 pt[3][4];   /* +0x08  three generations of four corners:
@@ -3182,7 +3190,7 @@ struct part_kind {
  * The names come from the manual and the game's own menus - see the table
  * above `PARTKIND`. Three are not in either and are named from what the
  * code does with them: the gun fires a **bullet**, a burst leaves a **blast**
- * of shreds behind, and a cut belt leaves two **anchors** at the cut.
+ * of shreds behind, and a cut rope leaves two **anchors** at the cut.
  *
  * Kinds 51 to 54 have no icon, no name and no initialiser, so they get no
  * constant. 55, 56 and 57 do have initialisers and still have no name, so
@@ -3262,8 +3270,8 @@ struct part_kind {
  *
  *     0 bowling_ball          1 brick_platform        2 ramp
  *     3 seesaw                4 balloon               5 conveyor
- *     6 mouse_cage            7 pulley                8 belt
- *     9 basketball           10 rope                 11 bird_cage
+ *     6 mouse_cage            7 pulley                8 rope
+ *     9 basketball           10 belt                 11 bird_cage
  *    12 pokey                13 jack_in_the_box      14 gear
  *    15 bob_the_fish         16 bellow               17 bucket
  *    18 cannon               19 dynamite             21 electric_plug

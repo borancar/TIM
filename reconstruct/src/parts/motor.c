@@ -38,7 +38,7 @@ struct point8 g_motor_points_32ae[5] = {
 /*
  * 172c:13c9, image 0x18689 - kind 50's step.
  *
- * It passes its own state down its rope - as 1 or -1 by its mirror bit while
+ * It passes its own state down its belt - as 1 or -1 by its mirror bit while
  * it is on, and as 0 when it is off - and, while it is on, runs its three
  * frames backwards, wrapping -1 round to 2. The first frame of a turn plays
  * sound 0x0c and sets DGROUP 0x52cd to 2.
@@ -47,7 +47,7 @@ void part_step_motor(struct part *part)
 {
     struct part *di;
 
-    if ((di = rope_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN)) {
+    if ((di = belt_other_end(part)) != NULL && !(di->state & STATE_SELF_DRIVEN)) {
         if (part->direction == 0)
             di->direction = 0;
         else if (part->state & STATE_FLIP_HORIZONTAL)

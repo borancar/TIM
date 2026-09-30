@@ -228,7 +228,7 @@ void part_flip_dynamite_plunger(struct part *part)
 uint16_t part_drive_dynamite_plunger(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, int32_t p6)
 {
-    struct belt *di = p2->belt[0];
+    struct rope *di = p2->rope[0];
     uint16_t low;                       /* cx */
 
     if (p4 == 1) {

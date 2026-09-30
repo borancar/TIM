@@ -137,7 +137,7 @@ void part_flip_gun(struct part *part)
  * 172c:2451, image 0x19711 - kind 27's drive hook.
  *
  * Flags of exactly 1 is the counting pass the other drive hooks recognise: the
- * belt's +0x0e goes up and the answer is 0, so the walk carries on.
+ * rope's +0x0e goes up and the answer is 0, so the walk carries on.
  *
  * Otherwise only bits 3, 4 and 15 of the flags are kept, and bit 15 is then
  * dropped again for the comparisons - so the drive is read twice, once with
@@ -154,7 +154,7 @@ void part_flip_gun(struct part *part)
 uint16_t part_drive_gun(struct part *p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, int32_t p6)
 {
-    struct belt *di = si->belt[0];
+    struct rope *di = si->rope[0];
     uint16_t low;                       /* cx */
 
     if (flags == 1) {

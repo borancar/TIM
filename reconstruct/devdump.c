@@ -73,7 +73,7 @@
 #define FRAME_W 640
 #define FRAME_H 480
 
-extern int32_t g_dev_tension_belt_calls;
+extern int32_t g_dev_tension_rope_calls;
 extern int32_t g_dev_queue_part_calls;
 
 /*
@@ -107,7 +107,7 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
                 p->vel_x, p->vel_y, p->weight,
                 (uint32_t)p->momentum,
                 p->spin,
-                (void *)p->link[4], (void *)p->belt[0],
+                (void *)p->link[4], (void *)p->rope[0],
                 (void *)p->next_linked, (void *)p->contact);
     }
 }
@@ -836,7 +836,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
  * OURS: `TIM_LEVELSCAN=<lo>:<hi>` says which part kinds each level holds.
  *
  * **The game reads the levels.** A part record on disk is not a fixed stride -
- * a rope adds 0x38 bytes, kind 7 carries an extra part number, and a version
+ * a belt adds 0x38 bytes, kind 7 carries an extra part number, and a version
  * word decides whether +0x0a is even present - so a byte scan cannot tell a
  * kind from any other small number. Measured: scanning the archive for the
  * word 32 found "59 pumpkins" in one 2.6 KB level, which is every coordinate
@@ -1290,10 +1290,10 @@ void dev_flip_dump(int32_t flip)
      * a guess. A one-step reproduction is worth little if the check runs on
      * call 20 and the fault is on call 3000.
      */
-    fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
+    fprintf(f, "flip %d origin %d,%d mode %04x tension_rope_calls %d "
             "queue_part_calls %d\n", flip,
             g_origin_x, g_origin_y, g_round_state,
-            g_dev_tension_belt_calls, g_dev_queue_part_calls);
+            g_dev_tension_rope_calls, g_dev_queue_part_calls);
     dump_chain(f, "part", &g_placed_parts);
     dump_chain(f, "move", &g_moving_parts);
     fclose(f);

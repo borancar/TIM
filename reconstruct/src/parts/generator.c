@@ -82,7 +82,7 @@ void part_setup_generator(struct part *part)
 /*
  * 172c:1e5c, image 0x1911c - kind 26's step. The pulley wheel.
  *
- * It stops if the gear its rope reaches is not turning - kind 0x0e with its
+ * It stops if the gear its belt reaches is not turning - kind 0x0e with its
  * last two forms equal - and otherwise runs its four frames in the direction
  * its +0x12 says, wrapping within the low two bits so the form's other bits
  * survive the turn. The first frame plays sound 0x0c and sets DGROUP 0x52cd.
@@ -94,7 +94,7 @@ void part_step_generator(struct part *part)
     struct part *di;
     int16_t i;                          /* [bp-2] */
 
-    if (part->direction != 0 && (di = rope_other_end(part)) != NULL
+    if (part->direction != 0 && (di = belt_other_end(part)) != NULL
         && di->kind == KIND_GEAR && di->form_prev == di->form_prev2)
         part->direction = 0;
 

@@ -10,7 +10,7 @@
  * A module of the original's **code segment 0000** (`_TEXT`), from image
  * 0x01476; split out of machine.c on 2026-09-27. Its `_DATA` is
  * `finish_level`'s literal pool, DGROUP 0x283a..0x2849, between screen.c's
- * and the next module's in the link order, and its `_BSS` is `g_belt_far_end` and
+ * and the next module's in the link order, and its `_BSS` is `g_rope_far_end` and
  * `g_goal_condition`, 0x5456..0x546c, between puzzles.c's and levels.c's - which is what puts
  * the goal tests and `finish_level` in one module.
  *
@@ -35,7 +35,7 @@
 #include "dgroup.h"
 
 /* **This module's `_BSS`**, DGROUP 0x5456..0x546c: the goal conditions. */
-struct part *g_belt_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed while it is detached */
+struct part *g_rope_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed while it is detached */
 /* **Ten words the goal tests keep between frames**, and what each means
    depends on the test. `goal_test_puzzles_19_48` at 0x01bb4 does
    `inc word ptr [0x5458]` - a count of frames the goal has held, and
