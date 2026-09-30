@@ -535,11 +535,11 @@ void pointer_frame(void)
             break;
         case 1:
             if (g_pointer.button_left == 2)
-                flip_carried_end_1();
+                flip_carried_horizontal();
             break;
         case 2:
             if (g_pointer.button_left == 2)
-                flip_carried_end_2();
+                flip_carried_vertical();
             break;
         case 3:
         case 4:
@@ -992,8 +992,8 @@ void move_carried_part(void)
  * through the parallel table twelve bytes further on. Read as scancodes it is
  * obvious what they are:
  *
- *     45  X          flip the first end, if the part has one
- *     21  Y          flip the second end, if the part has one
+ *     45  X          flip it horizontally, if the part allows it
+ *     21  Y          flip it vertically, if the part allows it
  *     13  =   78  +  grow the part in your hand
  *     12  -   74  -  shrink it
  *
@@ -1016,11 +1016,11 @@ void part_key_shortcut(void)
     switch (g_last_key) {
     case 0x2d:                          /* X */
         if (CARRIED->flags_06 & 0x400)
-            flip_carried_end_1();
+            flip_carried_horizontal();
         break;
     case 0x15:                          /* Y */
         if (CARRIED->flags_06 & 0x200)
-            flip_carried_end_2();
+            flip_carried_vertical();
         break;
     case 0x0d:                          /* = */
     case 0x4e:                          /* keypad + */
@@ -1028,7 +1028,7 @@ void part_key_shortcut(void)
             || CARRIED->kind == KIND_RAMP) {
             if (g_part_kinds[si].max_w > CARRIED->set_size.width) {
                 CARRIED->set_size.width += 0x10;
-                CARRIED->mirror_size.width = CARRIED->set_size.width;
+                CARRIED->flip_size.width = CARRIED->set_size.width;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
                 mark_needs_refile(CARRIED, 2);
@@ -1037,7 +1037,7 @@ void part_key_shortcut(void)
         } else {
             if (g_part_kinds[si].max_h > CARRIED->set_size.height) {
                 CARRIED->set_size.height += 0x10;
-                CARRIED->mirror_size.height = CARRIED->set_size.height;
+                CARRIED->flip_size.height = CARRIED->set_size.height;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
                 mark_needs_refile(CARRIED, 2);
@@ -1051,7 +1051,7 @@ void part_key_shortcut(void)
             || CARRIED->kind == KIND_RAMP) {
             if (g_part_kinds[si].min_w < CARRIED->set_size.width) {
                 CARRIED->set_size.width -= 0x10;
-                CARRIED->mirror_size.width = CARRIED->set_size.width;
+                CARRIED->flip_size.width = CARRIED->set_size.width;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
                 mark_needs_refile(CARRIED, 2);
@@ -1060,7 +1060,7 @@ void part_key_shortcut(void)
         } else {
             if (g_part_kinds[si].min_h < CARRIED->set_size.height) {
                 CARRIED->set_size.height -= 0x10;
-                CARRIED->mirror_size.height = CARRIED->set_size.height;
+                CARRIED->flip_size.height = CARRIED->set_size.height;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
                 mark_needs_refile(CARRIED, 2);
@@ -1180,15 +1180,15 @@ void discard_carried_part(void)
 /*
  * 0x107b6
  *
- * Flip the carried part's **first** end, for real - the arm the level loop
- * takes for tool 1 when the button has just gone down.
+ * Flip the carried part **horizontally**, for real - the arm the level loop
+ * takes for tool 1 when the button has just gone down, and the X key's.
  *
- * The same flip hook `part_flip_options` uses to *test* an end, called once
+ * The same flip hook `part_flip_options` uses to *test* a flip, called once
  * with 1 and not undone, so this is the move rather than the trial. +0x94 is
  * refreshed from +8 afterwards for the same reason it is there: the hook
  * changes +8 and the two must not drift apart.
  */
-void flip_carried_end_1(void)
+void flip_carried_horizontal(void)
 {
     g_part_kinds[CARRIED->kind].flip(CARRIED, 1);
     CARRIED->start_flags = CARRIED->flags_08;
@@ -1197,11 +1197,12 @@ void flip_carried_end_1(void)
 /*
  * 0x107e6
  *
- * The **second** end, and `flip_carried_end_1` with a 2 in it - tool 2's arm.
+ * **Vertically**, and `flip_carried_horizontal` with a 2 in it - tool 2's
+ * arm, and the Y key's.
  * Kept as two routines because the original has two; they differ in one
  * immediate and nothing else.
  */
-void flip_carried_end_2(void)
+void flip_carried_vertical(void)
 {
     g_part_kinds[CARRIED->kind].flip(CARRIED, 2);
     CARRIED->start_flags = CARRIED->flags_08;
@@ -1247,7 +1248,7 @@ void run_drag_frame(void)
         }
 
         if (si != 0) {
-            CARRIED->mirror_size = CARRIED->set_size;
+            CARRIED->flip_size = CARRIED->set_size;
 
             g_part_kinds[CARRIED->kind].settle(CARRIED);
             place_object_for_draw(CARRIED);

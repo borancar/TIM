@@ -259,7 +259,7 @@ void read_record_fields(FILE *file, register struct part *rec)
 
     game_fread_far(file, (uint8_t *)&rec->size[0].width);
     game_fread_far(file, (uint8_t *)&rec->size[0].height);
-    rec->mirror_size = rec->size[0];
+    rec->flip_size = rec->size[0];
 
     game_fread_far(file, (uint8_t *)&rec->set_size.width);
     game_fread_far(file, (uint8_t *)&rec->set_size.height);

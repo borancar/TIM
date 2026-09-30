@@ -78,13 +78,13 @@ struct bitmaps_state g_bitmaps;
  * **The flipped quadtree's state**, 0x63f6..0x6400. `draw_vqt_flipped` sets
  * the two flags from `g_bitmaps.draw_flags`; the leaf sets `index_bits` and
  * `palette`. Which flag mirrors which axis is read off the fill loops -
- * `fill_rows_mirror_x`, chosen when `flip_x` alone is set, walks x from the
+ * `fill_rows_flip_horizontal`, chosen when `flip_horizontal` alone is set, walks x from the
  * right - and the names are ours. `unused` is a word the module declared and
  * no instruction in the image names (`tools/xrefs.py`).
  */
 struct bitmaps_flip_state {
-    int16_t   flip_y;             /* 0x63f6  bit 0 of the draw flags */
-    int16_t   flip_x;             /* 0x63f8  bit 1 of the draw flags */
+    int16_t   flip_vertical;             /* 0x63f6  bit 0 of the draw flags */
+    int16_t   flip_horizontal;             /* 0x63f8  bit 1 of the draw flags */
     uint16_t  unused;             /* 0x63fa */
     int16_t   index_bits;         /* 0x63fc  bits per pixel index, or 8 -
                                      signed: widened with `cwd` */
@@ -162,8 +162,8 @@ pixel_byte_t near read_palette_pixel(uint16_t bits)
  * body `draw_offset_bitmap` calls with the reader already open.
  *
  * Bit 1 of the flags mirrors x and bit 0 mirrors y. The pair also chooses the
- * fill a leaf hands a whole rectangle to: x alone `fill_rows_mirror_x`, y
- * alone `fill_rows_mirror_y`, both `fill_rows_mirror_xy`, neither none - and
+ * fill a leaf hands a whole rectangle to: x alone `fill_rows_flip_horizontal`, y
+ * alone `fill_rows_flip_vertical`, both `fill_rows_flip_both`, neither none - and
  * none means the leaf plots pixel by pixel itself.
  *
  * The driver's fill byte is forced to 1 for the walk and put back after, and
@@ -183,21 +183,21 @@ void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
     int16_t saved;
 
     if (g_bitmaps.draw_flags & 2)
-        g_bitmaps_flip_state.flip_x = 1;
+        g_bitmaps_flip_state.flip_horizontal = 1;
     else
-        g_bitmaps_flip_state.flip_x = 0;
+        g_bitmaps_flip_state.flip_horizontal = 0;
     if (g_bitmaps.draw_flags & 1)
-        g_bitmaps_flip_state.flip_y = 1;
+        g_bitmaps_flip_state.flip_vertical = 1;
     else
-        g_bitmaps_flip_state.flip_y = 0;
-    if (g_bitmaps_flip_state.flip_x != 0) {
-        if (g_bitmaps_flip_state.flip_y != 0)
-            g_bitmaps.fill_fn = fill_rows_mirror_xy;
+        g_bitmaps_flip_state.flip_vertical = 0;
+    if (g_bitmaps_flip_state.flip_horizontal != 0) {
+        if (g_bitmaps_flip_state.flip_vertical != 0)
+            g_bitmaps.fill_fn = fill_rows_flip_both;
         else
-            g_bitmaps.fill_fn = fill_rows_mirror_x;
+            g_bitmaps.fill_fn = fill_rows_flip_horizontal;
     } else {
-        if (g_bitmaps_flip_state.flip_y != 0)
-            g_bitmaps.fill_fn = fill_rows_mirror_y;
+        if (g_bitmaps_flip_state.flip_vertical != 0)
+            g_bitmaps.fill_fn = fill_rows_flip_vertical;
         else
             g_bitmaps.fill_fn = 0;
     }
@@ -219,8 +219,8 @@ void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
  *
  * The halves are `w >> 1` and `(w + 1) >> 1`, both `sar`, so they are signed.
  * Unmirrored, the narrow quadrants sit at x and the wide ones at `x + (w >>
- * 1)`; with `flip_x` the wide ones move to x and the narrow ones to `x +
- * ((w + 1) >> 1)`. y the same with `flip_y`. The bits are 8, 4, 2, 1 for the
+ * 1)`; with `flip_horizontal` the wide ones move to x and the narrow ones to `x +
+ * ((w + 1) >> 1)`. y the same with `flip_vertical`. The bits are 8, 4, 2, 1 for the
  * quadrants (narrow, short), (wide, short), (narrow, tall), (wide, tall).
  *
  * Two things differ from `vqt_node` and are the original's: **either
@@ -250,11 +250,11 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
     w_wide = (w + 1) >> 1;
     y_tall = h_short = h >> 1;
     h_tall = (h + 1) >> 1;
-    if (g_bitmaps_flip_state.flip_x != 0) {
+    if (g_bitmaps_flip_state.flip_horizontal != 0) {
         x_narrow = w_wide;
         x_wide = 0;
     }
-    if (g_bitmaps_flip_state.flip_y != 0) {
+    if (g_bitmaps_flip_state.flip_vertical != 0) {
         y_short = h_tall;
         y_tall = 0;
     }
@@ -288,10 +288,10 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
  * `g_vqt_plot_fn` unless it is 0 and `g_bitmaps.plot_zero` is clear.
  *
  * One of three written out rather than shared, which differ only in which
- * axis counts down; this is the fill for `flip_x` alone. Every compare is
+ * axis counts down; this is the fill for `flip_horizontal` alone. Every compare is
  * signed. Unreachable with this game's data. The name is ours.
  */
-void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+void near fill_rows_flip_horizontal(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
     uint8_t colour;
     int16_t yi;
@@ -307,10 +307,10 @@ void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 /*
  * 0x24bb4
  *
- * `fill_rows_mirror_x`'s twin for `flip_y` alone: x from `x0` up, and y from
+ * `fill_rows_flip_horizontal`'s twin for `flip_vertical` alone: x from `x0` up, and y from
  * `y1 - 1` down to `y0`. Unreachable with this game's data. The name is ours.
  */
-void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+void near fill_rows_flip_vertical(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
     uint8_t colour;
     int16_t yi;
@@ -329,7 +329,7 @@ void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  * The third, for both mirrored: x from `x1 - 1` down and y from `y1 - 1`
  * down. Unreachable with this game's data. The name is ours.
  */
-void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+void near fill_rows_flip_both(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
     uint8_t colour;
     int16_t yi;

@@ -202,7 +202,7 @@ struct part *make_part(uint16_t kind)
 
     set_object_extent(part);
 
-    part->mirror_size = part->size[0];
+    part->flip_size = part->size[0];
 
     heap_check_or_hang();
 

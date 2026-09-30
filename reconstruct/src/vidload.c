@@ -396,12 +396,12 @@ decoded:
                 if ((uint8_t)mode & 2) {
                     x2 = x - n;
                     if (!clip)
-                        goto draw_mirrored;
+                        goto draw_flip_horizontal;
                     if (rowok == 0)
                         goto next_run;
                     if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
-                        goto trim_mirrored;
-draw_mirrored:
+                        goto trim_flip_horizontal;
+draw_flip_horizontal:
 #ifdef __TURBOC__
                     asm push si
                     asm push di
@@ -422,11 +422,11 @@ draw_mirrored:
                                 page + (uint16_t)row, 1);
 #endif
                     goto next_run;
-trim_mirrored:
+trim_flip_horizontal:
                     if (x2 < g_vmds.clip_left) {
                         cut = g_vmds.clip_left - x2;
                         if ((n -= cut) > 0)
-                            goto draw_mirrored;
+                            goto draw_flip_horizontal;
                         goto next_run;
                     }
                     /* The `add` at 0x22ab4, as written. */
@@ -434,7 +434,7 @@ trim_mirrored:
                     if ((n -= cut) > 0) {
                         p += cut;
                         x = g_vmds.clip_right;
-                        goto draw_mirrored;
+                        goto draw_flip_horizontal;
                     }
                 } else {
                     x2 = x + n;
@@ -494,12 +494,12 @@ next_run:
             if ((uint8_t)mode & 2) {
                 x2 = x - n;
                 if (!clip)
-                    goto fill_mirrored;
+                    goto fill_flip_horizontal;
                 if (rowok == 0)
                     goto next_solid;
                 if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
-                    goto trim_solid_mirrored;
-fill_mirrored:
+                    goto trim_solid_flip_horizontal;
+fill_flip_horizontal:
 #ifdef __TURBOC__
                 asm push di
                 asm mov al, base
@@ -521,18 +521,18 @@ fill_mirrored:
                         page + (uint16_t)row);
 #endif
                 goto next_solid;
-trim_solid_mirrored:
+trim_solid_flip_horizontal:
                 if (x2 < g_vmds.clip_left) {
                     cut = g_vmds.clip_left - x2;
                     if ((n -= cut) > 0)
-                        goto fill_mirrored;
+                        goto fill_flip_horizontal;
                     goto next_solid;
                 }
                 cut = x - g_vmds.clip_right;
                 if ((n -= cut) <= 0)
                     goto next_solid;
                 x = g_vmds.clip_right;
-                goto fill_mirrored;
+                goto fill_flip_horizontal;
             } else {
                 x2 = x + n;
                 if (!clip)

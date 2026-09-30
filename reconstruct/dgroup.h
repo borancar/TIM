@@ -967,24 +967,33 @@ struct extent16 {
 } PACKED;
 
 /*
- * **Four bits of a part's `flags_08`**, named where the code says what they
+ * **Six bits of a part's `flags_08`**, named where the code says what they
  * are. The rest of the word, and all of `flags_06` and `flags_0a` - which the
  * kind's template seeds - keep their numbers until they are read as well.
  *
  * `PART_FLIP_HORIZONTAL` is what every kind's flip hook toggles, the X key's
  * flip, and what a part that faces a way reads to know which;
- * `PART_FLIP_VERTICAL` is the hook's other axis, the Y key's. `PART_STEPPED` says the part's step
- * has run this frame: `step_machine` clears it on every placed part (with
- * 0x200 and 0x400, the 0xf9bf there) and skips a queued part that has it.
- * `PART_GONE` is set, with the part's shapes marked for erasing, when it is
- * used up - a spent bullet, a finished blast, a burst balloon, fired
- * dynamite, a mouse Pokey has caught - and every overlap search passes over
- * it. Names are ours.
+ * `PART_FLIP_VERTICAL` is the hook's other axis, the Y key's.
+ * `PART_CAN_FLIP_HORIZONTAL` and `PART_CAN_FLIP_VERTICAL` say which of the
+ * two the part allows - `part_flip_options` answers them as bits 0 and 1.
+ * `PART_STEPPED` says the part's step has run this frame: `step_machine`
+ * clears it on every placed part (with 0x200 and 0x400, the 0xf9bf there)
+ * and skips a queued part that has it. `PART_GONE` is set, with the part's
+ * shapes marked for erasing, when it is used up - a spent bullet, a finished
+ * blast, a burst balloon, fired dynamite, a mouse Pokey has caught - and
+ * every overlap search passes over it. Names are ours.
  */
-#define PART_FLIP_HORIZONTAL 0x0010
-#define PART_FLIP_VERTICAL   0x0020
-#define PART_STEPPED         0x0040
-#define PART_GONE            0x2000
+#define PART_FLIP_HORIZONTAL     0x0010
+#define PART_FLIP_VERTICAL       0x0020
+#define PART_STEPPED             0x0040
+#define PART_CAN_FLIP_HORIZONTAL 0x0080
+#define PART_CAN_FLIP_VERTICAL   0x0100
+#define PART_GONE                0x2000
+
+/* **A bitmap's draw flags**, the `mode` `draw_bitmap` and its blitters take:
+   bit 1 draws it flipped horizontally and bit 0 vertically. Names are ours. */
+#define DRAW_FLIP_HORIZONTAL 0x0002
+#define DRAW_FLIP_VERTICAL   0x0001
 
 /*
  * ---------------------------------------------------------------------------
@@ -1082,13 +1091,13 @@ struct part {
        defect that stopped three levels solving once already. */
     int32_t   momentum;        /* +0x3c  one Borland `long` */
     /* **The extent a flipped part mirrors within** - a name that is a guess.
-       `place_object_for_draw` lays a mirrored hot point at `mirror_size.width
+       `place_object_for_draw` lays a mirrored hot point at `flip_size.width
        - hot.x - size[0].width`, and the same for y. `make_part`,
        `reset_machine` and `read_record_fields` copy `size[0]` in;
        `part_key_shortcut`'s resize arms and `run_drag_frame` copy
        `set_size` in; `clone_part` copies it as one four-byte unit. Signed, as
        `size` is: nothing reads it unsigned. */
-    struct extent16 mirror_size;   /* +0x40 */
+    struct extent16 flip_size;   /* +0x40 */
     /* **A word each, not a byte.** The part builder at machine_draw.c writes
        both with a 16-bit move out of the kind table at 0x296e/0x2970, and
        `DG16(si + 0x44) >> 4` turns one into a cell count; the `DG8` sites that
@@ -2633,7 +2642,7 @@ struct bitmaps_state {
     uint16_t       in_use;        /* 0x6400  a second open answers 0 */
     struct bit_reader reader;     /* 0x6402 */
     uint16_t       draw_flags;    /* 0x640a  `draw_offset_bitmap`'s mode:
-                                     bit 1 mirrors x, bit 0 mirrors y */
+                                     bit 1 flips horizontally, bit 0 vertically */
     struct vqt_reader *walk;      /* 0x640c  which reader the vqt walk uses -
                                      the singleton above, or the one
                                      `decode_vqt_list` builds in its frame */
@@ -3025,7 +3034,7 @@ struct part_kind {
     struct draw_step * const *bitmaps2; /* +0x16  a second one */
     /* **Two tables the form indexes**, each a DGROUP offset or 0 for none: the
        hot spot of each form as a `point8`, which `place_object_for_draw` adds
-       to the position and mirrors within `mirror_size` when the part is
+       to the position and mirrors within `flip_size` when the part is
        flipped, and the size of each form as a `point16`, which
        `set_object_extent` takes in preference to the bitmap's own. */
     const struct point8 *hotspots; /* +0x18 */

@@ -1476,8 +1476,8 @@ void run_drag_frame(void);                          /* 0x10816 */
 int16_t drag_carried_part_first(void);              /* 0x108ec */
 int16_t settle_carried_part_first(void);            /* 0x10a00 */
 int16_t drag_carried_part_pair(void);               /* 0x10ada */
-void flip_carried_end_1(void);                      /* 0x107b6 */
-void flip_carried_end_2(void);                      /* 0x107e6 */
+void flip_carried_horizontal(void);                      /* 0x107b6 */
+void flip_carried_vertical(void);                      /* 0x107e6 */
 int16_t settle_carried_part(void);                  /* 0x10bee */
 void region_click_bin(struct region *region);             /* 0x10e14 */
 void region_cursor_bin_above(struct region *region);      /* 0x10d99 */
@@ -1562,9 +1562,9 @@ typedef uint16_t pixel_byte_t;
 pixel_byte_t near read_palette_pixel(uint16_t bits);                /* 0x2493b */
 void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h);   /* 0x24954 */
 void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x249ed */
-void near fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24b65 */
-void near fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24bb4 */
-void near fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1); /* 0x24c03 */
+void near fill_rows_flip_horizontal(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24b65 */
+void near fill_rows_flip_vertical(int16_t x0, int16_t y0, int16_t x1, int16_t y1);  /* 0x24bb4 */
+void near fill_rows_flip_both(int16_t x0, int16_t y0, int16_t x1, int16_t y1); /* 0x24c03 */
 void near vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h);      /* 0x24c55 */
 uint16_t near vqt_read_bits(uint16_t bits);                     /* 0x25953 */
 void near fill_screen_quadrant(uint16_t x, uint16_t y,

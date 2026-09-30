@@ -181,12 +181,12 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
                 if ((uint8_t)mode & 2) {
                     x2 = x - n;
                     if (!clip)
-                        goto run_mirrored;
+                        goto run_flip_horizontal;
                     if (rowok == 0)
                         goto next_run;
                     if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
-                        goto trim_run_mirrored;
-run_mirrored:
+                        goto trim_run_flip_horizontal;
+run_flip_horizontal:
 #ifdef __TURBOC__
                     asm push si
                     asm push di
@@ -207,13 +207,13 @@ run_mirrored:
                                 page + (uint16_t)row, 1);
 #endif
                     goto next_run;
-trim_run_mirrored:
+trim_run_flip_horizontal:
                     /* A trim of more than 0x3f is a run wholly outside. */
                     if (x2 < g_vmds.clip_left) {
                         if ((cut = g_vmds.clip_left - x2) > 0x3f)
                             goto next_run;
                         if ((n -= cut) > 0)
-                            goto run_mirrored;
+                            goto run_flip_horizontal;
                         goto next_run;
                     }
                     if ((cut = x - g_vmds.clip_right) > 0x3f)
@@ -222,7 +222,7 @@ trim_run_mirrored:
                         goto next_run;
                     p += cut;
                     x = g_vmds.clip_right;
-                    goto run_mirrored;
+                    goto run_flip_horizontal;
                 } else {
                     x2 = x + n;
                     if (!clip)
@@ -280,12 +280,12 @@ next_run:
             if ((uint8_t)mode & 2) {
                 x2 = x - op;
                 if (!clip)
-                    goto fill_mirrored;
+                    goto fill_flip_horizontal;
                 if (rowok == 0)
                     goto next_fill;
                 if (x2 < g_vmds.clip_left || x >= g_vmds.clip_right)
-                    goto trim_fill_mirrored;
-fill_mirrored:
+                    goto trim_fill_flip_horizontal;
+fill_flip_horizontal:
 #ifdef __TURBOC__
                 asm push di
                 asm mov al, base
@@ -306,12 +306,12 @@ fill_mirrored:
                         (uint8_t)op, page + (uint16_t)row);
 #endif
                 goto next_fill;
-trim_fill_mirrored:
+trim_fill_flip_horizontal:
                 if (x2 < g_vmds.clip_left) {
                     if ((cut = g_vmds.clip_left - x2) > 0x3f)
                         goto next_fill;
                     if ((op -= cut) > 0)
-                        goto fill_mirrored;
+                        goto fill_flip_horizontal;
                     goto next_fill;
                 }
                 if ((cut = x - g_vmds.clip_right) > 0x3f)
@@ -319,7 +319,7 @@ trim_fill_mirrored:
                 if ((op -= cut) <= 0)
                     goto next_fill;
                 x = g_vmds.clip_right;
-                goto fill_mirrored;
+                goto fill_flip_horizontal;
             } else {
                 x2 = x + op;
                 if (!clip)

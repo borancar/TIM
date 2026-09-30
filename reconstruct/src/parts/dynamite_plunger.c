@@ -113,7 +113,7 @@ uint16_t part_hit_dynamite_plunger(struct part *part)
         di->direction = 1;
     else if (part->vel_y > 0
              && (int16_t)(part->contact_angle + 0x800) < 0x1000
-             && part->pos[0].y + part->mirror_size.height < di->pos[0].y + 0x0c)
+             && part->pos[0].y + part->flip_size.height < di->pos[0].y + 0x0c)
         di->direction = 1;
 
     return 1;

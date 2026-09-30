@@ -1674,7 +1674,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     int16_t cols;
     int16_t rows;
     int16_t x0;
-    uint16_t mirror;
+    uint16_t flip;
     uint16_t idx;
     uint16_t px;
     uint16_t py;
@@ -1757,15 +1757,15 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
                 x = part->pos[0].x - g_origin_x;
                 y = part->pos[0].y - g_origin_y;
                 if (part->flags_08 & PART_FLIP_HORIZONTAL) {
-                    x += part->mirror_size.width - (int8_t)step->offset[i].x - bmp->width;
-                    mirror = 2;
+                    x += part->flip_size.width - (int8_t)step->offset[i].x - bmp->width;
+                    flip = DRAW_FLIP_HORIZONTAL;
                 } else {
                     x += (int8_t)step->offset[i].x;
-                    mirror = 0;
+                    flip = 0;
                 }
                 if (part->flags_08 & PART_FLIP_VERTICAL) {
-                    y += part->mirror_size.height - (int8_t)step->offset[i].y - bmp->height;
-                    mirror |= 1;
+                    y += part->flip_size.height - (int8_t)step->offset[i].y - bmp->height;
+                    flip |= DRAW_FLIP_VERTICAL;
                 } else
                     y += (int8_t)step->offset[i].y;
                 if (a != 0) {
@@ -1775,9 +1775,9 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
                     sx += 0x110;
                     sy = (int16_t)(mul16x16(y, a) >> 10);
                     sy += 0x48;
-                    draw_bitmap_scaled(bmp, sx, sy, w, h, mirror);
+                    draw_bitmap_scaled(bmp, sx, sy, w, h, flip);
                 } else
-                    draw_bitmap(bmp, x, y, mirror);
+                    draw_bitmap(bmp, x, y, flip);
             }
         }
     }

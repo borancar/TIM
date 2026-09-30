@@ -912,9 +912,9 @@ uint16_t part_flip_options(register struct part *part)
         return 0;
 
     di = 0;
-    if (part->flags_08 & 0x80)
+    if (part->flags_08 & PART_CAN_FLIP_HORIZONTAL)
         di |= 1;
-    if (part->flags_08 & 0x100)
+    if (part->flags_08 & PART_CAN_FLIP_VERTICAL)
         di |= 2;
 
     if (part->flags_06 & 0x400) {
@@ -2186,7 +2186,7 @@ give_up:
         si->form_prev = part->form_prev;
         si->form_prev2 = part->form_prev2;
         si->direction = part->direction;
-        si->mirror_size = part->mirror_size;
+        si->flip_size = part->flip_size;
         si->size[0] = part->size[0];
         si->set_size = part->set_size;
 
@@ -2312,12 +2312,12 @@ void place_object_for_draw(register struct part *obj)
     if ((hot = rec->hotspots) != 0) {
         hot += idx;
         if (flags & 0x10)
-            obj->box[0].x += obj->mirror_size.width - (int8_t)hot->x
+            obj->box[0].x += obj->flip_size.width - (int8_t)hot->x
                              - obj->size[0].width;
         else
             obj->box[0].x += (int8_t)hot->x;
         if (flags & 0x20)
-            obj->box[0].y += obj->mirror_size.height - (int8_t)hot->y
+            obj->box[0].y += obj->flip_size.height - (int8_t)hot->y
                              - obj->size[0].height;
         else
             obj->box[0].y += (int8_t)hot->y;
@@ -4121,7 +4121,7 @@ void reset_machine(void)
             si->form = si->start_form;
             si->form_prev2 = si->form_prev = si->form;
             set_object_extent(si);
-            si->mirror_size = si->size[0];
+            si->flip_size = si->size[0];
             place_object_for_draw(si);
             si->box[2] = si->box[1] = si->box[0];
             si->size[2] = si->size[1] = si->size[0];
