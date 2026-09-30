@@ -85,7 +85,7 @@ uint16_t part_hit_scissors(struct part *part)
     struct part *other = part->contact;
     int16_t face = ((int16_t)part->contact_edge);
 
-    if (other->flags_08 & PART_MIRRORED) {
+    if (other->flags_08 & PART_FLIP_HORIZONTAL) {
         if (face == 1 || face == 2 || face == 4 || face == 5)
             other->direction = 1;
         else if (face == 7 && part->kind == KIND_BALLOON)
@@ -114,7 +114,7 @@ void part_setup_scissors(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_MIRRORED)
+    if (part->flags_08 & PART_FLIP_HORIZONTAL)
         src = g_scissors_point_table_34b6[part->form];
     else
         src = g_scissors_point_table_3492[part->form];
@@ -138,7 +138,7 @@ void part_setup_scissors(struct part *part)
 void part_step_scissors(struct part *part)
 {
     if (part->direction != 0 && part->form == 0) {
-        cut_belts(part, (part->flags_08 & PART_MIRRORED) ? g_scissors_cut_line[1]
+        cut_belts(part, (part->flags_08 & PART_FLIP_HORIZONTAL) ? g_scissors_cut_line[1]
                                                 : g_scissors_cut_line[0]);
 
         part->form++;
@@ -153,7 +153,7 @@ void part_step_scissors(struct part *part)
  */
 void part_flip_scissors(struct part *part)
 {
-    part->flags_08 ^= PART_MIRRORED;
+    part->flags_08 ^= PART_FLIP_HORIZONTAL;
     part_setup_scissors(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);

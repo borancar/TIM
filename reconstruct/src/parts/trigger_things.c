@@ -66,7 +66,7 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
 
         switch (si->kind) {
         case 0x10:
-            if (si->flags_08 & PART_MIRRORED) {
+            if (si->flags_08 & PART_FLIP_HORIZONTAL) {
                 if (d >= 0x36 && d <= 0x3c)
                     si->direction = 1;
             } else if (d >= 0 && d <= 8) {
@@ -77,7 +77,7 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
             trigger_mouse_cage(si);
             break;
         case 0x25:
-            if (si->flags_08 & PART_MIRRORED) {
+            if (si->flags_08 & PART_FLIP_HORIZONTAL) {
                 if (d >= 0x19 && d <= 0x25)
                     si->direction = 1;
             } else if (d >= 0 && d <= 0x0c) {
@@ -86,7 +86,7 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
             break;
         case 0x19:
             if (mode == 1) {
-                if (si->flags_08 & PART_MIRRORED) {
+                if (si->flags_08 & PART_FLIP_HORIZONTAL) {
                     if (d >= 0x0d && d <= 0x18)
                         si->direction = 1;
                 } else if (d >= 5 && d <= 0x10) {
@@ -96,7 +96,7 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
             break;
         case 0x16:
             if (mode == 1) {
-                if (si->flags_08 & PART_MIRRORED) {
+                if (si->flags_08 & PART_FLIP_HORIZONTAL) {
                     if (d >= 0 && d <= 0x1f)
                         si->direction = 1;
                 } else if (d >= 0x67 && d <= 0x87) {

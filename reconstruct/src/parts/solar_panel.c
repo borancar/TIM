@@ -69,10 +69,10 @@ void part_step_solar_panel(struct part *part)
                     part->direction = 1;
                 } else if (si->kind == KIND_FLASHLIGHT) {
                     if (si->link_dx < 0) {
-                        if (!(si->flags_08 & PART_MIRRORED))
+                        if (!(si->flags_08 & PART_FLIP_HORIZONTAL))
                             part->direction = 1;
                     } else {
-                        if (si->flags_08 & PART_MIRRORED)
+                        if (si->flags_08 & PART_FLIP_HORIZONTAL)
                             part->direction = 1;
                     }
                 }

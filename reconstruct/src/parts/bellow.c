@@ -102,7 +102,7 @@ uint16_t part_hit_bellow(struct part *part)
     struct part *other = part->contact;
     int16_t  face = ((int16_t)part->contact_edge);
 
-    if ((other->flags_08 & PART_MIRRORED) != 0) {
+    if ((other->flags_08 & PART_FLIP_HORIZONTAL) != 0) {
         if (face == 1 || face == 3)
             other->direction = 1;
     } else {
@@ -130,7 +130,7 @@ void part_setup_bellow(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & PART_MIRRORED)
+    if (part->flags_08 & PART_FLIP_HORIZONTAL)
         src = g_bellow_point_table_31e0[part->form];
     else
         src = g_bellow_point_table_31b6[part->form];
@@ -153,7 +153,7 @@ void part_setup_bellow(struct part *part)
  */
 void part_flip_bellow(struct part *part)
 {
-    part->flags_08 ^= PART_MIRRORED;
+    part->flags_08 ^= PART_FLIP_HORIZONTAL;
 
     part_setup_bellow(part);
 
@@ -206,7 +206,7 @@ void part_step_bellow(struct part *part)
         if (part->form != 2) {
             part->form++;
 
-            if (part->flags_08 & PART_MIRRORED) {
+            if (part->flags_08 & PART_FLIP_HORIZONTAL) {
                 link_nearby_objects(part, 0x3000, -0x80, 0, -10, 0);
                 push = (int16_t)0xf800;
             } else {

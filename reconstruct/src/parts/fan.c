@@ -47,7 +47,7 @@ void part_setup_fan(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & PART_MIRRORED)
+    if (part->flags_08 & PART_FLIP_HORIZONTAL)
         si = g_fan_points_32d2;
     else
         si = g_fan_points_32c8;
@@ -95,7 +95,7 @@ void part_step_fan(struct part *part)
         if (part->form == 4)
             part->form = 0;
 
-        if (part->flags_08 & PART_MIRRORED) {
+        if (part->flags_08 & PART_FLIP_HORIZONTAL) {
             link_nearby_objects(part, 0x3000, (int16_t)0xff00, 0, -10, 0);
             push = (int16_t)0xf000;
         } else {
@@ -134,7 +134,7 @@ void part_step_fan(struct part *part)
  */
 void part_flip_fan(struct part *part)
 {
-    part->flags_08 ^= PART_MIRRORED;
+    part->flags_08 ^= PART_FLIP_HORIZONTAL;
 
     part_setup_fan(part);
 

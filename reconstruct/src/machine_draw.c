@@ -1756,14 +1756,14 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
                 bmp = kindrec->bitmaps[frame];
                 x = part->pos[0].x - g_origin_x;
                 y = part->pos[0].y - g_origin_y;
-                if (part->flags_08 & PART_MIRRORED) {
+                if (part->flags_08 & PART_FLIP_HORIZONTAL) {
                     x += part->mirror_size.width - (int8_t)step->offset[i].x - bmp->width;
                     mirror = 2;
                 } else {
                     x += (int8_t)step->offset[i].x;
                     mirror = 0;
                 }
-                if (part->flags_08 & PART_FLIPPED) {
+                if (part->flags_08 & PART_FLIP_VERTICAL) {
                     y += part->mirror_size.height - (int8_t)step->offset[i].y - bmp->height;
                     mirror |= 1;
                 } else
@@ -1817,7 +1817,7 @@ void draw_part_extra(register struct part *part)
     y[0] = part->pos[0].y + 6 - g_origin_y;
     y[1] = held->pos[0].y + held->hold.y - g_origin_y;
     y[2] = part->pos[0].y + 0x10 - g_origin_y;
-    x[0] = x[2] = ((part->flags_08 & PART_MIRRORED) ? part->pos[0].x - 1
+    x[0] = x[2] = ((part->flags_08 & PART_FLIP_HORIZONTAL) ? part->pos[0].x - 1
                                            : part->pos[0].x + 0x0f)
                   - g_origin_x;
     draw_polygon(3, x, y);

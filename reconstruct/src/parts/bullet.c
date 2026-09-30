@@ -68,7 +68,7 @@ void part_setup_bullet(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & PART_MIRRORED)
+    if (part->flags_08 & PART_FLIP_HORIZONTAL)
         si = g_bullet_points_322a;
     else
         si = g_bullet_points_3222;
