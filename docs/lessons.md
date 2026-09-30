@@ -815,6 +815,18 @@ And, as before: with `register` declared on both a parameter and a local,
 the local takes SI; a register parameter alone, or with a plain local
 Borland promotes itself, takes SI too - swap the `register` to swap them.
 
+**Under `-Z`, a store to one member of a record reloads a pointer read from
+another; separate variables do not.** `collide.c`'s routines read the part
+they work on out of a word in DGROUP and keep it in BX while they store
+results beside it. With the block written as one `struct collision`, each
+store to a member made Borland reload BX (`mov bx, [mem]`) before the next
+field read, since it could not tell the members apart; the image keeps BX.
+The same words as separate variables compile as the image does. A run of
+`mov bx, [mem]` the image lacks, after stores to neighbouring DGROUP words,
+says the original's were separate objects. And a `continue` resets `-Z`'s
+knowledge of what a register holds, which is how `drive_ropes` pushes SI
+where an `if` around the same code pushes AX.
+
 **A long jump to a short distance was a forward `goto` that cross-jumping
 retargeted.** `clone_part` (1.11, 0x066aa) jumps back to its first
 `failed = 1` from each failed allocation, and one of those jumps, 0x78
