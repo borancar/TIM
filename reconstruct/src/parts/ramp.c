@@ -90,6 +90,12 @@ struct point8 *g_ramp_point_table_338c[4] = {
 };
 
 #ifndef __TURBOC__
+extern struct draw_step g_kind_51_draw_steps[9];    /* gamedata.c */
+struct game_copy_protection {                       /* intro.c's */
+    int16_t   answer[3][16];
+} PACKED;
+extern struct game_copy_protection g_game_copy_protection;
+
 /*
  * OURS: **what the original reads for form -1.** Puzzles 117 and 143 have
  * a ramp whose form is 0xffff in the level file, and the original indexes
@@ -103,12 +109,6 @@ struct point8 *g_ramp_point_table_338c[4] = {
  * the image's and the eight bytes are put together from the same fields;
  * the answers are words on both, so they are read where they are.
  */
-extern struct draw_step g_kind_51_draw_steps[9];    /* gamedata.c */
-struct game_copy_protection {                       /* intro.c's */
-    int16_t   answer[3][16];
-} PACKED;
-extern struct game_copy_protection g_game_copy_protection;
-
 static const struct point8 *ramp_points_before_table(int16_t flipped)
 {
     static struct point8 at_1000[4];
