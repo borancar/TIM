@@ -1353,6 +1353,7 @@ void     mark_rope_shapes(struct part *part, uint16_t mode); /* 0x06c3d */
 void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x06b30 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x070fb */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x04b53 */
+int16_t kinds_may_overlap(int16_t a, int16_t b);      /* 0x049e5 */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x04a36 */
 int16_t  queue_part(struct part *src, struct part *part);   /* 0x0867c */
 int16_t  tension_rope(struct part *part);               /* 0x07e3b */

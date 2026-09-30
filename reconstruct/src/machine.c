@@ -22,7 +22,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
- * JUDGE: data 0x284a..0x286e
+ * JUDGE: data 0x2360..0x2388
  */
 #include <stdlib.h>
 #include "tim.h"
@@ -49,14 +49,14 @@
  * spot on the top edge.
  */
 struct machine_cursor_hotspots {
-    int16_t   hot_x[9];           /* +0x00 [0x12] */
-    int16_t   hot_y[9];           /* +0x12 [0x12] */
+    int16_t   hot_x[10];          /* +0x00 [0x14]  1.11 has ten; 1.00 nine */
+    int16_t   hot_y[10];          /* +0x14 [0x14] */
 } PACKED;
 
 struct machine_cursor_hotspots g_machine_cursor_hotspots = {
     {
         0x0000, 0x0008, 0x0004, 0x0005, 0x0006, 0x0003, 0x0007, 0x0000,
-        0x0003,
+        0x0000, 0x0003,
     },
     { 0x0000, 0x000a },
 };
@@ -247,13 +247,41 @@ int16_t angle_between_centres(register struct part *a, register struct part *b)
 }
 
 /*
+ * 0x049e5
+ *
+ * **May two kinds overlap?** New in 1.11, where 1.00 tested pokey and Mort
+ * the mouse inline in `object_overlaps_any`. The pair is put in order and
+ * four pairs answer 1: pokey and Mort, Mort and kind 52, kinds 54 and 58,
+ * and two of kind 54. The name is ours.
+ */
+int16_t kinds_may_overlap(int16_t a, int16_t b)
+{
+    int16_t t;
+
+    if (a > b) {
+        t = a;
+        a = b;
+        b = t;
+    }
+    if (a == KIND_POKEY && b == KIND_MORT_THE_MOUSE)
+        return 1;
+    if (a == KIND_MORT_THE_MOUSE && b == 52)
+        return 1;
+    if (a == 54 && b == 58)
+        return 1;
+    if (a == 54 && b == 54)
+        return 1;
+    return 0;
+}
+
+/*
  * 0x04a36
  *
  * Is an object overlapping anything else on the 0x3000 list?
  *
- * Two parts that are a kind 0x0c and a kind 0x2a in either order never count -
- * those two are meant to pass through each other - and neither does the object
- * itself or anything hidden.
+ * Two parts whose kinds `kinds_may_overlap` pairs never count - those are
+ * meant to pass through each other - and neither does the object itself or
+ * anything hidden.
  *
  * With bit 14 of +6 set on *both*, the boxes at +0x50 are enough. Otherwise the
  * boxes at +0x44 have to overlap first and then the outlines are tested
@@ -285,9 +313,7 @@ int16_t object_overlaps_any(register struct part *obj)
 
     for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
          si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
-        if (obj->kind == KIND_POKEY && si->kind == KIND_MORT_THE_MOUSE)
-            continue;
-        if (si->kind == KIND_POKEY && obj->kind == KIND_MORT_THE_MOUSE)
+        if (kinds_may_overlap(obj->kind, si->kind))
             continue;
         if (si == obj)
             continue;
@@ -605,6 +631,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
             if (link->owner == exclude) {
                 x0 -= 0xb;
                 y0 -= 0xb;
+                x1 += 0xb;
             }
             if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
                 if (link->end_a == part) {
@@ -625,6 +652,7 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
                 if (cur->owner == exclude) {
                     x0 -= 0xb;
                     y0 -= 0xb;
+                    x1 += 0xb;
                 }
                 if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
                     if (cur->end_a == part)
@@ -671,7 +699,8 @@ struct part *find_part_from(register struct part *rec)
     struct part *cur;                   /* [bp-2] */
     struct part *best;                  /* [bp-4] */
 
-    if (rec != NULL && (si = part_under_pointer(rec, rec)) != NULL)
+    if (rec != NULL && (rec->traits2 & 0x40) == 0
+        && (si = part_under_pointer(rec, rec)) != NULL)
         return si;
 
     best = NULL;
@@ -683,7 +712,7 @@ struct part *find_part_from(register struct part *rec)
         else if ((NEAR_ZERO(si)->traits & TRAIT_FROM_LEVEL) && rec != NULL)
             si = NULL;
         if (si != NULL) {
-            if (si->traits & TRAIT_FROM_LEVEL)
+            if ((si->traits & TRAIT_FROM_LEVEL) || (si->traits2 & 0x40))
                 best = si;
             else
                 return si;
@@ -793,11 +822,13 @@ void select_cursor(register int16_t which)
     int16_t hot_x;
     int16_t hot_y;                      /* [bp-2] */
 
-    if (which > 0x1a)
+    /* 1.11's range test, which no number passes: above 0x1b, below 0x23
+       and above 0x27 at once. 1.00 had `which > 0x1a`. */
+    if (which > 0x1b && which < 0x23 && which > 0x27)
         which = 0;
     if (which != g_cursor) {
         g_cursor = which;
-        if (which < 9) {
+        if (which < 10) {
             hot_x = g_machine_cursor_hotspots.hot_x[which];
             hot_y = g_machine_cursor_hotspots.hot_y[which];
         } else
@@ -866,11 +897,14 @@ int16_t cursor_for_tool(void)
         break;
     case 9:
         if (g_held_parts.dragged_part->kind == KIND_BELT)
-            r = 8;
-        else if (g_held_parts.dragged_part->kind == KIND_ROPE)
             r = 9;
+        else if (g_held_parts.dragged_part->kind == KIND_ROPE)
+            r = 0xa;
         else
             r = 0;
+        break;
+    case 11:                            /* 1.11's */
+        r = 8;
         break;
     default:
         r = 0;
@@ -908,10 +942,14 @@ uint16_t part_flip_options(register struct part *part)
 {
     uint16_t di;
 
-    if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
-        return 0;
-
     di = 0;
+    if (g_freeform != 0)
+        di |= 0x10;                     /* 1.11 */
+    if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
+        return di;
+    if (part->traits2 & 0x40)           /* 1.11 */
+        return di;
+
     if (part->state & STATE_RESIZE_HORIZONTAL)
         di |= 1;
     if (part->state & STATE_RESIZE_VERTICAL)
@@ -975,15 +1013,15 @@ uint16_t part_flip_options(register struct part *part)
  */
 uint16_t part_handle_at_pointer(register struct part *part)
 {
-    int16_t x0;
-    int16_t x_mid;                      /* [bp-2] */
-    int16_t x_end;                      /* [bp-4] */
-    int16_t y0;                         /* [bp-6] */
+    int16_t x0;                         /* [bp-2] */
+    int16_t x_mid;                      /* [bp-4] */
+    int16_t x_end;                      /* [bp-6] */
     int16_t y_mid;                      /* [bp-8] */
     int16_t y_end;                      /* [bp-0xa] */
     uint16_t idx;                       /* [bp-0xc] */
     struct part *rec;                   /* [bp-0xe] */
     struct rope *end;                   /* [bp-0x10] */
+    int16_t y0;                         /* di */
 
     g_level_settings.flip_options = part_flip_options(part);
 
@@ -992,12 +1030,20 @@ uint16_t part_handle_at_pointer(register struct part *part)
         x0 = rec->box[0].x + rec->grab.x - g_origin_x;
         /* the original takes origin_x off a y here, and below */
         y0 = rec->box[0].y + rec->grab.y - g_origin_x;
-        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+        x_end = x0 + rec->grab_size;
+        if ((part->traits2 & 0x40) == 0) {
+            if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+                && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
+                return 8;
+            if (g_pointer.pointer_x >= x0 && x0 + 10 > g_pointer.pointer_x
+                && g_pointer.pointer_y >= y0 && y0 + 10 > g_pointer.pointer_y)
+                return 7;
+        }
+        if ((g_level_settings.flip_options & 0x10)
+            && g_pointer.pointer_x >= x_end && x_end + 11 > g_pointer.pointer_x
             && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
-            return 8;
-        if (g_pointer.pointer_x >= x0 && x0 + 10 > g_pointer.pointer_x
-            && g_pointer.pointer_y >= y0 && y0 + 10 > g_pointer.pointer_y)
-            return 7;
+            return 0x0b;
+        return 0x0a;
     }
 
     if (part->kind == KIND_ROPE) {
@@ -1006,12 +1052,20 @@ uint16_t part_handle_at_pointer(register struct part *part)
         idx = end->slot_b;
         x0 = rec->box[0].x + rec->attach[idx].x - g_origin_x - 8;
         y0 = rec->box[0].y + rec->attach[idx].y - g_origin_x - 4;
-        if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+        x_end = x0 + 0x10;
+        if ((part->traits2 & 0x40) == 0) {
+            if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
+                && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
+                return 8;
+            if (g_pointer.pointer_x >= x0 && x0 + 15 > g_pointer.pointer_x
+                && g_pointer.pointer_y >= y0 && y0 + 7 > g_pointer.pointer_y)
+                return 7;
+        }
+        if ((g_level_settings.flip_options & 0x10)
+            && g_pointer.pointer_x >= x_end && x_end + 11 > g_pointer.pointer_x
             && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
-            return 8;
-        if (g_pointer.pointer_x >= x0 && x0 + 15 > g_pointer.pointer_x
-            && g_pointer.pointer_y >= y0 && y0 + 7 > g_pointer.pointer_y)
-            return 7;
+            return 0x0b;
+        return 0x0a;
     }
 
     x0 = part->box[0].x - g_origin_x;
@@ -1020,6 +1074,16 @@ uint16_t part_handle_at_pointer(register struct part *part)
     y0 = part->box[0].y - g_origin_y;
     y_mid = y0 + (part->size[0].height >> 1) - 6;
     y_end = y0 + part->size[0].height;
+
+    /* 1.11's freeform handle, past the top right corner; a part with
+       traits2 bit 0x40 has no other. */
+    if (g_level_settings.flip_options & 0x10) {
+        if (g_pointer.pointer_x > x_end && x_end + 11 > g_pointer.pointer_x
+            && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
+            return 0x0b;
+        if (part->traits2 & 0x40)
+            return 0x0a;
+    }
 
     if (x0 - 11 <= g_pointer.pointer_x && g_pointer.pointer_x < x0
         && y0 - 11 <= g_pointer.pointer_y && g_pointer.pointer_y < y0)
@@ -1099,9 +1163,10 @@ int16_t belt_ends_close(struct belt *belt)
             return 0;
         return 1;
     }
-    /* an empty branch and an `else`: the image's `je` over a `jmp` is the
-       shape Borland gives exactly that, and not the `if (!di)` it means */
+    /* The two returns are one in the image, merged by -O's cross-jumping,
+       which is what leaves its `je` over a `jmp`. */
     if ((di = belt->end_b) != NULL) {
+        return points_within_140(&si->pos[0], &di->pos[0]);
     } else {
         if ((di = find_part_from(NULL)) == NULL)
             return 0;
@@ -1304,15 +1369,13 @@ void aim_link_at_bisector(register struct part *part)
 void compute_link_endpoints(register struct belt *link)
 {
     /*
-     * **An end can be 0, and the original reads it anyway.** After the first
-     * click of a belt the far end is still empty, and `mark_needs_refile` in
-     * state 0x1000 comes here before `belt_ends_close` asks about it. The
-     * listing loads both ends at 0x04e70/0x04e73 and reads `[bx+0x56]` and
-     * `[bx+0x2a]` through them with no test, so an empty end reads DS:0 - the
-     * Borland banner - and the endpoint is those bytes until the second click
-     * fills the end. `NEAR_ZERO` gives the host the same read.
+     * **An end can be 0.** After the first click of a belt the far end is
+     * still empty, and `mark_needs_refile` in state 0x1000 comes here before
+     * `belt_ends_close` asks about it. 1.00 read through the empty end - DS:0,
+     * the Borland banner - until the second click filled it; 1.11 uses the
+     * near end in its place.
      */
-    struct part *a;
+    struct part *b;                     /* cx */
     int16_t a_dx1;                      /* [bp-2] */
     int16_t a_dy1;                      /* [bp-4] */
     int16_t a_dx2;                      /* [bp-6] */
@@ -1321,10 +1384,12 @@ void compute_link_endpoints(register struct belt *link)
     int16_t b_dy1;                      /* [bp-0xc] */
     int16_t b_dx2;                      /* [bp-0xe] */
     int16_t b_dy2;                      /* [bp-0x10] */
-    struct part *b;                     /* [bp-0x12] */
+    struct part *a;                     /* [bp-0x12] */
 
     a = NEAR_ZERO(link->end_a);
-    b = NEAR_ZERO(link->end_b);
+    b = link->end_b;
+    if (b == NULL)
+        b = a;
     link->pt[0][0].x = a->box[0].x + a->grab.x;
     link->pt[0][0].y = a->box[0].y + a->grab.y;
     link->pt[0][1].x = b->box[0].x + b->grab.x;
@@ -1689,7 +1754,8 @@ void detach_rope(struct part *part, uint16_t how)
  */
 void discard_part(struct part *part)
 {
-    if (g_freeform != 0) {
+    /* 1.11: not when the machine carries its own bin */
+    if (g_freeform != 0 && g_machine_has_bin == 0) {
         unlink_part(part);
         free_part(part);
     }
@@ -1856,7 +1922,19 @@ void insert_sorted(register struct part *rec, struct part *head)
             prio2 = g_part_kinds[kind2].priority;
             if (head == &g_held_parts.parts_bin)
                 stop = prio < prio2;
-            else if (head == &g_moving_parts)
+            else if (g_part_kinds[kind].weight == g_part_kinds[kind2].weight) {
+                /* 1.11: parts of equal weight keep anchors and ropes where
+                   they are, and otherwise go by where they were placed */
+                if (di->kind == KIND_ANCHOR || di->kind == KIND_ROPE)
+                    stop = 1;
+                if (rec->kind == KIND_ANCHOR || rec->kind == KIND_ROPE)
+                    stop = 1;
+                if ((int16_t)di->next->start_y < (int16_t)rec->start_y)
+                    stop = 1;
+                else if (di->next->start_y == rec->start_y
+                         && (int16_t)di->next->start_x < (int16_t)rec->start_x)
+                    stop = 1;
+            } else if (head == &g_moving_parts)
                 stop = g_part_kinds[kind].weight < g_part_kinds[kind2].weight;
             else
                 stop = 1;
@@ -1942,8 +2020,10 @@ void refile_part_list(register struct part *part)
         insert_sorted(part, &g_moving_parts);
     }
     if (g_held_parts.bin_list != &g_held_parts.parts_bin
-        && g_held_parts.bin_list->next == 0)
+        && g_held_parts.bin_list->next == 0) {
         g_held_parts.bin_list = g_held_parts.bin_list->prev;
+        g_redraw_e = 2;                 /* 1.11: the bin is drawn again */
+    }
 }
 
 /*
@@ -2176,7 +2256,6 @@ struct part *clone_part(register struct part *part)
            for offset 0, which is what the original's refusal already is */
         si = NULL;
 #endif
-give_up:
         failed = 1;
     } else {
         si->kind = part->kind;
@@ -2192,15 +2271,19 @@ give_up:
         si->set_size = part->set_size;
 
         if (si->kind == KIND_BELT) {
-            if ((si->belt = (calloc_far(1, sizeof(struct belt)))) == 0)
-                goto give_up;
+            if ((si->belt = (calloc_far(1, sizeof(struct belt)))) == 0) {
+                failed = 1;
+                goto out;
+            }
             si->belt->owner = si;
         }
         si->grab = part->grab;
         si->grab_size = part->grab_size;
         if (si->kind == KIND_ROPE || si->kind == KIND_PULLEY) {
-            if ((si->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0)
-                goto give_up;
+            if ((si->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0) {
+                failed = 1;
+                goto out;
+            }
             si->rope[0]->owner = si;
         }
         si->attach[0] = part->attach[0];
@@ -2210,8 +2293,10 @@ give_up:
             src_pt = part->points;
             dst_pt = (si->points
                             = (calloc_far(si->point_count, 4)));
-            if (dst_pt == NULL)
-                goto give_up;
+            if (dst_pt == NULL) {
+                failed = 1;
+                goto out;
+            }
             for (i = 0; (int16_t)si->point_count > i; i++, dst_pt++, src_pt++)
                 *dst_pt = *src_pt;
         }
@@ -2220,6 +2305,7 @@ give_up:
         si->start_state = part->start_state;
     }
 
+out:
     if (failed) {
         free_part(si);
         return NULL;
@@ -2300,7 +2386,7 @@ void place_object_for_draw(register struct part *obj)
     int16_t type;                       /* [bp-2] */
     uint16_t idx;                       /* [bp-4] */
     int16_t flags;                      /* [bp-6] */
-    const struct part_kind *rec;        /* [bp-8] */
+    const struct part_kind far *rec;        /* [bp-8] */
 
     type = obj->kind;
     rec = &g_part_kinds[type];
@@ -2349,9 +2435,9 @@ void place_object_for_draw(register struct part *obj)
  */
 void set_object_extent(register struct part *obj)
 {
-    const struct part_kind *rec;
-    struct bitmap *target;
     int16_t type;                       /* [bp-2] */
+    const struct part_kind far *rec;    /* [bp-6] */
+    struct bitmap *target;              /* cx */
 
     if (obj->kind == KIND_BELT || obj->kind == KIND_ROPE)
         obj->size[0].width = obj->size[0].height = 0;
@@ -3011,8 +3097,8 @@ void rope_in_dirty_rect(struct part *part)
 
         node = g_shapes_drawn;
         while (node) {
-            if (node->left < right && node->right > left
-                && node->top < bottom && node->bottom > top) {
+            if (node->left <= right && node->right > left
+                && node->top <= bottom && node->bottom > top) {
                 mark_needs_refile(part, 1);
                 node = 0;
                 si = endB;
@@ -3042,7 +3128,7 @@ void rope_in_dirty_rect(struct part *part)
  *
  * Two bytes of the kind's record decide whether a part takes part at this
  * level at all: +0x1c and +0x1d, both compared unsigned, with 0xff meaning
- * "always" and a value of 2 or less meaning "at every level". A part being
+ * "always" and a value of 6 or less (2 in 1.00) meaning "at every level". A part being
  * dragged or hidden - bit 5 of +0x0a, or bit 13 of +8 - is skipped, and so are
  * kinds 0x0a and 0x31, which are the rope and the one that draws nothing.
  *
@@ -3067,7 +3153,7 @@ void refile_overlapping_parts(void)
     int16_t dx1;                        /* [bp-0x10] */
     int16_t dy1;                        /* [bp-0x12] */
     struct part *walk;                  /* [bp-0x14] */
-    const struct part_kind *rec;        /* [bp-0x16] */
+    const struct part_kind far *rec;        /* [bp-0x16] */
 
     for (level_n = 6; level_n > 0; level_n--) {
         level = level_n - 1;
@@ -3075,9 +3161,9 @@ void refile_overlapping_parts(void)
         while (walk != NULL) {
             rec = &g_part_kinds[walk->kind];
             if ((rec->refile_level[0] == 0xff || rec->refile_level[0] >= level
-                 || rec->refile_level[0] <= 2)
+                 || rec->refile_level[0] <= 6)
                 && (rec->refile_level[0] == 0xff || rec->refile_level[1] >= level
-                    || rec->refile_level[1] <= 2)) {
+                    || rec->refile_level[1] <= 6)) {
                 x0 = walk->box[0].x;
                 y0 = walk->box[0].y;
                 x1 = x0 + walk->size[0].width;
@@ -3336,7 +3422,8 @@ int16_t link_end_distance(register struct rope *link, int16_t gen, int16_t end)
     struct rope *l;                     /* [bp-0xe] the same link */
 
     l = link;
-    if (end == 0) {
+    /* 1.11: a link with no second end is measured as end 0 */
+    if (end == 0 || link->end_b == NULL) {
         near_i = 0;
         ent = (link->end_a->link[link->slot_a]);
         if (link->end_b == ent) {
@@ -4113,6 +4200,7 @@ void reset_machine(void)
         } else {
             si->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
             si->state = si->start_state;
+            si->traits2 &= ~0x0790;             /* 1.11: caught, swallowed, in a bucket */
             si->pos[0].x = si->pos[1].x = si->pos[2].x = si->start_x;
             si->pos[0].y = si->pos[1].y = si->pos[2].y = si->start_y;
             si->fx = si->pos[0].x;
@@ -4136,6 +4224,7 @@ void reset_machine(void)
                 for (i = 0; i < 2; i++)
                     si->link[i] = si->link[i + 2];
             g_part_kinds[si->kind].setup(si);
+            si->start_form = si->form;          /* 1.11 */
         }
     }
 

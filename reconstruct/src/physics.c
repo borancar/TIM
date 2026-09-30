@@ -53,7 +53,7 @@ void recompute_kind_physics(void)
     int16_t v;                          /* [bp-6] */
     int16_t base;                       /* [bp-8] */
     int32_t q;                          /* [bp-0xc] */
-    struct part_kind *k;
+    struct part_kind far *k;
     register int16_t s;
 
     s = g_level_settings.air;
@@ -112,7 +112,7 @@ void recompute_kind_physics(void)
  */
 void clamp_record_pair(struct part *rec)
 {
-    const struct part_kind *k;
+    const struct part_kind far *k;
 
     k = &g_part_kinds[rec->kind];
     if (rec->vel_y > k->max_speed)
@@ -142,7 +142,7 @@ void clamp_record_pair(struct part *rec)
  */
 void apply_gravity_and_speed(register struct part *rec)
 {
-    const struct part_kind *entry;
+    const struct part_kind far *entry;
 
     entry = &g_part_kinds[rec->kind];
     rec->vel_y += entry->gravity;
@@ -294,8 +294,8 @@ void apply_contact_friction(register struct part *obj)
     int32_t dragl;                      /* [bp-0x22] */
     struct part *other;                 /* [bp-0x24] */
     struct part_contact *c;             /* [bp-0x26] */
-    const struct part_kind *rec_a;      /* [bp-0x28] */
-    const struct part_kind *rec_b;      /* [bp-0x2a] */
+    const struct part_kind far *rec_a;      /* [bp-0x28] */
+    const struct part_kind far *rec_b;      /* [bp-0x2a] */
     int16_t v;
 
     c = (struct part_contact *)&obj->contact;
@@ -416,8 +416,8 @@ void bounce_off_contact(register struct part *obj)
     int32_t y;                          /* [bp-0x10], a product first */
     struct part *what;                  /* [bp-0x12] */
     struct part_contact *c;             /* [bp-0x14] */
-    const struct part_kind *mine;       /* [bp-0x16] */
-    const struct part_kind *theirs;     /* [bp-0x18] */
+    const struct part_kind far *mine;       /* [bp-0x16] */
+    const struct part_kind far *theirs;     /* [bp-0x18] */
 
     sound_on_hard_impact(obj);
 
@@ -519,8 +519,8 @@ void bounce_pair(register struct part *obj)
     int32_t mine_v;                     /* [bp-0x2a] m*v */
     int32_t x;                          /* [bp-0x2e] */
     int32_t y;                          /* [bp-0x32] */
-    const struct part_kind *mine;       /* [bp-0x34] */
-    const struct part_kind *theirs;     /* [bp-0x36] */
+    const struct part_kind far *mine;       /* [bp-0x34] */
+    const struct part_kind far *theirs;     /* [bp-0x36] */
 
     sound_on_hard_impact(obj);
 

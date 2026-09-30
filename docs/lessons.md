@@ -815,6 +815,17 @@ And, as before: with `register` declared on both a parameter and a local,
 the local takes SI; a register parameter alone, or with a plain local
 Borland promotes itself, takes SI too - swap the `register` to swap them.
 
+**A long jump to a short distance was a forward `goto` that cross-jumping
+retargeted.** `clone_part` (1.11, 0x066aa) jumps back to its first
+`failed = 1` from each failed allocation, and one of those jumps, 0x78
+bytes back, is `jne` over a near `jmp` where a short `je` reaches. Written
+as `goto` to a label on that `failed = 1`, it compiles short: Borland knows
+the distance of a backward jump. Each site written as `{ failed = 1; goto
+out; }`, with `out:` before the final test, is a *forward* jump, emitted
+long because its distance is not yet known, and its `failed = 1; jmp out` is
+the first block's tail again - so `-O` merges them and the long jump lands
+backward.
+
 **A comma whose value is a comparison is materialised; a comma whose value
 is an operand is not.** The picker's `text_at_point` (1.11, 0x15b7d) measures
 a glyph at the top of its loop test and skips control bytes after each step.
