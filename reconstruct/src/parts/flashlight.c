@@ -67,7 +67,7 @@ void part_setup_flashlight(struct part *part)
     struct part_point *di;
     int16_t i;
 
-    if (part->flags_08 & 0x10)
+    if (part->flags_08 & PART_MIRRORED)
         si = g_flashlight_points_3308;
     else
         si = g_flashlight_points_32fc;
@@ -102,7 +102,7 @@ void part_step_flashlight(struct part *part)
  */
 void part_flip_flashlight(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
 
     part_setup_flashlight(part);
 

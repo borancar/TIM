@@ -64,7 +64,7 @@ void step_machine(void)
 
     for (di = g_parts_queue; di != 0; di = di->next) {
         si = (di->part);
-        if (!(si->flags_08 & 0x40))
+        if (!(si->flags_08 & PART_STEPPED))
             part_step(si);
     }
 
@@ -91,7 +91,7 @@ void step_machine(void)
 
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
-        if (!(si->flags_08 & 0x2000))
+        if (!(si->flags_08 & PART_GONE))
             apply_gravity_and_speed(si);
         si->weight = g_part_kinds[si->kind].weight;
         si->flags_0a &= 0xffef;
@@ -125,7 +125,7 @@ void step_machine(void)
 
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
-        if (!(si->flags_06 & 8) && !(si->flags_08 & 0x2000)) {
+        if (!(si->flags_06 & 8) && !(si->flags_08 & PART_GONE)) {
             if (si->flags_06 & 2) {
                 if (part_hit(si->contact->kind, si)) {
                     if (si->flags_06 & 1)
@@ -142,7 +142,7 @@ void step_machine(void)
 
     for (si = pick_by_flag(0x3000); si != NULL;
          si = pick_for_record(si, 0x1000)) {
-        if (!(si->flags_08 & 0x2000)) {
+        if (!(si->flags_08 & PART_GONE)) {
             if (si->pos[0].x != si->pos[2].x || si->pos[0].y != si->pos[2].y
                 || si->form != si->form_prev2)
                 part_moved(si);
@@ -189,7 +189,7 @@ void step_moving_object(register struct part *obj)
     struct part_contact *c = (struct part_contact *)&obj->contact;
 #endif
 
-    if (!(obj->flags_08 & 0x2000)) {
+    if (!(obj->flags_08 & PART_GONE)) {
         part_step(obj);
         integrate_object(obj);
         obj->flags_06 &= 0xfff0;

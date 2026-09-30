@@ -31,7 +31,7 @@ void part_setup_hook(struct part *part)
 {
     part->attach[0].x = 7;
 
-    if (part->flags_08 & 0x20)
+    if (part->flags_08 & PART_FLIPPED)
         part->attach[0].y = 14;
     else
         part->attach[0].y = 1;
@@ -45,7 +45,7 @@ void part_setup_hook(struct part *part)
  */
 void part_flip_hook(struct part *part)
 {
-    part->flags_08 ^= 0x20;
+    part->flags_08 ^= PART_FLIPPED;
 
     part_setup_hook(part);
 

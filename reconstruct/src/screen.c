@@ -659,7 +659,7 @@ void scroll_play_area(void)
     if (moved != 0) {
         si = pick_by_flag(0x3000);
         while (si != NULL) {
-            if ((si->flags_08 & 0x2000) == 0) {
+            if ((si->flags_08 & PART_GONE) == 0) {
                 mark_needs_refile(si, 2);
                 mark_part_shapes(si, 3);
             }

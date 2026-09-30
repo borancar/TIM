@@ -109,9 +109,9 @@ void part_step_mouse_cage(struct part *part)
  */
 void part_flip_mouse_cage(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
 
-    if (part->flags_08 & 0x10)
+    if (part->flags_08 & PART_MIRRORED)
         part->grab.x = 3;
     else
         part->grab.x = 30;
@@ -133,7 +133,7 @@ void trigger_mouse_cage(struct part *part)
     if (part->direction == 0)
         play_sound(0x0d);
 
-    if (part->flags_08 & 0x10)
+    if (part->flags_08 & PART_MIRRORED)
         part->direction = -1;
     else
         part->direction = 1;

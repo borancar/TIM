@@ -133,7 +133,7 @@ void part_setup_dynamite_plunger(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & 0x10) {
+    if (part->flags_08 & PART_MIRRORED) {
         src = g_dynamite_plunger_point_table_3404[part->form];
         part->attach[0].x = (uint8_t)g_dynamite_plunger_points_3416[part->form].x;
         part->attach[0].y = (uint8_t)g_dynamite_plunger_points_3416[part->form].y;
@@ -182,7 +182,7 @@ void part_step_dynamite_plunger(struct part *part)
             si->pos[0].x = part->pos[0].x - 0x10;
             si->pos[0].y = part->pos[0].y;
 
-            if (part->flags_08 & 0x10)
+            if (part->flags_08 & PART_MIRRORED)
                 si->pos[0].x += 0x60;
 
             si->fx = si->pos[0].x;
@@ -207,7 +207,7 @@ done:
  */
 void part_flip_dynamite_plunger(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
     part_setup_dynamite_plunger(part);
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);

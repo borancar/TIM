@@ -193,7 +193,7 @@ void part_step_gear(struct part *part)
     struct part *v04;                   /* [bp-4] */
 
     if (part->direction != 0) {
-        part->flags_08 |= 0x40;
+        part->flags_08 |= PART_STEPPED;
 
         di = 0;
         for (v02 = 0; v02 < 4; v02++)
@@ -239,8 +239,8 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
         to->direction = (how == 1) ? from->direction : 0 - from->direction;
     }
 
-    if (to->kind == KIND_GEAR && !(to->flags_08 & 0x40)) {
-        to->flags_08 |= 0x40;
+    if (to->kind == KIND_GEAR && !(to->flags_08 & PART_STEPPED)) {
+        to->flags_08 |= PART_STEPPED;
 
         for (v02 = 0; v02 < 5; v02++) {
             if (v02 == 4) {

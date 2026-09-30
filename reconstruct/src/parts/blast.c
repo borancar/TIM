@@ -45,7 +45,7 @@ void part_step_blast(struct part *part)
 
     if (part->form == 5) {
         mark_part_shapes(part, 3);
-        part->flags_08 |= 0x2000;
+        part->flags_08 |= PART_GONE;
     } else {
         part->form++;
         place_object_for_draw(part);
@@ -195,7 +195,7 @@ void split_part_at(struct part *part, struct part *blast)
             }
         } else if (part->pos[0].x < v06
                    && part->pos[0].x + part->size[0].width > v04) {
-            part->flags_08 |= 0x2000;
+            part->flags_08 |= PART_GONE;
         }
     } else {
         v0a = ((v08 - 0x20) & 0xfff0) + 8;
@@ -229,7 +229,7 @@ void split_part_at(struct part *part, struct part *blast)
             }
         } else if (part->pos[0].y < v0c
                    && part->pos[0].y + part->size[0].height > v0a) {
-            part->flags_08 |= 0x2000;
+            part->flags_08 |= PART_GONE;
         }
     }
 

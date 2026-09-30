@@ -92,7 +92,7 @@ void part_step_mort_the_mouse(struct part *part)
         else
             step = 3;
 
-        if (part->flags_08 & 0x10)
+        if (part->flags_08 & PART_MIRRORED)
             part->pos[0].x += step;
         else
             part->pos[0].x -= step;
@@ -114,7 +114,7 @@ void part_step_mort_the_mouse(struct part *part)
                 part->flags_08 &= 0xffef;
                 part->pos[0].x -= 3;
             } else {
-                part->flags_08 |= 0x10;
+                part->flags_08 |= PART_MIRRORED;
                 part->pos[0].x += 3;
             }
         }
@@ -132,7 +132,7 @@ void part_step_mort_the_mouse(struct part *part)
  */
 void part_flip_mort_the_mouse(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);

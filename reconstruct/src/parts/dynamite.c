@@ -63,7 +63,7 @@ void part_setup_dynamite(struct part *part)
     int16_t i;
     struct part_point *dst;
 
-    if (part->flags_08 & 0x10) {
+    if (part->flags_08 & PART_MIRRORED) {
         part->hold.x = 1;
         src = g_dynamite_points_329a;
     } else {
@@ -110,7 +110,7 @@ void part_step_dynamite(struct part *part)
  */
 void part_flip_dynamite(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
 
     part_setup_dynamite(part);
 
@@ -156,5 +156,5 @@ void burst_dynamite(struct part *part)
 
 done:
     mark_part_shapes(part, 3);
-    part->flags_08 |= 0x2000;
+    part->flags_08 |= PART_GONE;
 }

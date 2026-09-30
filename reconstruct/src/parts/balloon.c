@@ -94,11 +94,11 @@ void part_step_balloon(struct part *part)
     struct belt *belt;                  /* [bp-6] */
 
     if (part->direction != 0) {
-        part->flags_08 |= 0x40;
+        part->flags_08 |= PART_STEPPED;
 
         if (part->form == 6) {
             mark_part_shapes(part, 3);
-            part->flags_08 |= 0x2000;
+            part->flags_08 |= PART_GONE;
         } else {
             if (part->direction == 1
                 && (belt = part->belt[0]) != NULL

@@ -66,7 +66,7 @@ void part_step_windmill(struct part *part)
 
     if ((di = rope_other_end(part)) != NULL && !(di->flags_08 & 0x800)) {
         if (part->direction != 0) {
-            if (part->flags_08 & 0x10)
+            if (part->flags_08 & PART_MIRRORED)
                 di->direction = -1;
             else
                 di->direction = 1;
@@ -92,7 +92,7 @@ void part_step_windmill(struct part *part)
  */
 void part_flip_windmill(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
     mark_joined_shapes(part, 3);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);

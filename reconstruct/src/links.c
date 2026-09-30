@@ -81,7 +81,7 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
          si = pick_for_record(si, flags & 0x1000)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & 0x2000)
+        if (si->flags_08 & PART_GONE)
             continue;
 
         bx0 = si->pos[0].x;
@@ -159,7 +159,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
          si = pick_for_record(si, flags & 0x1000)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & 0x2000)
+        if (si->flags_08 & PART_GONE)
             continue;
 
         l = si->pos[0].x;
@@ -278,7 +278,7 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
          si = pick_for_record(si, 0x1000)) {
         if (obj == si)
             continue;
-        if (si->flags_08 & 0x2000)
+        if (si->flags_08 & PART_GONE)
             continue;
 
         if (si->flags_0a & 4) {
@@ -334,7 +334,7 @@ void collect_carried(register struct part *obj)
              si = si->next) {
             if (obj == si)
                 continue;
-            if (si->flags_08 & 0x2000)
+            if (si->flags_08 & PART_GONE)
                 continue;
             if (si->kind == KIND_BIRD_CAGE)
                 continue;

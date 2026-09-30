@@ -234,7 +234,7 @@ void goal_test_pop_balloons(void)
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
             && (si->flags_06 & 0x8000) != 0
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         si = si->next;
     }
@@ -422,7 +422,7 @@ void goal_test_puzzle_25(void)
         if (si->kind == KIND_BALLOON
             && (int16_t)si->start_x > 0x12c
             && (si->flags_06 & 0x8000) != 0
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         si = si->next;
     }
@@ -1128,10 +1128,10 @@ void goal_test_puzzle_17(void)
             && si->form != 2)
             ok = 0;
         if (si->kind == KIND_BLAST
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         if (si->kind == KIND_DYNAMITE
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         si = pick_for_record(si, 0x1000);
     }
@@ -1200,10 +1200,10 @@ void goal_test_puzzles_42_75(void)
 
     while (si != NULL) {
         if (si->kind == KIND_DYNAMITE
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         if (si->kind == KIND_BLAST
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         si = pick_for_record(si, 0x1000);
     }
@@ -1376,7 +1376,7 @@ void goal_test_puzzle_36(void)
             && si->form != 0)
             g_goal_condition[0] = 1;
         if (si->kind == KIND_BULLET
-            && (si->flags_08 & 0x2000) == 0)
+            && (si->flags_08 & PART_GONE) == 0)
             ok = 0;
         si = pick_for_record(si, 0x1000);
     }

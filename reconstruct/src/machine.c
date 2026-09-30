@@ -291,7 +291,7 @@ int16_t object_overlaps_any(register struct part *obj)
             continue;
         if (si == obj)
             continue;
-        if (si->flags_08 & 0x2000)
+        if (si->flags_08 & PART_GONE)
             continue;
 
         sx0 = si->pos[0].x;
@@ -2883,7 +2883,7 @@ void mark_parts_in_dirty_rects(void)
 
     for (di = pick_by_flag(0x3000); di != NULL;
          di = pick_for_record(di, 0x1000)) {
-        if (!di->redraw_count && !(di->flags_08 & 0x2000)) {
+        if (!di->redraw_count && !(di->flags_08 & PART_GONE)) {
             if (di->kind == KIND_ROPE) {
                 belt_in_dirty_rect(di);
                 continue;
@@ -3084,7 +3084,7 @@ void refile_overlapping_parts(void)
 
                 for (di = pick_by_flag(0x3000); di != NULL;
                      di = pick_for_record(di, 0x1000)) {
-                    if ((di->flags_0a & 0x20) || (di->flags_08 & 0x2000))
+                    if ((di->flags_0a & 0x20) || (di->flags_08 & PART_GONE))
                         continue;
                     if (di->kind == KIND_ROPE || di->kind == KIND_ANCHOR)
                         continue;

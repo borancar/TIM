@@ -248,7 +248,7 @@ void part_step_seesaw(struct part *part)
     int32_t fy;                         /* [bp-0xa] */
 
     if (part->direction != 0) {
-        part->flags_08 |= 0x40;
+        part->flags_08 |= PART_STEPPED;
 
         if (part->flags_08 & 0x400)
             part->form += part->direction;
@@ -304,7 +304,7 @@ void part_step_seesaw(struct part *part)
                     resolve_collisions(di);
 
                     di->pos[1].y = di->pos[0].y + 0x10;
-                    part->flags_08 |= 0x2000;
+                    part->flags_08 |= PART_GONE;
                     resolve_collisions(di);
                     part->flags_08 &= 0xdfff;
 
@@ -317,7 +317,7 @@ void part_step_seesaw(struct part *part)
                     resolve_collisions(di);
 
                     di->pos[1].y = di->pos[0].y - 0x10;
-                    part->flags_08 |= 0x2000;
+                    part->flags_08 |= PART_GONE;
                     resolve_collisions(di);
                     part->flags_08 &= 0xdfff;
 

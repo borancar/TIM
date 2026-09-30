@@ -69,7 +69,7 @@ void part_step_magnifying_glass(struct part *part)
     while (si != NULL) {
         if ((si->kind == KIND_LIGHT || si->kind == KIND_FLASHLIGHT
              || si->kind == KIND_CANDLE) && si->form != 0) {
-            if (part->flags_08 & 0x10) {
+            if (part->flags_08 & PART_MIRRORED) {
                 if (si->link_dx > 0)
                     v02 = 1;
             } else {
@@ -87,7 +87,7 @@ void part_step_magnifying_glass(struct part *part)
         } else if ((si->flags_0a & 4) && si->form == 0 && v04 == 0) {
             v08 = 0;
 
-            if (part->flags_08 & 0x10) {
+            if (part->flags_08 & PART_MIRRORED) {
                 if (si->link_dx < 0)
                     v08 = 1;
             } else {
@@ -131,7 +131,7 @@ void part_step_magnifying_glass(struct part *part)
  */
 void part_flip_magnifying_glass(struct part *part)
 {
-    part->flags_08 ^= 0x10;
+    part->flags_08 ^= PART_MIRRORED;
     place_object_for_draw(part);
     mark_part_shapes(part, 3);
     mark_needs_refile(part, 2);
@@ -155,7 +155,7 @@ void grab_distance(struct part *a, struct part *b, int16_t *out_x, int16_t *out_
     int16_t x;                          /* cx */
 
     x = a->pos[0].x;
-    if (!(a->flags_08 & 0x10))
+    if (!(a->flags_08 & PART_MIRRORED))
         x += a->size[0].width;
     y = a->pos[0].y + 8;
     hx = b->pos[0].x + b->hold.x;

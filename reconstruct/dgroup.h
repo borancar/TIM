@@ -967,6 +967,26 @@ struct extent16 {
 } PACKED;
 
 /*
+ * **Four bits of a part's `flags_08`**, named where the code says what they
+ * are. The rest of the word, and all of `flags_06` and `flags_0a` - which the
+ * kind's template seeds - keep their numbers until they are read as well.
+ *
+ * `PART_MIRRORED` is what every kind's flip hook toggles, the X key's flip,
+ * and what a part that faces a way reads to know which; `PART_FLIPPED` is
+ * the hook's other axis, the Y key's. `PART_STEPPED` says the part's step
+ * has run this frame: `step_machine` clears it on every placed part (with
+ * 0x200 and 0x400, the 0xf9bf there) and skips a queued part that has it.
+ * `PART_GONE` is set, with the part's shapes marked for erasing, when it is
+ * used up - a spent bullet, a finished blast, a burst balloon, fired
+ * dynamite, a mouse Pokey has caught - and every overlap search passes over
+ * it. Names are ours.
+ */
+#define PART_MIRRORED 0x0010
+#define PART_FLIPPED  0x0020
+#define PART_STEPPED  0x0040
+#define PART_GONE     0x2000
+
+/*
  * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
  *
@@ -1001,7 +1021,7 @@ struct part {
     struct part *prev; /* +0x02 */
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
-    uint16_t  flags_08;        /* +0x08 */
+    uint16_t  flags_08;        /* +0x08  the part's state: see PART_MIRRORED below */
     uint16_t  flags_0a;        /* +0x0a */
     /* **The form, and the two generations behind it** - the same
        three-generation shape as `pos`, `box` and `size` below, aged by

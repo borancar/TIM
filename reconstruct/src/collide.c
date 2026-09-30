@@ -391,7 +391,7 @@ int16_t resolve_collisions(struct part *obj)
         && !chain_contains(g_collision.list, g_collision.contact)) {
         g_collision.other = g_collision.contact;
         if (g_collision.other->points != 0
-            && !(g_collision.other->flags_08 & 0x2000)) {
+            && !(g_collision.other->flags_08 & PART_GONE)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
@@ -413,7 +413,7 @@ int16_t resolve_collisions(struct part *obj)
             && g_collision.list != g_collision.other
             && g_collision.contact != g_collision.other
             && g_collision.other->points != 0
-            && !(g_collision.other->flags_08 & 0x2000)
+            && !(g_collision.other->flags_08 & PART_GONE)
             && !(g_collision.list->kind == 0xc
                  && g_collision.other->kind == 0x2a)) {
             compute_other_bounds();
