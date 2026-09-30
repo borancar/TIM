@@ -17,7 +17,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x2630..0x283a
+ * JUDGE: data 0x20e0..0x22e8
  *
  * Built with Borland C++ and without `-d`: the pool keeps both copies of
  * "*.TIM". Thirteen of the port's routines here were once not the
@@ -1895,7 +1895,7 @@ void region_cursor_playfield(struct region *region)
 void game_screen(void)
 {
     int16_t  repaint_all;               /* si */
-    int16_t  held;                      /* di: passes since the button went down */
+    int16_t  i;                         /* di: clearing the description */
     int16_t  air;                       /* [bp-2] */
     int16_t  gravity;                   /* [bp-4] */
     int16_t  reload;                    /* [bp-6]: the level wants loading again */
@@ -1903,23 +1903,40 @@ void game_screen(void)
     int16_t  repaint_e;                 /* [bp-0xa] */
     int16_t  repaint_f;                 /* [bp-0xc] */
     int16_t  repaint_g;                 /* [bp-0xe] */
-    int16_t  file_err;                  /* [bp-0x10]: what the last save answered */
-    int32_t  t;                         /* [bp-0x14] */
+    int16_t  held;                      /* [bp-0x10]: passes since the button went down */
+    int16_t  file_err;                  /* [bp-0x12]: what the last save answered */
+    int32_t  t;                         /* [bp-0x16] */
 
     reset_machine();
     paint_game_screen(1);
     set_palette_pointer(g_pal_tim);
-    repaint_all = repaint_e = repaint_f = repaint_g = reload = done = held = 0;
+    repaint_all = repaint_e = repaint_f = repaint_g = g_desc_redraw = g_desc_caret_on
+        = reload = done = held = g_desc_blink = 0;
     show_cursor_again();
 
     while (done == 0) {
         update_button_state();
 
-        g_last_key = bios_read_key() >> 8;
-        if (g_last_key == SC_TAB)
+        g_last_key = translate_key(bios_read_key());
+        if ((g_last_key & 0x7f) == '\t' && g_desc_caret_on == 0)
             tab_move_pointer();
 
+        if (g_desc_caret_on != 0)
+            g_round_state = 2;
+
         regions_handle_pointer(g_regions_panel);
+
+        /* A click while the description is being edited places the caret,
+           in the description, and goes to no other region. */
+        if (g_desc_caret_on != 0) {
+            if (g_pointer.key_click != 0)
+                g_round_state = 2;
+            if (g_round_state == 0x10)
+                g_desc_caret = text_at_point((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44,
+                                             g_pointer.pointer_x, g_pointer.pointer_y);
+            else if (g_round_state == 2)
+                g_round_state = 0x10;
+        }
 
         if (key_is_down(SC_ALT) && key_is_down(SC_V)) {
             show_message_box(g_messages.version_number, g_messages.this_is_version);
@@ -1927,9 +1944,13 @@ void game_screen(void)
             g_round_state = 2;
         }
 
-        /* Signed: the table at 0x114af sorts 0x8000 first. */
-        switch ((int16_t)g_round_state) {
-        case (int16_t)0x8000:
+        if (g_desc_caret_on != 0 && g_round_state != 0x10) {
+            g_desc_redraw = 2;
+            g_desc_caret_on = 0;
+        }
+
+        switch (g_round_state) {
+        case 0x8000:
             paint_panel_a(1);
             present_back_page();
             g_round_state = 0x1000;
@@ -1983,6 +2004,22 @@ void game_screen(void)
             present_back_page();
             if (ask_yes_no(g_messages.restart_level, g_messages.restart_body)) {
                 remove_all_parts();
+                /* 1.11: in freeform a cleared bin is filled again, and the
+                   description is emptied. */
+                if (g_freeform != 0) {
+                    if (g_machine_has_bin != 0) {
+                        round_teardown();
+                        g_placed_parts.next = g_placed_parts.prev
+                            = g_moving_parts.next = g_moving_parts.prev
+                            = g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
+                        build_part_list();
+                        g_held_parts.bin_list = &g_held_parts.parts_bin;
+                        reset_machine();
+                        g_machine_has_bin = 0;
+                    }
+                    for (i = 0; i < 0x190; i++)
+                        g_level_hint[i] = 0;
+                }
                 g_round_state = 0x1000;
                 done = 1;
             } else {
@@ -1997,10 +2034,17 @@ void game_screen(void)
                 present_back_page();
                 if (ask_yes_no(g_messages.freeform_mode, g_messages.freeform_body)) {
                     round_teardown();
-                    load_animation(WRITABLE_LITERAL("ff.lev"));
+                    g_placed_parts.next = g_placed_parts.prev
+                        = g_moving_parts.next = g_moving_parts.prev
+                        = g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
+                    build_part_list();
+                    g_held_parts.bin_list = &g_held_parts.parts_bin;
                     reset_machine();
                     g_freeform = 1;
+                    g_machine_has_bin = 0;
                     g_odometer_total = 0;
+                    for (i = 0; i < 0x190; i++)
+                        g_level_hint[i] = 0;
                     g_level_settings.bonus_1 = g_level_settings.bonus_2 = 0;
                     start_counters();
                 }
@@ -2134,6 +2178,31 @@ void game_screen(void)
                 }
             }
             break;
+
+        case 0x0010:                    /* 1.11: editing the description */
+            if (g_desc_caret_on == 0) {
+                g_last_key = 0;
+                g_desc_redraw = 2;
+                g_desc_caret_on = 1;
+                g_desc_caret = text_at_point((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44,
+                                             g_pointer.pointer_x, g_pointer.pointer_y);
+            }
+            description_key();
+            break;
+
+        case 0x0008:                    /* 1.11: the bin adjuster */
+            if (g_freeform != 0) {
+                g_round_state = 4;
+                adjust_bin_screen();
+                if (g_round_state == 0x1000)
+                    done = 1;
+                else {
+                    repaint_all = 1;
+                    break;
+                }
+            } else
+                g_round_state = 2;
+            break;
         }
 
         if (repaint_all != 0) {
@@ -2152,10 +2221,42 @@ void game_screen(void)
                 paint_panel_g();
                 repaint_g--;
             }
+            if (g_desc_redraw != 0) {
+                draw_description();
+                g_desc_redraw--;
+            }
         }
 
         present_frame(1);
+        g_desc_blink++;
     }
+}
+
+/*
+ * 0x126ab
+ *
+ * **A key for the description being edited**, new in 1.11. Enter ends the
+ * editing; any other key goes to `edit_text_key`, which moves the caret or
+ * edits `g_level_hint` at it, at most 0x188 characters. The description is
+ * redrawn after either, and on the two frames of every eight where the
+ * caret's blink changes. The name is ours.
+ */
+void description_key(void)
+{
+    register int16_t phase;
+
+    if ((g_last_key & 0x7f) == '\r') {
+        g_round_state = 2;
+        g_desc_redraw = 2;
+        g_desc_caret_on = 0;
+    } else if (g_last_key != 0) {
+        g_desc_caret = edit_text_key(g_last_key, (char *)g_level_hint, g_desc_caret, 0x188);
+        g_desc_redraw = 2;
+    }
+
+    phase = g_desc_blink & 7;
+    if (phase == 0 || phase == 1)
+        g_desc_redraw = 2;
 }
 
 /*
@@ -2525,13 +2626,50 @@ void paint_panel_frame(void)
 
     draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
-
-    if (g_freeform != 0)
-        draw_wrapped_text((char *)g_messages.enter_description, 0x114, 0x104, 0xf8, 0x44, 1);
-    else
-        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44, 1);
-
+    draw_description();
     paint_panel_frame_rest();
+}
+
+/*
+ * 0x12b4f
+ *
+ * **The level description, drawn into its panel**, new in 1.11 where the
+ * player can write one in freeform. While it is being edited (state 0x10)
+ * the panel is filled white instead of painted, and on the frames where bit
+ * 3 of the blink count is set the caret is a vertical line at the character
+ * `g_desc_caret` points to. An empty description outside editing shows the
+ * prompt instead. The name is ours.
+ */
+void draw_description(void)
+{
+    int16_t x;                          /* [bp-2] */
+    int16_t y;                          /* [bp-4] */
+
+    set_clip_play_area();
+    g_vmds.page_dst = g_vmds.page_back;
+
+    if (g_round_state == 0x10) {
+        g_vmds.fill_enabled = 1;
+        g_vmds.fill_colour = g_vmds.second_colour = 0x0f;
+        cursor_redraw_off_thunk();
+        fill_rect(0x110, 0xff, 0x100, 0x4c);
+    } else
+        draw_panel(0x110, 0xff, 0x100, 0x4c);
+
+    cursor_redraw_off_thunk();
+
+    if (strlen((char *)g_level_hint) == 0 && g_round_state != 0x10)
+        draw_wrapped_text((char *)g_messages.enter_description, 0x114, 0x104, 0xf8, 0x44, 0);
+    else
+        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44, 0);
+
+    if ((g_desc_blink & 8) != 0 && g_desc_caret_on != 0) {
+        text_caret_position((char *)g_level_hint, g_desc_caret, 0x114, 0x104, 0xf8, 0x44, &x, &y);
+        g_vmds.second_colour = 0;
+        clip_and_draw_line(x, y - 1, x, y + 0xa);
+    }
+
+    restore_cursor_following();
 }
 
 /*

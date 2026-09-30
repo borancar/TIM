@@ -1398,6 +1398,15 @@ void draw_machine_layer_d(void);                    /* 0x17ad9 */
 void draw_machine_layer_e(void);                    /* 0x17b43 */
 void draw_machine_layer_f(void);                    /* 0x17e5b */
 void paint_panel_frame(void);                       /* 0x12a65 */
+void draw_description(void);                        /* 0x12b4f */
+void adjust_bin_screen(void);                       /* 0x1304b */
+void draw_adjust_icons(int16_t top);                /* 0x132d0 */
+void draw_adjust_screen(void);                      /* 0x1336e */
+void draw_adjust_buttons(void);                     /* 0x133b4 */
+void draw_adjust_done(uint16_t frame);              /* 0x133f7 */
+void draw_adjust_more(uint16_t frame);              /* 0x1342d */
+void draw_adjust_clear(uint16_t frame);             /* 0x13463 */
+int16_t check_room_in_bin(void);                    /* 0x13499 */
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled);               /* 0x16ca7 */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x17270 */
@@ -1437,6 +1446,7 @@ void present_back_page(void);                       /* 0x08ce5 */
 void game_screen(void);                             /* 0x11f9e */
 void region_cursor_freeform_24(struct region *region); /* 0x127a1 */
 void region_cursor_freeform_25(struct region *region); /* 0x127c8 */
+void description_key(void);                                /* 0x126ab */
 void tab_move_pointer(void);                               /* 0x127e5 */
 void show_message_box(const char *title, char *body);
 uint16_t ask_yes_no(const char *title, char *body); /* 0x17533 */

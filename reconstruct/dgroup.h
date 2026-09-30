@@ -512,16 +512,23 @@ extern char g_level_hint[0x190];
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
  */
 struct pointer {
-    int16_t   button_accum_a;     /* +0x00  the two the timer handler accumulates into */
-    int16_t   button_accum_b;     /* +0x02 */
-    int16_t   cursor_y;           /* +0x04  the live pointer `timer_callback` moves and clamps to the
+    /* **New in 1.11: the left button pressed from the keyboard.** The timer
+       handler stores whether Enter, Space or a keypad key is down while the
+       left button's accumulator is still clear, and `wait_and_latch_frame`
+       latches it into `key_click` with the two buttons. */
+    int16_t   key_click_accum;    /* +0x00 */
+    int16_t   button_accum_a;     /* +0x02  the two the timer handler accumulates into */
+    int16_t   button_accum_b;     /* +0x04 */
+    int16_t   cursor_y;           /* +0x06  the live pointer `timer_callback` moves and clamps to the
                                      screen, y first as the original files it: this is what the
                                      cursor is drawn at, and `wait_and_latch_frame` copies the pair
                                      into `pointer_x`/`pointer_y` below for the frame's regions */
-    int16_t   cursor_x;           /* +0x06 */
-    struct bitmap *cursor_bitmap; /* +0x08  the mouse cursor's bitmap, 0 for none - set_cursor */
-    uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
-    uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
+    int16_t   cursor_x;           /* +0x08 */
+    struct bitmap *cursor_bitmap; /* +0x0a  the mouse cursor's bitmap, 0 for none - set_cursor */
+    /* The latched `key_click_accum`: this frame's left click came from a key. */
+    uint16_t  key_click;          /* +0x0c */
+    uint16_t  button_right;       /* +0x0e  2 is a click; the intro leaves on either button */
+    uint16_t  button_left;        /* +0x10  2 is a click - the word every region reads */
     /* **Where the pointer was when a button last changed**, y first like the
        pair above. `button_state` samples them on every edge it sees - from the
        mouse driver through `read_mouse_pointer` when `read_driver` is set, and
@@ -529,14 +536,14 @@ struct pointer {
        them**: the two bytes of each offset occur exactly twice in the image
        and both are that store, so the writer is all there is to name them
        from. */
-    int16_t   button_at_y;     /* +0x0e */
-    int16_t   button_at_x;     /* +0x10 */
+    int16_t   button_at_y;     /* +0x12 */
+    int16_t   button_at_x;     /* +0x14 */
     /* **A pointer move waiting to be made**, x and y, which `redraw_cursor_all`
        performs and clears. Nothing in the image ever stores a non-zero pair
        here - three references each, all in that one routine - so the request
        is never made; the routine that would make it is transcribed whole. */
-    uint16_t  pending_move_y;  /* +0x12 */
-    uint16_t  pending_move_x;  /* +0x14 */
+    uint16_t  pending_move_y;  /* +0x16 */
+    uint16_t  pending_move_x;  /* +0x18 */
     /* **The cursor bitmap's hot spot**, subtracted from the pointer to place
        the bitmap - `draw_cursor` does `cursor_x - hot_x, cursor_y - hot_y` -
        and the keyboard's pointer steps clamp against the same pair. Which way
@@ -544,17 +551,17 @@ struct pointer {
        16 by 20 and the pair is 8 and 10. `set_cursor` takes them in this
        order and zeroes both when the cursor is turned off, so an old offset
        cannot outlive its bitmap. */
-    int16_t   hot_y;           /* +0x16 */
-    int16_t   hot_x;           /* +0x18 */
-    int16_t   pointer_y;          /* +0x1a  regions_handle_pointer tests a record's +8 and +0x0c */
-    int16_t   pointer_x;          /* +0x1c  against these, and its +6 and +0x0a against x */
+    int16_t   hot_y;           /* +0x1a */
+    int16_t   hot_x;           /* +0x1c */
+    int16_t   pointer_y;          /* +0x1e  regions_handle_pointer tests a record's +8 and +0x0c */
+    int16_t   pointer_x;          /* +0x20  against these, and its +6 and +0x0a against x */
     /* **How far the palette should be faded** towards the colour, the weight
        `fade_palette_run` takes; `g_machine_palette_fade.fade_mark` is how far it
        has been, and `redraw_cursor_all` runs a fade whenever the two differ.
        Nothing in the image writes it - four references, all reads - so it
        holds what the image put there and the fade the two would drive never
        runs. */
-    uint16_t  fade_weight;     /* +0x1e */
+    uint16_t  fade_weight;     /* +0x22 */
 } PACKED;
 
 extern struct pointer g_pointer;
@@ -906,6 +913,15 @@ extern uint16_t g_redraw_guard;
  * Declared last address first: Borland C++ lays `_BSS` out last mention
  * first, and these externs are the first mention.
  */
+/* binadjust.c's, DGROUP 0x507c..0x5086, mentioned here in their order from
+   the top: the adjuster's page, and the level description's editing state -
+   its blink count, its redraw count, whether it is being edited, the caret. */
+extern int16_t g_bin_adjust_top;
+extern int16_t g_bin_adjust_kinds[60];
+extern uint16_t g_desc_blink;
+extern int16_t g_desc_redraw;
+extern int16_t g_desc_caret_on;
+extern char *g_desc_caret;
 extern uint16_t g_goal_condition[10];
 extern struct part *g_rope_far_end;
 
