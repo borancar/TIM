@@ -141,7 +141,7 @@ void game_startup(void)
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
     g_pal_tim = load_palette(WRITABLE_LITERAL("tim.pal"));
-    g_pal_sierra = load_palette(WRITABLE_LITERAL("sierra.pal"));
+    g_pal_dynamix = load_palette(WRITABLE_LITERAL("sierra.pal"));
     set_palette_pointer(g_pal_black = load_palette(WRITABLE_LITERAL("black.pal")));
 
     set_font(g_memo_font = load_font(WRITABLE_LITERAL("memofnt8.fnt")));
@@ -269,7 +269,7 @@ void game_teardown(int16_t really)
     close_font_slot(g_memo_font);
 
     free_far_block(g_pal_black);
-    free_far_block(g_pal_sierra);
+    free_far_block(g_pal_dynamix);
     free_far_block(g_pal_tim);
 
     stop_sequences(-2);

@@ -4,19 +4,21 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **The intro and the copy protection**: the Sierra screen, the title and
+ * **The intro and the copy protection**: the Dynamix screen, the title and
  * credits animations, the question from the manual, and the loop that runs
  * a game.
  *
- * The second module of the original's **code segment 0dff**, image
- * 0x0e4be..0x0ef19. Its data is DGROUP 0x2370..0x258c: the credit roll and
- * the copy protection's answers, and then its literal pool, the intro's file
- * names. Functions are in address order and each carries the image offset it
- * was read from.
+ * In 1.11, image 0x0f340..0x0fe40, in the code segment that starts at
+ * 0x0ecc0 (1.00: the second module of segment 0dff, 0x0e4be..0x0ef19). Its
+ * data is DGROUP 0x1d3c..0x1fb9: the credit roll (unchanged from 1.00), the
+ * copy protection's grid (new) and answers, and then its literal pool, the
+ * intro's file names - with "corners.bmp" twice, so 1.11's build did not
+ * merge duplicate strings (`-d`), where 1.00's did. Functions are in address
+ * order and each carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x2370..0x258c
+ * JUDGE: data 0x1d3c..0x1fb9
  */
 #include <string.h>
 #ifdef __TURBOC__
@@ -29,7 +31,7 @@
 #include "dgroup.h"
 
 /*
- * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
+ * **The intro's credit roll**, at DGROUP 0x1d3c (1.00: 0x2370) - where each of the animated
  * pieces is put and which bitmap it is. `game_intro` walks it two entries at a
  * time, drawing a pair on each frame it is given, and stops on an entry whose
  * x is zero.
@@ -43,7 +45,7 @@ struct intro_step {
     int16_t   bitmap;             /* +0x04  an index into the intro's list */
 } PACKED;
 
-/* DGROUP 0x2370..0x24ea, 0x17a bytes. */
+/* DGROUP 0x1d3c..0x1eb6, 0x17a bytes. */
 struct game_intro_steps {
     struct intro_step step[63];   /* +0x00 [0x17a] */
 } PACKED;
@@ -117,10 +119,23 @@ struct game_intro_steps g_game_intro_steps = {
 };
 
 /*
- * **The copy-protection answers**, DGROUP 0x24ea..0x254a, 0x60 bytes: three rows of sixteen
- * part numbers, one row per icon the page asks for, which
+ * **The copy-protection grid**, DGROUP 0x1eb6..0x1ef6, new in 1.11: the part
+ * shown in each of the thirty-two cells, row by row, which a click in the
+ * cell picks. 1.00 had no table and counted the parts in order.
+ */
+int16_t g_copy_protect_grid[32] = {
+    0x002d, 0x0035, 0x000c, 0x003d, 0x0024, 0x0020, 0x003e, 0x0034,
+    0x0036, 0x0012, 0x0025, 0, 0x0013, 0x003a, 0x0004, 0x001b,
+    0x000f, 0x0003, 0x0018, 0x0033, 0x0006, 0x0040, 0x003c, 0x0005,
+    0x003f, 0x0028, 0x0027, 0x001d, 0x0032, 0x0023, 0x002f, 0x0011,
+};
+
+/*
+ * **The copy-protection answers**, DGROUP 0x1ef6..0x1f56, 0x60 bytes: three
+ * rows of sixteen part numbers, one row per icon the page asks for, which
  * `copy_protect_screen` compares against the three the player picked. The
- * rows are 0x20 apart in the code that read them, which is the sixteen.
+ * rows are 0x20 apart in the code that read them, which is the sixteen. 1.11's
+ * are its own - the manual changed with the parts.
  */
 struct game_copy_protection {
     int16_t   answer[3][16];      /* +0x00 [0x60]  [icon][page] */
@@ -129,16 +144,16 @@ struct game_copy_protection {
 struct game_copy_protection g_game_copy_protection = {
     {
         {
-            0x000f, 0x0024, 0x001d, 0x000f, 0x0007, 0x0013, 0x0019, 0x0010,
-            0x0010, 0x0018, 0x0011, 0, 0x0009, 0x000d, 0x0011, 0x0013,
+            0x0033, 0x003d, 0x003e, 0x0035, 0x0034, 0x0024, 0x003a, 0x001b,
+            0, 0x0036, 0x0034, 0x0040, 0x003f, 0x003e, 0x001d, 0x003d,
         },
         {
-            0x000c, 0x0013, 0x0018, 0x001d, 0x0011, 0x001b, 0x000c, 0,
-            0x0007, 0x0012, 0x0010, 0x000f, 0x0012, 0x0003, 0x000d, 0x001b,
+            0x0036, 0x000f, 0x0034, 0x003f, 0, 0x0013, 0x0018, 0x003e,
+            0x003f, 0x001d, 0x003d, 0x003f, 0x003a, 0x003f, 0x0013, 0x001b,
         },
         {
-            0x001d, 0x001b, 0, 0x000c, 0x001d, 0x0024, 0x001d, 0x001d,
-            0x0019, 0x000d, 0, 0x0010, 0x0018, 0x000c, 0x0018, 0x000d,
+            0x000c, 0x0040, 0x0018, 0x001d, 0x0040, 0x003d, 0x0033, 0x0036,
+            0x0034, 0x003e, 0x0036, 0x001d, 0x003d, 0x0034, 0x0040, 0x003f,
         },
     },
     /* answer */
@@ -189,7 +204,9 @@ void game_intro(void)
 
     set_palette_pointer(g_pal_black);      /* black.pal */
 
-    bitmaps = load_bitmaps(WRITABLE_LITERAL("sierra.bmp"));
+    bitmaps = load_bitmaps(WRITABLE_LITERAL("jtp.bmp"));
+    open_sound_file((char *)g_tim_sx, 0x13);
+    open_sound_file((char *)g_tim_sx, 0x14);
 
     g_vmds.page_front = g_vmds.page_back = 0xa000;
 
@@ -205,8 +222,11 @@ void game_intro(void)
         if (stage == 0) {
             g_vmds.page_dst = g_vmds.page_front;
             cursor_redraw_off_thunk();
-            load_screen(WRITABLE_LITERAL("sierra.scr"));
-            set_palette_pointer(g_pal_sierra);  /* sierra.pal */
+            load_screen(WRITABLE_LITERAL("dynamix.scr"));
+            g_vmds.text_back = 6;
+            g_vmds.text_colour = 0x0f;
+            vm_set_border_colour(6);
+            set_palette_pointer(g_pal_dynamix);  /* dynamix.pal */
             stage = 1;
             budget = g_timer.frame_budget + 0xff88;
             step = &g_game_intro_steps.step[0];
@@ -214,8 +234,8 @@ void game_intro(void)
         /*
          * `jl` - the step runs while the counter is *under* the budget, and
          * the budget is set 0x78 below whatever the counter was. So nothing
-         * moves until DGROUP 0x44ef counts down, which is the timer's doing:
-         * this is the frame pacing, not a frame counter.
+         * moves until the frame budget counts down, which is the timer's
+         * doing: this is the frame pacing, not a frame counter.
          */
         } else if (step->x != 0 && g_timer.frame_budget + 6 < budget) {
             g_vmds.clip_enabled = 1;
@@ -223,7 +243,7 @@ void game_intro(void)
             g_vmds.clip_right = 0x27f;
             g_vmds.clip_bottom = 0x1df;
             g_vmds.fill_enabled = 1;
-            g_vmds.second_colour = g_vmds.fill_colour = 0;
+            g_vmds.second_colour = g_vmds.fill_colour = 6;
 
             g_vmds.page_dst = g_vmds.page_back;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
@@ -232,7 +252,7 @@ void game_intro(void)
                         step->x, step->y + 0x19f, 0);
 
             if (step->bitmap == 0)
-                play_sound(0x14);
+                start_sequence_by_id(0x14);
 
             step++;
 
@@ -248,7 +268,7 @@ void game_intro(void)
             budget = g_timer.frame_budget;
 
             if (step->x == 0) {
-                play_sound(0x13);
+                start_sequence_by_id(0x13);
                 stage = 4;
             }
         }
@@ -260,6 +280,15 @@ void game_intro(void)
             game_teardown(1);
     }
 
+    /* The logo's last frame is held for 0x78 ticks of the frame budget. */
+    if (stage == 4) {
+        budget = g_timer.frame_budget + 0xff88;
+        while (budget < g_timer.frame_budget)
+            cursor_redraw_off_thunk();
+    }
+
+    remove_and_free_records(0x14);
+    remove_and_free_records(0x13);
     free_bitmaps_thunk(bitmaps);
 
     g_saved_clip_top = g_saved_clip_left = 0;
@@ -268,12 +297,17 @@ void game_intro(void)
 
     load_all_parts();
 
+    for (si = 1; si < 0x15; si++)
+        if (g_preload_sound_need[si - 1] <= g_memory_k)
+            open_sound_file((char *)g_tim_sx, g_preload_sound_ids[si - 1]);
+
     gkc = load_bitmaps(WRITABLE_LITERAL("corners.bmp"));
 
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap(si);
 
     set_palette_pointer(g_pal_black);      /* black.pal */
+    vm_set_border_colour(0);
 
     g_vmds.page_front = 0xa000;
     g_vmds.page_back = 0xa820;
@@ -288,7 +322,7 @@ void game_intro(void)
     if (g_pointer.button_left == 2 || g_pointer.button_right == 2)
         which = g_round_state = 2;
 
-    frame = 0x3f6;
+    frame = 0x3f9;
 
     if (g_round_state == 0x8000) {
         which = 0x8000;
@@ -336,6 +370,7 @@ void game_intro(void)
         else
             select_music(frame);
 
+        g_timer.frame_budget = 0x6d60;
         running = 1;
 
         while (running != 0) {
@@ -382,25 +417,39 @@ void game_intro(void)
         release_part_queue();
         reset_machine();
 
-        for (si = 1; si <= 0x14; si++)
+        for (si = 1; si <= 0x15; si++)
             stop_music_or_effect(si);
 
         free_all_lists();
 
+        /* The credits' tune steps through 0x3ea..0x3fd, 0x3fc left out. */
         if (which == 0x8000) {
             which = 0x4000;
         } else if (which == 0x4000) {
             which = 0x8000;
             frame++;
-            if (frame > 0x3f8)
+            if (frame == 0x3fc)
+                frame++;
+            if (frame > 0x3fd)
                 frame = 0x3ea;
         }
     }
 
+    select_music(-1);
+
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap(si);
 
+    free_bitmaps_thunk(gkc);
+
+    for (si = 0x15; si <= 0x1a; si++)
+        if (g_preload_sound_need[si - 1] <= g_memory_k)
+            open_sound_file((char *)g_tim_sx, g_preload_sound_ids[si - 1]);
+
+    g_panel_art = load_bitmaps(WRITABLE_LITERAL("newcp.bmp"));
+    g_border_art = load_bitmaps(WRITABLE_LITERAL("newgpbor.bmp"));
     g_icons_bmp = load_bitmaps(WRITABLE_LITERAL("icons.bmp"));
+    gkc = load_bitmaps(WRITABLE_LITERAL("corners.bmp"));
     g_round_state = 0x8000;
 
     copy_protect_screen(gkc);
@@ -413,6 +462,7 @@ void game_intro(void)
     free_bitmaps_thunk(gkc);
 
     stop_music_or_effect(0);
+    select_music(-1);
     show_cursor_again();
 
     g_vmds.page_front = 0xa190;
@@ -438,93 +488,58 @@ void game_intro(void)
  * three empty slots, an OK button, and the line "Please select, in order, the
  * three parts listed on page N of the user's manual."
  *
- * The page is `(0x44ef & 0xf) + 1` - taken from the frame counter, so it is a
+ * The page is `(frame budget & 0xf) + 1` - taken from the timer, so it is a
  * different page each time and the answer cannot be memorised. And the answer
  * is **a table**: the three parts wanted for page N are the Nth words of the
- * three arrays at DGROUP 0x24ea, 0x250a and 0x252a, sixteen pages each.
+ * three rows of `g_game_copy_protection`, sixteen pages each.
  *
- * The grid skips the parts that are not real: index `si` shows part `si`, or
- * `si + 1` past 0x13, with 0x1e becoming 0x23 and 0x20 becoming 0x24. Those
- * are the same holes `build_part_list` leaves - 0x14, 0x29 and 0x31 are never
- * offered - and the click at the bottom runs the identical remap on the cell it
- * lands in, so the two agree by construction rather than by a shared table.
+ * **1.11 shuffles the grid**: the part in cell `si` is `g_copy_protect_grid[si]`,
+ * where 1.00 counted the parts in order and stepped over the holes. A click
+ * reads the same table for its cell, so what is shown and what is picked agree.
  *
  * A click inside the grid writes the part into the next of the three slots and
  * wraps after the third, so a fourth click starts over. A click on the OK
- * button at 0x248,0x158 calls `game_teardown`. Tab - scancode 0x0f out of
- * `bios_read_key` - walks a highlight around the grid and onto the button.
+ * button at 0x248,0x158 calls `game_teardown`. Tab walks a highlight around
+ * the grid and onto the button; 1.11 tests the key's character (`& 0x7f`),
+ * where 1.00 tested its scancode.
  *
- * **The copy this project was built from is cracked, in one byte, and this
- * routine is where.** The wait loop is entered on the wrong side and exits at
- * once: after `[bp-0x12]` is cleared the routine jumps to 0x0eddd, which
- * *sets* it to 1, and 0x0ede2 leaves when it is not zero. So the screen is
- * drawn and the routine returns without ever polling, and any answer passes.
+ * **The copy this project reconstructs is cracked, in three bytes, and this
+ * routine is where.** After the third pick the original starts the slots over,
  *
- * The arithmetic is exact rather than a reading of the listing. The bytes at
- * 0x0ec79 are `e9 61 01`, the next instruction is at 0x0ec7c, and
- * 0x0ec7c + 0x161 is 0x0eddd. The loop's **test** is at 0x0ede2 - `cmp
- * [bp-0x12], 0`, `jne` out at 0x0ede6, `jmp` back to the body at 0x0ede8 -
- * which is where a Borland `while` enters, and 0x0ede2 - 0x0ec7c is 0x166. So
- * the shipped byte is 0x61 where the compiler emitted 0x66:
+ *     0fcf4  ff46f2         inc  word [bp-0xe]        slot++
+ *     0fcf7  837ef203       cmp  word [bp-0xe], 3
+ *     0fcfb  7505           jne  0x0fd02
+ *     0fcfd  c746f20000     mov  word [bp-0xe], 0     slot = 0
  *
- *     e9 66 01   jmp 0x0ede2    the test, and the loop runs
- *     e9 61 01   jmp 0x0eddd    `done = 1`, and it does not
+ * and GOG's copy has `eb 51 00` over the `mov`'s first three bytes: `jmp
+ * 0x0fd50`, which is `done = 1`, and the `mov`'s zero immediate left behind
+ * as two dead bytes. So the screen is asked and answered, and any three parts
+ * pass. (1.00's crack was another: one byte of the jump into the loop, so the
+ * screen was drawn and never waited on.)
  *
- * One byte, landing on a real instruction boundary either way, turning the
- * check into a formality. No compiler emits a jump into the middle of a loop
- * body to set its own exit flag.
- *
- * **The default here is the binary's, crack and all**, so this file stays a
- * transcription: `goto check`, the loop never runs, and any answer passes -
- * which is what the shipped bytes do and what `out/TIM.img` still holds.
- *
- * **Both jumps are kept, under `TIM_COPY_PROTECTION`**, so the crack is
- * readable here rather than only in a commit message. Defining it takes the
- * jump to the loop's test instead and the screen waits for a real answer -
- * the same edit in C that 0x66 is in the binary, and a **deliberate
- * deviation** rather than a transcription. Pair it with `tools/uncrack.py`,
- * which takes the byte out of the image and the executable: an un-cracked port
- * against a cracked reference disagrees on this screen, and every screen
- * comparison that crosses it fails, so the two want moving together. The
- * judge and tools/link.py compare this build, against their own copy of the
- * image with the byte put back: the game as it was built, which the link
- * reproduces whole (`--cracked` for the default and the shipped byte).
- *
- * The labels are guarded too, not just the `goto`. An unused label is a
- * `-Wall` warning, and the build is warning-clean.
- *
- * The distance between the two targets is worth keeping in view:
- * 0x0ede2 - 0x0eddd is 5, and `c7 46 ee 01 00` - `mov word [bp-0x12], 1` -
- * is five bytes. So the crack is exactly "take the length of the `done = 1`
- * instruction off the entry jump", landing it *on* that instruction instead of
- * after it. One byte, no relocation, no change of size.
- *
- * The loop body was transcribed all along, because it is there and has to be
- * right if it is ever reached; now it is reached.
- *
- * One earlier note is withdrawn. It said the original "does not run this
- * routine at all" while the screen is up, measured as zero addresses executed
- * in 0x0ea39..0x0edf0 from a snapshot taken there. That is what a routine that
- * has already drawn its screen and returned looks like - which is exactly what
- * the crack makes it do - so the measurement was of the patch, not of the
- * game.
+ * **The default here is the binary's, crack and all**, so the file stays a
+ * transcription: `goto check` after the third pick, and the two bytes the
+ * crack left are `asm` data, so the rest of the routine is where the image
+ * has it. **Under `TIM_COPY_PROTECTION`** it is `slot = 0`, the game as it
+ * was built - which the judge and tools/link.py compare, against their copy
+ * of the image with the three bytes put back (tools/uncrack.py's `CRACKS`).
  */
 void copy_protect_screen(struct bitmap **bitmaps)
 {
     int16_t x;                  /* [bp-2] */
     int16_t y;                  /* [bp-4] */
     int16_t part;               /* [bp-6] */
-    int16_t highlight;          /* [bp-8] */
-    int16_t answers[3];         /* [bp-0xe] */
-    int16_t slot;               /* [bp-0x10] */
-    int16_t done;               /* [bp-0x12] */
-    int16_t page;               /* [bp-0x14] */
+    int16_t answers[3];         /* [bp-0xc] */
+    int16_t slot;               /* [bp-0xe] */
+    int16_t done;               /* [bp-0x10] */
+    int16_t page;               /* [bp-0x12] */
+    int16_t pick;               /* [bp-0x14]  the part a click lands on */
     char numbuf[16];            /* [bp-0x24] */
     /* The message is 79 bytes and a NUL with a one-digit page, and one more
        from page 10 - which runs into `numbuf`, spent by then. */
     char msg[OVERRUN(80, 1)];   /* [bp-0x74] */
     register int16_t si;
-    register int16_t pick;      /* the part a click lands on */
+    register int16_t highlight;
 
     g_vmds.screen.screen_height = 0x18f;
 
@@ -565,13 +580,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
         y    = (int16_t)((si / 8) * 0x30 + 0x20);
-        part = si;
-        if (part > 0x13)
-            part++;
-        if (part == 0x1e)
-            part = 0x23;
-        if (part == 0x20)
-            part = 0x24;
+        part = g_copy_protect_grid[si];
 
         cursor_redraw_off_thunk();
         draw_bitmap_centred(g_icons_bmp[part],
@@ -589,48 +598,46 @@ void copy_protect_screen(struct bitmap **bitmaps)
     show_cursor_again();
 
     done = 0;
-#ifdef TIM_COPY_PROTECTION
-    goto test;                  /* e9 66 01: jmp 0x0ede2, the loop's test */
-#else
-    goto check;                 /* e9 61 01: jmp 0x0eddd, `done = 1` */
-#endif
+    goto test;
 
     do {
         update_button_state();
 
-        g_last_key = (uint8_t)(bios_read_key() >> 8);
-        if ((g_last_key) == SC_TAB) {          /* Tab walks the highlight */
+        g_last_key = translate_key(bios_read_key());
+        if ((g_last_key & 0x7f) == '\t') {       /* Tab walks the highlight */
             highlight++;
             if (highlight == 0x21)
                 highlight = 0;
             if (highlight == 0x20)
-                move_pointer_to(0x268, 0x188);    /* the button */
+                move_pointer_to(0x254, 0x164);    /* the button */
             else
-                move_pointer_to((uint16_t)(((highlight % 8) << 6) + 0x50),
-                          (uint16_t)((highlight / 8) * 0x30 + 0x30));
+                move_pointer_to((uint16_t)(((highlight % 8) << 6) + 0x60),
+                                (uint16_t)((highlight / 8) * 0x30 + 0x40));
         }
 
         select_cursor((g_pointer.pointer_x >= 0x248 && g_pointer.pointer_y >= 0x158)
-                      ? 0x15 : 0);
+                      ? 0x16 : 0);
 
         if (((int16_t)g_pointer.button_left) == 2) {            /* the frame of a click */
             if (g_pointer.pointer_x >= 0x40 && g_pointer.pointer_x < 0x240
                 && g_pointer.pointer_y >= 0x20 && g_pointer.pointer_y < 0xe0) {
                 pick = (g_pointer.pointer_x - 0x40) / 0x40
                        + (g_pointer.pointer_y - 0x20) / 0x30 * 8;
-                if (pick > 0x13)
-                    pick++;
-                if (pick == 0x1e)
-                    pick = 0x23;
-                if (pick == 0x20)
-                    pick = 0x24;
+                pick = g_copy_protect_grid[pick];
 
                 answers[slot] = pick;
-                draw_answer_slot(g_icons_bmp[pick],
-                                 slot);
+                draw_answer_slot(g_icons_bmp[pick], slot);
                 slot++;
-                if (slot == 3)
+                if (slot == 3) {
+#ifdef TIM_COPY_PROTECTION
                     slot = 0;
+#else
+                    goto check;             /* eb 51: jmp 0x0fd50, `done = 1` */
+#ifdef __TURBOC__
+                    asm db 0, 0, 0;         /* the `mov`'s leftovers */
+#endif
+#endif
+                }
             }
 
             if (g_pointer.pointer_x >= 0x248 && g_pointer.pointer_y >= 0x158)
@@ -646,12 +653,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
 check:
 #endif
             done = 1;
-
-        /* The loop's test is where a `while` enters, and the empty statement
-           is the label's way of standing on it. */
-#ifdef TIM_COPY_PROTECTION
 test:
-#endif
         ;
     } while (done == 0);
 }

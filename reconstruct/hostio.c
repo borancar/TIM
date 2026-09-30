@@ -243,6 +243,9 @@ static uint8_t  attr_pal[16];
  */
 static uint8_t  attr_index;
 static uint8_t  attr_expect_data;
+/* The attribute controller's register 0x11, the overscan colour: the border
+   around the picture, which this window does not have. */
+static uint8_t  attr_overscan;
 
 static uint8_t  dac_index;
 static int32_t  dac_phase;
@@ -832,6 +835,7 @@ void (*vm_vector_host(int16_t slot))(void)
     case 14: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
     case 15: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
     case 22: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
+    case 25: return (void (*)(void))vm_set_border_colour;  /* VGA:0x2ae7 */
     default: return vm_slot_missing;
     }
 }
@@ -1839,6 +1843,18 @@ void io_on_speaker(void (*fn)(double hz, int32_t on))
 {
     speaker_hook = fn;
     speaker_changed();
+}
+
+/*
+ * OURS: INT 10h AX=1001h, **set the border (overscan) colour** to BH - what
+ * the video driver's `vm_set_border_colour` (VM.OVL VGA:0x2ae7) asks the BIOS
+ * for, and 1.11 does on the Dynamix screen. The BIOS writes the attribute
+ * controller's register 0x11; the port keeps the value there and draws
+ * nothing with it, since a window has no border around the picture.
+ */
+void io_bios_set_border(uint8_t colour)
+{
+    attr_overscan = colour;
 }
 
 /*

@@ -83,6 +83,22 @@ def built(what, where="reconstruct", target=None):
     return path
 
 
+# **Each version's DGROUP, by the size of its recovered image**: where the
+# Borland startup at 0000:0016 loads DS, measured, with the compiler's
+# copyright banner at DGROUP+4 as the corroboration (docs/executable.md,
+# docs/v1.11.md).
+DGROUPS = {214512: 0x2D3C0,       # 1.00
+           220992: 0x2FE10}       # 1.11
+
+
+def image_dgroup(path=None):
+    """DGROUP's image offset in the recovered image at `path` (out/TIM.img)."""
+    size = os.path.getsize(path or os.path.join(REPO, "out", "TIM.img"))
+    if size not in DGROUPS:
+        raise SystemExit("an image of %d bytes, which is no version tim.py knows" % size)
+    return DGROUPS[size]
+
+
 def game_dir():
     set_game_dir(GAME_DIR)
     return GAME_DIR

@@ -391,6 +391,7 @@ int16_t  io_dos_findnext(uint8_t *name, uint8_t *attr_out,
 int16_t  io_dos_unlink(const char *name);
 
 void     io_bios_set_mode(uint16_t mode);
+void     io_bios_set_border(uint8_t colour);
 void     io_reset(void);
 
 #endif /* !__TURBOC__ */

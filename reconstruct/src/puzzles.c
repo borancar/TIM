@@ -145,7 +145,7 @@ uint16_t select_puzzle_screen(void)
 
     while (g_round_state != 0x400) {
         update_button_state();
-        g_last_key = bios_read_key();
+        g_last_key = (uint8_t)bios_read_key();  /* 1.00 kept a byte */
 
         if (g_last_key == '\t' && g_round_state != 0x800)
             puzzle_tab();

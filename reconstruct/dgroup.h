@@ -693,7 +693,7 @@ extern int16_t g_saved_clip_right;
 extern int16_t g_saved_clip_left;
 extern int16_t g_memo_font;
 extern uint8_t far *g_pal_black;
-extern uint8_t far *g_pal_sierra;
+extern uint8_t far *g_pal_dynamix;
 #endif
 
 
@@ -702,7 +702,10 @@ extern uint8_t far *g_pal_sierra;
  */
 #ifndef GAMEDATA_C
 extern uint8_t far *g_pal_tim;
-extern uint8_t g_last_key;
+extern uint16_t g_last_key;
+extern int32_t  g_memory_k;
+extern int16_t  g_preload_sound_ids[26];
+extern int16_t  g_preload_sound_need[26];
 extern uint16_t g_cursor_follows;
 extern struct bitmap **g_panel_art;
 extern struct bitmap **g_cursor_art;

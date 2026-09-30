@@ -106,7 +106,7 @@ extrn _g_vmds:byte
 KEYBOARD_TEXT segment byte public 'CODE'
 assume cs:KEYBOARD_TEXT, ds:DGROUP
 public _copy_rect_thunk, _install_keyboard, _remove_keyboard, _keyboard_isr
-public _bios_read_key, _key_is_down, _show_page_thunk
+public _bios_read_key, _key_is_down, _border_colour_thunk, _show_page_thunk
 
 /* 0x22d12 */
 _copy_rect_thunk proc near
@@ -602,11 +602,15 @@ _key_is_down proc far
         sti
         retf
 c_21491 db 0cbh
-c_21492 db 0ffh, 2eh, 0aah, 43h
-c_21496 db 0ffh, 2eh, 0aeh, 43h
 _key_is_down endp
 
-/* 0x2149a (1.00's; not yet placed in 1.11) */
+/* 0x2311c */
+_border_colour_thunk proc near
+        jmp dword ptr DGROUP:_g_vm_driver+68h
+_border_colour_thunk endp
+c_21496 db 0ffh, 2eh, 0aeh, 43h
+
+/* 0x23124 */
 _show_page_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+24h
 _show_page_thunk endp
@@ -1103,9 +1107,21 @@ int16_t key_is_down(uint16_t index)
 }
 
 /*
- * 0x2149a (1.00's; not yet placed in 1.11)
+ * 0x2311c
  *
- * A thunk into the video driver: `ljmp [0x4366]`, which is `vm_show_page`.
+ * A thunk into the video driver: `ljmp [0x3faa]`, slot 25, which is
+ * `vm_set_border_colour`. 1.00 has it, as bytes after `key_is_down` that
+ * nothing called; 1.11's `game_intro` calls it.
+ */
+void border_colour_thunk(uint16_t colour)
+{
+    vm_set_border_colour(colour);
+}
+
+/*
+ * 0x23124
+ *
+ * A thunk into the video driver: `ljmp [0x3f66]`, which is `vm_show_page`.
  *
  * It **jumps** rather than calls, so the driver returns straight to this
  * routine's caller and reads the caller's arguments off the stack unchanged.

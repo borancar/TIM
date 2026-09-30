@@ -15,12 +15,37 @@
  * crtc.c's two routines begin, whose prologue no compiler route reproduces.
  * Nothing here names `_DATA`.
  *
+ * **1.11 adds `translate_key` in front** (0x0905a), between `frame.c`'s last
+ * routine and `regions_handle_pointer`. Which of the two files it closes or
+ * opens is not measured: it is put here because it is input, and that is a
+ * judgement, not a boundary.
+ *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
+
+/*
+ * 0x0905a
+ *
+ * **What every screen does to a key before it looks at it**, new in 1.11:
+ * each loop stores `translate_key(bios_read_key())` in `g_last_key`. As
+ * built it gives the key back - the character byte is taken out and put back
+ * where it was, and a zero is answered as it came - so it is the shell of a
+ * translation, a table for another keyboard compiled out, or never written.
+ * Its only visible trace is the byte in `[bp-1]`. The name is ours.
+ */
+uint16_t translate_key(uint16_t key)
+{
+    uint8_t c;
+
+    c = key & 0xff;
+    if (key == 0)
+        return key;
+    return (key & 0xff00) | c;
+}
 
 /*
  * 0x09084

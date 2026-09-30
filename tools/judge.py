@@ -85,6 +85,7 @@ sys.path.insert(0, os.path.join(RECON, "tests"))
 sys.path.insert(0, HERE)
 import omf                                              # noqa: E402  turboc's
 import provenance                                       # noqa: E402
+import tim                                              # noqa: E402
 from cparse import parse, text                          # noqa: E402
 
 BUILT_WITH = re.compile(r"JUDGE:\s*built-with\s+([^\n*]+)")
@@ -604,7 +605,7 @@ def judge(path, known, img, fr, verbose=False, force_opts=None,
     return results
 
 
-IMG_DGROUP = 0x2D3C0
+IMG_DGROUP = tim.image_dgroup(IMAGE)
 
 
 def data_refs(seg, lo, hi, addr, img):

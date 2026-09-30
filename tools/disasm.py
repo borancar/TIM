@@ -17,9 +17,8 @@ import tim
 from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 
 # Measured, not assumed: the Borland startup at 0000:0016 loads DS with the
-# segment whose image offset is this. The compiler's copyright banner sits at
-# DGROUP+4, which is the corroboration. See docs/executable.md.
-DGROUP = 0x2D3C0
+# segment whose image offset is this - per version, in tim.DGROUPS.
+DGROUP = tim.image_dgroup()
 
 _img = None
 

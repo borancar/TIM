@@ -25,6 +25,7 @@
 #define vm_buffer_size          buffer_size_thunk
 #define vm_restore_rect         restore_rect_thunk
 #define vm_show_page            show_page_thunk
+#define vm_set_border_colour    border_colour_thunk
 #endif
 
 #include "dgroup.h"
@@ -881,6 +882,7 @@ uint16_t load_screen(char *name);                /* 0x27071 */
 void     keyboard_isr(void);                        /* 0x22e20 */
 void     keyboard_tick_isr(void);                   /* ours: the hook at 0x21386 */
 uint16_t bios_read_key(void);                       /* 0x230be */
+uint16_t translate_key(uint16_t key);               /* 0x0905a */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x22d12 */
 void step_and_draw_machine(int16_t redraw_all);     /* 0x17f2d */
@@ -919,7 +921,7 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x16
 void show_level_complete(void);                      /* 0x1779e */
 void free_all_lists(void);                          /* 0x16b42 */
 void free_part_list(struct part *si);                       /* 0x16b70 */
-void load_animation(char *name);             /* 0x12915 */
+void load_animation(char *name);             /* 0x1419d */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x135cd */
 void game_fread_line(FILE *file, char *buf);  /* 0x1361f */
 void read_password_line(int16_t count, char *buf); /* 0x1442a */
@@ -1612,6 +1614,9 @@ int16_t frame_pending(void);                        /* 0x0c127 */
 /* Show the page just drawn and swap the buffers. */
 void vm_show_page(uint16_t wait_retrace);           /* VM.OVL VGA:0x150f */
 
+/* Set the border colour, through INT 10h. */
+void vm_set_border_colour(uint16_t colour);         /* VM.OVL VGA:0x2ae7 */
+
 /* Copy a rectangle between the two pages, in latch mode. */
 void vm_copy_rect(uint16_t x, uint16_t y,
                   uint16_t width, uint16_t height);  /* VM.OVL VGA:0x1561 */
@@ -1857,8 +1862,9 @@ uint16_t read_tim_cfg(void);                           /* 0x14471 */
 void save_rect_thunk(uint8_t far * buf, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
 #ifndef __TURBOC__
-/* Under Borland these three are the `vm_*` declarations above, renamed. */
-void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
+/* Under Borland these are the `vm_*` declarations above, renamed. */
+void border_colour_thunk(uint16_t colour);             /* 0x2311c */
+void show_page_thunk(uint16_t wait_retrace);           /* 0x23124 */
 /* The driver answers a `long` in DX:AX; the one caller, `decode_vqt_list`,
    declares the thunk `unsigned` and reads AX alone. */
 uint16_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */

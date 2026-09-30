@@ -2263,3 +2263,23 @@ done:
     io_out16(PORT_SEQ_INDEX, 0x0f02);                           /* map mask: every plane */
 }
 
+
+/*
+ * VM.OVL VGA:0x2ae7
+ *
+ * **Set the border (overscan) colour**, through the BIOS: INT 10h AX=1001h
+ * with the colour in BH. The driver keeps the low four bits and, where
+ * `pixel_shift` is 2, moves 8..15 up by eight - the attribute palette's upper
+ * half, which that layout uses for its bright colours. Slot 25 of the vector
+ * table, reached through `border_colour_thunk`; 1.00 has the thunk and never
+ * calls it, and 1.11 sets the border to 6 behind the Dynamix screen and back
+ * to 0 after it.
+ */
+void vm_set_border_colour(uint16_t colour)
+{
+    uint8_t bh = (uint8_t)(colour & 0x0f);
+
+    if (g_vmds.pixel_shift == 2 && bh >= 8)
+        bh = (uint8_t)(bh + 8);
+    io_bios_set_border(bh);
+}

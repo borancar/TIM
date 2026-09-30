@@ -38,6 +38,23 @@ extern char g_picked_machine[0xd];
 
 uint16_t g_master_level_ok[7] = { 0x0000, 0x0003, 0x0005, 0x0008, 0x000a, 0x000d, 0x000f };
 
+/*
+ * DGROUP 0x0230 and 0x0264 in 1.11, new there: **the sounds `game_intro`
+ * loads ahead of time, and the memory each needs**, in thousands of bytes of
+ * the largest free block (`g_memory_k`). Twenty-six of each, and read from 1
+ * - `game_intro` walks 1..0x14 before the title and 0x15..0x1a after the
+ * credits and takes entry `si - 1` - so the first twenty are the effects, the
+ * rest the tunes. A need of 0 always loads; 999 never does.
+ */
+int16_t g_preload_sound_ids[26] = {
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    51, 54, 58, 61, 62, 64,
+};
+int16_t g_preload_sound_need[26] = {
+    0, 0, 0, 999, 999, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 317, 343, 0,
+    0, 327, 333, 0, 0, 0,
+};
+
 /* The draw step `draw_part` fills in for a part whose kind has no table. */
 struct draw_step g_default_draw_step = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
 
@@ -2712,8 +2729,14 @@ FILE     *g_tim_sx;   /* DGROUP 0x52f8  tim.sx's file record, which open_sound_f
 struct bitmap **g_cursor_art;   /* DGROUP 0x52f6  mouse.bmp's list */
 struct bitmap **g_panel_art;   /* DGROUP 0x52f4  the art set the panel's pieces come out of */
 uint16_t g_cursor_follows;   /* DGROUP 0x52f2  restore_cursor_following is guarded by this */
-uint8_t g_last_key;   /* DGROUP 0x52f1  the last key the screen loops took - a **byte**:
-                       `g_cursor_follows` is at 0x52f2 */
+/* DGROUP 0x4ef5 in 1.11 (1.00: 0x52f1, a byte): the last key the screen
+   loops took, as `translate_key` answers it - scancode high, character low.
+   The loops test the character, `(g_last_key & 0x7f)`. */
+uint16_t g_last_key;
+/* DGROUP 0x4f01 in 1.11, new there: **the memory free at start-up**, the
+   largest DOS block over 1000 - what `g_preload_sound_need` is measured in.
+   The name is a guess. */
+int32_t  g_memory_k;
 /*
  * DGROUP 0x52ed  tim.pal: the far pointer `load_palette` answers, stored whole and
  * read whole by `set_palette_pointer` and `free_far_block`.
@@ -2721,7 +2744,7 @@ uint8_t g_last_key;   /* DGROUP 0x52f1  the last key the screen loops took - a *
 uint8_t far *g_pal_tim;
 /* DGROUP 0x52e9..0x52ed: nothing in the image names these four bytes. Ours. */
 uint8_t g_dg52e9[4];
-uint8_t far *g_pal_sierra;   /* DGROUP 0x52e5  sierra.pal */
+uint8_t far *g_pal_dynamix;   /* DGROUP 0x52e5  sierra.pal */
 uint8_t far *g_pal_black;   /* DGROUP 0x52e1  black.pal, as pal_tim */
 /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
    start-up; `set_font` takes it and `game_teardown` gives its slot back. */
