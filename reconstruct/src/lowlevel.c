@@ -493,9 +493,9 @@ L21da0:
 L21da3:
         or al, al
         je L21de8
-        mov ax, 473dh
+        mov ax, offset DGROUP:d_473d
         push ax
-        mov ax, 473bh
+        mov ax, offset DGROUP:d_473b
         push ax
         mov ax, word ptr [bp+6]
         push ax
@@ -741,7 +741,7 @@ _mouse_init proc far
         mov cx, 1fh
         push cs
         pop es
-        mov dx, 5d7fh
+        mov dx, offset _mouse_event
         int 33h
         mov al, byte ptr DGROUP:_g_vmds+1dh
         cmp al, 8
@@ -806,7 +806,7 @@ _mouse_event proc far
         mov si, ss
         mov ax, DGROUP
         cli
-        mov sp, 48d8h
+        mov sp, offset DGROUP:d_48da - 2
         mov ss, ax
         sti
         mov ds, ax
@@ -1139,8 +1139,8 @@ _huge_move proc far
         push si
         push di
         push ds
-        mov word ptr cs:c_221e9, 5f11h
-        mov word ptr cs:c_221eb, 5f86h
+        mov word ptr cs:c_221e9, offset _normalise_pointer
+        mov word ptr cs:c_221eb, offset c_221d6
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
         mov word ptr [bp-4], ax
@@ -1160,8 +1160,8 @@ _huge_move proc far
         jmp L222b8
 L22233:
         std
-        mov word ptr cs:c_221e9, 5f23h
-        mov word ptr cs:c_221eb, 5f6fh
+        mov word ptr cs:c_221e9, offset c_22173
+        mov word ptr cs:c_221eb, offset c_221bf
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
         mov bx, word ptr [bp+0eh]

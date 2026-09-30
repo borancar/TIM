@@ -263,7 +263,7 @@ _fill_screen_quadrant proc near
         mov ch, al
         mov bx, word ptr [bp+6]
         shl bx, 1
-        mov bx, word ptr [bx+3f82h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
         mov ax, word ptr [bp+4]
         mov cl, al
         shr ax, 1
@@ -384,7 +384,7 @@ L25bdc:
         mov ch, al
         mov bx, si
         shl bx, 1
-        mov bx, word ptr [bx+3f82h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
         mov ax, di
         mov cl, al
         shr ax, 1
@@ -438,7 +438,7 @@ L25c53:
         shr ax, cl
         mov bx, word ptr [bp+6]
         shl bx, 1
-        mov di, word ptr [bx+3f82h]
+        mov di, word ptr DGROUP:_g_vmds[bx+6f2h]
         mov bx, word ptr DGROUP:_g_vmds+18h
         mov es, bx
         mov si, word ptr [bp+0ah]
@@ -524,7 +524,7 @@ L25d08:
         mov ch, al
         mov bx, si
         shl bx, 1
-        mov bx, word ptr [bx+3f82h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
         mov ax, di
         mov cl, al
         shr ax, 1
