@@ -91,6 +91,7 @@
  */
 #define LOGO_LINES 471          /* 0x1d6 + 1, the Sierra logo and only that */
 #define GAME_SCALE 2
+#define PTR_H 400               /* the pointer's fence: the game's 640x400 */
 #define WIN_W (W * GAME_SCALE)
 #define WIN_H (400 * GAME_SCALE)   /* the intro's height, for the first frame */
 
@@ -799,10 +800,12 @@ void sdl_pump(void)
             }
 
             /*
-             * Fenced to the picture. The game fences it again, in its own
-             * units and to whatever range it set - this only stops the
+             * Fenced to the game's 640x400. The game fences it again, in its
+             * own units and to whatever range it set - this only stops the
              * accumulator running away while the host pointer is held against
-             * the edge of nothing.
+             * the edge of nothing. A fixed fence, not the height on show: that
+             * is read from the CRTC, which the game reprograms a byte at a
+             * time, and a height read half-written pinned the pointer.
              */
             if (ptr_x < 0)
                 ptr_x = 0;
@@ -810,8 +813,8 @@ void sdl_pump(void)
                 ptr_x = W - 1;
             if (ptr_y < 0)
                 ptr_y = 0;
-            else if (ptr_y > shown_lines() - 1)
-                ptr_y = shown_lines() - 1;
+            else if (ptr_y > PTR_H - 1)
+                ptr_y = PTR_H - 1;
 
             /*
              * **The state comes from the event, not from SDL_GetMouseState.**
