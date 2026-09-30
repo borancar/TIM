@@ -167,18 +167,16 @@ uint16_t part_drive_gun(struct part *p1, struct part *si, uint16_t p3,
 
     if (si->state & STATE_FLIP_HORIZONTAL) {
         if (low == 8)
-            goto yes;
+            return 1;
         if (low == 0x10 && si->direction != 0)
-            goto yes;
+            return 1;
         if (flags == 0x10 && si->direction == 0)
             si->direction = 1;
     } else {
         if (low == 0x10)
-            goto yes;
-        if (low == 8 && si->direction != 0) {
-yes:
             return 1;
-        }
+        if (low == 8 && si->direction != 0)
+            return 1;
         if (flags == 8 && si->direction == 0)
             si->direction = 1;
     }

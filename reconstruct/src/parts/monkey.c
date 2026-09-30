@@ -232,11 +232,9 @@ uint16_t part_drive_monkey(struct part *p1, struct part *p2, uint16_t p3, uint16
     kept = p4 & 0x7fff;
 
     if (kept == 2)
-        goto yes;
-    if (kept == 4 && (p2->direction != 0 || p2->form >= 9)) {
-yes:
         return 1;
-    }
+    if (kept == 4 && (p2->direction != 0 || p2->form >= 9))
+        return 1;
 
     if (p4 == 4 && p2->direction == 0) {
         if (p2->form >= 5 && p2->form <= 8) {

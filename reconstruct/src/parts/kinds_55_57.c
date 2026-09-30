@@ -156,13 +156,8 @@ uint16_t part_drive_kind_57(struct part *from, struct part *part, uint16_t p3,
 
     if (from->kind == KIND_SEESAW) {
         if (part->momentum > momentum)
-            goto yes;
-        goto no;
-    }
-    if (part->momentum + part->momentum > momentum) {
-yes:
+            return 1;
+    } else if (part->momentum + part->momentum > momentum)
         return 1;
-    }
-no:
     return 0;
 }

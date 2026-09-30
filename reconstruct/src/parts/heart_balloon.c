@@ -61,13 +61,8 @@ uint16_t part_drive_heart_balloon(struct part *p1, struct part *p2, uint16_t p3,
 
     if (p1->kind == KIND_SEESAW) {
         if (p2->momentum > p6)
-            goto yes;
-        goto no;
-    }
-    if (p2->momentum + p2->momentum > p6) {
-yes:
+            return 1;
+    } else if (p2->momentum + p2->momentum > p6)
         return 1;
-    }
-no:
     return 0;
 }

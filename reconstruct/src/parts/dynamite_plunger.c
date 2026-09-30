@@ -240,11 +240,9 @@ uint16_t part_drive_dynamite_plunger(struct part *p1, struct part *p2, uint16_t 
     low = p4 & 0x7fff;
 
     if (low == 2)
-        goto yes;
-    if (low == 4 && p2->form == 2) {
-yes:
         return 1;
-    }
+    if (low == 4 && p2->form == 2)
+        return 1;
 
     if (p4 == 4 && p2->direction == 0)
         p2->direction = 1;

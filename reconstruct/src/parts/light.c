@@ -117,11 +117,9 @@ uint16_t part_drive_light(struct part *p1, struct part *si, uint16_t p3,
     kept = flags & 0x7fff;
 
     if (kept == 2)
-        goto yes;
-    if (kept == 4 && si->direction != 0) {
-yes:
         return 1;
-    }
+    if (kept == 4 && si->direction != 0)
+        return 1;
 
     if (flags == 4 && si->direction == 0) {
         play_sound(0x11);

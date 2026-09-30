@@ -91,14 +91,9 @@ uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3, uin
 
     if (p1->kind == KIND_SEESAW) {
         if (p2->momentum > p6)
-            goto yes;
-        goto no;
-    }
-    if (p2->momentum + p2->momentum > p6) {
-yes:
+            return 1;
+    } else if (p2->momentum + p2->momentum > p6)
         return 1;
-    }
-no:
     if (p4 == 2) {
         p2->pos[0].y -= 0x14;
         p2->direction++;
