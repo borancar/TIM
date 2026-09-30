@@ -45,7 +45,7 @@ import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GAME = os.path.join(ROOT, "incredible-machine")
+GAME = os.path.join(ROOT, "even-more-incredible-machine")
 
 # CRLF, because `game_fread_line` puts its terminator at `[si - 1]` - over the
 # byte *before* the newline - which removes the CR and the LF in one store. A

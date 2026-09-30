@@ -15,7 +15,10 @@ import dos_emulator
 from dos_emulator import DosMachine, VgaDos, set_game_dir
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GAME_DIR = os.path.join(REPO, "incredible-machine")
+# **The target is 1.11**, TIM.EXE as The Even More Incredible Machine ships it
+# (GOG's installer, extracted). 1.00 - `incredible-machine/` - is reconstructed
+# and tagged `tim-1.00`; the tools follow the target.
+GAME_DIR = os.path.join(REPO, "even-more-incredible-machine")
 
 PACKED_EXE = os.path.join(GAME_DIR, "TIM.EXE")
 UNPACKED_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
@@ -32,10 +35,11 @@ UNPACKED_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
 # are written together now, from the one recovery.
 IMAGE = os.path.join(REPO, "out", "TIM.img")
 
-# TIM.EXE is packed with LZEXE 0.91 (the "LZ91" tag at offset 0x1c of the
-# header). tools/unlzexe.py recovers it by running the stub; see
-# docs/executable.md.
-PACKED_STUB_CS = 0x1AA0        # from the packed header's CS field
+# 1.11's TIM.EXE is packed twice with RNC ProPack, keyed; tools/unrnc.py
+# recovers it, held to the CRCs RNC stores. 1.00's was LZEXE 0.91, which
+# tools/unlzexe.py recovers by running the stub, and these two are that stub's
+# entry - kept for that tool, whose EXE writer unrnc.py also uses.
+PACKED_STUB_CS = 0x1AA0        # 1.00: from the packed header's CS field
 PACKED_STUB_IP = 0x000E
 
 # Addresses in this project are *image offsets* - the byte offset into the

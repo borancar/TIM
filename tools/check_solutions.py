@@ -25,7 +25,7 @@ real game does rather than around them.
 **The solution file must live inside the game directory.** The guest's file
 layer treats that directory as a floor - a host path with slashes in it
 resolves to nowhere and `read_level` answers 0 without a word - so this builds
-a copy of `incredible-machine/` with the solutions beside the game's own files
+a copy of the game directory with the solutions beside the game's own files
 and points the port at it with `TIM_GAMEDIR`. Measured: with an absolute path
 the load printed that it had loaded and left all three part lists empty, and
 the first goal test walked off the end of one.

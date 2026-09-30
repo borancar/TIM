@@ -10,6 +10,12 @@ right on screen.
 
 ## The goal: one source, two compilers
 
+**The target is 1.11** since 2026-09-30: TIM.EXE as The Even More Incredible
+Machine ships it, in `even-more-incredible-machine/` (untracked; supply your
+own). 1.00 is reconstructed - byte-exact and working - and tagged `tim-1.00`.
+`tools/unrnc.py` recovers 1.11's image and `docs/v1.11.md` holds what is
+known about it; the sources are still 1.00's until each module is rebuilt.
+
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
 `reconstruct/src` file is to compile under the compiler that built it -
 Borland C++ 3.0 for most of the game (options per module), Borland C++ 2.0

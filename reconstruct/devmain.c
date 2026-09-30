@@ -157,8 +157,8 @@ static void usage(void)
 "                  untouched, the guest simply reads different bytes.\n"
 "  TIM_MODULE=N    the digitised-sound overlay, byte 2. The same.\n"
 "  TIM_GAMEDIR=DIR the directory the guest sees as its own, instead of\n"
-"                  incredible-machine. The comparison tools set it so a\n"
-"                  sound device in RESOURCE.CFG cannot change what they\n"
+"                  even-more-incredible-machine. The comparison tools set\n"
+"                  it so a sound device in RESOURCE.CFG cannot change what they\n"
 "                  measure.\n"
 "  TIM_SURVEY_HOOKS=1  a part hook with no transcription reports itself\n"
 "                  and the run carries on, so one pass names every hook a\n"
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
         /* The same start-up main.c does. */
         /*
          * OURS: `TIM_GAMEDIR` points the guest's file world somewhere other
-         * than `incredible-machine`.
+         * than `even-more-incredible-machine`.
          *
          * The comparison tools need this. They compare *graphics*, and the
          * sound device ought not to matter to them - but it does, because a

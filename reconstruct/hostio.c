@@ -260,7 +260,7 @@ static const uint8_t CRTC_MODE12[25] = {
     0xFF
 };
 
-static char     game_dir[PATH_MAX] = "incredible-machine";
+static char     game_dir[PATH_MAX] = "even-more-incredible-machine";
 
 /*
  * OURS: what DOS's loader and Borland's startup leave behind besides the
