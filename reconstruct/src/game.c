@@ -1021,6 +1021,18 @@ uint16_t part_init_kind_65(struct part *part)
 }
 
 /*
+ * 0x16b2d
+ *
+ * **Empty the parts bin**, new in 1.11: its list freed and its head left
+ * empty - what "CLEAR PARTS BIN" does in freeform. The name is ours.
+ */
+void clear_parts_bin(void)
+{
+    free_part_list(g_held_parts.parts_bin.next);
+    g_held_parts.parts_bin.next = 0;
+}
+
+/*
  * 0x16b42
  *
  * Throw the whole machine away: every part on the three lists at DGROUP

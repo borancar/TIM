@@ -31,9 +31,19 @@
 #else
 #include "hostlib.h"
 #endif
+#include <ctype.h>
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
+
+/*
+ * DGROUP 0x5062 and 0x505e in 1.11, new there: the carried part's position
+ * and set size as a resize drag began, which the four drags put back when
+ * shrinking to fit would go below the kind's smallest size. The module's
+ * uninitialised data.
+ */
+struct point16 g_drag_start_pos;
+struct extent16 g_drag_start_size;
 
 /*
  * The part in the player's hand. The original reads the word at 0x50d5 again
@@ -163,16 +173,16 @@ struct goal_tests g_goal_tests = {
 };
 
 /*
- * **Where Tab sends the pointer on the play screen's controls**, DGROUP 0x27ee..0x2818, 0x2a bytes: which
- * stop it is on - 0xffff until the first Tab, and back to 0 past the last
- * - and the x of each, the y being fixed.
+ * **Where Tab sends the pointer on the play screen's controls**, DGROUP
+ * 0x229e..0x22cc in 1.11 (1.00: 0x27ee..0x2818), 0x2e bytes: which stop it is
+ * on - 0xffff until the first Tab, and back to 0 past the last - and the x of
+ * each, the y being fixed. 1.11 has thirteen stops; 1.00 had eleven.
  */
 struct game_play_tabs {
-    uint16_t  stop;          /* +0x00 [2]  which of the eleven tab stops on the play screen */
-    int16_t   stop_x[9];          /* +0x02 [0x12]  stops 9 and 10 take x from the two knobs instead */
-    int16_t   stop_y[11];         /* +0x14 [0x16]  and its eleventh word, at 0x2816, is also the
-                                            first of the level table below, which nothing
-                                            reads as that */
+    uint16_t  stop;          /* +0x00 [2]  which of the thirteen tab stops on the play screen */
+    int16_t   stop_x[9];          /* +0x02 [0x12]  stops 9 and 10 take x from the two knobs, 11 and
+                                     12 have theirs in the code */
+    int16_t   stop_y[13];         /* +0x14 [0x1a] */
 } PACKED;
 
 struct game_play_tabs g_game_play_tabs = {
@@ -184,7 +194,7 @@ struct game_play_tabs g_game_play_tabs = {
     /* stop_x */
     {
         0x006b, 0x0065, 0x0073, 0x0074, 0x006e, 0x009e, 0x0097, 0x0098,
-        0x0098, 0x00ec, 0x0138,
+        0x0098, 0x00ec, 0x0138, 0x010c, 0x008c,
     },
     /* stop_y */
 };
@@ -315,9 +325,8 @@ void game_screen_loop(void)
     while (g_round_state != 0x2000 && g_round_state != 2) {
         g_drop_cursor = g_band_colour = 0xffff;
 
-        g_last_key = bios_read_key() >> 8;
-
         update_button_state();
+        g_last_key = translate_key(bios_read_key());
         scroll_play_area();
         step_counters();
 
@@ -326,10 +335,12 @@ void game_screen_loop(void)
 
         regions_handle_pointer(g_regions_play);
 
-        if (g_round_state == 0x800)
-            bin_scroll_back();
-        else if (g_round_state == 0x400)
-            bin_scroll_forward();
+        /* 1.11 numbers the bin's two scroll states 0x10 and 8 (1.00: 0x800
+           and 0x400) and has them come back to this screen, 0x1000. */
+        if (g_round_state == 0x10)
+            bin_scroll_back(0x1000);
+        else if (g_round_state == 8)
+            bin_scroll_forward(0x1000);
 
         if (point_in_play_area() != 0) {
             pointer_frame();
@@ -341,6 +352,19 @@ void game_screen_loop(void)
             }
             edge_scroll_flags();
             si = 1;
+        }
+
+        /* 1.11: F1 in freeform offers to empty the parts bin, which then
+           belongs to the machine. */
+        if (g_freeform != 0 && (g_last_key >> 8) == 0x3b) {
+            if (ask_yes_no(g_messages.clear_parts_bin,
+                           g_messages.clear_parts_bin_body)) {
+                clear_parts_bin();
+                g_held_parts.bin_list = (&g_held_parts.parts_bin);
+                g_machine_has_bin = 1;
+                g_redraw_e = 2;
+            }
+            redraw_machine_area();
         }
 
         if (g_redraw_e != 0) { draw_machine_layer_a(); g_redraw_e--; }
@@ -425,23 +449,30 @@ void select_music_by_key(void)
 {
     int16_t si;
 
-    switch (g_last_key) {
-    case 2:  si = 0x3e9; break;
-    case 3:  si = 0x3ea; break;
-    case 4:  si = 0x3eb; break;
-    case 5:  si = 0x3ec; break;
-    case 6:  si = 0x3ed; break;
-    case 7:  si = 0x3ee; break;
-    case 8:  si = 0x3ef; break;
-    case 9:  si = 0x3f0; break;
-    case 10:  si = 0x3f1; break;
-    case 30:  si = 0x3f2; break;
-    case 48:  si = 0x3f3; break;
-    case 46:  si = 0x3f4; break;
-    case 32:  si = 0x3f5; break;
-    case 18:  si = 0x3f6; break;
-    case 33:  si = 0x3f7; break;
-    case 34:  si = 0x3f8; break;
+    /* 1.11 takes the key's character, upper-cased - '1'..'9' and 'A'..'L'
+       for its twenty-one tunes - where 1.00 took scancodes for sixteen. */
+    switch (toupper(g_last_key & 0x7f)) {
+    case '1':  si = 0x3e9; break;
+    case '2':  si = 0x3ea; break;
+    case '3':  si = 0x3eb; break;
+    case '4':  si = 0x3ec; break;
+    case '5':  si = 0x3ed; break;
+    case '6':  si = 0x3ee; break;
+    case '7':  si = 0x3ef; break;
+    case '8':  si = 0x3f0; break;
+    case '9':  si = 0x3f1; break;
+    case 'A':  si = 0x3f2; break;
+    case 'B':  si = 0x3f3; break;
+    case 'C':  si = 0x3f4; break;
+    case 'D':  si = 0x3f5; break;
+    case 'E':  si = 0x3f6; break;
+    case 'F':  si = 0x3f7; break;
+    case 'G':  si = 0x3f8; break;
+    case 'H':  si = 0x3f9; break;
+    case 'I':  si = 0x3fa; break;
+    case 'J':  si = 0x3fb; break;
+    case 'K':  si = 0x3fc; break;
+    case 'L':  si = 0x3fd; break;
     default: si = -1;
     }
 
@@ -516,7 +547,7 @@ void pointer_frame(void)
 
     if (g_held_parts.dragged_part != 0) {
         if (g_tool != 9)
-            g_drop_cursor = 0x0a;
+            g_drop_cursor = 0x0b;
 
         if (si == 0)
             g_tool = part_handle_at_pointer(g_held_parts.dragged_part);
@@ -546,6 +577,12 @@ void pointer_frame(void)
         case 5:
         case 6:
             run_drag_frame();
+            break;
+        case 11:
+            /* 1.11's new handle: a click toggles the part's `traits2`
+               bit 0x40, which the selection draws its own handle for. */
+            if (g_pointer.button_left == 2)
+                g_held_parts.dragged_part->traits2 ^= 0x40;
             break;
         case 10:
             if (g_pointer.button_left == 2)
@@ -957,7 +994,7 @@ void move_carried_part(void)
         break_second_attachment(CARRIED);
 
     if (object_overlaps_any(CARRIED) != 0) {
-        g_drop_cursor = 0x0e;
+        g_drop_cursor = 0x0f;
     } else if (g_pointer.button_left == 2) {
         mark_joined_shapes(CARRIED, 3);
 
@@ -974,7 +1011,7 @@ void move_carried_part(void)
         g_tool = 0;
         g_held_parts.dragged_part = 0;
     } else {
-        g_drop_cursor = 0x0c;
+        g_drop_cursor = 0x0d;
     }
 
     if (g_pointer.button_left != 2)
@@ -1013,7 +1050,7 @@ void part_key_shortcut(void)
 
     si = CARRIED->kind;
 
-    switch (g_last_key) {
+    switch (g_last_key >> 8) {          /* the scancode */
     case 0x2d:                          /* X */
         if (CARRIED->traits & TRAIT_CAN_FLIP_HORIZONTAL)
             flip_carried_horizontal();
@@ -1237,6 +1274,9 @@ void run_drag_frame(void)
 {
     int16_t si;
 
+    /* 1.11: where the drag began, for a size that cannot shrink to fit. */
+    g_drag_start_pos = CARRIED->pos[0];
+    g_drag_start_size = CARRIED->set_size;
     if (g_tool & 0x8000) {
         si = 0;
 
@@ -1287,6 +1327,7 @@ int16_t drag_carried_part_first(void)
     int16_t lo;                         /* [bp-4] */
     int16_t hi;                         /* [bp-6] */
     int16_t moved;                      /* [bp-8] */
+    int16_t stop;                       /* [bp-0xa] */
 
     moved = 0;
     was = CARRIED->pos[0].x;
@@ -1306,12 +1347,23 @@ int16_t drag_carried_part_first(void)
     if (was != si) {
         CARRIED->pos[0].x = si;
         CARRIED->set_size.width = di;
-        while (g_part_kinds[CARRIED->kind].settle(CARRIED),
-               place_object_for_draw(CARRIED),
-               g_part_kinds[CARRIED->kind].setup(CARRIED),
-               object_overlaps_any(CARRIED)) {
+        g_part_kinds[CARRIED->kind].settle(CARRIED);
+        place_object_for_draw(CARRIED);
+        g_part_kinds[CARRIED->kind].setup(CARRIED);
+        /* 1.11: shrinking past the smallest size puts the part back where
+           the drag began, and stops. */
+        stop = 0;
+        while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->pos[0].x += 0x10;
             CARRIED->set_size.width -= 0x10;
+            if (CARRIED->set_size.width < lo) {
+                CARRIED->pos[0].x = g_drag_start_pos.x;
+                CARRIED->set_size.width = g_drag_start_size.width;
+                stop = 1;
+            }
+            g_part_kinds[CARRIED->kind].settle(CARRIED);
+            place_object_for_draw(CARRIED);
+            g_part_kinds[CARRIED->kind].setup(CARRIED);
         }
 
         if (CARRIED->pos[0].x != was) {
@@ -1336,14 +1388,15 @@ int16_t drag_carried_part_first(void)
  */
 int16_t settle_carried_part_first(void)
 {
-    int16_t si;                         /* the new size */
-    int16_t di;                         /* the old */
-    int16_t lo;                         /* [bp-2] */
+    register int16_t si;                /* the new size */
+    register int16_t lo;                /* di */
+    int16_t was;                        /* [bp-2] */
     int16_t hi;                         /* [bp-4] */
     int16_t moved;                      /* [bp-6] */
+    int16_t stop;                       /* [bp-8] */
 
     moved = 0;
-    di = CARRIED->set_size.width;
+    was = CARRIED->set_size.width;
     si = (g_pointer.pointer_x & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].x;
     lo = g_part_kinds[CARRIED->kind].min_w;
     hi = g_part_kinds[CARRIED->kind].max_w;
@@ -1353,16 +1406,24 @@ int16_t settle_carried_part_first(void)
     else if (si < lo)
         si = lo;
 
-    if (di != si) {
+    if (was != si) {
         CARRIED->set_size.width = si;
-        while (g_part_kinds[CARRIED->kind].settle(CARRIED),
-               place_object_for_draw(CARRIED),
-               g_part_kinds[CARRIED->kind].setup(CARRIED),
-               object_overlaps_any(CARRIED)) {
+        g_part_kinds[CARRIED->kind].settle(CARRIED);
+        place_object_for_draw(CARRIED);
+        g_part_kinds[CARRIED->kind].setup(CARRIED);
+        stop = 0;
+        while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->set_size.width -= 0x10;
+            if (CARRIED->set_size.width < lo) {
+                CARRIED->set_size.width = g_drag_start_size.width;
+                stop = 1;
+            }
+            g_part_kinds[CARRIED->kind].settle(CARRIED);
+            place_object_for_draw(CARRIED);
+            g_part_kinds[CARRIED->kind].setup(CARRIED);
         }
 
-        if (CARRIED->set_size.width != di)
+        if (CARRIED->set_size.width != was)
             moved = 1;
     }
 
@@ -1396,6 +1457,7 @@ int16_t drag_carried_part_pair(void)
     int16_t lo;                         /* [bp-4] */
     int16_t hi;                         /* [bp-6] */
     int16_t moved;                      /* [bp-8] */
+    int16_t stop;                       /* [bp-0xa] */
 
     moved = 0;
     was = CARRIED->pos[0].y;
@@ -1415,12 +1477,23 @@ int16_t drag_carried_part_pair(void)
     if (was != si) {
         CARRIED->pos[0].y = si;
         CARRIED->set_size.height = di;
-        while (g_part_kinds[CARRIED->kind].settle(CARRIED),
-               place_object_for_draw(CARRIED),
-               g_part_kinds[CARRIED->kind].setup(CARRIED),
-               object_overlaps_any(CARRIED)) {
+        g_part_kinds[CARRIED->kind].settle(CARRIED);
+        place_object_for_draw(CARRIED);
+        g_part_kinds[CARRIED->kind].setup(CARRIED);
+        /* 1.11: shrinking past the smallest size puts the part back where
+           the drag began, and stops. */
+        stop = 0;
+        while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->pos[0].y += 0x10;
             CARRIED->set_size.height -= 0x10;
+            if (CARRIED->set_size.height < lo) {
+                CARRIED->pos[0].y = g_drag_start_pos.y;
+                CARRIED->set_size.height = g_drag_start_size.height;
+                stop = 1;
+            }
+            g_part_kinds[CARRIED->kind].settle(CARRIED);
+            place_object_for_draw(CARRIED);
+            g_part_kinds[CARRIED->kind].setup(CARRIED);
         }
 
         if (CARRIED->pos[0].y != was) {
@@ -1460,16 +1533,17 @@ int16_t drag_carried_part_pair(void)
  */
 int16_t settle_carried_part(void)
 {
-    int16_t si;                         /* the new size */
-    int16_t di;                         /* the old */
-    int16_t lo;                         /* [bp-2] */
+    register int16_t si;                /* the new size */
+    register int16_t lo;                /* di */
+    int16_t was;                        /* [bp-2] */
     int16_t hi;                         /* [bp-4] */
     int16_t moved;                      /* [bp-6] */
+    int16_t stop;                       /* [bp-8] */
 
     moved = 0;
-    di = CARRIED->set_size.height;
-    /* **origin_x, not origin_y**, at 0x10c08: the original adds the
-       horizontal scroll to the pointer's y here. */
+    was = CARRIED->set_size.height;
+    /* **origin_x, not origin_y**: the original adds the horizontal scroll
+       to the pointer's y here. */
     si = (g_pointer.pointer_y & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].y;
     lo = g_part_kinds[CARRIED->kind].min_h;
     hi = g_part_kinds[CARRIED->kind].max_h;
@@ -1479,16 +1553,24 @@ int16_t settle_carried_part(void)
     else if (si < lo)
         si = lo;
 
-    if (di != si) {
+    if (was != si) {
         CARRIED->set_size.height = si;
-        while (g_part_kinds[CARRIED->kind].settle(CARRIED),
-               place_object_for_draw(CARRIED),
-               g_part_kinds[CARRIED->kind].setup(CARRIED),
-               object_overlaps_any(CARRIED)) {
+        g_part_kinds[CARRIED->kind].settle(CARRIED);
+        place_object_for_draw(CARRIED);
+        g_part_kinds[CARRIED->kind].setup(CARRIED);
+        stop = 0;
+        while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->set_size.height -= 0x10;
+            if (CARRIED->set_size.height < lo) {
+                CARRIED->set_size.height = g_drag_start_size.height;
+                stop = 1;
+            }
+            g_part_kinds[CARRIED->kind].settle(CARRIED);
+            place_object_for_draw(CARRIED);
+            g_part_kinds[CARRIED->kind].setup(CARRIED);
         }
 
-        if (CARRIED->set_size.height != di)
+        if (CARRIED->set_size.height != was)
             moved = 1;
     }
 
@@ -1513,13 +1595,13 @@ int16_t settle_carried_part(void)
  *
  * 0x4e8b is set to 2 on every path, held or not.
  */
-void bin_scroll_back(void)
+void bin_scroll_back(uint16_t back_to)
 {
     struct part *si;
 
     if (g_pointer.button_left != 1 && g_pointer.button_left != 2) {
         g_goal_tests.back_held = 0;
-        g_round_state = 0x1000;
+        g_round_state = back_to;
     } else {
 #ifdef __TURBOC__
         if (g_goal_tests.back_held % 3 == 0) {
@@ -1558,13 +1640,13 @@ void bin_scroll_back(void)
  * step that answers something sets it, and a step that answers nothing wraps,
  * so 0x4e93 is asked for a redraw either way.
  */
-void bin_scroll_forward(void)
+void bin_scroll_forward(uint16_t back_to)
 {
     struct part *p;                         /* [bp-2] */
 
     if (g_pointer.button_left != 1 && g_pointer.button_left != 2) {
         g_goal_tests.forward_held = 0;
-        g_round_state = 0x1000;
+        g_round_state = back_to;
     } else {
 #ifdef __TURBOC__
         if (g_goal_tests.forward_held % 3 == 0) {
@@ -1610,7 +1692,7 @@ void region_cursor_bin_above(struct region *region)
         region_cursor_bin(region);
         region->code = 0x1000;
     } else {
-        region->cursor = 0x1a;
+        region->cursor = 0x1b;
         region->code = 0x2000;
     }
 }
@@ -1636,12 +1718,19 @@ void region_cursor_bin(struct region *region)
 {
     uint16_t di;                        /* the carried part's kind */
 
+    /* 1.11: adjusting the bin (state 4) a slot is a place to drop into;
+       otherwise it goes back to the game screen, as 1.00's caller set. */
+    if (g_round_state == 4) {
+        region->code = 4;
+        return;
+    }
+    region->code = 0x1000;
     if (g_tool == 9) {
         di = CARRIED->kind;
         if (di == 8)
-            region->cursor = 8;
-        else if (di == 0x0a)
             region->cursor = 9;
+        else if (di == 0x0a)
+            region->cursor = 0xa;
         else
             region->cursor = 0;
     } else if (bin_part_at_index(region->slot) != 0) {
@@ -1682,10 +1771,23 @@ void region_cursor_bin(struct region *region)
  * Whatever ends up in hand, a non-zero 0x50d5 selects tool 9 - which is what
  * makes `cursor_for_tool` and `region_cursor_bin` start answering by kind.
  */
-void region_click_bin(struct region *region)
+void region_click_bin(register struct region *region)
 {
     struct part *si;                    /* the clone */
     struct part *saved;                    /* [bp-2] */
+    struct part *taken;                    /* [bp-4] */
+
+    /* 1.11: adjusting the bin (state 4), a click takes the part out of it,
+       and the bin is the machine's own from then on. */
+    if (g_round_state == 4) {
+        if ((taken = (bin_part_at_index(region->slot))->next) != 0) {
+            unlink_part(taken);
+            free_part(taken);
+            g_machine_has_bin = 1;
+            g_redraw_e = 2;
+        }
+        return;
+    }
 
     if (g_tool == 9) {
         if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
@@ -1698,7 +1800,8 @@ void region_click_bin(struct region *region)
 
         if ((g_held_parts.dragged_part
                  = (bin_part_at_index(region->slot))->next) != 0) {
-            if (g_freeform != 0) {
+            /* A machine with its own bin gives out its parts, one each. */
+            if (g_freeform != 0 && g_machine_has_bin == 0) {
                 si = clone_part(CARRIED);
                 saved = g_held_parts.dragged_part;
                 g_held_parts.dragged_part = 0;
@@ -1717,6 +1820,9 @@ void region_click_bin(struct region *region)
 
             if (g_held_parts.dragged_part != 0) {
                 g_tool = 9;
+                /* 1.11 starts it off the play area until the pointer
+                   brings it in. */
+                CARRIED->pos[0].x = CARRIED->pos[0].y = -200;
                 if (CARRIED->kind == 8 || CARRIED->kind == 0x0a)
                     g_redraw_e = 2;
             }
@@ -2083,7 +2189,7 @@ void region_cursor_freeform(struct region *region)
     if (g_freeform != 0)
         region->cursor = 0;
     else
-        region->cursor = 0x14;
+        region->cursor = 0x15;
 }
 
 /*
@@ -2095,7 +2201,7 @@ void region_cursor_freeform(struct region *region)
 void region_cursor_load(struct region *region)
 {
     if (g_freeform != 0)
-        region->cursor = 0x17;
+        region->cursor = 0x18;
     else
         region->cursor = 0;
 }
@@ -2108,7 +2214,7 @@ void region_cursor_load(struct region *region)
 void region_cursor_save(struct region *region)
 {
     if (g_freeform != 0)
-        region->cursor = 0x16;
+        region->cursor = 0x17;
     else
         region->cursor = 0;
 }
@@ -2121,7 +2227,7 @@ void region_cursor_save(struct region *region)
 void region_cursor_gravity(struct region *region)
 {
     if (g_freeform != 0)
-        region->cursor = 0x18;
+        region->cursor = 0x19;
     else
         region->cursor = 0;
 }
@@ -2134,13 +2240,44 @@ void region_cursor_gravity(struct region *region)
 void region_cursor_air(struct region *region)
 {
     if (g_freeform != 0)
-        region->cursor = 0x19;
+        region->cursor = 0x1a;
     else
         region->cursor = 0;
 }
 
 /*
+ * 0x127a1
+ *
+ * **A freeform-only button's region**, new in 1.11: in freeform it shows
+ * cursor 0x24 and a click goes to state 0x10; otherwise nothing, and state
+ * 2. Named by the cursor until the button is identified.
+ */
+void region_cursor_freeform_24(register struct region *region)
+{
+    if (g_freeform != 0) {
+        region->cursor = 0x24;
+        region->code = 0x10;
+    } else {
+        region->cursor = 0;
+        region->code = 2;
+    }
+}
+
+/*
  * 0x127c8
+ *
+ * **Another**, new in 1.11: cursor 0x25 in freeform, none otherwise.
+ */
+void region_cursor_freeform_25(register struct region *region)
+{
+    if (g_freeform != 0)
+        region->cursor = 0x25;
+    else
+        region->cursor = 0;
+}
+
+/*
+ * 0x127e5
  *
  * **Tab moves the mouse pointer**, not a focus ring. There is no keyboard
  * selection in this panel at all: Tab advances a cursor at DGROUP 0x27ee and
@@ -2174,7 +2311,8 @@ void tab_move_pointer(void)
         g_game_play_tabs.stop = 0;
     }
 
-    if (g_game_play_tabs.stop == 0x0b)
+    /* 1.11 has two more stops, 0xb and 0xc, at fixed places. */
+    if (g_game_play_tabs.stop == 0x0d)
         g_game_play_tabs.stop = 0;
 
     if (g_game_play_tabs.stop == 9) {
@@ -2185,6 +2323,10 @@ void tab_move_pointer(void)
         t = mul16x16(g_level_settings.gravity, 0xa0);
         si = t / 0x80;
         si += 0x43;
+    } else if (g_game_play_tabs.stop == 0x0b) {
+        si = 0x11c;
+    } else if (g_game_play_tabs.stop == 0x0c) {
+        si = 0x258;
     } else {
         si = g_game_play_tabs.stop_x[g_game_play_tabs.stop];
     }

@@ -59,5 +59,9 @@
  "save_level": [
   "0x14144",
   "builds l<N>.lev and calls write_level at 0x13f83"
+ ],
+ "tab_move_pointer": [
+  "0x127e5",
+  "after 1.11's two new region handlers at 0x127a1 and 0x127c8, before paint_game_screen as in 1.00"
  ]
 }

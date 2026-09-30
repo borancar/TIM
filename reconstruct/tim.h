@@ -921,6 +921,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x17080 */
 void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x16ebf */
 void show_level_complete(void);                      /* 0x1779e */
 void free_all_lists(void);                          /* 0x16b42 */
+void clear_parts_bin(void);                                 /* 0x16b2d */
 void free_part_list(struct part *si);                       /* 0x16b70 */
 void load_animation(char *name);             /* 0x1419d */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x135cd */
@@ -1429,7 +1430,9 @@ void paint_panel_g(void);                           /* 0x12fb6 */
 void present_back_page(void);                       /* 0x08ce5 */
 
 void game_screen(void);                             /* 0x11f9e */
-void tab_move_pointer(void);                               /* 0x127c8 */
+void region_cursor_freeform_24(struct region *region); /* 0x127a1 */
+void region_cursor_freeform_25(struct region *region); /* 0x127c8 */
+void tab_move_pointer(void);                               /* 0x127e5 */
 void show_message_box(const char *title, char *body);
 uint16_t ask_yes_no(const char *title, char *body); /* 0x17533 */
 uint16_t message_box(const char *title, char *body,
@@ -1466,8 +1469,8 @@ void redraw_machine_area(void);                     /* 0x17908 */
 struct part *bin_part_at_index(int16_t index);           /* 0x06527 */
 void refile_part_list(struct part *part);               /* 0x06469 */
 struct part *bin_scroll_end(void);                      /* 0x0658b */
-void bin_scroll_back(void);                         /* 0x11d21 */
-void bin_scroll_forward(void);                      /* 0x11d86 */
+void bin_scroll_back(uint16_t back_to);             /* 0x11d21 */
+void bin_scroll_forward(uint16_t back_to);          /* 0x11d86 */
 void select_music_by_key(void);                      /* 0x10ac6 */
 void reset_level_state(void);                       /* 0x10ba2 */
 void edge_scroll_flags(void);                       /* 0x10cec */
