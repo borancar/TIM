@@ -403,7 +403,7 @@ L1cce9:
 L1ccfb:
         mov si, word ptr DGROUP:_g_engine_stream+16h
         push si
-        mov ax, 35bch
+        mov ax, 31e6h
         push ax
         call _read_input_block
         add sp, 4
@@ -513,8 +513,8 @@ L1cdcc:
         add dx, cx
         mov bp, ss
         mov es, bp
-        mov word ptr ss:[5894h], di
-        mov di, word ptr ss:[35d4h]
+        mov word ptr ss:[54aah], di
+        mov di, word ptr ss:[31feh]
         mov bp, cx
         rep stosb
 L1cde0:
@@ -542,8 +542,8 @@ L1ce09:
         add dx, cx
         mov bp, ss
         mov es, bp
-        mov word ptr ss:[5894h], di
-        mov di, word ptr ss:[35d4h]
+        mov word ptr ss:[54aah], di
+        mov di, word ptr ss:[31feh]
         mov bp, cx
         rep movsb
         jmp short L1cde0

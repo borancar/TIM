@@ -73,7 +73,7 @@ L20c14:
         mov bx, ax
         shl bx, 1
         xor cl, cl
-        mov ax, word ptr [bx+393ch]
+        mov ax, word ptr [bx+353ch]
         cmp ax, word ptr DGROUP:_g_vmds+4h
         jge L20c28
         or cl, 1
@@ -86,7 +86,7 @@ L20c31:
 L20c33:
         shl si, 1
         xor ch, ch
-        mov ax, word ptr [si+393ch]
+        mov ax, word ptr [si+353ch]
         cmp ax, word ptr DGROUP:_g_vmds+4h
         jge L20c44
         or ch, 1
@@ -98,10 +98,10 @@ L20c4d:
         mov al, cl
         or al, ch
         jne L20c69
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr [si+353ch]
+        mov word ptr [di+358ch], ax
+        mov ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp L20e25
 L20c69:
@@ -115,34 +115,34 @@ L20c72:
         test ch, 1
         je L20ca9
         mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [si+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [si+353ch]
         mov bp, ax
-        mov ax, word ptr [bx+3964h]
-        sub ax, word ptr [si+3964h]
+        mov ax, word ptr [bx+3564h]
+        sub ax, word ptr [si+3564h]
         imul bp
-        mov bp, word ptr [bx+393ch]
-        sub bp, word ptr [si+393ch]
+        mov bp, word ptr [bx+353ch]
+        sub bp, word ptr [si+353ch]
         idiv bp
-        add ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp short L20cda
 L20ca9:
         test ch, 2
         je L20cda
         mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [si+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [si+353ch]
         mov bp, ax
-        mov ax, word ptr [bx+3964h]
-        sub ax, word ptr [si+3964h]
+        mov ax, word ptr [bx+3564h]
+        sub ax, word ptr [si+3564h]
         imul bp
-        mov bp, word ptr [bx+393ch]
-        sub bp, word ptr [si+393ch]
+        mov bp, word ptr [bx+353ch]
+        sub bp, word ptr [si+353ch]
         idiv bp
-        add ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
 L20cda:
         jmp L20e25
@@ -154,107 +154,107 @@ L20ce3:
         test cl, 1
         je L20d16
         mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [bx+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [bx+353ch]
         mov bp, ax
-        mov ax, word ptr [si+3964h]
-        sub ax, word ptr [bx+3964h]
+        mov ax, word ptr [si+3564h]
+        sub ax, word ptr [bx+3564h]
         imul bp
-        mov bp, word ptr [si+393ch]
-        sub bp, word ptr [bx+393ch]
+        mov bp, word ptr [si+353ch]
+        sub bp, word ptr [bx+353ch]
         idiv bp
-        add ax, word ptr [bx+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [bx+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp short L20d47
 L20d16:
         test cl, 2
         je L20d47
         mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [bx+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [bx+353ch]
         mov bp, ax
-        mov ax, word ptr [si+3964h]
-        sub ax, word ptr [bx+3964h]
+        mov ax, word ptr [si+3564h]
+        sub ax, word ptr [bx+3564h]
         imul bp
-        mov bp, word ptr [si+393ch]
-        sub bp, word ptr [bx+393ch]
+        mov bp, word ptr [si+353ch]
+        sub bp, word ptr [bx+353ch]
         idiv bp
-        add ax, word ptr [bx+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [bx+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
 L20d47:
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr [si+353ch]
+        mov word ptr [di+358ch], ax
+        mov ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp L20e25
 L20d5d:
         test cl, 1
         je L20d90
         mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [bx+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [bx+353ch]
         mov bp, ax
-        mov ax, word ptr [si+3964h]
-        sub ax, word ptr [bx+3964h]
+        mov ax, word ptr [si+3564h]
+        sub ax, word ptr [bx+3564h]
         imul bp
-        mov bp, word ptr [si+393ch]
-        sub bp, word ptr [bx+393ch]
+        mov bp, word ptr [si+353ch]
+        sub bp, word ptr [bx+353ch]
         idiv bp
-        add ax, word ptr [bx+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [bx+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp short L20dc1
 L20d90:
         test cl, 2
         je L20dc1
         mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [bx+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [bx+353ch]
         mov bp, ax
-        mov ax, word ptr [si+3964h]
-        sub ax, word ptr [bx+3964h]
+        mov ax, word ptr [si+3564h]
+        sub ax, word ptr [bx+3564h]
         imul bp
-        mov bp, word ptr [si+393ch]
-        sub bp, word ptr [bx+393ch]
+        mov bp, word ptr [si+353ch]
+        sub bp, word ptr [bx+353ch]
         idiv bp
-        add ax, word ptr [bx+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [bx+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
 L20dc1:
         test ch, 1
         je L20df4
         mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [si+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [si+353ch]
         mov bp, ax
-        mov ax, word ptr [bx+3964h]
-        sub ax, word ptr [si+3964h]
+        mov ax, word ptr [bx+3564h]
+        sub ax, word ptr [si+3564h]
         imul bp
-        mov bp, word ptr [bx+393ch]
-        sub bp, word ptr [si+393ch]
+        mov bp, word ptr [bx+353ch]
+        sub bp, word ptr [si+353ch]
         idiv bp
-        add ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         jmp short L20e25
 L20df4:
         test ch, 2
         je L20e25
         mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+398ch], ax
-        sub ax, word ptr [si+393ch]
+        mov word ptr [di+358ch], ax
+        sub ax, word ptr [si+353ch]
         mov bp, ax
-        mov ax, word ptr [bx+3964h]
-        sub ax, word ptr [si+3964h]
+        mov ax, word ptr [bx+3564h]
+        sub ax, word ptr [si+3564h]
         imul bp
-        mov bp, word ptr [bx+393ch]
-        sub bp, word ptr [si+393ch]
+        mov bp, word ptr [bx+353ch]
+        sub bp, word ptr [si+353ch]
         idiv bp
-        add ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        add ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
 L20e25:
         mov bx, si
@@ -276,7 +276,7 @@ L20e44:
         mov bx, ax
         shl bx, 1
         xor cl, cl
-        mov ax, word ptr [bx+39b4h]
+        mov ax, word ptr [bx+35b4h]
         cmp ax, word ptr DGROUP:_g_vmds+0ah
         jle L20e58
         or cl, 4
@@ -290,7 +290,7 @@ L20e61:
 L20e65:
         shl si, 1
         xor ch, ch
-        mov ax, word ptr [si+39b4h]
+        mov ax, word ptr [si+35b4h]
         cmp ax, word ptr DGROUP:_g_vmds+0ah
         jle L20e76
         or ch, 4
@@ -302,10 +302,10 @@ L20e7f:
         mov al, cl
         or al, ch
         jne L20e9b
-        mov ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
-        mov ax, word ptr [si+39b4h]
-        mov word ptr [di+3964h], ax
+        mov ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
+        mov ax, word ptr [si+35b4h]
+        mov word ptr [di+3564h], ax
         add di, 2
         jmp L21057
 L20e9b:
@@ -319,34 +319,34 @@ L20ea4:
         test ch, 8
         je L20edb
         mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [si+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [si+35b4h]
         mov bp, ax
-        mov ax, word ptr [bx+398ch]
-        sub ax, word ptr [si+398ch]
+        mov ax, word ptr [bx+358ch]
+        sub ax, word ptr [si+358ch]
         imul bp
-        mov bp, word ptr [bx+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov bp, word ptr [bx+35b4h]
+        sub bp, word ptr [si+35b4h]
         idiv bp
-        add ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
         jmp short L20f0c
 L20edb:
         test ch, 4
         je L20f0c
         mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [si+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [si+35b4h]
         mov bp, ax
-        mov ax, word ptr [bx+398ch]
-        sub ax, word ptr [si+398ch]
+        mov ax, word ptr [bx+358ch]
+        sub ax, word ptr [si+358ch]
         imul bp
-        mov bp, word ptr [bx+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov bp, word ptr [bx+35b4h]
+        sub bp, word ptr [si+35b4h]
         idiv bp
-        add ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
 L20f0c:
         jmp L21057
@@ -358,107 +358,107 @@ L20f15:
         test cl, 8
         je L20f48
         mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [bx+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [bx+35b4h]
         mov bp, ax
-        mov ax, word ptr [si+398ch]
-        sub ax, word ptr [bx+398ch]
+        mov ax, word ptr [si+358ch]
+        sub ax, word ptr [bx+358ch]
         imul bp
-        mov bp, word ptr [si+39b4h]
-        sub bp, word ptr [bx+39b4h]
+        mov bp, word ptr [si+35b4h]
+        sub bp, word ptr [bx+35b4h]
         idiv bp
-        add ax, word ptr [bx+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [bx+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
         jmp short L20f79
 L20f48:
         test cl, 4
         je L20f79
         mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [bx+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [bx+35b4h]
         mov bp, ax
-        mov ax, word ptr [si+398ch]
-        sub ax, word ptr [bx+398ch]
+        mov ax, word ptr [si+358ch]
+        sub ax, word ptr [bx+358ch]
         imul bp
-        mov bp, word ptr [si+39b4h]
-        sub bp, word ptr [bx+39b4h]
+        mov bp, word ptr [si+35b4h]
+        sub bp, word ptr [bx+35b4h]
         idiv bp
-        add ax, word ptr [bx+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [bx+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
 L20f79:
-        mov ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
-        mov ax, word ptr [si+39b4h]
-        mov word ptr [di+3964h], ax
+        mov ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
+        mov ax, word ptr [si+35b4h]
+        mov word ptr [di+3564h], ax
         add di, 2
         jmp L21057
 L20f8f:
         test cl, 8
         je L20fc2
         mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [bx+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [bx+35b4h]
         mov bp, ax
-        mov ax, word ptr [si+398ch]
-        sub ax, word ptr [bx+398ch]
+        mov ax, word ptr [si+358ch]
+        sub ax, word ptr [bx+358ch]
         imul bp
-        mov bp, word ptr [si+39b4h]
-        sub bp, word ptr [bx+39b4h]
+        mov bp, word ptr [si+35b4h]
+        sub bp, word ptr [bx+35b4h]
         idiv bp
-        add ax, word ptr [bx+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [bx+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
         jmp short L20ff3
 L20fc2:
         test cl, 4
         je L20ff3
         mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [bx+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [bx+35b4h]
         mov bp, ax
-        mov ax, word ptr [si+398ch]
-        sub ax, word ptr [bx+398ch]
+        mov ax, word ptr [si+358ch]
+        sub ax, word ptr [bx+358ch]
         imul bp
-        mov bp, word ptr [si+39b4h]
-        sub bp, word ptr [bx+39b4h]
+        mov bp, word ptr [si+35b4h]
+        sub bp, word ptr [bx+35b4h]
         idiv bp
-        add ax, word ptr [bx+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [bx+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
 L20ff3:
         test ch, 8
         je L21026
         mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [si+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [si+35b4h]
         mov bp, ax
-        mov ax, word ptr [bx+398ch]
-        sub ax, word ptr [si+398ch]
+        mov ax, word ptr [bx+358ch]
+        sub ax, word ptr [si+358ch]
         imul bp
-        mov bp, word ptr [bx+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov bp, word ptr [bx+35b4h]
+        sub bp, word ptr [si+35b4h]
         idiv bp
-        add ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
         jmp short L21057
 L21026:
         test ch, 4
         je L21057
         mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3964h], ax
-        sub ax, word ptr [si+39b4h]
+        mov word ptr [di+3564h], ax
+        sub ax, word ptr [si+35b4h]
         mov bp, ax
-        mov ax, word ptr [bx+398ch]
-        sub ax, word ptr [si+398ch]
+        mov ax, word ptr [bx+358ch]
+        sub ax, word ptr [si+358ch]
         imul bp
-        mov bp, word ptr [bx+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov bp, word ptr [bx+35b4h]
+        sub bp, word ptr [si+35b4h]
         idiv bp
-        add ax, word ptr [si+398ch]
-        mov word ptr [di+393ch], ax
+        add ax, word ptr [si+358ch]
+        mov word ptr [di+353ch], ax
         add di, 2
 L21057:
         mov bx, si

@@ -176,39 +176,39 @@ L1ee8f:
         mov word ptr DGROUP:d_44d0, ax
         mov word ptr DGROUP:d_44d2, ax
 L1eebe:
-        mov ax, word ptr [si+3964h]
+        mov ax, word ptr [si+3564h]
         cmp ax, word ptr DGROUP:d_44e0
         jne L1eed6
-        mov ax, word ptr [si+393ch]
+        mov ax, word ptr [si+353ch]
         cmp ax, word ptr DGROUP:d_44de
         je L1ef17
-        mov ax, word ptr [si+3964h]
+        mov ax, word ptr [si+3564h]
 L1eed6:
         mov word ptr DGROUP:d_44e0, ax
-        mov word ptr [di+39b4h], ax
+        mov word ptr [di+35b4h], ax
         cmp ax, dx
         jg L1eef3
         jl L1eee9
-        cmp word ptr [si+393ch], cx
+        cmp word ptr [si+353ch], cx
         jle L1eef3
 L1eee9:
         mov word ptr DGROUP:d_44d0, di
         mov dx, ax
-        mov cx, word ptr [si+393ch]
+        mov cx, word ptr [si+353ch]
 L1eef3:
         cmp ax, bx
         jl L1ef09
         jg L1eeff
-        cmp word ptr [si+393ch], bp
+        cmp word ptr [si+353ch], bp
         jg L1ef09
 L1eeff:
         mov word ptr DGROUP:d_44d2, di
         mov bx, ax
-        mov bp, word ptr [si+393ch]
+        mov bp, word ptr [si+353ch]
 L1ef09:
-        mov ax, word ptr [si+393ch]
+        mov ax, word ptr [si+353ch]
         mov word ptr DGROUP:d_44de, ax
-        mov word ptr [di+398ch], ax
+        mov word ptr [di+358ch], ax
         add di, 2
 L1ef17:
         sub si, 2
@@ -257,10 +257,10 @@ L1ef59:
         cmp di, cx
         sbb ax, ax
         and di, ax
-        mov dx, word ptr [di+398ch]
-        sub dx, word ptr [si+398ch]
-        mov bp, word ptr [di+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov dx, word ptr [di+358ch]
+        sub dx, word ptr [si+358ch]
+        mov bp, word ptr [di+35b4h]
+        sub bp, word ptr [si+35b4h]
         jne L1ef99
         inc bp
         or dx, dx
@@ -273,10 +273,10 @@ L1ef99:
         jge L1efa2
         add di, cx
 L1efa2:
-        mov ax, word ptr [di+398ch]
-        sub ax, word ptr [si+398ch]
-        mov bx, word ptr [di+39b4h]
-        sub bx, word ptr [si+39b4h]
+        mov ax, word ptr [di+358ch]
+        sub ax, word ptr [si+358ch]
+        mov bx, word ptr [di+35b4h]
+        sub bx, word ptr [si+35b4h]
         jne L1efbe
         inc bx
         or ax, ax
@@ -377,7 +377,7 @@ L1f058:
 L1f076:
         mov ax, word ptr DGROUP:d_44d2
         mov bx, ax
-        mov dx, word ptr [bx+3964h]
+        mov dx, word ptr [bx+3564h]
         mov ax, word ptr DGROUP:d_44d0
         mov si, ax
         sub di, di
@@ -388,10 +388,10 @@ L1f088:
         sbb ax, ax
         and si, ax
 L1f091:
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr [si+353ch]
+        mov word ptr [di+358ch], ax
+        mov ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         cmp ax, dx
         jl L1f088
@@ -400,7 +400,7 @@ L1f091:
         mov word ptr DGROUP:d_44d4, ax
         mov ax, word ptr DGROUP:d_44d0
         mov bx, ax
-        mov dx, word ptr [bx+3964h]
+        mov dx, word ptr [bx+3564h]
         mov ax, word ptr DGROUP:d_44d2
         mov si, ax
         jmp short L1f0c8
@@ -410,10 +410,10 @@ L1f0bf:
         sbb ax, ax
         and si, ax
 L1f0c8:
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr [si+353ch]
+        mov word ptr [di+358ch], ax
+        mov ax, word ptr [si+3564h]
+        mov word ptr [di+35b4h], ax
         add di, 2
         cmp ax, dx
         jg L1f0bf
@@ -437,11 +437,11 @@ L1f103:
         mov si, ax
         add ax, 2
         mov word ptr DGROUP:d_44da, ax
-        mov ax, word ptr [si+398ch]
+        mov ax, word ptr [si+358ch]
         mov bx, ax
-        mov bp, word ptr [si+398eh]
-        mov cx, word ptr [si+39b4h]
-        mov si, word ptr [si+39b6h]
+        mov bp, word ptr [si+358eh]
+        mov cx, word ptr [si+35b4h]
+        mov si, word ptr [si+35b6h]
         sub ax, bp
         cwd
         xor ax, dx
@@ -502,7 +502,7 @@ L1f17e:
 L1f195:
         mov ax, word ptr DGROUP:d_44d0
         mov bx, ax
-        mov ax, word ptr [bx+3964h]
+        mov ax, word ptr [bx+3564h]
         mov dx, ax
         shl ax, 1
         shl ax, 1
@@ -510,7 +510,7 @@ L1f195:
         mov word ptr DGROUP:d_44e2, es
         mov ax, word ptr DGROUP:d_44d2
         mov bx, ax
-        mov ax, word ptr [bx+3964h]
+        mov ax, word ptr [bx+3564h]
         sub ax, dx
         inc ax
         mov cx, es
@@ -1078,7 +1078,7 @@ _poly_walk proc near
         add ax, dx
         shl dx, 1
         add ax, dx
-        mov dx, 3e28h
+        mov dx, 2eb2h
         sub dx, ax
         mov al, byte ptr DGROUP:d_44e8
         cbw
