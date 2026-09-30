@@ -59,7 +59,7 @@ struct machine_cursor_state g_machine_cursor_state = {
  */
 struct pointer g_pointer;
 
-uint8_t far *g_rect_buffer[4];   /* DGROUP 0x5758 */
+uint8_t far *g_rect_buffer[3];   /* DGROUP 0x5371 in 1.11 (1.00: 0x5758, four of them) */
 int16_t g_size_word;                                  /* DGROUP 0x5756 */
 volatile int16_t g_frame_flag;                        /* DGROUP 0x5754 */
 uint16_t g_redraw_guard;                              /* DGROUP 0x5752 */
@@ -103,14 +103,15 @@ struct machine_palette_fade {
 struct machine_palette_fade g_machine_palette_fade;
 
 /*
- * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734; the buffers themselves are `g_rect_buffer`, the far
- * pointers at 0x5758 up to `g_pointer`. Four is the routine's own bound.
+ * **The object buffers `claim_buffer_slot` hands out**, three in 1.11 and
+ * four in 1.00: a taken flag apiece at 0x534e (1.00: 0x5734); the buffers
+ * themselves are `g_rect_buffer`, the far pointers at 0x5371 up to
+ * `g_pointer`. The count is the routine's own bound.
  *
  * DGROUP 0x5734..0x5738, 0x04 bytes.
  */
 struct machine_buffer_used {
-    uint8_t   used[4];            /* +0x00 [4] */
+    uint8_t   used[3];            /* +0x00 [3]  four in 1.00 */
 } PACKED;
 
 struct machine_buffer_used g_machine_buffer_used;
@@ -264,6 +265,10 @@ void timer_callback(void)
     si = (key_is_down(SC_SPACE) != 0 || key_is_down(SC_ENTER) != 0
           || key_is_down(SC_KP5) != 0 || key_is_down(SC_INS) != 0) ? 1 : 0;
 
+    /* 1.11: a press that starts from a key says so */
+    if (g_pointer.button_accum_b == 0)
+        g_pointer.key_click_accum = si;
+
     di |= (si != 0) ? 1 : 0;
 
     si = button_state(0, di);
@@ -390,7 +395,8 @@ void wait_and_latch_frame(void)
 
     g_pointer.button_left = g_pointer.button_accum_b;
     g_pointer.button_right = g_pointer.button_accum_a;
-    g_pointer.button_accum_b = g_pointer.button_accum_a = 0;
+    g_pointer.key_click = g_pointer.key_click_accum;
+    g_pointer.button_accum_b = g_pointer.button_accum_a = g_pointer.key_click_accum = 0;
     g_frame_flag = 0;
 }
 
@@ -1117,8 +1123,8 @@ void reset_input_state(void)
         b->delay = 0;
     }
 
-    g_pointer.button_accum_b = g_pointer.button_accum_a = 0;
-    g_pointer.button_left = g_pointer.button_right = 0;
+    g_pointer.button_accum_b = g_pointer.button_accum_a = g_pointer.key_click_accum = 0;
+    g_pointer.button_left = g_pointer.button_right = g_pointer.key_click = 0;
 
     g_redraw_guard = saved;
 }
@@ -1228,12 +1234,12 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
 
     size = g_size_word != 0 ? g_size_word : (int16_t)vm_buffer_size(0x40, 0x40);
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 3; i++) {
         if (g_rect_buffer[i] == NULL)
             g_rect_buffer[i] = dos_alloc_bytes((int32_t)size, 0);
     }
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 3; i++) {
         if (!g_machine_buffer_used.used[i]
             && g_rect_buffer[i] != NULL) {
             g_machine_buffer_used.used[i] = 1;
@@ -1258,6 +1264,6 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
  */
 void release_buffer(int16_t n)
 {
-    if (n-- != 0 && n < 4)
+    if (n-- != 0 && n < 3)
         g_machine_buffer_used.used[n] = 0;
 }

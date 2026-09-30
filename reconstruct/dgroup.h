@@ -891,7 +891,7 @@ extern char *g_text_line[8];
  */
 /* cursor.c's; declared here, above `g_frame_flag`, because Borland lays out
    `_BSS` in reverse order of first mention and this is its place in it. */
-extern uint8_t far *g_rect_buffer[4];
+extern uint8_t far *g_rect_buffer[3];
 
 /*
  * **The drawing re-entry guard and the frame flag**, cursor.c's, DGROUP
