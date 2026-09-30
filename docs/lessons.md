@@ -417,6 +417,25 @@ image's order was taken - `g_font_kinds` and its neighbours, `g_open_files`
 and `g_saved_file`. **Renaming a global in a BC++ 2.0 module is a byte
 change; `tools/link.py` is the check.**
 
+### A link that reported IDENTICAL had linked a module from an object older than its source
+
+When every uppercase global took a `g_` prefix (2026-09-29), two names in
+`parts/dynamite_plunger.c` - `g_dynamite_plunger_point_table_33e6` and
+`_3404` - came to agree in their first 32 characters, which is all Borland
+keeps: "Variable ... is initialized more than once", and no object. The judge
+writes an object only when it compiles, `link.py` kept each module's object
+between runs, and the link took whatever object existed. So the build linked
+the module from before the rename and answered IDENTICAL; the commit was
+tagged `tim-1.00` on that answer. A clean checkout of the tag failed to link.
+
+It was found only because 1.11's sweep judged every file from scratch. The
+names are `g_plunger_point_table_33e6` and `_3404` now, and `link.py` deletes
+each module's object before building it and refuses to link a module that
+has none. **A verdict built on a cache is a verdict about the cache: a check
+that reuses outputs has to remove them first, or it can pass on work it did
+not do.** And an identifier is 32 characters to Borland, whatever the host
+makes of it.
+
 ### A compiler short of memory can write an object with no symbols, and exit 0
 
 vidload.c judged "0 of 0 routines match" on 2026-09-27. Borland C++ 2.0,

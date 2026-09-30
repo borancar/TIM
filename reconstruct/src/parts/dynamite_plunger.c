@@ -43,7 +43,7 @@ struct point8 g_dynamite_plunger_points_33de[4] = {
 /*
  * DGROUP 0x33e6..0x33ec. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *g_dynamite_plunger_point_table_33e6[3] = {
+struct point8 *g_plunger_point_table_33e6[3] = {
     g_dynamite_plunger_points_33ce, g_dynamite_plunger_points_33d6,
     g_dynamite_plunger_points_33de,
 };
@@ -72,7 +72,7 @@ struct point8 g_dynamite_plunger_points_33fc[4] = {
 /*
  * DGROUP 0x3404..0x340a. **Which table of points, by form**: a near pointer each.
  */
-struct point8 *g_dynamite_plunger_point_table_3404[3] = {
+struct point8 *g_plunger_point_table_3404[3] = {
     g_dynamite_plunger_points_33ec, g_dynamite_plunger_points_33f4,
     g_dynamite_plunger_points_33fc,
 };
@@ -134,11 +134,11 @@ void part_setup_dynamite_plunger(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        src = g_dynamite_plunger_point_table_3404[part->form];
+        src = g_plunger_point_table_3404[part->form];
         part->attach[0].x = (uint8_t)g_dynamite_plunger_points_3416[part->form].x;
         part->attach[0].y = (uint8_t)g_dynamite_plunger_points_3416[part->form].y;
     } else {
-        src = g_dynamite_plunger_point_table_33e6[part->form];
+        src = g_plunger_point_table_33e6[part->form];
         part->attach[0].x = (uint8_t)g_dynamite_plunger_points_340a[part->form].x;
         part->attach[0].y = (uint8_t)g_dynamite_plunger_points_340a[part->form].y;
     }

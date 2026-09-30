@@ -338,6 +338,16 @@ def main(argv):
     data = {f: old[f]["data"] for f in old if f not in todo}
     hashes = {f: old[f]["hash"] for f in old if f not in todo}
     if todo:
+        # **A module that does not compile must not be linked from an older
+        # object.** The judge writes the object only when it compiles, so a
+        # failed build left the previous one in place and it was linked as if
+        # nothing had happened: a rename that broke `dynamite_plunger.c` under
+        # Borland's 32 significant characters linked IDENTICAL from a stale
+        # object. Each object goes before its build, and the link refuses a
+        # module that has none.
+        for f in todo:
+            if os.path.exists(objname[f]):
+                os.remove(objname[f])
         bad = []
         with concurrent.futures.ThreadPoolExecutor(a.j) as ex:
             for path, ok, verdict, at in ex.map(lambda f: build(f, objname[f], a.cracked), todo):
@@ -351,6 +361,9 @@ def main(argv):
         print("%d modules built" % (len(todo) - len(bad)))
         json.dump({os.path.relpath(k, REPO): {"data": v, "hash": hashes.get(k)}
                    for k, v in data.items()}, open(saved, "w"))
+    missing = [os.path.relpath(f, REPO) for f in files if not os.path.exists(objname[f])]
+    if missing:
+        raise SystemExit("no object for %s - not linking" % ", ".join(missing))
     fr = judge.frames()
     order = object_order([(f, code[f], data.get(f)) for f in files], fr)
     objs = []
