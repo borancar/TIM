@@ -4,16 +4,14 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **Loading the sound driver out of SX.OVL.**
+ * **Load the digitised-sound module.**
  *
- * The second module of the original's **code segment 2619**, image
- * 0x28580..0x28655 - the first of its modules in C; sound_device.c says how the
- * segment's boundaries are known. Functions are in address order and each
- * carries the image offset it was read from.
+ * A module of the sound library, in 1.11 **code segment 2ad3** on its own,
+ * image 0x2ad3f..0x2ae14. 1.00 linked the library's C into one segment,
+ * 2619, where its module boundaries had to be inferred; 1.11 gives each
+ * module a segment, and the far calls into them say where each begins.
  *
- * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -O -G -Z
- * JUDGE: data 0x4a08..0x4a11
+ * JUDGE: built-with -mm -O2
  */
 #include "tim.h"
 #include "hostio.h"

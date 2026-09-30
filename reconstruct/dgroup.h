@@ -71,7 +71,7 @@ void port_abort(const char *msg);
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
  * spins on a word the timer thread writes - `g_timer.frame_budget`,
- * `g_frame_flag` and `g_sound_tick_wait.ticks_left` - so those three words are
+ * `g_frame_flag` and `g_sound_ticks_left` - so those three words are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -2004,26 +2004,21 @@ extern bmp_read_fn g_vqt_read_fn;
 #define ASBU16(off) (*(uint16_t *)(g_sound_bank.module + (off)))
 
 /*
- * **The sequencer's seven voices**, a far pointer each, DGROUP 0x6414..0x6430,
- * 0x1c bytes. Every loop over them is `i < 7`, and seven run exactly to
- * `g_sound_tick_wait` at 0x6430. `alloc_voice_records` and `free_voice_records`
- * test the first one's two words to tell whether the seven are allocated.
+ * **The sequencer's seven voices**, a far pointer each, DGROUP 0x5ff4..0x6010,
+ * 0x1c bytes. Every loop over them is `i < 7`. `alloc_voice_records` and
+ * `free_voice_records` test the first one's two words to tell whether the
+ * seven are allocated.
  */
 extern struct sequence far *g_sound_voice[7];
 
 /*
- * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
+ * **The five-tick wait**, DGROUP 0x5ff2: set to five, and a callback steps
+ * it down each tick. **volatile**: `tick_delay` counts it down as a timer
+ * callback, on the timer thread, while `delay_five_ticks` spins on it. 1.00
+ * kept it in one record with `next_matching_record`'s cursor; 1.11's are
+ * separate, the cursor its own module's.
  */
-struct sound_tick_wait {
-    volatile int16_t ticks_left;         /* +0x00 [2]  set to five; a callback steps it down each tick */
-    /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
-       while `delay_five_ticks` spins on it */
-    struct sound_record far *cursor;        /* +0x02 [4]  a static far pointer, with its
-                                            selector beside it */
-    int16_t   selector;           /* +0x06 [2] */
-} PACKED;
-
-extern struct sound_tick_wait g_sound_tick_wait;
+extern volatile int16_t g_sound_ticks_left;
 
 /*
  * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the

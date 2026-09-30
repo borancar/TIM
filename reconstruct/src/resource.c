@@ -18,7 +18,7 @@
  * vgadac.c's last `retf`; the end is where the LZW decoder's assembly
  * begins. 1.11's is Borland C++ 3.0 without `-O` where 1.00's was 2.0, and
  * `emit_byte` steps its huge cursor in inline `asm` the compiler assembled
- * itself: through TASM (`JUDGE: via-assembler`) three other routines come
+ * itself: compiled through TASM, three other routines come
  * out with jumps and an `xchg` the image does not have.
  *
  * JUDGE: built-with -mm
