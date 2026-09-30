@@ -48,13 +48,13 @@
  */
 void recompute_kind_physics(void)
 {
-    int16_t i;                          /* [bp-2] */
-    int16_t g;                          /* [bp-4] */
-    int16_t v;                          /* [bp-6] */
-    int16_t base;                       /* [bp-8] */
-    int32_t q;                          /* [bp-0xc] */
-    struct part_kind far *k;
+    int16_t g;                          /* [bp-2] */
+    int16_t v;                          /* [bp-4] */
+    int16_t base;                       /* [bp-6] */
+    int32_t q;                          /* [bp-0xa] */
+    struct part_kind far *k;            /* [bp-0xe] */
     register int16_t s;
+    register int16_t i;
 
     s = g_level_settings.air;
     if (s < 0x8c) {
@@ -69,7 +69,8 @@ void recompute_kind_physics(void)
     else
         base <<= 4;
 
-    for (i = 0; i < 0x3a; i++) {
+    /* every kind: 1.11's 66, where 1.00 stopped at 0x3a */
+    for (i = 0; i < PART_KIND_COUNT; i++) {
         k = &g_part_kinds[i];
         v = k->density;
         if (v == base)
@@ -91,8 +92,11 @@ void recompute_kind_physics(void)
             k->max_speed = 0x3000;
             if (i == 0x14)
                 k->gravity = 0;
-        } else
+        } else {
+            if (i == 63)                        /* 1.11 */
+                k->gravity = 0;
             k->max_speed = 0x2600 - base;
+        }
     }
 }
 
@@ -416,8 +420,8 @@ void bounce_off_contact(register struct part *obj)
     int32_t y;                          /* [bp-0x10], a product first */
     struct part *what;                  /* [bp-0x12] */
     struct part_contact *c;             /* [bp-0x14] */
-    const struct part_kind far *mine;       /* [bp-0x16] */
-    const struct part_kind far *theirs;     /* [bp-0x18] */
+    const struct part_kind far *mine;       /* [bp-0x18] */
+    const struct part_kind far *theirs;     /* [bp-0x1c] */
 
     sound_on_hard_impact(obj);
 
@@ -439,23 +443,31 @@ void bounce_off_contact(register struct part *obj)
     rotate_point(&vx, &vy, angle);
 
     bounce = mine->bounce < theirs->bounce ? mine->bounce : theirs->bounce;
-    y = mul16x16(vy, bounce);
-    vy = y >> 8;
-    vy = 0 - vy;
+    /* 1.11: kind 59 keeps its own bounce when that is high */
+    if (obj->kind == 59 && bounce >= 0x80)
+        bounce = mine->bounce;
 
-    if (vy < 0) {
-        t = vy + 0x40;
-        if (t < 0)
-            vy = t;
-        else
-            vy = 0;
-    } else {
-        t = vy - 0x40;
-        if (t > 0)
-            vy = t;
-        else
-            vy = 0;
-    }
+    /* 1.11: a kind with no grip reflects without losing anything */
+    if (mine->grip != 0) {
+        y = mul16x16(vy, bounce);
+        vy = y >> 8;
+        vy = 0 - vy;
+
+        if (vy < 0) {
+            t = vy + 0x40;
+            if (t < 0)
+                vy = t;
+            else
+                vy = 0;
+        } else {
+            t = vy - 0x40;
+            if (t > 0)
+                vy = t;
+            else
+                vy = 0;
+        }
+    } else
+        vy = 0 - vy;
 
     rotate_point(&vx, &vy, 0 - angle);
     obj->vel_x = vx;
@@ -502,16 +514,16 @@ void bounce_pair(register struct part *obj)
 {
     struct part *other;
     int16_t angle;                      /* [bp-2] */
-    int16_t bounce;                     /* [bp-4], never read */
-    int16_t myW;                        /* [bp-6] */
-    int16_t theirW;                     /* [bp-8] */
-    int32_t total;                      /* [bp-0xc] */
-    int16_t svx;                        /* [bp-0xe] */
-    int16_t svy;                        /* [bp-0x10] */
-    int16_t dvx;                        /* [bp-0x12] */
-    int16_t dvy;                        /* [bp-0x14] */
-    int16_t myMid;                      /* [bp-0x16] */
-    int16_t theirMid;                   /* [bp-0x18] */
+    int16_t myW;                        /* [bp-4] */
+    int16_t theirW;                     /* [bp-6] */
+    int32_t total;                      /* [bp-0xa] */
+    int16_t svx;                        /* [bp-0xc] */
+    int16_t svy;                        /* [bp-0xe] */
+    int16_t dvx;                        /* [bp-0x10] */
+    int16_t dvy;                        /* [bp-0x12] */
+    int16_t myMid;                      /* [bp-0x14] */
+    int16_t theirMid;                   /* [bp-0x16] */
+    int16_t push;                       /* [bp-0x18] */
     int16_t apart;                      /* [bp-0x1a] */
     int32_t mine_u;                     /* [bp-0x1e] m*u */
     int32_t yours_v;                    /* [bp-0x22] n*v */
@@ -519,8 +531,8 @@ void bounce_pair(register struct part *obj)
     int32_t mine_v;                     /* [bp-0x2a] m*v */
     int32_t x;                          /* [bp-0x2e] */
     int32_t y;                          /* [bp-0x32] */
-    const struct part_kind far *mine;       /* [bp-0x34] */
-    const struct part_kind far *theirs;     /* [bp-0x36] */
+    const struct part_kind far *mine;       /* [bp-0x36] */
+    const struct part_kind far *theirs;     /* [bp-0x3a] */
 
     sound_on_hard_impact(obj);
 
@@ -529,8 +541,7 @@ void bounce_pair(register struct part *obj)
     other->traits |= TRAIT_CONTACT_DONE;
     mine = &g_part_kinds[obj->kind];
     theirs = &g_part_kinds[other->kind];
-    bounce = mine->bounce < theirs->bounce ? mine->bounce : theirs->bounce;
-    (void)bounce;
+    /* 1.00 took the smaller bounce here and never read it; 1.11 does not. */
     myW = mine->weight;
     theirW = theirs->weight;
 
@@ -566,23 +577,26 @@ void bounce_pair(register struct part *obj)
         apart = 1;
     if (obj->traits & TRAIT_ON_SURFACE)
         apart = 1;
+    if (abs(obj->vel_x) > abs(obj->vel_y))     /* 1.11 */
+        apart = 0;
     if (obj->traits2 & TRAIT2_IN_BUCKET)
         apart = 1;
 
     if (apart) {
+        push = 0x400;                           /* 1.11: 1.00 pushed 0x200 */
         myMid = obj->pos[0].x + (obj->size[0].width >> 1);
         theirMid = other->pos[0].x + (other->size[0].width >> 1);
 
         if (myMid < theirMid) {
-            if (obj->vel_x > (int16_t)0xfe00)
-                obj->vel_x = (int16_t)0xfe00;
-            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x < 0x200)
-                other->vel_x = 0x200;
+            if (obj->vel_x > -push)
+                obj->vel_x = -push;
+            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x < push)
+                other->vel_x = push;
         } else {
-            if (obj->vel_x < 0x200)
-                obj->vel_x = 0x200;
-            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x > (int16_t)0xfe00)
-                other->vel_x = (int16_t)0xfe00;
+            if (obj->vel_x < push)
+                obj->vel_x = push;
+            if (!(obj->traits2 & TRAIT2_IN_BUCKET) && other->vel_x > -push)
+                other->vel_x = -push;
         }
     }
 
