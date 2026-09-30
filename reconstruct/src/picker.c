@@ -9,9 +9,11 @@
  * text wrapped into a box.
  *
  * The seventh module of the original's **code segment 0dff**, image
- * 0x12c26..0x1405b. Its data is DGROUP 0x28ec..0x2966 - the characters a name
+ * 0x12c26..0x1405b in 1.00 and 0x144ee..0x15c97 in 1.11. Its data is DGROUP
+ * 0x2408..0x2487 in 1.11 (0x28ec..0x2966 in 1.00) - the characters a name
  * may not hold, the picker's tab stops and the dialog's strings - and its
- * uninitialised data DGROUP 0x567e..0x56b6, declared from the top down
+ * uninitialised data DGROUP 0x5298..0x52d0 (1.00: 0x567e..0x56b6), declared
+ * from the top down
  * because Borland lays it out from the last first mention up. Built with
  * Borland C++ and without `-d`: the pool keeps each call site's own copy of
  * a repeated string. Functions are in address order and each carries the
@@ -19,7 +21,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x28ec..0x2966
+ * JUDGE: data 0x2408..0x2487
  */
 #include <string.h>
 #ifndef __TURBOC__
@@ -31,8 +33,8 @@
 
 /*
  * The module's uninitialised data, highest first: the wrapped text's lines
- * at 0x56a6, the picker text at 0x568f, the name buffer at 0x5682 and the
- * caret at 0x567e.
+ * at 0x52c0 (1.00: 0x56a6), then the picker text, the name buffer and the
+ * caret down to 0x5298.
  */
 char *g_text_line[8];
 
@@ -195,14 +197,14 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         }
 
         update_button_state();
-        g_last_key = (uint8_t)bios_read_key();
+        g_last_key = translate_key(bios_read_key());
 
-        if ((g_last_key) == '\t' && g_round_state != 0x4000
+        if ((g_last_key & 0x7f) == '\t' && g_round_state != 0x4000
             && g_round_state != 0x1000)
             picker_tab();
 
-        if (((g_last_key) == '\r' || (g_last_key) == ' '
-             || (g_last_key) == 0x1b /* Esc */)
+        if (((g_last_key & 0x7f) == '\r' || (g_last_key & 0x7f) == ' '
+             || (g_last_key & 0x7f) == 0x1b /* Esc */)
             && g_round_state == 0x4000)
             g_pointer.button_left = 0;
 
@@ -221,10 +223,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
         if ((g_round_state != 0x4000 && was == 0x4000) || g_round_state == 0x4000) {
             g_file_op_active = 1;
 
-            if (((g_last_key) != '\r' && g_round_state == 0x4000)
+            if (((g_last_key & 0x7f) != '\r' && g_round_state == 0x4000)
                 || was != 0x4000) {
                 if (was == 0x4000)
-                    picker_type((g_last_key), (char *)g_game_directories.path_field, 0x50);
+                    picker_type(g_last_key & 0x7f, (char *)g_game_directories.path_field, 0x50);
 
                 rp_name = 2;
             } else {
@@ -249,9 +251,6 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                         repaint = 1;
                         rp_name = 2;
                     }
-
-                    if (g_round_state == 0x4000)
-                        g_round_state = 0x8000;
                 } else {
                     dos_get_cur_dir((char *)g_game_directories.path_field);
                     show_message_box(g_messages.path_error, g_messages.path_error_body);
@@ -260,10 +259,9 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
                     restore_cursor();
                     repaint = 1;
                     rp_name = 2;
-
-                    if (g_round_state == 0x4000)
-                        g_round_state = 0x8000;
                 }
+
+                g_round_state = 0x8000;
             }
 
             g_file_op_active = 0;
@@ -271,10 +269,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 
         /* The name field, the same shape and a different buffer. */
         if ((g_round_state != 0x1000 && was == 0x1000) || g_round_state == 0x1000) {
-            if (((g_last_key) != '\r' && g_round_state == 0x1000)
+            if (((g_last_key & 0x7f) != '\r' && g_round_state == 0x1000)
                 || was != 0x1000) {
                 if (was == 0x1000)
-                    picker_type((g_last_key), (char *)g_picked_name, 0x0d);
+                    picker_type(g_last_key & 0x7f, (char *)g_picked_name, 0x0d);
             } else {
                 force_extension((char *)g_picked_name, "TIM");
 
@@ -541,6 +539,9 @@ uint16_t validate_filename(void)
     if (strnicmp((char *)g_picked_name, "lpt2", 4) == 0
         && (g_picked_name[4] == 0 || g_picked_name[4] == '.'))
         return 0;
+    if (strnicmp((char *)g_picked_name, "lpt3", 4) == 0
+        && (g_picked_name[4] == 0 || g_picked_name[4] == '.'))
+        return 0;
     if (strnicmp((char *)g_picked_name, "nul", 3) == 0
         && (g_picked_name[3] == 0 || g_picked_name[3] == '.'))
         return 0;
@@ -635,6 +636,81 @@ void picker_type(uint8_t c, char *buf, int16_t max)
     } else if (len < max && c != '\t') {
         strcat(buf, str);
     }
+}
+
+/*
+ * 0x14d5e
+ *
+ * **One key into an edited text**, new in 1.11, for the machine's
+ * description: `text` is the whole of it, `caret` where the caret stands,
+ * and the answer is where the caret stands after. Backspace takes out the
+ * character before it, Delete the one under it; the arrows, Home and End
+ * (and PgUp and PgDn, which do what Home and End do) move it; anything else
+ * that has a character, but Tab, goes in at the caret while the text is
+ * shorter than `max`. Every change is made by building the new text in a
+ * buffer on the stack and copying it back. The name is ours.
+ */
+char *edit_text_key(uint16_t key, register char *text, register char *caret,
+                    int16_t max)
+{
+    int16_t len;                        /* [bp-2] */
+    char ins[3];                        /* [bp-6] */
+    char tmp[0x194];                    /* [bp-0x19c] */
+
+    if (key != 0)
+        ins[0] = 0;
+    len = (int16_t)strlen(text);
+    switch (key >> 8) {
+    case 0x0e:                          /* Backspace */
+        if (caret != text) {
+            caret[-1] = 0;
+            strcpy(tmp, text);
+            strcat(tmp, caret);
+            strcpy(text, tmp);
+            caret--;
+        }
+        break;
+    case 0x4b:                          /* left */
+        if (caret != text)
+            caret--;
+        break;
+    case 0x4d:                          /* right */
+        if (*caret != 0)
+            caret++;
+        break;
+    case 0x47:                          /* Home */
+    case 0x49:                          /* PgUp */
+        caret = text;
+        break;
+    case 0x4f:                          /* End */
+    case 0x51:                          /* PgDn */
+        caret = text + len;
+        break;
+    case 0x53:                          /* Delete */
+        if (*caret != 0) {
+            *caret = 0;
+            caret++;
+            strcpy(tmp, text);
+            strcat(tmp, caret);
+            strcpy(text, tmp);
+            caret--;
+        }
+        break;
+    default:
+        if (len < max && (key & 0x7f) != 0 && (key & 0x7f) != '\t') {
+            ins[0] = key & 0x7f;
+            ins[1] = *caret;
+            ins[2] = 0;
+            *caret = 0;
+            caret++;
+            strcpy(tmp, text);
+            strcat(tmp, ins);
+            strcat(tmp, caret);
+            strcpy(text, tmp);
+        }
+        break;
+    }
+    return caret;
 }
 
 /*
@@ -1545,4 +1621,126 @@ void measure_word(char *str, int16_t *out_width, int16_t *out_length)
     *out_length = len;
 
     *at = saved;
+}
+
+/*
+ * 0x15a03
+ *
+ * **Where the caret is drawn**, new in 1.11: the text laid out in the box
+ * at `x`, `y`, `w` by `h` the way `draw_wrapped_text` lays it out, and
+ * `*out_x`, `*out_y` set to the top left of the character at `caret` -
+ * the start of the next line when the caret follows a line's `\r`, the
+ * start of the line below when the character would cross the box's right
+ * edge, and 0,0 when that character is a blank and so has no place. A null
+ * caret leaves the box's corner. The name is ours.
+ */
+void text_caret_position(char *text, char *at, int16_t x,
+                         int16_t y, int16_t w, int16_t h,
+                         int16_t *out_x, int16_t *out_y)
+{
+    int16_t cx;                         /* [bp-2] */
+    int16_t cy;                         /* [bp-4] */
+    int16_t glyph_w;                    /* [bp-6] */
+    int16_t line_h;                     /* [bp-8] */
+    int16_t saved;                      /* [bp-0xa] */
+    char *start;                        /* [bp-0xc] */
+    register char *caret;
+    register char **l;
+
+    *out_x = cx = x;
+    *out_y = cy = y + 1;
+    glyph_w = font_char_width(0);
+    line_h = font_line_height(0);
+    caret = at;
+    if (caret == NULL)
+        return;
+
+    wrap_text_to_box(text, w, h, line_h);
+    cx += (w - g_game_picker_text.text_width - 1) / 2;
+    *out_x = cx;
+    cy += (h - g_game_picker_text.text_height - 1) / 2;
+    *out_y = cy;
+
+    l = g_text_line;
+    if (*l > caret)
+        return;
+    if (l[g_game_picker_text.line_count] <= caret)
+        caret = l[g_game_picker_text.line_count];
+    if (g_game_picker_text.line_count != 0) {
+        while ((start = l[1], start) != 0 && *start != 0
+               && (caret > start || (caret == start && *caret != 0))) {
+            cy += line_h;
+            l++;
+        }
+        if (!(uint8_t)*caret && caret[-1] == '\r') {
+            cy += line_h;
+            l++;
+        }
+    }
+
+    start = *l;
+    saved = (uint8_t)*caret;
+    *caret = 0;
+    cx += (int16_t)text_width(start);
+    *caret = (char)saved;
+    glyph_size(saved, (uint16_t *)&glyph_w, 0);
+    if (cx + glyph_w > x + w) {
+        if ((uint8_t)*caret <= ' ') {
+            *out_x = *out_y = 0;
+            return;
+        }
+        cx = x;
+        cy += line_h;
+    }
+    glyph_size((uint8_t)*caret, (uint16_t *)&glyph_w, (uint16_t *)&line_h);
+    *out_x = cx;
+    *out_y = cy;
+}
+
+/*
+ * 0x15b7d
+ *
+ * **The character under a point**, new in 1.11: the text laid out in the
+ * box as `draw_wrapped_text` lays it out, the line the point's y falls in -
+ * or the end of the text below the last - and along it the character the
+ * point's x reaches, control characters stepped over, or the end of the
+ * line past its last character. A click in the description puts the caret
+ * there. The name is ours.
+ */
+char *text_at_point(char *text, register int16_t x, int16_t y, int16_t w,
+                    int16_t h, int16_t px, int16_t py)
+{
+    int16_t at_x;                       /* [bp-2] */
+    int16_t at_y;                       /* [bp-4] */
+    int16_t char_w;                     /* [bp-6] */
+    int16_t line_h;                     /* [bp-8] */
+    int16_t i;                          /* [bp-0xa] */
+    register char *si;
+
+    at_x = px;
+    at_y = py;
+    char_w = font_char_width(0);
+    line_h = font_line_height(0);
+    wrap_text_to_box(text, w, h, line_h);
+    x += (w - g_game_picker_text.text_width - 1) / 2;
+    y += (h - g_game_picker_text.text_height - 1) / 2;
+
+    for (i = 0; i < g_game_picker_text.line_count && y + line_h < at_y; i++)
+        y += line_h;
+    if (i >= g_game_picker_text.line_count)
+        text = g_text_line[g_game_picker_text.line_count];
+    else {
+        si = g_text_line[i];
+        while ((glyph_size((uint8_t)*si, (uint16_t *)&char_w, 0), g_text_line[i + 1]) > si + 1
+               && x + char_w < at_x) {
+            x += char_w;
+            while ((uint8_t)(si++, *si) < ' ' && *si != '\r') continue;
+        }
+        if (x + char_w < at_x && *si != '\r' && !(uint8_t)si[1]) {
+            si++;
+            glyph_size((uint8_t)*si, (uint16_t *)&char_w, 0);
+        }
+        text = si;
+    }
+    return text;
 }

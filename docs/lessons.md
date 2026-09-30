@@ -815,6 +815,21 @@ And, as before: with `register` declared on both a parameter and a local,
 the local takes SI; a register parameter alone, or with a plain local
 Borland promotes itself, takes SI too - swap the `register` to swap them.
 
+**A comma whose value is a comparison is materialised; a comma whose value
+is an operand is not.** The picker's `text_at_point` (1.11, 0x15b7d) measures
+a glyph at the top of its loop test and skips control bytes after each step.
+Written `while (glyph_size(...), a > b && c < d)` and `while (si++, *si <
+' ' && ...)`, both tests came out as `mov ax, 1 / jmp / xor ax, ax / or ax,
+ax / jne` - Borland builds a comma's boolean value and then tests it, even
+under `-O`, even for a single comparison. The image tests directly, and so
+does `(glyph_size(...), line[i + 1]) > si + 1 && ...` and `(uint8_t)(si++,
+*si) < ' ' && ...`: the comma yields a value, and the comparison is outside
+it. `*++si` is no substitute - it reads through BX (`inc si / mov bx, si`)
+where the image reads `[si]`. **A `jmp` to the very next instruction that
+`-O` left in place** was the skip loop's `continue`: `while (...) continue;`
+emits the body's jump to the test, the optimiser drops that one, and the
+loop's own entry jump - now to the next instruction - stays.
+
 ### Borland merges identical tails of statements, not of the arms of an expression
 
 `refile_overlapping_parts` stepped its walk with `walk = slot == level ?

@@ -1415,6 +1415,11 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h,
                       int16_t line_height);        /* 0x1587a */
 void measure_word(char *str, int16_t *out_width,
                   int16_t *out_length);             /* 0x159c5 */
+char *edit_text_key(uint16_t key, char *text, char *caret, int16_t max); /* 0x14d5e */
+void text_caret_position(char *text, char *caret, int16_t x, int16_t y,
+                         int16_t w, int16_t h, int16_t *out_x, int16_t *out_y); /* 0x15a03 */
+char *text_at_point(char *text, int16_t x, int16_t y, int16_t w, int16_t h,
+                    int16_t px, int16_t py);                /* 0x15b7d */
 uint16_t font_line_height(int16_t slot);            /* 0x2322f */
 void paint_panel_frame_rest(void);                  /* 0x129da */
 void paint_panel_a(uint16_t frame);                  /* 0x12c58 */
