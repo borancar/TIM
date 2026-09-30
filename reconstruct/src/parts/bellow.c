@@ -83,7 +83,7 @@ struct point8 *g_bellow_point_table_31e0[3] = {
 };
 
 /*
- * 172c:0332, image 0x175f2 - kind 16's hit test.
+ * 190f:0325, image 0x19415 - kind 16's hit test.
  *
  * Something has touched the bellows, and this decides whether that touch
  * squeezes it. The collision record is the argument; +0x84 is the bellows
@@ -114,7 +114,7 @@ uint16_t part_hit_bellow(struct part *part)
 }
 
 /*
- * 172c:0371, image 0x17631 - a setup.
+ * 190f:035f, image 0x1944f - a setup.
  *
  * Six connection points copied out of a table chosen two ways: bit 4 of +8
  * picks between the pointer arrays at DGROUP 0x31e0 and 0x31b6, and the form
@@ -144,7 +144,7 @@ void part_setup_bellow(struct part *part)
 }
 
 /*
- * 172c:03d2, image 0x17692 - kind 16's flip.
+ * 190f:03bd, image 0x194ad - kind 16's flip.
  *
  * Turn the part over and rebuild it: bit 4 of the flags at +8 is which way it
  * faces, and the setup at 172c:0371 reads that bit to pick which of its two
@@ -163,7 +163,7 @@ void part_flip_bellow(struct part *part)
 }
 
 /*
- * 172c:0405, image 0x176c5 - kind 16's step. **The bellows.**
+ * 190f:03c0, image 0x194b0 - kind 16's step. **The bellows.**
  *
  * +0x12 is which way it is going - 1 squeezing, -1 opening - and +0x0c is how
  * far, over three frames 0, 1, 2. Squeezing stops at 2 and opening stops at 0,

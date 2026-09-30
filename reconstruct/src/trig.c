@@ -42,7 +42,7 @@ public _long_mul_div, _scale_record_a, _scale_record_b, _mul16x16
 public _mul_48, _angle_sin, _angle_cos, _arctan_ratio
 public _arctan_lookup
 
-/* 0x2a04a */
+/* 0x2bb94 */
 _long_mul_div proc near
 	push bp
 	mov bp, sp
@@ -254,7 +254,7 @@ c_2a1e4 label byte
 	db 8bh, 0c3h, 0cbh
 _long_mul_div endp
 
-/* 0x2a208 */
+/* 0x2bd52 */
 _scale_record_a proc far
 	push bp
 	mov bp, sp
@@ -282,7 +282,7 @@ _scale_record_a proc far
 	retf
 _scale_record_a endp
 
-/* 0x2a242 */
+/* 0x2bd8c */
 _scale_record_b proc far
 	push bp
 	mov bp, sp
@@ -306,7 +306,7 @@ _scale_record_b proc far
 	retf
 _scale_record_b endp
 
-/* 0x2a269 */
+/* 0x2bdb3 */
 _mul16x16 proc far
 	mov bx, sp
 	mov ax, [bx+4]
@@ -314,7 +314,7 @@ _mul16x16 proc far
 	retf
 _mul16x16 endp
 
-/* 0x2a272 */
+/* 0x2bdbc */
 _mul_48 proc near
 	push bx
 	push si
@@ -525,7 +525,7 @@ c_2a455 label byte
 	db 0h
 _mul_48 endp
 
-/* 0x2a456 */
+/* 0x2bfa0 */
 _angle_sin proc far
 	mov bx, sp
 	mov ax, ss:[bx+4]
@@ -545,7 +545,7 @@ L2a471:
 	retf
 _angle_sin endp
 
-/* 0x2a47b */
+/* 0x2bfc5 */
 _angle_cos proc far
 	mov bx, sp
 	mov ax, ss:[bx+4]
@@ -631,7 +631,7 @@ c_2a49e label byte
 	db 0fah, 1h, 0fbh, 1h, 0fch, 1h, 0fch, 1h, 0fdh, 1h, 0feh, 1h, 0feh, 1h, 0ffh, 1h
 _angle_cos endp
 
-/* 0x2a89e */
+/* 0x2c3e8 */
 _arctan_ratio proc far
 	push bp
 	mov bp, sp
@@ -720,7 +720,7 @@ L2a93d:
 	retf
 _arctan_ratio endp
 
-/* 0x2a941 */
+/* 0x2c48b */
 _arctan_lookup proc far
 	push bp
 	mov bp, sp
@@ -1037,7 +1037,7 @@ TRIG_TEXT ends
 static const int16_t g_cos_table[0x801];
 
 /*
- * 0x2a04a
+ * 0x2bb94
  *
  * **A 32-bit multiply and divide**, near, its operands on the stack as longs and their signs taken off first. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
  * aborts. The TASM source above is the original's.
@@ -1049,7 +1049,7 @@ int32_t long_mul_div(void)
 }
 
 /*
- * 0x2a208
+ * 0x2bd52
  *
  * **Scale a record's fields** through `long_mul_div` by the constant at `cs:9a2h`. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
  * aborts. The TASM source above is the original's.
@@ -1061,7 +1061,7 @@ int32_t scale_record_a(void)
 }
 
 /*
- * 0x2a242
+ * 0x2bd8c
  *
  * The same, for the record's other pair of fields. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
  * aborts. The TASM source above is the original's.
@@ -1073,7 +1073,7 @@ int32_t scale_record_b(void)
 }
 
 /*
- * 0x2a269
+ * 0x2bdb3
  *
  * Signed 16 by 16 multiply, answering the full 32-bit product in DX:AX. Three
  * instructions, and fifty callers - `imul` with a memory operand does all of
@@ -1087,7 +1087,7 @@ int32_t mul16x16(int16_t a, int16_t b)
     return (int32_t)a * (int32_t)b;
 }
 /*
- * 0x2a272
+ * 0x2bdbc
  *
  * **A 48-bit multiply**, near, with its operands in AX:CX:DX and at [BX], its scratch at `ds:1681h` on the code segment. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
  * aborts. The TASM source above is the original's.
@@ -1099,7 +1099,7 @@ int32_t mul_48(void)
 }
 
 /*
- * 0x2a456
+ * 0x2bfa0
  *
  * Sine of a 16-bit angle, as a signed fraction with 16384 standing for 1.
  *
@@ -1121,7 +1121,7 @@ int16_t angle_sin(uint16_t angle)
 }
 
 /*
- * 0x2a47b
+ * 0x2bfc5
  *
  * Cosine of the same angle, the same way but without the quarter turn.
  */
@@ -1215,7 +1215,7 @@ static const int16_t g_arctan_table[512] = {
 };
 
 /*
- * 0x2a89e
+ * 0x2c3e8
  *
  * **The angle of (x, y)** by the arctangent table, 0x1000 to the turn: signs off, the smaller over the larger, looked up, and put back in its octant. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
  * aborts. The TASM source above is the original's.
@@ -1229,7 +1229,7 @@ int16_t arctan_ratio(int16_t x, int16_t y)
 }
 
 /*
- * 0x2a941
+ * 0x2c48b
  *
  * Look up `g_arctan_table`, and nothing else. The caller has already reduced its
  * two magnitudes to a ratio in 0..511.

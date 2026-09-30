@@ -24,7 +24,7 @@
 #include "dgroup.h"
 
 /*
- * 0x00f86
+ * 0x00e89
  *
  * One step of the machine's physics, as a dozen passes over the same lists.
  *
@@ -159,7 +159,7 @@ void step_machine(void)
 }
 
 /*
- * 0x01216
+ * 0x0118c
  *
  * One moving object's step: run its kind's own handler, integrate it, clear the
  * low nibble of its contact flags at +6, and settle it against whatever it hits.

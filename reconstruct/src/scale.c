@@ -67,7 +67,7 @@ struct engine_scale_table g_engine_scale_table;   /* DGROUP 0x5956 */
 struct engine_row_offsets g_engine_row_offsets;   /* DGROUP 0x5e56 */
 
 /*
- * 0x20840
+ * 0x224ca
  *
  * Work out a **16.16 fixed-point step**: the span at +4..+6 divided by a
  * count, left at +4 with its low word also copied to +0.
@@ -124,7 +124,7 @@ int16_t compute_step(register union scale_step *v, register int16_t count)
 }
 
 /*
- * 0x208f3
+ * 0x2257d
  *
  * Draw a plain planar bitmap scaled - the sibling of 0x227ac, 641 bytes
  * against its 1873, and the port reaches it as soon as the compressed one
@@ -385,7 +385,7 @@ next_row:
 }
 
 /*
- * 0x20b74
+ * 0x227fe
  *
  * **Draw a bitmap scaled by a factor, about a point.** The factor is in
  * 1024ths: the size is the bitmap's times `scale`, shifted right by ten, and

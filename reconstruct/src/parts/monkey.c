@@ -38,7 +38,7 @@ struct point8 g_monkey_points_33bc[9] = {
 };
 
 /*
- * 172c:2c83, image 0x19f43 - kind 31's hit test, the third way into
+ * 190f:2c15, image 0x1bd05 - kind 31's hit test, the third way into
  * `part_step_monkey`'s timer after its own drive and its belt.
  *
  * It only fires when the timer at +0x96 is already at rest, and only on faces
@@ -69,7 +69,7 @@ uint16_t part_hit_monkey(struct part *part)
 }
 
 /*
- * 172c:2cce, image 0x19f8e - a setup.
+ * 190f:2c5e, image 0x1bd4e - a setup.
  *
  * A part that is a different size each way round: bit 4 of +8 chooses both the
  * grab box's width at +0x6a and the box origin at +0x56 *and* which of the two
@@ -107,7 +107,7 @@ void part_setup_monkey(struct part *part)
 }
 
 /*
- * 172c:2d40, image 0x1a000 - kind 31's step.
+ * 190f:2cc0, image 0x1bdb0 - kind 31's step.
  *
  * Whatever is on the other end of its belt is told what this part is doing -
  * +0x12 copied straight across - unless that end is already busy, bit 11 of
@@ -182,7 +182,7 @@ void part_step_monkey(struct part *part)
 }
 
 /*
- * 172c:2e0c, image 0x1a0cc - kind 31's flip, the four-redraw shape.
+ * 190f:2d9d, image 0x1be8d - kind 31's flip, the four-redraw shape.
  */
 void part_flip_monkey(struct part *part)
 {
@@ -195,7 +195,7 @@ void part_flip_monkey(struct part *part)
 }
 
 /*
- * 172c:2e4b, image 0x1a10b - kind 31's drive, the other half of
+ * 190f:2dc4, image 0x1beb4 - kind 31's drive, the other half of
  * `part_step_monkey`.
  *
  * Mode 1 steps the word at +0x0e of what +0x66 points at and answers 0, the

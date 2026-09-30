@@ -51,7 +51,7 @@ struct engine_font_slots g_font_slots;   /* DGROUP 0x622a */
 struct engine_underline_rows g_underline_rows;   /* DGROUP 0x627a */
 
 /*
- * 0x2149e
+ * 0x23128
  *
  * **Slot 0 of every font array is the current font**, and this is what moves a
  * font in and out of it. The call does two different jobs depending on its
@@ -102,7 +102,7 @@ uint16_t set_font(register int16_t slot)
 }
 
 /*
- * 0x21575
+ * 0x231ff
  *
  * The width of a font's characters, for a font named by slot: the byte at
  * 0x38c4 + slot, with the same rule as `font_line_height` beside it - an
@@ -122,7 +122,7 @@ uint16_t font_char_width(register int16_t slot)
 }
 
 /*
- * 0x215a5
+ * 0x2322f
  *
  * The height of a font's characters, for a font named by slot: the byte at
  * 0x38d8 + slot, which is the same table `load_font` fills.
@@ -144,7 +144,7 @@ uint16_t font_line_height(register int16_t slot)
 }
 
 /*
- * 0x215d5
+ * 0x2325f
  *
  * Whether a font slot - an entry of `g_font_bodies`, DGROUP 0x618a - is
  * in use.
@@ -161,7 +161,7 @@ uint16_t font_slot_in_use(register int16_t index)
 }
 
 /*
- * 0x215ff
+ * 0x23289
  *
  * `text_width`, reached the way every caller reaches it: the string arrives as
  * a near offset and the body wants a far pointer, so this pushes `ds` in front
@@ -173,7 +173,7 @@ uint16_t text_width_thunk(const char *str)
 }
 
 /*
- * 0x21610
+ * 0x2329a
  *
  * How wide a string is in the current font. The body; 0x215ff below is the
  * door, and exists only to make a far pointer out of the caller's near one.
@@ -212,7 +212,7 @@ uint16_t text_width(const char far *str)
 }
 
 /*
- * 0x21670
+ * 0x232fa
  *
  * **Draw one character**, and answer how wide it was. Everything the game puts
  * on the screen in words goes through here.
@@ -377,7 +377,7 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
 }
 
 /*
- * 0x218d4
+ * 0x2355e
  *
  * `draw_string_body`, reached the way the game reaches it: the string arrives
  * as a near offset and the body wants a far pointer. Nothing else.
@@ -388,7 +388,7 @@ void draw_string(const char *str, int16_t x, int16_t y)
 }
 
 /*
- * 0x218eb
+ * 0x23575
  *
  * **Draw a string.** The body, and it takes a **far** pointer; 0x218d4 below is
  * the door that puts `ds` in front of a caller's near one. The picker's listing
@@ -511,7 +511,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 }
 
 /*
- * 0x21a50
+ * 0x236da
  *
  * The width and height of one character of the current font, through two
  * pointers either of which may be null; answers 0 for a character outside

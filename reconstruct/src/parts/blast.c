@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:1649, image 0x18909 - kind 41's step. The blast.
+ * 190f:161d, image 0x1a70d - kind 41's step. The blast.
  *
  * Five frames and then it is gone: every step takes the form on by one and
  * redraws, and at form 5 it registers its shapes one last time and hides
@@ -85,7 +85,7 @@ void part_step_blast(struct part *part)
 }
 
 /*
- * 172c:1748, image 0x18a08
+ * 190f:1738, image 0x1a828
  *
  * How fast the blast throws a thing: a ladder on the weight its kind's record
  * keeps at +2 - the same word `step_machine` copies into every object's +0x3a
@@ -123,7 +123,7 @@ int16_t blast_speed_for_mass(struct part *part)
 }
 
 /*
- * 172c:17bc, image 0x18a7c - the blast tearing a kind 1 or kind 0x30 in two.
+ * 190f:17be, image 0x1a8ae - the blast tearing a kind 1 or kind 0x30 in two.
  *
  * The bite is a **gap on the sixteen-pixel grid**, not a circle round the
  * blast: two grid lines are worked out from the blast's middle, one 0x20 back

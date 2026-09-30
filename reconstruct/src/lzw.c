@@ -65,7 +65,7 @@ L1ca46:
         jmp short L1caa3
 c_1ca61 db 90h
 
-/* 0x1ca62 */
+/* 0x1f607 */
 _decompress_lzw proc near
         push bp
         push si
@@ -335,7 +335,7 @@ L1cc5c:
         jmp L1caa3
 _decompress_lzw endp
 
-/* 0x1cc65 */
+/* 0x1f80a */
 _next_lzw_code proc near
         mov ax, word ptr DGROUP:_g_engine_stream+18h
         cmp ax, word ptr DGROUP:_g_engine_stream+2eh
@@ -425,7 +425,7 @@ L1cd25:
         ret
 _next_lzw_code endp
 
-/* 0x1cd2c */
+/* 0x1f8d1 */
 _rle_from_memory proc near
         push bp
         push si
@@ -623,7 +623,7 @@ struct engine_bit_state {
 struct engine_bit_state g_engine_bit_state;
 
 /*
- * 0x1ca62
+ * 0x1f607
  *
  * Decompression type 2: LZW, hand-written assembly, and the only routine here
  * that has to be able to **stop in the middle** and be called again.
@@ -809,7 +809,7 @@ step_back:
 }
 
 /*
- * 0x1cc65
+ * 0x1f80a
  *
  * The next LZW code, 9 to 12 bits wide, out of a bit buffer at DGROUP 0x35bc.
  * Answers -1 at the end of the input.
@@ -913,7 +913,7 @@ extract:
 }
 
 /*
- * 0x1cd2c
+ * 0x1f8d1
  *
  * Decompression type 1 from a resource in memory, hand-written assembly. NOT TRANSCRIBED YET: a stub, which aborts.
  */

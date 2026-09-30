@@ -92,7 +92,7 @@ struct point16 g_dynamite_plunger_points_3416[3] = {
 };
 
 /*
- * 172c:323f, image 0x1a4ff - kind 22's hit test, the trigger for
+ * 190f:31c8, image 0x1c2b8 - kind 22's hit test, the trigger for
  * `part_step_dynamite_plunger`.
  *
  * A touch on face 0 sets the part going outright. Any other face has to be
@@ -120,7 +120,7 @@ uint16_t part_hit_dynamite_plunger(struct part *part)
 }
 
 /*
- * 172c:3294, image 0x1a554 - a setup.
+ * 190f:3216, image 0x1c306 - a setup.
  *
  * Four points and a grab box, all three read out of tables indexed by the form
  * at +0x0c, and bit 4 of +8 picks which set of three tables. The points come
@@ -152,7 +152,7 @@ void part_setup_dynamite_plunger(struct part *part)
 }
 
 /*
- * 172c:332a, image 0x1a5ea - kind 22's step. **It makes a new part.**
+ * 190f:329c, image 0x1c38c - kind 22's step. **It makes a new part.**
  *
  * On the first frame of its three - +0x0c at 1 - it calls `make_part` for a
  * kind-0x29 part, files it on the list at 0x521b, and puts it half a part to
@@ -202,7 +202,7 @@ done:
 }
 
 /*
- * 172c:33e5, image 0x1a6a5 - kind 22's flip: bit 4, its setup, three marks and
+ * 190f:3362, image 0x1c452 - kind 22's flip: bit 4, its setup, three marks and
  * no draw.
  */
 void part_flip_dynamite_plunger(struct part *part)
@@ -215,7 +215,7 @@ void part_flip_dynamite_plunger(struct part *part)
 }
 
 /*
- * 172c:341d, image 0x1a6dd - kind 22's drive, the same family as kind 31's at
+ * 190f:339a, image 0x1c48a - kind 22's drive, the same family as kind 31's at
  * 172c:2e4b: the mode masked to 0x8006 and then to 0x7fff, which leaves 2, 4
  * or 6 and drops the top bit, and the second test asking about the *0x8006*
  * value so a 4 with the top bit on takes neither arm.

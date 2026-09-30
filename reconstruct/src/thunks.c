@@ -40,7 +40,7 @@
 #include "dgroup.h"
 
 /*
- * 0x0ba32
+ * 0x0c674
  *
  * `open` with two arguments - Borland's is variadic, and this pushes the
  * name and the flags and no permission word.
@@ -57,7 +57,7 @@ int16_t open_far(const char *name, uint16_t flags)
 }
 
 /*
- * 0x0ba45
+ * 0x0c687
  *
  * `open` with three arguments.
  */
@@ -67,7 +67,7 @@ int16_t open_file_perm_far(const char *name, uint16_t flags, uint16_t perm)
 }
 
 /*
- * 0x0ba5b
+ * 0x0c69d
  */
 int16_t close_far(int16_t handle)
 {
@@ -75,7 +75,7 @@ int16_t close_far(int16_t handle)
 }
 
 /*
- * 0x0ba6a
+ * 0x0c6ac
  */
 int16_t readfd_far(int16_t handle, uint8_t *buf, uint16_t count)
 {
@@ -83,7 +83,7 @@ int16_t readfd_far(int16_t handle, uint8_t *buf, uint16_t count)
 }
 
 /*
- * 0x0ba80
+ * 0x0c6c2
  */
 FILE *fopen_far(const char *name, const char *mode)
 {
@@ -91,7 +91,7 @@ FILE *fopen_far(const char *name, const char *mode)
 }
 
 /*
- * 0x0ba93
+ * 0x0c6d5
  */
 int16_t fseek_far(FILE *file, int32_t off, int16_t whence)
 {
@@ -99,7 +99,7 @@ int16_t fseek_far(FILE *file, int32_t off, int16_t whence)
 }
 
 /*
- * 0x0baac
+ * 0x0c6ee
  */
 int32_t ftell_far(FILE *file)
 {
@@ -107,7 +107,7 @@ int32_t ftell_far(FILE *file)
 }
 
 /*
- * 0x0babb
+ * 0x0c6fd
  */
 uint16_t fread_far(uint8_t *buf, uint16_t size, uint16_t count,
                            FILE *file)
@@ -116,7 +116,7 @@ uint16_t fread_far(uint8_t *buf, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x0bad4
+ * 0x0c716
  */
 uint16_t fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
                             FILE *file)
@@ -125,7 +125,7 @@ uint16_t fwrite_far(const uint8_t *buf, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x0baed
+ * 0x0c72f
  */
 int16_t fputc_far(int16_t c, FILE *file)
 {
@@ -133,7 +133,7 @@ int16_t fputc_far(int16_t c, FILE *file)
 }
 
 /*
- * 0x0bb00
+ * 0x0c742
  */
 void rewind_far(FILE *file)
 {
@@ -141,7 +141,7 @@ void rewind_far(FILE *file)
 }
 
 /*
- * 0x0bb0f
+ * 0x0c751
  */
 int16_t fclose_far(FILE *file)
 {
@@ -149,7 +149,7 @@ int16_t fclose_far(FILE *file)
 }
 
 /*
- * 0x0bb1e
+ * 0x0c760
  *
  * The far-callable face of `malloc`: one argument off the stack and straight
  * on to `malloc`.
@@ -168,7 +168,7 @@ void *malloc_far(uint16_t bytes)
 
 
 /*
- * 0x0bb2d
+ * 0x0c76f
  *
  * The far-callable face of `free`: one argument off the stack and straight on
  * to `free`. The `inc sp` twice that cleans it is two bytes shorter than
@@ -180,7 +180,7 @@ void free_far(void *p)
 }
 
 /*
- * 0x0bb3c
+ * 0x0c77e
  *
  * The far-callable face of `strcat`, the same shape as its neighbours: two
  * words off the stack and straight on to `strcat`. **Nothing calls
@@ -195,7 +195,7 @@ char *strcat_far(char *dst, const char *src)
 }
 
 /*
- * 0x0bb4f
+ * 0x0c791
  *
  * The far-callable face of `strcpy`: it takes the two words off the stack and
  * hands them straight on.
@@ -206,7 +206,7 @@ char *strcpy_far(char *dst, const char *src)
 }
 
 /*
- * 0x0bb62
+ * 0x0c7a4
  *
  * The far-callable face of `strchr`: the string and the character, the
  * latter pushed as a word, on to `strchr`. Uncalled - see 0x0bb3c.
@@ -217,7 +217,7 @@ char *strchr_far(char *s, int16_t c)
 }
 
 /*
- * 0x0bb75
+ * 0x0c7b7
  *
  * The far-callable face of `calloc`: it takes the two words off the stack and
  * hands them straight on. Four instructions and a `retf`.
@@ -228,7 +228,7 @@ void *calloc_far(uint16_t count, uint16_t size)
 }
 
 /*
- * 0x0bb88
+ * 0x0c7ca
  *
  * The far-callable face of `fgetc`: one word, the stream, on to
  * `fgetc`. Uncalled - see 0x0bb3c.

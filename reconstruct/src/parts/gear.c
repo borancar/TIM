@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:1f08, image 0x191c8 - shove an object along x.
+ * 190f:1ed2, image 0x1afc2 - shove an object along x.
  *
  * **The name is ours; the original has none.** +0x36 and +0x38 are the
  * velocity pair, read that way from `part_step_bellow`, which adds a bellows'
@@ -35,7 +35,7 @@ void nudge_x_add(struct part *obj, int16_t d)
 }
 
 /*
- * 172c:1f22, image 0x191e2 - the same along -x, and **not the mirror of it**.
+ * 190f:1eec, image 0x1afdc - the same along -x, and **not the mirror of it**.
  *
  * The subtraction is the obvious half. The clamp then compares against **+d
  * again, not -d**, so an object left slower than d after the subtraction is
@@ -50,7 +50,7 @@ void nudge_x_sub(struct part *obj, int16_t d)
 }
 
 /*
- * 172c:1f40, image 0x19200 - `nudge_x_add` on +0x38 instead of +0x36. Ours.
+ * 190f:1f0a, image 0x1affa - `nudge_x_add` on +0x38 instead of +0x36. Ours.
  */
 void nudge_y_add(struct part *obj, int16_t d)
 {
@@ -59,7 +59,7 @@ void nudge_y_add(struct part *obj, int16_t d)
 }
 
 /*
- * 172c:1f5a, image 0x1921a - `nudge_x_sub` on +0x38, asymmetry and all. Ours.
+ * 190f:1f24, image 0x1b014 - `nudge_x_sub` on +0x38, asymmetry and all. Ours.
  */
 void nudge_y_sub(struct part *obj, int16_t d)
 {
@@ -68,7 +68,7 @@ void nudge_y_sub(struct part *obj, int16_t d)
 }
 
 /*
- * 172c:1f78, image 0x19238 - kind 14's hit test. **Something has landed on a
+ * 172c:1f78, image 0x19238 (1.00's; not yet placed in 1.11) - kind 14's hit test. **Something has landed on a
  * moving surface and is carried along it.**
  *
  * The argument is the object that arrived; +0x84 is the kind-14 part it hit.
@@ -136,7 +136,7 @@ uint16_t part_hit_gear(struct part *part)
 }
 
 /*
- * 172c:2068, image 0x19328 - the only setup that looks at the rest of the
+ * 190f:202a, image 0x1b11a - the only setup that looks at the rest of the
  * machine. It runs 172c:0001 for the slots, clears its own four links at
  * +0x5a, and then walks the list at DGROUP 0x521b for other parts of its
  * own kind, 0x0e, sitting exactly 0x20 away in one axis and level in the
@@ -177,7 +177,7 @@ void part_setup_gear(struct part *part)
 }
 
 /*
- * 172c:20fc, image 0x193bc - kind 14's step, and the two routines below it.
+ * 190f:20c0, image 0x1b1b0 - kind 14's step, and the two routines below it.
  *
  * Kind 14 is a gear. A gear that has been given a direction at +0x12 marks
  * itself done - bit 6 of +8 - and pushes that direction out along its first
@@ -208,7 +208,7 @@ void part_step_gear(struct part *part)
 }
 
 /*
- * 172c:105d, image 0x1941d
+ * 190f:2121, image 0x1b211
  *
  * Push one gear's direction on to the next, and answer whether the chain
  * disagrees with itself.
@@ -260,7 +260,7 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
 }
 
 /*
- * 172c:1225, image 0x194e5
+ * 190f:21e7, image 0x1b2d7
  *
  * Turn a chain of gears by one step. Each one's direction at +0x12 is added to
  * its form at +0x0c, which wraps round the four positions, and the direction is

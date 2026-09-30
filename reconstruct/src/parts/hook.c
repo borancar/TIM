@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:19db, image 0x18c9b - a setup, and one of the few that writes no
+ * 190f:19ba, image 0x1aaaa - a setup, and one of the few that writes no
  * connection points at all: just the two bytes of the grab box.
  *
  * +0x6a is always 7; +0x6b is 0x0e or 1 as **bit 5** of +8 says - which is the
@@ -38,7 +38,7 @@ void part_setup_hook(struct part *part)
 }
 
 /*
- * 172c:19fa, image 0x18cba - kind 23's flip, and **it turns over bit 5, not
+ * 190f:19d9, image 0x1aac9 - kind 23's flip, and **it turns over bit 5, not
  * bit 4**. Every other flip in this segment xors 0x10; this one xors 0x20, so
  * whatever "the other way round" means for this kind is held somewhere else in
  * the flags. Its setup at 172c:19db is one of the six that write +0x6a.

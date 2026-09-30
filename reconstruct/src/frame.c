@@ -47,7 +47,7 @@ struct machine_button_prev {
 struct machine_button_prev g_machine_button_prev = { 0 };
 
 /*
- * 0x080b9
+ * 0x08baf
  *
  * Is the point at DGROUP 0x5782/0x5784 inside the play area? The box is
  * 8..0x237 across and 8..0x167 down, and both edges are inclusive.
@@ -62,7 +62,7 @@ int16_t point_in_play_area(void)
 }
 
 /*
- * 0x080e7
+ * 0x08bd9
  *
  * Take the object off both pages.
  *
@@ -84,7 +84,7 @@ void erase_both_pages(void)
 }
 
 /*
- * 0x0810b
+ * 0x08bfd
  *
  * Turn the cursor back on and put it on the screen: set the flag at DGROUP
  * 0x52f2 and then call `restore_cursor_following`, which is guarded by that
@@ -102,7 +102,7 @@ void show_cursor_again(void)
 }
 
 /*
- * 0x0811b
+ * 0x08c0d
  *
  * A one-call forwarder to `cursor_redraw_off`, in the same segment, reached from
  * 48 sites. Whatever the flag means, this is how most of the program clears
@@ -114,7 +114,7 @@ void cursor_redraw_off_thunk(void)
 }
 
 /*
- * 0x08125
+ * 0x08c17
  *
  * Let the cursor follow the mouse again, but only if DGROUP 0x52f2 says it
  * should. The pair to `cursor_redraw_off_thunk`, and the reason it is a routine
@@ -129,7 +129,7 @@ void restore_cursor_following(void)
 }
 
 /*
- * 0x08136
+ * 0x08c28
  *
  * Advance the button state for one frame. Three states live in DGROUP 0x5774
  * and the previous frame's is kept at 0x286e:
@@ -174,7 +174,7 @@ void update_button_state(void)
 }
 
 /*
- * 0x081cc
+ * 0x08cb8
  *
  * Present the frame. Three paths, chosen by two DGROUP flags: an optional
  * call to the routine at 0x0e34a first, then either a hook at 0x0b078 or the
@@ -192,7 +192,7 @@ void present_frame(uint16_t wait_retrace)
 }
 
 /*
- * 0x081f9
+ * 0x08cda
  *
  * Show what has just been painted, and then make the page that was on show the
  * one drawn into: 0x38a6 takes 0x38a4 and 0x38a8 takes 0x38a2, which is the
@@ -218,7 +218,7 @@ void present_back_page(void)
 }
 
 /*
- * 0x08229
+ * 0x08d08
  *
  * Put the whole picture back on the screen after something has been drawn over
  * it - which here is a message box.
@@ -241,7 +241,7 @@ void repaint_whole_screen(void)
 }
 
 /*
- * 0x08259
+ * 0x08d41
  *
  * Set the four holiday flags from today's date. Nothing else reads the date;
  * these four words are the whole result.
@@ -276,7 +276,7 @@ void set_holiday_flags(void)
 }
 
 /*
- * 0x082c3
+ * 0x08dc0
  *
  * Set the clip box: to the saved rectangle at DGROUP 0x52d7..0x52dd when the
  * mode word at 0x4e6b is any of seven values, and to a fixed one otherwise.
@@ -312,7 +312,7 @@ void set_clip_for_mode(void)
 }
 
 /*
- * 0x08332
+ * 0x08e2d
  *
  * Set the clipping box to the **play area**: 0,0 to 639,367. The same four
  * words as `set_clip_full_screen` below and thirty-two rows shorter, which is
@@ -326,7 +326,7 @@ void set_clip_play_area(void)
 }
 
 /*
- * 0x0834b
+ * 0x08e46
  *
  * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
  * bottom is 0x18f, which is the blanking line the CRTC is programmed with -
@@ -340,7 +340,7 @@ void set_clip_full_screen(void)
 }
 
 /*
- * 0x08364
+ * 0x08e5f
  *
  * Make one piece of music the current one: stop and free whatever was playing,
  * open the new one and start it, and remember it at DGROUP 0x52d5.
@@ -364,7 +364,7 @@ void select_music(register int16_t id)
 }
 
 /*
- * 0x083ab
+ * 0x083ab (1.00's; not yet placed in 1.11)
  *
  * Play a sound, and hold six of them back when the music is off.
  *
@@ -396,7 +396,7 @@ void play_sound(register int16_t id)
 }
 
 /*
- * 0x083ea
+ * 0x08eed
  *
  * Stop a sound, or all of them.
  *
@@ -419,7 +419,7 @@ void stop_music_or_effect(register int16_t id)
 }
 
 /*
- * 0x08432
+ * 0x08f3b
  *
  * Is there room for another part? Answers 1 for yes and 0 for no, and says so
  * on screen when the answer changes.
@@ -463,7 +463,7 @@ int16_t check_room_for_part(void)
 }
 
 /*
- * 0x084b0
+ * 0x08fc6
  *
  * The largest allocation the heap could still satisfy.
  *
@@ -505,7 +505,7 @@ int16_t heap_largest_free(void)
 }
 
 /*
- * 0x08510
+ * 0x09024
  *
  * Free a block, with the heap checked either side of it. The check is the one
  * that hangs on a broken heap, so a free that corrupts the ring stops the game
@@ -519,7 +519,7 @@ void checked_free(void *p)
 }
 
 /*
- * 0x08528
+ * 0x0903c
  *
  * Check the heap, and **stop dead** if it is broken.
  *

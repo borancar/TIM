@@ -28,7 +28,7 @@ struct point16 g_light_points_339a[4] = {
 };
 
 /*
- * 172c:2b58, image 0x19e18 - no connection points, only the grab box, and both
+ * 190f:2aff, image 0x1bbef - no connection points, only the grab box, and both
  * its bytes come out of one table indexed by the part's form at +0x0c.
  */
 void part_setup_light(struct part *part)
@@ -38,7 +38,7 @@ void part_setup_light(struct part *part)
 }
 
 /*
- * 172c:2b7e, image 0x19e3e - kind 29's hit test.
+ * 172c:2b7e, image 0x19e3e (1.00's; not yet placed in 1.11) - kind 29's hit test.
  *
  * The same do-nothing as `part_hit_generator`, down to the unused local.
  */
@@ -51,7 +51,7 @@ uint16_t part_hit_light(struct part *part)
 }
 
 /*
- * 172c:2b99, image 0x19e59 - kind 29's step.
+ * 190f:2b2d, image 0x1bc1d - kind 29's step.
  *
  * Only forms 0 and 2 move on, and only while +0x12 says it is on: the form
  * steps by one and its own setup runs again, because this kind's connection
@@ -67,7 +67,7 @@ void part_step_light(struct part *part)
 }
 
 /*
- * 172c:2bc5, image 0x19e85 - kind 29's flip, a form swing like kind 21's but
+ * 190f:2b59, image 0x1bc49 - kind 29's flip, a form swing like kind 21's but
  * between 0 and **2** rather than 0 and 4, copied into +0x90 the same way.
  */
 void part_flip_light(struct part *part)
@@ -87,7 +87,7 @@ void part_flip_light(struct part *part)
 }
 
 /*
- * 172c:2c19, image 0x19ed9 - kind 29's drive hook.
+ * 190f:2ba1, image 0x1bc91 - kind 29's drive hook.
  *
  * The arguments are the seven `drive_ropes` hands over; this one uses only the
  * part at +8 and the flags at +0x0c.

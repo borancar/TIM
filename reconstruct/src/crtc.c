@@ -50,7 +50,7 @@ _TEXT segment byte public 'CODE'
 assume cs:_TEXT, ds:DGROUP
 public _vm_set_line_compare, _vm_set_display_lines
 
-/* 0x08f27 */
+/* 0x09bdd */
 _vm_set_line_compare proc far
         push bp
         mov bp, sp
@@ -105,7 +105,7 @@ _vm_set_line_compare proc far
         retf
 _vm_set_line_compare endp
 
-/* 0x08f77 */
+/* 0x09c2d */
 _vm_set_display_lines proc far
         push bp
         mov bp, sp
@@ -162,7 +162,7 @@ _TEXT ends
 #else
 
 /*
- * 0x08f27
+ * 0x09bdd
  *
  * Program the CRTC's **Line Compare**, the split-screen line: from the scan
  * line it names down, the card stops following the start address and fetches
@@ -205,7 +205,7 @@ void vm_set_line_compare(uint16_t line)
 }
 
 /*
- * 0x08f77
+ * 0x09c2d
  *
  * Program the CRTC to blank after `lines` scan lines. The count is ten bits
  * and the hardware spreads it over three registers: the low eight in Start

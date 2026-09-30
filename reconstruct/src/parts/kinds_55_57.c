@@ -36,7 +36,7 @@ struct point8 g_kinds_55_57_points_3282[7] = {
 };
 
 /*
- * 172c:10b6, image 0x18376 - two tables again, but chosen by the form at
+ * 190f:10bd, image 0x1a1ad - two tables again, but chosen by the form at
  * +0x0c rather than by the flag at +8: zero takes 0x3274 and anything else
  * 0x3282. Those two sit right after 0x3266, which the 0x1075 copy above
  * uses, so all three are one array of seven-pair rows and this picks the
@@ -62,7 +62,7 @@ void part_setup_kind_56(struct part *part)
 }
 
 /*
- * 172c:1105, image 0x183c5 - four slots computed rather than copied. Two
+ * 190f:110c, image 0x1a1fc - four slots computed rather than copied. Two
  * bytes are worked out first and then laid into the corners: (0,b), (a,b),
  * (a,c), (0,c). `a` is 0x54 for kind 0x37, 0x69 for kind 0x39 in form 8 -
  * which also makes `b` 0x0a rather than 0 - and otherwise one less than the
@@ -115,7 +115,7 @@ void part_setup_kinds_55_57(struct part *part)
 }
 
 /*
- * 172c:11a6, image 0x18466 - kind 57's step.
+ * 190f:11c9, image 0x1a2b9 - kind 57's step.
  *
  * Four lines: in form 1, and only once something has given it a sideways
  * velocity at +0x36, it goes to form 3 and plays sound 3. Nothing else happens
@@ -131,7 +131,7 @@ void part_step_kind_57(struct part *part)
 }
 
 /*
- * 172c:11d2, image 0x18492 - kind 57's drive hook.
+ * 190f:11e1, image 0x1a2d1 - kind 57's drive hook.
  *
  * Flags of exactly 1 is the counting pass `part_drive_light` also recognises:
  * the rope's +0x0e goes up and the answer is 0, so the walk carries on.

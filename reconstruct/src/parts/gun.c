@@ -36,7 +36,7 @@ struct point8 g_gun_points_3322[7] = {
 };
 
 /*
- * 172c:22ae, image 0x1956e - kind 27's step. The gun.
+ * 190f:2270, image 0x1b360 - kind 27's step. The gun.
  *
  * Six frames once it is set going, the second playing sound 0x0b, and the
  * third fires: `make_part` builds a kind 0x14, `insert_sorted` puts it on the
@@ -89,7 +89,7 @@ void part_step_gun(struct part *part)
 }
 
 /*
- * 172c:23b1, image 0x19671 - a setup.
+ * 190f:2368, image 0x1b458 - a setup.
  *
  * Seven points, with the grab box's width at +0x6a following the same flag:
  * 0x2a with the table at 0x3322, 0x12 with 0x3314. The height at +0x6b is 0x12
@@ -120,7 +120,7 @@ void part_setup_gun(struct part *part)
 }
 
 /*
- * 172c:2412, image 0x196d2 - kind 27's flip: bit 4, its setup, and all four
+ * 190f:23d1, image 0x1b4c1 - kind 27's flip: bit 4, its setup, and all four
  * redraws - the draw and the three marks.
  */
 void part_flip_gun(struct part *part)
@@ -134,7 +134,7 @@ void part_flip_gun(struct part *part)
 }
 
 /*
- * 172c:2451, image 0x19711 - kind 27's drive hook.
+ * 172c:2451, image 0x19711 (1.00's; not yet placed in 1.11) - kind 27's drive hook.
  *
  * Flags of exactly 1 is the counting pass the other drive hooks recognise: the
  * rope's +0x0e goes up and the answer is 0, so the walk carries on.

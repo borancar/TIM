@@ -28,7 +28,7 @@
 #include "tim.h"
 
 /*
- * 0x2d296
+ * 0x2ede0
  *
  * Arctangent of two 32-bit values - `atan2` - answering an angle in the
  * whole-turn-is-0x10000 space.

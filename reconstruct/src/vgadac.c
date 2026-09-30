@@ -35,7 +35,7 @@
  * the frame, the SI/DI save and each final return are the compiler's.
  * Drafted by tools/asm2c.py.
  */
-/* 0x1c087 */
+/* 0x1ec86 */
 void vga_set_dac(const uint8_t *rgb, int16_t first, int16_t count)
 {
     asm mov si, word ptr [bp+6]
@@ -69,7 +69,7 @@ L1c0ba:
     asm sti
 }
 
-/* 0x1c0c2 */
+/* 0x1ecc1 */
 void vga_get_dac(uint8_t *rgb, int16_t first, int16_t count)
 {
     asm push ds
@@ -105,7 +105,7 @@ L1c0f7:
     asm sti
 }
 
-/* 0x1c0ff */
+/* 0x1ecfe */
 void chunky_to_planar(const uint8_t *src, uint8_t *dst)
 {
     asm mov si, word ptr [bp+6]
@@ -275,7 +275,7 @@ L1c24c:
 #else
 
 /*
- * 0x1c087
+ * 0x1ec86
  *
  * Load `count` colours into the DAC from index `first`. It is the driver's
  * `vm_set_palette` instruction for instruction: wait for retrace, write the
@@ -299,7 +299,7 @@ void vga_set_dac(const uint8_t *rgb, int16_t first, int16_t count)
 }
 
 /*
- * 0x1c0c2
+ * 0x1ecc1
  *
  * Read `count` colours out of the DAC from index `first`. The mirror of the
  * one above, with the state test turned round: unless the state reads 0 it
@@ -322,7 +322,7 @@ void vga_get_dac(uint8_t *rgb, int16_t first, int16_t count)
 }
 
 /*
- * 0x1c0ff
+ * 0x1ecfe
  *
  * Turn 640 pixels of one byte each into the eight bitplanes of an ILBM row,
  * 0x50 bytes apiece, plane 0 first. Eight pixels at a time: each is shifted

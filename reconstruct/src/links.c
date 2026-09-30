@@ -24,7 +24,7 @@
 #include "dgroup.h"
 
 /*
- * 0x03566
+ * 0x0417e
  *
  * Find every object whose bounding box comes within the given margins of one
  * object's, and chain them onto it.
@@ -129,7 +129,7 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
 }
 
 /*
- * 0x036de
+ * 0x036de (1.00's; not yet placed in 1.11)
  *
  * Build the chain of objects that overlap a box, the way `link_nearby_objects`
  * builds the one that overlaps a part's own box - but the box is given as four
@@ -175,7 +175,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
 }
 
 /*
- * 0x03782
+ * 0x03782 (1.00's; not yet placed in 1.11)
  *
  * Build the chain of objects whose *outline* crosses a given line, rather than
  * whose box overlaps another - `link_nearby_objects` and
@@ -249,7 +249,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
 }
 
 /*
- * 0x038b9
+ * 0x04476
  *
  * The fourth "what is near me": a box given as four offsets, like
  * `link_objects_in_range`, but matching a *point* rather than a box. Only
@@ -293,7 +293,7 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
 }
 
 /*
- * 0x03972
+ * 0x04525
  *
  * Collect what a kind-0x11 platform is carrying, into the chain at +0x78, and
  * give each of them the platform's own velocity.
@@ -361,7 +361,7 @@ void collect_carried(register struct part *obj)
 }
 
 /*
- * 0x03a61
+ * 0x0463d
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at
  * +4 is 0x11 have such a chain; anything else answers no without looking.
@@ -380,7 +380,7 @@ int16_t chain_contains(register struct part *rec, struct part *node)
 }
 
 /*
- * 0x03a8d
+ * 0x04667
  *
  * Carry everything a platform holds along with it: whatever the platform
  * itself moved this step - its position at +0x1e/+0x20 against where it was at

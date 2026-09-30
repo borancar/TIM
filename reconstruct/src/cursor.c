@@ -145,7 +145,7 @@ struct machine_page_slots {
 struct machine_page_slots g_machine_page_slots;
 
 /*
- * 0x0a78e
+ * 0x0b3d1
  *
  * Let the cursor follow the mouse again, and redraw it where the mouse now is.
  * The pair to `cursor_redraw_off` three instructions below: DGROUP 0x2d44 is what
@@ -159,7 +159,7 @@ void cursor_redraw_on(void)
 }
 
 /*
- * 0x0a7a3
+ * 0x0b3e6
  *
  * Set the word at DGROUP 0x2d44 to zero, and nothing else.
  *
@@ -176,7 +176,7 @@ void cursor_redraw_off(void)
 }
 
 /*
- * 0x0a7ae
+ * 0x0b3f1
  *
  * What the timer calls, four ticks in five: read the keyboard and the mouse,
  * move the pointer, and release the frame.
@@ -285,7 +285,7 @@ void timer_callback(void)
 }
 
 /*
- * 0x0aa14
+ * 0x0b665
  *
  * Choose the mouse cursor: which bitmap, and where its hot spot is. The three
  * are kept at DGROUP 0x5770, 0x5780 and 0x577e, and a call that names what is
@@ -325,7 +325,7 @@ void set_cursor(struct bitmap *bitmap, int16_t hot_x, int16_t hot_y)
 }
 
 /*
- * 0x0aa76
+ * 0x0b6c5
  *
  * Put the pointer somewhere, clamped to the screen, and tell the driver.
  *
@@ -359,7 +359,7 @@ void move_pointer_to(int16_t x, int16_t y)
 }
 
 /*
- * 0x0aaca
+ * 0x0b719
  *
  * Wait for the frame, then latch the input state for the frame about to be
  * drawn and clear the accumulators.
@@ -395,7 +395,7 @@ void wait_and_latch_frame(void)
 }
 
 /*
- * 0x0ab1f
+ * 0x0b724
  *
  * Draw the cursor on a page: put back what was under the last one, save what is
  * under the new one, draw it, and remember where.
@@ -498,7 +498,7 @@ void draw_cursor(uint16_t page)
 }
 
 /*
- * 0x0acc3
+ * 0x0b91c
  *
  * Redraw the cursor on a page, if anything about it has changed.
  *
@@ -544,7 +544,7 @@ void redraw_cursor(uint16_t page)
 }
 
 /*
- * 0x0ad51
+ * 0x0b9a8
  *
  * Put back whatever an object was covering, and mark it no longer drawn.
  *
@@ -597,7 +597,7 @@ void erase_object(uint16_t handle)
 }
 
 /*
- * 0x0adf1
+ * 0x0ba48
  *
  * Put back what an object covered on one page, and make the other page the
  * one being drawn to.
@@ -638,7 +638,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 }
 
 /*
- * 0x0ae8e
+ * 0x0bae5
  *
  * **Swap the object lists of two pages.** Each page's slot holds the head of a
  * list of saved rectangles; this exchanges the two heads, so everything drawn
@@ -674,7 +674,7 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
 }
 
 /*
- * 0x0aedc
+ * 0x0bb31
  *
  * Say a page's object no longer covers anything: clear bit 1 of the slot's
  * +0x13. A page with no slot is left alone.
@@ -688,7 +688,7 @@ void clear_object_covered(uint16_t page)
 }
 
 /*
- * 0x0aef6
+ * 0x0bb34
  *
  * Age an object's on-screen rectangle by one frame: copy where it is now into
  * where it was, then work out where it is now from the current globals and clip
@@ -795,7 +795,7 @@ void restage_object_rect(uint16_t handle)
 }
 
 /*
- * 0x0b078
+ * 0x0bcc5
  *
  * **Redraw the cursor**, and with it everything the cursor was standing on.
  *
@@ -916,7 +916,7 @@ void redraw_cursor_all(void)
 }
 
 /*
- * 0x0b28e
+ * 0x0be82
  *
  * Copy a rectangle from the page on screen to the page being drawn to, with
  * the pointer out of the way.
@@ -993,7 +993,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x0b40d
+ * 0x0c056
  *
  * **May the timer draw the cursor now?** - `timer_draws_cursor` set and
  * `timer_callback` not in progress. Nothing in the image calls it.
@@ -1005,7 +1005,7 @@ int16_t timer_may_draw_cursor(void)
 }
 
 /*
- * 0x0b429
+ * 0x0c070
  *
  * Find the entry in the two-slot table at DGROUP 0x56e6 whose top bits match,
  * and claim it. The slots are 0x20 bytes apart, so the second is at 0x5706 -
@@ -1042,7 +1042,7 @@ struct page_slot *claim_page_slot(uint16_t want)
 }
 
 /*
- * 0x0b47f
+ * 0x0c0c4
  *
  * Save the driver's drawing state, or put it back: a non-zero argument saves,
  * zero restores. The state is the clip box, whether clipping is on, and the
@@ -1074,7 +1074,7 @@ void save_or_restore_draw_state(int16_t save)
 }
 
 /*
- * 0x0b4e2
+ * 0x0c127
  *
  * Non-zero while `g_frame_flag` is still clear. The original is
  * `neg ax / sbb ax,ax / inc ax`, which is Borland's idiom for `ax = (ax == 0)`.
@@ -1089,7 +1089,7 @@ int16_t frame_pending(void)
 }
 
 /*
- * 0x0b4f1
+ * 0x0c134
  *
  * Clear the input state: two eight-byte blocks at DGROUP 0x5742, then the two
  * accumulators at 0x5768/0x576a and the two latched values at 0x5772/0x5774 -
@@ -1124,7 +1124,7 @@ void reset_input_state(void)
 }
 
 /*
- * 0x0b542
+ * 0x0c18b
  *
  * The button state machine, one eight-byte record per button at DGROUP 0x5742:
  * the state at +0, whether it was down last time at +2, a press count at +4,
@@ -1189,7 +1189,7 @@ int16_t button_state(uint16_t index, int16_t down)
 }
 
 /*
- * 0x0b5ed
+ * 0x0c234
  *
  * Make sure the four scratch buffers exist, then claim a free one and answer
  * its **one-based** index, or -1 if all four are taken. `release_buffer` is
@@ -1245,7 +1245,7 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
 }
 
 /*
- * 0x0b69c
+ * 0x0c2de
  *
  * Clear one byte of the four-entry array at DGROUP 0x5734, addressed
  * **one-based**: the argument is decremented before it is used as the index.

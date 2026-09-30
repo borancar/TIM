@@ -73,7 +73,7 @@
 #endif
 
 /*
- * 0x234d2
+ * 0x2515c
  *
  * Read a bitmap's `BMP:INF:` chunk into two allocations: an array of pointers,
  * NUL-terminated, and the ten-byte records it points at. Answers 1, or 0 with
@@ -176,7 +176,7 @@ fail:
 }
 
 /*
- * 0x2367c
+ * 0x25306
  *
  * Load a bitmap list. Takes a resource name or an open file record, answers the
  * list it built, and gives every block back on any failure.
@@ -336,7 +336,7 @@ done:
 }
 
 /*
- * 0x23a18
+ * 0x256a2
  *
  * Give back a bitmap list: the block its first word points at, and then the
  * list itself.
@@ -356,7 +356,7 @@ void free_bitmap_list(struct bitmap ** list)
 }
 
 /*
- * 0x23a3c
+ * 0x256c6
  *
  * Give back everything a bitmap list owns: the block its first header points
  * at, and then the list itself through `free_bitmap_list`.
@@ -399,7 +399,7 @@ void free_bitmaps(register struct bitmap ** list)
 }
 
 /*
- * 0x23a6a
+ * 0x256f4
  *
  * How many entries a null-terminated list of near pointers has. A null list is
  * zero rather than a fault.
@@ -417,7 +417,7 @@ uint16_t count_list_entries(struct bitmap ** list)
 }
 
 /*
- * 0x23a8a
+ * 0x25714
  *
  * Expand one bit per pixel into four, **backwards**, so the source and the
  * destination may be the same block: a set bit becomes colour 1 and a clear one

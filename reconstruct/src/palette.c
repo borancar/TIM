@@ -102,7 +102,7 @@ int16_t g_cycle_from[10];
 int16_t g_cycle_limit[10];
 
 /*
- * 0x1e967
+ * 0x205f1
  *
  * Load a palette and keep it. Takes either a resource name or an already-open
  * file record - `file_record_valid` tells the two apart, and a name is opened
@@ -185,7 +185,7 @@ uint8_t far *load_palette(char *name)
 }
 
 /*
- * 0x1eb6a
+ * 0x207f4
  *
  * Set the current palette, or answer the one already set.
  *
@@ -222,7 +222,7 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
 }
 
 /*
- * 0x1ebdc
+ * 0x20866
  *
  * Free one far block from the table of eleven at DGROUP 0x3a2e, found by its
  * address rather than by an index: the pair passed in is compared against each
@@ -245,7 +245,7 @@ void free_far_block(uint8_t far *h)
 }
 
 /*
- * 0x1ec36
+ * 0x208c0
  *
  * Fade a run of palette entries towards a colour, through the driver's vector
  * at DGROUP 0x43ce - which is VGA:0x0f57, read out of a running machine
@@ -268,7 +268,7 @@ void fade_palette_run(uint16_t first, uint16_t count, register uint16_t colour,
 }
 
 /*
- * 0x1ec5c
+ * 0x208e6
  *
  * **File a range of the palette to cycle**: `count` entries from `first`,
  * turned by `step` each time `cycle_palettes` runs - a negative step counts
@@ -298,7 +298,7 @@ int16_t add_palette_cycle(register int16_t first, register int16_t count,
 }
 
 /*
- * 0x1ecd7
+ * 0x20961
  *
  * **Turn every filed palette cycle one step**, and hand the result to the
  * driver. The palette block (`g_vmds.palettes.blocks[0]`) holds two copies:
@@ -343,7 +343,7 @@ void cycle_palettes(void)
 }
 
 /*
- * 0x1eda2
+ * 0x20a2c
  *
  * Copy `n` bytes from one far pointer to another, a byte at a time. Near:
  * only `cycle_palettes` calls it. The name is ours.
@@ -355,7 +355,7 @@ void near copy_far_bytes(uint8_t far *src, uint8_t far *dst, register int16_t n)
 }
 
 /*
- * 0x1edc7
+ * 0x20a51
  *
  * Fill a span list through the driver's entry at slot 27 (DGROUP 0x43b2,
  * `vm_fill_spans`), which takes the list in ES:SI. The name is ours.
@@ -373,7 +373,7 @@ void fill_span_list(uint8_t far *spans)
 }
 
 /*
- * 0x1edda
+ * 0x20a64
  *
  * The same shape through slot 23 (DGROUP 0x43a2), which is the driver's
  * do-nothing stub. The name is ours, and says only what it is shaped like.

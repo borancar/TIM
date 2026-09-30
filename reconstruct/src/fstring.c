@@ -26,7 +26,7 @@
 #include "dgroup.h"
 
 /*
- * 0x09e4c
+ * 0x0aa8f
  *
  * **The length of a far string**, 0 for a null pointer.
  *
@@ -47,7 +47,7 @@ int16_t far_strlen(const char far *s)
 }
 
 /*
- * 0x09e70
+ * 0x0aab3
  *
  * **Copy a far string**, and answer where the copy *ended* - one past the
  * terminator - not where it began. A null source or destination copies
@@ -62,7 +62,7 @@ char far *far_strcpy(char far *dst, const char far *src)
 }
 
 /*
- * 0x09ea5
+ * 0x0aae8
  *
  * **Copy at most `n` characters of a far string** and terminate the copy,
  * answering where the terminator went; a null pointer answers null.
@@ -81,7 +81,7 @@ char far *far_strncpy(char far *dst, const char far *src, register int16_t n)
 }
 
 /*
- * 0x09ef8
+ * 0x0ab3b
  *
  * **Compare at most `n` characters of two far strings, case-blind**, the
  * difference of the first two that differ; 1 if either is null.
@@ -104,7 +104,7 @@ int16_t far_strnicmp(const char far *a, const char far *b, register uint16_t n)
 }
 
 /*
- * 0x09f68
+ * 0x0abab
  *
  * **`stricmp` over two far strings.** A null pointer on either side answers 1
  * rather than crashing, and answers it *before* looking at the other, so two
@@ -139,7 +139,7 @@ int16_t far_stricmp(const char far *a, const char far *b)
 }
 
 /*
- * 0x09fc0
+ * 0x0ac03
  *
  * **Borland's `_fstrchr`**, linked in and never called - nothing in the image
  * reaches it by call or by address. A null pointer answers 0000:0000, the
@@ -161,7 +161,7 @@ char far *far_strchr(const char far *s, char c)
 }
 
 /*
- * 0x0a005
+ * 0x0ac48
  *
  * **Borland's `_fstrcat`**, linked in and never called. Either pointer null
  * answers null, the source first; the destination is walked to its NUL in a

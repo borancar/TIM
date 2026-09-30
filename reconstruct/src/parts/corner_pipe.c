@@ -52,7 +52,7 @@ struct point8 g_corner_pipe_points_3462[8] = {
 };
 
 /*
- * 172c:377b, image 0x1aa3b - kind 47's setup. The corner pipe.
+ * 190f:374e, image 0x1c83e - kind 47's setup. The corner pipe.
  *
  * Eight points, from one of four tables chosen by comparing the form against
  * 0, 1 and 2 one at a time - `cmp [si+0xc], 0 / jne` and so on - with the
@@ -82,7 +82,7 @@ void part_setup_corner_pipe(struct part *part)
 }
 
 /*
- * 172c:37e5, image 0x1aaa5 - kind 47's flip, and **the only one that reads the
+ * 190f:37b5, image 0x1c8a5 - kind 47's flip, and **the only one that reads the
  * second argument**.
  *
  * Every other flip in this segment takes the part alone. This one tests

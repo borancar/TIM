@@ -83,7 +83,7 @@ struct engine_compress_state g_engine_compress_state;
                         ((int16_t huge *)g_engine_stream.scratch + (i)) + 0x4e2c))
 
 /*
- * 0x1ce1f
+ * 0x1ce1f (1.00's; not yet placed in 1.11)
  *
  * Start the LZW coder for a resource opened to write: counters to zero, the
  * code width to nine, the hash table cleared, and the next byte the first.
@@ -109,7 +109,7 @@ int16_t near lzw_open_write_ratio(void)
 }
 
 /*
- * 0x1ce9d
+ * 0x1ce9d (1.00's; not yet placed in 1.11)
  *
  * The same, with a full code table cleared as soon as it fills. Type 2's
  * open-for-writing in the handler table.
@@ -132,7 +132,7 @@ int16_t near lzw_open_write(void)
 }
 
 /*
- * 0x1cf1b
+ * 0x1cf1b (1.00's; not yet placed in 1.11)
  *
  * **Compress what is waiting in the spill ring** - `compress`'s main loop
  * over the bytes the writer has put there, from `spill_start` round to
@@ -199,7 +199,7 @@ probe:
 }
 
 /*
- * 0x1d133
+ * 0x1d133 (1.00's; not yet placed in 1.11)
  *
  * `compress`'s `output`: pack one code of `n_bits` bits into the twelve-byte
  * buffer at the bit `offset`, and put the buffer out through
@@ -269,7 +269,7 @@ void near output(int16_t code)
 }
 
 /*
- * 0x1d2c4
+ * 0x1d2c4 (1.00's; not yet placed in 1.11)
  *
  * A `long` divided by a `long` - the runtime's divide, as a far routine of
  * its own. `cl_block` is its only caller.
@@ -280,7 +280,7 @@ int32_t long_div(int32_t a, int32_t b)
 }
 
 /*
- * 0x1d2dc
+ * 0x1d2dc (1.00's; not yet placed in 1.11)
  *
  * `compress`'s `cl_block`: measure the ratio of bytes in to bytes out, in
  * eighths of a bit, and when it has fallen since last time clear the hash
@@ -309,7 +309,7 @@ void near cl_block(void)
 }
 
 /*
- * 0x1d3bf
+ * 0x1d3bf (1.00's; not yet placed in 1.11)
  *
  * `compress`'s `cl_hash`: set `hsize` entries of the hash table to -1, the
  * empty slot.
@@ -326,7 +326,7 @@ void near cl_hash(int32_t hsize)
 }
 
 /*
- * 0x1d40d
+ * 0x1d40d (1.00's; not yet placed in 1.11)
  *
  * **Run-length code what is waiting in the spill ring** - type 1's flush,
  * the coder `decompress_rle` undoes. From the start it finds the first run
@@ -392,7 +392,7 @@ void near rle_flush(int16_t final)
 }
 
 /*
- * 0x1d54e
+ * 0x1f9c4
  *
  * **Open a resource in a file** and answer its handle, or -1. The file is
  * at the resource's header: a type byte and the decoded size.
@@ -440,7 +440,7 @@ int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size)
 }
 
 /*
- * 0x1d698
+ * 0x1fac2
  *
  * **Open a resource in memory**: `open_resource` for a block the caller
  * holds, the header read from or written to its front. Nothing calls it.
@@ -472,7 +472,7 @@ int16_t open_resource_mem(int16_t type, char huge *data, char *mode, int32_t siz
 }
 
 /*
- * 0x1d798
+ * 0x1fc05
  *
  * **Close a resource**, answering the bytes the writing side put out - zero
  * for one opened to read. Writing, the type's flush runs with `final` set,
@@ -500,7 +500,7 @@ int16_t close_resource(int16_t handle)
 }
 
 /*
- * 0x1d868
+ * 0x1fcd4
  *
  * **Read** `count` bytes of a resource to `dst`, answering how many, or -1
  * for a handle that names nothing. The destination is normalised into the
@@ -517,7 +517,7 @@ int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count)
 }
 
 /*
- * 0x1d8a4
+ * 0x1fd10
  *
  * **Write** `count` bytes to a resource opened for writing: into the spill
  * ring a ring's worth at a time, the type's flush after each. Answers the
@@ -553,7 +553,7 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count)
 }
 
 /*
- * 0x1d95f
+ * 0x1fdd1
  *
  * The decoded size of a resource, from its header, or -1 for a handle that
  * names nothing.
@@ -566,7 +566,7 @@ int32_t resource_size(int16_t handle)
 }
 
 /*
- * 0x1d983
+ * 0x1fdd4
  *
  * **Seek** within a resource, answering the position reached, or -1 for a
  * handle that names nothing.
@@ -611,7 +611,7 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
 }
 
 /*
- * 0x1dae6
+ * 0x1ff29
  *
  * **Put a resource stream back to its beginning**, so a seek backwards can
  * then skip forwards. Only a stream opened to read can be; anything else

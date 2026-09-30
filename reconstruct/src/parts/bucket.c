@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:0763, image 0x17a23 - kind 17's hit test, and **it answers 0 to refuse
+ * 190f:0757, image 0x19847 - kind 17's hit test, and **it answers 0 to refuse
  * the hit**, which almost none of the others do.
  *
  * The refusal is a band: the arriving object must be coming down - +0x38
@@ -47,7 +47,7 @@ uint16_t part_hit_bucket(struct part *part)
 }
 
 /*
- * 172c:07b2, image 0x17a72 - a setup.
+ * 190f:07a2, image 0x19892 - a setup.
  *
  * Six points, and not a regular shape: the two at y 47 sit below the four
  * that make the body, so this outline has a foot.
@@ -78,7 +78,7 @@ void part_setup_bucket(struct part *part)
 }
 
 /*
- * 172c:0802, image 0x17ac2 - kind 17's drive hook.
+ * 190f:07e7, image 0x198d7 - kind 17's drive hook.
  *
  * The same routine as 172c:11d2 below, and not merely alike: the 0x65 bytes at
  * the two addresses are **identical**, so the source had one function and the

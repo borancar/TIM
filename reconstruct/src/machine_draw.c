@@ -60,7 +60,7 @@ struct machine_draw_menu_anim g_machine_draw_menu_anim = {
 uint16_t g_selection_phase = 0;
 
 /*
- * 0x14dec
+ * 0x16ca7
  *
  * **The frame the title bar sits in**: a shadow, a tiled interior, and a
  * border of edge and corner pieces from the set at DGROUP 0x4ecb.
@@ -143,7 +143,7 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 }
 
 /*
- * 0x15004
+ * 0x16ebf
  *
  * Draw a **scroll** of a given width with a string centred on it: the two end
  * caps and a repeating middle out of the set at DGROUP 0x52f4, and the text
@@ -196,7 +196,7 @@ void draw_scroll_text(const char *str, register int16_t x, register int16_t y,
 }
 
 /*
- * 0x150db
+ * 0x16f96
  *
  * **Draw a button**: a left cap, as many middle pieces as the word needs, a
  * right cap, and the word over them. Three bitmaps out of the set at DGROUP
@@ -249,7 +249,7 @@ void draw_button(const char *str, register int16_t x, int16_t y,
 }
 
 /*
- * 0x151c8
+ * 0x17080
  *
  * Draw a **panel**: a tiled background inside `x,y,w,h`, a bevel around it,
  * and the ornamented border the game's menus and the copy-protection screen
@@ -309,7 +309,7 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x153b8
+ * 0x17270
  *
  * Draw a **sunken box**: nine pieces of art, tiled. `draw_panel` above is the
  * raised one, built out of lines and ornaments; this is the other kind, and it
@@ -354,7 +354,7 @@ void draw_sunken_box(register int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x15523
+ * 0x173db
  *
  * **A filled, framed area** of the panel: a rectangle in a given colour with
  * the same nine-piece border around it that `draw_title_bar` uses - four runs
@@ -402,7 +402,7 @@ void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
 }
 
 /*
- * 0x15661
+ * 0x17519
  *
  * **A message box with one button.** It is a doorway: the box itself is
  * 0x15698, and this passes it the title, the body, "CONTINUE" for the first
@@ -419,7 +419,7 @@ void show_message_box(const char *title, char *body)
 }
 
 /*
- * 0x1567b
+ * 0x17533
  *
  * **A message box with two buttons**, answering which was pressed. The other
  * doorway into 0x15698, twenty-six bytes past the first, and the only
@@ -439,7 +439,7 @@ uint16_t ask_yes_no(const char *title, char *body)
 }
 
 /*
- * 0x15698
+ * 0x15698 (1.00's; not yet placed in 1.11)
  *
  * **The message box.** Both doorways above reach it - `show_message_box` with
  * one button and `ask_yes_no` with two - and it answers 1 for the first button
@@ -540,7 +540,7 @@ uint16_t message_box(const char *title, char *body,
 }
 
 /*
- * 0x1588c
+ * 0x17769
  *
  * **Tab walks the pointer between the buttons.** A counter at DGROUP 0x259c
  * steps on each press and the pointer is moved to the x that counter names in
@@ -571,7 +571,7 @@ void message_box_tab(const char *button2)
 }
 
 /*
- * 0x158c5
+ * 0x1779e
  *
  * **The panel that says a puzzle is finished.** A title bar, two lines of
  * text, and - unless this was the last puzzle - the password for the next one
@@ -632,7 +632,7 @@ void show_level_complete(void)
 }
 
 /*
- * 0x15a2f
+ * 0x178f1
  *
  * Wipe the play area and draw the machine into it again - what a message box
  * needs doing behind it once it has gone.
@@ -660,7 +660,7 @@ void redraw_machine_area(void)
 }
 
 /*
- * 0x15a7e
+ * 0x17954
  *
  * Draw one **odometer digit**: the character `c`, at `x`, scrolled by `y`.
  *
@@ -708,7 +708,7 @@ void draw_odometer_digit(uint8_t c, register int16_t x, int16_t y)
 }
 
 /*
- * 0x15af8
+ * 0x179c8
  *
  * Draw the machine and everything around it, as five calls and nothing else.
  * `paint_game_screen` calls this once the play area has been cleared, so the
@@ -724,7 +724,7 @@ void draw_machine_thunk(void)
 }
 
 /*
- * 0x15b16
+ * 0x179e6
  *
  * The play area's **top edge**: the tile at +0xc of the border set at DGROUP
  * 0x4ecb laid every 8 pixels from x = 0x10 to x = 0x22f at y = 0, then three
@@ -750,7 +750,7 @@ void draw_machine_layer_b(void)
 }
 
 /*
- * 0x15b9f
+ * 0x17a65
  *
  * The play area's **bottom edge**: the tile at +0xe laid every 8 pixels along
  * y = 0x168, then the two corners at +4 and +6 on y = 0x160 - the corners sit
@@ -771,7 +771,7 @@ void draw_machine_layer_c(void)
 }
 
 /*
- * 0x15c13
+ * 0x17ab9
  *
  * The play area's **left edge**: the tile at +8 laid every 8 pixels *down*
  * x = 0, from y = 8 to y = 0x161, then the same two corner pieces the top and
@@ -795,7 +795,7 @@ void draw_machine_layer_d(void)
 }
 
 /*
- * 0x15c83
+ * 0x17adc
  *
  * The play area's **right edge and the bin's own frame** - the last of the
  * five, and the only one that looks at the state.
@@ -845,7 +845,7 @@ void draw_machine_layer_e(void)
 }
 
 /*
- * 0x15dfd
+ * 0x17caf
  *
  * **The parts bin**: the column down the right of the screen listing the parts
  * the player has, each as its icon with a count under it.
@@ -932,7 +932,7 @@ next:
 }
 
 /*
- * 0x15f76
+ * 0x17e27
  *
  * Draw a bitmap **centred in a box**: the caller gives a corner and a size,
  * and the picture's own width and height - the words at +6 and +8 of its
@@ -952,7 +952,7 @@ void draw_bitmap_centred(register struct bitmap *bmp, register int16_t x,
 }
 
 /*
- * 0x15faa
+ * 0x15faa (1.00's; not yet placed in 1.11)
  *
  * The **animated header** at the top of the parts bin, clipped to
  * (0x240, 0xa)..(0x277, 0x3b) and drawn from the set at DGROUP 0x4ec9 - the
@@ -1022,7 +1022,7 @@ void draw_machine_layer_f(void)
 }
 
 /*
- * 0x160fc
+ * 0x17e88
  *
  * **Draw the part in your hand at the pointer**, and tell the shape allocator
  * where it went so the backdrop under it can be restored.
@@ -1062,7 +1062,7 @@ void draw_carried_icon(void)
 }
 
 /*
- * 0x16181
+ * 0x17f11
  *
  * One frame of the machine: settle the display buckets, run the physics, draw.
  *
@@ -1103,7 +1103,7 @@ void step_and_draw_machine(int16_t redraw_all)
 }
 
 /*
- * 0x16209
+ * 0x17fb0
  *
  * **Draw the selection around a part**: the marching-ants box, the four edge
  * strips, and whichever of the six handles that part can actually use.
@@ -1291,7 +1291,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
 }
 
 /*
- * 0x166d6
+ * 0x184bc
  *
  * Clear six words at DGROUP 0x50bf. The loop counts *down* from 5 and tests
  * `jge`, so index 0 is cleared too - six entries, not five. What they hold is
@@ -1312,7 +1312,7 @@ void clear_layer_heads(void)
 }
 
 /*
- * 0x166ef
+ * 0x184d5
  *
  * Link a record into up to two buckets, and mark it linked.
  *
@@ -1353,7 +1353,7 @@ void link_record_into_buckets(register struct part *rec)
 }
 
 /*
- * 0x1675e
+ * 0x1854a
  *
  * Draw the machine: the six bucket lists, deepest first.
  *
@@ -1401,7 +1401,7 @@ void draw_machine(register int16_t a, int16_t b)
 }
 
 /*
- * 0x167fa
+ * 0x185e1
  *
  * Draw a belt: two straight lines in colour 0, from the four points its record
  * keeps at +8 through +0x16. Two lines and not one because a belt over a pulley
@@ -1462,7 +1462,7 @@ void draw_belt(struct part *part, register int16_t a)
 }
 
 /*
- * 0x1697d
+ * 0x18764
  *
  * Draw a quadratic curve through three points, by forward differences in
  * 32-bit fixed point.
@@ -1525,7 +1525,7 @@ void draw_curve(uint16_t colour, int16_t shift,
 }
 
 /*
- * 0x16b39
+ * 0x18920
  *
  * One length of rope between two points. Slack of four or less is a straight
  * line; anything more is a curve whose middle control point is the midpoint
@@ -1546,7 +1546,7 @@ void draw_rope_segment(register int16_t x0, register int16_t y0, int16_t x1,
 }
 
 /*
- * 0x16baf
+ * 0x1894f
  *
  * Draw a rope: every length of it, from the part it starts at to the part it
  * ends at, following the chain of pulleys through each one's +0x5a links.
@@ -1630,7 +1630,7 @@ void draw_rope(struct part *part, int16_t a)
 }
 
 /*
- * 0x16db1
+ * 0x18ae0
  *
  * Draw one part, at one level, either scaled or not.
  *
@@ -1787,7 +1787,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
 }
 
 /*
- * 0x171b5
+ * 0x18fd7
  *
  * The extra a kind-0x1e part draws while the machine is in state 0x2000: a
  * three-point outline in colour 0x0e from the part it is linked to at +0x62,
@@ -1831,7 +1831,7 @@ void draw_part_extra(register struct part *part)
 }
 
 /*
- * 172c:0000, image 0x172bc
+ * 190f:0007, image 0x190f7
  *
  *
  * The module's first routine, and it does nothing at all: a frame and a `retf`.

@@ -30,7 +30,7 @@
 #include "dgroup.h"
 
 /*
- * 0x02809
+ * 0x033a0
  *
  * **A score into a score code**, the exact inverse of `score_code_to_score`
  * below, and worth reading beside it - every asymmetry here has a matching
@@ -91,7 +91,7 @@ void score_to_code(int32_t score, register char *text)
 }
 
 /*
- * 0x02900
+ * 0x034cc
  *
  * **A score code into a score.** The code is `PASSWORD-XXXXX...`: the password
  * up to the dash, then five hex digits holding the score, then the rest as a
@@ -163,7 +163,7 @@ int32_t score_code_to_score(register char *text)
 }
 
 /*
- * 0x02a34
+ * 0x03612
  *
  * **Read a number in an arbitrary base.** Digits are `0`-`9` and then `A`
  * upwards without a limit - subtracting 0x37 from anything at or above `A`

@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:48ab, image 0x1bb6b - a setup.
+ * 190f:47cc, image 0x1d8bc - a setup.
  *
  * The bounding rectangle **inset by one**: (0,0), (W-1,0), (W-1,H-1),
  * (0,H-1). The subtraction is `add al, 0xff` in the original, which is the
@@ -45,7 +45,7 @@ void part_setup_platform(struct part *part)
 }
 
 /*
- * 172c:48f7, image 0x1bbb7 - the settle shared by kinds 1, 46 and 48.
+ * 190f:4818, image 0x1d908 - the settle shared by kinds 1, 46 and 48.
  *
  * **Which edge was dragged decides which way it is squared off.** DGROUP
  * 0x4e69 is the handle being dragged; 0x8003 is taken off it and the four

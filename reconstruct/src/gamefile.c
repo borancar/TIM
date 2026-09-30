@@ -116,7 +116,7 @@ struct machine_hash_order {
 struct machine_hash_order g_machine_hash_order = { { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
- * 0x08fc3
+ * 0x08fc3 (1.00's; not yet placed in 1.11)
  *
  * Takes one argument, ignores it, and answers 1. Six instructions: a frame,
  * `mov ax, 1`, and a jump to the epilogue that goes nowhere.
@@ -135,7 +135,7 @@ int16_t answer_carry_on(uint16_t what)
 }
 
 /*
- * 0x08fcd
+ * 0x09c81
  *
  * The game's own `fopen`. Answers one of the ten 0x12-byte archive-entry
  * blocks at DGROUP 0x55c3, not a `FILE` - which is why every one of
@@ -223,7 +223,7 @@ FILE *game_fopen(char *name, const char *mode)
 }
 
 /*
- * 0x0917f
+ * 0x09e2e
  *
  * The game's own `fclose`, and the last of the set over the archive.
  *
@@ -263,7 +263,7 @@ int16_t game_fclose(FILE *file)
 }
 
 /*
- * 0x091ef
+ * 0x09e65
  *
  * The game's own `fread`. Everything that reads a resource comes through here,
  * and it decides between the loose file and the archive.
@@ -322,7 +322,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x092dc
+ * 0x09f47
  *
  * The game's own `fseek`, and `game_fread`'s counterpart: the same choice
  * between the loose file and the archive, the same substitution when an entry
@@ -368,7 +368,7 @@ int16_t game_fseek(FILE *file, int32_t off, register int16_t whence)
 }
 
 /*
- * 0x093a2
+ * 0x0a038
  *
  * The game's own `ftell`, and the third of the trio over the archive - the same
  * choice between the loose file and the archive as `game_fread` and
@@ -392,7 +392,7 @@ int32_t game_ftell(register FILE *file)
 }
 
 /*
- * 0x093e0
+ * 0x0a072
  *
  * `rewind` over the archive: `game_fseek` to nought from the start, and
  * nothing else. Five pushes and a call.
@@ -403,7 +403,7 @@ void game_rewind(FILE *file)
 }
 
 /*
- * 0x093f6
+ * 0x0a077
  *
  * The game's own `fgetc`, and `game_fread`'s shape one byte at a time: the same
  * choice between the loose file and the archive, the same substitution when an
@@ -442,7 +442,7 @@ int16_t game_fgetc(register FILE *file)
 }
 
 /*
- * 0x094a8
+ * 0x0a136
  *
  * **Is a game file at its end?** A loose file answers as Borland's `feof`
  * does, the stream's end-of-file bit, 0x20 of its flags; so does an archive
@@ -467,7 +467,7 @@ int16_t game_feof(register FILE *file)
 }
 
 /*
- * 0x094fb
+ * 0x094fb (1.00's; not yet placed in 1.11)
  *
  * **`fwrite`, through the archive layer.** A pointer, an element size, a count
  * and a file, answering how many elements went - and every caller in the
@@ -505,7 +505,7 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x09571
+ * 0x09571 (1.00's; not yet placed in 1.11)
  *
  * **`fputc`, through the archive layer** - `game_fwrite`'s shape for one
  * byte. With the archive in use at DGROUP 0x547e an entry writes through the
@@ -539,7 +539,7 @@ int16_t game_fputc(int16_t c, FILE *file)
 }
 
 /*
- * 0x095cf
+ * 0x095cf (1.00's; not yet placed in 1.11)
  *
  * Give a file a buffer, whether it is a loose file or one inside the archive.
  *
@@ -565,7 +565,7 @@ void game_setbuf(register FILE *file, uint8_t *buf)
 }
 
 /*
- * 0x0960f
+ * 0x0a26f
  *
  * Load `RESOURCE.MAP`, which is what tells the game where everything in the
  * archives is. Runs once - DGROUP 0x548a is the flag that says so.
@@ -635,7 +635,7 @@ void load_archive_map(void)
 }
 
 /*
- * 0x09784
+ * 0x0a3dc
  *
  * Free each archive's list of entries - the far pointer at +0x18 of the eleven
  * 0x1c-byte records from DGROUP 0x548f, which `load_archive_map` allocated -
@@ -667,7 +667,7 @@ void free_archive_lists(void)
 }
 
 /*
- * 0x09803
+ * 0x0a45b
  *
  * **Ask for the archives to be reopened**: set the byte at DGROUP 0x5487
  * that `game_fopen` tests before it opens anything, and nothing else.
@@ -681,7 +681,7 @@ void request_archive_reopen(void)
 }
 
 /*
- * 0x0980d
+ * 0x0a465
  *
  * Hash a filename, answering the hash in DX:AX and leaving it at DGROUP
  * 0x5482 as well. A null name answers zero and stores zero.
@@ -732,7 +732,7 @@ int32_t hash_filename(char *name)
 }
 
 /*
- * 0x098e0
+ * 0x0a535
  *
  * Find which archive holds a file, and answer whether one does.
  *
@@ -802,7 +802,7 @@ int16_t find_entry_for_pointer(register struct game_file *out)
 }
 
 /*
- * 0x09a62
+ * 0x0a6a7
  *
  * Make a given resource file the open one, opening it and closing whatever was
  * open before.
@@ -866,7 +866,7 @@ void make_file_current(register uint16_t index)
 }
 
 /*
- * 0x09b38
+ * 0x0a77d
  *
  * Put a file at a given position, without asking DOS if it is already there.
  *
@@ -896,7 +896,7 @@ void seek_file_to(uint32_t at)
 }
 
 /*
- * 0x09b7c
+ * 0x0a7c1
  *
  * Find the archive entry standing in for an open file, or answer null if the
  * file is a real one.
@@ -947,7 +947,7 @@ struct game_file *archive_entry_for(FILE *file)
 }
 
 /*
- * 0x09bdf
+ * 0x0a822
  *
  * **DOS's critical-error handler while the game's files are open**, the
  * vector `load_archive_map` installs at 24h. An `interrupt` function: DOS's
@@ -976,7 +976,7 @@ void interrupt crit_error_handler(uint16_t bp, uint16_t di, uint16_t si,
 }
 
 /*
- * 0x09c23
+ * 0x0a866
  *
  * **A rectangle drawn by XOR**, pixel by pixel through the driver's clipped
  * read and write: the outline in the second colour, and the inside in the

@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:3de5, image 0x1b0a5 - no slots at all, and no finish. It only turns
+ * 190f:3d55, image 0x1ce45 - no slots at all, and no finish. It only turns
  * the two part numbers at +0x62 and +0x64 into two bits of the form at
  * +0x0c, so a part that was read off disk with those links set comes out in
  * the form that matches them.
@@ -34,7 +34,7 @@ void part_setup_solar_panel(struct part *part)
 }
 
 /*
- * 172c:3e08, image 0x1b0c8 - kind 38's step. **It looks around, but only every
+ * 190f:3d58, image 0x1ce48 - kind 38's step. **It looks around, but only every
  * eighth frame.**
  *
  * The frame counter at 0x4ea7 masked to 3 bits must read 4, so seven frames in

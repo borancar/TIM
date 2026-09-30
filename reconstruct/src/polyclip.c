@@ -38,7 +38,7 @@ POLYCLIP_TEXT segment byte public 'CODE'
 assume cs:POLYCLIP_TEXT, ds:DGROUP
 public _detect_pcjr, _clip_polygon
 
-/* 0x20be0 */
+/* 0x2286a */
 _detect_pcjr proc far
         push es
         push bx
@@ -61,7 +61,7 @@ L20c00:
         retf
 _detect_pcjr endp
 
-/* 0x20c07 */
+/* 0x22891 */
 _clip_polygon proc far
         xor di, di
         mov ax, word ptr DGROUP:_g_vmds+19ch
@@ -491,7 +491,7 @@ POLYCLIP_TEXT ends
 #else
 
 /*
- * 0x20be0
+ * 0x2286a
  *
  * Ask whether this is a PCjr, and remember the answer at DGROUP 0x38ac.
  *
@@ -510,7 +510,7 @@ int16_t detect_pcjr(void)
 }
 
 /*
- * 172c:39b7, image 0x20c07
+ * 1ee5:3a41, image 0x22891
  *
  * Clip the polygon against the window, in two passes: left and right into the
  * working arrays at 0x398c and g_vmds.work_y, then top and bottom back into 0x393c and

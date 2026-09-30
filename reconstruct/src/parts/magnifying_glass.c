@@ -19,7 +19,7 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-/* 172c:3030, image 0x1a2f0 - kind 30's setup, and it does nothing at all:
+/* 190f:2fb7, image 0x1c0a7 - kind 30's setup, and it does nothing at all:
  * `push bp / mov bp,sp / pop bp / retf`. It has a function here rather than a
  * line in the dispatcher so that its address can be named - to the verifier,
  * and to the coverage tool, which cannot see a routine that exists only as a
@@ -30,7 +30,7 @@ void part_setup_magnifying_glass(struct part *part)
 }
 
 /*
- * 172c:3035, image 0x1a2f5 - kind 30's step.
+ * 190f:2fbc, image 0x1c0ac - kind 30's step.
  *
  * It reaches for whatever is passing: `link_nearby_objects` builds a chain
  * through +0x78 of everything within 0x20 either side, and this picks one of
@@ -127,7 +127,7 @@ void part_step_magnifying_glass(struct part *part)
 }
 
 /*
- * 172c:31af, image 0x1a46f - kind 30's flip: bit 4 and a redraw, no setup.
+ * 190f:3138, image 0x1c228 - kind 30's flip: bit 4 and a redraw, no setup.
  */
 void part_flip_magnifying_glass(struct part *part)
 {
@@ -138,7 +138,7 @@ void part_flip_magnifying_glass(struct part *part)
 }
 
 /*
- * 172c:31dc, image 0x1a49c
+ * 190f:3165, image 0x1c255
  *
  * How far one part is from another's grip, as two absolute distances written
  * through pointers.

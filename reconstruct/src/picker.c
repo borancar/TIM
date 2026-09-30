@@ -118,7 +118,7 @@ struct picker_caret {
 struct picker_caret g_picker_caret;
 
 /*
- * 0x12c26
+ * 0x12c26 (1.00's; not yet placed in 1.11)
  *
  * **The file picker**, and a whole screen with its own loop. It answers 1 when
  * the player chose a file, leaving the name at DGROUP 0x52fe where
@@ -454,7 +454,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 }
 
 /*
- * 0x1319d
+ * 0x14992
  *
  * **Is the typed name usable?** Three answers, not two: 0 for no, 1 for a name
  * that is free to create, and **2 for one that already exists** - which the
@@ -560,7 +560,7 @@ uint16_t validate_filename(void)
 }
 
 /*
- * 0x13402
+ * 0x14c8a
  *
  * **Redraw the picker's one action button.** Which word it carries is not a
  * parameter: it is read back out of the mode word DGROUP 0x4e6b, and when that
@@ -585,7 +585,7 @@ void picker_draw_action(void)
 }
 
 /*
- * 0x1345f
+ * 0x14cde
  *
  * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
  * warps the pointer rather than moving any focus. Seven stops, cursor at DGROUP
@@ -605,7 +605,7 @@ void picker_tab(void)
 }
 
 /*
- * 0x13490
+ * 0x14d02
  *
  * **One keystroke into the picker's name field.** Backspace - 8 - takes the
  * last byte off, and does nothing on an empty field. Anything else is appended
@@ -638,7 +638,7 @@ void picker_type(uint8_t c, char *buf, int16_t max)
 }
 
 /*
- * 0x134dd
+ * 0x14ea2
  *
  * **Is this path a drive's root?** One separator in the whole string, and it is
  * the last byte - "C:\\" and nothing else. It counts the same way `path_up`
@@ -666,7 +666,7 @@ uint16_t path_is_root(const char *path)
 }
 
 /*
- * 0x13516
+ * 0x14ed7
  *
  * **Drop the last component of a path**, in place. It walks to the terminator
  * counting separators - the character is not a literal here but `*g_path_separator`,
@@ -700,7 +700,7 @@ void path_up(char *path)
 }
 
 /*
- * 0x1354c
+ * 0x14f0d
  *
  * **Join a listed name onto the path.** The name comes in as a *far* pointer -
  * it is in the picker's own list block, not DGROUP - and the path is near, so
@@ -738,7 +738,7 @@ void path_join(char *path, const char far * entry)
 }
 
 /*
- * 0x135a6
+ * 0x14f67
  *
  * **Force a name into 8.3.** The eighth byte is cut off first, unconditionally
  * and before anything is looked at, so a long name loses its tail rather than
@@ -768,7 +768,7 @@ void force_extension(char *name, const char *ext)
 }
 
 /*
- * 0x135dc
+ * 0x14f9d
  *
  * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
  * the one buffer the picker answers out of.
@@ -794,7 +794,7 @@ void picker_set_name(const char *name)
 }
 
 /*
- * 0x135ef
+ * 0x14fb0
  *
  * The picker's answer: **the buffer's address, or zero when it is empty.** A
  * caller would get a pointer it could hand straight to `load_animation`,
@@ -812,7 +812,7 @@ char *picker_name(void)
 }
 
 /*
- * 0x13606
+ * 0x14fc3
  *
  * **Get the listing a place to live, then fill it and draw it.**
  *
@@ -868,7 +868,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
 }
 
 /*
- * 0x136c9
+ * 0x1502e
  *
  * **The picker's whole screen.** Everything the loop redraws piecemeal, laid
  * down once: the title bar, the four sunken wells - two for the buttons, two
@@ -917,7 +917,7 @@ void picker_repaint(void)
 }
 
 /*
- * 0x137e4
+ * 0x1519b
  *
  * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is
  * read out of the mode word DGROUP 0x4e6b - 0x800 is "this arrow is held down"
@@ -944,7 +944,7 @@ void picker_draw_up(void)
 }
 
 /*
- * 0x1382a
+ * 0x151e1
  *
  * **The list's down arrow.** `picker_draw_up`'s twin, and the only differences
  * are the three numbers: the mode it answers to is 0x400, its art is at +0x4e,
@@ -967,7 +967,7 @@ void picker_draw_down(void)
 }
 
 /*
- * 0x13870
+ * 0x15227
  *
  * **The name field.** The buffer at DGROUP 0x53ab is copied into a local first,
  * and then the *pointer* is walked forward while the text is wider than 0xac
@@ -1011,7 +1011,7 @@ void picker_draw_name(void)
 }
 
 /*
- * 0x13902
+ * 0x152b9
  *
  * **The "File Name:" field**, and `picker_draw_name`'s twin down to the shape
  * of the code: copy, walk the pointer forward while the text is too wide, blink
@@ -1055,7 +1055,7 @@ void picker_draw_filename(void)
 }
 
 /*
- * 0x139ac
+ * 0x15363
  *
  * **Draw the listing.** Twelve rows of ten pixels in a 0x70 by 0x80 box at
  * (0x40, 0x78), text transparent and white, and the far pointers walked in
@@ -1120,7 +1120,7 @@ void picker_draw_list(void)
 }
 
 /*
- * 0x13a8a
+ * 0x1540c
  *
  * **Fill the listing.** Two pointers walk the block `picker_begin` set up: one
  * along the far-pointer array at its front, one along the text after it. Each
@@ -1226,7 +1226,7 @@ void fill_file_listing(char *pattern)
 }
 
 /*
- * 0x13c78
+ * 0x155fc
  *
  * **Sort the listing**, by exchanging the far pointers at the front of the
  * block and never the text they point at. A bubble sort: passes until one makes
@@ -1287,7 +1287,7 @@ void sort_file_listing(void)
 }
 
 /*
- * 0x13d75
+ * 0x13d75 (1.00's; not yet placed in 1.11)
  *
  * **A listing record back into a plain name.** The record is far and the answer
  * is near - DGROUP 0x5682, one shared buffer - so the caller gets something it
@@ -1323,7 +1323,7 @@ char *listing_to_name(const char far * entry)
 }
 
 /*
- * 0x13dc7
+ * 0x15730
  *
  * **Draw a string wrapped into a box**, centred both ways, with a shadow.
  *
@@ -1408,7 +1408,7 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x13ed2
+ * 0x1587a
  *
  * **Break a string into lines that fit a box.** The line starts go into the
  * table from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
@@ -1506,7 +1506,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, int16_t line_height)
 }
 
 /*
- * 0x1401d
+ * 0x159c5
  *
  * Measure one word: how wide it is and how long, answered through the two near
  * pointers it is given.

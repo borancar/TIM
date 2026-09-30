@@ -176,7 +176,7 @@ public _huge_move, _far_memcpy, _far_memset, _far_ptr_compare
 public _normalise_pointer_far, _install_divide_trap, _divide_error_handler, _restore_int0_vector
 public _read_pixel_clipped, _plot_pixel_clipped, _restore_rect_thunk
 
-/* 0x21b44 */
+/* 0x237ce */
 _joy_time_axes proc near
         mov dx, 201h
         pushf
@@ -241,7 +241,7 @@ L21b8f:
         ret
 _joy_time_axes endp
 
-/* 0x21bab */
+/* 0x23835 */
 _joy_scale_axis proc near
         push di
         sub ax, bx
@@ -277,7 +277,7 @@ L21be0:
         ret
 _joy_scale_axis endp
 
-/* 0x21be2 */
+/* 0x2386c */
 _joy_init proc far
         push si
         push di
@@ -425,7 +425,7 @@ L21d05:
         retf
 _joy_init endp
 
-/* 0x21d19 */
+/* 0x239a3 */
 _joy_read proc far
         push bp
         mov bp, sp
@@ -479,7 +479,7 @@ L21d8d:
         retf
 _joy_read endp
 
-/* 0x21d91 */
+/* 0x23a1b */
 _joy_direction proc far
         push bp
         mov bp, sp
@@ -527,7 +527,7 @@ L21de8:
         retf
 _joy_direction endp
 
-/* 0x21dea */
+/* 0x23a74 */
 _joy_button proc far
         push bp
         mov bp, sp
@@ -544,7 +544,7 @@ _joy_button proc far
         retf
 _joy_button endp
 
-/* 0x21e04 */
+/* 0x23a8e */
 _joy_axis proc far
         push bp
         mov bp, sp
@@ -572,7 +572,7 @@ L21e1e:
         retf
 _joy_axis endp
 
-/* 0x21e34 */
+/* 0x23abe */
 _clip_and_draw_line proc far
         push bp
         mov bp, sp
@@ -704,7 +704,7 @@ L21f18:
         retf
 _clip_and_draw_line endp
 
-/* 0x21f1d */
+/* 0x23ba7 */
 _mouse_init proc far
         sub ax, ax
         cmp byte ptr DGROUP:d_48ea, al
@@ -756,7 +756,7 @@ L21f8c:
         retf
 _mouse_init endp
 
-/* 0x21f8d */
+/* 0x23c17 */
 _mouse_set_ranges proc far
         push bp
         mov bp, sp
@@ -784,7 +784,7 @@ _mouse_set_ranges proc far
         retf
 _mouse_set_ranges endp
 
-/* 0x21fbe */
+/* 0x23c48 */
 _mouse_set_user_handler proc far
         push bp
         mov bp, sp
@@ -796,7 +796,7 @@ _mouse_set_user_handler proc far
         retf
 _mouse_set_user_handler endp
 
-/* 0x21fcf */
+/* 0x23c59 */
 _mouse_event proc far
         push ds
         push es
@@ -833,7 +833,7 @@ L22004:
         retf
 _mouse_event endp
 
-/* 0x2200f */
+/* 0x23c99 */
 _mouse_save_vga proc far
         mov dx, 3ceh
         in al, dx
@@ -900,7 +900,7 @@ _mouse_save_vga proc far
         retf
 _mouse_save_vga endp
 
-/* 0x22074 */
+/* 0x23cfe */
 _mouse_restore_vga proc far
         mov dx, 3c4h
         mov al, 2
@@ -959,7 +959,7 @@ _mouse_restore_vga proc far
         retf
 _mouse_restore_vga endp
 
-/* 0x220cd */
+/* 0x23d57 */
 _remove_mouse proc far
         xor ax, ax
         cmp byte ptr DGROUP:d_48ea, al
@@ -976,7 +976,7 @@ L220e8:
         retf
 _remove_mouse endp
 
-/* 0x220e9 */
+/* 0x23d73 */
 _read_mouse_pointer proc far
         push bp
         mov bp, sp
@@ -1001,7 +1001,7 @@ L22111:
         retf
 _read_mouse_pointer endp
 
-/* 0x22113 */
+/* 0x23d9d */
 _mouse_move_to proc far
         push bp
         mov bp, sp
@@ -1025,7 +1025,7 @@ L2213a:
         retf
 _mouse_move_to endp
 
-/* 0x2213e */
+/* 0x23dc8 */
 _read_mouse_button proc far
         push bp
         mov bp, sp
@@ -1046,7 +1046,7 @@ L2215a:
         retf
 _read_mouse_button endp
 
-/* 0x22161 */
+/* 0x23deb */
 _normalise_pointer proc near
         push cx
         mov cx, ax
@@ -1074,7 +1074,7 @@ L22183:
         ret
 _normalise_pointer endp
 
-/* 0x22190 */
+/* 0x23e1a */
 _huge_add_positive proc near
         add ax, bx
         sbb bx, bx
@@ -1131,7 +1131,7 @@ c_221e9 db 0h, 0h
 c_221eb db 0h, 0h
 _huge_add_positive endp
 
-/* 0x221ed */
+/* 0x23e77 */
 _huge_move proc far
         push bp
         mov bp, sp
@@ -1224,7 +1224,7 @@ L222b8:
         retf
 _huge_move endp
 
-/* 0x222c6 */
+/* 0x23f50 */
 _far_memcpy proc far
         push bp
         mov bp, sp
@@ -1260,7 +1260,7 @@ L222fe:
         retf
 _far_memcpy endp
 
-/* 0x22300 */
+/* 0x23f8a */
 _far_memset proc far
         push bp
         mov bp, sp
@@ -1314,7 +1314,7 @@ L22356:
         retf
 _far_memset endp
 
-/* 0x2235a */
+/* 0x23fe4 */
 _far_ptr_compare proc far
         push bp
         mov bp, sp
@@ -1341,7 +1341,7 @@ L22381:
         retf
 _far_ptr_compare endp
 
-/* 0x22386 */
+/* 0x24010 */
 _normalise_pointer_far proc far
         push bp
         mov bp, sp
@@ -1352,7 +1352,7 @@ _normalise_pointer_far proc far
         retf
 _normalise_pointer_far endp
 
-/* 0x22394 */
+/* 0x2401e */
 _install_divide_trap proc far
         push ax
         push es
@@ -1372,7 +1372,7 @@ _install_divide_trap proc far
         retf
 _install_divide_trap endp
 
-/* 0x223be */
+/* 0x24048 */
 _divide_error_handler proc near
         push bp
         mov bp, sp
@@ -1408,7 +1408,7 @@ L223f3:
         iret
 _divide_error_handler endp
 
-/* 0x223f7 */
+/* 0x24081 */
 _restore_int0_vector proc far
         push ax
         push es
@@ -1430,7 +1430,7 @@ L22418:
         retf
 _restore_int0_vector endp
 
-/* 0x2241b */
+/* 0x240a5 */
 _read_pixel_clipped proc far
         push bp
         mov bp, sp
@@ -1455,7 +1455,7 @@ L22448:
         retf
 _read_pixel_clipped endp
 
-/* 0x2244d */
+/* 0x240d7 */
 _plot_pixel_clipped proc far
         push bp
         mov bp, sp
@@ -1480,7 +1480,7 @@ L2247a:
         retf
 _plot_pixel_clipped endp
 
-/* 0x2247f */
+/* 0x2247f (1.00's; not yet placed in 1.11) */
 _restore_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+20h
 _restore_rect_thunk endp
@@ -1541,7 +1541,7 @@ uint8_t g_divide_hooked;                 /* DGROUP 0x48ec */
 void interrupt (far *g_old_divide_vector)();   /* DGROUP 0x48ed */
 
 /*
- * 0x21b44
+ * 0x237ce
  *
  * **Time the joystick's axes**: fire the one-shots and count until the chosen bits fall, into SI and DI. A near routine with register arguments. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1553,7 +1553,7 @@ void joy_time_axes(void)
 }
 
 /*
- * 0x21bab
+ * 0x23835
  *
  * **Scale one axis** against its calibration: AX less BX, times CX, clamped to 127 with a dead zone of 8, the sign put back. A near routine with register arguments. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1566,7 +1566,7 @@ int16_t joy_scale_axis(void)
 }
 
 /*
- * 0x21be2
+ * 0x2386c
  *
  * **Find and calibrate the joysticks**: time the 8253 against the port to size the delay loop, then take each stick's centre. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1579,7 +1579,7 @@ int16_t joy_init(void)
 }
 
 /*
- * 0x21d19
+ * 0x239a3
  *
  * **Read a stick's two axes**, scaled. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1592,7 +1592,7 @@ void joy_read(int16_t stick, int16_t *x, int16_t *y)
 }
 
 /*
- * 0x21d91
+ * 0x23a1b
  *
  * **A stick as four direction bits**: left 4, right 8, up 1, down 2, past thirty either way. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1606,7 +1606,7 @@ uint16_t joy_direction(int16_t stick)
 }
 
 /*
- * 0x21dea
+ * 0x23a74
  *
  * **Is button `n` down?** Bit 4+n of port 0x201, inverted. Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1620,7 +1620,7 @@ uint16_t joy_button(uint16_t n)
 }
 
 /*
- * 0x21e04
+ * 0x23a8e
  *
  * **One axis, scaled.** Nothing in the game calls it. NOT TRANSCRIBED YET for the host: the
  * port has no joystick, and the routine is timing loops on port 0x201 and
@@ -1634,7 +1634,7 @@ int16_t joy_axis(uint16_t n)
 }
 
 /*
- * 0x21e34
+ * 0x23abe
  *
  * Clip a line to the clip box and hand what is left to the driver's line
  * drawer through the vector at DGROUP 0x434e.
@@ -1736,7 +1736,7 @@ draw:
 }
 
 /*
- * 0x21f1d
+ * 0x23ba7
  *
  * Start the mouse, once. The flag at DGROUP 0x48ea says whether it has already
  * been done, and a second call answers 0 without touching anything.
@@ -1788,7 +1788,7 @@ uint16_t mouse_init(void)
 }
 
 /*
- * 0x21f8d
+ * 0x23c17
  *
  * Set how far the cursor may travel, from an origin and a size in cells: INT
  * 33h AX=7 for the horizontal range and AX=8 for the vertical. Both ends are
@@ -1805,7 +1805,7 @@ void mouse_set_ranges(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
- * 0x21fbe
+ * 0x23c48
  *
  * Remember the game's own mouse handler, as a far pointer in DGROUP 0x4744 and
  * 0x4746. `mouse_event` below calls it after it has recorded the event, and
@@ -1826,7 +1826,7 @@ void mouse_set_user_handler(void (far *h)(void))
 }
 
 /*
- * 0x21fcf
+ * 0x23c59
  *
  * **The mouse driver's callback.** INT 33h AX=0x0c installs this, and the
  * driver calls it on every event the mask asked for, with the button state in
@@ -1861,7 +1861,7 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 }
 
 /*
- * 0x2200f
+ * 0x23c99
  *
  * NEVER REACHED: only `mouse_event` calls this, on the branch that needs a
  * user handler, and nothing installs one. See `mouse_set_user_handler`.
@@ -1928,7 +1928,7 @@ void mouse_save_vga(void)
 }
 
 /*
- * 0x22074
+ * 0x23cfe
  *
  * NEVER REACHED, for the same reason as `mouse_save_vga`.
  *
@@ -1972,7 +1972,7 @@ void mouse_restore_vga(void)
 }
 
 /*
- * 0x220cd
+ * 0x23d57
  *
  * **Let the mouse go.** The flag at DGROUP 0x48ea says the driver was taken
  * over; clearing it, INT 33h AX=0 resets the driver and AX=0x0C with ES:DX
@@ -1992,7 +1992,7 @@ int16_t remove_mouse(void)
 }
 
 /*
- * 0x220e9
+ * 0x23d73
  *
  * If the flag byte at DGROUP 0x48ea is set, store a quarter of each of the two
  * words at DGROUP 0x4740 and 0x4742 through the two near pointers passed in.
@@ -2010,7 +2010,7 @@ void read_mouse_pointer(int16_t *x, int16_t *y)
 }
 
 /*
- * 0x22113
+ * 0x23d9d
  *
  * Put the mouse cursor at a given cell: INT 33h AX=4, with the position
  * multiplied by four into DGROUP 0x4740 and 0x4742.
@@ -2043,7 +2043,7 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
 }
 
 /*
- * 0x2213e
+ * 0x23dc8
  *
  * Answer bit 0 of one of two flag bytes, or 0 if the first of them is clear.
  *
@@ -2068,7 +2068,7 @@ int16_t read_mouse_button(uint16_t which)
 }
 
 /*
- * 0x22161
+ * 0x23deb
  *
  * **Normalise a far pointer**: carry the paragraphs out of the offset into the
  * segment, leaving an offset of at most 15. AX holds the offset and DX the
@@ -2096,7 +2096,7 @@ void normalise_pointer(uint8_t far **p)
 }
 
 /*
- * 0x22190
+ * 0x23e1a
  *
  * Add a signed 32-bit byte count to a far pointer, the offset in `AX` and
  * segment in `DX`, the count in `CX:BX`. This is the **positive** door; the
@@ -2131,7 +2131,7 @@ uint8_t far *huge_add_positive(uint8_t far *p, uint32_t delta)
 }
 
 /*
- * 0x221ed
+ * 0x23e77
  *
  * Copy `count` bytes between two far pointers, with a **32-bit** count, safe
  * when the two overlap. Answers the destination it was given, unnormalised.
@@ -2191,7 +2191,7 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
 }
 
 /*
- * 0x222c6
+ * 0x23f50
  *
  * Copy `count` bytes between two far pointers, normalising both first so that
  * each offset is under 16 and the segment carries the paragraphs.
@@ -2241,7 +2241,7 @@ void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count)
 }
 
 /*
- * 0x22300
+ * 0x23f8a
  *
  * Set `count` bytes to the low byte of `value`, starting at a far pointer.
  *
@@ -2264,7 +2264,7 @@ void far_memset(uint8_t far * dst, uint16_t value, uint32_t count)
 }
 
 /*
- * 0x2235a
+ * 0x23fe4
  *
  * **Compare two far pointers**, each normalised first: -1 below, 0 equal,
  * 1 above. Nothing calls it.
@@ -2277,7 +2277,7 @@ int16_t far_ptr_compare(const uint8_t far *a, const uint8_t far *b)
 }
 
 /*
- * 0x22386
+ * 0x24010
  *
  * The far-callable face of `normalise_pointer` at 0x22161: load the pointer
  * into AX and DX, call the near routine, and let its registers be the result.
@@ -2291,7 +2291,7 @@ uint8_t far *normalise_pointer_far(uint8_t far *p)
 }
 
 /*
- * 0x22394
+ * 0x2401e
  *
  * Take over INT 0, the divide-by-zero trap. The old vector is kept at DGROUP
  * 0x48ed and the new one points at 0x616e in this code segment - the handler
@@ -2315,7 +2315,7 @@ void install_divide_trap(void)
 }
 
 /*
- * 0x223be
+ * 0x24048
  *
  * **The divide-error handler** `install_divide_trap` puts at INT 0: it steps
  * the saved IP over the faulting `div` and returns. An interrupt handler;
@@ -2327,7 +2327,7 @@ void divide_error_handler(void)
 }
 
 /*
- * 0x223f7
+ * 0x24081
  *
  * **A restore that restores nothing**, and it is the original's and not a
  * transcription slip.
@@ -2352,7 +2352,7 @@ void restore_int0_vector(void)
 }
 
 /*
- * 0x2241b
+ * 0x240a5
  *
  * Read a pixel if it is inside the driver's clip window, and answer -1 if it
  * was not.
@@ -2382,7 +2382,7 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
 }
 
 /*
- * 0x2244d
+ * 0x240d7
  *
  * Plot a pixel if it is inside the driver's clip window, and answer -1 if it
  * was not.
@@ -2418,7 +2418,7 @@ int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
 }
 
 /*
- * 0x2247f
+ * 0x2247f (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x4362]`, which is `vm_restore_rect`.
  * Same arrangement as 0x2149a.

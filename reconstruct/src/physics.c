@@ -24,7 +24,7 @@
 #include "dgroup.h"
 
 /*
- * 0x02ac0
+ * 0x02ac0 (1.00's; not yet placed in 1.11)
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
  * of them - from two settings at DGROUP 0x50b3 and 0x50b5. This is what a
@@ -97,7 +97,7 @@ void recompute_kind_physics(void)
 }
 
 /*
- * 0x02bcc
+ * 0x02bcc (1.00's; not yet placed in 1.11)
  *
  * Clamp the two signed words at +0x36 and +0x38 of a record to plus or minus
  * a limit that depends on the record's kind.
@@ -127,7 +127,7 @@ void clamp_record_pair(struct part *rec)
 }
 
 /*
- * 0x02c39
+ * 0x03828
  *
  * Apply the kind's gravity to a record's vertical velocity, clamp both axes,
  * and work out a speed.
@@ -151,7 +151,7 @@ void apply_gravity_and_speed(register struct part *rec)
 }
 
 /*
- * 0x02c83
+ * 0x0387f
  *
  * Add one to a part's vertical speed and take it off again - a routine that
  * leaves the part as it found it. Nothing in the image calls it: no near or
@@ -164,7 +164,7 @@ void touch_vel_y(register struct part *rec)
 }
 
 /*
- * 0x02c93
+ * 0x02c93 (1.00's; not yet placed in 1.11)
  *
  * Advance an object one step: add its velocity to its position, apply gravity,
  * clamp, and work out where that puts it on screen.
@@ -237,7 +237,7 @@ void integrate_object(register struct part *obj)
 }
 
 /*
- * 0x02da0
+ * 0x03980
  *
  * Apply contact friction to an object: work out how hard the surface it is
  * touching resists, and take that out of its velocity.
@@ -365,7 +365,7 @@ void apply_contact_friction(register struct part *obj)
 }
 
 /*
- * 0x03009
+ * 0x03bdf
  *
  * Play the impact sound if a kind-0 object hit hard enough: the two velocity
  * components at +0x36 and +0x38, each made positive and added, over 0x1000.
@@ -385,7 +385,7 @@ void sound_on_hard_impact(register struct part *obj)
 }
 
 /*
- * 0x03046
+ * 0x03be5
  *
  * A bounce off a surface, rather than a slide along one.
  *
@@ -471,7 +471,7 @@ void bounce_off_contact(register struct part *obj)
 }
 
 /*
- * 0x03201
+ * 0x03d5c
  *
  * Two moving things hit each other: share the momentum out between them.
  * `bounce_off_contact` is the same event against something that cannot move.

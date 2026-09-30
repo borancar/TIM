@@ -108,7 +108,7 @@ assume cs:KEYBOARD_TEXT, ds:DGROUP
 public _copy_rect_thunk, _install_keyboard, _remove_keyboard, _keyboard_isr
 public _bios_read_key, _key_is_down, _show_page_thunk
 
-/* 0x21088 */
+/* 0x22d12 */
 _copy_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+14h
 c_2108c db 0h, 0h
@@ -117,7 +117,7 @@ c_21090 db 0h, 0h
 c_21092 db 0h, 0h
 _copy_rect_thunk endp
 
-/* 0x21094 */
+/* 0x22d1e */
 _install_keyboard proc far
         push bp
         mov bp, sp
@@ -195,7 +195,7 @@ L21151:
         retf
 _install_keyboard endp
 
-/* 0x21158 */
+/* 0x22de2 */
 _remove_keyboard proc far
         sub ax, ax
         cmp byte ptr DGROUP:d_458c, al
@@ -222,7 +222,7 @@ L21195:
         retf
 _remove_keyboard endp
 
-/* 0x21196 */
+/* 0x22e20 */
 _keyboard_isr proc near
         push ax
         push bx
@@ -553,7 +553,7 @@ L2142a:
         iret
 _keyboard_isr endp
 
-/* 0x21434 */
+/* 0x230be */
 _bios_read_key proc far
         pushf
         cli
@@ -589,7 +589,7 @@ c_2147a db 8bh, 0eah
 c_2147c db 0cbh
 _bios_read_key endp
 
-/* 0x2147d */
+/* 0x23107 */
 _key_is_down proc far
         cli
         mov dx, bp
@@ -606,7 +606,7 @@ c_21492 db 0ffh, 2eh, 0aah, 43h
 c_21496 db 0ffh, 2eh, 0aeh, 43h
 _key_is_down endp
 
-/* 0x2149a */
+/* 0x2149a (1.00's; not yet placed in 1.11) */
 _show_page_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+24h
 _show_page_thunk endp
@@ -735,7 +735,7 @@ struct engine_pcjr_keyboard {
 struct engine_pcjr_keyboard g_engine_pcjr_keyboard;
 
 /*
- * 0x21088
+ * 0x22d12
  *
  * A thunk into the video driver: `ljmp [0x4356]`, which is `vm_copy_rect` -
  * the rectangle copy from one page to the other. Same arrangement as the
@@ -748,7 +748,7 @@ void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 }
 
 /*
- * 0x21094
+ * 0x22d1e
  *
  * Install the game's own keyboard handler, once. DGROUP 0x458c is the flag that
  * says it has been done; a second call skips to the BIOS flag fiddling at the
@@ -803,7 +803,7 @@ uint16_t install_keyboard(int16_t hook_timer)
 }
 
 /*
- * 0x21158
+ * 0x22de2
  *
  * **Take the keyboard back**, the other half of `install_keyboard` above.
  *
@@ -833,7 +833,7 @@ int16_t remove_keyboard(void)
 }
 
 /*
- * 0x21196   (segment 1c25, offset 0x4f46 - where `install_keyboard` puts it)
+ * 0x22e20   (segment 1c25, offset 0x4f46 - where `install_keyboard` puts it)
  *
  * **The game's own keyboard interrupt, and it does the whole job.** It does
  * not chain to the BIOS: the fall-through is `mov al,0x20 / out 0x20,al /
@@ -1049,7 +1049,7 @@ void keyboard_tick_isr(void)
 }
 
 /*
- * 0x21434
+ * 0x230be
  *
  * Take the next key from the **BIOS keyboard buffer**, or answer 0 when there
  * is none. The scancode is the high byte and the character the low one, which
@@ -1085,7 +1085,7 @@ uint16_t bios_read_key(void)
 }
 
 /*
- * 0x2147d
+ * 0x23107
  *
  * Return bit 0 of the byte at DGROUP 0x468c + index.
  *
@@ -1103,7 +1103,7 @@ int16_t key_is_down(uint16_t index)
 }
 
 /*
- * 0x2149a
+ * 0x2149a (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x4366]`, which is `vm_show_page`.
  *

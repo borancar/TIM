@@ -299,7 +299,7 @@ c_26399 label byte
 c_2639c label byte
 	db 0h
 
-/* 0x2639d */
+/* 0x28cef */
 _sound_api proc far
 	push bp
 	mov bp, sp
@@ -342,7 +342,7 @@ L263f6:
 	retf
 _sound_api endp
 
-/* 0x263ff */
+/* 0x28d51 */
 _sound_api_dispatch proc near
 	cmp cl, 0
 	jne L2643b
@@ -526,7 +526,7 @@ L265f1:
 	ret
 _sound_api_dispatch endp
 
-/* 0x265f2 */
+/* 0x28f44 */
 _install_driver proc far
 	mov word ptr cs:c_26377, ax
 	mov word ptr cs:c_26379, es
@@ -549,7 +549,7 @@ L26623:
 	retf
 _install_driver endp
 
-/* 0x26629 */
+/* 0x28f7b */
 _configure_driver proc far
 	push cx
 	push bp
@@ -569,7 +569,7 @@ _configure_driver proc far
 	retf
 _configure_driver endp
 
-/* 0x2664e */
+/* 0x28fa0 */
 _silence_driver proc far
 	push bx
 	push cx
@@ -591,7 +591,7 @@ _silence_driver proc far
 	retf
 _silence_driver endp
 
-/* 0x2666d */
+/* 0x28fbf */
 _sound_hold proc far
 	cmp cx, 0
 	jne L26678
@@ -605,7 +605,7 @@ L26685:
 	retf
 _sound_hold endp
 
-/* 0x26686 */
+/* 0x28fd8 */
 _driver_fn13 proc far
 	push bp
 	mov bp, 0dh
@@ -614,7 +614,7 @@ _driver_fn13 proc far
 	retf
 _driver_fn13 endp
 
-/* 0x26691 */
+/* 0x28fe3 */
 _seek_sequence proc far
 	pushf
 	cli
@@ -672,7 +672,7 @@ L2670a:
 	retf
 _seek_sequence endp
 
-/* 0x26721 */
+/* 0x29073 */
 _set_master_level proc far
 	cmp cl, 0ffh
 	je L2672d
@@ -687,7 +687,7 @@ L2672d:
 	retf
 _set_master_level endp
 
-/* 0x26738 */
+/* 0x2908a */
 _set_sequence_level proc far
 	cmp cl, 0ffh
 	jne L26748
@@ -727,7 +727,7 @@ L2677e:
 	retf
 _set_sequence_level endp
 
-/* 0x26783 */
+/* 0x290d5 */
 _start_sequence proc far
 	pushf
 	cli
@@ -972,7 +972,7 @@ L26a54:
 	retf
 _start_sequence endp
 
-/* 0x26a57 */
+/* 0x293a9 */
 _retire_and_tick proc far
 	pushf
 	cli
@@ -1500,7 +1500,7 @@ L26e75:
 	retf
 _retire_and_tick endp
 
-/* 0x26e7b */
+/* 0x297cd */
 _remove_sequence proc near
 	push si
 	push es
@@ -1571,7 +1571,7 @@ L26f23:
 	ret
 _remove_sequence endp
 
-/* 0x26f2a */
+/* 0x2987c */
 _sequencer_tick proc near
 	push ax
 	push bx
@@ -2429,7 +2429,7 @@ L278d2:
 	ret
 _sequencer_tick endp
 
-/* 0x278e9 */
+/* 0x2a23b */
 _advance_volume_ramp proc near
 	push bx
 	push cx
@@ -2496,7 +2496,7 @@ L279a6:
 	ret
 _advance_volume_ramp endp
 
-/* 0x279a9 */
+/* 0x2a2fb */
 _set_sequence_volume proc near
 	push ax
 	push bx
@@ -2592,7 +2592,7 @@ L27a7f:
 	ret
 _set_sequence_volume endp
 
-/* 0x27a86 */
+/* 0x2a3d8 */
 _flush_pending_volumes proc near
 	xor bl, bl
 	mov al, byte ptr cs:c_26396
@@ -2628,7 +2628,7 @@ L27ac7:
 	ret
 _flush_pending_volumes endp
 
-/* 0x27ace */
+/* 0x2a420 */
 _sound_service proc far
 	cmp byte ptr cs:c_26389, 0
 	je L27ad7
@@ -2693,7 +2693,7 @@ L27b3b:
 	retf
 _sound_service endp
 
-/* 0x27b52 */
+/* 0x2a4a4 */
 _drop_unless_polled proc near
 	push cx
 	push si
@@ -2719,7 +2719,7 @@ L27b7a:
 	ret
 _drop_unless_polled endp
 
-/* 0x27b7e */
+/* 0x2a4d0 */
 _poll_sequences proc near
 	push ds
 	xor si, si
@@ -2810,7 +2810,7 @@ L27c4c:
 	ret
 _poll_sequences endp
 
-/* 0x27c4e */
+/* 0x2a59a */
 _step_sequence proc near
 	push si
 	push di
@@ -3062,7 +3062,7 @@ L27e89:
 	ret
 _step_sequence endp
 
-/* 0x27e92 */
+/* 0x2a7de */
 _midi_note_off_event proc near
 	push si
 	mov ch, ds:[bp]
@@ -3098,7 +3098,7 @@ L27edf:
 	ret
 _midi_note_off_event endp
 
-/* 0x27ee1 */
+/* 0x2a82d */
 _midi_note_event proc near
 	push si
 	mov ch, ds:[bp]
@@ -3148,7 +3148,7 @@ L27f52:
 	ret
 _midi_note_event endp
 
-/* 0x27f54 */
+/* 0x2a8a0 */
 _midi_event_6 proc near
 	mov ch, ds:[bp]
 	inc bp
@@ -3172,7 +3172,7 @@ L27f84:
 	ret
 _midi_event_6 endp
 
-/* 0x27f85 */
+/* 0x2a8d1 */
 _midi_controller_event proc near
 	push si
 	mov ch, ds:[bp]
@@ -3280,7 +3280,7 @@ L28084:
 	ret
 _midi_controller_event endp
 
-/* 0x28086 */
+/* 0x2a9d2 */
 _midi_program_event proc near
 	push si
 	mov cl, ds:[bp]
@@ -3318,7 +3318,7 @@ L280d8:
 	ret
 _midi_program_event endp
 
-/* 0x280da */
+/* 0x2aa26 */
 _midi_event_9 proc near
 	mov cl, ds:[bp]
 	inc bp
@@ -3337,7 +3337,7 @@ L280fd:
 	ret
 _midi_event_9 endp
 
-/* 0x280fe */
+/* 0x2aa4a */
 _midi_bend_event proc near
 	push si
 	mov ch, ds:[bp]
@@ -3393,13 +3393,13 @@ L28178:
 	ret
 _midi_bend_event endp
 
-/* 0x2817a */
+/* 0x2817a (1.00's; not yet placed in 1.11) */
 _midi_skip_event proc near
 	call _skip_unknown_event
 	ret
 _midi_skip_event endp
 
-/* 0x2817e */
+/* 0x2aaca */
 _midi_meta_event proc near
 	cmp ah, 0c0h
 	je L28191
@@ -3513,7 +3513,7 @@ L2828d:
 	ret
 _midi_meta_event endp
 
-/* 0x2828e */
+/* 0x2abda */
 _skip_unknown_event proc near
 	cmp ah, 0f0h
 	jne L282a6
@@ -3545,7 +3545,7 @@ L282bd:
 	ret
 _skip_unknown_event endp
 
-/* 0x282cb */
+/* 0x2ac17 */
 _scale_byte_pair proc near
 	push ax
 	mov al, cl
@@ -3581,7 +3581,7 @@ L28303:
 	ret
 _scale_byte_pair endp
 
-/* 0x28305 */
+/* 0x28305 (1.00's; not yet placed in 1.11) */
 _init_sequence_params proc near
 	push bx
 	push cx
@@ -3678,7 +3678,7 @@ c_283df label byte
 	db 0eh, 0e8h, 0ch, 0e8h, 32h, 0f6h, 8bh, 0c1h, 5eh, 5fh, 1fh, 5dh, 0cbh
 _init_sequence_params endp
 
-/* 0x2841f */
+/* 0x2841f (1.00's; not yet placed in 1.11) */
 _seek_sequence_far proc far
 	push bp
 	mov bp, sp
@@ -3695,7 +3695,7 @@ _seek_sequence_far proc far
 	retf
 _seek_sequence_far endp
 
-/* 0x28431 */
+/* 0x28431 (1.00's; not yet placed in 1.11) */
 _set_master_level_far proc far
 	push bp
 	mov bp, sp
@@ -3715,7 +3715,7 @@ c_28443 label byte
 	db 5eh, 5fh, 1fh, 5dh, 0cbh
 _set_master_level_far endp
 
-/* 0x28458 */
+/* 0x28458 (1.00's; not yet placed in 1.11) */
 _install_driver_far proc far
 	push bp
 	mov bp, sp
@@ -3732,7 +3732,7 @@ _install_driver_far proc far
 	retf
 _install_driver_far endp
 
-/* 0x2846a */
+/* 0x2846a (1.00's; not yet placed in 1.11) */
 _configure_driver_far proc far
 	push bp
 	mov bp, sp
@@ -3752,7 +3752,7 @@ _configure_driver_far proc far
 	retf
 _configure_driver_far endp
 
-/* 0x28480 */
+/* 0x28480 (1.00's; not yet placed in 1.11) */
 _start_sequence_far proc far
 	push bp
 	mov bp, sp
@@ -3773,7 +3773,7 @@ c_28495 label byte
 	db 0eh, 0e8h, 1eh, 0e6h, 5eh, 5fh, 1fh, 5dh, 0cbh
 _start_sequence_far endp
 
-/* 0x284b0 */
+/* 0x284b0 (1.00's; not yet placed in 1.11) */
 _driver_fn13_far proc far
 	push bp
 	mov bp, sp
@@ -3794,7 +3794,7 @@ c_284c2 label byte
 	db 8ah, 56h, 0ch, 0eh, 0e8h, 2bh, 0e9h, 5eh, 5fh, 1fh, 5dh, 0cbh
 _driver_fn13_far endp
 
-/* 0x284ef */
+/* 0x284ef (1.00's; not yet placed in 1.11) */
 _retire_and_tick_far proc far
 	push bp
 	mov bp, sp
@@ -3815,7 +3815,7 @@ c_28501 label byte
 	db 5eh, 5fh, 1fh, 5dh, 32h, 0e4h, 8ah, 0c1h, 0cbh
 _retire_and_tick_far endp
 
-/* 0x2852c */
+/* 0x2852c (1.00's; not yet placed in 1.11) */
 _set_sequence_level_far proc far
 	push bp
 	mov bp, sp
@@ -3835,7 +3835,7 @@ c_2853e label byte
 	db 0eh, 0e8h, 92h, 0e7h, 5eh, 5fh, 1fh, 5dh, 0cbh
 _set_sequence_level_far endp
 
-/* 0x28559 */
+/* 0x28559 (1.00's; not yet placed in 1.11) */
 _silence_driver_far proc far
 	push bp
 	mov bp, sp
@@ -3858,7 +3858,7 @@ SOUND_TEXT ends
 }
 #else
 /*
- * 0x2639d
+ * 0x28cef
  *
  * **The sound module's one far entry** (a name that is a guess): its arguments filed into the code segment at `cs:1ebh` on, then `sound_api_dispatch` on the function number. Nothing in the game calls it; the game calls the routines' own far faces. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -3870,7 +3870,7 @@ uint16_t sound_api(uint16_t fn)
     return 0;
 }
 /*
- * 0x263ff
+ * 0x28d51
  *
  * **The dispatcher**: CL chooses one of the driver interface's routines, each far-called, with the arguments `sound_api` filed. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -3881,7 +3881,7 @@ void sound_api_dispatch(void)
 }
 
 /*
- * 0x265f2
+ * 0x28f44
  *
  * Plant the driver and ask it what it is.
  *
@@ -3924,7 +3924,7 @@ uint16_t install_driver(const uint8_t far * drv)
 }
 
 /*
- * 0x26629
+ * 0x28f7b
  *
  * Ask the driver its *second* description and set one parameter from it.
  *
@@ -3953,7 +3953,7 @@ uint16_t configure_driver(const uint8_t far * drv)
 }
 
 /*
- * 0x2664e
+ * 0x28fa0
  *
  * Shut the driver up. Function 12 - `sx_param_345` - with `CL` 0xf, then
  * function 2 - `sx_stop_all`, which forwards to the speaker-off.
@@ -3972,7 +3972,7 @@ void silence_driver(void)
 }
 
 /*
- * 0x2666d
+ * 0x28fbf
  *
  * **Hold or release the driver** (a name that is a guess): with CX zero the count at `cs:1f9h` goes up, otherwise it comes down to zero. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -3984,7 +3984,7 @@ void sound_hold(uint16_t cx)
 }
 
 /*
- * 0x26686
+ * 0x28fd8
  *
  * **The driver's function 13**, and nothing else (the name says only that). Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -3995,7 +3995,7 @@ void driver_fn13(void)
 }
 
 /*
- * 0x26691
+ * 0x28fe3
  *
  * **Seek a sequence** (a name that is a guess): its channels muted, `start_sequence` to restart it, `step_sequence` until its position reaches the one it had, the channels put back, and a tick. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -4007,7 +4007,7 @@ void seek_sequence(struct sequence far *seq)
 }
 
 /*
- * 0x26721
+ * 0x29073
  *
  * Set the driver's master level. `CL` is clamped to 0..0xf and handed to
  * function 12 - `sx_param_345` - except that 0xff passes through unclamped,
@@ -4023,7 +4023,7 @@ void set_master_level(uint8_t cl)
 }
 
 /*
- * 0x26738
+ * 0x2908a
  *
  * **Set the level the playing sequence is heard at** (a name that is a guess): 0xff asks the driver, above 10 answers the current one at `cs:202h`, and otherwise it is stored and, if a sequence is playing, handed on. Called only through `sound_api`'s table. NOT TRANSCRIBED YET for the host: nothing the port runs reaches it. A
  * stub, which aborts; the TASM source above is the original's.
@@ -4121,7 +4121,7 @@ static void tick_restore_state(void)
 }
 
 /*
- * 0x26783
+ * 0x290d5
  *
  * Start a sequence: stop it if it is already playing, reset every channel it
  * has, read its header, and put it in the playing table in priority order.
@@ -4339,7 +4339,7 @@ void start_sequence(struct sequence far * seq, uint16_t cx)
 }
 
 /*
- * 0x26a57
+ * 0x293a9
  *
  * Retire whatever has finished and run the sequencer once, with interrupts
  * masked across both. Six instructions: `pushf`, `cli`, the two near calls,
@@ -4365,7 +4365,7 @@ void retire_and_tick(struct sequence far * seq)
 }
 
 /*
- * 0x26e7b
+ * 0x297cd
  *
  * Take a sequence out of the playing table and stop it. Hand-written assembly
  * with the record in `es:ax`.
@@ -4424,7 +4424,7 @@ void remove_sequence(struct sequence far * seq)
 }
 
 /*
- * 0x26f2a
+ * 0x2987c
  *
  * The sequencer's tick: decide which of sixteen hardware voices plays each
  * channel of each playing sequence, and tell the driver about everything that
@@ -4780,7 +4780,7 @@ silence_unused:
 }
 
 /*
- * 0x278e9
+ * 0x2a23b
  *
  * Advance a sequence's volume fade by one tick. Hand-written assembly with the
  * record in `es:bx` and the sequence's slot in `si`.
@@ -4841,7 +4841,7 @@ void advance_volume_ramp(struct sequence far * seq, uint16_t seq_slot)
 }
 
 /*
- * 0x279a9
+ * 0x2a2fb
  *
  * Set a sequence's volume and push it out to every voice the sequence owns.
  *
@@ -4920,7 +4920,7 @@ void set_sequence_volume(struct sequence far * seq, uint8_t volume,
 }
 
 /*
- * 0x27a86
+ * 0x2a3d8
  *
  * Flush up to two pending volume changes to the driver, round-robin over the
  * sixteen channels, and remember where to resume.
@@ -4972,7 +4972,7 @@ void flush_pending_volumes(void)
 }
 
 /*
- * 0x27ace
+ * 0x2a420
  *
  * The sound module's service routine - what the timer calls. Runs every
  * playing sequence forward one tick, then polls, flushes and tells the host.
@@ -5064,7 +5064,7 @@ void sound_service(void)
 }
 
 /*
- * 0x27b52
+ * 0x2a4a4
  *
  * Remove a sequence unless it is on the poll table at `cs:0x48`.
  *
@@ -5089,7 +5089,7 @@ void drop_unless_polled(struct sequence far * seq)
 }
 
 /*
- * 0x27b7e
+ * 0x2a4d0
  *
  * Poll every sequence that has asked to be polled, and let the host callback
  * decide whether it carries on.
@@ -5202,7 +5202,7 @@ void poll_sequences(void)
 }
 
 /*
- * 0x27c4e
+ * 0x2a59a
  *
  * Step one sequence forward by one tick: for each of its channels, run down
  * the delay and, when it reaches zero, read and dispatch as many events as the
@@ -5407,7 +5407,7 @@ finished:
 }
 
 /*
- * 0x27e92
+ * 0x2a7de
  *
  * Handle an explicit note-off event, and answer the stream cursor advanced past
  * it. The same register convention and byte accounting as `midi_note_event` at
@@ -5458,7 +5458,7 @@ const uint8_t far *midi_note_off_event(const uint8_t far * data,
 }
 
 /*
- * 0x27f54
+ * 0x2a8a0
  *
  * Handle a two-byte event whose driver function is number 6 - which is one of
  * the seven entries pointing at the do-nothing stub, so on this driver the
@@ -5487,7 +5487,7 @@ const uint8_t far *midi_event_6(const uint8_t far * data,
 }
 
 /*
- * 0x27ee1
+ * 0x2a82d
  *
  * Handle one MIDI note event out of a sequence, and answer the stream cursor
  * advanced past it.
@@ -5552,7 +5552,7 @@ const uint8_t far *midi_note_event(const uint8_t far * data,
 }
 
 /*
- * 0x27f85
+ * 0x2a8d1
  *
  * Handle a controller change - the busiest of the event handlers, and the one
  * that keeps most of a channel's state.
@@ -5636,7 +5636,7 @@ const uint8_t far *midi_controller_event(const uint8_t far * data,
 }
 
 /*
- * 0x28086
+ * 0x2a9d2
  *
  * Handle a program change: one byte, stored as the channel's instrument at
  * +0x116, then driver function 8 - another of the stub entries, so the speaker
@@ -5674,7 +5674,7 @@ const uint8_t far *midi_program_event(const uint8_t far * data,
 }
 
 /*
- * 0x280da
+ * 0x2aa26
  *
  * Handle a one-byte event whose driver function is number 9 - a stub entry
  * again. The byte is read and counted and nothing keeps it.
@@ -5698,7 +5698,7 @@ const uint8_t far *midi_event_9(const uint8_t far * data,
 }
 
 /*
- * 0x280fe
+ * 0x2aa4a
  *
  * Handle one pitch bend event out of a sequence, and answer the stream cursor
  * advanced past it. The register convention is `midi_note_event`'s at 0x27ee1,
@@ -5764,7 +5764,7 @@ const uint8_t far *midi_bend_event(const uint8_t far * data,
 }
 
 /*
- * 0x2817e
+ * 0x2aaca
  *
  * Handle the two status bytes that carry the sequencer's own meta events, and
  * hand anything else to `skip_unknown_event`.
@@ -5874,7 +5874,7 @@ const uint8_t far *midi_meta_event(const uint8_t far * data,
 }
 
 /*
- * 0x2817a
+ * 0x2817a (1.00's; not yet placed in 1.11)
  *
  * A one-instruction forwarder to `skip_unknown_event`. It exists so that the
  * dispatch that reaches it has an entry of its own rather than sharing one.
@@ -5887,7 +5887,7 @@ const uint8_t far *midi_skip_event(const uint8_t far * data,
 }
 
 /*
- * 0x2828e
+ * 0x2abda
  *
  * Step the cursor past an event this module does not handle, using MIDI's own
  * rule for how long a message is - which is why it only needs the status byte
@@ -5935,7 +5935,7 @@ const uint8_t far *skip_unknown_event(const uint8_t far * data,
 }
 
 /*
- * 0x282cb
+ * 0x2ac17
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
  * doubled, then reduced by one unless it is already zero.
@@ -5955,7 +5955,7 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
     return out;
 }
 /*
- * 0x28305
+ * 0x28305 (1.00's; not yet placed in 1.11)
  *
  * Parse a sequence's device-specific parameter table once, and cache the result
  * in place. Hand-written assembly: `es:ax` is the record, and nothing is
@@ -6062,7 +6062,7 @@ void init_sequence_params(struct sequence far * seq)
 }
 
 /*
- * 0x28559
+ * 0x28559 (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `silence_driver`. It loads `ES:AX` from where a
  * stack argument would be, and `silence_driver` reads neither - the same dead
@@ -6075,7 +6075,7 @@ void silence_driver_far(void)
 }
 
 /*
- * 0x28431
+ * 0x28431 (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `set_master_level`. The level arrives as a word on
  * the stack and goes into `CX`; only `CL` is read. DS, DI and SI are saved
@@ -6087,7 +6087,7 @@ void set_master_level_far(uint16_t level)
 }
 
 /*
- * 0x28458
+ * 0x28458 (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `install_driver`. The driver's far pointer arrives
  * on the stack and is loaded into `ES:AX` with one `les`, and `AX` comes back
@@ -6099,7 +6099,7 @@ uint16_t install_driver_far(const uint8_t far * drv)
 }
 
 /*
- * 0x2846a
+ * 0x2846a (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `configure_driver`. It loads `ES:AX` from the
  * stack argument and zeroes `BX` before the call. `AX` passes back out, and
@@ -6117,7 +6117,7 @@ uint16_t configure_driver_far(const uint8_t far * drv)
 }
 
 /*
- * 0x284ef
+ * 0x284ef (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `retire_and_tick`, which reads its record from
  * `ES:AX` - loaded here from the stack argument with one `les`.
@@ -6128,7 +6128,7 @@ void retire_and_tick_far(struct sequence far * seq)
 }
 
 /*
- * 0x28480
+ * 0x28480 (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `start_sequence`. The original takes its record in
  * `es:ax` and its flag in `cx`, which no C caller can arrange, so this takes
@@ -6144,7 +6144,7 @@ void start_sequence_far(struct sequence far * seq, uint16_t flag)
 }
 
 /*
- * 0x2841f
+ * 0x2841f (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `seek_sequence`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source
@@ -6157,7 +6157,7 @@ void seek_sequence_far(struct sequence far * seq)
 }
 
 /*
- * 0x284b0
+ * 0x284b0 (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `driver_fn13`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source
@@ -6169,7 +6169,7 @@ void driver_fn13_far(void)
 }
 
 /*
- * 0x2852c
+ * 0x2852c (1.00's; not yet placed in 1.11)
  *
  * The ordinary-call face of `set_sequence_level`, in sound_drv.c. Nothing calls it.
  * NOT TRANSCRIBED YET for the host; a stub, which aborts. The TASM source

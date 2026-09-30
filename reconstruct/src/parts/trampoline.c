@@ -20,7 +20,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:3ebf, image 0x1b17f - kind 39's hit test.
+ * 190f:3e27, image 0x1cf17 - kind 39's hit test.
  *
  * The hook belongs to the kind 39 part - `di`, at the arriving object's +0x84 -
  * and runs on whatever arrived, `si`.
@@ -75,7 +75,7 @@ uint16_t part_hit_trampoline(struct part *part)
 }
 
 /*
- * 172c:3f72, image 0x1b232 - a setup.
+ * 190f:3f08, image 0x1cff8 - a setup.
  *
  * A wide box, 47 by 16, sitting 11 down from the part's origin.
  */
@@ -99,7 +99,7 @@ void part_setup_trampoline(struct part *part)
 }
 
 /*
- * 172c:3fae, image 0x1b26e - kind 39's step.
+ * 190f:3f44, image 0x1d034 - kind 39's step.
  *
  * Five frames once it is set going, the third playing sound 3, and reaching
  * the fifth wraps the form back to 0 and switches it off - so it plays through

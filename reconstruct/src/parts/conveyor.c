@@ -26,7 +26,7 @@
 uint8_t g_conveyor_grab_x[5] = { 9, 23, 38, 44, 59 };
 
 /*
- * 172c:24d0, image 0x19790 - a setup.
+ * 190f:248a, image 0x1b57a - a setup.
  *
  * The part's own bounding rectangle: (0,0), (W,0), (W,H), (0,H), with W and H
  * read from +0x44 and +0x46 rather than written as constants. The first
@@ -52,7 +52,7 @@ void part_setup_conveyor(struct part *part)
 }
 
 /*
- * 172c:2514, image 0x197d4 - kind 5's hit test.
+ * 172c:2514, image 0x197d4 (1.00's; not yet placed in 1.11) - kind 5's hit test.
  *
  * A crank being turned pushes whatever is standing on it sideways at 0x1000,
  * building up to that speed rather than snapping to it: the speed is added and
@@ -96,7 +96,7 @@ uint16_t part_hit_conveyor(struct part *part)
 }
 
 /*
- * 172c:2592, image 0x19852 - kind 5's step.
+ * 190f:2550, image 0x1b640 - kind 5's step.
  *
  * A crank. Its direction at +0x12 turns the handle round seven positions, up
  * or down, and the wrap is written as a remainder rather than a compare: one
@@ -138,7 +138,7 @@ void part_step_conveyor(struct part *part)
 }
 
 /*
- * 172c:261d, image 0x198dd - kind 5's settle, the +0x0ed8 slot, which
+ * 190f:25dd, image 0x1b6cd - kind 5's settle, the +0x0ed8 slot, which
  * `game_screen_loop` calls once a drag has finished.
  *
  * The size being dragged lives at +0x50 and +0x52 and the real size at +0x44

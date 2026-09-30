@@ -71,7 +71,7 @@ int16_t g_scissors_cut_line[2][4] = {
 };
 
 /*
- * 172c:3824, image 0x1aae4 - kind 37's hit test. Closing the scissors.
+ * 190f:37dd, image 0x1c8cd - kind 37's hit test. Closing the scissors.
  *
  * Four of the eight faces set the thing that hit it going, and *which* four
  * depends on the mirror bit of the thing itself, not of the scissors: 1, 2, 4
@@ -101,7 +101,7 @@ uint16_t part_hit_scissors(struct part *part)
 }
 
 /*
- * 172c:389b, image 0x1ab5b - a setup.
+ * 190f:3861, image 0x1c951 - a setup.
  *
  * Eight points, reached the way `part_setup_bellow` reaches its six: bit 4 of +8
  * picks between the **pointer arrays** at DGROUP 0x34b6 and 0x3492, and the
@@ -128,7 +128,7 @@ void part_setup_scissors(struct part *part)
 }
 
 /*
- * 172c:38fc, image 0x1abbc - kind 37's step. The scissors.
+ * 190f:38bf, image 0x1c9af - kind 37's step. The scissors.
  *
  * They cut once: only in form 0, and only while +0x12 says go. The line they
  * cut along is one of two in DGROUP - 0x34c2 mirrored, 0x34ba not - and
@@ -149,7 +149,7 @@ void part_step_scissors(struct part *part)
 }
 
 /*
- * 172c:3944, image 0x1ac04 - kind 37's flip: bit 4, its setup, two marks.
+ * 190f:3907, image 0x1c9f7 - kind 37's flip: bit 4, its setup, two marks.
  */
 void part_flip_scissors(struct part *part)
 {
@@ -160,7 +160,7 @@ void part_flip_scissors(struct part *part)
 }
 
 /*
- * 172c:3970, image 0x1ac30
+ * 190f:3933, image 0x1ca23
  *
  * Cut every rope that crosses a line.
  *

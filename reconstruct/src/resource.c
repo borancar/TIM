@@ -66,7 +66,7 @@ struct engine_resource_flags g_engine_resource_flags;   /* DGROUP 0x57ba */
 struct engine_read_staging g_engine_read_staging;
 
 /*
- * 0x1c251
+ * 0x1ee50
  *
  * Decompression type 0: **stored**. Each byte of the input goes straight to
  * the output until the input ends or the request is filled - the handler
@@ -85,7 +85,7 @@ int16_t near decompress_store(void)
 }
 
 /*
- * 0x1c278
+ * 0x1ee77
  *
  * Decompression type 1: plain run-length coding.
  *
@@ -119,7 +119,7 @@ int16_t near decompress_rle(void)
 }
 
 /*
- * 0x1c2cc
+ * 0x1c2cc (1.00's; not yet placed in 1.11)
  *
  * **Drain the spill ring to the output**, a byte at a time through
  * `put_output_byte`: from the record's `spill_start` round to its
@@ -142,7 +142,7 @@ int16_t near store_flush(int16_t final)
 }
 
 /*
- * 0x1c319
+ * 0x1eec9
  *
  * Copy `count` bytes out of the current resource into a huge pointer, through
  * `g_engine_read_staging`, the 0x32-byte staging buffer at DGROUP 0x5788.
@@ -172,7 +172,7 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
 }
 
 /*
- * 0x1c389
+ * 0x1ef3a
  *
  * The next byte of whatever is being decompressed, or -1 at the end.
  *
@@ -198,7 +198,7 @@ int16_t near next_input_byte(void)
 }
 
 /*
- * 0x1c3e6
+ * 0x1ef97
  *
  * Read up to `count` bytes of the compressed stream into DGROUP, and answer how
  * many. This is what fills the bit buffer the LZW code reader works out of.
@@ -227,7 +227,7 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
 }
 
 /*
- * 0x1c493
+ * 0x1f044
  *
  * Deliver a run of `n` literal bytes to the output.
  *
@@ -266,7 +266,7 @@ int16_t near emit_literal_run(uint16_t n)
 }
 
 /*
- * 0x1c51e
+ * 0x1f0cf
  *
  * Deliver a run of `n` copies of one byte - the other half of the run-length
  * pair, and the same two output states as `emit_literal_run`, answering the
@@ -294,7 +294,7 @@ int16_t near emit_fill_run(uint16_t value, int16_t n)
 }
 
 /*
- * 0x1c5a3
+ * 0x1c5a3 (1.00's; not yet placed in 1.11)
  *
  * Deliver one byte - `emit_literal_run` and `emit_fill_run` written for a run
  * of exactly one, with the same two states and the same answers. The spill
@@ -316,7 +316,7 @@ int16_t near emit_byte(uint16_t value)
 }
 
 /*
- * 0x1c5f5
+ * 0x1f1a2
  *
  * **Write one byte of a resource being written**: counted at DGROUP 0x589c,
  * then to the file with `game_fputc`, or into memory at the record's data
@@ -333,7 +333,7 @@ int16_t near put_output_byte(int16_t c)
 }
 
 /*
- * 0x1c649
+ * 0x1f1f6
  *
  * Select a resource by handle and unpack its record into the globals the
  * rest of the loader reads. A handle outside 0..0x63, signed, or naming an
@@ -367,7 +367,7 @@ int16_t near select_resource(int16_t handle)
 }
 
 /*
- * 0x1c6e3
+ * 0x1f290
  *
  * Does this NUL-terminated string contain the letter `r`? The mode string
  * of an open, asking whether the resource is to be read.
@@ -381,7 +381,7 @@ int16_t near string_contains_r(const char *s)
 }
 
 /*
- * 0x1c705
+ * 0x1f2b2
  *
  * Free a pointer unless it is null - the whole routine.
  */
@@ -392,7 +392,7 @@ void near free_if_set(void *p)
 }
 
 /*
- * 0x1c71a
+ * 0x1f2c7
  *
  * Close a resource slot: give back everything it holds and clear its entry.
  * Always answers -1.
@@ -417,7 +417,7 @@ int16_t near close_resource_slot(int16_t slot)
 }
 
 /*
- * 0x1c783
+ * 0x1f330
  *
  * Take a resource slot. Answers its number, or -1 when all hundred are in use
  * or the record cannot be allocated. The record is 0x21 bytes from `calloc`,
@@ -440,7 +440,7 @@ int16_t near open_resource_slot(char *mode)
 }
 
 /*
- * 0x1c7d5
+ * 0x1f358
  *
  * Give a slot the working memory its decompression type needs. Answers 0, or
  * -1 for a type above 3 or an allocation that failed.
@@ -485,7 +485,7 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
 }
 
 /*
- * 0x1c8a7
+ * 0x1f44c
  *
  * Hand over the next run of bytes from the spill buffer, up to whatever the
  * caller still wants.
@@ -520,7 +520,7 @@ void near resource_advance(void)
 }
 
 /*
- * 0x1c92b
+ * 0x1f4cf
  *
  * Read `count` bytes of the selected resource: first whatever the spill
  * buffer holds, then the handler's decoder, then the spill again for what the
@@ -544,7 +544,7 @@ int16_t near resource_read(int16_t handle, uint16_t count)
 }
 
 /*
- * 0x1c970
+ * 0x1f514
  *
  * Reset the LZW state for a new stream: the whole 0x3aa1-byte block cleared,
  * the code width back to nine with its limit at 0x1ff, the first 0x100 codes
@@ -579,7 +579,7 @@ void near lzw_reset(void)
 }
 
 /*
- * 0x1ca3c
+ * 0x1f5e1
  *
  * An empty routine: `push bp / mov bp,sp / pop bp / ret`, and nothing calls
  * it.
@@ -589,7 +589,7 @@ void near resource_nothing_1(void)
 }
 
 /*
- * 0x1ca41
+ * 0x1f5e6
  *
  * The same, again.
  */

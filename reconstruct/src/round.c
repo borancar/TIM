@@ -21,7 +21,7 @@
 #include "dgroup.h"
 
 /*
- * 0x0ef19
+ * 0x0fe81
  *
  * Set the game up: draw the status bar across the top of the screen, load the
  * two bitmap sets the game keeps for the whole of its run, and start the
@@ -73,7 +73,7 @@ void game_setup(void)
 }
 
 /*
- * 0x0efdc
+ * 0x0ff45
  *
  * Give back the two bitmap lists the game keeps at DGROUP 0x4ecd and 0x4ec9,
  * in that order, through the driver's own thunk.
@@ -85,7 +85,7 @@ void free_two_bitmap_lists(void)
 }
 
 /*
- * 0x0eff5
+ * 0x0ff48
  *
  * **One round**, as a state machine on DGROUP 0x4e6b.
  *
@@ -134,7 +134,7 @@ void game_round(void)
 }
 
 /*
- * 0x0f04b
+ * 0x0ffb2
  *
  * Start a round: put the machine's six origins back to -8, clear the counters
  * and the input, and either rebuild the parts list or load a level.
@@ -180,7 +180,7 @@ void round_setup(void)
 }
 
 /*
- * 0x0f0a6
+ * 0x10021
  *
  * **Take the round down**, and it is one call: `free_all_lists`. Nothing else
  * happens - no saving, no drawing, no state reset. Everything a round owns is

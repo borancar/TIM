@@ -34,7 +34,7 @@ struct point8 g_bullet_points_322a[4] = {
 };
 
 /*
- * 172c:0867, image 0x17b27 - kind 20's hit test: three kinds get three
+ * 190f:0855, image 0x19945 - kind 20's hit test: three kinds get three
  * different answers and everything else is simply a hit.
  *
  * A kind-4 part - a balloon - has its +0x12 set, which is what a balloon does
@@ -57,7 +57,7 @@ uint16_t part_hit_bullet(struct part *part)
 }
 
 /*
- * 172c:08a1, image 0x17b61 - a setup.
+ * 190f:088d, image 0x1997d - a setup.
  *
  * Four points, from DGROUP 0x322a or 0x3222 as bit 4 of +8 says. The
  * two tables are eight bytes apart, which is those four points.
@@ -82,7 +82,7 @@ void part_setup_bullet(struct part *part)
 }
 
 /*
- * 172c:08f1, image 0x17bb1 - kind 20's step.
+ * 190f:08dd, image 0x199cd - kind 20's step.
  *
  * Three forms and then gone. At form 2 it registers its shapes a last time and
  * hides itself with bit 13 of +8; at any form but 0 it simply steps on and

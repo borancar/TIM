@@ -65,7 +65,7 @@ struct iff_chunk_names g_iff_chunk_names = {
 };
 
 /*
- * 0x1bd14
+ * 0x1e913
  *
  * Write `count` values of `size` bytes each, **big-endian**, as IFF wants
  * them. A long is two words, high one first; a word is two bytes, high one
@@ -88,7 +88,7 @@ void iff_write_be(uint8_t *p, int16_t count, int16_t size, FILE *f)
 }
 
 /*
- * 0x1bdaa
+ * 0x1e9a9
  *
  * The `CMAP` chunk: all 256 colours read back out of the DAC, each six-bit
  * component shifted up to eight.
@@ -109,7 +109,7 @@ void iff_write_cmap(FILE *f)
 }
 
 /*
- * 0x1be2c
+ * 0x1ea2b
  *
  * The `BODY` chunk: 450 rows of 640 pixels, uncompressed. Each row is read a
  * pixel at a time through the driver into the first half of a 0x500-byte
@@ -139,7 +139,7 @@ void iff_write_body(FILE *f)
 }
 
 /*
- * 0x1bee1
+ * 0x1eae0
  *
  * Write the file: `FORM` and its length, `ILBM`, then the `BMHD` - 640 by
  * 450 at 0,0, eight planes, no mask, no compression, transparent colour 0,
@@ -181,7 +181,7 @@ void iff_save(char *name)
 }
 
 /*
- * 0x1c050
+ * 0x1ec4f
  *
  * Save the screen to `name`: read from the page a copy would take as its
  * source, with the clip off so every pixel answers, and put both back after.

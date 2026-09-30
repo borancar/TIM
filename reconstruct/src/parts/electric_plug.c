@@ -34,7 +34,7 @@ struct point8 g_electric_plug_points_32c0[4] = {
 };
 
 /*
- * 172c:14d3, image 0x18793 - kind 21's hit test. The see-saw.
+ * 172c:14d3, image 0x18793 (1.00's; not yet placed in 1.11) - kind 21's hit test. The see-saw.
  *
  * Which way it tips comes from the angle at +0x88 of the thing that hit it,
  * turned a quarter and then read as a sign: the high bit of `angle + 0x4000`.
@@ -79,7 +79,7 @@ uint16_t part_hit_electric_plug(struct part *part)
 }
 
 /*
- * 172c:1556, image 0x18816 - a setup.
+ * 190f:155a, image 0x1a64a - a setup.
  *
  * The tail is the part worth reading twice. +0x80 is set to 4 for the duration
  * of `part_finish` and put back to 1 afterwards, so the finish sees four
@@ -125,7 +125,7 @@ void part_setup_electric_plug(struct part *part)
 }
 
 /*
- * 172c:15ce, image 0x1888e - kind 21's step.
+ * 190f:15cf, image 0x1a6bf - kind 21's step.
  *
  * It does not move: it marks itself done - bit 6 of +8 - and passes its own
  * +0x12 on to whatever is in its links 4 and 5. The first four links are
@@ -144,7 +144,7 @@ void part_step_electric_plug(struct part *part)
 }
 
 /*
- * 172c:15fc, image 0x188bc - kind 21's flip, and **it is not a flip of bit 4
+ * 190f:15fd, image 0x1a6ed - kind 21's flip, and **it is not a flip of bit 4
  * at all**. The form at +0x0c is swung between 4 and 0 - four or more goes to
  * zero, anything else to four - and copied into +0x90 before the setup runs.
  *

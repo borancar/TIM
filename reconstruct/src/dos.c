@@ -56,7 +56,7 @@ public _dos_get_cur_dir, _dos_drive_fixed, _dos_disk_reset
 public _dos_set_attributes, _dos_get_attributes, _dos_setdisk
 public _isr_stack_switch
 
-/* 0x0b6b7 */
+/* 0x0c2f9 */
 _dos_findfirst proc far
         push bp
         mov bp, sp
@@ -77,7 +77,7 @@ _dos_findfirst proc far
         retf
 _dos_findfirst endp
 
-/* 0x0b6d3 */
+/* 0x0c315 */
 _dos_findnext proc far
         push bp
         mov bp, sp
@@ -98,7 +98,7 @@ _dos_findnext proc far
         retf
 _dos_findnext endp
 
-/* 0x0b6ef: the DTA's attribute, size and name into DGROUP. */
+/* 0x0c331: the DTA's attribute, size and name into DGROUP. */
 _dos_find_to_dgroup proc near
         push bp
         mov bp, sp
@@ -134,27 +134,27 @@ next_byte:
         ret
 _dos_find_to_dgroup endp
 
-/* 0x0b72e */
+/* 0x0c370 */
 _dos_find_attr proc far
         mov al, find_attr
         xor ah, ah
         retf
 _dos_find_attr endp
 
-/* 0x0b734 */
+/* 0x0b734 (1.00's; not yet placed in 1.11) */
 _dos_find_name proc far
         mov ax, offset DGROUP:find_name
         retf
 _dos_find_name endp
 
-/* 0x0b738 */
+/* 0x0c37a */
 _dos_find_size proc far
         mov ax, find_size
         mov dx, find_size+2
         retf
 _dos_find_size endp
 
-/* 0x0b740 */
+/* 0x0c382 */
 _diskette_motor_bit proc far
         push bp
         mov bp, sp
@@ -169,7 +169,7 @@ _diskette_motor_bit proc far
         retf
 _diskette_motor_bit endp
 
-/* 0x0b755 */
+/* 0x0c397 */
 _dos_chdir proc far
         push bp
         mov bp, sp
@@ -185,7 +185,7 @@ chdir_err:
         retf
 _dos_chdir endp
 
-/* 0x0b76a */
+/* 0x0c3ac */
 _dos_mkdir proc far
         push bp
         mov bp, sp
@@ -201,7 +201,7 @@ mkdir_err:
         retf
 _dos_mkdir endp
 
-/* 0x0b77f */
+/* 0x0c3c1 */
 _dos_rmdir proc far
         push bp
         mov bp, sp
@@ -217,7 +217,7 @@ rmdir_err:
         retf
 _dos_rmdir endp
 
-/* 0x0b794 */
+/* 0x0c3d6 */
 _dos_unlink proc far
         push bp
         mov bp, sp
@@ -233,7 +233,7 @@ unlink_err:
         retf
 _dos_unlink endp
 
-/* 0x0b7a9 */
+/* 0x0c3eb */
 _dos_drive_letter proc far
         mov ax, 1900h
         int 21h
@@ -242,7 +242,7 @@ _dos_drive_letter proc far
         retf
 _dos_drive_letter endp
 
-/* 0x0b7b3 */
+/* 0x0c3f5 */
 _dos_get_cur_dir proc far
         push bp
         mov bp, sp
@@ -265,7 +265,7 @@ _dos_get_cur_dir proc far
         retf
 _dos_get_cur_dir endp
 
-/* 0x0b7db */
+/* 0x0c41d */
 _dos_drive_fixed proc far
         push bp
         mov bp, sp
@@ -277,14 +277,14 @@ _dos_drive_fixed proc far
         retf
 _dos_drive_fixed endp
 
-/* 0x0b7eb */
+/* 0x0c42d */
 _dos_disk_reset proc far
         mov ax, 0d00h
         int 21h
         retf
 _dos_disk_reset endp
 
-/* 0x0b7f1 */
+/* 0x0c433 */
 _dos_set_attributes proc far
         push bp
         mov bp, sp
@@ -299,7 +299,7 @@ setattr_err:
         retf
 _dos_set_attributes endp
 
-/* 0x0b805 */
+/* 0x0c447 */
 _dos_get_attributes proc far
         push bp
         mov bp, sp
@@ -314,7 +314,7 @@ getattr_ok:
         retf
 _dos_get_attributes endp
 
-/* 0x0b819 */
+/* 0x0c45b */
 _dos_setdisk proc far
         push bp
         mov bp, sp
@@ -328,7 +328,7 @@ _dos_setdisk proc far
         retf
 _dos_setdisk endp
 
-/* 0x0b82c: the return address and the argument come off the stack, and go
+/* 0x0c46e: the return address and the argument come off the stack, and go
    back on whichever stack SS:SP is left on. */
 _isr_stack_switch proc far
         pop bx
@@ -430,7 +430,7 @@ static struct dos_dta {
 } __attribute__((packed)) g_dta;
 
 /*
- * 0x0b6b7
+ * 0x0c2f9
  *
  * Borland's `findfirst`: INT 21h AH=4Eh with the pattern in DS:DX and the
  * attribute in CX, then the DTA copied out. The answer is AL zero-extended, so
@@ -461,7 +461,7 @@ uint16_t dos_findfirst(const char *pattern, uint16_t attr)
 }
 
 /*
- * 0x0b6d3
+ * 0x0c315
  *
  * Borland's `findnext`: INT 21h AH=4Fh, and `findfirst`'s code to the byte
  * apart from the function number. It loads DS:DX and CX from its arguments the
@@ -483,7 +483,7 @@ uint16_t dos_findnext(const char *pattern, uint16_t attr)
 }
 
 /*
- * 0x0b6ef
+ * 0x0c331
  *
  * **Copy the find result out of the DTA and into DGROUP.** It asks DOS where
  * the DTA is - AH=2Fh, answered in ES:BX - and lifts three things out of it:
@@ -508,7 +508,7 @@ void dos_find_to_dgroup(void)
 }
 
 /*
- * 0x0b72e
+ * 0x0c370
  *
  * The attribute of the entry just found, zero-extended out of the byte at
  * DGROUP 0x2d76. Three instructions and no frame - it is a field accessor that
@@ -520,7 +520,7 @@ uint16_t dos_find_attr(void)
 }
 
 /*
- * 0x0b734
+ * 0x0b734 (1.00's; not yet placed in 1.11)
  *
  * The name of the entry just found: the *address* 0x2d4a, not a copy. Two
  * instructions. Every caller reads through it before the next `findnext`
@@ -532,7 +532,7 @@ char *dos_find_name(void)
 }
 
 /*
- * 0x0b738
+ * 0x0c37a
  *
  * The size of the entry just found, as a long in DX:AX out of the long at
  * 0x2d77.
@@ -543,7 +543,7 @@ uint32_t dos_find_size(void)
 }
 
 /*
- * 0x0b740
+ * 0x0c382
  *
  * **Is bit `bit` of the BIOS word at 0000:043F set?** - the diskette motor
  * status, one bit per drive, and the byte after it. `1 << bit` against the
@@ -556,7 +556,7 @@ uint16_t diskette_motor_bit(uint16_t bit)
 }
 
 /*
- * 0x0b755
+ * 0x0c397
  *
  * Borland's `chdir`: INT 21h AH=3Bh with the path in DX, answering 0 on success
  * and the DOS error code otherwise, and filing that same value at DGROUP
@@ -589,7 +589,7 @@ uint16_t dos_chdir(const char *path)
 }
 
 /*
- * 0x0b76a
+ * 0x0c3ac
  *
  * Borland's `mkdir`: INT 21h AH=39h with the path in DX, answering 0 or the DOS error
  * and filing the answer at DGROUP 0x2d7b as `dos_chdir` does. Nothing calls
@@ -604,7 +604,7 @@ uint16_t dos_mkdir(const char *path)
 }
 
 /*
- * 0x0b77f
+ * 0x0c3c1
  *
  * Borland's `rmdir`: INT 21h AH=3Ah with the path in DX, answering 0 or the DOS error
  * and filing the answer at DGROUP 0x2d7b as `dos_chdir` does. Nothing calls
@@ -619,7 +619,7 @@ uint16_t dos_rmdir(const char *path)
 }
 
 /*
- * 0x0b794
+ * 0x0c3d6
  *
  * Borland's `unlink`: INT 21h AH=41h with the path in DX, answering 0 on
  * success and the DOS error otherwise, filed at DGROUP 0x2d7b like the rest.
@@ -648,7 +648,7 @@ uint16_t dos_unlink(const char *path)
 }
 
 /*
- * 0x0b7a9
+ * 0x0c3eb
  *
  * **The current drive as a letter**: INT 21h AH=19h plus 'A'. Nothing calls
  * it; `dos_get_cur_dir` asks the same itself.
@@ -659,7 +659,7 @@ uint16_t dos_drive_letter(void)
 }
 
 /*
- * 0x0b7b3
+ * 0x0c3f5
  *
  * `getcurdir`-style: write the current drive and directory into the caller's
  * buffer as `X:\\` followed by the path.
@@ -688,7 +688,7 @@ void dos_get_cur_dir(char *buf)
 }
 
 /*
- * 0x0b7db
+ * 0x0c41d
  *
  * **Is the drive's medium removable?** INT 21h AX=4408h for drive `drive`
  * plus one - 0 removable, 1 fixed - with the carry not looked at. Nothing
@@ -700,7 +700,7 @@ uint16_t dos_drive_fixed(uint16_t drive)
 }
 
 /*
- * 0x0b7eb
+ * 0x0c42d
  *
  * **Reset the disks**: INT 21h AH=0Dh, flushing DOS's buffers. Nothing
  * calls it.
@@ -711,7 +711,7 @@ void dos_disk_reset(void)
 }
 
 /*
- * 0x0b7f1
+ * 0x0c433
  *
  * **Set a file's attributes**: INT 21h AX=4301h, answering 0 or the DOS
  * error. Nothing calls it.
@@ -722,7 +722,7 @@ uint16_t dos_set_attributes(const char *name, uint16_t attr)
 }
 
 /*
- * 0x0b805
+ * 0x0c447
  *
  * **A file's attributes**: INT 21h AX=4300h, answering CX, or -1 when the
  * carry says it failed. Nothing calls it.
@@ -733,7 +733,7 @@ uint16_t dos_get_attributes(const char *name)
 }
 
 /*
- * 0x0b819
+ * 0x0c45b
  *
  * Borland's `setdisk`: INT 21h AH=0Eh, with the drive taken from a *letter* -
  * `and al, 0x5f` uppercases it and `sub al, 0x41` makes it the number DOS
@@ -759,7 +759,7 @@ void dos_setdisk(uint8_t letter)
 }
 
 /*
- * 0x0b82c
+ * 0x0c46e
  *
  * Switch the interrupt handler onto a stack of its own, and back: a non-zero
  * argument saves SS:SP at DGROUP 0x317e and puts SP at 0x2e7c inside DGROUP, a

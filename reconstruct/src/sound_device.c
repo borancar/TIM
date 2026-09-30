@@ -76,7 +76,7 @@ char *g_sound_module_tags[5] = {
 struct sequence far *g_sound_voice[7];
 
 /*
- * 0x28655
+ * 0x28655 (1.00's; not yet placed in 1.11)
  *
  * Set up the sound device: load its **module** and then its **driver**, and
  * answer 0 if both worked and 1 if either did not.
@@ -173,7 +173,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
 }
 
 /*
- * 0x287ad
+ * 0x287ad (1.00's; not yet placed in 1.11)
  *
  * Which of the seven voices is playing a given sequence. The argument is the
  * sequence's far pointer; the answer is the voice's record, also as a far
@@ -203,7 +203,7 @@ struct sequence far *voice_playing(const uint8_t far * source)
 }
 
 /*
- * 0x28800
+ * 0x28800 (1.00's; not yet placed in 1.11)
  *
  * Allocate the seven voice records - 0x17a bytes each, kind 2 - and put them in
  * the table at DGROUP 0x6414.
@@ -243,7 +243,7 @@ uint16_t alloc_voice_records(void)
 }
 
 /*
- * 0x28886
+ * 0x28886 (1.00's; not yet placed in 1.11)
  *
  * Load a named chunk out of a file, and answer it as a far pointer or null.
  *
@@ -285,7 +285,7 @@ uint8_t far *load_named_chunk(char *name, const char * path,
 }
 
 /*
- * 0x2891a
+ * 0x2b86d
  *
  * Step a far pointer past one record: the record's length is the byte at
  * offset 1, and there is a two-byte header, so the next record is

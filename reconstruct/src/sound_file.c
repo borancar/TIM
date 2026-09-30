@@ -41,7 +41,7 @@ struct sound_bank g_sound_bank = {
 struct dg_4ab0 g_dg4ab0 = { 0xfffe, 0x2b11 };
 
 /*
- * 0x296b4
+ * 0x296b4 (1.00's; not yet placed in 1.11)
  *
  * Open a sound file and load either one record out of it or all of them.
  * Answers the handle it used, or 0.
@@ -169,7 +169,7 @@ fail:
 }
 
 /*
- * 0x29966
+ * 0x29966 (1.00's; not yet placed in 1.11)
  *
  * Walk the record list and answer the next one matching a selector, as a far
  * pointer in DX:AX. The cursor is a **static** far pointer at DGROUP 0x6432,
@@ -243,7 +243,7 @@ struct sound_record far *next_matching_record(int16_t selector)
 }
 
 /*
- * 0x29a49
+ * 0x29a49 (1.00's; not yet placed in 1.11)
  *
  * Start the sequence with a given identifier, loading it if it is not loaded
  * yet. Answers 1 for "it is playing or there is nothing to do", 0 for a
@@ -331,7 +331,7 @@ uint16_t start_sequence_by_id(int16_t id)
 }
 
 /*
- * 0x29c3b
+ * 0x29c3b (1.00's; not yet placed in 1.11)
  *
  * Start the sound system. Answers 1 if it came up, 0 if it did not - and 1
  * again, immediately, if either the driver at DGROUP 0x4a94 or the module at
@@ -385,7 +385,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 }
 
 /*
- * 0x29cf6
+ * 0x29cf6 (1.00's; not yet placed in 1.11)
  *
  * Take the whole sound system down, in the reverse order `start_sound` built
  * it up. Does nothing at all if neither the driver nor the module is loaded.
@@ -433,7 +433,7 @@ void shutdown_sound(void)
 }
 
 /*
- * 0x29da0
+ * 0x29da0 (1.00's; not yet placed in 1.11)
  *
  * Read one record's header out of a file, load whatever it points at, and put
  * the record on the front of the list at DGROUP 0x4a88. Answers 1, or 0 if
@@ -514,7 +514,7 @@ uint16_t read_record(FILE *file, uint8_t mode)
 }
 
 /*
- * 0x29f89
+ * 0x29f89 (1.00's; not yet placed in 1.11)
  *
  * Allocate a block for the sound module, choosing where from by a `kind`
  * argument, and zero it for some kinds but not others.
@@ -561,7 +561,7 @@ uint8_t far *alloc_for_kind(uint32_t size, uint16_t kind)
 }
 
 /*
- * 0x2a017
+ * 0x2a017 (1.00's; not yet placed in 1.11)
  *
  * Release a block the sound module allocated, and the exact counterpart of
  * `alloc_for_kind` at 0x29f89: the same `kind` argument picks the same two

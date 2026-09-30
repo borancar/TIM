@@ -23,7 +23,7 @@
 #include "dgroup.h"
 
 /*
- * 0x08546
+ * 0x09084
  *
  * Walk a list of screen regions and act on the one the pointer is in. The list
  * is one of the five `build_screen_regions` built, and its records are the
@@ -78,7 +78,7 @@ void regions_handle_pointer(register struct region *si)
 }
 
 /*
- * 0x085c9
+ * 0x09107
  *
  * Build the game's screen regions: thirty-six records of 0x1a bytes off the
  * near heap, each pushed onto the front of one of five lists whose heads are
@@ -496,7 +496,7 @@ void build_screen_regions(void)
 }
 
 /*
- * 0x08eb5
+ * 0x09b6b
  *
  * Free all five lists of screen regions, each walked to its end and each
  * record handed to `checked_free`.

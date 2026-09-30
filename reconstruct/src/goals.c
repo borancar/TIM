@@ -47,7 +47,7 @@ struct part *g_rope_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed wh
 uint16_t g_goal_condition[10];   /* DGROUP 0x5458..0x546c */
 
 /*
- * 0x01476 - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.
+ * 0x014bf - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.
  */
 void goal_test_puzzle_2(void)
 {
@@ -72,7 +72,7 @@ void goal_test_puzzle_2(void)
 }
 
 /*
- * 0x014ad - **the first object only**, no walk at all: `[0x5179]` is taken and
+ * 0x014f6 - **the first object only**, no walk at all: `[0x5179]` is taken and
  * its link is never followed. Its x must be past 0x1e0 and its y exactly 0xc8.
  */
 void goal_test_puzzle_20(void)
@@ -85,7 +85,7 @@ void goal_test_puzzle_20(void)
 }
 
 /*
- * 0x014cc - walk to the first kind-0xc part and ask whether its y is past
+ * 0x01515 - walk to the first kind-0xc part and ask whether its y is past
  * 0x12c. The walk is unguarded, like `goal_test_puzzle_1`'s: a level that selects
  * this goal is a level that has one.
  */
@@ -101,7 +101,7 @@ void goal_test_puzzle_21(void)
 }
 
 /*
- * 0x014ee - **count, do not test.** Every kind-4 part whose +0x0c is zero adds
+ * 0x01537 - **count, do not test.** Every kind-4 part whose +0x0c is zero adds
  * one, and the goal is met while fewer than two of them are left.
  */
 void goal_test_puzzle_22(void)
@@ -124,7 +124,7 @@ void goal_test_puzzle_22(void)
 }
 
 /*
- * 0x0151b - the kind-9 part must be inside a box: +0x1e strictly between
+ * 0x01564 - the kind-9 part must be inside a box: +0x1e strictly between
  * 0x1a8 and 0x1da, +0x20 strictly between 0x88 and 0x98.
  *
  * **The search has no end test.** `while (si->+4 != 9) si = si->+0;` walks off
@@ -147,7 +147,7 @@ void goal_test_puzzle_1(void)
 }
 
 /*
- * 0x01552 - **four kinds, and a memory.** The picker's walk, and the longest
+ * 0x0159b - **four kinds, and a memory.** The picker's walk, and the longest
  * of the goal tests bar one.
  *
  * A kind-0xc part must be past its own +0x8c in x and at 0 in +0x0c; a kind-0xf
@@ -206,7 +206,7 @@ void goal_test_puzzle_78(void)
 }
 
 /*
- * 0x015fa - **pop all the balloons.** A kind-4 part that is still there, bit
+ * 0x01645 - **pop all the balloons.** A kind-4 part that is still there, bit
  * 0x8000 in its +6, and not yet popped, bit 0x2000 clear in its +8, is one the
  * player has not dealt with, and one of those is enough to fail. So the level
  * is won when every balloon is either gone or popped.
@@ -244,7 +244,7 @@ void goal_test_pop_balloons(void)
 }
 
 /*
- * 0x01630 - **two parts, each in its own box.** The picker's walk keeps the
+ * 0x0167b - **two parts, each in its own box.** The picker's walk keeps the
  * last kind-0 part and the last kind-9 part it meets, and then asks whether
  * each is where it should be: the kind-9 between 0x148 and 0x198 in x and past
  * 0x11c in y, the kind-0 between 0x1c8 and 0x21a and past 0x11c.
@@ -282,7 +282,7 @@ void goal_test_puzzle_79(void)
 }
 
 /*
- * 0x016a6 - **two kinds, opposite sides.** Every kind-0x1c part must sit
+ * 0x016eb - **two kinds, opposite sides.** Every kind-0x1c part must sit
  * between 0x1e8 and 0x210 in x and at 0x110 or below in y; every kind-0x2c
  * part must be *left* of 0x1e8 and at 0x110 or below. One that is not fails
  * the whole test.
@@ -314,7 +314,7 @@ void goal_test_puzzle_23(void)
 }
 
 /*
- * 0x016fb - a kind-0 part whose +0x8e is past 0x64 and whose y stands exactly
+ * 0x01740 - a kind-0 part whose +0x8e is past 0x64 and whose y stands exactly
  * 0x40 above it. +0x8e is read as where the part started, so this is "it has
  * fallen 64 and no more", but that is a reading of the arithmetic.
  */
@@ -333,7 +333,7 @@ void goal_test_puzzle_26(void)
 }
 
 /*
- * 0x0172d - any kind-0x11 part at exactly y 0x118.
+ * 0x01772 - any kind-0x11 part at exactly y 0x118.
  */
 void goal_test_puzzle_43(void)
 {
@@ -348,7 +348,7 @@ void goal_test_puzzle_43(void)
 }
 
 /*
- * 0x01753 - **three kinds, and one of them must be present at all.** Kind 0xb
+ * 0x01798 - **three kinds, and one of them must be present at all.** Kind 0xb
  * must be at y 0xf8, kind 0xc at x 0x1a9, and kind 0x2b must have bit 4 of its
  * +0x0a set. The kind-0x2b arm also sets a second flag, and the goal needs
  * both: a level with no kind-0x2b part can never meet it.
@@ -383,7 +383,7 @@ void goal_test_puzzle_39(void)
 }
 
 /*
- * 0x017ad - every kind-0x24 part must be at -0x30 or above in y, which is off
+ * 0x017f2 - every kind-0x24 part must be at -0x30 or above in y, which is off
  * the top of the play area. Five puzzles use it, more than any other.
  */
 void goal_test_puzzles_53_54_63_67_87(void)
@@ -406,7 +406,7 @@ void goal_test_puzzles_53_54_63_67_87(void)
 }
 
 /*
- * 0x017db - `goal_test_pop_balloons` with a line drawn across it: a balloon fails only
+ * 0x01820 - `goal_test_pop_balloons` with a line drawn across it: a balloon fails only
  * if it is **below 0x12c** as well as still present and unpopped. One above
  * that line is out of play and does not count.
  */
@@ -432,7 +432,7 @@ void goal_test_puzzle_25(void)
 }
 
 /*
- * 0x01819 - a kind-0xc part at 0x1ba or beyond in x and exactly 0x11f in y.
+ * 0x0185e - a kind-0xc part at 0x1ba or beyond in x and exactly 0x11f in y.
  */
 void goal_test_puzzle_41(void)
 {
@@ -448,7 +448,7 @@ void goal_test_puzzle_41(void)
 }
 
 /*
- * 0x01846 - **two lists.** Every kind-0x1b part on the list at 0x521b must
+ * 0x0188b - **two lists.** Every kind-0x1b part on the list at 0x521b must
  * have reached 6 in its +0x0c, and there must be no kind-0x1b part at all on
  * the list at 0x50d7. Whatever those two lists are, one holds the ones that
  * count and the other the ones that disqualify.
@@ -480,7 +480,7 @@ void goal_test_puzzles_10_32(void)
 }
 
 /*
- * 0x01888 - **the first of these to walk with the picker rather than the
+ * 0x018cd - **the first of these to walk with the picker rather than the
  * link.** `pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))` gives the first record and `pick_for_record`
  * the next, which is a different set from the plain `+0` chain the others
  * follow. Kind 0xf must be under 0xb in its +0x0c and kind 0x2b at 0x170 or
@@ -509,7 +509,7 @@ void goal_test_puzzle_46(void)
 }
 
 /*
- * 0x018d9 - every kind-0xd part on the 0x521b list must be at 0x12 in its
+ * 0x0191e - every kind-0xd part on the 0x521b list must be at 0x12 in its
  * +0x0c.
  */
 void goal_test_puzzle_34(void)
@@ -532,7 +532,7 @@ void goal_test_puzzle_34(void)
 }
 
 /*
- * 0x01907 - every kind-0x12 part on the 0x521b list must be at 0xb in +0x0c.
+ * 0x0194c - every kind-0x12 part on the 0x521b list must be at 0xb in +0x0c.
  */
 void goal_test_puzzles_14_15_64_73(void)
 {
@@ -554,7 +554,7 @@ void goal_test_puzzles_14_15_64_73(void)
 }
 
 /*
- * 0x01935 - a kind-4 part must be at 0 in +0x0c and **back where it started**,
+ * 0x0197a - a kind-4 part must be at 0 in +0x0c and **back where it started**,
  * +0x1e and +0x20 equal to +0x26 and +0x28.
  *
  * The frame count at 0x4ea7 is tested **inside the walk and outside the kind
@@ -591,7 +591,7 @@ void goal_test_puzzle_24(void)
 }
 
 /*
- * 0x0197e - every kind-0x23 part on the 0x521b list must be at 9 in +0x0c.
+ * 0x019c3 - every kind-0x23 part on the 0x521b list must be at 9 in +0x0c.
  */
 void goal_test_puzzle_55(void)
 {
@@ -613,7 +613,7 @@ void goal_test_puzzle_55(void)
 }
 
 /*
- * 0x019ac - a kind-0 part between 0x148 and 0x168 in x and at exactly 0xe8.
+ * 0x019f1 - a kind-0 part between 0x148 and 0x168 in x and at exactly 0xe8.
  */
 void goal_test_puzzle_38(void)
 {
@@ -630,7 +630,7 @@ void goal_test_puzzle_38(void)
 }
 
 /*
- * 0x019e0 - a kind-0x2c part at 0x118 or beyond in x and 0x5b or beyond in y.
+ * 0x01a2c - a kind-0x2c part at 0x118 or beyond in x and 0x5b or beyond in y.
  */
 void goal_test_puzzle_44(void)
 {
@@ -646,7 +646,7 @@ void goal_test_puzzle_44(void)
 }
 
 /*
- * 0x01a0c - every kind-0x1c part must be between 0x168 and 0x17a in x and at
+ * 0x01a58 - every kind-0x1c part must be between 0x168 and 0x17a in x and at
  * 0xc1 or beyond in y.
  */
 void goal_test_puzzle_71(void)
@@ -671,7 +671,7 @@ void goal_test_puzzle_71(void)
 }
 
 /*
- * 0x01a49 - no kind-0x2d part may still be at 0 in its +0x0c.
+ * 0x01a95 - no kind-0x2d part may still be at 0 in its +0x0c.
  */
 void goal_test_puzzles_16_56_83(void)
 {
@@ -693,7 +693,7 @@ void goal_test_puzzles_16_56_83(void)
 }
 
 /*
- * 0x01a77 - a kind-9 part inside a box: 0x1a8 to 0x1b9 in x, 0x68 to 0x79 in y.
+ * 0x01ac3 - a kind-9 part inside a box: 0x1a8 to 0x1b9 in x, 0x68 to 0x79 in y.
  */
 void goal_test_puzzle_80(void)
 {
@@ -711,7 +711,7 @@ void goal_test_puzzle_80(void)
 }
 
 /*
- * 0x01ab0 - **one at each end.** Among the kind-0x11 parts sitting at y 0x118,
+ * 0x01afc - **one at each end.** Among the kind-0x11 parts sitting at y 0x118,
  * one must be at 0x74 or left of it and another at 0x198 or right of it. Two
  * separate flags, and the goal needs both, so a single part cannot satisfy it.
  */
@@ -740,7 +740,7 @@ void goal_test_puzzle_47(void)
 }
 
 /*
- * 0x01af7 - no kind-0xf part on the 0x521b list may have reached 0xb in +0x0c,
+ * 0x01b43 - no kind-0xf part on the 0x521b list may have reached 0xb in +0x0c,
  * **and** 0x4e87 must have reached 0x134.
  *
  * The second test sits inside the walk and outside the kind test, so it is
@@ -772,7 +772,7 @@ void goal_test_puzzle_70(void)
 }
 
 /*
- * 0x01b2f - every kind-0x1d part on the 0x521b list must be at something other
+ * 0x01b7b - every kind-0x1d part on the 0x521b list must be at something other
  * than 0 or 2 in +0x0c. Two failing values rather than one passing one, which
  * is the shape `goal_test_puzzles_19_48` below has as well.
  */
@@ -797,7 +797,7 @@ void goal_test_puzzle_69(void)
 }
 
 /*
- * 0x01b63 - a kind-0xb part at exactly 0x108 in y.
+ * 0x01baf - a kind-0xb part at exactly 0x108 in y.
  */
 void goal_test_puzzle_52(void)
 {
@@ -812,7 +812,7 @@ void goal_test_puzzle_52(void)
 }
 
 /*
- * 0x01b89 - **held for twelve frames, or held and then let go.**
+ * 0x01bd5 - **held for twelve frames, or held and then let go.**
  *
  * Every kind-0x1f part on the 0x521b list must be between 1 and 4 in its
  * +0x0c - zero fails and so does 5 or more. While that holds, the counter at
@@ -851,7 +851,7 @@ void goal_test_puzzles_19_48(void)
 }
 
 /*
- * 0x01bd9 - a kind-9 part between 8 and 0x28 in x and at exactly 0x28 in y,
+ * 0x01c25 - a kind-9 part between 8 and 0x28 in x and at exactly 0x28 in y,
  * which is the top left corner.
  */
 void goal_test_puzzle_82(void)
@@ -869,7 +869,7 @@ void goal_test_puzzle_82(void)
 }
 
 /*
- * 0x01c0a - **two ways to win, and the second is an overlap.**
+ * 0x01c56 - **two ways to win, and the second is an overlap.**
  *
  * The walk keeps the last kind-0x2b part and the last kind-0x11 part. If no
  * kind-0x2b part was found at all, nothing happens. If every kind-0x2b part
@@ -928,7 +928,7 @@ void goal_test_puzzle_81(void)
 }
 
 /*
- * 0x01cc4 - **any** kind-0 part below 0x170. Written the moment one is seen,
+ * 0x01cfe - **any** kind-0 part below 0x170. Written the moment one is seen,
  * and the walk continues rather than stopping.
  */
 void goal_test_puzzle_4(void)
@@ -944,7 +944,7 @@ void goal_test_puzzle_4(void)
 }
 
 /*
- * 0x01cea - **any** kind-0x1c part with +0x1e in 0x18..0xf3 inclusive and
+ * 0x01d24 - **any** kind-0x1c part with +0x1e in 0x18..0xf3 inclusive and
  * +0x20 exactly 0xf9.
  */
 void goal_test_puzzle_5(void)
@@ -962,7 +962,7 @@ void goal_test_puzzle_5(void)
 }
 
 /*
- * 0x01d1d - every kind-6 part in the **0x521b** list must have a non-zero
+ * 0x01d57 - every kind-6 part in the **0x521b** list must have a non-zero
  * +0x12, and it must **stay** that way: 0x5458 counts consecutive frames that
  * pass and is reset by any frame that does not. The goal is five in a row -
  * the test is `> 4` - so a condition that flickers never wins.
@@ -992,7 +992,7 @@ void goal_test_puzzles_6_58(void)
 }
 
 /*
- * 0x01d5e - every kind-0xf part in the 0x521b list must have +0xc at least
+ * 0x01d98 - every kind-0xf part in the 0x521b list must have +0xc at least
  * 0xb.
  */
 void goal_test_puzzles_7_51_65(void)
@@ -1015,7 +1015,7 @@ void goal_test_puzzles_7_51_65(void)
 }
 
 /*
- * 0x01d8c - every kind-0x11 part must be at y 0xf8.
+ * 0x01dc6 - every kind-0x11 part must be at y 0xf8.
  */
 void goal_test_puzzle_9(void)
 {
@@ -1037,7 +1037,7 @@ void goal_test_puzzle_9(void)
 }
 
 /*
- * 0x01dbb - **exactly three, and all of them on.** Kind-0x18 parts on the
+ * 0x01df5 - **exactly three, and all of them on.** Kind-0x18 parts on the
  * 0x521b list are counted, and any one with a zero +0x12 clears the flag. The
  * goal needs the flag and a count of exactly three, so two lit and one missing
  * is a fail and so is a fourth.
@@ -1066,7 +1066,7 @@ void goal_test_puzzle_11(void)
 }
 
 /*
- * 0x01df1 - a kind-0x2c part at 0x154 or beyond in x and exactly 0x139 in y.
+ * 0x01e2b - a kind-0x2c part at 0x154 or beyond in x and exactly 0x139 in y.
  */
 void goal_test_puzzle_12(void)
 {
@@ -1082,7 +1082,7 @@ void goal_test_puzzle_12(void)
 }
 
 /*
- * 0x01e1e - **twelve frames of it.** No kind-0xe part on the 0x521b list may
+ * 0x01e58 - **twelve frames of it.** No kind-0xe part on the 0x521b list may
  * have +0x0c equal to +0x10; while none does, the counter at 0x5458 goes up,
  * and passing 0xc wins. Like `goal_test_puzzles_19_48` it never clears the counter,
  * unlike `goal_test_puzzles_6_58` which does.
@@ -1110,7 +1110,7 @@ void goal_test_puzzle_13(void)
 }
 
 /*
- * 0x01e59 - three kinds over the picker's walk: kind 0x16 must be at 2 in its
+ * 0x01e93 - three kinds over the picker's walk: kind 0x16 must be at 2 in its
  * +0x0c, and kinds 0x29 and 0x13 must both have bit 13 of their +8 set. Bit
  * 0x2000 is the same "already dealt with" bit `goal_test_pop_balloons` reads on a
  * balloon.
@@ -1141,7 +1141,7 @@ void goal_test_puzzle_17(void)
 }
 
 /*
- * 0x01eb9 - a kind-0x2a part at 0x199 or beyond in x and exactly 0x10d in y.
+ * 0x01ef3 - a kind-0x2a part at 0x199 or beyond in x and exactly 0x10d in y.
  */
 void goal_test_puzzle_18(void)
 {
@@ -1157,7 +1157,7 @@ void goal_test_puzzle_18(void)
 }
 
 /*
- * 0x01ee6 - every kind-4 part that is still there, bit 0x8000 in +6, must have
+ * 0x01f20 - every kind-4 part that is still there, bit 0x8000 in +6, must have
  * moved off 0 in +0x0c - **and** the frame count at 0x4ea7 must have
  * reached 0x82, which is asked once per object the way `goal_test_puzzle_24`
  * asks it.
@@ -1187,7 +1187,7 @@ void goal_test_puzzle_76(void)
 }
 
 /*
- * 0x01f25 - `goal_test_puzzle_17` without its kind-0x16 arm: both a kind-0x13 and a
+ * 0x01f5f - `goal_test_puzzle_17` without its kind-0x16 arm: both a kind-0x13 and a
  * kind-0x29 part must have bit 13 of +8 set.
  */
 void goal_test_puzzles_42_75(void)
@@ -1213,7 +1213,7 @@ void goal_test_puzzles_42_75(void)
 }
 
 /*
- * 0x01f77 - every kind-0x2a part must have reached 0x170 in y.
+ * 0x01fb1 - every kind-0x2a part must have reached 0x170 in y.
  */
 void goal_test_puzzles_57_74(void)
 {
@@ -1234,7 +1234,7 @@ void goal_test_puzzles_57_74(void)
 }
 
 /*
- * 0x01fa6 - every kind-9 part must be between 0x156 and 0x1ba in x and at 0xda
+ * 0x01fe0 - every kind-9 part must be between 0x156 and 0x1ba in x and at 0xda
  * or beyond in y.
  */
 void goal_test_puzzle_31(void)
@@ -1259,7 +1259,7 @@ void goal_test_puzzle_31(void)
 }
 
 /*
- * 0x01fe3 - a kind-0x1c part whose +0x8c reads exactly 0x219 and which has
+ * 0x0201d - a kind-0x1c part whose +0x8c reads exactly 0x219 and which has
  * reached 0x40 in y.
  */
 void goal_test_puzzle_66(void)
@@ -1276,7 +1276,7 @@ void goal_test_puzzle_66(void)
 }
 
 /*
- * 0x02010 - every kind-0x1c part must have reached 0x170 in y.
+ * 0x0204a - every kind-0x1c part must have reached 0x170 in y.
  */
 void goal_test_puzzle_29(void)
 {
@@ -1298,7 +1298,7 @@ void goal_test_puzzle_29(void)
 }
 
 /*
- * 0x0203f - a kind-0xb part at exactly 0xf8 in y.
+ * 0x02079 - a kind-0xb part at exactly 0xf8 in y.
  */
 void goal_test_puzzle_61(void)
 {
@@ -1312,7 +1312,7 @@ void goal_test_puzzle_61(void)
 }
 
 /*
- * 0x02065 - **six shelves, one flag each.** A kind-0x1c part standing at each
+ * 0x0209f - **six shelves, one flag each.** A kind-0x1c part standing at each
  * of the six y values, and all six wanted at once. The original keeps three in
  * registers and three on its stack, which is why there are six separate
  * variables here and not an array.
@@ -1351,7 +1351,7 @@ void goal_test_puzzle_28(void)
 }
 
 /*
- * 0x020fa - the picker's walk with three ways to fail and one to be
+ * 0x02134 - the picker's walk with three ways to fail and one to be
  * disqualified: kind 0x1b under 6 in +0x0c, kind 0xf at 0xb or over, and kind
  * 0x14 without bit 13 of +8 all clear the flag, while a kind-0xc part that is
  * *not* at 0 in +0x0c **sets** 0x5458, and the goal needs that word zero.
@@ -1386,7 +1386,7 @@ void goal_test_puzzle_36(void)
 }
 
 /*
- * 0x02172 - a kind-0x2a part between 0x19b and 0x1cc in x and at exactly 0x12d.
+ * 0x021ac - a kind-0x2a part between 0x19b and 0x1cc in x and at exactly 0x12d.
  */
 void goal_test_puzzle_86(void)
 {
@@ -1402,7 +1402,7 @@ void goal_test_puzzle_86(void)
 }
 
 /*
- * 0x021a6 - **three kinds in one corner, and one of them must exist.**
+ * 0x021e0 - **three kinds in one corner, and one of them must exist.**
  *
  * Kinds 9, 0 and 0x2b all have to be between 0x18 and 0x94 in x and at 0x100
  * or beyond in y. A kind-0x2b part also raises a second flag, and the goal
@@ -1440,7 +1440,7 @@ void goal_test_puzzle_77(void)
 }
 
 /*
- * 0x021fd - a kind-0xb part between 0x1b6 and 0x1c0 in x and at exactly 0x108.
+ * 0x02237 - a kind-0xb part between 0x1b6 and 0x1c0 in x and at exactly 0x108.
  */
 void goal_test_puzzle_85(void)
 {
@@ -1456,7 +1456,7 @@ void goal_test_puzzle_85(void)
 }
 
 /*
- * 0x02231 - every kind-0xc part must have reached 0xc8 in y.
+ * 0x0226b - every kind-0xc part must have reached 0xc8 in y.
  */
 void goal_test_puzzle_60(void)
 {
@@ -1477,7 +1477,7 @@ void goal_test_puzzle_60(void)
 }
 
 /*
- * 0x02260 - a kind-0x2a part between 0x20 and 0x78 in x and past 0x120 in y.
+ * 0x0229a - a kind-0x2a part between 0x20 and 0x78 in x and past 0x120 in y.
  */
 void goal_test_puzzle_37(void)
 {
@@ -1494,7 +1494,7 @@ void goal_test_puzzle_37(void)
 }
 
 /*
- * 0x02292 - **exactly two, and both set.** Kind-0x2b parts are counted and any
+ * 0x022cc - **exactly two, and both set.** Kind-0x2b parts are counted and any
  * one without bit 4 of its +0x0a fails; a kind-0x11 part short of 0x1388 in y
  * fails as well - 5000, which is far below the play area, so that is "has it
  * fallen off the bottom".
@@ -1531,7 +1531,7 @@ void goal_test_puzzle_84(void)
 }
 
 /*
- * 0x022d8 - **one part to the right of another, but not far.**
+ * 0x02312 - **one part to the right of another, but not far.**
  *
  * The walk keeps the last kind-0x2a part's x and the last kind-0xb part's x,
  * and any kind-0xb part not at 0x108 in y fails. Then the kind-0x2a must be to
@@ -1572,7 +1572,7 @@ void goal_test_puzzle_68(void)
 }
 
 /*
- * 0x02322 - every kind-0x1c part must have bit 4 of its +0x0a set.
+ * 0x0235c - every kind-0x1c part must have bit 4 of its +0x0a set.
  */
 void goal_test_puzzle_72(void)
 {
@@ -1594,7 +1594,7 @@ void goal_test_puzzle_72(void)
 }
 
 /*
- * 0x02351 - a kind-0x11 part between 0xd0 and 0xee in x and at exactly 0x128 in
+ * 0x0238b - a kind-0x11 part between 0xd0 and 0xee in x and at exactly 0x128 in
  * y, **and** a kind-0x2b part with bit 4 of its +0x0a set somewhere on the
  * list. The second is a flag rather than a test, so any one of them will do.
  */
@@ -1628,7 +1628,7 @@ void goal_test_puzzle_59(void)
 }
 
 /*
- * 0x023a4 - **two kinds, opposite corners.** A kind-0x1c part must be at 0x4a or
+ * 0x023de - **two kinds, opposite corners.** A kind-0x1c part must be at 0x4a or
  * left of it and 0x124 or below; a kind-0x2c part at 0x1c6 or right of it
  * and 0x124 or below. Either failing fails the goal.
  */
@@ -1657,7 +1657,7 @@ void goal_test_puzzle_49(void)
 }
 
 /*
- * 0x023ef - every kind-9 part must be between 0xf6 and 0x14c in x and at
+ * 0x02429 - every kind-9 part must be between 0xf6 and 0x14c in x and at
  * exactly 0xe8 in y.
  */
 void goal_test_puzzle_40(void)
@@ -1682,7 +1682,7 @@ void goal_test_puzzle_40(void)
 }
 
 /*
- * 0x0242c - a kind-0 part inside a box: 0x1d6 to 0x1fc in x, 0xc6 to 0xd0 in
+ * 0x02466 - a kind-0 part inside a box: 0x1d6 to 0x1fc in x, 0xc6 to 0xd0 in
  * y. The last of the goal tests with a body of its own; the entries for
  * puzzles 88 to 110 below it only reuse one or do nothing.
  */
@@ -1702,7 +1702,7 @@ void goal_test_puzzle_35(void)
 }
 
 /*
- * 0x02467 - puzzle 88's goal is `goal_test_puzzle_86`'s: `push cs` and a near call to
+ * 0x02512 - puzzle 88's goal is `goal_test_puzzle_86`'s: `push cs` and a near call to
  * 0x02172, which is the far call that routine returns from.
  */
 void goal_test_puzzle_88(void)
@@ -1711,7 +1711,7 @@ void goal_test_puzzle_88(void)
 }
 
 /*
- * 0x02470 - puzzle 89's goal is `goal_test_puzzle_55`'s: `push cs` and a near call to
+ * 0x02552 - puzzle 89's goal is `goal_test_puzzle_55`'s: `push cs` and a near call to
  * 0x0197e, which is the far call that routine returns from.
  */
 void goal_test_puzzle_89(void)
@@ -1720,7 +1720,7 @@ void goal_test_puzzle_89(void)
 }
 
 /*
- * 0x02479 - puzzle 90's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call to
+ * 0x0266b - puzzle 90's goal is `goal_test_puzzles_53_54_63_67_87`'s: `push cs` and a near call to
  * 0x017ad, which is the far call that routine returns from.
  */
 void goal_test_puzzle_90(void)
@@ -1729,7 +1729,7 @@ void goal_test_puzzle_90(void)
 }
 
 /*
- * 0x02482 - puzzle 91's goal is `goal_test_pop_balloons`'s: `push cs` and a near call to
+ * 0x026ab - puzzle 91's goal is `goal_test_pop_balloons`'s: `push cs` and a near call to
  * 0x015fa, which is the far call that routine returns from.
  */
 void goal_test_puzzle_91(void)
@@ -1738,7 +1738,7 @@ void goal_test_puzzle_91(void)
 }
 
 /*
- * 0x0248b - puzzle 92's goal is `goal_test_puzzle_29`'s: `push cs` and a near call to
+ * 0x02716 - puzzle 92's goal is `goal_test_puzzle_29`'s: `push cs` and a near call to
  * 0x02010, which is the far call that routine returns from.
  */
 void goal_test_puzzle_92(void)
@@ -1747,7 +1747,7 @@ void goal_test_puzzle_92(void)
 }
 
 /*
- * 0x02494 - puzzle 93's goal is `goal_test_puzzle_61`'s: `push cs` and a near call to
+ * 0x02846 - puzzle 93's goal is `goal_test_puzzle_61`'s: `push cs` and a near call to
  * 0x0203f, which is the far call that routine returns from.
  */
 void goal_test_puzzle_93(void)
@@ -1756,7 +1756,7 @@ void goal_test_puzzle_93(void)
 }
 
 /*
- * 0x0249d - puzzle 94's goal is `goal_test_puzzles_57_74`'s: `push cs` and a near call to
+ * 0x0287d - puzzle 94's goal is `goal_test_puzzles_57_74`'s: `push cs` and a near call to
  * 0x01f77, which is the far call that routine returns from.
  */
 void goal_test_puzzle_94(void)
@@ -1765,7 +1765,7 @@ void goal_test_puzzle_94(void)
 }
 
 /*
- * 0x024a6 - puzzle 95's goal is `goal_test_puzzle_13`'s: `push cs` and a near call to
+ * 0x02ad3 - puzzle 95's goal is `goal_test_puzzle_13`'s: `push cs` and a near call to
  * 0x01e1e, which is the far call that routine returns from.
  */
 void goal_test_puzzle_95(void)
@@ -1774,7 +1774,7 @@ void goal_test_puzzle_95(void)
 }
 
 /*
- * 0x024af - puzzle 96 has no goal test: the routine sets up a frame and
+ * 0x024af (1.00's; not yet placed in 1.11) - puzzle 96 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_96(void)
@@ -1782,7 +1782,7 @@ void goal_test_puzzle_96(void)
 }
 
 /*
- * 0x024b4 - puzzle 97 has no goal test: the routine sets up a frame and
+ * 0x024b4 (1.00's; not yet placed in 1.11) - puzzle 97 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_97(void)
@@ -1790,7 +1790,7 @@ void goal_test_puzzle_97(void)
 }
 
 /*
- * 0x024b9 - puzzle 98 has no goal test: the routine sets up a frame and
+ * 0x024b9 (1.00's; not yet placed in 1.11) - puzzle 98 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_98(void)
@@ -1798,7 +1798,7 @@ void goal_test_puzzle_98(void)
 }
 
 /*
- * 0x024be - puzzle 99 has no goal test: the routine sets up a frame and
+ * 0x024be (1.00's; not yet placed in 1.11) - puzzle 99 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_99(void)
@@ -1806,7 +1806,7 @@ void goal_test_puzzle_99(void)
 }
 
 /*
- * 0x024c3 - puzzle 100 has no goal test: the routine sets up a frame and
+ * 0x024c3 (1.00's; not yet placed in 1.11) - puzzle 100 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_100(void)
@@ -1814,7 +1814,7 @@ void goal_test_puzzle_100(void)
 }
 
 /*
- * 0x024c8 - puzzle 101 has no goal test: the routine sets up a frame and
+ * 0x024c8 (1.00's; not yet placed in 1.11) - puzzle 101 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_101(void)
@@ -1822,7 +1822,7 @@ void goal_test_puzzle_101(void)
 }
 
 /*
- * 0x024cd - puzzle 102 has no goal test: the routine sets up a frame and
+ * 0x024cd (1.00's; not yet placed in 1.11) - puzzle 102 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_102(void)
@@ -1830,7 +1830,7 @@ void goal_test_puzzle_102(void)
 }
 
 /*
- * 0x024d2 - puzzle 103 has no goal test: the routine sets up a frame and
+ * 0x024d2 (1.00's; not yet placed in 1.11) - puzzle 103 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_103(void)
@@ -1838,7 +1838,7 @@ void goal_test_puzzle_103(void)
 }
 
 /*
- * 0x024d7 - puzzle 104 has no goal test: the routine sets up a frame and
+ * 0x024d7 (1.00's; not yet placed in 1.11) - puzzle 104 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_104(void)
@@ -1846,7 +1846,7 @@ void goal_test_puzzle_104(void)
 }
 
 /*
- * 0x024dc - puzzle 105 has no goal test: the routine sets up a frame and
+ * 0x024dc (1.00's; not yet placed in 1.11) - puzzle 105 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_105(void)
@@ -1854,7 +1854,7 @@ void goal_test_puzzle_105(void)
 }
 
 /*
- * 0x024e1 - puzzle 106 has no goal test: the routine sets up a frame and
+ * 0x024e1 (1.00's; not yet placed in 1.11) - puzzle 106 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_106(void)
@@ -1862,7 +1862,7 @@ void goal_test_puzzle_106(void)
 }
 
 /*
- * 0x024e6 - puzzle 107 has no goal test: the routine sets up a frame and
+ * 0x024e6 (1.00's; not yet placed in 1.11) - puzzle 107 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_107(void)
@@ -1870,7 +1870,7 @@ void goal_test_puzzle_107(void)
 }
 
 /*
- * 0x024eb - puzzle 108 has no goal test: the routine sets up a frame and
+ * 0x024eb (1.00's; not yet placed in 1.11) - puzzle 108 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_108(void)
@@ -1878,7 +1878,7 @@ void goal_test_puzzle_108(void)
 }
 
 /*
- * 0x024f0 - puzzle 109 has no goal test: the routine sets up a frame and
+ * 0x024f0 (1.00's; not yet placed in 1.11) - puzzle 109 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_109(void)
@@ -1886,7 +1886,7 @@ void goal_test_puzzle_109(void)
 }
 
 /*
- * 0x024f5 - puzzle 110 has no goal test: the routine sets up a frame and
+ * 0x024f5 (1.00's; not yet placed in 1.11) - puzzle 110 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_110(void)
@@ -1894,7 +1894,7 @@ void goal_test_puzzle_110(void)
 }
 
 /*
- * 0x024fa
+ * 0x030b0
  *
  * Start the counters rolling. The scroll positions go to -4 and 0, and the
  * band is repainted.
@@ -1916,7 +1916,7 @@ void start_counters(void)
 }
 
 /*
- * 0x02510
+ * 0x030c6
  *
  * One step of the two rolling counters.
  *
@@ -2001,7 +2001,7 @@ void step_counters(void)
 }
 
 /*
- * 0x025d8
+ * 0x0318e
  *
  * Repaint all three counters in full, with no scroll: the long one at 0xd0 and
  * the two short ones at 0x184 and 0x238. Every caller of this wants the whole
@@ -2020,7 +2020,7 @@ void redraw_counters(void)
 }
 
 /*
- * 0x0262b
+ * 0x031e1
  *
  * Draw a **four-digit counter** at `x`, scrolled by `y`, right digit first.
  *
@@ -2073,7 +2073,7 @@ void draw_counter_word(register int16_t value, int16_t x, int16_t y,
 }
 
 /*
- * 0x02686
+ * 0x0323c
  *
  * Draw a **six-digit counter** at `x`, scrolled by `y`. The 32-bit sibling of
  * `draw_counter_word`, and the same trick twice over: 0xf4240 is 1,000,000, so
@@ -2106,7 +2106,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
 }
 
 /*
- * 0x026e8
+ * 0x0329e
  *
  * Clip to the **counter strip** and draw into the visible page.
  *
@@ -2134,7 +2134,7 @@ void set_clip_counter_strip(void)
 }
 
 /*
- * 0x02710
+ * 0x032c6
  *
  * **A puzzle has been solved.** Bank the bonus, show the panel, then offer
  * REPLAY or ADVANCE and do not return until one of them is taken.

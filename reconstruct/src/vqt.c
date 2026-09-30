@@ -44,7 +44,7 @@ assume cs:VQT_TEXT, ds:DGROUP
 public _vqt_read_bits, _vqt_screen_node, _fill_screen_quadrant, _far_copy
 public _vqt_node, _fill_quadrant
 
-/* 0x25953 */
+/* 0x275dd */
 _vqt_read_bits proc near
         push bp
         mov bp, sp
@@ -84,7 +84,7 @@ L2599a:
         ret
 _vqt_read_bits endp
 
-/* 0x259a1 */
+/* 0x2762b */
 _vqt_screen_node proc near
         push bp
         mov bp, sp
@@ -218,7 +218,7 @@ L25aa2:
         ret
 _vqt_screen_node endp
 
-/* 0x25aaa */
+/* 0x27734 */
 _fill_screen_quadrant proc near
         push bp
         mov bp, sp
@@ -554,7 +554,7 @@ L25d8e:
         ret
 _fill_screen_quadrant endp
 
-/* 0x25d96 */
+/* 0x27a20 */
 _far_copy proc near
         push bp
         mov bp, sp
@@ -582,7 +582,7 @@ L25db1:
         ret
 _far_copy endp
 
-/* 0x25db8 */
+/* 0x27a42 */
 _vqt_node proc near
         push bp
         mov bp, sp
@@ -712,7 +712,7 @@ L25ead:
         ret
 _vqt_node endp
 
-/* 0x25eb5 */
+/* 0x25eb5 (1.00's; not yet placed in 1.11) */
 _fill_quadrant proc near
         push bp
         mov bp, sp
@@ -1054,7 +1054,7 @@ VQT_TEXT ends
 #else
 
 /*
- * 0x25953
+ * 0x275dd
  *
  * **Read `bits` bits** from the reader `g_bitmaps.walk` names, and step its
  * position past them. `g_vqt_read_fn`'s only target.
@@ -1086,7 +1086,7 @@ uint16_t near vqt_read_bits(uint16_t bits)
 }
 
 /*
- * 0x259a1
+ * 0x2762b
  *
  * The quadtree walk again, but for a whole *screen* rather than a bitmap: the
  * same four-bit code, the same halves, the same reader record at DGROUP 0x640c,
@@ -1148,7 +1148,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
- * 0x25aaa
+ * 0x27734
  *
  * **The screen quadtree's leaf: paint one rectangle straight onto the page**
  * from what the bit stream says next. `fill_quadrant`'s arithmetic, byte for
@@ -1292,7 +1292,7 @@ void near fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
- * 0x25d96
+ * 0x27a20
  *
  * A far block move, destination first: words then a trailing byte, the odd
  * count carried out of `shr cx,1` in the carry flag.
@@ -1330,7 +1330,7 @@ void near far_copy(uint8_t far *dst, const uint8_t far *src,
 }
 
 /*
- * 0x25db8
+ * 0x27a42
  *
  * One node of the quadtree the "BMP:VQT:" chunk is: read four bits, and for
  * each quadrant either recurse into this again or hand it to `fill_quadrant` to
@@ -1400,7 +1400,7 @@ void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
- * 0x25eb5
+ * 0x25eb5 (1.00's; not yet placed in 1.11)
  *
  * **The quadtree's leaf: paint one rectangle of the bitmap** from what the bit
  * stream says next. Every pixel goes into the first plane of the reader record

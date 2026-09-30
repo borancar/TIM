@@ -35,17 +35,17 @@ DOSMEM_TEXT segment byte public 'CODE'
 assume cs:DOSMEM_TEXT, ds:DGROUP
 public _save_rect_thunk, _buffer_size_thunk, _dos_alloc_bytes, _dos_free_far
 
-/* 0x21ab5 */
+/* 0x21ab5 (1.00's; not yet placed in 1.11) */
 _save_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+18h
 _save_rect_thunk endp
 
-/* 0x21ab9 */
+/* 0x21ab9 (1.00's; not yet placed in 1.11) */
 _buffer_size_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+1ch
 _buffer_size_thunk endp
 
-/* 0x21abd */
+/* 0x23747 */
 _dos_alloc_bytes proc far
         push bp
         mov bp, sp
@@ -113,7 +113,7 @@ L21b32:
         retf
 _dos_alloc_bytes endp
 
-/* 0x21b34 */
+/* 0x237be */
 _dos_free_far proc far
         push bp
         mov bp, sp
@@ -132,7 +132,7 @@ DOSMEM_TEXT ends
 
 
 /*
- * 0x21ab5
+ * 0x21ab5 (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
  * Same arrangement as 0x2149a.
@@ -144,7 +144,7 @@ void save_rect_thunk(uint8_t far * buf, int16_t x, int16_t y,
 }
 
 /*
- * 0x21ab9
+ * 0x21ab9 (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x435e]`, which is `vm_buffer_size`.
  * Same arrangement as 0x2149a.
@@ -155,7 +155,7 @@ uint16_t buffer_size_thunk(uint16_t w, uint16_t h)
 }
 
 /*
- * 0x21abd
+ * 0x23747
  *
  * Allocate memory from DOS, given a **32-bit byte count**, and answer a far
  * pointer to it in DX:AX - always at offset 0, since DOS hands out whole
@@ -214,7 +214,7 @@ uint8_t far *dos_alloc_bytes(uint32_t size, uint32_t flags)
 }
 
 /*
- * 0x21b34
+ * 0x237be
  *
  * Hand a block back to DOS - INT 21h with AH=0x49 and the block's segment in
  * ES.

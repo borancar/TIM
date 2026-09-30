@@ -31,7 +31,7 @@
 char *g_font_chunk_name = "FNT:";
 
 /*
- * 0x2307d
+ * 0x24d07
  *
  * Load a font into one of the eighteen slots of the table at DGROUP 0x618a,
  * and answer the slot number - or 0 for any failure, which is why the search
@@ -177,7 +177,7 @@ uint16_t load_font(char *name)
 }
 
 /*
- * 0x233ef
+ * 0x25079
  *
  * Close one of the font slots, `g_font_bodies` at DGROUP 0x618a, which
  * `font_slot_in_use` answers for. A slot that is not in use is left alone.

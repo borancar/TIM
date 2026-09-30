@@ -36,7 +36,7 @@ struct point8 g_cannon_points_3242[8] = {
 };
 
 /*
- * 172c:0a5d, image 0x17d1d - kind 18's step. The cannon.
+ * 190f:0a36, image 0x19b26 - kind 18's step. The cannon.
  *
  * It starts itself once its +0x9c has counted past 0x14, then plays its eleven
  * frames: 0 to 7 one per step, and 7 held until +0x9c has gone up three more.
@@ -102,7 +102,7 @@ void part_step_cannon(struct part *part)
 }
 
 /*
- * 172c:0b88, image 0x17e48 - a setup.
+ * 190f:0b6f, image 0x19c5f - a setup.
  *
  * Eight points, and a width at +0x72 that goes with them: 0x3e and the table
  * at 0x3242 one way round, 1 and 0x3232 the other. The height at +0x73 is 3
@@ -134,7 +134,7 @@ void part_setup_cannon(struct part *part)
 }
 
 /*
- * 172c:0be9, image 0x17ea9 - kind 18's flip.
+ * 190f:0bd8, image 0x19cc8 - kind 18's flip.
  *
  * Byte for byte the same routine as `part_flip_bellow` above with a different
  * setup behind it - checked as bytes, not assumed: of the twenty flips in this

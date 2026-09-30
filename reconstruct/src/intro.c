@@ -145,7 +145,7 @@ struct game_copy_protection g_game_copy_protection = {
 };
 
 /*
- * 0x0e4be
+ * 0x0f332
  *
  * The intros: the Sierra logo, then the title screen and the credits, looping
  * between the last two until a key or a mouse button ends it. `main` calls this
@@ -432,7 +432,7 @@ void game_intro(void)
 }
 
 /*
- * 0x0ea39
+ * 0x0ea39 (1.00's; not yet placed in 1.11)
  *
  * **The copy-protection screen.** Thirty-two part icons in a grid of eight,
  * three empty slots, an OK button, and the line "Please select, in order, the
@@ -657,7 +657,7 @@ test:
 }
 
 /*
- * 0x0edf1
+ * 0x0fd64
  *
  * **Draw the part you just picked into one of the three answer slots** on the
  * copy-protection screen. `bmp` is the part's icon out of the table
@@ -702,7 +702,7 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
 }
 
 /*
- * 0x0ee6e
+ * 0x0fdcb
  *
  * Draw the four corner pieces of the intro's frame, from the four bitmaps the
  * record holds: top left at the origin, top right at 0x262, bottom left at
@@ -722,7 +722,7 @@ void draw_frame_corners(struct bitmap **rec)
 }
 
 /*
- * 0x0eed5
+ * 0x0fe2c
  *
  * **The game.** `game_main`'s third call, and everything after the intro and the
  * copy protection is inside it: set up, run rounds until something says stop,

@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:0950, image 0x17c10 - a setup.
+ * 190f:093d, image 0x19a2d - a setup.
  *
  * Three points - a triangle - and the grab box at +0x72 and +0x73 written
  * **before** them, which is the order the original uses.
@@ -45,7 +45,7 @@ void part_setup_candle(struct part *part)
 }
 
 /*
- * 172c:098a, image 0x17c4a - kind 45's step. The paddle wheel.
+ * 190f:096c, image 0x19a5c - kind 45's step. The paddle wheel.
  *
  * Once its +0x9c has counted past 0x14 it starts itself, and then runs four
  * frames on a loop - 5 wraps back to 1, so frame 0 is only ever the first one.

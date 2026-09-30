@@ -27,7 +27,7 @@ struct point8 g_heart_balloon_points_3336[7] = {
     { 0x24, 0x10 }, { 0x11, 0x23 }, { 0x00, 0x10 },
 };
 
-/* 172c:2682, image 0x19942 - a setup: seven points from DGROUP 0x3336. */
+/* 190f:263d, image 0x1b72d - a setup: seven points from DGROUP 0x3336. */
 void part_setup_heart_balloon(struct part *part)
 {
     struct part_point *si;
@@ -44,7 +44,7 @@ void part_setup_heart_balloon(struct part *part)
 }
 
 /*
- * 172c:26c3, image 0x19983 - kind 33's drive, and it is `part_drive_balloon`
+ * 190f:266f, image 0x1b75f - kind 33's drive, and it is `part_drive_balloon`
  * again with nothing added: mode 1 steps +0x0e of what +0x66 points at, and
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
  * is kind 3 - answers 1 when it is past the limit.

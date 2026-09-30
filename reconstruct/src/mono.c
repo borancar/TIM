@@ -31,7 +31,7 @@
 #endif
 
 /*
- * 0x0b859
+ * 0x0c49b
  *
  * Set the mouse's mickeys-per-pixel, INT 33h AX=0x0f, the same value for both
  * axes: the argument goes into CX and DX alike. The start-up asks for 3.
@@ -52,7 +52,7 @@ void mouse_set_speed(uint16_t mickeys)
 }
 
 /*
- * 0x0b868
+ * 0x0c4aa
  *
  * **Clear the monochrome adapter's screen**, 0x780 words at B000:0000 -
  * eighty by twenty-four - each the word 7. A debugging aid: nothing calls it.
@@ -68,7 +68,7 @@ void mono_clear(void)
 }
 
 /*
- * 0x0b89d
+ * 0x0c4df
  *
  * **Write a string to the monochrome screen** at column `x`, row `y`, each
  * character with the attribute 0x18. The position is stepped as a huge
@@ -88,7 +88,7 @@ void mono_puts(const char *s, int16_t x, int16_t y)
 }
 
 /*
- * 0x0b907
+ * 0x0c549
  *
  * **`printf` to the monochrome screen**: format into 256 bytes of stack and
  * write them at `x`, `y`. Nothing calls it.
@@ -111,7 +111,7 @@ void mono_printf(int16_t x, int16_t y, const char *fmt, ...)
 }
 
 /*
- * 0x0b93d
+ * 0x0c57f
  *
  * `fread` into a **huge** pointer, one byte at a time, answering how many whole
  * items came in.
@@ -148,7 +148,7 @@ uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
 }
 
 /*
- * 0x0b9c9
+ * 0x0c60b
  *
  * Draw one bitmap scaled - the same choice `draw_bitmap` makes, from the same
  * marker in field 4, and the same normalisation of the header's far pointer

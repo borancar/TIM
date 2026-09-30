@@ -243,13 +243,120 @@ def build():
     return rows
 
 
+SURE = ("exact", "exact in order")
+STRONG = 0.8
+
+
+def settled(r):
+    """A placement good enough to move a routine's address to."""
+    return "new" in r and (r["how"] in SURE or r.get("ratio", 0) >= STRONG)
+
+
+def frames_111():
+    """1.11's segment frames, as the judge measures them: every far call's
+    target segment."""
+    exe = open(NEW_EXE, "rb").read()
+    n, hdr, tbl = (struct.unpack_from("<H", exe, 6)[0],
+                   struct.unpack_from("<H", exe, 8)[0] * 16,
+                   struct.unpack_from("<H", exe, 0x18)[0])
+    img = exe[hdr:]
+    seen = {0}
+    for i in range(n):
+        off, seg = struct.unpack_from("<HH", exe, tbl + 4 * i)
+        at = seg * 16 + off
+        if at >= 3 and img[at - 3] == 0x9A:
+            seen.add(struct.unpack_from("<H", img, at)[0] * 16)
+    return sorted(seen)
+
+
+def apply(rows, dry):
+    """Move each settled routine's provenance to its 1.11 address, where the
+    judge reads it: the first line of the comment above a definition (`0x...`
+    or `seg:off, image 0x...`), the comment above an assembly module's
+    `proc`, and a Borland-only routine's `/* 0x... */` - and tim.h's
+    prototype comments. A routine that is not settled keeps its 1.00 address
+    and says so on the same line, so the judge still finds a number and a
+    reader sees it is not 1.11's."""
+    import re
+    fr = frames_111()
+    by_file = {}
+    for r in rows:
+        by_file.setdefault(r["file"], {})[r["name"]] = r
+    def new_text(r, old_text):
+        """`old_text` is the address as the source spells it."""
+        if not settled(r):
+            return None
+        return "0x%05x" % r["new"]
+    changed = moved = marked = 0
+    for rel, names in sorted(by_file.items()):
+        path = os.path.join(REPO, "reconstruct", rel)
+        text = open(path).read()
+        out = text
+        for name, r in names.items():
+            old = "0x%05x" % r["old"]
+            olds = [old, old.upper().replace("0X", "0x")]
+            # 1. the comment above the C definition, and 2./3. the TASM and
+            # Borland-only forms: any of them is a comment ending right
+            # before the routine's name is defined.
+            pat = re.compile(
+                r"(/\*(?:(?!\*/).)*?)(?:([0-9a-f]{4}):([0-9a-f]{4}),\s*image\s+)?"
+                + r"(" + "|".join(re.escape(o) for o in olds) + r")\b"
+                + r"((?:(?!\*/).)*?\*/\s*\n"
+                + r"(?:[^\n]*\n){0,1}?[^\n]*?\b_?" + re.escape(name) + r"\b)",
+                re.S)
+            def rep(m):
+                nonlocal moved, marked
+                if settled(r):
+                    moved += 1
+                    at = "0x%05x" % r["new"]
+                    if m.group(2):
+                        f = max(x for x in fr if x <= r["new"])
+                        at = "%04x:%04x, image %s" % (f >> 4, r["new"] - f, at)
+                    return m.group(1) + at + m.group(5)
+                marked += 1
+                note = " (1.00's; not yet placed in 1.11)"
+                body = m.group(5)
+                if note.strip() in body:
+                    return m.group(0)
+                return (m.group(1) + (("%s:%s, image " % (m.group(2), m.group(3)))
+                                      if m.group(2) else "")
+                        + m.group(4) + note + body)
+            out = pat.sub(rep, out)
+        if out != text:
+            changed += 1
+            if not dry:
+                open(path, "w").write(out)
+    # tim.h: `name(...);   /* 0x..... */`
+    th = os.path.join(REPO, "reconstruct", "tim.h")
+    text = open(th).read()
+    out = text
+    for r in rows:
+        if not settled(r):
+            continue
+        out = re.sub(r"(\b" + re.escape(r["name"]) + r"\s*\([^;]*\);[ \t]*/\* *)0x%05x\b" % r["old"],
+                     lambda m: m.group(1) + "0x%05x" % r["new"], out)
+    if out != text:
+        changed += 1
+        if not dry:
+            open(th, "w").write(out)
+    print("%s %d files: %d addresses moved to 1.11, %d kept as 1.00's and marked"
+          % ("would change" if dry else "changed", changed, moved, marked))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--report", action="store_true",
                     help="list the weak and missing placements")
+    ap.add_argument("--apply", action="store_true",
+                    help="rewrite the sources' provenance addresses from the map")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="with --apply: say what would change, write nothing")
     args = ap.parse_args()
     rows = build()
+    if args.apply:
+        apply(rows, args.dry_run)
+        return
     json.dump(rows, open(OUT, "w"), indent=1)
     from collections import Counter
     c = Counter(r["how"] for r in rows)

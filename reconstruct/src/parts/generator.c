@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:1de0, image 0x190a0 - kind 26's hit test. The pulley wheel.
+ * 172c:1de0, image 0x190a0 (1.00's; not yet placed in 1.11) - kind 26's hit test. The pulley wheel.
  *
  * Nothing happens. The original still loads the part at the object's +0x84 into
  * a local and then never reads it, which is a hook written from the same
@@ -35,7 +35,7 @@ uint16_t part_hit_generator(struct part *part)
 }
 
 /*
- * 172c:1dfb, image 0x190bb - a setup.
+ * 190f:1dc3, image 0x1aeb3 - a setup.
  *
  * A part 0x47 by 0x1f with its grab box at +0x56..+0x58, four corner points
  * written straight out, and **the form recomputed after the finish**: +0x0c is
@@ -80,7 +80,7 @@ void part_setup_generator(struct part *part)
 }
 
 /*
- * 172c:1e5c, image 0x1911c - kind 26's step. The pulley wheel.
+ * 190f:1e01, image 0x1aef1 - kind 26's step. The pulley wheel.
  *
  * It stops if the gear its belt reaches is not turning - kind 0x0e with its
  * last two forms equal - and otherwise runs its four frames in the direction

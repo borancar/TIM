@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:3635, image 0x1a8f5 - kind 36's step. The kicker.
+ * 190f:3600, image 0x1c6f0 - kind 36's step. The kicker.
  *
  * It forgets whatever it was touching - +0x84 to zero - and starts itself once
  * its counter passes 0x14. Then it runs its frames, wrapping 0x0a back to 7 so
@@ -82,7 +82,7 @@ void part_step_rocket(struct part *part)
 }
 
 /*
- * 172c:3737, image 0x1a9f7 - a setup.
+ * 190f:370a, image 0x1c7fa - a setup.
  *
  * Four points and a grab box, and it is tall and narrow - 14 by 51 - so the
  * two top corners are inset where the bottom two are not.

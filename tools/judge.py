@@ -699,6 +699,12 @@ def image(cracked=False):
     img = open(IMAGE, "rb").read()
     if cracked:
         return img, ()
+    # **1.11 is judged as it is.** The crack's byte is 1.00's; where 1.11's
+    # copy protection was cracked, if GOG's copy is cracked at all, is not
+    # found yet (docs/v1.11.md), so its image is left alone and the sources
+    # are compiled with the protection, as for the game as built.
+    if len(img) != 214512:
+        return img, ("TIM_COPY_PROTECTION",)
     import uncrack
     if img[uncrack.IMAGE_OFF] != uncrack.CRACKED:
         raise SystemExit("%s: byte %#x is %#x, neither the shipped crack nor "

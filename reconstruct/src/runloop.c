@@ -24,7 +24,7 @@
 #include "dgroup.h"
 
 /*
-0x012ab
+0x01230
  *
  * **The machine running** - the loop the game sits in after the start button,
  * and the counterpart to `game_screen_loop`. It runs while DGROUP 0x4e6b is
@@ -108,7 +108,7 @@ void run_machine_loop(void)
 }
 
 /*
- * 0x013e9
+ * 0x013cd
  *
  * Clear the machine down to nothing: reset every part, put the cursor back to
  * 0, take both pages' drawings off, and zero the handful of words the running
@@ -133,7 +133,7 @@ void clear_machine(void)
 }
 
 /*
- * 0x01431
+ * 0x0141b
  *
  * The other half of the pair: fold the list at 0x4e58 back onto 0x4e56, reset
  * the machine, and hand it to the two routines that follow.
@@ -147,7 +147,7 @@ void restart_machine(void)
 }
 
 /*
- * 0x0144e
+ * 0x01497
  *
  * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
  * counts is not established; the range is 0x1c00..0x29ff.
@@ -165,7 +165,7 @@ void step_loop_frames(void)
 }
 
 /*
- * 0x01465
+ * 0x014ae
  *
  * Run this level's goal test. The round at DGROUP 0x4ebd is scaled by four -
  * the entries are far pointers - and called through `[bx + 0x2632]`.

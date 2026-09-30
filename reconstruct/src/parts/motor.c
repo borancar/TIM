@@ -36,7 +36,7 @@ struct point8 g_motor_points_32ae[5] = {
 };
 
 /*
- * 172c:13c9, image 0x18689 - kind 50's step.
+ * 190f:13e1, image 0x1a4d1 - kind 50's step.
  *
  * It passes its own state down its belt - as 1 or -1 by its mirror bit while
  * it is on, and as 0 when it is off - and, while it is on, runs its three
@@ -69,7 +69,7 @@ void part_step_motor(struct part *part)
 }
 
 /*
- * 172c:1435, image 0x186f5 - five slots from one of two tables, chosen by the
+ * 190f:144d, image 0x1a53d - five slots from one of two tables, chosen by the
  * flag at +8 bit 4, which also decides the grab box's first byte: 0x25 when
  * set and 0 when clear. The other three box bytes are constant.
  */
@@ -99,7 +99,7 @@ void part_setup_motor(struct part *part)
 }
 
 /*
- * 172c:149b, image 0x1875b - kind 50's flip.
+ * 190f:14b0, image 0x1a5a0 - kind 50's flip.
  *
  * The bit-4 flip, its setup, and **three** marks rather than two:
  * `mark_joined_shapes` as well, which is what a part with something tied to it

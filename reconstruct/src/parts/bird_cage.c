@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:0f70, image 0x18230 - a setup.
+ * 190f:0f79, image 0x1a069 - a setup.
  *
  * Twelve points, the longest outline of the fourteen: a head on a pair of
  * legs, 45 wide and 63 tall.
@@ -68,7 +68,7 @@ void part_setup_bird_cage(struct part *part)
 }
 
 /*
- * 172c:0ffc, image 0x182bc - kind 11's drive.
+ * 190f:0ffa, image 0x1a0ea - kind 11's drive.
  *
  * `part_drive_balloon` with a tail. Mode 1 steps +0x0e of what +0x66 points at;
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker

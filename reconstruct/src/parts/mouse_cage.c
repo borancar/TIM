@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:2ee1, image 0x1a1a1 - a setup.
+ * 190f:2e70, image 0x1bf60 - a setup.
  *
  * The bounding rectangle again, instruction for instruction the same as
  * 172c:24d0 - two kinds that want the same shape and got their own copy.
@@ -44,7 +44,7 @@ void part_setup_mouse_cage(struct part *part)
 }
 
 /*
- * 172c:2f25, image 0x1a1e5 - kind 6's hit test. The mousetrap.
+ * 190f:2eae, image 0x1bf9e - kind 6's hit test. The mousetrap.
  *
  * Anything that touches a trap springs it, whatever it was: the hook is the
  * trap's, run on the object that arrived, and the trap itself is the one at
@@ -57,7 +57,7 @@ uint16_t part_hit_mouse_cage(struct part *part)
 }
 
 /*
- * 172c:2f3e, image 0x1a1fe - kind 6's step. The mousetrap.
+ * 190f:2ec5, image 0x1bfb5 - kind 6's step. The mousetrap.
  *
  * A trap that is not already going looks for a mouse - kind 0x0c - within
  * 0x10 either side, and the first one it finds sets it off. Going or not, it
@@ -96,7 +96,7 @@ void part_step_mouse_cage(struct part *part)
 }
 
 /*
- * 172c:2fba, image 0x1a27a - **kind 6's flip**, the +0x30 hook.
+ * 190f:2f41, image 0x1c031 - **kind 6's flip**, the +0x30 hook.
  *
  * The same `xor` of bit 0x10 in +8 that kind 2 uses, so calling it twice
  * restores the part and `part_flip_options` can use it as a test. Where kind 2
@@ -122,7 +122,7 @@ void part_flip_mouse_cage(struct part *part)
 }
 
 /*
- * 172c:2ffd, image 0x1a2bd
+ * 190f:2f84, image 0x1c074
  *
  * Set the mouse cage going, in the direction its mirror bit says. A part that
  * was not going already plays sound 0x0d, and either way its +0x96 is put back

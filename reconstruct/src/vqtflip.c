@@ -110,7 +110,7 @@ bmp_read_fn g_vqt_read_fn = vqt_read_bits;
 
 
 /*
- * 0x248fe
+ * 0x26588
  *
  * Open the bit reader on a block of data, and answer the record - the
  * singleton at DGROUP 0x6402, a 32-bit bit position and then the data as a
@@ -130,7 +130,7 @@ struct vqt_reader *open_bit_reader(uint8_t far *data)
 }
 
 /*
- * 0x24930
+ * 0x265ba
  *
  * Give the bit reader back.
  */
@@ -140,7 +140,7 @@ void close_bit_reader(void)
 }
 
 /*
- * 0x2493b
+ * 0x265c5
  *
  * **One pixel through the leaf's palette**: read an index through
  * `g_vqt_read_fn` and answer the palette byte it names. The palette is the
@@ -156,7 +156,7 @@ pixel_byte_t near read_palette_pixel(uint16_t bits)
 }
 
 /*
- * 0x24954
+ * 0x265de
  *
  * **Draw a quadtree bitmap, mirrored as `g_bitmaps.draw_flags` says**, and the
  * body `draw_offset_bitmap` calls with the reader already open.
@@ -210,7 +210,7 @@ void near draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x249ed
+ * 0x26677
  *
  * **One node of the mirrored quadtree**: `vqt_node`'s shape - four bits
  * through `g_vqt_read_fn`, and for each quadrant recurse on a set bit or
@@ -280,7 +280,7 @@ void near vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x24b65
+ * 0x267ef
  *
  * **Fill a rectangle pixel by pixel, x from the right**: x from `x1 - 1` down
  * to `x0`, and for each, y from `y0` up to `y1 - 1`. A colour comes through
@@ -305,7 +305,7 @@ void near fill_rows_flip_horizontal(int16_t x0, int16_t y0, int16_t x1, int16_t 
 }
 
 /*
- * 0x24bb4
+ * 0x2683e
  *
  * `fill_rows_flip_horizontal`'s twin for `flip_vertical` alone: x from `x0` up, and y from
  * `y1 - 1` down to `y0`. Unreachable with this game's data. The name is ours.
@@ -324,7 +324,7 @@ void near fill_rows_flip_vertical(int16_t x0, int16_t y0, int16_t x1, int16_t y1
 }
 
 /*
- * 0x24c03
+ * 0x2688d
  *
  * The third, for both mirrored: x from `x1 - 1` down and y from `y1 - 1`
  * down. Unreachable with this game's data. The name is ours.
@@ -343,7 +343,7 @@ void near fill_rows_flip_both(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 }
 
 /*
- * 0x24c55
+ * 0x268df
  *
  * **The mirrored quadtree's leaf**: paint one rectangle from what the bit
  * stream says next.

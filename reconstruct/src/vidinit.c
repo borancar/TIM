@@ -54,7 +54,7 @@
  * nothing forced, and no driver.
  */
 struct vm_start g_vm_start = { 0xff, 0xff };
-/* 0x22483 */
+/* 0x2410d */
 uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 {
     register int held;
@@ -178,7 +178,7 @@ L225a0:
     asm pop ax
 }
 
-/* 0x225a5 */
+/* 0x2422f */
 void shutdown_input(void)
 {
     asm call far ptr remove_keyboard
@@ -188,7 +188,7 @@ void shutdown_input(void)
 }
 
 #pragma option -k
-/* 0x225ba */
+/* 0x24244 */
 void restore_video_mode(void)
 {
     asm xor ax, ax
@@ -204,7 +204,7 @@ L225d0:
 }
 #pragma option -k-
 
-/* 0x225d2 */
+/* 0x2425c */
 uint16_t near detect_adapter(void)
 {
     asm mov al, byte ptr g_vm_start+1
@@ -398,7 +398,7 @@ L22740:
     ;
 }
 
-/* 0x22741 */
+/* 0x243cb */
 void near set_bios_video_mode(uint16_t bits)
 {
     asm mov ax, 40h
@@ -415,7 +415,7 @@ void near set_bios_video_mode(uint16_t bits)
 }
 
 #pragma option -k
-/* 0x22764 */
+/* 0x243ee */
 uint16_t near bios_video_kind(void)
 {
     asm mov ax, 40h
@@ -451,7 +451,7 @@ struct vm_start g_vm_start = {
 };
 
 /*
- * 0x22483
+ * 0x2410d
  *
  * Bring the video up: pick the adapter, load its driver, start it, and build
  * the far vector table every drawing call goes through. Answers the adapter
@@ -579,7 +579,7 @@ out:
 }
 
 /*
- * 0x225a5
+ * 0x2422f
  *
  * The four things that have to be handed back before the program can leave:
  * the keyboard, the mouse, the timer and vector 0. Four calls and nothing else.
@@ -593,7 +593,7 @@ void shutdown_input(void)
 }
 
 /*
- * 0x225ba
+ * 0x24244
  *
  * Put the adapter back in the mode the program found it in. DGROUP 0x48f2 is
  * that mode, and 0xff means it was never recorded - which is why the store of
@@ -611,7 +611,7 @@ void restore_video_mode(void)
 }
 
 /*
- * 0x225d2
+ * 0x2425c
  *
  * Decide which video adapter is there, and answer its code. Hand-written
  * assembly: no frame, the answer in `AL`.
@@ -680,7 +680,7 @@ ask_dcc:
 }
 
 /*
- * 0x22741
+ * 0x243cb
  *
  * **Back to text.** The two bits at 4 and 5 of the BIOS equipment word at
  * 0040:0010 are set from the argument - that is the "initial video mode" the
@@ -702,7 +702,7 @@ void set_bios_video_mode(uint16_t equipment_bits)
 }
 
 /*
- * 0x22764
+ * 0x243ee
  *
  * The BIOS video mode the machine booted in, as bits 4 and 5 of the equipment
  * word at 0040:0010 shifted down - so 0 to 3, of which 3 is monochrome.

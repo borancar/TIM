@@ -80,7 +80,7 @@ struct engine_scale_step g_engine_scale_step;
 #endif
 
 /*
- * 0x22790
+ * 0x2441a
  *
  * The distance between two entries of the scaling table at DGROUP 0x5956,
  * both indexed from the base at 0x628e: the one `n` further on, less the one
@@ -96,7 +96,7 @@ int16_t near scale_table_delta(int16_t n)
 }
 
 /*
- * 0x227ac
+ * 0x24436
  *
  * **Draw a compressed bitmap scaled.** Every part of the machine reaches the
  * screen through this: 1873 bytes, entered 57 times to paint the level-one
@@ -703,7 +703,7 @@ next_solid:
 }
 
 /*
- * 0x22efd
+ * 0x24b87
  *
  * Load the video driver for an adapter and answer it as a far pointer, or null.
  *

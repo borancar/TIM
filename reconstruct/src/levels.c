@@ -31,7 +31,7 @@
 struct level_io g_level_io;   /* DGROUP 0x546c */
 
 /*
- * 0x11d00
+ * 0x1351f
  *
  * **A part's index among all parts**, which is how the machine file refers to
  * one: a pointer means nothing to a reload, so every reference is written as the
@@ -70,7 +70,7 @@ uint16_t part_index(struct part *part)
 }
 
 /*
- * 0x11d44
+ * 0x13561
  *
  * Look a word up in the table that the **far** pointer at DGROUP 0x546c points
  * at, or answer 0 for the index -1. The table is outside DGROUP - it is in a
@@ -86,7 +86,7 @@ struct part *part_by_index(int16_t index)
 }
 
 /*
- * 0x11d66
+ * 0x1357f
  *
  * Make room for `n` parts: a far block of `n * 4` bytes from DOS for the table
  * at DGROUP 0x546c, and then `n` records of 0xa2 bytes off the near heap, one
@@ -111,7 +111,7 @@ void alloc_part_table(register int16_t n)
 }
 
 /*
- * 0x11db4
+ * 0x135cd
  *
  * Read one byte: `game_fread(buf, 1, 1, file)`, with the file first and the
  * buffer second - the same order round as `game_fread_far` beside it.
@@ -126,7 +126,7 @@ uint16_t game_fread_byte(FILE *file, uint8_t * buf)
 }
 
 /*
- * 0x11dd1
+ * 0x135e5
  *
  * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
  * arguments the other way round from `fread`'s own - the file first and the
@@ -138,7 +138,7 @@ void game_fread_far(FILE *file, uint8_t * buf)
 }
 
 /*
- * 0x11dec
+ * 0x13600
  *
  * Read a null-terminated string, a byte at a time, and **including** the null:
  * the loop reads first and tests afterwards, so the terminator is stored before
@@ -156,7 +156,7 @@ void game_fread_string(FILE *file, char *buf)
 }
 
 /*
- * 0x11e0b
+ * 0x1361f
  *
  * **Read one line.** Bytes into the buffer until a `\n` is seen, and then the
  * terminator goes at **`[si - 1]`** - over the byte *before* the newline, not
@@ -188,7 +188,7 @@ void game_fread_line(FILE *file, char *buf)
 }
 
 /*
- * 0x11e3f
+ * 0x13622
  *
  * Read one part out of a .gkc. `rec` is one of the 0xa2-byte records
  * `alloc_part_table` made in advance; this fills it from the file and then
@@ -357,7 +357,7 @@ void read_record_fields(FILE *file, register struct part *rec)
 }
 
 /*
- * 0x1221b
+ * 0x13a36
  *
  * Read `n` things out of the file and put them on a list.
  *
@@ -399,7 +399,7 @@ void read_list(FILE *file, register struct part *head, int16_t n)
 }
 
 /*
- * 0x12269
+ * 0x13a82
  *
  * **Read a level file.** The name is opened, checked, unpacked field by field
  * into DGROUP, and closed; a file that does not open leaves everything as it
@@ -494,7 +494,7 @@ void read_level(char *name)
 }
 
 /*
- * 0x123b7
+ * 0x13c21
  *
  * **Write one byte**, and do nothing at all once the file has gone wrong.
  *
@@ -511,7 +511,7 @@ void write_byte(FILE *file, const uint8_t * addr)
 }
 
 /*
- * 0x123e4
+ * 0x13c4b
  *
  * **Write one word.** The same routine as `write_byte` with a size of 2, and
  * the original writes it out twice rather than sharing one - so this does too.
@@ -523,7 +523,7 @@ void write_word(FILE *file, const uint8_t * addr)
 }
 
 /*
- * 0x12411
+ * 0x13c78
  *
  * **Write a string, and its terminator with it.** The loop writes the byte at
  * the pointer and *then* tests it, so the NUL goes to the file before the loop
@@ -538,7 +538,7 @@ void write_string(FILE *file, char *str)
 }
 
 /*
- * 0x12430
+ * 0x13c97
  *
  * **Write one part's record.** Thirteen fields, then whatever the part is
  * attached to - and every attachment is written as a *`part_index`*, never a
@@ -655,7 +655,7 @@ void write_record_fields(register FILE *file, register struct part *part)
 }
 
 /*
- * 0x126b3
+ * 0x13f1a
  *
  * **Write every part of one list, and mark it as it goes.**
  *
@@ -686,7 +686,7 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
 }
 
 /*
- * 0x126ec
+ * 0x13f53
  *
  * **Write how many parts a list holds**, by walking it and counting.
  *
@@ -715,7 +715,7 @@ void write_part_count(FILE *file, struct part *head)
 }
 
 /*
- * 0x1271c
+ * 0x13f59
  *
  * **The machine file writer.** `save_machine` is the doorway that puts the
  * dragged part down first; this is what opens the file and writes it. Answers
@@ -798,7 +798,7 @@ uint16_t write_level(register char *name)
 }
 
 /*
- * 0x12863
+ * 0x14144
  *
  * Load a level by number: build its name and hand it to `read_level`.
  *
@@ -824,7 +824,7 @@ void load_level(uint16_t number)
 }
 
 /*
- * 0x128bc
+ * 0x1414d
  *
  * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
  * of its own two strings, the same flag set so a level's whole record is
@@ -846,7 +846,7 @@ void save_level(uint16_t number)
 }
 
 /*
- * 0x12915
+ * 0x12915 (1.00's; not yet placed in 1.11)
  *
  * Load an animation file: build the part list first, clear DGROUP 0x5472, and
  * read it. Every load in the image comes here - the title and credits
@@ -867,7 +867,7 @@ void load_animation(char *name)
 }
 
 /*
- * 0x1292d
+ * 0x1292d (1.00's; not yet placed in 1.11)
  *
  * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
  * Answers zero on success - the caller shows "FILE ERROR" and asks again for
@@ -898,7 +898,7 @@ uint16_t save_machine(char *name)
 }
 
 /*
- * 0x1295f
+ * 0x14223
  *
  * **Is this file one of ours?** It opens the name, reads one word, and answers
  * whether that word is **0xaced** - the machine file's magic, and the only
@@ -927,7 +927,7 @@ uint16_t is_machine_file(char *name)
 }
 
 /*
- * 0x129a8
+ * 0x14257
  *
  * Count the level files, and leave the count at DGROUP 0x4eb9.
  *
@@ -966,7 +966,7 @@ void count_level_files(void)
 }
 
 /*
- * 0x12a2f
+ * 0x142dd
  *
  * **A puzzle's title, out of its own level file.** The name is built rather
  * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
@@ -1009,7 +1009,7 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
 }
 
 /*
- * 0x12ad0
+ * 0x1439c
  *
  * **A password into a level number**, by finding it in `password.txt`.
  *
@@ -1063,7 +1063,7 @@ uint16_t password_to_level(register char *text)
 }
 
 /*
- * 0x12b60
+ * 0x1442a
  *
  * Read the `count`th line of **password.txt** into `buf`.
  *
@@ -1096,7 +1096,7 @@ void read_password_line(register int16_t count, register char *buf)
 }
 
 /*
- * 0x12ba7
+ * 0x14471
  *
  * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the
  * file was there and 0 if it was not.
@@ -1123,7 +1123,7 @@ uint16_t read_tim_cfg(void)
 }
 
 /*
- * 0x12bed
+ * 0x144b5
  *
  * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
  * it is two words: the furthest level reached at DGROUP 0x4eb7 and the sound

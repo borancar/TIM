@@ -269,7 +269,7 @@ static int32_t bin_repeat_due(int16_t n)
 #endif
 
 /*
- * 0x0f8c2
+ * 0x10833
  *
  * **The game screen's own loop** - where the game sits while a level is being
  * built and run, and the last piece between the briefing and playing.
@@ -398,7 +398,7 @@ void game_screen_loop(void)
 }
 
 /*
- * 0x0faf9
+ * 0x0faf9 (1.00's; not yet placed in 1.11)
  *
  * **Pick a tune from the keyboard.** DGROUP 0x52f1 is the last key the loop
  * read, *not* a level number, and this is a jump table on it at CS:0x1b8c -
@@ -452,7 +452,7 @@ void select_music_by_key(void)
 }
 
 /*
- * 0x0fbda
+ * 0x10ba2
  *
  * Put the level back to the state it starts in: no tool selected, nothing in
  * hand, and the eight words from 0x4e69 and 0x4e87 through 0x4e93 cleared.
@@ -475,7 +475,7 @@ void reset_level_state(void)
 }
 
 /*
- * 0x0fc0e
+ * 0x0fc0e (1.00's; not yet placed in 1.11)
  *
  * **One frame of whatever the pointer is doing to a part** - the level loop's
  * pointer half, and the routine that turns a position into a tool.
@@ -558,7 +558,7 @@ void pointer_frame(void)
 }
 
 /*
- * 0x0fd02
+ * 0x10cec
  *
  * **Carrying a part off the edge of the play area asks for a redraw.**
  *
@@ -597,7 +597,7 @@ void edge_scroll_flags(void)
 }
 
 /*
- * 0x0fd65
+ * 0x10d4f
  *
  * **Scroll the play area** when the pointer is against an edge, and re-file
  * everything in it if it moved.
@@ -672,7 +672,7 @@ void scroll_play_area(void)
 }
 
 /*
- * 0x0fe47
+ * 0x10e2e
  *
  * Move whatever is in your hand, by kind. Tool 9's arm of the level loop.
  *
@@ -695,7 +695,7 @@ void move_carried(void)
 }
 
 /*
- * 0x0fe84
+ * 0x10e45
  *
  * Move a carried **belt** with the pointer, and drop it when the button goes
  * down.
@@ -765,7 +765,7 @@ void move_carried_belt(void)
 }
 
 /*
- * 0x0ff80
+ * 0x10ecd
  *
  * Move a carried **rope** with the pointer, attach it when the button goes
  * down, and preview it when the button is up.
@@ -881,7 +881,7 @@ void move_carried_rope(void)
 }
 
 /*
- * 0x101dc
+ * 0x101dc (1.00's; not yet placed in 1.11)
  *
  * **Move an ordinary carried part** with the pointer - everything that is not
  * a belt or a rope - and put it down when the button goes down.
@@ -982,7 +982,7 @@ void move_carried_part(void)
 }
 
 /*
- * 0x10410
+ * 0x10410 (1.00's; not yet placed in 1.11)
  *
  * **The keyboard shortcuts for the part in your hand.** DGROUP 0x52f1 is the
  * last key, and six scancodes have a meaning here; every other key falls
@@ -1072,7 +1072,7 @@ void part_key_shortcut(void)
 }
 
 /*
- * 0x10658
+ * 0x114fa
  *
  * **Pick a placed part up** and start carrying it - tool 7's arm, taken when
  * the button goes down on a part's body.
@@ -1136,7 +1136,7 @@ void pick_up_part(void)
 }
 
 /*
- * 0x10733
+ * 0x10733 (1.00's; not yet placed in 1.11)
  *
  * **Throw away the part in hand**, whatever kind it is, and leave the player
  * holding nothing.
@@ -1178,7 +1178,7 @@ void discard_carried_part(void)
 }
 
 /*
- * 0x107b6
+ * 0x11660
  *
  * Flip the carried part **horizontally**, for real - the arm the level loop
  * takes for tool 1 when the button has just gone down, and the X key's.
@@ -1195,7 +1195,7 @@ void flip_carried_horizontal(void)
 }
 
 /*
- * 0x107e6
+ * 0x11692
  *
  * **Vertically**, and `flip_carried_horizontal` with a 2 in it - tool 2's
  * arm, and the Y key's.
@@ -1209,7 +1209,7 @@ void flip_carried_vertical(void)
 }
 
 /*
- * 0x10816
+ * 0x10816 (1.00's; not yet placed in 1.11)
  *
  * **Run one frame of a drag.** The level loop's arm for tools 3 to 6, and the
  * only place the four drag routines are called from.
@@ -1267,7 +1267,7 @@ void run_drag_frame(void)
 }
 
 /*
- * 0x108ec
+ * 0x108ec (1.00's; not yet placed in 1.11)
  *
  * Drag the carried part by its **first** pair - `drag_carried_part_pair`'s
  * sibling, on +0x1e and +0x50 rather than +0x20 and +0x52, driven by the other
@@ -1324,7 +1324,7 @@ int16_t drag_carried_part_first(void)
 }
 
 /*
- * 0x10a00
+ * 0x10a00 (1.00's; not yet placed in 1.11)
  *
  * Settle the carried part on its **first** axis - `settle_carried_part`'s
  * sibling, on +0x50 and +0x1e rather than +0x52 and +0x20, taking its target
@@ -1370,7 +1370,7 @@ int16_t settle_carried_part_first(void)
 }
 
 /*
- * 0x10ada
+ * 0x10ada (1.00's; not yet placed in 1.11)
  *
  * Drag the carried part **along its other axis**, and say whether it moved -
  * `settle_carried_part`'s twin, and not a mirror of it.
@@ -1433,7 +1433,7 @@ int16_t drag_carried_part_pair(void)
 }
 
 /*
- * 0x10bee
+ * 0x10bee (1.00's; not yet placed in 1.11)
  *
  * Drop the carried part onto something solid, and say whether it moved.
  *
@@ -1496,7 +1496,7 @@ int16_t settle_carried_part(void)
 }
 
 /*
- * 0x10cc8
+ * 0x11d21
  *
  * **Scroll the parts bin back**, held down.
  *
@@ -1546,7 +1546,7 @@ void bin_scroll_back(void)
 }
 
 /*
- * 0x10d37
+ * 0x11d86
  *
  * **Scroll the parts bin forward**, held down - `bin_scroll_back`'s twin, with
  * its own repeat counter at 0x2634 and the same one-page-in-three rate.
@@ -1585,7 +1585,7 @@ void bin_scroll_forward(void)
 }
 
 /*
- * 0x10d99
+ * 0x11de5
  *
  * The cursor over the **box above the parts bin** - the region at 576,0 to
  * 632,63, which is row 1 of the table and carries no action bit of its own.
@@ -1616,7 +1616,7 @@ void region_cursor_bin_above(struct region *region)
 }
 
 /*
- * 0x10dc2
+ * 0x11e0e
  *
  * **The parts bin's cursor** - the region at 576,100 to 632,144, row 4, whose
  * click handler is 0x10e14 alongside it.
@@ -1652,7 +1652,7 @@ void region_cursor_bin(struct region *region)
 }
 
 /*
- * 0x10e14
+ * 0x11ea4
  *
  * **Clicking the parts bin** - the click handler of the region whose cursor is
  * `region_cursor_bin`, filed at +0x16 of the same row.
@@ -1725,7 +1725,7 @@ void region_click_bin(struct region *region)
 }
 
 /*
- * 0x10ef1
+ * 0x11f8c
  *
  * **The playfield's cursor.** A region handler, of the same family as the five
  * at 0x34eb and after: it writes a cursor number into its region's own +0x0e,
@@ -1752,7 +1752,7 @@ void region_cursor_playfield(struct region *region)
 }
 
 /*
- * 0x10f03
+ * 0x11f9e
  *
  * **The game screen.** State 2 dispatches here, so this is the first screen a
  * round shows - the level briefing for round 1 - and it stays here, running
@@ -2053,7 +2053,7 @@ void game_screen(void)
 }
 
 /*
- * 0x114db
+ * 0x12710
  *
  * **The enter-freeform region's handler**, and the first of five that are the
  * same eleven instructions with one constant changed: write a cursor number
@@ -2087,7 +2087,7 @@ void region_cursor_freeform(struct region *region)
 }
 
 /*
- * 0x114f8
+ * 0x1272d
  *
  * Load Machine's, and `region_cursor_freeform`'s twin the other way round: a
  * cursor in freeform, nothing outside it.
@@ -2101,7 +2101,7 @@ void region_cursor_load(struct region *region)
 }
 
 /*
- * 0x11515
+ * 0x1274a
  *
  * Save Machine's.
  */
@@ -2114,7 +2114,7 @@ void region_cursor_save(struct region *region)
 }
 
 /*
- * 0x11532
+ * 0x12767
  *
  * The gravity slider's.
  */
@@ -2127,7 +2127,7 @@ void region_cursor_gravity(struct region *region)
 }
 
 /*
- * 0x1154f
+ * 0x12784
  *
  * The air-pressure slider's.
  */
@@ -2140,7 +2140,7 @@ void region_cursor_air(struct region *region)
 }
 
 /*
- * 0x1156c
+ * 0x127c8
  *
  * **Tab moves the mouse pointer**, not a focus ring. There is no keyboard
  * selection in this panel at all: Tab advances a cursor at DGROUP 0x27ee and
@@ -2193,7 +2193,7 @@ void tab_move_pointer(void)
 }
 
 /*
- * 0x11632
+ * 0x12861
  *
  * **Paint the game screen**: the play area, the control panel down the left,
  * and the three ornaments that sit on it.
@@ -2269,7 +2269,7 @@ void paint_game_screen(uint16_t present)
 }
 
 /*
- * 0x1175c
+ * 0x129a5
  *
  * **Draw the machine's parts into the play area**, which is the last thing the
  * title bar's painter does and the thing that puts the level's contents on the
@@ -2337,7 +2337,7 @@ void paint_panel_frame_rest(void)
 }
 
 /*
- * 0x117ed
+ * 0x12a4f
  *
  * **The title bar and the hint box** - the two pieces of text across the top
  * of the game screen, and the first thing `paint_game_screen` draws over the
@@ -2393,7 +2393,7 @@ void paint_panel_frame(void)
 }
 
 /*
- * 0x1190d
+ * 0x12c58
  *
  * Paint one of the control panel's four fixed decorations: bitmap
  * `list[0x20 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x3a,0x5b.
@@ -2418,7 +2418,7 @@ void paint_panel_a(uint16_t frame)
 }
 
 /*
- * 0x11943
+ * 0x12c8e
  *
  * Paint one of the control panel's four fixed decorations: bitmap
  * `list[0x24 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xd8,0x60.
@@ -2443,7 +2443,7 @@ void paint_panel_b(uint16_t frame)
 }
 
 /*
- * 0x11979
+ * 0x12cc4
  *
  * Paint one of the control panel's four fixed decorations: bitmap
  * `list[0x3e / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xbc,0x5c.
@@ -2468,7 +2468,7 @@ void paint_panel_c(uint16_t frame)
 }
 
 /*
- * 0x119af
+ * 0x12cfa
  *
  * Paint one of the control panel's four fixed decorations: bitmap
  * `list[0x52 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x6d,0x85.
@@ -2493,7 +2493,7 @@ void paint_panel_d(uint16_t frame)
 }
 
 /*
- * 0x119e5
+ * 0x12d30
  *
  * Paint one of the free-play panel's pairs: bitmap `list[0x42 / 2 + frame]`
  * at 0x96,0x8c and then `list[0x3a / 2 + frame]` at 0xa6,0x8b, both
@@ -2516,7 +2516,7 @@ void paint_panel_free_a(uint16_t frame)
 }
 
 /*
- * 0x11a3f
+ * 0x12d8a
  *
  * Paint one of the free-play panel's pairs: bitmap `list[0x46 / 2 + frame]`
  * at 0xc8,0x8c and then `list[0x3a / 2 + frame]` at 0xd8,0x8b, both
@@ -2539,7 +2539,7 @@ void paint_panel_free_b(uint16_t frame)
 }
 
 /*
- * 0x11a99
+ * 0x12de4
  *
  * Paint the level indicator: bitmap `list[0x36 / 2 + frame]` out of the
  * list at DGROUP 0x52f4, at 0x39,0x86. The same six instructions as
@@ -2556,7 +2556,7 @@ void paint_panel_level(uint16_t frame)
 }
 
 /*
- * 0x11acf
+ * 0x12e1a
  *
  * The panel's tiled background and the row of indicators over it, all out of
  * the bitmap list at DGROUP 0x52f4.
@@ -2609,7 +2609,7 @@ void paint_panel_e(void)
 }
 
 /*
- * 0x11bd6
+ * 0x12f21
  *
  * A slider on the control panel: its track, its scale, and a knob whose
  * position comes from DGROUP 0x50b5.
@@ -2640,7 +2640,7 @@ void paint_panel_f(void)
 }
 
 /*
- * 0x11c6b
+ * 0x12fb6
  *
  * A slider on the control panel: its track, its scale, and a knob whose
  * position comes from DGROUP 0x50b3.

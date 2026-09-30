@@ -26,7 +26,7 @@
 int16_t g_jack_in_the_box_reach[3] = { -21, -34, -59 };
 
 /*
- * 172c:27e2, image 0x19aa2 - kind 13's step. The conveyor.
+ * 190f:2798, image 0x1b888 - kind 13's step. The conveyor.
  *
  * Above form 7 it is winding down: the form just runs on to 0x12 and stops
  * there. At 7 or below and switched on it steps the form by its direction -
@@ -102,7 +102,7 @@ void part_step_jack_in_the_box(struct part *part)
 }
 
 /*
- * 172c:295d, image 0x19c1d - a setup.
+ * 190f:290c, image 0x1b9fc - a setup.
  *
  * A plain 32 by 32 box. The first corner is stored y before x out of a zeroed
  * AL, the way the computed ones do it, and the other three are constants.
@@ -127,7 +127,7 @@ void part_setup_jack_in_the_box(struct part *part)
 }
 
 /*
- * 172c:2999, image 0x19c59 - kind 13's flip, and **it calls no setup at all**.
+ * 190f:2948, image 0x1ba38 - kind 13's flip, and **it calls no setup at all**.
  * Bit 4 goes over and the part is redrawn; its connection points do not move,
  * so there is nothing to rebuild.
  */
@@ -140,7 +140,7 @@ void part_flip_jack_in_the_box(struct part *part)
 }
 
 /*
- * 172c:29c6, image 0x19c86
+ * 190f:2969, image 0x1ba59
  *
  * How fast the conveyor throws a thing, by its mass: nine steps from 0x1800
  * for the lightest down to 0x800 for the heaviest. The third of these ladders
@@ -176,7 +176,7 @@ int16_t conveyor_speed_for_mass(struct part *obj)
 }
 
 /*
- * 172c:2a3a, image 0x19cfa - a kind-3 motor on the conveyor.
+ * 190f:29ed, image 0x1badd - a kind-3 motor on the conveyor.
  *
  * Which way the conveyor turns it depends on the form it is in and on which
  * side of the conveyor's middle it sits: form 0 only turns one way, form 1
@@ -199,7 +199,7 @@ void conveyor_nudge_3(struct part *obj, int16_t mid)
 }
 
 /*
- * 172c:2a91, image 0x19d51 - a kind-0x10 on the conveyor.
+ * 190f:2ac8, image 0x1bbb8 - a kind-0x10 on the conveyor.
  *
  * Only in form 0, and the offset it measures from and the direction of the
  * comparison both come from its mirror bit.
@@ -218,7 +218,7 @@ void conveyor_nudge_10(struct part *obj, int16_t mid)
 }
 
 /*
- * 172c:2acb, image 0x19d8b - a kind-0x15 see-saw on the conveyor.
+ * 172c:2acb, image 0x19d8b (1.00's; not yet placed in 1.11) - a kind-0x15 see-saw on the conveyor.
  *
  * A see-saw already tipped one way and sitting between two and twenty pixels
  * of the conveyor's middle is tipped back - four off the form, its own setup
@@ -240,7 +240,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
 }
 
 /*
- * 172c:2b1e, image 0x19dde - a kind-0x25 on the conveyor.
+ * 190f:2acb, image 0x1bbbb - a kind-0x25 on the conveyor.
  *
  * The same shape as the kind-0x10 nudge with different offsets: 0x12 mirrored
  * and 0x18 not.

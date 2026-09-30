@@ -112,7 +112,7 @@ struct machine_rect_count {
 struct machine_rect_count g_machine_rect_count;
 
 /*
- * 0x0a05f
+ * 0x0aca2
  *
  * **Grow the saved-rect pool** by `n` records, rounded up to a multiple of
  * five, in one `calloc_far(n, 0x1a)` block threaded through `next` and
@@ -150,7 +150,7 @@ uint16_t build_rect_pool(register uint16_t n)
 }
 
 /*
- * 0x0a0d7
+ * 0x0ad1a
  *
  * **File a saved rectangle on its slot** - the one routine that creates a
  * `rect_list_entry`, and **dead in the shipped binary**: its one caller is
@@ -304,7 +304,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
 }
 
 /*
- * 0x0a42a
+ * 0x0b06d
  *
  * Put back the saved rectangles for **a list of page-and-size pairs**, and
  * then, on one of the two paths, take one off every remaining record's +0xe.
@@ -363,7 +363,7 @@ void restore_saved_rect_lists(int16_t which)
 }
 
 /*
- * 0x0a4bf
+ * 0x0b102
  *
  * **Discard every saved rect**: each of the twenty slots' chains is walked to
  * its last record, which is pointed at the free list, and the whole chain is
@@ -387,7 +387,7 @@ void discard_saved_rects(void)
 }
 
 /*
- * 0x0a4f9
+ * 0x0b13c
  *
  * **Is a box covered by a saved mode-1 rect** on the slot whose head carries
  * this destination page and refcount? The box's `x` and `w` are turned into
@@ -420,7 +420,7 @@ uint16_t saved_rect_covers(register int16_t x, int16_t y, register int16_t w,
 }
 
 /*
- * 0x0a5a1
+ * 0x0b1e4
  *
  * **Free the saved-rect pool.** Everything is discarded onto the free list
  * first, and then the list is walked for a block head - the first record of
@@ -450,7 +450,7 @@ void free_rect_pool(void)
 }
 
 /*
- * 0x0a5d8
+ * 0x0b21b
  *
  * How many records the pool holds. Nothing in the image calls it.
  */
@@ -460,7 +460,7 @@ uint16_t rect_pool_count(void)
 }
 
 /*
- * 0x0a5e2
+ * 0x0b225
  *
  * Find the slot in the table of **twenty saved-rectangle objects** at DGROUP
  * 0x56b8 that already holds a given page, width and height - or, failing that,
@@ -498,7 +498,7 @@ struct rect_list_entry **find_saved_rect_slot(vga_page_t page_src, vga_page_t pa
 }
 
 /*
- * 0x0a62c
+ * 0x0b26f
  *
  * **Put back everything saved for one page and size**, then give the records
  * away.
@@ -557,7 +557,7 @@ void restore_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refc
 }
 
 /*
- * 0x0a6d7
+ * 0x0b31a
  *
  * Give back every saved rectangle held for one page and size: find the slot,
  * walk its chain of records to the end through the links at +0x18, and put the
@@ -585,7 +585,7 @@ void free_saved_rects(vga_page_t page_src, vga_page_t page_dst, uint16_t refcoun
 }
 
 /*
- * 0x0a717
+ * 0x0b35a
  *
  * **Copy one slot's saved rects onto another**: the two slots are found by
  * their page pairs and refcounts, and if they differ and the first has a

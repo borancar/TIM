@@ -27,7 +27,7 @@ struct point8 g_pumpkin_points_3422[8] = {
     { 0x26, 0x16 }, { 0x1b, 0x20 }, { 0x0b, 0x20 }, { 0x00, 0x16 },
 };
 
-/* 172c:35f4, image 0x1a8b4 - a setup: eight points from DGROUP 0x3422. */
+/* 190f:35bf, image 0x1c6af - a setup: eight points from DGROUP 0x3422. */
 void part_setup_pumpkin(struct part *part)
 {
     struct part_point *si;

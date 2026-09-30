@@ -77,7 +77,7 @@ public _draw_polygon, _poly_outline, _poly_edge_vertical, _poly_edge_steep
 public _poly_edge_diagonal, _poly_edge_shallow_right, _poly_edge_shallow_left, _poly_walk
 public _fill_rect, _draw_compressed_bitmap
 
-/* 0x1eded */
+/* 0x20a77 */
 _draw_polygon proc far
         push bp
         mov bp, sp
@@ -557,7 +557,7 @@ L1f211:
         retf
 _draw_polygon endp
 
-/* 0x1f219 */
+/* 0x20ea3 */
 _poly_outline proc near
         cmp byte ptr DGROUP:_g_vmds+6e8h, 0
         jne L1f237
@@ -597,7 +597,7 @@ L1f23f:
         ret
 _poly_outline endp
 
-/* 0x1f265 */
+/* 0x20eef */
 _poly_edge_vertical proc near
         cmp cx, si
         jg L1f26b
@@ -615,7 +615,7 @@ L1f26b:
 c_1f280 db 0c3h
 _poly_edge_vertical endp
 
-/* 0x1f281 */
+/* 0x20f0b */
 _poly_edge_steep proc near
         cmp bx, bp
         jl L1f289
@@ -793,7 +793,7 @@ L1f3be:
         ret
 _poly_edge_steep endp
 
-/* 0x1f3bf */
+/* 0x21049 */
 _poly_edge_diagonal proc near
         cmp cx, si
         jl L1f3c7
@@ -817,7 +817,7 @@ L1f3d7:
 c_1f3e5 db 0c3h
 _poly_edge_diagonal endp
 
-/* 0x1f3e6 */
+/* 0x21070 */
 _poly_edge_shallow_right proc near
         cmp bx, bp
         jg L1f3ee
@@ -939,7 +939,7 @@ L1f4a0:
         ret
 _poly_edge_shallow_right endp
 
-/* 0x1f4a1 */
+/* 0x2112b */
 _poly_edge_shallow_left proc near
         cmp bx, bp
         jl L1f4a9
@@ -1064,7 +1064,7 @@ c_1f55e db 3h, 0ebh
 c_1f560 db 13h, 0c6h
 _poly_edge_shallow_left endp
 
-/* 0x1f562 */
+/* 0x211ec */
 _poly_walk proc near
         push ax
         shl di, 1
@@ -2688,7 +2688,7 @@ c_20076 db 13h, 0c6h
 c_20078 db 0c3h
 _poly_walk endp
 
-/* 0x20079 */
+/* 0x21d03 */
 _fill_rect proc far
         push bp
         mov bp, sp
@@ -2812,7 +2812,7 @@ L2017e:
 c_20184 db 90h
 _fill_rect endp
 
-/* 0x20185 */
+/* 0x20185 (1.00's; not yet placed in 1.11) */
 _draw_compressed_bitmap proc near
         jmp dword ptr DGROUP:_g_compressed_body_vector
 _draw_compressed_bitmap endp
@@ -2869,7 +2869,7 @@ struct engine_polygon_state {
 struct engine_polygon_state g_engine_polygon_state;
 
 /*
- * 172c:2b9d, image 0x1eded
+ * 1ee5:1c27, image 0x20a77
  *
  * Fill a polygon, and outline it if the two colours differ.
  *
@@ -3249,7 +3249,7 @@ chains:
                 } else if (adx < ady) {
                     poly_edge_steep(span, x1, x2, y1, y2);
                 } else if (adx > ady) {
-                    /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
+                    /* `cmp [0x44dc],0; jne 0x21070; je 0x1f4a1`. */
                     if (g_engine_polygon_chains.chain != 0)
                         poly_edge_shallow_right(span, x1, x2, y1, y2);
                     else
@@ -3301,7 +3301,7 @@ out:
 }
 
 /*
- * 172c:2f69, image 0x1f219
+ * 1ee5:2053, image 0x20ea3
  *
  * Draw the outline: one `clip_and_draw_line` per side, from two arrays of
  * points. The second half of the routine is the same again with the vertical
@@ -3337,7 +3337,7 @@ void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
 }
 
 /*
- * 172c:3015, image 0x1f265 - an edge with no run at all.
+ * 1ee5:209f, image 0x20eef - an edge with no run at all.
  *
  * Both ends have the same x, so every row gets it: no fractional part and no
  * step. The two ends are put in top-to-bottom order first.
@@ -3357,7 +3357,7 @@ void poly_edge_vertical(uint8_t far * span, int16_t x,
 }
 
 /*
- * 172c:3031, image 0x1f281 - an edge steeper than 45 degrees.
+ * 1ee5:20bb, image 0x20f0b - an edge steeper than 45 degrees.
  *
  * Bresenham's, written out: the error starts at `2 * dx - dy`, a step that
  * takes the error non-negative moves x by one and adds `2 * (dx - dy)`, and
@@ -3424,7 +3424,7 @@ void poly_edge_steep(uint8_t far * span, int16_t x1, int16_t x2,
 }
 
 /*
- * 172c:316f, image 0x1f3bf - an edge at exactly 45 degrees.
+ * 1ee5:21f9, image 0x21049 - an edge at exactly 45 degrees.
  *
  * One across for every one down, so again no fractional part: the step is 1 or
  * -1 by which way the x runs.
@@ -3457,7 +3457,7 @@ void poly_edge_diagonal(uint8_t far * span, int16_t x1, int16_t x2,
 }
 
 /*
- * 172c:3196, image 0x1f3e6 - an edge shallower than 45 degrees,
+ * 1ee5:2220, image 0x21070 - an edge shallower than 45 degrees,
  * the right chain's.
  *
  * Walked *along* rather than down: one row covers several columns, so the loop
@@ -3556,7 +3556,7 @@ void poly_edge_shallow_right(uint8_t far * span, int16_t x1, int16_t x2,
 }
 
 /*
- * 172c:3251, image 0x1f4a1 - an edge shallower than 45 degrees,
+ * 1ee5:22db, image 0x2112b - an edge shallower than 45 degrees,
  * the left chain's.
  *
  * Walked *along* rather than down: one row covers several columns, so the loop
@@ -3655,7 +3655,7 @@ void poly_edge_shallow_left(uint8_t far * span, int16_t x1, int16_t x2,
 }
 
 /*
- * 172c:3312, image 0x1f562
+ * 1ee5:239c, image 0x211ec
  *
  * One edge of the polygon, walked down the scanlines, writing the x it reaches
  * on each into the span buffer.
@@ -3691,7 +3691,7 @@ void poly_walk(uint8_t far * span, int16_t x, int16_t frac, int16_t step,
 }
 
 /*
- * 0x20079
+ * 0x21d03
  *
  * Fill a rectangle, clipped, and optionally outline it.
  *
@@ -3766,7 +3766,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
- * 0x20185
+ * 0x20185 (1.00's; not yet placed in 1.11)
  *
  * A thunk - `ljmp [0x44ea]` - and 0x44ea was measured pointing at the
  * instruction after it, `draw_compressed_body` at 0x20189, so the vector

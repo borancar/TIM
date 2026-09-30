@@ -28,7 +28,7 @@ struct point8 g_christmas_tree_points_3266[7] = {
 };
 
 /*
- * 172c:1075, image 0x18335 - a setup.
+ * 190f:107c, image 0x1a16c - a setup.
  *
  * Seven points from the one table at DGROUP 0x3266, with nothing to choose:
  * this part has a single shape.

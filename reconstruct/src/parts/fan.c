@@ -37,7 +37,7 @@ struct point8 g_fan_points_32d2[5] = {
 };
 
 /*
- * 172c:1a32, image 0x18cf2 - a setup.
+ * 190f:1a11, image 0x1ab01 - a setup.
  *
  * Five points, bit 4 of +8 choosing 0x32d2 or 0x32c8.
  */
@@ -61,7 +61,7 @@ void part_setup_fan(struct part *part)
 }
 
 /*
- * 172c:1a82, image 0x18d42 - kind 24's step. The fan.
+ * 190f:1a61, image 0x1ab51 - kind 24's step. The fan.
  *
  * Four frames on a loop while it is on, the first playing sound 9, and DGROUP
  * 0x52cf set to 2. The blast is a box reaching 0x100 out in the direction the
@@ -129,7 +129,7 @@ void part_step_fan(struct part *part)
 }
 
 /*
- * 172c:1bbd, image 0x18e7d - kind 24's flip. Bit 4, its setup, and the two
+ * 190f:1ba2, image 0x1ac92 - kind 24's flip. Bit 4, its setup, and the two
  * marks without `mark_joined_shapes`, the same shape as `part_flip_dynamite`.
  */
 void part_flip_fan(struct part *part)

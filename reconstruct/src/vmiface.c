@@ -99,27 +99,27 @@ assume cs:VMIFACE_TEXT, ds:DGROUP
 public _vm_call_4_thunk, _blit_bitmap_thunk, _blit_scaled_thunk, _vm_call_38_thunk
 public _restore_write_mode, _vm_null_hook
 
-/* 0x1e93c */
+/* 0x1e93c (1.00's; not yet placed in 1.11) */
 _vm_call_4_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+10h
 _vm_call_4_thunk endp
 
-/* 0x1e940 */
+/* 0x1e940 (1.00's; not yet placed in 1.11) */
 _blit_bitmap_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+78h
 _blit_bitmap_thunk endp
 
-/* 0x1e944 */
+/* 0x1e944 (1.00's; not yet placed in 1.11) */
 _blit_scaled_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+88h
 _blit_scaled_thunk endp
 
-/* 0x1e948 */
+/* 0x1e948 (1.00's; not yet placed in 1.11) */
 _vm_call_38_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+98h
 _vm_call_38_thunk endp
 
-/* 0x1e94c */
+/* 0x205d6 */
 _restore_write_mode proc far
         cmp byte ptr DGROUP:_g_vmds+21h, 10h
         jne L1e965
@@ -135,7 +135,7 @@ L1e965:
         retf
 _restore_write_mode endp
 
-/* 0x1e966 */
+/* 0x1e966 (1.00's; not yet placed in 1.11) */
 _vm_null_hook proc far
         retf
 _vm_null_hook endp
@@ -237,7 +237,7 @@ struct vm_hooks g_vm_hooks = {   /* DGROUP 0x440e */
 };
 
 /*
- * 0x1e93c
+ * 0x1e93c (1.00's; not yet placed in 1.11)
  *
  * A jump through the video driver's vector 4, DGROUP 0x4352. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -248,7 +248,7 @@ void vm_call_4_thunk(void)
 }
 
 /*
- * 0x1e940
+ * 0x1e940 (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x43ba]`, which is `vm_blit_bitmap`.
  * It jumps rather than calls, so the driver returns to this routine's caller
@@ -260,7 +260,7 @@ void blit_bitmap_thunk(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 }
 
 /*
- * 0x1e944
+ * 0x1e944 (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x43ca]`, which is VGA:0x271b. Same
  * arrangement as 0x1e940 - it takes three arguments rather than four, because
@@ -272,7 +272,7 @@ void blit_scaled_thunk(struct bitmap * bmp, int16_t x, int16_t y)
 }
 
 /*
- * 0x1e948
+ * 0x1e948 (1.00's; not yet placed in 1.11)
  *
  * A jump through the video driver's vector 38, DGROUP 0x43da. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -283,7 +283,7 @@ void vm_call_38_thunk(void)
 }
 
 /*
- * 0x1e94c
+ * 0x205d6
  *
  * Put the graphics controller back the way the rest of the code expects it,
  * after a routine that changed it to draw. Write mode 2, every bit of the bit
@@ -305,7 +305,7 @@ void restore_write_mode(void)
 }
 
 /*
- * 0x1e966
+ * 0x1e966 (1.00's; not yet placed in 1.11)
  *
  * **A far routine that does nothing**, one `retf` - the entry every one of
  * `g_vm_driver.entry`'s fifty slots and `g_vm_hooks.ptr_440e` hold until the driver

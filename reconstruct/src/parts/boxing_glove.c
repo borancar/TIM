@@ -58,7 +58,7 @@ struct point8 g_boxing_glove_points_3216[6] = {
 };
 
 /*
- * 172c:0552, image 0x17812 - kind 35's hit test.
+ * 190f:053d, image 0x1962d - kind 35's hit test.
  *
  * Being hit on face 2 sets the thing that hit it going; any other face does
  * nothing. It answers 1 either way, so the hit still counts.
@@ -75,7 +75,7 @@ uint16_t part_hit_boxing_glove(struct part *part)
 }
 
 /*
- * 172c:057e, image 0x1783e - kind 35's step.
+ * 190f:0543, image 0x19633 - kind 35's step.
  *
  * A swing. While its +0x12 says go and it has not reached form 9 it steps one
  * frame - the first one plays sound 3 - and runs its own setup again, because
@@ -131,7 +131,7 @@ void part_step_boxing_glove(struct part *part)
 }
 
 /*
- * 172c:065b, image 0x1791b - six slots, from one of four tables. The flag at
+ * 190f:064c, image 0x1973c - six slots, from one of four tables. The flag at
  * +8 bit 4 picks the pair and the form at +0x0c picks within it, so the four
  * sit as 0x31f2, 0x31fe, 0x320a, 0x3216 - twelve bytes apart, six pairs each.
  *
@@ -167,7 +167,7 @@ void part_setup_boxing_glove(struct part *part)
 }
 
 /*
- * 172c:06c6, image 0x17986 - kind 35's flip.
+ * 190f:06b6, image 0x197a6 - kind 35's flip.
  *
  * Byte for byte the same routine as `part_flip_bellow` above with a different
  * setup behind it - checked as bytes, not assumed: of the twenty flips in this
@@ -186,7 +186,7 @@ void part_flip_boxing_glove(struct part *part)
 }
 
 /*
- * 172c:06f9, image 0x179b9
+ * 190f:06dd, image 0x197cd
  *
  * How fast a thing is thrown, by how heavy it is: the mass at DGROUP 0xea8 for
  * its kind, in seven steps from 0x1a00 for the lightest down to 0x0c00 for the

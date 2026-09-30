@@ -43,7 +43,7 @@ c_29288 label byte
 c_2928a label byte
         db 0h, 0h
 
-/* 0x2928c */
+/* 0x2bb2c */
 _set_sound_callback proc far
         push bp
         mov bp, sp
@@ -57,7 +57,7 @@ _set_sound_callback proc far
         retf
 _set_sound_callback endp
 
-/* 0x292a1 */
+/* 0x2bb41 */
 _sound_callback proc far
         push bp
         mov bp, sp
@@ -95,7 +95,7 @@ L292c5:
         retf
 _sound_callback endp
 
-/* 0x292d9 */
+/* 0x2bb79 */
 _sound_callback_quiet proc far
         push bp
         mov bp, sp
@@ -117,7 +117,7 @@ SOUND_CALL_TEXT ends
 #else
 
 /*
- * 0x2928c
+ * 0x2bb2c
  *
  * Install the host callback: a far pointer written into this module's own code
  * segment at `cs:0x30f6`, which is the cell `sound_callback` calls through.
@@ -131,7 +131,7 @@ void set_sound_callback(const uint8_t far * cb)
 }
 
 /*
- * 0x292a1
+ * 0x2bb41
  *
  * Call the host's sound callback, if one is installed, and answer what it
  * returned.
@@ -168,7 +168,7 @@ uint16_t sound_callback(uint16_t ax, union sound_module_args * si)
 }
 
 /*
- * 0x292d9
+ * 0x2bb79
  *
  * `sound_callback` without the answer: call through the callback cell if
  * DGROUP 0x4aaa says a callback exists, and keep nothing. It saves only SI

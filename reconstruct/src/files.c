@@ -105,7 +105,7 @@ struct engine_open_files {
 struct engine_open_files g_open_files;
 
 /*
- * 0x23b29
+ * 0x257b3
  *
  * Load a screen that is *not* in the quadtree form: read its pixels a band at a
  * time and blit each band to the page as it arrives, so a 320x200 picture never
@@ -245,7 +245,7 @@ uint16_t load_screen_plain(char *name)
 }
 
 /*
- * 0x23df2
+ * 0x25a7c
  *
  * Find the open-file record with a given handle, or NULL.
  *
@@ -269,7 +269,7 @@ struct open_file *near find_file_record(FILE *handle)
 }
 
 /*
- * 0x23e23
+ * 0x25aad
  *
  * Put a file record back to how it starts: all 0x43 bytes cleared **except**
  * the handle at +0 and the 32-bit value at +0x1b:+0x1d, which are saved into
@@ -293,7 +293,7 @@ void near reset_file_record(struct open_file *rec)
 }
 
 /*
- * 0x23e70
+ * 0x25afa
  *
  * Compare two strings for at most `n` characters, answering 1 if they agree and
  * 0 if they do not.
@@ -313,7 +313,7 @@ int16_t near string_equal_upto(const char * a, const char * b, uint16_t n)
 }
 
 /*
- * 0x23ea8
+ * 0x25b32
  *
  * Copy a file record out to the caller: 0x43 bytes from the record with the
  * given handle. Answers the destination, or 0 for a null destination, a null
@@ -331,7 +331,7 @@ struct open_file *copy_file_record(struct open_file *dst, FILE *handle)
 }
 
 /*
- * 0x23ee4
+ * 0x25b6e
  *
  * Copy a file record **in** from the caller: 0x43 bytes over the record whose
  * handle is the first word of what was handed in, and then the file seeked to
@@ -354,7 +354,7 @@ int16_t restore_file_record_from(const struct open_file *src)
 }
 
 /*
- * 0x23f2c
+ * 0x25bb6
  *
  * Open a file through the resource manager: take a free record, open the file,
  * measure it, and answer the handle. 0 if there is no free record or the file
@@ -385,7 +385,7 @@ FILE *open_file_record(char *name)
 }
 
 /*
- * 0x23f90
+ * 0x25c1a
  *
  * Put a file record back to the copy saved at DGROUP 0x639e and seek the file
  * to where that copy says it was. Always answers -1.
@@ -402,7 +402,7 @@ int32_t near restore_file_record(struct open_file *rec)
 }
 
 /*
- * 0x23fc2
+ * 0x25c4c
  *
  * Walk into a file's nested chunks along a path of four-character names, and
  * answer where the wanted one starts - as a far value in DX:AX - or -1.
@@ -546,7 +546,7 @@ at_position:
 }
 
 /*
- * 0x242af
+ * 0x25f39
  *
  * The size of an open file, as a far value in DX:AX, or -1 for a handle that
  * names nothing. It is the pair at the record's +0x3f:+0x41.
@@ -565,7 +565,7 @@ int32_t file_record_size(FILE *handle)
 }
 
 /*
- * 0x242d9
+ * 0x25f63
  *
  * Close an open file: clear the record's handle at +0 and close the stream.
  * Answers 1, or 0 for a handle of zero or one that names no record.
@@ -587,7 +587,7 @@ int16_t close_file_record(FILE *handle)
 }
 
 /*
- * 0x24308
+ * 0x25f92
  *
  * Whether a handle names an open file: 1 or 0. `find_file_record` answers the
  * record and this throws it away, which is the whole routine.
@@ -598,7 +598,7 @@ int16_t file_record_valid(FILE *handle)
 }
 
 /*
- * 0x24320
+ * 0x25faa
  *
  * Planar to chunky, one byte a pixel: the reverse of the driver's
  * `vm_chunky_to_planar`, done in ordinary memory rather than through the card.
@@ -656,7 +656,7 @@ void near planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
 }
 
 /*
- * 0x243bf
+ * 0x26049
  *
  * Compress a whole list of bitmaps **in place**, over the pixels they came
  * from, and shrink the block down to what the compressed form needed. Answers
@@ -766,7 +766,7 @@ int32_t compress_bitmap_list(struct bitmap **list, uint8_t colours)
 }
 
 /*
- * 0x2451f
+ * 0x261a9
  *
  * Emit one value into the compressed bitmap being written at the far pointer in
  * DGROUP 0x63ee, flushing whatever run is pending at DGROUP 0x63e2 first.
@@ -814,7 +814,7 @@ void near emit_packed_value(register int16_t value)
 }
 
 /*
- * 0x245b9
+ * 0x26243
  *
  * Write a run of literal pixels into the compressed bitmap at DGROUP 0x63ee: a
  * marker byte of the count with 0xc0 set, and then the pixels themselves.
@@ -852,7 +852,7 @@ void near write_literal_run(register uint8_t count, uint8_t * buf)
 }
 
 /*
- * 0x24639
+ * 0x262c3
  *
  * Compress one row of chunky pixels into the bitmap being written at DGROUP
  * 0x63ee. This is the other half of the format `emit_packed_value` and
@@ -929,7 +929,7 @@ void near compress_row(uint8_t *src, int16_t remaining)
 }
 
 /*
- * 0x24757
+ * 0x263e1
  *
  * Compress one bitmap, row by row, into the stream at DGROUP 0x63ee. This is
  * what drives `compress_row`, `write_literal_run` and `emit_packed_value`; the

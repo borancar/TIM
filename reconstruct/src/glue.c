@@ -53,21 +53,21 @@ public _stop_loaded_module, _sound_module_shutdown
 public _call_sound_module, _sound_module_position
 extrn _g_sound_bank:byte
 
-/* 0x0bb98 */
+/* 0x0c7e1 */
 _sound_module_install proc far
     mov ax, 0
     call _call_sound_module
     retf
 _sound_module_install endp
 
-/* 0x0bb9f */
+/* 0x0c7ec */
 _sound_module_set_rate proc far
     mov ax, 6
     call _call_sound_module
     retf
 _sound_module_set_rate endp
 
-/* 0x0bba6: the EOI to the master PIC, then the service call. */
+/* 0x0bba6 (1.00's; not yet placed in 1.11): the EOI to the master PIC, then the service call. */
 _sound_module_service proc far
     mov al, 20h
     out 20h, al
@@ -76,42 +76,42 @@ _sound_module_service proc far
     retf
 _sound_module_service endp
 
-/* 0x0bbb1 */
+/* 0x0bbb1 (1.00's; not yet placed in 1.11) */
 _sound_module_9 proc far
     mov ax, 9
     call _call_sound_module
     retf
 _sound_module_9 endp
 
-/* 0x0bbb8 */
+/* 0x0bbb8 (1.00's; not yet placed in 1.11) */
 _sound_module_10 proc far
     mov ax, 0ah
     call _call_sound_module
     retf
 _sound_module_10 endp
 
-/* 0x0bbbf */
+/* 0x0bbbf (1.00's; not yet placed in 1.11) */
 _sound_module_11 proc far
     mov ax, 0bh
     call _call_sound_module
     retf
 _sound_module_11 endp
 
-/* 0x0bbc6 */
+/* 0x0bbc6 (1.00's; not yet placed in 1.11) */
 _stop_loaded_module proc far
     mov ax, 2
     call _call_sound_module
     retf
 _stop_loaded_module endp
 
-/* 0x0bbcd */
+/* 0x0bbcd (1.00's; not yet placed in 1.11) */
 _sound_module_shutdown proc far
     mov ax, 0ch
     call _call_sound_module
     retf
 _sound_module_shutdown endp
 
-/* 0x0bbd4: SI at the wrapper's caller's arguments, past BP and two returns. */
+/* 0x0c816: SI at the wrapper's caller's arguments, past BP and two returns. */
 _call_sound_module proc near
     push bp
     mov bp, sp
@@ -126,7 +126,7 @@ _call_sound_module proc near
     ret
 _call_sound_module endp
 
-/* 0x0bbe6: six bytes of stack for the three words the module writes back. */
+/* 0x0c817: six bytes of stack for the three words the module writes back. */
 _sound_module_position proc far
     mov ax, 0dh
     push bp
@@ -149,7 +149,7 @@ _TEXT ends
 #else
 
 /*
- * 0x0bb98
+ * 0x0c7e1
  *
  * Install the module. Its two arguments are the host callback and a flag, and
  * `asb_install` takes neither: what the original passes on the stack the
@@ -165,7 +165,7 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 
 
 /*
- * 0x0bb9f
+ * 0x0c7ec
  */
 uint16_t sound_module_set_rate(union sound_module_args * si)
 {
@@ -174,7 +174,7 @@ uint16_t sound_module_set_rate(union sound_module_args * si)
 
 
 /*
- * 0x0bba6
+ * 0x0bba6 (1.00's; not yet placed in 1.11)
  *
  * The service call, and the only wrapper that touches hardware itself: it
  * sends the non-specific EOI to the master PIC before entering the module.
@@ -196,21 +196,21 @@ void sound_module_tick(void)
 
 
 /*
- * 0x0bbb1
+ * 0x0bbb1 (1.00's; not yet placed in 1.11)
  *
  * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
  * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430. One address each, because
  * a group comment is provenance for the routine it sits above and no other.
  */
 uint16_t sound_module_9(union sound_module_args * si)  { return call_sound_module(9, si); }
-/* 0x0bbb8 */
+/* 0x0bbb8 (1.00's; not yet placed in 1.11) */
 uint16_t sound_module_10(union sound_module_args * si) { return call_sound_module(10, si); }
-/* 0x0bbbf */
+/* 0x0bbbf (1.00's; not yet placed in 1.11) */
 uint16_t sound_module_11(union sound_module_args * si) { return call_sound_module(11, si); }
 
 
 /*
- * 0x0bbc6
+ * 0x0bbc6 (1.00's; not yet placed in 1.11)
  *
  * Take the module down.
  */
@@ -221,7 +221,7 @@ uint16_t stop_loaded_module(void)
 
 
 /*
- * 0x0bbcd
+ * 0x0bbcd (1.00's; not yet placed in 1.11)
  */
 uint16_t sound_module_shutdown(void)
 {
@@ -230,7 +230,7 @@ uint16_t sound_module_shutdown(void)
 
 
 /*
- * 0x0bbd4
+ * 0x0c816
  *
  * The trampoline every call into the **loaded sound module** goes through:
  * push a frame, point SI at the caller's own arguments - `bp + 8`, which is
@@ -254,7 +254,7 @@ uint16_t call_sound_module(uint16_t fn, union sound_module_args * si)
 
 
 /*
- * 0x0bbe6
+ * 0x0c817
  *
  * Ask the module where it has got to. Six bytes of stack are reserved for the
  * three words it writes back and popped afterwards - the original keeps the

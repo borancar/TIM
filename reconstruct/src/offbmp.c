@@ -27,7 +27,7 @@
 #include "dgroup.h"
 
 /*
- * 0x24e9a
+ * 0x26b24
  *
  * Draw a bitmap stored as a quadtree - the form `load_bitmaps` gives a
  * "BMP:VQT:" file - mirrored as `mode` says, through `draw_vqt_flipped`.

@@ -50,7 +50,7 @@ typedef void (far *vm_span_fn)(void);
 void (far *g_compressed_body_vector)() = (void (far *)())draw_compressed_body;
 
 /*
- * 0x20189
+ * 0x21e13
  *
  * Draw a bitmap in the compressed form `compress_bitmap_list` writes.
  *

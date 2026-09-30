@@ -89,7 +89,7 @@ struct part_template g_part_templates[PART_KIND_COUNT] = {
 };
 
 /*
- * 0x1405b
+ * 0x15c97
  *
  * Build the list of parts a level may use, and reset the machine's state around
  * it: the list head at DGROUP 0x50d7, the two pairs at 0x5179 and 0x521b, the
@@ -149,7 +149,7 @@ void build_part_list(void)
 }
 
 /*
- * 0x14133
+ * 0x15d47
  *
  * Make one part: a 0xa2-byte record off the near heap, filled from the
  * sixteen-byte-per-part table at DGROUP 0x2966 and the bitmap list
@@ -216,7 +216,7 @@ done:
 }
 
 /*
- * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
+ * 0x15e94 .. 0x14d42 - the **part initialisers**, fifty-one routines.
  *
  * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
  * +0x0c, and `make_part` calls it through that. Fifty-eight kind
@@ -246,7 +246,7 @@ done:
  * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
  */
 
-/* 0x14236 */
+/* 0x15e94 */
 uint16_t part_init_bowling_ball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -256,7 +256,7 @@ uint16_t part_init_bowling_ball(struct part *part)
     return 0;
 }
 
-/* 0x14267 */
+/* 0x15eb7 */
 uint16_t part_init_platform(struct part *part)
 {
     part->traits |= TRAIT_TILED;
@@ -269,7 +269,7 @@ uint16_t part_init_platform(struct part *part)
     return 0;
 }
 
-/* 0x142a1 */
+/* 0x15eef */
 uint16_t part_init_ramp(struct part *part)
 {
     part->traits |= (TRAIT_CAN_FLIP_VERTICAL | TRAIT_CAN_FLIP_HORIZONTAL);
@@ -283,7 +283,7 @@ uint16_t part_init_ramp(struct part *part)
     return 0;
 }
 
-/* 0x142e6 */
+/* 0x15efb */
 uint16_t part_init_seesaw(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -296,7 +296,7 @@ uint16_t part_init_seesaw(struct part *part)
     return 0;
 }
 
-/* 0x14320 */
+/* 0x15f6a */
 uint16_t part_init_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -311,7 +311,7 @@ uint16_t part_init_balloon(struct part *part)
     return 0;
 }
 
-/* 0x14361 */
+/* 0x15fa9 */
 uint16_t part_init_conveyor(struct part *part)
 {
     part->state |= (STATE_TAKES_BELT | STATE_RESIZE_HORIZONTAL);
@@ -327,7 +327,7 @@ uint16_t part_init_conveyor(struct part *part)
     return 0;
 }
 
-/* 0x143b3 */
+/* 0x15ff9 */
 uint16_t part_init_mouse_cage(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -343,7 +343,7 @@ uint16_t part_init_mouse_cage(struct part *part)
     return 0;
 }
 
-/* 0x143fb */
+/* 0x1603f */
 uint16_t part_init_pulley(struct part *part)
 {
     part->state |= STATE_TAKES_ROPE;
@@ -358,7 +358,7 @@ uint16_t part_init_pulley(struct part *part)
     return 0;
 }
 
-/* 0x1443d */
+/* 0x1604b */
 uint16_t part_init_belt(struct part *part)
 {
     if ((part->belt = (calloc_far(1, sizeof(struct belt)))) == 0)
@@ -367,7 +367,7 @@ uint16_t part_init_belt(struct part *part)
     return 0;
 }
 
-/* 0x1446c */
+/* 0x160b8 */
 uint16_t part_init_basketball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -377,7 +377,7 @@ uint16_t part_init_basketball(struct part *part)
     return 0;
 }
 
-/* 0x1449d */
+/* 0x160e7 */
 uint16_t part_init_rope(struct part *part)
 {
     if ((part->rope[0] = (calloc_far(1, sizeof(struct rope)))) == 0)
@@ -386,7 +386,7 @@ uint16_t part_init_rope(struct part *part)
     return 0;
 }
 
-/* 0x144cb */
+/* 0x16113 */
 uint16_t part_init_bird_cage(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -401,7 +401,7 @@ uint16_t part_init_bird_cage(struct part *part)
     return 0;
 }
 
-/* 0x1450c */
+/* 0x16146 */
 uint16_t part_init_pokey(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -414,7 +414,7 @@ uint16_t part_init_pokey(struct part *part)
     return 0;
 }
 
-/* 0x14547 */
+/* 0x1617f */
 uint16_t part_init_jack_in_the_box(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -430,7 +430,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
     return 0;
 }
 
-/* 0x1458f */
+/* 0x161c5 */
 uint16_t part_init_gear(struct part *part)
 {
     part->state |= STATE_TAKES_BELT;
@@ -444,7 +444,7 @@ uint16_t part_init_gear(struct part *part)
     return 0;
 }
 
-/* 0x145d1 */
+/* 0x161d1 */
 uint16_t part_init_bob_the_fish(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -456,7 +456,7 @@ uint16_t part_init_bob_the_fish(struct part *part)
     return 0;
 }
 
-/* 0x14607 */
+/* 0x16205 */
 uint16_t part_init_bellow(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -468,7 +468,7 @@ uint16_t part_init_bellow(struct part *part)
     return 0;
 }
 
-/* 0x1463d */
+/* 0x1626d */
 uint16_t part_init_bucket(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -483,7 +483,7 @@ uint16_t part_init_bucket(struct part *part)
     return 0;
 }
 
-/* 0x1467e */
+/* 0x162ac */
 uint16_t part_init_cannon(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -497,7 +497,7 @@ uint16_t part_init_cannon(struct part *part)
     return 0;
 }
 
-/* 0x146bd */
+/* 0x162b8 */
 uint16_t part_init_dynamite(struct part *part)
 {
     part->traits |= (TRAIT_SLIDES | TRAIT_CAN_FLIP_HORIZONTAL);
@@ -511,7 +511,7 @@ uint16_t part_init_dynamite(struct part *part)
     return 0;
 }
 
-/* 0x146fc */
+/* 0x162f5 */
 uint16_t part_init_bullet(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -521,7 +521,7 @@ uint16_t part_init_bullet(struct part *part)
     return 0;
 }
 
-/* 0x1472d */
+/* 0x16355 */
 uint16_t part_init_electric_plug(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
@@ -535,7 +535,7 @@ uint16_t part_init_electric_plug(struct part *part)
     return 0;
 }
 
-/* 0x1476c */
+/* 0x16361 */
 uint16_t part_init_dynamite_plunger(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -548,7 +548,7 @@ uint16_t part_init_dynamite_plunger(struct part *part)
     return 0;
 }
 
-/* 0x147a7 */
+/* 0x163d7 */
 uint16_t part_init_hook(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
@@ -558,7 +558,7 @@ uint16_t part_init_hook(struct part *part)
     return 0;
 }
 
-/* 0x147c5 */
+/* 0x163e7 */
 uint16_t part_init_fan(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -572,7 +572,7 @@ uint16_t part_init_fan(struct part *part)
     return 0;
 }
 
-/* 0x14804 */
+/* 0x163f3 */
 uint16_t part_init_flashlight(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -584,7 +584,7 @@ uint16_t part_init_flashlight(struct part *part)
     return 0;
 }
 
-/* 0x1483a */
+/* 0x16458 */
 uint16_t part_init_generator(struct part *part)
 {
     part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
@@ -597,7 +597,7 @@ uint16_t part_init_generator(struct part *part)
     return 0;
 }
 
-/* 0x14874 */
+/* 0x16464 */
 uint16_t part_init_gun(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -610,7 +610,7 @@ uint16_t part_init_gun(struct part *part)
     return 0;
 }
 
-/* 0x148af */
+/* 0x1649c */
 uint16_t part_init_baseball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -620,7 +620,7 @@ uint16_t part_init_baseball(struct part *part)
     return 0;
 }
 
-/* 0x148e0 */
+/* 0x16504 */
 uint16_t part_init_light(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
@@ -630,7 +630,7 @@ uint16_t part_init_light(struct part *part)
     return 0;
 }
 
-/* 0x148ff */
+/* 0x16521 */
 uint16_t part_init_magnifying_glass(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -639,7 +639,7 @@ uint16_t part_init_magnifying_glass(struct part *part)
     return 0;
 }
 
-/* 0x14919 */
+/* 0x1652d */
 uint16_t part_init_monkey(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -652,7 +652,7 @@ uint16_t part_init_monkey(struct part *part)
     return 0;
 }
 
-/* 0x14954 */
+/* 0x16539 */
 uint16_t part_init_pumpkin(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -662,7 +662,7 @@ uint16_t part_init_pumpkin(struct part *part)
     return 0;
 }
 
-/* 0x14985 */
+/* 0x16595 */
 uint16_t part_init_heart_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -677,7 +677,7 @@ uint16_t part_init_heart_balloon(struct part *part)
     return 0;
 }
 
-/* 0x149c6 */
+/* 0x165a1 */
 uint16_t part_init_christmas_tree(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -687,7 +687,7 @@ uint16_t part_init_christmas_tree(struct part *part)
     return 0;
 }
 
-/* 0x149f7 */
+/* 0x16603 */
 uint16_t part_init_boxing_glove(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -699,7 +699,7 @@ uint16_t part_init_boxing_glove(struct part *part)
     return 0;
 }
 
-/* 0x14a2d */
+/* 0x16637 */
 uint16_t part_init_rocket(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -712,7 +712,7 @@ uint16_t part_init_rocket(struct part *part)
     return 0;
 }
 
-/* 0x14a67 */
+/* 0x16643 */
 uint16_t part_init_scissors(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -725,7 +725,7 @@ uint16_t part_init_scissors(struct part *part)
     return 0;
 }
 
-/* 0x14aa2 */
+/* 0x166b4 */
 uint16_t part_init_solar_panel(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -734,7 +734,7 @@ uint16_t part_init_solar_panel(struct part *part)
     return 0;
 }
 
-/* 0x14ab9 */
+/* 0x166c9 */
 uint16_t part_init_trampoline(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -746,7 +746,7 @@ uint16_t part_init_trampoline(struct part *part)
     return 0;
 }
 
-/* 0x14aef */
+/* 0x166f1 */
 uint16_t part_init_windmill(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -762,7 +762,7 @@ uint16_t part_init_windmill(struct part *part)
     return 0;
 }
 
-/* 0x14b37 */
+/* 0x166fd */
 uint16_t part_init_mort_the_mouse(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -775,7 +775,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
     return 0;
 }
 
-/* 0x14b72 */
+/* 0x16743 */
 uint16_t part_init_cannon_ball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -785,7 +785,7 @@ uint16_t part_init_cannon_ball(struct part *part)
     return 0;
 }
 
-/* 0x14ba3 */
+/* 0x1677c */
 uint16_t part_init_tennis_ball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -795,7 +795,7 @@ uint16_t part_init_tennis_ball(struct part *part)
     return 0;
 }
 
-/* 0x14bd4 */
+/* 0x167ce */
 uint16_t part_init_candle(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -809,7 +809,7 @@ uint16_t part_init_candle(struct part *part)
     return 0;
 }
 
-/* 0x14c12 */
+/* 0x167da */
 uint16_t part_init_corner_pipe(struct part *part)
 {
     part->traits |= (TRAIT_CAN_FLIP_VERTICAL | TRAIT_CAN_FLIP_HORIZONTAL);
@@ -821,7 +821,7 @@ uint16_t part_init_corner_pipe(struct part *part)
     return 0;
 }
 
-/* 0x14c48 */
+/* 0x1684a */
 uint16_t part_init_anchor(struct part *part)
 {
     part->state |= STATE_TAKES_ROPE;
@@ -831,7 +831,7 @@ uint16_t part_init_anchor(struct part *part)
     return 0;
 }
 
-/* 0x14c62 */
+/* 0x16862 */
 uint16_t part_init_motor(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -845,7 +845,7 @@ uint16_t part_init_motor(struct part *part)
     return 0;
 }
 
-/* 0x14ca0 */
+/* 0x1689e */
 uint16_t part_init_kind_55(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -858,7 +858,7 @@ uint16_t part_init_kind_55(struct part *part)
     return 0;
 }
 
-/* 0x14cd9 */
+/* 0x168db */
 uint16_t part_init_kind_56(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -868,7 +868,7 @@ uint16_t part_init_kind_56(struct part *part)
     return 0;
 }
 
-/* 0x14d0a */
+/* 0x1696d */
 uint16_t part_init_kind_57(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -882,7 +882,7 @@ uint16_t part_init_kind_57(struct part *part)
 }
 
 /*
- * 0x14d43
+ * 0x16b42
  *
  * Throw the whole machine away: every part on the three lists at DGROUP
  * 0x50d7, 0x521b and 0x5179 is freed and the three heads cleared. The intro
@@ -900,7 +900,7 @@ void free_all_lists(void)
 }
 
 /*
- * 0x14d71
+ * 0x16b70
  *
  * Free every part on one list. The next pointer is taken out of the record
  * *before* the record is freed, which is the only way to walk a list you are
@@ -919,7 +919,7 @@ void free_part_list(struct part *si)
 }
 
 /*
- * 0x14d95
+ * 0x16b94
  *
  * Give a part back: its per-bitmap array, then two records it may or may not
  * own, then the part itself. Every free goes through the checked one, so a

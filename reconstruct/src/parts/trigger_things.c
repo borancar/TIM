@@ -37,7 +37,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:477d, image 0x1ba3d
+ * 190f:46a7, image 0x1d797
  *
  * Set going whatever is in the chain at +0x78, at a point `dx` from the part's
  * own position.

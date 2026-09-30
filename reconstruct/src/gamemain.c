@@ -23,7 +23,7 @@
 #include "dgroup.h"
 
 /*
- * 0x0dfff
+ * 0x0eccf
  *
  * **`main`.** The Borland startup calls it at image 0x00155 with argc, argv
  * and envp, and pushes the answer straight into `exit`. The game reads none of
@@ -43,7 +43,7 @@ void game_main(void)
 }
 
 /*
- * 0x0e01d
+ * 0x0e01d (1.00's; not yet placed in 1.11)
  *
  * The whole bring-up, in the original's order: refuse to run without enough
  * memory, read the two configuration files, start the video driver, load the
@@ -197,7 +197,7 @@ void game_startup(void)
 }
 
 /*
- * 0x0e34a
+ * 0x0e34a (1.00's; not yet placed in 1.11)
  *
  * **Leaving the game.** `game_main`'s fourth call, and the one that actually
  * takes the program down.

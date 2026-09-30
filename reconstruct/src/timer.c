@@ -76,7 +76,7 @@ assume cs:TIMER_TEXT, ds:DGROUP
 public _timer_add_callback, _timer_drop_callback, _timer_install, _timer_remove
 public _timer_tick, _blit_rows_thunk, _blit_rows_alt_thunk
 
-/* 0x20654 */
+/* 0x222de */
 _timer_add_callback proc far
         push bp
         mov bp, sp
@@ -115,7 +115,7 @@ L2069c:
         retf
 _timer_add_callback endp
 
-/* 0x2069e */
+/* 0x22328 */
 _timer_drop_callback proc far
         push bp
         mov bp, sp
@@ -138,7 +138,7 @@ c_206bd db 0h, 0h
 c_206bf db 0h, 0h
 _timer_drop_callback endp
 
-/* 0x206c1 */
+/* 0x2234b */
 _timer_install proc far
         push bp
         mov bp, sp
@@ -189,7 +189,7 @@ L2072c:
         retf
 _timer_install endp
 
-/* 0x2072e */
+/* 0x223b8 */
 _timer_remove proc far
         mov ax, 0
         cmp byte ptr DGROUP:d_44ee, al
@@ -218,7 +218,7 @@ L20766:
         retf
 _timer_remove endp
 
-/* 0x20767 */
+/* 0x223f1 */
 _timer_tick proc near
         push ax
         push bx
@@ -333,12 +333,12 @@ L20824:
         jmp dword ptr cs:c_206bd
 _timer_tick endp
 
-/* 0x20838 */
+/* 0x20838 (1.00's; not yet placed in 1.11) */
 _blit_rows_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+48h
 _blit_rows_thunk endp
 
-/* 0x2083c */
+/* 0x2083c (1.00's; not yet placed in 1.11) */
 _blit_rows_alt_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+4ch
 _blit_rows_alt_thunk endp
@@ -354,7 +354,7 @@ struct timer g_timer = { .divisor = -1 };   /* DGROUP 0x44ee */
 static void (far *g_timer_callbacks[16])(void);
 
 /*
- * 0x20654
+ * 0x222de
  *
  * Take a slot in the timer's callback table and fill it in. Answers the slot
  * number plus one - so 1..8, with 0 meaning it could not.
@@ -409,7 +409,7 @@ uint16_t timer_add_callback(void (far *cb)(void), uint16_t period)
 }
 
 /*
- * 0x2069e
+ * 0x22328
  *
  * Give a timer slot back: clear its bit in the mask at DGROUP 0x44f7. Answers 1
  * if it did, 0 if the handle was out of range.
@@ -449,7 +449,7 @@ uint16_t timer_drop_callback(uint16_t handle)
 }
 
 /*
- * 0x206c1
+ * 0x2234b
  *
  * Take over the timer. Answers 1, or 0 if it was already taken or the rate is
  * out of range.
@@ -510,7 +510,7 @@ int16_t timer_install(uint16_t rate)
 }
 
 /*
- * 0x2072e
+ * 0x223b8
  *
  * Give the timer back. Answers 1 if it had it, 0 if it did not.
  *
@@ -540,7 +540,7 @@ int16_t timer_remove(void)
 }
 
 /*
- * 0x20767
+ * 0x223f1
  *
  * The game's timer interrupt: what everything paced is paced by.
  *
@@ -611,7 +611,7 @@ void timer_tick(void)
 }
 
 /*
- * 0x20838
+ * 0x20838 (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
  */
@@ -622,7 +622,7 @@ void blit_rows_thunk(const uint8_t far * src, int16_t x, int16_t y,
 }
 
 /*
- * 0x2083c
+ * 0x2083c (1.00's; not yet placed in 1.11)
  *
  * A thunk into the video driver: `ljmp [0x438e]`, which on this adapter is
  * VGA:0x0252 - the entry that does nothing at all.

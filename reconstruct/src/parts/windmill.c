@@ -19,7 +19,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:496f, image 0x1bc2f - a setup.
+ * 190f:488a, image 0x1d97a - a setup.
  *
  * Three points, a tall triangle - the peak at y 17 and the base at 47.
  */
@@ -40,7 +40,7 @@ void part_setup_windmill(struct part *part)
 }
 
 /*
- * 172c:49a1, image 0x1bc61 - kind 40's step.
+ * 190f:48bc, image 0x1d9ac - kind 40's step.
  *
  * A countdown at +0x9c: while it is running the part is "on", which it says in
  * the word at +0x12 and passes to whatever its belt is tied to - as 1, or -1
@@ -87,7 +87,7 @@ void part_step_windmill(struct part *part)
 }
 
 /*
- * 172c:4a22, image 0x1bce2 - kind 40's flip: bit 4 and three marks, with
+ * 190f:493f, image 0x1da2f - kind 40's flip: bit 4 and three marks, with
  * **neither a setup nor a draw**. The leanest of the twenty.
  */
 void part_flip_windmill(struct part *part)

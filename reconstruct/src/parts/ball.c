@@ -42,7 +42,7 @@
 #include "dgroup.h"
 
 /*
- * 172c:0001, image 0x172c1 - a setup.
+ * 190f:000c, image 0x190fc - a setup.
  *
  * Eight points round a 32 by 32 part, written straight out.
  */
@@ -78,7 +78,7 @@ void part_setup_big_ball(struct part *part)
 }
 
 /*
- * 172c:0065, image 0x17325 - a setup.
+ * 190f:0070, image 0x19160 - a setup.
  *
  * The same eight-cornered shape on a 23 by 23 part.
  */
@@ -114,7 +114,7 @@ void part_setup_cannon_ball(struct part *part)
 }
 
 /*
- * 172c:00c9, image 0x17389 - a setup.
+ * 190f:00d4, image 0x191c4 - a setup.
  *
  * The same again, smaller still - 15 by 15.
  */

@@ -52,7 +52,7 @@ void near blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
 #endif
 
 /*
- * 0x24f72
+ * 0x26bfc
  *
  * Load a bitmap file, whichever of four shapes it is in, and answer the list.
  * The start-up calls it for "cp.bmp" and "gp_bord.bmp"; it is the door that
@@ -181,7 +181,7 @@ out:
 }
 
 /*
- * 0x252b4
+ * 0x26f3e
  *
  * Walk a bitmap list and write the same word into every header's `mask_off`,
  * which is the +4 the original writes and the field a loader leaves its
@@ -205,7 +205,7 @@ void near set_mask_of_each(uint16_t value, struct bitmap **list)
 }
 
 /*
- * 0x252d0
+ * 0x26f5a
  *
  * A thunk from this module into `free_bitmaps` in segment 1c25, which is a
  * `push`, an `lcall` and nothing else. It exists because the two are different
@@ -217,7 +217,7 @@ void free_bitmaps_thunk(struct bitmap **list)
 }
 
 /*
- * 0x252e0
+ * 0x26f6a
  *
  * Count the entries in a null-terminated array of words. A null array answers
  * 0 without looking at it, which is what the test before the loop is for.
@@ -245,7 +245,7 @@ uint16_t count_list(struct bitmap **list)
 }
 
 /*
- * 0x25300
+ * 0x26f8a
  *
  * Draw one bitmap, choosing how by the marker its loader left in `mask_off`.
  *
@@ -287,7 +287,7 @@ void draw_bitmap(struct bitmap *bmp, int16_t x, int16_t y, uint16_t mode)
 }
 
 /*
- * 0x2537d
+ * 0x27007
  *
  * **`draw_bitmap_scaled`'s twin, and nothing calls it.** The same
  * normalisation and the same choice as the one at 0x0b9c9 - nothing for the
@@ -328,7 +328,7 @@ void draw_bitmap_scaled_248f(struct bitmap *bmp, int16_t x, int16_t y,
 }
 
 /*
- * 0x253e7
+ * 0x27071
  *
  * Load a screen - a whole 320x200 image rather than a sprite - and paint it.
  *
@@ -403,7 +403,7 @@ close:
 }
 
 /*
- * 0x2551a
+ * 0x271a4
  *
  * Read a 32-bit count of bytes from a file into a far destination, through a
  * bounce buffer, because the read below it takes a near buffer and a 16-bit
@@ -468,7 +468,7 @@ void near read_far(uint8_t huge *dst, int32_t count, FILE *file)
 }
 
 /*
- * 0x25639
+ * 0x272c3
  *
  * Read a "BMP:VQT:" chunk and decode every bitmap in the list out of it.
  *

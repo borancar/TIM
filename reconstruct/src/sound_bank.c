@@ -20,7 +20,7 @@
 #include "dgroup.h"
 
 /*
- * 0x28935
+ * 0x28935 (1.00's; not yet placed in 1.11)
  *
  * Build a sequence record around a block of note data, and answer it as a far
  * pointer - or a null one if there was no room.
@@ -63,7 +63,7 @@ struct sequence far *create_sequence(const uint8_t far * src)
 }
 
 /*
- * 0x289ba
+ * 0x289ba (1.00's; not yet placed in 1.11)
  *
  * Follow a chain to its end and, if anything is there, retire and tick.
  *
@@ -78,7 +78,7 @@ void follow_then_tick(struct sequence far * seq, int16_t count)
 }
 
 /*
- * 0x289e8
+ * 0x289e8 (1.00's; not yet placed in 1.11)
  *
  * Load the sound bank for whatever device is configured, and answer it as a far
  * pointer, or null.
@@ -200,7 +200,7 @@ done:
 }
 
 /*
- * 0x28baf
+ * 0x28baf (1.00's; not yet placed in 1.11)
  *
  * Free a whole chain of nodes, each linked to the next by the far pointer at
  * its +4, and all of them kind 9.
@@ -225,7 +225,7 @@ void free_node_list(struct sound_node far * list)
 }
 
 /*
- * 0x28bf2
+ * 0x28bf2 (1.00's; not yet placed in 1.11)
  *
  * Walk a resource's record list looking for one with a given identifier.
  * Answers 1 if it stopped on it, 0 for anything else.
@@ -279,7 +279,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
 }
 
 /*
- * 0x28cf7
+ * 0x28cf7 (1.00's; not yet placed in 1.11)
  *
  * Read a run of four-byte items out of a resource into an ordered list of
  * eight-byte nodes, and answer the head.
@@ -333,7 +333,7 @@ struct sound_node far *read_sound_records(int16_t handle)
 }
 
 /*
- * 0x28ddb
+ * 0x28643
  *
  * Insert a node into a list kept in ascending order of the word at its +0. The
  * link is at +4, as a far pointer, and the answer is the head - which changes
@@ -373,7 +373,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 }
 
 /*
- * 0x28e87
+ * 0x28e87 (1.00's; not yet placed in 1.11)
  *
  * Gather the items a node list names into one block: a small directory at the
  * front and the items themselves behind it.
@@ -429,7 +429,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
 }
 
 /*
- * 0x28f74
+ * 0x28f74 (1.00's; not yet placed in 1.11)
  *
  * Load a whole resource into a fresh block and answer it as a far pointer, or
  * null.
@@ -472,7 +472,7 @@ uint8_t far *load_resource_block(FILE *file, uint32_t size,
 }
 
 /*
- * 0x29034
+ * 0x29034 (1.00's; not yet placed in 1.11)
  *
  * Load a sequence and start it: follow the chain of far pointers to the record,
  * set its default volume, and hand it to `start_sequence`.
@@ -501,7 +501,7 @@ struct sequence far *load_and_start_sequence(struct sequence far * seq, int16_t 
 }
 
 /*
- * 0x2907b
+ * 0x2b8b4
  *
  * Follow a chain of **far** pointers - offset at +0x172, segment at +0x174 -
  * for at most `count` links, stopping early on a null pointer.
@@ -521,7 +521,7 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 }
 
 /*
- * 0x290ab
+ * 0x290ab (1.00's; not yet placed in 1.11)
  *
  * Stop whichever voice is playing a given sequence. The same seven-entry table
  * at DGROUP 0x6414 that `voice_playing` searches, and the same match on the far
@@ -549,7 +549,7 @@ void stop_voice_playing(const uint8_t far * source)
 }
 
 /*
- * 0x29106
+ * 0x29106 (1.00's; not yet placed in 1.11)
  *
  * Give the seven voice records back to the allocator, as kind 2.
  *
@@ -576,7 +576,7 @@ uint16_t free_voice_records(void)
 }
 
 /*
- * 0x29152
+ * 0x29152 (1.00's; not yet placed in 1.11)
  *
  * Give a sequence to the first free voice and start it.
  *
@@ -631,7 +631,7 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
 }
 
 /*
- * 0x2923d
+ * 0x2923d (1.00's; not yet placed in 1.11)
  *
  * Retire every voice that is still marked as playing. The seven-entry table at
  * DGROUP 0x6414 again, the 0xff at +0x158 as the mark, and

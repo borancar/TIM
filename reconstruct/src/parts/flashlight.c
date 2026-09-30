@@ -36,7 +36,7 @@ struct point8 g_flashlight_points_3308[6] = {
 };
 
 /*
- * 172c:1d07, image 0x18fc7 - kind 25's hit test.
+ * 190f:1ce4, image 0x1add4 - kind 25's hit test.
  *
  * The hook is the *linked* thing's, run on whatever ran into it: `di` is the
  * kind 25 part at the hit object's +0x84 and `si` the object that arrived.
@@ -56,7 +56,7 @@ uint16_t part_hit_flashlight(struct part *part)
 }
 
 /*
- * 172c:1d28, image 0x18fe8 - a setup.
+ * 190f:1d03, image 0x1adf3 - a setup.
  *
  * Six points, from DGROUP 0x3308 or 0x32fc as bit 4 of +8 says. Two bytes a
  * point at the source and four at the destination, as usual.
@@ -81,7 +81,7 @@ void part_setup_flashlight(struct part *part)
 }
 
 /*
- * 172c:1d78, image 0x19038 - kind 25's step.
+ * 190f:1d53, image 0x1ae43 - kind 25's step.
  *
  * One move and then nothing: turned on in form 0 it steps to form 1, runs its
  * own setup again because the shape has changed, and plays sound 0x11. In any
@@ -98,7 +98,7 @@ void part_step_flashlight(struct part *part)
 }
 
 /*
- * 172c:1da8, image 0x19068 - kind 25's flip, the three-mark shape.
+ * 190f:1d83, image 0x1ae73 - kind 25's flip, the three-mark shape.
  */
 void part_flip_flashlight(struct part *part)
 {

@@ -22,7 +22,7 @@
 struct sound_tick_wait g_sound_tick_wait;
 
 /*
- * 0x292f4
+ * 0x292f4 (1.00's; not yet placed in 1.11)
  *
  * Shut the sound down: silence the driver, let whatever is playing finish, and
  * give both blocks back.
@@ -68,7 +68,7 @@ void stop_sound(void)
 }
 
 /*
- * 0x2937f
+ * 0x2b68f
  *
  * Wait five timer ticks. A counter at DGROUP 0x6430 is set to five, a callback
  * registered at four ticks a time, and the routine **spins** until the callback
@@ -96,7 +96,7 @@ void delay_five_ticks(void)
 }
 
 /*
- * 0x293b8
+ * 0x293b8 (1.00's; not yet placed in 1.11)
  *
  * The callback `delay_five_ticks` registers: one instruction of work, counting
  * DGROUP 0x6430 down by one each tick.
@@ -107,7 +107,7 @@ void tick_delay(void)
 }
 
 /*
- * 0x293c1
+ * 0x293c1 (1.00's; not yet placed in 1.11)
  *
  * Unlink records from the list at DGROUP 0x4a88 and give them back. The
  * selector is the one `next_matching_record` uses - 0 for every record, -1 and
@@ -185,7 +185,7 @@ uint16_t remove_and_free_records(int16_t selector)
 }
 
 /*
- * 0x294ff
+ * 0x294ff (1.00's; not yet placed in 1.11)
  *
  * Stop sequences. Which ones is the selector, and it is the same vocabulary
  * `next_matching_record` uses: -1 for the ones with bit 0 of +0x12 set, -2 for
@@ -274,7 +274,7 @@ uint16_t stop_sequences(int16_t selector)
 }
 
 /*
- * 0x296a1
+ * 0x296a1 (1.00's; not yet placed in 1.11)
  *
  * Set the master level and answer 1. The 1 is unconditional - nothing below
  * reports failure, so this cannot either.

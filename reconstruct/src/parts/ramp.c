@@ -90,7 +90,7 @@ struct point8 *g_ramp_point_table_338c[4] = {
 };
 
 /*
- * 172c:2728, image 0x199e8 - kind 2's setup. The ramp.
+ * 190f:26e1, image 0x1b7d1 - kind 2's setup. The ramp.
  *
  * Four points, from one of two tables of offsets picked by the mirror bit at
  * +8 and indexed by the form. The same shape as the bellow's and the
@@ -117,7 +117,7 @@ void part_setup_ramp(struct part *part)
 }
 
 /*
- * 172c:2789, image 0x19a49 - kind 2's settle. The same copy of the dragged
+ * 190f:273f, image 0x1b82f - kind 2's settle. The same copy of the dragged
  * size into the real one, a form of `width / 0x10 - 1`, and then its own setup
  * at 172c:2728 to rebuild the connection points from it.
  */
@@ -130,7 +130,7 @@ void part_settle_ramp(struct part *part)
 }
 
 /*
- * 172c:27b6, image 0x19a76 - **kind 2's flip**, the hook at +0x30 of its kind
+ * 190f:276c, image 0x1b85c - **kind 2's flip**, the hook at +0x30 of its kind
  * record that `part_flip_options` calls to try an end and then put it back.
  *
  * Flipping is one `xor` of bit 0x10 in +8, which is why calling it twice with

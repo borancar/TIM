@@ -28,7 +28,7 @@ struct point8 g_balloon_points_3182[8] = {
 };
 
 /*
- * 172c:012d, image 0x173ed - a setup.
+ * 190f:0138, image 0x19228 - a setup.
  *
  * The same eight connection points every setup writes, but read from the
  * table at DGROUP 0x3182 rather than built from immediates - which is why it
@@ -53,7 +53,7 @@ void part_setup_balloon(struct part *part)
 }
 
 /*
- * 172c:016e, image 0x1742e - kind 4's hit test.
+ * 190f:0179, image 0x19269 - kind 4's hit test.
  *
  * Only one kind of arrival counts: 0x14. That sets the part at the object's
  * +0x84 going at +0x12, and anything else touching it does nothing. The answer
@@ -70,7 +70,7 @@ uint16_t part_hit_balloon(struct part *part)
 }
 
 /*
- * 172c:018e, image 0x1744e - kind 4's step.
+ * 190f:017c, image 0x1926c - kind 4's step.
  *
  * A part that hands its rope over to something else and then disappears. At
  * form 6 it registers its shapes one last time and hides itself - bit 13 of
@@ -143,7 +143,7 @@ void part_step_balloon(struct part *part)
 }
 
 /*
- * 172c:02cd, image 0x1758d - kind 4's drive.
+ * 190f:02b5, image 0x193a5 - kind 4's drive.
  *
  * Seven arguments like every drive, and it uses four of them: the asking part
  * in the first, the driven part in the second, a mode in the fourth and a

@@ -81,7 +81,7 @@ struct puzzle_state {
 struct puzzle_state g_puzzle_state;
 
 /*
- * 0x0f0b0
+ * 0x10025
  *
  * **The SELECT PUZZLE screen**, and what "leave freeform mode" puts up before
  * going back to the puzzles: a list of them, and a field for the password that
@@ -331,7 +331,7 @@ uint16_t select_puzzle_screen(void)
 }
 
 /*
- * 0x0f468
+ * 0x103e2
  *
  * **Tab on the puzzle screen**, the third of these and the same trick: warp the
  * pointer. Five stops, cursor at DGROUP 0x260a, x at 0x260c and y at 0x2616 -
@@ -349,7 +349,7 @@ void puzzle_tab(void)
 }
 
 /*
- * 0x0f499
+ * 0x10413
  *
  * **Which page a score is on.** Pages hold 0x15 puzzles and are numbered from
  * **1**, so this walks 1, 0x16, 0x2b... until the page's last puzzle - its
@@ -369,7 +369,7 @@ uint16_t puzzle_page_of_score(void)
 }
 
 /*
- * 0x0f4b5
+ * 0x1042d
  *
  * **The puzzle screen's whole surface**, the counterpart of `picker_repaint`:
  * the title bar, two headings, three sunken wells, and then the same five
@@ -405,7 +405,7 @@ void puzzle_repaint(void)
 }
 
 /*
- * 0x0f57e
+ * 0x104ea
  *
  * The puzzle list's **up arrow**, and `picker_draw_up`'s twin in a different
  * screen: the same art at +0x4a of the set, the pressed one chosen by reading
@@ -428,7 +428,7 @@ void puzzle_draw_up(void)
 }
 
 /*
- * 0x0f5c4
+ * 0x10530
  *
  * The puzzle list's **down arrow**: art at +0x4e, mode 0x1000, and 0xca pixels
  * below its twin.
@@ -450,7 +450,7 @@ void puzzle_draw_down(void)
 }
 
 /*
- * 0x0f60a
+ * 0x10576
  *
  * The puzzle screen's **OK button**, and unlike the two arrows it is *told*
  * whether it is pressed rather than reading the mode - because the one caller
@@ -467,7 +467,7 @@ void puzzle_draw_ok(uint16_t pressed)
 }
 
 /*
- * 0x0f640
+ * 0x105ac
  *
  * **The password field**, and the third of these after the picker's two. Same
  * shape - copy, walk the pointer while the text is too wide, blink a caret by
@@ -509,7 +509,7 @@ void puzzle_draw_password(const char *text)
 }
 
 /*
- * 0x0f6cc
+ * 0x10638
  *
  * **The puzzle list.** 0x15 rows, each one built up in a local: `"PUZZLE "`,
  * the number, `": "`, and then the title out of the puzzle's own file.
@@ -561,7 +561,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
 }
 
 /*
- * 0x0f7b6
+ * 0x0f7b6 (1.00's; not yet placed in 1.11)
  *
  * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
  * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out
@@ -583,7 +583,7 @@ void load_all_parts(void)
 }
 
 /*
- * 0x0f7f4
+ * 0x10770
  *
  * Load one part's bitmaps: build "part" + the number + ".bmp", read it, and
  * keep the list at DGROUP 0xeba + 0x3a * n - so the parts' records are 0x3a
@@ -614,7 +614,7 @@ void load_part_bitmap(uint16_t n)
 }
 
 /*
- * 0x0f86e
+ * 0x107f0
  *
  * Give back every part's bitmaps: 0 to 0x39, one at a time, and no skipping -
  * unlike `load_all_parts`, which leaves out 10 and 0x31 because there is no
@@ -630,7 +630,7 @@ void free_all_part_bitmaps(void)
 }
 
 /*
- * 0x0f886
+ * 0x10808
  *
  * Give one part's bitmaps back, and clear its slot. A slot that is already
  * empty is left alone.

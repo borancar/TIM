@@ -37,7 +37,7 @@ struct point8 g_pokey_points_325c[5] = {
 };
 
 /*
- * 172c:0c1c, image 0x17edc - a setup.
+ * 190f:0c0b, image 0x19cfb - a setup.
  *
  * Five points, on bit 4 of +8 again - 0x325c or 0x3252, ten bytes apart.
  */
@@ -61,7 +61,7 @@ void part_setup_pokey(struct part *part)
 }
 
 /*
- * 172c:0c6c, image 0x17f2c - kind 12's hit test. Waking the cat.
+ * 190f:0c5b, image 0x19d4b - kind 12's hit test. Waking the cat.
  *
  * A cat in form 0 is put into form 1 with its counter cleared and mews - sound
  * 7. One already awake is left alone. It answers 1 either way.
@@ -81,7 +81,7 @@ uint16_t part_hit_pokey(struct part *part)
 }
 
 /*
- * 172c:0ca3, image 0x17f63 - kind 12's step. The cat.
+ * 190f:0c90, image 0x19d80 - kind 12's step. The cat.
  *
  * It walks in jumps of 0x20, and every jump is checked before it is kept: the
  * cat is moved, `object_overlaps_any` asked whether that put it inside
@@ -244,7 +244,7 @@ void part_step_pokey(struct part *part)
 }
 
 /*
- * 172c:0f3d, image 0x181fd - kind 12's flip.
+ * 190f:0f46, image 0x1a036 - kind 12's flip.
  *
  * Byte for byte the same routine as `part_flip_bellow` above with a different
  * setup behind it - checked as bytes, not assumed: of the twenty flips in this

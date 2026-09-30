@@ -36,7 +36,7 @@ struct point8 g_dynamite_points_329a[5] = {
 };
 
 /*
- * 172c:1237, image 0x184f7 - kind 19's hit test. A kind-0x14 part bursts it,
+ * 190f:1258, image 0x1a348 - kind 19's hit test. A kind-0x14 part bursts it,
  * and `burst_dynamite` is given the **struck part** here where kind 20's hit
  * gives it the collision record. The two call sites disagree and are
  * transcribed as they are.
@@ -52,7 +52,7 @@ uint16_t part_hit_dynamite(struct part *part)
 }
 
 /*
- * 172c:1261, image 0x18521 - a setup.
+ * 190f:127e, image 0x1a36e - a setup.
  *
  * The same arrangement with five points: 1 and 0x329a one way, 0x2d and 0x3290
  * the other, and 0xf at +0x73 either way. Ten bytes between the tables.
@@ -82,7 +82,7 @@ void part_setup_dynamite(struct part *part)
 }
 
 /*
- * 172c:12c2, image 0x18582 - kind 19's step. The balloon.
+ * 190f:12dc, image 0x1a3cc - kind 19's step. The balloon.
  *
  * It starts itself once its counter passes 0x14, then rises a frame at a time
  * until form 5, which is where it bursts.
@@ -103,7 +103,7 @@ void part_step_dynamite(struct part *part)
 }
 
 /*
- * 172c:12fc, image 0x185bc - kind 19's flip.
+ * 190f:1316, image 0x1a406 - kind 19's flip.
  *
  * The bit-4 flip and its setup, and then **only two of the three redraws**:
  * `place_object_for_draw` is not called here where the 03d2 family calls it.
@@ -119,7 +119,7 @@ void part_flip_dynamite(struct part *part)
 }
 
 /*
- * 172c:1328, image 0x185e8
+ * 190f:1342, image 0x1a432
  *
  * Burst it: the form goes to 5, a kind 0x29 - the shreds - is made and put on
  * the list at DGROUP 0x521b at a fixed offset up and to the left, sound 8

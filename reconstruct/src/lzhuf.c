@@ -146,7 +146,7 @@ public _huffman_start, _huffman_reconst, _huffman_update, _encode_char
 public _encode_position, _encode_end, _decode_position, _lzss_flush
 public _decompress_lzss
 
-/* 0x1dba8 */
+/* 0x1dba8 (1.00's; not yet placed in 1.11) */
 _lzss_open_write proc near
         mov word ptr DGROUP:d_58fe, 0
         mov word ptr DGROUP:d_3603, 0
@@ -190,7 +190,7 @@ _lzss_open_write proc near
         ret
 _lzss_open_write endp
 
-/* 0x1dc15 */
+/* 0x2012d */
 _lzss_reset proc near
         mov word ptr DGROUP:d_5918, 0
         mov word ptr DGROUP:d_3600, 0
@@ -204,7 +204,7 @@ _lzss_reset proc near
         ret
 _lzss_reset endp
 
-/* 0x1dc3a */
+/* 0x1dc3a (1.00's; not yet placed in 1.11) */
 _init_tree proc near
         push si
         mov si, 1001h
@@ -235,7 +235,7 @@ L1dc6a:
         ret
 _init_tree endp
 
-/* 0x1dc72 */
+/* 0x1dc72 (1.00's; not yet placed in 1.11) */
 _insert_node proc near
         push bp
         mov bp, sp
@@ -435,7 +435,7 @@ L1de4b:
         ret
 _insert_node endp
 
-/* 0x1de51 */
+/* 0x1de51 (1.00's; not yet placed in 1.11) */
 _delete_node proc near
         push bp
         mov bp, sp
@@ -597,7 +597,7 @@ L1dfd2:
         ret
 _delete_node endp
 
-/* 0x1dfd6 */
+/* 0x1dfd6 (1.00's; not yet placed in 1.11) */
 _huff_get_bit proc near
         push si
         cmp byte ptr DGROUP:d_3602, 8
@@ -622,7 +622,7 @@ L1e009:
         ret
 _huff_get_bit endp
 
-/* 0x1e00b */
+/* 0x20155 */
 _huff_get_byte proc near
         push bp
         mov bp, sp
@@ -657,7 +657,7 @@ L1e04b:
         ret
 _huff_get_byte endp
 
-/* 0x1e04e */
+/* 0x1e04e (1.00's; not yet placed in 1.11) */
 _huff_putcode proc near
         push bp
         mov bp, sp
@@ -704,7 +704,7 @@ L1e0b0:
         ret
 _huff_putcode endp
 
-/* 0x1e0b3 */
+/* 0x1e0b3 (1.00's; not yet placed in 1.11) */
 _huffman_start proc near
         push bp
         mov bp, sp
@@ -806,7 +806,7 @@ L1e18f:
         ret
 _huffman_start endp
 
-/* 0x1e1af */
+/* 0x1e1af (1.00's; not yet placed in 1.11) */
 _huffman_reconst proc near
         push bp
         mov bp, sp
@@ -990,7 +990,7 @@ L1e32a:
 c_1e337 db 90h
 _huffman_reconst endp
 
-/* 0x1e338 */
+/* 0x1e338 (1.00's; not yet placed in 1.11) */
 _huffman_update proc near
         push bp
         mov bp, sp
@@ -1102,7 +1102,7 @@ L1e43f:
         ret
 _huffman_update endp
 
-/* 0x1e445 */
+/* 0x1e445 (1.00's; not yet placed in 1.11) */
 _encode_char proc near
         push bp
         mov bp, sp
@@ -1150,7 +1150,7 @@ L1e471:
         ret
 _encode_char endp
 
-/* 0x1e4a7 */
+/* 0x1e4a7 (1.00's; not yet placed in 1.11) */
 _encode_position proc near
         push bp
         mov bp, sp
@@ -1186,7 +1186,7 @@ _encode_position proc near
         ret
 _encode_position endp
 
-/* 0x1e4e7 */
+/* 0x1e4e7 (1.00's; not yet placed in 1.11) */
 _encode_end proc near
         cmp byte ptr DGROUP:d_3605, 0
         je L1e4fc
@@ -1233,7 +1233,7 @@ L1e54d:
         jmp L1e849
 _encode_end endp
 
-/* 0x1e561 */
+/* 0x2040d */
 _decode_position proc near
         push bp
         mov bp, sp
@@ -1280,7 +1280,7 @@ L1e5a6:
         jmp L1e89c
 _decode_position endp
 
-/* 0x1e5ae */
+/* 0x1e5ae (1.00's; not yet placed in 1.11) */
 _lzss_flush proc near
         push bp
         mov bp, sp
@@ -1489,7 +1489,7 @@ L1e7ec:
         ret
 _lzss_flush endp
 
-/* 0x1e7f2 */
+/* 0x1e7f2 (1.00's; not yet placed in 1.11) */
 _decompress_lzss proc near
         push si
         push di
@@ -1784,7 +1784,7 @@ struct engine_decompress_cache {
 struct engine_decompress_cache g_engine_decompress_cache;
 
 /*
- * 0x1dba8
+ * 0x1dba8 (1.00's; not yet placed in 1.11)
  *
  * The LZSS compressor's start, for a resource opened to write; assembly. NOT TRANSCRIBED YET: a stub, which aborts.
  */
@@ -1795,7 +1795,7 @@ int16_t near lzss_open_write(void)
 }
 
 /*
- * 0x1dc15
+ * 0x2012d
  *
  * Reset the LZSS state for a new stream. Eight instructions: clear the
  * initialised flag at DGROUP 0x5918 so `decompress_lzss` builds its tree and
@@ -1818,7 +1818,7 @@ int16_t lzss_reset(void)
 }
 
 /*
- * 0x1dc3a
+ * 0x1dc3a (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `InitTree`: the encoder's binary trees emptied, every root and every parent `NIL`. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -1829,7 +1829,7 @@ void init_tree(void)
 }
 
 /*
- * 0x1dc72
+ * 0x1dc72 (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `InsertNode`: string `r` into the encoder's trees, keeping the longest match. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -1841,7 +1841,7 @@ void insert_node(int16_t r)
 }
 
 /*
- * 0x1de51
+ * 0x1de51 (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `DeleteNode`: node `p` out of the encoder's trees. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -1853,7 +1853,7 @@ void delete_node(int16_t p)
 }
 
 /*
- * 0x1dfd6
+ * 0x1dfd6 (1.00's; not yet placed in 1.11)
  *
  * One bit of the type-3 stream, as 0 or 1.
  *
@@ -1887,7 +1887,7 @@ int16_t huff_get_bit(void)
 }
 
 /*
- * 0x1e00b
+ * 0x20155
  *
  * Eight bits of the same stream, as a byte. The same buffer at DGROUP 0x3600
  * and the same refill rule, but the refill is a **loop** here: taking eight
@@ -1923,7 +1923,7 @@ int16_t huff_get_byte(void)
  */
 
 /*
- * 0x1e04e
+ * 0x1e04e (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `Putcode`: `len` bits of `code` into the output, a byte at a time through `put_output_byte`. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -1936,7 +1936,7 @@ void huff_putcode(int16_t len, uint16_t code)
 }
 
 /*
- * 0x1e0b3
+ * 0x1e0b3 (1.00's; not yet placed in 1.11)
  *
  * Build the adaptive Huffman tree that decompression type 3 decodes with.
  *
@@ -1994,7 +1994,7 @@ void huffman_start(void)
 }
 
 /*
- * 0x1e1af
+ * 0x1e1af (1.00's; not yet placed in 1.11)
  *
  * Halve every frequency and rebuild the tree, when the root's count would
  * overflow. LZHUF's `reconst`.
@@ -2065,7 +2065,7 @@ void huffman_reconst(void)
 }
 
 /*
- * 0x1e338
+ * 0x1e338 (1.00's; not yet placed in 1.11)
  *
  * Count one symbol and keep the tree ordered. LZHUF's `update`.
  *
@@ -2125,7 +2125,7 @@ void huffman_update(uint16_t c)
 }
 
 /*
- * 0x1e445
+ * 0x1e445 (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `EncodeChar`: a symbol's code walked up the Huffman tree and put out. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -2137,7 +2137,7 @@ void encode_char(uint16_t c)
 }
 
 /*
- * 0x1e4a7
+ * 0x1e4a7 (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `EncodePosition`: a match position, its top six bits coded and the rest raw. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -2149,7 +2149,7 @@ void encode_position(uint16_t c)
 }
 
 /*
- * 0x1e4e7
+ * 0x1e4e7 (1.00's; not yet placed in 1.11)
  *
  * LZHUF's `EncodeEnd`: whatever bits are left put out. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
@@ -2160,7 +2160,7 @@ void encode_end(void)
 }
 
 /*
- * 0x1e561
+ * 0x2040d
  *
  * Decode a match position: twelve bits, of which the top six come out of a
  * table and the bottom six are read raw.
@@ -2190,7 +2190,7 @@ int16_t decode_position(void)
 }
 
 /*
- * 0x1e5ae
+ * 0x1e5ae (1.00's; not yet placed in 1.11)
  *
  * The LZSS compressor's pass over the spill ring. NOT TRANSCRIBED YET: a stub, which aborts.
  */
@@ -2202,7 +2202,7 @@ int16_t near lzss_flush(int16_t final)
 }
 
 /*
- * 0x1e7f2
+ * 0x1e7f2 (1.00's; not yet placed in 1.11)
  *
  * Decompression type 3: LZSS over a 4096-byte ring, with the literals and match
  * lengths adaptively Huffman coded and the match positions coded by
