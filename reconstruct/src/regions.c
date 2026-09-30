@@ -140,33 +140,33 @@ void build_screen_regions(void)
     si->y0 = 0x0;
     si->x1 = 0x278;
     si->y1 = 0x3f;
-    si->cursor = 0x1a;
+    si->cursor = 0x1b;
     si->hover = region_cursor_bin_above;
     si->link = g_regions_play;
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->x0 = 0x240;
     si->y0 = 0x43;
     si->x1 = 0x25b;
     si->y1 = 0x5a;
-    si->code = 0x800;
+    si->code = 0x10;
     si->link = g_regions_play;
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->x0 = 0x260;
     si->y0 = 0x43;
     si->x1 = 0x27f;
     si->y1 = 0x5a;
-    si->code = 0x400;
+    si->code = 0x8;
     si->link = g_regions_play;
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->slot = 0x0;
     si->x0 = 0x240;
     si->y0 = 0x64;
@@ -180,7 +180,7 @@ void build_screen_regions(void)
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->slot = 0x1;
     si->x0 = 0x240;
     si->y0 = 0x91;
@@ -194,7 +194,7 @@ void build_screen_regions(void)
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->slot = 0x2;
     si->x0 = 0x240;
     si->y0 = 0xc5;
@@ -208,7 +208,7 @@ void build_screen_regions(void)
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->slot = 0x3;
     si->x0 = 0x240;
     si->y0 = 0xf9;
@@ -222,7 +222,7 @@ void build_screen_regions(void)
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x1000;
+    si->mask = 0x1004;
     si->slot = 0x4;
     si->x0 = 0x240;
     si->y0 = 0x12d;
@@ -246,40 +246,84 @@ void build_screen_regions(void)
     g_regions_play = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x4;
+    si->x0 = 0x190;
+    si->y0 = 0x124;
+    si->x1 = 0x1b0;
+    si->y1 = 0x147;
+    si->cursor = 0x11;
+    si->code = 0x100;
+    si->link = g_regions_play;
+    g_regions_play = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x4;
+    si->x0 = 0x1b4;
+    si->y0 = 0x124;
+    si->x1 = 0x1d4;
+    si->y1 = 0x147;
+    si->cursor = 0x26;
+    si->code = 0x40;
+    si->link = g_regions_play;
+    g_regions_play = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x4;
+    si->x0 = 0x1dc;
+    si->y0 = 0x124;
+    si->x1 = 0x1fc;
+    si->y1 = 0x147;
+    si->cursor = 0x27;
+    si->code = 0x80;
+    si->link = g_regions_play;
+    g_regions_play = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x4;
+    si->x0 = 0x40;
+    si->y0 = 0x40;
+    si->x1 = 0x1ff;
+    si->y1 = 0x107;
+    si->cursor = 0x2;
+    si->code = 0x20;
+    si->link = g_regions_play;
+    g_regions_play = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x12;
     si->x0 = 0x110;
     si->y0 = 0x48;
     si->x1 = 0x210;
     si->y1 = 0xe8;
-    si->cursor = 0x10;
+    si->cursor = 0x11;
     si->code = 0x8000;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x3a;
     si->y0 = 0x5b;
     si->x1 = 0x4f;
     si->y1 = 0x7e;
-    si->cursor = 0x10;
+    si->cursor = 0x11;
     si->code = 0x8000;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0xd8;
     si->y0 = 0x60;
     si->x1 = 0xf0;
     si->y1 = 0x77;
-    si->cursor = 0x15;
+    si->cursor = 0x16;
     si->code = 0x1000;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x39;
     si->y0 = 0x86;
     si->x1 = 0x5f;
@@ -290,7 +334,7 @@ void build_screen_regions(void)
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x96;
     si->y0 = 0x8c;
     si->x1 = 0xbf;
@@ -301,51 +345,51 @@ void build_screen_regions(void)
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x58;
     si->y0 = 0x5d;
     si->x1 = 0x6d;
     si->y1 = 0x6d;
-    si->cursor = 0x11;
+    si->cursor = 0x12;
     si->code = 0x4000;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x58;
     si->y0 = 0x6f;
     si->x1 = 0x6d;
     si->y1 = 0x7e;
-    si->cursor = 0x11;
+    si->cursor = 0x12;
     si->code = 0x2000;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0xbc;
     si->y0 = 0x5c;
     si->x1 = 0xce;
     si->y1 = 0x7b;
-    si->cursor = 0x12;
+    si->cursor = 0x13;
     si->code = 0x800;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x6d;
     si->y0 = 0x85;
     si->x1 = 0x8c;
     si->y1 = 0xa3;
-    si->cursor = 0x13;
+    si->cursor = 0x14;
     si->code = 0x200;
     si->link = g_regions_panel;
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0xc8;
     si->y0 = 0x8c;
     si->x1 = 0xf1;
@@ -356,7 +400,7 @@ void build_screen_regions(void)
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x41;
     si->y0 = 0xc8;
     si->x1 = 0xe1;
@@ -367,13 +411,35 @@ void build_screen_regions(void)
     g_regions_panel = si;
 
     si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
-    si->mask = 0x2;
+    si->mask = 0x12;
     si->x0 = 0x41;
     si->y0 = 0x114;
     si->x1 = 0xe1;
     si->y1 = 0x144;
     si->code = 0x20;
     si->hover = region_cursor_air;
+    si->link = g_regions_panel;
+    g_regions_panel = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x2;
+    si->x0 = 0x114;
+    si->y0 = 0x104;
+    si->x1 = 0x20c;
+    si->y1 = 0x148;
+    si->code = 0x10;
+    si->hover = region_cursor_freeform_24;
+    si->link = g_regions_panel;
+    g_regions_panel = si;
+
+    si = (struct region *)(void *)calloc_far(1, sizeof(struct region));
+    si->mask = 0x12;
+    si->x0 = 0x240;
+    si->y0 = 0x64;
+    si->x1 = 0x278;
+    si->y1 = 0x160;
+    si->code = 0x8;
+    si->hover = region_cursor_freeform_25;
     si->link = g_regions_panel;
     g_regions_panel = si;
 

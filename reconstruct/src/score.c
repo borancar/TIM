@@ -191,7 +191,10 @@ int32_t parse_base(register char *text, int16_t base)
     strrev(text);
 
     for (si = text; *si != 0; si++) {
-        digit = (uint8_t)*si >= 'A' ? (uint8_t)*si - 0x37 : (uint8_t)*si - 0x30;
+        if ((uint8_t)*si >= 'A')
+            digit = (uint8_t)*si - 0x37;
+        else
+            digit = (uint8_t)*si - 0x30;
         wide = digit;
         total += LONG_MUL(wide, place);
         place = LONG_MUL(place, base);
