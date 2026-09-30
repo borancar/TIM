@@ -23,7 +23,7 @@
  * register, which no compiler does (vgadac.c).
  *
  * JUDGE: compiler bc2.00
- * JUDGE: built-with -mm -O -Z
+ * JUDGE: built-with -mm
  * JUDGE: data 0x3184..0x31a0
  *
  * **Borland C++ 2.0, not the 3.0 the part kinds were built with.** The one

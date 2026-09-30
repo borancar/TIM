@@ -75,15 +75,13 @@ uint8_t far *load_sound_bank(FILE *file, uint32_t size,
     case 0x7e:
         want = (uint8_t)g_sound_bank.identifier;
         break;
-
     /*
-     * The original **falls through here**, and so does this: the store is
-     * dead, `default` answers null, and `GMD:` can never load a sound bank -
-     * a bug in Dynamix's code, transcribed as it behaves.
+     * 1.00 **fell through here**, so its store was dead and `GMD:` could
+     * never load a sound bank. 1.11 has the `break`.
      */
     case 7:
         want = 7;
-        /* falls through */
+        break;
     default:
         return NULL;
     }
@@ -334,7 +332,6 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint8_t far * dst, uint16_t data_at, uint16_t tag)
 {
-    int32_t pos;                        /* kept, and never read */
     uint8_t far *data;
     uint8_t far *dir;
 
@@ -353,7 +350,8 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
         *(uint16_t far *)(dir + 2) = (uint16_t)(data - dst - 2);
         *(uint16_t far *)(dir + 4) = list->length;
 
-        pos = resource_seek(handle, (uint16_t)(list->key + 2), 0);
+        /* 1.00 kept the answer in a local it never read; 1.11 does not. */
+        resource_seek(handle, (uint16_t)(list->key + 2), 0);
 
         if (read_resource(handle, data, list->length) != list->length)
             return 0;
@@ -364,6 +362,5 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
     }
 
     *(uint16_t far *)dir = 0xffff;
-    (void)pos;
     return 1;
 }

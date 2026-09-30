@@ -733,9 +733,9 @@ struct printer {
     int16_t  failed;             /* [bp-0x16] */
 };
 uint16_t call_sound_module(uint16_t fn, union sound_module_args * si); /* 0x0c816 */
-uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0c808 */
-uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0c7ec */
-uint16_t sound_module_service(union sound_module_args * si); /* 0x0bba6 */
+uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0c7da */
+uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0c7e1 */
+uint16_t sound_module_service(union sound_module_args * si); /* 0x0c7e8 */
 /* **`sound_module_service` as a timer callback.** The timer calls it with no
    arguments and it reads whatever SI holds, which C can only say with a cast;
    the host cannot call it that way, so there it is `sound_module_tick`, which
@@ -747,13 +747,13 @@ uint16_t sound_module_service(union sound_module_args * si); /* 0x0bba6 */
 void sound_module_tick(void);
 #  define SOUND_MODULE_TICK sound_module_tick
 #endif
-uint16_t sound_module_9(union sound_module_args * si);  /* 0x0bbb1 */
-uint16_t sound_module_10(union sound_module_args * si); /* 0x0bbb8 */
-uint16_t sound_module_11(union sound_module_args * si); /* 0x0bbbf */
-uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
-uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
+uint16_t sound_module_9(union sound_module_args * si);  /* 0x0c7f3 */
+uint16_t sound_module_10(union sound_module_args * si); /* 0x0c7fa */
+uint16_t sound_module_11(union sound_module_args * si); /* 0x0c801 */
+uint16_t stop_loaded_module(void);                  /* 0x0c808 */
+uint16_t sound_module_shutdown(void);               /* 0x0c80f */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
-                                                    /* 0x0c840 */
+                                                    /* 0x0c828 */
 char *strcpy_far(char *dst, const char *src); /* 0x0c791 */
 char *strcat_far(char *dst, const char *src); /* 0x0c77e */
 char *strchr_far(char *s, int16_t c);        /* 0x0c7a4 */

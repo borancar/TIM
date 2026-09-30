@@ -13,8 +13,10 @@
  * stacks under it.
  *
  * One module of the original's **code segment 0000** (`_TEXT`), image
- * 0x0b6b7..0x0b859, and its `_DATA` 0x2d48..0x3182: the find result, and
- * the private stack whose top is 0x2e7c. The front is ours - cursor.c's
+ * 0x0b6b7..0x0b859, and its `_DATA` 0x28ea..0x2d24: the find result, and
+ * the private stack whose top is 0x2d1e - 0x400 bytes of it below the top
+ * and two above, where 1.00 had 0x100 below and 0x302 above. The front is
+ * ours - cursor.c's
  * last routine ends there - and the end is where mono.c's C begins. They
  * are the game's, not the runtime's: they sit in the game's part of `_TEXT`,
  * before the library begins at 0x0bbfe.
@@ -40,9 +42,9 @@ find_name db 13 dup (0)
 find_attr db 0
 find_size dw 0, 0
 dos_result dw 0
-        db 0ffh dup (0)
+        db 3ffh dup (0)
 isr_stack_top label word
-        db 302h dup (0)
+        db 2 dup (0)
 isr_saved_ss dw 0
 isr_saved_sp dw 0
 _DATA ends
@@ -399,7 +401,7 @@ struct borland_find_info {
 struct borland_find_info g_borland_find_info;
 
 /*
- * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
+ * **The interrupt's own stack**, DGROUP 0x2d20..0x2d24, 0x04 bytes.
  *
  * `isr_stack_switch` files `SS:SP` here on the way in so the handler can run
  * on a private stack and put the interrupted one back on the way out. The port
@@ -762,7 +764,7 @@ void dos_setdisk(uint8_t letter)
  * 0x0c46e
  *
  * Switch the interrupt handler onto a stack of its own, and back: a non-zero
- * argument saves SS:SP at DGROUP 0x317e and puts SP at 0x2e7c inside DGROUP, a
+ * argument saves SS:SP at DGROUP 0x2d20 and puts SP at 0x2d1e inside DGROUP, a
  * zero one puts the saved pair back. The entry at 0x0b84b is the second half
  * reached directly.
  *
