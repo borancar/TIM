@@ -2212,7 +2212,7 @@ void finish_level(void)
     }
 
     /* The two buttons are this module's literal pool, DGROUP 0x283a. */
-    while (message_box(title, body, "REPLAY", "ADVANCE")) {
+    while (message_box(title, body, g_messages.button_replay, g_messages.button_advance)) {
         g_round_state = 0x2000;
         clear_layer_heads();
         reset_machine();

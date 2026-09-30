@@ -2385,9 +2385,9 @@ void paint_panel_frame(void)
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
     if (g_freeform != 0)
-        draw_wrapped_text((char *)g_messages.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)g_messages.enter_description, 0x114, 0x104, 0xf8, 0x44, 1);
     else
-        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44, 1);
 
     paint_panel_frame_rest();
 }

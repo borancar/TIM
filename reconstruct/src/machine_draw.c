@@ -9,24 +9,21 @@
  * odometer around it. Part allocation lives here too, next to the drawing
  * that depends on it.
  *
- * This file corresponds to the original's **code segment 14de**, image
- * 0x14de0..0x172c0 - it ends with a routine that does nothing, 0x172bc, called
- * as 14de:24dc. Functions are in address order and each carries the image
- * offset it was read from.
+ * In 1.11, the code segment that starts at 0x16ca0, image 0x16ca7..0x190f0
+ * (1.00: segment 14de, 0x14de0..0x172c0). Functions are in address order and
+ * each carries the image offset it was read from. Its data is DGROUP
+ * 0x1fca..0x1fd2: the message box's tab stops and the selection's phase. The
+ * texts it draws, the button labels included, are `g_messages`'s in 1.11.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d -O -Z
- * JUDGE: data 0x259c..0x25e8
+ * JUDGE: built-with -mm -O -Z
+ * JUDGE: data 0x1fca..0x1fd2
  *
- * **Turbo C++ 3.0, `-mm -d`, without `-O`**: a `return` leaves its `jmp` to
- * the epilogue even when the epilogue is next (`ask_yes_no`), the two
- * `"(click button to continue)"` share one copy, and the calls to routines
- * earlier in the file are `push cs / call`. Its data is DGROUP
- * 0x259c..0x25e8: the message box's tab stops, the menu animation, the
- * selection's phase, and its literal pool, the three button labels. The
- * messages it draws - "PUZZLE ", " COMPLETED!" and the rest - are the strings
- * module's arrays in `g_messages`: "PUZZLE " is named from segment 0dff as well,
- * and a literal belongs to one module.
+ * **1.00 built it with Turbo C++ 3.0 `-mm -d`, without `-O`; 1.11 with `-O -Z`.**
+ * 1.11 dropped the menu button's animation (`draw_machine_layer_f`), halved
+ * the panel and title-bar tiles to 0x20 (its new art), answers a message
+ * box's buttons by their first letters, and clips a part of kind 0x2d or
+ * 0x24 to the rim of the bucket it is in.
  */
 
 #define TIM_MACHINE_DRAW_C
@@ -36,6 +33,7 @@
 #else
 #include "hostlib.h"
 #endif
+#include <ctype.h>
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
@@ -46,17 +44,9 @@
  * dgroup.h; they are declared here because nothing else uses them.
  */
 
-/* The message box's tab stops, DGROUP 0x259c. */
+/* The message box's tab stops, DGROUP 0x1fca in 1.11 (1.00: 0x259c). */
 struct game_message_tabs g_game_message_tabs = { 0xffff, { 0x00e8, 0x0168 } };
-/* The menu button's animation, DGROUP 0x25a2. */
-struct machine_draw_menu_anim g_machine_draw_menu_anim = {
-    { 0x0003, 0x0004, 0x0005, 0x0006, 0x0003, 0x0003 },     /* picture */
-    { 0x0258, 0x0254, 0x0254, 0x0254, 0x0260, 0x0265 },     /* picture_x */
-    { 0x0013, 0x0010, 0x000f, 0x0013, 0x0013, 0x0013 },     /* picture_y */
-    { 0x0250, 0x0252, 0x0250, 0x0251 },                     /* sprite_x */
-    { 0x001a, 0x0018, 0x001b, 0x0019 },                     /* sprite_y */
-};
-/* The selection outline's phase, DGROUP 0x25d6. */
+/* The selection outline's phase, DGROUP 0x1fd0 in 1.11 (1.00: 0x25d6). */
 uint16_t g_selection_phase = 0;
 
 /*
@@ -111,7 +101,8 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     g_vmds.clip_top = y1;
     g_vmds.clip_bottom = y2;
     g_vmds.clip_enabled = 1;
-    for (y = y1; y < y2; y += 0x40)
+    /* 1.11's tile (newgpbor.bmp's 0x2a) is 0x20 high; 1.00's was 0x40. */
+    for (y = y1; y < y2; y += 0x20)
         for (i = x1; i < x2; i += 0x80)
             draw_bitmap(g_border_art[0x2a],
                         i, y, 0);
@@ -283,8 +274,9 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
     g_vmds.clip_bottom = y + h - 1;
     g_vmds.clip_enabled = 1;
     cursor_redraw_off_thunk();
-    for (j = 0; j < h; j += 0x40)
-        for (i = 0; i < w; i += 0x40)
+    /* 1.11's panel tile (newcp.bmp's 0x3a) is 0x20 square; 1.00's 0x40. */
+    for (j = 0; j < h; j += 0x20)
+        for (i = 0; i < w; i += 0x20)
             draw_bitmap(g_panel_art[0x3a], i + x, j + y, 0);
     if (g_round_state == 0x8000)
         set_clip_full_screen();
@@ -415,7 +407,7 @@ void fill_panel_area(register int16_t x, int16_t y, int16_t w, int16_t h,
  */
 void show_message_box(const char *title, char *body)
 {
-    message_box(title, body, "CONTINUE", NULL);
+    message_box(title, body, g_messages.button_continue, NULL);
 }
 
 /*
@@ -435,7 +427,7 @@ void show_message_box(const char *title, char *body)
  */
 uint16_t ask_yes_no(const char *title, char *body)
 {
-    return message_box(title, body, "YES", "NO");
+    return message_box(title, body, g_messages.button_yes, g_messages.button_no);
 }
 
 /*
@@ -472,7 +464,7 @@ uint16_t ask_yes_no(const char *title, char *body)
  * is what makes it flash before the box goes.
  */
 uint16_t message_box(const char *title, char *body,
-                     register const char *button1,
+                     const char *button1,
                      register const char *button2)
 {
     uint16_t saved;
@@ -484,7 +476,7 @@ uint16_t message_box(const char *title, char *body,
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
     draw_scroll_text(title, 0xb8, 0x74, 0xd0);
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
-    draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
+    draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x3c, 1);
     draw_button(button1, 0xc8, 0xd4, 0);
     g_region_kept_b->x1 = text_width_thunk(button1) + 0xd8;
     if (button2 != NULL) {
@@ -496,29 +488,24 @@ uint16_t message_box(const char *title, char *body,
     restore_cursor();
     while (g_round_state == 0x8000) {
         update_button_state();
-        g_last_key = (uint8_t)(bios_read_key() >> 8);
-        if (g_last_key == SC_TAB)
+        g_last_key = translate_key(bios_read_key());
+        if ((g_last_key & 0x7f) == '\t')
             message_box_tab(button2);
-        else {
-            if (*button1 == 'Y') {
-                if (g_last_key == SC_Y)
+        /*
+         * 1.11 answers a button's first letter, whatever the labels say -
+         * unless both start with the same one - and Enter for a single
+         * button. 1.00 knew three pairs of labels by their scancodes.
+         */
+        else if (button2 != NULL) {
+            if (*button1 != *button2) {
+                if (toupper((uint8_t)*button1) == toupper(g_last_key & 0x7f))
                     g_round_state = 0x4000;
-                if (g_last_key == SC_N)
+                else if (toupper((uint8_t)*button2) == toupper(g_last_key & 0x7f))
                     g_round_state = 0x2000;
             }
-            if (*button1 == 'R') {
-                if (g_last_key == SC_R)
-                    g_round_state = 0x4000;
-                if (g_last_key == SC_A)
-                    g_round_state = 0x2000;
-            }
-            if (*button1 == 'C') {
-                if (g_last_key == SC_C)
-                    g_round_state = 0x4000;
-                if (g_last_key == SC_ENTER)
-                    g_round_state = 0x4000;
-            }
-        }
+        } else if (toupper((uint8_t)*button1) == toupper(g_last_key & 0x7f)
+                   || (g_last_key & 0x7f) == '\r')
+            g_round_state = 0x4000;
         regions_handle_pointer(g_regions_b);
         if (button2 == NULL && g_round_state == 0x2000)
             g_round_state = 0x8000;
@@ -601,7 +588,7 @@ void show_level_complete(void)
 {
     char num[8];
     char line[30];
-    char bonus[30];
+    char bonus[40];                     /* 1.11: 1.00's was 30 */
     char code[40];
 
     repaint_whole_screen();
@@ -835,9 +822,11 @@ void draw_machine_layer_e(void)
     draw_bitmap(g_border_art[0xa], 0x238, 0, 0);
     draw_bitmap(g_border_art[0xa], 0x238, 0x3b, 0);
     draw_bitmap(g_border_art[0xb], 0x23f, 0x42, 0);
-    if (g_round_state == 0x800)
+    /* 1.11 lights these two for states 0x10 and 8, where 1.00 did for
+       0x800 and 0x400 - which 1.11 keeps for the puzzle screen. */
+    if (g_round_state == 0x10)
         draw_bitmap(g_border_art[0x28], 0x248, 0x45, 0);
-    else if (g_round_state == 0x400)
+    else if (g_round_state == 8)
         draw_bitmap(g_border_art[0x29], 0x25d, 0x45, 0);
     draw_bitmap(g_border_art[0xa], 0x238, 0x59, 0);
     draw_bitmap(g_border_art[0x9], 0x240, 0x168, 0);
@@ -981,42 +970,15 @@ void draw_bitmap_centred(register struct bitmap *bmp, register int16_t x,
  */
 void draw_machine_layer_f(void)
 {
-    int16_t slide_b;
-    register int16_t frame;
-    register int16_t slide_a;
-
     g_vmds.clip_enabled = 1;
     g_vmds.clip_top = 0x0a;
     g_vmds.clip_bottom = 0x3b;
     g_vmds.clip_left = 0x240;
     g_vmds.clip_right = 0x277;
-    g_loop_frames = 0;
-    if ((frame = g_loop_frames >> 1) >= 4)
-        slide_a = ((frame - 4) * 2) % 0x38;
-    else
-        slide_a = 0;
-    if ((frame = g_loop_frames >> 1) >= 4)
-        slide_b = ((frame - 4) * 4) % 0x38;
-    else
-        slide_b = 0;
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
+    /* 1.11 draws the menu button's one picture; 1.00 animated it here. */
     draw_bitmap(g_menu_bmp[0], 0x240, 0x0a, 0);
-    draw_bitmap(g_menu_bmp[0x1], slide_a + 0x208, 0x1a, 0);
-    draw_bitmap(g_menu_bmp[0x2], slide_b + 0x208, 0x20, 0);
-    if (frame < 6)
-        /* the picture, its x and its y, by frame */
-        draw_bitmap(g_menu_bmp[g_machine_draw_menu_anim.picture[frame]], g_machine_draw_menu_anim.picture_x[frame],
-                    g_machine_draw_menu_anim.picture_y[frame], 0);
-    if (frame < 4)
-        draw_bitmap(g_menu_bmp[0x7], 0x24a, 0x2a, 0);
-    else {
-        frame &= 3;
-        /* the sprite's x and y, by the frame modulo four */
-        draw_bitmap(((g_menu_bmp + 8)[frame]),
-                    g_machine_draw_menu_anim.sprite_x[frame],
-                    g_machine_draw_menu_anim.sprite_y[frame], 0);
-    }
     restore_cursor_following();
     set_clip_play_area();
 }
@@ -1213,7 +1175,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         g_vmds.clip_bottom = 0x167;
         keep_b = 0;
     }
-    if (which == 0x0e) {
+    if (which == 0x0f) {
         g_vmds.second_colour = 0;
         clip_and_draw_line(g_vmds.clip_left, g_vmds.clip_top + 1,
                            g_vmds.clip_right, g_vmds.clip_bottom + 1);
@@ -1269,19 +1231,29 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     g_vmds.fill_enabled = 1;
     g_vmds.second_colour = g_vmds.fill_colour = 0x0f;
     g_level_settings.flip_options = part_flip_options(part);
-    draw_bitmap(g_cursor_art[0x1b], hx, hy, 0);
+    /* 1.11's newmouse.bmp has one more picture before these, and a part
+       with `traits2` bit 0x40 has no handle at the top left but its own
+       at the top right, where option 0x10 puts one. */
+    if (!(part->traits2 & 0x40))
+        draw_bitmap(g_cursor_art[0x1c], hx, hy, 0);
     if (g_level_settings.flip_options & 1) {
-        draw_bitmap(g_cursor_art[0x1c], hx, hym, 0);
-        draw_bitmap(g_cursor_art[0x1c], hxr, hym, 0);
+        draw_bitmap(g_cursor_art[0x1d], hx, hym, 0);
+        draw_bitmap(g_cursor_art[0x1d], hxr, hym, 0);
     }
     if (g_level_settings.flip_options & 2) {
-        draw_bitmap(g_cursor_art[0x1d], hxm, hy, 0);
-        draw_bitmap(g_cursor_art[0x1d], hxm, hyb, 0);
+        draw_bitmap(g_cursor_art[0x1e], hxm, hy, 0);
+        draw_bitmap(g_cursor_art[0x1e], hxm, hyb, 0);
     }
     if (g_level_settings.flip_options & 4)
-        draw_bitmap(g_cursor_art[0x1e], hx, hyb, 0);
+        draw_bitmap(g_cursor_art[0x1f], hx, hyb, 0);
     if (g_level_settings.flip_options & 8)
-        draw_bitmap(g_cursor_art[0x1f], hxr, hyb, 0);
+        draw_bitmap(g_cursor_art[0x20], hxr, hyb, 0);
+    if (g_level_settings.flip_options & 0x10) {
+        if (part->traits2 & 0x40)
+            draw_bitmap(g_cursor_art[0x21], hxr, hy, 0);
+        else
+            draw_bitmap(g_cursor_art[0x22], hxr, hy, 0);
+    }
     at.x -= 0x0c;
     at.y -= 0x0c;
     ext.width += 0x18;
@@ -1664,6 +1636,7 @@ void draw_rope(struct part *part, int16_t a)
  */
 void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
 {
+    int16_t i;                         /* di */
     uint16_t kind;
     uint16_t form;
     int16_t col;
@@ -1680,10 +1653,10 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     uint16_t idx;
     uint16_t px;
     uint16_t py;
+    int16_t saved_bottom;
     uint8_t frame;
     const struct point8 *hot;          /* the kind's hot spot for this form, a table offset */
-    int16_t i;
-    const struct part_kind *kindrec;
+    const struct part_kind far *kindrec;
     const struct draw_step *step;
     struct bitmap *bmp;
 
@@ -1778,8 +1751,25 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
                     sy = (int16_t)(mul16x16(y, a) >> 10);
                     sy += 0x48;
                     draw_bitmap_scaled(bmp, sx, sy, w, h, flip);
-                } else
+                } else if ((kind != 0x2d && kind != 0x24)
+                           || !(part->traits2 & TRAIT2_IN_BUCKET))
                     draw_bitmap(bmp, x, y, flip);
+                else {
+                    /*
+                     * 1.11: a part of kind 0x2d or 0x24 in a bucket is
+                     * drawn only down to the line its `kind_state` holds -
+                     * the bucket's rim - and never below the clip already
+                     * set, nor above its top.
+                     */
+                    saved_bottom = g_vmds.clip_bottom;
+                    g_vmds.clip_bottom = part->kind_state - g_origin_y;
+                    if (g_vmds.clip_bottom > saved_bottom)
+                        g_vmds.clip_bottom = saved_bottom;
+                    else if (g_vmds.clip_bottom < g_vmds.clip_top)
+                        g_vmds.clip_bottom = g_vmds.clip_top + 1;
+                    draw_bitmap(bmp, x, y, flip);
+                    g_vmds.clip_bottom = saved_bottom;
+                }
             }
         }
     }
@@ -1819,6 +1809,11 @@ void draw_part_extra(register struct part *part)
     y[0] = part->pos[0].y + 6 - g_origin_y;
     y[1] = held->pos[0].y + held->hold.y - g_origin_y;
     y[2] = part->pos[0].y + 0x10 - g_origin_y;
+    /* 1.11: what kind 0x24 holds is held a pixel left and four down. */
+    if (held->kind == 0x24) {
+        x[1]--;
+        y[1] += 4;
+    }
     x[0] = x[2] = ((part->state & STATE_FLIP_HORIZONTAL) ? part->pos[0].x - 1
                                            : part->pos[0].x + 0x0f)
                   - g_origin_x;

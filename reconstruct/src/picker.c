@@ -1352,7 +1352,8 @@ char *listing_to_name(const char far * entry)
  * the count runs out, and the count is tested **before** it is decremented, so
  * a count of one draws one line.
  */
-void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
+void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h,
+                       int16_t shadow)
 {
     char     saved;                     /* [bp-1] */
     int16_t  left;                      /* [bp-4] */
@@ -1392,8 +1393,11 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 
         cursor_redraw_off_thunk();
 
-        g_vmds.text_colour = 0x0f;
-        draw_string(*l, left - 1, top + 1);
+        /* 1.11 draws the white shadow only when asked. */
+        if (shadow != 0) {
+            g_vmds.text_colour = 0x0f;
+            draw_string(*l, left - 1, top + 1);
+        }
 
         g_vmds.text_colour = 5;
         draw_string(*l++, left, top);

@@ -3959,70 +3959,82 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
     },
 };
 
-char *g_path_separator = g_messages.path_sep;   /* DGROUP 0x1bca */
+/* DGROUP 0x14ec and 0x14ee in 1.11: the path separator and the newline
+   `game_teardown` prints, as literals - the module's pool, after the texts.
+   1.00 pointed at a field of `g_messages` for the separator. */
+char *g_path_separator = "\\";
+char *g_newline = "\n";
 struct messages g_messages = {
-    "\012\012NOT ENOUGH FREE MEMORY\012",    /* not_enough_free_memory */
-    "\012You need at least 550k of free memory to run 'The Incredible Machine'.\012\012",    /* you_need_at_least */
-    "Unable to initialize vm.",    /* unable_to_initialize_vm */
-    "\012\012Thanks for playing 'The Incredible Machine'.\012The last password given to you was:  ",    /* thanks_for_playing */
-    "Please select, in order, the three parts listed on page ",    /* please_select_in_order */
-    " of the user's manual.",    /* of_the_users_manual */
-    "VERSION NUMBER",    /* version_number */
-    "This is version 1.00 of 'The Incredible Machine.'",    /* this_is_version */
-    "MEMORY LOW",    /* memory_low */
-    "Memory is getting low.  You can only place a few more parts.",    /* memory_is_getting_low */
-    "OUT OF MEMORY",    /* out_of_memory */
-    "You can't place any more parts.",    /* you_cant_place_any */
-    "QUIT GAME",    /* quit_game */
-    "Are you sure you want to quit the game?",    /* quit_body */
-    "RESTART LEVEL",    /* restart_level */
-    "Are you sure you want to clear all parts and restart this level?",    /* restart_body */
-    "FREEFORM MODE",    /* freeform_mode */
-    "Are you sure you want to enter freeform mode?",    /* freeform_body */
-    "LEAVE FREEFORM MODE",    /* leave_freeform_mode */
-    "Are you sure you want to leave freeform mode?",    /* leave_freeform_body */
-    "CAN'T CHANGE GRAVITY",    /* cant_change_gravity */
-    "You are only allowed to change the gravitational force in freeform mode.",    /* gravity_body */
-    "CAN'T CHANGE AIR PRESSURE",    /* cant_change_air_pressure */
-    "You are only allowed to change the air pressure in freeform mode.",    /* air_pressure_body */
-    "OVERWRITE FILE",    /* overwrite_file */
-    "File already exists.  Do you want to overwrite it?",    /* overwrite_body */
-    "FILE ERROR",    /* file_error */
-    "Unable to open that file for saving.",    /* cant_open_for_saving */
-    "Unable to open that file for loading.",    /* cant_open_for_loading */
-    "Disk is write protected or there is not enough memory on that disk to save this machine.",    /* disk_write_protected */
-    "PATH ERROR",    /* path_error */
-    "Unable to choose that path.",    /* path_error_body */
-    "WRONG FORMAT",    /* wrong_format */
-    "That file has not been saved in 'The Incredible Machine' format.",    /* wrong_format_body */
-    "NEED PASSWORD",    /* need_password */
-    "You need to enter the correct password in order to try this puzzle.",    /* need_password_body */
-    "BAD PASSWORD",    /* bad_password */
-    "That is not a valid password.",    /* bad_password_body */
-    "SCORE CODE INVALID",    /* score_code_invalid */
-    "That score code is invalid.  Your score will be set to zero.",    /* score_code_body */
-    "<PARENT DIR>",    /* parent_dir */
-    "LOAD MACHINE",    /* load_machine */
-    "SAVE MACHINE",    /* save_machine */
-    "LOAD",    /* load */
-    "SAVE",    /* save */
-    "CANCEL",    /* cancel */
-    "File Name:",    /* file_name */
-    "FREEFORM MODE",    /* freeform_mode_title */
-    "PUZZLE ",    /* puzzle_prefix */
-    " COMPLETED!",    /* completed */
-    "Total bonus points: ",    /* total_bonus_points */
-    "New Password",    /* new_password */
-    { 0 },    /* empty */
-    "(click button to continue)",    /* click_button_to_continue */
-    "REPLAY SOLUTION",    /* replay_solution */
-    "Do you want to advance to the next puzzle or replay your solution to this puzzle?",    /* replay_body */
-    "SELECT PUZZLE",    /* select_puzzle */
-    "PASSWORD",    /* password */
-    "SOLVED ALL PUZZLES",    /* solved_all_puzzles */
-    "You can create any type of machine that you wish to in freeform mode.",    /* freeform_hint */
-    "Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.",    /* solved_all_body */
-    "\\"    /* path_sep */
+    "CONTINUE",   /* button_continue */
+    "YES",   /* button_yes */
+    "NO",   /* button_no */
+    "REPLAY",   /* button_replay */
+    "ADVANCE",   /* button_advance */
+    "\012\012NOT ENOUGH FREE MEMORY\012",   /* not_enough_free_memory */
+    "\012You need at least 560k of free memory to run 'The Incredible Machine'.\012\012",   /* you_need_at_least */
+    "\012\012The data disk requires the original version of 'The Incredible Machine' in orderto run.\012\012",   /* data_disk_requires */
+    "Unable to initialize vm.",   /* unable_to_initialize_vm */
+    "\012\012Thanks for playing 'The Incredible Machine'.\012The last password given to you was:  ",   /* thanks_for_playing */
+    "Please select, in order, the three parts listed on page ",   /* please_select_in_order */
+    " of the user's manual.",   /* of_the_users_manual */
+    "VERSION NUMBER",   /* version_number */
+    "This is version 1.11 of 'The Incredible Machine.'",   /* this_is_version */
+    "MEMORY LOW",   /* memory_low */
+    "Memory is getting low.  You can only place a few more parts.",   /* memory_is_getting_low */
+    "OUT OF MEMORY",   /* out_of_memory */
+    "You can't place any more parts.",   /* you_cant_place_any */
+    "QUIT GAME",   /* quit_game */
+    "Are you sure you want to quit the game?",   /* quit_body */
+    "RESTART LEVEL",   /* restart_level */
+    "Are you sure you want to clear all parts and restart this level?",   /* restart_body */
+    "FREEFORM MODE",   /* freeform_mode */
+    "Are you sure you want to enter freeform mode?",   /* freeform_body */
+    "LEAVE FREEFORM MODE",   /* leave_freeform_mode */
+    "Are you sure you want to leave freeform mode?",   /* leave_freeform_body */
+    "CAN'T CHANGE GRAVITY",   /* cant_change_gravity */
+    "You are only allowed to change the gravitational force in freeform mode.",   /* gravity_body */
+    "CAN'T CHANGE AIR PRESSURE",   /* cant_change_air_pressure */
+    "You are only allowed to change the air pressure in freeform mode.",   /* air_pressure_body */
+    "CLEAR PARTS BIN",   /* clear_parts_bin */
+    "Are you sure you want to clear the parts bin?",   /* clear_parts_bin_body */
+    "ADJUST PARTS BIN",   /* adjust_parts_bin */
+    "OVERWRITE FILE",   /* overwrite_file */
+    "File already exists.  Do you want to overwrite it?",   /* overwrite_body */
+    "FILE ERROR",   /* file_error */
+    "Unable to open that file for saving.",   /* cant_open_for_saving */
+    "Unable to open that file for loading.",   /* cant_open_for_loading */
+    "Disk is write protected or there is not enough memory on that disk to save this machine.",   /* disk_write_protected */
+    "PATH ERROR",   /* path_error */
+    "Unable to choose that path.",   /* path_error_body */
+    "WRONG FORMAT",   /* wrong_format */
+    "That file has not been saved in 'The Incredible Machine' format.",   /* wrong_format_body */
+    "NEED PASSWORD",   /* need_password */
+    "You need to enter the correct password in order to try this puzzle.",   /* need_password_body */
+    "BAD PASSWORD",   /* bad_password */
+    "That is not a valid password.",   /* bad_password_body */
+    "SCORE CODE INVALID",   /* score_code_invalid */
+    "That score code is invalid.  Your score will be set to zero.",   /* score_code_body */
+    "<PARENT DIR>",   /* parent_dir */
+    "LOAD MACHINE",   /* load_machine */
+    "SAVE MACHINE",   /* save_machine */
+    "LOAD",   /* load */
+    "SAVE",   /* save */
+    "CANCEL",   /* cancel */
+    "File Name:",   /* file_name */
+    "FREEFORM MODE",   /* freeform_mode_title */
+    "PUZZLE ",   /* puzzle_prefix */
+    " COMPLETED!",   /* completed */
+    "Total bonus points: ",   /* total_bonus_points */
+    "New Password",   /* new_password */
+    "",   /* empty */
+    "(click button to continue)",   /* click_button_to_continue */
+    "REPLAY SOLUTION",   /* replay_solution */
+    "Do you want to advance to the next puzzle or replay your solution to this puzzle?",   /* replay_body */
+    "SELECT PUZZLE",   /* select_puzzle */
+    "PASSWORD",   /* password */
+    "SOLVED ALL PUZZLES",   /* solved_all_puzzles */
+    "(Click here to enter description)",   /* enter_description */
+    "Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.",   /* solved_all_body */
 };
 
 /*
@@ -4053,9 +4065,6 @@ uint16_t g_last_key;
    largest DOS block over 1000 - what `g_preload_sound_need` is measured in.
    The name is a guess. */
 int32_t  g_memory_k;
-/* DGROUP 0x14ee in 1.11: "\n", which `game_teardown` prints after the
-   password. Its neighbour at 0x14ec is the path separator. */
-char    *g_newline = "\n";
 /*
  * DGROUP 0x52ed  tim.pal: the far pointer `load_palette` answers, stored whole and
  * read whole by `set_palette_pointer` and `free_far_block`.

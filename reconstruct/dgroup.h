@@ -1634,13 +1634,14 @@ struct draw_step {
 extern struct draw_step g_default_draw_step;
 
 /*
- * **The game's message texts**, at DGROUP 0x1bcc: the two startup complaints
- * and the goodbye, the copy-protection prompt, every message box's title and
- * body, the picker's and the puzzle screen's labels and buttons, the level-
- * complete texts, and the path separator at the end - the one byte
- * `g_path_separator` points at.
- * Typed from the image, one array per literal in the order Borland filed
- * them; the names are ours, from the text. The run ends at 0x2370.
+ * **The game's message texts**, at DGROUP 0x14f0 in 1.11 (1.00: 0x1bcc): the
+ * message boxes' button labels - in 1.11 here, not literals of the modules
+ * that draw them - the two startup complaints, the data-disk refusal and the
+ * goodbye, the copy-protection prompt, every message box's title and body,
+ * the picker's and the puzzle screen's labels and buttons, the level-complete
+ * texts. Written from the image, one array per string in its order; the
+ * names are ours, from the text. The run ends at 0x1d38, where the module's
+ * literal pool - `g_path_separator`'s "\\" and `g_newline`'s "\n" - begins.
  *
  * **The bodies are fields and the titles are literals**, and the line
  * between them is a write. A message box's body goes through
@@ -1651,68 +1652,76 @@ extern struct draw_step g_default_draw_step;
  * call site and its field here is the layout's record of where it was.
  */
 struct messages {
-    char not_enough_free_memory[26];  /* +0x000 0x1bcc '\n\nNOT ENOUGH FREE MEMORY\n' */
-    char you_need_at_least[74];       /* +0x01a 0x1be6 "\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n" */
-    char unable_to_initialize_vm[25]; /* +0x064 0x1c30 'Unable to initialize vm.' */
-    char thanks_for_playing[85];      /* +0x07d 0x1c49 "\n\nThanks for playing 'The Incredible Machine'.\nThe last password given to you was:  " */
-    char please_select_in_order[57];  /* +0x0d2 0x1c9e 'Please select, in order, the three parts listed on page ' */
-    char of_the_users_manual[23];     /* +0x10b 0x1cd7 " of the user's manual." */
-    char version_number[15];          /* +0x122 0x1cee 'VERSION NUMBER' */
-    char this_is_version[50];         /* +0x131 0x1cfd "This is version 1.00 of 'The Incredible Machine.'" */
-    char memory_low[11];              /* +0x163 0x1d2f 'MEMORY LOW' */
-    char memory_is_getting_low[61];   /* +0x16e 0x1d3a 'Memory is getting low.  You can only place a few more parts.' */
-    char out_of_memory[14];           /* +0x1ab 0x1d77 'OUT OF MEMORY' */
-    char you_cant_place_any[32];      /* +0x1b9 0x1d85 "You can't place any more parts." */
-    char quit_game[10];               /* +0x1d9 0x1da5 'QUIT GAME' */
-    char quit_body[40];               /* +0x1e3 0x1daf 'Are you sure you want to quit the game?' */
-    char restart_level[14];           /* +0x20b 0x1dd7 'RESTART LEVEL' */
-    char restart_body[65];            /* +0x219 0x1de5 'Are you sure you want to clear all parts and restart this level?' */
-    char freeform_mode[14];           /* +0x25a 0x1e26 'FREEFORM MODE' */
-    char freeform_body[46];           /* +0x268 0x1e34 'Are you sure you want to enter freeform mode?' */
-    char leave_freeform_mode[20];     /* +0x296 0x1e62 'LEAVE FREEFORM MODE' */
-    char leave_freeform_body[46];     /* +0x2aa 0x1e76 'Are you sure you want to leave freeform mode?' */
-    char cant_change_gravity[21];     /* +0x2d8 0x1ea4 "CAN'T CHANGE GRAVITY" */
-    char gravity_body[73];            /* +0x2ed 0x1eb9 'You are only allowed to change the gravitational force in freeform mode.' */
-    char cant_change_air_pressure[26];/* +0x336 0x1f02 "CAN'T CHANGE AIR PRESSURE" */
-    char air_pressure_body[66];       /* +0x350 0x1f1c 'You are only allowed to change the air pressure in freeform mode.' */
-    char overwrite_file[15];          /* +0x392 0x1f5e 'OVERWRITE FILE' */
-    char overwrite_body[51];          /* +0x3a1 0x1f6d 'File already exists.  Do you want to overwrite it?' */
-    char file_error[11];              /* +0x3d4 0x1fa0 'FILE ERROR' */
-    char cant_open_for_saving[37];    /* +0x3df 0x1fab 'Unable to open that file for saving.' */
-    char cant_open_for_loading[38];   /* +0x404 0x1fd0 'Unable to open that file for loading.' */
-    char disk_write_protected[89];    /* +0x42a 0x1ff6 'Disk is write protected or there is not enough memory on that disk to save this machine.' */
-    char path_error[11];              /* +0x483 0x204f 'PATH ERROR' */
-    char path_error_body[28];         /* +0x48e 0x205a 'Unable to choose that path.' */
-    char wrong_format[13];            /* +0x4aa 0x2076 'WRONG FORMAT' */
-    char wrong_format_body[65];       /* +0x4b7 0x2083 "That file has not been saved in 'The Incredible Machine' format." */
-    char need_password[14];           /* +0x4f8 0x20c4 'NEED PASSWORD' */
-    char need_password_body[68];      /* +0x506 0x20d2 'You need to enter the correct password in order to try this puzzle.' */
-    char bad_password[13];            /* +0x54a 0x2116 'BAD PASSWORD' */
-    char bad_password_body[30];       /* +0x557 0x2123 'That is not a valid password.' */
-    char score_code_invalid[19];      /* +0x575 0x2141 'SCORE CODE INVALID' */
-    char score_code_body[61];         /* +0x588 0x2154 'That score code is invalid.  Your score will be set to zero.' */
-    char parent_dir[13];              /* +0x5c5 0x2191 '<PARENT DIR>' */
-    char load_machine[13];            /* +0x5d2 0x219e 'LOAD MACHINE' */
-    char save_machine[13];            /* +0x5df 0x21ab 'SAVE MACHINE' */
-    char load[5];                     /* +0x5ec 0x21b8 'LOAD' */
-    char save[5];                     /* +0x5f1 0x21bd 'SAVE' */
-    char cancel[7];                   /* +0x5f6 0x21c2 'CANCEL' */
-    char file_name[11];               /* +0x5fd 0x21c9 'File Name:' */
-    char freeform_mode_title[14];     /* +0x608 0x21d4 'FREEFORM MODE' */
-    char puzzle_prefix[8];            /* +0x616 0x21e2 'PUZZLE ' */
-    char completed[12];               /* +0x61e 0x21ea ' COMPLETED!' */
-    char total_bonus_points[21];      /* +0x62a 0x21f6 'Total bonus points: ' */
-    char new_password[13];            /* +0x63f 0x220b 'New Password' */
-    char empty[1];                    /* +0x64c 0x2218 '' */
-    char click_button_to_continue[27];/* +0x64d 0x2219 '(click button to continue)' */
-    char replay_solution[16];         /* +0x668 0x2234 'REPLAY SOLUTION' */
-    char replay_body[82];             /* +0x678 0x2244 'Do you want to advance to the next puzzle or replay your solution to this puzzle?' */
-    char select_puzzle[14];           /* +0x6ca 0x2296 'SELECT PUZZLE' */
-    char password[9];                 /* +0x6d8 0x22a4 'PASSWORD' */
-    char solved_all_puzzles[19];      /* +0x6e1 0x22ad 'SOLVED ALL PUZZLES' */
-    char freeform_hint[70];           /* +0x6f4 0x22c0 'You can create any type of machine that you wish to in freeform mode.' */
-    char solved_all_body[104];        /* +0x73a 0x2306 'Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.' */
-    char path_sep[2];                 /* +0x7a2 0x236e '\\' */
+    char button_continue[9];          /* +0x000 0x14f0 'CONTINUE' */
+    char button_yes[4];               /* +0x009 0x14f9 'YES' */
+    char button_no[3];                /* +0x00d 0x14fd 'NO' */
+    char button_replay[7];            /* +0x010 0x1500 'REPLAY' */
+    char button_advance[8];           /* +0x017 0x1507 'ADVANCE' */
+    char not_enough_free_memory[26];  /* +0x01f 0x150f '\n\nNOT ENOUGH FREE MEMORY\n' */
+    char you_need_at_least[74];       /* +0x039 0x1529 "\nYou need at least 560k of free memory to run 'The Incredible Machine'.\n\n" */
+    char data_disk_requires[92];      /* +0x083 0x1573 "\n\nThe data disk requires the original version of 'The Incredible Machine' in orderto run.\n\n" */
+    char unable_to_initialize_vm[25]; /* +0x0df 0x15cf 'Unable to initialize vm.' */
+    char thanks_for_playing[85];      /* +0x0f8 0x15e8 "\n\nThanks for playing 'The Incredible Machine'.\nThe last password given to you was:  " */
+    char please_select_in_order[57];  /* +0x14d 0x163d 'Please select, in order, the three parts listed on page ' */
+    char of_the_users_manual[23];     /* +0x186 0x1676 " of the user's manual." */
+    char version_number[15];          /* +0x19d 0x168d 'VERSION NUMBER' */
+    char this_is_version[50];         /* +0x1ac 0x169c "This is version 1.11 of 'The Incredible Machine.'" */
+    char memory_low[11];              /* +0x1de 0x16ce 'MEMORY LOW' */
+    char memory_is_getting_low[61];   /* +0x1e9 0x16d9 'Memory is getting low.  You can only place a few more parts.' */
+    char out_of_memory[14];           /* +0x226 0x1716 'OUT OF MEMORY' */
+    char you_cant_place_any[32];      /* +0x234 0x1724 "You can't place any more parts." */
+    char quit_game[10];               /* +0x254 0x1744 'QUIT GAME' */
+    char quit_body[40];               /* +0x25e 0x174e 'Are you sure you want to quit the game?' */
+    char restart_level[14];           /* +0x286 0x1776 'RESTART LEVEL' */
+    char restart_body[65];            /* +0x294 0x1784 'Are you sure you want to clear all parts and restart this level?' */
+    char freeform_mode[14];           /* +0x2d5 0x17c5 'FREEFORM MODE' */
+    char freeform_body[46];           /* +0x2e3 0x17d3 'Are you sure you want to enter freeform mode?' */
+    char leave_freeform_mode[20];     /* +0x311 0x1801 'LEAVE FREEFORM MODE' */
+    char leave_freeform_body[46];     /* +0x325 0x1815 'Are you sure you want to leave freeform mode?' */
+    char cant_change_gravity[21];     /* +0x353 0x1843 "CAN'T CHANGE GRAVITY" */
+    char gravity_body[73];            /* +0x368 0x1858 'You are only allowed to change the gravitational force in freeform mode.' */
+    char cant_change_air_pressure[26];/* +0x3b1 0x18a1 "CAN'T CHANGE AIR PRESSURE" */
+    char air_pressure_body[66];       /* +0x3cb 0x18bb 'You are only allowed to change the air pressure in freeform mode.' */
+    char clear_parts_bin[16];         /* +0x40d 0x18fd 'CLEAR PARTS BIN' */
+    char clear_parts_bin_body[46];    /* +0x41d 0x190d 'Are you sure you want to clear the parts bin?' */
+    char adjust_parts_bin[17];        /* +0x44b 0x193b 'ADJUST PARTS BIN' */
+    char overwrite_file[15];          /* +0x45c 0x194c 'OVERWRITE FILE' */
+    char overwrite_body[51];          /* +0x46b 0x195b 'File already exists.  Do you want to overwrite it?' */
+    char file_error[11];              /* +0x49e 0x198e 'FILE ERROR' */
+    char cant_open_for_saving[37];    /* +0x4a9 0x1999 'Unable to open that file for saving.' */
+    char cant_open_for_loading[38];   /* +0x4ce 0x19be 'Unable to open that file for loading.' */
+    char disk_write_protected[89];    /* +0x4f4 0x19e4 'Disk is write protected or there is not enough memory on that disk to save this machine.' */
+    char path_error[11];              /* +0x54d 0x1a3d 'PATH ERROR' */
+    char path_error_body[28];         /* +0x558 0x1a48 'Unable to choose that path.' */
+    char wrong_format[13];            /* +0x574 0x1a64 'WRONG FORMAT' */
+    char wrong_format_body[65];       /* +0x581 0x1a71 "That file has not been saved in 'The Incredible Machine' format." */
+    char need_password[14];           /* +0x5c2 0x1ab2 'NEED PASSWORD' */
+    char need_password_body[68];      /* +0x5d0 0x1ac0 'You need to enter the correct password in order to try this puzzle.' */
+    char bad_password[13];            /* +0x614 0x1b04 'BAD PASSWORD' */
+    char bad_password_body[30];       /* +0x621 0x1b11 'That is not a valid password.' */
+    char score_code_invalid[19];      /* +0x63f 0x1b2f 'SCORE CODE INVALID' */
+    char score_code_body[61];         /* +0x652 0x1b42 'That score code is invalid.  Your score will be set to zero.' */
+    char parent_dir[13];              /* +0x68f 0x1b7f '<PARENT DIR>' */
+    char load_machine[13];            /* +0x69c 0x1b8c 'LOAD MACHINE' */
+    char save_machine[13];            /* +0x6a9 0x1b99 'SAVE MACHINE' */
+    char load[5];                     /* +0x6b6 0x1ba6 'LOAD' */
+    char save[5];                     /* +0x6bb 0x1bab 'SAVE' */
+    char cancel[7];                   /* +0x6c0 0x1bb0 'CANCEL' */
+    char file_name[11];               /* +0x6c7 0x1bb7 'File Name:' */
+    char freeform_mode_title[14];     /* +0x6d2 0x1bc2 'FREEFORM MODE' */
+    char puzzle_prefix[8];            /* +0x6e0 0x1bd0 'PUZZLE ' */
+    char completed[12];               /* +0x6e8 0x1bd8 ' COMPLETED!' */
+    char total_bonus_points[21];      /* +0x6f4 0x1be4 'Total bonus points: ' */
+    char new_password[13];            /* +0x709 0x1bf9 'New Password' */
+    char empty[1];                    /* +0x716 0x1c06 '' */
+    char click_button_to_continue[27];/* +0x717 0x1c07 '(click button to continue)' */
+    char replay_solution[16];         /* +0x732 0x1c22 'REPLAY SOLUTION' */
+    char replay_body[82];             /* +0x742 0x1c32 'Do you want to advance to the next puzzle or replay your solution to this puzzle?' */
+    char select_puzzle[14];           /* +0x794 0x1c84 'SELECT PUZZLE' */
+    char password[9];                 /* +0x7a2 0x1c92 'PASSWORD' */
+    char solved_all_puzzles[19];      /* +0x7ab 0x1c9b 'SOLVED ALL PUZZLES' */
+    char enter_description[34];       /* +0x7be 0x1cae '(Click here to enter description)' */
+    char solved_all_body[104];        /* +0x7e0 0x1cd0 'Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.' */
 } PACKED;
 
 extern struct messages g_messages;
@@ -1781,20 +1790,6 @@ struct game_message_tabs {
     int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
 } PACKED;
 
-/*
- * **The menu strip's animation tables**, DGROUP 0x25a2..0x25d6, 0x34 bytes, as
- * `draw_machine_layer_f` reads them: by frame, which of the menu bitmaps to
- * draw and where; and for frames past the fourth, where the four-frame
- * sprite goes. The names are ours; the extents are the routine's bounds
- * and the run ends exactly at 0x25d6.
- */
-struct machine_draw_menu_anim {
-    uint16_t  picture[6];         /* +0x00 [0xc]  a bitmap index in menu_bmp's set */
-    int16_t   picture_x[6];       /* +0x0c [0xc] */
-    int16_t   picture_y[6];       /* +0x18 [0xc] */
-    int16_t   sprite_x[4];        /* +0x24 [8]  by the frame modulo four */
-    int16_t   sprite_y[4];        /* +0x2c [8] */
-} PACKED;
 
 /*
  * **The selection box's animation phase**, DGROUP 0x25d6..0x25d8, 0x02 bytes:
@@ -1802,7 +1797,6 @@ struct machine_draw_menu_anim {
  * marching-ants offset.
  */
 extern struct game_message_tabs g_game_message_tabs;
-extern struct machine_draw_menu_anim g_machine_draw_menu_anim;
 extern uint16_t g_selection_phase;
 
 /*

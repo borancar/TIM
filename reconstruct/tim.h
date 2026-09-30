@@ -1409,7 +1409,7 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      int16_t colour);              /* 0x173db */
 #endif
 void draw_wrapped_text(char *str, int16_t x, int16_t y,
-                       int16_t w, int16_t h);       /* 0x15774 */
+                       int16_t w, int16_t h, int16_t shadow);       /* 0x15774 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,
                       int16_t line_height);        /* 0x1587a */
 void measure_word(char *str, int16_t *out_width,
