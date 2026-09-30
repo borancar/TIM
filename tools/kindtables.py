@@ -183,6 +183,19 @@ def emit_tables(img, dg, tabs, first_step):
     return "\n".join(lines)
 
 
+# Handlers whose prototype is not the slot's, cast as gamedata.c has them:
+# `part_flip_corner_pipe` takes the form as well.
+CAST = {"part_flip_corner_pipe": "void (far *)()"}
+
+# A handler the port has no routine for is named for the first kind and
+# slot that holds it - the stub the port gives it has that name.
+MISSING = {}
+
+
+def missing_name(slot, kind, addr):
+    return MISSING.setdefault(addr, "part_%s_%s" % (slot, kind_name(kind)))
+
+
 def emit_kinds(recs, names, tabs):
     table_at = {a: "g_%s_%s" % (kind_name(k), w) for a, k, w, n in tabs}
     lines = ["struct part_kind far g_part_kinds[PART_KIND_COUNT] = {"]
@@ -200,11 +213,13 @@ def emit_kinds(recs, names, tabs):
         lines.append("        0x%04x,    /* point_count */" % r["points"])
         lines.append("        0x%04x,    /* priority */" % r["priority"])
         for h, a in zip(HOOKS, r["hooks"]):
-            n = names.get(a, "part_%s_kind_%d /* 0x%05x, not transcribed */" % (h, r["kind"], a))
+            n = names.get(a) or missing_name(h, r["kind"], a)
             if h == "drive":
                 lines.append("        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \\")
                 lines.append("                                    uint16_t, uint16_t, int32_t)) \\")
                 lines.append("                  (void (far *)(void))%s)    /* drive */" % n)
+            elif n in CAST:
+                lines.append("        (%s)%s,    /* %s */" % (CAST[n], n, h))
             else:
                 lines.append("        %s,    /* %s */" % (n, h))
         lines.append("    },")
@@ -250,7 +265,7 @@ def emit_templates(img, dg, at, names):
         a = sg * 16 + o if (o or sg) else 0
         init = names.get(a) if a else "0"
         if init is None:
-            init = "part_init_%s" % kind_name(k)
+            init = missing_name("init", k, a)
             missing.append((k, a))
         lines.append("    { %s, %s, { %s, %s }, { %s, %s }, %s }, /* %d */" % (
             flags(t, TRAITS), flags(t2, TRAITS2),
@@ -290,6 +305,9 @@ def main():
         print(text)
         for k, ad in missing:
             print("/* kind %d: init 0x%05x has no routine in the port */" % (k, ad))
+    if a.kinds or a.templates is not None:
+        for ad, n in sorted(MISSING.items()):
+            print("/* MISSING 0x%05x %s */" % (ad, n))
     if a.report:
         for r in recs:
             for h, ad in zip(HOOKS, r["hooks"]):

@@ -563,23 +563,28 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
 /*
  * 0x10722
  *
- * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
- * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out
- * of the ranges rather than tested for - there is no part with those numbers.
+ * Load the part bitmaps: 0 to 7, then 9 to 0x30, then 0x32 to 0x36, then
+ * 1.11's new kinds 0x3a to 0x41. **8 and 0x31 are skipped**, by being left
+ * out of the ranges - the belt and the anchor draw nothing of their own - and
+ * so are 0x37..0x39, which `game_intro` loads for the title and frees after
+ * the credits. 1.00 loaded 0..7, 9, 0x0b..0x30 and 0x32: 1.11 draws the
+ * rope's knot from the rope's own bitmaps, so kind 10 is loaded now.
  */
 void load_all_parts(void)
 {
-    int16_t si;
+    register int16_t si;
 
     for (si = 0; si < 8; si++)
         load_part_bitmap((uint16_t)si);
 
-    load_part_bitmap(9);
-
-    for (si = 0x0b; si < 0x31; si++)
+    for (si = 9; si < 0x31; si++)
         load_part_bitmap((uint16_t)si);
 
-    load_part_bitmap(0x32);
+    for (si = 0x32; si < 0x37; si++)
+        load_part_bitmap((uint16_t)si);
+
+    for (si = 0x3a; si <= 0x41; si++)
+        load_part_bitmap((uint16_t)si);
 }
 
 /*
@@ -616,16 +621,16 @@ void load_part_bitmap(uint16_t n)
 /*
  * 0x107f0
  *
- * Give back every part's bitmaps: 0 to 0x39, one at a time, and no skipping -
- * unlike `load_all_parts`, which leaves out 10 and 0x31 because there is no
- * part with those numbers. Freeing one that was never loaded is harmless, so
- * the loop is written plainly.
+ * Give back every part's bitmaps: every kind, 0 to 0x41 in 1.11 (1.00: 0 to
+ * 0x39), one at a time, and no skipping - unlike `load_all_parts`, which
+ * leaves some out. Freeing one that was never loaded is harmless, so the loop
+ * is written plainly.
  */
 void free_all_part_bitmaps(void)
 {
     int16_t si;
 
-    for (si = 0; si < 0x3a; si++)
+    for (si = 0; si < PART_KIND_COUNT; si++)
         free_part_bitmap((uint16_t)si);
 }
 

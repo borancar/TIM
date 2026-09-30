@@ -3315,8 +3315,8 @@ struct part_kind {
  *
  * Its contents are transcribed in dgroup.c, at that address.
  */
-#define PART_KIND_COUNT 58
-extern struct part_kind g_part_kinds[PART_KIND_COUNT];
+#define PART_KIND_COUNT 66
+extern struct part_kind far g_part_kinds[PART_KIND_COUNT];
 
 /*
  * ---------------------------------------------------------------------------

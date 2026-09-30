@@ -1957,4 +1957,41 @@ uint16_t text_width_thunk(const char *str);            /* 0x23289 */
 void clip_and_draw_line(int16_t x1, int16_t y1,
                         int16_t x2, int16_t y2);    /* 0x23abe */
 
+
+/* ------------------------------------------------ 1.11's new kinds, stubs
+ * Named for the kind and the slot that holds them, until transcribed. */
+uint16_t part_init_kind_51(struct part *part);     /* 0x1689e */
+uint16_t part_init_kind_52(struct part *part);     /* 0x168db */
+uint16_t part_init_kind_53(struct part *part);     /* 0x1690a */
+uint16_t part_init_kind_54(struct part *part);     /* 0x16939 */
+uint16_t part_init_kind_58(struct part *part);     /* 0x16a1d */
+uint16_t part_init_kind_59(struct part *part);     /* 0x16a2e */
+uint16_t part_init_kind_61(struct part *part);     /* 0x16a5d */
+uint16_t part_init_kind_62(struct part *part);     /* 0x16a96 */
+uint16_t part_init_kind_64(struct part *part);     /* 0x16acf */
+uint16_t part_init_kind_65(struct part *part);     /* 0x16afe */
+uint16_t part_hit_kind_61(struct part *part);      /* 0x1da61 */
+void part_setup_kind_61(struct part *part);        /* 0x1dc13 */
+void part_step_kind_61(struct part *part);         /* 0x1dc63 */
+void part_flip_kind_61(struct part *part);         /* 0x1dd85 */
+uint16_t part_hit_kind_64(struct part *part);      /* 0x1dead */
+void part_setup_kind_64(struct part *part);        /* 0x1df70 */
+void part_step_kind_64(struct part *part);         /* 0x1dfb1 */
+void part_setup_kind_52(struct part *part);        /* 0x1dfe9 */
+uint16_t part_hit_kind_54(struct part *part);      /* 0x1e02a */
+void part_setup_kind_54(struct part *part);        /* 0x1e0e4 */
+void part_step_kind_54(struct part *part);         /* 0x1e133 */
+void part_flip_kind_54(struct part *part);         /* 0x1e21b */
+void part_step_kind_58(struct part *part);         /* 0x1e247 */
+uint16_t part_hit_kind_53(struct part *part);      /* 0x1e2ce */
+void part_setup_kind_53(struct part *part);        /* 0x1e2fc */
+void part_setup_kind_65(struct part *part);        /* 0x1e33d */
+void part_setup_kind_62(struct part *part);        /* 0x1e37e */
+void part_flip_kind_62(struct part *part);         /* 0x1e3bf */
+void part_step_kind_62(struct part *part);         /* 0x1e3f2 */
+uint16_t part_hit_kind_51(struct part *part);      /* 0x1e5af */
+void part_setup_kind_51(struct part *part);        /* 0x1e5f3 */
+void part_step_kind_51(struct part *part);         /* 0x1e643 */
+void part_flip_kind_51(struct part *part);         /* 0x1e822 */
+
 #endif /* TIM_H */

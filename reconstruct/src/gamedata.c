@@ -59,16 +59,17 @@ int16_t g_preload_sound_need[26] = {
 struct draw_step g_default_draw_step = { 0, 0, { 0, 0xff }, { { 0 } } };   /* DGROUP 0x0124 */
 
 /*
- * DGROUP 0x0133..0x0ea6 - **the kinds' drawing tables**, which `g_part_kinds`
- * points into and nothing else does. A kind that draws in steps has a run of
- * `draw_step`s, then three tables indexed by form: the first step
- * (`bitmaps2`), the size (`sizes`) and the hot spot (`hotspots`); a kind
- * that draws one bitmap per form has at most the last two. The boundaries are
- * where the kind records point, and they tile the range with nothing left
- * over. The `next` links and the table entries are near pointers, as the
- * image has them.
+ * DGROUP 0x02a7..0x14eb in 1.11 (1.00: 0x0133..0x0ea6) - **the kinds'
+ * drawing tables**, which `g_part_kinds` points into and nothing else does.
+ * A kind that draws in steps has a run of `draw_step`s, then three tables
+ * indexed by form: the first step (`bitmaps2`), the size (`sizes`) and the
+ * hot spot (`hotspots`); a kind that draws one bitmap per form has at most
+ * the last two. The boundaries are where the kind records point, and they
+ * tile the range with nothing left over. The `next` links and the table
+ * entries are near pointers, as the image has them. Written by
+ * `tools/kindtables.py --tables --end 0x14eb` from the image.
  */
-struct draw_step g_jack_in_the_box_draw_steps[19] = {
+struct draw_step g_jack_in_the_box_draw_steps[19] = {   /* DGROUP 0x02a7 */
     {
         0,    /* next */
         0x03,    /* level */
@@ -182,30 +183,32 @@ struct draw_step g_jack_in_the_box_draw_steps[19] = {
         0x03,    /* level */
         { 0x00, 0x14, 0x02, 0xff },    /* frame */
         { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_jack_in_the_box_form_steps[19] = {   /* DGROUP 0x0250 */
-    NEAR_AT(0x0133, &g_jack_in_the_box_draw_steps[0]),
-    NEAR_AT(0x0142, &g_jack_in_the_box_draw_steps[1]),
-    NEAR_AT(0x0151, &g_jack_in_the_box_draw_steps[2]),
-    NEAR_AT(0x0160, &g_jack_in_the_box_draw_steps[3]),
-    NEAR_AT(0x016f, &g_jack_in_the_box_draw_steps[4]),
-    NEAR_AT(0x017e, &g_jack_in_the_box_draw_steps[5]),
-    NEAR_AT(0x018d, &g_jack_in_the_box_draw_steps[6]),
-    NEAR_AT(0x019c, &g_jack_in_the_box_draw_steps[7]),
-    NEAR_AT(0x01ab, &g_jack_in_the_box_draw_steps[8]),
-    NEAR_AT(0x01ba, &g_jack_in_the_box_draw_steps[9]),
-    NEAR_AT(0x01c9, &g_jack_in_the_box_draw_steps[10]),
-    NEAR_AT(0x01d8, &g_jack_in_the_box_draw_steps[11]),
-    NEAR_AT(0x01e7, &g_jack_in_the_box_draw_steps[12]),
-    NEAR_AT(0x01f6, &g_jack_in_the_box_draw_steps[13]),
-    NEAR_AT(0x0205, &g_jack_in_the_box_draw_steps[14]),
-    NEAR_AT(0x0214, &g_jack_in_the_box_draw_steps[15]),
-    NEAR_AT(0x0223, &g_jack_in_the_box_draw_steps[16]),
-    NEAR_AT(0x0232, &g_jack_in_the_box_draw_steps[17]),
-    NEAR_AT(0x0241, &g_jack_in_the_box_draw_steps[18])
+
+struct draw_step *g_jack_in_the_box_form_steps[19] = {   /* DGROUP 0x03c4 */
+    NEAR_AT(0x02a7, &g_jack_in_the_box_draw_steps[0]),
+    NEAR_AT(0x02b6, &g_jack_in_the_box_draw_steps[1]),
+    NEAR_AT(0x02c5, &g_jack_in_the_box_draw_steps[2]),
+    NEAR_AT(0x02d4, &g_jack_in_the_box_draw_steps[3]),
+    NEAR_AT(0x02e3, &g_jack_in_the_box_draw_steps[4]),
+    NEAR_AT(0x02f2, &g_jack_in_the_box_draw_steps[5]),
+    NEAR_AT(0x0301, &g_jack_in_the_box_draw_steps[6]),
+    NEAR_AT(0x0310, &g_jack_in_the_box_draw_steps[7]),
+    NEAR_AT(0x031f, &g_jack_in_the_box_draw_steps[8]),
+    NEAR_AT(0x032e, &g_jack_in_the_box_draw_steps[9]),
+    NEAR_AT(0x033d, &g_jack_in_the_box_draw_steps[10]),
+    NEAR_AT(0x034c, &g_jack_in_the_box_draw_steps[11]),
+    NEAR_AT(0x035b, &g_jack_in_the_box_draw_steps[12]),
+    NEAR_AT(0x036a, &g_jack_in_the_box_draw_steps[13]),
+    NEAR_AT(0x0379, &g_jack_in_the_box_draw_steps[14]),
+    NEAR_AT(0x0388, &g_jack_in_the_box_draw_steps[15]),
+    NEAR_AT(0x0397, &g_jack_in_the_box_draw_steps[16]),
+    NEAR_AT(0x03a6, &g_jack_in_the_box_draw_steps[17]),
+    NEAR_AT(0x03b5, &g_jack_in_the_box_draw_steps[18]),
 };
-struct point16 g_jack_in_the_box_form_sizes[19] = {   /* DGROUP 0x0276 */
+
+struct point16 g_jack_in_the_box_form_sizes[19] = {   /* DGROUP 0x03ea */
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
@@ -224,9 +227,10 @@ struct point16 g_jack_in_the_box_form_sizes[19] = {   /* DGROUP 0x0276 */
     { 0x0028, 0x0039 },
     { 0x0024, 0x0039 },
     { 0x0024, 0x0039 },
-    { 0x0024, 0x0039 }
+    { 0x0024, 0x0039 },
 };
-struct point8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x02c2 */
+
+struct point8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x0436 */
     { 0 },
     { 0 },
     { 0 },
@@ -245,9 +249,10 @@ struct point8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x02c2 */
     { 0xfc, 0xe7 },
     { 0xfc, 0xe7 },
     { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 }
+    { 0xfc, 0xe7 },
 };
-struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x02e8 */
+
+struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x045c */
     {
         0,    /* next */
         0x03,    /* level */
@@ -314,9 +319,24 @@ struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x02e8 */
         { 0x00, 0x0b, 0x0c, 0xff },    /* frame */
         { { 0 }, { 0x06, 0x0a }, { 0x0a, 0x1b } }    /* offset */
     },
-    { 0, 0x03, { 0x0d, 0xff, 0xff, 0xff }, { { 0xf0, 0x08 } } },
-    { 0, 0x03, { 0x0e, 0xff, 0xff, 0xff }, { { 0xed, 0x0f } } },
-    { 0, 0x03, { 0x0f, 0xff, 0xff, 0xff }, { { 0xe7, 0x13 } } },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x0d, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xf0, 0x08 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x0e, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xed, 0x0f } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x0f, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xe7, 0x13 } }    /* offset */
+    },
     {
         0,    /* next */
         0x03,    /* level */
@@ -370,34 +390,36 @@ struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x02e8 */
         0x03,    /* level */
         { 0x10, 0x19, 0xff, 0xff },    /* frame */
         { { 0xe4, 0x19 }, { 0x05, 0x26 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_bob_the_fish_form_steps[23] = {   /* DGROUP 0x0441 */
-    NEAR_AT(0x02e8, &g_bob_the_fish_draw_steps[0]),
-    NEAR_AT(0x02f7, &g_bob_the_fish_draw_steps[1]),
-    NEAR_AT(0x0306, &g_bob_the_fish_draw_steps[2]),
-    NEAR_AT(0x0315, &g_bob_the_fish_draw_steps[3]),
-    NEAR_AT(0x0324, &g_bob_the_fish_draw_steps[4]),
-    NEAR_AT(0x0333, &g_bob_the_fish_draw_steps[5]),
-    NEAR_AT(0x0342, &g_bob_the_fish_draw_steps[6]),
-    NEAR_AT(0x0351, &g_bob_the_fish_draw_steps[7]),
-    NEAR_AT(0x0360, &g_bob_the_fish_draw_steps[8]),
-    NEAR_AT(0x036f, &g_bob_the_fish_draw_steps[9]),
-    NEAR_AT(0x037e, &g_bob_the_fish_draw_steps[10]),
-    NEAR_AT(0x038d, &g_bob_the_fish_draw_steps[11]),
-    NEAR_AT(0x039c, &g_bob_the_fish_draw_steps[12]),
-    NEAR_AT(0x03ab, &g_bob_the_fish_draw_steps[13]),
-    NEAR_AT(0x03ba, &g_bob_the_fish_draw_steps[14]),
-    NEAR_AT(0x03c9, &g_bob_the_fish_draw_steps[15]),
-    NEAR_AT(0x03d8, &g_bob_the_fish_draw_steps[16]),
-    NEAR_AT(0x03e7, &g_bob_the_fish_draw_steps[17]),
-    NEAR_AT(0x03f6, &g_bob_the_fish_draw_steps[18]),
-    NEAR_AT(0x0405, &g_bob_the_fish_draw_steps[19]),
-    NEAR_AT(0x0414, &g_bob_the_fish_draw_steps[20]),
-    NEAR_AT(0x0423, &g_bob_the_fish_draw_steps[21]),
-    NEAR_AT(0x0432, &g_bob_the_fish_draw_steps[22])
+
+struct draw_step *g_bob_the_fish_form_steps[23] = {   /* DGROUP 0x05b5 */
+    NEAR_AT(0x045c, &g_bob_the_fish_draw_steps[0]),
+    NEAR_AT(0x046b, &g_bob_the_fish_draw_steps[1]),
+    NEAR_AT(0x047a, &g_bob_the_fish_draw_steps[2]),
+    NEAR_AT(0x0489, &g_bob_the_fish_draw_steps[3]),
+    NEAR_AT(0x0498, &g_bob_the_fish_draw_steps[4]),
+    NEAR_AT(0x04a7, &g_bob_the_fish_draw_steps[5]),
+    NEAR_AT(0x04b6, &g_bob_the_fish_draw_steps[6]),
+    NEAR_AT(0x04c5, &g_bob_the_fish_draw_steps[7]),
+    NEAR_AT(0x04d4, &g_bob_the_fish_draw_steps[8]),
+    NEAR_AT(0x04e3, &g_bob_the_fish_draw_steps[9]),
+    NEAR_AT(0x04f2, &g_bob_the_fish_draw_steps[10]),
+    NEAR_AT(0x0501, &g_bob_the_fish_draw_steps[11]),
+    NEAR_AT(0x0510, &g_bob_the_fish_draw_steps[12]),
+    NEAR_AT(0x051f, &g_bob_the_fish_draw_steps[13]),
+    NEAR_AT(0x052e, &g_bob_the_fish_draw_steps[14]),
+    NEAR_AT(0x053d, &g_bob_the_fish_draw_steps[15]),
+    NEAR_AT(0x054c, &g_bob_the_fish_draw_steps[16]),
+    NEAR_AT(0x055b, &g_bob_the_fish_draw_steps[17]),
+    NEAR_AT(0x056a, &g_bob_the_fish_draw_steps[18]),
+    NEAR_AT(0x0579, &g_bob_the_fish_draw_steps[19]),
+    NEAR_AT(0x0588, &g_bob_the_fish_draw_steps[20]),
+    NEAR_AT(0x0597, &g_bob_the_fish_draw_steps[21]),
+    NEAR_AT(0x05a6, &g_bob_the_fish_draw_steps[22]),
 };
-struct point16 g_bob_the_fish_form_sizes[23] = {   /* DGROUP 0x046f */
+
+struct point16 g_bob_the_fish_form_sizes[23] = {   /* DGROUP 0x05e3 */
     { 0x0030, 0x0030 },
     { 0x0030, 0x0030 },
     { 0x0030, 0x0030 },
@@ -420,9 +442,10 @@ struct point16 g_bob_the_fish_form_sizes[23] = {   /* DGROUP 0x046f */
     { 0x0068, 0x0023 },
     { 0x0068, 0x0020 },
     { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 }
+    { 0x0068, 0x0020 },
 };
-struct point8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x04cb */
+
+struct point8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x063f */
     { 0 },
     { 0 },
     { 0 },
@@ -445,10 +468,16 @@ struct point8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x04cb */
     { 0xe4, 0x16 },
     { 0xe4, 0x19 },
     { 0xe4, 0x19 },
-    { 0xe4, 0x19 }
+    { 0xe4, 0x19 },
 };
-struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x04f9 */
-    { 0, 0x04, { 0x00, 0x09, 0xff, 0xff }, { { 0 }, { 0x09, 0x0d } } },
+
+struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x066d */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x09, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x09, 0x0d } }    /* offset */
+    },
     {
         0,    /* next */
         0x04,    /* level */
@@ -491,23 +520,38 @@ struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x04f9 */
         { 0x02, 0x09, 0xff, 0xff },    /* frame */
         { { 0xf8, 0xf5 }, { 0x09, 0x0d } }    /* offset */
     },
-    { 0, 0, { 0x04, 0xff, 0xff, 0xff }, { { 0x53, 0xdf } } },
     {
-        NEAR_AT(0x0571, &g_cannon_draw_steps[8]),    /* next */
+        0,    /* next */
+        0x00,    /* level */
+        { 0x04, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x53, 0xdf } }    /* offset */
+    },
+    {
+        NEAR_AT(0x06e5, &g_cannon_draw_steps[8]),    /* next */
         0x04,    /* level */
         { 0x03, 0x09, 0xff, 0xff },    /* frame */
         { { 0xfe, 0xfd }, { 0x09, 0x0d } }    /* offset */
     },
-    { 0, 0, { 0x06, 0xff, 0xff, 0xff }, { { 0x65, 0xd2 } } },
     {
-        NEAR_AT(0x058f, &g_cannon_draw_steps[10]),    /* next */
+        0,    /* next */
+        0x00,    /* level */
+        { 0x06, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x65, 0xd2 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0703, &g_cannon_draw_steps[10]),    /* next */
         0x04,    /* level */
         { 0x05, 0x09, 0xff, 0xff },    /* frame */
         { { 0xfe, 0xf9 }, { 0x09, 0x0d } }    /* offset */
     },
-    { 0, 0, { 0x08, 0xff, 0xff, 0xff }, { { 0x7f, 0xdf } } },
     {
-        NEAR_AT(0x05ad, &g_cannon_draw_steps[12]),    /* next */
+        0,    /* next */
+        0x00,    /* level */
+        { 0x08, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x7f, 0xdf } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0721, &g_cannon_draw_steps[12]),    /* next */
         0x04,    /* level */
         { 0x07, 0x09, 0xff, 0xff },    /* frame */
         { { 0xfd, 0xfd }, { 0x09, 0x0d } }    /* offset */
@@ -517,23 +561,25 @@ struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x04f9 */
         0x04,    /* level */
         { 0x00, 0x09, 0x0f, 0xff },    /* frame */
         { { 0 }, { 0x09, 0x0d }, { 0, 0x02 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_cannon_form_steps[12] = {   /* DGROUP 0x05da */
-    NEAR_AT(0x04f9, &g_cannon_draw_steps[0]),
-    NEAR_AT(0x0508, &g_cannon_draw_steps[1]),
-    NEAR_AT(0x0517, &g_cannon_draw_steps[2]),
-    NEAR_AT(0x0526, &g_cannon_draw_steps[3]),
-    NEAR_AT(0x0535, &g_cannon_draw_steps[4]),
-    NEAR_AT(0x0544, &g_cannon_draw_steps[5]),
-    NEAR_AT(0x0553, &g_cannon_draw_steps[6]),
-    NEAR_AT(0x0562, &g_cannon_draw_steps[7]),
-    NEAR_AT(0x0580, &g_cannon_draw_steps[9]),
-    NEAR_AT(0x059e, &g_cannon_draw_steps[11]),
-    NEAR_AT(0x05bc, &g_cannon_draw_steps[13]),
-    NEAR_AT(0x05cb, &g_cannon_draw_steps[14])
+
+struct draw_step *g_cannon_form_steps[12] = {   /* DGROUP 0x074e */
+    NEAR_AT(0x066d, &g_cannon_draw_steps[0]),
+    NEAR_AT(0x067c, &g_cannon_draw_steps[1]),
+    NEAR_AT(0x068b, &g_cannon_draw_steps[2]),
+    NEAR_AT(0x069a, &g_cannon_draw_steps[3]),
+    NEAR_AT(0x06a9, &g_cannon_draw_steps[4]),
+    NEAR_AT(0x06b8, &g_cannon_draw_steps[5]),
+    NEAR_AT(0x06c7, &g_cannon_draw_steps[6]),
+    NEAR_AT(0x06d6, &g_cannon_draw_steps[7]),
+    NEAR_AT(0x06f4, &g_cannon_draw_steps[9]),
+    NEAR_AT(0x0712, &g_cannon_draw_steps[11]),
+    NEAR_AT(0x0730, &g_cannon_draw_steps[13]),
+    NEAR_AT(0x073f, &g_cannon_draw_steps[14]),
 };
-struct point16 g_cannon_form_sizes[12] = {   /* DGROUP 0x05f2 */
+
+struct point16 g_cannon_form_sizes[12] = {   /* DGROUP 0x0766 */
     { 0x0040, 0x0034 },
     { 0x0049, 0x003a },
     { 0x0049, 0x003a },
@@ -545,9 +591,10 @@ struct point16 g_cannon_form_sizes[12] = {   /* DGROUP 0x05f2 */
     { 0x00c2, 0x0054 },
     { 0x00d2, 0x005e },
     { 0x00c7, 0x0054 },
-    { 0x0040, 0x0034 }
+    { 0x0040, 0x0034 },
 };
-struct point8 g_cannon_hot_spots[12] = {   /* DGROUP 0x0622 */
+
+struct point8 g_cannon_hot_spots[12] = {   /* DGROUP 0x0796 */
     { 0 },
     { 0xf7, 0xfa },
     { 0xf7, 0xfa },
@@ -558,28 +605,83 @@ struct point8 g_cannon_hot_spots[12] = {   /* DGROUP 0x0622 */
     { 0xf8, 0xf5 },
     { 0xfe, 0xdf },
     { 0xfe, 0xd2 },
-    { 0xfd, 0xdf }
+    { 0xfd, 0xdf },
+    { 0 },
 };
-struct draw_step g_dynamite_draw_steps[6] = {   /* DGROUP 0x063a */
-    { 0, 0x03, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x28, 0x09 } } },
-    { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x27, 0x0a } } },
-    { 0, 0x03, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x27, 0x09 } } },
-    { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x25, 0x0d } } },
-    { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x26, 0x0c } } }
+
+struct draw_step g_dynamite_draw_steps[6] = {   /* DGROUP 0x07ae */
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x28, 0x09 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x27, 0x0a } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x03, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x27, 0x09 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x25, 0x0d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x05, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x26, 0x0c } }    /* offset */
+    },
 };
-struct draw_step *g_dynamite_form_steps[6] = { NEAR_AT(0x063a, &g_dynamite_draw_steps[0]), NEAR_AT(0x0649, &g_dynamite_draw_steps[1]), NEAR_AT(0x0658, &g_dynamite_draw_steps[2]), NEAR_AT(0x0667, &g_dynamite_draw_steps[3]), NEAR_AT(0x0676, &g_dynamite_draw_steps[4]), NEAR_AT(0x0685, &g_dynamite_draw_steps[5]) };   /* DGROUP 0x0694 */
-struct point16 g_dynamite_form_sizes[6] = {   /* DGROUP 0x06a0 */
+
+struct draw_step *g_dynamite_form_steps[6] = {   /* DGROUP 0x0808 */
+    NEAR_AT(0x07ae, &g_dynamite_draw_steps[0]),
+    NEAR_AT(0x07bd, &g_dynamite_draw_steps[1]),
+    NEAR_AT(0x07cc, &g_dynamite_draw_steps[2]),
+    NEAR_AT(0x07db, &g_dynamite_draw_steps[3]),
+    NEAR_AT(0x07ea, &g_dynamite_draw_steps[4]),
+    NEAR_AT(0x07f9, &g_dynamite_draw_steps[5]),
+};
+
+struct point16 g_dynamite_form_sizes[6] = {   /* DGROUP 0x0814 */
     { 0x0030, 0x001c },
     { 0x0038, 0x001c },
     { 0x0038, 0x001c },
     { 0x0038, 0x001c },
     { 0x0038, 0x001c },
-    { 0x0038, 0x001c }
+    { 0x0038, 0x001c },
 };
-struct point8 g_dynamite_hot_spots[6] = { 0 };   /* DGROUP 0x06b8 */
-struct draw_step g_electric_plug_draw_steps[8] = {   /* DGROUP 0x06c4 */
-    { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x08, 0x08 } } },
+
+struct point8 g_dynamite_hot_spots[6] = {   /* DGROUP 0x082c */
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+};
+
+struct draw_step g_electric_plug_draw_steps[8] = {   /* DGROUP 0x0838 */
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x08, 0x08 } }    /* offset */
+    },
     {
         0,    /* next */
         0x05,    /* level */
@@ -598,7 +700,12 @@ struct draw_step g_electric_plug_draw_steps[8] = {   /* DGROUP 0x06c4 */
         { 0x00, 0x01, 0x03, 0x03 },    /* frame */
         { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
     },
-    { 0, 0x05, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x08, 0x08 } } },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x08, 0x08 } }    /* offset */
+    },
     {
         0,    /* next */
         0x05,    /* level */
@@ -616,20 +723,32 @@ struct draw_step g_electric_plug_draw_steps[8] = {   /* DGROUP 0x06c4 */
         0x05,    /* level */
         { 0x00, 0x02, 0x03, 0x03 },    /* frame */
         { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_electric_plug_form_steps[8] = { NEAR_AT(0x06c4, &g_electric_plug_draw_steps[0]), NEAR_AT(0x06d3, &g_electric_plug_draw_steps[1]), NEAR_AT(0x06e2, &g_electric_plug_draw_steps[2]), NEAR_AT(0x06f1, &g_electric_plug_draw_steps[3]), NEAR_AT(0x0700, &g_electric_plug_draw_steps[4]), NEAR_AT(0x070f, &g_electric_plug_draw_steps[5]), NEAR_AT(0x071e, &g_electric_plug_draw_steps[6]), NEAR_AT(0x072d, &g_electric_plug_draw_steps[7]) };   /* DGROUP 0x073c */
-struct point16 g_electric_plug_form_sizes[8] = {   /* DGROUP 0x074c */
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 }
+
+struct draw_step *g_electric_plug_form_steps[8] = {   /* DGROUP 0x08b0 */
+    NEAR_AT(0x0838, &g_electric_plug_draw_steps[0]),
+    NEAR_AT(0x0847, &g_electric_plug_draw_steps[1]),
+    NEAR_AT(0x0856, &g_electric_plug_draw_steps[2]),
+    NEAR_AT(0x0865, &g_electric_plug_draw_steps[3]),
+    NEAR_AT(0x0874, &g_electric_plug_draw_steps[4]),
+    NEAR_AT(0x0883, &g_electric_plug_draw_steps[5]),
+    NEAR_AT(0x0892, &g_electric_plug_draw_steps[6]),
+    NEAR_AT(0x08a1, &g_electric_plug_draw_steps[7]),
 };
-struct draw_step g_dynamite_plunger_draw_steps[3] = {   /* DGROUP 0x076c */
+
+struct point16 g_electric_plug_form_sizes[8] = {   /* DGROUP 0x08c0 */
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+    { 0x0030, 0x0020 },
+};
+
+struct draw_step g_dynamite_plunger_draw_steps[3] = {   /* DGROUP 0x08e0 */
     {
         0,    /* next */
         0x04,    /* level */
@@ -647,29 +766,93 @@ struct draw_step g_dynamite_plunger_draw_steps[3] = {   /* DGROUP 0x076c */
         0x04,    /* level */
         { 0x02, 0x01, 0xff, 0xff },    /* frame */
         { { 0x67, 0x0a }, { 0x28, 0x10 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_dynamite_plunger_form_steps[3] = { NEAR_AT(0x076c, &g_dynamite_plunger_draw_steps[0]), NEAR_AT(0x077b, &g_dynamite_plunger_draw_steps[1]), NEAR_AT(0x078a, &g_dynamite_plunger_draw_steps[2]) };   /* DGROUP 0x0799 */
-struct point16 g_dynamite_plunger_form_sizes[3] = { { 0x0087, 0x0030 }, { 0x0087, 0x002e }, { 0x0087, 0x0029 } };   /* DGROUP 0x079f */
-struct point8 g_dynamite_plunger_hot_spots[3] = { 0 };   /* DGROUP 0x07ab */
-struct draw_step g_fan_draw_steps[4] = {   /* DGROUP 0x07b1 */
-    { 0, 0x04, { 0x00, 0x01, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
-    { 0, 0x04, { 0x00, 0x02, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
-    { 0, 0x04, { 0x00, 0x03, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } },
-    { 0, 0x04, { 0x00, 0x04, 0xff, 0xff }, { { 0, 0x08 }, { 0x10, 0 } } }
+
+struct draw_step *g_dynamite_plunger_form_steps[3] = {   /* DGROUP 0x090d */
+    NEAR_AT(0x08e0, &g_dynamite_plunger_draw_steps[0]),
+    NEAR_AT(0x08ef, &g_dynamite_plunger_draw_steps[1]),
+    NEAR_AT(0x08fe, &g_dynamite_plunger_draw_steps[2]),
 };
-struct draw_step *g_fan_form_steps[4] = { NEAR_AT(0x07b1, &g_fan_draw_steps[0]), NEAR_AT(0x07c0, &g_fan_draw_steps[1]), NEAR_AT(0x07cf, &g_fan_draw_steps[2]), NEAR_AT(0x07de, &g_fan_draw_steps[3]) };   /* DGROUP 0x07ed */
-struct point16 g_fan_form_sizes[4] = {   /* DGROUP 0x07f5 */
+
+struct point16 g_dynamite_plunger_form_sizes[3] = {   /* DGROUP 0x0913 */
+    { 0x0087, 0x0030 },
+    { 0x0087, 0x002e },
+    { 0x0087, 0x0029 },
+};
+
+struct point8 g_dynamite_plunger_hot_spots[3] = {   /* DGROUP 0x091f */
+    { 0 },
+    { 0 },
+    { 0 },
+};
+
+struct draw_step g_fan_draw_steps[4] = {   /* DGROUP 0x0925 */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x03, 0xff, 0xff },    /* frame */
+        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+    },
+};
+
+struct draw_step *g_fan_form_steps[4] = {   /* DGROUP 0x0961 */
+    NEAR_AT(0x0925, &g_fan_draw_steps[0]),
+    NEAR_AT(0x0934, &g_fan_draw_steps[1]),
+    NEAR_AT(0x0943, &g_fan_draw_steps[2]),
+    NEAR_AT(0x0952, &g_fan_draw_steps[3]),
+};
+
+struct point16 g_fan_form_sizes[4] = {   /* DGROUP 0x0969 */
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
     { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 }
+    { 0x0020, 0x0020 },
 };
-struct draw_step g_generator_draw_steps[16] = {   /* DGROUP 0x0805 */
-    { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x15, 0 } } },
-    { 0, 0x05, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x15, 0xfa } } },
-    { 0, 0x05, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x15, 0x01 } } },
-    { 0, 0x05, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x15, 0xfb } } },
+
+struct draw_step g_generator_draw_steps[16] = {   /* DGROUP 0x0979 */
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x15, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x15, 0xfa } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x03, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x15, 0x01 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x15, 0xfb } }    /* offset */
+    },
     {
         0,    /* next */
         0x05,    /* level */
@@ -741,27 +924,29 @@ struct draw_step g_generator_draw_steps[16] = {   /* DGROUP 0x0805 */
         0x05,    /* level */
         { 0x00, 0x04, 0x05, 0x05 },    /* frame */
         { { 0 }, { 0x15, 0xfb }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_generator_form_steps[16] = {   /* DGROUP 0x08f5 */
-    NEAR_AT(0x0805, &g_generator_draw_steps[0]),
-    NEAR_AT(0x0814, &g_generator_draw_steps[1]),
-    NEAR_AT(0x0823, &g_generator_draw_steps[2]),
-    NEAR_AT(0x0832, &g_generator_draw_steps[3]),
-    NEAR_AT(0x0841, &g_generator_draw_steps[4]),
-    NEAR_AT(0x0850, &g_generator_draw_steps[5]),
-    NEAR_AT(0x085f, &g_generator_draw_steps[6]),
-    NEAR_AT(0x086e, &g_generator_draw_steps[7]),
-    NEAR_AT(0x087d, &g_generator_draw_steps[8]),
-    NEAR_AT(0x088c, &g_generator_draw_steps[9]),
-    NEAR_AT(0x089b, &g_generator_draw_steps[10]),
-    NEAR_AT(0x08aa, &g_generator_draw_steps[11]),
-    NEAR_AT(0x08b9, &g_generator_draw_steps[12]),
-    NEAR_AT(0x08c8, &g_generator_draw_steps[13]),
-    NEAR_AT(0x08d7, &g_generator_draw_steps[14]),
-    NEAR_AT(0x08e6, &g_generator_draw_steps[15])
+
+struct draw_step *g_generator_form_steps[16] = {   /* DGROUP 0x0a69 */
+    NEAR_AT(0x0979, &g_generator_draw_steps[0]),
+    NEAR_AT(0x0988, &g_generator_draw_steps[1]),
+    NEAR_AT(0x0997, &g_generator_draw_steps[2]),
+    NEAR_AT(0x09a6, &g_generator_draw_steps[3]),
+    NEAR_AT(0x09b5, &g_generator_draw_steps[4]),
+    NEAR_AT(0x09c4, &g_generator_draw_steps[5]),
+    NEAR_AT(0x09d3, &g_generator_draw_steps[6]),
+    NEAR_AT(0x09e2, &g_generator_draw_steps[7]),
+    NEAR_AT(0x09f1, &g_generator_draw_steps[8]),
+    NEAR_AT(0x0a00, &g_generator_draw_steps[9]),
+    NEAR_AT(0x0a0f, &g_generator_draw_steps[10]),
+    NEAR_AT(0x0a1e, &g_generator_draw_steps[11]),
+    NEAR_AT(0x0a2d, &g_generator_draw_steps[12]),
+    NEAR_AT(0x0a3c, &g_generator_draw_steps[13]),
+    NEAR_AT(0x0a4b, &g_generator_draw_steps[14]),
+    NEAR_AT(0x0a5a, &g_generator_draw_steps[15]),
 };
-struct point16 g_generator_form_sizes[16] = {   /* DGROUP 0x0915 */
+
+struct point16 g_generator_form_sizes[16] = {   /* DGROUP 0x0a89 */
     { 0x0050, 0x0020 },
     { 0x0050, 0x0026 },
     { 0x0050, 0x0020 },
@@ -777,9 +962,10 @@ struct point16 g_generator_form_sizes[16] = {   /* DGROUP 0x0915 */
     { 0x0050, 0x0020 },
     { 0x0050, 0x0026 },
     { 0x0050, 0x0020 },
-    { 0x0050, 0x0025 }
+    { 0x0050, 0x0025 },
 };
-struct point8 g_generator_hot_spots[16] = {   /* DGROUP 0x0955 */
+
+struct point8 g_generator_hot_spots[16] = {   /* DGROUP 0x0ac9 */
     { 0 },
     { 0, 0xfa },
     { 0 },
@@ -795,60 +981,163 @@ struct point8 g_generator_hot_spots[16] = {   /* DGROUP 0x0955 */
     { 0 },
     { 0, 0xfa },
     { 0 },
-    { 0, 0xfb }
+    { 0, 0xfb },
 };
-struct draw_step g_gun_draw_steps[7] = {   /* DGROUP 0x0975 */
-    { 0, 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0x04, { 0x01, 0xff, 0xff, 0xff }, { { 0xff, 0xfb } } },
-    { 0, 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0xfe, 0xfd } } },
-    { 0, 0x04, { 0x03, 0xff, 0xff, 0xff }, { { 0xf1, 0xfa } } },
-    { 0, 0x04, { 0x04, 0xff, 0xff, 0xff }, { { 0xf5, 0xfd } } },
-    { 0, 0x04, { 0x00, 0x05, 0xff, 0xff }, { { 0xfe, 0 }, { 0x40, 0xf4 } } },
-    { 0, 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } }
+
+struct draw_step g_gun_draw_steps[7] = {   /* DGROUP 0x0ae9 */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xff, 0xfb } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xfe, 0xfd } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x03, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xf1, 0xfa } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x04, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xf5, 0xfd } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x05, 0xff, 0xff },    /* frame */
+        { { 0xfe, 0 }, { 0x40, 0xf4 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
 };
-struct draw_step *g_gun_form_steps[7] = { NEAR_AT(0x0975, &g_gun_draw_steps[0]), NEAR_AT(0x0984, &g_gun_draw_steps[1]), NEAR_AT(0x0993, &g_gun_draw_steps[2]), NEAR_AT(0x09a2, &g_gun_draw_steps[3]), NEAR_AT(0x09b1, &g_gun_draw_steps[4]), NEAR_AT(0x09c0, &g_gun_draw_steps[5]), NEAR_AT(0x09cf, &g_gun_draw_steps[6]) };   /* DGROUP 0x09de */
-struct point16 g_gun_form_sizes[7] = {   /* DGROUP 0x09ec */
+
+struct draw_step *g_gun_form_steps[7] = {   /* DGROUP 0x0b52 */
+    NEAR_AT(0x0ae9, &g_gun_draw_steps[0]),
+    NEAR_AT(0x0af8, &g_gun_draw_steps[1]),
+    NEAR_AT(0x0b07, &g_gun_draw_steps[2]),
+    NEAR_AT(0x0b16, &g_gun_draw_steps[3]),
+    NEAR_AT(0x0b25, &g_gun_draw_steps[4]),
+    NEAR_AT(0x0b34, &g_gun_draw_steps[5]),
+    NEAR_AT(0x0b43, &g_gun_draw_steps[6]),
+};
+
+struct point16 g_gun_form_sizes[7] = {   /* DGROUP 0x0b60 */
     { 0x0040, 0x001f },
     { 0x0038, 0x0024 },
     { 0x0080, 0x0025 },
     { 0x0070, 0x0022 },
     { 0x0080, 0x0022 },
     { 0x0080, 0x002b },
-    { 0x0040, 0x001f }
+    { 0x0040, 0x001f },
 };
-struct point8 g_gun_hot_spots[7] = {   /* DGROUP 0x0a08 */
+
+struct point8 g_gun_hot_spots[7] = {   /* DGROUP 0x0b7c */
     { 0 },
     { 0xff, 0xfb },
     { 0xfe, 0xfd },
     { 0xf1, 0xfa },
     { 0xf5, 0xfd },
-    { 0xfe, 0xf4 }
+    { 0xfe, 0xf4 },
+    { 0 },
 };
-struct draw_step g_light_draw_steps[4] = {   /* DGROUP 0x0a16 */
-    { 0, 0x02, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x14, 0x1c } } },
+
+struct draw_step g_light_draw_steps[4] = {   /* DGROUP 0x0b8a */
+    {
+        0,    /* next */
+        0x02,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x14, 0x1c } }    /* offset */
+    },
     {
         0,    /* next */
         0x02,    /* level */
         { 0x01, 0x05, 0xff, 0xff },    /* frame */
         { { 0xf8, 0xee }, { 0x14, 0x1c } }    /* offset */
     },
-    { 0, 0x02, { 0x02, 0x04, 0xff, 0xff }, { { 0 }, { 0x13, 0x02 } } },
-    { 0, 0x02, { 0x03, 0x05, 0xff, 0xff }, { { 0xf8, 0 }, { 0x13, 0x02 } } }
+    {
+        0,    /* next */
+        0x02,    /* level */
+        { 0x02, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x13, 0x02 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x02,    /* level */
+        { 0x03, 0x05, 0xff, 0xff },    /* frame */
+        { { 0xf8, 0 }, { 0x13, 0x02 } }    /* offset */
+    },
 };
-struct draw_step *g_light_form_steps[4] = { NEAR_AT(0x0a16, &g_light_draw_steps[0]), NEAR_AT(0x0a25, &g_light_draw_steps[1]), NEAR_AT(0x0a34, &g_light_draw_steps[2]), NEAR_AT(0x0a43, &g_light_draw_steps[3]) };   /* DGROUP 0x0a52 */
-struct point16 g_light_form_sizes[4] = {   /* DGROUP 0x0a5a */
+
+struct draw_step *g_light_form_steps[4] = {   /* DGROUP 0x0bc6 */
+    NEAR_AT(0x0b8a, &g_light_draw_steps[0]),
+    NEAR_AT(0x0b99, &g_light_draw_steps[1]),
+    NEAR_AT(0x0ba8, &g_light_draw_steps[2]),
+    NEAR_AT(0x0bb7, &g_light_draw_steps[3]),
+};
+
+struct point16 g_light_form_sizes[4] = {   /* DGROUP 0x0bce */
     { 0x0020, 0x0036 },
     { 0x002f, 0x0048 },
     { 0x0020, 0x0026 },
-    { 0x002f, 0x0032 }
+    { 0x002f, 0x0032 },
 };
-struct point8 g_light_hot_spots[4] = { { 0 }, { 0xf8, 0xee }, { 0 }, { 0xf8, 0 } };   /* DGROUP 0x0a6a */
-struct draw_step g_monkey_draw_steps[13] = {   /* DGROUP 0x0a72 */
-    { 0, 0x04, { 0x00, 0x04, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0 } } },
-    { 0, 0x04, { 0x00, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
-    { 0, 0x04, { 0x01, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
-    { 0, 0x04, { 0x02, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
-    { 0, 0x04, { 0x03, 0x05, 0xff, 0xff }, { { 0, 0x0c }, { 0x28, 0x06 } } },
+
+struct point8 g_light_hot_spots[4] = {   /* DGROUP 0x0bde */
+    { 0 },
+    { 0xf8, 0xee },
+    { 0 },
+    { 0xf8, 0 },
+};
+
+struct draw_step g_monkey_draw_steps[13] = {   /* DGROUP 0x0be6 */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0, 0x0c }, { 0x28, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x05, 0xff, 0xff },    /* frame */
+        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x01, 0x05, 0xff, 0xff },    /* frame */
+        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x02, 0x05, 0xff, 0xff },    /* frame */
+        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x03, 0x05, 0xff, 0xff },    /* frame */
+        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+    },
     {
         0,    /* next */
         0x04,    /* level */
@@ -896,24 +1185,26 @@ struct draw_step g_monkey_draw_steps[13] = {   /* DGROUP 0x0a72 */
         0x04,    /* level */
         { 0x00, 0x05, 0x09, 0xff },    /* frame */
         { { 0, 0x0c }, { 0x28, 0x06 }, { 0x0e, 0x01 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_monkey_form_steps[13] = {   /* DGROUP 0x0b35 */
-    NEAR_AT(0x0a72, &g_monkey_draw_steps[0]),
-    NEAR_AT(0x0a81, &g_monkey_draw_steps[1]),
-    NEAR_AT(0x0a90, &g_monkey_draw_steps[2]),
-    NEAR_AT(0x0a9f, &g_monkey_draw_steps[3]),
-    NEAR_AT(0x0aae, &g_monkey_draw_steps[4]),
-    NEAR_AT(0x0abd, &g_monkey_draw_steps[5]),
-    NEAR_AT(0x0acc, &g_monkey_draw_steps[6]),
-    NEAR_AT(0x0adb, &g_monkey_draw_steps[7]),
-    NEAR_AT(0x0aea, &g_monkey_draw_steps[8]),
-    NEAR_AT(0x0af9, &g_monkey_draw_steps[9]),
-    NEAR_AT(0x0b08, &g_monkey_draw_steps[10]),
-    NEAR_AT(0x0b17, &g_monkey_draw_steps[11]),
-    NEAR_AT(0x0b26, &g_monkey_draw_steps[12])
+
+struct draw_step *g_monkey_form_steps[13] = {   /* DGROUP 0x0ca9 */
+    NEAR_AT(0x0be6, &g_monkey_draw_steps[0]),
+    NEAR_AT(0x0bf5, &g_monkey_draw_steps[1]),
+    NEAR_AT(0x0c04, &g_monkey_draw_steps[2]),
+    NEAR_AT(0x0c13, &g_monkey_draw_steps[3]),
+    NEAR_AT(0x0c22, &g_monkey_draw_steps[4]),
+    NEAR_AT(0x0c31, &g_monkey_draw_steps[5]),
+    NEAR_AT(0x0c40, &g_monkey_draw_steps[6]),
+    NEAR_AT(0x0c4f, &g_monkey_draw_steps[7]),
+    NEAR_AT(0x0c5e, &g_monkey_draw_steps[8]),
+    NEAR_AT(0x0c6d, &g_monkey_draw_steps[9]),
+    NEAR_AT(0x0c7c, &g_monkey_draw_steps[10]),
+    NEAR_AT(0x0c8b, &g_monkey_draw_steps[11]),
+    NEAR_AT(0x0c9a, &g_monkey_draw_steps[12]),
 };
-struct point16 g_monkey_form_sizes[13] = {   /* DGROUP 0x0b4f */
+
+struct point16 g_monkey_form_sizes[13] = {   /* DGROUP 0x0cc3 */
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
@@ -926,121 +1217,811 @@ struct point16 g_monkey_form_sizes[13] = {   /* DGROUP 0x0b4f */
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
     { 0x005c, 0x004f },
-    { 0x005c, 0x004f }
+    { 0x005c, 0x004f },
 };
-struct draw_step g_rocket_draw_steps[10] = {   /* DGROUP 0x0b83 */
-    { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x03, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x02, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x02, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0xfe, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x06, 0xff, 0xff }, { { 0 }, { 0xfe, 0x2d } } },
-    { 0, 0x03, { 0x00, 0x07, 0xff, 0xff }, { { 0 }, { 0, 0x2c } } },
-    { 0, 0x03, { 0x00, 0x08, 0xff, 0xff }, { { 0 }, { 0x01, 0x2e } } },
-    { 0, 0x03, { 0x00, 0x09, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } },
-    { 0, 0x03, { 0x00, 0x0a, 0xff, 0xff }, { { 0 }, { 0, 0x2e } } }
+
+struct draw_step g_rocket_draw_steps[10] = {   /* DGROUP 0x0cf7 */
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x03, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x02, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x03, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x02, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x05, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0xfe, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x06, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0xfe, 0x2d } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x07, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0, 0x2c } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x08, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x01, 0x2e } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x09, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0, 0x2e } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x0a, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0, 0x2e } }    /* offset */
+    },
 };
-struct draw_step *g_rocket_form_steps[10] = {   /* DGROUP 0x0c19 */
-    NEAR_AT(0x0b83, &g_rocket_draw_steps[0]),
-    NEAR_AT(0x0b92, &g_rocket_draw_steps[1]),
-    NEAR_AT(0x0ba1, &g_rocket_draw_steps[2]),
-    NEAR_AT(0x0bb0, &g_rocket_draw_steps[3]),
-    NEAR_AT(0x0bbf, &g_rocket_draw_steps[4]),
-    NEAR_AT(0x0bce, &g_rocket_draw_steps[5]),
-    NEAR_AT(0x0bdd, &g_rocket_draw_steps[6]),
-    NEAR_AT(0x0bec, &g_rocket_draw_steps[7]),
-    NEAR_AT(0x0bfb, &g_rocket_draw_steps[8]),
-    NEAR_AT(0x0c0a, &g_rocket_draw_steps[9])
+
+struct draw_step *g_rocket_form_steps[10] = {   /* DGROUP 0x0d8d */
+    NEAR_AT(0x0cf7, &g_rocket_draw_steps[0]),
+    NEAR_AT(0x0d06, &g_rocket_draw_steps[1]),
+    NEAR_AT(0x0d15, &g_rocket_draw_steps[2]),
+    NEAR_AT(0x0d24, &g_rocket_draw_steps[3]),
+    NEAR_AT(0x0d33, &g_rocket_draw_steps[4]),
+    NEAR_AT(0x0d42, &g_rocket_draw_steps[5]),
+    NEAR_AT(0x0d51, &g_rocket_draw_steps[6]),
+    NEAR_AT(0x0d60, &g_rocket_draw_steps[7]),
+    NEAR_AT(0x0d6f, &g_rocket_draw_steps[8]),
+    NEAR_AT(0x0d7e, &g_rocket_draw_steps[9]),
 };
-struct point16 g_rocket_form_sizes[10] = {   /* DGROUP 0x0c2d */
+
+struct point16 g_rocket_form_sizes[10] = {   /* DGROUP 0x0da1 */
     { 0x0010, 0x0042 },
     { 0x0010, 0x004a },
     { 0x0010, 0x0046 },
     { 0x0010, 0x0041 },
-    { 0x0010, 0x003b },
-    { 0x0010, 0x0038 },
+    { 0x0012, 0x003b },
+    { 0x0012, 0x0038 },
     { 0x0010, 0x0042 },
     { 0x0010, 0x0051 },
     { 0x0010, 0x0053 },
-    { 0x0010, 0x0052 }
+    { 0x0010, 0x0052 },
 };
-struct point8 g_rocket_hot_spots[10] = { { 0 }, { 0 }, { 0 }, { 0 }, { 0xfe, 0 }, { 0xfe, 0 } };   /* DGROUP 0x0c55 */
-struct draw_step g_scissors_draw_steps[3] = {   /* DGROUP 0x0c69 */
-    { 0, 0x04, { 0x01, 0xff, 0xff, 0xff }, { { 0x15, 0x11 } } },
-    { NEAR_AT(0x0c69, &g_scissors_draw_steps[0]), 0, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0xfe, 0x04 } } }
+
+struct point8 g_rocket_hot_spots[10] = {   /* DGROUP 0x0dc9 */
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0xfe, 0 },
+    { 0xfe, 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
 };
-struct draw_step *g_scissors_form_steps[2] = { NEAR_AT(0x0c78, &g_scissors_draw_steps[1]), NEAR_AT(0x0c87, &g_scissors_draw_steps[2]) };   /* DGROUP 0x0c96 */
-struct point16 g_scissors_form_sizes[2] = { { 0x0028, 0x0022 }, { 0x0030, 0x0018 } };   /* DGROUP 0x0c9a */
-struct point8 g_scissors_hot_spots[2] = { { 0 }, { 0xfe, 0 } };   /* DGROUP 0x0ca2 */
-struct draw_step g_solar_panel_draw_steps[4] = {   /* DGROUP 0x0ca6 */
-    { 0, 0x05, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x34, 0x04 } } },
-    { 0, 0x05, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x34, 0x12 } } },
+
+struct draw_step g_scissors_draw_steps[3] = {   /* DGROUP 0x0ddd */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x15, 0x11 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0ddd, &g_scissors_draw_steps[0]),    /* next */
+        0x00,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0xfe, 0x04 } }    /* offset */
+    },
+};
+
+struct draw_step *g_scissors_form_steps[2] = {   /* DGROUP 0x0e0a */
+    NEAR_AT(0x0dec, &g_scissors_draw_steps[1]),
+    NEAR_AT(0x0dfb, &g_scissors_draw_steps[2]),
+};
+
+struct point16 g_scissors_form_sizes[2] = {   /* DGROUP 0x0e0e */
+    { 0x0028, 0x0022 },
+    { 0x0030, 0x0018 },
+};
+
+struct point8 g_scissors_hot_spots[2] = {   /* DGROUP 0x0e16 */
+    { 0 },
+    { 0xfe, 0 },
+};
+
+struct draw_step g_solar_panel_draw_steps[4] = {   /* DGROUP 0x0e1a */
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x34, 0x04 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x34, 0x12 } }    /* offset */
+    },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x01, 0xff },    /* frame */
         { { 0 }, { 0x34, 0x04 }, { 0x34, 0x12 } }    /* offset */
-    }
+    },
 };
-struct draw_step *g_solar_panel_form_steps[4] = { NEAR_AT(0x0ca6, &g_solar_panel_draw_steps[0]), NEAR_AT(0x0cb5, &g_solar_panel_draw_steps[1]), NEAR_AT(0x0cc4, &g_solar_panel_draw_steps[2]), NEAR_AT(0x0cd3, &g_solar_panel_draw_steps[3]) };   /* DGROUP 0x0ce2 */
-struct point16 g_solar_panel_form_sizes[4] = {   /* DGROUP 0x0cea */
+
+struct draw_step *g_solar_panel_form_steps[4] = {   /* DGROUP 0x0e56 */
+    NEAR_AT(0x0e1a, &g_solar_panel_draw_steps[0]),
+    NEAR_AT(0x0e29, &g_solar_panel_draw_steps[1]),
+    NEAR_AT(0x0e38, &g_solar_panel_draw_steps[2]),
+    NEAR_AT(0x0e47, &g_solar_panel_draw_steps[3]),
+};
+
+struct point16 g_solar_panel_form_sizes[4] = {   /* DGROUP 0x0e5e */
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 },
     { 0x0048, 0x0020 },
-    { 0x0048, 0x0020 }
+    { 0x0048, 0x0020 },
 };
-struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0cfa */
-    { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
-    { NEAR_AT(0x0cfa, &g_trampoline_draw_steps[0]), 0x04, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0, { 0x03, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
-    { NEAR_AT(0x0d18, &g_trampoline_draw_steps[2]), 0x04, { 0x02, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0, { 0x05, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
-    { NEAR_AT(0x0d36, &g_trampoline_draw_steps[4]), 0x04, { 0x04, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
-    { NEAR_AT(0x0d54, &g_trampoline_draw_steps[6]), 0x04, { 0x06, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0, { 0x01, 0xff, 0xff, 0xff }, { { 0, 0x09 } } },
-    { NEAR_AT(0x0d72, &g_trampoline_draw_steps[8]), 0x04, { 0x07, 0xff, 0xff, 0xff }, { { 0, 0xfd } } }
+
+struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
+    {
+        0,    /* next */
+        0x00,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0x09 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0e6e, &g_trampoline_draw_steps[0]),    /* next */
+        0x04,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x00,    /* level */
+        { 0x03, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0x09 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0e8c, &g_trampoline_draw_steps[2]),    /* next */
+        0x04,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x00,    /* level */
+        { 0x05, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0x09 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0eaa, &g_trampoline_draw_steps[4]),    /* next */
+        0x04,    /* level */
+        { 0x04, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x00,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0x09 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0ec8, &g_trampoline_draw_steps[6]),    /* next */
+        0x04,    /* level */
+        { 0x06, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x00,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0x09 } }    /* offset */
+    },
+    {
+        NEAR_AT(0x0ee6, &g_trampoline_draw_steps[8]),    /* next */
+        0x04,    /* level */
+        { 0x07, 0xff, 0xff, 0xff },    /* frame */
+        { { 0, 0xfd } }    /* offset */
+    },
 };
-struct draw_step *g_trampoline_form_steps[5] = { NEAR_AT(0x0d09, &g_trampoline_draw_steps[1]), NEAR_AT(0x0d27, &g_trampoline_draw_steps[3]), NEAR_AT(0x0d45, &g_trampoline_draw_steps[5]), NEAR_AT(0x0d63, &g_trampoline_draw_steps[7]), NEAR_AT(0x0d81, &g_trampoline_draw_steps[9]) };   /* DGROUP 0x0d90 */
-struct point16 g_trampoline_form_sizes[5] = {   /* DGROUP 0x0d9a */
+
+struct draw_step *g_trampoline_form_steps[5] = {   /* DGROUP 0x0f04 */
+    NEAR_AT(0x0e7d, &g_trampoline_draw_steps[1]),
+    NEAR_AT(0x0e9b, &g_trampoline_draw_steps[3]),
+    NEAR_AT(0x0eb9, &g_trampoline_draw_steps[5]),
+    NEAR_AT(0x0ed7, &g_trampoline_draw_steps[7]),
+    NEAR_AT(0x0ef5, &g_trampoline_draw_steps[9]),
+};
+
+struct point16 g_trampoline_form_sizes[5] = {   /* DGROUP 0x0f0e */
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
     { 0x0030, 0x001c },
-    { 0x0030, 0x001f }
+    { 0x0030, 0x001f },
 };
-struct point8 g_trampoline_hot_spots[5] = { { 0 }, { 0 }, { 0 }, { 0 }, { 0, 0xfd } };   /* DGROUP 0x0dae */
-struct draw_step g_candle_draw_steps[6] = {   /* DGROUP 0x0db8 */
-    { 0, 0x03, { 0x00, 0xff, 0xff, 0xff }, { { 0 } } },
-    { 0, 0x03, { 0x00, 0x01, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
-    { 0, 0x03, { 0x00, 0x02, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
-    { 0, 0x03, { 0x00, 0x03, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
-    { 0, 0x03, { 0x00, 0x04, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } },
-    { 0, 0x03, { 0x00, 0x05, 0xff, 0xff }, { { 0 }, { 0x0b, 0xfc } } }
+
+struct point8 g_trampoline_hot_spots[5] = {   /* DGROUP 0x0f22 */
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0, 0xfd },
 };
-struct draw_step *g_candle_form_steps[6] = { NEAR_AT(0x0db8, &g_candle_draw_steps[0]), NEAR_AT(0x0dc7, &g_candle_draw_steps[1]), NEAR_AT(0x0dd6, &g_candle_draw_steps[2]), NEAR_AT(0x0de5, &g_candle_draw_steps[3]), NEAR_AT(0x0df4, &g_candle_draw_steps[4]), NEAR_AT(0x0e03, &g_candle_draw_steps[5]) };   /* DGROUP 0x0e12 */
-struct point16 g_candle_form_sizes[6] = {   /* DGROUP 0x0e1e */
+
+struct draw_step g_candle_draw_steps[6] = {   /* DGROUP 0x0f2c */
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x02, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x03, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x04, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0x05, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+    },
+};
+
+struct draw_step *g_candle_form_steps[6] = {   /* DGROUP 0x0f86 */
+    NEAR_AT(0x0f2c, &g_candle_draw_steps[0]),
+    NEAR_AT(0x0f3b, &g_candle_draw_steps[1]),
+    NEAR_AT(0x0f4a, &g_candle_draw_steps[2]),
+    NEAR_AT(0x0f59, &g_candle_draw_steps[3]),
+    NEAR_AT(0x0f68, &g_candle_draw_steps[4]),
+    NEAR_AT(0x0f77, &g_candle_draw_steps[5]),
+};
+
+struct point16 g_candle_form_sizes[6] = {   /* DGROUP 0x0f92 */
     { 0x0022, 0x0020 },
     { 0x0022, 0x0024 },
     { 0x0022, 0x0024 },
     { 0x0022, 0x0024 },
     { 0x0022, 0x0024 },
-    { 0x0022, 0x0024 }
+    { 0x0022, 0x0024 },
 };
-struct point8 g_candle_hot_spots[6] = { { 0 }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc }, { 0, 0xfc } };   /* DGROUP 0x0e36 */
-struct point8 g_seesaw_hot_spots[3] = { { 0 }, { 0, 0x0c } };   /* DGROUP 0x0e42 */
-struct point8 g_balloon_hot_spots[7] = {   /* DGROUP 0x0e48 */
+
+struct point8 g_candle_hot_spots[6] = {   /* DGROUP 0x0faa */
+    { 0 },
+    { 0, 0xfc },
+    { 0, 0xfc },
+    { 0, 0xfc },
+    { 0, 0xfc },
+    { 0, 0xfc },
+};
+
+struct draw_step g_kind_51_draw_steps[9] = {   /* DGROUP 0x0fb6 */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x03, 0x00, 0x05, 0xff },    /* frame */
+        { { 0 }, { 0x11, 0x20 }, { 0x07, 0x09 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x06, 0x03, 0x04, 0x01 },    /* frame */
+        { { 0x03, 0x07 }, { 0, 0xfc }, { 0x2c, 0x1f }, { 0x12, 0x1c } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x07, 0x03, 0x00, 0x04 },    /* frame */
+        { { 0, 0x09 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x08, 0x03, 0x02, 0x04 },    /* frame */
+        { { 0xfd, 0x0b }, { 0, 0x01 }, { 0x0f, 0x22 }, { 0x31, 0x25 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x09, 0x03, 0x00, 0x04 },    /* frame */
+        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x09, 0x03, 0x04, 0x01 },    /* frame */
+        { { 0xfe, 0x05 }, { 0, 0xfc }, { 0x2c, 0x1f }, { 0x12, 0x1c } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x09, 0x03, 0x00, 0x04 },    /* frame */
+        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x09, 0x03, 0x02, 0x04 },    /* frame */
+        { { 0xfd, 0x09 }, { 0, 0x01 }, { 0x0f, 0x22 }, { 0x31, 0x25 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x09, 0x03, 0x00, 0x04 },    /* frame */
+        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+    },
+};
+
+struct draw_step *g_kind_51_form_steps[9] = {   /* DGROUP 0x103d */
+    NEAR_AT(0x0fb6, &g_kind_51_draw_steps[0]),
+    NEAR_AT(0x0fc5, &g_kind_51_draw_steps[1]),
+    NEAR_AT(0x0fd4, &g_kind_51_draw_steps[2]),
+    NEAR_AT(0x0fe3, &g_kind_51_draw_steps[3]),
+    NEAR_AT(0x0ff2, &g_kind_51_draw_steps[4]),
+    NEAR_AT(0x1001, &g_kind_51_draw_steps[5]),
+    NEAR_AT(0x1010, &g_kind_51_draw_steps[6]),
+    NEAR_AT(0x101f, &g_kind_51_draw_steps[7]),
+    NEAR_AT(0x102e, &g_kind_51_draw_steps[8]),
+};
+
+struct point16 g_kind_51_form_sizes[9] = {   /* DGROUP 0x104f */
+    { 0x0032, 0x0032 },
+    { 0x003a, 0x0033 },
+    { 0x003e, 0x0032 },
+    { 0x0042, 0x0032 },
+    { 0x0040, 0x0032 },
+    { 0x0040, 0x0033 },
+    { 0x0040, 0x0032 },
+    { 0x0042, 0x0032 },
+    { 0x0040, 0x0032 },
+};
+
+struct point8 g_kind_51_hot_spots[9] = {   /* DGROUP 0x1073 */
+    { 0 },
+    { 0, 0xfc },
+    { 0 },
+    { 0xfd, 0x01 },
+    { 0xfd, 0 },
+    { 0xfe, 0xfc },
+    { 0xfd, 0 },
+    { 0xfd, 0x01 },
+    { 0xfd, 0 },
+};
+
+struct draw_step g_kind_58_draw_steps[9] = {   /* DGROUP 0x1085 */
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0xff, 0xff },    /* frame */
+        { { 0 }, { 0x1c, 0x27 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x02, 0xff },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x03, 0xff },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x04, 0xff },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x05, 0xff },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x05, 0x06 },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xf4, 0xe4 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x05, 0x07 },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xef, 0xe2 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x05,    /* level */
+        { 0x00, 0x01, 0x05, 0x08 },    /* frame */
+        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xee, 0xdf } }    /* offset */
+    },
+};
+
+struct draw_step *g_kind_58_form_steps[9] = {   /* DGROUP 0x110c */
+    NEAR_AT(0x1085, &g_kind_58_draw_steps[0]),
+    NEAR_AT(0x1094, &g_kind_58_draw_steps[1]),
+    NEAR_AT(0x10a3, &g_kind_58_draw_steps[2]),
+    NEAR_AT(0x10b2, &g_kind_58_draw_steps[3]),
+    NEAR_AT(0x10c1, &g_kind_58_draw_steps[4]),
+    NEAR_AT(0x10d0, &g_kind_58_draw_steps[5]),
+    NEAR_AT(0x10df, &g_kind_58_draw_steps[6]),
+    NEAR_AT(0x10ee, &g_kind_58_draw_steps[7]),
+    NEAR_AT(0x10fd, &g_kind_58_draw_steps[8]),
+};
+
+struct point16 g_kind_58_form_sizes[9] = {   /* DGROUP 0x111e */
+    { 0x0030, 0x0040 },
+    { 0x0030, 0x0040 },
+    { 0x0030, 0x0040 },
+    { 0x0030, 0x0040 },
+    { 0x0030, 0x0040 },
+    { 0x0030, 0x0040 },
+    { 0x003c, 0x005c },
+    { 0x0041, 0x005e },
+    { 0x0042, 0x0061 },
+};
+
+struct point8 g_kind_58_hot_spots[9] = {   /* DGROUP 0x1142 */
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0xf4, 0xe4 },
+    { 0xef, 0xe2 },
+    { 0xee, 0xdf },
+};
+
+struct draw_step g_kind_61_draw_steps[15] = {   /* DGROUP 0x1154 */
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0b, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0c, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0d, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0e, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0x01 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0f, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x01, 0x0a, 0x09 },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 }, { 0x15, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x02, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0x02, 0xf6 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x03, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0x04, 0xef }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x02, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0x02, 0xf6 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x04, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x05, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x06, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x07, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x04,    /* level */
+        { 0x00, 0x08, 0x0a, 0xff },    /* frame */
+        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+    },
+};
+
+struct draw_step *g_kind_61_form_steps[15] = {   /* DGROUP 0x1235 */
+    NEAR_AT(0x1154, &g_kind_61_draw_steps[0]),
+    NEAR_AT(0x1163, &g_kind_61_draw_steps[1]),
+    NEAR_AT(0x1172, &g_kind_61_draw_steps[2]),
+    NEAR_AT(0x1181, &g_kind_61_draw_steps[3]),
+    NEAR_AT(0x1190, &g_kind_61_draw_steps[4]),
+    NEAR_AT(0x119f, &g_kind_61_draw_steps[5]),
+    NEAR_AT(0x11ae, &g_kind_61_draw_steps[6]),
+    NEAR_AT(0x11bd, &g_kind_61_draw_steps[7]),
+    NEAR_AT(0x11cc, &g_kind_61_draw_steps[8]),
+    NEAR_AT(0x11db, &g_kind_61_draw_steps[9]),
+    NEAR_AT(0x11ea, &g_kind_61_draw_steps[10]),
+    NEAR_AT(0x11f9, &g_kind_61_draw_steps[11]),
+    NEAR_AT(0x1208, &g_kind_61_draw_steps[12]),
+    NEAR_AT(0x1217, &g_kind_61_draw_steps[13]),
+    NEAR_AT(0x1226, &g_kind_61_draw_steps[14]),
+};
+
+struct point16 g_kind_61_form_sizes[15] = {   /* DGROUP 0x1253 */
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x001a },
+    { 0x0050, 0x0021 },
+    { 0x0050, 0x001a },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+    { 0x0050, 0x0010 },
+};
+
+struct point8 g_kind_61_hot_spots[15] = {   /* DGROUP 0x128f */
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0, 0xf6 },
+    { 0, 0xef },
+    { 0, 0xf6 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+    { 0 },
+};
+
+struct draw_step g_kind_62_draw_steps[12] = {   /* DGROUP 0x12ad */
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x00, 0xff, 0xff, 0xff },    /* frame */
+        { { 0 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x01, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x02, 0xfc } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x03, 0xf3 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x03, 0xf3 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x03, 0xf3 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x02, 0xff, 0xff, 0xff },    /* frame */
+        { { 0x03, 0xf3 } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x04, 0x06, 0xff, 0xff },    /* frame */
+        { { 0xfb, 0 }, { 0xd2, 0xde } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x05, 0x07, 0xff, 0xff },    /* frame */
+        { { 0xfa, 0 }, { 0xd6, 0xde } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x04, 0x08, 0xff, 0xff },    /* frame */
+        { { 0xfb, 0 }, { 0xd3, 0xdd } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x05, 0x06, 0xff, 0xff },    /* frame */
+        { { 0xfa, 0 }, { 0xd3, 0xde } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x04, 0x07, 0xff, 0xff },    /* frame */
+        { { 0xfb, 0 }, { 0xd4, 0xde } }    /* offset */
+    },
+    {
+        0,    /* next */
+        0x03,    /* level */
+        { 0x05, 0x08, 0xff, 0xff },    /* frame */
+        { { 0xfa, 0 }, { 0xd4, 0xdd } }    /* offset */
+    },
+};
+
+struct draw_step *g_kind_62_form_steps[12] = {   /* DGROUP 0x1361 */
+    NEAR_AT(0x12ad, &g_kind_62_draw_steps[0]),
+    NEAR_AT(0x12bc, &g_kind_62_draw_steps[1]),
+    NEAR_AT(0x12cb, &g_kind_62_draw_steps[2]),
+    NEAR_AT(0x12da, &g_kind_62_draw_steps[3]),
+    NEAR_AT(0x12e9, &g_kind_62_draw_steps[4]),
+    NEAR_AT(0x12f8, &g_kind_62_draw_steps[5]),
+    NEAR_AT(0x1307, &g_kind_62_draw_steps[6]),
+    NEAR_AT(0x1316, &g_kind_62_draw_steps[7]),
+    NEAR_AT(0x1325, &g_kind_62_draw_steps[8]),
+    NEAR_AT(0x1334, &g_kind_62_draw_steps[9]),
+    NEAR_AT(0x1343, &g_kind_62_draw_steps[10]),
+    NEAR_AT(0x1352, &g_kind_62_draw_steps[11]),
+};
+
+struct point16 g_kind_62_form_sizes[12] = {   /* DGROUP 0x1379 */
+    { 0x001e, 0x0016 },
+    { 0x0024, 0x001a },
+    { 0x002a, 0x0023 },
+    { 0x002a, 0x0023 },
+    { 0x002a, 0x0023 },
+    { 0x002a, 0x0023 },
+    { 0x0052, 0x0038 },
+    { 0x004e, 0x0038 },
+    { 0x0051, 0x0039 },
+    { 0x0051, 0x0038 },
+    { 0x0050, 0x0038 },
+    { 0x0050, 0x0039 },
+};
+
+struct point8 g_kind_62_hot_spots[12] = {   /* DGROUP 0x13a9 */
+    { 0 },
+    { 0, 0xfc },
+    { 0, 0xf3 },
+    { 0, 0xf3 },
+    { 0, 0xf3 },
+    { 0, 0xf3 },
+    { 0xd2, 0xde },
+    { 0xd6, 0xde },
+    { 0xd3, 0xdd },
+    { 0xd3, 0xde },
+    { 0xd4, 0xde },
+    { 0xd4, 0xdd },
+};
+
+struct point8 g_seesaw_hot_spots[3] = {   /* DGROUP 0x13c1 */
+    { 0 },
+    { 0, 0x0c },
+    { 0 },
+};
+
+struct point8 g_balloon_hot_spots[7] = {   /* DGROUP 0x13c7 */
     { 0 },
     { 0xf1, 0xf7 },
     { 0xec, 0xfb },
     { 0xe4, 0x08 },
     { 0xe2, 0x19 },
     { 0xe6, 0x29 },
-    { 0xe6, 0x38 }
+    { 0xe6, 0x38 },
 };
-struct point8 g_pokey_hot_spots[10] = {   /* DGROUP 0x0e56 */
+
+struct point8 g_pokey_hot_spots[10] = {   /* DGROUP 0x13d5 */
     { 0 },
     { 0xfa, 0xf0 },
     { 0x13, 0xff },
@@ -1050,12 +2031,33 @@ struct point8 g_pokey_hot_spots[10] = {   /* DGROUP 0x0e56 */
     { 0x06, 0xfe },
     { 0xff, 0xfe },
     { 0xfb, 0xfe },
-    { 0xf7, 0xfd }
+    { 0xf7, 0xfd },
 };
-struct point8 g_bellow_hot_spots[3] = { { 0 }, { 0xf8, 0x08 }, { 0xf5, 0x0c } };   /* DGROUP 0x0e6a */
-struct point8 g_bullet_hot_spots[3] = { { 0 }, { 0x04, 0xfd }, { 0x01, 0xf4 } };   /* DGROUP 0x0e70 */
-struct point8 g_flashlight_hot_spots[2] = { { 0 }, { 0, 0xf6 } };   /* DGROUP 0x0e76 */
-struct point8 g_boxing_glove_hot_spots[10] = {   /* DGROUP 0x0e7a */
+
+struct point8 g_bellow_hot_spots[3] = {   /* DGROUP 0x13e9 */
+    { 0 },
+    { 0xf8, 0x08 },
+    { 0xf5, 0x0c },
+};
+
+struct point16 g_bellow_form_sizes[3] = {   /* DGROUP 0x13ef */
+    { 0x0040, 0x0030 },
+    { 0x0048, 0x0030 },
+    { 0x0050, 0x0030 },
+};
+
+struct point8 g_bullet_hot_spots[3] = {   /* DGROUP 0x13fb */
+    { 0 },
+    { 0x04, 0xfd },
+    { 0x01, 0xf4 },
+};
+
+struct point8 g_flashlight_hot_spots[2] = {   /* DGROUP 0x1401 */
+    { 0 },
+    { 0, 0xf6 },
+};
+
+struct point8 g_boxing_glove_hot_spots[10] = {   /* DGROUP 0x1405 */
     { 0 },
     { 0x07, 0xf4 },
     { 0xe3, 0xfd },
@@ -1065,37 +2067,115 @@ struct point8 g_boxing_glove_hot_spots[10] = {   /* DGROUP 0x0e7a */
     { 0xe2, 0x05 },
     { 0xeb, 0x05 },
     { 0xe7, 0x06 },
-    { 0xeb, 0x06 }
+    { 0xeb, 0x06 },
 };
-struct point8 g_windmill_hot_spots[4] = { { 0 }, { 0xfd, 0xfd }, { 0xfc, 0xfc }, { 0xfd, 0xfd } };   /* DGROUP 0x0e8e */
-struct point8 g_blast_hot_spots[6] = {   /* DGROUP 0x0e96 */
+
+struct point8 g_windmill_hot_spots[4] = {   /* DGROUP 0x1419 */
+    { 0 },
+    { 0xfd, 0xfd },
+    { 0xfc, 0xfc },
+    { 0xfd, 0xfd },
+};
+
+struct point8 g_blast_hot_spots[6] = {   /* DGROUP 0x1421 */
     { 0 },
     { 0xfc, 0xf3 },
     { 0, 0xfa },
     { 0x0d, 0x09 },
     { 0x14, 0x13 },
-    { 0x14, 0x14 }
+    { 0x14, 0x14 },
 };
-struct point8 g_mort_the_mouse_hot_spots[2] = { { 0 }, { 0, 0x01 } };   /* DGROUP 0x0ea2 */
+
+struct point8 g_mort_the_mouse_hot_spots[2] = {   /* DGROUP 0x142d */
+    { 0 },
+    { 0, 0x01 },
+};
+
+struct point8 g_kind_54_hot_spots[31] = {   /* DGROUP 0x1431 */
+    { 0 },
+    { 0, 0xff },
+    { 0, 0xff },
+    { 0 },
+    { 0 },
+    { 0, 0xff },
+    { 0xfe, 0xfa },
+    { 0xf8, 0xfa },
+    { 0xf9, 0xfa },
+    { 0xf9, 0xfd },
+    { 0xf6, 0x0e },
+    { 0xf2, 0x11 },
+    { 0xf8, 0x09 },
+    { 0xfd, 0x03 },
+    { 0xff, 0x01 },
+    { 0xff, 0 },
+    { 0x01, 0 },
+    { 0xfe, 0 },
+    { 0x01, 0 },
+    { 0xff, 0 },
+    { 0xfd, 0 },
+    { 0xfe, 0 },
+    { 0xff, 0 },
+    { 0x01, 0xf9 },
+    { 0xff, 0xf9 },
+    { 0x01, 0xfa },
+    { 0xff, 0xfa },
+    { 0xfe, 0 },
+    { 0xf8, 0x02 },
+    { 0xf8, 0x09 },
+    { 0xf5, 0x10 },
+};
+
+struct point16 g_kind_54_form_sizes[31] = {   /* DGROUP 0x146f */
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0018, 0x001e },
+    { 0x0020, 0x001f },
+    { 0x0018, 0x001e },
+    { 0x0020, 0x001a },
+    { 0x0028, 0x0018 },
+    { 0x0030, 0x0018 },
+    { 0x0020, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0010, 0x0018 },
+    { 0x0018, 0x001f },
+    { 0x0018, 0x001f },
+    { 0x0018, 0x001e },
+    { 0x0010, 0x001e },
+    { 0x0018, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0018, 0x0018 },
+    { 0x0018, 0x0018 },
+};
 
 
 /*
- * DGROUP 0x0ea6 - the part kinds, 58 records of 0x3a bytes, as the image holds
- * them. See `g_part_kinds` in dgroup.h for how the game reaches a record.
+ * **The part kinds**, 66 records of 0x3a bytes, in 1.11 in a far data
+ * segment of their own - image 0x2ef10, before DGROUP - where 1.00 kept 58
+ * in DGROUP at 0x0ea6. See `g_part_kinds` in dgroup.h for how the game
+ * reaches a record. Written by `tools/kindtables.py --kinds` from the image.
  *
- * **The hooks are far pointers the loader relocates** - segment 0000 for the
- * do-nothing routines at 0x0297..0x02b5, segment 172c for the rest - and they
- * are exactly the relocation table's entries in this range, six a record and
- * nothing else. So every `seg` is `LOAD_SEG +` the image's word, and no other
- * field is. The routine each names is the port's transcription at that address.
+ * **The hooks are far pointers the loader relocates**, six a record. The
+ * routine each names is the port's transcription at that address; the new
+ * kinds' own routines are stubs until they are transcribed.
  *
  * `bitmaps` is 0 for every kind here: `load_part_bitmap` fills it at run
- * time. The field names and the kinds' names are ours - see `struct part_kind`.
- * The `word_*` fields are words nothing has been read for yet, transcribed as
- * they are.
+ * time. The field names and the kinds' names are ours - see `struct
+ * part_kind`.
  */
-struct part_kind g_part_kinds[PART_KIND_COUNT] = {
-    {
+struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
+    {   /* 0 bowling_ball */
         0x0b10,    /* density */
         0x00c8,    /* weight */
         0x0080,    /* bounce */
@@ -1122,10 +2202,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 1 brick_platform */
         0x1039,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0018,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1149,10 +2229,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 2 ramp */
         0x05e6,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1176,10 +2256,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 3 seesaw */
         0x0760,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1189,7 +2269,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e42, &g_seesaw_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x13c1, g_seesaw_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0008,    /* point_count */
@@ -1199,9 +2279,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_seesaw,    /* setup */
         part_flip_seesaw,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_seesaw    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_seesaw)    /* drive */
     },
-    {
+    {   /* 4 balloon */
         0x0009,    /* density */
         0x0001,    /* weight */
         0x0040,    /* bounce */
@@ -1214,7 +2296,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e48, &g_balloon_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x13c7, g_balloon_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
@@ -1224,12 +2306,14 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_balloon,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_balloon    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_balloon)    /* drive */
     },
-    {
+    {   /* 5 conveyor */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1253,10 +2337,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 6 mouse_cage */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1280,7 +2364,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 7 pulley */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0000,    /* bounce */
@@ -1307,7 +2391,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 8 belt */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0000,    /* bounce */
@@ -1334,7 +2418,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 9 basketball */
         0x052a,    /* density */
         0x0014,    /* weight */
         0x00c0,    /* bounce */
@@ -1361,7 +2445,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 10 rope */
         0x0640,    /* density */
         0x03e8,    /* weight */
         0x0000,    /* bounce */
@@ -1388,7 +2472,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 11 bird_cage */
         0x1d80,    /* density */
         0x0096,    /* weight */
         0x0020,    /* bounce */
@@ -1411,9 +2495,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_bird_cage,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_bird_cage    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_bird_cage)    /* drive */
     },
-    {
+    {   /* 12 pokey */
         0x07d0,    /* density */
         0x0078,    /* weight */
         0x0000,    /* bounce */
@@ -1426,7 +2512,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e56, &g_pokey_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x13d5, g_pokey_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
@@ -1440,10 +2526,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 13 jack_in_the_box */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1452,9 +2538,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0250, &g_jack_in_the_box_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x02c2, &g_jack_in_the_box_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0276, &g_jack_in_the_box_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x03c4, g_jack_in_the_box_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0436, g_jack_in_the_box_hot_spots),    /* hotspots */
+        NEAR_AT(0x03ea, g_jack_in_the_box_form_sizes),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x000d,    /* priority */
@@ -1467,10 +2553,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 14 gear */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0030,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1494,7 +2580,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 15 bob_the_fish */
         0x07d0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1506,9 +2592,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0441, &g_bob_the_fish_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x04cb, &g_bob_the_fish_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x046f, &g_bob_the_fish_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x05b5, g_bob_the_fish_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x063f, g_bob_the_fish_hot_spots),    /* hotspots */
+        NEAR_AT(0x05e3, g_bob_the_fish_form_sizes),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
         0x0026,    /* priority */
@@ -1521,7 +2607,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 16 bellow */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1534,8 +2620,8 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e6a, &g_bellow_hot_spots[0]),    /* hotspots */
-        0x0000,    /* sizes */
+        NEAR_AT(0x13e9, g_bellow_hot_spots),    /* hotspots */
+        NEAR_AT(0x13ef, g_bellow_form_sizes),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0006,    /* point_count */
         0x0007,    /* priority */
@@ -1548,7 +2634,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 17 bucket */
         0x1d80,    /* density */
         0x0064,    /* weight */
         0x0020,    /* bounce */
@@ -1571,9 +2657,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_bucket,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_bucket    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_bucket)    /* drive */
     },
-    {
+    {   /* 18 cannon */
         0x3986,    /* density */
         0x03e8,    /* weight */
         0x00c0,    /* bounce */
@@ -1585,9 +2673,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x05da, &g_cannon_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0622, &g_cannon_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x05f2, &g_cannon_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x074e, g_cannon_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0796, g_cannon_hot_spots),    /* hotspots */
+        NEAR_AT(0x0766, g_cannon_form_sizes),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0008,    /* point_count */
         0x001c,    /* priority */
@@ -1600,7 +2688,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 19 dynamite */
         0x046c,    /* density */
         0x005a,    /* weight */
         0x0040,    /* bounce */
@@ -1612,9 +2700,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0694, &g_dynamite_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x06b8, &g_dynamite_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x06a0, &g_dynamite_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0808, g_dynamite_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x082c, g_dynamite_hot_spots),    /* hotspots */
+        NEAR_AT(0x0814, g_dynamite_form_sizes),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x001d,    /* priority */
@@ -1627,11 +2715,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 20 bullet */
         0x0000,    /* density */
         0x4e20,    /* weight */
         0x0000,    /* bounce */
-        0x0000,    /* grip */
+        0x0001,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
         0x0000,    /* max_w */
@@ -1640,7 +2728,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e70, &g_bullet_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x13fb, g_bullet_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
@@ -1654,7 +2742,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 21 electric_plug */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1666,9 +2754,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x073c, &g_electric_plug_form_steps[0]),    /* bitmaps2 */
+        NEAR_AT(0x08b0, g_electric_plug_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
-        NEAR_AT(0x074c, &g_electric_plug_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x08c0, g_electric_plug_form_sizes),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0014,    /* priority */
@@ -1681,7 +2769,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 22 dynamite_plunger */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1693,9 +2781,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0799, &g_dynamite_plunger_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x07ab, &g_dynamite_plunger_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x079f, &g_dynamite_plunger_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x090d, g_dynamite_plunger_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x091f, g_dynamite_plunger_hot_spots),    /* hotspots */
+        NEAR_AT(0x0913, g_dynamite_plunger_form_sizes),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0020,    /* priority */
@@ -1704,9 +2792,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_dynamite_plunger,    /* setup */
         part_flip_dynamite_plunger,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_dynamite_plunger    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_dynamite_plunger)    /* drive */
     },
-    {
+    {   /* 23 hook */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1733,10 +2823,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 24 fan */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -1745,9 +2835,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x07ed, &g_fan_form_steps[0]),    /* bitmaps2 */
+        NEAR_AT(0x0961, g_fan_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
-        NEAR_AT(0x07f5, &g_fan_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0969, g_fan_form_sizes),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0005,    /* point_count */
         0x0017,    /* priority */
@@ -1760,7 +2850,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 25 flashlight */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1773,7 +2863,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e76, &g_flashlight_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x1401, g_flashlight_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0006,    /* point_count */
@@ -1787,7 +2877,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 26 generator */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1799,9 +2889,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x08f5, &g_generator_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0955, &g_generator_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0915, &g_generator_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0a69, g_generator_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0ac9, g_generator_hot_spots),    /* hotspots */
+        NEAR_AT(0x0a89, g_generator_form_sizes),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x0015,    /* priority */
@@ -1814,7 +2904,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 27 gun */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x00c0,    /* bounce */
@@ -1826,9 +2916,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x09de, &g_gun_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0a08, &g_gun_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x09ec, &g_gun_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0b52, g_gun_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0b7c, g_gun_hot_spots),    /* hotspots */
+        NEAR_AT(0x0b60, g_gun_form_sizes),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0007,    /* point_count */
         0x0012,    /* priority */
@@ -1837,9 +2927,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_gun,    /* setup */
         part_flip_gun,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_gun    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_gun)    /* drive */
     },
-    {
+    {   /* 28 baseball */
         0x07d0,    /* density */
         0x0009,    /* weight */
         0x0040,    /* bounce */
@@ -1866,7 +2958,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 29 light */
         0x0514,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1878,9 +2970,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0a52, &g_light_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0a6a, &g_light_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0a5a, &g_light_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0bc6, g_light_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0bde, g_light_hot_spots),    /* hotspots */
+        NEAR_AT(0x0bce, g_light_form_sizes),    /* sizes */
         { 0x02, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x001b,    /* priority */
@@ -1889,9 +2981,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_light,    /* setup */
         part_flip_light,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_light    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_light)    /* drive */
     },
-    {
+    {   /* 30 magnifying_glass */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1918,7 +3012,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 31 monkey */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -1930,9 +3024,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0b35, &g_monkey_form_steps[0]),    /* bitmaps2 */
+        NEAR_AT(0x0ca9, g_monkey_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
-        NEAR_AT(0x0b4f, &g_monkey_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0cc3, g_monkey_form_sizes),    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0009,    /* point_count */
         0x0027,    /* priority */
@@ -1941,9 +3035,11 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_monkey,    /* setup */
         part_flip_monkey,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_monkey    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_monkey)    /* drive */
     },
-    {
+    {   /* 32 pumpkin */
         0x0960,    /* density */
         0x0064,    /* weight */
         0x0040,    /* bounce */
@@ -1960,7 +3056,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0008,    /* point_count */
-        0x0032,    /* priority */
+        0x003d,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
         part_setup_pumpkin,    /* setup */
@@ -1970,7 +3066,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 33 heart_balloon */
         0x000b,    /* density */
         0x0004,    /* weight */
         0x0080,    /* bounce */
@@ -1987,15 +3083,17 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0007,    /* point_count */
-        0x0033,    /* priority */
+        0x003e,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
         part_setup_heart_balloon,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_heart_balloon    /* drive */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_heart_balloon)    /* drive */
     },
-    {
+    {   /* 34 christmas_tree */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2012,7 +3110,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0007,    /* point_count */
-        0x0034,    /* priority */
+        0x003f,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
         part_setup_christmas_tree,    /* setup */
@@ -2022,7 +3120,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 35 boxing_glove */
         0x0ec0,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2035,7 +3133,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e7a, &g_boxing_glove_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x1405, g_boxing_glove_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0006,    /* point_count */
@@ -2049,7 +3147,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 36 rocket */
         0x4650,    /* density */
         0x0708,    /* weight */
         0x0080,    /* bounce */
@@ -2061,9 +3159,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0c19, &g_rocket_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0c55, &g_rocket_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0c2d, &g_rocket_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0d8d, g_rocket_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0dc9, g_rocket_hot_spots),    /* hotspots */
+        NEAR_AT(0x0da1, g_rocket_form_sizes),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0004,    /* point_count */
         0x001e,    /* priority */
@@ -2076,7 +3174,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 37 scissors */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2088,9 +3186,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0c96, &g_scissors_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0ca2, &g_scissors_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0c9a, &g_scissors_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0e0a, g_scissors_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0e16, g_scissors_hot_spots),    /* hotspots */
+        NEAR_AT(0x0e0e, g_scissors_form_sizes),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0008,    /* point_count */
         0x0013,    /* priority */
@@ -2103,7 +3201,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 38 solar_panel */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2115,9 +3213,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0ce2, &g_solar_panel_form_steps[0]),    /* bitmaps2 */
+        NEAR_AT(0x0e56, g_solar_panel_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
-        NEAR_AT(0x0cea, &g_solar_panel_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0e5e, g_solar_panel_form_sizes),    /* sizes */
         { 0x05, 0xff },    /* refile_level */
         0x0000,    /* point_count */
         0x0016,    /* priority */
@@ -2130,7 +3228,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 39 trampoline */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2142,9 +3240,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0d90, &g_trampoline_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0dae, &g_trampoline_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0d9a, &g_trampoline_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0f04, g_trampoline_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0f22, g_trampoline_hot_spots),    /* hotspots */
+        NEAR_AT(0x0f0e, g_trampoline_form_sizes),    /* sizes */
         { 0x04, 0x00 },    /* refile_level */
         0x0004,    /* point_count */
         0x0009,    /* priority */
@@ -2157,7 +3255,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 40 windmill */
         0x1d80,    /* density */
         0x03e8,    /* weight */
         0x0080,    /* bounce */
@@ -2170,7 +3268,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e8e, &g_windmill_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x1419, g_windmill_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
         0x0003,    /* point_count */
@@ -2184,7 +3282,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 41 blast */
         0x0000,    /* density */
         0x0001,    /* weight */
         0x0100,    /* bounce */
@@ -2197,7 +3295,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0e96, &g_blast_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x1421, g_blast_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x00, 0xff },    /* refile_level */
         0x0000,    /* point_count */
@@ -2211,7 +3309,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 42 mort_the_mouse */
         0x07d0,    /* density */
         0x0001,    /* weight */
         0x0000,    /* bounce */
@@ -2224,7 +3322,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        NEAR_AT(0x0ea2, &g_mort_the_mouse_hot_spots[0]),    /* hotspots */
+        NEAR_AT(0x142d, g_mort_the_mouse_hot_spots),    /* hotspots */
         0x0000,    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0005,    /* point_count */
@@ -2238,7 +3336,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 43 cannon_ball */
         0x53b4,    /* density */
         0x6d60,    /* weight */
         0x0020,    /* bounce */
@@ -2265,7 +3363,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 44 tennis_ball */
         0x052a,    /* density */
         0x0005,    /* weight */
         0x00c0,    /* bounce */
@@ -2292,7 +3390,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 45 candle */
         0x07d0,    /* density */
         0x000c,    /* weight */
         0x0080,    /* bounce */
@@ -2304,9 +3402,9 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         0x00f0,    /* min_w */
         0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
-        NEAR_AT(0x0e12, &g_candle_form_steps[0]),    /* bitmaps2 */
-        NEAR_AT(0x0e36, &g_candle_hot_spots[0]),    /* hotspots */
-        NEAR_AT(0x0e1e, &g_candle_form_sizes[0]),    /* sizes */
+        NEAR_AT(0x0f86, g_candle_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x0faa, g_candle_hot_spots),    /* hotspots */
+        NEAR_AT(0x0f92, g_candle_form_sizes),    /* sizes */
         { 0x03, 0xff },    /* refile_level */
         0x0003,    /* point_count */
         0x001f,    /* priority */
@@ -2319,10 +3417,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 46 pipe */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -2346,10 +3444,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 47 corner_pipe */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -2373,10 +3471,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 48 wooden_platform */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x000c,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -2400,7 +3498,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 49 anchor */
         0x0640,    /* density */
         0x03e8,    /* weight */
         0x0000,    /* bounce */
@@ -2427,10 +3525,10 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 50 motor */
         0x1d80,    /* density */
         0x03e8,    /* weight */
-        0x0100,    /* bounce */
+        0x0400,    /* bounce */
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
@@ -2454,115 +3552,115 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
-        0x0064,    /* density */
-        0x008c,    /* weight */
-        0x0000,    /* bounce */
-        0x0002,    /* grip */
+    {   /* 51 kind_51 */
+        0x1d80,    /* density */
+        0x03e8,    /* weight */
+        0x0400,    /* bounce */
+        0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        NEAR_AT(0x103d, g_kind_51_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x1073, g_kind_51_hot_spots),    /* hotspots */
+        NEAR_AT(0x104f, g_kind_51_form_sizes),    /* sizes */
+        { 0x04, 0xff },    /* refile_level */
+        0x0008,    /* point_count */
+        0x0032,    /* priority */
+        part_hit_kind_51,    /* hit */
+        part_step_kind_51,    /* step */
+        part_setup_kind_51,    /* setup */
+        part_flip_kind_51,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 52 kind_52 */
+        0x05dc,    /* density */
+        0x0028,    /* weight */
+        0x0040,    /* bounce */
+        0x0020,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
         0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
-        0x0000,    /* point_count */
-        0x0032,    /* priority */
+        0x0006,    /* point_count */
+        0x0033,    /* priority */
         part_hook_yes,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_hook_none_2a6,    /* setup */
+        part_setup_kind_52,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
-        0x0064,    /* density */
-        0x008c,    /* weight */
-        0x0000,    /* bounce */
+    {   /* 53 kind_53 */
+        0x1d80,    /* density */
+        0x0014,    /* weight */
+        0x0400,    /* bounce */
         0x0002,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
         0x0000,    /* sizes */
         { 0x04, 0xff },    /* refile_level */
-        0x0000,    /* point_count */
-        0x0032,    /* priority */
-        part_hook_yes,    /* hit */
+        0x0003,    /* point_count */
+        0x0034,    /* priority */
+        part_hit_kind_53,    /* hit */
         part_hook_none_2a1,    /* step */
-        part_hook_none_2a6,    /* setup */
+        part_setup_kind_53,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
-        0x0064,    /* density */
-        0x008c,    /* weight */
-        0x0000,    /* bounce */
-        0x0002,    /* grip */
+    {   /* 54 kind_54 */
+        0x0960,    /* density */
+        0x0028,    /* weight */
+        0x0080,    /* bounce */
+        0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
-        0x0000,    /* hotspots */
-        0x0000,    /* sizes */
-        { 0x04, 0xff },    /* refile_level */
-        0x0000,    /* point_count */
-        0x0032,    /* priority */
-        part_hook_yes,    /* hit */
-        part_hook_none_2a1,    /* step */
-        part_hook_none_2a6,    /* setup */
-        part_hook_none_2ab,    /* flip */
+        NEAR_AT(0x1431, g_kind_54_hot_spots),    /* hotspots */
+        NEAR_AT(0x146f, g_kind_54_form_sizes),    /* sizes */
+        { 0x03, 0xff },    /* refile_level */
+        0x0005,    /* point_count */
+        0x0035,    /* priority */
+        part_hit_kind_54,    /* hit */
+        part_step_kind_54,    /* step */
+        part_setup_kind_54,    /* setup */
+        part_flip_kind_54,    /* flip */
         part_hook_none_2b0,    /* settle */
         ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
-        0x0064,    /* density */
-        0x008c,    /* weight */
-        0x0000,    /* bounce */
-        0x0002,    /* grip */
-        0x0000,    /* gravity */
-        0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
-        0x0000,    /* bitmaps */
-        0x0000,    /* bitmaps2 */
-        0x0000,    /* hotspots */
-        0x0000,    /* sizes */
-        { 0x04, 0xff },    /* refile_level */
-        0x0000,    /* point_count */
-        0x0032,    /* priority */
-        part_hook_yes,    /* hit */
-        part_hook_none_2a1,    /* step */
-        part_hook_none_2a6,    /* setup */
-        part_hook_none_2ab,    /* flip */
-        part_hook_none_2b0,    /* settle */
-        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
-                                    uint16_t, uint16_t, int32_t)) \
-                  (void (far *)(void))part_hook_no)    /* drive */
-    },
-    {
+    {   /* 55 kind_55 */
         0x0064,    /* density */
         0x008c,    /* weight */
         0x0040,    /* bounce */
@@ -2589,7 +3687,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 56 kind_56 */
         0x0064,    /* density */
         0x008c,    /* weight */
         0x0080,    /* bounce */
@@ -2616,7 +3714,7 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
                                     uint16_t, uint16_t, int32_t)) \
                   (void (far *)(void))part_hook_no)    /* drive */
     },
-    {
+    {   /* 57 kind_57 */
         0x0064,    /* density */
         0x008c,    /* weight */
         0x0080,    /* bounce */
@@ -2639,8 +3737,226 @@ struct part_kind g_part_kinds[PART_KIND_COUNT] = {
         part_setup_kinds_55_57,    /* setup */
         part_hook_none_2ab,    /* flip */
         part_hook_none_2b0,    /* settle */
-        part_drive_kind_57    /* drive */
-    }
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_drive_kind_57)    /* drive */
+    },
+    {   /* 58 kind_58 */
+        0x1d80,    /* density */
+        0x0fa0,    /* weight */
+        0x0400,    /* bounce */
+        0x0010,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        NEAR_AT(0x110c, g_kind_58_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x1142, g_kind_58_hot_spots),    /* hotspots */
+        NEAR_AT(0x111e, g_kind_58_form_sizes),    /* sizes */
+        { 0x05, 0xff },    /* refile_level */
+        0x0000,    /* point_count */
+        0x0036,    /* priority */
+        part_hook_yes,    /* hit */
+        part_step_kind_58,    /* step */
+        part_hook_none_2a6,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 59 kind_59 */
+        0x0708,    /* density */
+        0x000e,    /* weight */
+        0x0200,    /* bounce */
+        0x0010,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
+        { 0x03, 0xff },    /* refile_level */
+        0x0008,    /* point_count */
+        0x0037,    /* priority */
+        part_hook_yes,    /* hit */
+        part_hook_none_2a1,    /* step */
+        part_setup_cannon_ball,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 60 kind_60 */
+        0x1d80,    /* density */
+        0x03e8,    /* weight */
+        0x0400,    /* bounce */
+        0x0080,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x00f0,    /* max_w */
+        0x00f0,    /* max_h */
+        0x0010,    /* min_w */
+        0x0010,    /* min_h */
+        0x0000,    /* bitmaps */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
+        { 0x04, 0xff },    /* refile_level */
+        0x0004,    /* point_count */
+        0x0038,    /* priority */
+        part_hook_yes,    /* hit */
+        part_hook_none_2a1,    /* step */
+        part_setup_platform,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_settle_platform,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 61 kind_61 */
+        0x0960,    /* density */
+        0x0028,    /* weight */
+        0x0400,    /* bounce */
+        0x0030,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        NEAR_AT(0x1235, g_kind_61_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x128f, g_kind_61_hot_spots),    /* hotspots */
+        NEAR_AT(0x1253, g_kind_61_form_sizes),    /* sizes */
+        { 0x04, 0xff },    /* refile_level */
+        0x0004,    /* point_count */
+        0x0039,    /* priority */
+        part_hit_kind_61,    /* hit */
+        part_step_kind_61,    /* step */
+        part_setup_kind_61,    /* setup */
+        part_flip_kind_61,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 62 kind_62 */
+        0x0960,    /* density */
+        0x0028,    /* weight */
+        0x0040,    /* bounce */
+        0x0040,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        NEAR_AT(0x1361, g_kind_62_form_steps),    /* bitmaps2 */
+        NEAR_AT(0x13a9, g_kind_62_hot_spots),    /* hotspots */
+        NEAR_AT(0x1379, g_kind_62_form_sizes),    /* sizes */
+        { 0x03, 0xff },    /* refile_level */
+        0x0006,    /* point_count */
+        0x003a,    /* priority */
+        part_hook_yes,    /* hit */
+        part_step_kind_62,    /* step */
+        part_setup_kind_62,    /* setup */
+        part_flip_kind_62,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 63 kind_63 */
+        0x0960,    /* density */
+        0x0028,    /* weight */
+        0x0100,    /* bounce */
+        0x0000,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
+        { 0x03, 0xff },    /* refile_level */
+        0x0008,    /* point_count */
+        0x003b,    /* priority */
+        part_hook_yes,    /* hit */
+        part_hook_none_2a1,    /* step */
+        part_setup_cannon_ball,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 64 kind_64 */
+        0x0960,    /* density */
+        0x0028,    /* weight */
+        0x0100,    /* bounce */
+        0x0010,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
+        { 0x04, 0xff },    /* refile_level */
+        0x0008,    /* point_count */
+        0x003c,    /* priority */
+        part_hit_kind_64,    /* hit */
+        part_step_kind_64,    /* step */
+        part_setup_kind_64,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
+    {   /* 65 kind_65 */
+        0x07d0,    /* density */
+        0x0320,    /* weight */
+        0x0080,    /* bounce */
+        0x0040,    /* grip */
+        0x0000,    /* gravity */
+        0x0000,    /* max_speed */
+        0x0000,    /* max_w */
+        0x0000,    /* max_h */
+        0x00f0,    /* min_w */
+        0x00f0,    /* min_h */
+        0x0000,    /* bitmaps */
+        0x0000,    /* bitmaps2 */
+        0x0000,    /* hotspots */
+        0x0000,    /* sizes */
+        { 0x03, 0xff },    /* refile_level */
+        0x0005,    /* point_count */
+        0x0041,    /* priority */
+        part_hook_yes,    /* hit */
+        part_hook_none_2a1,    /* step */
+        part_setup_kind_65,    /* setup */
+        part_hook_none_2ab,    /* flip */
+        part_hook_none_2b0,    /* settle */
+        ((uint16_t (far *)(struct part *, struct part *, uint16_t, \
+                                    uint16_t, uint16_t, int32_t)) \
+                  (void (far *)(void))part_hook_no)    /* drive */
+    },
 };
 
 char *g_path_separator = g_messages.path_sep;   /* DGROUP 0x1bca */

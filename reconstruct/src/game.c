@@ -22,8 +22,9 @@
 #include "dgroup.h"
 
 /*
- * **The part templates**, DGROUP 0x2966..0x2d06, the module's whole data: one
- * per kind, which `make_part` copies from, each ending in a far pointer to
+ * **The part templates**, DGROUP 0x2488..0x28a8 in 1.11 (1.00: 0x2966..
+ * 0x2d06), the module's whole data, written by `tools/kindtables.py
+ * --templates 0x2488`: one per kind, which `make_part` copies from, each ending in a far pointer to
  * that kind's init routine below - so the table is this module's.
  */
 struct part_template g_part_templates[PART_KIND_COUNT] = {
@@ -79,14 +80,23 @@ struct part_template g_part_templates[PART_KIND_COUNT] = {
     { TRAIT_STATIC | TRAIT_IN_BIN, 0, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 48 */
     { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0, 0 }, { 0, 0 }, part_init_anchor }, /* 49 */
     { TRAIT_STATIC | TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0038, 0x002f }, { 0x0038, 0x002f }, part_init_motor }, /* 50 */
-    { 0, TRAIT2_FREE_PLACED, { 0, 0 }, { 0, 0 }, 0 }, /* 51 */
-    { 0, TRAIT2_FREE_PLACED, { 0, 0 }, { 0, 0 }, 0 }, /* 52 */
-    { 0, TRAIT2_FREE_PLACED, { 0, 0 }, { 0, 0 }, 0 }, /* 53 */
-    { 0, TRAIT2_FREE_PLACED, { 0, 0 }, { 0, 0 }, 0 }, /* 54 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0032, 0x0032 }, { 0x0032, 0x0032 }, part_init_kind_51 }, /* 51 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x001e, 0x0012 }, { 0x001e, 0x0012 }, part_init_kind_52 }, /* 52 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x000e, 0x0011 }, { 0x000e, 0x0011 }, part_init_kind_53 }, /* 53 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x000e, 0x0018 }, { 0x000e, 0x0018 }, part_init_kind_54 }, /* 54 */
     { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0060, 0x0010 }, { 0x0060, 0x0010 }, part_init_kind_55 }, /* 55 */
     { TRAIT_STATIC | TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x00d4, 0x0010 }, { 0x00d4, 0x0010 }, part_init_kind_56 }, /* 56 */
     { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_kind_57 }, /* 57 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, 0, { 0x0030, 0x0040 }, { 0x0030, 0x0040 }, part_init_kind_58 }, /* 58 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0018, 0x0017 }, { 0x0018, 0x0017 }, part_init_kind_59 }, /* 59 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, 0, { 0x0020, 0x0010 }, { 0x0020, 0x0010 }, part_init_platform }, /* 60 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, 0, { 0x0050, 0x0010 }, { 0x0050, 0x0010 }, part_init_kind_61 }, /* 61 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x001e, 0x0016 }, { 0x001e, 0x0016 }, part_init_kind_62 }, /* 62 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0018, 0x0017 }, { 0x0018, 0x0017 }, part_init_cannon_ball }, /* 63 */
+    { TRAIT_STATIC | TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0028, 0x0028 }, { 0x0028, 0x0028 }, part_init_kind_64 }, /* 64 */
+    { TRAIT_IN_BIN, TRAIT2_FREE_PLACED, { 0x0020, 0x0020 }, { 0x0020, 0x0020 }, part_init_kind_65 }, /* 65 */
 };
+
 
 /*
  * 0x15c97
@@ -845,6 +855,50 @@ uint16_t part_init_motor(struct part *part)
     return 0;
 }
 
+/*
+ * 0x1689e
+ *
+ * **Kind 51's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_51(struct part *part)
+{
+    not_transcribed("0x1689e, part_init_kind_51");
+    return 0;
+}
+
+/*
+ * 0x168db
+ *
+ * **Kind 52's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_52(struct part *part)
+{
+    not_transcribed("0x168db, part_init_kind_52");
+    return 0;
+}
+
+/*
+ * 0x1690a
+ *
+ * **Kind 53's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_53(struct part *part)
+{
+    not_transcribed("0x1690a, part_init_kind_53");
+    return 0;
+}
+
+/*
+ * 0x16939
+ *
+ * **Kind 54's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_54(struct part *part)
+{
+    not_transcribed("0x16939, part_init_kind_54");
+    return 0;
+}
+
 /* 0x1696d */
 uint16_t part_init_kind_55(struct part *part)
 {
@@ -878,6 +932,72 @@ uint16_t part_init_kind_57(struct part *part)
         return 1;
 
     part_setup_kinds_55_57(part);
+    return 0;
+}
+
+/*
+ * 0x16a1d
+ *
+ * **Kind 58's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_58(struct part *part)
+{
+    not_transcribed("0x16a1d, part_init_kind_58");
+    return 0;
+}
+
+/*
+ * 0x16a2e
+ *
+ * **Kind 59's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_59(struct part *part)
+{
+    not_transcribed("0x16a2e, part_init_kind_59");
+    return 0;
+}
+
+/*
+ * 0x16a5d
+ *
+ * **Kind 61's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_61(struct part *part)
+{
+    not_transcribed("0x16a5d, part_init_kind_61");
+    return 0;
+}
+
+/*
+ * 0x16a96
+ *
+ * **Kind 62's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_62(struct part *part)
+{
+    not_transcribed("0x16a96, part_init_kind_62");
+    return 0;
+}
+
+/*
+ * 0x16acf
+ *
+ * **Kind 64's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_64(struct part *part)
+{
+    not_transcribed("0x16acf, part_init_kind_64");
+    return 0;
+}
+
+/*
+ * 0x16afe
+ *
+ * **Kind 65's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ */
+uint16_t part_init_kind_65(struct part *part)
+{
+    not_transcribed("0x16afe, part_init_kind_65");
     return 0;
 }
 

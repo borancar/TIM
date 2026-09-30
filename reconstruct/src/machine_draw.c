@@ -1569,6 +1569,7 @@ void draw_rope(struct part *part, int16_t a)
     int16_t y1;
     int16_t sags;
     int16_t slack;
+    struct bitmap *knot;
     struct rope *rope;
     register struct part *next;
     register struct part *cur;
@@ -1613,12 +1614,13 @@ void draw_rope(struct part *part, int16_t a)
         } else
             clip_and_draw_line(x0, y0, x1, y1);
         if (a == 0) {
+            /* 1.11 draws the knot from the rope's own bitmaps, where 1.00
+               took the panel border's 0x24th. */
+            knot = g_part_kinds[KIND_ROPE].bitmaps[0];
             if (cur->kind != KIND_ANCHOR && cur->kind != KIND_PULLEY)
-                draw_bitmap(g_border_art[0x24],
-                            x0 - 5, y0 - 2, 0);
+                draw_bitmap(knot, x0 - 5, y0 - 2, 0);
             if (next->kind != KIND_ANCHOR && next->kind != KIND_PULLEY)
-                draw_bitmap(g_border_art[0x24],
-                            x1 - 5, y1 - 2, 0);
+                draw_bitmap(knot, x1 - 5, y1 - 2, 0);
         }
         restore_cursor_following();
         cur = next;
