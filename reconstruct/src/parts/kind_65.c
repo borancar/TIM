@@ -4,8 +4,9 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
- * **Kind 65's handlers**, new in 1.11 - a kind that has no name here yet;
- * its icon will say what it is. Its record in `g_part_kinds` names these.
+ * **Kind 65's handlers**, new in 1.11 - a part that only has a shape: its
+ * setup is all it has of its own. Kind 65 is the one `build_part_list`
+ * offers only on St Patrick's day. Its icon will say what it is.
  *
  * In 1.11, image 0x1e33d.. in the part kinds' code segment. **Both ends are
  * ours**: each kind in 1.00 is a module of its own, and so is this one until
@@ -14,16 +15,29 @@
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
  */
+#include <stdlib.h>
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
 
-/*
- * 0x1e33d
- *
- * **Kind 65's setup handler**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* DGROUP 0x314e: the five points `part_setup_kind_65` copies. */
+struct point8 g_kind_65_points_314e[5] = {
+    { 0x00, 0x0b }, { 0x0d, 0x00 }, { 0x1c, 0x0f }, { 0x0c, 0x1c },
+    { 0x08, 0x1c },
+};
+
+/* 0x1e33d - a setup: five points from DGROUP 0x314e. */
 void part_setup_kind_65(struct part *part)
 {
-    not_transcribed("0x1e33d, part_setup_kind_65");
+    struct part_point *si;
+    const struct point8 *di;
+    int16_t i;
+
+    di = g_kind_65_points_314e;
+    for (i = 0, si = part->points; i < 5; i++, si++, di++) {
+        si->x = di->x;
+        si->y = di->y;
+    }
+
+    part_finish_angles(part);
 }
