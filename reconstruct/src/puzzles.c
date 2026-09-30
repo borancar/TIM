@@ -145,19 +145,19 @@ uint16_t select_puzzle_screen(void)
 
     while (g_round_state != 0x400) {
         update_button_state();
-        g_last_key = (uint8_t)bios_read_key();  /* 1.00 kept a byte */
+        g_last_key = translate_key(bios_read_key());
 
-        if (g_last_key == '\t' && g_round_state != 0x800)
+        if ((g_last_key & 0x7f) == '\t' && g_round_state != 0x800)
             puzzle_tab();
 
-        if ((g_last_key == '\r' || g_last_key == ' '
-             || g_last_key == 0x1b /* Esc */)
+        if (((g_last_key & 0x7f) == '\r' || (g_last_key & 0x7f) == ' '
+             || (g_last_key & 0x7f) == 0x1b /* Esc */)
             && g_round_state == 0x800)
             g_pointer.button_left = 0;
 
         regions_handle_pointer(g_regions_a);
 
-        if (g_last_key == 0x1b /* Esc */) {
+        if ((g_last_key & 0x7f) == 0x1b /* Esc */) {
             /*
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
@@ -174,10 +174,10 @@ uint16_t select_puzzle_screen(void)
          */
         } else if ((g_round_state != 0x800 && was == 0x800)
                    || g_round_state == 0x800) {
-            if ((g_last_key != '\r' && g_round_state == 0x800)
+            if (((g_last_key & 0x7f) != '\r' && g_round_state == 0x800)
                 || was != 0x800) {
                 if (was == 0x800)
-                    picker_type(g_last_key, g_game_typed_text.typed, 0x19);
+                    picker_type(g_last_key & 0x7f, g_game_typed_text.typed, 0x19);
             } else {
                 update_button_state();
 
