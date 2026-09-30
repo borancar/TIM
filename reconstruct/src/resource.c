@@ -12,13 +12,15 @@
  * one's globals and are reached through its handler table.
  *
  * One module of the original's **code segment 1c25**, image
- * 0x1c251..0x1ca46: its routines are `near`, reached with a bare `call`,
+ * 0x1ee50..0x1f5eb: its routines are `near`, reached with a bare `call`,
  * and the runtime's long and huge helpers are far calls. Its `_DATA` is
- * 0x3576..0x35b2 and its `_BSS` 0x5788..0x58b8. The front is the byte after
+ * 0x31a0..0x31dc and its `_BSS` 0x53a2..0x54ce. The front is the byte after
  * vgadac.c's last `retf`; the end is where the LZW decoder's assembly
- * begins.
+ * begins. 1.11's is Borland C++ 3.0 without `-O` where 1.00's was 2.0, and
+ * `emit_byte` steps its huge cursor in inline `asm` the compiler assembled
+ * itself: through TASM (`JUDGE: via-assembler`) three other routines come
+ * out with jumps and an `xchg` the image does not have.
  *
- * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm
  */
 #include "tim.h"
@@ -33,36 +35,56 @@
 uint8_t far *g_scratch_block = 0;
 
 /*
- * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece
+ * **The four resource handlers**, at DGROUP 0x31a4, fourteen bytes apiece
  * in the image: the sizes of the near work buffer and of the far scratch
  * block for reading and otherwise, and four near routines - the decoder,
  * the writing side's flush and open, and the reset a stream is started
  * with. A null is a type without one. Type 0 is stored, 1 run-length, 2
- * LZW and 3 LZSS.
+ * LZW and 3 LZSS. 1.11 has no writing side: the flushes and opens that
+ * 1.00 named here are nulls, and so is every size for writing.
  *
- * `lzw_reset` and `rle_flush` answer nothing; the table holds them as the
- * others are held, and nothing reads what the call answers.
+ * `lzw_reset` answers nothing; the table holds it as the others are held,
+ * and nothing reads what the call answers.
  */
 struct engine_res_handlers g_engine_res_handlers = {
     {
-        { 0x0080, 0x0000, 0x0000, decompress_store, store_flush, 0, 0 },
-        { 0x0080, 0x0000, 0x0000, decompress_rle,
-          (res_flush_fn)(void (near *)(void))rle_flush, 0, 0 },
-        { 0x0080, 0x3ab3, 0x7566, decompress_lzw, lzw_flush,
-          lzw_open_write, (res_fn)lzw_reset },
-        { 0x0080, 0x2163, 0x2163, decompress_lzss, lzss_flush,
-          lzss_open_write, lzss_reset },
+        { 0x0080, 0x0000, 0x0000, decompress_store, 0, 0, 0 },
+        { 0x0080, 0x0000, 0x0000, decompress_rle, 0, 0, 0 },
+        { 0x0080, 0x3ab3, 0x0000, decompress_lzw, 0, 0, (res_fn)lzw_reset },
+        { 0x0080, 0x2164, 0x0000, decompress_lzss, 0, 0, lzss_reset },
     }
 };
 
 /*
- * **This module's `_BSS`, 0x5788..0x58b8.** Borland lays `_BSS` out in
- * reverse order of first mention; dgroup.h mentions the four from the
- * highest down, and they are defined here in the same order.
+ * **This module's `_BSS`, 0x53a2..0x54ce.** Borland lays `_BSS` out in
+ * reverse order of first mention; dgroup.h mentions them from the highest
+ * down, and they are defined here in the same order.
  */
-struct engine_stream g_engine_stream;   /* DGROUP 0x5888 */
-struct engine_resource_slots g_engine_resource_slots;   /* DGROUP 0x57c0 */
-struct engine_resource_flags g_engine_resource_flags;   /* DGROUP 0x57ba */
+int16_t   g_lzw_n_bits;
+int16_t   g_lzw_maxcode;
+int16_t   g_lzw_free_ent;
+int16_t   g_lzw_clear_flg;
+int16_t   g_lzw_finchar;
+int16_t   g_lzw_oldcode;
+int16_t   g_lzw_incode;
+uint8_t huge *g_lzw_de_stack;
+int16_t   g_lzw_bit_pos;
+int16_t   g_lzw_bit_end;
+uint8_t   g_lzw_first_code;
+uint8_t   g_lzw_resume;
+uint8_t   g_pad_54b5;
+struct resource *g_stream_rec;
+uint8_t  *g_stream_spill;
+uint8_t   g_resource_handler;
+FILE     *g_resource_file;
+uint8_t huge *g_stream_out;
+uint8_t huge *g_stream_scratch;
+struct resource *g_resource_slots[0x64];
+int16_t   g_stream_written;
+uint16_t  g_stream_wanted;
+uint8_t   g_resource_flags;
+uint8_t   g_stream_kind;
+char huge *g_stream_in;
 struct engine_read_staging g_engine_read_staging;
 
 /*
@@ -95,9 +117,9 @@ int16_t near decompress_store(void)
  * so does either emitter answering 0, which is how the output side says the
  * caller's request has been filled.
  *
- * Bit 0x20 of `g_engine_resource_flags.flags` - a resource read from a file
+ * Bit 0x20 of `g_resource_flags` - a resource read from a file
  * rather than memory - clear, a resource in memory, hands the whole job to
- * the assembly at 0x1cd2c instead, and answers
+ * the assembly at 0x1f8d1, `rle_from_memory`, instead, and answers
  * what that does.
  */
 int16_t near decompress_rle(void)
@@ -106,7 +128,7 @@ int16_t near decompress_rle(void)
     int16_t more;
 
     more = 1;
-    if (!(g_engine_resource_flags.flags & 0x20))
+    if (!(g_resource_flags & 0x20))
         return rle_from_memory();
 
     while (more != 0 && (token = next_input_byte()) != -1) {
@@ -119,33 +141,10 @@ int16_t near decompress_rle(void)
 }
 
 /*
- * 0x1c2cc (1.00's; not yet placed in 1.11)
- *
- * **Drain the spill ring to the output**, a byte at a time through
- * `put_output_byte`: from the record's `spill_start` round to its
- * `spill_end`, the index wrapping at 0x80. Type 0's flush in the handler
- * table - the writing side, which nothing reaches.
- */
-int16_t near store_flush(int16_t final)
-{
-    uint16_t i;
-    register uint8_t *buf;
-
-    i = g_engine_stream.rec->spill_start;
-    buf = g_engine_stream.spill;
-    while (g_engine_stream.rec->spill_end != i) {
-        put_output_byte(buf[i++]);
-        i &= 0x7f;
-    }
-    g_engine_stream.rec->spill_start = i;
-    return 0;
-}
-
-/*
  * 0x1eec9
  *
  * Copy `count` bytes out of the current resource into a huge pointer, through
- * `g_engine_read_staging`, the 0x32-byte staging buffer at DGROUP 0x5788.
+ * `g_engine_read_staging`, the 0x32-byte staging buffer at DGROUP 0x53a2.
  *
  * The buffer is why this is a loop at all: `game_fread` reads into DGROUP, and
  * the destination is a huge pointer that may be anywhere, so each pass reads at
@@ -164,7 +163,7 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
     while (count > 0 && got > 0) {
         n = count > 0x32 ? 0x32 : count;
         count -= got = game_fread(g_engine_read_staging.buf, 1, n,
-                                  g_engine_resource_flags.file);
+                                  g_resource_file);
         far_memcpy(dst, g_engine_read_staging.buf, got);
         dst += got;
     }
@@ -176,9 +175,9 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
  *
  * The next byte of whatever is being decompressed, or -1 at the end.
  *
- * There are two sources and the bit 0x20 at DGROUP 0x5888 chooses between them:
- * the resource file through `game_fgetc`, or a block already in memory, walked
- * by the huge pointer at DGROUP 0x5898.
+ * There are two sources and bit 0x20 of `g_stream_kind` chooses between
+ * them: the resource file through `game_fgetc`, or a block already in
+ * memory, walked by the huge pointer `g_stream_in`.
  *
  * Either way the position at +0xa:+0xc of the record is stepped first, and
  * the end test compares it against +0xe:+0x10 - so the count is kept by the
@@ -189,12 +188,12 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
  */
 int16_t near next_input_byte(void)
 {
-    if (g_engine_stream.rec->in == g_engine_stream.rec->end)
+    if (g_stream_rec->in == g_stream_rec->end)
         return -1;
-    g_engine_stream.rec->in++;
-    if (g_engine_stream.kind & 0x20)
-        return game_fgetc(g_engine_resource_flags.file);
-    return *g_engine_stream.in++ & 0xff;
+    g_stream_rec->in++;
+    if (g_stream_kind & 0x20)
+        return game_fgetc(g_resource_file);
+    return *g_stream_in++ & 0xff;
 }
 
 /*
@@ -215,14 +214,14 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
 {
     int32_t rem;
 
-    if ((rem = g_engine_stream.rec->end - g_engine_stream.rec->in) == 0)
+    if ((rem = g_stream_rec->end - g_stream_rec->in) == 0)
         return 0;
     rem = count > rem ? rem : count;
-    g_engine_stream.rec->in += rem;
-    if (g_engine_stream.kind & 0x20)
-        return game_fread(dst, 1, (uint16_t)rem, g_engine_resource_flags.file);
-    far_memcpy(dst, (uint8_t huge *)g_engine_stream.in, (uint16_t)rem);
-    g_engine_stream.in += rem;
+    g_stream_rec->in += rem;
+    if (g_stream_kind & 0x20)
+        return game_fread(dst, 1, (uint16_t)rem, g_resource_file);
+    far_memcpy(dst, (uint8_t huge *)g_stream_in, (uint16_t)rem);
+    g_stream_in += rem;
     return (int16_t)rem;
 }
 
@@ -231,7 +230,7 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  *
  * Deliver a run of `n` literal bytes to the output.
  *
- * The output has two states and `g_engine_stream.wanted` - what the caller of
+ * The output has two states and `g_stream_wanted` - what the caller of
  * `resource_read` still wants - decides between them. While the run fits,
  * the bytes go to the destination huge pointer, which is then stepped, and
  * the answer is 1 meaning "keep going". Once it does not fit they spill into
@@ -249,18 +248,18 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  */
 int16_t near emit_literal_run(uint16_t n)
 {
-    g_engine_stream.rec->in += n;
-    if (g_engine_stream.wanted >= n) {
-        if (g_engine_resource_flags.flags & 0x40)
-            read_into_huge(g_engine_stream.out, n);
+    g_stream_rec->in += n;
+    if (g_stream_wanted >= n) {
+        if (g_resource_flags & 0x40)
+            read_into_huge(g_stream_out, n);
         else
-            game_fseek(g_engine_resource_flags.file, (uint32_t)n, 1);
-        g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+            game_fseek(g_resource_file, (uint32_t)n, 1);
+        g_stream_wanted -= n;
+        g_stream_out += n;
         return 1;
     } else {
-        g_engine_stream.rec->spill_end += n;
-        read_into_huge(g_engine_stream.spill, n);
+        g_stream_rec->spill_end += n;
+        read_into_huge(g_stream_spill, n);
         return 0;
     }
 }
@@ -279,16 +278,16 @@ int16_t near emit_literal_run(uint16_t n)
  */
 int16_t near emit_fill_run(uint16_t value, int16_t n)
 {
-    if (g_engine_stream.wanted >= n) {
-        if (g_engine_resource_flags.flags & 0x40)
-            far_memset(g_engine_stream.out, value, (int32_t)n);
-        g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+    if (g_stream_wanted >= n) {
+        if (g_resource_flags & 0x40)
+            far_memset(g_stream_out, value, (int32_t)n);
+        g_stream_wanted -= n;
+        g_stream_out += n;
         return 1;
     } else {
-        far_memset(g_engine_stream.spill + g_engine_stream.rec->spill_end,
+        far_memset(g_stream_spill + g_stream_rec->spill_end,
                    value, (int32_t)n);
-        g_engine_stream.rec->spill_end += n;
+        g_stream_rec->spill_end += n;
         return 0;
     }
 }
@@ -303,33 +302,45 @@ int16_t near emit_fill_run(uint16_t value, int16_t n)
  */
 int16_t near emit_byte(uint16_t value)
 {
-    if (g_engine_stream.wanted >= 1) {
-        if (g_engine_resource_flags.flags & 0x40)
-            *g_engine_stream.out = value;
-        g_engine_stream.out++;
-        g_engine_stream.wanted--;
+    if ((int16_t)g_stream_wanted >= 1) {
+#ifdef __TURBOC__
+        asm les bx, g_stream_out
+        if (g_resource_flags & 0x40) {
+            asm mov al, byte ptr value
+            asm mov es:[bx], al
+        }
+        asm inc bx
+        asm jne stepped
+        asm add word ptr g_stream_out+2, 1000h
+stepped:
+        asm mov word ptr g_stream_out, bx
+#else
+        if (g_resource_flags & 0x40)
+            *g_stream_out = value;
+        g_stream_out++;
+#endif
+        g_stream_wanted--;
         return 1;
-    } else {
-        g_engine_stream.spill[g_engine_stream.rec->spill_end++] = value;
-        return 0;
     }
+    g_stream_spill[g_stream_rec->spill_end++] = value;
+    return 0;
 }
 
 /*
  * 0x1f1a2
  *
- * **Write one byte of a resource being written**: counted at DGROUP 0x589c,
+ * **Write one byte of a resource being written**: counted in `g_stream_written`,
  * then to the file with `game_fputc`, or into memory at the record's data
  * plus its position, which steps. The writing side's byte sink, which
  * nothing reaches.
  */
 int16_t near put_output_byte(int16_t c)
 {
-    g_engine_stream.written++;
-    if (g_engine_stream.kind & 0x20)
-        return game_fputc(c, g_engine_resource_flags.file);
+    g_stream_written++;
+    if (g_stream_kind & 0x20)
+        return game_fputc(c, g_resource_file);
     else
-        return g_engine_stream.rec->data.ptr[g_engine_stream.rec->in++] = c;
+        return g_stream_rec->data.ptr[g_stream_rec->in++] = c;
 }
 
 /*
@@ -348,20 +359,20 @@ int16_t near put_output_byte(int16_t c)
 int16_t near select_resource(int16_t handle)
 {
     if (handle < 0 || handle >= 0x64
-        || (g_engine_stream.rec = g_engine_resource_slots.slot[handle]) == NULL)
+        || (g_stream_rec = g_resource_slots[handle]) == NULL)
         return 0;
 
-    g_engine_stream.scratch = g_engine_stream.rec->scratch;
-    g_engine_stream.spill = g_engine_stream.rec->work;
-    g_engine_resource_flags.handler =
-        (g_engine_stream.kind = g_engine_stream.rec->kind) & 0x1f;
-    if (g_engine_stream.kind & 0x20) {
-        g_engine_resource_flags.file = g_engine_stream.rec->data.file;
-        g_engine_resource_flags.flags = 0x20;
+    g_stream_scratch = g_stream_rec->scratch;
+    g_stream_spill = g_stream_rec->work;
+    g_resource_handler =
+        (g_stream_kind = g_stream_rec->kind) & 0x1f;
+    if (g_stream_kind & 0x20) {
+        g_resource_file = g_stream_rec->data.file;
+        g_resource_flags = 0x20;
     } else {
-        g_engine_resource_flags.flags = 0;
-        g_engine_stream.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in));
+        g_resource_flags = 0;
+        g_stream_in = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_stream_rec->data.ptr + g_stream_rec->in));
     }
     return 1;
 }
@@ -406,13 +417,13 @@ void near free_if_set(void *p)
  */
 int16_t near close_resource_slot(int16_t slot)
 {
-    if ((g_engine_stream.rec = g_engine_resource_slots.slot[slot]) != NULL) {
-        free_if_set(g_engine_stream.rec->work);
-        if (g_engine_stream.rec->scratch != NULL && !g_scratch_block)
-            dos_free_far(g_engine_stream.rec->scratch);
+    if ((g_stream_rec = g_resource_slots[slot]) != NULL) {
+        free_if_set(g_stream_rec->work);
+        if (g_stream_rec->scratch != NULL && !g_scratch_block)
+            dos_free_far(g_stream_rec->scratch);
     }
-    free_if_set(g_engine_stream.rec);
-    g_engine_resource_slots.slot[slot] = NULL;
+    free_if_set(g_stream_rec);
+    g_resource_slots[slot] = NULL;
     return -1;
 }
 
@@ -429,13 +440,13 @@ int16_t near open_resource_slot(char *mode)
     int16_t i;
 
     for (i = 0; i < 0x64; i++)
-        if (g_engine_resource_slots.slot[i] == NULL)
+        if (g_resource_slots[i] == NULL)
             break;
     if (i == 0x64)
         return -1;
-    if ((g_engine_stream.rec = (struct resource *)calloc_far(1, sizeof(struct resource))) == NULL)
+    if ((g_stream_rec = (struct resource *)calloc_far(1, sizeof(struct resource))) == NULL)
         return -1;
-    g_engine_resource_slots.slot[i] = g_engine_stream.rec;
+    g_resource_slots[i] = g_stream_rec;
     return i;
 }
 
@@ -468,19 +479,19 @@ int16_t near prepare_resource_slot(int16_t type, char *mode)
     } else
         far_size = h->far_size;
 
-    if ((g_engine_stream.rec->work = (uint8_t *)calloc_far(1, near_size)) == NULL)
+    if ((g_stream_rec->work = (uint8_t *)calloc_far(1, near_size)) == NULL)
         return -1;
     if (far_size) {
         /* Compared as the huge pointer the original held it as. */
         if ((uint8_t huge *)g_scratch_block != NULL)
-            g_engine_stream.scratch = g_engine_stream.rec->scratch = g_scratch_block;
+            g_stream_scratch = g_stream_rec->scratch = g_scratch_block;
         else
-            g_engine_stream.scratch = g_engine_stream.rec->scratch =
+            g_stream_scratch = g_stream_rec->scratch =
                 dos_alloc_bytes((uint32_t)far_size, 0);
-        if (!g_engine_stream.rec->scratch)
+        if (!g_stream_rec->scratch)
             return -1;
     }
-    g_engine_stream.rec->kind = type;
+    g_stream_rec->kind = type;
     return 0;
 }
 
@@ -505,17 +516,17 @@ void near resource_advance(void)
     uint16_t n;
     uint16_t start;
 
-    start = g_engine_stream.rec->spill_start;
-    n = g_engine_stream.rec->spill_end - start;
-    if (n > g_engine_stream.wanted)
-        g_engine_stream.rec->spill_start += n = g_engine_stream.wanted;
+    start = g_stream_rec->spill_start;
+    n = g_stream_rec->spill_end - start;
+    if (n > g_stream_wanted)
+        g_stream_rec->spill_start += n = g_stream_wanted;
     else
-        g_engine_stream.rec->spill_start = g_engine_stream.rec->spill_end = 0;
+        g_stream_rec->spill_start = g_stream_rec->spill_end = 0;
     if (n != 0) {
-        if (g_engine_resource_flags.flags & 0x40)
-            far_memcpy(g_engine_stream.out, g_engine_stream.spill + start, n);
-        g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+        if (g_resource_flags & 0x40)
+            far_memcpy(g_stream_out, g_stream_spill + start, n);
+        g_stream_wanted -= n;
+        g_stream_out += n;
     }
 }
 
@@ -531,15 +542,15 @@ void near resource_advance(void)
  */
 int16_t near resource_read(int16_t handle, uint16_t count)
 {
-    g_engine_stream.wanted = count;
+    g_stream_wanted = count;
     resource_advance();
-    if (g_engine_stream.wanted != 0) {
-        g_engine_res_handlers.type[g_engine_resource_flags.handler].read();
-        if (g_engine_stream.wanted != 0)
+    if (g_stream_wanted != 0) {
+        g_engine_res_handlers.type[g_resource_handler].read();
+        if (g_stream_wanted != 0)
             resource_advance();
     }
-    count -= g_engine_stream.wanted;
-    g_engine_stream.rec->pos += count;
+    count -= g_stream_wanted;
+    g_stream_rec->pos += count;
     return count;
 }
 
@@ -563,19 +574,19 @@ void near lzw_reset(void)
     int16_t i;
 
     (void)unused;
-    far_memset(g_engine_stream.scratch, 0, 0x3aa1L);
-    g_engine_stream.maxcode = (1 << (g_engine_stream.n_bits = 9)) - 1;
+    far_memset(g_stream_scratch, 0, 0x3aa1L);
+    g_lzw_maxcode = (1 << (g_lzw_n_bits = 9)) - 1;
     for (i = 0xff; i >= 0; i--) {
-        ((int16_t huge *)g_engine_stream.scratch)[i] = 0;
-        *(g_engine_stream.scratch + i + 0x2720L) = i & 0xff;
+        ((int16_t huge *)g_stream_scratch)[i] = 0;
+        *(g_stream_scratch + i + 0x2720L) = i & 0xff;
     }
-    g_engine_stream.free_ent = 0x101;
-    g_engine_stream.clear_flg = 0;
-    g_engine_stream.first_code = 1;
-    g_engine_stream.resume = 0;
-    g_engine_stream.bit_pos = 0;
-    g_engine_stream.bit_end = 0;
-    g_engine_stream.de_stack = g_engine_stream.scratch + 0x3720L;
+    g_lzw_free_ent = 0x101;
+    g_lzw_clear_flg = 0;
+    g_lzw_first_code = 1;
+    g_lzw_resume = 0;
+    g_lzw_bit_pos = 0;
+    g_lzw_bit_end = 0;
+    g_lzw_de_stack = g_stream_scratch + 0x3720L;
 }
 
 /*

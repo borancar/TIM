@@ -3423,7 +3423,7 @@ extern struct part_template g_part_templates[PART_KIND_COUNT];
 /*
  * ---------------------------------------------------------------------------
  * **A resource stream**, the 0x21-byte record `open_resource_slot` makes and
- * files in the table at DGROUP 0x57c0. `g_engine_stream.rec` points at whichever
+ * files in `g_resource_slots`. `g_stream_rec` points at whichever
  * one is selected, and sixteen routines in engine.c read it through that.
  *
  * The size is `calloc_far(1, 0x21)` and the last field is the byte at
@@ -3458,7 +3458,7 @@ struct resource {
        0x0bf0a and normalise the answer. With bit 0x20 the resource is read from
        a file and only the offset word is used - it holds the file record's
        near pointer, which `open_resource` files there and `select_resource`
-       copies to 0x57bc. Two readings of the same four bytes, chosen by the
+       copies to `g_resource_file`. Two readings of the same four bytes, chosen by the
        kind: the file record's pointer is the low word. */
     union {
         char huge *ptr;        /* the data in memory */
@@ -3522,77 +3522,67 @@ struct res_handler {
     res_fn    reset;              /* +0x0c  a stream's start and restart */
 };
 
-/* DGROUP 0x357a..0x35b2. Four is `prepare_resource_slot`'s own bound. */
+/* DGROUP 0x31a4..0x31dc. Four is `prepare_resource_slot`'s own bound. */
 struct engine_res_handlers {
     struct res_handler type[4];
 };
 
 extern struct engine_res_handlers g_engine_res_handlers;
 
-/*
- * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8.
- *
- * From `n_bits` on it is the state of Unix `compress`'s LZW decoder, and
- * those fields take that program's names for them.
- */
-struct engine_stream {
-    uint8_t   kind;               /* +0x00  the record's kind, copied by select_resource: the low five
-                                     bits pick the handler, 0x20 reads from a file, 0x40 means
-                                     opened for reading */
-    uint8_t   pad_01;             /* +0x01 */
-    struct resource *rec;         /* +0x02  the record being read */
-    uint8_t huge *scratch;        /* +0x04  the decoder's block */
-    uint16_t  wanted;             /* +0x08  how many bytes the caller still wants */
-    uint8_t  *spill;              /* +0x0a  the record's work buffer, where a run that does not fit
-                                     spills */
-    uint8_t huge *out;            /* +0x0c  the output cursor */
-    char huge *in;                /* +0x10  and where the input is read from in memory */
-    int16_t   written;            /* +0x14  bytes the writing side has put out; close_resource answers it */
-    int16_t   n_bits;             /* +0x16  the code width: 9 at a reset, one more when free_ent passes maxcode */
-    int16_t   free_ent;           /* +0x18  the next free code: 0x101 at a reset, at most 0x1000 */
-    uint8_t   resume;             /* +0x1a  set when a request fills mid-string */
-    uint8_t   pad_1b;             /* +0x1b */
-    int16_t   clear_flg;          /* +0x1c  set by code 0x100 */
-    int16_t   oldcode;            /* +0x1e  the previous code */
-    uint8_t huge *de_stack;       /* +0x20  the scratch block plus 0x3720, where each string is built
-                                     backwards */
-    int16_t   finchar;            /* +0x24  the first byte of the last string */
-    uint8_t   first_code;         /* +0x26  set at a reset: the stream's first code is a literal */
-    uint8_t   pad_27;             /* +0x27 */
-    int16_t   incode;             /* +0x28  the code just read */
-    int16_t   bit_pos;            /* +0x2a  the bit position in the input window */
-    int16_t   bit_end;            /* +0x2c  where whole codes stop in the window */
-    int16_t   maxcode;            /* +0x2e  the largest code at this width */
-};
-
-/* The resource slots, a record pointer each: 0x64 is the bound
-   `select_resource` and `open_resource_slot` test. DGROUP 0x57c0..0x5888. */
-struct engine_resource_slots {
-    struct resource *slot[0x64];
-};
-
-/* The reader's flag bits, its file and its handler, DGROUP 0x57ba..0x57c0. */
-struct engine_resource_flags {
-    uint8_t   flags;              /* +0x00  0x40 makes a copy happen at all; 0x20 reads from a file */
-    uint8_t   pad_57bb;           /* +0x01 */
-    FILE     *file;               /* +0x02  the stream the reader is on */
-    uint8_t   handler;            /* +0x04  the low five bits of the kind */
-    uint8_t   pad_57bf;           /* +0x05 */
-};
-
-/* The staging buffer `read_into_huge` reads through, DGROUP 0x5788..0x57ba:
+/* The staging buffer `read_into_huge` reads through, DGROUP 0x53a2..0x53d4:
    `game_fread` reads into DGROUP, so a far destination is filled a
    bufferful at a time through here. */
 struct engine_read_staging {
     uint8_t   buf[0x32];
 } PACKED;
 
-/* resource.c's `_BSS`, mentioned from the highest address down - the order
-   Borland lays it out in reverse of. */
-extern struct engine_stream g_engine_stream;
-extern struct engine_resource_slots g_engine_resource_slots;
-extern struct engine_resource_flags g_engine_resource_flags;
-extern struct engine_read_staging g_engine_read_staging;
+/*
+ * **The compressed-stream reader's state and the resource slots**,
+ * resource.c's `_BSS`, DGROUP 0x53a2..0x54ce. 1.00 kept the stream in one
+ * record and the flags in another; 1.11's are separate variables, laid
+ * out byte-aligned in reverse order of first mention - so they are
+ * mentioned here from the highest address down.
+ *
+ * From `g_lzw_n_bits` on down to `g_lzw_resume` it is the state of Unix
+ * `compress`'s LZW decoder, and those take that program's names.
+ */
+extern int16_t   g_lzw_n_bits;          /* DGROUP 0x54cc  the code width: 9 at a reset, one more when
+                                           free_ent passes maxcode */
+extern int16_t   g_lzw_maxcode;         /* DGROUP 0x54ca  the largest code at this width */
+extern int16_t   g_lzw_free_ent;        /* DGROUP 0x54c8  the next free code: 0x101 at a reset, at most
+                                           0x1000 */
+extern int16_t   g_lzw_clear_flg;       /* DGROUP 0x54c6  set by code 0x100 */
+extern int16_t   g_lzw_finchar;         /* DGROUP 0x54c4  the first byte of the last string */
+extern int16_t   g_lzw_oldcode;         /* DGROUP 0x54c2  the previous code */
+extern int16_t   g_lzw_incode;          /* DGROUP 0x54c0  the code just read */
+extern uint8_t huge *g_lzw_de_stack;    /* DGROUP 0x54bc  the scratch block plus 0x3720, where each
+                                           string is built backwards */
+extern int16_t   g_lzw_bit_pos;         /* DGROUP 0x54ba  the bit position in the input window */
+extern int16_t   g_lzw_bit_end;         /* DGROUP 0x54b8  where whole codes stop in the window */
+extern uint8_t   g_lzw_first_code;      /* DGROUP 0x54b7  set at a reset: the stream's first code is a
+                                           literal */
+extern uint8_t   g_lzw_resume;          /* DGROUP 0x54b6  set when a request fills mid-string */
+extern uint8_t   g_pad_54b5;            /* DGROUP 0x54b5  no instruction names it */
+extern struct resource *g_stream_rec;   /* DGROUP 0x54b3  the record being read */
+extern uint8_t  *g_stream_spill;        /* DGROUP 0x54b1  the record's work buffer, where a run that
+                                           does not fit spills */
+extern uint8_t   g_resource_handler;    /* DGROUP 0x54b0  the low five bits of the kind */
+extern FILE     *g_resource_file;       /* DGROUP 0x54ae  the stream the reader is on */
+extern uint8_t huge *g_stream_out;      /* DGROUP 0x54aa  the output cursor */
+extern uint8_t huge *g_stream_scratch;  /* DGROUP 0x54a6  the decoder's block */
+/* The resource slots, a record pointer each: 0x64 is the bound
+   `select_resource` and `open_resource_slot` test. DGROUP 0x53de..0x54a6. */
+extern struct resource *g_resource_slots[0x64];
+extern int16_t   g_stream_written;      /* DGROUP 0x53dc  bytes the writing side has put out;
+                                           close_resource answers it */
+extern uint16_t  g_stream_wanted;      /* DGROUP 0x53da  how many bytes the caller still wants */
+extern uint8_t   g_resource_flags;      /* DGROUP 0x53d9  0x40 makes a copy happen at all; 0x20 reads
+                                           from a file */
+extern uint8_t   g_stream_kind;         /* DGROUP 0x53d8  the record's kind, copied by select_resource:
+                                           the low five bits pick the handler, 0x20 reads from a file,
+                                           0x40 means opened for reading */
+extern char huge *g_stream_in;          /* DGROUP 0x53d4  where the input is read from in memory */
+extern struct engine_read_staging g_engine_read_staging;   /* DGROUP 0x53a2 */
 
 /*
  * ---------------------------------------------------------------------------

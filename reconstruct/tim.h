@@ -1783,7 +1783,6 @@ int16_t near lzss_reset(void);                      /* 0x2012a */
 /* resource.c: the resource streams, near routines of segment 1c25. */
 int16_t near decompress_store(void);                   /* 0x1ee50 */
 int16_t near decompress_rle(void);                     /* 0x1ee77 */
-int16_t near store_flush(int16_t final);               /* 0x1c2cc */
 int16_t near read_into_huge(uint8_t huge *dst, uint16_t count); /* 0x1eec9 */
 int16_t near next_input_byte(void);                    /* 0x1ef3a */
 int16_t near read_input_block(uint8_t *dst, uint16_t count); /* 0x1ef97 */
@@ -1805,14 +1804,6 @@ void    near resource_nothing_2(void);                 /* 0x1f5e6 */
 /* The handler table's routines in the modules after it. */
 int16_t near rle_from_memory(void);                    /* 0x1f8d1 */
 /* resfile.c: the resource API and the coders behind it. */
-int16_t near lzw_open_write_ratio(void);               /* 0x1ce1f */
-int16_t near lzw_open_write(void);                     /* 0x1ce9d */
-int16_t near lzw_flush(int16_t final);                 /* 0x1cf1b */
-void    near output(int16_t code);                     /* 0x1d133 */
-int32_t long_div(int32_t a, int32_t b);                /* 0x1d2c4 */
-void    near cl_block(void);                           /* 0x1d2dc */
-void    near cl_hash(int32_t hsize);                   /* 0x1d3bf */
-void    near rle_flush(int16_t final);                 /* 0x1d40d */
 int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size); /* 0x1f9c4 */
 int16_t open_resource_mem(int16_t type, char huge *data, char *mode,
                           int32_t size);               /* 0x1fb08 */
@@ -1822,24 +1813,14 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count); /* 0x
 int32_t resource_size(int16_t handle);                 /* 0x1fdd1 */
 int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1fdf5 */
 int16_t restart_resource_stream(int16_t handle);       /* 0x1ff52 */
-int16_t near lzss_open_write(void);                    /* 0x1dba8 */
-int16_t near lzss_flush(int16_t final);                /* 0x1e5ae */
-/* lzhuf.c's encoder and thunks, which nothing the port runs reaches. */
-void    init_tree(void);                               /* 0x1dc3a */
-void    insert_node(int16_t r);                        /* 0x1dc72 */
-void    delete_node(int16_t p);                        /* 0x1de51 */
-void    huff_putcode(int16_t len, uint16_t code);      /* 0x1e04e */
-void    encode_char(uint16_t c);                       /* 0x1e445 */
-void    encode_position(uint16_t c);                   /* 0x1e4a7 */
-void    encode_end(void);                              /* 0x1e4e7 */
 void    vm_call_4_thunk(void);                         /* 0x205c6 */
 void    vm_call_38_thunk(void);                        /* 0x205d2 */
 int16_t near decompress_lzw(void);                     /* 0x1f607 */
-int16_t huff_get_bit(void);                            /* 0x1dfd6 */
+int16_t huff_get_bit(void);                            /* 0x20015 */
+int16_t decode_char(void);                             /* 0x20043 */
 int16_t huff_get_byte(void);                           /* 0x20155 */
-void huffman_start(void);                              /* 0x1e0b3 */
-void huffman_reconst(void);                            /* 0x1e1af */
-void huffman_update(uint16_t c);                       /* 0x1e338 */
+void huffman_start(void);                              /* 0x20198 */
+void huffman_reconst(void);                            /* 0x20285 */
 int16_t decode_position(void);                         /* 0x2040d */
 int16_t near decompress_lzss(void);                    /* 0x2045a */
 int16_t next_lzw_code(void);                           /* 0x1f80a */

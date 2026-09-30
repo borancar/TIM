@@ -12,8 +12,8 @@
  * below, with the host's transcription in the `#else`.
  *
  * One module of the original's **code segment 1c25**, image
- * 0x1ca46..0x1ce1f - the decoder's own head comes before its entry at
- * 0x1ca62 - with its `_DATA` 0x35b2..0x35d6. Its ends are resource.c's last
+ * 0x1f5eb..0x1f9c4 - the decoder's own head comes before its entry at
+ * 0x1f607 - with its `_DATA` 0x31dc..0x3200. Its ends are resource.c's last
  * routine and resfile.c's first.
  *
  * JUDGE: built-with -mm
@@ -45,19 +45,35 @@ d_35d4 label byte
         db 0h, 0h
 _DATA ends
 
-extrn _g_engine_resource_flags:byte
-extrn _g_engine_stream:byte
+extrn _g_lzw_bit_end:byte
+extrn _g_lzw_bit_pos:byte
+extrn _g_lzw_clear_flg:byte
+extrn _g_lzw_finchar:byte
+extrn _g_lzw_first_code:byte
+extrn _g_lzw_free_ent:byte
+extrn _g_lzw_incode:byte
+extrn _g_lzw_maxcode:byte
+extrn _g_lzw_n_bits:byte
+extrn _g_lzw_oldcode:byte
+extrn _g_lzw_resume:byte
+extrn _g_resource_flags:byte
+extrn _g_stream_in:byte
+extrn _g_stream_out:byte
+extrn _g_stream_rec:byte
+extrn _g_stream_scratch:byte
+extrn _g_stream_spill:byte
+extrn _g_stream_wanted:byte
 LZW_TEXT segment byte public 'CODE'
 assume cs:LZW_TEXT, ds:DGROUP
 extrn _emit_byte:near
 extrn _read_input_block:near
 public _decompress_lzw, _next_lzw_code, _rle_from_memory
 L1ca46:
-        mov byte ptr DGROUP:_g_engine_stream+26h, 0
+        mov byte ptr DGROUP:_g_lzw_first_code, 0
         mov bp, es
         call _next_lzw_code
-        mov word ptr DGROUP:_g_engine_stream+1eh, ax
-        mov word ptr DGROUP:_g_engine_stream+24h, ax
+        mov word ptr DGROUP:_g_lzw_oldcode, ax
+        mov word ptr DGROUP:_g_lzw_finchar, ax
         push ax
         call _emit_byte
         add sp, 2
@@ -70,18 +86,18 @@ _decompress_lzw proc near
         push bp
         push si
         push di
-        mov ax, word ptr DGROUP:_g_engine_stream+6h
+        mov ax, word ptr DGROUP:_g_stream_scratch+2
         add ax, 372h
         mov es, ax
-        cmp byte ptr DGROUP:_g_engine_stream+1ah, 0
+        cmp byte ptr DGROUP:_g_lzw_resume, 0
         je L1ca9c
-        mov cx, word ptr DGROUP:_g_engine_stream+8h
+        mov cx, word ptr DGROUP:_g_stream_wanted
         inc cx
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
-        mov al, byte ptr DGROUP:_g_engine_resource_flags
+        les di, dword ptr DGROUP:_g_stream_out
+        mov al, byte ptr DGROUP:_g_resource_flags
         mov si, word ptr DGROUP:d_35d1
-        mov byte ptr DGROUP:_g_engine_stream+1ah, 0
+        mov byte ptr DGROUP:_g_lzw_resume, 0
         mov dx, ds
         mov ds, bp
         mov bx, 2
@@ -91,7 +107,7 @@ _decompress_lzw proc near
 L1ca99:
         jmp L1cbf3
 L1ca9c:
-        cmp byte ptr DGROUP:_g_engine_stream+26h, 0
+        cmp byte ptr DGROUP:_g_lzw_first_code, 0
         jne L1ca46
 L1caa3:
         mov bp, es
@@ -102,14 +118,14 @@ L1caa3:
         cmp ax, 100h
         jne L1cad8
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+4h
+        les di, dword ptr DGROUP:_g_stream_scratch
         mov ax, di
         mov cx, 100h
         rep stosw
         inc ax
-        mov word ptr DGROUP:_g_engine_stream+1ch, ax
+        mov word ptr DGROUP:_g_lzw_clear_flg, ax
         xchg ah, al
-        mov word ptr DGROUP:_g_engine_stream+18h, ax
+        mov word ptr DGROUP:_g_lzw_free_ent, ax
         call _next_lzw_code
         mov es, bp
         cmp ax, 0
@@ -122,15 +138,15 @@ L1cad4:
 L1cad8:
         sub di, di
         mov si, ax
-        mov word ptr DGROUP:_g_engine_stream+28h, ax
-        cmp ax, word ptr DGROUP:_g_engine_stream+18h
+        mov word ptr DGROUP:_g_lzw_incode, ax
+        cmp ax, word ptr DGROUP:_g_lzw_free_ent
         jl L1caed
-        mov ax, word ptr DGROUP:_g_engine_stream+24h
+        mov ax, word ptr DGROUP:_g_lzw_finchar
         stosb
-        mov si, word ptr DGROUP:_g_engine_stream+1eh
+        mov si, word ptr DGROUP:_g_lzw_oldcode
 L1caed:
         mov dx, ds
-        mov ax, word ptr DGROUP:_g_engine_stream+6h
+        mov ax, word ptr DGROUP:_g_stream_scratch+2
         mov ds, ax
         mov cx, 100h
         mov bx, 2720h
@@ -207,14 +223,14 @@ L1cb75:
         stosb
         mov ds, dx
         mov ah, 0
-        mov word ptr DGROUP:_g_engine_stream+24h, ax
-        mov cx, word ptr DGROUP:_g_engine_stream+8h
+        mov word ptr DGROUP:_g_lzw_finchar, ax
+        mov cx, word ptr DGROUP:_g_stream_wanted
         inc cx
         mov si, di
         dec si
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
-        mov al, byte ptr DGROUP:_g_engine_resource_flags
+        les di, dword ptr DGROUP:_g_stream_out
+        mov al, byte ptr DGROUP:_g_resource_flags
         mov dx, ds
         mov ds, bp
         mov bx, 2
@@ -288,18 +304,18 @@ L1cbf3:
         jmp short L1cbee
 L1cbf9:
         mov ds, dx
-        mov word ptr DGROUP:_g_engine_stream+0ch, di
+        mov word ptr DGROUP:_g_stream_out, di
         mov word ptr DGROUP:d_35d1, si
-        mov si, word ptr DGROUP:_g_engine_stream+2h
+        mov si, word ptr DGROUP:_g_stream_rec
         mov bl, byte ptr [si+1ah]
         inc word ptr [si+1ah]
         sub bh, bh
-        mov si, word ptr DGROUP:_g_engine_stream+0ah
+        mov si, word ptr DGROUP:_g_stream_spill
         mov byte ptr [bx+si], al
         sub ax, ax
-        mov word ptr DGROUP:_g_engine_stream+8h, ax
+        mov word ptr DGROUP:_g_stream_wanted, ax
         inc ax
-        mov byte ptr DGROUP:_g_engine_stream+1ah, al
+        mov byte ptr DGROUP:_g_lzw_resume, al
         pop di
         pop si
         pop bp
@@ -309,14 +325,14 @@ L1cc22:
         mov es, ax
         mov ds, dx
         dec cx
-        mov word ptr DGROUP:_g_engine_stream+8h, cx
-        mov word ptr DGROUP:_g_engine_stream+0ch, di
-        mov ax, word ptr DGROUP:_g_engine_stream+18h
+        mov word ptr DGROUP:_g_stream_wanted, cx
+        mov word ptr DGROUP:_g_stream_out, di
+        mov ax, word ptr DGROUP:_g_lzw_free_ent
         cmp ax, 1000h
         jge L1cc5c
         mov di, ax
         shl di, 1
-        mov ax, word ptr DGROUP:_g_engine_stream+1eh
+        mov ax, word ptr DGROUP:_g_lzw_oldcode
         mov bx, es
         mov bp, es
         sub bx, 372h
@@ -324,34 +340,34 @@ L1cc22:
         stosw
         shr di, 1
         mov ax, di
-        mov word ptr DGROUP:_g_engine_stream+18h, ax
+        mov word ptr DGROUP:_g_lzw_free_ent, ax
         add di, 271fh
-        mov ax, word ptr DGROUP:_g_engine_stream+24h
+        mov ax, word ptr DGROUP:_g_lzw_finchar
         stosb
         mov es, bp
 L1cc5c:
-        mov ax, word ptr DGROUP:_g_engine_stream+28h
-        mov word ptr DGROUP:_g_engine_stream+1eh, ax
+        mov ax, word ptr DGROUP:_g_lzw_incode
+        mov word ptr DGROUP:_g_lzw_oldcode, ax
         jmp L1caa3
 _decompress_lzw endp
 
 /* 0x1f80a */
 _next_lzw_code proc near
-        mov ax, word ptr DGROUP:_g_engine_stream+18h
-        cmp ax, word ptr DGROUP:_g_engine_stream+2eh
+        mov ax, word ptr DGROUP:_g_lzw_free_ent
+        cmp ax, word ptr DGROUP:_g_lzw_maxcode
         jg L1ccc8
-        cmp word ptr DGROUP:_g_engine_stream+1ch, 0
+        cmp word ptr DGROUP:_g_lzw_clear_flg, 0
         jne L1cce9
-        mov ax, word ptr DGROUP:_g_engine_stream+2ah
-        cmp ax, word ptr DGROUP:_g_engine_stream+2ch
+        mov ax, word ptr DGROUP:_g_lzw_bit_pos
+        cmp ax, word ptr DGROUP:_g_lzw_bit_end
         jge L1ccfb
 L1cc7e:
         mov si, offset DGROUP:d_35bc
-        mov bx, word ptr DGROUP:_g_engine_stream+16h
+        mov bx, word ptr DGROUP:_g_lzw_n_bits
         mov ch, al
         mov dx, ax
         add ax, bx
-        mov word ptr DGROUP:_g_engine_stream+2ah, ax
+        mov word ptr DGROUP:_g_lzw_bit_pos, ax
         shr dx, 1
         shr dx, 1
         shr dx, 1
@@ -381,9 +397,9 @@ L1ccb9:
         or ax, dx
         ret
 L1ccc8:
-        mov cx, word ptr DGROUP:_g_engine_stream+16h
+        mov cx, word ptr DGROUP:_g_lzw_n_bits
         inc cx
-        mov word ptr DGROUP:_g_engine_stream+16h, cx
+        mov word ptr DGROUP:_g_lzw_n_bits, cx
         mov ax, 1000h
         cmp cl, 0ch
         je L1ccdf
@@ -391,17 +407,17 @@ L1ccc8:
         shl ax, cl
         dec ax
 L1ccdf:
-        mov word ptr DGROUP:_g_engine_stream+2eh, ax
-        cmp word ptr DGROUP:_g_engine_stream+1ch, 0
+        mov word ptr DGROUP:_g_lzw_maxcode, ax
+        cmp word ptr DGROUP:_g_lzw_clear_flg, 0
         je L1ccfb
 L1cce9:
         mov ax, 9
-        mov word ptr DGROUP:_g_engine_stream+16h, ax
+        mov word ptr DGROUP:_g_lzw_n_bits, ax
         mov ax, 1ffh
-        mov word ptr DGROUP:_g_engine_stream+2eh, ax
-        mov word ptr DGROUP:_g_engine_stream+1ch, 0
+        mov word ptr DGROUP:_g_lzw_maxcode, ax
+        mov word ptr DGROUP:_g_lzw_clear_flg, 0
 L1ccfb:
-        mov si, word ptr DGROUP:_g_engine_stream+16h
+        mov si, word ptr DGROUP:_g_lzw_n_bits
         push si
         mov ax, 31e6h
         push ax
@@ -410,17 +426,17 @@ L1ccfb:
         sub bx, bx
         cmp ax, bx
         jle L1cd25
-        mov word ptr DGROUP:_g_engine_stream+2ah, bx
+        mov word ptr DGROUP:_g_lzw_bit_pos, bx
         shl ax, 1
         shl ax, 1
         shl ax, 1
         dec si
         sub ax, si
-        mov word ptr DGROUP:_g_engine_stream+2ch, ax
+        mov word ptr DGROUP:_g_lzw_bit_end, ax
         mov ax, bx
         jmp L1cc7e
 L1cd25:
-        mov word ptr DGROUP:_g_engine_stream+2ch, ax
+        mov word ptr DGROUP:_g_lzw_bit_end, ax
         mov ax, 0ffffh
         ret
 _next_lzw_code endp
@@ -432,9 +448,9 @@ _rle_from_memory proc near
         push di
         sub cx, cx
         mov bx, cx
-        mov si, word ptr DGROUP:_g_engine_stream+2h
+        mov si, word ptr DGROUP:_g_stream_rec
         mov cl, byte ptr [si+1ah]
-        mov ax, word ptr DGROUP:_g_engine_stream+0ah
+        mov ax, word ptr DGROUP:_g_stream_spill
         add ax, cx
         mov word ptr DGROUP:d_35d4, ax
         mov ax, word ptr [si+0eh]
@@ -445,10 +461,10 @@ _rle_from_memory proc near
         jne L1cd55
         mov bp, ax
 L1cd55:
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
-        mov dx, word ptr DGROUP:_g_engine_stream+8h
-        mov al, byte ptr DGROUP:_g_engine_resource_flags
-        lds si, dword ptr DGROUP:_g_engine_stream+10h
+        les di, dword ptr DGROUP:_g_stream_out
+        mov dx, word ptr DGROUP:_g_stream_wanted
+        mov al, byte ptr DGROUP:_g_resource_flags
+        lds si, dword ptr DGROUP:_g_stream_in
         test al, 40h
         je L1cdb5
 L1cd68:
@@ -520,10 +536,10 @@ L1cdcc:
 L1cde0:
         mov ax, ss
         mov ds, ax
-        mov si, word ptr DGROUP:_g_engine_stream+2h
+        mov si, word ptr DGROUP:_g_stream_rec
         mov ax, bp
         add byte ptr [si+1ah], al
-        mov word ptr DGROUP:_g_engine_stream+8h, dx
+        mov word ptr DGROUP:_g_stream_wanted, dx
         add word ptr [si+0ah], bx
         adc word ptr [si+0ch], 0
         pop di
@@ -568,7 +584,7 @@ struct engine_bit_masks g_engine_bit_masks = { .mask = { 0x00, 0x01, 0x03, 0x07,
 /*
  * **The bit reader's input window**, DGROUP 0x35bc..0x35c8, 0x0c bytes: `next_lzw_code` has
  * `read_input_block` fill it and takes its codes out of it a byte at a time,
- * from the bit position g_engine_stream keeps. Twelve bytes, up to the mask table.
+ * from the bit position `g_lzw_bit_pos` keeps. Twelve bytes, up to the mask table.
  */
 struct engine_lzw_window {
     uint8_t   window[12];         /* +0x00 [0xc] */
@@ -674,7 +690,7 @@ int16_t decompress_lzw(void)
      * writes the offset itself into the dictionary, which is what makes it
      * visible.
      */
-    uint8_t far * block = g_engine_stream.scratch;
+    uint8_t far * block = g_stream_scratch;
     uint16_t *prefix = (uint16_t *)(void *)block;
     uint8_t far * suffix = block + 0x2720;
     uint8_t far * scratch = block + 0x3720;
@@ -689,21 +705,21 @@ int16_t decompress_lzw(void)
     uint8_t al = 0;
     int16_t copying;
 
-    if (g_engine_stream.resume != 0) {
-        cx = (uint16_t)(g_engine_stream.wanted + 1);
-        out = (uint8_t far *)g_engine_stream.out;
+    if (g_lzw_resume != 0) {
+        cx = (uint16_t)(g_stream_wanted + 1);
+        out = (uint8_t far *)g_stream_out;
         back = scratch + (uint16_t)g_engine_lzw_resume.scratch_at;
-        copying = (g_engine_resource_flags.flags & 0x40) != 0;
-        g_engine_stream.resume = 0;
+        copying = (g_resource_flags & 0x40) != 0;
+        g_lzw_resume = 0;
         goto step_back;
     }
 
-    if (g_engine_stream.first_code != 0) {
+    if (g_lzw_first_code != 0) {
         /* 0x1ca46 - the first code of a stream is a literal. */
-        g_engine_stream.first_code = 0;
+        g_lzw_first_code = 0;
         code = next_lzw_code();
-        g_engine_stream.oldcode = code;
-        g_engine_stream.finchar = code;
+        g_lzw_oldcode = code;
+        g_lzw_finchar = code;
         emit_byte((uint16_t)code);
     }
 
@@ -716,14 +732,14 @@ int16_t decompress_lzw(void)
             /* The block's own offset, written into every entry it clears -
                zero, as the note on `block` says, and written as the field
                rather than as a 0 because that is what the original stores. */
-            uint16_t p = FP_OFF(g_engine_stream.scratch);
+            uint16_t p = FP_OFF(g_stream_scratch);
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
                 prefix[i] = p;
 
-            g_engine_stream.clear_flg = (int16_t)(p + 1);
-            g_engine_stream.free_ent = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
+            g_lzw_clear_flg = (int16_t)(p + 1);
+            g_lzw_free_ent = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
 
             code = next_lzw_code();
             if (code < 0)
@@ -732,11 +748,11 @@ int16_t decompress_lzw(void)
 
         in = scratch;
         si = (uint16_t)code;
-        g_engine_stream.incode = code;
+        g_lzw_incode = code;
 
-        if ((int16_t)si >= g_engine_stream.free_ent) {
-            *in++ = (uint8_t)((uint16_t)g_engine_stream.finchar);
-            si = ((uint16_t)g_engine_stream.oldcode);
+        if ((int16_t)si >= g_lzw_free_ent) {
+            *in++ = (uint8_t)((uint16_t)g_lzw_finchar);
+            si = ((uint16_t)g_lzw_oldcode);
         }
 
         while (si >= 0x100) {
@@ -746,12 +762,12 @@ int16_t decompress_lzw(void)
 
         al = suffix[si];
         *in++ = al;
-        g_engine_stream.finchar = al;
+        g_lzw_finchar = al;
 
-        cx = (uint16_t)(g_engine_stream.wanted + 1);
+        cx = (uint16_t)(g_stream_wanted + 1);
         back = in - 1;
-        out = (uint8_t far *)g_engine_stream.out;
-        copying = (g_engine_resource_flags.flags & 0x40) != 0;
+        out = (uint8_t far *)g_stream_out;
+        copying = (g_resource_flags & 0x40) != 0;
 
         for (;;) {
             al = *back++;
@@ -759,10 +775,10 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 struct resource *rec;
 
-                g_engine_stream.out = out;
+                g_stream_out = out;
                 g_engine_lzw_resume.scratch_at = (int16_t)(back - scratch);
 
-                rec = g_engine_stream.rec;
+                rec = g_stream_rec;
                 {
                     uint16_t n = rec->spill_end;
 
@@ -770,11 +786,11 @@ int16_t decompress_lzw(void)
                        end lands in the start. */
                     if (++rec->spill_end == 0)
                         rec->spill_start++;
-                    g_engine_stream.spill[n] = al;
+                    g_stream_spill[n] = al;
                 }
 
-                g_engine_stream.wanted = 0;
-                g_engine_stream.resume = 1;
+                g_stream_wanted = 0;
+                g_lzw_resume = 1;
                 return 1;
             }
 
@@ -793,18 +809,18 @@ step_back:
 
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
-        g_engine_stream.wanted = (int16_t)cx;
-        g_engine_stream.out = out;
+        g_stream_wanted = (int16_t)cx;
+        g_stream_out = out;
 
-        if (g_engine_stream.free_ent < 0x1000) {
-            uint16_t next = ((uint16_t)g_engine_stream.free_ent);
+        if (g_lzw_free_ent < 0x1000) {
+            uint16_t next = ((uint16_t)g_lzw_free_ent);
 
-            prefix[next] = ((uint16_t)g_engine_stream.oldcode);
-            g_engine_stream.free_ent = (int16_t)(next + 1);
-            suffix[next] = (uint8_t)((uint16_t)g_engine_stream.finchar);
+            prefix[next] = ((uint16_t)g_lzw_oldcode);
+            g_lzw_free_ent = (int16_t)(next + 1);
+            suffix[next] = (uint8_t)((uint16_t)g_lzw_finchar);
         }
 
-        g_engine_stream.oldcode = g_engine_stream.incode;
+        g_lzw_oldcode = g_lzw_incode;
     }
 }
 
@@ -843,47 +859,47 @@ int16_t next_lzw_code(void)
     const uint8_t *in;
     uint8_t ch, bl;
 
-    if ((int16_t)((uint16_t)g_engine_stream.free_ent) > g_engine_stream.maxcode) {
-        uint16_t cx = (uint16_t)(((uint16_t)g_engine_stream.n_bits) + 1);
+    if ((int16_t)((uint16_t)g_lzw_free_ent) > g_lzw_maxcode) {
+        uint16_t cx = (uint16_t)(((uint16_t)g_lzw_n_bits) + 1);
 
-        g_engine_stream.n_bits = (int16_t)cx;
+        g_lzw_n_bits = (int16_t)cx;
         if ((uint8_t)cx == 0xc)
-            g_engine_stream.maxcode = 0x1000;
+            g_lzw_maxcode = 0x1000;
         else
-            g_engine_stream.maxcode = (int16_t)((1 << (cx & 0xff)) - 1);
+            g_lzw_maxcode = (int16_t)((1 << (cx & 0xff)) - 1);
 
-        if (g_engine_stream.clear_flg != 0) {
-            g_engine_stream.n_bits = 9;
-            g_engine_stream.maxcode = 0x1ff;
-            g_engine_stream.clear_flg = 0;
+        if (g_lzw_clear_flg != 0) {
+            g_lzw_n_bits = 9;
+            g_lzw_maxcode = 0x1ff;
+            g_lzw_clear_flg = 0;
         }
-    } else if (g_engine_stream.clear_flg != 0) {
-        g_engine_stream.n_bits = 9;
-        g_engine_stream.maxcode = 0x1ff;
-        g_engine_stream.clear_flg = 0;
-    } else if (g_engine_stream.bit_pos < g_engine_stream.bit_end) {
+    } else if (g_lzw_clear_flg != 0) {
+        g_lzw_n_bits = 9;
+        g_lzw_maxcode = 0x1ff;
+        g_lzw_clear_flg = 0;
+    } else if (g_lzw_bit_pos < g_lzw_bit_end) {
         goto extract;
     }
 
     {
-        uint16_t width = ((uint16_t)g_engine_stream.n_bits);
+        uint16_t width = ((uint16_t)g_lzw_n_bits);
         int16_t n = read_input_block(g_engine_lzw_window.window, width);
 
         if (n <= 0) {
-            g_engine_stream.bit_end = n;
+            g_lzw_bit_end = n;
             return -1;
         }
 
-        g_engine_stream.bit_pos = 0;
-        g_engine_stream.bit_end = (int16_t)((n << 3) - (width - 1));
+        g_lzw_bit_pos = 0;
+        g_lzw_bit_end = (int16_t)((n << 3) - (width - 1));
     }
 
 extract:
-    bitpos = ((uint16_t)g_engine_stream.bit_pos);
-    bl = (uint8_t)((uint16_t)g_engine_stream.n_bits);
+    bitpos = ((uint16_t)g_lzw_bit_pos);
+    bl = (uint8_t)((uint16_t)g_lzw_n_bits);
     ch = (uint8_t)bitpos;
 
-    g_engine_stream.bit_pos = (int16_t)(bitpos + ((uint16_t)g_engine_stream.n_bits));
+    g_lzw_bit_pos = (int16_t)(bitpos + ((uint16_t)g_lzw_n_bits));
 
     in = &g_engine_lzw_window.window[bitpos >> 3];
     ch &= 7;

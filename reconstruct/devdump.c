@@ -471,6 +471,7 @@ static void dev_pointer(int32_t flip)
  * *stop*.
  */
 static int32_t autoplay_past_intro;
+static int32_t autoplay_past_protection;
 
 static void dev_autoplay(int32_t flip)
 {
@@ -530,6 +531,32 @@ static void dev_autoplay(int32_t flip)
         }
         return;
     }
+
+    if (state == 0x8000 && !autoplay_past_protection) {
+        /*
+         * **1.11's copy-protection screen waits for three parts.** Its crack
+         * (see `copy_protect_screen`) makes any three pass, but it still
+         * asks, where 1.00's crack never waited - so a run that sat at 0x8000
+         * from here on was sitting in front of it. Three clicks on the grid's
+         * top row, each held two flips and let go, eight flips apart; the
+         * screen is behind us once the state leaves 0x8000.
+         */
+        static int32_t picks, pressed_at = -1;
+
+        if (pressed_at >= 0 && flip >= pressed_at + 2) {
+            io_mouse_input(100 + 60 * (picks - 1), 60, 0);
+            pressed_at = -1;
+        } else if (pressed_at < 0 && picks < 3 && (flip & 7) == 0) {
+            io_mouse_input(100 + 60 * picks, 60, 1);
+            pressed_at = flip;
+            picks++;
+            fprintf(stderr, "io: autoplay picks part %d on the copy-protection "
+                    "screen at flip %d\n", picks, flip);
+        }
+        return;
+    }
+    if (state == 2 || state == 0x1000)
+        autoplay_past_protection = 1;
 
     if (state == 0x2000) {
         fprintf(stderr, "io: autoplay - the machine is running (flip %d)\n",
