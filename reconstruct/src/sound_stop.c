@@ -107,7 +107,7 @@ void tick_delay(void)
 }
 
 /*
- * 0x293c1 (1.00's; not yet placed in 1.11)
+ * 0x2b0bf
  *
  * Unlink records from the list at DGROUP 0x4a88 and give them back. The
  * selector is the one `next_matching_record` uses - 0 for every record, -1 and
@@ -185,7 +185,7 @@ uint16_t remove_and_free_records(int16_t selector)
 }
 
 /*
- * 0x294ff (1.00's; not yet placed in 1.11)
+ * 0x2b6cd
  *
  * Stop sequences. Which ones is the selector, and it is the same vocabulary
  * `next_matching_record` uses: -1 for the ones with bit 0 of +0x12 set, -2 for

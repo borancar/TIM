@@ -20,7 +20,7 @@
 #include "dgroup.h"
 
 /*
- * 0x28935 (1.00's; not yet placed in 1.11)
+ * 0x281d1
  *
  * Build a sequence record around a block of note data, and answer it as a far
  * pointer - or a null one if there was no room.
@@ -78,7 +78,7 @@ void follow_then_tick(struct sequence far * seq, int16_t count)
 }
 
 /*
- * 0x289e8 (1.00's; not yet placed in 1.11)
+ * 0x28256
  *
  * Load the sound bank for whatever device is configured, and answer it as a far
  * pointer, or null.
@@ -200,7 +200,7 @@ done:
 }
 
 /*
- * 0x28baf (1.00's; not yet placed in 1.11)
+ * 0x2841b
  *
  * Free a whole chain of nodes, each linked to the next by the far pointer at
  * its +4, and all of them kind 9.
@@ -225,7 +225,7 @@ void free_node_list(struct sound_node far * list)
 }
 
 /*
- * 0x28bf2 (1.00's; not yet placed in 1.11)
+ * 0x2845e
  *
  * Walk a resource's record list looking for one with a given identifier.
  * Answers 1 if it stopped on it, 0 for anything else.
@@ -279,7 +279,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint8_t want)
 }
 
 /*
- * 0x28cf7 (1.00's; not yet placed in 1.11)
+ * 0x2855f
  *
  * Read a run of four-byte items out of a resource into an ordered list of
  * eight-byte nodes, and answer the head.
@@ -373,7 +373,7 @@ struct sound_node far *insert_by_key(struct sound_node far * head,
 }
 
 /*
- * 0x28e87 (1.00's; not yet placed in 1.11)
+ * 0x286ef
  *
  * Gather the items a node list names into one block: a small directory at the
  * front and the items themselves behind it.
@@ -429,7 +429,7 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
 }
 
 /*
- * 0x28f74 (1.00's; not yet placed in 1.11)
+ * 0x2ba6a
  *
  * Load a whole resource into a fresh block and answer it as a far pointer, or
  * null.

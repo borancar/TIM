@@ -243,7 +243,7 @@ uint16_t alloc_voice_records(void)
 }
 
 /*
- * 0x28886 (1.00's; not yet placed in 1.11)
+ * 0x288aa
  *
  * Load a named chunk out of a file, and answer it as a far pointer or null.
  *

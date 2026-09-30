@@ -60,7 +60,7 @@ void     part_hook_none_2b0(struct part *part);         /* 0x002b3 */
 uint16_t part_hook_no(struct part *part);               /* 0x00486 */
 
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
-void compute_moved(void);                               /* 0x002be */
+void compute_moved(void);                               /* 0x002ba */
 
 /* Step the counter at DGROUP 0x4e87. */
 void step_loop_frames(void);                          /* 0x01497 */
@@ -80,13 +80,13 @@ void apply_gravity_and_speed(struct part *rec);         /* 0x03828 */
 void touch_vel_y(struct part *rec);                    /* 0x0387f */
 
 /* Build the swept bounding box of the object at DGROUP 0x5400. */
-void compute_swept_bounds(void);               /* 0x002dd */
+void compute_swept_bounds(void);               /* 0x002d5 */
 
 /* Derive a rectangle and its centre from the structure at DGROUP 0x53fe. */
-void compute_other_bounds(void);                     /* 0x00386 */
+void compute_other_bounds(void);                     /* 0x0035c */
 
 /* Are two angles on the same side of a reference direction? */
-int16_t angles_same_side(int16_t angle);            /* 0x003df */
+int16_t angles_same_side(int16_t angle);            /* 0x003a1 */
 
 /* Reduce a 16-bit angle to one of four directions. */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
@@ -205,7 +205,7 @@ const uint8_t far * midi_note_event(const uint8_t far * data,
 void init_sequence_params(struct sequence far * seq);  /* 0x28305 */
 
 /* Next record matching a selector, as a far pointer in DX:AX. */
-struct sound_record far * next_matching_record(int16_t selector);    /* 0x29966 */
+struct sound_record far * next_matching_record(int16_t selector);    /* 0x280b5 */
 
 /* Handle one pitch bend event; answers the advanced stream cursor. */
 const uint8_t far * midi_bend_event(const uint8_t far * data,
@@ -213,17 +213,17 @@ const uint8_t far * midi_bend_event(const uint8_t far * data,
 
 /* Allocate a block for the sound module by kind; zero some kinds. */
 uint8_t far * alloc_for_kind(uint32_t size,
-                              uint16_t kind);             /* 0x29f89 */
+                              uint16_t kind);             /* 0x16beb */
 
 /* Release a block by the same kind it was allocated with. */
 void free_for_kind(uint8_t far * blk,
                    uint16_t kind);                  /* 0x2a017 */
 
 /* Free a chain of kind-9 nodes linked at +4. */
-void free_node_list(struct sound_node far * list);            /* 0x28baf */
+void free_node_list(struct sound_node far * list);            /* 0x2841b */
 
 /* Build a sequence record around note data; null far pointer on failure. */
-struct sequence far * create_sequence(const uint8_t far * src);     /* 0x28935 */
+struct sequence far * create_sequence(const uint8_t far * src);     /* 0x281d1 */
 
 /* The ordinary-call face of start_sequence. */
 void start_sequence_far(struct sequence far * seq,
@@ -323,25 +323,25 @@ uint16_t alloc_voice_records(void);                    /* 0x28800 */
 void follow_then_tick(struct sequence far * seq,
                       int16_t count);                  /* 0x289ba */
 uint16_t seek_to_sound_record(int16_t handle,
-                              uint8_t want);          /* 0x28bf2 */
-struct sound_node far * read_sound_records(int16_t handle);           /* 0x28cf7 */
-uint16_t read_record(FILE *file, uint8_t mode);      /* 0x29da0 */
+                              uint8_t want);          /* 0x2845e */
+struct sound_node far * read_sound_records(int16_t handle);           /* 0x2855f */
+uint16_t read_record(FILE *file, uint8_t mode);      /* 0x27e22 */
 uint16_t start_sound(int16_t device, int16_t module_index,
-                     uint16_t callback, FILE *handle); /* 0x29c3b */
+                     uint16_t callback, FILE *handle); /* 0x27ffe */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, FILE *handle); /* 0x2b29e */
 uint16_t load_sound_module(FILE *handle, const int16_t *number,
                            uint16_t index);         /* 0x2ad3f */
 uint8_t far * load_named_chunk(char *name, const char * path,
-                          uint16_t index);          /* 0x28886 */
+                          uint16_t index);          /* 0x288aa */
 uint8_t far * load_sound_bank(FILE *file, uint32_t size,
-                               uint8_t * out, uint16_t kind); /* 0x289e8 */
+                               uint8_t * out, uint16_t kind); /* 0x28256 */
 uint8_t far * load_resource_block(FILE *file, uint32_t size,
                                    uint8_t * out,
-                                   uint16_t kind);      /* 0x28f74 */
+                                   uint16_t kind);      /* 0x2ba6a */
 uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint8_t far * dst, uint16_t data_at,
-                           uint16_t tag);              /* 0x28e87 */
+                           uint16_t tag);              /* 0x286ef */
 struct sound_node far * insert_by_key(struct sound_node far * head,
                                       struct sound_node far * node);
 void stop_voice_playing(const uint8_t far * source);   /* 0x2b929 */
@@ -351,14 +351,14 @@ struct sequence far * start_on_free_voice(const uint8_t far * source, uint16_t i
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(const uint8_t far * cb);   /* 0x2bb2c */
 void stop_sound(void);                                 /* 0x292f4 */
-void shutdown_sound(void);                             /* 0x29cf6 */
+void shutdown_sound(void);                             /* 0x2b1f8 */
 void delay_five_ticks(void);                           /* 0x2b68f */
 void tick_delay(void);                                 /* 0x293b8 */
-uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
-uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
-FILE *open_sound_file(char *name, int16_t id);     /* 0x296b4 */
+uint16_t remove_and_free_records(int16_t selector);    /* 0x2b0bf */
+uint16_t stop_sequences(int16_t selector);             /* 0x2b6cd */
+FILE *open_sound_file(char *name, int16_t id);     /* 0x2ae14 */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
-uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
+uint16_t start_sequence_by_id(int16_t id);             /* 0x2b418 */
 
 /* The ordinary-call faces of the hand-written routines above. */
 void set_master_level_far(uint16_t level);             /* 0x28431 */
@@ -576,7 +576,7 @@ void add_sub_object_shapes(struct part *obj, int16_t mask);  /* 0x06bac */
 void set_object_extent(struct part *obj);               /* 0x05c77 */
 
 /* Angle from two differences across an object's +0x1e/+0x22 fields. */
-int16_t object_delta_angle(struct part *obj);           /* 0x004ab */
+int16_t object_delta_angle(struct part *obj);           /* 0x00462 */
 
 /* Arctangent table lookup; index is a ratio in 0..511. */
 int16_t arctan_ratio(int16_t x, int16_t y);            /* 0x2c3e8 */
@@ -1536,7 +1536,7 @@ void game_screen_loop(void);                               /* 0x10856 */
 void run_machine_loop(void);                               /* 0x01230 */
 void finish_level(void);                             /* 0x032c6 */
 void write_config(void);                               /* 0x144b5 */
-void count_level_files(void);                       /* 0x14257 */
+void count_level_files(void);                       /* 0x14271 */
 void wait_cursor(void);                             /* 0x051f3 */
 void restore_cursor(void);                          /* 0x0522b */
 int16_t cursor_for_tool(void);                      /* 0x0529f */
@@ -1835,7 +1835,7 @@ uint16_t dos_findfirst(const char *pattern, uint16_t attr); /* 0x0c2f9 */
 uint16_t dos_findnext(const char *pattern, uint16_t attr);  /* 0x0c315 */
 uint16_t dos_find_attr(void);                          /* 0x0c370 */
 char *dos_find_name(void);                          /* 0x0b734 */
-uint32_t dos_find_size(void);                          /* 0x0c37a */
+uint32_t dos_find_size(void);                          /* 0x0c376 */
 void dos_get_cur_dir(char *buf);                    /* 0x0c3f5 */
 void heap_check_or_hang(void);                         /* 0x0903c */
 void checked_free(void *p);                            /* 0x09024 */

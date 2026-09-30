@@ -113,7 +113,7 @@ uint16_t part_hook_no(struct part *part)
 }
 
 /*
- * 0x002be (1.00's; not yet placed in 1.11)
+ * 0x002ba
  *
  * Subtract two fields of the structure that DGROUP 0x5400 points at from two
  * words beside it. What the structure is has not been established; only the
@@ -130,7 +130,7 @@ void compute_moved(void)
 }
 
 /*
- * 0x002dd (1.00's; not yet placed in 1.11)
+ * 0x002d5
  *
  * Build the **swept** bounding box of the object at DGROUP 0x5400: the union
  * of where it is and where it was, which is what a dirty-rectangle redraw has
@@ -170,7 +170,7 @@ void compute_swept_bounds(void)
 }
 
 /*
- * 0x00386 (1.00's; not yet placed in 1.11)
+ * 0x0035c
  *
  * Derive a rectangle and its centre from the structure that DGROUP 0x53fe
  * points at, into six words at DGROUP 0x5404..0x540e:
@@ -202,7 +202,7 @@ void compute_other_bounds(void)
 }
 
 /*
- * 0x003df (1.00's; not yet placed in 1.11)
+ * 0x003a1
  *
  * Are two angles on the same side of a reference direction?
  *
@@ -258,7 +258,7 @@ int16_t angles_same_side(int16_t angle)
 }
 
 /*
- * 0x004ab (1.00's; not yet placed in 1.11)
+ * 0x00462
  *
  * Answer the angle `atan2_long` gives for two differences taken across an
  * object's +0x1e and +0x22 fields.

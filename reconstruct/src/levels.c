@@ -927,7 +927,7 @@ uint16_t is_machine_file(char *name)
 }
 
 /*
- * 0x14257 (1.00's; not yet placed in 1.11)
+ * 0x14271
  *
  * Count the level files, and leave the count at DGROUP 0x4eb9.
  *

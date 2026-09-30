@@ -147,7 +147,7 @@ _dos_find_name proc far
         retf
 _dos_find_name endp
 
-/* 0x0c37a (1.00's; not yet placed in 1.11) */
+/* 0x0c376 */
 _dos_find_size proc far
         mov ax, find_size
         mov dx, find_size+2
@@ -532,7 +532,7 @@ char *dos_find_name(void)
 }
 
 /*
- * 0x0c37a (1.00's; not yet placed in 1.11)
+ * 0x0c376
  *
  * The size of the entry just found, as a long in DX:AX out of the long at
  * 0x2d77.

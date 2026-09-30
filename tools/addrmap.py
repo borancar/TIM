@@ -298,6 +298,48 @@ def build():
         r.pop("candidates", None)
     for r in rows:
         r.pop("candidates", None)
+
+    # **The third pass, out of order**: a module 1.11 links somewhere else -
+    # the sound library, whose routines each became a segment of their own
+    # in another order - has no window between placed neighbours to be
+    # found in. What is still unplaced is compared with every entry of 1.11's
+    # that nothing has claimed, best pairs first, and a pair is taken only
+    # when it is clearly the best for the routine (0.75 or better, and 0.15
+    # ahead of its next choice).
+    taken = {r["new"] for r in rows if "new" in r}
+    free = [e for e in sorted(starts) if e not in taken]
+    ends = sorted(starts) + [NEW_DGROUP]
+    def extent(e):
+        return min(ends[bisect.bisect_right(ends, e)] - e, 0x1000)
+    have = {e: [t for a, t in tokens(new, e, extent(e))] for e in free}
+    pairs = []
+    for r in rows:
+        if "new" in r or r["size"] < 8:
+            continue
+        want = [t for a, t in tokens(old, r["old"], r["size"])]
+        if len(want) < 3:
+            continue
+        scores = []
+        for e in free:
+            h = have[e]
+            if not h or not 0.5 < len(h) / len(want) < 2:
+                continue
+            m = difflib.SequenceMatcher(None, want, h, autojunk=False)
+            if m.real_quick_ratio() < 0.75 or m.quick_ratio() < 0.75:
+                continue
+            scores.append((m.ratio(), e))
+        scores.sort(reverse=True)
+        if scores and scores[0][0] >= 0.75 and (
+                len(scores) == 1 or scores[0][0] - scores[1][0] >= 0.15):
+            pairs.append((scores[0][0], scores[0][1], r))
+    pairs.sort(key=lambda p: -p[0])
+    for ratio, e, r in pairs:
+        if e in taken or "new" in r:
+            continue
+        r["new"], r["how"], r["ratio"] = e, "resembles, moved", round(ratio, 3)
+        taken.add(e)
+
+    for r in rows:
         if "new" in r:
             r["entry"] = r["new"] in starts
     return rows
