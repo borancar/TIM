@@ -15,7 +15,7 @@
  * offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d
+ * JUDGE: built-with -mm -d -O -Z
  * JUDGE: data 0x259c..0x25e8
  *
  * **Turbo C++ 3.0, `-mm -d`, without `-O`**: a `return` leaves its `jmp` to
@@ -439,7 +439,7 @@ uint16_t ask_yes_no(const char *title, char *body)
 }
 
 /*
- * 0x15698 (1.00's; not yet placed in 1.11)
+ * 0x1754e
  *
  * **The message box.** Both doorways above reach it - `show_message_box` with
  * one button and `ask_yes_no` with two - and it answers 1 for the first button
@@ -632,7 +632,7 @@ void show_level_complete(void)
 }
 
 /*
- * 0x178f1
+ * 0x17908
  *
  * Wipe the play area and draw the machine into it again - what a message box
  * needs doing behind it once it has gone.
@@ -771,7 +771,7 @@ void draw_machine_layer_c(void)
 }
 
 /*
- * 0x17ab9
+ * 0x17ad9
  *
  * The play area's **left edge**: the tile at +8 laid every 8 pixels *down*
  * x = 0, from y = 8 to y = 0x161, then the same two corner pieces the top and
@@ -795,7 +795,7 @@ void draw_machine_layer_d(void)
 }
 
 /*
- * 0x17adc
+ * 0x17b43
  *
  * The play area's **right edge and the bin's own frame** - the last of the
  * five, and the only one that looks at the state.
@@ -1022,7 +1022,7 @@ void draw_machine_layer_f(void)
 }
 
 /*
- * 0x17e88
+ * 0x17eab
  *
  * **Draw the part in your hand at the pointer**, and tell the shape allocator
  * where it went so the backdrop under it can be restored.
@@ -1062,7 +1062,7 @@ void draw_carried_icon(void)
 }
 
 /*
- * 0x17f11
+ * 0x17f2d
  *
  * One frame of the machine: settle the display buckets, run the physics, draw.
  *
@@ -1546,7 +1546,7 @@ void draw_rope_segment(register int16_t x0, register int16_t y0, int16_t x1,
 }
 
 /*
- * 0x1894f
+ * 0x18996
  *
  * Draw a rope: every length of it, from the part it starts at to the part it
  * ends at, following the chain of pulleys through each one's +0x5a links.
@@ -1630,7 +1630,7 @@ void draw_rope(struct part *part, int16_t a)
 }
 
 /*
- * 0x18ae0
+ * 0x18b94
  *
  * Draw one part, at one level, either scaled or not.
  *
@@ -1787,7 +1787,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
 }
 
 /*
- * 0x18fd7
+ * 0x18fe9
  *
  * The extra a kind-0x1e part draws while the machine is in state 0x2000: a
  * three-point outline in colour 0x0e from the part it is linked to at +0x62,

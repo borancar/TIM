@@ -67,23 +67,80 @@ def relocs(exe):
     return out
 
 
-def routines():
+def provenance_of(root):
+    """Every routine's (file, name) -> address, as the sources under `root`
+    give them."""
     import provenance
-    rows = []
-    for p in sorted(glob.glob(os.path.join(REPO, "reconstruct", "src", "*.c"))
-                    + glob.glob(os.path.join(REPO, "reconstruct", "src", "parts", "*.c"))):
-        rel = os.path.relpath(p, os.path.join(REPO, "reconstruct"))
+    out = {}
+    for p in sorted(glob.glob(os.path.join(root, "src", "*.c"))
+                    + glob.glob(os.path.join(root, "src", "parts", "*.c"))):
+        rel = os.path.relpath(p, root)
         if os.path.basename(p).startswith(OVERLAYS):
             continue
         t, ours, stubs, bare, internal, errs = provenance.check(p)
         for name, a in t + stubs:
             if a != "?":
-                rows.append(dict(file=rel, name=name, old=int(a, 16)))
+                out[rel, name] = int(a, 16)
+    return out
+
+
+def routines():
+    """1.00's routines at 1.00's addresses - read from the sources as tagged
+    `tim-1.00` (exported to out/tim-1.00/src), since the tree's own have
+    moved - each with the address the tree gives it now, `cur`, which is
+    what `--apply` rewrites."""
+    old_root = os.path.join(OLD_DIR, "src", "reconstruct")
+    if not os.path.isdir(old_root):
+        raise SystemExit("export the tag first: git archive tim-1.00 reconstruct "
+                         "| tar -x -C out/tim-1.00/src")
+    cur = provenance_of(os.path.join(REPO, "reconstruct"))
+    rows = []
+    for (rel, name), a in provenance_of(old_root).items():
+        rows.append(dict(file=rel, name=name, old=a, cur=cur.get((rel, name))))
     rows.sort(key=lambda r: r["old"])
     for i, r in enumerate(rows):
         nxt = rows[i + 1]["old"] if i + 1 < len(rows) else OLD_DGROUP
         r["size"] = max(0, min(nxt, OLD_DGROUP) - r["old"])
     return rows
+
+
+def entries(img, exe):
+    """**Where 1.11's routines start**, as the image itself says: every far
+    call's target (a `9a` whose segment word is relocated), every near call's
+    target within its caller's segment, and every relocated far pointer whose
+    offset lands on a `push bp / mov bp, sp` - the handler tables. A routine
+    placed anywhere else is placed mid-routine."""
+    rel = relocs(exe)
+    frames = frames_111()
+    out = set()
+    for r in rel:
+        if r < 3 or r + 2 > len(img):
+            continue
+        seg = struct.unpack_from("<H", img, r)[0]
+        off = struct.unpack_from("<H", img, r - 2)[0]
+        at = seg * 16 + off
+        if at >= NEW_DGROUP:
+            continue
+        if img[r - 3] == 0x9A and r < NEW_DGROUP:
+            out.add(at)
+        elif img[at:at + 3] == b"\x55\x8b\xec":
+            out.add(at)
+    for i in range(len(img) - 3):
+        if i >= NEW_DGROUP:
+            break
+        if img[i] == 0xE8 and i and img[i - 1] == 0x0E:
+            f = max(x for x in frames if x <= i) if frames else 0
+            t = (i + 3 - f + struct.unpack_from("<h", img, i + 1)[0]) & 0xFFFF
+            if img[f + t:f + t + 1] == b"\x55" or img[f + t:f + t + 2] in (b"\x56\x57",):
+                out.add(f + t)
+    # A prologue straight after a return: a routine nothing calls directly,
+    # or calls in a form not read above.
+    p = img.find(b"\x55\x8b\xec")
+    while p != -1 and p < NEW_DGROUP:
+        if img[p - 1] in (0xCB, 0xC3) or img[p - 3] in (0xCA, 0xC2):
+            out.add(p)
+        p = img.find(b"\x55\x8b\xec", p + 1)
+    return out
 
 
 def pattern(img, rel, a, n):
@@ -156,6 +213,7 @@ def tokens(img, a, n):
 def build():
     old, new = open(OLD_IMG, "rb").read(), open(NEW_IMG, "rb").read()
     orel = relocs(OLD_EXE)
+    starts = entries(new, NEW_EXE)
     rows = routines()
     for r in rows:
         if r["size"] < 4:
@@ -227,24 +285,29 @@ def build():
         seq = [t for a, t in have]
         best = (0.0, None)
         for k in range(len(have)):
-            if have[k][1].split()[0] != want[0].split()[0]:
+            if have[k][0] not in starts:
                 continue
             ratio = difflib.SequenceMatcher(
                 None, want, seq[k:k + len(want) + len(want) // 4],
                 autojunk=False).ratio()
             if ratio > best[0]:
                 best = (ratio, have[k][0])
-        if best[1] is not None and best[0] >= 0.5:
+        if best[1] is not None and best[0] >= 0.4:
             r["new"], r["how"], r["ratio"] = best[1], "resembles", round(best[0], 3)
             cursor = best[1] + 1
         r.pop("candidates", None)
     for r in rows:
         r.pop("candidates", None)
+        if "new" in r:
+            r["entry"] = r["new"] in starts
     return rows
 
 
 SURE = ("exact", "exact in order")
-STRONG = 0.8
+# A resemblance is only ever at a routine's entry (`entries`), so it is a
+# choice between whole routines, and the one it picks at 0.6 has been the
+# routine the callers call wherever that was checked.
+STRONG = 0.6
 
 
 def settled(r):
@@ -293,7 +356,9 @@ def apply(rows, dry):
         text = open(path).read()
         out = text
         for name, r in names.items():
-            old = "0x%05x" % r["old"]
+            if r.get("cur") is None:
+                continue
+            old = "0x%05x" % r["cur"]
             olds = [old, old.upper().replace("0X", "0x")]
             # 1. the comment above the C definition, and 2./3. the TASM and
             # Borland-only forms: any of them is a comment ending right
@@ -312,7 +377,8 @@ def apply(rows, dry):
                     if m.group(2):
                         f = max(x for x in fr if x <= r["new"])
                         at = "%04x:%04x, image %s" % (f >> 4, r["new"] - f, at)
-                    return m.group(1) + at + m.group(5)
+                    body = m.group(5).replace(" (1.00's; not yet placed in 1.11)", "")
+                    return m.group(1) + at + body
                 marked += 1
                 note = " (1.00's; not yet placed in 1.11)"
                 body = m.group(5)
@@ -333,7 +399,9 @@ def apply(rows, dry):
     for r in rows:
         if not settled(r):
             continue
-        out = re.sub(r"(\b" + re.escape(r["name"]) + r"\s*\([^;]*\);[ \t]*/\* *)0x%05x\b" % r["old"],
+        if r.get("cur") is None:
+            continue
+        out = re.sub(r"(\b" + re.escape(r["name"]) + r"\s*\([^;]*\);[ \t]*/\* *)0x%05x\b" % r["cur"],
                      lambda m: m.group(1) + "0x%05x" % r["new"], out)
     if out != text:
         changed += 1

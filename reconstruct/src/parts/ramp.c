@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3344..0x3394
  */
 #include "tim.h"

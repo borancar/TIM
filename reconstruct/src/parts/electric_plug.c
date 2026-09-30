@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x32b8..0x32c8
  */
 #include "tim.h"
@@ -34,7 +34,7 @@ struct point8 g_electric_plug_points_32c0[4] = {
 };
 
 /*
- * 172c:14d3, image 0x18793 (1.00's; not yet placed in 1.11) - kind 21's hit test. The see-saw.
+ * 190f:14e8, image 0x1a5d8 - kind 21's hit test. The see-saw.
  *
  * Which way it tips comes from the angle at +0x88 of the thing that hit it,
  * turned a quarter and then read as a sign: the high bit of `angle + 0x4000`.

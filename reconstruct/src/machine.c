@@ -21,7 +21,7 @@
  * 0x080b9, where nothing reaches back across 0x080b9..0x08136.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  * JUDGE: data 0x284a..0x286e
  */
 #include <stdlib.h>
@@ -312,7 +312,7 @@ int16_t object_overlaps_any(register struct part *obj)
 }
 
 /*
- * 0x03f4d (1.00's; not yet placed in 1.11)
+ * 0x04b53
  *
  * Do two parts' outlines actually cross?
  *
@@ -434,7 +434,7 @@ int16_t outlines_cross(struct part *a, struct part *b)
 }
 
 /*
- * 0x04169 (1.00's; not yet placed in 1.11)
+ * 0x04d3e
  *
  * **Turn a link end for end**: swap the two ends of the link record and of
  * every pulley hanging off it.
@@ -515,7 +515,7 @@ void reverse_link_ends(struct rope *rec)
 }
 
 /*
- * 0x04e40
+ * 0x04e50
  *
  * **Is the pointer over this part**, and if it is over one of the part's link
  * ends instead, which link.
@@ -778,7 +778,7 @@ void restore_cursor(void)
 }
 
 /*
- * 0x05233
+ * 0x0523a
  *
  * Choose one of the game's cursors by number, and do nothing if it is already
  * the one showing - DGROUP 0x4ec5 remembers which.
@@ -808,7 +808,7 @@ void select_cursor(register int16_t which)
 }
 
 /*
- * 0x046d8 (1.00's; not yet placed in 1.11)
+ * 0x0529f
  *
  * Which cursor the currently selected tool wants, as a number for
  * `select_cursor` above.
@@ -880,7 +880,7 @@ int16_t cursor_for_tool(void)
 }
 
 /*
- * 0x05303
+ * 0x05314
  *
  * **Which of a part's two ends could move**, as a bitmask.
  *
@@ -946,7 +946,7 @@ uint16_t part_flip_options(register struct part *part)
 }
 
 /*
- * 0x04830 (1.00's; not yet placed in 1.11)
+ * 0x05423
  *
  * **Which handle of a part the pointer is on**, as a code: 1 to 6 for the six
  * grab handles, 7 for the body, 8 for the top-left corner, 0xa for nothing.
@@ -1112,7 +1112,7 @@ int16_t belt_ends_close(struct belt *belt)
 }
 
 /*
- * 0x05895
+ * 0x058a6
  *
  * **The angle from one part to another**, in the sixteen-bit turn this code
  * works in - `atan2_long` answers it and 0x4000 is a quarter. `aim_link_at_bisector` uses
@@ -1162,7 +1162,7 @@ uint16_t angle_between_parts(register struct part *part,
 }
 
 /*
- * 0x05936
+ * 0x05953
  *
  * Re-tension a part and the pulleys at either end of it.
  *
@@ -1201,7 +1201,7 @@ void retension_pulleys(struct part *part)
 }
 
 /*
- * 0x059ac
+ * 0x059d5
  *
  * **Point a chain link along the bisector of its two neighbours.** Called on a
  * kind-7 part after a neighbour has been spliced out, and always followed by
@@ -1283,7 +1283,7 @@ void aim_link_at_bisector(register struct part *part)
 }
 
 /*
- * 0x04e65 (1.00's; not yet placed in 1.11)
+ * 0x05aed
  *
  * Work out the two endpoints of the link between a pair of objects, and a
  * second pair of endpoints offset from them.
@@ -1416,7 +1416,7 @@ void refresh_link_geometry(register struct rope *link)
 }
 
 /*
- * 0x05ce3
+ * 0x05d14
  *
  * **Re-home the carried part** onto whatever it is now near, and let go of
  * whatever it was on before.
@@ -1590,7 +1590,7 @@ void untie_belt(struct part *part)
 }
 
 /*
- * 0x05f5c
+ * 0x05f69
  *
  * **Take a part off the ropes it runs on**, and there are two slots, so the
  * whole body runs twice - +0x66 and +0x68.
@@ -1916,7 +1916,7 @@ void detach_part_to_bin(register struct part *part)
 }
 
 /*
- * 0x0645e
+ * 0x06469
  *
  * Move a part between the two sorted lists, and mend the bin cursor if that
  * emptied the node it was sitting on.
@@ -1947,7 +1947,7 @@ void refile_part_list(register struct part *part)
 }
 
 /*
- * 0x057e6 (1.00's; not yet placed in 1.11)
+ * 0x064c5
  *
  * **Take out every part the player put there**, which is what "restart level"
  * asks for. Bit 15 of a part's +6 protects it: those are stepped over with
@@ -1991,7 +1991,7 @@ void remove_all_parts(void)
 }
 
 /*
- * 0x06515
+ * 0x06527
  *
  * Step through the **parts bin** by *kind*, and answer the record you land on.
  *
@@ -2082,7 +2082,7 @@ struct part *bin_scroll_end(void)
 }
 
 /*
- * 0x06591
+ * 0x065c1
  *
  * Say that a part and everything joined to it needs re-filing: the byte at
  * +0x14 is the countdown `step_and_draw_machine` reads, and this sets it on
@@ -2140,7 +2140,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
 }
 
 /*
- * 0x0666e
+ * 0x066aa
  *
  * Copy a part, and give the copy its own of whatever the original only points
  * at.
@@ -2277,7 +2277,7 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
 }
 
 /*
- * 0x0688b
+ * 0x068aa
  *
  * Work out where an object should be drawn - the pair at +0x2a and +0x2c -
  * from where it *is*, at +0x1e and +0x20, plus the hotspot its kind defines.
@@ -2517,7 +2517,7 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
 }
 
 /*
- * 0x06baf
+ * 0x06c3d
  *
  * Register the rectangles a rope covers, so what it drew can be erased again.
  *
@@ -2661,7 +2661,7 @@ void mark_rope_shapes(struct part *part, uint16_t mode)
 }
 
 /*
- * 0x07095
+ * 0x070a8
  *
  * Add one or both of a record's two shapes, selected by bits 0 and 1 of the
  * argument.
@@ -2682,7 +2682,7 @@ void add_record_shapes(struct part *rec, uint16_t which)
 }
 
 /*
- * 0x070ee
+ * 0x070fb
  *
  * Register a part's shapes, by kind: a belt, kind 8, through
  * `add_sub_object_shapes`; a rope, kind 0x0a, through `mark_rope_shapes`;
@@ -2700,7 +2700,7 @@ void mark_part_shapes(register struct part *part, register uint16_t mode)
 }
 
 /*
- * 0x064b4 (1.00's; not yet placed in 1.11)
+ * 0x0712e
  *
  * Take a node off the free list at DGROUP 0x4e4e, link it onto the list at
  * 0x4e52, and fill it in as a shape between two points.
@@ -2859,7 +2859,7 @@ void replay_shapes(void)
 }
 
 /*
- * 0x07381
+ * 0x073f5
  *
  * Which parts have to be redrawn: walk the 0x3000 list and mark every one that
  * lies in a rectangle on the list at DGROUP 0x4e52.
@@ -2935,7 +2935,7 @@ void mark_parts_in_dirty_rects(void)
 }
 
 /*
- * 0x0752a
+ * 0x07570
  *
  * A rope's version of the dirty-rectangle test: walk the rope from pulley to
  * pulley and mark the *part* if any length of it lies in a rectangle that has
@@ -3154,7 +3154,7 @@ void part_moved(struct part *part)
 }
 
 /*
- * 0x07967
+ * 0x07970
  *
  * The part at the other end of a part's belt: the belt record at +0x54 names
  * both ends at +4 and +6, and this answers whichever is not the one asked
@@ -3175,7 +3175,7 @@ struct part *belt_other_end(register struct part *part)
 }
 
 /*
- * 0x07970
+ * 0x07996
  *
  * How a rope runs between two parts, as a small bit set.
  *
@@ -3300,7 +3300,7 @@ struct part *rope_other_end(struct part *key, register struct rope *rec)
 }
 
 /*
- * 0x07b14
+ * 0x07b33
  *
  * Measure how far a link's endpoint is from the endpoint it joins, in
  * whichever coordinate array `mode` names.
@@ -3516,7 +3516,7 @@ int32_t g_dev_tension_rope_calls;
 #endif
 
 /*
- * 0x07dfa
+ * 0x07e3b
  *
  * Settle one part against the rope it hangs from, and answer whether the part
  * had to move.
@@ -4004,7 +4004,7 @@ void shift_all_histories(void)
 }
 
 /*
- * 0x07ce3 (1.00's; not yet placed in 1.11)
+ * 0x087ed
  *
  * Age every tracked quantity on an object by one step: slot 2 takes slot 1,
  * slot 1 takes slot 0. Slot 0 is left alone - whatever runs the simulation

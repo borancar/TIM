@@ -521,7 +521,7 @@ struct sequence far *follow_far_chain(struct sequence far * seq, int16_t count)
 }
 
 /*
- * 0x290ab (1.00's; not yet placed in 1.11)
+ * 0x2b929
  *
  * Stop whichever voice is playing a given sequence. The same seven-entry table
  * at DGROUP 0x6414 that `voice_playing` searches, and the same match on the far
@@ -576,7 +576,7 @@ uint16_t free_voice_records(void)
 }
 
 /*
- * 0x29152 (1.00's; not yet placed in 1.11)
+ * 0x2b982
  *
  * Give a sequence to the first free voice and start it.
  *

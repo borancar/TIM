@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3232..0x3252
  */
 #include "tim.h"
@@ -36,7 +36,7 @@ struct point8 g_cannon_points_3242[8] = {
 };
 
 /*
- * 190f:0a36, image 0x19b26 - kind 18's step. The cannon.
+ * 190f:0a52, image 0x19b42 - kind 18's step. The cannon.
  *
  * It starts itself once its +0x9c has counted past 0x14, then plays its eleven
  * frames: 0 to 7 one per step, and 7 held until +0x9c has gone up three more.
@@ -102,7 +102,7 @@ void part_step_cannon(struct part *part)
 }
 
 /*
- * 190f:0b6f, image 0x19c5f - a setup.
+ * 190f:0b7a, image 0x19c6a - a setup.
  *
  * Eight points, and a width at +0x72 that goes with them: 0x3e and the table
  * at 0x3242 one way round, 1 and 0x3232 the other. The height at +0x73 is 3

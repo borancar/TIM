@@ -17,7 +17,7 @@
  * calls. Neither has data of its own.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include "tim.h"
 #include "hostio.h"

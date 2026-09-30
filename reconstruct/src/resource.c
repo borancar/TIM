@@ -294,7 +294,7 @@ int16_t near emit_fill_run(uint16_t value, int16_t n)
 }
 
 /*
- * 0x1c5a3 (1.00's; not yet placed in 1.11)
+ * 0x1f154
  *
  * Deliver one byte - `emit_literal_run` and `emit_fill_run` written for a run
  * of exactly one, with the same two states and the same answers. The spill
@@ -440,7 +440,7 @@ int16_t near open_resource_slot(char *mode)
 }
 
 /*
- * 0x1f358
+ * 0x1f37f
  *
  * Give a slot the working memory its decompression type needs. Answers 0, or
  * -1 for a type above 3 or an allocation that failed.

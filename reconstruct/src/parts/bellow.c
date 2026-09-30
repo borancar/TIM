@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3192..0x31e6
  */
 #include <stdlib.h>
@@ -163,7 +163,7 @@ void part_flip_bellow(struct part *part)
 }
 
 /*
- * 190f:03c0, image 0x194b0 - kind 16's step. **The bellows.**
+ * 190f:03f0, image 0x194e0 - kind 16's step. **The bellows.**
  *
  * +0x12 is which way it is going - 1 squeezing, -1 opening - and +0x0c is how
  * far, over three frames 0, 1, 2. Squeezing stops at 2 and opening stops at 0,

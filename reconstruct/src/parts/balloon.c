@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3182..0x3192
  */
 #include "tim.h"
@@ -70,7 +70,7 @@ uint16_t part_hit_balloon(struct part *part)
 }
 
 /*
- * 190f:017c, image 0x1926c - kind 4's step.
+ * 190f:0197, image 0x19287 - kind 4's step.
  *
  * A part that hands its rope over to something else and then disappears. At
  * form 6 it registers its shapes one last time and hides itself - bit 13 of
@@ -143,7 +143,7 @@ void part_step_balloon(struct part *part)
 }
 
 /*
- * 190f:02b5, image 0x193a5 - kind 4's drive.
+ * 190f:02c2, image 0x193b2 - kind 4's drive.
  *
  * Seven arguments like every drive, and it uses four of them: the asking part
  * in the first, the driven part in the second, a mode in the fourth and a

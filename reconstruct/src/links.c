@@ -16,7 +16,7 @@
  * geometry.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include <stdlib.h>
 #include "tim.h"
@@ -129,7 +129,7 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
 }
 
 /*
- * 0x036de (1.00's; not yet placed in 1.11)
+ * 0x042da
  *
  * Build the chain of objects that overlap a box, the way `link_nearby_objects`
  * builds the one that overlaps a part's own box - but the box is given as four
@@ -175,7 +175,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
 }
 
 /*
- * 0x03782 (1.00's; not yet placed in 1.11)
+ * 0x0437d
  *
  * Build the chain of objects whose *outline* crosses a given line, rather than
  * whose box overlaps another - `link_nearby_objects` and
@@ -249,7 +249,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
 }
 
 /*
- * 0x04476
+ * 0x0448e
  *
  * The fourth "what is near me": a box given as four offsets, like
  * `link_objects_in_range`, but matching a *point* rather than a box. Only
@@ -293,7 +293,7 @@ void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
 }
 
 /*
- * 0x04525
+ * 0x0453a
  *
  * Collect what a kind-0x11 platform is carrying, into the chain at +0x78, and
  * give each of them the platform's own velocity.

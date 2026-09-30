@@ -119,7 +119,7 @@ _vm_call_38_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+98h
 _vm_call_38_thunk endp
 
-/* 0x205d6 */
+/* 0x205ce */
 _restore_write_mode proc far
         cmp byte ptr DGROUP:_g_vmds+21h, 10h
         jne L1e965
@@ -283,7 +283,7 @@ void vm_call_38_thunk(void)
 }
 
 /*
- * 0x205d6
+ * 0x205ce
  *
  * Put the graphics controller back the way the rest of the code expects it,
  * after a routine that changed it to draw. Write mode 2, every bit of the bit

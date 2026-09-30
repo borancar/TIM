@@ -11,7 +11,7 @@
  * are in address order and each carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: via-assembler
  * JUDGE: assembler bc3.00
  *

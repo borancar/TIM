@@ -21,7 +21,7 @@
  * the two all-zero tables given `= { 0 }` so they stay in `_DATA`.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x0116..0x2370
  */
 /* this file defines what dgroup.h declares `extern` for the rest: see the

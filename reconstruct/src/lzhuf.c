@@ -190,7 +190,7 @@ _lzss_open_write proc near
         ret
 _lzss_open_write endp
 
-/* 0x2012d */
+/* 0x2012a */
 _lzss_reset proc near
         mov word ptr DGROUP:d_5918, 0
         mov word ptr DGROUP:d_3600, 0
@@ -1233,7 +1233,7 @@ L1e54d:
         jmp L1e849
 _encode_end endp
 
-/* 0x2040d */
+/* 0x2040d (1.00's; not yet placed in 1.11) */
 _decode_position proc near
         push bp
         mov bp, sp
@@ -1489,7 +1489,7 @@ L1e7ec:
         ret
 _lzss_flush endp
 
-/* 0x1e7f2 (1.00's; not yet placed in 1.11) */
+/* 0x2045a */
 _decompress_lzss proc near
         push si
         push di
@@ -1795,7 +1795,7 @@ int16_t near lzss_open_write(void)
 }
 
 /*
- * 0x2012d
+ * 0x2012a
  *
  * Reset the LZSS state for a new stream. Eight instructions: clear the
  * initialised flag at DGROUP 0x5918 so `decompress_lzss` builds its tree and
@@ -2160,7 +2160,7 @@ void encode_end(void)
 }
 
 /*
- * 0x2040d
+ * 0x2040d (1.00's; not yet placed in 1.11)
  *
  * Decode a match position: twelve bits, of which the top six come out of a
  * table and the bottom six are read raw.
@@ -2202,7 +2202,7 @@ int16_t near lzss_flush(int16_t final)
 }
 
 /*
- * 0x1e7f2 (1.00's; not yet placed in 1.11)
+ * 0x2045a
  *
  * Decompression type 3: LZSS over a 4096-byte ring, with the literals and match
  * lengths adaptively Huffman coded and the match positions coded by

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -45,7 +45,7 @@ void part_setup_candle(struct part *part)
 }
 
 /*
- * 190f:096c, image 0x19a5c - kind 45's step. The paddle wheel.
+ * 190f:0977, image 0x19a67 - kind 45's step. The paddle wheel.
  *
  * Once its +0x9c has counted past 0x14 it starts itself, and then runs four
  * frames on a loop - 5 wraps back to 1, so frame 0 is only ever the first one.

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x31e6..0x3222
  */
 #include "tim.h"
@@ -75,7 +75,7 @@ uint16_t part_hit_boxing_glove(struct part *part)
 }
 
 /*
- * 190f:0543, image 0x19633 - kind 35's step.
+ * 190f:0567, image 0x19657 - kind 35's step.
  *
  * A swing. While its +0x12 says go and it has not reached form 9 it steps one
  * frame - the first one plays sound 3 - and runs its own setup again, because
@@ -186,7 +186,7 @@ void part_flip_boxing_glove(struct part *part)
 }
 
 /*
- * 190f:06dd, image 0x197cd
+ * 190f:06e9, image 0x197d9
  *
  * How fast a thing is thrown, by how heavy it is: the mass at DGROUP 0xea8 for
  * its kind, in seven steps from 0x1a00 for the lightest down to 0x0c00 for the

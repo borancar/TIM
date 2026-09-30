@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -68,7 +68,7 @@ void nudge_y_sub(struct part *obj, int16_t d)
 }
 
 /*
- * 172c:1f78, image 0x19238 (1.00's; not yet placed in 1.11) - kind 14's hit test. **Something has landed on a
+ * 190f:1f42, image 0x1b032 - kind 14's hit test. **Something has landed on a
  * moving surface and is carried along it.**
  *
  * The argument is the object that arrived; +0x84 is the kind-14 part it hit.

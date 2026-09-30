@@ -14,7 +14,7 @@
  * read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x2870..0x28d1
  */
 #include <string.h>
@@ -188,7 +188,7 @@ void game_fread_line(FILE *file, char *buf)
 }
 
 /*
- * 0x13622
+ * 0x13653
  *
  * Read one part out of a .gkc. `rec` is one of the 0xa2-byte records
  * `alloc_part_table` made in advance; this fills it from the file and then
@@ -715,7 +715,7 @@ void write_part_count(FILE *file, struct part *head)
 }
 
 /*
- * 0x13f59
+ * 0x13f83
  *
  * **The machine file writer.** `save_machine` is the doorway that puts the
  * dragged part down first; this is what opens the file and writes it. Answers
@@ -824,7 +824,7 @@ void load_level(uint16_t number)
 }
 
 /*
- * 0x1414d
+ * 0x142f6
  *
  * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
  * of its own two strings, the same flag set so a level's whole record is
@@ -898,7 +898,7 @@ uint16_t save_machine(char *name)
 }
 
 /*
- * 0x14223
+ * 0x14223 (1.00's; not yet placed in 1.11)
  *
  * **Is this file one of ours?** It opens the name, reads one word, and answers
  * whether that word is **0xaced** - the machine file's magic, and the only
@@ -927,7 +927,7 @@ uint16_t is_machine_file(char *name)
 }
 
 /*
- * 0x14257
+ * 0x14257 (1.00's; not yet placed in 1.11)
  *
  * Count the level files, and leave the count at DGROUP 0x4eb9.
  *
@@ -966,7 +966,7 @@ void count_level_files(void)
 }
 
 /*
- * 0x142dd
+ * 0x142dd (1.00's; not yet placed in 1.11)
  *
  * **A puzzle's title, out of its own level file.** The name is built rather
  * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
@@ -1009,7 +1009,7 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
 }
 
 /*
- * 0x1439c
+ * 0x1439c (1.00's; not yet placed in 1.11)
  *
  * **A password into a level number**, by finding it in `password.txt`.
  *

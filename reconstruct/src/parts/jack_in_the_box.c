@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3394..0x339a
  */
 #include "tim.h"
@@ -140,7 +140,7 @@ void part_flip_jack_in_the_box(struct part *part)
 }
 
 /*
- * 190f:2969, image 0x1ba59
+ * 190f:2975, image 0x1ba65
  *
  * How fast the conveyor throws a thing, by its mass: nine steps from 0x1800
  * for the lightest down to 0x800 for the heaviest. The third of these ladders
@@ -240,7 +240,7 @@ void conveyor_nudge_15(struct part *obj, int16_t mid)
 }
 
 /*
- * 190f:2acb, image 0x1bbbb - a kind-0x25 on the conveyor.
+ * 190f:2acb, image 0x1bbbb (1.00's; not yet placed in 1.11) - a kind-0x25 on the conveyor.
  *
  * The same shape as the kind-0x10 nudge with different offsets: 0x12 mirrored
  * and 0x18 not.

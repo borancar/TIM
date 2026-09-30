@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3336..0x3344
  */
 #include "tim.h"
@@ -44,7 +44,7 @@ void part_setup_heart_balloon(struct part *part)
 }
 
 /*
- * 190f:266f, image 0x1b75f - kind 33's drive, and it is `part_drive_balloon`
+ * 190f:267e, image 0x1b76e - kind 33's drive, and it is `part_drive_balloon`
  * again with nothing added: mode 1 steps +0x0e of what +0x66 points at, and
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
  * is kind 3 - answers 1 when it is past the limit.

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x33ce..0x3422
  */
 #include "tim.h"
@@ -152,7 +152,7 @@ void part_setup_dynamite_plunger(struct part *part)
 }
 
 /*
- * 190f:329c, image 0x1c38c - kind 22's step. **It makes a new part.**
+ * 190f:32a9, image 0x1c399 - kind 22's step. **It makes a new part.**
  *
  * On the first frame of its three - +0x0c at 1 - it calls `make_part` for a
  * kind-0x29 part, files it on the list at 0x521b, and puts it half a part to

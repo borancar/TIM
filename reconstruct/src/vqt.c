@@ -712,7 +712,7 @@ L25ead:
         ret
 _vqt_node endp
 
-/* 0x25eb5 (1.00's; not yet placed in 1.11) */
+/* 0x27b3f */
 _fill_quadrant proc near
         push bp
         mov bp, sp
@@ -1400,7 +1400,7 @@ void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
- * 0x25eb5 (1.00's; not yet placed in 1.11)
+ * 0x27b3f
  *
  * **The quadtree's leaf: paint one rectangle of the bitmap** from what the bit
  * stream says next. Every pixel goes into the first plane of the reader record

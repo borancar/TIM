@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3314..0x3330
  */
 #include "tim.h"
@@ -89,7 +89,7 @@ void part_step_gun(struct part *part)
 }
 
 /*
- * 190f:2368, image 0x1b458 - a setup.
+ * 190f:2373, image 0x1b463 - a setup.
  *
  * Seven points, with the grab box's width at +0x6a following the same flag:
  * 0x2a with the table at 0x3322, 0x12 with 0x3314. The height at +0x6b is 0x12

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -68,7 +68,7 @@ void part_setup_bird_cage(struct part *part)
 }
 
 /*
- * 190f:0ffa, image 0x1a0ea - kind 11's drive.
+ * 190f:1005, image 0x1a0f5 - kind 11's drive.
  *
  * `part_drive_balloon` with a tail. Mode 1 steps +0x0e of what +0x66 points at;
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker

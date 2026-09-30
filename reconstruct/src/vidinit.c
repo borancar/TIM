@@ -33,7 +33,7 @@
  * starts this one; it stays in lowlevel.c.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -k-
+ * JUDGE: built-with -mm -k- -O -Z
  * JUDGE: via-assembler
  * JUDGE: data 0x48f2..0x48f8
  * JUDGE: assembler bc3.00

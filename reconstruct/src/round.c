@@ -13,7 +13,7 @@
  * offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d
+ * JUDGE: built-with -mm -d -O -Z
  * JUDGE: data 0x25e8..0x260a
  */
 #include "tim.h"
@@ -85,7 +85,7 @@ void free_two_bitmap_lists(void)
 }
 
 /*
- * 0x0ff48
+ * 0x0ff5e
  *
  * **One round**, as a state machine on DGROUP 0x4e6b.
  *

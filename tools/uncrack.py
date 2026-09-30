@@ -41,6 +41,19 @@ IMAGE_OFF = 0x0EC7A         # the displacement's low byte
 CRACKED = 0x61              # jmp 0x0eddd - `done = 1`
 ORIGINAL = 0x66             # jmp 0x0ede2 - the loop's test
 
+# **Every version's crack, by the size of its recovered image**: (image
+# offset, the cracked byte, the byte as it was built). 1.00's is the one
+# above - the jump that skips the question. 1.11's is three bytes after the
+# third answer is picked: `cmp [bp-0xe], 3 / jne / mov word [bp-0xe], 0`,
+# which starts the slots over, became `jmp 0x0fd50` - `done = 1` - over the
+# mov's first three bytes, its zero immediate left behind. So 1.11's screen
+# is asked and answered, and any three parts pass. The original's bytes are
+# 1.00's same instruction at 0x0ed8a with 1.11's slot offset.
+CRACKS = {
+    214512: [(IMAGE_OFF, CRACKED, ORIGINAL)],
+    220992: [(0x0FCFD, 0xEB, 0xC7), (0x0FCFE, 0x51, 0x46), (0x0FCFF, 0x00, 0xF2)],
+}
+
 
 def exe_image_base(data):
     """Where the load image starts inside an EXE: the header is e_cparhdr

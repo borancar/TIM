@@ -14,7 +14,7 @@
  * read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x2966..0x2d06
  */
 #include "tim.h"
@@ -149,7 +149,7 @@ void build_part_list(void)
 }
 
 /*
- * 0x15d47
+ * 0x15d9b
  *
  * Make one part: a 0xa2-byte record off the near heap, filled from the
  * sixteen-byte-per-part table at DGROUP 0x2966 and the bitmap list
@@ -256,7 +256,7 @@ uint16_t part_init_bowling_ball(struct part *part)
     return 0;
 }
 
-/* 0x15eb7 */
+/* 0x15ec3 */
 uint16_t part_init_platform(struct part *part)
 {
     part->traits |= TRAIT_TILED;
@@ -269,7 +269,7 @@ uint16_t part_init_platform(struct part *part)
     return 0;
 }
 
-/* 0x15eef */
+/* 0x15efb */
 uint16_t part_init_ramp(struct part *part)
 {
     part->traits |= (TRAIT_CAN_FLIP_VERTICAL | TRAIT_CAN_FLIP_HORIZONTAL);
@@ -283,7 +283,7 @@ uint16_t part_init_ramp(struct part *part)
     return 0;
 }
 
-/* 0x15efb */
+/* 0x15f3e */
 uint16_t part_init_seesaw(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -296,7 +296,7 @@ uint16_t part_init_seesaw(struct part *part)
     return 0;
 }
 
-/* 0x15f6a */
+/* 0x15f76 */
 uint16_t part_init_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -311,7 +311,7 @@ uint16_t part_init_balloon(struct part *part)
     return 0;
 }
 
-/* 0x15fa9 */
+/* 0x15fb5 */
 uint16_t part_init_conveyor(struct part *part)
 {
     part->state |= (STATE_TAKES_BELT | STATE_RESIZE_HORIZONTAL);
@@ -327,7 +327,7 @@ uint16_t part_init_conveyor(struct part *part)
     return 0;
 }
 
-/* 0x15ff9 */
+/* 0x16005 */
 uint16_t part_init_mouse_cage(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -343,7 +343,7 @@ uint16_t part_init_mouse_cage(struct part *part)
     return 0;
 }
 
-/* 0x1603f */
+/* 0x1604b */
 uint16_t part_init_pulley(struct part *part)
 {
     part->state |= STATE_TAKES_ROPE;
@@ -358,7 +358,7 @@ uint16_t part_init_pulley(struct part *part)
     return 0;
 }
 
-/* 0x1604b */
+/* 0x1608b */
 uint16_t part_init_belt(struct part *part)
 {
     if ((part->belt = (calloc_far(1, sizeof(struct belt)))) == 0)
@@ -401,7 +401,7 @@ uint16_t part_init_bird_cage(struct part *part)
     return 0;
 }
 
-/* 0x16146 */
+/* 0x16152 */
 uint16_t part_init_pokey(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -414,7 +414,7 @@ uint16_t part_init_pokey(struct part *part)
     return 0;
 }
 
-/* 0x1617f */
+/* 0x1618b */
 uint16_t part_init_jack_in_the_box(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -430,7 +430,7 @@ uint16_t part_init_jack_in_the_box(struct part *part)
     return 0;
 }
 
-/* 0x161c5 */
+/* 0x161d1 */
 uint16_t part_init_gear(struct part *part)
 {
     part->state |= STATE_TAKES_BELT;
@@ -444,7 +444,7 @@ uint16_t part_init_gear(struct part *part)
     return 0;
 }
 
-/* 0x161d1 */
+/* 0x16211 */
 uint16_t part_init_bob_the_fish(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -456,7 +456,7 @@ uint16_t part_init_bob_the_fish(struct part *part)
     return 0;
 }
 
-/* 0x16205 */
+/* 0x16245 */
 uint16_t part_init_bellow(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -468,7 +468,7 @@ uint16_t part_init_bellow(struct part *part)
     return 0;
 }
 
-/* 0x1626d */
+/* 0x16279 */
 uint16_t part_init_bucket(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -483,7 +483,7 @@ uint16_t part_init_bucket(struct part *part)
     return 0;
 }
 
-/* 0x162ac */
+/* 0x162b8 */
 uint16_t part_init_cannon(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -497,7 +497,7 @@ uint16_t part_init_cannon(struct part *part)
     return 0;
 }
 
-/* 0x162b8 */
+/* 0x162f5 */
 uint16_t part_init_dynamite(struct part *part)
 {
     part->traits |= (TRAIT_SLIDES | TRAIT_CAN_FLIP_HORIZONTAL);
@@ -511,7 +511,7 @@ uint16_t part_init_dynamite(struct part *part)
     return 0;
 }
 
-/* 0x162f5 */
+/* 0x16332 */
 uint16_t part_init_bullet(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -521,7 +521,7 @@ uint16_t part_init_bullet(struct part *part)
     return 0;
 }
 
-/* 0x16355 */
+/* 0x16361 */
 uint16_t part_init_electric_plug(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_VERTICAL;
@@ -535,7 +535,7 @@ uint16_t part_init_electric_plug(struct part *part)
     return 0;
 }
 
-/* 0x16361 */
+/* 0x1639e */
 uint16_t part_init_dynamite_plunger(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -558,7 +558,7 @@ uint16_t part_init_hook(struct part *part)
     return 0;
 }
 
-/* 0x163e7 */
+/* 0x163f3 */
 uint16_t part_init_fan(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -572,7 +572,7 @@ uint16_t part_init_fan(struct part *part)
     return 0;
 }
 
-/* 0x163f3 */
+/* 0x16430 */
 uint16_t part_init_flashlight(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -584,7 +584,7 @@ uint16_t part_init_flashlight(struct part *part)
     return 0;
 }
 
-/* 0x16458 */
+/* 0x16464 */
 uint16_t part_init_generator(struct part *part)
 {
     part->state |= (STATE_TAKES_BELT | STATE_DRAW_STEPS);
@@ -597,7 +597,7 @@ uint16_t part_init_generator(struct part *part)
     return 0;
 }
 
-/* 0x16464 */
+/* 0x1649c */
 uint16_t part_init_gun(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -610,7 +610,7 @@ uint16_t part_init_gun(struct part *part)
     return 0;
 }
 
-/* 0x1649c */
+/* 0x164d5 */
 uint16_t part_init_baseball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -639,7 +639,7 @@ uint16_t part_init_magnifying_glass(struct part *part)
     return 0;
 }
 
-/* 0x1652d */
+/* 0x16539 */
 uint16_t part_init_monkey(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -652,7 +652,7 @@ uint16_t part_init_monkey(struct part *part)
     return 0;
 }
 
-/* 0x16539 */
+/* 0x16572 */
 uint16_t part_init_pumpkin(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -662,7 +662,7 @@ uint16_t part_init_pumpkin(struct part *part)
     return 0;
 }
 
-/* 0x16595 */
+/* 0x165a1 */
 uint16_t part_init_heart_balloon(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -677,7 +677,7 @@ uint16_t part_init_heart_balloon(struct part *part)
     return 0;
 }
 
-/* 0x165a1 */
+/* 0x165e0 */
 uint16_t part_init_christmas_tree(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -687,7 +687,7 @@ uint16_t part_init_christmas_tree(struct part *part)
     return 0;
 }
 
-/* 0x16603 */
+/* 0x1660f */
 uint16_t part_init_boxing_glove(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -699,7 +699,7 @@ uint16_t part_init_boxing_glove(struct part *part)
     return 0;
 }
 
-/* 0x16637 */
+/* 0x16643 */
 uint16_t part_init_rocket(struct part *part)
 {
     part->state |= STATE_DRAW_STEPS;
@@ -712,7 +712,7 @@ uint16_t part_init_rocket(struct part *part)
     return 0;
 }
 
-/* 0x16643 */
+/* 0x1667b */
 uint16_t part_init_scissors(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -746,7 +746,7 @@ uint16_t part_init_trampoline(struct part *part)
     return 0;
 }
 
-/* 0x166f1 */
+/* 0x166fd */
 uint16_t part_init_windmill(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -762,7 +762,7 @@ uint16_t part_init_windmill(struct part *part)
     return 0;
 }
 
-/* 0x166fd */
+/* 0x16743 */
 uint16_t part_init_mort_the_mouse(struct part *part)
 {
     part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
@@ -775,7 +775,7 @@ uint16_t part_init_mort_the_mouse(struct part *part)
     return 0;
 }
 
-/* 0x16743 */
+/* 0x1677c */
 uint16_t part_init_cannon_ball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -785,7 +785,7 @@ uint16_t part_init_cannon_ball(struct part *part)
     return 0;
 }
 
-/* 0x1677c */
+/* 0x167ab */
 uint16_t part_init_tennis_ball(struct part *part)
 {
     if ((part->points = (calloc_far(part->point_count, 4))) == 0)
@@ -795,7 +795,7 @@ uint16_t part_init_tennis_ball(struct part *part)
     return 0;
 }
 
-/* 0x167ce */
+/* 0x167da */
 uint16_t part_init_candle(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
@@ -809,7 +809,7 @@ uint16_t part_init_candle(struct part *part)
     return 0;
 }
 
-/* 0x167da */
+/* 0x16816 */
 uint16_t part_init_corner_pipe(struct part *part)
 {
     part->traits |= (TRAIT_CAN_FLIP_VERTICAL | TRAIT_CAN_FLIP_HORIZONTAL);

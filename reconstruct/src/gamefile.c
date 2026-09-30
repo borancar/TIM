@@ -18,7 +18,7 @@
  * because nothing says it is anywhere else.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  * JUDGE: data 0x28d2..0x28ec
  */
 #include <string.h>
@@ -116,7 +116,7 @@ struct machine_hash_order {
 struct machine_hash_order g_machine_hash_order = { { 0x00, 0x01, 0x06, 0x07 } };
 
 /*
- * 0x08fc3 (1.00's; not yet placed in 1.11)
+ * 0x09c79
  *
  * Takes one argument, ignores it, and answers 1. Six instructions: a frame,
  * `mov ax, 1`, and a jump to the epilogue that goes nowhere.
@@ -263,7 +263,7 @@ int16_t game_fclose(FILE *file)
 }
 
 /*
- * 0x09e65
+ * 0x09e9c
  *
  * The game's own `fread`. Everything that reads a resource comes through here,
  * and it decides between the loose file and the archive.
@@ -322,7 +322,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x09f47
+ * 0x09f7b
  *
  * The game's own `fseek`, and `game_fread`'s counterpart: the same choice
  * between the loose file and the archive, the same substitution when an entry
@@ -403,7 +403,7 @@ void game_rewind(FILE *file)
 }
 
 /*
- * 0x0a077
+ * 0x0a086
  *
  * The game's own `fgetc`, and `game_fread`'s shape one byte at a time: the same
  * choice between the loose file and the archive, the same substitution when an
@@ -467,7 +467,7 @@ int16_t game_feof(register FILE *file)
 }
 
 /*
- * 0x094fb (1.00's; not yet placed in 1.11)
+ * 0x0a185
  *
  * **`fwrite`, through the archive layer.** A pointer, an element size, a count
  * and a file, answering how many elements went - and every caller in the
@@ -505,7 +505,7 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
 }
 
 /*
- * 0x09571 (1.00's; not yet placed in 1.11)
+ * 0x0a1e6
  *
  * **`fputc`, through the archive layer** - `game_fwrite`'s shape for one
  * byte. With the archive in use at DGROUP 0x547e an entry writes through the
@@ -539,7 +539,7 @@ int16_t game_fputc(int16_t c, FILE *file)
 }
 
 /*
- * 0x095cf (1.00's; not yet placed in 1.11)
+ * 0x0a236
  *
  * Give a file a buffer, whether it is a loose file or one inside the archive.
  *

@@ -18,7 +18,7 @@
  * it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d
+ * JUDGE: built-with -mm -d -O -Z
  * JUDGE: data 0x260a..0x262f
  */
 #include <string.h>
@@ -81,7 +81,7 @@ struct puzzle_state {
 struct puzzle_state g_puzzle_state;
 
 /*
- * 0x10025
+ * 0x1002b
  *
  * **The SELECT PUZZLE screen**, and what "leave freeform mode" puts up before
  * going back to the puzzles: a list of them, and a field for the password that
@@ -561,7 +561,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
 }
 
 /*
- * 0x0f7b6 (1.00's; not yet placed in 1.11)
+ * 0x10722
  *
  * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
  * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out

@@ -20,7 +20,7 @@
  * the LZSS one's after.
  *
  * JUDGE: compiler bc2.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -440,7 +440,7 @@ int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size)
 }
 
 /*
- * 0x1fac2
+ * 0x1fb08
  *
  * **Open a resource in memory**: `open_resource` for a block the caller
  * holds, the header read from or written to its front. Nothing calls it.
@@ -566,7 +566,7 @@ int32_t resource_size(int16_t handle)
 }
 
 /*
- * 0x1fdd4
+ * 0x1fdf5
  *
  * **Seek** within a resource, answering the position reached, or -1 for a
  * handle that names nothing.
@@ -611,7 +611,7 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
 }
 
 /*
- * 0x1ff29
+ * 0x1ff52
  *
  * **Put a resource stream back to its beginning**, so a seek backwards can
  * then skip forwards. Only a stream opened to read can be; anything else

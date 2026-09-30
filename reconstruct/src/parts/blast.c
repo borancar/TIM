@@ -12,14 +12,14 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
 
 /*
- * 190f:161d, image 0x1a70d - kind 41's step. The blast.
+ * 190f:164a, image 0x1a73a - kind 41's step. The blast.
  *
  * Five frames and then it is gone: every step takes the form on by one and
  * redraws, and at form 5 it registers its shapes one last time and hides
@@ -85,7 +85,7 @@ void part_step_blast(struct part *part)
 }
 
 /*
- * 190f:1738, image 0x1a828
+ * 190f:1738, image 0x1a828 (1.00's; not yet placed in 1.11)
  *
  * How fast the blast throws a thing: a ladder on the weight its kind's record
  * keeps at +2 - the same word `step_machine` copies into every object's +0x3a

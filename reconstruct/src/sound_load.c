@@ -27,7 +27,7 @@
 char g_sound_module_name[] = "SSM:000:";
 
 /*
- * 0x28580 (1.00's; not yet placed in 1.11)
+ * 0x2ad3f
  *
  * Load one numbered sound module. Answers 1 if it is there, 0 if not.
  *

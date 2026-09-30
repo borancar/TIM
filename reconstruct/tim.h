@@ -52,12 +52,12 @@
  * established - see STATUS.md.
  */
 
-uint16_t part_hook_yes(struct part *part);              /* 0x00297 */
+uint16_t part_hook_yes(struct part *part);              /* 0x0029f */
 void     part_hook_none_2a1(struct part *part);         /* 0x002a4 */
 void     part_hook_none_2a6(struct part *part);         /* 0x002a9 */
 void     part_hook_none_2ab(struct part *part);         /* 0x002ae */
 void     part_hook_none_2b0(struct part *part);         /* 0x002b3 */
-uint16_t part_hook_no(struct part *part);               /* 0x002b5 */
+uint16_t part_hook_no(struct part *part);               /* 0x00486 */
 
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
 void compute_moved(void);                               /* 0x002be */
@@ -92,7 +92,7 @@ int16_t angles_same_side(int16_t angle);            /* 0x003df */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 
 /* Recompute gravity and the velocity limit for every kind. */
-void recompute_kind_physics(void);                  /* 0x02ac0 */
+void recompute_kind_physics(void);                  /* 0x0369c */
 
 /* Clamp two signed fields of a record to plus or minus a per-kind limit. */
 void clamp_record_pair(struct part *rec);               /* 0x02bcc */
@@ -160,7 +160,7 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
                          int16_t margin_y0, int16_t margin_y1); /* 0x0417e */
 
 /* The same sweep with the two objects exchanged. */
-int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
+int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00ac8 */
 
 /* Step one sequence forward by one tick. */
 void step_sequence(struct sequence far * seq, uint16_t di);  /* 0x2a59a */
@@ -329,9 +329,9 @@ uint16_t read_record(FILE *file, uint8_t mode);      /* 0x29da0 */
 uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, FILE *handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
-                            uint16_t callback, FILE *handle); /* 0x28655 */
+                            uint16_t callback, FILE *handle); /* 0x2b29e */
 uint16_t load_sound_module(FILE *handle, const int16_t *number,
-                           uint16_t index);         /* 0x28580 */
+                           uint16_t index);         /* 0x2ad3f */
 uint8_t far * load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */
 uint8_t far * load_sound_bank(FILE *file, uint32_t size,
@@ -344,10 +344,10 @@ uint16_t build_sound_index(int16_t handle, const struct sound_node far * list,
                            uint16_t tag);              /* 0x28e87 */
 struct sound_node far * insert_by_key(struct sound_node far * head,
                                       struct sound_node far * node);
-void stop_voice_playing(const uint8_t far * source);   /* 0x290ab */
+void stop_voice_playing(const uint8_t far * source);   /* 0x2b929 */
 uint16_t free_voice_records(void);                     /* 0x29106 */
 struct sequence far * start_on_free_voice(const uint8_t far * source, uint16_t index,
-                                   uint8_t byte_arg);        /* 0x29152 */
+                                   uint8_t byte_arg);        /* 0x2b982 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(const uint8_t far * cb);   /* 0x2bb2c */
 void stop_sound(void);                                 /* 0x292f4 */
@@ -557,17 +557,17 @@ uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
 uint16_t asb_dispatch(uint16_t fn, union sound_module_args * si); /* SX.OVL ASB:0x00c8 */
 
 /* Resolve one object against everything it could be touching. */
-int16_t resolve_collisions(struct part *obj);           /* 0x004b3 */
+int16_t resolve_collisions(struct part *obj);           /* 0x004fd */
 
 /* Sweep one object's edges against another's; record the contact. */
-int16_t find_edge_contact(int16_t test_only);       /* 0x0066d */
+int16_t find_edge_contact(int16_t test_only);       /* 0x00749 */
 
 /* Advance an object one step: velocity, gravity, clamp, place. */
-void integrate_object(struct part *obj);                /* 0x02c93 */
+void integrate_object(struct part *obj);                /* 0x0388f */
 
 /* Work out where an object is drawn, at +0x2a/+0x2c. */
-struct part *clone_part(struct part *part);             /* 0x0666e */
-void place_object_for_draw(struct part *obj);           /* 0x0688b */
+struct part *clone_part(struct part *part);             /* 0x066aa */
+void place_object_for_draw(struct part *obj);           /* 0x068aa */
 
 /* Add shape records for a sub-object's point pairs. */
 void add_sub_object_shapes(struct part *obj, int16_t mask);  /* 0x06bac */
@@ -609,7 +609,7 @@ void erase_both_pages(void);                        /* 0x08bd9 */
 void erase_object(uint16_t handle);                 /* 0x0b9a8 */
 
 /* Age an object's on-screen rectangle by one frame. */
-void restage_object_rect(uint16_t handle);          /* 0x0bb34 */
+void restage_object_rect(uint16_t handle);          /* 0x0bb4b */
 
 /* Claim one of four scratch buffers; one-based index, or -1. */
 int16_t claim_buffer_slot(int32_t a, int32_t b);        /* 0x0c234 */
@@ -626,20 +626,20 @@ void seek_file_to(uint32_t at);                     /* 0x0a77d */
 /* The archive entry standing in for an open file, or null for a real one. */
 struct game_file *archive_entry_for(FILE *file); /* 0x0a7c1 */
 int16_t game_fseek(FILE *file, int32_t off,
-                   int16_t whence);                 /* 0x09f47 */
+                   int16_t whence);                 /* 0x09f7b */
 uint32_t fread_huge(uint8_t far * dst, uint32_t size, uint32_t count,
                     FILE *file);                 /* 0x0c57f */
 int32_t game_ftell(FILE *file);                  /* 0x0a038 */
-int16_t game_fgetc(FILE *file);                  /* 0x0a077 */
-int16_t game_fputc(int16_t c, FILE *file);       /* 0x09571 */
+int16_t game_fgetc(FILE *file);                  /* 0x0a086 */
+int16_t game_fputc(int16_t c, FILE *file);       /* 0x0a1e6 */
 int16_t game_fclose(FILE *file);                 /* 0x09e2e */
 void game_rewind(FILE *file);                    /* 0x0a072 */
-int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
+int16_t  answer_carry_on(uint16_t what);            /* 0x09c79 */
 FILE *game_fopen(char *name, const char *mode);   /* 0x09c81 */
 void load_archive_map(void);                        /* 0x0a26f */
 int32_t hash_filename(char *name);               /* 0x0a465 */
 uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
-                    FILE *file);                 /* 0x09e65 */
+                    FILE *file);                 /* 0x09e9c */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
 void cursor_redraw_off(void);                         /* 0x0b3e6 */
@@ -683,7 +683,7 @@ void near read_far(uint8_t huge *dst, int32_t count,
 void near decode_vqt_list(FILE *file, struct bitmap **list); /* 0x272c3 */
 void near vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x27a42 */
 void near fill_quadrant(uint16_t x, uint16_t y,
-                   uint16_t w, uint16_t h);         /* 0x25eb5 */
+                   uint16_t w, uint16_t h);         /* 0x27b3f */
 void    *calloc_far(uint16_t count, uint16_t size); /* 0x0c7b7 */
 /* thunks.c: far faces of the runtime's routines, the first twelve uncalled. */
 int16_t open_far(const char *name, uint16_t flags);                  /* 0x0c674 */
@@ -712,8 +712,8 @@ void draw_counter_long(int32_t value, int16_t x, int16_t y,
 void redraw_counters(void);                         /* 0x0318e */
 void start_counters(void);                          /* 0x030b0 */
 int32_t parse_base(char *text, int16_t base);    /* 0x03612 */
-void score_to_code(int32_t score, char *text); /* 0x033a0 */
-int32_t score_code_to_score(char *text);         /* 0x034cc */
+void score_to_code(int32_t score, char *text); /* 0x033ed */
+int32_t score_code_to_score(char *text);         /* 0x034e2 */
 void step_counters(void);                           /* 0x030c6 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
@@ -732,7 +732,7 @@ struct printer {
     int16_t  failed;             /* [bp-0x16] */
 };
 uint16_t call_sound_module(uint16_t fn, union sound_module_args * si); /* 0x0c816 */
-uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0c7e1 */
+uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0c808 */
 uint16_t sound_module_set_rate(union sound_module_args * si); /* 0x0c7ec */
 uint16_t sound_module_service(union sound_module_args * si); /* 0x0bba6 */
 /* **`sound_module_service` as a timer callback.** The timer calls it with no
@@ -796,13 +796,13 @@ int16_t link_endpoint_gap(struct rope *link, struct part *obj, uint8_t * out_dx,
 
 /* Distance from a link's endpoint to the endpoint it joins. */
 int16_t link_end_distance(struct rope *link, int16_t gen,
-                          int16_t end);             /* 0x07b14 */
+                          int16_t end);             /* 0x07b33 */
 
 /* Age the state histories of everything about to be stepped. */
 void shift_all_histories(void);                     /* 0x087ac */
 
 /* Age every tracked quantity on an object by one step. */
-void shift_state_history(struct part *obj);             /* 0x07ce3 */
+void shift_state_history(struct part *obj);             /* 0x087ed */
 
 
 /* Intersect two segments; answers whether the point lies on both. */
@@ -827,7 +827,7 @@ void release_part_queue(void);              /* 0x0864b */
 int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x04935 */
 
 /* Work out the endpoints of the link between a pair of objects. */
-void compute_link_endpoints(struct belt *link);         /* 0x04e65 */
+void compute_link_endpoints(struct belt *link);         /* 0x05aed */
 
 /* Which side of a range a value falls on, as two flag bytes. */
 void set_side_flags(const int16_t *range, int16_t v, struct part_contact *out);   /* 0x004b0 */
@@ -843,7 +843,7 @@ struct part *pick_for_record(struct part *rec,
                              uint16_t flags);    /* 0x0686f */
 
 /* Add one or both of a record's two shapes. */
-void add_record_shapes(struct part *rec, uint16_t which);   /* 0x07095 */
+void add_record_shapes(struct part *rec, uint16_t which);   /* 0x070a8 */
 
 /* Take a node off the free list and fill it in as a shape. */
 /* pt1 and pt2 are each an (x, y) pair the routine only reads, so they are
@@ -851,7 +851,7 @@ void add_record_shapes(struct part *rec, uint16_t which);   /* 0x07095 */
    fields in others, and a pointer is the one type that is both. */
 void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which,
-                 int16_t width);                    /* 0x064b4 */
+                 int16_t width);                    /* 0x0712e */
 
 /* Which of two structure fields matches a value. */
 int16_t link_slot_of(struct part *value, struct part *obj);   /* 0x07aee */
@@ -883,7 +883,7 @@ void     keyboard_tick_isr(void);                   /* ours: the hook at 0x21386
 uint16_t bios_read_key(void);                       /* 0x230be */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x22d12 */
-void step_and_draw_machine(int16_t redraw_all);     /* 0x17f11 */
+void step_and_draw_machine(int16_t redraw_all);     /* 0x17f2d */
 void refile_overlapping_parts(void);                /* 0x0771a */
 void draw_machine(int16_t a, int16_t b);            /* 0x1854a */
 void draw_belt(struct part *part, int16_t a);           /* 0x185e1 */
@@ -892,10 +892,10 @@ void draw_curve(uint16_t colour, int16_t shift,
                 int32_t y0, int32_t y1, int32_t y2); /* 0x18764 */
 void draw_rope_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        int16_t slack);              /* 0x18920 */
-void draw_rope(struct part *part, int16_t a);           /* 0x1894f */
+void draw_rope(struct part *part, int16_t a);           /* 0x18996 */
 void draw_part(struct part *part, uint8_t level,
-               int16_t a, int16_t b);               /* 0x18ae0 */
-void draw_part_extra(struct part *part);                /* 0x18fd7 */
+               int16_t a, int16_t b);               /* 0x18b94 */
+void draw_part_extra(struct part *part);                /* 0x18fe9 */
 void draw_polygon(int16_t n, const int16_t *xs,
                   const int16_t *ys);                  /* 0x20a77 */
 void draw_bitmap_scaled(struct bitmap *hdr, int16_t x, int16_t y,
@@ -923,11 +923,11 @@ void load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x135cd */
 void game_fread_line(FILE *file, char *buf);  /* 0x1361f */
 void read_password_line(int16_t count, char *buf); /* 0x1442a */
-void game_setbuf(FILE *file, uint8_t *buf);  /* 0x095cf */
+void game_setbuf(FILE *file, uint8_t *buf);  /* 0x0a236 */
 void game_fread_string(FILE *file, char *buf);/* 0x13600 */
 void alloc_part_table(int16_t n);                   /* 0x1357f */
 void read_list(FILE *file, struct part *head, int16_t n);   /* 0x13a36 */
-void read_record_fields(FILE *file, struct part *rec);      /* 0x13622 */
+void read_record_fields(FILE *file, struct part *rec);      /* 0x13653 */
 void build_part_list(void);                         /* 0x15c97 */
 void free_two_bitmap_lists(void);                   /* 0x0ff45 */
 void free_all_part_bitmaps(void);                   /* 0x107f0 */
@@ -1028,13 +1028,13 @@ void part_setup_pumpkin(struct part *part);                /* 190f:35bf, 0x1c6af
 void part_setup_scissors(struct part *part);                /* 190f:3861, 0x1c951 */
 void part_setup_christmas_tree(struct part *part);                /* 190f:107c, 0x1a16c */
 void part_setup_seesaw(struct part *part);                /* 190f:4039, 0x1d129 */
-struct part *make_part(uint16_t kind);                     /* 0x15d47 */
+struct part *make_part(uint16_t kind);                     /* 0x15d9b */
 void free_part(struct part *part);                      /* 0x16b94 */
-void load_all_parts(void);                          /* 0x0f7b6 */
-void draw_frame_corners(struct bitmap **rec);              /* 0x0fdcb */
+void load_all_parts(void);                          /* 0x10722 */
+void draw_frame_corners(struct bitmap **rec);              /* 0x0fddf */
 void draw_answer_slot(struct bitmap *bmp, uint16_t slot);  /* 0x0fd64 */
 void redraw_cursor_all(void);                       /* 0x0bcc5 */
-void copy_protect_screen(struct bitmap **bitmaps);                         /* 0x0ea39 */
+void copy_protect_screen(struct bitmap **bitmaps);                         /* 0x0f9e2 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0ba48 */
 void restore_saved_rect_lists(int16_t which);       /* 0x0b06d */
@@ -1057,7 +1057,7 @@ void     copy_saved_rects(vga_page_t from_src, vga_page_t from_dst, uint16_t fro
                           vga_page_t to_src, vga_page_t to_dst, uint16_t to_ref); /* 0x0b35a */
 void clear_object_covered(uint16_t page);           /* 0x0bb31 */
 void copy_rect_around_cursor(int16_t x, int16_t y,
-                             int16_t w, int16_t h); /* 0x0be82 */
+                             int16_t w, int16_t h); /* 0x0bed6 */
 void move_pointer_to(int16_t x, int16_t y);         /* 0x0b6c5 */
 void vm_set_line_compare(uint16_t line);                         /* 0x09bdd */
 void regions_handle_pointer(struct region *first);        /* 0x09084 */
@@ -1078,10 +1078,10 @@ void restart_machine(void);                         /* 0x0141b */
 void unlink_part(struct part *part);                /* 0x0627f */
 void step_machine(void);                            /* 0x00e89 */
 void step_moving_object(struct part *obj);              /* 0x0118c */
-void collect_carried(struct part *obj);                 /* 0x04525 */
+void collect_carried(struct part *obj);                 /* 0x0453a */
 void carry_riders_along(struct part *obj);              /* 0x04667 */
-void bounce_off_contact(struct part *obj);              /* 0x03be5 */
-void bounce_pair(struct part *obj);                       /* 0x03d5c */
+void bounce_off_contact(struct part *obj);              /* 0x03c1c */
+void bounce_pair(struct part *obj);                       /* 0x03df7 */
 void part_moved(struct part *part);                     /* 0x0793f */
 void free_all_shapes(void);                             /* 0x06abc */
 int16_t other_end_direction(struct part *part);         /* 0x07d7b */
@@ -1095,8 +1095,8 @@ int16_t far_strlen(const char far *s);                  /* 0x0aa8f */
 char far *far_strcpy(char far *dst, const char far *src); /* 0x0aab3 */
 char far *far_strncpy(char far *dst, const char far *src, int16_t n); /* 0x0aae8 */
 int16_t far_strnicmp(const char far *a, const char far *b, uint16_t n); /* 0x0ab3b */
-void rope_in_dirty_rect(struct part *part);             /* 0x0752a */
-void mark_parts_in_dirty_rects(void);               /* 0x07381 */
+void rope_in_dirty_rect(struct part *part);             /* 0x07570 */
+void mark_parts_in_dirty_rects(void);               /* 0x073f5 */
 void add_carried_weight(struct part *obj);              /* 0x08744 */
 void add_mass_capped(struct part *obj, struct part *other); /* 0x08765 */
 /* **A kind's step and hit hooks, called through its record** - inline in
@@ -1111,8 +1111,8 @@ void     nudge_x_add(struct part *obj, int16_t d);      /* 0x1afc2 */
 void     nudge_x_sub(struct part *obj, int16_t d);      /* 0x1afdc */
 void     nudge_y_add(struct part *obj, int16_t d);      /* 0x1affa */
 void     nudge_y_sub(struct part *obj, int16_t d);      /* 0x1b014 */
-uint16_t part_hit_gear(struct part *part);              /* 0x19238 */
-void part_step_monkey(struct part *part);             /* 0x1bdb0 */
+uint16_t part_hit_gear(struct part *part);              /* 0x1b032 */
+void part_step_monkey(struct part *part);             /* 0x1bdbd */
 uint16_t part_hit_monkey(struct part *part);              /* 0x1bd05 */
 uint16_t part_hit_bucket(struct part *part);              /* 0x19847 */
 uint16_t part_hit_bullet(struct part *part);              /* 0x19945 */
@@ -1121,20 +1121,20 @@ void         part_settle_conveyor(struct part *part);           /* 0x1b6cd */
 void         part_settle_ramp(struct part *part);           /* 0x1b82f */
 void         part_settle_platform(struct part *part);           /* 0x1d908 */
 uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a0ea */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1a0f5 */
 uint16_t part_drive_heart_balloon(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1b75f */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1b76e */
 uint16_t part_drive_dynamite_plunger(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1c48a */
 uint16_t part_drive_seesaw(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1d501 */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1d52d */
 uint16_t part_hit_dynamite_plunger(struct part *part);              /* 0x1c2b8 */
 uint16_t part_drive_monkey(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1beb4 */
-void part_step_dynamite_plunger(struct part *part);             /* 0x1c38c */
-void part_step_solar_panel(struct part *part);             /* 0x1ce48 */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x1becc */
+void part_step_dynamite_plunger(struct part *part);             /* 0x1c399 */
+void part_step_solar_panel(struct part *part);             /* 0x1ce68 */
 uint16_t part_drive_balloon(struct part *p1, struct part *p2, uint16_t p3,
-                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x193a5 */
+                         uint16_t p4, uint16_t p5, int32_t p6);              /* 0x193b2 */
 void     part_flip_bellow(struct part *part);             /* 0x194ad */
 void     part_flip_boxing_glove(struct part *part);             /* 0x197a6 */
 void     part_flip_cannon(struct part *part);             /* 0x19cc8 */
@@ -1156,7 +1156,7 @@ void     part_flip_corner_pipe(struct part *part, uint16_t which); /* 0x1c8a5 */
 void     part_flip_scissors(struct part *part);             /* 0x1c9f7 */
 void     part_flip_seesaw(struct part *part);             /* 0x1d226 */
 void     part_flip_windmill(struct part *part);             /* 0x1da2f */
-void part_step_bellow(struct part *part);             /* 0x194b0 */
+void part_step_bellow(struct part *part);             /* 0x194e0 */
 void goal_test_puzzle_2(void);                          /* 0x014bf */
 void goal_test_puzzle_1(void);                          /* 0x01564 */
 void goal_test_pop_balloons(void);                          /* 0x01645 */
@@ -1205,21 +1205,21 @@ void goal_test_puzzle_92(void);                            /* 0x02716 */
 void goal_test_puzzle_93(void);                            /* 0x02846 */
 void goal_test_puzzle_94(void);                            /* 0x0287d */
 void goal_test_puzzle_95(void);                            /* 0x02ad3 */
-void goal_test_puzzle_96(void);                            /* 0x024af */
-void goal_test_puzzle_97(void);                            /* 0x024b4 */
-void goal_test_puzzle_98(void);                            /* 0x024b9 */
-void goal_test_puzzle_99(void);                            /* 0x024be */
-void goal_test_puzzle_100(void);                           /* 0x024c3 */
-void goal_test_puzzle_101(void);                           /* 0x024c8 */
-void goal_test_puzzle_102(void);                           /* 0x024cd */
-void goal_test_puzzle_103(void);                           /* 0x024d2 */
-void goal_test_puzzle_104(void);                           /* 0x024d7 */
-void goal_test_puzzle_105(void);                           /* 0x024dc */
-void goal_test_puzzle_106(void);                           /* 0x024e1 */
-void goal_test_puzzle_107(void);                           /* 0x024e6 */
-void goal_test_puzzle_108(void);                           /* 0x024eb */
-void goal_test_puzzle_109(void);                           /* 0x024f0 */
-void goal_test_puzzle_110(void);                           /* 0x024f5 */
+void goal_test_puzzle_96(void);                            /* 0x02adc */
+void goal_test_puzzle_97(void);                            /* 0x02ae5 */
+void goal_test_puzzle_98(void);                            /* 0x02aee */
+void goal_test_puzzle_99(void);                            /* 0x02af7 */
+void goal_test_puzzle_100(void);                           /* 0x02b34 */
+void goal_test_puzzle_101(void);                           /* 0x02b6c */
+void goal_test_puzzle_102(void);                           /* 0x02bab */
+void goal_test_puzzle_103(void);                           /* 0x02bb4 */
+void goal_test_puzzle_104(void);                           /* 0x02bbd */
+void goal_test_puzzle_105(void);                           /* 0x02c35 */
+void goal_test_puzzle_106(void);                           /* 0x02d7c */
+void goal_test_puzzle_107(void);                           /* 0x02e25 */
+void goal_test_puzzle_108(void);                           /* 0x02e84 */
+void goal_test_puzzle_109(void);                           /* 0x02e8d */
+void goal_test_puzzle_110(void);                           /* 0x02ed9 */
 void goal_test_puzzle_78(void);                            /* 0x0159b */
 void goal_test_puzzle_79(void);                            /* 0x0167b */
 void goal_test_puzzles_53_54_63_67_87(void);                            /* 0x017f2 */
@@ -1246,16 +1246,16 @@ void goal_test_puzzle_59(void);                            /* 0x0238b */
 void goal_test_puzzle_49(void);                            /* 0x023de */
 void check_goal(void);                              /* 0x014ae */
 struct part *find_rope_anchor(int16_t *out_end, struct part *rec); /* 0x0515d */
-void retension_pulleys(struct part *part);              /* 0x05936 */
-void rehome_carried_part(void);                     /* 0x05ce3 */
-uint16_t part_flip_options(struct part *part);          /* 0x05303 */
-uint16_t part_handle_at_pointer(struct part *part);     /* 0x04830 */
-void pointer_frame(void);                           /* 0x0fc0e */
+void retension_pulleys(struct part *part);              /* 0x05953 */
+void rehome_carried_part(void);                     /* 0x05d14 */
+uint16_t part_flip_options(struct part *part);          /* 0x05314 */
+uint16_t part_handle_at_pointer(struct part *part);     /* 0x05423 */
+void pointer_frame(void);                           /* 0x10bd6 */
 void move_carried(void);                            /* 0x10e2e */
-void move_carried_belt(void);                       /* 0x10e45 */
-void move_carried_rope(void);                       /* 0x10ecd */
+void move_carried_belt(void);                       /* 0x10e63 */
+void move_carried_rope(void);                       /* 0x10f64 */
 void scroll_play_area(void);                        /* 0x10d4f */
-void draw_carried_icon(void);                       /* 0x17e88 */
+void draw_carried_icon(void);                       /* 0x17eab */
 void draw_part_selection(struct part *part, int16_t which, int16_t flags); /* 0x17fb0 */
 void part_flip_ramp(struct part *part);                 /* 0x1b85c */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1c031 */
@@ -1284,26 +1284,26 @@ uint16_t part_hit_trampoline(struct part *part);              /* 172c:3ebf */
 void part_step_trampoline(struct part *part);             /* 172c:3fae */
 uint16_t part_hit_seesaw(struct part *part);              /* 172c:3fe8 */
 void part_step_seesaw(struct part *part);             /* 172c:420f */
-struct part *belt_other_end(struct part *part);             /* 0x07967 */
+struct part *belt_other_end(struct part *part);             /* 0x07970 */
 void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
-                           int16_t y0, int16_t y1);  /* 0x036de */
+                           int16_t y0, int16_t y1);  /* 0x042da */
 void link_objects_crossing(struct part *obj, uint16_t flags,
-                           const int16_t *line);     /* 0x03782 */
+                           const int16_t *line);     /* 0x0437d */
 void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
-                           int16_t y0, int16_t y1);  /* 0x04476 */
+                           int16_t y0, int16_t y1);  /* 0x0448e */
 void     seg172c_nothing(void);                     /* 172c:0000 */
 void     sound_on_hard_impact(struct part *obj);        /* 0x03bdf */
-void     mark_needs_refile(struct part *part, int16_t n); /* 0x06591 */
-void     mark_rope_shapes(struct part *part, uint16_t mode); /* 0x06baf */
+void     mark_needs_refile(struct part *part, int16_t n); /* 0x065c1 */
+void     mark_rope_shapes(struct part *part, uint16_t mode); /* 0x06c3d */
 void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x06b30 */
-void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x070ee */
-int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
+void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x070fb */
+int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x04b53 */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x04a36 */
 int16_t  queue_part(struct part *src, struct part *part);   /* 0x0867c */
-int16_t  tension_rope(struct part *part);               /* 0x07dfa */
+int16_t  tension_rope(struct part *part);               /* 0x07e3b */
 int16_t  rope_orientation(struct rope *rope, int16_t which,
-                          int16_t dir);             /* 0x07970 */
+                          int16_t dir);             /* 0x07996 */
 uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
 uint16_t part_hit_generator(struct part *part);              /* 172c:1de0 */
 uint16_t part_hit_light(struct part *part);              /* 172c:2b7e */
@@ -1375,25 +1375,25 @@ void     conveyor_nudge_15(struct part *obj, int16_t mid); /* 172c:2acb */
 void     conveyor_nudge_25(struct part *obj, int16_t mid); /* 172c:2b1e */
 void part_step_light(struct part *part);             /* 172c:2b99 */
 void part_step_windmill(struct part *part);             /* 172c:49a1 */
-void game_teardown(int16_t really);                 /* 0x0e34a */
-void game_intro(void);                          /* 0x0f332 */
-void game_play(void);                               /* 0x0fe2c */
+void game_teardown(int16_t really);                 /* 0x0ef9c */
+void game_intro(void);                          /* 0x0f340 */
+void game_play(void);                               /* 0x0fe40 */
 void game_setup(void);                              /* 0x0fe81 */
-void game_round(void);                              /* 0x0ff48 */
+void game_round(void);                              /* 0x0ff5e */
 void round_setup(void);                             /* 0x0ffb2 */
 void round_teardown(void);                          /* 0x10021 */
 void load_level(uint16_t number);                   /* 0x14144 */
-void save_level(uint16_t number);                   /* 0x1414d */
+void save_level(uint16_t number);                   /* 0x142f6 */
 void read_level(char *name);                 /* 0x13a82 */
-void paint_game_screen(uint16_t present);           /* 0x12861 */
+void paint_game_screen(uint16_t present);           /* 0x128b3 */
 void draw_machine_thunk(void);                      /* 0x179c8 */
 void draw_machine_layer_a(void);                    /* 0x17caf */
 void draw_machine_layer_b(void);                    /* 0x179e6 */
 void draw_machine_layer_c(void);                    /* 0x17a65 */
-void draw_machine_layer_d(void);                    /* 0x17ab9 */
-void draw_machine_layer_e(void);                    /* 0x17adc */
+void draw_machine_layer_d(void);                    /* 0x17ad9 */
+void draw_machine_layer_e(void);                    /* 0x17b43 */
 void draw_machine_layer_f(void);                    /* 0x15faa */
-void paint_panel_frame(void);                       /* 0x12a4f */
+void paint_panel_frame(void);                       /* 0x12a65 */
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled);               /* 0x16ca7 */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x17270 */
@@ -1406,13 +1406,13 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      int16_t colour);              /* 0x173db */
 #endif
 void draw_wrapped_text(char *str, int16_t x, int16_t y,
-                       int16_t w, int16_t h);       /* 0x15730 */
+                       int16_t w, int16_t h);       /* 0x15774 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,
                       int16_t line_height);        /* 0x1587a */
 void measure_word(char *str, int16_t *out_width,
                   int16_t *out_length);             /* 0x159c5 */
 uint16_t font_line_height(int16_t slot);            /* 0x2322f */
-void paint_panel_frame_rest(void);                  /* 0x129a5 */
+void paint_panel_frame_rest(void);                  /* 0x129da */
 void paint_panel_a(uint16_t frame);                  /* 0x12c58 */
 void paint_panel_b(uint16_t frame);                  /* 0x12c8e */
 void paint_panel_c(uint16_t frame);                  /* 0x12cc4 */
@@ -1423,27 +1423,27 @@ void paint_panel_level(uint16_t frame);            /* 0x12de4 */
 void paint_panel_e(void);                           /* 0x12e1a */
 void paint_panel_f(void);                           /* 0x12f21 */
 void paint_panel_g(void);                           /* 0x12fb6 */
-void present_back_page(void);                       /* 0x08cda */
+void present_back_page(void);                       /* 0x08ce5 */
 
 void game_screen(void);                             /* 0x11f9e */
 void tab_move_pointer(void);                               /* 0x127c8 */
 void show_message_box(const char *title, char *body);
 uint16_t ask_yes_no(const char *title, char *body); /* 0x17533 */
 uint16_t message_box(const char *title, char *body,
-                     const char *button1, const char *button2); /* 0x15698 */
+                     const char *button1, const char *button2); /* 0x1754e */
 void message_box_tab(const char *button2);             /* 0x17769 */
 void draw_button(const char *str, int16_t x, int16_t y,
                  int16_t pressed);                 /* 0x16f96 */
-void remove_all_parts(void);                        /* 0x057e6 */
+void remove_all_parts(void);                        /* 0x064c5 */
 void untie_belt(struct part *part);                     /* 0x05efb */
-void detach_rope(struct part *part, uint16_t how);      /* 0x05f5c */
+void detach_rope(struct part *part, uint16_t how);      /* 0x05f69 */
 void detach_part_to_bin(struct part *part);                      /* 0x063e1 */
 void finish_part_removal(void);                               /* 0x060f2 */
 void break_second_attachment(struct part *part);                      /* 0x05e2f */
-void aim_link_at_bisector(struct part *part);                      /* 0x059ac */
-uint16_t angle_between_parts(struct part *part, struct part *other);  /* 0x05895 */
+void aim_link_at_bisector(struct part *part);                      /* 0x059d5 */
+uint16_t angle_between_parts(struct part *part, struct part *other);  /* 0x058a6 */
 void discard_part(struct part *part);                   /* 0x060c0 */
-uint16_t select_puzzle_screen(void);                           /* 0x10025 */
+uint16_t select_puzzle_screen(void);                           /* 0x1002b */
 uint16_t dos_chdir(const char *path);                  /* 0x0c397 */
 uint16_t diskette_motor_bit(uint16_t bit);            /* 0x0c382 */
 uint16_t dos_mkdir(const char *path);                 /* 0x0c3ac */
@@ -1454,32 +1454,32 @@ void     dos_disk_reset(void);                        /* 0x0c42d */
 uint16_t dos_set_attributes(const char *name, uint16_t attr); /* 0x0c433 */
 uint16_t dos_get_attributes(const char *name);        /* 0x0c447 */
 void     dos_setdisk(uint8_t letter);               /* 0x0c45b */
-void reverse_link_ends(struct rope *rec);               /* 0x04169 */
-struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x04e40 */
-void repaint_whole_screen(void);                    /* 0x08d08 */
+void reverse_link_ends(struct rope *rec);               /* 0x04d3e */
+struct part *part_under_pointer(struct part *exclude, struct part *part); /* 0x04e50 */
+void repaint_whole_screen(void);                    /* 0x08d13 */
 int16_t heap_largest_free(void);                    /* 0x08fc6 */
-int16_t check_room_for_part(void);                  /* 0x08f3b */
-void redraw_machine_area(void);                     /* 0x178f1 */
-struct part *bin_part_at_index(int16_t index);           /* 0x06515 */
-void refile_part_list(struct part *part);               /* 0x0645e */
+int16_t check_room_for_part(void);                  /* 0x08f4c */
+void redraw_machine_area(void);                     /* 0x17908 */
+struct part *bin_part_at_index(int16_t index);           /* 0x06527 */
+void refile_part_list(struct part *part);               /* 0x06469 */
 struct part *bin_scroll_end(void);                      /* 0x0658b */
 void bin_scroll_back(void);                         /* 0x11d21 */
 void bin_scroll_forward(void);                      /* 0x11d86 */
 void select_music_by_key(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x10ba2 */
 void edge_scroll_flags(void);                       /* 0x10cec */
-void discard_carried_part(void);                    /* 0x10733 */
-void move_carried_part(void);                       /* 0x101dc */
+void discard_carried_part(void);                    /* 0x115ed */
+void move_carried_part(void);                       /* 0x111b5 */
 void part_key_shortcut(void);                 /* 0x10410 */
-void pick_up_part(void);                            /* 0x114fa */
-void run_drag_frame(void);                          /* 0x10816 */
-int16_t drag_carried_part_first(void);              /* 0x108ec */
+void pick_up_part(void);                            /* 0x11525 */
+void run_drag_frame(void);                          /* 0x116c4 */
+int16_t drag_carried_part_first(void);              /* 0x117b3 */
 int16_t settle_carried_part_first(void);            /* 0x10a00 */
-int16_t drag_carried_part_pair(void);               /* 0x10ada */
+int16_t drag_carried_part_pair(void);               /* 0x11a6a */
 void flip_carried_horizontal(void);                      /* 0x11660 */
 void flip_carried_vertical(void);                      /* 0x11692 */
 int16_t settle_carried_part(void);                  /* 0x10bee */
-void region_click_bin(struct region *region);             /* 0x11ea4 */
+void region_click_bin(struct region *region);             /* 0x11e70 */
 void region_cursor_bin_above(struct region *region);      /* 0x11de5 */
 void region_cursor_bin(struct region *region);            /* 0x11e0e */
 void region_cursor_playfield(struct region *region);      /* 0x11f8c */
@@ -1496,24 +1496,24 @@ void puzzle_draw_list(int16_t first, int16_t selected); /* 0x10638 */
 void puzzle_draw_up(void);                          /* 0x104ea */
 void puzzle_draw_down(void);                        /* 0x10530 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x10576 */
-uint16_t pick_file(uint16_t a, uint16_t b, char *pattern);       /* 0x12c26 */
+uint16_t pick_file(uint16_t a, uint16_t b, char *pattern);       /* 0x144ee */
 uint16_t get_puzzle_title(int16_t n, char *buf);  /* 0x142dd */
 uint16_t password_to_level(char *text);          /* 0x1439c */
 uint16_t is_machine_file(char *name);             /* 0x14223 */
-uint16_t validate_filename(void);                    /* 0x14992 */
+uint16_t validate_filename(void);                    /* 0x14a00 */
 void picker_draw_action(void);                       /* 0x14c8a */
 void picker_begin(uint16_t a, uint16_t b, char *pattern);       /* 0x14fc3 */
-char *listing_to_name(const char far * entry);     /* 0x13d75 */
+char *listing_to_name(const char far * entry);     /* 0x1572d */
 void picker_draw_list(void);                        /* 0x15363 */
-void fill_file_listing(char *pattern);                         /* 0x1540c */
-void sort_file_listing(void);                               /* 0x155fc */
-void picker_repaint(void);                           /* 0x1502e */
+void fill_file_listing(char *pattern);                         /* 0x15441 */
+void sort_file_listing(void);                               /* 0x15631 */
+void picker_repaint(void);                           /* 0x15086 */
 void picker_draw_name(void);                         /* 0x15227 */
 void picker_draw_filename(void);                     /* 0x152b9 */
 void picker_draw_up(void);                           /* 0x1519b */
 void picker_draw_down(void);                        /* 0x151e1 */
 void picker_tab(void);                              /* 0x14cde */
-void picker_type(uint8_t c, char *buf, int16_t max); /* 0x14d02 */
+void picker_type(uint8_t c, char *buf, int16_t max); /* 0x14d0f */
 uint16_t path_is_root(const char *path);               /* 0x14ea2 */
 void path_up(char *path);                        /* 0x14ed7 */
 void path_join(char *path, const char far * entry);     /* 0x14f0d */
@@ -1521,26 +1521,26 @@ void force_extension(char *name, const char *ext);  /* 0x14f67 */
 void picker_set_name(const char *name);                /* 0x14f9d */
 char *picker_name(void);                         /* 0x14fb0 */
 uint16_t save_machine(char *name);                  /* 0x1292d */
-uint16_t write_level(char *name);                   /* 0x13f59 */
+uint16_t write_level(char *name);                   /* 0x13f83 */
 void write_byte(FILE *file, const uint8_t * addr);      /* 0x13c21 */
 void write_word(FILE *file, const uint8_t * addr);      /* 0x13c4b */
 void write_string(FILE *file, char *str);        /* 0x13c78 */
 uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
-                     FILE *file);                /* 0x094fb */
+                     FILE *file);                /* 0x0a185 */
 void write_part_count(FILE *file, struct part *head);       /* 0x13f53 */
 void write_record_fields(FILE *file, struct part *part);       /* 0x13c97 */
 uint16_t part_index(struct part *part);                 /* 0x1351f */
 void write_part_list(FILE *file, struct part *head, uint16_t which); /* 0x13f1a */
 uint16_t dos_unlink(const char *path);                 /* 0x0c3d6 */
-void game_screen_loop(void);                               /* 0x10833 */
+void game_screen_loop(void);                               /* 0x10856 */
 void run_machine_loop(void);                               /* 0x01230 */
 void finish_level(void);                             /* 0x032c6 */
 void write_config(void);                               /* 0x144b5 */
 void count_level_files(void);                       /* 0x14257 */
 void wait_cursor(void);                             /* 0x051f3 */
 void restore_cursor(void);                          /* 0x0522b */
-int16_t cursor_for_tool(void);                      /* 0x046d8 */
-void select_cursor(int16_t which);                  /* 0x05233 */
+int16_t cursor_for_tool(void);                      /* 0x0529f */
+void select_cursor(int16_t which);                  /* 0x0523a */
 void set_cursor(struct bitmap *bitmap, int16_t hot_x,
                 int16_t hot_y);                     /* 0x0b665 */
 void redraw_cursor(uint16_t page);                  /* 0x0b91c */
@@ -1570,7 +1570,7 @@ uint16_t near vqt_read_bits(uint16_t bits);                     /* 0x275dd */
 void near fill_screen_quadrant(uint16_t x, uint16_t y,
                           uint16_t w, uint16_t h);  /* 0x27734 */
 uint16_t load_screen_plain(char *name);        /* 0x257b3 */
-void draw_cursor(uint16_t page);                    /* 0x0b724 */
+void draw_cursor(uint16_t page);                    /* 0x0b775 */
 void build_screen_regions(void);                    /* 0x09107 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0c49b */
 void mono_clear(void);                              /* 0x0c4aa */
@@ -1585,7 +1585,7 @@ struct bitmap **load_bitmaps(char *name);               /* 0x26bfc */
 
 /* `main`, and the bring-up it calls first. */
 void game_main(void);                               /* 0x0eccf */
-void game_startup(void);                            /* 0x0e01d */
+void game_startup(void);                            /* 0x0eced */
 
 /* Load a palette, a font, and make a font current. Names from the call sites. */
 uint8_t far * load_palette(char *name);         /* 0x205f1 */
@@ -1644,7 +1644,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */
-void restore_write_mode(void);           /* 0x205d6 */
+void restore_write_mode(void);           /* 0x205ce */
 void vm_null_hook(void);                 /* 0x1e966 */
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight);  /* 0x208c0 */
@@ -1702,7 +1702,7 @@ void expand_1bpp_to_4bpp(const uint8_t huge * src, uint8_t huge * dst,
                          uint16_t count);                     /* 0x25714 */
 /* Borland's long arithmetic - see borland_huge.c. */
 
-int16_t near lzss_reset(void);                      /* 0x2012d */
+int16_t near lzss_reset(void);                      /* 0x2012a */
 /* resource.c: the resource streams, near routines of segment 1c25. */
 int16_t near decompress_store(void);                   /* 0x1ee50 */
 int16_t near decompress_rle(void);                     /* 0x1ee77 */
@@ -1712,14 +1712,14 @@ int16_t near next_input_byte(void);                    /* 0x1ef3a */
 int16_t near read_input_block(uint8_t *dst, uint16_t count); /* 0x1ef97 */
 int16_t near emit_literal_run(uint16_t n);             /* 0x1f044 */
 int16_t near emit_fill_run(uint16_t value, int16_t n); /* 0x1f0cf */
-int16_t near emit_byte(uint16_t value);                /* 0x1c5a3 */
+int16_t near emit_byte(uint16_t value);                /* 0x1f154 */
 int16_t near put_output_byte(int16_t c);               /* 0x1f1a2 */
 int16_t near select_resource(int16_t handle);          /* 0x1f1f6 */
 int16_t near string_contains_r(const char *s);         /* 0x1f290 */
 void    near free_if_set(void *p);                     /* 0x1f2b2 */
 int16_t near close_resource_slot(int16_t slot);        /* 0x1f2c7 */
 int16_t near open_resource_slot(char *mode);           /* 0x1f330 */
-int16_t near prepare_resource_slot(int16_t type, char *mode); /* 0x1f358 */
+int16_t near prepare_resource_slot(int16_t type, char *mode); /* 0x1f37f */
 void    near resource_advance(void);                   /* 0x1f44c */
 int16_t near resource_read(int16_t handle, uint16_t count); /* 0x1f4cf */
 void    near lzw_reset(void);                          /* 0x1f514 */
@@ -1738,13 +1738,13 @@ void    near cl_hash(int32_t hsize);                   /* 0x1d3bf */
 void    near rle_flush(int16_t final);                 /* 0x1d40d */
 int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size); /* 0x1f9c4 */
 int16_t open_resource_mem(int16_t type, char huge *data, char *mode,
-                          int32_t size);               /* 0x1fac2 */
+                          int32_t size);               /* 0x1fb08 */
 int16_t close_resource(int16_t handle);                /* 0x1fc05 */
 int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count); /* 0x1fcd4 */
 int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count); /* 0x1fd10 */
 int32_t resource_size(int16_t handle);                 /* 0x1fdd1 */
-int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1fdd4 */
-int16_t restart_resource_stream(int16_t handle);       /* 0x1ff29 */
+int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1fdf5 */
+int16_t restart_resource_stream(int16_t handle);       /* 0x1ff52 */
 int16_t near lzss_open_write(void);                    /* 0x1dba8 */
 int16_t near lzss_flush(int16_t final);                /* 0x1e5ae */
 /* lzhuf.c's encoder and thunks, which nothing the port runs reaches. */
@@ -1764,7 +1764,7 @@ void huffman_start(void);                              /* 0x1e0b3 */
 void huffman_reconst(void);                            /* 0x1e1af */
 void huffman_update(uint16_t c);                       /* 0x1e338 */
 int16_t decode_position(void);                         /* 0x2040d */
-int16_t near decompress_lzss(void);                    /* 0x1e7f2 */
+int16_t near decompress_lzss(void);                    /* 0x2045a */
 int16_t next_lzw_code(void);                           /* 0x1f80a */
 uint16_t font_slot_in_use(int16_t index);             /* 0x2325f */
 uint16_t near detect_adapter(void);                    /* 0x2425c */

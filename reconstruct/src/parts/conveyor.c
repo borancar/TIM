@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3330..0x3335
  */
 #include "tim.h"
@@ -52,7 +52,7 @@ void part_setup_conveyor(struct part *part)
 }
 
 /*
- * 172c:2514, image 0x197d4 (1.00's; not yet placed in 1.11) - kind 5's hit test.
+ * 190f:24c8, image 0x1b5b8 - kind 5's hit test.
  *
  * A crank being turned pushes whatever is standing on it sideways at 0x1000,
  * building up to that speed rather than snapping to it: the speed is added and

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x34ca..0x355a
  */
 #include "tim.h"
@@ -70,7 +70,7 @@ int16_t g_seesaw_shaft_line[3][4] = {
 };
 
 /*
- * 172c:3fe8, image 0x1b2a8 (1.00's; not yet placed in 1.11) - kind 3's hit test. Standing on the motor.
+ * 190f:3f7e, image 0x1d06e - kind 3's hit test. Standing on the motor.
  *
  * A motor whose rope is held - bit 9 of +8 - answers 1 at once and does
  * nothing: it cannot be turned by being stood on.
@@ -151,7 +151,7 @@ uint16_t part_hit_seesaw(struct part *part)
 }
 
 /*
- * 190f:4039, image 0x1d129
+ * 190f:406d, image 0x1d15d
  *
  * A part with **three forms**, and the word at +0x0c says which. Its four
  * bytes at +0x6a..+0x6d - the box it is grabbed by - come out of one table
@@ -218,7 +218,7 @@ void part_flip_seesaw(struct part *part)
 }
 
 /*
- * 190f:4139, image 0x1d229 - kind 3's step. The motor.
+ * 190f:418a, image 0x1d27a - kind 3's step. The motor.
  *
  * Nothing happens unless +0x12 says it is on. Then it marks itself done - bit
  * 6 of +8 - and either turns freely, when bit 10 of +8 is set, or asks its
@@ -355,7 +355,7 @@ void part_step_seesaw(struct part *part)
 }
 
 /*
- * 190f:4411, image 0x1d501 - kind 3's drive, and the longest of them.
+ * 190f:443d, image 0x1d52d - kind 3's drive, and the longest of them.
  *
  * `p3` picks **which of a pair** of pointers at +0x66 to work through - it is
  * doubled and used as an index - so this kind has two ends and is driven at

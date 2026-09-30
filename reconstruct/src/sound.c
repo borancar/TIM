@@ -1500,7 +1500,7 @@ L26e75:
 	retf
 _retire_and_tick endp
 
-/* 0x297cd */
+/* 0x297cd (1.00's; not yet placed in 1.11) */
 _remove_sequence proc near
 	push si
 	push es
@@ -2719,7 +2719,7 @@ L27b7a:
 	ret
 _drop_unless_polled endp
 
-/* 0x2a4d0 */
+/* 0x2a4d0 (1.00's; not yet placed in 1.11) */
 _poll_sequences proc near
 	push ds
 	xor si, si
@@ -4365,7 +4365,7 @@ void retire_and_tick(struct sequence far * seq)
 }
 
 /*
- * 0x297cd
+ * 0x297cd (1.00's; not yet placed in 1.11)
  *
  * Take a sequence out of the playing table and stop it. Hand-written assembly
  * with the record in `es:ax`.
@@ -5089,7 +5089,7 @@ void drop_unless_polled(struct sequence far * seq)
 }
 
 /*
- * 0x2a4d0
+ * 0x2a4d0 (1.00's; not yet placed in 1.11)
  *
  * Poll every sequence that has asked to be polled, and let the host callback
  * decide whether it carries on.

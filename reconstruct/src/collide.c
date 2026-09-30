@@ -19,7 +19,7 @@
  * each carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  * JUDGE: data 0x258c..0x259c
  */
 #include <stdlib.h>
@@ -63,7 +63,7 @@ struct machine_quadrant_steps g_machine_quadrant_steps = { { 0, -1, 0, 1 }, { -1
 struct collision g_collision;
 
 /*
- * 0x00297 (1.00's; not yet placed in 1.11)
+ * 0x0029f
  *
  * A part hook that agrees to everything: it answers 1 and does nothing else.
  * The six routines from here to 0x002b5 are the kind table's do-nothing
@@ -102,7 +102,7 @@ void part_hook_none_2b0(struct part *part)
 }
 
 /*
- * 0x002b5 (1.00's; not yet placed in 1.11)
+ * 0x00486
  *
  * The other half of the pair: answers 0.
  */
@@ -336,7 +336,7 @@ void set_side_flags(register const int16_t *range, int16_t v,
 }
 
 /*
- * 0x004b3
+ * 0x004fd
  *
  * Resolve one object against everything it could be touching, and answer
  * whether anything was.
@@ -438,7 +438,7 @@ int16_t resolve_collisions(struct part *obj)
 }
 
 /*
- * 0x0066d
+ * 0x00749
  *
  * Sweep one object's edges against another's and record the first contact.
  *
@@ -646,7 +646,7 @@ int16_t find_edge_contact(int16_t test_only)
 }
 
 /*
- * 0x00b6c (1.00's; not yet placed in 1.11)
+ * 0x00ac8
  *
  * The other half of the sweep in 0x007af: the same contact search with the two
  * objects exchanged, so the object at DGROUP 0x5400 is the one being moved

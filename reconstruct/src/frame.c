@@ -20,7 +20,7 @@
  * changes, before the pointer's regions.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  * JUDGE: data 0x286e..0x2870
  */
 #include <stdlib.h>
@@ -192,7 +192,7 @@ void present_frame(uint16_t wait_retrace)
 }
 
 /*
- * 0x08cda
+ * 0x08ce5
  *
  * Show what has just been painted, and then make the page that was on show the
  * one drawn into: 0x38a6 takes 0x38a4 and 0x38a8 takes 0x38a2, which is the
@@ -218,7 +218,7 @@ void present_back_page(void)
 }
 
 /*
- * 0x08d08
+ * 0x08d13
  *
  * Put the whole picture back on the screen after something has been drawn over
  * it - which here is a message box.
@@ -419,7 +419,7 @@ void stop_music_or_effect(register int16_t id)
 }
 
 /*
- * 0x08f3b
+ * 0x08f4c
  *
  * Is there room for another part? Answers 1 for yes and 0 for no, and says so
  * on screen when the answer changes.

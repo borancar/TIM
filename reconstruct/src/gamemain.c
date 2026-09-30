@@ -13,7 +13,7 @@
  * order and each carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -d
+ * JUDGE: built-with -mm -d -O -Z
  * JUDGE: data 0x00aa..0x0116
  */
 #include <stdlib.h>
@@ -43,7 +43,7 @@ void game_main(void)
 }
 
 /*
- * 0x0e01d (1.00's; not yet placed in 1.11)
+ * 0x0eced
  *
  * The whole bring-up, in the original's order: refuse to run without enough
  * memory, read the two configuration files, start the video driver, load the
@@ -197,7 +197,7 @@ void game_startup(void)
 }
 
 /*
- * 0x0e34a (1.00's; not yet placed in 1.11)
+ * 0x0ef9c
  *
  * **Leaving the game.** `game_main`'s fourth call, and the one that actually
  * takes the program down.

@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -78,7 +78,7 @@ void part_setup_bucket(struct part *part)
 }
 
 /*
- * 190f:07e7, image 0x198d7 - kind 17's drive hook.
+ * 190f:07f2, image 0x198e2 - kind 17's drive hook.
  *
  * The same routine as 172c:11d2 below, and not merely alike: the 0x65 bytes at
  * the two addresses are **identical**, so the source had one function and the

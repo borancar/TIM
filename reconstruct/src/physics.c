@@ -16,7 +16,7 @@
  * `push cs / call`, so those at least shared a file.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include <stdlib.h>
 #include "tim.h"
@@ -24,7 +24,7 @@
 #include "dgroup.h"
 
 /*
- * 0x02ac0 (1.00's; not yet placed in 1.11)
+ * 0x0369c
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
  * of them - from two settings at DGROUP 0x50b3 and 0x50b5. This is what a
@@ -164,7 +164,7 @@ void touch_vel_y(register struct part *rec)
 }
 
 /*
- * 0x02c93 (1.00's; not yet placed in 1.11)
+ * 0x0388f
  *
  * Advance an object one step: add its velocity to its position, apply gravity,
  * clamp, and work out where that puts it on screen.
@@ -385,7 +385,7 @@ void sound_on_hard_impact(register struct part *obj)
 }
 
 /*
- * 0x03be5
+ * 0x03c1c
  *
  * A bounce off a surface, rather than a slide along one.
  *
@@ -471,7 +471,7 @@ void bounce_off_contact(register struct part *obj)
 }
 
 /*
- * 0x03d5c
+ * 0x03df7
  *
  * Two moving things hit each other: share the momentum out between them.
  * `bounce_off_contact` is the same event against something that cannot move.

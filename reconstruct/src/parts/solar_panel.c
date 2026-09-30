@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -34,7 +34,7 @@ void part_setup_solar_panel(struct part *part)
 }
 
 /*
- * 190f:3d58, image 0x1ce48 - kind 38's step. **It looks around, but only every
+ * 190f:3d78, image 0x1ce68 - kind 38's step. **It looks around, but only every
  * eighth frame.**
  *
  * The frame counter at 0x4ea7 masked to 3 bits must read 4, so seven frames in

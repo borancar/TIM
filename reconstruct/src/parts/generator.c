@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -80,7 +80,7 @@ void part_setup_generator(struct part *part)
 }
 
 /*
- * 190f:1e01, image 0x1aef1 - kind 26's step. The pulley wheel.
+ * 190f:1e24, image 0x1af14 - kind 26's step. The pulley wheel.
  *
  * It stops if the gear its belt reaches is not turning - kind 0x0e with its
  * last two forms equal - and otherwise runs its four frames in the direction

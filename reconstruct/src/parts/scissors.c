@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3472..0x34ca
  */
 #include "tim.h"
@@ -71,7 +71,7 @@ int16_t g_scissors_cut_line[2][4] = {
 };
 
 /*
- * 190f:37dd, image 0x1c8cd - kind 37's hit test. Closing the scissors.
+ * 190f:37f4, image 0x1c8e4 - kind 37's hit test. Closing the scissors.
  *
  * Four of the eight faces set the thing that hit it going, and *which* four
  * depends on the mirror bit of the thing itself, not of the scissors: 1, 2, 4

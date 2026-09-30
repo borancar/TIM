@@ -16,7 +16,7 @@
  * carries the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x2630..0x283a
  *
  * Built with Borland C++ and without `-d`: the pool keeps both copies of
@@ -269,7 +269,7 @@ static int32_t bin_repeat_due(int16_t n)
 #endif
 
 /*
- * 0x10833
+ * 0x10856
  *
  * **The game screen's own loop** - where the game sits while a level is being
  * built and run, and the last piece between the briefing and playing.
@@ -475,7 +475,7 @@ void reset_level_state(void)
 }
 
 /*
- * 0x0fc0e (1.00's; not yet placed in 1.11)
+ * 0x10bd6
  *
  * **One frame of whatever the pointer is doing to a part** - the level loop's
  * pointer half, and the routine that turns a position into a tool.
@@ -695,7 +695,7 @@ void move_carried(void)
 }
 
 /*
- * 0x10e45
+ * 0x10e63
  *
  * Move a carried **belt** with the pointer, and drop it when the button goes
  * down.
@@ -765,7 +765,7 @@ void move_carried_belt(void)
 }
 
 /*
- * 0x10ecd
+ * 0x10f64
  *
  * Move a carried **rope** with the pointer, attach it when the button goes
  * down, and preview it when the button is up.
@@ -881,7 +881,7 @@ void move_carried_rope(void)
 }
 
 /*
- * 0x101dc (1.00's; not yet placed in 1.11)
+ * 0x111b5
  *
  * **Move an ordinary carried part** with the pointer - everything that is not
  * a belt or a rope - and put it down when the button goes down.
@@ -1072,7 +1072,7 @@ void part_key_shortcut(void)
 }
 
 /*
- * 0x114fa
+ * 0x11525
  *
  * **Pick a placed part up** and start carrying it - tool 7's arm, taken when
  * the button goes down on a part's body.
@@ -1136,7 +1136,7 @@ void pick_up_part(void)
 }
 
 /*
- * 0x10733 (1.00's; not yet placed in 1.11)
+ * 0x115ed
  *
  * **Throw away the part in hand**, whatever kind it is, and leave the player
  * holding nothing.
@@ -1209,7 +1209,7 @@ void flip_carried_vertical(void)
 }
 
 /*
- * 0x10816 (1.00's; not yet placed in 1.11)
+ * 0x116c4
  *
  * **Run one frame of a drag.** The level loop's arm for tools 3 to 6, and the
  * only place the four drag routines are called from.
@@ -1267,7 +1267,7 @@ void run_drag_frame(void)
 }
 
 /*
- * 0x108ec (1.00's; not yet placed in 1.11)
+ * 0x117b3
  *
  * Drag the carried part by its **first** pair - `drag_carried_part_pair`'s
  * sibling, on +0x1e and +0x50 rather than +0x20 and +0x52, driven by the other
@@ -1370,7 +1370,7 @@ int16_t settle_carried_part_first(void)
 }
 
 /*
- * 0x10ada (1.00's; not yet placed in 1.11)
+ * 0x11a6a
  *
  * Drag the carried part **along its other axis**, and say whether it moved -
  * `settle_carried_part`'s twin, and not a mirror of it.
@@ -1652,7 +1652,7 @@ void region_cursor_bin(struct region *region)
 }
 
 /*
- * 0x11ea4
+ * 0x11e70
  *
  * **Clicking the parts bin** - the click handler of the region whose cursor is
  * `region_cursor_bin`, filed at +0x16 of the same row.
@@ -2193,7 +2193,7 @@ void tab_move_pointer(void)
 }
 
 /*
- * 0x12861
+ * 0x128b3
  *
  * **Paint the game screen**: the play area, the control panel down the left,
  * and the three ornaments that sit on it.
@@ -2269,7 +2269,7 @@ void paint_game_screen(uint16_t present)
 }
 
 /*
- * 0x129a5
+ * 0x129da
  *
  * **Draw the machine's parts into the play area**, which is the last thing the
  * title bar's painter does and the thing that puts the level's contents on the
@@ -2337,7 +2337,7 @@ void paint_panel_frame_rest(void)
 }
 
 /*
- * 0x12a4f
+ * 0x12a65
  *
  * **The title bar and the hint box** - the two pieces of text across the top
  * of the game screen, and the first thing `paint_game_screen` draws over the

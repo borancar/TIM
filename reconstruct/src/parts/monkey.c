@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x33aa..0x33ce
  */
 #include "tim.h"
@@ -107,7 +107,7 @@ void part_setup_monkey(struct part *part)
 }
 
 /*
- * 190f:2cc0, image 0x1bdb0 - kind 31's step.
+ * 190f:2ccd, image 0x1bdbd - kind 31's step.
  *
  * Whatever is on the other end of its belt is told what this part is doing -
  * +0x12 copied straight across - unless that end is already busy, bit 11 of
@@ -195,7 +195,7 @@ void part_flip_monkey(struct part *part)
 }
 
 /*
- * 190f:2dc4, image 0x1beb4 - kind 31's drive, the other half of
+ * 190f:2ddc, image 0x1becc - kind 31's drive, the other half of
  * `part_step_monkey`.
  *
  * Mode 1 steps the word at +0x0e of what +0x66 points at and answers 0, the

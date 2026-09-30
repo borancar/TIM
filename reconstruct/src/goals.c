@@ -22,7 +22,7 @@
  * where the goal tests begin, is not proven either - see runloop.c.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  * JUDGE: data 0x283a..0x2849
  */
 #ifdef __TURBOC__
@@ -1774,7 +1774,7 @@ void goal_test_puzzle_95(void)
 }
 
 /*
- * 0x024af (1.00's; not yet placed in 1.11) - puzzle 96 has no goal test: the routine sets up a frame and
+ * 0x02adc - puzzle 96 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_96(void)
@@ -1782,7 +1782,7 @@ void goal_test_puzzle_96(void)
 }
 
 /*
- * 0x024b4 (1.00's; not yet placed in 1.11) - puzzle 97 has no goal test: the routine sets up a frame and
+ * 0x02ae5 - puzzle 97 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_97(void)
@@ -1790,7 +1790,7 @@ void goal_test_puzzle_97(void)
 }
 
 /*
- * 0x024b9 (1.00's; not yet placed in 1.11) - puzzle 98 has no goal test: the routine sets up a frame and
+ * 0x02aee - puzzle 98 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_98(void)
@@ -1798,7 +1798,7 @@ void goal_test_puzzle_98(void)
 }
 
 /*
- * 0x024be (1.00's; not yet placed in 1.11) - puzzle 99 has no goal test: the routine sets up a frame and
+ * 0x02af7 - puzzle 99 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_99(void)
@@ -1806,7 +1806,7 @@ void goal_test_puzzle_99(void)
 }
 
 /*
- * 0x024c3 (1.00's; not yet placed in 1.11) - puzzle 100 has no goal test: the routine sets up a frame and
+ * 0x02b34 - puzzle 100 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_100(void)
@@ -1814,7 +1814,7 @@ void goal_test_puzzle_100(void)
 }
 
 /*
- * 0x024c8 (1.00's; not yet placed in 1.11) - puzzle 101 has no goal test: the routine sets up a frame and
+ * 0x02b6c - puzzle 101 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_101(void)
@@ -1822,7 +1822,7 @@ void goal_test_puzzle_101(void)
 }
 
 /*
- * 0x024cd (1.00's; not yet placed in 1.11) - puzzle 102 has no goal test: the routine sets up a frame and
+ * 0x02bab - puzzle 102 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_102(void)
@@ -1830,7 +1830,7 @@ void goal_test_puzzle_102(void)
 }
 
 /*
- * 0x024d2 (1.00's; not yet placed in 1.11) - puzzle 103 has no goal test: the routine sets up a frame and
+ * 0x02bb4 - puzzle 103 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_103(void)
@@ -1838,7 +1838,7 @@ void goal_test_puzzle_103(void)
 }
 
 /*
- * 0x024d7 (1.00's; not yet placed in 1.11) - puzzle 104 has no goal test: the routine sets up a frame and
+ * 0x02bbd - puzzle 104 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_104(void)
@@ -1846,7 +1846,7 @@ void goal_test_puzzle_104(void)
 }
 
 /*
- * 0x024dc (1.00's; not yet placed in 1.11) - puzzle 105 has no goal test: the routine sets up a frame and
+ * 0x02c35 - puzzle 105 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_105(void)
@@ -1854,7 +1854,7 @@ void goal_test_puzzle_105(void)
 }
 
 /*
- * 0x024e1 (1.00's; not yet placed in 1.11) - puzzle 106 has no goal test: the routine sets up a frame and
+ * 0x02d7c - puzzle 106 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_106(void)
@@ -1862,7 +1862,7 @@ void goal_test_puzzle_106(void)
 }
 
 /*
- * 0x024e6 (1.00's; not yet placed in 1.11) - puzzle 107 has no goal test: the routine sets up a frame and
+ * 0x02e25 - puzzle 107 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_107(void)
@@ -1870,7 +1870,7 @@ void goal_test_puzzle_107(void)
 }
 
 /*
- * 0x024eb (1.00's; not yet placed in 1.11) - puzzle 108 has no goal test: the routine sets up a frame and
+ * 0x02e84 - puzzle 108 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_108(void)
@@ -1878,7 +1878,7 @@ void goal_test_puzzle_108(void)
 }
 
 /*
- * 0x024f0 (1.00's; not yet placed in 1.11) - puzzle 109 has no goal test: the routine sets up a frame and
+ * 0x02e8d - puzzle 109 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_109(void)
@@ -1886,7 +1886,7 @@ void goal_test_puzzle_109(void)
 }
 
 /*
- * 0x024f5 (1.00's; not yet placed in 1.11) - puzzle 110 has no goal test: the routine sets up a frame and
+ * 0x02ed9 - puzzle 110 has no goal test: the routine sets up a frame and
  * returns, so the state is never set to 0x200 from here.
  */
 void goal_test_puzzle_110(void)

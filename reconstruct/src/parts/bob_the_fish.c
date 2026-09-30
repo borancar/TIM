@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x32dc..0x32fc
  */
 #include "tim.h"
@@ -94,7 +94,7 @@ void part_step_bob_the_fish(struct part *part)
 }
 
 /*
- * 190f:1c77, image 0x1ad67
+ * 190f:1c81, image 0x1ad71
  *
  * Break bob the fish's bowl: form 0x0b is the broken one, and a part already at
  * 0x0b or past it is left alone. Breaking plays sound 0x0a and replaces the

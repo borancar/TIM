@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x3274..0x3290
  */
 #include "tim.h"
@@ -131,7 +131,7 @@ void part_step_kind_57(struct part *part)
 }
 
 /*
- * 190f:11e1, image 0x1a2d1 - kind 57's drive hook.
+ * 190f:11f5, image 0x1a2e5 - kind 57's drive hook.
  *
  * Flags of exactly 1 is the counting pass `part_drive_light` also recognises:
  * the rope's +0x0e goes up and the answer is 0, so the walk carries on.

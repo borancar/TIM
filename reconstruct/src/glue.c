@@ -53,14 +53,14 @@ public _stop_loaded_module, _sound_module_shutdown
 public _call_sound_module, _sound_module_position
 extrn _g_sound_bank:byte
 
-/* 0x0c7e1 */
+/* 0x0c808 */
 _sound_module_install proc far
     mov ax, 0
     call _call_sound_module
     retf
 _sound_module_install endp
 
-/* 0x0c7ec */
+/* 0x0c7ec (1.00's; not yet placed in 1.11) */
 _sound_module_set_rate proc far
     mov ax, 6
     call _call_sound_module
@@ -126,7 +126,7 @@ _call_sound_module proc near
     ret
 _call_sound_module endp
 
-/* 0x0c817: six bytes of stack for the three words the module writes back. */
+/* 0x0c840: six bytes of stack for the three words the module writes back. */
 _sound_module_position proc far
     mov ax, 0dh
     push bp
@@ -149,7 +149,7 @@ _TEXT ends
 #else
 
 /*
- * 0x0c7e1
+ * 0x0c808
  *
  * Install the module. Its two arguments are the host callback and a flag, and
  * `asb_install` takes neither: what the original passes on the stack the
@@ -165,7 +165,7 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 
 
 /*
- * 0x0c7ec
+ * 0x0c7ec (1.00's; not yet placed in 1.11)
  */
 uint16_t sound_module_set_rate(union sound_module_args * si)
 {
@@ -254,7 +254,7 @@ uint16_t call_sound_module(uint16_t fn, union sound_module_args * si)
 
 
 /*
- * 0x0c817
+ * 0x0c840
  *
  * Ask the module where it has got to. Six bytes of stack are reserved for the
  * three words it writes back and popped afterwards - the original keeps the

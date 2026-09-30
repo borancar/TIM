@@ -17,7 +17,7 @@
  * was in - so the file follows the subject.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include <string.h>
 #ifdef __TURBOC__
@@ -30,7 +30,7 @@
 #include "dgroup.h"
 
 /*
- * 0x033a0
+ * 0x033ed
  *
  * **A score into a score code**, the exact inverse of `score_code_to_score`
  * below, and worth reading beside it - every asymmetry here has a matching
@@ -91,7 +91,7 @@ void score_to_code(int32_t score, register char *text)
 }
 
 /*
- * 0x034cc
+ * 0x034e2
  *
  * **A score code into a score.** The code is `PASSWORD-XXXXX...`: the password
  * up to the dash, then five hex digits holding the score, then the rest as a

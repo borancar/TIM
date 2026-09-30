@@ -12,7 +12,7 @@
  * the image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x339a..0x33aa
  */
 #include "tim.h"
@@ -87,7 +87,7 @@ void part_flip_light(struct part *part)
 }
 
 /*
- * 190f:2ba1, image 0x1bc91 - kind 29's drive hook.
+ * 190f:2bad, image 0x1bc9d - kind 29's drive hook.
  *
  * The arguments are the seven `drive_ropes` hands over; this one uses only the
  * part at +8 and the flags at +0x0c.

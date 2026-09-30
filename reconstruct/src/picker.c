@@ -18,7 +18,7 @@
  * image offset it was read from.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm
+ * JUDGE: built-with -mm -O -Z
  * JUDGE: data 0x28ec..0x2966
  */
 #include <string.h>
@@ -118,7 +118,7 @@ struct picker_caret {
 struct picker_caret g_picker_caret;
 
 /*
- * 0x12c26 (1.00's; not yet placed in 1.11)
+ * 0x144ee
  *
  * **The file picker**, and a whole screen with its own loop. It answers 1 when
  * the player chose a file, leaving the name at DGROUP 0x52fe where
@@ -454,7 +454,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
 }
 
 /*
- * 0x14992
+ * 0x14a00
  *
  * **Is the typed name usable?** Three answers, not two: 0 for no, 1 for a name
  * that is free to create, and **2 for one that already exists** - which the
@@ -605,7 +605,7 @@ void picker_tab(void)
 }
 
 /*
- * 0x14d02
+ * 0x14d0f
  *
  * **One keystroke into the picker's name field.** Backspace - 8 - takes the
  * last byte off, and does nothing on an empty field. Anything else is appended
@@ -868,7 +868,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, char *pattern)
 }
 
 /*
- * 0x1502e
+ * 0x15086
  *
  * **The picker's whole screen.** Everything the loop redraws piecemeal, laid
  * down once: the title bar, the four sunken wells - two for the buttons, two
@@ -1120,7 +1120,7 @@ void picker_draw_list(void)
 }
 
 /*
- * 0x1540c
+ * 0x15441
  *
  * **Fill the listing.** Two pointers walk the block `picker_begin` set up: one
  * along the far-pointer array at its front, one along the text after it. Each
@@ -1226,7 +1226,7 @@ void fill_file_listing(char *pattern)
 }
 
 /*
- * 0x155fc
+ * 0x15631
  *
  * **Sort the listing**, by exchanging the far pointers at the front of the
  * block and never the text they point at. A bubble sort: passes until one makes
@@ -1287,7 +1287,7 @@ void sort_file_listing(void)
 }
 
 /*
- * 0x13d75 (1.00's; not yet placed in 1.11)
+ * 0x1572d
  *
  * **A listing record back into a plain name.** The record is far and the answer
  * is near - DGROUP 0x5682, one shared buffer - so the caller gets something it
@@ -1323,7 +1323,7 @@ char *listing_to_name(const char far * entry)
 }
 
 /*
- * 0x15730
+ * 0x15774
  *
  * **Draw a string wrapped into a box**, centred both ways, with a shadow.
  *

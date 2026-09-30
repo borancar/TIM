@@ -76,7 +76,7 @@ char *g_sound_module_tags[5] = {
 struct sequence far *g_sound_voice[7];
 
 /*
- * 0x28655 (1.00's; not yet placed in 1.11)
+ * 0x2b29e
  *
  * Set up the sound device: load its **module** and then its **driver**, and
  * answer 0 if both worked and 1 if either did not.

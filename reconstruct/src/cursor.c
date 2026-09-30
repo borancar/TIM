@@ -17,7 +17,7 @@
  * begin 0x2d4a's data.
  *
  * JUDGE: compiler bc3.00
- * JUDGE: built-with -mm -zC_TEXT
+ * JUDGE: built-with -mm -zC_TEXT -O -Z
  */
 #include "tim.h"
 #include "hostio.h"
@@ -395,7 +395,7 @@ void wait_and_latch_frame(void)
 }
 
 /*
- * 0x0b724
+ * 0x0b775
  *
  * Draw the cursor on a page: put back what was under the last one, save what is
  * under the new one, draw it, and remember where.
@@ -688,7 +688,7 @@ void clear_object_covered(uint16_t page)
 }
 
 /*
- * 0x0bb34
+ * 0x0bb4b
  *
  * Age an object's on-screen rectangle by one frame: copy where it is now into
  * where it was, then work out where it is now from the current globals and clip
@@ -916,7 +916,7 @@ void redraw_cursor_all(void)
 }
 
 /*
- * 0x0be82
+ * 0x0bed6
  *
  * Copy a rectangle from the page on screen to the page being drawn to, with
  * the pointer out of the way.

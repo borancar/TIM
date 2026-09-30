@@ -291,11 +291,17 @@ def original(cracked=False):
     if cracked:
         return data
     import uncrack
-    at = uncrack.exe_image_base(data) + uncrack.IMAGE_OFF
-    if data[at] != uncrack.CRACKED:
-        raise SystemExit("%s: the crack's byte is %#x" % (ORIGINAL, data[at]))
+    base = uncrack.exe_image_base(data)
+    size = len(data) - base
+    if size not in uncrack.CRACKS:
+        raise SystemExit("%s: a %d-byte image, which is no version whose crack "
+                         "is known" % (ORIGINAL, size))
     data = bytearray(data)
-    data[at] = uncrack.ORIGINAL
+    for off, cracked_byte, original_byte in uncrack.CRACKS[size]:
+        if data[base + off] != cracked_byte:
+            raise SystemExit("%s: the crack's byte at %#x is %#x"
+                             % (ORIGINAL, off, data[base + off]))
+        data[base + off] = original_byte
     return bytes(data)
 
 
