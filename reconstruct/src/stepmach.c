@@ -89,6 +89,12 @@ void step_machine(void)
             part_step(si);
     }
 
+    /* 1.11: kind 62 is stepped on the moving list too */
+    for (si = g_moving_parts.next; si != NULL;
+         si = si->next)
+        if (si->kind == 62)
+            part_step(si);
+
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
         if (!(si->state & STATE_GONE))
@@ -126,9 +132,12 @@ void step_machine(void)
     for (si = g_moving_parts.next; si != NULL;
          si = si->next) {
         if (!(si->traits & TRAIT_CONTACT_DONE) && !(si->state & STATE_GONE)) {
+            /* 1.11: kind 54 is told of every contact it makes */
+            if ((si->traits & (TRAIT_HIT_FIXED | TRAIT_HIT_MOVING)) && si->kind == 54)
+                part_hit(54, si);
             if (si->traits & TRAIT_HIT_FIXED) {
                 if (part_hit(si->contact->kind, si)) {
-                    if (si->traits & TRAIT_ON_SURFACE)
+                    if (si->traits & TRAIT_ON_SURFACE && si->kind != 54)
                         apply_contact_friction(si);
                     else
                         bounce_off_contact(si);
@@ -190,7 +199,8 @@ void step_moving_object(register struct part *obj)
 #endif
 
     if (!(obj->state & STATE_GONE)) {
-        part_step(obj);
+        if (obj->kind != 62)                    /* 1.11: stepped in its own pass */
+            part_step(obj);
         integrate_object(obj);
         obj->traits &= ~(TRAIT_ON_SURFACE | TRAIT_HIT_FIXED | TRAIT_HIT_MOVING | TRAIT_CONTACT_DONE);
         resolve_collisions(obj);
