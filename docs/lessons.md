@@ -784,6 +784,37 @@ that is not in the object, and counts it as a failure. When writing a
 host-only block, check that the judge's count of routines in the file has
 not dropped.
 
+### Under `-O -Z` the registers say how the C was spelled
+
+1.11's modules are built with `-O -Z`, and there the choice of register is
+evidence about the source, not noise. Transcribing the new part kinds
+(2026-09-30), five spellings were settled by it and by nothing else:
+
+- **A `?:` arm leaves its value in AX.** Kind 64's `hit` measures a speed -
+  the larger velocity component plus three-eighths of the smaller - and every
+  if/else spelling kept the partial sums in DX (`pop dx / add dx, ax`) and let
+  the optimiser merge the two branches' tails. The image has `mov dx, ax /
+  pop ax / add ax, dx` in both arms and no merge: it was one conditional
+  expression, whose arms must each end in AX.
+- **A plain local can live in CX or DX.** Kind 62's `kind_62_push` answers
+  0x600 or 0x400 by weight, through CX (`mov cx, 0x600 ... mov ax, cx`); no
+  `?:` or `return` spelling gives that - an if/else assigning a plain local,
+  and returning it, does, and so do the old kinds' `*_speed_for_mass`. Kind
+  53 compares a plain local three times, in DX.
+- **Negation by `xor dx, dx / sub dx, ax` is `0 - x`**, where `-x` is
+  `neg ax` (kind 61's throw).
+- **A `switch` on a field has the compiler's temporary**, at the next frame
+  slot; a local copied first and switched on is a slot more (kind 61's step).
+- **Two calls merged are not one call.** Kind 51's step ends both branches
+  with `place_object_for_draw`; written once after the if/else, the part
+  pointer is reloaded in BX where the image keeps it, because the merged
+  tail's label is somewhere else. Written in each branch, `-O`'s
+  cross-jumping merges them the image's way.
+
+And, as before: with `register` declared on both a parameter and a local,
+the local takes SI; a register parameter alone, or with a plain local
+Borland promotes itself, takes SI too - swap the `register` to swap them.
+
 ### Borland merges identical tails of statements, not of the arms of an expression
 
 `refile_overlapping_parts` stepped its walk with `walk = slot == level ?
