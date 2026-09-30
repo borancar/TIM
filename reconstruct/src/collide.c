@@ -20,7 +20,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -zC_TEXT -O -Z
- * JUDGE: data 0x258c..0x259c
+ * JUDGE: data 0x1fba..0x1fca
  */
 #include <stdlib.h>
 #include "tim.h"
@@ -49,18 +49,47 @@ struct machine_quadrant_steps g_machine_quadrant_steps = { { 0, -1, 0, 1 }, { -1
  * box's, filled by `compute_other_bounds` and `compute_swept_bounds`.
  */
 #define BOXES_MEET_STRICT                                               \
-    (g_collision.other_left < g_collision.swept_right                             \
-     && g_collision.other_right > g_collision.swept_left                          \
-     && g_collision.other_top < g_collision.swept_bottom                          \
-     && g_collision.other_bottom > g_collision.swept_top)
+    (g_collide_other_left < g_collide_swept_right                             \
+     && g_collide_other_right > g_collide_swept_left                          \
+     && g_collide_other_top < g_collide_swept_bottom                          \
+     && g_collide_other_bottom > g_collide_swept_top)
 #define BOXES_MEET                                                      \
-    (g_collision.other_left <= g_collision.swept_right                            \
-     && g_collision.other_right >= g_collision.swept_left                         \
-     && g_collision.other_top <= g_collision.swept_bottom                         \
-     && g_collision.other_bottom >= g_collision.swept_top)
+    (g_collide_other_left <= g_collide_swept_right                            \
+     && g_collide_other_right >= g_collide_swept_left                         \
+     && g_collide_other_top <= g_collide_swept_bottom                         \
+     && g_collide_other_bottom >= g_collide_swept_top)
 
-/* **This module's `_BSS`**: the collision state the routines below share. */
-struct collision g_collision;
+/*
+ * **This module's `_BSS`**: the collision state the routines below share,
+ * DGROUP 0x5400..0x542c in 1.00. **Separate variables, not a record**: under
+ * `-Z` a store to one member of a record makes Borland reload a pointer read
+ * from another, and 1.11's routines keep `list` in BX across such stores.
+ * Defined from the highest address down, because Borland lays `_BSS` out in
+ * reverse order of first mention. The fields' meanings are the ones
+ * `struct collision` had.
+ */
+int16_t g_collide_travel_angle;   /* +0x2a */
+int16_t g_collide_contact_angle;   /* +0x28 */
+int16_t g_collide_contact_quadrant;   /* +0x26 */
+int16_t g_collide_cur_x;   /* +0x24 */
+int16_t g_collide_swept_right;   /* +0x22 */
+int16_t g_collide_cur_y;   /* +0x20 */
+int16_t g_collide_swept_bottom;   /* +0x1e */
+int16_t g_collide_mid_x;   /* +0x1c */
+int16_t g_collide_mid_y;   /* +0x1a */
+int16_t g_collide_moved_x;   /* +0x18 */
+int16_t g_collide_swept_left;   /* +0x16 */
+int16_t g_collide_swept_top;   /* +0x14 */
+int16_t g_collide_other_left;   /* +0x12 */
+int16_t g_collide_other_right;   /* +0x10 */
+int16_t g_collide_other_top;   /* +0x0e */
+int16_t g_collide_other_bottom;   /* +0x0c */
+int16_t g_collide_other_mid_x;   /* +0x0a */
+int16_t g_collide_other_mid_y;   /* +0x08 */
+int16_t g_collide_moved_y;   /* +0x06 */
+struct part *g_collide_list;   /* +0x04 */
+struct part *g_collide_other;   /* +0x02 */
+struct part *g_collide_contact;   /* +0x00 */
 
 /*
  * 0x00297
@@ -125,8 +154,8 @@ uint16_t part_hook_no(struct part *part)
  */
 void compute_moved(void)
 {
-    g_collision.moved_x = (int16_t)(g_collision.cur_x - g_collision.list->pos[1].x);
-    g_collision.moved_y = (int16_t)(g_collision.cur_y - g_collision.list->pos[1].y);
+    g_collide_moved_x = (int16_t)(g_collide_cur_x - g_collide_list->pos[1].x);
+    g_collide_moved_y = (int16_t)(g_collide_cur_y - g_collide_list->pos[1].y);
 }
 
 /*
@@ -151,22 +180,22 @@ void compute_moved(void)
  */
 void compute_swept_bounds(void)
 {
-    g_collision.swept_left = g_collision.cur_x = g_collision.list->pos[0].x;
-    g_collision.swept_top = g_collision.cur_y = g_collision.list->pos[0].y;
-    g_collision.swept_right = g_collision.cur_x + g_collision.list->size[0].width;
-    g_collision.swept_bottom = g_collision.cur_y + g_collision.list->size[0].height;
-    g_collision.mid_x = g_collision.cur_x + (g_collision.list->size[0].width >> 1);
-    g_collision.mid_y = g_collision.cur_y + (g_collision.list->size[0].height >> 1);
+    g_collide_swept_left = g_collide_cur_x = g_collide_list->pos[0].x;
+    g_collide_swept_top = g_collide_cur_y = g_collide_list->pos[0].y;
+    g_collide_swept_right = g_collide_cur_x + g_collide_list->size[0].width;
+    g_collide_swept_bottom = g_collide_cur_y + g_collide_list->size[0].height;
+    g_collide_mid_x = g_collide_cur_x + (g_collide_list->set_size.width >> 1);
+    g_collide_mid_y = g_collide_cur_y + (g_collide_list->set_size.height >> 1);
 
     compute_moved();
 
-    if (g_collision.list->pos[1].x < g_collision.cur_x)
-        g_collision.swept_left = g_collision.list->pos[1].x;
-    if (g_collision.list->pos[1].y < g_collision.cur_y)
-        g_collision.swept_top = g_collision.list->pos[1].y;
+    if (g_collide_list->pos[1].x < g_collide_cur_x)
+        g_collide_swept_left = g_collide_list->pos[1].x;
+    if (g_collide_list->pos[1].y < g_collide_cur_y)
+        g_collide_swept_top = g_collide_list->pos[1].y;
 
-    g_collision.swept_right += abs(g_collision.moved_x);
-    g_collision.swept_bottom += abs(g_collision.moved_y);
+    g_collide_swept_right += abs(g_collide_moved_x);
+    g_collide_swept_bottom += abs(g_collide_moved_y);
 }
 
 /*
@@ -191,14 +220,15 @@ void compute_swept_bounds(void)
  */
 void compute_other_bounds(void)
 {
-    g_collision.other_left = g_collision.other->pos[0].x;
-    g_collision.other_top = g_collision.other->pos[0].y;
-    g_collision.other_right = (int16_t)(g_collision.other_left + g_collision.other->size[0].width);
-    g_collision.other_bottom = (int16_t)(g_collision.other_top + g_collision.other->size[0].height);
-    g_collision.other_mid_x = (int16_t)(g_collision.other_left
-                             + (int16_t)(g_collision.other->size[0].width >> 1));
-    g_collision.other_mid_y = (int16_t)(g_collision.other_top
-                             + (int16_t)(g_collision.other->size[0].height >> 1));
+    g_collide_other_left = g_collide_other->pos[0].x;
+    g_collide_other_top = g_collide_other->pos[0].y;
+    g_collide_other_right = (int16_t)(g_collide_other_left + g_collide_other->size[0].width);
+    g_collide_other_bottom = (int16_t)(g_collide_other_top + g_collide_other->size[0].height);
+    /* 1.11 centres the box on the set size; 1.00 on the drawn one */
+    g_collide_other_mid_x = (int16_t)(g_collide_other_left
+                             + (int16_t)(g_collide_other->set_size.width >> 1));
+    g_collide_other_mid_y = (int16_t)(g_collide_other_top
+                             + (int16_t)(g_collide_other->set_size.height >> 1));
 }
 
 /*
@@ -226,26 +256,26 @@ int16_t angles_same_side(int16_t angle)
     int16_t ok;                         /* [bp-4] */
     register int16_t si, di;
 
-    if (g_collision.contact == 0)
+    if (g_collide_contact == 0)
         return 0;
     quadrant = angle_to_quadrant(angle);
-    if (quadrant != g_collision.contact_quadrant)
+    if (quadrant != g_collide_contact_quadrant)
         return 0;
 
     ok = 0;
     si = angle + 0x2000;
-    di = g_collision.contact_angle + 0x2000;
+    di = g_collide_contact_angle + 0x2000;
     if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000)
         ok = 1;
     else {
         si = angle + 0xA000;
-        di = g_collision.contact_angle + 0xA000;
+        di = g_collide_contact_angle + 0xA000;
         if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000)
             ok = 1;
     }
 
     if (ok) {
-        if (angle == g_collision.contact_angle)
+        if (angle == g_collide_contact_angle)
             return 1;
         if (si == 0x2000 || di == 0x2000)
             return 1;
@@ -372,59 +402,58 @@ int16_t resolve_collisions(struct part *obj)
     register struct part_contact *c;
     register int16_t hit;
 
-    g_collision.list = obj;
-    if (g_collision.list->points == 0)
+    g_collide_list = obj;
+    if (g_collide_list->points == 0)
         return 0;
 
-    c = (struct part_contact *)&g_collision.list->contact;
-    if ((g_collision.contact = g_collision.list->contact) != 0) {
-        g_collision.contact_angle = c->angle;
-        g_collision.contact_quadrant = angle_to_quadrant(g_collision.contact_angle);
+    c = (struct part_contact *)&g_collide_list->contact;
+    if ((g_collide_contact = g_collide_list->contact) != 0) {
+        g_collide_contact_angle = c->angle;
+        g_collide_contact_quadrant = angle_to_quadrant(g_collide_contact_angle);
     }
     c->no_nudge_plus = c->no_nudge_minus = 0;
 
-    g_collision.travel_angle = object_delta_angle(g_collision.list);
+    g_collide_travel_angle = object_delta_angle(g_collide_list);
     compute_swept_bounds();
 
     hit = 0;
-    if (g_collision.contact != 0
-        && !chain_contains(g_collision.list, g_collision.contact)) {
-        g_collision.other = g_collision.contact;
-        if (g_collision.other->points != 0
-            && !(g_collision.other->state & STATE_GONE)) {
+    if (g_collide_contact != 0
+        && !chain_contains(g_collide_list, g_collide_contact)) {
+        g_collide_other = g_collide_contact;
+        if (g_collide_other->points != 0
+            && !(g_collide_other->state & STATE_GONE)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                g_collision.travel_angle = object_delta_angle(g_collision.list);
+                g_collide_travel_angle = object_delta_angle(g_collide_list);
             }
             if (BOXES_MEET_STRICT && find_edge_contact_reversed(0)) {
                 hit = 1;
-                g_collision.travel_angle = object_delta_angle(g_collision.list);
+                g_collide_travel_angle = object_delta_angle(g_collide_list);
             }
         }
     }
 
-    for (g_collision.other = (pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)));
-         g_collision.other != 0;
-         g_collision.other = (pick_for_record(g_collision.other,
+    for (g_collide_other = (pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)));
+         g_collide_other != 0;
+         g_collide_other = (pick_for_record(g_collide_other,
                                                     TRAIT_IN_MOVING_LIST))) {
-        if (!chain_contains(g_collision.list, g_collision.other)
-            && g_collision.list != g_collision.other
-            && g_collision.contact != g_collision.other
-            && g_collision.other->points != 0
-            && !(g_collision.other->state & STATE_GONE)
-            && !(g_collision.list->kind == 0xc
-                 && g_collision.other->kind == 0x2a)) {
+        if (!chain_contains(g_collide_list, g_collide_other)
+            && g_collide_list != g_collide_other
+            && g_collide_contact != g_collide_other
+            && g_collide_other->points != 0
+            && !(g_collide_other->state & STATE_GONE)
+            && !kinds_may_overlap(g_collide_list->kind, g_collide_other->kind)) {
             compute_other_bounds();
 
             if (BOXES_MEET_STRICT && find_edge_contact(0)) {
                 hit = 1;
-                g_collision.travel_angle = object_delta_angle(g_collision.list);
+                g_collide_travel_angle = object_delta_angle(g_collide_list);
             }
             if (BOXES_MEET && find_edge_contact_reversed(0)) {
                 hit = 1;
-                g_collision.travel_angle = object_delta_angle(g_collision.list);
+                g_collide_travel_angle = object_delta_angle(g_collide_list);
             }
         }
     }
@@ -432,7 +461,7 @@ int16_t resolve_collisions(struct part *obj)
     if (!hit)
         c->part = 0;
     else if (angles_same_side(c->angle))
-        g_collision.list->traits |= TRAIT_ON_SURFACE;
+        g_collide_list->traits |= TRAIT_ON_SURFACE;
 
     return hit;
 }
@@ -518,18 +547,18 @@ int16_t find_edge_contact(int16_t test_only)
 
     hit = 0;
     i = 1;
-    si = g_collision.other->points;
-    fx0 = x0 = g_collision.other_left + si[0].x;
-    fy0 = y0 = g_collision.other_top + si[0].y;
-    x1 = g_collision.other_left + si[1].x;
-    y1 = g_collision.other_top + si[1].y;
+    si = g_collide_other->points;
+    fx0 = x0 = g_collide_other_left + si[0].x;
+    fy0 = y0 = g_collide_other_top + si[0].y;
+    x1 = g_collide_other_left + si[1].x;
+    y1 = g_collide_other_top + si[1].y;
     a_ang = si[0].angle;
 
     while (si) {
         quad = angle_to_quadrant(a_ang);
-        d = g_collision.travel_angle - a_ang + 0x4000;
+        d = g_collide_travel_angle - a_ang + 0x4000;
         if (d > 0) {
-            di = g_collision.list->points;
+            di = g_collide_list->points;
             b_ang = di->angle;
             di++;
             j = 1;
@@ -538,13 +567,13 @@ int16_t find_edge_contact(int16_t test_only)
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = di->angle - a_ang + 0x8000;
-                    if (d <= 0 && (g_collision.moved_x || g_collision.moved_y)) {
-                        seg1[0] = g_collision.list->pos[1].x
+                    if (d <= 0 && (g_collide_moved_x || g_collide_moved_y)) {
+                        seg1[0] = g_collide_list->pos[1].x
                                   + di->x - x0;
-                        seg1[1] = g_collision.list->pos[1].y
+                        seg1[1] = g_collide_list->pos[1].y
                                   + di->y - y0;
-                        tx = seg1[2] = seg1[0] + g_collision.moved_x;
-                        ty = seg1[3] = seg1[1] + g_collision.moved_y;
+                        tx = seg1[2] = seg1[0] + g_collide_moved_x;
+                        ty = seg1[3] = seg1[1] + g_collide_moved_y;
 
                         seg2[0] = 0;
                         seg2[1] = 0;
@@ -565,13 +594,13 @@ int16_t find_edge_contact(int16_t test_only)
                             same = angles_same_side(a_ang);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    g_collision.list->pos[0].x =
-                                        g_collision.list->pos[1].x;
-                                    g_collision.list->pos[0].y =
-                                        g_collision.list->pos[1].y;
+                                    g_collide_list->pos[0].x =
+                                        g_collide_list->pos[1].x;
+                                    g_collide_list->pos[0].y =
+                                        g_collide_list->pos[1].y;
                                 } else {
-                                    g_collision.list->pos[0].x += out[0] - tx;
-                                    g_collision.list->pos[0].y += out[1] - ty;
+                                    g_collide_list->pos[0].x += out[0] - tx;
+                                    g_collide_list->pos[0].y += out[1] - ty;
                                 }
                             } else {
                                 p = seg1[2];
@@ -581,44 +610,47 @@ int16_t find_edge_contact(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    g_collision.list->pos[0].y += out[1] - ty;
+                                    g_collide_list->pos[0].y += out[1] - ty;
                                 } else {
-                                    g_collision.list->pos[0].x =
-                                        g_collision.list->pos[1].x;
-                                    g_collision.list->pos[0].y =
-                                        g_collision.list->pos[1].y;
+                                    g_collide_list->pos[0].x =
+                                        g_collide_list->pos[1].x;
+                                    g_collide_list->pos[0].y =
+                                        g_collide_list->pos[1].y;
                                 }
                             }
 
-                            place_object_for_draw(g_collision.list);
+                            place_object_for_draw(g_collide_list);
                             compute_swept_bounds();
 
-                            g_collision.list->traits &= ~(TRAIT_HIT_FIXED | TRAIT_HIT_MOVING);
-                            if ((g_collision.list->state
-                                 | g_collision.other->state) & STATE_SOLID
-                                || g_collision.other->traits & TRAIT_STATIC)
-                                g_collision.list->traits |= TRAIT_HIT_FIXED;
+                            g_collide_list->traits &= ~(TRAIT_HIT_FIXED | TRAIT_HIT_MOVING);
+                            /* 1.11: kind 63 is always hit as a moving part */
+                            if (g_collide_other->kind == 63)
+                                g_collide_list->traits |= TRAIT_HIT_MOVING;
+                            else if ((g_collide_list->state
+                                      | g_collide_other->state) & STATE_SOLID
+                                     || g_collide_other->traits & TRAIT_STATIC)
+                                g_collide_list->traits |= TRAIT_HIT_FIXED;
                             else
-                                g_collision.list->traits |= TRAIT_HIT_MOVING;
+                                g_collide_list->traits |= TRAIT_HIT_MOVING;
 
                             cp = (struct part_contact *)
-                                 &g_collision.list->contact;
-                            cp->part = g_collision.other;
+                                 &g_collide_list->contact;
+                            cp->part = g_collide_other;
                             cp->angle = a_ang;
                             cp->edge = i - 1;
-                            set_side_flags(seg2, g_collision.mid_x - x0, cp);
+                            set_side_flags(seg2, g_collide_mid_x - x0, cp);
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if ((int16_t)g_collision.list->point_count < j)
+                if ((int16_t)g_collide_list->point_count < j)
                     di = 0;
                 else {
                     b_ang = di->angle;
-                    if ((int16_t)g_collision.list->point_count == j)
-                        di = g_collision.list->points;
+                    if ((int16_t)g_collide_list->point_count == j)
+                        di = g_collide_list->points;
                     else
                         di++;
                 }
@@ -626,19 +658,19 @@ int16_t find_edge_contact(int16_t test_only)
         }
 
         i++;
-        if ((int16_t)g_collision.other->point_count < i)
+        if ((int16_t)g_collide_other->point_count < i)
             si = 0;
         else {
             si++;
             x0 = x1;
             y0 = y1;
             a_ang = si[0].angle;
-            if ((int16_t)g_collision.other->point_count == i) {
+            if ((int16_t)g_collide_other->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = g_collision.other_left + si[1].x;
-                y1 = g_collision.other_top + si[1].y;
+                x1 = g_collide_other_left + si[1].x;
+                y1 = g_collide_other_top + si[1].y;
             }
         }
     }
@@ -694,37 +726,36 @@ int16_t find_edge_contact_reversed(int16_t test_only)
     int16_t y1;                         /* [bp-0x18] */
     int16_t fy0;                        /* [bp-0x1a] */
     int16_t sx;                         /* [bp-0x1c] */
-    /* The point's own offsets, stored and never read again. */
-    int16_t px;                         /* [bp-0x1e] */
-    int16_t sy;                         /* [bp-0x20] */
-    int16_t py;                         /* [bp-0x22] */
-    int16_t v;                          /* [bp-0x24] */
-    int16_t quad;                       /* [bp-0x26] */
-    int16_t p;                          /* [bp-0x28] */
-    int16_t q;                          /* [bp-0x2a] */
-    int16_t r;                          /* [bp-0x2c] */
-    int16_t c;                          /* [bp-0x2e] */
-    int16_t run;                        /* [bp-0x30] */
-    int16_t seg2[4];                    /* [bp-0x38] */
-    int16_t seg1[4];                    /* [bp-0x40] */
-    int16_t out[2];                     /* [bp-0x44] */
-    register struct part_point *di;
+    /* 1.00 kept the point's own offsets in two more words here, stored and
+       never read again; 1.11 does not. */
+    int16_t sy;                         /* [bp-0x1e] */
+    int16_t v;                          /* [bp-0x20] */
+    int16_t quad;                       /* [bp-0x22] */
+    int16_t p;                          /* [bp-0x24] */
+    int16_t q;                          /* [bp-0x26] */
+    int16_t r;                          /* [bp-0x28] */
+    int16_t c;                          /* [bp-0x2a] */
+    int16_t run;                        /* [bp-0x2c] */
+    int16_t seg2[4];                    /* [bp-0x34] */
+    int16_t seg1[4];                    /* [bp-0x3c] */
+    int16_t out[2];                     /* [bp-0x40] */
     register struct part_point *si;
+    register struct part_point *di;
 
     hit = 0;
     i = 1;
-    di = g_collision.list->points;
-    fx0 = x0 = g_collision.cur_x + di[0].x;
-    fy0 = y0 = g_collision.cur_y + di[0].y;
-    x1 = g_collision.cur_x + di[1].x;
-    y1 = g_collision.cur_y + di[1].y;
+    di = g_collide_list->points;
+    fx0 = x0 = g_collide_cur_x + di[0].x;
+    fy0 = y0 = g_collide_cur_y + di[0].y;
+    x1 = g_collide_cur_x + di[1].x;
+    y1 = g_collide_cur_y + di[1].y;
     a_ang = di[0].angle;
 
     while (di) {
         quad = angle_to_quadrant(a_ang + 0x8000);
-        d = g_collision.travel_angle + 0x8000 - a_ang + 0x4000;
+        d = g_collide_travel_angle + 0x8000 - a_ang + 0x4000;
         if (d > 0) {
-            si = g_collision.other->points;
+            si = g_collide_other->points;
             b_ang = si->angle;
             si++;
             j = 1;
@@ -733,19 +764,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                 d = b_ang - a_ang + 0x8000;
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = si->angle - a_ang + 0x8000;
-                    if (d <= 0 && (g_collision.moved_x || g_collision.moved_y)) {
-                        px = si->x;
-                        py = si->y;
-                        sx = seg1[2] = g_collision.other->pos[0].x
+                    if (d <= 0 && (g_collide_moved_x || g_collide_moved_y)) {
+                        sx = seg1[2] = g_collide_other->pos[0].x
                                        + si->x - x0;
-                        sy = seg1[3] = g_collision.other->pos[0].y
+                        sy = seg1[3] = g_collide_other->pos[0].y
                                        + si->y - y0;
-                        seg1[0] = seg1[2] + g_collision.moved_x;
-                        seg1[1] = seg1[3] + g_collision.moved_y;
-#ifndef __TURBOC__
-                        (void)px;   /* the dead stores above are the original's */
-                        (void)py;
-#endif
+                        seg1[0] = seg1[2] + g_collide_moved_x;
+                        seg1[1] = seg1[3] + g_collide_moved_y;
 
                         seg2[0] = 0;
                         seg2[1] = 0;
@@ -766,13 +791,13 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             same = angles_same_side(a_ang + 0x8000);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
-                                    g_collision.list->pos[0].x =
-                                        g_collision.list->pos[1].x;
-                                    g_collision.list->pos[0].y =
-                                        g_collision.list->pos[1].y;
+                                    g_collide_list->pos[0].x =
+                                        g_collide_list->pos[1].x;
+                                    g_collide_list->pos[0].y =
+                                        g_collide_list->pos[1].y;
                                 } else {
-                                    g_collision.list->pos[0].x -= out[0] - sx;
-                                    g_collision.list->pos[0].y -= out[1] - sy;
+                                    g_collide_list->pos[0].x -= out[0] - sx;
+                                    g_collide_list->pos[0].y -= out[1] - sy;
                                 }
                             } else {
                                 p = seg1[2];
@@ -782,56 +807,59 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 run = 0 - r;
                                 if (run != 0) {
                                     out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    g_collision.list->pos[0].y -= out[1] - sy;
+                                    g_collide_list->pos[0].y -= out[1] - sy;
                                 } else {
-                                    g_collision.list->pos[0].x =
-                                        g_collision.list->pos[1].x;
-                                    g_collision.list->pos[0].y =
-                                        g_collision.list->pos[1].y;
+                                    g_collide_list->pos[0].x =
+                                        g_collide_list->pos[1].x;
+                                    g_collide_list->pos[0].y =
+                                        g_collide_list->pos[1].y;
                                 }
                             }
 
-                            v = g_collision.mid_x - x0;
+                            v = g_collide_mid_x - x0;
 
-                            place_object_for_draw(g_collision.list);
+                            place_object_for_draw(g_collide_list);
                             compute_swept_bounds();
 
-                            g_collision.list->traits &= ~(TRAIT_HIT_FIXED | TRAIT_HIT_MOVING);
-                            if ((g_collision.list->state
-                                 | g_collision.other->state) & STATE_SOLID
-                                || g_collision.other->traits & TRAIT_STATIC)
-                                g_collision.list->traits |= TRAIT_HIT_FIXED;
+                            g_collide_list->traits &= ~(TRAIT_HIT_FIXED | TRAIT_HIT_MOVING);
+                            /* 1.11: kind 63 is always hit as a moving part */
+                            if (g_collide_other->kind == 63)
+                                g_collide_list->traits |= TRAIT_HIT_MOVING;
+                            else if ((g_collide_list->state
+                                      | g_collide_other->state) & STATE_SOLID
+                                     || g_collide_other->traits & TRAIT_STATIC)
+                                g_collide_list->traits |= TRAIT_HIT_FIXED;
                             else
-                                g_collision.list->traits |= TRAIT_HIT_MOVING;
+                                g_collide_list->traits |= TRAIT_HIT_MOVING;
 
-                            g_collision.list->contact = g_collision.other;
-                            g_collision.list->contact_angle = a_ang + 0x8000;
+                            g_collide_list->contact = g_collide_other;
+                            g_collide_list->contact_angle = a_ang + 0x8000;
 
                             if (x0 > x1) {
                                 if (v > out[0])
-                                    g_collision.list->no_nudge_plus = 1;
+                                    g_collide_list->no_nudge_plus = 1;
                                 else
-                                    g_collision.list->no_nudge_minus = 1;
+                                    g_collide_list->no_nudge_minus = 1;
                             } else {
                                 if (v > out[0])
-                                    g_collision.list->no_nudge_minus = 1;
+                                    g_collide_list->no_nudge_minus = 1;
                                 else
-                                    g_collision.list->no_nudge_plus = 1;
+                                    g_collide_list->no_nudge_plus = 1;
                             }
 
-                            g_collision.list->contact_edge = j - 1;
+                            g_collide_list->contact_edge = j - 1;
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if ((int16_t)g_collision.other->point_count < j)
+                if ((int16_t)g_collide_other->point_count < j)
                     si = 0;
                 else {
                     b_ang = si->angle;
-                    if ((int16_t)g_collision.other->point_count == j)
-                        si = g_collision.other->points;
+                    if ((int16_t)g_collide_other->point_count == j)
+                        si = g_collide_other->points;
                     else
                         si++;
                 }
@@ -839,19 +867,19 @@ int16_t find_edge_contact_reversed(int16_t test_only)
         }
 
         i++;
-        if ((int16_t)g_collision.list->point_count < i)
+        if ((int16_t)g_collide_list->point_count < i)
             di = 0;
         else {
             di++;
             x0 = x1;
             y0 = y1;
             a_ang = di[0].angle;
-            if ((int16_t)g_collision.list->point_count == i) {
+            if ((int16_t)g_collide_list->point_count == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
-                x1 = g_collision.cur_x + di[1].x;
-                y1 = g_collision.cur_y + di[1].y;
+                x1 = g_collide_cur_x + di[1].x;
+                y1 = g_collide_cur_y + di[1].y;
             }
         }
     }

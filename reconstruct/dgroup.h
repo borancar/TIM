@@ -628,7 +628,7 @@ struct collision {
     int16_t   travel_angle;       /* +0x2a */
 } PACKED;
 
-extern struct collision g_collision;
+/* collide.c keeps these as separate `g_collide_*` variables; see there. */
 
 /*
  * **One entry of the table `bank` points at**: two bytes per index -
