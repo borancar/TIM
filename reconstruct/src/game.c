@@ -8,14 +8,15 @@
  * from its kind's template and its kind's init routine, and the lists freed
  * again.
  *
- * The eighth and last module of the original's **code segment 0dff**, image
- * 0x1405b..0x14de0. Its data is the part templates, DGROUP 0x2966..0x2d06.
+ * In 1.11, the last module of the code segment that starts at 0x0ecc0, image
+ * 0x15c97..0x16beb (1.00: the eighth of segment 0dff,
+ * 0x1405b..0x14de0). Its data is the part templates, DGROUP 0x2488..0x28a8.
  * Functions are in address order and each carries the image offset it was
  * read from.
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -O -Z
- * JUDGE: data 0x2966..0x2d06
+ * JUDGE: data 0x2488..0x28a8
  */
 #include "tim.h"
 #include "hostio.h"
@@ -101,46 +102,56 @@ struct part_template g_part_templates[PART_KIND_COUNT] = {
 /*
  * 0x15c97
  *
- * Build the list of parts a level may use, and reset the machine's state around
- * it: the list head at DGROUP 0x50d7, the two pairs at 0x5179 and 0x521b, the
- * play area at 0x50af..0x50b5, and the two at 0x4ead.
+ * Build freeform's parts bin - one of every kind the game offers - and reset
+ * the level's settings around it: the play area, the gravity and air, the tune
+ * and the odometer.
  *
- * Parts 0 to 0x32 are all included except in three cases. **0x14, 0x29 and 0x31
- * are never included**, and are excluded by falling into a branch that leaves
- * the flag clear rather than by being tested against a list. And **0x20, 0x21
- * and 0x22 are conditional**, each on its own word - 0x4e7d, 0x4e81 and 0x4e7b -
- * which is what makes three of the parts appear only when the game says so.
+ * In 1.11, kinds 0 to 0x41. **0x14, 0x29, 0x31 and 0x37..0x39 are never
+ * included** (1.00 left out the first three), by falling into a branch that
+ * leaves the flag clear. **0x20, 0x21, 0x22 and 0x41 are conditional**, each
+ * on its holiday - Halloween, Valentine's, Christmas and, new in 1.11, St
+ * Patrick's for 0x41.
  *
- * The three conditionals are written as three independent `if`s inside the same
- * branch rather than as a switch, so a part number that is not one of the three
- * reaches the end of them with its flag still clear and is left out too - which
- * cannot happen, because only those three get in there.
+ * **Short of memory the bin stops early**: under 0x1130 bytes in the largest
+ * free block, nothing more is made, the loop is ended by setting its index to
+ * the last kind, and the bin is marked as the machine's own
+ * (`g_machine_has_bin`), so it is saved with the machine. 1.00 also emptied
+ * the three lists here; 1.11 leaves that to its callers.
  *
  * The play area is 0x43,0x110 to -8,-8 - the negative pair being the origin
  * rather than a size, which is worth saying because it reads like a mistake.
  */
 void build_part_list(void)
 {
-    struct part *rec;                   /* [bp-2] */
+    uint16_t largest;                   /* [bp-2] */
+    struct part *rec;                   /* [bp-4] */
     int16_t si;                         /* si */
     int16_t wanted;                     /* di */
 
-    g_placed_parts.next = g_placed_parts.prev
-        = g_moving_parts.next = g_moving_parts.prev
-        = g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
-
-    for (si = 0; si < 0x33; si++) {
+    for (si = 0; si <= 0x41; si++) {
         wanted = 0;
 
-        if (si == 0x20 || si == 0x21 || si == 0x22) {
+        if (si == 0x20 || si == 0x21 || si == 0x22 || si == 0x41) {
             if (si == 0x20 && g_holiday_halloween != 0)
                 wanted = 1;
             if (si == 0x21 && g_holiday_valentine != 0)
                 wanted = 1;
             if (si == 0x22 && g_holiday_christmas != 0)
                 wanted = 1;
-        } else if (si != 0x14 && si != 0x29 && si != 0x31) {
+            if (si == 0x41 && g_holiday_stpatrick != 0)
+                wanted = 1;
+        } else if (si != 0x14 && si != 0x29 && si != 0x31
+                   && si != 0x37 && si != 0x38 && si != 0x39) {
             wanted = 1;
+        }
+
+        /* Short of memory, the bin stops here - and is the machine's own,
+           so it is saved with it. */
+        largest = heap_largest_free();
+        if (largest < 0x1130) {
+            wanted = 0;
+            g_machine_has_bin = 1;
+            si = 0x41;
         }
 
         if (wanted != 0 && (rec = make_part(si)) != NULL)
@@ -855,58 +866,69 @@ uint16_t part_init_motor(struct part *part)
     return 0;
 }
 
-/*
- * 0x1689e
- *
- * **Kind 51's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x1689e - kind 51, new in 1.11 */
 uint16_t part_init_kind_51(struct part *part)
 {
-    not_transcribed("0x1689e, part_init_kind_51");
+    part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
+    part->state |= STATE_DRAW_STEPS;
+    part->traits2 |= TRAIT2_PLUGS_IN;
+
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_51(part);
     return 0;
 }
 
-/*
- * 0x168db
- *
- * **Kind 52's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x168db - kind 52, new in 1.11 */
 uint16_t part_init_kind_52(struct part *part)
 {
-    not_transcribed("0x168db, part_init_kind_52");
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_52(part);
     return 0;
 }
 
-/*
- * 0x1690a
- *
- * **Kind 53's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x1690a - kind 53, new in 1.11 */
 uint16_t part_init_kind_53(struct part *part)
 {
-    not_transcribed("0x1690a, part_init_kind_53");
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_53(part);
+    return 0;
+}
+
+/* 0x16939 - kind 54, new in 1.11 */
+uint16_t part_init_kind_54(struct part *part)
+{
+    part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
+
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_54(part);
     return 0;
 }
 
 /*
- * 0x16939
+ * 0x1696d
  *
- * **Kind 54's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
+ * 1.11: a kind 55 in any form but the first is static and has no points.
  */
-uint16_t part_init_kind_54(struct part *part)
-{
-    not_transcribed("0x16939, part_init_kind_54");
-    return 0;
-}
-
-/* 0x1696d */
 uint16_t part_init_kind_55(struct part *part)
 {
     part->traits |= TRAIT_SLIDES;
     part->state |= STATE_TAKES_ROPE;
 
-    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
-        return 1;
+    if (part->form == 0) {
+        if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+            return 1;
+    } else {
+        part->traits |= TRAIT_STATIC;
+        part->point_count = 0;
+    }
 
     part_setup_kinds_55_57(part);
     return 0;
@@ -935,69 +957,66 @@ uint16_t part_init_kind_57(struct part *part)
     return 0;
 }
 
-/*
- * 0x16a1d
- *
- * **Kind 58's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16a1d - kind 58, new in 1.11: a part with no points of its own. */
 uint16_t part_init_kind_58(struct part *part)
 {
-    not_transcribed("0x16a1d, part_init_kind_58");
+    part->state |= STATE_DRAW_STEPS;
     return 0;
 }
 
-/*
- * 0x16a2e
- *
- * **Kind 59's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16a2e - kind 59, new in 1.11 */
 uint16_t part_init_kind_59(struct part *part)
 {
-    not_transcribed("0x16a2e, part_init_kind_59");
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_cannon_ball(part);
     return 0;
 }
 
-/*
- * 0x16a5d
- *
- * **Kind 61's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16a5d - kind 61, new in 1.11 */
 uint16_t part_init_kind_61(struct part *part)
 {
-    not_transcribed("0x16a5d, part_init_kind_61");
+    part->traits |= TRAIT_CAN_FLIP_HORIZONTAL;
+    part->state |= STATE_DRAW_STEPS;
+
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_61(part);
     return 0;
 }
 
-/*
- * 0x16a96
- *
- * **Kind 62's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16a96 - kind 62, new in 1.11 */
 uint16_t part_init_kind_62(struct part *part)
 {
-    not_transcribed("0x16a96, part_init_kind_62");
+    part->traits |= TRAIT_CAN_FLIP_HORIZONTAL | TRAIT_SLIDES;
+    part->state |= STATE_DRAW_STEPS;
+
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_62(part);
     return 0;
 }
 
-/*
- * 0x16acf
- *
- * **Kind 64's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16acf - kind 64, new in 1.11 */
 uint16_t part_init_kind_64(struct part *part)
 {
-    not_transcribed("0x16acf, part_init_kind_64");
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_64(part);
     return 0;
 }
 
-/*
- * 0x16afe
- *
- * **Kind 65's init routine**, new in 1.11. NOT TRANSCRIBED YET: a stub, which aborts.
- */
+/* 0x16afe - kind 65, new in 1.11 */
 uint16_t part_init_kind_65(struct part *part)
 {
-    not_transcribed("0x16afe, part_init_kind_65");
+    if ((part->points = (calloc_far(part->point_count, 4))) == 0)
+        return 1;
+
+    part_setup_kind_65(part);
     return 0;
 }
 
