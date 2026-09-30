@@ -14,7 +14,7 @@
  *
  * JUDGE: compiler bc3.00
  * JUDGE: built-with -mm -d -O -Z
- * JUDGE: data 0x25e8..0x260a
+ * JUDGE: data 0x1fd2..0x1ff2
  */
 #include "tim.h"
 #include "hostio.h"
@@ -34,7 +34,7 @@
  * is **freed immediately afterwards**: it is wanted once, for this, and the
  * three pictures are already on the screen.
  *
- * What is kept is `gp_menu.bmp` at DGROUP 0x4ec9 and `score2.bmp` at 0x4ecd -
+ * What is kept is `gp_go.bmp` (1.00: `gp_menu.bmp`) at DGROUP 0x4ec9 and `score2.bmp` at 0x4ecd -
  * and 0x4ecd is the list `draw_odometer_digit` takes its two digit strips
  * from, which is what makes the rolling counters possible from here on.
  *
@@ -56,14 +56,17 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(bar[0], 3, 0, 0);
-    draw_bitmap(bar[1], 0x107, 0, 0);
-    draw_bitmap(bar[2], 0x1bb, 0, 0);
+    if (bar != NULL) {                  /* 1.11 */
+        draw_bitmap(bar[0], 3, 0, 0);
+        draw_bitmap(bar[1], 0x107, 0, 0);
+        draw_bitmap(bar[2], 0x1bb, 0, 0);
 
-    free_bitmaps_thunk(bar);
+        free_bitmaps_thunk(bar);
+    }
+    heap_check_or_hang();               /* 1.11 */
 
     cursor_redraw_off_thunk();
-    g_menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_menu.bmp"));
+    g_menu_bmp = load_bitmaps(WRITABLE_LITERAL("gp_go.bmp"));
     g_score2_bmp = load_bitmaps(WRITABLE_LITERAL("score2.bmp"));
 
     g_odometer_total = 0;
@@ -165,6 +168,9 @@ void round_setup(void)
     heap_check_or_hang();
 
     if (g_freeform != 0) {
+        g_placed_parts.next = g_placed_parts.prev
+            = g_moving_parts.next = g_moving_parts.prev
+            = g_held_parts.parts_bin.next = g_held_parts.parts_bin.prev = 0;
         build_part_list();
         reset_machine();
     } else {
