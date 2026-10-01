@@ -2039,7 +2039,9 @@ struct part *bin_part_at_index(int16_t index)
         n = 0;
         si = g_held_parts.bin_list->next;
         while (n != index) {
-            di = si->kind;
+            /* Past the bin's last kind `si` is null, and the original reads
+               DGROUP:0000's +4; the walk then answers null. */
+            di = NEAR_ZERO(si)->kind;
             while (si != 0 && si->kind == di)
                 if (si != 0)
                     si = si->next;
