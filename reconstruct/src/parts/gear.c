@@ -234,7 +234,11 @@ uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
         if (how == 1 && to->direction != from->direction)
             flag = 1;
         else if (how == 2 && to->direction == from->direction)
-            flag = 1;
+            /* A comma expression, so the store is not the first one's to
+               -O's cross-jumping: the image keeps both, the second with
+               its own jump. What the original wrote is not known; this is
+               one spelling that gives its bytes. */
+            (void)(flag = 1, 0);
     } else {
         to->direction = (how == 1) ? from->direction : 0 - from->direction;
     }
