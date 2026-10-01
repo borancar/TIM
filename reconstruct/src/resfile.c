@@ -156,19 +156,36 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count)
     uint8_t huge *p;
     int16_t end;
     int16_t stop;
+#ifndef __TURBOC__
     uint8_t *buf;
+#endif
 
     if (!select_resource(handle))
         return -1;
     g_stream_written = 0;
     g_stream_rec->size += count;
+    /* The buffer is kept in DI and each byte copied in inline `asm`, the
+       compiler's own assembler (resource.c's `emit_byte` is the same): the
+       image has DI loaded once and SI only for the source pointer, which no
+       C spelling of the copy gives. */
+#ifdef __TURBOC__
+    _DI = (uint16_t)g_stream_rec->work;
+#else
     buf = g_stream_rec->work;
+#endif
     p = src;
     while (count) {
         end = g_stream_rec->spill_end;
         stop = (g_stream_rec->spill_start - 1) & 0x7f;
         do {
+#ifdef __TURBOC__
+            asm mov bx, end
+            asm les si, p
+            asm mov al, es:[si]
+            asm mov [bx+di], al
+#else
             buf[end] = *p;
+#endif
             p++;
             end++;
             count--;
