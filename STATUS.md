@@ -909,16 +909,18 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
-### 1.11: three routines not yet reproduced
+### 1.11: two routines not yet reproduced
 
 `tools/link.py` links 1.11's TIM.EXE with every routine at its address but
-for the shift these cause, and every remaining byte difference traces to
-them (docs/v1.11.md, "The link"): `select_puzzle_screen` (+3 bytes, which
-moves the part templates' far pointers and so most of DGROUP's differing
-bytes), `spread_gear_signal` and `write_resource` - a jump onto a jump,
-two identical tails not cross-jumped, and a register choice. Some dozens of
-spellings each, under BC++ 3.0 and 3.1. The sound library's nine, once
-open here too, are BC++ 3.1's.
+for the shift these two cause, and every remaining byte difference traces
+to them: `spread_gear_signal` (two identical `flag = 1` tails left
+un-cross-jumped, the second followed by two jumps) and `write_resource`
+(its buffer in DI and SI only a scratch register). Tried: some fifty
+spellings of the first and every order and `register` choice of the
+second's locals (192, under BC++ 3.0 and 2.0), and 18 compilers and
+option sets for it. `select_puzzle_screen`, once open here, was cross-
+jumping's: each branch set `rp_pass = 2`. The sound library's nine were
+BC++ 3.1's.
 
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 
