@@ -185,7 +185,7 @@ L2008e:
 	call _huffman_reconst
 	pop ds
 L200ae:
-	mov di, word ptr ss:d_54e4
+	mov di, ss:[54e4h]
 	mov bp, ds:[bp+di+4e6h]
 	shl bp, 1
 L200ba:
@@ -201,7 +201,7 @@ L200c8:
 	mov cx, [bx+si]
 	mov ds:[bp+si], cx
 	mov [bx+si], ax
-	mov si, word ptr ss:d_54e0
+	mov si, ss:[54e0h]
 	mov ax, ds:[bp+si]
 	shl ax, 1
 	shr bx, 1
@@ -228,7 +228,7 @@ L2010b:
 	shl bp, 1
 	mov ds:[bp+si], cx
 	mov bp, dx
-	mov si, word ptr ss:d_54e8
+	mov si, ss:[54e8h]
 L20117:
 	mov bp, ds:[bp+di]
 	or bp, bp

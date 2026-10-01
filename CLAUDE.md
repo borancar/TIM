@@ -18,9 +18,9 @@ known about it; the sources are still 1.00's until each module is rebuilt.
 
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
 `reconstruct/src` file is to compile under the compiler that built it -
-Borland C++ 3.0 for most of the game (options per module), Borland C++ 2.0
-for fifteen modules, Turbo C++ 1.01 for `atan2_long`, and TASM 3.0 for the
-assembly - to exactly the image's bytes
+Borland C++ 3.0 for most of the game (options per module), Borland C++ 3.1
+for 1.11's sound library, Borland C++ 2.0 for fifteen modules, Turbo C++
+1.01 for `atan2_long`, and TASM 3.0 for the assembly - to exactly the image's bytes
 (`tools/judge.py`, whose file markers say which), *and* still build
 with gcc into the working port, which must stay green. Pointer sizes differ
 between the two and that is expected. What exists only because the host is
@@ -235,6 +235,7 @@ a case it does not obviously cover.
 - Segment 0000 is BC++ 3.0 `-mm -zC_TEXT` (near runtime helpers, no `-O`), and it still merges identical `if`/`else` tails: a per-branch `push` is two whole statements - [more](docs/lessons.md#segment-0000-is-bc-30-with--zc_text-and-it-merges-the-tails-of-an-if-and-its-else-even-without--o)
 - A host-only `#ifndef __TURBOC__` block can swallow routines Borland then never sees, and every host check stays green: the judge reports MISSING now, so watch its routine count - [more](docs/lessons.md#a-preprocessor-block-with-its-endif-in-the-wrong-place-hid-three-routines-from-the-judge-and-the-host-could-not-tell)
 - Under `-O -Z` (1.11's modules) a register is evidence of the spelling: a `?:` arm ends in AX, a plain local can be CX or DX, `0 - x` is `xor/sub` where `-x` is `neg`, two calls `-O` merged were two in the source, a comma whose value is a comparison is materialised (put the comparison outside it), a surviving `jmp` to the next instruction is a `continue`, a long jump over a short distance is a forward `goto` cross-jumping retargeted, and a reloaded pointer after a store to a neighbour means the original's were separate variables, not a record - [more](docs/lessons.md#under--o--z-the-registers-say-how-the-c-was-spelled)
+- When no option set of a compiler reproduces a routine, find the pattern in code that compiler certainly built before blaming the source - 1.11's sound library is BC++ 3.1's; a `jne` onto a `jmp` is cross-jumping of a statement both branches end with; and the judge masks DGROUP offsets, so only `tools/link.py` sees a swapped store or `_BSS` order - [more](docs/lessons.md#a-routine-no-option-of-one-compiler-reproduces-may-be-another-compilers-and-only-the-link-sees-what-the-judge-masks)
 - A prototype is what the callers push: `silence_driver_far` is called with nothing, and `load_sound_bank` with a fourth argument it never reads - [more](docs/lessons.md#a-prototype-is-what-the-callers-push-not-what-the-callee-reads)
 - Borland C++ 2.0 orders `_BSS` by name, not by definition, so a module whose routines match may be waiting on a rename - [more](docs/lessons.md#borland-c-20-orders-_bss-by-name-and-its-mk_fp-was-not-the-one-in-its-own-header)
 - A link that reuses objects can link one older than its source: `link.py` deletes each object before building it and refuses a module with none; Borland keeps 32 characters of a name - [more](docs/lessons.md#a-link-that-reported-identical-had-linked-a-module-from-an-object-older-than-its-source)

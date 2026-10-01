@@ -2700,7 +2700,7 @@ void draw_description(void)
 
     if (g_round_state == 0x10) {
         g_vmds.fill_enabled = 1;
-        g_vmds.fill_colour = g_vmds.second_colour = 0x0f;
+        g_vmds.second_colour = g_vmds.fill_colour = 0x0f;
         cursor_redraw_off_thunk();
         fill_rect(0x110, 0xff, 0x100, 0x4c);
     } else

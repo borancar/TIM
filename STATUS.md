@@ -909,18 +909,15 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
-### 1.11: two routines not yet reproduced
+### 1.11 links to the original program
 
-`tools/link.py` links 1.11's TIM.EXE with every routine at its address but
-for the shift these two cause, and every remaining byte difference traces
-to them: `spread_gear_signal` (two identical `flag = 1` tails left
-un-cross-jumped, the second followed by two jumps) and `write_resource`
-(its buffer in DI and SI only a scratch register). Tried: some fifty
-spellings of the first and every order and `register` choice of the
-second's locals (192, under BC++ 3.0 and 2.0), and 18 compilers and
-option sets for it. `select_puzzle_screen`, once open here, was cross-
-jumping's: each branch set `rp_pass = 2`. The sound library's nine were
-BC++ 3.1's.
+`tools/link.py` (protected and `--cracked`) links every byte TLINK writes,
+all 2758 relocations, the entry and the stack, identical to 1.11's
+recovered image (2026-10-02). The six bytes it does not write are at the
+stack's top, which the shipped file carries from the run that cracked it
+(`STACK_RESIDUE`). There is no file hash to compare for 1.11: its header is
+`tools/unrnc.py`'s. The modules' compilers: BC++ 3.0 for the game, 3.1 for
+the sound library, 2.0 for fifteen modules, TASM for the assembly.
 
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 

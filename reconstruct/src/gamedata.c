@@ -4147,8 +4147,8 @@ uint16_t g_tool;   /* DGROUP 0x4e69 */
    parts bin** - read from a machine file of version 0x105 on, and what makes
    `read_level` read the bin list of a file that is not a level. 1.11 lets a
    machine's bin be set ("ADJUST PARTS BIN"). The name is ours. */
-uint16_t g_machine_has_bin;
-uint16_t g_freeform;   /* DGROUP 0x4e67  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
+uint16_t g_freeform;   /* DGROUP 0x4a69  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
+uint16_t g_machine_has_bin;   /* DGROUP 0x4a67 */
 char g_picked_name[0xd];   /* DGROUP 0x4e5a */
 struct queue_node *g_parts_queue;   /* DGROUP 0x4e58 */
 struct queue_node *g_parts_free;   /* DGROUP 0x4e56 */

@@ -265,7 +265,19 @@ def runs(a, b):
 # TIM.EXE's. And the unpacked header is unlzexe.py's own, so its size and
 # `minalloc` describe that memory image, not the file LZEXE packed: only the
 # entry and the stack, which LZEXE keeps, are the original's.
-PROGRAM_END = 0x2D3C0 + 0x6550
+PROGRAM_END = 0x2D3C0 + 0x6550     # 1.00's; compare() takes each image's own
+
+# **Bytes at the stack's top that the recovered image carries and no linker
+# writes**, by the image's size. 1.11's six, at SS:SP-6, read as three
+# return addresses (0x0157, 0x407f, 0x7246): what a program's stack holds
+# once something has run on it. tools/unrnc.py decodes the RNC file and
+# checks every layer's CRC, so they are in the shipped file - put there by
+# whoever cracked it, who unpacked the developer's file by running it,
+# patched the crack, and packed the memory again with RNC. TLINK writes the
+# stack as zeros. Nothing reads them: the stack is written before it is read.
+STACK_RESIDUE = {
+    0x35f40: (0x35f3a, 0x35f40),
+}
 
 
 def compare(built, original, owner):
@@ -276,9 +288,19 @@ def compare(built, original, owner):
         mark = "" if fb[k] == fo[k] else "   <- differs"
         print("  %-12s ours %6x   original %6x%s" % (k, fb[k], fo[k], mark))
     n = min(len(bb), len(bo))
+    program_end = fo["ss"] * 16 + fo["sp"]
     diff = runs(bb[:n], bo[:n])
+    residue = STACK_RESIDUE.get(program_end)
+    if residue:
+        lo, hi = residue
+        kept = [(s, e) for s, e in diff if not (lo <= s and e <= hi)]
+        if len(kept) != len(diff):
+            print("the stack's top, %05x..%05x: %d bytes the recovered image "
+                  "carries from being run before it was packed (STACK_RESIDUE)"
+                  % (lo, hi, hi - lo))
+        diff = kept
     ndiff = sum(e - s for s, e in diff)
-    rest = bo[len(bb):PROGRAM_END]
+    rest = bo[len(bb):program_end]
     nonzero = sum(1 for x in rest if x)
     print("load module: %d of the %d bytes TLINK wrote differ, in %d runs; "
           "the original's next %d up to the stack's end, which TLINK does not "
@@ -291,7 +313,7 @@ def compare(built, original, owner):
         tot = sum(e - s for s, e in rs)
         print("  %-28s %6d bytes in %4d runs, first at %05x"
               % (who, tot, len(rs), rs[0][0]))
-    ro_prog = {r for r in ro if r < PROGRAM_END}
+    ro_prog = {r for r in ro if r < program_end}
     print("relocations: %d ours, %d the original's below the stack's end (%d "
           "more above it, LZEXE's), %d in both"
           % (len(rb), len(ro_prog), len(ro) - len(ro_prog), len(rb & ro_prog)))
@@ -457,6 +479,19 @@ def main(argv):
     mode = "cracked" if a.cracked else "protected"
     digest = hashlib.sha256(built).hexdigest()
     print("linked:", os.path.relpath(exe, REPO))
+    # **A file hash exists only for 1.00**, whose shipped file LZEXE 0.91
+    # packs from the cracked build. 1.11's is RNC's, and the unpacked header
+    # is tools/unrnc.py's own, so for 1.11 the verdict is the program's:
+    # every byte TLINK writes, every relocation, the entry and the stack.
+    fo = mz(original(a.cracked))[0]
+    if fo["ss"] * 16 + fo["sp"] != PROGRAM_END:
+        if same:
+            print("IDENTICAL program: every byte TLINK wrote, every relocation, "
+                  "the entry and the stack (1.11 has no file hash: its header "
+                  "is unrnc.py's)")
+            return 0
+        print("differs")
+        return 1
     print("sha256 %s, the original %s build's is %s" % (digest, mode, SHA256[mode]))
     if digest == SHA256[mode]:
         print("IDENTICAL to the original file, header and all")

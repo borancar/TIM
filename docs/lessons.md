@@ -2535,3 +2535,35 @@ is aligned to more than 1. A declaration elsewhere needs nothing - GCC assumes
 only the type's alignment for an object it does not define. The rule: **when
 the linker decides an address, the compiler must be told the alignment that
 address has.**
+
+### A routine no option of one compiler reproduces may be another compiler's, and only the link sees what the judge masks
+
+**What happened.** Matching 1.11 stalled on twelve routines. Nine were the
+sound library's: where 3.0 reads back the high word of a far pointer it
+has just stored, 1.11 pushes DX. Every one of the 3072 subsets of BC++
+3.0's `-Oabcegilmpv` with `-Z`, `-k-` and `-G` was compiled on one of them,
+without a match, and the wrong conclusion nearly followed - that the source
+was wrong - when 1.00's copies, from the same source, were 3.0's byte for
+byte. The evidence that settled it was a search of the image: in the
+game's own 3.0 code the read-back is always from memory (six sites), and
+the only five sites that push DX are the sound library's. Borland C++ 3.1
+(`JUDGE: compiler bc3.10`) matched all 27 modules with the sources as they
+stood, and the `(void)i;` written to keep a loop counter alive came out:
+it had been compensating for the wrong compiler.
+
+The other three were spellings, found by reading the image as the
+optimiser's output rather than as code: a `jne` onto a `jmp` is cross-
+jumping's work, which merged a statement duplicated in both branches
+(`rp_pass = 2`); two identical stores left apart need a different tree for
+one of them (a comma expression); and a register no declaration gives is
+a pseudo-register and a few lines of inline `asm`.
+
+**What only the link saw.** The judge masks DGROUP offsets, so a chained
+assignment written in the other order (`fill_colour` and `second_colour`)
+and two `_BSS` variables defined in the wrong order both judged MATCH;
+`tools/link.py` found them as swapped bytes. And TASM assembled
+`ss:d_54e4` relative to `_BSS`, not DGROUP - also masked by the judge.
+
+**The rule.** When no option set of a compiler reproduces a routine, look
+for the same pattern in code that compiler certainly built before
+concluding the source is wrong; and run the link, not only the judge.
