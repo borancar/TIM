@@ -73,7 +73,8 @@ def first_address(path):
     return min(addrs) if addrs else None
 
 
-DATA_AT = re.compile(r"\[_DATA\]\s+MATCH, at DGROUP ([0-9a-f]{4})")
+DATA_AT = re.compile(r"\[_DATA\][^\n]*? at DGROUP ([0-9a-f]{4})")
+BSS_AT = re.compile(r"\[_BSS\][^\n]*? at DGROUP ([0-9a-f]{4})")
 
 
 def build(path, obj, cracked=False):
@@ -86,11 +87,13 @@ def build(path, obj, cracked=False):
                        env=dict(os.environ, JUDGE_KEEP_OBJ=obj))
     verdict = [l for l in r.stdout.splitlines() if "routines match" in l]
     m = DATA_AT.search(r.stdout)
+    b = BSS_AT.search(r.stdout)
     return (path, os.path.exists(obj), verdict[-1] if verdict else r.stdout[-300:],
-            int(m.group(1), 16) if m else None)
+            int(m.group(1), 16) if m else None,
+            int(b.group(1), 16) if b else None)
 
 
-def object_order(mods, fr):
+def object_order(mods, fr, bss=None):
     """**The order the objects were linked in**, which is not the code's:
     TLINK lays each segment out in object order, and the image's DGROUP has
     `gamemain.c`'s data first and `collide.c`'s - the first module of
@@ -99,6 +102,8 @@ def object_order(mods, fr):
     (or leads the one after it). `mods` is (path, code address or None,
     data address or None)."""
     key = {}
+    data_of = {path: data for path, code, data in mods}
+    code_of = {path: code for path, code, data in mods}
     for path, code, data in mods:
         if data is not None:
             key[path] = float(data)
@@ -113,9 +118,56 @@ def object_order(mods, fr):
                 continue
             prev = [key[p] for _c, p in seg[:k] if p in key]
             nxt = [key[p] for _c, p in seg[k + 1:] if p in key]
-            key[path] = (prev[-1] + 0.001 * (k + 1)) if prev else \
-                (nxt[0] - 0.001 * (len(seg) - k)) if nxt else 1e9 + code
-    return sorted(mods, key=lambda m: (key[m[0]], m[1] or 0))
+            if prev or nxt:
+                key[path] = (prev[-1] + 0.001 * (k + 1)) if prev else \
+                    (nxt[0] - 0.001 * (len(seg) - k))
+    # **A module alone in its segment, with no data to place it**, follows
+    # the module before it in code: 1.11's sound library is a segment per
+    # module, and without this every one of them without data went to the
+    # end of the link, and the two with data ahead of the rest.
+    by_code = sorted((code, path) for path, code, data in mods if code is not None)
+    for k, (code, path) in enumerate(by_code):
+        if path in key:
+            continue
+        prev = [key[p] for _c, p in by_code[:k] if p in key]
+        key[path] = (prev[-1] + 1e-6 * (k + 1)) if prev else -1e9 + code
+    for path, code, data in mods:
+        key.setdefault(path, 1e9 + (code or 0))
+    # **Three orders constrain the link, and all of them hold at once**:
+    # `_DATA` is laid out in object order, so is `_BSS`, and so is each code
+    # segment. The keys above are only a guess at where a module without
+    # data goes; a topological sort over the three orders, taking the
+    # lowest guess first among the modules free to go, keeps every one of
+    # them. (In 1.11 puzzles.c's and screen.c's `_BSS` come before
+    # goals.c's, which its code alone does not say.)
+    import heapq
+    bss = bss or {}
+    after = {m[0]: set() for m in mods}
+    indeg = {m[0]: 0 for m in mods}
+
+    def chain(seq):
+        for (_x, a), (_y, b) in zip(seq, seq[1:]):
+            if b not in after[a]:
+                after[a].add(b)
+                indeg[b] += 1
+    chain(sorted((d, p) for p, c, d in mods if d is not None))
+    chain(sorted((bss[p], p) for p, c, d in mods if bss.get(p) is not None))
+    for seg in by_seg.values():
+        chain(sorted(seg))
+    heap = [(key[p], c or 0, p) for p, c, d in mods if indeg[p] == 0]
+    heapq.heapify(heap)
+    out = []
+    while heap:
+        _k, _c, p = heapq.heappop(heap)
+        out.append(p)
+        for q in after[p]:
+            indeg[q] -= 1
+            if indeg[q] == 0:
+                heapq.heappush(heap, (key[q], code_of[q] or 0, q))
+    if len(out) != len(mods):
+        raise SystemExit("the data, BSS and code orders contradict each other")
+    rank = {p: i for i, p in enumerate(out)}
+    return sorted(mods, key=lambda m: rank[m[0]])
 
 
 def _rec(t, payload):
@@ -342,6 +394,7 @@ def main(argv):
         f for f in files if not os.path.exists(objname[f])
         or old.get(f, {}).get("hash") != digest(f)]
     data = {f: old[f]["data"] for f in old if f not in todo}
+    bss = {f: old[f].get("bss") for f in old if f not in todo}
     hashes = {f: old[f]["hash"] for f in old if f not in todo}
     if todo:
         # **A module that does not compile must not be linked from an older
@@ -356,8 +409,9 @@ def main(argv):
                 os.remove(objname[f])
         bad = []
         with concurrent.futures.ThreadPoolExecutor(a.j) as ex:
-            for path, ok, verdict, at in ex.map(lambda f: build(f, objname[f], a.cracked), todo):
+            for path, ok, verdict, at, bat in ex.map(lambda f: build(f, objname[f], a.cracked), todo):
                 data[path] = at
+                bss[path] = bat
                 hashes[path] = digest(path)
                 m = re.search(r"(\d+) of (\d+) routines match", verdict)
                 if not ok or not m or m.group(1) != m.group(2):
@@ -365,13 +419,14 @@ def main(argv):
         for p, v in bad:
             print("NOT MATCHED:", os.path.relpath(p, REPO), v)
         print("%d modules built" % (len(todo) - len(bad)))
-        json.dump({os.path.relpath(k, REPO): {"data": v, "hash": hashes.get(k)}
+        json.dump({os.path.relpath(k, REPO): {"data": v, "bss": bss.get(k),
+                                               "hash": hashes.get(k)}
                    for k, v in data.items()}, open(saved, "w"))
     missing = [os.path.relpath(f, REPO) for f in files if not os.path.exists(objname[f])]
     if missing:
         raise SystemExit("no object for %s - not linking" % ", ".join(missing))
     fr = judge.frames()
-    order = object_order([(f, code[f], data.get(f)) for f in files], fr)
+    order = object_order([(f, code[f], data.get(f)) for f in files], fr, bss)
     objs = []
     for f, addr, _d in order:
         o = objname[f]

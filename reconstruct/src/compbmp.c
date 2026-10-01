@@ -8,10 +8,10 @@
  *
  * A module of the original's **code segment 1c25**, image 0x20189..0x20654,
  * split out of engine.c on 2026-09-27. The thunk at 0x20185 that jumps to it
- * through DGROUP 0x44ea, the assembly `fill_rect` before that and the timer
+ * through DGROUP 0x40ea (1.00: 0x44ea), the assembly `fill_rect` before that and the timer
  * after it are all assembly and stay outside. **Its `_DATA` is the vector at
- * 0x44ea**, the routine's own address: nothing here reads it, but the link
- * order says so - TLINK lays DGROUP out in object order, and 0x44ea is
+ * 0x40ea**, the routine's own address: nothing here reads it, but the link
+ * order says so - TLINK lays DGROUP out in object order, and 0x40ea is
  * between polygon.c's data and timer.c's, as this module's code is between
  * theirs.
  *
@@ -21,7 +21,7 @@
  *
  * JUDGE: compiler bc2.00
  * JUDGE: built-with -mm -G -O
- * JUDGE: data 0x44ea..0x44ee
+ * JUDGE: data 0x40ea..0x40ee
  */
 #include "tim.h"
 #include "hostio.h"
@@ -43,7 +43,7 @@ typedef void (far *vm_span_fn)(void);
 #endif
 
 /*
- * DGROUP 0x44ea - **the vector the thunk at 0x20185 jumps through**, this
+ * DGROUP 0x40ea - **the vector the thunk at 0x20185 jumps through**, this
  * module's `_DATA`: the address of `draw_compressed_body` below, which
  * the loader relocates.
  */
@@ -54,7 +54,7 @@ void (far *g_compressed_body_vector)() = (void (far *)())draw_compressed_body;
  *
  * Draw a bitmap in the compressed form `compress_bitmap_list` writes.
  *
- * The body behind the thunk at 0x20185 (engine.c): 0x44ea, which the thunk
+ * The body behind the thunk at 0x20185 (engine.c): 0x40ea, which the thunk
  * jumps through, holds this routine's address.
  *
  * **The stream.** A byte of state first, the colour base every pixel is

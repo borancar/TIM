@@ -3971,6 +3971,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
 struct game_directories g_game_directories;   /* DGROUP 0x530b */
 char g_picked_machine[0xd];   /* DGROUP 0x52fe */
 uint16_t _stklen;   /* DGROUP 0x52fc */
+/* DGROUP 0x4f01 in 1.11, new there: **the memory free at start-up**, the
+   largest DOS block over 1000 - what `g_preload_sound_need` is measured in.
+   The name is a guess. */
+int32_t  g_memory_k;
 uint16_t g_stop_requested;   /* DGROUP 0x52fa  game_teardown(0) raises it; the loops above read it */
 FILE     *g_tim_sx;   /* DGROUP 0x52f8  tim.sx's file record, which open_sound_file reads the sounds from */
 struct bitmap **g_cursor_art;   /* DGROUP 0x52f6  mouse.bmp's list */
@@ -3980,17 +3984,11 @@ uint16_t g_cursor_follows;   /* DGROUP 0x52f2  restore_cursor_following is guard
    loops took, as `translate_key` answers it - scancode high, character low.
    The loops test the character, `(g_last_key & 0x7f)`. */
 uint16_t g_last_key;
-/* DGROUP 0x4f01 in 1.11, new there: **the memory free at start-up**, the
-   largest DOS block over 1000 - what `g_preload_sound_need` is measured in.
-   The name is a guess. */
-int32_t  g_memory_k;
 /*
  * DGROUP 0x52ed  tim.pal: the far pointer `load_palette` answers, stored whole and
  * read whole by `set_palette_pointer` and `free_far_block`.
  */
 uint8_t far *g_pal_tim;
-/* DGROUP 0x52e9..0x52ed: nothing in the image names these four bytes. Ours. */
-uint8_t g_dg52e9[4];
 uint8_t far *g_pal_dynamix;   /* DGROUP 0x52e5  sierra.pal */
 uint8_t far *g_pal_black;   /* DGROUP 0x52e1  black.pal, as pal_tim */
 /* **The font handle for "memofnt8.fnt"**, what `load_font` answered at
