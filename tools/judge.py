@@ -69,7 +69,7 @@ COMPILERS = {
              os.path.join(TC_ROOT, "TC201", "INCLUDE")),
 }
 EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "2.00": "TCC.EXE", "bc2.00": "BCC.EXE",
-            "bc3.00": "BCC.EXE", "3.00-emu": "TCC.EXE"}
+            "bc3.00": "BCC.EXE", "bc3.10": "BCC.EXE", "3.00-emu": "TCC.EXE"}
 # Borland C++ 3.0 built the game - it alone turns an early `return` into a
 # copy of the epilogue (`open_bit_reader`) - so it is the default. It runs
 # under the emulator; `--compiler 3.00` is the host port of Turbo C++ 3.0,

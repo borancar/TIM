@@ -14,6 +14,7 @@
  * so the module links after setup_sound_device.c. That it is one module
  * and not two of the code modules' is a reading; the addresses are not.
  *
+ * JUDGE: compiler bc3.10
  * JUDGE: built-with -mm -O2
  * JUDGE: data 0x4680..0x46b2
  */

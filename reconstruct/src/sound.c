@@ -7,8 +7,9 @@
  * **The sound module, which was written in assembly**: its far entry
  * points, its state, a far entry and its dispatcher, the interface to the
  * loaded driver, the sequencer. In 1.11 it is **code segment 2893** on its
- * own, image 0x28936..0x2ad2b, word-aligned (the zero at 0x28935 is the
- * alignment): twenty far entry points first, 0x28936..0x28aea, the only
+ * own, image 0x28936..0x2ad2c, word-aligned (the zero at 0x28935 is the
+ * alignment), and ending in a zero byte after its last `ret`, which the
+ * link needs and nothing reads: twenty far entry points first, 0x28936..0x28aea, the only
  * routines that build a C frame - nine of them 1.00's and eleven more, one
  * for each of the API's functions 0x0a..0x17 the dispatcher reaches, which
  * nothing in the game calls - then its state, `g_snds`, 0x28aea..0x28cef,
@@ -4016,6 +4017,7 @@ L2ad25:
 	pop bx
 	ret
 _init_sequence_params endp
+	db 0
 SOUND_TEXT ends
 }
 #else

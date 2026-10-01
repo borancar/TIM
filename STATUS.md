@@ -909,23 +909,16 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
-### 1.11: twelve routines no Borland C++ 3.0 build reproduces
+### 1.11: three routines not yet reproduced
 
 `tools/link.py` links 1.11's TIM.EXE with every routine at its address but
 for the shift these cause, and every remaining byte difference traces to
-them (docs/v1.11.md, "The link"):
-
-- nine of the sound library's: a register kept across a store, and one
-  `mov cl, 2 / shl bx, cl` found nowhere else in the image. Every subset of
-  BC++ 3.0's `-Oabcegilmpv` with `-Z`, `-k-` and `-G` was compiled (3072);
-  1.00's copies, from the same source, are BC++ 3.0's.
-- `select_puzzle_screen` (+3 bytes, which moves the part templates' far
-  pointers and so most of DGROUP's differing bytes), `spread_gear_signal`
-  and `write_resource`: a jump onto a jump, two identical tails not
-  cross-jumped, and a register choice. Some dozens of spellings each.
-
-The likeliest explanation is a later compiler, Borland C++ 3.1, which the
-turboc checkout does not have. Until it can be tried these stay open.
+them (docs/v1.11.md, "The link"): `select_puzzle_screen` (+3 bytes, which
+moves the part templates' far pointers and so most of DGROUP's differing
+bytes), `spread_gear_signal` and `write_resource` - a jump onto a jump,
+two identical tails not cross-jumped, and a register choice. Some dozens of
+spellings each, under BC++ 3.0 and 3.1. The sound library's nine, once
+open here too, are BC++ 3.1's.
 
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 

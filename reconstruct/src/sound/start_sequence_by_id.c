@@ -11,6 +11,7 @@
  * 2619, where its module boundaries had to be inferred; 1.11 gives each
  * module a segment, and the far calls into them say where each begins.
  *
+ * JUDGE: compiler bc3.10
  * JUDGE: built-with -mm -O2
  */
 #include "tim.h"
@@ -50,10 +51,11 @@ uint16_t start_sequence_by_id(int16_t id)
 {
     struct sound_record far *rec;
     struct sound_record far *other;
+    int16_t loop;
 
-    for (rec = g_sound_bank.records; rec != NULL && rec->id != id;
-         rec = rec->next)
-        ;
+    rec = g_sound_bank.records;
+    while (rec != NULL && rec->id != id)
+        rec = rec->next;
 
     if (rec == NULL)
         return 0;
@@ -92,11 +94,8 @@ uint16_t start_sequence_by_id(int16_t id)
                 return 1;
             }
 
-            {
-                int16_t loop = (rec->flags & 2) ? 1 : 0;
-
-                start_on_free_voice(rec->data, 0x7f, loop);
-            }
+            loop = (rec->flags & 2) ? 1 : 0;
+            start_on_free_voice(rec->data, 0x7f, loop);
             return 1;
         }
         return 1;

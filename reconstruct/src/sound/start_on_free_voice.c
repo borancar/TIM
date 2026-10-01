@@ -11,6 +11,7 @@
  * 2619, where its module boundaries had to be inferred; 1.11 gives each
  * module a segment, and the far calls into them say where each begins.
  *
+ * JUDGE: compiler bc3.10
  * JUDGE: built-with -mm -O2
  */
 #include "tim.h"
@@ -67,7 +68,6 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
                 return voice;
             }
         }
-        (void)i;    /* see free_voice_records.c */
     }
 
     return NULL;

@@ -11,6 +11,7 @@
  * 2619, where its module boundaries had to be inferred; 1.11 gives each
  * module a segment, and the far calls into them say where each begins.
  *
+ * JUDGE: compiler bc3.10
  * JUDGE: built-with -mm -O2
  */
 #include "tim.h"
@@ -38,15 +39,6 @@ uint16_t free_voice_records(void)
             if (g_sound_voice[i] != NULL)
                 free_for_kind((uint8_t far *)g_sound_voice[i], 2);
         }
-        /*
-         * **The counter outlives the loop.** Under `-O2` Borland C++ walks
-         * the voices with a pointer and tests the pointer, and the image
-         * still steps `i` in DI each pass - which it does only when `i` is
-         * read after the loop. This statement reads it and writes no code;
-         * what the original had here is not known. The same in every loop
-         * over the voices in 1.11.
-         */
-        (void)i;
         return 1;
     }
 

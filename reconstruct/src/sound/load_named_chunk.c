@@ -11,6 +11,7 @@
  * 2619, where its module boundaries had to be inferred; 1.11 gives each
  * module a segment, and the far calls into them say where each begins.
  *
+ * JUDGE: compiler bc3.10
  * JUDGE: built-with -mm -O2
  */
 #include "tim.h"
