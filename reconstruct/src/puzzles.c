@@ -178,6 +178,9 @@ uint16_t select_puzzle_screen(void)
                 || was != 0x800) {
                 if (was == 0x800)
                     picker_type(g_last_key & 0x7f, g_game_typed_text.typed, 0x19);
+                /* Each branch ends `rp_pass = 2`: cross-jumping merged the
+                   two into the `jmp` the image's `jne` lands on. */
+                rp_pass = 2;
             } else {
                 update_button_state();
 
@@ -220,9 +223,8 @@ uint16_t select_puzzle_screen(void)
 
                 if (g_round_state == 0x800)
                     g_round_state = 0x8000;
+                rp_pass = 2;
             }
-
-            rp_pass = 2;
         }
 
         if (hold != 0)
