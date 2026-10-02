@@ -5,9 +5,12 @@
  * image addresses, because the loader chooses the segment. **And it is not the
  * segment the other two use**: the speaker and General Midi drivers land at
  * 0x418f on these runs and this one at 0x502a, so it is read from
- * `SNDCS:0x1e7` rather than assumed. `out/res/SX_ADL.mem` is the dump every
- * offset here came from - 9,296 bytes, of which 5.4 KB is the zeroed state
- * below and 2.9 KB is code.
+ * `SNDCS:0x1e7` rather than assumed. The offsets are **1.11's** `ADL:` chunk,
+ * 9,345 bytes unpacked, of which 5.4 KB is the zeroed state below and 2.9 KB
+ * is code. 1.00's chunk (9,295 bytes, `out/res/SX_ADL.mem` from a 1.00 run)
+ * is the same driver less one pass in `adl_alloc_voice`: every offset from
+ * 0x1ad7 on is 0x32 lower there, and nothing below it differs but the near
+ * calls that cross it.
  *
  * This is the sound a Sound Blaster owner actually heard: the OPL2 is the
  * chip on an AdLib card and on every Sound Blaster, and this driver is what
@@ -19,14 +22,15 @@
  * The driver's own state lives in its code segment and is reached with `SX8`
  * and `SX16`, as the speaker's and General Midi's are.
  *
- * Reconstructed from `incredible-machine/TIM.EXE`.
+ * Reconstructed from `SX.OVL` in The Even More Incredible Machine's
+ * RESOURCE.003 (1.11).
  */
 #include "dgroup.h"
 #include "hostio.h"
 #include "tim.h"
 
 /*
- * SX.OVL ADL:0x208e
+ * SX.OVL ADL:0x20c0
  *
  * Write one of the chip's registers. The index goes to the address port and
  * the value to the data port, and between them the driver reads the address
@@ -66,7 +70,7 @@ void adl_write(uint16_t reg, uint16_t val)
 }
 
 /*
- * SX.OVL ADL:0x216b
+ * SX.OVL ADL:0x219d
  *
  * Register 0xBD: the depth bits and the rhythm mode. `cs:0x1889` and
  * `cs:0x188a` are the two depths and `cs:0x188c` the rhythm bits, which this
@@ -86,7 +90,7 @@ void adl_write_bd(void)
 }
 
 /*
- * SX.OVL ADL:0x2194
+ * SX.OVL ADL:0x21c6
  *
  * Register 8, which on an OPL2 is CSM and the note-select bit. Only the
  * latter is used, from `cs:0x1888`.
@@ -120,7 +124,7 @@ void adl_write_nts(void)
 #define ADL_OP_WAVE         13           /* +0x281 */
 
 /*
- * SX.OVL ADL:0x21ac
+ * SX.OVL ADL:0x21de
  *
  * Register 0x40 plus the operator's own offset: the key-scale level in the
  * top two bits and the total level in the low six. `cs:0x222` maps a slot to
@@ -139,7 +143,7 @@ void adl_write_level(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x2244
+ * SX.OVL ADL:0x2276
  *
  * Register 0x60: attack in the high nibble, decay in the low.
  */
@@ -155,7 +159,7 @@ void adl_write_attack_decay(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x228a
+ * SX.OVL ADL:0x22bc
  *
  * Register 0x80: sustain level in the high nibble, release in the low.
  */
@@ -171,7 +175,7 @@ void adl_write_sustain_release(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x21f4
+ * SX.OVL ADL:0x2226
  *
  * Register 0xC0 - feedback and the connection bit - and it is per *channel*,
  * not per operator, so it uses the channel table at `cs:0x234` and is skipped
@@ -197,7 +201,7 @@ void adl_write_feedback(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x22d0
+ * SX.OVL ADL:0x2302
  *
  * Register 0x20: tremolo, vibrato, the sustaining envelope, key-scale rate
  * and the frequency multiplier - five fields the patch keeps as five separate
@@ -222,7 +226,7 @@ void adl_write_mult(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x233e
+ * SX.OVL ADL:0x2370
  *
  * Register 0xE0, the waveform - and **only when wave select is enabled** at
  * `cs:0x188d`, because an OPL2 with that bit clear has one waveform and
@@ -241,7 +245,7 @@ void adl_write_wave(uint16_t slot)
 }
 
 /*
- * SX.OVL ADL:0x1eee
+ * SX.OVL ADL:0x1f20
  *
  * Bend a note, given in quarter-tones, by the channel's pitch wheel.
  *
@@ -282,14 +286,19 @@ uint16_t adl_bend(uint16_t voice, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x1f45
+ * SX.OVL ADL:0x1f77
  *
  * Write a voice's level, scaled three ways.
  *
  * The argument is a level 0..0x3f, which first goes through the curve at
  * `cs:0xdd`, and then through the *patch's* own total level - `cs:0x18a8` for
- * the carrier - as `level * patch / 0x3f`, subtracted from the patch's own
- * figure. The key-scale bits from `cs:0x1892` go in the top two bits.
+ * the carrier - as `level * patch / 0x3f`, **subtracted from 0x3f**: the
+ * `div` takes its divisor in CL, so `mov cl, 0x3f` has overwritten the
+ * patch's figure by the time `sub cl, al` runs. (This said "from the patch's
+ * own figure" and the code did that, which agreed with the original only for
+ * a patch at 0x3f - the first 415 OPL writes of a run, until 2026-10-02's
+ * comparison against the emulator parted at register 0x44.) The key-scale
+ * bits from `cs:0x1892` go in the top two bits.
  *
  * The modulator gets the same treatment, but only when `cs:0x1900` says the
  * patch is additive: in a two-operator FM patch the modulator's level is a
@@ -305,7 +314,7 @@ void adl_write_voice_level(uint16_t voice, uint16_t level)
 
     cx = (uint16_t)SX16((uint16_t)(at + 0x18a8));
     ax = (uint16_t)((uint8_t)((curve * (uint8_t)cx) / 0x3f));
-    cx = (uint16_t)((uint8_t)((uint8_t)cx - (uint8_t)ax));
+    cx = (uint16_t)((uint8_t)(0x3f - (uint8_t)ax));   /* `mov cl, 0x3f` before the `div` */
     ax = (uint16_t)SX16((uint16_t)(at + 0x1892));
     cx = (uint16_t)(((uint8_t)cx) | (uint8_t)((uint8_t)ax << 6));
 
@@ -318,7 +327,7 @@ void adl_write_voice_level(uint16_t voice, uint16_t level)
 
     cx = (uint16_t)SX16((uint16_t)(at + 0x18ea));
     ax = (uint16_t)((uint8_t)((curve * (uint8_t)cx) / 0x3f));
-    cx = (uint16_t)((uint8_t)((uint8_t)cx - (uint8_t)ax));
+    cx = (uint16_t)((uint8_t)(0x3f - (uint8_t)ax));   /* `mov cl, 0x3f` before the `div` */
     ax = (uint16_t)SX16((uint16_t)(at + 0x18d4));
     cx = (uint16_t)(((uint8_t)cx) | (uint8_t)((uint8_t)ax << 6));
 
@@ -328,7 +337,7 @@ void adl_write_voice_level(uint16_t voice, uint16_t level)
 }
 
 /*
- * SX.OVL ADL:0x1e23
+ * SX.OVL ADL:0x1e55
  *
  * **The note itself.** `dx` non-zero keys it on, zero keys it off, and the
  * two paths are the same code because the key bit is one bit of register
@@ -405,7 +414,7 @@ void adl_note(uint16_t voice, uint16_t cx, uint16_t dx)
 }
 
 /*
- * SX.OVL ADL:0x1df4
+ * SX.OVL ADL:0x1e26
  *
  * Move a voice to the end of the rotation order at `cs:0x1c7`, so the next
  * allocation takes the one used longest ago. Nine entries, and the routine
@@ -428,7 +437,7 @@ void adl_touch_voice(uint16_t voice)
 }
 
 /*
- * SX.OVL ADL:0x1dc4
+ * SX.OVL ADL:0x1df6
  *
  * Key a voice off and give it back: the sustained flag cleared, the note
  * written once more with `dx` zero so the release actually starts, the note
@@ -449,7 +458,7 @@ void adl_key_off(uint16_t voice)
 }
 
 /*
- * SX.OVL ADL:0x1fe1
+ * SX.OVL ADL:0x2013
  *
  * Unpack one 28-byte patch into the tables the level and register writers
  * read, and send its two operators to the chip.
@@ -502,7 +511,7 @@ void adl_load_patch(uint16_t voice, const struct adl_patch *p)
 }
 
 /*
- * SX.OVL ADL:0x2109
+ * SX.OVL ADL:0x213b
  *
  * Store one operator's thirteen patch bytes at `cs:0x274 + slot * 14`, put
  * the connection in the fourteenth, and then write every register that
@@ -529,7 +538,7 @@ void adl_write_operator(uint16_t slot, const uint8_t *run, uint8_t connect)
 }
 
 /*
- * SX.OVL ADL:0x237d
+ * SX.OVL ADL:0x23af
  *
  * Silence the chip: every register from 0 to 0xf5 written zero, then register
  * 1 set to 0x20 - wave select enable, which an OPL2 needs before the four
@@ -549,7 +558,7 @@ void adl_reset(void)
 }
 
 /*
- * SX.OVL ADL:0x20b5
+ * SX.OVL ADL:0x20e7
  *
  * The eighteen operators' defaults, from one of two thirteen-byte blocks:
  * `cs:0x266` for a slot the table at `cs:0x210` marks, `cs:0x258` otherwise.
@@ -564,7 +573,7 @@ void adl_default_operators(void)
 }
 
 /*
- * SX.OVL ADL:0x20e2
+ * SX.OVL ADL:0x2114
  *
  * One operator's default: thirteen bytes copied to the scratch at `cs:0x187a`
  * and written from there, so the patch store is not disturbed.
@@ -585,7 +594,15 @@ void adl_default_operator(uint16_t slot, uint16_t src)
  * Find a voice for a note on channel `al`, and answer 0xffff if there is
  * none.
  *
- * A free voice first, walking the rotation order so the one used longest ago
+ * **1.11 looks first for a free voice already holding the channel's
+ * program**: `cs:0x120` is each channel's program and `cs:0x1bc` each
+ * voice's loaded one, the pair `adl_key_on` compares to decide whether the
+ * patch must be written again - so a note on such a voice keys on without
+ * reloading its operators. That pass is 1.11's alone (ADL:0x1ad7..0x1b08,
+ * the 0x32 bytes that move every routine after it); 1.00 went straight to
+ * the one below.
+ *
+ * Then a free voice, walking the rotation order so the one used longest ago
  * is taken. Failing that it **steals**: every channel is compared against its
  * allowance - `cs:0x1ed` voices in use against `cs:0x1dd` allowed - and the
  * one furthest over loses a voice. A channel within its allowance is never
@@ -595,6 +612,19 @@ uint16_t adl_alloc_voice(uint16_t ax)
 {
     uint16_t si, bx, dx = 0;
     uint8_t  cl, worst = 0;
+    uint8_t  program;
+
+    /* `mov ah, 0`: the channel is AL, and AX indexes the program table. */
+    ax &= 0xff;
+    program = SX8((uint16_t)(ax + 0x120));
+    for (si = 0; si < 9; si++) {
+        bx = SX8((uint16_t)(si + 0x1c7));
+        if (SX8((uint16_t)(bx + 0x19b)) == 0xff
+            && SX8((uint16_t)(bx + 0x1bc)) == program) {
+            SX8((uint16_t)(bx + 0x190)) = (uint8_t)ax;
+            return bx;
+        }
+    }
 
     for (si = 0; si < 9; si++) {
         bx = SX8((uint16_t)(si + 0x1c7));
@@ -632,7 +662,7 @@ uint16_t adl_alloc_voice(uint16_t ax)
 }
 
 /*
- * SX.OVL ADL:0x1d45
+ * SX.OVL ADL:0x1d77
  *
  * Key a voice on. The channel's program is loaded into the voice if it is
  * holding another - and only when parameter 346 at `cs:0x11e` allows it, so a
@@ -749,7 +779,7 @@ void adl_start_note(uint16_t ax, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x1ca9
+ * SX.OVL ADL:0x1cdb
  *
  * Volume: halved to the chip's six bits, stored, and then re-applied to every
  * voice the channel is sounding by writing the note again - which is how a
@@ -772,7 +802,7 @@ void adl_ctl_volume(uint16_t ax, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x1ce2
+ * SX.OVL ADL:0x1d14
  *
  * Pan, stored and re-applied the same way. An OPL2 is mono, so nothing the
  * chip is told changes - the driver keeps it because function 17 can be
@@ -795,7 +825,7 @@ void adl_ctl_pan(uint16_t ax, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x1d15
+ * SX.OVL ADL:0x1d47
  *
  * The sustain pedal. Pressing it only records the fact; releasing it keys off
  * every voice that `adl_stop_note` left held at `cs:0x1b1`.
@@ -819,7 +849,7 @@ void adl_ctl_sustain(uint16_t ax, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x1bec
+ * SX.OVL ADL:0x1c1e
  *
  * Give a channel `cl` more voices, out of the ones nothing has reserved -
  * `cs:0x1d2` holds 0xff for a voice that is free to be claimed. A voice that
@@ -849,7 +879,7 @@ void adl_grant_voices(uint16_t ax, uint8_t cl)
 }
 
 /*
- * SX.OVL ADL:0x1c30
+ * SX.OVL ADL:0x1c62
  *
  * Take `cl` voices back from a channel. Anything still outstanding at
  * `cs:0x160` is cancelled first, because a request never granted costs
@@ -893,7 +923,7 @@ void adl_release_voices(uint16_t ax, uint8_t cl)
 }
 
 /*
- * SX.OVL ADL:0x1b92
+ * SX.OVL ADL:0x1bc4
  *
  * A voice has come free, so hand it to whoever asked and did not get one.
  * Channels are served in order, and a channel whose whole request can be met
@@ -930,7 +960,7 @@ void adl_rebalance(void)
 }
 
 /*
- * SX.OVL ADL:0x1b52
+ * SX.OVL ADL:0x1b84
  *
  * Controller 0x4b: how many of the nine voices this channel wants.
  *
@@ -1096,7 +1126,7 @@ void adl_stop_all(void)
 }
 
 /*
- * SX.OVL ADL:0x23a7  - function 17
+ * SX.OVL ADL:0x23d9  - function 17
  *
  * Read back what the driver holds. **It zero-extends**, where `GMD:`'s
  * function 17 keeps AH and answers `(kind << 8) | value`. The same function
@@ -1129,14 +1159,14 @@ uint16_t adl_query(uint16_t ax, uint16_t cx)
 }
 
 /*
- * SX.OVL ADL:0x2414  - function 1
+ * SX.OVL ADL:0x2446  - function 1
  *
  * Initialise from the patch bank at `ES:AX`, whose length the driver already
  * holds at `cs:0x372`. The same `ES:AX` `GMD:` reads, and the argument
  * `configure_driver` was for years said not to have.
  *
  * Then the chip is reset and the master level set to 15. The answer is
- * AX 0x2414 and CX 0x0800, of which `configure_driver` keeps CL and CH.
+ * AX 0x2446 and CX 0x0800, of which `configure_driver` keeps CL and CH.
  */
 void adl_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx)
 {
@@ -1149,12 +1179,12 @@ void adl_init(const uint8_t far * src, uint16_t *ax, uint16_t *cx)
     adl_reset();
     adl_param_345(0x0f);
 
-    *ax = 0x2414;
+    *ax = 0x2446;
     *cx = 0x0800;
 }
 
 /*
- * SX.OVL ADL:0x2446  - function 0
+ * SX.OVL ADL:0x2478  - function 0
  *
  * AX 0x0103 and CX 0x0009: nine voices, which is what an OPL2 has in melodic
  * mode. `install_driver` keeps CL and CH and the top nibble of AH.
