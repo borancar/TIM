@@ -382,6 +382,18 @@ int32_t sdl_open(void)
     signal(SIGINT, die_on_signal);
     signal(SIGHUP, die_on_signal);
 
+    /*
+     * **Wayland before X11**, where both are there. SDL 3.4 picks X11 on
+     * sway 1.11 by itself, and under XWayland the grabbed pointer's motion
+     * arrives as XInput2 raw events that cancel in pairs - +1,+1 then
+     * -1,-1, thousands a minute, through SDL's `parse_relative_valuators` -
+     * so the game's pointer barely moved once the window took the mouse
+     * (measured 2026-10-02 under gdb). Wayland's relative-pointer protocol
+     * does not do that. A hint and not a requirement: without a Wayland
+     * display SDL falls through to X11, and SDL_VIDEO_DRIVER still wins.
+     */
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 0;
