@@ -1527,8 +1527,17 @@ Nothing is registered with `atexit`, so the flush is all `exit` was doing that
 mattered. Twenty runs of S07 afterwards, no crash; the intro and all 29
 solutions unchanged.
 
+**It came back by the game's own door** (2026-10-02): quitting the game
+aborted with "double free or corruption", some of the time. `game_main` ends
+in the C library's `exit(0)` - transcribed, so it stays - and the chip was
+still a static object whose destructor `exit` ran under the audio thread. The
+chip and its interface are now allocated and never freed
+(`src/opl_ymfm.cpp`), and `nm` on the object shows no `__cxa_atexit` left:
+nothing for any `exit` to tear down.
+
 **The rule.** A process with a running timer thread leaves with `_exit` after a
-flush, never `exit`. And a check whose verdict ignores the exit status can pass
+flush, never `exit` - and where the exit is the game's, nothing a thread uses
+may have a destructor. And a check whose verdict ignores the exit status can pass
 over a crash - read the notes column.
 
 ### `make test` stopped at its solutions step, and what that step wanted could not be in the repository

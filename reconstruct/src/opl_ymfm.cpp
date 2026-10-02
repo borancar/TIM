@@ -19,7 +19,9 @@ struct adlib_interface : public ymfm::ymfm_interface
 {
 };
 
-adlib_interface g_intf;
+/* Never destroyed either: the chip below calls into it from the audio
+ * thread, and a destructor at `exit` would swap its vtable under that call. */
+adlib_interface &g_intf = *new adlib_interface;
 
 /*
  * ONE YMF262 - an **OPL3**, which is what DOSBox emulates for a Sound Blaster
@@ -47,8 +49,17 @@ adlib_interface g_intf;
  * hardware too**, and it is not a defect here; the port is now an SB16 rather
  * than a Pro 1.0. It costs nothing in practice because the game cannot select
  * `SBP:` at all - `load_sound_bank` has no case for device 4.
+ *
+ * **Allocated and never freed, so no destructor ever runs.** The game leaves
+ * by the C library's `exit` (`game_main` at the end, after its own
+ * shutdown), and `exit` runs static destructors while the timer thread and
+ * SDL's audio thread can still be inside `opl_write` and `opl_generate` on
+ * this object - "double free or corruption" on quitting, some of the time.
+ * docs/lessons.md has the same race reached by the dev build's exits, which
+ * were made `_exit`; the game's own `exit` is transcribed and stays, so the
+ * chip is the thing that must not be torn down. The process's end frees it.
  */
-ymfm::ymf262    g_chip(g_intf);
+ymfm::ymf262   &g_chip = *new ymfm::ymf262(g_intf);
 uint32_t        g_writes;
 opl_trace_fn    g_trace;
 
