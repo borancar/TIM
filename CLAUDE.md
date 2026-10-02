@@ -250,6 +250,7 @@ a case it does not obviously cover.
 - A struct field is a claim about width, and a narrower one is a short read that compiles - [more](docs/lessons.md#a-struct-field-is-a-claim-about-width-and-a-narrower-one-is-a-short-read-that-compiles)
 - A header line added anywhere can fail a file that matched (the emulated compiler's memory is a real machine's): hide host-only declarations from `__TURBOC__`, and judge every file after a shared header changes - [more](docs/lessons.md#a-header-line-added-anywhere-can-fail-a-file-that-matched-and-only-a-sweep-of-every-file-sees-it)
 - A record that converts is still allocated at the image's size unless the allocation says `sizeof` - [more](docs/lessons.md#a-record-that-converts-still-gets-allocated-at-the-images-size)
+- A far pointer keeps its segment through `p + 1` and the host's `FP_SEG` is the pointer's own paragraph: a block freed through a stepped pointer is found by `io_dos_free`'s table of live blocks - [more](docs/lessons.md#a-far-pointer-keeps-its-segment-through-arithmetic-and-the-hosts-fp_seg-does-not)
 - A 16-bit comparison with 0x8000 is always false on the host and compiles: `-Werror=type-limits` is in the build - [more](docs/lessons.md#a-16-bit-comparison-with-0x8000-is-always-false-on-the-host-and-it-compiles)
 
 ### Still open, so recorded in STATUS.md

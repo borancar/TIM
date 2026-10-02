@@ -1774,6 +1774,33 @@ it. **And a change to a shared header is followed by judging every file**,
 not the one being worked on: `for f in reconstruct/src/*.c
 reconstruct/src/parts/*.c`, each with a JUDGE marker.
 
+### A far pointer keeps its segment through arithmetic, and the host's `FP_SEG` does not
+
+**What happened.** Quitting the game aborted with "free(): invalid size",
+some of the time, on 2026-10-03. The sanitizer build (`make asandev`) driven
+through the panel's QUIT and YES found it at once: `game_teardown` frees the
+180 shape records with `dos_free_far(g_shape_free)`, and `g_shape_free` is
+the head of their free list - 80 bytes into the block that time.
+
+**What it was.** `game_startup` allocates the records as one DOS block and
+links them with `block + 1`. On DOS that moves the offset and keeps the
+segment, so every record carries the block's own segment, and
+`dos_free_far` - which reads only the segment - frees the block whichever
+record it is handed. On the host `FP_SEG(p)` is the paragraph `p` is in,
+so a record other than the first named an address inside the block and
+`free` was handed it. The head is the first record only until play has
+taken shapes off the list and put them back, which is why it was "some of
+the time".
+
+**What settled it.** `io_dos_free` and `io_dos_resize` find the live block
+that contains the paragraph they are given (a table in hostio.c), which is
+what the original's segment said; a paragraph in no block is left alone, as
+DOS refuses it.
+
+**The rule.** Anywhere the original hands DOS a segment taken from a pointer
+it has stepped, the host has to recover the block - the segment was the
+block's, the host's paragraph is the pointer's.
+
 ### A record that converts still gets allocated at the image's size
 
 `resource.c` turned the resource record's near and far pointers into real
