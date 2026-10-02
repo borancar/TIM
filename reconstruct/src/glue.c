@@ -151,16 +151,18 @@ _TEXT ends
 /*
  * 0x0c7da
  *
- * Install the module. Its two arguments are the host callback and a flag, and
- * `asb_install` takes neither: what the original passes on the stack the
- * module reads through SI, and this one reads nothing - so, like functions
- * 1, 2 and 12 below, it is handed no arguments at all.
+ * Install the module. Its two arguments are the host callback and a flag,
+ * and the module reads them through SI as its argument block - 1.11's
+ * `asb_install` takes the first word as the card's base port, 0x220 when it
+ * is zero, which the game's is.
  */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 {
-    (void)callback;
-    (void)flag;
-    return call_sound_module(0, NULL);
+    union sound_module_args a;
+
+    a.install.base = callback;
+    a.install.flag = flag;
+    return call_sound_module(0, &a);
 }
 
 
@@ -178,8 +180,8 @@ uint16_t sound_module_set_rate(union sound_module_args * si)
  *
  * The service call, and the only wrapper that touches hardware itself: it
  * sends the non-specific EOI to the master PIC before entering the module.
- * `ASB:` function 1 is a bare `xor ax,ax; ret`, so on this module the EOI is
- * the whole of it.
+ * 1.11's `ASB:` function 1 tops up a running stream (`asb_service`); with
+ * none running, which is always in this game, the EOI is the whole of it.
  */
 uint16_t sound_module_service(union sound_module_args * si)
 {
@@ -198,9 +200,10 @@ void sound_module_tick(void)
 /*
  * 0x0c7f3
  *
- * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
- * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430. One address each, because
- * a group comment is provenance for the routine it sits above and no other.
+ * The stream's three - open, prime, start: 1.11's `ASB:` implements them
+ * (`asb_open_stream`, `asb_prime`, `asb_start_stream`) and nothing in the
+ * game calls these wrappers. One address each, because a group comment is
+ * provenance for the routine it sits above and no other.
  */
 uint16_t sound_module_9(union sound_module_args * si)  { return call_sound_module(9, si); }
 /* 0x0c7fa */

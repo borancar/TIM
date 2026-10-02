@@ -2200,130 +2200,132 @@ struct snd_cs_call {
 extern struct snd_cs_call g_sndcall;
 
 /*
- * **The digitised-sound module's own code segment**
+ * **The digitised-sound module's own code segment**, as 1.11's `ASB:` chunk
+ * lays it out: the driver header (jump, signature, names) to 0x2b, the
+ * module's state from 0x2c to 0x85, and then what the host keeps on its own
+ * side instead (see sxovl_asb.c): the four-byte vector and pointer slots at
+ * 0x86..0x9d, the probe's DMA byte at 0x9e, the 0x800-byte conversion
+ * buffer at 0x9f, and the function table at 0x89f.
+ *
+ * Every field is named by what the module does with it; where only the
+ * module's own use is known, the name says that and no more.
  */
 struct asb_cs {
-    uint8_t   pad_0000[52];
-    /* **The two halves of a sample**, because a block that crosses a 64K DMA
-       page has to be handed over in two: the page byte, the offset and the
-       length of each, with `half` saying which is current. A sample that does
-       not cross has `length_b` zero and is played in one. */
+    uint8_t   pad_0000[44];
+    /* **The 4-bit DPCM steps**, eight of them: a nibble below 8 adds its
+       step, one of 8 or more subtracts the step at 15 minus it. */
+    uint8_t   dpcm_step[8];    /* +0x002c */
+    /* The DMA page of each half - the sample's two halves for function 3,
+       the stream buffer's two for function 9 - and of the block running. */
     uint8_t   page_a;          /* +0x0034 */
     uint8_t   page_b;          /* +0x0035 */
-    /* **Eight of this module's bytes keep their addresses** - +0x36, +0x3b,
-       +0x3d, +0x41, +0x42, +0x44, +0x49 and +0x52 - because each is read or
-       written at one site and nothing says what it is for. They are `byte_`
-       and not `word_`: each is one byte, and a name that says otherwise is a
-       claim about width. Four of them steer
-       the position function 4 reports: +0x52 doubles it, +0x36 halves it and
-       doubles it back around the limit test, and +0x44 skips that test
-       altogether, which has the shape of a format - stereo, or sixteen bits -
-       without saying so anywhere. */
-    uint8_t   byte_0036;       /* +0x0036 */
-    uint8_t   pad_0037[1];
-    /* The DSP answered 2.00 or later, which `asb_probe_version` takes off the
-       version it read; 3.00 or later also sets `irq10_worth`. */
+    /* Format bit 0: the data is 4-bit DPCM, two samples a byte, and
+       `dpcm_value` is the sample the next nibble steps from. */
+    uint8_t   fmt_dpcm;        /* +0x0036 */
+    uint8_t   dpcm_value;      /* +0x0037 */
+    /* The DSP answered 2.00 or later: a stream then runs on auto-init DMA. */
     uint8_t   dsp_v2;          /* +0x0038 */
-    /* The page, offset and length now programmed into the DMA controller, out
-       of whichever half `asb_arm_block` chose. */
     uint8_t   page;            /* +0x0039 */
-    uint8_t   pad_003a[1];
-    uint8_t   byte_003b;          /* +0x003b */
-    uint8_t   pad_003c[1];
-    uint8_t   byte_003d;          /* +0x003d */
-    /* **Four "busy" flags**, one per vector the module chains, each raised
-       across the handler it replaced and lowered again; `asb_safe_to_call` ORs
-       them with the two DOS flags to answer whether it is safe to go near DOS
-       or the BIOS. */
-    uint8_t   busy_int09;      /* +0x003e */
-    uint8_t   busy_int0d;      /* +0x003f */
-    uint8_t   busy_int74;      /* +0x0040 */
-    uint8_t   byte_0041;          /* +0x0041 */
-    uint8_t   byte_0042;          /* +0x0042 */
-    uint8_t   busy_int10;      /* +0x0043 */
-    uint8_t   byte_0044;          /* +0x0044 */
-    /* **The card's IRQ**, and above 7 means the slave PIC - which is what
-       chooses `pic_port` and whether the interrupt is acknowledged at 0xa0 as
-       well as 0x20. */
-    uint8_t   irq;             /* +0x0045 */
-    /* **Looping**: `looping` is what the caller asked for and `looped` is
-       raised when the handler rearms the block rather than stopping, which is
-       the high byte of what function 4 answers. */
-    uint8_t   looped;          /* +0x0046 */
-    uint8_t   looping;         /* +0x0047 */
-    uint8_t   pad_0048[1];
-    uint8_t   byte_0049;          /* +0x0049 */
-    uint8_t   pad_004a[2];
-    uint8_t   half;               /* +0x004c  which half is current; `xor ...,1` flips it */
-    uint8_t   nothing_to_report;  /* +0x004d */
-    /* What `asb_hook_irq` answered when the vector was taken, and what
-       `asb_unhook_irq` is given to put it back. */
-    uint8_t   irq_saved;       /* +0x004e */
-    uint8_t   irq10_worth;        /* +0x004f  what later decides whether IRQ 10 is worth trying */
-    uint8_t   pad_0050[2];
-    uint8_t   byte_0052;          /* +0x0052 */
-    uint8_t   pad_0053[1];
-    /* **The shutdown guard**: once it is 1 `asb_shutdown` does nothing, which
-       is what lets the interrupt handler stop the last block and the game stop
-       it again afterwards. Function 4 answers `id` 0xffff while it is set. */
-    uint8_t   stopped;         /* +0x0054 */
-    uint8_t   pad_0055[1];
-    int16_t   length_a;        /* +0x0056 */
-    uint16_t  offset_a;        /* +0x0058 */
-    int16_t   length_b;        /* +0x005a  zero when the sample fits in one */
-    int16_t   offset_b;        /* +0x005c */
-    uint8_t   pad_005e[6];
-    /* **Where in the sample this block began**, high word then low, which
-       function 4 adds the bytes the DMA controller has already taken to. */
-    uint16_t  pos_hi;          /* +0x0064 */
-    uint16_t  pos_lo;          /* +0x0066 */
-    uint8_t   pad_0068[4];
-    /* The length this block started with, kept so function 4 can subtract the
-       DMA controller's remaining count and say how far in it is. */
-    int16_t   block_length;    /* +0x006c */
-    int16_t   length;          /* +0x006e */
-    int16_t   offset;          /* +0x0070 */
-    /* What function 4 answers as the sound's identifier; `asb_play` zeroes
-       it. */
-    int16_t   id;              /* +0x0072 */
-    /* **The PIC's mask port**, 0x21 for the master and 0xa1 for the slave,
-       chosen from `irq`. Zero in the module's own image; the install path
-       writes it. */
-    int16_t   pic_port;        /* +0x0074 */
-    int16_t   base;               /* +0x0076  the card's base port, which every other port is an offset from */
-    /* The rate the caller asked for - 0x2b11, 11025 Hz, is what install
-       leaves - against `dsp_rate`, the time constant actually written. */
-    int16_t   rate;            /* +0x0078 */
-    /* A DOS handle the module opens, 0xffff for none, closed on shutdown. */
-    int16_t   file_handle;     /* +0x007a */
-    uint8_t   pad_007c[4];
-    /* **The position past which function 4 answers "finished"**, high word
-       then low, and the rate as the DSP's own time constant. */
-    uint16_t  limit_hi;        /* +0x0080 */
-    uint16_t  limit_lo;        /* +0x0082 */
-    int16_t   dsp_rate;        /* +0x0084 */
-    uint8_t   pad_0086[8];
-    /* **Two far pointers, four words.** `asb_safe_to_call` reads a byte
-       through each and ORs them: INT 21h AH=34h answers the InDOS flag's
-       address, and the byte below it is the critical-error flag. Which field
-       holds which is read off `asb_install`, where the pair at +0x0092 is set
-       one byte above the pair at +0x008e - so the **names are that reading**,
-       not something the code states. */
-    uint8_t far *criterr;         /* +0x008e */
-    uint8_t far *indos;           /* +0x0092 */
-    void interrupt (far *old_int0d)(); /* +0x0096  the vectors asb_install displaces */
-    void interrupt (far *old_int74)(); /* +0x009a */
-    void interrupt (far *old_int10)(); /* +0x009e */
-    void interrupt (far *old_int09)(); /* +0x00a2 */
-    uint8_t   pad_00a6[1811];
-    /* **What `asb_hook_irq` answered for each IRQ the probe tries**, and what
-       unhooking is given to put each back. IRQ 10 is only tried when
-       `irq10_worth` says the DSP is a 3.00 or later. */
-    uint8_t   probe_irq2;      /* +0x07b9 */
-    uint8_t   probe_irq3;      /* +0x07ba */
-    uint8_t   probe_irq5;      /* +0x07bb */
-    uint8_t   probe_irq7;      /* +0x07bc */
-    uint8_t   probe_irq10;     /* +0x07bd */
+    /* Auto-init's two interrupts a buffer: every second one advances the
+       position by the whole buffer. */
+    uint8_t   autoinit_phase;  /* +0x003a */
+    /* A stream (functions 9 to 11) rather than a sample (function 3). */
+    uint8_t   streaming;       /* +0x003b */
+    /* The half `asb_fill` fills next, 0xff before the first. */
+    uint8_t   fill_half;       /* +0x003c */
+    /* Set when a stream starts, so the first `asb_arm_block` of auto-init
+       programs the channel and the ones after it do not. */
+    uint8_t   first_block;     /* +0x003d */
+    /* Raised across the chained DOS-critical and mouse vectors. */
+    uint8_t   busy_int0d;      /* +0x003e */
+    uint8_t   busy_int74;      /* +0x003f */
+    /* Re-entry guards for `asb_swap_halves` and `asb_fill`. */
+    uint8_t   swapping;        /* +0x0040 */
+    uint8_t   filling;         /* +0x0041 */
+    /* Raised across the chained video vector. */
+    uint8_t   busy_int10;      /* +0x0042 */
+    /* Function 9's byte +0x12: at the end of the data, seek back and go on. */
+    uint8_t   loop_file;       /* +0x0043 */
+    /* **The card's IRQ**, which the probe handlers write. */
+    uint8_t   irq;             /* +0x0044 */
+    /* `looping` is what the caller asked for (functions 3 and 4) and
+       `looped` is raised when the handler started the sample again. */
+    uint8_t   looped;          /* +0x0045 */
+    uint8_t   looping;         /* +0x0046 */
+    /* Format bit 7, stored and read by nothing in the module. */
+    uint8_t   fmt_bit7;        /* +0x0047 */
+    /* Function 8 clears it and nothing sets it; while it is zero the
+       service routine counts ticks and swaps halves. */
+    uint8_t   hold;            /* +0x0048 */
+    /* This stream runs on auto-init DMA (DSP 0x1C) - `dsp_v2` when it
+       began. */
+    uint8_t   autoinit;        /* +0x0049 */
+    /* A half has finished and the other is wanted. */
+    uint8_t   refill_due;      /* +0x004a */
+    /* The half the card is playing, 0xff before the first. */
+    uint8_t   play_half;       /* +0x004b */
+    /* Function 10 filled the buffer ahead of function 11. */
+    uint8_t   primed;          /* +0x004c */
+    /* The master PIC's mask as `asb_hook_irq` last found it, one byte for
+       every hook; `asb_unhook_irq` writes it back. */
+    uint8_t   pic_mask_was;    /* +0x004d */
+    /* Format bits 1, 3, 2 and 4. Bit 2 is sixteen-bit data, of which the
+       high byte is kept; bit 3 then turns it into 0x7f minus that byte; bit
+       1 rotates each byte left through the AX the loop carries; bit 4 is
+       stored and read by nothing. The names say the bits, not what the
+       format calls them. */
+    uint8_t   fmt_bit1;        /* +0x004e */
+    uint8_t   fmt_bit3;        /* +0x004f */
+    uint8_t   fmt_16bit;       /* +0x0050 */
+    uint8_t   fmt_bit4;        /* +0x0051 */
+    /* **The shutdown guard**: once it is 1 `asb_shutdown` does nothing. */
+    uint8_t   stopped;         /* +0x0052 */
+    /* The DSP was paused (0xD0) because the next half was not ready. */
+    uint8_t   dsp_paused;      /* +0x0053 */
+    /* The two blocks: a sample's halves either side of a 64K page, or the
+       stream buffer's halves - length then DMA offset, each. */
+    uint16_t  length_a;        /* +0x0054 */
+    uint16_t  offset_a;        /* +0x0056 */
+    uint16_t  length_b;        /* +0x0058 */
+    uint16_t  offset_b;        /* +0x005a */
+    /* Function 9's buffer, as the caller gave it; on the host the pointer
+       is `asb_buffer` (sxovl_asb.c). */
+    uint16_t  buffer_off;      /* +0x005c */
+    uint16_t  buffer_seg;      /* +0x005e */
+    uint16_t  half_size;       /* +0x0060 */
+    /* **Where the stream has got to**, high word then low. */
+    uint16_t  pos_hi;          /* +0x0062 */
+    uint16_t  pos_lo;          /* +0x0064 */
+    /* Bytes `asb_fill` has put into the half it is filling. */
+    uint16_t  filled;          /* +0x0066 */
+    /* Sixteen-bit bytes still to read beyond the 0x800 the conversion
+       buffer holds. */
+    uint16_t  left_16bit;      /* +0x0068 */
+    /* The count the DMA controller was given - doubled under auto-init. */
+    uint16_t  dma_count;       /* +0x006a */
+    /* The block running: its length and DMA offset. */
+    uint16_t  length;          /* +0x006c */
+    uint16_t  offset;          /* +0x006e */
+    /* Service ticks since the stream started, which function 13 answers
+       as its first word. */
+    uint16_t  ticks;           /* +0x0070 */
+    /* The card's base port, which every other port is an offset from. */
+    uint16_t  base;            /* +0x0072 */
+    /* The rate asked for, against `dsp_rate`, the one last written. */
+    uint16_t  rate;            /* +0x0074 */
+    /* The stream's DOS handle, 0xffff for none. */
+    uint16_t  file_handle;     /* +0x0076 */
+    /* Where the data starts in the file, high word then low - past the
+       SOL header when there is one; where a looping stream seeks back to. */
+    uint16_t  start_hi;        /* +0x0078 */
+    uint16_t  start_lo;        /* +0x007a */
+    /* The data's whole length, kept for looping and for the end test. */
+    uint16_t  total_hi;        /* +0x007c */
+    uint16_t  total_lo;        /* +0x007e */
+    uint16_t  dsp_rate;        /* +0x0080 */
+    /* What is still to be read, high word then low. */
+    uint16_t  left_hi;         /* +0x0082 */
+    uint16_t  left_lo;         /* +0x0084 */
 } PACKED;
 
 #define ASBS (*(struct asb_cs *)g_sound_bank.module)

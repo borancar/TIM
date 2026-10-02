@@ -1994,3 +1994,60 @@ reported independently:
 **And the first look said it was not there**, because the dump was grepped for
 lines beginning `part` when a pumpkin is on the *moving* list and its line
 begins `move`. `dump_chain` writes both, under different names.
+
+## 1.11's `SX.OVL`, against 1.00's
+
+Measured 2026-10-02 by unpacking every chunk of both containers with the
+port's own `load_named_chunk` (called from gdb). `VM.OVL` is byte for byte
+the same in both. In `SX.OVL` (39,715 bytes, 48,067 in 1.11):
+
+| chunk | 1.00 -> 1.11 |
+| --- | --- |
+| `STD:` `SBP:` `M32:` `GMD:` `NLD:` `PRO:` `PS1:` `APA:` `APS:` `004` `101` | identical |
+| `ADL:` | one pass added to voice allocation; everything from 0x1ad7 moves by 0x32 |
+| `ASB:` | rewritten, 2,414 -> 5,884 bytes: the stream (functions 1, 9-11) |
+| `001` `003` | the patch data changed, same sizes |
+| `TAN:` `ATD:` `ADS:` | new: Tandy three-voice, Tandy with DAC, Disney Sound Source |
+
+1.11 chooses them from RESOURCE.CFG's names (`rescfg.c`): `SBPRO.DRV` is
+`ADL:` with `ASB:`, `TANDY.DRV` is `TAN:` with `ATD:`, and nothing names
+`ADS:`, `SBP:` or `NLD:`. **The `.DRV` files in the game folder are never
+opened** - the emulator's file log has only `VM.OVL`, `SX.OVL` and the
+resources. They are the same family of driver at other versions: GENMIDI,
+IBMPS1 and SBPRO equal chunks, ADL.DRV is 1.00's `ADL:`, the rest match none.
+
+**What they are.** Each sound chunk is a Sierra driver: a jump, 0x87654321,
+a short name (`stddrv`, `dude`, `audblast`), a counted description,
+0xFEDCBA98 and a version (`2.24`, `v1.06`). No C frames: hand-written
+assembly, and **not TASM's** - a byte-sized immediate on AX is always the
+`83` form (`cmp ax,0` is `83 F8 00`) where every TASM from 1.0 to 3.0 writes
+the accumulator form (`3D 05 00` for `cmp ax,5`, measured on a probe), and
+there are no NOP-padded forward jumps. That fits MASM, whose habit the `83`
+form is believed to be; no MASM was at hand to prove it. `VM.OVL`'s eight
+drivers are the other way round: the accumulator form throughout and, in
+`EVG:`, TASM's one-pass NOP padding - Borland's, like the game's own
+assembly. The numbered chunks are the drivers' patch data, which
+`load_sound_module` hands over as `SSM:<number>:`.
+
+**`ADL:` (`sxovl_adl.c`, now 1.11's).** The new pass prefers a free voice
+already holding the channel's program (`cs:0x120` against `cs:0x1bc`), so its
+patch is not written again. Comparing every OPL register write with the
+original under the emulator (`soundDrv = ADL.DRV`) found a fault older than
+1.11: `adl_write_voice_level` subtracted from the patch's level where the
+original's `div` has left 0x3f in CL. The first 741 writes now agree - the new
+pass is exercised at write 565 - and after that the streams part on timing:
+the emulator's virtual clock gives many more music ticks per flip.
+
+**`ASB:` (`sxovl_asb.c`, now 1.11's).** Sierra's `audblast` at a later
+revision. It takes its base port from its install arguments (the game's is 0,
+so 0x220) instead of probing six, probes IRQs 2, 3, 5 and 7 only, chains INT
+10h, 0Dh and 74h but no longer 9, and adds the **stream**: function 9 opens a
+file - a SOL file (0x8D, `SOL\0`, rate, format byte, length) or raw bytes -
+function 10 primes a two-half buffer, function 11 starts it, and function 1,
+the timer's service tick, refills the free half; a DSP of 2.00 or later runs
+it on auto-init DMA (0x1C, mode 0x59). The format byte's bit 0 is 4-bit DPCM
+over the step table at `cs:0x2c`, bit 2 sixteen-bit data reduced to its high
+byte. **The game reaches install, the tick and uninstall only** - nothing
+starts a sample or a stream - so the rest is transcribed and unexercised.
+The emulator has no Sound Blaster, so there is no reference run of it; the
+port's own card is detected (base 0x220, IRQ 7, DSP 2.00 or later).

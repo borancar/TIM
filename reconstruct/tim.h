@@ -274,7 +274,36 @@ struct sound_position_args {            /* function 13, written back */
     uint32_t       position;            /* +2 */
 } PACKED;
 
+/* Function 0: what the game's wrapper was called with. 1.11's module reads
+   the first word as the card's base port, 0x220 when it is zero; the game's
+   is the callback it was given, which is zero. */
+struct sound_install_args {             /* function 0 */
+    uint16_t       base;                /* +0 */
+    uint16_t       flag;                /* +2 */
+} PACKED;
+
+/*
+ * Function 9, a stream: nothing in the game builds one. The original's first
+ * two words are one far pointer that means three things - both zero, the file
+ * already open; a segment of 0xffff, an open DOS handle in the offset; else
+ * the file's name - and a host pointer cannot be a handle, so the host has
+ * the three as `name`, `by_handle` and `handle`.
+ */
+struct sound_stream_args {              /* function 9 */
+    const char far *name;               /* +0 */
+    uint8_t        by_handle;           /* (the +2 = 0xffff case) */
+    int16_t        handle;              /* (its +0) */
+    uint32_t       start;               /* +4  where in the file the data begins */
+    uint32_t       length;              /* +8 */
+    uint8_t far   *buffer;              /* +0xc  played as two halves */
+    uint16_t       buffer_size;         /* +0x10 */
+    uint8_t        loop;                /* +0x12 */
+    uint8_t        format;              /* +0x13 */
+} PACKED;
+
 union sound_module_args {
+    struct sound_install_args  install;
+    struct sound_stream_args   stream;
     struct sound_play_args     play;
     struct sound_poll_args     poll;
     struct sound_rate_args     rate;
@@ -510,52 +539,59 @@ uint16_t driver_param_346(uint16_t cl);
  * is not a driver: the game loads one of each and this one plays sampled bytes
  * over the Sound Blaster's DMA channel while the driver plays notes.
  */
-void     asb_dsp_write(uint8_t value);          /* SX.OVL ASB:0x0377 */
-void     asb_dsp_write_timed(uint8_t value);    /* SX.OVL ASB:0x038a */
-uint16_t asb_dsp_write_try(uint8_t value);      /* SX.OVL ASB:0x070e */
-uint8_t  asb_dsp_read_try(uint16_t *failed);    /* SX.OVL ASB:0x072a */
-uint8_t  asb_dsp_read(void);                    /* SX.OVL ASB:0x0749 */
-void     asb_dma_pause(void);                   /* SX.OVL ASB:0x0369 */
-void     asb_dma_continue(void);                /* SX.OVL ASB:0x0370 */
-void     asb_speaker_on(void);                  /* SX.OVL ASB:0x079e */
-void     asb_set_rate(uint16_t rate);           /* SX.OVL ASB:0x031b */
-void     asb_set_block_size(uint16_t n);        /* SX.OVL ASB:0x033a */
+uint16_t asb_dispatch(uint16_t fn, union sound_module_args * si); /* SX.OVL ASB:0x08bf */
+uint16_t asb_service(void);                     /* SX.OVL ASB:0x08d1 */
+uint16_t asb_set_rate_fn(const struct sound_rate_args *si); /* SX.OVL ASB:0x08f8 */
+uint16_t asb_clear_hold(void);                  /* SX.OVL ASB:0x0906 */
+uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x090f */
+void     asb_play(const struct sound_play_args *si); /* SX.OVL ASB:0x0933 */
+uint16_t asb_status(const struct sound_poll_args *si); /* SX.OVL ASB:0x09cf */
+uint16_t asb_stop(void);                        /* SX.OVL ASB:0x09f4 */
+uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x09f8 */
+void     asb_arm_block(void);                   /* SX.OVL ASB:0x0a3d */
+void     asb_dma_start(void);                   /* SX.OVL ASB:0x0a95 */
+void     asb_dma_stop(void);                    /* SX.OVL ASB:0x0b14 */
+void     asb_isr(void);                         /* SX.OVL ASB:0x0b22 */
+void     asb_set_rate(uint16_t rate);           /* SX.OVL ASB:0x0bbd */
+void     asb_set_block_size(uint16_t n);        /* SX.OVL ASB:0x0be4 */
+void     asb_dma_pause(void);                   /* SX.OVL ASB:0x0c1b */
+void     asb_dma_continue(void);                /* SX.OVL ASB:0x0c2f */
+void     asb_dsp_write(uint16_t dx, uint8_t value); /* SX.OVL ASB:0x0c43 */
+void     asb_hook_irq(uint8_t irq, uint16_t save_at,
+                      uint16_t handler);        /* SX.OVL ASB:0x0c50 */
+void     asb_unhook_irq(uint8_t irq, uint16_t save_at); /* SX.OVL ASB:0x0c8e */
+uint16_t asb_fn14(void);                        /* SX.OVL ASB:0x0cb2 */
+uint16_t asb_open_stream(const struct sound_stream_args *si); /* SX.OVL ASB:0x0cb5 */
+void     asb_set_format(uint8_t al);            /* SX.OVL ASB:0x0e31 */
+void     asb_read_header(void);                 /* SX.OVL ASB:0x0ea4 */
+uint16_t asb_prime(void);                       /* SX.OVL ASB:0x0f2b */
+uint16_t asb_start_stream(void);                /* SX.OVL ASB:0x0f46 */
+void     asb_fill(void);                        /* SX.OVL ASB:0x0fd9 */
+void     asb_clear_half(void);                  /* SX.OVL ASB:0x120b */
+void     asb_refill_now(void);                  /* SX.OVL ASB:0x1238 */
+void     asb_swap_halves(void);                 /* SX.OVL ASB:0x1242 */
+uint16_t asb_position(struct sound_position_args *si); /* SX.OVL ASB:0x12bc */
+uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x138d */
+void     asb_int10_hook(void);                  /* SX.OVL ASB:0x13ad */
+void     asb_int0d_hook(void);                  /* SX.OVL ASB:0x13c0 */
+void     asb_int74_hook(void);                  /* SX.OVL ASB:0x13d3 */
+uint16_t asb_install(const struct sound_install_args *si); /* SX.OVL ASB:0x13e6 */
+uint16_t asb_detect(void);                      /* SX.OVL ASB:0x14cc */
+uint16_t asb_probe_reset(void);                 /* SX.OVL ASB:0x14eb */
+uint16_t asb_probe_identify(void);              /* SX.OVL ASB:0x1516 */
+uint16_t asb_dsp_write_try(uint16_t dx, uint8_t value); /* SX.OVL ASB:0x1541 */
+uint8_t  asb_dsp_read_try(uint16_t *failed);    /* SX.OVL ASB:0x1555 */
+uint16_t asb_probe_version(void);               /* SX.OVL ASB:0x1574 */
+uint8_t  asb_dsp_read(void);                    /* SX.OVL ASB:0x15ae */
+void     asb_speaker_on(void);                  /* SX.OVL ASB:0x15c4 */
+uint16_t asb_probe_irq(void);                   /* SX.OVL ASB:0x15e3 */
 void     asb_dma_program(const uint8_t far *block, uint16_t count,
-                         uint8_t mode);         /* SX.OVL ASB:0x08ec */
-void     asb_dma_start(void);                   /* SX.OVL ASB:0x025d */
-void     asb_arm_block(void);                   /* SX.OVL ASB:0x0224 */
-void     asb_dma_stop(void);                    /* SX.OVL ASB:0x02a9 */
-void     asb_isr(void);                         /* SX.OVL ASB:0x02b7 */
-uint8_t  asb_hook_irq(uint8_t irq, uint16_t save_at,
-                      uint16_t handler);        /* SX.OVL ASB:0x03a5 */
-void     asb_unhook_irq(uint8_t irq, uint16_t save_at,
-                        uint8_t mask_was);      /* SX.OVL ASB:0x03f6 */
-uint16_t asb_probe_reset(void);                 /* SX.OVL ASB:0x06c0 */
-uint16_t asb_probe_identify(void);              /* SX.OVL ASB:0x06eb */
-uint16_t asb_probe_version(void);               /* SX.OVL ASB:0x075d */
-void     asb_probe_isr_2(void);                 /* SX.OVL ASB:0x0915 */
-void     asb_probe_isr_3(void);                 /* SX.OVL ASB:0x091e */
-void     asb_probe_isr_5(void);                 /* SX.OVL ASB:0x0927 */
-void     asb_probe_isr_7(void);                 /* SX.OVL ASB:0x0930 */
-void     asb_probe_isr_10(void);                /* SX.OVL ASB:0x0939 */
-uint16_t asb_probe_irq(void);                   /* SX.OVL ASB:0x07c5 */
-uint16_t asb_try_base(uint16_t base);           /* SX.OVL ASB:0x069c */
-uint16_t asb_detect(void);                      /* SX.OVL ASB:0x0665 */
-void     asb_int10_hook(void);                  /* SX.OVL ASB:0x052b */
-void     asb_int0d_hook(void);                  /* SX.OVL ASB:0x053e */
-void     asb_int74_hook(void);                  /* SX.OVL ASB:0x0551 */
-void     asb_int09_hook(void);                  /* SX.OVL ASB:0x0564 */
-uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x0506 */
-uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x00f5 */
-void     asb_play(const struct sound_play_args *si); /* SX.OVL ASB:0x011e */
-uint16_t asb_status(void);                      /* SX.OVL ASB:0x01be */
-void     asb_stop(void);                        /* SX.OVL ASB:0x01ce */
-uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x01d2 */
-uint16_t asb_set_rate_fn(const struct sound_rate_args *si); /* SX.OVL ASB:0x00de */
-uint16_t asb_clear_49(void);                    /* SX.OVL ASB:0x00ec */
-uint16_t asb_position(struct sound_position_args *si); /* SX.OVL ASB:0x0435 */
-uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
-uint16_t asb_dispatch(uint16_t fn, union sound_module_args * si); /* SX.OVL ASB:0x00c8 */
+                         uint8_t mode);         /* SX.OVL ASB:0x1693 */
+void     asb_probe_isr_2(void);                 /* SX.OVL ASB:0x16bc */
+void     asb_probe_isr_3(void);                 /* SX.OVL ASB:0x16c5 */
+void     asb_probe_isr_5(void);                 /* SX.OVL ASB:0x16ce */
+void     asb_probe_isr_7(void);                 /* SX.OVL ASB:0x16d7 */
+void     asb_probe_isr_tail(uint8_t irq);       /* SX.OVL ASB:0x16e0 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(struct part *obj);           /* 0x004fd */
