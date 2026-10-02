@@ -919,6 +919,20 @@ stack's top, which the shipped file carries from the run that cracked it
 `tools/unrnc.py`'s. The modules' compilers: BC++ 3.0 for the game, 3.1 for
 the sound library, 2.0 for fifteen modules, TASM for the assembly.
 
+### 1.11 against the original, screen by screen
+
+Every `check_briefing` screen and both `check_save` scenarios run against
+1.11 since 2026-10-02, through its copy protection (three parts and OK).
+All agree: 0 of 307,200 pixels at every flip of `briefing-1.11`, `picker`,
+`level` (which under 1.00 never settled), `save`, `run-88` and `place-88`,
+and the saved files identical (19 bytes empty, 3,329 for 6_JACKS.TIM).
+Puzzle 88, the tutorial of the new parts, starts with kinds 51, 52, 54 and
+58-64 and holds 53, the pin, in its bin; `run-88` runs it and `place-88`
+places the pin and runs. **Not reached by anything yet**: kinds 55-57 and
+65, which no level starts with or holds in its bin (freeform's bin only),
+and solutions for any level past 30 - `check_solutions` has 29, all 1.00's
+levels, and none uses a 1.11 part.
+
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 
 **STATUS.md's table is only as fresh as the last `--all` sweep, and it can

@@ -50,20 +50,26 @@ def need_devtim():
 # middles of screen regions - see the note in `check_briefing.py` for where the
 # table is and what a change to it would look like from here.
 #
-# `empty` saves the machine freeform starts with: dismiss the copy-protection
+# `empty` saves the machine freeform starts with: pass the copy-protection
 # screen, the wrench to ask for freeform, YES to confirm, Save Machine, a row of
 # the listing to fill in the name, SAVE, and YES to the overwrite question. It
-# writes sixteen bytes, which is the header and the counts and no parts at all.
+# writes the header and the counts and no parts at all: sixteen bytes under
+# 1.00, nineteen under 1.11.
 #
 # `parts` loads a machine first and saves *that*, which is the one worth having:
-# 740 bytes with fifteen part records in it, so every field `sub_12430` writes
-# is compared rather than just the header. Ten clicks, because a load and a save
-# are five each.
+# under 1.11 the first file is 6_JACKS.TIM, 3,329 bytes of part records, so
+# every field the writer writes is compared rather than just the header. Five
+# clicks more than `empty`, because a load and a save are five each.
+#
+# 1.11's copy-protection screen: three parts and OK, any three under the crack.
+COPY_PROTECTION = [(235, 100, 60), (255, 160, 60), (275, 220, 60),
+                   (295, 280, 60)]
+
 SCENARIOS = {
-    "empty": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
+    "empty": [*COPY_PROTECTION, (420, 76, 152), (560, 222, 220),
               (700, 220, 152), (840, 100, 128), (980, 88, 312),
               (1120, 222, 220)],
-    "parts": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
+    "parts": [*COPY_PROTECTION, (420, 76, 152), (560, 222, 220),
               (700, 170, 152), (840, 100, 128), (980, 88, 312),
               (1140, 220, 152), (1280, 100, 128), (1420, 88, 312),
               (1560, 222, 220)],
@@ -253,6 +259,24 @@ def main():
 
     out = args.keep or tempfile.mkdtemp(prefix="save")
     os.makedirs(out, exist_ok=True)
+
+    # **Both sides get a game directory with no sound device**, as
+    # `check_briefing.py` gives them and for the same reason: a device the
+    # port has no driver for stops the run. 1.11's own RESOURCE.CFG names
+    # one whose SX.OVL is not in the directory, and under it the original
+    # ran 400M instructions without presenting a page - "never reached the
+    # save", which is about the directory and not about either side.
+    #
+    # **Without the fixture's SUBDIR**, which the listing puts first: the
+    # scenarios click the first row for a file name, and on the subdirectory
+    # that is a change of directory, SAVE with no name, "Unable to open that
+    # file for saving" on both sides - agreeing, and writing nothing.
+    import fixture
+
+    snd_dir = os.path.join(tempfile.gettempdir(), "tim-shipsnd-save")
+    fixture.build(snd_dir, sound_device=0, sound_module=0xfe)
+    shutil.rmtree(os.path.join(snd_dir, "SUBDIR"))
+    tim.use_game_dir(snd_dir)
 
     print("port: running ...", flush=True)
     mine_all = run_port(out, args.timeout or TIMEOUTS[args.scenario])

@@ -69,6 +69,12 @@ def need_devtim():
 # are three of them rather than one: both sides are run once and the frames are
 # already written, so two more comparisons cost nothing and catch a difference
 # that happens to be absent from the first.
+# **1.11's copy-protection screen wants three parts picked** (and an OK),
+# where 1.00's took one click; the crack takes any three. Every screen past it
+# starts with these four, at flips the screen is up for.
+COPY_PROTECTION = [(235, 100, 60), (255, 160, 60), (275, 220, 60),
+                   (295, 280, 60)]
+
 SCREENS = {
     # The level-one briefing. One click dismisses the copy-protection screen;
     # 207 is the first settled flip and every flip from there was identical.
@@ -99,6 +105,20 @@ SCREENS = {
         "flips": (760, 860, 900),
         "insns": 2_500_000_000,
     },
+    # **Puzzle 88 with its bin's one part placed**: kind 53, the pin, which
+    # no level starts with. The same way in, the machine thumbnail to close
+    # the panel, the bin's part, a drop on open floor, then the top-right
+    # picture, which runs the machine. Flip 730 is the edit screen with the
+    # pin placed; the rest are the machine running around it.
+    "place-88": {
+        "clicks": [(235, 100, 60), (255, 160, 60), (275, 220, 60),
+                   (295, 280, 60), (420, 124, 150), (450, 476, 278),
+                   (470, 476, 278), (490, 476, 278), (510, 476, 278),
+                   (560, 200, 108), (580, 516, 318), (680, 400, 150),
+                   (700, 600, 125), (720, 330, 270), (740, 605, 35)],
+        "flips": (730, 800, 900, 1000),
+        "insns": 3_000_000_000,
+    },
     # The **file picker**, which is four clicks in: dismiss, the wrench to ask
     # for freeform mode, YES to confirm it, then Load Machine. It is behind
     # freeform because `game_screen`'s LOAD case does nothing outside it.
@@ -109,7 +129,7 @@ SCREENS = {
     # in the directory where the original listed three. The code read correctly
     # either way and only a side-by-side could tell.
     "picker": {
-        "clicks": [(200, 320, 200), (420, 76, 152),
+        "clicks": [*COPY_PROTECTION, (420, 76, 152),
                    (560, 222, 220), (700, 170, 152)],
         "flips": (740, 760, 790),
         "insns": 400_000_000,
@@ -123,22 +143,13 @@ SCREENS = {
     # The flips are late because the second click is at 400 and the screen has
     # to settle after it.
     #
-    # **This screen does not settle, and cannot be a zero-pixel check.** It
-    # comes out at about 2,700 of 307,200 pixels, 0.85%, and the difference is
-    # in exactly two places:
-    #
-    #   2,592  the odometer strip, y 380..445 - the score and bonus reels,
-    #          which turn on the timer, and the two sides do not pace their
-    #          timers alike. The same reason the copy-protection page number
-    #          differs; see STATUS.md.
-    #     108  a 22 by 7 box at 78,118 - the mouse cursor.
-    #
-    # The palettes are identical and nothing outside those two boxes differs,
-    # which is the useful part: the play area, the frame, the parts bin and the
-    # panel are pixel-for-pixel the same. Read this screen as "did anything
-    # move outside the reels and the pointer", not as a pass or a fail.
+    # **It used not to settle**: under 1.00 it came out at about 2,700 of
+    # 307,200 pixels, the odometer reels (which turn on the timer, paced
+    # differently on the two sides) and the mouse cursor. Under 1.11, on
+    # 2026-10-02, all three flips came out at 0; what changed the reels'
+    # pacing was not measured. A difference here is a difference again.
     "level": {
-        "clicks": [(200, 320, 200), (400, 78, 105)],
+        "clicks": [*COPY_PROTECTION, (400, 78, 105)],
         "flips": (560, 580, 600),
         "insns": 400_000_000,
     },
@@ -151,9 +162,14 @@ SCREENS = {
     # The port writes into an in-memory overlay and never onto the host, which
     # is what the emulator does too, so running this leaves the game directory
     # exactly as it found it.
+    #
+    # **The second row, not the first**: the fixture's SUBDIR is listed first,
+    # and clicking it changes directory and leaves the name empty - SAVE then
+    # says "Unable to open that file for saving", identically on both sides,
+    # and nothing is written. The second row is 6_JACKS.TIM.
     "save": {
-        "clicks": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
-                   (700, 220, 152), (840, 100, 128), (980, 88, 312),
+        "clicks": [*COPY_PROTECTION, (420, 76, 152), (560, 222, 220),
+                   (700, 220, 152), (840, 100, 136), (980, 88, 312),
                    (1120, 222, 220)],
         "flips": (1200, 1250),
         "insns": 700_000_000,
