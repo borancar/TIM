@@ -99,7 +99,7 @@ struct archive_lookup {
 /* Not placed: the port's `vm_init`, which the hybrid runs as the machine
    layer, opens files through the archive lookup, and its count and its
    lists have to be the same side's. */
-struct archive_lookup g_archive_lookup;   /* DGROUP 0x547a */
+struct archive_lookup g_archive_lookup;   /* DGROUP 0x5094 */
 
 /*
  * **Which four characters of a filename its hash is made of**, at DGROUP

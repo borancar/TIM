@@ -40,7 +40,7 @@
 #include "dgroup.h"
 
 /* **This module's `_BSS`**, DGROUP 0x5456..0x546c: the goal conditions. */
-struct part *g_rope_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed while it is detached */
+struct part *g_rope_far_end;   /* DGROUP 0x5066  the far end's +0x5a, stashed while it is detached */
 /* **Ten words the goal tests keep between frames**, and what each means
    depends on the test. `goal_test_puzzles_19_48` at 0x01bb4 does
    `inc word ptr [0x5458]` - a count of frames the goal has held, and
@@ -49,7 +49,7 @@ struct part *g_rope_far_end;   /* DGROUP 0x5456  the far end's +0x5a, stashed wh
    flag per cage. The ten is `clear_machine`'s, which zeroes them with
    `cmp si, 0xa / jl` over a word stride; nothing yet says the table is no
    longer than that. */
-uint16_t g_goal_condition[10];   /* DGROUP 0x5458..0x546c */
+uint16_t g_goal_condition[10];   /* DGROUP 0x5068..0x546c */
 
 /*
  * 0x014bf - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.

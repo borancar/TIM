@@ -4529,7 +4529,7 @@ void retire_and_tick(struct sequence far * seq)
 }
 
 /*
- * 0x297cd (1.00's; not yet placed in 1.11)
+ * 0x297cd
  *
  * Take a sequence out of the playing table and stop it. Hand-written assembly
  * with the record in `es:ax`.
@@ -5253,7 +5253,7 @@ void drop_unless_polled(struct sequence far * seq)
 }
 
 /*
- * 0x2a4d0 (1.00's; not yet placed in 1.11)
+ * 0x2a4d0
  *
  * Poll every sequence that has asked to be polled, and let the host callback
  * decide whether it carries on.

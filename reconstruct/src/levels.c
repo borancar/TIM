@@ -33,7 +33,7 @@
 #include "dgroup.h"
 
 /* The level reader's and writer's own words - see `struct level_io`. */
-struct level_io g_level_io;   /* DGROUP 0x546c */
+struct level_io g_level_io;   /* DGROUP 0x5086 */
 
 /*
  * 0x1351f

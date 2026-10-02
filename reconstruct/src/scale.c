@@ -63,8 +63,8 @@ struct engine_stride_shifts g_engine_stride_shifts = {
 
 
 /* **This module's `_BSS`**: the two tables the scaled blits build. */
-struct engine_scale_table g_engine_scale_table;   /* DGROUP 0x5956 */
-struct engine_row_offsets g_engine_row_offsets;   /* DGROUP 0x5e56 */
+struct engine_scale_table g_engine_scale_table;   /* DGROUP 0x552e */
+struct engine_row_offsets g_engine_row_offsets;   /* DGROUP 0x5a2e */
 
 /*
  * 0x224ca

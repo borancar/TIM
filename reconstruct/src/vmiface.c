@@ -155,7 +155,7 @@ struct vmds g_vmds = {
     .screen = { .screen_width = 0x0140, .screen_height = 0x00c8 },
 };
 
-struct vm_driver g_vm_driver = {   /* DGROUP 0x4342 */
+struct vm_driver g_vm_driver = {   /* DGROUP 0x3f42 */
     .detect_allowed = 0x0001,
     .entry = {
         vm_null_hook,
@@ -211,7 +211,7 @@ struct vm_driver g_vm_driver = {   /* DGROUP 0x4342 */
     },
 };
 
-struct vm_hooks g_vm_hooks = {   /* DGROUP 0x440e */
+struct vm_hooks g_vm_hooks = {   /* DGROUP 0x400e */
     vm_null_hook,
     {
         (void (*)(void))dos_alloc_bytes,

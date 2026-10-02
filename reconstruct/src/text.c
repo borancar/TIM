@@ -45,10 +45,10 @@ typedef void (far *vm_glyph_fn)(void);
    2.0 orders them by name, and these names are ones that order puts where
    the image has them - `g_engine_font_*` did not; see files.c. */
 struct engine_font_kinds g_font_kinds;
-struct engine_font_bodies g_font_bodies;   /* DGROUP 0x618a */
-struct engine_font_widths g_font_widths;   /* DGROUP 0x61da */
-struct engine_font_slots g_font_slots;   /* DGROUP 0x622a */
-struct engine_underline_rows g_underline_rows;   /* DGROUP 0x627a */
+struct engine_font_bodies g_font_bodies;   /* DGROUP 0x5d62 */
+struct engine_font_widths g_font_widths;   /* DGROUP 0x5db2 */
+struct engine_font_slots g_font_slots;   /* DGROUP 0x5e02 */
+struct engine_underline_rows g_underline_rows;   /* DGROUP 0x5e52 */
 
 /*
  * 0x23128

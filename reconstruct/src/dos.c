@@ -279,7 +279,7 @@ _dos_drive_fixed proc far
         retf
 _dos_drive_fixed endp
 
-/* 0x0c42d (1.00's; not yet placed in 1.11) */
+/* 0x0c42d */
 _dos_disk_reset proc far
         mov ax, 0d00h
         int 21h
@@ -702,7 +702,7 @@ uint16_t dos_drive_fixed(uint16_t drive)
 }
 
 /*
- * 0x0c42d (1.00's; not yet placed in 1.11)
+ * 0x0c42d
  *
  * **Reset the disks**: INT 21h AH=0Dh, flushing DOS's buffers. Nothing
  * calls it.

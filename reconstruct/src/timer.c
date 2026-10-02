@@ -347,7 +347,7 @@ TIMER_TEXT ends
 #else
 
 /* **This module's `_DATA`**: the timer's state and its callback table. */
-struct timer g_timer = { .divisor = -1 };   /* DGROUP 0x44ee */
+struct timer g_timer = { .divisor = -1 };   /* DGROUP 0x40ee */
 
 /* Ours: the callback table the timer keeps at DGROUP 0x44f9, as the host's
    own code pointers - see `struct timer`. */

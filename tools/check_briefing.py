@@ -86,6 +86,19 @@ SCREENS = {
         "flips": (380, 400, 430),
         "insns": 600_000_000,
     },
+    # **1.11's puzzle 88 running**, the tutorial that shows every new part:
+    # the copy-protection picks, the panel's puzzle-select icon, four pages
+    # down the list (21 to a page; 1.11 opens the first 88), its row, the
+    # list's play arrow, then the panel's play triangle. The flips compared
+    # are of the machine running - the new parts' hooks, drawn.
+    "run-88": {
+        "clicks": [(235, 100, 60), (255, 160, 60), (275, 220, 60),
+                   (295, 280, 60), (420, 124, 150), (450, 476, 278),
+                   (470, 476, 278), (490, 476, 278), (510, 476, 278),
+                   (560, 200, 108), (580, 516, 318), (680, 68, 105)],
+        "flips": (760, 860, 900),
+        "insns": 2_500_000_000,
+    },
     # The **file picker**, which is four clicks in: dismiss, the wrench to ask
     # for freeform mode, YES to confirm it, then Load Machine. It is behind
     # freeform because `game_screen`'s LOAD case does nothing outside it.

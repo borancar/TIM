@@ -60,9 +60,9 @@ struct machine_cursor_state g_machine_cursor_state = {
 struct pointer g_pointer;
 
 uint8_t far *g_rect_buffer[3];   /* DGROUP 0x5371 in 1.11 (1.00: 0x5758, four of them) */
-int16_t g_size_word;                                  /* DGROUP 0x5756 */
-volatile int16_t g_frame_flag;                        /* DGROUP 0x5754 */
-uint16_t g_redraw_guard;                              /* DGROUP 0x5752 */
+int16_t g_size_word;                                  /* DGROUP 0x536f */
+volatile int16_t g_frame_flag;                        /* DGROUP 0x536d */
+uint16_t g_redraw_guard;                              /* DGROUP 0x536b */
 
 /*
  * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,

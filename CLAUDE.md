@@ -14,7 +14,8 @@ right on screen.
 Machine ships it, in `even-more-incredible-machine/` (untracked; supply your
 own). 1.00 is reconstructed - byte-exact and working - and tagged `tim-1.00`.
 `tools/unrnc.py` recovers 1.11's image and `docs/v1.11.md` holds what is
-known about it; the sources are still 1.00's until each module is rebuilt.
+known about it. Since 2026-10-02 the sources are 1.11's: `tools/link.py`
+links them into 1.11's program, every byte and relocation.
 
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
 `reconstruct/src` file is to compile under the compiler that built it -
