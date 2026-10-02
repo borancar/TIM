@@ -334,6 +334,55 @@ static uint16_t *dos_block_size(struct paragraph *block)
     return (uint16_t *)(block - 1);
 }
 
+/*
+ * **The live blocks, so a segment can name its block from anywhere inside
+ * it.** On DOS a far pointer keeps the segment it was made with: `block + 1`
+ * moves the offset and leaves the segment alone, so every record of a block
+ * still carries the block's own segment, and `dos_free_far` frees the block
+ * from whichever record it is handed. A host pointer has no segment of its
+ * own - `FP_SEG` is the paragraph the pointer is in - so the block has to be
+ * found from that paragraph instead, which is what this table is for.
+ *
+ * Found 2026-10-03: quitting freed the 180 shape records through
+ * `g_shape_free`, the head of their free list, which is the block's first
+ * record only until play has taken shapes and given them back - "free():
+ * invalid size", some of the time. A paragraph in no live block is left
+ * alone, as DOS refuses a segment that is not a block and the game does not
+ * look at the error.
+ */
+#define DOS_BLOCKS_MAX 512
+
+static struct paragraph *dos_blocks[DOS_BLOCKS_MAX];
+
+static void dos_block_add(struct paragraph *block)
+{
+    size_t i;
+
+    for (i = 0; i < DOS_BLOCKS_MAX; i++)
+        if (dos_blocks[i] == NULL) {
+            dos_blocks[i] = block;
+            return;
+        }
+    fprintf(stderr, "io: more than %d DOS blocks live\n", DOS_BLOCKS_MAX);
+    abort();
+}
+
+static struct paragraph *dos_block_of(struct paragraph *p, size_t *slot)
+{
+    size_t i;
+
+    for (i = 0; i < DOS_BLOCKS_MAX; i++) {
+        struct paragraph *b = dos_blocks[i];
+
+        if (b != NULL && p >= b && p < b + *dos_block_size(b)) {
+            if (slot)
+                *slot = i;
+            return b;
+        }
+    }
+    return NULL;
+}
+
 struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
                                int32_t *failed)
 {
@@ -349,6 +398,7 @@ struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
     memset(mcb, 0, ((size_t)paragraphs + 1) * 16);
     *dos_block_size(mcb + 1) = paragraphs;
     dos_free_paras -= paragraphs;
+    dos_block_add(mcb + 1);
     *failed = 0;
     *largest = (uint16_t)dos_free_paras;
     return mcb + 1;
@@ -362,7 +412,11 @@ struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
  */
 uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs)
 {
-    uint16_t *size = dos_block_size(block);
+    uint16_t *size;
+
+    if ((block = dos_block_of(block, NULL)) == NULL)
+        return 0xffff;              /* not a block: DOS refuses; nothing reads it */
+    size = dos_block_size(block);
 
     if (paragraphs > *size)
         return *size;
@@ -373,8 +427,11 @@ uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs)
 
 void io_dos_free(struct paragraph *block)
 {
-    if (block == NULL)
+    size_t slot;
+
+    if (block == NULL || (block = dos_block_of(block, &slot)) == NULL)
         return;
+    dos_blocks[slot] = NULL;
     dos_free_paras += *dos_block_size(block);
     free(block - 1);
 }
