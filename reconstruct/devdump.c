@@ -873,11 +873,13 @@ int32_t dev_simulate_machine(int32_t max_frames)
 /*
  * OURS: `TIM_DATE=MM-DD` or `TIM_DATE=YYYY-MM-DD`, the date the game is told.
  *
- * Four parts are on the calendar and cannot be reached any other way - they
+ * Four parts are on the calendar (`tools/tim.py` answers the original
+ * the same date from the same variable) and cannot be reached any other way - they
  * are in no level, and `machine.c` sets their flags from `getdate`:
  *
  *     TIM_DATE=02-14   the heart balloon, kind 33
- *     TIM_DATE=03-17   sets 0x4e7f, which nothing reads
+ *     TIM_DATE=03-17   the shamrock, kind 65 (1.11; 1.00 read nothing)
+ *     TIM_DATE=07-04   sets a flag 1.11 added, which nothing reads
  *     TIM_DATE=10-31   the pumpkin, kind 32
  *     TIM_DATE=12-25   the christmas tree, kind 34
  *

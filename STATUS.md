@@ -928,10 +928,20 @@ All agree: 0 of 307,200 pixels at every flip of `briefing-1.11`, `picker`,
 and the saved files identical (19 bytes empty, 3,329 for 6_JACKS.TIM).
 Puzzle 88, the tutorial of the new parts, starts with kinds 51, 52, 54 and
 58-64 and holds 53, the pin, in its bin; `run-88` runs it and `place-88`
-places the pin and runs. **Not reached by anything yet**: kinds 55-57 and
-65, which no level starts with or holds in its bin (freeform's bin only),
-and solutions for any level past 30 - `check_solutions` has 29, all 1.00's
-levels, and none uses a 1.11 part.
+places the pin and runs. Kind 65, the shamrock, is offered on the 17th of
+March only: `bin-stpatrick` tells both sides that date (`TIM_DATE`, which
+`tools/tim.py` now answers for the original too), places one and runs.
+**Not reached by anything**: kinds 55-57, which `build_part_list` never
+offers and no level holds, and solutions for any level past 30 -
+`check_solutions` has 29, all 1.00's levels, and none uses a 1.11 part.
+
+**The bin's auto-repeat cannot be compared by holding it.** Fourteen
+forward clicks parted the two sides at the ninth: how many pages a press
+scrolls counts `game_screen_loop` iterations, which the two run at
+different rates per flip, and the port's repeat delay (the one deliberate
+deviation, screen.c) is not the original's `% 3` either - built with the
+original's test, they parted at the third. A screen that needs a far page
+reaches it in one click (the back arrow wraps to the end).
 
 ### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
 

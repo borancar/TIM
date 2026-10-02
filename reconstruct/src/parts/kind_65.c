@@ -6,7 +6,9 @@
  *
  * **Kind 65's handlers**, new in 1.11 - a part that only has a shape: its
  * setup is all it has of its own. Kind 65 is the one `build_part_list`
- * offers only on St Patrick's day. Its icon will say what it is.
+ * offers only on St Patrick's day, and its icon is a **shamrock**.
+ * `check_briefing --screen bin-stpatrick` places one and runs the machine
+ * (`TIM_DATE=03-17`): it leaves the screen on both sides alike.
  *
  * In 1.11, image 0x1e33d.. in the part kinds' code segment. **Both ends are
  * ours**: each kind in 1.00 is a module of its own, and so is this one until

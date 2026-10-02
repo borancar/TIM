@@ -380,6 +380,21 @@ class TimMachine(VgaDos):
     def _dos(self):
         ax = self._reg(UC_X86_REG_AX)
         ah = ax >> 8
+        if ah == 0x2A and os.environ.get("TIM_DATE"):
+            # Ours: `TIM_DATE`, the date the game is told, read the way the
+            # port's `dev_date_override` reads it (devdump.c) so one variable
+            # dates both sides of a comparison. Four parts are on the
+            # calendar and nowhere else; upstream always answers 2000-11-02.
+            spec = os.environ["TIM_DATE"].split("-")
+            y, m, d = ([2000] + spec if len(spec) == 2 else spec)
+            y, m, d = int(y), int(m), int(d)
+            t = (0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4)
+            yy = y - (m < 3)
+            w = (yy + yy // 4 - yy // 100 + yy // 400 + t[m - 1] + d) % 7
+            self._set(UC_X86_REG_CX, y)
+            self._set(UC_X86_REG_DX, (m << 8) | d)
+            self._set(UC_X86_REG_AX, w)
+            return
         if ah in (0x3D, 0x3E, 0x3F, 0x42):
             # Track open files, so tools/verify.py can prime the port with the
             # same handles at the same offsets. Without this a routine that

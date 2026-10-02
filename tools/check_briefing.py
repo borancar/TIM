@@ -119,6 +119,28 @@ SCREENS = {
         "flips": (730, 800, 900, 1000),
         "insns": 3_000_000_000,
     },
+    # **The end of freeform's bin on the 17th of March**, the one day
+    # `build_part_list` offers kind 65. Freeform as `picker` enters it, the
+    # machine thumbnail to close the panel, then **one** click on the back
+    # arrow, which from the first page wraps to the last through
+    # `bin_scroll_end`: kinds 64 and 65, the bumper and the shamrock. Then
+    # the shamrock picked up, put down (two clicks), and the top-right picture
+    # to run the machine. Flip 700 is the last page, 750 the shamrock down,
+    # 800 and 860 running.
+    #
+    # One click, because how many pages a press scrolls is the auto-repeat's,
+    # and that counts loop iterations, which the two sides do not run at the
+    # same rate per flip: fourteen forward clicks parted at the ninth with the
+    # port's repeat delay and at the third with the original's `% 3`
+    # (2026-10-02).
+    "bin-stpatrick": {
+        "date": "03-17",
+        "clicks": [*COPY_PROTECTION, (420, 76, 152), (560, 222, 220),
+                   (620, 400, 150), (650, 590, 77), (690, 602, 165),
+                   (720, 300, 150), (735, 300, 150), (760, 605, 35)],
+        "flips": (700, 750, 800, 860),
+        "insns": 1_000_000_000,
+    },
     # The **file picker**, which is four clicks in: dismiss, the wrench to ask
     # for freeform mode, YES to confirm it, then Load Machine. It is behind
     # freeform because `game_screen`'s LOAD case does nothing outside it.
@@ -292,6 +314,11 @@ def main():
     screen = SCREENS[args.screen]
     flips = sorted(args.flip) or list(screen["flips"])
     insns = args.insns or screen["insns"]
+    # A screen's `date` is `TIM_DATE`, which the port's `devtim` and
+    # `tim.TimMachine` both read: four parts are on the calendar and nowhere
+    # else. Set here, before either side starts, so both are told the same.
+    if "date" in screen:
+        os.environ["TIM_DATE"] = screen["date"]
     last = flips[-1]
     out = args.keep or tempfile.mkdtemp(prefix=args.screen)
     ref_dir = os.path.join(out, "ref")
