@@ -58,12 +58,13 @@ struct point8 g_scissors_points_flipped[2][8] = {
 struct point8 *g_scissors_point_table_flipped[2] = { g_scissors_points_flipped[0], g_scissors_points_flipped[1] };
 
 /*
- * DGROUP 0x34ba..0x34ca. **The scissors' blade**, a segment of four words - x0, y0, x1, y1 -
+ * DGROUP 0x305c..0x306c. **The scissors' blade**, a segment - its two end points -
  * once as it stands and once mirrored; `part_step_scissors` picks one by the
  * flip bit and `cut_ropes` cuts every rope that crosses it.
  */
-int16_t g_scissors_cut_line[2][4] = {
-    { 0x0016, 0x000f, 0x0027, 0x000f }, { 0x0000, 0x000f, 0x0010, 0x000f },
+struct point16 g_scissors_cut_line[2][2] = {
+    { { 22, 15 }, { 39, 15 } },
+    { { 0, 15 }, { 16, 15 } },
 };
 
 /*
@@ -183,15 +184,15 @@ void part_flip_scissors(struct part *part)
  * geometry refreshed with the machine forced into state 0x1000, and the walk
  * ends: a rope is only cut once per pass.
  */
-void cut_ropes(struct part *part, const int16_t *line)
+void cut_ropes(struct part *part, const struct point16 *line)
 {
     struct part *di;                    /* the near anchor */
     int16_t k;                          /* [bp-2] */
     int16_t slotA;                      /* [bp-4] */
     int16_t slotB;                      /* [bp-6] */
     int16_t saved;                      /* [bp-8] */
-    int16_t at[2];                      /* [bp-0xc] */
-    int16_t seg[4];                     /* [bp-0x14] */
+    struct point16 at;                      /* [bp-0xc] */
+    struct point16 seg[2];                     /* [bp-0x14] */
     struct part *rec;                   /* [bp-0x16] */
     struct part *prev;                  /* [bp-0x18] */
     struct part *next;                  /* [bp-0x1a] */
@@ -216,16 +217,16 @@ void cut_ropes(struct part *part, const int16_t *line)
                 if (prev != endA)
                     slotA = 1;
 
-                seg[0] = prev->box[0].x + prev->attach[slotA].x - part->pos[0].x;
-                seg[1] = prev->box[0].y + prev->attach[slotA].y - part->pos[0].y;
+                seg[0].x = prev->box[0].x + prev->attach[slotA].x - part->pos[0].x;
+                seg[0].y = prev->box[0].y + prev->attach[slotA].y - part->pos[0].y;
 
                 if (next == endB)
                     slotB = rope->slot_b;
 
-                seg[2] = next->box[0].x + next->attach[slotB].x - part->pos[0].x;
-                seg[3] = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
+                seg[1].x = next->box[0].x + next->attach[slotB].x - part->pos[0].x;
+                seg[1].y = next->box[0].y + next->attach[slotB].y - part->pos[0].y;
 
-                if (intersect_segments(line, seg, (uint8_t *)at) != 0) {
+                if (intersect_segments(line, seg, &at) != 0) {
                     saved = g_round_state;
                     g_round_state = 0x1000;
                     mark_rope_shapes(rope->owner, 3);
@@ -245,8 +246,8 @@ void cut_ropes(struct part *part, const int16_t *line)
 
                     insert_sorted(di, &g_moving_parts);
                     di->traits |= TRAIT_SPAWNED;
-                    di->pos[0].x = at[0] + part->pos[0].x;
-                    di->pos[0].y = at[1] + part->pos[0].y;
+                    di->pos[0].x = at.x + part->pos[0].x;
+                    di->pos[0].y = at.y + part->pos[0].y;
 
                     insert_sorted(anchorB, &g_moving_parts);
                     anchorB->traits |= TRAIT_SPAWNED;

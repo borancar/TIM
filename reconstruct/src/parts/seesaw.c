@@ -53,12 +53,13 @@ struct point16 g_seesaw_points[3][8] = {
 };
 
 /*
- * DGROUP 0x3542..0x355a. The seesaw's shaft by form, a segment of four words - x0, y0, x1, y1 -
- * which `part_step_seesaw` hands `link_objects_crossing`.
+ * DGROUP 0x30e4..0x30fc. The seesaw's shaft by form, a segment - its two end
+ * points - which `part_step_seesaw` hands `link_objects_crossing`.
  */
-int16_t g_seesaw_shaft_line[3][4] = {
-    { 0x0000, 0x0020, 0x004f, 0x0003 }, { 0x0000, 0x0011, 0x004f, 0x0011 },
-    { 0x0000, 0x0003, 0x004f, 0x0020 },
+struct point16 g_seesaw_shaft_line[3][2] = {
+    { { 0, 32 }, { 79, 3 } },
+    { { 0, 17 }, { 79, 17 } },
+    { { 0, 3 }, { 79, 32 } },
 };
 
 /*

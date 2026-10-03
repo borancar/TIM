@@ -346,19 +346,19 @@ int16_t angle_to_quadrant(register int16_t angle)
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
-void set_side_flags(register const int16_t *range, int16_t v,
+void set_side_flags(register const struct point16 *range, int16_t v,
                     register struct part_contact *out)
 {
-    if (value_between(v, range[0], range[2])) {
+    if (value_between(v, range[0].x, range[1].x)) {
         out->no_nudge_plus = 1;
         out->no_nudge_minus = 1;
-    } else if (range[0] < range[2]) {
-        if (range[0] > v)
+    } else if (range[0].x < range[1].x) {
+        if (range[0].x > v)
             out->no_nudge_minus = 1;
         else
             out->no_nudge_plus = 1;
     } else {
-        if (range[2] > v)
+        if (range[1].x > v)
             out->no_nudge_plus = 1;
         else
             out->no_nudge_minus = 1;
@@ -539,9 +539,9 @@ int16_t find_edge_contact(int16_t test_only)
     int16_t c;                          /* [bp-0x28] */
     int16_t run;                        /* [bp-0x2a] */
     struct part_contact *cp;            /* [bp-0x2c] */
-    int16_t seg2[4];                    /* [bp-0x34] */
-    int16_t seg1[4];                    /* [bp-0x3c] */
-    int16_t out[2];                     /* [bp-0x40] */
+    struct point16 seg2[2];                    /* [bp-0x34] */
+    struct point16 seg1[2];                    /* [bp-0x3c] */
+    struct point16 out;                     /* [bp-0x40] */
     register struct part_point *si;
     register struct part_point *di;
 
@@ -568,49 +568,49 @@ int16_t find_edge_contact(int16_t test_only)
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = di->angle - a_ang + 0x8000;
                     if (d <= 0 && (g_collide_moved_x || g_collide_moved_y)) {
-                        seg1[0] = g_collide_list->pos[1].x
+                        seg1[0].x = g_collide_list->pos[1].x
                                   + di->x - x0;
-                        seg1[1] = g_collide_list->pos[1].y
+                        seg1[0].y = g_collide_list->pos[1].y
                                   + di->y - y0;
-                        tx = seg1[2] = seg1[0] + g_collide_moved_x;
-                        ty = seg1[3] = seg1[1] + g_collide_moved_y;
+                        tx = seg1[1].x = seg1[0].x + g_collide_moved_x;
+                        ty = seg1[1].y = seg1[0].y + g_collide_moved_y;
 
-                        seg2[0] = 0;
-                        seg2[1] = 0;
-                        seg2[2] = x1 - x0;
-                        seg2[3] = y1 - y0;
+                        seg2[0].x = 0;
+                        seg2[0].y = 0;
+                        seg2[1].x = x1 - x0;
+                        seg2[1].y = y1 - y0;
                         step_pair_apart(seg2);
 
-                        if (intersect_segments(seg1, seg2, (uint8_t *)out)
-                            && !(out[1] == seg2[3] && out[0] == seg2[2])) {
+                        if (intersect_segments(seg1, seg2, &out)
+                            && !(out.y == seg2[1].y && out.x == seg2[1].x)) {
                             if (test_only)
                                 return 1;
 
-                            seg2[0] = g_machine_quadrant_steps.dx[quad];
-                            seg2[1] = g_machine_quadrant_steps.dy[quad];
-                            seg2[2] += g_machine_quadrant_steps.dx[quad];
-                            seg2[3] += g_machine_quadrant_steps.dy[quad];
+                            seg2[0].x = g_machine_quadrant_steps.dx[quad];
+                            seg2[0].y = g_machine_quadrant_steps.dy[quad];
+                            seg2[1].x += g_machine_quadrant_steps.dx[quad];
+                            seg2[1].y += g_machine_quadrant_steps.dy[quad];
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
-                                if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
+                                if (!intersect_segments(seg1, seg2, &out)) {
                                     g_collide_list->pos[0].x =
                                         g_collide_list->pos[1].x;
                                     g_collide_list->pos[0].y =
                                         g_collide_list->pos[1].y;
                                 } else {
-                                    g_collide_list->pos[0].x += out[0] - tx;
-                                    g_collide_list->pos[0].y += out[1] - ty;
+                                    g_collide_list->pos[0].x += out.x - tx;
+                                    g_collide_list->pos[0].y += out.y - ty;
                                 }
                             } else {
-                                p = seg1[2];
-                                q = seg2[3] - seg2[1];
-                                r = seg2[2] - seg2[0];
-                                c = q * seg2[0] - r * seg2[1];
+                                p = seg1[1].x;
+                                q = seg2[1].y - seg2[0].y;
+                                r = seg2[1].x - seg2[0].x;
+                                c = q * seg2[0].x - r * seg2[0].y;
                                 run = 0 - r;
                                 if (run != 0) {
-                                    out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    g_collide_list->pos[0].y += out[1] - ty;
+                                    out.y = (int16_t)(c - (int16_t)(q * p)) / run;
+                                    g_collide_list->pos[0].y += out.y - ty;
                                 } else {
                                     g_collide_list->pos[0].x =
                                         g_collide_list->pos[1].x;
@@ -736,9 +736,9 @@ int16_t find_edge_contact_reversed(int16_t test_only)
     int16_t r;                          /* [bp-0x28] */
     int16_t c;                          /* [bp-0x2a] */
     int16_t run;                        /* [bp-0x2c] */
-    int16_t seg2[4];                    /* [bp-0x34] */
-    int16_t seg1[4];                    /* [bp-0x3c] */
-    int16_t out[2];                     /* [bp-0x40] */
+    struct point16 seg2[2];                    /* [bp-0x34] */
+    struct point16 seg1[2];                    /* [bp-0x3c] */
+    struct point16 out;                     /* [bp-0x40] */
     register struct part_point *si;
     register struct part_point *di;
 
@@ -765,49 +765,49 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                 if (d >= 0 || d == (int16_t)0x8000) {
                     d = si->angle - a_ang + 0x8000;
                     if (d <= 0 && (g_collide_moved_x || g_collide_moved_y)) {
-                        sx = seg1[2] = g_collide_other->pos[0].x
+                        sx = seg1[1].x = g_collide_other->pos[0].x
                                        + si->x - x0;
-                        sy = seg1[3] = g_collide_other->pos[0].y
+                        sy = seg1[1].y = g_collide_other->pos[0].y
                                        + si->y - y0;
-                        seg1[0] = seg1[2] + g_collide_moved_x;
-                        seg1[1] = seg1[3] + g_collide_moved_y;
+                        seg1[0].x = seg1[1].x + g_collide_moved_x;
+                        seg1[0].y = seg1[1].y + g_collide_moved_y;
 
-                        seg2[0] = 0;
-                        seg2[1] = 0;
-                        seg2[2] = x1 - x0;
-                        seg2[3] = y1 - y0;
+                        seg2[0].x = 0;
+                        seg2[0].y = 0;
+                        seg2[1].x = x1 - x0;
+                        seg2[1].y = y1 - y0;
                         step_pair_apart(seg2);
 
-                        if (intersect_segments(seg1, seg2, (uint8_t *)out)
-                            && !(out[1] == seg2[3] && out[0] == seg2[2])) {
+                        if (intersect_segments(seg1, seg2, &out)
+                            && !(out.y == seg2[1].y && out.x == seg2[1].x)) {
                             if (test_only)
                                 return 1;
 
-                            seg2[0] = 0 - g_machine_quadrant_steps.dx[quad];
-                            seg2[1] = 0 - g_machine_quadrant_steps.dy[quad];
-                            seg2[2] += 0 - g_machine_quadrant_steps.dx[quad];
-                            seg2[3] += 0 - g_machine_quadrant_steps.dy[quad];
+                            seg2[0].x = 0 - g_machine_quadrant_steps.dx[quad];
+                            seg2[0].y = 0 - g_machine_quadrant_steps.dy[quad];
+                            seg2[1].x += 0 - g_machine_quadrant_steps.dx[quad];
+                            seg2[1].y += 0 - g_machine_quadrant_steps.dy[quad];
 
                             same = angles_same_side(a_ang + 0x8000);
                             if (same == 0) {
-                                if (!intersect_segments(seg1, seg2, (uint8_t *)out)) {
+                                if (!intersect_segments(seg1, seg2, &out)) {
                                     g_collide_list->pos[0].x =
                                         g_collide_list->pos[1].x;
                                     g_collide_list->pos[0].y =
                                         g_collide_list->pos[1].y;
                                 } else {
-                                    g_collide_list->pos[0].x -= out[0] - sx;
-                                    g_collide_list->pos[0].y -= out[1] - sy;
+                                    g_collide_list->pos[0].x -= out.x - sx;
+                                    g_collide_list->pos[0].y -= out.y - sy;
                                 }
                             } else {
-                                p = seg1[2];
-                                q = seg2[3] - seg2[1];
-                                r = seg2[2] - seg2[0];
-                                c = q * seg2[0] - r * seg2[1];
+                                p = seg1[1].x;
+                                q = seg2[1].y - seg2[0].y;
+                                r = seg2[1].x - seg2[0].x;
+                                c = q * seg2[0].x - r * seg2[0].y;
                                 run = 0 - r;
                                 if (run != 0) {
-                                    out[1] = (int16_t)(c - (int16_t)(q * p)) / run;
-                                    g_collide_list->pos[0].y -= out[1] - sy;
+                                    out.y = (int16_t)(c - (int16_t)(q * p)) / run;
+                                    g_collide_list->pos[0].y -= out.y - sy;
                                 } else {
                                     g_collide_list->pos[0].x =
                                         g_collide_list->pos[1].x;
@@ -836,12 +836,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             g_collide_list->contact_angle = a_ang + 0x8000;
 
                             if (x0 > x1) {
-                                if (v > out[0])
+                                if (v > out.x)
                                     g_collide_list->no_nudge_plus = 1;
                                 else
                                     g_collide_list->no_nudge_minus = 1;
                             } else {
-                                if (v > out[0])
+                                if (v > out.x)
                                     g_collide_list->no_nudge_minus = 1;
                                 else
                                     g_collide_list->no_nudge_plus = 1;

@@ -194,7 +194,8 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
  * four words handed to `intersect_segments` are differences rather than
  * positions.
  */
-void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line)
+void link_objects_crossing(struct part *obj, uint16_t flags,
+                           const struct point16 *line)
 {
     register struct part *si;
     register struct part_point *pt;
@@ -205,8 +206,8 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
     int16_t y_last;                     /* [bp-0xa] */
     int16_t y_this;                     /* [bp-0xc] */
     int16_t y_first;                    /* [bp-0xe] */
-    int16_t seg[4];                     /* [bp-0x16] the segment */
-    uint8_t cross[4];                   /* [bp-0x1a] where they crossed */
+    struct point16 seg[2];                     /* [bp-0x16] the segment */
+    struct point16 cross;               /* [bp-0x1a] where they crossed */
 
     obj->next_linked = 0;
 
@@ -220,12 +221,12 @@ void link_objects_crossing(struct part *obj, uint16_t flags, const int16_t *line
         y_this = si->pos[0].y + pt[1].y;
 
         while (pt != NEAR_ZERO((struct part_point *)0)) {
-            seg[0] = x_last - obj->pos[0].x;
-            seg[1] = y_last - obj->pos[0].y;
-            seg[2] = x_this - obj->pos[0].x;
-            seg[3] = y_this - obj->pos[0].y;
+            seg[0].x = x_last - obj->pos[0].x;
+            seg[0].y = y_last - obj->pos[0].y;
+            seg[1].x = x_this - obj->pos[0].x;
+            seg[1].y = y_this - obj->pos[0].y;
 
-            if (intersect_segments(line, seg, cross)) {
+            if (intersect_segments(line, seg, &cross)) {
                 si->next_linked = obj->next_linked;
                 obj->next_linked = si;
                 n = si->point_count;
