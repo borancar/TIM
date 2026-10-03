@@ -99,7 +99,7 @@ static const struct point8 *ramp_points_before_table(int16_t flipped)
     if (flipped)
         return (const struct point8 *)&g_game_copy_protection.answer[0][5];
 
-    at_1000[0].x = a->offset[3].y;
+    at_1000[0].x = (uint8_t)a->offset[3].y;
     at_1000[0].y = 0;                   /* `b->next`, null: two zero bytes */
     at_1000[1].x = 0;
     at_1000[1].y = b->level;

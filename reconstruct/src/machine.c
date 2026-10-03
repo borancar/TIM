@@ -2399,7 +2399,7 @@ struct part *pick_for_record(struct part *rec, uint16_t flags)
  */
 void place_object_for_draw(register struct part *obj)
 {
-    const struct point8 *hot;
+    const struct offset8 *hot;
     int16_t type;                       /* [bp-2] */
     uint16_t idx;                       /* [bp-4] */
     int16_t flags;                      /* [bp-6] */
@@ -2416,15 +2416,15 @@ void place_object_for_draw(register struct part *obj)
     if ((hot = rec->hotspots) != 0) {
         hot += idx;
         if (flags & STATE_FLIP_HORIZONTAL)
-            obj->box[0].x += obj->flip_size.width - (int8_t)hot->x
+            obj->box[0].x += obj->flip_size.width - hot->x
                              - obj->size[0].width;
         else
-            obj->box[0].x += (int8_t)hot->x;
+            obj->box[0].x += hot->x;
         if (flags & STATE_FLIP_VERTICAL)
-            obj->box[0].y += obj->flip_size.height - (int8_t)hot->y
+            obj->box[0].y += obj->flip_size.height - hot->y
                              - obj->size[0].height;
         else
-            obj->box[0].y += (int8_t)hot->y;
+            obj->box[0].y += hot->y;
     }
 }
 

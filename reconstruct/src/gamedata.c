@@ -71,115 +71,115 @@ struct draw_step g_jack_in_the_box_draw_steps[19] = {   /* DGROUP 0x02a7 */
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x03, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x04, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x05, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x06, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x07, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x08, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 8, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x08, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x09, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0 }, { 0x09, 0x08 } }    /* offset */
+        { { 0, 3 }, { 0 }, { 9, 8 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0a, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0, 0xeb }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 0, -21 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0b, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0x01, 0xde }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { 1, -34 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0c, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfa, 0xc5 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -6, -59 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0d, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0e, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfa, 0xe2 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -6, -30 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0f, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x10, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x11, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x12, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x13, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x14, 0x02, 0xff },    /* frame */
-        { { 0, 0x03 }, { 0xfc, 0xe7 }, { 0x09, 0x09 } }    /* offset */
+        { { 0, 3 }, { -4, -25 }, { 9, 9 } }    /* offset */
     },
 };
 
@@ -206,28 +206,28 @@ struct draw_step *g_jack_in_the_box_form_steps[19] = {   /* DGROUP 0x03c4 */
 };
 
 struct point16 g_jack_in_the_box_form_sizes[19] = {   /* DGROUP 0x03ea */
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0023, 0x0035 },
-    { 0x0023, 0x0042 },
-    { 0x0027, 0x005b },
-    { 0x0024, 0x0039 },
-    { 0x0026, 0x003e },
-    { 0x0025, 0x0039 },
-    { 0x0029, 0x0039 },
-    { 0x0028, 0x0039 },
-    { 0x0024, 0x0039 },
-    { 0x0024, 0x0039 },
-    { 0x0024, 0x0039 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 35, 53 },
+    { 35, 66 },
+    { 39, 91 },
+    { 36, 57 },
+    { 38, 62 },
+    { 37, 57 },
+    { 41, 57 },
+    { 40, 57 },
+    { 36, 57 },
+    { 36, 57 },
+    { 36, 57 },
 };
 
-struct point8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x0436 */
+struct offset8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x0436 */
     { 0 },
     { 0 },
     { 0 },
@@ -236,17 +236,17 @@ struct point8 g_jack_in_the_box_hot_spots[19] = {   /* DGROUP 0x0436 */
     { 0 },
     { 0 },
     { 0 },
-    { 0, 0xeb },
-    { 0, 0xde },
-    { 0xfa, 0xc4 },
-    { 0xfc, 0xe7 },
-    { 0xfa, 0xe2 },
-    { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 },
-    { 0xfc, 0xe7 },
+    { 0, -21 },
+    { 0, -34 },
+    { -6, -60 },
+    { -4, -25 },
+    { -6, -30 },
+    { -4, -25 },
+    { -4, -25 },
+    { -4, -25 },
+    { -4, -25 },
+    { -4, -25 },
+    { -4, -25 },
 };
 
 struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x045c */
@@ -254,139 +254,139 @@ struct draw_step g_bob_the_fish_draw_steps[23] = {   /* DGROUP 0x045c */
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x0a, 0x0b }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 10, 11 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x02, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x0f, 0x09 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 15, 9 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x03, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x1a, 0x10 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 26, 16 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x04, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x1f, 0x11 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 31, 17 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x05, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x1a, 0x10 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 26, 16 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x06, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x0a, 0x0b }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 10, 11 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x07, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x07, 0x0b }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 7, 11 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x08, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x06, 0x0a }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 6, 10 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x09, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x07, 0x10 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 7, 16 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0a, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x10 }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 8, 16 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0b, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x06, 0x0a }, { 0x0a, 0x1b } }    /* offset */
+        { { 0 }, { 6, 10 }, { 10, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x0d, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xf0, 0x08 } }    /* offset */
+        { { -16, 8 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x0e, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xed, 0x0f } }    /* offset */
+        { { -19, 15 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x0f, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xe7, 0x13 } }    /* offset */
+        { { -25, 19 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x11, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x05, 0x27 } }    /* offset */
+        { { -28, 25 }, { 5, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x12, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x05, 0x1f } }    /* offset */
+        { { -28, 25 }, { 5, 31 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x13, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x03, 0x1d } }    /* offset */
+        { { -28, 25 }, { 3, 29 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x14, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x05, 0x1d } }    /* offset */
+        { { -28, 25 }, { 5, 29 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x15, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0xfb, 0x1b } }    /* offset */
+        { { -28, 25 }, { -5, 27 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x16, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0xfb, 0x16 } }    /* offset */
+        { { -28, 25 }, { -5, 22 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x17, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x01, 0x1f } }    /* offset */
+        { { -28, 25 }, { 1, 31 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x18, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x05, 0x24 } }    /* offset */
+        { { -28, 25 }, { 5, 36 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x10, 0x19, 0xff, 0xff },    /* frame */
-        { { 0xe4, 0x19 }, { 0x05, 0x26 } }    /* offset */
+        { { -28, 25 }, { 5, 38 } }    /* offset */
     },
 };
 
@@ -417,32 +417,32 @@ struct draw_step *g_bob_the_fish_form_steps[23] = {   /* DGROUP 0x05b5 */
 };
 
 struct point16 g_bob_the_fish_form_sizes[23] = {   /* DGROUP 0x05e3 */
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0030, 0x0030 },
-    { 0x0058, 0x002b },
-    { 0x0058, 0x0026 },
-    { 0x0060, 0x0025 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0023 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
-    { 0x0068, 0x0020 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 48, 48 },
+    { 88, 43 },
+    { 88, 38 },
+    { 96, 37 },
+    { 104, 32 },
+    { 104, 32 },
+    { 104, 32 },
+    { 104, 32 },
+    { 104, 32 },
+    { 104, 35 },
+    { 104, 32 },
+    { 104, 32 },
+    { 104, 32 },
 };
 
-struct point8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x063f */
+struct offset8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x063f */
     { 0 },
     { 0 },
     { 0 },
@@ -454,18 +454,18 @@ struct point8 g_bob_the_fish_hot_spots[23] = {   /* DGROUP 0x063f */
     { 0 },
     { 0 },
     { 0 },
-    { 0xf0, 0x08 },
-    { 0xed, 0x0f },
-    { 0xe7, 0x13 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x16 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
-    { 0xe4, 0x19 },
+    { -16, 8 },
+    { -19, 15 },
+    { -25, 19 },
+    { -28, 25 },
+    { -28, 25 },
+    { -28, 25 },
+    { -28, 25 },
+    { -28, 25 },
+    { -28, 22 },
+    { -28, 25 },
+    { -28, 25 },
+    { -28, 25 },
 };
 
 struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x066d */
@@ -473,91 +473,91 @@ struct draw_step g_cannon_draw_steps[15] = {   /* DGROUP 0x066d */
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d } }    /* offset */
+        { { 0 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0a, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0xf7, 0xfa } }    /* offset */
+        { { 0 }, { 9, 13 }, { -9, -6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0b, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0xf7, 0xfa } }    /* offset */
+        { { 0 }, { 9, 13 }, { -9, -6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0c, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0xfa, 0xfb } }    /* offset */
+        { { 0 }, { 9, 13 }, { -6, -5 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0d, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0xf9, 0xfd } }    /* offset */
+        { { 0 }, { 9, 13 }, { -7, -3 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0e, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0xfa, 0xfe } }    /* offset */
+        { { 0 }, { 9, 13 }, { -6, -2 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x01, 0x09, 0xff, 0xff },    /* frame */
-        { { 0xf9, 0xf8 }, { 0x09, 0x0d } }    /* offset */
+        { { -7, -8 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x02, 0x09, 0xff, 0xff },    /* frame */
-        { { 0xf8, 0xf5 }, { 0x09, 0x0d } }    /* offset */
+        { { -8, -11 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x00,    /* level */
         { 0x04, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x53, 0xdf } }    /* offset */
+        { { 83, -33 } }    /* offset */
     },
     {
         NEAR_AT(0x06e5, &g_cannon_draw_steps[8]),    /* next */
         0x04,    /* level */
         { 0x03, 0x09, 0xff, 0xff },    /* frame */
-        { { 0xfe, 0xfd }, { 0x09, 0x0d } }    /* offset */
+        { { -2, -3 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x00,    /* level */
         { 0x06, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x65, 0xd2 } }    /* offset */
+        { { 101, -46 } }    /* offset */
     },
     {
         NEAR_AT(0x0703, &g_cannon_draw_steps[10]),    /* next */
         0x04,    /* level */
         { 0x05, 0x09, 0xff, 0xff },    /* frame */
-        { { 0xfe, 0xf9 }, { 0x09, 0x0d } }    /* offset */
+        { { -2, -7 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x00,    /* level */
         { 0x08, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x7f, 0xdf } }    /* offset */
+        { { 127, -33 } }    /* offset */
     },
     {
         NEAR_AT(0x0721, &g_cannon_draw_steps[12]),    /* next */
         0x04,    /* level */
         { 0x07, 0x09, 0xff, 0xff },    /* frame */
-        { { 0xfd, 0xfd }, { 0x09, 0x0d } }    /* offset */
+        { { -3, -3 }, { 9, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x09, 0x0f, 0xff },    /* frame */
-        { { 0 }, { 0x09, 0x0d }, { 0, 0x02 } }    /* offset */
+        { { 0 }, { 9, 13 }, { 0, 2 } }    /* offset */
     },
 };
 
@@ -577,32 +577,32 @@ struct draw_step *g_cannon_form_steps[12] = {   /* DGROUP 0x074e */
 };
 
 struct point16 g_cannon_form_sizes[12] = {   /* DGROUP 0x0766 */
-    { 0x0040, 0x0034 },
-    { 0x0049, 0x003a },
-    { 0x0049, 0x003a },
-    { 0x0046, 0x0039 },
-    { 0x0047, 0x0037 },
-    { 0x0046, 0x0036 },
-    { 0x0035, 0x003c },
-    { 0x003d, 0x003f },
-    { 0x00c2, 0x0054 },
-    { 0x00d2, 0x005e },
-    { 0x00c7, 0x0054 },
-    { 0x0040, 0x0034 },
+    { 64, 52 },
+    { 73, 58 },
+    { 73, 58 },
+    { 70, 57 },
+    { 71, 55 },
+    { 70, 54 },
+    { 53, 60 },
+    { 61, 63 },
+    { 194, 84 },
+    { 210, 94 },
+    { 199, 84 },
+    { 64, 52 },
 };
 
-struct point8 g_cannon_hot_spots[12] = {   /* DGROUP 0x0796 */
+struct offset8 g_cannon_hot_spots[12] = {   /* DGROUP 0x0796 */
     { 0 },
-    { 0xf7, 0xfa },
-    { 0xf7, 0xfa },
-    { 0xfa, 0xfb },
-    { 0xf9, 0xfd },
-    { 0xfa, 0xfe },
-    { 0xf9, 0xf8 },
-    { 0xf8, 0xf5 },
-    { 0xfe, 0xdf },
-    { 0xfe, 0xd2 },
-    { 0xfd, 0xdf },
+    { -9, -6 },
+    { -9, -6 },
+    { -6, -5 },
+    { -7, -3 },
+    { -6, -2 },
+    { -7, -8 },
+    { -8, -11 },
+    { -2, -33 },
+    { -2, -46 },
+    { -3, -33 },
     { 0 },
 };
 
@@ -617,31 +617,31 @@ struct draw_step g_dynamite_draw_steps[6] = {   /* DGROUP 0x07ae */
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x28, 0x09 } }    /* offset */
+        { { 0 }, { 40, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x27, 0x0a } }    /* offset */
+        { { 0 }, { 39, 10 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x03, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x27, 0x09 } }    /* offset */
+        { { 0 }, { 39, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x25, 0x0d } }    /* offset */
+        { { 0 }, { 37, 13 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x05, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x26, 0x0c } }    /* offset */
+        { { 0 }, { 38, 12 } }    /* offset */
     },
 };
 
@@ -655,15 +655,15 @@ struct draw_step *g_dynamite_form_steps[6] = {   /* DGROUP 0x0808 */
 };
 
 struct point16 g_dynamite_form_sizes[6] = {   /* DGROUP 0x0814 */
-    { 0x0030, 0x001c },
-    { 0x0038, 0x001c },
-    { 0x0038, 0x001c },
-    { 0x0038, 0x001c },
-    { 0x0038, 0x001c },
-    { 0x0038, 0x001c },
+    { 48, 28 },
+    { 56, 28 },
+    { 56, 28 },
+    { 56, 28 },
+    { 56, 28 },
+    { 56, 28 },
 };
 
-struct point8 g_dynamite_hot_spots[6] = {   /* DGROUP 0x082c */
+struct offset8 g_dynamite_hot_spots[6] = {   /* DGROUP 0x082c */
     { 0 },
     { 0 },
     { 0 },
@@ -677,49 +677,49 @@ struct draw_step g_electric_plug_draw_steps[8] = {   /* DGROUP 0x0838 */
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 } }    /* offset */
+        { { 0 }, { 8, 8 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x03, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x03, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x12 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x03, 0x03 },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 4 }, { 29, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 } }    /* offset */
+        { { 0 }, { 8, 8 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x03, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x03, 0xff },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x12 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x03, 0x03 },    /* frame */
-        { { 0 }, { 0x08, 0x08 }, { 0x1d, 0x04 }, { 0x1d, 0x12 } }    /* offset */
+        { { 0 }, { 8, 8 }, { 29, 4 }, { 29, 18 } }    /* offset */
     },
 };
 
@@ -735,14 +735,14 @@ struct draw_step *g_electric_plug_form_steps[8] = {   /* DGROUP 0x08b0 */
 };
 
 struct point16 g_electric_plug_form_sizes[8] = {   /* DGROUP 0x08c0 */
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
-    { 0x0030, 0x0020 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
+    { 48, 32 },
 };
 
 struct draw_step g_dynamite_plunger_draw_steps[3] = {   /* DGROUP 0x08e0 */
@@ -750,19 +750,19 @@ struct draw_step g_dynamite_plunger_draw_steps[3] = {   /* DGROUP 0x08e0 */
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x02, 0x01, 0xff },    /* frame */
-        { { 0, 0x13 }, { 0x67, 0 }, { 0x28, 0x10 } }    /* offset */
+        { { 0, 19 }, { 103, 0 }, { 40, 16 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x02, 0x01, 0xff },    /* frame */
-        { { 0, 0x13 }, { 0x67, 0x05 }, { 0x28, 0x10 } }    /* offset */
+        { { 0, 19 }, { 103, 5 }, { 40, 16 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x02, 0x01, 0xff, 0xff },    /* frame */
-        { { 0x67, 0x0a }, { 0x28, 0x10 } }    /* offset */
+        { { 103, 10 }, { 40, 16 } }    /* offset */
     },
 };
 
@@ -773,12 +773,12 @@ struct draw_step *g_dynamite_plunger_form_steps[3] = {   /* DGROUP 0x090d */
 };
 
 struct point16 g_dynamite_plunger_form_sizes[3] = {   /* DGROUP 0x0913 */
-    { 0x0087, 0x0030 },
-    { 0x0087, 0x002e },
-    { 0x0087, 0x0029 },
+    { 135, 48 },
+    { 135, 46 },
+    { 135, 41 },
 };
 
-struct point8 g_dynamite_plunger_hot_spots[3] = {   /* DGROUP 0x091f */
+struct offset8 g_dynamite_plunger_hot_spots[3] = {   /* DGROUP 0x091f */
     { 0 },
     { 0 },
     { 0 },
@@ -789,25 +789,25 @@ struct draw_step g_fan_draw_steps[4] = {   /* DGROUP 0x0925 */
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+        { { 0, 8 }, { 16, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+        { { 0, 8 }, { 16, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x03, 0xff, 0xff },    /* frame */
-        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+        { { 0, 8 }, { 16, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0, 0x08 }, { 0x10, 0 } }    /* offset */
+        { { 0, 8 }, { 16, 0 } }    /* offset */
     },
 };
 
@@ -819,10 +819,10 @@ struct draw_step *g_fan_form_steps[4] = {   /* DGROUP 0x0961 */
 };
 
 struct point16 g_fan_form_sizes[4] = {   /* DGROUP 0x0969 */
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
-    { 0x0020, 0x0020 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
+    { 32, 32 },
 };
 
 struct draw_step g_generator_draw_steps[16] = {   /* DGROUP 0x0979 */
@@ -830,97 +830,97 @@ struct draw_step g_generator_draw_steps[16] = {   /* DGROUP 0x0979 */
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0 } }    /* offset */
+        { { 0 }, { 21, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfa } }    /* offset */
+        { { 0 }, { 21, -6 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x03, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0x01 } }    /* offset */
+        { { 0 }, { 21, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfb } }    /* offset */
+        { { 0 }, { 21, -5 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0 }, { 0x05, 0x04 } }    /* offset */
+        { { 0 }, { 21, 0 }, { 5, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfa }, { 0x05, 0x04 } }    /* offset */
+        { { 0 }, { 21, -6 }, { 5, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x03, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0x01 }, { 0x05, 0x04 } }    /* offset */
+        { { 0 }, { 21, 1 }, { 5, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x04, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfb }, { 0x05, 0x04 } }    /* offset */
+        { { 0 }, { 21, -5 }, { 5, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, 0 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfa }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, -6 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x03, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0x01 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, 1 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x04, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x15, 0xfb }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, -5 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0x05 },    /* frame */
-        { { 0 }, { 0x15, 0 }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, 0 }, { 5, 4 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x02, 0x05, 0x05 },    /* frame */
-        { { 0 }, { 0x15, 0xfa }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, -6 }, { 5, 4 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x03, 0x05, 0x05 },    /* frame */
-        { { 0 }, { 0x15, 0x01 }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, 1 }, { 5, 4 }, { 5, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x04, 0x05, 0x05 },    /* frame */
-        { { 0 }, { 0x15, 0xfb }, { 0x05, 0x04 }, { 0x05, 0x12 } }    /* offset */
+        { { 0 }, { 21, -5 }, { 5, 4 }, { 5, 18 } }    /* offset */
     },
 };
 
@@ -944,41 +944,41 @@ struct draw_step *g_generator_form_steps[16] = {   /* DGROUP 0x0a69 */
 };
 
 struct point16 g_generator_form_sizes[16] = {   /* DGROUP 0x0a89 */
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0026 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0025 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0026 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0025 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0026 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0025 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0026 },
-    { 0x0050, 0x0020 },
-    { 0x0050, 0x0025 },
+    { 80, 32 },
+    { 80, 38 },
+    { 80, 32 },
+    { 80, 37 },
+    { 80, 32 },
+    { 80, 38 },
+    { 80, 32 },
+    { 80, 37 },
+    { 80, 32 },
+    { 80, 38 },
+    { 80, 32 },
+    { 80, 37 },
+    { 80, 32 },
+    { 80, 38 },
+    { 80, 32 },
+    { 80, 37 },
 };
 
-struct point8 g_generator_hot_spots[16] = {   /* DGROUP 0x0ac9 */
+struct offset8 g_generator_hot_spots[16] = {   /* DGROUP 0x0ac9 */
     { 0 },
-    { 0, 0xfa },
+    { 0, -6 },
     { 0 },
-    { 0, 0xfb },
+    { 0, -5 },
     { 0 },
-    { 0, 0xfa },
+    { 0, -6 },
     { 0 },
-    { 0, 0xfb },
+    { 0, -5 },
     { 0 },
-    { 0, 0xfa },
+    { 0, -6 },
     { 0 },
-    { 0, 0xfb },
+    { 0, -5 },
     { 0 },
-    { 0, 0xfa },
+    { 0, -6 },
     { 0 },
-    { 0, 0xfb },
+    { 0, -5 },
 };
 
 struct draw_step g_gun_draw_steps[7] = {   /* DGROUP 0x0ae9 */
@@ -992,31 +992,31 @@ struct draw_step g_gun_draw_steps[7] = {   /* DGROUP 0x0ae9 */
         0,    /* next */
         0x04,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xff, 0xfb } }    /* offset */
+        { { -1, -5 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xfe, 0xfd } }    /* offset */
+        { { -2, -3 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x03, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xf1, 0xfa } }    /* offset */
+        { { -15, -6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x04, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xf5, 0xfd } }    /* offset */
+        { { -11, -3 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0xff, 0xff },    /* frame */
-        { { 0xfe, 0 }, { 0x40, 0xf4 } }    /* offset */
+        { { -2, 0 }, { 64, -12 } }    /* offset */
     },
     {
         0,    /* next */
@@ -1037,22 +1037,22 @@ struct draw_step *g_gun_form_steps[7] = {   /* DGROUP 0x0b52 */
 };
 
 struct point16 g_gun_form_sizes[7] = {   /* DGROUP 0x0b60 */
-    { 0x0040, 0x001f },
-    { 0x0038, 0x0024 },
-    { 0x0080, 0x0025 },
-    { 0x0070, 0x0022 },
-    { 0x0080, 0x0022 },
-    { 0x0080, 0x002b },
-    { 0x0040, 0x001f },
+    { 64, 31 },
+    { 56, 36 },
+    { 128, 37 },
+    { 112, 34 },
+    { 128, 34 },
+    { 128, 43 },
+    { 64, 31 },
 };
 
-struct point8 g_gun_hot_spots[7] = {   /* DGROUP 0x0b7c */
+struct offset8 g_gun_hot_spots[7] = {   /* DGROUP 0x0b7c */
     { 0 },
-    { 0xff, 0xfb },
-    { 0xfe, 0xfd },
-    { 0xf1, 0xfa },
-    { 0xf5, 0xfd },
-    { 0xfe, 0xf4 },
+    { -1, -5 },
+    { -2, -3 },
+    { -15, -6 },
+    { -11, -3 },
+    { -2, -12 },
     { 0 },
 };
 
@@ -1061,25 +1061,25 @@ struct draw_step g_light_draw_steps[4] = {   /* DGROUP 0x0b8a */
         0,    /* next */
         0x02,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x14, 0x1c } }    /* offset */
+        { { 0 }, { 20, 28 } }    /* offset */
     },
     {
         0,    /* next */
         0x02,    /* level */
         { 0x01, 0x05, 0xff, 0xff },    /* frame */
-        { { 0xf8, 0xee }, { 0x14, 0x1c } }    /* offset */
+        { { -8, -18 }, { 20, 28 } }    /* offset */
     },
     {
         0,    /* next */
         0x02,    /* level */
         { 0x02, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x13, 0x02 } }    /* offset */
+        { { 0 }, { 19, 2 } }    /* offset */
     },
     {
         0,    /* next */
         0x02,    /* level */
         { 0x03, 0x05, 0xff, 0xff },    /* frame */
-        { { 0xf8, 0 }, { 0x13, 0x02 } }    /* offset */
+        { { -8, 0 }, { 19, 2 } }    /* offset */
     },
 };
 
@@ -1091,17 +1091,17 @@ struct draw_step *g_light_form_steps[4] = {   /* DGROUP 0x0bc6 */
 };
 
 struct point16 g_light_form_sizes[4] = {   /* DGROUP 0x0bce */
-    { 0x0020, 0x0036 },
-    { 0x002f, 0x0048 },
-    { 0x0020, 0x0026 },
-    { 0x002f, 0x0032 },
+    { 32, 54 },
+    { 47, 72 },
+    { 32, 38 },
+    { 47, 50 },
 };
 
-struct point8 g_light_hot_spots[4] = {   /* DGROUP 0x0bde */
+struct offset8 g_light_hot_spots[4] = {   /* DGROUP 0x0bde */
     { 0 },
-    { 0xf8, 0xee },
+    { -8, -18 },
     { 0 },
-    { 0xf8, 0 },
+    { -8, 0 },
 };
 
 struct draw_step g_monkey_draw_steps[13] = {   /* DGROUP 0x0be6 */
@@ -1109,79 +1109,79 @@ struct draw_step g_monkey_draw_steps[13] = {   /* DGROUP 0x0be6 */
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0 } }    /* offset */
+        { { 0, 12 }, { 40, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0xff, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+        { { 0, 12 }, { 40, 6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x01, 0x05, 0xff, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+        { { 0, 12 }, { 40, 6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x02, 0x05, 0xff, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+        { { 0, 12 }, { 40, 6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x03, 0x05, 0xff, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 } }    /* offset */
+        { { 0, 12 }, { 40, 6 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0x06, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0 }, { 0x0e, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 0 }, { 14, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0x07, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0 }, { 0x10, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 0 }, { 16, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0x08, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0 }, { 0x10, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 0 }, { 16, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0x09, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0 }, { 0x0f, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 0 }, { 15, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0x06, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 }, { 0x0e, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 6 }, { 14, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0x07, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 }, { 0x10, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 6 }, { 16, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0x08, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 }, { 0x10, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 6 }, { 16, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0x09, 0xff },    /* frame */
-        { { 0, 0x0c }, { 0x28, 0x06 }, { 0x0e, 0x01 } }    /* offset */
+        { { 0, 12 }, { 40, 6 }, { 14, 1 } }    /* offset */
     },
 };
 
@@ -1202,19 +1202,19 @@ struct draw_step *g_monkey_form_steps[13] = {   /* DGROUP 0x0ca9 */
 };
 
 struct point16 g_monkey_form_sizes[13] = {   /* DGROUP 0x0cc3 */
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
-    { 0x005c, 0x004f },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
+    { 92, 79 },
 };
 
 struct draw_step g_rocket_draw_steps[10] = {   /* DGROUP 0x0cf7 */
@@ -1222,61 +1222,61 @@ struct draw_step g_rocket_draw_steps[10] = {   /* DGROUP 0x0cf7 */
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x03, 0x2d } }    /* offset */
+        { { 0 }, { 3, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x02, 0x2d } }    /* offset */
+        { { 0 }, { 2, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x03, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x02, 0x2d } }    /* offset */
+        { { 0 }, { 2, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0, 0x2d } }    /* offset */
+        { { 0 }, { 0, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x05, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0xfe, 0x2d } }    /* offset */
+        { { 0 }, { -2, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x06, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0xfe, 0x2d } }    /* offset */
+        { { 0 }, { -2, 45 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x07, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0, 0x2c } }    /* offset */
+        { { 0 }, { 0, 44 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x08, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x01, 0x2e } }    /* offset */
+        { { 0 }, { 1, 46 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x09, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0, 0x2e } }    /* offset */
+        { { 0 }, { 0, 46 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x0a, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0, 0x2e } }    /* offset */
+        { { 0 }, { 0, 46 } }    /* offset */
     },
 };
 
@@ -1294,25 +1294,25 @@ struct draw_step *g_rocket_form_steps[10] = {   /* DGROUP 0x0d8d */
 };
 
 struct point16 g_rocket_form_sizes[10] = {   /* DGROUP 0x0da1 */
-    { 0x0010, 0x0042 },
-    { 0x0010, 0x004a },
-    { 0x0010, 0x0046 },
-    { 0x0010, 0x0041 },
-    { 0x0012, 0x003b },
-    { 0x0012, 0x0038 },
-    { 0x0010, 0x0042 },
-    { 0x0010, 0x0051 },
-    { 0x0010, 0x0053 },
-    { 0x0010, 0x0052 },
+    { 16, 66 },
+    { 16, 74 },
+    { 16, 70 },
+    { 16, 65 },
+    { 18, 59 },
+    { 18, 56 },
+    { 16, 66 },
+    { 16, 81 },
+    { 16, 83 },
+    { 16, 82 },
 };
 
-struct point8 g_rocket_hot_spots[10] = {   /* DGROUP 0x0dc9 */
+struct offset8 g_rocket_hot_spots[10] = {   /* DGROUP 0x0dc9 */
     { 0 },
     { 0 },
     { 0 },
     { 0 },
-    { 0xfe, 0 },
-    { 0xfe, 0 },
+    { -2, 0 },
+    { -2, 0 },
     { 0 },
     { 0 },
     { 0 },
@@ -1324,7 +1324,7 @@ struct draw_step g_scissors_draw_steps[3] = {   /* DGROUP 0x0ddd */
         0,    /* next */
         0x04,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x15, 0x11 } }    /* offset */
+        { { 21, 17 } }    /* offset */
     },
     {
         NEAR_AT(0x0ddd, &g_scissors_draw_steps[0]),    /* next */
@@ -1336,7 +1336,7 @@ struct draw_step g_scissors_draw_steps[3] = {   /* DGROUP 0x0ddd */
         0,    /* next */
         0x04,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0xfe, 0x04 } }    /* offset */
+        { { -2, 4 } }    /* offset */
     },
 };
 
@@ -1346,13 +1346,13 @@ struct draw_step *g_scissors_form_steps[2] = {   /* DGROUP 0x0e0a */
 };
 
 struct point16 g_scissors_form_sizes[2] = {   /* DGROUP 0x0e0e */
-    { 0x0028, 0x0022 },
-    { 0x0030, 0x0018 },
+    { 40, 34 },
+    { 48, 24 },
 };
 
-struct point8 g_scissors_hot_spots[2] = {   /* DGROUP 0x0e16 */
+struct offset8 g_scissors_hot_spots[2] = {   /* DGROUP 0x0e16 */
     { 0 },
-    { 0xfe, 0 },
+    { -2, 0 },
 };
 
 struct draw_step g_solar_panel_draw_steps[4] = {   /* DGROUP 0x0e1a */
@@ -1366,19 +1366,19 @@ struct draw_step g_solar_panel_draw_steps[4] = {   /* DGROUP 0x0e1a */
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x34, 0x04 } }    /* offset */
+        { { 0 }, { 52, 4 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x34, 0x12 } }    /* offset */
+        { { 0 }, { 52, 18 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x01, 0xff },    /* frame */
-        { { 0 }, { 0x34, 0x04 }, { 0x34, 0x12 } }    /* offset */
+        { { 0 }, { 52, 4 }, { 52, 18 } }    /* offset */
     },
 };
 
@@ -1390,10 +1390,10 @@ struct draw_step *g_solar_panel_form_steps[4] = {   /* DGROUP 0x0e56 */
 };
 
 struct point16 g_solar_panel_form_sizes[4] = {   /* DGROUP 0x0e5e */
-    { 0x0048, 0x0020 },
-    { 0x0048, 0x0020 },
-    { 0x0048, 0x0020 },
-    { 0x0048, 0x0020 },
+    { 72, 32 },
+    { 72, 32 },
+    { 72, 32 },
+    { 72, 32 },
 };
 
 struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
@@ -1401,7 +1401,7 @@ struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
         0,    /* next */
         0x00,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0x09 } }    /* offset */
+        { { 0, 9 } }    /* offset */
     },
     {
         NEAR_AT(0x0e6e, &g_trampoline_draw_steps[0]),    /* next */
@@ -1413,7 +1413,7 @@ struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
         0,    /* next */
         0x00,    /* level */
         { 0x03, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0x09 } }    /* offset */
+        { { 0, 9 } }    /* offset */
     },
     {
         NEAR_AT(0x0e8c, &g_trampoline_draw_steps[2]),    /* next */
@@ -1425,7 +1425,7 @@ struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
         0,    /* next */
         0x00,    /* level */
         { 0x05, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0x09 } }    /* offset */
+        { { 0, 9 } }    /* offset */
     },
     {
         NEAR_AT(0x0eaa, &g_trampoline_draw_steps[4]),    /* next */
@@ -1437,7 +1437,7 @@ struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
         0,    /* next */
         0x00,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0x09 } }    /* offset */
+        { { 0, 9 } }    /* offset */
     },
     {
         NEAR_AT(0x0ec8, &g_trampoline_draw_steps[6]),    /* next */
@@ -1449,13 +1449,13 @@ struct draw_step g_trampoline_draw_steps[10] = {   /* DGROUP 0x0e6e */
         0,    /* next */
         0x00,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0x09 } }    /* offset */
+        { { 0, 9 } }    /* offset */
     },
     {
         NEAR_AT(0x0ee6, &g_trampoline_draw_steps[8]),    /* next */
         0x04,    /* level */
         { 0x07, 0xff, 0xff, 0xff },    /* frame */
-        { { 0, 0xfd } }    /* offset */
+        { { 0, -3 } }    /* offset */
     },
 };
 
@@ -1468,19 +1468,19 @@ struct draw_step *g_trampoline_form_steps[5] = {   /* DGROUP 0x0f04 */
 };
 
 struct point16 g_trampoline_form_sizes[5] = {   /* DGROUP 0x0f0e */
-    { 0x0030, 0x001c },
-    { 0x0030, 0x001c },
-    { 0x0030, 0x001c },
-    { 0x0030, 0x001c },
-    { 0x0030, 0x001f },
+    { 48, 28 },
+    { 48, 28 },
+    { 48, 28 },
+    { 48, 28 },
+    { 48, 31 },
 };
 
-struct point8 g_trampoline_hot_spots[5] = {   /* DGROUP 0x0f22 */
+struct offset8 g_trampoline_hot_spots[5] = {   /* DGROUP 0x0f22 */
     { 0 },
     { 0 },
     { 0 },
     { 0 },
-    { 0, 0xfd },
+    { 0, -3 },
 };
 
 struct draw_step g_candle_draw_steps[6] = {   /* DGROUP 0x0f2c */
@@ -1494,31 +1494,31 @@ struct draw_step g_candle_draw_steps[6] = {   /* DGROUP 0x0f2c */
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+        { { 0 }, { 11, -4 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x02, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+        { { 0 }, { 11, -4 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x03, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+        { { 0 }, { 11, -4 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x04, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+        { { 0 }, { 11, -4 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x00, 0x05, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x0b, 0xfc } }    /* offset */
+        { { 0 }, { 11, -4 } }    /* offset */
     },
 };
 
@@ -1532,21 +1532,21 @@ struct draw_step *g_candle_form_steps[6] = {   /* DGROUP 0x0f86 */
 };
 
 struct point16 g_candle_form_sizes[6] = {   /* DGROUP 0x0f92 */
-    { 0x0022, 0x0020 },
-    { 0x0022, 0x0024 },
-    { 0x0022, 0x0024 },
-    { 0x0022, 0x0024 },
-    { 0x0022, 0x0024 },
-    { 0x0022, 0x0024 },
+    { 34, 32 },
+    { 34, 36 },
+    { 34, 36 },
+    { 34, 36 },
+    { 34, 36 },
+    { 34, 36 },
 };
 
-struct point8 g_candle_hot_spots[6] = {   /* DGROUP 0x0faa */
+struct offset8 g_candle_hot_spots[6] = {   /* DGROUP 0x0faa */
     { 0 },
-    { 0, 0xfc },
-    { 0, 0xfc },
-    { 0, 0xfc },
-    { 0, 0xfc },
-    { 0, 0xfc },
+    { 0, -4 },
+    { 0, -4 },
+    { 0, -4 },
+    { 0, -4 },
+    { 0, -4 },
 };
 
 struct draw_step g_kind_51_draw_steps[9] = {   /* DGROUP 0x0fb6 */
@@ -1554,55 +1554,55 @@ struct draw_step g_kind_51_draw_steps[9] = {   /* DGROUP 0x0fb6 */
         0,    /* next */
         0x04,    /* level */
         { 0x03, 0x00, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x11, 0x20 }, { 0x07, 0x09 } }    /* offset */
+        { { 0 }, { 17, 32 }, { 7, 9 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x06, 0x03, 0x04, 0x01 },    /* frame */
-        { { 0x03, 0x07 }, { 0, 0xfc }, { 0x2c, 0x1f }, { 0x12, 0x1c } }    /* offset */
+        { { 3, 7 }, { 0, -4 }, { 44, 31 }, { 18, 28 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x07, 0x03, 0x00, 0x04 },    /* frame */
-        { { 0, 0x09 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+        { { 0, 9 }, { 0 }, { 17, 32 }, { 47, 35 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x08, 0x03, 0x02, 0x04 },    /* frame */
-        { { 0xfd, 0x0b }, { 0, 0x01 }, { 0x0f, 0x22 }, { 0x31, 0x25 } }    /* offset */
+        { { -3, 11 }, { 0, 1 }, { 15, 34 }, { 49, 37 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x09, 0x03, 0x00, 0x04 },    /* frame */
-        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+        { { -3, 8 }, { 0 }, { 17, 32 }, { 47, 35 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x09, 0x03, 0x04, 0x01 },    /* frame */
-        { { 0xfe, 0x05 }, { 0, 0xfc }, { 0x2c, 0x1f }, { 0x12, 0x1c } }    /* offset */
+        { { -2, 5 }, { 0, -4 }, { 44, 31 }, { 18, 28 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x09, 0x03, 0x00, 0x04 },    /* frame */
-        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+        { { -3, 8 }, { 0 }, { 17, 32 }, { 47, 35 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x09, 0x03, 0x02, 0x04 },    /* frame */
-        { { 0xfd, 0x09 }, { 0, 0x01 }, { 0x0f, 0x22 }, { 0x31, 0x25 } }    /* offset */
+        { { -3, 9 }, { 0, 1 }, { 15, 34 }, { 49, 37 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x09, 0x03, 0x00, 0x04 },    /* frame */
-        { { 0xfd, 0x08 }, { 0 }, { 0x11, 0x20 }, { 0x2f, 0x23 } }    /* offset */
+        { { -3, 8 }, { 0 }, { 17, 32 }, { 47, 35 } }    /* offset */
     },
 };
 
@@ -1619,27 +1619,27 @@ struct draw_step *g_kind_51_form_steps[9] = {   /* DGROUP 0x103d */
 };
 
 struct point16 g_kind_51_form_sizes[9] = {   /* DGROUP 0x104f */
-    { 0x0032, 0x0032 },
-    { 0x003a, 0x0033 },
-    { 0x003e, 0x0032 },
-    { 0x0042, 0x0032 },
-    { 0x0040, 0x0032 },
-    { 0x0040, 0x0033 },
-    { 0x0040, 0x0032 },
-    { 0x0042, 0x0032 },
-    { 0x0040, 0x0032 },
+    { 50, 50 },
+    { 58, 51 },
+    { 62, 50 },
+    { 66, 50 },
+    { 64, 50 },
+    { 64, 51 },
+    { 64, 50 },
+    { 66, 50 },
+    { 64, 50 },
 };
 
-struct point8 g_kind_51_hot_spots[9] = {   /* DGROUP 0x1073 */
+struct offset8 g_kind_51_hot_spots[9] = {   /* DGROUP 0x1073 */
     { 0 },
-    { 0, 0xfc },
+    { 0, -4 },
     { 0 },
-    { 0xfd, 0x01 },
-    { 0xfd, 0 },
-    { 0xfe, 0xfc },
-    { 0xfd, 0 },
-    { 0xfd, 0x01 },
-    { 0xfd, 0 },
+    { -3, 1 },
+    { -3, 0 },
+    { -2, -4 },
+    { -3, 0 },
+    { -3, 1 },
+    { -3, 0 },
 };
 
 struct draw_step g_kind_58_draw_steps[9] = {   /* DGROUP 0x1085 */
@@ -1653,49 +1653,49 @@ struct draw_step g_kind_58_draw_steps[9] = {   /* DGROUP 0x1085 */
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0xff, 0xff },    /* frame */
-        { { 0 }, { 0x1c, 0x27 } }    /* offset */
+        { { 0 }, { 28, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x02, 0xff },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x03, 0xff },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x04, 0xff },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0xff },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0x06 },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xf4, 0xe4 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 }, { -12, -28 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0x07 },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xef, 0xe2 } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 }, { -17, -30 } }    /* offset */
     },
     {
         0,    /* next */
         0x05,    /* level */
         { 0x00, 0x01, 0x05, 0x08 },    /* frame */
-        { { 0 }, { 0x1c, 0x27 }, { 0x08, 0x27 }, { 0xee, 0xdf } }    /* offset */
+        { { 0 }, { 28, 39 }, { 8, 39 }, { -18, -33 } }    /* offset */
     },
 };
 
@@ -1712,27 +1712,27 @@ struct draw_step *g_kind_58_form_steps[9] = {   /* DGROUP 0x110c */
 };
 
 struct point16 g_kind_58_form_sizes[9] = {   /* DGROUP 0x111e */
-    { 0x0030, 0x0040 },
-    { 0x0030, 0x0040 },
-    { 0x0030, 0x0040 },
-    { 0x0030, 0x0040 },
-    { 0x0030, 0x0040 },
-    { 0x0030, 0x0040 },
-    { 0x003c, 0x005c },
-    { 0x0041, 0x005e },
-    { 0x0042, 0x0061 },
+    { 48, 64 },
+    { 48, 64 },
+    { 48, 64 },
+    { 48, 64 },
+    { 48, 64 },
+    { 48, 64 },
+    { 60, 92 },
+    { 65, 94 },
+    { 66, 97 },
 };
 
-struct point8 g_kind_58_hot_spots[9] = {   /* DGROUP 0x1142 */
+struct offset8 g_kind_58_hot_spots[9] = {   /* DGROUP 0x1142 */
     { 0 },
     { 0 },
     { 0 },
     { 0 },
     { 0 },
     { 0 },
-    { 0xf4, 0xe4 },
-    { 0xef, 0xe2 },
-    { 0xee, 0xdf },
+    { -12, -28 },
+    { -17, -30 },
+    { -18, -33 },
 };
 
 struct draw_step g_kind_61_draw_steps[15] = {   /* DGROUP 0x1154 */
@@ -1740,91 +1740,91 @@ struct draw_step g_kind_61_draw_steps[15] = {   /* DGROUP 0x1154 */
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0b, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 2 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0c, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 2 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0d, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 2 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0e, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0x01 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 1 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0f, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0x02 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 2 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x01, 0x0a, 0x09 },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 }, { 0x15, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 }, { 21, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x02, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0x02, 0xf6 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 2, -10 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x03, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0x04, 0xef }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 4, -17 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x02, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0x02, 0xf6 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 2, -10 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x04, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x05, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x06, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x07, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
     {
         0,    /* next */
         0x04,    /* level */
         { 0x00, 0x08, 0x0a, 0xff },    /* frame */
-        { { 0x25, 0 }, { 0 }, { 0x3e, 0 } }    /* offset */
+        { { 37, 0 }, { 0 }, { 62, 0 } }    /* offset */
     },
 };
 
@@ -1847,24 +1847,24 @@ struct draw_step *g_kind_61_form_steps[15] = {   /* DGROUP 0x1235 */
 };
 
 struct point16 g_kind_61_form_sizes[15] = {   /* DGROUP 0x1253 */
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x001a },
-    { 0x0050, 0x0021 },
-    { 0x0050, 0x001a },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
-    { 0x0050, 0x0010 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 26 },
+    { 80, 33 },
+    { 80, 26 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
+    { 80, 16 },
 };
 
-struct point8 g_kind_61_hot_spots[15] = {   /* DGROUP 0x128f */
+struct offset8 g_kind_61_hot_spots[15] = {   /* DGROUP 0x128f */
     { 0 },
     { 0 },
     { 0 },
@@ -1872,9 +1872,9 @@ struct point8 g_kind_61_hot_spots[15] = {   /* DGROUP 0x128f */
     { 0 },
     { 0 },
     { 0 },
-    { 0, 0xf6 },
-    { 0, 0xef },
-    { 0, 0xf6 },
+    { 0, -10 },
+    { 0, -17 },
+    { 0, -10 },
     { 0 },
     { 0 },
     { 0 },
@@ -1893,67 +1893,67 @@ struct draw_step g_kind_62_draw_steps[12] = {   /* DGROUP 0x12ad */
         0,    /* next */
         0x03,    /* level */
         { 0x01, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x02, 0xfc } }    /* offset */
+        { { 2, -4 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x03, 0xf3 } }    /* offset */
+        { { 3, -13 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x03, 0xf3 } }    /* offset */
+        { { 3, -13 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x03, 0xf3 } }    /* offset */
+        { { 3, -13 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x02, 0xff, 0xff, 0xff },    /* frame */
-        { { 0x03, 0xf3 } }    /* offset */
+        { { 3, -13 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x04, 0x06, 0xff, 0xff },    /* frame */
-        { { 0xfb, 0 }, { 0xd2, 0xde } }    /* offset */
+        { { -5, 0 }, { -46, -34 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x05, 0x07, 0xff, 0xff },    /* frame */
-        { { 0xfa, 0 }, { 0xd6, 0xde } }    /* offset */
+        { { -6, 0 }, { -42, -34 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x04, 0x08, 0xff, 0xff },    /* frame */
-        { { 0xfb, 0 }, { 0xd3, 0xdd } }    /* offset */
+        { { -5, 0 }, { -45, -35 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x05, 0x06, 0xff, 0xff },    /* frame */
-        { { 0xfa, 0 }, { 0xd3, 0xde } }    /* offset */
+        { { -6, 0 }, { -45, -34 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x04, 0x07, 0xff, 0xff },    /* frame */
-        { { 0xfb, 0 }, { 0xd4, 0xde } }    /* offset */
+        { { -5, 0 }, { -44, -34 } }    /* offset */
     },
     {
         0,    /* next */
         0x03,    /* level */
         { 0x05, 0x08, 0xff, 0xff },    /* frame */
-        { { 0xfa, 0 }, { 0xd4, 0xdd } }    /* offset */
+        { { -6, 0 }, { -44, -35 } }    /* offset */
     },
 };
 
@@ -1973,187 +1973,187 @@ struct draw_step *g_kind_62_form_steps[12] = {   /* DGROUP 0x1361 */
 };
 
 struct point16 g_kind_62_form_sizes[12] = {   /* DGROUP 0x1379 */
-    { 0x001e, 0x0016 },
-    { 0x0024, 0x001a },
-    { 0x002a, 0x0023 },
-    { 0x002a, 0x0023 },
-    { 0x002a, 0x0023 },
-    { 0x002a, 0x0023 },
-    { 0x0052, 0x0038 },
-    { 0x004e, 0x0038 },
-    { 0x0051, 0x0039 },
-    { 0x0051, 0x0038 },
-    { 0x0050, 0x0038 },
-    { 0x0050, 0x0039 },
+    { 30, 22 },
+    { 36, 26 },
+    { 42, 35 },
+    { 42, 35 },
+    { 42, 35 },
+    { 42, 35 },
+    { 82, 56 },
+    { 78, 56 },
+    { 81, 57 },
+    { 81, 56 },
+    { 80, 56 },
+    { 80, 57 },
 };
 
-struct point8 g_kind_62_hot_spots[12] = {   /* DGROUP 0x13a9 */
+struct offset8 g_kind_62_hot_spots[12] = {   /* DGROUP 0x13a9 */
     { 0 },
-    { 0, 0xfc },
-    { 0, 0xf3 },
-    { 0, 0xf3 },
-    { 0, 0xf3 },
-    { 0, 0xf3 },
-    { 0xd2, 0xde },
-    { 0xd6, 0xde },
-    { 0xd3, 0xdd },
-    { 0xd3, 0xde },
-    { 0xd4, 0xde },
-    { 0xd4, 0xdd },
+    { 0, -4 },
+    { 0, -13 },
+    { 0, -13 },
+    { 0, -13 },
+    { 0, -13 },
+    { -46, -34 },
+    { -42, -34 },
+    { -45, -35 },
+    { -45, -34 },
+    { -44, -34 },
+    { -44, -35 },
 };
 
-struct point8 g_seesaw_hot_spots[3] = {   /* DGROUP 0x13c1 */
+struct offset8 g_seesaw_hot_spots[3] = {   /* DGROUP 0x13c1 */
     { 0 },
-    { 0, 0x0c },
+    { 0, 12 },
     { 0 },
 };
 
-struct point8 g_balloon_hot_spots[7] = {   /* DGROUP 0x13c7 */
+struct offset8 g_balloon_hot_spots[7] = {   /* DGROUP 0x13c7 */
     { 0 },
-    { 0xf1, 0xf7 },
-    { 0xec, 0xfb },
-    { 0xe4, 0x08 },
-    { 0xe2, 0x19 },
-    { 0xe6, 0x29 },
-    { 0xe6, 0x38 },
+    { -15, -9 },
+    { -20, -5 },
+    { -28, 8 },
+    { -30, 25 },
+    { -26, 41 },
+    { -26, 56 },
 };
 
-struct point8 g_pokey_hot_spots[10] = {   /* DGROUP 0x13d5 */
+struct offset8 g_pokey_hot_spots[10] = {   /* DGROUP 0x13d5 */
     { 0 },
-    { 0xfa, 0xf0 },
-    { 0x13, 0xff },
-    { 0x0e, 0 },
-    { 0x0a, 0 },
-    { 0x08, 0 },
-    { 0x06, 0xfe },
-    { 0xff, 0xfe },
-    { 0xfb, 0xfe },
-    { 0xf7, 0xfd },
+    { -6, -16 },
+    { 19, -1 },
+    { 14, 0 },
+    { 10, 0 },
+    { 8, 0 },
+    { 6, -2 },
+    { -1, -2 },
+    { -5, -2 },
+    { -9, -3 },
 };
 
-struct point8 g_bellow_hot_spots[3] = {   /* DGROUP 0x13e9 */
+struct offset8 g_bellow_hot_spots[3] = {   /* DGROUP 0x13e9 */
     { 0 },
-    { 0xf8, 0x08 },
-    { 0xf5, 0x0c },
+    { -8, 8 },
+    { -11, 12 },
 };
 
 struct point16 g_bellow_form_sizes[3] = {   /* DGROUP 0x13ef */
-    { 0x0040, 0x0030 },
-    { 0x0048, 0x0030 },
-    { 0x0050, 0x0030 },
+    { 64, 48 },
+    { 72, 48 },
+    { 80, 48 },
 };
 
-struct point8 g_bullet_hot_spots[3] = {   /* DGROUP 0x13fb */
+struct offset8 g_bullet_hot_spots[3] = {   /* DGROUP 0x13fb */
     { 0 },
-    { 0x04, 0xfd },
-    { 0x01, 0xf4 },
+    { 4, -3 },
+    { 1, -12 },
 };
 
-struct point8 g_flashlight_hot_spots[2] = {   /* DGROUP 0x1401 */
+struct offset8 g_flashlight_hot_spots[2] = {   /* DGROUP 0x1401 */
     { 0 },
-    { 0, 0xf6 },
+    { 0, -10 },
 };
 
-struct point8 g_boxing_glove_hot_spots[10] = {   /* DGROUP 0x1405 */
+struct offset8 g_boxing_glove_hot_spots[10] = {   /* DGROUP 0x1405 */
     { 0 },
-    { 0x07, 0xf4 },
-    { 0xe3, 0xfd },
-    { 0xac, 0xfa },
-    { 0xf1, 0xfd },
-    { 0xe3, 0xfd },
-    { 0xe2, 0x05 },
-    { 0xeb, 0x05 },
-    { 0xe7, 0x06 },
-    { 0xeb, 0x06 },
+    { 7, -12 },
+    { -29, -3 },
+    { -84, -6 },
+    { -15, -3 },
+    { -29, -3 },
+    { -30, 5 },
+    { -21, 5 },
+    { -25, 6 },
+    { -21, 6 },
 };
 
-struct point8 g_windmill_hot_spots[4] = {   /* DGROUP 0x1419 */
+struct offset8 g_windmill_hot_spots[4] = {   /* DGROUP 0x1419 */
     { 0 },
-    { 0xfd, 0xfd },
-    { 0xfc, 0xfc },
-    { 0xfd, 0xfd },
+    { -3, -3 },
+    { -4, -4 },
+    { -3, -3 },
 };
 
-struct point8 g_blast_hot_spots[6] = {   /* DGROUP 0x1421 */
+struct offset8 g_blast_hot_spots[6] = {   /* DGROUP 0x1421 */
     { 0 },
-    { 0xfc, 0xf3 },
-    { 0, 0xfa },
-    { 0x0d, 0x09 },
-    { 0x14, 0x13 },
-    { 0x14, 0x14 },
+    { -4, -13 },
+    { 0, -6 },
+    { 13, 9 },
+    { 20, 19 },
+    { 20, 20 },
 };
 
-struct point8 g_mort_the_mouse_hot_spots[2] = {   /* DGROUP 0x142d */
+struct offset8 g_mort_the_mouse_hot_spots[2] = {   /* DGROUP 0x142d */
     { 0 },
-    { 0, 0x01 },
+    { 0, 1 },
 };
 
-struct point8 g_kind_54_hot_spots[31] = {   /* DGROUP 0x1431 */
+struct offset8 g_kind_54_hot_spots[31] = {   /* DGROUP 0x1431 */
     { 0 },
-    { 0, 0xff },
-    { 0, 0xff },
+    { 0, -1 },
+    { 0, -1 },
     { 0 },
     { 0 },
-    { 0, 0xff },
-    { 0xfe, 0xfa },
-    { 0xf8, 0xfa },
-    { 0xf9, 0xfa },
-    { 0xf9, 0xfd },
-    { 0xf6, 0x0e },
-    { 0xf2, 0x11 },
-    { 0xf8, 0x09 },
-    { 0xfd, 0x03 },
-    { 0xff, 0x01 },
-    { 0xff, 0 },
-    { 0x01, 0 },
-    { 0xfe, 0 },
-    { 0x01, 0 },
-    { 0xff, 0 },
-    { 0xfd, 0 },
-    { 0xfe, 0 },
-    { 0xff, 0 },
-    { 0x01, 0xf9 },
-    { 0xff, 0xf9 },
-    { 0x01, 0xfa },
-    { 0xff, 0xfa },
-    { 0xfe, 0 },
-    { 0xf8, 0x02 },
-    { 0xf8, 0x09 },
-    { 0xf5, 0x10 },
+    { 0, -1 },
+    { -2, -6 },
+    { -8, -6 },
+    { -7, -6 },
+    { -7, -3 },
+    { -10, 14 },
+    { -14, 17 },
+    { -8, 9 },
+    { -3, 3 },
+    { -1, 1 },
+    { -1, 0 },
+    { 1, 0 },
+    { -2, 0 },
+    { 1, 0 },
+    { -1, 0 },
+    { -3, 0 },
+    { -2, 0 },
+    { -1, 0 },
+    { 1, -7 },
+    { -1, -7 },
+    { 1, -6 },
+    { -1, -6 },
+    { -2, 0 },
+    { -8, 2 },
+    { -8, 9 },
+    { -11, 16 },
 };
 
 struct point16 g_kind_54_form_sizes[31] = {   /* DGROUP 0x146f */
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0018, 0x001e },
-    { 0x0020, 0x001f },
-    { 0x0018, 0x001e },
-    { 0x0020, 0x001a },
-    { 0x0028, 0x0018 },
-    { 0x0030, 0x0018 },
-    { 0x0020, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0010, 0x0018 },
-    { 0x0018, 0x001f },
-    { 0x0018, 0x001f },
-    { 0x0018, 0x001e },
-    { 0x0010, 0x001e },
-    { 0x0018, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0018, 0x0018 },
-    { 0x0018, 0x0018 },
+    { 16, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 24, 30 },
+    { 32, 31 },
+    { 24, 30 },
+    { 32, 26 },
+    { 40, 24 },
+    { 48, 24 },
+    { 32, 24 },
+    { 24, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 16, 24 },
+    { 24, 24 },
+    { 24, 24 },
+    { 16, 24 },
+    { 24, 24 },
+    { 24, 24 },
+    { 16, 24 },
+    { 24, 31 },
+    { 24, 31 },
+    { 24, 30 },
+    { 16, 30 },
+    { 24, 24 },
+    { 24, 24 },
+    { 24, 24 },
+    { 24, 24 },
 };
 
 
