@@ -3038,7 +3038,7 @@ void step_counters(void)
             g_level_settings.bonus_1 = si;
 
             if (g_bonus_1_scroll > 0)
-                draw_counter_word(g_level_settings.bonus_1, 0x184, g_bonus_1_scroll, 0);
+                draw_counter_word(g_level_settings.bonus_1, 388, g_bonus_1_scroll, 0);
         }
     }
 
@@ -3060,7 +3060,7 @@ void step_counters(void)
                 g_level_settings.bonus_2--;
             }
             if (g_bonus_2_scroll > 0)
-                draw_counter_word(g_level_settings.bonus_2, 0x238, g_bonus_2_scroll, 0);
+                draw_counter_word(g_level_settings.bonus_2, 568, g_bonus_2_scroll, 0);
         }
     }
 }
@@ -3079,9 +3079,9 @@ void step_counters(void)
 void redraw_counters(void)
 {
     set_clip_counter_strip();
-    draw_counter_long(g_odometer_total, 0xd0, 0, 1);
-    draw_counter_word(g_level_settings.bonus_1, 0x184, 0, 1);
-    draw_counter_word(g_level_settings.bonus_2, 0x238, 0, 1);
+    draw_counter_long(g_odometer_total, 208, 0, 1);
+    draw_counter_word(g_level_settings.bonus_1, 388, 0, 1);
+    draw_counter_word(g_level_settings.bonus_2, 568, 0, 1);
 }
 
 /*
@@ -3193,9 +3193,9 @@ void set_clip_counter_strip(void)
     g_vmds.page_dst = 0xa000;
     g_vmds.clip_enabled = 1;
     g_vmds.clip_left    = 0;
-    g_vmds.clip_right   = 0x27f;
-    g_vmds.clip_top     = 0x1b;
-    g_vmds.clip_bottom  = 0x45;
+    g_vmds.clip_right   = 639;
+    g_vmds.clip_top     = 27;
+    g_vmds.clip_bottom  = 69;
 }
 
 /*

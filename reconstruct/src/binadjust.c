@@ -198,7 +198,7 @@ void draw_adjust_icons(register int16_t top)
     int16_t kind;                       /* [bp-6] */
 
     g_vmds.page_dst = g_vmds.page_back;
-    draw_panel(0x38, 0x40, 0x1cc, 0xc8);
+    draw_panel(56, 64, 460, 200);
 
     for (i = 0; i < 0x1c; i++) {
         if (top + i < 0x3c) {
@@ -206,7 +206,7 @@ void draw_adjust_icons(register int16_t top)
             y = i / 7 * 0x32 + 0x40;
             kind = g_bin_adjust_kinds[top + i];
             cursor_redraw_off_thunk();
-            draw_bitmap_centred(g_icons_bmp[kind], x, y, 0x40, 0x30);
+            draw_bitmap_centred(g_icons_bmp[kind], x, y, 64, 48);
             restore_cursor_following();
         }
     }
@@ -222,8 +222,8 @@ void draw_adjust_screen(void)
 {
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
-    draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
-    draw_scroll_text(g_messages.adjust_parts_bin, 0x64, 0x27, 0x16c);
+    draw_title_bar(32, 32, 544, 344, 1);
+    draw_scroll_text(g_messages.adjust_parts_bin, 100, 39, 364);
     draw_adjust_buttons();
 }
 
@@ -236,7 +236,7 @@ void draw_adjust_buttons(void)
 {
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
-    draw_panel(0x180, 0x11c, 0x80, 0x30);
+    draw_panel(384, 284, 128, 48);
     draw_adjust_done(0);
     draw_adjust_more(0);
     draw_adjust_clear(0);
@@ -252,7 +252,7 @@ void draw_adjust_done(uint16_t frame)
 {
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((g_panel_art + 0x10)[frame]), 0x190, 0x124, 0);
+    draw_bitmap(((g_panel_art + 0x10)[frame]), 400, 292, 0);
     restore_cursor_following();
 }
 
@@ -265,7 +265,7 @@ void draw_adjust_more(uint16_t frame)
 {
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((g_panel_art + 0x27)[frame]), 0x1b4, 0x130, 0);
+    draw_bitmap(((g_panel_art + 0x27)[frame]), 436, 304, 0);
     restore_cursor_following();
 }
 
@@ -278,7 +278,7 @@ void draw_adjust_clear(uint16_t frame)
 {
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    draw_bitmap(((g_panel_art + 0x1f)[frame]), 0x1dc, 0x124, 0);
+    draw_bitmap(((g_panel_art + 0x1f)[frame]), 476, 292, 0);
     restore_cursor_following();
 }
 

@@ -54,12 +54,12 @@ void game_setup(void)
     g_vmds.second_colour = g_vmds.fill_colour = 0;
     g_vmds.fill_enabled = 1;
 
-    fill_rect(0, 0, 0x280, 0x50);
+    fill_rect(0, 0, 640, 80);
 
     if (bar != NULL) {                  /* 1.11 */
         draw_bitmap(bar[0], 3, 0, 0);
-        draw_bitmap(bar[1], 0x107, 0, 0);
-        draw_bitmap(bar[2], 0x1bb, 0, 0);
+        draw_bitmap(bar[1], 263, 0, 0);
+        draw_bitmap(bar[2], 443, 0, 0);
 
         free_bitmaps_thunk(bar);
     }

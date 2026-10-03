@@ -1114,7 +1114,7 @@ void part_key_shortcut(void)
         if (CARRIED->set_size.height <= CARRIED->set_size.width
             || CARRIED->kind == KIND_RAMP) {
             if (g_part_kinds[si].max_w > CARRIED->set_size.width) {
-                CARRIED->set_size.width += 0x10;
+                CARRIED->set_size.width += 16;
                 CARRIED->flip_size.width = CARRIED->set_size.width;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
@@ -1123,7 +1123,7 @@ void part_key_shortcut(void)
             }
         } else {
             if (g_part_kinds[si].max_h > CARRIED->set_size.height) {
-                CARRIED->set_size.height += 0x10;
+                CARRIED->set_size.height += 16;
                 CARRIED->flip_size.height = CARRIED->set_size.height;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
@@ -1137,7 +1137,7 @@ void part_key_shortcut(void)
         if (CARRIED->set_size.height <= CARRIED->set_size.width
             || CARRIED->kind == KIND_RAMP) {
             if (g_part_kinds[si].min_w < CARRIED->set_size.width) {
-                CARRIED->set_size.width -= 0x10;
+                CARRIED->set_size.width -= 16;
                 CARRIED->flip_size.width = CARRIED->set_size.width;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
@@ -1146,7 +1146,7 @@ void part_key_shortcut(void)
             }
         } else {
             if (g_part_kinds[si].min_h < CARRIED->set_size.height) {
-                CARRIED->set_size.height -= 0x10;
+                CARRIED->set_size.height -= 16;
                 CARRIED->flip_size.height = CARRIED->set_size.height;
                 g_part_kinds[si].settle(CARRIED);
                 place_object_for_draw(CARRIED);
@@ -1405,7 +1405,7 @@ int16_t drag_carried_part_first(void)
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->pos[0].x += 0x10;
-            CARRIED->set_size.width -= 0x10;
+            CARRIED->set_size.width -= 16;
             if (CARRIED->set_size.width < lo) {
                 CARRIED->pos[0].x = g_drag_start_pos.x;
                 CARRIED->set_size.width = g_drag_start_size.width;
@@ -1463,7 +1463,7 @@ int16_t settle_carried_part_first(void)
         g_part_kinds[CARRIED->kind].setup(CARRIED);
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
-            CARRIED->set_size.width -= 0x10;
+            CARRIED->set_size.width -= 16;
             if (CARRIED->set_size.width < lo) {
                 CARRIED->set_size.width = g_drag_start_size.width;
                 stop = 1;
@@ -1535,7 +1535,7 @@ int16_t drag_carried_part_pair(void)
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
             CARRIED->pos[0].y += 0x10;
-            CARRIED->set_size.height -= 0x10;
+            CARRIED->set_size.height -= 16;
             if (CARRIED->set_size.height < lo) {
                 CARRIED->pos[0].y = g_drag_start_pos.y;
                 CARRIED->set_size.height = g_drag_start_size.height;
@@ -1610,7 +1610,7 @@ int16_t settle_carried_part(void)
         g_part_kinds[CARRIED->kind].setup(CARRIED);
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
-            CARRIED->set_size.height -= 0x10;
+            CARRIED->set_size.height -= 16;
             if (CARRIED->set_size.height < lo) {
                 CARRIED->set_size.height = g_drag_start_size.height;
                 stop = 1;
@@ -1982,7 +1982,7 @@ void game_screen(void)
             if (g_pointer.key_click != 0)
                 g_round_state = 2;
             if (g_round_state == 0x10)
-                g_desc_caret = text_at_point((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44,
+                g_desc_caret = text_at_point((char *)g_level_hint, 276, 260, 248, 68,
                                              g_pointer.pointer_x, g_pointer.pointer_y);
             else if (g_round_state == 2)
                 g_round_state = 0x10;
@@ -2234,7 +2234,7 @@ void game_screen(void)
                 g_last_key = 0;
                 g_desc_redraw = 2;
                 g_desc_caret_on = 1;
-                g_desc_caret = text_at_point((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44,
+                g_desc_caret = text_at_point((char *)g_level_hint, 276, 260, 248, 68,
                                              g_pointer.pointer_x, g_pointer.pointer_y);
             }
             description_key();
@@ -2524,12 +2524,12 @@ void paint_game_screen(uint16_t present)
     g_vmds.fill_enabled = 1;
 
     cursor_redraw_off_thunk();
-    fill_rect(8, 8, 0x230, 0x160);
+    fill_rect(8, 8, 560, 352);
 
     draw_machine_thunk();
     paint_panel_frame();
 
-    draw_panel(0x2c, 0x42, 0xd0, 0x109);
+    draw_panel(44, 66, 208, 265);
 
     paint_panel_a(0);
     paint_panel_b(0);
@@ -2548,9 +2548,9 @@ void paint_game_screen(uint16_t present)
     paint_panel_g();
 
     cursor_redraw_off_thunk();
-    draw_bitmap(g_panel_art[3], 0x53, 0x42, 0);
-    draw_bitmap(g_panel_art[5], 0x64, 0xb2, 0);
-    draw_bitmap(g_panel_art[4], 0x5b, 0xfe, 0);
+    draw_bitmap(g_panel_art[3], 83, 66, 0);
+    draw_bitmap(g_panel_art[5], 100, 178, 0);
+    draw_bitmap(g_panel_art[4], 91, 254, 0);
     restore_cursor_following();
 
     select_music(g_level_settings.tune);
@@ -2671,11 +2671,11 @@ void paint_panel_frame(void)
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
 
-    draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
-    fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)g_fill_colour));
+    draw_title_bar(32, 32, 544, 344, 1);
+    fill_panel_area(272, 72, 256, 160, ((uint16_t)g_fill_colour));
 
-    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
-    draw_panel(0x110, 0xff, 0x100, 0x4c);
+    draw_scroll_text(title, 60, 39, 444);
+    draw_panel(272, 255, 256, 76);
     draw_description();
     paint_panel_frame_rest();
 }
@@ -2702,21 +2702,21 @@ void draw_description(void)
         g_vmds.fill_enabled = 1;
         g_vmds.second_colour = g_vmds.fill_colour = 0x0f;
         cursor_redraw_off_thunk();
-        fill_rect(0x110, 0xff, 0x100, 0x4c);
+        fill_rect(272, 255, 256, 76);
     } else
-        draw_panel(0x110, 0xff, 0x100, 0x4c);
+        draw_panel(272, 255, 256, 76);
 
     cursor_redraw_off_thunk();
 
     if (strlen((char *)g_level_hint) == 0 && g_round_state != 0x10)
-        draw_wrapped_text((char *)g_messages.enter_description, 0x114, 0x104, 0xf8, 0x44, 0);
+        draw_wrapped_text((char *)g_messages.enter_description, 276, 260, 248, 68, 0);
     else
-        draw_wrapped_text((char *)g_level_hint, 0x114, 0x104, 0xf8, 0x44, 0);
+        draw_wrapped_text((char *)g_level_hint, 276, 260, 248, 68, 0);
 
     if ((g_desc_blink & 8) != 0 && g_desc_caret_on != 0) {
-        text_caret_position((char *)g_level_hint, g_desc_caret, 0x114, 0x104, 0xf8, 0x44, &x, &y);
+        text_caret_position((char *)g_level_hint, g_desc_caret, 276, 260, 248, 68, &x, &y);
         g_vmds.second_colour = 0;
-        clip_and_draw_line(x, y - 1, x, y + 0xa);
+        clip_and_draw_line(x, y - 1, x, y + 10);
     }
 
     restore_cursor_following();
@@ -2743,7 +2743,7 @@ void paint_panel_a(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x10)[frame]),
-                0x3a, 0x5b, 0);
+                58, 91, 0);
     restore_cursor_following();
 }
 
@@ -2768,7 +2768,7 @@ void paint_panel_b(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x12)[frame]),
-                0xd8, 0x60, 0);
+                216, 96, 0);
     restore_cursor_following();
 }
 
@@ -2793,7 +2793,7 @@ void paint_panel_c(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x1f)[frame]),
-                0xbc, 0x5c, 0);
+                188, 92, 0);
     restore_cursor_following();
 }
 
@@ -2818,7 +2818,7 @@ void paint_panel_d(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x29)[frame]),
-                0x6d, 0x85, 0);
+                109, 133, 0);
     restore_cursor_following();
 }
 
@@ -2839,9 +2839,9 @@ void paint_panel_free_a(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x21)[frame]),
-                0x96, 0x8c, 0);
+                150, 140, 0);
     draw_bitmap(((g_panel_art + 0x1d)[frame]),
-                0xa6, 0x8b, 0);
+                166, 139, 0);
     restore_cursor_following();
 }
 
@@ -2862,9 +2862,9 @@ void paint_panel_free_b(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x23)[frame]),
-                0xc8, 0x8c, 0);
+                200, 140, 0);
     draw_bitmap(((g_panel_art + 0x1d)[frame]),
-                0xd8, 0x8b, 0);
+                216, 139, 0);
     restore_cursor_following();
 }
 
@@ -2881,7 +2881,7 @@ void paint_panel_level(uint16_t frame)
 
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x1b)[frame]),
-                0x39, 0x86, 0);
+                57, 134, 0);
     restore_cursor_following();
 }
 
@@ -2927,9 +2927,9 @@ void paint_panel_e(void)
         for (di = 0x5f; di <= 0x77; di += 8)
             draw_bitmap(g_panel_art[0x2b], si, di, 0);
 
-    draw_bitmap(g_panel_art[up],   0x58, 0x5d, 0);
-    draw_bitmap(g_panel_art[down], 0x58, 0x6f, 0);
-    draw_bitmap(g_panel_art[0x14], 0x6e, 0x60, 0);
+    draw_bitmap(g_panel_art[up],   88, 93, 0);
+    draw_bitmap(g_panel_art[down], 88, 111, 0);
+    draw_bitmap(g_panel_art[0x14], 110, 96, 0);
 
     for (si = 1, y = 0x69; si <= g_master_level; si++, y -= 2)
         draw_bitmap(((g_panel_art + 0x14)[si]),
@@ -2957,14 +2957,14 @@ void paint_panel_f(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
 
-    draw_bitmap(g_panel_art[0x7], 0x41, 0xc8, 0);
-    draw_bitmap(g_panel_art[0x9], 0x3d, 0xe5, 0);
+    draw_bitmap(g_panel_art[0x7], 65, 200, 0);
+    draw_bitmap(g_panel_art[0x9], 61, 229, 0);
 
     t = mul16x16(g_level_settings.air, 0xa0);
     at = t / 0x200;
 
     draw_bitmap(g_panel_art[0x6],
-                at + 0x3d, 0xe0, 0);
+                at + 61, 224, 0);
 
     restore_cursor_following();
 }
@@ -2988,14 +2988,14 @@ void paint_panel_g(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
 
-    draw_bitmap(g_panel_art[0x8], 0x41, 0x114, 0);
-    draw_bitmap(g_panel_art[0x9], 0x3d, 0x131, 0);
+    draw_bitmap(g_panel_art[0x8], 65, 276, 0);
+    draw_bitmap(g_panel_art[0x9], 61, 305, 0);
 
     t = mul16x16(g_level_settings.gravity, 0xa0);
     at = t / 0x80;
 
     draw_bitmap(g_panel_art[0x6],
-                at + 0x3d, 0x12c, 0);
+                at + 61, 300, 0);
 
     restore_cursor_following();
 }

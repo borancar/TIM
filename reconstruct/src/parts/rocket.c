@@ -54,7 +54,7 @@ void part_step_rocket(struct part *part)
         place_object_for_draw(part);
 
         if (part->form >= 7) {
-            link_objects_at_point(part, -4, 0x12, 0x30, 0x51);
+            link_objects_at_point(part, -4, 18, 48, 81);
 
             for (di = part->next_linked; di != NULL;
                  di = di->next_linked)
@@ -62,7 +62,7 @@ void part_step_rocket(struct part *part)
                     di->direction = 1;
 
             if (part->form & 1) {
-                link_objects_in_range(part, TRAIT_IN_MOVING_LIST, -4, 0x12, 0x30, 0x51);
+                link_objects_in_range(part, TRAIT_IN_MOVING_LIST, -4, 18, 48, 81);
 
                 for (di = part->next_linked; di != NULL;
                      di = di->next_linked) {
@@ -92,8 +92,8 @@ void part_setup_rocket(struct part *part)
 {
     struct part_point *si;
 
-    part->hold.x = 0x0b;
-    part->hold.y = 0x3c;
+    part->hold.x = 11;
+    part->hold.y = 60;
 
     si = part->points;
     si->x = 4;

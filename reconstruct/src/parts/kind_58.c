@@ -31,7 +31,7 @@ void part_step_kind_58(register struct part *part)
 {
     struct part *what;
 
-    link_objects_in_range(part, 0x1000, 0x24, 0x26, 0x28, 0x32);
+    link_objects_in_range(part, 0x1000, 36, 38, 40, 50);
     for (what = part->next_linked; what != 0; what = what->next_linked) {
         if (what->kind == 0x36 && what->form < 6) {
             part->direction = 1;

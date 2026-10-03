@@ -188,10 +188,10 @@ void part_step_kind_61(register struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         mouth = part->pos[0].x + 0x48;
-        link_objects_in_range(part, 0x2000, 0x40, 0x50, -0x11, 0);
+        link_objects_in_range(part, 0x2000, 64, 80, -17, 0);
     } else {
         mouth = part->pos[0].x + 8;
-        link_objects_in_range(part, 0x2000, 0, 0x10, -0x11, 0);
+        link_objects_in_range(part, 0x2000, 0, 16, -17, 0);
     }
 
     for (what = part->next_linked; what != 0; what = what->next_linked) {

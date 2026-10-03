@@ -1232,7 +1232,7 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     a = a;
     b = b;
 
-    size = g_size_word != 0 ? g_size_word : (int16_t)vm_buffer_size(0x40, 0x40);
+    size = g_size_word != 0 ? g_size_word : (int16_t)vm_buffer_size(64, 64);
 
     for (i = 0; i < 3; i++) {
         if (g_rect_buffer[i] == NULL)

@@ -263,7 +263,7 @@ void game_intro(void)
 
             g_vmds.page_dst = g_vmds.page_front;
             g_vmds.page_src = g_vmds.page_back;
-            copy_rect_thunk(0x1c0, 0x1a9, 0xc0, 0x4b);
+            copy_rect_thunk(448, 425, 192, 75);
 
             budget = g_timer.frame_budget;
 
@@ -355,7 +355,7 @@ void game_intro(void)
         g_vmds.second_colour = g_vmds.fill_colour = g_fill_colour;
         g_vmds.fill_enabled = 1;
 
-        fill_rect(0, 0, 0x280, 0x190);
+        fill_rect(0, 0, 640, 400);
 
         step_and_draw_machine(1);
         draw_frame_corners(gkc);
@@ -363,7 +363,7 @@ void game_intro(void)
 
         g_vmds.page_src = g_vmds.page_front;
         g_vmds.page_dst = g_vmds.page_back;
-        copy_rect_around_cursor(0, 0, 0x280, 0x190);
+        copy_rect_around_cursor(0, 0, 640, 400);
 
         if (which == 0x8000)
             select_music(0x3e9);
@@ -556,26 +556,26 @@ void copy_protect_screen(struct bitmap **bitmaps)
     g_vmds.fill_enabled   = 1;
 
     cursor_redraw_off_thunk();
-    fill_rect(0, 0, 0x280, 0x190);
+    fill_rect(0, 0, 640, 400);
     restore_cursor_following();
 
     draw_frame_corners(bitmaps);
 
-    draw_panel(0x30, 0x10, 0x220, 0xe0);         /* the panel */
-    draw_panel(0xc0, 0x12c, 0x40, 0x30);         /* the three slots */
-    draw_panel(0x120, 0x12c, 0x40, 0x30);
-    draw_panel(0x180, 0x12c, 0x40, 0x30);
-    draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
+    draw_panel(48, 16, 544, 224);         /* the panel */
+    draw_panel(192, 300, 64, 48);         /* the three slots */
+    draw_panel(288, 300, 64, 48);
+    draw_panel(384, 300, 64, 48);
+    draw_panel(584, 344, 32, 32);        /* the OK button */
 
     cursor_redraw_off_thunk();
-    draw_bitmap(g_panel_art[0x12], 0x24c, 0x15e, 0);
+    draw_bitmap(g_panel_art[0x12], 588, 350, 0);
     restore_cursor_following();
 
     itoa(page + 1, numbuf, 10);
     strcpy(msg, g_messages.please_select_in_order);
     strcat(msg, numbuf);
     strcat(msg, g_messages.of_the_users_manual);
-    draw_scroll_text(msg, 0x40, 0x106, 0x200);
+    draw_scroll_text(msg, 64, 262, 512);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -584,7 +584,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
 
         cursor_redraw_off_thunk();
         draw_bitmap_centred(g_icons_bmp[part],
-                            x, y, 0x40, 0x30);
+                            x, y, 64, 48);
         restore_cursor_following();
     }
 
@@ -593,7 +593,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
 
     g_vmds.page_src = g_vmds.page_front;
     g_vmds.page_dst = g_vmds.page_back;
-    copy_rect_around_cursor(0, 0, 0x280, 0x190);
+    copy_rect_around_cursor(0, 0, 640, 400);
     set_palette_pointer(g_pal_tim);
     show_cursor_again();
 
@@ -609,10 +609,10 @@ void copy_protect_screen(struct bitmap **bitmaps)
             if (highlight == 0x21)
                 highlight = 0;
             if (highlight == 0x20)
-                move_pointer_to(0x254, 0x164);    /* the button */
+                move_pointer_to(596, 356);    /* the button */
             else
                 move_pointer_to((uint16_t)(((highlight % 8) << 6) + 0x60),
-                                (uint16_t)((highlight / 8) * 0x30 + 0x40));
+                                (uint16_t)((highlight / 8) * 48 + 64));
         }
 
         select_cursor((g_pointer.pointer_x >= 0x248 && g_pointer.pointer_y >= 0x158)
@@ -692,15 +692,15 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
 
     x = (int16_t)(slot * 0x60 + 0xc0);
 
-    draw_panel(x, 0x12c, 0x40, 0x30);
+    draw_panel(x, 300, 64, 48);
     cursor_redraw_off_thunk();
-    draw_bitmap_centred(bmp, x, 0x12c, 0x40, 0x30);
+    draw_bitmap_centred(bmp, x, 300, 64, 48);
     restore_cursor_following();
     present_frame(1);
 
     g_vmds.page_src = g_vmds.page_front;
     g_vmds.page_dst = g_vmds.page_back;
-    copy_rect_around_cursor(0, 0, 0x280, 0x190);
+    copy_rect_around_cursor(0, 0, 640, 400);
 }
 
 /*
@@ -716,9 +716,9 @@ void draw_frame_corners(struct bitmap **rec)
     cursor_redraw_off_thunk();
 
     draw_bitmap(rec[0], 0, 0, 0);
-    draw_bitmap(rec[1], 0x262, 0, 0);
-    draw_bitmap(rec[2], 0, 0x175, 0);
-    draw_bitmap(rec[3], 0x262, 0x175, 0);
+    draw_bitmap(rec[1], 610, 0, 0);
+    draw_bitmap(rec[2], 0, 373, 0);
+    draw_bitmap(rec[3], 610, 373, 0);
 
     restore_cursor_following();
 }

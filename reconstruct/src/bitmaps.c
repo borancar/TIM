@@ -382,7 +382,7 @@ uint16_t load_screen(char *name)
         read_far(block, size, file);
         if ((g_bitmaps.walk = open_bit_reader(block)) != 0) {
             cursor_redraw_off();
-            vqt_screen_node(0, 0, 0x140, 0xc8);
+            vqt_screen_node(0, 0, 320, 200);
             cursor_redraw_on();
             close_bit_reader();
         } else

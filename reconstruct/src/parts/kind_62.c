@@ -108,11 +108,11 @@ void part_step_kind_62(register struct part *part)
     if (part->state & STATE_FLIP_HORIZONTAL) {
         if (part->vel_x > -0x100)
             part->vel_x -= 0x20;
-        link_objects_in_range(part, 0x3000, 0x1e, 0x4b, -0x23, 0);
+        link_objects_in_range(part, 0x3000, 30, 75, -35, 0);
     } else {
         if (part->vel_x < 0x100)
             part->vel_x += 0x20;
-        link_objects_in_range(part, 0x3000, -0x2d, 0, -0x23, 0);
+        link_objects_in_range(part, 0x3000, -45, 0, -35, 0);
     }
 
     for (what = part->next_linked; what != 0; what = what->next_linked) {

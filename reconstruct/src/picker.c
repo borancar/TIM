@@ -575,11 +575,11 @@ uint16_t validate_filename(void)
 void picker_draw_action(void)
 {
     if (g_round_state != 0x200) {
-        draw_button(g_messages.cancel, 0xc0, 0x130, 1);
+        draw_button(g_messages.cancel, 192, 304, 1);
     } else if (((uint16_t)g_game_picker_text.picker_mode) == 0x100) {
-        draw_button(g_messages.load, 0x40, 0x130, 1);
+        draw_button(g_messages.load, 64, 304, 1);
     } else {
-        draw_button(g_messages.save, 0x40, 0x130, 1);
+        draw_button(g_messages.save, 64, 304, 1);
     }
 
     present_back_page();
@@ -964,26 +964,26 @@ void picker_repaint(void)
 {
     g_vmds.page_dst = g_vmds.page_back;
 
-    draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
+    draw_title_bar(48, 49, 272, 329, 1);
 
-    draw_sunken_box(0x36, 0x129, 0x40, 0x20);
-    draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
+    draw_sunken_box(54, 297, 64, 32);
+    draw_sunken_box(182, 297, 80, 32);
 
     if (((uint16_t)g_game_picker_text.picker_mode) == 0x100) {
-        draw_scroll_text(g_messages.load_machine, 0x50, 0x34, 0xa0);
-        draw_button(g_messages.load, 0x40, 0x130, 0);
+        draw_scroll_text(g_messages.load_machine, 80, 52, 160);
+        draw_button(g_messages.load, 64, 304, 0);
     } else {
-        draw_scroll_text(g_messages.save_machine, 0x50, 0x34, 0xa0);
-        draw_button(g_messages.save, 0x40, 0x130, 0);
+        draw_scroll_text(g_messages.save_machine, 80, 52, 160);
+        draw_button(g_messages.save, 64, 304, 0);
     }
 
-    draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
-    draw_sunken_box(0xbc, 0xe0, 0x20, 0x20);
+    draw_sunken_box(188, 116, 32, 32);
+    draw_sunken_box(188, 224, 32, 32);
 
     picker_draw_up();
     picker_draw_down();
 
-    draw_button(g_messages.cancel, 0xc0, 0x130, 0);
+    draw_button(g_messages.cancel, 192, 304, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -1015,7 +1015,7 @@ void picker_draw_up(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x25)[pressed]),
-                0xc4, 0x78, 0);
+                196, 120, 0);
     restore_cursor_following();
 }
 
@@ -1038,7 +1038,7 @@ void picker_draw_down(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x27)[pressed]),
-                0xc4, 0xe8, 0);
+                196, 232, 0);
     restore_cursor_following();
 }
 
@@ -1076,13 +1076,13 @@ void picker_draw_name(void)
     }
 
     g_vmds.page_dst = g_vmds.page_back;
-    fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
+    fill_panel_area(64, 86, 184, 16, 0);
 
     g_vmds.text_back = 0;
     g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
-    draw_string(si, 0x44, 0x5a);
+    draw_string(si, 68, 90);
     restore_cursor_following();
 }
 
@@ -1119,14 +1119,14 @@ void picker_draw_filename(void)
     }
 
     g_vmds.page_dst = g_vmds.page_back;
-    draw_scroll_text(g_messages.file_name, 0x30, 0x10c, 0x54);
-    fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
+    draw_scroll_text(g_messages.file_name, 48, 268, 84);
+    fill_panel_area(144, 268, 112, 16, 0);
 
     g_vmds.text_back = 0;
     g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
-    draw_string(si, 0x94, 0x110);
+    draw_string(si, 148, 272);
     restore_cursor_following();
 }
 

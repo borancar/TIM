@@ -333,13 +333,13 @@ void part_step_seesaw(struct part *part)
      * is followed by a `trigger_things_at` for the point it was measured from.
      */
     if (part->form_prev == 0 && part->form_prev2 != 0) {
-        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 0x4a, 0x4f, -2, 2);
+        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 74, 79, -2, 2);
         trigger_things_at(part, 0, 0x4a);
 
-        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 0, 6, 0x20, 0x24);
+        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 0, 6, 32, 36);
         trigger_things_at(part, 1, 0);
     } else if (part->form_prev == 2 && part->form_prev2 != 2) {
-        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 0x4a, 0x4f, 0x20, 0x24);
+        link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 74, 79, 32, 36);
         trigger_things_at(part, 1, 0x4a);
 
         link_objects_in_range(part, TRAIT_IN_PLACED_LIST, 0, 6, -2, 2);
