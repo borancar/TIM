@@ -164,8 +164,8 @@ void part_settle_conveyor(struct part *part)
     p2 = di + 1;
     di->x = p2->x = part->size[0].width;
 
-    part->start_form = part->form = (part->size[0].width - 0x20) / 0x10 * 7;
+    part->start_form = part->form = (part->size[0].width - 32) / 16 * 7;
 
     /* `mov al,[bx+0x3330]`: the grab x by width step. */
-    part->grab.x = g_conveyor_grab_x[(part->size[0].width - 0x20) / 0x10];
+    part->grab.x = g_conveyor_grab_x[(part->size[0].width - 32) / 16];
 }

@@ -63,12 +63,12 @@ void part_step_gun(struct part *part)
                 si->state |= STATE_FLIP_HORIZONTAL;
                 part_setup_bullet(si);
 
-                si->pos[0].x = part->pos[0].x - 0x20;
-                si->pos[1].x = si->pos[2].x = si->pos[0].x + 0x18;
+                si->pos[0].x = part->pos[0].x - 32;
+                si->pos[1].x = si->pos[2].x = si->pos[0].x + 24;
                 si->vel_x = (int16_t)0xd000;
             } else {
-                si->pos[0].x = part->pos[0].x + 0x24;
-                si->pos[1].x = si->pos[2].x = si->pos[0].x - 0x18;
+                si->pos[0].x = part->pos[0].x + 36;
+                si->pos[1].x = si->pos[2].x = si->pos[0].x - 24;
                 si->vel_x = 0x3000;
             }
 

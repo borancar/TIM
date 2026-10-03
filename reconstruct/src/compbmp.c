@@ -210,13 +210,13 @@ run_flip_horizontal:
 trim_run_flip_horizontal:
                     /* A trim of more than 0x3f is a run wholly outside. */
                     if (x2 < g_vmds.clip_left) {
-                        if ((cut = g_vmds.clip_left - x2) > 0x3f)
+                        if ((cut = g_vmds.clip_left - x2) > 63)
                             goto next_run;
                         if ((n -= cut) > 0)
                             goto run_flip_horizontal;
                         goto next_run;
                     }
-                    if ((cut = x - g_vmds.clip_right) > 0x3f)
+                    if ((cut = x - g_vmds.clip_right) > 63)
                         goto next_run;
                     if ((n -= cut) <= 0)
                         goto next_run;
@@ -254,7 +254,7 @@ run:
                     goto next_run;
 trim_run:
                     if (x < g_vmds.clip_left) {
-                        if ((cut = g_vmds.clip_left - x) > 0x3f)
+                        if ((cut = g_vmds.clip_left - x) > 63)
                             goto next_run;
                         if ((n -= cut) <= 0)
                             goto next_run;
@@ -262,7 +262,7 @@ trim_run:
                         x = g_vmds.clip_left;
                         goto run;
                     }
-                    if ((cut = x2 - g_vmds.clip_right - 1) > 0x3f)
+                    if ((cut = x2 - g_vmds.clip_right - 1) > 63)
                         goto next_run;
                     if ((n -= cut) > 0)
                         goto run;
@@ -308,13 +308,13 @@ fill_flip_horizontal:
                 goto next_fill;
 trim_fill_flip_horizontal:
                 if (x2 < g_vmds.clip_left) {
-                    if ((cut = g_vmds.clip_left - x2) > 0x3f)
+                    if ((cut = g_vmds.clip_left - x2) > 63)
                         goto next_fill;
                     if ((op -= cut) > 0)
                         goto fill_flip_horizontal;
                     goto next_fill;
                 }
-                if ((cut = x - g_vmds.clip_right) > 0x3f)
+                if ((cut = x - g_vmds.clip_right) > 63)
                     goto next_fill;
                 if ((op -= cut) <= 0)
                     goto next_fill;
@@ -349,14 +349,14 @@ fill:
                 goto next_fill;
 trim_fill:
                 if (x < g_vmds.clip_left) {
-                    if ((cut = g_vmds.clip_left - x) > 0x3f)
+                    if ((cut = g_vmds.clip_left - x) > 63)
                         goto next_fill;
                     if ((op -= cut) <= 0)
                         goto next_fill;
                     x += cut;
                     goto fill;
                 }
-                if ((cut = x2 - g_vmds.clip_right - 1) > 0x3f)
+                if ((cut = x2 - g_vmds.clip_right - 1) > 63)
                     goto next_fill;
                 if ((op -= cut) > 0)
                     goto fill;

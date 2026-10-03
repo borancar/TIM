@@ -331,10 +331,10 @@ void collect_carried(register struct part *obj)
     if (obj->kind == KIND_BUCKET) {
         obj->next_linked = 0;
         left = obj->pos[1].x + 4;
-        right = left + 0x1c;
+        right = left + 28;
         top = obj->pos[1].y;
         bottom = top + obj->size[0].height;
-        rim = obj->pos[0].y + 0x14;             /* 1.11 */
+        rim = obj->pos[0].y + 20;             /* 1.11 */
 
         for (si = g_moving_parts.next; si != NULL;
              si = si->next) {
@@ -356,7 +356,7 @@ void collect_carried(register struct part *obj)
                 && si->vel_y > 0 && their_mid > left && their_mid < right)
                 carried = 1;
             if (!carried && their_mid > left && their_mid < right
-                && top + 0x14 < their_bottom && their_bottom - 4 < bottom)
+                && top + 20 < their_bottom && their_bottom - 4 < bottom)
                 carried = 1;
 
             if (carried) {

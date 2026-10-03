@@ -95,7 +95,7 @@ uint16_t part_drive_bird_cage(struct part *p1, struct part *p2, uint16_t p3, uin
     } else if (p2->momentum + p2->momentum > p6)
         return 1;
     if (p4 == 2) {
-        p2->pos[0].y -= 0x14;
+        p2->pos[0].y -= 20;
         p2->direction++;
         place_object_for_draw(p2);
     }

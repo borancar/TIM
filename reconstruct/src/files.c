@@ -134,8 +134,8 @@ uint16_t load_screen_plain(char *name)
     uint16_t bytes;
     uint16_t band;
     uint8_t far *buf;
-    int16_t w = 0x140;
-    int16_t h = 0xc8;
+    int16_t w = 320;
+    int16_t h = 200;
     uint16_t half;
     register int16_t si;
     register int16_t di;

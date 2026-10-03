@@ -81,10 +81,10 @@ void part_setup_kinds_55_57(struct part *part)
 
     left = top = 0;
     if (part->kind == KIND_55) {
-        right = 0x54;
+        right = 84;
     } else if (part->kind == KIND_57 && part->form == 8) {
-        right = 0x69;
-        top = 0x0a;
+        right = 105;
+        top = 10;
     } else {
         right = part->size[0].width - 1;
     }
@@ -92,7 +92,7 @@ void part_setup_kinds_55_57(struct part *part)
     /* 1.11: kind 57's form 0 is a narrow strip at the far end */
     if (part->kind == KIND_57 && part->form == 0) {
         left = 0x6e;
-        right = 0x6f;
+        right = 111;
         bottom = 1;
     } else
         bottom = part->size[0].height - 1;

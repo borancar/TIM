@@ -122,9 +122,9 @@ void part_step_kind_51(struct part *part)
         mid = part->pos[0].x + (part->size[0].width >> 1);
         for (what = part->next_linked; what != 0; what = what->next_linked) {
             their = what->pos[0].x + (what->size[0].width >> 1);
-            if (what->pos[0].y > part->pos[0].y + 0x2c) {
+            if (what->pos[0].y > part->pos[0].y + 44) {
                 what->traits &= ~TRAIT_ON_SURFACE;
-                if (what->pos[0].y < part->pos[0].y + 0x2f)
+                if (what->pos[0].y < part->pos[0].y + 47)
                     kind_51_swallow(what);
                 if (what->vel_y > -0x400) {
                     pull = kind_51_pull(what);

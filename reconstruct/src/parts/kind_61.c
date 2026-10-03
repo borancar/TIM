@@ -76,15 +76,15 @@ uint16_t part_hit_kind_61(register struct part *part)
             if (edge == 1)
                 eats = 2;
             else if (edge == 0) {
-                if (gator->pos[0].x + 0x40 < mid)
+                if (gator->pos[0].x + 64 < mid)
                     eats = 2;
-                else if (gator->pos[0].x + 0x10 > mid)
+                else if (gator->pos[0].x + 16 > mid)
                     fling = 1;
             }
         } else if (edge == 0) {
-            if (gator->pos[0].x + 0x36 < mid)
+            if (gator->pos[0].x + 54 < mid)
                 knock = 1;
-            else if (gator->pos[0].x + 0x10 > mid)
+            else if (gator->pos[0].x + 16 > mid)
                 fling = 1;
         }
     } else {
@@ -92,15 +92,15 @@ uint16_t part_hit_kind_61(register struct part *part)
             if (edge == 3)
                 eats = 2;
             else if (edge == 0) {
-                if (gator->pos[0].x + 0x10 > mid)
+                if (gator->pos[0].x + 16 > mid)
                     eats = 2;
-                else if (gator->pos[0].x + 0x40 < mid)
+                else if (gator->pos[0].x + 64 < mid)
                     fling = 1;
             }
         } else if (edge == 0) {
-            if (gator->pos[0].x + 0x1a > mid)
+            if (gator->pos[0].x + 26 > mid)
                 knock = 1;
-            else if (gator->pos[0].x + 0x40 < mid)
+            else if (gator->pos[0].x + 64 < mid)
                 fling = 1;
         }
     }
@@ -187,7 +187,7 @@ void part_step_kind_61(register struct part *part)
         return;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        mouth = part->pos[0].x + 0x48;
+        mouth = part->pos[0].x + 72;
         link_objects_in_range(part, 0x2000, 64, 80, -17, 0);
     } else {
         mouth = part->pos[0].x + 8;
@@ -236,10 +236,10 @@ void part_flip_kind_61(register struct part *part)
 void kind_61_tip_seesaw(register struct part *seesaw, int16_t mouth)
 {
     if (seesaw->form == 0) {
-        if (seesaw->pos[0].x + 0x1a > mouth)
+        if (seesaw->pos[0].x + 26 > mouth)
             seesaw->direction = 1;
     } else if (seesaw->form == 2) {
-        if (seesaw->pos[0].x + 0x36 < mouth)
+        if (seesaw->pos[0].x + 54 < mouth)
             seesaw->direction = -1;
     }
 }
@@ -249,9 +249,9 @@ void kind_61_press_bellow(register struct part *bellow, int16_t mouth)
 {
     if (bellow->form == 0) {
         if (bellow->state & STATE_FLIP_HORIZONTAL) {
-            if (bellow->pos[0].x + 0x14 < mouth)
+            if (bellow->pos[0].x + 20 < mouth)
                 bellow->direction = 1;
-        } else if (bellow->pos[0].x + 0x24 > mouth)
+        } else if (bellow->pos[0].x + 36 > mouth)
             bellow->direction = 1;
     }
 }
@@ -266,7 +266,7 @@ void kind_61_press_bellow(register struct part *bellow, int16_t mouth)
 void kind_61_pull_plug(register struct part *plug, register int16_t mouth)
 {
     if (plug->form >= 4 && plug->pos[0].x - 2 < mouth
-        && plug->pos[0].x + 0x14 > mouth) {
+        && plug->pos[0].x + 20 > mouth) {
         plug->form -= 4;
         part_setup_electric_plug(plug);
         play_sound(0x11);
@@ -282,9 +282,9 @@ void kind_61_close_scissors(register struct part *scissors, int16_t mouth)
 {
     if (scissors->form == 0) {
         if (scissors->state & STATE_FLIP_HORIZONTAL) {
-            if (scissors->pos[0].x + 0x12 < mouth)
+            if (scissors->pos[0].x + 18 < mouth)
                 scissors->direction = 1;
-        } else if (scissors->pos[0].x + 0x18 > mouth)
+        } else if (scissors->pos[0].x + 24 > mouth)
             scissors->direction = 1;
     }
 }

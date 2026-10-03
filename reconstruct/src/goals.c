@@ -64,7 +64,7 @@ void goal_test_puzzle_2(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL) {
-            if (((uint16_t)si->pos[0].y) != 0x108
+            if (((uint16_t)si->pos[0].y) != 264
                 || ((uint16_t)si->pos[0].y)
                    != ((uint16_t)si->pos[1].y))
                 ok = 0;
@@ -84,8 +84,8 @@ void goal_test_puzzle_20(void)
 {
     struct part *si = g_moving_parts.next;
 
-    if ((int16_t)((uint16_t)si->pos[0].x) > 0x1e0
-        && ((uint16_t)si->pos[0].y) == 0xc8)
+    if ((int16_t)((uint16_t)si->pos[0].x) > 480
+        && ((uint16_t)si->pos[0].y) == 200)
         g_round_state = 0x200;
 }
 
@@ -101,7 +101,7 @@ void goal_test_puzzle_21(void)
     while (si->kind != KIND_POKEY)
         si = si->next;
 
-    if ((int16_t)((uint16_t)si->pos[0].y) > 0x12c)
+    if ((int16_t)((uint16_t)si->pos[0].y) > 300)
         g_round_state = 0x200;
 }
 
@@ -144,10 +144,10 @@ void goal_test_puzzle_1(void)
     while (si->kind != KIND_BASKETBALL)
         si = si->next;
 
-    if ((int16_t)((uint16_t)si->pos[0].x) > 0x1a8
-        && (int16_t)((uint16_t)si->pos[0].x) < 0x1da
-        && (int16_t)((uint16_t)si->pos[0].y) > 0x88
-        && (int16_t)((uint16_t)si->pos[0].y) < 0x98)
+    if ((int16_t)((uint16_t)si->pos[0].x) > 424
+        && (int16_t)((uint16_t)si->pos[0].x) < 474
+        && (int16_t)((uint16_t)si->pos[0].y) > 136
+        && (int16_t)((uint16_t)si->pos[0].y) < 152)
         g_round_state = 0x200;
 }
 
@@ -277,12 +277,12 @@ void goal_test_puzzle_79(void)
             nine = si;
     }
 
-    if (nine->pos[0].x > 0x148
-        && nine->pos[0].x < 0x198
-        && nine->pos[0].y > 0x11c
-        && zero->pos[0].x > 0x1c8
-        && zero->pos[0].x < 0x21a
-        && zero->pos[0].y > 0x11c)
+    if (nine->pos[0].x > 328
+        && nine->pos[0].x < 408
+        && nine->pos[0].y > 284
+        && zero->pos[0].x > 456
+        && zero->pos[0].x < 538
+        && zero->pos[0].y > 284)
         g_round_state = 0x200;
 }
 
@@ -302,13 +302,13 @@ void goal_test_puzzle_23(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
-            if ((int16_t)((uint16_t)si->pos[0].x) < 0x1e8
-                || (int16_t)((uint16_t)si->pos[0].x) > 0x210
-                || (int16_t)((uint16_t)si->pos[0].y) < 0x110)
+            if ((int16_t)((uint16_t)si->pos[0].x) < 488
+                || (int16_t)((uint16_t)si->pos[0].x) > 528
+                || (int16_t)((uint16_t)si->pos[0].y) < 272)
                 ok = 0;
         } else if (si->kind == KIND_TENNIS_BALL) {
-            if ((int16_t)((uint16_t)si->pos[0].x) >= 0x1e8
-                || (int16_t)((uint16_t)si->pos[0].y) < 0x110)
+            if ((int16_t)((uint16_t)si->pos[0].x) >= 488
+                || (int16_t)((uint16_t)si->pos[0].y) < 272)
                 ok = 0;
         }
         si = si->next;
@@ -329,9 +329,9 @@ void goal_test_puzzle_26(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && (int16_t)si->start_y > 0x64
+            && (int16_t)si->start_y > 100
             && (uint16_t)(((uint16_t)si->pos[0].y)
-                          - si->start_y) == 0x40)
+                          - si->start_y) == 64)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -346,7 +346,7 @@ void goal_test_puzzle_43(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
-            && ((uint16_t)si->pos[0].y) == 0x118)
+            && ((uint16_t)si->pos[0].y) == 280)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -370,10 +370,10 @@ void goal_test_puzzle_39(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE) {
-            if (((uint16_t)si->pos[0].y) != 0xf8)
+            if (((uint16_t)si->pos[0].y) != 248)
                 ok = 0;
         } else if (si->kind == KIND_POKEY) {
-            if (((uint16_t)si->pos[0].x) != 0x1a9)
+            if (((uint16_t)si->pos[0].x) != 425)
                 ok = 0;
         } else if (si->kind == KIND_CANNON_BALL) {
             seen = 1;
@@ -401,7 +401,7 @@ void goal_test_puzzles_53_54_63_67_87(void)
 
     while (si != NULL) {
         if (si->kind == KIND_ROCKET
-            && (int16_t)((uint16_t)si->pos[0].y) > -0x30)
+            && (int16_t)((uint16_t)si->pos[0].y) > -48)
             ok = 0;
         si = si->next;
     }
@@ -425,7 +425,7 @@ void goal_test_puzzle_25(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
-            && (int16_t)si->start_x > 0x12c
+            && (int16_t)si->start_x > 300
             && (si->traits & TRAIT_FROM_LEVEL) != 0
             && (si->state & STATE_GONE) == 0)
             ok = 0;
@@ -445,8 +445,8 @@ void goal_test_puzzle_41(void)
 
     while (si != NULL) {
         if (si->kind == KIND_POKEY
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x1ba
-            && ((uint16_t)si->pos[0].y) == 0x11f)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 442
+            && ((uint16_t)si->pos[0].y) == 287)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -504,7 +504,7 @@ void goal_test_puzzle_46(void)
             && (int16_t)si->form >= 0x0b)
             ok = 0;
         if (si->kind == KIND_CANNON_BALL
-            && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
+            && (int16_t)((uint16_t)si->pos[0].y) < 368)
             ok = 0;
         si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
     }
@@ -627,8 +627,8 @@ void goal_test_puzzle_38(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && si->pos[0].x >= 0x148 && si->pos[0].x <= 0x168
-            && si->pos[0].y >= 0xd6 && si->pos[0].y <= 0xe8)
+            && si->pos[0].x >= 328 && si->pos[0].x <= 360
+            && si->pos[0].y >= 214 && si->pos[0].y <= 232)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -643,8 +643,8 @@ void goal_test_puzzle_44(void)
 
     while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x118
-            && (int16_t)((uint16_t)si->pos[0].y) >= 0x5b)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 280
+            && (int16_t)((uint16_t)si->pos[0].y) >= 91)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -664,9 +664,9 @@ void goal_test_puzzle_71(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && ((int16_t)((uint16_t)si->pos[0].x) < 0x168
-                || (int16_t)((uint16_t)si->pos[0].x) > 0x17a
-                || (int16_t)((uint16_t)si->pos[0].y) < 0xc1))
+            && ((int16_t)((uint16_t)si->pos[0].x) < 360
+                || (int16_t)((uint16_t)si->pos[0].x) > 378
+                || (int16_t)((uint16_t)si->pos[0].y) < 193))
             ok = 0;
         si = si->next;
     }
@@ -706,10 +706,10 @@ void goal_test_puzzle_80(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x1a8
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0x1b9
-            && (int16_t)((uint16_t)si->pos[0].y) >= 0x68
-            && (int16_t)((uint16_t)si->pos[0].y) <= 0x79)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 424
+            && (int16_t)((uint16_t)si->pos[0].x) <= 441
+            && (int16_t)((uint16_t)si->pos[0].y) >= 104
+            && (int16_t)((uint16_t)si->pos[0].y) <= 121)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -731,10 +731,10 @@ void goal_test_puzzle_47(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
-            && ((uint16_t)si->pos[0].y) == 0x118) {
-            if ((int16_t)((uint16_t)si->pos[0].x) <= 0x74)
+            && ((uint16_t)si->pos[0].y) == 280) {
+            if ((int16_t)((uint16_t)si->pos[0].x) <= 116)
                 left = 1;
-            if ((int16_t)((uint16_t)si->pos[0].x) >= 0x198)
+            if ((int16_t)((uint16_t)si->pos[0].x) >= 408)
                 right = 1;
         }
         si = si->next;
@@ -810,7 +810,7 @@ void goal_test_puzzle_52(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
-            && ((uint16_t)si->pos[0].y) == 0x108)
+            && ((uint16_t)si->pos[0].y) == 264)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -866,8 +866,8 @@ void goal_test_puzzle_82(void)
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
             && (int16_t)((uint16_t)si->pos[0].x) >= 8
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0x28
-            && ((uint16_t)si->pos[0].y) == 0x28)
+            && (int16_t)((uint16_t)si->pos[0].x) <= 40
+            && ((uint16_t)si->pos[0].y) == 40)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -942,7 +942,7 @@ void goal_test_puzzle_4(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && (int16_t)((uint16_t)si->pos[0].y) > 0x170)
+            && (int16_t)((uint16_t)si->pos[0].y) > 368)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -958,9 +958,9 @@ void goal_test_puzzle_5(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x18
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0xf3
-            && ((uint16_t)si->pos[0].y) == 0xf9)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 24
+            && (int16_t)((uint16_t)si->pos[0].x) <= 243
+            && ((uint16_t)si->pos[0].y) == 249)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1032,7 +1032,7 @@ void goal_test_puzzle_9(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
-            && ((uint16_t)si->pos[0].y) != 0xf8)
+            && ((uint16_t)si->pos[0].y) != 248)
             ok = 0;
         si = si->next;
     }
@@ -1079,8 +1079,8 @@ void goal_test_puzzle_12(void)
 
     while (si != NULL) {
         if (si->kind == KIND_TENNIS_BALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x154
-            && ((uint16_t)si->pos[0].y) == 0x139)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 340
+            && ((uint16_t)si->pos[0].y) == 313)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1154,8 +1154,8 @@ void goal_test_puzzle_18(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x199
-            && ((uint16_t)si->pos[0].y) == 0x10d)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 409
+            && ((uint16_t)si->pos[0].y) == 269)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1229,7 +1229,7 @@ void goal_test_puzzles_57_74(void)
     si = g_moving_parts.next;
 
     while (si != NULL) {
-        if (si->kind == KIND_MORT_THE_MOUSE && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
+        if (si->kind == KIND_MORT_THE_MOUSE && (int16_t)((uint16_t)si->pos[0].y) < 368)
             ok = 0;
         si = si->next;
     }
@@ -1252,9 +1252,9 @@ void goal_test_puzzle_31(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && ((int16_t)((uint16_t)si->pos[0].x) < 0x156
-                || (int16_t)((uint16_t)si->pos[0].x) > 0x1ba
-                || (int16_t)((uint16_t)si->pos[0].y) < 0xda))
+            && ((int16_t)((uint16_t)si->pos[0].x) < 342
+                || (int16_t)((uint16_t)si->pos[0].x) > 442
+                || (int16_t)((uint16_t)si->pos[0].y) < 218))
             ok = 0;
         si = si->next;
     }
@@ -1273,8 +1273,8 @@ void goal_test_puzzle_66(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && si->start_x == 0x219
-            && (int16_t)((uint16_t)si->pos[0].y) >= 0x40)
+            && si->start_x == 537
+            && (int16_t)((uint16_t)si->pos[0].y) >= 64)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1293,7 +1293,7 @@ void goal_test_puzzle_29(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && (int16_t)((uint16_t)si->pos[0].y) < 0x170)
+            && (int16_t)((uint16_t)si->pos[0].y) < 368)
             ok = 0;
         si = si->next;
     }
@@ -1310,7 +1310,7 @@ void goal_test_puzzle_61(void)
     struct part *si = g_moving_parts.next;
 
     while (si != NULL) {
-        if (si->kind == KIND_BIRD_CAGE && ((uint16_t)si->pos[0].y) == 0xf8)
+        if (si->kind == KIND_BIRD_CAGE && ((uint16_t)si->pos[0].y) == 248)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1335,17 +1335,17 @@ void goal_test_puzzle_28(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL) {
-            if (si->pos[0].y == 0x39)
+            if (si->pos[0].y == 57)
                 row1 = 1;
-            if (si->pos[0].y == 0x99)
+            if (si->pos[0].y == 153)
                 row2 = 1;
-            if (si->pos[0].y == 0xf9)
+            if (si->pos[0].y == 249)
                 row3 = 1;
-            if (si->pos[0].y == 0x69)
+            if (si->pos[0].y == 105)
                 row4 = 1;
-            if (si->pos[0].y == 0xc9)
+            if (si->pos[0].y == 201)
                 row5 = 1;
-            if (si->pos[0].y == 0x129)
+            if (si->pos[0].y == 297)
                 row6 = 1;
         }
         si = si->next;
@@ -1399,8 +1399,8 @@ void goal_test_puzzle_86(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x19b && (int16_t)((uint16_t)si->pos[0].x) <= 0x1cc
-            && ((uint16_t)si->pos[0].y) == 0x12d)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 411 && (int16_t)((uint16_t)si->pos[0].x) <= 460
+            && ((uint16_t)si->pos[0].y) == 301)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1431,9 +1431,9 @@ void goal_test_puzzle_77(void)
         if (si->kind == KIND_BASKETBALL
             || si->kind == KIND_BOWLING_BALL
             || si->kind == KIND_CANNON_BALL) {
-            if ((int16_t)((uint16_t)si->pos[0].x) < 0x18
-                || (int16_t)((uint16_t)si->pos[0].x) > 0x94
-                || (int16_t)((uint16_t)si->pos[0].y) < 0x100)
+            if ((int16_t)((uint16_t)si->pos[0].x) < 24
+                || (int16_t)((uint16_t)si->pos[0].x) > 148
+                || (int16_t)((uint16_t)si->pos[0].y) < 256)
                 ok = 0;
         }
 
@@ -1453,8 +1453,8 @@ void goal_test_puzzle_85(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x1b6 && (int16_t)((uint16_t)si->pos[0].x) <= 0x1c0
-            && ((uint16_t)si->pos[0].y) == 0x108)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 438 && (int16_t)((uint16_t)si->pos[0].x) <= 448
+            && ((uint16_t)si->pos[0].y) == 264)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1472,7 +1472,7 @@ void goal_test_puzzle_60(void)
     si = g_moving_parts.next;
 
     while (si != NULL) {
-        if (si->kind == KIND_POKEY && (int16_t)((uint16_t)si->pos[0].y) < 0xc8)
+        if (si->kind == KIND_POKEY && (int16_t)((uint16_t)si->pos[0].y) < 200)
             ok = 0;
         si = si->next;
     }
@@ -1490,9 +1490,9 @@ void goal_test_puzzle_37(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x20
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0x78
-            && (int16_t)((uint16_t)si->pos[0].y) > 0x120)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 32
+            && (int16_t)((uint16_t)si->pos[0].x) <= 120
+            && (int16_t)((uint16_t)si->pos[0].y) > 288)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1525,7 +1525,7 @@ void goal_test_puzzle_84(void)
         }
 
         if (si->kind == KIND_BUCKET
-            && (int16_t)((uint16_t)si->pos[0].y) < 0x1388)
+            && (int16_t)((uint16_t)si->pos[0].y) < 5000)
             ok = 0;
 
         si = si->next;
@@ -1565,7 +1565,7 @@ void goal_test_puzzle_68(void)
 
         if (si->kind == KIND_BIRD_CAGE) {
             b = si->pos[0].x;
-            if (((uint16_t)si->pos[0].y) != 0x108)
+            if (((uint16_t)si->pos[0].y) != 264)
                 ok = 0;
         }
 
@@ -1619,9 +1619,9 @@ void goal_test_puzzle_59(void)
             seen = 1;
 
         if (si->kind == KIND_BUCKET) {
-            if ((int16_t)((uint16_t)si->pos[0].x) < 0xd0
-                || (int16_t)((uint16_t)si->pos[0].x) > 0xee
-                || ((uint16_t)si->pos[0].y) != 0x128)
+            if ((int16_t)((uint16_t)si->pos[0].x) < 208
+                || (int16_t)((uint16_t)si->pos[0].x) > 238
+                || ((uint16_t)si->pos[0].y) != 296)
                 ok = 0;
         }
 
@@ -1647,11 +1647,11 @@ void goal_test_puzzle_49(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && ((int16_t)((uint16_t)si->pos[0].x) > 0x4a || (int16_t)((uint16_t)si->pos[0].y) < 0x124))
+            && ((int16_t)((uint16_t)si->pos[0].x) > 74 || (int16_t)((uint16_t)si->pos[0].y) < 292))
             ok = 0;
 
         if (si->kind == KIND_TENNIS_BALL
-            && ((int16_t)((uint16_t)si->pos[0].x) < 0x1c6 || (int16_t)((uint16_t)si->pos[0].y) < 0x124))
+            && ((int16_t)((uint16_t)si->pos[0].x) < 454 || (int16_t)((uint16_t)si->pos[0].y) < 292))
             ok = 0;
 
         si = si->next;
@@ -1675,9 +1675,9 @@ void goal_test_puzzle_40(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && ((int16_t)((uint16_t)si->pos[0].x) < 0xf6
-                || (int16_t)((uint16_t)si->pos[0].x) > 0x14c
-                || ((uint16_t)si->pos[0].y) != 0xe8))
+            && ((int16_t)((uint16_t)si->pos[0].x) < 246
+                || (int16_t)((uint16_t)si->pos[0].x) > 332
+                || ((uint16_t)si->pos[0].y) != 232))
             ok = 0;
         si = si->next;
     }
@@ -1696,10 +1696,10 @@ void goal_test_puzzle_35(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && (int16_t)((uint16_t)si->pos[0].x) >= 0x1d6
-            && (int16_t)((uint16_t)si->pos[0].x) <= 0x1fc
-            && (int16_t)((uint16_t)si->pos[0].y) >= 0xc6
-            && (int16_t)((uint16_t)si->pos[0].y) <= 0xd0)
+            && (int16_t)((uint16_t)si->pos[0].x) >= 470
+            && (int16_t)((uint16_t)si->pos[0].x) <= 508
+            && (int16_t)((uint16_t)si->pos[0].y) >= 198
+            && (int16_t)((uint16_t)si->pos[0].y) <= 208)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1775,7 +1775,7 @@ void goal_test_puzzle_91(void)
         if (si->kind == KIND_TENNIS_BALL) {
             if ((si->traits2 & TRAIT2_IN_BUCKET) == 0)
                 ok = 0;
-            if (si->pos[0].x > 0x4c)
+            if (si->pos[0].x > 76)
                 ok = 0;
         }
         si = si->next;
@@ -1871,7 +1871,7 @@ void goal_test_puzzle_96(void)
     si = g_moving_parts.next;
 
     while (si != NULL) {
-        if (si->kind == KIND_CANNON_BALL && si->pos[0].y > 0x170)
+        if (si->kind == KIND_CANNON_BALL && si->pos[0].y > 368)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -1894,7 +1894,7 @@ void goal_test_puzzle_97(void)
                 ok = 0;
             if (si->pos[0].y == si->pos[2].y)
                 ok = 0;
-            if (si->pos[0].y > 0x166)
+            if (si->pos[0].y > 358)
                 ok = 0;
         }
         si = si->next;
@@ -1995,8 +1995,8 @@ void goal_test_puzzle_103(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && si->pos[0].x >= 0x1e && si->pos[0].x <= 0x66
-            && si->pos[0].y >= 0xd8 && si->pos[0].y <= 0x122)
+            && si->pos[0].x >= 30 && si->pos[0].x <= 102
+            && si->pos[0].y >= 216 && si->pos[0].y <= 290)
             n++;
         si = si->next;
     }
@@ -2070,7 +2070,7 @@ void goal_test_puzzle_106(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BUCKET
-            && si->pos[0].y - 0x20 > (int16_t)si->start_y)
+            && si->pos[0].y - 32 > (int16_t)si->start_y)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2089,7 +2089,7 @@ void goal_test_puzzle_107(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BIRD_CAGE
-            && si->pos[0].y + 0x10 >= (int16_t)si->start_y)
+            && si->pos[0].y + 16 >= (int16_t)si->start_y)
             ok = 0;
         si = si->next;
     }
@@ -2147,7 +2147,7 @@ void goal_test_puzzle_111(void)
 
     for (si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST)); si != NULL;
          si = pick_for_record(si, TRAIT_IN_MOVING_LIST)) {
-        if (si->kind == KIND_ROCKET && si->pos[0].y > -0x30)
+        if (si->kind == KIND_ROCKET && si->pos[0].y > -48)
             ok = 0;
         if (si->kind == KIND_BOB_THE_FISH && (si->traits2 & 0x400) == 0)
             ok = 0;
@@ -2170,8 +2170,8 @@ void goal_test_puzzle_112(void)
 
     while (si != NULL) {
         if (si->kind == 63
-            && (si->pos[0].x < 6 || si->pos[0].x > 0x52
-                || si->pos[0].y < 0x14 || si->pos[0].y > 0x44))
+            && (si->pos[0].x < 6 || si->pos[0].x > 82
+                || si->pos[0].y < 20 || si->pos[0].y > 68))
             ok = 0;
         si = si->next;
     }
@@ -2240,8 +2240,8 @@ void goal_test_puzzle_115(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASEBALL
-            && (si->pos[0].x < -8 || si->pos[0].x > 0x230
-                || si->pos[0].y >= 0x166))
+            && (si->pos[0].x < -8 || si->pos[0].x > 560
+                || si->pos[0].y >= 358))
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2258,8 +2258,8 @@ void goal_test_puzzle_116(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && si->pos[0].x >= 0x1a6 && si->pos[0].x <= 0x1ce
-            && si->pos[0].y == 0x58)
+            && si->pos[0].x >= 422 && si->pos[0].x <= 462
+            && si->pos[0].y == 88)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2325,7 +2325,7 @@ void goal_test_puzzle_119(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON && (si->state & STATE_GONE) == 0
-            && si->pos[0].y > 0xb0)
+            && si->pos[0].y > 176)
             ok = 0;
         si = si->next;
     }
@@ -2385,8 +2385,8 @@ void goal_test_puzzle_125(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && si->pos[0].x >= 0x194 && si->pos[0].x <= 0x1a4
-            && si->pos[0].y >= 0x13a)
+            && si->pos[0].x >= 404 && si->pos[0].x <= 420
+            && si->pos[0].y >= 314)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2489,8 +2489,8 @@ void goal_test_puzzle_133(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && si->pos[0].x >= 0x1d6 && si->pos[0].x <= 0x1ec
-            && si->pos[0].y >= 0xd4 && si->pos[0].y <= 0xe2)
+            && si->pos[0].x >= 470 && si->pos[0].x <= 492
+            && si->pos[0].y >= 212 && si->pos[0].y <= 226)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2507,8 +2507,8 @@ void goal_test_puzzle_134(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BOWLING_BALL
-            && si->pos[0].x >= 0x1c6 && si->pos[0].x <= 0x1fa
-            && si->pos[0].y == 0x128)
+            && si->pos[0].x >= 454 && si->pos[0].x <= 506
+            && si->pos[0].y == 296)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2566,8 +2566,8 @@ void goal_test_puzzle_137(void)
 
     while (si != NULL) {
         if (si->kind == 59
-            && (si->pos[0].x < 6 || si->pos[0].x > 0xc0
-                || si->pos[0].y < 0x32 || si->pos[0].y > 0xa6))
+            && (si->pos[0].x < 6 || si->pos[0].x > 192
+                || si->pos[0].y < 50 || si->pos[0].y > 166))
             ok = 0;
         si = si->next;
     }
@@ -2656,15 +2656,15 @@ void goal_test_puzzle_140(void)
             || si->kind == KIND_BASEBALL || si->kind == KIND_CANNON_BALL
             || si->kind == KIND_TENNIS_BALL) {
             bottom = si->pos[0].y + si->size[0].height;
-            if (bottom == 0x18)
+            if (bottom == 24)
                 at_18 = 1;
-            if (bottom == 0x78)
+            if (bottom == 120)
                 at_78 = 1;
-            if (bottom == 0xc8)
+            if (bottom == 200)
                 at_c8 = 1;
-            if (bottom == 0xe8)
+            if (bottom == 232)
                 at_e8 = 1;
-            if (bottom == 0x138)
+            if (bottom == 312)
                 at_138 = 1;
         }
         si = si->next;
@@ -2698,7 +2698,7 @@ void goal_test_puzzle_142(void)
             if (si->form != 0)
                 ok = 0;
             if ((si->pos[0].y != si->pos[2].y || si->pos[0].x != si->pos[2].x)
-                && si->pos[0].y > -0x18 && si->pos[0].y < 0x166)
+                && si->pos[0].y > -24 && si->pos[0].y < 358)
                 ok = 0;
         }
         si = si->next;
@@ -2740,9 +2740,9 @@ void goal_test_puzzle_145(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON && si->form == 0) {
-            if (si->pos[0].x > 0 && si->pos[0].x < 0x230)
+            if (si->pos[0].x > 0 && si->pos[0].x < 560)
                 ok = 0;
-            if (si->pos[0].y > -0x2c)
+            if (si->pos[0].y > -44)
                 ok = 0;
         }
         si = si->next;
@@ -2772,7 +2772,7 @@ void goal_test_puzzle_147(void)
     si = g_placed_parts.next;
 
     while (si != NULL) {
-        if (si->kind == KIND_WOODEN_PLATFORM && si->pos[0].x >= 0x1c8
+        if (si->kind == KIND_WOODEN_PLATFORM && si->pos[0].x >= 456
             && (si->state & STATE_GONE) == 0
             && si->size[0].width != 0 && si->size[0].height != 0)
             ok = 0;
@@ -2831,8 +2831,8 @@ void goal_test_puzzle_151(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && si->pos[0].x >= 0x56 && si->pos[0].x <= 0xba
-            && si->pos[0].y >= 0x132 && si->pos[0].y <= 0x13c)
+            && si->pos[0].x >= 86 && si->pos[0].x <= 186
+            && si->pos[0].y >= 306 && si->pos[0].y <= 316)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2849,8 +2849,8 @@ void goal_test_puzzle_152(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BALLOON
-            && si->pos[0].x >= 0x1b8 && si->pos[0].x <= 0x1ec
-            && si->pos[0].y >= 0xf2 && si->pos[0].y <= 0x120)
+            && si->pos[0].x >= 440 && si->pos[0].x <= 492
+            && si->pos[0].y >= 242 && si->pos[0].y <= 288)
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2867,8 +2867,8 @@ void goal_test_puzzle_153(void)
 
     while (si != NULL) {
         if (si->kind == KIND_BASKETBALL
-            && (si->pos[0].x < -0x20 || si->pos[0].x > 0x22e
-                || si->pos[0].y < -0x20 || si->pos[0].y > 0x166))
+            && (si->pos[0].x < -32 || si->pos[0].x > 558
+                || si->pos[0].y < -32 || si->pos[0].y > 358))
             g_round_state = 0x200;
         si = si->next;
     }
@@ -2895,8 +2895,8 @@ void goal_test_puzzle_155(void)
 
     while (si != NULL) {
         if (si->kind == KIND_MORT_THE_MOUSE
-            && (si->pos[0].x < 0x0a || si->pos[0].x > 0x8c
-                || si->pos[0].y < 0xf6 || si->pos[0].y > 0x140))
+            && (si->pos[0].x < 10 || si->pos[0].x > 140
+                || si->pos[0].y < 246 || si->pos[0].y > 320))
             ok = 0;
         si = si->next;
     }
@@ -3129,7 +3129,7 @@ void draw_counter_word(register int16_t value, int16_t x, int16_t y,
     itoa(value, buf, 10);
     buf[5] = '0';
 
-    for (si = 5; si > 1; si--, x -= 0x20) {
+    for (si = 5; si > 1; si--, x -= 32) {
         if (all != 0 || buf[si] == '0')
             draw_odometer_digit(buf[si - 1], x, y);
         else
@@ -3162,7 +3162,7 @@ void draw_counter_long(int32_t value, register int16_t x, int16_t y,
     ltoa(value, buf, 10);
     buf[7] = '0';
 
-    for (si = 7; si > 1; si--, x -= 0x20) {
+    for (si = 7; si > 1; si--, x -= 32) {
         if (all != 0 || buf[si] == '0')
             draw_odometer_digit(buf[si - 1], x, y);
         else

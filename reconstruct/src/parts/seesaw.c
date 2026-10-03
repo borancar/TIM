@@ -102,12 +102,12 @@ uint16_t part_hit_seesaw(struct part *part)
     case 0:
         along = part->pos[0].x + (part->size[0].width >> 1) - si->pos[0].x;
 
-        if (along >= 0x2c) {
+        if (along >= 44) {
             if (si->form == 2)
                 plain = 1;
             else
                 dir = 1;
-        } else if (along <= 0x24) {
+        } else if (along <= 36) {
             if (si->form == 0)
                 plain = 1;
             else
@@ -293,10 +293,10 @@ void part_step_seesaw(struct part *part)
                 mark_part_shapes(di, 3);
 
                 if (di->vel_y < 0) {
-                    di->pos[1].y = di->pos[0].y - 0x10;
+                    di->pos[1].y = di->pos[0].y - 16;
                     resolve_collisions(di);
 
-                    di->pos[1].y = di->pos[0].y + 0x10;
+                    di->pos[1].y = di->pos[0].y + 16;
                     part->state |= STATE_GONE;
                     resolve_collisions(di);
                     part->state &= ~STATE_GONE;
@@ -306,10 +306,10 @@ void part_step_seesaw(struct part *part)
                     fy = di->pos[0].y;
                     di->fy = fy << 9;
                 } else {
-                    di->pos[1].y = di->pos[0].y + 0x10;
+                    di->pos[1].y = di->pos[0].y + 16;
                     resolve_collisions(di);
 
-                    di->pos[1].y = di->pos[0].y - 0x10;
+                    di->pos[1].y = di->pos[0].y - 16;
                     part->state |= STATE_GONE;
                     resolve_collisions(di);
                     part->state &= ~STATE_GONE;

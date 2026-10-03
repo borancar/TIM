@@ -102,8 +102,8 @@ void draw_title_bar(register int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     g_vmds.clip_bottom = y2;
     g_vmds.clip_enabled = 1;
     /* 1.11's tile (newgpbor.bmp's 0x2a) is 0x20 high; 1.00's was 0x40. */
-    for (y = y1; y < y2; y += 0x20)
-        for (i = x1; i < x2; i += 0x80)
+    for (y = y1; y < y2; y += 32)
+        for (i = x1; i < x2; i += 128)
             draw_bitmap(g_border_art[0x2a],
                         i, y, 0);
     if (g_round_state == 0x8000)
@@ -172,7 +172,7 @@ void draw_scroll_text(const char *str, register int16_t x, register int16_t y,
     centre = x + ((w - (int16_t)text_width_thunk(str)) >> 1);
     cursor_redraw_off_thunk();
     draw_bitmap(g_panel_art[0], x, y, 0);
-    for (i = x + 0x18; i < x + w - 0x18; i += 8)
+    for (i = x + 24; i < x + w - 24; i += 8)
         draw_bitmap(g_panel_art[0x1],
                     i, y + 2, 0);
     draw_bitmap(g_panel_art[0x2],
@@ -275,8 +275,8 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
     g_vmds.clip_enabled = 1;
     cursor_redraw_off_thunk();
     /* 1.11's panel tile (newcp.bmp's 0x3a) is 0x20 square; 1.00's 0x40. */
-    for (j = 0; j < h; j += 0x20)
-        for (i = 0; i < w; i += 0x20)
+    for (j = 0; j < h; j += 32)
+        for (i = 0; i < w; i += 32)
             draw_bitmap(g_panel_art[0x3a], i + x, j + y, 0);
     if (g_round_state == 0x8000)
         set_clip_full_screen();
@@ -289,9 +289,9 @@ void draw_panel(register int16_t x, register int16_t y, int16_t w, int16_t h)
     clip_and_draw_line(x, y, x + w, y);
     g_vmds.second_colour = 0x06;
     clip_and_draw_line(x + w, y, x + w, y + h);
-    for (i = y + 0x13; i < y + h; i += 8)
+    for (i = y + 19; i < y + h; i += 8)
         draw_bitmap(g_panel_art[0xe], x - 2, i, 0);
-    for (i = x + 0x10; i < x + w; i += 8)
+    for (i = x + 16; i < x + w; i += 8)
         draw_bitmap(g_panel_art[0xf], i, y + h - 4, 0);
     draw_bitmap(g_panel_art[0xa], x - 7, y - 4, 0);
     draw_bitmap(g_panel_art[0xb], x + w - 16, y - 4, 0);
@@ -478,9 +478,9 @@ uint16_t message_box(const char *title, char *body,
     draw_panel(184, 144, 208, 90);
     draw_wrapped_text(body, 188, 148, 200, 60, 1);
     draw_button(button1, 200, 212, 0);
-    g_region_kept_b->x1 = text_width_thunk(button1) + 0xd8;
+    g_region_kept_b->x1 = text_width_thunk(button1) + 216;
     if (button2 != NULL) {
-        second_x = 0x168 - ((text_width_thunk(button2) + 7) & 0xfff8);
+        second_x = 360 - ((text_width_thunk(button2) + 7) & 0xfff8);
         draw_button(button2, second_x, 212, 0);
         g_region_kept_a->x0 = second_x;
     }
@@ -728,7 +728,7 @@ void draw_machine_layer_b(void)
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    for (x = 0x10; x < 0x22f; x += 8)
+    for (x = 16; x < 559; x += 8)
         draw_bitmap(g_border_art[0x6], x, 0, 0);
     draw_bitmap(g_border_art[0], 0, 0, 0);
     draw_bitmap(g_border_art[0x1], 560, 0, 0);
@@ -750,7 +750,7 @@ void draw_machine_layer_c(void)
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    for (x = 0x10; x < 0x22f; x += 8)
+    for (x = 16; x < 559; x += 8)
         draw_bitmap(g_border_art[0x7], x, 360, 0);
     draw_bitmap(g_border_art[0x2], 0, 352, 0);
     draw_bitmap(g_border_art[0x3], 560, 352, 0);
@@ -774,7 +774,7 @@ void draw_machine_layer_d(void)
     set_clip_play_area();
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
-    for (y = 8; y < 0x162; y += 8)
+    for (y = 8; y < 354; y += 8)
         draw_bitmap(g_border_art[0x4], 0, y, 0);
     draw_bitmap(g_border_art[0], 0, 0, 0);
     draw_bitmap(g_border_art[0x2], 0, 352, 0);
@@ -884,8 +884,8 @@ void draw_machine_layer_a(void)
     restore_cursor_following();
     g_vmds.text_style = 1;                            /* transparent text */
     part = (g_held_parts.bin_list->next);
-    y = 0x64;
-    while (part != NULL && y <= 0x134) {
+    y = 100;
+    while (part != NULL && y <= 308) {
         kind = part->kind;
         if (part == g_held_parts.dragged_part)
             count = 0;
@@ -908,15 +908,15 @@ next:
         icon = g_icons_bmp[kind];
         draw_bitmap_centred(icon, 576, y, 56, 42);
         itoa(count, digits, 10);
-        text_x = ((0x38 - (int16_t)text_width_thunk(digits)) >> 1) + 0x240;
-        if ((text_y = y + icon->height + ((0x2a - icon->height) >> 1) + 1) > 0x161)
-            text_y = 0x161;
+        text_x = ((56 - (int16_t)text_width_thunk(digits)) >> 1) + 576;
+        if ((text_y = y + icon->height + ((42 - icon->height) >> 1) + 1) > 353)
+            text_y = 353;
         g_vmds.text_colour = 0;
         draw_string(digits, text_x - 2, text_y + 1);
         g_vmds.text_colour = 0x0e;
         draw_string(digits, text_x - 1, text_y);
         restore_cursor_following();
-        y += 0x34;
+        y += 52;
     }
 }
 
@@ -1168,7 +1168,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         g_vmds.clip_left = 8;
         keep_l = 0;
     }
-    if (g_vmds.clip_right > 0x237) {
+    if (g_vmds.clip_right > 567) {
         g_vmds.clip_right = 567;
         keep_r = 0;
     }
@@ -1176,7 +1176,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
         g_vmds.clip_top = 8;
         keep_t = 0;
     }
-    if (g_vmds.clip_bottom > 0x167) {
+    if (g_vmds.clip_bottom > 359) {
         g_vmds.clip_bottom = 359;
         keep_b = 0;
     }
@@ -1195,7 +1195,7 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     at.x = g_vmds.clip_left + g_origin_x;
     at.y = g_vmds.clip_top + g_origin_y;
     ext.width = g_vmds.clip_right - g_vmds.clip_left + 1;
-    if ((ext.height = g_vmds.clip_bottom - g_vmds.clip_top + 1) > 0x80)
+    if ((ext.height = g_vmds.clip_bottom - g_vmds.clip_top + 1) > 128)
         tall = 1;
     else
         tall = 0;
@@ -1229,10 +1229,10 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     set_clip_for_mode();
     hx = at.x - g_origin_x - 12;
     hxm = hx + (ext.width >> 1) + 6;
-    hxr = hx + ext.width + 0x0c;
+    hxr = hx + ext.width + 12;
     hy = at.y - g_origin_y - 11;
     hym = hy + (ext.height >> 1) + 6;
-    hyb = hy + ext.height + 0x0c;
+    hyb = hy + ext.height + 12;
     g_vmds.fill_enabled = 1;
     g_vmds.second_colour = g_vmds.fill_colour = 0x0f;
     g_level_settings.flip_options = part_flip_options(part);
@@ -1416,17 +1416,17 @@ void draw_belt(struct part *part, register int16_t a)
     y3 = belt->pt[0][3].y - g_origin_y;
     if (a != 0) {
         x0 = (int16_t)(mul16x16(x0, a) >> 10);
-        x0 += 0x110;
+        x0 += 272;
         y0 = (int16_t)(mul16x16(y0, a) >> 10);
-        y0 += 0x48;
+        y0 += 72;
         x1 = (int16_t)(mul16x16(x1, a) >> 10);
-        x1 += 0x110;
+        x1 += 272;
         y1 = (int16_t)(mul16x16(y1, a) >> 10);
-        y1 += 0x48;
+        y1 += 72;
         x2 = (int16_t)(mul16x16(x2, a) >> 10);
-        x2 += 0x110;
+        x2 += 272;
         y2 = (int16_t)(mul16x16(y2, a) >> 10);
-        y2 += 0x48;
+        y2 += 72;
         x3 = (int16_t)(mul16x16(x3, a) >> 10);
         x3 += 0x110;
         y3 = (int16_t)(mul16x16(y3, a) >> 10);
@@ -1575,13 +1575,13 @@ void draw_rope(struct part *part, int16_t a)
         }
         if (a != 0) {
             x0 = (int16_t)(mul16x16(x0, a) >> 10);
-            x0 += 0x110;
+            x0 += 272;
             y0 = (int16_t)(mul16x16(y0, a) >> 10);
-            y0 += 0x48;
+            y0 += 72;
             x1 = (int16_t)(mul16x16(x1, a) >> 10);
-            x1 += 0x110;
+            x1 += 272;
             y1 = (int16_t)(mul16x16(y1, a) >> 10);
-            y1 += 0x48;
+            y1 += 72;
         }
         g_vmds.second_colour = 6;
         cursor_redraw_off_thunk();
@@ -1683,8 +1683,8 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
         px = (x0 & 0x10) >> 4;
         py = (y & 0x10) >> 4;
         idx = form;
-        for (i = 0; i < rows; i++, y += 0x10, py ^= 1)
-            for (col = 0, x = x0; col < cols; col++, x += 0x10, px ^= 1) {
+        for (i = 0; i < rows; i++, y += 16, py ^= 1)
+            for (col = 0, x = x0; col < cols; col++, x += 16, px ^= 1) {
                 if (rows == 1) {
                     if (col == 0)
                         idx = form;
@@ -1823,14 +1823,14 @@ void draw_part_extra(register struct part *part)
     x[1] = held->pos[0].x + held->hold.x - g_origin_x;
     y[0] = part->pos[0].y + 6 - g_origin_y;
     y[1] = held->pos[0].y + held->hold.y - g_origin_y;
-    y[2] = part->pos[0].y + 0x10 - g_origin_y;
+    y[2] = part->pos[0].y + 16 - g_origin_y;
     /* 1.11: what kind 0x24 holds is held a pixel left and four down. */
     if (held->kind == 0x24) {
         x[1]--;
         y[1] += 4;
     }
     x[0] = x[2] = ((part->state & STATE_FLIP_HORIZONTAL) ? part->pos[0].x - 1
-                                           : part->pos[0].x + 0x0f)
+                                           : part->pos[0].x + 15)
                   - g_origin_x;
     draw_polygon(3, x, y);
     size[0] = (x[0] < x[1] ? (corner[0] = x[0], x[1] - x[0])

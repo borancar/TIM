@@ -673,11 +673,11 @@ void edge_scroll_flags(void)
 
             if (g_pointer.pointer_y < 8)
                 g_redraw_d = 3;
-            if (g_pointer.pointer_y > 0x12f)
+            if (g_pointer.pointer_y > 303)
                 g_redraw_c = 3;
             if (g_pointer.pointer_x < 8)
                 g_redraw_b = 3;
-            if (g_pointer.pointer_x > 0x1ff)
+            if (g_pointer.pointer_x > 511)
                 g_redraw_a = g_redraw_e = 3;
         }
     }
@@ -728,19 +728,19 @@ void scroll_play_area(void)
 
     if (g_pointer.pointer_x <= 0 && g_origin_x != -8) {
         moved = 1;
-        x -= 0x10;
+        x -= 16;
     }
-    if (g_pointer.pointer_x >= 0x27f && g_origin_x != g_level_settings.extent_y) {
+    if (g_pointer.pointer_x >= 639 && g_origin_x != g_level_settings.extent_y) {
         moved = 1;
-        x += 0x10;
+        x += 16;
     }
     if (g_pointer.pointer_y <= 0 && g_origin_y != -8) {
         moved = 1;
-        y -= 0x10;
+        y -= 16;
     }
-    if (g_pointer.pointer_y >= 0x16f && g_origin_y != g_level_settings.extent_x) {
+    if (g_pointer.pointer_y >= 367 && g_origin_y != g_level_settings.extent_x) {
         moved = 1;
-        y += 0x10;
+        y += 16;
     }
 
     if (moved != 0) {
@@ -1010,24 +1010,24 @@ void move_carried_part(void)
 
     if (CARRIED->traits2 & TRAIT2_FREE_PLACED) {
         CARRIED->pos[0].x = g_pointer.pointer_x - g_drag_offset_x + g_origin_x;
-        if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x + 0x0c)
-            CARRIED->pos[0].x = g_origin_x - CARRIED->size[0].width + 0x0c;
-        if (CARRIED->pos[0].x >= g_origin_x + 0x235)
-            CARRIED->pos[0].x = g_origin_x + 0x235;
+        if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x + 12)
+            CARRIED->pos[0].x = g_origin_x - CARRIED->size[0].width + 12;
+        if (CARRIED->pos[0].x >= g_origin_x + 565)
+            CARRIED->pos[0].x = g_origin_x + 565;
 
         CARRIED->pos[0].y = g_pointer.pointer_y - g_drag_offset_y + g_origin_y;
-        if (CARRIED->pos[0].y + CARRIED->size[0].height <= g_origin_y + 0x0c)
-            CARRIED->pos[0].y = g_origin_y - CARRIED->size[0].height + 0x0c;
-        if (CARRIED->pos[0].y >= g_origin_y + 0x165)
-            CARRIED->pos[0].y = g_origin_y + 0x165;
+        if (CARRIED->pos[0].y + CARRIED->size[0].height <= g_origin_y + 12)
+            CARRIED->pos[0].y = g_origin_y - CARRIED->size[0].height + 12;
+        if (CARRIED->pos[0].y >= g_origin_y + 357)
+            CARRIED->pos[0].y = g_origin_y + 357;
     } else {
         CARRIED->pos[0].x = ((g_pointer.pointer_x - g_drag_offset_x) & 0xfff0) + g_origin_x;
         if (CARRIED->pos[0].x + CARRIED->size[0].width <= g_origin_x)
-            CARRIED->pos[0].x += 0x10;
+            CARRIED->pos[0].x += 16;
 
         CARRIED->pos[0].y = ((g_pointer.pointer_y - g_drag_offset_y) & 0xfff0) + g_origin_y;
         if (CARRIED->pos[0].y + CARRIED->size[0].height <= g_origin_y)
-            CARRIED->pos[0].y += 0x10;
+            CARRIED->pos[0].y += 16;
     }
 
     place_object_for_draw(CARRIED);
@@ -1404,7 +1404,7 @@ int16_t drag_carried_part_first(void)
            the drag began, and stops. */
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
-            CARRIED->pos[0].x += 0x10;
+            CARRIED->pos[0].x += 16;
             CARRIED->set_size.width -= 16;
             if (CARRIED->set_size.width < lo) {
                 CARRIED->pos[0].x = g_drag_start_pos.x;
@@ -1447,7 +1447,7 @@ int16_t settle_carried_part_first(void)
 
     moved = 0;
     was = CARRIED->set_size.width;
-    si = (g_pointer.pointer_x & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].x;
+    si = (g_pointer.pointer_x & 0xfff0) + g_origin_x + 16 - CARRIED->pos[0].x;
     lo = g_part_kinds[CARRIED->kind].min_w;
     hi = g_part_kinds[CARRIED->kind].max_w;
 
@@ -1534,7 +1534,7 @@ int16_t drag_carried_part_pair(void)
            the drag began, and stops. */
         stop = 0;
         while (object_overlaps_any(CARRIED) && stop == 0) {
-            CARRIED->pos[0].y += 0x10;
+            CARRIED->pos[0].y += 16;
             CARRIED->set_size.height -= 16;
             if (CARRIED->set_size.height < lo) {
                 CARRIED->pos[0].y = g_drag_start_pos.y;
@@ -1594,7 +1594,7 @@ int16_t settle_carried_part(void)
     was = CARRIED->set_size.height;
     /* **origin_x, not origin_y**: the original adds the horizontal scroll
        to the pointer's y here. */
-    si = (g_pointer.pointer_y & 0xfff0) + g_origin_x + 0x10 - CARRIED->pos[0].y;
+    si = (g_pointer.pointer_y & 0xfff0) + g_origin_x + 16 - CARRIED->pos[0].y;
     lo = g_part_kinds[CARRIED->kind].min_h;
     hi = g_part_kinds[CARRIED->kind].max_h;
 
@@ -2608,8 +2608,8 @@ void paint_panel_frame_rest(void)
     set_clip_for_mode();
 
     di = 0x100;
-    y = 0xa0;
-    extent = ((g_level_settings.extent_y > g_level_settings.extent_x) ? g_level_settings.extent_y : g_level_settings.extent_x) + 0x230;
+    y = 160;
+    extent = ((g_level_settings.extent_y > g_level_settings.extent_x) ? g_level_settings.extent_y : g_level_settings.extent_x) + 560;
     scale = 0x40000L / extent;
     di += 2;
     y += 2;
@@ -2931,7 +2931,7 @@ void paint_panel_e(void)
     draw_bitmap(g_panel_art[down], 88, 111, 0);
     draw_bitmap(g_panel_art[0x14], 110, 96, 0);
 
-    for (si = 1, y = 0x69; si <= g_master_level; si++, y -= 2)
+    for (si = 1, y = 105; si <= g_master_level; si++, y -= 2)
         draw_bitmap(((g_panel_art + 0x14)[si]),
                     g_game_master_level_x.level_x[si - 1], y, 0);
 

@@ -132,8 +132,8 @@ void adjust_bin_screen(void)
             break;
 
         case 0x20:                      /* an icon */
-            slot = (g_pointer.pointer_x - 0x40) / 0x40
-                 + (g_pointer.pointer_y - 0x40) / 0x32 * 7;
+            slot = (g_pointer.pointer_x - 64) / 64
+                 + (g_pointer.pointer_y - 64) / 50 * 7;
             slot += g_bin_adjust_top;
             if (slot < 0x3c) {
                 slot = g_bin_adjust_kinds[slot];
@@ -201,9 +201,9 @@ void draw_adjust_icons(register int16_t top)
     draw_panel(56, 64, 460, 200);
 
     for (i = 0; i < 0x1c; i++) {
-        if (top + i < 0x3c) {
-            x = i % 7 * 0x40 + 0x40;
-            y = i / 7 * 0x32 + 0x40;
+        if (top + i < 60) {
+            x = i % 7 * 64 + 64;
+            y = i / 7 * 50 + 64;
             kind = g_bin_adjust_kinds[top + i];
             cursor_redraw_off_thunk();
             draw_bitmap_centred(g_icons_bmp[kind], x, y, 64, 48);

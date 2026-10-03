@@ -54,8 +54,8 @@ struct machine_button_prev g_machine_button_prev = { 0 };
  */
 int16_t point_in_play_area(void)
 {
-    if (g_pointer.pointer_x >= 8 && g_pointer.pointer_x <= 0x237
-        && g_pointer.pointer_y >= 8 && g_pointer.pointer_y <= 0x167)
+    if (g_pointer.pointer_x >= 8 && g_pointer.pointer_x <= 567
+        && g_pointer.pointer_y >= 8 && g_pointer.pointer_y <= 359)
         return 1;
     else
         return 0;
