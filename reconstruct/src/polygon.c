@@ -36,33 +36,33 @@
  */
 asm {
 _DATA segment word public 'DATA'
-d_44d0 label byte
+poly_top_at label byte
         db 0h, 0h
-d_44d2 label byte
+poly_bottom_at label byte
         db 0h, 0h
-d_44d4 label byte
+poly_right_count label byte
         db 0h, 0h
-d_44d6 label byte
+poly_left_count label byte
         db 0h, 0h
-d_44d8 label byte
+poly_remaining label byte
         db 0h, 0h
-d_44da label byte
+poly_at label byte
         db 0h, 0h
-d_44dc label byte
+poly_chain label byte
         db 0h, 0h
-d_44de label byte
+poly_prev_x label byte
         db 0h, 0h
-d_44e0 label byte
+poly_prev_y label byte
         db 0h, 0h
-d_44e2 label byte
+poly_span_seg label byte
         db 0h, 0h
-d_44e4 label byte
+poly_outline_count label byte
         db 0h, 0h
-d_44e6 label byte
+poly_second_count label byte
         db 0h, 0h
-d_44e8 label byte
+poly_span_step label byte
         db 0h
-d_44e9 label byte
+poly_second_pass label byte
         db 0h
 _DATA ends
 
@@ -85,13 +85,13 @@ _draw_polygon proc far
         push di
         push es
         sub ax, ax
-        mov word ptr DGROUP:d_44e2, ax
-        mov byte ptr DGROUP:d_44e9, al
+        mov word ptr DGROUP:poly_span_seg, ax
+        mov byte ptr DGROUP:poly_second_pass, al
         mov ax, ds
         mov es, ax
         mov ax, word ptr [bp+6]
         or ax, ax
-        js L1ee1d
+        js poly_count_set
         mov word ptr DGROUP:_g_vmds+19ch, ax
         mov cx, ax
         mov si, word ptr [bp+8]
@@ -101,21 +101,21 @@ _draw_polygon proc far
         mov si, word ptr [bp+0ah]
         mov di, offset DGROUP:_g_vmds+0d4h
         rep movsw
-L1ee1d:
+poly_count_set:
         cmp ax, 2
-        jg L1ee33
-        jl L1ee30
-L1ee24:
+        jg poly_enough
+        jl poly_too_few
+poly_two_points:
         mov si, offset DGROUP:_g_vmds+0ach
         mov di, offset DGROUP:_g_vmds+0d4h
         mov bp, 1
         call _poly_outline
-L1ee30:
-        jmp L1f1e0
-L1ee33:
+poly_too_few:
+        jmp poly_second_pass_check
+poly_enough:
         mov al, byte ptr DGROUP:_g_vmds+0ch
         or al, al
-        jne L1ee57
+        jne poly_fill
         mov ax, word ptr DGROUP:_g_vmds+19ch
         mov bx, ax
         mov bp, ax
@@ -127,13 +127,13 @@ L1ee33:
         mov ax, word ptr [di]
         mov word ptr [bx+di], ax
         call _poly_outline
-        jmp L1f1e0
-L1ee57:
+        jmp poly_second_pass_check
+poly_fill:
         mov al, byte ptr DGROUP:_g_vmds+0eh
         cmp al, byte ptr DGROUP:_g_vmds+0dh
-        je L1ee83
+        je poly_clip
         mov ax, word ptr DGROUP:_g_vmds+19ch
-        mov word ptr DGROUP:d_44e4, ax
+        mov word ptr DGROUP:poly_outline_count, ax
         mov bx, ax
         dec bx
         mov si, offset DGROUP:_g_vmds+0ach
@@ -150,83 +150,83 @@ L1ee57:
         mov cx, bx
         rep movsw
         stosw
-L1ee83:
+poly_clip:
         mov al, byte ptr DGROUP:_g_vmds+3h
         or al, al
-        je L1ee8f
+        je poly_clipped
         call FAR PTR _clip_polygon
-L1ee8f:
+poly_clipped:
         mov ax, word ptr DGROUP:_g_vmds+19ch
         cmp ax, 2
-        je L1ee24
-        jl L1ee30
+        je poly_two_points
+        jl poly_too_few
         dec ax
         shl ax, 1
         mov si, ax
         mov ax, word ptr DGROUP:_g_vmds+0d4h
-        mov word ptr DGROUP:d_44e0, ax
+        mov word ptr DGROUP:poly_prev_y, ax
         mov dx, 7fffh
         mov bx, 8001h
         mov ax, word ptr DGROUP:_g_vmds+0ach
-        mov word ptr DGROUP:d_44de, ax
+        mov word ptr DGROUP:poly_prev_x, ax
         mov bp, dx
         mov cx, bx
         sub di, di
         sub ax, ax
-        mov word ptr DGROUP:d_44d0, ax
-        mov word ptr DGROUP:d_44d2, ax
-L1eebe:
+        mov word ptr DGROUP:poly_top_at, ax
+        mov word ptr DGROUP:poly_bottom_at, ax
+poly_scan_point:
         mov ax, word ptr [si+3564h]
-        cmp ax, word ptr DGROUP:d_44e0
-        jne L1eed6
+        cmp ax, word ptr DGROUP:poly_prev_y
+        jne poly_new_y
         mov ax, word ptr [si+353ch]
-        cmp ax, word ptr DGROUP:d_44de
-        je L1ef17
+        cmp ax, word ptr DGROUP:poly_prev_x
+        je poly_scan_next
         mov ax, word ptr [si+3564h]
-L1eed6:
-        mov word ptr DGROUP:d_44e0, ax
+poly_new_y:
+        mov word ptr DGROUP:poly_prev_y, ax
         mov word ptr [di+35b4h], ax
         cmp ax, dx
-        jg L1eef3
-        jl L1eee9
+        jg poly_check_bottom
+        jl poly_new_top
         cmp word ptr [si+353ch], cx
-        jle L1eef3
-L1eee9:
-        mov word ptr DGROUP:d_44d0, di
+        jle poly_check_bottom
+poly_new_top:
+        mov word ptr DGROUP:poly_top_at, di
         mov dx, ax
         mov cx, word ptr [si+353ch]
-L1eef3:
+poly_check_bottom:
         cmp ax, bx
-        jl L1ef09
-        jg L1eeff
+        jl poly_keep_point
+        jg poly_new_bottom
         cmp word ptr [si+353ch], bp
-        jg L1ef09
-L1eeff:
-        mov word ptr DGROUP:d_44d2, di
+        jg poly_keep_point
+poly_new_bottom:
+        mov word ptr DGROUP:poly_bottom_at, di
         mov bx, ax
         mov bp, word ptr [si+353ch]
-L1ef09:
+poly_keep_point:
         mov ax, word ptr [si+353ch]
-        mov word ptr DGROUP:d_44de, ax
+        mov word ptr DGROUP:poly_prev_x, ax
         mov word ptr [di+358ch], ax
         add di, 2
-L1ef17:
+poly_scan_next:
         sub si, 2
-        jge L1eebe
+        jge poly_scan_point
         cmp dx, bx
-        jne L1ef59
-L1ef20:
+        jne poly_count_kept
+poly_flat_line:
         cmp byte ptr DGROUP:_g_vmds+6e8h, 0
-        jne L1ef36
+        jne poly_flat_line_halved
         push dx
         push cx
         push bx
         push bp
         call FAR PTR _clip_and_draw_line
         add sp, 8
-L1ef33:
-        jmp L1f1e0
-L1ef36:
+poly_flat_done:
+        jmp poly_second_pass_check
+poly_flat_line_halved:
         shr word ptr DGROUP:_g_vmds+8h, 1
         shr word ptr DGROUP:_g_vmds+0ah, 1
         sar dx, 1
@@ -239,18 +239,18 @@ L1ef36:
         add sp, 8
         shl word ptr DGROUP:_g_vmds+8h, 1
         shl word ptr DGROUP:_g_vmds+0ah, 1
-        jmp L1f1e0
-L1ef59:
+        jmp poly_second_pass_check
+poly_count_kept:
         mov ax, di
         shr ax, 1
         cmp ax, 2
-        je L1ef20
-        jl L1ef33
+        je poly_flat_line
+        jl poly_flat_done
         mov cx, di
         mov word ptr DGROUP:_g_vmds+19ch, ax
         mov ax, ds
         mov es, ax
-        mov ax, word ptr DGROUP:d_44d0
+        mov ax, word ptr DGROUP:poly_top_at
         mov si, ax
         mov di, si
         add di, 2
@@ -261,42 +261,42 @@ L1ef59:
         sub dx, word ptr [si+358ch]
         mov bp, word ptr [di+35b4h]
         sub bp, word ptr [si+35b4h]
-        jne L1ef99
+        jne poly_prev_edge
         inc bp
         or dx, dx
         mov dx, 7fffh
-        jns L1ef99
+        jns poly_prev_edge
         neg dx
-L1ef99:
+poly_prev_edge:
         mov di, si
         sub di, 2
-        jge L1efa2
+        jge poly_prev_delta
         add di, cx
-L1efa2:
+poly_prev_delta:
         mov ax, word ptr [di+358ch]
         sub ax, word ptr [si+358ch]
         mov bx, word ptr [di+35b4h]
         sub bx, word ptr [si+35b4h]
-        jne L1efbe
+        jne poly_order_signs
         inc bx
         or ax, ax
         mov ax, 8001h
-        js L1efc8
+        js poly_order_swap
         neg ax
-L1efbe:
+poly_order_signs:
         or ax, ax
-        js L1efc8
+        js poly_order_swap
         or dx, dx
-        jle L1f039
-        jmp short L1efd3
-L1efc8:
+        jle poly_reverse
+        jmp short poly_compare_slopes
+poly_order_swap:
         or dx, dx
-        jge L1f01d
+        jge poly_keep_order
         neg dx
         neg ax
         xchg dx, ax
         xchg bp, bx
-L1efd3:
+poly_compare_slopes:
         mov si, ax
         mov di, dx
         sub dx, dx
@@ -306,8 +306,8 @@ L1efd3:
         sub dx, dx
         div bp
         cmp ax, di
-        ja L1f01d
-        jb L1f039
+        ja poly_keep_order
+        jb poly_reverse
         sub ax, ax
         div bp
         mov di, ax
@@ -315,10 +315,10 @@ L1efd3:
         mov dx, si
         div bx
         cmp di, ax
-        jb L1f039
-        ja L1f01d
-        mov byte ptr DGROUP:d_44e9, 1
-        mov word ptr DGROUP:d_44e6, cx
+        jb poly_reverse
+        ja poly_keep_order
+        mov byte ptr DGROUP:poly_second_pass, 1
+        mov word ptr DGROUP:poly_second_count, cx
         mov dx, cx
         mov si, offset DGROUP:_g_vmds+0fch
         mov di, offset DGROUP:_g_vmds+14ch
@@ -330,7 +330,7 @@ L1efd3:
         shr cx, 1
         rep movsw
         mov cx, dx
-L1f01d:
+poly_keep_order:
         mov si, offset DGROUP:_g_vmds+0fch
         mov di, offset DGROUP:_g_vmds+0ach
         mov dx, cx
@@ -342,101 +342,101 @@ L1f01d:
         shr cx, 1
         rep movsw
         mov cx, dx
-        jmp short L1f076
-L1f039:
+        jmp short poly_chains
+poly_reverse:
         mov dx, cx
         mov si, offset DGROUP:_g_vmds+0fch
         mov di, offset DGROUP:_g_vmds+0ach
         add di, dx
         shr cx, 1
-L1f045:
+poly_reverse_x:
         lodsw
         dec di
         dec di
         mov word ptr [di], ax
-        loop L1f045
+        loop poly_reverse_x
         mov si, offset DGROUP:_g_vmds+124h
         mov di, offset DGROUP:_g_vmds+0d4h
         add di, dx
         mov cx, dx
         shr cx, 1
-L1f058:
+poly_reverse_y:
         lodsw
         dec di
         dec di
         mov word ptr [di], ax
-        loop L1f058
+        loop poly_reverse_y
         mov cx, dx
         sub dx, 2
         mov ax, dx
-        sub ax, word ptr DGROUP:d_44d0
-        mov word ptr DGROUP:d_44d0, ax
+        sub ax, word ptr DGROUP:poly_top_at
+        mov word ptr DGROUP:poly_top_at, ax
         mov ax, dx
-        sub ax, word ptr DGROUP:d_44d2
-        mov word ptr DGROUP:d_44d2, ax
-L1f076:
-        mov ax, word ptr DGROUP:d_44d2
+        sub ax, word ptr DGROUP:poly_bottom_at
+        mov word ptr DGROUP:poly_bottom_at, ax
+poly_chains:
+        mov ax, word ptr DGROUP:poly_bottom_at
         mov bx, ax
         mov dx, word ptr [bx+3564h]
-        mov ax, word ptr DGROUP:d_44d0
+        mov ax, word ptr DGROUP:poly_top_at
         mov si, ax
         sub di, di
-        jmp short L1f091
-L1f088:
+        jmp short poly_right_point
+poly_right_next:
         add si, 2
         cmp si, cx
         sbb ax, ax
         and si, ax
-L1f091:
+poly_right_point:
         mov ax, word ptr [si+353ch]
         mov word ptr [di+358ch], ax
         mov ax, word ptr [si+3564h]
         mov word ptr [di+35b4h], ax
         add di, 2
         cmp ax, dx
-        jl L1f088
+        jl poly_right_next
         mov ax, di
         shr ax, 1
-        mov word ptr DGROUP:d_44d4, ax
-        mov ax, word ptr DGROUP:d_44d0
+        mov word ptr DGROUP:poly_right_count, ax
+        mov ax, word ptr DGROUP:poly_top_at
         mov bx, ax
         mov dx, word ptr [bx+3564h]
-        mov ax, word ptr DGROUP:d_44d2
+        mov ax, word ptr DGROUP:poly_bottom_at
         mov si, ax
-        jmp short L1f0c8
-L1f0bf:
+        jmp short poly_left_point
+poly_left_next:
         add si, 2
         cmp si, cx
         sbb ax, ax
         and si, ax
-L1f0c8:
+poly_left_point:
         mov ax, word ptr [si+353ch]
         mov word ptr [di+358ch], ax
         mov ax, word ptr [si+3564h]
         mov word ptr [di+35b4h], ax
         add di, 2
         cmp ax, dx
-        jg L1f0bf
+        jg poly_left_next
         mov ax, di
         shr ax, 1
-        sub ax, word ptr DGROUP:d_44d4
-        mov word ptr DGROUP:d_44d6, ax
+        sub ax, word ptr DGROUP:poly_right_count
+        mov word ptr DGROUP:poly_left_count, ax
         mov ax, word ptr DGROUP:_g_vm_driver
         mov es, ax
-        mov word ptr DGROUP:d_44dc, 2
-        mov word ptr DGROUP:d_44da, 0
-        mov ax, word ptr DGROUP:d_44d4
-        jmp short L1f103
-L1f100:
-        mov ax, word ptr DGROUP:d_44d8
-L1f103:
+        mov word ptr DGROUP:poly_chain, 2
+        mov word ptr DGROUP:poly_at, 0
+        mov ax, word ptr DGROUP:poly_right_count
+        jmp short poly_edge
+poly_edge_next:
+        mov ax, word ptr DGROUP:poly_remaining
+poly_edge:
         dec ax
-        je L1f17e
-        mov word ptr DGROUP:d_44d8, ax
-        mov ax, word ptr DGROUP:d_44da
+        je poly_chain_done
+        mov word ptr DGROUP:poly_remaining, ax
+        mov ax, word ptr DGROUP:poly_at
         mov si, ax
         add ax, 2
-        mov word ptr DGROUP:d_44da, ax
+        mov word ptr DGROUP:poly_at, ax
         mov ax, word ptr [si+358ch]
         mov bx, ax
         mov bp, word ptr [si+358eh]
@@ -446,69 +446,69 @@ L1f103:
         cwd
         xor ax, dx
         sub ax, dx
-        je L1f147
+        je poly_vertical
         mov di, ax
         mov ax, cx
         sub ax, si
         cwd
         xor ax, dx
         sub ax, dx
-        je L1f14c
+        je poly_horizontal
         cmp di, ax
-        jl L1f179
-        jg L1f168
+        jl poly_steep
+        jg poly_shallow
         call _poly_edge_diagonal
-        jmp short L1f100
-L1f147:
+        jmp short poly_edge_next
+poly_vertical:
         call _poly_edge_vertical
-        jmp short L1f100
-L1f14c:
+        jmp short poly_edge_next
+poly_horizontal:
         cmp bx, bp
-        jl L1f152
+        jl poly_horizontal_store
         xchg bx, bp
-L1f152:
+poly_horizontal_store:
         mov di, cx
         shl di, 1
         shl di, 1
-        mov ax, word ptr DGROUP:d_44dc
+        mov ax, word ptr DGROUP:poly_chain
         add di, ax
         or ax, ax
         mov ax, bx
-        je L1f165
+        je poly_horizontal_x
         mov ax, bp
-L1f165:
+poly_horizontal_x:
         stosw
-        jmp short L1f100
-L1f168:
-        cmp word ptr DGROUP:d_44dc, 0
-        jne L1f174
+        jmp short poly_edge_next
+poly_shallow:
+        cmp word ptr DGROUP:poly_chain, 0
+        jne poly_shallow_right
         call _poly_edge_shallow_left
-        jmp short L1f100
-L1f174:
+        jmp short poly_edge_next
+poly_shallow_right:
         call _poly_edge_shallow_right
-        jmp short L1f100
-L1f179:
+        jmp short poly_edge_next
+poly_steep:
         call _poly_edge_steep
-        jmp short L1f100
-L1f17e:
-        mov ax, word ptr DGROUP:d_44dc
+        jmp short poly_edge_next
+poly_chain_done:
+        mov ax, word ptr DGROUP:poly_chain
         or ax, ax
-        je L1f195
-        add word ptr DGROUP:d_44da, 2
+        je poly_spans
+        add word ptr DGROUP:poly_at, 2
         sub ax, ax
-        mov word ptr DGROUP:d_44dc, ax
-        mov ax, word ptr DGROUP:d_44d6
-        jmp L1f103
-L1f195:
-        mov ax, word ptr DGROUP:d_44d0
+        mov word ptr DGROUP:poly_chain, ax
+        mov ax, word ptr DGROUP:poly_left_count
+        jmp poly_edge
+poly_spans:
+        mov ax, word ptr DGROUP:poly_top_at
         mov bx, ax
         mov ax, word ptr [bx+3564h]
         mov dx, ax
         shl ax, 1
         shl ax, 1
         mov si, ax
-        mov word ptr DGROUP:d_44e2, es
-        mov ax, word ptr DGROUP:d_44d2
+        mov word ptr DGROUP:poly_span_seg, es
+        mov ax, word ptr DGROUP:poly_bottom_at
         mov bx, ax
         mov ax, word ptr [bx+3564h]
         sub ax, dx
@@ -522,20 +522,20 @@ L1f195:
         call dword ptr DGROUP:_g_vm_driver+70h
         mov al, byte ptr DGROUP:_g_vmds+0eh
         cmp al, byte ptr DGROUP:_g_vmds+0dh
-        je L1f1e0
-        mov ax, word ptr DGROUP:d_44e4
+        je poly_second_pass_check
+        mov ax, word ptr DGROUP:poly_outline_count
         mov bp, ax
         mov si, offset DGROUP:_g_vmds+14ch
         mov di, offset DGROUP:_g_vmds+174h
         call _poly_outline
-L1f1e0:
-        mov al, byte ptr DGROUP:d_44e9
+poly_second_pass_check:
+        mov al, byte ptr DGROUP:poly_second_pass
         or al, al
-        je L1f211
-        mov byte ptr DGROUP:d_44e9, 0
+        je poly_return
+        mov byte ptr DGROUP:poly_second_pass, 0
         mov ax, ds
         mov es, ax
-        mov cx, word ptr DGROUP:d_44e6
+        mov cx, word ptr DGROUP:poly_second_count
         mov dx, cx
         mov si, offset DGROUP:_g_vmds+14ch
         mov di, offset DGROUP:_g_vmds+0fch
@@ -547,9 +547,9 @@ L1f1e0:
         shr cx, 1
         rep movsw
         mov cx, dx
-        jmp L1f039
-L1f211:
-        mov ax, word ptr DGROUP:d_44e2
+        jmp poly_reverse
+poly_return:
+        mov ax, word ptr DGROUP:poly_span_seg
         pop es
         pop di
         pop si
@@ -560,8 +560,8 @@ _draw_polygon endp
 /* 0x20ea3 */
 _poly_outline proc near
         cmp byte ptr DGROUP:_g_vmds+6e8h, 0
-        jne L1f237
-L1f220:
+        jne outline_halved
+outline_line:
         push word ptr [di]
         lodsw
         push ax
@@ -571,12 +571,12 @@ L1f220:
         call FAR PTR _clip_and_draw_line
         add sp, 8
         dec bp
-        jne L1f220
+        jne outline_line
         ret
-L1f237:
+outline_halved:
         shr word ptr DGROUP:_g_vmds+8h, 1
         shr word ptr DGROUP:_g_vmds+0ah, 1
-L1f23f:
+outline_halved_line:
         mov ax, word ptr [di]
         add di, 2
         sar ax, 1
@@ -591,7 +591,7 @@ L1f23f:
         call FAR PTR _clip_and_draw_line
         add sp, 8
         dec bp
-        jne L1f23f
+        jne outline_halved_line
         shl word ptr DGROUP:_g_vmds+8h, 1
         shl word ptr DGROUP:_g_vmds+0ah, 1
         ret
@@ -600,13 +600,13 @@ _poly_outline endp
 /* 0x20eef */
 _poly_edge_vertical proc near
         cmp cx, si
-        jg L1f26b
+        jg vertical_ordered
         xchg cx, si
-L1f26b:
+vertical_ordered:
         mov di, si
         sub cx, si
         inc cx
-        mov byte ptr DGROUP:d_44e8, 2
+        mov byte ptr DGROUP:poly_span_step, 2
         mov ax, bp
         sub bx, bx
         mov si, bx
@@ -618,14 +618,14 @@ _poly_edge_vertical endp
 /* 0x20f0b */
 _poly_edge_steep proc near
         cmp bx, bp
-        jl L1f289
+        jl steep_ordered
         xchg bx, bp
         xchg cx, si
-L1f289:
+steep_ordered:
         mov di, cx
         shl di, 1
         shl di, 1
-        mov ax, word ptr DGROUP:d_44dc
+        mov ax, word ptr DGROUP:poly_chain
         add di, ax
         mov ax, cx
         sub ax, si
@@ -646,8 +646,8 @@ L1f289:
         xor bp, si
         inc cx
         or dx, dx
-        je L1f32f
-L1f2ba:
+        je steep_rows_up
+steep_rows_down:
         stosw
         inc di
         inc di
@@ -658,7 +658,7 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
+        je steep_down_done
         stosw
         inc di
         inc di
@@ -669,7 +669,7 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
+        je steep_down_done
         stosw
         inc di
         inc di
@@ -680,7 +680,7 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
+        je steep_down_done
         stosw
         inc di
         inc di
@@ -691,7 +691,7 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
+        je steep_down_done
         stosw
         inc di
         inc di
@@ -702,7 +702,7 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
+        je steep_down_done
         stosw
         inc di
         inc di
@@ -713,11 +713,11 @@ L1f2ba:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f32e
-        jmp short L1f2ba
-L1f32e:
+        je steep_down_done
+        jmp short steep_rows_down
+steep_down_done:
         ret
-L1f32f:
+steep_rows_up:
         stosw
         add di, -6
         cmp bh, 80h
@@ -727,7 +727,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -737,7 +737,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -747,7 +747,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -757,7 +757,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -767,7 +767,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -777,7 +777,7 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
+        je steep_up_done
         stosw
         add di, -6
         cmp bh, 80h
@@ -787,32 +787,32 @@ L1f32f:
         xor dx, si
         add bx, dx
         dec cx
-        je L1f3be
-        jmp L1f32f
-L1f3be:
+        je steep_up_done
+        jmp steep_rows_up
+steep_up_done:
         ret
 _poly_edge_steep endp
 
 /* 0x21049 */
 _poly_edge_diagonal proc near
         cmp cx, si
-        jl L1f3c7
+        jl diagonal_ordered
         xchg bx, bp
         xchg cx, si
-L1f3c7:
+diagonal_ordered:
         mov di, cx
         sub cx, si
         neg cx
         inc cx
         mov si, 1
         cmp bx, bp
-        jl L1f3d7
+        jl diagonal_walk
         neg si
-L1f3d7:
+diagonal_walk:
         mov ax, bx
         sub bx, bx
         mov bp, bx
-        mov byte ptr DGROUP:d_44e8, 2
+        mov byte ptr DGROUP:poly_span_step, 2
         jmp _poly_walk
 c_1f3e5 db 0c3h
 _poly_edge_diagonal endp
@@ -820,25 +820,25 @@ _poly_edge_diagonal endp
 /* 0x21070 */
 _poly_edge_shallow_right proc near
         cmp bx, bp
-        jg L1f3ee
+        jg sright_ordered
         xchg bx, bp
         xchg cx, si
-L1f3ee:
+sright_ordered:
         mov di, cx
         shl di, 1
         inc di
         shl di, 1
         mov dx, 2
         sub si, cx
-        jge L1f401
+        jge sright_dir_set
         neg si
         mov dx, 0fffah
-L1f401:
+sright_dir_set:
         mov cx, si
         sub bp, bx
-        jle L1f409
+        jle sright_dx_negated
         neg bp
-L1f409:
+sright_dx_negated:
         mov ax, bp
         add bp, si
         shl bp, 1
@@ -849,117 +849,117 @@ L1f409:
         add di, dx
         dec ax
         or bx, bx
-        jl L1f41e
-        jmp short L1f44c
-L1f41e:
+        jl sright_run
+        jmp short sright_row
+sright_run:
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
+        jge sright_row
         dec ax
         add bx, si
-        jge L1f44c
-        jmp short L1f41e
-L1f448:
+        jge sright_row
+        jmp short sright_run
+sright_row_loop:
         add bx, bp
-        jl L1f41e
-L1f44c:
+        jl sright_run
+sright_row:
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        je L1f4a0
+        je sright_done
         add bx, bp
-        jl L1f41e
+        jl sright_run
         stosw
         add di, dx
         dec ax
         dec cx
-        jne L1f448
-L1f4a0:
+        jne sright_row_loop
+sright_done:
         ret
 _poly_edge_shallow_right endp
 
 /* 0x2112b */
 _poly_edge_shallow_left proc near
         cmp bx, bp
-        jl L1f4a9
+        jl sleft_ordered
         xchg bx, bp
         xchg cx, si
-L1f4a9:
+sleft_ordered:
         mov di, cx
         shl di, 1
         shl di, 1
         mov dx, 2
         sub si, cx
-        jge L1f4bb
+        jge sleft_dir_set
         neg si
         mov dx, 0fffah
-L1f4bb:
+sleft_dir_set:
         mov cx, si
         sub bp, bx
-        jle L1f4c3
+        jle sleft_dx_negated
         neg bp
-L1f4c3:
+sleft_dx_negated:
         mov ax, bp
         add bp, si
         shl bp, 1
@@ -970,93 +970,93 @@ L1f4c3:
         add di, dx
         inc ax
         or bx, bx
-        jl L1f4d8
-        jmp short L1f506
-L1f4d8:
+        jl sleft_run
+        jmp short sleft_row
+sleft_run:
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
+        jge sleft_row
         inc ax
         add bx, si
-        jge L1f506
-        jmp short L1f4d8
-L1f502:
+        jge sleft_row
+        jmp short sleft_run
+sleft_row_loop:
         add bx, bp
-        jl L1f4d8
-L1f506:
+        jl sleft_run
+sleft_row:
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        je L1f55a
+        je sleft_done
         add bx, bp
-        jl L1f4d8
+        jl sleft_run
         stosw
         add di, dx
         inc ax
         dec cx
-        jne L1f502
-L1f55a:
+        jne sleft_row_loop
+sleft_done:
         ret
 c_1f55b db 0abh
 c_1f55c db 3h, 0f9h
@@ -1069,7 +1069,7 @@ _poly_walk proc near
         push ax
         shl di, 1
         shl di, 1
-        mov ax, word ptr DGROUP:d_44dc
+        mov ax, word ptr DGROUP:poly_chain
         add di, ax
         mov dx, cx
         xor ax, ax
@@ -1080,7 +1080,7 @@ _poly_walk proc near
         add ax, dx
         mov dx, 2eb2h
         sub dx, ax
-        mov al, byte ptr DGROUP:d_44e8
+        mov al, byte ptr DGROUP:poly_span_step
         cbw
         mov cx, ax
         pop ax
@@ -2704,47 +2704,47 @@ _fill_rect proc far
         dec ax
         mov word ptr [bp-6], ax
         cmp byte ptr DGROUP:_g_vmds+0ch, 0
-        jne L2009f
-        jmp L2012f
-L2009f:
+        jne rect_fill
+        jmp rect_outline
+rect_fill:
         push word ptr [bp+6]
         push word ptr [bp+8]
         cmp byte ptr DGROUP:_g_vmds+3h, 0
-        je L200f4
+        je rect_spans
         mov ax, word ptr [bp+6]
         sub ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [bp-2], ax
         or ax, ax
-        jge L200c0
+        jge rect_clip_top
         sub word ptr [bp+6], ax
         add word ptr [bp+0ah], ax
-L200c0:
+rect_clip_top:
         mov ax, word ptr [bp+8]
         sub ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [bp-2], ax
         or ax, ax
-        jge L200d4
+        jge rect_clip_right
         sub word ptr [bp+8], ax
         add word ptr [bp+0ch], ax
-L200d4:
+rect_clip_right:
         mov ax, word ptr DGROUP:_g_vmds+6h
         sub ax, word ptr [bp-4]
         mov word ptr [bp-2], ax
         or ax, ax
-        jge L200e4
+        jge rect_clip_bottom
         add word ptr [bp+0ah], ax
-L200e4:
+rect_clip_bottom:
         mov ax, word ptr DGROUP:_g_vmds+0ah
         sub ax, word ptr [bp-6]
         mov word ptr [bp-2], ax
         or ax, ax
-        jge L200f4
+        jge rect_spans
         add word ptr [bp+0ch], ax
-L200f4:
+rect_spans:
         cmp word ptr [bp+0ah], 0
-        jle L20129
+        jle rect_filled
         cmp word ptr [bp+0ch], 0
-        jle L20129
+        jle rect_filled
         mov es, word ptr DGROUP:_g_vm_driver
         xor di, di
         mov ax, word ptr [bp+8]
@@ -2756,26 +2756,26 @@ L200f4:
         mov dx, bx
         add dx, word ptr [bp+0ah]
         dec dx
-L20119:
+rect_span:
         mov ax, bx
         stosw
         mov ax, dx
         stosw
-        loop L20119
+        loop rect_span
         xor si, si
         push bp
         call dword ptr DGROUP:_g_vm_driver+70h
         pop bp
-L20129:
+rect_filled:
         pop word ptr [bp+8]
         pop word ptr [bp+6]
-L2012f:
+rect_outline:
         cmp byte ptr DGROUP:_g_vmds+0ch, 0
-        je L2013f
+        je rect_outline_draw
         mov al, byte ptr DGROUP:_g_vmds+0eh
         cmp byte ptr DGROUP:_g_vmds+0dh, al
-        je L2017e
-L2013f:
+        je rect_return
+rect_outline_draw:
         mov si, word ptr [bp+6]
         mov di, word ptr [bp+8]
         mov ax, word ptr [bp-6]
@@ -2803,7 +2803,7 @@ L2013f:
         push si
         call FAR PTR _clip_and_draw_line
         add sp, 8
-L2017e:
+rect_return:
         pop si
         pop di
         mov sp, bp
