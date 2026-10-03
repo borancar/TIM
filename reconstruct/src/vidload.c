@@ -234,7 +234,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     _AX = g_vmds.page_dst;
     if (g_vmds.page_hook != 0) {
         asm push ax
-        asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*28
+        asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*VM_SLOT_PAGE_HOOK
         asm add sp, 2
     }
     page = _AX;
@@ -414,7 +414,7 @@ draw_flip_horizontal:
                     asm mov es, page
                     asm stc
                     asm mov dx, y
-                    asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*38
+                    asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*VM_SLOT_BLIT_RUN
                     asm pop di
                     asm pop si
 #else
@@ -457,7 +457,7 @@ draw:
                     asm mov es, page
                     asm clc
                     asm mov dx, y
-                    asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*38
+                    asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*VM_SLOT_BLIT_RUN
                     asm pop di
                     asm pop si
 #else
@@ -513,7 +513,7 @@ fill_flip_horizontal:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*10
+                asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*VM_SLOT_SPAN
                 asm pop di
 #else
                 vm_span((uint8_t)(base + colour),
@@ -553,7 +553,7 @@ fill:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*10
+                asm call dword ptr g_vm_driver.(struct vm_driver)entry+4*VM_SLOT_SPAN
                 asm pop di
 #else
                 vm_span((uint8_t)(colour + base), (uint16_t)x, (uint8_t)n,

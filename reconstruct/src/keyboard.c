@@ -31,7 +31,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #ifndef __TURBOC__
@@ -112,7 +112,7 @@ public _bios_read_key, _key_is_down, _border_colour_thunk, _show_page_thunk
 
 /* 0x22d12 */
 _copy_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*4
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_COPY_RECT
 old_int9_off db 0h, 0h
 old_int9_seg db 0h, 0h
 old_int1c_off db 0h, 0h
@@ -608,13 +608,13 @@ _key_is_down endp
 
 /* 0x2311c */
 _border_colour_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*25
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BORDER_COLOUR
 _border_colour_thunk endp
 border_colour_thunk_dead db 0ffh, 2eh, 0aeh, 3fh
 
 /* 0x23124 */
 _show_page_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*8
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_SHOW_PAGE
 _show_page_thunk endp
 KEYBOARD_TEXT ends
 }

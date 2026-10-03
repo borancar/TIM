@@ -315,7 +315,7 @@ uint16_t near draw_char(uint8_t c, int16_t x, register int16_t y)
         || y + h > (uint16_t)g_vmds.clip_bottom)
         plot = plot_pixel_clipped;
     else
-        plot = ((bmp_plot_fn)g_vm_driver.entry[22]);
+        plot = ((bmp_plot_fn)g_vm_driver.entry[VM_SLOT_PLOT_PIXEL]);
 
     if (g_font_kinds.kind[0] <= 1)
         one_bit = 1;
@@ -488,7 +488,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 asm mov cx, h
                 asm mov dx, x
                 asm mov bp, y
-                ((vm_glyph_fn)g_vm_driver.entry[1])();
+                ((vm_glyph_fn)g_vm_driver.entry[VM_SLOT_GLYPH])();
                 asm pop di
                 asm pop si
                 asm pop bp

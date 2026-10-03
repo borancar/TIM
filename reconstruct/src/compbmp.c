@@ -122,7 +122,7 @@ void draw_compressed_body(struct bitmap *bmp, int16_t x, int16_t y,
     _AX = g_vmds.page_dst;
     if (g_vmds.page_hook != 0) {
         asm push ax
-        ((vm_hook_fn)g_vm_driver.entry[28])();
+        ((vm_hook_fn)g_vm_driver.entry[VM_SLOT_PAGE_HOOK])();
         asm add sp, 2
     }
     page = _AX;
@@ -199,7 +199,7 @@ run_flip_horizontal:
                     asm mov es, page
                     asm stc
                     asm mov dx, y
-                    ((vm_run_fn)g_vm_driver.entry[38])();
+                    ((vm_run_fn)g_vm_driver.entry[VM_SLOT_BLIT_RUN])();
                     asm pop di
                     asm pop si
 #else
@@ -244,7 +244,7 @@ run:
                     asm mov es, page
                     asm clc
                     asm mov dx, y
-                    ((vm_run_fn)g_vm_driver.entry[38])();
+                    ((vm_run_fn)g_vm_driver.entry[VM_SLOT_BLIT_RUN])();
                     asm pop di
                     asm pop si
 #else
@@ -299,7 +299,7 @@ fill_flip_horizontal:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)g_vm_driver.entry[10])();
+                ((vm_span_fn)g_vm_driver.entry[VM_SLOT_SPAN])();
                 asm pop di
 #else
                 vm_span((uint8_t)(base + b2), (uint16_t)(x - (uint8_t)op + 1),
@@ -340,7 +340,7 @@ fill:
                 asm mov di, row
                 asm mov es, page
                 asm mov dx, y
-                ((vm_span_fn)g_vm_driver.entry[10])();
+                ((vm_span_fn)g_vm_driver.entry[VM_SLOT_SPAN])();
                 asm pop di
 #else
                 vm_span((uint8_t)(b2 + base), (uint16_t)x, (uint8_t)op,

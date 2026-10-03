@@ -16,7 +16,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vm_driver=vmdrv
+ * JUDGE: structs vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -39,12 +39,12 @@ public _save_rect_thunk, _buffer_size_thunk, _dos_alloc_bytes, _dos_free_far
 
 /* 0x2373f */
 _save_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*5
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_SAVE_RECT
 _save_rect_thunk endp
 
 /* 0x23743 */
 _buffer_size_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*6
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BUFFER_SIZE
 _buffer_size_thunk endp
 
 /* 0x23747 */

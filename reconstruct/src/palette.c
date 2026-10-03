@@ -214,7 +214,7 @@ uint8_t far *set_palette_pointer(uint8_t far *h)
 
     g_palchunk.palette = h;
 #ifdef __TURBOC__
-    ((vm_pal_fn)g_vm_driver.entry[20])(h);
+    ((vm_pal_fn)g_vm_driver.entry[VM_SLOT_LOAD_PALETTE])(h);
 #else
     vm_load_palette(h);
 #endif
@@ -261,7 +261,7 @@ void fade_palette_run(uint16_t first, uint16_t count, register uint16_t colour,
     g_engine_pen.fade_weight = weight;
     g_engine_pen.fade_colour = colour;
 #ifdef __TURBOC__
-    ((vm_blend_fn)g_vm_driver.entry[34])(first, count, colour, weight);
+    ((vm_blend_fn)g_vm_driver.entry[VM_SLOT_BLEND_PALETTE])(first, count, colour, weight);
 #else
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 #endif
@@ -334,7 +334,7 @@ void cycle_palettes(void)
     }
 
 #ifdef __TURBOC__
-    ((vm_blend_fn)g_vm_driver.entry[34])(0, 0x100, g_engine_pen.fade_colour,
+    ((vm_blend_fn)g_vm_driver.entry[VM_SLOT_BLEND_PALETTE])(0, 0x100, g_engine_pen.fade_colour,
                                g_engine_pen.fade_weight);
 #else
     vm_blend_palette(0, 0x100, g_engine_pen.fade_colour,
@@ -366,7 +366,7 @@ void fill_span_list(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)g_vm_driver.entry[27])();
+    ((vm_esi_fn)g_vm_driver.entry[VM_SLOT_FILL_SPANS])();
 #else
     vm_fill_spans(spans);
 #endif
@@ -384,7 +384,7 @@ void span_list_nothing(uint8_t far *spans)
     _SI = FP_OFF(spans);
     _ES = FP_SEG(spans);
     _DI;            /* the driver's entry uses DI: the compiler saves it */
-    ((vm_esi_fn)g_vm_driver.entry[23])();
+    ((vm_esi_fn)g_vm_driver.entry[VM_SLOT_23])();
 #else
     (void)spans;
     vm_nothing();

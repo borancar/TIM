@@ -1796,6 +1796,41 @@ struct vm_driver {
 
 extern struct vm_driver g_vm_driver;
 
+/*
+ * **The slots the game calls**, as indices into `entry`: a call through
+ * `lcall [0x4346 + 4 * n]` is slot n. The names are ours, from the routine
+ * the game reaches through the slot or from the driver routine the VGA
+ * driver files there (measured, docs/video-driver.md); a slot whose job is
+ * not established keeps its number. The assembly reads these through
+ * H2ASH (`JUDGE: structs VM_SLOT_*`), as `+4*VM_SLOT_SHOW_PAGE`.
+ */
+#define VM_SLOT_GLYPH          1    /* VGA:0x124b  vm_blit_glyph */
+#define VM_SLOT_DRAW_LINE      2    /* VGA:0x0998  vm_draw_line */
+#define VM_SLOT_3              3    /* VGA:0x1231  vm_call_4_thunk; unknown */
+#define VM_SLOT_COPY_RECT      4    /* VGA:0x1561  vm_copy_rect */
+#define VM_SLOT_SAVE_RECT      5    /* VGA:0x12fb  vm_save_rect */
+#define VM_SLOT_BUFFER_SIZE    6    /* VGA:0x138e  vm_buffer_size */
+#define VM_SLOT_RESTORE_RECT   7    /* VGA:0x13b9  vm_restore_rect */
+#define VM_SLOT_SHOW_PAGE      8    /* VGA:0x150f  vm_show_page */
+#define VM_SLOT_SPAN           10   /* VGA:0x034f  vm_span */
+#define VM_SLOT_LIST_SIZE      13   /* VGA:0x0fd4  vm_bitmap_list_size */
+#define VM_SLOT_LOAD_LIST      14   /* VGA:0x1015  vm_load_list_slot */
+#define VM_SLOT_CHUNK          15   /* VGA:0x0252  vm_nothing; the host's vm_chunk_slot */
+#define VM_SLOT_BLIT_ROWS      17   /* VGA:0x15d0  vm_blit_rows */
+#define VM_SLOT_BLIT_ROWS_ALT  18   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_LOAD_PALETTE   20   /* VGA:0x0f15  vm_load_palette */
+#define VM_SLOT_READ_PIXEL     21   /* VGA:0x1453  vm_read_pixel */
+#define VM_SLOT_PLOT_PIXEL     22   /* VGA:0x14c9  vm_plot_pixel */
+#define VM_SLOT_23             23   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_BORDER_COLOUR  25   /* VGA:0x2ae7  vm_set_border_colour */
+#define VM_SLOT_FILL_SPANS     27   /* VGA:0x0be6  vm_fill_spans */
+#define VM_SLOT_PAGE_HOOK      28   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_BLIT_BITMAP    29   /* VGA:0x1707  vm_blit_bitmap */
+#define VM_SLOT_BLIT_SCALED    33   /* VGA:0x271b  vm_blit_scaled */
+#define VM_SLOT_BLEND_PALETTE  34   /* VGA:0x0f57  vm_blend_palette */
+#define VM_SLOT_SCALED_ROW     37   /* VGA:0x03db  vm_blit_scaled_row */
+#define VM_SLOT_BLIT_RUN       38   /* VGA:0x0938  vm_blit_run */
+
 
 
 /*

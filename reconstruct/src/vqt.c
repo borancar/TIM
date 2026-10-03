@@ -22,7 +22,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv bitmaps_state=bm vqt_reader=rd
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv bitmaps_state=bm vqt_reader=rd VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -449,7 +449,7 @@ screen_fill_solid_row:
         mov bx, word ptr [bp+4]
         push di
         mov ah, al
-        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*10
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_SPAN
         pop di
         add di, 50h
         dec si
@@ -1170,7 +1170,7 @@ void near vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * palette. The reads are `vqt_read_bits` written out in place, as there.
  *
  * Two things differ. A **one-colour** palette fills each row with one far call
- * through DGROUP 0x436e, `g_vm_driver.entry[10]`, the driver's span fill at
+ * through DGROUP 0x436e, `g_vm_driver.entry[VM_SLOT_SPAN]`, the driver's span fill at
  * VGA:0x034f - registers AX the colour in both halves, BX x, CX w, ES:DI the
  * row - stepping DI by 0x50 a row. `vm_init` is the only writer of that table,
  * so this calls `vm_span` directly. And the **palette loop's x test is

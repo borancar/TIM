@@ -50,7 +50,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv timer=tmr
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv timer=tmr VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -697,7 +697,7 @@ line_draw:
         xchg bx, dx
         xchg cx, si
 line_ordered:
-        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*2
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_DRAW_LINE
 line_return:
         pop es
         pop di
@@ -1450,7 +1450,7 @@ _read_pixel_clipped proc far
         jg read_pixel_outside
 read_pixel_inside:
         pop bp
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*21
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_READ_PIXEL
 read_pixel_outside:
         pop bp
         mov ax, 0ffffh
@@ -1475,7 +1475,7 @@ _plot_pixel_clipped proc far
         jg plot_pixel_outside
 plot_pixel_inside:
         pop bp
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*22
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_PLOT_PIXEL
 plot_pixel_outside:
         pop bp
         mov ax, 0ffffh
@@ -1484,7 +1484,7 @@ _plot_pixel_clipped endp
 
 /* 0x24109 */
 _restore_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*7
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_RESTORE_RECT
 _restore_rect_thunk endp
 LOWLEVEL_TEXT ends
 }

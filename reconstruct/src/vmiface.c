@@ -25,7 +25,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -103,22 +103,22 @@ public _restore_write_mode, _vm_null_hook
 
 /* 0x205c6 */
 _vm_call_4_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*3
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_3
 _vm_call_4_thunk endp
 
 /* 0x205ca */
 _blit_bitmap_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*29
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BLIT_BITMAP
 _blit_bitmap_thunk endp
 
 /* 0x205ce */
 _blit_scaled_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*33
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BLIT_SCALED
 _blit_scaled_thunk endp
 
 /* 0x205d2 */
 _vm_call_38_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*37
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_SCALED_ROW
 _vm_call_38_thunk endp
 
 /* 0x205d6 */

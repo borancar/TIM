@@ -22,7 +22,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -521,7 +521,7 @@ poly_spans:
         add si, 0ch
         mov word ptr es:[si], dx
         mov word ptr es:[si+2], ax
-        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*27
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_FILL_SPANS
         mov al, byte ptr DGROUP:_g_vmds+vmds_second_colour
         cmp al, byte ptr DGROUP:_g_vmds+vmds_fill_colour
         je poly_second_pass_check
@@ -2766,7 +2766,7 @@ rect_span:
         loop rect_span
         xor si, si
         push bp
-        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*27
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_FILL_SPANS
         pop bp
 rect_filled:
         pop word ptr [bp+8]

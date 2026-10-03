@@ -329,7 +329,7 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         asm cmp word ptr g_vmds.(struct vmds)page_hook, 0
         asm je hooked
         asm push ax
-        ((vm_hook_fn)g_vm_driver.entry[28])();
+        ((vm_hook_fn)g_vm_driver.entry[VM_SLOT_PAGE_HOOK])();
         asm add sp, 2
 hooked:
         asm mov es, ax
@@ -357,7 +357,7 @@ next_row:
         asm shl bp, 1
         asm lea bp, g_engine_scale_table[bp]
         asm db 36h                      /* ss: */
-        ((vm_row_fn)g_vm_driver.entry[37])();
+        ((vm_row_fn)g_vm_driver.entry[VM_SLOT_SCALED_ROW])();
         asm pop bp
         asm mov ax, j
         asm inc ax
