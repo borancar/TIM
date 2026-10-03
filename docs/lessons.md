@@ -1843,6 +1843,30 @@ it. **And a change to a shared header is followed by judging every file**,
 not the one being worked on: `for f in reconstruct/src/*.c
 reconstruct/src/parts/*.c`, each with a JUDGE marker.
 
+### An inline-asm struct member is looked up by name alone, and Borland C++ 2.0 picks the wrong struct without a word
+
+**What happened.** On 2026-10-03 the numeric offsets in the C modules'
+inline `asm` were rewritten as members - `g_vmds+18h` as `g_vmds.page_dst`,
+`g_vm_driver+074h` as `g_vm_driver.entry+4*28`. Every file's judge said
+MATCH. The full link then differed in six bytes, in scale.c and vidload.c,
+both BC++ 2.0 modules.
+
+**What it was.** Borland's inline assembler resolves `obj.member` by the
+member's name across every struct it has seen, not by `obj`'s type.
+`page_dst` and `entry` are fields of other structs too. BC++ 3.0 says
+"Ambiguous member name" and stops; **BC++ 2.0 takes one of them silently**
+- a displacement 5 too high in vidload, 0xe too low in scale. The judge
+masks a DGROUP displacement as a fixup, so it could not see it; only the link
+compares the resolved bytes.
+
+**What settled it.** The qualified form, `g_vm_driver.(struct vm_driver)entry`,
+in every BC++ 2.0 module's inline asm, and where 3.0 reported an ambiguity.
+Not nested: in a `via-assembler` module the compiler passed a second
+`(struct T)` through to TASM as text, which TASM refused.
+
+**The rule.** A member named in inline asm is checked by the link, not the
+judge; under BC++ 2.0, qualify every one.
+
 ### A far pointer keeps its segment through arithmetic, and the host's `FP_SEG` does not
 
 **What happened.** Quitting the game aborted with "free(): invalid size",

@@ -19,6 +19,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs sound_bank=bank
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -32,6 +33,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _g_sound_bank:byte
 SOUND_CALL_TEXT segment byte public 'CODE'
 assume cs:SOUND_CALL_TEXT, ds:DGROUP
@@ -73,7 +75,7 @@ _sound_callback proc far
         push di
         mov ax, DGROUP
         mov ds, ax
-        cmp word ptr DGROUP:_g_sound_bank+28h, 0
+        cmp word ptr DGROUP:_g_sound_bank+bank_module_live, 0
         je callback_none
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]
@@ -101,7 +103,7 @@ _sound_callback_quiet proc far
         mov bp, sp
         push si
         push di
-        cmp word ptr DGROUP:_g_sound_bank+28h, 0
+        cmp word ptr DGROUP:_g_sound_bank+bank_module_live, 0
         je quiet_none
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]

@@ -60,14 +60,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     register int held;
 
     asm mov al, byte ptr [bp+6]
-    asm mov byte ptr g_vm_start+1, al
+    asm mov byte ptr g_vm_start.mode_forced, al
     asm xor ax, ax
-    asm mov byte ptr g_vmds+6e8h, al
-    asm mov byte ptr g_vmds+1fh, al
-    asm mov word ptr g_vmds+6eah, 140h
-    asm mov word ptr g_vmds+6ech, 0c8h
-    asm mov ax, word ptr g_vmds+19eh
-    asm mov dx, word ptr g_vmds+1a0h
+    asm mov byte ptr g_vmds.screen.mode_kind, al
+    asm mov byte ptr g_vmds.vga_chunks, al
+    asm mov word ptr g_vmds.screen.screen_width, 140h
+    asm mov word ptr g_vmds.screen.screen_height, 0c8h
+    asm mov ax, word ptr g_vmds.palettes.blocks
+    asm mov dx, word ptr g_vmds.palettes.blocks+2
     asm mov bx, ax
     asm or bx, dx
     asm je L224c1
@@ -76,13 +76,13 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     asm call far ptr dos_free_far
     asm add sp, 4
     asm xor ax, ax
-    asm mov word ptr g_vmds+19eh, ax
-    asm mov word ptr g_vmds+1a0h, ax
+    asm mov word ptr g_vmds.palettes.blocks, ax
+    asm mov word ptr g_vmds.palettes.blocks+2, ax
 L224c1:
     asm call near ptr bios_video_kind
     asm mov byte ptr g_vm_start, al
     asm call near ptr detect_adapter
-    asm mov byte ptr g_vmds+1dh, al
+    asm mov byte ptr g_vmds.pixel_shift, al
     asm or ax, ax
     asm je L2251c
     asm push word ptr [bp+0ah]
@@ -91,16 +91,16 @@ L224c1:
     asm add sp, 4
     asm or dx, dx
     asm je L2251c
-    asm mov word ptr g_vm_start+2, ax
-    asm mov word ptr g_vm_start+4, dx
+    asm mov word ptr g_vm_start.(struct vm_start)driver, ax
+    asm mov word ptr g_vm_start.(struct vm_start)driver+2, dx
     asm push ds
     asm mov ax, offset g_vm_driver + 0d0h
     asm push ax
     asm mov ax, offset g_vmds
     asm push ax
-    asm call dword ptr g_vm_start+2
+    asm call dword ptr g_vm_start.(struct vm_start)driver
     asm add sp, 6
-    asm mov di, offset g_vm_driver+4h
+    asm mov di, offset g_vm_driver.(struct vm_driver)entry
     asm push ds
     asm mov ax, ds
     asm mov ds, dx
@@ -110,7 +110,7 @@ L224c1:
     asm shl cx, 1
     asm rep movsw
     asm pop ds
-    asm mov di, offset g_vm_driver+4h
+    asm mov di, offset g_vm_driver.(struct vm_driver)entry
     asm mov ax, dx
     asm mov cx, 32h
 L22514:
@@ -119,17 +119,17 @@ L22514:
     asm loop L22514
     asm jmp short L22521
 L2251c:
-    asm mov byte ptr g_vmds+1dh, 0
+    asm mov byte ptr g_vmds.pixel_shift, 0
 L22521:
     asm xor ax, ax
     asm mov es, ax
     asm mov ax, ds
     asm mov word ptr es:[4f0h], ax
-    asm mov ax, word ptr g_vmds+14h
-    asm mov word ptr g_vmds+16h, ax
-    asm mov ax, word ptr g_vmds+12h
-    asm mov word ptr g_vmds+18h, ax
-    asm mov al, byte ptr g_vmds+1dh
+    asm mov ax, word ptr g_vmds.page_front
+    asm mov word ptr g_vmds.(struct vmds)page_src, ax
+    asm mov ax, word ptr g_vmds.page_back
+    asm mov word ptr g_vmds.(struct vmds)page_dst, ax
+    asm mov al, byte ptr g_vmds.pixel_shift
     asm xor ah, ah
     asm push ax
     asm or ax, ax
@@ -144,7 +144,7 @@ L22521:
     asm call far ptr dos_free_far
     asm add sp, 4
 L22555:
-    asm mov ax, word ptr g_vmds+6ech
+    asm mov ax, word ptr g_vmds.screen.screen_height
     asm shl ax, 1
     asm shl ax, 1
     asm add ax, 20h
@@ -168,12 +168,12 @@ L22555:
     asm mov word ptr [bx+4], bp
     asm mov word ptr [bx+6], es
     asm mov ax, 808h
-    asm mov word ptr g_vmds+48h, ax
-    asm mov word ptr g_vmds+34h, ax
+    asm mov word ptr g_vmds.font_cell_height, ax
+    asm mov word ptr g_vmds.font_cell_width, ax
     asm mov ax, 0
-    asm mov word ptr g_vmds+5ch, ax
+    asm mov word ptr g_vmds.font_first_char, ax
     asm mov ax, 0ffffh
-    asm mov word ptr g_vmds+70h, ax
+    asm mov word ptr g_vmds.font_char_count, ax
 L225a0:
     asm pop ax
 }
@@ -207,8 +207,8 @@ L225d0:
 /* 0x2425c */
 uint16_t near detect_adapter(void)
 {
-    asm mov al, byte ptr g_vm_start+1
-    asm cmp word ptr g_vm_driver+2h, 0
+    asm mov al, byte ptr g_vm_start.mode_forced
+    asm cmp word ptr g_vm_driver.detect_allowed, 0
     asm jne L225df
     asm xor ah, ah
     asm ret
@@ -243,7 +243,7 @@ L22612:
     asm mov al, 9
     asm jmp L22724
 L2261a:
-    asm cmp byte ptr g_vm_driver+2h, 0
+    asm cmp byte ptr g_vm_driver.detect_allowed, 0
     asm mov ax, 1a00h
     asm int 10h
     asm cmp bl, 7
@@ -258,7 +258,7 @@ L2261a:
 L2263a:
     asm call near ptr set_colour_text_mode
 L2263d:
-    asm mov al, byte ptr g_vm_start+1
+    asm mov al, byte ptr g_vm_start.mode_forced
     asm xor ah, ah
     asm or ax, ax
     asm jne L22648
@@ -302,14 +302,14 @@ L22682:
     asm mov al, byte ptr es:[bx]
     asm and al, 8
     asm jne L226a3
-    asm mov al, byte ptr g_vm_start+1
+    asm mov al, byte ptr g_vm_start.mode_forced
     asm jmp L22724
 L226a3:
     asm call near ptr set_colour_text_mode
-    asm mov al, byte ptr g_vm_start+1
+    asm mov al, byte ptr g_vm_start.mode_forced
     asm jmp short L22724
 L226ab:
-    asm mov al, byte ptr g_vm_start+1
+    asm mov al, byte ptr g_vm_start.mode_forced
     asm or al, al
     asm je L226ba
     asm cmp al, 1
@@ -335,19 +335,19 @@ L226c9:
     asm jne L226f7
     asm call near ptr set_colour_text_mode
     asm call far ptr detect_pcjr
-    asm cmp byte ptr g_vm_start+1, 1
+    asm cmp byte ptr g_vm_start.mode_forced, 1
     asm je L226ec
     asm or al, al
     asm je L226ec
     asm mov al, 3
     asm jmp short L22724
 L226ec:
-    asm cmp byte ptr g_vm_start+1, 3
+    asm cmp byte ptr g_vm_start.mode_forced, 3
     asm je L22722
     asm mov al, 1
     asm jmp short L22724
 L226f7:
-    asm mov al, byte ptr g_vm_start+1
+    asm mov al, byte ptr g_vm_start.mode_forced
     asm or al, al
     asm je L22702
     asm cmp al, 4

@@ -22,6 +22,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -35,6 +36,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _redraw_cursor:far
 extrn _g_bitmap_compress:byte
 extrn _g_vm_driver:byte
@@ -135,7 +137,7 @@ _vqt_screen_node proc near
         jmp short screen_q1
 screen_q0_fill:
         call _fill_screen_quadrant
-        mov ax, word ptr DGROUP:_g_vmds+14h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_page_front
         push ax
         call FAR PTR _redraw_cursor
         add sp, 2
@@ -263,7 +265,7 @@ _fill_screen_quadrant proc near
         mov ch, al
         mov bx, word ptr [bp+6]
         shl bx, 1
-        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+vmds_row_offset]
         mov ax, word ptr [bp+4]
         mov cl, al
         shr ax, 1
@@ -274,7 +276,7 @@ _fill_screen_quadrant proc near
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_g_vmds+18h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_page_dst
         mov es, ax
         mov byte ptr es:[bx], ch
         pop di
@@ -384,7 +386,7 @@ screen_fill_raw:
         mov ch, al
         mov bx, si
         shl bx, 1
-        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+vmds_row_offset]
         mov ax, di
         mov cl, al
         shr ax, 1
@@ -395,7 +397,7 @@ screen_fill_raw:
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_g_vmds+18h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_page_dst
         mov es, ax
         mov byte ptr es:[bx], ch
         inc si
@@ -438,8 +440,8 @@ screen_fill_coded:
         shr ax, cl
         mov bx, word ptr [bp+6]
         shl bx, 1
-        mov di, word ptr DGROUP:_g_vmds[bx+6f2h]
-        mov bx, word ptr DGROUP:_g_vmds+18h
+        mov di, word ptr DGROUP:_g_vmds[bx+vmds_row_offset]
+        mov bx, word ptr DGROUP:_g_vmds+vmds_page_dst
         mov es, bx
         mov si, word ptr [bp+0ah]
 screen_fill_solid_row:
@@ -447,7 +449,7 @@ screen_fill_solid_row:
         mov bx, word ptr [bp+4]
         push di
         mov ah, al
-        call dword ptr DGROUP:_g_vm_driver+2ch
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*10
         pop di
         add di, 50h
         dec si
@@ -524,7 +526,7 @@ screen_fill_indexed:
         mov ch, al
         mov bx, si
         shl bx, 1
-        mov bx, word ptr DGROUP:_g_vmds[bx+6f2h]
+        mov bx, word ptr DGROUP:_g_vmds[bx+vmds_row_offset]
         mov ax, di
         mov cl, al
         shr ax, 1
@@ -535,7 +537,7 @@ screen_fill_indexed:
         mov ax, 102h
         shl ah, cl
         out dx, ax
-        mov ax, word ptr DGROUP:_g_vmds+18h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_page_dst
         mov es, ax
         mov byte ptr es:[bx], ch
         inc si

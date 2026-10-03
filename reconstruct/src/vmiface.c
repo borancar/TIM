@@ -25,6 +25,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -36,6 +37,7 @@
  * The module as TASM assembled it; the host's transcription is the `#else`.
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _dos_alloc_bytes:far
 extrn _dos_free_far:far
 extrn _readfd_far:far
@@ -101,27 +103,27 @@ public _restore_write_mode, _vm_null_hook
 
 /* 0x205c6 */
 _vm_call_4_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+10h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*3
 _vm_call_4_thunk endp
 
 /* 0x205ca */
 _blit_bitmap_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+78h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*29
 _blit_bitmap_thunk endp
 
 /* 0x205ce */
 _blit_scaled_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+88h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*33
 _blit_scaled_thunk endp
 
 /* 0x205d2 */
 _vm_call_38_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+98h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*37
 _vm_call_38_thunk endp
 
 /* 0x205d6 */
 _restore_write_mode proc far
-        cmp byte ptr DGROUP:_g_vmds+21h, 10h
+        cmp byte ptr DGROUP:_g_vmds+vmds_adapter, 10h
         jne restore_done
         mov ax, 205h
         mov dx, 3ceh

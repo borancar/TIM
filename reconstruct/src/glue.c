@@ -31,6 +31,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs sound_bank=bank
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -45,6 +46,7 @@
  * block may carry.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _TEXT segment word public 'CODE'
 assume cs:_TEXT, ds:DGROUP
 public _sound_module_install, _sound_module_set_rate, _sound_module_service
@@ -119,7 +121,7 @@ _call_sound_module proc near
     push si
     mov si, bp
     add si, 8
-    call dword ptr DGROUP:_g_sound_bank+16h
+    call dword ptr DGROUP:_g_sound_bank+bank_module
     pop si
     pop di
     pop bp
@@ -135,7 +137,7 @@ _sound_module_position proc far
     push si
     sub sp, 6
     mov si, sp
-    call dword ptr DGROUP:_g_sound_bank+16h
+    call dword ptr DGROUP:_g_sound_bank+bank_module
     pop ax
     pop ax
     pop dx

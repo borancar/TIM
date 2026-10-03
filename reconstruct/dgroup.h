@@ -862,7 +862,7 @@ struct timer {
        the record because the original's game code reads the words either
        side of them in guest memory. */
     uint8_t   callback_slots[0x40]; /* +0x0b  0x44f9 */
-    struct {
+    struct timer_tick {
         int16_t left;             /* +0x00  counts down to the call */
         int16_t period;           /* +0x02  what it reloads from */
     } tick[16];                   /* +0x4b  0x4539 */

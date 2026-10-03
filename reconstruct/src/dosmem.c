@@ -16,6 +16,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vm_driver=vmdrv
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -29,6 +30,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _far_memset:far
 extrn _g_vm_driver:byte
 DOSMEM_TEXT segment byte public 'CODE'
@@ -37,12 +39,12 @@ public _save_rect_thunk, _buffer_size_thunk, _dos_alloc_bytes, _dos_free_far
 
 /* 0x2373f */
 _save_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+18h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*5
 _save_rect_thunk endp
 
 /* 0x23743 */
 _buffer_size_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+1ch
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*6
 _buffer_size_thunk endp
 
 /* 0x23747 */

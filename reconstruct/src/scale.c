@@ -325,8 +325,8 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
          * the other two blitters call.
          */
 #ifdef __TURBOC__
-        asm mov ax, word ptr g_vmds+18h
-        asm cmp word ptr g_vmds+6e2h, 0
+        asm mov ax, word ptr g_vmds.(struct vmds)page_dst
+        asm cmp word ptr g_vmds.(struct vmds)page_hook, 0
         asm je hooked
         asm push ax
         ((vm_hook_fn)g_vm_driver.entry[28])();
@@ -340,7 +340,7 @@ next_row:
         asm mov bx, j
         asm mov cx, bx
         asm shl bx, 1
-        asm mov di, word ptr g_vmds+6f2h[bx]
+        asm mov di, word ptr g_vmds.(struct vmds)row_offset[bx]
         asm mov ax, y
         asm shl ax, 1
         asm sub bx, ax

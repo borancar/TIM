@@ -41,7 +41,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs sequence_channels=chan sequence=seq
+ * JUDGE: structs sequence_channels=chan sequence=seq sound_bank=bank
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -892,7 +892,7 @@ _install_driver proc far
 	shr dl, 1
 	shr dl, 1
 	shr dl, 1
-	cmp word ptr DGROUP:_g_sound_bank+28h, 0
+	cmp word ptr DGROUP:_g_sound_bank+bank_module_live, 0
 	je install_store_ah
 	or dl, 1
 install_store_ah:

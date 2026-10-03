@@ -20,6 +20,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -33,6 +34,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _g_vmds:byte
 POLYCLIP_TEXT segment byte public 'CODE'
 assume cs:POLYCLIP_TEXT, ds:DGROUP
@@ -52,9 +54,9 @@ _detect_pcjr proc far
         mov al, byte ptr es:[bx]
         cmp al, 21h
         jne pcjr_answer
-        mov byte ptr DGROUP:_g_vmds+1ch, 1
+        mov byte ptr DGROUP:_g_vmds+vmds_is_pcjr, 1
 pcjr_answer:
-        mov al, byte ptr DGROUP:_g_vmds+1ch
+        mov al, byte ptr DGROUP:_g_vmds+vmds_is_pcjr
         cbw
         pop bx
         pop es
@@ -64,7 +66,7 @@ _detect_pcjr endp
 /* 0x22891 */
 _clip_polygon proc far
         xor di, di
-        mov ax, word ptr DGROUP:_g_vmds+19ch
+        mov ax, word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count
         cmp ax, 1
         jg x_begin
         jmp clip_return
@@ -73,12 +75,12 @@ x_begin:
         mov bx, ax
         shl bx, 1
         xor cl, cl
-        mov ax, word ptr [bx+353ch]
-        cmp ax, word ptr DGROUP:_g_vmds+4h
+        mov ax, word ptr _g_vmds[bx+vmds_poly_x]
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         jge x_prev_coded
         or cl, 1
 x_prev_coded:
-        cmp ax, word ptr DGROUP:_g_vmds+6h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         jle x_start
         or cl, 2
 x_start:
@@ -86,22 +88,22 @@ x_start:
 x_edge:
         shl si, 1
         xor ch, ch
-        mov ax, word ptr [si+353ch]
-        cmp ax, word ptr DGROUP:_g_vmds+4h
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         jge x_cur_coded
         or ch, 1
 x_cur_coded:
-        cmp ax, word ptr DGROUP:_g_vmds+6h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         jle x_classify
         or ch, 2
 x_classify:
         mov al, cl
         or al, ch
         jne x_crossing
-        mov ax, word ptr [si+353ch]
-        mov word ptr [di+358ch], ax
-        mov ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp x_next
 x_crossing:
@@ -114,35 +116,35 @@ x_prev_in:
         jne x_prev_out
         test ch, 1
         je x_leave_right
-        mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [si+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[si+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [bx+3564h]
-        sub ax, word ptr [si+3564h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
+        sub ax, word ptr _g_vmds[si+vmds_poly_y]
         imul bp
-        mov bp, word ptr [bx+353ch]
-        sub bp, word ptr [si+353ch]
+        mov bp, word ptr _g_vmds[bx+vmds_poly_x]
+        sub bp, word ptr _g_vmds[si+vmds_poly_x]
         idiv bp
-        add ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp short x_left
 x_leave_right:
         test ch, 2
         je x_left
-        mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [si+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[si+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [bx+3564h]
-        sub ax, word ptr [si+3564h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
+        sub ax, word ptr _g_vmds[si+vmds_poly_y]
         imul bp
-        mov bp, word ptr [bx+353ch]
-        sub bp, word ptr [si+353ch]
+        mov bp, word ptr _g_vmds[bx+vmds_poly_x]
+        sub bp, word ptr _g_vmds[si+vmds_poly_x]
         idiv bp
-        add ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
 x_left:
         jmp x_next
@@ -153,121 +155,121 @@ x_prev_out:
 x_enter:
         test cl, 1
         je x_enter_right
-        mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [bx+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[bx+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [si+3564h]
-        sub ax, word ptr [bx+3564h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        sub ax, word ptr _g_vmds[bx+vmds_poly_y]
         imul bp
-        mov bp, word ptr [si+353ch]
-        sub bp, word ptr [bx+353ch]
+        mov bp, word ptr _g_vmds[si+vmds_poly_x]
+        sub bp, word ptr _g_vmds[bx+vmds_poly_x]
         idiv bp
-        add ax, word ptr [bx+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[bx+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp short x_enter_keep
 x_enter_right:
         test cl, 2
         je x_enter_keep
-        mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [bx+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[bx+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [si+3564h]
-        sub ax, word ptr [bx+3564h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        sub ax, word ptr _g_vmds[bx+vmds_poly_y]
         imul bp
-        mov bp, word ptr [si+353ch]
-        sub bp, word ptr [bx+353ch]
+        mov bp, word ptr _g_vmds[si+vmds_poly_x]
+        sub bp, word ptr _g_vmds[bx+vmds_poly_x]
         idiv bp
-        add ax, word ptr [bx+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[bx+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
 x_enter_keep:
-        mov ax, word ptr [si+353ch]
-        mov word ptr [di+358ch], ax
-        mov ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp x_next
 x_both_out:
         test cl, 1
         je x_cross_from_right
-        mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [bx+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[bx+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [si+3564h]
-        sub ax, word ptr [bx+3564h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        sub ax, word ptr _g_vmds[bx+vmds_poly_y]
         imul bp
-        mov bp, word ptr [si+353ch]
-        sub bp, word ptr [bx+353ch]
+        mov bp, word ptr _g_vmds[si+vmds_poly_x]
+        sub bp, word ptr _g_vmds[bx+vmds_poly_x]
         idiv bp
-        add ax, word ptr [bx+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[bx+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp short x_cross_to
 x_cross_from_right:
         test cl, 2
         je x_cross_to
-        mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [bx+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[bx+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [si+3564h]
-        sub ax, word ptr [bx+3564h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        sub ax, word ptr _g_vmds[bx+vmds_poly_y]
         imul bp
-        mov bp, word ptr [si+353ch]
-        sub bp, word ptr [bx+353ch]
+        mov bp, word ptr _g_vmds[si+vmds_poly_x]
+        sub bp, word ptr _g_vmds[bx+vmds_poly_x]
         idiv bp
-        add ax, word ptr [bx+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[bx+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
 x_cross_to:
         test ch, 1
         je x_cross_to_right
-        mov ax, word ptr DGROUP:_g_vmds+4h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [si+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[si+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [bx+3564h]
-        sub ax, word ptr [si+3564h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
+        sub ax, word ptr _g_vmds[si+vmds_poly_y]
         imul bp
-        mov bp, word ptr [bx+353ch]
-        sub bp, word ptr [si+353ch]
+        mov bp, word ptr _g_vmds[bx+vmds_poly_x]
+        sub bp, word ptr _g_vmds[si+vmds_poly_x]
         idiv bp
-        add ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         jmp short x_next
 x_cross_to_right:
         test ch, 2
         je x_next
-        mov ax, word ptr DGROUP:_g_vmds+6h
-        mov word ptr [di+358ch], ax
-        sub ax, word ptr [si+353ch]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        sub ax, word ptr _g_vmds[si+vmds_poly_x]
         mov bp, ax
-        mov ax, word ptr [bx+3564h]
-        sub ax, word ptr [si+3564h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
+        sub ax, word ptr _g_vmds[si+vmds_poly_y]
         imul bp
-        mov bp, word ptr [bx+353ch]
-        sub bp, word ptr [si+353ch]
+        mov bp, word ptr _g_vmds[bx+vmds_poly_x]
+        sub bp, word ptr _g_vmds[si+vmds_poly_x]
         idiv bp
-        add ax, word ptr [si+3564h]
-        mov word ptr [di+35b4h], ax
+        add ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
 x_next:
         mov bx, si
         mov cl, ch
         shr si, 1
         inc si
-        cmp si, word ptr DGROUP:_g_vmds+19ch
+        cmp si, word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count
         je x_done
         jmp x_edge
 x_done:
         shr di, 1
         mov ax, di
-        mov word ptr DGROUP:_g_vmds+19ch, ax
+        mov word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count, ax
         cmp ax, 1
         jg y_begin
         jmp clip_copy_back
@@ -276,12 +278,12 @@ y_begin:
         mov bx, ax
         shl bx, 1
         xor cl, cl
-        mov ax, word ptr [bx+35b4h]
-        cmp ax, word ptr DGROUP:_g_vmds+0ah
+        mov ax, word ptr _g_vmds[bx+vmds_work_y]
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         jle y_prev_coded
         or cl, 4
 y_prev_coded:
-        cmp ax, word ptr DGROUP:_g_vmds+8h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         jge y_start
         or cl, 8
 y_start:
@@ -290,22 +292,22 @@ y_start:
 y_edge:
         shl si, 1
         xor ch, ch
-        mov ax, word ptr [si+35b4h]
-        cmp ax, word ptr DGROUP:_g_vmds+0ah
+        mov ax, word ptr _g_vmds[si+vmds_work_y]
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         jle y_cur_coded
         or ch, 4
 y_cur_coded:
-        cmp ax, word ptr DGROUP:_g_vmds+8h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         jge y_classify
         or ch, 8
 y_classify:
         mov al, cl
         or al, ch
         jne y_crossing
-        mov ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
-        mov ax, word ptr [si+35b4h]
-        mov word ptr [di+3564h], ax
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_work_y]
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
         add di, 2
         jmp y_next
 y_crossing:
@@ -318,35 +320,35 @@ y_prev_in:
         jne y_prev_out
         test ch, 8
         je y_leave_bottom
-        mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [si+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[si+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [bx+358ch]
-        sub ax, word ptr [si+358ch]
+        mov ax, word ptr _g_vmds[bx+vmds_work_x]
+        sub ax, word ptr _g_vmds[si+vmds_work_x]
         imul bp
-        mov bp, word ptr [bx+35b4h]
-        sub bp, word ptr [si+35b4h]
+        mov bp, word ptr _g_vmds[bx+vmds_work_y]
+        sub bp, word ptr _g_vmds[si+vmds_work_y]
         idiv bp
-        add ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
         jmp short y_left
 y_leave_bottom:
         test ch, 4
         je y_left
-        mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [si+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[si+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [bx+358ch]
-        sub ax, word ptr [si+358ch]
+        mov ax, word ptr _g_vmds[bx+vmds_work_x]
+        sub ax, word ptr _g_vmds[si+vmds_work_x]
         imul bp
-        mov bp, word ptr [bx+35b4h]
-        sub bp, word ptr [si+35b4h]
+        mov bp, word ptr _g_vmds[bx+vmds_work_y]
+        sub bp, word ptr _g_vmds[si+vmds_work_y]
         idiv bp
-        add ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
 y_left:
         jmp y_next
@@ -357,131 +359,131 @@ y_prev_out:
 y_enter:
         test cl, 8
         je y_enter_bottom
-        mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [bx+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[bx+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [si+358ch]
-        sub ax, word ptr [bx+358ch]
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        sub ax, word ptr _g_vmds[bx+vmds_work_x]
         imul bp
-        mov bp, word ptr [si+35b4h]
-        sub bp, word ptr [bx+35b4h]
+        mov bp, word ptr _g_vmds[si+vmds_work_y]
+        sub bp, word ptr _g_vmds[bx+vmds_work_y]
         idiv bp
-        add ax, word ptr [bx+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[bx+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
         jmp short y_enter_keep
 y_enter_bottom:
         test cl, 4
         je y_enter_keep
-        mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [bx+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[bx+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [si+358ch]
-        sub ax, word ptr [bx+358ch]
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        sub ax, word ptr _g_vmds[bx+vmds_work_x]
         imul bp
-        mov bp, word ptr [si+35b4h]
-        sub bp, word ptr [bx+35b4h]
+        mov bp, word ptr _g_vmds[si+vmds_work_y]
+        sub bp, word ptr _g_vmds[bx+vmds_work_y]
         idiv bp
-        add ax, word ptr [bx+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[bx+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
 y_enter_keep:
-        mov ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
-        mov ax, word ptr [si+35b4h]
-        mov word ptr [di+3564h], ax
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_work_y]
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
         add di, 2
         jmp y_next
 y_both_out:
         test cl, 8
         je y_cross_from_bottom
-        mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [bx+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[bx+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [si+358ch]
-        sub ax, word ptr [bx+358ch]
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        sub ax, word ptr _g_vmds[bx+vmds_work_x]
         imul bp
-        mov bp, word ptr [si+35b4h]
-        sub bp, word ptr [bx+35b4h]
+        mov bp, word ptr _g_vmds[si+vmds_work_y]
+        sub bp, word ptr _g_vmds[bx+vmds_work_y]
         idiv bp
-        add ax, word ptr [bx+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[bx+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
         jmp short y_cross_to
 y_cross_from_bottom:
         test cl, 4
         je y_cross_to
-        mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [bx+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[bx+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [si+358ch]
-        sub ax, word ptr [bx+358ch]
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
+        sub ax, word ptr _g_vmds[bx+vmds_work_x]
         imul bp
-        mov bp, word ptr [si+35b4h]
-        sub bp, word ptr [bx+35b4h]
+        mov bp, word ptr _g_vmds[si+vmds_work_y]
+        sub bp, word ptr _g_vmds[bx+vmds_work_y]
         idiv bp
-        add ax, word ptr [bx+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[bx+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
 y_cross_to:
         test ch, 8
         je y_cross_to_bottom
-        mov ax, word ptr DGROUP:_g_vmds+8h
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [si+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[si+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [bx+358ch]
-        sub ax, word ptr [si+358ch]
+        mov ax, word ptr _g_vmds[bx+vmds_work_x]
+        sub ax, word ptr _g_vmds[si+vmds_work_x]
         imul bp
-        mov bp, word ptr [bx+35b4h]
-        sub bp, word ptr [si+35b4h]
+        mov bp, word ptr _g_vmds[bx+vmds_work_y]
+        sub bp, word ptr _g_vmds[si+vmds_work_y]
         idiv bp
-        add ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
         jmp short y_next
 y_cross_to_bottom:
         test ch, 4
         je y_next
-        mov ax, word ptr DGROUP:_g_vmds+0ah
-        mov word ptr [di+3564h], ax
-        sub ax, word ptr [si+35b4h]
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
+        mov word ptr _g_vmds[di+vmds_poly_y], ax
+        sub ax, word ptr _g_vmds[si+vmds_work_y]
         mov bp, ax
-        mov ax, word ptr [bx+358ch]
-        sub ax, word ptr [si+358ch]
+        mov ax, word ptr _g_vmds[bx+vmds_work_x]
+        sub ax, word ptr _g_vmds[si+vmds_work_x]
         imul bp
-        mov bp, word ptr [bx+35b4h]
-        sub bp, word ptr [si+35b4h]
+        mov bp, word ptr _g_vmds[bx+vmds_work_y]
+        sub bp, word ptr _g_vmds[si+vmds_work_y]
         idiv bp
-        add ax, word ptr [si+358ch]
-        mov word ptr [di+353ch], ax
+        add ax, word ptr _g_vmds[si+vmds_work_x]
+        mov word ptr _g_vmds[di+vmds_poly_x], ax
         add di, 2
 y_next:
         mov bx, si
         mov cl, ch
         shr si, 1
         inc si
-        cmp si, word ptr DGROUP:_g_vmds+19ch
+        cmp si, word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count
         je y_done
         jmp y_edge
 y_done:
         shr di, 1
         mov ax, di
-        mov word ptr DGROUP:_g_vmds+19ch, ax
+        mov word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count, ax
         jmp short clip_return
 clip_copy_back:
-        mov ax, word ptr DGROUP:_g_vmds+19ch
+        mov ax, word ptr DGROUP:_g_vmds+vmds_palettes+vm_palettes_clip_count
         mov cx, ax
-        mov si, offset DGROUP:_g_vmds+0fch
-        mov di, offset DGROUP:_g_vmds+0ach
+        mov si, offset DGROUP:_g_vmds+vmds_work_x
+        mov di, offset DGROUP:_g_vmds+vmds_poly_x
         rep movsw
         mov cx, ax
-        mov si, offset DGROUP:_g_vmds+124h
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov si, offset DGROUP:_g_vmds+vmds_work_y
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         rep movsw
 clip_return:
         retf
