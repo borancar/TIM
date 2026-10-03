@@ -78,7 +78,7 @@ uint16_t start_sequence_by_id(int16_t id)
         }
 
         if ((rec->sequence = create_sequence(rec->data)) != NULL) {
-            rec->sequence->loop = (rec->flags & 2) != 0;
+            rec->sequence->looping = (rec->flags & 2) != 0;
             rec->sequence->priority = (uint8_t)rec->priority;
 
             if (load_and_start_sequence(rec->sequence, 0, 0x7f) != NULL)

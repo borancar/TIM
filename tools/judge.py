@@ -233,15 +233,21 @@ def assemble(d, base, opts, assembler, defines=True):
     # Through tools/tcrun.py, as the compilers are: under turboc's own
     # memory figure TASM 3.0 prints its banner and then runs the emulator's
     # instruction budget out without assembling a line.
+    # The source and any include beside it - STRUCTS.ASH, when the module
+    # names one (`JUDGE: structs`, tools/h2ash.py).
     cmd = ["uv", "run", "--project", TURBOC, "python",
-           os.path.join(REPO, "tools", "tcrun.py"), "TASM.EXE",
-           "--save", d, "--add", os.path.join(d, base + ".ASM"), "--"] + tail
+           os.path.join(REPO, "tools", "tcrun.py"), "TASM.EXE", "--save", d]
+    for name in sorted(os.listdir(d)):
+        if name.upper().endswith((".ASM", ".ASH")):
+            cmd += ["--add", os.path.join(d, name)]
+    cmd += ["--"] + tail
     r = subprocess.run(cmd, cwd=TURBOC, capture_output=True, text=True,
                        env=dict(os.environ, TURBOC_VERSION=assembler))
     return r.stdout + r.stderr
 
 
 TASM_ONLY = re.compile(r"JUDGE:\s*tasm\b")
+STRUCTS = re.compile(r"JUDGE:\s*structs\s+(.+)$", re.M)
 
 
 def keep_obj(obj):
@@ -277,6 +283,14 @@ def tasm_obj(path, opts, assembler):
         base = os.path.splitext(os.path.basename(path))[0][:8].upper()
         with open(os.path.join(d, base + ".ASM"), "w", newline="\r\n") as f:
             f.write(prelude + body + "\nend\n")
+        # `JUDGE: structs a=x b=y`: the C structs the module names fields
+        # of, as the include its `INCLUDE STRUCTS.ASH` reads (tools/h2ash.py).
+        m = STRUCTS.search(text)
+        if m:
+            import h2ash
+            with open(os.path.join(d, "STRUCTS.ASH"), "w",
+                      newline="\r\n") as f:
+                f.write(h2ash.structs_ash(h2ash.parse(m.group(1))))
         out = assemble(d, base, opts, assembler, defines=False)
         objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
         if not objs or ERRORS.search(out):

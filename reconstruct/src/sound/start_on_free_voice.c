@@ -55,11 +55,11 @@ struct sequence far *start_on_free_voice(const uint8_t far * source, uint16_t in
                 voice->cursor = (uint8_t far *)advance_record(source);
 
                 if (g_sound_bank.bank != 0) {
-                    voice->loop = g_sound_bank.bank[index].loop;
+                    voice->looping = g_sound_bank.bank[index].loop;
                     voice->priority = g_sound_bank.bank[index].priority;
                     voice->volume = 0x7f;
                 } else {
-                    voice->loop = (uint8_t)byte_arg;
+                    voice->looping = (uint8_t)byte_arg;
                     voice->priority = 1;
                     voice->volume = (uint8_t)index;
                 }

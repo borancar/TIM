@@ -2910,7 +2910,7 @@ struct sequence {
        calloc'd, so the guard always passes. */
     uint8_t        keep_priority;       /* +0x15b */
     uint8_t        priority;            /* +0x15c  a sound bank entry's second byte */
-    uint8_t        loop;                /* +0x15d  and its first */
+    uint8_t        looping;             /* +0x15d  and its first (not `loop`: TASM reads that as the instruction, see tools/h2ash.py) */
     uint8_t        volume;              /* +0x15e  0x7f for the default */
     uint8_t        device_value;        /* +0x15f  controller 0x50's, 0x7f for the default */
     uint8_t        fade_target;         /* +0x160  top bit: remove the sequence on arrival */

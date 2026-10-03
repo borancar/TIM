@@ -41,6 +41,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs sequence_channels=chan sequence=seq
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -54,6 +55,7 @@
  * TASM 3.0 (`JUDGE: tasm`).
  */
 asm {
+INCLUDE STRUCTS.ASH
 extrn _sound_callback:far
 extrn _g_sound_bank:byte
 nosmart
@@ -974,41 +976,41 @@ _seek_sequence proc far
 	push dx
 	mov bx, ax
 	xor ch, ch
-	mov cl, es:[bx+159h]
+	mov cl, es:[bx+seq_mode]
 	dec cl
 	mov si, 0eh
 seek_save_channel:
-	mov dl, es:[bx+si+143h]
+	mov dl, es:[bx+si+seq_ch+chan_no_voice]
 	and dl, 0f0h
 	mov byte ptr cs:seek_saved_bits[si], dl
 	dec si
 	jns seek_save_channel
 	mov byte ptr cs:muted, 1
 	call FAR PTR _start_sequence
-	mov cx, es:[bx+154h]
-	mov word ptr es:[bx+154h], 0
-	mov al, es:[bx+15dh]
-	mov byte ptr es:[bx+15dh], 1
+	mov cx, es:[bx+seq_ticks]
+	mov word ptr es:[bx+seq_ticks], 0
+	mov al, es:[bx+seq_looping]
+	mov byte ptr es:[bx+seq_looping], 1
 	cmp cx, 0
 	je seek_done
 seek_step:
-	mov dx, es:[bx+154h]
+	mov dx, es:[bx+seq_ticks]
 	call _step_sequence
-	cmp dx, es:[bx+154h]
+	cmp dx, es:[bx+seq_ticks]
 	jb seek_compare
 	je seek_done
-	sub dx, es:[bx+154h]
+	sub dx, es:[bx+seq_ticks]
 	sub cx, dx
 seek_compare:
-	cmp cx, es:[bx+154h]
+	cmp cx, es:[bx+seq_ticks]
 	jne seek_step
 seek_done:
-	mov es:[bx+15dh], al
+	mov es:[bx+seq_looping], al
 	mov byte ptr cs:muted, 0
 	mov si, 0eh
 seek_restore_channel:
 	mov dl, byte ptr cs:seek_saved_bits[si]
-	or es:[bx+si+143h], dl
+	or es:[bx+si+seq_ch+chan_no_voice], dl
 	dec si
 	jns seek_restore_channel
 	call _sequencer_tick
@@ -1062,7 +1064,7 @@ seq_level_store:
 	mov dx, es
 	or dx, bx
 	je seq_level_return
-	cmp byte ptr es:[bx+15fh], 7fh
+	cmp byte ptr es:[bx+seq_device_value], 7fh
 	jne seq_level_return
 	push bp
 	mov bp, 0bh
@@ -1099,10 +1101,10 @@ start_find_next:
 start_reset:
 	pop cx
 	mov bx, ax
-	mov byte ptr es:[bx+159h], 1
+	mov byte ptr es:[bx+seq_mode], 1
 	cmp cx, 0
 	je start_params
-	inc byte ptr es:[bx+159h]
+	inc byte ptr es:[bx+seq_mode]
 start_params:
 	call _init_sequence_params
 	mov bx, ax
@@ -1111,49 +1113,49 @@ start_params:
 	dec ch
 start_channel_defaults:
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 0dh
-	mov word ptr es:[bx+si+2ch], 3
-	mov word ptr es:[bx+si+4ch], 0
-	mov word ptr es:[bx+si+6ch], 0
-	mov word ptr es:[bx+si+0bch], 2000h
+	mov word ptr es:[bx+si+seq_position], 0dh
+	mov word ptr es:[bx+si+seq_position_saved], 3
+	mov word ptr es:[bx+si+seq_delay], 0
+	mov word ptr es:[bx+si+seq_delay_saved], 0
+	mov word ptr es:[bx+si+seq_ch+chan_bend], 2000h
 	shr si, 1
-	mov es:[bx+si+8ch], ch
-	mov es:[bx+si+9ch], cl
-	mov es:[bx+si+0ach], cl
-	mov es:[bx+si+0dah], ch
-	mov es:[bx+si+0e9h], cl
-	mov es:[bx+si+116h], ch
-	mov es:[bx+si+107h], ch
-	mov es:[bx+si+0f8h], ch
-	mov es:[bx+si+125h], ch
-	mov es:[bx+si+134h], cl
-	mov es:[bx+si+143h], cl
+	mov es:[bx+si+seq_track_channel], ch
+	mov es:[bx+si+seq_status], cl
+	mov es:[bx+si+seq_status_saved], cl
+	mov es:[bx+si+seq_ch+chan_voice_budget], ch
+	mov es:[bx+si+seq_ch+chan_modulation], cl
+	mov es:[bx+si+seq_ch+chan_program], ch
+	mov es:[bx+si+seq_ch+chan_volume], ch
+	mov es:[bx+si+seq_ch+chan_pan], ch
+	mov es:[bx+si+seq_ch+chan_note], ch
+	mov es:[bx+si+seq_ch+chan_channel_flags], cl
+	mov es:[bx+si+seq_ch+chan_no_voice], cl
 	inc si
 	cmp si, 0fh
 	jne start_channel_defaults
-	mov es:[bx+si+8ch], ch
-	mov es:[bx+si+9ch], cl
-	mov es:[bx+si+0ach], cl
-	mov es:[bx+165h], cl
-	mov es:[bx+15ah], cl
-	mov byte ptr es:[bx+15fh], 7fh
+	mov es:[bx+si+seq_track_channel], ch
+	mov es:[bx+si+seq_status], cl
+	mov es:[bx+si+seq_status_saved], cl
+	mov es:[bx+seq_poll], cl
+	mov es:[bx+seq_rewind_mark], cl
+	mov byte ptr es:[bx+seq_device_value], 7fh
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 0dh
-	mov word ptr es:[bx+si+2ch], 3
-	mov word ptr es:[bx+si+4ch], 0
-	mov word ptr es:[bx+156h], 0
+	mov word ptr es:[bx+si+seq_position], 0dh
+	mov word ptr es:[bx+si+seq_position_saved], 3
+	mov word ptr es:[bx+si+seq_delay], 0
+	mov word ptr es:[bx+seq_ticks_saved], 0
 	push ax
 	push bp
 	push ds
 	xor si, si
-	lds bp, dword ptr es:[bx+8]
+	lds bp, dword ptr es:[bx+seq_cursor_at]
 	lds bp, dword ptr ds:[bp]
 	cmp byte ptr ds:[bp+20h], 0ffh
 	je start_tracks
-	cmp byte ptr es:[bx+15bh], 0
+	cmp byte ptr es:[bx+seq_keep_priority], 0
 	jne start_tracks
 	mov cl, ds:[bp+20h]
-	mov es:[bx+15ch], cl
+	mov es:[bx+seq_priority], cl
 start_tracks:
 	mov cx, bp
 start_track:
@@ -1168,22 +1170,22 @@ start_track:
 	cmp byte ptr cs:ah_high, 0
 	jne start_track_end_flag
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 0
-	mov word ptr es:[bx+si+2ch], 0
+	mov word ptr es:[bx+si+seq_position], 0
+	mov word ptr es:[bx+si+seq_position_saved], 0
 	shr si, 1
-	mov byte ptr es:[bx+si+8ch], 0feh
+	mov byte ptr es:[bx+si+seq_track_channel], 0feh
 	jmp start_track_next
 start_track_end_flag:
 	mov dx, si
 	inc dx
-	mov es:[bx+165h], dl
+	mov es:[bx+seq_poll], dl
 start_tracks_end:
 	jmp start_tracks_done
 start_track_channel:
-	mov es:[bx+si+8ch], dl
+	mov es:[bx+si+seq_track_channel], dl
 	mov dh, dl
 	or dh, 0b0h
-	mov es:[bx+si+9ch], dh
+	mov es:[bx+si+seq_status], dh
 	mov dl, ds:[bp+0ch]
 	xor dh, dh
 	cmp dl, 0f8h
@@ -1192,20 +1194,20 @@ start_track_channel:
 	mov dh, 80h
 start_track_header:
 	shl si, 1
-	mov es:[bx+si+4ch], dx
+	mov es:[bx+si+seq_delay], dx
 	shr si, 1
 	push si
-	mov dl, es:[bx+si+8ch]
-	and byte ptr es:[bx+si+8ch], 0fh
+	mov dl, es:[bx+si+seq_track_channel]
+	and byte ptr es:[bx+si+seq_track_channel], 0fh
 	test dl, 10h
 	je start_track_flags
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 3
-	mov word ptr es:[bx+si+4ch], 0
+	mov word ptr es:[bx+si+seq_position], 3
+	mov word ptr es:[bx+si+seq_delay], 0
 	xor dh, dh
 	mov si, dx
 	and si, 0fh
-	or byte ptr es:[bx+si+134h], 2
+	or byte ptr es:[bx+si+seq_ch+chan_channel_flags], 2
 	jmp short start_track_next_pop
 start_track_flags:
 	xor dh, dh
@@ -1213,39 +1215,39 @@ start_track_flags:
 	and si, 0fh
 	test dl, 20h
 	je start_track_not_own
-	or byte ptr es:[bx+si+134h], 1
+	or byte ptr es:[bx+si+seq_ch+chan_channel_flags], 1
 start_track_not_own:
 	test dl, 40h
 	je start_track_defaults
-	mov byte ptr es:[bx+si+143h], 1
+	mov byte ptr es:[bx+si+seq_ch+chan_no_voice], 1
 start_track_defaults:
 	cmp si, 0fh
 	jne start_default_da
-	cmp byte ptr es:[bx+15fh], 7fh
+	cmp byte ptr es:[bx+seq_device_value], 7fh
 	jne start_default_pan
 	mov al, ds:[bp+8]
-	mov es:[bx+15fh], al
+	mov es:[bx+seq_device_value], al
 	jmp short start_track_next_pop
 start_default_da:
-	cmp byte ptr es:[bx+si+0dah], 0ffh
+	cmp byte ptr es:[bx+si+seq_ch+chan_voice_budget], 0ffh
 	jne start_default_116
 	mov al, ds:[bp+1]
-	mov es:[bx+si+0dah], al
+	mov es:[bx+si+seq_ch+chan_voice_budget], al
 start_default_116:
-	cmp byte ptr es:[bx+si+116h], 0ffh
+	cmp byte ptr es:[bx+si+seq_ch+chan_program], 0ffh
 	jne start_default_volume
 	mov al, ds:[bp+4]
-	mov es:[bx+si+116h], al
+	mov es:[bx+si+seq_ch+chan_program], al
 start_default_volume:
-	cmp byte ptr es:[bx+si+107h], 0ffh
+	cmp byte ptr es:[bx+si+seq_ch+chan_volume], 0ffh
 	jne start_default_pan
 	mov al, ds:[bp+8]
-	mov es:[bx+si+107h], al
+	mov es:[bx+si+seq_ch+chan_volume], al
 start_default_pan:
-	cmp byte ptr es:[bx+si+0f8h], 0ffh
+	cmp byte ptr es:[bx+si+seq_ch+chan_pan], 0ffh
 	jne start_track_next_pop
 	mov al, ds:[bp+0bh]
-	mov es:[bx+si+0f8h], al
+	mov es:[bx+si+seq_ch+chan_pan], al
 start_track_next_pop:
 	pop si
 start_track_next:
@@ -1261,23 +1263,23 @@ start_tracks_done:
 	pop ds
 	pop bp
 	pop ax
-	cmp byte ptr es:[bx+159h], 2
+	cmp byte ptr es:[bx+seq_mode], 2
 	jne start_insert
 	mov di, 0eh
 start_all_own:
-	or byte ptr es:[bx+di+134h], 1
+	or byte ptr es:[bx+di+seq_ch+chan_channel_flags], 1
 	dec di
 	jns start_all_own
 start_insert:
 	mov ax, bx
-	mov dl, es:[bx+15ch]
+	mov dl, es:[bx+seq_priority]
 	push es
 	xor di, di
 start_find_place:
 	cmp word ptr cs:playing_0_seg[di], 0
 	je start_place
 	les bx, dword ptr cs:playing_0_off[di]
-	cmp es:[bx+15ch], dl
+	cmp es:[bx+seq_priority], dl
 	jbe start_make_room
 	add di, 4
 	cmp di, 40h
@@ -1306,14 +1308,14 @@ start_place:
 	cmp byte ptr cs:muted, 0
 	jne start_return
 	xor cx, cx
-	mov es:[bx+152h], cx
-	mov es:[bx+154h], cx
-	mov es:[bx+158h], cl
-	mov es:[bx+160h], cl
-	mov es:[bx+161h], cl
-	mov es:[bx+162h], cl
-	mov es:[bx+163h], cl
-	mov es:[bx+164h], cl
+	mov es:[bx+seq_loop_count], cx
+	mov es:[bx+seq_ticks], cx
+	mov es:[bx+seq_state], cl
+	mov es:[bx+seq_fade_target], cl
+	mov es:[bx+seq_fade_period], cl
+	mov es:[bx+seq_fade_countdown], cl
+	mov es:[bx+seq_fade_step], cl
+	mov es:[bx+seq_skip], cl
 	call _sequencer_tick
 start_return:
 	pop cx
@@ -1349,7 +1351,7 @@ fn0a_scan:
 	mov si, 4
 	jmp short fn0a_scan
 fn0a_each:
-	mov al, es:[bx+164h]
+	mov al, es:[bx+seq_skip]
 	cmp cl, 0
 	je fn0a_each_down
 	inc al
@@ -1359,14 +1361,14 @@ fn0a_each_down:
 	je fn0a_each_store
 	dec al
 fn0a_each_store:
-	mov es:[bx+164h], al
+	mov es:[bx+seq_skip], al
 	add si, 4
 	cmp si, 40h
 	jne fn0a_scan
 	jmp short fn0a_tick
 fn0a_one:
 	mov bx, ax
-	mov al, es:[bx+164h]
+	mov al, es:[bx+seq_skip]
 	cmp cl, 0
 	je fn0a_one_down
 	inc al
@@ -1376,7 +1378,7 @@ fn0a_one_down:
 	je fn0a_one_store
 	dec al
 fn0a_one_store:
-	mov es:[bx+164h], al
+	mov es:[bx+seq_skip], al
 fn0a_tick:
 	call _sequencer_tick
 	pop si
@@ -1389,12 +1391,12 @@ sound_fn0b:
 	cli
 	push bx
 	mov bx, ax
-	cmp es:[bx+15eh], dl
+	cmp es:[bx+seq_volume], dl
 	je fn0b_return
-	mov es:[bx+160h], dl
-	mov es:[bx+161h], cl
-	mov es:[bx+163h], ch
-	mov byte ptr es:[bx+162h], 0
+	mov es:[bx+seq_fade_target], dl
+	mov es:[bx+seq_fade_period], cl
+	mov es:[bx+seq_fade_step], ch
+	mov byte ptr es:[bx+seq_fade_countdown], 0
 fn0b_return:
 	pop bx
 	popf
@@ -1402,7 +1404,7 @@ fn0b_return:
 sound_fn0c:
 	push bx
 	mov bx, ax
-	mov es:[bx+15ah], cl
+	mov es:[bx+seq_rewind_mark], cl
 	pop bx
 	retf
 sound_fn0d:
@@ -1413,7 +1415,7 @@ sound_fn0d:
 	mov bx, ax
 	mov si, 0eh
 fn0d_channel:
-	mov dl, es:[bx+si+143h]
+	mov dl, es:[bx+si+seq_ch+chan_no_voice]
 	cmp cx, 0
 	jne fn0d_up
 	cmp dl, 0fh
@@ -1425,7 +1427,7 @@ fn0d_up:
 	jae fn0d_store
 	add dl, 10h
 fn0d_store:
-	mov es:[bx+si+143h], dl
+	mov es:[bx+si+seq_ch+chan_no_voice], dl
 	dec si
 	jns fn0d_channel
 	call _sequencer_tick
@@ -1454,11 +1456,11 @@ sound_fn0f:
 	push si
 	push di
 	mov bx, ax
-	cmp es:[bx+15ch], cl
+	cmp es:[bx+seq_priority], cl
 	jne fn0f_changed
 	jmp fn0f_return
 fn0f_changed:
-	mov es:[bx+15ch], cl
+	mov es:[bx+seq_priority], cl
 	call find_playing_slot
 	cmp si, 0ffh
 	jne fn0f_playing
@@ -1479,14 +1481,14 @@ fn0f_close_gap:
 	mov word ptr cs:playing_0_off[si], 0
 	mov word ptr cs:playing_0_seg[si], 0
 fn0f_reinsert:
-	mov dl, es:[bx+15ch]
+	mov dl, es:[bx+seq_priority]
 	push es
 	xor di, di
 fn0f_find_place:
 	cmp word ptr cs:playing_0_seg[di], 0
 	je fn0f_place
 	les bx, dword ptr cs:playing_0_off[di]
-	mov es:[bx+15ch], dl
+	mov es:[bx+seq_priority], dl
 	jbe fn0f_make_room
 	add di, 4
 	jmp short fn0f_find_place
@@ -1520,27 +1522,27 @@ fn0f_return:
 sound_fn10:
 	push bx
 	mov bx, ax
-	mov cl, es:[bx+158h]
+	mov cl, es:[bx+seq_state]
 	pop bx
 	retf
 sound_fn19:
 	push bx
 	mov bx, ax
 	xor cl, cl
-	xchg es:[bx+158h], cl
+	xchg es:[bx+seq_state], cl
 	pop bx
 	retf
 sound_fn11:
 	push bx
 	mov bx, ax
-	mov cx, es:[bx+152h]
+	mov cx, es:[bx+seq_loop_count]
 	pop bx
 	retf
 sound_fn12:
 	push ax
 	push bx
 	mov bx, ax
-	mov ax, es:[bx+154h]
+	mov ax, es:[bx+seq_ticks]
 	xor dx, dx
 	mov cx, 0e10h
 	div cx
@@ -1568,7 +1570,7 @@ sound_fn13:
 	push si
 	xor dh, dh
 	mov si, dx
-	mov byte ptr es:[bx+si+125h], 0ffh
+	mov byte ptr es:[bx+si+seq_ch+chan_note], 0ffh
 	mov ax, si
 	pop si
 	mov dx, si
@@ -1611,7 +1613,7 @@ sound_fn14:
 	push si
 	xor dh, dh
 	mov si, dx
-	mov es:[bx+si+125h], ch
+	mov es:[bx+si+seq_ch+chan_note], ch
 	mov ax, si
 	pop si
 	mov dx, si
@@ -1660,38 +1662,38 @@ fn15_found:
 	mov si, dx
 	cmp ch, 7
 	jne fn15_ctl_0a
-	mov es:[bx+si+107h], cl
-	mov dl, es:[bx+15eh]
+	mov es:[bx+si+seq_ch+chan_volume], cl
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	jmp short fn15_voices
 fn15_ctl_0a:
 	cmp ch, 0ah
 	jne fn15_ctl_01
-	mov es:[bx+si+0f8h], cl
+	mov es:[bx+si+seq_ch+chan_pan], cl
 	jmp short fn15_voices
 fn15_ctl_01:
 	cmp ch, 1
 	jne fn15_ctl_40
-	mov es:[bx+si+0e9h], cl
+	mov es:[bx+si+seq_ch+chan_modulation], cl
 	jmp short fn15_voices
 fn15_ctl_40:
 	cmp ch, 40h
 	jne fn15_ctl_4e
 	shl si, 1
-	mov ax, es:[bx+si+0bch]
+	mov ax, es:[bx+si+seq_ch+chan_bend]
 	and ah, 7fh
 	cmp cl, 0
 	je fn15_sustain_set
 	or ah, 80h
 fn15_sustain_set:
-	mov es:[bx+si+0bch], ax
+	mov es:[bx+si+seq_ch+chan_bend], ax
 	shr si, 1
 	jmp short fn15_voices
 fn15_ctl_4e:
 	cmp ch, 4eh
 	jne fn15_ctl_7f
 	push dx
-	mov dl, es:[bx+si+143h]
+	mov dl, es:[bx+si+seq_ch+chan_no_voice]
 	cmp cl, 0
 	jne fn15_4e_up
 	cmp dl, 0fh
@@ -1703,7 +1705,7 @@ fn15_4e_up:
 	jae fn15_4e_done
 	add dl, 10h
 fn15_4e_store:
-	mov es:[bx+si+143h], dl
+	mov es:[bx+si+seq_ch+chan_no_voice], dl
 	call _sequencer_tick
 fn15_4e_done:
 	pop dx
@@ -1712,7 +1714,7 @@ fn15_4e_done:
 fn15_ctl_7f:
 	cmp ch, 7fh
 	jne fn15_voices
-	mov es:[bx+si+116h], cl
+	mov es:[bx+si+seq_ch+chan_program], cl
 fn15_voices:
 	mov ax, si
 	pop si
@@ -1763,7 +1765,7 @@ sound_fn16:
 	push si
 	xor dh, dh
 	mov si, dx
-	mov es:[bx+si+116h], cl
+	mov es:[bx+si+seq_ch+chan_program], cl
 	mov ax, si
 	pop si
 	mov dx, si
@@ -1808,11 +1810,11 @@ sound_fn17:
 	mov si, dx
 	shl si, 1
 	mov ax, cx
-	cmp byte ptr es:[bx+si+0bdh], 80h
+	cmp byte ptr es:[bx+si+seq_ch+chan_bend+1], 80h
 	jb fn17_store
 	or ah, 80h
 fn17_store:
-	mov es:[bx+si+0bch], ax
+	mov es:[bx+si+seq_ch+chan_bend], ax
 	shr si, 1
 	mov dx, si
 	pop si
@@ -1886,13 +1888,13 @@ remove_close_gap:
 	mov word ptr cs:playing_0_seg[si], 0
 remove_retire:
 	mov bx, ax
-	mov byte ptr es:[bx+158h], 0ffh
-	mov byte ptr es:[bx+159h], 0
-	cmp byte ptr es:[bx+165h], 0
+	mov byte ptr es:[bx+seq_state], 0ffh
+	mov byte ptr es:[bx+seq_mode], 0
+	cmp byte ptr es:[bx+seq_poll], 0
 	je remove_return
-	lds bp, dword ptr es:[bx+8]
+	lds bp, dword ptr es:[bx+seq_cursor_at]
 	lds bp, dword ptr ds:[bp]
-	mov al, es:[bx+165h]
+	mov al, es:[bx+seq_poll]
 	cmp al, 80h
 	jb remove_return
 	and ax, 0fh
@@ -1991,7 +1993,7 @@ _sequencer_tick proc near
 	mov word ptr cs:voice_held_e, dx
 	jmp tick_release
 tick_level:
-	mov cl, es:[bx+15fh]
+	mov cl, es:[bx+seq_device_value]
 	cmp cl, 7fh
 	jne tick_level_set
 	mov cl, byte ptr cs:param_default
@@ -2011,11 +2013,11 @@ tick_sequence:
 	jmp tick_place
 tick_sequence_live:
 	les bx, dword ptr cs:playing_0_off[si]
-	cmp byte ptr es:[bx+164h], 0
+	cmp byte ptr es:[bx+seq_skip], 0
 	je tick_not_held
 	jmp tick_sequence_next
 tick_not_held:
-	cmp byte ptr es:[bx+165h], 0
+	cmp byte ptr es:[bx+seq_poll], 0
 	je tick_snapshot
 	cmp word ptr cs:polled_0_off, 0
 	je tick_poll_seg
@@ -2099,7 +2101,7 @@ tick_snapshot:
 	mov byte ptr cs:saved_total, al
 	xor di, di
 tick_channel:
-	mov cl, es:[bx+di+8ch]
+	mov cl, es:[bx+di+seq_track_channel]
 	cmp cl, 0ffh
 	jne tick_channel_not_ff
 	jmp tick_channel_next
@@ -2115,12 +2117,12 @@ tick_channel_live:
 	push di
 	mov di, cx
 	and di, 0ffh
-	test byte ptr es:[bx+di+134h], 2
+	test byte ptr es:[bx+di+seq_ch+chan_channel_flags], 2
 	je tick_channel_not_own
 	pop di
 	jmp tick_channel_next
 tick_channel_not_own:
-	test byte ptr es:[bx+di+143h], 0ffh
+	test byte ptr es:[bx+di+seq_ch+chan_no_voice], 0ffh
 	pop di
 	je tick_channel_request
 	jmp tick_channel_next
@@ -2132,9 +2134,9 @@ tick_channel_request:
 	push di
 	mov di, cx
 	and di, 0ffh
-	mov ah, es:[bx+di+0dah]
+	mov ah, es:[bx+di+seq_ch+chan_voice_budget]
 	and ah, 0fh
-	mov ch, es:[bx+di+0dah]
+	mov ch, es:[bx+di+seq_ch+chan_voice_budget]
 	pop di
 	shr ch, 1
 	shr ch, 1
@@ -2151,7 +2153,7 @@ tick_cost_set:
 	push di
 	mov di, cx
 	and di, 0ffh
-	test byte ptr es:[bx+di+134h], 1
+	test byte ptr es:[bx+di+seq_ch+chan_channel_flags], 1
 	je tick_find_voice
 	cmp byte ptr cs:voice_request[di], 0ffh
 	jne tick_find_voice
@@ -2276,7 +2278,7 @@ tick_assign:
 	push di
 	mov di, cx
 	and di, 0ffh
-	test byte ptr es:[bx+di+134h], 1
+	test byte ptr es:[bx+di+seq_ch+chan_channel_flags], 1
 	pop di
 	jne tick_keep_own
 	mov byte ptr cs:voice_keep_own[di], 0
@@ -2468,14 +2470,14 @@ tick_program_own:
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+0dah]
+	mov cl, es:[bx+si+seq_ch+chan_voice_budget]
 	and cl, 0fh
 	mov ch, 4bh
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+116h]
+	mov cl, es:[bx+si+seq_ch+chan_program]
 	push bp
 	mov bp, 8
 	call dword ptr cs:driver_off
@@ -2484,8 +2486,8 @@ tick_program_own:
 	mov si, ax
 	mov byte ptr cs:pending_volume[si], 0ffh
 	pop si
-	mov cl, es:[bx+si+107h]
-	mov dl, es:[bx+15eh]
+	mov cl, es:[bx+si+seq_ch+chan_volume]
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	mov ch, 7
 	push bp
@@ -2493,20 +2495,20 @@ tick_program_own:
 	call dword ptr cs:driver_off
 	pop bp
 	mov ch, 0ah
-	mov cl, es:[bx+si+0f8h]
+	mov cl, es:[bx+si+seq_ch+chan_pan]
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
 	mov ch, 1
-	mov cl, es:[bx+si+0e9h]
+	mov cl, es:[bx+si+seq_ch+chan_modulation]
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
 	shl si, 1
 	mov cx, 4000h
-	cmp byte ptr es:[bx+si+0bdh], 80h
+	cmp byte ptr es:[bx+si+seq_ch+chan_bend+1], 80h
 	jb tick_own_sustain_set
 	mov cl, 7fh
 tick_own_sustain_set:
@@ -2514,7 +2516,7 @@ tick_own_sustain_set:
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cx, es:[bx+si+0bch]
+	mov cx, es:[bx+si+seq_ch+chan_bend]
 	shr si, 1
 	xchg cl, ch
 	shl cl, 1
@@ -2527,7 +2529,7 @@ tick_own_bend_split:
 	mov bp, 0ah
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+125h]
+	mov cl, es:[bx+si+seq_ch+chan_note]
 	mov ch, 4eh
 	push bp
 	mov bp, 7
@@ -2620,14 +2622,14 @@ tick_fill_find_free:
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+0dah]
+	mov cl, es:[bx+si+seq_ch+chan_voice_budget]
 	and cl, 0fh
 	mov ch, 4bh
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+116h]
+	mov cl, es:[bx+si+seq_ch+chan_program]
 	push bp
 	mov bp, 8
 	call dword ptr cs:driver_off
@@ -2636,8 +2638,8 @@ tick_fill_find_free:
 	mov si, ax
 	mov byte ptr cs:pending_volume[si], 0ffh
 	pop si
-	mov cl, es:[bx+si+107h]
-	mov dl, es:[bx+15eh]
+	mov cl, es:[bx+si+seq_ch+chan_volume]
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	mov ch, 7
 	push bp
@@ -2645,20 +2647,20 @@ tick_fill_find_free:
 	call dword ptr cs:driver_off
 	pop bp
 	mov ch, 0ah
-	mov cl, es:[bx+si+0f8h]
+	mov cl, es:[bx+si+seq_ch+chan_pan]
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
 	mov ch, 1
-	mov cl, es:[bx+si+0e9h]
+	mov cl, es:[bx+si+seq_ch+chan_modulation]
 	push bp
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
 	shl si, 1
 	mov cx, 4000h
-	cmp byte ptr es:[bx+si+0bdh], 80h
+	cmp byte ptr es:[bx+si+seq_ch+chan_bend+1], 80h
 	jb tick_fill_sustain_set
 	mov cl, 7fh
 tick_fill_sustain_set:
@@ -2666,7 +2668,7 @@ tick_fill_sustain_set:
 	mov bp, 7
 	call dword ptr cs:driver_off
 	pop bp
-	mov cx, es:[bx+si+0bch]
+	mov cx, es:[bx+si+seq_ch+chan_bend]
 	shr si, 1
 	xchg cl, ch
 	shl cl, 1
@@ -2679,7 +2681,7 @@ tick_fill_bend_split:
 	mov bp, 0ah
 	call dword ptr cs:driver_off
 	pop bp
-	mov cl, es:[bx+si+125h]
+	mov cl, es:[bx+si+seq_ch+chan_note]
 	mov ch, 4eh
 	push bp
 	mov bp, 7
@@ -2782,57 +2784,57 @@ _sequencer_tick endp
 _advance_volume_ramp proc near
 	push bx
 	push cx
-	cmp byte ptr es:[bx+162h], 0
+	cmp byte ptr es:[bx+seq_fade_countdown], 0
 	je ramp_step
-	dec byte ptr es:[bx+162h]
+	dec byte ptr es:[bx+seq_fade_countdown]
 	jmp ramp_return
 ramp_step:
-	mov cl, es:[bx+161h]
-	mov es:[bx+162h], cl
-	mov cl, es:[bx+160h]
+	mov cl, es:[bx+seq_fade_period]
+	mov es:[bx+seq_fade_countdown], cl
+	mov cl, es:[bx+seq_fade_target]
 	and cl, 7fh
-	cmp cl, es:[bx+15eh]
+	cmp cl, es:[bx+seq_volume]
 	je ramp_reached
 	ja ramp_up
-	mov cl, es:[bx+15eh]
-	mov ch, es:[bx+160h]
+	mov cl, es:[bx+seq_volume]
+	mov ch, es:[bx+seq_fade_target]
 	and ch, 7fh
 	sub cl, ch
-	cmp cl, es:[bx+163h]
+	cmp cl, es:[bx+seq_fade_step]
 	ja ramp_down_step
-	mov cl, es:[bx+160h]
+	mov cl, es:[bx+seq_fade_target]
 	and cl, 7fh
 	mov ch, 1
 	call _set_sequence_volume
 	jmp short ramp_reached
 ramp_down_step:
-	mov cl, es:[bx+15eh]
-	sub cl, es:[bx+163h]
+	mov cl, es:[bx+seq_volume]
+	sub cl, es:[bx+seq_fade_step]
 	mov ch, 1
 	call _set_sequence_volume
 	jmp short ramp_return
 ramp_up:
-	mov cl, es:[bx+160h]
+	mov cl, es:[bx+seq_fade_target]
 	and cl, 7fh
-	mov ch, es:[bx+15eh]
+	mov ch, es:[bx+seq_volume]
 	sub cl, ch
-	cmp cl, es:[bx+163h]
+	cmp cl, es:[bx+seq_fade_step]
 	ja ramp_up_step
-	mov cl, es:[bx+160h]
+	mov cl, es:[bx+seq_fade_target]
 	and cl, 7fh
 	mov ch, 1
 	call _set_sequence_volume
 	jmp short ramp_reached
 ramp_up_step:
-	mov cl, es:[bx+15eh]
-	add cl, es:[bx+163h]
+	mov cl, es:[bx+seq_volume]
+	add cl, es:[bx+seq_fade_step]
 	mov ch, 1
 	call _set_sequence_volume
 	jmp short ramp_return
 ramp_reached:
-	mov byte ptr es:[bx+158h], 0feh
-	mov byte ptr es:[bx+163h], 0
-	mov cl, es:[bx+160h]
+	mov byte ptr es:[bx+seq_state], 0feh
+	mov byte ptr es:[bx+seq_fade_step], 0
+	mov cl, es:[bx+seq_fade_target]
 	and cl, 80h
 	cmp cl, 0
 	je ramp_return
@@ -2854,11 +2856,11 @@ _set_sequence_volume proc near
 	push si
 	push di
 	mov byte ptr cs:defer, ch
-	cmp cl, es:[bx+15eh]
+	cmp cl, es:[bx+seq_volume]
 	jne volume_changed
 	jmp volume_return
 volume_changed:
-	mov es:[bx+15eh], cl
+	mov es:[bx+seq_volume], cl
 	cmp si, 0ffh
 	jne volume_voices
 	jmp volume_return
@@ -2878,9 +2880,9 @@ volume_voice:
 	mov cl, ch
 	and cx, 0fh
 	mov di, cx
-	mov cl, es:[bx+di+107h]
+	mov cl, es:[bx+di+seq_ch+chan_volume]
 	push dx
-	mov dl, es:[bx+15eh]
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	cmp byte ptr cs:defer, 0
 	je volume_now
@@ -2903,17 +2905,17 @@ volume_voice_next:
 	xor ch, ch
 	xor si, si
 volume_own_channel:
-	mov cl, es:[bx+si+8ch]
+	mov cl, es:[bx+si+seq_track_channel]
 	cmp cl, 0ffh
 	je volume_return
 	mov di, cx
-	test byte ptr es:[bx+di+134h], 2
+	test byte ptr es:[bx+di+seq_ch+chan_channel_flags], 2
 	je volume_own_next
 	cmp byte ptr cs:voice_held[di], 0ffh
 	jne volume_own_next
 	mov al, cl
-	mov cl, es:[bx+di+107h]
-	mov dl, es:[bx+15eh]
+	mov cl, es:[bx+di+seq_ch+chan_volume]
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	cmp byte ptr cs:defer, 0
 	je volume_own_now
@@ -3001,24 +3003,24 @@ service_sequence:
 	mov ax, es
 	or ax, bx
 	je service_done
-	cmp byte ptr es:[bx+164h], 0
+	cmp byte ptr es:[bx+seq_skip], 0
 	jne service_next_slot
-	cmp byte ptr es:[bx+163h], 0
+	cmp byte ptr es:[bx+seq_fade_step], 0
 	je service_step
 	call _advance_volume_ramp
-	cmp byte ptr es:[bx+158h], 0ffh
+	cmp byte ptr es:[bx+seq_state], 0ffh
 	jne service_step
 	sub si, 4
 	jmp short service_next_slot
 service_step:
-	cmp byte ptr es:[bx+165h], 0
+	cmp byte ptr es:[bx+seq_poll], 0
 	je service_step_sequence
 	call _drop_unless_polled
 	jmp short service_check_retired
 service_step_sequence:
 	call _step_sequence
 service_check_retired:
-	cmp byte ptr es:[bx+158h], 0ffh
+	cmp byte ptr es:[bx+seq_state], 0ffh
 	je service_next
 service_next_slot:
 	add si, 4
@@ -3081,10 +3083,10 @@ poll_slot:
 	jne poll_sequence
 	jmp poll_done
 poll_sequence:
-	inc word ptr es:[bx+154h]
-	lds bp, dword ptr es:[bx+8]
+	inc word ptr es:[bx+seq_ticks]
+	lds bp, dword ptr es:[bx+seq_cursor_at]
 	lds bp, dword ptr ds:[bp]
-	mov cl, es:[bx+165h]
+	mov cl, es:[bx+seq_poll]
 	and cl, 0fh
 	dec cl
 	shl cl, 1
@@ -3095,9 +3097,9 @@ poll_sequence:
 	pop bp
 	add bp, cx
 	mov ax, bp
-	cmp byte ptr es:[bx+165h], 10h
+	cmp byte ptr es:[bx+seq_poll], 10h
 	ja poll_ask
-	or byte ptr es:[bx+165h], 80h
+	or byte ptr es:[bx+seq_poll], 80h
 	push bx
 	mov bx, ax
 	inc bx
@@ -3114,8 +3116,8 @@ poll_first_args:
 	push ax
 	mov ax, [bx]
 	push ax
-	mov cl, es:[bx+15eh]
-	mov ch, es:[bx+15dh]
+	mov cl, es:[bx+seq_volume]
+	mov ch, es:[bx+seq_looping]
 	push cx
 	mov ax, sp
 	push ax
@@ -3126,8 +3128,8 @@ poll_first_args:
 	pop bx
 	jmp short poll_next
 poll_ask:
-	mov ch, es:[bx+15dh]
-	mov cl, es:[bx+15eh]
+	mov ch, es:[bx+seq_looping]
+	mov cl, es:[bx+seq_volume]
 	push cx
 	mov ax, sp
 	push ax
@@ -3137,11 +3139,11 @@ poll_ask:
 	add sp, 6
 	cmp ah, 0
 	je poll_keep
-	mov word ptr es:[bx+154h], 0
+	mov word ptr es:[bx+seq_ticks], 0
 poll_keep:
 	cmp al, 0
 	je poll_next
-	mov byte ptr es:[bx+165h], 0
+	mov byte ptr es:[bx+seq_poll], 0
 	mov ax, bx
 	call _remove_sequence
 	mov byte ptr cs:voices_changed, 1
@@ -3169,13 +3171,13 @@ _step_sequence proc near
 	shl di, 1
 	mov cx, di
 	mov byte ptr cs:slot_high, cl
-	inc word ptr es:[bx+154h]
-	lds bp, dword ptr es:[bx+8]
+	inc word ptr es:[bx+seq_ticks]
+	lds bp, dword ptr es:[bx+seq_cursor_at]
 	lds bp, dword ptr ds:[bp]
 	mov word ptr cs:cursor_park, bp
 	xor si, si
 step_channel:
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	cmp al, 0ffh
 	jne step_not_ended
 	jmp step_check_end
@@ -3189,7 +3191,7 @@ step_live:
 	push si
 	mov si, ax
 	and si, 0ffh
-	test byte ptr es:[bx+si+134h], 2
+	test byte ptr es:[bx+si+seq_ch+chan_channel_flags], 2
 	pop si
 	je step_find_voice
 	mov byte ptr cs:own_voice, al
@@ -3215,25 +3217,25 @@ step_position:
 	shl si, 1
 	mov dx, ds:[bp+si]
 	add bp, dx
-	add bp, es:[bx+si+0ch]
-	cmp word ptr es:[bx+si+0ch], 0
+	add bp, es:[bx+si+seq_position]
+	cmp word ptr es:[bx+si+seq_position], 0
 	jne step_track_live
 	shr si, 1
 	jmp step_channel_next
 step_track_live:
 	shr si, 1
 	shl si, 1
-	cmp word ptr es:[bx+si+4ch], 0
+	cmp word ptr es:[bx+si+seq_delay], 0
 	je step_due
-	dec word ptr es:[bx+si+4ch]
-	cmp word ptr es:[bx+si+4ch], 8000h
+	dec word ptr es:[bx+si+seq_delay]
+	cmp word ptr es:[bx+si+seq_delay], 8000h
 	jne step_waiting
 	xor dh, dh
 	shr si, 1
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	shl si, 1
 	cmp dl, 0f8h
@@ -3241,7 +3243,7 @@ step_track_live:
 	mov dl, 0f0h
 	mov dh, 80h
 step_delay_store:
-	mov es:[bx+si+4ch], dx
+	mov es:[bx+si+seq_delay], dx
 step_waiting:
 	shr si, 1
 	jmp step_channel_next
@@ -3251,17 +3253,17 @@ step_event:
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp dl, 80h
 	jb step_running_status
-	mov es:[bx+si+9ch], dl
+	mov es:[bx+si+seq_status], dl
 	jmp short step_status
 step_running_status:
-	mov dl, es:[bx+si+9ch]
+	mov dl, es:[bx+si+seq_status]
 	dec bp
 	shl si, 1
-	dec word ptr es:[bx+si+0ch]
+	dec word ptr es:[bx+si+seq_position]
 	shr si, 1
 step_status:
 	mov al, dl
@@ -3271,7 +3273,7 @@ step_status:
 	cmp dl, 0fch
 	jne step_not_track_end
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 0
+	mov word ptr es:[bx+si+seq_position], 0
 	shr si, 1
 	jmp step_channel_next
 step_not_track_end:
@@ -3279,7 +3281,7 @@ step_not_track_end:
 	jne step_channel_event
 	call _midi_meta_event
 	shl si, 1
-	mov dx, es:[bx+si+0ch]
+	mov dx, es:[bx+si+seq_position]
 	shr si, 1
 	cmp dx, 0
 	jne step_delta
@@ -3327,14 +3329,14 @@ step_not_bend:
 	jmp short step_delta
 step_bad_status:
 	shl si, 1
-	mov word ptr es:[bx+si+0ch], 0
+	mov word ptr es:[bx+si+seq_position], 0
 	shr si, 1
 	jmp short step_channel_next
 step_delta:
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp dl, 0
 	jne step_delta_set
@@ -3345,13 +3347,13 @@ step_delta_set:
 	jne step_delta_short
 	mov dl, 0efh
 	mov dh, 80h
-	mov es:[bx+si+4ch], dx
+	mov es:[bx+si+seq_delay], dx
 	shr si, 1
 	jmp short step_channel_next
 step_delta_short:
 	xor dh, dh
 	dec dl
-	mov es:[bx+si+4ch], dx
+	mov es:[bx+si+seq_delay], dx
 	shr si, 1
 step_channel_next:
 	inc si
@@ -3361,36 +3363,36 @@ step_channel_next:
 step_check_end:
 	xor si, si
 step_check_track:
-	cmp byte ptr es:[bx+si+8ch], 0ffh
+	cmp byte ptr es:[bx+si+seq_track_channel], 0ffh
 	je step_all_ended
 	shl si, 1
-	cmp word ptr es:[bx+si+0ch], 0
+	cmp word ptr es:[bx+si+seq_position], 0
 	jne step_return
 	shr si, 1
 	inc si
 	cmp si, 10h
 	jne step_check_track
 step_all_ended:
-	cmp byte ptr es:[bx+15ah], 0
+	cmp byte ptr es:[bx+seq_rewind_mark], 0
 	jne step_loop
-	cmp byte ptr es:[bx+15dh], 0
+	cmp byte ptr es:[bx+seq_looping], 0
 	jne step_loop
 	mov ax, bx
 	call _remove_sequence
 	mov byte ptr cs:voices_changed, 1
 	jmp short step_return
 step_loop:
-	mov dx, es:[bx+156h]
-	mov es:[bx+154h], dx
+	mov dx, es:[bx+seq_ticks_saved]
+	mov es:[bx+seq_ticks], dx
 	xor si, si
 step_loop_track:
-	mov dx, es:[bx+si+2ch]
-	mov es:[bx+si+0ch], dx
-	mov dx, es:[bx+si+6ch]
-	mov es:[bx+si+4ch], dx
+	mov dx, es:[bx+si+seq_position_saved]
+	mov es:[bx+si+seq_position], dx
+	mov dx, es:[bx+si+seq_delay_saved]
+	mov es:[bx+si+seq_delay], dx
 	shr si, 1
-	mov dl, es:[bx+si+0ach]
-	mov es:[bx+si+9ch], dl
+	mov dl, es:[bx+si+seq_status_saved]
+	mov es:[bx+si+seq_status], dl
 	shl si, 1
 	add si, 2
 	cmp si, 20h
@@ -3413,21 +3415,21 @@ _midi_note_off_event proc near
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	push ax
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	mov si, ax
 	and si, 0fh
 	pop ax
-	cmp es:[bx+si+125h], ch
+	cmp es:[bx+si+seq_ch+chan_note], ch
 	jne note_off_send
-	mov byte ptr es:[bx+si+125h], 0ffh
+	mov byte ptr es:[bx+si+seq_ch+chan_note], 0ffh
 note_off_send:
 	cmp al, 0ffh
 	je note_off_return
@@ -3449,21 +3451,21 @@ _midi_note_event proc near
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	push ax
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	mov si, ax
 	and si, 0fh
 	pop ax
 	cmp cl, 0
 	je note_zero_velocity
-	mov es:[bx+si+125h], ch
+	mov es:[bx+si+seq_ch+chan_note], ch
 	cmp al, 0ffh
 	je note_return
 	cmp byte ptr cs:muted, 0
@@ -3475,9 +3477,9 @@ _midi_note_event proc near
 	pop bp
 	jmp short note_return
 note_zero_velocity:
-	cmp es:[bx+si+125h], ch
+	cmp es:[bx+si+seq_ch+chan_note], ch
 	jne note_release_send
-	mov byte ptr es:[bx+si+125h], 0ffh
+	mov byte ptr es:[bx+si+seq_ch+chan_note], 0ffh
 note_release_send:
 	cmp al, 0ffh
 	je note_return
@@ -3498,12 +3500,12 @@ _midi_event_6 proc near
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp al, 0ffh
 	je event_6_return
@@ -3523,12 +3525,12 @@ _midi_controller_event proc near
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	test byte ptr cs:bend_gate, 0ffh
 	je controller_go
@@ -3541,14 +3543,14 @@ _midi_controller_event proc near
 	jmp controller_return
 controller_go:
 	push ax
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	mov si, ax
 	and si, 0fh
 	pop ax
 	cmp ch, 7
 	jne controller_not_volume
-	mov es:[bx+si+107h], cl
-	mov dl, es:[bx+15eh]
+	mov es:[bx+si+seq_ch+chan_volume], cl
+	mov dl, es:[bx+seq_volume]
 	call _scale_byte_pair
 	cmp al, 20h
 	jb controller_volume_now
@@ -3563,25 +3565,25 @@ controller_volume_now:
 controller_not_volume:
 	cmp ch, 0ah
 	jne controller_not_pan
-	mov es:[bx+si+0f8h], cl
+	mov es:[bx+si+seq_ch+chan_pan], cl
 	jmp short controller_send
 controller_not_pan:
 	cmp ch, 1
 	jne controller_not_modulation
-	mov es:[bx+si+0e9h], cl
+	mov es:[bx+si+seq_ch+chan_modulation], cl
 	jmp short controller_send
 controller_not_modulation:
 	cmp ch, 40h
 	jne controller_not_sustain
 	push dx
 	shl si, 1
-	mov dx, es:[bx+si+0bch]
+	mov dx, es:[bx+si+seq_ch+chan_bend]
 	or dh, 80h
 	cmp cl, 0
 	jne controller_sustain_store
 	and dh, 7fh
 controller_sustain_store:
-	mov es:[bx+si+0bch], dx
+	mov es:[bx+si+seq_ch+chan_bend], dx
 	shr si, 1
 	pop dx
 	jmp short controller_send
@@ -3589,10 +3591,10 @@ controller_not_sustain:
 	cmp ch, 4bh
 	jne controller_not_4b
 	push cx
-	mov ch, es:[bx+si+0dah]
+	mov ch, es:[bx+si+seq_ch+chan_voice_budget]
 	and ch, 0f0h
 	or ch, cl
-	mov es:[bx+si+0dah], ch
+	mov es:[bx+si+seq_ch+chan_voice_budget], ch
 	pop cx
 	mov byte ptr cs:voices_changed, 1
 	jmp short controller_send
@@ -3600,14 +3602,14 @@ controller_not_4b:
 	cmp ch, 4eh
 	jne controller_send
 	push cx
-	mov ch, es:[bx+si+143h]
+	mov ch, es:[bx+si+seq_ch+chan_no_voice]
 	and ch, 0f0h
 	test cl, 0ffh
 	je controller_4e_flag
 	mov cl, 1
 controller_4e_flag:
 	or ch, cl
-	mov es:[bx+si+143h], ch
+	mov es:[bx+si+seq_ch+chan_no_voice], ch
 	pop cx
 	mov byte ptr cs:voices_changed, 1
 controller_send:
@@ -3631,7 +3633,7 @@ _midi_program_event proc near
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	test byte ptr cs:bend_gate, 0ffh
 	je program_go
@@ -3644,11 +3646,11 @@ _midi_program_event proc near
 	jmp short program_return
 program_go:
 	push ax
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	mov si, ax
 	and si, 0fh
 	pop ax
-	mov es:[bx+si+116h], cl
+	mov es:[bx+si+seq_ch+chan_program], cl
 	cmp al, 0ffh
 	jae program_return
 	cmp byte ptr cs:muted, 0
@@ -3668,7 +3670,7 @@ _midi_event_9 proc near
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp al, 0ffh
 	jae event_9_return
@@ -3688,12 +3690,12 @@ _midi_bend_event proc near
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	test byte ptr cs:bend_gate, 0ffh
 	je bend_go
@@ -3706,7 +3708,7 @@ _midi_bend_event proc near
 	jmp short bend_return
 bend_go:
 	push ax
-	mov al, es:[bx+si+8ch]
+	mov al, es:[bx+si+seq_track_channel]
 	mov si, ax
 	and si, 0fh
 	pop ax
@@ -3717,11 +3719,11 @@ bend_go:
 	or cl, 80h
 bend_low_bit:
 	shl si, 1
-	cmp word ptr es:[bx+si+0bch], 8000h
+	cmp word ptr es:[bx+si+seq_ch+chan_bend], 8000h
 	jb bend_store
 	or ch, 80h
 bend_store:
-	mov es:[bx+si+0bch], cx
+	mov es:[bx+si+seq_ch+chan_bend], cx
 	shr si, 1
 	pop cx
 	cmp al, 0ffh
@@ -3758,7 +3760,7 @@ meta_c0:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp ch, 7fh
 	jne meta_cue
@@ -3766,7 +3768,7 @@ meta_c0:
 	mov dl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	xor dh, dh
 	cmp dl, 0f8h
@@ -3775,50 +3777,50 @@ meta_c0:
 	mov dl, 0f0h
 meta_mark_delay:
 	shl si, 1
-	mov es:[bx+si+4ch], dx
+	mov es:[bx+si+seq_delay], dx
 	shr si, 1
 	pop dx
-	mov byte ptr es:[bx+si+9ch], 0cfh
+	mov byte ptr es:[bx+si+seq_status], 0cfh
 	push si
 	push dx
 	xor si, si
 meta_mark_track:
 	shl si, 1
-	mov dx, es:[bx+si+0ch]
-	mov es:[bx+si+2ch], dx
-	mov dx, es:[bx+si+4ch]
-	mov es:[bx+si+6ch], dx
+	mov dx, es:[bx+si+seq_position]
+	mov es:[bx+si+seq_position_saved], dx
+	mov dx, es:[bx+si+seq_delay]
+	mov es:[bx+si+seq_delay_saved], dx
 	shr si, 1
-	mov dl, es:[bx+si+9ch]
-	mov es:[bx+si+0ach], dl
+	mov dl, es:[bx+si+seq_status]
+	mov es:[bx+si+seq_status_saved], dl
 	inc si
 	cmp si, 10h
 	jne meta_mark_track
-	mov dx, es:[bx+154h]
-	mov es:[bx+156h], dx
+	mov dx, es:[bx+seq_ticks]
+	mov es:[bx+seq_ticks_saved], dx
 	pop dx
 	pop si
 	shl si, 1
-	dec word ptr es:[bx+si+0ch]
+	dec word ptr es:[bx+si+seq_position]
 	dec bp
-	mov word ptr es:[bx+si+4ch], 0
+	mov word ptr es:[bx+si+seq_delay], 0
 	shr si, 1
 	jmp short meta_return
 meta_cue:
 	cmp byte ptr cs:muted, 0
 	jne meta_return
-	mov es:[bx+158h], ch
+	mov es:[bx+seq_state], ch
 	jmp short meta_return
 meta_b0:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	mov cl, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp ch, 50h
 	jne meta_not_50
@@ -3826,7 +3828,7 @@ meta_b0:
 	jne meta_level_store
 	mov cl, byte ptr cs:param_default
 meta_level_store:
-	mov es:[bx+15fh], cl
+	mov es:[bx+seq_device_value], cl
 	push ax
 	push bp
 	mov bp, 0bh
@@ -3839,17 +3841,17 @@ meta_not_50:
 	jne meta_not_60
 	cmp byte ptr cs:muted, 0
 	jne meta_return
-	inc word ptr es:[bx+152h]
+	inc word ptr es:[bx+seq_loop_count]
 	jmp short meta_return
 meta_not_60:
 	cmp ch, 52h
 	jne meta_return
-	cmp es:[bx+15ah], cl
+	cmp es:[bx+seq_rewind_mark], cl
 	jne meta_return
 	push si
 	xor si, si
 meta_end_tracks:
-	mov word ptr es:[bx+si+0ch], 0
+	mov word ptr es:[bx+si+seq_position], 0
 	add si, 2
 	cmp si, 20h
 	jne meta_end_tracks
@@ -3866,7 +3868,7 @@ skip_sysex:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	cmp ch, 0f7h
 	jne skip_sysex
@@ -3879,13 +3881,13 @@ skip_not_sysex:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 skip_last_byte:
 	mov ch, ds:[bp]
 	inc bp
 	shl si, 1
-	inc word ptr es:[bx+si+0ch]
+	inc word ptr es:[bx+si+seq_position]
 	shr si, 1
 	ret
 _skip_unknown_event endp
@@ -3934,13 +3936,13 @@ _init_sequence_params proc near
 	push bp
 	push ds
 	mov bx, ax
-	cmp word ptr es:[bx+8], -1
+	cmp word ptr es:[bx+seq_cursor_at], -1
 	jne init_has_params
-	cmp word ptr es:[bx+0ah], -1
+	cmp word ptr es:[bx+seq_cursor_at+2], -1
 	jne init_has_params
 	jmp init_return
 init_has_params:
-	lds bp, dword ptr es:[bx+8]
+	lds bp, dword ptr es:[bx+seq_cursor_at]
 	lds bp, dword ptr ds:[bp]
 	cmp byte ptr ds:[bp+23h], 0feh
 	jne init_build
@@ -5337,7 +5339,7 @@ void poll_sequences(void)
             union sound_module_args args;
 
             args.play.volume = rec->volume;
-            args.play.loop = rec->loop;
+            args.play.loop = rec->looping;
             args.play.rate = *(const uint16_t *)b;
             args.play.sample = b + 8;
             args.play.length = *(const uint16_t *)(b + 2);
@@ -5350,7 +5352,7 @@ void poll_sequences(void)
             union sound_module_args args;
 
             args.poll.volume = rec->volume;
-            args.poll.loop = rec->loop;
+            args.poll.loop = rec->looping;
             answer = sound_callback(4, &args);
         }
 
@@ -5556,7 +5558,7 @@ finished:
             return;
     }
 
-    if (seq->rewind_mark == 0 && seq->loop == 0) {
+    if (seq->rewind_mark == 0 && seq->looping == 0) {
         remove_sequence(seq);
         g_snds.voices_changed = 1;
         return;
