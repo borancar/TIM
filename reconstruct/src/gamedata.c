@@ -2179,10 +2179,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2206,10 +2206,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0018,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0010,    /* min_w */
-        0x0010,    /* min_h */
+        240,    /* max_w */
+        240,    /* max_h */
+        16,    /* min_w */
+        16,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2233,10 +2233,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0040,    /* max_w */
-        0x0000,    /* max_h */
-        0x0010,    /* min_w */
-        0x00f0,    /* min_h */
+        64,    /* max_w */
+        0,    /* max_h */
+        16,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2260,10 +2260,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x13c1, g_seesaw_hot_spots),    /* hotspots */
@@ -2287,10 +2287,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x13c7, g_balloon_hot_spots),    /* hotspots */
@@ -2314,10 +2314,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0060,    /* max_w */
-        0x0000,    /* max_h */
-        0x0020,    /* min_w */
-        0x00f0,    /* min_h */
+        96,    /* max_w */
+        0,    /* max_h */
+        32,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2341,10 +2341,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2368,10 +2368,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2395,10 +2395,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2422,10 +2422,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2449,10 +2449,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2476,10 +2476,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2503,10 +2503,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x13d5, g_pokey_hot_spots),    /* hotspots */
@@ -2530,10 +2530,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x03c4, g_jack_in_the_box_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0436, g_jack_in_the_box_hot_spots),    /* hotspots */
@@ -2557,10 +2557,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0030,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2584,10 +2584,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x05b5, g_bob_the_fish_form_steps),    /* bitmaps2 */
         NEAR_AT(0x063f, g_bob_the_fish_hot_spots),    /* hotspots */
@@ -2611,10 +2611,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x13e9, g_bellow_hot_spots),    /* hotspots */
@@ -2638,10 +2638,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0030,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2665,10 +2665,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x000c,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x074e, g_cannon_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0796, g_cannon_hot_spots),    /* hotspots */
@@ -2692,10 +2692,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0808, g_dynamite_form_steps),    /* bitmaps2 */
         NEAR_AT(0x082c, g_dynamite_hot_spots),    /* hotspots */
@@ -2719,10 +2719,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0001,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x13fb, g_bullet_hot_spots),    /* hotspots */
@@ -2746,10 +2746,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x08b0, g_electric_plug_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2773,10 +2773,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x090d, g_dynamite_plunger_form_steps),    /* bitmaps2 */
         NEAR_AT(0x091f, g_dynamite_plunger_hot_spots),    /* hotspots */
@@ -2800,10 +2800,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2827,10 +2827,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0961, g_fan_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2854,10 +2854,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x1401, g_flashlight_hot_spots),    /* hotspots */
@@ -2881,10 +2881,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0a69, g_generator_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0ac9, g_generator_hot_spots),    /* hotspots */
@@ -2908,10 +2908,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0b52, g_gun_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0b7c, g_gun_hot_spots),    /* hotspots */
@@ -2935,10 +2935,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0018,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -2962,10 +2962,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0bc6, g_light_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0bde, g_light_hot_spots),    /* hotspots */
@@ -2989,10 +2989,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3016,10 +3016,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0ca9, g_monkey_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3043,10 +3043,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3070,10 +3070,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0008,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3097,10 +3097,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3124,10 +3124,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x1405, g_boxing_glove_hot_spots),    /* hotspots */
@@ -3151,10 +3151,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0d8d, g_rocket_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0dc9, g_rocket_hot_spots),    /* hotspots */
@@ -3178,10 +3178,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0e0a, g_scissors_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0e16, g_scissors_hot_spots),    /* hotspots */
@@ -3205,10 +3205,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0e56, g_solar_panel_form_steps),    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3232,10 +3232,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0f04, g_trampoline_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0f22, g_trampoline_hot_spots),    /* hotspots */
@@ -3259,10 +3259,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x1419, g_windmill_hot_spots),    /* hotspots */
@@ -3286,10 +3286,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x1421, g_blast_hot_spots),    /* hotspots */
@@ -3313,10 +3313,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0100,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x142d, g_mort_the_mouse_hot_spots),    /* hotspots */
@@ -3340,10 +3340,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3367,10 +3367,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3394,10 +3394,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x0f86, g_candle_form_steps),    /* bitmaps2 */
         NEAR_AT(0x0faa, g_candle_hot_spots),    /* hotspots */
@@ -3421,10 +3421,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
+        240,    /* max_w */
+        240,    /* max_h */
+        32,    /* min_w */
+        32,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3448,10 +3448,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3475,10 +3475,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x000c,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0020,    /* min_w */
-        0x0020,    /* min_h */
+        240,    /* max_w */
+        240,    /* max_h */
+        32,    /* min_w */
+        32,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3502,10 +3502,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3529,10 +3529,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3556,10 +3556,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x103d, g_kind_51_form_steps),    /* bitmaps2 */
         NEAR_AT(0x1073, g_kind_51_hot_spots),    /* hotspots */
@@ -3583,10 +3583,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3610,10 +3610,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0002,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3637,10 +3637,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         NEAR_AT(0x1431, g_kind_54_hot_spots),    /* hotspots */
@@ -3664,10 +3664,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3691,10 +3691,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3718,10 +3718,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0020,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3745,10 +3745,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x110c, g_kind_58_form_steps),    /* bitmaps2 */
         NEAR_AT(0x1142, g_kind_58_hot_spots),    /* hotspots */
@@ -3772,10 +3772,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3799,10 +3799,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0080,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x00f0,    /* max_w */
-        0x00f0,    /* max_h */
-        0x0010,    /* min_w */
-        0x0010,    /* min_h */
+        240,    /* max_w */
+        240,    /* max_h */
+        16,    /* min_w */
+        16,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3826,10 +3826,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0030,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x1235, g_kind_61_form_steps),    /* bitmaps2 */
         NEAR_AT(0x128f, g_kind_61_hot_spots),    /* hotspots */
@@ -3853,10 +3853,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         NEAR_AT(0x1361, g_kind_62_form_steps),    /* bitmaps2 */
         NEAR_AT(0x13a9, g_kind_62_hot_spots),    /* hotspots */
@@ -3880,10 +3880,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0000,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3907,10 +3907,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0010,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
@@ -3934,10 +3934,10 @@ struct part_kind far g_part_kinds[PART_KIND_COUNT] = {
         0x0040,    /* grip */
         0x0000,    /* gravity */
         0x0000,    /* max_speed */
-        0x0000,    /* max_w */
-        0x0000,    /* max_h */
-        0x00f0,    /* min_w */
-        0x00f0,    /* min_h */
+        0,    /* max_w */
+        0,    /* max_h */
+        240,    /* min_w */
+        240,    /* min_h */
         0x0000,    /* bitmaps */
         0x0000,    /* bitmaps2 */
         0x0000,    /* hotspots */
