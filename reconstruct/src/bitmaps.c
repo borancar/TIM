@@ -504,7 +504,7 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
     int16_t row;
     int16_t index;
     int32_t file_left;
-    int32_t buffer;
+    int32_t room;       /* what DOS has free, then the part of it taken */
     int32_t chunk;
     uint16_t largest;
     uint16_t n;
@@ -523,25 +523,26 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
             largest = (uint16_t)chunk;
         at++;
     }
-    buffer = DOS_ALLOC_BYTES(dos_alloc_bytes(-1L, 0));
+    /* -1L is the question, not a size: the bytes DOS has free. */
+    room = DOS_ALLOC_BYTES(dos_alloc_bytes(-1L, 0));
     file_left = file_record_size(file);
-    if (file_left <= buffer) {
-        buffer = file_left;
+    if (file_left <= room) {
+        room = file_left;
         largest = 0;
     }
-    if (largest > buffer
-        || !(block = dos_alloc_bytes(buffer, 0))) {
+    if (largest > room
+        || !(block = dos_alloc_bytes(room, 0))) {
         if (g_scratch_block != NULL && largest <= 0x3ab4) {
             block = g_scratch_block;
-            buffer = 0x3ab4;
+            room = 0x3ab4;
         } else
             return;
     }
     g_bitmaps.walk = &reader;
     g_bitmaps.walk->pos = 0;
     g_bitmaps.walk->data = block;
-    read_far(block, buffer, file);
-    file_left -= buffer;
+    read_far(block, room, file);
+    file_left -= room;
     at = list;
     while ((hdr = *at) != NULL) {
 #ifdef __TURBOC__
@@ -568,11 +569,11 @@ void near decode_vqt_list(FILE *file, struct bitmap **list)
         cur = g_bitmaps.walk->data;
         if (file_left != 0) {
             p = cur + n;
-            far_copy(cur, p, (uint16_t)buffer - n);
-            cur += buffer - n;
+            far_copy(cur, p, (uint16_t)room - n);
+            cur += room - n;
             chunk = n < file_left ? n : file_left;
-            if (chunk > buffer)
-                chunk = buffer;
+            if (chunk > room)
+                chunk = room;
             read_far(cur, chunk, file);
             file_left -= chunk;
         } else

@@ -1793,9 +1793,12 @@ taken shapes off the list and put them back, which is why it was "some of
 the time".
 
 **What settled it.** `io_dos_free` and `io_dos_resize` find the live block
-that contains the paragraph they are given (a table in hostio.c), which is
-what the original's segment said; a paragraph in no block is left alone, as
-DOS refuses it.
+that contains the paragraph they are given, which is what the original's
+segment said; a paragraph in no block is left alone, as DOS refuses it. The
+blocks are kept sorted by address, so the lookup is a binary search. The host
+no longer counts free memory at all: the three places the game asks
+(`game_startup`, `picker_begin`, `decode_vqt_list`, each with a size of
+0xffffffff) are answered the 0x61b3 paragraphs it started with.
 
 **The rule.** Anywhere the original hands DOS a segment taken from a pointer
 it has stepped, the host has to recover the block - the segment was the
