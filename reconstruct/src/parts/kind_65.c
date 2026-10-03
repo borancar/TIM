@@ -22,8 +22,10 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-/* DGROUP 0x314e: the five points `part_setup_kind_65` copies. */
-struct point8 g_kind_65_points_314e[5] = {
+/*
+ * DGROUP 0x314e..0x3158: the five points `part_setup_kind_65` copies.
+ */
+struct point8 g_kind_65_points[5] = {
     { 0x00, 0x0b }, { 0x0d, 0x00 }, { 0x1c, 0x0f }, { 0x0c, 0x1c },
     { 0x08, 0x1c },
 };
@@ -35,7 +37,7 @@ void part_setup_kind_65(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_65_points_314e;
+    di = g_kind_65_points;
     for (i = 0, si = part->points; i < 5; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

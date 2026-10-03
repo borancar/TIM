@@ -20,17 +20,15 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3222..0x322a. Connection points, 4 pairs.
+ * DGROUP 0x2dc4..0x2dd4. Connection points, 4 pairs a row, indexed [flipped].
  */
-struct point8 g_bullet_points_3222[4] = {
-    { 0x1c, 0x00 }, { 0x27, 0x01 }, { 0x27, 0x05 }, { 0x1c, 0x06 },
-};
-
-/*
- * DGROUP 0x322a..0x3232. Connection points, 4 pairs.
- */
-struct point8 g_bullet_points_322a[4] = {
-    { 0x00, 0x00 }, { 0x0b, 0x01 }, { 0x0b, 0x05 }, { 0x00, 0x06 },
+struct point8 g_bullet_points[2][4] = {
+    {
+        { 0x1c, 0x00 }, { 0x27, 0x01 }, { 0x27, 0x05 }, { 0x1c, 0x06 },
+    },
+    {
+        { 0x00, 0x00 }, { 0x0b, 0x01 }, { 0x0b, 0x05 }, { 0x00, 0x06 },
+    },
 };
 
 /*
@@ -69,9 +67,9 @@ void part_setup_bullet(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_bullet_points_322a;
+        si = g_bullet_points[1];
     else
-        si = g_bullet_points_3222;
+        si = g_bullet_points[0];
 
     for (i = 0, di = part->points; i < 4; i++, di++, si++) {
         di->x = si->x;

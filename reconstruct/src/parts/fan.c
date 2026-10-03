@@ -21,19 +21,17 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32c8..0x32d2. Connection points, 5 pairs.
+ * DGROUP 0x2e6a..0x2e7e. Connection points, 5 pairs a row, indexed [flipped].
  */
-struct point8 g_fan_points_32c8[5] = {
-    { 0x00, 0x0b }, { 0x16, 0x00 }, { 0x1f, 0x0e }, { 0x17, 0x1f },
-    { 0x03, 0x1f },
-};
-
-/*
- * DGROUP 0x32d2..0x32dc. Connection points, 5 pairs.
- */
-struct point8 g_fan_points_32d2[5] = {
-    { 0x00, 0x0e }, { 0x09, 0x00 }, { 0x1f, 0x0b }, { 0x1c, 0x1f },
-    { 0x08, 0x1f },
+struct point8 g_fan_points[2][5] = {
+    {
+        { 0x00, 0x0b }, { 0x16, 0x00 }, { 0x1f, 0x0e }, { 0x17, 0x1f },
+        { 0x03, 0x1f },
+    },
+    {
+        { 0x00, 0x0e }, { 0x09, 0x00 }, { 0x1f, 0x0b }, { 0x1c, 0x1f },
+        { 0x08, 0x1f },
+    },
 };
 
 /*
@@ -48,9 +46,9 @@ void part_setup_fan(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_fan_points_32d2;
+        si = g_fan_points[1];
     else
-        si = g_fan_points_32c8;
+        si = g_fan_points[0];
 
     for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;

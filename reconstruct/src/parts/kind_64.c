@@ -22,10 +22,10 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x310c: the eight connection points `part_setup_kind_64` copies -
+ * DGROUP 0x310c..0x311c: the eight connection points `part_setup_kind_64` copies -
  * an octagon inside its 0x28-square box.
  */
-struct point8 g_kind_64_points_310c[8] = {
+struct point8 g_kind_64_points[8] = {
     { 0x00, 0x0d }, { 0x0d, 0x00 }, { 0x1b, 0x00 }, { 0x25, 0x0d },
     { 0x25, 0x19 }, { 0x19, 0x25 }, { 0x0d, 0x25 }, { 0x00, 0x1b },
 };
@@ -68,7 +68,7 @@ void part_setup_kind_64(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_64_points_310c;
+    di = g_kind_64_points;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

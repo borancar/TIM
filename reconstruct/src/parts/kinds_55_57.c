@@ -20,19 +20,17 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3274..0x3282. Connection points, 7 pairs.
+ * DGROUP 0x2e16..0x2e32. Connection points, 7 pairs a row, indexed [form != 0].
  */
-struct point8 g_kinds_55_57_points_3274[7] = {
-    { 0x19, 0x00 }, { 0x19, 0x3c }, { 0x72, 0x3c }, { 0x72, 0x00 },
-    { 0xf8, 0x00 }, { 0xf8, 0xb6 }, { 0x00, 0xb6 },
-};
-
-/*
- * DGROUP 0x3282..0x3290. Connection points, 7 pairs.
- */
-struct point8 g_kinds_55_57_points_3282[7] = {
-    { 0xf0, 0x00 }, { 0xf8, 0x00 }, { 0xf8, 0x10 }, { 0xf6, 0x14 },
-    { 0xf4, 0x14 }, { 0xf2, 0x10 }, { 0xf0, 0x10 },
+struct point8 g_kinds_55_57_points[2][7] = {
+    {
+        { 0x19, 0x00 }, { 0x19, 0x3c }, { 0x72, 0x3c }, { 0x72, 0x00 },
+        { 0xf8, 0x00 }, { 0xf8, 0xb6 }, { 0x00, 0xb6 },
+    },
+    {
+        { 0xf0, 0x00 }, { 0xf8, 0x00 }, { 0xf8, 0x10 }, { 0xf6, 0x14 },
+        { 0xf4, 0x14 }, { 0xf2, 0x10 }, { 0xf0, 0x10 },
+    },
 };
 
 /*
@@ -49,9 +47,9 @@ void part_setup_kind_56(struct part *part)
     int16_t i;
 
     if (part->form == 0)
-        si = g_kinds_55_57_points_3274;
+        si = g_kinds_55_57_points[0];
     else
-        si = g_kinds_55_57_points_3282;
+        si = g_kinds_55_57_points[1];
 
     for (i = 0, di = part->points; i < 7; i++, di++, si++) {
         di->x = si->x;

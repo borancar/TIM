@@ -19,8 +19,10 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-/* DGROUP 0x3148: the three points `part_setup_kind_53` copies - a spike. */
-struct point8 g_kind_53_points_3148[3] = {
+/*
+ * DGROUP 0x3148..0x314e: the three points `part_setup_kind_53` copies - a spike.
+ */
+struct point8 g_kind_53_points[3] = {
     { 0x00, 0x00 }, { 0x0c, 0x00 }, { 0x06, 0x10 },
 };
 
@@ -49,7 +51,7 @@ void part_setup_kind_53(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_53_points_3148;
+    di = g_kind_53_points;
     for (i = 0, si = part->points; i < 3; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

@@ -20,9 +20,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3182..0x3192. Connection points, 8 pairs.
+ * DGROUP 0x2d24..0x2d34. Connection points, 8 pairs.
  */
-struct point8 g_balloon_points_3182[8] = {
+struct point8 g_balloon_points[8] = {
     { 0x00, 0x0a }, { 0x0c, 0x00 }, { 0x16, 0x00 }, { 0x1f, 0x0a },
     { 0x1f, 0x1c }, { 0x13, 0x2b }, { 0x0b, 0x2b }, { 0x00, 0x1d },
 };
@@ -43,7 +43,7 @@ void part_setup_balloon(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_balloon_points_3182;
+    di = g_balloon_points;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

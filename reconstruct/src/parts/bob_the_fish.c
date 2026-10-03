@@ -20,9 +20,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32dc..0x32fc. Connection points, 8 points.
+ * DGROUP 0x2e7e..0x2e9e. Connection points, 8 points.
  */
-struct point16 g_bob_the_fish_points_32dc[8] = {
+struct point16 g_bob_the_fish_points[8] = {
     { 0x0000, 0x0012 }, { 0x000b, 0x0000 }, { 0x0025, 0x0000 },
     { 0x002f, 0x0012 }, { 0x002f, 0x0023 }, { 0x0027, 0x002f },
     { 0x0008, 0x002f }, { 0x0000, 0x0022 },
@@ -44,8 +44,8 @@ void part_setup_bob_the_fish(struct part *part)
     part->point_count = 8;
 
     for (i = 0, si = part->points; i < 8; i++, si++) {
-        si->x = (uint8_t)g_bob_the_fish_points_32dc[i].x;
-        si->y = (uint8_t)g_bob_the_fish_points_32dc[i].y;
+        si->x = (uint8_t)g_bob_the_fish_points[i].x;
+        si->y = (uint8_t)g_bob_the_fish_points[i].y;
     }
 
     part_finish_angles(part);

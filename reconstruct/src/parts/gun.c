@@ -20,19 +20,17 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3314..0x3322. Connection points, 7 pairs.
+ * DGROUP 0x2eb6..0x2ed2. Connection points, 7 pairs a row, indexed [flipped].
  */
-struct point8 g_gun_points_3314[7] = {
-    { 0x00, 0x1e }, { 0x07, 0x0a }, { 0x12, 0x01 }, { 0x3f, 0x03 },
-    { 0x3f, 0x09 }, { 0x1b, 0x10 }, { 0x0c, 0x1e },
-};
-
-/*
- * DGROUP 0x3322..0x3330. Connection points, 7 pairs.
- */
-struct point8 g_gun_points_3322[7] = {
-    { 0x00, 0x03 }, { 0x2d, 0x01 }, { 0x38, 0x0a }, { 0x3f, 0x1e },
-    { 0x33, 0x1e }, { 0x24, 0x10 }, { 0x00, 0x09 },
+struct point8 g_gun_points[2][7] = {
+    {
+        { 0x00, 0x1e }, { 0x07, 0x0a }, { 0x12, 0x01 }, { 0x3f, 0x03 },
+        { 0x3f, 0x09 }, { 0x1b, 0x10 }, { 0x0c, 0x1e },
+    },
+    {
+        { 0x00, 0x03 }, { 0x2d, 0x01 }, { 0x38, 0x0a }, { 0x3f, 0x1e },
+        { 0x33, 0x1e }, { 0x24, 0x10 }, { 0x00, 0x09 },
+    },
 };
 
 /*
@@ -103,10 +101,10 @@ void part_setup_gun(struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->attach[0].x = 42;
-        src = g_gun_points_3322;
+        src = g_gun_points[1];
     } else {
         part->attach[0].x = 18;
-        src = g_gun_points_3314;
+        src = g_gun_points[0];
     }
 
     part->attach[0].y = 18;

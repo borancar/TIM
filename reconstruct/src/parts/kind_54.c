@@ -22,15 +22,20 @@
 #include "hostio.h"
 #include "dgroup.h"
 
-/* DGROUP 0x3128 and 0x3132: its five points, on its feet and squashed. */
-struct point8 g_kind_54_points_3128[5] = {
-    { 0x00, 0x00 }, { 0x0c, 0x00 }, { 0x0c, 0x13 }, { 0x06, 0x17 },
-    { 0x00, 0x13 },
+/*
+ * DGROUP 0x3128..0x313c: its five points, on its feet and squashed, indexed [form == 0x1e].
+ */
+struct point8 g_kind_54_points[2][5] = {
+    {
+        { 0x00, 0x00 }, { 0x0c, 0x00 }, { 0x0c, 0x13 }, { 0x06, 0x17 },
+        { 0x00, 0x13 },
+    },
+    {
+        { 0x00, 0x10 }, { 0x0c, 0x10 }, { 0x0c, 0x13 }, { 0x06, 0x17 },
+        { 0x00, 0x13 },
+    },
 };
-struct point8 g_kind_54_points_3132[5] = {
-    { 0x00, 0x10 }, { 0x0c, 0x10 }, { 0x0c, 0x13 }, { 0x06, 0x17 },
-    { 0x00, 0x13 },
-};
+
 /* DGROUP 0x313c: how far each walking form moves it. */
 int16_t g_kind_54_strides[6] = { 1, 2, 2, 1, 2, 2 };
 
@@ -94,9 +99,9 @@ void part_setup_kind_54(struct part *part)
     int16_t i;
 
     if (part->form == 0x1e)
-        src = g_kind_54_points_3132;
+        src = g_kind_54_points[1];
     else
-        src = g_kind_54_points_3128;
+        src = g_kind_54_points[0];
     for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

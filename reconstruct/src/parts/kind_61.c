@@ -24,14 +24,16 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x30fc and 0x3104: the four corners of its 0x50-by-0x10 box, facing
- * one way and the other - the same four points either way.
+ * DGROUP 0x30fc..0x310c: the four corners of its 0x50-by-0x10 box, facing
+ * one way and the other - the same four points either way - indexed [flipped].
  */
-struct point8 g_kind_61_points_30fc[4] = {
-    { 0x00, 0x00 }, { 0x4f, 0x00 }, { 0x4f, 0x0f }, { 0x00, 0x0f },
-};
-struct point8 g_kind_61_points_3104[4] = {
-    { 0x00, 0x00 }, { 0x4f, 0x00 }, { 0x4f, 0x0f }, { 0x00, 0x0f },
+struct point8 g_kind_61_points[2][4] = {
+    {
+        { 0x00, 0x00 }, { 0x4f, 0x00 }, { 0x4f, 0x0f }, { 0x00, 0x0f },
+    },
+    {
+        { 0x00, 0x00 }, { 0x4f, 0x00 }, { 0x4f, 0x0f }, { 0x00, 0x0f },
+    },
 };
 
 /*
@@ -141,9 +143,9 @@ void part_setup_kind_61(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_kind_61_points_3104;
+        src = g_kind_61_points[1];
     else
-        src = g_kind_61_points_30fc;
+        src = g_kind_61_points[0];
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

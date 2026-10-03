@@ -21,65 +21,53 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3192..0x319e. Connection points, 6 pairs.
+ * DGROUP 0x2d34..0x2d58. Connection points, 6 pairs a row, indexed [form].
  */
-struct point8 g_bellow_points_3192[6] = {
-    { 0x00, 0x00 }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
-    { 0x2c, 0x1d }, { 0x00, 0x2f },
+struct point8 g_bellow_points[3][6] = {
+    {
+        { 0x00, 0x00 }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
+        { 0x2c, 0x1d }, { 0x00, 0x2f },
+    },
+    {
+        { 0x00, 0x0a }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
+        { 0x2c, 0x1d }, { 0x00, 0x25 },
+    },
+    {
+        { 0x00, 0x0e }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
+        { 0x2c, 0x1d }, { 0x00, 0x21 },
+    },
 };
 
 /*
- * DGROUP 0x319e..0x31aa. Connection points, 6 pairs.
+ * DGROUP 0x2d58..0x2d5e. **Which row of points, by form**: a near pointer each.
  */
-struct point8 g_bellow_points_319e[6] = {
-    { 0x00, 0x0a }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
-    { 0x2c, 0x1d }, { 0x00, 0x25 },
+struct point8 *g_bellow_point_table[3] = {
+    g_bellow_points[0], g_bellow_points[1], g_bellow_points[2],
 };
 
 /*
- * DGROUP 0x31aa..0x31b6. Connection points, 6 pairs.
+ * DGROUP 0x2d5e..0x2d82. Connection points, 6 pairs a row, indexed [form].
  */
-struct point8 g_bellow_points_31aa[6] = {
-    { 0x00, 0x0e }, { 0x2c, 0x12 }, { 0x3f, 0x14 }, { 0x3f, 0x1b },
-    { 0x2c, 0x1d }, { 0x00, 0x21 },
+struct point8 g_bellow_points_flipped[3][6] = {
+    {
+        { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x00 }, { 0x3f, 0x2f },
+        { 0x13, 0x1d }, { 0x00, 0x1b },
+    },
+    {
+        { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x0a }, { 0x3f, 0x25 },
+        { 0x13, 0x1d }, { 0x00, 0x1b },
+    },
+    {
+        { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x0e }, { 0x3f, 0x21 },
+        { 0x13, 0x1d }, { 0x00, 0x1b },
+    },
 };
 
 /*
- * DGROUP 0x31b6..0x31bc. **Which table of points, by form**: a near pointer each.
+ * DGROUP 0x2d82..0x2d88. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_bellow_point_table_31b6[3] = {
-    g_bellow_points_3192, g_bellow_points_319e, g_bellow_points_31aa,
-};
-
-/*
- * DGROUP 0x31bc..0x31c8. Connection points, 6 pairs.
- */
-struct point8 g_bellow_points_31bc[6] = {
-    { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x00 }, { 0x3f, 0x2f },
-    { 0x13, 0x1d }, { 0x00, 0x1b },
-};
-
-/*
- * DGROUP 0x31c8..0x31d4. Connection points, 6 pairs.
- */
-struct point8 g_bellow_points_31c8[6] = {
-    { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x0a }, { 0x3f, 0x25 },
-    { 0x13, 0x1d }, { 0x00, 0x1b },
-};
-
-/*
- * DGROUP 0x31d4..0x31e0. Connection points, 6 pairs.
- */
-struct point8 g_bellow_points_31d4[6] = {
-    { 0x00, 0x14 }, { 0x13, 0x12 }, { 0x3f, 0x0e }, { 0x3f, 0x21 },
-    { 0x13, 0x1d }, { 0x00, 0x1b },
-};
-
-/*
- * DGROUP 0x31e0..0x31e6. **Which table of points, by form**: a near pointer each.
- */
-struct point8 *g_bellow_point_table_31e0[3] = {
-    g_bellow_points_31bc, g_bellow_points_31c8, g_bellow_points_31d4,
+struct point8 *g_bellow_point_table_flipped[3] = {
+    g_bellow_points_flipped[0], g_bellow_points_flipped[1], g_bellow_points_flipped[2],
 };
 
 /*
@@ -131,9 +119,9 @@ void part_setup_bellow(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_bellow_point_table_31e0[part->form];
+        src = g_bellow_point_table_flipped[part->form];
     else
-        src = g_bellow_point_table_31b6[part->form];
+        src = g_bellow_point_table[part->form];
 
     for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {
         dst->x = src->x;

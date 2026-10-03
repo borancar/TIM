@@ -23,15 +23,17 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3164 and 0x3174: its eight points facing one way and the other.
+ * DGROUP 0x3164..0x3184: its eight points facing one way and the other, indexed [flipped].
  */
-struct point8 g_kind_51_points_3164[8] = {
-    { 0x00, 0x02 }, { 0x03, 0x00 }, { 0x0c, 0x07 }, { 0x17, 0x1f },
-    { 0x2c, 0x24 }, { 0x2c, 0x2e }, { 0x15, 0x2e }, { 0x08, 0x29 },
-};
-struct point8 g_kind_51_points_3174[8] = {
-    { 0x18, 0x1f }, { 0x23, 0x07 }, { 0x2c, 0x00 }, { 0x2f, 0x02 },
-    { 0x27, 0x29 }, { 0x1a, 0x2e }, { 0x03, 0x2e }, { 0x03, 0x24 },
+struct point8 g_kind_51_points[2][8] = {
+    {
+        { 0x00, 0x02 }, { 0x03, 0x00 }, { 0x0c, 0x07 }, { 0x17, 0x1f },
+        { 0x2c, 0x24 }, { 0x2c, 0x2e }, { 0x15, 0x2e }, { 0x08, 0x29 },
+    },
+    {
+        { 0x18, 0x1f }, { 0x23, 0x07 }, { 0x2c, 0x00 }, { 0x2f, 0x02 },
+        { 0x27, 0x29 }, { 0x1a, 0x2e }, { 0x03, 0x2e }, { 0x03, 0x24 },
+    },
 };
 
 /*
@@ -65,9 +67,9 @@ void part_setup_kind_51(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_kind_51_points_3174;
+        src = g_kind_51_points[1];
     else
-        src = g_kind_51_points_3164;
+        src = g_kind_51_points[0];
     for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;
