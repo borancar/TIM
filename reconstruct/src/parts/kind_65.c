@@ -26,8 +26,8 @@
  * DGROUP 0x314e..0x3158: the five points `part_setup_kind_65` copies.
  */
 struct point8 g_kind_65_points[5] = {
-    { 0x00, 0x0b }, { 0x0d, 0x00 }, { 0x1c, 0x0f }, { 0x0c, 0x1c },
-    { 0x08, 0x1c },
+    { 0, 11 }, { 13, 0 }, { 28, 15 }, { 12, 28 },
+    { 8, 28 },
 };
 
 /* 0x1e33d - a setup: five points from DGROUP 0x314e. */

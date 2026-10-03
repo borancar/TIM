@@ -23,8 +23,8 @@
  * DGROUP 0x2f3c..0x2f4c. Connection points, 4 points.
  */
 struct point16 g_light_points[4] = {
-    { 0x0015, 0x0033 }, { 0x001d, 0x004f }, { 0x0014, 0x0019 },
-    { 0x001c, 0x0023 },
+    { 21, 51 }, { 29, 79 }, { 20, 25 },
+    { 28, 35 },
 };
 
 /*

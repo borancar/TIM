@@ -23,7 +23,7 @@
  * DGROUP 0x3148..0x314e: the three points `part_setup_kind_53` copies - a spike.
  */
 struct point8 g_kind_53_points[3] = {
-    { 0x00, 0x00 }, { 0x0c, 0x00 }, { 0x06, 0x10 },
+    { 0, 0 }, { 12, 0 }, { 6, 16 },
 };
 
 /*

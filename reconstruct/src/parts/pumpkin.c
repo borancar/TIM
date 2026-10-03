@@ -23,8 +23,8 @@
  * DGROUP 0x2fc4..0x2fd4. Connection points, 8 pairs.
  */
 struct point8 g_pumpkin_points[8] = {
-    { 0x00, 0x0f }, { 0x09, 0x09 }, { 0x1d, 0x09 }, { 0x26, 0x12 },
-    { 0x26, 0x16 }, { 0x1b, 0x20 }, { 0x0b, 0x20 }, { 0x00, 0x16 },
+    { 0, 15 }, { 9, 9 }, { 29, 9 }, { 38, 18 },
+    { 38, 22 }, { 27, 32 }, { 11, 32 }, { 0, 22 },
 };
 
 /* 190f:35bf, image 0x1c6af - a setup: eight points from DGROUP 0x3422. */

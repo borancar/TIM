@@ -23,8 +23,8 @@
  * DGROUP 0x2e08..0x2e16. Connection points, 7 pairs.
  */
 struct point8 g_christmas_tree_points[7] = {
-    { 0x00, 0x35 }, { 0x14, 0x00 }, { 0x27, 0x37 }, { 0x19, 0x3d },
-    { 0x19, 0x48 }, { 0x10, 0x48 }, { 0x10, 0x3d },
+    { 0, 53 }, { 20, 0 }, { 39, 55 }, { 25, 61 },
+    { 25, 72 }, { 16, 72 }, { 16, 61 },
 };
 
 /*

@@ -25,8 +25,8 @@
  * DGROUP 0x3158..0x3164: the six points `part_setup_kind_62` copies.
  */
 struct point8 g_kind_62_points[6] = {
-    { 0x01, 0x0e }, { 0x08, 0x00 }, { 0x18, 0x00 }, { 0x1d, 0x0e },
-    { 0x1d, 0x15 }, { 0x02, 0x15 },
+    { 1, 14 }, { 8, 0 }, { 24, 0 }, { 29, 14 },
+    { 29, 21 }, { 2, 21 },
 };
 
 /* 0x1e37e - a setup: six points from DGROUP 0x3158. */
