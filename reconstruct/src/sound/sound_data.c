@@ -26,7 +26,7 @@
 struct sequence far *g_sound_voice[7];
 
 /*
- * **The sound bank, its driver and its module**, DGROUP 0x4a82..0x4ab0: this
+ * **The sound bank, its driver and its module**, DGROUP 0x4680..0x46ae: this
  * module's `_DATA`, or sound_stop.c's - the two are adjacent and their bytes
  * would be the same either way; this module is the one that starts and ends
  * sound. The record is described in dgroup.h. Three fields start non-zero:
@@ -37,14 +37,15 @@ struct sound_bank g_sound_bank = {
 };
 
 /*
- * DGROUP 0x4ab0..0x4ab4 - **two words nothing in the image names**: -2, and
+ * DGROUP 0x46ae..0x46b2 - **two words nothing in the image names**: -2, and
  * 0x2b11, 11025, a sample rate. They are the last of the game's data - the
- * run-time library's begins at 0x4ab4 - and the objects linked after this
+ * run-time library's begins at 0x46b2 - and the objects linked after this
  * one, trig.c and atan2.c, have no `_DATA`; and this module's has no string
  * literals, which Borland would have put after them. So they are this
- * module's, defined after the record. What they were for is not known.
+ * module's, defined after the record: a device and a sample rate, going by
+ * the values; nothing reads them.
  */
-struct dg_4ab0 g_dg4ab0 = { 0xfffe, 0x2b11 };
+struct sound_output g_sound_output = { -2, 11025 };
 
 /*
  * **The five-tick wait**, DGROUP 0x5ff2; described in dgroup.h.

@@ -1849,8 +1849,8 @@ int16_t write_resource(int16_t handle, uint8_t huge *src, uint16_t count); /* 0x
 int32_t resource_size(int16_t handle);                 /* 0x1fdd1 */
 int32_t resource_seek(int16_t handle, int32_t by, int16_t whence); /* 0x1fdf5 */
 int16_t restart_resource_stream(int16_t handle);       /* 0x1ff52 */
-void    vm_call_4_thunk(void);                         /* 0x205c6 */
-void    vm_call_38_thunk(void);                        /* 0x205d2 */
+void    blit_bitmap_plain_thunk(void);                         /* 0x205c6 */
+void    blit_scaled_row_thunk(void);                        /* 0x205d2 */
 int16_t near decompress_lzw(void);                     /* 0x1f607 */
 int16_t huff_get_bit(void);                            /* 0x20015 */
 int16_t decode_char(void);                             /* 0x20043 */

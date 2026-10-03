@@ -174,9 +174,10 @@ typedef struct paragraph *dg_sseg_t;
  * uses -
  * `int16_t` where the original does signed compares, `uint8_t` for a flag byte.
  *
- * `unknown_XX` is a field whose purpose has not been established, named for its
- * offset so that it is obvious what is known and what is not. They are not
- * padding: the code reads and writes several of them.
+ * `pad_XX` is a field no instruction names - the game's, checked with
+ * `tools/xrefs.py`, and the VGA driver's or the sound module's where the
+ * record is theirs - named for its offset. It is not alignment: the bytes
+ * are there in the original, and nothing reads them.
  *
  * **Every one of these overlays is `packed`, and it is not superstition.**
  * DGROUP has words at odd addresses - the game's own state block starts at
@@ -317,11 +318,12 @@ struct vmds {
        record**: every direct reference the dumped VGA overlay makes is an
        offset into it, `[4]` for `clip_left`, `[0x12]` for `page_back`,
        `[0x21]` for `adapter`. Both sides were scanned for +0x0f, +0x1a, +0x1e,
-       +0x20, +0x24 and +0x84 - the game's own code with `tools/xrefs.py`, and
-       the overlay's 2,969 reachable instructions the same way - and neither
-       names any of them. What is left is the seven adapters' drivers this port
-       does not transcribe. */
-    uint8_t   unknown_0f;                   /* +0x0f */
+       +0x20, +0x24, +0x84, +0x1ca, +0x6c5, +0x6e4 and +0x6ee - the game's
+       own code with `tools/xrefs.py` (1.11), and the overlay's 3,331
+       instructions reachable from its fifty vectors the same way - and
+       neither names any of them, so each is a `pad_`. What is left is the
+       seven adapters' drivers this port does not transcribe. */
+    uint8_t   pad_0f;                   /* +0x0f */
     /* **The page the saved-rect slots are keyed against**, which the two
        `free_saved_rects` calls pass as the source beside the front and the
        back. `vm_init` gives it the second page's segment - 0xa800, or 0xa000
@@ -331,23 +333,23 @@ struct vmds {
     vga_page_t  page_front;               /* +0x14  on screen */
     vga_page_t  page_src;                 /* +0x16  a copy's source */
     vga_page_t  page_dst;                 /* +0x18  what drawing goes into */
-    uint8_t   unknown_1a[2];                /* +0x1a */
+    uint8_t   pad_1a[2];                /* +0x1a */
     /* Set by `detect_pcjr`, which reads the two ROM bytes that say so, and
        read by the keyboard ISR. */
     uint8_t   is_pcjr;                      /* +0x1c */
     int8_t    pixel_shift;                  /* +0x1d  bytes per pixel, as a
                                              * shift; signed, and read so */
-    uint8_t   unknown_1e;                   /* +0x1e */
+    uint8_t   pad_1e;                   /* +0x1e */
     /* **Take the 256-colour resources**: while it is set the loaders look for
        the `VGA:` bitmap chunk and the `AMG:` palette instead of the plain
        ones. `vm_init` clears it and **nothing in the image sets it**, so this
        build always reads the plain chunks; the branches are transcribed as
        they stand. */
     uint8_t   vga_chunks;                   /* +0x1f */
-    uint8_t   unknown_20;                   /* +0x20 */
+    uint8_t   pad_20;                   /* +0x20 */
     uint8_t   adapter;                      /* +0x21  0x10 is the VGA */
     uint16_t  line_colour;                  /* +0x22 */
-    uint8_t   unknown_24[0x10];             /* +0x24 */
+    uint8_t   pad_24[0x10];             /* +0x24 */
     /*
      * +0x34  **a bitmap font's four header bytes**, one table per font slot,
      * 0x14 apart; slot 0 is the selected font's. The loader reads them in
@@ -362,7 +364,7 @@ struct vmds {
     uint8_t   font_cell_height[0x14];       /* +0x48  DGROUP 0x38d8 */
     uint8_t   font_first_char[0x14];        /* +0x5c  DGROUP 0x38ec */
     uint8_t   font_char_count[0x14];        /* +0x70  DGROUP 0x3900 */
-    uint8_t   unknown_84[0x28];             /* +0x84 */
+    uint8_t   pad_84[0x28];             /* +0x84 */
     /*
      * +0xac  the polygon clipper's four arrays, 0x28 bytes and so twenty
      * entries each. `clip_polygon` runs Sutherland and Hodgman's in two
@@ -382,13 +384,13 @@ struct vmds {
        The game reaches them at DGROUP 0x3a2c; the driver reaches slot 0 on its
        own as VGA:0x0f15's palette, driverDS:0x19e. One block, two readers. */
     struct vm_palettes palettes;                /* +0x19c  DGROUP 0x3a2c */
-    uint8_t   unknown_1ca[0x4f2];           /* +0x1ca */
+    uint8_t   pad_1ca[0x4f2];           /* +0x1ca */
     uint16_t  dda_whole;                    /* +0x6bc */
     uint16_t  dda_frac;                     /* +0x6be */
     int16_t   dda_saved;                    /* +0x6c0 */
     uint16_t  dda_acc;                      /* +0x6c2 */
     uint8_t   line_mask;                    /* +0x6c4 */
-    uint8_t   unknown_6c5[0x1d];            /* +0x6c5 */
+    uint8_t   pad_6c5[0x1d];            /* +0x6c5 */
     /* **The page hook**, DGROUP 0x3f72, which the game reads. Non-zero makes
        the three blitters call the vector at DGROUP 0x43b6 between taking the
        destination page and reading the clip. That vector is the driver's
@@ -396,7 +398,7 @@ struct vmds {
        keeps the guard so a build whose 0x3f72 is *set* is not silently the
        same as one whose is clear. The name is a reading of that one use. */
     int16_t   page_hook;                    /* +0x6e2 */
-    uint8_t   unknown_6e4[4];               /* +0x6e4 */
+    uint8_t   pad_6e4[4];               /* +0x6e4 */
     /*
      * +0x6e8  **DGROUP 0x3f78**, and the same six bytes `DG3F78` names. The
      * driver fills them in `vm_driver_init` and the game reads them all over;
@@ -404,7 +406,7 @@ struct vmds {
      * height had a name in each.
      */
     struct vm_screen screen;                  /* +0x6e8  DGROUP 0x3f78 */
-    uint8_t   unknown_6ee[4];               /* +0x6ee */
+    uint8_t   pad_6ee[4];               /* +0x6ee */
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } PACKED;
 
@@ -494,7 +496,7 @@ extern int16_t g_bonus_1_scroll;
 extern int16_t g_password_puzzle;
 extern int16_t g_furthest_level;
 extern int16_t g_level_count;
-extern uint16_t g_word_4ebb;
+extern uint16_t g_round_unread;
 extern int16_t g_round_number;
 extern int16_t g_playing;
 extern int16_t g_master_level;
@@ -644,7 +646,7 @@ struct sound_bank_entry {
 } PACKED;
 
 /*
- * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
+ * **The sound bank, its driver and its module**, at DGROUP 0x4680.
  *
  * Its five far pointers are real pointers on both compilers.
  */
@@ -1766,7 +1768,7 @@ struct goal_tests {
 extern struct goal_tests g_goal_tests;
 
 /*
- * **The span buffer and the driver's vectors**, at DGROUP 0x4342.
+ * **The span buffer and the driver's vectors**, at DGROUP 0x3f42.
  */
 struct vm_driver {
     /* **The segment of the block the game builds span lists in** - a separate
@@ -1786,11 +1788,11 @@ struct vm_driver {
        asking anything when this is clear. The image holds 1 and nothing in it
        writes the offset, so it is on and stays on. */
     int16_t   detect_allowed;  /* +0x02 */
-    /* **Fifty far pointers into the video driver**, at 0x4346: `vm_init`
+    /* **Fifty far pointers into the video driver**, at 0x3f46: `vm_init`
        copies a hundred words of the driver's own table from its +0x13e and
        then writes the driver's segment over every second one: fifty far
        pointers filled word by word. The port fills each slot with its own
-       routine for it. Up to 0x440e. */
+       routine for it. Up to 0x400e. */
     void (far *entry[50])(void);  /* +0x04 */
 } PACKED;
 
@@ -1798,7 +1800,7 @@ extern struct vm_driver g_vm_driver;
 
 /*
  * **The slots the game calls**, as indices into `entry`: a call through
- * `lcall [0x4346 + 4 * n]` is slot n. The names are ours, from the routine
+ * `lcall [0x3f46 + 4 * n]` is slot n. The names are ours, from the routine
  * the game reaches through the slot or from the driver routine the VGA
  * driver files there (measured, docs/video-driver.md); a slot whose job is
  * not established keeps its number. The assembly reads these through
@@ -1806,7 +1808,7 @@ extern struct vm_driver g_vm_driver;
  */
 #define VM_SLOT_GLYPH          1    /* VGA:0x124b  vm_blit_glyph */
 #define VM_SLOT_DRAW_LINE      2    /* VGA:0x0998  vm_draw_line */
-#define VM_SLOT_3              3    /* VGA:0x1231  vm_call_4_thunk; unknown */
+#define VM_SLOT_BLIT_PLAIN     3    /* VGA:0x1231  vm_blit_bitmap, mode 0 */
 #define VM_SLOT_COPY_RECT      4    /* VGA:0x1561  vm_copy_rect */
 #define VM_SLOT_SAVE_RECT      5    /* VGA:0x12fb  vm_save_rect */
 #define VM_SLOT_BUFFER_SIZE    6    /* VGA:0x138e  vm_buffer_size */
@@ -1855,7 +1857,7 @@ extern uint16_t g_selection_phase;
 /*
  * **The driver's vector, as the code pointers its slots are.** `g_vm_driver.entry`
  * is filled by `vm_init` with the entry points of the loaded driver, and the
- * game calls through a slot as a far function pointer - `lcall [0x437a]` is
+ * game calls through a slot as a far function pointer - `lcall [0x3f7a]` is
  * slot 13, `((vm_list_size_fn)g_vm_driver.entry[13])(...)`. The host fills the slots
  * with its own routine for each (`vm_vector_host`, hostio.c).
  */
@@ -2180,7 +2182,7 @@ struct snd_cs {
     struct sequence far *playing[16]; /* +0x0008  the sequences playing, packed from the front, null-ended */
     struct sequence far *polled[16]; /* +0x0048  the sequences parked to be polled; **not** the playing table */
     struct sequence far *voice_sequence[16]; /* +0x0088  which sequence each voice plays, null for none */
-    uint8_t   unknown_00c8[64];   /* +0x00c8  not read or written by the port */
+    uint8_t   pad_00c8[64];   /* +0x00c8  no label or operand in the module names it */
     int16_t   scratch[16];        /* +0x0108  init_sequence_params' sixteen words */
     /* The tick's per-voice arrays, sixteen bytes each - see `sequencer_tick`. */
     uint8_t   voice_held[16];     /* +0x0128  the request each voice plays now, 0xff free */
@@ -2916,7 +2918,7 @@ struct sequence_channels {
 } PACKED;
 
 struct sequence {
-    uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
+    uint8_t        pad_000[8];      /* +0x000  named by nothing; the record is allocated zeroed */
     uint8_t far * far *cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
     uint16_t       position[16];        /* +0x00c  each channel's place in the event data */
     uint16_t       position_saved[16];  /* +0x02c  its shadow, which a checkpoint copies */
@@ -2956,9 +2958,9 @@ struct sequence {
     uint8_t        poll;                /* +0x165  how the host is asked about it */
     const uint8_t far *source;              /* +0x166  the note data */
     uint8_t far *cursor;                    /* +0x16a  the record being played */
-    uint8_t        unknown_16e[4];      /* +0x16e */
+    uint8_t        pad_16e[4];      /* +0x16e */
     struct sequence far *next;                /* +0x172  a chain `follow_far_chain` walks */
-    uint8_t        unknown_176[4];      /* +0x176 */
+    uint8_t        pad_176[4];      /* +0x176 */
 } PACKED;
 
 /*
@@ -3626,13 +3628,15 @@ extern struct engine_read_staging g_engine_read_staging;   /* DGROUP 0x53a2 */
  */
 
 /*
- * DGROUP 0x440e..0x4460: twenty far pointers after g_vm_driver's, and two bytes.
- * `vm_driver_init(0x3890, 0x4412, DGROUP_SEG)` hands the driver the table from
- * the second, so the last nineteen are the driver's; what the first is is not
- * known. Segment 1c25 and segment 0000 are both code.
+ * DGROUP 0x400e..0x4060: twenty far pointers after g_vm_driver's, and two bytes.
+ * `vm_driver_init` hands the driver the table from the second, 0x4012, so the
+ * last nineteen are the driver's.
  */
 struct vm_hooks {
-    void (far *ptr_440e)(void);    /* +0x00 */
+    /* **A fifty-first vector that is never filled**: it starts as
+       `vm_null_hook`, as the fifty before it do, `vm_init` copies only
+       fifty, and no instruction names it (`tools/xrefs.py`, 1.11). */
+    void (far *unfilled)(void);    /* +0x00 */
     void (far *driver_table[19])(void); /* +0x04  0x4412 */
     /* 0x445e, the palette cycle count, is palette.c's. */
 } PACKED;
@@ -3642,16 +3646,17 @@ extern struct vm_hooks g_vm_hooks;
 extern void (far *g_compressed_body_vector)();   /* compbmp.c's: `draw_compressed_body`,
                                                     the vector the thunk at 0x20185 jumps through */
 
-/* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
-   sample rate, and that is all that is known. */
-struct dg_4ab0 {
-    /* **The same shape**: nothing in the port touches them and the image names
-       neither offset. 0x2b11 has the look of a DGROUP offset and 0xfffe of a
-       -2, which is as far as the evidence goes. */
-    uint16_t  _pad_4ab0;       /* +0x00 */
-    uint16_t  _pad_4ab2;           /* +0x02 */
+/* DGROUP 0x46ae..0x46b2: **the last two words of the game's data**, after
+   `g_sound_bank` and before the run-time library's. No instruction names
+   either (`tools/xrefs.py`, 1.11), so both names are guesses from the
+   values alone. */
+struct sound_output {
+    /* -2, which is also `g_sound_bank.device`'s initial value. */
+    int16_t   device;          /* +0x00 */
+    /* 11025, 0x2b11: a sample rate. */
+    uint16_t  sample_rate;     /* +0x02 */
 } PACKED;
-extern struct dg_4ab0 g_dg4ab0;
+extern struct sound_output g_sound_output;
 
 /*
  * ---------------------------------------------------------------------------

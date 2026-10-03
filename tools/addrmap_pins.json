@@ -28,7 +28,7 @@
   "0x0c37a",
   "the DX:AX pair from 0x2919/0x291b, straight after dos_find_name"
  ],
- "vm_call_4_thunk": [
+ "blit_bitmap_plain_thunk": [
   "0x205c6",
   "ljmp [0x3f52], the first of 1.11's four driver thunks"
  ],
@@ -40,7 +40,7 @@
   "0x205ce",
   "ljmp [0x3fca]"
  ],
- "vm_call_38_thunk": [
+ "blit_scaled_row_thunk": [
   "0x205d2",
   "ljmp [0x3fda]"
  ],

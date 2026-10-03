@@ -4056,9 +4056,9 @@ int16_t g_playing;   /* DGROUP 0x4ac3  game_play runs while this is non-zero */
 int16_t g_round_number;   /* DGROUP 0x4ac1  the puzzle being played; round_setup loads it */
 /* **Written once and never read**, and that is the whole of what is known:
    `round_setup` stores 0 here, and the two bytes of this offset occur
-   exactly once in the image - that store. A dead store of the original's,
-   kept because DGROUP is compared with the original's memory. */
-uint16_t g_word_4ebb;   /* DGROUP 0x4abf */
+   exactly once in the image - that store, in 1.00 and 1.11 alike. A dead
+   store of the original's. The name says what is measured. */
+uint16_t g_round_unread;   /* DGROUP 0x4abf */
 int16_t g_level_count;   /* DGROUP 0x4abd  how many g_l<n>.LEV there are */
 int16_t g_furthest_level;   /* DGROUP 0x4abb  how far the player has reached; in tim.cfg */
 int16_t g_password_puzzle;   /* DGROUP 0x4ab9  the puzzle game_teardown prints a password for */

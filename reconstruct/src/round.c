@@ -163,7 +163,7 @@ void round_setup(void)
 {
     g_origin_c_x = g_origin_c_y = g_origin_b_x
         = g_origin_b_y = g_origin_x = g_origin_y = -8;
-    g_word_4ebb = 0;
+    g_round_unread = 0;
 
     heap_check_or_hang();
 
