@@ -18,12 +18,15 @@
  * JUDGE: built-with -mm -G -O
  * JUDGE: data 0x44f8..0x455c
  * JUDGE: via-assembler
- * JUDGE: assembler bc3.00
+ * JUDGE: assembler bc2.00
  *
  * **The module went through the assembler**: `blit_scaled_a` has four
  * inline `asm` blocks - its nibble decoder and its three calls into the
  * driver, which take their arguments in registers - and the image has
  * TASM's `jmp` / `nop` wherever the compiler could not size a forward jump.
+ * Which TASM, the bytes do not say: TASM 2.51 and 3.0 both build it, and
+ * the link is identical with either. It is 2.51, the one Borland C++ 2.0
+ * shipped with its compiler, which this module certainly is.
  */
 #include <stdlib.h>
 #include "tim.h"
