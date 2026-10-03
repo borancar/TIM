@@ -48,54 +48,54 @@
  */
 asm {
 _DATA segment word public 'DATA'
-d_458c label byte
+kbd_installed label byte
         db 0h
-d_458d label byte
+kbd_hold_caps_lock label byte
         db 0h
-d_458e label byte
+kbd_last_event label byte
         db 0h, 0h
-d_4590 label byte
+kbd_held label byte
         db 0h, 0h, 1h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
-d_45da label byte
+kbd_ascii label byte
         db 0h, 1bh, 31h, 32h, 33h, 34h, 35h, 36h, 37h, 38h, 39h, 30h, 2dh, 3dh, 8h, 9h
         db 71h, 77h, 65h, 72h, 74h, 79h, 75h, 69h, 6fh, 70h, 5bh, 5dh, 0dh, 84h, 61h, 73h
         db 64h, 66h, 67h, 68h, 6ah, 6bh, 6ch, 3bh, 27h, 60h, 82h, 5ch, 7ah, 78h, 63h, 76h
         db 62h, 6eh, 6dh, 2ch, 2eh, 2fh, 81h, 2ah, 88h, 20h, 0c0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
-d_4633 label byte
+kbd_shifted label byte
         db 0h, 1bh, 21h, 40h, 23h, 24h, 25h, 5eh, 26h, 2ah, 28h, 29h, 5fh, 2bh, 8h, 0h
         db 51h, 57h, 45h, 52h, 54h, 59h, 55h, 49h, 4fh, 50h, 7bh, 7dh, 0dh, 84h, 41h, 53h
         db 44h, 46h, 47h, 48h, 4ah, 4bh, 4ch, 3ah, 22h, 7eh, 82h, 7ch, 5ah, 58h, 43h, 56h
         db 42h, 4eh, 4dh, 3ch, 3eh, 3fh, 81h, 0h, 88h, 20h, 0c0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 37h, 38h, 39h, 2dh, 34h, 35h, 36h, 2bh, 31h
         db 32h, 33h, 30h, 2eh, 0h, 0h, 0h, 0h, 0h
-d_468c label byte
+kbd_state label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 6eh, 7eh, 8eh, 6h, 6h, 6h, 6h, 6h, 6h, 6h, 2h, 2h, 0h, 0h, 5eh, 9eh
         db 1eh, 6h, 6h, 6h, 6h, 6h, 6h, 0h, 0h, 0h, 0h, 2h, 4eh, 3eh, 2eh, 6h
         db 6h, 6h, 6h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 60h, 70h, 80h, 0h, 50h, 90h, 10h, 0h, 40h
         db 30h, 20h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
-d_46e5 label byte
+kjoy_dx label byte
         db 0h, 0h, 0h, 0h
-d_46e9 label byte
+kjoy_dy label byte
         db 0h, 0h, 0h, 0h
-d_46ed label byte
+kjoy_enabled label byte
         db 1h, 0h, 1h, 0h, 3h, 0h
-d_46f3 label byte
+kjoy_dirs label byte
         db 80h, 0a0h, 40h, 0e0h, 0c0h, 0f0h, 60h, 0b0h, 0h, 8h, 0ah, 2h, 6h, 4h, 5h, 1h
         db 9h, 0h
-d_4705 label byte
+kbd_pcjr_from label byte
         db 59h, 5ah, 55h, 54h, 29h, 58h, 2bh, 4ah, 4eh, 56h, 57h, 57h, 58h, 52h, 46h, 48h
         db 47h, 4bh, 50h, 4dh, 53h, 1ch
-d_471b label byte
+kbd_pcjr label byte
         db 0h
-d_471c label byte
+kbd_pad_471c label byte
         db 0h, 0h
 _DATA ends
 
@@ -111,10 +111,10 @@ public _bios_read_key, _key_is_down, _border_colour_thunk, _show_page_thunk
 /* 0x22d12 */
 _copy_rect_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+14h
-c_2108c db 0h, 0h
-c_2108e db 0h, 0h
-c_21090 db 0h, 0h
-c_21092 db 0h, 0h
+old_int9_off db 0h, 0h
+old_int9_seg db 0h, 0h
+old_int1c_off db 0h, 0h
+old_int1c_seg db 0h, 0h
 _copy_rect_thunk endp
 
 /* 0x22d1e */
@@ -124,19 +124,19 @@ _install_keyboard proc far
         push di
         push si
         sub ax, ax
-        cmp byte ptr DGROUP:d_458c, al
-        je L210a4
-        jmp L21139
-L210a4:
+        cmp byte ptr DGROUP:kbd_installed, al
+        je install_new
+        jmp install_caps
+install_new:
         push ds
         mov ax, 3509h
         int 21h
-        mov word ptr cs:c_2108c, bx
-        mov word ptr cs:c_2108e, es
+        mov word ptr cs:old_int9_off, bx
+        mov word ptr cs:old_int9_seg, es
         mov ax, 351ch
         int 21h
-        mov word ptr cs:c_21090, bx
-        mov word ptr cs:c_21092, es
+        mov word ptr cs:old_int1c_off, bx
+        mov word ptr cs:old_int1c_seg, es
         mov dx, offset _keyboard_isr
         mov ax, seg _keyboard_isr
         mov ds, ax
@@ -144,31 +144,31 @@ L210a4:
         int 21h
         mov ax, word ptr [bp+6]
         neg ax
-        jae L210e4
-        mov dx, offset c_21386
-        mov ax, seg c_21386
+        jae install_no_tick
+        mov dx, offset kjoy_tick
+        mov ax, seg kjoy_tick
         mov ds, ax
         mov ax, 251ch
         int 21h
-L210e4:
+install_no_tick:
         pop ds
-        mov byte ptr DGROUP:d_471b, 0
+        mov byte ptr DGROUP:kbd_pcjr, 0
         call FAR PTR _detect_pcjr
         neg ax
-        jae L21133
+        jae install_done
         int 15h
-        jae L2110c
+        jae install_not_pcjr
         mov ax, 40h
         mov es, ax
         mov si, 96h
         cmp byte ptr es:[si], 10h
-        jne L2110c
-        mov byte ptr DGROUP:d_471b, 1
-        jmp short L21133
-L2110c:
-        mov byte ptr cs:c_21222, 0feh
-        mov byte ptr cs:c_2122e, 0feh
-        mov bx, offset DGROUP:d_468c
+        jne install_not_pcjr
+        mov byte ptr DGROUP:kbd_pcjr, 1
+        jmp short install_done
+install_not_pcjr:
+        mov byte ptr cs:caps_lock_mask_imm, 0feh
+        mov byte ptr cs:num_lock_mask_imm, 0feh
+        mov bx, offset DGROUP:kbd_state
         mov al, byte ptr [bx+48h]
         mov byte ptr [bx+29h], al
         mov al, byte ptr [bx+4bh]
@@ -177,18 +177,18 @@ L2110c:
         mov byte ptr [bx+4eh], al
         mov al, byte ptr [bx+50h]
         mov byte ptr [bx+4ah], al
-L21133:
+install_done:
         mov ax, 1
-        mov byte ptr DGROUP:d_458c, al
-L21139:
+        mov byte ptr DGROUP:kbd_installed, al
+install_caps:
         mov ax, 40h
         mov es, ax
         and byte ptr es:[17h], 0dfh
-        test byte ptr DGROUP:d_458d, 0ffh
-        je L21151
+        test byte ptr DGROUP:kbd_hold_caps_lock, 0ffh
+        je install_caps_set
         or byte ptr es:[17h], 40h
-L21151:
-        mov al, byte ptr DGROUP:d_458c
+install_caps_set:
+        mov al, byte ptr DGROUP:kbd_installed
         pop si
         pop di
         pop bp
@@ -198,27 +198,27 @@ _install_keyboard endp
 /* 0x22de2 */
 _remove_keyboard proc far
         sub ax, ax
-        cmp byte ptr DGROUP:d_458c, al
-        je L21195
-        mov byte ptr DGROUP:d_458c, al
+        cmp byte ptr DGROUP:kbd_installed, al
+        je remove_done
+        mov byte ptr DGROUP:kbd_installed, al
         mov ax, 40h
         mov es, ax
         mov ax, word ptr es:[1ch]
         mov word ptr es:[1ah], ax
         push ds
-        mov dx, word ptr cs:c_2108c
-        mov ax, word ptr cs:c_2108e
+        mov dx, word ptr cs:old_int9_off
+        mov ax, word ptr cs:old_int9_seg
         mov ds, ax
         mov ax, 2509h
         int 21h
-        mov dx, word ptr cs:c_21090
-        mov ax, word ptr cs:c_21092
+        mov dx, word ptr cs:old_int1c_off
+        mov ax, word ptr cs:old_int1c_seg
         mov ds, ax
         mov ax, 251ch
         int 21h
         pop ds
         mov ax, 1
-L21195:
+remove_done:
         retf
 _remove_keyboard endp
 
@@ -249,64 +249,64 @@ _keyboard_isr proc near
         and al, 7fh
         and bl, 80h
         cmp byte ptr DGROUP:_g_vmds+1ch, 1
-        jne L211ef
-        cmp byte ptr DGROUP:d_471b, 1
-        je L211e3
-        mov di, offset DGROUP:d_4705
+        jne isr_mapped
+        cmp byte ptr DGROUP:kbd_pcjr, 1
+        je isr_pcjr
+        mov di, offset DGROUP:kbd_pcjr_from
         dec di
         mov cx, 0bh
-L211d5:
+isr_remap_find:
         inc di
         cmp al, byte ptr [di]
-        loopne L211d5
-        jne L211ef
+        loopne isr_remap_find
+        jne isr_mapped
         add di, 0bh
         mov al, byte ptr [di]
-        jmp short L211ef
-L211e3:
+        jmp short isr_mapped
+isr_pcjr:
         cmp al, 29h
-        jne L211e9
+        jne isr_pcjr_2b
         mov al, 48h
-L211e9:
+isr_pcjr_2b:
         cmp al, 2bh
-        jne L211ef
+        jne isr_mapped
         mov al, 4bh
-L211ef:
+isr_mapped:
         or al, bl
         mov dh, 0ffh
         mov dl, al
         shl dx, 1
         shr dl, 1
         cmp dl, 59h
-        jl L21201
-        jmp L2137a
-L21201:
+        jl isr_in_range
+        jmp isr_eoi
+isr_in_range:
         xor bh, bh
         mov bl, dl
-        mov dl, byte ptr d_468c[bx]
+        mov dl, byte ptr kbd_state[bx]
         and dh, dl
         xor dh, 1
-        mov byte ptr d_468c[bx], dh
-        cmp byte ptr DGROUP:d_471b, 1
-        jne L2122f
+        mov byte ptr kbd_state[bx], dh
+        cmp byte ptr DGROUP:kbd_pcjr, 1
+        jne isr_toggled
         cmp bl, 3ah
-        jne L21225
+        jne isr_num_lock
         mov al, bl
         and dl, 0ffh
-c_21222 equ byte ptr $-1
-        jmp short L2122f
-L21225:
+caps_lock_mask_imm equ byte ptr $-1
+        jmp short isr_toggled
+isr_num_lock:
         cmp bl, 45h
-        jne L2122f
+        jne isr_toggled
         mov al, bl
         and dl, 0ffh
-c_2122e equ byte ptr $-1
-L2122f:
-        mov bx, offset DGROUP:d_45da
+num_lock_mask_imm equ byte ptr $-1
+isr_toggled:
+        mov bx, offset DGROUP:kbd_ascii
         test al, 80h
-        je L21274
+        je isr_press
         test dl, 0f8h
-        je L21259
+        je isr_release_char
         mov cx, dx
         mov ch, 0
         shr cx, 1
@@ -315,25 +315,25 @@ L2122f:
         mov di, cx
         shr cx, 1
         and di, 1
-        mov ch, byte ptr d_4590[di]
+        mov ch, byte ptr kbd_held[di]
         cmp ch, cl
-        jne L21259
-        mov byte ptr d_4590[di], 0
-L21259:
-        mov word ptr DGROUP:d_458e, 0
+        jne isr_release_char
+        mov byte ptr kbd_held[di], 0
+isr_release_char:
+        mov word ptr DGROUP:kbd_last_event, 0
         and al, 7fh
         xlatb
         test al, 80h
-        je L21271
+        je isr_release_done
         test al, 70h
-        jne L21271
+        jne isr_release_done
         xor al, 7fh
         and byte ptr es:[17h], al
-L21271:
-        jmp L2137a
-L21274:
+isr_release_done:
+        jmp isr_eoi
+isr_press:
         test dl, 0f8h
-        je L2128e
+        je isr_press_char
         mov cx, dx
         mov ch, 0
         shr cx, 1
@@ -342,97 +342,97 @@ L21274:
         mov di, cx
         shr cx, 1
         and di, 1
-        mov byte ptr d_4590[di], cl
-L2128e:
+        mov byte ptr kbd_held[di], cl
+isr_press_char:
         mov cl, al
         xor ah, ah
         mov di, ax
         xlatb
         test al, 80h
-        je L212be
+        je isr_char
         and al, 7fh
         test al, 70h
-        jne L212a7
+        jne isr_lock_key
         or byte ptr es:[17h], al
-        jmp L2137a
-L212a7:
+        jmp isr_eoi
+isr_lock_key:
         test al, 40h
-        je L212b2
-        test byte ptr DGROUP:d_458d, 0ffh
-        jne L212bb
-L212b2:
+        je isr_lock_toggle
+        test byte ptr DGROUP:kbd_hold_caps_lock, 0ffh
+        jne isr_lock_done
+isr_lock_toggle:
         shr dl, 1
-        jb L212bb
+        jb isr_lock_done
         xor byte ptr es:[17h], al
-L212bb:
-        jmp L2137a
-L212be:
+isr_lock_done:
+        jmp isr_eoi
+isr_char:
         test byte ptr es:[17h], 4
-        je L212d1
+        je isr_no_ctrl
         or al, 80h
         test dl, 4
-        je L212ee
+        je isr_have_char
         sub al, 20h
-        jmp short L212ee
-L212d1:
+        jmp short isr_have_char
+isr_no_ctrl:
         test byte ptr es:[17h], 40h
-        je L212e2
+        je isr_no_caps
         test dl, 4
-        je L212e2
+        je isr_no_caps
         sub al, 20h
-        jmp short L212ee
-L212e2:
+        jmp short isr_have_char
+isr_no_caps:
         test byte ptr es:[17h], 3
-        je L212ee
-        mov al, byte ptr d_4633[di]
-L212ee:
+        je isr_have_char
+        mov al, byte ptr kbd_shifted[di]
+isr_have_char:
         mov ah, cl
-        mov word ptr DGROUP:d_458e, ax
+        mov word ptr DGROUP:kbd_last_event, ax
         mov cx, word ptr es:[1ah]
         mov di, word ptr es:[1ch]
         cmp cx, 3ch
-        je L2130a
+        je isr_ring_wrap
         inc cx
         inc cx
         cmp cx, di
-        je L21322
-        jmp short L2130f
-L2130a:
+        je isr_ring_full
+        jmp short isr_ring_put
+isr_ring_wrap:
         cmp di, 1eh
-        je L21322
-L2130f:
+        je isr_ring_full
+isr_ring_put:
         mov word ptr es:[di], ax
         cmp di, 3ch
-        jne L2131a
+        jne isr_ring_advance
         mov di, 1ch
-L2131a:
+isr_ring_advance:
         add di, 2
         mov word ptr es:[1ch], di
-L21322:
+isr_ring_full:
         cmp ah, 20h
-        jne L21335
+        jne isr_check_quit
         test byte ptr es:[17h], 4
-        je L21335
+        je isr_check_quit
         mov al, 20h
         out 20h, al
-        jmp short L2137e
-L21335:
+        jmp short isr_return
+isr_check_quit:
         xor bx, bx
         cmp ax, 19bh
-        je L2134a
+        je isr_quit
         inc bx
         cmp ax, 5380h
-        jne L2137a
+        jne isr_eoi
         test byte ptr es:[17h], 8
-        je L2137a
-L2134a:
+        je isr_eoi
+isr_quit:
         test byte ptr es:[17h], 4
-        je L2137a
+        je isr_eoi
         sub di, 2
         cmp di, 1ch
-        jne L2135d
+        jne isr_unput
         mov di, 3ch
-L2135d:
+isr_unput:
         mov word ptr es:[di], 0
         mov ax, word ptr es:[1ch]
         mov word ptr es:[1ah], ax
@@ -443,11 +443,11 @@ L2135d:
         push ax
         call FAR PTR _game_teardown
         pop ax
-        jmp short L2137e
-L2137a:
+        jmp short isr_return
+isr_eoi:
         mov al, 20h
         out 20h, al
-L2137e:
+isr_return:
         pop di
         pop es
         pop ds
@@ -456,7 +456,7 @@ L2137e:
         pop bx
         pop ax
         iret
-c_21386 label byte
+kjoy_tick label byte
         push ax
         push bx
         push cx
@@ -468,31 +468,31 @@ c_21386 label byte
         push es
         mov ax, DGROUP
         mov ds, ax
-        mov ax, word ptr d_46ed+4
+        mov ax, word ptr kjoy_enabled+4
         mov es, ax
         mov bp, 7fh
         mov si, 2
         mov bh, 0
-L213a1:
+kjoy_stick:
         sub ax, ax
         shr si, 1
-        mov bl, byte ptr d_4590[si]
+        mov bl, byte ptr kbd_held[si]
         shl si, 1
         dec bl
-        jns L213bf
-        cmp word ptr d_46ed[si], ax
-        je L21422
-L213b5:
-        mov word ptr d_46e5[si], ax
-        mov word ptr d_46e9[si], ax
-        jmp short L21422
-L213bf:
+        jns kjoy_key
+        cmp word ptr kjoy_enabled[si], ax
+        je kjoy_next
+kjoy_stop:
+        mov word ptr kjoy_dx[si], ax
+        mov word ptr kjoy_dy[si], ax
+        jmp short kjoy_next
+kjoy_key:
         cmp bl, 8
-        je L213b5
-        mov bl, byte ptr d_46f3[bx]
+        je kjoy_stop
+        mov bl, byte ptr kjoy_dirs[bx]
         shl bl, 1
-        jae L213f6
-        mov ax, word ptr d_46e5[si]
+        jae kjoy_y
+        mov ax, word ptr kjoy_dx[si]
         cwd
         xor ax, dx
         sub ax, dx
@@ -507,16 +507,16 @@ L213bf:
         sub ax, dx
         add ax, cx
         cmp ax, bp
-        jle L213ee
+        jle kjoy_x_clamped
         mov ax, bp
-L213ee:
+kjoy_x_clamped:
         xor ax, di
         sub ax, di
-        mov word ptr d_46e5[si], ax
-L213f6:
+        mov word ptr kjoy_dx[si], ax
+kjoy_y:
         shl bl, 1
-        jae L21422
-        mov ax, word ptr d_46e9[si]
+        jae kjoy_next
+        mov ax, word ptr kjoy_dy[si]
         cwd
         xor ax, dx
         sub ax, dx
@@ -530,17 +530,17 @@ L213f6:
         sub ax, dx
         add ax, cx
         cmp ax, bp
-        jle L2141a
+        jle kjoy_y_clamped
         mov ax, bp
-L2141a:
+kjoy_y_clamped:
         xor ax, di
         sub ax, di
-        mov word ptr d_46e9[si], ax
-L21422:
+        mov word ptr kjoy_dy[si], ax
+kjoy_next:
         sub si, 2
-        js L2142a
-        jmp L213a1
-L2142a:
+        js kjoy_done
+        jmp kjoy_stick
+kjoy_done:
         pop es
         pop ds
         pop bp
@@ -563,30 +563,30 @@ _bios_read_key proc far
         xor ax, ax
         mov bx, word ptr es:[1ah]
         cmp bx, word ptr es:[1ch]
-        je L21460
+        je bios_key_none
         mov ax, word ptr es:[bx]
         inc bx
         inc bx
         cmp bx, word ptr es:[82h]
-        jne L2145b
+        jne bios_key_head
         mov bx, word ptr es:[80h]
-L2145b:
+bios_key_head:
         mov word ptr es:[1ah], bx
-L21460:
+bios_key_none:
         pop es
         popf
         retf
-c_21463 db 8bh, 0d5h
-c_21465 db 8bh, 0ech
-c_21467 db 2bh, 0dbh
-c_21469 db 8bh, 46h, 4h
-c_2146c db 0f7h, 0d8h
-c_2146e db 0d1h, 0d3h
-c_21470 db 8ah, 9fh, 90h, 41h
-c_21474 db 8ah, 0e7h
-c_21476 db 8ah, 87h, 0fbh, 42h
-c_2147a db 8bh, 0eah
-c_2147c db 0cbh
+bios_read_key_dead db 8bh, 0d5h
+bios_read_key_dead_2 db 8bh, 0ech
+bios_read_key_dead_4 db 2bh, 0dbh
+bios_read_key_dead_6 db 8bh, 46h, 4h
+bios_read_key_dead_9 db 0f7h, 0d8h
+bios_read_key_dead_b db 0d1h, 0d3h
+bios_read_key_dead_d db 8ah, 9fh, 90h, 41h
+bios_read_key_dead_11 db 8ah, 0e7h
+bios_read_key_dead_13 db 8ah, 87h, 0fbh, 42h
+bios_read_key_dead_17 db 8bh, 0eah
+bios_read_key_dead_19 db 0cbh
 _bios_read_key endp
 
 /* 0x23107 */
@@ -596,19 +596,19 @@ _key_is_down proc far
         mov bp, sp
         mov bx, word ptr [bp+4]
         xor ax, ax
-        mov al, byte ptr d_468c[bx]
+        mov al, byte ptr kbd_state[bx]
         and al, 1
         mov bp, dx
         sti
         retf
-c_21491 db 0cbh
+key_is_down_dead db 0cbh
 _key_is_down endp
 
 /* 0x2311c */
 _border_colour_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+68h
 _border_colour_thunk endp
-c_21496 db 0ffh, 2eh, 0aeh, 3fh
+border_colour_thunk_dead db 0ffh, 2eh, 0aeh, 3fh
 
 /* 0x23124 */
 _show_page_thunk proc near
@@ -1042,7 +1042,7 @@ void keyboard_isr(void)
 
 /*
  * OURS: a name for the INT 1Ch hook `install_keyboard` puts in at 1c25:5136,
- * image 0x21386 - a label inside `keyboard_isr`'s module, `c_21386` above,
+ * image 0x21386 - a label inside `keyboard_isr`'s module, `kjoy_tick` above,
  * not a routine of its own. Nothing the port runs asks for it and nothing on
  * the host dispatches through a vector, so it is the name the vector is set
  * to and aborts if it is ever called.
