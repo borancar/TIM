@@ -43,14 +43,14 @@ int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size)
         return -1;
     g_stream_rec->data.file = file;
     g_stream_rec->start = game_ftell(file);
-    g_stream_rec->in = 5;
+    g_stream_rec->in_pos = 5;
     if (string_contains_r(mode)) {
         if (prepare_resource_slot(type = g_stream_rec->kind = game_fgetc(file),
                                   mode) == -1) {
             game_fseek(file, -1L, 1);
             return close_resource_slot(slot);
         }
-        g_stream_rec->end = size;
+        g_stream_rec->in_end = size;
         game_fread((uint8_t *)&g_stream_rec->size, 1, 4, file);
         if (g_engine_res_handlers.type[type].reset)
             g_engine_res_handlers.type[type].reset();
@@ -81,13 +81,13 @@ int16_t open_resource_mem(int16_t type, char huge *data, char *mode, int32_t siz
         return -1;
     g_stream_rec->data.ptr = data;
     g_stream_rec->kind = type;
-    g_stream_rec->in = 5;
+    g_stream_rec->in_pos = 5;
     if (string_contains_r(mode)) {
         if (prepare_resource_slot(type = g_stream_rec->kind = *data++,
                                   mode) == -1)
             return close_resource_slot(slot);
         far_memcpy((uint8_t *)&g_stream_rec->size, (uint8_t huge *)data, 4);
-        g_stream_rec->end = size;
+        g_stream_rec->in_end = size;
         if (g_engine_res_handlers.type[type].reset)
             g_engine_res_handlers.type[type].reset();
         g_stream_rec->kind |= 0x40;
@@ -251,7 +251,7 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
         t -= g_stream_rec->pos;
     while ((t -= (uint16_t)resource_read(handle, t < 0x7d00L ? (uint16_t)t : 0x7d00)) != 0)
         g_stream_in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(g_stream_rec->data.ptr + g_stream_rec->in));
+            (uint8_t huge *)(g_stream_rec->data.ptr + g_stream_rec->in_pos));
     return g_stream_rec->pos;
 }
 
@@ -270,7 +270,7 @@ int16_t restart_resource_stream(int16_t handle)
         return -1;
     if (g_engine_res_handlers.type[g_resource_handler].reset)
         g_engine_res_handlers.type[g_resource_handler].reset();
-    g_stream_rec->in = 5;
+    g_stream_rec->in_pos = 5;
     if (g_stream_rec->kind & 0x20)
         game_fseek(g_resource_file, g_stream_rec->start + 5, 0);
     else

@@ -25,6 +25,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs resource=res
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -40,6 +41,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _BSS segment word public 'BSS'
 match_interrupted db 2 dup (?)
 match_position db 2 dup (?)
@@ -253,8 +255,8 @@ _lzss_reset proc near
 	mov word ptr DGROUP:lzh_getbuf, 0
 	mov byte ptr DGROUP:lzh_getlen, 0
 	mov bx, word ptr DGROUP:_g_stream_rec
-	mov ax, [bx+4]
-	mov dx, [bx+2]
+	mov ax, [bx+res_scratch+2]
+	mov dx, [bx+res_scratch]
 	mov word ptr DGROUP:lzss_ring_seg, ax
 	mov word ptr DGROUP:lzss_ring_off, dx
 	xor ax, ax
@@ -306,9 +308,9 @@ _huffman_start proc near
 	push si
 	push di
 	mov bx, word ptr DGROUP:_g_stream_rec
-	mov di, [bx+2]
+	mov di, [bx+res_scratch]
 	mov bx, word ptr DGROUP:_g_stream_rec
-	mov ax, [bx+4]
+	mov ax, [bx+res_scratch+2]
 	mov word ptr DGROUP:huff_son_seg, ax
 	mov word ptr DGROUP:huff_prnt_seg, ax
 	mov word ptr DGROUP:huff_freq_seg, ax
@@ -649,8 +651,8 @@ lzss_ring_clear_loop:
 	mov word ptr DGROUP:lzss_count_hi, 0
 	mov word ptr DGROUP:lzss_count_lo, 0
 	mov bx, word ptr DGROUP:_g_stream_rec
-	mov ax, [bx+14h]
-	mov dx, [bx+12h]
+	mov ax, [bx+res_size+2]
+	mov dx, [bx+res_size]
 	mov word ptr DGROUP:lzss_size_hi, ax
 	mov word ptr DGROUP:lzss_size_lo, dx
 	mov word ptr DGROUP:lzss_ready, 1

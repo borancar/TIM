@@ -22,7 +22,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
- * JUDGE: structs vmds=vmds vm_driver=vmdrv
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv bitmaps_state=bm vqt_reader=rd
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -38,7 +38,7 @@
 asm {
 INCLUDE STRUCTS.ASH
 extrn _redraw_cursor:far
-extrn _g_bitmap_compress:byte
+extrn _g_bitmaps:byte
 extrn _g_vm_driver:byte
 extrn _g_vmds:byte
 VQT_TEXT segment byte public 'CODE'
@@ -51,18 +51,18 @@ _vqt_read_bits proc near
         push bp
         mov bp, sp
         mov bx, word ptr [bp+4]
-        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
+        mov bp, word ptr DGROUP:_g_bitmaps+bm_walk
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
         xor ah, ah
         mov bx, ax
-        mov ax, word ptr [bp]
-        mov dx, word ptr [bp+2]
-        add word ptr [bp], cx
-        adc word ptr [bp+2], 0
-        mov cx, word ptr [bp+4]
-        mov es, word ptr [bp+6]
+        mov ax, word ptr [bp+rd_pos]
+        mov dx, word ptr [bp+rd_pos+2]
+        add word ptr [bp+rd_pos], cx
+        adc word ptr [bp+rd_pos+2], 0
+        mov cx, word ptr [bp+rd_data]
+        mov es, word ptr [bp+rd_data+2]
         mov bp, cx
         mov cx, ax
         shr dx, 1
@@ -98,17 +98,17 @@ _vqt_screen_node proc near
         mov ax, si
         or ax, di
         je screen_node_none
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 4
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -239,17 +239,17 @@ _fill_screen_quadrant proc near
         jne screen_fill_area
         cmp di, 1
         jne screen_fill_area
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -301,18 +301,18 @@ screen_fill_area_bits:
 screen_fill_read_colours:
         push bp
         mov bx, cx
-        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
+        mov bp, word ptr DGROUP:_g_bitmaps+bm_walk
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
         xor ah, ah
         mov bx, ax
-        mov ax, word ptr [bp]
-        mov dx, word ptr [bp+2]
-        add word ptr [bp], cx
-        adc word ptr [bp+2], 0
-        mov cx, word ptr [bp+4]
-        mov es, word ptr [bp+6]
+        mov ax, word ptr [bp+rd_pos]
+        mov dx, word ptr [bp+rd_pos+2]
+        add word ptr [bp+rd_pos], cx
+        adc word ptr [bp+rd_pos+2], 0
+        mov cx, word ptr [bp+rd_data]
+        mov es, word ptr [bp+rd_data+2]
         mov bp, cx
         mov cx, ax
         shr dx, 1
@@ -360,17 +360,17 @@ screen_fill_choose:
         cmp bx, ax
         ja screen_fill_coded
 screen_fill_raw:
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -415,17 +415,17 @@ screen_fill_raw:
 screen_fill_coded:
         cmp byte ptr [bp-4], 1
         jne screen_fill_palette
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -462,17 +462,17 @@ screen_fill_solid_row:
 screen_fill_palette:
         lea di, [bp-10ah]
 screen_fill_palette_read:
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -494,18 +494,18 @@ screen_fill_palette_read:
 screen_fill_indexed:
         push bp
         mov bx, word ptr [bp-2]
-        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
+        mov bp, word ptr DGROUP:_g_bitmaps+bm_walk
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
         xor ah, ah
         mov bx, ax
-        mov ax, word ptr [bp]
-        mov dx, word ptr [bp+2]
-        add word ptr [bp], cx
-        adc word ptr [bp+2], 0
-        mov cx, word ptr [bp+4]
-        mov es, word ptr [bp+6]
+        mov ax, word ptr [bp+rd_pos]
+        mov dx, word ptr [bp+rd_pos+2]
+        add word ptr [bp+rd_pos], cx
+        adc word ptr [bp+rd_pos+2], 0
+        mov cx, word ptr [bp+rd_data]
+        mov es, word ptr [bp+rd_data+2]
         mov bp, cx
         mov cx, ax
         shr dx, 1
@@ -596,17 +596,17 @@ _vqt_node proc near
         mov ax, si
         or ax, di
         je node_none
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 4
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -733,17 +733,17 @@ _fill_quadrant proc near
         jne fill_area
         cmp di, 1
         jne fill_area
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -759,15 +759,15 @@ _fill_quadrant proc near
         mov di, word ptr [bp+4]
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
-        lea bx, [di+18h]
+        mov di, word ptr DGROUP:_g_bitmaps+bm_walk
+        lea bx, [di+rd_row]
         mov ax, word ptr [bp+6]
         shl ax, 1
         add bx, ax
         mov bx, word ptr [bx]
         mov ax, cx
         add bx, ax
-        les di, dword ptr [di+8]
+        les di, dword ptr [di+rd_plane]
         add di, bx
         mov al, dl
         stosb
@@ -794,18 +794,18 @@ fill_area_bits:
 fill_read_colours:
         push bp
         mov bx, cx
-        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
+        mov bp, word ptr DGROUP:_g_bitmaps+bm_walk
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
         xor ah, ah
         mov bx, ax
-        mov ax, word ptr [bp]
-        mov dx, word ptr [bp+2]
-        add word ptr [bp], cx
-        adc word ptr [bp+2], 0
-        mov cx, word ptr [bp+4]
-        mov es, word ptr [bp+6]
+        mov ax, word ptr [bp+rd_pos]
+        mov dx, word ptr [bp+rd_pos+2]
+        add word ptr [bp+rd_pos], cx
+        adc word ptr [bp+rd_pos+2], 0
+        mov cx, word ptr [bp+rd_data]
+        mov es, word ptr [bp+rd_data+2]
         mov bp, cx
         mov cx, ax
         shr dx, 1
@@ -853,17 +853,17 @@ fill_choose:
         cmp bx, ax
         ja fill_coded
 fill_raw:
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -878,15 +878,15 @@ fill_raw:
         shr ax, cl
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
-        lea bx, [di+18h]
+        mov di, word ptr DGROUP:_g_bitmaps+bm_walk
+        lea bx, [di+rd_row]
         mov ax, si
         shl ax, 1
         add bx, ax
         mov bx, word ptr [bx]
         mov ax, cx
         add bx, ax
-        les di, dword ptr [di+8]
+        les di, dword ptr [di+rd_plane]
         add di, bx
         mov al, dl
         stosb
@@ -906,17 +906,17 @@ fill_raw:
 fill_coded:
         cmp byte ptr [bp-4], 1
         jne fill_palette
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -935,15 +935,15 @@ fill_solid_row:
         mov si, word ptr [bp+4]
         mov cx, word ptr [bp+8]
 fill_solid_pixel:
-        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
-        lea bx, [di+18h]
+        mov di, word ptr DGROUP:_g_bitmaps+bm_walk
+        lea bx, [di+rd_row]
         mov ax, dx
         shl ax, 1
         add bx, ax
         mov bx, word ptr [bx]
         mov ax, si
         add bx, ax
-        les di, dword ptr [di+8]
+        les di, dword ptr [di+rd_plane]
         add di, bx
         mov al, byte ptr [bp-2]
         stosb
@@ -960,17 +960,17 @@ fill_solid_pixel:
 fill_palette:
         lea di, [bp-10ah]
 fill_palette_read:
-        mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
-        mov ax, word ptr [bx]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_bitmaps+bm_walk
+        mov ax, word ptr [bx+rd_pos]
+        mov dx, word ptr [bx+rd_pos+2]
         mov cx, ax
         add cx, 8
-        mov word ptr [bx], cx
+        mov word ptr [bx+rd_pos], cx
         mov cx, dx
         adc cx, 0
-        mov word ptr [bx+2], cx
-        mov cx, word ptr [bx+4]
-        mov es, word ptr [bx+6]
+        mov word ptr [bx+rd_pos+2], cx
+        mov cx, word ptr [bx+rd_data]
+        mov es, word ptr [bx+rd_data+2]
         mov bx, cx
         mov cx, ax
         shr dx, 1
@@ -992,18 +992,18 @@ fill_palette_read:
 fill_indexed:
         push bp
         mov bx, word ptr [bp-2]
-        mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
+        mov bp, word ptr DGROUP:_g_bitmaps+bm_walk
         mov ax, 0ff00h
         mov cx, bx
         rol ax, cl
         xor ah, ah
         mov bx, ax
-        mov ax, word ptr [bp]
-        mov dx, word ptr [bp+2]
-        add word ptr [bp], cx
-        adc word ptr [bp+2], 0
-        mov cx, word ptr [bp+4]
-        mov es, word ptr [bp+6]
+        mov ax, word ptr [bp+rd_pos]
+        mov dx, word ptr [bp+rd_pos+2]
+        add word ptr [bp+rd_pos], cx
+        adc word ptr [bp+rd_pos+2], 0
+        mov cx, word ptr [bp+rd_data]
+        mov es, word ptr [bp+rd_data+2]
         mov bp, cx
         mov cx, ax
         shr dx, 1
@@ -1023,15 +1023,15 @@ fill_indexed:
         mov al, byte ptr [bx]
         mov dl, al
         mov cx, di
-        mov di, word ptr DGROUP:_g_bitmap_compress+2ah
-        lea bx, [di+18h]
+        mov di, word ptr DGROUP:_g_bitmaps+bm_walk
+        lea bx, [di+rd_row]
         mov ax, si
         shl ax, 1
         add bx, ax
         mov bx, word ptr [bx]
         mov ax, cx
         add bx, ax
-        les di, dword ptr [di+8]
+        les di, dword ptr [di+rd_plane]
         add di, bx
         mov al, dl
         stosb

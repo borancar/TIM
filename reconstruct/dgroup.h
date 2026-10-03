@@ -3457,17 +3457,18 @@ struct resource {
        near pointer, which `open_resource` files there and `select_resource`
        copies to `g_resource_file`. Two readings of the same four bytes, chosen by the
        kind: the file record's pointer is the low word. */
-    union {
+    union resource_data {
         char huge *ptr;        /* the data in memory */
         FILE     *file;        /* or the file record it is read from */
     } data;                    /* +0x06 */
-    /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
-       borrow and compares the two as wholes; `next_input_byte` steps `in`
-       with a carry; `open_resource` splits a `uint32_t` into `end` and
-       `resource_tell` joins `in` back into one. */
-    uint32_t  in;              /* +0x0a  how far into the compressed input
+    /* **Three Borland `long`s.** `read_input_block` takes `in_end - in_pos`
+       with a borrow and compares the two as wholes; `next_input_byte` steps
+       `in_pos` with a carry; `open_resource` splits a `uint32_t` into
+       `in_end` and `resource_tell` joins `in_pos` back into one. Not `in`
+       and `end`: those are TASM's, and lzw.c's assembly names them. */
+    uint32_t  in_pos;          /* +0x0a  how far into the compressed input
                                          the reader is */
-    uint32_t  end;             /* +0x0e  where the compressed input ends */
+    uint32_t  in_end;          /* +0x0e  where the compressed input ends */
     int32_t   size;            /* +0x12  what resource_seek measures from for
                                          SEEK_END */
     int32_t   pos;             /* +0x16  and what it measures from for

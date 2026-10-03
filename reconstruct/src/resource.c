@@ -188,9 +188,9 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
  */
 int16_t near next_input_byte(void)
 {
-    if (g_stream_rec->in == g_stream_rec->end)
+    if (g_stream_rec->in_pos == g_stream_rec->in_end)
         return -1;
-    g_stream_rec->in++;
+    g_stream_rec->in_pos++;
     if (g_stream_kind & 0x20)
         return game_fgetc(g_resource_file);
     return *g_stream_in++ & 0xff;
@@ -214,10 +214,10 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
 {
     int32_t rem;
 
-    if ((rem = g_stream_rec->end - g_stream_rec->in) == 0)
+    if ((rem = g_stream_rec->in_end - g_stream_rec->in_pos) == 0)
         return 0;
     rem = count > rem ? rem : count;
-    g_stream_rec->in += rem;
+    g_stream_rec->in_pos += rem;
     if (g_stream_kind & 0x20)
         return game_fread(dst, 1, (uint16_t)rem, g_resource_file);
     far_memcpy(dst, (uint8_t huge *)g_stream_in, (uint16_t)rem);
@@ -248,7 +248,7 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  */
 int16_t near emit_literal_run(uint16_t n)
 {
-    g_stream_rec->in += n;
+    g_stream_rec->in_pos += n;
     if (g_stream_wanted >= n) {
         if (g_resource_flags & 0x40)
             read_into_huge(g_stream_out, n);
@@ -340,7 +340,7 @@ int16_t near put_output_byte(int16_t c)
     if (g_stream_kind & 0x20)
         return game_fputc(c, g_resource_file);
     else
-        return g_stream_rec->data.ptr[g_stream_rec->in++] = c;
+        return g_stream_rec->data.ptr[g_stream_rec->in_pos++] = c;
 }
 
 /*
@@ -372,7 +372,7 @@ int16_t near select_resource(int16_t handle)
     } else {
         g_resource_flags = 0;
         g_stream_in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(g_stream_rec->data.ptr + g_stream_rec->in));
+            (uint8_t huge *)(g_stream_rec->data.ptr + g_stream_rec->in_pos));
     }
     return 1;
 }

@@ -18,6 +18,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs resource=res
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -33,6 +34,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
         db 0h, 1h, 3h, 7h, 0fh, 1fh, 3fh, 7fh, 0ffh, 0h
 lzw_code_buf label byte
@@ -307,8 +309,8 @@ lzw_wanted_met:
         mov word ptr DGROUP:_g_stream_out, di
         mov word ptr DGROUP:lzw_resume_src, si
         mov si, word ptr DGROUP:_g_stream_rec
-        mov bl, byte ptr [si+1ah]
-        inc word ptr [si+1ah]
+        mov bl, byte ptr [si+res_spill_end]
+        inc word ptr [si+res_spill_end]
         sub bh, bh
         mov si, word ptr DGROUP:_g_stream_spill
         mov byte ptr [bx+si], al
@@ -449,14 +451,14 @@ _rle_from_memory proc near
         sub cx, cx
         mov bx, cx
         mov si, word ptr DGROUP:_g_stream_rec
-        mov cl, byte ptr [si+1ah]
+        mov cl, byte ptr [si+res_spill_end]
         mov ax, word ptr DGROUP:_g_stream_spill
         add ax, cx
         mov word ptr DGROUP:rle_spill_at, ax
-        mov ax, word ptr [si+0eh]
-        mov dx, word ptr [si+10h]
-        sub ax, word ptr [si+0ah]
-        sbb dx, word ptr [si+0ch]
+        mov ax, word ptr [si+res_in_end]
+        mov dx, word ptr [si+res_in_end+2]
+        sub ax, word ptr [si+res_in_pos]
+        sbb dx, word ptr [si+res_in_pos+2]
         mov bp, 0ffffh
         jne rle_start
         mov bp, ax
@@ -538,10 +540,10 @@ rle_return:
         mov ds, ax
         mov si, word ptr DGROUP:_g_stream_rec
         mov ax, bp
-        add byte ptr [si+1ah], al
+        add byte ptr [si+res_spill_end], al
         mov word ptr DGROUP:_g_stream_wanted, dx
-        add word ptr [si+0ah], bx
-        adc word ptr [si+0ch], 0
+        add word ptr [si+res_in_pos], bx
+        adc word ptr [si+res_in_pos+2], 0
         pop di
         pop si
         pop bp
