@@ -40,28 +40,28 @@ asm {
 _DATA segment word public 'DATA'
 public _g_timer
 _g_timer label byte
-d_44ee label byte
+timer_installed label byte
         db 0h
-d_44ef label byte
+timer_frame_budget label byte
         db 0h, 0h
-d_44f1 label byte
+timer_divisor label byte
         db 0ffh, 0ffh
-d_44f3 label byte
+timer_divider_reload label byte
         db 0h, 0h
-d_44f5 label byte
+timer_divider label byte
         db 0h, 0h
-d_44f7 label byte
+timer_slot_mask label byte
         db 0h, 0h
-d_44f9 label byte
+timer_callback_off label byte
         db 0h, 0h
-d_44fb label byte
+timer_callback_seg label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
-d_4539 label byte
+timer_left label byte
         db 0h, 0h
-d_453b label byte
+timer_period label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
@@ -81,36 +81,36 @@ _timer_add_callback proc far
         push bp
         mov bp, sp
         sub ax, ax
-        cmp byte ptr DGROUP:d_44ee, al
-        je L2069c
-        mov ax, word ptr DGROUP:d_44f7
+        cmp byte ptr DGROUP:timer_installed, al
+        je add_return
+        mov ax, word ptr DGROUP:timer_slot_mask
         inc ax
-        je L2069c
+        je add_return
         dec ax
         sub bx, bx
         mov cx, 1
-L2066b:
+add_find_slot:
         shr ax, 1
-        jae L20676
+        jae add_fill
         shl cx, 1
         add bl, 4
-        jmp short L2066b
-L20676:
+        jmp short add_find_slot
+add_fill:
         mov ax, word ptr [bp+0ah]
-        mov word ptr d_453b[bx], ax
-        mov word ptr d_4539[bx], ax
+        mov word ptr timer_period[bx], ax
+        mov word ptr timer_left[bx], ax
         mov ax, word ptr [bp+6]
-        mov word ptr d_44f9[bx], ax
+        mov word ptr timer_callback_off[bx], ax
         mov ax, word ptr [bp+8]
-        mov word ptr d_44fb[bx], ax
+        mov word ptr timer_callback_seg[bx], ax
         cli
-        or word ptr DGROUP:d_44f7, cx
+        or word ptr DGROUP:timer_slot_mask, cx
         sti
         mov ax, bx
         shr ax, 1
         shr ax, 1
         inc ax
-L2069c:
+add_return:
         pop bp
         retf
 _timer_add_callback endp
@@ -123,19 +123,19 @@ _timer_drop_callback proc far
         mov cx, word ptr [bp+6]
         dec cx
         test cl, 0f0h
-        jne L206bb
+        jne drop_return
         stc
         mov ax, 0fffeh
         rcl ax, cl
         cli
-        and word ptr DGROUP:d_44f7, ax
+        and word ptr DGROUP:timer_slot_mask, ax
         sti
         mov ax, 1
-L206bb:
+drop_return:
         pop bp
         retf
-c_206bd db 0h, 0h
-c_206bf db 0h, 0h
+old_int8_off db 0h, 0h
+old_int8_seg db 0h, 0h
 _timer_drop_callback endp
 
 /* 0x2234b */
@@ -143,27 +143,27 @@ _timer_install proc far
         push bp
         mov bp, sp
         sub ax, ax
-        cmp byte ptr DGROUP:d_44ee, al
-        jne L2072c
-        mov word ptr DGROUP:d_44f7, ax
+        cmp byte ptr DGROUP:timer_installed, al
+        jne install_return
+        mov word ptr DGROUP:timer_slot_mask, ax
         call FAR PTR _detect_pcjr
         mov ax, 3508h
         int 21h
-        mov word ptr cs:c_206bd, bx
-        mov word ptr cs:c_206bf, es
+        mov word ptr cs:old_int8_off, bx
+        mov word ptr cs:old_int8_seg, es
         sub ax, ax
         mov dx, ax
         mov bx, word ptr [bp+6]
         cmp bx, 0ffh
-        jg L2072c
+        jg install_return
         or bx, bx
-        je L2072c
+        je install_return
         dec ax
-        mov word ptr DGROUP:d_44f3, bx
-        mov word ptr DGROUP:d_44f5, bx
+        mov word ptr DGROUP:timer_divider_reload, bx
+        mov word ptr DGROUP:timer_divider, bx
         div bx
         mov bx, ax
-        mov word ptr DGROUP:d_44f1, ax
+        mov word ptr DGROUP:timer_divisor, ax
         cli
         mov al, 36h
         out 43h, al
@@ -183,8 +183,8 @@ _timer_install proc far
         pop ds
         sti
         mov ax, 1
-        mov byte ptr DGROUP:d_44ee, al
-L2072c:
+        mov byte ptr DGROUP:timer_installed, al
+install_return:
         pop bp
         retf
 _timer_install endp
@@ -192,8 +192,8 @@ _timer_install endp
 /* 0x223b8 */
 _timer_remove proc far
         mov ax, 0
-        cmp byte ptr DGROUP:d_44ee, al
-        je L20766
+        cmp byte ptr DGROUP:timer_installed, al
+        je remove_return
         sub bx, bx
         cli
         mov al, 36h
@@ -206,15 +206,15 @@ _timer_remove proc far
         and al, 0fch
         out 21h, al
         push ds
-        mov dx, word ptr cs:c_206bd
-        mov ds, word ptr cs:c_206bf
+        mov dx, word ptr cs:old_int8_off
+        mov ds, word ptr cs:old_int8_seg
         mov ax, 2508h
         int 21h
         pop ds
         mov ax, 1
-        mov byte ptr DGROUP:d_44ee, 0
+        mov byte ptr DGROUP:timer_installed, 0
         sti
-L20766:
+remove_return:
         retf
 _timer_remove endp
 
@@ -231,81 +231,81 @@ _timer_tick proc near
         push di
         mov ax, DGROUP
         mov ds, ax
-        mov ax, word ptr DGROUP:d_44ef
+        mov ax, word ptr DGROUP:timer_frame_budget
         dec ax
         cwd
         xor ax, dx
-        mov word ptr DGROUP:d_44ef, ax
+        mov word ptr DGROUP:timer_frame_budget, ax
         sub si, si
-        mov di, word ptr DGROUP:d_44f7
-        mov bp, offset DGROUP:d_4539
-L20788:
+        mov di, word ptr DGROUP:timer_slot_mask
+        mov bp, offset DGROUP:timer_left
+tick_slots:
         shr di, 1
-        ja L2079f
-        jae L2080d
+        ja tick_slot_b
+        jae tick_slots_done
         mov ax, word ptr ds:[bp+si]
         dec ax
-        jne L2079c
-        call dword ptr d_44f9[si]
-        mov ax, word ptr d_453b[si]
-L2079c:
+        jne tick_store_a
+        call dword ptr timer_callback_off[si]
+        mov ax, word ptr timer_period[si]
+tick_store_a:
         mov word ptr ds:[bp+si], ax
-L2079f:
+tick_slot_b:
         add si, 4
         shr di, 1
-        ja L207b9
-        jae L2080d
+        ja tick_slot_c
+        jae tick_slots_done
         mov ax, word ptr ds:[bp+si]
         dec ax
-        jne L207b6
-        call dword ptr d_44f9[si]
-        mov ax, word ptr d_453b[si]
-L207b6:
+        jne tick_store_b
+        call dword ptr timer_callback_off[si]
+        mov ax, word ptr timer_period[si]
+tick_store_b:
         mov word ptr ds:[bp+si], ax
-L207b9:
+tick_slot_c:
         add si, 4
         shr di, 1
-        ja L207d3
-        jae L2080d
+        ja tick_slot_d
+        jae tick_slots_done
         mov ax, word ptr ds:[bp+si]
         dec ax
-        jne L207d0
-        call dword ptr d_44f9[si]
-        mov ax, word ptr d_453b[si]
-L207d0:
+        jne tick_store_c
+        call dword ptr timer_callback_off[si]
+        mov ax, word ptr timer_period[si]
+tick_store_c:
         mov word ptr ds:[bp+si], ax
-L207d3:
+tick_slot_d:
         add si, 4
         shr di, 1
-        ja L207ed
-        jae L2080d
+        ja tick_slot_e
+        jae tick_slots_done
         mov ax, word ptr ds:[bp+si]
         dec ax
-        jne L207ea
-        call dword ptr d_44f9[si]
-        mov ax, word ptr d_453b[si]
-L207ea:
+        jne tick_store_d
+        call dword ptr timer_callback_off[si]
+        mov ax, word ptr timer_period[si]
+tick_store_d:
         mov word ptr ds:[bp+si], ax
-L207ed:
+tick_slot_e:
         add si, 4
         shr di, 1
-        ja L20807
-        jae L2080d
+        ja tick_next_five
+        jae tick_slots_done
         mov ax, word ptr ds:[bp+si]
         dec ax
-        jne L20804
-        call dword ptr d_44f9[si]
-        mov ax, word ptr d_453b[si]
-L20804:
+        jne tick_store_e
+        call dword ptr timer_callback_off[si]
+        mov ax, word ptr timer_period[si]
+tick_store_e:
         mov word ptr ds:[bp+si], ax
-L20807:
+tick_next_five:
         add si, 4
-        jmp L20788
-L2080d:
-        mov ax, word ptr DGROUP:d_44f5
+        jmp tick_slots
+tick_slots_done:
+        mov ax, word ptr DGROUP:timer_divider
         dec ax
-        je L20824
-        mov word ptr DGROUP:d_44f5, ax
+        je tick_chain_bios
+        mov word ptr DGROUP:timer_divider, ax
         pop di
         pop si
         pop es
@@ -318,9 +318,9 @@ L2080d:
         out 20h, al
         pop ax
         iret
-L20824:
-        mov ax, word ptr DGROUP:d_44f3
-        mov word ptr DGROUP:d_44f5, ax
+tick_chain_bios:
+        mov ax, word ptr DGROUP:timer_divider_reload
+        mov word ptr DGROUP:timer_divider, ax
         pop di
         pop si
         pop es
@@ -330,7 +330,7 @@ L20824:
         pop cx
         pop bx
         pop ax
-        jmp dword ptr cs:c_206bd
+        jmp dword ptr cs:old_int8_off
 _timer_tick endp
 
 /* 0x224c2 */

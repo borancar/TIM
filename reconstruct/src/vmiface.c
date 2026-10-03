@@ -122,7 +122,7 @@ _vm_call_38_thunk endp
 /* 0x205d6 */
 _restore_write_mode proc far
         cmp byte ptr DGROUP:_g_vmds+21h, 10h
-        jne L1e965
+        jne restore_done
         mov ax, 205h
         mov dx, 3ceh
         out dx, ax
@@ -131,7 +131,7 @@ _restore_write_mode proc far
         mov dx, 3c4h
         mov ax, 0f02h
         out dx, ax
-L1e965:
+restore_done:
         retf
 _restore_write_mode endp
 
