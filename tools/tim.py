@@ -563,7 +563,8 @@ class TimMachine(VgaDos):
         From the line compare down the card stops following the start address
         and fetches from offset 0. This game uses it: 0x08f27 sets the compare
         to 367 while the blanking line says 448, so its screens are 368 rows of
-        picture with a fixed band beneath. Composing without it shows whatever
+        picture - the compare line is still the top part's - with a fixed band
+        of eighty beneath. Composing without it shows whatever
         the start address runs into there, which looks exactly like another
         page bleeding through - and was read that way here once.
 
@@ -583,9 +584,11 @@ class TimMachine(VgaDos):
         finally:
             self.start_addr = was
 
+        # The compare line is the top part's: the card restarts at offset 0 on
+        # the line after it (DOSBox's `line_compare + 1`).
         w = self.width
         out = bytearray(fb)
-        out[lc * w:] = below[:(self.height - lc) * w]
+        out[(lc + 1) * w:] = below[:(self.height - lc - 1) * w]
         return bytes(out)
 
     def framebuffer(self):

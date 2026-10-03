@@ -2538,8 +2538,14 @@ void vga_compose(uint8_t *out, int32_t width, int32_t height)
          * says 448. Without this the bottom eighty rows show whatever the
          * start address happens to run into, which looks exactly like another
          * page bleeding through - and was read that way once.
+         *
+         * **The compare line itself is the top part's**: the card restarts at
+         * offset 0 on the line *after* it, as DOSBox has it (`line_compare +
+         * 1`). Starting the band on the compare line put it one row high, and
+         * the last row of the picture, row 447, showed the memory past the
+         * band's eighty rows - a row of noise DOSBox does not show.
          */
-        int32_t src = (y >= split ? 0 : base) + (y - (y >= split ? split : 0))
+        int32_t src = (y > split ? 0 : base) + (y - (y > split ? split + 1 : 0))
                       * row_bytes;
         uint8_t *dst = out + (size_t)y * width;
         for (int32_t bx = 0; bx < span; bx++) {
