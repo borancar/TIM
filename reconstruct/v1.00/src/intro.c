@@ -36,11 +36,11 @@
  * x is zero.
  *
  * Sixty-two entries and that terminator, measured out of the image; the y is
- * an offset from 0x19f, which is where the strip sits on the screen.
+ * an offset from 415, which is where the strip sits on the screen.
  */
 struct intro_step {
     int16_t   x;                  /* +0x00  zero ends the roll */
-    int16_t   y;                  /* +0x02  0x19f is added before drawing */
+    int16_t   y;                  /* +0x02  415 is added before drawing */
     int16_t   bitmap;             /* +0x04  an index into the intro's list */
 } PACKED;
 
@@ -51,68 +51,68 @@ struct game_intro_steps {
 
 struct game_intro_steps g_game_intro_steps = {
     {
-        { 0x0278, 0x000e, 0x0003 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x0275, 0x000d, 0 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x0275, 0x000b, 0x0001 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x026c, 0x000b, 0x0002 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x025a, 0x000b, 0x0003 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x0252, 0x000d, 0x0004 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x0251, 0x000d, 0 },
-        { 0x0280, 0x002f, 0x0007 },
-        { 0x0251, 0x000b, 0x0001 },
-        { 0x0278, 0x002f, 0x0007 },
-        { 0x0248, 0x000b, 0x0002 },
-        { 0x0272, 0x002f, 0x0007 },
-        { 0x0236, 0x000b, 0x0003 },
-        { 0x026b, 0x002f, 0x0007 },
-        { 0x022e, 0x000d, 0x0004 },
-        { 0x0264, 0x002f, 0x0007 },
-        { 0x022d, 0x000e, 0 },
-        { 0x025d, 0x002f, 0x0007 },
-        { 0x022d, 0x000c, 0x0001 },
-        { 0x0256, 0x002f, 0x0007 },
-        { 0x0224, 0x000c, 0x0002 },
-        { 0x024f, 0x002f, 0x0007 },
-        { 0x0212, 0x000c, 0x0003 },
-        { 0x0248, 0x002f, 0x0007 },
-        { 0x020a, 0x000e, 0x0004 },
-        { 0x0241, 0x002f, 0x0007 },
-        { 0x0209, 0x000e, 0 },
-        { 0x023a, 0x002f, 0x0007 },
-        { 0x0209, 0x000d, 0x0001 },
-        { 0x0233, 0x002f, 0x0007 },
-        { 0x0200, 0x000d, 0x0002 },
-        { 0x022d, 0x002f, 0x0007 },
-        { 0x01ef, 0x000d, 0x0003 },
-        { 0x0226, 0x002f, 0x0007 },
-        { 0x01e7, 0x000f, 0x0004 },
-        { 0x021f, 0x002f, 0x0007 },
-        { 0x01e6, 0x000e, 0 },
-        { 0x0218, 0x002f, 0x0007 },
-        { 0x01e6, 0x000c, 0x0001 },
-        { 0x0211, 0x002f, 0x0007 },
-        { 0x01dd, 0x000c, 0x0002 },
-        { 0x020a, 0x002f, 0x0007 },
-        { 0x01cc, 0x000c, 0x0003 },
-        { 0x0203, 0x002f, 0x0007 },
-        { 0x01c3, 0x000e, 0x0004 },
-        { 0x01fc, 0x002f, 0x0007 },
-        { 0x01c3, 0x000e, 0x0004 },
-        { 0x01fc, 0x002f, 0x0007 },
-        { 0x01c3, 0x000e, 0x0005 },
-        { 0x01f5, 0x002f, 0x0007 },
-        { 0x01c3, 0x000e, 0x0005 },
-        { 0x01f5, 0x002f, 0x0007 },
-        { 0x01c3, 0x000e, 0x0005 },
-        { 0x01f5, 0x002f, 0x0007 },
-        { 0x01c3, 0x000a, 0x0006 },
-        { 0x01ee, 0x002f, 0x0007 },
+        { 632, 14, 3 },
+        { 640, 47, 7 },
+        { 629, 13, 0 },
+        { 640, 47, 7 },
+        { 629, 11, 1 },
+        { 640, 47, 7 },
+        { 620, 11, 2 },
+        { 640, 47, 7 },
+        { 602, 11, 3 },
+        { 640, 47, 7 },
+        { 594, 13, 4 },
+        { 640, 47, 7 },
+        { 593, 13, 0 },
+        { 640, 47, 7 },
+        { 593, 11, 1 },
+        { 632, 47, 7 },
+        { 584, 11, 2 },
+        { 626, 47, 7 },
+        { 566, 11, 3 },
+        { 619, 47, 7 },
+        { 558, 13, 4 },
+        { 612, 47, 7 },
+        { 557, 14, 0 },
+        { 605, 47, 7 },
+        { 557, 12, 1 },
+        { 598, 47, 7 },
+        { 548, 12, 2 },
+        { 591, 47, 7 },
+        { 530, 12, 3 },
+        { 584, 47, 7 },
+        { 522, 14, 4 },
+        { 577, 47, 7 },
+        { 521, 14, 0 },
+        { 570, 47, 7 },
+        { 521, 13, 1 },
+        { 563, 47, 7 },
+        { 512, 13, 2 },
+        { 557, 47, 7 },
+        { 495, 13, 3 },
+        { 550, 47, 7 },
+        { 487, 15, 4 },
+        { 543, 47, 7 },
+        { 486, 14, 0 },
+        { 536, 47, 7 },
+        { 486, 12, 1 },
+        { 529, 47, 7 },
+        { 477, 12, 2 },
+        { 522, 47, 7 },
+        { 460, 12, 3 },
+        { 515, 47, 7 },
+        { 451, 14, 4 },
+        { 508, 47, 7 },
+        { 451, 14, 4 },
+        { 508, 47, 7 },
+        { 451, 14, 5 },
+        { 501, 47, 7 },
+        { 451, 14, 5 },
+        { 501, 47, 7 },
+        { 451, 14, 5 },
+        { 501, 47, 7 },
+        { 451, 10, 6 },
+        { 494, 47, 7 },
     },
     /* step */
 };
@@ -221,16 +221,16 @@ void game_intro(void)
         } else if (step->x != 0 && g_timer.frame_budget + 6 < budget) {
             g_vmds.clip_enabled = 1;
             g_vmds.clip_left = g_vmds.clip_top = 0;
-            g_vmds.clip_right = 0x27f;
-            g_vmds.clip_bottom = 0x1df;
+            g_vmds.clip_right = 639;
+            g_vmds.clip_bottom = 479;
             g_vmds.fill_enabled = 1;
             g_vmds.second_colour = g_vmds.fill_colour = 0;
 
             g_vmds.page_dst = g_vmds.page_back;
-            fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
+            fill_rect(448, 415, 192, 65);
 
             draw_bitmap(bitmaps[step->bitmap],
-                        step->x, step->y + 0x19f, 0);
+                        step->x, step->y + 415, 0);
 
             if (step->bitmap == 0)
                 play_sound(0x14);
@@ -238,7 +238,7 @@ void game_intro(void)
             step++;
 
             draw_bitmap(bitmaps[step->bitmap],
-                        step->x, step->y + 0x19f, 0);
+                        step->x, step->y + 415, 0);
 
             step++;
 
