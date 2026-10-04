@@ -927,6 +927,16 @@ struct point8 {
 } PACKED;
 
 /*
+ * **An offset in signed bytes**: a draw step's frame offsets and a kind's
+ * hot spots, which every reader sign-extends - `cbw` before the add - so a
+ * byte of 0xf1 is -15. Ours, as a name, like `point8`.
+ */
+struct offset8 {
+    int8_t  x;                 /* +0x00 */
+    int8_t  y;                 /* +0x01 */
+} PACKED;
+
+/*
  * ---------------------------------------------------------------------------
  * **The palette chunk names and the table that chooses between them**, at
  * DGROUP 0x4486 - and the table is *inside* the run, four strings then
@@ -1606,7 +1616,7 @@ struct draw_step {
     struct draw_step *next; /* +0x00 */
     uint8_t   level;              /* +0x02  drawn on this level only, unless the part is carried */
     uint8_t   frame[4];           /* +0x03  indices into the kind's bitmap set; 0xff ends the list */
-    struct point8 offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
+    struct offset8 offset[4];  /* +0x07  each frame's offset from the part */
 } PACKED;
 
 /* **The one draw step `draw_part` builds itself**, at DGROUP 0x0124, for a
@@ -3187,7 +3197,7 @@ struct part_kind {
        to the position and mirrors within `flip_size` when the part is
        flipped, and the size of each form as a `point16`, which
        `set_object_extent` takes in preference to the bitmap's own. */
-    const struct point8 *hotspots; /* +0x18 */
+    const struct offset8 *hotspots; /* +0x18 */
     const struct point16 *sizes; /* +0x1a */
     /* **Two level bounds, not padding.** `refile_overlapping_parts` compares a
        draw level against each, with 0xff meaning no limit. The name is a

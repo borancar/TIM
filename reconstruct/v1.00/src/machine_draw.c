@@ -1686,7 +1686,7 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
     uint16_t px;
     uint16_t py;
     uint8_t frame;
-    const struct point8 *hot;          /* the kind's hot spot for this form, a table offset */
+    const struct offset8 *hot;         /* the kind's hot spot for this form, a table offset */
     int16_t i;
     const struct part_kind *kindrec;
     const struct draw_step *step;
@@ -1704,8 +1704,8 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
         x0 = part->pos[0].x - g_origin_x;
         y = part->pos[0].y - g_origin_y;
         if (hot != 0) {
-            x0 += (int8_t)hot->x;
-            y = (int8_t)hot->y;
+            x0 += hot->x;
+            y = hot->y;
         }
         px = (x0 & 0x10) >> 4;
         py = (y & 0x10) >> 4;
@@ -1768,23 +1768,23 @@ void draw_part(register struct part *part, uint8_t level, int16_t a, int16_t b)
             for (i = 0; i < 4 && frame != 0xff; frame = step->frame[i + 1], i++) {
 #else
             for (i = 0; i < 4 && frame != 0xff;
-                 frame = i + 1 < 4 ? step->frame[i + 1] : step->offset[0].x, i++) {
+                 frame = i + 1 < 4 ? step->frame[i + 1] : (uint8_t)step->offset[0].x, i++) {
 #endif
                 bmp = kindrec->bitmaps[frame];
                 x = part->pos[0].x - g_origin_x;
                 y = part->pos[0].y - g_origin_y;
                 if (part->state & STATE_FLIP_HORIZONTAL) {
-                    x += part->flip_size.width - (int8_t)step->offset[i].x - bmp->width;
+                    x += part->flip_size.width - step->offset[i].x - bmp->width;
                     flip = DRAW_FLIP_HORIZONTAL;
                 } else {
-                    x += (int8_t)step->offset[i].x;
+                    x += step->offset[i].x;
                     flip = 0;
                 }
                 if (part->state & STATE_FLIP_VERTICAL) {
-                    y += part->flip_size.height - (int8_t)step->offset[i].y - bmp->height;
+                    y += part->flip_size.height - step->offset[i].y - bmp->height;
                     flip |= DRAW_FLIP_VERTICAL;
                 } else
-                    y += (int8_t)step->offset[i].y;
+                    y += step->offset[i].y;
                 if (a != 0) {
                     w = (int16_t)(mul16x16(bmp->width, b) >> 10);
                     h = (int16_t)(mul16x16(bmp->height, b) >> 10);
