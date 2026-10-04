@@ -37,9 +37,10 @@ struct sound_bank g_sound_bank = {
  * run-time library's begins at 0x4ab4 - and the objects linked after this
  * one, trig.c and atan2.c, have no `_DATA`; and this module's has no string
  * literals, which Borland would have put after them. So they are this
- * module's, defined after the record. What they were for is not known.
+ * module's, defined after the record: a device and a sample rate, going by
+ * the values; nothing reads them.
  */
-struct dg_4ab0 g_dg4ab0 = { 0xfffe, 0x2b11 };
+struct sound_output g_sound_output = { -2, 11025 };
 
 /*
  * 0x296b4

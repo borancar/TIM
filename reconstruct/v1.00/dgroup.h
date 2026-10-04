@@ -174,9 +174,11 @@ typedef struct paragraph *dg_sseg_t;
  * uses -
  * `int16_t` where the original does signed compares, `uint8_t` for a flag byte.
  *
- * `unknown_XX` is a field whose purpose has not been established, named for its
- * offset so that it is obvious what is known and what is not. They are not
- * padding: the code reads and writes several of them.
+ * `pad_XX` is a field no instruction names - the game's, checked with
+ * `tools/xrefs.py`, and the VGA driver's or the sound module's where the
+ * record is theirs - named for its offset. It is not alignment: the bytes
+ * are there in the original, and nothing reads them. `unknown_XX` is one not
+ * yet settled either way.
  *
  * **Every one of these overlays is `packed`, and it is not superstition.**
  * DGROUP has words at odd addresses - the game's own state block starts at
@@ -304,11 +306,12 @@ struct vmds {
        record**: every direct reference the dumped VGA overlay makes is an
        offset into it, `[4]` for `clip_left`, `[0x12]` for `page_back`,
        `[0x21]` for `adapter`. Both sides were scanned for +0x0f, +0x1a, +0x1e,
-       +0x20, +0x24 and +0x84 - the game's own code with `tools/xrefs.py`, and
-       the overlay's 2,969 reachable instructions the same way - and neither
-       names any of them. What is left is the seven adapters' drivers this port
-       does not transcribe. */
-    uint8_t   unknown_0f;                   /* +0x0f */
+       +0x20, +0x24, +0x84, +0x1ca, +0x6c5, +0x6e4 and +0x6ee - the game's
+       own code with `tools/xrefs.py` (1.00), and the overlay's 3,331
+       instructions reachable from its fifty vectors the same way - and
+       neither names any of them, so each is a `pad_`. What is left is the
+       seven adapters' drivers this port does not transcribe. */
+    uint8_t   pad_0f;                   /* +0x0f */
     /* **The page the saved-rect slots are keyed against**, which the two
        `free_saved_rects` calls pass as the source beside the front and the
        back. `vm_init` gives it the second page's segment - 0xa800, or 0xa000
@@ -318,23 +321,23 @@ struct vmds {
     vga_page_t  page_front;               /* +0x14  on screen */
     vga_page_t  page_src;                 /* +0x16  a copy's source */
     vga_page_t  page_dst;                 /* +0x18  what drawing goes into */
-    uint8_t   unknown_1a[2];                /* +0x1a */
+    uint8_t   pad_1a[2];                /* +0x1a */
     /* Set by `detect_pcjr`, which reads the two ROM bytes that say so, and
        read by the keyboard ISR. */
     uint8_t   is_pcjr;                      /* +0x1c */
     int8_t    pixel_shift;                  /* +0x1d  bytes per pixel, as a
                                              * shift; signed, and read so */
-    uint8_t   unknown_1e;                   /* +0x1e */
+    uint8_t   pad_1e;                   /* +0x1e */
     /* **Take the 256-colour resources**: while it is set the loaders look for
        the `VGA:` bitmap chunk and the `AMG:` palette instead of the plain
        ones. `vm_init` clears it and **nothing in the image sets it**, so this
        build always reads the plain chunks; the branches are transcribed as
        they stand. */
     uint8_t   vga_chunks;                   /* +0x1f */
-    uint8_t   unknown_20;                   /* +0x20 */
+    uint8_t   pad_20;                   /* +0x20 */
     uint8_t   adapter;                      /* +0x21  0x10 is the VGA */
     uint16_t  line_colour;                  /* +0x22 */
-    uint8_t   unknown_24[0x10];             /* +0x24 */
+    uint8_t   pad_24[0x10];             /* +0x24 */
     /*
      * +0x34  **a bitmap font's four header bytes**, one table per font slot,
      * 0x14 apart; slot 0 is the selected font's. The loader reads them in
@@ -349,7 +352,7 @@ struct vmds {
     uint8_t   font_cell_height[0x14];       /* +0x48  DGROUP 0x38d8 */
     uint8_t   font_first_char[0x14];        /* +0x5c  DGROUP 0x38ec */
     uint8_t   font_char_count[0x14];        /* +0x70  DGROUP 0x3900 */
-    uint8_t   unknown_84[0x28];             /* +0x84 */
+    uint8_t   pad_84[0x28];             /* +0x84 */
     /*
      * +0xac  the polygon clipper's four arrays, 0x28 bytes and so twenty
      * entries each. `clip_polygon` runs Sutherland and Hodgman's in two
@@ -369,13 +372,13 @@ struct vmds {
        The game reaches them at DGROUP 0x3a2c; the driver reaches slot 0 on its
        own as VGA:0x0f15's palette, driverDS:0x19e. One block, two readers. */
     struct vm_palettes palettes;                /* +0x19c  DGROUP 0x3a2c */
-    uint8_t   unknown_1ca[0x4f2];           /* +0x1ca */
+    uint8_t   pad_1ca[0x4f2];           /* +0x1ca */
     uint16_t  dda_whole;                    /* +0x6bc */
     uint16_t  dda_frac;                     /* +0x6be */
     int16_t   dda_saved;                    /* +0x6c0 */
     uint16_t  dda_acc;                      /* +0x6c2 */
     uint8_t   line_mask;                    /* +0x6c4 */
-    uint8_t   unknown_6c5[0x1d];            /* +0x6c5 */
+    uint8_t   pad_6c5[0x1d];            /* +0x6c5 */
     /* **The page hook**, DGROUP 0x3f72, which the game reads. Non-zero makes
        the three blitters call the vector at DGROUP 0x43b6 between taking the
        destination page and reading the clip. That vector is the driver's
@@ -383,7 +386,7 @@ struct vmds {
        keeps the guard so a build whose 0x3f72 is *set* is not silently the
        same as one whose is clear. The name is a reading of that one use. */
     int16_t   page_hook;                    /* +0x6e2 */
-    uint8_t   unknown_6e4[4];               /* +0x6e4 */
+    uint8_t   pad_6e4[4];               /* +0x6e4 */
     /*
      * +0x6e8  **DGROUP 0x3f78**, and the same six bytes `DG3F78` names. The
      * driver fills them in `vm_driver_init` and the game reads them all over;
@@ -391,7 +394,7 @@ struct vmds {
      * height had a name in each.
      */
     struct vm_screen screen;                  /* +0x6e8  DGROUP 0x3f78 */
-    uint8_t   unknown_6ee[4];               /* +0x6ee */
+    uint8_t   pad_6ee[4];               /* +0x6ee */
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } PACKED;
 
@@ -479,7 +482,7 @@ extern int16_t g_bonus_1_scroll;
 extern int16_t g_password_puzzle;
 extern int16_t g_furthest_level;
 extern int16_t g_level_count;
-extern uint16_t g_word_4ebb;
+extern uint16_t g_round_unread;
 extern int16_t g_round_number;
 extern int16_t g_playing;
 extern int16_t g_master_level;
@@ -3575,7 +3578,10 @@ extern struct engine_read_staging g_engine_read_staging;
  * known. Segment 1c25 and segment 0000 are both code.
  */
 struct vm_hooks {
-    void (far *ptr_440e)(void);    /* +0x00 */
+    /* **A fifty-first vector that is never filled**: it starts as
+       `vm_null_hook`, as the fifty before it do, `vm_init` copies only
+       fifty, and no instruction names it (`tools/xrefs.py`, 1.00). */
+    void (far *unfilled)(void);    /* +0x00 */
     void (far *driver_table[19])(void); /* +0x04  0x4412 */
     /* 0x445e, the palette cycle count, is palette.c's. */
 } PACKED;
@@ -3585,16 +3591,17 @@ extern struct vm_hooks g_vm_hooks;
 extern void (far *g_compressed_body_vector)();   /* compbmp.c's: `draw_compressed_body`,
                                                     the vector the thunk at 0x20185 jumps through */
 
-/* DGROUP 0x4ab0..0x4ab4: two words - the second is 0x2b11, 11025, which is a
-   sample rate, and that is all that is known. */
-struct dg_4ab0 {
-    /* **The same shape**: nothing in the port touches them and the image names
-       neither offset. 0x2b11 has the look of a DGROUP offset and 0xfffe of a
-       -2, which is as far as the evidence goes. */
-    uint16_t  _pad_4ab0;       /* +0x00 */
-    uint16_t  _pad_4ab2;           /* +0x02 */
+/* DGROUP 0x4ab0..0x4ab4: **the last two words of the game's data**, after
+   `g_sound_bank` and before the run-time library's. No instruction names
+   either (`tools/xrefs.py`, 1.00), so both names are guesses from the
+   values alone. */
+struct sound_output {
+    /* -2, which is also `g_sound_bank.device`'s initial value. */
+    int16_t   device;          /* +0x00 */
+    /* 11025, 0x2b11: a sample rate. */
+    uint16_t  sample_rate;     /* +0x02 */
 } PACKED;
-extern struct dg_4ab0 g_dg4ab0;
+extern struct sound_output g_sound_output;
 
 /*
  * ---------------------------------------------------------------------------

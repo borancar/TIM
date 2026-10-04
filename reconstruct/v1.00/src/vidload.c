@@ -64,9 +64,9 @@ char g_ovl_tag[] = "OVL:     ";
 struct engine_scale_step {
     uint16_t  base;               /* +0x00 [2]  one `n` further on, less the one this indexes */
     /* Written once, at the top of `blit_scaled_a`, with the scale table's
-       first entry, and never read - by this routine or any other in the port.
-       Named by address because a lone store says nothing more. */
-    uint16_t  word_6290;          /* +0x02 [2] */
+       first entry, and never read: one instruction names 0x6290, that store
+       (`tools/xrefs.py`, 1.00). Named for what is stored. */
+    uint16_t  first_entry;        /* +0x02 [2] */
 } PACKED;
 
 struct engine_scale_step g_engine_scale_step;
@@ -302,7 +302,7 @@ void blit_scaled_a(struct bitmap *bmp, int16_t x, int16_t y,
     x0 = x;
     xrow = x;
     colrow = g_engine_scale_step.base = 0;
-    g_engine_scale_step.word_6290 = g_engine_scale_table.entry[g_engine_scale_step.base];
+    g_engine_scale_step.first_entry = g_engine_scale_table.entry[g_engine_scale_step.base];
 
     srcrow = src;
 

@@ -1754,8 +1754,8 @@ void    huff_putcode(int16_t len, uint16_t code);      /* 0x1e04e */
 void    encode_char(uint16_t c);                       /* 0x1e445 */
 void    encode_position(uint16_t c);                   /* 0x1e4a7 */
 void    encode_end(void);                              /* 0x1e4e7 */
-void    vm_call_4_thunk(void);                         /* 0x1e93c */
-void    vm_call_38_thunk(void);                        /* 0x1e948 */
+void    blit_bitmap_plain_thunk(void);                         /* 0x1e93c */
+void    blit_scaled_row_thunk(void);                        /* 0x1e948 */
 int16_t near decompress_lzw(void);                     /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
 int16_t huff_get_byte(void);                           /* 0x1e00b */

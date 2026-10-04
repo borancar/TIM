@@ -97,13 +97,13 @@ _DATA ends
 
 VMIFACE_TEXT segment byte public 'CODE'
 assume cs:VMIFACE_TEXT, ds:DGROUP
-public _vm_call_4_thunk, _blit_bitmap_thunk, _blit_scaled_thunk, _vm_call_38_thunk
+public _blit_bitmap_plain_thunk, _blit_bitmap_thunk, _blit_scaled_thunk, _blit_scaled_row_thunk
 public _restore_write_mode, _vm_null_hook
 
 /* 0x1e93c */
-_vm_call_4_thunk proc near
+_blit_bitmap_plain_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+10h
-_vm_call_4_thunk endp
+_blit_bitmap_plain_thunk endp
 
 /* 0x1e940 */
 _blit_bitmap_thunk proc near
@@ -116,9 +116,9 @@ _blit_scaled_thunk proc near
 _blit_scaled_thunk endp
 
 /* 0x1e948 */
-_vm_call_38_thunk proc near
+_blit_scaled_row_thunk proc near
         jmp dword ptr DGROUP:_g_vm_driver+98h
-_vm_call_38_thunk endp
+_blit_scaled_row_thunk endp
 
 /* 0x1e94c */
 _restore_write_mode proc far
@@ -243,7 +243,7 @@ struct vm_hooks g_vm_hooks = {   /* DGROUP 0x440e */
  * A jump through the video driver's vector 4, DGROUP 0x4352. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
  */
-void vm_call_4_thunk(void)
+void blit_bitmap_plain_thunk(void)
 {
     not_transcribed("0x1e93c");
 }
@@ -278,7 +278,7 @@ void blit_scaled_thunk(struct bitmap * bmp, int16_t x, int16_t y)
  * A jump through the video driver's vector 38, DGROUP 0x43da. Nothing calls it. NOT TRANSCRIBED YET for the host: nothing the port runs reaches
  * it. A stub, which aborts; the TASM source above is the original's.
  */
-void vm_call_38_thunk(void)
+void blit_scaled_row_thunk(void)
 {
     not_transcribed("0x1e948");
 }
@@ -309,7 +309,7 @@ void restore_write_mode(void)
  * 0x1e966
  *
  * **A far routine that does nothing**, one `retf` - the entry every one of
- * `g_vm_driver.entry`'s fifty slots and `g_vm_hooks.ptr_440e` hold until the driver
+ * `g_vm_driver.entry`'s fifty slots and `g_vm_hooks.unfilled` hold until the driver
  * fills them. The name is ours. NOT TRANSCRIBED YET for the host: nothing
  * calls a slot before `vm_init` has filled it. A stub, which aborts.
  */
