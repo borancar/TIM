@@ -75,12 +75,12 @@ void part_step_cannon(struct part *part)
             si->traits |= TRAIT_SPAWNED;
 
             if (part->state & STATE_FLIP_HORIZONTAL) {
-                si->pos[0].x = part->pos[0].x - 0x30;
-                si->pos[1].x = si->pos[2].x = si->pos[0].x + 0x18;
+                si->pos[0].x = part->pos[0].x - 48;
+                si->pos[1].x = si->pos[2].x = si->pos[0].x + 24;
                 si->vel_x = (int16_t)0xd000;
             } else {
-                si->pos[0].x = part->pos[0].x + 0x61;
-                si->pos[1].x = si->pos[2].x = si->pos[0].x - 0x18;
+                si->pos[0].x = part->pos[0].x + 97;
+                si->pos[1].x = si->pos[2].x = si->pos[0].x - 24;
                 si->vel_x = 0x3000;
             }
 

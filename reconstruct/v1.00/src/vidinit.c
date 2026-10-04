@@ -501,8 +501,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     g_vm_start.mode_forced = (uint8_t)adapter;
     g_vmds.screen.mode_kind = 0;
     g_vmds.vga_chunks = 0;
-    g_vmds.screen.screen_width = 0x140;
-    g_vmds.screen.screen_height = 0xc8;
+    g_vmds.screen.screen_width = 320;
+    g_vmds.screen.screen_height = 200;
 
     if (g_vmds.palettes.blocks[0] != NULL) {
         dos_free_far(g_vmds.palettes.blocks[0]);

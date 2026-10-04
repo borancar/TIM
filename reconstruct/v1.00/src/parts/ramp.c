@@ -105,7 +105,7 @@ void part_setup_ramp(struct part *part)
 void part_settle_ramp(struct part *part)
 {
     part->size[0] = part->set_size;
-    part->start_form = part->form = part->size[0].width / 0x10 - 1;
+    part->start_form = part->form = part->size[0].width / 16 - 1;
 
     part_setup_ramp(part);
 }

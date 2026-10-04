@@ -168,9 +168,9 @@ void part_setup_gear(struct part *part)
                 else if (dx == -0x20)
                     part->link[1] = di;
             } else if (dx == 0) {
-                if (dy == 0x20)
+                if (dy == 32)
                     part->link[2] = di;
-                else if (dy == -0x20)
+                else if (dy == -32)
                     part->link[3] = di;
             }
         }

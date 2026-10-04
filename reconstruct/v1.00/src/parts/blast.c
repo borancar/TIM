@@ -165,8 +165,8 @@ void split_part_at(struct part *part, struct part *blast)
     v08 = blast->pos[0].y + (blast->size[0].height >> 1);
 
     if (part->size[0].width > part->size[0].height) {
-        v04 = ((v02 - 0x20) & 0xfff0) + 8;
-        v06 = ((v02 + 0x18) & 0xfff0) + 8;
+        v04 = ((v02 - 32) & 0xfff0) + 8;
+        v06 = ((v02 + 24) & 0xfff0) + 8;
 
         if (part->pos[0].x < v04) {
             if (part->pos[0].x + part->size[0].width > v06) {
@@ -199,8 +199,8 @@ void split_part_at(struct part *part, struct part *blast)
             part->state |= STATE_GONE;
         }
     } else {
-        v0a = ((v08 - 0x20) & 0xfff0) + 8;
-        v0c = ((v08 + 0x18) & 0xfff0) + 8;
+        v0a = ((v08 - 32) & 0xfff0) + 8;
+        v0c = ((v08 + 24) & 0xfff0) + 8;
 
         if (part->pos[0].y < v0a) {
             if (part->pos[0].y + part->size[0].height > v0c) {

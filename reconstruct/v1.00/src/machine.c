@@ -592,10 +592,10 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
     if (exclude != NULL
         && (exclude == part || exclude == link_end
             || exclude == e0_part || exclude == e1_part)) {
-        x0 -= 0xb;
-        y0 -= 0xb;
-        x1 += 0xb;
-        y1 += 0xb;
+        x0 -= 11;
+        y0 -= 11;
+        x1 += 11;
+        y1 += 11;
     }
 
     if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
@@ -604,10 +604,10 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
             y0 = oy + part->grab.y;
             x1 = x0 + part->grab_size;
             y1 = (part->size[0].height >> 1) < (int16_t)part->grab_size
-                 ? y0 + 0xa : y0 + part->grab_size;
+                 ? y0 + 10 : y0 + part->grab_size;
             if (link->owner == exclude) {
-                x0 -= 0xb;
-                y0 -= 0xb;
+                x0 -= 11;
+                y0 -= 11;
             }
             if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
                 if (link->end_a == part) {
@@ -623,11 +623,11 @@ struct part *part_under_pointer(struct part *exclude, register struct part *part
                 && part->kind != KIND_PULLEY) {
                 x0 = ox + part->attach[i].x - 8;
                 y0 = oy + part->attach[i].y - 4;
-                x1 = x0 + 0x10;
+                x1 = x0 + 16;
                 y1 = y0 + 8;
                 if (cur->owner == exclude) {
-                    x0 -= 0xb;
-                    y0 -= 0xb;
+                    x0 -= 11;
+                    y0 -= 11;
                 }
                 if (x0 < pl && x1 > pr && y0 < pt && y1 > pb) {
                     if (cur->end_a == part)
@@ -1073,9 +1073,9 @@ uint16_t part_handle_at_pointer(register struct part *part)
 int16_t points_within_140(register const struct point16 *a,
                           register const struct point16 *b)
 {
-    if (abs((int16_t)(a->x - b->x)) > 0x8c)
+    if (abs((int16_t)(a->x - b->x)) > 140)
         return 0;
-    if (abs((int16_t)(a->y - b->y)) > 0x8c)
+    if (abs((int16_t)(a->y - b->y)) > 140)
         return 0;
     return 1;
 }
@@ -1259,7 +1259,7 @@ void aim_link_at_bisector(register struct part *part)
         switch (quad) {
         case 0:
         case 2:
-            part->attach[0].y = part->attach[1].y = quad == 0 ? 0x0a : 6;
+            part->attach[0].y = part->attach[1].y = quad == 0 ? 10 : 6;
             if ((quad == 0 && d < 0x8000) || (quad == 2 && d >= 0x8000)) {
                 part->attach[0].x = 0;
                 part->attach[1].x = 15;
@@ -1270,7 +1270,7 @@ void aim_link_at_bisector(register struct part *part)
             break;
         case 1:
         case 3:
-            part->attach[0].x = part->attach[1].x = quad == 1 ? 6 : 0x0a;
+            part->attach[0].x = part->attach[1].x = quad == 1 ? 6 : 10;
             if ((quad == 1 && d < 0x8000) || (quad == 3 && d >= 0x8000)) {
                 part->attach[0].y = 0;
                 part->attach[1].y = 15;
@@ -2556,8 +2556,8 @@ void mark_rope_shapes(struct part *part, uint16_t mode)
     struct part *far_part;              /* [bp-0x12] */
 
     si = part->rope[0];
-    box[0] = 0x10;
-    box[1] = 0x10;
+    box[0] = 16;
+    box[1] = 16;
 
     if (g_round_state == 0x2000) {
         near_part = si->end_a;

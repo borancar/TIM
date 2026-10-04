@@ -100,7 +100,7 @@ uint16_t part_hit_dynamite_plunger(struct part *part)
         di->direction = 1;
     else if (part->vel_y > 0
              && (int16_t)(part->contact_angle + 0x800) < 0x1000
-             && part->pos[0].y + part->flip_size.height < di->pos[0].y + 0x0c)
+             && part->pos[0].y + part->flip_size.height < di->pos[0].y + 12)
         di->direction = 1;
 
     return 1;
@@ -166,11 +166,11 @@ void part_step_dynamite_plunger(struct part *part)
 
             insert_sorted(si, &g_placed_parts);
             si->traits |= TRAIT_SPAWNED;
-            si->pos[0].x = part->pos[0].x - 0x10;
+            si->pos[0].x = part->pos[0].x - 16;
             si->pos[0].y = part->pos[0].y;
 
             if (part->state & STATE_FLIP_HORIZONTAL)
-                si->pos[0].x += 0x60;
+                si->pos[0].x += 96;
 
             si->fx = si->pos[0].x;
             si->fx <<= 9;

@@ -186,15 +186,15 @@ int16_t conveyor_speed_for_mass(struct part *obj)
 void conveyor_nudge_3(struct part *obj, int16_t mid)
 {
     if (obj->form == 0) {
-        if ((int16_t)(obj->pos[0].x + 0x24) > mid)
+        if ((int16_t)(obj->pos[0].x + 36) > mid)
             obj->direction = 1;
     } else if (obj->form == 1) {
-        if ((int16_t)(obj->pos[0].x + 0x28) > mid)
+        if ((int16_t)(obj->pos[0].x + 40) > mid)
             obj->direction = 1;
         else
             obj->direction = 0xffff;
     } else if (obj->form == 2) {
-        if ((int16_t)(obj->pos[0].x + 0x2c) < mid)
+        if ((int16_t)(obj->pos[0].x + 44) < mid)
             obj->direction = 0xffff;
     }
 }
@@ -209,10 +209,10 @@ void conveyor_nudge_10(struct part *obj, int16_t mid)
 {
     if (obj->form == 0) {
         if (obj->state & STATE_FLIP_HORIZONTAL) {
-            if (obj->pos[0].x + 0x0c < mid)
+            if (obj->pos[0].x + 12 < mid)
                 obj->direction = 1;
         } else {
-            if (obj->pos[0].x + 0x2c > mid)
+            if (obj->pos[0].x + 44 > mid)
                 obj->direction = 1;
         }
     }
@@ -228,7 +228,7 @@ void conveyor_nudge_10(struct part *obj, int16_t mid)
  */
 void conveyor_nudge_15(struct part *obj, int16_t mid)
 {
-    if (obj->form >= 4 && obj->pos[0].x - 2 < mid && obj->pos[0].x + 0x14 > mid) {
+    if (obj->form >= 4 && obj->pos[0].x - 2 < mid && obj->pos[0].x + 20 > mid) {
         obj->form -= 4;
         part_setup_electric_plug(obj);
         play_sound(0x11);
@@ -250,10 +250,10 @@ void conveyor_nudge_25(struct part *obj, int16_t mid)
 {
     if (obj->form == 0) {
         if (obj->state & STATE_FLIP_HORIZONTAL) {
-            if (obj->pos[0].x + 0x12 < mid)
+            if (obj->pos[0].x + 18 < mid)
                 obj->direction = 1;
         } else {
-            if (obj->pos[0].x + 0x18 > mid)
+            if (obj->pos[0].x + 24 > mid)
                 obj->direction = 1;
         }
     }

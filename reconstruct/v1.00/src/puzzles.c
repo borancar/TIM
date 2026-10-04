@@ -259,7 +259,7 @@ uint16_t select_puzzle_screen(void)
             break;
 
         case 0x4000:                    /* a click in the list */
-            row = g_puzzle_state.puzzle_page + (g_pointer.pointer_y - 0x4c) / 10;
+            row = g_puzzle_state.puzzle_page + (g_pointer.pointer_y - 76) / 10;
 
             if (row <= g_level_count) {
                 if (row > g_furthest_level) {
@@ -536,7 +536,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     g_vmds.page_dst = g_vmds.page_back;
     fill_panel_area(48, 72, 400, 216, 0);
 
-    for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {
+    for (i = 0, y = 76; i < 21; i++, y += 10, first++) {
         strcpy(name, g_messages.puzzle_prefix);
         itoa(first, num, 10);
         strcat(name, num);

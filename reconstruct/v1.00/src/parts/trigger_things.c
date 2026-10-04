@@ -68,7 +68,7 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
         switch (si->kind) {
         case 0x10:
             if (si->state & STATE_FLIP_HORIZONTAL) {
-                if (d >= 0x36 && d <= 0x3c)
+                if (d >= 54 && d <= 60)
                     si->direction = 1;
             } else if (d >= 0 && d <= 8) {
                 si->direction = 1;
@@ -79,18 +79,18 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
             break;
         case 0x25:
             if (si->state & STATE_FLIP_HORIZONTAL) {
-                if (d >= 0x19 && d <= 0x25)
+                if (d >= 25 && d <= 37)
                     si->direction = 1;
-            } else if (d >= 0 && d <= 0x0c) {
+            } else if (d >= 0 && d <= 12) {
                 si->direction = 1;
             }
             break;
         case 0x19:
             if (mode == 1) {
                 if (si->state & STATE_FLIP_HORIZONTAL) {
-                    if (d >= 0x0d && d <= 0x18)
+                    if (d >= 13 && d <= 24)
                         si->direction = 1;
-                } else if (d >= 5 && d <= 0x10) {
+                } else if (d >= 5 && d <= 16) {
                     si->direction = 1;
                 }
             }
@@ -98,9 +98,9 @@ void trigger_things_at(struct part *part, int16_t mode, int16_t dx)
         case 0x16:
             if (mode == 1) {
                 if (si->state & STATE_FLIP_HORIZONTAL) {
-                    if (d >= 0 && d <= 0x1f)
+                    if (d >= 0 && d <= 31)
                         si->direction = 1;
-                } else if (d >= 0x67 && d <= 0x87) {
+                } else if (d >= 103 && d <= 135) {
                     si->direction = 1;
                 }
             }

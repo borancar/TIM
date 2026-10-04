@@ -311,7 +311,7 @@ void game_intro(void)
             g_origin_c_x = g_origin_b_x = g_origin_x = -8;
         } else {
             load_animation(WRITABLE_LITERAL("credits.gkc"));
-            g_origin_c_x = g_origin_b_x = g_origin_x = -0x10;
+            g_origin_c_x = g_origin_b_x = g_origin_x = -16;
         }
         g_origin_c_y = g_origin_b_y = g_origin_y = 0;
 
@@ -418,7 +418,7 @@ void game_intro(void)
 
     g_vmds.page_front = 0xa190;
     g_vmds.page_back = 0xa8c0;
-    g_vmds.screen.screen_height = 0x16f;
+    g_vmds.screen.screen_height = 367;
 
     vm_set_display_lines(0x1bf);
     vm_set_line_compare(0x16f);
@@ -527,7 +527,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
     register int16_t si;
     register int16_t pick;      /* the part a click lands on */
 
-    g_vmds.screen.screen_height = 0x18f;
+    g_vmds.screen.screen_height = 399;
 
     for (si = 0; si < 3; si++)
         answers[si] = -1;
@@ -564,8 +564,8 @@ void copy_protect_screen(struct bitmap **bitmaps)
     draw_scroll_text(msg, 64, 262, 512);
 
     for (si = 0; si < 0x20; si++) {
-        x    = (int16_t)(((si % 8) << 6) + 0x40);
-        y    = (int16_t)((si / 8) * 0x30 + 0x20);
+        x    = (int16_t)(((si % 8) << 6) + 64);
+        y    = (int16_t)((si / 8) * 48 + 32);
         part = si;
         if (part > 0x13)
             part++;
@@ -611,14 +611,14 @@ void copy_protect_screen(struct bitmap **bitmaps)
                           (uint16_t)((highlight / 8) * 48 + 48));
         }
 
-        select_cursor((g_pointer.pointer_x >= 0x248 && g_pointer.pointer_y >= 0x158)
+        select_cursor((g_pointer.pointer_x >= 584 && g_pointer.pointer_y >= 344)
                       ? 0x15 : 0);
 
         if (((int16_t)g_pointer.button_left) == 2) {            /* the frame of a click */
-            if (g_pointer.pointer_x >= 0x40 && g_pointer.pointer_x < 0x240
-                && g_pointer.pointer_y >= 0x20 && g_pointer.pointer_y < 0xe0) {
-                pick = (g_pointer.pointer_x - 0x40) / 0x40
-                       + (g_pointer.pointer_y - 0x20) / 0x30 * 8;
+            if (g_pointer.pointer_x >= 64 && g_pointer.pointer_x < 576
+                && g_pointer.pointer_y >= 32 && g_pointer.pointer_y < 224) {
+                pick = (g_pointer.pointer_x - 64) / 64
+                       + (g_pointer.pointer_y - 32) / 48 * 8;
                 if (pick > 0x13)
                     pick++;
                 if (pick == 0x1e)
@@ -634,7 +634,7 @@ void copy_protect_screen(struct bitmap **bitmaps)
                     slot = 0;
             }
 
-            if (g_pointer.pointer_x >= 0x248 && g_pointer.pointer_y >= 0x158)
+            if (g_pointer.pointer_x >= 584 && g_pointer.pointer_y >= 344)
                 game_teardown(1);
         }
 
@@ -689,7 +689,7 @@ void draw_answer_slot(struct bitmap *bmp, uint16_t slot)
 
     g_vmds.page_dst = g_vmds.page_back;
 
-    x = (int16_t)(slot * 0x60 + 0xc0);
+    x = (int16_t)(slot * 96 + 192);
 
     draw_panel(x, 300, 64, 48);
     cursor_redraw_off_thunk();

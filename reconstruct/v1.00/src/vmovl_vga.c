@@ -141,7 +141,7 @@ uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void
     io_out16(PORT_SEQ_INDEX, 0x0f02);
     io_out16(PORT_GC_INDEX, 0x0205);
 
-    g_vmds.screen.screen_width = 0x280;
+    g_vmds.screen.screen_width = 640;
     g_vmds.clip_right   = 639;
     g_vmds.clip_bottom  = (int16_t)(g_vmds.screen.screen_height - 1);
 

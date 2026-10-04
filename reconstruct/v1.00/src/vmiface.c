@@ -152,10 +152,10 @@ VMIFACE_TEXT ends
  * table of the game's routines the driver is handed, the `dd` list above.
  */
 struct vmds g_vmds = {
-    .clip_right = 0x013f,
-    .clip_bottom = 0x00c7,
+    .clip_right = 319,
+    .clip_bottom = 199,
     .fill_enabled = 0x01,
-    .screen = { .screen_width = 0x0140, .screen_height = 0x00c8 },
+    .screen = { .screen_width = 320, .screen_height = 200 },
 };
 
 struct vm_driver g_vm_driver = {   /* DGROUP 0x4342 */

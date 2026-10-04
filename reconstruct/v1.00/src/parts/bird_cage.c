@@ -101,7 +101,7 @@ yes:
     }
 no:
     if (p4 == 2) {
-        p2->pos[0].y -= 0x14;
+        p2->pos[0].y -= 20;
         p2->direction++;
         place_object_for_draw(p2);
     }

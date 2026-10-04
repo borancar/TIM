@@ -328,7 +328,7 @@ void collect_carried(register struct part *obj)
     if (obj->kind == KIND_BUCKET) {
         obj->next_linked = 0;
         left = obj->pos[1].x + 4;
-        right = left + 0x1c;
+        right = left + 28;
         top = obj->pos[1].y;
         bottom = top + obj->size[0].height;
 
@@ -349,7 +349,7 @@ void collect_carried(register struct part *obj)
                 && si->vel_y > 0 && their_mid > left && their_mid < right)
                 carried = 1;
             if (!carried && their_mid > left && their_mid < right
-                && top + 0x14 < their_bottom && their_bottom < bottom)
+                && top + 20 < their_bottom && their_bottom < bottom)
                 carried = 1;
 
             if (carried) {

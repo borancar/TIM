@@ -186,10 +186,10 @@ void part_step_pokey(struct part *part)
             while (di != NULL) {
                 switch (di->kind) {
                 case KIND_MORT_THE_MOUSE:
-                    dx = di->pos[0].x - part->pos[0].x + 0x10;
+                    dx = di->pos[0].x - part->pos[0].x + 16;
                     dy = di->pos[0].y - part->pos[0].y;
 
-                    if (dx > 0 && dx < 0x38 && dy > 0 && dy < 0x28) {
+                    if (dx > 0 && dx < 56 && dy > 0 && dy < 40) {
                         mark_part_shapes(di, 3);
                         di->state |= STATE_GONE;
                         play_sound(0x0d);

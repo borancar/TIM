@@ -738,23 +738,23 @@ uint8_t far *load_video_driver(register int16_t adapter, char *name)
     switch (adapter) {
     case 0xc:
         adapter = 0xb;
-        g_vmds.screen.screen_height = 0x15e;
+        g_vmds.screen.screen_height = 350;
         break;
     case 0xd:
         adapter = 0xb;
-        g_vmds.screen.screen_height = 0x1e0;
+        g_vmds.screen.screen_height = 480;
         break;
     case 0xe:
         adapter = 0xb;
-        g_vmds.screen.screen_height = 0x190;
+        g_vmds.screen.screen_height = 400;
         break;
     case 4:
         adapter = 1;                    /* overwritten below, never read */
-        g_vmds.screen.screen_width = 0x280;
+        g_vmds.screen.screen_width = 640;
         /* falls through */
     case 0xf:
         adapter = 8;
-        g_vmds.screen.screen_height = 0x190;
+        g_vmds.screen.screen_height = 400;
         break;
     }
 

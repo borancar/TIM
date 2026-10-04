@@ -129,9 +129,9 @@ void iff_write_body(FILE *f)
     len = 0x46500L;
     iff_write_be((uint8_t *)&len, 1, 4, f);
     buf = p = malloc(0x500);
-    for (y = 0; y < 0x1c2; y++) {
+    for (y = 0; y < 450; y++) {
         p = buf;
-        for (x = 0; x < 0x280; x++)
+        for (x = 0; x < 640; x++)
             *p++ = (uint8_t)read_pixel_clipped(x, y);
         chunky_to_planar(buf, buf + 0x280);
         fwrite(buf + 0x280, 0x280, 1, f);
@@ -162,9 +162,9 @@ void iff_save(char *name)
     fwrite((const uint8_t *)g_iff_chunk_names.bmhd, 4, 1, f);
     len = 0x14;
     iff_write_be((uint8_t *)&len, 1, 4, f);
-    w = 0x280;
+    w = 640;
     iff_write_be((uint8_t *)&w, 1, 2, f);
-    w = 0x1c2;
+    w = 450;
     iff_write_be((uint8_t *)&w, 1, 2, f);
     len = 0;
     iff_write_be((uint8_t *)&len, 1, 4, f);
@@ -172,9 +172,9 @@ void iff_save(char *name)
     iff_write_be((uint8_t *)&len, 1, 4, f);
     len = 0x101;
     iff_write_be((uint8_t *)&len, 1, 4, f);
-    w = 0x280;
+    w = 640;
     iff_write_be((uint8_t *)&w, 1, 2, f);
-    w = 0x1c2;
+    w = 450;
     iff_write_be((uint8_t *)&w, 1, 2, f);
     iff_write_cmap(f);
     iff_write_body(f);

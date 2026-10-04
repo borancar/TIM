@@ -322,7 +322,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, char *pattern)
              * pointer's y at 0x5782 less the box's top, divided by the ten
              * pixels a row takes, plus the scroll position.
              */
-            idx = g_game_picker_text.scroll + (g_pointer.pointer_y - 0x7c) / 10;
+            idx = g_game_picker_text.scroll + (g_pointer.pointer_y - 124) / 10;
 
             if (idx < g_game_picker_text.entry_count) {
                 /* Entry `idx` of the array of far pointers at the block's
@@ -1081,9 +1081,9 @@ void picker_draw_list(void)
     /* The block is an array of far pointers, one per entry. */
     char far * far *p;                  /* [bp-4], [bp-2] */
     const char far *t;                  /* [bp-8], [bp-6] */
-    int16_t  x = 0x40;                  /* [bp-0xa] */
-    int16_t  y = 0x78;                  /* di */
-    int16_t  w = 0x70;                  /* [bp-0xc] */
+    int16_t  x = 64;                  /* [bp-0xa] */
+    int16_t  y = 120;                  /* di */
+    int16_t  w = 112;                  /* [bp-0xc] */
     int16_t  room = 0x80;               /* [bp-0xe] */
     int16_t  i;                         /* si: the rows to skip, then the row */
 
@@ -1115,7 +1115,7 @@ void picker_draw_list(void)
         draw_string_body(t, x + 4, y + 4);
         restore_cursor_following();
 
-        y    += 0x0a;
+        y    += 10;
         room -= 0x0a;
     }
 }

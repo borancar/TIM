@@ -212,8 +212,8 @@ void blit_scaled_b(struct bitmap *bmp, int16_t x, int16_t y,
         mode |= 1;
     }
 
-    right = w < 0x280 ? w : 0x280;
-    bottom = h < 0x190 ? h : 0x190;
+    right = w < 640 ? w : 640;
+    bottom = h < 400 ? h : 400;
 
     /*
      * The column table: for each destination pixel, the source column to take
