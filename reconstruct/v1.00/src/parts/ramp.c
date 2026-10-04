@@ -21,73 +21,53 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3344..0x334c. Connection points, 4 pairs.
+ * DGROUP 0x3344..0x3364. Connection points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points_3344[4] = {
-    { 0x00, 0x00 }, { 0x0f, 0x0f }, { 0x0f, 0x1f }, { 0x00, 0x10 },
+struct point8 g_ramp_points[4][4] = {
+    {
+        { 0x00, 0x00 }, { 0x0f, 0x0f }, { 0x0f, 0x1f }, { 0x00, 0x10 },
+    },
+    {
+        { 0x00, 0x00 }, { 0x1f, 0x0f }, { 0x1f, 0x1f }, { 0x00, 0x10 },
+    },
+    {
+        { 0x00, 0x00 }, { 0x2f, 0x0f }, { 0x2f, 0x1f }, { 0x00, 0x10 },
+    },
+    {
+        { 0x00, 0x00 }, { 0x3f, 0x0f }, { 0x3f, 0x1f }, { 0x00, 0x10 },
+    },
 };
 
 /*
- * DGROUP 0x334c..0x3354. Connection points, 4 pairs.
+ * DGROUP 0x3364..0x336c. **Which row of points, by form**: a near pointer each.
  */
-struct point8 g_ramp_points_334c[4] = {
-    { 0x00, 0x00 }, { 0x1f, 0x0f }, { 0x1f, 0x1f }, { 0x00, 0x10 },
+struct point8 *g_ramp_point_table[4] = {
+    g_ramp_points[0], g_ramp_points[1], g_ramp_points[2], g_ramp_points[3],
 };
 
 /*
- * DGROUP 0x3354..0x335c. Connection points, 4 pairs.
+ * DGROUP 0x336c..0x338c. Connection points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points_3354[4] = {
-    { 0x00, 0x00 }, { 0x2f, 0x0f }, { 0x2f, 0x1f }, { 0x00, 0x10 },
+struct point8 g_ramp_points_flipped[4][4] = {
+    {
+        { 0x00, 0x0f }, { 0x0f, 0x00 }, { 0x0f, 0x10 }, { 0x00, 0x1f },
+    },
+    {
+        { 0x00, 0x0f }, { 0x1f, 0x00 }, { 0x1f, 0x10 }, { 0x00, 0x1f },
+    },
+    {
+        { 0x00, 0x0f }, { 0x2f, 0x00 }, { 0x2f, 0x10 }, { 0x00, 0x1f },
+    },
+    {
+        { 0x00, 0x0f }, { 0x3f, 0x00 }, { 0x3f, 0x10 }, { 0x00, 0x1f },
+    },
 };
 
 /*
- * DGROUP 0x335c..0x3364. Connection points, 4 pairs.
+ * DGROUP 0x338c..0x3394. **Which row of points, by form**: a near pointer each.
  */
-struct point8 g_ramp_points_335c[4] = {
-    { 0x00, 0x00 }, { 0x3f, 0x0f }, { 0x3f, 0x1f }, { 0x00, 0x10 },
-};
-
-/*
- * DGROUP 0x3364..0x336c. **Which table of points, by form**: a near pointer each.
- */
-struct point8 *g_ramp_point_table_3364[4] = {
-    g_ramp_points_3344, g_ramp_points_334c, g_ramp_points_3354, g_ramp_points_335c,
-};
-
-/*
- * DGROUP 0x336c..0x3374. Connection points, 4 pairs.
- */
-struct point8 g_ramp_points_336c[4] = {
-    { 0x00, 0x0f }, { 0x0f, 0x00 }, { 0x0f, 0x10 }, { 0x00, 0x1f },
-};
-
-/*
- * DGROUP 0x3374..0x337c. Connection points, 4 pairs.
- */
-struct point8 g_ramp_points_3374[4] = {
-    { 0x00, 0x0f }, { 0x1f, 0x00 }, { 0x1f, 0x10 }, { 0x00, 0x1f },
-};
-
-/*
- * DGROUP 0x337c..0x3384. Connection points, 4 pairs.
- */
-struct point8 g_ramp_points_337c[4] = {
-    { 0x00, 0x0f }, { 0x2f, 0x00 }, { 0x2f, 0x10 }, { 0x00, 0x1f },
-};
-
-/*
- * DGROUP 0x3384..0x338c. Connection points, 4 pairs.
- */
-struct point8 g_ramp_points_3384[4] = {
-    { 0x00, 0x0f }, { 0x3f, 0x00 }, { 0x3f, 0x10 }, { 0x00, 0x1f },
-};
-
-/*
- * DGROUP 0x338c..0x3394. **Which table of points, by form**: a near pointer each.
- */
-struct point8 *g_ramp_point_table_338c[4] = {
-    g_ramp_points_336c, g_ramp_points_3374, g_ramp_points_337c, g_ramp_points_3384,
+struct point8 *g_ramp_point_table_flipped[4] = {
+    g_ramp_points_flipped[0], g_ramp_points_flipped[1], g_ramp_points_flipped[2], g_ramp_points_flipped[3],
 };
 
 /*
@@ -105,9 +85,9 @@ void part_setup_ramp(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_ramp_point_table_338c[part->form];
+        src = g_ramp_point_table_flipped[part->form];
     else
-        src = g_ramp_point_table_3364[part->form];
+        src = g_ramp_point_table[part->form];
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;

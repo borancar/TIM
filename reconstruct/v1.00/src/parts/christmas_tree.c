@@ -23,7 +23,7 @@
 /*
  * DGROUP 0x3266..0x3274. Connection points, 7 pairs.
  */
-struct point8 g_christmas_tree_points_3266[7] = {
+struct point8 g_christmas_tree_points[7] = {
     { 0x00, 0x35 }, { 0x14, 0x00 }, { 0x27, 0x37 }, { 0x19, 0x3d },
     { 0x19, 0x48 }, { 0x10, 0x48 }, { 0x10, 0x3d },
 };
@@ -40,7 +40,7 @@ void part_setup_christmas_tree(struct part *part)
     const struct point8 *src;
     int16_t i;
 
-    src = g_christmas_tree_points_3266;
+    src = g_christmas_tree_points;
     for (i = 0, dst = part->points; i < 7; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

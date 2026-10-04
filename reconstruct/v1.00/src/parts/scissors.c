@@ -21,46 +21,42 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3472..0x3482. Connection points, 8 pairs.
+ * DGROUP 0x3472..0x3492. Connection points, 8 pairs a row, indexed [form].
  */
-struct point8 g_scissors_points_3472[8] = {
-    { 0x00, 0x04 }, { 0x0a, 0x00 }, { 0x11, 0x0b }, { 0x27, 0x07 },
-    { 0x27, 0x1a }, { 0x11, 0x14 }, { 0x0b, 0x21 }, { 0x00, 0x1f },
+struct point8 g_scissors_points[2][8] = {
+    {
+        { 0x00, 0x04 }, { 0x0a, 0x00 }, { 0x11, 0x0b }, { 0x27, 0x07 },
+        { 0x27, 0x1a }, { 0x11, 0x14 }, { 0x0b, 0x21 }, { 0x00, 0x1f },
+    },
+    {
+        { 0x00, 0x08 }, { 0x09, 0x04 }, { 0x10, 0x0e }, { 0x27, 0x10 },
+        { 0x27, 0x12 }, { 0x10, 0x14 }, { 0x09, 0x1b }, { 0x00, 0x18 },
+    },
 };
 
 /*
- * DGROUP 0x3482..0x3492. Connection points, 8 pairs.
+ * DGROUP 0x3492..0x3496. **Which row of points, by form**: a near pointer each.
  */
-struct point8 g_scissors_points_3482[8] = {
-    { 0x00, 0x08 }, { 0x09, 0x04 }, { 0x10, 0x0e }, { 0x27, 0x10 },
-    { 0x27, 0x12 }, { 0x10, 0x14 }, { 0x09, 0x1b }, { 0x00, 0x18 },
+struct point8 *g_scissors_point_table[2] = { g_scissors_points[0], g_scissors_points[1] };
+
+/*
+ * DGROUP 0x3496..0x34b6. Connection points, 8 pairs a row, indexed [form].
+ */
+struct point8 g_scissors_points_flipped[2][8] = {
+    {
+        { 0x00, 0x07 }, { 0x16, 0x0b }, { 0x1d, 0x00 }, { 0x27, 0x04 },
+        { 0x27, 0x1f }, { 0x1c, 0x21 }, { 0x16, 0x14 }, { 0x00, 0x1a },
+    },
+    {
+        { 0x00, 0x10 }, { 0x17, 0x0e }, { 0x1e, 0x04 }, { 0x27, 0x08 },
+        { 0x27, 0x18 }, { 0x1e, 0x1b }, { 0x17, 0x1e }, { 0x00, 0x12 },
+    },
 };
 
 /*
- * DGROUP 0x3492..0x3496. **Which table of points, by form**: a near pointer each.
+ * DGROUP 0x34b6..0x34ba. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_scissors_point_table_3492[2] = { g_scissors_points_3472, g_scissors_points_3482 };
-
-/*
- * DGROUP 0x3496..0x34a6. Connection points, 8 pairs.
- */
-struct point8 g_scissors_points_3496[8] = {
-    { 0x00, 0x07 }, { 0x16, 0x0b }, { 0x1d, 0x00 }, { 0x27, 0x04 },
-    { 0x27, 0x1f }, { 0x1c, 0x21 }, { 0x16, 0x14 }, { 0x00, 0x1a },
-};
-
-/*
- * DGROUP 0x34a6..0x34b6. Connection points, 8 pairs.
- */
-struct point8 g_scissors_points_34a6[8] = {
-    { 0x00, 0x10 }, { 0x17, 0x0e }, { 0x1e, 0x04 }, { 0x27, 0x08 },
-    { 0x27, 0x18 }, { 0x1e, 0x1b }, { 0x17, 0x1e }, { 0x00, 0x12 },
-};
-
-/*
- * DGROUP 0x34b6..0x34ba. **Which table of points, by form**: a near pointer each.
- */
-struct point8 *g_scissors_point_table_34b6[2] = { g_scissors_points_3496, g_scissors_points_34a6 };
+struct point8 *g_scissors_point_table_flipped[2] = { g_scissors_points_flipped[0], g_scissors_points_flipped[1] };
 
 /*
  * DGROUP 0x34ba..0x34ca. **The scissors' blade**, a segment of four words - x0, y0, x1, y1 -
@@ -116,9 +112,9 @@ void part_setup_scissors(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_scissors_point_table_34b6[part->form];
+        src = g_scissors_point_table_flipped[part->form];
     else
-        src = g_scissors_point_table_3492[part->form];
+        src = g_scissors_point_table[part->form];
 
     for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;

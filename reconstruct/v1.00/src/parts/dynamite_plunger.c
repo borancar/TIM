@@ -21,75 +21,61 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x33ce..0x33d6. Connection points, 4 pairs.
+ * DGROUP 0x33ce..0x33e6. Connection points, 4 pairs a row, indexed [form].
  */
-struct point8 g_dynamite_plunger_points_33ce[4] = {
-    { 0x67, 0x00 }, { 0x86, 0x00 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+struct point8 g_plunger_points[3][4] = {
+    {
+        { 0x67, 0x00 }, { 0x86, 0x00 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+    },
+    {
+        { 0x67, 0x05 }, { 0x86, 0x05 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+    },
+    {
+        { 0x67, 0x0a }, { 0x86, 0x0a }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+    },
 };
 
 /*
- * DGROUP 0x33d6..0x33de. Connection points, 4 pairs.
+ * DGROUP 0x33e6..0x33ec. **Which row of points, by form**: a near pointer each.
  */
-struct point8 g_dynamite_plunger_points_33d6[4] = {
-    { 0x67, 0x05 }, { 0x86, 0x05 }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+struct point8 *g_plunger_point_table[3] = {
+    g_plunger_points[0], g_plunger_points[1],
+    g_plunger_points[2],
 };
 
 /*
- * DGROUP 0x33de..0x33e6. Connection points, 4 pairs.
+ * DGROUP 0x33ec..0x3404. Connection points, 4 pairs a row, indexed [form].
  */
-struct point8 g_dynamite_plunger_points_33de[4] = {
-    { 0x67, 0x0a }, { 0x86, 0x0a }, { 0x7f, 0x2f }, { 0x6f, 0x2f },
+struct point8 g_plunger_points_flipped[3][4] = {
+    {
+        { 0x00, 0x00 }, { 0x1f, 0x00 }, { 0x18, 0x2f }, { 0x08, 0x2f },
+    },
+    {
+        { 0x00, 0x05 }, { 0x1f, 0x05 }, { 0x18, 0x2f }, { 0x08, 0x2f },
+    },
+    {
+        { 0x00, 0x0a }, { 0x1f, 0x0a }, { 0x18, 0x2f }, { 0x08, 0x2f },
+    },
 };
 
 /*
- * DGROUP 0x33e6..0x33ec. **Which table of points, by form**: a near pointer each.
+ * DGROUP 0x3404..0x340a. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_plunger_point_table_33e6[3] = {
-    g_dynamite_plunger_points_33ce, g_dynamite_plunger_points_33d6,
-    g_dynamite_plunger_points_33de,
+struct point8 *g_plunger_point_table_flipped[3] = {
+    g_plunger_points_flipped[0], g_plunger_points_flipped[1],
+    g_plunger_points_flipped[2],
 };
 
 /*
- * DGROUP 0x33ec..0x33f4. Connection points, 4 pairs.
+ * DGROUP 0x340a..0x3422. The attach point, 3 points a row, indexed [flipped][form].
  */
-struct point8 g_dynamite_plunger_points_33ec[4] = {
-    { 0x00, 0x00 }, { 0x1f, 0x00 }, { 0x18, 0x2f }, { 0x08, 0x2f },
-};
-
-/*
- * DGROUP 0x33f4..0x33fc. Connection points, 4 pairs.
- */
-struct point8 g_dynamite_plunger_points_33f4[4] = {
-    { 0x00, 0x05 }, { 0x1f, 0x05 }, { 0x18, 0x2f }, { 0x08, 0x2f },
-};
-
-/*
- * DGROUP 0x33fc..0x3404. Connection points, 4 pairs.
- */
-struct point8 g_dynamite_plunger_points_33fc[4] = {
-    { 0x00, 0x0a }, { 0x1f, 0x0a }, { 0x18, 0x2f }, { 0x08, 0x2f },
-};
-
-/*
- * DGROUP 0x3404..0x340a. **Which table of points, by form**: a near pointer each.
- */
-struct point8 *g_plunger_point_table_3404[3] = {
-    g_dynamite_plunger_points_33ec, g_dynamite_plunger_points_33f4,
-    g_dynamite_plunger_points_33fc,
-};
-
-/*
- * DGROUP 0x340a..0x3416. Connection points, 3 points.
- */
-struct point16 g_dynamite_plunger_points_340a[3] = {
-    { 0x0072, 0x0000 }, { 0x0072, 0x0005 }, { 0x0072, 0x000a },
-};
-
-/*
- * DGROUP 0x3416..0x3422. Connection points, 3 points.
- */
-struct point16 g_dynamite_plunger_points_3416[3] = {
-    { 0x000b, 0x0000 }, { 0x000b, 0x0005 }, { 0x000b, 0x000a },
+struct point16 g_plunger_attach[2][3] = {
+    {
+        { 0x0072, 0x0000 }, { 0x0072, 0x0005 }, { 0x0072, 0x000a },
+    },
+    {
+        { 0x000b, 0x0000 }, { 0x000b, 0x0005 }, { 0x000b, 0x000a },
+    },
 };
 
 /*
@@ -135,13 +121,13 @@ void part_setup_dynamite_plunger(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        src = g_plunger_point_table_3404[part->form];
-        part->attach[0].x = (uint8_t)g_dynamite_plunger_points_3416[part->form].x;
-        part->attach[0].y = (uint8_t)g_dynamite_plunger_points_3416[part->form].y;
+        src = g_plunger_point_table_flipped[part->form];
+        part->attach[0].x = (uint8_t)g_plunger_attach[1][part->form].x;
+        part->attach[0].y = (uint8_t)g_plunger_attach[1][part->form].y;
     } else {
-        src = g_plunger_point_table_33e6[part->form];
-        part->attach[0].x = (uint8_t)g_dynamite_plunger_points_340a[part->form].x;
-        part->attach[0].y = (uint8_t)g_dynamite_plunger_points_340a[part->form].y;
+        src = g_plunger_point_table[part->form];
+        part->attach[0].x = (uint8_t)g_plunger_attach[0][part->form].x;
+        part->attach[0].y = (uint8_t)g_plunger_attach[0][part->form].y;
     }
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {

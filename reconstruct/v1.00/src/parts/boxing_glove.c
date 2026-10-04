@@ -27,35 +27,29 @@
 int16_t g_boxing_glove_reach[6] = { -32, -82, 0, 80, 130, 0 };
 
 /*
- * DGROUP 0x31f2..0x31fe. Connection points, 6 pairs.
+ * DGROUP 0x31f2..0x3222. Connection points, 6 pairs a row, indexed [flipped][form != 0].
  */
-struct point8 g_boxing_glove_points_31f2[6] = {
-    { 0x00, 0x0c }, { 0x10, 0x00 }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
-    { 0x1a, 0x15 }, { 0x09, 0x1b },
-};
-
-/*
- * DGROUP 0x31fe..0x320a. Connection points, 6 pairs.
- */
-struct point8 g_boxing_glove_points_31fe[6] = {
-    { 0x05, 0x15 }, { 0x11, 0x0a }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
-    { 0x1a, 0x15 }, { 0x09, 0x1b },
-};
-
-/*
- * DGROUP 0x320a..0x3216. Connection points, 6 pairs.
- */
-struct point8 g_boxing_glove_points_320a[6] = {
-    { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
-    { 0x1f, 0x00 }, { 0x2f, 0x0c },
-};
-
-/*
- * DGROUP 0x3216..0x3222. Connection points, 6 pairs.
- */
-struct point8 g_boxing_glove_points_3216[6] = {
-    { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
-    { 0x1e, 0x0a }, { 0x2b, 0x15 },
+struct point8 g_boxing_glove_points[2][2][6] = {
+    {
+        {
+            { 0x00, 0x0c }, { 0x10, 0x00 }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
+            { 0x1a, 0x15 }, { 0x09, 0x1b },
+        },
+        {
+            { 0x05, 0x15 }, { 0x11, 0x0a }, { 0x2f, 0x05 }, { 0x2f, 0x14 },
+            { 0x1a, 0x15 }, { 0x09, 0x1b },
+        },
+    },
+    {
+        {
+            { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
+            { 0x1f, 0x00 }, { 0x2f, 0x0c },
+        },
+        {
+            { 0x26, 0x1b }, { 0x15, 0x15 }, { 0x00, 0x14 }, { 0x00, 0x05 },
+            { 0x1e, 0x0a }, { 0x2b, 0x15 },
+        },
+    },
 };
 
 /*
@@ -149,14 +143,14 @@ void part_setup_boxing_glove(struct part *part)
     /* Four tables: the flag at +8, and then whether the form is zero. */
     if (part->state & STATE_FLIP_HORIZONTAL) {
         if (part->form == 0)
-            src = g_boxing_glove_points_320a;
+            src = g_boxing_glove_points[1][0];
         else
-            src = g_boxing_glove_points_3216;
+            src = g_boxing_glove_points[1][1];
     } else {
         if (part->form == 0)
-            src = g_boxing_glove_points_31f2;
+            src = g_boxing_glove_points[0][0];
         else
-            src = g_boxing_glove_points_31fe;
+            src = g_boxing_glove_points[0][1];
     }
 
     for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {

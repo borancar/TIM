@@ -21,19 +21,17 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32fc..0x3308. Connection points, 6 pairs.
+ * DGROUP 0x32fc..0x3314. Connection points, 6 pairs a row, indexed [flipped].
  */
-struct point8 g_flashlight_points_32fc[6] = {
-    { 0x00, 0x04 }, { 0x17, 0x04 }, { 0x1f, 0x00 }, { 0x1f, 0x10 },
-    { 0x17, 0x0c }, { 0x00, 0x0c },
-};
-
-/*
- * DGROUP 0x3308..0x3314. Connection points, 6 pairs.
- */
-struct point8 g_flashlight_points_3308[6] = {
-    { 0x08, 0x04 }, { 0x1f, 0x04 }, { 0x1f, 0x0c }, { 0x08, 0x0c },
-    { 0x00, 0x10 }, { 0x00, 0x00 },
+struct point8 g_flashlight_points[2][6] = {
+    {
+        { 0x00, 0x04 }, { 0x17, 0x04 }, { 0x1f, 0x00 }, { 0x1f, 0x10 },
+        { 0x17, 0x0c }, { 0x00, 0x0c },
+    },
+    {
+        { 0x08, 0x04 }, { 0x1f, 0x04 }, { 0x1f, 0x0c }, { 0x08, 0x0c },
+        { 0x00, 0x10 }, { 0x00, 0x00 },
+    },
 };
 
 /*
@@ -69,9 +67,9 @@ void part_setup_flashlight(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_flashlight_points_3308;
+        si = g_flashlight_points[1];
     else
-        si = g_flashlight_points_32fc;
+        si = g_flashlight_points[0];
 
     for (i = 0, di = part->points; i < 6; i++, di++, si++) {
         di->x = si->x;
