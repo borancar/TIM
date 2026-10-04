@@ -21,7 +21,10 @@ One source, two compilers:
 | the game | The Incredible Machine | The Even More Incredible Machine |
 | the tree | [`reconstruct/v1.00`](reconstruct/v1.00/README.md) | [`reconstruct/v1.11`](reconstruct/v1.11/README.md) |
 | the proof | the shipped TIM.EXE's SHA-256, packed with LZEXE 0.91 | every byte TLINK writes and every relocation |
-| what is known about it | [`docs/executable.md`](docs/executable.md) | [`docs/v1.11.md`](docs/v1.11.md) |
+| what is known about it | [`docs/v1.00.md`](docs/v1.00.md) | [`docs/v1.11.md`](docs/v1.11.md) |
+
+What the two executables share - the compilers, the layout, the video - is
+[`docs/executable.md`](docs/executable.md).
 
 The two trees are **independent**: each has its own sources, headers, host
 code, Makefile and ymfm, builds and runs on its own, and can be split out as
@@ -77,7 +80,7 @@ checkout of [turboc](https://github.com/borancar/turboc) beside this one
 | `reconstruct/tests` | the provenance check `make test` runs: every routine says where it came from |
 | `tools/` | recovery, disassembly, the judge, the link, the comparisons; `tools/version.py` picks the version, `tools/borland/` keeps Borland's runtime library transcribed |
 | `solutions/` | a machine that solves each puzzle, in the game's own save format |
-| `docs/` | the binary: [`executable.md`](docs/executable.md), [`v1.11.md`](docs/v1.11.md), [`video-driver.md`](docs/video-driver.md), [`sound-driver.md`](docs/sound-driver.md), [`resources.md`](docs/resources.md), [`runtime.md`](docs/runtime.md); and [`lessons.md`](docs/lessons.md), the traps met on the way |
+| `docs/` | the binary: [`executable.md`](docs/executable.md) for what both versions share, [`v1.00.md`](docs/v1.00.md) and [`v1.11.md`](docs/v1.11.md) for each, [`video-driver.md`](docs/video-driver.md), [`sound-driver.md`](docs/sound-driver.md), [`resources.md`](docs/resources.md), [`runtime.md`](docs/runtime.md); and [`lessons.md`](docs/lessons.md), the traps met on the way |
 | [`STATUS.md`](STATUS.md) | where things stand, and the record of how they got there |
 | [`CLAUDE.md`](CLAUDE.md) | how the work is done: the rules, the conventions, the tools |
 

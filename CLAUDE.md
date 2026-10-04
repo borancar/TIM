@@ -25,7 +25,8 @@ that need this repository only when it is here, and says so when it skips
 them. **Every tool works on one version, `TIM_VERSION`, 1.11 unless it says
 1.00** (`tools/version.py`): its tree, its `game/`, and its outputs in
 `out/v<version>/`. `tools/unrnc.py` recovers 1.11's image and
-`tools/unlzexe.py` 1.00's; `docs/v1.11.md` holds what is known about 1.11.
+`tools/unlzexe.py` 1.00's; `docs/v1.00.md` and `docs/v1.11.md` hold what is
+known about each, and `docs/executable.md` what they share.
 `tools/link.py` links each into its program, every byte and relocation -
 1.00 down to the shipped file's hash.
 
