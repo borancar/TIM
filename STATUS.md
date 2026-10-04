@@ -25,10 +25,19 @@ run-88, bin-stpatrick). The overlays - VM.OVL's VGA and SX.OVL's drivers - are
 separate binaries, checked by behaviour, not judged.
 
 The trees are independent (since 2026-10-04): each has its own sources,
-headers, host code, Makefile, README and ymfm, builds and runs on its own,
-and can be split out with `git subtree split`. A fix that applies to both is
-made in both. **The tools work on one version at a time**, `TIM_VERSION`
-(1.11 unless 1.00; `tools/version.py`), with outputs in `out/v<version>/`:
+headers, host code, Makefile, README, ymfm and `LICENSE`, builds and runs on
+its own, and can be split out with `git subtree split`; its `make test` runs
+the checks that need this repository only when it is here. A fix that
+applies to both is made in both, and there is one branch, `develop` - the
+`1.00` branch was folded in as `reconstruct/v1.00` and deleted, and the tag
+`tim-1.00` stays. `tim` and `devtim` run the game in the `game/` beside
+them; v1.11's `get-game.sh` makes its `game/` from GOG's installer (SHA-256
+checked, `app/` only, no DOSBox). The reconstruction is **GPL-2.0**, as the
+tooling is. The binary is documented per version - `docs/v1.00.md`,
+`docs/v1.11.md` - and what both share in `docs/executable.md`.
+
+**The tools work on one version at a time**, `TIM_VERSION` (1.11 unless
+1.00; `tools/version.py`), with outputs in `out/v<version>/`:
 
     make -C reconstruct/v1.11 test
     uv run python tools/link.py                     # 1.11
@@ -3200,19 +3209,36 @@ found what the tooling could not.
 
 ## Next
 
-1. Find the **handler tables** and re-seed the code map through them; the 577 is
-   a floor, not a count.
-2. Establish which segments are the C runtime and which are the game.
-3. Decide which of the 577 are the **Borland C runtime**. Those are not the
-   game's logic and reconstructing them from Borland's binary is both pointless
-   and worse legally; the port uses the host's C library and marks them as
-   ours, kept out of the verifier's dispatch. Which routines those are is not
-   yet established.
-4. Continue transcription, targeting the **two intro screens** - the title screen
-   (page flips 6..279) and the credits screen (from flip 280) - both of which
-   animate and so exercise real game logic, and prove each routine against the
-   original rather than against the screen.
+What is open now (2026-10-04); the September list this replaced - find the
+handler tables, separate the runtime, reach the two intro screens - is long
+done and in the history.
 
+1. **The overlays are not judged.** VM.OVL's VGA driver and SX.OVL's
+   drivers (ADL, ASB, SBP, SPKR) are separate binaries the link does not
+   build; they are transcribed and checked by behaviour only. Proving them
+   byte for byte needs their own build and comparison.
+2. **`check_briefing --screen briefing` is 1.00's and the default.** Under
+   1.11 its one click does not pass the copy protection, so its flips land on
+   the copy-protection screen, whose page number differs run to run;
+   `briefing-1.11` is 1.11's. The default should follow `TIM_VERSION`.
+3. **The logo screens are not centred in the window.** The window follows
+   the CRTC's line count and keeps its corner when it changes size, so the
+   Sierra and Dynamix logos come up small and to one side; a fixed window
+   was tried (2026-10-03) and taken back. Open as a choice about the window,
+   not a difference from the original.
+4. **1.00 has no `get-game.sh`**: there is no installer of it whose hash is
+   known here. Its `game/` is supplied by hand.
+5. **Names still made of offsets**: locals and labels named for an offset or
+   an opcode - `goals.c`'s `at_18`..`at_138`, `ramp.c`'s `at_1000`,
+   `sound.c`'s `do_f8` and its `api_0a`..`api_19`, `meta_b0`, `meta_c0`
+   labels, `SXSPKR.param_349`.
+6. **Linking the sound library through a `.LIB`** (pencilled, 2026-10-03):
+   TLIB can build one and TLINK links it identically, but TLINK keeps the
+   library's own member order, so it proves nothing `link.py`'s order does
+   not. Kept in mind if another Dynamix game turns up with the same library.
+7. **One host warning**, in both trees: `dos_resolve` in `hostio.c` copies
+   the game directory, up to `PATH_MAX`, into a 1024-byte buffer with
+   `snprintf`, and gcc says it may truncate.
 ## Every puzzle, and what it takes to run one
 
 `tools/puzzles.py` (removed 2026-09-29 with the port snapshot it started
