@@ -2,7 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **The sound library's shared data**: the sound bank record, the two words
  * after it, the seven voices and the five-tick wait.

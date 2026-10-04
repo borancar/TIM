@@ -2,7 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **Kind 53's handlers**, new in 1.11 - by what they do, a pin: a balloon
  * that meets it at one of three angles pops. The name waits for its icon.

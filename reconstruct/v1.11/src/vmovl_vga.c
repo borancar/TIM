@@ -2,8 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the `VGA:` chunk of `VM.OVL`, the video driver of The
- * Incredible Machine (Dynamix / Sierra On-Line, 1993). No licence is asserted:
- * this is derived from someone else's binary.
+ * Incredible Machine (Dynamix / Sierra On-Line, 1993). Licensed under the GNU
+ * General Public License, version 2 - see LICENSE.
  *
  * `VM.OVL` is a container of eight per-adapter drivers - VGA, EGA, MCG, CGA,
  * TAN, HEG, EVG, EVA - each compressed. Only the **VGA** one is reconstructed;

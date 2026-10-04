@@ -2,7 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **The machine, in assembly**: DOS memory, the mouse, huge-pointer
  * arithmetic, the divide-error trap, clipped single pixels, and three thunks

@@ -2,7 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **Kind 51's handlers**, new in 1.11 - by what they do, the vacuum
  * cleaner: it plugs in, and while it runs it hums, draws every moving part in

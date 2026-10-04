@@ -2,13 +2,12 @@
  * The Incredible Machine - reconstruction
  *
  * Reconstructed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993), recovered from its LZEXE packing. This
- * file carries no licence: it is derived from someone else's executable and
- * that is not ours to license. See the repository README for the position on
- * both works.
+ * (Dynamix / Sierra On-Line, 1993), version 1.00, recovered from its LZEXE
+ * packing. Licensed under the GNU General Public License, version 2 - see
+ * LICENSE.
  *
  * Addresses in comments are **image offsets** into the recovered image
- * (out/TIM.img), which is what tools/disasm.py lists.
+ * (out/v1.00/TIM.img), which is what tools/disasm.py lists.
  */
 #ifndef TIM_H
 #define TIM_H

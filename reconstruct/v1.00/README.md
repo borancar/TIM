@@ -54,6 +54,7 @@ directory - so `cd game && ../tim` works too.
 | `tc/` | the `stdint.h` Borland's compilers lack |
 | `vendor/ymfm/` | Aaron Giles' OPL2 core (BSD-3-Clause), the one part that is not transcribed |
 
-The reconstructed code asserts no licence - it is a reconstruction of
-Dynamix's program; each file names the binary it was read from. ymfm carries
-its own licence.
+This tree is licensed under the **GNU General Public License, version 2**
+(`LICENSE`); each reconstructed file names the binary it was read from. ymfm,
+in `vendor/`, carries its own licence (BSD-3-Clause). The game's own files are
+Dynamix's and Sierra's and are not part of it.

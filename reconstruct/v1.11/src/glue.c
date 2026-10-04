@@ -1,8 +1,8 @@
 /*
  * The Incredible Machine - reconstruction
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file: it is
- * derived from someone else's executable.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **The interface to the loaded sound module**, in `_TEXT`: code segment
  * 0000, image range 0x0c7da..0x0c840 (1.00: 0x0bb98..0x0bbfe). Nine wrappers

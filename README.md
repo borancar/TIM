@@ -86,8 +86,9 @@ checkout of [turboc](https://github.com/borancar/turboc) beside this one
 
 ## Licences
 
-The reconstructed code asserts no licence: it is a reconstruction of
-Dynamix's program, and each file names the binary it was read from. The
-project's own tooling is GPL-2.0. ymfm, in each tree's `vendor/`, is Aaron
-Giles' (BSD-3-Clause). The games themselves are Dynamix's and Sierra's, and
+The reconstruction and the project's tooling are licensed under the **GNU
+General Public License, version 2** ([`LICENSE`](LICENSE)), and each version's
+tree carries its own copy of it; each reconstructed file names the binary it
+was read from. ymfm, in each tree's `vendor/`, is Aaron Giles'
+(BSD-3-Clause). The games themselves are Dynamix's and Sierra's, and
 none of their files are in this repository.

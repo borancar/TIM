@@ -2,7 +2,8 @@
  * The Incredible Machine - reconstruction
  *
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
- * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ * (Dynamix / Sierra On-Line, 1993). Licensed under the GNU General Public
+ * License, version 2 - see LICENSE.
  *
  * **The mouse's speed, the monochrome debugging screen, a huge `fread` and
  * the scaled bitmap**: code segment 0000 (`_TEXT`), image 0x0b859..0x0ba32.

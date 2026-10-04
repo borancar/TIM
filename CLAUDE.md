@@ -148,8 +148,10 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   and a null the original follows reads `g_dgroup_start` or
   `g_interrupt_table`.
 - Where a name or a type is a guess, **say so**.
-- **No licence header on reconstructed code.** A provenance header naming the
-  binary instead. Our own tooling is a different matter and is GPL-2.0.
+- **Everything is GPL-2.0**, the reconstruction and the tooling alike
+  (`LICENSE`, at the root and in each tree). A reconstructed file's header
+  names the binary it was read from and says so: "Licensed under the GNU
+  General Public License, version 2 - see LICENSE".
 - **SDL3 for the window, input and sound. Always.** Never X11, never Win32,
   never SDL2, not behind an `#ifdef`, not as "the optional viewer". One display
   path, not two: the file writer is a *mode* of the same composed frame, never
