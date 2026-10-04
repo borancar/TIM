@@ -51,11 +51,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 TURBOC = os.path.join(REPO, "..", "turboc")
 LIB = os.path.join(TURBOC, "dos-c", "BCPP300", "LIB")
-OUT = os.path.join(REPO, "out", "link")
-ORIGINAL = os.path.join(REPO, "out", "TIM.unpacked.exe")
-
 sys.path.insert(0, HERE)
 import judge  # noqa: E402
+import tim  # noqa: E402
+
+OUT = os.path.join(tim.OUT, "link")
+ORIGINAL = tim.UNPACKED_EXE
 
 # not game code in TIM.EXE: the host's DGROUP, the entry point we wrote,
 # the two overlays (separate binaries)
@@ -64,7 +65,8 @@ NOT_LINKED = re.compile(r"/(dgroup|main|sxovl\w*|vmovl\w*)\.c$")
 
 def game_files():
     return [f for f in judge.port_sources()
-            if "/reconstruct/src/" in f and f.endswith(".c")
+            if f.startswith(os.path.join(judge.RECON, "src") + os.sep)
+            and f.endswith(".c")
             and not NOT_LINKED.search(f)]
 
 

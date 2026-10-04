@@ -1,0 +1,1510 @@
+/*
+ * The Incredible Machine - reconstruction
+ *
+ * Transcribed from the binary `TIM.EXE` of The Incredible Machine
+ * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ *
+ * **Arithmetic**: a 16-by-16 multiply, sine, cosine and arctangent,
+ * and the lookup tables the last three index - which are most of the
+ * segment's bytes and are data, not code.
+ *
+ * This file corresponds to the original's **code segment 2a04**, image
+ * 0x2a04a..0x2d296 - the segment's frame starts at 0x2a040, inside
+ * sound_file.c's last routine. **Hand-written assembly**, with its tables
+ * and its scratch in the code segment: so it is TASM source, the `#ifdef
+ * __TURBOC__` block below, with the host's transcription in the `#else`.
+ * Five of its routines nothing calls - a 32-bit multiply-and-divide, two
+ * that scale a record's fields through it, a 48-bit multiply and a second
+ * arctangent - and their names are guesses from what they compute; the
+ * host has stubs for them. Functions are in address order and each carries
+ * the image offset it was read from.
+ *
+ * JUDGE: built-with -mm
+ * JUDGE: tasm
+ * JUDGE: assembler bc3.00
+ */
+#include "tim.h"
+#include "hostio.h"
+#include "dgroup.h"
+
+#ifdef __TURBOC__
+/*
+ * The module as TASM assembled it, drafted by tools/asm2tasm.py with DS
+ * taken as the code segment (`--ds-is-cs`): the routines that work in
+ * 48 bits keep their scratch words there, 0x1681 and on, inside the zeroed
+ * run after `arctan_lookup`. The two tables are the same bytes as the C
+ * arrays in the `#else`. See glue.c for how the block reaches the assembler.
+ */
+asm {
+TRIG_TEXT segment byte public 'CODE'
+assume cs:TRIG_TEXT, ds:TRIG_TEXT
+public _long_mul_div, _scale_record_a, _scale_record_b, _mul16x16
+public _mul_48, _angle_sin, _angle_cos, _arctan_ratio
+public _arctan_lookup
+
+/* 0x2a04a */
+_long_mul_div proc near
+	push bp
+	mov bp, sp
+	sub sp, 10h
+	push si
+	push di
+	mov ax, [bp+0ch]
+	mov dx, [bp+0eh]
+	or dx, dx
+	jns L2a069
+	neg ax
+	adc dx, 0
+	neg dx
+	mov [bp+0ch], ax
+	mov [bp+0eh], dx
+L2a069:
+	mov bx, [bp+10h]
+	mov cx, [bp+12h]
+	or cx, cx
+	jns L2a080
+	neg bx
+	adc cx, 0
+	neg cx
+	mov [bp+10h], bx
+	mov [bp+12h], cx
+L2a080:
+	mov si, dx
+	xor si, cx
+	mov [bp-0ah], si
+	cmp ax, bx
+	jne L2a0c0
+	cmp cx, dx
+	jne L2a0c0
+	or si, si
+	je L2a0b9
+	mov ax, [bp+4]
+	mov dx, [bp+6]
+	neg ax
+	adc dx, 0
+	neg dx
+	mov [bp+4], ax
+	mov [bp+6], dx
+	mov ax, [bp+8]
+	mov dx, [bp+0ah]
+	neg ax
+	adc dx, 0
+	neg dx
+	mov [bp+8], ax
+	mov [bp+0ah], dx
+L2a0b9:
+	pop di
+	pop si
+	add sp, 10h
+	pop bp
+	ret
+L2a0c0:
+	or dx, dx
+	jne L2a0c9
+	xchg dx, ax
+	xchg bx, cx
+	jmp short L2a0e9
+L2a0c9:
+	or dh, dh
+	jne L2a0e7
+	mov ch, cl
+	mov cl, bh
+	mov bh, bl
+	mov dh, dl
+	mov dl, ah
+	mov ah, al
+	or dx, dx
+	jmp short L2a0e7
+L2a0dd:
+	shl bx, 1
+	rcl cx, 1
+	shl ax, 1
+	rcl dx, 1
+	or dx, dx
+L2a0e7:
+	jns L2a0dd
+L2a0e9:
+	mov ax, bx
+	xchg dx, cx
+	cmp cx, dx
+	jbe L2a0b9
+	div cx
+	mov [bp-2], ax
+	mov [bp-6], ax
+	xor ax, ax
+	div cx
+	mov [bp-4], ax
+	mov [bp-8], ax
+	mov ax, [bp+4]
+	mov dx, [bp+6]
+	or dx, dx
+	jne L2a111
+	or ax, ax
+	je L2a15b
+L2a111:
+	or dx, dx
+	jns L2a11c
+	neg ax
+	adc dx, 0
+	neg dx
+L2a11c:
+	mov bx, [bp-2]
+	or bx, bx
+	je L2a127
+	or dx, dx
+	jne L2a13a
+L2a127:
+	or dx, dx
+	jne L2a131
+	xchg ax, word ptr [bp - 4]
+	xchg dx, word ptr [bp - 2]
+L2a131:
+	xchg dx, ax
+	mul word ptr [bp-4]
+	xor ax, ax
+	xchg dx, ax
+	jmp short L2a15b
+L2a13a:
+	mov cx, dx
+	mul word ptr [bp-2]
+	mov si, ax
+	mov di, dx
+	mov ax, cx
+	mul word ptr [bp-4]
+	add si, ax
+	mov si, 0
+	adc di, dx
+	adc si, 0
+	mov ax, cx
+	mul word ptr [bp-2]
+	add ax, di
+	adc dx, si
+L2a15b:
+	mov bx, [bp+6]
+	xor bx, [bp-0ah]
+	jns L2a16a
+	neg ax
+	adc dx, 0
+	neg dx
+L2a16a:
+	mov [bp+4], ax
+	mov [bp+6], dx
+	mov ax, [bp+8]
+	mov dx, [bp+0ah]
+	or dx, dx
+	jne L2a17e
+	or ax, ax
+	je L2a1c8
+L2a17e:
+	or dx, dx
+	jns L2a189
+	neg ax
+	adc dx, 0
+	neg dx
+L2a189:
+	mov bx, [bp-6]
+	or bx, bx
+	je L2a194
+	or dx, dx
+	jne L2a1a7
+L2a194:
+	or dx, dx
+	jne L2a19e
+	xchg ax, word ptr [bp - 8]
+	xchg dx, word ptr [bp - 6]
+L2a19e:
+	xchg dx, ax
+	mul word ptr [bp-8]
+	xor ax, ax
+	xchg dx, ax
+	jmp short L2a1c8
+L2a1a7:
+	mov cx, dx
+	mul word ptr [bp-6]
+	mov si, ax
+	mov di, dx
+	mov ax, cx
+	mul word ptr [bp-8]
+	add si, ax
+	mov si, 0
+	adc di, dx
+	adc si, 0
+	mov ax, cx
+	mul word ptr [bp-6]
+	add ax, di
+	adc dx, si
+L2a1c8:
+	mov bx, [bp+0ah]
+	xor bx, [bp-0ah]
+	jns L2a1d7
+	neg ax
+	adc dx, 0
+	neg dx
+L2a1d7:
+	mov [bp+8], ax
+	mov [bp+0ah], dx
+	pop di
+	pop si
+	add sp, 10h
+	pop bp
+	ret
+c_2a1e4 label byte
+	db 8bh, 0dch, 36h, 8bh, 5fh, 4h, 2eh, 0a1h, 0a6h, 9h, 99h, 1h, 7h, 11h, 57h, 2h
+	db 2eh, 0a1h, 0a8h, 9h, 99h, 2bh, 47h, 4h, 1bh, 57h, 6h, 89h, 47h, 4h, 89h, 57h, 6h
+	db 8bh, 0c3h, 0cbh
+_long_mul_div endp
+
+/* 0x2a208 */
+_scale_record_a proc far
+	push bp
+	mov bp, sp
+	push si
+	mov si, [bp+6]
+	mov bp, [bp+8]
+	xor ax, ax
+	push ax
+	push word ptr cs:c_2a9e2
+	push word ptr [si+6]
+	push word ptr [si+4]
+	push word ptr [si+0ah]
+	push word ptr [si+8]
+	push word ptr [si+2]
+	push word ptr [si]
+	call _long_mul_div
+	pop word ptr [bp]
+	pop word ptr [bp+2]
+	pop word ptr [bp+4]
+	pop word ptr [bp+6]
+	add sp, 8
+	mov ax, bp
+	pop si
+	pop bp
+	retf
+_scale_record_a endp
+
+/* 0x2a242 */
+_scale_record_b proc far
+	push bp
+	mov bp, sp
+	push si
+	mov si, [bp+6]
+	xor ax, ax
+	push ax
+	push word ptr cs:c_2a9e2
+	push word ptr [si+6]
+	push word ptr [si+4]
+	push ax
+	push ax
+	push word ptr [si+2]
+	push word ptr [si]
+	call _long_mul_div
+	pop ax
+	pop dx
+	add sp, 0ch
+	pop si
+	pop bp
+	retf
+_scale_record_b endp
+
+/* 0x2a269 */
+_mul16x16 proc far
+	mov bx, sp
+	mov ax, [bx+4]
+	imul word ptr [bx+6]
+	retf
+_mul16x16 endp
+
+/* 0x2a272 */
+_mul_48 proc near
+	push bx
+	push si
+	mov word ptr c_2b6c1, ax
+	mov word ptr c_2b6c3, cx
+	mov word ptr c_2b6c5, dx
+	mov si, bx
+	mov dx, [si]
+	mov bx, [si+2]
+	mov ax, word ptr c_2b6c1
+	push di
+	xor di, di
+	or bx, bx
+	jge L2a29a
+	or di, 1
+	neg bx
+	neg dx
+	sbb bx, 0
+L2a29a:
+	or ax, ax
+	jge L2a2a3
+	xor di, 1
+	neg ax
+L2a2a3:
+	mov cx, ax
+	mul dx
+	xchg bx, dx
+	xchg cx, ax
+	mul dx
+	add ax, bx
+	adc dx, 0
+	test di, 1
+	je L2a2c6
+	not cx
+	not ax
+	not dx
+	add cx, 1
+	adc ax, 0
+	adc dx, 0
+L2a2c6:
+	pop di
+	mov word ptr c_2b6c7, dx
+	mov word ptr c_2b6c9, ax
+	mov word ptr c_2b6cb, cx
+	mov dx, [si+4]
+	mov bx, [si+6]
+	mov ax, word ptr c_2b6c3
+	push di
+	xor di, di
+	or bx, bx
+	jge L2a2ec
+	or di, 1
+	neg bx
+	neg dx
+	sbb bx, 0
+L2a2ec:
+	or ax, ax
+	jge L2a2f5
+	xor di, 1
+	neg ax
+L2a2f5:
+	mov cx, ax
+	mul dx
+	xchg bx, dx
+	xchg cx, ax
+	mul dx
+	add ax, bx
+	adc dx, 0
+	test di, 1
+	je L2a318
+	not cx
+	not ax
+	not dx
+	add cx, 1
+	adc ax, 0
+	adc dx, 0
+L2a318:
+	pop di
+	add cx, word ptr c_2b6cb
+	adc ax, word ptr c_2b6c9
+	adc dx, word ptr c_2b6c7
+	mov bx, word ptr c_2b6c5
+	or bx, bx
+	je L2a38a
+	mov word ptr c_2b6c7, dx
+	mov word ptr c_2b6c9, ax
+	mov word ptr c_2b6cb, cx
+	mov ax, bx
+	mov dx, [si+8]
+	mov bx, [si+0ah]
+	push di
+	xor di, di
+	or bx, bx
+	jge L2a351
+	or di, 1
+	neg bx
+	neg dx
+	sbb bx, 0
+L2a351:
+	or ax, ax
+	jge L2a35a
+	xor di, 1
+	neg ax
+L2a35a:
+	mov cx, ax
+	mul dx
+	xchg bx, dx
+	xchg cx, ax
+	mul dx
+	add ax, bx
+	adc dx, 0
+	test di, 1
+	je L2a37d
+	not cx
+	not ax
+	not dx
+	add cx, 1
+	adc ax, 0
+	adc dx, 0
+L2a37d:
+	pop di
+	add cx, word ptr c_2b6cb
+	adc ax, word ptr c_2b6c9
+	adc dx, word ptr c_2b6c7
+L2a38a:
+	pop si
+	pop bx
+	ret
+c_2a38d label byte
+	db 56h, 57h, 8bh, 0f3h, 8bh, 0f9h, 8bh, 0d8h, 8ah, 44h, 12h, 0ah, 0c0h, 75h, 10h, 6h
+	db 8ch, 0d8h, 8eh, 0c0h, 8bh, 0f3h, 0b9h, 6h, 0h, 0f3h, 0a5h, 7h, 0e9h, 0a6h, 0h
+L2a3ac:
+	dec al
+	je L2a3b2
+	jmp short L2a3fa
+L2a3b2:
+	mov ax, [si]
+	mov cx, [si+6]
+	mov dx, [si+0ch]
+	call _mul_48
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	mov [di], ax
+	mov [di+2], dx
+	mov ax, [si+2]
+	mov cx, [si+8]
+	mov dx, [si+0eh]
+	call _mul_48
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	mov [di+4], ax
+	mov [di+6], dx
+	mov ax, [bx+8]
+	mov dx, [bx+0ah]
+	mov [di+8], ax
+	mov [di+0ah], dx
+	jmp short L2a452
+L2a3fa:
+	mov ax, [si]
+	mov cx, [si+6]
+	mov dx, [si+0ch]
+	call _mul_48
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	mov [di], ax
+	mov [di+2], dx
+	mov ax, [si+2]
+	mov cx, [si+8]
+	mov dx, [si+0eh]
+	call _mul_48
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	mov [di+4], ax
+	mov [di+6], dx
+	mov ax, [si+4]
+	mov cx, [si+0ah]
+	mov dx, [si+10h]
+	call _mul_48
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	shl cx, 1
+	rcl ax, 1
+	rcl dx, 1
+	mov [di+8], ax
+	mov [di+0ah], dx
+L2a452:
+	pop di
+	pop si
+	ret
+c_2a455 label byte
+	db 0h
+_mul_48 endp
+
+/* 0x2a456 */
+_angle_sin proc far
+	mov bx, sp
+	mov ax, ss:[bx+4]
+	add ax, 0c000h
+	shr ax, 1
+	shr ax, 1
+	shr ax, 1
+	shr ax, 1
+	test ax, 800h
+	je L2a471
+	neg ax
+	add ax, 1000h
+L2a471:
+	mov bx, ax
+	shl bx, 1
+	mov ax, word ptr cs:c_2c293[bx]
+	retf
+_angle_sin endp
+
+/* 0x2a47b */
+_angle_cos proc far
+	mov bx, sp
+	mov ax, ss:[bx+4]
+	shr ax, 1
+	shr ax, 1
+	shr ax, 1
+	shr ax, 1
+	test ax, 800h
+	je L2a493
+	neg ax
+	add ax, 1000h
+L2a493:
+	mov bx, ax
+	shl bx, 1
+	mov ax, word ptr cs:c_2c293[bx]
+	retf
+c_2a49d label byte
+	db 0h
+c_2a49e label byte
+	db 0h, 0h, 1h, 0h, 2h, 0h, 3h, 0h, 5h, 0h, 6h, 0h, 7h, 0h, 8h, 0h
+	db 0ah, 0h, 0bh, 0h, 0ch, 0h, 0eh, 0h, 0fh, 0h, 10h, 0h, 11h, 0h, 13h, 0h
+	db 14h, 0h, 15h, 0h, 16h, 0h, 18h, 0h, 19h, 0h, 1ah, 0h, 1bh, 0h, 1dh, 0h
+	db 1eh, 0h, 1fh, 0h, 21h, 0h, 22h, 0h, 23h, 0h, 24h, 0h, 26h, 0h, 27h, 0h
+	db 28h, 0h, 29h, 0h, 2bh, 0h, 2ch, 0h, 2dh, 0h, 2fh, 0h, 30h, 0h, 31h, 0h
+	db 32h, 0h, 34h, 0h, 35h, 0h, 36h, 0h, 37h, 0h, 39h, 0h, 3ah, 0h, 3bh, 0h
+	db 3ch, 0h, 3eh, 0h, 3fh, 0h, 40h, 0h, 41h, 0h, 43h, 0h, 44h, 0h, 45h, 0h
+	db 47h, 0h, 48h, 0h, 49h, 0h, 4ah, 0h, 4ch, 0h, 4dh, 0h, 4eh, 0h, 4fh, 0h
+	db 51h, 0h, 52h, 0h, 53h, 0h, 54h, 0h, 56h, 0h, 57h, 0h, 58h, 0h, 59h, 0h
+	db 5bh, 0h, 5ch, 0h, 5dh, 0h, 5eh, 0h, 60h, 0h, 61h, 0h, 62h, 0h, 63h, 0h
+	db 65h, 0h, 66h, 0h, 67h, 0h, 68h, 0h, 6ah, 0h, 6bh, 0h, 6ch, 0h, 6dh, 0h
+	db 6eh, 0h, 70h, 0h, 71h, 0h, 72h, 0h, 73h, 0h, 75h, 0h, 76h, 0h, 77h, 0h
+	db 78h, 0h, 7ah, 0h, 7bh, 0h, 7ch, 0h, 7dh, 0h, 7eh, 0h, 80h, 0h, 81h, 0h
+	db 82h, 0h, 83h, 0h, 85h, 0h, 86h, 0h, 87h, 0h, 88h, 0h, 89h, 0h, 8bh, 0h
+	db 8ch, 0h, 8dh, 0h, 8eh, 0h, 90h, 0h, 91h, 0h, 92h, 0h, 93h, 0h, 94h, 0h
+	db 96h, 0h, 97h, 0h, 98h, 0h, 99h, 0h, 9ah, 0h, 9ch, 0h, 9dh, 0h, 9eh, 0h
+	db 9fh, 0h, 0a0h, 0h, 0a2h, 0h, 0a3h, 0h, 0a4h, 0h, 0a5h, 0h, 0a6h, 0h, 0a8h, 0h
+	db 0a9h, 0h, 0aah, 0h, 0abh, 0h, 0ach, 0h, 0aeh, 0h, 0afh, 0h, 0b0h, 0h, 0b1h, 0h
+	db 0b2h, 0h, 0b3h, 0h, 0b5h, 0h, 0b6h, 0h, 0b7h, 0h, 0b8h, 0h, 0b9h, 0h, 0bah, 0h
+	db 0bch, 0h, 0bdh, 0h, 0beh, 0h, 0bfh, 0h, 0c0h, 0h, 0c1h, 0h, 0c3h, 0h, 0c4h, 0h
+	db 0c5h, 0h, 0c6h, 0h, 0c7h, 0h, 0c8h, 0h, 0cah, 0h, 0cbh, 0h, 0cch, 0h, 0cdh, 0h
+	db 0ceh, 0h, 0cfh, 0h, 0d0h, 0h, 0d2h, 0h, 0d3h, 0h, 0d4h, 0h, 0d5h, 0h, 0d6h, 0h
+	db 0d7h, 0h, 0d8h, 0h, 0dah, 0h, 0dbh, 0h, 0dch, 0h, 0ddh, 0h, 0deh, 0h, 0dfh, 0h
+	db 0e0h, 0h, 0e2h, 0h, 0e3h, 0h, 0e4h, 0h, 0e5h, 0h, 0e6h, 0h, 0e7h, 0h, 0e8h, 0h
+	db 0e9h, 0h, 0eah, 0h, 0ech, 0h, 0edh, 0h, 0eeh, 0h, 0efh, 0h, 0f0h, 0h, 0f1h, 0h
+	db 0f2h, 0h, 0f3h, 0h, 0f4h, 0h, 0f6h, 0h, 0f7h, 0h, 0f8h, 0h, 0f9h, 0h, 0fah, 0h
+	db 0fbh, 0h, 0fch, 0h, 0fdh, 0h, 0feh, 0h, 0ffh, 0h, 1h, 1h, 2h, 1h, 3h, 1h
+	db 4h, 1h, 5h, 1h, 6h, 1h, 7h, 1h, 8h, 1h, 9h, 1h, 0ah, 1h, 0bh, 1h
+	db 0ch, 1h, 0dh, 1h, 0eh, 1h, 10h, 1h, 11h, 1h, 12h, 1h, 13h, 1h, 14h, 1h
+	db 15h, 1h, 16h, 1h, 17h, 1h, 18h, 1h, 19h, 1h, 1ah, 1h, 1bh, 1h, 1ch, 1h
+	db 1dh, 1h, 1eh, 1h, 1fh, 1h, 20h, 1h, 21h, 1h, 22h, 1h, 23h, 1h, 25h, 1h
+	db 26h, 1h, 27h, 1h, 28h, 1h, 29h, 1h, 2ah, 1h, 2bh, 1h, 2ch, 1h, 2dh, 1h
+	db 2eh, 1h, 2fh, 1h, 30h, 1h, 31h, 1h, 32h, 1h, 33h, 1h, 34h, 1h, 35h, 1h
+	db 36h, 1h, 37h, 1h, 38h, 1h, 39h, 1h, 3ah, 1h, 3bh, 1h, 3ch, 1h, 3dh, 1h
+	db 3eh, 1h, 3fh, 1h, 40h, 1h, 41h, 1h, 42h, 1h, 43h, 1h, 44h, 1h, 45h, 1h
+	db 46h, 1h, 47h, 1h, 48h, 1h, 49h, 1h, 4ah, 1h, 4bh, 1h, 4ch, 1h, 4dh, 1h
+	db 4eh, 1h, 4eh, 1h, 4fh, 1h, 50h, 1h, 51h, 1h, 52h, 1h, 53h, 1h, 54h, 1h
+	db 55h, 1h, 56h, 1h, 57h, 1h, 58h, 1h, 59h, 1h, 5ah, 1h, 5bh, 1h, 5ch, 1h
+	db 5dh, 1h, 5eh, 1h, 5fh, 1h, 60h, 1h, 61h, 1h, 61h, 1h, 62h, 1h, 63h, 1h
+	db 64h, 1h, 65h, 1h, 66h, 1h, 67h, 1h, 68h, 1h, 69h, 1h, 6ah, 1h, 6bh, 1h
+	db 6ch, 1h, 6dh, 1h, 6dh, 1h, 6eh, 1h, 6fh, 1h, 70h, 1h, 71h, 1h, 72h, 1h
+	db 73h, 1h, 74h, 1h, 75h, 1h, 76h, 1h, 77h, 1h, 77h, 1h, 78h, 1h, 79h, 1h
+	db 7ah, 1h, 7bh, 1h, 7ch, 1h, 7dh, 1h, 7eh, 1h, 7fh, 1h, 7fh, 1h, 80h, 1h
+	db 81h, 1h, 82h, 1h, 83h, 1h, 84h, 1h, 85h, 1h, 86h, 1h, 86h, 1h, 87h, 1h
+	db 88h, 1h, 89h, 1h, 8ah, 1h, 8bh, 1h, 8ch, 1h, 8ch, 1h, 8dh, 1h, 8eh, 1h
+	db 8fh, 1h, 90h, 1h, 91h, 1h, 92h, 1h, 92h, 1h, 93h, 1h, 94h, 1h, 95h, 1h
+	db 96h, 1h, 97h, 1h, 97h, 1h, 98h, 1h, 99h, 1h, 9ah, 1h, 9bh, 1h, 9ch, 1h
+	db 9ch, 1h, 9dh, 1h, 9eh, 1h, 9fh, 1h, 0a0h, 1h, 0a1h, 1h, 0a1h, 1h, 0a2h, 1h
+	db 0a3h, 1h, 0a4h, 1h, 0a5h, 1h, 0a5h, 1h, 0a6h, 1h, 0a7h, 1h, 0a8h, 1h, 0a9h, 1h
+	db 0a9h, 1h, 0aah, 1h, 0abh, 1h, 0ach, 1h, 0adh, 1h, 0adh, 1h, 0aeh, 1h, 0afh, 1h
+	db 0b0h, 1h, 0b1h, 1h, 0b1h, 1h, 0b2h, 1h, 0b3h, 1h, 0b4h, 1h, 0b5h, 1h, 0b5h, 1h
+	db 0b6h, 1h, 0b7h, 1h, 0b8h, 1h, 0b8h, 1h, 0b9h, 1h, 0bah, 1h, 0bbh, 1h, 0bch, 1h
+	db 0bch, 1h, 0bdh, 1h, 0beh, 1h, 0bfh, 1h, 0bfh, 1h, 0c0h, 1h, 0c1h, 1h, 0c2h, 1h
+	db 0c2h, 1h, 0c3h, 1h, 0c4h, 1h, 0c5h, 1h, 0c5h, 1h, 0c6h, 1h, 0c7h, 1h, 0c8h, 1h
+	db 0c8h, 1h, 0c9h, 1h, 0cah, 1h, 0cbh, 1h, 0cbh, 1h, 0cch, 1h, 0cdh, 1h, 0ceh, 1h
+	db 0ceh, 1h, 0cfh, 1h, 0d0h, 1h, 0d0h, 1h, 0d1h, 1h, 0d2h, 1h, 0d3h, 1h, 0d3h, 1h
+	db 0d4h, 1h, 0d5h, 1h, 0d6h, 1h, 0d6h, 1h, 0d7h, 1h, 0d8h, 1h, 0d8h, 1h, 0d9h, 1h
+	db 0dah, 1h, 0dbh, 1h, 0dbh, 1h, 0dch, 1h, 0ddh, 1h, 0ddh, 1h, 0deh, 1h, 0dfh, 1h
+	db 0dfh, 1h, 0e0h, 1h, 0e1h, 1h, 0e2h, 1h, 0e2h, 1h, 0e3h, 1h, 0e4h, 1h, 0e4h, 1h
+	db 0e5h, 1h, 0e6h, 1h, 0e6h, 1h, 0e7h, 1h, 0e8h, 1h, 0e8h, 1h, 0e9h, 1h, 0eah, 1h
+	db 0eah, 1h, 0ebh, 1h, 0ech, 1h, 0edh, 1h, 0edh, 1h, 0eeh, 1h, 0efh, 1h, 0efh, 1h
+	db 0f0h, 1h, 0f1h, 1h, 0f1h, 1h, 0f2h, 1h, 0f3h, 1h, 0f3h, 1h, 0f4h, 1h, 0f4h, 1h
+	db 0f5h, 1h, 0f6h, 1h, 0f6h, 1h, 0f7h, 1h, 0f8h, 1h, 0f8h, 1h, 0f9h, 1h, 0fah, 1h
+	db 0fah, 1h, 0fbh, 1h, 0fch, 1h, 0fch, 1h, 0fdh, 1h, 0feh, 1h, 0feh, 1h, 0ffh, 1h
+_angle_cos endp
+
+/* 0x2a89e */
+_arctan_ratio proc far
+	push bp
+	mov bp, sp
+	push si
+	push di
+	mov ax, [bp+6]
+	mov bx, [bp+8]
+	mov si, 1
+	cmp ax, 0
+	jge L2a8b5
+	neg si
+	neg ax
+L2a8b5:
+	mov di, 1
+	cmp bx, 0
+	jge L2a8c1
+	neg di
+	neg bx
+L2a8c1:
+	cmp ax, 0
+	jne L2a8d5
+	cmp bx, 0
+	jne L2a8d0
+	mov ax, 0
+	jmp short L2a93d
+L2a8d0:
+	mov ax, 400h
+	jmp short L2a91d
+L2a8d5:
+	cmp bx, 0
+	jne L2a8de
+	xor ax, ax
+	jmp short L2a91d
+L2a8de:
+	cmp ax, bx
+	jne L2a8e7
+	mov ax, 200h
+	jmp short L2a91d
+L2a8e7:
+	jb L2a903
+	xor dh, dh
+	mov dl, bh
+	mov bh, bl
+	xor bl, bl
+	xchg bx, ax
+	shl ax, 1
+	rcl dx, 1
+	div bx
+	mov bx, ax
+	shl bx, 1
+	mov ax, word ptr cs:c_2a49e[bx]
+	jmp short L2a91d
+L2a903:
+	xor dh, dh
+	mov dl, ah
+	mov ah, al
+	xor al, al
+	shl ax, 1
+	rcl dx, 1
+	div bx
+	mov bx, ax
+	shl bx, 1
+	mov ax, 400h
+	sub ax, word ptr cs:c_2a49e[bx]
+L2a91d:
+	cmp si, 0
+	jg L2a929
+	mov bx, 800h
+	sub bx, ax
+	mov ax, bx
+L2a929:
+	cmp di, 0
+	jg L2a935
+	mov bx, 1000h
+	sub bx, ax
+	mov ax, bx
+L2a935:
+	shl ax, 1
+	shl ax, 1
+	shl ax, 1
+	shl ax, 1
+L2a93d:
+	pop di
+	pop si
+	pop bp
+	retf
+_arctan_ratio endp
+
+/* 0x2a941 */
+_arctan_lookup proc far
+	push bp
+	mov bp, sp
+	mov bx, [bp+6]
+	shl bx, 1
+	mov ax, word ptr cs:c_2a49e[bx]
+	pop bp
+	retf
+c_2a950 label byte
+	db 146 dup (0h)
+c_2a9e2 label byte
+	db 0h, 0h, 0h, 0h
+c_2a9e6 label byte
+	db 0h, 0h
+c_2a9e8 label byte
+	db 3289 dup (0h)
+c_2b6c1 label byte
+	db 0h, 0h
+c_2b6c3 label byte
+	db 0h, 0h
+c_2b6c5 label byte
+	db 0h, 0h
+c_2b6c7 label byte
+	db 0h, 0h
+c_2b6c9 label byte
+	db 0h, 0h
+c_2b6cb label byte
+	db 2752 dup (0h)
+	db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
+	db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
+	db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0feh, 0feh, 0feh, 0feh, 0feh, 0feh, 0feh, 0feh
+	db 0feh, 0feh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0h, 0h, 0h, 0h, 0h, 0h, 1h, 1h
+	db 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 0fdh, 0fdh, 0fdh, 0fdh, 0fdh, 0fdh, 0fdh, 0fdh
+	db 0feh, 0feh, 0feh, 0feh, 0ffh, 0ffh, 0ffh, 0ffh, 0h, 0h, 0h, 0h, 1h, 1h, 1h, 1h
+	db 2h, 2h, 2h, 2h, 2h, 2h, 2h, 2h, 0fch, 0fch, 0fch, 0fch, 0fch, 0fch, 0fdh, 0fdh
+	db 0fdh, 0fdh, 0feh, 0feh, 0feh, 0feh, 0ffh, 0ffh, 0h, 0h, 1h, 1h, 1h, 1h, 2h, 2h
+	db 2h, 2h, 3h, 3h, 3h, 3h, 3h, 3h, 0fbh, 0fbh, 0fbh, 0fbh, 0fbh, 0fbh, 0fch, 0fch
+	db 0fdh, 0fdh, 0feh, 0feh, 0ffh, 0ffh, 0ffh, 0ffh, 0h, 0h, 1h, 1h, 2h, 2h, 3h, 3h
+	db 3h, 3h, 4h, 4h, 4h, 4h, 4h, 4h, 0fah, 0fah, 0fah, 0fah, 0fah, 0fah, 0fbh, 0fbh
+	db 0fch, 0fch, 0fdh, 0fdh, 0feh, 0feh, 0ffh, 0ffh, 0h, 0h, 1h, 1h, 2h, 2h, 3h, 3h
+	db 4h, 4h, 5h, 5h, 5h, 5h, 5h, 5h, 0f9h, 0f9h, 0f9h, 0f9h, 0f9h, 0fah, 0fah, 0fbh
+	db 0fch, 0fch, 0fdh, 0fdh, 0feh, 0feh, 0ffh, 0ffh, 0h, 0h, 1h, 1h, 2h, 2h, 3h, 3h
+	db 4h, 5h, 5h, 6h, 6h, 6h, 6h, 6h, 0f8h, 0f8h, 0f8h, 0f8h, 0f8h, 0f9h, 0f9h, 0fah
+	db 0fbh, 0fbh, 0fch, 0fdh, 0fdh, 0feh, 0ffh, 0ffh, 0h, 0h, 1h, 2h, 2h, 3h, 4h, 4h
+	db 5h, 6h, 6h, 7h, 7h, 7h, 7h, 7h
+c_2c293 label byte
+	db 0h, 40h, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh
+	db 0feh, 3fh, 0feh, 3fh, 0feh, 3fh, 0fdh, 3fh, 0fdh, 3fh, 0fch, 3fh, 0fch, 3fh, 0fbh, 3fh
+	db 0fbh, 3fh, 0fah, 3fh, 0f9h, 3fh, 0f9h, 3fh, 0f8h, 3fh, 0f7h, 3fh, 0f6h, 3fh, 0f5h, 3fh
+	db 0f4h, 3fh, 0f3h, 3fh, 0f2h, 3fh, 0f1h, 3fh, 0f0h, 3fh, 0efh, 3fh, 0eeh, 3fh, 0edh, 3fh
+	db 0ech, 3fh, 0ebh, 3fh, 0e9h, 3fh, 0e8h, 3fh, 0e7h, 3fh, 0e5h, 3fh, 0e4h, 3fh, 0e2h, 3fh
+	db 0e1h, 3fh, 0dfh, 3fh, 0deh, 3fh, 0dch, 3fh, 0dah, 3fh, 0d8h, 3fh, 0d7h, 3fh, 0d5h, 3fh
+	db 0d3h, 3fh, 0d1h, 3fh, 0cfh, 3fh, 0cdh, 3fh, 0cbh, 3fh, 0c9h, 3fh, 0c7h, 3fh, 0c5h, 3fh
+	db 0c3h, 3fh, 0c1h, 3fh, 0bfh, 3fh, 0bch, 3fh, 0bah, 3fh, 0b8h, 3fh, 0b5h, 3fh, 0b3h, 3fh
+	db 0b1h, 3fh, 0aeh, 3fh, 0ach, 3fh, 0a9h, 3fh, 0a6h, 3fh, 0a4h, 3fh, 0a1h, 3fh, 9eh, 3fh
+	db 9ch, 3fh, 99h, 3fh, 96h, 3fh, 93h, 3fh, 90h, 3fh, 8dh, 3fh, 8ah, 3fh, 87h, 3fh
+	db 84h, 3fh, 81h, 3fh, 7eh, 3fh, 7bh, 3fh, 78h, 3fh, 74h, 3fh, 71h, 3fh, 6eh, 3fh
+	db 6ah, 3fh, 67h, 3fh, 64h, 3fh, 60h, 3fh, 5dh, 3fh, 59h, 3fh, 55h, 3fh, 52h, 3fh
+	db 4eh, 3fh, 4ah, 3fh, 47h, 3fh, 43h, 3fh, 3fh, 3fh, 3bh, 3fh, 37h, 3fh, 33h, 3fh
+	db 2fh, 3fh, 2bh, 3fh, 27h, 3fh, 23h, 3fh, 1fh, 3fh, 1bh, 3fh, 17h, 3fh, 13h, 3fh
+	db 0eh, 3fh, 0ah, 3fh, 6h, 3fh, 1h, 3fh, 0fdh, 3eh, 0f8h, 3eh, 0f4h, 3eh, 0efh, 3eh
+	db 0ebh, 3eh, 0e6h, 3eh, 0e1h, 3eh, 0ddh, 3eh, 0d8h, 3eh, 0d3h, 3eh, 0ceh, 3eh, 0cah, 3eh
+	db 0c5h, 3eh, 0c0h, 3eh, 0bbh, 3eh, 0b6h, 3eh, 0b1h, 3eh, 0ach, 3eh, 0a7h, 3eh, 0a1h, 3eh
+	db 9ch, 3eh, 97h, 3eh, 92h, 3eh, 8ch, 3eh, 87h, 3eh, 82h, 3eh, 7ch, 3eh, 77h, 3eh
+	db 71h, 3eh, 6ch, 3eh, 66h, 3eh, 61h, 3eh, 5bh, 3eh, 55h, 3eh, 50h, 3eh, 4ah, 3eh
+	db 44h, 3eh, 3eh, 3eh, 38h, 3eh, 33h, 3eh, 2dh, 3eh, 27h, 3eh, 21h, 3eh, 1bh, 3eh
+	db 14h, 3eh, 0eh, 3eh, 8h, 3eh, 2h, 3eh, 0fch, 3dh, 0f5h, 3dh, 0efh, 3dh, 0e9h, 3dh
+	db 0e2h, 3dh, 0dch, 3dh, 0d6h, 3dh, 0cfh, 3dh, 0c9h, 3dh, 0c2h, 3dh, 0bbh, 3dh, 0b5h, 3dh
+	db 0aeh, 3dh, 0a7h, 3dh, 0a1h, 3dh, 9ah, 3dh, 93h, 3dh, 8ch, 3dh, 85h, 3dh, 7eh, 3dh
+	db 77h, 3dh, 70h, 3dh, 69h, 3dh, 62h, 3dh, 5bh, 3dh, 54h, 3dh, 4dh, 3dh, 45h, 3dh
+	db 3eh, 3dh, 37h, 3dh, 2fh, 3dh, 28h, 3dh, 21h, 3dh, 19h, 3dh, 12h, 3dh, 0ah, 3dh
+	db 2h, 3dh, 0fbh, 3ch, 0f3h, 3ch, 0ech, 3ch, 0e4h, 3ch, 0dch, 3ch, 0d4h, 3ch, 0cch, 3ch
+	db 0c5h, 3ch, 0bdh, 3ch, 0b5h, 3ch, 0adh, 3ch, 0a5h, 3ch, 9dh, 3ch, 95h, 3ch, 8ch, 3ch
+	db 84h, 3ch, 7ch, 3ch, 74h, 3ch, 6ch, 3ch, 63h, 3ch, 5bh, 3ch, 53h, 3ch, 4ah, 3ch
+	db 42h, 3ch, 39h, 3ch, 31h, 3ch, 28h, 3ch, 20h, 3ch, 17h, 3ch, 0eh, 3ch, 6h, 3ch
+	db 0fdh, 3bh, 0f4h, 3bh, 0ebh, 3bh, 0e2h, 3bh, 0dah, 3bh, 0d1h, 3bh, 0c8h, 3bh, 0bfh, 3bh
+	db 0b6h, 3bh, 0adh, 3bh, 0a3h, 3bh, 9ah, 3bh, 91h, 3bh, 88h, 3bh, 7fh, 3bh, 75h, 3bh
+	db 6ch, 3bh, 63h, 3bh, 59h, 3bh, 50h, 3bh, 47h, 3bh, 3dh, 3bh, 34h, 3bh, 2ah, 3bh
+	db 20h, 3bh, 17h, 3bh, 0dh, 3bh, 3h, 3bh, 0fah, 3ah, 0f0h, 3ah, 0e6h, 3ah, 0dch, 3ah
+	db 0d2h, 3ah, 0c8h, 3ah, 0beh, 3ah, 0b4h, 3ah, 0aah, 3ah, 0a0h, 3ah, 96h, 3ah, 8ch, 3ah
+	db 82h, 3ah, 78h, 3ah, 6dh, 3ah, 63h, 3ah, 59h, 3ah, 4fh, 3ah, 44h, 3ah, 3ah, 3ah
+	db 2fh, 3ah, 25h, 3ah, 1ah, 3ah, 10h, 3ah, 5h, 3ah, 0fbh, 39h, 0f0h, 39h, 0e5h, 39h
+	db 0dah, 39h, 0d0h, 39h, 0c5h, 39h, 0bah, 39h, 0afh, 39h, 0a4h, 39h, 99h, 39h, 8eh, 39h
+	db 83h, 39h, 78h, 39h, 6dh, 39h, 62h, 39h, 57h, 39h, 4ch, 39h, 41h, 39h, 35h, 39h
+	db 2ah, 39h, 1fh, 39h, 13h, 39h, 8h, 39h, 0fdh, 38h, 0f1h, 38h, 0e6h, 38h, 0dah, 38h
+	db 0cfh, 38h, 0c3h, 38h, 0b7h, 38h, 0ach, 38h, 0a0h, 38h, 94h, 38h, 89h, 38h, 7dh, 38h
+	db 71h, 38h, 65h, 38h, 59h, 38h, 4dh, 38h, 41h, 38h, 35h, 38h, 29h, 38h, 1dh, 38h
+	db 11h, 38h, 5h, 38h, 0f9h, 37h, 0edh, 37h, 0e0h, 37h, 0d4h, 37h, 0c8h, 37h, 0bbh, 37h
+	db 0afh, 37h, 0a3h, 37h, 96h, 37h, 8ah, 37h, 7dh, 37h, 71h, 37h, 64h, 37h, 57h, 37h
+	db 4bh, 37h, 3eh, 37h, 31h, 37h, 25h, 37h, 18h, 37h, 0bh, 37h, 0feh, 36h, 0f1h, 36h
+	db 0e5h, 36h, 0d8h, 36h, 0cbh, 36h, 0beh, 36h, 0b1h, 36h, 0a4h, 36h, 96h, 36h, 89h, 36h
+	db 7ch, 36h, 6fh, 36h, 62h, 36h, 54h, 36h, 47h, 36h, 3ah, 36h, 2ch, 36h, 1fh, 36h
+	db 12h, 36h, 4h, 36h, 0f7h, 35h, 0e9h, 35h, 0dch, 35h, 0ceh, 35h, 0c0h, 35h, 0b3h, 35h
+	db 0a5h, 35h, 97h, 35h, 89h, 35h, 7ch, 35h, 6eh, 35h, 60h, 35h, 52h, 35h, 44h, 35h
+	db 36h, 35h, 28h, 35h, 1ah, 35h, 0ch, 35h, 0feh, 34h, 0f0h, 34h, 0e2h, 34h, 0d4h, 34h
+	db 0c6h, 34h, 0b7h, 34h, 0a9h, 34h, 9bh, 34h, 8ch, 34h, 7eh, 34h, 70h, 34h, 61h, 34h
+	db 53h, 34h, 44h, 34h, 36h, 34h, 27h, 34h, 19h, 34h, 0ah, 34h, 0fbh, 33h, 0edh, 33h
+	db 0deh, 33h, 0cfh, 33h, 0c1h, 33h, 0b2h, 33h, 0a3h, 33h, 94h, 33h, 85h, 33h, 76h, 33h
+	db 67h, 33h, 58h, 33h, 49h, 33h, 3ah, 33h, 2bh, 33h, 1ch, 33h, 0dh, 33h, 0feh, 32h
+	db 0eeh, 32h, 0dfh, 32h, 0d0h, 32h, 0c1h, 32h, 0b1h, 32h, 0a2h, 32h, 93h, 32h, 83h, 32h
+	db 74h, 32h, 64h, 32h, 55h, 32h, 45h, 32h, 36h, 32h, 26h, 32h, 16h, 32h, 7h, 32h
+	db 0f7h, 31h, 0e7h, 31h, 0d8h, 31h, 0c8h, 31h, 0b8h, 31h, 0a8h, 31h, 98h, 31h, 88h, 31h
+	db 79h, 31h, 69h, 31h, 59h, 31h, 49h, 31h, 38h, 31h, 28h, 31h, 18h, 31h, 8h, 31h
+	db 0f8h, 30h, 0e8h, 30h, 0d8h, 30h, 0c7h, 30h, 0b7h, 30h, 0a7h, 30h, 96h, 30h, 86h, 30h
+	db 76h, 30h, 65h, 30h, 55h, 30h, 44h, 30h, 34h, 30h, 23h, 30h, 13h, 30h, 2h, 30h
+	db 0f1h, 2fh, 0e1h, 2fh, 0d0h, 2fh, 0bfh, 2fh, 0afh, 2fh, 9eh, 2fh, 8dh, 2fh, 7ch, 2fh
+	db 6bh, 2fh, 5ah, 2fh, 49h, 2fh, 38h, 2fh, 28h, 2fh, 16h, 2fh, 5h, 2fh, 0f4h, 2eh
+	db 0e3h, 2eh, 0d2h, 2eh, 0c1h, 2eh, 0b0h, 2eh, 9fh, 2eh, 8dh, 2eh, 7ch, 2eh, 6bh, 2eh
+	db 5ah, 2eh, 48h, 2eh, 37h, 2eh, 25h, 2eh, 14h, 2eh, 3h, 2eh, 0f1h, 2dh, 0e0h, 2dh
+	db 0ceh, 2dh, 0bch, 2dh, 0abh, 2dh, 99h, 2dh, 88h, 2dh, 76h, 2dh, 64h, 2dh, 52h, 2dh
+	db 41h, 2dh, 2fh, 2dh, 1dh, 2dh, 0bh, 2dh, 0f9h, 2ch, 0e8h, 2ch, 0d6h, 2ch, 0c4h, 2ch
+	db 0b2h, 2ch, 0a0h, 2ch, 8eh, 2ch, 7ch, 2ch, 6ah, 2ch, 57h, 2ch, 45h, 2ch, 33h, 2ch
+	db 21h, 2ch, 0fh, 2ch, 0fch, 2bh, 0eah, 2bh, 0d8h, 2bh, 0c6h, 2bh, 0b3h, 2bh, 0a1h, 2bh
+	db 8eh, 2bh, 7ch, 2bh, 6ah, 2bh, 57h, 2bh, 45h, 2bh, 32h, 2bh, 20h, 2bh, 0dh, 2bh
+	db 0fah, 2ah, 0e8h, 2ah, 0d5h, 2ah, 0c2h, 2ah, 0b0h, 2ah, 9dh, 2ah, 8ah, 2ah, 77h, 2ah
+	db 65h, 2ah, 52h, 2ah, 3fh, 2ah, 2ch, 2ah, 19h, 2ah, 6h, 2ah, 0f3h, 29h, 0e0h, 29h
+	db 0cdh, 29h, 0bah, 29h, 0a7h, 29h, 94h, 29h, 81h, 29h, 6eh, 29h, 5ah, 29h, 47h, 29h
+	db 34h, 29h, 21h, 29h, 0eh, 29h, 0fah, 28h, 0e7h, 28h, 0d4h, 28h, 0c0h, 28h, 0adh, 28h
+	db 99h, 28h, 86h, 28h, 72h, 28h, 5fh, 28h, 4bh, 28h, 38h, 28h, 24h, 28h, 11h, 28h
+	db 0fdh, 27h, 0eah, 27h, 0d6h, 27h, 0c2h, 27h, 0afh, 27h, 9bh, 27h, 87h, 27h, 73h, 27h
+	db 5fh, 27h, 4ch, 27h, 38h, 27h, 24h, 27h, 10h, 27h, 0fch, 26h, 0e8h, 26h, 0d4h, 26h
+	db 0c0h, 26h, 0ach, 26h, 98h, 26h, 84h, 26h, 70h, 26h, 5ch, 26h, 48h, 26h, 34h, 26h
+	db 1fh, 26h, 0bh, 26h, 0f7h, 25h, 0e3h, 25h, 0cfh, 25h, 0bah, 25h, 0a6h, 25h, 92h, 25h
+	db 7dh, 25h, 69h, 25h, 54h, 25h, 40h, 25h, 2ch, 25h, 17h, 25h, 3h, 25h, 0eeh, 24h
+	db 0dah, 24h, 0c5h, 24h, 0b0h, 24h, 9ch, 24h, 87h, 24h, 73h, 24h, 5eh, 24h, 49h, 24h
+	db 34h, 24h, 20h, 24h, 0bh, 24h, 0f6h, 23h, 0e1h, 23h, 0cdh, 23h, 0b8h, 23h, 0a3h, 23h
+	db 8eh, 23h, 79h, 23h, 64h, 23h, 4fh, 23h, 3ah, 23h, 25h, 23h, 10h, 23h, 0fbh, 22h
+	db 0e6h, 22h, 0d1h, 22h, 0bch, 22h, 0a7h, 22h, 92h, 22h, 7dh, 22h, 67h, 22h, 52h, 22h
+	db 3dh, 22h, 28h, 22h, 12h, 22h, 0fdh, 21h, 0e8h, 21h, 0d2h, 21h, 0bdh, 21h, 0a8h, 21h
+	db 92h, 21h, 7dh, 21h, 68h, 21h, 52h, 21h, 3dh, 21h, 27h, 21h, 12h, 21h, 0fch, 20h
+	db 0e7h, 20h, 0d1h, 20h, 0bbh, 20h, 0a6h, 20h, 90h, 20h, 7bh, 20h, 65h, 20h, 4fh, 20h
+	db 39h, 20h, 24h, 20h, 0eh, 20h, 0f8h, 1fh, 0e2h, 1fh, 0cdh, 1fh, 0b7h, 1fh, 0a1h, 1fh
+	db 8bh, 1fh, 75h, 1fh, 5fh, 1fh, 49h, 1fh, 34h, 1fh, 1eh, 1fh, 8h, 1fh, 0f2h, 1eh
+	db 0dch, 1eh, 0c6h, 1eh, 0b0h, 1eh, 99h, 1eh, 83h, 1eh, 6dh, 1eh, 57h, 1eh, 41h, 1eh
+	db 2bh, 1eh, 15h, 1eh, 0feh, 1dh, 0e8h, 1dh, 0d2h, 1dh, 0bch, 1dh, 0a6h, 1dh, 8fh, 1dh
+	db 79h, 1dh, 63h, 1dh, 4ch, 1dh, 36h, 1dh, 20h, 1dh, 9h, 1dh, 0f3h, 1ch, 0dch, 1ch
+	db 0c6h, 1ch, 0afh, 1ch, 99h, 1ch, 83h, 1ch, 6ch, 1ch, 55h, 1ch, 3fh, 1ch, 28h, 1ch
+	db 12h, 1ch, 0fbh, 1bh, 0e5h, 1bh, 0ceh, 1bh, 0b7h, 1bh, 0a1h, 1bh, 8ah, 1bh, 73h, 1bh
+	db 5dh, 1bh, 46h, 1bh, 2fh, 1bh, 18h, 1bh, 2h, 1bh, 0ebh, 1ah, 0d4h, 1ah, 0bdh, 1ah
+	db 0a6h, 1ah, 8fh, 1ah, 79h, 1ah, 62h, 1ah, 4bh, 1ah, 34h, 1ah, 1dh, 1ah, 6h, 1ah
+	db 0efh, 19h, 0d8h, 19h, 0c1h, 19h, 0aah, 19h, 93h, 19h, 7ch, 19h, 65h, 19h, 4eh, 19h
+	db 37h, 19h, 20h, 19h, 8h, 19h, 0f1h, 18h, 0dah, 18h, 0c3h, 18h, 0ach, 18h, 95h, 18h
+	db 7dh, 18h, 66h, 18h, 4fh, 18h, 38h, 18h, 20h, 18h, 9h, 18h, 0f2h, 17h, 0dah, 17h
+	db 0c3h, 17h, 0ach, 17h, 94h, 17h, 7dh, 17h, 66h, 17h, 4eh, 17h, 37h, 17h, 1fh, 17h
+	db 8h, 17h, 0f1h, 16h, 0d9h, 16h, 0c2h, 16h, 0aah, 16h, 93h, 16h, 7bh, 16h, 64h, 16h
+	db 4ch, 16h, 34h, 16h, 1dh, 16h, 5h, 16h, 0eeh, 15h, 0d6h, 15h, 0beh, 15h, 0a7h, 15h
+	db 8fh, 15h, 77h, 15h, 60h, 15h, 48h, 15h, 30h, 15h, 19h, 15h, 1h, 15h, 0e9h, 14h
+	db 0d1h, 14h, 0bah, 14h, 0a2h, 14h, 8ah, 14h, 72h, 14h, 5ah, 14h, 43h, 14h, 2bh, 14h
+	db 13h, 14h, 0fbh, 13h, 0e3h, 13h, 0cbh, 13h, 0b3h, 13h, 9bh, 13h, 83h, 13h, 6ch, 13h
+	db 54h, 13h, 3ch, 13h, 24h, 13h, 0ch, 13h, 0f4h, 12h, 0dch, 12h, 0c4h, 12h, 0ach, 12h
+	db 94h, 12h, 7bh, 12h, 63h, 12h, 4bh, 12h, 33h, 12h, 1bh, 12h, 3h, 12h, 0ebh, 11h
+	db 0d3h, 11h, 0bbh, 11h, 0a2h, 11h, 8ah, 11h, 72h, 11h, 5ah, 11h, 42h, 11h, 2ah, 11h
+	db 11h, 11h, 0f9h, 10h, 0e1h, 10h, 0c9h, 10h, 0b0h, 10h, 98h, 10h, 80h, 10h, 68h, 10h
+	db 4fh, 10h, 37h, 10h, 1fh, 10h, 6h, 10h, 0eeh, 0fh, 0d6h, 0fh, 0bdh, 0fh, 0a5h, 0fh
+	db 8ch, 0fh, 74h, 0fh, 5ch, 0fh, 43h, 0fh, 2bh, 0fh, 12h, 0fh, 0fah, 0eh, 0e2h, 0eh
+	db 0c9h, 0eh, 0b1h, 0eh, 98h, 0eh, 80h, 0eh, 67h, 0eh, 4fh, 0eh, 36h, 0eh, 1eh, 0eh
+	db 5h, 0eh, 0edh, 0dh, 0d4h, 0dh, 0bch, 0dh, 0a3h, 0dh, 8bh, 0dh, 72h, 0dh, 59h, 0dh
+	db 41h, 0dh, 28h, 0dh, 10h, 0dh, 0f7h, 0ch, 0deh, 0ch, 0c6h, 0ch, 0adh, 0ch, 95h, 0ch
+	db 7ch, 0ch, 63h, 0ch, 4bh, 0ch, 32h, 0ch, 19h, 0ch, 1h, 0ch, 0e8h, 0bh, 0cfh, 0bh
+	db 0b6h, 0bh, 9eh, 0bh, 85h, 0bh, 6ch, 0bh, 54h, 0bh, 3bh, 0bh, 22h, 0bh, 9h, 0bh
+	db 0f1h, 0ah, 0d8h, 0ah, 0bfh, 0ah, 0a6h, 0ah, 8dh, 0ah, 75h, 0ah, 5ch, 0ah, 43h, 0ah
+	db 2ah, 0ah, 11h, 0ah, 0f9h, 9h, 0e0h, 9h, 0c7h, 9h, 0aeh, 9h, 95h, 9h, 7ch, 9h
+	db 64h, 9h, 4bh, 9h, 32h, 9h, 19h, 9h, 0h, 9h, 0e7h, 8h, 0ceh, 8h, 0b5h, 8h
+	db 9ch, 8h, 84h, 8h, 6bh, 8h, 52h, 8h, 39h, 8h, 20h, 8h, 7h, 8h, 0eeh, 7h
+	db 0d5h, 7h, 0bch, 7h, 0a3h, 7h, 8ah, 7h, 71h, 7h, 58h, 7h, 3fh, 7h, 26h, 7h
+	db 0dh, 7h, 0f4h, 6h, 0dbh, 6h, 0c2h, 6h, 0a9h, 6h, 90h, 6h, 77h, 6h, 5eh, 6h
+	db 45h, 6h, 2ch, 6h, 13h, 6h, 0fah, 5h, 0e1h, 5h, 0c8h, 5h, 0afh, 5h, 96h, 5h
+	db 7dh, 5h, 64h, 5h, 4bh, 5h, 32h, 5h, 19h, 5h, 0h, 5h, 0e7h, 4h, 0ceh, 4h
+	db 0b5h, 4h, 9ch, 4h, 83h, 4h, 6ah, 4h, 51h, 4h, 37h, 4h, 1eh, 4h, 5h, 4h
+	db 0ech, 3h, 0d3h, 3h, 0bah, 3h, 0a1h, 3h, 88h, 3h, 6fh, 3h, 56h, 3h, 3dh, 3h
+	db 23h, 3h, 0ah, 3h, 0f1h, 2h, 0d8h, 2h, 0bfh, 2h, 0a6h, 2h, 8dh, 2h, 74h, 2h
+	db 5bh, 2h, 41h, 2h, 28h, 2h, 0fh, 2h, 0f6h, 1h, 0ddh, 1h, 0c4h, 1h, 0abh, 1h
+	db 92h, 1h, 78h, 1h, 5fh, 1h, 46h, 1h, 2dh, 1h, 14h, 1h, 0fbh, 0h, 0e2h, 0h
+	db 0c9h, 0h, 0afh, 0h, 96h, 0h, 7dh, 0h, 64h, 0h, 4bh, 0h, 32h, 0h, 19h, 0h
+	db 0h, 0h, 0e6h, 0ffh, 0cdh, 0ffh, 0b4h, 0ffh, 9bh, 0ffh, 82h, 0ffh, 69h, 0ffh, 50h, 0ffh
+	db 36h, 0ffh, 1dh, 0ffh, 4h, 0ffh, 0ebh, 0feh, 0d2h, 0feh, 0b9h, 0feh, 0a0h, 0feh, 87h, 0feh
+	db 6dh, 0feh, 54h, 0feh, 3bh, 0feh, 22h, 0feh, 9h, 0feh, 0f0h, 0fdh, 0d7h, 0fdh, 0beh, 0fdh
+	db 0a4h, 0fdh, 8bh, 0fdh, 72h, 0fdh, 59h, 0fdh, 40h, 0fdh, 27h, 0fdh, 0eh, 0fdh, 0f5h, 0fch
+	db 0dch, 0fch, 0c2h, 0fch, 0a9h, 0fch, 90h, 0fch, 77h, 0fch, 5eh, 0fch, 45h, 0fch, 2ch, 0fch
+	db 13h, 0fch, 0fah, 0fbh, 0e1h, 0fbh, 0c8h, 0fbh, 0aeh, 0fbh, 95h, 0fbh, 7ch, 0fbh, 63h, 0fbh
+	db 4ah, 0fbh, 31h, 0fbh, 18h, 0fbh, 0ffh, 0fah, 0e6h, 0fah, 0cdh, 0fah, 0b4h, 0fah, 9bh, 0fah
+	db 82h, 0fah, 69h, 0fah, 50h, 0fah, 37h, 0fah, 1eh, 0fah, 5h, 0fah, 0ech, 0f9h, 0d3h, 0f9h
+	db 0bah, 0f9h, 0a1h, 0f9h, 88h, 0f9h, 6fh, 0f9h, 56h, 0f9h, 3dh, 0f9h, 24h, 0f9h, 0bh, 0f9h
+	db 0f2h, 0f8h, 0d9h, 0f8h, 0c0h, 0f8h, 0a7h, 0f8h, 8eh, 0f8h, 75h, 0f8h, 5ch, 0f8h, 43h, 0f8h
+	db 2ah, 0f8h, 11h, 0f8h, 0f8h, 0f7h, 0dfh, 0f7h, 0c6h, 0f7h, 0adh, 0f7h, 94h, 0f7h, 7bh, 0f7h
+	db 63h, 0f7h, 4ah, 0f7h, 31h, 0f7h, 18h, 0f7h, 0ffh, 0f6h, 0e6h, 0f6h, 0cdh, 0f6h, 0b4h, 0f6h
+	db 9bh, 0f6h, 83h, 0f6h, 6ah, 0f6h, 51h, 0f6h, 38h, 0f6h, 1fh, 0f6h, 6h, 0f6h, 0eeh, 0f5h
+	db 0d5h, 0f5h, 0bch, 0f5h, 0a3h, 0f5h, 8ah, 0f5h, 72h, 0f5h, 59h, 0f5h, 40h, 0f5h, 27h, 0f5h
+	db 0eh, 0f5h, 0f6h, 0f4h, 0ddh, 0f4h, 0c4h, 0f4h, 0abh, 0f4h, 93h, 0f4h, 7ah, 0f4h, 61h, 0f4h
+	db 49h, 0f4h, 30h, 0f4h, 17h, 0f4h, 0feh, 0f3h, 0e6h, 0f3h, 0cdh, 0f3h, 0b4h, 0f3h, 9ch, 0f3h
+	db 83h, 0f3h, 6ah, 0f3h, 52h, 0f3h, 39h, 0f3h, 21h, 0f3h, 8h, 0f3h, 0efh, 0f2h, 0d7h, 0f2h
+	db 0beh, 0f2h, 0a6h, 0f2h, 8dh, 0f2h, 74h, 0f2h, 5ch, 0f2h, 43h, 0f2h, 2bh, 0f2h, 12h, 0f2h
+	db 0fah, 0f1h, 0e1h, 0f1h, 0c9h, 0f1h, 0b0h, 0f1h, 98h, 0f1h, 7fh, 0f1h, 67h, 0f1h, 4eh, 0f1h
+	db 36h, 0f1h, 1dh, 0f1h, 5h, 0f1h, 0edh, 0f0h, 0d4h, 0f0h, 0bch, 0f0h, 0a3h, 0f0h, 8bh, 0f0h
+	db 73h, 0f0h, 5ah, 0f0h, 42h, 0f0h, 29h, 0f0h, 11h, 0f0h, 0f9h, 0efh, 0e0h, 0efh, 0c8h, 0efh
+	db 0b0h, 0efh, 97h, 0efh, 7fh, 0efh, 67h, 0efh, 4fh, 0efh, 36h, 0efh, 1eh, 0efh, 6h, 0efh
+	db 0eeh, 0eeh, 0d5h, 0eeh, 0bdh, 0eeh, 0a5h, 0eeh, 8dh, 0eeh, 75h, 0eeh, 5dh, 0eeh, 44h, 0eeh
+	db 2ch, 0eeh, 14h, 0eeh, 0fch, 0edh, 0e4h, 0edh, 0cch, 0edh, 0b4h, 0edh, 9ch, 0edh, 84h, 0edh
+	db 6bh, 0edh, 53h, 0edh, 3bh, 0edh, 23h, 0edh, 0bh, 0edh, 0f3h, 0ech, 0dbh, 0ech, 0c3h, 0ech
+	db 0abh, 0ech, 93h, 0ech, 7ch, 0ech, 64h, 0ech, 4ch, 0ech, 34h, 0ech, 1ch, 0ech, 4h, 0ech
+	db 0ech, 0ebh, 0d4h, 0ebh, 0bch, 0ebh, 0a5h, 0ebh, 8dh, 0ebh, 75h, 0ebh, 5dh, 0ebh, 45h, 0ebh
+	db 2eh, 0ebh, 16h, 0ebh, 0feh, 0eah, 0e6h, 0eah, 0cfh, 0eah, 0b7h, 0eah, 9fh, 0eah, 88h, 0eah
+	db 70h, 0eah, 58h, 0eah, 41h, 0eah, 29h, 0eah, 11h, 0eah, 0fah, 0e9h, 0e2h, 0e9h, 0cbh, 0e9h
+	db 0b3h, 0e9h, 9bh, 0e9h, 84h, 0e9h, 6ch, 0e9h, 55h, 0e9h, 3dh, 0e9h, 26h, 0e9h, 0eh, 0e9h
+	db 0f7h, 0e8h, 0e0h, 0e8h, 0c8h, 0e8h, 0b1h, 0e8h, 99h, 0e8h, 82h, 0e8h, 6bh, 0e8h, 53h, 0e8h
+	db 3ch, 0e8h, 25h, 0e8h, 0dh, 0e8h, 0f6h, 0e7h, 0dfh, 0e7h, 0c7h, 0e7h, 0b0h, 0e7h, 99h, 0e7h
+	db 82h, 0e7h, 6ah, 0e7h, 53h, 0e7h, 3ch, 0e7h, 25h, 0e7h, 0eh, 0e7h, 0f7h, 0e6h, 0dfh, 0e6h
+	db 0c8h, 0e6h, 0b1h, 0e6h, 9ah, 0e6h, 83h, 0e6h, 6ch, 0e6h, 55h, 0e6h, 3eh, 0e6h, 27h, 0e6h
+	db 10h, 0e6h, 0f9h, 0e5h, 0e2h, 0e5h, 0cbh, 0e5h, 0b4h, 0e5h, 9dh, 0e5h, 86h, 0e5h, 70h, 0e5h
+	db 59h, 0e5h, 42h, 0e5h, 2bh, 0e5h, 14h, 0e5h, 0fdh, 0e4h, 0e7h, 0e4h, 0d0h, 0e4h, 0b9h, 0e4h
+	db 0a2h, 0e4h, 8ch, 0e4h, 75h, 0e4h, 5eh, 0e4h, 48h, 0e4h, 31h, 0e4h, 1ah, 0e4h, 4h, 0e4h
+	db 0edh, 0e3h, 0d7h, 0e3h, 0c0h, 0e3h, 0aah, 0e3h, 93h, 0e3h, 7ch, 0e3h, 66h, 0e3h, 50h, 0e3h
+	db 39h, 0e3h, 23h, 0e3h, 0ch, 0e3h, 0f6h, 0e2h, 0dfh, 0e2h, 0c9h, 0e2h, 0b3h, 0e2h, 9ch, 0e2h
+	db 86h, 0e2h, 70h, 0e2h, 59h, 0e2h, 43h, 0e2h, 2dh, 0e2h, 17h, 0e2h, 1h, 0e2h, 0eah, 0e1h
+	db 0d4h, 0e1h, 0beh, 0e1h, 0a8h, 0e1h, 92h, 0e1h, 7ch, 0e1h, 66h, 0e1h, 4fh, 0e1h, 39h, 0e1h
+	db 23h, 0e1h, 0dh, 0e1h, 0f7h, 0e0h, 0e1h, 0e0h, 0cbh, 0e0h, 0b6h, 0e0h, 0a0h, 0e0h, 8ah, 0e0h
+	db 74h, 0e0h, 5eh, 0e0h, 48h, 0e0h, 32h, 0e0h, 1dh, 0e0h, 7h, 0e0h, 0f1h, 0dfh, 0dbh, 0dfh
+	db 0c6h, 0dfh, 0b0h, 0dfh, 9ah, 0dfh, 84h, 0dfh, 6fh, 0dfh, 59h, 0dfh, 44h, 0dfh, 2eh, 0dfh
+	db 18h, 0dfh, 3h, 0dfh, 0edh, 0deh, 0d8h, 0deh, 0c2h, 0deh, 0adh, 0deh, 97h, 0deh, 82h, 0deh
+	db 6dh, 0deh, 57h, 0deh, 42h, 0deh, 2dh, 0deh, 17h, 0deh, 2h, 0deh, 0edh, 0ddh, 0d7h, 0ddh
+	db 0c2h, 0ddh, 0adh, 0ddh, 98h, 0ddh, 82h, 0ddh, 6dh, 0ddh, 58h, 0ddh, 43h, 0ddh, 2eh, 0ddh
+	db 19h, 0ddh, 4h, 0ddh, 0efh, 0dch, 0dah, 0dch, 0c5h, 0dch, 0b0h, 0dch, 9bh, 0dch, 86h, 0dch
+	db 71h, 0dch, 5ch, 0dch, 47h, 0dch, 32h, 0dch, 1eh, 0dch, 9h, 0dch, 0f4h, 0dbh, 0dfh, 0dbh
+	db 0cbh, 0dbh, 0b6h, 0dbh, 0a1h, 0dbh, 8ch, 0dbh, 78h, 0dbh, 63h, 0dbh, 4fh, 0dbh, 3ah, 0dbh
+	db 25h, 0dbh, 11h, 0dbh, 0fch, 0dah, 0e8h, 0dah, 0d3h, 0dah, 0bfh, 0dah, 0abh, 0dah, 96h, 0dah
+	db 82h, 0dah, 6dh, 0dah, 59h, 0dah, 45h, 0dah, 30h, 0dah, 1ch, 0dah, 8h, 0dah, 0f4h, 0d9h
+	db 0e0h, 0d9h, 0cbh, 0d9h, 0b7h, 0d9h, 0a3h, 0d9h, 8fh, 0d9h, 7bh, 0d9h, 67h, 0d9h, 53h, 0d9h
+	db 3fh, 0d9h, 2bh, 0d9h, 17h, 0d9h, 3h, 0d9h, 0efh, 0d8h, 0dbh, 0d8h, 0c7h, 0d8h, 0b3h, 0d8h
+	db 0a0h, 0d8h, 8ch, 0d8h, 78h, 0d8h, 64h, 0d8h, 50h, 0d8h, 3dh, 0d8h, 29h, 0d8h, 15h, 0d8h
+	db 2h, 0d8h, 0eeh, 0d7h, 0dbh, 0d7h, 0c7h, 0d7h, 0b4h, 0d7h, 0a0h, 0d7h, 8dh, 0d7h, 79h, 0d7h
+	db 66h, 0d7h, 52h, 0d7h, 3fh, 0d7h, 2bh, 0d7h, 18h, 0d7h, 5h, 0d7h, 0f1h, 0d6h, 0deh, 0d6h
+	db 0cbh, 0d6h, 0b8h, 0d6h, 0a5h, 0d6h, 91h, 0d6h, 7eh, 0d6h, 6bh, 0d6h, 58h, 0d6h, 45h, 0d6h
+	db 32h, 0d6h, 1fh, 0d6h, 0ch, 0d6h, 0f9h, 0d5h, 0e6h, 0d5h, 0d3h, 0d5h, 0c0h, 0d5h, 0adh, 0d5h
+	db 9ah, 0d5h, 88h, 0d5h, 75h, 0d5h, 62h, 0d5h, 4fh, 0d5h, 3dh, 0d5h, 2ah, 0d5h, 17h, 0d5h
+	db 5h, 0d5h, 0f2h, 0d4h, 0dfh, 0d4h, 0cdh, 0d4h, 0bah, 0d4h, 0a8h, 0d4h, 95h, 0d4h, 83h, 0d4h
+	db 71h, 0d4h, 5eh, 0d4h, 4ch, 0d4h, 39h, 0d4h, 27h, 0d4h, 15h, 0d4h, 3h, 0d4h, 0f0h, 0d3h
+	db 0deh, 0d3h, 0cch, 0d3h, 0bah, 0d3h, 0a8h, 0d3h, 95h, 0d3h, 83h, 0d3h, 71h, 0d3h, 5fh, 0d3h
+	db 4dh, 0d3h, 3bh, 0d3h, 29h, 0d3h, 17h, 0d3h, 6h, 0d3h, 0f4h, 0d2h, 0e2h, 0d2h, 0d0h, 0d2h
+	db 0beh, 0d2h, 0adh, 0d2h, 9bh, 0d2h, 89h, 0d2h, 77h, 0d2h, 66h, 0d2h, 54h, 0d2h, 43h, 0d2h
+	db 31h, 0d2h, 1fh, 0d2h, 0eh, 0d2h, 0fch, 0d1h, 0ebh, 0d1h, 0dah, 0d1h, 0c8h, 0d1h, 0b7h, 0d1h
+	db 0a5h, 0d1h, 94h, 0d1h, 83h, 0d1h, 72h, 0d1h, 60h, 0d1h, 4fh, 0d1h, 3eh, 0d1h, 2dh, 0d1h
+	db 1ch, 0d1h, 0bh, 0d1h, 0fah, 0d0h, 0e9h, 0d0h, 0d7h, 0d0h, 0c7h, 0d0h, 0b6h, 0d0h, 0a5h, 0d0h
+	db 94h, 0d0h, 83h, 0d0h, 72h, 0d0h, 61h, 0d0h, 50h, 0d0h, 40h, 0d0h, 2fh, 0d0h, 1eh, 0d0h
+	db 0eh, 0d0h, 0fdh, 0cfh, 0ech, 0cfh, 0dch, 0cfh, 0cbh, 0cfh, 0bbh, 0cfh, 0aah, 0cfh, 9ah, 0cfh
+	db 89h, 0cfh, 79h, 0cfh, 69h, 0cfh, 58h, 0cfh, 48h, 0cfh, 38h, 0cfh, 27h, 0cfh, 17h, 0cfh
+	db 7h, 0cfh, 0f7h, 0ceh, 0e7h, 0ceh, 0d7h, 0ceh, 0c7h, 0ceh, 0b6h, 0ceh, 0a6h, 0ceh, 96h, 0ceh
+	db 86h, 0ceh, 77h, 0ceh, 67h, 0ceh, 57h, 0ceh, 47h, 0ceh, 37h, 0ceh, 27h, 0ceh, 18h, 0ceh
+	db 8h, 0ceh, 0f8h, 0cdh, 0e9h, 0cdh, 0d9h, 0cdh, 0c9h, 0cdh, 0bah, 0cdh, 0aah, 0cdh, 9bh, 0cdh
+	db 8bh, 0cdh, 7ch, 0cdh, 6ch, 0cdh, 5dh, 0cdh, 4eh, 0cdh, 3eh, 0cdh, 2fh, 0cdh, 20h, 0cdh
+	db 11h, 0cdh, 1h, 0cdh, 0f2h, 0cch, 0e3h, 0cch, 0d4h, 0cch, 0c5h, 0cch, 0b6h, 0cch, 0a7h, 0cch
+	db 98h, 0cch, 89h, 0cch, 7ah, 0cch, 6bh, 0cch, 5ch, 0cch, 4dh, 0cch, 3eh, 0cch, 30h, 0cch
+	db 21h, 0cch, 12h, 0cch, 4h, 0cch, 0f5h, 0cbh, 0e6h, 0cbh, 0d8h, 0cbh, 0c9h, 0cbh, 0bbh, 0cbh
+	db 0ach, 0cbh, 9eh, 0cbh, 8fh, 0cbh, 81h, 0cbh, 73h, 0cbh, 64h, 0cbh, 56h, 0cbh, 48h, 0cbh
+	db 39h, 0cbh, 2bh, 0cbh, 1dh, 0cbh, 0fh, 0cbh, 1h, 0cbh, 0f3h, 0cah, 0e5h, 0cah, 0d7h, 0cah
+	db 0c9h, 0cah, 0bbh, 0cah, 0adh, 0cah, 9fh, 0cah, 91h, 0cah, 83h, 0cah, 76h, 0cah, 68h, 0cah
+	db 5ah, 0cah, 4ch, 0cah, 3fh, 0cah, 31h, 0cah, 23h, 0cah, 16h, 0cah, 8h, 0cah, 0fbh, 0c9h
+	db 0edh, 0c9h, 0e0h, 0c9h, 0d3h, 0c9h, 0c5h, 0c9h, 0b8h, 0c9h, 0abh, 0c9h, 9dh, 0c9h, 90h, 0c9h
+	db 83h, 0c9h, 76h, 0c9h, 69h, 0c9h, 5bh, 0c9h, 4eh, 0c9h, 41h, 0c9h, 34h, 0c9h, 27h, 0c9h
+	db 1ah, 0c9h, 0eh, 0c9h, 1h, 0c9h, 0f4h, 0c8h, 0e7h, 0c8h, 0dah, 0c8h, 0ceh, 0c8h, 0c1h, 0c8h
+	db 0b4h, 0c8h, 0a8h, 0c8h, 9bh, 0c8h, 8eh, 0c8h, 82h, 0c8h, 75h, 0c8h, 69h, 0c8h, 5ch, 0c8h
+	db 50h, 0c8h, 44h, 0c8h, 37h, 0c8h, 2bh, 0c8h, 1fh, 0c8h, 12h, 0c8h, 6h, 0c8h, 0fah, 0c7h
+	db 0eeh, 0c7h, 0e2h, 0c7h, 0d6h, 0c7h, 0cah, 0c7h, 0beh, 0c7h, 0b2h, 0c7h, 0a6h, 0c7h, 9ah, 0c7h
+	db 8eh, 0c7h, 82h, 0c7h, 76h, 0c7h, 6bh, 0c7h, 5fh, 0c7h, 53h, 0c7h, 48h, 0c7h, 3ch, 0c7h
+	db 30h, 0c7h, 25h, 0c7h, 19h, 0c7h, 0eh, 0c7h, 2h, 0c7h, 0f7h, 0c6h, 0ech, 0c6h, 0e0h, 0c6h
+	db 0d5h, 0c6h, 0cah, 0c6h, 0beh, 0c6h, 0b3h, 0c6h, 0a8h, 0c6h, 9dh, 0c6h, 92h, 0c6h, 87h, 0c6h
+	db 7ch, 0c6h, 71h, 0c6h, 66h, 0c6h, 5bh, 0c6h, 50h, 0c6h, 45h, 0c6h, 3ah, 0c6h, 2fh, 0c6h
+	db 25h, 0c6h, 1ah, 0c6h, 0fh, 0c6h, 4h, 0c6h, 0fah, 0c5h, 0efh, 0c5h, 0e5h, 0c5h, 0dah, 0c5h
+	db 0d0h, 0c5h, 0c5h, 0c5h, 0bbh, 0c5h, 0b0h, 0c5h, 0a6h, 0c5h, 9ch, 0c5h, 92h, 0c5h, 87h, 0c5h
+	db 7dh, 0c5h, 73h, 0c5h, 69h, 0c5h, 5fh, 0c5h, 55h, 0c5h, 4bh, 0c5h, 41h, 0c5h, 37h, 0c5h
+	db 2dh, 0c5h, 23h, 0c5h, 19h, 0c5h, 0fh, 0c5h, 5h, 0c5h, 0fch, 0c4h, 0f2h, 0c4h, 0e8h, 0c4h
+	db 0dfh, 0c4h, 0d5h, 0c4h, 0cbh, 0c4h, 0c2h, 0c4h, 0b8h, 0c4h, 0afh, 0c4h, 0a6h, 0c4h, 9ch, 0c4h
+	db 93h, 0c4h, 8ah, 0c4h, 80h, 0c4h, 77h, 0c4h, 6eh, 0c4h, 65h, 0c4h, 5ch, 0c4h, 52h, 0c4h
+	db 49h, 0c4h, 40h, 0c4h, 37h, 0c4h, 2eh, 0c4h, 25h, 0c4h, 1dh, 0c4h, 14h, 0c4h, 0bh, 0c4h
+	db 2h, 0c4h, 0f9h, 0c3h, 0f1h, 0c3h, 0e8h, 0c3h, 0dfh, 0c3h, 0d7h, 0c3h, 0ceh, 0c3h, 0c6h, 0c3h
+	db 0bdh, 0c3h, 0b5h, 0c3h, 0ach, 0c3h, 0a4h, 0c3h, 9ch, 0c3h, 93h, 0c3h, 8bh, 0c3h, 83h, 0c3h
+	db 7bh, 0c3h, 73h, 0c3h, 6ah, 0c3h, 62h, 0c3h, 5ah, 0c3h, 52h, 0c3h, 4ah, 0c3h, 42h, 0c3h
+	db 3ah, 0c3h, 33h, 0c3h, 2bh, 0c3h, 23h, 0c3h, 1bh, 0c3h, 13h, 0c3h, 0ch, 0c3h, 4h, 0c3h
+	db 0fdh, 0c2h, 0f5h, 0c2h, 0edh, 0c2h, 0e6h, 0c2h, 0deh, 0c2h, 0d7h, 0c2h, 0d0h, 0c2h, 0c8h, 0c2h
+	db 0c1h, 0c2h, 0bah, 0c2h, 0b2h, 0c2h, 0abh, 0c2h, 0a4h, 0c2h, 9dh, 0c2h, 96h, 0c2h, 8fh, 0c2h
+	db 88h, 0c2h, 81h, 0c2h, 7ah, 0c2h, 73h, 0c2h, 6ch, 0c2h, 65h, 0c2h, 5eh, 0c2h, 58h, 0c2h
+	db 51h, 0c2h, 4ah, 0c2h, 44h, 0c2h, 3dh, 0c2h, 36h, 0c2h, 30h, 0c2h, 29h, 0c2h, 23h, 0c2h
+	db 1dh, 0c2h, 16h, 0c2h, 10h, 0c2h, 0ah, 0c2h, 3h, 0c2h, 0fdh, 0c1h, 0f7h, 0c1h, 0f1h, 0c1h
+	db 0ebh, 0c1h, 0e4h, 0c1h, 0deh, 0c1h, 0d8h, 0c1h, 0d2h, 0c1h, 0cch, 0c1h, 0c7h, 0c1h, 0c1h, 0c1h
+	db 0bbh, 0c1h, 0b5h, 0c1h, 0afh, 0c1h, 0aah, 0c1h, 0a4h, 0c1h, 9eh, 0c1h, 99h, 0c1h, 93h, 0c1h
+	db 8eh, 0c1h, 88h, 0c1h, 83h, 0c1h, 7dh, 0c1h, 78h, 0c1h, 73h, 0c1h, 6dh, 0c1h, 68h, 0c1h
+	db 63h, 0c1h, 5eh, 0c1h, 58h, 0c1h, 53h, 0c1h, 4eh, 0c1h, 49h, 0c1h, 44h, 0c1h, 3fh, 0c1h
+	db 3ah, 0c1h, 35h, 0c1h, 31h, 0c1h, 2ch, 0c1h, 27h, 0c1h, 22h, 0c1h, 1eh, 0c1h, 19h, 0c1h
+	db 14h, 0c1h, 10h, 0c1h, 0bh, 0c1h, 7h, 0c1h, 2h, 0c1h, 0feh, 0c0h, 0f9h, 0c0h, 0f5h, 0c0h
+	db 0f1h, 0c0h, 0ech, 0c0h, 0e8h, 0c0h, 0e4h, 0c0h, 0e0h, 0c0h, 0dch, 0c0h, 0d8h, 0c0h, 0d4h, 0c0h
+	db 0d0h, 0c0h, 0cch, 0c0h, 0c8h, 0c0h, 0c4h, 0c0h, 0c0h, 0c0h, 0bch, 0c0h, 0b8h, 0c0h, 0b5h, 0c0h
+	db 0b1h, 0c0h, 0adh, 0c0h, 0aah, 0c0h, 0a6h, 0c0h, 0a2h, 0c0h, 9fh, 0c0h, 9bh, 0c0h, 98h, 0c0h
+	db 95h, 0c0h, 91h, 0c0h, 8eh, 0c0h, 8bh, 0c0h, 87h, 0c0h, 84h, 0c0h, 81h, 0c0h, 7eh, 0c0h
+	db 7bh, 0c0h, 78h, 0c0h, 75h, 0c0h, 72h, 0c0h, 6fh, 0c0h, 6ch, 0c0h, 69h, 0c0h, 66h, 0c0h
+	db 63h, 0c0h, 61h, 0c0h, 5eh, 0c0h, 5bh, 0c0h, 59h, 0c0h, 56h, 0c0h, 53h, 0c0h, 51h, 0c0h
+	db 4eh, 0c0h, 4ch, 0c0h, 4ah, 0c0h, 47h, 0c0h, 45h, 0c0h, 43h, 0c0h, 40h, 0c0h, 3eh, 0c0h
+	db 3ch, 0c0h, 3ah, 0c0h, 38h, 0c0h, 36h, 0c0h, 34h, 0c0h, 32h, 0c0h, 30h, 0c0h, 2eh, 0c0h
+	db 2ch, 0c0h, 2ah, 0c0h, 28h, 0c0h, 27h, 0c0h, 25h, 0c0h, 23h, 0c0h, 21h, 0c0h, 20h, 0c0h
+	db 1eh, 0c0h, 1dh, 0c0h, 1bh, 0c0h, 1ah, 0c0h, 18h, 0c0h, 17h, 0c0h, 16h, 0c0h, 14h, 0c0h
+	db 13h, 0c0h, 12h, 0c0h, 11h, 0c0h, 10h, 0c0h, 0fh, 0c0h, 0eh, 0c0h, 0dh, 0c0h, 0ch, 0c0h
+	db 0bh, 0c0h, 0ah, 0c0h, 9h, 0c0h, 8h, 0c0h, 7h, 0c0h, 6h, 0c0h, 6h, 0c0h, 5h, 0c0h
+	db 4h, 0c0h, 4h, 0c0h, 3h, 0c0h, 3h, 0c0h, 2h, 0c0h, 2h, 0c0h, 1h, 0c0h, 1h, 0c0h
+	db 1h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h, 0h, 0c0h
+	db 0h, 0c0h, 0h
+_arctan_lookup endp
+TRIG_TEXT ends
+}
+#else
+
+/*
+ * Forward declaration only. The table itself is transcribed below at its own
+ * image address; the routines that read it come earlier in the segment, and
+ * this file is in address order.
+ */
+static const int16_t g_cos_table[0x801];
+
+/*
+ * 0x2a04a
+ *
+ * **A 32-bit multiply and divide**, near, its operands on the stack as longs and their signs taken off first. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
+ * aborts. The TASM source above is the original's.
+ */
+int32_t long_mul_div(void)
+{
+    not_transcribed("0x2a04a");
+    return 0;
+}
+
+/*
+ * 0x2a208
+ *
+ * **Scale a record's fields** through `long_mul_div` by the constant at `cs:9a2h`. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
+ * aborts. The TASM source above is the original's.
+ */
+int32_t scale_record_a(void)
+{
+    not_transcribed("0x2a208");
+    return 0;
+}
+
+/*
+ * 0x2a242
+ *
+ * The same, for the record's other pair of fields. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
+ * aborts. The TASM source above is the original's.
+ */
+int32_t scale_record_b(void)
+{
+    not_transcribed("0x2a242");
+    return 0;
+}
+
+/*
+ * 0x2a269
+ *
+ * Signed 16 by 16 multiply, answering the full 32-bit product in DX:AX. Three
+ * instructions, and fifty callers - `imul` with a memory operand does all of
+ * it, so the routine exists only to give C a name to call.
+ *
+ * It takes its arguments with `mov bx, sp` and never sets up BP, like the sine
+ * and cosine beside it.
+ */
+int32_t mul16x16(int16_t a, int16_t b)
+{
+    return (int32_t)a * (int32_t)b;
+}
+/*
+ * 0x2a272
+ *
+ * **A 48-bit multiply**, near, with its operands in AX:CX:DX and at [BX], its scratch at `ds:1681h` on the code segment. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
+ * aborts. The TASM source above is the original's.
+ */
+int32_t mul_48(void)
+{
+    not_transcribed("0x2a272");
+    return 0;
+}
+
+/*
+ * 0x2a456
+ *
+ * Sine of a 16-bit angle, as a signed fraction with 16384 standing for 1.
+ *
+ * There is no sine table: it adds 0xC000 to the angle - three quarters of a
+ * turn - and reads the cosine table, because cos(x + 270 degrees) is sin(x).
+ *
+ * The routine takes its argument straight off the stack with `mov bx, sp`
+ * rather than setting up BP, so the argument is at ss:[sp+4].
+ */
+int16_t angle_sin(uint16_t angle)
+{
+    uint16_t i = (uint16_t)((uint16_t)(angle + 0xC000) >> 4);
+
+    /* Fold the second half of the circle onto the first, using the evenness
+     * of cosine: cos(2pi - x) == cos(x). */
+    if (i & 0x800)
+        i = (uint16_t)(0x1000 - i);
+    return g_cos_table[i];
+}
+
+/*
+ * 0x2a47b
+ *
+ * Cosine of the same angle, the same way but without the quarter turn.
+ */
+int16_t angle_cos(uint16_t angle)
+{
+    uint16_t i = (uint16_t)(angle >> 4);
+
+    if (i & 0x800)
+        i = (uint16_t)(0x1000 - i);
+    return g_cos_table[i];
+}
+
+/*
+ * 0x2a49e
+ *
+ * Arctangent, 512 entries. Entry `i` is the angle whose tangent is `i / 512`,
+ * measured in the driver's angle units where a whole turn is 0x1000 - so the
+ * table spans 0 to just under an eighth of a turn, which is 45 degrees.
+ *
+ * Measured against `round(atan2(i, 512) * 4096 / 2*pi)`: every entry agrees to
+ * within one. There is deliberately **no** entry 512. A ratio of exactly one
+ * would need it, and `atan2_long` at 0x2d296 never asks - it sends the equal
+ * case down a separate path, so the last index it can produce is 511. Reading
+ * one past the end here lands in code.
+ */
+static const int16_t g_arctan_table[512] = {
+        0,     1,     2,     3,     5,     6,     7,     8,
+       10,    11,    12,    14,    15,    16,    17,    19,
+       20,    21,    22,    24,    25,    26,    27,    29,
+       30,    31,    33,    34,    35,    36,    38,    39,
+       40,    41,    43,    44,    45,    47,    48,    49,
+       50,    52,    53,    54,    55,    57,    58,    59,
+       60,    62,    63,    64,    65,    67,    68,    69,
+       71,    72,    73,    74,    76,    77,    78,    79,
+       81,    82,    83,    84,    86,    87,    88,    89,
+       91,    92,    93,    94,    96,    97,    98,    99,
+      101,   102,   103,   104,   106,   107,   108,   109,
+      110,   112,   113,   114,   115,   117,   118,   119,
+      120,   122,   123,   124,   125,   126,   128,   129,
+      130,   131,   133,   134,   135,   136,   137,   139,
+      140,   141,   142,   144,   145,   146,   147,   148,
+      150,   151,   152,   153,   154,   156,   157,   158,
+      159,   160,   162,   163,   164,   165,   166,   168,
+      169,   170,   171,   172,   174,   175,   176,   177,
+      178,   179,   181,   182,   183,   184,   185,   186,
+      188,   189,   190,   191,   192,   193,   195,   196,
+      197,   198,   199,   200,   202,   203,   204,   205,
+      206,   207,   208,   210,   211,   212,   213,   214,
+      215,   216,   218,   219,   220,   221,   222,   223,
+      224,   226,   227,   228,   229,   230,   231,   232,
+      233,   234,   236,   237,   238,   239,   240,   241,
+      242,   243,   244,   246,   247,   248,   249,   250,
+      251,   252,   253,   254,   255,   257,   258,   259,
+      260,   261,   262,   263,   264,   265,   266,   267,
+      268,   269,   270,   272,   273,   274,   275,   276,
+      277,   278,   279,   280,   281,   282,   283,   284,
+      285,   286,   287,   288,   289,   290,   291,   293,
+      294,   295,   296,   297,   298,   299,   300,   301,
+      302,   303,   304,   305,   306,   307,   308,   309,
+      310,   311,   312,   313,   314,   315,   316,   317,
+      318,   319,   320,   321,   322,   323,   324,   325,
+      326,   327,   328,   329,   330,   331,   332,   333,
+      334,   334,   335,   336,   337,   338,   339,   340,
+      341,   342,   343,   344,   345,   346,   347,   348,
+      349,   350,   351,   352,   353,   353,   354,   355,
+      356,   357,   358,   359,   360,   361,   362,   363,
+      364,   365,   365,   366,   367,   368,   369,   370,
+      371,   372,   373,   374,   375,   375,   376,   377,
+      378,   379,   380,   381,   382,   383,   383,   384,
+      385,   386,   387,   388,   389,   390,   390,   391,
+      392,   393,   394,   395,   396,   396,   397,   398,
+      399,   400,   401,   402,   402,   403,   404,   405,
+      406,   407,   407,   408,   409,   410,   411,   412,
+      412,   413,   414,   415,   416,   417,   417,   418,
+      419,   420,   421,   421,   422,   423,   424,   425,
+      425,   426,   427,   428,   429,   429,   430,   431,
+      432,   433,   433,   434,   435,   436,   437,   437,
+      438,   439,   440,   440,   441,   442,   443,   444,
+      444,   445,   446,   447,   447,   448,   449,   450,
+      450,   451,   452,   453,   453,   454,   455,   456,
+      456,   457,   458,   459,   459,   460,   461,   462,
+      462,   463,   464,   464,   465,   466,   467,   467,
+      468,   469,   470,   470,   471,   472,   472,   473,
+      474,   475,   475,   476,   477,   477,   478,   479,
+      479,   480,   481,   482,   482,   483,   484,   484,
+      485,   486,   486,   487,   488,   488,   489,   490,
+      490,   491,   492,   493,   493,   494,   495,   495,
+      496,   497,   497,   498,   499,   499,   500,   500,
+      501,   502,   502,   503,   504,   504,   505,   506,
+      506,   507,   508,   508,   509,   510,   510,   511,
+};
+
+/*
+ * 0x2a89e
+ *
+ * **The angle of (x, y)** by the arctangent table, 0x1000 to the turn: signs off, the smaller over the larger, looked up, and put back in its octant. Nothing calls it. NOT TRANSCRIBED YET for the host; a stub, which
+ * aborts. The TASM source above is the original's.
+ */
+int16_t arctan_ratio(int16_t x, int16_t y)
+{
+    (void)x;
+    (void)y;
+    not_transcribed("0x2a89e");
+    return 0;
+}
+
+/*
+ * 0x2a941
+ *
+ * Look up `g_arctan_table`, and nothing else. The caller has already reduced its
+ * two magnitudes to a ratio in 0..511.
+ */
+int16_t arctan_lookup(uint16_t index)
+{
+    return g_arctan_table[index];
+}
+
+/*
+ * 0x2c293 - a table in the *code* segment, at cs:0x2253.
+ *
+ * 2049 signed words. Identified rather than assumed: it is
+ * `round(16384 * cos(2*pi*i/4096))` for every entry, to within 1. So the game
+ * works in an angle where a full turn is 0x10000, the table covers half a turn
+ * at 1/4096 of a turn per step, and the result is a signed fraction with 16384
+ * standing for 1.
+ */
+static const int16_t g_cos_table[0x801] = {
+     16384,  16383,  16383,  16383,  16383,  16383,  16383,  16383,
+     16382,  16382,  16382,  16381,  16381,  16380,  16380,  16379,
+     16379,  16378,  16377,  16377,  16376,  16375,  16374,  16373,
+     16372,  16371,  16370,  16369,  16368,  16367,  16366,  16365,
+     16364,  16363,  16361,  16360,  16359,  16357,  16356,  16354,
+     16353,  16351,  16350,  16348,  16346,  16344,  16343,  16341,
+     16339,  16337,  16335,  16333,  16331,  16329,  16327,  16325,
+     16323,  16321,  16319,  16316,  16314,  16312,  16309,  16307,
+     16305,  16302,  16300,  16297,  16294,  16292,  16289,  16286,
+     16284,  16281,  16278,  16275,  16272,  16269,  16266,  16263,
+     16260,  16257,  16254,  16251,  16248,  16244,  16241,  16238,
+     16234,  16231,  16228,  16224,  16221,  16217,  16213,  16210,
+     16206,  16202,  16199,  16195,  16191,  16187,  16183,  16179,
+     16175,  16171,  16167,  16163,  16159,  16155,  16151,  16147,
+     16142,  16138,  16134,  16129,  16125,  16120,  16116,  16111,
+     16107,  16102,  16097,  16093,  16088,  16083,  16078,  16074,
+     16069,  16064,  16059,  16054,  16049,  16044,  16039,  16033,
+     16028,  16023,  16018,  16012,  16007,  16002,  15996,  15991,
+     15985,  15980,  15974,  15969,  15963,  15957,  15952,  15946,
+     15940,  15934,  15928,  15923,  15917,  15911,  15905,  15899,
+     15892,  15886,  15880,  15874,  15868,  15861,  15855,  15849,
+     15842,  15836,  15830,  15823,  15817,  15810,  15803,  15797,
+     15790,  15783,  15777,  15770,  15763,  15756,  15749,  15742,
+     15735,  15728,  15721,  15714,  15707,  15700,  15693,  15685,
+     15678,  15671,  15663,  15656,  15649,  15641,  15634,  15626,
+     15618,  15611,  15603,  15596,  15588,  15580,  15572,  15564,
+     15557,  15549,  15541,  15533,  15525,  15517,  15509,  15500,
+     15492,  15484,  15476,  15468,  15459,  15451,  15443,  15434,
+     15426,  15417,  15409,  15400,  15392,  15383,  15374,  15366,
+     15357,  15348,  15339,  15330,  15322,  15313,  15304,  15295,
+     15286,  15277,  15267,  15258,  15249,  15240,  15231,  15221,
+     15212,  15203,  15193,  15184,  15175,  15165,  15156,  15146,
+     15136,  15127,  15117,  15107,  15098,  15088,  15078,  15068,
+     15058,  15048,  15038,  15028,  15018,  15008,  14998,  14988,
+     14978,  14968,  14957,  14947,  14937,  14927,  14916,  14906,
+     14895,  14885,  14874,  14864,  14853,  14843,  14832,  14821,
+     14810,  14800,  14789,  14778,  14767,  14756,  14745,  14734,
+     14723,  14712,  14701,  14690,  14679,  14668,  14657,  14645,
+     14634,  14623,  14611,  14600,  14589,  14577,  14566,  14554,
+     14543,  14531,  14519,  14508,  14496,  14484,  14473,  14461,
+     14449,  14437,  14425,  14413,  14401,  14389,  14377,  14365,
+     14353,  14341,  14329,  14317,  14304,  14292,  14280,  14267,
+     14255,  14243,  14230,  14218,  14205,  14193,  14180,  14167,
+     14155,  14142,  14129,  14117,  14104,  14091,  14078,  14065,
+     14053,  14040,  14027,  14014,  14001,  13988,  13974,  13961,
+     13948,  13935,  13922,  13908,  13895,  13882,  13868,  13855,
+     13842,  13828,  13815,  13801,  13788,  13774,  13760,  13747,
+     13733,  13719,  13705,  13692,  13678,  13664,  13650,  13636,
+     13622,  13608,  13594,  13580,  13566,  13552,  13538,  13524,
+     13510,  13495,  13481,  13467,  13452,  13438,  13424,  13409,
+     13395,  13380,  13366,  13351,  13337,  13322,  13307,  13293,
+     13278,  13263,  13249,  13234,  13219,  13204,  13189,  13174,
+     13159,  13144,  13129,  13114,  13099,  13084,  13069,  13054,
+     13038,  13023,  13008,  12993,  12977,  12962,  12947,  12931,
+     12916,  12900,  12885,  12869,  12854,  12838,  12822,  12807,
+     12791,  12775,  12760,  12744,  12728,  12712,  12696,  12680,
+     12665,  12649,  12633,  12617,  12600,  12584,  12568,  12552,
+     12536,  12520,  12504,  12487,  12471,  12455,  12438,  12422,
+     12406,  12389,  12373,  12356,  12340,  12323,  12307,  12290,
+     12273,  12257,  12240,  12223,  12207,  12190,  12173,  12156,
+     12139,  12122,  12105,  12088,  12072,  12054,  12037,  12020,
+     12003,  11986,  11969,  11952,  11935,  11917,  11900,  11883,
+     11866,  11848,  11831,  11813,  11796,  11779,  11761,  11744,
+     11726,  11708,  11691,  11673,  11656,  11638,  11620,  11602,
+     11585,  11567,  11549,  11531,  11513,  11496,  11478,  11460,
+     11442,  11424,  11406,  11388,  11370,  11351,  11333,  11315,
+     11297,  11279,  11260,  11242,  11224,  11206,  11187,  11169,
+     11150,  11132,  11114,  11095,  11077,  11058,  11040,  11021,
+     11002,  10984,  10965,  10946,  10928,  10909,  10890,  10871,
+     10853,  10834,  10815,  10796,  10777,  10758,  10739,  10720,
+     10701,  10682,  10663,  10644,  10625,  10606,  10586,  10567,
+     10548,  10529,  10510,  10490,  10471,  10452,  10432,  10413,
+     10393,  10374,  10354,  10335,  10315,  10296,  10276,  10257,
+     10237,  10218,  10198,  10178,  10159,  10139,  10119,  10099,
+     10079,  10060,  10040,  10020,  10000,   9980,   9960,   9940,
+      9920,   9900,   9880,   9860,   9840,   9820,   9800,   9780,
+      9759,   9739,   9719,   9699,   9679,   9658,   9638,   9618,
+      9597,   9577,   9556,   9536,   9516,   9495,   9475,   9454,
+      9434,   9413,   9392,   9372,   9351,   9331,   9310,   9289,
+      9268,   9248,   9227,   9206,   9185,   9165,   9144,   9123,
+      9102,   9081,   9060,   9039,   9018,   8997,   8976,   8955,
+      8934,   8913,   8892,   8871,   8850,   8829,   8807,   8786,
+      8765,   8744,   8722,   8701,   8680,   8658,   8637,   8616,
+      8594,   8573,   8552,   8530,   8509,   8487,   8466,   8444,
+      8423,   8401,   8379,   8358,   8336,   8315,   8293,   8271,
+      8249,   8228,   8206,   8184,   8162,   8141,   8119,   8097,
+      8075,   8053,   8031,   8009,   7988,   7966,   7944,   7922,
+      7900,   7878,   7856,   7833,   7811,   7789,   7767,   7745,
+      7723,   7701,   7678,   7656,   7634,   7612,   7590,   7567,
+      7545,   7523,   7500,   7478,   7456,   7433,   7411,   7388,
+      7366,   7343,   7321,   7299,   7276,   7253,   7231,   7208,
+      7186,   7163,   7141,   7118,   7095,   7073,   7050,   7027,
+      7005,   6982,   6959,   6936,   6914,   6891,   6868,   6845,
+      6822,   6799,   6777,   6754,   6731,   6708,   6685,   6662,
+      6639,   6616,   6593,   6570,   6547,   6524,   6501,   6478,
+      6455,   6432,   6408,   6385,   6362,   6339,   6316,   6293,
+      6269,   6246,   6223,   6200,   6176,   6153,   6130,   6106,
+      6083,   6060,   6036,   6013,   5990,   5966,   5943,   5919,
+      5896,   5873,   5849,   5826,   5802,   5779,   5755,   5732,
+      5708,   5684,   5661,   5637,   5614,   5590,   5566,   5543,
+      5519,   5495,   5472,   5448,   5424,   5401,   5377,   5353,
+      5329,   5306,   5282,   5258,   5234,   5210,   5187,   5163,
+      5139,   5115,   5091,   5067,   5043,   5019,   4995,   4972,
+      4948,   4924,   4900,   4876,   4852,   4828,   4804,   4780,
+      4756,   4731,   4707,   4683,   4659,   4635,   4611,   4587,
+      4563,   4539,   4514,   4490,   4466,   4442,   4418,   4394,
+      4369,   4345,   4321,   4297,   4272,   4248,   4224,   4200,
+      4175,   4151,   4127,   4102,   4078,   4054,   4029,   4005,
+      3980,   3956,   3932,   3907,   3883,   3858,   3834,   3810,
+      3785,   3761,   3736,   3712,   3687,   3663,   3638,   3614,
+      3589,   3565,   3540,   3516,   3491,   3467,   3442,   3417,
+      3393,   3368,   3344,   3319,   3294,   3270,   3245,   3221,
+      3196,   3171,   3147,   3122,   3097,   3073,   3048,   3023,
+      2998,   2974,   2949,   2924,   2900,   2875,   2850,   2825,
+      2801,   2776,   2751,   2726,   2701,   2677,   2652,   2627,
+      2602,   2577,   2553,   2528,   2503,   2478,   2453,   2428,
+      2404,   2379,   2354,   2329,   2304,   2279,   2254,   2229,
+      2204,   2180,   2155,   2130,   2105,   2080,   2055,   2030,
+      2005,   1980,   1955,   1930,   1905,   1880,   1855,   1830,
+      1805,   1780,   1755,   1730,   1705,   1680,   1655,   1630,
+      1605,   1580,   1555,   1530,   1505,   1480,   1455,   1430,
+      1405,   1380,   1355,   1330,   1305,   1280,   1255,   1230,
+      1205,   1180,   1155,   1130,   1105,   1079,   1054,   1029,
+      1004,    979,    954,    929,    904,    879,    854,    829,
+       803,    778,    753,    728,    703,    678,    653,    628,
+       603,    577,    552,    527,    502,    477,    452,    427,
+       402,    376,    351,    326,    301,    276,    251,    226,
+       201,    175,    150,    125,    100,     75,     50,     25,
+         0,    -26,    -51,    -76,   -101,   -126,   -151,   -176,
+      -202,   -227,   -252,   -277,   -302,   -327,   -352,   -377,
+      -403,   -428,   -453,   -478,   -503,   -528,   -553,   -578,
+      -604,   -629,   -654,   -679,   -704,   -729,   -754,   -779,
+      -804,   -830,   -855,   -880,   -905,   -930,   -955,   -980,
+     -1005,  -1030,  -1055,  -1080,  -1106,  -1131,  -1156,  -1181,
+     -1206,  -1231,  -1256,  -1281,  -1306,  -1331,  -1356,  -1381,
+     -1406,  -1431,  -1456,  -1481,  -1506,  -1531,  -1556,  -1581,
+     -1606,  -1631,  -1656,  -1681,  -1706,  -1731,  -1756,  -1781,
+     -1806,  -1831,  -1856,  -1881,  -1906,  -1931,  -1956,  -1981,
+     -2006,  -2031,  -2056,  -2081,  -2106,  -2131,  -2156,  -2181,
+     -2205,  -2230,  -2255,  -2280,  -2305,  -2330,  -2355,  -2380,
+     -2405,  -2429,  -2454,  -2479,  -2504,  -2529,  -2554,  -2578,
+     -2603,  -2628,  -2653,  -2678,  -2702,  -2727,  -2752,  -2777,
+     -2802,  -2826,  -2851,  -2876,  -2901,  -2925,  -2950,  -2975,
+     -2999,  -3024,  -3049,  -3074,  -3098,  -3123,  -3148,  -3172,
+     -3197,  -3222,  -3246,  -3271,  -3295,  -3320,  -3345,  -3369,
+     -3394,  -3418,  -3443,  -3468,  -3492,  -3517,  -3541,  -3566,
+     -3590,  -3615,  -3639,  -3664,  -3688,  -3713,  -3737,  -3762,
+     -3786,  -3811,  -3835,  -3859,  -3884,  -3908,  -3933,  -3957,
+     -3981,  -4006,  -4030,  -4055,  -4079,  -4103,  -4128,  -4152,
+     -4176,  -4201,  -4225,  -4249,  -4273,  -4298,  -4322,  -4346,
+     -4370,  -4395,  -4419,  -4443,  -4467,  -4491,  -4515,  -4540,
+     -4564,  -4588,  -4612,  -4636,  -4660,  -4684,  -4708,  -4732,
+     -4757,  -4781,  -4805,  -4829,  -4853,  -4877,  -4901,  -4925,
+     -4949,  -4973,  -4996,  -5020,  -5044,  -5068,  -5092,  -5116,
+     -5140,  -5164,  -5188,  -5211,  -5235,  -5259,  -5283,  -5307,
+     -5330,  -5354,  -5378,  -5402,  -5425,  -5449,  -5473,  -5496,
+     -5520,  -5544,  -5567,  -5591,  -5615,  -5638,  -5662,  -5685,
+     -5709,  -5733,  -5756,  -5780,  -5803,  -5827,  -5850,  -5874,
+     -5897,  -5920,  -5944,  -5967,  -5991,  -6014,  -6037,  -6061,
+     -6084,  -6107,  -6131,  -6154,  -6177,  -6201,  -6224,  -6247,
+     -6270,  -6294,  -6317,  -6340,  -6363,  -6386,  -6409,  -6433,
+     -6456,  -6479,  -6502,  -6525,  -6548,  -6571,  -6594,  -6617,
+     -6640,  -6663,  -6686,  -6709,  -6732,  -6755,  -6778,  -6800,
+     -6823,  -6846,  -6869,  -6892,  -6915,  -6937,  -6960,  -6983,
+     -7006,  -7028,  -7051,  -7074,  -7096,  -7119,  -7142,  -7164,
+     -7187,  -7209,  -7232,  -7254,  -7277,  -7300,  -7322,  -7344,
+     -7367,  -7389,  -7412,  -7434,  -7457,  -7479,  -7501,  -7524,
+     -7546,  -7568,  -7591,  -7613,  -7635,  -7657,  -7679,  -7702,
+     -7724,  -7746,  -7768,  -7790,  -7812,  -7834,  -7857,  -7879,
+     -7901,  -7923,  -7945,  -7967,  -7989,  -8010,  -8032,  -8054,
+     -8076,  -8098,  -8120,  -8142,  -8163,  -8185,  -8207,  -8229,
+     -8250,  -8272,  -8294,  -8316,  -8337,  -8359,  -8380,  -8402,
+     -8424,  -8445,  -8467,  -8488,  -8510,  -8531,  -8553,  -8574,
+     -8595,  -8617,  -8638,  -8659,  -8681,  -8702,  -8723,  -8745,
+     -8766,  -8787,  -8808,  -8830,  -8851,  -8872,  -8893,  -8914,
+     -8935,  -8956,  -8977,  -8998,  -9019,  -9040,  -9061,  -9082,
+     -9103,  -9124,  -9145,  -9166,  -9186,  -9207,  -9228,  -9249,
+     -9269,  -9290,  -9311,  -9332,  -9352,  -9373,  -9393,  -9414,
+     -9435,  -9455,  -9476,  -9496,  -9517,  -9537,  -9557,  -9578,
+     -9598,  -9619,  -9639,  -9659,  -9680,  -9700,  -9720,  -9740,
+     -9760,  -9781,  -9801,  -9821,  -9841,  -9861,  -9881,  -9901,
+     -9921,  -9941,  -9961,  -9981, -10001, -10021, -10041, -10061,
+    -10080, -10100, -10120, -10140, -10160, -10179, -10199, -10219,
+    -10238, -10258, -10277, -10297, -10316, -10336, -10355, -10375,
+    -10394, -10414, -10433, -10453, -10472, -10491, -10511, -10530,
+    -10549, -10568, -10587, -10607, -10626, -10645, -10664, -10683,
+    -10702, -10721, -10740, -10759, -10778, -10797, -10816, -10835,
+    -10854, -10872, -10891, -10910, -10929, -10947, -10966, -10985,
+    -11003, -11022, -11041, -11059, -11078, -11096, -11115, -11133,
+    -11151, -11170, -11188, -11207, -11225, -11243, -11261, -11280,
+    -11298, -11316, -11334, -11352, -11371, -11389, -11407, -11425,
+    -11443, -11461, -11479, -11497, -11514, -11532, -11550, -11568,
+    -11586, -11603, -11621, -11639, -11657, -11674, -11692, -11709,
+    -11727, -11745, -11762, -11780, -11797, -11814, -11832, -11849,
+    -11867, -11884, -11901, -11918, -11936, -11953, -11970, -11987,
+    -12004, -12021, -12038, -12055, -12073, -12089, -12106, -12123,
+    -12140, -12157, -12174, -12191, -12208, -12224, -12241, -12258,
+    -12274, -12291, -12308, -12324, -12341, -12357, -12374, -12390,
+    -12407, -12423, -12439, -12456, -12472, -12488, -12505, -12521,
+    -12537, -12553, -12569, -12585, -12601, -12618, -12634, -12650,
+    -12666, -12681, -12697, -12713, -12729, -12745, -12761, -12776,
+    -12792, -12808, -12823, -12839, -12855, -12870, -12886, -12901,
+    -12917, -12932, -12948, -12963, -12978, -12994, -13009, -13024,
+    -13039, -13055, -13070, -13085, -13100, -13115, -13130, -13145,
+    -13160, -13175, -13190, -13205, -13220, -13235, -13250, -13264,
+    -13279, -13294, -13308, -13323, -13338, -13352, -13367, -13381,
+    -13396, -13410, -13425, -13439, -13453, -13468, -13482, -13496,
+    -13511, -13525, -13539, -13553, -13567, -13581, -13595, -13609,
+    -13623, -13637, -13651, -13665, -13679, -13693, -13706, -13720,
+    -13734, -13748, -13761, -13775, -13789, -13802, -13816, -13829,
+    -13843, -13856, -13869, -13883, -13896, -13909, -13923, -13936,
+    -13949, -13962, -13975, -13989, -14002, -14015, -14028, -14041,
+    -14054, -14066, -14079, -14092, -14105, -14118, -14130, -14143,
+    -14156, -14168, -14181, -14194, -14206, -14219, -14231, -14244,
+    -14256, -14268, -14281, -14293, -14305, -14318, -14330, -14342,
+    -14354, -14366, -14378, -14390, -14402, -14414, -14426, -14438,
+    -14450, -14462, -14474, -14485, -14497, -14509, -14520, -14532,
+    -14544, -14555, -14567, -14578, -14590, -14601, -14612, -14624,
+    -14635, -14646, -14658, -14669, -14680, -14691, -14702, -14713,
+    -14724, -14735, -14746, -14757, -14768, -14779, -14790, -14801,
+    -14811, -14822, -14833, -14844, -14854, -14865, -14875, -14886,
+    -14896, -14907, -14917, -14928, -14938, -14948, -14958, -14969,
+    -14979, -14989, -14999, -15009, -15019, -15029, -15039, -15049,
+    -15059, -15069, -15079, -15089, -15099, -15108, -15118, -15128,
+    -15137, -15147, -15157, -15166, -15176, -15185, -15194, -15204,
+    -15213, -15222, -15232, -15241, -15250, -15259, -15268, -15278,
+    -15287, -15296, -15305, -15314, -15323, -15331, -15340, -15349,
+    -15358, -15367, -15375, -15384, -15393, -15401, -15410, -15418,
+    -15427, -15435, -15444, -15452, -15460, -15469, -15477, -15485,
+    -15493, -15501, -15510, -15518, -15526, -15534, -15542, -15550,
+    -15558, -15565, -15573, -15581, -15589, -15597, -15604, -15612,
+    -15619, -15627, -15635, -15642, -15650, -15657, -15664, -15672,
+    -15679, -15686, -15694, -15701, -15708, -15715, -15722, -15729,
+    -15736, -15743, -15750, -15757, -15764, -15771, -15778, -15784,
+    -15791, -15798, -15804, -15811, -15818, -15824, -15831, -15837,
+    -15843, -15850, -15856, -15862, -15869, -15875, -15881, -15887,
+    -15893, -15900, -15906, -15912, -15918, -15924, -15929, -15935,
+    -15941, -15947, -15953, -15958, -15964, -15970, -15975, -15981,
+    -15986, -15992, -15997, -16003, -16008, -16013, -16019, -16024,
+    -16029, -16034, -16040, -16045, -16050, -16055, -16060, -16065,
+    -16070, -16075, -16079, -16084, -16089, -16094, -16098, -16103,
+    -16108, -16112, -16117, -16121, -16126, -16130, -16135, -16139,
+    -16143, -16148, -16152, -16156, -16160, -16164, -16168, -16172,
+    -16176, -16180, -16184, -16188, -16192, -16196, -16200, -16203,
+    -16207, -16211, -16214, -16218, -16222, -16225, -16229, -16232,
+    -16235, -16239, -16242, -16245, -16249, -16252, -16255, -16258,
+    -16261, -16264, -16267, -16270, -16273, -16276, -16279, -16282,
+    -16285, -16287, -16290, -16293, -16295, -16298, -16301, -16303,
+    -16306, -16308, -16310, -16313, -16315, -16317, -16320, -16322,
+    -16324, -16326, -16328, -16330, -16332, -16334, -16336, -16338,
+    -16340, -16342, -16344, -16345, -16347, -16349, -16351, -16352,
+    -16354, -16355, -16357, -16358, -16360, -16361, -16362, -16364,
+    -16365, -16366, -16367, -16368, -16369, -16370, -16371, -16372,
+    -16373, -16374, -16375, -16376, -16377, -16378, -16378, -16379,
+    -16380, -16380, -16381, -16381, -16382, -16382, -16383, -16383,
+    -16383, -16384, -16384, -16384, -16384, -16384, -16384, -16384,
+    -16384
+};
+#endif

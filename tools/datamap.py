@@ -4,8 +4,8 @@
 routine names the same data, so wherever the two line up instruction for
 instruction, a DGROUP operand in 1.00's is the same object's in 1.11's. This
 collects those pairs from every routine the map placed, and each 1.00 public
-object - from 1.00's link map, `out/tim-1.00/TIM.MAP`, kept from the last
-link of the `tim-1.00` tag - takes the 1.11 address most of its references
+object - from 1.00's link map, `out/v1.00/link/exe/TIM.MAP`, from the last
+`TIM_VERSION=1.00` link - takes the 1.11 address most of its references
 agree on: a reference `k` bytes into the object votes for `new - k`.
 
 The instructions are lined up with difflib over their normalised forms
@@ -38,8 +38,8 @@ sys.path.insert(0, HERE)
 import capstone
 import addrmap as A
 
-OLD_MAP = os.path.join(A.OLD_DIR, "TIM.MAP")
-OUT = os.path.join(REPO, "out", "datamap.json")
+OLD_MAP = os.path.join(A.OLD_DIR, "link", "exe", "TIM.MAP")
+OUT = os.path.join(A.NEW_DIR, "datamap.json")
 OLD_DATA_END = 0x6500          # past the last 1.00 object the map names
 NEW_DATA_END = 0x6500
 X = capstone.x86

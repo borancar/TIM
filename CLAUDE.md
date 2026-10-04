@@ -10,15 +10,23 @@ right on screen.
 
 ## The goal: one source, two compilers
 
-**The target is 1.11** since 2026-09-30: TIM.EXE as The Even More Incredible
-Machine ships it, in `even-more-incredible-machine/` (untracked; supply your
-own). 1.00 is reconstructed - byte-exact and working - and tagged `tim-1.00`.
-`tools/unrnc.py` recovers 1.11's image and `docs/v1.11.md` holds what is
-known about it. Since 2026-10-02 the sources are 1.11's: `tools/link.py`
-links them into 1.11's program, every byte and relocation.
+**Both versions are built, each from a tree of its own** (since 2026-10-04):
+`reconstruct/v1.00` is TIM.EXE as The Incredible Machine ships it, in
+`incredible-machine/`, and `reconstruct/v1.11` as The Even More Incredible
+Machine ships it, in `even-more-incredible-machine/` (both untracked; supply
+your own). The two trees are independent - each has its own sources,
+headers, host code and Makefile, and a fix that applies to both is made in
+both - and share only what is not either game: `tools/`,
+`reconstruct/vendor` (ymfm), `reconstruct/tests` and `solutions/`. **Every
+tool works on one version, `TIM_VERSION`, 1.11 unless it says 1.00**
+(`tools/version.py`): its tree, its game directory, and its outputs in
+`out/v<version>/`. `tools/unrnc.py` recovers 1.11's image and
+`tools/unlzexe.py` 1.00's; `docs/v1.11.md` holds what is known about 1.11.
+`tools/link.py` links each into its program, every byte and relocation -
+1.00 down to the shipped file's hash.
 
 Since 2026-09-26 the port is also the **byte-exact reconstruction**. Every
-`reconstruct/src` file is to compile under the compiler that built it -
+`reconstruct/v<version>/src` file is to compile under the compiler that built it -
 Borland C++ 3.0 for most of the game (options per module), Borland C++ 3.1
 for 1.11's sound library, Borland C++ 2.0 for fifteen modules, Turbo C++
 1.01 for `atan2_long`, and TASM 3.0 for the assembly (2.51, BC++ 2.0's own,
@@ -86,8 +94,8 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   original depended on: `int16_t` says "this truncation is the `imul`'s" in a
   way `short` does not. The widths usually match on a modern ABI, so getting it
   wrong compiles, runs, and silently loses the one fact the type carried.
-- **Addresses are image offsets** - byte offsets into `out/TIM.img`, the
-  recovered image - unless written `seg:off`. The original's entry point is
+- **Addresses are image offsets** - byte offsets into the version's
+  `out/v<version>/TIM.img`, the recovered image - unless written `seg:off`. The original's entry point is
   `0000:0000`, so an image offset and a `seg:off` with segment 0 coincide.
 - **Every transcribed routine carries the address it came from**, as a comment
   on the function itself. So does **every transcribed table** - a palette, a
@@ -106,7 +114,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   boundaries have to be found - see `docs/executable.md`. Any boundary *we*
   added for porting says so in its header.
 
-  **They live in `reconstruct/src`.** That directory is the game and nothing
+  **They live in `reconstruct/v<version>/src`.** That directory is the game and nothing
   else: the eight modules, the DGROUP array and the two overlays, plus
   `main.c`, which is there because a DOS game's entry point is part of the
   game. What stays a directory up is what is *not* the game - `hostio.c` the
@@ -280,6 +288,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 
 | tool | what it is for |
 | --- | --- |
+| `tools/version.py` | **which version the tools work on**, `TIM_VERSION` (1.11 unless 1.00), and every path that differs by version: the tree, the game directory, `out/v<version>/` and its image. Light - a tool that only needs a path imports this, not the emulator |
 | `tools/tim.py` | the one local door to the emulator: game directory, paths, and `TimMachine`, the machine as this game expects to find it |
 | `tools/unlzexe.py` | recovers `TIM.EXE` by **running** its LZEXE stub, and measures the relocation table by running it at two load segments and diffing |
 | `tools/verify_unpack.py` | proves the recovery: loading the emitted EXE must put exactly the stub's bytes at exactly its entry and stack |

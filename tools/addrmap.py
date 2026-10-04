@@ -44,12 +44,17 @@ sys.path.insert(0, os.path.join(REPO, "reconstruct", "tests"))
 
 import capstone
 
-OLD_DIR = os.path.join(REPO, "out", "tim-1.00")
+# Both versions at once, whatever TIM_VERSION says: 1.00's tree and outputs
+# against 1.11's.
+OLD_DIR = os.path.join(REPO, "out", "v1.00")
 OLD_IMG = os.path.join(OLD_DIR, "TIM.img")
 OLD_EXE = os.path.join(OLD_DIR, "TIM.unpacked.exe")
-NEW_IMG = os.path.join(REPO, "out", "TIM.img")
-NEW_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
-OUT = os.path.join(REPO, "out", "addrmap.json")
+OLD_TREE = os.path.join(REPO, "reconstruct", "v1.00")
+NEW_DIR = os.path.join(REPO, "out", "v1.11")
+NEW_IMG = os.path.join(NEW_DIR, "TIM.img")
+NEW_EXE = os.path.join(NEW_DIR, "TIM.unpacked.exe")
+NEW_TREE = os.path.join(REPO, "reconstruct", "v1.11")
+OUT = os.path.join(NEW_DIR, "addrmap.json")
 OVERLAYS = ("sxovl", "vmovl")
 OLD_DGROUP, NEW_DGROUP = 0x2D3C0, 0x2FE10
 # The part kinds' records: in DGROUP in 1.00, in a far segment of their own
@@ -91,15 +96,11 @@ def provenance_of(root):
 
 
 def routines():
-    """1.00's routines at 1.00's addresses - read from the sources as tagged
-    `tim-1.00` (exported to out/tim-1.00/src), since the tree's own have
-    moved - each with the address the tree gives it now, `cur`, which is
-    what `--apply` rewrites."""
-    old_root = os.path.join(OLD_DIR, "src", "reconstruct")
-    if not os.path.isdir(old_root):
-        raise SystemExit("export the tag first: git archive tim-1.00 reconstruct "
-                         "| tar -x -C out/tim-1.00/src")
-    cur = provenance_of(os.path.join(REPO, "reconstruct"))
+    """1.00's routines at 1.00's addresses - read from 1.00's tree,
+    `reconstruct/v1.00` - each with the address 1.11's tree gives it now,
+    `cur`, which is what `--apply` rewrites."""
+    old_root = OLD_TREE
+    cur = provenance_of(NEW_TREE)
     rows = []
     for (rel, name), a in provenance_of(old_root).items():
         rows.append(dict(file=rel, name=name, old=a, cur=cur.get((rel, name))))
@@ -513,7 +514,7 @@ def apply(rows, dry):
         return "0x%05x" % r["new"]
     changed = moved = marked = 0
     for rel, names in sorted(by_file.items()):
-        path = os.path.join(REPO, "reconstruct", rel)
+        path = os.path.join(NEW_TREE, rel)
         text = open(path).read()
         out = text
         for name, r in names.items():
@@ -557,7 +558,7 @@ def apply(rows, dry):
     # rewritten by name to the settled address whatever it says now - the
     # prototypes are copies, and a copy can hold an address the source no
     # longer does.
-    th = os.path.join(REPO, "reconstruct", "tim.h")
+    th = os.path.join(NEW_TREE, "tim.h")
     text = open(th).read()
     out = text
     for r in rows:

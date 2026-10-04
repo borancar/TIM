@@ -37,7 +37,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import tim
 
-IMG = os.path.join(REPO, "out", "TIM.img")
+IMG = tim.IMAGE
 FAR_SEGMENT = 0x2EF10
 KIND_COUNT = 66
 RECORD = 0x3A

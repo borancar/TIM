@@ -14,14 +14,12 @@ import sys
 import dos_emulator
 from dos_emulator import DosMachine, VgaDos, set_game_dir
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# **The target is 1.11**, TIM.EXE as The Even More Incredible Machine ships it
-# (GOG's installer, extracted). 1.00 - `incredible-machine/` - is reconstructed
-# and tagged `tim-1.00`; the tools follow the target.
-GAME_DIR = os.path.join(REPO, "even-more-incredible-machine")
+# The version and its paths (`TIM_VERSION`): see version.py.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from version import (REPO, VERSIONS, VERSION, RECON, OUT, GAME_DIR,  # noqa: E402
+                     IMAGE, UNPACKED_EXE, TESTS, require_in_tree)
 
 PACKED_EXE = os.path.join(GAME_DIR, "TIM.EXE")
-UNPACKED_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
 
 # **The recovered image**: the unpacked EXE with its header removed, so offset
 # 0 is the program's own first byte. Every address in this project is an offset
@@ -33,7 +31,6 @@ UNPACKED_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
 # clone got `TIM.unpacked.exe` and no `TIM.img`, and `native` then refused to
 # start with a message telling you to run the tool you had just run. The two
 # are written together now, from the one recovery.
-IMAGE = os.path.join(REPO, "out", "TIM.img")
 
 # 1.11's TIM.EXE is packed twice with RNC ProPack, keyed; tools/unrnc.py
 # recovers it, held to the CRCs RNC stores. 1.00's was LZEXE 0.91, which
@@ -49,8 +46,9 @@ IMAGE_BASE_SEG = 0x0000
 
 
 
-def built(what, where="reconstruct", target=None):
-    """A binary this repo builds, **built**, and its path.
+def built(what, where=None, target=None):
+    """A binary this repo builds, **built**, and its path - in the version's
+    tree unless `where`, relative to the repository, says otherwise.
 
     Every check here runs a binary compiled from `reconstruct/`, and every one
     of them used to take whatever was on disk. That is a reference of unknown
@@ -69,6 +67,7 @@ def built(what, where="reconstruct", target=None):
     """
     import subprocess
 
+    where = os.path.relpath(RECON, REPO) if where is None else where
     path = os.path.join(REPO, where, what)
     r = subprocess.run(["make", "-s", "-C", os.path.join(REPO, where),
                         target or what],
@@ -92,8 +91,8 @@ DGROUPS = {214512: 0x2D3C0,       # 1.00
 
 
 def image_dgroup(path=None):
-    """DGROUP's image offset in the recovered image at `path` (out/TIM.img)."""
-    size = os.path.getsize(path or os.path.join(REPO, "out", "TIM.img"))
+    """DGROUP's image offset in the recovered image at `path` (`IMAGE`)."""
+    size = os.path.getsize(path or IMAGE)
     if size not in DGROUPS:
         raise SystemExit("an image of %d bytes, which is no version tim.py knows" % size)
     return DGROUPS[size]

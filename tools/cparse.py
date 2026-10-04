@@ -114,12 +114,14 @@ def text(src, node):
 
 def placements(path=None):
     """Every public DGROUP object and its address, as (None, name, address):
-    read from `out/link/exe/TIM.MAP`, the map of the last `tools/link.py`,
+    read from `out/v<version>/link/exe/TIM.MAP`, the map of the last `tools/link.py`,
     whose TIM.EXE is the original's byte for byte - so the addresses are the
     image's. `path` is ignored; the map covers every module. Empty when there
     has been no link."""
-    mp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "out", "link", "exe", "TIM.MAP")
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from version import OUT
+    mp = os.path.join(OUT, "link", "exe", "TIM.MAP")
     if not os.path.exists(mp):
         return []
     out = []

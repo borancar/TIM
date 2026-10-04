@@ -26,7 +26,7 @@ _img = None
 def image():
     global _img
     if _img is None:
-        path = os.path.join(tim.REPO, "out", "TIM.img")
+        path = tim.IMAGE
         if not os.path.exists(path):
             exe = open(tim.UNPACKED_EXE, "rb").read()
             import struct

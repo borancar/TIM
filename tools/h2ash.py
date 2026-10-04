@@ -57,8 +57,8 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
-RECON = os.path.join(REPO, "reconstruct")
+sys.path.insert(0, HERE)
+from version import REPO, RECON  # noqa: E402
 TURBOC = os.environ.get("TIM_TURBOC", os.path.join(REPO, "..", "turboc"))
 CACHE = os.path.join(REPO, "out", "h2ash")
 HEADER_DIRS = (os.path.join(RECON, "src"), RECON, os.path.join(RECON, "tc"))

@@ -1,0 +1,2584 @@
+#define _XOPEN_SOURCE 700   /* realpath, and POSIX 2008 */
+/*
+ * The port's own hardware boundary. NOT a transcription of anything.
+ * See io.h for why the plane model is modelled rather than flattened.
+ */
+#include <stdarg.h>
+#include <string.h>
+
+#include <errno.h>
+#include <limits.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <time.h>
+#include <pthread.h>
+#include <sched.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+#include <execinfo.h>
+
+#include "dgroup.h"
+#include "hostio.h"
+#include "src/opl.h"
+#include "tim.h"
+
+static uint8_t io_in8_raw(uint16_t port);
+
+/* OURS: the BIOS data area, two ROM bytes and the mono screen - see hostio.h. */
+struct bios_data_area g_bios;
+const uint8_t g_rom_model = 0xfc;
+const uint8_t g_rom_c000 = 0;
+uint16_t g_mono_screen[0x800];
+
+static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
+static uint8_t  latch[VGA_PLANES];
+
+static uint8_t  seq_index, gc_index, crtc_index;
+static uint8_t  seq[8];
+static uint8_t  gc[16];
+static uint8_t  crtc[32];
+
+/*
+ * OURS: what to do when the guest finishes a frame. The backend registers
+ * itself here rather than io.c calling it, so that devtim - which has no window
+ * and must not link one - is the same io.c with nothing registered.
+ */
+/*
+ * OURS: how many page flips the *guest* has made.
+ *
+ * Not the same thing as how many frames a backend presented, and the two were
+ * being confused. `present_hook` is called from two places - here, on the
+ * guest's own flip, and from `io_service_display` on a 59.94 Hz wall clock -
+ * so a runner counting presents counts mostly the clock: measured in the
+ * hybrid, 840 of 1000 were the timer and 160 were the guest. A "frame" number
+ * from such a count is a stopwatch reading, and comparing two runs by it
+ * compares how long they ran.
+ */
+static unsigned long flip_count;
+
+
+/* OURS: a monotonic clock, for the tick rate and the window's refresh. */
+static double io_now(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+
+/*
+ * OURS: the display's frame rate, and where in a frame the clock says we are.
+ *
+ * Mode 0x12 is 640x480 at **59.94 Hz** - 525 lines of which 480 are active,
+ * the standard IBM timing, and the rate DOSBox reports for this game. The game
+ * does not change it: it moves Start Vertical Blank and leaves every other
+ * timing register alone, so the Sierra logo and the intro screens run at the
+ * same rate and only the number of *displayed* lines differs.
+ *
+ * The port does not model the BIOS's timing registers - `io_bios_set_mode`
+ * zeroes the CRTC and only the handful of registers the game itself writes
+ * mean anything - so this comes from the clock rather than from a register
+ * file that is not there.
+ */
+#define VGA_FRAME_HZ     59.94
+#define VGA_TOTAL_LINES  525.0
+#define VGA_ACTIVE_LINES 480.0
+
+/* Where in the frame we are, 0 at the top of the picture and 1 at the next. */
+static double vga_frame_phase(void)
+{
+    double f = io_now() * VGA_FRAME_HZ;
+
+    return f - (double)(long long)f;
+}
+
+static int32_t vga_in_vblank(void)
+{
+    return vga_frame_phase() >= VGA_ACTIVE_LINES / VGA_TOTAL_LINES;
+}
+
+static void (*present_hook)(void);
+static void (*abort_hook)(void);
+
+/*
+ * The thread that may talk to the display, which is the one that set the hook
+ * up - `main`'s. **SDL's renderer belongs to one thread and must be used from
+ * that thread only.**
+ *
+ * The timer runs on a thread of its own, and the guest's timer handler writes
+ * I/O ports like any other guest code, so it reached `io_service_display` and
+ * called SDL from the wrong thread. Two threads inside `SDL_RenderPresent` at
+ * once wedges the renderer: gdb caught both of them in `SDL_BlitCopy`, the
+ * main one under `vm_show_page`, and with the main thread stuck inside SDL the
+ * game stops - which is a screen that freezes with the machine half finished,
+ * and, when the two corrupt each other rather than jam, a segfault after a few
+ * minutes. Three different-looking faults, one cause.
+ *
+ * `present_busy` did not catch it: it is a re-entry guard for *one* thread and
+ * says nothing about two.
+ */
+static pthread_t display_thread;
+static int32_t   display_thread_known;
+
+void io_on_present(void (*fn)(void))
+{
+    present_hook = fn;
+    display_thread = pthread_self();
+    display_thread_known = 1;
+}
+
+/* Whether this thread is the one that owns the window. */
+static int32_t on_display_thread(void)
+{
+    return !display_thread_known
+           || pthread_equal(pthread_self(), display_thread);
+}
+
+/*
+ * OURS: refresh the window because time has passed, not because the guest
+ * finished a frame.
+ *
+ * The page-flip hook above is the right cue for a *capture* - it is the one
+ * instant a frame is complete and not half-drawn. It is the wrong cue for a
+ * window, and the Sierra logo is what showed that: its animation loop draws
+ * straight onto the page that is already being displayed and never flips at
+ * all, so nothing was ever redrawn and the screen stayed on whatever the last
+ * flip left. On the real machine the CRTC scans the page out sixty times a
+ * second whether the game asks or not.
+ *
+ * So the port refreshes on the clock as well, at the mode's own 59.94 Hz,
+ * from wherever the
+ * guest happens to touch the display hardware. The rate limit is what stops a
+ * blit turning into one present per register write, and the re-entry guard is
+ * what stops a present that itself reads the VGA from calling itself.
+ */
+static double present_last;
+static int32_t present_busy;
+
+void io_service_display(void)
+{
+    double now;
+
+    io_sb_poll();
+
+    if (!present_hook || present_busy || !on_display_thread())
+        return;
+
+    now = io_now();
+    if (now - present_last < 1.0 / VGA_FRAME_HZ)
+        return;
+
+    present_last = now;
+    present_busy = 1;
+    present_hook();
+    present_busy = 0;
+}
+
+void io_on_abort(void (*fn)(void))
+{
+    abort_hook = fn;
+}
+/*
+ * `TIM_TRACE=crtc,dac,mouse` prints the register writes that decide what the
+ * screen even is - the blanking line, the line compare, and the DAC - and
+ * every pointer event this layer is handed. Ours: the original has no such
+ * thing, and a fault that is invisible in a frame of indices (a correct
+ * picture under an all-black palette) is a line of output here.
+ *
+ * `mouse` earned its place settling whether the hybrid's synthetic clicks were
+ * reaching the guest at all. They were: position right, mask right, `0x48eb`
+ * going 01 and back to 00. What was wrong was how long they lasted, which no
+ * amount of reading the code would have shown and one line of this did.
+ *
+ * Off unless the variable asks.
+ */
+static int32_t trace_crtc_on = -1;
+static int32_t trace_dac_on = -1;
+
+static int32_t trace_asks(const char *what)
+{
+    const char *spec = getenv("TIM_TRACE");
+    return spec && strstr(spec, what) != NULL;
+}
+
+int32_t trace_asks_sfx(void)
+{
+    return trace_asks("sfx");
+}
+
+int32_t trace_asks_level(void)
+{
+    return trace_asks("level");
+}
+
+static void io_trace_crtc(uint8_t index, uint8_t value)
+{
+    if (trace_crtc_on < 0)
+        trace_crtc_on = trace_asks("crtc");
+    if (trace_crtc_on && (index == 0x15 || index == 0x18 || index == 0x07
+                          || index == 0x09))
+        fprintf(stderr, "[crtc] %02x <- %02x\n", index, value);
+}
+
+static void io_trace_dac(uint8_t index, int32_t phase, uint8_t value)
+{
+    static int32_t writes;
+
+    if (trace_dac_on < 0)
+        trace_dac_on = trace_asks("dac");
+    if (trace_dac_on && (writes++ % 256) == 0)
+        fprintf(stderr, "[dac] write %d: index %02x phase %d value %02x\n",
+                writes - 1, index, phase, value);
+}
+
+static uint8_t  dac[256][3];
+static uint8_t  attr_pal[16];
+/*
+ * The attribute controller's index/data flip-flop. One port, 0x3C0, takes an
+ * index and then a value, and a read of Input Status 1 puts it back to
+ * expecting an index. The driver's own start-up relies on that reset: it reads
+ * 0x3DA before every pair it writes.
+ */
+static uint8_t  attr_index;
+static uint8_t  attr_expect_data;
+
+static uint8_t  dac_index;
+static int32_t  dac_phase;
+static uint8_t  dac_latch[3];
+static int32_t  dac_write_mode = 1;
+
+/*
+ * The VGA BIOS's own CRTC table for mode 12h. The game read-modify-writes
+ * three of these registers, so they have to start at the values the BIOS left
+ * rather than at zero - see docs/executable.md.
+ */
+static const uint8_t CRTC_MODE12[25] = {
+    0x5F, 0x4F, 0x50, 0x82, 0x54, 0x80, 0x0B, 0x3E, 0x00, 0x40, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0xEA, 0x8C, 0xDF, 0x28, 0x00, 0xE7, 0x04, 0xE3,
+    0xFF
+};
+
+static char     game_dir[PATH_MAX] = "incredible-machine";
+
+/*
+ * OURS: what DOS's loader and Borland's startup leave behind besides the
+ * image - the game directory and the two BIOS bytes the game reads.
+ *
+ * **The port calls this and not `io_load_program`.** Nothing the game needs
+ * comes from the image any more: DGROUP's initialised data and the sound
+ * module's tables are C objects, and the code is the port's own.
+ */
+void io_start_program(void)
+{
+    /*
+     * A DOS game is started in its own directory, and opens its files by name
+     * with the C library - so the host process starts in the game directory
+     * too. Made absolute first: `dos_resolve` builds every path from it.
+     */
+    {
+        char real[PATH_MAX];
+
+        if (realpath(game_dir, real) != NULL)
+            snprintf(game_dir, sizeof game_dir, "%s", real);
+        if (chdir(game_dir) != 0)
+            fprintf(stderr, "io: cannot enter the game directory %s: %s\n",
+                    game_dir, strerror(errno));
+    }
+
+
+    /* The BIOS data area the game reads: keyboard flags and the video mode. */
+    g_bios.kbd_flags = 0;
+    g_bios.video_mode = 0x03;
+}
+
+/*
+ * OURS: **DOS memory**, INT 21h AH=48h, 49h and 4Ah.
+ *
+ * Each block is the host's, from the heap, aligned to a paragraph so that a
+ * pointer into it normalises as it would in real mode (see `MK_FP` in
+ * dgroup.h), and zeroed: DOS memory holds whatever was there before, and the
+ * host's answer is the same every run.
+ *
+ * **What is free is not counted.** The game asks it three times - asking for
+ * 0xffff paragraphs, which DOS always refuses with the largest free block -
+ * in `game_startup`, `picker_begin` and `decode_vqt_list`, and the answer is
+ * always what it had at the start: 0x61b3 paragraphs, the 400 KB of
+ * conventional memory the emulator leaves it too. So those three see the same
+ * figure every time, however much the game has taken.
+ */
+#define DOS_FREE_AT_START 0x61b3u      /* paragraphs: 0x3e4c up to 0x9fff */
+
+/*
+ * **The live blocks, so a segment can name its block from anywhere inside
+ * it.** On DOS a far pointer keeps the segment it was made with: `block + 1`
+ * moves the offset and leaves the segment alone, so every record of a block
+ * still carries the block's own segment, and `dos_free_far` frees the block
+ * from whichever record it is handed. A host pointer has no segment of its
+ * own - `FP_SEG` is the paragraph the pointer is in - and `free` takes only
+ * the block's start, so the block has to be found from the paragraph.
+ *
+ * Found 2026-10-03: quitting freed the 180 shape records through
+ * `g_shape_free`, the head of their free list, which is the block's first
+ * record only until play has taken shapes and given them back - "free():
+ * invalid size", some of the time.
+ *
+ * Kept sorted by address, so the block holding a paragraph is a binary
+ * search: the last start at or below it, if the paragraph is before that
+ * block's end. The end is the size allocated, which a shrink does not
+ * change - a pointer into the tail still names the block, as its segment
+ * would. A paragraph in no live block is left alone, as DOS refuses a
+ * segment that is not a block and the game does not look at the error.
+ */
+struct dos_block {
+    struct paragraph *start;
+    struct paragraph *end;
+};
+
+static struct dos_block *dos_blocks;
+static size_t dos_blocks_n, dos_blocks_cap;
+
+/* The index of the last block starting at or below `p`, or -1. */
+static ptrdiff_t dos_block_at_or_below(const struct paragraph *p)
+{
+    size_t lo = 0, hi = dos_blocks_n;
+
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+
+        if (dos_blocks[mid].start <= p)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return (ptrdiff_t)lo - 1;
+}
+
+static void dos_block_add(struct paragraph *start, uint16_t paragraphs)
+{
+    size_t at = (size_t)(dos_block_at_or_below(start) + 1);
+
+    if (dos_blocks_n == dos_blocks_cap) {
+        size_t cap = dos_blocks_cap ? dos_blocks_cap * 2 : 64;
+        struct dos_block *grown = realloc(dos_blocks, cap * sizeof *grown);
+
+        if (grown == NULL) {
+            fprintf(stderr, "io: no memory for the DOS block table\n");
+            abort();
+        }
+        dos_blocks = grown;
+        dos_blocks_cap = cap;
+    }
+    memmove(&dos_blocks[at + 1], &dos_blocks[at],
+            (dos_blocks_n - at) * sizeof *dos_blocks);
+    dos_blocks[at].start = start;
+    dos_blocks[at].end = start + paragraphs;
+    dos_blocks_n++;
+}
+
+/* The index of the block holding `p`, or -1. */
+static ptrdiff_t dos_block_of(const struct paragraph *p)
+{
+    ptrdiff_t i = dos_block_at_or_below(p);
+
+    return (i >= 0 && p < dos_blocks[i].end) ? i : -1;
+}
+
+struct paragraph *io_dos_alloc(uint16_t paragraphs, uint16_t *largest,
+                               int32_t *failed)
+{
+    struct paragraph *block;
+
+    *largest = DOS_FREE_AT_START;
+
+    /* DOS refuses 0 and 0xffff paragraphs; 0xffff is the "how much" probe. */
+    if (paragraphs == 0 || paragraphs == 0xFFFF || paragraphs > DOS_FREE_AT_START
+        || (block = aligned_alloc(16, (size_t)paragraphs * 16)) == NULL) {
+        *failed = 1;
+        return NULL;
+    }
+    memset(block, 0, (size_t)paragraphs * 16);
+    dos_block_add(block, paragraphs);
+    *failed = 0;
+    return block;
+}
+
+/*
+ * Shrink a DOS block in place, INT 21h AH=4Ah. Answers 0 on success and the
+ * block's size on failure, which is what DOS puts in BX. Only shrinking
+ * happens, from a routine that has just measured how much of a block it
+ * filled; the host keeps the bytes, and growing is refused.
+ */
+uint16_t io_dos_resize(struct paragraph *block, uint16_t paragraphs)
+{
+    ptrdiff_t i = dos_block_of(block);
+    uint16_t size;
+
+    if (i < 0)
+        return 0xffff;              /* not a block: DOS refuses; nothing reads it */
+    size = (uint16_t)(dos_blocks[i].end - dos_blocks[i].start);
+    return (uint16_t)(paragraphs > size ? size : 0);
+}
+
+void io_dos_free(struct paragraph *block)
+{
+    ptrdiff_t i;
+    struct paragraph *start;
+
+    if (block == NULL || (i = dos_block_of(block)) < 0)
+        return;
+    start = dos_blocks[i].start;
+    memmove(&dos_blocks[i], &dos_blocks[i + 1],
+            (dos_blocks_n - (size_t)i - 1) * sizeof *dos_blocks);
+    dos_blocks_n--;
+    free(start);
+}
+
+/*
+ * OURS: **the block DMA channel 1 reads**, handed over by the Sound Blaster
+ * driver in place of the page and address registers, which a host pointer
+ * does not fit.
+ */
+static const uint8_t *dma1_block;
+
+void io_dma1_memory(const void *block)
+{
+    dma1_block = block;
+}
+
+/*
+ * DOS file services, **read-only**, served from the game directory.
+ *
+ * The port opens the game's own files rather than being handed their contents,
+ * for the same reason the emulator does: a routine that reads a file can then
+ * be checked byte for byte instead of against a recording. Nothing here writes,
+ * creates or deletes - the guarantee that makes it safe to let the game run
+ * against the real directory.
+ *
+ * Handles are numbered from 5, which is what DOS hands out once stdin, stdout,
+ * stderr, stdaux and stdprn have taken 0 to 4. That is not cosmetic: the guest
+ * stores the number it is given and the comparison sees it, so a port that
+ * counted from zero would differ on the first open.
+ *
+ * DOS filenames are upper case and the host's may not be, so a name that does
+ * not open as given is retried lower case. Anything else - a path, a wildcard -
+ * is left alone and simply fails.
+ */
+
+
+void io_set_game_dir(const char *path)
+{
+    size_t n = strlen(path);
+
+    if (n >= sizeof game_dir)
+        n = sizeof game_dir - 1;
+    memcpy(game_dir, path, n);
+    game_dir[n] = 0;
+}
+
+/*
+ * The guest's current directory, as a path **relative to the game directory**
+ * with `\\` separators and upper case - "" being the root. INT 21h AH=3Bh is
+ * the only thing that changes it.
+ *
+ * The port's own, and written to match the emulator, which models the same
+ * thing: `host_path(name, cwd)` there and `dos_resolve` here. The game asks
+ * `chdir` where it is before it lists a directory, and a port that answered
+ * "no such path" to every one of them would show an empty file picker and look
+ * like a picker that had been transcribed wrong.
+ */
+static char game_cwd[512];
+
+/*
+ * Resolve a DOS path against the game directory and the current one, case
+ * insensitively, into `out`.
+ *
+ * **The game directory is a floor, not a starting point.** A `..` at the root
+ * stays at the root, so a guest that walks up out of a subdirectory cannot walk
+ * out of the game's own. That is the whole safety property of this layer and it
+ * is one line: the parent of the root is the root.
+ *
+ * A path beginning with a backslash, or with a drive letter, is absolute and
+ * ignores the current directory - which is what makes `chdir` mean anything at
+ * all. Each component is matched against the real directory's entries without
+ * regard to case, because DOS names are upper case and a host's need not be.
+ */
+static void dos_resolve(const char *name, char *out, size_t outn)
+{
+    char raw[1024];
+    const char *p = name;
+    int32_t absolute;
+    size_t i;
+
+    absolute = (name[0] == '\\' || name[0] == '/'
+                || (name[0] != 0 && name[1] == ':'));
+
+    if (name[0] != 0 && name[1] == ':')
+        p = name + 2;
+    while (*p == '\\' || *p == '/')
+        p++;
+
+    if (!absolute && game_cwd[0] != 0)
+        snprintf(raw, sizeof raw, "%s/%s", game_cwd, p);
+    else
+        snprintf(raw, sizeof raw, "%s", p);
+
+    for (i = 0; raw[i]; i++)
+        if (raw[i] == '\\')
+            raw[i] = '/';
+
+    snprintf(out, outn, "%s", game_dir);
+
+    {
+        char *save = NULL;
+        char *tok = strtok_r(raw, "/", &save);
+
+        for (; tok != NULL; tok = strtok_r(NULL, "/", &save)) {
+            DIR *d;
+            struct dirent *e;
+            char found[256];
+
+            if (tok[0] == 0 || strcmp(tok, ".") == 0)
+                continue;
+
+            if (strcmp(tok, "..") == 0) {
+                if (strcmp(out, game_dir) != 0) {
+                    char *slash = strrchr(out, '/');
+
+                    if (slash != NULL)
+                        *slash = 0;
+                }
+                continue;
+            }
+
+            snprintf(found, sizeof found, "%s", tok);
+
+            d = opendir(out);
+            if (d != NULL) {
+                while ((e = readdir(d)) != NULL) {
+                    size_t k;
+                    char a[256], b[256];
+
+                    snprintf(a, sizeof a, "%s", e->d_name);
+                    snprintf(b, sizeof b, "%s", tok);
+                    for (k = 0; a[k]; k++)
+                        if (a[k] >= 'A' && a[k] <= 'Z')
+                            a[k] = (char)(a[k] - 'A' + 'a');
+                    for (k = 0; b[k]; k++)
+                        if (b[k] >= 'A' && b[k] <= 'Z')
+                            b[k] = (char)(b[k] - 'A' + 'a');
+                    if (strcmp(a, b) == 0) {
+                        snprintf(found, sizeof found, "%s", e->d_name);
+                        break;
+                    }
+                }
+                closedir(d);
+            }
+
+            {
+                char joined[1024];
+
+                snprintf(joined, sizeof joined, "%s/%s", out, found);
+                snprintf(out, outn, "%s", joined);
+            }
+        }
+    }
+}
+
+/*
+ * INT 21h AH=3Bh - change directory. 0 on success, 3 - "path not found" - when
+ * the target is not a directory inside the game directory.
+ *
+ * The port's own. The **relative** path is what is kept, upper-cased, because
+ * that is what the guest writes into its own files: a game that stores one path
+ * spelled one way and the next the host directory's real spelling produces a
+ * file that differs from the reference's for no reason but the filesystem's.
+ */
+int16_t io_dos_chdir(const char *path)
+{
+    char target[1024];
+    struct stat st;
+    size_t root = strlen(game_dir);
+    size_t i;
+
+    dos_resolve(path, target, sizeof target);
+
+    if (stat(target, &st) != 0 || !S_ISDIR(st.st_mode))
+        return 3;
+
+    if (strncmp(target, game_dir, root) != 0)
+        return 3;
+
+    /* The C library opens the game's files relative to where it is. */
+    if (chdir(target) != 0)
+        return 3;
+
+    if (target[root] == 0) {
+        game_cwd[0] = 0;
+        return 0;
+    }
+
+    snprintf(game_cwd, sizeof game_cwd, "%s", target + root + 1);
+    for (i = 0; game_cwd[i]; i++) {
+        if (game_cwd[i] == '/')
+            game_cwd[i] = '\\';
+        else if (game_cwd[i] >= 'a' && game_cwd[i] <= 'z')
+            game_cwd[i] = (char)(game_cwd[i] - 'a' + 'A');
+    }
+
+    return 0;
+}
+
+/*
+ * INT 21h AH=0Eh - select a drive. The port serves one directory and therefore
+ * one drive, so this answers the drive count and changes nothing. Ours.
+ */
+int16_t io_dos_setdisk(uint8_t drive)
+{
+    (void)drive;
+    return 1;
+}
+
+/*
+ * The BIOS font pointer, as INT 10h AX=1130h answers it: the character
+ * generator's address in **ES:BP**, chosen by BH - 3 is the 8x8 double-dot
+ * font's second half, which is what the game asks for.
+ *
+ * The port's own, and **measured against the emulator, which does not
+ * implement the call at all**: it leaves ES and BP as it found them, so the
+ * game files whatever was in those registers as a font pointer. Answering
+ * null is that behaviour said plainly, and it is what the caller then
+ * stores. On real hardware a BIOS would answer a ROM font here and those four
+ * DGROUP words would differ - recorded in STATUS.md as a known divergence from
+ * a real machine rather than hidden.
+ *
+ * `which` is BH and is not read: there is only one answer to give.
+ */
+uint8_t *io_bios_font(uint8_t which)
+{
+    (void)which;
+    return NULL;
+}
+
+/*
+ * The BIOS display-combination code, as INT 10h AH=1Ah answers it: the active
+ * display in BL, an inactive second one in BH, and 0x1a back in AL to say the
+ * call is supported at all.
+ *
+ * The port's own, and measured against the emulator, which answers BL=8 - VGA
+ * with a colour monitor - and no second display. This is the call that decides
+ * which driver the game loads, so answering it differently would load a
+ * different `VM.OVL` and every frame after would be a different game.
+ */
+uint16_t io_bios_display_combination(void)
+{
+    return 0x0008;
+}
+
+/*
+ * OURS: call one of a screen region's handlers.
+ *
+ * The original reaches them with `lcall [si+0x12]`, a far pointer sitting in
+ * the region record - relocated into place by `build_screen_regions`. There is
+ * no way to call through a guest far pointer here, so the port matches the
+ * value against the handlers it knows and aborts on one it does not. That is
+ * the same standing as a stub: the alternative is doing nothing, and a handler
+ * silently not running is a click that looks like it landed nowhere.
+ */
+/*
+ * OURS: the guest's clock.
+ *
+ * The original's pacing comes from an 8253 interrupt on vector 8, and the code
+ * that waits for it *spins*: `wait_and_latch_frame` sits on a DGROUP flag that
+ * only the handler clears, and touches no hardware while it does. There is
+ * nothing there for a single-threaded port to hook - no port read, no call out -
+ * and that is not an accident of this routine, it is what waiting for an
+ * interrupt looks like.
+ *
+ * So the port runs the handler on **a thread**, which is what it is: something
+ * that happens to the guest rather than something the guest does. The rate
+ * comes from what the guest programmed into the 8253, so a game that asks for a
+ * different one gets it.
+ *
+ * **The locking is not finished, and this is where it will go.** On the real
+ * machine the handler could not interleave with the guest's own instructions,
+ * and where that mattered the game said so - `cli` around the timer's own
+ * bookkeeping at 0x20654 and 0x206c1, and around the sound module's at
+ * 0x26a57. Those three take this mutex, which is what `cli` means here: the
+ * tick cannot land inside one of them and see half an update.
+ *
+ * The regions are exactly the original's, no wider: at 0x20654 it is the single
+ * `or [0x44f7], cx` that sets a slot's bit in the mask the handler reads - one
+ * instruction there, a read-modify-write here, and racy either way without it.
+ */
+static void (*timer_handler)(void);
+static uint16_t timer_divisor;
+
+static int32_t  timer_lo_next = 1;
+
+/*
+ * OURS: the PC speaker, channel 2 of the same 8253.
+ *
+ * `sxovl_spkr.c` - the game's own SX.OVL driver, transcribed - programs a
+ * square wave the way every DOS program does: mode byte 0xb6 to port 0x43,
+ * the divisor low then high to port 0x42, and bits 0 and 1 of port 0x61 to
+ * connect the timer's output to the speaker. All of that was arriving here and
+ * being dropped: 0x42 had no case at all and 0x61 was latched into a byte
+ * nothing read, so the game computed correct frequencies and made no sound.
+ *
+ * The divisor and the gate are read by SDL's audio thread and written by
+ * whichever thread is running the guest. They are two words, written
+ * independently, so a callback can see a new frequency with an old gate for
+ * one buffer. That is the same unmodelled concurrency as the timer - see the
+ * note beside `timer_loop` - and here it is worth a buffer of the wrong tone
+ * rather than a stray column of pixels, so it waits for the same answer.
+ */
+static pthread_t timer_thread;
+/*
+ * **Recursive**, because the guest's own masking is. `retire_and_tick` at
+ * 0x26a57 is `pushf; cli; ...; popf` and not `cli; ...; sti` - it puts the flag
+ * back rather than turning interrupts on - so a caller that already had them
+ * off keeps them off, and the region nests. A plain mutex would deadlock on
+ * the second one instead of nesting.
+ *
+ * There is a static initialiser for a recursive mutex but it is a GNU
+ * extension and `-std=c11` hides it, so the attribute is set at first use
+ * through `pthread_once` - which costs one atomic read per lock and nothing
+ * else.
+ */
+static pthread_mutex_t timer_lock;
+static pthread_once_t  timer_lock_once = PTHREAD_ONCE_INIT;
+
+static void make_timer_lock(void)
+{
+    pthread_mutexattr_t attr;
+
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&timer_lock, &attr);
+    pthread_mutexattr_destroy(&attr);
+}
+
+static pthread_mutex_t *the_timer_lock(void)
+{
+    pthread_once(&timer_lock_once, make_timer_lock);
+    return &timer_lock;
+}
+static volatile int32_t timer_running;
+
+void io_lock(void)
+{
+    pthread_mutex_lock(the_timer_lock());
+}
+
+void io_unlock(void)
+{
+    pthread_mutex_unlock(the_timer_lock());
+}
+
+/*
+ * **A thread is not an interrupt, and this is where that bites.**
+ *
+ * On the original the tick suspends whatever was running and completes on the
+ * one CPU: the handler and the interrupted code are never both inside the
+ * driver's state. Here they are two threads, and the driver's state is a few
+ * shared DGROUP words - the clip box, the page pointers, and one save slot.
+ *
+ * The lock below is held across the whole handler. That is not enough, and
+ * taking it around the blits as well would still not be: the clip is only the
+ * visible half. The handler also moves the pointer at 0x576c/0x576e, keeps the
+ * button accumulators at 0x5768/0x576a, and `timer_tick` under it steps 0x44ef
+ * and raises `g_frame_flag` - all read by the main thread with nothing
+ * between them, and two of those reads are spin loops. Those two are safe:
+ * the words they spin on are volatile - the only words in DGROUP that are - so
+ * neither loop can be hoisted, and on
+ * x86-64 the flag-then-state ordering the handler relies on comes free. The
+ * other words have no such argument, and neither does the cursor's bitmap
+ * record - `draw_cursor` reads it through `BMPP`, which is one of the six
+ * macros over DGROUP that volatile never reached.
+ *
+ * **So this wants a model, not a mutex, and the model is not chosen.** See the
+ * note in CLAUDE.md. Deferred on purpose: the defect is real, its visible cost
+ * is one stray column of pixels, and bolting a lock onto the wrong model would
+ * hide it rather than answer it. The hybrid, which delivers int 8 between
+ * emulator slices instead of on a thread, has none of this - which is a hint
+ * about where the answer lies.
+ */
+static void *timer_loop(void *arg)
+{
+    (void)arg;
+
+    while (timer_running) {
+        struct timespec ts;
+        double hz = 1193182.0 / (double)(timer_divisor ? timer_divisor : 0x10000);
+        double period = 1.0 / hz;
+
+        ts.tv_sec = (time_t)period;
+        ts.tv_nsec = (long)((period - (double)ts.tv_sec) * 1e9);
+        nanosleep(&ts, NULL);
+
+        if (!timer_handler)
+            continue;
+
+        pthread_mutex_lock(the_timer_lock());
+        timer_handler();
+        pthread_mutex_unlock(the_timer_lock());
+    }
+    return NULL;
+}
+
+void io_set_timer(void (*fn)(void))
+{
+    timer_handler = fn;
+    if (!timer_running) {
+        timer_running = 1;
+        pthread_create(&timer_thread, NULL, timer_loop, NULL);
+    }
+}
+
+void io_stop_timer(void)
+{
+    if (timer_running) {
+        timer_running = 0;
+        pthread_join(timer_thread, NULL);
+    }
+}
+
+void io_service_timer(void)
+{
+    /*
+     * Nothing to do: the thread above is the clock. This is kept because the
+     * retrace poll calls it, and a guest waiting on the retrace is still a
+     * guest that should be allowed to run - on a single core the thread needs
+     * the chance.
+     */
+    sched_yield();
+}
+
+/*
+ * OURS: a driver slot the port has no routine for. `vm_init` fills every slot,
+ * and one that is called and has no body stops the port rather than doing
+ * nothing - a missing draw would look like a blitter fault.
+ */
+static void vm_slot_missing(void)
+{
+    not_transcribed("a video driver slot the port has no routine for");
+}
+
+/*
+ * OURS: **the driver's vector, as the port's own routines.** On the original
+ * `vm_init` fills `g_vm_driver.entry` with the entry points of the driver it loaded,
+ * and a routine that wants one calls through the slot. The port runs its own
+ * transcription of each driver routine, so `vm_init` fills a slot with what
+ * this answers; a slot with no routine stops the port when it is called.
+ */
+static int16_t vm_plot_slot(int16_t x, int16_t y, int16_t colour)
+{
+    return (int16_t)vm_plot_pixel(x, y, (uint8_t)colour);
+}
+
+/*
+ * OURS: the two list-loading slots as the game calls them. `load_bitmap_list`
+ * pushes five arguments at each; the VGA driver's entry for slot 14 reads
+ * three of them, and its slot 15 is the entry that does nothing.
+ */
+static void vm_load_list_slot(struct bitmap **list, uint8_t *blk, int32_t size,
+                              uint8_t *tmp, int32_t want)
+{
+    (void)tmp;
+    (void)want;
+    vm_load_bitmap_list(list, blk, (uint32_t)size);
+}
+
+static void vm_chunk_slot(uint8_t *src, uint8_t *dst, int16_t count)
+{
+    (void)src;
+    (void)dst;
+    (void)count;
+    vm_nothing();
+}
+
+void (*vm_vector_host(int16_t slot))(void)
+{
+    switch (slot) {
+    case 13: return (void (*)(void))vm_bitmap_list_size;   /* VGA:0x0fd4 */
+    case 14: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
+    case 15: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
+    case 22: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
+    default: return vm_slot_missing;
+    }
+}
+
+/*
+ * OURS: the mouse, INT 33h.
+ *
+ * A mouse is one of the few things a DOS game asked the hardware about that a
+ * modern host simply *has*, so the port answers the reset call the way a driver
+ * would rather than pretending there is none. The reference emulator answers
+ * the same, which is what makes the routines above it comparable at all - with
+ * no mouse the game's start-up takes a different branch and writes different
+ * bytes.
+ *
+ * Everything else here is a setting the driver keeps on the game's behalf -
+ * where the cursor is, how far it may travel, how fast it moves, whether it is
+ * drawn, which handler to call. None of it is in guest memory, so none of it is
+ * anything the two artefacts could disagree about; the calls exist so that the
+ * transcriptions have somewhere real to send them, and so that wiring SDL3
+ * input in later is one file's work.
+ */
+uint16_t io_mouse_reset(void)
+{
+    return 0xFFFF;                  /* a driver is installed */
+}
+
+void io_mouse_show(void)
+{
+}
+
+void io_mouse_hide(void)
+{
+}
+
+/*
+ * OURS: where the driver thinks the pointer is, and how far it may go.
+ *
+ * The game asks in quarter-pixels - `mouse_move_to` shifts by two on the way
+ * in - and the driver holds the position; guest memory never sees it except
+ * through the event callback. So these are the driver's own variables and
+ * there is nothing to compare them against.
+ */
+static int32_t mouse_x, mouse_y;
+static int32_t mouse_x_lo, mouse_x_hi = 0x7fffffff;
+static int32_t mouse_y_lo, mouse_y_hi = 0x7fffffff;
+static uint16_t mouse_mask;
+static int32_t  mouse_installed;
+
+void io_mouse_move_to(uint16_t x, uint16_t y)
+{
+    mouse_x = (int32_t)x;
+    mouse_y = (int32_t)y;
+}
+
+void io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys)
+{
+    (void)x_mickeys;
+    (void)y_mickeys;
+}
+
+void io_mouse_set_x_range(uint16_t lo, uint16_t hi)
+{
+    mouse_x_lo = (int16_t)lo;
+    mouse_x_hi = (int16_t)hi;
+}
+
+void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
+{
+    mouse_y_lo = (int16_t)lo;
+    mouse_y_hi = (int16_t)hi;
+}
+
+/*
+ * OURS: INT 33h AX=0x0c, "call this on these events".
+ *
+ * The offset and segment name `mouse_event` at image 0x21fcf and nothing else -
+ * `mouse_init` is the one caller and that is what it passes - so the port
+ * remembers only *that* it was installed, and calls the routine directly. A
+ * dispatch by offset would be inventing
+ * a choice where the original has one destination.
+ *
+ * The mask is kept because the driver is supposed to honour it, and because a
+ * port that delivered events the game never asked for would be inventing
+ * input.
+ */
+void io_mouse_set_handler(uint16_t mask, void (*handler)(void))
+{
+    (void)handler;
+    mouse_mask = mask;
+    mouse_installed = 1;
+}
+
+/*
+ * OURS: the host's pointer, turned into the event the driver would raise.
+ *
+ * The window calls this with a position in screen pixels and the buttons it
+ * sees; the driver's units are quarter-pixels, which is why everything is
+ * shifted by two. The position is clamped to the range the game set, because
+ * a real driver clamps and the game relies on it - `mouse_set_ranges` is how
+ * it fences the pointer into the play area.
+ *
+ * The mask decides whether an event is raised at all: bit 0 is movement, bits
+ * 1 and 2 the left button down and up, bits 3 and 4 the right. Delivering
+ * events the game did not ask for would be putting input into a program that
+ * never requested it.
+ *
+ * Nothing here is a transcription. The original had a mouse driver in memory
+ * doing it, and this is the only part of the mouse that is genuinely ours.
+ */
+void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
+{
+    int32_t qx = x << 2, qy = y << 2;
+    uint16_t events = 0;
+    static uint16_t last_buttons;
+    static int32_t trace_mouse_on = -1;
+
+    if (trace_mouse_on < 0)
+        trace_mouse_on = trace_asks("mouse");
+    if (trace_mouse_on)
+        fprintf(stderr, "io: mouse %d,%d btn %u  installed %d mask %04x "
+                "range %d..%d,%d..%d\n", x, y, buttons, mouse_installed,
+                mouse_mask, mouse_x_lo, mouse_x_hi, mouse_y_lo, mouse_y_hi);
+
+    if (!mouse_installed)
+        return;
+
+    if (qx < mouse_x_lo) qx = mouse_x_lo;
+    if (qx > mouse_x_hi) qx = mouse_x_hi;
+    if (qy < mouse_y_lo) qy = mouse_y_lo;
+    if (qy > mouse_y_hi) qy = mouse_y_hi;
+
+    if (qx != mouse_x || qy != mouse_y)
+        events |= 0x01;
+    if ((buttons & 1) && !(last_buttons & 1)) events |= 0x02;
+    if (!(buttons & 1) && (last_buttons & 1)) events |= 0x04;
+    if ((buttons & 2) && !(last_buttons & 2)) events |= 0x08;
+    if (!(buttons & 2) && (last_buttons & 2)) events |= 0x10;
+
+    mouse_x = qx;
+    mouse_y = qy;
+    last_buttons = buttons;
+
+    if (trace_mouse_on)
+        fprintf(stderr, "io:   events %02x & mask %04x -> %s\n",
+                events, mouse_mask,
+                (events & mouse_mask) ? "delivered" : "DROPPED");
+
+    if ((events & mouse_mask) == 0)
+        return;
+
+    io_lock();
+    mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
+    io_unlock();
+    if (trace_mouse_on)
+        fprintf(stderr, "io:   48eb now %02x\n", g_mouse_buttons);
+}
+
+/*
+ * The current drive, as INT 21h AH=19h answers it: 0 for A, 1 for B, and so on.
+ *
+ * The port's own, measured against the emulator, which answers 2 - drive C.
+ */
+uint16_t io_dos_curdrive(void)
+{
+    return 2;
+}
+
+/*
+ * The current directory on a drive, as INT 21h AH=47h fills it in: the path
+ * without a leading backslash, NUL-terminated.
+ *
+ * The port's own, and again measured: the emulator answers an empty path, so
+ * the game's idea of where it is running is the root. Writing this machine's
+ * real working directory would make the game's own strings differ from the
+ * reference for no useful reason.
+ */
+void io_dos_getcwd(uint8_t *buf)
+{
+    size_t i;
+
+    for (i = 0; game_cwd[i]; i++)
+        buf[i] = (uint8_t)game_cwd[i];
+    buf[i] = 0;
+}
+
+/*
+ * Ask whether a file exists, and answer the attribute byte DOS would.
+ *
+ * The port's own, because the original asks DOS - INT 21h AH=43h with AL=0 -
+ * and this machine has no DOS. **Measured against the emulator**, which is the
+ * reference here: a file that is there answers 0x20, the archive bit, and one
+ * that is not sets carry, which the caller reads as -1.
+ */
+/*
+ * The date DOS would answer to INT 21h AH=2Ah: the year in CX, the month and
+ * day in DX, the weekday in AL.
+ *
+ * The port's own, and **measured against the emulator** rather than taken from
+ * this machine's clock - a real date would make every run differ from every
+ * other, which is exactly what a reproducible comparison cannot have. The
+ * emulator answers 2000-11-02, a Wednesday.
+ */
+void io_dos_getdate(uint16_t *year, uint16_t *monthday, uint16_t *weekday)
+{
+    /*
+     * `devtim` can be asked for another date - see `TIM_DATE` - because four
+     * of the parts are on the calendar and there is no other way to reach
+     * them. The shipping binary's stub always declines, so the fixed date
+     * above stays the one every comparison sees.
+     */
+    if (dev_date_override(year, monthday, weekday))
+        return;
+
+    *year = 0x07d0;
+    *monthday = 0x0b02;
+    *weekday = 0x0004;
+}
+
+/*
+ * INT 21h AH=4Eh and AH=4Fh - find first and find next.
+ *
+ * The port's own, because the original asks DOS and this machine has no DOS,
+ * and **written to answer what the emulator answers**: the game directory's
+ * entries, upper-cased, sorted by name, with `.` and `..` prepended when the
+ * caller asked for directories and the game is not at the root - which it never
+ * is here, because `io_dos_getcwd` says the root.
+ *
+ * The match is **DOS's, not fnmatch's**. DOS splits both the name and the
+ * pattern into an 8-character stem and a 3-character extension and matches the
+ * two fields separately, so `*` is a wild stem with an *empty* extension and
+ * matches README but not README.TXT. Getting that wrong is not a near miss: it
+ * puts every file into a pane that asked only for directories.
+ *
+ * The attribute is a *permission*, not a filter. Ordinary files come back
+ * always; directories only when bit 4 is asked for.
+ */
+#define FIND_MAX 512
+
+static char  find_names[FIND_MAX][13];
+static int32_t find_is_dir[FIND_MAX];
+static uint32_t find_size[FIND_MAX];
+static int32_t find_count;
+static int32_t find_next_i;
+
+/*
+ * One field of a DOS wildcard, `width` characters wide. A `*` fills the rest of
+ * the field with `?`, and a `?` matches one character *or the end* of it.
+ */
+static int32_t dos_match_field(const char *val, const char *pat, int32_t width)
+{
+    char expanded[9];
+    int32_t n = 0, i;
+
+    for (i = 0; pat[i] != 0 && n < width; i++) {
+        if (pat[i] == '*') {
+            while (n < width)
+                expanded[n++] = '?';
+            break;
+        }
+        expanded[n++] = pat[i];
+    }
+    expanded[n] = 0;
+
+    if (n < (int32_t)strlen(val))
+        return 0;
+
+    for (i = 0; i < n; i++) {
+        char vc = (i < (int32_t)strlen(val)) ? val[i] : 0;
+
+        if (expanded[i] == '?')
+            continue;
+        if (vc != expanded[i])
+            return 0;
+    }
+
+    return 1;
+}
+
+static void dos_split(const char *v, char *stem, char *ext)
+{
+    const char *dot;
+    size_t n;
+
+    /*
+     * `.` and `..` are entries whose *name* is the dots and whose extension is
+     * blank. Partitioning them on the dot would make the extension a dot and
+     * stop `*` from matching them - which loses the entry a browser climbs out
+     * by.
+     */
+    if (strcmp(v, ".") == 0 || strcmp(v, "..") == 0) {
+        strcpy(stem, v);
+        ext[0] = 0;
+        return;
+    }
+
+    dot = strchr(v, '.');
+    n = (dot != NULL) ? (size_t)(dot - v) : strlen(v);
+    if (n > 8)
+        n = 8;
+    memcpy(stem, v, n);
+    stem[n] = 0;
+
+    if (dot == NULL) {
+        ext[0] = 0;
+        return;
+    }
+
+    n = strlen(dot + 1);
+    if (n > 3)
+        n = 3;
+    memcpy(ext, dot + 1, n);
+    ext[n] = 0;
+}
+
+static int32_t dos_match(const char *name, const char *pattern)
+{
+    char ns[9], ne[4], ps[9], pe[4];
+
+    dos_split(name, ns, ne);
+    dos_split(pattern, ps, pe);
+
+    return dos_match_field(ns, ps, 8) && dos_match_field(ne, pe, 3);
+}
+
+static int32_t find_cmp(const void *a, const void *b)
+{
+    return strcmp((const char *)a, (const char *)b);
+}
+
+int16_t io_dos_findfirst(const char *pattern, uint16_t attr,
+                         uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
+{
+    const char *leaf = pattern;
+    const char *p;
+    char dir[1024];
+    DIR *d;
+    struct dirent *e;
+
+    for (p = pattern; *p; p++)
+        if (*p == '\\' || *p == '/')
+            leaf = p + 1;
+
+    find_count  = 0;
+    find_next_i = 0;
+
+    dos_resolve("", dir, sizeof dir);
+
+    d = opendir(dir);
+    if (d != NULL) {
+        while ((e = readdir(d)) != NULL && find_count < FIND_MAX) {
+            char up[13];
+            struct stat st;
+            char path[1280];
+            size_t i, n = strlen(e->d_name);
+
+            if (n > 12)
+                continue;
+            if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+                continue;
+
+            for (i = 0; i < n; i++)
+                up[i] = (e->d_name[i] >= 'a' && e->d_name[i] <= 'z')
+                        ? (char)(e->d_name[i] - 'a' + 'A') : e->d_name[i];
+            up[n] = 0;
+
+            snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
+            if (stat(path, &st) != 0)
+                continue;
+
+            if (S_ISDIR(st.st_mode) && !(attr & 0x10))
+                continue;
+            if (!dos_match(up, leaf))
+                continue;
+
+            strcpy(find_names[find_count], up);
+            find_is_dir[find_count] = S_ISDIR(st.st_mode) ? 1 : 0;
+            find_size[find_count]   = S_ISDIR(st.st_mode)
+                                      ? 0 : (uint32_t)st.st_size;
+            find_count++;
+        }
+        closedir(d);
+    }
+
+    /*
+     * Sorted by name, because `readdir` has no order and the reference does
+     * sort - an unsorted listing would differ from the emulator's on nothing
+     * but the filesystem's mood.
+     */
+    if (find_count > 1) {
+        int32_t i, j;
+
+        for (i = 0; i < find_count; i++)
+            for (j = i + 1; j < find_count; j++)
+                if (find_cmp(find_names[i], find_names[j]) > 0) {
+                    char     tn[13];
+                    int32_t  td;
+                    uint32_t ts;
+
+                    strcpy(tn, find_names[i]);
+                    strcpy(find_names[i], find_names[j]);
+                    strcpy(find_names[j], tn);
+                    td = find_is_dir[i];
+                    find_is_dir[i] = find_is_dir[j];
+                    find_is_dir[j] = td;
+                    ts = find_size[i];
+                    find_size[i] = find_size[j];
+                    find_size[j] = ts;
+                }
+    }
+
+    return io_dos_findnext(name, attr_out, size_out);
+}
+
+int16_t io_dos_findnext(uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
+{
+    if (find_next_i >= find_count)
+        return 18;                      /* no more files */
+
+    strcpy((char *)name, find_names[find_next_i]);
+    *attr_out = (uint8_t)(find_is_dir[find_next_i] ? 0x10 : 0x20);
+    *size_out = find_size[find_next_i];
+    find_next_i++;
+
+    return 0;
+}
+
+int16_t io_dos_getattr(const char *name)
+{
+    char path[1024];
+    struct stat st;
+
+    dos_resolve(name, path, sizeof path);
+    if (stat(path, &st) != 0)
+        return -1;
+    return S_ISDIR(st.st_mode) ? 0x10 : 0x20;
+}
+
+/*
+ * INT 21h AX=4301h - set a file's attributes. OURS: the host tree is
+ * read-only and the write overlay keeps no attributes, so every request is
+ * DOS 5, access denied. Nothing in the game asks; `dos_set_file_attr` is
+ * transcribed for completeness and this is what it finds.
+ */
+int16_t io_dos_setattr(const char *name, uint16_t attr)
+{
+    (void)name;
+    (void)attr;
+    return 5;
+}
+
+/*
+ * INT 21h AH=39h and AH=3Ah, `mkdir` and `rmdir`: refused with DOS 5, access
+ * denied, as `io_dos_setattr` refuses. The port serves the game's directory
+ * and a file overlay on it, and has nowhere to keep a directory the game
+ * makes; nothing in the game asks for either.
+ */
+int16_t io_dos_mkdir(const char *path)
+{
+    (void)path;
+    return 5;
+}
+
+int16_t io_dos_rmdir(const char *path)
+{
+    (void)path;
+    return 5;
+}
+
+/*
+ * INT 21h AX=4408h, is the medium removable: 1, fixed, for the one drive the
+ * port serves. The carry is not the caller's business - the game's routine
+ * does not look at it.
+ */
+uint16_t io_dos_drive_fixed(uint8_t drive)
+{
+    (void)drive;
+    return 1;
+}
+
+/* INT 21h AH=0Dh, the disk reset: the host has no DOS buffers to flush. */
+void io_dos_disk_reset(void)
+{
+}
+
+/*
+ * INT 21h AH=41h - delete a file. 0, or DOS 2, file not found.
+ */
+int16_t io_dos_unlink(const char *name)
+{
+    char path[1024];
+
+    dos_resolve(name, path, sizeof path);
+    return remove(path) == 0 ? 0 : 2;
+}
+
+/*
+ * OURS. The abort itself, so a refusal that is *not* about a missing
+ * transcription can have the same backtrace without claiming to be a stub. `read_resource` is the first caller: a destination
+ * outside guest memory has no `seg:off` for DGROUP 0x5894 to hold, which is a
+ * value this port cannot represent rather than code nobody has written.
+ */
+void port_abort(const char *msg)
+{
+    fprintf(stderr, "io: PORT ABORTED - %s\n", msg);
+
+    /*
+     * **And how it got there.** The line above names the stub and nothing
+     * else, which is the one thing you already know; what is worth having is
+     * the chain of transcribed routines that led to it. The hybrid prints the
+     * *guest's* stack, because it has one to walk. Here the callers are
+     * ordinary C frames, so glibc's own unwinder answers the same question.
+     *
+     * Names only appear if the binary exports them, which is what `-rdynamic`
+     * in the Makefile is for; without it the frames come out as addresses and
+     * `addr2line` is the fallback. Written to stderr with `backtrace_symbols_fd`
+     * rather than `backtrace_symbols`, because that one allocates and this is
+     * a path where the heap is not to be trusted.
+     */
+    {
+        void *frame[64];
+        int n = backtrace(frame, (int)(sizeof frame / sizeof frame[0]));
+
+        fprintf(stderr, "\n=== how the port got here (innermost first) ===\n");
+        fflush(stderr);
+        /* Skip this frame itself; the caller is what matters. */
+        if (n > 1)
+            backtrace_symbols_fd(frame + 1, n - 1, fileno(stderr));
+        fprintf(stderr, "\n");
+        fflush(stderr);
+    }
+
+    /*
+     * Show whatever had been drawn before giving up. A stub must abort - a
+     * silent no-op in a drawing path is a missing frame that looks like a
+     * blitter fault - but aborting with the window still open and the last
+     * frame in it says far more about where the port got to than the line
+     * above does. devtim registers nothing here and aborts straight away.
+     */
+    if (abort_hook)
+        abort_hook();
+
+    abort();
+}
+
+void not_transcribed(const char *what)
+{
+    char msg[512];
+
+    snprintf(msg, sizeof msg, "reached %s, which is not transcribed yet", what);
+    port_abort(msg);
+}
+
+/*
+ * OURS: a Sound Blaster, enough of one for what `audblast` asks of it.
+ *
+ * The module - `SX.OVL`'s ASB: chunk, "CMS Sound Blaster" - renders its notes
+ * to eight-bit PCM in a buffer of its own and hands the buffer to the card by
+ * DMA. Its sequence, read off the code at ASB:0x25d, is the ordinary one:
+ *
+ *     out 0x0a, 5      mask DMA channel 1 while it is reprogrammed
+ *     out 0x0c, 0      clear the byte-pointer flip-flop
+ *     out 0x02, lo/hi  the buffer's offset within its 64K page
+ *     out 0x0b, 0x49   single transfer, read from memory, channel 1
+ *     out 0x83, page   the page register for channel 1
+ *     out 0x03, lo/hi  the count, less one, as the hardware wants it
+ *     out 0x0a, 1      unmask
+ *     DSP 0x14, lo, hi eight-bit single-cycle DMA output
+ *
+ * and the DSP writes go to base+0xC after spinning on bit 7 of the same port,
+ * which is the card saying it is ready. `cs:[0x76]` in the module holds the
+ * base; this answers at 0x220, which is what every Sound Blaster shipped as.
+ *
+ * **What this is not.** There is no mixer, no ADPCM, no auto-initialised DMA
+ * and no FM: the module asks for none of them. The time constant from DSP 0x40
+ * is honoured because it sets the sample rate and the rate is audible; every
+ * other command is accepted and dropped, and an unknown one says so under
+ * `TIM_TRACE=sb` rather than aborting, because a driver probing a card it does
+ * not have is normal and must not be fatal.
+ *
+ * **The completion interrupt is not delivered yet**, and that is the gap that
+ * matters: a real card raises its IRQ when the block is done and the module
+ * queues the next one, so without it the module plays one buffer and waits.
+ * Delivering it means calling the module's own handler, which needs the module
+ * transcribed first - it is hooked at ASB:0x3a5 - so it waits for that.
+ */
+#define SB_BASE 0x220
+
+static uint16_t dma1_count;
+static uint8_t  dma1_mode, dma1_masked = 1, dma_flipflop;
+static uint8_t  dsp_cmd, dsp_args, dsp_nargs, dsp_arg[2];
+static uint16_t sb_rate = 11025;
+static void (*pcm_hook)(const uint8_t *pcm, int32_t n, int32_t rate);
+static void (*pcm_tap)(const uint8_t *pcm, int32_t n, int32_t rate);
+static void (*pcm_tap2)(const uint8_t *pcm, int32_t n, int32_t rate);
+static int32_t sb_trace = -1;
+
+/*
+ * OURS: what the card answers when it is read, as a small queue.
+ *
+ * A reset leaves 0xAA to be read, DSP 0xE0 answers the complement of its
+ * argument and DSP 0xE1 answers two version bytes. The module's detection
+ * needs all three and gives up on a base that does not provide them, so this
+ * is the difference between the port having a Sound Blaster and not.
+ *
+ * The version is **2.01**, which is what a Sound Blaster 2.0 reports: high
+ * enough for the module to set its `cs:[0x38]`, low enough that it does not
+ * go looking for the SB16's IRQ 10.
+ */
+static void sb_say(const char *what, uint16_t a, uint16_t b);
+
+static uint8_t  dsp_out[4];
+static uint8_t  dsp_out_n;
+
+static void dsp_answer(uint8_t v)
+{
+    if (dsp_out_n < sizeof dsp_out)
+        dsp_out[dsp_out_n++] = v;
+}
+
+/*
+ * OURS: the card's interrupt.
+ *
+ * A real card raises its IRQ when a DMA block has been played out, and the
+ * module's handler starts the next one. The port has no interrupts, so the
+ * handler is a C function registered here and called from `io_sb_poll`, which
+ * the display service runs once a frame.
+ *
+ * The IRQ number is the port's choice and 7 is what a Sound Blaster shipped
+ * jumpered to. The module hooks several while it works out which one is real,
+ * so registration is per-IRQ and only the one that matches is kept - that is
+ * exactly what the card does, and it is what makes the module's autodetection
+ * come out with an answer instead of a guess.
+ */
+#define SB_IRQ 7
+
+static void (*sb_irq_hook)(void);
+static double  sb_irq_due;
+
+void io_on_sb_irq(uint8_t irq, void (*fn)(void))
+{
+    sb_say("hook", irq, (uint16_t)(fn != 0));
+    if (irq != SB_IRQ)
+        return;
+    sb_irq_hook = fn;
+}
+
+/*
+ * OURS: deliver a pending completion now rather than when it is due.
+ *
+ * The module's interrupt autodetection hands the card a **single byte** and
+ * then spins, waiting to be preempted. On the original the interrupt arrives
+ * inside that spin however fast the loop runs; here the spin is native code
+ * and outruns a 156-microsecond block every time, so a poll on the clock never
+ * fires and the detection concludes the card has no IRQ.
+ *
+ * So the one caller that is explicitly waiting for the card says so. This is
+ * not a shortcut around the timing: `io_sb_poll` still holds a real block back
+ * until it has played, and only a caller that would otherwise spin uses this.
+ */
+void io_sb_wait(void)
+{
+    void (*fn)(void);
+
+    if (sb_irq_due == 0.0)
+        return;
+
+    sb_irq_due = 0.0;
+    fn = sb_irq_hook;
+    sb_say("irq", (uint16_t)(fn != 0), 1);
+    if (fn)
+        fn();
+}
+
+/*
+ * OURS: fire the completion interrupt if the block has had time to play.
+ *
+ * Called once a frame from `io_service_display`, and from the module's own
+ * detection spin - the original's spin is waiting to be preempted, and nothing
+ * in the port preempts, so the spin services the card instead.
+ */
+void io_sb_poll(void)
+{
+    void (*fn)(void);
+
+    if (sb_irq_due == 0.0 || io_now() < sb_irq_due)
+        return;
+
+    /*
+     * **A completion with no C handler is left pending, not dropped.** In the
+     * port the driver is C and registered one; under the hybrid the driver is
+     * the *original's* and hooked a real interrupt vector, so there is nothing
+     * to call here and the runner takes it instead - see `io_sb_irq_take`.
+     */
+    fn = sb_irq_hook;
+    if (fn == 0)
+        return;
+
+    sb_irq_due = 0.0;
+    sb_say("irq", 1, 0);
+    fn();
+}
+
+int32_t io_sb_irq_take(uint8_t *irq)
+{
+    if (sb_irq_due == 0.0 || sb_irq_hook != 0)
+        return 0;
+
+    /*
+     * **No wall-clock wait on this path**, deliberately. `io_sb_poll` holds a
+     * block back until it has had time to play, and that is right for the C
+     * driver, which runs at native speed. A runner stepping guest code is a
+     * different machine: it shortens its slice to 512 instructions while
+     * something is owed, and *that* is the delay - one slice, which on a 4.77
+     * MHz 8086 is about what the 156 microseconds of a one-byte transfer
+     * actually is.
+     *
+     * Gating this on `io_now` compared two clocks that are not commensurable
+     * and lost the race every time: the module's probe spins some twelve
+     * thousand instructions, which Unicorn gets through in roughly the same
+     * wall time as the deadline, where the original takes about two
+     * milliseconds over the same spin. The interrupt arrived after the spin
+     * had given up. See the frame-pacing note in CLAUDE.md, which is the same
+     * problem in a different place.
+     */
+    *irq = SB_IRQ;
+    return 1;
+}
+
+void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_hook = fn;
+}
+
+void io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_tap = fn;
+}
+
+void io_on_pcm_tap2(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_tap2 = fn;
+}
+
+static void sb_say(const char *what, uint16_t a, uint16_t b)
+{
+    if (sb_trace < 0)
+        sb_trace = trace_asks("sb");
+    if (sb_trace)
+        fprintf(stderr, "io: sb %s %04x %04x\n", what, a, b);
+}
+
+/*
+ * OURS: the block the module just handed over - see `io_dma1_memory`.
+ */
+static void sb_play_block(uint16_t count)
+{
+    const uint8_t *mem = dma1_block;
+    int32_t n = (int32_t)count + 1;
+
+    if (mem == NULL)
+        port_abort("a DMA block the driver never handed over");
+
+    /*
+     * The checksum is what makes the trace a comparison rather than a tally.
+     * Two runs agreeing on lengths and rates agree that *a* sample of that
+     * size played; agreeing on this says it was the same sample. It is a plain
+     * Fletcher-16 over the block - cheap, order-sensitive, and enough to tell
+     * one of the game's samples from another.
+     */
+    {
+        uint16_t a = 0, b = 0;
+        int32_t i;
+
+        for (i = 0; i < n; i++) {
+            a = (uint16_t)((a + mem[i]) % 255);
+            b = (uint16_t)((b + a) % 255);
+        }
+        sb_say("play", (uint16_t)n, sb_rate);
+        sb_say("play sum", (uint16_t)((b << 8) | a), (uint16_t)n);
+    }
+
+    if (pcm_hook && n > 0)
+        pcm_hook(mem, n, sb_rate);
+    if (pcm_tap && n > 0)
+        pcm_tap(mem, n, sb_rate);
+    if (pcm_tap2 && n > 0)
+        pcm_tap2(mem, n, sb_rate);
+
+    /* The block is done when it has had time to play out. */
+    sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);
+}
+
+static void sb_dsp_write(uint8_t value)
+{
+    if (dsp_args > 0) {
+        dsp_arg[dsp_nargs - dsp_args] = value;
+        if (--dsp_args == 0) {
+            if (dsp_cmd == 0x14)
+                sb_play_block((uint16_t)(dsp_arg[0] | (dsp_arg[1] << 8)));
+            else if (dsp_cmd == 0x40)
+                sb_rate = (uint16_t)(1000000 / (256 - dsp_arg[0]));
+            else if (dsp_cmd == 0xe0)
+                dsp_answer((uint8_t)~dsp_arg[0]);
+        }
+        return;
+    }
+
+    dsp_cmd = value;
+    sb_say("dsp", value, 0);
+    switch (value) {
+    case 0x14: dsp_nargs = dsp_args = 2; break;  /* single-cycle DMA output */
+    case 0x40: dsp_nargs = dsp_args = 1; break;  /* the time constant */
+    case 0x48: dsp_nargs = dsp_args = 2; break;  /* the block size */
+    case 0xe0: dsp_nargs = dsp_args = 1; break;  /* identify */
+    case 0xe1:                           /* the DSP version */
+        dsp_answer(2);
+        dsp_answer(1);
+        break;
+    case 0xd1: case 0xd3:                /* speaker on and off */
+    case 0xd0: case 0xd4:                /* pause and continue */
+        break;
+    default:
+        break;
+    }
+}
+
+/*
+ * OURS: the AdLib card's two ports, 0x388 and 0x389.
+ *
+ * An OPL2 is hardware and there is nothing in `TIM.EXE` to transcribe it
+ * from - see `src/opl.h`, which is the boundary, and `vendor/README.md` for
+ * ymfm. This is only the bus: an index latched on a write to 0x388, and a
+ * value on 0x389 handed to the chip.
+ *
+ * `SX.OVL`'s `ADL:` driver reads 0x388 five times after the index and
+ * thirty-three times after the value - the YM3812's 3.3 and 23 microseconds
+ * of settling, spent on a bus that took about a microsecond a read. Those
+ * reads are not decoration: `opl.h` records that collapsing them makes the
+ * music hollow and half as loud, so `opl_write` advances the chip by that
+ * much itself. Nothing here has to model the delay, only not to swallow it.
+ *
+ * The status byte is what a driver's detection looks at. Bit 7 is "either
+ * timer expired", bits 6 and 5 the two timers; an idle chip answers zero, and
+ * ymfm keeps the real one, so this asks it rather than inventing a constant -
+ * which is what the reference emulator does, and why AdLib cannot be detected
+ * there at all.
+ */
+#define OPL_ADDR    0x388
+#define OPL_DATA    0x389
+
+static uint8_t opl_index;
+static int32_t opl_trace = -1;
+
+/*
+ * OURS: the Sound Blaster Pro's own FM addresses and its mixer.
+ *
+ * The port's chip is an **OPL3**, as a Sound Blaster 16 carries and as DOSBox
+ * emulates. It decodes three ways: 0x220/0x221 and 0x388/0x389 - the AdLib
+ * address - are the first register bank, and 0x222/0x223 the second.
+ *
+ * `SX.OVL`'s `SBP:` driver was written for a Pro 1.0, which answers 0x222 with
+ * a *second YM3812* carrying the same nine voices; it pans by giving the two
+ * different levels. On an OPL3 that address is bank 1 - nine further channels
+ * - so its right-hand level writes land where nothing is sounding. That is
+ * what the driver does on real OPL3 hardware as well; see opl_ymfm.cpp.
+ *
+ * Without these three lines the driver's level writes land on ports nothing
+ * decodes and are lost, and every voice sits at whatever the patch left it -
+ * no volume, no velocity, no pan. That is what the port did until now, and it
+ * did it silently.
+ */
+static uint8_t fm_index[2];      /* one per register bank */
+static uint8_t mixer_index;
+
+/*
+ * Register 0x26 starts at full, which is **not** a card's power-up state but
+ * is the right answer here: an AdLib has no mixer at all, so with `ADL:`
+ * loaded nothing ever writes one and a zero would silence the music on the
+ * strength of hardware the game does not have. `SBP:` writes 0xff in its
+ * function 1 regardless, so this only ever shows before the driver starts.
+ */
+static uint8_t mixer_reg[256] = { [0x26] = 0xff };
+
+/*
+ * OURS: the Sound Blaster Pro mixer's FM volume, register 0x26, as a level out
+ * of seven per side - bits 7..5 the left, bits 3..1 the right, which is how
+ * the Pro's three-bit mixer is laid out.
+ *
+ * This is the game's master volume: `SBP:`'s function 12 writes nothing else.
+ * How a level maps to a gain is **ours and a judgement** - it is taken as
+ * linear in amplitude below - because the original writes the register and the
+ * card decides, and this port has no card. In practice the driver only ever
+ * writes full scale or, during `stop_all`, a value it is about to silence.
+ */
+void io_fm_volume(uint8_t *left, uint8_t *right)
+{
+    *left  = (uint8_t)((mixer_reg[0x26] >> 5) & 7);
+    *right = (uint8_t)((mixer_reg[0x26] >> 1) & 7);
+}
+
+/*
+ * OURS: `TIM_TRACE=opl` prints every register the chip is handed.
+ *
+ * The point of it is the comparison: the hybrid runs the *original's* `ADL:`
+ * against this same `io.c`, so a diff of the two traces is the transcription
+ * checked against the driver it came from - the same check that settled
+ * `ASB:` and `GMD:`, and the only one available for a driver `verify.py`
+ * cannot reach.
+ */
+static long keyon_count;
+
+long io_keyon_count(void)
+{
+    return keyon_count;
+}
+
+static void opl_say(uint8_t chip, uint8_t reg, uint8_t val)
+{
+    fprintf(stderr, "io: opl %u %02x %02x\n", chip, reg, val);
+}
+
+/*
+ * OURS: `TIM_TRACE=seq` prints the **sequencer's** own voice table at every
+ * key event, which is the one thing the register trace cannot show.
+ *
+ * A register trace says what came out of the driver; this says what the
+ * sequencer decided before it. The four sixteen-byte arrays in the sound
+ * module's segment are the whole of that decision - `cs:0x168` which sequence
+ * and channel owns each voice, `cs:0x158` its priority, `cs:0x148` the
+ * ordering value, `cs:0x138` whether it is pinned - so the first byte that
+ * differs between two runs names the routine that wrote it.
+ *
+ * It lives here, in hostio.c, beside the sound card it traces.
+ */
+static int32_t seq_trace = -1;
+
+static void seq_say(void)
+{
+    static const uint16_t at[4] = { 0x168, 0x158, 0x148, 0x138 };
+    static const char *const name[4] = { "own", "pri", "ord", "pin" };
+    int32_t a, i;
+
+    if (seq_trace < 0)
+        seq_trace = trace_asks("seq");
+    if (!seq_trace)
+        return;
+
+    /* And the playing table at `cs:8` that `sequencer_tick` walks - eight far
+     * pointers, whose *order* decides which sequence is which index, and so
+     * what every priority in the arrays below is relative to. */
+    fprintf(stderr, "io: seq tbl");
+    for (i = 0; i < 8; i++)
+        fprintf(stderr, " %p", (void *)g_snds.playing[i]);
+    fprintf(stderr, "\n");
+
+    for (a = 0; a < 4; a++) {
+        fprintf(stderr, "io: seq %s", name[a]);
+        for (i = 0; i < 0x10; i++)
+            fprintf(stderr, " %02x",
+                    ((const uint8_t *)&g_snds)[at[a] - 8 + i]);
+        fprintf(stderr, "\n");
+    }
+}
+
+
+/*
+ * OURS: port 0x61, the speaker control latch.
+ *
+ * The sound driver only ever read-modify-writes it - `in al,0x61; or al,3` to
+ * connect the timer to the speaker, `and al,0xfc` to disconnect - so what
+ * matters is that a read gives back what was last written. Measured across a
+ * whole run: the guest writes exactly two values, 0x20 and 0x23, and reads
+ * return the last one, so the emulator models it as a plain latch and so does
+ * this.
+ *
+ * It starts at 0x20 because that is what the machine already holds when the
+ * driver first reads it - bit 5 is set before the game touches the port, and
+ * every read-modify-write preserves it. Starting at zero makes the first note
+ * write 0x03 where the original writes 0x23, which is exactly how this was
+ * found.
+ */
+static uint8_t port61 = 0x20;
+
+static uint16_t spk_divisor;
+static int32_t  spk_lo_next = 1;
+static void (*speaker_hook)(double hz, int32_t on);
+
+static void speaker_changed(void)
+{
+    static int32_t trace_on = -1;
+    double hz = spk_divisor ? 1193182.0 / (double)spk_divisor : 0.0;
+    int32_t on = (port61 & 3) == 3 && spk_divisor != 0;
+
+    if (trace_on < 0)
+        trace_on = trace_asks("speaker");
+    if (trace_on)
+        fprintf(stderr, "io: speaker %s %.1f Hz (divisor %u, port61 %02x)\n",
+                on ? "ON " : "off", hz, spk_divisor, port61);
+
+    if (speaker_hook)
+        speaker_hook(hz, on);
+}
+
+void io_on_speaker(void (*fn)(double hz, int32_t on))
+{
+    speaker_hook = fn;
+    speaker_changed();
+}
+
+/*
+ * Put the VGA back to how a BIOS mode 0x12 set leaves it: planes cleared, the
+ * CRTC loaded with the BIOS's own timing table, the DAC and attribute palette
+ * back to the identity, and the map and bit masks wide open.
+ *
+ * The port's own. It is what `io_reset` has always done to the video state -
+ * this only gives it a name, so that the driver's start-up can ask for a mode
+ * set instead of the port pretending mode changes do not happen.
+ */
+void io_bios_set_mode(uint16_t mode)
+{
+    /*
+     * **Mode 3 is the way out and is accepted, not refused.** `restore_video_mode`
+     * at 0x225ba puts the adapter back in text on the way to `exit`, and this
+     * used to abort there - so quitting crashed at the last instruction before
+     * the process would have ended anyway. There is no text mode behind this
+     * window and nothing to draw in one; the state is cleared and the call
+     * returns, because what the original is doing is giving the screen back to
+     * DOS and the port gives it back by closing.
+     *
+     * Any other mode is still a refusal: the game asks for 0x12 and nothing
+     * else, and a mode this has never seen is a fact worth stopping on.
+     */
+    if (mode == 3) {
+        memset(planes, 0, sizeof planes);
+        return;
+    }
+
+    if (mode != 0x12) {
+        not_transcribed("a BIOS video mode other than 0x12");
+        return;
+    }
+
+    memset(planes, 0, sizeof planes);
+    memset(latch, 0, sizeof latch);
+    memset(seq, 0, sizeof seq);
+    memset(gc, 0, sizeof gc);
+    memset(crtc, 0, sizeof crtc);
+    memcpy(crtc, CRTC_MODE12, sizeof CRTC_MODE12);
+    memset(dac, 0, sizeof dac);
+    dac_index = 0;
+    dac_phase = 0;
+    dac_write_mode = 1;
+    for (int32_t i = 0; i < 16; i++)
+        attr_pal[i] = (uint8_t)i;
+    attr_index = 0;
+    attr_expect_data = 0;
+    seq[2] = 0x0F;
+    gc[8]  = 0xFF;
+
+    /*
+     * The BIOS records the mode it just set at 0040:0049, and the game reads
+     * it back there.
+     */
+    g_bios.video_mode = (uint8_t)mode;
+}
+
+void io_reset(void)
+{
+    port61 = 0x20;
+    memset(planes, 0, sizeof planes);
+    memset(latch, 0, sizeof latch);
+    memset(seq, 0, sizeof seq);
+    memset(gc, 0, sizeof gc);
+    memset(crtc, 0, sizeof crtc);
+    memcpy(crtc, CRTC_MODE12, sizeof CRTC_MODE12);
+    memset(dac, 0, sizeof dac);
+    dac_index = 0;
+    dac_phase = 0;
+    dac_write_mode = 1;
+    for (int32_t i = 0; i < 16; i++)
+        attr_pal[i] = (uint8_t)i;
+    attr_index = 0;
+    attr_expect_data = 0;
+    seq[2] = 0x0F;                    /* map mask: all planes enabled */
+    gc[8]  = 0xFF;                    /* bit mask: every bit writable */
+
+    /*
+     * **The BIOS keyboard ring, which nothing was setting up.** `bios_read_key`
+     * at 0x21434 reads 0040:001A and 0040:001C and answers 0 when they are
+     * equal, so an area left at zero is a keyboard that never has anything in
+     * it - and that is what the port had. The game's X and Y flips, the
+     * password field and every keyed shortcut were unreachable, silently,
+     * because a game with no keys looks exactly like a game nobody typed at.
+     *
+     * These four words are what the BIOS puts there: the ring runs from
+     * 0040:001E to 0040:003D, 0040:0080 and 0040:0082 hold its ends, and head
+     * and tail start together at the beginning.
+     */
+    io_bios_init();
+}
+
+/*
+ * OURS: the four words the BIOS leaves in its data area for the keyboard ring.
+ */
+void io_bios_init(void)
+{
+    g_bios.kbd_start = 0x1E;
+    g_bios.kbd_end = 0x3E;
+    g_bios.kbd_head = 0x1E;
+    g_bios.kbd_tail = 0x1E;
+}
+
+/*
+ * OURS: put a key in the BIOS ring, the way a keyboard interrupt would.
+ *
+ * `key` is the word the game reads: the scancode in the high byte and the
+ * ASCII in the low one, which is what INT 16h hands back and what
+ * `bios_read_key` returns whole. A full ring drops the key, which is what the
+ * hardware does too - and it beeped, which this does not.
+ */
+/*
+ * OURS: hand one scancode to the game's own keyboard interrupt.
+ *
+ * The port used to write the BIOS ring itself - that is what `io_key_press`
+ * did - which filled in for exactly one of the three things `keyboard_isr`
+ * does and left the other two undone: the per-scancode array at DGROUP 0x468c
+ * and the BIOS shift flags. So the arrows, Space, Enter, Esc and Alt-V were
+ * dead, because those are read from 0x468c and nothing wrote it.
+ *
+ * Now the scancode is latched where `in al, 0x60` will find it and the guest's
+ * handler runs, which is the whole of a keyboard interrupt short of the wire.
+ * A make code is the scancode; a break code is the scancode with bit 7 set,
+ * and **both must be sent**: the state array only clears on the break.
+ */
+static uint8_t kbd_latch;
+
+void io_keyboard_scancode(uint8_t code)
+{
+    kbd_latch = code;
+    keyboard_isr();
+}
+
+void io_out8(uint16_t port, uint8_t value)
+{
+    io_service_display();
+    switch (port) {
+    case PORT_SEQ_INDEX:  seq_index  = value & 0x07; break;
+    case PORT_SEQ_DATA:   seq[seq_index] = value;    break;
+    case PORT_GC_INDEX:   gc_index   = value & 0x0F; break;
+    case PORT_GC_DATA:    gc[gc_index] = value;      break;
+    case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
+    case PORT_CRTC_DATA:
+        crtc[crtc_index] = value;
+        io_trace_crtc(crtc_index, value);
+        /*
+         * CRTC 0x0C is the high byte of the start address, and writing it is
+         * how this game flips pages - it alternates 0x00 and 0x82 and never
+         * touches the low byte. So a write here *is* the guest saying "this
+         * frame is finished", which is the same cue tools/capture.py takes its
+         * reference frames on. Anything else the guest sets on the CRTC is
+         * just a register.
+         */
+        if (crtc_index == 0x0C) {
+            /*
+             * The same instant tools/capture.py counts its flips on, so a flip
+             * number means the same thing on both sides. `dev_flip_dump` is
+             * the port's own tooling and does nothing unless asked.
+             */
+            static int32_t flips;
+
+            flip_count++;
+            dev_flip_dump(flips++);
+
+            /*
+             * The flip is the guest's, and it counts wherever it happens; the
+             * *presenting* is the window's and only the window's thread may
+             * do it.
+             */
+            if (present_hook && on_display_thread())
+                present_hook();
+        }
+        break;
+    case 0x61:            port61 = value; speaker_changed(); break;
+
+    /*
+     * The 8237, channel 1 only - the one `audblast` uses. The count is two
+     * writes through a flip-flop, which port 0x0c clears; that is why the
+     * driver clears it first. The address is `io_dma1_memory`'s.
+     */
+    case 0x03:
+        if (dma_flipflop)
+            dma1_count = (uint16_t)((dma1_count & 0x00ff) | (value << 8));
+        else
+            dma1_count = (uint16_t)((dma1_count & 0xff00) | value);
+        dma_flipflop = (uint8_t)!dma_flipflop;
+        break;
+    case 0x0a: dma1_masked = (uint8_t)((value & 4) != 0); break;
+    case 0x0b: dma1_mode = value; break;
+    case 0x0c: dma_flipflop = 0; break;
+
+    /* The DSP. Only the write port and the reset do anything here. */
+    case OPL_ADDR:       opl_index = value; break;
+    case OPL_DATA:
+        if (opl_trace < 0) {
+            opl_trace = trace_asks("opl");
+            if (opl_trace)
+                opl_set_trace(opl_say);
+        }
+        /* A key event is where the sequencer's decision becomes audible, so
+         * that is where its table is worth printing. */
+        if (opl_index >= 0xb0 && opl_index <= 0xb8) {
+            if (value & 0x20)
+                keyon_count++;
+            seq_say();
+        }
+        opl_write(opl_index, value);
+        break;
+
+    /* The Sound Blaster Pro's two FM banks - see `fm_index` above. */
+    case SB_BASE + 0x00: fm_index[0] = value; break;
+    case SB_BASE + 0x01: opl_write_bank(0, fm_index[0], value); break;
+    case SB_BASE + 0x02: fm_index[1] = value; break;
+    case SB_BASE + 0x03: opl_write_bank(1, fm_index[1], value); break;
+
+    /*
+     * The mixer. Only register 0x26, the FM volume, has any effect here: it is
+     * what the driver's function 12 writes and therefore the game's master
+     * volume, so ignoring it would leave that control dead. The rest are kept
+     * so a read answers what was written.
+     */
+    case SB_BASE + 0x04: mixer_index = value; break;
+    case SB_BASE + 0x05: mixer_reg[mixer_index] = value; break;
+
+    case SB_BASE + 0x0c: sb_dsp_write(value); break;
+    case SB_BASE + 0x06:
+        dsp_args = 0;
+        dsp_out_n = 0;
+        if (value == 0)
+            dsp_answer(0xaa);
+        dma_flipflop = 0;
+        sb_say("reset", value, 0);
+        break;
+    /*
+     * The 8253's counter 0. The guest writes the divisor low byte then high,
+     * and the port reads the rate out of that rather than being told it - so
+     * the transcribed `timer_install` needs no line it would not otherwise
+     * have, and a guest that asks for a different rate gets one.
+     */
+    case 0x40:
+        if (timer_lo_next) {
+            timer_divisor = (uint16_t)((timer_divisor & 0xFF00) | value);
+            timer_lo_next = 0;
+        } else {
+            timer_divisor = (uint16_t)((timer_divisor & 0x00FF) | (value << 8));
+            timer_lo_next = 1;
+        }
+        break;
+    case 0x42:
+        if (spk_lo_next) {
+            spk_divisor = (uint16_t)((spk_divisor & 0xFF00) | value);
+            spk_lo_next = 0;
+        } else {
+            spk_divisor = (uint16_t)((spk_divisor & 0x00FF) | (value << 8));
+            spk_lo_next = 1;
+            speaker_changed();           /* both bytes in: the tone is known */
+        }
+        break;
+    case 0x43:
+        /*
+         * **Which channel the mode byte is for is bits 7 and 6**, and this
+         * used to ignore them and restart timer 0's byte pair whatever the
+         * write said. The speaker's own `out 0x43, 0xb6` is channel 2, and it
+         * was resetting the tick's latch as a side effect.
+         */
+        if ((value >> 6) == 2)
+            spk_lo_next = 1;
+        else if ((value >> 6) == 0)
+            timer_lo_next = 1;
+        break;
+    case PORT_ATTR:
+        if (attr_expect_data) {
+            if (attr_index < 16)
+                attr_pal[attr_index] = (uint8_t)(value & 0x3F);
+            attr_expect_data = 0;
+        } else {
+            attr_index = (uint8_t)(value & 0x1F);
+            attr_expect_data = 1;
+        }
+        break;
+    case PORT_DAC_WRITE:
+        dac_index = value;
+        dac_phase = 0;
+        dac_write_mode = 1;
+        break;
+    case PORT_DAC_READ:
+        /* OURS: the read index. The screenshot writer's `vga_get_dac` reads
+         * the palette back through the data port from here. */
+        dac_index = value;
+        dac_phase = 0;
+        dac_write_mode = 0;
+        break;
+    case PORT_DAC_DATA:
+        io_trace_dac(dac_index, dac_phase, value);
+        dac_latch[dac_phase++] = (uint8_t)(value & 0x3F);
+        if (dac_phase == 3) {
+            dac[dac_index][0] = dac_latch[0];
+            dac[dac_index][1] = dac_latch[1];
+            dac[dac_index][2] = dac_latch[2];
+            dac_index++;
+            dac_phase = 0;
+        }
+        break;
+    default: break;
+    }
+}
+
+void io_out16(uint16_t port, uint16_t value)
+{
+    /* A word write to an index port carries the index in the low byte and the
+     * data in the high byte, which is how the driver sets the start address. */
+    io_out8(port, (uint8_t)(value & 0xFF));
+    io_out8((uint16_t)(port + 1), (uint8_t)(value >> 8));
+}
+
+uint16_t bios_crtc_base(void) { return PORT_CRTC_INDEX; }
+
+uint16_t vga_seg_offset(uint16_t seg)
+{
+    return (uint16_t)((seg - 0xA000u) << 4);
+}
+
+uint8_t io_in8(uint16_t port)
+{
+    uint8_t v = io_in8_raw(port);
+    return v;
+}
+
+static uint8_t io_in8_raw(uint16_t port)
+{
+    switch (port) {
+    case PORT_SEQ_DATA:  return seq[seq_index];
+    case PORT_GC_DATA:   return gc[gc_index];
+    case PORT_CRTC_DATA: return crtc[crtc_index];
+    /* The DAC state register: 3 while the write index is the live one. */
+    case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
+    case PORT_DAC_DATA: {
+        /* OURS: a component of the colour at the read index, which steps
+         * after the third. */
+        uint8_t v = dac[dac_index][dac_phase++];
+        if (dac_phase == 3) {
+            dac_index++;
+            dac_phase = 0;
+        }
+        return v;
+    }
+    case 0x60:           return kbd_latch;
+    case 0x61:           return port61;
+
+    /*
+     * base+0xC bit 7 is "the card is busy"; the driver spins on it before
+     * every DSP byte, so it must read clear or the game hangs on the first
+     * note. base+0xE is the read-status port and base+0xA the read-data one -
+     * 0xaa is what a card answers after a reset, which is how a driver knows
+     * it is there.
+     */
+    case OPL_ADDR:       return opl_status();
+    case SB_BASE + 0x00:
+    case SB_BASE + 0x02: return opl_status();
+    case SB_BASE + 0x05: return mixer_reg[mixer_index];
+    case SB_BASE + 0x0c: return 0x00;
+    case SB_BASE + 0x0e: return (uint8_t)(dsp_out_n ? 0x80 : 0x00);
+    case SB_BASE + 0x0a:
+        if (dsp_out_n == 0)
+            return 0xaa;
+        {
+            uint8_t v = dsp_out[0];
+            uint8_t i;
+            for (i = 1; i < dsp_out_n; i++)
+                dsp_out[i - 1] = dsp_out[i];
+            dsp_out_n--;
+            return v;
+        }
+    /*
+     * Input status 1. Bit 3 is vertical retrace, bit 0 display enable (low
+     * while the picture is being scanned out).
+     *
+     * OURS - and it is now **answered from the clock**, which is the whole
+     * point of it. This used to toggle bit 3 on every read: the driver waits
+     * for a retrace edge, first while the bit is set and then until it is set
+     * again, and a constant answer hangs one of those two loops whichever
+     * value is chosen, so alternating satisfied both and returned at once.
+     *
+     * Returning at once is exactly what was wrong with it. That wait is the
+     * game's frame pacing - `vga_page_flip` does it after every flip it is
+     * asked to, and `vm_set_palette` does it before every palette write - and
+     * on the original each one costs up to a frame. Costing nothing made the
+     * whole game run as fast as the host could push it.
+     *
+     * The window asserted is the vertical blanking interval, lines 480 to 524
+     * of 525, and not the retrace pulse itself. The pulse is lines 490 and
+     * 491 - 63 microseconds - and a poll that took longer than that between
+     * reads would fall straight through it and wait another whole frame. The
+     * blanking interval is 1.4 ms and cannot be missed. It costs the wait up
+     * to 1.4 ms of its 16.7, and leaves the *rate* - one frame per wait, which
+     * is what pacing means - exact. Ours, approximate, and not measured
+     * against a real card.
+     */
+    case PORT_INPUT_ST1:
+        /*
+         * The guest is waiting for retrace, which is a guest waiting for time
+         * to pass - so this is where the port lets it pass. See io_service_timer.
+         */
+        io_service_timer();
+        /* Reading this port also puts the attribute controller's flip-flop
+         * back to expecting an index - see attr_expect_data above. */
+        attr_expect_data = 0;
+        return (uint8_t)(vga_in_vblank() ? 0x09 : 0x00);
+    default: return 0x00;
+    }
+}
+
+/* A read loads all four latches and returns the plane the GC selects. */
+uint8_t g_vga_window[0x20000];
+
+uint8_t *vga_window_at(uint16_t seg, uint16_t off)
+{
+    return g_vga_window + ((uint32_t)(uint16_t)(seg - 0xa000) << 4) + off;
+}
+
+uint8_t vga_read(uint16_t offset)
+{
+    for (int32_t p = 0; p < VGA_PLANES; p++)
+        latch[p] = planes[p][offset];
+    return latch[gc[4] & 0x03];
+}
+
+static uint8_t apply_rotate(uint8_t v)
+{
+    uint8_t r = gc[3] & 0x07;
+    return (uint8_t)((v >> r) | (v << (8 - r)));
+}
+
+static uint8_t combine(uint8_t src, uint8_t lat)
+{
+    switch ((gc[3] >> 3) & 0x03) {
+    case 1:  return (uint8_t)(src & lat);
+    case 2:  return (uint8_t)(src | lat);
+    case 3:  return (uint8_t)(src ^ lat);
+    default: return src;
+    }
+}
+
+/*
+ * The plane update without the trace event, so a 16-bit write can do two
+ * bytes while recording the single access the hardware actually saw.
+ */
+static void vga_write_raw(uint16_t offset, uint8_t value)
+{
+    uint8_t mapmask = seq[2] & 0x0F;
+    uint8_t bitmask = gc[8];
+    uint8_t mode    = gc[5] & 0x03;
+
+    for (int32_t p = 0; p < VGA_PLANES; p++) {
+        uint8_t src, out;
+
+        if (!(mapmask & (1u << p)))
+            continue;
+
+        switch (mode) {
+        case 0:
+            src = apply_rotate(value);
+            if (gc[1] & (1u << p))                  /* enable set/reset */
+                src = (gc[0] & (1u << p)) ? 0xFF : 0x00;
+            out = combine(src, latch[p]);
+            out = (uint8_t)((out & bitmask) | (latch[p] & (uint8_t)~bitmask));
+            break;
+        case 1:
+            /* Latch straight through: the byte-copy mode a blit uses. */
+            out = latch[p];
+            break;
+        case 2:
+            src = (value & (1u << p)) ? 0xFF : 0x00;
+            out = combine(src, latch[p]);
+            out = (uint8_t)((out & bitmask) | (latch[p] & (uint8_t)~bitmask));
+            break;
+        default: /* 3 */
+            src = (gc[0] & (1u << p)) ? 0xFF : 0x00;
+            out = (uint8_t)(apply_rotate(value) & bitmask);
+            out = (uint8_t)((src & out) | (latch[p] & (uint8_t)~out));
+            break;
+        }
+        planes[p][offset] = out;
+    }
+}
+
+/*
+ * `TIM_TRACE=vram:<offset>` prints the graphics-controller state every time a
+ * byte is written to that plane offset. Ours. What a byte of video memory ends
+ * up holding depends on the write mode, the map mask and the bit mask as much
+ * as on the value, so "the port wrote the same value and the plane holds
+ * something else" is answered here and nowhere else.
+ */
+static int32_t trace_vram = -2;
+
+void vga_write(uint16_t offset, uint8_t value)
+{
+    if (trace_vram == -2) {
+        const char *spec = getenv("TIM_TRACE");
+        const char *at = spec ? strstr(spec, "vram:") : NULL;
+
+        trace_vram = at ? (int32_t)strtol(at + 5, NULL, 0) : -1;
+    }
+    if (trace_vram >= 0 && offset == (uint16_t)trace_vram)
+        fprintf(stderr, "[vram] %04x <- %02x  mode=%d setreset=%02x/%02x "
+                        "rotate=%02x mask=%02x mapmask=%02x\n",
+                offset, value, gc[5] & 3, gc[0], gc[1], gc[3], gc[8], seq[2]);
+
+    vga_write_raw(offset, value);
+}
+
+/*
+ * A 16-bit write to the aperture. The guest's `rep movsw` moves words, and the
+ * emulator's hook fires **once per access**, recording the low byte - so a port
+ * that wrote the two bytes separately would produce twice as many events as the
+ * original and disagree even with identical planes. That is not a theoretical
+ * worry: it is exactly how VGA:0x13b9 first failed.
+ */
+void vga_write16(uint16_t offset, uint16_t value)
+{
+    vga_write_raw(offset, (uint8_t)(value & 0xFF));
+    vga_write_raw((uint16_t)(offset + 1), (uint8_t)(value >> 8));
+}
+
+/*
+ * How many scan lines are picture: the blanking line **and everything above
+ * it**, so `svb + 1`.
+ *
+ * The game never touches Vertical Display End - the card goes on scanning 480 -
+ * and moves Start Vertical Blank instead, to 0x18f for its own screens and
+ * 0x1d6 for the Sierra logo. That makes the picture 400 rows and 471, which is
+ * what DOSBox reports for the same two screens, and the game draws a full
+ * 640-pixel row at y=399, which it would have no reason to do for a line it
+ * could not show.
+ *
+ * `tools/tim.py` blanks its reference frames the same way. That agreement is
+ * worth nothing on its own - the two shared the off-by-one for as long as they
+ * shared the convention - so the count is pinned to DOSBox's reading and to the
+ * row the game draws, not to either of ours.
+ */
+int32_t vga_visible_lines(void)
+{
+    /* Start Vertical Blank: ten bits across 0x15, 0x07 bit 3, 0x09 bit 5. */
+    int32_t svb = crtc[0x15]
+                | (((crtc[0x07] >> 3) & 1) << 8)
+                | (((crtc[0x09] >> 5) & 1) << 9);
+    return svb + 1;
+}
+
+/*
+ * The CRTC's line compare: the scan line at which the card restarts fetching
+ * from offset 0. Ten bits, spread as the hardware spreads them - the low eight
+ * at index 0x18, bit 8 in Overflow bit 4, bit 9 in Maximum Scan Line bit 6.
+ *
+ * A card that has never been told otherwise leaves all ten set, which is 0x3ff
+ * and past any line, so the split never happens - and that is what the BIOS
+ * mode set leaves. The port's CRTC file starts zeroed, though, so an
+ * unprogrammed compare would read as 0 and split at the very first line. It is
+ * treated as "no split" when the register has not been written.
+ */
+int32_t vga_line_compare(void)
+{
+    int32_t lc = crtc[0x18]
+               | (((crtc[0x07] >> 4) & 1) << 8)
+               | (((crtc[0x09] >> 6) & 1) << 9);
+
+    return lc == 0 ? 0x7fffffff : lc;
+}
+
+uint16_t vga_start_address(void)
+{
+    return (uint16_t)((crtc[0x0C] << 8) | crtc[0x0D]);
+}
+
+void vga_compose(uint8_t *out, int32_t width, int32_t height)
+{
+    int32_t row_bytes = crtc[0x13] ? crtc[0x13] * 2 : width / 8;
+    int32_t span = width / 8;
+    int32_t shown = vga_visible_lines();
+    int32_t split = vga_line_compare();
+    uint16_t base = vga_start_address();
+
+    memset(out, 0, (size_t)(width * height));
+    for (int32_t y = 0; y < height && y < shown; y++) {
+        /*
+         * **The split screen.** From the line compare down the card stops
+         * following the start address and fetches from offset 0, which is what
+         * makes the game's screens 368 rows of picture with a fixed band
+         * under them: 0x08f27 sets the compare to 367 while the blanking line
+         * says 448. Without this the bottom eighty rows show whatever the
+         * start address happens to run into, which looks exactly like another
+         * page bleeding through - and was read that way once.
+         *
+         * **The compare line itself is the top part's**: the card restarts at
+         * offset 0 on the line *after* it, as DOSBox has it (`line_compare +
+         * 1`). Starting the band on the compare line put it one row high, and
+         * the last row of the picture, row 447, showed the memory past the
+         * band's eighty rows - a row of noise DOSBox does not show.
+         */
+        int32_t src = (y > split ? 0 : base) + (y - (y > split ? split + 1 : 0))
+                      * row_bytes;
+        uint8_t *dst = out + (size_t)y * width;
+        for (int32_t bx = 0; bx < span; bx++) {
+            uint16_t o;
+
+            /*
+             * **Past the end of a plane is black, not the start of it.**
+             *
+             * The address is 16 bits and a `uint16_t` here wrapped it, which
+             * is defensible as hardware and is not what the reference does.
+             * It matters in exactly two frames of the intro: the transition
+             * out of the logo flips to start 0x8200 while the blanking line
+             * still says 470 rows, and 470 rows of 80 bytes from 0x8200 runs
+             * off the end of the plane at row 403. Wrapped, the bottom of the
+             * screen showed the top of the logo again.
+             *
+             * The game never draws there - the palette is still black at those
+             * two flips and nothing was ever visible - so this is a choice
+             * about addresses the picture does not use, and it is settled the
+             * way the emulator settles it. Neither side is checked against a
+             * real card.
+             */
+            if (src + bx > 0xFFFF)
+                continue;
+            o = (uint16_t)(src + bx);
+            uint8_t b0 = planes[0][o], b1 = planes[1][o];
+            uint8_t b2 = planes[2][o], b3 = planes[3][o];
+            if (!(b0 | b1 | b2 | b3))
+                continue;
+            for (int32_t bit = 0; bit < 8; bit++) {
+                int32_t sh = 7 - bit;
+                uint8_t v = (uint8_t)(((b0 >> sh) & 1)
+                                    | (((b1 >> sh) & 1) << 1)
+                                    | (((b2 >> sh) & 1) << 2)
+                                    | (((b3 >> sh) & 1) << 3));
+                if (v)
+                    dst[bx * 8 + bit] = attr_pal[v];
+            }
+        }
+    }
+}
+
+void vga_palette_rgb(uint8_t out[768])
+{
+    for (int32_t i = 0; i < 256; i++) {
+        /* Six-bit DAC to eight bits the way the hardware does it: bit
+         * replication, not a multiply. v*255/63 agrees at 0 and 63 and is
+         * one out in the middle, which compares as a difference on every
+         * mid-tone pixel. */
+        for (int32_t c = 0; c < 3; c++) {
+            uint8_t v = dac[i][c] & 0x3F;
+            out[i * 3 + c] = (uint8_t)((v << 2) | (v >> 4));
+        }
+    }
+}
+
+/* OURS: see hostio.h. The game's units include no <stdio.h>, because `FILE`
+   is Borland's there; what they need of the host's is this. */
+void io_format(char *buf, uint32_t size, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, size, fmt, ap);
+    va_end(ap);
+}
+

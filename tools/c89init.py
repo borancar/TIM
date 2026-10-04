@@ -28,13 +28,14 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+from version import REPO, RECON  # noqa: E402
 
 
 def ast(path):
     r = subprocess.run(
         ["clang", "-Xclang", "-ast-dump=json", "-fsyntax-only", "-std=gnu11",
-         "-I", os.path.join(REPO, "reconstruct"), "-I", os.path.dirname(path),
+         "-I", RECON, "-I", os.path.dirname(path),
          "-Wno-everything", path],
         capture_output=True, text=True)
     return json.loads(r.stdout)

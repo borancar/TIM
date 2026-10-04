@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import drive
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "reconstruct")
+from version import RECON as SRC, TESTS  # noqa: E402
 
 OVL_RE = re.compile(r"VM\.OVL VGA:0x([0-9a-f]{1,4})", re.I)
 
@@ -44,7 +44,7 @@ def port_addresses():
     step, and the first attempt at one here found 560 addresses where the check
     counts 661, because it did not know the forms.
     """
-    sys.path.insert(0, os.path.join(SRC, "tests"))
+    sys.path.insert(0, TESTS)
     import provenance
 
     image, overlay = set(), set()

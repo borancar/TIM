@@ -29,6 +29,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import png
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from version import RECON, OUT  # noqa: E402
 W, H = 640, 400
 
 EGA = [(0, 0, 0), (0, 0, 170), (0, 170, 0), (0, 170, 170),
@@ -45,7 +47,7 @@ def run_port(out):
     # video driver to arrange and nothing to hold open, and it writes the frame
     # from its abort hook and exits.
     env = dict(os.environ, TIM_HEADLESS="1", TIM_FRAME=out)
-    p = subprocess.run([os.path.join(ROOT, "reconstruct", "devtim")],
+    p = subprocess.run([os.path.join(RECON, "devtim")],
                        cwd=ROOT, env=env, capture_output=True, text=True,
                        timeout=600)
     why = ""
@@ -67,9 +69,9 @@ def load_scrn(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--ref", default=os.path.join(ROOT, "out", "ref"),
+    ap.add_argument("--ref", default=os.path.join(OUT, "ref"),
                     help="directory of tools/capture.py output")
-    ap.add_argument("--out", default=os.path.join(ROOT, "out", "port.raw"))
+    ap.add_argument("--out", default=os.path.join(OUT, "port.raw"))
     ap.add_argument("--png", default=None,
                     help="also write the port's frame here, for looking at")
     ap.add_argument("-n", type=int, default=5, help="how many flips to list")

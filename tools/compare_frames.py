@@ -43,6 +43,8 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from version import RECON, OUT  # noqa: E402
 
 
 def need_devtim():
@@ -53,7 +55,7 @@ def need_devtim():
     `verify.py` already says "run `make libtim.so`" for its own missing
     artefact; this is the same courtesy for `devtim`.
     """
-    path = os.path.join(ROOT, "reconstruct", "devtim")
+    path = os.path.join(RECON, "devtim")
     if not os.path.exists(path):
         raise SystemExit("no %s - run `make -C reconstruct devtim`. It is the "
                          "developer binary, and the flags this needs live "
@@ -148,7 +150,7 @@ def main():
                     default=None,
                     help="compare two digest files instead of two directories "
                          "of frames - the way to check a whole run")
-    ap.add_argument("--ref", default=os.path.join(ROOT, "out", "ref"))
+    ap.add_argument("--ref", default=os.path.join(OUT, "ref"))
     ap.add_argument("--frames", default=None,
                     help="a directory of port frames to use instead of running")
     ap.add_argument("--timeout", type=int, default=120)

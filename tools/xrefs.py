@@ -81,8 +81,7 @@ def direct_refs():
     return out
 
 
-SO = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                  "..", "reconstruct", "libtim.so")
+SO = os.path.join(tim.RECON, "libtim.so")
 
 
 def main():

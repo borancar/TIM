@@ -1,0 +1,2265 @@
+/*
+ * The Incredible Machine - reconstruction
+ *
+ * Transcribed from the `VGA:` chunk of `VM.OVL`, the video driver of The
+ * Incredible Machine (Dynamix / Sierra On-Line, 1993). No licence is asserted:
+ * this is derived from someone else's binary.
+ *
+ * `VM.OVL` is a container of eight per-adapter drivers - VGA, EGA, MCG, CGA,
+ * TAN, HEG, EVG, EVA - each compressed. Only the **VGA** one is reconstructed;
+ * the other seven are deliberate non-goals. The chunk expands to about 10 KB
+ * and the game loads it into a block of 0x2b1 paragraphs, so it is a
+ * translation unit of its own and gets a file of its own.
+ *
+ * **Addresses in this file are offsets within the loaded VGA driver**, written
+ * `VM.OVL VGA:0xNNNN`, not image offsets - the loader chooses the segment, so
+ * there is no fixed image address to quote. Dump it with
+ * tools/dump_overlay.py and disassemble with
+ * `tools/disasm.py --file out/res/VM_VGA.mem`.
+ *
+ * Every pixel the game draws is written by this driver: attributing the A000
+ * writes of nine frames to the instructions that made them found 19
+ * instructions, all of them here.
+ */
+#include <string.h>
+
+#include "tim.h"
+#include "hostio.h"
+#include "dgroup.h"
+
+/*
+ * OURS: **the VGA aperture** is `g_vga_window`, from A000:0000. The planes are
+ * behind `vga_read` and `vga_write`, which take the offset the card decodes,
+ * so a pointer into the window is only ever subtracted from its start, never
+ * read through.
+ */
+
+/*
+ * The driver's own data segment, which it loads from `cs:[0x13a]`. These are
+ * NOT DGROUP - the driver is a separate module with its own data - so they are
+ * named by their offset within it.
+ */
+/*
+ * The driver's data is **not** kept here. It lives inside DGROUP at offset
+ * 0x3890 - see dgroup.h - because that is where the original keeps it: the
+ * game writes the driver's page segments directly through DGROUP.
+ */
+
+/*
+ * OURS, as a type: **the video driver's own code segment**, where
+ * `vm_driver_init` records where the driver's data is and keeps the table of
+ * hooks it is handed. The driver's data is inside DGROUP - `g_vmds`, at 0x3890 -
+ * so the offset is a near pointer, and the segment beside it is DGROUP's plus
+ * that offset in paragraphs, which is how the driver addresses its data as
+ * `driverDS:0`. The rest of the segment is the driver's code.
+ */
+struct vm_cs {
+    uint8_t   pad_0000[0x13a];
+    uint16_t  data_seg;           /* +0x13a  DGROUP's segment + data / 16, as
+                                     the original's number - see DGROUP_SEG */
+    const struct vmds *data; /* +0x13c  the driver's data, g_vmds */
+    uint8_t   pad_013e[0xc8];
+    void (far *hooks[19])(void);  /* +0x206  copied from the table it is handed */
+} PACKED;
+
+#define VMCS (*(struct vm_cs *)g_vm_start.driver)
+
+
+/*
+ * VM.OVL VGA:0x0000
+ *
+ * The driver's start-up, and the only entry `vm_init` reaches directly rather
+ * than through the vector table. It answers 2 in AX and its own vector table in
+ * DX:SI - which is how `vm_init` knows where to copy the table from.
+ *
+ * Its three arguments are (0x3890, 0x4412, DGROUP) and the order is the
+ * opposite of how the pushes read; see docs/video-driver.md. The first is where
+ * in DGROUP the driver's own data is - `g_vmds` - kept at `cs:0x13c` and turned
+ * into a segment at `cs:0x13a`. The second is the table of nineteen hooks it
+ * copies, 76 bytes, into its own `cs:0x206`.
+ *
+ * The screen height at `driverDS:0x6ec` - DGROUP 0x3f7c - picks the BIOS mode.
+ * Only 0x1e0 is reached here, which is mode 0x12 with both pages at 0xa000;
+ * 0x190 wants the same mode with the pages at 0xa800 and five CRTC registers
+ * adjusted, 0x15e wants mode 0x10, and anything else falls back to 0x0e. The
+ * three that are not reached are stubs.
+ *
+ * The row table at `driverDS:0x6f2` is then filled with 480 entries, each 0x50
+ * further on than the last - one row start per scan line, at 80 bytes a row.
+ *
+ * Last it opens the map mask to all four planes and sets the graphics
+ * controller to write mode 2, which is the mode every blit in this driver
+ * assumes.
+ */
+uint16_t vm_driver_init(const struct vmds *data, void (far * const *params)(void),
+                        uint16_t ds)
+{
+    int16_t i;
+
+    (void)ds;
+
+    memcpy(VMCS.hooks, params, sizeof VMCS.hooks);
+
+    VMCS.data = data;
+    /* The segment the driver addresses its data by: DGROUP's, plus the
+       paragraphs of g_vmds's offset in it, 0x3890. */
+    VMCS.data_seg = (uint16_t)((0x3890 >> 4) + DGROUP_SEG);
+
+    g_vmds.screen.mode_kind    = 1;
+    g_vmds.adapter      = 0x10;
+    g_vmds.page_front = 0xa000;
+    g_vmds.page_back  = 0xa800;
+    g_vmds.rect_page     = 0xa800;
+
+    switch ((uint16_t)g_vmds.screen.screen_height) {
+    case 0x1e0:
+        io_bios_set_mode(0x12);
+        vm_reset_attributes();
+        g_vmds.page_back = 0xa000;
+        g_vmds.rect_page    = 0xa000;
+        break;
+    case 0x15e:
+        not_transcribed("VGA:0x00b4, the 0x15e screen height");
+        return 0;
+    case 0x190:
+        not_transcribed("VGA:0x006c, the 0x190 screen height");
+        return 0;
+    default:
+        not_transcribed("VGA:0x005f, the fallback screen height");
+        return 0;
+    }
+
+    {
+        uint16_t row = 0;
+
+        for (i = 0; i < 0x1e0; i++) {
+            g_vmds.row_offset[i] = row;
+            row = (uint16_t)(row + 0x50);
+        }
+    }
+
+    io_out16(PORT_SEQ_INDEX, 0x0f02);
+    io_out16(PORT_GC_INDEX, 0x0205);
+
+    g_vmds.screen.screen_width = 0x280;
+    g_vmds.clip_right   = 0x27f;
+    g_vmds.clip_bottom  = (int16_t)(g_vmds.screen.screen_height - 1);
+
+    return 2;
+}
+
+/*
+ * VM.OVL VGA:0x011d
+ *
+ * Put the attribute controller's sixteen palette registers back to the
+ * identity - register `n` holding `n` - and restore whatever the index
+ * register held before.
+ *
+ * It writes each pair with interrupts off and reads Input Status 1 first,
+ * because that read is what puts the one port back to expecting an index
+ * rather than a value. The two `jmp $+2`s between the writes are an I/O delay
+ * for hardware that needs one.
+ *
+ * The loop runs from 0xf **down to 1**, so register 0 is never written; it
+ * keeps whatever the mode set left there.
+ */
+void vm_reset_attributes(void)
+{
+    uint8_t saved = io_in8(PORT_ATTR);
+    int16_t cl;
+
+    for (cl = 0xf; cl >= 1; cl--) {
+        io_in8(PORT_INPUT_ST1);
+        io_out8(PORT_ATTR, (uint8_t)cl);
+        io_out8(PORT_ATTR, (uint8_t)cl);
+    }
+
+    io_out8(PORT_ATTR, saved);
+}
+
+/*
+ * VM.OVL VGA:0x0252
+ *
+ * A single `retf`: the driver's do-nothing entry. Three slots of the vector
+ * table point at it - 0x436a, 0x4376 and 0x4382 - so the game can call them
+ * unconditionally and this adapter simply declines.
+ *
+ * Its arguments are whatever the caller pushed and it reads none of them; the
+ * port takes none, for the same reason.
+ */
+void vm_nothing(void)
+{
+}
+
+/*
+ * VM.OVL VGA:0x124b
+ *
+ * **Blit one glyph**, a byte a row, through the VGA's bit mask. This is the
+ * fast path `draw_string_body` takes when nothing about the drawing is
+ * unusual, and it is reached whenever the clip box is off - which
+ * `draw_title_bar` leaves it.
+ *
+ * The arguments arrive in registers rather than on the stack: `es:si` the
+ * glyph, `ax` its width in the original's `di`, `bx` the height, `dx` the x,
+ * `bp` the y. What it reads besides is DGROUP 0x3890, 0x3891 and 0x3892 - the
+ * colour, the background colour and the style byte - which the driver reaches
+ * as offsets 0, 1 and 2 of its own data segment.
+ *
+ * The address of a row is not computed: `driverDS:0x6f2` is a **table of row
+ * offsets indexed by y**, so a row costs a lookup and an `x >> 3`. Between
+ * rows the pointer moves on by 0x4e, which is the row's 0x50 bytes less the
+ * two the loop just wrote.
+ *
+ * A glyph is written **two bytes wide whatever its width**, because it may
+ * straddle a byte: `ror ax, cl` by the low three bits of x spreads one byte of
+ * glyph across two, and each half is written with the bit mask set to it. The
+ * `mov al, es:[di]` before each store is not a read - it is the VGA's latch
+ * load, and the value is thrown away.
+ *
+ * The style byte picks the branch, and the two differ in more than opacity.
+ * Non-zero is transparent: two writes a row, mask then colour. Zero is opaque
+ * and does **four**, alternating the background at 0x3891 with the colour at
+ * 0x3890 - it paints the glyph's *inverse* in the background first, using a
+ * second mask built by rotating 0xff by the same count, so the cell is filled
+ * without a separate rectangle.
+ *
+ * The two bytes the driver keeps at `cs:0x12f9` and `cs:0x12fa` are the colour
+ * and background copied into its own code segment, which is a way of getting a
+ * constant into `ch` and out again cheaply and has no equivalent here.
+ */
+void vm_blit_glyph(const uint8_t far * glyph,
+                   uint16_t w, uint16_t h, int16_t x, int16_t y)
+{
+    uint8_t  colour = g_vmds.text_colour;
+    uint8_t  back   = g_vmds.text_back;
+    uint8_t  style  = g_vmds.text_style;
+    uint8_t *at     = vga_window_at(g_vmds.page_dst,
+                            (uint16_t)(g_vmds.row_offset[(uint16_t)y] + (x >> 3)));
+    uint16_t shift  = (uint16_t)(x & 7);
+    uint16_t row;
+
+    (void)w;
+
+    for (row = 0; row < h; row++) {
+        uint8_t  bits = *glyph;
+        uint16_t spread = (uint16_t)(((uint16_t)bits << (16 - shift))
+                                     | ((uint16_t)bits >> shift));
+
+        glyph++;
+
+        if (style != 0) {
+            io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
+            (void)vga_read((uint16_t)(at - g_vga_window));
+            vga_write((uint16_t)(at - g_vga_window), colour);
+
+            io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
+            (void)vga_read((uint16_t)(at + 1 - g_vga_window));
+            vga_write((uint16_t)(at + 1 - g_vga_window), colour);
+        } else {
+            uint16_t hole = (uint16_t)((0x00FFu << (16 - shift))
+                                       | (0x00FFu >> shift));
+
+            (void)vga_read((uint16_t)(at - g_vga_window));
+
+            io_out8(PORT_GC_DATA, (uint8_t)(hole & 0xFF));
+            vga_write((uint16_t)(at - g_vga_window), back);
+            io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
+            (void)vga_read((uint16_t)(at - g_vga_window));
+            vga_write((uint16_t)(at - g_vga_window), colour);
+
+            io_out8(PORT_GC_DATA, (uint8_t)(hole >> 8));
+            vga_write((uint16_t)(at + 1 - g_vga_window), back);
+            io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
+            (void)vga_read((uint16_t)(at + 1 - g_vga_window));
+            vga_write((uint16_t)(at + 1 - g_vga_window), colour);
+        }
+
+        at += 0x50;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x0f57
+ *
+ * **Blend a run of palette entries towards one colour**, in place, and hand
+ * the result to the DAC.
+ *
+ * The buffer is the palette block the game allocated and filed at DGROUP
+ * 0x3a2e - `set_palette_pointer` is what puts it there. The driver reaches it
+ * by loading *only* the segment, from its own `cs:[0x1a0]` which is
+ * `driverDS:0x1a0` and so DGROUP 0x3a30, and indexing from offset zero. That
+ * is safe because the block comes from a DOS allocation and so begins on a
+ * paragraph; the offset half at 0x3a2e is never looked at here.
+ *
+ * The source is 0x30 bytes - sixteen entries - past the destination, and the
+ * colour blended towards is a single three-byte entry the loop cycles over:
+ * the pointer walks r, g, b and is pulled back by three every third byte. So
+ * a whole run fades towards one colour without a table per step.
+ *
+ * The arithmetic is the DAC's six-bit range and not a byte's:
+ *
+ *     out = src * w / 0x3f + colour * (0x3f - w) / 0x3f
+ *
+ * done as `mul dl` then `div dh` on eight-bit halves, so both terms are exact
+ * over the range the hardware uses and neither can overflow. The weight is
+ * flipped to `0x3f - w` for the second term and flipped back afterwards in the
+ * same register rather than being kept in two.
+ *
+ * What goes to the DAC is the destination as it was **before** the loop -
+ * `push di` happens before any blending - so the whole run is sent, not the
+ * end of it.
+ *
+ * The `add sp, cx` after that call is a no-op that reads as a bug: `loop` has
+ * just taken `cx` to zero. Transcribed as the nothing it is.
+ */
+void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
+                      uint8_t weight)
+{
+    /* Only the block's segment is loaded; the offsets are from 0. */
+    uint8_t *pal           = MK_FP(FP_SEG(g_vmds.palettes.blocks[0]), 0);
+    uint8_t *dst           = pal + (uint16_t)(first * 3);
+    const uint8_t *src     = dst + 0x30;
+    const uint8_t *col     = pal + (uint16_t)(0x30 + colour * 3);
+    uint16_t n             = (uint16_t)(count * 3);
+    uint8_t  channel       = 0;
+
+    while (n-- != 0) {
+        uint8_t a = (uint8_t)((uint16_t)(*src * weight) / 0x3F);
+        uint8_t b = (uint8_t)((uint16_t)(*col
+                                         * (uint8_t)(0x3F - weight)) / 0x3F);
+
+        src++;
+        *dst = (uint8_t)(a + b);
+        dst++;
+
+        col++;
+        if (++channel == 3) {
+            channel = 0;
+            col -= 3;
+        }
+    }
+
+    vm_set_palette(pal + (uint16_t)(first * 3), first, count);
+}
+
+/*
+ * VM.OVL VGA:0x0fd4
+ *
+ * How much memory a list of bitmaps needs, as a 32-bit total in DX:AX.
+ *
+ * The list is an array of near pointers ending in a null, and each bitmap's
+ * cost is `(width / 2) * height` - half a byte per pixel, which is what four
+ * planes of one bit each come to.
+ *
+ * The total is then multiplied by **1.25**: shifted right two and added back
+ * to itself. That quarter is the driver's own per-bitmap overhead, and it is
+ * charged against the whole list at once rather than per bitmap.
+ *
+ * The second argument is a word that is zeroed and nothing else - an out
+ * parameter the routine never fills in.
+ */
+uint32_t vm_bitmap_list_size(struct bitmap **list, uint8_t * out)
+{
+    uint32_t total = 0;
+
+    for (;;) {
+        struct bitmap *p = *list;
+
+        if (p == NULL)
+            break;
+
+        total += (uint32_t)((uint16_t)p->width >> 1) * (uint16_t)p->height;
+        list++;
+    }
+
+    *(int16_t *)(out) = 0;
+
+    return total + (total >> 2);
+}
+
+/*
+ * VM.OVL VGA:0x1015
+ *
+ * Turn a buffer of chunky 4-bit pixels into the planar form the driver blits,
+ * and fill in a list of bitmap headers pointing into the result. Reached
+ * through the vector table at DGROUP 0x437e.
+ *
+ * It works **in place**, through video memory as scratch: the whole buffer is
+ * converted once into the plane at A000:6d60, and then each bitmap is read back
+ * out of it, four planes at a time, into the space the chunky data occupied.
+ * That is why the destination it walks forward is the same pointer it was
+ * handed as the source, and why the video segment 0xa6d6 appears three times as
+ * a constant.
+ *
+ * The list at `list` is a null-terminated run of near pointers to headers. For
+ * each header the size of one plane is `(width / 2) * height / 4` - the width
+ * halved because two pixels share a chunky byte, and the product quartered
+ * because the 32-bit `mul` result is used **low word only**, `shr ax` twice,
+ * with the high word discarded. Then:
+ *
+ *   +0/+2   the far pointer to the four planes
+ *   +4      the offset of the mask that follows them
+ *
+ * and the running pointer advances by five plane-sizes: four of image and one
+ * of mask, renormalised into segment and offset each time round.
+ *
+ * The two calls that do the reading back share their arguments: the first
+ * leaves the destination segment on the stack and the second is pushed to sit
+ * on top of it, so five words are cleaned where only three were pushed. That is
+ * why `push cs` plus a **** `ret` is used throughout this family - the
+ * pushed CS is part of the frame and the caller disposes of it.
+ */
+void vm_load_bitmap_list(struct bitmap ** list, uint8_t far * dst, uint32_t count)
+{
+    /* The step at the foot of the loop is a huge pointer's - offset plus the
+       five plane-sizes, then paragraphs into the segment - so `at` is a
+       pointer, and it is filed into each header as the normalised pair it
+       is. The first header takes the caller's block, which starts a
+       segment, so its pair is the one the original stores as well. */
+    uint8_t *at = dst;
+    uint32_t quads = count >> 2;
+    uint16_t di = 0;
+
+    vm_chunky_to_planar(at, vga_window_at(0xa6d6, 0), (uint16_t)quads);
+
+    for (;;) {
+        struct bitmap *si = *list;
+        uint16_t size, prod;
+
+        if (si == NULL)
+            break;
+
+        prod = (uint16_t)((uint16_t)(si->width >> 1)
+                          * (uint16_t)si->height);
+        size = (uint16_t)(prod >> 2);
+
+        si->data_seg = FP_SEG(at);
+        si->data_off = FP_OFF(at);
+        /* The mask is kept as an offset in the planes' own segment. */
+        si->mask_off = (uint16_t)(FP_OFF(at) + size * 4);
+
+        vm_read_four_planes(vga_window_at(0xa6d6, di), at, size);
+        vm_build_mask_plane(vga_window_at(0xa6d6, di), at + size * 4, size);
+
+        di = (uint16_t)(di + size);
+
+        at += size * 5;
+
+        list++;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x10b8
+ *
+ * Chunky to planar. Reads four bytes - eight pixels, two to a byte, the high
+ * nibble first - and writes one byte to each of the four planes at the same
+ * video address.
+ *
+ * The original does it with sixteen `shl al,1 / rcl <reg>,1` pairs per word,
+ * rotating each bit out of the source and into one of `ch`, `cl`, `bh`, `bl` in
+ * turn. Those four are planes 3, 2, 1 and 0, so a pixel's most significant bit
+ * lands in plane 3, and after thirty-two bits each register holds eight pixels'
+ * worth of one plane. Written here as the shift it is rather than as a table.
+ *
+ * The **source pointer is huge**, and it is carried by the flags: `add si,2`
+ * sets carry when the offset wraps, `rcl dh,1` catches it and four `shl dh,1`
+ * move it to make 0x1000, which is added to DS. Only the second of the two word
+ * reads is checked, because `lodsw` sets no flags to check.
+ *
+ * The plane is chosen by writing 1, 2, 4 and 8 straight to the sequencer's data
+ * port, the map-mask index having been left selected on the way in.
+ */
+void vm_chunky_to_planar(const uint8_t far * src, uint8_t far * dst,
+                         uint16_t count)
+{
+    /* `src` is huge, and a pointer steps it the way the carry into the
+       segment does: the one case they part is an offset that wraps on the
+       *first* `lodsw` of a pass, which the original does not catch and
+       which a source starting a segment - every caller's - cannot reach.
+       `dst` is in the video aperture. */
+    const uint8_t *si = src;
+    uint8_t *di = dst;
+    uint16_t n = count;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0005);      /* write mode 0 */
+    io_out16(PORT_SEQ_INDEX, 0x0102);     /* map mask: plane 0 */
+
+    while (n != 0) {
+        uint8_t pl[4];                    /* pl[0]=bl .. pl[3]=ch */
+        uint16_t w;
+        int32_t k, bit;
+        uint8_t b;
+
+        pl[0] = pl[1] = pl[2] = pl[3] = 0;
+
+        w = (uint16_t)(si[0] | (si[1] << 8));   /* lodsw */
+        si += 2;
+
+        for (k = 0; k < 2; k++) {
+            b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
+            for (bit = 7; bit >= 0; bit--) {
+                int32_t p = 3 - ((7 - bit) & 3);
+
+                pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+            }
+        }
+
+        w = (uint16_t)(si[0] | (si[1] << 8));
+        si += 2;
+
+        for (k = 0; k < 2; k++) {
+            b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
+            for (bit = 7; bit >= 0; bit--) {
+                int32_t p = 3 - ((7 - bit) & 3);
+
+                pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+            }
+        }
+
+        for (k = 0; k < 4; k++) {
+            io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
+            vga_write((uint16_t)(di - g_vga_window), pl[k]);
+        }
+
+        di++;
+        n--;
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_SEQ_INDEX, 0x0F02);     /* map mask: every plane */
+}
+
+/*
+ * VM.OVL VGA:0x11bb
+ *
+ * Read the same run of video memory once through each plane, into four
+ * consecutive blocks of the destination. The source offset is pushed and popped
+ * around every `rep movsb` so all four passes read the same bytes; only the
+ * destination advances.
+ */
+void vm_read_four_planes(const uint8_t far * src, uint8_t far * dst,
+                         uint16_t count)
+{
+    /* `src` is in the video aperture, `dst` a block in guest memory. */
+    int32_t plane;
+
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t k;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+
+        for (k = 0; k < count; k++)
+            dst[k] = vga_read((uint16_t)(src + k - g_vga_window));
+
+        dst += count;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x11ee
+ *
+ * Build the mask that goes with a bitmap: a bit is set where the pixel is
+ * **not** in any plane, which is to say where its colour is 0. The four planes
+ * of a byte are ORed together and the result inverted, so the mask marks what
+ * the blit must leave alone.
+ *
+ * The read-map-select index is written once and only the data port is touched
+ * after that, which is why the plane numbers go out as bytes rather than as the
+ * usual index-and-data word.
+ */
+void vm_build_mask_plane(const uint8_t far * src, uint8_t far * dst,
+                         uint16_t count)
+{
+    /* `src` is in the video aperture, `dst` a block in guest memory. */
+    const uint8_t *si = src;
+    uint16_t n = count;
+
+    io_out16(PORT_GC_INDEX, 0x0004);      /* read map select, plane 0 */
+
+    while (n != 0) {
+        uint8_t any;
+        int32_t plane;
+
+        io_out8(PORT_GC_DATA, 0);
+        any = vga_read((uint16_t)(si - g_vga_window));
+
+        for (plane = 1; plane < 4; plane++) {
+            io_out8(PORT_GC_DATA, (uint8_t)plane);
+            any |= vga_read((uint16_t)(si - g_vga_window));
+        }
+
+        *dst++ = (uint8_t)~any;
+
+        si++;
+        n--;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x12fb
+ *
+ * Save a rectangle of the source page into a buffer, all four planes.
+ *
+ * The buffer arrives as a far pointer and is **renormalised** first - the
+ * offset's high bits are folded into the segment, leaving an offset of 0..15 -
+ * so a rectangle bigger than a segment still addresses correctly as the
+ * destination index runs on. That is a huge pointer, and the port's is one.
+ *
+ * A row's width is counted in whole bytes: `((x + w) >> 3) - (x >> 3) + 1`,
+ * then rounded up to a whole number of words because the copy is `rep movsw`.
+ * So the saved rectangle is byte-aligned and generally wider than asked for,
+ * which is why the caller's buffer size allows a spare byte per row.
+ *
+ * The planes are read 3, 2, 1, 0 - the loop counts down in AH and ends on the
+ * `jge` failing at -1 - and each is stored one after another, the destination
+ * index running continuously across planes and rows while the source resets to
+ * the row start plus 0x50 each time.
+ *
+ * Read mode 0 is selected with a full bit mask and set/reset cleared before the
+ * copy, and write mode 2 is put back afterwards, which is what the rest of the
+ * driver expects to find.
+ */
+void vm_save_rect(uint8_t far * buf,
+                  int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    uint8_t *blk  = buf;
+    uint16_t col  = (uint16_t)((uint16_t)x >> 3);
+    uint16_t bytes, words;
+    int16_t plane;
+
+    io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0000);      /* set/reset: none */
+
+    bytes = (uint16_t)((((uint16_t)(x + w)) >> 3) - col + 1);
+    words = (uint16_t)(bytes >> 1);
+    if ((bytes & 1) != 0)
+        words++;
+
+    for (plane = 3; plane >= 0; plane--) {
+        const uint8_t *si = vga_window_at(g_vmds.page_src,
+                                  (uint16_t)(g_vmds.row_offset[y] + col));
+        int16_t row;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+
+        for (row = 0; row < h; row++) {
+            uint16_t k;
+
+            for (k = 0; k < (uint16_t)(words * 2); k++)
+                *blk++ = vga_read((uint16_t)(si + k - g_vga_window));
+            si += 0x50;
+        }
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+}
+
+/*
+ * VM.OVL VGA:0x138e
+ *
+ * How many bytes a `w` by `h` planar image needs.
+ *
+ * A row is `w >> 3` bytes plus one, plus another if the width is not a whole
+ * number of bytes, and then rounded up to an even count. The unconditional
+ * extra byte is not slack: a planar blit at an arbitrary x has to shift the
+ * source across a byte boundary, so every row needs one byte more than its
+ * pixels occupy.
+ *
+ * That row count times the height gives a 32-bit product - one `mul`, so
+ * unsigned - and the result is shifted left twice for the four planes.
+ *
+ * The game reaches this through the far pointer at DGROUP 0x435e, which the
+ * loader fills in; the thunk at image 0x21ab9 is an `ljmp` through it.
+ * Measured: 0x435e held 424b:138e, and 0x424b is the segment the loader chose
+ * for the driver in these runs.
+ */
+uint32_t vm_buffer_size(uint16_t w, uint16_t h)
+{
+    uint16_t row = (uint16_t)((w >> 3) + 1);
+
+    if ((w & 7) != 0)
+        row++;
+    if ((row & 1) != 0)
+        row++;
+
+    return ((uint32_t)h * row) << 2;
+}
+
+/*
+ * VM.OVL VGA:0x13b9
+ *
+ * Restore a rectangle from a buffer into the page being drawn into - the exact
+ * counterpart of `vm_save_rect`, and it has to agree with it byte for byte or
+ * the saved image comes back shifted.
+ *
+ * It agrees by construction: the same renormalisation of the buffer pointer,
+ * the same whole-byte row width rounded up to words, the same four planes in
+ * the same order. What differs is the direction and how a plane is selected.
+ * Reading picks one plane with the Graphics Controller's read map select;
+ * writing enables one plane with the **Sequencer's map mask** at 0x3c4, whose
+ * value is a bit per plane rather than a number - 8, 4, 2, 1, shifted right
+ * each time round.
+ *
+ * The loop ends on the bit falling out of the mask: `shr ah,1` sets carry only
+ * when the 1 is shifted away, so `jae` runs it exactly four times.
+ *
+ * On the way out write mode 2 is restored and the map mask is put back to 0x0f,
+ * all four planes enabled, which is the state the rest of the driver assumes.
+ * Leaving a single plane enabled here would make every later write monochrome.
+ */
+void vm_restore_rect(const uint8_t far * buf,
+                     int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    const uint8_t *blk = buf;
+    uint16_t col  = (uint16_t)((uint16_t)x >> 3);
+    uint16_t bytes, words, mask;
+
+    io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0000);      /* set/reset: none */
+
+    bytes = (uint16_t)((((uint16_t)(x + w)) >> 3) - col + 1);
+    words = (uint16_t)(bytes >> 1);
+    if ((bytes & 1) != 0)
+        words++;
+
+    for (mask = 8; mask != 0; mask >>= 1) {
+        uint8_t *di = vga_window_at(g_vmds.page_dst,
+                            (uint16_t)(g_vmds.row_offset[y] + col));
+        int16_t row;
+
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
+
+        for (row = 0; row < h; row++) {
+            uint16_t k;
+
+            for (k = 0; k < words; k++) {
+                uint16_t v = (uint16_t)(blk[0] | (blk[1] << 8));
+
+                vga_write16((uint16_t)(di + k * 2 - g_vga_window), v);
+                blk += 2;
+            }
+            di += 0x50;
+        }
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_SEQ_INDEX, 0x0F02);     /* map mask: all four planes */
+}
+
+/*
+ * VM.OVL VGA:0x1453
+ *
+ * Read the colour of one pixel from the source page.
+ *
+ * A pixel's four bits live in four different planes at the same byte address,
+ * so this reads the same byte four times, selecting a different plane between
+ * each with the Graphics Controller's read map select. The bit tested is
+ * `0x80 >> (x & 7)` and each plane contributes one bit of the answer, plane 0
+ * the least significant.
+ *
+ * The index register is set once, to 4, and the three later changes are written
+ * to the **data port** at 0x3cf alone - `inc dx` and then a byte `out` - rather
+ * than re-sending the index each time. A port model that only understands the
+ * paired 16-bit write would read plane 0 four times and answer a colour of 0 or
+ * 15.
+ *
+ * Write mode 1 is selected first and mode 2 restored at the end. Neither
+ * affects reading; the driver is just leaving the registers as the rest of it
+ * expects.
+ */
+uint16_t vm_read_pixel(int16_t x, int16_t y)
+{
+    const uint8_t *at = vga_window_at(g_vmds.page_src,
+                              (uint16_t)(g_vmds.row_offset[y] + ((uint16_t)x >> 3)));
+    uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
+    uint16_t colour = 0;
+
+    io_out16(PORT_GC_INDEX, 0x0105);      /* write mode 1 */
+    io_out16(PORT_GC_INDEX, 0x0004);      /* read map select: plane 0 */
+
+    if (vga_read((uint16_t)(at - g_vga_window)) & bit)
+        colour |= 1;
+    io_out8(PORT_GC_DATA, 1);
+    if (vga_read((uint16_t)(at - g_vga_window)) & bit)
+        colour |= 2;
+    io_out8(PORT_GC_DATA, 2);
+    if (vga_read((uint16_t)(at - g_vga_window)) & bit)
+        colour |= 4;
+    io_out8(PORT_GC_DATA, 3);
+    if (vga_read((uint16_t)(at - g_vga_window)) & bit)
+        colour |= 8;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    return colour;
+}
+
+/*
+ * VM.OVL VGA:0x14c9
+ *
+ * Plot one pixel.
+ *
+ * The byte is `row_table[y] + (x >> 3)` in the page being drawn into, and the
+ * bit is `0x80 >> (x & 7)` - the leftmost pixel of a byte is the high bit. That
+ * mask goes into the Graphics Controller's bit mask register, write mode 2 is
+ * selected, and then the byte is **read before it is written**: in write mode 2
+ * the low nibble of the written byte is the colour and the latches supply every
+ * bit the mask protects, so without the read the other seven pixels of the byte
+ * would be destroyed.
+ *
+ * The bit mask is put back to 0xff on the way out. Write mode 2 is left
+ * selected, which is what the rest of the driver expects.
+ *
+ * There is no clipping here - the caller does it. Reaching this with a y
+ * outside the row table reads a word from beyond it and writes somewhere
+ * arbitrary in the page.
+ *
+ * The driver returns no value. AX on return holds 0xff08, the last word sent
+ * to the Graphics Controller, and the thunk at 0x2244d passes that back to its
+ * own caller - so a caller comparing against -1 can still tell a clipped call
+ * from a drawn one, by accident rather than design. Returned here for that
+ * reason and for no other.
+ */
+uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
+{
+    uint8_t *di   = vga_window_at(g_vmds.page_dst,
+                          (uint16_t)(g_vmds.row_offset[y] + ((uint16_t)x >> 3)));
+    uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
+
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+
+    vga_read((uint16_t)(di - g_vga_window));
+    vga_write((uint16_t)(di - g_vga_window), colour);
+
+    io_out16(PORT_GC_INDEX, 0xFF08);
+    return 0xFF08;
+}
+
+/*
+ * VM.OVL VGA:0x150f
+ *
+ * Make the page just drawn visible and swap the two pages over, then
+ * optionally wait out a whole vertical retrace.
+ *
+ * The two page variables hold **segments**, 0xA000 and 0xA820; the start
+ * address the CRTC wants is the segment shifted right by four, and only its
+ * low byte is written, to index 0x0C. That is why the page offset is always a
+ * multiple of 256 and why the game never writes index 0x0D.
+ *
+ * `g_vmds.screen.screen_height == 400` takes fifteen paragraphs off the start address. It is
+ * never taken in the mode this game runs - the height here is 480, with
+ * blanking moved up to 399 - and is transcribed rather than dropped because it
+ * is in the original.
+ */
+void vm_show_page(uint16_t wait_retrace)
+{
+    uint16_t shown = g_vmds.page_back;
+    uint16_t other = g_vmds.page_front;
+    g_vmds.page_front = g_vmds.page_back;
+    g_vmds.page_back = other;
+
+    uint16_t start = (uint16_t)(shown >> 4);
+    if (g_vmds.screen.screen_height == 400)
+        start = (uint16_t)(start - 0x0F);
+
+    io_out16(bios_crtc_base(), (uint16_t)(0x0C | ((start & 0xFF) << 8)));
+
+    if (wait_retrace) {
+        while (io_in8(PORT_INPUT_ST1) & 0x08)
+            ;
+        while (!(io_in8(PORT_INPUT_ST1) & 0x08))
+            ;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x1561
+ *
+ * Copy a rectangle from one page to the other, at the same position in both.
+ * This is how the double buffer is kept coherent: the region a sprite is about
+ * to be drawn over is restored from the page that still holds the clean
+ * background.
+ *
+ * It is done in **write mode 1**, the latch copy: `movsb` reads a byte, which
+ * loads all four latches, and writes it, which stores all four - so one byte
+ * moved is eight pixels across four planes, and the byte value itself is
+ * never looked at. The mode is set to 1 on the way in and back to 2 on the
+ * way out, which is the driver's resting mode.
+ *
+ * The rectangle is widened to byte boundaries first: the left edge rounds down
+ * to a multiple of 8 and the right edge up, because a plane byte is eight
+ * pixels and there is no partial-byte copy in this mode.
+ *
+ * The row loop is `dec dx / jne`, so a height of 0 runs 65536 times. That is
+ * transcribed as written rather than guarded.
+ */
+void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+{
+    io_out16(PORT_GC_INDEX, 0x0105);
+
+    uint16_t right = (uint16_t)((x + width + 7) & 0xFFF8);
+    uint16_t left  = (uint16_t)(x & 0xFFF8);
+    uint16_t span  = (uint16_t)((right - left) >> 3);
+    uint16_t col   = (uint16_t)(left >> 3);
+
+    uint16_t rows = height;
+    /* One row offset, in the source page and in the destination. */
+    const uint8_t *si = vga_window_at(g_vmds.page_src, (uint16_t)(g_vmds.row_offset[y] + col));
+    uint8_t *di       = vga_window_at(g_vmds.page_dst, (uint16_t)(g_vmds.row_offset[y] + col));
+
+    do {
+        for (uint16_t i = 0; i < span; i++)
+            vga_write((uint16_t)(di + i - g_vga_window),
+                      vga_read((uint16_t)(si + i - g_vga_window)));
+        si += 0x50;
+        di += 0x50;
+    } while (--rows);
+
+    io_out16(PORT_GC_INDEX, 0x0205);
+}
+
+/*
+ * VM.OVL VGA:0x254, 0x25c
+ *
+ * Edge masks for a span that does not start or end on a byte boundary. A byte
+ * is eight pixels, so a partial byte is written with the graphics controller's
+ * bit mask holding these: `left[b]` has the bits from b rightwards, `right[b]`
+ * the bits left of b. Transcribed data, and it carries its address for the
+ * same reason a routine does.
+ */
+static const uint8_t g_mask_left[8] = {
+    0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01
+};
+static const uint8_t g_mask_right[8] = {
+    0x00, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE
+};
+
+/*
+ * VM.OVL VGA:0x027a
+ *
+ * **A span in two colours, checkerboarded.** `vm_span` sends a colour here
+ * whenever its high nibble is set, because such a value is not one colour at
+ * all: the high nibble is one and the low nibble the other, and the span is
+ * filled with them alternating pixel by pixel.
+ *
+ * The two are separated by copying the byte and shifting the copy down four,
+ * and **the row's parity swaps them**: `dx & 1` - the destination row - decides
+ * whether the pair goes down as high-then-low or low-then-high, so successive
+ * rows offset the pattern and it reads as a dither rather than as stripes.
+ *
+ * The alternation itself is two writes per byte with complementary bit masks,
+ * 0xaa and 0x55, each `and`ed with the partial-byte mask so a run's first and
+ * last bytes are covered as well. The whole-byte middle is a `rep stosw` of
+ * the two colours in one word, which is why the count is shifted right three
+ * times for bytes and once more for words, and the leftover byte is written by
+ * the `jae` that follows.
+ *
+ * Every write is preceded by a read of the same byte. That is the VGA latch
+ * load and not a value - the pixels the mask excludes have to come back
+ * unchanged - and it must not be optimised away.
+ *
+ * The masks are the same two tables `vm_span` uses, at VGA:0x254 and VGA:0x25c.
+ */
+void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
+                      uint8_t far * dst)
+{
+    /* ES:DI, the row in the video aperture. */
+    uint8_t  hi   = (uint8_t)((ax & 0xFF) >> 4);
+    uint8_t  lo   = (uint8_t)(ax & 0x0F);
+    uint8_t  first, second;
+    uint8_t *at;
+
+    /* The row's parity decides which of the two goes first: `test di,1`,
+       and a segment is sixteen bytes, so the address's parity is DI's. */
+    if (((dst - g_vga_window) & 1) != 0) {
+        first  = lo;
+        second = hi;
+    } else {
+        first  = hi;
+        second = lo;
+    }
+
+    at = dst + (bx >> 3);
+    bx &= 7;
+
+    if ((uint16_t)(bx + cx) < 8) {
+        uint8_t mask = (uint8_t)(g_mask_left[bx] & g_mask_right[(bx + cx) & 7]);
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), second);
+        return;
+    }
+
+    {
+        int16_t lead = (int16_t)(8 - bx);
+        uint8_t mask = g_mask_left[bx];
+        int16_t whole;
+
+        cx = (int16_t)(cx - lead);
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), second);
+        at++;
+
+        whole = (int16_t)((uint16_t)cx >> 3);
+
+        if (whole != 0) {
+            io_out8(PORT_GC_DATA, 0xAA);
+            vga_write((uint16_t)(at - g_vga_window), first);
+            io_out8(PORT_GC_DATA, 0x55);
+            (void)vga_read((uint16_t)(at - g_vga_window));
+
+            while (whole-- > 0) {
+                vga_write((uint16_t)(at - g_vga_window), second);
+                at++;
+            }
+        }
+
+        bx = (uint16_t)(cx & 7);
+        if (bx == 0)
+            return;
+
+        mask = g_mask_right[bx];
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0xAA));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(at - g_vga_window));
+        vga_write((uint16_t)(at - g_vga_window), second);
+    }
+}
+
+/*
+ * VM.OVL VGA:0x034f
+ *
+ * Fill `count` pixels of one scan line with a colour, starting at pixel `x`
+ * within the row that `dst_off` begins.
+ *
+ * **Register arguments**, not stack: AL the colour, BX the x, CX the count,
+ * ES:DI the row. It is reached through the driver's vector table but it is not
+ * a C function, so the C here takes the registers as parameters.
+ *
+ * Write mode 2 with the bit mask: the byte written carries the colour in its
+ * low nibble for all four planes at once, and the bit mask picks which pixels
+ * of the byte change. Every write is preceded by a read, which is not for the
+ * value - it loads the latches, so the pixels the mask excludes come back
+ * unchanged. That read is why a "discarded" read of video memory must never be
+ * optimised away.
+ *
+ * A colour with any of the high four bits set is not a colour at all and goes
+ * to a different routine at VGA:0x27a, which is not transcribed yet.
+ *
+ * The bit mask is left as the last partial byte set it. The original does not
+ * restore it and neither does this.
+ */
+void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
+             uint8_t far * dst)
+{
+    /* ES:DI, the row in the video aperture. */
+    uint8_t *di = dst;
+    uint8_t colour;
+
+    if (cx <= 0)
+        return;
+    if (ax & 0x00F0) {
+        vm_span_dithered(ax, bx, cx, dst);
+        return;
+    }
+
+    di += bx >> 3;
+    bx &= 7;
+    colour = (uint8_t)(ax & 0xFF);
+
+    if ((uint16_t)(bx + cx) < 8) {
+        uint8_t mask = (uint8_t)(g_mask_left[bx] & g_mask_right[(bx + cx) & 7]);
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+        vga_read((uint16_t)(di - g_vga_window));
+        vga_write((uint16_t)(di - g_vga_window), colour);
+        return;
+    }
+
+    /* The first, partial byte. */
+    cx = (int16_t)(cx - (int16_t)(8 - bx));
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (g_mask_left[bx] << 8)));
+    vga_read((uint16_t)(di - g_vga_window));
+    vga_write((uint16_t)(di - g_vga_window), colour);
+    di++;
+
+    /* The whole bytes between the two edges. */
+    uint16_t remaining = (uint16_t)cx;
+    uint16_t whole = (uint16_t)(remaining & 0xFFF8);
+    if (whole) {
+        whole >>= 3;
+        io_out16(PORT_GC_INDEX, 0xFF08);
+        while (whole--) {
+            vga_read((uint16_t)(di - g_vga_window));
+            vga_write((uint16_t)(di - g_vga_window), colour);
+            di++;
+        }
+    }
+
+    /* The last, partial byte. */
+    if (remaining & 7) {
+        io_out16(PORT_GC_INDEX,
+                 (uint16_t)(0x08 | (g_mask_right[remaining & 7] << 8)));
+        vga_read((uint16_t)(di - g_vga_window));
+        vga_write((uint16_t)(di - g_vga_window), colour);
+    }
+}
+
+/*
+ * VM.OVL VGA:0x03db
+ *
+ * **One destination row of a scaled bitmap**, and the reason `0x208f3` could
+ * not be written before it. The vector at DGROUP 0x43da; `0x208f3` calls it
+ * once per row with the registers set up by hand, which is why the arguments
+ * here read like a register list rather than a call:
+ *
+ *   ax  the plane size in bytes - one plane of the source bitmap
+ *   bp  DGROUP offset of the column table, already advanced past the left cut
+ *   di  the destination row's byte offset, out of the table at 0x3f82
+ *   dx  the destination x
+ *   cx  how many pixels to draw
+ *   ds:si  the source bitmap's pixels
+ *
+ * **The source has five planes, not four**, and the fifth is the mask
+ * `vm_build_mask_plane` builds - a bit set where the pixel is colour 0. `si` is
+ * advanced by `4 * plane_size` on entry so it points at that mask, and every
+ * plane is then reached by *subtracting* the plane size. A set mask bit means
+ * transparent and the pixel is skipped entirely, which is how a scaled sprite
+ * keeps its background.
+ *
+ * The planes come off in the order 3, 2, 1, 0 and go into two words - and the
+ * words are written back in that same order through map mask 8, 4, 2, 1. The
+ * pairing only looks arbitrary: it is one `mov ax, cs:[0x270]` covering two
+ * planes at a time, so the accumulator holds plane 3 in its low byte and plane
+ * 2 in its high byte, and the second word holds planes 1 and 0.
+ *
+ * **A byte of the destination is written once, when its eight bits are full.**
+ * `ror ch, 1` walks the bit within the byte and its carry out is the signal
+ * that the byte is complete; the accumulated planes go out under a bit mask
+ * that marks only the opaque pixels, so the transparent ones keep what was
+ * there. A mask of 0xFF needs no read - every bit is being replaced - and any
+ * other mask reads the byte first to load the latches. That read is the only
+ * reason it happens; the value is dropped.
+ *
+ * The row can end mid-byte, and then the tail is flushed at VGA:0x04c0 - the
+ * same four writes, without the `mask == 0` test and without advancing.
+ *
+ * The write mode this needs (mode 0, set/reset off, GC index left on the bit
+ * mask) is programmed by the caller and put back by `restore_write_mode`.
+ */
+void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
+                        uint8_t far * row,
+                        int16_t x, int16_t width,
+                        const uint8_t far * src)
+{
+    uint8_t *di    = row + (x >> 3);
+    const uint8_t *si = src + 4 * plane_size;       /* the mask */
+    uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
+    uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */
+    uint8_t  mask  = 0;                 /* cs:[0x274] */
+    int16_t  count = (int16_t)(width - 1);      /* cs:[0x26e] */
+    uint8_t  ch    = (uint8_t)(0x80 >> (x & 7));
+
+    for (;;) {
+        uint16_t col = (uint16_t)*coltab;
+        const uint8_t *at = si + (col >> 3);
+        uint8_t  cl  = (uint8_t)(0x80 >> (col & 7));
+        uint8_t  carry;
+
+        if ((*at & cl) == 0) {                          /* not transparent */
+            mask = (uint8_t)(mask | ch);
+
+            at -= plane_size;
+            if (*at & cl)
+                acc32 |= ch;
+            at -= plane_size;
+            if (*at & cl)
+                acc32 |= (uint16_t)(ch << 8);
+
+            at -= plane_size;
+            if (*at & cl)
+                acc10 |= ch;
+            at -= plane_size;
+            if (*at & cl)
+                acc10 |= (uint16_t)(ch << 8);
+        }
+
+        coltab++;
+
+        carry = (uint8_t)(ch & 1);
+        ch = (uint8_t)((ch >> 1) | (carry << 7));
+
+        if (!carry) {
+            /* 0x0463: still inside the byte, and `ja` leaves on zero. */
+            if (--count == 0)
+                break;
+            continue;
+        }
+
+        /* 0x046c: the byte is full. */
+        if (mask != 0) {
+            if (mask != 0xFF)
+                (void)vga_read((uint16_t)(di - g_vga_window));
+
+            io_out8(PORT_GC_DATA, mask);
+
+            io_out8(PORT_SEQ_DATA, 0x08);
+            vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc32 & 0xFF));
+            io_out8(PORT_SEQ_DATA, 0x04);
+            vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc32 >> 8));
+            io_out8(PORT_SEQ_DATA, 0x02);
+            vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc10 & 0xFF));
+            io_out8(PORT_SEQ_DATA, 0x01);
+            vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc10 >> 8));
+        }
+
+        di++;
+        acc32 = 0;
+        acc10 = 0;
+        mask  = 0;
+
+        if (--count <= 0)
+            return;
+    }
+
+    /* 0x04c0: the row ended mid-byte, so flush what has been gathered. */
+    (void)vga_read((uint16_t)(di - g_vga_window));
+    io_out8(PORT_GC_DATA, mask);
+
+    io_out8(PORT_SEQ_DATA, 0x08);
+    vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc32 & 0xFF));
+    io_out8(PORT_SEQ_DATA, 0x04);
+    vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc32 >> 8));
+    io_out8(PORT_SEQ_DATA, 0x02);
+    vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc10 & 0xFF));
+    io_out8(PORT_SEQ_DATA, 0x01);
+    vga_write((uint16_t)(di - g_vga_window), (uint8_t)(acc10 >> 8));
+}
+
+/*
+ * VM.OVL VGA:0x264 (and a second copy at VGA:0x990)
+ *
+ * One bit per pixel position within a byte. The blitter rotates this along the
+ * row rather than recomputing it.
+ */
+static const uint8_t g_bit_mask[8] = {
+    0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+};
+
+/*
+ * VM.OVL VGA:0x0938
+ *
+ * Draw a run of pixels along one scan line from a byte-per-pixel source. This
+ * is the main blitter: 117,575 calls while the title screen runs, and about
+ * 44% of every pixel the game writes.
+ *
+ * **Register arguments**, and one of them is a *flag*: the routine's first
+ * instruction is `jb 0x965`, so the carry flag on entry chooses the direction.
+ * Carry clear walks the destination left to right; carry set walks it right to
+ * left while the source still advances forwards, which is a horizontal flip.
+ * Both occur - 67,312 forward and 5,886 backward while the title screen runs.
+ * The direction flag is always clear, so `lodsb` always advances.
+ *
+ * One pixel per iteration, in write mode 2 with a single-bit mask rotated
+ * along the row: `ror ah,1 / adc di,0` moves to the next byte exactly when the
+ * bit wraps, with no compare. The graphics controller's *index* is written
+ * once outside the loop and only the data port is written per pixel.
+ *
+ * The source is a scratch buffer in DGROUP, not artwork in a file - the game
+ * composes the run first and blits it. Following a blit's source address will
+ * land on anonymous memory every time.
+ *
+ * `loop` decrements CX and tests, so a count of 0 draws 65536 pixels. That is
+ * transcribed as written.
+ */
+void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
+                 uint8_t far * dst, int32_t backwards)
+{
+    /* ES:DI, the row in the video aperture. */
+    uint8_t *di = dst + (bx >> 3);
+    uint8_t mask = g_bit_mask[bx & 7];
+
+    io_out8(PORT_GC_INDEX, 0x08);
+    do {
+        io_out8(PORT_GC_DATA, mask);
+        vga_read((uint16_t)(di - g_vga_window));
+        vga_write((uint16_t)(di - g_vga_window), *src++);
+        if (!backwards) {
+            uint8_t carry = (uint8_t)(mask & 1);
+            mask = (uint8_t)((mask >> 1) | (mask << 7));
+            di += carry;
+        } else {
+            uint8_t carry = (uint8_t)((mask >> 7) & 1);
+            mask = (uint8_t)((mask << 1) | (mask >> 7));
+            di -= carry;
+        }
+    } while (--cx);
+}
+
+/*
+ * VM.OVL VGA:0x0be6
+ *
+ * Fill a list of horizontal spans with one colour - about 24% of every pixel
+ * the game writes, from only 1,078 calls, so this is what paints large areas.
+ *
+ * The span list is a stream: a first row, a row count, and then one `x1, x2`
+ * pair per row. A pair whose `x2` is below its `x1` leaves that row alone,
+ * which is how a shape with a concave edge is described.
+ *
+ * The row table is reached in a way worth spelling out. The instruction is
+ * `mov di, [bp+di]`, and **BP-based addressing defaults to SS**, not DS - so
+ * the table is read through the *game's* stack segment, which is its DGROUP.
+ * The driver keeps the byte distance from DGROUP to its own data segment in
+ * `cs:[0x13c]` (0x3890 = (driver DS - DGROUP) * 16) and adds it to 0x6f2, so
+ * `SS:(0x6f2 + 0x3890)` is exactly `driverDS:0x6f2` - the same row table
+ * VGA:0x1561 uses. Measured: the entry for row 415 is 33,200, which is 415*80.
+ *
+ * The colour comes from `VGA:DS 0x0d`. A colour with any high nibble bit set
+ * takes a different, patterned path at VGA:0x0cd9, which is **not transcribed**
+ * - and is never taken: all 1,078 calls on the intro screens pass a colour
+ * whose high nibble is zero.
+ *
+ * Whole bytes go through `rep stosb` with the bit mask at 0xff and **no read**,
+ * because with every bit writable the latches cannot contribute. The partial
+ * bytes at each end do read first, to load them. That asymmetry is the
+ * original's and is transcribed rather than tidied.
+ */
+void vm_fill_spans(const uint8_t far * spans)
+{
+    uint8_t colour = g_vmds.fill_colour;
+    uint16_t y, rows;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+
+    y = (uint16_t)(spans[0] | (spans[1] << 8));
+    rows = (uint16_t)(spans[2] | (spans[3] << 8));
+    spans += 4;
+
+    if (colour & 0xF0) {
+        not_transcribed("VM.OVL VGA:0x0cd9, the patterned span fill");
+        return;
+    }
+
+    for (;;) {
+        uint16_t x1 = (uint16_t)(spans[0] | (spans[1] << 8));
+        uint16_t x2 = (uint16_t)(spans[2] | (spans[3] << 8));
+        int16_t  w  = (int16_t)(x2 - x1);
+        spans += 4;
+
+        if (w >= 0) {
+            uint16_t cx = (uint16_t)(w + 1);
+            uint8_t *di = vga_window_at(g_vmds.page_dst,
+                                (uint16_t)(g_vmds.row_offset[y] + (x1 >> 3)));
+            uint16_t bit = (uint16_t)(x1 & 7);
+
+            if (bit + cx < 8) {
+                uint8_t mask = (uint8_t)(g_mask_left[bit]
+                                         & g_mask_right[(bit + cx) & 7]);
+                io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+                vga_read((uint16_t)(di - g_vga_window));
+                vga_write((uint16_t)(di - g_vga_window), colour);
+            } else {
+                uint16_t tail;
+                cx = (uint16_t)(cx - (8 - bit));
+                io_out16(PORT_GC_INDEX,
+                         (uint16_t)(0x08 | (g_mask_left[bit] << 8)));
+                vga_read((uint16_t)(di - g_vga_window));
+                vga_write((uint16_t)(di - g_vga_window), colour);
+                di++;
+
+                tail = (uint16_t)(cx & 7);
+                cx >>= 3;
+                if (cx) {
+                    io_out8(PORT_GC_DATA, 0xFF);
+                    while (cx--) {
+                        vga_write((uint16_t)(di - g_vga_window), colour);
+                        di++;
+                    }
+                }
+                if (tail) {
+                    io_out8(PORT_GC_DATA, g_mask_right[tail]);
+                    vga_read((uint16_t)(di - g_vga_window));
+                    vga_write((uint16_t)(di - g_vga_window), colour);
+                }
+            }
+        }
+
+        if ((int16_t)--rows <= 0)
+            break;
+        y++;
+    }
+}
+
+/*
+ * VM.OVL VGA:0x0ec1
+ *
+ * Load `count` colours into the DAC starting at index `first`, from three
+ * bytes each of six-bit red, green and blue.
+ *
+ * It waits for vertical retrace before touching the DAC, which is what stops
+ * the palette changing mid-frame and tearing the colours. Then it reads the
+ * DAC state register: if the low two bits are not 3 the DAC is part way
+ * through a triple, and it writes one byte to nudge it - belt and braces,
+ * since the write to the index port that follows resets the component counter
+ * anyway.
+ *
+ * Interrupts are disabled around the transfer, so a handler cannot write the
+ * DAC in the middle of a colour.
+ *
+ * `loop` counts *bytes*, not colours - `count` is tripled on the way in.
+ */
+void vm_set_palette(const uint8_t *rgb, uint16_t first, uint16_t count)
+{
+    uint16_t bytes = (uint16_t)(count * 3);
+
+    while (!(io_in8(PORT_INPUT_ST1) & 0x08))
+        ;
+
+    /* One read, not two: the original reads the state register once, masks
+     * it, and writes that same value back if it is not 3. */
+    uint8_t state = (uint8_t)(io_in8(PORT_DAC_READ) & 3);
+    if (state != 3)
+        io_out8(PORT_DAC_DATA, state);
+
+    io_out8(PORT_DAC_WRITE, (uint8_t)first);
+    do {
+        io_out8(PORT_DAC_DATA, *rgb++);
+    } while (--bytes);
+}
+
+/*
+ * NOT a transcription: two lines that appear over and over in the routine
+ * below, factored out for readability. The original has no such helpers - it
+ * repeats the instructions - so they carry no address of their own.
+ */
+static void line_pixel(const uint8_t *di, uint8_t colour)
+{
+    vga_read((uint16_t)(di - g_vga_window));
+    vga_write((uint16_t)(di - g_vga_window), colour);
+}
+
+/*
+ * NOT a transcription either, for the same reason: set the bit mask.
+ */
+static void line_mask(uint8_t mask)
+{
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+}
+
+/*
+ * VM.OVL VGA:0x0998
+ *
+ * Draw a line. Reached through the vector at DGROUP 0x434e, with the endpoints
+ * in BX,CX to DX,SI and the destination page in ES.
+ *
+ * Four cases, chosen before any drawing: a single pixel, a horizontal run, a
+ * vertical run, and the general one - which splits again into an exact
+ * diagonal and the two major axes.
+ *
+ * The two major-axis cases are **not** Bresenham. They divide once to get a
+ * whole and a fractional step - `div` twice, the second with a zero dividend
+ * so it divides the remainder scaled by 0x10000 - and then draw a *run* of
+ * that many pixels per row, adding the fraction into an accumulator at
+ * VGA:DS 0x6c2 and lengthening the run by one whenever it carries. So a
+ * shallow line is drawn as horizontal runs, not pixel by pixel.
+ *
+ * The exact diagonal writes **two** pixels per step - the one to the side and
+ * the one below - so the line has no diagonal gaps. That is deliberate and is
+ * transcribed as written.
+ *
+ * The bit mask rotates along the row exactly as in `vm_blit_run`, with the
+ * byte pointer advancing when it wraps, and the mask table is a second copy of
+ * the one at VGA:0x264, here at VGA:0x990.
+ *
+ * Every write is preceded by a read that loads the latches; the mask is set
+ * with a 16-bit `out` to 0x3ce carrying index 8 and the mask together.
+ */
+void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
+{
+    uint8_t colour;
+    uint8_t mask;
+    uint8_t *di;
+    int16_t bp = 0x50;
+    int16_t run, rest;
+
+    /* Both are *stored*, not kept in registers, exactly as the original does. */
+    g_vmds.line_colour = g_vmds.second_colour;
+    g_vmds.line_mask = g_bit_mask[x1 & 7];
+    colour = (uint8_t)g_vmds.line_colour;
+    mask = g_vmds.line_mask;
+    di = vga_window_at(g_vmds.page_dst, (uint16_t)(g_vmds.row_offset[y1] + (uint16_t)(x1 >> 3)));
+
+    if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
+        line_mask(mask);
+        line_pixel(di, colour);
+        return;
+    }
+
+    if (x1 == x2) {                                 /* VGA:0x0a23, vertical */
+        int16_t n = (int16_t)(y2 - y1);
+        if (n <= 0) {
+            n = (int16_t)-n;
+            bp = (int16_t)-bp;
+        }
+        line_mask(mask);
+        for (;;) {
+            line_pixel(di, colour);
+            di += bp;
+            if (--n < 0)
+                return;
+        }
+    }
+
+    if (y1 == y2) {                                 /* VGA:0x09eb, horizontal */
+        int16_t n = (int16_t)(x2 - x1);
+        line_mask(mask);
+        line_pixel(di, colour);
+        for (;;) {
+            uint8_t carry = (uint8_t)(mask & 1);
+            mask = (uint8_t)((mask >> 1) | (mask << 7));
+            if (carry)
+                di++;
+            line_mask(mask);
+            line_pixel(di, colour);
+            if (--n == 0)
+                return;
+        }
+    }
+
+    /* VGA:0x0a50, the general case. */
+    {
+        int16_t ex = (int16_t)(x2 - x1);
+        int16_t ey = (int16_t)(y2 - y1);
+
+        if (ey <= 0) {
+            ey = (int16_t)-ey;
+            bp = (int16_t)-bp;
+        }
+
+        if (ey == ex) {                             /* VGA:0x0a6c, diagonal */
+            int16_t n = ex;
+            line_mask(mask);
+            line_pixel(di, colour);
+            for (;;) {
+                uint8_t carry = (uint8_t)(mask & 1);
+                mask = (uint8_t)((mask >> 1) | (mask << 7));
+                if (carry) {
+                    di++;
+                    line_mask(mask);
+                    line_pixel(di, colour);
+                    if (--n == 0)
+                        return;
+                    di += bp;
+                    vga_read((uint16_t)(di - g_vga_window));
+                    vga_write((uint16_t)(di - g_vga_window), colour);
+                } else {
+                    line_mask(mask);
+                    line_pixel(di, colour);
+                    di += bp;
+                    vga_read((uint16_t)(di - g_vga_window));
+                    vga_write((uint16_t)(di - g_vga_window), colour);
+                    if (--n == 0)
+                        return;
+                }
+            }
+        }
+
+        if ((uint16_t)ey < (uint16_t)ex) {          /* VGA:0x0ab2, x major */
+            rest = ex;
+            g_vmds.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
+            g_vmds.dda_frac = (uint16_t)(
+                ((uint32_t)((uint16_t)ex % (uint16_t)(ey + 1)) << 16)
+                / (uint16_t)(ey + 1));
+            g_vmds.dda_acc = 0;
+            line_mask(mask);
+            run = (int16_t)(g_vmds.dda_whole + 1);
+            line_pixel(di, colour);
+            for (;;) {
+                g_vmds.dda_saved = rest;
+                rest = (int16_t)(rest - run);
+                if (rest < 0) {
+                    run = g_vmds.dda_saved;
+                    rest = 0;
+                }
+                for (;;) {
+                    uint8_t carry = (uint8_t)(mask & 1);
+                    mask = (uint8_t)((mask >> 1) | (mask << 7));
+                    if (carry)
+                        di++;
+                    line_mask(mask);
+                    line_pixel(di, colour);
+                    if (--run == 0)
+                        break;
+                }
+                if (rest == 0)
+                    return;
+                di += bp;
+                vga_read((uint16_t)(di - g_vga_window));
+                vga_write((uint16_t)(di - g_vga_window), colour);
+                {
+                    uint32_t sum = (uint32_t)g_vmds.dda_acc + g_vmds.dda_frac;
+                    g_vmds.dda_acc = (uint16_t)sum;
+                    run = (int16_t)(g_vmds.dda_whole + (sum > 0xFFFF ? 1 : 0));
+                }
+            }
+        }
+
+        /* VGA:0x0b35, y major. */
+        rest = ey;
+        g_vmds.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
+        g_vmds.dda_frac = (uint16_t)(
+            ((uint32_t)((uint16_t)ey % (uint16_t)(ex + 1)) << 16)
+            / (uint16_t)(ex + 1));
+        g_vmds.dda_acc = 0;
+        line_mask(mask);
+        run = (int16_t)(g_vmds.dda_whole + 1);
+        line_pixel(di, colour);
+        for (;;) {
+            g_vmds.dda_saved = rest;
+            rest = (int16_t)(rest - run);
+            if (rest < 0) {
+                run = g_vmds.dda_saved;
+                rest = 0;
+            }
+            for (;;) {
+                /* The mask is set again for every pixel of the run, even
+                 * though a column cannot change it. The original does that
+                 * and the port has to, or the trace is half as long while
+                 * the pixels come out identical - which is exactly how this
+                 * was found. */
+                di += bp;
+                vga_read((uint16_t)(di - g_vga_window));
+                line_mask(mask);
+                vga_write((uint16_t)(di - g_vga_window), colour);
+                if (--run == 0)
+                    break;
+            }
+            if (rest == 0)
+                return;
+            {
+                uint8_t carry = (uint8_t)(mask & 1);
+                mask = (uint8_t)((mask >> 1) | (mask << 7));
+                if (carry)
+                    di++;
+                line_mask(mask);
+                line_pixel(di, colour);
+            }
+            {
+                uint32_t sum = (uint32_t)g_vmds.dda_acc + g_vmds.dda_frac;
+                g_vmds.dda_acc = (uint16_t)sum;
+                run = (int16_t)(g_vmds.dda_whole + (sum > 0xFFFF ? 1 : 0));
+            }
+        }
+    }
+}
+
+/*
+ * VM.OVL VGA:0x0f15
+ *
+ * Load a sixteen-colour palette into the DAC and keep a copy of it.
+ *
+ * A null segment does nothing at all - the routine returns before touching
+ * either the DAC or the copy.
+ *
+ * The copy is the odd part: the same 48 bytes are moved **twice**, into two
+ * consecutive 48-byte slots, by rewinding the source pointer by 0x30 between
+ * the two `rep movsw`. Sixteen colours of three bytes is exactly 48, so the
+ * destination holds two identical palettes side by side.
+ */
+void vm_load_palette(const uint8_t far * pal)
+{
+    uint8_t *di = g_vmds.palettes.blocks[0];
+    const uint8_t *si = pal;
+    int32_t i;
+
+    /* **The guard is on the segment alone**: `or ax,[bp+8]` with nothing of
+       the offset. A zero segment is a block that was never allocated, and
+       `pal` is then null. */
+    if (pal == NULL)
+        return;
+
+    vm_set_palette(pal, 0, 0x10);
+
+    /* Two `rep movsw` of 0x18 words, the source rewound by 0x30 between. */
+    for (i = 0; i < 0x30; i++)
+        *di++ = *si++;
+    si -= 0x30;
+    for (i = 0; i < 0x30; i++)
+        *di++ = *si++;
+}
+/*
+ * VM.OVL VGA:0x15d0
+ *
+ * Blit a band of chunky 4-bit pixels straight onto the page, converting to
+ * planes as it goes. This is how a screen file's pixels arrive: `0x23b29` reads
+ * a band into a buffer and hands it here, row after row, so a 320x200 picture
+ * never needs a 64 KB buffer.
+ *
+ * The conversion is the same as `vm_chunky_to_planar`: four source bytes -
+ * eight pixels, two to a byte, the high nibble first - rotated bit by bit into
+ * four registers that are then written to planes 0 to 3 at one address. What is
+ * different is the destination, which walks a page rather than a flat block:
+ * `0x50 - (w >> 3)` is added at the end of every row to step to the next.
+ *
+ * `x` is used only for its whole bytes - `x >> 3` - so this cannot place a band
+ * at a bit offset the way the structured blit can.
+ *
+ * It is one of the two places the driver patches its own code: the row count
+ * goes into cs:[0x15ce] and the two row figures into cs:[0x15ca] and
+ * cs:[0x15cc]. The port keeps them in locals, for the reason `vm_blit_bitmap`
+ * gives.
+ */
+void vm_blit_rows(const uint8_t far * src, int16_t x, int16_t y,
+                  int16_t w, int16_t h)
+{
+    /* The original normalises the source into a segment and a four-bit
+       offset so its 16-bit index cannot overflow - a huge pointer, which
+       the port's is. */
+    uint8_t *di = vga_window_at(g_vmds.page_dst,
+                        (uint16_t)(g_vmds.row_offset[y] + (uint16_t)(x >> 3)));
+    const uint8_t *si = src;
+    uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
+    uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
+    int16_t rows = h;                           /* cs:[0x15ce] */
+
+    io_out16(PORT_GC_INDEX, 0x0005);            /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);            /* bit mask: every bit */
+    io_out8(PORT_SEQ_INDEX, 0x02);              /* select the map mask */
+
+    for (;;) {
+        uint16_t n = across;
+
+        while (n != 0) {
+            uint8_t pl[4];                      /* pl[0]=bl .. pl[3]=ch */
+            int32_t k, bit;
+
+            pl[0] = pl[1] = pl[2] = pl[3] = 0;
+
+            for (k = 0; k < 4; k++) {
+                uint8_t b = *si++;
+
+                for (bit = 7; bit >= 0; bit--) {
+                    int32_t p = 3 - ((7 - bit) & 3);
+
+                    pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+                }
+            }
+
+            for (k = 0; k < 4; k++) {
+                io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
+                vga_write((uint16_t)(di - g_vga_window), pl[k]);
+            }
+
+            di++;
+            n--;
+        }
+
+        rows--;
+        if (rows <= 0)
+            break;
+
+        di += step;
+    }
+
+    io_out8(PORT_SEQ_DATA, 0x0f);               /* map mask: every plane */
+    io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);            /* function select: replace */
+}
+
+/*
+ * VM.OVL VGA:0x1707
+ *
+ * The **structured blit**: draw a planar bitmap with its mask. Nearly
+ * everything on these screens reaches the page through here. Reached by vector
+ * 0x43ba, and 3,782 bytes of hand-written assembly - 0x1707 to 0x25cc, the
+ * largest single routine in the original.
+ *
+ * It works in five passes over the bitmap. The first writes the *mask* into the
+ * Graphics Controller's bit-mask register a byte at a time and stores a zero
+ * through it, which clears the sprite's pixels in all four planes at once. Then
+ * four passes, one a plane, with read-map-select and map-mask set to that plane
+ * and the function set to OR, so each plane's bits drop into the hole the mask
+ * just made. Every write is preceded by a read, because that is what loads the
+ * latches the OR combines with.
+ *
+ * Shifting the bitmap to an x that is not a multiple of eight is done with
+ * `ror ax, cl` on a pair of bytes - the byte being drawn in AL and the previous
+ * byte's leftover in AH - which is the standard way to carry bits across a byte
+ * boundary on this machine. `cl` is `x & 7` throughout and AH is shifted down
+ * by `8 - cl` after each byte to line the leftover up for the next one.
+ *
+ * **Its parameters live in its own code segment**, at cs:0x25d5, and it pushes
+ * and pops seven of them around its work so it can be re-entered. The port uses
+ * ordinary locals: those words are inside the range tools/verify.py already
+ * excludes from the memory comparison, because the driver patches its own code
+ * and a C transcription has nowhere to patch.
+ *
+ * `mode` selects one of four bodies through a jump table at cs:0x25cd, and its
+ * low two bits are a vertical and a horizontal flip. **Only mode 0 - neither
+ * flip - is transcribed.** The other three are the same loops walking the
+ * source the other way; they are an abort rather than a guess.
+ */
+void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
+{
+    /* The planes and the mask, both in the segment the header names. */
+    const uint8_t *src     = MK_FP(bmp->data_seg, bmp->data_off);
+    const uint8_t *mask_at = MK_FP(bmp->data_seg, bmp->mask_off);
+    int16_t  w        = bmp->width;
+    int16_t  h        = bmp->height;
+
+    uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
+    uint16_t planestep = (uint16_t)((uint16_t)(mask_at - src) >> 2);  /* cs:[0x25d7] */
+    int16_t  rows     = h;                           /* cs:[0x25dd] */
+    uint8_t  cols     = (uint8_t)((w + 7) >> 3);     /* DH */
+    uint8_t  edge_right = 0, edge_left = 0;          /* cs:[0x25e2], [0x25e3] */
+    const uint8_t *si     = src;
+    const uint8_t *mask_p = mask_at;                 /* cs:[0x25db] */
+    uint8_t *di;
+    uint8_t  cl;
+    int16_t  plane;
+
+    di = vga_window_at(g_vmds.page_dst,
+               (uint16_t)(((y >= 0) ? g_vmds.row_offset[y] : (uint16_t)(y * 80))
+                          + (uint16_t)(x >> 3)));
+    cl = (uint8_t)(x & 7);
+
+    if ((mode & 1) != 0) {
+        uint16_t n = (uint16_t)((rows - 1) * rowbytes);
+
+        si += n;
+        mask_p += n;
+    }
+    if ((mode & 2) != 0) {
+        uint16_t n = (uint16_t)(rowbytes - 1);
+
+        si += n;
+        mask_p += n;
+    }
+
+    if (g_vmds.clip_enabled != 0) {
+        int16_t over;
+
+        /* off the right-hand edge */
+        over = (int16_t)(g_vmds.clip_right + 1 - (x + w));
+        if (over <= 0) {
+            over = (int16_t)(-over);
+            if (over >= w)
+                goto done;
+            cols = (uint8_t)(cols - (uint8_t)(over >> 3));
+            edge_right = 1;
+        }
+
+        /* off the left-hand edge */
+        over = (int16_t)(x - g_vmds.clip_left);
+        if (over < 0) {
+            int16_t bx = over;
+
+            if ((int16_t)(over + w) <= 0)
+                goto done;
+            edge_left = 1;
+            bx = (int16_t)((-bx + 7) >> 3);
+            cols = (uint8_t)(cols - (uint8_t)bx);
+            di += bx;
+            if ((mode & 2) != 0)
+                bx = (int16_t)(-bx);
+            si += bx;
+            mask_p += bx;
+        }
+
+        /* off the bottom */
+        over = (int16_t)(y + h - g_vmds.clip_bottom);
+        if (over > 0) {
+            if (over >= h)
+                goto done;
+            over--;
+            rows = (int16_t)(rows - over);
+        }
+
+        /* off the top */
+        over = (int16_t)(g_vmds.clip_top - y);
+        if (over >= 0) {
+            int32_t n;
+
+            if (over >= h)
+                goto done;
+            rows = (int16_t)(rows - over);
+            di += over * 80;
+            n = (uint16_t)((uint8_t)over * (uint8_t)rowbytes);
+            if ((mode & 1) != 0)
+                n = -n;
+            si += n;
+            mask_p += n;
+        }
+    }
+
+    if (mode != 0)
+        not_transcribed("VGA:0x1707 with a flip - modes 1, 2 and 3");
+
+
+    /* ------------------------------------------------ the mask, all planes */
+    {
+        const uint8_t *p = mask_p;
+        uint8_t *d = di;
+        int16_t row;
+
+        io_out8(PORT_GC_INDEX, 0x08);        /* select the bit mask */
+
+        for (row = rows; row != 0; row--) {
+            const uint8_t *sp = p;
+            uint8_t *dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint8_t al;
+
+            if ((edge_left & 1) != 0) {
+                ah = (uint8_t)~sp[-1];
+                if (ch == 0)
+                    goto mask_spill;
+            }
+
+            while (ch != 0) {
+                uint16_t both;
+
+                al = (uint8_t)~*sp;
+                sp++;
+                both = (uint16_t)((ah << 8) | al);
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                al = (uint8_t)both;
+                ah = (uint8_t)(both >> 8);
+
+                io_out8(PORT_GC_DATA, al);
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), 0);
+                dp++;
+
+                ah = (uint8_t)(ah >> (8 - cl));
+                ch--;
+            }
+
+            if ((edge_right & 1) != 0)
+                goto mask_next;
+
+        mask_spill:
+            {
+                uint16_t both = (uint16_t)(ah << 8);
+
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), 0);
+            }
+
+        mask_next:
+            p += rowbytes;
+            d += 0x50;
+        }
+
+        io_out8(PORT_GC_DATA, 0xff);         /* every bit writable again */
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0005);         /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0x1003);         /* function select: OR */
+
+    /* --------------------------------------------- and then the four planes */
+    for (plane = 0; plane < 4; plane++) {
+        const uint8_t *p = si;
+        uint8_t *d = di;
+        int16_t row;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | ((1 << plane) << 8)));
+
+        for (row = rows; row != 0; row--) {
+            const uint8_t *sp = p;
+            uint8_t *dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint8_t al;
+
+            if ((edge_left & 1) != 0) {
+                ah = sp[-1];
+                if (ch == 0)
+                    goto plane_spill;
+            }
+
+            while (ch != 0) {
+                uint16_t both;
+
+                al = *sp;
+                sp++;
+                both = (uint16_t)((ah << 8) | al);
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                al = (uint8_t)both;
+                ah = (uint8_t)(both >> 8);
+
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), al);
+                dp++;
+
+                ah = (uint8_t)(ah >> (8 - cl));
+                ch--;
+            }
+
+            if ((edge_right & 1) != 0)
+                goto plane_next;
+
+        plane_spill:
+            {
+                uint16_t both = (uint16_t)(ah << 8);
+
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), (uint8_t)both);
+            }
+
+        plane_next:
+            p += rowbytes;
+            d += 0x50;
+        }
+
+        si += planestep;
+    }
+
+    /*
+     * The epilogue, and the label the clipped-out paths jump to. Those `jmp`s
+     * land *inside* it rather than at a return, so a blit that is entirely off
+     * the edge still puts these three registers back - which is observable, and
+     * was the one thing the port got wrong here.
+     */
+done:
+    io_out16(PORT_GC_INDEX, 0x0205);         /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);         /* function select: replace */
+    io_out16(PORT_SEQ_INDEX, 0x0f02);        /* map mask: every plane */
+}
+
+/*
+ * VM.OVL VGA:0x271b
+ *
+ * **Draw a bitmap with no mask**: clear its rectangle, then OR its four planes
+ * into the hole. Reached by vector 0x43ca, from `draw_bitmap`'s 0xfffd marker,
+ * with three arguments where the structured blit at VGA:0x1707 takes four.
+ * Nothing in it scales anything; the name is from the marker `load_bitmaps`
+ * sets for a "BMP:SCL:" chunk, and is ours.
+ *
+ * It is 0x1707's shape without the mask or the flips. The header's five words
+ * are copied into the frame; `rowbytes` is `w >> 3`, a plane is `rowbytes *
+ * h` bytes - an 8-bit `mul` of the low bytes - and the destination is
+ * `row_offset[y] + (x >> 3)` with `x & 7` the shift. Clipping trims columns,
+ * rows and the start against the driver's box, each test as the original
+ * writes it: `jg` after `sub` and `jl` after `cmp` are signed compares, `js`
+ * and `jns` are the 16-bit result's sign, and `jg` after `add` is the true sum.
+ *
+ * **Two numbers are 40 where 0x1707 has 80.** A negative `y` starts at
+ * `y*8 + y*32`, and a top clip of `a` rows moves the start by `a*8 + a*32` -
+ * one shift fewer than 0x1707's `y*16 + y*64` - while both routines step 0x50
+ * a row. That is what the instructions compute; it is kept.
+ *
+ * Then the passes. **The first clears the whole rectangle**: the bit mask is
+ * the constant 0xff carried across bytes with `ror ax,cl`, and a 0 is written
+ * through it, a read before each write to load the latches. Where 0x1707 walks
+ * its mask here, this walks nothing - it loads SI from **BP**. So with the
+ * left edge clipped the leftover bits come from the byte at bitmap
+ * segment:`BP - 1`, the original's frame pointer used as an offset, which the
+ * port does not have: that one branch aborts rather than invent a byte.
+ * **Then four passes, one a plane** - function OR, map mask 1, 2, 4 and 8 -
+ * each copying the rows with the same carry and a read before each write, the
+ * source moving on a plane's worth between passes. The first pass counts rows
+ * in a byte and the four plane passes in BP, a word, so a row count of 0 is
+ * 256 in one and 65,536 in the others; both are kept.
+ *
+ * The `je` at 0x27b2 follows `xor ax,ax` with only two `mov`s between, so it is
+ * always taken and 0x27b4..0x27b9 - moving the source to the row's last byte,
+ * 0x1707's horizontal flip - cannot run. Every path, a fully clipped one
+ * included, leaves through 0x2ac2: write mode 2, function 0, every plane.
+ *
+ * Reached only through a bitmap marked 0xfffd, which a "BMP:SCL:" chunk sets
+ * and none of the 162 extracted resources carries. Nothing has run this.
+ */
+void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
+{
+    /* [bp-0xa] -> cs:[0x2ae1] and [bp-8], the header's pair */
+    const uint8_t *si  = MK_FP(bmp->data_seg, bmp->data_off);
+    int16_t  w         = bmp->width;                            /* [bp-4] */
+    int16_t  h         = bmp->height;                           /* [bp-2] */
+    uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */
+    uint16_t planestep = (uint16_t)((uint8_t)rowbytes * (uint8_t)h);   /* cs:[0x2adf] */
+    uint8_t  cols      = (uint8_t)((uint16_t)(w + 7) >> 3);     /* DH */
+    uint8_t  rows      = (uint8_t)h;                            /* cs:[0x2ae5] */
+    uint8_t  edge_right = 0, edge_left = 0;                     /* cs:[0x2ae3], [0x2ae4] */
+    uint8_t  cl        = (uint8_t)(x & 7);
+    uint8_t *di;
+    int16_t  plane;
+
+    {
+        uint16_t row;
+
+        if ((int16_t)((uint16_t)y << 1) >= 0)
+            row = g_vmds.row_offset[(uint16_t)y];
+        else
+            row = (uint16_t)((uint16_t)y * 40u);                /* y*8 + y*32 */
+        di = vga_window_at(g_vmds.page_dst, (uint16_t)(row + (uint16_t)(x >> 3)));
+    }
+
+    if (g_vmds.clip_enabled != 0) {
+        int16_t a, b;
+
+        /* off the right-hand edge */
+        a = (int16_t)(g_vmds.clip_right + 1);
+        b = (int16_t)(x + w);
+        if (!(a > b)) {
+            a = (int16_t)(b - a);                               /* `neg` */
+            if (!(a < w))
+                goto done;
+            cols = (uint8_t)(cols - (uint8_t)((uint16_t)a >> 3));
+            edge_right = 1;
+        }
+
+        /* off the left-hand edge */
+        a = (int16_t)(x - g_vmds.clip_left);
+        if (a < 0) {
+            uint16_t bx;
+
+            if (!((int32_t)a + (int32_t)w > 0))
+                goto done;
+            edge_left = 1;
+            bx = (uint16_t)((uint16_t)(-(uint16_t)a + 7) >> 3);
+            cols = (uint8_t)(cols - (uint8_t)bx);
+            di += bx;
+            si += bx;
+        }
+
+        /* off the bottom */
+        a = (int16_t)(y + h - g_vmds.clip_bottom);
+        if (a >= 0) {
+            if (!((int16_t)(a - h) < 0))
+                goto done;
+            rows = (uint8_t)(rows - (uint8_t)((uint8_t)a - 1));
+        }
+
+        /* off the top */
+        a = (int16_t)(g_vmds.clip_top - y);
+        if (a >= 0) {
+            if (!((int16_t)(a - h) < 0))
+                goto done;
+            rows = (uint8_t)(rows - (uint8_t)a);
+            di += (uint16_t)a * 40u;                            /* a*8 + a*32 */
+            si += (uint16_t)((uint8_t)a * (uint8_t)rowbytes);
+        }
+    }
+
+    /* ------------------------------------- clear the rectangle, all planes */
+    if (edge_left != 0)
+        not_transcribed("VGA:0x271b clipped on the left: its first pass takes the "
+                        "carry from bitmap segment:BP-1, the original's frame "
+                        "pointer as an offset");
+    {
+        uint8_t *d = di;
+        uint8_t r = rows;
+
+        io_out8(PORT_GC_INDEX, 0x08);                           /* the bit mask */
+        do {
+            uint8_t *dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint32_t both;
+
+            do {
+                both = (uint32_t)((uint16_t)(ah << 8) | 0xff);
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), 0);
+                dp++;
+                ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
+            } while (--ch != 0);
+
+            if (edge_right == 0) {
+                both = (uint32_t)(uint16_t)(ah << 8);
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), 0);
+            }
+
+            d += 0x50;
+        } while (--r != 0);
+
+        io_out8(PORT_GC_DATA, 0xff);
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0005);                            /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0x1003);                            /* function OR */
+    io_out16(PORT_GC_INDEX, 0xff08);                            /* bit mask: every bit */
+
+    /* --------------------------------------------------- one pass a plane */
+    for (plane = 0; plane < 4; plane++) {
+        const uint8_t *s0 = si;
+        uint8_t *d = di;
+        uint16_t count = rows;                                  /* BP */
+
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(((uint16_t)1 << plane) << 8 | 0x02));
+
+        do {
+            const uint8_t *s = s0;
+            uint8_t *dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint32_t both;
+
+            if (edge_left != 0) {
+                ah = s[-1];
+                if (ch == 0)
+                    goto spill;
+            }
+
+            do {
+                both = (uint32_t)((uint16_t)(ah << 8) | *s);
+                s++;
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                (void)vga_read((uint16_t)(dp - g_vga_window));
+                vga_write((uint16_t)(dp - g_vga_window), (uint8_t)both);
+                dp++;
+                ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
+            } while (--ch != 0);
+
+            if (edge_right != 0)
+                goto next;
+        spill:
+            both = (uint32_t)(uint16_t)(ah << 8);
+            both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+            (void)vga_read((uint16_t)(dp - g_vga_window));
+            vga_write((uint16_t)(dp - g_vga_window), (uint8_t)both);
+        next:
+            s0 += rowbytes;
+            d += 0x50;
+        } while (--count != 0);
+
+        si += planestep;
+    }
+
+done:
+    io_out16(PORT_GC_INDEX, 0x0205);                            /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);                            /* function replace */
+    io_out16(PORT_SEQ_INDEX, 0x0f02);                           /* map mask: every plane */
+}
+

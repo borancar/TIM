@@ -1,5 +1,5 @@
 /* The OPL3 behind opl.h, over ymfm. See opl.h for why this is not
- * transcribed, and ../vendor/README.md for what ymfm is and its licence.
+ * transcribed, and ../../vendor/README.md for what ymfm is and its licence.
  *
  * This is the ONLY C++ in the reconstruction, and it is here only because
  * ymfm is C++. It holds no game logic and no decisions - every line is
@@ -7,7 +7,7 @@
  */
 #include "opl.h"
 
-#include "../vendor/ymfm/ymfm_opl.h"
+#include "../../vendor/ymfm/ymfm_opl.h"
 
 namespace {
 

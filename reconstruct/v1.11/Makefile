@@ -30,7 +30,7 @@ CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-add
 
 # **The reconstruction is C. The one exception is the OPL2**, because ymfm is
 # C++ - see src/opl.h for why an OPL2 is not transcribed at all, and
-# vendor/README.md for what ymfm is and its licence. The same arrangement as
+# ../vendor/README.md for what ymfm is and its licence. The same arrangement as
 # the Lemmings port, deliberately: one C boundary, one C++ file behind it.
 # Vendored code is compiled without this project's warnings, because they are
 # this project's rules and not its author's.
@@ -63,11 +63,14 @@ PORT := hostio.c hostlib.c
 
 # The OPL2 and the ymfm units it needs. ymfm_opl.cpp pulls in the other three
 # through its templates even though a YM3812 has no ADPCM, PCM or SSG in it.
-OPL_SRC := $(SRC)/opl_ymfm.cpp \
-           vendor/ymfm/ymfm_opl.cpp vendor/ymfm/ymfm_adpcm.cpp \
-           vendor/ymfm/ymfm_pcm.cpp vendor/ymfm/ymfm_ssg.cpp
-OPL_OBJ := $(OPL_SRC:.cpp=.o)
-OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
+#
+# ymfm is shared by both versions' trees, in ../vendor; its objects are built
+# here, under vendor/, so the two builds never write the same file.
+VENDOR  := ../vendor
+YMFM    := ymfm/ymfm_opl ymfm/ymfm_adpcm ymfm/ymfm_pcm ymfm/ymfm_ssg
+OPL_SRC := $(SRC)/opl_ymfm.cpp $(YMFM:%=$(VENDOR)/%.cpp)
+OPL_OBJ := $(SRC)/opl_ymfm.o $(YMFM:%=vendor/%.o)
+OPL_PIC := $(SRC)/opl_ymfm.pic.o $(YMFM:%=vendor/%.pic.o)
 
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
 # `hostio.c` calls dev_flip_dump on every page flip whatever it is linked into, so
@@ -153,6 +156,14 @@ compile_commands:
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.pic.o: %.cpp
+	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
+
+vendor/%.o: $(VENDOR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+vendor/%.pic.o: $(VENDOR)/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
 
 # `-rdynamic` puts the port's own symbols in the dynamic table, which is what
@@ -264,7 +275,7 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 SED_STRIP_COMMENTS = sed -z -e 's|/\*[^\x00]*\?\*/||g' -e 's|//[^\n]*||g'
 
 test: devtim tim debug
-	uv run python tests/provenance.py $(GAME)
+	uv run python ../tests/provenance.py $(GAME)
 	@for f in $(DEVFLAGS); do \
 	    if grep -aq "$$f" tim; then \
 	        echo "FAIL: the shipping binary carries $$f"; exit 1; \
@@ -296,8 +307,8 @@ test: devtim tim debug
 	@# `check_solutions` still stands - this does not exercise the loop's
 	@# input or presentation - but a physics or part-record change that
 	@# breaks a level now fails `make test` instead of an hour later.
-	@cd .. && uv run python tools/check_solutions.py --simulate > /dev/null || { \
-	    echo "FAIL: a solution no longer solves under simulation - run tools/check_solutions.py --simulate"; exit 1; }
+	@cd ../.. && TIM_VERSION=1.11 uv run python tools/check_solutions.py --simulate > /dev/null || { \
+	    echo "FAIL: a solution no longer solves under simulation - run TIM_VERSION=1.11 tools/check_solutions.py --simulate"; exit 1; }
 	@echo "every solution solves under simulation"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,

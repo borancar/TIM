@@ -1,0 +1,1145 @@
+/*
+ * The Incredible Machine - reconstruction
+ *
+ * Transcribed from the binary `TIM.EXE` of The Incredible Machine
+ * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
+ *
+ * **Levels and settings on disk**: reading and writing a level or a machine,
+ * counting the levels, a puzzle's title, the passwords, and `tim.cfg`.
+ *
+ * The sixth module of the original's **code segment 0dff**, image
+ * 0x11d00..0x12c26. Its data is its literal pool alone, DGROUP
+ * 0x2870..0x28d2, and its uninitialised data is DGROUP 0x546c..0x547a.
+ * Functions are in address order and each carries the image offset it was
+ * read from.
+ *
+ * JUDGE: compiler bc3.00
+ * JUDGE: built-with -mm
+ * JUDGE: data 0x2870..0x28d1
+ */
+#include <string.h>
+#ifdef __TURBOC__
+#include <stdlib.h>
+#else
+#include "hostlib.h"
+#endif
+#include "tim.h"
+#include "hostio.h"
+#include "dgroup.h"
+
+/* The level reader's and writer's own words - see `struct level_io`. */
+struct level_io g_level_io;   /* DGROUP 0x546c */
+
+/*
+ * 0x11d00
+ *
+ * **A part's index among all parts**, which is how the machine file refers to
+ * one: a pointer means nothing to a reload, so every reference is written as the
+ * position the part has in the walk `pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST))` makes.
+ *
+ * A null part answers 0xffff, and that is the file's "no part here".
+ *
+ * **A part that is not found answers the count**, because the loop ends the same
+ * way whether it found the part - which sets `si` to zero to break out - or ran
+ * off the end, and the index is whatever the counter reached. So a reference to
+ * something outside the walk is written as one past the last part rather than
+ * as an error. Nothing here checks for it, and this is transcribed as it is
+ * rather than made to answer 0xffff, because a reload that trips over it is
+ * behaviour the original has.
+ */
+uint16_t part_index(struct part *part)
+{
+    register struct part *si;
+    register uint16_t n;
+
+    if (part == NULL)
+        return 0xffff;
+
+    n = 0;
+    si = pick_by_flag((TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST));
+    while (si != NULL) {
+        if (si == part) {
+            si = NULL;
+        } else {
+            si = pick_for_record(si, TRAIT_IN_MOVING_LIST);
+            n++;
+        }
+    }
+
+    return n;
+}
+
+/*
+ * 0x11d44
+ *
+ * Look a word up in the table that the **far** pointer at DGROUP 0x546c points
+ * at, or answer 0 for the index -1. The table is outside DGROUP - it is in a
+ * block DOS handed the program - which is why the port models the guest's
+ * whole address space rather than only its data segment.
+ */
+struct part *part_by_index(int16_t index)
+{
+    if (index == -1)
+        return 0;
+    else
+        return PART_TABLE->part[index];
+}
+
+/*
+ * 0x11d66
+ *
+ * Make room for `n` parts: a far block of `n * 4` bytes from DOS for the table
+ * at DGROUP 0x546c, and then `n` records of 0xa2 bytes off the near heap, one
+ * put in each of its slots.
+ *
+ * The table is a **far** array of near pointers - four bytes an entry where the
+ * pointer is two - and the game reaches it through `part_by_index`, which
+ * is what makes a part number into a record. Two bytes of every four are not
+ * written here and are whatever DOS left in the block. The size is written
+ * `2 * sizeof(struct part *)` an entry, which is the image's four under
+ * Borland C++ and leaves the host room for its wider pointers.
+ */
+void alloc_part_table(register int16_t n)
+{
+    register int16_t si;
+
+    g_level_io.table = dos_alloc_bytes((uint16_t)(n * (2 * sizeof(struct part *))), 0);
+
+    for (si = 0; si < n; si++)
+        PART_TABLE->part[(uint16_t)si] =
+            (calloc_far(1, sizeof(struct part)));
+}
+
+/*
+ * 0x11db4
+ *
+ * Read one byte: `game_fread(buf, 1, 1, file)`, with the file first and the
+ * buffer second - the same order round as `game_fread_far` beside it.
+ *
+ * It **answers what `fread` answered**, falling through with it in AX rather
+ * than discarding it, which is how `read_line` below tells an empty line from
+ * the end of the file.
+ */
+uint16_t game_fread_byte(FILE *file, uint8_t * buf)
+{
+    return game_fread(buf, 1, 1, file);
+}
+
+/*
+ * 0x11dd1
+ *
+ * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
+ * arguments the other way round from `fread`'s own - the file first and the
+ * buffer second.
+ */
+void game_fread_far(FILE *file, uint8_t * buf)
+{
+    game_fread(buf, 2, 1, file);
+}
+
+/*
+ * 0x11dec
+ *
+ * Read a null-terminated string, a byte at a time, and **including** the null:
+ * the loop reads first and tests afterwards, so the terminator is stored before
+ * the test that stops on it. The buffer has to be big enough for the string the
+ * file happens to hold; nothing here bounds it.
+ */
+void game_fread_string(FILE *file, char *buf)
+{
+    /* A reference the compiler counts and emits nothing for. Without a
+       second one Borland's weighting leaves `file` on the stack; the image
+       has it in DI, so the original's source named it twice. */
+    (void)file;
+    while (game_fread_byte(file, (uint8_t *)buf), *buf)
+        buf++;
+}
+
+/*
+ * 0x11e0b
+ *
+ * **Read one line.** Bytes into the buffer until a `\n` is seen, and then the
+ * terminator goes at **`[si - 1]`** - over the byte *before* the newline, not
+ * over the newline. That is not an off-by-one: the file has DOS line endings,
+ * so the byte before the `\n` is the `\r`, and one store removes both.
+ *
+ * A file with Unix endings would therefore lose the last character of every
+ * line. Nothing here checks.
+ *
+ * The very first read is the only one whose answer is looked at, and a zero
+ * there - end of file - writes an empty string. So a caller loops until the
+ * line comes back empty, and cannot tell that from a blank line in the file.
+ * A blank line is also where the `[si - 1]` store writes one byte *below* the
+ * buffer, because there is no `\r` in front of the `\n` to absorb it.
+ */
+void game_fread_line(FILE *file, char *buf)
+{
+    register char *si = buf;
+
+    if (game_fread_byte(file, (uint8_t *)si) != 0) {
+        while (*si != '\n') {
+            si++;
+            game_fread_byte(file, (uint8_t *)si);
+        }
+        si[-1] = 0;
+    } else {
+        *si = 0;
+    }
+}
+
+/*
+ * 0x11e3f
+ *
+ * Read one part out of a .gkc. `rec` is one of the 0xa2-byte records
+ * `alloc_part_table` made in advance; this fills it from the file and then
+ * hands it to its kind's own setup, so a part read off disk ends in the same
+ * state as one `make_part` built.
+ *
+ * Most of it is a flat run of two-byte field reads, with four fields copied
+ * from another rather than read - +8 from +0x94, +0x0c from +0x90, +0x12 from
+ * +0x92, and the pair +0x42/+0x40 from +0x46/+0x44, which is the same "current
+ * position becomes the previous one" that `make_part` ends with.
+ *
+ * Three things are not flat:
+ *
+ *  - **The belt.** A non-zero word read just before +0x56 means the part
+ *    carries one: 0x38 bytes off the near heap at +0x54, whose +2 points back
+ *    at the part and whose +4 and +6 are the two parts it ties together, each
+ *    stored in the file as a part number and resolved through
+ *    `part_by_index`. Each end that exists is pointed back at the belt
+ *    through its own +0x54.
+ *
+ *  - **Two ropes**, at +0x66 and +0x68. Each one present is 0x2c bytes off the
+ *    near heap naming the two parts it runs between - at +2 and +4, copied
+ *    again to +6 and +8 - and, in the bytes at +0x0a and +0x0b, which of each
+ *    part's two rope slots it occupies, those two also copied to +0x0c and
+ *    +0x0d. Each of those parts is pointed back at the rope through that slot.
+ *    The pair of slot bytes is read into the part at +0x6a + 2i and +0x6b + 2i
+ *    first, and the rope's own copies are read separately afterwards.
+ *
+ *  - **The version gate**, the word at DGROUP 0x5474. From 0x101 the file
+ *    carries the field at +0x0a and four more part numbers into +0x62..+0x68;
+ *    below it, a count and that many pairs of bytes are read and dropped on
+ *    the floor. Either way the first two slots at +0x5a and +0x5c are read,
+ *    and each is stored **twice**, into +0x5e and +0x60 as well.
+ *
+ * Kind 7 gets one extra part number, and takes that part's first rope as its
+ * own second.
+ *
+ * The last two fields are not read at all: the count at +0x80 comes from the
+ * kind's record at DGROUP 0xec4 + 0x3a * kind and the slots at +0x82 are
+ * allocated from it, exactly as `part_init` does, before the far pointer at
+ * +0x2a of the same record runs.
+ */
+void read_record_fields(FILE *file, register struct part *rec)
+{
+    int16_t has_belt;                   /* [bp-2] */
+    int16_t has_rope;                   /* [bp-4] */
+    int16_t index;                      /* [bp-6] */
+    int16_t skip_count;                 /* [bp-8] */
+    int16_t i;                          /* [bp-0xa] */
+    uint8_t skip;                       /* [bp-0xb] */
+    struct belt *belt;                  /* [bp-0xe] */
+    struct part *pulley;                    /* [bp-0x10] */
+    struct rope *di;
+
+    game_fread_far(file, (uint8_t *)&rec->kind);
+    game_fread_far(file, (uint8_t *)&rec->traits);
+    game_fread_far(file, (uint8_t *)&rec->start_state);
+    rec->state = rec->start_state;
+
+    if (g_level_io.version >= 0x101)
+        game_fread_far(file, (uint8_t *)&rec->traits2);
+
+    game_fread_far(file, (uint8_t *)&rec->start_form);
+    rec->form = rec->start_form;
+
+    game_fread_far(file, (uint8_t *)&rec->start_direction);
+    rec->direction = rec->start_direction;
+
+    game_fread_far(file, (uint8_t *)&rec->size[0].width);
+    game_fread_far(file, (uint8_t *)&rec->size[0].height);
+    rec->flip_size = rec->size[0];
+
+    game_fread_far(file, (uint8_t *)&rec->set_size.width);
+    game_fread_far(file, (uint8_t *)&rec->set_size.height);
+    game_fread_far(file, (uint8_t *)&rec->start_x);
+    game_fread_far(file, (uint8_t *)&rec->start_y);
+    game_fread_far(file, (uint8_t *)&rec->kind_state);
+
+    game_fread_far(file, (uint8_t *)&has_belt);
+    game_fread_byte(file, &rec->grab.x);
+    game_fread_byte(file, &rec->grab.y);
+    game_fread_far(file, (uint8_t *)&rec->grab_size);
+
+    if (has_belt != 0) {
+        belt = (rec->belt = (calloc_far(1, sizeof(struct belt))));
+        belt->owner = rec;
+
+        game_fread_far(file, (uint8_t *)&index);
+        belt->end_a = part_by_index(index);
+
+        game_fread_far(file, (uint8_t *)&index);
+        belt->end_b = part_by_index(index);
+
+        if (belt->end_a != 0)
+            belt->end_a->belt = belt;
+
+        if (belt->end_b != 0)
+            belt->end_b->belt = belt;
+    }
+
+    for (i = 0; i < 2; i++) {
+        game_fread_far(file, (uint8_t *)&has_rope);
+        game_fread_byte(file, &rec->attach[i].x);
+        game_fread_byte(file, &rec->attach[i].y);
+
+        if (has_rope == 0)
+            continue;
+
+        di = (rec->rope[i] = (calloc_far(1, sizeof(struct rope))));
+        rec->rope[i]->owner = rec;
+
+        game_fread_far(file, (uint8_t *)&index);
+        di->end_a = part_by_index(index);
+        di->home_a = di->end_a;
+
+        game_fread_far(file, (uint8_t *)&index);
+        di->end_b = part_by_index(index);
+        di->home_b = di->end_b;
+
+        game_fread_byte(file, &di->slot_a);
+        di->home_slot_a = di->slot_a;
+        game_fread_byte(file, &di->slot_b);
+        di->home_slot_b = di->slot_b;
+
+        if (di->end_a != 0)
+            di->end_a->rope[di->slot_a] = di;
+
+        if (di->end_b != 0)
+            di->end_b->rope[di->slot_b] = di;
+    }
+
+    for (i = 0; i < 2; i++) {
+        game_fread_far(file, (uint8_t *)&index);
+        rec->link[i] = rec->link[i + 2] = part_by_index(index);
+    }
+
+    if (g_level_io.version >= 0x101) {
+        for (i = 4; i < 6; i++) {
+            game_fread_far(file, (uint8_t *)&index);
+            rec->link[i] = part_by_index(index);
+        }
+    }
+
+    if (rec->kind == KIND_PULLEY) {
+        game_fread_far(file, (uint8_t *)&index);
+        if ((pulley = part_by_index(index)) != 0)
+            rec->rope[1] = pulley->rope[0];
+    }
+
+    if (g_level_io.version <= 0x101) {
+        game_fread_far(file, (uint8_t *)&skip_count);
+        if (skip_count != 0) {
+            for (i = 0; i < skip_count; i++) {
+                game_fread_byte(file, &skip);
+                game_fread_byte(file, &skip);
+            }
+        }
+    }
+
+    rec->point_count = g_part_kinds[rec->kind].point_count;
+
+    if (rec->point_count != 0)
+        rec->points = (calloc_far(rec->point_count, 4));
+
+    g_part_kinds[rec->kind].setup(rec);
+}
+
+/*
+ * 0x1221b
+ *
+ * Read `n` things out of the file and put them on a list.
+ *
+ * DGROUP 0x5470 counts them, and each one's number is turned into its record by
+ * `part_by_index` before being read into - so the records were made in
+ * advance by `alloc_part_table` and this only fills them. `insert_sorted` puts
+ * each on the list the caller named.
+ *
+ * **Only two of the three lists are sorted at all.** `insert_sorted` knows
+ * 0x50d7 and 0x5179 and compares nothing for any other head, inserting at the
+ * front - and the machine's own parts go on **0x521b**. So that list comes back
+ * in exactly the *reverse* of the order the file holds, and writing it head
+ * first emits the reverse again.
+ *
+ * That is measured, not inferred: a machine loaded and saved differs from the
+ * file it came from in 280 of 740 bytes, and walking both by the record flags
+ * gives kinds `15 39 2 5 2 2 2 50 21 1 1 3 8` in the file against
+ * `8 3 1 1 21 50 2 2 2 5 2 39 15` in the save - the same parts, exactly turned
+ * around. An earlier version of this comment said the lists "come out in the
+ * order the file's contents demand", which is true of the two sorted ones and
+ * false of this one.
+ *
+ * The list head is cleared first, both words of it.
+ */
+void read_list(FILE *file, register struct part *head, int16_t n)
+{
+    struct part *list = head;           /* [bp-2] */
+    struct part *rec;                   /* [bp-4] */
+    int16_t di;
+
+    head->next = head->prev = 0;
+
+    for (di = 0; di < n; di++) {
+        rec = (part_by_index(g_level_io.record_count));
+        read_record_fields(file, rec);
+        insert_sorted(rec, list);
+        g_level_io.record_count++;
+    }
+}
+
+/*
+ * 0x12269
+ *
+ * **Read a level file.** The name is opened, checked, unpacked field by field
+ * into DGROUP, and closed; a file that does not open leaves everything as it
+ * was and only the last line runs.
+ *
+ * The first word must be **0xaced** or the whole of the rest is skipped - the
+ * file is still closed, and 0x50d3 is still pointed at the parts list, so a
+ * corrupt level leaves the game with an empty machine rather than half of a
+ * broken one.
+ *
+ * The flag at 0x5472 that `load_level` sets is what tells a *level* from a
+ * saved machine. Set, the file also carries its title and hint at 0x4ecf and
+ * 0x4f1f, the two counters at 0x50af and 0x50b1, and the origin pair at 0x50b7
+ * and 0x50b9. Clear, all six are left as they are and only the parts are read.
+ * So the same reader serves both, and one word decides which.
+ *
+ * The gravity and air pressure at 0x50b3 and 0x50b5 are always read, and
+ * `recompute_kind_physics` is called immediately after them - not at the end -
+ * so the three lists that follow are built against the settings the file
+ * asked for rather than the ones the last level left behind.
+ *
+ * Three counts then arrive together and their **sum** is what the part table
+ * is allocated for, once, before any of the three lists is read. The lists are
+ * the machine's own parts at 0x521b, the moving ones at 0x5179, and - only
+ * when 0x5472 says this is a level - the parts the player is given, at 0x50d7.
+ *
+ * The far pointer at 0x546c is freed at the end - whatever the list reader
+ * left there - and a 0x216-byte buffer on the stack is handed to the file
+ * first, which is a `setvbuf` and nothing to do with the level's contents.
+ *
+ * **Two callers, one routine.** `load_level` sets 0x5472 and asks for
+ * "l<n>.lev"; `load_animation` (0x12915) clears it and asks for an animation,
+ * which is why the two strings above are read on one path and not the other.
+ * This was transcribed twice - once under each caller's name - and the copies
+ * drifted: the second read only 0x4ecf where the original reads 0x4f1f as
+ * well, and answered a fabricated 0. It never bit, because the caller that
+ * skipped the string is the caller that clears 0x5472 and so never reaches
+ * it. There is one `sub sp,0x216` in the image and there is one of these.
+ */
+void read_level(char *name)
+{
+    int16_t n_machine;                  /* [bp-2] */
+    int16_t n_moving;                   /* [bp-4] */
+    int16_t n_given;                    /* [bp-6] */
+    char buf[SETBUF_ROOM(0x210)];       /* [bp-0x216] */
+    register FILE *file;
+
+    if ((file = game_fopen(name, "rb")) != 0) {
+        game_setbuf(file, (uint8_t *)buf);
+        game_fread_far(file, (uint8_t *)&g_level_io.version_out);
+
+        if (g_level_io.version_out == 0xaced) {
+            game_fread_far(file, (uint8_t *)&g_level_io.version);
+
+            if (g_level_io.is_level != 0) {
+                game_fread_string(file, (char *)g_level_title);
+                game_fread_string(file, (char *)g_level_hint);
+                game_fread_far(file, (uint8_t *)&g_level_settings.bonus_1);
+                game_fread_far(file, (uint8_t *)&g_level_settings.bonus_2);
+            }
+
+            game_fread_far(file, (uint8_t *)&g_level_settings.gravity);
+            game_fread_far(file, (uint8_t *)&g_level_settings.air);
+            recompute_kind_physics();
+
+            if (g_level_io.is_level != 0) {
+                game_fread_far(file, (uint8_t *)&g_level_settings.extent_y);
+                game_fread_far(file, (uint8_t *)&g_level_settings.extent_x);
+            }
+
+            game_fread_far(file, (uint8_t *)&g_level_settings.tune);
+
+            game_fread_far(file, (uint8_t *)&n_machine);
+            game_fread_far(file, (uint8_t *)&n_moving);
+            game_fread_far(file, (uint8_t *)&n_given);
+
+            g_level_io.record_count = 0;
+            alloc_part_table(n_machine + n_moving + n_given);
+
+            read_list(file, &g_placed_parts, n_machine);
+            read_list(file, &g_moving_parts, n_moving);
+            if (g_level_io.is_level != 0)
+                read_list(file, &g_held_parts.parts_bin, n_given);
+
+            dos_free_far(g_level_io.table);
+        }
+
+        game_fclose(file);
+    }
+
+    g_held_parts.bin_list = (&g_held_parts.parts_bin);
+}
+
+/*
+ * 0x123b7
+ *
+ * **Write one byte**, and do nothing at all once the file has gone wrong.
+ *
+ * The error word 0x5478 is checked first and every writer checks it, so a
+ * failure part way through a machine file does not have to be propagated: the
+ * remaining hundreds of calls simply become no-ops and `write_level` finds the
+ * word set when it gets to the end. That is why none of the writers answer
+ * anything.
+ */
+void write_byte(FILE *file, const uint8_t * addr)
+{
+    if (g_level_io.error == 0 && game_fwrite(addr, 1, 1, file) != 1)
+        g_level_io.error = 1;
+}
+
+/*
+ * 0x123e4
+ *
+ * **Write one word.** The same routine as `write_byte` with a size of 2, and
+ * the original writes it out twice rather than sharing one - so this does too.
+ */
+void write_word(FILE *file, const uint8_t * addr)
+{
+    if (g_level_io.error == 0 && game_fwrite(addr, 2, 1, file) != 1)
+        g_level_io.error = 1;
+}
+
+/*
+ * 0x12411
+ *
+ * **Write a string, and its terminator with it.** The loop writes the byte at
+ * the pointer and *then* tests it, so the NUL goes to the file before the loop
+ * ends - a reader has something to stop at. Written the other way round it
+ * would be an off-by-one that only shows up when the file is read back.
+ */
+void write_string(FILE *file, char *str)
+{
+    (void)file;                         /* as in game_fread_string */
+    while (write_byte(file, (const uint8_t *)str), *str)
+        str++;
+}
+
+/*
+ * 0x12430
+ *
+ * **Write one part's record.** Thirteen fields, then whatever the part is
+ * attached to - and every attachment is written as a *`part_index`*, never a
+ * pointer, so a reload can find the other end again.
+ *
+ * **Three of its locals have their addresses taken**, because `write_word`
+ * writes from an address and the values here are computed rather than fields of
+ * the part: whether there is a belt, whether there is a rope, and each index in
+ * turn. So the port takes a guest frame for those three and keeps the rest as
+ * ordinary locals - which is the same split `write_part_count` needed for its count.
+ *
+ * **The belt flag is written whether or not there is a belt**, and the rope flag
+ * twice, once per slot. That is what makes the record fixed-width up to the
+ * flags and self-describing after them: a reader takes the flag and knows
+ * whether two more indices follow.
+ *
+ * The rope flag can only be true on the **first** slot - `i == 0` and the kind
+ * being 0x0a or 7 - which is why the rope it then reads is at +0x66 flatly and
+ * not at +0x66 + 2i. The second pass writes the flag as zero and the two bytes
+ * at +0x6a and +0x6b, and nothing else.
+ *
+ * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
+ * skipping 2 and 3, which are the second half of the pairs `detach_rope` and
+ * `finish_part_removal` clear together. A file that stored them would be storing the same
+ * links twice.
+ *
+ * Last, and only for kind 7, the record at +0x68 - its first word as an index,
+ * or 0xffff when there is none. That is the one place this writes 0xffff
+ * itself; everywhere else it comes back from `part_index`.
+ */
+void write_record_fields(register FILE *file, register struct part *part)
+{
+    int16_t vbelt;                      /* [bp-2] */
+    int16_t vrope;                      /* [bp-4] */
+    int16_t vindex;                     /* [bp-6] */
+    int16_t i;                          /* [bp-8] */
+    struct belt *belt;                  /* [bp-0xa] */
+    struct rope *rope;                      /* [bp-0xc] */
+
+    write_word(file, (const uint8_t *)&part->kind);
+    write_word(file, (const uint8_t *)&part->traits);
+    write_word(file, (const uint8_t *)&part->start_state);
+    write_word(file, (const uint8_t *)&part->traits2);
+    write_word(file, (const uint8_t *)&part->start_form);
+    write_word(file, (const uint8_t *)&part->start_direction);
+    write_word(file, (const uint8_t *)&part->size[0].width);
+    write_word(file, (const uint8_t *)&part->size[0].height);
+    write_word(file, (const uint8_t *)&part->set_size.width);
+    write_word(file, (const uint8_t *)&part->set_size.height);
+    write_word(file, (const uint8_t *)&part->start_x);
+    write_word(file, (const uint8_t *)&part->start_y);
+    write_word(file, (const uint8_t *)&part->kind_state);
+
+    if (part->kind == 8)
+        vbelt = 1;
+    else
+        vbelt = 0;
+    write_word(file, (uint8_t *)&vbelt);
+
+    write_byte(file, (const uint8_t *)&part->grab.x);
+    write_byte(file, (const uint8_t *)&part->grab.y);
+    write_word(file, (const uint8_t *)&part->grab_size);
+
+    if (vbelt != 0) {
+        belt = part->belt;
+
+        vindex = part_index(belt->end_a);
+        write_word(file, (uint8_t *)&vindex);
+        vindex = part_index(belt->end_b);
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    for (i = 0; i < 2; i++) {
+        if (i == 0 && (part->kind == 0x0a || part->kind == 7))
+            vrope = 1;
+        else
+            vrope = 0;
+        write_word(file, (uint8_t *)&vrope);
+
+        write_byte(file, &part->attach[i].x);
+        write_byte(file, &part->attach[i].y);
+
+        if (vrope != 0) {
+            rope = part->rope[0];
+
+            vindex = part_index((rope->end_a));
+            write_word(file, (uint8_t *)&vindex);
+            vindex = part_index((rope->end_b));
+            write_word(file, (uint8_t *)&vindex);
+
+            write_byte(file, &rope->slot_a);
+            write_byte(file, &rope->slot_b);
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        vindex = part_index(part->link[i]);
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    for (i = 4; i < 6; i++) {
+        vindex = part_index(part->link[i]);
+        write_word(file, (uint8_t *)&vindex);
+    }
+
+    if (part->kind == 7) {
+        if ((rope = part->rope[1]) != 0)
+            vindex = part_index((rope->owner));
+        else
+            vindex = -1;
+
+        write_word(file, (uint8_t *)&vindex);
+    }
+}
+
+/*
+ * 0x126b3
+ *
+ * **Write every part of one list, and mark it as it goes.**
+ *
+ * The mark is bit 15 of +6 - the same bit `remove_all_parts` refuses to touch a
+ * part over. List 2 is the bin at 0x50d7 and every part in it has the bit
+ * *cleared*; lists 0 and 1 have it *set*, but only when DGROUP 0x5472 says this
+ * is the long form of the file. So saving is what decides which parts a reload
+ * will call the level's own and which the player's, and in the short form -
+ * which is what the game itself saves - nothing is marked at all.
+ *
+ * The bit is set on the live part and not on a copy, so a save leaves the
+ * machine in memory marked as well as the file.
+ *
+ * Takes the list's head cell, as `write_part_count` does.
+ */
+void write_part_list(FILE *file, struct part *head, uint16_t which)
+{
+    struct part *si;
+
+    for (si = head->next; si != NULL; si = si->next) {
+        if (which == 2)
+            si->traits &= ~TRAIT_FROM_LEVEL;
+        else if (g_level_io.is_level != 0)
+            si->traits |= TRAIT_FROM_LEVEL;
+
+        write_record_fields(file, si);
+    }
+}
+
+/*
+ * 0x126ec
+ *
+ * **Write how many parts a list holds**, by walking it and counting.
+ *
+ * The count goes into a *stack* local whose address is then handed to
+ * `write_word` - which is why the port takes a guest frame for it rather than
+ * using a C variable. Every field of this file is written from an address, and
+ * a count that exists only for the length of this call is no exception.
+ *
+ * This is the first of the two passes each list gets: the count first, so a
+ * reader knows how many of the records that `write_part_list` writes to expect.
+ *
+ * Takes the list's head cell, as the original does - `mov ax, 0x521b` in
+ * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
+ * an empty list's head holds 0, and the walk ends on that offset.
+ */
+void write_part_count(FILE *file, struct part *head)
+{
+    int16_t vn;                   /* [bp-2] */
+    struct part *si;
+
+    vn = 0;
+    for (si = head->next; si != NULL; si = si->next)
+        vn++;
+
+    write_word(file, (uint8_t *)&vn);
+}
+
+/*
+ * 0x1271c
+ *
+ * **The machine file writer.** `save_machine` is the doorway that puts the
+ * dragged part down first; this is what opens the file and writes it. Answers
+ * zero on success.
+ *
+ * The file starts with 0xaced and then 0x0102, a magic and a version, and both
+ * are written *out of DGROUP* - set into 0x5476 and 0x5474 first and the address
+ * passed - because everything else here is written the same way and the writer
+ * takes an address, not a value.
+ *
+ * **DGROUP 0x5472 decides how much goes in.** Two groups of fields are written
+ * only when it is set - 0x4ecf and 0x4f1f, then 0x50af and 0x50b1, and later
+ * 0x50b7 and 0x50b9 - while 0x50b3, 0x50b5 and 0x50bb always go. `save_machine`
+ * zeroes 0x5472 before calling, so a machine saved from the game gets the short
+ * form and only whatever else sets that word gets the long one.
+ *
+ * Then the three part lists - 0x521b, 0x5179 and 0x50d7 - each written twice:
+ * once by `write_part_count` and once by `write_part_list`, which also takes 0, 1 and 2. Two
+ * passes over the same three lists, so the second can refer to what the first
+ * wrote; the tag says which list it is reading back.
+ *
+ * **A file that fails to close is deleted.** The error word 0x5478 is set by a
+ * non-zero close as well as by a failed open, and a set error word deletes the
+ * file - so a half-written machine does not survive to be loaded. The open
+ * failing returns 1 without touching the disk.
+ *
+ * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
+ * save handlers set around the picker.
+ */
+uint16_t write_level(register char *name)
+{
+    register FILE *f;
+
+    g_level_io.error = 0;
+    g_level_io.version_out = 0xaced;
+    g_level_io.version = 0x0102;
+    g_file_op_active = 1;
+
+    if ((f = game_fopen(name, "wb")) != 0) {
+        write_word(f, (const uint8_t *)&g_level_io.version_out);
+        write_word(f, (const uint8_t *)&g_level_io.version);
+
+        if (g_level_io.is_level != 0) {
+            write_string(f, (char *)g_level_title);
+            write_string(f, (char *)g_level_hint);
+            write_word(f, (const uint8_t *)&g_level_settings.bonus_1);
+            write_word(f, (const uint8_t *)&g_level_settings.bonus_2);
+        }
+
+        write_word(f, (const uint8_t *)&g_level_settings.gravity);
+        write_word(f, (const uint8_t *)&g_level_settings.air);
+
+        if (g_level_io.is_level != 0) {
+            write_word(f, (const uint8_t *)&g_level_settings.extent_y);
+            write_word(f, (const uint8_t *)&g_level_settings.extent_x);
+        }
+
+        write_word(f, (const uint8_t *)&g_level_settings.tune);
+
+        write_part_count(f, &g_placed_parts);
+        write_part_count(f, &g_moving_parts);
+        write_part_count(f, &g_held_parts.parts_bin);
+
+        write_part_list(f, &g_placed_parts, 0);
+        write_part_list(f, &g_moving_parts, 1);
+        write_part_list(f, &g_held_parts.parts_bin, 2);
+
+        if (game_fclose(f) != 0)
+            g_level_io.error = 1;
+
+        if (g_level_io.error != 0)
+            dos_unlink(name);
+
+        g_file_op_active = 0;
+    } else {
+        g_file_op_active = 0;
+        return 1;
+    }
+    return g_level_io.error;
+}
+
+/*
+ * 0x12863
+ *
+ * Load a level by number: build its name and hand it to `read_level`.
+ *
+ * The name is assembled a piece at a time out of DGROUP - "l" at 0x2876, the
+ * number in decimal, ".lev" at 0x2878 - into a 0x16-byte buffer on the stack.
+ * `round_setup` passes the round count at 0x4ebd, so the first round asks for
+ * "l1.lev", which is the name the resource archive holds.
+ *
+ * The flag at 0x5472 is set to 1 before the read and is not cleared here.
+ */
+void load_level(uint16_t number)
+{
+    char name[14];
+    char digits[8];
+
+    strcpy(name, "l");
+    itoa((int16_t)number, digits, 10);
+    strcat(name, digits);
+    strcat(name, ".lev");
+
+    g_level_io.is_level = 1;
+    read_level(name);
+}
+
+/*
+ * 0x128bc
+ *
+ * **Save a level by number** - `load_level`'s twin: the same "l<n>.lev" out
+ * of its own two strings, the same flag set so a level's whole record is
+ * written, and the machine file writer. Nothing calls it: it is how the
+ * designers wrote the puzzles, left in.
+ */
+void save_level(uint16_t number)
+{
+    char name[14];
+    char digits[8];
+
+    strcpy(name, "l");
+    itoa((int16_t)number, digits, 10);
+    strcat(name, digits);
+    strcat(name, ".lev");
+
+    g_level_io.is_level = 1;
+    write_level(name);
+}
+
+/*
+ * 0x12915
+ *
+ * Load an animation file: build the part list first, clear DGROUP 0x5472, and
+ * read it. Every load in the image comes here - the title and credits
+ * animations, freeform's `ff.lev`, and the file picker.
+ *
+ * **The bin is `build_part_list`'s and stays so.** With 0x5472 clear,
+ * `read_level` reads a file's placed and moving lists but not its given one,
+ * so the bin after a load is freeform's one-of-every-kind. This comment once
+ * said a routine three bytes below loaded while *preserving* 0x50d7; those
+ * bytes are the tail of the routine before, which ends by calling the machine
+ * writer at 0x1271c.
+ */
+void load_animation(char *name)
+{
+    build_part_list();
+    g_level_io.is_level = 0;
+    read_level(name);
+}
+
+/*
+ * 0x1292d
+ *
+ * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
+ * Answers zero on success - the caller shows "FILE ERROR" and asks again for
+ * anything else, so what comes back is a reason and not a count.
+ *
+ * The writing is `write_level`; what this adds is that **the dragged part is put
+ * down first**. DGROUP 0x50d7 is saved, zeroed for the length of the write and
+ * put back after, so a part in mid-drag is not written as held - the file has
+ * no way to say "and this one is in the player's hand", and reloading it would
+ * have to invent somewhere to put it. 0x5472 is zeroed with it and not restored.
+ *
+ * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
+ * single exit; transcribed as the fall-through it is.
+ */
+uint16_t save_machine(char *name)
+{
+    uint16_t r;                         /* [bp-2] */
+    struct part *held;                      /* [bp-4] */
+
+    held = g_held_parts.parts_bin.next;
+    g_held_parts.parts_bin.next = 0;
+    g_level_io.is_level = 0;
+
+    r = write_level(name);
+
+    g_held_parts.parts_bin.next = held;
+    return r;
+}
+
+/*
+ * 0x1295f
+ *
+ * **Is this file one of ours?** It opens the name, reads one word, and answers
+ * whether that word is **0xaced** - the machine file's magic, and the only
+ * check made before the loader is trusted with the rest.
+ *
+ * Both exits close the file, and the failure exit closes it *even when the open
+ * failed*, handing `fclose` the zero it just tested. That is what the original
+ * does; the runtime's `fclose` looks the pointer up rather than following it,
+ * so it is a wasted call rather than a fault.
+ */
+uint16_t is_machine_file(char *name)
+{
+    uint16_t magic;               /* [bp-2] */
+    register FILE *file;
+
+    if ((file = game_fopen(name, "rb")) != 0) {
+        game_fread_far(file, (uint8_t *)&magic);
+        if (magic == 0xaced) {
+            game_fclose(file);
+            return 1;
+        }
+    }
+
+    game_fclose(file);
+    return 0;
+}
+
+/*
+ * 0x129a8
+ *
+ * Count the level files, and leave the count at DGROUP 0x4eb9.
+ *
+ * It builds "l", the number, ".lev" and tries to open it, climbing from 1 until
+ * one is missing - so the answer is one *past* the last that opened, and the
+ * decrement on the failing try is what turns that back into a count. Each file
+ * that opens is closed again immediately; nothing is read.
+ *
+ * The name is assembled in a stack buffer whose address is passed on. That
+ * used to mean a real DGROUP frame; it stopped meaning it when `game_fopen`
+ * and the string routines took pointers, and the buffer is a C array.
+ */
+void count_level_files(void)
+{
+    char number[8];                     /* [bp-8] */
+    FILE *file;                         /* [bp-0xa] */
+    char name[14];                      /* [bp-0x18] */
+    register int16_t done = 0;
+
+    g_level_count = 1;
+
+    while (done == 0) {
+        strcpy(name, "l");
+        itoa(g_level_count, number, 10);
+        strcat(name, number);
+        strcat(name, ".lev");
+
+        if ((file = game_fopen(name, "rb")) != 0) {
+            g_level_count++;
+            game_fclose(file);
+        } else {
+            g_level_count--;
+            done = 1;
+        }
+    }
+}
+
+/*
+ * 0x12a2f
+ *
+ * **A puzzle's title, out of its own level file.** The name is built rather
+ * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
+ * there is no table anywhere saying so.
+ *
+ * The file is checked with the same 0xaced `is_machine_file` looks for, and
+ * then **one word is read and thrown away** before the title. Nothing here says
+ * what it is; the title is what follows it.
+ *
+ * A missing file, or a wrong magic, answers 0 - which is what stops the list
+ * drawer, so the number of puzzles is however many files are actually there.
+ */
+uint16_t get_puzzle_title(int16_t n, char *buf)
+{
+    uint16_t magic;                     /* [bp-2] */
+    uint8_t skip[2];                    /* [bp-4] */
+    char num[8];                        /* [bp-0xc] */
+    char name[14];                      /* [bp-0x1a] */
+    register FILE *file;
+
+    strcpy(name, "l");
+    itoa(n, num, 10);
+    strcat(name, num);
+    strcat(name, ".lev");
+
+    if ((file = game_fopen(name, "rb")) == 0)
+        return 0;
+
+    game_fread_far(file, (uint8_t *)&magic);
+
+    if (magic != 0xaced) {
+        game_fclose(file);
+        return 0;
+    }
+
+    game_fread_far(file, skip);
+    game_fread_string(file, buf);
+    game_fclose(file);
+    return 1;
+}
+
+/*
+ * 0x12ad0
+ *
+ * **A password into a level number**, by finding it in `password.txt`.
+ *
+ * The text is upper-cased in place first, and then **cut at the first `-`** -
+ * a NUL is written over it - so a code of the form `WORD-SCORE` matches on the
+ * word alone. The dash is put back before the routine answers, because the same
+ * buffer is about to be handed to the score decoder, which wants the half this
+ * one just hid.
+ *
+ * The line counter starts at **1 and is incremented before the comparison**, so
+ * a match on the file's first line answers 2. Whether that is deliberate or an
+ * off-by-one cannot be told from here - it is consistent, so a password file
+ * written to suit it works.
+ *
+ * The loop cannot tell a blank line from the end of the file, because
+ * `game_fread_line` reports both as an empty buffer.
+ *
+ * Not found is 0xffff, and a file that will not open leaves it at that without
+ * reading anything.
+ */
+uint16_t password_to_level(register char *text)
+{
+    int16_t answer;                     /* [bp-2] */
+    int16_t n;                          /* [bp-4] */
+    FILE *file;                         /* [bp-6] */
+    char line[20];                      /* [bp-0x1a] */
+    register char *dash;
+
+    strupr(text);
+
+    dash = strchr(text, '-');
+    if (dash != NULL)
+        *dash = 0;
+
+    answer = -1;
+    n = 1;
+
+    if ((file = game_fopen(WRITABLE_LITERAL("password.txt"),
+                           "rb")) != 0) {
+        while (game_fread_line(file, line), *line) {
+            n++;
+            if (stricmp(text, line) == 0)
+                answer = n;
+        }
+        game_fclose(file);
+    }
+
+    if (dash != NULL)
+        *dash = '-';
+    return answer;
+}
+
+/*
+ * 0x12b60
+ *
+ * Read the `count`th line of **password.txt** into `buf`.
+ *
+ * The file has one password a line and this wants the one for a level, so it
+ * reads `count` lines and keeps only the last - the buffer is written over
+ * each time round. There is no seek and no index; the lines are found by
+ * reading past them.
+ *
+ * `buf` is emptied first, so a missing file leaves an empty string rather than
+ * whatever was there: the open is tested and everything else skipped.
+ *
+ * The loop decrements *before* it reads, and its test is at the top, so a
+ * count of zero reads nothing at all and any other count reads exactly that
+ * many lines.
+ */
+void read_password_line(register int16_t count, register char *buf)
+{
+    FILE *f;
+
+    *buf = 0;
+
+    if ((f = game_fopen(WRITABLE_LITERAL("password.txt"),
+                        "rb")) != 0) {
+        while (count != 0) {
+            count--;
+            game_fread_line(f, buf);
+        }
+        game_fclose(f);
+    }
+}
+
+/*
+ * 0x12ba7
+ *
+ * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the
+ * file was there and 0 if it was not.
+ *
+ * The name is the string at DGROUP 0x28bb and the mode the one at 0x28c3. Both
+ * reads go through `game_fread_far`, which takes its file first and buffer
+ * second, and the file is closed on the success path only - a failed open has
+ * nothing to close.
+ */
+uint16_t read_tim_cfg(void)
+{
+    register FILE *file;
+    register uint16_t found;
+
+    if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "rb")) != 0) {
+        game_fread_far(file, (uint8_t *)&g_furthest_level);
+        game_fread_far(file, (uint8_t *)&g_master_level);
+        game_fclose(file);
+        found = 1;
+    } else {
+        found = 0;
+    }
+    return found;
+}
+
+/*
+ * 0x12bed
+ *
+ * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
+ * it is two words: the furthest level reached at DGROUP 0x4eb7 and the sound
+ * level at 0x4ec1. Nothing else survives quitting.
+ *
+ * It writes them with `write_word`, the same routine the machine files use, so
+ * the file's four bytes are in the same byte order as everything else the game
+ * writes. A failed open is silently nothing - the settings just do not persist.
+ */
+void write_config(void)
+{
+    register FILE *file;
+
+    if ((file = game_fopen(WRITABLE_LITERAL("tim.cfg"), "wb")) != 0) {
+        write_word(file, (const uint8_t *)&g_furthest_level);
+        write_word(file, (const uint8_t *)&g_master_level);
+        game_fclose(file);
+    }
+}

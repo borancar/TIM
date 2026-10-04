@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cparse import parse, text     # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RECON = os.path.join(os.path.dirname(HERE), "reconstruct")
+from version import RECON  # noqa: E402
 HEADERS = [os.path.join(RECON, h) for h in ("dgroup.h", "tim.h", "hostio.h")]
 
 

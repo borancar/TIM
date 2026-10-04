@@ -44,8 +44,8 @@ import os
 import shutil
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GAME = os.path.join(ROOT, "even-more-incredible-machine")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from version import REPO as ROOT, GAME_DIR as GAME  # noqa: E402
 
 # CRLF, because `game_fread_line` puts its terminator at `[si - 1]` - over the
 # byte *before* the newline - which removes the CR and the LF in one store. A

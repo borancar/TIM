@@ -3,7 +3,8 @@
 the compiler that built TIM.EXE - and compare every routine it defines with the
 image, byte for byte.
 
-    uv run python tools/judge.py reconstruct/src/bitmaps.c [-v]
+    uv run python tools/judge.py reconstruct/v1.11/src/bitmaps.c [-v]
+    TIM_VERSION=1.00 uv run python tools/judge.py reconstruct/v1.00/src/bitmaps.c
 
 This file is the port's own tooling, not a transcription.
 
@@ -51,7 +52,9 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-RECON = os.path.join(REPO, "reconstruct")
+sys.path.insert(0, HERE)
+import tim                                              # noqa: E402
+RECON = tim.RECON               # the version's tree (TIM_VERSION)
 TURBOC = os.environ.get("TIM_TURBOC",
                         os.path.join(os.path.dirname(REPO), "turboc"))
 TC_ROOT = os.path.join(TURBOC, "dos-c")
@@ -76,16 +79,14 @@ EMULATED = {"1.00": "TCC.EXE", "1.01": "TCC.EXE", "2.00": "TCC.EXE", "bc2.00": "
 # the same code generator without that pass, and much faster to iterate with.
 DEFAULT_COMPILER = "bc3.00"
 TCC = COMPILERS["3.00"][0]     # the host port; emulated ones need none
-IMAGE = os.path.join(REPO, "out", "TIM.img")
-UNPACKED = os.path.join(REPO, "out", "TIM.unpacked.exe")
+IMAGE = tim.IMAGE
+UNPACKED = tim.UNPACKED_EXE
 DEFAULT_OPTS = ["-mm", "-O"]
 
 sys.path.insert(0, os.path.join(TURBOC, "tools"))
-sys.path.insert(0, os.path.join(RECON, "tests"))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(REPO, "reconstruct", "tests"))
 import omf                                              # noqa: E402  turboc's
 import provenance                                       # noqa: E402
-import tim                                              # noqa: E402
 from cparse import parse, text                          # noqa: E402
 
 BUILT_WITH = re.compile(r"JUDGE:\s*built-with\s+([^\n*]+)")
@@ -170,8 +171,10 @@ def runtime_names():
     port's names are - one, not all: `__open` is C's `_open`, and stripping
     both made it `open`, the routine at another address."""
     j = json.load(open(os.path.join(HERE, "runtime_names.json")))
+    # each version's own: 'names' is 1.11's, 'names_1.00' 1.00's
+    key = "names" if tim.VERSION == "1.11" else "names_" + tim.VERSION
     return {(k[1:] if k.startswith("_") else k): int(v, 16)
-            for k, v in j["names"].items()}
+            for k, v in j[key].items()}
 
 
 def frames():
@@ -747,6 +750,8 @@ def main(argv=None):
                     help="judge the binary as it shipped, the copy protection "
                     "cracked, rather than as it was built")
     a = ap.parse_args(argv)
+    for f in a.files:
+        tim.require_in_tree(f)
     if (a.compiler or DEFAULT_COMPILER) in COMPILERS and not os.path.exists(TCC):
         raise SystemExit("no TCC 3.0 at %s: make tcc in %s/reconstruct/v3.00"
                          % (TCC, TURBOC))

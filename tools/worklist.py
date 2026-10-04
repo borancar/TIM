@@ -49,7 +49,7 @@ ADDR = re.compile(
 def transcribed():
     """Image offsets the port says it has transcribed."""
     out = set()
-    for path in glob.glob(os.path.join(tim.REPO, "reconstruct", "**", "*.c"),
+    for path in glob.glob(os.path.join(tim.RECON, "**", "*.c"),
                           recursive=True):
         txt = open(path).read()
         for m in ADDR.finditer(txt):
@@ -357,9 +357,7 @@ def main():
         for m in re.finditer(r"VGA:([0-9a-f]{4})", open(doc).read()):
             drv_known.add(int(m.group(1), 16))
     drv_done = set()
-    for f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))), "reconstruct", "**", "*.c"),
-            recursive=True):
+    for f in glob.glob(os.path.join(tim.RECON, "**", "*.c"), recursive=True):
         for m in re.finditer(r"^ \* VM\.OVL VGA:0x([0-9a-f]{4})\s*$",
                              open(f).read(), re.M):
             drv_done.add(int(m.group(1), 16))
@@ -385,8 +383,7 @@ def main():
     # how a setup gets reconstructed here - counting only the first said 11 of
     # 39 when the answer was all of them.
     import glob
-    srcdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "reconstruct", "src")
+    srcdir = os.path.join(tim.RECON, "src")
     modules = sorted(glob.glob(os.path.join(srcdir, "parts", "*.c")))
     src = os.path.join(srcdir, "machine_draw.c")
     if modules:
