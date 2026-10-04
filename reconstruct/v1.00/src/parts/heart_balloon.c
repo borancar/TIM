@@ -24,8 +24,8 @@
  * DGROUP 0x3336..0x3344. Connection points, 7 pairs.
  */
 struct point8 g_heart_balloon_points[7] = {
-    { 0x00, 0x08 }, { 0x06, 0x00 }, { 0x1e, 0x00 }, { 0x24, 0x07 },
-    { 0x24, 0x10 }, { 0x11, 0x23 }, { 0x00, 0x10 },
+    { 0, 8 }, { 6, 0 }, { 30, 0 }, { 36, 7 },
+    { 36, 16 }, { 17, 35 }, { 0, 16 },
 };
 
 /* 172c:2682, image 0x19942 - a setup: seven points from DGROUP 0x3336. */

@@ -24,8 +24,8 @@
  * DGROUP 0x3182..0x3192. Connection points, 8 pairs.
  */
 struct point8 g_balloon_points[8] = {
-    { 0x00, 0x0a }, { 0x0c, 0x00 }, { 0x16, 0x00 }, { 0x1f, 0x0a },
-    { 0x1f, 0x1c }, { 0x13, 0x2b }, { 0x0b, 0x2b }, { 0x00, 0x1d },
+    { 0, 10 }, { 12, 0 }, { 22, 0 }, { 31, 10 },
+    { 31, 28 }, { 19, 43 }, { 11, 43 }, { 0, 29 },
 };
 
 /*
