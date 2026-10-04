@@ -1,10 +1,11 @@
 """**Which version the tools work on: `TIM_VERSION`, 1.11 unless it says 1.00.**
 
 Each version is a tree of its own, `reconstruct/v<version>`, with its own
-sources, headers, host code and Makefile; its own game directory (supply your
-own: 1.00 is The Incredible Machine, 1.11 The Even More Incredible Machine,
-GOG's installer extracted); and its own outputs, `out/v<version>`. What the
-two share is outside both: the tools, `reconstruct/vendor` (ymfm),
+sources, headers, host code, Makefile and ymfm; its own game directory -
+the tree's `game/` when there is one, else the repository's (supply your own:
+1.00 is The Incredible Machine, 1.11 The Even More Incredible Machine, which
+v1.11's get-game.sh extracts from GOG's installer); and its own outputs,
+`out/v<version>`. What the two share is outside both: the tools,
 `reconstruct/tests` and `solutions/`, which both versions solve.
 
 Everything a tool reaches for that differs by version is named here, and only
@@ -24,7 +25,12 @@ if VERSION not in VERSIONS:
                      % (VERSION, ", ".join(sorted(VERSIONS))))
 RECON = os.path.join(REPO, "reconstruct", "v" + VERSION)
 OUT = os.path.join(REPO, "out", "v" + VERSION)
-GAME_DIR = os.path.join(REPO, VERSIONS[VERSION])
+# The game's files: the tree's own `game/` when it has one (v1.11's
+# get-game.sh makes it from GOG's installer), else the repository's
+# directory for the version, as before.
+GAME_DIR = (os.path.join(RECON, "game")
+            if os.path.isdir(os.path.join(RECON, "game"))
+            else os.path.join(REPO, VERSIONS[VERSION]))
 IMAGE = os.path.join(OUT, "TIM.img")
 UNPACKED_EXE = os.path.join(OUT, "TIM.unpacked.exe")
 TESTS = os.path.join(REPO, "reconstruct", "tests")

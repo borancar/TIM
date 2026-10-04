@@ -1,0 +1,16 @@
+# What the Makefile builds.
+*.o
+tim
+devtim
+timdbg
+timasan
+devtimasan
+covtim
+libtim.so
+*.gcno
+*.gcda
+compile_commands.json
+
+# The game's own files - Dynamix/Sierra's, never tracked; supply your own.
+game/
+setup_the_even_more_incredible_machine_*.exe

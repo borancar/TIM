@@ -12,7 +12,7 @@
  * belongs in the port proper. This file's job stops at turning register
  * writes into samples.
  *
- * Implemented over ymfm (see ../../vendor/README.md), which is C++, so this
+ * Implemented over ymfm (see ../vendor/README.md), which is C++, so this
  * header is the C boundary and opl_ymfm.cpp is the only C++ in the build.
  */
 #ifndef OPL_H

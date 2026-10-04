@@ -30,7 +30,7 @@ CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-add
 
 # **The reconstruction is C. The one exception is the OPL2**, because ymfm is
 # C++ - see src/opl.h for why an OPL2 is not transcribed at all, and
-# ../vendor/README.md for what ymfm is and its licence. The same arrangement as
+# vendor/README.md for what ymfm is and its licence. The same arrangement as
 # the Lemmings port, deliberately: one C boundary, one C++ file behind it.
 # Vendored code is compiled without this project's warnings, because they are
 # this project's rules and not its author's.
@@ -54,6 +54,14 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 # at all. Borland's library itself, transcribed, is kept in tools/borland/ and
 # not built: the host calls libc.
 SRC  := src
+
+# **This tree stands on its own** - it builds and runs with nothing above it -
+# but it is also `reconstruct/v1.11` of the TIM repository (develop branch),
+# whose tools prove it against the original: the judge and the link, the
+# provenance check and the solutions. `make test` runs those when the tree is
+# in that repository and says it skipped them when it is not.
+TOP      := ../..
+MONOREPO := $(wildcard $(TOP)/tools/version.py)
 GAME := $(SRC)/collide.c $(SRC)/stepmach.c $(SRC)/runloop.c $(SRC)/goals.c $(SRC)/score.c $(SRC)/physics.c $(SRC)/links.c $(SRC)/machine.c $(SRC)/frame.c $(SRC)/regions.c $(SRC)/crtc.c $(SRC)/gamefile.c $(SRC)/xorrect.c $(SRC)/fstring.c $(SRC)/rects.c $(SRC)/cursor.c $(SRC)/dos.c $(SRC)/mono.c $(SRC)/gamemain.c $(SRC)/rescfg.c $(SRC)/gamedata.c $(SRC)/messages.c $(SRC)/intro.c $(SRC)/round.c $(SRC)/puzzles.c $(SRC)/screen.c $(SRC)/binadjust.c $(SRC)/levels.c $(SRC)/picker.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/kindmem.c $(SRC)/parts/ball.c $(SRC)/parts/balloon.c $(SRC)/parts/bellow.c $(SRC)/parts/boxing_glove.c $(SRC)/parts/bucket.c $(SRC)/parts/bullet.c $(SRC)/parts/candle.c $(SRC)/parts/cannon.c $(SRC)/parts/pokey.c $(SRC)/parts/bird_cage.c $(SRC)/parts/christmas_tree.c $(SRC)/parts/kinds_55_57.c $(SRC)/parts/dynamite.c $(SRC)/parts/motor.c $(SRC)/parts/electric_plug.c $(SRC)/parts/blast.c $(SRC)/parts/hook.c $(SRC)/parts/fan.c $(SRC)/parts/bob_the_fish.c $(SRC)/parts/flashlight.c $(SRC)/parts/generator.c $(SRC)/parts/gear.c $(SRC)/parts/gun.c $(SRC)/parts/conveyor.c $(SRC)/parts/heart_balloon.c $(SRC)/parts/ramp.c $(SRC)/parts/jack_in_the_box.c $(SRC)/parts/light.c $(SRC)/parts/monkey.c $(SRC)/parts/mouse_cage.c $(SRC)/parts/magnifying_glass.c $(SRC)/parts/dynamite_plunger.c $(SRC)/parts/mort_the_mouse.c $(SRC)/parts/pumpkin.c $(SRC)/parts/rocket.c $(SRC)/parts/corner_pipe.c $(SRC)/parts/scissors.c $(SRC)/parts/solar_panel.c $(SRC)/parts/trampoline.c $(SRC)/parts/seesaw.c $(SRC)/parts/trigger_things.c $(SRC)/parts/platform.c $(SRC)/parts/windmill.c $(SRC)/parts/kind_61.c $(SRC)/parts/kind_64.c $(SRC)/parts/kind_52.c $(SRC)/parts/kind_54.c $(SRC)/parts/kind_58.c $(SRC)/parts/kind_53.c $(SRC)/parts/kind_65.c $(SRC)/parts/kind_62.c $(SRC)/parts/kind_51.c $(SRC)/screenshot.c $(SRC)/vgadac.c $(SRC)/resource.c $(SRC)/resfile.c \
         $(SRC)/lzw.c $(SRC)/lzhuf.c $(SRC)/vmiface.c $(SRC)/palette.c $(SRC)/polygon.c $(SRC)/compbmp.c $(SRC)/timer.c $(SRC)/scale.c $(SRC)/polyclip.c $(SRC)/keyboard.c $(SRC)/text.c $(SRC)/dosmem.c $(SRC)/lowlevel.c $(SRC)/vidinit.c $(SRC)/vidload.c $(SRC)/fontload.c $(SRC)/bmpload.c $(SRC)/files.c $(SRC)/vqtflip.c $(SRC)/offbmp.c $(SRC)/bitmaps.c $(SRC)/sound/read_record.c $(SRC)/sound/start_sound.c $(SRC)/sound/next_matching_record.c $(SRC)/sound/free_voice_records.c $(SRC)/sound/create_sequence.c $(SRC)/sound/load_sound_bank.c $(SRC)/sound/alloc_voice_records.c $(SRC)/sound/voice_playing.c $(SRC)/sound/load_named_chunk.c $(SRC)/sound.c $(SRC)/sound/set_master_level_ok.c $(SRC)/sound/load_sound_module.c $(SRC)/sound/open_sound_file.c $(SRC)/sound/remove_and_free_records.c $(SRC)/sound/shutdown_sound.c $(SRC)/sound/stop_all_voices.c $(SRC)/sound/setup_sound_device.c $(SRC)/sound/sound_data.c $(SRC)/sound/start_sequence_by_id.c $(SRC)/sound/stop_sound.c $(SRC)/sound/stop_sequences.c $(SRC)/sound/advance_record.c $(SRC)/sound/follow_then_tick.c $(SRC)/sound/follow_far_chain.c $(SRC)/sound/load_and_start_sequence.c $(SRC)/sound/stop_voice_playing.c $(SRC)/sound/start_on_free_voice.c $(SRC)/sound/load_resource_block.c $(SRC)/sound_call.c $(SRC)/trig.c $(SRC)/atan2.c $(SRC)/vqt.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
@@ -63,14 +71,11 @@ PORT := hostio.c hostlib.c
 
 # The OPL2 and the ymfm units it needs. ymfm_opl.cpp pulls in the other three
 # through its templates even though a YM3812 has no ADPCM, PCM or SSG in it.
-#
-# ymfm is shared by both versions' trees, in ../vendor; its objects are built
-# here, under vendor/, so the two builds never write the same file.
-VENDOR  := ../vendor
-YMFM    := ymfm/ymfm_opl ymfm/ymfm_adpcm ymfm/ymfm_pcm ymfm/ymfm_ssg
-OPL_SRC := $(SRC)/opl_ymfm.cpp $(YMFM:%=$(VENDOR)/%.cpp)
-OPL_OBJ := $(SRC)/opl_ymfm.o $(YMFM:%=vendor/%.o)
-OPL_PIC := $(SRC)/opl_ymfm.pic.o $(YMFM:%=vendor/%.pic.o)
+OPL_SRC := $(SRC)/opl_ymfm.cpp \
+           vendor/ymfm/ymfm_opl.cpp vendor/ymfm/ymfm_adpcm.cpp \
+           vendor/ymfm/ymfm_pcm.cpp vendor/ymfm/ymfm_ssg.cpp
+OPL_OBJ := $(OPL_SRC:.cpp=.o)
+OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
 # `hostio.c` calls dev_flip_dump on every page flip whatever it is linked into, so
@@ -156,14 +161,6 @@ compile_commands:
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.pic.o: %.cpp
-	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
-
-vendor/%.o: $(VENDOR)/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-vendor/%.pic.o: $(VENDOR)/%.cpp
-	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
 
 # `-rdynamic` puts the port's own symbols in the dynamic table, which is what
@@ -275,7 +272,11 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 SED_STRIP_COMMENTS = sed -z -e 's|/\*[^\x00]*\?\*/||g' -e 's|//[^\n]*||g'
 
 test: devtim tim debug
-	uv run python ../tests/provenance.py $(GAME)
+	@if [ -n "$(MONOREPO)" ]; then \
+	    uv run python $(TOP)/reconstruct/tests/provenance.py $(GAME) || exit 1; \
+	else \
+	    echo "skipped: the provenance check, which runs in the TIM repository (develop)"; \
+	fi
 	@for f in $(DEVFLAGS); do \
 	    if grep -aq "$$f" tim; then \
 	        echo "FAIL: the shipping binary carries $$f"; exit 1; \
@@ -307,9 +308,13 @@ test: devtim tim debug
 	@# `check_solutions` still stands - this does not exercise the loop's
 	@# input or presentation - but a physics or part-record change that
 	@# breaks a level now fails `make test` instead of an hour later.
-	@cd ../.. && TIM_VERSION=1.11 uv run python tools/check_solutions.py --simulate > /dev/null || { \
-	    echo "FAIL: a solution no longer solves under simulation - run TIM_VERSION=1.11 tools/check_solutions.py --simulate"; exit 1; }
-	@echo "every solution solves under simulation"
+	@if [ -n "$(MONOREPO)" ]; then \
+	    cd $(TOP) && TIM_VERSION=1.11 uv run python tools/check_solutions.py --simulate > /dev/null || { \
+	        echo "FAIL: a solution no longer solves under simulation - run TIM_VERSION=1.11 tools/check_solutions.py --simulate"; exit 1; }; \
+	    echo "every solution solves under simulation"; \
+	else \
+	    echo "skipped: the solutions, which run in the TIM repository (develop)"; \
+	fi
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were

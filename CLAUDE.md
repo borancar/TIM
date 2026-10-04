@@ -15,9 +15,14 @@ right on screen.
 `incredible-machine/`, and `reconstruct/v1.11` as The Even More Incredible
 Machine ships it, in `even-more-incredible-machine/` (both untracked; supply
 your own). The two trees are independent - each has its own sources,
-headers, host code and Makefile, and a fix that applies to both is made in
-both - and share only what is not either game: `tools/`,
-`reconstruct/vendor` (ymfm), `reconstruct/tests` and `solutions/`. **Every
+headers, host code, Makefile, README and `vendor/` (ymfm), and a fix that
+applies to both is made in both - and share only what proves them: `tools/`,
+`reconstruct/tests` and `solutions/`. Each tree builds and runs on its own,
+so it can be split out (`git subtree split --prefix reconstruct/v1.11`);
+its `make test` runs the checks that need this repository only when it is
+here, and says so when it skips them. v1.11's `get-game.sh` makes its
+`game/` from GOG's installer, and a tree's `game/` is the game directory
+the tools use when it exists. **Every
 tool works on one version, `TIM_VERSION`, 1.11 unless it says 1.00**
 (`tools/version.py`): its tree, its game directory, and its outputs in
 `out/v<version>/`. `tools/unrnc.py` recovers 1.11's image and
