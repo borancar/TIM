@@ -805,11 +805,12 @@ void shift_state_history(struct part *obj);             /* 0x07ce3 */
 
 
 /* Intersect two segments; answers whether the point lies on both. */
-int16_t intersect_segments(const int16_t *seg1, const int16_t *seg2,
-                           uint8_t * out);            /* 0x03ba9 */
+int16_t intersect_segments(const struct point16 *seg1,
+                           const struct point16 *seg2,
+                           struct point16 *out);      /* 0x03ba9 */
 
 /* Step the second word of each pair one further from the first. */
-void step_pair_apart(int16_t *rec);                  /* 0x03d2e */
+void step_pair_apart(struct point16 *rec);           /* 0x03d2e */
 
 /* Are two points within 140 in both axes? */
 int16_t points_within_140(const struct point16 *a,
@@ -829,7 +830,7 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 void compute_link_endpoints(struct belt *link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
-void set_side_flags(const int16_t *range, int16_t v, struct part_contact *out);   /* 0x004fd */
+void set_side_flags(const struct point16 *range, int16_t v, struct part_contact *out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
 void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
@@ -1288,7 +1289,7 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
 void link_objects_crossing(struct part *obj, uint16_t flags,
-                           const int16_t *line);     /* 0x03782 */
+                           const struct point16 *line); /* 0x03782 */
 void link_objects_at_point(struct part *obj, int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x038b9 */
 void     seg172c_nothing(void);                     /* 172c:0000 */
@@ -1349,7 +1350,7 @@ void part_step_mort_the_mouse(struct part *part);             /* 172c:34d0 */
 uint16_t part_hit_scissors(struct part *part);              /* 172c:3824 */
 void part_step_rocket(struct part *part);             /* 172c:3635 */
 void part_step_scissors(struct part *part);             /* 172c:38fc */
-void     cut_ropes(struct part *part, const int16_t *line);   /* 172c:3970 */
+void     cut_ropes(struct part *part, const struct point16 *line);   /* 172c:3970 */
 void grab_distance(struct part *a, struct part *b,
                    int16_t *out_x, int16_t *out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,

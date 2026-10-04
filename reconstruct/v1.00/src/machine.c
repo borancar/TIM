@@ -120,8 +120,9 @@ void rotate_point(int16_t *px, int16_t *py, uint16_t angle)
  * Finally the point has to lie within both segments in both axes, which is four
  * `value_between` calls, and any one of them failing answers 0.
  */
-int16_t intersect_segments(register const int16_t *seg1,
-                           register const int16_t *seg2, uint8_t *out)
+int16_t intersect_segments(register const struct point16 *seg1,
+                           register const struct point16 *seg2,
+                           struct point16 *out)
 {
     int16_t a1;                         /* [bp-2] */
     int16_t b1;                         /* [bp-4] */
@@ -134,12 +135,12 @@ int16_t intersect_segments(register const int16_t *seg1,
     int16_t y;                          /* [bp-0x12] */
     int32_t n;                          /* [bp-0x16] */
 
-    a1 = seg1[1] - seg1[3];
-    b1 = seg1[0] - seg1[2];
-    c1 = (int16_t)(seg1[2] * a1) - (int16_t)(seg1[3] * b1);
-    a2 = seg2[3] - seg2[1];
-    b2 = seg2[2] - seg2[0];
-    c2 = (int16_t)(seg2[0] * a2) - (int16_t)(seg2[1] * b2);
+    a1 = seg1[0].y - seg1[1].y;
+    b1 = seg1[0].x - seg1[1].x;
+    c1 = (int16_t)(seg1[1].x * a1) - (int16_t)(seg1[1].y * b1);
+    a2 = seg2[1].y - seg2[0].y;
+    b2 = seg2[1].x - seg2[0].x;
+    c2 = (int16_t)(seg2[0].x * a2) - (int16_t)(seg2[0].y * b2);
     denom = (int16_t)(a2 * b1) - (int16_t)(a1 * b2);
 
     if (denom != 0) {
@@ -147,24 +148,24 @@ int16_t intersect_segments(register const int16_t *seg1,
         x = n / denom;
         n = mul16x16(a1, c2) - mul16x16(a2, c1);
         y = n / denom;
-    } else if ((int16_t)((int16_t)(seg1[0] * a2) + (int16_t)(seg1[1] * b2))) {
+    } else if ((int16_t)((int16_t)(seg1[0].x * a2) + (int16_t)(seg1[0].y * b2))) {
         x = 0;
         y = 0;
     } else {
-        x = seg1[2];
-        y = seg1[3];
+        x = seg1[1].x;
+        y = seg1[1].y;
     }
 
-    ((int16_t *)out)[0] = x;
-    ((int16_t *)out)[1] = y;
+    out->x = x;
+    out->y = y;
 
-    if (!value_between(x, seg1[0], seg1[2]))
+    if (!value_between(x, seg1[0].x, seg1[1].x))
         return 0;
-    if (!value_between(x, seg2[0], seg2[2]))
+    if (!value_between(x, seg2[0].x, seg2[1].x))
         return 0;
-    if (!value_between(y, seg1[1], seg1[3]))
+    if (!value_between(y, seg1[0].y, seg1[1].y))
         return 0;
-    if (!value_between(y, seg2[1], seg2[3]))
+    if (!value_between(y, seg2[0].y, seg2[1].y))
         return 0;
     return 1;
 }
@@ -178,24 +179,25 @@ int16_t intersect_segments(register const int16_t *seg1,
  *
  * The two words are compared by subtraction and the *difference* tested, not
  * the values, so this is transcribed as a difference rather than as a compare.
- * What the record is has not been established - a pair of coordinates and a
- * pair of limits would fit, but that is inference.
+ * The record is a segment, its two end points: every caller builds one -
+ * `outlines_cross`, `part_finish_angles` and the two edge-contact sweeps -
+ * and the first two hand it to `intersect_segments` next.
  */
-void step_pair_apart(register int16_t *rec)
+void step_pair_apart(register struct point16 *rec)
 {
     int16_t d;
 
-    d = rec[2] - rec[0];
+    d = rec[1].x - rec[0].x;
     if (d > 0)
-        rec[2]++;
+        rec[1].x++;
     else if (d < 0)
-        rec[2]--;
+        rec[1].x--;
 
-    d = rec[3] - rec[1];
+    d = rec[1].y - rec[0].y;
     if (d > 0)
-        rec[3]++;
+        rec[1].y++;
     else if (d < 0)
-        rec[3]--;
+        rec[1].y--;
 }
 
 /*
@@ -350,9 +352,9 @@ int16_t outlines_cross(struct part *a, struct part *b)
     int16_t fby;                        /* [bp-0x20] */
     int16_t bx0;                        /* [bp-0x22] */
     int16_t by0;                        /* [bp-0x24] */
-    int16_t segA[4];                    /* [bp-0x2c] */
-    int16_t segB[4];                    /* [bp-0x34] */
-    int16_t out[2];                     /* [bp-0x38] */
+    struct point16 segA[2];                    /* [bp-0x2c] */
+    struct point16 segB[2];                    /* [bp-0x34] */
+    struct point16 out;                     /* [bp-0x38] */
 
 #ifndef __TURBOC__
     /* Ours: the second outline's points are read only when it has any, which
@@ -373,10 +375,10 @@ int16_t outlines_cross(struct part *a, struct part *b)
     }
 
     while (pa != 0) {
-        segA[0] = ax1 - ax1;
-        segA[1] = ay1 - ay1;
-        segA[2] = ax2 - ax1;
-        segA[3] = ay2 - ay1;
+        segA[0].x = ax1 - ax1;
+        segA[0].y = ay1 - ay1;
+        segA[1].x = ax2 - ax1;
+        segA[1].y = ay2 - ay1;
         step_pair_apart(segA);
 
         j = 1;
@@ -388,14 +390,14 @@ int16_t outlines_cross(struct part *a, struct part *b)
         }
 
         while (pb != 0) {
-            segB[0] = bx1 - ax1;
-            segB[1] = by1 - ay1;
-            segB[2] = bx2 - ax1;
-            segB[3] = by2 - ay1;
+            segB[0].x = bx1 - ax1;
+            segB[0].y = by1 - ay1;
+            segB[1].x = bx2 - ax1;
+            segB[1].y = by2 - ay1;
             step_pair_apart(segB);
 
-            if (intersect_segments(segA, segB, (uint8_t *)out)
-                && (out[1] != segA[3] || out[0] != segA[2]))
+            if (intersect_segments(segA, segB, &out)
+                && (out.y != segA[1].y || out.x != segA[1].x))
                 return 1;
 
             j++;
@@ -2401,27 +2403,27 @@ void part_finish_angles(register struct part *part)
     int16_t n;                          /* [bp-2] */
     int16_t dx;                         /* [bp-4] */
     int16_t dy;                         /* [bp-6] */
-    int16_t pair[4];                    /* [bp-0xe]: x0, y0, x1, y1 */
+    struct point16 pair[2];                    /* [bp-0xe]: x0, y0, x1, y1 */
 
     for (n = 1, si = part->points; (int16_t)part->point_count > n;
          n++, si++) {
-        pair[0] = si->x;
-        pair[1] = si->y;
-        pair[2] = si[1].x;
-        pair[3] = si[1].y;
+        pair[0].x = si->x;
+        pair[0].y = si->y;
+        pair[1].x = si[1].x;
+        pair[1].y = si[1].y;
         step_pair_apart(pair);
-        dx = pair[2] - pair[0];
-        dy = pair[3] - pair[1];
+        dx = pair[1].x - pair[0].x;
+        dy = pair[1].y - pair[0].y;
         si->angle = 0xc000 - atan2_long(dx, dy);
     }
 
-    pair[0] = si->x;
-    pair[1] = si->y;
-    pair[2] = part->points->x;
-    pair[3] = part->points->y;
+    pair[0].x = si->x;
+    pair[0].y = si->y;
+    pair[1].x = part->points->x;
+    pair[1].y = part->points->y;
     step_pair_apart(pair);
-    dx = pair[2] - pair[0];
-    dy = pair[3] - pair[1];
+    dx = pair[1].x - pair[0].x;
+    dy = pair[1].y - pair[0].y;
     si->angle = 0xc000 - atan2_long(dx, dy);
 }
 
