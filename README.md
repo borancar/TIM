@@ -51,13 +51,15 @@ developer build, `devtim`). Each tree's README has the details.
 
 The checks need [uv](https://docs.astral.sh/uv/) for the Python tooling and a
 checkout of [turboc](https://github.com/borancar/turboc) beside this one
-(`../turboc`): the compilers, the linker and the emulator they run under.
+(`../turboc`): the compilers, the linker and the emulator they run under
+(and [DOSBox](https://www.dosbox-staging.org/) for the DOS build's `--run`).
 **Every tool works on one version**, `TIM_VERSION` - 1.11 unless it says
 1.00 - with its outputs in `out/v<version>/`:
 
     uv run python tools/judge.py reconstruct/v1.11/src/machine.c   # one file, routine by routine
     uv run python tools/link.py                                    # the whole program, 1.11
     TIM_VERSION=1.00 uv run python tools/link.py                   # and 1.00, to its file hash
+    uv run python tools/dosbuild.py --run                          # the same, with Borland MAKE in DOS
     make -C reconstruct/v1.11 test                                 # provenance, and every solution simulated
     uv run python tools/check_solutions.py                         # every solution on the real loop
     uv run python tools/check_briefing.py --screen picker          # a screen against the original, pixel for pixel
@@ -67,6 +69,10 @@ checkout of [turboc](https://github.com/borancar/turboc) beside this one
   data with the recovered image.
 - **`tools/link.py`** builds every module, links them, and compares the
   result with the original executable.
+- **`tools/dosbuild.py`** stages a directory DOS can build the game in -
+  8.3 names, a `MAKEFILE` for Borland MAKE, each module's compiler and
+  options - and `--run` builds it under DOSBox with the original tools and
+  checks the TIM.EXE against `link.py`'s.
 - **`tools/check_solutions.py`**, **`check_briefing.py`** and
   **`check_save.py`** run the port and the original - under the shared DOS
   emulator, `tools/tim.py` - and compare what they do: the machines in

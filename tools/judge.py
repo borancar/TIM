@@ -261,14 +261,12 @@ def keep_obj(obj):
         shutil.copy(obj, keep)
 
 
-def tasm_obj(path, opts, assembler):
-    """**An assembly module straight to TASM** (`JUDGE: tasm`): the file's
-    `#ifdef __TURBOC__` branch is `asm { }` blocks holding the module's TASM
-    source, and they go to the assembler without Borland C++'s front end -
-    which passes such a block through `-S` whole, but holds at most some 64K
-    of a file's `asm` before it gives up with "Compiler table limit
-    exceeded", and sound.c's is more. What the front end added is added
-    here: the two data segments and DGROUP, which the blocks name."""
+def tasm_source(path):
+    """**An assembly module's TASM source**, as the assembler is to read it:
+    the `asm { }` blocks of the file's `#ifdef __TURBOC__` branch, and what
+    Borland C++'s front end would have added - the two data segments and
+    DGROUP, which the blocks name. Answers (the source, the `JUDGE: structs`
+    spec or None); tools/dosbuild.py stages the same text."""
     text = open(path).read()
     branch = text[text.index("#ifdef __TURBOC__"):]
     branch = branch[:branch.index("\n#else")]
@@ -281,19 +279,30 @@ def tasm_obj(path, opts, assembler):
         "%s segment word public '%s'\n%s ends\n" % (n, c, n)
         for n, c in (("_DATA", "DATA"), ("_BSS", "BSS"))
         if not re.search(r"^%s segment" % n, body, re.M)) + "DGROUP group _DATA,_BSS\n"
+    m = STRUCTS.search(text)
+    return prelude + body + "\nend\n", (m.group(1) if m else None)
+
+
+def tasm_obj(path, opts, assembler):
+    """**An assembly module straight to TASM** (`JUDGE: tasm`): the file's
+    `#ifdef __TURBOC__` branch is `asm { }` blocks holding the module's TASM
+    source, and they go to the assembler without Borland C++'s front end -
+    which passes such a block through `-S` whole, but holds at most some 64K
+    of a file's `asm` before it gives up with "Compiler table limit
+    exceeded", and sound.c's is more (`tasm_source`)."""
+    source, structs = tasm_source(path)
     d = tempfile.mkdtemp(prefix="judge")
     try:
         base = os.path.splitext(os.path.basename(path))[0][:8].upper()
         with open(os.path.join(d, base + ".ASM"), "w", newline="\r\n") as f:
-            f.write(prelude + body + "\nend\n")
+            f.write(source)
         # `JUDGE: structs a=x b=y`: the C structs the module names fields
         # of, as the include its `INCLUDE STRUCTS.ASH` reads (tools/h2ash.py).
-        m = STRUCTS.search(text)
-        if m:
+        if structs:
             import h2ash
             with open(os.path.join(d, "STRUCTS.ASH"), "w",
                       newline="\r\n") as f:
-                f.write(h2ash.structs_ash(h2ash.parse(m.group(1))))
+                f.write(h2ash.structs_ash(h2ash.parse(structs)))
         out = assemble(d, base, opts, assembler, defines=False)
         objs = [f for f in os.listdir(d) if f.upper().endswith(".OBJ")]
         if not objs or ERRORS.search(out):
