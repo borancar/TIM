@@ -79,14 +79,14 @@ void part_setup_motor(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        part->grab.x = 0x25;
+        part->grab.x = 37;
         src = g_motor_points[1];
     } else {
         part->grab.x = 0;
         src = g_motor_points[0];
     }
 
-    part->grab.y = 0x0d;
+    part->grab.y = 13;
     part->grab_size = 0x12;
 
     for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {

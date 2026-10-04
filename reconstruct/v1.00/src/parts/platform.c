@@ -69,11 +69,11 @@ void part_settle_platform(struct part *part)
     switch (g_tool) {
     case 0x8003:
     case 0x8004:
-        part->set_size.height = 0x10;
+        part->set_size.height = 16;
         break;
     case 0x8005:
     case 0x8006:
-        part->set_size.width = 0x10;
+        part->set_size.width = 16;
         break;
     }
 

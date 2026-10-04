@@ -115,7 +115,7 @@ void part_setup_cannon(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        part->hold.x = 0x3e;
+        part->hold.x = 62;
         src = g_cannon_points[1];
     } else {
         part->hold.x = 1;

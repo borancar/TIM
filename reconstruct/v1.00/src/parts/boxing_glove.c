@@ -100,11 +100,11 @@ void part_step_boxing_glove(struct part *part)
         /* Forms 2 and 3 only: the reach is `glove_reach` at 0x31e6, whose
            first two words face left and the next ones right. */
         if (part->state & STATE_FLIP_HORIZONTAL)
-            link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0x30,
-                                  (g_boxing_glove_reach + 1)[part->form], 0, 0x1f);
+            link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 48,
+                                  (g_boxing_glove_reach + 1)[part->form], 0, 31);
         else
             link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST),
-                                  (g_boxing_glove_reach - 2)[part->form], 0, 0, 0x1f);
+                                  (g_boxing_glove_reach - 2)[part->form], 0, 0, 31);
 
         for (di = part->next_linked; di != NULL;
              di = di->next_linked) {

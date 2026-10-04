@@ -66,11 +66,11 @@ void part_setup_dynamite(struct part *part)
         part->hold.x = 1;
         src = g_dynamite_points[1];
     } else {
-        part->hold.x = 0x2d;
+        part->hold.x = 45;
         src = g_dynamite_points[0];
     }
 
-    part->hold.y = 0x0f;
+    part->hold.y = 15;
 
     for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {
         dst->x = src->x;

@@ -387,14 +387,14 @@ uint16_t puzzle_page_of_score(void)
  */
 void puzzle_repaint(void)
 {
-    draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
+    draw_title_bar(32, 32, 544, 344, 0);
 
-    draw_scroll_text(g_messages.select_puzzle, 0xa8, 0x27, 0xc0);
-    draw_scroll_text(g_messages.password, 0x20, 0x13c, 0x60);
+    draw_scroll_text(g_messages.select_puzzle, 168, 39, 192);
+    draw_scroll_text(g_messages.password, 32, 316, 96);
 
-    draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
-    draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
-    draw_sunken_box(0x1f0, 0x12c, 0x28, 0x28);
+    draw_sunken_box(460, 66, 32, 32);
+    draw_sunken_box(460, 264, 32, 32);
+    draw_sunken_box(496, 300, 40, 40);
 
     puzzle_draw_up();
     puzzle_draw_down();
@@ -424,7 +424,7 @@ void puzzle_draw_up(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x25)[pressed]),
-                0x1d4, 0x46, 0);
+                468, 70, 0);
     restore_cursor_following();
 }
 
@@ -446,7 +446,7 @@ void puzzle_draw_down(void)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x27)[pressed]),
-                0x1d4, 0x110, 0);
+                468, 272, 0);
     restore_cursor_following();
 }
 
@@ -463,7 +463,7 @@ void puzzle_draw_ok(uint16_t pressed)
     g_vmds.page_dst = g_vmds.page_back;
     cursor_redraw_off_thunk();
     draw_bitmap(((g_panel_art + 0x10)[pressed]),
-                0x200, 0x12e, 0);
+                512, 302, 0);
     restore_cursor_following();
 }
 
@@ -500,12 +500,12 @@ void puzzle_draw_password(const char *text)
     }
 
     g_vmds.page_dst = g_vmds.page_back;
-    fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
+    fill_panel_area(144, 316, 304, 16, 0);
 
     g_vmds.text_colour = 0x0f;
 
     cursor_redraw_off_thunk();
-    draw_string(si, 0x94, 0x140);
+    draw_string(si, 148, 320);
     restore_cursor_following();
 }
 
@@ -534,7 +534,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
     int16_t i;
 
     g_vmds.page_dst = g_vmds.page_back;
-    fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
+    fill_panel_area(48, 72, 400, 216, 0);
 
     for (i = 0, y = 0x4c; i < 0x15; i++, y += 0x0a, first++) {
         strcpy(name, g_messages.puzzle_prefix);
@@ -553,7 +553,7 @@ void puzzle_draw_list(register int16_t first, int16_t selected)
                 g_vmds.text_colour = 0x0c;
 
             cursor_redraw_off_thunk();
-            draw_string(name, 0x34, y);
+            draw_string(name, 52, y);
             restore_cursor_following();
         } else {
             i = 0x34;

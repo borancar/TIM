@@ -76,7 +76,7 @@ void part_step_jack_in_the_box(struct part *part)
 
         /* The reach by form, 0x3394, with the first form folded into the
            address: `[bx+0x3384]`. */
-        link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 0x1f,
+        link_objects_in_range(part, (TRAIT_IN_PLACED_LIST | TRAIT_IN_MOVING_LIST), 0, 31,
                               (g_jack_in_the_box_reach - 8)[part->form], 0);
 
         for (di = part->next_linked; di != NULL;

@@ -29,8 +29,8 @@ void part_setup_candle(struct part *part)
 {
     struct part_point *si;
 
-    part->hold.x = 0x0f;
-    part->hold.y = 0x02;
+    part->hold.x = 15;
+    part->hold.y = 2;
 
     si = part->points;
     si->x = 8;
@@ -71,7 +71,7 @@ void part_step_candle(struct part *part)
 
         place_object_for_draw(part);
 
-        link_objects_at_point(part, 9, 0x12, -10, 5);
+        link_objects_at_point(part, 9, 18, -10, 5);
 
         for (si = part->next_linked; si != NULL;
              si = si->next_linked)
@@ -79,7 +79,7 @@ void part_step_candle(struct part *part)
                 si->direction = 1;
 
         if (part->form & 1) {
-            link_objects_in_range(part, TRAIT_IN_MOVING_LIST, 9, 0x12, -10, 5);
+            link_objects_in_range(part, TRAIT_IN_MOVING_LIST, 9, 18, -10, 5);
 
             for (si = part->next_linked; si != NULL;
                  si = si->next_linked) {
