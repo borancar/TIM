@@ -3343,7 +3343,20 @@ int16_t link_end_distance(register struct rope *link, int16_t gen, int16_t end)
     struct rope *l;                     /* [bp-0xe] the same link */
 
     l = link;
-    if (end == 0) {
+    /*
+     * OURS, on the host: **a link with no second end is measured as end 0.**
+     * Attaching a rope to the hook gets here with `end_b` null, and 1.00
+     * follows it: `link[slot_b]` of a part at DGROUP:0000 is the runtime's
+     * "Abnormal program termination" text read as a near pointer, and the
+     * distance comes from whatever memory that lands on - nothing the host
+     * can reproduce. 1.11 added exactly this test (`|| link->end_b == NULL`),
+     * so the host takes Dynamix's own answer; Borland's build is 1.00's.
+     */
+    if (end == 0
+#ifndef __TURBOC__
+        || link->end_b == NULL
+#endif
+        ) {
         near_i = 0;
         ent = (link->end_a->link[link->slot_a]);
         if (link->end_b == ent) {
