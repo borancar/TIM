@@ -13,111 +13,14 @@
  * stores, and the callers save every register and the flags and keep their
  * answer in the code segment.
  *
- * **So it is TASM source**, the `#ifdef __TURBOC__` block below, with the
- * host's transcription in the `#else`. It begins at 0x29286, with the cell itself: six
- * bytes of the code segment before the first routine. The functions are in address order and each
- * carries the image offset it was read from.
- *
- * JUDGE: built-with -mm
- * JUDGE: tasm
- * JUDGE: structs sound_bank=bank
- * JUDGE: assembler bc3.00
+ * **So it is TASM source**, `sound_call.asm`, with the host's transcription
+ * here. It begins at 0x29286, with the cell itself: six bytes of the code
+ * segment before the first routine. The functions are in address order and
+ * each carries the image offset it was read from.
  */
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
-
-#ifdef __TURBOC__
-/*
- * The module as TASM assembled it, drafted by tools/asm2tasm.py; the host's
- * transcription is the `#else`. See glue.c for how the block reaches the
- * assembler.
- */
-asm {
-INCLUDE STRUCTS.ASH
-extrn _g_sound_bank:byte
-SOUND_CALL_TEXT segment byte public 'CODE'
-assume cs:SOUND_CALL_TEXT, ds:DGROUP
-public _set_sound_callback, _sound_callback, _sound_callback_quiet
-callback_off label byte
-        db 0h, 0h
-callback_seg label byte
-        db 0h, 0h
-callback_answer label byte
-        db 0h, 0h
-
-/* 0x2928c */
-_set_sound_callback proc far
-        push bp
-        mov bp, sp
-        push ax
-        mov ax, word ptr [bp+6]
-        mov word ptr cs:callback_off, ax
-        mov ax, word ptr [bp+8]
-        mov word ptr cs:callback_seg, ax
-        pop ax
-        pop bp
-        retf
-_set_sound_callback endp
-
-/* 0x292a1 */
-_sound_callback proc far
-        push bp
-        mov bp, sp
-        push ds
-        push es
-        pushf
-        push ax
-        push cx
-        push dx
-        push bx
-        push bp
-        push si
-        push di
-        mov ax, DGROUP
-        mov ds, ax
-        cmp word ptr DGROUP:_g_sound_bank+bank_module_live, 0
-        je callback_none
-        mov si, word ptr [bp+8]
-        mov ax, word ptr [bp+6]
-        call dword ptr cs:callback_off
-callback_none:
-        mov word ptr cs:callback_answer, ax
-        pop di
-        pop si
-        pop bp
-        pop bx
-        pop dx
-        pop cx
-        pop ax
-        popf
-        mov ax, word ptr cs:callback_answer
-        pop es
-        pop ds
-        pop bp
-        retf
-_sound_callback endp
-
-/* 0x292d9 */
-_sound_callback_quiet proc far
-        push bp
-        mov bp, sp
-        push si
-        push di
-        cmp word ptr DGROUP:_g_sound_bank+bank_module_live, 0
-        je quiet_none
-        mov si, word ptr [bp+8]
-        mov ax, word ptr [bp+6]
-        call dword ptr cs:callback_off
-quiet_none:
-        pop di
-        pop si
-        pop bp
-        retf
-_sound_callback_quiet endp
-SOUND_CALL_TEXT ends
-}
-#else
 
 /*
  * 0x2928c
@@ -186,4 +89,3 @@ void sound_callback_quiet(uint16_t ax, union sound_module_args * si)
     if (((int16_t)g_sound_bank.module_live) != 0)
         call_sound_module(ax, si);
 }
-#endif

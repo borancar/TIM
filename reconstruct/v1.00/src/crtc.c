@@ -9,15 +9,14 @@
  * display end, each a ten-bit value spread over three registers.
  *
  * The original's **code segment 0000** (`_TEXT`), image 0x08f27..0x08fc3.
- * **Hand-written assembly, to the C-callable template**, and the TASM
- * source is the `#ifdef __TURBOC__` block below. Each routine is the usual
- * skeleton of an assembly routine C calls (that it is a manual's is not
- * checked) -
- * `push bp / mov bp,sp / push si / push di`, the parameter at `[bp+6]`,
- * `pop di / pop si / mov sp,bp / pop bp` - which is why it looks like a
- * compiler's: SI and DI are saved though neither is used, and the epilogue
- * drops locals there are none of. AX, BX and DX saved on entry are the
- * author's own, which no compiler writes.
+ * **Hand-written assembly, to the C-callable template**, and the TASM source
+ * is `crtc.asm`. Each routine is the usual skeleton of an assembly routine C
+ * calls (that it is a manual's is not checked) - `push bp / mov bp,sp / push
+ * si / push di`, the parameter at `[bp+6]`, `pop di / pop si / mov sp,bp /
+ * pop bp` - which is why it looks like a compiler's: SI and DI are saved
+ * though neither is used, and the epilogue drops locals there are none of.
+ * AX, BX and DX saved on entry are the author's own, which no compiler
+ * writes.
  *
  * **No compiler reproduces the epilogue** (measured 2026-09-28). As C with
  * the body as inline `asm` and two unused `register` variables for the SI
@@ -32,135 +31,10 @@
  * bytes and the `mov sp,bp` as `asm`, which only makes the compiler stay
  * out of the way - so this stays assembly.
  * **Nothing proves the module boundary on either side**.
- *
- * JUDGE: built-with -mm
- * JUDGE: tasm
- * JUDGE: assembler bc3.00
  */
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
-
-#ifdef __TURBOC__
-/*
- * The module as TASM assembled it; the host's transcription is the
- * `#else`. See glue.c for how the block reaches the assembler.
- */
-asm {
-_TEXT segment byte public 'CODE'
-assume cs:_TEXT, ds:DGROUP
-public _vm_set_line_compare, _vm_set_display_lines
-
-/* 0x08f27 */
-_vm_set_line_compare proc far
-        push bp
-        mov bp, sp
-        push si
-        push di
-        push ax
-        push bx
-        push dx
-        mov bx, [bp+6]
-        mov dx, 3d4h
-        mov al, 18h
-        out dx, al
-        inc dx
-        mov al, bl
-        out dx, al
-        dec dx
-        mov al, 7
-        out dx, al
-        inc dx
-        in al, dx
-        and al, 0efh
-        mov bl, bh
-        and bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        or al, bl
-        out dx, al
-        dec dx
-        mov al, 9
-        out dx, al
-        inc dx
-        in al, dx
-        and al, 0bfh
-        mov bl, bh
-        and bl, 2
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        or al, bl
-        out dx, al
-        pop dx
-        pop bx
-        pop ax
-        pop di
-        pop si
-        mov sp, bp
-        pop bp
-        retf
-_vm_set_line_compare endp
-
-/* 0x08f77 */
-_vm_set_display_lines proc far
-        push bp
-        mov bp, sp
-        push si
-        push di
-        push ax
-        push bx
-        push dx
-        mov bx, [bp+6]
-        mov dx, 3d4h
-        mov al, 15h
-        out dx, al
-        inc dx
-        mov al, bl
-        out dx, al
-        dec dx
-        mov al, 7
-        out dx, al
-        inc dx
-        in al, dx
-        and al, 0f7h
-        mov bl, bh
-        and bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        or al, bl
-        out dx, al
-        dec dx
-        mov al, 9
-        out dx, al
-        inc dx
-        in al, dx
-        and al, 0dfh
-        mov bl, bh
-        and bl, 2
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        shl bl, 1
-        or al, bl
-        out dx, al
-        pop dx
-        pop bx
-        pop ax
-        pop di
-        pop si
-        mov sp, bp
-        pop bp
-        retf
-_vm_set_display_lines endp
-_TEXT ends
-}
-#else
 
 /*
  * 0x08f27
@@ -236,4 +110,3 @@ void vm_set_display_lines(uint16_t lines)
     v = (uint8_t)((v & 0xDF) | (((lines >> 8) & 2) << 4));
     io_out8(PORT_CRTC_DATA, v);
 }
-#endif

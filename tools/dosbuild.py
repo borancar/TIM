@@ -25,10 +25,10 @@ here, once:
   module is staged as `link.py`'s object name, `M<nnn>.C` or `.ASM`, with
   DOS line endings; `NAMES.TXT` says which source each is. The name reaches
   the object's module record and no byte of the program.
-- **An assembly module's source** (`JUDGE: tasm`) is the `asm { }` blocks
-  of its `#ifdef __TURBOC__` branch, as `judge.tasm_source` extracts them,
-  and its `STRUCTS.ASH` is `tools/h2ash.py`'s - staged as `M<nnn>.ASH`,
-  which the source's `INCLUDE` is pointed at.
+- **An assembly module's `STRUCTS.ASH`** (`JUDGE: structs`) is
+  `tools/h2ash.py`'s, generated from the headers - staged as `M<nnn>.ASH`,
+  which the module's `INCLUDE` is pointed at. Its source is its `.asm`,
+  staged as it is.
 - **One code segment per physical segment.** `link.py` renames each
   object's code segment after compiling (`one_code_segment`) so that the
   modules sharing a segment link as one; here a C module is compiled with

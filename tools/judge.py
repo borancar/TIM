@@ -118,6 +118,10 @@ def addresses(paths):
     image offsets and are left out."""
     out = {}
     for path in paths:
+        if path.endswith(".asm"):
+            for m in ASM_PROC.finditer(open(path).read()):
+                out.setdefault(m.group(2), int(m.group(1), 16))
+            continue
         src, root = parse(path)
         for node in root.children:
             if node.type != "function_definition":
@@ -132,13 +136,14 @@ def addresses(paths):
                          r"(0x[0-9a-fA-F]{5})\b", first)
             if m:
                 out[name] = int(m.group(1), 16)
-        # **An assembly module's routines** are `proc`s inside a file-level
-        # `asm { }` block, which the parse never sees - cparse blanks every
-        # `#ifdef __TURBOC__` branch. Their provenance is a comment on the
-        # line directly above the `proc`, and the name is the public's, less
-        # the underscore C would have given it.
-        for m in ASM_PROC.finditer(open(path).read()):
-            out.setdefault(m.group(2), int(m.group(1), 16))
+        # **An assembly module's routines** are `proc`s in its `.asm`, the
+        # TASM source beside the host's `.c`. Their provenance is a comment
+        # on the line directly above the `proc`, and the name is the
+        # public's, less the underscore C would have given it.
+        asm = asm_of(path)
+        if asm:
+            for m in ASM_PROC.finditer(open(asm).read()):
+                out.setdefault(m.group(2), int(m.group(1), 16))
         # **A routine only the Borland branch defines** - C with inline
         # `asm` whose work the host does inside another routine - carries
         # its provenance the same way, directly above the definition.
@@ -150,8 +155,18 @@ def addresses(paths):
 TC_DEF = re.compile(r"^/\* (0x[0-9a-fA-F]{5}) \*/\n[A-Za-z_][\w \t*]*?\b(\w+)\s*\(", re.M)
 
 
-ASM_PROC = re.compile(r"/\*[^*]*?\b(0x[0-9a-fA-F]{5})\b[^*]*\*/[ \t]*\n"
-                      r"[ \t]*_?(\w+)[ \t]+proc\b")
+ASM_PROC = re.compile(r"^;[^\n]*?\b(0x[0-9a-fA-F]{5})\b[^\n]*\n"
+                      r"[ \t]*_?(\w+)[ \t]+proc\b", re.M)
+
+
+def asm_of(path):
+    """**An assembly module's TASM source**: `x.asm` beside `x.c`, which is
+    then the host's transcription and nothing Borland compiles. None for a
+    module that is C."""
+    if path.endswith(".asm"):
+        return path
+    asm = os.path.splitext(path)[0] + ".asm"
+    return asm if os.path.exists(asm) else None
 
 
 def turboc_aliases():
@@ -262,34 +277,21 @@ def keep_obj(obj):
 
 
 def tasm_source(path):
-    """**An assembly module's TASM source**, as the assembler is to read it:
-    the `asm { }` blocks of the file's `#ifdef __TURBOC__` branch, and what
-    Borland C++'s front end would have added - the two data segments and
-    DGROUP, which the blocks name. Answers (the source, the `JUDGE: structs`
-    spec or None); tools/dosbuild.py stages the same text."""
-    text = open(path).read()
-    branch = text[text.index("#ifdef __TURBOC__"):]
-    branch = branch[:branch.index("\n#else")]
-    body = "\n".join(m.group(1) for m in
-                     re.finditer(r"^asm \{\n(.*?)^\}$", branch, re.M | re.S))
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
-    # a module that declares a data segment itself - `para`, as the video
-    # interface's is - keeps its own declaration
-    prelude = "".join(
-        "%s segment word public '%s'\n%s ends\n" % (n, c, n)
-        for n, c in (("_DATA", "DATA"), ("_BSS", "BSS"))
-        if not re.search(r"^%s segment" % n, body, re.M)) + "DGROUP group _DATA,_BSS\n"
+    """**An assembly module's TASM source** (`x.asm`), whole: the segments
+    and DGROUP its routines name, the routines, `end`. Answers (the source,
+    the `JUDGE: structs` spec or None); tools/dosbuild.py stages the same
+    text."""
+    text = open(asm_of(path)).read()
     m = STRUCTS.search(text)
-    return prelude + body + "\nend\n", (m.group(1) if m else None)
+    return text, (m.group(1) if m else None)
 
 
 def tasm_obj(path, opts, assembler):
-    """**An assembly module straight to TASM** (`JUDGE: tasm`): the file's
-    `#ifdef __TURBOC__` branch is `asm { }` blocks holding the module's TASM
-    source, and they go to the assembler without Borland C++'s front end -
-    which passes such a block through `-S` whole, but holds at most some 64K
-    of a file's `asm` before it gives up with "Compiler table limit
-    exceeded", and sound.c's is more (`tasm_source`)."""
+    """**An assembly module straight to TASM** (`JUDGE: tasm`): its `.asm`,
+    the TASM source beside the host's `.c`. (Borland C++'s front end would
+    pass `asm { }` blocks through `-S` whole, but holds at most some 64K of a
+    file's `asm` before it gives up with "Compiler table limit exceeded",
+    and sound.asm is more.)"""
     source, structs = tasm_source(path)
     d = tempfile.mkdtemp(prefix="judge")
     try:
@@ -547,6 +549,9 @@ def full_diff(ours, theirs, addr):
 def judge(path, known, img, fr, verbose=False, force_opts=None,
           force_compiler=None, force_assembler=None,
           full=False, defines=()):
+    # an assembly module is judged from its `.asm`, named or not: its `.c`
+    # is the host's transcription and nothing Borland compiles
+    path = asm_of(path) or path
     src = open(path).read()
     c = COMPILER.search(src)
     compiler = force_compiler or (c.group(1) if c else DEFAULT_COMPILER)

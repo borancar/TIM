@@ -1,7 +1,7 @@
 """A draft TASM source for one assembly module, read out of the image.
 
 The game's hand-written modules have to be source that TASM assembles back to
-the image's bytes (CLAUDE.md, "An assembly module is a `.c` file too"). Typing
+the image's bytes, a module's `.asm` (CLAUDE.md, "An assembly module"). Typing
 that source instruction by instruction from a disassembly is where the errors
 come from - a short jump written as a near one, a far call to the wrong
 routine, a displacement that was a variable written as a number. This reads the
@@ -292,7 +292,7 @@ def main(argv):
             # the next label. Written as bytes, sixteen to a line, with a
             # `c_` label wherever the code names one or a run begins.
             vals = [hexnum(x) for x in ins.bytes]
-            if (body and body[-1].startswith("\tdb ") and not body[-1].endswith("*/")
+            if (body and body[-1].startswith("\tdb ") and ";" not in body[-1]
                     and body[-1].count(",") < 15 and at not in cs_targets
                     and last_data_end == at):
                 body[-1] += ", " + ", ".join(vals)
@@ -319,7 +319,7 @@ def main(argv):
                     break
             open_proc = by_addr[at]
             body.append("")
-            body.append("/* 0x%05x */" % at)
+            body.append("; 0x%05x" % at)
             body.append("_%s proc %s" % (open_proc, kind))
         if at in labels:
             body.append("%s:" % labels[at])
@@ -439,7 +439,7 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
         tgt = seg * 16 + off
         name = by_addr.get(tgt)
         if name is None:
-            return "db %s  /* call far %04x:%04x, no name */" % (
+            return "db %s  ; call far %04x:%04x, no name" % (
                 ", ".join(hexnum(x) for x in b), seg, off)
         if not (a.lo <= tgt < a.hi):
             externs[name] = "far"
@@ -454,7 +454,7 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
                 if not (a.lo <= t < a.hi):
                     externs[by_addr[t]] = "near"
             else:
-                return "db %s  /* %s %s outside */" % (
+                return "db %s  ; %s %s outside" % (
                     ", ".join(hexnum(x) for x in b), m, op)
             if m == "jmp":
                 if b[0] == 0xEB:
@@ -546,12 +546,12 @@ def render(ins, labels, by_addr, starts, rel, img, placed, addrs, externs,
     if getattr(ins, "imm_size", 0) == 2 and opc == 0x81 and not a.nosmart:
         v = struct.unpack_from("<h", b, len(b) - 2)[0]
         if -128 <= v <= 127:
-            return "db %s  /* %s %s, written long */" % (
+            return "db %s  ; %s %s, written long" % (
                 ", ".join(hexnum(x) for x in b), m, op)
     if getattr(ins, "disp_size", 0) == 2 and -128 <= ins.disp <= 127 and \
             "c_" not in op and "d_" not in op and "_" not in op.split("[")[0][-1:]:
         if not re.search(r"\b[cd]_[0-9a-f]+", op) and "DGROUP:" not in op:
-            return "db %s  /* %s %s, displacement written long */" % (
+            return "db %s  ; %s %s, displacement written long" % (
                 ", ".join(hexnum(x) for x in b), m, op)
     # a register operand already says the size, and the text is budgeted:
     # Borland's front end holds at most some 64K of a file's `asm`

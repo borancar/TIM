@@ -64,7 +64,9 @@ NOT_LINKED = re.compile(r"/(dgroup|main|sxovl\w*|vmovl\w*)\.c$")
 
 
 def game_files():
-    return [f for f in judge.port_sources()
+    """Every linked module's source: a C module's `.c`, an assembly
+    module's `.asm` (its `.c` is the host's)."""
+    return [judge.asm_of(f) or f for f in judge.port_sources()
             if f.startswith(os.path.join(judge.RECON, "src") + os.sep)
             and f.endswith(".c")
             and not NOT_LINKED.search(f)]

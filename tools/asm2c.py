@@ -3,8 +3,8 @@
 """**Drafts an assembly module as C with inline `asm`**, for the judge to
 prove or refute.
 
-Reads the TASM source in a port file's `#ifdef __TURBOC__` block (the one
-`asm2tasm.py` drafted) and writes each `proc` as a C function whose body is
+Reads an assembly module's TASM source, its `.asm` (the one `asm2tasm.py`
+drafted), and writes each `proc` as a C function whose body is
 `asm` statements, labels as C labels. What Borland C++ writes itself is left
 to it, so a match is evidence of C and not of transcription:
 
@@ -21,13 +21,17 @@ A routine that does not end in a return cannot be C (the compiler would add
 one), and one that names SI or DI outside that save cannot be either; both
 are refused, and the module stays assembly. See docs/lessons.md.
 
-Usage: asm2c.py <port file> [-o <out.c>] [--opts '-mm -k-']
+Usage: asm2c.py <module.asm or its .c> [-o <out.c>] [--opts '-mm -k-']
 """
 import argparse
+import os
 import re
 import sys
 
-PROC = re.compile(r"^/\*[^*]*?(0x[0-9a-f]{5})(?:[^*]|\*(?!/))*\*/\n_(\w+) proc (near|far)\n(.*?)^_\2 endp",
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from version import RECON  # noqa: E402
+
+PROC = re.compile(r"^;[^\n]*?(0x[0-9a-f]{5})[^\n]*\n_(\w+) proc (near|far)\n(.*?)^_\2 endp",
                   re.M | re.S)
 
 
@@ -212,8 +216,8 @@ def main(argv):
                     help="rewrite the port file: the asm block becomes the "
                          "functions, the markers say C through TASM")
     a = ap.parse_args(argv)
-    s = open(a.file).read()
-    blk = s[s.index("asm {"):s.index("\n}\n#else")]
+    asm = os.path.splitext(a.file)[0] + ".asm"
+    s = blk = open(asm).read()
     if a.data:
         labs = re.findall(r"^(d_([0-9a-f]{4})) label", blk, re.M)
         base = int(labs[0][1], 16)
@@ -234,7 +238,7 @@ def main(argv):
                    if t not in entries]
             if bad:
                 MIDCALL[n] = bad
-    header = "" if a.partial else open("reconstruct/tim.h").read()
+    header = "" if a.partial else open(os.path.join(RECON, "tim.h")).read()
     OWN.update(re.findall(r"^([A-Za-z_]\w*)\s+(?:label|db|dw|dd|equ)\b", blk, re.M))
     OWN.update(re.findall(r"^\s*([cd]_[0-9a-f]+)\b", blk, re.M))
     why = []
@@ -249,7 +253,7 @@ def main(argv):
         sys.stderr.write("not C:\n  " + "\n  ".join(why) + "\n")
         return 1
     if a.install:
-        return install(a.file, s, funcs, externs, a.opts)
+        return install(os.path.splitext(a.file)[0] + ".c", asm, funcs, externs, a.opts)
     out = ["/*", " * Drafted by tools/asm2c.py from %s." % a.file, " *",
            " * JUDGE: compiler bc3.00", " * JUDGE: built-with %s" % a.opts,
            " * JUDGE: via-assembler", " * JUDGE: assembler bc3.00", " */"]
@@ -350,24 +354,32 @@ def partial(a, blk, externs, procs, funcs, why):
     return 0
 
 
-def install(path, s, funcs, externs, opts):
-    i = s.index("#ifdef __TURBOC__\n") + len("#ifdef __TURBOC__\n")
-    j = s.index("\n}\n#else\n") + len("\n}\n")
+def install(path, asm, funcs, externs, opts):
+    """The module becomes C: the functions go into its `.c` as the
+    `#ifdef __TURBOC__` branch beside the host's transcription, the `.asm`'s
+    markers say C through TASM in the `.c`'s header, and the `.asm` goes."""
+    s = open(path).read()
+    src = open(asm).read()
     decl = []
     for n, k in externs:
-        if k not in ("far", "near") and not re.search(r"\b%s\b" % n, open("reconstruct/dgroup.h").read()):
+        if k not in ("far", "near") and not re.search(r"\b%s\b" % n, open(os.path.join(RECON, "dgroup.h")).read()):
             decl.append("extern char %s[];" % n)
     new = ("/*\n * C with inline `asm`, compiled through TASM (`JUDGE: via-assembler`):\n"
            " * the frame, the SI/DI save and each final return are the compiler's.\n"
            " * Drafted by tools/asm2c.py.\n */\n" + ("\n".join(decl) + "\n\n" if decl else "")
            + "\n".join(funcs))
-    s = s[:i] + new + s[j:]
-    s = re.sub(r" \* JUDGE: built-with .*\n \* JUDGE: tasm\n \* JUDGE: assembler (\S+)\n",
-               lambda m: " * JUDGE: compiler bc3.00\n * JUDGE: built-with %s\n"
-                         " * JUDGE: via-assembler\n * JUDGE: assembler %s\n" % (opts, m.group(1)), s)
+    # after the includes, the Borland branch; the host's code is the #else
+    inc = list(re.finditer(r"^#include .*\n", s, re.M))[-1].end()
+    s = s[:inc] + "\n#ifdef __TURBOC__\n" + new + "\n#else\n" + s[inc:] + "#endif\n"
+    m = re.search(r"^; JUDGE: assembler (\S+)$", src, re.M)
+    markers = (" *\n * JUDGE: compiler bc3.00\n * JUDGE: built-with %s\n"
+               " * JUDGE: via-assembler\n * JUDGE: assembler %s\n"
+               % (opts, m.group(1) if m else "bc3.00"))
+    end = s.index(" */\n")
+    s = s[:end] + markers + s[end:]
     open(path, "w").write(s)
+    os.remove(asm)
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

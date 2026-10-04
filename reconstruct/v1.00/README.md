@@ -47,7 +47,7 @@ directory - so `cd game && ../tim` works too.
 
 | | |
 | --- | --- |
-| `src/` | the game: one file per module of the original, in address order, each routine with the image address it came from; `src/parts/` the part kinds |
+| `src/` | the game: one file per module of the original, in address order, each routine with the image address it came from - a hand-written module as its TASM source, `.asm`, beside the host's `.c`; `src/parts/` the part kinds |
 | `tim.h`, `dgroup.h` | the declarations, and DGROUP's records |
 | `hostio.c`, `sdl.c`, `hostlib.c` | the host: the hardware, the window, the few library routines libc lacks |
 | `dev*.c` | the developer build's hooks; never in `tim` |

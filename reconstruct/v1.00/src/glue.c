@@ -28,127 +28,10 @@
  *
  * Functions are in address order and each carries the image offset it was
  * read from.
- *
- * JUDGE: built-with -mm
- * JUDGE: tasm
- * JUDGE: structs sound_bank=bank
- * JUDGE: assembler bc3.00
  */
 #include "tim.h"
 #include "hostio.h"
 #include "dgroup.h"
-
-#ifdef __TURBOC__
-/*
- * The module as TASM assembled it: the judge hands this block to TASM 3.0
- * (`JUDGE: tasm`), so it is the source the image's bytes come from; the
- * host's transcription is the `#else`. A C comment is the only kind the
- * block may carry.
- */
-asm {
-INCLUDE STRUCTS.ASH
-_TEXT segment word public 'CODE'
-assume cs:_TEXT, ds:DGROUP
-public _sound_module_install, _sound_module_set_rate, _sound_module_service
-public _sound_module_9, _sound_module_10, _sound_module_11
-public _stop_loaded_module, _sound_module_shutdown
-public _call_sound_module, _sound_module_position
-extrn _g_sound_bank:byte
-
-/* 0x0bb98 */
-_sound_module_install proc far
-    mov ax, 0
-    call _call_sound_module
-    retf
-_sound_module_install endp
-
-/* 0x0bb9f */
-_sound_module_set_rate proc far
-    mov ax, 6
-    call _call_sound_module
-    retf
-_sound_module_set_rate endp
-
-/* 0x0bba6: the EOI to the master PIC, then the service call. */
-_sound_module_service proc far
-    mov al, 20h
-    out 20h, al
-    mov ax, 1
-    call _call_sound_module
-    retf
-_sound_module_service endp
-
-/* 0x0bbb1 */
-_sound_module_9 proc far
-    mov ax, 9
-    call _call_sound_module
-    retf
-_sound_module_9 endp
-
-/* 0x0bbb8 */
-_sound_module_10 proc far
-    mov ax, 0ah
-    call _call_sound_module
-    retf
-_sound_module_10 endp
-
-/* 0x0bbbf */
-_sound_module_11 proc far
-    mov ax, 0bh
-    call _call_sound_module
-    retf
-_sound_module_11 endp
-
-/* 0x0bbc6 */
-_stop_loaded_module proc far
-    mov ax, 2
-    call _call_sound_module
-    retf
-_stop_loaded_module endp
-
-/* 0x0bbcd */
-_sound_module_shutdown proc far
-    mov ax, 0ch
-    call _call_sound_module
-    retf
-_sound_module_shutdown endp
-
-/* 0x0bbd4: SI at the wrapper's caller's arguments, past BP and two returns. */
-_call_sound_module proc near
-    push bp
-    mov bp, sp
-    push di
-    push si
-    mov si, bp
-    add si, 8
-    call dword ptr DGROUP:_g_sound_bank+bank_module
-    pop si
-    pop di
-    pop bp
-    ret
-_call_sound_module endp
-
-/* 0x0bbe6: six bytes of stack for the three words the module writes back. */
-_sound_module_position proc far
-    mov ax, 0dh
-    push bp
-    mov bp, sp
-    push di
-    push si
-    sub sp, 6
-    mov si, sp
-    call dword ptr DGROUP:_g_sound_bank+bank_module
-    pop ax
-    pop ax
-    pop dx
-    pop si
-    pop di
-    pop bp
-    retf
-_sound_module_position endp
-_TEXT ends
-}
-#else
 
 /*
  * 0x0bb98
@@ -165,7 +48,6 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
     return call_sound_module(0, NULL);
 }
 
-
 /*
  * 0x0bb9f
  */
@@ -173,7 +55,6 @@ uint16_t sound_module_set_rate(union sound_module_args * si)
 {
     return call_sound_module(6, si);
 }
-
 
 /*
  * 0x0bba6
@@ -189,13 +70,11 @@ uint16_t sound_module_service(union sound_module_args * si)
     return call_sound_module(1, si);
 }
 
-
 /* OURS: `SOUND_MODULE_TICK` on the host - see tim.h. */
 void sound_module_tick(void)
 {
     sound_module_service(NULL);
 }
-
 
 /*
  * 0x0bbb1
@@ -210,7 +89,6 @@ uint16_t sound_module_10(union sound_module_args * si) { return call_sound_modul
 /* 0x0bbbf */
 uint16_t sound_module_11(union sound_module_args * si) { return call_sound_module(11, si); }
 
-
 /*
  * 0x0bbc6
  *
@@ -221,7 +99,6 @@ uint16_t stop_loaded_module(void)
     return call_sound_module(2, NULL);
 }
 
-
 /*
  * 0x0bbcd
  */
@@ -229,7 +106,6 @@ uint16_t sound_module_shutdown(void)
 {
     return call_sound_module(12, NULL);
 }
-
 
 /*
  * 0x0bbd4
@@ -253,7 +129,6 @@ uint16_t call_sound_module(uint16_t fn, union sound_module_args * si)
 {
     return asb_dispatch(fn, si);
 }
-
 
 /*
  * 0x0bbe6
@@ -281,4 +156,3 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
 
     return 0;
 }
-#endif

@@ -157,13 +157,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   path, not two: the file writer is a *mode* of the same composed frame, never
   a parallel implementation. The port shows a screen by default - running it
   with no arguments opens the game, not writes a bitmap.
-- **An assembly module is a `.c` file too.** Its `#ifdef __TURBOC__` branch
-  is file-level `asm { }` blocks holding the TASM source, which the judge
-  hands to TASM 3.0 directly (`JUDGE: tasm`), and its `#else` is the host's
-  transcription. Provenance is a C comment on the line directly above each
-  `proc`, the only kind of comment the blocks may carry. `tools/asm2tasm.py`
-  drafts the source from the image - a draft the judge then proves or
-  refutes.
+- **An assembly module is a `.asm` beside a `.c`** (since 2026-10-04): the
+  `.asm` is the whole TASM source - its markers (`JUDGE: tasm`), segments,
+  DGROUP and routines - which the judge and the link hand to TASM as it is,
+  and the `.c` of the same name is the host's transcription, which no
+  Borland tool compiles. Provenance is a `;` comment on the line directly
+  above each `proc`. `tools/asm2tasm.py` drafts the source from the image -
+  a draft the judge then proves or refutes.
 - **`main.c` and `devmain.c` stay apart, and build two binaries.** A DOS game
   has no command line: it starts, shows its menu, and plays, and `main.c`
   mirrors that. Every developer flag goes in `devmain.c`. `tools/` calls the
