@@ -1043,7 +1043,8 @@ uint16_t part_handle_at_pointer(register struct part *part)
     g_level_settings.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
-        rec = (part->belt->end_b);
+        /* A belt with no second end reads DGROUP:0000 here, as the original. */
+        rec = NEAR_ZERO(part->belt->end_b);
         x0 = rec->box[0].x + rec->grab.x - g_origin_x;
         /* the original takes origin_x off a y here, and below */
         y0 = rec->box[0].y + rec->grab.y - g_origin_x;
@@ -2732,7 +2733,9 @@ void mark_rope_shapes(struct part *part, uint16_t mode)
     } else {
         if (mode & 1) {
             near_part = si->end_a;
-            far_part = near_part->link[si->slot_a];
+            /* A rope back in the bin has no ends: the original reads
+               the link at DGROUP:0000, and the loop below stops on the null. */
+            far_part = NEAR_ZERO(near_part)->link[si->slot_a];
             while (near_part != NULL && far_part != NULL) {
                 near_pt = near_part->kind == KIND_PULLEY
                           ? &near_part->rope[0]->pt[2][1] : &si->pt[2][0];
@@ -2755,7 +2758,9 @@ void mark_rope_shapes(struct part *part, uint16_t mode)
         }
         if (mode & 2) {
             near_part = si->end_a;
-            far_part = near_part->link[si->slot_a];
+            /* A rope back in the bin has no ends: the original reads
+               the link at DGROUP:0000, and the loop below stops on the null. */
+            far_part = NEAR_ZERO(near_part)->link[si->slot_a];
             while (near_part != NULL && far_part != NULL) {
                 near_pt = near_part->kind == KIND_PULLEY
                           ? &near_part->rope[0]->pt[1][1] : &si->pt[1][0];

@@ -1133,7 +1133,8 @@ void draw_part_selection(register struct part *part, int16_t which, int16_t flag
     keep_t = keep_b = keep_l = keep_r = 1;
     g_vmds.page_dst = g_vmds.page_back;
     if (part->kind == KIND_BELT) {
-        end = (part->belt->end_b);
+        /* A belt with no second end reads DGROUP:0000 here, as the original. */
+        end = NEAR_ZERO(part->belt->end_b);
         at.x = end->box[0].x + end->grab.x;
         at.y = end->box[0].y + end->grab.y;
         ext.width = end->grab_size;
