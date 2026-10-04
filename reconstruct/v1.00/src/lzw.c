@@ -19,6 +19,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs resource=res engine_stream=strm
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -34,6 +35,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
         db 0h, 1h, 3h, 7h, 0fh, 1fh, 3fh, 7fh, 0ffh, 0h
 lzw_code_buf label byte
@@ -54,11 +56,11 @@ extrn _emit_byte:near
 extrn _read_input_block:near
 public _decompress_lzw, _next_lzw_code, _rle_from_memory
 lzw_first_code:
-        mov byte ptr DGROUP:_g_engine_stream+26h, 0
+        mov byte ptr DGROUP:_g_engine_stream+strm_first_code, 0
         mov bp, es
         call _next_lzw_code
-        mov word ptr DGROUP:_g_engine_stream+1eh, ax
-        mov word ptr DGROUP:_g_engine_stream+24h, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_oldcode, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_finchar, ax
         push ax
         call _emit_byte
         add sp, 2
@@ -71,18 +73,18 @@ _decompress_lzw proc near
         push bp
         push si
         push di
-        mov ax, word ptr DGROUP:_g_engine_stream+6h
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_scratch+2
         add ax, 372h
         mov es, ax
-        cmp byte ptr DGROUP:_g_engine_stream+1ah, 0
+        cmp byte ptr DGROUP:_g_engine_stream+strm_resume, 0
         je lzw_fresh
-        mov cx, word ptr DGROUP:_g_engine_stream+8h
+        mov cx, word ptr DGROUP:_g_engine_stream+strm_wanted
         inc cx
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
+        les di, dword ptr DGROUP:_g_engine_stream+strm_output
         mov al, byte ptr DGROUP:_g_engine_resource_flags
         mov si, word ptr DGROUP:lzw_resume_src
-        mov byte ptr DGROUP:_g_engine_stream+1ah, 0
+        mov byte ptr DGROUP:_g_engine_stream+strm_resume, 0
         mov dx, ds
         mov ds, bp
         mov bx, 2
@@ -92,7 +94,7 @@ _decompress_lzw proc near
 lzw_resume_skip:
         jmp lzw_skip_next
 lzw_fresh:
-        cmp byte ptr DGROUP:_g_engine_stream+26h, 0
+        cmp byte ptr DGROUP:_g_engine_stream+strm_first_code, 0
         jne lzw_first_code
 lzw_next_code:
         mov bp, es
@@ -103,14 +105,14 @@ lzw_next_code:
         cmp ax, 100h
         jne lzw_code
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+4h
+        les di, dword ptr DGROUP:_g_engine_stream+strm_scratch
         mov ax, di
         mov cx, 100h
         rep stosw
         inc ax
-        mov word ptr DGROUP:_g_engine_stream+1ch, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_clear_flg, ax
         xchg ah, al
-        mov word ptr DGROUP:_g_engine_stream+18h, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_free_ent, ax
         call _next_lzw_code
         mov es, bp
         cmp ax, 0
@@ -123,15 +125,15 @@ lzw_end:
 lzw_code:
         sub di, di
         mov si, ax
-        mov word ptr DGROUP:_g_engine_stream+28h, ax
-        cmp ax, word ptr DGROUP:_g_engine_stream+18h
+        mov word ptr DGROUP:_g_engine_stream+strm_incode, ax
+        cmp ax, word ptr DGROUP:_g_engine_stream+strm_free_ent
         jl lzw_unwind
-        mov ax, word ptr DGROUP:_g_engine_stream+24h
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_finchar
         stosb
-        mov si, word ptr DGROUP:_g_engine_stream+1eh
+        mov si, word ptr DGROUP:_g_engine_stream+strm_oldcode
 lzw_unwind:
         mov dx, ds
-        mov ax, word ptr DGROUP:_g_engine_stream+6h
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_scratch+2
         mov ds, ax
         mov cx, 100h
         mov bx, 2720h
@@ -208,13 +210,13 @@ lzw_chain_end:
         stosb
         mov ds, dx
         mov ah, 0
-        mov word ptr DGROUP:_g_engine_stream+24h, ax
-        mov cx, word ptr DGROUP:_g_engine_stream+8h
+        mov word ptr DGROUP:_g_engine_stream+strm_finchar, ax
+        mov cx, word ptr DGROUP:_g_engine_stream+strm_wanted
         inc cx
         mov si, di
         dec si
         mov bp, es
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
+        les di, dword ptr DGROUP:_g_engine_stream+strm_output
         mov al, byte ptr DGROUP:_g_engine_resource_flags
         mov dx, ds
         mov ds, bp
@@ -289,18 +291,18 @@ lzw_skip_next:
         jmp short lzw_skip
 lzw_wanted_met:
         mov ds, dx
-        mov word ptr DGROUP:_g_engine_stream+0ch, di
+        mov word ptr DGROUP:_g_engine_stream+strm_output, di
         mov word ptr DGROUP:lzw_resume_src, si
-        mov si, word ptr DGROUP:_g_engine_stream+2h
-        mov bl, byte ptr [si+1ah]
-        inc word ptr [si+1ah]
+        mov si, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov bl, byte ptr [si+res_spill_end]
+        inc word ptr [si+res_spill_end]
         sub bh, bh
-        mov si, word ptr DGROUP:_g_engine_stream+0ah
+        mov si, word ptr DGROUP:_g_engine_stream+strm_spill
         mov byte ptr [bx+si], al
         sub ax, ax
-        mov word ptr DGROUP:_g_engine_stream+8h, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_wanted, ax
         inc ax
-        mov byte ptr DGROUP:_g_engine_stream+1ah, al
+        mov byte ptr DGROUP:_g_engine_stream+strm_resume, al
         pop di
         pop si
         pop bp
@@ -310,14 +312,14 @@ lzw_string_done:
         mov es, ax
         mov ds, dx
         dec cx
-        mov word ptr DGROUP:_g_engine_stream+8h, cx
-        mov word ptr DGROUP:_g_engine_stream+0ch, di
-        mov ax, word ptr DGROUP:_g_engine_stream+18h
+        mov word ptr DGROUP:_g_engine_stream+strm_wanted, cx
+        mov word ptr DGROUP:_g_engine_stream+strm_output, di
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_free_ent
         cmp ax, 1000h
         jge lzw_table_full
         mov di, ax
         shl di, 1
-        mov ax, word ptr DGROUP:_g_engine_stream+1eh
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_oldcode
         mov bx, es
         mov bp, es
         sub bx, 372h
@@ -325,34 +327,34 @@ lzw_string_done:
         stosw
         shr di, 1
         mov ax, di
-        mov word ptr DGROUP:_g_engine_stream+18h, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_free_ent, ax
         add di, 271fh
-        mov ax, word ptr DGROUP:_g_engine_stream+24h
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_finchar
         stosb
         mov es, bp
 lzw_table_full:
-        mov ax, word ptr DGROUP:_g_engine_stream+28h
-        mov word ptr DGROUP:_g_engine_stream+1eh, ax
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_incode
+        mov word ptr DGROUP:_g_engine_stream+strm_oldcode, ax
         jmp lzw_next_code
 _decompress_lzw endp
 
 /* 0x1cc65 */
 _next_lzw_code proc near
-        mov ax, word ptr DGROUP:_g_engine_stream+18h
-        cmp ax, word ptr DGROUP:_g_engine_stream+2eh
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_free_ent
+        cmp ax, word ptr DGROUP:_g_engine_stream+strm_maxcode
         jg code_widen
-        cmp word ptr DGROUP:_g_engine_stream+1ch, 0
+        cmp word ptr DGROUP:_g_engine_stream+strm_clear_flg, 0
         jne code_clear
-        mov ax, word ptr DGROUP:_g_engine_stream+2ah
-        cmp ax, word ptr DGROUP:_g_engine_stream+2ch
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_bit_pos
+        cmp ax, word ptr DGROUP:_g_engine_stream+strm_bit_end
         jge code_refill
 code_extract:
         mov si, offset DGROUP:lzw_code_buf
-        mov bx, word ptr DGROUP:_g_engine_stream+16h
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_n_bits
         mov ch, al
         mov dx, ax
         add ax, bx
-        mov word ptr DGROUP:_g_engine_stream+2ah, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_bit_pos, ax
         shr dx, 1
         shr dx, 1
         shr dx, 1
@@ -382,9 +384,9 @@ code_last_bits:
         or ax, dx
         ret
 code_widen:
-        mov cx, word ptr DGROUP:_g_engine_stream+16h
+        mov cx, word ptr DGROUP:_g_engine_stream+strm_n_bits
         inc cx
-        mov word ptr DGROUP:_g_engine_stream+16h, cx
+        mov word ptr DGROUP:_g_engine_stream+strm_n_bits, cx
         mov ax, 1000h
         cmp cl, 0ch
         je code_set_max
@@ -392,17 +394,17 @@ code_widen:
         shl ax, cl
         dec ax
 code_set_max:
-        mov word ptr DGROUP:_g_engine_stream+2eh, ax
-        cmp word ptr DGROUP:_g_engine_stream+1ch, 0
+        mov word ptr DGROUP:_g_engine_stream+strm_maxcode, ax
+        cmp word ptr DGROUP:_g_engine_stream+strm_clear_flg, 0
         je code_refill
 code_clear:
         mov ax, 9
-        mov word ptr DGROUP:_g_engine_stream+16h, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_n_bits, ax
         mov ax, 1ffh
-        mov word ptr DGROUP:_g_engine_stream+2eh, ax
-        mov word ptr DGROUP:_g_engine_stream+1ch, 0
+        mov word ptr DGROUP:_g_engine_stream+strm_maxcode, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_clear_flg, 0
 code_refill:
-        mov si, word ptr DGROUP:_g_engine_stream+16h
+        mov si, word ptr DGROUP:_g_engine_stream+strm_n_bits
         push si
         mov ax, 35bch
         push ax
@@ -411,17 +413,17 @@ code_refill:
         sub bx, bx
         cmp ax, bx
         jle code_eof
-        mov word ptr DGROUP:_g_engine_stream+2ah, bx
+        mov word ptr DGROUP:_g_engine_stream+strm_bit_pos, bx
         shl ax, 1
         shl ax, 1
         shl ax, 1
         dec si
         sub ax, si
-        mov word ptr DGROUP:_g_engine_stream+2ch, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_bit_end, ax
         mov ax, bx
         jmp code_extract
 code_eof:
-        mov word ptr DGROUP:_g_engine_stream+2ch, ax
+        mov word ptr DGROUP:_g_engine_stream+strm_bit_end, ax
         mov ax, 0ffffh
         ret
 _next_lzw_code endp
@@ -433,23 +435,23 @@ _rle_from_memory proc near
         push di
         sub cx, cx
         mov bx, cx
-        mov si, word ptr DGROUP:_g_engine_stream+2h
-        mov cl, byte ptr [si+1ah]
-        mov ax, word ptr DGROUP:_g_engine_stream+0ah
+        mov si, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov cl, byte ptr [si+res_spill_end]
+        mov ax, word ptr DGROUP:_g_engine_stream+strm_spill
         add ax, cx
         mov word ptr DGROUP:rle_spill_at, ax
-        mov ax, word ptr [si+0eh]
-        mov dx, word ptr [si+10h]
-        sub ax, word ptr [si+0ah]
-        sbb dx, word ptr [si+0ch]
+        mov ax, word ptr [si+res_in_end]
+        mov dx, word ptr [si+res_in_end+2]
+        sub ax, word ptr [si+res_in_pos]
+        sbb dx, word ptr [si+res_in_pos+2]
         mov bp, 0ffffh
         jne rle_start
         mov bp, ax
 rle_start:
-        les di, dword ptr DGROUP:_g_engine_stream+0ch
-        mov dx, word ptr DGROUP:_g_engine_stream+8h
+        les di, dword ptr DGROUP:_g_engine_stream+strm_output
+        mov dx, word ptr DGROUP:_g_engine_stream+strm_wanted
         mov al, byte ptr DGROUP:_g_engine_resource_flags
-        lds si, dword ptr DGROUP:_g_engine_stream+10h
+        lds si, dword ptr DGROUP:_g_engine_stream+strm_input
         test al, 40h
         je rle_skip
 rle_copy:
@@ -521,12 +523,12 @@ rle_fill_spill:
 rle_return:
         mov ax, ss
         mov ds, ax
-        mov si, word ptr DGROUP:_g_engine_stream+2h
+        mov si, word ptr DGROUP:_g_engine_stream+strm_rec
         mov ax, bp
-        add byte ptr [si+1ah], al
-        mov word ptr DGROUP:_g_engine_stream+8h, dx
-        add word ptr [si+0ah], bx
-        adc word ptr [si+0ch], 0
+        add byte ptr [si+res_spill_end], al
+        mov word ptr DGROUP:_g_engine_stream+strm_wanted, dx
+        add word ptr [si+res_in_pos], bx
+        adc word ptr [si+res_in_pos+2], 0
         pop di
         pop si
         pop bp
@@ -692,7 +694,7 @@ int16_t decompress_lzw(void)
 
     if (g_engine_stream.resume != 0) {
         cx = (uint16_t)(g_engine_stream.wanted + 1);
-        out = (uint8_t far *)g_engine_stream.out;
+        out = (uint8_t far *)g_engine_stream.output;
         back = scratch + (uint16_t)g_engine_lzw_resume.scratch_at;
         copying = (g_engine_resource_flags.flags & 0x40) != 0;
         g_engine_stream.resume = 0;
@@ -751,7 +753,7 @@ int16_t decompress_lzw(void)
 
         cx = (uint16_t)(g_engine_stream.wanted + 1);
         back = in - 1;
-        out = (uint8_t far *)g_engine_stream.out;
+        out = (uint8_t far *)g_engine_stream.output;
         copying = (g_engine_resource_flags.flags & 0x40) != 0;
 
         for (;;) {
@@ -760,7 +762,7 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 struct resource *rec;
 
-                g_engine_stream.out = out;
+                g_engine_stream.output = out;
                 g_engine_lzw_resume.scratch_at = (int16_t)(back - scratch);
 
                 rec = g_engine_stream.rec;
@@ -795,7 +797,7 @@ step_back:
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         g_engine_stream.wanted = (int16_t)cx;
-        g_engine_stream.out = out;
+        g_engine_stream.output = out;
 
         if (g_engine_stream.free_ent < 0x1000) {
             uint16_t next = ((uint16_t)g_engine_stream.free_ent);

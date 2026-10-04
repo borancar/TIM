@@ -150,7 +150,7 @@ struct bitmap **load_bitmaps(char *name)
             hdr->data_off = FP_OFF(p);
         }
     } else {
-        size = ((vm_list_size_fn)g_vm_driver.entry[13])(list, (uint8_t *)&i);
+        size = ((vm_list_size_fn)g_vm_driver.entry[VM_SLOT_LIST_SIZE])(list, (uint8_t *)&i);
         if (!(block = dos_alloc_bytes(size, 0)))
             goto fail;
         set_mask_of_each(0xfffc, list);

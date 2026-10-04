@@ -190,12 +190,12 @@ int16_t near read_into_huge(uint8_t huge *dst, uint16_t count)
  */
 int16_t near next_input_byte(void)
 {
-    if (g_engine_stream.rec->in == g_engine_stream.rec->end)
+    if (g_engine_stream.rec->in_pos == g_engine_stream.rec->in_end)
         return -1;
-    g_engine_stream.rec->in++;
+    g_engine_stream.rec->in_pos++;
     if (g_engine_stream.kind & 0x20)
         return game_fgetc(g_engine_resource_flags.file);
-    return *g_engine_stream.in++ & 0xff;
+    return *g_engine_stream.input++ & 0xff;
 }
 
 /*
@@ -216,14 +216,14 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
 {
     int32_t rem;
 
-    if ((rem = g_engine_stream.rec->end - g_engine_stream.rec->in) == 0)
+    if ((rem = g_engine_stream.rec->in_end - g_engine_stream.rec->in_pos) == 0)
         return 0;
     rem = count > rem ? rem : count;
-    g_engine_stream.rec->in += rem;
+    g_engine_stream.rec->in_pos += rem;
     if (g_engine_stream.kind & 0x20)
         return game_fread(dst, 1, (uint16_t)rem, g_engine_resource_flags.file);
-    far_memcpy(dst, (uint8_t huge *)g_engine_stream.in, (uint16_t)rem);
-    g_engine_stream.in += rem;
+    far_memcpy(dst, (uint8_t huge *)g_engine_stream.input, (uint16_t)rem);
+    g_engine_stream.input += rem;
     return (int16_t)rem;
 }
 
@@ -250,14 +250,14 @@ int16_t near read_input_block(uint8_t *dst, uint16_t count)
  */
 int16_t near emit_literal_run(uint16_t n)
 {
-    g_engine_stream.rec->in += n;
+    g_engine_stream.rec->in_pos += n;
     if (g_engine_stream.wanted >= n) {
         if (g_engine_resource_flags.flags & 0x40)
-            read_into_huge(g_engine_stream.out, n);
+            read_into_huge(g_engine_stream.output, n);
         else
             game_fseek(g_engine_resource_flags.file, (uint32_t)n, 1);
         g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+        g_engine_stream.output += n;
         return 1;
     } else {
         g_engine_stream.rec->spill_end += n;
@@ -282,9 +282,9 @@ int16_t near emit_fill_run(uint16_t value, int16_t n)
 {
     if (g_engine_stream.wanted >= n) {
         if (g_engine_resource_flags.flags & 0x40)
-            far_memset(g_engine_stream.out, value, (int32_t)n);
+            far_memset(g_engine_stream.output, value, (int32_t)n);
         g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+        g_engine_stream.output += n;
         return 1;
     } else {
         far_memset(g_engine_stream.spill + g_engine_stream.rec->spill_end,
@@ -306,8 +306,8 @@ int16_t near emit_byte(uint16_t value)
 {
     if (g_engine_stream.wanted >= 1) {
         if (g_engine_resource_flags.flags & 0x40)
-            *g_engine_stream.out = value;
-        g_engine_stream.out++;
+            *g_engine_stream.output = value;
+        g_engine_stream.output++;
         g_engine_stream.wanted--;
         return 1;
     } else {
@@ -330,7 +330,7 @@ int16_t near put_output_byte(int16_t c)
     if (g_engine_stream.kind & 0x20)
         return game_fputc(c, g_engine_resource_flags.file);
     else
-        return g_engine_stream.rec->data.ptr[g_engine_stream.rec->in++] = c;
+        return g_engine_stream.rec->data.ptr[g_engine_stream.rec->in_pos++] = c;
 }
 
 /*
@@ -361,8 +361,8 @@ int16_t near select_resource(int16_t handle)
         g_engine_resource_flags.flags = 0x20;
     } else {
         g_engine_resource_flags.flags = 0;
-        g_engine_stream.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in));
+        g_engine_stream.input = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in_pos));
     }
     return 1;
 }
@@ -514,9 +514,9 @@ void near resource_advance(void)
         g_engine_stream.rec->spill_start = g_engine_stream.rec->spill_end = 0;
     if (n != 0) {
         if (g_engine_resource_flags.flags & 0x40)
-            far_memcpy(g_engine_stream.out, g_engine_stream.spill + start, n);
+            far_memcpy(g_engine_stream.output, g_engine_stream.spill + start, n);
         g_engine_stream.wanted -= n;
-        g_engine_stream.out += n;
+        g_engine_stream.output += n;
     }
 }
 

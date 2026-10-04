@@ -32,6 +32,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #ifndef __TURBOC__
@@ -48,6 +49,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
 kbd_installed label byte
         db 0h
@@ -111,7 +113,7 @@ public _bios_read_key, _key_is_down, _show_page_thunk
 
 /* 0x21088 */
 _copy_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+14h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_COPY_RECT
 old_int9_off db 0h, 0h
 old_int9_seg db 0h, 0h
 old_int1c_off db 0h, 0h
@@ -249,7 +251,7 @@ _keyboard_isr proc near
         mov ax, bx
         and al, 7fh
         and bl, 80h
-        cmp byte ptr DGROUP:_g_vmds+1ch, 1
+        cmp byte ptr DGROUP:_g_vmds+vmds_is_pcjr, 1
         jne isr_mapped
         cmp byte ptr DGROUP:kbd_pcjr, 1
         je isr_pcjr
@@ -603,13 +605,15 @@ _key_is_down proc far
         sti
         retf
 key_is_down_dead db 0cbh
-c_21492 db 0ffh, 2eh, 0aah, 43h
-c_21496 db 0ffh, 2eh, 0aeh, 43h
+border_colour_thunk:
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BORDER_COLOUR
+slot_26_thunk:
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_26
 _key_is_down endp
 
 /* 0x2149a */
 _show_page_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+24h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_SHOW_PAGE
 _show_page_thunk endp
 KEYBOARD_TEXT ends
 }

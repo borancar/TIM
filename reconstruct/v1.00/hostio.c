@@ -925,10 +925,10 @@ static void vm_chunk_slot(uint8_t *src, uint8_t *dst, int16_t count)
 void (*vm_vector_host(int16_t slot))(void)
 {
     switch (slot) {
-    case 13: return (void (*)(void))vm_bitmap_list_size;   /* VGA:0x0fd4 */
-    case 14: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
-    case 15: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
-    case 22: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
+    case VM_SLOT_LIST_SIZE: return (void (*)(void))vm_bitmap_list_size;   /* VGA:0x0fd4 */
+    case VM_SLOT_LOAD_LIST: return (void (*)(void))vm_load_list_slot;     /* VGA:0x1015 */
+    case VM_SLOT_CHUNK: return (void (*)(void))vm_chunk_slot;         /* VGA:0x0252 */
+    case VM_SLOT_PLOT_PIXEL: return (void (*)(void))vm_plot_slot;          /* VGA:0x14c9 */
     default: return vm_slot_missing;
     }
 }

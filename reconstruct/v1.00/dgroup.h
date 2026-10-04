@@ -177,8 +177,7 @@ typedef struct paragraph *dg_sseg_t;
  * `pad_XX` is a field no instruction names - the game's, checked with
  * `tools/xrefs.py`, and the VGA driver's or the sound module's where the
  * record is theirs - named for its offset. It is not alignment: the bytes
- * are there in the original, and nothing reads them. `unknown_XX` is one not
- * yet settled either way.
+ * are there in the original, and nothing reads them.
  *
  * **Every one of these overlays is `packed`, and it is not superstition.**
  * DGROUP has words at odd addresses - the game's own state block starts at
@@ -835,7 +834,7 @@ struct timer {
        the record because the original's game code reads the words either
        side of them in guest memory. */
     uint8_t   callback_slots[0x40]; /* +0x0b  0x44f9 */
-    struct {
+    struct timer_tick {
         int16_t left;             /* +0x00  counts down to the call */
         int16_t period;           /* +0x02  what it reloads from */
     } tick[16];                   /* +0x4b  0x4539 */
@@ -1750,6 +1749,42 @@ struct vm_driver {
 
 extern struct vm_driver g_vm_driver;
 
+/*
+ * **The slots the game calls**, as indices into `entry`: a call through
+ * `lcall [0x4346 + 4 * n]` is slot n. The names are ours, from the routine
+ * the game reaches through the slot or from the driver routine the VGA
+ * driver files there (measured, docs/video-driver.md); a slot whose job is
+ * not established keeps its number. The assembly reads these through
+ * H2ASH (`JUDGE: structs VM_SLOT_*`), as `+4*VM_SLOT_SHOW_PAGE`.
+ */
+#define VM_SLOT_GLYPH          1    /* VGA:0x124b  vm_blit_glyph */
+#define VM_SLOT_DRAW_LINE      2    /* VGA:0x0998  vm_draw_line */
+#define VM_SLOT_BLIT_PLAIN     3    /* VGA:0x1231  vm_blit_bitmap, mode 0 */
+#define VM_SLOT_COPY_RECT      4    /* VGA:0x1561  vm_copy_rect */
+#define VM_SLOT_SAVE_RECT      5    /* VGA:0x12fb  vm_save_rect */
+#define VM_SLOT_BUFFER_SIZE    6    /* VGA:0x138e  vm_buffer_size */
+#define VM_SLOT_RESTORE_RECT   7    /* VGA:0x13b9  vm_restore_rect */
+#define VM_SLOT_SHOW_PAGE      8    /* VGA:0x150f  vm_show_page */
+#define VM_SLOT_SPAN           10   /* VGA:0x034f  vm_span */
+#define VM_SLOT_LIST_SIZE      13   /* VGA:0x0fd4  vm_bitmap_list_size */
+#define VM_SLOT_LOAD_LIST      14   /* VGA:0x1015  vm_load_list_slot */
+#define VM_SLOT_CHUNK          15   /* VGA:0x0252  vm_nothing; the host's vm_chunk_slot */
+#define VM_SLOT_BLIT_ROWS      17   /* VGA:0x15d0  vm_blit_rows */
+#define VM_SLOT_BLIT_ROWS_ALT  18   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_LOAD_PALETTE   20   /* VGA:0x0f15  vm_load_palette */
+#define VM_SLOT_READ_PIXEL     21   /* VGA:0x1453  vm_read_pixel */
+#define VM_SLOT_PLOT_PIXEL     22   /* VGA:0x14c9  vm_plot_pixel */
+#define VM_SLOT_23             23   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_BORDER_COLOUR  25   /* VGA:0x2ae7  vm_set_border_colour */
+#define VM_SLOT_26             26   /* VGA:0x0efe  reached only by an unreferenced thunk in keyboard.c */
+#define VM_SLOT_FILL_SPANS     27   /* VGA:0x0be6  vm_fill_spans */
+#define VM_SLOT_PAGE_HOOK      28   /* VGA:0x0252  vm_nothing */
+#define VM_SLOT_BLIT_BITMAP    29   /* VGA:0x1707  vm_blit_bitmap */
+#define VM_SLOT_BLIT_SCALED    33   /* VGA:0x271b  vm_blit_scaled */
+#define VM_SLOT_BLEND_PALETTE  34   /* VGA:0x0f57  vm_blend_palette */
+#define VM_SLOT_SCALED_ROW     37   /* VGA:0x03db  vm_blit_scaled_row */
+#define VM_SLOT_BLIT_RUN       38   /* VGA:0x0938  vm_blit_run */
+
 
 
 /*
@@ -2119,7 +2154,7 @@ struct snd_cs {
     struct sequence far *playing[16]; /* +0x0008  the sequences playing, packed from the front, null-ended */
     struct sequence far *polled[16]; /* +0x0048  the sequences parked to be polled; **not** the playing table */
     struct sequence far *voice_sequence[16]; /* +0x0088  which sequence each voice plays, null for none */
-    uint8_t   unknown_00c8[64];   /* +0x00c8  not read or written by the port */
+    uint8_t   pad_00c8[64];   /* +0x00c8  no label or operand in the module names it */
     int16_t   scratch[16];        /* +0x0108  init_sequence_params' sixteen words */
     /* The tick's per-voice arrays, sixteen bytes each - see `sequencer_tick`. */
     uint8_t   voice_held[16];     /* +0x0128  the request each voice plays now, 0xff free */
@@ -2853,7 +2888,7 @@ struct sequence_channels {
 } PACKED;
 
 struct sequence {
-    uint8_t        unknown_000[8];      /* +0x000  not read or written by the port */
+    uint8_t        pad_000[8];      /* +0x000  named by nothing; the record is allocated zeroed */
     uint8_t far * far *cursor_at;           /* +0x008  where the cursor lives: this record's `cursor` */
     uint16_t       position[16];        /* +0x00c  each channel's place in the event data */
     uint16_t       position_saved[16];  /* +0x02c  its shadow, which a checkpoint copies */
@@ -2882,7 +2917,7 @@ struct sequence {
        calloc'd, so the guard always passes. */
     uint8_t        keep_priority;       /* +0x15b */
     uint8_t        priority;            /* +0x15c  a sound bank entry's second byte */
-    uint8_t        loop;                /* +0x15d  and its first */
+    uint8_t        looping;             /* +0x15d  and its first (not `loop`: TASM reads that as the instruction, see tools/h2ash.py) */
     uint8_t        volume;              /* +0x15e  0x7f for the default */
     uint8_t        device_value;        /* +0x15f  controller 0x50's, 0x7f for the default */
     uint8_t        fade_target;         /* +0x160  top bit: remove the sequence on arrival */
@@ -2893,9 +2928,9 @@ struct sequence {
     uint8_t        poll;                /* +0x165  how the host is asked about it */
     const uint8_t far *source;              /* +0x166  the note data */
     uint8_t far *cursor;                    /* +0x16a  the record being played */
-    uint8_t        unknown_16e[4];      /* +0x16e */
+    uint8_t        pad_16e[4];      /* +0x16e */
     struct sequence far *next;                /* +0x172  a chain `follow_far_chain` walks */
-    uint8_t        unknown_176[4];      /* +0x176 */
+    uint8_t        pad_176[4];      /* +0x176 */
 } PACKED;
 
 /*
@@ -3429,17 +3464,18 @@ struct resource {
        near pointer, which `open_resource` files there and `select_resource`
        copies to 0x57bc. Two readings of the same four bytes, chosen by the
        kind: the file record's pointer is the low word. */
-    union {
+    union resource_data {
         char huge *ptr;        /* the data in memory */
         FILE     *file;        /* or the file record it is read from */
     } data;                    /* +0x06 */
-    /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
-       borrow and compares the two as wholes; `next_input_byte` steps `in`
-       with a carry; `open_resource` splits a `uint32_t` into `end` and
-       `resource_tell` joins `in` back into one. */
-    uint32_t  in;              /* +0x0a  how far into the compressed input
+    /* **Three Borland `long`s.** `read_input_block` takes `in_end - in_pos`
+       with a borrow and compares the two as wholes; `next_input_byte` steps
+       `in_pos` with a carry; `open_resource` splits a `uint32_t` into
+       `in_end` and `resource_tell` joins `in_pos` back into one. Not `in`
+       and `end`: those are TASM's, and lzw.c's assembly names them. */
+    uint32_t  in_pos;          /* +0x0a  how far into the compressed input
                                          the reader is */
-    uint32_t  end;             /* +0x0e  where the compressed input ends */
+    uint32_t  in_end;          /* +0x0e  where the compressed input ends */
     int32_t   size;            /* +0x12  what resource_seek measures from for
                                          SEEK_END */
     int32_t   pos;             /* +0x16  and what it measures from for
@@ -3514,8 +3550,10 @@ struct engine_stream {
     uint16_t  wanted;             /* +0x08  how many bytes the caller still wants */
     uint8_t  *spill;              /* +0x0a  the record's work buffer, where a run that does not fit
                                      spills */
-    uint8_t huge *out;            /* +0x0c  the output cursor */
-    char huge *in;                /* +0x10  and where the input is read from in memory */
+    uint8_t huge *output;         /* +0x0c  the output cursor */
+    char huge *input;             /* +0x10  and where the input is read from in memory
+                                     (not `out` and `in`: TASM reads those as the
+                                     instructions, see tools/h2ash.py) */
     int16_t   written;            /* +0x14  bytes the writing side has put out; close_resource answers it */
     int16_t   n_bits;             /* +0x16  the code width: 9 at a reset, one more when free_ent passes maxcode */
     int16_t   free_ent;           /* +0x18  the next free code: 0x101 at a reset, at most 0x1000 */

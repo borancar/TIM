@@ -23,6 +23,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #ifndef __TURBOC__
@@ -38,6 +39,7 @@
  * `#else`. See glue.c for how the block reaches the assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
 public _g_timer
 _g_timer label byte
@@ -336,12 +338,12 @@ _timer_tick endp
 
 /* 0x20838 */
 _blit_rows_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+48h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BLIT_ROWS
 _blit_rows_thunk endp
 
 /* 0x2083c */
 _blit_rows_alt_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+4ch
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_BLIT_ROWS_ALT
 _blit_rows_alt_thunk endp
 TIMER_TEXT ends
 }

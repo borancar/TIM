@@ -416,14 +416,14 @@ int16_t open_resource(int16_t type, FILE *file, char *mode, int32_t size)
         return -1;
     g_engine_stream.rec->data.file = file;
     g_engine_stream.rec->start = game_ftell(file);
-    g_engine_stream.rec->in = 5;
+    g_engine_stream.rec->in_pos = 5;
     if (string_contains_r(mode)) {
         if (prepare_resource_slot(type = g_engine_stream.rec->kind = game_fgetc(file),
                                   mode) == -1) {
             game_fseek(file, -1L, 1);
             return close_resource_slot(slot);
         }
-        g_engine_stream.rec->end = size;
+        g_engine_stream.rec->in_end = size;
         game_fread((uint8_t *)&g_engine_stream.rec->size, 1, 4, file);
         if (g_engine_res_handlers.type[type].reset)
             g_engine_res_handlers.type[type].reset();
@@ -454,13 +454,13 @@ int16_t open_resource_mem(int16_t type, char huge *data, char *mode, int32_t siz
         return -1;
     g_engine_stream.rec->data.ptr = data;
     g_engine_stream.rec->kind = type;
-    g_engine_stream.rec->in = 5;
+    g_engine_stream.rec->in_pos = 5;
     if (string_contains_r(mode)) {
         if (prepare_resource_slot(type = g_engine_stream.rec->kind = *data++,
                                   mode) == -1)
             return close_resource_slot(slot);
         far_memcpy((uint8_t *)&g_engine_stream.rec->size, (uint8_t huge *)data, 4);
-        g_engine_stream.rec->end = size;
+        g_engine_stream.rec->in_end = size;
         if (g_engine_res_handlers.type[type].reset)
             g_engine_res_handlers.type[type].reset();
         g_engine_stream.rec->kind |= 0x40;
@@ -512,7 +512,7 @@ int16_t read_resource(int16_t handle, uint8_t far *dst, uint16_t count)
 {
     if (!select_resource(handle))
         return -1;
-    g_engine_stream.out = normalise_pointer_far(dst);
+    g_engine_stream.output = normalise_pointer_far(dst);
     g_engine_resource_flags.flags |= 0x40;
     return resource_read(handle, count);
 }
@@ -606,8 +606,8 @@ int32_t resource_seek(int16_t handle, int32_t by, int16_t whence)
     else
         t -= g_engine_stream.rec->pos;
     while ((t -= (uint16_t)resource_read(handle, t < 0x7d00L ? (uint16_t)t : 0x7d00)) != 0)
-        g_engine_stream.in = (char huge *)normalise_pointer_far(
-            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in));
+        g_engine_stream.input = (char huge *)normalise_pointer_far(
+            (uint8_t huge *)(g_engine_stream.rec->data.ptr + g_engine_stream.rec->in_pos));
     return g_engine_stream.rec->pos;
 }
 
@@ -626,11 +626,11 @@ int16_t restart_resource_stream(int16_t handle)
         return -1;
     if (g_engine_res_handlers.type[g_engine_resource_flags.handler].reset)
         g_engine_res_handlers.type[g_engine_resource_flags.handler].reset();
-    g_engine_stream.rec->in = 5;
+    g_engine_stream.rec->in_pos = 5;
     if (g_engine_stream.rec->kind & 0x20)
         game_fseek(g_engine_resource_flags.file, g_engine_stream.rec->start + 5, 0);
     else
-        g_engine_stream.in = (char huge *)normalise_pointer_far(
+        g_engine_stream.input = (char huge *)normalise_pointer_far(
             (uint8_t huge *)(g_engine_stream.rec->data.ptr + 5));
     g_engine_stream.rec->spill_end = g_engine_stream.rec->spill_start =
         g_engine_stream.rec->pos = 0;

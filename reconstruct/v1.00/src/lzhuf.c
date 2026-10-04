@@ -24,6 +24,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs resource=res engine_stream=strm
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -39,6 +40,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _BSS segment word public 'BSS'
 enc_waiting db 2 dup (?)
 enc_i db 2 dup (?)
@@ -182,9 +184,9 @@ _lzss_open_write proc near
         add sp, 8
         mov word ptr DGROUP:lzh_dad_seg, dx
         mov word ptr DGROUP:lzh_dad_off, ax
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+4]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_scratch+2]
+        mov dx, word ptr [bx+res_scratch]
         mov word ptr DGROUP:lzss_ring_seg, ax
         mov word ptr DGROUP:lzss_ring_off, dx
         xor ax, ax
@@ -196,9 +198,9 @@ _lzss_reset proc near
         mov word ptr DGROUP:lzss_ready, 0
         mov word ptr DGROUP:lzh_getbuf, 0
         mov byte ptr DGROUP:lzh_getlen, 0
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+4]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_scratch+2]
+        mov dx, word ptr [bx+res_scratch]
         mov word ptr DGROUP:lzss_ring_seg, ax
         mov word ptr DGROUP:lzss_ring_off, dx
         xor ax, ax
@@ -711,21 +713,21 @@ _huffman_start proc near
         mov bp, sp
         push si
         push di
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+4]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_scratch+2]
+        mov dx, word ptr [bx+res_scratch]
         add dx, 103bh
         mov word ptr DGROUP:huff_freq_seg, ax
         mov word ptr DGROUP:huff_freq_off, dx
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+4]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_scratch+2]
+        mov dx, word ptr [bx+res_scratch]
         add dx, 1523h
         mov word ptr DGROUP:huff_prnt_seg, ax
         mov word ptr DGROUP:huff_prnt_off, dx
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+4]
-        mov dx, word ptr [bx+2]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_scratch+2]
+        mov dx, word ptr [bx+res_scratch]
         add dx, 1c7dh
         mov word ptr DGROUP:huff_son_seg, ax
         mov word ptr DGROUP:huff_son_off, dx
@@ -1288,15 +1290,15 @@ _lzss_flush proc near
         sub sp, 4
         push si
         push di
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov al, byte ptr [bx+1bh]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov al, byte ptr [bx+res_spill_start]
         mov ah, 0
         mov word ptr [bp-2], ax
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov al, byte ptr [bx+1ah]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov al, byte ptr [bx+res_spill_end]
         mov ah, 0
         mov di, ax
-        mov si, word ptr DGROUP:_g_engine_stream+0ah
+        mov si, word ptr DGROUP:_g_engine_stream+strm_spill
         mov ax, word ptr [bp-2]
         mov word ptr [bp-4], ax
         cmp word ptr DGROUP:enc_started, 0
@@ -1343,9 +1345,9 @@ enc_filled:
         cmp word ptr [bp+4], 0
         jne enc_insert_prefix
         mov word ptr DGROUP:enc_waiting, 1
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
         mov al, byte ptr [bp-4]
-        mov byte ptr [bx+1bh], al
+        mov byte ptr [bx+res_spill_start], al
         xor ax, ax
         jmp enc_return
 enc_insert_prefix:
@@ -1444,9 +1446,9 @@ enc_shifted:
         cmp word ptr [bp+4], 0
         jne enc_tail_test
         mov word ptr DGROUP:enc_waiting, 1
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
         mov al, byte ptr [bp-4]
-        mov byte ptr [bx+1bh], al
+        mov byte ptr [bx+res_spill_start], al
         xor ax, ax
         jmp short enc_return
 enc_dead_jmp db 0ebh, 2eh
@@ -1477,9 +1479,9 @@ enc_tail_test:
         jmp enc_loop
 enc_done:
         call _encode_end
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
         mov al, byte ptr [bp-4]
-        mov byte ptr [bx+1bh], al
+        mov byte ptr [bx+res_spill_start], al
         xor ax, ax
         jmp short enc_return
 enc_return:
@@ -1508,9 +1510,9 @@ lzss_start:
         mov word ptr DGROUP:lzss_ring_pos, 0fc4h
         mov word ptr DGROUP:lzss_count_hi, 0
         mov word ptr DGROUP:lzss_count_lo, 0
-        mov bx, word ptr DGROUP:_g_engine_stream+2h
-        mov ax, word ptr [bx+14h]
-        mov dx, word ptr [bx+12h]
+        mov bx, word ptr DGROUP:_g_engine_stream+strm_rec
+        mov ax, word ptr [bx+res_size+2]
+        mov dx, word ptr [bx+res_size]
         mov word ptr DGROUP:lzss_size_hi, ax
         mov word ptr DGROUP:lzss_size_lo, dx
         mov word ptr DGROUP:lzss_ready, 1

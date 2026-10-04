@@ -23,6 +23,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include "tim.h"
@@ -36,6 +37,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
 poly_top_at label byte
         db 0h, 0h
@@ -93,36 +95,36 @@ _draw_polygon proc far
         mov ax, word ptr [bp+6]
         or ax, ax
         js poly_count_set
-        mov word ptr DGROUP:_g_vmds+19ch, ax
+        mov word ptr DGROUP:_g_vmds+vmds_palettes, ax
         mov cx, ax
         mov si, word ptr [bp+8]
-        mov di, offset DGROUP:_g_vmds+0ach
+        mov di, offset DGROUP:_g_vmds+vmds_poly_x
         rep movsw
         mov cx, ax
         mov si, word ptr [bp+0ah]
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         rep movsw
 poly_count_set:
         cmp ax, 2
         jg poly_enough
         jl poly_too_few
 poly_two_points:
-        mov si, offset DGROUP:_g_vmds+0ach
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov si, offset DGROUP:_g_vmds+vmds_poly_x
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         mov bp, 1
         call _poly_outline
 poly_too_few:
         jmp poly_second_pass_check
 poly_enough:
-        mov al, byte ptr DGROUP:_g_vmds+0ch
+        mov al, byte ptr DGROUP:_g_vmds+vmds_fill_enabled
         or al, al
         jne poly_fill
-        mov ax, word ptr DGROUP:_g_vmds+19ch
+        mov ax, word ptr DGROUP:_g_vmds+vmds_palettes
         mov bx, ax
         mov bp, ax
         shl bx, 1
-        mov si, offset DGROUP:_g_vmds+0ach
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov si, offset DGROUP:_g_vmds+vmds_poly_x
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         mov ax, word ptr [si]
         mov word ptr [bx+si], ax
         mov ax, word ptr [di]
@@ -130,45 +132,45 @@ poly_enough:
         call _poly_outline
         jmp poly_second_pass_check
 poly_fill:
-        mov al, byte ptr DGROUP:_g_vmds+0eh
-        cmp al, byte ptr DGROUP:_g_vmds+0dh
+        mov al, byte ptr DGROUP:_g_vmds+vmds_second_colour
+        cmp al, byte ptr DGROUP:_g_vmds+vmds_fill_colour
         je poly_clip
-        mov ax, word ptr DGROUP:_g_vmds+19ch
+        mov ax, word ptr DGROUP:_g_vmds+vmds_palettes
         mov word ptr DGROUP:poly_outline_count, ax
         mov bx, ax
         dec bx
-        mov si, offset DGROUP:_g_vmds+0ach
-        mov di, offset DGROUP:_g_vmds+14ch
+        mov si, offset DGROUP:_g_vmds+vmds_poly_x
+        mov di, offset DGROUP:_g_vmds+vmds_closed_x
         lodsw
         stosw
         mov cx, bx
         rep movsw
         stosw
-        mov si, offset DGROUP:_g_vmds+0d4h
-        mov di, offset DGROUP:_g_vmds+174h
+        mov si, offset DGROUP:_g_vmds+vmds_poly_y
+        mov di, offset DGROUP:_g_vmds+vmds_closed_y
         lodsw
         stosw
         mov cx, bx
         rep movsw
         stosw
 poly_clip:
-        mov al, byte ptr DGROUP:_g_vmds+3h
+        mov al, byte ptr DGROUP:_g_vmds+vmds_clip_enabled
         or al, al
         je poly_clipped
         call FAR PTR _clip_polygon
 poly_clipped:
-        mov ax, word ptr DGROUP:_g_vmds+19ch
+        mov ax, word ptr DGROUP:_g_vmds+vmds_palettes
         cmp ax, 2
         je poly_two_points
         jl poly_too_few
         dec ax
         shl ax, 1
         mov si, ax
-        mov ax, word ptr DGROUP:_g_vmds+0d4h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_poly_y
         mov word ptr DGROUP:poly_prev_y, ax
         mov dx, 7fffh
         mov bx, 8001h
-        mov ax, word ptr DGROUP:_g_vmds+0ach
+        mov ax, word ptr DGROUP:_g_vmds+vmds_poly_x
         mov word ptr DGROUP:poly_prev_x, ax
         mov bp, dx
         mov cx, bx
@@ -177,39 +179,39 @@ poly_clipped:
         mov word ptr DGROUP:poly_top_at, ax
         mov word ptr DGROUP:poly_bottom_at, ax
 poly_scan_point:
-        mov ax, word ptr [si+3964h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
         cmp ax, word ptr DGROUP:poly_prev_y
         jne poly_new_y
-        mov ax, word ptr [si+393ch]
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
         cmp ax, word ptr DGROUP:poly_prev_x
         je poly_scan_next
-        mov ax, word ptr [si+3964h]
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
 poly_new_y:
         mov word ptr DGROUP:poly_prev_y, ax
-        mov word ptr [di+39b4h], ax
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         cmp ax, dx
         jg poly_check_bottom
         jl poly_new_top
-        cmp word ptr [si+393ch], cx
+        cmp word ptr _g_vmds[si+vmds_poly_x], cx
         jle poly_check_bottom
 poly_new_top:
         mov word ptr DGROUP:poly_top_at, di
         mov dx, ax
-        mov cx, word ptr [si+393ch]
+        mov cx, word ptr _g_vmds[si+vmds_poly_x]
 poly_check_bottom:
         cmp ax, bx
         jl poly_keep_point
         jg poly_new_bottom
-        cmp word ptr [si+393ch], bp
+        cmp word ptr _g_vmds[si+vmds_poly_x], bp
         jg poly_keep_point
 poly_new_bottom:
         mov word ptr DGROUP:poly_bottom_at, di
         mov bx, ax
-        mov bp, word ptr [si+393ch]
+        mov bp, word ptr _g_vmds[si+vmds_poly_x]
 poly_keep_point:
-        mov ax, word ptr [si+393ch]
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
         mov word ptr DGROUP:poly_prev_x, ax
-        mov word ptr [di+398ch], ax
+        mov word ptr _g_vmds[di+vmds_work_x], ax
         add di, 2
 poly_scan_next:
         sub si, 2
@@ -217,7 +219,7 @@ poly_scan_next:
         cmp dx, bx
         jne poly_count_kept
 poly_flat_line:
-        cmp byte ptr DGROUP:_g_vmds+6e8h, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_screen, 0
         jne poly_flat_line_halved
         push dx
         push cx
@@ -228,8 +230,8 @@ poly_flat_line:
 poly_flat_done:
         jmp poly_second_pass_check
 poly_flat_line_halved:
-        shr word ptr DGROUP:_g_vmds+8h, 1
-        shr word ptr DGROUP:_g_vmds+0ah, 1
+        shr word ptr DGROUP:_g_vmds+vmds_clip_top, 1
+        shr word ptr DGROUP:_g_vmds+vmds_clip_bottom, 1
         sar dx, 1
         push dx
         push cx
@@ -238,8 +240,8 @@ poly_flat_line_halved:
         push bp
         call FAR PTR _clip_and_draw_line
         add sp, 8
-        shl word ptr DGROUP:_g_vmds+8h, 1
-        shl word ptr DGROUP:_g_vmds+0ah, 1
+        shl word ptr DGROUP:_g_vmds+vmds_clip_top, 1
+        shl word ptr DGROUP:_g_vmds+vmds_clip_bottom, 1
         jmp poly_second_pass_check
 poly_count_kept:
         mov ax, di
@@ -248,7 +250,7 @@ poly_count_kept:
         je poly_flat_line
         jl poly_flat_done
         mov cx, di
-        mov word ptr DGROUP:_g_vmds+19ch, ax
+        mov word ptr DGROUP:_g_vmds+vmds_palettes, ax
         mov ax, ds
         mov es, ax
         mov ax, word ptr DGROUP:poly_top_at
@@ -258,10 +260,10 @@ poly_count_kept:
         cmp di, cx
         sbb ax, ax
         and di, ax
-        mov dx, word ptr [di+398ch]
-        sub dx, word ptr [si+398ch]
-        mov bp, word ptr [di+39b4h]
-        sub bp, word ptr [si+39b4h]
+        mov dx, word ptr _g_vmds[di+vmds_work_x]
+        sub dx, word ptr _g_vmds[si+vmds_work_x]
+        mov bp, word ptr _g_vmds[di+vmds_work_y]
+        sub bp, word ptr _g_vmds[si+vmds_work_y]
         jne poly_prev_edge
         inc bp
         or dx, dx
@@ -274,10 +276,10 @@ poly_prev_edge:
         jge poly_prev_delta
         add di, cx
 poly_prev_delta:
-        mov ax, word ptr [di+398ch]
-        sub ax, word ptr [si+398ch]
-        mov bx, word ptr [di+39b4h]
-        sub bx, word ptr [si+39b4h]
+        mov ax, word ptr _g_vmds[di+vmds_work_x]
+        sub ax, word ptr _g_vmds[si+vmds_work_x]
+        mov bx, word ptr _g_vmds[di+vmds_work_y]
+        sub bx, word ptr _g_vmds[si+vmds_work_y]
         jne poly_order_signs
         inc bx
         or ax, ax
@@ -321,24 +323,24 @@ poly_compare_slopes:
         mov byte ptr DGROUP:poly_second_pass, 1
         mov word ptr DGROUP:poly_second_count, cx
         mov dx, cx
-        mov si, offset DGROUP:_g_vmds+0fch
-        mov di, offset DGROUP:_g_vmds+14ch
+        mov si, offset DGROUP:_g_vmds+vmds_work_x
+        mov di, offset DGROUP:_g_vmds+vmds_closed_x
         shr cx, 1
         rep movsw
         mov cx, dx
-        mov si, offset DGROUP:_g_vmds+124h
-        mov di, offset DGROUP:_g_vmds+174h
+        mov si, offset DGROUP:_g_vmds+vmds_work_y
+        mov di, offset DGROUP:_g_vmds+vmds_closed_y
         shr cx, 1
         rep movsw
         mov cx, dx
 poly_keep_order:
-        mov si, offset DGROUP:_g_vmds+0fch
-        mov di, offset DGROUP:_g_vmds+0ach
+        mov si, offset DGROUP:_g_vmds+vmds_work_x
+        mov di, offset DGROUP:_g_vmds+vmds_poly_x
         mov dx, cx
         shr cx, 1
         rep movsw
-        mov si, offset DGROUP:_g_vmds+124h
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov si, offset DGROUP:_g_vmds+vmds_work_y
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         mov cx, dx
         shr cx, 1
         rep movsw
@@ -346,8 +348,8 @@ poly_keep_order:
         jmp short poly_chains
 poly_reverse:
         mov dx, cx
-        mov si, offset DGROUP:_g_vmds+0fch
-        mov di, offset DGROUP:_g_vmds+0ach
+        mov si, offset DGROUP:_g_vmds+vmds_work_x
+        mov di, offset DGROUP:_g_vmds+vmds_poly_x
         add di, dx
         shr cx, 1
 poly_reverse_x:
@@ -356,8 +358,8 @@ poly_reverse_x:
         dec di
         mov word ptr [di], ax
         loop poly_reverse_x
-        mov si, offset DGROUP:_g_vmds+124h
-        mov di, offset DGROUP:_g_vmds+0d4h
+        mov si, offset DGROUP:_g_vmds+vmds_work_y
+        mov di, offset DGROUP:_g_vmds+vmds_poly_y
         add di, dx
         mov cx, dx
         shr cx, 1
@@ -378,7 +380,7 @@ poly_reverse_y:
 poly_chains:
         mov ax, word ptr DGROUP:poly_bottom_at
         mov bx, ax
-        mov dx, word ptr [bx+3964h]
+        mov dx, word ptr _g_vmds[bx+vmds_poly_y]
         mov ax, word ptr DGROUP:poly_top_at
         mov si, ax
         sub di, di
@@ -389,10 +391,10 @@ poly_right_next:
         sbb ax, ax
         and si, ax
 poly_right_point:
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         cmp ax, dx
         jl poly_right_next
@@ -401,7 +403,7 @@ poly_right_point:
         mov word ptr DGROUP:poly_right_count, ax
         mov ax, word ptr DGROUP:poly_top_at
         mov bx, ax
-        mov dx, word ptr [bx+3964h]
+        mov dx, word ptr _g_vmds[bx+vmds_poly_y]
         mov ax, word ptr DGROUP:poly_bottom_at
         mov si, ax
         jmp short poly_left_point
@@ -411,10 +413,10 @@ poly_left_next:
         sbb ax, ax
         and si, ax
 poly_left_point:
-        mov ax, word ptr [si+393ch]
-        mov word ptr [di+398ch], ax
-        mov ax, word ptr [si+3964h]
-        mov word ptr [di+39b4h], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_x]
+        mov word ptr _g_vmds[di+vmds_work_x], ax
+        mov ax, word ptr _g_vmds[si+vmds_poly_y]
+        mov word ptr _g_vmds[di+vmds_work_y], ax
         add di, 2
         cmp ax, dx
         jg poly_left_next
@@ -438,11 +440,11 @@ poly_edge:
         mov si, ax
         add ax, 2
         mov word ptr DGROUP:poly_at, ax
-        mov ax, word ptr [si+398ch]
+        mov ax, word ptr _g_vmds[si+vmds_work_x]
         mov bx, ax
-        mov bp, word ptr [si+398eh]
-        mov cx, word ptr [si+39b4h]
-        mov si, word ptr [si+39b6h]
+        mov bp, word ptr _g_vmds[si+vmds_work_x+2]
+        mov cx, word ptr _g_vmds[si+vmds_work_y]
+        mov si, word ptr _g_vmds[si+vmds_work_y+2]
         sub ax, bp
         cwd
         xor ax, dx
@@ -503,7 +505,7 @@ poly_chain_done:
 poly_spans:
         mov ax, word ptr DGROUP:poly_top_at
         mov bx, ax
-        mov ax, word ptr [bx+3964h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
         mov dx, ax
         shl ax, 1
         shl ax, 1
@@ -511,7 +513,7 @@ poly_spans:
         mov word ptr DGROUP:poly_span_seg, es
         mov ax, word ptr DGROUP:poly_bottom_at
         mov bx, ax
-        mov ax, word ptr [bx+3964h]
+        mov ax, word ptr _g_vmds[bx+vmds_poly_y]
         sub ax, dx
         inc ax
         mov cx, es
@@ -520,14 +522,14 @@ poly_spans:
         add si, 0ch
         mov word ptr es:[si], dx
         mov word ptr es:[si+2], ax
-        call dword ptr DGROUP:_g_vm_driver+70h
-        mov al, byte ptr DGROUP:_g_vmds+0eh
-        cmp al, byte ptr DGROUP:_g_vmds+0dh
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_FILL_SPANS
+        mov al, byte ptr DGROUP:_g_vmds+vmds_second_colour
+        cmp al, byte ptr DGROUP:_g_vmds+vmds_fill_colour
         je poly_second_pass_check
         mov ax, word ptr DGROUP:poly_outline_count
         mov bp, ax
-        mov si, offset DGROUP:_g_vmds+14ch
-        mov di, offset DGROUP:_g_vmds+174h
+        mov si, offset DGROUP:_g_vmds+vmds_closed_x
+        mov di, offset DGROUP:_g_vmds+vmds_closed_y
         call _poly_outline
 poly_second_pass_check:
         mov al, byte ptr DGROUP:poly_second_pass
@@ -538,13 +540,13 @@ poly_second_pass_check:
         mov es, ax
         mov cx, word ptr DGROUP:poly_second_count
         mov dx, cx
-        mov si, offset DGROUP:_g_vmds+14ch
-        mov di, offset DGROUP:_g_vmds+0fch
+        mov si, offset DGROUP:_g_vmds+vmds_closed_x
+        mov di, offset DGROUP:_g_vmds+vmds_work_x
         shr cx, 1
         rep movsw
         mov cx, dx
-        mov si, offset DGROUP:_g_vmds+174h
-        mov di, offset DGROUP:_g_vmds+124h
+        mov si, offset DGROUP:_g_vmds+vmds_closed_y
+        mov di, offset DGROUP:_g_vmds+vmds_work_y
         shr cx, 1
         rep movsw
         mov cx, dx
@@ -560,7 +562,7 @@ _draw_polygon endp
 
 /* 0x1f219 */
 _poly_outline proc near
-        cmp byte ptr DGROUP:_g_vmds+6e8h, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_screen, 0
         jne outline_halved
 outline_line:
         push word ptr [di]
@@ -575,8 +577,8 @@ outline_line:
         jne outline_line
         ret
 outline_halved:
-        shr word ptr DGROUP:_g_vmds+8h, 1
-        shr word ptr DGROUP:_g_vmds+0ah, 1
+        shr word ptr DGROUP:_g_vmds+vmds_clip_top, 1
+        shr word ptr DGROUP:_g_vmds+vmds_clip_bottom, 1
 outline_halved_line:
         mov ax, word ptr [di]
         add di, 2
@@ -593,8 +595,8 @@ outline_halved_line:
         add sp, 8
         dec bp
         jne outline_halved_line
-        shl word ptr DGROUP:_g_vmds+8h, 1
-        shl word ptr DGROUP:_g_vmds+0ah, 1
+        shl word ptr DGROUP:_g_vmds+vmds_clip_top, 1
+        shl word ptr DGROUP:_g_vmds+vmds_clip_bottom, 1
         ret
 _poly_outline endp
 
@@ -2704,16 +2706,16 @@ _fill_rect proc far
         add ax, word ptr [bp+8]
         dec ax
         mov word ptr [bp-6], ax
-        cmp byte ptr DGROUP:_g_vmds+0ch, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_fill_enabled, 0
         jne rect_fill
         jmp rect_outline
 rect_fill:
         push word ptr [bp+6]
         push word ptr [bp+8]
-        cmp byte ptr DGROUP:_g_vmds+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_clip_enabled, 0
         je rect_spans
         mov ax, word ptr [bp+6]
-        sub ax, word ptr DGROUP:_g_vmds+4h
+        sub ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         mov word ptr [bp-2], ax
         or ax, ax
         jge rect_clip_top
@@ -2721,21 +2723,21 @@ rect_fill:
         add word ptr [bp+0ah], ax
 rect_clip_top:
         mov ax, word ptr [bp+8]
-        sub ax, word ptr DGROUP:_g_vmds+8h
+        sub ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         mov word ptr [bp-2], ax
         or ax, ax
         jge rect_clip_right
         sub word ptr [bp+8], ax
         add word ptr [bp+0ch], ax
 rect_clip_right:
-        mov ax, word ptr DGROUP:_g_vmds+6h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         sub ax, word ptr [bp-4]
         mov word ptr [bp-2], ax
         or ax, ax
         jge rect_clip_bottom
         add word ptr [bp+0ah], ax
 rect_clip_bottom:
-        mov ax, word ptr DGROUP:_g_vmds+0ah
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         sub ax, word ptr [bp-6]
         mov word ptr [bp-2], ax
         or ax, ax
@@ -2765,16 +2767,16 @@ rect_span:
         loop rect_span
         xor si, si
         push bp
-        call dword ptr DGROUP:_g_vm_driver+70h
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_FILL_SPANS
         pop bp
 rect_filled:
         pop word ptr [bp+8]
         pop word ptr [bp+6]
 rect_outline:
-        cmp byte ptr DGROUP:_g_vmds+0ch, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_fill_enabled, 0
         je rect_outline_draw
-        mov al, byte ptr DGROUP:_g_vmds+0eh
-        cmp byte ptr DGROUP:_g_vmds+0dh, al
+        mov al, byte ptr DGROUP:_g_vmds+vmds_second_colour
+        cmp byte ptr DGROUP:_g_vmds+vmds_fill_colour, al
         je rect_return
 rect_outline_draw:
         mov si, word ptr [bp+6]

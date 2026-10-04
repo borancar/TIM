@@ -51,6 +51,7 @@
  *
  * JUDGE: built-with -mm
  * JUDGE: tasm
+ * JUDGE: structs vmds=vmds vm_driver=vmdrv timer=tmr VM_SLOT_*
  * JUDGE: assembler bc3.00
  */
 #include <string.h>
@@ -69,6 +70,7 @@
  * assembler.
  */
 asm {
+INCLUDE STRUCTS.ASH
 _DATA segment word public 'DATA'
 joy_a_present label byte
         db 0h
@@ -314,7 +316,7 @@ init_calibrate:
         in al, 40h
         xchg al, ah
         mov di, ax
-        mov bx, word ptr DGROUP:_g_timer+3h
+        mov bx, word ptr DGROUP:_g_timer+tmr_divisor
         mov al, 36h
         out 43h, al
         mov al, bl
@@ -580,18 +582,18 @@ _clip_and_draw_line proc far
         push si
         push di
         push es
-        mov ax, word ptr DGROUP:_g_vmds+18h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_page_dst
         mov es, ax
         mov bx, word ptr [bp+6]
         mov cx, word ptr [bp+8]
         mov si, word ptr [bp+0ah]
         mov di, word ptr [bp+0ch]
-        mov al, byte ptr DGROUP:_g_vmds+3h
+        mov al, byte ptr DGROUP:_g_vmds+vmds_clip_enabled
         or al, al
         jne line_top
         jmp line_draw
 line_top:
-        mov ax, word ptr DGROUP:_g_vmds+8h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         cmp cx, ax
         jl line_top_first_out
         cmp di, ax
@@ -612,10 +614,10 @@ line_top_cut:
         imul cx
         idiv bp
         add bx, ax
-        mov ax, word ptr DGROUP:_g_vmds+8h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         mov cx, ax
 line_left:
-        mov ax, word ptr DGROUP:_g_vmds+4h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         cmp bx, ax
         jl line_left_first_out
         cmp si, ax
@@ -638,10 +640,10 @@ line_left_cut:
         imul bx
         idiv bp
         add cx, ax
-        mov ax, word ptr DGROUP:_g_vmds+4h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         mov bx, ax
 line_bottom:
-        mov ax, word ptr DGROUP:_g_vmds+0ah
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         cmp cx, ax
         ja line_bottom_first_out
         cmp di, ax
@@ -662,10 +664,10 @@ line_bottom_cut:
         imul cx
         idiv bp
         add bx, ax
-        mov ax, word ptr DGROUP:_g_vmds+0ah
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         mov cx, ax
 line_right:
-        mov ax, word ptr DGROUP:_g_vmds+6h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         cmp bx, ax
         ja line_right_first_out
         cmp si, ax
@@ -686,7 +688,7 @@ line_right_cut:
         imul bx
         idiv bp
         add cx, ax
-        mov ax, word ptr DGROUP:_g_vmds+6h
+        mov ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         mov bx, ax
 line_draw:
         mov dx, si
@@ -696,7 +698,7 @@ line_draw:
         xchg bx, dx
         xchg cx, si
 line_ordered:
-        call dword ptr DGROUP:_g_vm_driver+0ch
+        call dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_DRAW_LINE
 line_return:
         pop es
         pop di
@@ -730,8 +732,8 @@ _mouse_init proc far
         xor cx, cx
         mov dx, cx
         int 33h
-        push word ptr DGROUP:_g_vmds+6ech
-        push word ptr DGROUP:_g_vmds+6eah
+        push word ptr DGROUP:_g_vmds+vmds_screen+vm_screen_screen_height
+        push word ptr DGROUP:_g_vmds+vmds_screen+vm_screen_screen_width
         xor ax, ax
         push ax
         push ax
@@ -744,7 +746,7 @@ _mouse_init proc far
         pop es
         mov dx, 5d7fh
         int 33h
-        mov al, byte ptr DGROUP:_g_vmds+1dh
+        mov al, byte ptr DGROUP:_g_vmds+vmds_pixel_shift
         cmp al, 8
         jne mouse_init_modes_set
         mov al, byte ptr DGROUP:gc_mode_fill_256
@@ -1435,21 +1437,21 @@ _restore_int0_vector endp
 _read_pixel_clipped proc far
         push bp
         mov bp, sp
-        cmp byte ptr DGROUP:_g_vmds+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_clip_enabled, 0
         je read_pixel_inside
         mov ax, word ptr [bp+6]
-        cmp ax, word ptr DGROUP:_g_vmds+4h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         jl read_pixel_outside
-        cmp ax, word ptr DGROUP:_g_vmds+6h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         jg read_pixel_outside
         mov ax, word ptr [bp+8]
-        cmp ax, word ptr DGROUP:_g_vmds+8h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         jl read_pixel_outside
-        cmp ax, word ptr DGROUP:_g_vmds+0ah
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         jg read_pixel_outside
 read_pixel_inside:
         pop bp
-        jmp dword ptr DGROUP:_g_vm_driver+58h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_READ_PIXEL
 read_pixel_outside:
         pop bp
         mov ax, 0ffffh
@@ -1460,21 +1462,21 @@ _read_pixel_clipped endp
 _plot_pixel_clipped proc far
         push bp
         mov bp, sp
-        cmp byte ptr DGROUP:_g_vmds+3h, 0
+        cmp byte ptr DGROUP:_g_vmds+vmds_clip_enabled, 0
         je plot_pixel_inside
         mov ax, word ptr [bp+6]
-        cmp ax, word ptr DGROUP:_g_vmds+4h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_left
         jl plot_pixel_outside
-        cmp ax, word ptr DGROUP:_g_vmds+6h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_right
         jg plot_pixel_outside
         mov ax, word ptr [bp+8]
-        cmp ax, word ptr DGROUP:_g_vmds+8h
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_top
         jl plot_pixel_outside
-        cmp ax, word ptr DGROUP:_g_vmds+0ah
+        cmp ax, word ptr DGROUP:_g_vmds+vmds_clip_bottom
         jg plot_pixel_outside
 plot_pixel_inside:
         pop bp
-        jmp dword ptr DGROUP:_g_vm_driver+5ch
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_PLOT_PIXEL
 plot_pixel_outside:
         pop bp
         mov ax, 0ffffh
@@ -1483,7 +1485,7 @@ _plot_pixel_clipped endp
 
 /* 0x2247f */
 _restore_rect_thunk proc near
-        jmp dword ptr DGROUP:_g_vm_driver+20h
+        jmp dword ptr DGROUP:_g_vm_driver+vmdrv_entry+4*VM_SLOT_RESTORE_RECT
 _restore_rect_thunk endp
 LOWLEVEL_TEXT ends
 }
