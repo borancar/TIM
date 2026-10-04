@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x33aa..0x33ce. Connection points, 9 pairs a row, indexed [flipped].
+ * DGROUP 0x33aa..0x33ce. Outline points, 9 pairs a row, indexed [flipped].
  */
-struct point8 g_monkey_points[2][9] = {
+struct point8 g_monkey_outline[2][9] = {
     {
         { 17, 42 }, { 33, 12 }, { 40, 13 }, { 42, 37 },
         { 66, 60 }, { 66, 68 }, { 56, 78 }, { 23, 67 },
@@ -86,11 +86,11 @@ void part_setup_monkey(struct part *part)
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->attach[0].x = 16;
         part->grab.x = 36;
-        src = g_monkey_points[1];
+        src = g_monkey_outline[1];
     } else {
         part->attach[0].x = 75;
         part->grab.x = 47;
-        src = g_monkey_points[0];
+        src = g_monkey_outline[0];
     }
 
     part->attach[0].y = 45;

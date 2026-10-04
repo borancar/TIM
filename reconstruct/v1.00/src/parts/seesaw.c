@@ -33,9 +33,9 @@ struct point16 g_seesaw_attach[2][3] = {
 };
 
 /*
- * DGROUP 0x34e2..0x3542. Connection points, 8 points a row, indexed [form].
+ * DGROUP 0x34e2..0x3542. Outline points, 8 points a row, indexed [form].
  */
-struct point16 g_seesaw_points[3][8] = {
+struct point16 g_seesaw_outline[3][8] = {
     {
         { 0, 32 }, { 79, 3 }, { 79, 8 },
         { 44, 21 }, { 44, 34 }, { 36, 34 },
@@ -149,7 +149,7 @@ uint16_t part_hit_seesaw(struct part *part)
  *
  * A part with **three forms**, and the word at +0x0c says which. Its four
  * bytes at +0x6a..+0x6d - the box it is grabbed by - come out of one table
- * indexed by that word, and its eight connection points out of one of three
+ * indexed by that word, and its eight outline points out of one of three
  * others, chosen by the same word with a `switch`.
  *
  * Its tables are `point16` rather than `point8` - four bytes an entry with
@@ -174,16 +174,16 @@ void part_setup_seesaw(struct part *part)
     for (i = 0, di = part->points; i < 8; i++, di++) {
         switch (part->form) {
         case 0:
-            di->x = (uint8_t)g_seesaw_points[0][i].x;
-            di->y = (uint8_t)g_seesaw_points[0][i].y;
+            di->x = (uint8_t)g_seesaw_outline[0][i].x;
+            di->y = (uint8_t)g_seesaw_outline[0][i].y;
             break;
         case 1:
-            di->x = (uint8_t)g_seesaw_points[1][i].x;
-            di->y = (uint8_t)g_seesaw_points[1][i].y;
+            di->x = (uint8_t)g_seesaw_outline[1][i].x;
+            di->y = (uint8_t)g_seesaw_outline[1][i].y;
             break;
         case 2:
-            di->x = (uint8_t)g_seesaw_points[2][i].x;
-            di->y = (uint8_t)g_seesaw_points[2][i].y;
+            di->x = (uint8_t)g_seesaw_outline[2][i].x;
+            di->y = (uint8_t)g_seesaw_outline[2][i].y;
             break;
         }
     }

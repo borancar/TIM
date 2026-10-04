@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3222..0x3232. Connection points, 4 pairs a row, indexed [flipped].
+ * DGROUP 0x3222..0x3232. Outline points, 4 pairs a row, indexed [flipped].
  */
-struct point8 g_bullet_points[2][4] = {
+struct point8 g_bullet_outline[2][4] = {
     {
         { 28, 0 }, { 39, 1 }, { 39, 5 }, { 28, 6 },
     },
@@ -68,9 +68,9 @@ void part_setup_bullet(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_bullet_points[1];
+        si = g_bullet_outline[1];
     else
-        si = g_bullet_points[0];
+        si = g_bullet_outline[0];
 
     for (i = 0, di = part->points; i < 4; i++, di++, si++) {
         di->x = si->x;

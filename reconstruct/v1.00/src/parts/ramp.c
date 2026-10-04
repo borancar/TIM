@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3344..0x3364. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x3344..0x3364. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points[4][4] = {
+struct point8 g_ramp_outline[4][4] = {
     {
         { 0, 0 }, { 15, 15 }, { 15, 31 }, { 0, 16 },
     },
@@ -41,14 +41,14 @@ struct point8 g_ramp_points[4][4] = {
 /*
  * DGROUP 0x3364..0x336c. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_ramp_point_table[4] = {
-    g_ramp_points[0], g_ramp_points[1], g_ramp_points[2], g_ramp_points[3],
+struct point8 *g_ramp_outline_table[4] = {
+    g_ramp_outline[0], g_ramp_outline[1], g_ramp_outline[2], g_ramp_outline[3],
 };
 
 /*
- * DGROUP 0x336c..0x338c. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x336c..0x338c. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points_flipped[4][4] = {
+struct point8 g_ramp_outline_flipped[4][4] = {
     {
         { 0, 15 }, { 15, 0 }, { 15, 16 }, { 0, 31 },
     },
@@ -66,8 +66,8 @@ struct point8 g_ramp_points_flipped[4][4] = {
 /*
  * DGROUP 0x338c..0x3394. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_ramp_point_table_flipped[4] = {
-    g_ramp_points_flipped[0], g_ramp_points_flipped[1], g_ramp_points_flipped[2], g_ramp_points_flipped[3],
+struct point8 *g_ramp_outline_table_flipped[4] = {
+    g_ramp_outline_flipped[0], g_ramp_outline_flipped[1], g_ramp_outline_flipped[2], g_ramp_outline_flipped[3],
 };
 
 /*
@@ -85,9 +85,9 @@ void part_setup_ramp(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_ramp_point_table_flipped[part->form];
+        src = g_ramp_outline_table_flipped[part->form];
     else
-        src = g_ramp_point_table[part->form];
+        src = g_ramp_outline_table[part->form];
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;
@@ -100,7 +100,7 @@ void part_setup_ramp(struct part *part)
 /*
  * 172c:2789, image 0x19a49 - kind 2's settle. The same copy of the dragged
  * size into the real one, a form of `width / 0x10 - 1`, and then its own setup
- * at 172c:2728 to rebuild the connection points from it.
+ * at 172c:2728 to rebuild the outline points from it.
  */
 void part_settle_ramp(struct part *part)
 {

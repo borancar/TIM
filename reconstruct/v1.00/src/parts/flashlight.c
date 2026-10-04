@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32fc..0x3314. Connection points, 6 pairs a row, indexed [flipped].
+ * DGROUP 0x32fc..0x3314. Outline points, 6 pairs a row, indexed [flipped].
  */
-struct point8 g_flashlight_points[2][6] = {
+struct point8 g_flashlight_outline[2][6] = {
     {
         { 0, 4 }, { 23, 4 }, { 31, 0 }, { 31, 16 },
         { 23, 12 }, { 0, 12 },
@@ -67,9 +67,9 @@ void part_setup_flashlight(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_flashlight_points[1];
+        si = g_flashlight_outline[1];
     else
-        si = g_flashlight_points[0];
+        si = g_flashlight_outline[0];
 
     for (i = 0, di = part->points; i < 6; i++, di++, si++) {
         di->x = si->x;

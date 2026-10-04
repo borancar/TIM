@@ -2159,7 +2159,7 @@ void mark_needs_refile(register struct part *part, int16_t n)
  *
  * Three things are pointed at rather than held, and each is allocated afresh:
  * a belt's sub-object at +0x54 for kind 8, a rope's at +0x66 for kinds 7 and
- * 0x0a, and the connection points at +0x82 - as many as the kind's record says
+ * 0x0a, and the outline points at +0x82 - as many as the kind's record says
  * at +0x1e, four bytes each, copied two words at a time. Each new block is
  * pointed back at the copy.
  *
@@ -2382,7 +2382,7 @@ void set_object_extent(register struct part *obj)
 /*
  * 0x05d1e
  *
- * Finish a part's connection points: give each one the *angle* to the next.
+ * Finish a part's outline points: give each one the *angle* to the next.
  *
  * The setups above leave an x and a y in the first two bytes of each
  * four-byte slot. This walks them in a ring - each to the one after it, and the

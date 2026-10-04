@@ -22,9 +22,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2df4..0x2e08. Connection points, 5 pairs a row, indexed [flipped].
+ * DGROUP 0x2df4..0x2e08. Outline points, 5 pairs a row, indexed [flipped].
  */
-struct point8 g_pokey_points[2][5] = {
+struct point8 g_pokey_outline[2][5] = {
     {
         { 0, 7 }, { 10, 0 }, { 36, 26 }, { 36, 37 },
         { 10, 40 },
@@ -47,9 +47,9 @@ void part_setup_pokey(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_pokey_points[1];
+        si = g_pokey_outline[1];
     else
-        si = g_pokey_points[0];
+        si = g_pokey_outline[0];
 
     for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;

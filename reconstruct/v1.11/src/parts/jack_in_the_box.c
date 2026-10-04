@@ -135,7 +135,7 @@ void part_setup_jack_in_the_box(struct part *part)
 
 /*
  * 190f:2948, image 0x1ba38 - kind 13's flip, and **it calls no setup at all**.
- * Bit 4 goes over and the part is redrawn; its connection points do not move,
+ * Bit 4 goes over and the part is redrawn; its outline points do not move,
  * so there is nothing to rebuild.
  */
 void part_flip_jack_in_the_box(struct part *part)

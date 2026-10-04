@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3182..0x3192. Connection points, 8 pairs.
+ * DGROUP 0x3182..0x3192. Outline points, 8 pairs.
  */
-struct point8 g_balloon_points[8] = {
+struct point8 g_balloon_outline[8] = {
     { 0, 10 }, { 12, 0 }, { 22, 0 }, { 31, 10 },
     { 31, 28 }, { 19, 43 }, { 11, 43 }, { 0, 29 },
 };
@@ -31,7 +31,7 @@ struct point8 g_balloon_points[8] = {
 /*
  * 172c:012d, image 0x173ed - a setup.
  *
- * The same eight connection points every setup writes, but read from the
+ * The same eight outline points every setup writes, but read from the
  * table at DGROUP 0x3182 rather than built from immediates - which is why it
  * is not one of the `part_setups` rows. Two bytes per point there, four per
  * point in the part, so the two strides differ and the copy walks both.
@@ -44,7 +44,7 @@ void part_setup_balloon(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_balloon_points;
+    di = g_balloon_outline;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

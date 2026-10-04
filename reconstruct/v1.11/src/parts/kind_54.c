@@ -26,7 +26,7 @@
 /*
  * DGROUP 0x3128..0x313c: its five points, on its feet and squashed, indexed [form == 0x1e].
  */
-struct point8 g_kind_54_points[2][5] = {
+struct point8 g_kind_54_outline[2][5] = {
     {
         { 0, 0 }, { 12, 0 }, { 12, 19 }, { 6, 23 },
         { 0, 19 },
@@ -100,9 +100,9 @@ void part_setup_kind_54(struct part *part)
     int16_t i;
 
     if (part->form == 0x1e)
-        src = g_kind_54_points[1];
+        src = g_kind_54_outline[1];
     else
-        src = g_kind_54_points[0];
+        src = g_kind_54_outline[0];
     for (i = 0, dst = part->points; i < 5; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

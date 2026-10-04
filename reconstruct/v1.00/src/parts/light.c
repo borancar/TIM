@@ -21,21 +21,21 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x339a..0x33aa. Connection points, 4 points.
+ * DGROUP 0x339a..0x33aa. Outline points, 4 points.
  */
-struct point16 g_light_points[4] = {
+struct point16 g_light_outline[4] = {
     { 21, 51 }, { 29, 79 }, { 20, 25 },
     { 28, 35 },
 };
 
 /*
- * 172c:2b58, image 0x19e18 - no connection points, only the grab box, and both
+ * 172c:2b58, image 0x19e18 - no outline points, only the grab box, and both
  * its bytes come out of one table indexed by the part's form at +0x0c.
  */
 void part_setup_light(struct part *part)
 {
-    part->attach[0].x = (uint8_t)g_light_points[part->form].x;
-    part->attach[0].y = (uint8_t)g_light_points[part->form].y;
+    part->attach[0].x = (uint8_t)g_light_outline[part->form].x;
+    part->attach[0].y = (uint8_t)g_light_outline[part->form].y;
 }
 
 /*

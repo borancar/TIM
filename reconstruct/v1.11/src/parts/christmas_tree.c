@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2e08..0x2e16. Connection points, 7 pairs.
+ * DGROUP 0x2e08..0x2e16. Outline points, 7 pairs.
  */
-struct point8 g_christmas_tree_points[7] = {
+struct point8 g_christmas_tree_outline[7] = {
     { 0, 53 }, { 20, 0 }, { 39, 55 }, { 25, 61 },
     { 25, 72 }, { 16, 72 }, { 16, 61 },
 };
@@ -40,7 +40,7 @@ void part_setup_christmas_tree(struct part *part)
     const struct point8 *src;
     int16_t i;
 
-    src = g_christmas_tree_points;
+    src = g_christmas_tree_outline;
     for (i = 0, dst = part->points; i < 7; i++, dst++, src++) {
         dst->x = src->x;
         dst->y = src->y;

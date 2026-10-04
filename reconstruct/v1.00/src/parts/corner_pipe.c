@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3432..0x3472. Connection points, 8 pairs a row, indexed [form].
+ * DGROUP 0x3432..0x3472. Outline points, 8 pairs a row, indexed [form].
  */
-struct point8 g_corner_pipe_points[4][8] = {
+struct point8 g_corner_pipe_outline[4][8] = {
     {
         { 0, 0 }, { 19, 1 }, { 30, 12 }, { 31, 31 },
         { 16, 31 }, { 16, 20 }, { 11, 15 }, { 0, 15 },
@@ -56,13 +56,13 @@ void part_setup_corner_pipe(struct part *part)
     struct part_point *dst;
 
     if (part->form == 0)
-        src = g_corner_pipe_points[0];
+        src = g_corner_pipe_outline[0];
     else if (part->form == 1)
-        src = g_corner_pipe_points[1];
+        src = g_corner_pipe_outline[1];
     else if (part->form == 2)
-        src = g_corner_pipe_points[2];
+        src = g_corner_pipe_outline[2];
     else
-        src = g_corner_pipe_points[3];
+        src = g_corner_pipe_outline[3];
 
     for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;

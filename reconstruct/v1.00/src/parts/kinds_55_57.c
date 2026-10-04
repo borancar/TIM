@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3274..0x3290. Connection points, 7 pairs a row, indexed [form != 0].
+ * DGROUP 0x3274..0x3290. Outline points, 7 pairs a row, indexed [form != 0].
  */
-struct point8 g_kinds_55_57_points[2][7] = {
+struct point8 g_kinds_55_57_outline[2][7] = {
     {
         { 25, 0 }, { 25, 60 }, { 114, 60 }, { 114, 0 },
         { 248, 0 }, { 248, 182 }, { 0, 182 },
@@ -48,9 +48,9 @@ void part_setup_kind_56(struct part *part)
     int16_t i;
 
     if (part->form == 0)
-        si = g_kinds_55_57_points[0];
+        si = g_kinds_55_57_outline[0];
     else
-        si = g_kinds_55_57_points[1];
+        si = g_kinds_55_57_outline[1];
 
     for (i = 0, di = part->points; i < 7; i++, di++, si++) {
         di->x = si->x;

@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3336..0x3344. Connection points, 7 pairs.
+ * DGROUP 0x3336..0x3344. Outline points, 7 pairs.
  */
-struct point8 g_heart_balloon_points[7] = {
+struct point8 g_heart_balloon_outline[7] = {
     { 0, 8 }, { 6, 0 }, { 30, 0 }, { 36, 7 },
     { 36, 16 }, { 17, 35 }, { 0, 16 },
 };
@@ -35,7 +35,7 @@ void part_setup_heart_balloon(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_heart_balloon_points;
+    di = g_heart_balloon_outline;
     for (i = 0, si = part->points; i < 7; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

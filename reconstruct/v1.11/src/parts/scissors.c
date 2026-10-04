@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3014..0x3034. Connection points, 8 pairs a row, indexed [form].
+ * DGROUP 0x3014..0x3034. Outline points, 8 pairs a row, indexed [form].
  */
-struct point8 g_scissors_points[2][8] = {
+struct point8 g_scissors_outline[2][8] = {
     {
         { 0, 4 }, { 10, 0 }, { 17, 11 }, { 39, 7 },
         { 39, 26 }, { 17, 20 }, { 11, 33 }, { 0, 31 },
@@ -37,12 +37,12 @@ struct point8 g_scissors_points[2][8] = {
 /*
  * DGROUP 0x3034..0x3038. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_scissors_point_table[2] = { g_scissors_points[0], g_scissors_points[1] };
+struct point8 *g_scissors_outline_table[2] = { g_scissors_outline[0], g_scissors_outline[1] };
 
 /*
- * DGROUP 0x3038..0x3058. Connection points, 8 pairs a row, indexed [form].
+ * DGROUP 0x3038..0x3058. Outline points, 8 pairs a row, indexed [form].
  */
-struct point8 g_scissors_points_flipped[2][8] = {
+struct point8 g_scissors_outline_flipped[2][8] = {
     {
         { 0, 7 }, { 22, 11 }, { 29, 0 }, { 39, 4 },
         { 39, 31 }, { 28, 33 }, { 22, 20 }, { 0, 26 },
@@ -56,7 +56,7 @@ struct point8 g_scissors_points_flipped[2][8] = {
 /*
  * DGROUP 0x3058..0x305c. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_scissors_point_table_flipped[2] = { g_scissors_points_flipped[0], g_scissors_points_flipped[1] };
+struct point8 *g_scissors_outline_table_flipped[2] = { g_scissors_outline_flipped[0], g_scissors_outline_flipped[1] };
 
 /*
  * DGROUP 0x305c..0x306c. **The scissors' blade**, a segment - its two end points -
@@ -102,8 +102,8 @@ uint16_t part_hit_scissors(struct part *part)
  * 190f:3861, image 0x1c951 - a setup.
  *
  * Eight points, reached the way `part_setup_bellow` reaches its six: bit 4 of +8
- * picks between the **pointer arrays** `g_scissors_point_table_flipped` and
- * `g_scissors_point_table`, and the
+ * picks between the **pointer arrays** `g_scissors_outline_table_flipped` and
+ * `g_scissors_outline_table`, and the
  * form at +0x0c indexes the one picked. The load is a word, so what is indexed
  * is an array of near pointers and not the points themselves.
  */
@@ -114,9 +114,9 @@ void part_setup_scissors(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_scissors_point_table_flipped[part->form];
+        src = g_scissors_outline_table_flipped[part->form];
     else
-        src = g_scissors_point_table[part->form];
+        src = g_scissors_outline_table[part->form];
 
     for (i = 0, dst = part->points; i < 8; i++, dst++, src++) {
         dst->x = src->x;

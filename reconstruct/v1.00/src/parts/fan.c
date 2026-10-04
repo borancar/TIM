@@ -22,9 +22,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32c8..0x32dc. Connection points, 5 pairs a row, indexed [flipped].
+ * DGROUP 0x32c8..0x32dc. Outline points, 5 pairs a row, indexed [flipped].
  */
-struct point8 g_fan_points[2][5] = {
+struct point8 g_fan_outline[2][5] = {
     {
         { 0, 11 }, { 22, 0 }, { 31, 14 }, { 23, 31 },
         { 3, 31 },
@@ -47,9 +47,9 @@ void part_setup_fan(struct part *part)
     int16_t i;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        si = g_fan_points[1];
+        si = g_fan_outline[1];
     else
-        si = g_fan_points[0];
+        si = g_fan_outline[0];
 
     for (i = 0, di = part->points; i < 5; i++, di++, si++) {
         di->x = si->x;

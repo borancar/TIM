@@ -144,7 +144,7 @@ void part_step_conveyor(struct part *part)
  *
  * The size being dragged lives at +0x50 and +0x52 and the real size at +0x44
  * and +0x46; settling copies the first pair into the second. Then the low byte
- * of the new width is written into two of the connection points - the one at
+ * of the new width is written into two of the outline points - the one at
  * +0x82 plus 4 and the one after it - so the part's ends move out with it.
  *
  * The form is `(width - 0x20) / 0x10 * 7`, and the byte at +0x56 comes from a

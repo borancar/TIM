@@ -22,9 +22,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3192..0x31b6. Connection points, 6 pairs a row, indexed [form].
+ * DGROUP 0x3192..0x31b6. Outline points, 6 pairs a row, indexed [form].
  */
-struct point8 g_bellow_points[3][6] = {
+struct point8 g_bellow_outline[3][6] = {
     {
         { 0, 0 }, { 44, 18 }, { 63, 20 }, { 63, 27 },
         { 44, 29 }, { 0, 47 },
@@ -42,14 +42,14 @@ struct point8 g_bellow_points[3][6] = {
 /*
  * DGROUP 0x31b6..0x31bc. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_bellow_point_table[3] = {
-    g_bellow_points[0], g_bellow_points[1], g_bellow_points[2],
+struct point8 *g_bellow_outline_table[3] = {
+    g_bellow_outline[0], g_bellow_outline[1], g_bellow_outline[2],
 };
 
 /*
- * DGROUP 0x31bc..0x31e0. Connection points, 6 pairs a row, indexed [form].
+ * DGROUP 0x31bc..0x31e0. Outline points, 6 pairs a row, indexed [form].
  */
-struct point8 g_bellow_points_flipped[3][6] = {
+struct point8 g_bellow_outline_flipped[3][6] = {
     {
         { 0, 20 }, { 19, 18 }, { 63, 0 }, { 63, 47 },
         { 19, 29 }, { 0, 27 },
@@ -67,8 +67,8 @@ struct point8 g_bellow_points_flipped[3][6] = {
 /*
  * DGROUP 0x31e0..0x31e6. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_bellow_point_table_flipped[3] = {
-    g_bellow_points_flipped[0], g_bellow_points_flipped[1], g_bellow_points_flipped[2],
+struct point8 *g_bellow_outline_table_flipped[3] = {
+    g_bellow_outline_flipped[0], g_bellow_outline_flipped[1], g_bellow_outline_flipped[2],
 };
 
 /*
@@ -105,7 +105,7 @@ uint16_t part_hit_bellow(struct part *part)
 /*
  * 172c:0371, image 0x17631 - a setup.
  *
- * Six connection points copied out of a table chosen two ways: bit 4 of +8
+ * Six outline points copied out of a table chosen two ways: bit 4 of +8
  * picks between the pointer arrays at DGROUP 0x31e0 and 0x31b6, and the form
  * at +0x0c indexes the one picked. **Those two are arrays of near pointers,
  * not of points** - the load is a word - so the table this ends up walking is
@@ -120,9 +120,9 @@ void part_setup_bellow(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_bellow_point_table_flipped[part->form];
+        src = g_bellow_outline_table_flipped[part->form];
     else
-        src = g_bellow_point_table[part->form];
+        src = g_bellow_outline_table[part->form];
 
     for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {
         dst->x = src->x;
@@ -137,7 +137,7 @@ void part_setup_bellow(struct part *part)
  *
  * Turn the part over and rebuild it: bit 4 of the flags at +8 is which way it
  * faces, and the setup at 172c:0371 reads that bit to pick which of its two
- * tables of connection points to copy. So the flip is the xor and then the
+ * tables of outline points to copy. So the flip is the xor and then the
  * setup, and everything else follows from the points changing.
  */
 void part_flip_bellow(struct part *part)

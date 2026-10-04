@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2e7e..0x2e9e. Connection points, 8 points.
+ * DGROUP 0x2e7e..0x2e9e. Outline points, 8 points.
  */
-struct point16 g_bob_the_fish_points[8] = {
+struct point16 g_bob_the_fish_outline[8] = {
     { 0, 18 }, { 11, 0 }, { 37, 0 },
     { 47, 18 }, { 47, 35 }, { 39, 47 },
     { 8, 47 }, { 0, 34 },
@@ -45,8 +45,8 @@ void part_setup_bob_the_fish(struct part *part)
     part->point_count = 8;
 
     for (i = 0, si = part->points; i < 8; i++, si++) {
-        si->x = (uint8_t)g_bob_the_fish_points[i].x;
-        si->y = (uint8_t)g_bob_the_fish_points[i].y;
+        si->x = (uint8_t)g_bob_the_fish_outline[i].x;
+        si->y = (uint8_t)g_bob_the_fish_outline[i].y;
     }
 
     part_finish_angles(part);
@@ -99,7 +99,7 @@ void part_step_bob_the_fish(struct part *part)
  *
  * Break bob the fish's bowl: form 0x0b is the broken one, and a part already at
  * 0x0b or past it is left alone. Breaking plays sound 0x0a and replaces the
- * connection points with three of its own - the broken shape has a different
+ * outline points with three of its own - the broken shape has a different
  * outline from the whole one.
  */
 void break_bob_the_fish(struct part *part)

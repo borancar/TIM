@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32b8..0x32c8. Connection points, 4 pairs a row, indexed [form >= 4].
+ * DGROUP 0x32b8..0x32c8. Outline points, 4 pairs a row, indexed [form >= 4].
  */
-struct point8 g_electric_plug_points[2][4] = {
+struct point8 g_electric_plug_outline[2][4] = {
     {
         { 8, 8 }, { 15, 8 }, { 15, 9 }, { 8, 9 },
     },
@@ -95,7 +95,7 @@ void part_setup_electric_plug(struct part *part)
     /*
      * The form decides the table by being under 4 rather than by equalling
      * anything, and the count at +0x80 is **raised to 4 for the angles and
-     * then dropped to 1** - so the part has four connection points while
+     * then dropped to 1** - so the part has four outline points while
      * they are being measured and one afterwards.
      */
     const struct point8 *src;
@@ -103,9 +103,9 @@ void part_setup_electric_plug(struct part *part)
     struct part_point *dst;
 
     if (part->form < 4)
-        src = g_electric_plug_points[0];
+        src = g_electric_plug_outline[0];
     else
-        src = g_electric_plug_points[1];
+        src = g_electric_plug_outline[1];
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
         dst->x = src->x;

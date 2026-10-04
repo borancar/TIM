@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3422..0x3432. Connection points, 8 pairs.
+ * DGROUP 0x3422..0x3432. Outline points, 8 pairs.
  */
-struct point8 g_pumpkin_points[8] = {
+struct point8 g_pumpkin_outline[8] = {
     { 0, 15 }, { 9, 9 }, { 29, 9 }, { 38, 18 },
     { 38, 22 }, { 27, 32 }, { 11, 32 }, { 0, 22 },
 };
@@ -35,7 +35,7 @@ void part_setup_pumpkin(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_pumpkin_points;
+    di = g_pumpkin_outline;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

@@ -21,7 +21,7 @@
 
 /*
  * 190f:19ba, image 0x1aaaa - a setup, and one of the few that writes no
- * connection points at all: just the two bytes of the grab box.
+ * outline points at all: just the two bytes of the grab box.
  *
  * +0x6a is always 7; +0x6b is 0x0e or 1 as **bit 5** of +8 says - which is the
  * bit `part_flip_hook` turns over, where every other flip in this segment uses

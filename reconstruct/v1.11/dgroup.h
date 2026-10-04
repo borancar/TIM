@@ -1341,7 +1341,7 @@ struct part {
        filling. */
     uint8_t   layer_slot;      /* +0x7f */
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
-    struct part_point *points; /* +0x82  where a setup copies its connection points to */
+    struct part_point *points; /* +0x82  where a setup copies its outline points to */
     /* **The contact block.** `resolve_collisions` and `find_edge_contact` both
        reach it by taking the address `part + 0x84` and walking from there, and
        `apply_contact_friction` takes the same address off whichever part it
@@ -3129,7 +3129,7 @@ struct belt {
 
 /*
  * ---------------------------------------------------------------------------
- * **A part's connection points**, the array `part_init` makes with
+ * **A part's outline points**, the array `part_init` makes with
  * `calloc_far(point_count, 4)` and hangs off `points`. Four bytes
  * each, and the setups fill the first two a byte at a time out of a table of
  * pairs while `part_finish_angles` computes the third.
@@ -3139,6 +3139,15 @@ struct belt {
  * quad, and stores `0xc000 - atan2` of the difference back into `+0x02` with a
  * 16-bit move. So the record is a byte, a byte, and the angle from this point
  * to the next.
+ *
+ * **They are the corners of the part's collision outline**, a closed polygon
+ * in the part's own coordinates - offsets from `pos[0]` - whose last edge
+ * runs back to the first point. Every reader tests those edges:
+ * `find_edge_contact` and `find_edge_contact_reversed` for where a moving
+ * part strikes another, the pair-of-outlines test in machine.c, and
+ * `link_objects_crossing` for a line across a part. A ball's is an octagon;
+ * a pulley, belt, rope, hook and magnifying glass have none (measured with
+ * `TIM_PARTPOINTS` on the solutions' machines).
  *
  * The names are ours; the four-byte stride is `calloc_far`'s.
  * ---------------------------------------------------------------------------
@@ -3185,7 +3194,7 @@ extern uint8_t g_dgroup_start[0x200];
  *          normal load - one field, two routines, and the note in
  *          `integrate_object` already says they are the same one.
  *   +0x14  a bitmap set, indexed by the part's form; +0x16 is a second one.
- *   +0x1e  the connection-point count `part_init` allocates from.
+ *   +0x1e  the outline-point count `part_init` allocates from.
  *
  * Nothing reads +0x20 upward, so where the record's 0x3a bytes go after that
  * is not known. The names are ours.

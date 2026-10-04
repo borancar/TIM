@@ -23,10 +23,10 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x310c..0x311c: the eight connection points `part_setup_kind_64` copies -
+ * DGROUP 0x310c..0x311c: the eight outline points `part_setup_kind_64` copies -
  * an octagon inside its 0x28-square box.
  */
-struct point8 g_kind_64_points[8] = {
+struct point8 g_kind_64_outline[8] = {
     { 0, 13 }, { 13, 0 }, { 27, 0 }, { 37, 13 },
     { 37, 25 }, { 25, 37 }, { 13, 37 }, { 0, 27 },
 };
@@ -69,7 +69,7 @@ void part_setup_kind_64(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_64_points;
+    di = g_kind_64_outline;
     for (i = 0, si = part->points; i < 8; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

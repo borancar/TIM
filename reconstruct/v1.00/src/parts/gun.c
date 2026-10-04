@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3314..0x3330. Connection points, 7 pairs a row, indexed [flipped].
+ * DGROUP 0x3314..0x3330. Outline points, 7 pairs a row, indexed [flipped].
  */
-struct point8 g_gun_points[2][7] = {
+struct point8 g_gun_outline[2][7] = {
     {
         { 0, 30 }, { 7, 10 }, { 18, 1 }, { 63, 3 },
         { 63, 9 }, { 27, 16 }, { 12, 30 },
@@ -102,10 +102,10 @@ void part_setup_gun(struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->attach[0].x = 42;
-        src = g_gun_points[1];
+        src = g_gun_outline[1];
     } else {
         part->attach[0].x = 18;
-        src = g_gun_points[0];
+        src = g_gun_outline[0];
     }
 
     part->attach[0].y = 18;

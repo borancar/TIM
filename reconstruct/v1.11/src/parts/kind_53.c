@@ -23,7 +23,7 @@
 /*
  * DGROUP 0x3148..0x314e: the three points `part_setup_kind_53` copies - a spike.
  */
-struct point8 g_kind_53_points[3] = {
+struct point8 g_kind_53_outline[3] = {
     { 0, 0 }, { 12, 0 }, { 6, 16 },
 };
 
@@ -52,7 +52,7 @@ void part_setup_kind_53(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_53_points;
+    di = g_kind_53_outline;
     for (i = 0, si = part->points; i < 3; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

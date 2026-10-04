@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2dd4..0x2df4. Connection points, 8 pairs a row, indexed [flipped].
+ * DGROUP 0x2dd4..0x2df4. Outline points, 8 pairs a row, indexed [flipped].
  */
-struct point8 g_cannon_points[2][8] = {
+struct point8 g_cannon_outline[2][8] = {
     {
         { 9, 37 }, { 18, 6 }, { 60, 0 }, { 63, 20 },
         { 47, 30 }, { 47, 39 }, { 34, 51 }, { 22, 51 },
@@ -116,10 +116,10 @@ void part_setup_cannon(struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->hold.x = 62;
-        src = g_cannon_points[1];
+        src = g_cannon_outline[1];
     } else {
         part->hold.x = 1;
-        src = g_cannon_points[0];
+        src = g_cannon_outline[0];
     }
 
     part->hold.y = 3;

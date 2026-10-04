@@ -25,7 +25,7 @@
 /*
  * DGROUP 0x3158..0x3164: the six points `part_setup_kind_62` copies.
  */
-struct point8 g_kind_62_points[6] = {
+struct point8 g_kind_62_outline[6] = {
     { 1, 14 }, { 8, 0 }, { 24, 0 }, { 29, 14 },
     { 29, 21 }, { 2, 21 },
 };
@@ -37,7 +37,7 @@ void part_setup_kind_62(struct part *part)
     const struct point8 *di;
     int16_t i;
 
-    di = g_kind_62_points;
+    di = g_kind_62_outline;
     for (i = 0, si = part->points; i < 6; i++, si++, di++) {
         si->x = di->x;
         si->y = di->y;

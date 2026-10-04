@@ -54,7 +54,7 @@ void part_setup_platform(struct part *part)
  * only two: 0 and 1 pin the height at 0x10, 2 and 3 pin the width. Anything
  * else falls through untouched.
  *
- * Then the dragged size becomes the real size, and three connection points -
+ * Then the dragged size becomes the real size, and three outline points -
  * +0x82 plus 4, plus 8 and plus 0x0c - take the width and height **less one**,
  * because a point sits inside the edge rather than on it.
  */

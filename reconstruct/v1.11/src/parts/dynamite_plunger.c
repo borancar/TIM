@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2f70..0x2f88. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x2f70..0x2f88. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_plunger_points[3][4] = {
+struct point8 g_plunger_outline[3][4] = {
     {
         { 103, 0 }, { 134, 0 }, { 127, 47 }, { 111, 47 },
     },
@@ -38,15 +38,15 @@ struct point8 g_plunger_points[3][4] = {
 /*
  * DGROUP 0x2f88..0x2f8e. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_plunger_point_table[3] = {
-    g_plunger_points[0], g_plunger_points[1],
-    g_plunger_points[2],
+struct point8 *g_plunger_outline_table[3] = {
+    g_plunger_outline[0], g_plunger_outline[1],
+    g_plunger_outline[2],
 };
 
 /*
- * DGROUP 0x2f8e..0x2fa6. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x2f8e..0x2fa6. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_plunger_points_flipped[3][4] = {
+struct point8 g_plunger_outline_flipped[3][4] = {
     {
         { 0, 0 }, { 31, 0 }, { 24, 47 }, { 8, 47 },
     },
@@ -61,9 +61,9 @@ struct point8 g_plunger_points_flipped[3][4] = {
 /*
  * DGROUP 0x2fa6..0x2fac. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_plunger_point_table_flipped[3] = {
-    g_plunger_points_flipped[0], g_plunger_points_flipped[1],
-    g_plunger_points_flipped[2],
+struct point8 *g_plunger_outline_table_flipped[3] = {
+    g_plunger_outline_flipped[0], g_plunger_outline_flipped[1],
+    g_plunger_outline_flipped[2],
 };
 
 /*
@@ -121,11 +121,11 @@ void part_setup_dynamite_plunger(struct part *part)
     struct part_point *dst;
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
-        src = g_plunger_point_table_flipped[part->form];
+        src = g_plunger_outline_table_flipped[part->form];
         part->attach[0].x = (uint8_t)g_plunger_attach[1][part->form].x;
         part->attach[0].y = (uint8_t)g_plunger_attach[1][part->form].y;
     } else {
-        src = g_plunger_point_table[part->form];
+        src = g_plunger_outline_table[part->form];
         part->attach[0].x = (uint8_t)g_plunger_attach[0][part->form].x;
         part->attach[0].y = (uint8_t)g_plunger_attach[0][part->form].y;
     }

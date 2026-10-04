@@ -1277,6 +1277,51 @@ void dev_flip_dump(int32_t flip)
         at = colon ? (int32_t)strtol(s, NULL, 0) : -1;
     }
 
+    /*
+     * `TIM_PARTPOINTS=<flip>:<path>` - every part's outline points, placed
+     * and moving, in
+     * the part's own coordinates (offsets from `pos[0]`, which is what the
+     * collision and link tests add them to), one line per part. Kept apart
+     * from `TIM_PARTS`, whose line format `tools/parts.py --diff` reads.
+     */
+    {
+        static const char *pwant = (const char *)-1;
+        static int32_t pat;
+
+        if (pwant == (const char *)-1) {
+            const char *s = getenv("TIM_PARTPOINTS");
+            const char *colon = s ? strchr(s, ':') : NULL;
+
+            pwant = colon ? colon + 1 : NULL;
+            pat = colon ? (int32_t)strtol(s, NULL, 0) : -1;
+        }
+        if (pwant && flip == pat && (f = fopen(pwant, "w")) != NULL) {
+            const struct part *si;
+            int32_t n = 0, chain;
+
+            fprintf(f, "origin %d %d\n", g_origin_x, g_origin_y);
+            for (chain = 0; chain < 2; chain++)
+            for (si = chain ? g_moving_parts.next : g_placed_parts.next;
+                 si != 0 && n < 4096; si = si->next, n++) {
+                uint16_t i;
+
+                fprintf(f, "%s %u form %u state %04x pos %d %d size %d %d "
+                        "box %d %d count %u points",
+                        chain ? "move" : "part", si->kind, si->form, si->state,
+                        si->pos[0].x, si->pos[0].y,
+                        si->size[0].width, si->size[0].height,
+                        si->box[0].x, si->box[0].y, si->point_count);
+                for (i = 0; si->points != 0 && i < si->point_count; i++)
+                    fprintf(f, " %u,%u,%d", si->points[i].x, si->points[i].y,
+                            si->points[i].angle);
+                fprintf(f, "\n");
+            }
+            fclose(f);
+            fprintf(stderr, "wrote the part points at flip %d to %s\n",
+                    flip, pwant);
+        }
+    }
+
     if (!want || flip != at)
         return;
 

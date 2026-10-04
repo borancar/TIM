@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x32a4..0x32b8. Connection points, 5 pairs a row, indexed [flipped].
+ * DGROUP 0x32a4..0x32b8. Outline points, 5 pairs a row, indexed [flipped].
  */
-struct point8 g_motor_points[2][5] = {
+struct point8 g_motor_outline[2][5] = {
     {
         { 0, 19 }, { 26, 0 }, { 53, 24 }, { 48, 46 },
         { 6, 46 },
@@ -80,10 +80,10 @@ void part_setup_motor(struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->grab.x = 37;
-        src = g_motor_points[1];
+        src = g_motor_outline[1];
     } else {
         part->grab.x = 0;
-        src = g_motor_points[0];
+        src = g_motor_outline[0];
     }
 
     part->grab.y = 13;

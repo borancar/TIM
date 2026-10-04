@@ -27,9 +27,9 @@
 int16_t g_boxing_glove_reach[6] = { -32, -82, 0, 80, 130, 0 };
 
 /*
- * DGROUP 0x31f2..0x3222. Connection points, 6 pairs a row, indexed [flipped][form != 0].
+ * DGROUP 0x31f2..0x3222. Outline points, 6 pairs a row, indexed [flipped][form != 0].
  */
-struct point8 g_boxing_glove_points[2][2][6] = {
+struct point8 g_boxing_glove_outline[2][2][6] = {
     {
         {
             { 0, 12 }, { 16, 0 }, { 47, 5 }, { 47, 20 },
@@ -74,7 +74,7 @@ uint16_t part_hit_boxing_glove(struct part *part)
  *
  * A swing. While its +0x12 says go and it has not reached form 9 it steps one
  * frame - the first one plays sound 3 - and runs its own setup again, because
- * its connection points move with the swing.
+ * its outline points move with the swing.
  *
  * Forms 2 and 3 are where it reaches something: a box in front of it, taken
  * from one of two tables by the mirror bit and indexed by the form, and
@@ -143,14 +143,14 @@ void part_setup_boxing_glove(struct part *part)
     /* Four tables: the flag at +8, and then whether the form is zero. */
     if (part->state & STATE_FLIP_HORIZONTAL) {
         if (part->form == 0)
-            src = g_boxing_glove_points[1][0];
+            src = g_boxing_glove_outline[1][0];
         else
-            src = g_boxing_glove_points[1][1];
+            src = g_boxing_glove_outline[1][1];
     } else {
         if (part->form == 0)
-            src = g_boxing_glove_points[0][0];
+            src = g_boxing_glove_outline[0][0];
         else
-            src = g_boxing_glove_points[0][1];
+            src = g_boxing_glove_outline[0][1];
     }
 
     for (i = 0, dst = part->points; i < 6; i++, dst++, src++) {

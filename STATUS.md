@@ -1529,7 +1529,7 @@ port.
   with its own; the original clears it when they *differ*. That one word left
   `+0x62` null, so `draw_part_extra` had nothing to aim its triangle at.
 - With the wedge drawn, it was twenty-one pixels too long: `part_setup`'s table
-  carried each setup's connection points and nothing else, and the rows that
+  carried each setup's outline points and nothing else, and the rows that
   also write the grab box at +0x72/+0x73 left it at zero. The grab box is both
   the point the triangle aims at and the point `grab_distance` measures to, so
   the second candle's wedge was missing entirely - the part it should have

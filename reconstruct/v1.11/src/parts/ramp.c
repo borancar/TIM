@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x2ee6..0x2f06. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x2ee6..0x2f06. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points[4][4] = {
+struct point8 g_ramp_outline[4][4] = {
     {
         { 0, 0 }, { 15, 15 }, { 15, 31 }, { 0, 16 },
     },
@@ -41,14 +41,14 @@ struct point8 g_ramp_points[4][4] = {
 /*
  * DGROUP 0x2f06..0x2f0e. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_ramp_point_table[4] = {
-    g_ramp_points[0], g_ramp_points[1], g_ramp_points[2], g_ramp_points[3],
+struct point8 *g_ramp_outline_table[4] = {
+    g_ramp_outline[0], g_ramp_outline[1], g_ramp_outline[2], g_ramp_outline[3],
 };
 
 /*
- * DGROUP 0x2f0e..0x2f2e. Connection points, 4 pairs a row, indexed [form].
+ * DGROUP 0x2f0e..0x2f2e. Outline points, 4 pairs a row, indexed [form].
  */
-struct point8 g_ramp_points_flipped[4][4] = {
+struct point8 g_ramp_outline_flipped[4][4] = {
     {
         { 0, 15 }, { 15, 0 }, { 15, 16 }, { 0, 31 },
     },
@@ -66,9 +66,9 @@ struct point8 g_ramp_points_flipped[4][4] = {
 /*
  * DGROUP 0x2f2e..0x2f36. **Which row of points, by form**: a near pointer each.
  */
-struct point8 *g_ramp_point_table_flipped[4] = {
-    g_ramp_points_flipped[0], g_ramp_points_flipped[1],
-    g_ramp_points_flipped[2], g_ramp_points_flipped[3],
+struct point8 *g_ramp_outline_table_flipped[4] = {
+    g_ramp_outline_flipped[0], g_ramp_outline_flipped[1],
+    g_ramp_outline_flipped[2], g_ramp_outline_flipped[3],
 };
 
 #ifndef __TURBOC__
@@ -91,7 +91,7 @@ extern struct game_copy_protection g_game_copy_protection;
  * the image's and the eight bytes are put together from the same fields;
  * the answers are words on both, so they are read where they are.
  */
-static const struct point8 *ramp_points_before_table(int16_t flipped)
+static const struct point8 *ramp_outline_before_table(int16_t flipped)
 {
     static struct point8 at_1000[4];
     const struct draw_step *a = &g_kind_51_draw_steps[4];
@@ -117,8 +117,8 @@ static const struct point8 *ramp_points_before_table(int16_t flipped)
  *
  * Four points, from one of two tables of offsets picked by the mirror bit at
  * +8 and indexed by the form. The same shape as the bellow's and the
- * scissors' - `shl bx,1` on the form, then `g_ramp_point_table_flipped[bx]`
- * or `g_ramp_point_table[bx]` -
+ * scissors' - `shl bx,1` on the form, then `g_ramp_outline_table_flipped[bx]`
+ * or `g_ramp_outline_table[bx]` -
  * and the copy steps the source two bytes at a time and the destination four.
  */
 void part_setup_ramp(struct part *part)
@@ -129,16 +129,16 @@ void part_setup_ramp(struct part *part)
 
 #ifdef __TURBOC__
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = g_ramp_point_table_flipped[part->form];
+        src = g_ramp_outline_table_flipped[part->form];
     else
-        src = g_ramp_point_table[part->form];
+        src = g_ramp_outline_table[part->form];
 #else
     if (part->state & STATE_FLIP_HORIZONTAL)
-        src = part->form >= 0 ? g_ramp_point_table_flipped[part->form]
-                              : ramp_points_before_table(1);
+        src = part->form >= 0 ? g_ramp_outline_table_flipped[part->form]
+                              : ramp_outline_before_table(1);
     else
-        src = part->form >= 0 ? g_ramp_point_table[part->form]
-                              : ramp_points_before_table(0);
+        src = part->form >= 0 ? g_ramp_outline_table[part->form]
+                              : ramp_outline_before_table(0);
 #endif
 
     for (i = 0, dst = part->points; i < 4; i++, dst++, src++) {
@@ -152,7 +152,7 @@ void part_setup_ramp(struct part *part)
 /*
  * 190f:273f, image 0x1b82f - kind 2's settle. The same copy of the dragged
  * size into the real one, a form of `width / 0x10 - 1`, and then its own setup
- * at 172c:2728 to rebuild the connection points from it.
+ * at 172c:2728 to rebuild the outline points from it.
  */
 void part_settle_ramp(struct part *part)
 {

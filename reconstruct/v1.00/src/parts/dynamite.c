@@ -21,9 +21,9 @@
 #include "dgroup.h"
 
 /*
- * DGROUP 0x3290..0x32a4. Connection points, 5 pairs a row, indexed [flipped].
+ * DGROUP 0x3290..0x32a4. Outline points, 5 pairs a row, indexed [flipped].
  */
-struct point8 g_dynamite_points[2][5] = {
+struct point8 g_dynamite_outline[2][5] = {
     {
         { 0, 14 }, { 5, 0 }, { 37, 18 }, { 27, 27 },
         { 20, 27 },
@@ -64,10 +64,10 @@ void part_setup_dynamite(struct part *part)
 
     if (part->state & STATE_FLIP_HORIZONTAL) {
         part->hold.x = 1;
-        src = g_dynamite_points[1];
+        src = g_dynamite_outline[1];
     } else {
         part->hold.x = 45;
-        src = g_dynamite_points[0];
+        src = g_dynamite_outline[0];
     }
 
     part->hold.y = 15;
