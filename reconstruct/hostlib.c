@@ -2,7 +2,7 @@
  * **The routines of Borland's C library that libc has no counterpart for**,
  * on the host. Ours - not transcriptions: under Borland C++ the game links
  * the library's own from CM.LIB, and Borland's library itself, transcribed,
- * is kept in borland/ and not built. See hostlib.h.
+ * is kept in tools/borland/ and not built. See hostlib.h.
  */
 #include <ctype.h>
 #include <string.h>

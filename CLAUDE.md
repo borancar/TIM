@@ -114,9 +114,9 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   libc lacks, and the `dev*.c` files that never ship. The game calls the C
   library by its own names and includes its own headers, Borland's under
   TCC and libc's on the host; Borland's library, transcribed, is kept in
-  `borland/` for other projects and is not built. A tool that reads the port's
-  sources must glob both, and `src` recursively: the part kinds' modules are
-  in `src/parts/`.
+  `tools/borland/` for other projects and is not built. A tool that reads the
+  port's sources must glob both, and `src` recursively: the part kinds'
+  modules are in `src/parts/`.
 
   **The names are ours; the boundaries are the original's.** `machine.c`,
   `game.c`, `parts/*.c` and the rest were called `seg0000.c` and so on until each
