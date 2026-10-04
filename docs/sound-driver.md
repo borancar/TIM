@@ -5,7 +5,7 @@
 > what was measured stays measured - the MPU-401 protocol, the 159 identical
 > hardware events, the `load_sound_bank` fall-through. None of that code is in
 > the port any more. The port targets a Sound Blaster: its music is the OPL2
-> through `ADL:` and `reconstruct/vendor/ymfm`, and its digitised sound is
+> through `ADL:` and each tree's `vendor/ymfm`, and its digitised sound is
 > `ASB:`. See STATUS.md, "General Midi, removed on purpose".
 
 Everything here is **measured from the running game**, not read off the disk
@@ -272,7 +272,7 @@ that this game's own data can actually satisfy.
 
 ## `ASB:`, the digitised-sound module
 
-`reconstruct/src/sxovl_asb.c` is the whole of it: 2414 bytes decompressed, an
+`reconstruct/v<version>/src/sxovl_asb.c` is the whole of it: 2414 bytes decompressed, an
 entry at `0xc8` that indexes sixteen far offsets at `cs:0xa8` with the function
 number in AX and the caller's arguments at SS:SI. `out/ASB_MOD.mem` is the dump
 every offset in that file was read from.
@@ -485,7 +485,8 @@ and per-channel controller writes. No guessing was involved in any of it.
 
 ### Done
 
-`reconstruct/src/sxovl_gmd.c` is the driver and `reconstruct/src/sxovl.c` is
+`sxovl_gmd.c` was the driver (General Midi was later removed on purpose -
+STATUS.md) and `reconstruct/v<version>/src/sxovl.c` is
 the dispatch layer the port needs and the original does not - the original's
 call site is an `lcall [0x1e7]`, so it names a function and never a driver,
 while C names a function *in* a driver. `driver_kind` reads the banner at
@@ -665,7 +666,7 @@ seconds of a screen the original plays in silence.
 **It is now fixed on purpose.** Asked which was wanted, the project owner chose
 the author's arm over the author's typo, so `case 7` is `break` and General
 Midi plays: 3,424 note bytes in thirty seconds, rendered by FluidSynth. This is
-the **only deliberate deviation in `reconstruct/src`**, it says so at the case
+the **only deliberate deviation in `reconstruct/v<version>/src`**, it says so at the case
 itself, and the cost is measured rather than assumed - `load_sound_bank`
 **DIFFERS under device 7** over 22 calls, exactly as it should, while device 0
 still verifies over 12 and `build_sound_index` over 2.
@@ -781,10 +782,10 @@ came to be readable at all.
 Both were written when neither was true, so they are worth stating plainly at
 the end.
 
-**Done.** The dispatch layer is `reconstruct/src/sxovl.c` - the original needs
+**Done.** The dispatch layer is `reconstruct/v<version>/src/sxovl.c` - the original needs
 none, because its call site is an `lcall [0x1e7]` naming a function and never a
-driver. `GMD:` is `reconstruct/src/sxovl_gmd.c`, `ASB:` is
-`reconstruct/src/sxovl_asb.c`, and the MPU-401 and the Sound Blaster are in
+driver. `GMD:` was `sxovl_gmd.c` (since removed), `ASB:` is
+`reconstruct/v<version>/src/sxovl_asb.c`, and the MPU-401 and the Sound Blaster are in
 `io.c` with FluidSynth behind the first in `sdl.c`. The whole sound module
 sweeps clean from two starting points, and two screens are pixel-identical
 after the `io.c` changes.
@@ -894,7 +895,7 @@ the three-and-a-half times the file length suggests.
 ### The interface is the one already handled
 
 Dispatcher at 0x1945, table at `cs:0x1921`, eighteen entries, function number
-in BP - identical to `SPKR:` and `GMD:`, so `reconstruct/src/sxovl.c` takes it
+in BP - identical to `SPKR:` and `GMD:`, so `reconstruct/v<version>/src/sxovl.c` takes it
 unchanged.
 
 | BP | | BP | |
@@ -1031,7 +1032,7 @@ and 0x1b52, the 0x4b controller. Everything else above is read.
 
 ### Transcribed, and 778 register writes deep
 
-`reconstruct/src/sxovl_adl.c` is the driver: 43 routines, the eighteen-entry
+`reconstruct/v<version>/src/sxovl_adl.c` is the driver: 43 routines, the eighteen-entry
 interface `sxovl.c` already dispatched, and the port now runs AdLib without a
 trap. `io.c` answers 0x388 and 0x389, `TIM_TRACE=opl` prints every register,
 and the hybrid links the port's own OPL objects so there is **one chip between

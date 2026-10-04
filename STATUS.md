@@ -1,9 +1,45 @@
 # Status
 
-*Last updated 2026-09-28.*
+*Last updated 2026-10-04.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
-`incredible-machine/TIM.EXE`.
+its `TIM.EXE`, in two versions.
+
+## Now
+
+**Both versions are byte-exact and working, each from a tree of its own**:
+
+| | `reconstruct/v1.00` | `reconstruct/v1.11` |
+| --- | --- | --- |
+| the game | The Incredible Machine | The Even More Incredible Machine (GOG, `get-game.sh`) |
+| its files | `reconstruct/v1.00/game/` | `reconstruct/v1.11/game/` |
+| recovered by | `tools/unlzexe.py` (LZEXE 0.91) | `tools/unrnc.py` (RNC ProPack, twice) |
+| the link | **the shipped TIM.EXE's SHA-256**, protected and cracked | every byte TLINK writes and every relocation, protected and cracked (no file hash: the header is `unrnc.py`'s) |
+| judged | 107 files, 1,116 routines | 143 files, 1,231 routines |
+| compilers | BC++ 3.0, 2.0, TC++ 1.01, TASM | the same, and BC++ 3.1 for the sound library |
+
+Both pass `make test`, all 29 `solutions/` on the real loop, and every
+`check_briefing` screen and `check_save` against the original (1.00: briefing,
+level, picker, save; 1.11: briefing-1.11, level, picker, save, place-88,
+run-88, bin-stpatrick). The overlays - VM.OVL's VGA and SX.OVL's drivers - are
+separate binaries, checked by behaviour, not judged.
+
+The trees are independent (since 2026-10-04): each has its own sources,
+headers, host code, Makefile, README and ymfm, builds and runs on its own,
+and can be split out with `git subtree split`. A fix that applies to both is
+made in both. **The tools work on one version at a time**, `TIM_VERSION`
+(1.11 unless 1.00; `tools/version.py`), with outputs in `out/v<version>/`:
+
+    make -C reconstruct/v1.11 test
+    uv run python tools/link.py                     # 1.11
+    TIM_VERSION=1.00 uv run python tools/link.py    # 1.00
+
+What follows is the record as it was written, mostly from the months when
+1.00 was the only version: its paths are the layout of the day -
+`reconstruct/src` is now `reconstruct/v<version>/src`, `out/TIM.img`
+`out/v<version>/TIM.img`, `incredible-machine/` `reconstruct/v1.00/game/`.
+
+---
 
 **Which world this is in:** the original is **compiled C** - Borland C++ 3.0,
 **medium model**, options per module, with a few library modules from Turbo
@@ -396,7 +432,7 @@ than left looking unfinished.
   could not be verified.
 
 - **The developer hooks are out of the shipping binary, and `devtim` runs the
-  game.** `reconstruct/Makefile` has always said "tools/ calls devtim, so
+  game.** `reconstruct/v<version>/Makefile` has always said "tools/ calls devtim, so
   nothing a measurement depends on can drift into what ships", and that was not
   true: `devdump.c` sat in the object list both binaries link, so `TIM_CLICK`,
   `TIM_POINTER`, `TIM_FLIPS` and `TIM_FLIPHASH` were compiled into the game and
@@ -827,7 +863,7 @@ string_reverse,game_fread_line
 
 ### The stubs that are left
 
-`make -C reconstruct test` lists them. **Every one has a real caller** - that
+`make -C reconstruct/v<version> test` lists them. **Every one has a real caller** - that
 was audited by grepping for each name, after a claim here that `sub_0e34a`
 might be unreachable turned out to have followed one of its four callers and
 missed the other three. So none of them is dead code, and finishing them is
@@ -872,7 +908,7 @@ conditional and unestablished.
 
 ### How much is transcribed
 
-`make -C reconstruct test` counts the port. **Run it rather than reading a
+`make -C reconstruct/v<version> test` counts the port. **Run it rather than reading a
 number here**: the last one written down was `ours 17` and it was `ours 18`
 within the hour, because `dta_publish` was added and nobody edits a count in
 prose when they add a function. That is the same reason this file says the
@@ -3115,7 +3151,7 @@ list is the static complement to that.
 
 ## The keyboard handler, transcribed - and READ.ME is how it was found
 
-`incredible-machine/READ.ME` lists eight keyboard controls. Four of them did
+`reconstruct/v1.00/game/READ.ME` lists eight keyboard controls. Four of them did
 nothing, and the reason was one untranscribed routine: the game installs its
 **own INT 09h handler** - `install_keyboard` puts it at segment 0x1c25 offset
 0x4f46, image **0x21196** - and it does not chain to the BIOS. Once installed,

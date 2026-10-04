@@ -33,7 +33,7 @@ of memory once the game has loaded it, on the same principle as the LZEXE
 recovery. Disassemble the dump with
 `tools/disasm.py --file out/res/VM_VGA.mem`.
 
-Addresses in this document and in `reconstruct/vmovl_vga.c` are **offsets
+Addresses in this document and in `src/vmovl_vga.c` (each tree's) are **offsets
 within the loaded VGA driver**, written `VM.OVL VGA:0xNNNN`. The loader chooses
 the segment - 0x424b in the runs so far - so there is no fixed image address.
 

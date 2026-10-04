@@ -1,5 +1,10 @@
 # The loop's task
 
+> **Historical** (September 2026): the task an automated loop worked to when
+> the port was 1.00's alone and lived in `reconstruct/`. It is done - both
+> versions are byte-exact now, each in `reconstruct/v<version>` (STATUS.md,
+> "Now") - and kept as the record of how the work was run.
+
 **Goal.** Transcribe routines from the disassembly until the two intro screens
 after the Sierra logo — the **title screen** (page flips 6..279) and the
 **credits screen** (from flip 280), both of which animate and so exercise real

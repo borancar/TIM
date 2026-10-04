@@ -1,7 +1,8 @@
 # The executable
 
-Everything here is argued back to bytes in `incredible-machine/TIM.EXE` or in
-the recovered image `out/TIM.img`. Where something is inherited from a
+This is 1.00's executable, `reconstruct/v1.00`: everything here is argued back
+to bytes in its `TIM.EXE` (`reconstruct/v1.00/game/`) or in the recovered image
+`out/v1.00/TIM.img`. What 1.11 changed is `docs/v1.11.md`. Where something is inherited from a
 third-party source rather than checked here, it says so.
 
 ## Recovery
@@ -60,7 +61,7 @@ the sibling `turboc` checkout (`dos-c/`), and against the compilers themselves.
   call, `-Z` for a register kept across statements. `tools/judge.py`
   compiles a port source and compares every routine and its module's data.
 - **Segment 248f is four modules**, three in C and one in assembly - see
-  `reconstruct/src/vqtflip.c`'s header for how a segment's module boundaries
+  `reconstruct/v1.00/src/vqtflip.c`'s header for how a segment's module boundaries
   are read off far calls: Borland C++ calls a routine defined earlier in the
   same file with `push cs / call`, and TLINK leaves `nop / push cs / call`
   for every other far call into the segment. The one with inline `asm`

@@ -5,6 +5,11 @@ when the trap was met, with the measurements that settled it; `CLAUDE.md`
 carries the one-line rule and a link here. Where an entry describes something
 still open rather than a lesson, it lives in `STATUS.md` instead.
 
+The paths are the layout of their day. Most entries predate 2026-10-04, when
+the port became two trees: `reconstruct/src` is now
+`reconstruct/v<version>/src`, `out/TIM.img` `out/v<version>/TIM.img`, and the
+game's files each tree's `game/`.
+
 ## Reading and running the original
 
 What the binary says, what the listing tools say about it, and what the emulated machine has to model for the game to run at all.
